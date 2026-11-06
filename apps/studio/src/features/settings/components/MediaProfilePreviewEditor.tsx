@@ -25,6 +25,9 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
+import { Badge } from '@qoe/ui/badge';
+import { Button } from '@qoe/ui/button';
+import { Input, Textarea } from '@qoe/ui/input';
 import { cn } from '@qoe/utils';
 import type { CreatorProfile } from '../types';
 
@@ -162,25 +165,30 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
               accept="image/*"
               className="hidden"
             />
-            <button
-              type="button"
-              disabled={isUploadingBanner}
+            <Button
+              variant="soft"
+              size="xs"
+              loading={isUploadingBanner}
               onClick={() => bannerInputRef.current?.click()}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background/90 hover:bg-background text-foreground text-xs font-semibold backdrop-blur-md shadow-xs transition-all cursor-pointer"
+              className="bg-background/90 shadow-xs backdrop-blur-md hover:bg-background"
             >
-              <Camera className="w-3.5 h-3.5 text-primary" />
+              {!isUploadingBanner && <Camera className="text-primary" aria-hidden />}
               <span>{isUploadingBanner ? 'Upload...' : 'Changer la bannière'}</span>
-            </button>
+            </Button>
 
             {current.headerImageUrl && (
-              <button
-                type="button"
+              <Button
+                variant="soft"
+                tone="danger"
+                size="xs"
+                shape="icon"
                 onClick={() => setCurrent((prev) => ({ ...prev, headerImageUrl: null }))}
-                className="p-1.5 rounded-lg bg-background/90 hover:bg-destructive hover:text-white text-muted-foreground backdrop-blur-md shadow-xs transition-all cursor-pointer"
+                className="bg-background/90 shadow-xs backdrop-blur-md"
+                aria-label="Supprimer la bannière"
                 title="Supprimer la bannière"
               >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+                <Trash2 aria-hidden />
+              </Button>
             )}
           </div>
         </div>
@@ -197,16 +205,18 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                 accept="image/*"
                 className="hidden"
               />
-              <div
+              <Button
+                variant="ghost"
                 onClick={() => logoInputRef.current?.click()}
-                className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl border-4 border-card bg-muted/60 overflow-hidden shadow-lg flex items-center justify-center cursor-pointer relative transition-transform hover:scale-105"
+                aria-label={current.logoUrl ? 'Changer le logo' : 'Ajouter un logo'}
+                className="relative flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-4 border-card bg-muted/60 p-0 shadow-lg transition-transform hover:scale-105 hover:bg-transparent sm:h-28 sm:w-28"
                 style={{ backgroundColor: accentColor }}
               >
                 {current.logoUrl ? (
                   <img
                     src={current.logoUrl}
                     alt={current.name || 'Logo'}
-                    className="w-full h-full object-cover"
+                    className="h-full w-full object-cover"
                   />
                 ) : (
                   <span className="text-3xl font-black text-white">
@@ -215,33 +225,34 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                 )}
 
                 {/* Overlay hover */}
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/logo:opacity-100 flex flex-col items-center justify-center text-white text-[10px] font-semibold transition-opacity gap-1">
-                  <Camera className="w-4 h-4" />
+                <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/40 text-[10px] font-semibold text-white opacity-0 transition-opacity group-hover/logo:opacity-100">
+                  <Camera className="size-4" aria-hidden />
                   <span>{isUploadingLogo ? 'Upload...' : 'Modifier'}</span>
-                </div>
-              </div>
+                </span>
+              </Button>
 
               {current.logoUrl && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCurrent((prev) => ({ ...prev, logoUrl: null }));
-                  }}
-                  className="absolute -top-1 -right-1 p-1 rounded-full bg-background border border-border/60 text-muted-foreground hover:text-destructive-text shadow-xs cursor-pointer opacity-0 group-hover/logo:opacity-100 transition-opacity"
+                <Button
+                  variant="soft"
+                  tone="danger"
+                  size="xs"
+                  shape="icon"
+                  onClick={() => setCurrent((prev) => ({ ...prev, logoUrl: null }))}
+                  className="absolute -top-1 -right-1 z-10 rounded-full border border-border/60 bg-background opacity-0 shadow-xs transition-opacity group-hover/logo:opacity-100"
+                  aria-label="Supprimer le logo"
                   title="Supprimer le logo"
                 >
-                  <Trash2 className="w-3 h-3" />
-                </button>
+                  <Trash2 aria-hidden />
+                </Button>
               )}
             </div>
 
             {/* Badge de statut Média */}
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20 shadow-2xs">
-                <ShieldCheck className="w-3.5 h-3.5" />
+              <Badge variant="soft" tone="brand" size="sm" shape="pill" className="shadow-2xs">
+                <ShieldCheck aria-hidden />
                 <span>Média Certifié</span>
-              </span>
+              </Badge>
             </div>
           </div>
 
@@ -250,12 +261,13 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
             {/* Titre / Nom du Média */}
             <div className="space-y-1">
               <div className="flex items-center gap-2 group/title">
-                <input
+                <Input
                   type="text"
                   value={current.name || ''}
                   onChange={(e) => setCurrent((prev) => ({ ...prev, name: e.target.value }))}
                   placeholder="Nom du média (ex. L'Écho Indépendant)"
-                  className="text-xl sm:text-2xl font-black text-foreground bg-transparent border-b border-transparent hover:border-border/60 focus:border-primary/80 focus:outline-none w-full transition-colors pb-0.5"
+                  aria-label="Nom du média"
+                  className="border-x-0 border-t-0 border-b border-transparent bg-transparent px-0 pb-0.5 text-xl font-black hover:border-border/60 focus-visible:border-primary/80 focus-visible:ring-0 sm:text-2xl"
                 />
                 <Edit2 className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover/title:opacity-60 shrink-0 pointer-events-none" />
               </div>
@@ -267,12 +279,13 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
               <label className="text-[11px] font-semibold text-muted-foreground block">
                 Ligne éditoriale du média (visible publiquement) :
               </label>
-              <textarea
+              <Textarea
                 value={current.heroText || ''}
                 onChange={(e) => setCurrent((prev) => ({ ...prev, heroText: e.target.value }))}
                 rows={2}
                 placeholder="Décrivez en quelques mots la mission, les valeurs et les thématiques couvertes par votre média..."
-                className="w-full text-xs sm:text-[13px] text-foreground bg-muted/20 hover:bg-muted/30 focus:bg-background border border-border/40 focus:border-primary/80 rounded-xl p-3 focus:outline-none resize-none transition-all leading-relaxed"
+                aria-label="Ligne éditoriale du média"
+                className="bg-muted/20 p-3 text-xs leading-relaxed hover:bg-muted/30 focus:bg-background sm:text-[13px]"
               />
             </div>
 
@@ -286,35 +299,36 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                 return (
                   <div key={field.id} className="relative">
                     {!isEditing ? (
-                      <button
-                        type="button"
+                      <Button
+                        variant={value ? 'soft' : 'outline'}
+                        size="xs"
                         onClick={() => {
                           setActiveMetadataModal(field.id);
                           setEditingDraft(value);
                         }}
                         className={cn(
-                          'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all cursor-pointer',
-                          value
-                            ? 'border-border/50 bg-muted/20 hover:bg-muted/40 text-foreground'
-                            : 'border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-border'
+                          'max-w-full',
+                          !value && 'border-dashed text-muted-foreground'
                         )}
                         title={`Modifier : ${field.label}`}
                       >
-                        <IconComponent className="w-3.5 h-3.5 text-primary" />
-                        <span className="truncate max-w-[200px]">
+                        <IconComponent className="text-primary" aria-hidden />
+                        <span className="max-w-[200px] truncate">
                           {value || `+ ${field.label}`}
                         </span>
-                        <Edit2 className="w-3 h-3 opacity-40 ml-0.5" />
-                      </button>
+                        <Edit2 className="ml-0.5 opacity-40" aria-hidden />
+                      </Button>
                     ) : (
                       <div className="flex items-center gap-1.5 p-1 rounded-lg border border-primary/60 bg-background shadow-md animate-in fade-in zoom-in-95 duration-100">
                         <IconComponent className="w-3.5 h-3.5 text-primary ml-1 shrink-0" />
-                        <input
+                        <Input
                           type="text"
+                          size="xs"
                           value={editingDraft}
                           onChange={(e) => setEditingDraft(e.target.value)}
                           autoFocus
                           placeholder={field.placeholder}
+                          aria-label={field.label}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                               field.setValue(editingDraft.trim(), setCurrent);
@@ -327,19 +341,22 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                             field.setValue(editingDraft.trim(), setCurrent);
                             setActiveMetadataModal(null);
                           }}
-                          className="px-2 py-0.5 text-xs text-foreground bg-transparent focus:outline-none min-w-[220px]"
+                          className="min-w-[220px] border-0 bg-transparent px-2 py-0.5 focus-visible:ring-0"
                         />
-                        <button
-                          type="button"
+                        <Button
+                          variant="ghost"
+                          tone="brand"
+                          size="xs"
+                          shape="icon"
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => {
                             field.setValue(editingDraft.trim(), setCurrent);
                             setActiveMetadataModal(null);
                           }}
-                          className="p-1 text-primary hover:bg-primary/10 rounded cursor-pointer"
+                          aria-label={`Valider ${field.label}`}
                         >
-                          <Check className="w-3 h-3" />
-                        </button>
+                          <Check aria-hidden />
+                        </Button>
                       </div>
                     )}
                   </div>

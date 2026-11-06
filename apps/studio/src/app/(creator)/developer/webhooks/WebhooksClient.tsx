@@ -14,8 +14,11 @@ import {
   Clock,
   Copy,
   Send,
+  Check,
 } from 'lucide-react';
+import { Badge } from '@qoe/ui/badge';
 import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
 import { cn } from '@qoe/utils';
 import { toast } from '@qoe/ui/toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@qoe/ui';
@@ -195,22 +198,26 @@ export function WebhooksClient({
               <label className="block text-xs font-semibold text-foreground">
                 Nom de l'intégration
               </label>
-              <input
+              <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ex: Sync vers mon CRM, Discord Notifier..."
-                className="w-full bg-muted/30 border border-border rounded-xl px-3.5 py-2.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                aria-label="Nom de l'intégration"
+                size="sm"
+                className="text-xs"
               />
             </div>
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-foreground">
                 Endpoint URL (HTTPS)
               </label>
-              <input
+              <Input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://api.monsite.com/webhooks/qoe"
-                className="w-full bg-muted/30 border border-border rounded-xl px-3.5 py-2.5 text-xs font-sans text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                aria-label="Endpoint URL HTTPS"
+                size="sm"
+                className="font-sans text-xs"
               />
             </div>
           </div>
@@ -223,9 +230,12 @@ export function WebhooksClient({
               {events.map((ev) => {
                 const isSelected = selectedEvents.includes(ev as WebhookEvent);
                 return (
-                  <button
+                  <Button
                     key={ev}
-                    type="button"
+                    variant={isSelected ? 'soft' : 'outline'}
+                    tone={isSelected ? 'brand' : 'neutral'}
+                    size="xs"
+                    aria-pressed={isSelected}
                     onClick={() =>
                       setSelectedEvents((prev) =>
                         prev.includes(ev as WebhookEvent)
@@ -233,43 +243,38 @@ export function WebhooksClient({
                           : [...prev, ev as WebhookEvent]
                       )
                     }
-                    className={cn(
-                      'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 cursor-pointer flex items-center gap-1.5',
-                      isSelected
-                        ? 'bg-primary/10 border-primary/30 text-primary'
-                        : 'bg-muted/30 border-border text-muted-foreground hover:border-muted-foreground/40'
-                    )}
+                    className="rounded-full"
                   >
-                    <span>{isSelected ? '✓' : '+'}</span>
+                    {isSelected ? <Check aria-hidden /> : <Plus aria-hidden />}
                     <span>{EVENT_LABELS[ev] ? EVENT_LABELS[ev]() : ev}</span>
-                  </button>
+                  </Button>
                 );
               })}
             </div>
           </div>
 
           <div className="flex items-center justify-between pt-2 border-t border-border/60">
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 setShowCreate(false);
                 setRevealedSecret(null);
               }}
-              className="text-xs text-muted-foreground hover:text-foreground font-medium px-3 py-2"
             >
               Annuler
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="solid"
+              tone="brand"
+              size="sm"
               onClick={handleCreate}
-              disabled={creating || !name.trim() || !url.trim()}
-              className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 active:scale-[0.99] transition-all flex items-center gap-2 cursor-pointer disabled:opacity-60 shadow-xs"
+              disabled={!name.trim() || !url.trim()}
+              loading={creating}
             >
-              {creating ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Zap className="w-3.5 h-3.5" strokeWidth={2} />
-              )}
+              {!creating && <Zap aria-hidden />}
               Enregistrer le Webhook
-            </button>
+            </Button>
           </div>
 
           {revealedSecret && (
@@ -278,13 +283,16 @@ export function WebhooksClient({
               <code className="font-sans font-medium text-foreground truncate flex-1 text-[11px]">
                 {revealedSecret}
               </code>
-              <button
+              <Button
+                variant="ghost"
+                size="xs"
+                shape="icon"
                 onClick={() => copySecret(revealedSecret)}
-                className="shrink-0 p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                aria-label="Copier le secret"
                 title="Copier le secret"
               >
-                <Copy className="w-3.5 h-3.5" />
-              </button>
+                <Copy aria-hidden />
+              </Button>
             </div>
           )}
         </div>
@@ -302,21 +310,18 @@ export function WebhooksClient({
             Créez un endpoint HTTPS pour synchroniser automatiquement vos articles et abonnés avec
             vos applications.
           </p>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-all cursor-pointer shadow-xs"
-          >
-            <Plus className="w-3.5 h-3.5" />
+          <Button variant="solid" tone="brand" size="md" onClick={() => setShowCreate(true)}>
+            <Plus aria-hidden />
             Créer mon premier webhook
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="bg-card border border-border/50 rounded-2xl shadow-xs overflow-hidden divide-y divide-border/60">
           <div className="px-6 py-4 border-b border-border/50 flex items-center justify-between">
             <h3 className="text-base font-bold text-foreground">Endpoints Enregistrés</h3>
-            <span className="text-xs font-semibold bg-muted/60 border border-border/50 px-2.5 py-1 rounded-full text-foreground">
+            <Badge variant="soft" size="sm" shape="pill">
               {webhooks.length} webhook{webhooks.length > 1 ? 's' : ''}
-            </span>
+            </Badge>
           </div>
 
           {webhooks.map((webhook) => (
@@ -331,68 +336,67 @@ export function WebhooksClient({
                 <div className="min-w-0 space-y-1">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-bold text-foreground truncate">{webhook.name}</p>
-                    <span
-                      className={cn(
-                        'text-[10px] font-semibold px-2 py-0.5 rounded-full border',
-                        webhook.active
-                          ? 'bg-success/10 text-success-text border-success/20'
-                          : 'bg-muted text-muted-foreground border-border'
-                      )}
+                    <Badge
+                      variant="soft"
+                      tone={webhook.active ? 'success' : 'neutral'}
+                      shape="pill"
                     >
                       {webhook.active ? 'Actif' : 'En pause'}
-                    </span>
+                    </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground font-sans truncate">{webhook.url}</p>
 
                   <div className="flex flex-wrap gap-1 pt-1">
                     {webhook.events.map((ev) => (
-                      <span
-                        key={ev}
-                        className="px-2 py-0.5 rounded-md bg-muted/60 text-[10px] font-medium text-muted-foreground border border-border/40"
-                      >
+                      <Badge key={ev} variant="outline" tone="neutral">
                         {EVENT_LABELS[ev] ? EVENT_LABELS[ev]() : ev}
-                      </span>
+                      </Badge>
                     ))}
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
-                <button
+                <Button
+                  variant="soft"
+                  size="xs"
                   onClick={() => openDeliveries(webhook)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-foreground bg-muted/40 hover:bg-muted border border-border/60 transition-colors cursor-pointer"
                   title="Historique des envois"
                 >
                   Historique
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="soft"
+                  tone="brand"
+                  size="xs"
                   onClick={() => handleTest(webhook.id)}
                   disabled={busyId === webhook.id}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-foreground bg-muted/40 hover:bg-muted border border-border/60 transition-colors cursor-pointer flex items-center gap-1"
+                  loading={busyId === webhook.id}
                   title="Envoyer un ping de test"
                 >
-                  {busyId === webhook.id ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                  ) : (
-                    <Send className="w-3 h-3 text-primary" />
-                  )}
+                  {busyId !== webhook.id && <Send aria-hidden />}
                   Tester
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="xs"
                   onClick={() => handleToggle(webhook.id)}
                   disabled={busyId === webhook.id}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/60 border border-border/40 transition-colors cursor-pointer"
                 >
                   {webhook.active ? 'Pause' : 'Activer'}
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="ghost"
+                  tone="danger"
+                  size="xs"
+                  shape="icon"
                   onClick={() => handleDelete(webhook.id, webhook.name)}
                   disabled={busyId === webhook.id}
-                  className="p-1.5 text-muted-foreground hover:text-destructive-text hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
+                  aria-label="Supprimer ce webhook"
                   title="Supprimer ce webhook"
                 >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                  <Trash2 aria-hidden />
+                </Button>
               </div>
             </div>
           ))}
