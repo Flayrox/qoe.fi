@@ -2,6 +2,11 @@
 
 import * as React from 'react';
 import type { SortDescriptorLike } from '@qoe/ui/table';
+import {
+  fetchSavedViewsAction,
+  saveSavedViewAction,
+  deleteSavedViewAction,
+} from '@/lib/admin-views-actions';
 
 // =====================================================================
 // 🧭 grid-view — l'état d'une grille vit dans l'URL, pas dans le néant
@@ -11,9 +16,8 @@ import type { SortDescriptorLike } from '@qoe/ui/table';
 // (`?sort=sla:asc&f=sla:breached&d=compact&c=domain`) : partageable, rechargeable,
 // et compatible avec le bouton retour.
 //
-// `history.replaceState` plutôt que le routeur Next : changer un filtre ne doit
-// pas re-rendre le serveur ni perdre le focus. Aucun paramètre inconnu n'est
-// conservé — l'URL reste lisible.
+// Les vues d'équipe sont persistées en base PostgreSQL (table AdminSavedView)
+// et synchronisées localement pour un démarrage instantané sans scintillement.
 // =====================================================================
 
 export interface GridViewState {
@@ -40,8 +44,11 @@ export interface GridFacetDef<T> {
 }
 
 export interface SavedView {
+  id?: string;
   name: string;
   state: GridViewState;
+  isShared?: boolean;
+  isMine?: boolean;
 }
 
 const PARAM_SORT = 'sort';
@@ -119,22 +126,54 @@ export function useGridView(resource: string, initialSort: SortDescriptorLike) {
   // figer évite de relancer l'effet d'hydratation en boucle.
   const initialRef = React.useRef(initialSort);
 
-  // Lecture initiale : URL d'abord, défaut ensuite. Les vues nommées vivent
-  // dans le navigateur tant que la table `admin_saved_views` n'existe pas.
+  // Lecture initiale : URL d'abord, défaut ensuite. Les vues locales sont
+  // immédiatement disponibles, puis synchronisées avec la base (Lot B3).
   React.useEffect(() => {
     setState(decode(window.location.search, initialRef.current));
     try {
       const stored = window.localStorage.getItem(storageKey);
       if (stored) setViews(JSON.parse(stored) as SavedView[]);
     } catch {
-      // Stockage refusé : on continue sans vues nommées.
+      // Stockage refusé : on continue sans vues locales.
     }
     hydrated.current = true;
+
+    // Synchronisation asynchrone avec la table AdminSavedView
+    void (async () => {
+      try {
+        const serverViews = await fetchSavedViewsAction(resource);
+        if (serverViews && serverViews.length > 0) {
+          setViews((current) => {
+            const serverNames = new Set(serverViews.map((v) => v.name));
+            // Conserve les vues locales qui ne sont pas encore sur le serveur
+            const localOnly = current.filter((v) => !serverNames.has(v.name));
+            const merged: SavedView[] = [
+              ...serverViews.map((sv) => ({
+                id: sv.id,
+                name: sv.name,
+                state: sv.state,
+                isShared: sv.isShared,
+                isMine: sv.isMine,
+              })),
+              ...localOnly,
+            ];
+            try {
+              window.localStorage.setItem(storageKey, JSON.stringify(merged));
+            } catch {
+              // ignore
+            }
+            return merged;
+          });
+        }
+      } catch {
+        // Mode hors ligne ou base inaccessible
+      }
+    })();
 
     const onPopState = () => setState(decode(window.location.search, initialRef.current));
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
-  }, [storageKey]);
+  }, [storageKey, resource]);
 
   React.useEffect(() => {
     if (!hydrated.current) return;
@@ -199,13 +238,29 @@ export function useGridView(resource: string, initialSort: SortDescriptorLike) {
   };
 
   const saveView = React.useCallback(
-    (name: string) => {
+    (name: string, isShared = false) => {
       const trimmed = name.trim();
       if (!trimmed) return;
-      persist([...views.filter((view) => view.name !== trimmed), { name: trimmed, state }]);
+      const optimistic: SavedView = { name: trimmed, state, isShared, isMine: true };
+      const nextViews = [...views.filter((view) => view.name !== trimmed), optimistic];
+      persist(nextViews);
+
+      void (async () => {
+        try {
+          const res = await saveSavedViewAction(resource, { name: trimmed, isShared, state });
+          if (res) {
+            setViews((current) =>
+              current.map((v) =>
+                v.name === trimmed ? { ...v, id: res.id, isShared: res.isShared, isMine: true } : v
+              )
+            );
+          }
+        } catch {
+          // Conserve la version locale en cas d'erreur réseau
+        }
+      })();
     },
-    // `views` et `state` sont volontairement les dépendances réelles.
-    [views, state]
+    [views, state, resource, storageKey]
   );
 
   const applyView = React.useCallback(
@@ -218,9 +273,13 @@ export function useGridView(resource: string, initialSort: SortDescriptorLike) {
 
   const removeView = React.useCallback(
     (name: string) => {
-      persist(views.filter((view) => view.name !== name));
+      const view = views.find((candidate) => candidate.name === name);
+      persist(views.filter((candidate) => candidate.name !== name));
+      if (view?.id) {
+        void deleteSavedViewAction(resource, view.id);
+      }
     },
-    [views]
+    [views, resource, storageKey]
   );
 
   return {

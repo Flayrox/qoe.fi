@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	ExpectedMigrationVersion int64 = 73
+	ExpectedMigrationVersion int64 = 74
 )
 
 type SLOStatus string

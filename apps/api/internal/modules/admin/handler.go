@@ -246,6 +246,11 @@ func (h *Handler) routeTable() []adminRoute {
 		{http.MethodPost, "/v1/admin/sandbox/seed", adminauthz.ConfigWrite, h.runSandboxSeed},
 		{http.MethodPost, "/v1/admin/sandbox/impersonate", adminauthz.ConfigWrite, h.runImpersonate},
 
+		// ── Vues sauvegardées d'équipe (Lot B3) ───────────────────────────
+		{http.MethodGet, "/v1/admin/views/{resource}", adminauthz.DashboardRead, h.listSavedViews},
+		{http.MethodPost, "/v1/admin/views/{resource}", adminauthz.DashboardRead, h.saveView},
+		{http.MethodDelete, "/v1/admin/views/{resource}/{id}", adminauthz.DashboardRead, h.deleteSavedView},
+
 		// ── Plateforme : configuration, inscriptions, OAuth, accès API ────
 		{http.MethodGet, "/v1/admin/config", adminauthz.ConfigRead, h.configs},
 		{http.MethodPut, "/v1/admin/config", adminauthz.ConfigWrite, h.upsertConfigs},
