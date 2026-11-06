@@ -65,6 +65,8 @@ interface DataGridProps<T extends { id: string }> {
   rowHref?: (row: T) => string;
   /** Prioritaire sur `rowHref` : ouvre la ligne dans un panneau. */
   onRowOpen?: (row: T) => void;
+  /** Raccourci `a` : assigner la sélection (ou la ligne courante). */
+  onAssign?: (rows: T[]) => void;
 }
 
 export function DataGrid<T extends { id: string }>({
@@ -83,10 +85,12 @@ export function DataGrid<T extends { id: string }>({
   bulkActions,
   rowHref,
   onRowOpen,
+  onAssign,
 }: DataGridProps<T>) {
   const router = useRouter();
   const [selectedKeys, setSelectedKeys] = React.useState<Set<string>>(new Set());
   const [cursor, setCursor] = React.useState<number | null>(null);
+  const [helpOpen, setHelpOpen] = React.useState(false);
   const wrapperRef = React.useRef<HTMLDivElement>(null);
   const [innerSort, setInnerSort] = React.useState<SortDescriptorLike>(
     initialSort ?? { column: columns[0]?.id ?? 'id', direction: 'ascending' }
@@ -169,7 +173,20 @@ export function DataGrid<T extends { id: string }>({
           event.preventDefault();
           if (onRowOpen) onRowOpen(row);
           else if (rowHref) router.push(rowHref(row));
+        } else if (event.key === '?') {
+          event.preventDefault();
+          setHelpOpen((open) => !open);
+        } else if (event.key === 'r' && !event.metaKey && !event.ctrlKey) {
+          event.preventDefault();
+          router.refresh();
+        } else if (event.key === 'a' && onAssign) {
+          const rows =
+            selectedRows.length > 0 ? selectedRows : [sorted[cursor ?? 0]].filter(Boolean);
+          if (rows.length === 0) return;
+          event.preventDefault();
+          onAssign(rows);
         } else if (event.key === 'Escape') {
+          setHelpOpen(false);
           setSelectedKeys(new Set());
           setCursor(null);
         }
@@ -188,6 +205,26 @@ export function DataGrid<T extends { id: string }>({
         setMenu({ point: { x: event.clientX, y: event.clientY }, row });
       }}
     >
+      {helpOpen && (
+        <div className="mb-1 grid grid-cols-2 gap-x-6 gap-y-1 rounded-md border border-border bg-popover px-3 py-2 text-[11px] text-muted-foreground">
+          {[
+            ['j / k', 'ligne suivante / précédente'],
+            ['x', 'sélectionner la ligne'],
+            ['Entrée', 'ouvrir le détail'],
+            ['a', 'assigner la sélection'],
+            ['r', 'rafraîchir la vue'],
+            ['Échap', 'vider la sélection'],
+          ].map(([key, label]) => (
+            <span key={key} className="flex items-center justify-between gap-3">
+              <kbd className="rounded border border-border bg-muted px-1 text-[10px] text-foreground">
+                {key}
+              </kbd>
+              <span>{label}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
       {selectable && selectedRows.length > 0 && (
         <div className="mb-1 flex h-7 items-center gap-2 rounded-md border border-border bg-muted/40 px-2 text-[11px]">
           <span className="tabular-nums text-foreground">{selectedRows.length} sélectionné(s)</span>

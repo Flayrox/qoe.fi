@@ -259,6 +259,7 @@ export function WorkTable({
         selectable
         rowHref={(row) => row.href}
         onRowOpen={(row) => setPreview(row)}
+        onAssign={(rows) => assignMany(rows)}
         bulkActions={(rows) => (
           <Button
             type="button"
