@@ -1,23 +1,17 @@
 // =====================================================================
-// 🧮 /admin/access/roles — la matrice, telle que la base la porte
+// 🧮 /admin/access/roles — la matrice des rôles & simulateur de droits (C3)
 // =====================================================================
-// Lecture seule, volontairement : modifier la matrice d'un rôle partagé est un
-// acte de conception, pas une case à cocher d'exploitation. L'écran sert à
-// RÉPONDRE (« qui peut exporter la conformité ? »), pas à improviser.
-//
-// Les données viennent de `AdminRole` / `AdminRoleCapability` (et non d'une
-// copie TypeScript) : si la migration et le Go divergent, on le voit ici avant
-// de le voir en production.
+// Les données proviennent directement de AdminRole / AdminRoleCapability.
+// L'écran permet de visualiser la matrice complète et d'interroger
+// instantanément « Qui peut X ? » pour auditer les habilitations.
 // =====================================================================
 
 import React from 'react';
 import Link from 'next/link';
-import { Grid3X3, Users } from 'lucide-react';
-import { Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from '@qoe/ui/table';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 import { getAccessCapabilities, getAccessRoles } from '@/lib/admin-access-data';
-import { ADMIN_DOMAINS, type AdminDomain } from '@/lib/admin-console';
-import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
+import { MetricChips } from '@/components/shell/MetricChips';
+import { RolesMatrixSimulator } from './RolesMatrixSimulator';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,93 +20,52 @@ export default async function AdminAccessRolesPage() {
   requireCapability(identity, 'admin.access.read');
 
   const [roles, capabilities] = await Promise.all([getAccessRoles(), getAccessCapabilities()]);
-  const held = new Map(roles.map((role) => [role.key, new Set(role.capabilities)]));
-  const byDomain = new Map<AdminDomain, typeof capabilities>(
-    ADMIN_DOMAINS.map((domain) => [domain, []])
-  );
-  for (const capability of capabilities) {
-    const bucket = byDomain.get(capability.domain as AdminDomain);
-    if (bucket) bucket.push(capability);
-  }
+
+  const totalHolders = roles.reduce((sum, r) => sum + r.holders, 0);
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-10">
-      <QueuePageHeader
-        icon={<Grid3X3 className="w-4 h-4" />}
-        title="Matrice des rôles"
-        badge={`${roles.length} rôle${roles.length > 1 ? 's' : ''}`}
-        description={
-          <>
-            Rôle × capacité, lu depuis la base. « Détenteurs » compte les attributions encore
-            actives : une échéance passée ne compte pas.{' '}
-            <Link href="/admin/access" className="underline">
-              Revenir aux attributions
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-[15px] font-semibold tracking-tight text-foreground">
+              Matrice des rôles & simulateur
+            </h1>
+            <span className="text-muted-foreground/60">·</span>
+            <Link
+              href="/admin/access"
+              className="text-[12px] font-medium text-muted-foreground hover:text-foreground hover:underline"
+            >
+              Attributions du personnel
             </Link>
-          </>
-        }
-      />
-
-      <div className="flex flex-wrap gap-2" data-testid="access-roles-holders">
-        {roles.map((role) => (
-          <span
-            key={role.key}
-            className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-[11px]"
-            title={role.description}
-          >
-            <span className="font-semibold">{role.label}</span>
-            <span className="inline-flex items-center gap-1 text-muted-foreground">
-              <Users className="w-3 h-3" /> {role.holders}
-            </span>
-          </span>
-        ))}
+          </div>
+          <p className="text-[12px] text-muted-foreground">
+            Cartographie rôle × capacité et simulateur d’habilitation · audit des attributions
+            actives.
+          </p>
+        </div>
+        <MetricChips
+          items={[
+            {
+              label: 'Rôles',
+              value: roles.length,
+              tone: 'default',
+            },
+            {
+              label: 'Capacités',
+              value: capabilities.length,
+              tone: 'default',
+            },
+            {
+              label: 'Détenteurs actifs',
+              value: totalHolders,
+              tone: 'default',
+            },
+          ]}
+        />
       </div>
 
-      <div className="bg-card border border-border rounded-lg shadow-sm overflow-x-auto">
-        <Table aria-label="Matrice des rôles" size="sm" data-testid="access-roles-matrix">
-          <TableHeader>
-            <TableColumn isRowHeader className="sticky left-0 bg-muted/40 z-10">
-              Capacité
-            </TableColumn>
-            {roles.map((role) => (
-              <TableColumn key={role.key} className="text-center whitespace-nowrap">
-                {role.label}
-              </TableColumn>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {capabilities.map((capability) => (
-              <TableRow key={capability.key} id={capability.key}>
-                <TableCell className="sticky left-0 bg-background z-10">
-                  <div className="font-medium text-foreground">{capability.label}</div>
-                  <div className="tabular-nums text-[11px] text-muted-foreground">
-                    {capability.key}
-                  </div>
-                </TableCell>
-                {roles.map((role) => {
-                  const has = held.get(role.key)?.has(capability.key) ?? false;
-                  return (
-                    <TableCell
-                      key={role.key}
-                      className="text-center"
-                      data-testid={`access-matrix-${role.key}-${capability.key}`}
-                    >
-                      {has ? (
-                        <span className="text-foreground" aria-label="détenue">
-                          ●
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground/40" aria-label="absente">
-                          ·
-                        </span>
-                      )}
-                    </TableCell>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <RolesMatrixSimulator roles={roles} capabilities={capabilities} />
     </div>
   );
 }
