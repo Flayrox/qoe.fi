@@ -1,14 +1,14 @@
 {
-  "generatedAt": "2026-11-06T11:53:12.936Z",
-  "total": 382,
+  "generatedAt": "2026-11-06T12:15:10.874Z",
+  "total": 380,
   "signals": {
-    "primitivesNeverImported": 10,
-    "primitivesTotal": 33,
-    "rawButtons": 372,
-    "rawButtonFiles": 88,
+    "primitivesNeverImported": 5,
+    "primitivesTotal": 28,
+    "rawButtons": 340,
+    "rawButtonFiles": 84,
     "nativeSelectFiles": 0,
-    "rawInputFiles": 47,
-    "handRolledOverlays": 4
+    "rawInputFiles": 44,
+    "handRolledOverlays": 3
   },
   "families": [
     {
@@ -41,7 +41,7 @@
           "path": "packages/ui/src/primitives/badge/badge.tsx",
           "lines": 111,
           "source": "primitives",
-          "usages": 32
+          "usages": 36
         },
         {
           "name": "bevel-button",
@@ -62,7 +62,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 205,
           "source": "primitives",
-          "usages": 58
+          "usages": 63
         },
         {
           "name": "card",
@@ -76,7 +76,7 @@
           "path": "packages/ui/src/primitives/checkbox/checkbox.tsx",
           "lines": 242,
           "source": "primitives",
-          "usages": 8
+          "usages": 9
         },
         {
           "name": "color",
@@ -118,14 +118,14 @@
           "path": "packages/ui/src/primitives/date/date-picker.tsx",
           "lines": 214,
           "source": "primitives",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "dialog",
           "path": "packages/ui/src/primitives/dialog/dialog.tsx",
           "lines": 361,
           "source": "primitives",
-          "usages": 24
+          "usages": 25
         },
         {
           "name": "drawer",
@@ -160,7 +160,7 @@
           "path": "packages/ui/src/primitives/input/input.tsx",
           "lines": 192,
           "source": "primitives",
-          "usages": 38
+          "usages": 43
         },
         {
           "name": "popover-panel",
@@ -188,7 +188,7 @@
           "path": "packages/ui/src/primitives/select/select.tsx",
           "lines": 210,
           "source": "primitives",
-          "usages": 27
+          "usages": 28
         },
         {
           "name": "separator",
@@ -316,13 +316,6 @@
           "usages": 2
         },
         {
-          "name": "craft-indicator",
-          "path": "packages/ui/src/ui/craft-indicator.tsx",
-          "lines": 151,
-          "source": "ui",
-          "usages": 0
-        },
-        {
           "name": "craft-sidebar-drawer",
           "path": "packages/ui/src/ui/craft-sidebar-drawer.tsx",
           "lines": 440,
@@ -386,13 +379,6 @@
           "usages": 1
         },
         {
-          "name": "label",
-          "path": "packages/ui/src/ui/label.tsx",
-          "lines": 19,
-          "source": "ui",
-          "usages": 0
-        },
-        {
           "name": "popover",
           "path": "packages/ui/src/ui/popover.tsx",
           "lines": 176,
@@ -414,23 +400,9 @@
           "usages": 2
         },
         {
-          "name": "Reveal",
-          "path": "packages/ui/src/ui/Reveal.tsx",
-          "lines": 40,
-          "source": "ui",
-          "usages": 0
-        },
-        {
           "name": "select",
           "path": "packages/ui/src/ui/select.tsx",
           "lines": 253,
-          "source": "ui",
-          "usages": 0
-        },
-        {
-          "name": "separator",
-          "path": "packages/ui/src/ui/separator.tsx",
-          "lines": 4,
           "source": "ui",
           "usages": 0
         },
@@ -496,13 +468,6 @@
           "lines": 80,
           "source": "ui",
           "usages": 4
-        },
-        {
-          "name": "Typewriter",
-          "path": "packages/ui/src/ui/Typewriter.tsx",
-          "lines": 55,
-          "source": "ui",
-          "usages": 0
         },
         {
           "name": "UserAvatar",
@@ -746,7 +711,7 @@
           "path": "packages/ui/src/primitives/badge/badge.tsx",
           "lines": 111,
           "source": "ui",
-          "usages": 32
+          "usages": 36
         },
         {
           "name": "bevel-button",
@@ -767,7 +732,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 205,
           "source": "ui",
-          "usages": 58
+          "usages": 63
         },
         {
           "name": "card",
@@ -781,7 +746,7 @@
           "path": "packages/ui/src/primitives/checkbox/checkbox.tsx",
           "lines": 242,
           "source": "ui",
-          "usages": 8
+          "usages": 9
         },
         {
           "name": "color",
@@ -823,14 +788,14 @@
           "path": "packages/ui/src/primitives/date/date-picker.tsx",
           "lines": 214,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "dialog",
           "path": "packages/ui/src/primitives/dialog/dialog.tsx",
           "lines": 361,
           "source": "ui",
-          "usages": 24
+          "usages": 25
         },
         {
           "name": "drawer",
@@ -865,7 +830,7 @@
           "path": "packages/ui/src/primitives/input/input.tsx",
           "lines": 192,
           "source": "ui",
-          "usages": 38
+          "usages": 43
         },
         {
           "name": "popover-panel",
@@ -893,7 +858,7 @@
           "path": "packages/ui/src/primitives/select/select.tsx",
           "lines": 210,
           "source": "ui",
-          "usages": 27
+          "usages": 28
         },
         {
           "name": "separator",
@@ -1756,7 +1721,7 @@
         {
           "name": "ArticleAttributionEditor",
           "path": "apps/studio/src/features/editor/components/ArticleAttributionEditor.tsx",
-          "lines": 629,
+          "lines": 368,
           "source": "studio",
           "usages": null
         },
@@ -1771,6 +1736,20 @@
           "name": "ArticleHistoryModal",
           "path": "apps/studio/src/features/editor/components/ArticleHistoryModal.tsx",
           "lines": 285,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "ArticleScheduleSection",
+          "path": "apps/studio/src/features/editor/components/ArticleScheduleSection.tsx",
+          "lines": 152,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "CollaborationInviteLinks",
+          "path": "apps/studio/src/features/editor/components/CollaborationInviteLinks.tsx",
+          "lines": 308,
           "source": "studio",
           "usages": null
         },
@@ -1798,7 +1777,7 @@
         {
           "name": "EditorSettingsDrawer",
           "path": "apps/studio/src/features/editor/components/EditorSettingsDrawer.tsx",
-          "lines": 600,
+          "lines": 468,
           "source": "studio",
           "usages": null
         },
@@ -1929,6 +1908,13 @@
           "usages": null
         },
         {
+          "name": "schedule-draft",
+          "path": "apps/studio/src/features/editor/lib/schedule-draft.ts",
+          "lines": 116,
+          "source": "studio",
+          "usages": null
+        },
+        {
           "name": "wizard",
           "path": "apps/studio/src/features/onboarding/components/wizard.tsx",
           "lines": 526,
@@ -1966,14 +1952,14 @@
         {
           "name": "account-security",
           "path": "apps/studio/src/features/settings/components/account-security.tsx",
-          "lines": 303,
+          "lines": 326,
           "source": "studio",
           "usages": null
         },
         {
           "name": "MediaProfilePreviewEditor",
           "path": "apps/studio/src/features/settings/components/MediaProfilePreviewEditor.tsx",
-          "lines": 369,
+          "lines": 386,
           "source": "studio",
           "usages": null
         },
@@ -2022,14 +2008,14 @@
         {
           "name": "settings",
           "path": "apps/studio/src/features/settings/settings.tsx",
-          "lines": 644,
+          "lines": 638,
           "source": "studio",
           "usages": null
         },
         {
           "name": "collaboration",
           "path": "apps/studio/src/features/settings/tabs/collaboration.tsx",
-          "lines": 240,
+          "lines": 241,
           "source": "studio",
           "usages": null
         },
@@ -2050,7 +2036,7 @@
         {
           "name": "import",
           "path": "apps/studio/src/features/settings/tabs/import.tsx",
-          "lines": 468,
+          "lines": 475,
           "source": "studio",
           "usages": null
         },

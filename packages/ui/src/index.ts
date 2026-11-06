@@ -285,11 +285,6 @@ export {
 
 // 🪶 Minimal Craft (Inspiré Rauno / Devouring Details)
 export {
-  CraftIndicator,
-  type CraftIndicatorProps,
-  type CraftIndicatorType,
-} from './ui/craft-indicator';
-export {
   SidebarToggleIcon,
   CraftSidebarDrawer,
   type SidebarToggleIconProps,
