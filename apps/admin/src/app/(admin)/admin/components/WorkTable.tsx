@@ -3,6 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Button } from '@qoe/ui/button';
 import { CopyableId } from '@/components/shell/CopyableId';
 import { DataGrid, type GridColumn } from '@/components/shell/DataGrid';
 import { GridViewToolbar } from '@/components/shell/GridView';
@@ -96,6 +97,33 @@ export function WorkTable({
         return;
       }
       notifyActionFailure(result, readMessage(result) ?? 'Assignation impossible');
+    })();
+  };
+
+  const assignMany = (rows: AdminQueueTriageEntry[]) => {
+    void (async () => {
+      for (const row of rows) {
+        const result = await attemptWithStepUp(
+          () =>
+            triageQueueItemAction({
+              queue: row.queue,
+              id: row.id,
+              priority: row.priority,
+              dueAt: row.dueAt ?? '',
+              assignToMe: true,
+              clearAssignee: false,
+            }),
+          { reason: 'Assigner une sélection de dossiers' }
+        );
+        if (!result.ok) {
+          notifyActionFailure(result, readMessage(result) ?? 'Assignation impossible');
+          return;
+        }
+      }
+      setStatus(
+        `${rows.length} dossier(s) assigné(s) · audité à ${new Date().toLocaleTimeString('fr-FR')}`
+      );
+      router.refresh();
     })();
   };
 
@@ -218,6 +246,20 @@ export function WorkTable({
         hiddenColumns={grid.state.hidden}
         density={grid.state.density}
         emptyState="Aucun dossier ouvert : les six files sont vides."
+        selectable
+        rowHref={(row) => row.href}
+        bulkActions={(rows) => (
+          <Button
+            type="button"
+            size="xs"
+            variant="soft"
+            tone="brand"
+            className="h-6 px-1.5 text-[11px]"
+            onClick={() => assignMany(rows)}
+          >
+            M’assigner
+          </Button>
+        )}
         rowMenu={(row) => [
           { id: 'open', label: 'Ouvrir le dossier', onSelect: () => router.push(row.href) },
           { id: 'assign', label: 'M’assigner', onSelect: () => assign(row) },

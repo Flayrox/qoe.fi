@@ -1,6 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@qoe/ui/button';
 import {
   Table,
   TableBody,
@@ -8,7 +10,11 @@ import {
   TableColumn,
   TableHeader,
   TableRow,
+  TableSelectAllCell,
+  TableSelectionCell,
+  selectionToKeySet,
   sortRows,
+  type SelectionLike,
   type ColumnSort,
   type SortDescriptorLike,
   type SortSpec,
@@ -52,6 +58,11 @@ interface DataGridProps<T extends { id: string }> {
   onSortChange?: (descriptor: SortDescriptorLike) => void;
   hiddenColumns?: readonly string[];
   density?: 'compact' | 'normal';
+  /** Active la colonne de sélection et la barre d'actions groupées. */
+  selectable?: boolean;
+  bulkActions?: (rows: T[]) => React.ReactNode;
+  /** Entrée au clavier (et double clic) : où ouvrir la ligne. */
+  rowHref?: (row: T) => string;
 }
 
 export function DataGrid<T extends { id: string }>({
@@ -66,7 +77,14 @@ export function DataGrid<T extends { id: string }>({
   onSortChange,
   hiddenColumns,
   density = 'normal',
+  selectable = false,
+  bulkActions,
+  rowHref,
 }: DataGridProps<T>) {
+  const router = useRouter();
+  const [selectedKeys, setSelectedKeys] = React.useState<Set<string>>(new Set());
+  const [cursor, setCursor] = React.useState<number | null>(null);
+  const wrapperRef = React.useRef<HTMLDivElement>(null);
   const [innerSort, setInnerSort] = React.useState<SortDescriptorLike>(
     initialSort ?? { column: columns[0]?.id ?? 'id', direction: 'ascending' }
   );
@@ -104,10 +122,54 @@ export function DataGrid<T extends { id: string }>({
     [rows, effectiveSort, spec]
   );
   const closeMenu = React.useCallback(() => setMenu(null), []);
+  const selectedRows = sorted.filter((row) => selectedKeys.has(row.id));
+
+  const moveCursor = (delta: number) => {
+    if (sorted.length === 0) return;
+    setCursor((current) => {
+      const from = current ?? (delta > 0 ? -1 : sorted.length);
+      const next = Math.max(0, Math.min(sorted.length - 1, from + delta));
+      const element = wrapperRef.current?.querySelectorAll('tbody tr')[next] as
+        HTMLElement | undefined;
+      element?.scrollIntoView({ block: 'nearest' });
+      return next;
+    });
+  };
 
   return (
     <div
-      className={cn('min-w-0', className)}
+      ref={wrapperRef}
+      className={cn('min-w-0 outline-hidden', className)}
+      tabIndex={selectable || rowHref ? 0 : undefined}
+      onKeyDown={(event) => {
+        const tag = (event.target as HTMLElement).tagName;
+        if (['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON', 'A'].includes(tag)) return;
+        if (event.key === 'j') {
+          event.preventDefault();
+          moveCursor(1);
+        } else if (event.key === 'k') {
+          event.preventDefault();
+          moveCursor(-1);
+        } else if (event.key === 'x' && selectable) {
+          const row = sorted[cursor ?? 0];
+          if (!row) return;
+          event.preventDefault();
+          setSelectedKeys((current) => {
+            const next = new Set(current);
+            if (next.has(row.id)) next.delete(row.id);
+            else next.add(row.id);
+            return next;
+          });
+        } else if (event.key === 'Enter' && rowHref) {
+          const row = sorted[cursor ?? 0];
+          if (!row) return;
+          event.preventDefault();
+          router.push(rowHref(row));
+        } else if (event.key === 'Escape') {
+          setSelectedKeys(new Set());
+          setCursor(null);
+        }
+      }}
       onContextMenu={(event) => {
         if (!rowMenu) return;
         const rowElement = (event.target as HTMLElement).closest('tbody tr');
@@ -122,14 +184,46 @@ export function DataGrid<T extends { id: string }>({
         setMenu({ point: { x: event.clientX, y: event.clientY }, row });
       }}
     >
+      {selectable && selectedRows.length > 0 && (
+        <div className="mb-1 flex h-7 items-center gap-2 rounded-md border border-border bg-muted/40 px-2 text-[11px]">
+          <span className="tabular-nums text-foreground">{selectedRows.length} sélectionné(s)</span>
+          <div className="flex items-center gap-1">
+            {bulkActions ? bulkActions(selectedRows) : null}
+          </div>
+          <Button
+            type="button"
+            size="xs"
+            variant="ghost"
+            className="ml-auto h-6 px-1.5 text-[11px] font-normal text-muted-foreground"
+            onClick={() => setSelectedKeys(new Set())}
+          >
+            Tout désélectionner
+          </Button>
+        </div>
+      )}
+
       <Table
         aria-label={ariaLabel}
         size="xs"
+        selectionMode={selectable ? 'multiple' : undefined}
+        selectedKeys={selectable ? selectedKeys : undefined}
+        onSelectionChange={
+          selectable
+            ? (keys) =>
+                setSelectedKeys(
+                  selectionToKeySet(
+                    keys as SelectionLike,
+                    sorted.map((row) => row.id)
+                  )
+                )
+            : undefined
+        }
         sortDescriptor={effectiveSort}
         onSortChange={changeSort}
         className={`rounded-md border-border/70 ${density === 'compact' ? '[&_td]:py-0 [&_th]:py-0' : ''}`}
       >
         <TableHeader>
+          {selectable && <TableSelectAllCell />}
           {visibleColumns.map((column) => (
             <TableColumn
               key={column.id}
@@ -149,7 +243,11 @@ export function DataGrid<T extends { id: string }>({
         </TableHeader>
         <TableBody items={sorted} emptyState={emptyState ?? 'Aucune ligne.'}>
           {(row) => (
-            <TableRow id={row.id}>
+            <TableRow
+              id={row.id}
+              className={cursor === sorted.indexOf(row) ? 'bg-muted/60' : undefined}
+            >
+              {selectable && <TableSelectionCell rowId={row.id} />}
               {visibleColumns.map((column) => (
                 <TableCell
                   key={column.id}
