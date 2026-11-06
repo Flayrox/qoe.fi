@@ -3,11 +3,10 @@ import { Inbox } from 'lucide-react';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 import { getAdminWorkQueue } from '@/lib/admin-data';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
+import { MetricChips } from '@/components/shell/MetricChips';
 import { TriageBoard } from './components/triage-board';
 
 export const dynamic = 'force-dynamic';
-
-const counterClass = 'rounded-lg border border-border/60 bg-white p-5 shadow-sm';
 
 export default async function AdminWorkPage() {
   const identity = await getAdminIdentity();
@@ -15,53 +14,41 @@ export default async function AdminWorkPage() {
   const view = await getAdminWorkQueue();
   const total = view.items.reduce((sum, item) => sum + item.count, 0);
 
+  const chips = [
+    { label: 'Ouverts', value: total },
+    { label: 'À moi', value: view.assignedToMe },
+    {
+      label: 'SLA dépassés',
+      value: view.breached,
+      tone: view.breached > 0 ? ('danger' as const) : ('default' as const),
+    },
+    ...view.items.map((item) => ({
+      label: item.label,
+      value: item.count,
+      href: item.href,
+      tone: item.breached > 0 ? ('warn' as const) : ('default' as const),
+      hint: `${item.assignedToMe} à moi · ${item.breached} SLA dépassé(s)`,
+    })),
+  ];
+
   return (
-    <div className="mx-auto max-w-6xl space-y-10">
+    <div className="flex min-w-0 flex-col gap-2">
       <QueuePageHeader
-        icon={<Inbox className="w-4 h-4" />}
+        icon={<Inbox className="h-4 w-4" />}
         title="Ma file"
         badge={total > 0 ? `${total} en attente` : null}
-        description="Les six files staff réunies. Chaque dossier porte les mêmes champs de triage : assignation, priorité, échéance et état SLA."
+        description="Les six files staff réunies, avec assignation, priorité, échéance et état SLA."
       />
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className={counterClass}>
-          <p className="text-xs text-muted-foreground">Dossiers ouverts</p>
-          <p className="mt-2 text-3xl font-semibold tracking-tight">{total}</p>
-        </div>
-        <div className={counterClass}>
-          <p className="text-xs text-muted-foreground">Assignés à moi</p>
-          <p className="mt-2 text-3xl font-semibold tracking-tight">{view.assignedToMe}</p>
-        </div>
-        <div className={counterClass}>
-          <p className="text-xs text-muted-foreground">SLA dépassés</p>
-          <p className="mt-2 text-3xl font-semibold tracking-tight">{view.breached}</p>
-        </div>
-      </div>
+      <MetricChips items={chips} />
 
       {view.items.length === 0 ? (
-        <div className="rounded-lg border border-border/60 bg-muted/20 p-8 text-center text-sm text-muted-foreground">
+        <p className="rounded border border-border/60 bg-muted/20 px-2 py-1.5 text-[11px] text-muted-foreground">
           Aucune file accessible.
-        </div>
+        </p>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {view.items.map((item) => (
-            <div
-              key={item.key}
-              className="rounded-lg border border-border/60 bg-white p-5 shadow-sm"
-            >
-              <p className="text-xs text-muted-foreground">{item.label}</p>
-              <p className="mt-2 text-3xl font-semibold tracking-tight">{item.count}</p>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                {item.assignedToMe} assigné{item.assignedToMe > 1 ? 's' : ''} à moi ·{' '}
-                {item.breached} SLA dépassé{item.breached > 1 ? 's' : ''}
-              </p>
-            </div>
-          ))}
-        </div>
+        <TriageBoard view={view} />
       )}
-
-      <TriageBoard view={view} />
     </div>
   );
 }
