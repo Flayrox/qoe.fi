@@ -59,6 +59,26 @@ describe('buildArticleUrl', () => {
     );
     expect(url).toBe('/ephe/a/billet');
   });
+
+  it('utilise le sous-domaine de la publication si le slug média est absent', () => {
+    const url = buildArticleUrl({ slug: 'actu', publication: { subdomain: 'gazette' } }, 'actu');
+    expect(url).toBe('/gazette/a/actu');
+  });
+
+  it('résout le journaliste si disponible', () => {
+    const url = buildArticleUrl(
+      {
+        slug: 'enquete',
+        author: {
+          id: 'a1',
+          name: 'Isaac Olivier',
+          journalist: { id: 'j1', name: 'Isaac Olivier', username: 'isaacolivier', logoUrl: null },
+        },
+      },
+      'enquete'
+    );
+    expect(url).toBe('/isaacolivier/a/enquete');
+  });
 });
 
 describe('buildPlaceholder', () => {

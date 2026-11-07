@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { buildPublicDescription } from '@qoe/utils';
 import { parseSpotlightParams } from '@qoe/sdk/spotlight';
@@ -7,6 +7,7 @@ import { JsonLd, buildArticleSchema } from '@qoe/ui';
 import { getLanguage } from '@qoe/i18n/server';
 import type { Metadata } from 'next';
 import { loadHomeFeedData } from '@/lib/home-feed-data';
+import { routes } from '@qoe/config/routes';
 import { FeedDashboard } from '../../../home/FeedDashboard';
 
 const STATIC_ASSET_REGEX = /\.(ico|png|jpg|jpeg|gif|svg|webp|js|css|json|xml|txt|map)$/i;
@@ -147,6 +148,13 @@ export default async function UserArticleDedicatedPage({
   if (!article) {
     notFound();
     return;
+  }
+
+  // Redirection SEO permanente si l'URL utilise le préfixe générique /article/a/:slug ou /articles/a/:slug
+  const canonicalOwner =
+    article.publication?.slug || article.publication?.subdomain || article.author?.username;
+  if (canonicalOwner && (rawUsername === 'article' || rawUsername === 'articles')) {
+    permanentRedirect(routes.feed.article(canonicalOwner, article.slug));
   }
 
   // 🔦 Deep-link citation → article
