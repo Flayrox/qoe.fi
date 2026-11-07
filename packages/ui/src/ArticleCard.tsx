@@ -148,6 +148,7 @@ function SharedContributorLine({
               isMedia: person.isMedia,
               type: person.isMedia ? 'MEDIA' : 'PERSONAL',
             }}
+            side="bottom"
             onOpenProfile={onOpenProfile}
           >
             <SafeAvatar
@@ -179,6 +180,7 @@ function SharedContributorLine({
                 isMedia: true,
                 type: 'MEDIA',
               }}
+              side="bottom"
               onOpenProfile={onOpenProfile}
             >
               <span
@@ -209,6 +211,7 @@ function SharedContributorLine({
                           isMedia: person.isMedia,
                           type: person.isMedia ? 'MEDIA' : 'PERSONAL',
                         }}
+                        side="bottom"
                         onOpenProfile={onOpenProfile}
                       >
                         <span
@@ -245,6 +248,7 @@ function SharedContributorLine({
                       isMedia: person.isMedia,
                       type: person.isMedia ? 'MEDIA' : 'PERSONAL',
                     }}
+                    side="bottom"
                     onOpenProfile={onOpenProfile}
                   >
                     <span
@@ -455,8 +459,9 @@ export function ArticleCard({
     <article
       data-overlay-anchor={article.id}
       className={cn(
-        'group relative overflow-hidden bg-card shadow-none transition-colors border border-border/30 hover:border-border/60',
+        'group relative bg-card shadow-none transition-colors border border-border/30 hover:border-border/60',
         'rounded-[24px] p-2.5 sm:p-3 flex flex-col',
+        'hover:z-20 has-[[data-slot=hover-card-content]]:z-30',
         featured && 'rounded-[28px]'
       )}
     >
@@ -465,28 +470,30 @@ export function ArticleCard({
         data-article-cover
         onClick={openArticle}
         className={cn(
-          'relative overflow-hidden rounded-[17px] bg-muted cursor-pointer',
+          'relative rounded-[17px] bg-muted cursor-pointer',
           featured ? 'h-[250px]' : 'h-[205px]'
         )}
       >
-        {coverImage ? (
-          <SafeImage
-            src={coverImage}
-            alt={article.title || ''}
-            fill
-            priority={featured}
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, 720px"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-muted-foreground/35 via-muted to-background" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/25 pointer-events-none" />
+        <div className="absolute inset-0 overflow-hidden rounded-[17px]">
+          {coverImage ? (
+            <SafeImage
+              src={coverImage}
+              alt={article.title || ''}
+              fill
+              priority={featured}
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 720px"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-muted-foreground/35 via-muted to-background" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/25 pointer-events-none" />
+        </div>
 
         {/* Capsule flottante en verre dépoli (Auteur, Profil, Follow/Action) */}
         <div
           onClick={(e) => e.stopPropagation()}
-          className="absolute inset-x-3 top-3 flex items-center justify-between gap-3 rounded-[14px] bg-white/90 px-2.5 py-2 text-black shadow-none backdrop-blur-md dark:bg-black/75 dark:text-white"
+          className="absolute inset-x-3 top-3 z-10 flex items-center justify-between gap-3 rounded-[14px] bg-white/90 px-2.5 py-2 text-black shadow-none backdrop-blur-md dark:bg-black/75 dark:text-white"
         >
           <div className="flex min-w-0 items-center gap-2.5 text-left">
             {discovery && (
@@ -497,12 +504,12 @@ export function ArticleCard({
                 ✦ {t`Découverte`}
               </span>
             )}
-            <ProfileHoverCard user={primaryAuthor} onOpenProfile={onOpenProfile}>
+            <ProfileHoverCard user={primaryAuthor} onOpenProfile={onOpenProfile} side="bottom">
               <ProfileMark author={primaryAuthor} size={40} />
             </ProfileHoverCard>
             <div className="min-w-0 leading-tight">
               <div className="flex max-w-full items-center gap-1.5 text-left">
-                <ProfileHoverCard user={primaryAuthor} onOpenProfile={onOpenProfile}>
+                <ProfileHoverCard user={primaryAuthor} onOpenProfile={onOpenProfile} side="bottom">
                   <span
                     onClick={openProfile}
                     className="truncate text-[15px] font-semibold tracking-[-0.02em] hover:underline cursor-pointer text-foreground dark:text-white"

@@ -46,7 +46,7 @@ export function HoverCard({
 
   return (
     <HoverCardContext.Provider value={{ isOpen, setIsOpen, openDelay, closeDelay }}>
-      <div className="relative inline-block" data-slot="hover-card">
+      <div className={cn('relative inline-block', isOpen && 'z-50')} data-slot="hover-card">
         {children}
       </div>
     </HoverCardContext.Provider>
