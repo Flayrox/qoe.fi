@@ -393,6 +393,7 @@ export function ArticleCard({
     month: 'short',
     year: 'numeric',
   });
+  const articleOwner = article.publication?.slug || article.publication?.subdomain || primaryHandle;
   const url = getArticleUrl(article, { preferTenant: true });
 
   const openProfile = (event: React.MouseEvent) => {
@@ -405,7 +406,14 @@ export function ArticleCard({
     if (onOpenArticle) {
       event.preventDefault();
       event.stopPropagation();
-      onOpenArticle(article);
+      const articleWithResolvedAuthor: ArticleCardArticle = {
+        ...article,
+        author: {
+          ...primaryAuthor,
+          username: primaryAuthor.username || primaryHandle,
+        },
+      };
+      onOpenArticle(articleWithResolvedAuthor);
     } else if (onOpenPost) {
       event.preventDefault();
       event.stopPropagation();
@@ -594,6 +602,7 @@ export function ArticleCard({
         data-article-link
         data-article-slug={article.slug}
         data-article-title={article.title}
+        data-article-owner={articleOwner}
         onClick={openArticle}
         className="block px-1.5 pb-1 pt-3 cursor-pointer group/title"
       >
@@ -688,6 +697,10 @@ export function ArticleCard({
             href={url}
             target="_blank"
             rel="noreferrer"
+            data-article-link
+            data-article-slug={article.slug}
+            data-article-title={article.title}
+            data-article-owner={articleOwner}
             onClick={openArticle}
             className="rounded-full p-1.5 hover:bg-muted transition-colors cursor-pointer"
             title={t`Lire l'article`}

@@ -200,6 +200,16 @@ export function ArticleOverlayProvider({
               setCanonicalDocument(res.data.canonicalDocument);
             }
             rememberArticle(slug, article);
+
+            // 🎯 Synchroniser l'URL avec l'URL canonique résolue une fois l'article chargé
+            const canonicalUrl = buildArticleUrl(article, slug);
+            if (
+              canonicalUrl &&
+              typeof window !== 'undefined' &&
+              window.location.pathname !== canonicalUrl
+            ) {
+              window.history.replaceState({ [HISTORY_KEY]: true, slug }, '', canonicalUrl);
+            }
             return;
           }
           throw new Error('article-introuvable');
@@ -271,10 +281,32 @@ export function ArticleOverlayProvider({
         decodeURIComponent(url.pathname.split('/').filter(Boolean).pop() ?? '');
       if (!slug) return;
 
+      const owner =
+        link.dataset.articleOwner ||
+        link.dataset.articleAuthor ||
+        link.dataset.articlePublication ||
+        (() => {
+          const parts = url.pathname.split('/').filter(Boolean);
+          const aIdx = parts.indexOf('a');
+          if (aIdx > 0 && parts[aIdx - 1] && parts[aIdx - 1] !== 'article') {
+            return decodeURIComponent(parts[aIdx - 1]);
+          }
+          const hostParts = url.hostname.split('.');
+          if (
+            hostParts.length > 2 &&
+            hostParts[0] &&
+            !['www', 'api', 'studio', 'admin', 'auth'].includes(hostParts[0])
+          ) {
+            return hostParts[0];
+          }
+          return undefined;
+        })();
+
       event.preventDefault();
       openArticle({
         slug,
         title: link.dataset.articleTitle || undefined,
+        author: owner ? { id: 'loading', username: owner } : undefined,
       });
     };
 

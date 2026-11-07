@@ -116,6 +116,10 @@ export interface ArticleResolvable {
     subdomain?: string | null;
     customDomain?: string | null;
     name?: string | null;
+    journalist?: {
+      username?: string | null;
+      id?: string;
+    } | null;
   } | null;
   publication?: {
     slug?: string | null;
@@ -127,6 +131,8 @@ export interface ArticleResolvable {
     slug?: string | null;
     name?: string | null;
   } | null;
+  authorUsername?: string | null;
+  owner?: string | null;
 }
 
 /**
@@ -135,8 +141,12 @@ export interface ArticleResolvable {
 export function getArticleOwner(article: ArticleResolvable, fallbackOwner?: string): string {
   return (
     article.publication?.slug ||
+    article.publication?.subdomain ||
     article.author?.username ||
     article.author?.subdomain ||
+    article.author?.journalist?.username ||
+    article.authorUsername ||
+    article.owner ||
     fallbackOwner ||
     'article'
   );

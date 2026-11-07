@@ -55,4 +55,27 @@ describe('UserArticleDedicatedPage - /:username/a/:slug', () => {
 
     expect(navigation.notFound).toHaveBeenCalled();
   });
+
+  it('permanently redirects when accessed with /article/a/:slug to canonical /:username/a/:slug', async () => {
+    vi.spyOn(goClient, 'goFetch').mockResolvedValue({
+      id: 'art_123',
+      title: 'Mon Super Article',
+      slug: 'mon-super-article',
+      content: 'Contenu.',
+      createdAt: '2026-01-01T00:00:00Z',
+      author: {
+        id: 'u1',
+        username: 'charlottegauthier',
+        name: 'Charlotte Gauthier',
+      },
+    } as never);
+
+    await UserArticleDedicatedPage({
+      params: Promise.resolve({ username: 'article', slug: 'mon-super-article' }),
+    });
+
+    expect(navigation.permanentRedirect).toHaveBeenCalledWith(
+      '/charlottegauthier/a/mon-super-article'
+    );
+  });
 });
