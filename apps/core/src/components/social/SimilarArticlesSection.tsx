@@ -68,6 +68,12 @@ export function SimilarArticlesSection({ articleId }: SimilarArticlesSectionProp
               data-article-link
               data-article-slug={item.slug}
               data-article-title={item.title}
+              data-article-owner={
+                item.authorUsername ||
+                (typeof (item as { publicationSlug?: string }).publicationSlug === 'string'
+                  ? (item as { publicationSlug?: string }).publicationSlug
+                  : undefined)
+              }
               className="block group"
             >
               <article className="rounded-xl border border-border/50 bg-card/60 hover:border-primary/40 hover:bg-card transition-all p-4 space-y-2">

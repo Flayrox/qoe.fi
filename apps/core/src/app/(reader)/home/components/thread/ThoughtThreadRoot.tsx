@@ -83,6 +83,19 @@ export function ThoughtThreadRoot({
               ? postData.likesCount
               : postData.likes?.length || 0,
         });
+
+        // 🎯 Synchroniser l'URL si elle utilisait le fallback générique /auteur/thought/:id
+        const realHandle = postData.author?.username || postData.author?.id;
+        if (realHandle && typeof window !== 'undefined') {
+          const currentPath = window.location.pathname;
+          if (
+            currentPath.includes('/auteur/thought/') ||
+            currentPath.includes('/author/thought/')
+          ) {
+            const newUrl = routes.feed.thought(realHandle, postData.id);
+            window.history.replaceState(window.history.state, '', newUrl);
+          }
+        }
       } else {
         setPost(null);
       }

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { t } from '@lingui/core/macro';
 import { useI18n } from '@qoe/i18n';
 import Link from 'next/link';
+import { routes } from '@qoe/config/routes';
 import { useTheme } from 'next-themes';
 import { Badge } from '@qoe/ui/badge';
 import { Button, buttonClasses } from '@qoe/ui/button';
@@ -1022,7 +1023,9 @@ export default function AccountSettingsPage({
               icon={FileText}
               title={t`Documents légaux`}
               description={t`Conditions, confidentialité, cookies et consentements enregistrés.`}
-              onClick={() => router.push('/legal')}
+              onClick={() => {
+                window.location.href = routes.landing.legal();
+              }}
             />
             {data.deletionRequest?.status === 'PENDING' && (
               <div className="flex items-center justify-between gap-3 rounded-xl border border-highlight/25 bg-highlight/[0.05] px-4 py-3 text-sm">

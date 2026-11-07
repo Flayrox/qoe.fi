@@ -596,6 +596,9 @@ export function LibraryClient({
                           data-article-link
                           data-article-slug={b.article.slug}
                           data-article-title={b.article.title}
+                          data-article-owner={
+                            b.article.author?.username || b.article.author?.subdomain || undefined
+                          }
                           onClick={() =>
                             trackServerEvent('library_article_click', {
                               articleId: b.article.id,
@@ -635,6 +638,9 @@ export function LibraryClient({
                           data-article-link
                           data-article-slug={b.article.slug}
                           data-article-title={b.article.title}
+                          data-article-owner={
+                            b.article.author?.username || b.article.author?.subdomain || undefined
+                          }
                           onClick={() =>
                             trackServerEvent('library_article_read', {
                               articleId: b.article.id,
@@ -682,6 +688,9 @@ export function LibraryClient({
                             data-article-link
                             data-article-slug={b.article.slug}
                             data-article-title={b.article.title}
+                            data-article-owner={
+                              b.article.author?.username || b.article.author?.subdomain || undefined
+                            }
                             className="text-xs sm:text-sm font-bold text-foreground hover:text-primary transition-colors truncate block"
                           >
                             {b.article.title}
@@ -719,6 +728,9 @@ export function LibraryClient({
                           data-article-link
                           data-article-slug={b.article.slug}
                           data-article-title={b.article.title}
+                          data-article-owner={
+                            b.article.author?.username || b.article.author?.subdomain || undefined
+                          }
                           className="text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/15 px-2.5 py-1 rounded-lg transition-colors inline-flex items-center gap-1"
                         >
                           <span>{t`Lire`}</span>
@@ -824,6 +836,11 @@ export function LibraryClient({
                             data-article-link
                             data-article-slug={h.article.slug}
                             data-article-title={h.article.title}
+                            data-article-owner={
+                              h.article.publication?.slug ||
+                              h.article.publication?.subdomain ||
+                              undefined
+                            }
                             className="hover:underline hover:text-primary transition-colors truncate"
                           >
                             — {h.article.title}
