@@ -223,11 +223,21 @@ type ThoughtHit struct {
 
 // SearchThoughts cherche les pensées publiques par contenu/tags (ILIKE,
 // parité search.searchThoughts Prisma — sans Meilisearch).
-func (s *SemanticService) SearchThoughts(ctx context.Context, query string, limit int) ([]ThoughtHit, error) {
+func toUUID(id string) pgtype.UUID {
+	var uuid pgtype.UUID
+	_ = uuid.Scan(id)
+	return uuid
+}
+
+func (s *SemanticService) SearchThoughts(ctx context.Context, query string, limit int, viewerID string) ([]ThoughtHit, error) {
 	// Le `#` d'un hashtag est un marqueur d'intention : le terme nu matche le
 	// contenu comme les tags (parité searchThoughts TS).
 	query = strings.TrimPrefix(strings.TrimSpace(query), "#")
-	rows, err := s.q.SearchThoughts(ctx, db.SearchThoughtsParams{Column1: pgtype.Text{String: query, Valid: true}, Limit: int32(limit)})
+	rows, err := s.q.SearchThoughts(ctx, db.SearchThoughtsParams{
+		Column1:  pgtype.Text{String: query, Valid: true},
+		Limit:    int32(limit),
+		ViewerID: toUUID(viewerID),
+	})
 	if err != nil {
 		return nil, err
 	}

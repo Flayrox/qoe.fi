@@ -392,7 +392,7 @@ func (h *Handler) changePassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) search(w http.ResponseWriter, r *http.Request) {
-	_, _ = middleware.UserID(r.Context())
+	viewerID, _ := middleware.UserID(r.Context())
 	query := r.URL.Query().Get("q")
 	if len(query) < 2 {
 		response.OK(w, []Contributor{})
@@ -422,7 +422,7 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request) {
 			excludeIds = append(excludeIds, v)
 		}
 	}
-	results, err := h.svc.SearchForContributors(r.Context(), query, excludeIds)
+	results, err := h.svc.SearchForContributors(r.Context(), query, excludeIds, viewerID)
 	if err != nil {
 		response.Internal(w)
 		return

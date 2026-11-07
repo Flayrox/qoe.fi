@@ -316,6 +316,13 @@ export interface PublicProfileData {
   headerImageUrl: string | null;
   isCertified: boolean;
   isFollowing: boolean;
+  /** Demande de follow en attente (compte PRIVATE). */
+  followRequested?: boolean;
+  /** Visibilité effective du profil (défaut PUBLIC). */
+  profileVisibility?: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE';
+  isPrivate?: boolean;
+  /** false = contenu du profil masqué au viewer (privé ou abonnés uniquement). */
+  canViewContent?: boolean;
   pronouns?: string | null;
   createdAt: string;
   type: 'PERSONAL' | 'MEDIA';

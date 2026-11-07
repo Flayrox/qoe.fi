@@ -93,6 +93,25 @@ func (h *Handler) toggleBlockedUser(w http.ResponseWriter, r *http.Request) {
 		response.Internal(w)
 		return
 	}
+	if !exists {
+		// Même nettoyage que posts.ToggleBlock : un blocage coupe les liens
+		// sociaux dans les deux sens, y compris depuis les réglages.
+		_, _ = h.svc.pool.Exec(r.Context(), `
+			DELETE FROM "Follows"
+			WHERE ("readerId" = $1 AND "publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $2))
+			   OR ("readerId" = $2 AND "publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $1))`,
+			toUUID(userID), toUUID(target))
+		_, _ = h.svc.pool.Exec(r.Context(), `
+			DELETE FROM "FollowRequest"
+			WHERE ("requesterId" = $1 AND "publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $2))
+			   OR ("requesterId" = $2 AND "publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $1))`,
+			toUUID(userID), toUUID(target))
+		_, _ = h.svc.pool.Exec(r.Context(), `
+			DELETE FROM "Notification"
+			WHERE type = 'FOLLOW' AND metadata->>'kind' = 'FOLLOW_REQUEST'
+			  AND (("recipientId" = $1 AND "senderId" = $2) OR ("recipientId" = $2 AND "senderId" = $1))`,
+			toUUID(userID), toUUID(target))
+	}
 	response.OK(w, map[string]bool{"blocked": !exists})
 }
 func (h *Handler) toggleMutedUser(w http.ResponseWriter, r *http.Request) {

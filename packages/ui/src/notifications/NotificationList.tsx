@@ -21,15 +21,23 @@ const TABS: Array<{ id: NotificationFilter; label: () => string }> = [
   { id: 'collaborations', label: () => t`Collaborations` },
 ];
 
-export function NotificationList() {
+interface NotificationListProps {
+  /** Accepte/refuse une demande d'abonnement depuis la notification. */
+  onFollowRequestDecision?: (
+    requestId: string,
+    decision: 'accept' | 'reject'
+  ) => void | Promise<void>;
+}
+
+export function NotificationList({ onFollowRequestDecision }: NotificationListProps = {}) {
   const [filter, setFilter] = useState<NotificationFilter>('all');
 
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } =
     useNotificationsInfiniteQuery(filter);
   const notifications = (data?.pages ?? [])
     .flatMap((p) => p?.notifications ?? [])
     .filter((n): n is NonNullable<typeof n> => Boolean(n && n.id));
-  const { data: unreadCount = 0 } = useUnreadNotificationCountQuery();
+  const { data: unreadCount = 0, refetch: refetchUnread } = useUnreadNotificationCountQuery();
   const { mutate: markAsRead, isPending: isMarkingRead } = useMarkNotificationsAsReadMutation();
   const autoMarkedRef = useRef(false);
   const unreadCountRef = useRef(0);
@@ -72,6 +80,13 @@ export function NotificationList() {
 
   const handleMarkOneRead = (ids: string[]) => {
     markAsRead(ids);
+  };
+
+  const handleFollowRequestDecision = async (requestId: string, decision: 'accept' | 'reject') => {
+    if (!onFollowRequestDecision) return;
+    await onFollowRequestDecision(requestId, decision);
+    // La décision change la liste ET le badge : on recharge les deux.
+    await Promise.all([refetch(), refetchUnread()]);
   };
 
   return (
@@ -129,7 +144,14 @@ export function NotificationList() {
       ) : (
         <div className="divide-y divide-border">
           {notifications.map((notif) => (
-            <NotificationItem key={notif.id} notification={notif} onMarkRead={handleMarkOneRead} />
+            <NotificationItem
+              key={notif.id}
+              notification={notif}
+              onMarkRead={handleMarkOneRead}
+              onFollowRequestDecision={
+                onFollowRequestDecision ? handleFollowRequestDecision : undefined
+              }
+            />
           ))}
         </div>
       )}

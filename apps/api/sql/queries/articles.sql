@@ -328,6 +328,13 @@ WHERE a.published = true
   AND u."isShadowbanned" = false
   AND u."isSuspended" = false
   AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
+  AND NOT EXISTS (
+    SELECT 1
+    FROM "Publication" pv
+    JOIN "User" owner ON owner."publicationId" = pv.id
+    JOIN "UserSettings" us ON us."userId" = owner.id
+    WHERE pv.id = a."publicationId" AND us."profileVisibility" <> 'PUBLIC'
+  )
 ORDER BY a."createdAt" DESC, a.id DESC
 LIMIT $1 OFFSET $2;
 
@@ -339,7 +346,14 @@ JOIN "User" u ON u.id = a."authorId"
 WHERE a.published = true
   AND u."isShadowbanned" = false
   AND u."isSuspended" = false
-  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now());
+  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
+  AND NOT EXISTS (
+    SELECT 1
+    FROM "Publication" pv
+    JOIN "User" owner ON owner."publicationId" = pv.id
+    JOIN "UserSettings" us ON us."userId" = owner.id
+    WHERE pv.id = a."publicationId" AND us."profileVisibility" <> 'PUBLIC'
+  );
 
 -- name: SetArticleAllowDownload :one
 -- Droit de téléchargement d'un article (l'auteur choisit — hors-ligne et

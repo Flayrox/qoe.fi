@@ -58,6 +58,8 @@ Priorité : **P0** = risque immédiat (prod, sécurité, perte de données) · *
 | **PROD-09** | Universal links / App Links mobile | P2 | todo |
 | **PROD-10** | Recherche : onglets personnes / pensées / sujets | P2 | todo |
 | **PROD-11** | Funnel produit + expérimentation A/B | P2 | todo |
+| **PROD-12** | Comptes privés : demandes de follow + blocage symétrique | P1 | ✅ fait (2026-11-07) |
+| **PROD-13** | Fermeture des surfaces de visibilité (hydrate, notifications, commentaires, sitemap, recherche) | P1 | ✅ fait (2026-11-07) |
 | **UI-01** | UI lab : sortir de studio + baselines visuelles cross-platform | P1 | todo |
 | **UI-02** | Migrer les 318 `<button>` et 139 `<input>` bruts | P1 | todo |
 | **UI-03** | Supprimer les primitives mortes | P2 | todo |
@@ -68,6 +70,8 @@ Priorité : **P0** = risque immédiat (prod, sécurité, perte de données) · *
 ## Ce qui a été fait récemment (contexte)
 
 - **2026-11-07** : routing canonique `/:username/a/:slug`, redirections cross-zone, fixes slug.
+- **2026-11-07** : comptes privés (FollowRequest, acceptation/refus, gating profil/feed/recherche/articles) et blocage symétrique (profils, feeds, recherche, fils, nettoyage des follows).
+- **2026-11-07** : fermeture des surfaces de visibilité restantes — notifications filtrées par blocage, demandes actionnables dans le centre de notifications, hydrate sans brouillons/programmés/privés/bloqués, commentaires et sitemaps filtrés, recherche de personnes filtrée, nettoyage des liens au blocage depuis les réglages.
 - **2026-11-06** : console admin lots A→D (triage 6 files, RBAC, SLO, DSAR, rétention, outbox, sandbox, impersonation auditée).
 - **2026-11-06** : refonte UI studio (primitives partagées, densité, suppression de 5 primitives mortes).
 - **2026-10** : OAuth 2.1/OIDC, clés API, webhooks, modération anti-abus, support, recours.

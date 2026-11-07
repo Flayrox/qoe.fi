@@ -39,6 +39,82 @@ func (s *Service) invalidate(ctx context.Context, prefixes ...string) {
 	cache.InvalidateNamespaces(ctx, s.rc, prefixes...)
 }
 
+// canViewProfileContent applique la visibilité du profil (PUBLIC | FOLLOWERS |
+// PRIVATE) et le blocage symétrique aux listes de contenu d'un profil.
+func (s *Service) canViewProfileContent(ctx context.Context, publicationID, ownerID, viewerID string) (bool, error) {
+	if publicationID == "" {
+		return true, nil
+	}
+	if ownerID == "" {
+		var err error
+		ownerID, err = s.q.GetPublicationOwner(ctx, publicationID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return true, nil
+			}
+			return false, err
+		}
+	}
+	if viewerID != "" && viewerID == ownerID {
+		return true, nil
+	}
+
+	visibility, err := s.q.GetUserProfileVisibility(ctx, ownerID)
+	if err != nil {
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return false, err
+		}
+		visibility = "PUBLIC"
+	}
+
+	if viewerID != "" {
+		blocked, err := s.q.IsBlockedEitherWay(ctx, db.IsBlockedEitherWayParams{
+			ReaderId:  toUUID(viewerID),
+			CreatorId: toUUID(ownerID),
+		})
+		if err != nil {
+			return false, err
+		}
+		if blocked {
+			return false, nil
+		}
+	}
+
+	if visibility == "PUBLIC" {
+		return true, nil
+	}
+	if viewerID == "" {
+		return false, nil
+	}
+	_, err = s.q.GetExistingFollow(ctx, db.GetExistingFollowParams{
+		ReaderId:      toUUID(viewerID),
+		PublicationId: publicationID,
+	})
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	return false, err
+}
+
+// canViewAuthorContent applique la visibilité du profil de l'auteur et le
+// blocage symétrique à un contenu adressé par son id (fil direct).
+func (s *Service) canViewAuthorContent(ctx context.Context, authorID, viewerID string) (bool, error) {
+	var pubID pgtype.Text
+	if err := s.pool.QueryRow(ctx, `SELECT "publicationId" FROM "User" WHERE id = $1`, toUUID(authorID)).Scan(&pubID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return true, nil
+		}
+		return false, err
+	}
+	if !pubID.Valid || pubID.String == "" {
+		return true, nil
+	}
+	return s.canViewProfileContent(ctx, pubID.String, authorID, viewerID)
+}
+
 // ParseCursor interprète le curseur opaque (offset numérique) ; défaut 0.
 func ParseCursor(cursor string) int {
 	if cursor == "" {
@@ -179,6 +255,25 @@ func (s *Service) UserPosts(ctx context.Context, username, viewerID string, limi
 		}
 	}
 
+	// Profil privé / réservé aux abonnés : les listes de contenu suivent la
+	// même règle que le profil. Un blocage, dans un sens ou l'autre, vide la
+	// liste sans révéler l'existence du contenu.
+	if pub.ID == "" {
+		var pID pgtype.Text
+		if err := s.pool.QueryRow(ctx, `SELECT "publicationId" FROM "User" WHERE id = $1`, toUUID(ownerID)).Scan(&pID); err == nil && pID.Valid {
+			pub.ID = pID.String
+		}
+	}
+	if pub.ID != "" {
+		allowed, err := s.canViewProfileContent(ctx, pub.ID, ownerID, viewerID)
+		if err != nil {
+			return FeedResult{}, err
+		}
+		if !allowed {
+			return FeedResult{Items: []posts.FeedSlice{}, NextCursor: "", HasMore: false}, nil
+		}
+	}
+
 	rows, err := s.q.FindPostsByAuthor(ctx, db.FindPostsByAuthorParams{
 		AuthorID:  toUUID(ownerID),
 		ViewerID:  toUUID(viewerID),
@@ -258,6 +353,13 @@ func (s *Service) Thread(ctx context.Context, postID, viewerID string) (*ThreadP
 		return nil, err
 	}
 	if len(rows) == 0 {
+		return nil, ErrNotFound
+	}
+	allowed, err := s.canViewAuthorContent(ctx, rows[0].AuthorID, viewerID)
+	if err != nil {
+		return nil, err
+	}
+	if !allowed {
 		return nil, ErrNotFound
 	}
 
@@ -610,7 +712,7 @@ func (s *Service) RecentArticles(ctx context.Context, limit, offset int) (Articl
 
 // PublicationArticles retourne les articles publiés d'une publication (profil),
 // résolue par slug OU subdomain (insensible à la casse), paginés.
-func (s *Service) PublicationArticles(ctx context.Context, username string, limit, offset int) (ArticleFeedResult, error) {
+func (s *Service) PublicationArticles(ctx context.Context, username, viewerID string, limit, offset int) (ArticleFeedResult, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}
@@ -623,6 +725,18 @@ func (s *Service) PublicationArticles(ctx context.Context, username string, limi
 	})
 	if err != nil {
 		return ArticleFeedResult{}, err
+	}
+
+	// Même règle de visibilité que les pensées : le contenu d'un compte
+	// privé n'est pas servi aux non-abonnés, même par l'endpoint de profil.
+	if len(rows) > 0 {
+		allowed, err := s.canViewProfileContent(ctx, rows[0].PublicationId, "", viewerID)
+		if err != nil {
+			return ArticleFeedResult{}, err
+		}
+		if !allowed {
+			return ArticleFeedResult{Items: []FeedArticle{}, NextCursor: "", HasMore: false}, nil
+		}
 	}
 
 	hasMore := len(rows) > limit

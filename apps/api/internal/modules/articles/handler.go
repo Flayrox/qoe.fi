@@ -121,11 +121,12 @@ func (h *Handler) getBySlug(w http.ResponseWriter, r *http.Request) {
 	}
 
 	publicationID := r.URL.Query().Get("publicationId")
+	viewerID, _ := middleware.UserID(r.Context())
 
 	// Mode slug seul (page autonome /article/[slug] du reader core) : premier
 	// article publié par slug, contenu complet — parité findFirstBySlug Prisma.
 	if publicationID == "" {
-		article, err := h.svc.GetBySlugAny(r.Context(), slug)
+		article, err := h.svc.GetBySlugAny(r.Context(), slug, viewerID)
 		if err != nil {
 			if errors.Is(err, errNotFound) {
 				response.NotFound(w, "Article introuvable")
@@ -139,7 +140,6 @@ func (h *Handler) getBySlug(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	viewerID, _ := middleware.UserID(r.Context())
 	viewerEmail := r.URL.Query().Get("viewerEmail")
 
 	article, err := h.svc.GetBySlug(r.Context(), slug, publicationID, viewerID, viewerEmail)
@@ -375,7 +375,7 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 		ReadingTime:   in.ReadingTime, Published: in.Published, Status: in.Status,
 		ActivePublicationID: in.ActivePublicationID, ScheduledAt: scheduledAt,
 		Attributions: in.Attributions,
-		SendEmail: in.SendEmail, EmailSubject: in.EmailSubject, EmailPreviewText: in.EmailPreviewText,
+		SendEmail:    in.SendEmail, EmailSubject: in.EmailSubject, EmailPreviewText: in.EmailPreviewText,
 	}); err != nil {
 		response.BadRequest(w, err.Error())
 		return
@@ -799,7 +799,8 @@ func (h *Handler) similar(w http.ResponseWriter, r *http.Request) {
 // GET /v1/articles/{id}/comments — liste publique des commentaires.
 func (h *Handler) listComments(w http.ResponseWriter, r *http.Request) {
 	articleID := chi.URLParam(r, "id")
-	comments, err := h.svc.ListComments(r.Context(), articleID)
+	viewerID, _ := middleware.UserID(r.Context())
+	comments, err := h.svc.ListComments(r.Context(), articleID, viewerID)
 	if err != nil {
 		log.Printf("[articles] listComments: %v", err)
 		response.Internal(w)

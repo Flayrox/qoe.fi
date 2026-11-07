@@ -1726,7 +1726,21 @@ func (s *Service) fetchEngineArticles(ctx context.Context, vec *pgvector.Vector,
 		  AND u."isShadowbanned" = false AND u."isSuspended" = false`
 		ai := 2
 		if userID != "" {
-			q += fmt.Sprintf(` AND NOT EXISTS (SELECT 1 FROM "BlockedUser" bu WHERE bu."readerId"=$%d AND bu."creatorId"=a."authorId")`, ai)
+			viewerParam := ai
+			q += fmt.Sprintf(` AND NOT EXISTS (
+				SELECT 1 FROM "BlockedUser" bu
+				WHERE (bu."readerId"=$%d AND bu."creatorId"=a."authorId")
+				   OR (bu."readerId"=a."authorId" AND bu."creatorId"=$%d)
+			)`, viewerParam, viewerParam)
+			// Compte privé : le contenu ne sort du profil que pour ses abonnés.
+			q += fmt.Sprintf(` AND (
+				COALESCE((SELECT us."profileVisibility"
+				          FROM "Publication" p
+				          JOIN "User" ow ON ow."publicationId" = p.id
+				          LEFT JOIN "UserSettings" us ON us."userId" = ow.id
+				          WHERE p.id = a."publicationId" LIMIT 1), 'PUBLIC') = 'PUBLIC'
+				OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId"=$%d AND f."publicationId"=a."publicationId")
+			)`, viewerParam)
 			args = append(args, toUUID(userID))
 			ai++
 			q += fmt.Sprintf(` AND NOT EXISTS (SELECT 1 FROM "ContentFeedback" cf WHERE cf."userId"=$%d AND cf."articleId"=a.id AND cf.type='SHOW_LESS')`, ai)
@@ -1756,9 +1770,22 @@ func (s *Service) fetchEngineArticles(ctx context.Context, vec *pgvector.Vector,
 		       EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800)::float8 AS fresh
 		FROM "Article" a JOIN "User" u ON u.id::text = a."authorId"::text
 		WHERE a.published = true AND u."isShadowbanned" = false AND u."isSuspended" = false
+		  AND NOT EXISTS (
+		    SELECT 1 FROM "BlockedUser" bu
+		    WHERE (bu."readerId"=$3 AND bu."creatorId"=a."authorId")
+		       OR (bu."readerId"=a."authorId" AND bu."creatorId"=$3)
+		  )
+		  AND (
+		    COALESCE((SELECT us."profileVisibility"
+		              FROM "Publication" p
+		              JOIN "User" ow ON ow."publicationId" = p.id
+		              LEFT JOIN "UserSettings" us ON us."userId" = ow.id
+		              WHERE p.id = a."publicationId" LIMIT 1), 'PUBLIC') = 'PUBLIC'
+		    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId"=$3 AND f."publicationId"=a."publicationId")
+		  )
 		ORDER BY (0.50*EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800) + 0.50*(0.70 + 0.30*a."completionRate")) DESC
 		LIMIT $1 OFFSET $2`, cfg.coldStartSim)
-		rows, err = s.pool.Query(ctx, q, limit, offset)
+		rows, err = s.pool.Query(ctx, q, limit, offset, toUUID(userID))
 	}
 	if err != nil {
 		return nil, err
@@ -1799,7 +1826,16 @@ func (s *Service) fetchEngineThoughts(ctx context.Context, vec *pgvector.Vector,
 		  AND u."isShadowbanned" = false AND u."isSuspended" = false`
 		ai := 2
 		if userID != "" {
-			q += fmt.Sprintf(` AND NOT EXISTS (SELECT 1 FROM "BlockedUser" bu WHERE bu."readerId"=$%d AND bu."creatorId"=p."authorId")`, ai)
+			viewerParam := ai
+			q += fmt.Sprintf(` AND NOT EXISTS (
+				SELECT 1 FROM "BlockedUser" bu
+				WHERE (bu."readerId"=$%d AND bu."creatorId"=p."authorId")
+				   OR (bu."readerId"=p."authorId" AND bu."creatorId"=$%d)
+			)`, viewerParam, viewerParam)
+			q += fmt.Sprintf(` AND (
+				COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
+				OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId"=$%d AND f."publicationId"=u."publicationId")
+			)`, viewerParam)
 			args = append(args, toUUID(userID))
 			ai++
 			q += fmt.Sprintf(` AND NOT EXISTS (SELECT 1 FROM "ContentFeedback" cf WHERE cf."userId"=$%d AND cf."thoughtId"=p.id AND cf.type='SHOW_LESS')`, ai)
@@ -1826,9 +1862,18 @@ func (s *Service) fetchEngineThoughts(ctx context.Context, vec *pgvector.Vector,
 		WHERE p."parentId" IS NULL AND p."repostId" IS NULL AND p."deletedAt" IS NULL
 		  AND p."isDraft" = false AND p."isHiddenByAuthor" = false
 		  AND u."isShadowbanned" = false AND u."isSuspended" = false
+		  AND NOT EXISTS (
+		    SELECT 1 FROM "BlockedUser" bu
+		    WHERE (bu."readerId"=$3 AND bu."creatorId"=p."authorId")
+		       OR (bu."readerId"=p."authorId" AND bu."creatorId"=$3)
+		  )
+		  AND (
+		    COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
+		    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId"=$3 AND f."publicationId"=u."publicationId")
+		  )
 		ORDER BY (0.50*EXP(-EXTRACT(EPOCH FROM (NOW() - p."createdAt"))/86400) + 0.50*LEAST(1.0,(p."likeCount" + p."replyCount"*2 + p."repostCount"*2)/30.0)) DESC
 		LIMIT $1 OFFSET $2`, cfg.coldStartSim)
-		rows, err = s.pool.Query(ctx, q, limit, offset)
+		rows, err = s.pool.Query(ctx, q, limit, offset, toUUID(userID))
 	}
 	if err != nil {
 		return nil, err

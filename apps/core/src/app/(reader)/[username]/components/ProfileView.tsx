@@ -15,6 +15,7 @@ import {
   Image as ImageIcon,
   Pin,
   Share2,
+  Lock,
 } from 'lucide-react';
 import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
 import { ThoughtCard } from '@/components/social/ThoughtCard';
@@ -87,6 +88,12 @@ interface ProfileViewProps {
   currentUserId: string | null;
   isOwnProfile: boolean;
   initialIsFollowing: boolean;
+  /** Demande de follow déjà en attente (compte PRIVATE). */
+  initialFollowRequested?: boolean;
+  /** Visibilité effective du profil (PUBLIC | FOLLOWERS | PRIVATE). */
+  profileVisibility?: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE';
+  /** false = le contenu est masqué au viewer (privé / abonnés uniquement). */
+  initialCanViewContent?: boolean;
   initialTab?: string;
   /** PublicationId (cible de l'endpoint follow) — le profile.id du Go. */
   initialPublicationId?: string;
@@ -101,6 +108,9 @@ export function ProfileView({
   currentUserId,
   isOwnProfile,
   initialIsFollowing,
+  initialFollowRequested = false,
+  profileVisibility = 'PUBLIC',
+  initialCanViewContent = true,
   initialTab = 'thoughts',
   initialPublicationId,
 }: ProfileViewProps) {
@@ -109,7 +119,10 @@ export function ProfileView({
   const thoughtOverlay = useThoughtOverlay();
   const [user, setUser] = useState(initialProfileUser);
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
+  const [followRequested, setFollowRequested] = useState(initialFollowRequested);
   const [followersCount, setFollowersCount] = useState(user._count?.followers || 0);
+  const canViewContent = initialCanViewContent;
+  const isPrivate = profileVisibility === 'PRIVATE';
 
   // 🧵 Un fil s'ouvre par-dessus le profil : la position et le scroll de la
   // page restent intacts. Sans provider (vitrine), navigation classique.
@@ -195,17 +208,39 @@ export function ProfileView({
       return;
     }
 
-    const nextState = !isFollowing;
-    setIsFollowing(nextState);
-    setFollowersCount((prev: number) => (nextState ? prev + 1 : prev - 1));
+    const wasFollowing = isFollowing;
+    const wasRequested = followRequested;
+    // Optimiste : follow instantané, ou demande locale pour un compte privé.
+    const optimisticFollowing = !wasFollowing && !wasRequested && !isPrivate;
+    const optimisticRequested = !wasFollowing && (wasRequested || isPrivate);
+    setIsFollowing(optimisticFollowing);
+    setFollowRequested(optimisticRequested);
 
     const res = await toggleFollowCreator(initialPublicationId || user.id);
     if (!res.ok) {
-      setIsFollowing(!nextState);
-      setFollowersCount((prev: number) => (!nextState ? prev + 1 : prev - 1));
+      setIsFollowing(wasFollowing);
+      setFollowRequested(wasRequested);
       toast.error('Erreur lors de la modification du suivi.');
+      return;
+    }
+
+    const nextFollowing = res.data?.followed ?? false;
+    const nextRequested = res.data?.requested ?? false;
+    setIsFollowing(nextFollowing);
+    setFollowRequested(nextRequested);
+    if (nextFollowing !== wasFollowing) {
+      setFollowersCount((prev: number) => Math.max(0, prev + (nextFollowing ? 1 : -1)));
+    }
+
+    if (nextRequested) {
+      toast.success(`Demande d’abonnement envoyée à ${user.name || 'ce compte'}.`);
+    } else if (nextFollowing) {
+      toast.success(`Vous suivez maintenant ${user.name}`);
+      // Le contenu était masqué côté serveur : on recharge une fois l'accès
+      // accordé (follow instantané d'un compte FOLLOWERS).
+      if (!canViewContent) router.refresh();
     } else {
-      toast.success(nextState ? `Vous suivez maintenant ${user.name}` : `Abonnement retiré.`);
+      toast.success(wasRequested ? 'Demande annulée.' : 'Abonnement retiré.');
     }
   };
 
@@ -349,7 +384,7 @@ export function ProfileView({
                         : undefined
                     }
                   >
-                    {isFollowing ? t`Abonné` : t`Suivre`}
+                    {isFollowing ? t`Abonné` : followRequested ? t`Demandé` : t`Suivre`}
                   </Button>
                 )}
 
@@ -379,6 +414,12 @@ export function ProfileView({
                   {user.name}
                 </h1>
                 {user.isCertified && <CertifiedBadge size={16} />}
+                {isPrivate && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    <Lock className="h-3 w-3" />
+                    {t`Compte privé`}
+                  </span>
+                )}
               </div>
               <p className="text-xs text-muted-foreground font-medium">
                 @{user.username || user.subdomain}
@@ -442,7 +483,7 @@ export function ProfileView({
                 </span>
               </button>
               <button
-                onClick={() => setFollowsModalTab('following')}
+                onClick={() => canViewContent && setFollowsModalTab('following')}
                 className="flex items-center gap-1.5 cursor-pointer hover:underline group"
               >
                 <span className="font-bold text-foreground">
@@ -453,7 +494,7 @@ export function ProfileView({
                 </span>
               </button>
               <button
-                onClick={() => setFollowsModalTab('followers')}
+                onClick={() => canViewContent && setFollowsModalTab('followers')}
                 className="flex items-center gap-1.5 cursor-pointer hover:underline group"
               >
                 <span className="font-bold text-foreground">{followersCount}</span>
@@ -464,8 +505,27 @@ export function ProfileView({
             </div>
           </div>
 
+          {!canViewContent && (
+            <div className="border-t border-border/40 px-6 py-14 text-center space-y-3">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                <Lock className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <h2 className="text-sm font-semibold">{t`Ce compte est privé`}</h2>
+              <p className="mx-auto max-w-sm text-xs text-muted-foreground">
+                {followRequested
+                  ? t`Votre demande d’abonnement est en attente. Vous verrez les pensées et articles dès qu’elle sera acceptée.`
+                  : t`Abonnez-vous pour voir ses pensées et ses articles.`}
+              </p>
+            </div>
+          )}
+
           {/* Profile Tabs Navigation */}
-          <div className="border-t border-border/40 px-3 overflow-x-auto no-scrollbar">
+          <div
+            className={cn(
+              'border-t border-border/40 px-3 overflow-x-auto no-scrollbar',
+              !canViewContent && 'hidden'
+            )}
+          >
             <Tabs
               variant="underline"
               size="md"
@@ -508,7 +568,7 @@ export function ProfileView({
         </div>
 
         {/* Tab Content Stream — Instant, Snappy Rendering without Fade Lag */}
-        <div className="space-y-4">
+        <div className={cn('space-y-4', !canViewContent && 'hidden')}>
           {activeTab === 'thoughts' && (
             <div className="space-y-2">
               {rootThoughts.length === 0 ? (

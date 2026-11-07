@@ -113,7 +113,8 @@ func (h *Handler) searchThoughts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	items, err := h.semantic.SearchThoughts(r.Context(), query, limit)
+	userID, _ := middleware.UserID(r.Context())
+	items, err := h.semantic.SearchThoughts(r.Context(), query, limit, userID)
 	if err != nil {
 		log.Printf("[search] thoughts: %v", err)
 		response.Internal(w)
@@ -163,11 +164,21 @@ func (h *Handler) searchArticles(w http.ResponseWriter, r *http.Request) {
 		redactPremiumHitContents(hits)
 	}
 
+	// 🔒 Visibilité des comptes : l'index Meilisearch ne connaît pas
+	// profileVisibility. On retire donc les hits des publications privées /
+	// réservées aux abonnés, et ceux d'un compte bloqué dans un sens ou l'autre.
+	before := len(hits)
+	hits = h.filterVisibleArticleHits(r.Context(), hits, userID)
+	estimatedTotal := results.EstimatedTotalHits - int64(before-len(hits))
+	if estimatedTotal < 0 {
+		estimatedTotal = 0
+	}
+
 	// Sérialisation explicite : les hits meilisearch sont des maps de
 	// json.RawMessage, stables en sortie.
 	out, err := json.Marshal(map[string]any{
 		"hits":               hits,
-		"estimatedTotalHits": results.EstimatedTotalHits,
+		"estimatedTotalHits": estimatedTotal,
 	})
 	if err != nil {
 		response.Internal(w)
@@ -175,6 +186,86 @@ func (h *Handler) searchArticles(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write(out)
+}
+
+// filterVisibleArticleHits retire les hits dont la publication n'est pas
+// visible par le viewer (compte privé / abonnés uniquement) ou dont l'auteur
+// est bloqué dans un sens ou l'autre. Les hits sans publicationId sont
+// conservés : on ne peut pas prouver qu'ils sont privés.
+func (h *Handler) filterVisibleArticleHits(ctx context.Context, hits meilisearch.Hits, viewerID string) meilisearch.Hits {
+	if h.pool == nil || len(hits) == 0 {
+		return hits
+	}
+
+	pubIDs := make([]string, 0, len(hits))
+	hitPub := make([]string, len(hits))
+	for i, hit := range hits {
+		var pubID string
+		if raw, ok := hit["publicationId"]; ok {
+			_ = json.Unmarshal(raw, &pubID)
+		}
+		hitPub[i] = pubID
+		if pubID != "" {
+			pubIDs = append(pubIDs, pubID)
+		}
+	}
+	if len(pubIDs) == 0 {
+		return hits
+	}
+
+	type access struct {
+		visibility string
+		own        bool
+		follows    bool
+		blocked    bool
+	}
+	byPub := make(map[string]access, len(pubIDs))
+	rows, err := h.pool.Query(ctx, `
+		SELECT p.id::text,
+		       COALESCE(us."profileVisibility", 'PUBLIC'),
+		       (u.id = $2) AS is_own,
+		       EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = $2 AND f."publicationId" = p.id) AS follows,
+		       EXISTS (SELECT 1 FROM "BlockedUser" bu
+		               WHERE (bu."readerId" = $2 AND bu."creatorId" = u.id)
+		                  OR (bu."readerId" = u.id AND bu."creatorId" = $2)) AS blocked
+		FROM "Publication" p
+		JOIN "User" u ON u."publicationId" = p.id
+		LEFT JOIN "UserSettings" us ON us."userId" = u.id
+		WHERE p.id = ANY($1)`, pubIDs, toUUID(viewerID))
+	if err != nil {
+		log.Printf("[search] visibility filter: %v", err)
+		return hits
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var pubID string
+		var a access
+		if err := rows.Scan(&pubID, &a.visibility, &a.own, &a.follows, &a.blocked); err != nil {
+			continue
+		}
+		byPub[pubID] = a
+	}
+
+	filtered := make(meilisearch.Hits, 0, len(hits))
+	for i, hit := range hits {
+		pubID := hitPub[i]
+		if pubID == "" {
+			filtered = append(filtered, hit)
+			continue
+		}
+		a, ok := byPub[pubID]
+		if !ok {
+			// Publication supprimée entre l'indexation et la recherche.
+			continue
+		}
+		if a.blocked {
+			continue
+		}
+		if a.own || a.visibility == "PUBLIC" || a.follows {
+			filtered = append(filtered, hit)
+		}
+	}
+	return filtered
 }
 
 // redactPremiumHitContents remplace, dans les hits de recherche PUBLIQUE, le

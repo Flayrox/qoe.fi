@@ -166,6 +166,10 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 func (h *Handler) RegisterProtected(r chi.Router, requireScope func(string) func(http.Handler) http.Handler) {
 	r.Get("/v1/users/me", h.userMe)
 	r.Post("/v1/users/{id}/follow", h.followToggle)
+	// Comptes privés : boîte de réception et décision des demandes d'abonnement.
+	r.Get("/v1/me/follow-requests", h.followRequests)
+	r.Post("/v1/me/follow-requests/{id}/accept", h.acceptFollowRequest)
+	r.Post("/v1/me/follow-requests/{id}/reject", h.rejectFollowRequest)
 	r.With(requireScope(middleware.ScopeRead)).Get("/v1/categories", h.categories)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/categories", h.createCategory)
 	r.With(requireScope(middleware.ScopeWrite)).Patch("/v1/categories/{id}", h.updateCategory)
@@ -680,16 +684,7 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	isFollowing := false
-	if userID, ok := middleware.UserID(r.Context()); ok && userID != "" {
-		_, err := h.q.GetExistingFollow(r.Context(), db.GetExistingFollowParams{
-			ReaderId:      toUUID(userID),
-			PublicationId: row.ID,
-		})
-		if err == nil {
-			isFollowing = true
-		}
-	}
+	viewerID, _ := middleware.UserID(r.Context())
 
 	// Nombre d'abonnements du propriétaire de la publication (CountFollowing)
 	// + id du User propriétaire (isOwnProfile côté client) + pronoms (profil inclusif).
@@ -718,23 +713,41 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	access, err := h.resolveProfileAccess(r.Context(), row.ID, viewerID)
+	if err != nil {
+		log.Printf("[creator] userByUsername access: %v", err)
+		response.Internal(w)
+		return
+	}
+	if access.Blocked {
+		response.NotFound(w, "User not found")
+		return
+	}
+	if access.OwnerID != "" {
+		ownerUserID = access.OwnerID
+	}
+
 	response.OK(w, map[string]any{"data": map[string]any{
-		"id":             row.ID,
-		"ownerUserId":    ownerUserID,
-		"name":           row.Name,
-		"slug":           displaySlug,
-		"subdomain":      textPtr(row.Subdomain),
-		"customDomain":   textPtr(row.CustomDomain),
-		"heroText":       textPtr(row.HeroText),
-		"onboardingText": onboardingText,
-		"logoUrl":        textPtr(row.LogoUrl),
-		"headerImageUrl": textPtr(row.HeaderImageUrl),
-		"isCertified":    row.IsCertified,
-		"isFollowing":    isFollowing,
-		"pronouns":       pronouns,
-		"createdAt":      timestampPtr(row.CreatedAt),
-		"type":           string(row.Type),
-		"_count":         map[string]int32{"followers": row.FollowersCount, "following": followingCount, "articles": row.ArticlesCount},
+		"id":                row.ID,
+		"ownerUserId":       ownerUserID,
+		"name":              row.Name,
+		"slug":              displaySlug,
+		"subdomain":         textPtr(row.Subdomain),
+		"customDomain":      textPtr(row.CustomDomain),
+		"heroText":          textPtr(row.HeroText),
+		"onboardingText":    onboardingText,
+		"logoUrl":           textPtr(row.LogoUrl),
+		"headerImageUrl":    textPtr(row.HeaderImageUrl),
+		"isCertified":       row.IsCertified,
+		"isFollowing":       access.IsFollowing,
+		"followRequested":   access.Requested,
+		"profileVisibility": access.Visibility,
+		"isPrivate":         access.Visibility == "PRIVATE",
+		"canViewContent":    access.CanViewContent,
+		"pronouns":          pronouns,
+		"createdAt":         timestampPtr(row.CreatedAt),
+		"type":              string(row.Type),
+		"_count":            map[string]int32{"followers": row.FollowersCount, "following": followingCount, "articles": row.ArticlesCount},
 	}})
 }
 
@@ -779,6 +792,21 @@ func (h *Handler) userFollowers(w http.ResponseWriter, r *http.Request) {
 			response.Internal(w)
 			return
 		}
+	}
+
+	access, err := h.resolveProfileAccess(r.Context(), pub.ID, userID)
+	if err != nil {
+		log.Printf("[creator] followers access: %v", err)
+		response.Internal(w)
+		return
+	}
+	if access.Blocked {
+		response.NotFound(w, "User not found")
+		return
+	}
+	if !access.CanViewContent {
+		response.Forbidden(w, "Ce compte est privé.")
+		return
 	}
 
 	rows, err := h.q.ListFollowersByPublication(r.Context(), db.ListFollowersByPublicationParams{
@@ -852,6 +880,21 @@ func (h *Handler) userFollowing(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	access, err := h.resolveProfileAccess(r.Context(), pub.ID, userID)
+	if err != nil {
+		log.Printf("[creator] following access: %v", err)
+		response.Internal(w)
+		return
+	}
+	if access.Blocked {
+		response.NotFound(w, "User not found")
+		return
+	}
+	if !access.CanViewContent {
+		response.Forbidden(w, "Ce compte est privé.")
+		return
+	}
+
 	rows, err := h.q.ListFollowingByUser(r.Context(), db.ListFollowingByUserParams{
 		ReaderId: toUUID(ownerID),
 		ViewerID: toUUID(userID),
@@ -905,6 +948,8 @@ func parseFollowPage(r *http.Request) (limit, offset int) {
 }
 
 // followToggle suit/se désabonne d'une publication (parité Hono /v1/users/{id}/follow).
+// Un compte PRIVATE transforme le follow en demande à approuver ; un second
+// clic sur « Demandé » annule la demande.
 func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserID(r.Context())
 	// Défense en profondeur : la route est derrière CombinedAuth, mais un
@@ -927,15 +972,28 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if ownerID, err := h.q.GetPublicationOwner(ctx, pubID); err == nil && ownerID == userID {
+	access, err := h.resolveProfileAccess(ctx, pubID, userID)
+	if err != nil {
+		log.Printf("[creator] follow access: %v", err)
+		response.Internal(w)
+		return
+	}
+	if access.OwnerID == "" {
+		response.NotFound(w, "User not found")
+		return
+	}
+	if access.Blocked {
+		response.Forbidden(w, "Action impossible avec cet utilisateur.")
+		return
+	}
+	if access.OwnerID == userID {
 		response.BadRequest(w, "You cannot follow yourself")
 		return
 	}
 
 	params := db.GetExistingFollowParams{ReaderId: toUUID(userID), PublicationId: pubID}
 
-	_, err := h.q.GetExistingFollow(ctx, params)
-	if err == nil {
+	if _, err := h.q.GetExistingFollow(ctx, params); err == nil {
 		if err := h.q.DeleteFollow(ctx, db.DeleteFollowParams{ReaderId: toUUID(userID), PublicationId: pubID}); err != nil {
 			log.Printf("[creator] unfollow: %v", err)
 			response.Internal(w)
@@ -944,16 +1002,48 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 		if err := deleteFollowNotification(ctx, h.q, pubID, userID); err != nil {
 			log.Printf("[creator] delete follow notification: %v", err)
 		}
+		h.cancelFollowRequest(ctx, userID, pubID)
 		count, err := h.q.CountFollowers(ctx, pubID)
 		if err != nil {
 			count = 0
 		}
-		response.OK(w, map[string]any{"data": map[string]any{"following": false, "followersCount": count}})
+		response.OK(w, map[string]any{"data": map[string]any{"following": false, "requested": false, "followersCount": count}})
 		return
-	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	} else if !errors.Is(err, pgx.ErrNoRows) {
 		log.Printf("[creator] follow check: %v", err)
 		response.Internal(w)
+		return
+	}
+
+	// Une demande est déjà en attente : le clic l'annule.
+	if access.Requested {
+		h.cancelFollowRequest(ctx, userID, pubID)
+		count, err := h.q.CountFollowers(ctx, pubID)
+		if err != nil {
+			count = 0
+		}
+		response.OK(w, map[string]any{"data": map[string]any{"following": false, "requested": false, "followersCount": count}})
+		return
+	}
+
+	// Compte privé : le follow devient une demande à approuver.
+	if access.Visibility == "PRIVATE" {
+		if err := h.q.InsertFollowRequest(ctx, db.InsertFollowRequestParams{
+			RequesterId:   toUUID(userID),
+			PublicationId: pubID,
+		}); err != nil {
+			log.Printf("[creator] follow request: %v", err)
+			response.Internal(w)
+			return
+		}
+		if err := notifyFollowRequest(ctx, h.q, pubID, userID); err != nil {
+			log.Printf("[creator] follow request notification: %v", err)
+		}
+		count, err := h.q.CountFollowers(ctx, pubID)
+		if err != nil {
+			count = 0
+		}
+		response.OK(w, map[string]any{"data": map[string]any{"following": false, "requested": true, "followersCount": count}})
 		return
 	}
 
@@ -969,7 +1059,7 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		count = 0
 	}
-	response.OK(w, map[string]any{"data": map[string]any{"following": true, "followersCount": count}})
+	response.OK(w, map[string]any{"data": map[string]any{"following": true, "requested": false, "followersCount": count}})
 }
 
 // notifyFollow crée la notification FOLLOW au propriétaire d'une publication

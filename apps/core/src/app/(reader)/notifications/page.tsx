@@ -1,4 +1,4 @@
-import { NotificationList } from '@qoe/ui/notifications';
+import { NotificationsCenter } from './NotificationsCenter';
 
 export const metadata = {
   title: 'Notifications | qoefi',
@@ -21,7 +21,7 @@ export default function NotificationsPage() {
             </div>
           </div>
           <div className="bg-card rounded-2xl border border-border/50 overflow-hidden shadow-xs">
-            <NotificationList />
+            <NotificationsCenter />
           </div>
         </div>
       </div>

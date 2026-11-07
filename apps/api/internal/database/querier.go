@@ -11,6 +11,7 @@ import (
 )
 
 type Querier interface {
+	AcceptFollowRequest(ctx context.Context, id string) error
 	// Accepte une invitation en attente (fiche 05 §6) : ne passe en `active`
 	// qu'une ligne encore `invited`. Zéro ligne affectée = pas d'invitation (ou
 	// déjà active, ou révoquée entre-temps) : l'appelant distingue via le statut
@@ -43,6 +44,7 @@ type Querier interface {
 	// statuts, ni les dates, ni quoi que ce soit qui réactiverait un choix passé.
 	// `User.email` est unique (User_email_key) : au plus un compte récupère.
 	AttachSubscriberToAccount(ctx context.Context, arg AttachSubscriberToAccountParams) error
+	CancelFollowRequest(ctx context.Context, arg CancelFollowRequestParams) error
 	CheckArticleSlugExists(ctx context.Context, arg CheckArticleSlugExistsParams) (bool, error)
 	CheckCategorySlugExists(ctx context.Context, arg CheckCategorySlugExistsParams) (bool, error)
 	CheckMediaSlugExists(ctx context.Context, slug string) (bool, error)
@@ -152,6 +154,8 @@ type Querier interface {
 	DeleteExpiredOAuthArtifacts(ctx context.Context) error
 	DeleteFollow(ctx context.Context, arg DeleteFollowParams) error
 	DeleteFollowNotification(ctx context.Context, arg DeleteFollowNotificationParams) error
+	DeleteFollowRequest(ctx context.Context, arg DeleteFollowRequestParams) error
+	DeleteFollowRequestNotification(ctx context.Context, arg DeleteFollowRequestNotificationParams) error
 	DeleteHighlight(ctx context.Context, arg DeleteHighlightParams) (int64, error)
 	DeleteHighlightUpvote(ctx context.Context, arg DeleteHighlightUpvoteParams) error
 	DeleteLegalDocument(ctx context.Context, id string) error
@@ -249,6 +253,7 @@ type Querier interface {
 	GetExistingBlock(ctx context.Context, arg GetExistingBlockParams) (int32, error)
 	GetExistingBookmark(ctx context.Context, arg GetExistingBookmarkParams) (int32, error)
 	GetExistingFollow(ctx context.Context, arg GetExistingFollowParams) (int32, error)
+	GetExistingFollowRequest(ctx context.Context, arg GetExistingFollowRequestParams) (int32, error)
 	GetExistingLike(ctx context.Context, arg GetExistingLikeParams) (int32, error)
 	GetExistingMute(ctx context.Context, arg GetExistingMuteParams) (int32, error)
 	GetFollowForReply(ctx context.Context, arg GetFollowForReplyParams) (int32, error)
@@ -305,6 +310,7 @@ type Querier interface {
 	GetOAuthTokenByRefreshHash(ctx context.Context, refreshtokenhash pgtype.Text) (GetOAuthTokenByRefreshHashRow, error)
 	GetOAuthUserClaims(ctx context.Context, id string) (GetOAuthUserClaimsRow, error)
 	GetPendingConfirmation(ctx context.Context, arg GetPendingConfirmationParams) (GetPendingConfirmationRow, error)
+	GetPendingFollowRequestID(ctx context.Context, arg GetPendingFollowRequestIDParams) (string, error)
 	GetPersonalOwnerForCredit(ctx context.Context, publicationid pgtype.Text) (GetPersonalOwnerForCreditRow, error)
 	GetPersonalPublicationByUserID(ctx context.Context, id string) (pgtype.Text, error)
 	GetPersonalPublicationForUser(ctx context.Context, id string) (GetPersonalPublicationForUserRow, error)
@@ -391,6 +397,9 @@ type Querier interface {
 	GetUserMediaMemberships(ctx context.Context, userid pgtype.UUID) ([]GetUserMediaMembershipsRow, error)
 	GetUserPersonalPublication(ctx context.Context, id string) (pgtype.Text, error)
 	GetUserPollVote(ctx context.Context, arg GetUserPollVoteParams) (string, error)
+	// Visibilité du profil (PUBLIC | FOLLOWERS | PRIVATE). La ligne UserSettings
+	// peut manquer (comptes historiques) : PUBLIC par défaut, jamais NULL.
+	GetUserProfileVisibility(ctx context.Context, id string) (string, error)
 	GetUserPronouns(ctx context.Context, id string) (pgtype.Text, error)
 	GetUserPublicationID(ctx context.Context, id string) (string, error)
 	// DevTools — inspecteur de données (panneau dev-only des apps).
@@ -459,6 +468,11 @@ type Querier interface {
 	InsertDirectConversation(ctx context.Context, directkey pgtype.Text) (string, error)
 	InsertFollow(ctx context.Context, arg InsertFollowParams) error
 	InsertFollowNotification(ctx context.Context, arg InsertFollowNotificationParams) error
+	InsertFollowRequest(ctx context.Context, arg InsertFollowRequestParams) error
+	// Réutilise le type FOLLOW (pas de migration d'enum) : metadata.kind permet
+	// à l'UI de distinguer une demande d'un follow accepté, et metadata.requestId
+	// permet d'accepter/refuser la demande directement depuis la notification.
+	InsertFollowRequestNotification(ctx context.Context, arg InsertFollowRequestNotificationParams) error
 	InsertLegalConsentExport(ctx context.Context, arg InsertLegalConsentExportParams) (LegalConsentExport, error)
 	InsertLegalDocument(ctx context.Context, arg InsertLegalDocumentParams) (LegalDocument, error)
 	InsertLegalDocumentVersion(ctx context.Context, arg InsertLegalDocumentVersionParams) (LegalDocumentVersion, error)
@@ -499,6 +513,9 @@ type Querier interface {
 	InsertSocialLink(ctx context.Context, arg InsertSocialLinkParams) error
 	InsertWebhookDeliveryResult(ctx context.Context, arg InsertWebhookDeliveryResultParams) error
 	IsActiveMediaMember(ctx context.Context, arg IsActiveMediaMemberParams) (bool, error)
+	// Blocage directionnel en base, mais invisible dans les deux sens : si l'un
+	// des deux a bloqué l'autre, aucun contenu ne doit circuler.
+	IsBlockedEitherWay(ctx context.Context, arg IsBlockedEitherWayParams) (bool, error)
 	// Preuve d'acceptation agrégée par document : combien d'utilisateurs ont
 	// accepté la version publiée courante (et combien ne l'ont pas encore fait).
 	LegalAcceptanceStats(ctx context.Context) ([]LegalAcceptanceStatsRow, error)
@@ -516,7 +533,7 @@ type Querier interface {
 	// Commentaires d'un surlignage, avec auteur.
 	ListAnnotationComments(ctx context.Context, highlightid string) ([]ListAnnotationCommentsRow, error)
 	ListApiKeys(ctx context.Context, userid pgtype.UUID) ([]ListApiKeysRow, error)
-	ListArticleComments(ctx context.Context, articleid string) ([]ListArticleCommentsRow, error)
+	ListArticleComments(ctx context.Context, arg ListArticleCommentsParams) ([]ListArticleCommentsRow, error)
 	ListArticleImportJobs(ctx context.Context, arg ListArticleImportJobsParams) ([]ListArticleImportJobsRow, error)
 	ListArticleSlugs(ctx context.Context, articleid string) ([]string, error)
 	ListArticlesForSettings(ctx context.Context, publicationid string) ([]ListArticlesForSettingsRow, error)
@@ -690,6 +707,7 @@ type Querier interface {
 	PublishLegalDocumentVersion(ctx context.Context, id string) (LegalDocumentVersion, error)
 	// Réactive un asset purgé/supprimé (nouvelle fenêtre de 3 jours).
 	ReactivateMediaAsset(ctx context.Context, id string) (MediaAsset, error)
+	RejectFollowRequest(ctx context.Context, id string) error
 	RemoveListenLater(ctx context.Context, arg RemoveListenLaterParams) (int64, error)
 	RemoveRecommendation(ctx context.Context, arg RemoveRecommendationParams) error
 	ResetFailedNewsletterDeliveries(ctx context.Context, issueid string) error

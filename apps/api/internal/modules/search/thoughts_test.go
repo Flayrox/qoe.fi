@@ -28,7 +28,7 @@ func TestSearchThoughts(t *testing.T) {
 	svc := NewSemanticService(poolTest)
 
 	// Contenu.
-	hits, err := svc.SearchThoughts(ctx, "machine learning", 20)
+	hits, err := svc.SearchThoughts(ctx, "machine learning", 20, "")
 	if err != nil {
 		t.Fatalf("SearchThoughts: %v", err)
 	}
@@ -37,7 +37,7 @@ func TestSearchThoughts(t *testing.T) {
 	}
 
 	// Tag (#ia) → 1 seule (le brouillon est exclu).
-	hits, err = svc.SearchThoughts(ctx, "#ia", 20)
+	hits, err = svc.SearchThoughts(ctx, "#ia", 20, "")
 	if err != nil {
 		t.Fatalf("SearchThoughts tag: %v", err)
 	}

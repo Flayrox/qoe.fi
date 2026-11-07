@@ -2879,3 +2879,25 @@ ALTER TABLE "ArticleReviewLog" ADD CONSTRAINT "ArticleReviewLog_articleId_fkey" 
 ALTER TABLE "ArticleReviewLog" ADD CONSTRAINT "ArticleReviewLog_publicationId_fkey" FOREIGN KEY ("publicationId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "ArticleReviewLog" ADD CONSTRAINT "ArticleReviewLog_reviewerId_fkey" FOREIGN KEY ("reviewerId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- CreateTable
+CREATE TABLE "FollowRequest" (
+    "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+    "requesterId" UUID NOT NULL,
+    "publicationId" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "decidedAt" TIMESTAMP(3),
+
+    CONSTRAINT "FollowRequest_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "FollowRequest_status_check" CHECK ("status" IN ('PENDING', 'ACCEPTED', 'REJECTED', 'CANCELLED'))
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "FollowRequest_pending_key" ON "FollowRequest"("requesterId", "publicationId") WHERE "status" = 'PENDING';
+CREATE INDEX "FollowRequest_publication_pending_idx" ON "FollowRequest"("publicationId", "createdAt" DESC) WHERE "status" = 'PENDING';
+CREATE INDEX "FollowRequest_requester_status_idx" ON "FollowRequest"("requesterId", "status");
+
+-- AddForeignKey
+ALTER TABLE "FollowRequest" ADD CONSTRAINT "FollowRequest_requesterId_fkey" FOREIGN KEY ("requesterId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "FollowRequest" ADD CONSTRAINT "FollowRequest_publicationId_fkey" FOREIGN KEY ("publicationId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+

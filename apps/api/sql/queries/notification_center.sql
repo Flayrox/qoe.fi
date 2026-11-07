@@ -24,13 +24,24 @@ LEFT JOIN "ArticleComment" c ON c.id = n."commentId"
 LEFT JOIN "Publication" p ON p.id = n."publicationId"
 WHERE n."recipientId" = $1
   AND ($2::text[] IS NULL OR n.type::text = ANY($2::text[]))
+  -- Un blocage, dans un sens ou dans l'autre, coupe aussi les notifications.
+  AND NOT EXISTS (
+    SELECT 1 FROM "BlockedUser" b
+    WHERE (b."readerId" = n."recipientId" AND b."creatorId" = n."senderId")
+       OR (b."readerId" = n."senderId" AND b."creatorId" = n."recipientId")
+  )
 ORDER BY n."createdAt" DESC, n.id DESC
 LIMIT $3 OFFSET $4;
 
 -- name: GetUnreadCount :one
 SELECT COUNT(*)::int AS count
-FROM "Notification"
-WHERE "recipientId" = $1 AND "isRead" = false;
+FROM "Notification" n
+WHERE n."recipientId" = $1 AND n."isRead" = false
+  AND NOT EXISTS (
+    SELECT 1 FROM "BlockedUser" b
+    WHERE (b."readerId" = n."recipientId" AND b."creatorId" = n."senderId")
+       OR (b."readerId" = n."senderId" AND b."creatorId" = n."recipientId")
+  );
 
 -- name: MarkNotificationsRead :exec
 UPDATE "Notification"

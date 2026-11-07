@@ -402,7 +402,7 @@ func TestPublicationArticles(t *testing.T) {
 	svc := newTestService()
 	// La publication personnelle d'Alice a le slug de son propriétaire ; la
 	// requête reste insensible à la casse (contrat de l'endpoint).
-	res, err := svc.PublicationArticles(context.Background(), "ALICE", 20, 0)
+	res, err := svc.PublicationArticles(context.Background(), "ALICE", "", 20, 0)
 	if err != nil {
 		t.Fatalf("PublicationArticles: %v", err)
 	}

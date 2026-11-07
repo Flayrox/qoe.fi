@@ -13,7 +13,7 @@
 | Articles, éditeur, catégories, co-auteurs | ✅ complet + collaboration Yjs |
 | Pensées (posts), threads, réponses | ✅ Post, parentId/rootId, restrictions de réponse |
 | Likes, bookmarks, reposts, citations | ✅ Like, Bookmark, Post.repostId, quotedArticle |
-| Follows, block, mute (users + mots) | ✅ Follows, BlockedUser, MutedUser, MutedWord |
+| Follows, block, mute (users + mots) | ✅ Follows, BlockedUser, MutedUser, MutedWord + comptes privés et demandes de follow |
 | DM | ✅ Conversation, ConversationMember, Message |
 | Notifications in-app + email | ✅ Notification, NotificationDelivery, préférences |
 | Sondages | ✅ Poll, PollOption, PollVote |
@@ -31,6 +31,63 @@
 **Conclusion** : le socle est déjà celui d'un réseau social complet. Il ne
 manque pas « la moitié » : il manque surtout les **boucles de rétention** et
 les **surfaces de découverte**.
+
+## PROD-12 — Comptes privés et blocage symétrique (✅ fait 2026-11-07)
+
+**Constat initial** : `profileVisibility` (`PUBLIC` / `FOLLOWERS` / `PRIVATE`)
+était stocké dans `UserSettings` mais appliqué nulle part, et le blocage
+n'était vérifié que dans un sens selon les surfaces.
+
+**Implémenté** :
+- table `FollowRequest` (PENDING / ACCEPTED / REJECTED / CANCELLED, index
+  unique partiel sur les demandes en attente) ;
+- `POST /v1/users/{id}/follow` : follow instantané si PUBLIC/FOLLOWERS,
+  demande si PRIVATE, annulation au second clic ;
+- `GET /v1/me/follow-requests`, `POST /v1/me/follow-requests/{id}/accept`,
+  `POST /v1/me/follow-requests/{id}/reject` (propriétaire personnel ou
+  owner/admin d'un média) ;
+- profil public : `profileVisibility`, `isPrivate`, `canViewContent`,
+  `followRequested` ; listes d'abonnés et contenu masqués aux non-abonnés ;
+- gating du feed (trending + personnalisé), de la recherche (pensées SQL et
+  articles Meilisearch), des articles par slug et des fils directs ;
+- blocage symétrique (viewer → auteur **et** auteur → viewer) dans le profil,
+  les feeds, la recherche, les articles et les fils ; les follows et demandes
+  en attente sont supprimés au blocage ;
+- UI : bouton « Demandé », badge « Compte privé », panneau verrouillé, boîte
+  de réception des demandes dans Réglages → Confidentialité.
+
+## PROD-13 — Fermeture des surfaces de visibilité (✅ fait 2026-11-07)
+
+**Constat** : après PROD-12, plusieurs surfaces contournaient encore le
+blocage ou la visibilité privée, et `POST /v1/feed/hydrate` acceptait
+n'importe quel ID d'article sans vérifier `published`.
+
+**Implémenté** :
+- notifications : les expéditeurs bloqués (dans un sens ou dans l'autre) sont
+  exclus de la liste et du compteur non-lu ; une demande de follow n'est plus
+  fusionnée avec un follow accepté ni avec la demande d'une autre personne ;
+- centre de notifications : une demande porte `metadata.requestId` et
+  s'accepte/se refuse directement depuis la carte, avec rafraîchissement de la
+  liste et du badge ; migration `00076` de backfill pour les demandes déjà
+  en attente ;
+- hydratation : `HydrateArticles` exige un article publié et programmé passé,
+  applique le blocage symétrique, la visibilité privée (propriétaire,
+  co-auteur, abonné) et tronque toujours le paywall ; `GetPostsByIDs` exclut
+  brouillons, posts programmés, auteurs privés et bloqués ;
+- home : Explorer/Recommandé/à la une excluent les profils non `PUBLIC` et les
+  auteurs bloqués avant la limite SQL ;
+- commentaires d'article : liste filtrée par blocage/privé, création refusée
+  si l'un des deux comptes a bloqué l'autre (auteur de l'article ou du
+  commentaire parent) ;
+- sitemaps articles/pensées : les profils non `PUBLIC` sont retirés du
+  catalogue et du total ;
+- recherche de personnes : les comptes bloqués dans les deux sens sont exclus ;
+- blocage depuis les réglages : même nettoyage des follows, demandes et
+  notifications que le blocage depuis une pensée.
+
+**Tests** : `private_account_test` (requestId de notification),
+`notifications/service_test` (séparation des kinds), `feed/visibility_test`
+(brouillon/privé/abonné/bloqué), `articles/comments_block_test`.
 
 ## PROD-01 — Notifications push réelles (P0)
 

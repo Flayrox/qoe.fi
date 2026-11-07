@@ -11,6 +11,33 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const acceptFollowRequest = `-- name: AcceptFollowRequest :exec
+UPDATE "FollowRequest"
+SET status = 'ACCEPTED', "decidedAt" = now()
+WHERE id = $1 AND status = 'PENDING'
+`
+
+func (q *Queries) AcceptFollowRequest(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, acceptFollowRequest, id)
+	return err
+}
+
+const cancelFollowRequest = `-- name: CancelFollowRequest :exec
+UPDATE "FollowRequest"
+SET status = 'CANCELLED', "decidedAt" = now()
+WHERE "requesterId" = $1 AND "publicationId" = $2 AND status = 'PENDING'
+`
+
+type CancelFollowRequestParams struct {
+	RequesterId   pgtype.UUID `json:"requesterId"`
+	PublicationId string      `json:"publicationId"`
+}
+
+func (q *Queries) CancelFollowRequest(ctx context.Context, arg CancelFollowRequestParams) error {
+	_, err := q.db.Exec(ctx, cancelFollowRequest, arg.RequesterId, arg.PublicationId)
+	return err
+}
+
 const countFollowers = `-- name: CountFollowers :one
 SELECT COUNT(*)::int AS count
 FROM "Follows"
@@ -64,6 +91,38 @@ type DeleteFollowParams struct {
 
 func (q *Queries) DeleteFollow(ctx context.Context, arg DeleteFollowParams) error {
 	_, err := q.db.Exec(ctx, deleteFollow, arg.ReaderId, arg.PublicationId)
+	return err
+}
+
+const deleteFollowRequest = `-- name: DeleteFollowRequest :exec
+DELETE FROM "FollowRequest"
+WHERE "requesterId" = $1 AND "publicationId" = $2 AND status = 'PENDING'
+`
+
+type DeleteFollowRequestParams struct {
+	RequesterId   pgtype.UUID `json:"requesterId"`
+	PublicationId string      `json:"publicationId"`
+}
+
+func (q *Queries) DeleteFollowRequest(ctx context.Context, arg DeleteFollowRequestParams) error {
+	_, err := q.db.Exec(ctx, deleteFollowRequest, arg.RequesterId, arg.PublicationId)
+	return err
+}
+
+const deleteFollowRequestNotification = `-- name: DeleteFollowRequestNotification :exec
+DELETE FROM "Notification"
+WHERE "recipientId" = $1 AND "senderId" = $2 AND type = 'FOLLOW' AND "publicationId" = $3
+  AND metadata->>'kind' = 'FOLLOW_REQUEST'
+`
+
+type DeleteFollowRequestNotificationParams struct {
+	RecipientId   pgtype.UUID `json:"recipientId"`
+	SenderId      pgtype.UUID `json:"senderId"`
+	PublicationId pgtype.Text `json:"publicationId"`
+}
+
+func (q *Queries) DeleteFollowRequestNotification(ctx context.Context, arg DeleteFollowRequestNotificationParams) error {
+	_, err := q.db.Exec(ctx, deleteFollowRequestNotification, arg.RecipientId, arg.SenderId, arg.PublicationId)
 	return err
 }
 
@@ -184,6 +243,43 @@ func (q *Queries) GetExistingFollow(ctx context.Context, arg GetExistingFollowPa
 	var present int32
 	err := row.Scan(&present)
 	return present, err
+}
+
+const getExistingFollowRequest = `-- name: GetExistingFollowRequest :one
+SELECT 1 AS present
+FROM "FollowRequest"
+WHERE "requesterId" = $1 AND "publicationId" = $2 AND status = 'PENDING'
+`
+
+type GetExistingFollowRequestParams struct {
+	RequesterId   pgtype.UUID `json:"requesterId"`
+	PublicationId string      `json:"publicationId"`
+}
+
+func (q *Queries) GetExistingFollowRequest(ctx context.Context, arg GetExistingFollowRequestParams) (int32, error) {
+	row := q.db.QueryRow(ctx, getExistingFollowRequest, arg.RequesterId, arg.PublicationId)
+	var present int32
+	err := row.Scan(&present)
+	return present, err
+}
+
+const getPendingFollowRequestID = `-- name: GetPendingFollowRequestID :one
+SELECT id
+FROM "FollowRequest"
+WHERE "requesterId" = $1 AND "publicationId" = $2 AND status = 'PENDING'
+LIMIT 1
+`
+
+type GetPendingFollowRequestIDParams struct {
+	RequesterId   pgtype.UUID `json:"requesterId"`
+	PublicationId string      `json:"publicationId"`
+}
+
+func (q *Queries) GetPendingFollowRequestID(ctx context.Context, arg GetPendingFollowRequestIDParams) (string, error) {
+	row := q.db.QueryRow(ctx, getPendingFollowRequestID, arg.RequesterId, arg.PublicationId)
+	var id string
+	err := row.Scan(&id)
+	return id, err
 }
 
 const getPublicationBySlugOrSubdomain = `-- name: GetPublicationBySlugOrSubdomain :one
@@ -326,6 +422,22 @@ func (q *Queries) GetUserByIDFull(ctx context.Context, id string) (GetUserByIDFu
 	return i, err
 }
 
+const getUserProfileVisibility = `-- name: GetUserProfileVisibility :one
+SELECT COALESCE(us."profileVisibility", 'PUBLIC')::text AS profile_visibility
+FROM "User" u
+LEFT JOIN "UserSettings" us ON us."userId" = u.id
+WHERE u.id = $1
+`
+
+// Visibilité du profil (PUBLIC | FOLLOWERS | PRIVATE). La ligne UserSettings
+// peut manquer (comptes historiques) : PUBLIC par défaut, jamais NULL.
+func (q *Queries) GetUserProfileVisibility(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRow(ctx, getUserProfileVisibility, id)
+	var profile_visibility string
+	err := row.Scan(&profile_visibility)
+	return profile_visibility, err
+}
+
 const getUserPronouns = `-- name: GetUserPronouns :one
 SELECT "pronouns" FROM "User" WHERE id = $1
 `
@@ -365,6 +477,70 @@ type InsertFollowParams struct {
 func (q *Queries) InsertFollow(ctx context.Context, arg InsertFollowParams) error {
 	_, err := q.db.Exec(ctx, insertFollow, arg.ReaderId, arg.PublicationId)
 	return err
+}
+
+const insertFollowRequest = `-- name: InsertFollowRequest :exec
+INSERT INTO "FollowRequest" (id, "requesterId", "publicationId", status)
+VALUES (gen_random_uuid()::text, $1, $2, 'PENDING')
+ON CONFLICT DO NOTHING
+`
+
+type InsertFollowRequestParams struct {
+	RequesterId   pgtype.UUID `json:"requesterId"`
+	PublicationId string      `json:"publicationId"`
+}
+
+func (q *Queries) InsertFollowRequest(ctx context.Context, arg InsertFollowRequestParams) error {
+	_, err := q.db.Exec(ctx, insertFollowRequest, arg.RequesterId, arg.PublicationId)
+	return err
+}
+
+const insertFollowRequestNotification = `-- name: InsertFollowRequestNotification :exec
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publicationId", metadata)
+VALUES (gen_random_uuid()::text, $1, $2, 'FOLLOW', $3,
+        jsonb_build_object('kind', 'FOLLOW_REQUEST', 'requestId', $4::text))
+`
+
+type InsertFollowRequestNotificationParams struct {
+	RecipientID   pgtype.UUID `json:"recipient_id"`
+	SenderID      pgtype.UUID `json:"sender_id"`
+	PublicationID pgtype.Text `json:"publication_id"`
+	RequestID     string      `json:"request_id"`
+}
+
+// Réutilise le type FOLLOW (pas de migration d'enum) : metadata.kind permet
+// à l'UI de distinguer une demande d'un follow accepté, et metadata.requestId
+// permet d'accepter/refuser la demande directement depuis la notification.
+func (q *Queries) InsertFollowRequestNotification(ctx context.Context, arg InsertFollowRequestNotificationParams) error {
+	_, err := q.db.Exec(ctx, insertFollowRequestNotification,
+		arg.RecipientID,
+		arg.SenderID,
+		arg.PublicationID,
+		arg.RequestID,
+	)
+	return err
+}
+
+const isBlockedEitherWay = `-- name: IsBlockedEitherWay :one
+SELECT EXISTS (
+    SELECT 1 FROM "BlockedUser"
+    WHERE ("readerId" = $1 AND "creatorId" = $2)
+       OR ("readerId" = $2 AND "creatorId" = $1)
+) AS blocked
+`
+
+type IsBlockedEitherWayParams struct {
+	ReaderId  pgtype.UUID `json:"readerId"`
+	CreatorId pgtype.UUID `json:"creatorId"`
+}
+
+// Blocage directionnel en base, mais invisible dans les deux sens : si l'un
+// des deux a bloqué l'autre, aucun contenu ne doit circuler.
+func (q *Queries) IsBlockedEitherWay(ctx context.Context, arg IsBlockedEitherWayParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isBlockedEitherWay, arg.ReaderId, arg.CreatorId)
+	var blocked bool
+	err := row.Scan(&blocked)
+	return blocked, err
 }
 
 const listBookmarksByReader = `-- name: ListBookmarksByReader :many
@@ -668,6 +844,17 @@ func (q *Queries) ListFollowingByUser(ctx context.Context, arg ListFollowingByUs
 		return nil, err
 	}
 	return items, nil
+}
+
+const rejectFollowRequest = `-- name: RejectFollowRequest :exec
+UPDATE "FollowRequest"
+SET status = 'REJECTED', "decidedAt" = now()
+WHERE id = $1 AND status = 'PENDING'
+`
+
+func (q *Queries) RejectFollowRequest(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, rejectFollowRequest, id)
+	return err
 }
 
 const updateApiKeyLastUsed = `-- name: UpdateApiKeyLastUsed :exec

@@ -40,6 +40,13 @@ WHERE p."authorId" = ANY(@author_ids::uuid[])
   AND p."isHiddenByModerator" = false
   AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
   AND p.visibility IN ('public', 'followers')
+  -- Blocage symétrique : un follow existant ne suffit pas si l'un des deux
+  -- a bloqué l'autre depuis.
+  AND NOT EXISTS (
+    SELECT 1 FROM "BlockedUser" bu
+    WHERE (bu."readerId" = @viewer_id AND bu."creatorId" = p."authorId")
+       OR (bu."readerId" = p."authorId" AND bu."creatorId" = @viewer_id)
+  )
 ORDER BY p."createdAt" DESC, p.id DESC
 LIMIT @take_count OFFSET @skip_count;
 
@@ -77,6 +84,20 @@ WHERE p."isDraft" = false
   AND p."createdAt" >= now() - interval '7 days'
   AND u."isShadowbanned" = false
   AND u."isSuspended" = false
+  AND NOT EXISTS (
+    SELECT 1 FROM "BlockedUser" bu
+    WHERE (bu."readerId" = @viewer_id AND bu."creatorId" = p."authorId")
+       OR (bu."readerId" = p."authorId" AND bu."creatorId" = @viewer_id)
+  )
+  -- Les comptes privés ne percent pas dans Découvrir : leur contenu reste
+  -- réservé aux abonnés approuvés.
+  AND (
+    COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
+    OR EXISTS (
+      SELECT 1 FROM "Follows" f
+      WHERE f."readerId" = @viewer_id AND f."publicationId" = u."publicationId"
+    )
+  )
 ORDER BY (p."likeCount" + p."repostCount" + p."replyCount") DESC, p."createdAt" DESC
 LIMIT @take_count OFFSET @skip_count;
 
@@ -162,6 +183,11 @@ WHERE p."authorId" = @author_id::uuid
   AND p."isHiddenByModerator" = false
   AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
   AND p.visibility = 'public'
+  AND NOT EXISTS (
+    SELECT 1 FROM "BlockedUser" bu
+    WHERE (bu."readerId" = @viewer_id AND bu."creatorId" = p."authorId")
+       OR (bu."readerId" = p."authorId" AND bu."creatorId" = @viewer_id)
+  )
 ORDER BY p."createdAt" DESC, p.id DESC
 LIMIT @take_count OFFSET @skip_count;
 
@@ -199,7 +225,29 @@ LEFT JOIN "Like" l ON l."postId" = p.id AND l."userId" = @viewer_id
 LEFT JOIN "Post" r ON r."repostId" = p.id AND r."authorId" = @viewer_id AND r."deletedAt" IS NULL AND (r.content = '' OR r.content = ' ')
 WHERE p.id = ANY(@ids::text[])
   AND p."deletedAt" IS NULL
-  AND p."isHiddenByModerator" = false;
+  AND p."isDraft" = false
+  AND p."isHiddenByModerator" = false
+  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
+  AND NOT EXISTS (
+    SELECT 1 FROM "BlockedUser" b
+    WHERE (b."readerId" = @viewer_id AND (
+             b."creatorId" = u.id
+             OR b."creatorId" = (SELECT owner.id FROM "Publication" pv JOIN "User" owner ON owner."publicationId" = pv.id WHERE pv.id = u."publicationId" LIMIT 1)
+           ))
+       OR (b."creatorId" = @viewer_id AND (
+             b."readerId" = u.id
+             OR b."readerId" = (SELECT owner.id FROM "Publication" pv JOIN "User" owner ON owner."publicationId" = pv.id WHERE pv.id = u."publicationId" LIMIT 1)
+           ))
+  )
+  AND (
+    COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us
+              WHERE us."userId" = COALESCE(
+                (SELECT owner.id FROM "Publication" pv JOIN "User" owner ON owner."publicationId" = pv.id WHERE pv.id = u."publicationId" LIMIT 1),
+                u.id
+              )), 'PUBLIC') = 'PUBLIC'
+    OR u.id = @viewer_id
+    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = @viewer_id AND f."publicationId" = u."publicationId")
+  );
 
 -- name: GetQuotedArticlesByIDs :many
 SELECT a.id,

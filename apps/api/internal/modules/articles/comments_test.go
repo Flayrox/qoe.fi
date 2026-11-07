@@ -69,7 +69,7 @@ func TestComments_CreateListDelete(t *testing.T) {
 	}
 
 	// List.
-	all, err := svc.ListComments(ctx, "art_test_000")
+	all, err := svc.ListComments(ctx, "art_test_000", "")
 	if err != nil {
 		t.Fatalf("ListComments: %v", err)
 	}
