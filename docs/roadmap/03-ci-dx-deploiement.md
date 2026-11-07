@@ -112,5 +112,5 @@ couches communes (deps, build Turborepo) ne sont calculées qu'une fois.
 - **2026-11-07** : `dev` (70 commits d'avance, `main` sans avance) mergé en
   fast-forward dans `main` **en local**. Vérifications avant merge :
   `pnpm typecheck` ✅, `pnpm lint` ✅ (warnings seulement), `pnpm test` ✅
-  (21/21 tâches, 1 063 tests), `go vet ./...` + `go build ./...` ✅.
+  (21/21 tâches turbo, tous les tests verts), `go vet ./...` + `go build ./...` ✅.
   Reste : push de `main` (déclenche les images GHCR) + déploiement prod.
