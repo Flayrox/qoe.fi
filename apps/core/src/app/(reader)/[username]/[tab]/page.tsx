@@ -41,6 +41,27 @@ export async function generateMetadata({
   const rawUsername = decodeURIComponent(resolvedParams.username).replace(/^@/, '');
   const rawTab = resolvedParams.tab;
 
+  if (rawUsername === 'article' || rawUsername === 'articles' || rawUsername === 'a') {
+    try {
+      const art = await goFetch<{
+        slug: string;
+        author?: { username?: string | null };
+        publication?: { slug?: string | null; subdomain?: string | null };
+      }>(`/v1/articles/${encodeURIComponent(rawTab)}`);
+      if (art && art.slug) {
+        const canonicalOwner =
+          art.publication?.slug || art.publication?.subdomain || art.author?.username || 'qoefi';
+        return {
+          alternates: {
+            canonical: `${(process.env.NEXT_PUBLIC_APP_URL || 'https://qoe.fi').replace(/\/$/, '')}${routes.feed.article(canonicalOwner, art.slug)}`,
+          },
+        };
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   if (STATIC_ASSET_REGEX.test(rawUsername) || RESERVED_USERNAMES.has(rawUsername)) {
     return { title: 'Introuvable — qoefi' };
   }
@@ -87,7 +108,31 @@ export default async function UserProfileTabPage({
   const rawUsername = decodeURIComponent(resolvedParams.username).replace(/^@/, '');
   const rawTab = resolvedParams.tab;
 
-  if (STATIC_ASSET_REGEX.test(rawUsername) || RESERVED_USERNAMES.has(rawUsername)) {
+  if (STATIC_ASSET_REGEX.test(rawUsername)) {
+    notFound();
+  }
+
+  // 0. Récupération résiliente : /article/:slug, /articles/:slug, /a/:slug
+  // Redirige directement vers l'URL canonique /:owner/a/:slug si le slug correspond à un article
+  if (rawUsername === 'article' || rawUsername === 'articles' || rawUsername === 'a') {
+    try {
+      const art = await goFetch<{
+        slug: string;
+        author?: { username?: string | null };
+        publication?: { slug?: string | null; subdomain?: string | null };
+      }>(`/v1/articles/${encodeURIComponent(rawTab)}`);
+      if (art && art.slug) {
+        const canonicalOwner =
+          art.publication?.slug || art.publication?.subdomain || art.author?.username || 'qoefi';
+        permanentRedirect(routes.feed.article(canonicalOwner, art.slug));
+      }
+    } catch {
+      // Slug introuvable
+    }
+    notFound();
+  }
+
+  if (RESERVED_USERNAMES.has(rawUsername)) {
     notFound();
   }
 

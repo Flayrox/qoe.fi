@@ -79,6 +79,9 @@ export default async function ReadingHistoryPage() {
               data-article-link
               data-article-slug={s.article.slug}
               data-article-title={s.article.title}
+              data-article-owner={
+                s.article.publication?.slug || s.article.publication?.subdomain || undefined
+              }
               className="flex gap-4 p-4 rounded-xl border border-border/60 hover:bg-muted/30 transition-colors"
             >
               {s.article.imageUrl ? (

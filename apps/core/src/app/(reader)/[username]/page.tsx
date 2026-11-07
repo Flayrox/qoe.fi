@@ -15,6 +15,9 @@ const RESERVED_USERNAMES = new Set([
   'manifest.json',
   'thought',
   'thoughts',
+  'article',
+  'articles',
+  'legal',
   'a',
 ]);
 
