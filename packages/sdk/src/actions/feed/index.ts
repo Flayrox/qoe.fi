@@ -329,15 +329,16 @@ const unfurlCache = new Map<string, UnfurlResult>();
 // ─────────────────────────────────────────────────────────────────────
 // Actions d'écriture (Go-only — l'API Go est la source de vérité)
 // ─────────────────────────────────────────────────────────────────────
-export const toggleFollowCreatorHomeAction = safeAction<string, { followed: boolean }>(
-  async (publicationId) => {
-    const res = await goFetch<{ data: { following: boolean } }>(
-      `/v1/users/${encodeURIComponent(publicationId)}/follow`,
-      { method: 'POST' }
-    );
-    return { followed: res.data.following };
-  }
-);
+export const toggleFollowCreatorHomeAction = safeAction<
+  string,
+  { followed: boolean; requested: boolean }
+>(async (publicationId) => {
+  const res = await goFetch<{ data: { following: boolean; requested?: boolean } }>(
+    `/v1/users/${encodeURIComponent(publicationId)}/follow`,
+    { method: 'POST' }
+  );
+  return { followed: res.data.following, requested: res.data.requested ?? false };
+});
 
 // ─── Liste abonnés / abonnements (profil) ────────────────────────────
 
@@ -1307,6 +1308,12 @@ export interface ProfileResolvePayload {
   };
   isFollowing: boolean;
   publicationId: string;
+  /** Demande de follow en attente (compte PRIVATE). */
+  followRequested: boolean;
+  /** Visibilité effective du profil. */
+  profileVisibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE';
+  /** false = contenu serveur masqué au viewer. */
+  canViewContent: boolean;
 }
 
 function mapProfilePost(fp: ApiFeedPost | RawPostPayload): ProfilePostPayload {
@@ -1515,6 +1522,9 @@ export const resolveProfileAction = safeAction<string, ProfileResolvePayload>(
       profileUser,
       isFollowing: profile.isFollowing,
       publicationId: profile.id,
+      followRequested: profile.followRequested ?? false,
+      profileVisibility: profile.profileVisibility ?? 'PUBLIC',
+      canViewContent: profile.canViewContent ?? true,
     };
   },
   { requireAuth: false }

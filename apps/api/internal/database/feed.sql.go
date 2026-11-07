@@ -46,6 +46,13 @@ WHERE p."authorId" = ANY($2::uuid[])
   AND p."isHiddenByModerator" = false
   AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
   AND p.visibility IN ('public', 'followers')
+  -- Blocage symétrique : un follow existant ne suffit pas si l'un des deux
+  -- a bloqué l'autre depuis.
+  AND NOT EXISTS (
+    SELECT 1 FROM "BlockedUser" bu
+    WHERE (bu."readerId" = $1 AND bu."creatorId" = p."authorId")
+       OR (bu."readerId" = p."authorId" AND bu."creatorId" = $1)
+  )
 ORDER BY p."createdAt" DESC, p.id DESC
 LIMIT $4 OFFSET $3
 `
@@ -165,6 +172,11 @@ WHERE p."authorId" = $2::uuid
   AND p."isHiddenByModerator" = false
   AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
   AND p.visibility = 'public'
+  AND NOT EXISTS (
+    SELECT 1 FROM "BlockedUser" bu
+    WHERE (bu."readerId" = $1 AND bu."creatorId" = p."authorId")
+       OR (bu."readerId" = p."authorId" AND bu."creatorId" = $1)
+  )
 ORDER BY p."createdAt" DESC, p.id DESC
 LIMIT $4 OFFSET $3
 `
@@ -283,6 +295,20 @@ WHERE p."isDraft" = false
   AND p."createdAt" >= now() - interval '7 days'
   AND u."isShadowbanned" = false
   AND u."isSuspended" = false
+  AND NOT EXISTS (
+    SELECT 1 FROM "BlockedUser" bu
+    WHERE (bu."readerId" = $1 AND bu."creatorId" = p."authorId")
+       OR (bu."readerId" = p."authorId" AND bu."creatorId" = $1)
+  )
+  -- Les comptes privés ne percent pas dans Découvrir : leur contenu reste
+  -- réservé aux abonnés approuvés.
+  AND (
+    COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
+    OR EXISTS (
+      SELECT 1 FROM "Follows" f
+      WHERE f."readerId" = $1 AND f."publicationId" = u."publicationId"
+    )
+  )
 ORDER BY (p."likeCount" + p."repostCount" + p."replyCount") DESC, p."createdAt" DESC
 LIMIT $3 OFFSET $2
 `
@@ -563,7 +589,29 @@ LEFT JOIN "Like" l ON l."postId" = p.id AND l."userId" = $1
 LEFT JOIN "Post" r ON r."repostId" = p.id AND r."authorId" = $1 AND r."deletedAt" IS NULL AND (r.content = '' OR r.content = ' ')
 WHERE p.id = ANY($2::text[])
   AND p."deletedAt" IS NULL
+  AND p."isDraft" = false
   AND p."isHiddenByModerator" = false
+  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
+  AND NOT EXISTS (
+    SELECT 1 FROM "BlockedUser" b
+    WHERE (b."readerId" = $1 AND (
+             b."creatorId" = u.id
+             OR b."creatorId" = (SELECT owner.id FROM "Publication" pv JOIN "User" owner ON owner."publicationId" = pv.id WHERE pv.id = u."publicationId" LIMIT 1)
+           ))
+       OR (b."creatorId" = $1 AND (
+             b."readerId" = u.id
+             OR b."readerId" = (SELECT owner.id FROM "Publication" pv JOIN "User" owner ON owner."publicationId" = pv.id WHERE pv.id = u."publicationId" LIMIT 1)
+           ))
+  )
+  AND (
+    COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us
+              WHERE us."userId" = COALESCE(
+                (SELECT owner.id FROM "Publication" pv JOIN "User" owner ON owner."publicationId" = pv.id WHERE pv.id = u."publicationId" LIMIT 1),
+                u.id
+              )), 'PUBLIC') = 'PUBLIC'
+    OR u.id = $1
+    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = $1 AND f."publicationId" = u."publicationId")
+  )
 `
 
 type GetPostsByIDsParams struct {

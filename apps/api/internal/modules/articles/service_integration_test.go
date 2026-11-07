@@ -174,7 +174,7 @@ func TestService_GetBySlugAny_Enrichment(t *testing.T) {
 		t.Fatalf("logo seed: %v", err)
 	}
 
-	art, err := svc.GetBySlugAny(ctx, "premier-article")
+	art, err := svc.GetBySlugAny(ctx, "premier-article", "")
 	if err != nil {
 		t.Fatalf("GetBySlugAny: %v", err)
 	}

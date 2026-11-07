@@ -92,7 +92,10 @@ type HydrateResult struct {
 }
 
 // HydrateArticles charge les articles complets pour les ids du moteur.
-func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string) ([]HydrateArticle, error) {
+// Le viewer est indispensable : sans lui, un ID connu suffirait à lire un
+// brouillon, un article programmé, un compte privé ou un contenu d'un compte
+// bloqué. Le contenu premium reste tronqué plus bas.
+func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string, viewerID string) ([]HydrateArticle, error) {
 	if len(articleIDs) == 0 {
 		return []HydrateArticle{}, nil
 	}
@@ -109,7 +112,29 @@ func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string) ([]H
 		FROM "Article" a
 		JOIN "User" u ON u.id = a."authorId"
 		JOIN "Publication" p ON p.id = a."publicationId"
-		WHERE a.id = ANY($1::text[])`, articleIDs)
+		LEFT JOIN LATERAL (
+		  SELECT owner.id AS id
+		  FROM "Publication" pv
+		  JOIN "User" owner ON owner."publicationId" = pv.id
+		  WHERE pv.id = a."publicationId"
+		  LIMIT 1
+		) po ON true
+		WHERE a.id = ANY($1::text[])
+		  AND a.published = true
+		  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
+		  AND NOT EXISTS (
+		    SELECT 1 FROM "BlockedUser" b
+		    WHERE (b."readerId" = $2 AND (b."creatorId" = u.id OR b."creatorId" = po.id))
+		       OR (b."creatorId" = $2 AND (b."readerId" = u.id OR b."readerId" = po.id))
+		  )
+		  AND (
+		    COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us
+		              WHERE us."userId" = COALESCE(po.id, u.id)), 'PUBLIC') = 'PUBLIC'
+		    OR u.id = $2
+		    OR po.id = $2
+		    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = $2 AND f."publicationId" = a."publicationId")
+		    OR EXISTS (SELECT 1 FROM "_CoAuthors" ca WHERE ca."A" = a.id AND ca."B" = $2)
+		  )`, articleIDs, toUUID(viewerID))
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +264,7 @@ func (s *Service) Hydrate(ctx context.Context, items []EngineItem, viewerID stri
 		}
 	}
 	if len(artIDs) > 0 {
-		arts, err := s.HydrateArticles(ctx, artIDs)
+		arts, err := s.HydrateArticles(ctx, artIDs, viewerID)
 		if err != nil {
 			return res, fmt.Errorf("hydrate articles: %w", err)
 		}

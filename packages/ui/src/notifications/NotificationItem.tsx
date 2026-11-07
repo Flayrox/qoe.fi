@@ -63,9 +63,18 @@ interface NotificationItemProps {
   notification: GroupedNotificationLike;
   /** Marque le groupe complet comme lu (pas seulement sa première ligne). */
   onMarkRead?: (ids: string[]) => void;
+  /** Accepte/refuse la demande d'abonnement portée par la notification. */
+  onFollowRequestDecision?: (
+    requestId: string,
+    decision: 'accept' | 'reject'
+  ) => void | Promise<void>;
 }
 
-export function NotificationItem({ notification, onMarkRead }: NotificationItemProps) {
+export function NotificationItem({
+  notification,
+  onMarkRead,
+  onFollowRequestDecision,
+}: NotificationItemProps) {
   const { type, senders, totalCount, thought, article, isRead, createdAt } = notification;
   const notificationIds = notification.notificationIds?.length
     ? notification.notificationIds
@@ -73,6 +82,12 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
 
   const firstSender = senders[0];
   const otherSendersCount = totalCount - 1;
+  const followRequestId =
+    type === 'FOLLOW' && notification.metadata?.kind === 'FOLLOW_REQUEST'
+      ? typeof notification.metadata.requestId === 'string'
+        ? notification.metadata.requestId
+        : null
+      : null;
 
   let Icon = Heart;
   let iconColorClass = 'text-destructive-text bg-destructive/10';
@@ -221,6 +236,109 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
     timeAgo = t`${Math.floor(diffInMinutes / 60)}h`;
   } else if (diffInMinutes > 0) {
     timeAgo = t`${diffInMinutes}m`;
+  }
+
+  // Une demande d'abonnement n'est pas un follow accepté : elle a ses propres
+  // actions et ne doit pas être rendue comme un simple lien de profil.
+  if (followRequestId) {
+    const profileLink = firstSender?.username
+      ? `/${encodeURIComponent(firstSender.username.replace(/^@/, ''))}`
+      : '#';
+    return (
+      <div className={cn('block p-4 border-b border-border', !isRead && 'bg-primary/[0.04]')}>
+        <div className="flex items-start gap-3">
+          {!isRead && <span className="mt-2 size-1.5 shrink-0 rounded-full bg-primary" />}
+
+          <div className={cn('p-2 rounded-full shrink-0', iconColorClass)}>
+            <UserPlus className="size-4" strokeWidth={1.5} />
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 mb-2 overflow-hidden">
+              {senders.slice(0, 5).map((sender, idx) => (
+                <ProfileHoverCard
+                  key={sender.id || idx}
+                  user={{
+                    id: sender.id,
+                    name: sender.name,
+                    username: sender.username,
+                    logoUrl: sender.logoUrl,
+                    isCertified: sender.isCertified,
+                    type: sender.type,
+                  }}
+                >
+                  <SafeAvatar
+                    id={sender.id}
+                    src={sender.logoUrl}
+                    name={sender.name}
+                    username={sender.username}
+                    type={sender.type}
+                    size={32}
+                    className="border-2 border-background shrink-0"
+                  />
+                </ProfileHoverCard>
+              ))}
+            </div>
+
+            <div className="text-sm text-foreground">
+              <Link
+                href={profileLink}
+                onClick={() => {
+                  if (!isRead) onMarkRead?.(notificationIds);
+                }}
+                className="font-semibold text-foreground hover:underline"
+              >
+                {firstSender?.name || firstSender?.username || t`Un utilisateur`}
+              </Link>{' '}
+              <span className="text-muted-foreground">
+                {t`vous a envoyé une demande d'abonnement`}
+              </span>
+              <span className="text-xs text-muted-foreground ml-2">· {timeAgo}</span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t`Acceptez pour voir ses contenus réservés à ses abonnés.`}
+            </p>
+
+            {onFollowRequestDecision && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isRead) onMarkRead?.(notificationIds);
+                    void onFollowRequestDecision(followRequestId, 'accept');
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
+                >
+                  <CheckCircle2 className="size-3.5" strokeWidth={1.5} />
+                  {t`Accepter`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isRead) onMarkRead?.(notificationIds);
+                    void onFollowRequestDecision(followRequestId, 'reject');
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                >
+                  <XCircle className="size-3.5" strokeWidth={1.5} />
+                  {t`Refuser`}
+                </button>
+              </div>
+            )}
+
+            <Link
+              href="/settings"
+              onClick={() => {
+                if (!isRead) onMarkRead?.(notificationIds);
+              }}
+              className="mt-3 inline-block text-xs font-medium text-primary hover:underline"
+            >
+              {t`Voir les demandes`}
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const targetLink =

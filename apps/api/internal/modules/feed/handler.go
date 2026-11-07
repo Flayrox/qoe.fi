@@ -89,10 +89,11 @@ func (h *Handler) hydrate(w http.ResponseWriter, r *http.Request) {
 
 // userArticles — articles publiés d'une publication (profil), paginés.
 func (h *Handler) userArticles(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
 	username := chi.URLParam(r, "username")
 	limit, offset := parseLimitCursor(r)
 
-	result, err := h.svc.PublicationArticles(r.Context(), username, limit, offset)
+	result, err := h.svc.PublicationArticles(r.Context(), username, userID, limit, offset)
 	if err != nil {
 		log.Printf("[feed] userArticles: %v", err)
 		response.Internal(w)

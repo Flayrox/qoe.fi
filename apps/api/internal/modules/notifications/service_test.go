@@ -1,6 +1,7 @@
 package notifications
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 
@@ -36,6 +37,25 @@ func TestMarkReadIDs(t *testing.T) {
 				t.Errorf("markReadIDs(%v) = %v, want %v", tt.ids, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestSameNotificationKindSeparatesFollowRequest(t *testing.T) {
+	follow := json.RawMessage(`{"kind":"FOLLOW"}`)
+	requestA := json.RawMessage(`{"kind":"FOLLOW_REQUEST","requestId":"fr-a"}`)
+	requestB := json.RawMessage(`{"kind":"FOLLOW_REQUEST","requestId":"fr-b"}`)
+
+	if !sameNotificationKind(follow, follow) {
+		t.Fatal("deux follows classiques doivent rester groupables")
+	}
+	if sameNotificationKind(follow, requestA) {
+		t.Fatal("une demande de follow ne doit pas être groupée avec un follow accepté")
+	}
+	if !sameNotificationKind(requestA, requestB) {
+		t.Fatal("deux demandes de follow partagent le même kind")
+	}
+	if !sameNotificationKind(nil, nil) {
+		t.Fatal("deux notifications sans metadata doivent rester groupables")
 	}
 }
 

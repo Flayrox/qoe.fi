@@ -9,6 +9,7 @@ package feed
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -67,6 +68,36 @@ func (s *Service) queryIDs(ctx context.Context, q string, args ...any) ([]string
 		}
 	}
 	return out, rows.Err()
+}
+
+// publicProfileOnlyArticleSQL exclut les articles dont la publication n'est
+// pas PUBLI. La visibilité d'un article de média suit son propriétaire de
+// publication, pas la préférence personnelle du membre qui l'a écrit.
+const publicProfileOnlyArticleSQL = `
+	  AND COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us
+	                WHERE us."userId" = COALESCE(
+	                  (SELECT owner.id FROM "Publication" pv JOIN "User" owner ON owner."publicationId" = pv.id WHERE pv.id = a."publicationId" LIMIT 1),
+	                  u.id
+	                )), 'PUBLIC') = 'PUBLIC'`
+
+// publicProfileOnlyThoughtSQL applique la même règle aux pensées, qui sont
+// rattachées à la publication personnelle de leur auteur.
+const publicProfileOnlyThoughtSQL = `
+	  AND COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us
+	                WHERE us."userId" = COALESCE(
+	                  (SELECT owner.id FROM "Publication" pv JOIN "User" owner ON owner."publicationId" = pv.id WHERE pv.id = u."publicationId" LIMIT 1),
+	                  u.id
+	                )), 'PUBLIC') = 'PUBLIC'`
+
+// blockedAuthorExclusion exclut les auteurs bloqués dans les deux sens AVANT
+// la limite SQL, pour ne pas gaspiller les 20 slots du flux.
+func blockedAuthorExclusion(param int) string {
+	return fmt.Sprintf(`
+	  AND NOT EXISTS (
+	    SELECT 1 FROM "BlockedUser" bu
+	    WHERE (bu."readerId" = $%d AND bu."creatorId" = u.id)
+	       OR (bu."readerId" = u.id AND bu."creatorId" = $%d)
+	  )`, param, param)
 }
 
 // HomeFeed construit le bundle de la home lecteur (parité home/page.tsx).
@@ -151,7 +182,7 @@ func (s *Service) HomeFeed(ctx context.Context, userID string) (HomeFeedResult, 
 		hidden = []HiddenAuthor{}
 	}
 	res.FollowingHidden = hidden
-	featured, _ = s.fetchFeaturedArticle(ctx)
+	featured, _ = s.fetchFeaturedArticle(ctx, userID)
 	res.FeaturedArticle = featured
 	return res, nil
 }
@@ -283,9 +314,9 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 			WHERE a."publicationId" = ANY($1::text[]) AND a.published = true
 			  AND u."isShadowbanned" = false AND u."isSuspended" = false
 			  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
-			` + abuse.FollowingExclusionArticle("u", "a") + `
+			` + abuse.FollowingExclusionArticle("u", "a") + blockedAuthorExclusion(2) + `
 			ORDER BY a."createdAt" DESC, a.id DESC LIMIT 20`
-		artArgs = []any{pubIDs}
+		artArgs = []any{pubIDs, toUUID(userID)}
 	case "discover":
 		artQuery = `
 			SELECT a.id FROM "Article" a
@@ -295,16 +326,17 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 			  AND u."isShadowbanned" = false AND u."isSuspended" = false
 			  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
 			  AND NOT (a."publicationId" = ANY($1::text[]))
-			` + abuse.DiscoveryExclusionArticle("u", "a") + `
+			` + abuse.DiscoveryExclusionArticle("u", "a") + publicProfileOnlyArticleSQL + blockedAuthorExclusion(2) + `
 			ORDER BY a."createdAt" DESC, a.id DESC LIMIT 20`
-		artArgs = []any{pubIDs}
+		artArgs = []any{pubIDs, toUUID(userID)}
 	default: // recommended
 		artQuery = `
 			SELECT a.id FROM "Article" a JOIN "User" u ON u.id = a."authorId"
 			WHERE a.published = true AND u."isShadowbanned" = false AND u."isSuspended" = false
 			  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
-			` + abuse.DiscoveryExclusionArticle("u", "a") + `
+			` + abuse.DiscoveryExclusionArticle("u", "a") + publicProfileOnlyArticleSQL + blockedAuthorExclusion(1) + `
 			ORDER BY a."isEditorPick" DESC, a."createdAt" DESC, a.id DESC LIMIT 20`
+		artArgs = []any{toUUID(userID)}
 	}
 	artIDs, err := s.queryIDs(ctx, artQuery, artArgs...)
 	if err != nil {
@@ -312,7 +344,7 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 		return
 	}
 	if len(artIDs) > 0 {
-		arts, err := s.HydrateArticles(ctx, artIDs)
+		arts, err := s.HydrateArticles(ctx, artIDs, userID)
 		if err == nil {
 			group.Articles = arts
 		} else {
@@ -331,7 +363,7 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 			  AND u."isShadowbanned" = false AND u."isSuspended" = false
 			  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
 			  AND (p."authorId" = $1 OR (p."authorId" = ANY($2::uuid[]) AND p.visibility IN ('public','followers')))
-			` + abuse.FollowingExclusionThought("u", "p") + `
+			` + abuse.FollowingExclusionThought("u", "p") + blockedAuthorExclusion(1) + `
 			ORDER BY p."createdAt" DESC, p.id DESC LIMIT 20`
 		thArgs = []any{toUUID(userID), toUUIDSlice(followedUserIDs)}
 	case "discover":
@@ -340,21 +372,20 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 			WHERE p."isDraft" = false AND p."deletedAt" IS NULL AND p.visibility = 'public'
 			  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
 			  AND u.role = 'creator' AND u."isCertified" = true
-			  AND u."isShadowbanned" = false AND u."isSuspended" = false
-			  AND NOT (p."authorId" = ANY($1::uuid[]))
-			` + abuse.DiscoveryExclusionThought("u", "p") + `
+			  AND u."isShadowbanned" = false AND u."isSuspended" = false			AND NOT (p."authorId" = ANY($1::uuid[]))
+			` + abuse.DiscoveryExclusionThought("u", "p") + publicProfileOnlyThoughtSQL + blockedAuthorExclusion(2) + `
 			ORDER BY p."createdAt" DESC, p.id DESC LIMIT 20`
 		excluded := append(append([]string{}, followedUserIDs...), userID)
-		thArgs = []any{toUUIDSlice(excluded)}
+		thArgs = []any{toUUIDSlice(excluded), toUUID(userID)}
 	default: // recommended
 		thQuery = `
 			SELECT p.id FROM "Post" p JOIN "User" u ON u.id = p."authorId"
 			WHERE p."isDraft" = false AND p."deletedAt" IS NULL
 			  AND u."isShadowbanned" = false AND u."isSuspended" = false
-			  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
-			  AND p.visibility = 'public'
-			` + abuse.DiscoveryExclusionThought("u", "p") + `
+			  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())			AND p.visibility = 'public'
+			` + abuse.DiscoveryExclusionThought("u", "p") + publicProfileOnlyThoughtSQL + blockedAuthorExclusion(1) + `
 			ORDER BY p."createdAt" DESC, p.id DESC LIMIT 20`
+		thArgs = []any{toUUID(userID)}
 	}
 	thIDs, err := s.queryIDs(ctx, thQuery, thArgs...)
 	if err != nil {
@@ -379,7 +410,7 @@ func (s *Service) fetchBookmarks(ctx context.Context, userID string) ([]HydrateA
 	if err != nil || len(ids) == 0 {
 		return []HydrateArticle{}, err
 	}
-	return s.HydrateArticles(ctx, ids)
+	return s.HydrateArticles(ctx, ids, userID)
 }
 
 func (s *Service) countHighlights(ctx context.Context, userID string) (int, error) {
@@ -425,16 +456,16 @@ func (s *Service) fetchMutedWordsAll(ctx context.Context, userID string) ([]stri
 }
 
 // fetchFeaturedArticle renvoie l'article à la une (editor pick sinon plus récent).
-func (s *Service) fetchFeaturedArticle(ctx context.Context) (*HydrateArticle, error) {
+func (s *Service) fetchFeaturedArticle(ctx context.Context, viewerID string) (*HydrateArticle, error) {
 	ids, err := s.queryIDs(ctx, `
 		SELECT a.id FROM "Article" a JOIN "User" u ON u.id = a."authorId"
 		WHERE a.published = true AND u."isShadowbanned" = false AND u."isSuspended" = false
-		  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
+		  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())`+publicProfileOnlyArticleSQL+`
 		ORDER BY a."isEditorPick" DESC, a."createdAt" DESC LIMIT 1`)
 	if err != nil || len(ids) == 0 {
 		return nil, err
 	}
-	arts, err := s.HydrateArticles(ctx, ids)
+	arts, err := s.HydrateArticles(ctx, ids, viewerID)
 	if err != nil || len(arts) == 0 {
 		return nil, err
 	}

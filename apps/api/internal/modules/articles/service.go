@@ -279,13 +279,83 @@ func (mc memberContext) can(perm string) bool {
 // OpenGraph, thread de citation). Le contenu premium au-delà du marqueur n'est
 // donc JAMAIS transmis au client — le rendu affiche le CTA d'abonnement quand
 // `accessGranted` est faux (zéro-fuite, même contrat que tenants/mobile).
-func (s *Service) GetBySlugAny(ctx context.Context, slug string) (ArticleResponse, error) {
+// canViewPublication applique la visibilité du profil propriétaire et le
+// blocage symétrique à la lecture d'un article. Un article d'un compte privé
+// ou bloqué est indistinguable d'un article inexistant (pas de fuite).
+func (s *Service) canViewPublication(ctx context.Context, publicationID, viewerID string) (bool, error) {
+	var ownerID string
+	err := s.pool.QueryRow(ctx, `
+		SELECT COALESCE(u.id::text, '')
+		FROM "Publication" p
+		LEFT JOIN "User" u ON u."publicationId" = p.id
+		WHERE p.id = $1
+		LIMIT 1`, publicationID).Scan(&ownerID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return false, err
+	}
+	if ownerID == "" {
+		return true, nil
+	}
+	if viewerID != "" && viewerID == ownerID {
+		return true, nil
+	}
+
+	if viewerID != "" {
+		var blocked bool
+		if err := s.pool.QueryRow(ctx, `
+			SELECT EXISTS(
+				SELECT 1 FROM "BlockedUser"
+				WHERE ("readerId" = $1 AND "creatorId" = $2)
+				   OR ("readerId" = $2 AND "creatorId" = $1)
+			)`, toUUID(viewerID), toUUID(ownerID)).Scan(&blocked); err != nil {
+			return false, err
+		}
+		if blocked {
+			return false, nil
+		}
+	}
+
+	var visibility string
+	if err := s.pool.QueryRow(ctx, `
+		SELECT COALESCE(us."profileVisibility", 'PUBLIC')
+		FROM "User" u
+		LEFT JOIN "UserSettings" us ON us."userId" = u.id
+		WHERE u.id = $1`, toUUID(ownerID)).Scan(&visibility); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return false, err
+	}
+	if visibility == "" || visibility == "PUBLIC" {
+		return true, nil
+	}
+	if viewerID == "" {
+		return false, nil
+	}
+	var follows bool
+	if err := s.pool.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1 FROM "Follows" WHERE "readerId" = $1 AND "publicationId" = $2
+		)`, toUUID(viewerID), publicationID).Scan(&follows); err != nil {
+		return false, err
+	}
+	return follows, nil
+}
+
+func (s *Service) GetBySlugAny(ctx context.Context, slug string, viewerID string) (ArticleResponse, error) {
 	row, err := s.q.GetArticleBySlugAny(ctx, slug)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ArticleResponse{}, errNotFound
 		}
 		return ArticleResponse{}, err
+	}
+	allowed, err := s.canViewPublication(ctx, row.PublicationId, viewerID)
+	if err != nil {
+		return ArticleResponse{}, err
+	}
+	if !allowed {
+		return ArticleResponse{}, errNotFound
 	}
 	// 🔒 Troncature serveur systématique des articles verrouillés : le passage
 	// réservé ne doit jamais franchir la frontière HTTP sans entitlement.
@@ -338,6 +408,14 @@ func (s *Service) GetBySlug(ctx context.Context, slug, publicationID string, vie
 			return ArticleResponse{}, errNotFound
 		}
 		return ArticleResponse{}, err
+	}
+
+	allowed, err := s.canViewPublication(ctx, publicationID, viewerID)
+	if err != nil {
+		return ArticleResponse{}, err
+	}
+	if !allowed {
+		return ArticleResponse{}, errNotFound
 	}
 
 	// Entitlements du lecteur (abonné de la publication).
@@ -2186,12 +2264,12 @@ func (s *Service) articleResponseFromIDRow(row db.GetArticleByIDRow) ArticleResp
 		AllowDownload: row.AllowDownload, AllowPublicAnnotations: row.AllowPublicAnnotations,
 		AllowComments: row.AllowComments,
 		ReadingTime:   int(row.ReadingTime), Status: row.Status, ScheduledAt: tsPtr(row.ScheduledAt),
-		EmailStatus:   strPtr(row.EmailStatus),
-		EmailSentAt:   tsPtr(row.EmailSentAt),
-		EmailSentCount: int(row.EmailSentCount),
+		EmailStatus:      strPtr(row.EmailStatus),
+		EmailSentAt:      tsPtr(row.EmailSentAt),
+		EmailSentCount:   int(row.EmailSentCount),
 		EmailResendCount: int(row.EmailResendCount),
-		PublicationID: row.PublicationId,
-		AuthorID:      row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
+		PublicationID:    row.PublicationId,
+		AuthorID:         row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
 		CreatedAt:     row.CreatedAt.Time.Format(time.RFC3339),
 		UpdatedAt:     row.UpdatedAt.Time.Format(time.RFC3339),

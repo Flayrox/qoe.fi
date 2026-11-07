@@ -148,7 +148,14 @@ export default async function UserProfileTabPage({
       notFound();
     }
 
-    const { profileUser, isFollowing, publicationId } = resolved.data;
+    const {
+      profileUser,
+      isFollowing,
+      publicationId,
+      followRequested = false,
+      profileVisibility = 'PUBLIC',
+      canViewContent = true,
+    } = resolved.data;
     const isOwnProfile = !!currentUser && currentUser.id === profileUser.ownerUserId;
 
     return (
@@ -157,6 +164,9 @@ export default async function UserProfileTabPage({
         currentUserId={currentUser?.id || null}
         isOwnProfile={isOwnProfile}
         initialIsFollowing={isFollowing}
+        initialFollowRequested={followRequested}
+        profileVisibility={profileVisibility}
+        initialCanViewContent={canViewContent}
         initialTab={rawTab}
         initialPublicationId={publicationId}
       />

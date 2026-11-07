@@ -53,9 +53,13 @@ import {
   updateAccountSettingsAction,
   getBlockedUsersAction,
   getMutedUsersAction,
+  getFollowRequestsAction,
+  acceptFollowRequestAction,
+  rejectFollowRequestAction,
   toggleBlockedUserAction,
   toggleMutedUserAction,
   type AccountSettingsPatch,
+  type FollowRequestItem,
 } from './actions';
 
 export type AccountSettingsData = Awaited<
@@ -115,8 +119,11 @@ export default function AccountSettingsPage({
   useEffect(() => setMounted(true), []);
   useEffect(() => {
     if (activeSection !== 'privacy') return;
-    Promise.all([getBlockedUsersAction(), getMutedUsersAction()])
-      .then(([blocked, muted]) => setSocialUsers({ blocked: blocked.users, muted: muted.users }))
+    Promise.all([getBlockedUsersAction(), getMutedUsersAction(), getFollowRequestsAction()])
+      .then(([blocked, muted, requests]) => {
+        setSocialUsers({ blocked: blocked.users, muted: muted.users });
+        setFollowRequests(requests.items);
+      })
       .catch((error) => {
         showMessage(
           error instanceof Error ? error.message : t`Impossible de charger vos contrôles sociaux.`
@@ -133,6 +140,7 @@ export default function AccountSettingsPage({
     blocked: Array<{ id: string; username: string | null; name: string | null }>;
     muted: Array<{ id: string; username: string | null; name: string | null }>;
   }>({ blocked: [], muted: [] });
+  const [followRequests, setFollowRequests] = useState<FollowRequestItem[]>([]);
 
   // Sécurité / mot de passe.
   const [pw, setPw] = useState({ current: '', next: '', confirm: '' });
@@ -204,6 +212,21 @@ export default function AccountSettingsPage({
         setMutedWords((cur) => cur.filter((w) => w !== res.word));
       } catch (error) {
         showMessage(error instanceof Error ? error.message : t`Impossible de retirer ce mot.`);
+      }
+    });
+  };
+
+  const decideFollowRequest = (requestId: string, decision: 'accept' | 'reject') => {
+    startTransition(async () => {
+      try {
+        if (decision === 'accept') await acceptFollowRequestAction(requestId);
+        else await rejectFollowRequestAction(requestId);
+        setFollowRequests((cur) => cur.filter((r) => r.requestId !== requestId));
+        showMessage(decision === 'accept' ? t`Demande acceptée.` : t`Demande refusée.`);
+      } catch (error) {
+        showMessage(
+          error instanceof Error ? error.message : t`Impossible de traiter cette demande.`
+        );
       }
     });
   };
@@ -862,6 +885,57 @@ export default function AccountSettingsPage({
                   </Button>
                 ))}
               </div>
+            </div>
+
+            <div className="rounded-xl border border-border/60 p-4">
+              <h3 className="text-sm font-semibold">{t`Demandes d'abonnement`}</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t`Les comptes privés doivent approuver chaque nouvelle demande avant de partager leur contenu.`}
+              </p>
+              {followRequests.length === 0 ? (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  {t`Aucune demande en attente.`}
+                </p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {followRequests.map((request) => (
+                    <div
+                      key={request.requestId}
+                      className="flex items-center justify-between gap-3 rounded-lg bg-muted/30 px-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {request.name || request.username || request.id}
+                        </p>
+                        {request.username && (
+                          <p className="truncate text-xs text-muted-foreground">
+                            @{request.username}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 gap-1.5">
+                        <Button
+                          variant="solid"
+                          tone="brand"
+                          size="xs"
+                          disabled={isPending}
+                          onClick={() => decideFollowRequest(request.requestId, 'accept')}
+                        >
+                          <Check /> {t`Accepter`}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          disabled={isPending}
+                          onClick={() => decideFollowRequest(request.requestId, 'reject')}
+                        >
+                          <X /> {t`Refuser`}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="rounded-xl border border-border/60 p-4">

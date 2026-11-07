@@ -164,7 +164,13 @@ func (s *Service) List(ctx context.Context, recipientID, filter string, limit, o
 				sameTarget = true
 			}
 			closeInTime := within48hFast(g.createdAtTime, item.createdAtTime)
-			if g.Type == item.Type && sameTarget && closeInTime {
+			// Deux demandes de follow de personnes différentes ne se groupent
+			// jamais : la carte ne porte qu'un requestId, et l'accepter ne doit
+			// pas accepter silencieusement la mauvaise demande.
+			itemKind := notificationKind(item.Metadata)
+			sameRequester := itemKind != "FOLLOW_REQUEST" ||
+				(len(g.Senders) > 0 && len(item.Senders) > 0 && g.Senders[0].ID == item.Senders[0].ID)
+			if g.Type == item.Type && sameTarget && closeInTime && sameNotificationKind(g.Metadata, item.Metadata) && sameRequester {
 				if !senderExists(g.Senders, item.Senders[0].ID) {
 					g.Senders = append(g.Senders, item.Senders[0])
 					g.TotalCount++
@@ -187,6 +193,25 @@ func (s *Service) List(ctx context.Context, recipientID, filter string, limit, o
 		result.NextCursor = itoa(offset + len(rows))
 	}
 	return result, nil
+}
+
+// sameNotificationKind empêche de fusionner une demande d'abonnement avec
+// un follow classique : les deux partagent le type FOLLOW mais pas le sens.
+func sameNotificationKind(a, b json.RawMessage) bool {
+	return notificationKind(a) == notificationKind(b)
+}
+
+func notificationKind(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var meta struct {
+		Kind string `json:"kind"`
+	}
+	if json.Unmarshal(raw, &meta) != nil {
+		return ""
+	}
+	return meta.Kind
 }
 
 // UnreadCount retourne le nombre de notifications non lues.

@@ -48,6 +48,23 @@ func (s *Service) CreateComment(ctx context.Context, articleID, authorID, conten
 		return Comment{}, errCommentsDisabled
 	}
 
+	// Un blocage, dans un sens ou dans l'autre, interdit aussi de commenter
+	// l'écrit de l'autre et de répondre à ses commentaires.
+	if blocked, err := s.blockedBetween(ctx, authorID, cfg.AuthorID); err != nil {
+		return Comment{}, err
+	} else if blocked {
+		return Comment{}, errForbidden
+	}
+	if parentID != nil && *parentID != "" {
+		if parentAuthor, err := s.q.GetCommentParentAuthor(ctx, *parentID); err == nil {
+			if blocked, err := s.blockedBetween(ctx, authorID, parentAuthor); err != nil {
+				return Comment{}, err
+			} else if blocked {
+				return Comment{}, errForbidden
+			}
+		}
+	}
+
 	parent := pgtype.Text{}
 	if parentID != nil && *parentID != "" {
 		parent = pgtype.Text{String: *parentID, Valid: true}
@@ -69,8 +86,13 @@ func (s *Service) CreateComment(ctx context.Context, articleID, authorID, conten
 }
 
 // ListComments renvoie tous les commentaires d'un article (flat, ordre chronologique).
-func (s *Service) ListComments(ctx context.Context, articleID string) ([]Comment, error) {
-	rows, err := s.q.ListArticleComments(ctx, articleID)
+// Les commentaires d'un compte bloqué (dans un sens ou dans l'autre) et ceux
+// d'un compte privé non suivi sont omis pour le viewer.
+func (s *Service) ListComments(ctx context.Context, articleID, viewerID string) ([]Comment, error) {
+	rows, err := s.q.ListArticleComments(ctx, db.ListArticleCommentsParams{
+		ArticleID: articleID,
+		ViewerID:  toUUID(viewerID),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -121,6 +143,12 @@ func (s *Service) notifyComment(ctx context.Context, articleID, authorID, commen
 	if recipientID == "" || recipientID == authorID {
 		return
 	}
+	if blocked, err := s.blockedBetween(ctx, recipientID, authorID); err != nil {
+		log.Printf("[articles] comment block check: %v", err)
+		return
+	} else if blocked {
+		return
+	}
 
 	recipientUUID := toUUID(recipientID)
 	senderUUID := toUUID(authorID)
@@ -157,6 +185,21 @@ func (s *Service) notifyComment(ctx context.Context, articleID, authorID, commen
 	}); err != nil {
 		log.Printf("[articles] comment notif: %v", err)
 	}
+}
+
+// blockedBetween indique si l'un des deux comptes a bloqué l'autre.
+func (s *Service) blockedBetween(ctx context.Context, a, b string) (bool, error) {
+	if a == "" || b == "" || a == b {
+		return false, nil
+	}
+	var blocked bool
+	err := s.pool.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1 FROM "BlockedUser"
+			WHERE ("readerId" = $1 AND "creatorId" = $2)
+			   OR ("readerId" = $2 AND "creatorId" = $1)
+		)`, toUUID(a), toUUID(b)).Scan(&blocked)
+	return blocked, err
 }
 
 func commentFromWithAuthorRow(r db.GetCommentWithAuthorRow) Comment {

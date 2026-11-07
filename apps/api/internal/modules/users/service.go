@@ -295,7 +295,7 @@ func textPtr(t pgtype.Text) *string {
 
 // SearchForContributors cherche des utilisateurs pour co-auteur (name/username/email contains, insensible).
 // Mirroir de packages/api-client/src/actions/articles/index.ts searchArticleContributorsAction.
-func (s *Service) SearchForContributors(ctx context.Context, query string, excludeIds []string) ([]Contributor, error) {
+func (s *Service) SearchForContributors(ctx context.Context, query string, excludeIds []string, viewerID string) ([]Contributor, error) {
 	if len(query) < 2 {
 		return []Contributor{}, nil
 	}
@@ -316,9 +316,14 @@ func (s *Service) SearchForContributors(ctx context.Context, query string, exclu
 		WHERE u."isSuspended" = false AND u."isShadowbanned" = false
 		  AND u.id != ALL($2::uuid[])
 		  AND (u.name ILIKE $1 OR u.username ILIKE $1)
+		  AND NOT EXISTS (
+		    SELECT 1 FROM "BlockedUser" b
+		    WHERE (b."readerId" = $3 AND b."creatorId" = u.id)
+		       OR (b."readerId" = u.id AND b."creatorId" = $3)
+		  )
 		ORDER BY u.name ASC
 		LIMIT 8
-	`, q, excludeUUIDs)
+	`, q, excludeUUIDs, toUUID(viewerID))
 	if err != nil {
 		return nil, err
 	}

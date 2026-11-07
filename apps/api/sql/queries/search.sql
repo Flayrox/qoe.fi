@@ -19,6 +19,22 @@ WHERE p."isDraft" = false
   AND p.visibility = 'public'
   AND u."isShadowbanned" = false
   AND u."isSuspended" = false
+  -- Blocage symétrique : le viewer ne voit jamais l'auteur qui l'a bloqué,
+  -- même s'il ne l'a pas bloqué lui-même.
+  AND NOT EXISTS (
+    SELECT 1 FROM "BlockedUser" bu
+    WHERE (bu."readerId" = @viewer_id AND bu."creatorId" = p."authorId")
+       OR (bu."readerId" = p."authorId" AND bu."creatorId" = @viewer_id)
+  )
+  -- Compte privé / réservé aux abonnés : seuls le propriétaire et ses
+  -- abonnés voient les pensées dans la recherche.
+  AND (
+    COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
+    OR EXISTS (
+      SELECT 1 FROM "Follows" f
+      WHERE f."readerId" = @viewer_id AND f."publicationId" = u."publicationId"
+    )
+  )
   AND (
     p.content ILIKE '%' || $1 || '%'
     OR EXISTS (SELECT 1 FROM unnest(p.tags) AS tag WHERE tag ILIKE $1)

@@ -910,6 +910,26 @@ func (s *Service) ToggleBlock(ctx context.Context, targetID, userID string) (boo
 	}); err != nil {
 		return false, err
 	}
+
+	// Le blocage coupe les liens sociaux existants dans les deux sens : un
+	// follow ou une demande en attente ne doit pas survivre au blocage.
+	// Best-effort : le blocage lui-même est déjà persisté, on ne le défait pas
+	// pour un échec de nettoyage.
+	_, _ = s.pool.Exec(ctx, `
+		DELETE FROM "Follows"
+		WHERE ("readerId" = $1 AND "publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $2))
+		   OR ("readerId" = $2 AND "publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $1))`,
+		toUUID(userID), toUUID(targetID))
+	_, _ = s.pool.Exec(ctx, `
+		DELETE FROM "FollowRequest"
+		WHERE ("requesterId" = $1 AND "publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $2))
+		   OR ("requesterId" = $2 AND "publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $1))`,
+		toUUID(userID), toUUID(targetID))
+	_, _ = s.pool.Exec(ctx, `
+		DELETE FROM "Notification"
+		WHERE type = 'FOLLOW' AND metadata->>'kind' = 'FOLLOW_REQUEST'
+		  AND (("recipientId" = $1 AND "senderId" = $2) OR ("recipientId" = $2 AND "senderId" = $1))`,
+		toUUID(userID), toUUID(targetID))
 	return true, nil
 }
 

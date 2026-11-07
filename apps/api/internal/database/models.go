@@ -889,6 +889,15 @@ type Follow struct {
 	CreatedAt     pgtype.Timestamp `json:"createdAt"`
 }
 
+type FollowRequest struct {
+	ID            string           `json:"id"`
+	RequesterId   pgtype.UUID      `json:"requesterId"`
+	PublicationId string           `json:"publicationId"`
+	Status        string           `json:"status"`
+	CreatedAt     pgtype.Timestamp `json:"createdAt"`
+	DecidedAt     pgtype.Timestamp `json:"decidedAt"`
+}
+
 type Highlight struct {
 	ID             string           `json:"id"`
 	Text           string           `json:"text"`

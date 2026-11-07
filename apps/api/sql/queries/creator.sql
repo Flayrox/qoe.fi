@@ -205,3 +205,68 @@ LIMIT $2 OFFSET $3;
 
 -- name: GetUserPronouns :one
 SELECT "pronouns" FROM "User" WHERE id = $1;
+
+-- name: GetUserProfileVisibility :one
+-- Visibilité du profil (PUBLIC | FOLLOWERS | PRIVATE). La ligne UserSettings
+-- peut manquer (comptes historiques) : PUBLIC par défaut, jamais NULL.
+SELECT COALESCE(us."profileVisibility", 'PUBLIC')::text AS profile_visibility
+FROM "User" u
+LEFT JOIN "UserSettings" us ON us."userId" = u.id
+WHERE u.id = $1;
+
+-- name: IsBlockedEitherWay :one
+-- Blocage directionnel en base, mais invisible dans les deux sens : si l'un
+-- des deux a bloqué l'autre, aucun contenu ne doit circuler.
+SELECT EXISTS (
+    SELECT 1 FROM "BlockedUser"
+    WHERE ("readerId" = $1 AND "creatorId" = $2)
+       OR ("readerId" = $2 AND "creatorId" = $1)
+) AS blocked;
+
+-- name: GetExistingFollowRequest :one
+SELECT 1 AS present
+FROM "FollowRequest"
+WHERE "requesterId" = $1 AND "publicationId" = $2 AND status = 'PENDING';
+
+-- name: InsertFollowRequest :exec
+INSERT INTO "FollowRequest" (id, "requesterId", "publicationId", status)
+VALUES (gen_random_uuid()::text, $1, $2, 'PENDING')
+ON CONFLICT DO NOTHING;
+
+-- name: DeleteFollowRequest :exec
+DELETE FROM "FollowRequest"
+WHERE "requesterId" = $1 AND "publicationId" = $2 AND status = 'PENDING';
+
+-- name: CancelFollowRequest :exec
+UPDATE "FollowRequest"
+SET status = 'CANCELLED', "decidedAt" = now()
+WHERE "requesterId" = $1 AND "publicationId" = $2 AND status = 'PENDING';
+
+-- name: AcceptFollowRequest :exec
+UPDATE "FollowRequest"
+SET status = 'ACCEPTED', "decidedAt" = now()
+WHERE id = $1 AND status = 'PENDING';
+
+-- name: RejectFollowRequest :exec
+UPDATE "FollowRequest"
+SET status = 'REJECTED', "decidedAt" = now()
+WHERE id = $1 AND status = 'PENDING';
+
+-- name: GetPendingFollowRequestID :one
+SELECT id
+FROM "FollowRequest"
+WHERE "requesterId" = $1 AND "publicationId" = $2 AND status = 'PENDING'
+LIMIT 1;
+
+-- name: InsertFollowRequestNotification :exec
+-- Réutilise le type FOLLOW (pas de migration d'enum) : metadata.kind permet
+-- à l'UI de distinguer une demande d'un follow accepté, et metadata.requestId
+-- permet d'accepter/refuser la demande directement depuis la notification.
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publicationId", metadata)
+VALUES (gen_random_uuid()::text, sqlc.arg('recipient_id'), sqlc.arg('sender_id'), 'FOLLOW', sqlc.arg('publication_id'),
+        jsonb_build_object('kind', 'FOLLOW_REQUEST', 'requestId', sqlc.arg('request_id')::text));
+
+-- name: DeleteFollowRequestNotification :exec
+DELETE FROM "Notification"
+WHERE "recipientId" = $1 AND "senderId" = $2 AND type = 'FOLLOW' AND "publicationId" = $3
+  AND metadata->>'kind' = 'FOLLOW_REQUEST';

@@ -42,7 +42,17 @@ SELECT c.id, c."content", c."createdAt", c."updatedAt", c."articleId",
        u."isCertified" AS author_is_certified
 FROM "ArticleComment" c
 JOIN "User" u ON u.id = c."authorId"
-WHERE c."articleId" = $1
+WHERE c."articleId" = sqlc.arg('article_id')
+  AND NOT EXISTS (
+    SELECT 1 FROM "BlockedUser" b
+    WHERE (b."readerId" = sqlc.arg('viewer_id') AND b."creatorId" = u.id)
+       OR (b."readerId" = u.id AND b."creatorId" = sqlc.arg('viewer_id'))
+  )
+  AND (
+    COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
+    OR u.id = sqlc.arg('viewer_id')
+    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = sqlc.arg('viewer_id') AND f."publicationId" = u."publicationId")
+  )
 ORDER BY c."createdAt" ASC;
 
 -- name: DeleteArticleComment :exec

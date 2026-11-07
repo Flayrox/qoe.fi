@@ -103,7 +103,14 @@ export default async function UserProfilePage({
     notFound();
   }
 
-  const { profileUser, isFollowing, publicationId } = resolved.data;
+  const {
+    profileUser,
+    isFollowing,
+    publicationId,
+    followRequested = false,
+    profileVisibility = 'PUBLIC',
+    canViewContent = true,
+  } = resolved.data;
   const isOwnProfile = !!currentUser && currentUser.id === profileUser.ownerUserId;
 
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://qoe.fi').replace(/\/$/, '');
@@ -123,6 +130,9 @@ export default async function UserProfilePage({
         currentUserId={currentUser?.id || null}
         isOwnProfile={isOwnProfile}
         initialIsFollowing={isFollowing}
+        initialFollowRequested={followRequested}
+        profileVisibility={profileVisibility}
+        initialCanViewContent={canViewContent}
         initialTab="thoughts"
         initialPublicationId={publicationId}
       />

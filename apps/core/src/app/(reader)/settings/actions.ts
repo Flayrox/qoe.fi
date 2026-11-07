@@ -118,6 +118,38 @@ export async function updateAccountSettingsAction(input: AccountSettingsPatch) {
   return { success: true, settings };
 }
 
+// Demandes d'abonnement (comptes privés) — boîte de réception du propriétaire.
+export interface FollowRequestItem {
+  requestId: string;
+  id: string;
+  publicationId: string | null;
+  name: string | null;
+  username: string | null;
+  logoUrl: string | null;
+  isCertified: boolean;
+  requestedAt: string;
+}
+
+export async function getFollowRequestsAction() {
+  return goFetch<{ items: FollowRequestItem[]; hasMore: boolean; nextCursor: number | null }>(
+    '/v1/me/follow-requests'
+  );
+}
+
+export async function acceptFollowRequestAction(id: string) {
+  return goFetch<{ accepted: boolean }>(`/v1/me/follow-requests/${encodeURIComponent(id)}/accept`, {
+    method: 'POST',
+    body: {},
+  });
+}
+
+export async function rejectFollowRequestAction(id: string) {
+  return goFetch<{ rejected: boolean }>(`/v1/me/follow-requests/${encodeURIComponent(id)}/reject`, {
+    method: 'POST',
+    body: {},
+  });
+}
+
 // Contrôles sociaux persistés : listes et bascules déléguées à l'API Go.
 export async function getBlockedUsersAction() {
   return goFetch<{

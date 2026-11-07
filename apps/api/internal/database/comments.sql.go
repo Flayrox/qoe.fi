@@ -174,8 +174,23 @@ SELECT c.id, c."content", c."createdAt", c."updatedAt", c."articleId",
 FROM "ArticleComment" c
 JOIN "User" u ON u.id = c."authorId"
 WHERE c."articleId" = $1
+  AND NOT EXISTS (
+    SELECT 1 FROM "BlockedUser" b
+    WHERE (b."readerId" = $2 AND b."creatorId" = u.id)
+       OR (b."readerId" = u.id AND b."creatorId" = $2)
+  )
+  AND (
+    COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
+    OR u.id = $2
+    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = $2 AND f."publicationId" = u."publicationId")
+  )
 ORDER BY c."createdAt" ASC
 `
+
+type ListArticleCommentsParams struct {
+	ArticleID string      `json:"article_id"`
+	ViewerID  pgtype.UUID `json:"viewer_id"`
+}
 
 type ListArticleCommentsRow struct {
 	ID                string           `json:"id"`
@@ -191,8 +206,8 @@ type ListArticleCommentsRow struct {
 	AuthorIsCertified bool             `json:"author_is_certified"`
 }
 
-func (q *Queries) ListArticleComments(ctx context.Context, articleid string) ([]ListArticleCommentsRow, error) {
-	rows, err := q.db.Query(ctx, listArticleComments, articleid)
+func (q *Queries) ListArticleComments(ctx context.Context, arg ListArticleCommentsParams) ([]ListArticleCommentsRow, error) {
+	rows, err := q.db.Query(ctx, listArticleComments, arg.ArticleID, arg.ViewerID)
 	if err != nil {
 		return nil, err
 	}
