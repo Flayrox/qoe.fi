@@ -44,6 +44,9 @@ export interface ProfileHoverCardProps {
   onOpenProfile?: (username: string) => void;
   onFollowToggle?: (userId: string, followed: boolean) => void;
   className?: string;
+  side?: 'top' | 'bottom' | 'left' | 'right';
+  align?: 'start' | 'center' | 'end';
+  sideOffset?: number;
 }
 
 // ── In-Memory client cache for resolved profiles ────────────────────
@@ -81,6 +84,9 @@ export function ProfileHoverCard({
   onOpenProfile,
   onFollowToggle,
   className,
+  side = 'top',
+  align = 'start',
+  sideOffset = 6,
 }: ProfileHoverCardProps) {
   const handle =
     propUsername || user?.username || user?.subdomain || user?.id?.slice(0, 8) || 'user';
@@ -339,11 +345,11 @@ export function ProfileHoverCard({
         }
       />
       <HoverCardContent
-        side="top"
+        side={side}
         data-profile-hover-content
         onClick={(event: React.MouseEvent) => event.stopPropagation()}
-        align="start"
-        sideOffset={6}
+        align={align}
+        sideOffset={sideOffset}
         className="w-80 p-0 overflow-hidden rounded-2xl bg-popover/95 backdrop-blur-xl border border-border/50 shadow-2xl z-50 font-sans select-none"
       >
         {/* ── BANNER (Optimisé, 0 Ko si fallback gradient) ── */}

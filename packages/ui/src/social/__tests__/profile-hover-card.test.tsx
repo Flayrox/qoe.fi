@@ -216,4 +216,18 @@ describe('ProfileHoverCard — contenu de la carte ouverte', () => {
       expect(screen.getByRole('button', { name: /suivre/i })).toBeDefined();
     });
   });
+
+  it('applique le positionnement demandé via la prop side (bottom vs top)', async () => {
+    render(
+      <ProfileHoverCard user={user} side="bottom">
+        <span>Camille Bottom</span>
+      </ProfileHoverCard>
+    );
+
+    fireEvent.focus(screen.getByText('Camille Bottom'));
+
+    const content = await screen.findByText('@camille');
+    const container = content.closest('[data-slot="hover-card-content"]');
+    expect(container?.className).toContain('top-full');
+  });
 });
