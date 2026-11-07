@@ -177,11 +177,22 @@ describe('🔒 Métadonnées & JSON-LD publics — garde-fou statique', () => {
   it('les routes article publiques gardées existent toujours (le garde-fou ne peut pas s’évaporer)', () => {
     for (const relPath of [
       'apps/tenants/src/lib/tenant-article-route.tsx',
-      'apps/core/src/app/(reader)/[username]/[tab]/page.tsx',
+      // Route article canonique depuis le refactor /:username/a/:slug : c'est
+      // elle qui produit les métadonnées publiques de l'article.
+      'apps/core/src/app/(reader)/[username]/a/[slug]/page.tsx',
     ]) {
       const source = read(relPath);
       expect(source, `${relPath} doit dériver du contenu tronqué`).toMatch(safeHelpers);
     }
+
+    // L'ancienne route /:username/:slug ne rend plus d'article : elle redirige
+    // en 308 vers la route canonique. Elle ne doit donc jamais manipuler le
+    // contenu brut — sinon le garde-fou perdrait sa couverture.
+    const legacy = read('apps/core/src/app/(reader)/[username]/[tab]/page.tsx');
+    expect(legacy, 'la route legacy doit rediriger').toContain('permanentRedirect(');
+    expect(legacy, 'la route legacy ne doit plus rendre de contenu article').not.toMatch(
+      /article\.content/
+    );
   });
 });
 
