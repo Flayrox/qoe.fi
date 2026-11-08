@@ -836,15 +836,11 @@ function ArticleAnnotatorViewInner({
           >
             {user && user.id !== targetFollowId && (
               <Button
-                variant={activeFollowed ? 'secondary' : 'default'}
+                variant={activeFollowed ? 'soft' : 'solid'}
+                tone={activeFollowed ? 'neutral' : 'brand'}
                 size="sm"
                 onClick={toggleFollow}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer',
-                  activeFollowed
-                    ? 'bg-muted text-foreground hover:bg-muted/80'
-                    : 'bg-foreground text-background dark:bg-white dark:text-black hover:opacity-90'
-                )}
+                className="rounded-full text-xs font-semibold cursor-pointer"
               >
                 {activeFollowed ? (
                   <UserCheck className="w-3.5 h-3.5" />
@@ -857,9 +853,9 @@ function ArticleAnnotatorViewInner({
 
             <Button
               variant="ghost"
-              size="icon"
+              size="sm"
               onClick={toggleBookmark}
-              className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
+              className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer h-8 w-8"
               title={activeBookmarked ? t`Supprimer des signets` : t`Mettre en signet`}
             >
               {activeBookmarked ? (
@@ -871,9 +867,9 @@ function ArticleAnnotatorViewInner({
 
             <Button
               variant="ghost"
-              size="icon"
+              size="sm"
               onClick={handleShare}
-              className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
+              className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer h-8 w-8"
               title={activeCopied ? t`Lien copié !` : t`Partager l'article`}
             >
               {activeCopied ? (
