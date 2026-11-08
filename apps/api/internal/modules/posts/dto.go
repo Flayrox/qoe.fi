@@ -179,6 +179,24 @@ type FeedPost struct {
 	Counts                  PostCounts        `json:"_count"`
 	Liked                   bool              `json:"liked"`
 	Reposted                bool              `json:"reposted"`
+	// Capabilities : droits calculés par Go pour le viewer (jamais devinés
+	// côté React).
+	Capabilities PostCapabilities `json:"capabilities"`
+}
+
+// PostCapabilities regroupe les droits d'action calculés par le serveur pour
+// le viewer courant. L'UI les consomme déclarativement : elle n'infère plus
+// rien de `currentUserId === author.id` ni de `replyRestriction`.
+type PostCapabilities struct {
+	CanReply        bool   `json:"canReply"`
+	ReplyLockReason string `json:"replyLockReason,omitempty"` // "", "blocked", "subscribers_only", "following_only", "mentioned_only"
+	CanDelete       bool   `json:"canDelete"`
+	CanPin          bool   `json:"canPin"`
+	CanHideReply    bool   `json:"canHideReply"`
+	CanReport       bool   `json:"canReport"`
+	CanMuteAuthor   bool   `json:"canMuteAuthor"`
+	CanBlockAuthor  bool   `json:"canBlockAuthor"`
+	IsSelf          bool   `json:"isSelf"`
 }
 
 // PostActor est l'état viewer pour likes/reposts.

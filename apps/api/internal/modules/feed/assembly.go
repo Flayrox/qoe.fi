@@ -57,6 +57,7 @@ func (s *Service) buildSlices(ctx context.Context, targetIDs []string, viewerID 
 	if err != nil {
 		return nil, err
 	}
+	graph := posts.LoadViewerGraph(ctx, s.pool, viewerID, authorIDs, following)
 
 	seenRoot := map[string]bool{}
 	reasonCache := map[string]string{}
@@ -65,7 +66,7 @@ func (s *Service) buildSlices(ctx context.Context, targetIDs []string, viewerID 
 	for i := range baseRows {
 		r := &baseRows[i]
 		slice, conversationRoot, ok := buildFeedSlice(
-			r, all, attachments, polls, following, quoted, keepUnavailableParents,
+			r, all, attachments, polls, quoted, graph, keepUnavailableParents,
 			func(parentID string) string {
 				return s.parentUnavailableReason(ctx, parentID, viewerID, reasonCache)
 			},
@@ -89,12 +90,12 @@ func buildFeedSlice(
 	all map[string]*db.GetPostsByIDsRow,
 	attachments map[string][]posts.Attachment,
 	polls map[string]*posts.Poll,
-	following map[string]bool,
 	quoted map[string]*posts.QuotedArticle,
+	graph posts.ViewerGraph,
 	keepUnavailableParents bool,
 	parentReason func(parentID string) string,
 ) (posts.FeedSlice, string, bool) {
-	target := posts.BuildFeedPost(r, all, attachments, polls, following, quoted)
+	target := posts.BuildFeedPost(r, all, attachments, polls, quoted, graph)
 
 	var parent, root *posts.FeedPost
 	parentUnavailable := false
@@ -102,7 +103,7 @@ func buildFeedSlice(
 	pid := posts.ParentIDOf(r)
 	if pid != nil {
 		if p, ok := all[*pid]; ok {
-			pp := posts.BuildFeedPost(p, all, attachments, polls, following, quoted)
+			pp := posts.BuildFeedPost(p, all, attachments, polls, quoted, graph)
 			parent = &pp
 		} else {
 			parentReasonValue = parentReason(*pid)
@@ -124,7 +125,7 @@ func buildFeedSlice(
 	}
 	if rid := posts.RootIDOf(r); rid != nil && (parent == nil || *rid != *pid) {
 		if rp, ok := all[*rid]; ok {
-			rr := posts.BuildFeedPost(rp, all, attachments, polls, following, quoted)
+			rr := posts.BuildFeedPost(rp, all, attachments, polls, quoted, graph)
 			root = &rr
 		}
 	}

@@ -37,6 +37,34 @@ export type ApiResponse<T> = {
 // ─────────────────────────────────────────────────────────────────────
 
 /** Auteur dénormalisé d'une pensée (shape Go `Author`). */
+/**
+ * Droits d'action calculés par Go sur une pensée pour le viewer courant.
+ * Le front les consomme tels quels : plus de `currentUserId === author.id`.
+ */
+export interface PostCapabilities {
+  canReply: boolean;
+  /** "" | "blocked" | "subscribers_only" | "following_only" | "mentioned_only" */
+  replyLockReason: string;
+  canDelete: boolean;
+  canPin: boolean;
+  canHideReply: boolean;
+  canReport: boolean;
+  canMuteAuthor: boolean;
+  canBlockAuthor: boolean;
+  isSelf: boolean;
+}
+
+/** Droits d'action calculés par Go sur un article hydraté. */
+export interface ArticleCapabilities {
+  canComment: boolean;
+  canAnnotate: boolean;
+  canBookmark: boolean;
+  canReport: boolean;
+  canMuteAuthor: boolean;
+  canBlockAuthor: boolean;
+  isSelf: boolean;
+}
+
 export interface FeedAuthor {
   id: string;
   name: string | null;
@@ -47,6 +75,10 @@ export interface FeedAuthor {
   type?: 'PERSONAL' | 'MEDIA' | string | null;
   /** Le viewer suit-il la publication de l'auteur ? (état réel, GO 2026) */
   isFollowing?: boolean;
+  /** L'auteur est-il en sourdine pour le viewer ? */
+  isMuted?: boolean;
+  /** Blocage dans un sens ou l'autre entre viewer et auteur. */
+  isBlocked?: boolean;
 }
 
 /** Pièce jointe d'une pensée (shape Go `Attachment`). */
@@ -197,6 +229,8 @@ export interface FeedPost {
   _count: FeedCounts;
   liked: boolean;
   reposted: boolean;
+  /** Droits calculés par Go (jamais devinés côté React). */
+  capabilities?: PostCapabilities;
 }
 
 /**
@@ -895,6 +929,7 @@ export interface FeedArticleDTO {
   likesCount?: number;
   repliesCount?: number;
   liked?: boolean;
+  capabilities?: ArticleCapabilities;
 }
 
 /** 🔗 Lien de navigation d'un tenant (hiérarchique). */

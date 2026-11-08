@@ -60,7 +60,7 @@ func TestThreadParentStateMatrix(t *testing.T) {
 	}
 	got := map[string]posts.FeedPost{}
 	for _, id := range order {
-		reply := posts.BuildFeedPost(all[id], all, nil, nil, nil, nil)
+		reply := posts.BuildFeedPost(all[id], all, nil, nil, nil, posts.ViewerGraph{})
 		markThreadParentUnavailable(&reply, all, parentReason)
 		got[id] = reply
 	}
@@ -97,7 +97,7 @@ func TestThreadParentStateMatrix(t *testing.T) {
 	const secretContent = "CONTENU SECRET DU PARENT"
 	const secretHandle = "secret-parent"
 	for id := range wantReason {
-		reply := posts.BuildFeedPost(all[id], all, nil, nil, nil, nil)
+		reply := posts.BuildFeedPost(all[id], all, nil, nil, nil, posts.ViewerGraph{})
 		reply.Parent = &posts.FeedPost{
 			ID:      *reply.ParentID,
 			Content: secretContent,
@@ -126,7 +126,7 @@ func TestThreadAncestorParentState(t *testing.T) {
 	all := map[string]*db.GetPostsByIDsRow{"target": &target, "parent": &parent}
 
 	fp := posts.BuildFeedPostWithAncestors(
-		&target, all, nil, nil, nil, map[string]bool{}, nil,
+		&target, all, nil, nil, map[string]bool{}, nil, posts.ViewerGraph{},
 	)
 	markThreadAncestorParents(&fp, all, func(string) string { return "blocked" })
 
@@ -154,7 +154,7 @@ func TestThreadTargetMissingParent(t *testing.T) {
 	all := map[string]*db.GetPostsByIDsRow{"target": &target}
 
 	fp := posts.BuildFeedPostWithAncestors(
-		&target, all, nil, nil, nil, map[string]bool{}, nil,
+		&target, all, nil, nil, map[string]bool{}, nil, posts.ViewerGraph{},
 	)
 	markThreadAncestorParents(&fp, all, func(string) string { return "blocked" })
 
@@ -176,7 +176,7 @@ func TestThreadVisibleParentNoPlaceholder(t *testing.T) {
 	all := map[string]*db.GetPostsByIDsRow{"target": &target, "parent": &parent}
 
 	fp := posts.BuildFeedPostWithAncestors(
-		&target, all, nil, nil, nil, map[string]bool{}, nil,
+		&target, all, nil, nil, map[string]bool{}, nil, posts.ViewerGraph{},
 	)
 	markThreadAncestorParents(&fp, all, func(string) string { return "blocked" })
 

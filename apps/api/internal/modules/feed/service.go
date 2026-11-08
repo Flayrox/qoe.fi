@@ -492,12 +492,13 @@ func (s *Service) Thread(ctx context.Context, postID, viewerID string) (*ThreadP
 	if err != nil {
 		return nil, err
 	}
+	graph := posts.LoadViewerGraph(ctx, s.pool, viewerID, authorIDs, following)
 
 	reasonCache := map[string]string{}
 	parentReason := func(parentID string) string {
 		return s.parentUnavailableReason(ctx, parentID, viewerID, reasonCache)
 	}
-	target := posts.BuildFeedPostWithAncestors(all[postID], all, attachments, polls, following, map[string]bool{}, quoted)
+	target := posts.BuildFeedPostWithAncestors(all[postID], all, attachments, polls, map[string]bool{}, quoted, graph)
 	markThreadAncestorParents(&target, all, parentReason)
 	thread := &ThreadPost{FeedPost: target}
 
@@ -506,7 +507,7 @@ func (s *Service) Thread(ctx context.Context, postID, viewerID string) (*ThreadP
 	// sans ce marquage, le client la promeut silencieusement à la racine.
 	for _, id := range replyIDs {
 		if r, ok := all[id]; ok {
-			reply := posts.BuildFeedPost(r, all, attachments, polls, following, quoted)
+			reply := posts.BuildFeedPost(r, all, attachments, polls, quoted, graph)
 			markThreadParentUnavailable(&reply, all, parentReason)
 			thread.Replies = append(thread.Replies, reply)
 		}

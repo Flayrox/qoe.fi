@@ -91,15 +91,15 @@ func TestBuildFeedPost_UnresolvedQuoteDoesNotLeak(t *testing.T) {
 	all := map[string]*db.GetPostsByIDsRow{row.ID: row}
 
 	// Article privé/bloqué : absent de la map résolue → zéro fuite.
-	fp := BuildFeedPost(row, all, nil, nil, nil, map[string]*QuotedArticle{})
+	fp := BuildFeedPost(row, all, nil, nil, map[string]*QuotedArticle{}, EmptyViewerGraph("", nil))
 	if fp.QuotedArticle != nil || fp.QuotedExcerpt != nil || fp.QuotedAnnotation != nil {
 		t.Fatalf("fuite d'une citation non résolue : %+v", fp)
 	}
 
 	// Article résolu : l'extrait et le snapshot reviennent.
-	fp = BuildFeedPost(row, all, nil, nil, nil, map[string]*QuotedArticle{
+	fp = BuildFeedPost(row, all, nil, nil, map[string]*QuotedArticle{
 		row.ID: {ID: "art_private"},
-	})
+	}, EmptyViewerGraph("", nil))
 	if fp.QuotedExcerpt == nil || *fp.QuotedExcerpt != "passage secret" {
 		t.Fatalf("extrait résolu absent : %+v", fp.QuotedExcerpt)
 	}

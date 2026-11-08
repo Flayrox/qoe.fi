@@ -83,6 +83,20 @@ type HydrateArticle struct {
 	Publication            HydratePublication   `json:"publication"`
 	CoAuthors              []HydrateAuthor      `json:"coAuthors"`
 	Attributions           []HydrateAttribution `json:"attributions"`
+	Capabilities           ArticleCapabilities  `json:"capabilities"`
+}
+
+// ArticleCapabilities regroupe les droits d'action calculés par le serveur
+// pour le viewer courant sur un article (commentaires, annotations, actions
+// sociales). Le front les consomme déclarativement.
+type ArticleCapabilities struct {
+	CanComment     bool `json:"canComment"`
+	CanAnnotate    bool `json:"canAnnotate"`
+	CanBookmark    bool `json:"canBookmark"`
+	CanReport      bool `json:"canReport"`
+	CanMuteAuthor  bool `json:"canMuteAuthor"`
+	CanBlockAuthor bool `json:"canBlockAuthor"`
+	IsSelf         bool `json:"isSelf"`
 }
 
 // HydrateResult est la réponse de POST /v1/feed/hydrate.
@@ -188,6 +202,16 @@ func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string, view
 		a.Publication.HeroText = pubHero
 		a.CoAuthors = []HydrateAuthor{}
 		a.Attributions = []HydrateAttribution{}
+		isSelf := viewerID != "" && viewerID == a.AuthorID
+		a.Capabilities = ArticleCapabilities{
+			CanComment:     a.AllowComments,
+			CanAnnotate:    a.AllowPublicAnnotations,
+			CanBookmark:    viewerID != "",
+			CanReport:      !isSelf,
+			CanMuteAuthor:  viewerID != "" && !isSelf,
+			CanBlockAuthor: viewerID != "" && !isSelf,
+			IsSelf:         isSelf,
+		}
 		articles[a.ID] = &a
 		order = append(order, a.ID)
 	}

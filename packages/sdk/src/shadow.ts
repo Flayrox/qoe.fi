@@ -262,7 +262,11 @@ function mergeArticleShadow<T extends LikeableArticle>(article: T, shadow: Artic
 export interface ActorShadow {
   followed?: boolean;
   followRequested?: boolean;
+  /** Demande d'abonnement en attente (alias de followRequested). */
+  requested?: boolean;
   blocked?: boolean;
+  /** Auteur masqué (sourdine) : l'état se propage à toutes ses cartes. */
+  muted?: boolean;
 }
 
 const actorShadows = new Map<string, ActorShadow>();
@@ -363,6 +367,8 @@ export function useActorShadow<T extends ShadowableActor>(
     fallback?.followed,
     fallback?.blocked,
     fallback?.followRequested,
+    fallback?.requested,
+    fallback?.muted,
     idKey,
     usernameKey,
     shadow,
@@ -378,6 +384,7 @@ type ShadowableActor = {
   isFollowRequested?: boolean;
   blocked?: boolean;
   isBlocked?: boolean;
+  isMuted?: boolean;
 };
 
 function mergeActorShadow<T extends ShadowableActor>(actor: T, shadow: ActorShadow): T {
@@ -388,9 +395,14 @@ function mergeActorShadow<T extends ShadowableActor>(actor: T, shadow: ActorShad
     result.viewerFollows = shadow.followed;
   }
 
-  if (typeof shadow.followRequested === 'boolean') {
-    result.followRequested = shadow.followRequested;
-    result.isFollowRequested = shadow.followRequested;
+  const requested = shadow.requested ?? shadow.followRequested;
+  if (typeof requested === 'boolean') {
+    result.followRequested = requested;
+    result.isFollowRequested = requested;
+  }
+
+  if (typeof shadow.muted === 'boolean') {
+    result.isMuted = shadow.muted;
   }
 
   if (typeof shadow.blocked === 'boolean') {
