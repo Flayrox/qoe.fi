@@ -230,4 +230,32 @@ describe('ProfileHoverCard — contenu de la carte ouverte', () => {
     const container = content.closest('[data-slot="hover-card-content"]');
     expect(container?.className).toContain('top-full');
   });
+
+  it('ne rend aucun hover card ni action quand isBlocked est vrai', () => {
+    const onOpenProfile = vi.fn();
+    render(
+      <ProfileHoverCard user={user} isBlocked={true} onOpenProfile={onOpenProfile}>
+        <span>Utilisateur Bloqué</span>
+      </ProfileHoverCard>
+    );
+
+    const el = screen.getByText('Utilisateur Bloqué');
+    fireEvent.focus(el);
+    expect(document.querySelector('[data-profile-hover-content]')).toBeNull();
+
+    fireEvent.click(el);
+    expect(onOpenProfile).not.toHaveBeenCalled();
+  });
+
+  it('ne rend aucun hover card quand user.isBlocked est vrai', () => {
+    render(
+      <ProfileHoverCard user={{ ...user, isBlocked: true }}>
+        <span>User Bloqué via user prop</span>
+      </ProfileHoverCard>
+    );
+
+    const el = screen.getByText('User Bloqué via user prop');
+    fireEvent.focus(el);
+    expect(document.querySelector('[data-profile-hover-content]')).toBeNull();
+  });
 });

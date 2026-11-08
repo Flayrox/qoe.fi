@@ -26,6 +26,7 @@ export interface ProfileHoverUserData {
   isCertified?: boolean;
   isFollowing?: boolean;
   isMedia?: boolean;
+  isBlocked?: boolean;
   type?: 'PERSONAL' | 'MEDIA' | string | null;
   _count?: {
     followers?: number;
@@ -47,6 +48,7 @@ export interface ProfileHoverCardProps {
   side?: 'top' | 'bottom' | 'left' | 'right';
   align?: 'start' | 'center' | 'end';
   sideOffset?: number;
+  isBlocked?: boolean;
 }
 
 // ── In-Memory client cache for resolved profiles ────────────────────
@@ -87,7 +89,12 @@ export function ProfileHoverCard({
   side = 'top',
   align = 'start',
   sideOffset = 6,
+  isBlocked: isBlockedProp = false,
 }: ProfileHoverCardProps) {
+  const isBlocked = isBlockedProp || Boolean(user?.isBlocked);
+  const [isResolvedBlocked, setIsResolvedBlocked] = useState(false);
+  const blocked = isBlocked || isResolvedBlocked;
+
   const handle =
     propUsername || user?.username || user?.subdomain || user?.id?.slice(0, 8) || 'user';
   const cleanHandle = handle.replace(/^@/, '');
@@ -207,15 +214,27 @@ export function ProfileHoverCard({
           setFollowersCount(resolvedData.followersCount);
           setFollowingCount(resolvedData.followingCount);
           setArticlesCount(resolvedData.articlesCount);
+        } else if (res && !res.ok && res.error?.code === 'NOT_FOUND') {
+          setIsResolvedBlocked(true);
+          setIsOpen(false);
         }
-      } catch {
-        // Fallback gracefully to existing props
+      } catch (err: unknown) {
+        if (
+          err &&
+          typeof err === 'object' &&
+          'status' in err &&
+          (err as { status: number }).status === 404
+        ) {
+          setIsResolvedBlocked(true);
+          setIsOpen(false);
+        }
       }
     },
     [cleanHandle, hasFetched]
   );
 
   const handleClick = (e: React.MouseEvent) => {
+    if (blocked) return;
     // Un lien parent (ex. un <Link> Next) est déjà la source de vérité : il
     // gère la navigation client, le prefetch et les clics modifiés (Ctrl/Maj).
     // Intercepter ici laisserait le navigateur suivre le href de l'ancre en
@@ -235,10 +254,14 @@ export function ProfileHoverCard({
 
   const handleCardOpenChange = useCallback(
     (nextOpen: boolean) => {
+      if (blocked) {
+        setIsOpen(false);
+        return;
+      }
       setIsOpen(nextOpen);
       void handleOpenChange(nextOpen);
     },
-    [handleOpenChange]
+    [handleOpenChange, blocked]
   );
 
   const handleTriggerClick = (e: React.MouseEvent<HTMLSpanElement>) => {
@@ -311,6 +334,10 @@ export function ProfileHoverCard({
   // Le contenu de la carte est portailé, mais React fait remonter les
   // événements par l'arbre React : sans barrière, un clic sur la bio ou les
   // statistiques suivrait le <Link> de la notification parente.
+  if (blocked) {
+    return <span className={className}>{children}</span>;
+  }
+
   return (
     <HoverCard open={isOpen} onOpenChange={handleCardOpenChange}>
       <HoverCardTrigger
