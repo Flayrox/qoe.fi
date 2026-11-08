@@ -14,6 +14,7 @@
     "./hooks/*": "./src/hooks/*.ts",
     "./actions/auth": "./src/actions/auth/index.ts",
     "./actions/feed": "./src/actions/feed/index.ts",
+    "./actions/feed/mappers": "./src/actions/feed/mappers.ts",
     "./actions/articles": "./src/actions/articles/index.ts",
     "./actions/workspace": "./src/actions/workspace/index.ts",
     "./actions/dashboard": "./src/actions/dashboard/index.ts",

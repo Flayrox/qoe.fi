@@ -33,7 +33,7 @@ vi.mock('@qoe/sdk', async (importOriginal) => {
   };
 });
 
-import { mapProfileSlice } from '@qoe/sdk/actions/feed';
+import { mapProfileSlice } from '@qoe/sdk/actions/feed/mappers';
 import { ProfileView } from '../ProfileView';
 
 const SECRET_CONTENT = 'Contenu secret du parent';
