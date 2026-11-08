@@ -36,24 +36,15 @@ import type {
 } from '../../types';
 
 import {
-  type RawQuotedAnnotation,
-  type RawQuotedArticle,
-  type MappedQuotedAnnotation,
-  type MappedQuotedArticle,
   type WebThreadPost,
   type ProfilePostPayload,
+  type RawPostPayload,
+  mapFeedPostToThreadThought,
   mapGoThreadToWebThread,
   mapProfileSlice,
 } from './mappers';
 
-export type {
-  RawQuotedAnnotation,
-  RawQuotedArticle,
-  MappedQuotedAnnotation,
-  MappedQuotedArticle,
-  WebThreadPost,
-  ProfilePostPayload,
-};
+export type { WebThreadPost, ProfilePostPayload } from './mappers';
 
 /** Résultat du découpage paywall (shape Go GET /v1/articles/{slug}). */
 export interface PaywallCutResult {
