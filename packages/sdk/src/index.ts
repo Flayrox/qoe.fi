@@ -17,7 +17,7 @@ export * from './hooks/useNotifications';
 export * from './actions/notifications';
 export * from './hooks/useConversations';
 export * from './actions/messages';
-export { unfurlUrlAction } from './actions/feed';
+export { unfurlUrlAction, removeFollowerAction } from './actions/feed';
 export * from './hooks/useSearch';
 export * from './actions/search';
 export * from './actions/polls';

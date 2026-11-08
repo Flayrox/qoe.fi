@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qoefi/api/internal/testutil"
 )
@@ -542,5 +543,84 @@ func TestDeletionRequest(t *testing.T) {
 	}
 	if req3.Status != "PENDING" || req3.ID == req.ID {
 		t.Fatalf("nouvelle demande = %+v (ancienne %s)", req3, req.ID)
+	}
+}
+
+func TestUpdateUserSettings_TransitionToPublic_AutoAcceptFollowRequests(t *testing.T) {
+	fx := seedSettings(t)
+	svc := NewService(poolTest)
+	ctx := context.Background()
+
+	// 1. Mettre le compte en PRIVATE
+	if _, err := svc.UpdateUserSettings(ctx, fx.ViewerID, map[string]any{"profileVisibility": "PRIVATE"}); err != nil {
+		t.Fatalf("set private: %v", err)
+	}
+
+	// Créer un utilisateur tiers (Bob)
+	bobID := "00000000-0000-0000-0000-000000000088"
+	_, _ = poolTest.Exec(ctx, `
+		INSERT INTO "User" (id, email, username, name, role)
+		VALUES ($1::uuid, 'bob_auto_accept@qoe.test', 'bob_auto_accept', 'Bob', 'user')
+		ON CONFLICT (id) DO NOTHING`, bobID)
+
+	// Bob a une demande d'abonnement en attente pour la publication de fx.ViewerID
+	reqID := "req_test_auto_accept"
+	_, _ = poolTest.Exec(ctx, `DELETE FROM "FollowRequest" WHERE id = $1`, reqID)
+	_, _ = poolTest.Exec(ctx, `DELETE FROM "Follows" WHERE "readerId" = $1::uuid AND "publicationId" = $2`, bobID, fx.PubID)
+	if _, err := poolTest.Exec(ctx, `
+		INSERT INTO "FollowRequest" (id, "requesterId", "publicationId", status)
+		VALUES ($1, $2::uuid, $3, 'PENDING')`, reqID, bobID, fx.PubID); err != nil {
+		t.Fatalf("insert follow request: %v", err)
+	}
+
+	// Notification de follow request reçue par le propriétaire (fx.ViewerID)
+	notifOwnerID := "notif_owner_auto_accept"
+	_, _ = poolTest.Exec(ctx, `DELETE FROM "Notification" WHERE id = $1`, notifOwnerID)
+	if _, err := poolTest.Exec(ctx, `
+		INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publicationId", metadata, "isRead")
+		VALUES ($1, $2::uuid, $3::uuid, 'FOLLOW', $4, '{"kind": "FOLLOW_REQUEST"}'::jsonb, false)`,
+		notifOwnerID, fx.ViewerID, bobID, fx.PubID); err != nil {
+		t.Fatalf("insert owner notification: %v", err)
+	}
+
+	// 2. Basculer de PRIVATE à PUBLIC
+	if _, err := svc.UpdateUserSettings(ctx, fx.ViewerID, map[string]any{"profileVisibility": "PUBLIC"}); err != nil {
+		t.Fatalf("set public: %v", err)
+	}
+
+	// 3. Vérifications :
+	// a. Follow créé dans Follows
+	var followCount int
+	if err := poolTest.QueryRow(ctx, `
+		SELECT count(*) FROM "Follows" WHERE "readerId" = $1::uuid AND "publicationId" = $2`,
+		bobID, fx.PubID).Scan(&followCount); err != nil || followCount != 1 {
+		t.Fatalf("Follows count = %d (err %v), attendu 1", followCount, err)
+	}
+
+	// b. FollowRequest statut = ACCEPTED
+	var status string
+	var decidedAt pgtype.Timestamp
+	if err := poolTest.QueryRow(ctx, `
+		SELECT status, "decidedAt" FROM "FollowRequest" WHERE id = $1`,
+		reqID).Scan(&status, &decidedAt); err != nil || status != "ACCEPTED" || !decidedAt.Valid {
+		t.Fatalf("FollowRequest status = %s decidedAt = %v (err %v)", status, decidedAt, err)
+	}
+
+	// c. Notification du propriétaire supprimée
+	var notifOwnerCount int
+	if err := poolTest.QueryRow(ctx, `
+		SELECT count(*) FROM "Notification" WHERE id = $1`,
+		notifOwnerID).Scan(&notifOwnerCount); err != nil || notifOwnerCount != 0 {
+		t.Fatalf("notif propriétaire count = %d, attendu 0 (supprimée)", notifOwnerCount)
+	}
+
+	// d. Bob a reçu une notification FOLLOW avec kind = FOLLOW_ACCEPTED
+	var notifBobCount int
+	if err := poolTest.QueryRow(ctx, `
+		SELECT count(*) FROM "Notification"
+		WHERE "recipientId" = $1::uuid AND "senderId" = $2::uuid AND type = 'FOLLOW'
+		  AND metadata->>'kind' = 'FOLLOW_ACCEPTED'`,
+		bobID, fx.ViewerID).Scan(&notifBobCount); err != nil || notifBobCount != 1 {
+		t.Fatalf("notif Bob count = %d (err %v), attendu 1 (FOLLOW_ACCEPTED)", notifBobCount, err)
 	}
 }

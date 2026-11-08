@@ -111,6 +111,16 @@ func (h *Handler) toggleBlockedUser(w http.ResponseWriter, r *http.Request) {
 			WHERE type = 'FOLLOW' AND metadata->>'kind' = 'FOLLOW_REQUEST'
 			  AND (("recipientId" = $1 AND "senderId" = $2) OR ("recipientId" = $2 AND "senderId" = $1))`,
 			toUUID(userID), toUUID(target))
+		_, _ = h.svc.pool.Exec(r.Context(), `
+			DELETE FROM "CollaborationRequest"
+			WHERE status = 'PENDING'
+			  AND (
+			    ("inviterId" = $1 AND "inviteeId" = $2)
+			    OR ("inviterId" = $2 AND "inviteeId" = $1)
+			    OR ("inviteeId" = $1 AND "articleId" IN (SELECT id FROM "Article" WHERE "authorId" = $2))
+			    OR ("inviteeId" = $2 AND "articleId" IN (SELECT id FROM "Article" WHERE "authorId" = $1))
+			  )`,
+			toUUID(userID), toUUID(target))
 	}
 	response.OK(w, map[string]bool{"blocked": !exists})
 }

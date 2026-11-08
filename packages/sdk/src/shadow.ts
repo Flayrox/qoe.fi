@@ -134,3 +134,242 @@ function mergeShadow<T extends LikeablePost>(post: T, shadow: PostShadow): T {
 
   return result as T;
 }
+
+// =====================================================================
+// 📰 Article Shadow Store
+// =====================================================================
+
+export interface ArticleShadow {
+  liked?: boolean;
+  likesCount?: number;
+  reposted?: boolean;
+  repostsCount?: number;
+  bookmarked?: boolean;
+}
+
+const articleShadows = new Map<string, ArticleShadow>();
+const articleListeners = new Map<string, Set<() => void>>();
+
+function subscribeArticle(id: string, fn: () => void) {
+  let set = articleListeners.get(id);
+  if (!set) {
+    set = new Set();
+    articleListeners.set(id, set);
+  }
+  set.add(fn);
+  return () => {
+    set.delete(fn);
+    if (set.size === 0) articleListeners.delete(id);
+  };
+}
+
+function notifyArticle(id: string) {
+  const set = articleListeners.get(id);
+  if (set) set.forEach((fn) => fn());
+}
+
+export function updateArticleShadow(id: string, patch: Partial<ArticleShadow>): void {
+  if (!id) return;
+  articleShadows.set(id, { ...articleShadows.get(id), ...patch });
+  notifyArticle(id);
+}
+
+export function getArticleShadow(id: string): ArticleShadow | undefined {
+  if (!id) return undefined;
+  return articleShadows.get(id);
+}
+
+export function useArticleShadow<
+  T extends {
+    id?: string;
+    liked?: boolean;
+    likesCount?: number;
+    reposted?: boolean;
+    repostsCount?: number;
+    isBookmarked?: boolean;
+  },
+>(article: T): T {
+  const articleId = article?.id;
+  const [shadow, setShadow] = useState<ArticleShadow | undefined>(() =>
+    articleId ? articleShadows.get(articleId) : undefined
+  );
+
+  useEffect(() => {
+    if (!articleId) return;
+    setShadow(articleShadows.get(articleId));
+    return subscribeArticle(articleId, () => setShadow(articleShadows.get(articleId)));
+  }, [articleId]);
+
+  return useMemo(() => {
+    if (!article || !articleId || !shadow) return article;
+    return mergeArticleShadow(article, shadow);
+  }, [article, articleId, shadow]);
+}
+
+type LikeableArticle = {
+  id?: string;
+  liked?: boolean;
+  likesCount?: number;
+  reposted?: boolean;
+  repostsCount?: number;
+  isBookmarked?: boolean;
+  bookmarked?: boolean;
+};
+
+function mergeArticleShadow<T extends LikeableArticle>(article: T, shadow: ArticleShadow): T {
+  const result: LikeableArticle = { ...article };
+
+  const baseLikesCount = article.likesCount ?? 0;
+  if (typeof shadow.liked === 'boolean') {
+    const wasLiked = !!article.liked;
+    const isLiked = shadow.liked;
+    result.liked = isLiked;
+    if (typeof shadow.likesCount === 'number') {
+      result.likesCount = shadow.likesCount;
+    } else if (wasLiked !== isLiked) {
+      result.likesCount = isLiked ? baseLikesCount + 1 : Math.max(0, baseLikesCount - 1);
+    }
+  } else if (typeof shadow.likesCount === 'number') {
+    result.likesCount = shadow.likesCount;
+  }
+
+  const baseRepostsCount = article.repostsCount ?? 0;
+  if (typeof shadow.reposted === 'boolean') {
+    const wasReposted = !!article.reposted;
+    const isReposted = shadow.reposted;
+    result.reposted = isReposted;
+    if (typeof shadow.repostsCount === 'number') {
+      result.repostsCount = shadow.repostsCount;
+    } else if (wasReposted !== isReposted) {
+      result.repostsCount = isReposted ? baseRepostsCount + 1 : Math.max(0, baseRepostsCount - 1);
+    }
+  } else if (typeof shadow.repostsCount === 'number') {
+    result.repostsCount = shadow.repostsCount;
+  }
+
+  if (typeof shadow.bookmarked === 'boolean') {
+    result.isBookmarked = shadow.bookmarked;
+    result.bookmarked = shadow.bookmarked;
+  }
+
+  return result as T;
+}
+
+// =====================================================================
+// 👤 Actor Shadow Store
+// =====================================================================
+
+export interface ActorShadow {
+  followed?: boolean;
+  followRequested?: boolean;
+  blocked?: boolean;
+}
+
+const actorShadows = new Map<string, ActorShadow>();
+const actorListeners = new Map<string, Set<() => void>>();
+
+function cleanActorKey(idOrHandle: string): string {
+  return idOrHandle.trim().toLowerCase().replace(/^@/, '');
+}
+
+function subscribeActor(key: string, fn: () => void) {
+  let set = actorListeners.get(key);
+  if (!set) {
+    set = new Set();
+    actorListeners.set(key, set);
+  }
+  set.add(fn);
+  return () => {
+    set.delete(fn);
+    if (set.size === 0) actorListeners.delete(key);
+  };
+}
+
+function notifyActor(key: string) {
+  const set = actorListeners.get(key);
+  if (set) set.forEach((fn) => fn());
+}
+
+export function updateActorShadow(idOrHandle: string, patch: Partial<ActorShadow>): void {
+  if (!idOrHandle) return;
+  const key = cleanActorKey(idOrHandle);
+  actorShadows.set(key, { ...actorShadows.get(key), ...patch });
+  notifyActor(key);
+}
+
+export function getActorShadow(idOrHandle: string): ActorShadow | undefined {
+  if (!idOrHandle) return undefined;
+  return actorShadows.get(cleanActorKey(idOrHandle));
+}
+
+export function useActorShadow<
+  T extends {
+    id?: string;
+    username?: string | null;
+    isFollowed?: boolean;
+    viewerFollows?: boolean;
+  },
+>(actor: T): T {
+  const idKey = actor?.id ? cleanActorKey(actor.id) : undefined;
+  const usernameKey = actor?.username ? cleanActorKey(actor.username) : undefined;
+
+  const [shadow, setShadow] = useState<ActorShadow | undefined>(() => {
+    return (
+      (idKey ? actorShadows.get(idKey) : undefined) ??
+      (usernameKey ? actorShadows.get(usernameKey) : undefined)
+    );
+  });
+
+  useEffect(() => {
+    const keys = Array.from(new Set([idKey, usernameKey].filter(Boolean))) as string[];
+    if (keys.length === 0) return;
+
+    const resolve = () => {
+      const s =
+        (idKey ? actorShadows.get(idKey) : undefined) ??
+        (usernameKey ? actorShadows.get(usernameKey) : undefined);
+      setShadow(s);
+    };
+
+    resolve();
+    const unsubs = keys.map((k) => subscribeActor(k, resolve));
+    return () => unsubs.forEach((u) => u());
+  }, [idKey, usernameKey]);
+
+  return useMemo(() => {
+    if (!actor || (!idKey && !usernameKey) || !shadow) return actor;
+    return mergeActorShadow(actor, shadow);
+  }, [actor, idKey, usernameKey, shadow]);
+}
+
+type ShadowableActor = {
+  id?: string;
+  username?: string | null;
+  isFollowed?: boolean;
+  viewerFollows?: boolean;
+  followRequested?: boolean;
+  isFollowRequested?: boolean;
+  blocked?: boolean;
+  isBlocked?: boolean;
+};
+
+function mergeActorShadow<T extends ShadowableActor>(actor: T, shadow: ActorShadow): T {
+  const result: ShadowableActor = { ...actor };
+
+  if (typeof shadow.followed === 'boolean') {
+    result.isFollowed = shadow.followed;
+    result.viewerFollows = shadow.followed;
+  }
+
+  if (typeof shadow.followRequested === 'boolean') {
+    result.followRequested = shadow.followRequested;
+    result.isFollowRequested = shadow.followRequested;
+  }
+
+  if (typeof shadow.blocked === 'boolean') {
+    result.blocked = shadow.blocked;
+    result.isBlocked = shadow.blocked;
+  }
+
+  return result as T;
+}

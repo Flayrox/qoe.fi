@@ -391,6 +391,15 @@ export const getFollowListAction = safeAction<
   { requireAuth: false }
 );
 
+export const removeFollowerAction = safeAction<{ targetUserId: string }, { removed: boolean }>(
+  async ({ targetUserId }) => {
+    return goFetch<{ removed: boolean }>(`/v1/me/followers/${encodeURIComponent(targetUserId)}`, {
+      method: 'DELETE',
+    });
+  },
+  { requireAuth: true }
+);
+
 export const toggleBookmarkArticleHomeAction = safeAction<string, { bookmarked: boolean }>(
   async (articleId) => {
     // ✅ Go-only : DB + invalidation cache

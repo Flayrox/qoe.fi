@@ -15,6 +15,7 @@ import {
 } from '@qoe/ui';
 import { ArticleOverlayProvider } from '@/components/article-overlay/ArticleOverlayProvider';
 import { ThoughtOverlayProvider } from '@/components/thought-overlay/ThoughtOverlayProvider';
+import { FeatureAnnouncements } from '@/features/upcoming/provider';
 import { logout } from '@/app/login/actions';
 
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
@@ -69,45 +70,47 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         onLogout={logout}
       />
       <MainContentWrapper>
-        <ExitInterstitialProvider sourceName="Qoefi">
-          <ExternalLinkInterceptor sourceName="Qoefi">
-            {/* 🪟 La surcouche d'article vit ici : une seule instance pour
-                toutes les pages, donc un article ouvert depuis un profil
-                n'est plus une navigation complète. */}
-            <ArticleOverlayProvider
-              currentUserProfile={
-                dbUser
-                  ? {
-                      id: dbUser.id,
-                      name: dbUser.name,
-                      username: dbUser.username,
-                      logoUrl: dbUser.logoUrl,
-                      type: dbUser.type,
-                    }
-                  : null
-              }
-            >
-              {/* 🧵 Le fil vit sous l'article : un article cité dans un fil
-                  s'ouvre au-dessus, et le refermer rend le fil intact. */}
-              <ThoughtOverlayProvider
-                dbUser={
+        <FeatureAnnouncements locale={locale}>
+          <ExitInterstitialProvider sourceName="Qoefi">
+            <ExternalLinkInterceptor sourceName="Qoefi">
+              {/* 🪟 La surcouche d'article vit ici : une seule instance pour
+                  toutes les pages, donc un article ouvert depuis un profil
+                  n'est plus une navigation complète. */}
+              <ArticleOverlayProvider
+                currentUserProfile={
                   dbUser
                     ? {
                         id: dbUser.id,
                         name: dbUser.name,
-                        email: dbUser.email,
-                        logoUrl: dbUser.logoUrl,
                         username: dbUser.username,
+                        logoUrl: dbUser.logoUrl,
                         type: dbUser.type,
                       }
                     : null
                 }
               >
-                {children}
-              </ThoughtOverlayProvider>
-            </ArticleOverlayProvider>
-          </ExternalLinkInterceptor>
-        </ExitInterstitialProvider>
+                {/* 🧵 Le fil vit sous l'article : un article cité dans un fil
+                    s'ouvre au-dessus, et le refermer rend le fil intact. */}
+                <ThoughtOverlayProvider
+                  dbUser={
+                    dbUser
+                      ? {
+                          id: dbUser.id,
+                          name: dbUser.name,
+                          email: dbUser.email,
+                          logoUrl: dbUser.logoUrl,
+                          username: dbUser.username,
+                          type: dbUser.type,
+                        }
+                      : null
+                  }
+                >
+                  {children}
+                </ThoughtOverlayProvider>
+              </ArticleOverlayProvider>
+            </ExternalLinkInterceptor>
+          </ExitInterstitialProvider>
+        </FeatureAnnouncements>
       </MainContentWrapper>
       <LegalConsentGate pending={pendingConsents} locale={locale} />
       <Toaster />

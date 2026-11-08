@@ -18,6 +18,7 @@ import (
 	"github.com/qoefi/api/internal/cache"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/identity"
+	"github.com/qoefi/api/internal/notifications"
 	"github.com/qoefi/api/internal/vectorfeed"
 	"github.com/redis/go-redis/v9"
 )
@@ -588,29 +589,12 @@ func (s *Service) toggleArticleLike(ctx context.Context, articleID, userID strin
 }
 
 func (s *Service) notifyArticleEngagement(ctx context.Context, kind, articleID, authorID, senderID string) error {
-	if authorID == senderID || authorID == "" || senderID == "" {
-		return nil
-	}
-	authorUUID := toUUID(authorID)
-	senderUUID := toUUID(senderID)
-
-	var exists bool
-	_ = s.pool.QueryRow(ctx, `
-		SELECT EXISTS(
-			SELECT 1 FROM "Notification" 
-			WHERE "recipientId" = $1 AND "senderId" = $2 AND "type"::text = $3 AND "articleId" = $4 AND "isRead" = false
-		)
-	`, authorUUID, senderUUID, kind, articleID).Scan(&exists)
-	if exists {
-		return nil
-	}
-
-	newNotifID := "notif_" + strings.ReplaceAll(uuid.New().String(), "-", "")
-	_, err := s.pool.Exec(ctx, `
-		INSERT INTO "Notification" (id, "recipientId", "senderId", "type", "articleId", "isRead", "createdAt")
-		VALUES ($1, $2, $3, $4::"NotificationType", $5, false, now())
-	`, newNotifID, authorUUID, senderUUID, kind, articleID)
-	return err
+	return notifications.Dispatch(ctx, s.pool, notifications.DispatchInput{
+		RecipientID: authorID,
+		SenderID:    senderID,
+		Type:        kind,
+		ArticleID:   &articleID,
+	})
 }
 
 func (s *Service) deleteArticleEngagementNotification(ctx context.Context, kind, articleID, senderID string) error {
@@ -978,6 +962,16 @@ func (s *Service) ToggleBlock(ctx context.Context, targetID, userID string) (boo
 		DELETE FROM "Notification"
 		WHERE type = 'FOLLOW' AND metadata->>'kind' = 'FOLLOW_REQUEST'
 		  AND (("recipientId" = $1 AND "senderId" = $2) OR ("recipientId" = $2 AND "senderId" = $1))`,
+		toUUID(userID), toUUID(targetID))
+	_, _ = s.pool.Exec(ctx, `
+		DELETE FROM "CollaborationRequest"
+		WHERE status = 'PENDING'
+		  AND (
+		    ("inviterId" = $1 AND "inviteeId" = $2)
+		    OR ("inviterId" = $2 AND "inviteeId" = $1)
+		    OR ("inviteeId" = $1 AND "articleId" IN (SELECT id FROM "Article" WHERE "authorId" = $2))
+		    OR ("inviteeId" = $2 AND "articleId" IN (SELECT id FROM "Article" WHERE "authorId" = $1))
+		  )`,
 		toUUID(userID), toUUID(targetID))
 	return true, nil
 }

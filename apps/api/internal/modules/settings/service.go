@@ -23,6 +23,7 @@ import (
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/flags"
 	"github.com/qoefi/api/internal/middleware"
+	"github.com/qoefi/api/internal/notifications"
 	"github.com/qoefi/api/internal/permissions"
 	"github.com/qoefi/api/internal/shared/identifier"
 	"github.com/qoefi/api/internal/slug"
@@ -972,14 +973,117 @@ func (s *Service) UpdateUserSettings(ctx context.Context, userID string, patch m
 	}
 	// Initialise la ligne de façon idempotente avant le patch. Une erreur ici
 	// doit être propagée : sinon le patch pourrait répondre succès sans être persisté.
-	if _, err := s.GetUserSettings(ctx, userID); err != nil {
+	currentSettings, err := s.GetUserSettings(ctx, userID)
+	if err != nil {
 		return UserSettings{}, err
 	}
+	isTransitionToPublic := false
+	if newVis, ok := patch["profileVisibility"].(string); ok && newVis == "PUBLIC" {
+		if currentSettings.ProfileVisibility == "PRIVATE" || currentSettings.ProfileVisibility == "FOLLOWERS" {
+			isTransitionToPublic = true
+		}
+	}
+
 	query := `UPDATE "UserSettings" SET ` + strings.Join(set, ", ") + `, "updatedAt" = now() WHERE "userId" = $` + fmt.Sprint(len(args))
 	if _, err := s.pool.Exec(ctx, query, args...); err != nil {
 		return UserSettings{}, err
 	}
+
+	if isTransitionToPublic {
+		if err := s.autoAcceptPendingFollowRequests(ctx, userID); err != nil {
+			return UserSettings{}, err
+		}
+	}
+
 	return s.GetUserSettings(ctx, userID)
+}
+
+// autoAcceptPendingFollowRequests accepte automatiquement toutes les demandes
+// d'abonnement en attente lorsqu'un profil passe de PRIVATE ou FOLLOWERS à PUBLIC.
+// L'insertion des Follows, la clôture des FollowRequest et la suppression des
+// notifications se font dans une transaction atomique.
+func (s *Service) autoAcceptPendingFollowRequests(ctx context.Context, userID string) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	// Récupérer les requesterId et publicationId des demandes en attente
+	rows, err := tx.Query(ctx, `
+		SELECT fr."requesterId"::text, fr."publicationId"
+		FROM "FollowRequest" fr
+		WHERE fr."publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $1)
+		  AND fr.status = 'PENDING'
+	`, toUUID(userID))
+	if err != nil {
+		return err
+	}
+	type pendingReq struct {
+		requesterID   string
+		publicationID string
+	}
+	var pending []pendingReq
+	for rows.Next() {
+		var pr pendingReq
+		if err := rows.Scan(&pr.requesterID, &pr.publicationID); err == nil {
+			pending = append(pending, pr)
+		}
+	}
+	rows.Close()
+
+	// a. Insérer dans Follows
+	_, err = tx.Exec(ctx, `
+		INSERT INTO "Follows" (id, "readerId", "publicationId")
+		SELECT gen_random_uuid()::text, fr."requesterId", fr."publicationId"
+		FROM "FollowRequest" fr
+		WHERE fr."publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $1)
+		  AND fr.status = 'PENDING'
+		ON CONFLICT DO NOTHING
+	`, toUUID(userID))
+	if err != nil {
+		return err
+	}
+
+	// b. Clôturer FollowRequest
+	_, err = tx.Exec(ctx, `
+		UPDATE "FollowRequest"
+		SET status = 'ACCEPTED', "decidedAt" = now()
+		WHERE "publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $1)
+		  AND status = 'PENDING'
+	`, toUUID(userID))
+	if err != nil {
+		return err
+	}
+
+	// c. Supprimer les notifications de demande du propriétaire
+	_, err = tx.Exec(ctx, `
+		DELETE FROM "Notification"
+		WHERE "recipientId" = $1
+		  AND type = 'FOLLOW'
+		  AND metadata->>'kind' = 'FOLLOW_REQUEST'
+	`, toUUID(userID))
+	if err != nil {
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+
+	// d. Récupérer les requesterId acceptés et leur envoyer la notification FOLLOW_ACCEPTED
+	for _, pr := range pending {
+		pubID := pr.publicationID
+		_ = notifications.Dispatch(ctx, s.pool, notifications.DispatchInput{
+			RecipientID:   pr.requesterID,
+			SenderID:      userID,
+			Type:          "FOLLOW",
+			PublicationID: &pubID,
+			Metadata:      map[string]any{"kind": "FOLLOW_ACCEPTED"},
+		})
+	}
+
+	return nil
 }
 
 // DeletionRequest est la demande de suppression de compte (lecteur).
