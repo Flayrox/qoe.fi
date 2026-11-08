@@ -16,7 +16,10 @@ describe('PLATFORM_SURFACES', () => {
 
   it('tous les chemins sont absolus', () => {
     for (const surface of PLATFORM_SURFACES) {
-      expect(surface.path.startsWith('/')).toBe(true);
+      expect(
+        surface.path.startsWith('/') ||
+          (surface.external === true && surface.path.startsWith('https://'))
+      ).toBe(true);
     }
   });
 

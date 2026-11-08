@@ -15,7 +15,7 @@
 // 🔧 Usage : pnpm ui:catalog
 // =====================================================================
 
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { join, relative, basename, extname, dirname } from 'node:path';
 
 import { ROOT, walk, appSources, measure, countUsages, linesOf } from './lib/ui-scan.mjs';
@@ -112,11 +112,19 @@ const signals = {
 };
 
 mkdirSync(dirname(OUT), { recursive: true });
-writeFileSync(
-  OUT,
-  JSON.stringify({ generatedAt: new Date().toISOString(), total, signals, families }, null, 2) +
-    '\n'
-);
+// ♻️ Idempotence : le timestamp n'avance que si le catalogue change réellement.
+// Sans cela, `pnpm ui:catalog` produisait un diff à chaque exécution.
+const payload = { total, signals, families };
+const previous = existsSync(OUT) ? JSON.parse(readFileSync(OUT, 'utf8')) : null;
+const unchanged =
+  previous &&
+  JSON.stringify({
+    total: previous.total,
+    signals: previous.signals,
+    families: previous.families,
+  }) === JSON.stringify(payload);
+const generatedAt = unchanged ? previous.generatedAt : new Date().toISOString();
+writeFileSync(OUT, JSON.stringify({ generatedAt, ...payload }, null, 2) + '\n');
 
 console.log(`✔ catalog.json — ${total} composants dans ${families.length} familles`);
 for (const family of families) console.log(`  · ${family.label}: ${family.items.length}`);

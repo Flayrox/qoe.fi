@@ -1,10 +1,13 @@
 import * as WebBrowser from 'expo-web-browser';
-import { router, usePathname } from 'expo-router';
+import { router, usePathname, type Href } from 'expo-router';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { getMobileNavEntries } from '@/features/sidebar/mobile-nav';
+import { routes } from '@qoe/config/routes';
+import type { SurfaceDescriptor } from '@qoe/config';
 import { useDrawer } from '@/components/drawer/drawer-context';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar } from '@/components/thought/avatar';
@@ -22,10 +25,24 @@ import { t } from '@/lib/i18n';
 interface NavItem {
   key: string;
   label: string;
+  surface: SurfaceDescriptor;
   icon: SymbolViewProps['name'];
   onPress: () => void;
   badge?: string;
 }
+
+// 🎨 Présentation uniquement : le manifeste nomme l'icône, le mobile choisit
+// son symbole natif. Aucun libellé ni chemin ne vit ici.
+const MOBILE_NAV_ICONS: Record<string, SymbolViewProps['name']> = {
+  CircleUserRound: { ios: 'person', android: 'person', web: 'person' },
+  BarChart3: { ios: 'chart.bar.xaxis', android: 'analytics', web: 'analytics' },
+  Bell: { ios: 'bell', android: 'notifications', web: 'notifications' },
+  Bookmark: { ios: 'bookmark', android: 'bookmark', web: 'bookmark' },
+  Clock: { ios: 'clock', android: 'history', web: 'history' },
+  CreditCard: { ios: 'creditcard', android: 'credit_card', web: 'credit_card' },
+  Settings: { ios: 'gearshape', android: 'settings', web: 'settings' },
+  LifeBuoy: { ios: 'questionmark.circle', android: 'help', web: 'help' },
+};
 
 export function Sidebar() {
   const theme = useTheme();
@@ -84,7 +101,8 @@ export function Sidebar() {
       me?.publicationId ||
       user?.user_metadata?.username ||
       (user?.email ? user.email.split('@')[0] : 'admin');
-    router.push({ pathname: '/user/[username]', params: { username: target } });
+    const profilePath = routes.mobile.user().replace('[username]', encodeURIComponent(target));
+    router.push(profilePath as Href);
   };
 
   const openFollowing = () => {
@@ -103,11 +121,6 @@ export function Sidebar() {
     });
   };
 
-  const openSupport = () => {
-    closeDrawer();
-    void WebBrowser.openBrowserAsync('https://qoe.fi/support');
-  };
-
   const handleSwitchAccount = async (targetId: string) => {
     playHaptic('Light');
     const success = await switchAccount(targetId);
@@ -118,89 +131,38 @@ export function Sidebar() {
 
   const isCreatorOrAdmin = me?.role === 'ADMIN' || me?.role === 'creator';
 
-  const mainItems: NavItem[] = [
-    {
-      key: 'profile',
-      label: t('sidebar.profile', 'Profil'),
-      icon: { ios: 'person', android: 'person', web: 'person' },
-      onPress: openProfile,
-    },
-    ...(isCreatorOrAdmin
-      ? [
-          {
-            key: 'creator_dashboard',
-            label: t('sidebar.creator_dashboard', 'Studio Créateur'),
-            icon: {
-              ios: 'chart.bar.xaxis',
-              android: 'analytics',
-              web: 'analytics',
-            } as SymbolViewProps['name'],
-            onPress: () => {
-              closeDrawer();
-              Toast.show(
-                t('sidebar.creator_dashboard_ready', 'Ouverture du Studio Créateur...'),
-                'info'
-              );
-              void WebBrowser.openBrowserAsync('https://qoe.fi/dashboard');
-            },
-          },
-        ]
-      : []),
-    {
-      key: '/notifications',
-      label: t('sidebar.notifications', 'Notifications'),
-      icon: { ios: 'bell', android: 'notifications', web: 'notifications' },
-      onPress: () => {
-        closeDrawer();
-        router.push('/notifications');
-      },
-    },
-    {
-      key: '/library',
-      label: t('sidebar.library', 'Bibliothèque'),
-      icon: { ios: 'bookmark', android: 'bookmark', web: 'bookmark' },
-      onPress: () => {
-        closeDrawer();
-        router.push('/library');
-      },
-    },
-    {
-      key: '/history',
-      label: t('sidebar.history', 'Historique'),
-      icon: { ios: 'clock', android: 'history', web: 'history' },
-      onPress: () => {
-        closeDrawer();
-        router.push('/history');
-      },
-    },
-    {
-      key: 'wallet',
-      label: t('sidebar.wallet', 'Portefeuille'),
-      icon: { ios: 'creditcard', android: 'credit_card', web: 'credit_card' },
-      badge: `${walletBalanceEuros} €`,
-      onPress: () => {
+  const navItems: NavItem[] = getMobileNavEntries(isCreatorOrAdmin).map(({ surface }) => ({
+    key: surface.id,
+    label: surface.defaultLabel,
+    surface,
+    icon: MOBILE_NAV_ICONS[surface.iconName] ?? { ios: 'circle', android: 'circle', web: 'circle' },
+    badge: surface.id === 'mobile.sidebar.wallet' ? `${walletBalanceEuros} €` : undefined,
+    onPress: () => {
+      if (surface.id === 'mobile.sidebar.wallet') {
         setWalletSheetOpen(true);
-      },
+        return;
+      }
+      closeDrawer();
+      if (surface.id === 'mobile.sidebar.profile') {
+        openProfile();
+        return;
+      }
+      if (surface.external) {
+        if (surface.id === 'mobile.sidebar.creator') {
+          Toast.show(
+            t('sidebar.creator_dashboard_ready', 'Ouverture du Studio Créateur...'),
+            'info'
+          );
+        }
+        void WebBrowser.openBrowserAsync(surface.path);
+        return;
+      }
+      router.push(surface.path as Href);
     },
-  ];
+  }));
 
-  const bottomItems: NavItem[] = [
-    {
-      key: 'settings',
-      label: t('sidebar.settings', 'Paramètres et confidentialité'),
-      icon: { ios: 'gearshape', android: 'settings', web: 'settings' },
-      onPress: () => {
-        closeDrawer();
-        router.push('/settings');
-      },
-    },
-    {
-      key: 'support',
-      label: t('sidebar.support', 'Centre d’aide & Support'),
-      icon: { ios: 'questionmark.circle', android: 'help', web: 'help' },
-      onPress: openSupport,
-    },
-  ];
+  const mainItems = navItems.filter((item) => item.surface.sidebarGroup !== 'bottom');
+  const bottomItems = navItems.filter((item) => item.surface.sidebarGroup === 'bottom');
 
   // Groupes pour l'ActionSheet des comptes (style X)
   const accountActionGroups: ActionSheetGroup[] = [
@@ -399,7 +361,7 @@ export function Sidebar() {
       {/* ─── Menu Principal : Profil, Bibliothèque, Portefeuille ─── */}
       <View style={styles.mainNav}>
         {mainItems.map((item) => {
-          const isActive = pathname === item.key;
+          const isActive = pathname === item.surface.path;
           return (
             <Pressable
               key={item.key}

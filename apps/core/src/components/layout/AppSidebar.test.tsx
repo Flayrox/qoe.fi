@@ -19,9 +19,14 @@ vi.mock('@qoe/sdk', () => ({
 
 import { AppSidebar } from './AppSidebar';
 
+function anchorLabel(anchor: HTMLAnchorElement): string {
+  // Retire uniquement le badge numérique final, jamais un préfixe de libellé.
+  return anchor.textContent?.trim().replace(/\d+$/, '') ?? '';
+}
+
 function anchorsFor(label: string): string[] {
   return Array.from(document.querySelectorAll<HTMLAnchorElement>('a'))
-    .filter((anchor) => anchor.textContent?.trim().startsWith(label))
+    .filter((anchor) => anchorLabel(anchor) === label)
     .map((anchor) => anchor.getAttribute('href') ?? '');
 }
 
@@ -55,10 +60,8 @@ describe('AppSidebar (lecteur)', () => {
     );
 
     const anchors = Array.from(document.querySelectorAll('a'));
-    const notifications = anchors.find((anchor) =>
-      anchor.textContent?.trim().startsWith('Notifications')
-    );
-    const messages = anchors.find((anchor) => anchor.textContent?.trim().startsWith('Messages'));
+    const notifications = anchors.find((anchor) => anchorLabel(anchor) === 'Notifications');
+    const messages = anchors.find((anchor) => anchorLabel(anchor) === 'Messages');
     expect(notifications?.textContent).toContain('4');
     expect(messages?.textContent).toContain('2');
   });

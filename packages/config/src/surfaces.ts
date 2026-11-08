@@ -49,6 +49,12 @@ export interface SurfaceDescriptor {
   nativeOrder?: number;
   /** Rang de l'onglet dans la barre web (défaut : ordre du manifeste). */
   webOrder?: number;
+  /** Rôle minimal pour voir une entrée de sidebar mobile. */
+  requiredRole?: 'creator';
+  /** Lien externe (navigateur) plutôt qu'une route interne. */
+  external?: boolean;
+  /** Section de la sidebar mobile (principale ou basse). */
+  sidebarGroup?: 'main' | 'bottom';
   showInSidebar: boolean;
   showInCmdK: boolean;
 }
@@ -60,6 +66,7 @@ export interface SurfaceDescriptor {
  */
 export const PLATFORM_SURFACES: readonly SurfaceDescriptor[] = [
   // ── Studio (ordre de la sidebar) ───────────────────────────────────
+
   {
     id: 'studio.home',
     scope: 'studio',

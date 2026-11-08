@@ -129,6 +129,11 @@ export const routes = {
     notifications: () => '/notifications',
     messages: () => '/messages',
     profile: () => '/profile',
+    user: () => '/user/[username]' as const,
+    library: () => '/library',
+    history: () => '/history',
+    wallet: () => '/wallet',
+    settings: () => '/settings',
   },
 
   /** 🌐 Page d'exposition Hi (`apps/hi`) */
