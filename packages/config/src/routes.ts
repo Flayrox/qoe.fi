@@ -81,15 +81,54 @@ export const routes = {
   /** 🛡️ Superadmin Dashboard App (`apps/admin`) */
   admin: {
     home: () => '/admin',
+    work: () => '/admin/work',
+    health: () => '/admin/health',
+    system: () => '/admin/system',
     users: {
       list: () => '/admin/users',
       detail: (id: string) => `/admin/users/${encodeURIComponent(id)}`,
     },
+    reports: () => '/admin/reports',
+    abuse: () => '/admin/abuse',
+    appeals: () => '/admin/appeals',
+    incidents: () => '/admin/incidents',
+    support: {
+      list: () => '/admin/support',
+      articles: () => '/admin/support/articles',
+    },
+    subscriptions: () => '/admin/subscriptions',
+    imports: () => '/admin/imports',
+    campaigns: () => '/admin/campaigns',
+    widgets: () => '/admin/widgets',
+    notifications: () => '/admin/notifications',
+    storage: () => '/admin/storage',
+    retention: () => '/admin/retention',
     config: () => '/admin/config',
     frontend: () => '/admin/frontend',
     translations: () => '/admin/translations',
-    widgets: () => '/admin/widgets',
     api: () => '/admin/api',
+    oauth: () => '/admin/oauth',
+    features: () => '/admin/features',
+    settings: () => '/admin/settings',
+    sandbox: () => '/admin/sandbox',
+    legal: () => '/admin/legal',
+    approvals: () => '/admin/approvals',
+    compliance: () => '/admin/compliance',
+    audit: () => '/admin/audit',
+    access: {
+      list: () => '/admin/access',
+      roles: () => '/admin/access/roles',
+      decisions: () => '/admin/access/decisions',
+    },
+  },
+
+  /** 📱 Application Expo (routes expo-router, hrefs web inclus). */
+  mobile: {
+    feed: () => '/',
+    explore: () => '/explore',
+    notifications: () => '/notifications',
+    messages: () => '/messages',
+    profile: () => '/profile',
   },
 
   /** 🌐 Page d'exposition Hi (`apps/hi`) */

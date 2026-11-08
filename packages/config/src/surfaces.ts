@@ -11,8 +11,10 @@
 // =====================================================================
 
 import { routes } from './routes';
+import { ADMIN_SURFACES } from './surfaces-admin';
+import { MOBILE_SURFACES } from './surfaces-mobile';
 
-export type AppSurfaceScope = 'reader' | 'studio' | 'admin';
+export type AppSurfaceScope = 'reader' | 'studio' | 'admin' | 'mobile';
 
 export type SurfaceSection =
   'navigation' | 'library' | 'creation' | 'growth' | 'workspace' | 'system';
@@ -31,6 +33,22 @@ export interface SurfaceDescriptor {
   hotkey?: string;
   /** Permission média requise (absente = accessible à tous les membres). */
   requiredPermission?: string;
+  /** Capacité admin requise (`admin.*`), validée par la console au démarrage. */
+  capability?: string;
+  /** Capacités secondaires utilisées par l'écran admin. */
+  alsoUses?: string[];
+  /** Phrase décrivant l'écran admin (file, refus, aide). */
+  description?: string;
+  /** Nom de route expo-router pour un onglet mobile. */
+  routeName?: string;
+  /** Onglet visible dans l'application native (défaut : true). */
+  showOnNative?: boolean;
+  /** Onglet visible dans la variante web Expo (défaut : true). */
+  showOnWeb?: boolean;
+  /** Rang de l'onglet dans la barre native (défaut : ordre du manifeste). */
+  nativeOrder?: number;
+  /** Rang de l'onglet dans la barre web (défaut : ordre du manifeste). */
+  webOrder?: number;
   showInSidebar: boolean;
   showInCmdK: boolean;
 }
@@ -319,6 +337,12 @@ export const PLATFORM_SURFACES: readonly SurfaceDescriptor[] = [
     showInSidebar: true,
     showInCmdK: true,
   },
+
+  // ── Console admin ──────────────────────────────────────────────────
+  ...ADMIN_SURFACES,
+
+  // ── Application mobile ─────────────────────────────────────────────
+  ...MOBILE_SURFACES,
 ];
 
 function hasPermission(surface: SurfaceDescriptor, userPermissions: string[]): boolean {
@@ -349,6 +373,29 @@ export function getCmdKSurfaces(
       surface.showInCmdK &&
       (userPermissions === undefined || hasPermission(surface, userPermissions))
   );
+}
+
+/** Onglets mobiles d'une plateforme, dans l'ordre du manifeste. */
+export function getMobileSurfaces(platform: 'native' | 'web'): SurfaceDescriptor[] {
+  return PLATFORM_SURFACES.map((surface, index) => ({ surface, index }))
+    .filter(
+      ({ surface }) =>
+        surface.scope === 'mobile' &&
+        (platform === 'native' ? surface.showOnNative !== false : surface.showOnWeb !== false)
+    )
+    .sort((a, b) => {
+      const orderA =
+        (platform === 'native' ? a.surface.nativeOrder : a.surface.webOrder) ?? a.index;
+      const orderB =
+        (platform === 'native' ? b.surface.nativeOrder : b.surface.webOrder) ?? b.index;
+      return orderA - orderB;
+    })
+    .map(({ surface }) => surface);
+}
+
+/** Entrées de la console admin, dans l'ordre du manifeste. */
+export function getAdminSurfaces(): SurfaceDescriptor[] {
+  return PLATFORM_SURFACES.filter((surface) => surface.scope === 'admin');
 }
 
 /** Surfaces portant un raccourci clavier (pour l'aide et la résolution). */
