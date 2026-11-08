@@ -11,7 +11,12 @@
 // "Server Actions must be async functions" côté client / SSR.
 // =====================================================================
 
-import type { QuoteContext, FeedSlice as ApiFeedSlice, FeedPost as ApiFeedPost } from '../../types';
+import type {
+  QuoteContext,
+  FeedSlice as ApiFeedSlice,
+  FeedPost as ApiFeedPost,
+  PostCapabilities,
+} from '../../types';
 
 export type RawPostPayload = Record<string, unknown>;
 
@@ -179,6 +184,8 @@ export interface WebThreadPost {
     isCertified: boolean;
     /** Nature publique du compte — décide de la forme de l'avatar. */
     type?: 'PERSONAL' | 'MEDIA' | string | null;
+    isMuted?: boolean;
+    isBlocked?: boolean;
   };
   parentId: string | null;
   /** Le parent existe mais est masqué (compte bloqué, supprimé ou filtré). */
@@ -220,6 +227,8 @@ export interface WebThreadPost {
     | undefined;
   tags: string[];
   replyRestriction: string;
+  /** Droits calculés par Go (threadgate, propriété, sourdine, blocage). */
+  capabilities?: PostCapabilities;
   replies: WebThreadPost[];
   quotedExcerpt?: string | null;
   annotationQuote?: MappedQuotedAnnotation;
@@ -278,6 +287,8 @@ export function mapFeedPostToThreadThought(
       // Sans ce champ, un compte média perdait son carré et redevenait un
       // cercle dès qu'il traversait un fil — l'avatar ne ment pas ailleurs.
       type: (author.type as 'PERSONAL' | 'MEDIA' | null | undefined) ?? null,
+      isMuted: Boolean(author.isMuted),
+      isBlocked: Boolean(author.isBlocked),
     },
     parentId: (p.parentId as string | null) ?? null,
     parentUnavailable,
@@ -318,6 +329,7 @@ export function mapFeedPostToThreadThought(
     poll: (p.poll as WebThreadPost['poll']) ?? null,
     tags: (p.tags as string[]) ?? [],
     replyRestriction: (p.replyRestriction as string) ?? 'everyone',
+    capabilities: (p.capabilities as PostCapabilities | undefined) ?? undefined,
     replies: [] as WebThreadPost[],
     quotedExcerpt: (p.quotedExcerpt as string | null | undefined) ?? null,
     annotationQuote: mapQuotedAnnotationForCard(
@@ -404,6 +416,8 @@ export interface ProfilePostPayload {
     logoUrl: string | null;
     isCertified: boolean;
     type?: 'PERSONAL' | 'MEDIA' | string | null;
+    isMuted?: boolean;
+    isBlocked?: boolean;
   };
   parentId?: string | null;
   repostId?: string | null;
@@ -440,6 +454,7 @@ export interface ProfilePostPayload {
     }>;
   } | null;
   replyRestriction?: string;
+  capabilities?: PostCapabilities;
 }
 
 export function mapProfilePost(fp: ApiFeedPost | RawPostPayload): ProfilePostPayload {
@@ -489,6 +504,8 @@ export function mapProfilePost(fp: ApiFeedPost | RawPostPayload): ProfilePostPay
       logoUrl: (author.logoUrl as string | null) ?? null,
       isCertified: Boolean(author.isCertified),
       type: (author.type as 'PERSONAL' | 'MEDIA' | null | undefined) ?? null,
+      isMuted: Boolean(author.isMuted),
+      isBlocked: Boolean(author.isBlocked),
     },
     parentId: (raw.parentId as string | null) ?? null,
     repostId: (raw.repostId as string | null) ?? null,
@@ -516,6 +533,7 @@ export function mapProfilePost(fp: ApiFeedPost | RawPostPayload): ProfilePostPay
     tags: (raw.tags as string[]) ?? [],
     poll: (raw.poll as ProfilePostPayload['poll']) ?? null,
     replyRestriction: (raw.replyRestriction as string) ?? 'everyone',
+    capabilities: (raw.capabilities as PostCapabilities | undefined) ?? undefined,
   };
 }
 

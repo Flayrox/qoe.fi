@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/modules/posts"
 )
 
 // testFeedRow construit une ligne de post minimale pour l'assemblage des
@@ -40,7 +41,7 @@ func TestBuildFeedSliceHiddenParent(t *testing.T) {
 	for _, reason := range []string{"blocked", "deleted", "unavailable"} {
 		t.Run(reason, func(t *testing.T) {
 			slice, conversationRoot, ok := buildFeedSlice(
-				&reply, all, nil, nil, nil, nil, true,
+				&reply, all, nil, nil, nil, posts.ViewerGraph{}, true,
 				func(string) string { return reason },
 			)
 			if !ok {
@@ -98,7 +99,7 @@ func TestBuildFeedSliceDropsHiddenParentInFeed(t *testing.T) {
 	all := map[string]*db.GetPostsByIDsRow{"reply-1": &reply}
 
 	if _, _, ok := buildFeedSlice(
-		&reply, all, nil, nil, nil, nil, false,
+		&reply, all, nil, nil, nil, posts.ViewerGraph{}, false,
 		func(string) string { return "blocked" },
 	); ok {
 		t.Fatal("un flux ne doit pas garder une réponse au parent masqué")
@@ -114,7 +115,7 @@ func TestBuildFeedSliceVisibleParent(t *testing.T) {
 	all := map[string]*db.GetPostsByIDsRow{"reply-1": &reply, "parent-1": &parent}
 
 	slice, _, ok := buildFeedSlice(
-		&reply, all, nil, nil, nil, nil, true,
+		&reply, all, nil, nil, nil, posts.ViewerGraph{}, true,
 		func(string) string { return "blocked" },
 	)
 	if !ok {

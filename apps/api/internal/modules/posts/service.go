@@ -45,6 +45,10 @@ type Author struct {
 	LogoURL     *string `json:"logoUrl"`
 	IsCertified bool    `json:"isCertified"`
 	IsFollowing bool    `json:"isFollowing"`
+	// IsMuted / IsBlocked : état relationnel calculé par le serveur pour le
+	// viewer courant (omis quand faux pour ne pas alourdir le feed).
+	IsMuted   bool `json:"isMuted,omitempty"`
+	IsBlocked bool `json:"isBlocked,omitempty"`
 	// Type (PERSONAL | MEDIA) décide de la forme de l'avatar côté UI.
 	Type string `json:"type"`
 }
@@ -254,7 +258,8 @@ func (s *Service) Get(ctx context.Context, id, viewerID string) (FeedPost, error
 		return FeedPost{}, err
 	}
 
-	return BuildFeedPostWithAncestors(all[id], all, attachments, polls, following, map[string]bool{}, quoted), nil
+	graph := LoadViewerGraph(ctx, s.pool, viewerID, authorIDs, following)
+	return BuildFeedPostWithAncestors(all[id], all, attachments, polls, map[string]bool{}, quoted, graph), nil
 }
 
 // ToggleLike ajoute ou retire un like, avec mise à jour atomique du compteur.
@@ -896,9 +901,10 @@ func (s *Service) Quotes(ctx context.Context, postID, viewerID string, limit, of
 		if err != nil {
 			return FeedResultPage{}, err
 		}
+		graph := LoadViewerGraph(ctx, s.pool, viewerID, authorIDs, following)
 		for _, id := range ids {
 			if r, ok := all[id]; ok {
-				postsList = append(postsList, BuildFeedPost(r, all, attachments, polls, following, quoted))
+				postsList = append(postsList, BuildFeedPost(r, all, attachments, polls, quoted, graph))
 			}
 		}
 	}

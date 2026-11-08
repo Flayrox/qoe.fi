@@ -111,13 +111,13 @@ func AuthorOf(r *db.GetPostsByIDsRow, following map[string]bool) Author {
 // BuildFeedPost construit le DTO complet d'une pensée (miroir Prisma), avec
 // l'état du viewer (liked/reposted), l'état follow de l'auteur et l'article
 // cité résolu par le serveur (quoted, clé = postID — voir QuotedArticlesFor).
-func BuildFeedPost(r *db.GetPostsByIDsRow, all map[string]*db.GetPostsByIDsRow, attachments map[string][]Attachment, polls map[string]*Poll, following map[string]bool, quoted map[string]*QuotedArticle) FeedPost {
-	return buildFeedPost(r, all, attachments, polls, following, quoted, 0)
+func BuildFeedPost(r *db.GetPostsByIDsRow, all map[string]*db.GetPostsByIDsRow, attachments map[string][]Attachment, polls map[string]*Poll, quoted map[string]*QuotedArticle, graph ViewerGraph) FeedPost {
+	return buildFeedPost(r, all, attachments, polls, quoted, graph, 0)
 }
 
 // buildFeedPost porte la profondeur : la borne s'applique à la récursion,
 // pas à l'API exportée (qui garde sa signature pour tous les appelants).
-func buildFeedPost(r *db.GetPostsByIDsRow, all map[string]*db.GetPostsByIDsRow, attachments map[string][]Attachment, polls map[string]*Poll, following map[string]bool, quoted map[string]*QuotedArticle, depth int) FeedPost {
+func buildFeedPost(r *db.GetPostsByIDsRow, all map[string]*db.GetPostsByIDsRow, attachments map[string][]Attachment, polls map[string]*Poll, quoted map[string]*QuotedArticle, graph ViewerGraph, depth int) FeedPost {
 	fp := FeedPost{
 		ID:               r.ID,
 		Content:          r.Content,
@@ -134,7 +134,7 @@ func buildFeedPost(r *db.GetPostsByIDsRow, all map[string]*db.GetPostsByIDsRow, 
 		ReplyRestriction: r.ReplyRestriction,
 		IsPinned:         r.IsPinned,
 		IsHiddenByAuthor: r.IsHiddenByAuthor,
-		Author:           AuthorOf(r, following),
+		Author:           AuthorOf(r, graph.Following),
 		Attachments:      attachments[r.ID],
 		Poll:             polls[r.ID],
 		Likes:            []PostActor{},
@@ -145,9 +145,15 @@ func buildFeedPost(r *db.GetPostsByIDsRow, all map[string]*db.GetPostsByIDsRow, 
 		Liked:    r.ViewerLiked,
 		Reposted: r.ViewerReposted,
 	}
+	// Droits du viewer et état relationnel de l'auteur : calculés par Go,
+	// consommés tels quels par le front (voir ComputePostCapabilities).
+	fp.Author.IsMuted = graph.Muted[r.AuthorId]
+	fp.Author.IsBlocked = graph.Blocked[r.AuthorId]
+	fp.Capabilities = ComputePostCapabilities(r, RootAuthorOf(r, all), graph)
+
 	if rid := RepostIDOf(r); rid != nil && depth < MaxQuoteDepth {
 		if rp, ok := all[*rid]; ok {
-			rr := buildFeedPost(rp, all, attachments, polls, following, quoted, depth+1)
+			rr := buildFeedPost(rp, all, attachments, polls, quoted, graph, depth+1)
 			fp.Repost = &rr
 		}
 	}
@@ -185,15 +191,15 @@ func buildFeedPost(r *db.GetPostsByIDsRow, all map[string]*db.GetPostsByIDsRow, 
 
 // BuildFeedPostWithAncestors construit le FeedPost d'une pensée ET chaîne
 // récursivement ses ancêtres dans `Parent` (root → … → parent direct).
-func BuildFeedPostWithAncestors(r *db.GetPostsByIDsRow, all map[string]*db.GetPostsByIDsRow, attachments map[string][]Attachment, polls map[string]*Poll, following map[string]bool, seen map[string]bool, quoted map[string]*QuotedArticle) FeedPost {
-	fp := BuildFeedPost(r, all, attachments, polls, following, quoted)
+func BuildFeedPostWithAncestors(r *db.GetPostsByIDsRow, all map[string]*db.GetPostsByIDsRow, attachments map[string][]Attachment, polls map[string]*Poll, seen map[string]bool, quoted map[string]*QuotedArticle, graph ViewerGraph) FeedPost {
+	fp := BuildFeedPost(r, all, attachments, polls, quoted, graph)
 	pid := ParentIDOf(r)
 	if pid == nil || seen[r.ID] {
 		return fp
 	}
 	if parentRow, ok := all[*pid]; ok {
 		seen[r.ID] = true
-		pp := BuildFeedPostWithAncestors(parentRow, all, attachments, polls, following, seen, quoted)
+		pp := BuildFeedPostWithAncestors(parentRow, all, attachments, polls, seen, quoted, graph)
 		fp.Parent = &pp
 	}
 	return fp
