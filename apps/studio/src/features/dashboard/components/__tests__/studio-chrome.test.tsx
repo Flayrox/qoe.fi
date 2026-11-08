@@ -65,6 +65,7 @@ function renderStudioOwner() {
         userEmail="jean@qoe.test"
         userFallback="JE"
         brandName="Studio"
+        feedHref="http://qoe.test/home"
         permissions={undefined}
         canWrite
         unreadCount={3}

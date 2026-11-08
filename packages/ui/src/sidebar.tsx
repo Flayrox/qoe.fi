@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { useState, useEffect, createContext, useContext, useId, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, animate, useMotionValue, AnimatePresence } from 'framer-motion';
 import { cn } from '@qoe/utils';
+import { BRAND_LOGOS } from '@qoe/brand';
 import { ThemeToggle } from './ui/ThemeToggle';
 import { SafeAvatar } from './SafeAvatar';
 import { Badge } from './primitives/badge/badge';
@@ -39,6 +40,8 @@ import {
   ChevronsUpDown,
   Crown,
   ExternalLink,
+  LayoutDashboard,
+  BookOpen,
   X,
 } from 'lucide-react';
 import { t } from '@lingui/core/macro';
@@ -81,6 +84,13 @@ export interface SidebarItemData {
   badge?: string | number;
 }
 
+export interface SidebarAppSwitch {
+  /** Application courante : l'encadré du logo y repose au repos. */
+  current: 'reader' | 'studio';
+  /** URL absolue de l'application sœur (studio ↔ feed). */
+  counterpartHref: string;
+}
+
 export interface SidebarProps {
   /** Shorthand navigation items */
   items?: SidebarItemData[];
@@ -92,6 +102,12 @@ export interface SidebarProps {
   logo?: React.ReactNode;
   /** Brand name displayed next to logo */
   brandName?: string;
+  /**
+   * 🎛️ Bascule Studio ↔ Feed logée dans le logo : le symbole mène au Studio,
+   * le nom de marque au feed. Fourni par l'application hôte, la sidebar ne
+   * connaît aucune URL métier.
+   */
+  appSwitch?: SidebarAppSwitch;
   /** Authenticated user ID (for deterministic avatar seed) */
   userId?: string | null;
   /** Authenticated user username/handle (for deterministic avatar seed) */
@@ -302,6 +318,210 @@ export function SidebarFooter({
 }
 
 /* ─────────────────────────────────────────────
+   Bascule Studio ↔ Feed (logée dans le logo)
+   ───────────────────────────────────────────── */
+/**
+ * 🎛️ Bascule Studio ↔ Lecteur logée dans le logo : ce n'est pas un cadre qui
+ * se déplace, c'est la **fenêtre du symbole** qui coulisse dans la forme. Le
+ * logo change donc littéralement de silhouette — à droite le feed, à gauche le
+ * Studio, où l'ouverture prend tout l'espace libre et le bloc plein garde sa
+ * largeur. Le clic suit la fenêtre. Même grammaire que le plateau de
+ * `apps/hi`, où les cartes finissent par épouser la fenêtre du Q.
+ *
+ * Géométrie officielle du symbole (relevée dans `packages/brand`) : fenêtre
+ * 71,13 × 115,44 à y = 8,31, rayon 8,34, de x = 134,22 à x = 205,35.
+ */
+const SYMBOL_W = 216;
+const SYMBOL_H = 133;
+const WINDOW_W = 71.13;
+const WINDOW_H = 115.44;
+const WINDOW_Y = 8.31;
+const WINDOW_R = 8.34;
+const WINDOW_RIGHT_X = 134.22;
+const WINDOW_LEFT_X = SYMBOL_W - WINDOW_RIGHT_X - WINDOW_W; // ≈ 10,65
+// Les deux repos sont des intervalles : au feed la fenêtre garde la largeur
+// officielle de la marque, dans le Studio elle prend tout l'espace laissé libre
+// à gauche, jusqu'au bloc plein — le plein et le vide échangent leurs rôles.
+const FEED_LEFT = WINDOW_RIGHT_X; // 134,22
+const FEED_RIGHT = WINDOW_RIGHT_X + WINDOW_W; // 205,35
+const STUDIO_LEFT = WINDOW_LEFT_X; // 10,65
+const STUDIO_RIGHT = WINDOW_RIGHT_X; // 134,22
+
+function SidebarAppSwitch({
+  brandName,
+  current,
+  counterpartHref,
+}: {
+  brandName?: string;
+  current: SidebarAppSwitch['current'];
+  counterpartHref: string;
+}) {
+  const [hovered, setHovered] = useState<SidebarAppSwitch['current'] | null>(null);
+  // Une destination cliquée se fige : la souris qui sort pendant la navigation
+  // ne doit pas renvoyer la fenêtre d'où elle vient.
+  const [committed, setCommitted] = useState<SidebarAppSwitch['current'] | null>(null);
+  const side = committed ?? hovered ?? current;
+  // Identifiant stable SSR/bornes, sans caractère réservé dans `url(#…)`.
+  const maskId = `qoe-app-switch-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const windowRef = useRef<SVGRectElement | null>(null);
+
+  // Course 0 (lecteur) → 1 (Studio) portée par un ressort : la fenêtre glisse
+  // et s'élargit en route, comme le plateau de `hi` qui se dilate en rejoignant
+  // la fenêtre du symbole.
+  const progress = useMotionValue(current === 'studio' ? 1 : 0);
+  useEffect(() => {
+    const controls = animate(progress, side === 'studio' ? 1 : 0, {
+      type: 'spring',
+      stiffness: 280,
+      damping: 28,
+    });
+    return () => controls.stop();
+  }, [progress, side]);
+
+  useEffect(() => {
+    const rect = windowRef.current;
+    if (!rect) return;
+
+    const apply = (raw: number) => {
+      // Course bornée : la fenêtre ne mord jamais sur le bord du symbole.
+      const p = Math.min(1, Math.max(0, raw));
+      // Les deux bords glissent ensemble : l'ouverture s'élargit en partant
+      // vers la gauche et se rétracte en revenant vers la droite.
+      const left = FEED_LEFT + (STUDIO_LEFT - FEED_LEFT) * p;
+      const right = FEED_RIGHT + (STUDIO_RIGHT - FEED_RIGHT) * p;
+      rect.setAttribute('x', left.toFixed(3));
+      rect.setAttribute('width', (right - left).toFixed(3));
+    };
+
+    apply(progress.get());
+    return progress.on('change', apply);
+  }, [progress]);
+
+  // La fenêtre indique où mène le clic : à droite le feed, à gauche le Studio.
+  // L'application où l'on se trouve n'est qu'un repère, jamais un lien.
+  const zones: Array<{
+    id: SidebarAppSwitch['current'];
+    label: string;
+    href: string | null;
+    className: string;
+  }> = [
+    {
+      id: 'studio',
+      label: t`Studio`,
+      href: current === 'studio' ? null : counterpartHref,
+      className: 'rounded-l-[8px]',
+    },
+    {
+      id: 'reader',
+      label: t`Lecteur`,
+      href: current === 'reader' ? null : counterpartHref,
+      className: 'rounded-r-[8px]',
+    },
+  ];
+
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      <div className="relative shrink-0" onMouseLeave={() => setHovered(null)}>
+        <svg
+          viewBox={`0 0 ${SYMBOL_W} ${SYMBOL_H}`}
+          className="block h-5 w-auto"
+          aria-hidden="true"
+        >
+          {/* Le masque est plein : seule la fenêtre mobile y découpe la forme. */}
+          <mask
+            id={maskId}
+            maskUnits="userSpaceOnUse"
+            x={0}
+            y={0}
+            width={SYMBOL_W}
+            height={SYMBOL_H}
+          >
+            <rect x={0} y={0} width={SYMBOL_W} height={SYMBOL_H} fill="white" />
+            <rect
+              ref={windowRef}
+              x={current === 'reader' ? FEED_LEFT : STUDIO_LEFT}
+              y={WINDOW_Y}
+              width={current === 'reader' ? FEED_RIGHT - FEED_LEFT : STUDIO_RIGHT - STUDIO_LEFT}
+              height={WINDOW_H}
+              rx={WINDOW_R}
+              fill="black"
+            />
+          </mask>
+
+          <g mask={`url(#${maskId})`}>
+            {/* Silhouette pleine : le tracé officiel, son trou d'origine
+                rebouché — sinon la marque garde son propre trou et la fenêtre
+                en creuse un second. */}
+            <path d={BRAND_LOGOS.symbol.path} fill={BRAND_LOGOS.symbol.defaultColor} />
+            <rect
+              x={WINDOW_RIGHT_X - 1}
+              y={WINDOW_Y - 1}
+              width={WINDOW_W + 2}
+              height={WINDOW_H + 2}
+              rx={WINDOW_R + 1}
+              fill={BRAND_LOGOS.symbol.defaultColor}
+            />
+          </g>
+        </svg>
+
+        {/* Deux moitiés de logo : survol = fenêtre, clic = application. */}
+        <div className="absolute inset-0 flex">
+          {zones.map((zone) => {
+            const zoneClassName = cn(
+              'h-full w-1/2 outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+              zone.className
+            );
+
+            return zone.href ? (
+              <a
+                key={zone.id}
+                href={zone.href}
+                title={zone.label}
+                aria-label={zone.label}
+                onMouseEnter={() => setHovered(zone.id)}
+                onClick={() => setCommitted(zone.id)}
+                className={zoneClassName}
+              />
+            ) : (
+              <span
+                key={zone.id}
+                title={zone.label}
+                onMouseEnter={() => setHovered(zone.id)}
+                className={zoneClassName}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      {brandName && (
+        <span className="min-w-0 truncate font-semibold text-[17px] tracking-tight leading-none text-sidebar-foreground">
+          {brandName}
+        </span>
+      )}
+
+      {/* 🚀 Prerender spéculatif Chrome/Edge vers l'application sœur au survol ou focus */}
+      {counterpartHref && (
+        <script
+          type="speculationrules"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              prerender: [
+                {
+                  source: 'list',
+                  urls: [counterpartHref],
+                  eagerness: 'moderate',
+                },
+              ],
+            }),
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
    Main <Sidebar /> Component
    ───────────────────────────────────────────── */
 export function Sidebar({
@@ -310,6 +530,7 @@ export function Sidebar({
   onItemSelect,
   logo,
   brandName = 'qoefi',
+  appSwitch,
   userId,
   userUsername,
   userName,
@@ -381,6 +602,7 @@ export function Sidebar({
       </AnimatePresence>
 
       <aside
+        style={{ viewTransitionName: 'app-sidebar' }}
         className={cn(
           'font-sans select-none w-[250px] flex flex-col',
           'fixed top-[6px] left-[6px] bottom-[6px] z-50 transition-transform duration-300 ease-out',
@@ -401,14 +623,22 @@ export function Sidebar({
             <>
               {/* ── HEADER / LOGO ── */}
               <SidebarHeader>
-                <Link href="/" className="flex items-center gap-2 outline-none group">
-                  {logo}
-                  {brandName && (
-                    <span className="font-semibold text-[17px] tracking-tight leading-none text-sidebar-foreground group-hover:opacity-85 transition-opacity ml-0.5">
-                      {brandName}
-                    </span>
-                  )}
-                </Link>
+                {appSwitch ? (
+                  <SidebarAppSwitch
+                    brandName={brandName}
+                    current={appSwitch.current}
+                    counterpartHref={appSwitch.counterpartHref}
+                  />
+                ) : (
+                  <Link href="/" className="flex items-center gap-2 outline-none group">
+                    {logo}
+                    {brandName && (
+                      <span className="font-semibold text-[17px] tracking-tight leading-none text-sidebar-foreground group-hover:opacity-85 transition-opacity ml-0.5">
+                        {brandName}
+                      </span>
+                    )}
+                  </Link>
+                )}
                 <div className="flex items-center gap-1.5">
                   {/* Bascule clair/sombre toujours visible (Soleil/Lune) */}
                   <ThemeToggle />
@@ -576,6 +806,29 @@ export function Sidebar({
                         </div>
                       }
                     >
+                      {/* 🎛️ Changer d'application sans quitter la sidebar :
+                          la destination dépend de l'app où l'on se trouve. */}
+                      {appSwitch && (
+                        <>
+                          <DropdownMenuGroup>
+                            <DropdownMenuItem href={appSwitch.counterpartHref}>
+                              {appSwitch.current === 'studio' ? (
+                                <BookOpen className="text-muted-foreground" strokeWidth={1.5} />
+                              ) : (
+                                <LayoutDashboard
+                                  className="text-muted-foreground"
+                                  strokeWidth={1.5}
+                                />
+                              )}
+                              <span className="flex-1 truncate">
+                                {appSwitch.current === 'studio' ? t`Retour au feed` : t`Studio`}
+                              </span>
+                            </DropdownMenuItem>
+                          </DropdownMenuGroup>
+                          <DropdownMenuSeparator />
+                        </>
+                      )}
+
                       <DropdownMenuGroup>
                         <DropdownMenuLabel>
                           {userType === 'MEDIA' ? t`Publication` : t`Compte`}

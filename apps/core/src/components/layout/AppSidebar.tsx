@@ -20,6 +20,8 @@ interface AppSidebarProps {
   userType?: 'PERSONAL' | 'MEDIA' | string | null;
   userRole?: string;
   onLogout?: () => void | Promise<void>;
+  /** URL absolue du Studio, résolue côté serveur depuis l'hôte de la requête. */
+  studioHref: string;
 }
 
 export function AppSidebar({
@@ -30,6 +32,7 @@ export function AppSidebar({
   userAvatar = null,
   userType = null,
   onLogout,
+  studioHref,
 }: AppSidebarProps) {
   const userFallback = userName.slice(0, 2).toUpperCase();
   const unreadCount = useUnreadNotificationCount();
@@ -76,6 +79,9 @@ export function AppSidebar({
       items={menuItems}
       logo={<Logo className="h-5 w-auto" fillColor="#EE4B2B" />}
       brandName="qoefi"
+      // 🎛️ Le logo bascule vers le Studio : même geste que le plateau de hi,
+      // où le côté gauche du logo choisit d'écrire.
+      appSwitch={{ current: 'reader', counterpartHref: studioHref }}
       userId={userId}
       userUsername={userUsername}
       userName={userName}

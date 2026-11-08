@@ -15,6 +15,8 @@ export interface StudioSidebarProps {
   userAvatar?: string | null;
   userType?: 'PERSONAL' | 'MEDIA' | string | null;
   brandName: string;
+  /** URL absolue du feed lecteur, résolue côté serveur depuis l'hôte. */
+  feedHref: string;
   /** Permissions du média actif ; `undefined` = propriétaire personnel. */
   permissions?: string[];
   canWrite: boolean;
@@ -39,6 +41,7 @@ export function StudioSidebar({
   userAvatar = null,
   userType = null,
   brandName,
+  feedHref,
   permissions,
   canWrite,
   unreadCount,
@@ -60,6 +63,9 @@ export function StudioSidebar({
       items={menuItems}
       logo={<Logo className="h-5 w-auto" fillColor="#EE4B2B" />}
       brandName={brandName}
+      // 🎛️ Bascule inversée : ici l'encadré repose sur le Studio (côté logo)
+      // et le nom de marque ramène au feed.
+      appSwitch={{ current: 'studio', counterpartHref: feedHref }}
       userId={userId}
       userUsername={userUsername}
       userName={userName}

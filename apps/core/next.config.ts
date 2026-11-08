@@ -56,6 +56,19 @@ const nextConfig: NextConfig = {
       { source: '/legal/:slug*', destination: `${landingUrl}/legal/:slug*`, permanent: true },
     ];
   },
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Supports-Loading-Mode',
+            value: 'credentialed-prerender',
+          },
+        ],
+      },
+    ];
+  },
   images: {
     dangerouslyAllowSVG: true,
     dangerouslyAllowLocalIP: true, // 🧪 Allow 127.0.0.1:54321 (Supabase local) — SSRF guard Next 16

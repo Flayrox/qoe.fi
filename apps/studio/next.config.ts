@@ -60,6 +60,19 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [{ source: '/offre', destination: '/pricing', permanent: true }];
   },
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Supports-Loading-Mode',
+            value: 'credentialed-prerender',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default withSentryConfig(nextConfig, {
