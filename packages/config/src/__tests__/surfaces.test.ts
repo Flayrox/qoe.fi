@@ -43,9 +43,48 @@ describe('PLATFORM_SURFACES', () => {
       expect(new Set(keys).size).toBe(keys.length);
     }
   });
+
+  it('n’utilise que des permissions média réelles', () => {
+    const known = new Set([
+      'media:manage_members',
+      'media:manage_settings',
+      'media:manage_billing',
+      'media:manage_categories',
+      'media:manage_newsletter',
+      'media:publish:any',
+      'media:edit:any',
+      'media:delete:any',
+      'media:review',
+      'media:view_analytics',
+      'media:create_articles',
+      'media:edit_own',
+      'api_keys:manage',
+      'subscribers:import_request',
+    ]);
+    for (const surface of PLATFORM_SURFACES) {
+      if (surface.requiredPermission) {
+        expect(known.has(surface.requiredPermission)).toBe(true);
+      }
+    }
+  });
 });
 
 describe('getSidebarSurfaces', () => {
+  it('respecte l’ordre de la sidebar Studio', () => {
+    expect(getSidebarSurfaces('studio').map((s) => s.id)).toEqual([
+      'studio.home',
+      'studio.articles',
+      'studio.notifications',
+      'studio.media',
+      'studio.newsletters',
+      'studio.audience',
+      'studio.analytics',
+      'studio.developer',
+      'studio.settings',
+      'studio.pricing',
+    ]);
+  });
+
   it('ne garde que les surfaces de sidebar du scope demandé', () => {
     const studio = getSidebarSurfaces('studio');
     expect(studio.every((s) => s.scope === 'studio' && s.showInSidebar)).toBe(true);
@@ -53,17 +92,31 @@ describe('getSidebarSurfaces', () => {
     expect(getSidebarSurfaces('reader').map((s) => s.id)).toContain('reader.bookmarks');
   });
 
-  it('masque les surfaces dont la permission manque', () => {
-    const ids = getSidebarSurfaces('studio', ['articles:read']).map((s) => s.id);
-    expect(ids).toContain('studio.articles');
-    expect(ids).not.toContain('studio.pricing');
+  it('masque les surfaces dont la permission média manque', () => {
+    const ids = getSidebarSurfaces('studio', ['media:view_analytics']).map((s) => s.id);
+    expect(ids).toContain('studio.analytics');
+    expect(ids).toContain('studio.audience');
+    expect(ids).not.toContain('studio.newsletters');
     expect(ids).not.toContain('studio.developer');
-    expect(ids).not.toContain('studio.settings');
   });
 
-  it('sans liste de permissions, ne filtre rien', () => {
+  it('un viewer média ne voit ni newsletters, ni analytics, ni développeur', () => {
+    // Base du rôle viewer : aucune permission (parité Go).
+    const ids = getSidebarSurfaces('studio', []).map((s) => s.id);
+    expect(ids).toEqual([
+      'studio.home',
+      'studio.articles',
+      'studio.notifications',
+      'studio.media',
+      'studio.settings',
+      'studio.pricing',
+    ]);
+  });
+
+  it('sans liste de permissions, ne filtre rien (compte personnel)', () => {
     const ids = getSidebarSurfaces('studio').map((s) => s.id);
     expect(ids).toContain('studio.pricing');
+    expect(ids).toContain('studio.developer');
   });
 });
 
@@ -78,9 +131,11 @@ describe('getCmdKSurfaces', () => {
   });
 
   it('applique le RBAC quand les permissions sont fournies', () => {
-    const ids = getCmdKSurfaces('studio', ['articles:write']).map((s) => s.id);
+    const ids = getCmdKSurfaces('studio', ['media:create_articles']).map((s) => s.id);
     expect(ids).toContain('studio.new-article');
     expect(ids).not.toContain('studio.analytics');
+    expect(ids).not.toContain('studio.import');
+    expect(ids).not.toContain('studio.developer');
   });
 });
 
@@ -90,22 +145,31 @@ describe('canAccessSurfacePath', () => {
   });
 
   it('refuse une surface protégée sans permission', () => {
-    expect(canAccessSurfacePath('studio', '/pricing', [])).toBe(false);
-    expect(canAccessSurfacePath('studio', '/developer', ['articles:read'])).toBe(false);
+    expect(canAccessSurfacePath('studio', '/developer', [])).toBe(false);
+    expect(canAccessSurfacePath('studio', '/analytics', ['media:create_articles'])).toBe(false);
+    expect(canAccessSurfacePath('studio', '/import', [])).toBe(false);
   });
 
-  it('autorise dès que la permission est présente', () => {
-    expect(canAccessSurfacePath('studio', '/pricing', ['billing:manage'])).toBe(true);
-    expect(canAccessSurfacePath('studio', '/articles', ['articles:read'])).toBe(true);
+  it('autorise dès que la permission média est présente', () => {
+    expect(canAccessSurfacePath('studio', '/analytics', ['media:view_analytics'])).toBe(true);
+    expect(canAccessSurfacePath('studio', '/developer', ['api_keys:manage'])).toBe(true);
+    expect(canAccessSurfacePath('studio', '/import', ['subscribers:import_request'])).toBe(true);
   });
 
   it('reconnaît les sous-chemins sans confondre les préfixes', () => {
     expect(canAccessSurfacePath('studio', '/articles/new', [])).toBe(false);
-    expect(canAccessSurfacePath('studio', '/articles/new', ['articles:write'])).toBe(true);
+    expect(canAccessSurfacePath('studio', '/articles/new', ['media:create_articles'])).toBe(true);
     expect(canAccessSurfacePath('studio', '/articles-archivees', [])).toBe(true);
+  });
+
+  it('ignore la query et l’ancre pour résoudre la surface', () => {
+    expect(canAccessSurfacePath('reader', '/library?tab=bookmarks', [])).toBe(true);
+    expect(canAccessSurfacePath('reader', '/library?tab=highlights#top', [])).toBe(true);
+    expect(canAccessSurfacePath('studio', '/developer?tab=keys', [])).toBe(false);
   });
 
   it('ne mélange pas les scopes', () => {
     expect(canAccessSurfacePath('reader', '/pricing', [])).toBe(true);
+    expect(canAccessSurfacePath('reader', '/developer', [])).toBe(true);
   });
 });

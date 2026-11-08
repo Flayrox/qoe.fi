@@ -4,6 +4,10 @@
 // Une surface déclarée UNE fois alimente la sidebar, la palette Cmd+K, l'aide
 // des raccourcis claviers et les gardes RBAC du Studio. Les chemins viennent
 // exclusivement de `routes` : aucune URL en dur.
+//
+// Les `requiredPermission` sont les permissions média réelles
+// (`packages/auth/src/media.ts`, parité Go `internal/permissions`) : elles ne
+// s'appliquent qu'en workspace MEDIA. Un compte PERSONNEL voit tout.
 // =====================================================================
 
 import { routes } from './routes';
@@ -25,24 +29,25 @@ export interface SurfaceDescriptor {
   keywords: string[];
   /** Raccourci clavier éventuel (ex. 'g h'). */
   hotkey?: string;
-  /** Permission RBAC requise en mode MEDIA (absente = accessible à tous). */
+  /** Permission média requise (absente = accessible à tous les membres). */
   requiredPermission?: string;
   showInSidebar: boolean;
   showInCmdK: boolean;
 }
 
 /**
- * Liste canonique. Un ajout ici rend la surface disponible partout (sidebar,
- * Cmd+K, hotkeys, RBAC) sans modifier les layouts.
+ * Liste canonique. L'ordre est celui de la sidebar : un ajout ici rend la
+ * surface disponible partout (sidebar, Cmd+K, hotkeys, RBAC) sans modifier les
+ * layouts.
  */
 export const PLATFORM_SURFACES: readonly SurfaceDescriptor[] = [
-  // ── Studio ─────────────────────────────────────────────────────────
+  // ── Studio (ordre de la sidebar) ───────────────────────────────────
   {
     id: 'studio.home',
     scope: 'studio',
     path: routes.studio.home(),
     iconName: 'Home',
-    defaultLabel: 'Tableau de bord',
+    defaultLabel: 'Accueil',
     section: 'navigation',
     keywords: ['accueil', 'tableau de bord', 'dashboard', 'home'],
     hotkey: 'g h',
@@ -50,102 +55,14 @@ export const PLATFORM_SURFACES: readonly SurfaceDescriptor[] = [
     showInCmdK: true,
   },
   {
-    id: 'studio.new-article',
-    scope: 'studio',
-    path: routes.studio.articles.new(),
-    iconName: 'Plus',
-    defaultLabel: 'Rédiger un article',
-    section: 'creation',
-    keywords: ['écrire', 'rédiger', 'nouvel article', 'composer'],
-    hotkey: 'c a',
-    requiredPermission: 'articles:write',
-    showInSidebar: false,
-    showInCmdK: true,
-  },
-  {
     id: 'studio.articles',
     scope: 'studio',
     path: routes.studio.articles.list(),
     iconName: 'FileText',
-    defaultLabel: 'Liste des écrits',
+    defaultLabel: 'Articles',
     section: 'creation',
     keywords: ['articles', 'écrits', 'brouillons', 'publications'],
     hotkey: 'g a',
-    requiredPermission: 'articles:read',
-    showInSidebar: true,
-    showInCmdK: true,
-  },
-  {
-    id: 'studio.newsletters',
-    scope: 'studio',
-    path: routes.studio.newsletters(),
-    iconName: 'Mail',
-    defaultLabel: 'Newsletters',
-    section: 'growth',
-    keywords: ['newsletter', 'email', 'diffusion', 'envoi'],
-    hotkey: 'g n',
-    requiredPermission: 'newsletters:manage',
-    showInSidebar: true,
-    showInCmdK: true,
-  },
-  {
-    id: 'studio.audience',
-    scope: 'studio',
-    path: routes.studio.audience(),
-    iconName: 'Users',
-    defaultLabel: "Gérer l'audience",
-    section: 'growth',
-    keywords: ['audience', 'abonnés', 'abonnes', 'lecteurs', 'followers'],
-    hotkey: 'g u',
-    requiredPermission: 'subscribers:read',
-    showInSidebar: true,
-    showInCmdK: true,
-  },
-  {
-    id: 'studio.analytics',
-    scope: 'studio',
-    path: routes.studio.analytics(),
-    iconName: 'PieChart',
-    defaultLabel: 'Statistiques',
-    section: 'growth',
-    keywords: ['analytics', 'statistiques', 'stats', 'performances'],
-    hotkey: 'g s',
-    requiredPermission: 'analytics:read',
-    showInSidebar: true,
-    showInCmdK: true,
-  },
-  {
-    id: 'studio.media',
-    scope: 'studio',
-    path: routes.studio.media(),
-    iconName: 'Building2',
-    defaultLabel: 'Publications',
-    section: 'workspace',
-    keywords: ['médias', 'medias', 'publications', 'espaces'],
-    showInSidebar: true,
-    showInCmdK: true,
-  },
-  {
-    id: 'studio.import',
-    scope: 'studio',
-    path: routes.studio.import(),
-    iconName: 'Users',
-    defaultLabel: 'Importer son audience',
-    section: 'growth',
-    keywords: ['importer', 'import', 'migration', 'audience'],
-    requiredPermission: 'subscribers:write',
-    showInSidebar: false,
-    showInCmdK: true,
-  },
-  {
-    id: 'studio.pricing',
-    scope: 'studio',
-    path: routes.studio.pricing(),
-    iconName: 'Wallet',
-    defaultLabel: 'Abonnement',
-    section: 'system',
-    keywords: ['abonnement', 'offre', 'paiement', 'pricing', 'facturation'],
-    requiredPermission: 'billing:manage',
     showInSidebar: true,
     showInCmdK: true,
   },
@@ -161,14 +78,64 @@ export const PLATFORM_SURFACES: readonly SurfaceDescriptor[] = [
     showInCmdK: true,
   },
   {
+    id: 'studio.media',
+    scope: 'studio',
+    path: routes.studio.media(),
+    iconName: 'Building2',
+    defaultLabel: 'Médias',
+    section: 'workspace',
+    keywords: ['médias', 'medias', 'publications', 'espaces'],
+    showInSidebar: true,
+    showInCmdK: true,
+  },
+  {
+    id: 'studio.newsletters',
+    scope: 'studio',
+    path: routes.studio.newsletters(),
+    iconName: 'Mail',
+    defaultLabel: 'Newsletters',
+    section: 'growth',
+    keywords: ['newsletter', 'email', 'diffusion', 'envoi'],
+    hotkey: 'g n',
+    requiredPermission: 'media:manage_newsletter',
+    showInSidebar: true,
+    showInCmdK: true,
+  },
+  {
+    id: 'studio.audience',
+    scope: 'studio',
+    path: routes.studio.audience(),
+    iconName: 'Users',
+    defaultLabel: 'Audience',
+    section: 'growth',
+    keywords: ['audience', 'abonnés', 'abonnes', 'lecteurs', 'followers'],
+    hotkey: 'g u',
+    requiredPermission: 'media:view_analytics',
+    showInSidebar: true,
+    showInCmdK: true,
+  },
+  {
+    id: 'studio.analytics',
+    scope: 'studio',
+    path: routes.studio.analytics(),
+    iconName: 'PieChart',
+    defaultLabel: 'Analytics',
+    section: 'growth',
+    keywords: ['analytics', 'statistiques', 'stats', 'performances'],
+    hotkey: 'g s',
+    requiredPermission: 'media:view_analytics',
+    showInSidebar: true,
+    showInCmdK: true,
+  },
+  {
     id: 'studio.developer',
     scope: 'studio',
     path: routes.studio.developer(),
     iconName: 'Code',
-    defaultLabel: 'Espace développeur',
+    defaultLabel: 'Développeur',
     section: 'system',
     keywords: ['api', 'développeur', 'developpeur', 'webhook', 'clé'],
-    requiredPermission: 'settings:manage',
+    requiredPermission: 'api_keys:manage',
     showInSidebar: true,
     showInCmdK: true,
   },
@@ -177,12 +144,47 @@ export const PLATFORM_SURFACES: readonly SurfaceDescriptor[] = [
     scope: 'studio',
     path: routes.studio.settings(),
     iconName: 'Settings',
-    defaultLabel: 'Réglages de la console',
+    defaultLabel: 'Réglages',
     section: 'system',
     keywords: ['réglages', 'reglages', 'paramètres', 'parametres', 'settings'],
     hotkey: 'g ,',
-    requiredPermission: 'settings:manage',
     showInSidebar: true,
+    showInCmdK: true,
+  },
+  {
+    id: 'studio.pricing',
+    scope: 'studio',
+    path: routes.studio.pricing(),
+    iconName: 'Wallet',
+    defaultLabel: 'Offre Pro',
+    section: 'system',
+    keywords: ['abonnement', 'offre', 'paiement', 'pricing', 'facturation'],
+    showInSidebar: true,
+    showInCmdK: true,
+  },
+  {
+    id: 'studio.new-article',
+    scope: 'studio',
+    path: routes.studio.articles.new(),
+    iconName: 'Plus',
+    defaultLabel: 'Rédiger un article',
+    section: 'creation',
+    keywords: ['écrire', 'rédiger', 'nouvel article', 'composer'],
+    hotkey: 'c a',
+    requiredPermission: 'media:create_articles',
+    showInSidebar: false,
+    showInCmdK: true,
+  },
+  {
+    id: 'studio.import',
+    scope: 'studio',
+    path: routes.studio.import(),
+    iconName: 'Users',
+    defaultLabel: 'Importer son audience',
+    section: 'growth',
+    keywords: ['importer', 'import', 'migration', 'audience'],
+    requiredPermission: 'subscribers:import_request',
+    showInSidebar: false,
     showInCmdK: true,
   },
   {
@@ -203,7 +205,7 @@ export const PLATFORM_SURFACES: readonly SurfaceDescriptor[] = [
     scope: 'reader',
     path: routes.feed.home(),
     iconName: 'Home',
-    defaultLabel: 'Fil',
+    defaultLabel: 'Accueil',
     section: 'navigation',
     keywords: ['accueil', 'fil', 'home', 'feed'],
     hotkey: 'g h',
@@ -215,7 +217,7 @@ export const PLATFORM_SURFACES: readonly SurfaceDescriptor[] = [
     scope: 'reader',
     path: routes.feed.search(),
     iconName: 'Search',
-    defaultLabel: 'Rechercher',
+    defaultLabel: 'Recherche',
     section: 'navigation',
     keywords: ['recherche', 'chercher', 'search'],
     hotkey: '/',
@@ -251,7 +253,7 @@ export const PLATFORM_SURFACES: readonly SurfaceDescriptor[] = [
     scope: 'reader',
     path: routes.feed.library('bookmarks'),
     iconName: 'Bookmark',
-    defaultLabel: 'Signets',
+    defaultLabel: 'Bibliothèque',
     section: 'library',
     keywords: ['signets', 'bibliothèque', 'bookmarks', 'enregistrés'],
     hotkey: 'g b',
@@ -286,7 +288,7 @@ export const PLATFORM_SURFACES: readonly SurfaceDescriptor[] = [
     scope: 'reader',
     path: routes.feed.billing(),
     iconName: 'Wallet',
-    defaultLabel: 'Abonnement',
+    defaultLabel: 'Portefeuille',
     section: 'system',
     keywords: ['abonnement', 'paiement', 'facturation', 'billing'],
     showInSidebar: true,
@@ -343,6 +345,24 @@ export function getHotkeySurfaces(scope?: AppSurfaceScope): SurfaceDescriptor[] 
   );
 }
 
+interface SplitPath {
+  pathname: string;
+  search: string;
+}
+
+/** Sépare chemin / query / hash : `/library?tab=bookmarks#top`. */
+function splitPath(value: string): SplitPath {
+  const hashIndex = value.indexOf('#');
+  const withoutHash = hashIndex >= 0 ? value.slice(0, hashIndex) : value;
+  const searchIndex = withoutHash.indexOf('?');
+  return searchIndex >= 0
+    ? {
+        pathname: withoutHash.slice(0, searchIndex),
+        search: withoutHash.slice(searchIndex),
+      }
+    : { pathname: withoutHash, search: '' };
+}
+
 function pathMatches(surfacePath: string, pathname: string): boolean {
   if (pathname === surfacePath) return true;
   if (surfacePath === '/') return false;
@@ -352,19 +372,36 @@ function pathMatches(surfacePath: string, pathname: string): boolean {
 /**
  * Vérifie l'accès au chemin courant.
  *
+ * - `?tab=` et `#ancre` sont ignorés pour la résolution, mais une correspondance
+ *   exacte (query comprise) est prioritaire — `/library?tab=bookmarks` ne se
+ *   confond donc pas avec `/library?tab=highlights` ;
  * - chemin inconnu du manifeste → true (il n'est pas gouverné ici) ;
  * - surface la plus spécifique retenue (chemin le plus long) ;
- * - refus uniquement si cette surface exige une permission absente.
+ * - refus uniquement si aucune surface correspondante n'est autorisée.
  */
 export function canAccessSurfacePath(
   scope: AppSurfaceScope,
   pathname: string,
   userPermissions: string[]
 ): boolean {
-  const match = PLATFORM_SURFACES.filter(
-    (surface) => surface.scope === scope && pathMatches(surface.path, pathname)
-  ).sort((a, b) => b.path.length - a.path.length)[0];
+  const target = splitPath(pathname);
+  const scoped = PLATFORM_SURFACES.filter((surface) => surface.scope === scope);
 
-  if (!match) return true;
-  return hasPermission(match, userPermissions);
+  const exact = scoped.filter((surface) => {
+    const split = splitPath(surface.path);
+    return split.pathname === target.pathname && split.search === target.search;
+  });
+  if (exact.length > 0) return exact.some((surface) => hasPermission(surface, userPermissions));
+
+  const candidates = scoped
+    .filter((surface) => pathMatches(splitPath(surface.path).pathname, target.pathname))
+    .sort((a, b) => splitPath(b.path).pathname.length - splitPath(a.path).pathname.length);
+
+  if (candidates.length === 0) return true;
+
+  const longest = splitPath(candidates[0].path).pathname.length;
+  const mostSpecific = candidates.filter(
+    (surface) => splitPath(surface.path).pathname.length === longest
+  );
+  return mostSpecific.some((surface) => hasPermission(surface, userPermissions));
 }
