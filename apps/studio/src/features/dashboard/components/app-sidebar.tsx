@@ -5,6 +5,7 @@ import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { getActiveWorkspace, type ActiveWorkspace } from '@/lib/active-workspace';
 import { logout } from '@/app/login/actions';
 import { t } from '@lingui/core/macro';
+import { getSidebarSurfaces } from '@qoe/config';
 import { Sidebar } from '@qoe/ui/sidebar';
 import { Logo } from '@qoe/ui';
 
@@ -91,82 +92,23 @@ export async function AppSidebar() {
 
   // 🛡️ Le chrome suit le rôle réel dans le média actif : un writer/viewer ne
   // doit pas découvrir un 403 après avoir cliqué sur Analytics ou Développeur.
-  // (PERSONAL = propriétaire, donc tout est visible.)
+  // (PERSONAL = propriétaire, donc tout est visible.) Le menu est dérivé du
+  // manifeste de surfaces : ajouter une page ne se fait plus ici.
   const isMediaWorkspace = workspace?.type === 'MEDIA';
   const permissions = workspace?.permissions ?? [];
-  // Le chrome suit les permissions effectives (rôle + overrides), pas le
-  // rôle nominal : un viewer avec l'override doit voir l'entrée, un writer
-  // sans elle ne doit pas découvrir un 403.
-  const canAnalyze = !isMediaWorkspace || permissions.includes('media:view_analytics');
-  const canDevelop = !isMediaWorkspace || permissions.includes('api_keys:manage');
-  const canNewsletter = !isMediaWorkspace || permissions.includes('media:manage_newsletter');
   const canWrite = !isMediaWorkspace || permissions.includes('media:create_articles');
 
-  const menuItems = [
-    {
-      title: t`Home`,
-      url: '/',
-      iconName: 'Home',
-    },
-    {
-      title: t`Articles`,
-      url: '/articles',
-      iconName: 'FileText',
-    },
-    {
-      title: t`Notifications`,
-      url: '/notifications',
-      iconName: 'Bell',
-      badge: !isOnNotificationsPage && unreadCount > 0 ? unreadCount : undefined,
-    },
-    {
-      title: t`Médias`,
-      url: '/media',
-      iconName: 'Building2',
-    },
-    ...(canNewsletter
-      ? [
-          {
-            title: t`Newsletters`,
-            url: '/newsletters',
-            iconName: 'Mail',
-          },
-        ]
-      : []),
-    ...(canAnalyze
-      ? [
-          {
-            title: t`Audience`,
-            url: '/audience',
-            iconName: 'Users',
-          },
-          {
-            title: t`Analytics`,
-            url: '/analytics',
-            iconName: 'PieChart',
-          },
-        ]
-      : []),
-    ...(canDevelop
-      ? [
-          {
-            title: t`Développeur`,
-            url: '/developer',
-            iconName: 'Code',
-          },
-        ]
-      : []),
-    {
-      title: t`Settings`,
-      url: '/settings',
-      iconName: 'Settings',
-    },
-    {
-      title: t`Offre Pro`,
-      url: '/pricing',
-      iconName: 'Crown',
-    },
-  ];
+  const menuItems = getSidebarSurfaces('studio', isMediaWorkspace ? permissions : undefined).map(
+    (surface) => ({
+      title: surface.defaultLabel,
+      url: surface.path,
+      iconName: surface.iconName,
+      badge:
+        surface.id === 'studio.notifications' && !isOnNotificationsPage && unreadCount > 0
+          ? unreadCount
+          : undefined,
+    })
+  );
 
   return (
     <Sidebar

@@ -216,6 +216,7 @@ export * from './ui/popover';
 export { ProgressiveBlur, type ProgressiveBlurProps } from './ui/progressive-blur';
 export { ThemeToggle } from './ui/ThemeToggle';
 export { HotkeyHelpModal, type HotkeyHelpModalProps } from './shortcuts/HotkeyHelpModal';
+export { useSurfaceHotkeys, type UseSurfaceHotkeysOptions } from './shortcuts/useSurfaceHotkeys';
 export * from './annotations';
 export * from './reader';
 

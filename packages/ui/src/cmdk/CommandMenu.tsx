@@ -75,10 +75,10 @@ const CMDK_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
 const SECTION_LABELS: Record<SurfaceDescriptor['section'], string> = {
   navigation: t`Navigation`,
   library: t`Bibliothèque`,
-  creation: t`Écrits`,
-  growth: t`Audience`,
+  creation: t`Création`,
+  growth: t`Croissance`,
   workspace: t`Espace de travail`,
-  system: t`Réglages`,
+  system: t`Système`,
 };
 
 /**

@@ -3,9 +3,10 @@
 import { useCommandMenu } from '@qoe/ui';
 import { CmdKDialog, CmdKInput, CmdKList, CmdKGroup, CmdKItem } from '@qoe/ui';
 import { settingsTree, flattenSettingsTree } from '../../settings/config/settingsTree';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, type ComponentType } from 'react';
 import { useDebounce } from 'use-debounce';
 import { searchAllAction } from '@qoe/sdk/actions/search';
+import { getCmdKSurfaces, type SurfaceDescriptor } from '@qoe/config';
 import { t } from '@lingui/core/macro';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
@@ -20,7 +21,39 @@ import {
   Moon,
   FileCode2,
   Sliders,
+  Home,
+  Building2,
+  Wallet,
+  Bell,
+  Code,
+  Compass,
 } from 'lucide-react';
+
+// Icônes et sections résolues depuis le manifeste de surfaces : aucune route
+// ni libellé d'action n'est recopié ici.
+const SURFACE_ICONS: Record<string, ComponentType<{ className?: string }>> = {
+  Home,
+  Plus,
+  FileText,
+  Mail,
+  Users,
+  PieChart,
+  Building2,
+  Wallet,
+  Bell,
+  Code,
+  Settings,
+  Compass,
+};
+
+const SECTION_LABELS: Record<SurfaceDescriptor['section'], string> = {
+  navigation: t`Navigation`,
+  library: t`Bibliothèque`,
+  creation: t`Création`,
+  growth: t`Croissance`,
+  workspace: t`Espace de travail`,
+  system: t`Système`,
+};
 
 export interface MeiliSearchResult {
   id: string;
@@ -29,7 +62,7 @@ export interface MeiliSearchResult {
   content: string;
 }
 
-export function GlobalCommandMenu() {
+export function GlobalCommandMenu({ permissions }: { permissions?: string[] }) {
   const { isOpen, setIsOpen } = useCommandMenu();
   const router = useRouter();
   const { setTheme } = useTheme();
@@ -105,50 +138,17 @@ export function GlobalCommandMenu() {
     }, 150);
   };
 
-  const quickActions = [
-    {
-      id: 'action-new-article',
-      label: t`Rédiger un article`,
-      path: '/articles/new',
-      icon: Plus,
-      category: t`Action`,
-    },
-    {
-      id: 'action-articles',
-      label: t`Liste des écrits`,
-      path: '/articles',
-      icon: FileText,
-      category: t`Écrits`,
-    },
-    {
-      id: 'action-audience',
-      label: t`Gérer l'audience`,
-      path: '/audience',
-      icon: Users,
-      category: t`Audience`,
-    },
-    {
-      id: 'action-newsletters',
-      label: t`Envoyer une newsletter`,
-      path: '/newsletters',
-      icon: Mail,
-      category: t`Diffusion`,
-    },
-    {
-      id: 'action-analytics',
-      label: t`Consulter les statistiques`,
-      path: '/analytics',
-      icon: PieChart,
-      category: t`Analyses`,
-    },
-    {
-      id: 'action-settings',
-      label: t`Réglages de la console`,
-      path: '/settings',
-      icon: Settings,
-      category: t`Réglages`,
-    },
-  ];
+  const quickActions = useMemo(
+    () =>
+      getCmdKSurfaces('studio', permissions).map((surface) => ({
+        id: surface.id,
+        label: surface.defaultLabel,
+        path: surface.path,
+        icon: SURFACE_ICONS[surface.iconName] ?? FileText,
+        category: SECTION_LABELS[surface.section],
+      })),
+    [permissions]
+  );
 
   return (
     <CmdKDialog open={isOpen} onOpenChange={setIsOpen}>
