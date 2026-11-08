@@ -48,6 +48,7 @@ import {
 } from '@qoe/ui/table';
 import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
 import { searchArticleContributorsAction } from '@qoe/sdk/actions/articles';
+import { serializeWorkspaceCookie, WORKSPACE_COOKIE } from '@qoe/sdk/workspace';
 import { toast } from '@qoe/ui/toast';
 import { Select } from '@qoe/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@qoe/ui/ui/popover';
@@ -302,6 +303,18 @@ export function MediaStudioClient({
     }
   }, [selectedMediaId, medias, showCreate, loadDetail]);
 
+  // Bascule explicite : la sélection ci-dessus ne sert qu'à gérer ce Média.
+  // Ouvrir l'espace pose le cookie puis revient au studio pour que la sidebar,
+  // les articles et les réglages opèrent sur cette publication.
+  const openWorkspace = (mediaId: string) => {
+    document.cookie = `${WORKSPACE_COOKIE}=${serializeWorkspaceCookie({
+      type: 'MEDIA',
+      id: mediaId,
+    })}; path=/; max-age=2592000; samesite=lax`;
+    router.push('/');
+    router.refresh();
+  };
+
   const handleCreate = async () => {
     if (!createName.trim() || !createSlug.trim()) {
       toast.error('Le nom et le permalien sont requis.');
@@ -316,9 +329,10 @@ export function MediaStudioClient({
     setCreating(false);
     if (res.success) {
       toast.success(t`Média créé.`);
-      document.cookie = `qoe_active_workspace=${encodeURIComponent(
-        JSON.stringify({ type: 'MEDIA', id: res.media!.id })
-      )}; path=/; max-age=2592000`;
+      document.cookie = `${WORKSPACE_COOKIE}=${serializeWorkspaceCookie({
+        type: 'MEDIA',
+        id: res.media!.id,
+      })}; path=/; max-age=2592000; samesite=lax`;
       router.push('/media');
       router.refresh();
     }
@@ -614,7 +628,10 @@ export function MediaStudioClient({
     );
   }
 
-  if (loadingDetail && !detail) {
+  // En workspace PERSONAL aucun média n'est actif : la sélection démarre à
+  // null puis s'initialise côté client. On affiche le chargement plutôt que
+  // l'état vide « Aucun Média » pendant cette initialisation.
+  if (!detail && (loadingDetail || selectedMediaId || medias.length > 0)) {
     return (
       <div className="flex items-center justify-center py-32 text-muted-foreground">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
@@ -746,6 +763,18 @@ export function MediaStudioClient({
             </Button>
           );
         })}
+        {selectedMediaId && selectedMediaId !== activeMediaId && (
+          <Button
+            variant="solid"
+            tone="brand"
+            size="sm"
+            onClick={() => openWorkspace(selectedMediaId)}
+            className="ml-auto"
+          >
+            <ArrowRight strokeWidth={1.5} />
+            {t`Ouvrir cet espace`}
+          </Button>
+        )}
         <Button variant="ghost" size="sm" onClick={() => router.push('/media?create=1')}>
           <Plus strokeWidth={1.5} />
           Nouveau

@@ -9,14 +9,11 @@ import (
 )
 
 func TestNotificationFromRowKeepsSenderType(t *testing.T) {
-	media := notificationFromRow(&db.GetNotificationsRow{SenderIsMedia: true})
-	if got := media.Senders[0].Type; got != "MEDIA" {
-		t.Fatalf("sender média type = %q, attendu MEDIA", got)
-	}
-
-	personal := notificationFromRow(&db.GetNotificationsRow{SenderIsMedia: false})
-	if got := personal.Senders[0].Type; got != "PERSONAL" {
-		t.Fatalf("sender personnel type = %q, attendu PERSONAL", got)
+	// Un sender est toujours une personne : la ligne SQL ne transporte plus
+	// aucune identité média, et le mapping force PERSONAL.
+	member := notificationFromRow(&db.GetNotificationsRow{})
+	if got := member.Senders[0].Type; got != "PERSONAL" {
+		t.Fatalf("sender type = %q, attendu PERSONAL", got)
 	}
 }
 

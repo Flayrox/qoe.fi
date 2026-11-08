@@ -6,7 +6,6 @@
 // =====================================================================
 
 import { notFound, redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
 import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { getActiveWorkspace } from '@/lib/active-workspace';
@@ -112,20 +111,8 @@ export default async function SettingsDesignPage() {
         </p>
       </div>
     );
-  }
-
-  // 2. Récupération des informations pour le Sidebar Drawer
-  let activeMediaId: string | null = null;
-  try {
-    const cookieStore = await cookies();
-    const raw = cookieStore.get('qoe_active_workspace')?.value ?? null;
-    if (raw) {
-      const parsed = JSON.parse(decodeURIComponent(raw));
-      if (parsed?.type === 'MEDIA' && parsed.id) activeMediaId = parsed.id;
-    }
-  } catch {
-    // aucun cookie
-  }
+  } // 2. Récupération des informations pour le Sidebar Drawer
+  const activeMediaId = workspace.type === 'MEDIA' ? (workspace.mediaId ?? null) : null;
 
   let dbUser = null;
   let unreadCount = 0;

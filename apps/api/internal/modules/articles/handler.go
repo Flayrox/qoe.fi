@@ -285,7 +285,8 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	if period == "" {
 		period = "30d"
 	}
-	articles, err := h.svc.List(r.Context(), userID, publicationID, 100, 0, period)
+	workspaceType := r.URL.Query().Get("workspaceType")
+	articles, err := h.svc.List(r.Context(), userID, publicationID, workspaceType, 100, 0, period)
 	if err != nil {
 		response.Forbidden(w, err.Error())
 		return

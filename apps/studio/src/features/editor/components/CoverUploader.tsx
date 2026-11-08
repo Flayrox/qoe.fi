@@ -72,7 +72,7 @@ export function CoverUploader({
               pour une couverture dont l'auteur vient de choisir le fichier,
               une balise native (déjà chargée depuis le blob local) est le bon
               outil. Le LCP de l'éditeur n'est pas en jeu. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- URL utilisateur distante arbitraire, non déclarable dans next.config. */}
           <img
             src={imageUrl}
             alt={title || t`Couverture de l'article`}

@@ -458,6 +458,7 @@ FROM "MediaMember" m
 JOIN "Media" md ON md.id = m."mediaId"
 JOIN "Publication" p ON p.id = md."publicationId"
 WHERE m."userId" = $1
+  AND m.status = 'active'
 ORDER BY p.name ASC
 `
 

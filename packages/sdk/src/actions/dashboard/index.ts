@@ -13,9 +13,9 @@
 // =====================================================================
 
 import { revalidatePath } from 'next/cache';
-import { cookies } from 'next/headers';
 import { safeAction } from '../utils/safe-action';
 import { goFetch } from '../utils/go-client';
+import { getActivePublicationId } from '../workspace';
 import type { ArticleAuthorBrief } from '../articles';
 
 type User = ArticleAuthorBrief & {
@@ -23,32 +23,6 @@ type User = ArticleAuthorBrief & {
   role: string;
   walletBalanceCents: number;
 };
-
-/**
- * 🎛️ Résout la publication active (personnelle OU média) depuis le cookie du workspace.
- */
-async function getActivePublicationId(): Promise<string> {
-  let saved: { type?: string; id?: string } | null = null;
-  try {
-    const cookieStore = await cookies();
-    const raw = cookieStore.get('qoe_active_workspace')?.value;
-    if (raw) saved = JSON.parse(decodeURIComponent(raw));
-  } catch {
-    saved = null;
-  }
-
-  // Go-only (backend-of-record) : workspace média → publication du média,
-  // sinon publication personnelle (créée si absente via /v1/me/publication).
-  if (saved?.type === 'MEDIA' && saved.id) {
-    const res = await goFetch<{ publicationId: string }>(
-      `/v1/me/media/${encodeURIComponent(saved.id)}`
-    );
-    if (res.publicationId) return res.publicationId;
-  }
-
-  const personal = await goFetch<{ publicationId: string }>('/v1/me/publication');
-  return personal.publicationId;
-}
 
 interface UpdateCreatorProfileInput {
   publicationId?: string;

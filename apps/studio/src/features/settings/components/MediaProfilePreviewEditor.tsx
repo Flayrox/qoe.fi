@@ -137,6 +137,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
         {/* 1. Zone Bannière de Couverture */}
         <div className="relative w-full h-36 sm:h-44 bg-muted/40 group overflow-hidden">
           {current.headerImageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- URL utilisateur distante arbitraire, non déclarable dans next.config.
             <img
               src={current.headerImageUrl}
               alt="Bannière du média"
@@ -213,6 +214,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                 style={{ backgroundColor: accentColor }}
               >
                 {current.logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- URL utilisateur distante arbitraire, non déclarable dans next.config.
                   <img
                     src={current.logoUrl}
                     alt={current.name || 'Logo'}

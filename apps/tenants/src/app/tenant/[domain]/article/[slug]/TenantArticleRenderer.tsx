@@ -280,8 +280,6 @@ export async function TenantArticleRenderer({
     baseUrl: `https://${decodedDomain}`,
   });
 
-  // Le profil DB porte la nature publique du compte (isMediaMember) : sans
-  // lui, la personne qui annote apparaît en cercle même si c'est un média.
   const dbUser = user ? await getCurrentUser() : null;
   const currentUserProfile: {
     id: string;
@@ -303,7 +301,9 @@ export async function TenantArticleRenderer({
           (user.user_metadata?.user_name as string) ??
           null,
         logoUrl: dbUser?.logoUrl ?? (user.user_metadata?.avatar_url as string) ?? null,
-        type: dbUser?.isMediaMember ? 'MEDIA' : 'PERSONAL',
+        // L'utilisateur qui annote est une personne, jamais le média qu'il
+        // édite par ailleurs (MediaMember = RBAC).
+        type: 'PERSONAL',
       }
     : null;
 

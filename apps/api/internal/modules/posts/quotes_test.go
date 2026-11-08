@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/qoefi/api/internal/canon"
@@ -73,6 +74,40 @@ func TestResolveOne_MissingReturnsNil(t *testing.T) {
 	}
 }
 
+// TestBuildFeedPost_UnresolvedQuoteDoesNotLeak : les colonnes dénormalisées
+// quotedExcerpt/quotedAnnotation ne sortent que si l'article cité a été résolu
+// pour ce viewer. Un article privé/bloqué ne doit jamais fuiter par repli.
+func TestBuildFeedPost_UnresolvedQuoteDoesNotLeak(t *testing.T) {
+	row := &db.GetPostsByIDsRow{
+		ID:               "p_private_quote",
+		Content:          "regarde",
+		AuthorId:         "author_1",
+		AuthorID:         "author_1",
+		CreatedAt:        pgtype.Timestamp{Time: time.Now(), Valid: true},
+		QuotedArticleId:  pgtype.Text{String: "art_private", Valid: true},
+		QuotedExcerpt:    pgtype.Text{String: "passage secret", Valid: true},
+		QuotedAnnotation: []byte(`{"id":"hl","note":"note secrète","excerpt":"passage secret","reader":{"id":"reader_1"}}`),
+	}
+	all := map[string]*db.GetPostsByIDsRow{row.ID: row}
+
+	// Article privé/bloqué : absent de la map résolue → zéro fuite.
+	fp := BuildFeedPost(row, all, nil, nil, nil, map[string]*QuotedArticle{})
+	if fp.QuotedArticle != nil || fp.QuotedExcerpt != nil || fp.QuotedAnnotation != nil {
+		t.Fatalf("fuite d'une citation non résolue : %+v", fp)
+	}
+
+	// Article résolu : l'extrait et le snapshot reviennent.
+	fp = BuildFeedPost(row, all, nil, nil, nil, map[string]*QuotedArticle{
+		row.ID: {ID: "art_private"},
+	})
+	if fp.QuotedExcerpt == nil || *fp.QuotedExcerpt != "passage secret" {
+		t.Fatalf("extrait résolu absent : %+v", fp.QuotedExcerpt)
+	}
+	if fp.QuotedAnnotation == nil || fp.QuotedAnnotation.Note != "note secrète" {
+		t.Fatalf("annotation résolue absente : %+v", fp.QuotedAnnotation)
+	}
+}
+
 func TestQuoteRefsFrom_SkipsEmpty(t *testing.T) {
 	all := map[string]*db.GetPostsByIDsRow{
 		"p1": {ID: "p1", QuotedArticleId: pgtype.Text{String: "art_1", Valid: true}, QuotedExcerpt: pgtype.Text{String: "extrait", Valid: true}},
@@ -129,7 +164,7 @@ func TestQuotedArticlesFor_ContextPerPost(t *testing.T) {
 		{PostID: quoteA, ArticleID: fx.ArticleID, Excerpt: "fonte des glaciers alpins"},
 		{PostID: quoteB, ArticleID: fx.ArticleID, Excerpt: "action immédiate"},
 	}
-	quoted, err := QuotedArticlesFor(ctx, svc.q, refs)
+	quoted, err := QuotedArticlesFor(ctx, svc.q, refs, fx.ViewerID)
 	if err != nil {
 		t.Fatalf("QuotedArticlesFor: %v", err)
 	}
@@ -170,12 +205,73 @@ func TestQuotedArticlesFor_UnknownArticle(t *testing.T) {
 
 	quoted, err := QuotedArticlesFor(ctx, svc.q, []QuoteRef{
 		{PostID: "p_x", ArticleID: "art_inexistant", Excerpt: "n'importe quoi"},
-	})
+	}, "")
 	if err != nil {
 		t.Fatalf("QuotedArticlesFor: %v", err)
 	}
 	if len(quoted) != 0 {
 		t.Errorf("quoted = %d, attendu 0 (article introuvable)", len(quoted))
+	}
+}
+
+// TestQuotedArticlesFor_BlockedAuthorExcluded : une citation d'article ne
+// contourne jamais un blocage symétrique.
+func TestQuotedArticlesFor_BlockedAuthorExcluded(t *testing.T) {
+	requirePool(t)
+	svc := newTestService()
+	ctx := context.Background()
+	fx := seedPosts(t)
+
+	// Bob bloque Alice, auteure de l'article cité.
+	if _, err := svc.ToggleBlock(ctx, fx.AuthorID, fx.ViewerID); err != nil {
+		t.Fatalf("block: %v", err)
+	}
+
+	quoted, err := QuotedArticlesFor(ctx, svc.q, []QuoteRef{
+		{PostID: "p_blocked_article", ArticleID: fx.ArticleID, Excerpt: "Test"},
+	}, fx.ViewerID)
+	if err != nil {
+		t.Fatalf("QuotedArticlesFor: %v", err)
+	}
+	if len(quoted) != 0 {
+		t.Errorf("quoted = %d, attendu 0 (auteur bloqué)", len(quoted))
+	}
+}
+
+// TestQuotedArticlesFor_BlockedAnnotationReaderExcluded : le snapshot
+// d'annotation est dénormalisé dans le post. Même si l'article reste lisible,
+// l'annotation d'un compte bloqué ne doit pas être affichée.
+func TestQuotedArticlesFor_BlockedAnnotationReaderExcluded(t *testing.T) {
+	requirePool(t)
+	svc := newTestService()
+	ctx := context.Background()
+	fx := seedPosts(t)
+
+	// Un troisième compte (Carol) a annoté l'article d'Alice ; Bob la bloque.
+	const carolID = "00000000-0000-0000-0000-000000000099"
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
+		 VALUES ($1, 'carol@test.dev', 'carol', 'Carol', 'creator', now(), now())`, carolID); err != nil {
+		t.Fatalf("seed carol: %v", err)
+	}
+	if _, err := svc.ToggleBlock(ctx, carolID, fx.ViewerID); err != nil {
+		t.Fatalf("block: %v", err)
+	}
+
+	quoted, err := QuotedArticlesFor(ctx, svc.q, []QuoteRef{{
+		PostID:    "p_blocked_annotation",
+		ArticleID: fx.ArticleID,
+		Excerpt:   "Test",
+		Annotation: &QuotedAnnotation{
+			ID: "hl_carol", Note: "note de Carol", Excerpt: "Test",
+			Reader: QuotedAnnotationReader{ID: carolID},
+		},
+	}}, fx.ViewerID)
+	if err != nil {
+		t.Fatalf("QuotedArticlesFor: %v", err)
+	}
+	if len(quoted) != 0 {
+		t.Errorf("quoted = %d, attendu 0 (annotation d'un compte bloqué)", len(quoted))
 	}
 }
 
@@ -198,7 +294,7 @@ func TestQuotedArticlesFor_UnpublishedArticleExcluded(t *testing.T) {
 
 	quoted, err := QuotedArticlesFor(ctx, svc.q, []QuoteRef{
 		{PostID: "p_unpub", ArticleID: fx.ArticleID, Excerpt: "Test"},
-	})
+	}, fx.ViewerID)
 	if err != nil {
 		t.Fatalf("QuotedArticlesFor: %v", err)
 	}
@@ -206,4 +302,3 @@ func TestQuotedArticlesFor_UnpublishedArticleExcluded(t *testing.T) {
 		t.Errorf("quoted = %d, attendu 0 (article non publié exclu)", len(quoted))
 	}
 }
-

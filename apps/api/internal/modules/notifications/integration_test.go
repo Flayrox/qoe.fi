@@ -326,8 +326,8 @@ func TestListSenderTypeFromMediaMembership(t *testing.T) {
 	if len(res.Notifications) != 1 || len(res.Notifications[0].Senders) != 1 {
 		t.Fatalf("notifications = %d, attendu 1 avec 1 sender", len(res.Notifications))
 	}
-	if got := res.Notifications[0].Senders[0].Type; got != "MEDIA" {
-		t.Fatalf("sender type = %q, attendu MEDIA", got)
+	if got := res.Notifications[0].Senders[0].Type; got != "PERSONAL" {
+		t.Fatalf("sender type = %q, attendu PERSONAL", got)
 	}
 }
 

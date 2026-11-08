@@ -613,7 +613,7 @@ function ImagesTab() {
       <div className="grid grid-cols-2 gap-1.5">
         {list.map((a) => (
           <div key={a.url} className="group overflow-hidden rounded-xl border border-border/40">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {/* eslint-disable-next-line @next/next/no-img-element -- URL utilisateur distante arbitraire, non déclarable dans next.config. */}
             <img
               src={a.url}
               alt={a.label}

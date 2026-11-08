@@ -71,21 +71,22 @@ SELECT n.id, n.type, n."isRead", n."createdAt", n."thoughtId", n."articleId", n.
        u.username      AS sender_username,
        u."logoUrl"     AS sender_logo,
        u."isCertified" AS sender_certified,
-       EXISTS (SELECT 1 FROM "MediaMember" mm
-               WHERE mm."userId" = u.id AND mm.status = 'active') AS sender_is_media,
        t.content       AS thought_content,
        t."createdAt"   AS thought_created_at,
        a.title         AS article_title,
        a.slug          AS article_slug,
        c.content       AS comment_content,
        p.name          AS publication_name,
-       p.slug          AS publication_slug
+       p.slug          AS publication_slug,
+       COALESCE(p.type::text, '')::text AS publication_type,
+       COALESCE(md.id::text, '')::text  AS media_id
 FROM "Notification" n
 JOIN "User" u ON u.id = n."senderId"
 LEFT JOIN "Post" t ON t.id = n."thoughtId"
 LEFT JOIN "Article" a ON a.id = n."articleId"
 LEFT JOIN "ArticleComment" c ON c.id = n."commentId"
 LEFT JOIN "Publication" p ON p.id = n."publicationId"
+LEFT JOIN "Media" md ON md."publicationId" = n."publicationId"
 WHERE n."recipientId" = $1
   AND ($2::text[] IS NULL OR n.type::text = ANY($2::text[]))
   -- Un blocage, dans un sens ou dans l'autre, coupe aussi les notifications.
@@ -120,7 +121,6 @@ type GetNotificationsRow struct {
 	SenderUsername   pgtype.Text      `json:"sender_username"`
 	SenderLogo       pgtype.Text      `json:"sender_logo"`
 	SenderCertified  bool             `json:"sender_certified"`
-	SenderIsMedia    bool             `json:"sender_is_media"`
 	ThoughtContent   pgtype.Text      `json:"thought_content"`
 	ThoughtCreatedAt pgtype.Timestamp `json:"thought_created_at"`
 	ArticleTitle     pgtype.Text      `json:"article_title"`
@@ -128,6 +128,8 @@ type GetNotificationsRow struct {
 	CommentContent   pgtype.Text      `json:"comment_content"`
 	PublicationName  pgtype.Text      `json:"publication_name"`
 	PublicationSlug  pgtype.Text      `json:"publication_slug"`
+	PublicationType  string           `json:"publication_type"`
+	MediaID          string           `json:"media_id"`
 }
 
 // Centre de notifications : liste groupée, non-lus, lecture, préférences.
@@ -160,7 +162,6 @@ func (q *Queries) GetNotifications(ctx context.Context, arg GetNotificationsPara
 			&i.SenderUsername,
 			&i.SenderLogo,
 			&i.SenderCertified,
-			&i.SenderIsMedia,
 			&i.ThoughtContent,
 			&i.ThoughtCreatedAt,
 			&i.ArticleTitle,
@@ -168,6 +169,8 @@ func (q *Queries) GetNotifications(ctx context.Context, arg GetNotificationsPara
 			&i.CommentContent,
 			&i.PublicationName,
 			&i.PublicationSlug,
+			&i.PublicationType,
+			&i.MediaID,
 		); err != nil {
 			return nil, err
 		}

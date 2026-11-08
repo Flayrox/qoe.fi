@@ -104,6 +104,10 @@ type BookmarkItem struct {
 	Author                  Author  `json:"author"`
 }
 
+// errHighlightNotFound couvre l'inexistant ET l'inaccessible : un surlignage
+// privé ou d'un compte bloqué est indistinguable d'un 404 (zéro-fuite).
+var errHighlightNotFound = errors.New("surlignage introuvable")
+
 // Service porte les dépendances du domaine highlights.
 type Service struct {
 	pool *pgxpool.Pool
@@ -130,13 +134,13 @@ func textPtr(t pgtype.Text) *string {
 
 // authorFrom construit l'identité publique d'un lecteur / commentateur. Le
 // type vient de sa membership média active — jamais de la surface d'affichage.
-func authorFrom(id string, name, username, logo pgtype.Text, isMedia bool) Author {
+func authorFrom(id string, name, username, logo pgtype.Text) Author {
 	return Author{
 		ID:       id,
 		Name:     textPtr(name),
 		Username: textPtr(username),
 		LogoURL:  textPtr(logo),
-		Type:     identity.Type(isMedia),
+		Type:     identity.Personal,
 	}
 }
 
@@ -160,9 +164,66 @@ func shaPtr(v pgtype.Text) *string {
 	return &s
 }
 
+// canViewArticle applique la visibilité de la publication (PUBLIC |
+// FOLLOWERS | PRIVATE) et le blocage symétrique à la lecture des annotations.
+func (s *Service) canViewArticle(ctx context.Context, articleID, viewerID string) (bool, error) {
+	return s.q.CanViewArticle(ctx, db.CanViewArticleParams{ArticleId: articleID, ViewerId: toUUID(viewerID)})
+}
+
+// isBlockedWith vérifie un blocage dans un sens ou l'autre entre deux comptes.
+func (s *Service) isBlockedWith(ctx context.Context, a, b string) (bool, error) {
+	if a == "" || b == "" || a == b {
+		return false, nil
+	}
+	return s.q.IsBlockedEitherWay(ctx, db.IsBlockedEitherWayParams{
+		ReaderId:  toUUID(a),
+		CreatorId: toUUID(b),
+	})
+}
+
+// ensureHighlightAccess vérifie qu'un surlignage est visible par le viewer :
+// article lisible, surlignage public (ou le sien) et aucun blocage symétrique.
+func (s *Service) ensureHighlightAccess(ctx context.Context, highlightID, viewerID string) (db.GetHighlightByIDRow, error) {
+	row, err := s.q.GetHighlightByID(ctx, highlightID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return db.GetHighlightByIDRow{}, errHighlightNotFound
+		}
+		return db.GetHighlightByIDRow{}, err
+	}
+	if row.ReaderId.String() != viewerID {
+		if !row.IsPublic && !row.IsOfficial {
+			return db.GetHighlightByIDRow{}, errHighlightNotFound
+		}
+		blocked, err := s.isBlockedWith(ctx, viewerID, row.ReaderId.String())
+		if err != nil {
+			return db.GetHighlightByIDRow{}, err
+		}
+		if blocked {
+			return db.GetHighlightByIDRow{}, errHighlightNotFound
+		}
+	}
+	allowed, err := s.canViewArticle(ctx, row.ArticleId, viewerID)
+	if err != nil {
+		return db.GetHighlightByIDRow{}, err
+	}
+	if !allowed && row.ReaderId.String() != viewerID {
+		return db.GetHighlightByIDRow{}, errHighlightNotFound
+	}
+	return row, nil
+}
+
 // ListByArticle retourne les surlignages d'un article : publics + les siens,
 // avec l'état upvote du viewer. Auth optionnelle (viewerID peut être "").
 func (s *Service) ListByArticle(ctx context.Context, articleID, viewerID string) ([]Highlight, error) {
+	allowed, err := s.canViewArticle(ctx, articleID, viewerID)
+	if err != nil {
+		return nil, err
+	}
+	if !allowed {
+		// Article privé / bloqué : aucune annotation ne fuit.
+		return []Highlight{}, nil
+	}
 	rows, err := s.q.ListHighlightsByArticle(ctx, db.ListHighlightsByArticleParams{
 		ArticleId: articleID,
 		ViewerId:  toUUID(viewerID),
@@ -186,7 +247,7 @@ func (s *Service) ListByArticle(ctx context.Context, articleID, viewerID string)
 			ReaderID:       r.ReaderID,
 			ArticleID:      r.ArticleId,
 			CreatedAt:      tsString(r.CreatedAt),
-			Reader:         authorFrom(r.ReaderID, r.ReaderName, r.ReaderUsername, r.ReaderLogo, r.ReaderIsMedia),
+			Reader:         authorFrom(r.ReaderID, r.ReaderName, r.ReaderUsername, r.ReaderLogo),
 			ViewerUpvoted:  r.ViewerUpvoted,
 			CommentsCount:  int(r.CommentsCount),
 		})
@@ -228,6 +289,13 @@ func (s *Service) HighlightQuota(ctx context.Context, readerID string) (used, li
 }
 
 func (s *Service) Create(ctx context.Context, articleID, readerID, text string, note *string, isPublic bool, quoteOrdinal int) (Highlight, error) {
+	allowed, err := s.canViewArticle(ctx, articleID, readerID)
+	if err != nil {
+		return Highlight{}, err
+	}
+	if !allowed {
+		return Highlight{}, errHighlightNotFound
+	}
 	if quoteOrdinal < 0 {
 		quoteOrdinal = 0
 	}
@@ -274,10 +342,9 @@ func (s *Service) Create(ctx context.Context, articleID, readerID, text string, 
 		UpvotesCount:   int(row.UpvotesCount),
 		ReaderID:       row.ReaderID,
 		ArticleID:      row.ArticleId,
-		CreatedAt:      tsString(row.CreatedAt),
-		Reader:         authorFrom(row.ReaderID, row.ReaderName, row.ReaderUsername, row.ReaderLogo, row.ReaderIsMedia),
-		ViewerUpvoted:  false,
-		CommentsCount:  0,
+		CreatedAt:      tsString(row.CreatedAt), Reader: authorFrom(row.ReaderID, row.ReaderName, row.ReaderUsername, row.ReaderLogo),
+		ViewerUpvoted: false,
+		CommentsCount: 0,
 	}, nil
 }
 
@@ -327,16 +394,15 @@ func (s *Service) Update(ctx context.Context, highlightID, readerID string, note
 		return Highlight{}, err
 	}
 	return Highlight{
-		ID:            row.ID,
-		Text:          row.Text,
-		Note:          textPtr(row.Note),
-		IsPublic:      row.IsPublic,
-		IsOfficial:    row.IsOfficial,
-		UpvotesCount:  int(row.UpvotesCount),
-		ReaderID:      row.ReaderID,
-		ArticleID:     row.ArticleId,
-		CreatedAt:     tsString(row.CreatedAt),
-		Reader:        authorFrom(row.ReaderID, row.ReaderName, row.ReaderUsername, row.ReaderLogo, row.ReaderIsMedia),
+		ID:           row.ID,
+		Text:         row.Text,
+		Note:         textPtr(row.Note),
+		IsPublic:     row.IsPublic,
+		IsOfficial:   row.IsOfficial,
+		UpvotesCount: int(row.UpvotesCount),
+		ReaderID:     row.ReaderID,
+		ArticleID:    row.ArticleId,
+		CreatedAt:    tsString(row.CreatedAt), Reader: authorFrom(row.ReaderID, row.ReaderName, row.ReaderUsername, row.ReaderLogo),
 		ViewerUpvoted: false,
 		CommentsCount: 0,
 	}, nil
@@ -347,6 +413,9 @@ func (s *Service) Update(ctx context.Context, highlightID, readerID string, note
 // n'est retournée, l'upvote existait déjà → on le retire. Le compteur est
 // lu dans une requête séparée (les CTE PostgreSQL sont matérialisés).
 func (s *Service) ToggleUpvote(ctx context.Context, highlightID, userID string) (upvoted bool, count int, err error) {
+	if _, err := s.ensureHighlightAccess(ctx, highlightID, userID); err != nil {
+		return false, 0, err
+	}
 	_, err = s.q.ToggleHighlightUpvote(ctx, db.ToggleHighlightUpvoteParams{
 		HighlightId: highlightID,
 		UserId:      toUUID(userID),
@@ -375,9 +444,16 @@ func (s *Service) ToggleUpvote(ctx context.Context, highlightID, userID string) 
 	return upvoted, int(n), nil
 }
 
-// ListComments retourne les commentaires d'un surlignage.
-func (s *Service) ListComments(ctx context.Context, highlightID string) ([]AnnotationComment, error) {
-	rows, err := s.q.ListAnnotationComments(ctx, highlightID)
+// ListComments retourne les commentaires d'un surlignage visibles par le
+// viewer (surlignage public ou le sien, sans blocage symétrique).
+func (s *Service) ListComments(ctx context.Context, highlightID, viewerID string) ([]AnnotationComment, error) {
+	if _, err := s.ensureHighlightAccess(ctx, highlightID, viewerID); err != nil {
+		return nil, err
+	}
+	rows, err := s.q.ListAnnotationComments(ctx, db.ListAnnotationCommentsParams{
+		HighlightId: highlightID,
+		ViewerId:    toUUID(viewerID),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -388,7 +464,7 @@ func (s *Service) ListComments(ctx context.Context, highlightID string) ([]Annot
 			Content:     r.Content,
 			CreatedAt:   tsString(r.CreatedAt),
 			HighlightID: r.HighlightId,
-			Author:      authorFrom(r.AuthorID, r.AuthorName, r.AuthorUsername, r.AuthorLogo, r.AuthorIsMedia),
+			Author:      authorFrom(r.AuthorID, r.AuthorName, r.AuthorUsername, r.AuthorLogo),
 		})
 	}
 	return out, nil
@@ -396,6 +472,9 @@ func (s *Service) ListComments(ctx context.Context, highlightID string) ([]Annot
 
 // CreateComment ajoute un commentaire d'annotation.
 func (s *Service) CreateComment(ctx context.Context, highlightID, authorID, content string) (AnnotationComment, error) {
+	if _, err := s.ensureHighlightAccess(ctx, highlightID, authorID); err != nil {
+		return AnnotationComment{}, err
+	}
 	id, err := s.q.CreateAnnotationComment(ctx, db.CreateAnnotationCommentParams{
 		Content:     content,
 		HighlightId: highlightID,
@@ -404,7 +483,10 @@ func (s *Service) CreateComment(ctx context.Context, highlightID, authorID, cont
 	if err != nil {
 		return AnnotationComment{}, err
 	}
-	rows, err := s.q.ListAnnotationComments(ctx, highlightID)
+	rows, err := s.q.ListAnnotationComments(ctx, db.ListAnnotationCommentsParams{
+		HighlightId: highlightID,
+		ViewerId:    toUUID(authorID),
+	})
 	if err != nil {
 		return AnnotationComment{}, err
 	}
@@ -415,7 +497,7 @@ func (s *Service) CreateComment(ctx context.Context, highlightID, authorID, cont
 				Content:     r.Content,
 				CreatedAt:   tsString(r.CreatedAt),
 				HighlightID: r.HighlightId,
-				Author:      authorFrom(r.AuthorID, r.AuthorName, r.AuthorUsername, r.AuthorLogo, r.AuthorIsMedia),
+				Author:      authorFrom(r.AuthorID, r.AuthorName, r.AuthorUsername, r.AuthorLogo),
 			}, nil
 		}
 	}
@@ -502,8 +584,7 @@ func (s *Service) Bookmarks(ctx context.Context, readerID string, limit, offset 
 			PublicationCustomDomain: textPtr(r.PublicationCustomDomain),
 			PublicationLogo:         textPtr(r.PublicationLogo),
 			ArticleContent:          r.ArticleContent,
-			CategoryName:            textPtr(r.CategoryName),
-			Author:                  authorFrom(r.AuthorID, r.AuthorName, r.AuthorUsername, r.AuthorLogo, r.AuthorIsMedia),
+			CategoryName:            textPtr(r.CategoryName), Author: authorFrom(r.AuthorID, r.AuthorName, r.AuthorUsername, r.AuthorLogo),
 		})
 	}
 	return out, nil

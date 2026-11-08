@@ -44,6 +44,10 @@ type Querier interface {
 	// statuts, ni les dates, ni quoi que ce soit qui réactiverait un choix passé.
 	// `User.email` est unique (User_email_key) : au plus un compte récupère.
 	AttachSubscriberToAccount(ctx context.Context, arg AttachSubscriberToAccountParams) error
+	// Un article n'est lisible (donc annotable) que si sa publication est
+	// publiée et si son propriétaire est public, soi-même ou suivi — sans
+	// blocage dans un sens ou l'autre.
+	CanViewArticle(ctx context.Context, arg CanViewArticleParams) (bool, error)
 	CancelFollowRequest(ctx context.Context, arg CancelFollowRequestParams) error
 	CheckArticleSlugExists(ctx context.Context, arg CheckArticleSlugExistsParams) (bool, error)
 	CheckCategorySlugExists(ctx context.Context, arg CheckCategorySlugExistsParams) (bool, error)
@@ -237,6 +241,10 @@ type Querier interface {
 	GetArticleReleaseInfo(ctx context.Context, id string) (GetArticleReleaseInfoRow, error)
 	GetAttachmentsByIDs(ctx context.Context, dollar_1 []string) ([]GetAttachmentsByIDsRow, error)
 	GetAudienceSummary(ctx context.Context, publicationid string) (GetAudienceSummaryRow, error)
+	// IDs des utilisateurs bloqués dans un sens ou l'autre avec le viewer, parmi
+	// une liste candidate. Sert à filtrer les snapshots dénormalisés (auteur
+	// d'une annotation citée) que le serveur ne peut pas filtrer par jointure.
+	GetBlockedUserIDs(ctx context.Context, arg GetBlockedUserIDsParams) ([]string, error)
 	GetCanonicalThoughtID(ctx context.Context, id string) (string, error)
 	// Catégories d'articles (éditeur dashboard).
 	GetCategoryByID(ctx context.Context, id string) (Category, error)
@@ -350,7 +358,7 @@ type Querier interface {
 	GetPublicationUmamiWebsiteId(ctx context.Context, id string) (pgtype.Text, error)
 	// Contenu complet d'un document publié (markdown).
 	GetPublishedLegalDocument(ctx context.Context, arg GetPublishedLegalDocumentParams) (GetPublishedLegalDocumentRow, error)
-	GetQuotedArticlesByIDs(ctx context.Context, ids []string) ([]GetQuotedArticlesByIDsRow, error)
+	GetQuotedArticlesByIDs(ctx context.Context, arg GetQuotedArticlesByIDsParams) ([]GetQuotedArticlesByIDsRow, error)
 	GetReadingSessionDailySeries(ctx context.Context, arg GetReadingSessionDailySeriesParams) ([]GetReadingSessionDailySeriesRow, error)
 	GetRecentArticlesForAnalytics(ctx context.Context, arg GetRecentArticlesForAnalyticsParams) ([]GetRecentArticlesForAnalyticsRow, error)
 	GetRecentThoughtsForAnalytics(ctx context.Context, arg GetRecentThoughtsForAnalyticsParams) ([]GetRecentThoughtsForAnalyticsRow, error)
@@ -530,8 +538,10 @@ type Querier interface {
 	ListAdminPromos(ctx context.Context) ([]PartnerPromo, error)
 	ListAdminTrends(ctx context.Context) ([]Trend, error)
 	ListAdminUsers(ctx context.Context) ([]ListAdminUsersRow, error)
-	// Commentaires d'un surlignage, avec auteur.
-	ListAnnotationComments(ctx context.Context, highlightid string) ([]ListAnnotationCommentsRow, error)
+	// Commentaires d'un surlignage, avec auteur. La visibilité du surlignage
+	// (public ou le sien) et le blocage symétrique s'appliquent aussi ici :
+	// un commentaire ne doit jamais révéler une annotation privée.
+	ListAnnotationComments(ctx context.Context, arg ListAnnotationCommentsParams) ([]ListAnnotationCommentsRow, error)
 	ListApiKeys(ctx context.Context, userid pgtype.UUID) ([]ListApiKeysRow, error)
 	ListArticleComments(ctx context.Context, arg ListArticleCommentsParams) ([]ListArticleCommentsRow, error)
 	ListArticleImportJobs(ctx context.Context, arg ListArticleImportJobsParams) ([]ListArticleImportJobsRow, error)

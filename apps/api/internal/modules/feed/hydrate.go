@@ -106,8 +106,6 @@ func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string, view
 		       a."publicationId", a."authorId", a."categoryId", a."tierId",
 		       a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
 		       u.id::text, u.name, u.username, u."logoUrl", u."isCertified",
-		       EXISTS (SELECT 1 FROM "MediaMember" mm
-		               WHERE mm."userId" = u.id AND mm.status = 'active'),
 		       p.id, p.type, p.name, p.slug, p.subdomain, p."customDomain", p."logoUrl", p."heroText", p."isCertified"
 		FROM "Article" a
 		JOIN "User" u ON u.id = a."authorId"
@@ -148,7 +146,6 @@ func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string, view
 		var scheduled pgtype.Timestamp
 		var createdAt, updatedAt pgtype.Timestamp
 		var authorName, authorUsername, authorLogo *string
-		var authorIsMedia bool
 		var pubSubdomain, pubCustomDomain, pubLogo, pubHero *string
 		if err := rows.Scan(
 			&a.ID, &a.Title, &a.Slug, &a.Content, &img, &a.Published, &a.IsPremium,
@@ -156,7 +153,7 @@ func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string, view
 			&a.AllowPublicAnnotations, &a.AllowComments, &scheduled,
 			&a.PublicationID, &a.AuthorID, &cat, &tier,
 			&seoTitle, &seoDesc, &createdAt, &updatedAt,
-			&a.Author.ID, &authorName, &authorUsername, &authorLogo, &a.Author.IsCertified, &authorIsMedia,
+			&a.Author.ID, &authorName, &authorUsername, &authorLogo, &a.Author.IsCertified,
 			&a.Publication.ID, &a.Publication.Type, &a.Publication.Name, &a.Publication.Slug,
 			&pubSubdomain, &pubCustomDomain, &pubLogo, &pubHero, &a.Publication.IsCertified,
 		); err != nil {
@@ -179,7 +176,12 @@ func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string, view
 		a.Author.Name = authorName
 		a.Author.Username = authorUsername
 		a.Author.LogoURL = authorLogo
-		a.Author.Type = identity.Type(authorIsMedia)
+		a.Author.Type = identity.FromPublicationType(a.Publication.Type)
+		// Article média : le byline porte le logo du média, pas le logo
+		// personnel de la personne qui a écrit.
+		if a.Author.Type == identity.Media && pubLogo != nil {
+			a.Author.LogoURL = pubLogo
+		}
 		a.Publication.Subdomain = pubSubdomain
 		a.Publication.CustomDomain = pubCustomDomain
 		a.Publication.LogoURL = pubLogo
@@ -195,17 +197,14 @@ func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string, view
 
 	// Co-auteurs (batch).
 	if crows, err := s.pool.Query(ctx, `
-		SELECT ca."A", u.id::text, u.name, u.username, u."logoUrl", u."isCertified",
-		       EXISTS (SELECT 1 FROM "MediaMember" mm
-		               WHERE mm."userId" = u.id AND mm.status = 'active')
+		SELECT ca."A", u.id::text, u.name, u.username, u."logoUrl", u."isCertified"
 		FROM "_CoAuthors" ca JOIN "User" u ON u.id = ca."B"
 		WHERE ca."A" = ANY($1::text[])`, articleIDs); err == nil {
 		for crows.Next() {
 			var artID string
 			var au HydrateAuthor
-			var isMedia bool
-			if err := crows.Scan(&artID, &au.ID, &au.Name, &au.Username, &au.LogoURL, &au.IsCertified, &isMedia); err == nil {
-				au.Type = identity.Type(isMedia)
+			if err := crows.Scan(&artID, &au.ID, &au.Name, &au.Username, &au.LogoURL, &au.IsCertified); err == nil {
+				au.Type = identity.Personal
 				if a, ok := articles[artID]; ok {
 					a.CoAuthors = append(a.CoAuthors, au)
 				}
@@ -217,19 +216,16 @@ func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string, view
 	// Attributions (batch, ordre asc).
 	if arows, err := s.pool.Query(ctx, `
 		SELECT aa."articleId", aa.role, aa."order", aa."isVisible", aa."consentStatus",
-		       u.id::text, u.name, u.username, u."logoUrl", u."isCertified",
-		       EXISTS (SELECT 1 FROM "MediaMember" mm
-		               WHERE mm."userId" = u.id AND mm.status = 'active')
+		       u.id::text, u.name, u.username, u."logoUrl", u."isCertified"
 		FROM "ArticleAttribution" aa JOIN "User" u ON u.id = aa."userId"
 		WHERE aa."articleId" = ANY($1::text[])
 		ORDER BY aa."order" ASC`, articleIDs); err == nil {
 		for arows.Next() {
 			var artID string
 			var att HydrateAttribution
-			var isMedia bool
 			if err := arows.Scan(&artID, &att.Role, &att.Order, &att.IsVisible, &att.ConsentStatus,
-				&att.User.ID, &att.User.Name, &att.User.Username, &att.User.LogoURL, &att.User.IsCertified, &isMedia); err == nil {
-				att.User.Type = identity.Type(isMedia)
+				&att.User.ID, &att.User.Name, &att.User.Username, &att.User.LogoURL, &att.User.IsCertified); err == nil {
+				att.User.Type = identity.Personal
 				if a, ok := articles[artID]; ok {
 					a.Attributions = append(a.Attributions, att)
 				}
@@ -271,7 +267,7 @@ func (s *Service) Hydrate(ctx context.Context, items []EngineItem, viewerID stri
 		res.Articles = arts
 	}
 	if len(thoughtIDs) > 0 {
-		slices, err := s.buildSlices(ctx, thoughtIDs, viewerID)
+		slices, err := s.buildSlices(ctx, thoughtIDs, viewerID, false)
 		if err != nil {
 			return res, fmt.Errorf("hydrate thoughts: %w", err)
 		}

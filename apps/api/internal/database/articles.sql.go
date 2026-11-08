@@ -184,7 +184,9 @@ SELECT a.id, a.title, a.slug, a.content, a."draftContent", a.published, a."isPre
        u."logoUrl"    AS author_logo,
        p.name         AS publication_name,
        p.slug         AS publication_slug,
-       p.subdomain    AS publication_subdomain
+       p.subdomain    AS publication_subdomain,
+       p.type         AS publication_type,
+       p."logoUrl"    AS publication_logo
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
 JOIN "Publication" p ON p.id = a."publicationId"
@@ -225,6 +227,8 @@ type GetArticleByIDRow struct {
 	PublicationName        string            `json:"publication_name"`
 	PublicationSlug        string            `json:"publication_slug"`
 	PublicationSubdomain   pgtype.Text       `json:"publication_subdomain"`
+	PublicationType        PublicationType   `json:"publication_type"`
+	PublicationLogo        pgtype.Text       `json:"publication_logo"`
 }
 
 func (q *Queries) GetArticleByID(ctx context.Context, id string) (GetArticleByIDRow, error) {
@@ -264,6 +268,8 @@ func (q *Queries) GetArticleByID(ctx context.Context, id string) (GetArticleByID
 		&i.PublicationName,
 		&i.PublicationSlug,
 		&i.PublicationSubdomain,
+		&i.PublicationType,
+		&i.PublicationLogo,
 	)
 	return i, err
 }
@@ -281,6 +287,7 @@ SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibilit
        p.name         AS publication_name,
        p.slug         AS publication_slug,
        p.subdomain    AS publication_subdomain,
+       p.type         AS publication_type,
        p."logoUrl"    AS publication_logo,
        p."customDomain" AS publication_custom_domain,
        c.id           AS category_id,
@@ -327,6 +334,7 @@ type GetArticleBySlugRow struct {
 	PublicationName         string            `json:"publication_name"`
 	PublicationSlug         string            `json:"publication_slug"`
 	PublicationSubdomain    pgtype.Text       `json:"publication_subdomain"`
+	PublicationType         PublicationType   `json:"publication_type"`
 	PublicationLogo         pgtype.Text       `json:"publication_logo"`
 	PublicationCustomDomain pgtype.Text       `json:"publication_custom_domain"`
 	CategoryID              pgtype.Text       `json:"category_id"`
@@ -366,6 +374,7 @@ func (q *Queries) GetArticleBySlug(ctx context.Context, arg GetArticleBySlugPara
 		&i.PublicationName,
 		&i.PublicationSlug,
 		&i.PublicationSubdomain,
+		&i.PublicationType,
 		&i.PublicationLogo,
 		&i.PublicationCustomDomain,
 		&i.CategoryID,
@@ -387,6 +396,7 @@ SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibilit
        p.name         AS publication_name,
        p.slug         AS publication_slug,
        p.subdomain    AS publication_subdomain,
+       p.type         AS publication_type,
        p."logoUrl"    AS publication_logo,
        p."customDomain" AS publication_custom_domain,
        a."imageUrl"   AS article_image,
@@ -435,6 +445,7 @@ type GetArticleBySlugAnyRow struct {
 	PublicationName         string            `json:"publication_name"`
 	PublicationSlug         string            `json:"publication_slug"`
 	PublicationSubdomain    pgtype.Text       `json:"publication_subdomain"`
+	PublicationType         PublicationType   `json:"publication_type"`
 	PublicationLogo         pgtype.Text       `json:"publication_logo"`
 	PublicationCustomDomain pgtype.Text       `json:"publication_custom_domain"`
 	ArticleImage            pgtype.Text       `json:"article_image"`
@@ -477,6 +488,7 @@ func (q *Queries) GetArticleBySlugAny(ctx context.Context, slug string) (GetArti
 		&i.PublicationName,
 		&i.PublicationSlug,
 		&i.PublicationSubdomain,
+		&i.PublicationType,
 		&i.PublicationLogo,
 		&i.PublicationCustomDomain,
 		&i.ArticleImage,
@@ -667,6 +679,7 @@ SELECT m.role
 FROM "MediaMember" m
 JOIN "Media" md ON md.id = m."mediaId"
 WHERE md."publicationId" = $1 AND m."userId" = $2
+  AND m.status = 'active'
 LIMIT 1
 `
 
@@ -758,14 +771,23 @@ SELECT a.id, a.title, a.slug, a.published, a."isPremium", a.visibility, a."readi
 FROM "Article" a
 LEFT JOIN "Category" c ON c.id = a."categoryId"
 WHERE a."publicationId" = $1
+   OR ($4::boolean AND EXISTS (
+     SELECT 1 FROM "ArticleAttribution" aa
+     WHERE aa."articleId" = a.id
+       AND aa."userId" = $5::uuid
+       AND aa."consentStatus" = 'ACCEPTED'
+       AND aa."isVisible" = true
+   ))
 ORDER BY a."createdAt" DESC
 LIMIT $2 OFFSET $3
 `
 
 type ListArticlesWithCategoryParams struct {
-	PublicationId string `json:"publicationId"`
-	Limit         int32  `json:"limit"`
-	Offset        int32  `json:"offset"`
+	PublicationId string      `json:"publicationId"`
+	Limit         int32       `json:"limit"`
+	Offset        int32       `json:"offset"`
+	Column4       bool        `json:"column_4"`
+	Column5       pgtype.UUID `json:"column_5"`
 }
 
 type ListArticlesWithCategoryRow struct {
@@ -794,7 +816,13 @@ type ListArticlesWithCategoryRow struct {
 }
 
 func (q *Queries) ListArticlesWithCategory(ctx context.Context, arg ListArticlesWithCategoryParams) ([]ListArticlesWithCategoryRow, error) {
-	rows, err := q.db.Query(ctx, listArticlesWithCategory, arg.PublicationId, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, listArticlesWithCategory,
+		arg.PublicationId,
+		arg.Limit,
+		arg.Offset,
+		arg.Column4,
+		arg.Column5,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -990,8 +1018,6 @@ SELECT a.id,
        u.username       AS author_username,
        u."logoUrl"      AS author_logo,
        u."isCertified"  AS author_certified,
-       EXISTS (SELECT 1 FROM "MediaMember" mm
-               WHERE mm."userId" = u.id AND mm.status = 'active') AS author_is_media,
        p.name           AS publication_name,
        p.slug           AS publication_slug,
        p.subdomain      AS publication_subdomain,
@@ -1042,7 +1068,6 @@ type ListPublishedArticlesByPublicationRow struct {
 	AuthorUsername       pgtype.Text       `json:"author_username"`
 	AuthorLogo           pgtype.Text       `json:"author_logo"`
 	AuthorCertified      bool              `json:"author_certified"`
-	AuthorIsMedia        bool              `json:"author_is_media"`
 	PublicationName      string            `json:"publication_name"`
 	PublicationSlug      string            `json:"publication_slug"`
 	PublicationSubdomain pgtype.Text       `json:"publication_subdomain"`
@@ -1081,7 +1106,6 @@ func (q *Queries) ListPublishedArticlesByPublication(ctx context.Context, arg Li
 			&i.AuthorUsername,
 			&i.AuthorLogo,
 			&i.AuthorCertified,
-			&i.AuthorIsMedia,
 			&i.PublicationName,
 			&i.PublicationSlug,
 			&i.PublicationSubdomain,
@@ -1118,8 +1142,6 @@ SELECT a.id,
        u.username       AS author_username,
        u."logoUrl"      AS author_logo,
        u."isCertified"  AS author_certified,
-       EXISTS (SELECT 1 FROM "MediaMember" mm
-               WHERE mm."userId" = u.id AND mm.status = 'active') AS author_is_media,
        p.name           AS publication_name,
        p.slug           AS publication_slug,
        p.subdomain      AS publication_subdomain,
@@ -1162,7 +1184,6 @@ type ListRecentPublishedArticlesRow struct {
 	AuthorUsername       pgtype.Text       `json:"author_username"`
 	AuthorLogo           pgtype.Text       `json:"author_logo"`
 	AuthorCertified      bool              `json:"author_certified"`
-	AuthorIsMedia        bool              `json:"author_is_media"`
 	PublicationName      string            `json:"publication_name"`
 	PublicationSlug      string            `json:"publication_slug"`
 	PublicationSubdomain pgtype.Text       `json:"publication_subdomain"`
@@ -1201,7 +1222,6 @@ func (q *Queries) ListRecentPublishedArticles(ctx context.Context, arg ListRecen
 			&i.AuthorUsername,
 			&i.AuthorLogo,
 			&i.AuthorCertified,
-			&i.AuthorIsMedia,
 			&i.PublicationName,
 			&i.PublicationSlug,
 			&i.PublicationSubdomain,

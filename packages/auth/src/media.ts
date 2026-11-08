@@ -79,7 +79,9 @@ const MEDIA_ROLE_PERMISSIONS: Record<MediaRole, MediaPermission[]> = {
     'media:edit_own',
   ],
   writer: ['media:create_articles', 'media:edit_own'],
-  viewer: ['media:view_analytics'],
+  // Un viewer est en lecture seule : les analytics sont réservés aux rôles de
+  // gestion (owner/editor), parité avec apps/api/internal/permissions.
+  viewer: [],
 };
 
 /**

@@ -54,7 +54,7 @@ func TestHydrateArticles_Visibility(t *testing.T) {
 	if len(arts) != 0 {
 		t.Fatalf("brouillon hydraté = %d, attendu 0", len(arts))
 	}
-	slices, err := svc.buildSlices(ctx, []string{draftPostID}, aliceID)
+	slices, err := svc.buildSlices(ctx, []string{draftPostID}, aliceID, false)
 	if err != nil {
 		t.Fatalf("hydrate draft thought: %v", err)
 	}

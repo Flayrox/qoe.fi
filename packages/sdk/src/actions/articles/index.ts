@@ -17,12 +17,15 @@
 // =====================================================================
 
 import { revalidatePath } from 'next/cache';
-import { cookies } from 'next/headers';
 import { createClient } from '@qoe/supabase/server';
 import { normalizeArticleAttributions, type ArticleAttributionInput } from '@qoe/utils';
 import { slugify, shortId } from '@qoe/utils';
 import { safeAction } from '../utils/safe-action';
 import { goFetch } from '../utils/go-client';
+import {
+  getActivePublicationId as resolveActivePublicationId,
+  getActiveWorkspaceContext,
+} from '../workspace';
 import type { SimilarArticle } from '../../types';
 
 /** 📰 Article (shape API Go /v1/articles). */
@@ -111,37 +114,20 @@ async function authenticateUser() {
 }
 
 /**
- * 🎛️ Résout la publication active (personnelle OU média) depuis le cookie du workspace.
- * Le dashboard opère sur le workspace sélectionné sans changer de compte.
+ * 🎛️ Publication active — délègue au résolveur unique `actions/workspace`.
+ * Conservé à l'export pour les actions historiques (recommandations, etc.).
  */
 export async function getActivePublicationId(): Promise<string> {
-  let saved: { type?: string; id?: string } | null = null;
-  try {
-    const cookieStore = await cookies();
-    const raw = cookieStore.get('qoe_active_workspace')?.value;
-    if (raw) saved = JSON.parse(decodeURIComponent(raw));
-  } catch {
-    saved = null;
-  }
-
-  // Go-only (backend-of-record) : workspace média → publication du média,
-  // sinon publication personnelle (créée si absente via /v1/me/publication).
-  if (saved?.type === 'MEDIA' && saved.id) {
-    const res = await goFetch<{ publicationId: string }>(
-      `/v1/me/media/${encodeURIComponent(saved.id)}`
-    );
-    if (res.publicationId) return res.publicationId;
-  }
-
-  const personal = await goFetch<{ publicationId: string }>('/v1/me/publication');
-  return personal.publicationId;
+  return resolveActivePublicationId();
 }
 
 export const getArticlesAction = safeAction<string | void, ArticleListPayload>(async (period) => {
-  const publicationId = await getActivePublicationId();
+  const workspace = await getActiveWorkspaceContext();
   const p = typeof period === 'string' && period ? period : '30d';
+  // workspaceType=PERSONAL inclut les articles co-signés (attribution
+  // acceptée + visible), pas seulement ceux de la publication personnelle.
   return goFetch<ArticleListPayload>(
-    `/v1/articles?publicationId=${publicationId}&period=${encodeURIComponent(p)}`
+    `/v1/articles?publicationId=${encodeURIComponent(workspace.publicationId)}&workspaceType=${workspace.type}&period=${encodeURIComponent(p)}`
   );
 });
 
@@ -151,6 +137,8 @@ export interface ArticleAuthorBrief {
   username: string | null;
   logoUrl: string | null;
   isCertified: boolean;
+  /** Identité publique de l'article, dérivée de sa publication. */
+  type?: 'PERSONAL' | 'MEDIA' | string;
 }
 
 export interface ArticleReviewFeedback {
@@ -177,6 +165,7 @@ export interface ArticleEditorPayload extends Article {
     name: string;
     slug: string;
     subdomain?: string | null;
+    type?: 'PERSONAL' | 'MEDIA' | string;
   } | null;
   author: ArticleAuthorBrief;
   coAuthors: ArticleAuthorBrief[];

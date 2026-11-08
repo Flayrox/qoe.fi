@@ -272,6 +272,41 @@ func (q *Queries) DeletePureReposts(ctx context.Context, arg DeletePureRepostsPa
 	return err
 }
 
+const getBlockedUserIDs = `-- name: GetBlockedUserIDs :many
+SELECT (CASE WHEN b."readerId" = $1 THEN b."creatorId" ELSE b."readerId" END)::text AS user_id
+FROM "BlockedUser" b
+WHERE (b."readerId" = $1 AND b."creatorId" = ANY($2::uuid[]))
+   OR (b."creatorId" = $1 AND b."readerId" = ANY($2::uuid[]))
+`
+
+type GetBlockedUserIDsParams struct {
+	ViewerId pgtype.UUID   `json:"viewerId"`
+	Ids      []pgtype.UUID `json:"ids"`
+}
+
+// IDs des utilisateurs bloqués dans un sens ou l'autre avec le viewer, parmi
+// une liste candidate. Sert à filtrer les snapshots dénormalisés (auteur
+// d'une annotation citée) que le serveur ne peut pas filtrer par jointure.
+func (q *Queries) GetBlockedUserIDs(ctx context.Context, arg GetBlockedUserIDsParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, getBlockedUserIDs, arg.ViewerId, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var user_id string
+		if err := rows.Scan(&user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getCanonicalThoughtID = `-- name: GetCanonicalThoughtID :one
 SELECT COALESCE("repostId", id)::text AS id
 FROM "Post"
@@ -607,8 +642,6 @@ SELECT u.id::text     AS user_id,
        u.username     AS user_username,
        u."logoUrl"    AS user_logo,
        u."isCertified" AS user_certified,
-       EXISTS (SELECT 1 FROM "MediaMember" mm
-               WHERE mm."userId" = u.id AND mm.status = 'active') AS user_is_media,
        l."createdAt"  AS liked_at
 FROM "Like" l
 JOIN "User" u ON u.id = l."userId"
@@ -631,7 +664,6 @@ type ListLikesForPostRow struct {
 	UserUsername  pgtype.Text      `json:"user_username"`
 	UserLogo      pgtype.Text      `json:"user_logo"`
 	UserCertified bool             `json:"user_certified"`
-	UserIsMedia   bool             `json:"user_is_media"`
 	LikedAt       pgtype.Timestamp `json:"liked_at"`
 }
 
@@ -650,7 +682,6 @@ func (q *Queries) ListLikesForPost(ctx context.Context, arg ListLikesForPostPara
 			&i.UserUsername,
 			&i.UserLogo,
 			&i.UserCertified,
-			&i.UserIsMedia,
 			&i.LikedAt,
 		); err != nil {
 			return nil, err
@@ -706,8 +737,6 @@ SELECT u.id::text     AS user_id,
        u.username     AS user_username,
        u."logoUrl"    AS user_logo,
        u."isCertified" AS user_certified,
-       EXISTS (SELECT 1 FROM "MediaMember" mm
-               WHERE mm."userId" = u.id AND mm.status = 'active') AS user_is_media,
        r."createdAt"  AS reposted_at
 FROM "Post" r
 JOIN "User" u ON u.id = r."authorId"
@@ -730,7 +759,6 @@ type ListRepostsForPostRow struct {
 	UserUsername  pgtype.Text      `json:"user_username"`
 	UserLogo      pgtype.Text      `json:"user_logo"`
 	UserCertified bool             `json:"user_certified"`
-	UserIsMedia   bool             `json:"user_is_media"`
 	RepostedAt    pgtype.Timestamp `json:"reposted_at"`
 }
 
@@ -749,7 +777,6 @@ func (q *Queries) ListRepostsForPost(ctx context.Context, arg ListRepostsForPost
 			&i.UserUsername,
 			&i.UserLogo,
 			&i.UserCertified,
-			&i.UserIsMedia,
 			&i.RepostedAt,
 		); err != nil {
 			return nil, err

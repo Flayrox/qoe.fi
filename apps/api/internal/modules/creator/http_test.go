@@ -52,6 +52,7 @@ func TestUserByUsername_PublicProfile(t *testing.T) {
 			ID          string `json:"id"`
 			Slug        string `json:"slug"`
 			Name        string `json:"name"`
+			Type        string `json:"type"`
 			IsFollowing bool   `json:"isFollowing"`
 			Count       struct {
 				Followers int `json:"followers"`
@@ -66,6 +67,11 @@ func TestUserByUsername_PublicProfile(t *testing.T) {
 	}
 	if res.Data.Count.Followers != 1 {
 		t.Fatalf("_count.followers = %d, attendu 1 (bob suit alice)", res.Data.Count.Followers)
+	}
+	// Le profil public d'une personne reste PERSONAL, même si le compte
+	// appartient par ailleurs à un média (MediaMember = RBAC uniquement).
+	if res.Data.Type != "PERSONAL" {
+		t.Fatalf("data.type = %q, attendu PERSONAL", res.Data.Type)
 	}
 }
 

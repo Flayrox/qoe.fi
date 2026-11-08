@@ -13,6 +13,36 @@ import (
 // mentionRe extrait les @usernames du contenu (même règle que threadgate).
 var mentionRe = regexp.MustCompile(`@([a-zA-Z0-9_]+)`)
 
+// isBlockedBetween vérifie un blocage dans un sens ou l'autre entre deux
+// comptes. Toute création de notification passe par ce garde : le blocage
+// doit couper les rappels, pas seulement l'affichage du feed.
+func isBlockedBetween(ctx context.Context, q db.Querier, a, b string) (bool, error) {
+	if a == "" || b == "" || a == b {
+		return false, nil
+	}
+	return q.IsBlockedEitherWay(ctx, db.IsBlockedEitherWayParams{
+		ReaderId:  toUUID(a),
+		CreatorId: toUUID(b),
+	})
+}
+
+// ensurePostNotBlocked refuse une interaction vers le contenu d'un compte
+// bloqué, dans un sens ou l'autre.
+func (s *Service) ensurePostNotBlocked(ctx context.Context, q db.Querier, postID, userID string) error {
+	authorID, err := q.GetPostAuthor(ctx, postID)
+	if err != nil {
+		return err
+	}
+	blocked, err := isBlockedBetween(ctx, q, userID, authorID)
+	if err != nil {
+		return err
+	}
+	if blocked {
+		return ErrBlockedContent
+	}
+	return nil
+}
+
 // notifyMentionsInContent notifie les @mentionnés d'un post (standalone OU réponse).
 // Best-effort : ignore les erreurs de résolution de username.
 func notifyMentionsInContent(ctx context.Context, tq db.Querier, content, postID, senderID string) {
@@ -34,6 +64,10 @@ func notifyMentionsInContent(ctx context.Context, tq db.Querier, content, postID
 		return
 	}
 	for _, u := range users {
+		blocked, err := isBlockedBetween(ctx, tq, senderID, u.UserID)
+		if err != nil || blocked {
+			continue
+		}
 		_ = createReplyNotification(ctx, tq, "MENTION", u.UserID, senderID, postID)
 	}
 }
@@ -55,6 +89,13 @@ func createEngagementNotification(ctx context.Context, tq db.Querier, kind, post
 		return err
 	}
 	if authorID == senderID {
+		return nil
+	}
+	blocked, err := isBlockedBetween(ctx, tq, senderID, authorID)
+	if err != nil {
+		return err
+	}
+	if blocked {
 		return nil
 	}
 

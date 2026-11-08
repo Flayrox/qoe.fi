@@ -99,6 +99,10 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	}
 	item, err := h.svc.Create(r.Context(), articleID, userID, in.Text, in.Note, in.IsPublic, ordinal)
 	if err != nil {
+		if errors.Is(err, errHighlightNotFound) {
+			response.NotFound(w, "Article introuvable")
+			return
+		}
 		log.Printf("[highlights] create: %v", err)
 		response.Internal(w)
 		return
@@ -161,6 +165,10 @@ func (h *Handler) toggleUpvote(w http.ResponseWriter, r *http.Request) {
 
 	upvoted, count, err := h.svc.ToggleUpvote(r.Context(), id, userID)
 	if err != nil {
+		if errors.Is(err, errHighlightNotFound) {
+			response.NotFound(w, "Surlignage introuvable")
+			return
+		}
 		log.Printf("[highlights] upvote: %v", err)
 		response.Internal(w)
 		return
@@ -170,9 +178,14 @@ func (h *Handler) toggleUpvote(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/highlights/{id}/comments — commentaires d'un surlignage.
 func (h *Handler) listComments(w http.ResponseWriter, r *http.Request) {
+	viewerID, _ := middleware.UserID(r.Context())
 	id := chi.URLParam(r, "id")
-	items, err := h.svc.ListComments(r.Context(), id)
+	items, err := h.svc.ListComments(r.Context(), id, viewerID)
 	if err != nil {
+		if errors.Is(err, errHighlightNotFound) {
+			response.NotFound(w, "Surlignage introuvable")
+			return
+		}
 		log.Printf("[highlights] listComments: %v", err)
 		response.Internal(w)
 		return
@@ -206,6 +219,10 @@ func (h *Handler) createComment(w http.ResponseWriter, r *http.Request) {
 
 	comment, err := h.svc.CreateComment(r.Context(), id, userID, in.Content)
 	if err != nil {
+		if errors.Is(err, errHighlightNotFound) {
+			response.NotFound(w, "Surlignage introuvable")
+			return
+		}
 		log.Printf("[highlights] createComment: %v", err)
 		response.Internal(w)
 		return

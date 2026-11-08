@@ -6,6 +6,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/permissions"
 )
 
 type Service struct {
@@ -25,6 +26,10 @@ type ActiveWorkspace struct {
 	LogoURL       *string `json:"logoUrl"`
 	MediaID       *string `json:"mediaId,omitempty"`
 	MediaRole     *string `json:"mediaRole,omitempty"`
+	// Permissions effectives du membre (base du rôle + overrides). En PERSONAL,
+	// l'utilisateur est propriétaire : toutes les permissions. Le front s'en sert
+	// pour masquer les sections inaccessibles, sans dupliquer le RBAC.
+	Permissions []string `json:"permissions"`
 }
 
 func toUUID(id string) pgtype.UUID {
@@ -48,13 +53,15 @@ func (s *Service) GetActive(ctx context.Context, userID, mediaID string) (Active
 		var pubID, pubName, pubSlug string
 		var pubLogo pgtype.Text
 		var role string
+		var memberPerms []string
 		err := s.pool.QueryRow(ctx, `
-			SELECT p.id, p.name, p.slug, p."logoUrl", mm.role
+			SELECT p.id, p.name, p.slug, p."logoUrl", mm.role, mm.permissions
 			FROM "MediaMember" mm
 			JOIN "Media" m ON m.id = mm."mediaId"
 			JOIN "Publication" p ON p.id = m."publicationId"
 			WHERE mm."mediaId" = $1 AND mm."userId" = $2
-		`, mediaID, toUUID(userID)).Scan(&pubID, &pubName, &pubSlug, &pubLogo, &role)
+			  AND mm.status = 'active'
+		`, mediaID, toUUID(userID)).Scan(&pubID, &pubName, &pubSlug, &pubLogo, &role, &memberPerms)
 		if err == nil {
 			return ActiveWorkspace{
 				Type:          "MEDIA",
@@ -64,6 +71,9 @@ func (s *Service) GetActive(ctx context.Context, userID, mediaID string) (Active
 				Slug:          pubSlug,
 				LogoURL:       textPtr(pubLogo),
 				MediaRole:     &role,
+				Permissions: permissions.EffectivePermissions(&permissions.MediaMember{
+					Role: role, Permissions: memberPerms, Status: "active",
+				}),
 			}, nil
 		}
 	}
@@ -76,13 +86,17 @@ func (s *Service) GetActive(ctx context.Context, userID, mediaID string) (Active
 		WHERE p.type = 'PERSONAL' AND p.id = (SELECT "publicationId" FROM "User" WHERE id = $1)
 	`, userID).Scan(&pubID, &pubName, &pubSlug, &pubLogo)
 	if err != nil {
-		// No personal publication yet — return userId as fallback (will be created on demand)
+		// Pas encore de publication personnelle : aucun identifiant de
+		// publication n'existe. On ne fabrique JAMAIS publicationId = userId
+		// (un id utilisateur n'est pas une publication) ; le client appelle
+		// /v1/me/publication pour la créer à la demande.
 		return ActiveWorkspace{
 			Type:          "PERSONAL",
-			PublicationID: userID,
+			PublicationID: "",
 			Name:          "Profil Personnel",
 			Slug:          "personal",
 			LogoURL:       nil,
+			Permissions:   permissions.AllMediaPermissions(),
 		}, nil
 	}
 	return ActiveWorkspace{
@@ -91,5 +105,6 @@ func (s *Service) GetActive(ctx context.Context, userID, mediaID string) (Active
 		Name:          pubName,
 		Slug:          pubSlug,
 		LogoURL:       textPtr(pubLogo),
+		Permissions:   permissions.AllMediaPermissions(),
 	}, nil
 }

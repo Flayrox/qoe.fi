@@ -23,7 +23,6 @@ func highlightFixture() db.GetHighlightByIDRow {
 		ReaderName:     pgtype.Text{String: "Camille", Valid: true},
 		ReaderUsername: pgtype.Text{String: "camille", Valid: true},
 		ReaderLogo:     pgtype.Text{String: "/avatars/media-camille.svg", Valid: true},
-		ReaderIsMedia:  true,
 	}
 }
 
@@ -51,10 +50,10 @@ func TestCitationSnapshot_KeepsNoteAuthorAndAnchors(t *testing.T) {
 	if snapshot.Reader.Username == nil || *snapshot.Reader.Username != "camille" {
 		t.Errorf("attribution perdue : %+v", snapshot.Reader)
 	}
-	// La nature média est figée avec l'attribution : la citation garde son
-	// avatar carré même si la membership change plus tard.
-	if snapshot.Reader.Type != "MEDIA" {
-		t.Errorf("type reader = %q, attendu MEDIA", snapshot.Reader.Type)
+	// Le lecteur cité est une personne, même s'il collabore à un média : la
+	// citation ne doit pas lui coller une identité média.
+	if snapshot.Reader.Type != "PERSONAL" {
+		t.Errorf("type reader = %q, attendu PERSONAL", snapshot.Reader.Type)
 	}
 }
 

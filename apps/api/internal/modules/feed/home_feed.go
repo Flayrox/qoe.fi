@@ -393,7 +393,7 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 		return
 	}
 	if len(thIDs) > 0 {
-		slices, err := s.buildSlices(ctx, thIDs, userID)
+		slices, err := s.buildSlices(ctx, thIDs, userID, false)
 		if err == nil {
 			group.Thoughts = slices
 		} else {

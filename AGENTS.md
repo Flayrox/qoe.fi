@@ -4,16 +4,16 @@
 
 Ce repo tient sa mémoire dans des fichiers versionnés. **Lis-les avant de coder, mets-les à jour après.**
 
-| Fichier | Contenu |
-|---|---|
-| `docs/roadmap/README.md` | Backlog vivant : index, priorités, statuts, IDs stables |
-| `docs/roadmap/01-architecture-dette.md` | God-files, duplication Go↔TS, frontières de packages |
-| `docs/roadmap/02-runtime-scalabilite.md` | Pagination, cache, pool, observabilité, readiness |
-| `docs/roadmap/03-ci-dx-deploiement.md` | Turbo, CI, branches, staging, déploiement |
-| `docs/roadmap/04-data-schema.md` | Schéma, migrations, index, partitionnement |
-| `docs/roadmap/05-produit-gaps.md` | Ce qui manque pour un vrai réseau social |
-| `docs/roadmap/06-ui-system.md` | UI lab, budget de dette, design system |
-| `apps/admin/ADMIN-PLAN.md` | Plan vivant de la console admin |
+| Fichier                                  | Contenu                                                 |
+| ---------------------------------------- | ------------------------------------------------------- |
+| `docs/roadmap/README.md`                 | Backlog vivant : index, priorités, statuts, IDs stables |
+| `docs/roadmap/01-architecture-dette.md`  | God-files, duplication Go↔TS, frontières de packages    |
+| `docs/roadmap/02-runtime-scalabilite.md` | Pagination, cache, pool, observabilité, readiness       |
+| `docs/roadmap/03-ci-dx-deploiement.md`   | Turbo, CI, branches, staging, déploiement               |
+| `docs/roadmap/04-data-schema.md`         | Schéma, migrations, index, partitionnement              |
+| `docs/roadmap/05-produit-gaps.md`        | Ce qui manque pour un vrai réseau social                |
+| `docs/roadmap/06-ui-system.md`           | UI lab, budget de dette, design system                  |
+| `apps/admin/ADMIN-PLAN.md`               | Plan vivant de la console admin                         |
 
 ## Architecture en une page
 

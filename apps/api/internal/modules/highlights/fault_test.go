@@ -15,6 +15,12 @@ type faultQ struct {
 	err error
 }
 
+func (f faultQ) CanViewArticle(ctx context.Context, arg db.CanViewArticleParams) (bool, error) {
+	return false, f.err
+}
+func (f faultQ) IsBlockedEitherWay(ctx context.Context, arg db.IsBlockedEitherWayParams) (bool, error) {
+	return false, f.err
+}
 func (f faultQ) CountHighlightUpvotes(ctx context.Context, highlightid string) (int32, error) {
 	return 0, f.err
 }
@@ -36,7 +42,7 @@ func (f faultQ) DeleteHighlightUpvote(ctx context.Context, arg db.DeleteHighligh
 func (f faultQ) GetHighlightByID(ctx context.Context, id string) (db.GetHighlightByIDRow, error) {
 	return db.GetHighlightByIDRow{}, f.err
 }
-func (f faultQ) ListAnnotationComments(ctx context.Context, highlightid string) ([]db.ListAnnotationCommentsRow, error) {
+func (f faultQ) ListAnnotationComments(ctx context.Context, arg db.ListAnnotationCommentsParams) ([]db.ListAnnotationCommentsRow, error) {
 	return nil, f.err
 }
 func (f faultQ) ListBookmarksByReader(ctx context.Context, arg db.ListBookmarksByReaderParams) ([]db.ListBookmarksByReaderRow, error) {

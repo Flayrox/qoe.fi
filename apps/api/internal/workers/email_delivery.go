@@ -14,10 +14,12 @@ package workers
 
 import (
 	"context"
+	"html"
 	"log"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/deeplink"
 )
 
 // RunEmailDeliveryLoop draine la boîte d'envoi au démarrage puis à intervalle
@@ -124,24 +126,55 @@ RETURNING nd.id, nd.recipient, nd."notificationId"`
 // buildNotificationEmail construit un email minimal à partir de la
 // notification (type + nom de l'émetteur) — template enrichissable plus tard.
 func buildNotificationEmail(ctx context.Context, pool *pgxpool.Pool, recipient, notificationID, from string) (EmailMessage, error) {
-	var nType, senderName string
+	var (
+		nType, senderName                                                  string
+		thoughtID, articleID, articleSlug                                  string
+		publicationID, publicationSlug, publicationType, mediaID, username string
+	)
 	err := pool.QueryRow(ctx, `
-		SELECT n.type::text, COALESCE(u.name, u.username, 'Un membre')
+		SELECT n.type::text,
+		       COALESCE(u.name, u.username, 'Un membre'),
+		       COALESCE(n."thoughtId"::text, ''),
+		       COALESCE(n."articleId"::text, ''),
+		       COALESCE(a.slug, ''),
+		       COALESCE(n."publicationId"::text, ''),
+		       COALESCE(p.slug, ''),
+		       COALESCE(p.type::text, ''),
+		       COALESCE(md.id::text, ''),
+		       COALESCE(u.username, '')
 		FROM "Notification" n
 		LEFT JOIN "User" u ON u.id = n."senderId"
-		WHERE n.id = $1`, notificationID).Scan(&nType, &senderName)
+		LEFT JOIN "Article" a ON a.id = n."articleId"
+		LEFT JOIN "Publication" p ON p.id = n."publicationId"
+		LEFT JOIN "Media" md ON md."publicationId" = n."publicationId"
+		WHERE n.id = $1`, notificationID).Scan(
+		&nType, &senderName, &thoughtID, &articleID, &articleSlug,
+		&publicationID, &publicationSlug, &publicationType, &mediaID, &username,
+	)
 	if err != nil {
 		return EmailMessage{}, err
 	}
 
 	label := notificationTypeLabel(nType)
 	subject := senderName + " " + label + " — qoefi"
-	html := `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;padding:32px;color:#18181b;">
+	link := deeplink.AbsoluteURL(deeplink.Notification(deeplink.Target{
+		Type:            nType,
+		ThoughtID:       thoughtID,
+		ArticleID:       articleID,
+		ArticleSlug:     articleSlug,
+		PublicationID:   publicationID,
+		PublicationSlug: publicationSlug,
+		PublicationType: publicationType,
+		MediaID:         mediaID,
+		SenderUsername:  username,
+	}))
+	content := `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;padding:32px;color:#18181b;">
   <h2 style="margin:0 0 12px;">` + senderName + ` ` + label + `</h2>
-  <p style="color:#3f3f46;font-size:14px;line-height:1.6;">Vous avez une nouvelle notification sur <strong>qoefi</strong>. Connectez-vous pour la consulter.</p>
+  <p style="color:#3f3f46;font-size:14px;line-height:1.6;">Vous avez une nouvelle notification sur <strong>qoefi</strong>.</p>
+  <p style="margin-top:20px;"><a href="` + html.EscapeString(link) + `" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;font-size:13px;font-weight:500;padding:10px 24px;border-radius:9999px;">Voir la notification</a></p>
   <p style="margin-top:24px;font-size:12px;color:#a1a1aa;">Cet e-mail automatique vous est envoyé par qoefi pour la protection de votre compte.</p>
 </div>`
-	return EmailMessage{From: from, To: recipient, Subject: subject, HTML: html}, nil
+	return EmailMessage{From: from, To: recipient, Subject: subject, HTML: content}, nil
 }
 
 // notificationTypeLabel traduit le type de notification en libellé court.

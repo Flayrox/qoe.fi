@@ -3,10 +3,12 @@
 ## CI-01 — `lint` / `typecheck` ne doivent pas dépendre de `^build` (P1)
 
 **Constat** : `turbo.json`
+
 ```json
 "lint":      { "dependsOn": ["^build"], "outputs": [] },
 "typecheck": { "dependsOn": ["^build"], "outputs": [] }
 ```
+
 Chaque lint/typecheck rebuild d'abord tous les packages amont. Sur 25 packages,
 c'est la majorité du temps de CI.
 
@@ -36,6 +38,7 @@ Aujourd'hui : install + typecheck + lint + tests + build sur chaque PR, plus
 deux jobs e2e qui refont install + migrations + seed.
 
 **Correctif** :
+
 - job `setup` unique (install + build des packages) réutilisé par les autres ;
 - `turbo run ... --filter=[origin/main]` pour ne tester que ce qui change ;
 - e2e complet uniquement sur `main` / label `e2e`.
@@ -55,6 +58,7 @@ rien en avance. `build-images.yml` ne part que de `main`, et `deploy-prod.sh`
 pull ces images → le travail de novembre n'est pas déployable.
 
 **Décision à tenir** :
+
 - soit trunk-based : petites PR sur `main`, `dev` supprimée ;
 - soit `dev` → `main` automatique après CI verte, avec protection de branche.
 

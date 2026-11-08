@@ -60,7 +60,7 @@ describe('cached-queries', () => {
       expect(fetchMeProfile).toHaveBeenCalledTimes(1);
     });
 
-    it('projette un membre actif de média en identité MEDIA', async () => {
+    it('garde un membre actif de média en identité PERSONAL', async () => {
       vi.mocked(fetchMeProfile).mockResolvedValueOnce({
         id: 'u-media',
         email: 'redaction@qoe.fi',
@@ -79,8 +79,7 @@ describe('cached-queries', () => {
       } as unknown as Awaited<ReturnType<typeof fetchMeProfile>>);
 
       const user = await getRequestDbUser('u-media');
-
-      expect(user.type).toBe('MEDIA');
+      expect(user.type).toBe('PERSONAL');
       expect(user.username).toBe('redaction');
     });
   });

@@ -253,6 +253,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   {foundPub.logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- URL utilisateur distante arbitraire, non déclarable dans next.config.
                     <img
                       src={foundPub.logoUrl}
                       alt={foundPub.name}
@@ -362,6 +363,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
                     {rec.publicationLogoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- URL utilisateur distante arbitraire, non déclarable dans next.config.
                       <img
                         src={rec.publicationLogoUrl}
                         alt={rec.publicationName}

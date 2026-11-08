@@ -17,8 +17,6 @@ SELECT a.id,
        u.username       AS author_username,
        u."logoUrl"      AS author_logo,
        u."isCertified"  AS author_certified,
-       EXISTS (SELECT 1 FROM "MediaMember" mm
-               WHERE mm."userId" = u.id AND mm.status = 'active') AS author_is_media,
        p.name           AS publication_name,
        p.slug           AS publication_slug,
        p.subdomain      AS publication_subdomain,
@@ -57,8 +55,6 @@ SELECT a.id,
        u.username       AS author_username,
        u."logoUrl"      AS author_logo,
        u."isCertified"  AS author_certified,
-       EXISTS (SELECT 1 FROM "MediaMember" mm
-               WHERE mm."userId" = u.id AND mm.status = 'active') AS author_is_media,
        p.name           AS publication_name,
        p.slug           AS publication_slug,
        p.subdomain      AS publication_subdomain,
@@ -97,7 +93,9 @@ SELECT a.id, a.title, a.slug, a.content, a."draftContent", a.published, a."isPre
        u."logoUrl"    AS author_logo,
        p.name         AS publication_name,
        p.slug         AS publication_slug,
-       p.subdomain    AS publication_subdomain
+       p.subdomain    AS publication_subdomain,
+       p.type         AS publication_type,
+       p."logoUrl"    AS publication_logo
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
 JOIN "Publication" p ON p.id = a."publicationId"
@@ -116,6 +114,7 @@ SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibilit
        p.name         AS publication_name,
        p.slug         AS publication_slug,
        p.subdomain    AS publication_subdomain,
+       p.type         AS publication_type,
        p."logoUrl"    AS publication_logo,
        p."customDomain" AS publication_custom_domain,
        c.id           AS category_id,
@@ -142,6 +141,7 @@ SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibilit
        p.name         AS publication_name,
        p.slug         AS publication_slug,
        p.subdomain    AS publication_subdomain,
+       p.type         AS publication_type,
        p."logoUrl"    AS publication_logo,
        p."customDomain" AS publication_custom_domain,
        a."imageUrl"   AS article_image,
@@ -226,6 +226,13 @@ SELECT a.id, a.title, a.slug, a.published, a."isPremium", a.visibility, a."readi
 FROM "Article" a
 LEFT JOIN "Category" c ON c.id = a."categoryId"
 WHERE a."publicationId" = $1
+   OR ($4::boolean AND EXISTS (
+     SELECT 1 FROM "ArticleAttribution" aa
+     WHERE aa."articleId" = a.id
+       AND aa."userId" = $5::uuid
+       AND aa."consentStatus" = 'ACCEPTED'
+       AND aa."isVisible" = true
+   ))
 ORDER BY a."createdAt" DESC
 LIMIT $2 OFFSET $3;
 
@@ -306,6 +313,7 @@ SELECT m.role
 FROM "MediaMember" m
 JOIN "Media" md ON md.id = m."mediaId"
 WHERE md."publicationId" = $1 AND m."userId" = $2
+  AND m.status = 'active'
 LIMIT 1;
 
 -- name: DeleteArticle :exec

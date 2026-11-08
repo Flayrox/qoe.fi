@@ -107,6 +107,10 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		QuotedAnnotationID: in.QuotedAnnotationID,
 	})
 	if err != nil {
+		if errors.Is(err, ErrBlockedContent) {
+			response.Forbidden(w, "Action impossible : ce compte est bloqué.")
+			return
+		}
 		response.BadRequest(w, err.Error())
 		return
 	}
@@ -237,6 +241,10 @@ func (h *Handler) toggleLike(w http.ResponseWriter, r *http.Request) {
 
 	liked, err := h.svc.ToggleLike(r.Context(), id, userID)
 	if err != nil {
+		if errors.Is(err, ErrBlockedContent) {
+			response.Forbidden(w, "Action impossible : ce compte est bloqué.")
+			return
+		}
 		log.Printf("[posts] like: %v", err)
 		response.Internal(w)
 		return
@@ -250,6 +258,10 @@ func (h *Handler) toggleRepost(w http.ResponseWriter, r *http.Request) {
 
 	reposted, err := h.svc.ToggleRepost(r.Context(), id, userID)
 	if err != nil {
+		if errors.Is(err, ErrBlockedContent) {
+			response.Forbidden(w, "Action impossible : ce compte est bloqué.")
+			return
+		}
 		log.Printf("[posts] repost: %v", err)
 		response.Internal(w)
 		return
@@ -269,6 +281,10 @@ func (h *Handler) reply(w http.ResponseWriter, r *http.Request) {
 
 	post, err := h.svc.Reply(r.Context(), parentID, userID, in.Content)
 	if err != nil {
+		if errors.Is(err, ErrBlockedContent) {
+			response.Forbidden(w, "Action impossible : ce compte est bloqué.")
+			return
+		}
 		response.BadRequest(w, err.Error())
 		return
 	}

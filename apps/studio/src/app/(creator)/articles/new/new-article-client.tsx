@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { t } from '@lingui/core/macro';
 import { useRouter } from 'next/navigation';
+import { Building2, UserRound } from 'lucide-react';
+import { cn } from '@qoe/utils';
 import { Editor } from '@/features/editor/components/Editor';
 import type { ArticleAttributionDraft } from '@/features/editor/components/ArticleAttributionEditor';
 import { saveArticleAction } from '@qoe/sdk/actions/articles';
@@ -11,9 +13,15 @@ import type { EditorCapabilities } from '@qoe/sdk/actions/articles';
 interface NewArticleClientProps {
   categories: { id: string; name: string; parentId?: string | null }[];
   capabilities?: EditorCapabilities;
+  /** Publication dans laquelle l'article sera créé (workspace actif). */
+  target?: {
+    type: 'PERSONAL' | 'MEDIA';
+    name: string;
+    fallbackFromMediaId?: string;
+  };
 }
 
-export function NewArticleClient({ categories, capabilities }: NewArticleClientProps) {
+export function NewArticleClient({ categories, capabilities, target }: NewArticleClientProps) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const createdIdRef = React.useRef<string | null>(null);
@@ -65,6 +73,24 @@ export function NewArticleClient({ categories, capabilities }: NewArticleClientP
 
   return (
     <div className="w-full">
+      {target && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-muted-foreground">{t`Publier dans`}</span>
+          <span className="inline-flex items-center gap-1.5 rounded-chip border border-border/60 bg-card px-2 py-0.5 font-medium text-foreground">
+            {target.type === 'MEDIA' ? (
+              <Building2 className="size-3.5 text-primary" strokeWidth={1.5} />
+            ) : (
+              <UserRound className="size-3.5 text-muted-foreground" strokeWidth={1.5} />
+            )}
+            {target.name}
+          </span>
+          {target.fallbackFromMediaId && (
+            <span className={cn('text-highlight')}>
+              {t`Ce média ne vous est plus accessible : l'article part dans votre profil personnel.`}
+            </span>
+          )}
+        </div>
+      )}
       <Editor
         categories={categories}
         isSaving={isSaving}

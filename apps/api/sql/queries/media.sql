@@ -8,7 +8,7 @@ SELECT m.id            AS member_id,
        m.status
 FROM "MediaMember" m
 JOIN "Media" md ON md.id = m."mediaId"
-WHERE md."publicationId" = $1 AND m."userId" = $2
+WHERE md."publicationId" = $1 AND m."userId" = $2 AND m.status = 'active'
 LIMIT 1;
 
 -- name: GetPublicationTypeByID :one

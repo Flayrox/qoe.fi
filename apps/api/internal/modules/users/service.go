@@ -397,7 +397,6 @@ type ReaderProfile struct {
 	CreatedAt              string  `json:"createdAt"`
 	FollowsCount           int32   `json:"followsCount"`
 	MutedWordsCount        int32   `json:"mutedWordsCount"`
-	IsMediaMember          bool    `json:"isMediaMember"`
 }
 
 // Usernames are stable public identifiers: ASCII lowercase letters, digits,
@@ -432,15 +431,13 @@ func (s *Service) Profile(ctx context.Context, userID string) (*ReaderProfile, e
 		       u.role, u."walletBalanceCents", u."hasCompletedOnboarding", u."isCertified",
 		       u."advancedSettingsMode", u."createdAt",
 		       (SELECT COUNT(*)::int FROM "Follows" f WHERE f."readerId" = u.id)  AS follows_count,
-		       (SELECT COUNT(*)::int FROM "MutedWord" m WHERE m."userId" = u.id)  AS muted_count,
-		       EXISTS(SELECT 1 FROM "MediaMember" mm
-		              WHERE mm."userId" = u.id AND mm.status = 'active') AS is_media_member
+		       (SELECT COUNT(*)::int FROM "MutedWord" m WHERE m."userId" = u.id)  AS muted_count
 		FROM "User" u
 		WHERE u.id = $1`, toUUID(userID)).
 		Scan(&p.ID, &p.Email, &p.Name, &p.Username, &p.LogoURL, &p.OnboardingText, &p.Pronouns,
 			&p.Role, &p.WalletBalanceCents, &p.HasCompletedOnboarding, &p.IsCertified,
 			&p.AdvancedSettingsMode, &createdAt,
-			&p.FollowsCount, &p.MutedWordsCount, &p.IsMediaMember)
+			&p.FollowsCount, &p.MutedWordsCount)
 	if err != nil {
 		return nil, err
 	}

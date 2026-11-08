@@ -15,10 +15,10 @@ func TestListDrafts(t *testing.T) {
 
 	now := time.Now().Add(2 * time.Hour)
 	_, err := svc.CreateFull(ctx, fx.AuthorID, CreateFullInput{
-		Content:       "Brouillon en cours",
-		Tags:          []string{"draft"},
-		IsDraft:       true,
-		ScheduledAt:   &now,
+		Content:        "Brouillon en cours",
+		Tags:           []string{"draft"},
+		IsDraft:        true,
+		ScheduledAt:    &now,
 		TriggerWarning: strPtr("sujet sensible"),
 	})
 	if err != nil {

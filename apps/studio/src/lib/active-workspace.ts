@@ -2,14 +2,27 @@
 // 🎛️ Active Workspace — Contexte de travail actif (Personnel | Média)
 // =====================================================================
 // 📖 Le dashboard est piloté par le workspace actif (cookie posé par le
-//    switcher en haut). Chaque section (Home, Articles, Audience,
-//    Analytics, Réglages...) opère sur cette publication : la publication
-//    personnelle du créateur OU celle du Média sélectionné — sans changer
-//    de compte.
+//    switcher). Chaque section (Home, Articles, Audience, Analytics,
+//    Réglages...) opère sur cette publication : la publication personnelle
+//    du créateur OU celle du Média sélectionné — sans changer de compte.
+//
+//    Résolution unique : `@qoe/sdk/actions/workspace` (Go
+//    `GET /v1/workspaces/active`, membership active uniquement). `cache()`
+//    déduplique l'appel quand le layout et la page le demandent dans la même
+//    requête.
 // =====================================================================
 
-import { cookies } from 'next/headers';
-import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { cache } from 'react';
+import { getActiveWorkspaceContext } from '@qoe/sdk/actions/workspace';
+import {
+  parseWorkspaceCookie,
+  serializeWorkspaceCookie,
+  WORKSPACE_COOKIE,
+  type WorkspaceRef,
+} from '@qoe/sdk/workspace';
+
+export { WORKSPACE_COOKIE, serializeWorkspaceCookie };
+export type { WorkspaceRef };
 
 export interface ActiveWorkspace {
   type: 'PERSONAL' | 'MEDIA';
@@ -21,49 +34,32 @@ export interface ActiveWorkspace {
   mediaId?: string;
   /** rôle du user dans le Média (si type === 'MEDIA') */
   mediaRole?: string;
+  /** permissions effectives (base du rôle + overrides) */
+  permissions: string[];
+  /** cookie média devenu inaccessible → repli sur le profil personnel */
+  fallbackFromMediaId?: string;
 }
 
-const WORKSPACE_COOKIE = 'qoe_active_workspace';
-
-export function parseCookie(raw: string | undefined | null): { type?: string; id?: string } | null {
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(decodeURIComponent(raw)) as { type?: string; id?: string };
-    if (parsed.type && parsed.id) return parsed;
-    return null;
-  } catch {
-    return null;
-  }
-}
+/** Compat : le parseur vit désormais dans `@qoe/sdk/workspace`. */
+export const parseCookie = parseWorkspaceCookie;
 
 /**
  * 🎛️ Résout le workspace actif de l'utilisateur — Go-only.
- * - Si un Média actif est sélectionné et que l'utilisateur en est membre → contexte MEDIA.
+ * - Média actif si l'utilisateur en est membre **actif** → contexte MEDIA.
  * - Sinon → publication personnelle du créateur.
- * Délègue à Go `GET /v1/workspaces/active?mediaId=` (auth via Supabase JWT).
+ *
+ * Pas de fallback inventé : si Go est indisponible, l'erreur remonte (mieux
+ * vaut une page d'erreur qu'une écriture silencieuse dans la mauvaise
+ * publication avec `publicationId = userId`).
  */
-export async function getActiveWorkspace(userId: string): Promise<ActiveWorkspace> {
-  const cookieStore = await cookies();
-  const saved = parseCookie(cookieStore.get(WORKSPACE_COOKIE)?.value);
-  const mediaId = saved?.type === 'MEDIA' && saved.id ? saved.id : '';
-
-  try {
-    const qs = mediaId ? `?mediaId=${encodeURIComponent(mediaId)}` : '';
-    return await goFetch<ActiveWorkspace>(`/v1/workspaces/active${qs}`);
-  } catch {
-    // Fallback si Go indisponible (dev) : publication personnelle = userId
-    return {
-      type: 'PERSONAL',
-      publicationId: userId,
-      name: 'Profil Personnel',
-      slug: 'personal',
-      logoUrl: null,
-    };
-  }
-}
+export const getActiveWorkspace = cache(async (userId: string): Promise<ActiveWorkspace> => {
+  // La clé de cache est le userId ; la résolution elle-même lit le cookie.
+  void userId;
+  return getActiveWorkspaceContext();
+});
 
 /**
- * 🎛️ Version "server action" : lit le cookie et résout la publication active.
+ * 🎛️ Version "server action" : résout la publication active.
  * À utiliser dans les actions serveur du dashboard pour être workspace-aware.
  */
 export async function getActivePublicationId(userId: string): Promise<string> {

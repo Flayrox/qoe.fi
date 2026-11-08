@@ -63,6 +63,24 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(redirectTarget));
   }
 
+  // 3. Liens profonds `?ws=<mediaId>` (notifications, emails, partage) :
+  // on pose le cookie de workspace actif puis on redirige vers la même page
+  // sans le paramètre. Le layout et les résolveurs serveur voient alors le
+  // bon média dès le premier rendu.
+  const ws = request.nextUrl.searchParams.get('ws');
+  if (ws && /^[0-9a-fA-F-]{36}$/.test(ws)) {
+    const url = request.nextUrl.clone();
+    url.searchParams.delete('ws');
+    const redirect = NextResponse.redirect(url);
+    redirect.cookies.set(
+      'qoe_active_workspace',
+      encodeURIComponent(JSON.stringify({ type: 'MEDIA', id: ws })),
+      { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax' }
+    );
+    redirect.headers.set('x-locale', localeCookie);
+    return redirect;
+  }
+
   return supabaseResponse;
 }
 

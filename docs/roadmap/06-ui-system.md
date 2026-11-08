@@ -2,13 +2,13 @@
 
 ## État actuel
 
-| Élément | Détail |
-|---|---|
-| UI lab | `apps/studio/src/app/dev/ui-lab/` — 21 spécimens, catalogue généré |
-| Catalogue | `pnpm ui:catalog` → `catalog.json` (scan réel + compteur d'usages) |
-| Budget de dette | `ui-budget.json` + `pnpm ui:audit` (ratchet, CI bloquante) |
-| Tests visuels | `e2e/visual/ui-lab.visual.spec.ts` |
-| Primitives | `packages/ui/src/primitives/*` (~30 entrées dans l'exports map) |
+| Élément         | Détail                                                             |
+| --------------- | ------------------------------------------------------------------ |
+| UI lab          | `apps/studio/src/app/dev/ui-lab/` — 21 spécimens, catalogue généré |
+| Catalogue       | `pnpm ui:catalog` → `catalog.json` (scan réel + compteur d'usages) |
+| Budget de dette | `ui-budget.json` + `pnpm ui:audit` (ratchet, CI bloquante)         |
+| Tests visuels   | `e2e/visual/ui-lab.visual.spec.ts`                                 |
+| Primitives      | `packages/ui/src/primitives/*` (~30 entrées dans l'exports map)    |
 
 C'est une très bonne base : peu de projets ont un inventaire généré et un
 ratchet de dette. Le travail restant est moins « construire » que « finir de
@@ -31,6 +31,7 @@ baselines par plateforme (`darwin`) → la CI Linux n'aura jamais de baseline et
 le test ne protège rien en CI.
 
 **Approche** :
+
 - forcer `snapshotPathTemplate` sans plateforme, ou générer les baselines dans
   un conteneur Docker (même police, même rendu) ;
 - ajouter un job CI dédié, exécuté seulement si `packages/ui/**` change ;
@@ -40,13 +41,13 @@ le test ne protège rien en CI.
 
 `ui-budget.json` au 2026-11-06 :
 
-| Métrique | Reste |
-|---|---:|
-| `<button>` bruts | 318 (80 fichiers) |
-| `<input>` bruts | 139 (38 fichiers) |
-| overlays faits main | 3 |
-| primitives locales | 16 |
-| primitives inutilisées | 5 |
+| Métrique               |             Reste |
+| ---------------------- | ----------------: |
+| `<button>` bruts       | 318 (80 fichiers) |
+| `<input>` bruts        | 139 (38 fichiers) |
+| overlays faits main    |                 3 |
+| primitives locales     |                16 |
+| primitives inutilisées |                 5 |
 
 **Approche** : migrer par écran, pas par composant. Commencer par les écrans
 les plus vus (feed, article, réglages) et faire descendre le budget à chaque
@@ -66,6 +67,7 @@ règle simple : une primitive sans spécimen n'existe pas.
 ## UI-05 — Accessibilité (P1)
 
 À vérifier systématiquement dans le lab :
+
 - contrastes (le thème sombre est un piège classique) ;
 - navigation clavier complète (focus visible, ordre logique, `Esc`) ;
 - `aria-*` sur les overlays, menus, combobox ;

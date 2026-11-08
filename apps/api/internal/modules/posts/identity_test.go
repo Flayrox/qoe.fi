@@ -7,42 +7,38 @@ import (
 	db "github.com/qoefi/api/internal/database"
 )
 
-// Le type d'identité d'un auteur de pensée est dérivé de sa membership média
-// active, et non de la surface d'affichage. Sans ce champ, ThoughtCard ne peut
-// pas savoir qu'un compte média doit garder un avatar carré.
-func TestAuthorOfCarriesIdentityType(t *testing.T) {
+// Une pensée appartient à une personne, jamais à un média : même si l'auteur
+// est membre actif d'un média, son identité publique reste PERSONAL. Le média
+// n'apparaît que sur les articles publiés dans sa publication.
+func TestAuthorOfIsAlwaysPersonal(t *testing.T) {
 	row := db.GetPostsByIDsRow{
 		AuthorID:        "user_camille",
 		AuthorName:      pgtype.Text{String: "Camille", Valid: true},
 		AuthorUsername:  pgtype.Text{String: "camille", Valid: true},
-		AuthorLogo:      pgtype.Text{String: "/avatars/media-camille.svg", Valid: true},
+		AuthorLogo:      pgtype.Text{String: "/avatars/camille.svg", Valid: true},
 		AuthorCertified: true,
-		AuthorIsMedia:   true,
 	}
 
 	author := AuthorOf(&row, map[string]bool{"user_camille": true})
-	if author.Type != "MEDIA" {
-		t.Fatalf("type = %q, attendu MEDIA", author.Type)
+	if author.Type != "PERSONAL" {
+		t.Fatalf("type = %q, attendu PERSONAL", author.Type)
+	}
+	if author.LogoURL == nil || *author.LogoURL != "/avatars/camille.svg" {
+		t.Fatalf("logo = %v, le logo personnel doit être conservé", author.LogoURL)
 	}
 	if !author.IsFollowing || !author.IsCertified {
 		t.Fatalf("attributs perdus : %+v", author)
 	}
-
-	row.AuthorIsMedia = false
-	if got := AuthorOf(&row, nil).Type; got != "PERSONAL" {
-		t.Fatalf("type = %q, attendu PERSONAL", got)
-	}
 }
 
-func TestActorFromLikeCarriesIdentityType(t *testing.T) {
+func TestActorFromLikeIsAlwaysPersonal(t *testing.T) {
 	actor := actorFromLike(db.ListLikesForPostRow{
 		UserID:        "user_camille",
 		UserName:      pgtype.Text{String: "Camille", Valid: true},
 		UserUsername:  pgtype.Text{String: "camille", Valid: true},
-		UserIsMedia:   true,
 		UserCertified: true,
 	})
-	if actor.Type != "MEDIA" {
-		t.Fatalf("type = %q, attendu MEDIA", actor.Type)
+	if actor.Type != "PERSONAL" {
+		t.Fatalf("type = %q, attendu PERSONAL", actor.Type)
 	}
 }

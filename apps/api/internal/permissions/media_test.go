@@ -29,7 +29,7 @@ func TestCanMedia_ByRole(t *testing.T) {
 		{"writer", PermCreateArticles, true},
 		{"writer", PermPublishAny, false},
 		{"writer", PermEditOwn, true},
-		{"viewer", PermViewAnalytics, true},
+		{"viewer", PermViewAnalytics, false}, // analytics réservés à owner/editor
 		{"viewer", PermCreateArticles, false},
 		{"ghost", PermViewAnalytics, false}, // rôle inconnu
 	}

@@ -9,12 +9,12 @@ const (
 	Media    = "MEDIA"
 )
 
-// Type returns the PUBLIC identity type for an account given whether it is an
-// active member of a media. Membership is the only source of truth: a media
-// publication's owner or staff member is a MEDIA identity, everyone else is a
-// person.
-func Type(isMedia bool) string {
-	if isMedia {
+// FromPublicationType dérive l'identité publique d'un auteur d'article depuis
+// le type de SA publication : MEDIA pour une publication média, PERSONAL sinon.
+// C'est la seule règle correcte pour un article : un membre de média qui publie
+// sur sa publication personnelle reste une personne.
+func FromPublicationType(publicationType string) string {
+	if publicationType == Media {
 		return Media
 	}
 	return Personal

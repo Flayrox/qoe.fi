@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { parseCookie } from '@/lib/active-workspace';
 
 describe('workspace cookie parser', () => {
@@ -68,9 +68,22 @@ vi.mock('next/headers', () => ({
   cookies: () => mockCookies(),
 }));
 
+// `cache()` de React mémoïse par requête via le dispatcher Next ; hors rendu
+// (tests) il garderait le résultat entre les cas. On le neutralise pour tester
+// la logique de résolution, pas la mémoïsation.
+vi.mock('react', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react')>()),
+  cache: <T>(fn: T) => fn,
+}));
+
 import { getActiveWorkspace, getActivePublicationId } from '@/lib/active-workspace';
 
 describe('getActiveWorkspace & getActivePublicationId', () => {
+  beforeEach(() => {
+    mockGoFetch.mockReset();
+    mockCookies.mockReset();
+  });
+
   it('returns MEDIA workspace when cookie has MEDIA and Go succeeds', async () => {
     const cookieVal = encodeURIComponent(JSON.stringify({ type: 'MEDIA', id: 'med_456' }));
     mockCookies.mockResolvedValue({
@@ -83,30 +96,67 @@ describe('getActiveWorkspace & getActivePublicationId', () => {
       slug: 'media-actu',
       logoUrl: null,
       mediaId: 'med_456',
+      mediaRole: 'editor',
+      permissions: ['media:create_articles'],
     });
 
     const ws = await getActiveWorkspace('usr_1');
     expect(ws.publicationId).toBe('pub_media_1');
     expect(ws.type).toBe('MEDIA');
+    expect(ws.permissions).toEqual(['media:create_articles']);
     expect(mockGoFetch).toHaveBeenCalledWith('/v1/workspaces/active?mediaId=med_456');
 
     const pubId = await getActivePublicationId('usr_1');
     expect(pubId).toBe('pub_media_1');
   });
 
-  it('falls back to personal workspace when Go call fails', async () => {
-    mockCookies.mockResolvedValue({
-      get: () => undefined,
-    });
-    mockGoFetch.mockRejectedValue(new Error('Network error'));
-
-    const ws = await getActiveWorkspace('usr_fallback');
-    expect(ws).toEqual({
+  it('resolves the real personal publication (never the userId) when no media cookie', async () => {
+    mockCookies.mockResolvedValue({ get: () => undefined });
+    mockGoFetch.mockResolvedValueOnce({
       type: 'PERSONAL',
-      publicationId: 'usr_fallback',
-      name: 'Profil Personnel',
-      slug: 'personal',
+      publicationId: 'usr_1',
+      name: 'Ada',
+      slug: 'ada',
       logoUrl: null,
     });
+    mockGoFetch.mockResolvedValueOnce({ publicationId: 'pub_personal_1' });
+
+    const ws = await getActiveWorkspace('usr_1');
+    expect(ws).toEqual({
+      type: 'PERSONAL',
+      publicationId: 'pub_personal_1',
+      name: 'Ada',
+      slug: 'ada',
+      logoUrl: null,
+      permissions: [],
+    });
+    expect(mockGoFetch).toHaveBeenNthCalledWith(2, '/v1/me/publication');
+  });
+
+  it('flags a stale MEDIA cookie instead of silently pretending it is active', async () => {
+    const cookieVal = encodeURIComponent(JSON.stringify({ type: 'MEDIA', id: 'med_gone' }));
+    mockCookies.mockResolvedValue({
+      get: (key: string) => (key === 'qoe_active_workspace' ? { value: cookieVal } : undefined),
+    });
+    mockGoFetch.mockResolvedValueOnce({
+      type: 'PERSONAL',
+      publicationId: 'usr_1',
+      name: 'Ada',
+      slug: 'ada',
+      logoUrl: null,
+    });
+    mockGoFetch.mockResolvedValueOnce({ publicationId: 'pub_personal_1' });
+
+    const ws = await getActiveWorkspace('usr_1');
+    expect(ws.type).toBe('PERSONAL');
+    expect(ws.publicationId).toBe('pub_personal_1');
+    expect(ws.fallbackFromMediaId).toBe('med_gone');
+  });
+
+  it('propagates Go failures instead of inventing a publication id', async () => {
+    mockCookies.mockResolvedValue({ get: () => undefined });
+    mockGoFetch.mockRejectedValue(new Error('Network error'));
+
+    await expect(getActiveWorkspace('usr_fallback')).rejects.toThrow('Network error');
   });
 });

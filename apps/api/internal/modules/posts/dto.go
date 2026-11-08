@@ -146,34 +146,39 @@ type PostCounts struct {
 
 // FeedPost est la sérialisation complète d'une pensée dans le feed (miroir Prisma).
 type FeedPost struct {
-	ID               string            `json:"id"`
-	Content          string            `json:"content"`
-	AuthorID         string            `json:"authorId"`
-	CreatedAt        string            `json:"createdAt"`
-	Tags             []string          `json:"tags"`
-	ImageURL         *string           `json:"imageUrl"`
-	LikeCount        int               `json:"likeCount"`
-	RepostCount      int               `json:"repostCount"`
-	ReplyCount       int               `json:"replyCount"`
-	ParentID         *string           `json:"parentId"`
-	RootID           *string           `json:"rootId"`
-	RepostID         *string           `json:"repostId"`
-	ReplyRestriction string            `json:"replyRestriction"`
-	IsPinned         bool              `json:"isPinned"`
-	IsHiddenByAuthor bool              `json:"isHiddenByAuthor"`
-	QuotedExcerpt    *string           `json:"quotedExcerpt,omitempty"`
-	QuotedAnnotation *QuotedAnnotation `json:"quotedAnnotation,omitempty"`
-	QuotedArticle    *QuotedArticle    `json:"quotedArticle,omitempty"`
-	Author           Author            `json:"author"`
-	Parent           *FeedPost         `json:"parent"`
-	Repost           *FeedPost         `json:"repost"`
-	Attachments      []Attachment      `json:"attachments"`
-	Poll             *Poll             `json:"poll"`
-	Likes            []PostActor       `json:"likes"`
-	Reposts          []PostActor       `json:"reposts"`
-	Counts           PostCounts        `json:"_count"`
-	Liked            bool              `json:"liked"`
-	Reposted         bool              `json:"reposted"`
+	ID          string   `json:"id"`
+	Content     string   `json:"content"`
+	AuthorID    string   `json:"authorId"`
+	CreatedAt   string   `json:"createdAt"`
+	Tags        []string `json:"tags"`
+	ImageURL    *string  `json:"imageUrl"`
+	LikeCount   int      `json:"likeCount"`
+	RepostCount int      `json:"repostCount"`
+	ReplyCount  int      `json:"replyCount"`
+	ParentID    *string  `json:"parentId"`
+	// ParentUnavailable explique qu'un parent existe mais n'est pas visible
+	// (compte bloqué, supprimé ou filtré). Le contenu du parent ne doit
+	// jamais être révélé — seul le motif générique sort.
+	ParentUnavailable       bool              `json:"parentUnavailable,omitempty"`
+	ParentUnavailableReason string            `json:"parentUnavailableReason,omitempty"`
+	RootID                  *string           `json:"rootId"`
+	RepostID                *string           `json:"repostId"`
+	ReplyRestriction        string            `json:"replyRestriction"`
+	IsPinned                bool              `json:"isPinned"`
+	IsHiddenByAuthor        bool              `json:"isHiddenByAuthor"`
+	QuotedExcerpt           *string           `json:"quotedExcerpt,omitempty"`
+	QuotedAnnotation        *QuotedAnnotation `json:"quotedAnnotation,omitempty"`
+	QuotedArticle           *QuotedArticle    `json:"quotedArticle,omitempty"`
+	Author                  Author            `json:"author"`
+	Parent                  *FeedPost         `json:"parent"`
+	Repost                  *FeedPost         `json:"repost"`
+	Attachments             []Attachment      `json:"attachments"`
+	Poll                    *Poll             `json:"poll"`
+	Likes                   []PostActor       `json:"likes"`
+	Reposts                 []PostActor       `json:"reposts"`
+	Counts                  PostCounts        `json:"_count"`
+	Liked                   bool              `json:"liked"`
+	Reposted                bool              `json:"reposted"`
 }
 
 // PostActor est l'état viewer pour likes/reposts.
@@ -190,6 +195,10 @@ type FeedSlice struct {
 	TargetPost              FeedPost  `json:"targetPost"`
 	IsIncompleteThread      bool      `json:"isIncompleteThread"`
 	HiddenIntermediateCount int       `json:"hiddenIntermediateCount,omitempty"`
+	// Réponse dont le parent n'est pas visible : dans un flux, la slice est
+	// retirée ; sur un profil, un placeholder « compte bloqué » est rendu.
+	ParentUnavailable       bool   `json:"parentUnavailable,omitempty"`
+	ParentUnavailableReason string `json:"parentUnavailableReason,omitempty"`
 }
 
 func intPtr(v int32) *int {

@@ -11,6 +11,45 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const canViewArticle = `-- name: CanViewArticle :one
+SELECT EXISTS (
+  SELECT 1
+  FROM "Article" a
+  JOIN "Publication" p ON p.id = a."publicationId"
+  LEFT JOIN "User" u ON u."publicationId" = p.id
+  WHERE a.id = $1
+    AND a.published = true
+    AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
+    AND (
+      u.id IS NULL
+      OR u.id = $2::uuid
+      OR COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
+      OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = $2::uuid AND f."publicationId" = p.id)
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM "BlockedUser" b
+      WHERE u.id IS NOT NULL
+        AND ((b."readerId" = $2::uuid AND b."creatorId" = u.id)
+          OR (b."creatorId" = $2::uuid AND b."readerId" = u.id))
+    )
+)
+`
+
+type CanViewArticleParams struct {
+	ArticleId string      `json:"articleId"`
+	ViewerId  pgtype.UUID `json:"viewerId"`
+}
+
+// Un article n'est lisible (donc annotable) que si sa publication est
+// publiée et si son propriétaire est public, soi-même ou suivi — sans
+// blocage dans un sens ou l'autre.
+func (q *Queries) CanViewArticle(ctx context.Context, arg CanViewArticleParams) (bool, error) {
+	row := q.db.QueryRow(ctx, canViewArticle, arg.ArticleId, arg.ViewerId)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const countHighlightUpvotes = `-- name: CountHighlightUpvotes :one
 SELECT COUNT(*)::int AS count
 FROM "AnnotationUpvote"
@@ -143,9 +182,7 @@ SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."quoteOrdinal", h."
        u.id::text AS reader_id,
        u.name     AS reader_name,
        u.username AS reader_username,
-       u."logoUrl" AS reader_logo,
-       EXISTS (SELECT 1 FROM "MediaMember" mm
-               WHERE mm."userId" = u.id AND mm.status = 'active') AS reader_is_media
+       u."logoUrl" AS reader_logo
 FROM "Highlight" h
 JOIN "User" u ON u.id = h."readerId"
 WHERE h.id = $1
@@ -169,7 +206,6 @@ type GetHighlightByIDRow struct {
 	ReaderName     pgtype.Text      `json:"reader_name"`
 	ReaderUsername pgtype.Text      `json:"reader_username"`
 	ReaderLogo     pgtype.Text      `json:"reader_logo"`
-	ReaderIsMedia  bool             `json:"reader_is_media"`
 }
 
 // Highlights & annotations : surlignage de passages d'articles, notes,
@@ -196,7 +232,6 @@ func (q *Queries) GetHighlightByID(ctx context.Context, id string) (GetHighlight
 		&i.ReaderName,
 		&i.ReaderUsername,
 		&i.ReaderLogo,
-		&i.ReaderIsMedia,
 	)
 	return i, err
 }
@@ -206,14 +241,29 @@ SELECT ac.id, ac.content, ac."createdAt", ac."highlightId",
        u.id::text AS author_id,
        u.name     AS author_name,
        u.username AS author_username,
-       u."logoUrl" AS author_logo,
-       EXISTS (SELECT 1 FROM "MediaMember" mm
-               WHERE mm."userId" = u.id AND mm.status = 'active') AS author_is_media
+       u."logoUrl" AS author_logo
 FROM "AnnotationComment" ac
 JOIN "User" u ON u.id = ac."authorId"
+JOIN "Highlight" h ON h.id = ac."highlightId"
 WHERE ac."highlightId" = $1
+  AND (h."isPublic" = true OR h."readerId" = $2)
+  AND NOT EXISTS (
+    SELECT 1 FROM "BlockedUser" b
+    WHERE (b."readerId" = $2 AND b."creatorId" = u.id)
+       OR (b."creatorId" = $2 AND b."readerId" = u.id)
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM "BlockedUser" b
+    WHERE (b."readerId" = $2 AND b."creatorId" = h."readerId")
+       OR (b."creatorId" = $2 AND b."readerId" = h."readerId")
+  )
 ORDER BY ac."createdAt" ASC
 `
+
+type ListAnnotationCommentsParams struct {
+	HighlightId string      `json:"highlightId"`
+	ViewerId    pgtype.UUID `json:"viewerId"`
+}
 
 type ListAnnotationCommentsRow struct {
 	ID             string           `json:"id"`
@@ -224,12 +274,13 @@ type ListAnnotationCommentsRow struct {
 	AuthorName     pgtype.Text      `json:"author_name"`
 	AuthorUsername pgtype.Text      `json:"author_username"`
 	AuthorLogo     pgtype.Text      `json:"author_logo"`
-	AuthorIsMedia  bool             `json:"author_is_media"`
 }
 
-// Commentaires d'un surlignage, avec auteur.
-func (q *Queries) ListAnnotationComments(ctx context.Context, highlightid string) ([]ListAnnotationCommentsRow, error) {
-	rows, err := q.db.Query(ctx, listAnnotationComments, highlightid)
+// Commentaires d'un surlignage, avec auteur. La visibilité du surlignage
+// (public ou le sien) et le blocage symétrique s'appliquent aussi ici :
+// un commentaire ne doit jamais révéler une annotation privée.
+func (q *Queries) ListAnnotationComments(ctx context.Context, arg ListAnnotationCommentsParams) ([]ListAnnotationCommentsRow, error) {
+	rows, err := q.db.Query(ctx, listAnnotationComments, arg.HighlightId, arg.ViewerId)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +297,6 @@ func (q *Queries) ListAnnotationComments(ctx context.Context, highlightid string
 			&i.AuthorName,
 			&i.AuthorUsername,
 			&i.AuthorLogo,
-			&i.AuthorIsMedia,
 		); err != nil {
 			return nil, err
 		}
@@ -266,8 +316,6 @@ SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."quoteOrdinal", h."
        u.name     AS reader_name,
        u.username AS reader_username,
        u."logoUrl" AS reader_logo,
-       EXISTS (SELECT 1 FROM "MediaMember" mm
-               WHERE mm."userId" = u.id AND mm.status = 'active') AS reader_is_media,
        EXISTS (
          SELECT 1 FROM "AnnotationUpvote" au
          WHERE au."highlightId" = h.id AND au."userId" = $2
@@ -278,6 +326,12 @@ FROM "Highlight" h
 JOIN "User" u ON u.id = h."readerId"
 WHERE h."articleId" = $1
   AND (h."isPublic" = true OR h."readerId" = $2)
+  -- Blocage symétrique : le surlignage d'un compte bloqué ne remonte jamais.
+  AND NOT EXISTS (
+    SELECT 1 FROM "BlockedUser" b
+    WHERE (b."readerId" = $2 AND b."creatorId" = u.id)
+       OR (b."creatorId" = $2 AND b."readerId" = u.id)
+  )
 ORDER BY h."createdAt" DESC
 `
 
@@ -304,7 +358,6 @@ type ListHighlightsByArticleRow struct {
 	ReaderName     pgtype.Text      `json:"reader_name"`
 	ReaderUsername pgtype.Text      `json:"reader_username"`
 	ReaderLogo     pgtype.Text      `json:"reader_logo"`
-	ReaderIsMedia  bool             `json:"reader_is_media"`
 	ViewerUpvoted  bool             `json:"viewer_upvoted"`
 	CommentsCount  int32            `json:"comments_count"`
 }
@@ -337,7 +390,6 @@ func (q *Queries) ListHighlightsByArticle(ctx context.Context, arg ListHighlight
 			&i.ReaderName,
 			&i.ReaderUsername,
 			&i.ReaderLogo,
-			&i.ReaderIsMedia,
 			&i.ViewerUpvoted,
 			&i.CommentsCount,
 		); err != nil {

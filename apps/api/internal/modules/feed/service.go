@@ -539,7 +539,6 @@ type publishedArticleRow struct {
 	AuthorUsername       pgtype.Text
 	AuthorLogo           pgtype.Text
 	AuthorCertified      bool
-	AuthorIsMedia        bool
 	PublicationName      string
 	PublicationSlug      string
 	PublicationSubdomain pgtype.Text
@@ -566,6 +565,15 @@ func truncatePaywall(content string, visibility db.ContentVisibility, tierID *st
 
 // buildFeedArticle construit la carte d'article du feed depuis la vue commune.
 func buildFeedArticle(r *publishedArticleRow) FeedArticle {
+	authorType := identity.FromPublicationType(string(r.PublicationType))
+	authorLogo := pgtypeTextPtr(r.AuthorLogo)
+	// Un article publié dans un média porte l'identité visuelle du média
+	// (logo), pas le logo personnel de la personne qui l'a écrit.
+	if authorType == identity.Media {
+		if pubLogo := pgtypeTextPtr(r.PublicationLogo); pubLogo != nil {
+			authorLogo = pubLogo
+		}
+	}
 	return FeedArticle{
 		ID:            r.ID,
 		Title:         r.Title,
@@ -581,9 +589,9 @@ func buildFeedArticle(r *publishedArticleRow) FeedArticle {
 			ID:          r.AuthorID,
 			Name:        pgtypeTextPtr(r.AuthorName),
 			Username:    pgtypeTextPtr(r.AuthorUsername),
-			LogoURL:     pgtypeTextPtr(r.AuthorLogo),
+			LogoURL:     authorLogo,
 			IsCertified: r.AuthorCertified,
-			Type:        identity.FromPublicationType(string(r.PublicationType)),
+			Type:        authorType,
 		},
 		Publication: FeedArticlePub{
 			ID:        r.PublicationID,
@@ -699,7 +707,6 @@ func (s *Service) RecentArticles(ctx context.Context, limit, offset int) (Articl
 			AuthorUsername:       r.AuthorUsername,
 			AuthorLogo:           r.AuthorLogo,
 			AuthorCertified:      r.AuthorCertified,
-			AuthorIsMedia:        r.AuthorIsMedia,
 			PublicationName:      r.PublicationName,
 			PublicationSlug:      r.PublicationSlug,
 			PublicationSubdomain: r.PublicationSubdomain,
@@ -774,7 +781,6 @@ func (s *Service) PublicationArticles(ctx context.Context, username, viewerID st
 			AuthorUsername:       r.AuthorUsername,
 			AuthorLogo:           r.AuthorLogo,
 			AuthorCertified:      r.AuthorCertified,
-			AuthorIsMedia:        r.AuthorIsMedia,
 			PublicationName:      r.PublicationName,
 			PublicationSlug:      r.PublicationSlug,
 			PublicationSubdomain: r.PublicationSubdomain,

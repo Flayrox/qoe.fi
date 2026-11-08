@@ -16,6 +16,7 @@ import (
 	"github.com/pgvector/pgvector-go"
 	"github.com/qoefi/api/internal/canon"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/identity"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/permissions"
 	"github.com/qoefi/api/internal/queue"
@@ -119,6 +120,10 @@ type AuthorInfo struct {
 	Username    *string `json:"username"`
 	LogoURL     *string `json:"logoUrl"`
 	IsCertified bool    `json:"isCertified"`
+	// Type suit la publication de l'article (MEDIA/PERSONAL), jamais la
+	// membership de l'auteur : un membre de média qui publie sur son profil
+	// personnel reste PERSONAL.
+	Type string `json:"type"`
 }
 
 // PublicationInfo est la publication dénormalisée.
@@ -129,6 +134,7 @@ type PublicationInfo struct {
 	Subdomain    *string `json:"subdomain"`
 	LogoURL      *string `json:"logoUrl,omitempty"`
 	CustomDomain *string `json:"customDomain"`
+	Type         string  `json:"type"`
 }
 
 // CreateArticleInput est l'entrée de création d'un article.
@@ -363,6 +369,13 @@ func (s *Service) GetBySlugAny(ctx context.Context, slug string, viewerID string
 
 	// GetArticleBySlugAnyRow a le même shape que GetArticleBySlugRow mais c'est
 	// un type distinct → conversion explicite vers le mapping existant.
+	pubType := identity.FromPublicationType(string(row.PublicationType))
+	authorLogo := textPtr(row.AuthorLogo)
+	if pubType == identity.Media {
+		if logo := textPtr(row.PublicationLogo); logo != nil {
+			authorLogo = logo
+		}
+	}
 	resp := ArticleResponse{
 		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: cut.Content,
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
@@ -373,8 +386,8 @@ func (s *Service) GetBySlugAny(ctx context.Context, slug string, viewerID string
 		CreatedAt:   row.CreatedAt.Time.Format(time.RFC3339),
 		UpdatedAt:   row.UpdatedAt.Time.Format(time.RFC3339),
 		IsTruncated: cut.IsTruncated, AccessGranted: cut.AccessGranted, PaywallMeta: cut.PaywallMeta,
-		Author:       AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: textPtr(row.AuthorLogo)},
-		Publication:  &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain), LogoURL: textPtr(row.PublicationLogo), CustomDomain: textPtr(row.PublicationCustomDomain)},
+		Author:       AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: authorLogo, Type: pubType},
+		Publication:  &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain), LogoURL: textPtr(row.PublicationLogo), CustomDomain: textPtr(row.PublicationCustomDomain), Type: pubType},
 		CoAuthors:    []AuthorInfo{},
 		Attributions: []AttributionInfo{},
 	}
@@ -591,12 +604,17 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 
 // List liste les articles d'une publication (RBAC créateur requis, avec catégorie).
 // period: "7d" | "30d" | "90d" | "all" (défaut 30d) — filtre ReadingSession pour Vues.
-func (s *Service) List(ctx context.Context, userID, publicationID string, limit, offset int, period string) ([]ArticleResponse, error) {
+func (s *Service) List(ctx context.Context, userID, publicationID, workspaceType string, limit, offset int, period string) ([]ArticleResponse, error) {
 	if _, err := s.resolveMember(ctx, userID, publicationID); err != nil {
 		return nil, err
 	}
 	rows, err := s.q.ListArticlesWithCategory(ctx, db.ListArticlesWithCategoryParams{
 		PublicationId: publicationID, Limit: int32(limit), Offset: int32(offset),
+		// PERSONAL : la liste inclut les articles co-signés (attribution
+		// acceptée + visible), sinon un co-auteur ne retrouve pas l'article
+		// qu'il édite. MEDIA : tout le média est déjà couvert par publicationId.
+		Column4: workspaceType == "PERSONAL",
+		Column5: toUUID(userID),
 	})
 	if err != nil {
 		return nil, err
@@ -2257,6 +2275,13 @@ func (s *Service) articleResponseFromIDRow(row db.GetArticleByIDRow) ArticleResp
 		}
 	}
 
+	pubType := identity.FromPublicationType(string(row.PublicationType))
+	authorLogo := textPtr(row.AuthorLogo)
+	if pubType == identity.Media {
+		if logo := textPtr(row.PublicationLogo); logo != nil {
+			authorLogo = logo
+		}
+	}
 	return ArticleResponse{
 		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: content,
 		DraftContent: draftContent, LiveContent: liveContent, HasUnpublishedChanges: hasUnpublishedChanges,
@@ -2274,14 +2299,21 @@ func (s *Service) articleResponseFromIDRow(row db.GetArticleByIDRow) ArticleResp
 		CreatedAt:     row.CreatedAt.Time.Format(time.RFC3339),
 		UpdatedAt:     row.UpdatedAt.Time.Format(time.RFC3339),
 		AccessGranted: true,
-		Author:        AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: textPtr(row.AuthorLogo)},
-		Publication:   &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain)},
+		Author:        AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: authorLogo, Type: pubType},
+		Publication:   &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain), LogoURL: textPtr(row.PublicationLogo), Type: pubType},
 		CoAuthors:     []AuthorInfo{},
 		Attributions:  []AttributionInfo{},
 	}
 }
 
 func articleFromSlugRow(row db.GetArticleBySlugRow, cut PaywallCutResult) ArticleResponse {
+	pubType := identity.FromPublicationType(string(row.PublicationType))
+	authorLogo := textPtr(row.AuthorLogo)
+	if pubType == identity.Media {
+		if logo := textPtr(row.PublicationLogo); logo != nil {
+			authorLogo = logo
+		}
+	}
 	resp := ArticleResponse{
 		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: cut.Content,
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
@@ -2294,8 +2326,8 @@ func articleFromSlugRow(row db.GetArticleBySlugRow, cut PaywallCutResult) Articl
 		CreatedAt:   row.CreatedAt.Time.Format(time.RFC3339),
 		UpdatedAt:   row.UpdatedAt.Time.Format(time.RFC3339),
 		IsTruncated: cut.IsTruncated, AccessGranted: cut.AccessGranted, PaywallMeta: cut.PaywallMeta,
-		Author:       AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: textPtr(row.AuthorLogo)},
-		Publication:  &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain), LogoURL: textPtr(row.PublicationLogo), CustomDomain: textPtr(row.PublicationCustomDomain)},
+		Author:       AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: authorLogo, Type: pubType},
+		Publication:  &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain), LogoURL: textPtr(row.PublicationLogo), CustomDomain: textPtr(row.PublicationCustomDomain), Type: pubType},
 		CoAuthors:    []AuthorInfo{},
 		Attributions: []AttributionInfo{},
 	}
@@ -2306,7 +2338,14 @@ func articleFromSlugRow(row db.GetArticleBySlugRow, cut PaywallCutResult) Articl
 }
 
 func articleFromRow(row db.GetArticleByIDRow, cut PaywallCutResult) ArticleResponse {
-	return ArticleResponse{
+	pubType := identity.FromPublicationType(string(row.PublicationType))
+	authorLogo := textPtr(row.AuthorLogo)
+	if pubType == identity.Media {
+		if logo := textPtr(row.PublicationLogo); logo != nil {
+			authorLogo = logo
+		}
+	}
+	resp := ArticleResponse{
 		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: cut.Content,
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
 		ReadingTime: int(row.ReadingTime), Status: row.Status, ScheduledAt: tsPtr(row.ScheduledAt),
@@ -2318,9 +2357,10 @@ func articleFromRow(row db.GetArticleByIDRow, cut PaywallCutResult) ArticleRespo
 		CreatedAt:   row.CreatedAt.Time.Format(time.RFC3339),
 		UpdatedAt:   row.UpdatedAt.Time.Format(time.RFC3339),
 		IsTruncated: cut.IsTruncated, AccessGranted: cut.AccessGranted, PaywallMeta: cut.PaywallMeta,
-		Author:      AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: textPtr(row.AuthorLogo)},
-		Publication: &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain)},
+		Author:      AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: authorLogo, Type: pubType},
+		Publication: &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain), Type: pubType},
 	}
+	return resp
 }
 
 // ListCreatorArticles liste les articles d'une publication au format du contrat

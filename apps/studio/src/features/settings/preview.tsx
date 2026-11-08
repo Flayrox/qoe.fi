@@ -53,9 +53,6 @@ export function Preview({
   accentColor,
   fontFamily,
   logoUrl,
-  headerImageUrl,
-  navigation: _navigation = [],
-  socialLinks: _socialLinks = [],
   siteOptions = {},
 }: PreviewProps) {
   const activeFont = FONT_FAMILIES[fontFamily || 'sans'] || "'Inter', sans-serif";
@@ -66,11 +63,9 @@ export function Preview({
     "Un espace dédié aux écrits de fond, aux analyses indépendantes et au partage d'idées.";
 
   const {
-    showBanner = true,
     showLogo = true,
     showTagline = true,
     showSubscribeButton = true,
-    showSocialLinks: _showSocialLinks = true,
     showCraftIndex = true,
     showProgressiveBlur = true,
     showNewsletterWall = true,
