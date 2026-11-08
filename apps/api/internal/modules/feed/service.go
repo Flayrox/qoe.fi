@@ -177,13 +177,13 @@ func (s *Service) Trending(ctx context.Context, viewerID string, limit, offset i
 
 // finalizeIDs assemble les slices et gère la pagination (take+1 → hasMore),
 // à partir d'une liste d'IDs. Partagé par toutes les variantes de feed.
-func (s *Service) finalizeIDs(ctx context.Context, ids []string, viewerID string, limit, offset int) (FeedResult, error) {
+func (s *Service) finalizeIDs(ctx context.Context, ids []string, viewerID string, limit, offset int, keepUnavailableParents bool) (FeedResult, error) {
 	hasMore := len(ids) > limit
 	if hasMore {
 		ids = ids[:limit]
 	}
 
-	slices, err := s.buildSlices(ctx, ids, viewerID)
+	slices, err := s.buildSlices(ctx, ids, viewerID, keepUnavailableParents)
 	if err != nil {
 		return FeedResult{}, err
 	}
@@ -201,7 +201,7 @@ func (s *Service) finalize(ctx context.Context, rows []db.FindFollowingFeedRow, 
 	for _, r := range rows {
 		ids = append(ids, r.ID)
 	}
-	return s.finalizeIDs(ctx, ids, viewerID, limit, offset)
+	return s.finalizeIDs(ctx, ids, viewerID, limit, offset, false)
 }
 
 func (s *Service) finalizeTrending(ctx context.Context, rows []db.FindTrendingRow, viewerID string, limit, offset int) (FeedResult, error) {
@@ -209,7 +209,7 @@ func (s *Service) finalizeTrending(ctx context.Context, rows []db.FindTrendingRo
 	for _, r := range rows {
 		ids = append(ids, r.ID)
 	}
-	return s.finalizeIDs(ctx, ids, viewerID, limit, offset)
+	return s.finalizeIDs(ctx, ids, viewerID, limit, offset, false)
 }
 
 // UserPosts retourne les pensées publiques d'un utilisateur (profil), résolu
@@ -288,7 +288,9 @@ func (s *Service) UserPosts(ctx context.Context, username, viewerID string, limi
 	for _, r := range rows {
 		ids = append(ids, r.ID)
 	}
-	return s.finalizeIDs(ctx, ids, viewerID, limit, offset)
+	// Profil : on garde les réponses au parent indisponible pour afficher
+	// un placeholder explicite côté UI (jamais le contenu du compte bloqué).
+	return s.finalizeIDs(ctx, ids, viewerID, limit, offset, true)
 }
 
 // FeedArticle est un article du feed mobile (écran principal), avec auteur /
@@ -486,18 +488,27 @@ func (s *Service) Thread(ctx context.Context, postID, viewerID string) (*ThreadP
 	if err != nil {
 		return nil, err
 	}
-	quoted, err := posts.QuotedArticlesFor(ctx, s.q, posts.QuoteRefsFrom(all))
+	quoted, err := posts.QuotedArticlesFor(ctx, s.q, posts.QuoteRefsFrom(all), viewerID)
 	if err != nil {
 		return nil, err
 	}
 
+	reasonCache := map[string]string{}
+	parentReason := func(parentID string) string {
+		return s.parentUnavailableReason(ctx, parentID, viewerID, reasonCache)
+	}
 	target := posts.BuildFeedPostWithAncestors(all[postID], all, attachments, polls, following, map[string]bool{}, quoted)
+	markThreadAncestorParents(&target, all, parentReason)
 	thread := &ThreadPost{FeedPost: target}
 
-	// Réponses triées par date croissante.
+	// Réponses triées par date croissante. Chaque réponse dont le parent est
+	// absent de la fermeture visible porte le même placeholder que la cible :
+	// sans ce marquage, le client la promeut silencieusement à la racine.
 	for _, id := range replyIDs {
 		if r, ok := all[id]; ok {
-			thread.Replies = append(thread.Replies, posts.BuildFeedPost(r, all, attachments, polls, following, quoted))
+			reply := posts.BuildFeedPost(r, all, attachments, polls, following, quoted)
+			markThreadParentUnavailable(&reply, all, parentReason)
+			thread.Replies = append(thread.Replies, reply)
 		}
 	}
 	return thread, nil
@@ -572,7 +583,7 @@ func buildFeedArticle(r *publishedArticleRow) FeedArticle {
 			Username:    pgtypeTextPtr(r.AuthorUsername),
 			LogoURL:     pgtypeTextPtr(r.AuthorLogo),
 			IsCertified: r.AuthorCertified,
-			Type:        identity.Type(r.AuthorIsMedia),
+			Type:        identity.FromPublicationType(string(r.PublicationType)),
 		},
 		Publication: FeedArticlePub{
 			ID:        r.PublicationID,

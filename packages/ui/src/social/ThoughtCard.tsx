@@ -42,6 +42,9 @@ export interface ThoughtData {
     reposts?: number;
   };
   authorId?: string;
+  /** Le parent existe mais est masqué (compte bloqué, supprimé ou filtré). */
+  parentUnavailable?: boolean;
+  parentUnavailableReason?: string | null;
   parent?: {
     id: string;
     author: {
@@ -229,6 +232,9 @@ export function ThoughtCard({
   const isFocus = variant === 'focus';
   const isParent = variant === 'parent';
   const isReply = variant === 'reply';
+  // Un parent masqué ne doit jamais être rendu : le placeholder de la page
+  // (profil / fil) porte l'explication, la carte ne connaît pas son contenu.
+  const parent = post.parentUnavailable ? null : post.parent;
 
   const handleReplyClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -251,13 +257,13 @@ export function ThoughtCard({
   };
 
   const canHideReply = Boolean(
-    post.parent && currentUserId && post.parent.author && post.parent.author.id === currentUserId
+    parent && currentUserId && parent.author && parent.author.id === currentUserId
   );
 
   const hasTopBanner = Boolean(
     post.isPinned ||
-    (post.parent && !isParent && !isFocus && variant === 'timeline') ||
-    (post.parent && (variant === 'reply' || isFocus) && depth > 0)
+    (parent && !isParent && !isFocus && variant === 'timeline') ||
+    (parent && (variant === 'reply' || isFocus) && depth > 0)
   );
 
   return (
@@ -368,30 +374,30 @@ export function ThoughtCard({
             )}
 
             {/* Reply Context Banner (Only in main feed timeline view) */}
-            {post.parent && !isThreadChild && !isParent && !isFocus && variant === 'timeline' && (
+            {parent && !isThreadChild && !isParent && !isFocus && variant === 'timeline' && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground pb-0.5 font-sans">
                 <CornerDownRight className="w-3.5 h-3.5 text-brand" />
                 <span>
                   {t`En réponse à`}{' '}
                   <strong className="font-semibold text-foreground">
                     @
-                    {post.parent.author.username ||
-                      post.parent.author.subdomain ||
-                      post.parent.author.id.slice(0, 8)}
+                    {parent.author.username ||
+                      parent.author.subdomain ||
+                      parent.author.id.slice(0, 8)}
                   </strong>
                 </span>
               </div>
             )}
 
             {/* Sub-reply target indicator (In thread view when replying to a nested reply) */}
-            {post.parent && (variant === 'reply' || isFocus) && depth > 0 && (
+            {parent && (variant === 'reply' || isFocus) && depth > 0 && (
               <div className="text-[11px] text-muted-foreground font-sans">
                 {t`En réponse à`}{' '}
                 <span className="text-brand font-medium">
                   @
-                  {post.parent.author.username ||
-                    post.parent.author.subdomain ||
-                    post.parent.author.id.slice(0, 8)}
+                  {parent.author.username ||
+                    parent.author.subdomain ||
+                    parent.author.id.slice(0, 8)}
                 </span>
               </div>
             )}
