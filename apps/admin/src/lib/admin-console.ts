@@ -12,6 +12,8 @@
 // fichier sert à ne PAS proposer un écran qui répondra 403.
 // =====================================================================
 
+import { getAdminSurfaces } from '@qoe/config';
+
 /** Domaines d'interface, dans l'ordre d'affichage (miroir `Domains()`). */
 export const ADMIN_DOMAINS = [
   'pilotage',
@@ -209,252 +211,26 @@ export interface AdminNavItem {
  * la capacité (`ADMIN_CAPABILITY_DOMAINS`), pour qu'une entrée ne puisse pas se
  * ranger dans un domaine que sa capacité ne lui donne pas.
  */
-export const ADMIN_NAV: readonly AdminNavItem[] = [
-  {
-    href: '/admin',
-    label: 'Vue d’ensemble',
-    capability: 'admin.dashboard.read',
-    description: 'À traiter, compteurs réels et santé de la plateforme',
-  },
-  {
-    href: '/admin/work',
-    label: 'Ma file',
-    capability: 'admin.dashboard.read',
-    description: 'Trier, assigner et suivre les six files avec leurs SLA',
-  },
-  {
-    href: '/admin/health',
-    label: 'Santé plateforme',
-    capability: 'admin.dashboard.read',
-    alsoUses: ['admin.config.read'],
-    description: 'Postgres, file, workers, version de migration, mode d’autorisation',
-  },
-  {
-    // Méta-développeur, pas exploitation : la couverture des routes et les
-    // écrans manquants ne se lisent pas dans la file de travail.
-    href: '/admin/system',
-    label: 'Système',
-    capability: 'admin.dashboard.read',
-    alsoUses: ['admin.config.read'],
-    description: 'Couverture des routes, écrans porteurs et routes API-only assumées',
-  },
-  {
-    href: '/admin/users',
-    label: 'Comptes & modération',
-    capability: 'admin.users.read',
-    alsoUses: ['admin.users.moderate', 'admin.users.sessions.revoke'],
-    description: 'Rechercher un compte, suspendre, certifier, révoquer les sessions',
-  },
-  {
-    href: '/admin/reports',
-    label: 'Signalements',
-    capability: 'admin.reports.read',
-    alsoUses: ['admin.reports.write'],
-    description: 'Traiter la file de signalements',
-  },
-  {
-    href: '/admin/abuse',
-    label: 'Revue anti-abus',
-    capability: 'admin.abuse.read',
-    alsoUses: ['admin.abuse.decide'],
-    description: 'Verdicts automatiques non triviaux et métriques des deux erreurs',
-  },
-  {
-    href: '/admin/appeals',
-    label: 'Recours',
-    capability: 'admin.appeals.read',
-    alsoUses: ['admin.appeals.decide'],
-    description: 'Recours des personnes mesurées — seul `overturned` lève la mesure',
-  },
-  {
-    href: '/admin/incidents',
-    label: 'Incidents',
-    capability: 'admin.incidents.read',
-    alsoUses: ['admin.incidents.write'],
-    description: 'Registre des attaques confirmées et des dossiers staff',
-  },
-  {
-    href: '/admin/support',
-    label: 'Support',
-    capability: 'admin.support.read',
-    alsoUses: ['admin.support.write'],
-    description: 'Dossiers support, assignation, clôture et métriques',
-  },
-  {
-    href: '/admin/support/articles',
-    label: 'Articles d’aide',
-    capability: 'admin.content.read',
-    alsoUses: ['admin.content.write'],
-    description: 'Centre d’aide : brouillons, publication, révision',
-  },
-  {
-    href: '/admin/subscriptions',
-    label: 'Abonnements',
-    capability: 'admin.subscriptions.read',
-    alsoUses: ['admin.subscriptions.write'],
-    description: 'Octrois manuels datés, révocation, historique',
-  },
-  // Publications & freemium : la bascule email Pro n'a pas d'écran (l'API
-  // n'expose ni liste de publications ni état courant) — route assumée
-  // « API-only » dans le manifeste de couverture, donc pas d'entrée ici.
-  {
-    href: '/admin/imports',
-    label: 'Imports d’abonnés',
-    capability: 'admin.imports.read',
-    alsoUses: ['admin.imports.review'],
-    description: 'Revue des imports, décision staff et déclenchement d’envoi',
-  },
-  {
-    href: '/admin/campaigns',
-    label: 'Campagnes staff',
-    capability: 'admin.campaigns.read',
-    alsoUses: ['admin.campaigns.write'],
-    description: 'Campagnes éditoriales tracées de la plateforme',
-  },
-  {
-    href: '/admin/widgets',
-    label: 'Widgets & tendances',
-    capability: 'admin.widgets.read',
-    alsoUses: ['admin.widgets.write'],
-    description: 'Mise en avant, tendances, promotions du lecteur',
-  },
-  {
-    href: '/admin/notifications',
-    label: 'Notifications & livraisons',
-    capability: 'admin.deliveries.read',
-    alsoUses: ['admin.deliveries.retry'],
-    description: 'Journal des livraisons d’emails et reprise des échecs',
-  },
-  // L'allowlist d'inscription et les identifiants réservés sont portés par
-  // l'écran Configuration : ces deux surfaces n'ont pas d'écran propre (le
-  // manifeste de couverture le vérifie), et une entrée de navigation sans
-  // écran derrière serait un 404 déguisé.
-  {
-    href: '/admin/storage',
-    label: 'Stockage médias',
-    capability: 'admin.dashboard.read',
-    description: 'Saturation du bucket images et principaux consommateurs',
-  },
-  {
-    href: '/admin/retention',
-    label: 'Rétention & Purge',
-    capability: 'admin.compliance.read',
-    alsoUses: ['admin.compliance.export'],
-    description: 'Politiques de conservation par table, purge planifiée et journal d’audit',
-  },
-  {
-    href: '/admin/api',
-    label: 'Demandes d’API',
-    capability: 'admin.api.read',
-    alsoUses: ['admin.api.grants.write'],
-    description: 'Candidatures créateurs et permissions modulables',
-  },
-  {
-    href: '/admin/oauth',
-    label: 'Applications OAuth',
-    capability: 'admin.oauth.read',
-    alsoUses: ['admin.oauth.approve'],
-    description: 'Clients OAuth tiers : lecture et décision',
-  },
-  {
-    href: '/admin/features',
-    label: 'Registre features',
-    capability: 'admin.config.read',
-    alsoUses: ['admin.flags.write'],
-    description: 'Statut, promesse de notification, flag et page de chaque fonctionnalité',
-  },
-  {
-    // L'index des leviers : là où l'on cherche « quel réglage fait quoi »
-    // avant d'ouvrir un écran au hasard.
-    href: '/admin/settings',
-    label: 'Réglages',
-    capability: 'admin.config.read',
-    alsoUses: ['admin.flags.write', 'admin.config.write'],
-    description: 'Index des leviers : effet, portée, capacité et preuve exigée',
-  },
-  {
-    href: '/admin/sandbox',
-    label: 'Bac à sable',
-    capability: 'admin.dashboard.read',
-    alsoUses: ['admin.config.write'],
-    description: 'Scénarios de test isolés et impersonation contrôlée',
-  },
-  {
-    href: '/admin/config',
-    label: 'Feature flags',
-    capability: 'admin.config.read',
-    alsoUses: ['admin.flags.write', 'admin.config.write'],
-    description: 'Interrupteurs de plateforme et configuration système',
-  },
-  {
-    href: '/admin/frontend',
-    label: 'Frontend & UI',
-    capability: 'admin.config.read',
-    alsoUses: ['admin.config.write'],
-    description: 'Bandeaux, héros et textes d’interface sans redéploiement',
-  },
-  {
-    href: '/admin/translations',
-    label: 'Traducteur & langues',
-    capability: 'admin.config.read',
-    alsoUses: ['admin.config.write'],
-    description: 'Catalogue de traduction publié aux applications',
-  },
-  {
-    href: '/admin/legal',
-    label: 'Contenu juridique',
-    capability: 'admin.legal.read',
-    alsoUses: ['admin.legal.write'],
-    description: 'Documents légaux, versions, acceptations et avis',
-  },
-  {
-    // La file des doubles validations : publier un texte opposable est un acte
-    // N3, donc une SECONDE personne autorisée doit l'approuver. L'entrée ouvre
-    // sur `admin.legal.read` — la capacité que la route exige — et l'écran
-    // cache les boutons de décision à l'auteur de la demande.
-    href: '/admin/approvals',
-    label: 'Doubles validations',
-    capability: 'admin.legal.read',
-    alsoUses: ['admin.legal.write'],
-    description: 'Approuver ou refuser les actes irréversibles qui attendent une seconde personne',
-  },
-  {
-    href: '/admin/compliance',
-    label: 'Conformité',
-    capability: 'admin.compliance.read',
-    alsoUses: ['admin.compliance.export'],
-    description: 'Exports de consentement, vérification et revue RGPD',
-  },
-  {
-    href: '/admin/audit',
-    label: 'Journal d’audit',
-    capability: 'admin.audit.read',
-    description: 'Qui a fait quoi, sous quelle capacité et sous quel mode',
-  },
-  {
-    href: '/admin/access',
-    label: 'Accès staff',
-    capability: 'admin.access.read',
-    alsoUses: ['admin.access.grant'],
-    description: 'Attribuer, dater et révoquer les rôles de la console',
-  },
-  {
-    href: '/admin/access/roles',
-    label: 'Matrice des rôles',
-    capability: 'admin.access.read',
-    description: 'Rôle × capacité, généré depuis le vocabulaire serveur',
-  },
-  {
-    // La route exige `admin.audit.read` : lire un refus est un acte d'audit.
-    // La capacité principale suit donc le registre, pas le voisinage de l'URL
-    // (le domaine affiché se déduit de la capacité, jamais du chemin).
-    href: '/admin/access/decisions',
-    label: 'Décisions d’autorisation',
-    capability: 'admin.audit.read',
-    alsoUses: ['admin.access.read'],
-    description: 'Journal des refus observés, groupé par capacité',
-  },
-];
+function requireAdminCapability(value: string): AdminCapability {
+  if (!isAdminCapability(value)) {
+    throw new Error(`Capacité admin inconnue dans le manifeste de surfaces : ${value}`);
+  }
+  return value;
+}
+
+/**
+ * Navigation de la console, dérivée du manifeste partagé
+ * (`@qoe/config/surfaces`). Le domaine n'est pas répété ici : il se déduit de
+ * la capacité (`ADMIN_CAPABILITY_DOMAINS`). Chaque capacité est validée au
+ * démarrage contre le vocabulaire fermé, miroir de Go.
+ */
+export const ADMIN_NAV: readonly AdminNavItem[] = getAdminSurfaces().map((surface) => ({
+  href: surface.path,
+  label: surface.defaultLabel,
+  capability: requireAdminCapability(surface.capability ?? ''),
+  alsoUses: surface.alsoUses?.map((capability) => requireAdminCapability(capability)),
+  description: surface.description ?? '',
+}));
 
 /** Entrée de navigation pour un chemin (la plus longue correspondance). */
 export function navItemForPath(pathname: string): AdminNavItem | null {
