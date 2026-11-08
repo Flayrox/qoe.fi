@@ -106,7 +106,12 @@ interface HomeData {
 }
 
 const mapHydrated = (a: HydrateArticle): ArticleFeedItem =>
-  mapArticleToFeedItem(a as unknown as ArticleWithDetails);
+  mapArticleToFeedItem({
+    category: null,
+    likes: [],
+    _count: { likes: 0, replies: 0, reposts: 0 },
+    ...a,
+  });
 
 const list = <T>(v: T[] | null | undefined): T[] => v ?? [];
 

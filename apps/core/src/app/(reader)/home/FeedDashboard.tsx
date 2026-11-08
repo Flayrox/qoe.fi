@@ -563,7 +563,7 @@ export function FeedDashboard({
   // 🚫 « Voir moins de contenu comme ça » — feedback négatif explicite.
   // Retire la carte localement ET persiste via /api/feed/show-less : exclusion
   // SQL (ContentFeedback) + éloignement vectoriel (EMA négatif) côté Go.
-  const handleHideArticle = async (article: Article) => {
+  const handleHideArticle = async (article: { id: string }) => {
     setLocalPosts((prev) => prev.filter((p) => p.id !== article.id));
     setFeedItems((prev) => prev.filter((p) => p.id !== article.id));
     trackEvent('feed_show_less', { articleId: article.id });
@@ -899,7 +899,7 @@ export function FeedDashboard({
                                 position={idx}
                               >
                                 <ThoughtFeedSlice
-                                  slice={sliceData as unknown as FeedSlice}
+                                  slice={sliceData as never as FeedSlice}
                                   currentUserId={dbUser?.id || null}
                                   onOpenPost={handleOpenPost}
                                   onOpenArticle={handleOpenArticle}
@@ -925,7 +925,7 @@ export function FeedDashboard({
                             >
                               <ArticleCard
                                 article={
-                                  article as unknown as React.ComponentProps<
+                                  article as never as React.ComponentProps<
                                     typeof ArticleCard
                                   >['article']
                                 }
@@ -936,7 +936,7 @@ export function FeedDashboard({
                                 isFollowedAuthor={isFollowedAuthor}
                                 handleFollowToggle={handleFollowToggle}
                                 handleBookmarkToggle={(art) => {
-                                  void handleBookmarkToggle(art as unknown as Article);
+                                  void handleBookmarkToggle(art as never as Article);
                                 }}
                                 featured={idx === 0 && activeFeed === 'recommandation'}
                                 discovery={
@@ -945,12 +945,12 @@ export function FeedDashboard({
                                 onHideArticle={
                                   dbUser
                                     ? (art) => {
-                                        void handleHideArticle(art as unknown as Article);
+                                        void handleHideArticle(art);
                                       }
                                     : undefined
                                 }
                                 onOpenArticle={(art) => {
-                                  void handleOpenArticle(art as unknown as Partial<Article>);
+                                  void handleOpenArticle(art as never as Partial<Article>);
                                 }}
                                 onOpenPost={handleOpenPost}
                                 onOpenProfile={(username) => {

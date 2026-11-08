@@ -16,6 +16,7 @@ import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
 import { CertifiedBadge } from '@qoe/ui/ui/CertifiedBadge';
 import Link from 'next/link';
 import { routes, getArticleUrl } from '@qoe/config/routes';
+import type { QuotedArticleData } from '@qoe/ui';
 import {
   useArticleOverlay,
   type OpenArticleInput,
@@ -228,18 +229,26 @@ export function SearchFeed({ initialQuery = '' }: { initialQuery?: string }) {
                         window.location.href = routes.feed.thought(handle, id);
                       }
                     }}
-                    onOpenArticle={(art) => {
-                      const slug = typeof art === 'string' ? art : art?.slug;
-                      if (!slug) return;
+                    onOpenArticle={(art: QuotedArticleData) => {
+                      if (!art?.slug) return;
+                      const input: OpenArticleInput = {
+                        slug: art.slug,
+                        title: art.title,
+                        imageUrl: art.imageUrl,
+                        isPremium: art.isPremium,
+                        author: art.author
+                          ? {
+                              id: '',
+                              name: art.author.name,
+                              username: art.author.username || undefined,
+                              subdomain: art.author.subdomain,
+                            }
+                          : undefined,
+                      };
                       if (articleOverlay) {
-                        articleOverlay.openArticle(
-                          typeof art === 'string' ? { slug } : (art as unknown as OpenArticleInput),
-                          { source: 'feed' }
-                        );
+                        articleOverlay.openArticle(input, { source: 'feed' });
                       } else {
-                        window.location.href = getArticleUrl(
-                          typeof art === 'string' ? { slug } : { ...art, slug }
-                        );
+                        window.location.href = getArticleUrl({ slug: art.slug });
                       }
                     }}
                   />
@@ -260,12 +269,23 @@ export function SearchFeed({ initialQuery = '' }: { initialQuery?: string }) {
                     key={art.id}
                     onClick={() => {
                       if (!art.slug) return;
+                      const input: OpenArticleInput = {
+                        id: art.id,
+                        title: art.title,
+                        slug: art.slug,
+                        content: art.content,
+                        isPremium: art.isPremium,
+                        createdAt: new Date(art.createdAt).toISOString(),
+                        author: {
+                          id: art.authorId,
+                        },
+                      };
                       if (articleOverlay) {
-                        articleOverlay.openArticle(art as unknown as OpenArticleInput, {
+                        articleOverlay.openArticle(input, {
                           source: 'feed',
                         });
                       } else {
-                        window.location.href = getArticleUrl(art);
+                        window.location.href = getArticleUrl(input);
                       }
                     }}
                     className="p-4 rounded-2xl bg-card border border-border/50 space-y-1 hover:border-border/80 hover:bg-muted/40 transition-all cursor-pointer select-none"

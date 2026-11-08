@@ -526,8 +526,13 @@ export async function buildVectorFeedPage(params: {
   const { articles, thoughts } = hydrated;
 
   // Le JSON Go respecte le contrat Prisma lu par mapArticleToFeedItem.
-  const vectorArticles = Array.isArray(articles)
-    ? (articles as unknown as ArticleWithDetails[])
+  const vectorArticles: ArticleWithDetails[] = Array.isArray(articles)
+    ? articles.map((a) => ({
+        category: null,
+        likes: [],
+        _count: { likes: 0, replies: 0, reposts: 0 },
+        ...a,
+      }))
     : [];
   const vectorSlices = Array.isArray(thoughts) ? thoughts : [];
   const articleById = new Map(vectorArticles.map((a) => [a.id, a]));

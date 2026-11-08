@@ -18,7 +18,13 @@ import { cn } from '@qoe/utils';
 import { getArticleUrl } from '@qoe/config';
 import { getCoverPlaceholder } from '@qoe/theme';
 import type { FeedArticleDTO } from '@qoe/sdk/types';
-import { useArticleShadow, updateArticleShadow, useActorShadow, updateActorShadow } from '@qoe/sdk';
+import {
+  useArticleShadow,
+  updateArticleShadow,
+  useActorShadow,
+  updateActorShadow,
+  withShadowMutation,
+} from '@qoe/sdk';
 import { RepostPopover } from './social/RepostPopover';
 import { useRequireAuth } from './auth/AuthModalContext';
 import { CertifiedBadge } from './ui/CertifiedBadge';
@@ -84,9 +90,11 @@ export interface ArticleCardProps {
   isFollowedAuthor?: boolean;
   disableAuthorOverride?: boolean;
   isBookmarked?: boolean;
-  handleFollowToggle?: (author: ArticleCardArticle['author']) => void;
-  handleBookmarkToggle?: (article: ArticleCardArticle) => void;
-  onRepostToggle?: (article: ArticleCardArticle) => void;
+  handleFollowToggle?: (author: ArticleCardArticle['author']) => void | Promise<unknown>;
+  handleBookmarkToggle?: (article: ArticleCardArticle) => void | Promise<unknown>;
+  onRepostToggle?: (article: ArticleCardArticle) => void | Promise<unknown>;
+  onLikeToggle?: (article: ArticleCardArticle) => void | Promise<unknown>;
+  handleLikeToggle?: (article: ArticleCardArticle) => void | Promise<unknown>;
   onQuoteArticle?: (article: ArticleCardArticle) => void;
   featured?: boolean;
   discovery?: boolean;
@@ -294,6 +302,8 @@ export function ArticleCard({
   handleFollowToggle,
   handleBookmarkToggle,
   onRepostToggle,
+  onLikeToggle,
+  handleLikeToggle,
   onQuoteArticle,
   featured = false,
   discovery = false,
@@ -467,28 +477,70 @@ export function ArticleCard({
   const toggleBookmark = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
+    const previousBookmarked = bookmarked;
     const nextBookmarked = !bookmarked;
-    updateArticleShadow(article.id, { bookmarked: nextBookmarked });
-    handleBookmarkToggle?.(article);
+
+    void withShadowMutation({
+      lockKey: `article:${article.id}:bookmark`,
+      optimisticUpdate: () => {
+        updateArticleShadow(article.id, { bookmarked: nextBookmarked });
+      },
+      rollback: () => {
+        updateArticleShadow(article.id, { bookmarked: previousBookmarked });
+      },
+      mutation: async () => {
+        await handleBookmarkToggle?.(article);
+      },
+    });
   };
 
   const toggleFollow = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
+    const previousFollowed = followed;
     const nextFollowed = !followed;
-    updateActorShadow(article.author.id, { followed: nextFollowed });
-    if (article.author.username) {
-      updateActorShadow(article.author.username, { followed: nextFollowed });
-    }
-    handleFollowToggle?.(article.author);
+    const authorId = article.author?.id;
+    const authorUsername = article.author?.username;
+
+    void withShadowMutation({
+      lockKey: `article:${article.id}:follow`,
+      optimisticUpdate: () => {
+        if (authorId) updateActorShadow(authorId, { followed: nextFollowed });
+        if (authorUsername) updateActorShadow(authorUsername, { followed: nextFollowed });
+      },
+      rollback: () => {
+        if (authorId) updateActorShadow(authorId, { followed: previousFollowed });
+        if (authorUsername) updateActorShadow(authorUsername, { followed: previousFollowed });
+      },
+      mutation: async () => {
+        await handleFollowToggle?.(article.author);
+      },
+    });
   };
 
   const toggleLike = withAuth(
     (event: React.MouseEvent) => {
       event.preventDefault();
       event.stopPropagation();
+      const previousLiked = liked;
       const nextLiked = !liked;
-      updateArticleShadow(article.id, { liked: nextLiked });
+
+      void withShadowMutation({
+        lockKey: `article:${article.id}:like`,
+        optimisticUpdate: () => {
+          updateArticleShadow(article.id, { liked: nextLiked });
+        },
+        rollback: () => {
+          updateArticleShadow(article.id, { liked: previousLiked });
+        },
+        mutation: async () => {
+          if (onLikeToggle) {
+            await onLikeToggle(article);
+          } else if (handleLikeToggle) {
+            await handleLikeToggle(article);
+          }
+        },
+      });
     },
     { actionContext: 'like' }
   );
@@ -497,9 +549,21 @@ export function ArticleCard({
     (event: React.MouseEvent) => {
       event.preventDefault();
       event.stopPropagation();
+      const previousReposted = reposted;
       const nextReposted = !reposted;
-      updateArticleShadow(article.id, { reposted: nextReposted });
-      onRepostToggle?.(article);
+
+      void withShadowMutation({
+        lockKey: `article:${article.id}:repost`,
+        optimisticUpdate: () => {
+          updateArticleShadow(article.id, { reposted: nextReposted });
+        },
+        rollback: () => {
+          updateArticleShadow(article.id, { reposted: previousReposted });
+        },
+        mutation: async () => {
+          await onRepostToggle?.(article);
+        },
+      });
     },
     { actionContext: 'repost' }
   );

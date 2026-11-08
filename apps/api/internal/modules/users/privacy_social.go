@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/qoefi/api/internal/domainevents"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
 )
@@ -96,31 +97,15 @@ func (h *Handler) toggleBlockedUser(w http.ResponseWriter, r *http.Request) {
 	if !exists {
 		// Même nettoyage que posts.ToggleBlock : un blocage coupe les liens
 		// sociaux dans les deux sens, y compris depuis les réglages.
-		_, _ = h.svc.pool.Exec(r.Context(), `
-			DELETE FROM "Follows"
-			WHERE ("readerId" = $1 AND "publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $2))
-			   OR ("readerId" = $2 AND "publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $1))`,
-			toUUID(userID), toUUID(target))
-		_, _ = h.svc.pool.Exec(r.Context(), `
-			DELETE FROM "FollowRequest"
-			WHERE ("requesterId" = $1 AND "publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $2))
-			   OR ("requesterId" = $2 AND "publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $1))`,
-			toUUID(userID), toUUID(target))
-		_, _ = h.svc.pool.Exec(r.Context(), `
-			DELETE FROM "Notification"
-			WHERE type = 'FOLLOW' AND metadata->>'kind' = 'FOLLOW_REQUEST'
-			  AND (("recipientId" = $1 AND "senderId" = $2) OR ("recipientId" = $2 AND "senderId" = $1))`,
-			toUUID(userID), toUUID(target))
-		_, _ = h.svc.pool.Exec(r.Context(), `
-			DELETE FROM "CollaborationRequest"
-			WHERE status = 'PENDING'
-			  AND (
-			    ("inviterId" = $1 AND "inviteeId" = $2)
-			    OR ("inviterId" = $2 AND "inviteeId" = $1)
-			    OR ("inviteeId" = $1 AND "articleId" IN (SELECT id FROM "Article" WHERE "authorId" = $2))
-			    OR ("inviteeId" = $2 AND "articleId" IN (SELECT id FROM "Article" WHERE "authorId" = $1))
-			  )`,
-			toUUID(userID), toUUID(target))
+		_ = domainevents.Dispatch(r.Context(), h.svc.pool, domainevents.UserBlockedEvent{
+			BlockerID: userID,
+			BlockedID: target,
+		})
+	} else {
+		_ = domainevents.Dispatch(r.Context(), h.svc.pool, domainevents.UserUnblockedEvent{
+			BlockerID: userID,
+			BlockedID: target,
+		})
 	}
 	response.OK(w, map[string]bool{"blocked": !exists})
 }

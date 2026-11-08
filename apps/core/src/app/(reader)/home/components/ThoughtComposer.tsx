@@ -91,6 +91,8 @@ export interface ComposedPost extends FeedArticleDTO {
     createdAt?: Date | string;
     author?: ComposedPostAuthor | null;
   } | null;
+  quotedExcerpt?: string | null;
+  articleQuote?: unknown;
 }
 
 interface ThoughtDraft {
@@ -1134,9 +1136,15 @@ export function ThoughtComposer({
           published: true,
           isPremium: false,
           readingTime: 1,
-          createdAt: firstCreatedPost.createdAt,
+          createdAt: firstCreatedPost.createdAt ?? new Date().toISOString(),
           author: {
-            ...firstCreatedPost.author,
+            id: firstCreatedPost.author?.id ?? '',
+            name: firstCreatedPost.author?.name ?? null,
+            username: firstCreatedPost.author?.username ?? null,
+            subdomain: firstCreatedPost.author?.subdomain ?? null,
+            customDomain: null,
+            logoUrl: firstCreatedPost.author?.logoUrl ?? null,
+            heroText: null,
             isCertified: firstCreatedPost.author?.isCertified || false,
           },
           repost: firstCreatedPost.repost
@@ -1160,7 +1168,7 @@ export function ThoughtComposer({
             : null,
           category: { name: 'Thought' },
           tags: firstCreatedPost.tags || [],
-        } as unknown as ComposedPost);
+        });
       }
 
       toast.success(

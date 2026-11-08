@@ -93,7 +93,7 @@ export default async function ThoughtPage({ params }: ThoughtPageProps) {
             postId={postId}
             currentUserId={user?.id || null}
             dbUser={dbUser}
-            initialPost={post as unknown as OptimisticThought}
+            initialPost={post as never as OptimisticThought}
             standalone={true}
           />
         </div>
