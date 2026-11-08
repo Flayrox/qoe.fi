@@ -114,6 +114,7 @@ export function buildPlaceholder(input: OpenArticleInput): OverlayArticle {
     publication: input.publication ?? null,
     allowPublicAnnotations: input.allowPublicAnnotations,
     isLoading: true,
+    isError: false,
     author: author as OverlayArticle['author'],
     isBookmarked: input.isBookmarked ?? false,
     isFollowed,
