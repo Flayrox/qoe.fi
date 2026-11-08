@@ -9,12 +9,12 @@ package feed
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"sync"
 	"time"
 
 	"github.com/qoefi/api/internal/abuse"
+	"github.com/qoefi/api/internal/eligibility"
 	"github.com/qoefi/api/internal/modules/posts"
 )
 
@@ -70,45 +70,29 @@ func (s *Service) queryIDs(ctx context.Context, q string, args ...any) ([]string
 	return out, rows.Err()
 }
 
-// publicProfileOnlyArticleSQL exclut les articles dont la publication n'est
-// pas PUBLI. La visibilité d'un article de média suit son propriétaire de
-// publication, pas la préférence personnelle du membre qui l'a écrit.
-const publicProfileOnlyArticleSQL = `
-	  AND COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us
-	                WHERE us."userId" = COALESCE(
-	                  (SELECT owner.id FROM "Publication" pv JOIN "User" owner ON owner."publicationId" = pv.id WHERE pv.id = a."publicationId" LIMIT 1),
-	                  u.id
-	                )), 'PUBLIC') = 'PUBLIC'`
-
-// publicProfileOnlyThoughtSQL applique la même règle aux pensées, qui sont
-// rattachées à la publication personnelle de leur auteur.
-const publicProfileOnlyThoughtSQL = `
-	  AND COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us
-	                WHERE us."userId" = COALESCE(
-	                  (SELECT owner.id FROM "Publication" pv JOIN "User" owner ON owner."publicationId" = pv.id WHERE pv.id = u."publicationId" LIMIT 1),
-	                  u.id
-	                )), 'PUBLIC') = 'PUBLIC'`
-
-// blockedAuthorExclusion exclut les auteurs bloqués dans les deux sens AVANT
-// la limite SQL, pour ne pas gaspiller les 20 slots du flux.
-func blockedAuthorExclusion(param int) string {
-	return fmt.Sprintf(`
-	  AND NOT is_blocked_bidirectional($%d, u.id)`, param)
+// articleEligibility applique les verrous communs aux flux d'articles :
+// blocage symétrique, sourdine d'auteur, mots masqués et — en découverte —
+// visibilité du profil. La visibilité d'un article de média suit son
+// propriétaire de publication, pas la préférence de son rédacteur.
+func articleEligibility(viewerParam string, requirePublic bool) string {
+	return eligibility.ArticlePredicates(eligibility.Aliases{
+		Entity:        "a",
+		Authors:       []string{"u.id"},
+		Publication:   `a."publicationId"`,
+		Viewer:        viewerParam,
+		RequirePublic: requirePublic,
+	})
 }
 
-// mutedExclusionArticle exclut les auteurs masqués et les articles contenant un mot masqué.
-func mutedExclusionArticle(param int) string {
-	return fmt.Sprintf(`
-	  AND NOT is_muted_by($%d, u.id)
-	  AND NOT contains_muted_word($%d, a.title)
-	  AND NOT contains_muted_word($%d, a.content)`, param, param, param)
-}
-
-// mutedExclusionThought exclut les auteurs masqués et les pensées contenant un mot masqué.
-func mutedExclusionThought(param int) string {
-	return fmt.Sprintf(`
-	  AND NOT is_muted_by($%d, u.id)
-	  AND NOT contains_muted_word($%d, p.content)`, param, param)
+// thoughtEligibility applique les mêmes verrous aux pensées, rattachées à la
+// publication personnelle de leur auteur.
+func thoughtEligibility(viewerParam string, requirePublic bool) string {
+	return eligibility.ThoughtPredicates(eligibility.Aliases{
+		Entity:        "p",
+		Authors:       []string{"u.id"},
+		Viewer:        viewerParam,
+		RequirePublic: requirePublic,
+	})
 }
 
 // HomeFeed construit le bundle de la home lecteur (parité home/page.tsx).
@@ -325,7 +309,7 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 			WHERE a."publicationId" = ANY($1::text[]) AND a.published = true
 			  AND u."isShadowbanned" = false AND u."isSuspended" = false
 			  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
-			` + abuse.FollowingExclusionArticle("u", "a") + blockedAuthorExclusion(2) + mutedExclusionArticle(2) + `
+			` + abuse.FollowingExclusionArticle("u", "a") + articleEligibility("$2", false) + `
 			ORDER BY a."createdAt" DESC, a.id DESC LIMIT 20`
 		artArgs = []any{pubIDs, toUUID(userID)}
 	case "discover":
@@ -337,7 +321,7 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 			  AND u."isShadowbanned" = false AND u."isSuspended" = false
 			  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
 			  AND NOT (a."publicationId" = ANY($1::text[]))
-			` + abuse.DiscoveryExclusionArticle("u", "a") + publicProfileOnlyArticleSQL + blockedAuthorExclusion(2) + mutedExclusionArticle(2) + `
+			` + abuse.DiscoveryExclusionArticle("u", "a") + articleEligibility("$2", true) + `
 			ORDER BY a."createdAt" DESC, a.id DESC LIMIT 20`
 		artArgs = []any{pubIDs, toUUID(userID)}
 	default: // recommended
@@ -345,7 +329,7 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 			SELECT a.id FROM "Article" a JOIN "User" u ON u.id = a."authorId"
 			WHERE a.published = true AND u."isShadowbanned" = false AND u."isSuspended" = false
 			  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
-			` + abuse.DiscoveryExclusionArticle("u", "a") + publicProfileOnlyArticleSQL + blockedAuthorExclusion(1) + mutedExclusionArticle(1) + `
+			` + abuse.DiscoveryExclusionArticle("u", "a") + articleEligibility("$1", true) + `
 			ORDER BY a."isEditorPick" DESC, a."createdAt" DESC, a.id DESC LIMIT 20`
 		artArgs = []any{toUUID(userID)}
 	}
@@ -374,7 +358,7 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 			  AND u."isShadowbanned" = false AND u."isSuspended" = false
 			  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
 			  AND (p."authorId" = $1 OR (p."authorId" = ANY($2::uuid[]) AND p.visibility IN ('public','followers')))
-			` + abuse.FollowingExclusionThought("u", "p") + blockedAuthorExclusion(1) + mutedExclusionThought(1) + `
+			` + abuse.FollowingExclusionThought("u", "p") + thoughtEligibility("$1", false) + `
 			ORDER BY p."createdAt" DESC, p.id DESC LIMIT 20`
 		thArgs = []any{toUUID(userID), toUUIDSlice(followedUserIDs)}
 	case "discover":
@@ -384,7 +368,7 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 			  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
 			  AND u.role = 'creator' AND u."isCertified" = true
 			  AND u."isShadowbanned" = false AND u."isSuspended" = false			AND NOT (p."authorId" = ANY($1::uuid[]))
-			` + abuse.DiscoveryExclusionThought("u", "p") + publicProfileOnlyThoughtSQL + blockedAuthorExclusion(2) + mutedExclusionThought(2) + `
+			` + abuse.DiscoveryExclusionThought("u", "p") + thoughtEligibility("$2", true) + `
 			ORDER BY p."createdAt" DESC, p.id DESC LIMIT 20`
 		excluded := append(append([]string{}, followedUserIDs...), userID)
 		thArgs = []any{toUUIDSlice(excluded), toUUID(userID)}
@@ -394,7 +378,7 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 			WHERE p."isDraft" = false AND p."deletedAt" IS NULL
 			  AND u."isShadowbanned" = false AND u."isSuspended" = false
 			  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())			AND p.visibility = 'public'
-			` + abuse.DiscoveryExclusionThought("u", "p") + publicProfileOnlyThoughtSQL + blockedAuthorExclusion(1) + mutedExclusionThought(1) + `
+			` + abuse.DiscoveryExclusionThought("u", "p") + thoughtEligibility("$1", true) + `
 			ORDER BY p."createdAt" DESC, p.id DESC LIMIT 20`
 		thArgs = []any{toUUID(userID)}
 	}
@@ -471,8 +455,8 @@ func (s *Service) fetchFeaturedArticle(ctx context.Context, viewerID string) (*H
 	ids, err := s.queryIDs(ctx, `
 		SELECT a.id FROM "Article" a JOIN "User" u ON u.id = a."authorId"
 		WHERE a.published = true AND u."isShadowbanned" = false AND u."isSuspended" = false
-		  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())`+publicProfileOnlyArticleSQL+`
-		ORDER BY a."isEditorPick" DESC, a."createdAt" DESC LIMIT 1`)
+		  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())`+articleEligibility("$1", true)+`
+		ORDER BY a."isEditorPick" DESC, a."createdAt" DESC LIMIT 1`, toUUID(viewerID))
 	if err != nil || len(ids) == 0 {
 		return nil, err
 	}
