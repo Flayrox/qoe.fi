@@ -34,4 +34,5 @@ export * from './abuse-codes.generated';
 export * from './spotlight';
 export * from './utils/authError';
 
+export { withShadowMutation, type ShadowMutationOptions } from './shadow';
 export * from './shadow';

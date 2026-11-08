@@ -35,7 +35,7 @@ export function ThoughtThreadComposer({
   const handlePostCreated = (newPost: ComposedPost) => {
     if (newPost && newPost.id) {
       insertReply(targetParentId, {
-        ...(newPost as unknown as OptimisticThought),
+        ...(newPost as never as OptimisticThought),
         isOptimistic: false,
         replies: [],
       });

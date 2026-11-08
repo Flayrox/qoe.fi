@@ -76,6 +76,31 @@ export function useArticleOverlay(): ArticleOverlayApi | null {
   return React.useContext(ArticleOverlayContext);
 }
 
+function toOverlayArticle(
+  raw: NonNullable<
+    Extract<Awaited<ReturnType<typeof getArticleThread>>, { ok: true }>['data']['article']
+  >
+): OverlayArticle {
+  const author = (raw.author ?? {}) as Record<string, unknown>;
+  return {
+    ...raw,
+    author: {
+      id: String(author.id ?? ''),
+      name: typeof author.name === 'string' ? author.name : null,
+      username: typeof author.username === 'string' ? author.username : null,
+      logoUrl: typeof author.logoUrl === 'string' ? author.logoUrl : null,
+      heroText: typeof author.heroText === 'string' ? author.heroText : null,
+      subdomain: typeof author.subdomain === 'string' ? author.subdomain : null,
+      customDomain: typeof author.customDomain === 'string' ? author.customDomain : null,
+      isCertified: Boolean(author.isCertified),
+      type: typeof author.type === 'string' ? author.type : null,
+      accentColor: typeof author.accentColor === 'string' ? author.accentColor : null,
+      isFollowed: Boolean(author.isFollowed),
+      journalist: (author.journalist as OverlayArticle['author']['journalist']) ?? null,
+    },
+  };
+}
+
 export function ArticleOverlayProvider({
   children,
   currentUserProfile,
@@ -112,7 +137,7 @@ export function ArticleOverlayProvider({
     void getArticleThread(slug)
       .then((res) => {
         if (res.ok && res.data?.article) {
-          rememberArticle(slug, res.data.article as unknown as OverlayArticle);
+          rememberArticle(slug, toOverlayArticle(res.data.article));
         }
       })
       .catch(() => {
@@ -194,7 +219,7 @@ export function ArticleOverlayProvider({
         .then((res) => {
           if (token !== requestRef.current) return;
           if (res.ok && res.data?.article) {
-            const article = res.data.article as unknown as OverlayArticle;
+            const article = toOverlayArticle(res.data.article);
             setArticle(article);
             if (res.data.canonicalDocument) {
               setCanonicalDocument(res.data.canonicalDocument);

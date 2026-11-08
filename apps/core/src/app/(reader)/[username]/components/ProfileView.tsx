@@ -41,6 +41,7 @@ import {
   DialogHeader,
   DialogTitle,
   ShareMenu,
+  type QuotedArticleData,
 } from '@qoe/ui';
 import { HiddenParentNotice } from '@qoe/ui/social';
 
@@ -137,30 +138,33 @@ export function ProfileView({
 
   const handleOpenArticle = (
     art:
+      | QuotedArticleData
       | {
-          id?: string;
           slug?: string;
-          title?: string;
           author?: { id?: string; username?: string | null; subdomain?: string | null } | null;
-          publication?: { slug?: string | null; subdomain?: string | null } | null;
         }
       | string
+      | null
+      | undefined
   ) => {
     const slug = typeof art === 'string' ? art : art?.slug;
     if (!slug) return;
     const authorHandle = user.username || user.subdomain || 'author';
+    const artObj = typeof art === 'object' && art !== null ? (art as Record<string, unknown>) : {};
+    const artAuthor =
+      artObj.author && typeof artObj.author === 'object'
+        ? (artObj.author as Record<string, unknown>)
+        : {};
     const resolvedInput: OpenArticleInput =
       typeof art === 'string'
         ? { slug, author: { id: user.id, username: authorHandle } }
         : {
-            ...(art as unknown as OpenArticleInput),
+            ...artObj,
             slug,
             author: {
-              ...(typeof art === 'object' && 'author' in art && art.author ? art.author : {}),
-              id: (typeof art === 'object' && 'author' in art && art.author?.id) || user.id,
-              username:
-                (typeof art === 'object' && 'author' in art && art.author?.username) ||
-                authorHandle,
+              ...artAuthor,
+              id: typeof artAuthor.id === 'string' ? artAuthor.id : user.id,
+              username: typeof artAuthor.username === 'string' ? artAuthor.username : authorHandle,
             },
           };
     if (overlay) {

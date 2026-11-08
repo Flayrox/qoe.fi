@@ -17,6 +17,7 @@ import (
 	"github.com/qoefi/api/internal/abuse"
 	"github.com/qoefi/api/internal/cache"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/domainevents"
 	"github.com/qoefi/api/internal/identity"
 	"github.com/qoefi/api/internal/notifications"
 	"github.com/qoefi/api/internal/vectorfeed"
@@ -933,6 +934,10 @@ func (s *Service) ToggleBlock(ctx context.Context, targetID, userID string) (boo
 		}); err != nil {
 			return false, err
 		}
+		_ = domainevents.Dispatch(ctx, s.pool, domainevents.UserUnblockedEvent{
+			BlockerID: userID,
+			BlockedID: targetID,
+		})
 		return false, nil
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
@@ -948,31 +953,10 @@ func (s *Service) ToggleBlock(ctx context.Context, targetID, userID string) (boo
 	// follow ou une demande en attente ne doit pas survivre au blocage.
 	// Best-effort : le blocage lui-même est déjà persisté, on ne le défait pas
 	// pour un échec de nettoyage.
-	_, _ = s.pool.Exec(ctx, `
-		DELETE FROM "Follows"
-		WHERE ("readerId" = $1 AND "publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $2))
-		   OR ("readerId" = $2 AND "publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $1))`,
-		toUUID(userID), toUUID(targetID))
-	_, _ = s.pool.Exec(ctx, `
-		DELETE FROM "FollowRequest"
-		WHERE ("requesterId" = $1 AND "publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $2))
-		   OR ("requesterId" = $2 AND "publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $1))`,
-		toUUID(userID), toUUID(targetID))
-	_, _ = s.pool.Exec(ctx, `
-		DELETE FROM "Notification"
-		WHERE type = 'FOLLOW' AND metadata->>'kind' = 'FOLLOW_REQUEST'
-		  AND (("recipientId" = $1 AND "senderId" = $2) OR ("recipientId" = $2 AND "senderId" = $1))`,
-		toUUID(userID), toUUID(targetID))
-	_, _ = s.pool.Exec(ctx, `
-		DELETE FROM "CollaborationRequest"
-		WHERE status = 'PENDING'
-		  AND (
-		    ("inviterId" = $1 AND "inviteeId" = $2)
-		    OR ("inviterId" = $2 AND "inviteeId" = $1)
-		    OR ("inviteeId" = $1 AND "articleId" IN (SELECT id FROM "Article" WHERE "authorId" = $2))
-		    OR ("inviteeId" = $2 AND "articleId" IN (SELECT id FROM "Article" WHERE "authorId" = $1))
-		  )`,
-		toUUID(userID), toUUID(targetID))
+	_ = domainevents.Dispatch(ctx, s.pool, domainevents.UserBlockedEvent{
+		BlockerID: userID,
+		BlockedID: targetID,
+	})
 	return true, nil
 }
 

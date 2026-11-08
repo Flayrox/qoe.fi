@@ -373,3 +373,65 @@ function mergeActorShadow<T extends ShadowableActor>(actor: T, shadow: ActorShad
 
   return result as T;
 }
+
+// =====================================================================
+// ⚡ Mutations optimistes avec verrouillage et rollback automatique
+// =====================================================================
+
+const inFlightLocks = new Set<string>();
+
+export interface ShadowMutationOptions<TResult = unknown> {
+  /** Clé unique pour verrouiller les mutations concurrentes (anti double-clic). */
+  lockKey?: string;
+  /** Application optimiste immédiate dans le Shadow Store. */
+  optimisticUpdate: () => void;
+  /** Restauration de l'état précédent en cas d'erreur ou d'échec de la promesse. */
+  rollback: () => void;
+  /** Action asynchrone (Server Action, appel API). */
+  mutation: () => Promise<TResult>;
+  /** Callback facultatif en cas d'erreur (ex: toast, log). */
+  onError?: (err: unknown) => void;
+  /** Callback facultatif en cas de succès. */
+  onSuccess?: (result: TResult) => void;
+}
+
+/**
+ * 🔒 Exécute une mutation avec mise à jour optimiste, protection anti double-clic
+ * et rollback immédiat en cas d'échec ou d'exception.
+ */
+export async function withShadowMutation<TResult>(
+  opts: ShadowMutationOptions<TResult>
+): Promise<TResult | undefined> {
+  const { lockKey, optimisticUpdate, rollback, mutation, onError, onSuccess } = opts;
+
+  if (lockKey && inFlightLocks.has(lockKey)) {
+    return undefined;
+  }
+
+  if (lockKey) {
+    inFlightLocks.add(lockKey);
+  }
+
+  try {
+    optimisticUpdate();
+    const res = await mutation();
+    onSuccess?.(res);
+    return res;
+  } catch (err) {
+    try {
+      rollback();
+    } catch (rollbackErr) {
+      console.error('[withShadowMutation] Échec du rollback :', rollbackErr);
+    }
+    if (onError) {
+      onError(err);
+    } else {
+      console.error('[withShadowMutation] Erreur lors de la mutation optimiste :', err);
+    }
+    return undefined;
+  } finally {
+    if (lockKey) {
+      inFlightLocks.delete(lockKey);
+    }
+  }
+}

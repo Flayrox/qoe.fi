@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { act } from 'react';
 import { renderHook } from '@testing-library/react';
 
@@ -24,6 +24,7 @@ import {
   updateActorShadow,
   getActorShadow,
   useActorShadow,
+  withShadowMutation,
 } from '../shadow';
 
 // mergeShadow est privé : on le couvre via usePostShadow, qui fusionne
@@ -177,5 +178,109 @@ describe('useActorShadow — synchronisation réactive des acteurs (par id ou ha
     expect(result.current.isFollowed).toBe(true);
     expect(result.current.followRequested).toBe(true);
     expect(getActorShadow('bob')?.followed).toBe(true);
+  });
+});
+
+describe('withShadowMutation — mutations optimistes avec rollback et lock anti double-clic', () => {
+  it('succès de la mutation (optimisticUpdate exécuté, onSuccess appelé, pas de rollback)', async () => {
+    const optimisticUpdate = vi.fn();
+    const rollback = vi.fn();
+    const mutation = vi.fn().mockResolvedValue({ id: 'res-1', success: true });
+    const onSuccess = vi.fn();
+    const onError = vi.fn();
+
+    const result = await withShadowMutation({
+      lockKey: 'mutation:test:success',
+      optimisticUpdate,
+      rollback,
+      mutation,
+      onSuccess,
+      onError,
+    });
+
+    expect(optimisticUpdate).toHaveBeenCalledTimes(1);
+    expect(mutation).toHaveBeenCalledTimes(1);
+    expect(onSuccess).toHaveBeenCalledTimes(1);
+    expect(onSuccess).toHaveBeenCalledWith({ id: 'res-1', success: true });
+    expect(rollback).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+    expect(result).toEqual({ id: 'res-1', success: true });
+  });
+
+  it('échec de la mutation (rollback exécuté automatiquement, onError appelé)', async () => {
+    const optimisticUpdate = vi.fn();
+    const rollback = vi.fn();
+    const testError = new Error('Réseau indisponible');
+    const mutation = vi.fn().mockRejectedValue(testError);
+    const onSuccess = vi.fn();
+    const onError = vi.fn();
+
+    const result = await withShadowMutation({
+      lockKey: 'mutation:test:failure',
+      optimisticUpdate,
+      rollback,
+      mutation,
+      onSuccess,
+      onError,
+    });
+
+    expect(optimisticUpdate).toHaveBeenCalledTimes(1);
+    expect(mutation).toHaveBeenCalledTimes(1);
+    expect(rollback).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(testError);
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(result).toBeUndefined();
+  });
+
+  it('verrouillage in-flight (deuxième appel concurrent ignoré tant que le premier tourne, puis déverrouillé à la fin)', async () => {
+    let resolveFirstMutation!: (value: string) => void;
+    const firstMutationPromise = new Promise<string>((resolve) => {
+      resolveFirstMutation = resolve;
+    });
+
+    const optUpdate1 = vi.fn();
+    const optUpdate2 = vi.fn();
+    const optUpdate3 = vi.fn();
+
+    const lockKey = 'mutation:concurrent:lock';
+
+    // Premier appel qui reste en vol (in-flight)
+    const promise1 = withShadowMutation({
+      lockKey,
+      optimisticUpdate: optUpdate1,
+      rollback: vi.fn(),
+      mutation: () => firstMutationPromise,
+    });
+
+    expect(optUpdate1).toHaveBeenCalledTimes(1);
+
+    // Deuxième appel concurrent avec le même lockKey
+    const res2 = await withShadowMutation({
+      lockKey,
+      optimisticUpdate: optUpdate2,
+      rollback: vi.fn(),
+      mutation: vi.fn().mockResolvedValue('second-result'),
+    });
+
+    // Le deuxième appel doit être ignoré immédiatement (undefined) sans exécuter optimisticUpdate
+    expect(res2).toBeUndefined();
+    expect(optUpdate2).not.toHaveBeenCalled();
+
+    // On résout le premier appel
+    resolveFirstMutation('first-result');
+    const res1 = await promise1;
+    expect(res1).toBe('first-result');
+
+    // Troisième appel après libération du lock : doit s'exécuter normalement
+    const res3 = await withShadowMutation({
+      lockKey,
+      optimisticUpdate: optUpdate3,
+      rollback: vi.fn(),
+      mutation: vi.fn().mockResolvedValue('third-result'),
+    });
+
+    expect(optUpdate3).toHaveBeenCalledTimes(1);
+    expect(res3).toBe('third-result');
   });
 });
