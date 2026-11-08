@@ -8,7 +8,7 @@
 > [« 📝 Instructions »](#-instructions) en bas. Elle est prioritaire sur le
 > reste du plan.
 
-Dernière mise à jour : 2026-11-06 · branche `dev` · travail non poussé · dernier commit `3f89771c` (Tous les lots A, B, C, D 100% terminés et vérifiés).
+Dernière mise à jour : 2026-11-08 · branche `dev` · travail non poussé · dernier commit de durcissement `787e7ad3` (navigation admin/mobile dérivée du manifeste).
 
 ---
 
@@ -49,10 +49,10 @@ Les métriques qui ne méritent pas de place (ms, octets, compteurs) vont en
 
 ## 3. État vérifié
 
-Dernières mesures : `tsc` 0 · `eslint --max-warnings=0` 0 · `vitest` 44/44 ·
-`next build` OK · `pnpm ui:audit` **exit 0** (selects 0/0, tables 0/0, boutons
-342/343, inputs 154/155, overlays 3/3, primitives mortes 5/5) · emoji hors
-commentaires 0 · `font-mono` 0 · `rounded-2xl|3xl` 0 · « Administration Console » 0.
+Dernières mesures : `tsc` 0 · `eslint --max-warnings=0` 0 · `vitest` vert
+(navigation admin incluse) · `next build` OK · `pnpm ui:audit` **exit 0** ·
+emoji hors commentaires 0 · `font-mono` 0 · `rounded-2xl|3xl` 0 ·
+« Administration Console » 0.
 
 Commits du chantier :
 
@@ -98,8 +98,15 @@ Commits du chantier :
 - `apps/(admin)/admin/components/WorkTable.tsx` — vue d'ensemble.
 - `apps/(admin)/admin/work/components/triage-board.tsx` — triage inline.
 - `apps/(admin)/admin/users/components/users-grid.tsx` — comptes + modération.
-- `lib/admin-actions-index.ts` — verbes de la palette ⌘K.
-- `lib/admin-console.ts` — `ADMIN_NAV` (dont `/admin/system`), capacités, domaines.
+- `lib/admin-actions-index.ts` — verbes de la palette ⌘K, `href` dérivés de `routes.admin.*`.
+- `lib/admin-console.ts` — `ADMIN_NAV` dérivé de `getAdminSurfaces()` (dont `/admin/system`), capacités, domaines.
+- `lib/admin-settings-catalog.ts` — leviers de réglage, `href` dérivés de `routes.admin.*`.
+
+Navigation : `AdminSidebar` consomme `navByDomain(capabilities)`, `CommandPalette`
+consomme `visibleNav(caps)` / `visibleActions(caps)`, et les deux catalogues ne
+codent aucun `/admin/...`. Les preuves sont `AdminSidebar.test.tsx`,
+`admin-navigation-wiring.test.ts` et le check 12 d'`arch-audit` ; retirer une
+surface ou recoder un `href` fait échouer la suite.
 
 ## 5. Plan — lots et cases à cocher
 
@@ -215,6 +222,7 @@ pnpm --filter @qoe/admin exec eslint src --max-warnings=0
 pnpm --filter @qoe/admin test
 pnpm --filter @qoe/admin build
 pnpm ui:audit          # doit rester exit 0 — les plafonds ne remontent jamais
+node scripts/arch-audit.mjs  # check 12 : consommateurs du manifeste admin/mobile
 ```
 
 Contrôles « zéro » (doivent tous afficher 0) :

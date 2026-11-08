@@ -15,7 +15,7 @@ import {
   TabListProps,
 } from 'expo-router/ui';
 import type { Href } from 'expo-router';
-import { getMobileSurfaces } from '@qoe/config';
+import { getMobileSurfaces, requireRouteName } from '@qoe/config';
 import { SymbolView } from 'expo-symbols';
 import { Pressable, useColorScheme, View, StyleSheet } from 'react-native';
 
@@ -36,7 +36,7 @@ export default function AppTabs() {
           {getMobileSurfaces('web').map((surface) => (
             <TabTrigger
               key={surface.id}
-              name={surface.routeName ?? ''}
+              name={requireRouteName(surface)}
               href={surface.path as Href}
               asChild
             >
