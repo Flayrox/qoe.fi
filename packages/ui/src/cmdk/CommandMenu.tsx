@@ -12,12 +12,21 @@ import {
   Moon,
   FileCode2,
   Sliders,
+  Home,
+  Building2,
+  Wallet,
+  Bell,
+  Code,
+  Search,
+  Bookmark,
+  Highlighter,
+  Compass,
 } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useDebounce } from 'use-debounce';
-import { URLS } from '@qoe/config';
+import { URLS, getCmdKSurfaces, type SurfaceDescriptor } from '@qoe/config';
 import { CmdKDialog, CmdKInput, CmdKList, CmdKGroup, CmdKItem } from './CommandPrimitives';
 
 // Keep types for legacy compat during migration
@@ -43,6 +52,34 @@ interface CommandMenuProps {
   onOpenChange: (open: boolean) => void;
   items: SearchItem[];
 }
+
+// Icônes et libellés de section résolus depuis le manifeste de surfaces.
+const CMDK_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  Home,
+  Plus,
+  FileText,
+  Mail,
+  Users,
+  PieChart,
+  Building2,
+  Wallet,
+  Bell,
+  Code,
+  Settings,
+  Search,
+  Bookmark,
+  Highlighter,
+  Compass,
+};
+
+const SECTION_LABELS: Record<SurfaceDescriptor['section'], string> = {
+  navigation: t`Navigation`,
+  library: t`Bibliothèque`,
+  creation: t`Écrits`,
+  growth: t`Audience`,
+  workspace: t`Espace de travail`,
+  system: t`Réglages`,
+};
 
 /**
  * @deprecated Use CmdKPrimitives directly to build your own CommandMenu
@@ -103,50 +140,15 @@ export function CommandMenu({ open, onOpenChange, items }: CommandMenuProps) {
     }, 150);
   };
 
-  const quickActions = [
-    {
-      id: 'action-new-article',
-      label: t`Rédiger un article`,
-      path: '/articles/new',
-      icon: Plus,
-      category: t`Action`,
-    },
-    {
-      id: 'action-articles',
-      label: t`Liste des écrits`,
-      path: '/articles',
-      icon: FileText,
-      category: t`Écrits`,
-    },
-    {
-      id: 'action-audience',
-      label: t`Gérer l'audience`,
-      path: '/audience',
-      icon: Users,
-      category: t`Audience`,
-    },
-    {
-      id: 'action-newsletters',
-      label: t`Envoyer une newsletter`,
-      path: '/newsletters',
-      icon: Mail,
-      category: t`Diffusion`,
-    },
-    {
-      id: 'action-analytics',
-      label: t`Consulter les statistiques`,
-      path: '/analytics',
-      icon: PieChart,
-      category: t`Analyses`,
-    },
-    {
-      id: 'action-settings',
-      label: t`Réglages de la console`,
-      path: '/settings',
-      icon: Settings,
-      category: t`Réglages`,
-    },
-  ];
+  // 🗺️ Les actions rapides viennent du manifeste de surfaces : aucune route
+  // n'est plus recopiée ici, et le RBAC est porté par le registre.
+  const quickActions = getCmdKSurfaces('studio').map((surface) => ({
+    id: surface.id,
+    label: surface.defaultLabel,
+    path: surface.path,
+    icon: CMDK_ICONS[surface.iconName] ?? FileText,
+    category: SECTION_LABELS[surface.section],
+  }));
 
   return (
     <CmdKDialog open={open} onOpenChange={onOpenChange}>

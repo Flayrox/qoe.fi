@@ -8,6 +8,7 @@
 export * from './constants';
 export * from './features';
 export * from './routes';
+export * from './surfaces';
 export * from './schemas';
 export * from './tenant';
 export * from './legal';
