@@ -216,3 +216,38 @@ func TestCategories_NonOwnerForbidden(t *testing.T) {
 		t.Fatalf("create par non-owner = %d %s, attendu 403", w.Code, w.Body.String())
 	}
 }
+
+func TestRemoveFollower(t *testing.T) {
+	alicePubID, aliceUserID, bobUserID, _ := seedFollows(t)
+	r := newFullRouter()
+
+	// Bob suit Alice
+	w := authedRequest(r, http.MethodPost, "/v1/users/"+alicePubID+"/follow", bobUserID, "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("follow: %d %s", w.Code, w.Body.String())
+	}
+
+	// Alice retire Bob de ses abonnés
+	w = authedRequest(r, http.MethodDelete, "/v1/me/followers/"+bobUserID, aliceUserID, "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("removeFollower = %d %s, attendu 200", w.Code, w.Body.String())
+	}
+	var res map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatalf("json parse: %v", err)
+	}
+	if res["removed"] != true {
+		t.Errorf("attendu removed: true, obtenu %v", res["removed"])
+	}
+
+	// Vérifie que la ligne Follows n'existe plus
+	var count int
+	if err := poolTest.QueryRow(context.Background(),
+		`SELECT count(*) FROM "Follows" WHERE "readerId" = $1 AND "publicationId" = $2`,
+		bobUserID, alicePubID).Scan(&count); err != nil {
+		t.Fatalf("count follows: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("Follows encore présent après removeFollower")
+	}
+}

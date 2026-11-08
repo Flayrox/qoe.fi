@@ -5,8 +5,7 @@ import { Bookmark, BookMarked, Share2, Check, MoreHorizontal, Share } from 'luci
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
 import { TextToSpeechPlayer, ReadingSettingsSheet } from '@qoe/ui/reader';
-import { Popover, PopoverContent, PopoverTrigger } from '@qoe/ui';
-import { toast } from '@qoe/ui/toast';
+import { Popover, PopoverContent, PopoverTrigger, useFeatureAnnouncement } from '@qoe/ui';
 import { useFlag } from '@qoe/flags';
 import { usePlus } from '@/lib/use-plus';
 import { useReaderToolbar } from './ReaderToolbarContext';
@@ -22,7 +21,8 @@ export function DockedReaderToolbar({ articleTitle, className = '' }: DockedRead
   // Gate Plus (fiche P1) : null = chargement (neutre, pas de flash d'upsell).
   const plus = usePlus();
   const locked = plus === false;
-  const upsell = () => toast.info(t`Écoute audio réservée aux abonnés Plus (bientôt).`);
+  const featureAnnouncement = useFeatureAnnouncement();
+  const upsell = () => featureAnnouncement.open('audio-tts');
 
   if (!toolbar) return null;
 
@@ -73,9 +73,7 @@ export function DockedReaderToolbar({ articleTitle, className = '' }: DockedRead
         {/* 4. Typographie & Accessibilité (papiers premium cadenassés sans Plus) */}
         <ReadingSettingsSheet
           plusThemesLocked={locked}
-          onLockedThemeClick={() =>
-            toast.info(t`Papiers Nuit chaude et Papier réservés aux abonnés Plus (bientôt).`)
-          }
+          onLockedThemeClick={() => featureAnnouncement.open('reading-papers')}
         />
       </div>
 

@@ -5,6 +5,7 @@ import { t } from '@lingui/core/macro';
 import { MessageCircle, Link as LinkIcon, Share2 } from 'lucide-react';
 import { toast } from '@qoe/ui/toast';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { useFeatureAnnouncement } from '../ui/feature-interstitial';
 import { cn } from '@qoe/utils';
 import { getThoughtUrl, getMainAppUrl } from '@qoe/config';
 
@@ -38,6 +39,7 @@ export function ShareMenu({
   className,
 }: ShareMenuProps) {
   const [open, setOpen] = useState(false);
+  const announcement = useFeatureAnnouncement();
 
   const resolveUrl = () => {
     if (url) return url;
@@ -102,18 +104,20 @@ export function ShareMenu({
 
     if (onSendViaChat) {
       onSendViaChat();
-    } else if (typeof window !== 'undefined') {
-      window.dispatchEvent(
-        new CustomEvent('open-chat-share', {
-          detail: {
-            type,
-            id,
-            url: resolveUrl(),
-            title,
-          },
-        })
-      );
-      toast.info(t`Messagerie privée bientôt disponible !`);
+    } else {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('open-chat-share', {
+            detail: {
+              type,
+              id,
+              url: resolveUrl(),
+              title,
+            },
+          })
+        );
+      }
+      announcement.open('direct-messages');
     }
   };
 

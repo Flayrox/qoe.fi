@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/middleware"
+	"github.com/qoefi/api/internal/notifications"
 	"github.com/qoefi/api/internal/response"
 )
 
@@ -139,6 +140,7 @@ func (h *Handler) acceptFollowRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.deleteFollowRequestNotification(r.Context(), userID, requesterID, publicationID)
+	h.notifyFollowAccepted(r.Context(), publicationID, userID, requesterID)
 	response.OK(w, map[string]any{"accepted": true})
 }
 
@@ -194,6 +196,20 @@ func (h *Handler) deleteFollowRequestNotification(ctx context.Context, ownerID, 
 		PublicationId: pgtype.Text{String: publicationID, Valid: true},
 	}); err != nil {
 		log.Printf("[creator] delete follow request notification: %v", err)
+	}
+}
+
+// notifyFollowAccepted envoie la notification FOLLOW_ACCEPTED au demandeur dont
+// la demande vient d'être validée.
+func (h *Handler) notifyFollowAccepted(ctx context.Context, publicationID, userID, requesterID string) {
+	if err := notifications.Dispatch(ctx, h.pool, notifications.DispatchInput{
+		RecipientID:   requesterID,
+		SenderID:      userID,
+		Type:          "FOLLOW",
+		PublicationID: &publicationID,
+		Metadata:      map[string]any{"kind": "FOLLOW_ACCEPTED"},
+	}); err != nil {
+		log.Printf("[creator] notify follow accepted: %v", err)
 	}
 }
 

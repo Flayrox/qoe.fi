@@ -25,6 +25,7 @@ import {
 import { TextToSpeechProvider, useTextToSpeech } from '@qoe/ui/reader';
 import { toast } from '@qoe/ui/toast';
 import { Select } from '@qoe/ui/select';
+import { useFeatureAnnouncement } from '@qoe/ui';
 import { cn } from '@qoe/utils';
 import {
   browserOfflineStorage,
@@ -249,9 +250,10 @@ function EbookReaderInner({
 
   const chapter = chapters[index];
   const chapterNotes = notes.filter((n) => n.chapterIndex === index);
+  const featureAnnouncement = useFeatureAnnouncement();
   const listen = () => {
     if (!plus) {
-      toast.message('L’écoute est réservée aux abonnés Plus (bientôt disponible).');
+      featureAnnouncement.open('audio-tts');
       return;
     }
     tts?.openAndPlay();
@@ -263,7 +265,7 @@ function EbookReaderInner({
       return;
     }
     if (!plus) {
-      toast.message('L’emport hors-ligne est réservé aux abonnés Plus (bientôt disponible).');
+      featureAnnouncement.open('offline-reading');
       return;
     }
     if (offline) {

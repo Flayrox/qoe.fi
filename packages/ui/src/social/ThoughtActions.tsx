@@ -17,13 +17,12 @@
 //    presse-papier par expo-clipboard / RN Share API.
 // =====================================================================
 
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
-import { Heart, MessageSquare, Repeat, Share2, Quote } from 'lucide-react';
+import { Heart, MessageSquare, Share2 } from 'lucide-react';
 import { cn } from '@qoe/utils';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { RepostPopover } from './RepostPopover';
 import { ShareMenu } from './ShareMenu';
-import { t } from '@lingui/core/macro';
 
 export interface ThoughtActionsPostData {
   id: string;
@@ -68,8 +67,6 @@ export function ThoughtActions({
   onShare,
   className,
 }: ThoughtActionsProps) {
-  const [popoverOpen, setPopoverContentOpen] = useState(false);
-
   const authorHandle =
     post.author?.username || post.author?.subdomain || post.author?.id?.slice(0, 8) || 'auteur';
 
@@ -156,62 +153,15 @@ export function ThoughtActions({
       </button>
 
       {/* 3. REPOST BUTTON & POPOVER */}
-      <Popover open={popoverOpen} onOpenChange={setPopoverContentOpen}>
-        <PopoverTrigger
-          render={
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-              }}
-              className={cn(
-                'flex items-center gap-1.5 transition-colors cursor-pointer outline-none group/repost',
-                reposted ? 'text-success-text font-semibold' : 'hover:text-success-text'
-              )}
-              title="Repartager ou citer"
-              aria-label="Repartager"
-            >
-              <motion.div whileTap={{ scale: 1.25 }} transition={{ duration: 0.15 }}>
-                <Repeat
-                  className={cn(iconClass, 'transition-transform group-hover/repost:scale-110')}
-                />
-              </motion.div>
-              <span className={textClass}>{repostsCount}</span>
-            </button>
-          }
-        />
-        <PopoverContent
-          align="start"
-          className="w-48 p-1.5 bg-popover/95 backdrop-blur-xl border border-border/40 shadow-2xl rounded-xl font-sans z-50"
-          onClick={(e: React.MouseEvent) => e.stopPropagation()}
-        >
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setPopoverContentOpen(false);
-              handleRepostClick(e);
-            }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-foreground hover:bg-muted rounded-lg transition-colors cursor-pointer"
-          >
-            <Repeat className="w-3.5 h-3.5 text-success-text" />
-            <span>{reposted ? 'Annuler le repartage' : 'Repartager'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setPopoverContentOpen(false);
-              if (onQuote) onQuote(e);
-            }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-foreground hover:bg-muted rounded-lg transition-colors cursor-pointer"
-          >
-            <Quote className="w-3.5 h-3.5 text-brand" />
-            <span>{t`Citer la pensée`}</span>
-          </button>
-        </PopoverContent>
-      </Popover>
+      <RepostPopover
+        reposted={reposted}
+        repostsCount={repostsCount}
+        targetType="thought"
+        onRepost={handleRepostClick}
+        onQuote={(e) => onQuote?.(e)}
+        iconClass={iconClass}
+        textClass={textClass}
+      />
 
       {/* 4. SHARE BUTTON & POPOVER */}
       <ShareMenu

@@ -57,6 +57,7 @@
     "intl:build": "lingui extract && pnpm intl:compile",
     "ui:catalog": "node scripts/ui-catalog.mjs",
     "ui:audit": "node scripts/ui-audit.mjs",
+    "arch:audit": "node scripts/arch-audit.mjs",
     "clean": "turbo run clean && rm -rf node_modules .turbo",
     "docker:dev": "docker compose -f docker-compose.dev.yml up",
     "docker:dev:build": "docker compose -f docker-compose.dev.yml up --build",

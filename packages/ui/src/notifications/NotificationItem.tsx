@@ -7,6 +7,8 @@ import {
   MessageCircle,
   AtSign,
   UserPlus,
+  UserCheck,
+  Sparkles,
   Newspaper,
   Clock,
   UsersRound,
@@ -141,10 +143,18 @@ export function NotificationItem({
       actionText = otherSendersCount > 0 ? t`vous ont mentionné` : t`vous a mentionné`;
       break;
     case 'FOLLOW':
-      Icon = UserPlus;
-      iconColorClass = 'text-primary bg-primary/10';
-      actionText =
-        otherSendersCount > 0 ? t`se sont abonnés à votre profil` : t`s'est abonné à votre profil`;
+      if (notification.metadata?.kind === 'FOLLOW_ACCEPTED') {
+        Icon = UserCheck;
+        iconColorClass = 'text-primary bg-primary/10';
+        actionText = t`a accepté votre demande d'abonnement`;
+      } else {
+        Icon = UserPlus;
+        iconColorClass = 'text-primary bg-primary/10';
+        actionText =
+          otherSendersCount > 0
+            ? t`se sont abonnés à votre profil`
+            : t`s'est abonné à votre profil`;
+      }
       break;
     case 'MEDIA_INVITE':
       Icon = UserPlus;
@@ -225,6 +235,12 @@ export function NotificationItem({
           ? t`ont retiré votre attribution de cet article`
           : t`a retiré votre attribution de cet article`;
       break;
+  }
+
+  if (notification.metadata?.kind === 'FEATURE_LAUNCH') {
+    Icon = Sparkles;
+    iconColorClass = 'text-highlight bg-highlight/10';
+    actionText = t`est désormais disponible !`;
   }
 
   // Temps relatif

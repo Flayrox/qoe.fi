@@ -12,6 +12,7 @@ import { CertifiedBadge } from '@qoe/ui';
 import {
   toggleFollowCreatorHomeAction as toggleFollowCreator,
   getFollowListAction,
+  removeFollowerAction,
 } from '@qoe/sdk/actions/feed';
 import { toast } from '@qoe/ui/toast';
 
@@ -31,6 +32,7 @@ interface FollowListProps {
   handle: string;
   initialTab: 'followers' | 'following';
   currentUserId: string | null;
+  isOwnProfile?: boolean;
 }
 
 type FollowTab = 'followers' | 'following';
@@ -40,7 +42,12 @@ type FollowTab = 'followers' | 'following';
  * Passe par la server action getFollowListAction (repo Prisma) avec
  * pagination infinie et bouton Suivre par ligne (état viewerFollows).
  */
-export function FollowList({ handle, initialTab, currentUserId }: FollowListProps) {
+export function FollowList({
+  handle,
+  initialTab,
+  currentUserId,
+  isOwnProfile = false,
+}: FollowListProps) {
   const [tab, setTab] = useState<FollowTab>(initialTab);
   const [items, setItems] = useState<FollowActor[]>([]);
   const [cursor, setCursor] = useState<number | null>(0);
@@ -48,6 +55,7 @@ export function FollowList({ handle, initialTab, currentUserId }: FollowListProp
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
   const requestSeq = useRef(0);
 
   // Charge une page. `reset` repart de zéro (nouvel onglet).
@@ -103,6 +111,23 @@ export function FollowList({ handle, initialTab, currentUserId }: FollowListProp
       );
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const handleRemoveFollower = async (actor: FollowActor) => {
+    setRemovingId(actor.id);
+    try {
+      const res = await removeFollowerAction({ targetUserId: actor.id });
+      if (!res.ok) {
+        toast.error(t`Impossible de retirer cet abonné.`);
+        return;
+      }
+      setItems((prev) => prev.filter((a) => a.id !== actor.id));
+      toast.success(t`Abonné retiré.`);
+    } catch {
+      toast.error(t`Erreur lors du retrait de l'abonné.`);
+    } finally {
+      setRemovingId(null);
     }
   };
 
@@ -181,7 +206,21 @@ export function FollowList({ handle, initialTab, currentUserId }: FollowListProp
               </div>
             </Link>
 
-            {currentUserId && actor.id !== currentUserId ? (
+            {isOwnProfile && tab === 'followers' ? (
+              <button
+                type="button"
+                onClick={() => void handleRemoveFollower(actor)}
+                disabled={removingId === actor.id}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border/60 bg-card hover:bg-destructive/10 hover:text-destructive-text text-muted-foreground transition-all cursor-pointer shrink-0"
+                title={t`Retirer cet abonné`}
+              >
+                {removingId === actor.id ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  t`Retirer`
+                )}
+              </button>
+            ) : currentUserId && actor.id !== currentUserId ? (
               <button
                 onClick={() => void handleFollow(actor)}
                 disabled={busyId === actor.id}

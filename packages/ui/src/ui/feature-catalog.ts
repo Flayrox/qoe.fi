@@ -177,6 +177,204 @@ export const FEATURES = {
       ctaLabel: { fr: 'Fermer', en: 'Close' },
     },
   },
+  'audio-tts': {
+    key: 'audio-tts',
+    status: 'coming-soon',
+    plan: 'free',
+    audience: 'reader',
+    cta: 'notify',
+    icon: 'sparkles',
+    copy: {
+      label: { fr: 'Bientôt', en: 'Soon' },
+      title: { fr: 'Écoute audio & synthèse vocale', en: 'Audio listening & speech synthesis' },
+      summary: {
+        fr: 'Écoutez les articles lus à voix haute avec un rendu vocal naturel et fluide.',
+        en: 'Listen to articles read aloud with natural, fluid voice narration.',
+      },
+      details: [
+        {
+          fr: 'Voix neuronales expressives adaptées aux longs formats et pauses de lecture.',
+          en: 'Expressive neural voices crafted for long-form reading and natural pauses.',
+        },
+        {
+          fr: 'Vitesse de lecture ajustable et reprise automatique là où vous vous êtes arrêté.',
+          en: 'Adjustable playback speed and automatic resume where you left off.',
+        },
+        {
+          fr: 'Accessible en tâche de fond pour poursuivre l’écoute pendant vos trajets.',
+          en: 'Background playback support so you can keep listening on the move.',
+        },
+      ],
+      availability: {
+        fr: 'Prochainement disponible pour tous les lecteurs.',
+        en: 'Coming soon for all readers.',
+      },
+      ctaLabel: { fr: 'Me prévenir', en: 'Notify me' },
+      ctaHint: {
+        fr: 'Un seul email dès l’ouverture de l’écoute audio.',
+        en: 'A single email when audio listening launches.',
+      },
+    },
+  },
+  'ai-summary': {
+    key: 'ai-summary',
+    status: 'coming-soon',
+    plan: 'free',
+    audience: 'reader',
+    cta: 'notify',
+    icon: 'sparkles',
+    copy: {
+      label: { fr: 'Bientôt', en: 'Soon' },
+      title: { fr: 'Résumé IA de l’article', en: 'AI Article Summary' },
+      summary: {
+        fr: 'Obtenez les idées clés et les points essentiels d’un écrit en quelques secondes.',
+        en: 'Get key insights and essential takeaways in just a few seconds.',
+      },
+      details: [
+        {
+          fr: 'Synthèse structurée fidèle au texte d’origine, sans perte de nuance.',
+          en: 'Structured summary faithful to the original text, preserving nuance.',
+        },
+        {
+          fr: 'Temps de lecture estimé et repères rapides pour décider d’approfondir.',
+          en: 'Estimated reading time and quick highlights to help you dive deeper.',
+        },
+        {
+          fr: 'Génération instantanée respectueuse des droits des auteurs.',
+          en: 'Instant generation respecting author rights and content integrity.',
+        },
+      ],
+      availability: {
+        fr: 'Bientôt disponible — tests d’exactitude en cours.',
+        en: 'Coming soon — accuracy benchmarks underway.',
+      },
+      ctaLabel: { fr: 'Me prévenir', en: 'Notify me' },
+      ctaHint: {
+        fr: 'Notification à l’arrivée de la fonctionnalité.',
+        en: 'Notification once the feature is available.',
+      },
+    },
+  },
+  'reading-papers': {
+    key: 'reading-papers',
+    status: 'coming-soon',
+    plan: 'free',
+    audience: 'reader',
+    cta: 'notify',
+    icon: 'globe',
+    copy: {
+      label: { fr: 'Bientôt', en: 'Soon' },
+      title: {
+        fr: 'Papiers de lecture Nuit chaude & Papier',
+        en: 'Reading Papers Warm Night & Paper',
+      },
+      summary: {
+        fr: 'Des rendus visuels immersifs inspirés du papier pour reposer vos yeux.',
+        en: 'Immersive paper-like visual layouts designed to ease eye strain.',
+      },
+      details: [
+        {
+          fr: 'Nuanciers feutrés et contrastes adoucis pour les sessions de lecture nocturne.',
+          en: 'Muted color palettes and softened contrasts for night reading sessions.',
+        },
+        {
+          fr: 'Typographie éditoriale calibrée pour une lisibilité maximale.',
+          en: 'Editorial typography calibrated for optimal readability.',
+        },
+        {
+          fr: 'Basculez instantanément selon la luminosité ambiante de votre espace.',
+          en: 'Instantly toggle modes depending on your ambient environment.',
+        },
+      ],
+      availability: {
+        fr: 'En cours de finition typographique.',
+        en: 'Undergoing final typographical polish.',
+      },
+      ctaLabel: { fr: 'Me prévenir', en: 'Notify me' },
+      ctaHint: {
+        fr: 'Soyez averti dès le lancement des papiers de lecture.',
+        en: 'Get notified when reading papers go live.',
+      },
+    },
+  },
+  'offline-reading': {
+    key: 'offline-reading',
+    status: 'coming-soon',
+    plan: 'free',
+    audience: 'reader',
+    cta: 'notify',
+    icon: 'clock',
+    copy: {
+      label: { fr: 'Bientôt', en: 'Soon' },
+      title: { fr: 'Emport hors-ligne', en: 'Offline Reading' },
+      summary: {
+        fr: 'Téléchargez vos lectures pour les consulter sans connexion, partout.',
+        en: 'Download your reading list to enjoy offline, anywhere.',
+      },
+      details: [
+        {
+          fr: 'Synchronisation automatique de votre bibliothèque et de vos signets.',
+          en: 'Automatic sync of your saved library and bookmarks.',
+        },
+        {
+          fr: 'Conserve les images et la mise en page originale hors réseau.',
+          en: 'Preserves images and original formatting while offline.',
+        },
+        {
+          fr: 'Reprise transparente de votre position de lecture à la reconnexion.',
+          en: 'Seamless reading position restore upon reconnecting.',
+        },
+      ],
+      availability: {
+        fr: 'Déploiement prévu avec la prochaine version de l’application.',
+        en: 'Planned release with the upcoming app update.',
+      },
+      ctaLabel: { fr: 'Me prévenir', en: 'Notify me' },
+      ctaHint: {
+        fr: 'Un email pour vous informer de l’ouverture du mode hors-ligne.',
+        en: 'An email alerting you when offline mode is ready.',
+      },
+    },
+  },
+  'direct-messages': {
+    key: 'direct-messages',
+    status: 'coming-soon',
+    plan: 'free',
+    audience: 'reader',
+    cta: 'notify',
+    icon: 'mail',
+    copy: {
+      label: { fr: 'Bientôt', en: 'Soon' },
+      title: { fr: 'Messagerie privée', en: 'Direct Messages' },
+      summary: {
+        fr: 'Échangez en direct et en toute confidentialité avec vos auteurs et vos proches.',
+        en: 'Chat directly and confidentially with creators and friends.',
+      },
+      details: [
+        {
+          fr: 'Conversations directes protégées avec filtres anti-spam stricts.',
+          en: 'Protected direct conversations with strict anti-spam filters.',
+        },
+        {
+          fr: 'Partagez des extraits d’articles et des pensées en un clic.',
+          en: 'Share article quotes and thoughts in a single tap.',
+        },
+        {
+          fr: 'Contrôlez qui peut vous contacter via vos paramètres de confidentialité.',
+          en: 'Control who can message you through your privacy settings.',
+        },
+      ],
+      availability: {
+        fr: 'Ouverture progressive aux membres de la communauté.',
+        en: 'Gradual rollout to community members.',
+      },
+      ctaLabel: { fr: 'Me prévenir', en: 'Notify me' },
+      ctaHint: {
+        fr: 'Prévenez-moi lorsque la messagerie privée sera accessible.',
+        en: 'Notify me when direct messages become available.',
+      },
+    },
+  },
 } as const satisfies Record<string, FeatureDefinition>;
 
 export type FeatureKey = keyof typeof FEATURES;

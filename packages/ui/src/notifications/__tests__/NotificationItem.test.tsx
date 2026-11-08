@@ -154,4 +154,30 @@ describe('NotificationItem — carte de survol', () => {
     const link = document.querySelector('a[href="/articles/art-1?ws=media-1"]');
     expect(link).not.toBeNull();
   });
+
+  it('affiche le bon libellé pour FOLLOW_ACCEPTED', () => {
+    render(
+      <NotificationItem
+        notification={{
+          ...notification,
+          type: 'FOLLOW',
+          metadata: { kind: 'FOLLOW_ACCEPTED' },
+        }}
+      />
+    );
+    expect(screen.getByText("a accepté votre demande d'abonnement")).toBeDefined();
+  });
+
+  it('affiche le bon libellé pour FEATURE_LAUNCH', () => {
+    render(
+      <NotificationItem
+        notification={{
+          ...notification,
+          type: 'LIKE',
+          metadata: { kind: 'FEATURE_LAUNCH' },
+        }}
+      />
+    );
+    expect(screen.getByText('est désormais disponible !')).toBeDefined();
+  });
 });

@@ -761,6 +761,7 @@ export function ProfileView({
                 handle={user.username || user.subdomain || user.id}
                 initialTab={followsModalTab}
                 currentUserId={currentUserId}
+                isOwnProfile={isOwnProfile}
               />
             )}
           </div>

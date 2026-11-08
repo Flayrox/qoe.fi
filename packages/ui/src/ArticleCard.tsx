@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
   ArrowUpRight,
   BookMarked,
@@ -11,7 +11,6 @@ import {
   Heart,
   MessageSquare,
   MoreHorizontal,
-  Repeat,
   UserCheck,
   UserPlus,
 } from 'lucide-react';
@@ -19,6 +18,8 @@ import { cn } from '@qoe/utils';
 import { getArticleUrl } from '@qoe/config';
 import { getCoverPlaceholder } from '@qoe/theme';
 import type { FeedArticleDTO } from '@qoe/sdk/types';
+import { useArticleShadow, updateArticleShadow, useActorShadow, updateActorShadow } from '@qoe/sdk';
+import { RepostPopover } from './social/RepostPopover';
 import { useRequireAuth } from './auth/AuthModalContext';
 import { CertifiedBadge } from './ui/CertifiedBadge';
 import { SafeAvatar } from './SafeAvatar';
@@ -38,11 +39,18 @@ export type ArticleCardArticle = Omit<
 > & {
   published?: boolean;
   content?: string | null;
+  liked?: boolean;
+  likesCount?: number;
+  reposted?: boolean;
+  repostsCount?: number;
+  isBookmarked?: boolean;
+  bookmarked?: boolean;
   publication?: {
     id: string;
     name: string;
     slug?: string | null;
     subdomain?: string | null;
+    customDomain?: string | null;
     logoUrl?: string | null;
     type?: string | null;
   } | null;
@@ -51,6 +59,8 @@ export type ArticleCardArticle = Omit<
     subdomain?: string | null;
     customDomain?: string | null;
     heroText?: string | null;
+    isFollowed?: boolean;
+    viewerFollows?: boolean;
   };
   category?: {
     name: string;
@@ -76,6 +86,8 @@ export interface ArticleCardProps {
   isBookmarked?: boolean;
   handleFollowToggle?: (author: ArticleCardArticle['author']) => void;
   handleBookmarkToggle?: (article: ArticleCardArticle) => void;
+  onRepostToggle?: (article: ArticleCardArticle) => void;
+  onQuoteArticle?: (article: ArticleCardArticle) => void;
   featured?: boolean;
   discovery?: boolean;
   isPreview?: boolean;
@@ -273,7 +285,7 @@ function SharedContributorLine({
 }
 
 export function ArticleCard({
-  article,
+  article: rawArticle,
   dbUser,
   isFollowed = false,
   isFollowedAuthor = false,
@@ -281,6 +293,8 @@ export function ArticleCard({
   isBookmarked = false,
   handleFollowToggle,
   handleBookmarkToggle,
+  onRepostToggle,
+  onQuoteArticle,
   featured = false,
   discovery = false,
   isPreview = false,
@@ -290,15 +304,42 @@ export function ArticleCard({
   onOpenPost,
 }: ArticleCardProps) {
   const { withAuth } = useRequireAuth();
-  const [bookmarked, setBookmarked] = useState(isBookmarked);
-  const [followed, setFollowed] = useState(isFollowed);
-  const [liked, setLiked] = useState(article.liked || false);
-  const [likesCount, setLikesCount] = useState(article.likesCount || 0);
-  const [reposted, setReposted] = useState(false);
-  const [repostsCount, setRepostsCount] = useState(0);
 
-  useEffect(() => setBookmarked(isBookmarked), [isBookmarked]);
-  useEffect(() => setFollowed(isFollowed), [isFollowed]);
+  const articleWithProps = React.useMemo(
+    () => ({
+      ...rawArticle,
+      isBookmarked: isBookmarked ?? rawArticle.isBookmarked,
+    }),
+    [rawArticle, isBookmarked]
+  );
+  const shadowedArticle = useArticleShadow(articleWithProps);
+
+  const authorWithProps = React.useMemo(
+    () => ({
+      ...shadowedArticle.author,
+      isFollowed: isFollowed ?? shadowedArticle.author.isFollowed,
+    }),
+    [shadowedArticle.author, isFollowed]
+  );
+  const shadowedAuthor = useActorShadow(authorWithProps);
+
+  const article: ArticleCardArticle = React.useMemo(
+    () => ({
+      ...shadowedArticle,
+      author: {
+        ...shadowedArticle.author,
+        ...shadowedAuthor,
+      },
+    }),
+    [shadowedArticle, shadowedAuthor]
+  );
+
+  const bookmarked = article.isBookmarked ?? false;
+  const followed = shadowedAuthor.isFollowed ?? isFollowed;
+  const liked = article.liked ?? false;
+  const likesCount = article.likesCount ?? 0;
+  const reposted = article.reposted ?? false;
+  const repostsCount = article.repostsCount ?? 0;
 
   const isThought = !article.title;
   const authorHandle = article.author.username || article.author.subdomain || 'qoefi';
@@ -426,14 +467,19 @@ export function ArticleCard({
   const toggleBookmark = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
-    setBookmarked((value) => !value);
+    const nextBookmarked = !bookmarked;
+    updateArticleShadow(article.id, { bookmarked: nextBookmarked });
     handleBookmarkToggle?.(article);
   };
 
   const toggleFollow = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
-    setFollowed((value) => !value);
+    const nextFollowed = !followed;
+    updateActorShadow(article.author.id, { followed: nextFollowed });
+    if (article.author.username) {
+      updateActorShadow(article.author.username, { followed: nextFollowed });
+    }
     handleFollowToggle?.(article.author);
   };
 
@@ -441,8 +487,8 @@ export function ArticleCard({
     (event: React.MouseEvent) => {
       event.preventDefault();
       event.stopPropagation();
-      setLiked((value) => !value);
-      setLikesCount((value) => (liked ? Math.max(0, value - 1) : value + 1));
+      const nextLiked = !liked;
+      updateArticleShadow(article.id, { liked: nextLiked });
     },
     { actionContext: 'like' }
   );
@@ -451,11 +497,38 @@ export function ArticleCard({
     (event: React.MouseEvent) => {
       event.preventDefault();
       event.stopPropagation();
-      setReposted((value) => !value);
-      setRepostsCount((value) => (reposted ? Math.max(0, value - 1) : value + 1));
+      const nextReposted = !reposted;
+      updateArticleShadow(article.id, { reposted: nextReposted });
+      onRepostToggle?.(article);
     },
     { actionContext: 'repost' }
   );
+
+  const handleQuoteArticle = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (onQuoteArticle) {
+      onQuoteArticle(article);
+    } else if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('open-composer', {
+          detail: {
+            quotedArticle: {
+              id: article.id,
+              title: article.title,
+              slug: article.slug,
+              content: article.content,
+              author: {
+                ...article.author,
+                subdomain: article.author.subdomain || article.publication?.subdomain,
+                customDomain: article.author.customDomain || article.publication?.customDomain,
+              },
+            },
+          },
+        })
+      );
+    }
+  };
 
   if (isThought) return null;
 
@@ -657,18 +730,16 @@ export function ArticleCard({
                 <Heart className={cn('h-4 w-4', liked && 'fill-current')} />
                 {likesCount > 0 && <span>{likesCount}</span>}
               </button>
-              <button
-                type="button"
-                onClick={toggleRepost}
-                className={cn(
-                  'flex items-center gap-1 rounded-full p-1.5 hover:bg-muted transition-colors cursor-pointer',
-                  reposted && 'text-success-text'
-                )}
-                title={t`Reposter`}
-              >
-                <Repeat className="h-4 w-4" />
-                {repostsCount > 0 && <span>{repostsCount}</span>}
-              </button>
+              <RepostPopover
+                reposted={reposted}
+                repostsCount={repostsCount}
+                targetType="article"
+                onRepost={toggleRepost}
+                onQuote={handleQuoteArticle}
+                triggerClass="rounded-full p-1.5 hover:bg-muted transition-colors"
+                iconClass="h-4 w-4"
+                textClass="text-xs"
+              />
               <button
                 type="button"
                 onClick={() => onOpenPost?.(article.id)}

@@ -171,6 +171,7 @@ func (h *Handler) RegisterProtected(r chi.Router, requireScope func(string) func
 	r.Get("/v1/me/follow-requests", h.followRequests)
 	r.Post("/v1/me/follow-requests/{id}/accept", h.acceptFollowRequest)
 	r.Post("/v1/me/follow-requests/{id}/reject", h.rejectFollowRequest)
+	r.Delete("/v1/me/followers/{userId}", h.removeFollower)
 	r.With(requireScope(middleware.ScopeRead)).Get("/v1/categories", h.categories)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/categories", h.createCategory)
 	r.With(requireScope(middleware.ScopeWrite)).Patch("/v1/categories/{id}", h.updateCategory)
@@ -179,6 +180,11 @@ func (h *Handler) RegisterProtected(r chi.Router, requireScope func(string) func
 	r.With(requireScope(middleware.ScopeRead)).Get("/v1/creator/recommendations", h.apiRecommendationsList)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/creator/recommendations", h.apiRecommendationAdd)
 	r.With(requireScope(middleware.ScopeWrite)).Delete("/v1/creator/recommendations/{recommendedId}", h.apiRecommendationRemove)
+}
+
+// RegisterRoutes enregistre les routes créateur (alias conventionnel).
+func (h *Handler) RegisterRoutes(r chi.Router) {
+	r.Delete("/v1/me/followers/{userId}", h.removeFollower)
 }
 
 // category est la forme API d'une catégorie (parité Hono).
@@ -1138,6 +1144,57 @@ func deleteFollowNotification(ctx context.Context, tq ServiceQuerier, publicatio
 		SenderId:      toUUID(senderID),
 		PublicationId: pgtype.Text{String: publicationID, Valid: true},
 	})
+}
+
+// removeFollower — DELETE /v1/me/followers/{userId} : retire un abonné de la
+// publication de l'utilisateur (compte perso ou publication active).
+func (h *Handler) removeFollower(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok || userID == "" {
+		response.Unauthorized(w, "Non authentifié")
+		return
+	}
+	targetUserID := chi.URLParam(r, "userId")
+	if targetUserID == "" {
+		response.BadRequest(w, "Identifiant utilisateur requis")
+		return
+	}
+
+	pubID, _ := middleware.PublicationID(r.Context())
+	if pubID == "" {
+		var userPubID pgtype.Text
+		err := h.pool.QueryRow(r.Context(), `SELECT "publicationId" FROM "User" WHERE id = $1::uuid`, toUUID(userID)).Scan(&userPubID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				response.NotFound(w, "Utilisateur introuvable")
+				return
+			}
+			log.Printf("[creator] remove follower get user: %v", err)
+			response.Internal(w)
+			return
+		}
+		if userPubID.Valid {
+			pubID = userPubID.String
+		}
+	}
+	if pubID == "" {
+		response.NotFound(w, "Publication introuvable")
+		return
+	}
+
+	if _, err := h.pool.Exec(r.Context(), `
+		DELETE FROM "Follows"
+		WHERE "readerId" = $1::uuid AND "publicationId" = $2
+	`, toUUID(targetUserID), pubID); err != nil {
+		log.Printf("[creator] remove follower: %v", err)
+		response.Internal(w)
+		return
+	}
+
+	// Suppression d'éventuelles notifications d'abonnement en attente.
+	_ = deleteFollowNotification(r.Context(), h.q, pubID, targetUserID)
+
+	response.OK(w, map[string]any{"removed": true})
 }
 
 // toUUID convertit un id texte en pgtype.UUID (readerId UUID).

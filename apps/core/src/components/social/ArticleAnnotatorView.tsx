@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Bookmark, BookMarked, Check, Lock, Share2, UserCheck, UserPlus } from 'lucide-react';
 import { createClient } from '@qoe/supabase/client';
-import { toast } from '@qoe/ui/toast';
 import { usePlus } from '@/lib/use-plus';
 import {
   TextHighlighter,
@@ -33,7 +32,13 @@ import {
 import { SimilarArticlesSection } from './SimilarArticlesSection';
 import { ArticleSummary } from './ArticleSummary';
 import { useArticleReadingTracker } from '@qoe/analytics';
-import { SubscribeForm, SafeAvatar, ProfileHoverCard, useAuthModal } from '@qoe/ui';
+import {
+  SubscribeForm,
+  SafeAvatar,
+  ProfileHoverCard,
+  useAuthModal,
+  useFeatureAnnouncement,
+} from '@qoe/ui';
 import { CertifiedBadge } from '@qoe/ui/ui/CertifiedBadge';
 import {
   ReadingPreferencesProvider,
@@ -183,7 +188,8 @@ function ArticleAnnotatorViewInner({
   const isTtsEnabled = useFlag('reader-tts-playback');
   const ttsPlus = usePlus();
   const ttsLocked = ttsPlus === false;
-  const ttsUpsell = () => toast.info(t`Écoute audio réservée aux abonnés Plus (bientôt).`);
+  const featureAnnouncement = useFeatureAnnouncement();
+  const ttsUpsell = () => featureAnnouncement.open('audio-tts');
 
   const activeBookmarked = toolbar ? toolbar.bookmarked : bookmarked;
   const activeCopied = toolbar ? toolbar.copied : copied;
@@ -731,9 +737,7 @@ function ArticleAnnotatorViewInner({
             )}
             <ReadingSettingsSheet
               plusThemesLocked={ttsLocked}
-              onLockedThemeClick={() =>
-                toast.info(t`Papiers Nuit chaude et Papier réservés aux abonnés Plus (bientôt).`)
-              }
+              onLockedThemeClick={() => featureAnnouncement.open('reading-papers')}
               filterMode={toolbar?.filterMode}
               onFilterModeChange={toolbar?.setFilterMode}
               allowPublicAnnotations={article.allowPublicAnnotations ?? true}

@@ -13,7 +13,18 @@ type Derived = {
   isDeleted?: boolean;
   isPinned?: boolean;
 };
-import { POST_TOMBSTONE, updatePostShadow, getPostShadow, usePostShadow } from '../shadow';
+import {
+  POST_TOMBSTONE,
+  updatePostShadow,
+  getPostShadow,
+  usePostShadow,
+  updateArticleShadow,
+  getArticleShadow,
+  useArticleShadow,
+  updateActorShadow,
+  getActorShadow,
+  useActorShadow,
+} from '../shadow';
 
 // mergeShadow est privé : on le couvre via usePostShadow, qui fusionne
 // l'état serveur du post avec le shadow optimiste à chaque rendu.
@@ -101,5 +112,70 @@ describe('usePostShadow — fusion état serveur + état optimiste', () => {
 
   it('POST_TOMBSTONE reste exporté pour marquer les suppressions', () => {
     expect(typeof POST_TOMBSTONE).toBe('symbol');
+  });
+});
+
+describe('useArticleShadow — synchronisation réactive des articles', () => {
+  it('renvoie l’article inchangé sans shadow', () => {
+    const article = {
+      id: 'art-1',
+      liked: false,
+      likesCount: 5,
+      reposted: false,
+      repostsCount: 2,
+      isBookmarked: false,
+    };
+    const { result } = renderHook(() => useArticleShadow(article));
+    expect(result.current).toEqual(article);
+    expect(getArticleShadow('art-1')).toBeUndefined();
+  });
+
+  it('dérive likesCount et repostsCount lors des mises à jour shadow', () => {
+    updateArticleShadow('art-2', { liked: true, reposted: true, bookmarked: true });
+    const { result } = renderHook(() =>
+      useArticleShadow({
+        id: 'art-2',
+        liked: false,
+        likesCount: 10,
+        reposted: false,
+        repostsCount: 3,
+        isBookmarked: false,
+      })
+    );
+    expect(result.current.liked).toBe(true);
+    expect(result.current.likesCount).toBe(11);
+    expect(result.current.reposted).toBe(true);
+    expect(result.current.repostsCount).toBe(4);
+    expect(result.current.isBookmarked).toBe(true);
+  });
+
+  it('accepte les compteurs explicites dans le patch', () => {
+    updateArticleShadow('art-3', { liked: true, likesCount: 99 });
+    const { result } = renderHook(() =>
+      useArticleShadow({ id: 'art-3', liked: false, likesCount: 0 })
+    );
+    expect(result.current.liked).toBe(true);
+    expect(result.current.likesCount).toBe(99);
+  });
+});
+
+describe('useActorShadow — synchronisation réactive des acteurs (par id ou handle)', () => {
+  it('synchronise le statut d’abonnement par id', () => {
+    updateActorShadow('user-1', { followed: true });
+    const { result } = renderHook(() =>
+      useActorShadow({ id: 'user-1', username: 'alice', isFollowed: false, viewerFollows: false })
+    );
+    expect(result.current.isFollowed).toBe(true);
+    expect(result.current.viewerFollows).toBe(true);
+  });
+
+  it('synchronise le statut d’abonnement par username / handle', () => {
+    updateActorShadow('@bob', { followed: true, followRequested: true });
+    const { result } = renderHook(() =>
+      useActorShadow({ id: 'user-2', username: 'bob', isFollowed: false, followRequested: false })
+    );
+    expect(result.current.isFollowed).toBe(true);
+    expect(result.current.followRequested).toBe(true);
+    expect(getActorShadow('bob')?.followed).toBe(true);
   });
 });
