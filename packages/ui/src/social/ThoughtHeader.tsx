@@ -3,10 +3,9 @@
 import React from 'react';
 import { t } from '@lingui/core/macro';
 import { cn } from '@qoe/utils';
-import { MoreHorizontal, Pin, Flag, EyeOff, Eye, Ban, Copy, Trash2 } from 'lucide-react';
-import { Popover, PopoverTrigger, PopoverContent } from '../ui/popover';
 import { ProfileHoverCard } from './ProfileHoverCard';
 import { CertifiedBadge } from '../ui/CertifiedBadge';
+import { EntityActionMenu } from './EntityActionMenu';
 import { getThoughtUrl } from '@qoe/config';
 
 export interface ThoughtAuthor {
@@ -16,6 +15,8 @@ export interface ThoughtAuthor {
   subdomain?: string | null;
   logoUrl?: string | null;
   isCertified?: boolean;
+  isMuted?: boolean;
+  isBlocked?: boolean;
   type?: 'PERSONAL' | 'MEDIA' | string | null;
 }
 
@@ -64,8 +65,6 @@ export function ThoughtHeader({
   onShowLessClick,
   className,
 }: ThoughtHeaderProps) {
-  const [showPopover, setShowPopover] = React.useState<boolean>(false);
-
   const authorHandle = author.username || author.subdomain || author.id?.slice(0, 8) || 'auteur';
 
   return (
@@ -120,152 +119,33 @@ export function ThoughtHeader({
           </button>
         )}
 
-        {/* Options Popover */}
-        <Popover open={showPopover} onOpenChange={setShowPopover}>
-          <PopoverTrigger
-            render={
-              <button
-                type="button"
-                className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer flex items-center justify-center outline-none"
-                title={t`Options`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setShowPopover(true);
-                }}
-              >
-                <MoreHorizontal className="w-3.5 h-3.5" />
-              </button>
-            }
-          />
-          <PopoverContent
-            align="end"
-            className="w-48 p-1.5 space-y-0.5 bg-popover border border-border/40 rounded-xl shadow-lg z-50 font-sans"
-          >
-            {thoughtText && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowPopover(false);
-                  navigator.clipboard.writeText(thoughtText);
-                }}
-                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center gap-2 cursor-pointer font-medium"
-              >
-                <Copy className="w-3.5 h-3.5" />
-                <span>{t`Copier le texte`}</span>
-              </button>
-            )}
-
-            {postId && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowPopover(false);
-                  const url = getThoughtUrl(authorHandle, postId);
-                  navigator.clipboard.writeText(url);
-                }}
-                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center gap-2 cursor-pointer font-medium"
-              >
-                <Copy className="w-3.5 h-3.5" />
-                <span>{t`Copier le lien`}</span>
-              </button>
-            )}
-
-            {currentUserId === author.id && onPinToggle && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  setShowPopover(false);
-                  onPinToggle(e);
-                }}
-                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center gap-2 cursor-pointer font-medium"
-              >
-                <Pin className="w-3.5 h-3.5 rotate-45" />
-                <span>{isPinned ? t`Désépingler` : t`Épingler`}</span>
-              </button>
-            )}
-
-            {canHideReply && onHideReplyToggle && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  setShowPopover(false);
-                  onHideReplyToggle(e);
-                }}
-                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center gap-2 cursor-pointer font-medium"
-              >
-                {isHiddenByAuthor ? (
-                  <Eye className="w-3.5 h-3.5" />
-                ) : (
-                  <EyeOff className="w-3.5 h-3.5" />
-                )}
-                <span>
-                  {isHiddenByAuthor ? t`Afficher cette réponse` : t`Masquer cette réponse`}
-                </span>
-              </button>
-            )}
-
-            {currentUserId === author.id && onDeleteClick && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  setShowPopover(false);
-                  onDeleteClick(e);
-                }}
-                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-destructive-text hover:bg-destructive/10 transition-colors flex items-center gap-2 cursor-pointer font-medium"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>{t`Supprimer`}</span>
-              </button>
-            )}
-
-            {currentUserId !== author.id && onBlockUserToggle && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  setShowPopover(false);
-                  onBlockUserToggle(e);
-                }}
-                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-destructive-text hover:bg-destructive/10 transition-colors flex items-center gap-2 cursor-pointer font-medium"
-              >
-                <Ban className="w-3.5 h-3.5" />
-                <span>
-                  {isBlocked ? t`Débloquer` : t`Bloquer`} @{authorHandle}
-                </span>
-              </button>
-            )}
-
-            {currentUserId !== author.id && onShowLessClick && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  setShowPopover(false);
-                  onShowLessClick(e);
-                }}
-                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted/40 transition-colors flex items-center gap-2 cursor-pointer font-medium"
-              >
-                <EyeOff className="w-3.5 h-3.5" />
-                <span>{t`Voir moins de contenu comme ça`}</span>
-              </button>
-            )}
-
-            {onReportClick && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  setShowPopover(false);
-                  onReportClick(e);
-                }}
-                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-highlight hover:bg-highlight/10 transition-colors flex items-center gap-2 cursor-pointer font-medium"
-              >
-                <Flag className="w-3.5 h-3.5" />
-                <span>{t`Signaler`}</span>
-              </button>
-            )}
-          </PopoverContent>
-        </Popover>
+        <EntityActionMenu
+          surface="thought-card-menu"
+          context={{
+            entityType: 'thought',
+            entityId: postId ?? '',
+            url: postId ? getThoughtUrl(authorHandle, postId) : undefined,
+            text: thoughtText,
+            isPinned,
+            isHiddenByAuthor,
+            author: {
+              id: author.id,
+              username: author.username,
+              subdomain: author.subdomain,
+              name: author.name,
+              isMuted: author.isMuted,
+              isBlocked: author.isBlocked ?? isBlocked,
+            },
+            viewerId: currentUserId,
+            capabilities: { canHideReply: Boolean(canHideReply) },
+          }}
+          onPinToggle={onPinToggle}
+          onReportClick={onReportClick}
+          onHideReplyToggle={onHideReplyToggle}
+          onBlockUserToggle={onBlockUserToggle}
+          onDeleteClick={onDeleteClick}
+          onShowLessClick={onShowLessClick}
+        />
       </div>
     </div>
   );

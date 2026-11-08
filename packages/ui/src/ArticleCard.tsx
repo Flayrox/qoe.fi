@@ -7,10 +7,8 @@ import {
   Bookmark,
   Clock,
   Crown,
-  EyeOff,
   Heart,
   MessageSquare,
-  MoreHorizontal,
   UserCheck,
   UserPlus,
 } from 'lucide-react';
@@ -31,12 +29,7 @@ import { CertifiedBadge } from './ui/CertifiedBadge';
 import { SafeAvatar } from './SafeAvatar';
 import { SafeImage } from './SafeImage';
 import { ProfileHoverCard } from './social/ProfileHoverCard';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
+import { EntityActionMenu } from './social/EntityActionMenu';
 import { t } from '@lingui/core/macro';
 
 export type ArticleCardArticle = Omit<
@@ -67,6 +60,9 @@ export type ArticleCardArticle = Omit<
     heroText?: string | null;
     isFollowed?: boolean;
     viewerFollows?: boolean;
+    /** État relationnel calculé par Go (voir PostCapabilities). */
+    isMuted?: boolean;
+    isBlocked?: boolean;
   };
   category?: {
     name: string;
@@ -696,27 +692,32 @@ export function ArticleCard({
               </button>
 
               {onHideArticle && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    type="button"
-                    className="text-black/60 transition-colors hover:text-black dark:text-white/60 dark:hover:text-white p-1 rounded-full cursor-pointer outline-none"
-                    aria-label={t`Plus d'options`}
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" sideOffset={8} className="w-56">
-                    <DropdownMenuItem
-                      onAction={() => {
-                        if (window.confirm(t`Voir moins de contenu comme ça ?`)) {
-                          onHideArticle(article);
-                        }
-                      }}
-                    >
-                      <EyeOff className="text-muted-foreground" />
-                      <span>{t`Voir moins de contenu comme ça`}</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <EntityActionMenu
+                  surface="article-card-menu"
+                  context={{
+                    entityType: 'article',
+                    entityId: article.id,
+                    url,
+                    text: article.title,
+                    isBookmarked: bookmarked,
+                    author: {
+                      id: primaryAuthor.id,
+                      username: primaryAuthor.username,
+                      subdomain: primaryAuthor.subdomain,
+                      name: primaryAuthor.name,
+                      isMuted: primaryAuthor.isMuted,
+                      isBlocked: primaryAuthor.isBlocked,
+                    },
+                    viewerId: dbUser?.id ?? null,
+                    capabilities: article.capabilities,
+                  }}
+                  triggerClassName="text-black/60 transition-colors hover:text-black dark:text-white/60 dark:hover:text-white"
+                  onShowLessClick={() => {
+                    if (onHideArticle && window.confirm(t`Voir moins de contenu comme ça ?`)) {
+                      onHideArticle(article);
+                    }
+                  }}
+                />
               )}
             </div>
           ) : (

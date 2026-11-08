@@ -796,6 +796,15 @@ export const toggleBlockUserAction = safeAction<string, { blocked: boolean }>(
   }
 );
 
+export const toggleMuteUserAction = safeAction<string, { muted: boolean }>(async (targetUserId) => {
+  // Go-only : POST /v1/users/{id}/mute (bascule atomique + UserMutedEvent).
+  const res = await goFetch<{ muted: boolean }>(
+    `/v1/users/${encodeURIComponent(targetUserId)}/mute`,
+    { method: 'POST' }
+  );
+  return { muted: res.muted };
+});
+
 export const toggleMuteWordAction = safeAction<string, { muted: boolean; word: string }>(
   async (word) => {
     // Go-only : POST /v1/me/muted-words.
