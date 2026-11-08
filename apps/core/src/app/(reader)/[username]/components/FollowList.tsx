@@ -14,6 +14,7 @@ import {
   getFollowListAction,
   removeFollowerAction,
 } from '@qoe/sdk/actions/feed';
+import { updateActorShadow, withShadowMutation } from '@qoe/sdk';
 import { toast } from '@qoe/ui/toast';
 
 interface FollowActor {
@@ -100,15 +101,43 @@ export function FollowList({
       return;
     }
     setBusyId(actor.id);
+    const previousFollows = actor.viewerFollows;
+    const nextFollows = !previousFollows;
+
     try {
-      const res = await toggleFollowCreator(actor.publicationId || actor.id);
-      if (!res.ok) {
-        toast.error('Erreur lors de la modification du suivi.');
-        return;
-      }
-      setItems((prev) =>
-        prev.map((a) => (a.id === actor.id ? { ...a, viewerFollows: !a.viewerFollows } : a))
-      );
+      await withShadowMutation({
+        lockKey: `actor:${actor.id}:follow`,
+        optimisticUpdate: () => {
+          setItems((prev) =>
+            prev.map((a) => (a.id === actor.id ? { ...a, viewerFollows: nextFollows } : a))
+          );
+          updateActorShadow(actor.id, { followed: nextFollows });
+          if (actor.username)
+            updateActorShadow(actor.username.replace(/^@/, ''), { followed: nextFollows });
+        },
+        rollback: () => {
+          setItems((prev) =>
+            prev.map((a) => (a.id === actor.id ? { ...a, viewerFollows: previousFollows } : a))
+          );
+          updateActorShadow(actor.id, { followed: previousFollows });
+          if (actor.username)
+            updateActorShadow(actor.username.replace(/^@/, ''), { followed: previousFollows });
+        },
+        mutation: async () => {
+          const res = await toggleFollowCreator(actor.publicationId || actor.id);
+          if (!res.ok) {
+            throw new Error('Erreur lors de la modification du suivi.');
+          }
+          const followed = res.data?.followed ?? false;
+          setItems((prev) =>
+            prev.map((a) => (a.id === actor.id ? { ...a, viewerFollows: followed } : a))
+          );
+          updateActorShadow(actor.id, { followed });
+          if (actor.username) updateActorShadow(actor.username.replace(/^@/, ''), { followed });
+        },
+      });
+    } catch {
+      toast.error('Erreur lors de la modification du suivi.');
     } finally {
       setBusyId(null);
     }

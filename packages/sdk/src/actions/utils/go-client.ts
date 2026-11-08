@@ -42,7 +42,8 @@ export async function goFetch<T = Record<string, unknown>>(
   path: string,
   init?: { method?: string; body?: unknown }
 ): Promise<T> {
-  if (!GO_API_URL) {
+  const apiUrl = GO_API_URL ?? process.env.QOE_API_URL;
+  if (!apiUrl) {
     throw new Error('QOE_API_URL non configuré');
   }
 
@@ -54,7 +55,7 @@ export async function goFetch<T = Record<string, unknown>>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${GO_API_URL}${path}`, {
+  const res = await fetch(`${apiUrl}${path}`, {
     method: init?.method ?? 'GET',
     headers,
     body: init?.body ? JSON.stringify(init.body) : undefined,
@@ -90,6 +91,23 @@ export async function goFetch<T = Record<string, unknown>>(
     throw err;
   }
   return body;
+}
+
+/**
+ * Charge le profil utilisateur courant (`GET /v1/me`).
+ * Si l'utilisateur n'est pas encore synchronisé dans Postgres (404),
+ * exécute la synchronisation (`POST /v1/me/sync`) puis ré-exécute `GET /v1/me`.
+ */
+export async function fetchMeWithSync<T = Record<string, unknown>>(): Promise<T> {
+  try {
+    return await goFetch<T>('/v1/me');
+  } catch (err: unknown) {
+    if ((err as { status?: number })?.status === 404) {
+      await goFetch<{ created: boolean }>('/v1/me/sync', { method: 'POST' });
+      return await goFetch<T>('/v1/me');
+    }
+    throw err;
+  }
 }
 
 /**

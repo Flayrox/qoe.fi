@@ -922,80 +922,13 @@ type FeedResultPage struct {
 // ToggleBlock bloque/débloque un utilisateur (BlockedUser : creator = la
 // cible, reader = l'auteur de l'action). Atomique et idempotent.
 func (s *Service) ToggleBlock(ctx context.Context, targetID, userID string) (bool, error) {
-	if targetID == userID {
-		return false, errors.New("impossible de se bloquer soi-même")
-	}
-	var blocked bool
-	err := domainevents.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
-		tq := s.q.WithTx(tx)
-		_, err := tq.GetExistingBlock(ctx, db.GetExistingBlockParams{
-			CreatorId: toUUID(targetID), ReaderId: toUUID(userID),
-		})
-		if err == nil {
-			if err := tq.DeleteBlock(ctx, db.DeleteBlockParams{
-				CreatorId: toUUID(targetID), ReaderId: toUUID(userID),
-			}); err != nil {
-				return err
-			}
-			if err := domainevents.Dispatch(ctx, tx, domainevents.UserUnblockedEvent{
-				BlockerID: userID,
-				BlockedID: targetID,
-			}); err != nil {
-				return err
-			}
-			blocked = false
-			return nil
-		}
-		if !errors.Is(err, pgx.ErrNoRows) {
-			return err
-		}
-		if err := tq.InsertBlock(ctx, db.InsertBlockParams{
-			CreatorId: toUUID(targetID), ReaderId: toUUID(userID),
-		}); err != nil {
-			return err
-		}
-
-		if err := domainevents.Dispatch(ctx, tx, domainevents.UserBlockedEvent{
-			BlockerID: userID,
-			BlockedID: targetID,
-		}); err != nil {
-			return err
-		}
-		blocked = true
-		return nil
-	})
-	if err != nil {
-		return false, err
-	}
-	return blocked, nil
+	return domainevents.ToggleBlock(ctx, s.pool, userID, targetID)
 }
 
 // ToggleMute masque/démasque un utilisateur (MutedUser : muter = l'auteur de
 // l'action, muted = la cible). Idempotent.
 func (s *Service) ToggleMute(ctx context.Context, targetID, userID string) (bool, error) {
-	if targetID == userID {
-		return false, errors.New("impossible de se masquer soi-même")
-	}
-	_, err := s.q.GetExistingMute(ctx, db.GetExistingMuteParams{
-		MuterId: toUUID(userID), MutedId: toUUID(targetID),
-	})
-	if err == nil {
-		if err := s.q.DeleteMute(ctx, db.DeleteMuteParams{
-			MuterId: toUUID(userID), MutedId: toUUID(targetID),
-		}); err != nil {
-			return false, err
-		}
-		return false, nil
-	}
-	if !errors.Is(err, pgx.ErrNoRows) {
-		return false, err
-	}
-	if err := s.q.InsertMute(ctx, db.InsertMuteParams{
-		MuterId: toUUID(userID), MutedId: toUUID(targetID),
-	}); err != nil {
-		return false, err
-	}
-	return true, nil
+	return domainevents.ToggleMute(ctx, s.pool, userID, targetID)
 }
 
 // Report crée un signalement de modération (ModerationReport).

@@ -13,7 +13,7 @@ import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { ROLES, type Role, getMonorepoUrl } from '@qoe/config';
 import { can, type Action } from './permissions';
-import { goFetch } from './go-client';
+import { fetchMeWithSync } from './go-client';
 
 /**
  * 👤 Utilisateur DB (parité ReaderProfile Go — GET /v1/me).
@@ -57,7 +57,7 @@ export const getCurrentUser = cache(async (): Promise<DbUser | null> => {
   if (!authUser) return null;
 
   try {
-    return await goFetch<DbUser>('/v1/me');
+    return await fetchMeWithSync<DbUser>();
   } catch {
     // Utilisateur Supabase sans ligne DB (ex. tout juste inscrit) → null.
     return null;

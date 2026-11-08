@@ -30,6 +30,7 @@ export * from './actions/entitlements';
 export * from './actions/appeals';
 export * from './actions/support';
 export * from './actions/recommendations';
+export * from './actions/features';
 export * from './support';
 export * from './abuse-codes.generated';
 export * from './spotlight';

@@ -458,3 +458,35 @@ func TestWithTx_Integration(t *testing.T) {
 		})
 	})
 }
+
+func TestToggleBlock_SelfBlock(t *testing.T) {
+	ctx := context.Background()
+	_, err := ToggleBlock(ctx, nil, "user1", "user1")
+	if err == nil || !strings.Contains(err.Error(), "impossible de se bloquer soi-même") {
+		t.Fatalf("attendu erreur d'auto-blocage, obtenu: %v", err)
+	}
+}
+
+func TestToggleMute_SelfMute(t *testing.T) {
+	ctx := context.Background()
+	_, err := ToggleMute(ctx, nil, "user1", "user1")
+	if err == nil || !strings.Contains(err.Error(), "impossible de se masquer soi-même") {
+		t.Fatalf("attendu erreur d'auto-masquage, obtenu: %v", err)
+	}
+}
+
+func TestToggleBlock_NilPool(t *testing.T) {
+	ctx := context.Background()
+	_, err := ToggleBlock(ctx, nil, "user1", "user2")
+	if err == nil {
+		t.Fatalf("attendu erreur pour pool nil")
+	}
+}
+
+func TestToggleMute_NilPool(t *testing.T) {
+	ctx := context.Background()
+	_, err := ToggleMute(ctx, nil, "user1", "user2")
+	if err == nil {
+		t.Fatalf("attendu erreur pour pool nil")
+	}
+}

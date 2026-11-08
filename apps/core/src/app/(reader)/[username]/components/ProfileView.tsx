@@ -33,7 +33,12 @@ import {
   toggleFollowCreatorHomeAction as toggleFollowCreator,
   type ProfilePostPayload,
 } from '@qoe/sdk/actions/feed';
-import { useDeletePostMutation } from '@qoe/sdk';
+import {
+  useDeletePostMutation,
+  useActorShadow,
+  updateActorShadow,
+  withShadowMutation,
+} from '@qoe/sdk';
 import {
   CertifiedBadge,
   Dialog,
@@ -121,6 +126,11 @@ export function ProfileView({
   const thoughtOverlay = useThoughtOverlay();
   const [user, setUser] = useState(initialProfileUser);
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
+  const actorShadow = useActorShadow(user?.id || user?.username || '', {
+    followed: initialIsFollowing,
+  });
+  const effectiveFollowing =
+    actorShadow.followed !== undefined ? actorShadow.followed : isFollowing;
   const [followRequested, setFollowRequested] = useState(initialFollowRequested);
   const [followersCount, setFollowersCount] = useState(user._count?.followers || 0);
   const canViewContent = initialCanViewContent;
@@ -213,40 +223,58 @@ export function ProfileView({
       return;
     }
 
-    const wasFollowing = isFollowing;
+    const wasFollowing = effectiveFollowing;
     const wasRequested = followRequested;
     // Optimiste : follow instantané, ou demande locale pour un compte privé.
     const optimisticFollowing = !wasFollowing && !wasRequested && !isPrivate;
     const optimisticRequested = !wasFollowing && (wasRequested || isPrivate);
-    setIsFollowing(optimisticFollowing);
-    setFollowRequested(optimisticRequested);
 
-    const res = await toggleFollowCreator(initialPublicationId || user.id);
-    if (!res.ok) {
-      setIsFollowing(wasFollowing);
-      setFollowRequested(wasRequested);
-      toast.error('Erreur lors de la modification du suivi.');
-      return;
-    }
+    const targetKey = user.id || initialPublicationId || '';
+    await withShadowMutation({
+      lockKey: `actor:${targetKey}:follow`,
+      optimisticUpdate: () => {
+        setIsFollowing(optimisticFollowing);
+        setFollowRequested(optimisticRequested);
+        updateActorShadow(user.id, { followed: optimisticFollowing });
+        if (user.username)
+          updateActorShadow(user.username.replace(/^@/, ''), { followed: optimisticFollowing });
+      },
+      rollback: () => {
+        setIsFollowing(wasFollowing);
+        setFollowRequested(wasRequested);
+        updateActorShadow(user.id, { followed: wasFollowing });
+        if (user.username)
+          updateActorShadow(user.username.replace(/^@/, ''), { followed: wasFollowing });
+      },
+      mutation: async () => {
+        const res = await toggleFollowCreator(initialPublicationId || user.id);
+        if (!res.ok) {
+          throw new Error('Erreur lors de la modification du suivi.');
+        }
 
-    const nextFollowing = res.data?.followed ?? false;
-    const nextRequested = res.data?.requested ?? false;
-    setIsFollowing(nextFollowing);
-    setFollowRequested(nextRequested);
-    if (nextFollowing !== wasFollowing) {
-      setFollowersCount((prev: number) => Math.max(0, prev + (nextFollowing ? 1 : -1)));
-    }
+        const nextFollowing = res.data?.followed ?? false;
+        const nextRequested = res.data?.requested ?? false;
+        setIsFollowing(nextFollowing);
+        setFollowRequested(nextRequested);
+        updateActorShadow(user.id, { followed: nextFollowing });
+        if (user.username)
+          updateActorShadow(user.username.replace(/^@/, ''), { followed: nextFollowing });
+        if (nextFollowing !== wasFollowing) {
+          setFollowersCount((prev: number) => Math.max(0, prev + (nextFollowing ? 1 : -1)));
+        }
 
-    if (nextRequested) {
-      toast.success(`Demande d’abonnement envoyée à ${user.name || 'ce compte'}.`);
-    } else if (nextFollowing) {
-      toast.success(`Vous suivez maintenant ${user.name}`);
-      // Le contenu était masqué côté serveur : on recharge une fois l'accès
-      // accordé (follow instantané d'un compte FOLLOWERS).
-      if (!canViewContent) router.refresh();
-    } else {
-      toast.success(wasRequested ? 'Demande annulée.' : 'Abonnement retiré.');
-    }
+        if (nextRequested) {
+          toast.success(`Demande d’abonnement envoyée à ${user.name || 'ce compte'}.`);
+        } else if (nextFollowing) {
+          toast.success(`Vous suivez maintenant ${user.name}`);
+          // Le contenu était masqué côté serveur : on recharge une fois l'accès
+          // accordé (follow instantané d'un compte FOLLOWERS).
+          if (!canViewContent) router.refresh();
+        } else {
+          toast.success(wasRequested ? 'Demande annulée.' : 'Abonnement retiré.');
+        }
+      },
+    });
   };
 
   const handleDeletePost = async (postId: string): Promise<boolean> => {
@@ -379,17 +407,17 @@ export function ProfileView({
                   </Button>
                 ) : (
                   <Button
-                    variant={isFollowing ? 'outline' : 'solid'}
+                    variant={effectiveFollowing ? 'outline' : 'solid'}
                     tone="neutral"
                     size="sm"
                     onClick={handleFollowToggle}
                     className={
-                      isFollowing
+                      effectiveFollowing
                         ? 'hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive-text'
                         : undefined
                     }
                   >
-                    {isFollowing ? t`Abonné` : followRequested ? t`Demandé` : t`Suivre`}
+                    {effectiveFollowing ? t`Abonné` : followRequested ? t`Demandé` : t`Suivre`}
                   </Button>
                 )}
 
@@ -670,7 +698,7 @@ export function ProfileView({
                     idx={idx}
                     dbUser={currentUserId ? { id: currentUserId } : null}
                     isBookmarked={false}
-                    isFollowed={isFollowing}
+                    isFollowed={effectiveFollowing}
                     disableAuthorOverride={true}
                     handleFollowToggle={handleFollowToggle}
                     handleBookmarkToggle={() => {}}

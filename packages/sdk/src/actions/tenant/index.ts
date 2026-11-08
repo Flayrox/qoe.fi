@@ -74,15 +74,16 @@ async function detectLocale(): Promise<string> {
   return 'fr';
 }
 
-export const toggleFollowCreatorAction = safeAction<string, { followed: boolean }>(
-  async (publicationId) => {
-    const res = await goFetch<{ data: { following: boolean } }>(
-      `/v1/users/${encodeURIComponent(publicationId)}/follow`,
-      { method: 'POST' }
-    );
-    return { followed: res.data.following };
-  }
-);
+export const toggleFollowCreatorAction = safeAction<
+  string,
+  { followed: boolean; requested: boolean }
+>(async (publicationId) => {
+  const res = await goFetch<{ data: { following: boolean; requested?: boolean } }>(
+    `/v1/users/${encodeURIComponent(publicationId)}/follow`,
+    { method: 'POST' }
+  );
+  return { followed: res.data.following, requested: res.data.requested ?? false };
+});
 
 export const toggleBookmarkArticleAction = safeAction<string, { bookmarked: boolean }>(
   async (articleId) => {

@@ -22,6 +22,10 @@ const studioRoutes = {
   settings: () => '/settings',
   developer: () => '/developer',
   onboarding: () => '/onboarding',
+  media: () => '/media',
+  notifications: () => '/notifications',
+  pricing: () => '/pricing',
+  import: () => '/import',
 } as const;
 
 export const routes = {
@@ -64,6 +68,7 @@ export const routes = {
     thought: (username: string, id: string) =>
       `/${encodeURIComponent(username.replace(/^@/, ''))}/thought/${encodeURIComponent(id)}`,
     notifications: () => '/notifications',
+    messages: (id?: string) => (id ? '/messages/' + encodeURIComponent(id) : '/messages'),
     search: () => '/search',
     legal: (slug?: string) => (slug ? `/legal/${encodeURIComponent(slug)}` : '/legal'),
   },

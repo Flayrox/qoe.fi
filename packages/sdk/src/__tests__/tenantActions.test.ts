@@ -115,7 +115,7 @@ describe('💬 Interactions de lecture', () => {
     goFetch.mockResolvedValue({ data: { following: true } });
     const res = await toggleFollowCreatorAction('pub_1');
     expect(calls()[0][0]).toBe('/v1/users/pub_1/follow');
-    expect(res).toEqual({ followed: true });
+    expect(res).toEqual({ followed: true, requested: false });
   });
 
   it('unlockArticleWithWalletAction → body {creatorId, costCents}', async () => {

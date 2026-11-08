@@ -3,9 +3,23 @@ import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { fetchMeProfile } from './me';
 import type { MeProfile } from './cached-queries';
 
-vi.mock('@qoe/sdk/actions/utils/go-client', () => ({
-  goFetch: vi.fn(),
-}));
+vi.mock('@qoe/sdk/actions/utils/go-client', () => {
+  const goFetch = vi.fn();
+  return {
+    goFetch,
+    fetchMeWithSync: vi.fn(async () => {
+      try {
+        return await goFetch('/v1/me');
+      } catch (err: unknown) {
+        if ((err as { status?: number })?.status === 404) {
+          await goFetch('/v1/me/sync', { method: 'POST' });
+          return await goFetch('/v1/me');
+        }
+        throw err;
+      }
+    }),
+  };
+});
 
 const mockGoFetch = vi.mocked(goFetch);
 

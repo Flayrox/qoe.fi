@@ -40,13 +40,10 @@ WHERE p."authorId" = ANY(@author_ids::uuid[])
   AND p."isHiddenByModerator" = false
   AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
   AND p.visibility IN ('public', 'followers')
-  -- Blocage symétrique : un follow existant ne suffit pas si l'un des deux
-  -- a bloqué l'autre depuis.
-  AND NOT EXISTS (
-    SELECT 1 FROM "BlockedUser" bu
-    WHERE (bu."readerId" = @viewer_id AND bu."creatorId" = p."authorId")
-       OR (bu."readerId" = p."authorId" AND bu."creatorId" = @viewer_id)
-  )
+  AND NOT is_blocked_bidirectional(@viewer_id, p."authorId")
+  AND can_view_profile(@viewer_id, u.id)
+  AND NOT is_muted_by(@viewer_id, p."authorId")
+  AND NOT contains_muted_word(@viewer_id, p.content)
 ORDER BY p."createdAt" DESC, p.id DESC
 LIMIT @take_count OFFSET @skip_count;
 
@@ -84,20 +81,10 @@ WHERE p."isDraft" = false
   AND p."createdAt" >= now() - interval '7 days'
   AND u."isShadowbanned" = false
   AND u."isSuspended" = false
-  AND NOT EXISTS (
-    SELECT 1 FROM "BlockedUser" bu
-    WHERE (bu."readerId" = @viewer_id AND bu."creatorId" = p."authorId")
-       OR (bu."readerId" = p."authorId" AND bu."creatorId" = @viewer_id)
-  )
-  -- Les comptes privés ne percent pas dans Découvrir : leur contenu reste
-  -- réservé aux abonnés approuvés.
-  AND (
-    COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
-    OR EXISTS (
-      SELECT 1 FROM "Follows" f
-      WHERE f."readerId" = @viewer_id AND f."publicationId" = u."publicationId"
-    )
-  )
+  AND NOT is_blocked_bidirectional(@viewer_id, p."authorId")
+  AND can_view_profile(@viewer_id, u.id)
+  AND NOT is_muted_by(@viewer_id, p."authorId")
+  AND NOT contains_muted_word(@viewer_id, p.content)
 ORDER BY (p."likeCount" + p."repostCount" + p."replyCount") DESC, p."createdAt" DESC
 LIMIT @take_count OFFSET @skip_count;
 

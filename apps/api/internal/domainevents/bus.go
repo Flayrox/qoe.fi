@@ -3,6 +3,7 @@ package domainevents
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -282,4 +283,95 @@ func handleProfileVisibilityChanged(ctx context.Context, db DB, event ProfileVis
 	}
 
 	return nil
+}
+
+// ToggleBlock bloque ou débloque un utilisateur de façon atomique et idempotente.
+// Dans "BlockedUser" : creatorId = cible (targetID), readerId = bloqueur (blockerID).
+// Émet UserBlockedEvent en cas de blocage ou UserUnblockedEvent en cas de déblocage.
+func ToggleBlock(ctx context.Context, pool *pgxpool.Pool, blockerID, targetID string) (bool, error) {
+	if blockerID == targetID {
+		return false, errors.New("impossible de se bloquer soi-même")
+	}
+	var blocked bool
+	err := WithTx(ctx, pool, func(tx pgx.Tx) error {
+		var exists bool
+		err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM "BlockedUser" WHERE "creatorId" = $1 AND "readerId" = $2)`,
+			toUUID(targetID), toUUID(blockerID)).Scan(&exists)
+		if err != nil {
+			return fmt.Errorf("vérification existence blocage: %w", err)
+		}
+
+		if exists {
+			_, err = tx.Exec(ctx, `DELETE FROM "BlockedUser" WHERE "creatorId" = $1 AND "readerId" = $2`,
+				toUUID(targetID), toUUID(blockerID))
+			if err != nil {
+				return fmt.Errorf("suppression blocage: %w", err)
+			}
+			if err := Dispatch(ctx, tx, UserUnblockedEvent{
+				BlockerID: blockerID,
+				BlockedID: targetID,
+			}); err != nil {
+				return fmt.Errorf("dispatch unblock event: %w", err)
+			}
+			blocked = false
+			return nil
+		}
+
+		_, err = tx.Exec(ctx, `INSERT INTO "BlockedUser" (id, "creatorId", "readerId") VALUES (gen_random_uuid()::text, $1, $2) ON CONFLICT DO NOTHING`,
+			toUUID(targetID), toUUID(blockerID))
+		if err != nil {
+			return fmt.Errorf("insertion blocage: %w", err)
+		}
+		if err := Dispatch(ctx, tx, UserBlockedEvent{
+			BlockerID: blockerID,
+			BlockedID: targetID,
+		}); err != nil {
+			return fmt.Errorf("dispatch block event: %w", err)
+		}
+		blocked = true
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+	return blocked, nil
+}
+
+// ToggleMute masque ou démasque un utilisateur de façon atomique et idempotente.
+// Dans "MutedUser" : muterId = auteur de l'action (muterID), mutedId = cible (targetID).
+func ToggleMute(ctx context.Context, pool *pgxpool.Pool, muterID, targetID string) (bool, error) {
+	if muterID == targetID {
+		return false, errors.New("impossible de se masquer soi-même")
+	}
+	var muted bool
+	err := WithTx(ctx, pool, func(tx pgx.Tx) error {
+		var exists bool
+		err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM "MutedUser" WHERE "muterId" = $1 AND "mutedId" = $2)`,
+			toUUID(muterID), toUUID(targetID)).Scan(&exists)
+		if err != nil {
+			return fmt.Errorf("vérification existence masquage: %w", err)
+		}
+
+		if exists {
+			_, err = tx.Exec(ctx, `DELETE FROM "MutedUser" WHERE "muterId" = $1 AND "mutedId" = $2`,
+				toUUID(muterID), toUUID(targetID))
+			if err != nil {
+				return fmt.Errorf("suppression masquage: %w", err)
+			}
+			muted = false
+			return nil
+		}
+
+		_, err = tx.Exec(ctx, `INSERT INTO "MutedUser" (id, "muterId", "mutedId") VALUES (gen_random_uuid()::text, $1, $2) ON CONFLICT DO NOTHING`,
+			toUUID(muterID), toUUID(targetID))
+		if err != nil {
+			return fmt.Errorf("insertion masquage: %w", err)
+		}
+		muted = true
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+	return muted, nil
 }

@@ -211,6 +211,42 @@ if (existsSync(uiSrcDir)) {
   });
 }
 
+// ─── CHECK 7 : Discipline Next.js 'use server' (Exports async uniquement) ──
+const nonAsyncServerActionExports = [];
+walk(join(ROOT, 'apps'), checkUseServerFile);
+walk(join(ROOT, 'packages'), checkUseServerFile);
+
+function checkUseServerFile(path) {
+  if (
+    path.includes('node_modules') ||
+    path.includes('__tests__') ||
+    path.endsWith('.test.ts') ||
+    path.endsWith('.test.tsx') ||
+    path.includes('.next') ||
+    path.includes('dist')
+  )
+    return;
+  if (!/\.(tsx?)$/.test(path)) return;
+
+  const content = readFileSync(path, 'utf8');
+  const lines = content.split('\n');
+  const firstCodeLine = lines.find(
+    (l) => l.trim() !== '' && !l.trim().startsWith('//') && !l.trim().startsWith('/*')
+  );
+  if (!firstCodeLine || !/^['"]use server['"];?/.test(firstCodeLine.trim())) return;
+
+  lines.forEach((line, idx) => {
+    const trimmed = line.trim();
+    if (/^export\s+function\s+/.test(trimmed) && !/^export\s+async\s+function\s+/.test(trimmed)) {
+      nonAsyncServerActionExports.push({
+        file: relative(ROOT, path),
+        line: idx + 1,
+        code: trimmed,
+      });
+    }
+  });
+}
+
 // ─── BUDGET & RATCHET ────────────────────────────────────────────────
 let budget = { asUnknownMax: 50 };
 if (existsSync(BUDGET_FILE)) {
@@ -280,6 +316,15 @@ if (rogueSocialMutations.length > 0) {
   );
 }
 
+if (nonAsyncServerActionExports.length > 0) {
+  errors.push(
+    `🚨 ${nonAsyncServerActionExports.length} export(s) synchrone(s) détecté(s) dans un module 'use server' !\n` +
+      `   Règle : Next.js/Turbopack exige que TOUTES les fonctions exportées d'un fichier 'use server' soient async.\n` +
+      `   Déplacez les fonctions synchrones de mapping/transformation dans un fichier séparé (ex: mappers.ts).\n` +
+      nonAsyncServerActionExports.map((e) => `   - ${e.file}:${e.line} : ${e.code}`).join('\n')
+  );
+}
+
 if (asJson) {
   console.log(
     JSON.stringify({
@@ -292,6 +337,7 @@ if (asJson) {
         asUnknownMax: budget.asUnknownMax,
         gooseIssues: gooseIssues.length,
         rogueSocialMutations: rogueSocialMutations.length,
+        nonAsyncServerActionExports: nonAsyncServerActionExports.length,
       },
       errors,
     })
@@ -316,6 +362,9 @@ if (asJson) {
   );
   console.log(
     `• Discipline Shadow Store UI  : ${rogueSocialMutations.length === 0 ? '✅ 0 violation' : `❌ ${rogueSocialMutations.length}`}`
+  );
+  console.log(
+    `• Next.js 'use server' async  : ${nonAsyncServerActionExports.length === 0 ? '✅ 0 fonction non-async' : `❌ ${nonAsyncServerActionExports.length}`}`
   );
   console.log(`─────────────────────────────────────────────────\n`);
 

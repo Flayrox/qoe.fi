@@ -1727,11 +1727,9 @@ func (s *Service) fetchEngineArticles(ctx context.Context, vec *pgvector.Vector,
 		ai := 2
 		if userID != "" {
 			viewerParam := ai
-			q += fmt.Sprintf(` AND NOT EXISTS (
-				SELECT 1 FROM "BlockedUser" bu
-				WHERE (bu."readerId"=$%d AND bu."creatorId"=a."authorId")
-				   OR (bu."readerId"=a."authorId" AND bu."creatorId"=$%d)
-			)`, viewerParam, viewerParam)
+			q += fmt.Sprintf(` AND NOT is_blocked_bidirectional($%d, a."authorId")`, viewerParam)
+			q += fmt.Sprintf(` AND NOT is_muted_by($%d, a."authorId")`, viewerParam)
+			q += fmt.Sprintf(` AND NOT contains_muted_word($%d, a.title) AND NOT contains_muted_word($%d, a.content)`, viewerParam, viewerParam)
 			// Compte privé : le contenu ne sort du profil que pour ses abonnés.
 			q += fmt.Sprintf(` AND (
 				COALESCE((SELECT us."profileVisibility"
@@ -1770,11 +1768,10 @@ func (s *Service) fetchEngineArticles(ctx context.Context, vec *pgvector.Vector,
 		       EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800)::float8 AS fresh
 		FROM "Article" a JOIN "User" u ON u.id::text = a."authorId"::text
 		WHERE a.published = true AND u."isShadowbanned" = false AND u."isSuspended" = false
-		  AND NOT EXISTS (
-		    SELECT 1 FROM "BlockedUser" bu
-		    WHERE (bu."readerId"=$3 AND bu."creatorId"=a."authorId")
-		       OR (bu."readerId"=a."authorId" AND bu."creatorId"=$3)
-		  )
+		  AND NOT is_blocked_bidirectional($3, a."authorId")
+		  AND NOT is_muted_by($3, a."authorId")
+		  AND NOT contains_muted_word($3, a.title)
+		  AND NOT contains_muted_word($3, a.content)
 		  AND (
 		    COALESCE((SELECT us."profileVisibility"
 		              FROM "Publication" p
@@ -1827,11 +1824,9 @@ func (s *Service) fetchEngineThoughts(ctx context.Context, vec *pgvector.Vector,
 		ai := 2
 		if userID != "" {
 			viewerParam := ai
-			q += fmt.Sprintf(` AND NOT EXISTS (
-				SELECT 1 FROM "BlockedUser" bu
-				WHERE (bu."readerId"=$%d AND bu."creatorId"=p."authorId")
-				   OR (bu."readerId"=p."authorId" AND bu."creatorId"=$%d)
-			)`, viewerParam, viewerParam)
+			q += fmt.Sprintf(` AND NOT is_blocked_bidirectional($%d, p."authorId")`, viewerParam)
+			q += fmt.Sprintf(` AND NOT is_muted_by($%d, p."authorId")`, viewerParam)
+			q += fmt.Sprintf(` AND NOT contains_muted_word($%d, p.content)`, viewerParam)
 			q += fmt.Sprintf(` AND (
 				COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
 				OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId"=$%d AND f."publicationId"=u."publicationId")
@@ -1862,11 +1857,9 @@ func (s *Service) fetchEngineThoughts(ctx context.Context, vec *pgvector.Vector,
 		WHERE p."parentId" IS NULL AND p."repostId" IS NULL AND p."deletedAt" IS NULL
 		  AND p."isDraft" = false AND p."isHiddenByAuthor" = false
 		  AND u."isShadowbanned" = false AND u."isSuspended" = false
-		  AND NOT EXISTS (
-		    SELECT 1 FROM "BlockedUser" bu
-		    WHERE (bu."readerId"=$3 AND bu."creatorId"=p."authorId")
-		       OR (bu."readerId"=p."authorId" AND bu."creatorId"=$3)
-		  )
+		  AND NOT is_blocked_bidirectional($3, p."authorId")
+		  AND NOT is_muted_by($3, p."authorId")
+		  AND NOT contains_muted_word($3, p.content)
 		  AND (
 		    COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
 		    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId"=$3 AND f."publicationId"=u."publicationId")

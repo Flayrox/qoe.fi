@@ -4,10 +4,14 @@
 // 📡 apps/core/src/features/upcoming/actions.ts
 // =====================================================================
 // Mesure d'intérêt des fonctionnalités à venir côté Lecteur (source: 'site').
+// Délégué au SDK centralisé @qoe/sdk/actions/features.
 // =====================================================================
 
 import { createClient } from '@qoe/supabase/server';
-import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import {
+  recordFeatureSignalAction as recordSignalSdk,
+  getFeatureCatalogAction as getCatalogSdk,
+} from '@qoe/sdk/actions/features';
 
 export type FeatureSignalKind = 'view' | 'notify';
 
@@ -34,35 +38,18 @@ export async function recordFeatureSignalAction(
     throw new Error('Veuillez vous connecter pour être prévenu.');
   }
 
-  try {
-    return await goFetch<{ success: boolean; notified: boolean }>('/v1/features/signals', {
-      method: 'POST',
-      body: {
-        feature,
-        kind,
-        source: 'site',
-      },
-    });
-  } catch (err) {
-    if (kind === 'view') return { success: false, notified: false };
-    throw err;
-  }
+  return recordSignalSdk(feature, kind, 'site');
 }
 
 /**
  * État serveur du catalogue pour le lecteur.
  */
 export async function getFeatureCatalogAction(): Promise<FeatureCatalogState[]> {
-  try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return [];
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
 
-    const res = await goFetch<{ features: FeatureCatalogState[] }>('/v1/features/catalog');
-    return res.features ?? [];
-  } catch {
-    return [];
-  }
+  return getCatalogSdk();
 }

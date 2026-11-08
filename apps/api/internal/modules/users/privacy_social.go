@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qoefi/api/internal/domainevents"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
@@ -68,6 +69,19 @@ func (h *Handler) mutedUsers(w http.ResponseWriter, r *http.Request) {
 	}
 	response.OK(w, map[string]any{"users": out})
 }
+func poolFromPooler(p pooler) *pgxpool.Pool {
+	if pool, ok := p.(*pgxpool.Pool); ok {
+		return pool
+	}
+	type unwrapper interface {
+		Unwrap() *pgxpool.Pool
+	}
+	if u, ok := p.(unwrapper); ok {
+		return u.Unwrap()
+	}
+	return nil
+}
+
 func (h *Handler) toggleBlockedUser(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	if userID == "" {
@@ -80,53 +94,14 @@ func (h *Handler) toggleBlockedUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tx, err := h.svc.pool.Begin(r.Context())
+	blocked, err := domainevents.ToggleBlock(r.Context(), poolFromPooler(h.svc.pool), userID, target)
 	if err != nil {
 		response.Internal(w)
 		return
 	}
-	defer func() { _ = tx.Rollback(r.Context()) }()
-
-	var exists bool
-	err = tx.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM "BlockedUser" WHERE "creatorId"=$1 AND "readerId"=$2)`, toUUID(target), toUUID(userID)).Scan(&exists)
-	if err != nil {
-		response.Internal(w)
-		return
-	}
-	if exists {
-		_, err = tx.Exec(r.Context(), `DELETE FROM "BlockedUser" WHERE "creatorId"=$1 AND "readerId"=$2`, toUUID(target), toUUID(userID))
-		if err != nil {
-			response.Internal(w)
-			return
-		}
-		if err := domainevents.Dispatch(r.Context(), tx, domainevents.UserUnblockedEvent{
-			BlockerID: userID,
-			BlockedID: target,
-		}); err != nil {
-			response.Internal(w)
-			return
-		}
-	} else {
-		_, err = tx.Exec(r.Context(), `INSERT INTO "BlockedUser" (id,"creatorId","readerId") VALUES (gen_random_uuid()::text,$1,$2) ON CONFLICT DO NOTHING`, toUUID(target), toUUID(userID))
-		if err != nil {
-			response.Internal(w)
-			return
-		}
-		if err := domainevents.Dispatch(r.Context(), tx, domainevents.UserBlockedEvent{
-			BlockerID: userID,
-			BlockedID: target,
-		}); err != nil {
-			response.Internal(w)
-			return
-		}
-	}
-
-	if err := tx.Commit(r.Context()); err != nil {
-		response.Internal(w)
-		return
-	}
-	response.OK(w, map[string]bool{"blocked": !exists})
+	response.OK(w, map[string]bool{"blocked": blocked})
 }
+
 func (h *Handler) toggleMutedUser(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	if userID == "" {
@@ -138,20 +113,11 @@ func (h *Handler) toggleMutedUser(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "Impossible de se masquer soi-même")
 		return
 	}
-	var exists bool
-	err := h.svc.pool.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM "MutedUser" WHERE "muterId"=$1 AND "mutedId"=$2)`, toUUID(userID), toUUID(target)).Scan(&exists)
+
+	muted, err := domainevents.ToggleMute(r.Context(), poolFromPooler(h.svc.pool), userID, target)
 	if err != nil {
 		response.Internal(w)
 		return
 	}
-	if exists {
-		_, err = h.svc.pool.Exec(r.Context(), `DELETE FROM "MutedUser" WHERE "muterId"=$1 AND "mutedId"=$2`, toUUID(userID), toUUID(target))
-	} else {
-		_, err = h.svc.pool.Exec(r.Context(), `INSERT INTO "MutedUser" (id,"muterId","mutedId") VALUES (gen_random_uuid()::text,$1,$2) ON CONFLICT DO NOTHING`, toUUID(userID), toUUID(target))
-	}
-	if err != nil {
-		response.Internal(w)
-		return
-	}
-	response.OK(w, map[string]bool{"muted": !exists})
+	response.OK(w, map[string]bool{"muted": muted})
 }

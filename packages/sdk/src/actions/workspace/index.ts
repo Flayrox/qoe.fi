@@ -74,8 +74,22 @@ export async function getActiveWorkspaceContext(): Promise<ActiveWorkspaceContex
     };
   }
 
-  // PERSONAL : get-or-create de la publication personnelle (jamais l'userId
-  // comme publicationId — un identifiant d'utilisateur n'est pas une publication).
+  // PERSONAL : si ws.publicationId est déjà renseigné (et n'est pas un identifiant
+  // utilisateur résiduel), retourner directement sans second appel à /v1/me/publication.
+  if (ws.publicationId && ws.publicationId !== '' && !ws.publicationId.startsWith('usr_')) {
+    return {
+      type: 'PERSONAL',
+      publicationId: ws.publicationId,
+      name: ws.name ?? 'Profil Personnel',
+      slug: ws.slug ?? 'personal',
+      logoUrl: ws.logoUrl ?? null,
+      permissions: ws.permissions ?? [],
+      ...(requestedMediaId ? { fallbackFromMediaId: requestedMediaId } : {}),
+    };
+  }
+
+  // PERSONAL : get-or-create de la publication personnelle uniquement si ws.publicationId est vide
+  // (jamais l'userId comme publicationId — un identifiant d'utilisateur n'est pas une publication).
   const personal = await goFetch<{ publicationId: string }>('/v1/me/publication');
   return {
     type: 'PERSONAL',

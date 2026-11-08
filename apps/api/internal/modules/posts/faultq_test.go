@@ -129,8 +129,6 @@ func TestFault_ServiceErrorBranches(t *testing.T) {
 	}{
 		{"ToggleLike GetExistingLike", faultService(t, map[string]error{"GetExistingLike": errBoom}), func(s *Service) error { _, err := s.ToggleLike(ctx, pid, vid); return err }},
 		{"ToggleBookmark GetExistingBookmark", faultService(t, map[string]error{"GetExistingBookmark": errBoom}), func(s *Service) error { _, err := s.ToggleBookmark(ctx, pid, vid); return err }},
-		{"ToggleBlock GetExistingBlock", faultService(t, map[string]error{"GetExistingBlock": errBoom}), func(s *Service) error { _, err := s.ToggleBlock(ctx, vid, uid); return err }},
-		{"ToggleMute GetExistingMute", faultService(t, map[string]error{"GetExistingMute": errBoom}), func(s *Service) error { _, err := s.ToggleMute(ctx, vid, uid); return err }},
 		{"ToggleRepost GetCanonicalThoughtID", faultService(t, map[string]error{"GetCanonicalThoughtID": errBoom}), func(s *Service) error { _, err := s.ToggleRepost(ctx, pid, vid); return err }},
 		{"Create CreateThought", faultService(t, map[string]error{"CreateThought": errBoom}), func(s *Service) error { _, err := s.Create(ctx, uid, "x", nil, nil, nil); return err }},
 		{"Get GetPostsByIDs", faultService(t, map[string]error{"GetPostsByIDs": errBoom}), func(s *Service) error { _, err := s.Get(ctx, pid, vid); return err }},
