@@ -11,6 +11,7 @@
     "@lingui/core": "6.6.0",
     "@lingui/react": "6.6.0",
     "@qoe/brand": "workspace:*",
+    "@qoe/config": "workspace:*",
     "@qoe/content": "workspace:*",
     "@qoe/formatters": "workspace:*",
     "@qoe/i18n": "workspace:*",

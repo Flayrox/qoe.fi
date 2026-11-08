@@ -425,6 +425,9 @@ importers:
       '@qoe/brand':
         specifier: workspace:*
         version: link:../../packages/brand
+      '@qoe/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@qoe/content':
         specifier: workspace:*
         version: link:../../packages/content
