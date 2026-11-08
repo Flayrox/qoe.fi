@@ -14,6 +14,8 @@ import {
   TabTriggerSlotProps,
   TabListProps,
 } from 'expo-router/ui';
+import type { Href } from 'expo-router';
+import { getMobileSurfaces } from '@qoe/config';
 import { SymbolView } from 'expo-symbols';
 import { Pressable, useColorScheme, View, StyleSheet } from 'react-native';
 
@@ -31,18 +33,16 @@ export default function AppTabs() {
       {/* Barre d'onglets custom (flottante en haut). */}
       <TabList asChild>
         <CustomTabList>
-          <TabTrigger name="home" href="/" asChild>
-            <TabButton>Feed</TabButton>
-          </TabTrigger>
-          <TabTrigger name="explore" href="/explore" asChild>
-            <TabButton>Explorer</TabButton>
-          </TabTrigger>
-          <TabTrigger name="notifications" href="/notifications" asChild>
-            <TabButton>Notifications</TabButton>
-          </TabTrigger>
-          <TabTrigger name="messages" href="/messages" asChild>
-            <TabButton>Messages</TabButton>
-          </TabTrigger>
+          {getMobileSurfaces('web').map((surface) => (
+            <TabTrigger
+              key={surface.id}
+              name={surface.routeName ?? ''}
+              href={surface.path as Href}
+              asChild
+            >
+              <TabButton>{surface.defaultLabel}</TabButton>
+            </TabTrigger>
+          ))}
         </CustomTabList>
       </TabList>
     </Tabs>
