@@ -44,8 +44,6 @@ import {
   mapProfileSlice,
 } from './mappers';
 
-export type { WebThreadPost, ProfilePostPayload } from './mappers';
-
 /** Résultat du découpage paywall (shape Go GET /v1/articles/{slug}). */
 export interface PaywallCutResult {
   content: string;

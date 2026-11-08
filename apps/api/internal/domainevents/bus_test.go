@@ -490,3 +490,44 @@ func TestToggleMute_NilPool(t *testing.T) {
 		t.Fatalf("attendu erreur pour pool nil")
 	}
 }
+
+// TestDispatchUserMutedMarksNotificationsRead vérifie qu'une mise en sourdine
+// solde le badge de non-lus des notifications venant de l'auteur masqué.
+func TestDispatchUserMutedMarksNotificationsRead(t *testing.T) {
+	db := &mockDB{}
+	if err := Dispatch(context.Background(), db, UserMutedEvent{MuterID: "muter-1", MutedID: "muted-1"}); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if len(db.execs) != 1 {
+		t.Fatalf("1 requête attendue, obtenu %d", len(db.execs))
+	}
+	sql := db.execs[0].sql
+	if !strings.Contains(sql, `UPDATE "Notification"`) || !strings.Contains(sql, "read = true") {
+		t.Fatalf("la sourdine doit marquer les notifications lues : %s", sql)
+	}
+	if len(db.execs[0].args) != 2 {
+		t.Fatalf("2 paramètres attendus (muter, muted), obtenu %d", len(db.execs[0].args))
+	}
+}
+
+// TestDispatchUserMutedIgnoresSelf : se masquer soi-même ne touche à rien.
+func TestDispatchUserMutedIgnoresSelf(t *testing.T) {
+	db := &mockDB{}
+	if err := Dispatch(context.Background(), db, UserMutedEvent{MuterID: "same", MutedID: "same"}); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if len(db.execs) != 0 {
+		t.Fatalf("aucune requête attendue, obtenu %d", len(db.execs))
+	}
+}
+
+// TestDispatchUserUnmutedIsNoop : retirer une sourdine ne réécrit rien.
+func TestDispatchUserUnmutedIsNoop(t *testing.T) {
+	db := &mockDB{}
+	if err := Dispatch(context.Background(), db, UserUnmutedEvent{MuterID: "muter-1", MutedID: "muted-1"}); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if len(db.execs) != 0 {
+		t.Fatalf("aucune requête attendue, obtenu %d", len(db.execs))
+	}
+}

@@ -29,10 +29,9 @@ import { Button } from '@qoe/ui/button';
 import { Tabs, TabList, Tab } from '@qoe/ui/tabs';
 import { EditProfileModal } from '@/components/profile/EditProfileModal';
 import { FollowList } from './FollowList';
-import {
-  toggleFollowCreatorHomeAction as toggleFollowCreator,
-  type ProfilePostPayload,
-} from '@qoe/sdk/actions/feed';
+import { toggleFollowCreatorHomeAction as toggleFollowCreator } from '@qoe/sdk/actions/feed';
+// Le type vit dans les mappers purs : un module 'use server' ne réexporte pas de type.
+import type { ProfilePostPayload } from '@qoe/sdk';
 import {
   useDeletePostMutation,
   useActorShadow,

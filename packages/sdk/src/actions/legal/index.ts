@@ -93,13 +93,10 @@ export async function fetchLegalDocumentsToAccept(
   }
 }
 
-/**
- * 🖊️ La charge utile déposée dans `user_metadata.signupConsent`, son type et
- * son constructeur pur vivent dans `@qoe/utils/legal-consent` : un module
- * `'use server'` ne peut exporter que des fonctions asynchrones, et le
- * formulaire d'inscription est un composant client.
- */
-export type { SignupConsentPayload, ConsentDocument } from '@qoe/utils/legal-consent';
+// 🖊️ La charge utile déposée dans `user_metadata.signupConsent`, son type et
+// son constructeur pur vivent dans `@qoe/utils/legal-consent` : un module
+// `'use server'` ne peut exporter que des fonctions asynchrones (et jamais un
+// ré-export de type, que Turbopack refuse). Importez-les depuis @qoe/utils.
 
 /**
  * ✅ Accepte plusieurs documents en une requête (fin d'onboarding, portail).

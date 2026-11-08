@@ -58,6 +58,10 @@ func Dispatch(ctx context.Context, db DB, event any) error {
 		return handleUserBlocked(ctx, db, evt)
 	case UserUnblockedEvent:
 		return handleUserUnblocked(ctx, db, evt)
+	case UserMutedEvent:
+		return handleUserMuted(ctx, db, evt)
+	case UserUnmutedEvent:
+		return handleUserUnmuted(ctx, db, evt)
 	case ProfileVisibilityChangedEvent:
 		return handleProfileVisibilityChanged(ctx, db, evt)
 	default:
@@ -142,6 +146,30 @@ func handleUserBlocked(ctx context.Context, db DB, event UserBlockedEvent) error
 		return fmt.Errorf("suppression notifications article contributor invited: %w", err)
 	}
 
+	return nil
+}
+
+// handleUserMuted gère la mise en sourdine d'un auteur : ses notifications
+// déjà reçues ne doivent plus gonfler le badge de non-lus du lecteur. On les
+// marque lues dans la même transaction que la sourdine.
+func handleUserMuted(ctx context.Context, db DB, event UserMutedEvent) error {
+	if event.MuterID == "" || event.MutedID == "" || event.MuterID == event.MutedID {
+		return nil
+	}
+	_, err := db.Exec(ctx, `
+		UPDATE "Notification"
+		SET read = true
+		WHERE "recipientId" = $1 AND "senderId" = $2 AND read = false`,
+		toUUID(event.MuterID), toUUID(event.MutedID))
+	if err != nil {
+		return fmt.Errorf("lecture notifications auteur mis en sourdine: %w", err)
+	}
+	return nil
+}
+
+// handleUserUnmuted gère le retrait de sourdine. Aucun effet de bord : les
+// notifications lues restent lues, et l'auteur redevient pleinement visible.
+func handleUserUnmuted(ctx context.Context, db DB, event UserUnmutedEvent) error {
 	return nil
 }
 
@@ -358,6 +386,9 @@ func ToggleMute(ctx context.Context, pool *pgxpool.Pool, muterID, targetID strin
 			if err != nil {
 				return fmt.Errorf("suppression masquage: %w", err)
 			}
+			if err := Dispatch(ctx, tx, UserUnmutedEvent{MuterID: muterID, MutedID: targetID}); err != nil {
+				return fmt.Errorf("dispatch unmute event: %w", err)
+			}
 			muted = false
 			return nil
 		}
@@ -366,6 +397,9 @@ func ToggleMute(ctx context.Context, pool *pgxpool.Pool, muterID, targetID strin
 			toUUID(muterID), toUUID(targetID))
 		if err != nil {
 			return fmt.Errorf("insertion masquage: %w", err)
+		}
+		if err := Dispatch(ctx, tx, UserMutedEvent{MuterID: muterID, MutedID: targetID}); err != nil {
+			return fmt.Errorf("dispatch mute event: %w", err)
 		}
 		muted = true
 		return nil
