@@ -396,7 +396,7 @@ requireConsumer(
   'getSidebarSurfaces'
 );
 requireConsumer(
-  'apps/studio/src/features/dashboard/components/app-sidebar.tsx',
+  'apps/studio/src/features/dashboard/components/StudioSidebar.tsx',
   'getSidebarSurfaces',
   'getSidebarSurfaces'
 );
@@ -420,6 +420,51 @@ if (serverTypeReexports.length > 0) {
       `   Déplacez les types dans un fichier pur (ex: mappers.ts) et importez-les.\n` +
       serverTypeReexports.map((e) => `   - ${e.file}:${e.line} : ${e.code}`).join('\n')
   );
+}
+
+// ── 12. Surfaces hors Studio : admin et mobile sur la même source ─────
+// Les navigations admin/mobile ne doivent pas redéclarer leurs entrées :
+// elles consomment le manifeste partagé et filtrent par capacité/plateforme.
+requireConsumer(
+  'apps/admin/src/lib/admin-console.ts',
+  'getAdminSurfaces',
+  'getAdminSurfaces (ADMIN_NAV dérivé)'
+);
+requireConsumer(
+  'apps/mobile/src/components/app-tabs.tsx',
+  'getMobileSurfaces',
+  'getMobileSurfaces (onglets natifs)'
+);
+requireConsumer(
+  'apps/mobile/src/components/app-tabs.web.tsx',
+  'getMobileSurfaces',
+  'getMobileSurfaces (onglets web)'
+);
+const adminConsolePath = join(ROOT, 'apps/admin/src/lib/admin-console.ts');
+if (existsSync(adminConsolePath)) {
+  const source = readFileSync(adminConsolePath, 'utf8');
+  if (/href:\s*['"`]\/admin/.test(source)) {
+    consumerIssues.push(
+      'apps/admin/src/lib/admin-console.ts contient une entrée de navigation en dur (href /admin…) : elle doit venir de @qoe/config'
+    );
+  }
+}
+for (const file of [
+  'apps/mobile/src/components/app-tabs.tsx',
+  'apps/mobile/src/components/app-tabs.web.tsx',
+]) {
+  const absolute = join(ROOT, file);
+  if (!existsSync(absolute)) continue;
+  const source = readFileSync(absolute, 'utf8');
+  if (/name=["'](index|home|explore|notifications|messages|profile)["']/.test(source)) {
+    consumerIssues.push(`${file} code un nom de route en dur : il doit venir du manifeste`);
+  }
+}
+for (const shared of [
+  'packages/config/src/surfaces-admin.ts',
+  'packages/config/src/surfaces-mobile.ts',
+]) {
+  if (!existsSync(join(ROOT, shared))) consumerIssues.push(`${shared} est absent`);
 }
 
 if (surfaceManifestIssues.length > 0) {

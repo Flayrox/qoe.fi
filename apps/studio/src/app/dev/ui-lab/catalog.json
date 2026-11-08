@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-08T17:42:37.931Z",
-  "total": 391,
+  "generatedAt": "2026-11-08T17:57:29.554Z",
+  "total": 392,
   "signals": {
     "primitivesNeverImported": 5,
     "primitivesTotal": 27,
@@ -1609,7 +1609,7 @@
         {
           "name": "app-sidebar",
           "path": "apps/studio/src/features/dashboard/components/app-sidebar.tsx",
-          "lines": 136,
+          "lines": 115,
           "source": "studio",
           "usages": null
         },
@@ -1638,6 +1638,13 @@
           "name": "HeaderWorkspaceSwitcher",
           "path": "apps/studio/src/features/dashboard/components/HeaderWorkspaceSwitcher.tsx",
           "lines": 297,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "StudioSidebar",
+          "path": "apps/studio/src/features/dashboard/components/StudioSidebar.tsx",
+          "lines": 82,
           "source": "studio",
           "usages": null
         },

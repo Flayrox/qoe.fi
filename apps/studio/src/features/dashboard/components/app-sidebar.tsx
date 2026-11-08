@@ -5,9 +5,7 @@ import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { getActiveWorkspace, type ActiveWorkspace } from '@/lib/active-workspace';
 import { logout } from '@/app/login/actions';
 import { t } from '@lingui/core/macro';
-import { getSidebarSurfaces } from '@qoe/config';
-import { Sidebar } from '@qoe/ui/sidebar';
-import { Logo } from '@qoe/ui';
+import { StudioSidebar } from './StudioSidebar';
 
 // Contrats Go (GET /v1/users/me, /v1/notifications/unread-count).
 interface MeResponse {
@@ -90,46 +88,27 @@ export async function AppSidebar() {
 
   const brandName = workspace?.type === 'MEDIA' ? workspace.name : t`Studio`;
 
-  // 🛡️ Le chrome suit le rôle réel dans le média actif : un writer/viewer ne
-  // doit pas découvrir un 403 après avoir cliqué sur Analytics ou Développeur.
-  // (PERSONAL = propriétaire, donc tout est visible.) Le menu est dérivé du
-  // manifeste de surfaces : ajouter une page ne se fait plus ici.
+  // 🛡️ Le chrome suit les permissions effectives (rôle + overrides) du média
+  // actif ; un compte PERSONNEL est propriétaire, donc `undefined` = tout voir.
   const isMediaWorkspace = workspace?.type === 'MEDIA';
-  const permissions = workspace?.permissions ?? [];
-  const canWrite = !isMediaWorkspace || permissions.includes('media:create_articles');
-
-  const menuItems = getSidebarSurfaces('studio', isMediaWorkspace ? permissions : undefined).map(
-    (surface) => ({
-      title: surface.defaultLabel,
-      url: surface.path,
-      iconName: surface.iconName,
-      badge:
-        surface.id === 'studio.notifications' && !isOnNotificationsPage && unreadCount > 0
-          ? unreadCount
-          : undefined,
-    })
-  );
+  const permissions = isMediaWorkspace ? (workspace?.permissions ?? []) : undefined;
+  const canWrite =
+    !isMediaWorkspace || (workspace?.permissions ?? []).includes('media:create_articles');
 
   return (
-    <Sidebar
-      items={menuItems}
-      logo={<Logo className="h-5 w-auto" fillColor="#EE4B2B" />}
-      brandName={brandName}
+    <StudioSidebar
       userId={dbUser?.id || authUser?.id}
-      userUsername={dbUser?.username}
       userName={userName}
+      userUsername={dbUser?.username}
       userEmail={userEmail}
       userFallback={userFallback}
       userAvatar={userAvatar}
+      brandName={brandName}
+      permissions={permissions}
+      canWrite={canWrite}
+      unreadCount={unreadCount}
+      isOnNotificationsPage={isOnNotificationsPage}
       onLogout={logout}
-      primaryAction={
-        canWrite
-          ? {
-              label: t`Nouvel Écrit`,
-              href: '/articles/new',
-            }
-          : undefined
-      }
     />
   );
 }

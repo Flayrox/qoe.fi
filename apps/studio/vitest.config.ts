@@ -8,6 +8,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@qoe/sdk/actions/search': path.resolve(
+        __dirname,
+        './src/test-support/search-action-stub.ts'
+      ),
     },
   },
   test: {
