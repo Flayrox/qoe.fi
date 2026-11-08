@@ -25,6 +25,26 @@
 
 import React from 'react';
 import { getArticleThreadAction as getArticleThread } from '@qoe/sdk/actions/feed';
+
+async function fetchArticleThread(slug: string) {
+  try {
+    const res = await fetch(`/api/articles/${encodeURIComponent(slug)}`, {
+      headers: { Accept: 'application/json' },
+    });
+    if (res.status === 404) {
+      return { ok: false as const, error: 'article-introuvable' };
+    }
+    if (res.ok) {
+      const json = await res.json();
+      if (json && json.ok && json.data) {
+        return json;
+      }
+    }
+  } catch {
+    // Si la route API locale échoue, on tente la server action
+  }
+  return getArticleThread(slug);
+}
 import type { CanonicalDocument, SpotlightRange } from '@qoe/ui/annotations';
 import { ArticleReaderDrawer } from '@/components/social/ArticleReaderDrawer';
 import { captureBase, restorePosition, type BasePosition } from '@/components/overlay/position';
@@ -125,6 +145,7 @@ export function ArticleOverlayProvider({
   const requestRef = React.useRef(0);
   const focusRef = React.useRef<HTMLElement | null>(null);
   const prefetchingRef = React.useRef<Set<string>>(new Set());
+  const teardownTimerRef = React.useRef<number | null>(null);
 
   /**
    * Précharge un article sans l'ouvrir : le clic suivant n'attend plus le
@@ -134,7 +155,7 @@ export function ArticleOverlayProvider({
   const prefetchArticle = React.useCallback((slug: string) => {
     if (!slug || readCachedArticle(slug) || prefetchingRef.current.has(slug)) return;
     prefetchingRef.current.add(slug);
-    void getArticleThread(slug)
+    void fetchArticleThread(slug)
       .then((res) => {
         if (res.ok && res.data?.article) {
           rememberArticle(slug, toOverlayArticle(res.data.article));
@@ -159,8 +180,12 @@ export function ArticleOverlayProvider({
     setCanonicalDocument(null);
     // On garde l'article le temps que l'animation de sortie se joue — sauf
     // si une nouvelle ouverture a eu lieu entre-temps.
-    window.setTimeout(() => {
+    if (teardownTimerRef.current) {
+      window.clearTimeout(teardownTimerRef.current);
+    }
+    teardownTimerRef.current = window.setTimeout(() => {
       if (!openRef.current) setArticle(null);
+      teardownTimerRef.current = null;
     }, 320);
 
     if (base) restorePosition(base);
@@ -176,6 +201,12 @@ export function ArticleOverlayProvider({
     (input: OpenArticleInput, options: OpenArticleOptions = {}) => {
       const slug = (input.slug ?? '').trim();
       if (!slug) return;
+
+      // Annuler tout timer de teardown en cours pour ne pas écraser l'article ouvert
+      if (teardownTimerRef.current) {
+        window.clearTimeout(teardownTimerRef.current);
+        teardownTimerRef.current = null;
+      }
 
       // Déjà à l'écran : on ne refetch pas et on n'empile pas une deuxième
       // entrée d'historique (le clic peut venir d'un lien ET de son handler).
@@ -215,7 +246,7 @@ export function ArticleOverlayProvider({
       );
 
       const token = ++requestRef.current;
-      void getArticleThread(slug)
+      void fetchArticleThread(slug)
         .then((res) => {
           if (token !== requestRef.current) return;
           if (res.ok && res.data?.article) {
@@ -244,11 +275,11 @@ export function ArticleOverlayProvider({
           if (token !== requestRef.current) return;
           const msg = err instanceof Error ? err.message : String(err);
 
-          // Si l'action a changé après un déploiement ("Failed to find Server Action"),
-          // le bundle client est désynchronisé : on recharge pour rafraîchir l'application.
+          // Si l'action a changé après un déploiement ou erreur de chunk client
           if (
             msg.includes('Failed to find Server Action') ||
-            msg.includes('older or newer deployment')
+            msg.includes('older or newer deployment') ||
+            msg.includes('ChunkLoadError')
           ) {
             window.location.reload();
             return;

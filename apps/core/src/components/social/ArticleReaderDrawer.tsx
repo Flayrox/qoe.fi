@@ -27,11 +27,21 @@ export interface ArticleReaderDrawerProps {
 export function ArticleReaderDrawer(props: ArticleReaderDrawerProps) {
   if (!props.isOpen && !props.article) return null;
 
-  const authorName =
-    props.article?.author?.name ||
-    props.article?.author?.username ||
-    props.article?.publication?.slug ||
-    '';
+  const isMedia =
+    props.article?.publication?.type === 'MEDIA' ||
+    props.article?.author?.type === 'MEDIA' ||
+    Boolean(
+      props.article?.publication?.name &&
+      props.article.publication.name.trim().toLowerCase() !==
+        (props.article.author?.name || '').trim().toLowerCase()
+    );
+  const mediaName = props.article?.publication?.name;
+  const writerName = props.article?.author?.journalist?.name || props.article?.author?.name;
+  const authorSubtitle = isMedia
+    ? mediaName && writerName && mediaName !== writerName
+      ? `${mediaName} · par ${writerName}`
+      : mediaName || writerName || ''
+    : writerName || props.article?.author?.username || props.article?.publication?.slug || '';
 
   return (
     <ReaderToolbarProvider allowPublicAnnotations={props.article?.allowPublicAnnotations ?? true}>
@@ -39,7 +49,7 @@ export function ArticleReaderDrawer(props: ArticleReaderDrawerProps) {
         initialMetadata={{
           title: props.article?.title || '',
           coverUrl: props.article?.imageUrl || null,
-          authorName,
+          authorName: authorSubtitle,
           contentSelector: '#article-content',
         }}
       >
@@ -116,8 +126,21 @@ function ArticleReaderDrawerContent({
   if (!article) return null;
 
   const externalUrl = getArticleUrl(article, { preferTenant: true });
-  const authorName =
-    article.author?.name || article.author?.username || article.publication?.slug || '';
+  const isMedia =
+    article.publication?.type === 'MEDIA' ||
+    article.author?.type === 'MEDIA' ||
+    Boolean(
+      article.publication?.name &&
+      article.publication.name.trim().toLowerCase() !==
+        (article.author?.name || '').trim().toLowerCase()
+    );
+  const mediaName = article.publication?.name;
+  const writerName = article.author?.journalist?.name || article.author?.name;
+  const authorName = isMedia
+    ? mediaName && writerName && mediaName !== writerName
+      ? `${mediaName} · par ${writerName}`
+      : mediaName || writerName || ''
+    : writerName || article.author?.username || article.publication?.slug || '';
 
   return (
     <AnimatePresence>
