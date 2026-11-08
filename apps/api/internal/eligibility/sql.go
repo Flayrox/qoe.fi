@@ -46,6 +46,28 @@ func ThoughtPredicates(a Aliases) string {
 	return predicates(a, fmt.Sprintf("COALESCE(%s.content, '')", a.Entity))
 }
 
+// ArticleWhereClause conserve le nom de contrat du masterplan (phase 2) pour
+// les appelants qui ne manipulent qu'un seul alias d'auteur. Les flux multi-
+// auteurs (article de média) utilisent ArticlePredicates avec Aliases.
+func ArticleWhereClause(articleAlias, authorAlias, viewerParam string, requirePublic bool) string {
+	return ArticlePredicates(Aliases{
+		Entity:        articleAlias,
+		Authors:       []string{authorAlias},
+		Viewer:        viewerParam,
+		RequirePublic: requirePublic,
+	})
+}
+
+// ThoughtWhereClause conserve le nom de contrat du masterplan (phase 2).
+func ThoughtWhereClause(thoughtAlias, authorAlias, viewerParam string, requirePublic bool) string {
+	return ThoughtPredicates(Aliases{
+		Entity:        thoughtAlias,
+		Authors:       []string{authorAlias},
+		Viewer:        viewerParam,
+		RequirePublic: requirePublic,
+	})
+}
+
 func predicates(a Aliases, contentExpr string) string {
 	out := ""
 	for _, author := range a.Authors {

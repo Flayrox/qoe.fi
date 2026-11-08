@@ -110,3 +110,30 @@ func TestPredicates_ViewerIsAlwaysBound(t *testing.T) {
 		}
 	}
 }
+
+// Les constructeurs nommés du masterplan (phase 2) restent exposés pour les
+// appelants mono-auteur et produisent exactement les mêmes verrous.
+func TestArticleWhereClause_Contract(t *testing.T) {
+	sql := ArticleWhereClause("a", "u.id", "$2", true)
+	assertLocks(t, sql)
+	if !strings.Contains(sql, `"profileVisibility"`) {
+		t.Fatalf("la clause article doit porter la visibilité :\n%s", sql)
+	}
+	if !strings.Contains(sql, "$2, u.id") {
+		t.Fatalf("le viewer et l'auteur doivent être liés :\n%s", sql)
+	}
+	if !strings.Contains(sql, `COALESCE(a.title, '')`) {
+		t.Fatalf("les mots masqués doivent couvrir le titre :\n%s", sql)
+	}
+}
+
+func TestThoughtWhereClause_Contract(t *testing.T) {
+	sql := ThoughtWhereClause("p", `p."authorId"`, "$1", false)
+	assertLocks(t, sql)
+	if strings.Contains(sql, `"profileVisibility"`) {
+		t.Fatalf("un flux d'abonnements ne rejoue pas la visibilité :\n%s", sql)
+	}
+	if !strings.Contains(sql, "$1, p.\"authorId\"") {
+		t.Fatalf("l'auteur de la pensée doit être lié :\n%s", sql)
+	}
+}
