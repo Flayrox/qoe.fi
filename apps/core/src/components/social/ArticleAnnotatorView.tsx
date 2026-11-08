@@ -199,6 +199,10 @@ function ArticleAnnotatorViewInner({
   const [clientDocument, setClientDocument] = useState<CanonicalDocument | null | undefined>(
     undefined
   );
+
+  useEffect(() => {
+    setClientDocument(undefined);
+  }, [article.id, article.slug]);
   const [bookmarked, setBookmarked] = useState(article.isBookmarked ?? false);
   const [followed, setFollowed] = useState(
     article.isFollowed ?? article.author?.isFollowed ?? false
@@ -555,6 +559,10 @@ function ArticleAnnotatorViewInner({
   // Journaliste / Rédacteur individuel :
   const writerObj =
     article.author?.journalist || (article.author?.type !== 'MEDIA' ? article.author : null);
+  const writerId =
+    writerObj?.id ||
+    (article.author?.name && article.author.name !== mediaName ? article.author.id : null) ||
+    '';
   const writerName =
     writerObj?.name ||
     (article.author?.name && article.author.name !== mediaName ? article.author.name : null) ||
@@ -569,7 +577,10 @@ function ArticleAnnotatorViewInner({
     writerObj?.logoUrl ||
     (article.author?.logoUrl !== mediaLogo ? article.author?.logoUrl : null) ||
     null;
-  const writerCertified = Boolean(writerObj?.isCertified);
+  const writerCertified = Boolean(
+    writerObj?.isCertified ??
+    (article.author?.name && article.author.name !== mediaName ? article.author.isCertified : false)
+  );
 
   // Émetteur pour un article personnel (hors média) :
   const personalAuthorName = article.author?.name || article.author?.username || 'Auteur';
@@ -734,7 +745,7 @@ function ArticleAnnotatorViewInner({
                     <span>{t`par`}</span>
                     <ProfileHoverCard
                       user={{
-                        id: writerObj?.id || '',
+                        id: writerId,
                         name: writerName,
                         username: writerHandle,
                         logoUrl: writerAvatar,
