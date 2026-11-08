@@ -1,6 +1,6 @@
 # Accord créateur
 
-*Dernière mise à jour : {{updatedAt}}* · *Entrée en vigueur : {{effectiveAt}}*
+_Dernière mise à jour : {{updatedAt}}_ · _Entrée en vigueur : {{effectiveAt}}_
 
 Cet accord complète les Conditions générales d'utilisation dès qu'un créateur (ou un média) **active la monétisation** sur qoe.fi. Il définit ce que vous percevez, comment et quand, ainsi que vos obligations d'éditeur indépendant.
 
@@ -12,10 +12,10 @@ qoe.fi agit comme **plateforme technique et mandataire d'encaissement** : il col
 
 ## 2. Répartition des revenus
 
-| Poste | Créateur | qoe.fi |
-|-------|----------|--------|
-| Abonnements lecteurs (revenus nets) | **[90 %]** | **[10 %]** |
-| Contenus à l'unité / soutiens ponctuels | **[90 %]** | **[10 %]** |
+| Poste                                   | Créateur                          | qoe.fi                     |
+| --------------------------------------- | --------------------------------- | -------------------------- |
+| Abonnements lecteurs (revenus nets)     | **[90 %]**                        | **[10 %]**                 |
+| Contenus à l'unité / soutiens ponctuels | **[90 %]**                        | **[10 %]**                 |
 | Ventes de produits ou de services tiers | **100 %** (hors frais techniques) | frais techniques éventuels |
 
 - Les **revenus nets** s'entendent après déduction des frais du prestataire de paiement (commissions Stripe) et de la TVA collectée pour le compte du créateur.

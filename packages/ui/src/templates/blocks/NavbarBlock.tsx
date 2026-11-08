@@ -109,14 +109,7 @@ export function NavbarBlock({
       visible={visible}
       locked={locked}
       context={context}
-      styleBox={
-        (
-          props as unknown as {
-            styleBox?: { pt?: number; pb?: number; maxWidth?: number; opacity?: number };
-          }
-        ).styleBox
-      }
-      blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
+      blockProps={props}
       hiddenAt={hiddenAt}
     >
       <header className={containerClasses}>
@@ -249,7 +242,7 @@ export function NavbarBlock({
                 <NodeRenderer
                   nodes={slots.actions}
                   blockId={id}
-                  blockProps={props as unknown as Record<string, unknown>}
+                  blockProps={props}
                   context={context}
                   path="slots/actions"
                 />
@@ -259,7 +252,7 @@ export function NavbarBlock({
               <NodeRenderer
                 nodes={nodes}
                 blockId={id}
-                blockProps={props as unknown as Record<string, unknown>}
+                blockProps={props}
                 context={context}
                 path="nodes"
               />

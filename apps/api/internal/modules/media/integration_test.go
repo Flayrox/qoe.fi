@@ -444,3 +444,40 @@ func TestInviteAccept_RevokedBetween(t *testing.T) {
 		t.Fatalf("accept après révocation = %v, attendu errNotFound", err)
 	}
 }
+
+// Les invitations en attente ne polluent ni la liste des médias ni le switcher :
+// elles vivent dans /v1/media/invites/pending jusqu'à acceptation.
+func TestListMedia_ExcludesPendingInvites(t *testing.T) {
+	ctx := context.Background()
+	seedMedia(t, ctx)
+
+	const invitedID = "00000000-0000-0000-0000-000000000024"
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
+		 VALUES ($1, 'invited@media.test', 'minvited', 'Invité', 'user', now(), now())`, invitedID); err != nil {
+		t.Fatalf("invited user: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "MediaMember" (id, "mediaId", "userId", role, status, "createdAt", "updatedAt")
+		 VALUES (gen_random_uuid()::text, 'media_001', $1, 'editor', 'invited', now(), now())`, invitedID); err != nil {
+		t.Fatalf("invited membership: %v", err)
+	}
+
+	svc := newTestService()
+	items, err := svc.ListMedia(ctx, invitedID)
+	if err != nil {
+		t.Fatalf("ListMedia: %v", err)
+	}
+	if len(items) != 0 {
+		t.Fatalf("ListMedia(invité) = %d médias, attendu 0 : %+v", len(items), items)
+	}
+
+	ws, err := svc.ListWorkspaces(ctx, invitedID)
+	if err != nil {
+		t.Fatalf("ListWorkspaces: %v", err)
+	}
+	medias, _ := ws["medias"].([]WorkspaceDTO)
+	if len(medias) != 0 {
+		t.Fatalf("ListWorkspaces(invité) medias = %d, attendu 0", len(medias))
+	}
+}

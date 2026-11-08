@@ -1,6 +1,6 @@
 # Data processing agreement (DPA)
 
-*Last updated: {{updatedAt}}*
+_Last updated: {{updatedAt}}_
 
 This agreement ("**DPA**") is entered into between **qoe.fi** ("**the Processor**") and the creator or media outlet using the Platform ("**the Controller**"), in accordance with **Article 28 GDPR**. It applies automatically to any processing of personal data carried out by qoe.fi on behalf of the Controller.
 
@@ -12,13 +12,13 @@ The term of processing matches the term of the contractual relationship, plus st
 
 ## 2. Nature, purpose and data categories
 
-| Item | Description |
-|------|-------------|
-| **Nature of processing** | hosting, email delivery, statistics, subscription management |
-| **Purpose** | provision of the publishing and audience service to the Controller |
-| **Categories of data subjects** | readers, subscribers, editorial team members, CRM contacts |
-| **Categories of data** | identifiers, contact details (email), preferences, billing data, aggregated reading logs |
-| **Special category data** | **none** — the Controller undertakes not to transmit special category data (Art. 9) |
+| Item                            | Description                                                                              |
+| ------------------------------- | ---------------------------------------------------------------------------------------- |
+| **Nature of processing**        | hosting, email delivery, statistics, subscription management                             |
+| **Purpose**                     | provision of the publishing and audience service to the Controller                       |
+| **Categories of data subjects** | readers, subscribers, editorial team members, CRM contacts                               |
+| **Categories of data**          | identifiers, contact details (email), preferences, billing data, aggregated reading logs |
+| **Special category data**       | **none** — the Controller undertakes not to transmit special category data (Art. 9)      |
 
 ## 3. Processor obligations
 
@@ -49,14 +49,14 @@ Data is hosted in the **European Union**. Any transfer to a third country is gov
 
 ## 6. Security and location
 
-| Measure | Implementation |
-|---------|----------------|
-| Encryption in transit | TLS 1.2+ |
-| Encryption at rest | encrypted disks and backups |
-| Segregation | multi-tenant isolation per publication |
-| Access | least privilege, audit log, two-factor authentication for the team |
-| Backups | encrypted, restore tested |
-| Logging | technical logs kept for 12 months |
+| Measure               | Implementation                                                     |
+| --------------------- | ------------------------------------------------------------------ |
+| Encryption in transit | TLS 1.2+                                                           |
+| Encryption at rest    | encrypted disks and backups                                        |
+| Segregation           | multi-tenant isolation per publication                             |
+| Access                | least privilege, audit log, two-factor authentication for the team |
+| Backups               | encrypted, restore tested                                          |
+| Logging               | technical logs kept for 12 months                                  |
 
 ## 7. Liability
 

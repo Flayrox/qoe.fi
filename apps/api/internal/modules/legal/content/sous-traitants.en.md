@@ -1,6 +1,6 @@
 # Sub-processors
 
-*Last updated: {{updatedAt}}*
+_Last updated: {{updatedAt}}_
 
 This page lists the **sub-processors** engaged by qoe.fi within the meaning of Article 28.2 GDPR, what they are used for, where they operate and the mechanism governing any transfer outside the European Union.
 
@@ -8,24 +8,24 @@ This page lists the **sub-processors** engaged by qoe.fi within the meaning of A
 
 ## 1. Active sub-processors
 
-| Sub-processor | Role | Data categories | Location | Transfer safeguard |
-|---------------|------|-----------------|----------|--------------------|
-| [MAIN HOST] | application, API, database | account, content, audience, logs | European Union | intra-EU |
-| [STORAGE HOST] | file storage (images, audio, video) | content, media | European Union | intra-EU |
-| [CDN] | delivery of static assets | technical data (IP) | EU + global edge nodes | intra-EU, ephemeral logs |
-| [EMAIL PROVIDER] | transactional and audience email, unsubscribe links | email, preferences, delivery statistics | European Union | intra-EU |
-| Stripe Payments Europe | subscription collection, subscriber management, payouts | customer ID, billing data, creator IBAN | Ireland (EU) | intra-EU |
-| [ANALYTICS DASHBOARD] | aggregated audience measurement of publications | anonymised technical data, aggregates | European Union (self-hosted) | intra-EU |
-| [SEARCH ENGINE] | full-text search across publications | titles, excerpts, identifiers | European Union | intra-EU |
-| [EMBEDDINGS SERVICE] | internal semantic search | public content | European Union | intra-EU, local processing |
+| Sub-processor          | Role                                                    | Data categories                         | Location                     | Transfer safeguard         |
+| ---------------------- | ------------------------------------------------------- | --------------------------------------- | ---------------------------- | -------------------------- |
+| [MAIN HOST]            | application, API, database                              | account, content, audience, logs        | European Union               | intra-EU                   |
+| [STORAGE HOST]         | file storage (images, audio, video)                     | content, media                          | European Union               | intra-EU                   |
+| [CDN]                  | delivery of static assets                               | technical data (IP)                     | EU + global edge nodes       | intra-EU, ephemeral logs   |
+| [EMAIL PROVIDER]       | transactional and audience email, unsubscribe links     | email, preferences, delivery statistics | European Union               | intra-EU                   |
+| Stripe Payments Europe | subscription collection, subscriber management, payouts | customer ID, billing data, creator IBAN | Ireland (EU)                 | intra-EU                   |
+| [ANALYTICS DASHBOARD]  | aggregated audience measurement of publications         | anonymised technical data, aggregates   | European Union (self-hosted) | intra-EU                   |
+| [SEARCH ENGINE]        | full-text search across publications                    | titles, excerpts, identifiers           | European Union               | intra-EU                   |
+| [EMBEDDINGS SERVICE]   | internal semantic search                                | public content                          | European Union               | intra-EU, local processing |
 
 ## 2. Further sub-processors used by our providers
 
-| Provider | Further sub-processor | Purpose | Location |
-|----------|----------------------|---------|----------|
-| Stripe | Stripe, Inc. | technical payment processing | United States — standard contractual clauses + additional measures |
-| [EMAIL PROVIDER] | [SUB-PROCESSOR] | routing and deliverability | [LOCATION] |
-| [MAIN HOST] | [SUB-PROCESSOR] | encrypted backups | EU |
+| Provider         | Further sub-processor | Purpose                      | Location                                                           |
+| ---------------- | --------------------- | ---------------------------- | ------------------------------------------------------------------ |
+| Stripe           | Stripe, Inc.          | technical payment processing | United States — standard contractual clauses + additional measures |
+| [EMAIL PROVIDER] | [SUB-PROCESSOR]       | routing and deliverability   | [LOCATION]                                                         |
+| [MAIN HOST]      | [SUB-PROCESSOR]       | encrypted backups            | EU                                                                 |
 
 ## 3. What we never do
 

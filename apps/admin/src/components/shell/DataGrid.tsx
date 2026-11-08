@@ -292,7 +292,9 @@ export function DataGrid<T extends { id: string }>({
           if (viewsTrigger) {
             viewsTrigger.focus();
             if (viewsTrigger.tagName === 'SUMMARY') {
-              (viewsTrigger.parentElement as HTMLDetailsElement).open = !(viewsTrigger.parentElement as HTMLDetailsElement).open;
+              (viewsTrigger.parentElement as HTMLDetailsElement).open = !(
+                viewsTrigger.parentElement as HTMLDetailsElement
+              ).open;
             }
           }
         } else if (event.key === '?') {
@@ -359,7 +361,8 @@ export function DataGrid<T extends { id: string }>({
         <div className="mb-1 flex h-6 items-center gap-1.5 rounded-md border border-[#EE4B2B]/40 bg-[#EE4B2B]/5 px-2 text-[11px] font-medium text-[#B5371C]">
           <span>Aller à :</span>
           <span className="text-muted-foreground">
-            h (accueil), w (dossiers), u (users), r (signalements), a (audit), s (réglages), n (outbox), c (conformité), x (sandbox)
+            h (accueil), w (dossiers), u (users), r (signalements), a (audit), s (réglages), n
+            (outbox), c (conformité), x (sandbox)
           </span>
         </div>
       )}

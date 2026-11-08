@@ -10,6 +10,7 @@ import { routes } from '@qoe/config/routes';
 import { getMainAppUrl } from '@qoe/config';
 import { t } from '@lingui/core/macro';
 import { toggleFollowCreatorHomeAction, resolveProfileAction } from '@qoe/sdk/actions/feed';
+import { useActorShadow, updateActorShadow, withShadowMutation } from '@qoe/sdk';
 import { Building2, UserPlus, UserCheck, Loader2 } from 'lucide-react';
 
 export interface ProfileHoverUserData {
@@ -91,13 +92,20 @@ export function ProfileHoverCard({
   sideOffset = 6,
   isBlocked: isBlockedProp = false,
 }: ProfileHoverCardProps) {
-  const isBlocked = isBlockedProp || Boolean(user?.isBlocked);
-  const [isResolvedBlocked, setIsResolvedBlocked] = useState(false);
-  const blocked = isBlocked || isResolvedBlocked;
-
   const handle =
     propUsername || user?.username || user?.subdomain || user?.id?.slice(0, 8) || 'user';
   const cleanHandle = handle.replace(/^@/, '');
+
+  const actorShadow = useActorShadow(user?.id || cleanHandle, {
+    followed: user?.isFollowing ?? false,
+    blocked: isBlockedProp || Boolean(user?.isBlocked),
+  });
+
+  const isBlocked = isBlockedProp || Boolean(user?.isBlocked);
+  const [isResolvedBlocked, setIsResolvedBlocked] = useState(false);
+  const blocked =
+    (typeof actorShadow.blocked === 'boolean' ? actorShadow.blocked : isBlocked) ||
+    isResolvedBlocked;
 
   // Cached profile data fallback
   const cached = profileHoverCache.get(cleanHandle.toLowerCase());
@@ -118,9 +126,10 @@ export function ProfileHoverCard({
   const [isMedia, setIsMedia] = useState<boolean>(
     user?.isMedia ?? (user?.type ? user.type === 'MEDIA' : (cached?.isMedia ?? false))
   );
-  const [isFollowing, setIsFollowing] = useState<boolean>(
-    user?.isFollowing ?? cached?.isFollowing ?? false
-  );
+  const isFollowing =
+    typeof actorShadow.followed === 'boolean'
+      ? actorShadow.followed
+      : (user?.isFollowing ?? cached?.isFollowing ?? false);
   const [followersCount, setFollowersCount] = useState<number>(
     user?.followersCount ?? user?._count?.followers ?? cached?.followersCount ?? 0
   );
@@ -151,7 +160,6 @@ export function ProfileHoverCard({
     if (user?.isMedia !== undefined || user?.type !== undefined) {
       setIsMedia(user.isMedia ?? user.type === 'MEDIA');
     }
-    if (user?.isFollowing !== undefined) setIsFollowing(user.isFollowing);
     if (user?.followersCount !== undefined || user?._count?.followers !== undefined) {
       setFollowersCount(user.followersCount ?? user._count?.followers ?? 0);
     }
@@ -177,7 +185,13 @@ export function ProfileHoverCard({
         if (data.heroText) setBio(data.heroText);
         if (data.isCertified !== undefined) setIsCertified(data.isCertified);
         if (data.isMedia !== undefined) setIsMedia(data.isMedia);
-        if (data.isFollowing !== undefined) setIsFollowing(data.isFollowing);
+        if (data.isFollowing !== undefined) {
+          const targetId = user?.id || cleanHandle;
+          updateActorShadow(targetId, { followed: data.isFollowing });
+          if (user?.id && cleanHandle && user.id.toLowerCase() !== cleanHandle.toLowerCase()) {
+            updateActorShadow(cleanHandle, { followed: data.isFollowing });
+          }
+        }
         if (data.followersCount !== undefined) setFollowersCount(data.followersCount);
         if (data.followingCount !== undefined) setFollowingCount(data.followingCount);
         if (data.articlesCount !== undefined) setArticlesCount(data.articlesCount);
@@ -210,7 +224,13 @@ export function ProfileHoverCard({
           setBio(resolvedData.heroText);
           setIsCertified(resolvedData.isCertified);
           setIsMedia(resolvedData.isMedia);
-          setIsFollowing(resolvedData.isFollowing);
+          if (typeof res.data.isFollowing === 'boolean') {
+            const targetId = user?.id || cleanHandle;
+            updateActorShadow(targetId, { followed: res.data.isFollowing });
+            if (user?.id && cleanHandle && user.id.toLowerCase() !== cleanHandle.toLowerCase()) {
+              updateActorShadow(cleanHandle, { followed: res.data.isFollowing });
+            }
+          }
           setFollowersCount(resolvedData.followersCount);
           setFollowingCount(resolvedData.followingCount);
           setArticlesCount(resolvedData.articlesCount);
@@ -230,7 +250,7 @@ export function ProfileHoverCard({
         }
       }
     },
-    [cleanHandle, hasFetched]
+    [cleanHandle, hasFetched, user?.id]
   );
 
   const handleClick = (e: React.MouseEvent) => {
@@ -299,33 +319,53 @@ export function ProfileHoverCard({
     e.preventDefault();
     if (isFollowLoading) return;
 
+    const targetId = user?.id || cleanHandle;
     const nextFollowed = !isFollowing;
-    setIsFollowing(nextFollowed);
-    setFollowersCount((prev) => Math.max(0, prev + (nextFollowed ? 1 : -1)));
+    const prevFollowed = isFollowing;
+    const prevFollowersCount = followersCount;
 
-    if (onFollowToggle && user?.id) {
-      onFollowToggle(user.id, nextFollowed);
-    }
-
+    setIsFollowLoading(true);
     try {
-      setIsFollowLoading(true);
-      const targetId = user?.id || cleanHandle;
-      await toggleFollowCreatorHomeAction(targetId);
-
-      // Update cache
-      const cacheKey = cleanHandle.toLowerCase();
-      const existing = profileHoverCache.get(cacheKey);
-      if (existing) {
-        profileHoverCache.set(cacheKey, {
-          ...existing,
-          isFollowing: nextFollowed,
-          followersCount: Math.max(0, (existing.followersCount ?? 0) + (nextFollowed ? 1 : -1)),
-        });
-      }
-    } catch {
-      // Revert optimistic state
-      setIsFollowing(!nextFollowed);
-      setFollowersCount((prev) => Math.max(0, prev + (nextFollowed ? -1 : 1)));
+      await withShadowMutation({
+        lockKey: `actor:${targetId}:follow`,
+        optimisticUpdate: () => {
+          updateActorShadow(targetId, { followed: nextFollowed });
+          if (user?.id && cleanHandle && user.id.toLowerCase() !== cleanHandle.toLowerCase()) {
+            updateActorShadow(cleanHandle, { followed: nextFollowed });
+          }
+          setFollowersCount((prev) => Math.max(0, prev + (nextFollowed ? 1 : -1)));
+          if (onFollowToggle && user?.id) {
+            onFollowToggle(user.id, nextFollowed);
+          }
+        },
+        rollback: () => {
+          updateActorShadow(targetId, { followed: prevFollowed });
+          if (user?.id && cleanHandle && user.id.toLowerCase() !== cleanHandle.toLowerCase()) {
+            updateActorShadow(cleanHandle, { followed: prevFollowed });
+          }
+          setFollowersCount(prevFollowersCount);
+          if (onFollowToggle && user?.id) {
+            onFollowToggle(user.id, prevFollowed);
+          }
+        },
+        mutation: async () => {
+          const res = await toggleFollowCreatorHomeAction(targetId);
+          if (!res?.ok) throw new Error('Échec follow');
+          return res;
+        },
+        onSuccess: () => {
+          // Update cache
+          const cacheKey = cleanHandle.toLowerCase();
+          const existing = profileHoverCache.get(cacheKey);
+          if (existing) {
+            profileHoverCache.set(cacheKey, {
+              ...existing,
+              isFollowing: nextFollowed,
+              followersCount: Math.max(0, (existing.followersCount ?? 0) + (nextFollowed ? 1 : -1)),
+            });
+          }
+        },
+      });
     } finally {
       setIsFollowLoading(false);
     }

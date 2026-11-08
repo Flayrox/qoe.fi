@@ -96,14 +96,7 @@ export function LeadStoryBlock({
       visible={visible}
       locked={locked}
       context={context}
-      styleBox={
-        (
-          props as unknown as {
-            styleBox?: { pt?: number; pb?: number; maxWidth?: number; opacity?: number };
-          }
-        ).styleBox
-      }
-      blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
+      blockProps={props}
       hiddenAt={hiddenAt}
     >
       <section className="container mx-auto px-4 lg:px-8 py-10 md:py-16">
@@ -212,7 +205,7 @@ export function LeadStoryBlock({
               <NodeRenderer
                 nodes={slots.actions}
                 blockId={id}
-                blockProps={props as unknown as Record<string, unknown>}
+                blockProps={props}
                 context={context}
                 path="slots/actions"
               />
@@ -221,7 +214,7 @@ export function LeadStoryBlock({
               <NodeRenderer
                 nodes={nodes}
                 blockId={id}
-                blockProps={props as unknown as Record<string, unknown>}
+                blockProps={props}
                 context={context}
                 path="nodes"
               />

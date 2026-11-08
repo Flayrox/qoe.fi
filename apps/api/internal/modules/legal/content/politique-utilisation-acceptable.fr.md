@@ -1,6 +1,6 @@
 # Politique d'utilisation acceptable
 
-*Dernière mise à jour : {{updatedAt}}*
+_Dernière mise à jour : {{updatedAt}}_
 
 Cette politique précise ce qui est **interdit** sur qoe.fi, que ce soit via l'interface, l'API, les newsletters ou tout autre canal du service. Elle complète les Conditions générales d'utilisation et s'applique à tous les comptes, y compris les médias et les intégrations tierces.
 
@@ -52,12 +52,12 @@ Sont interdits, en publication comme en message privé :
 
 ## 6. Sanctions
 
-| Gravité | Exemple | Mesure |
-|---------|---------|--------|
-| Mineure | spam ponctuel, mention commerciale non déclarée | avertissement + retrait |
-| Modérée | harcèlement ciblé, contournement de quota d'API | restriction temporaire (7 à 30 jours) |
-| Grave | fraude, atteinte aux droits répétée | suspension du compte, versements gelés |
-| Critique | exploitation de mineurs, terrorisme | fermeture définitive + signalement aux autorités |
+| Gravité  | Exemple                                         | Mesure                                           |
+| -------- | ----------------------------------------------- | ------------------------------------------------ |
+| Mineure  | spam ponctuel, mention commerciale non déclarée | avertissement + retrait                          |
+| Modérée  | harcèlement ciblé, contournement de quota d'API | restriction temporaire (7 à 30 jours)            |
+| Grave    | fraude, atteinte aux droits répétée             | suspension du compte, versements gelés           |
+| Critique | exploitation de mineurs, terrorisme             | fermeture définitive + signalement aux autorités |
 
 Les revenus issus d'une activité frauduleuse ne sont pas versés et peuvent être remboursés aux lecteurs.
 

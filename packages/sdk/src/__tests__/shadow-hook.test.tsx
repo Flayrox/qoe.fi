@@ -179,6 +179,25 @@ describe('useActorShadow — synchronisation réactive des acteurs (par id ou ha
     expect(result.current.followRequested).toBe(true);
     expect(getActorShadow('bob')?.followed).toBe(true);
   });
+
+  it('accepte une signature directe par string (id ou handle) avec fallback', () => {
+    updateActorShadow('user-standalone', { followed: true });
+    const { result, rerender } = renderHook(({ id, fallback }) => useActorShadow(id, fallback), {
+      initialProps: {
+        id: 'user-standalone',
+        fallback: { followed: false, blocked: false },
+      },
+    });
+    expect(result.current.followed).toBe(true);
+    expect(result.current.blocked).toBe(false);
+
+    act(() => {
+      updateActorShadow('user-standalone', { followed: false, blocked: true });
+    });
+    rerender({ id: 'user-standalone', fallback: { followed: false, blocked: false } });
+    expect(result.current.followed).toBe(false);
+    expect(result.current.blocked).toBe(true);
+  });
 });
 
 describe('withShadowMutation — mutations optimistes avec rollback et lock anti double-clic', () => {

@@ -11,6 +11,7 @@ import (
 )
 
 func TestSavedViewsServiceAndEndpoints(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	pool := testutil.MustPool(t)
 

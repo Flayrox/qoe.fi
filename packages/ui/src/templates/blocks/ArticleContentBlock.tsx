@@ -135,14 +135,7 @@ export function ArticleContentBlock({
       visible={visible}
       locked={locked}
       context={context}
-      styleBox={
-        (
-          props as unknown as {
-            styleBox?: { pt?: number; pb?: number; maxWidth?: number; opacity?: number };
-          }
-        ).styleBox
-      }
-      blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
+      blockProps={props}
       hiddenAt={hiddenAt}
     >
       <article className="container mx-auto px-4 sm:px-6 py-6 md:py-10 max-w-[680px] relative">
@@ -150,7 +143,7 @@ export function ArticleContentBlock({
           <NodeRenderer
             nodes={slots.before}
             blockId={id}
-            blockProps={props as unknown as Record<string, unknown>}
+            blockProps={props}
             context={context}
             path="slots/before"
           />
@@ -263,7 +256,7 @@ export function ArticleContentBlock({
             <NodeRenderer
               nodes={slots.after}
               blockId={id}
-              blockProps={props as unknown as Record<string, unknown>}
+              blockProps={props}
               context={context}
               path="slots/after"
             />
@@ -273,7 +266,7 @@ export function ArticleContentBlock({
           <NodeRenderer
             nodes={nodes}
             blockId={id}
-            blockProps={props as unknown as Record<string, unknown>}
+            blockProps={props}
             context={context}
             path="nodes"
           />

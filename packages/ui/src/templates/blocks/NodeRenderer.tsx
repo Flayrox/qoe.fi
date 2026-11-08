@@ -8,10 +8,10 @@ import React from 'react';
 import type { TemplateNode, TemplateRenderContext } from '../schema';
 import { EditableText } from './EditableText';
 
-interface NodeRendererProps {
+export interface NodeRendererProps {
   nodes: TemplateNode[];
   blockId: string;
-  blockProps: Record<string, unknown>;
+  blockProps: object | Record<string, unknown>;
   context: TemplateRenderContext;
   path?: string;
 }
@@ -25,9 +25,10 @@ function hiddenClasses(sx?: TemplateNode['sx']): string {
   return '';
 }
 
-function resolveNodeText(node: TemplateNode, blockProps: Record<string, unknown>): string {
-  if (node.textKey && typeof blockProps[node.textKey] === 'string') {
-    return blockProps[node.textKey] as string;
+function resolveNodeText(node: TemplateNode, blockProps: object | Record<string, unknown>): string {
+  const dict = blockProps as Record<string, unknown>;
+  if (node.textKey && typeof dict[node.textKey] === 'string') {
+    return dict[node.textKey] as string;
   }
   if (typeof node.overrides?.text === 'string') return node.overrides.text as string;
   return node.textFallback ?? '';

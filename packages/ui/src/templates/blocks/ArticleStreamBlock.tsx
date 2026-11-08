@@ -249,14 +249,7 @@ export function ArticleStreamBlock({
       visible={visible}
       locked={locked}
       context={context}
-      styleBox={
-        (
-          props as unknown as {
-            styleBox?: { pt?: number; pb?: number; maxWidth?: number; opacity?: number };
-          }
-        ).styleBox
-      }
-      blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
+      blockProps={props}
       hiddenAt={hiddenAt}
     >
       <section
@@ -271,7 +264,7 @@ export function ArticleStreamBlock({
               <NodeRenderer
                 nodes={slots.header}
                 blockId={id}
-                blockProps={props as unknown as Record<string, unknown>}
+                blockProps={props}
                 context={context}
                 path="slots/header"
               />
@@ -280,7 +273,7 @@ export function ArticleStreamBlock({
               <NodeRenderer
                 nodes={nodes}
                 blockId={id}
-                blockProps={props as unknown as Record<string, unknown>}
+                blockProps={props}
                 context={context}
                 path="nodes"
               />

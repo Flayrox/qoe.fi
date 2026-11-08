@@ -1,6 +1,6 @@
 # Mentions légales
 
-*Dernière mise à jour : {{updatedAt}}*
+_Dernière mise à jour : {{updatedAt}}_
 
 qoe.fi est une plateforme européenne d'édition indépendante : elle permet à des créateurs, autrices, auteurs et médias de publier, de monétiser et de fédérer leur audience sans dépendre d'une régie publicitaire.
 
@@ -27,12 +27,12 @@ Le directeur de la publication est le représentant légal de l'éditeur désign
 
 L'infrastructure du service est hébergée au sein de l'Union européenne. Le détail des sous-traitants (hébergeurs, CDN, envoi d'emails, paiement) est publié et maintenu à jour dans la page **Sous-traitants**.
 
-| Élément | Hébergeur | Localisation |
-|---------|-----------|--------------|
-| Application, API, base de données | [HÉBERGEUR PRINCIPAL] | Union européenne |
-| Fichiers et images (objets) | [HÉBERGEUR STOCKAGE] | Union européenne |
-| Emails transactionnels | [PRESTATAIRE EMAIL] | Union européenne |
-| Paiements | Stripe Payments Europe | Irlande / UE |
+| Élément                           | Hébergeur              | Localisation     |
+| --------------------------------- | ---------------------- | ---------------- |
+| Application, API, base de données | [HÉBERGEUR PRINCIPAL]  | Union européenne |
+| Fichiers et images (objets)       | [HÉBERGEUR STOCKAGE]   | Union européenne |
+| Emails transactionnels            | [PRESTATAIRE EMAIL]    | Union européenne |
+| Paiements                         | Stripe Payments Europe | Irlande / UE     |
 
 ## 4. Propriété intellectuelle
 

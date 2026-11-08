@@ -1,6 +1,6 @@
 # Politique de cookies et traceurs
 
-*Dernière mise à jour : {{updatedAt}}*
+_Dernière mise à jour : {{updatedAt}}_
 
 Cette page explique comment qoe.fi utilise des cookies et technologies similaires (stockage local, pixels, identifiants d'appareil). Elle a changé de nature : **aucun traceur non essentiel n'est plus déposé aujourd'hui**, la mesure d'audience est devenue anonyme et sans cookie, et il n'existe donc plus de bannière de consentement bloquante. Le droit de **s'opposer** à la mesure, lui, reste entier.
 
@@ -14,13 +14,13 @@ Un cookie est un petit fichier déposé sur votre terminal par un site web. Il p
 
 Ces traceurs sont indispensables au fonctionnement du service et ne peuvent pas être désactivés.
 
-| Nom | Rôle | Durée |
-|-----|------|-------|
-| Session d'authentification | maintenir la connexion à votre compte | durée de la session / 30 jours si « rester connecté » |
-| Jeton CSRF | protéger les formulaires contre les requêtes forgées | session |
-| `qoe.theme` / `qoe.locale` | mémoriser le thème clair/sombre et la langue | jusqu'à effacement |
-| `qoe_cookie_consent` | conserver votre éventuelle opposition à la mesure d'audience | 6 mois |
-| Équilibrage et sécurité | répartir la charge, détecter les abus | session |
+| Nom                        | Rôle                                                         | Durée                                                 |
+| -------------------------- | ------------------------------------------------------------ | ----------------------------------------------------- |
+| Session d'authentification | maintenir la connexion à votre compte                        | durée de la session / 30 jours si « rester connecté » |
+| Jeton CSRF                 | protéger les formulaires contre les requêtes forgées         | session                                               |
+| `qoe.theme` / `qoe.locale` | mémoriser le thème clair/sombre et la langue                 | jusqu'à effacement                                    |
+| `qoe_cookie_consent`       | conserver votre éventuelle opposition à la mesure d'audience | 6 mois                                                |
+| Équilibrage et sécurité    | répartir la charge, détecter les abus                        | session                                               |
 
 ### 2.2. Mesure d'audience — **exemptée de consentement**
 
@@ -28,19 +28,19 @@ La mesure d'audience fonctionne **sans aucun cookie** et **sans lire ni écrire 
 
 Cette combinaison de garanties (finalité unique, pas d'accès au terminal, anonymisation préalable, aucun croisement avec un autre traitement, aucune transmission à un tiers, statistiques agrégées) la place dans le régime de dispense de consentement prévu à l'**article 82, II de la loi Informatique et Libertés** : vous n'avez donc pas à cliquer sur quoi que ce soit pour en bénéficier.
 
-| Nom | Finalité | Durée |
-|-----|----------|-------|
-| Mesure d'audience (auto-hébergée en UE) | compter les visites, pages vues et provenances | 12 mois (agrégé) |
-| Agrégats de lecture | alimenter les statistiques **des créateurs** sur leurs propres publications | 12 mois (agrégé) |
+| Nom                                     | Finalité                                                                    | Durée            |
+| --------------------------------------- | --------------------------------------------------------------------------- | ---------------- |
+| Mesure d'audience (auto-hébergée en UE) | compter les visites, pages vues et provenances                              | 12 mois (agrégé) |
+| Agrégats de lecture                     | alimenter les statistiques **des créateurs** sur leurs propres publications | 12 mois (agrégé) |
 
 Les statistiques présentées aux créateurs sont **agrégées** et ne permettent pas de réidentifier un lecteur individuel.
 
 ### 2.3. Préférences de confort — **parce que vous les demandez**
 
-| Nom | Finalité | Durée |
-|-----|----------|-------|
-| Langue, devise, fuseau | afficher le contenu dans la bonne langue et la bonne devise | 12 mois |
-| Préférences de lecture (taille, police, lecteur audio) | confort de lecture | 12 mois |
+| Nom                                                    | Finalité                                                    | Durée   |
+| ------------------------------------------------------ | ----------------------------------------------------------- | ------- |
+| Langue, devise, fuseau                                 | afficher le contenu dans la bonne langue et la bonne devise | 12 mois |
+| Préférences de lecture (taille, police, lecteur audio) | confort de lecture                                          | 12 mois |
 
 Ces préférences ne sont enregistrées que parce que **vous les choisissez** (thème, langue, taille de texte) : elles servent la fonctionnalité que vous avez demandée et non une finalité de suivi.
 
@@ -52,7 +52,7 @@ qoe.fi **ne diffuse pas de publicité comportementale** et ne dépose aucun trac
 
 - Il n'y a **plus de bannière de consentement**, parce qu'il n'y a plus aucun traceur dont le dépôt en dépende. Une bannière qui demanderait d'autoriser ce qui ne nécessite aucune autorisation serait un faux choix.
 - Un **avis d'information** s'affiche au premier passage : il explique la mesure anonyme en une phrase et propose **« M'y opposer »** en un clic.
-- **S'opposer est aussi simple que consulter** : l'opposition coupe immédiatement le script côté navigateur *et* le rend côté serveur ; aucune donnée n'est plus transmise.
+- **S'opposer est aussi simple que consulter** : l'opposition coupe immédiatement le script côté navigateur _et_ le rend côté serveur ; aucune donnée n'est plus transmise.
 - Votre opposition est conservée **6 mois** ; passé ce délai, la mesure anonyme reprend et l'avis est reproposé.
 - Vous gardez la main à tout moment via **« Gérer mes cookies »** en pied de page, où figure la liste des traceurs réellement déposés.
 - Une **opposition exprimée du temps de l'ancienne bannière reste effective** : elle n'est pas convertie en accord par le changement de régime.
@@ -74,11 +74,11 @@ Le blocage des cookies strictement nécessaires empêche la connexion à votre c
 
 Certains services tiers déposent des traceurs lorsque la fonctionnalité correspondante est utilisée :
 
-| Service | Usage | Traceur | Base |
-|---------|-------|---------|------|
-| Stripe | paiement sécurisé des abonnements | cookies de fraude et de session de paiement | nécessaire à la transaction |
-| Fournisseur d'envoi d'e-mails | acheminement des e-mails de service | aucun traceur de suivi | — |
-| Hébergeur / CDN | diffusion des fichiers statiques | aucun traceur persistant | — |
+| Service                       | Usage                               | Traceur                                     | Base                        |
+| ----------------------------- | ----------------------------------- | ------------------------------------------- | --------------------------- |
+| Stripe                        | paiement sécurisé des abonnements   | cookies de fraude et de session de paiement | nécessaire à la transaction |
+| Fournisseur d'envoi d'e-mails | acheminement des e-mails de service | aucun traceur de suivi                      | —                           |
+| Hébergeur / CDN               | diffusion des fichiers statiques    | aucun traceur persistant                    | —                           |
 
 La mesure d'audience n'est **pas** un service tiers : elle est auto-hébergée sur notre propre infrastructure, dans l'Union européenne.
 

@@ -920,44 +920,54 @@ type FeedResultPage struct {
 // ─────────────────────────── Block / Mute / Report ───────────────────────────
 
 // ToggleBlock bloque/débloque un utilisateur (BlockedUser : creator = la
-// cible, reader = l'auteur de l'action). Idempotent.
+// cible, reader = l'auteur de l'action). Atomique et idempotent.
 func (s *Service) ToggleBlock(ctx context.Context, targetID, userID string) (bool, error) {
 	if targetID == userID {
 		return false, errors.New("impossible de se bloquer soi-même")
 	}
-	_, err := s.q.GetExistingBlock(ctx, db.GetExistingBlockParams{
-		CreatorId: toUUID(targetID), ReaderId: toUUID(userID),
-	})
-	if err == nil {
-		if err := s.q.DeleteBlock(ctx, db.DeleteBlockParams{
+	var blocked bool
+	err := domainevents.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+		tq := s.q.WithTx(tx)
+		_, err := tq.GetExistingBlock(ctx, db.GetExistingBlockParams{
+			CreatorId: toUUID(targetID), ReaderId: toUUID(userID),
+		})
+		if err == nil {
+			if err := tq.DeleteBlock(ctx, db.DeleteBlockParams{
+				CreatorId: toUUID(targetID), ReaderId: toUUID(userID),
+			}); err != nil {
+				return err
+			}
+			if err := domainevents.Dispatch(ctx, tx, domainevents.UserUnblockedEvent{
+				BlockerID: userID,
+				BlockedID: targetID,
+			}); err != nil {
+				return err
+			}
+			blocked = false
+			return nil
+		}
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		if err := tq.InsertBlock(ctx, db.InsertBlockParams{
 			CreatorId: toUUID(targetID), ReaderId: toUUID(userID),
 		}); err != nil {
-			return false, err
+			return err
 		}
-		_ = domainevents.Dispatch(ctx, s.pool, domainevents.UserUnblockedEvent{
+
+		if err := domainevents.Dispatch(ctx, tx, domainevents.UserBlockedEvent{
 			BlockerID: userID,
 			BlockedID: targetID,
-		})
-		return false, nil
-	}
-	if !errors.Is(err, pgx.ErrNoRows) {
-		return false, err
-	}
-	if err := s.q.InsertBlock(ctx, db.InsertBlockParams{
-		CreatorId: toUUID(targetID), ReaderId: toUUID(userID),
-	}); err != nil {
-		return false, err
-	}
-
-	// Le blocage coupe les liens sociaux existants dans les deux sens : un
-	// follow ou une demande en attente ne doit pas survivre au blocage.
-	// Best-effort : le blocage lui-même est déjà persisté, on ne le défait pas
-	// pour un échec de nettoyage.
-	_ = domainevents.Dispatch(ctx, s.pool, domainevents.UserBlockedEvent{
-		BlockerID: userID,
-		BlockedID: targetID,
+		}); err != nil {
+			return err
+		}
+		blocked = true
+		return nil
 	})
-	return true, nil
+	if err != nil {
+		return false, err
+	}
+	return blocked, nil
 }
 
 // ToggleMute masque/démasque un utilisateur (MutedUser : muter = l'auteur de

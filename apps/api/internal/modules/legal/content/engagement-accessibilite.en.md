@@ -1,6 +1,6 @@
 # Accessibility commitment
 
-*Last updated: {{updatedAt}}*
+_Last updated: {{updatedAt}}_
 
 qoe.fi aims for **universal accessibility** of its interfaces, in line with **WCAG 2.2 level AA**, the European Accessibility Act (Directive (EU) 2019/882) and the obligations that apply to a mainstream digital service.
 
@@ -15,12 +15,12 @@ Accessibility is not optional: a publishing platform that excludes part of its r
 
 ## 2. Measures in place
 
-| WCAG goal | Implementation |
-|-----------|----------------|
-| Perceivable | text/background contrast meeting AA, text alternatives on images and previews, captions for audio/video produced by the platform, no information conveyed by colour alone |
-| Operable | full keyboard navigation, visible focus, logical tab order, touch targets of at least 44 px, back-to-top, no keyboard traps |
-| Understandable | explicit labels, precise error messages tied to their fields, declared page language, consistent navigation across pages |
-| Robust | semantic HTML, components compatible with screen readers (VoiceOver, NVDA, TalkBack), no reliance on a single input method |
+| WCAG goal      | Implementation                                                                                                                                                            |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Perceivable    | text/background contrast meeting AA, text alternatives on images and previews, captions for audio/video produced by the platform, no information conveyed by colour alone |
+| Operable       | full keyboard navigation, visible focus, logical tab order, touch targets of at least 44 px, back-to-top, no keyboard traps                                               |
+| Understandable | explicit labels, precise error messages tied to their fields, declared page language, consistent navigation across pages                                                  |
+| Robust         | semantic HTML, components compatible with screen readers (VoiceOver, NVDA, TalkBack), no reliance on a single input method                                                |
 
 Further measures: light and dark themes following system preferences, respect for `prefers-reduced-motion`, zoom up to 200 % without loss of content, minimum contrast areas respected.
 
@@ -30,13 +30,13 @@ Further measures: light and dark themes following system preferences, respect fo
 
 ### Known non-conformities
 
-| Area | Description | Planned fix |
-|------|-------------|-------------|
-| Rich text editor | some toolbar commands are only reachable with a mouse | [QUARTER] |
-| Theme editor | colour preview is not announced to screen readers | [QUARTER] |
-| Third-party content | content embedded by creators (embeds, iframes) is outside our control | guidance + documentation |
-| Creator content | alternative text on images published by creators | recommendations and prompts in the editor |
-| Analytics dashboard | charts without an equivalent textual description for some metrics | [QUARTER] |
+| Area                | Description                                                           | Planned fix                               |
+| ------------------- | --------------------------------------------------------------------- | ----------------------------------------- |
+| Rich text editor    | some toolbar commands are only reachable with a mouse                 | [QUARTER]                                 |
+| Theme editor        | colour preview is not announced to screen readers                     | [QUARTER]                                 |
+| Third-party content | content embedded by creators (embeds, iframes) is outside our control | guidance + documentation                  |
+| Creator content     | alternative text on images published by creators                      | recommendations and prompts in the editor |
+| Analytics dashboard | charts without an equivalent textual description for some metrics     | [QUARTER]                                 |
 
 ## 4. Content published by creators
 

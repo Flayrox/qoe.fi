@@ -70,14 +70,7 @@ export function FooterBlock({
       visible={visible}
       locked={locked}
       context={context}
-      styleBox={
-        (
-          props as unknown as {
-            styleBox?: { pt?: number; pb?: number; maxWidth?: number; opacity?: number };
-          }
-        ).styleBox
-      }
-      blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
+      blockProps={props}
       hiddenAt={hiddenAt}
     >
       <footer className="w-full border-t border-border bg-card/40 transition-colors">
@@ -136,7 +129,7 @@ export function FooterBlock({
                     <NodeRenderer
                       nodes={slots.legal}
                       blockId={id}
-                      blockProps={props as unknown as Record<string, unknown>}
+                      blockProps={props}
                       context={context}
                       path="slots/legal"
                     />
@@ -205,7 +198,7 @@ export function FooterBlock({
                 <NodeRenderer
                   nodes={nodes}
                   blockId={id}
-                  blockProps={props as unknown as Record<string, unknown>}
+                  blockProps={props}
                   context={context}
                   path="nodes"
                 />

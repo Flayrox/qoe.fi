@@ -193,12 +193,7 @@ func (s *Service) blockedBetween(ctx context.Context, a, b string) (bool, error)
 		return false, nil
 	}
 	var blocked bool
-	err := s.pool.QueryRow(ctx, `
-		SELECT EXISTS(
-			SELECT 1 FROM "BlockedUser"
-			WHERE ("readerId" = $1 AND "creatorId" = $2)
-			   OR ("readerId" = $2 AND "creatorId" = $1)
-		)`, toUUID(a), toUUID(b)).Scan(&blocked)
+	err := s.pool.QueryRow(ctx, `SELECT is_blocked_bidirectional($1::uuid, $2::uuid)`, toUUID(a), toUUID(b)).Scan(&blocked)
 	return blocked, err
 }
 

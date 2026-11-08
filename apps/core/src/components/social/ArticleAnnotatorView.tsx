@@ -24,6 +24,11 @@ import {
   updateHighlightNoteAction,
   deleteHighlightAction,
   citeAnnotationAction,
+  useArticleShadow,
+  useActorShadow,
+  updateArticleShadow,
+  updateActorShadow,
+  withShadowMutation,
 } from '@qoe/sdk';
 import {
   toggleBookmarkArticleHomeAction,
@@ -182,6 +187,10 @@ function ArticleAnnotatorViewInner({
   const [followed, setFollowed] = useState(
     article.isFollowed ?? article.author?.isFollowed ?? false
   );
+  const authorId = article.author?.id;
+  const authorUsername = article.author?.username;
+  const shadowedArticle = useArticleShadow(article);
+  const shadowedAuthor = useActorShadow(article.author);
   const [copied, setCopied] = useState(false);
   // Gate Plus du TTS (fiche P1) : partagé avec la toolbar dockée via le
   // même hook (1 seul appel /v1/me/entitlements par session).
@@ -191,7 +200,9 @@ function ArticleAnnotatorViewInner({
   const featureAnnouncement = useFeatureAnnouncement();
   const ttsUpsell = () => featureAnnouncement.open('audio-tts');
 
-  const activeBookmarked = toolbar ? toolbar.bookmarked : bookmarked;
+  const activeBookmarked =
+    shadowedArticle.isBookmarked ?? (toolbar ? toolbar.bookmarked : bookmarked);
+  const activeFollowed = shadowedAuthor.isFollowed ?? followed;
   const activeCopied = toolbar ? toolbar.copied : copied;
 
   // Document canonique : la prop serveur prime (SSR peint les marques). Sans
@@ -382,19 +393,33 @@ function ArticleAnnotatorViewInner({
     const hasValidId = Boolean(article.id && article.id !== article.slug && !article.isLoading);
     if (!hasValidId) return;
 
-    const next = !activeBookmarked;
-    setBookmarked(next);
-    toolbar?.setBookmarked(next);
-    try {
-      const res = await toggleBookmarkArticleHomeAction(article.id);
-      if (res.ok && res.data?.bookmarked !== undefined) {
-        setBookmarked(res.data.bookmarked);
-        toolbar?.setBookmarked(res.data.bookmarked);
-      }
-    } catch {
-      setBookmarked(!next);
-      toolbar?.setBookmarked(!next);
-    }
+    const previousBookmarked = activeBookmarked;
+    const nextBookmarked = !activeBookmarked;
+
+    await withShadowMutation({
+      lockKey: `article:${article.id}:bookmark`,
+      optimisticUpdate: () => {
+        setBookmarked(nextBookmarked);
+        toolbar?.setBookmarked(nextBookmarked);
+        updateArticleShadow(article.id, { bookmarked: nextBookmarked });
+      },
+      rollback: () => {
+        setBookmarked(previousBookmarked);
+        toolbar?.setBookmarked(previousBookmarked);
+        updateArticleShadow(article.id, { bookmarked: previousBookmarked });
+      },
+      mutation: async () => {
+        const res = await toggleBookmarkArticleHomeAction(article.id);
+        if (!res.ok) {
+          throw new Error('Échec mise en signet');
+        }
+        if (res.data?.bookmarked !== undefined) {
+          setBookmarked(res.data.bookmarked);
+          toolbar?.setBookmarked(res.data.bookmarked);
+          updateArticleShadow(article.id, { bookmarked: res.data.bookmarked });
+        }
+      },
+    });
   }, [user, activeBookmarked, toolbar, article.id, article.slug, article.isLoading, openAuthModal]);
 
   useEffect(() => {
@@ -408,15 +433,31 @@ function ArticleAnnotatorViewInner({
       openAuthModal({ mode: 'login' });
       return;
     }
-    if (!article.author?.id || article.author.id === 'loading') return;
-    const next = !followed;
-    setFollowed(next);
-    try {
-      await toggleFollowCreatorHomeAction(article.author.id);
-    } catch {
-      setFollowed(!next);
-    }
-  }, [user, followed, article.author?.id, openAuthModal]);
+    if (!authorId || authorId === 'loading') return;
+
+    const previousFollowed = activeFollowed;
+    const nextFollowed = !activeFollowed;
+
+    await withShadowMutation({
+      lockKey: `actor:${authorId}:follow`,
+      optimisticUpdate: () => {
+        setFollowed(nextFollowed);
+        updateActorShadow(authorId, { followed: nextFollowed });
+        if (authorUsername) updateActorShadow(authorUsername, { followed: nextFollowed });
+      },
+      rollback: () => {
+        setFollowed(previousFollowed);
+        updateActorShadow(authorId, { followed: previousFollowed });
+        if (authorUsername) updateActorShadow(authorUsername, { followed: previousFollowed });
+      },
+      mutation: async () => {
+        const res = await toggleFollowCreatorHomeAction(authorId);
+        if (!res.ok) {
+          throw new Error('Échec suivi créateur');
+        }
+      },
+    });
+  }, [user, activeFollowed, authorId, authorUsername, openAuthModal]);
 
   const handleShare = React.useCallback(async () => {
     if (toolbar?.handleShare) {
@@ -685,17 +726,17 @@ function ArticleAnnotatorViewInner({
                 onClick={toggleFollow}
                 className={cn(
                   'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer',
-                  followed
+                  activeFollowed
                     ? 'bg-muted text-foreground hover:bg-muted/80'
                     : 'bg-foreground text-background dark:bg-white dark:text-black hover:opacity-90'
                 )}
               >
-                {followed ? (
+                {activeFollowed ? (
                   <UserCheck className="w-3.5 h-3.5" />
                 ) : (
                   <UserPlus className="w-3.5 h-3.5" />
                 )}
-                <span>{followed ? t`Abonné` : t`Suivre`}</span>
+                <span>{activeFollowed ? t`Abonné` : t`Suivre`}</span>
               </button>
             )}
 

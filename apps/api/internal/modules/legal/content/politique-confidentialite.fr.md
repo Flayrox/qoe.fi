@@ -1,6 +1,6 @@
 # Politique de confidentialité
 
-*Dernière mise à jour : {{updatedAt}}* · *Entrée en vigueur : {{effectiveAt}}*
+_Dernière mise à jour : {{updatedAt}}_ · _Entrée en vigueur : {{effectiveAt}}_
 
 Cette politique explique **quelles données qoe.fi collecte, pourquoi, pendant combien de temps et avec qui**, conformément au Règlement général sur la protection des données (règlement (UE) 2016/679, « **RGPD** ») et à la loi Informatique et Libertés.
 
@@ -18,56 +18,56 @@ Un délégué à la protection des données (DPO) [est désigné / n'est pas dé
 
 ## 2. Données collectées
 
-| Catégorie | Données | Finalité |
-|-----------|---------|----------|
-| **Compte** | email, mot de passe (haché), nom affiché, pseudonyme, avatar, préférences de langue et de thème | créer et sécuriser le compte, personnaliser l'interface |
-| **Profil public** | bio, site web, réseaux sociaux, logo, bannière, sous-domaine, publications | afficher l'identité publique choisie |
-| **Contenus** | articles, réflexions, surlignages, commentaires, brouillons, fichiers envoyés | publier, sauvegarder, synchroniser |
-| **Audience** | adresses email des abonnés, statut d'abonnement, préférences d'envoi, listes de désabonnement | livrer les newsletters, gérer les consentements |
-| **Paiement** | identifiant client Stripe, identifiant d'abonnement, montants, devise, statut, dernier chiffre et marque de carte ; **jamais le numéro complet** | encaisser les abonnements et verser les revenus |
-| **Navigation** | adresse IP (tronquée quand c'est possible), agent utilisateur, pages consultées, durée de lecture, référent | sécurité, mesure d'audience agrégée, anti-abus |
-| **Technique** | journaux applicatifs, erreurs, identifiants de requête, empreinte d'appareil pour la sécurité | diagnostic, prévention de la fraude et du scraping |
-| **Support** | contenu des échanges avec l'équipe support | traiter la demande |
-| **Légal** | horodatage et version exacte des documents acceptés (CGU, confidentialité, cookies) | prouver le consentement (obligation de preuve) |
-| **Intérêts produit** | fonctionnalité suivie, date, version et source du consentement, statut actif ou retiré, date de retrait, dernier envoi | vous prévenir du lancement d'une fonctionnalité demandée et conserver la preuve du consentement |
+| Catégorie            | Données                                                                                                                                          | Finalité                                                                                        |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| **Compte**           | email, mot de passe (haché), nom affiché, pseudonyme, avatar, préférences de langue et de thème                                                  | créer et sécuriser le compte, personnaliser l'interface                                         |
+| **Profil public**    | bio, site web, réseaux sociaux, logo, bannière, sous-domaine, publications                                                                       | afficher l'identité publique choisie                                                            |
+| **Contenus**         | articles, réflexions, surlignages, commentaires, brouillons, fichiers envoyés                                                                    | publier, sauvegarder, synchroniser                                                              |
+| **Audience**         | adresses email des abonnés, statut d'abonnement, préférences d'envoi, listes de désabonnement                                                    | livrer les newsletters, gérer les consentements                                                 |
+| **Paiement**         | identifiant client Stripe, identifiant d'abonnement, montants, devise, statut, dernier chiffre et marque de carte ; **jamais le numéro complet** | encaisser les abonnements et verser les revenus                                                 |
+| **Navigation**       | adresse IP (tronquée quand c'est possible), agent utilisateur, pages consultées, durée de lecture, référent                                      | sécurité, mesure d'audience agrégée, anti-abus                                                  |
+| **Technique**        | journaux applicatifs, erreurs, identifiants de requête, empreinte d'appareil pour la sécurité                                                    | diagnostic, prévention de la fraude et du scraping                                              |
+| **Support**          | contenu des échanges avec l'équipe support                                                                                                       | traiter la demande                                                                              |
+| **Légal**            | horodatage et version exacte des documents acceptés (CGU, confidentialité, cookies)                                                              | prouver le consentement (obligation de preuve)                                                  |
+| **Intérêts produit** | fonctionnalité suivie, date, version et source du consentement, statut actif ou retiré, date de retrait, dernier envoi                           | vous prévenir du lancement d'une fonctionnalité demandée et conserver la preuve du consentement |
 
 Nous ne collectons **pas** de données de catégories particulières (santé, origine, opinions politiques, orientation sexuelle) et n'encourageons pas leur publication. Nous ne vendons **jamais** vos données.
 
 ## 3. Bases légales
 
-| Traitement | Base légale (art. 6 RGPD) |
-|------------|---------------------------|
-| Création et gestion du compte, fourniture du service | exécution du contrat (6.1.b) |
-| Paiement des abonnements et versement des revenus | exécution du contrat (6.1.b) + obligation légale comptable (6.1.c) |
-| Emails transactionnels (confirmation, réinitialisation, reçus, alertes de sécurité) | exécution du contrat (6.1.b) |
-| Newsletters et notifications marketing | consentement (6.1.a), révocable à tout moment |
-| Notifications de lancement d'une fonctionnalité (« Me prévenir ») | consentement (6.1.a), recueilli par une action explicite depuis un compte authentifié, retrait en un clic |
-| Mesure d'audience agrégée | intérêt légitime (6.1.f) à connaître l'usage du service, avec minimisation |
-| Lutte contre la fraude, le scraping et les abus | intérêt légitime (6.1.f) + obligation de sécurité (art. 32) |
-| Conservation des preuves d'acceptation légale | obligation légale (6.1.c) |
-| Modération et traitement des signalements | obligation légale DSA (6.1.c) + intérêt légitime |
+| Traitement                                                                          | Base légale (art. 6 RGPD)                                                                                 |
+| ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Création et gestion du compte, fourniture du service                                | exécution du contrat (6.1.b)                                                                              |
+| Paiement des abonnements et versement des revenus                                   | exécution du contrat (6.1.b) + obligation légale comptable (6.1.c)                                        |
+| Emails transactionnels (confirmation, réinitialisation, reçus, alertes de sécurité) | exécution du contrat (6.1.b)                                                                              |
+| Newsletters et notifications marketing                                              | consentement (6.1.a), révocable à tout moment                                                             |
+| Notifications de lancement d'une fonctionnalité (« Me prévenir »)                   | consentement (6.1.a), recueilli par une action explicite depuis un compte authentifié, retrait en un clic |
+| Mesure d'audience agrégée                                                           | intérêt légitime (6.1.f) à connaître l'usage du service, avec minimisation                                |
+| Lutte contre la fraude, le scraping et les abus                                     | intérêt légitime (6.1.f) + obligation de sécurité (art. 32)                                               |
+| Conservation des preuves d'acceptation légale                                       | obligation légale (6.1.c)                                                                                 |
+| Modération et traitement des signalements                                           | obligation légale DSA (6.1.c) + intérêt légitime                                                          |
 
 ## 4. Durées de conservation
 
-| Donnée | Durée |
-|--------|-------|
-| Compte actif | tant que le compte existe |
-| Compte inactif (sans connexion ni publication) | suppression ou anonymisation après **36 mois** d'inactivité, après un email d'avertissement |
-| Contenus publiés | jusqu'à leur suppression par l'auteur ou la fermeture du compte |
-| Sauvegardes | 30 jours glissants maximum |
-| Journaux techniques et sécurité | 12 mois |
-| Preuves de consentement légal | **5 ans** après la fin de la relation (prescription civile) |
-| Pièces comptables et fiscales | 10 ans (obligation légale) |
-| Signalements et décisions de modération | 3 ans |
-| Intérêts produit (« Me prévenir ») | tant que la fonctionnalité est annoncée ; après retrait, seule la preuve du consentement et du retrait est conservée, le temps nécessaire à la démonstration de la conformité |
-| Données de paiement | selon Stripe Payments Europe et les obligations comptables |
+| Donnée                                         | Durée                                                                                                                                                                         |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Compte actif                                   | tant que le compte existe                                                                                                                                                     |
+| Compte inactif (sans connexion ni publication) | suppression ou anonymisation après **36 mois** d'inactivité, après un email d'avertissement                                                                                   |
+| Contenus publiés                               | jusqu'à leur suppression par l'auteur ou la fermeture du compte                                                                                                               |
+| Sauvegardes                                    | 30 jours glissants maximum                                                                                                                                                    |
+| Journaux techniques et sécurité                | 12 mois                                                                                                                                                                       |
+| Preuves de consentement légal                  | **5 ans** après la fin de la relation (prescription civile)                                                                                                                   |
+| Pièces comptables et fiscales                  | 10 ans (obligation légale)                                                                                                                                                    |
+| Signalements et décisions de modération        | 3 ans                                                                                                                                                                         |
+| Intérêts produit (« Me prévenir »)             | tant que la fonctionnalité est annoncée ; après retrait, seule la preuve du consentement et du retrait est conservée, le temps nécessaire à la démonstration de la conformité |
+| Données de paiement                            | selon Stripe Payments Europe et les obligations comptables                                                                                                                    |
 
 ## 5. Destinataires et sous-traitants
 
 Les données sont accessibles uniquement :
 
 - aux membres habilités de l'équipe qoe.fi, selon le principe du moindre privilège ;
-- aux **sous-traitants** techniques listés publiquement dans la page *Sous-traitants* (hébergement, stockage, email, paiement, envoi de notifications), chacun lié par un accord de traitement (art. 28 RGPD) ;
+- aux **sous-traitants** techniques listés publiquement dans la page _Sous-traitants_ (hébergement, stockage, email, paiement, envoi de notifications), chacun lié par un accord de traitement (art. 28 RGPD) ;
 - aux créateurs, pour les données de **leur propre** audience (abonnés, statistiques de lecture de leurs publications), dans la limite de ce qui est nécessaire ;
 - aux autorités administratives ou judiciaires, sur réquisition légale.
 
@@ -101,16 +101,16 @@ En cas de violation de données susceptible d'engendrer un risque élevé pour l
 
 Vous disposez des droits suivants :
 
-| Droit | Ce que cela signifie |
-|-------|----------------------|
-| **Accès** (art. 15) | obtenir une copie des données vous concernant |
-| **Rectification** (art. 16) | corriger des données inexactes |
-| **Effacement** (art. 17) | demander la suppression, sous réserve des obligations légales |
-| **Portabilité** (art. 20) | recevoir vos données dans un format structuré et lisible par machine |
-| **Limitation** (art. 18) | geler un traitement contesté |
-| **Opposition** (art. 21) | vous opposer aux traitements fondés sur l'intérêt légitime, dont la prospection |
-| **Retrait du consentement** | à tout moment, pour les traitements qui en dépendent, sans rétroactivité |
-| **Directives post-mortem** | définir le sort de vos données après votre décès (droit français) |
+| Droit                       | Ce que cela signifie                                                            |
+| --------------------------- | ------------------------------------------------------------------------------- |
+| **Accès** (art. 15)         | obtenir une copie des données vous concernant                                   |
+| **Rectification** (art. 16) | corriger des données inexactes                                                  |
+| **Effacement** (art. 17)    | demander la suppression, sous réserve des obligations légales                   |
+| **Portabilité** (art. 20)   | recevoir vos données dans un format structuré et lisible par machine            |
+| **Limitation** (art. 18)    | geler un traitement contesté                                                    |
+| **Opposition** (art. 21)    | vous opposer aux traitements fondés sur l'intérêt légitime, dont la prospection |
+| **Retrait du consentement** | à tout moment, pour les traitements qui en dépendent, sans rétroactivité        |
+| **Directives post-mortem**  | définir le sort de vos données après votre décès (droit français)               |
 
 **Exercice** : écrivez à **[EMAIL DPO]** ou depuis les réglages du compte (export et suppression en libre-service). Réponse sous **1 mois**, prolongeable de 2 mois en cas de demande complexe, avec information préalable.
 
