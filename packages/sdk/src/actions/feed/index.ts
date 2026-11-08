@@ -217,6 +217,9 @@ export interface WebThreadPost {
     type?: 'PERSONAL' | 'MEDIA' | string | null;
   };
   parentId: string | null;
+  /** Le parent existe mais est masqué (compte bloqué, supprimé ou filtré). */
+  parentUnavailable?: boolean;
+  parentUnavailableReason?: 'blocked' | 'deleted' | 'unavailable' | string | null;
   rootId: string | null;
   repostId: string | null;
   parent: WebThreadPost | null;
@@ -519,6 +522,7 @@ function mapFeedPostToThreadThought(p: RawPostPayload | null | undefined): WebTh
         : typeof counts.reposts === 'number'
           ? counts.reposts
           : 0;
+  const parentUnavailable = Boolean(p.parentUnavailable);
 
   return {
     id: p.id as string,
@@ -542,9 +546,17 @@ function mapFeedPostToThreadThought(p: RawPostPayload | null | undefined): WebTh
       type: (author.type as 'PERSONAL' | 'MEDIA' | null | undefined) ?? null,
     },
     parentId: (p.parentId as string | null) ?? null,
+    parentUnavailable,
+    parentUnavailableReason:
+      (p.parentUnavailableReason as WebThreadPost['parentUnavailableReason']) ?? null,
     rootId: (p.rootId as string | null) ?? null,
     repostId: (p.repostId as string | null) ?? null,
-    parent: p.parent ? mapFeedPostToThreadThought(p.parent as RawPostPayload) : null,
+    // Garde de transport : un parent marqué indisponible ne traverse jamais,
+    // même si un payload malformé fournit aussi son contenu.
+    parent:
+      !parentUnavailable && p.parent
+        ? mapFeedPostToThreadThought(p.parent as RawPostPayload)
+        : null,
     repost: p.repost ? mapFeedPostToThreadThought(p.repost as RawPostPayload) : null,
     likesCount,
     repliesCount,
@@ -595,7 +607,14 @@ function buildThreadTree(rootPostId: string, flatReplies: RawPostPayload[]): Web
   for (const r of flatReplies) {
     const node = nodesMap.get(r.id as string);
     if (!node) continue;
-    const parentId = r.parentId as string | undefined;
+    const parentId = node.parentId;
+    // Un parent explicitement inaccessible ne doit jamais être rattaché,
+    // même si un payload malformé contient encore le nœud parent.
+    if (node.parentUnavailable) {
+      node.parent = null;
+      directReplies.push(node);
+      continue;
+    }
     if (!parentId || parentId === rootPostId) {
       directReplies.push(node);
     } else {
@@ -603,6 +622,12 @@ function buildThreadTree(rootPostId: string, flatReplies: RawPostPayload[]): Web
       if (parentNode && Array.isArray(parentNode.replies)) {
         parentNode.replies.push(node);
       } else {
+        // Parent absent de la fermeture : on garde l'enfant, mais à la racine
+        // avec le placeholder. Sans ce marquage, l'orphelin serait promu
+        // silencieusement et deviendrait indiscernable d'une réponse directe.
+        node.parent = null;
+        node.parentUnavailable = true;
+        node.parentUnavailableReason = node.parentUnavailableReason ?? 'unavailable';
         directReplies.push(node);
       }
     }
@@ -611,7 +636,7 @@ function buildThreadTree(rootPostId: string, flatReplies: RawPostPayload[]): Web
   return directReplies;
 }
 
-function mapGoThreadToWebThread(
+export function mapGoThreadToWebThread(
   rawThread: RawPostPayload | null | undefined
 ): WebThreadPost | null {
   if (!rawThread) return null;
@@ -1205,6 +1230,9 @@ export interface ProfilePostPayload {
   repostId?: string | null;
   parent?: ProfilePostPayload | null;
   repost?: ProfilePostPayload | null;
+  /** Le parent existe mais est masqué (compte bloqué, supprimé ou filtré). */
+  parentUnavailable?: boolean;
+  parentUnavailableReason?: 'blocked' | 'deleted' | 'unavailable' | string | null;
   /** Le profil est une vue du MÊME post : les citations y voyagent aussi. */
   quotedExcerpt?: string | null;
   annotationQuote?: MappedQuotedAnnotation;
@@ -1344,6 +1372,7 @@ function mapProfilePost(fp: ApiFeedPost | RawPostPayload): ProfilePostPayload {
         : typeof counts.reposts === 'number'
           ? counts.reposts
           : 0;
+  const parentUnavailable = Boolean(raw.parentUnavailable);
 
   return {
     id: raw.id as string,
@@ -1365,8 +1394,11 @@ function mapProfilePost(fp: ApiFeedPost | RawPostPayload): ProfilePostPayload {
     },
     parentId: (raw.parentId as string | null) ?? null,
     repostId: (raw.repostId as string | null) ?? null,
-    parent: raw.parent ? mapProfilePost(raw.parent as RawPostPayload) : null,
+    parent: !parentUnavailable && raw.parent ? mapProfilePost(raw.parent as RawPostPayload) : null,
     repost: raw.repost ? mapProfilePost(raw.repost as RawPostPayload) : null,
+    parentUnavailable,
+    parentUnavailableReason:
+      (raw.parentUnavailableReason as ProfilePostPayload['parentUnavailableReason']) ?? null,
     quotedExcerpt: (raw.quotedExcerpt as string | null | undefined) ?? null,
     annotationQuote: mapQuotedAnnotationForCard(
       raw.quotedAnnotation as RawQuotedAnnotation | null | undefined
@@ -1389,10 +1421,20 @@ function mapProfilePost(fp: ApiFeedPost | RawPostPayload): ProfilePostPayload {
   };
 }
 
-function mapProfileSlice(slice: ApiFeedSlice): ProfilePostPayload {
+export function mapProfileSlice(slice: ApiFeedSlice): ProfilePostPayload {
   const base = mapProfilePost(slice.targetPost);
-  // Contexte de réponse absent du targetPost → on l'attache depuis la slice.
-  if (!base.parent && slice.parentPost) base.parent = mapProfilePost(slice.parentPost);
+  // Parent masqué : la slice le signale sans jamais envoyer son contenu. On
+  // coupe aussi le parent éventuellement présent dans le targetPost ou la
+  // slice : la réponse ne doit transporter aucun champ du compte bloqué.
+  if (slice.parentUnavailable || base.parentUnavailable) {
+    base.parent = null;
+    base.parentUnavailable = true;
+    base.parentUnavailableReason =
+      slice.parentUnavailableReason ?? base.parentUnavailableReason ?? 'unavailable';
+  } else if (!base.parent && slice.parentPost) {
+    // Contexte de réponse absent du targetPost → on l'attache depuis la slice.
+    base.parent = mapProfilePost(slice.parentPost);
+  }
   return base;
 }
 

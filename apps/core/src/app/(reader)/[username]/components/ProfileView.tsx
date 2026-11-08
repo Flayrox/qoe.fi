@@ -42,6 +42,7 @@ import {
   DialogTitle,
   ShareMenu,
 } from '@qoe/ui';
+import { HiddenParentNotice } from '@qoe/ui/social';
 
 import { routes, getArticleUrl } from '@qoe/config/routes';
 import { toast } from '@qoe/ui/toast';
@@ -633,17 +634,21 @@ export function ProfileView({
                 <EmptyTabMessage message="Aucune réponse publiée pour le moment." />
               ) : (
                 replyThoughts.map((post) => (
-                  <ThoughtCard
-                    key={post.id}
-                    post={post}
-                    currentUserId={currentUserId}
-                    onDeletePost={handleDeletePost}
-                    onOpenPost={(id, authorUsername) => {
-                      const handle = authorUsername || user.username || user.subdomain || user.id;
-                      openThought(id, handle);
-                    }}
-                    onOpenArticle={handleOpenArticle}
-                  />
+                  <div key={post.id} className="space-y-1.5">
+                    {post.parentUnavailable && (
+                      <HiddenParentNotice reason={post.parentUnavailableReason} />
+                    )}
+                    <ThoughtCard
+                      post={post}
+                      currentUserId={currentUserId}
+                      onDeletePost={handleDeletePost}
+                      onOpenPost={(id, authorUsername) => {
+                        const handle = authorUsername || user.username || user.subdomain || user.id;
+                        openThought(id, handle);
+                      }}
+                      onOpenArticle={handleOpenArticle}
+                    />
+                  </div>
                 ))
               )}
             </div>

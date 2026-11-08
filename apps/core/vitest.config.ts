@@ -18,11 +18,12 @@ export default defineConfig({
     },
   },
   test: {
-    // Apps/core est du Node/Next (server actions, serveur) : les tests pur
-    // logique tournent en `node`. Pour des tests de composants React, passer
-    // à `jsdom` + installer @testing-library/react (hors scope ce palier).
+    // Apps/core est du Node/Next (server actions, serveur) : les tests purs
+    // logique tournent en `node`. Les tests de composants déclarent
+    // `// @vitest-environment jsdom` en tête de fichier.
     environment: 'node',
     globals: true,
+    setupFiles: ['./vitest.setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
     exclude: ['**/.reference/**', '**/node_modules/**', '**/.next/**', '**/e2e/**'],
   },

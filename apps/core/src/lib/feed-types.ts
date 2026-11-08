@@ -70,6 +70,8 @@ export interface FeedPost {
   createdAt: Date | string;
   tags?: string[];
   author: FeedAuthor;
+  parentUnavailable?: boolean;
+  parentUnavailableReason?: 'blocked' | 'deleted' | 'unavailable' | string | null;
   parent?: {
     id: string;
     content: string | null;
@@ -126,6 +128,9 @@ export interface FeedSlice {
   targetPost: FeedPost;
   isIncompleteThread: boolean;
   hiddenIntermediateCount?: number;
+  /** Réponse dont le parent est bloqué/supprimé : placeholder, jamais le contenu. */
+  parentUnavailable?: boolean;
+  parentUnavailableReason?: 'blocked' | 'deleted' | 'unavailable' | string;
 }
 
 export interface FeedAttribution {

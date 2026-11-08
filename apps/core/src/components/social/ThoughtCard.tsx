@@ -156,7 +156,8 @@ export function ThoughtCard({
     ) : null;
 
   const isHidden = shadowedPost.isHiddenByAuthor === true;
-  const isParentAuthor = currentUserId === shadowedPost.parent?.author.id;
+  const isParentAuthor =
+    !shadowedPost.parentUnavailable && currentUserId === shadowedPost.parent?.author.id;
 
   const cardElement = (
     <ThoughtCardContainer

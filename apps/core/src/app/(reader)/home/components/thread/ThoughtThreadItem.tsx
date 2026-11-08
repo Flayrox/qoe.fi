@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { EyeOff, CornerDownRight } from 'lucide-react';
 import { toggleHideReplyAction, toggleBlockUserAction } from '@qoe/sdk/actions/feed';
 import { toast } from '@qoe/ui/toast';
+import { HiddenParentNotice } from '@qoe/ui/social';
 import { ThoughtThreadTombstone } from './ThoughtThreadTombstone';
 import { useThoughtThreadContext, type OptimisticThought } from './ThoughtThreadContext';
 import { ThoughtCard } from '@/components/social/ThoughtCard';
@@ -12,6 +13,15 @@ import { t } from '@lingui/core/macro';
 export interface ThoughtThreadItemProps {
   reply: OptimisticThought;
   depth?: number;
+}
+
+function ParentUnavailableNotice({ reply }: { reply: OptimisticThought }) {
+  if (!reply.parentUnavailable) return null;
+  return (
+    <div className="pt-2">
+      <HiddenParentNotice reason={reply.parentUnavailableReason} />
+    </div>
+  );
 }
 
 export function ThoughtThreadItem({ reply, depth = 0 }: ThoughtThreadItemProps) {
@@ -33,6 +43,7 @@ export function ThoughtThreadItem({ reply, depth = 0 }: ThoughtThreadItemProps) 
   if (reply.isDeleted) {
     return (
       <div className="space-y-1 font-sans">
+        <ParentUnavailableNotice reply={reply} />
         <ThoughtThreadTombstone />
         {reply.replies && reply.replies.length > 0 && (
           <div className="space-y-1 mt-1">
@@ -67,17 +78,20 @@ export function ThoughtThreadItem({ reply, depth = 0 }: ThoughtThreadItemProps) 
 
   if (isHidden && !showHidden) {
     return (
-      <div className="py-2.5 px-3.5 rounded-2xl border border-dashed border-border/40 bg-muted/20 text-xs text-muted-foreground flex items-center justify-between font-sans my-1">
-        <span className="flex items-center gap-2">
-          <EyeOff className="w-3.5 h-3.5 text-muted-foreground/70" />
-          <span>{t`Réponse masquée par l'auteur de la pensée`}</span>
-        </span>
-        <button
-          onClick={() => setShowHidden(true)}
-          className="text-brand font-medium hover:underline cursor-pointer"
-        >
-          Afficher
-        </button>
+      <div>
+        <ParentUnavailableNotice reply={reply} />
+        <div className="py-2.5 px-3.5 rounded-2xl border border-dashed border-border/40 bg-muted/20 text-xs text-muted-foreground flex items-center justify-between font-sans my-1">
+          <span className="flex items-center gap-2">
+            <EyeOff className="w-3.5 h-3.5 text-muted-foreground/70" />
+            <span>{t`Réponse masquée par l'auteur de la pensée`}</span>
+          </span>
+          <button
+            onClick={() => setShowHidden(true)}
+            className="text-brand font-medium hover:underline cursor-pointer"
+          >
+            Afficher
+          </button>
+        </div>
       </div>
     );
   }
@@ -92,6 +106,7 @@ export function ThoughtThreadItem({ reply, depth = 0 }: ThoughtThreadItemProps) 
 
   return (
     <div className="font-sans">
+      <ParentUnavailableNotice reply={reply} />
       <ThoughtCard
         post={{ ...reply, isHiddenByAuthor: isHidden }}
         variant="reply"
