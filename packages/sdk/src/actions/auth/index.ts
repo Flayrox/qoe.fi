@@ -15,7 +15,7 @@
 // =====================================================================
 
 import { createClient } from '@qoe/supabase/server';
-import { goFetch } from '../utils/go-client';
+import { fetchMeWithSync } from '../utils/go-client';
 
 // Contrat GET /v1/me (module users Go) — profil lecteur complet.
 export interface MeProfileDTO {
@@ -39,8 +39,8 @@ export async function getCurrentUserAction() {
 
   if (!user) return null;
 
-  // Go-only (backend-of-record) : GET /v1/me — profil lecteur complet.
-  const profile = await goFetch<MeProfileDTO>('/v1/me');
+  // Go-only (backend-of-record) : GET /v1/me avec sync auto si 404.
+  const profile = await fetchMeWithSync<MeProfileDTO>();
   return {
     id: profile.id,
     email: profile.email,

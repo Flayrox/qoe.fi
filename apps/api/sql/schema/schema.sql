@@ -2901,3 +2901,67 @@ CREATE INDEX "FollowRequest_requester_status_idx" ON "FollowRequest"("requesterI
 ALTER TABLE "FollowRequest" ADD CONSTRAINT "FollowRequest_requesterId_fkey" FOREIGN KEY ("requesterId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "FollowRequest" ADD CONSTRAINT "FollowRequest_publicationId_fkey" FOREIGN KEY ("publicationId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+
+-- Functions: visibility and mute predicates
+CREATE OR REPLACE FUNCTION is_blocked_bidirectional(user_a UUID, user_b UUID)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT CASE
+    WHEN user_a IS NULL OR user_b IS NULL OR user_a = user_b THEN false
+    ELSE EXISTS (
+      SELECT 1 FROM "BlockedUser"
+      WHERE ("creatorId" = user_a AND "readerId" = user_b)
+         OR ("creatorId" = user_b AND "readerId" = user_a)
+    )
+  END;
+$$;
+
+CREATE OR REPLACE FUNCTION can_view_profile(viewer_id UUID, target_user_id UUID)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT CASE
+    WHEN target_user_id IS NULL THEN false
+    WHEN NOT EXISTS (SELECT 1 FROM "User" WHERE id = target_user_id) THEN false
+    WHEN viewer_id IS NOT NULL AND viewer_id = target_user_id THEN true
+    WHEN viewer_id IS NOT NULL AND is_blocked_bidirectional(viewer_id, target_user_id) THEN false
+    WHEN COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = target_user_id), 'PUBLIC') = 'PUBLIC' THEN true
+    WHEN viewer_id IS NULL THEN false
+    ELSE EXISTS (
+      SELECT 1 FROM "Follows" f
+      JOIN "User" u ON u."publicationId" = f."publicationId"
+      WHERE f."readerId" = viewer_id AND u.id = target_user_id
+    )
+  END;
+$$;
+
+CREATE OR REPLACE FUNCTION is_muted_by(viewer_id UUID, target_user_id UUID)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT CASE
+    WHEN viewer_id IS NULL OR target_user_id IS NULL THEN false
+    ELSE EXISTS (
+      SELECT 1 FROM "MutedUser"
+      WHERE "muterId" = viewer_id AND "mutedId" = target_user_id
+    )
+  END;
+$$;
+
+CREATE OR REPLACE FUNCTION contains_muted_word(viewer_id UUID, text_content TEXT)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT CASE
+    WHEN viewer_id IS NULL OR text_content IS NULL OR text_content = '' THEN false
+    ELSE EXISTS (
+      SELECT 1 FROM "MutedWord"
+      WHERE "userId" = viewer_id AND lower(text_content) LIKE '%' || lower(word) || '%'
+    )
+  END;
+$$;

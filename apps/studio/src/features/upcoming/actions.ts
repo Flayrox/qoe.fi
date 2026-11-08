@@ -4,17 +4,32 @@
 // 📡 apps/studio/src/features/upcoming/actions.ts
 // =====================================================================
 // Mesure d'intérêt des fonctionnalités à venir / Pro.
+// Délégué au SDK centralisé @qoe/sdk/actions/features.
 //
 // 🎯 Attribution : la publication est résolue ICI depuis l'espace actif
 //    (publication personnelle du créateur ou média sélectionné), jamais
 //    depuis le navigateur — un client ne décide pas de ses stats.
+// =====================================================================
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@qoe/supabase/server';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import {
+  recordFeatureSignalAction as recordSignalSdk,
+  getFeatureCatalogAction as getCatalogSdk,
+  unsubscribeFeatureAction as unsubscribeSdk,
+  getMyFeatureNotificationsAction as getNotifiedSdk,
+} from '@qoe/sdk/actions/features';
 
 export type FeatureSignalKind = 'view' | 'notify';
+
+export interface FeatureCatalogState {
+  key: string;
+  status: string;
+  notifyEnabled: boolean;
+  notified: boolean;
+}
 
 export interface FeatureSignalSummary {
   feature: string;
@@ -38,33 +53,7 @@ export async function recordFeatureSignalAction(
   if (!user) throw new Error('Non autorisé');
 
   const workspace = await getActiveWorkspace(user.id);
-
-  try {
-    return await goFetch<{ success: boolean; notified: boolean }>('/v1/features/signals', {
-      method: 'POST',
-      body: {
-        feature,
-        kind,
-        source: 'studio',
-        publicationId: workspace.publicationId,
-      },
-    });
-  } catch (err) {
-    // Une vue est un signal de confort : elle ne doit JAMAIS faire échouer la
-    // requête serveur qui affiche les réglages (pas de 500 sur une page saine
-    // parce que la télémétrie est indisponible).
-    if (kind === 'view') return { success: false, notified: false };
-    // « Me prévenir » est une promesse explicite : l'échec remonte pour que
-    // l'interstitiel propose de réessayer au lieu d'afficher un faux succès.
-    throw err;
-  }
-}
-
-export interface FeatureCatalogState {
-  key: string;
-  status: string;
-  notifyEnabled: boolean;
-  notified: boolean;
+  return recordSignalSdk(feature, kind, 'studio', workspace.publicationId);
 }
 
 /**
@@ -72,18 +61,13 @@ export interface FeatureCatalogState {
  * l'API a fermé la promesse (paused/retired/notifyEnabled=false).
  */
 export async function getFeatureCatalogAction(): Promise<FeatureCatalogState[]> {
-  try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return [];
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
 
-    const res = await goFetch<{ features: FeatureCatalogState[] }>('/v1/features/catalog');
-    return res.features ?? [];
-  } catch {
-    return [];
-  }
+  return getCatalogSdk();
 }
 
 /**
@@ -98,10 +82,7 @@ export async function unsubscribeFeatureAction(feature: string): Promise<void> {
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Non autorisé');
 
-  await goFetch('/v1/features/interests/unsubscribe', {
-    method: 'POST',
-    body: { feature },
-  });
+  await unsubscribeSdk(feature);
   revalidatePath('/settings');
 }
 
@@ -111,18 +92,13 @@ export async function unsubscribeFeatureAction(feature: string): Promise<void> {
  * survit donc au rechargement et au changement d'espace.
  */
 export async function getFeatureNotifiedAction(): Promise<string[]> {
-  try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return [];
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
 
-    const res = await goFetch<{ features: string[] }>('/v1/features/signals/state');
-    return res.features ?? [];
-  } catch {
-    return [];
-  }
+  return getNotifiedSdk();
 }
 
 /**

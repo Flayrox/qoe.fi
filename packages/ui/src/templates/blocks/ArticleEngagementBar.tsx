@@ -14,6 +14,7 @@ import React, { useState, useCallback, useRef, useEffect, useContext } from 'rea
 import { Heart, MessageSquare, Repeat, Share2, Check, Link2, Mail, Quote } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { toggleLikePostAction, toggleRepostPostAction } from '@qoe/sdk/actions/feed';
+import { updateArticleShadow, withShadowMutation } from '@qoe/sdk';
 import { t } from '@lingui/core/macro';
 import { AuthModalContext } from '../../auth/AuthModalContext';
 
@@ -158,33 +159,46 @@ export function ArticleEngagementBar({
     async (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      const previousLiked = isLiked;
       const nextLiked = !isLiked;
-      setIsLiked(nextLiked);
-      setLikes((prev) => (nextLiked ? prev + 1 : Math.max(0, prev - 1)));
 
-      if (onLikeToggle) {
-        onLikeToggle(nextLiked);
+      if (!articleId) {
+        setIsLiked(nextLiked);
+        setLikes((prev) => (nextLiked ? prev + 1 : Math.max(0, prev - 1)));
+        onLikeToggle?.(nextLiked);
         return;
       }
 
-      if (articleId) {
-        try {
+      await withShadowMutation({
+        lockKey: `article:${articleId}:like`,
+        optimisticUpdate: () => {
+          setIsLiked(nextLiked);
+          setLikes((prev) => (nextLiked ? prev + 1 : Math.max(0, prev - 1)));
+          updateArticleShadow(articleId, { liked: nextLiked });
+        },
+        rollback: () => {
+          setIsLiked(previousLiked);
+          setLikes((prev) => (previousLiked ? prev + 1 : Math.max(0, prev - 1)));
+          updateArticleShadow(articleId, { liked: previousLiked });
+        },
+        mutation: async () => {
+          if (onLikeToggle) {
+            onLikeToggle(nextLiked);
+            return;
+          }
           const res = await toggleLikePostAction(articleId);
           if (res?.ok) {
-            setIsLiked(Boolean(res.data?.liked));
+            const finalLiked = Boolean(res.data?.liked);
+            setIsLiked(finalLiked);
+            updateArticleShadow(articleId, { liked: finalLiked });
           } else {
-            // Revert optimiste si échec ou non authentifié
-            setIsLiked(!nextLiked);
-            setLikes((prev) => (nextLiked ? Math.max(0, prev - 1) : prev + 1));
             if (res?.error?.code === 'UNAUTHORIZED' && authContext?.openAuthModal) {
               authContext.openAuthModal({ mode: 'login', actionContext: 'like' });
             }
+            throw new Error(res?.error?.message || 'Erreur lors du like');
           }
-        } catch {
-          setIsLiked(!nextLiked);
-          setLikes((prev) => (nextLiked ? Math.max(0, prev - 1) : prev + 1));
-        }
-      }
+        },
+      });
     },
     [isLiked, onLikeToggle, articleId, authContext]
   );
@@ -203,33 +217,46 @@ export function ArticleEngagementBar({
       e.preventDefault();
       e.stopPropagation();
       setIsRepostOpen(false);
+      const previousReposted = isReposted;
       const nextReposted = !isReposted;
-      setIsReposted(nextReposted);
-      setReposts((prev) => (nextReposted ? prev + 1 : Math.max(0, prev - 1)));
 
-      if (onRepostToggle) {
-        onRepostToggle(nextReposted);
+      if (!articleId) {
+        setIsReposted(nextReposted);
+        setReposts((prev) => (nextReposted ? prev + 1 : Math.max(0, prev - 1)));
+        onRepostToggle?.(nextReposted);
         return;
       }
 
-      if (articleId) {
-        try {
+      await withShadowMutation({
+        lockKey: `article:${articleId}:repost`,
+        optimisticUpdate: () => {
+          setIsReposted(nextReposted);
+          setReposts((prev) => (nextReposted ? prev + 1 : Math.max(0, prev - 1)));
+          updateArticleShadow(articleId, { reposted: nextReposted });
+        },
+        rollback: () => {
+          setIsReposted(previousReposted);
+          setReposts((prev) => (previousReposted ? prev + 1 : Math.max(0, prev - 1)));
+          updateArticleShadow(articleId, { reposted: previousReposted });
+        },
+        mutation: async () => {
+          if (onRepostToggle) {
+            onRepostToggle(nextReposted);
+            return;
+          }
           const res = await toggleRepostPostAction(articleId);
           if (res?.ok) {
-            setIsReposted(Boolean(res.data?.reposted));
+            const finalReposted = Boolean(res.data?.reposted);
+            setIsReposted(finalReposted);
+            updateArticleShadow(articleId, { reposted: finalReposted });
           } else {
-            // Revert optimiste si échec ou non authentifié
-            setIsReposted(!nextReposted);
-            setReposts((prev) => (nextReposted ? Math.max(0, prev - 1) : prev + 1));
             if (res?.error?.code === 'UNAUTHORIZED' && authContext?.openAuthModal) {
               authContext.openAuthModal({ mode: 'login', actionContext: 'repost' });
             }
+            throw new Error(res?.error?.message || 'Erreur lors du repost');
           }
-        } catch {
-          setIsReposted(!nextReposted);
-          setReposts((prev) => (nextReposted ? Math.max(0, prev - 1) : prev + 1));
-        }
-      }
+        },
+      });
     },
     [isReposted, onRepostToggle, articleId, authContext]
   );

@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/testutil"
 )
@@ -44,6 +45,13 @@ func (f *faultPool) QueryRow(ctx context.Context, sql string, args ...any) pgx.R
 		return errorRow{err: errBoom}
 	}
 	return f.pooler.QueryRow(ctx, sql, args...)
+}
+
+func (f *faultPool) Unwrap() *pgxpool.Pool {
+	if p, ok := f.pooler.(*pgxpool.Pool); ok {
+		return p
+	}
+	return nil
 }
 
 type errorRow struct {

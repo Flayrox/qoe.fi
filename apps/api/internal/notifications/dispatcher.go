@@ -61,7 +61,7 @@ func Dispatch(ctx context.Context, db DB, in DispatchInput) error {
 		senderUUID = &sUUID
 	}
 
-	// Garde 2 (Blocage) : relation de blocage dans l'un ou l'autre sens.
+	// Garde 2 (Blocage & Masquage) : relation de blocage ou auteur masqué par le destinataire.
 	if senderUUID != nil {
 		var blocked bool
 		err := db.QueryRow(ctx, `SELECT is_blocked_bidirectional($1::uuid, $2::uuid)`, recipientUUID, *senderUUID).Scan(&blocked)
@@ -69,6 +69,15 @@ func Dispatch(ctx context.Context, db DB, in DispatchInput) error {
 			return fmt.Errorf("notification dispatcher: vérification blocage: %w", err)
 		}
 		if blocked {
+			return nil
+		}
+
+		var muted bool
+		err = db.QueryRow(ctx, `SELECT is_muted_by($1::uuid, $2::uuid)`, recipientUUID, *senderUUID).Scan(&muted)
+		if err != nil {
+			return fmt.Errorf("notification dispatcher: vérification masquage: %w", err)
+		}
+		if muted {
 			return nil
 		}
 	}
