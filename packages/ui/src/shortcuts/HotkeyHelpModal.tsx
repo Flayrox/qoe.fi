@@ -3,6 +3,7 @@
 import React from 'react';
 import { t } from '@lingui/core/macro';
 import { Keyboard } from 'lucide-react';
+import { getHotkeySurfaces, type AppSurfaceScope } from '@qoe/config';
 import {
   Dialog,
   DialogContent,
@@ -14,6 +15,8 @@ import {
 export interface HotkeyHelpModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Scope dont les hotkeys de navigation sont affichées (manifeste). */
+  scope?: AppSurfaceScope;
 }
 
 /**
@@ -26,7 +29,16 @@ export interface HotkeyHelpModalProps {
  *    au clavier. Elle repose sur `Dialog` (react-aria), qui apporte les
  *    quatre, et sur `showCloseButton` pour la fermeture visible.
  */
-export function HotkeyHelpModal({ isOpen, onClose }: HotkeyHelpModalProps) {
+export function HotkeyHelpModal({ isOpen, onClose, scope }: HotkeyHelpModalProps) {
+  // 🗺️ Navigation : les raccourcis viennent du manifeste de surfaces, donc de
+  // la même source que la sidebar et le Cmd+K — jamais d'aide qui mente.
+  const navigationHotkeys = scope
+    ? getHotkeySurfaces(scope).map((surface) => ({
+        key: surface.hotkey ?? '',
+        description: surface.defaultLabel,
+      }))
+    : [];
+
   const hotkeysList = [
     { key: 'n', description: t`Rédiger une nouvelle pensée (Nouveau post)` },
     { key: '/', description: t`Activer la barre de recherche` },
@@ -53,6 +65,27 @@ export function HotkeyHelpModal({ isOpen, onClose }: HotkeyHelpModalProps) {
         </DialogHeader>
 
         <div className="min-h-0 space-y-1.5 overflow-y-auto pr-1">
+          {navigationHotkeys.length > 0 && (
+            <p className="px-1 pt-1 text-[11px] font-bold tracking-wider text-muted-foreground/70 uppercase">
+              {t`Navigation`}
+            </p>
+          )}
+          {navigationHotkeys.map((hk) => (
+            <div
+              key={`nav-${hk.key}`}
+              className="flex items-center justify-between gap-3 rounded-control bg-muted/40 px-2.5 py-2"
+            >
+              <span className="type-control-sm text-muted-foreground">{hk.description}</span>
+              <kbd className="min-w-7 rounded-control border border-border bg-background px-2 py-0.5 text-center font-mono text-[11px] font-semibold text-foreground">
+                {hk.key}
+              </kbd>
+            </div>
+          ))}
+          {navigationHotkeys.length > 0 && (
+            <p className="px-1 pt-2 text-[11px] font-bold tracking-wider text-muted-foreground/70 uppercase">
+              {t`Lecture`}
+            </p>
+          )}
           {hotkeysList.map((hk) => (
             <div
               key={hk.key}
