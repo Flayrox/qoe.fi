@@ -11,6 +11,7 @@ import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import { StageClient } from '@/features/stage/StageClient';
 import { Logo } from '@qoe/ui';
+import { getSidebarSurfaces } from '@qoe/config';
 import { logout } from '@/app/login/actions';
 import type { SidebarProps } from '@qoe/ui/sidebar';
 import type { TemplatePublicationContext, TemplateArticleItem } from '@qoe/ui/templates';
@@ -147,24 +148,13 @@ export default async function SettingsDesignPage() {
     null;
 
   const sidebarProps: SidebarProps = {
-    items: [
-      { title: 'Home', url: '/', iconName: 'Home' },
-      { title: 'Articles', url: '/articles', iconName: 'FileText' },
-      {
-        title: 'Notifications',
-        url: '/notifications',
-        iconName: 'Bell',
-        badge: unreadCount > 0 ? unreadCount : undefined,
-      },
-      { title: 'Médias', url: '/media', iconName: 'Building2' },
-      { title: 'Newsletters', url: '/newsletters', iconName: 'Mail' },
-      { title: 'Audience', url: '/audience', iconName: 'Users' },
-      { title: 'Analytics', url: '/analytics', iconName: 'PieChart' },
-      { title: 'Développeur / API', url: '/developer', iconName: 'Code' },
-      { title: 'Webhooks', url: '/developer/webhooks', iconName: 'Webhook' },
-      { title: 'Site Web', url: '/settings', iconName: 'Settings' },
-      { title: 'Offre Pro', url: '/pricing', iconName: 'Crown' },
-    ],
+    // Aperçu fidèle : la même source que la sidebar réelle (manifeste).
+    items: getSidebarSurfaces('studio').map((surface) => ({
+      title: surface.defaultLabel,
+      url: surface.path,
+      iconName: surface.iconName,
+      badge: surface.id === 'studio.notifications' && unreadCount > 0 ? unreadCount : undefined,
+    })),
     logo: <Logo className="h-5 w-auto" fillColor="#EE4B2B" />,
     brandName: mediaBrandName || 'Studio',
     userName,
