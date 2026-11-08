@@ -212,7 +212,11 @@ if (existsSync(uiSrcDir)) {
 }
 
 // ─── CHECK 7 : Discipline Next.js 'use server' (Exports async uniquement) ──
+// ─── CHECK 8 : Aucun ré-export de type dans un module 'use server'       ──
+// Turbopack (Next.js 16) casse le manifeste Server Actions sur
+// `export type { X } from '...'` : le type doit vivre hors du module serveur.
 const nonAsyncServerActionExports = [];
+const serverTypeReexports = [];
 walk(join(ROOT, 'apps'), checkUseServerFile);
 walk(join(ROOT, 'packages'), checkUseServerFile);
 
@@ -244,7 +248,63 @@ function checkUseServerFile(path) {
         code: trimmed,
       });
     }
+    if (/^export\s+type\s*\{/.test(trimmed)) {
+      serverTypeReexports.push({
+        file: relative(ROOT, path),
+        line: idx + 1,
+        code: trimmed,
+      });
+    }
   });
+}
+
+// ─── CHECK 9 : Intégrité du manifeste de surfaces ─────────────────────
+const surfaceManifestIssues = [];
+const surfacesFile = join(ROOT, 'packages/config/src/surfaces.ts');
+if (!existsSync(surfacesFile)) {
+  surfaceManifestIssues.push('packages/config/src/surfaces.ts est absent');
+} else {
+  const content = readFileSync(surfacesFile, 'utf8');
+  if (!/export\s+const\s+PLATFORM_SURFACES/.test(content)) {
+    surfaceManifestIssues.push("PLATFORM_SURFACES n'est pas exporté");
+  }
+  content.split('\n').forEach((line, idx) => {
+    // Aucune URL en dur : `path:` doit être construit par le registre routes.
+    if (/^\s*path:\s*['"`]\//.test(line)) {
+      surfaceManifestIssues.push(
+        `URL en dur ligne ${idx + 1} : ${line.trim()} (utilisez routes.*)`
+      );
+    }
+  });
+  const configIndex = join(ROOT, 'packages/config/src/index.ts');
+  if (!existsSync(configIndex) || !readFileSync(configIndex, 'utf8').includes("'./surfaces'")) {
+    surfaceManifestIssues.push('packages/config/src/index.ts ne réexporte pas ./surfaces');
+  }
+}
+
+// ─── CHECK 10 : Intégrité du registre d'actions d'entités ─────────────
+const entityRegistryIssues = [];
+const entityActionsFile = join(ROOT, 'packages/sdk/src/entity-actions.ts');
+const entityMenuFile = join(ROOT, 'packages/ui/src/social/EntityActionMenu.tsx');
+if (!existsSync(entityActionsFile)) {
+  entityRegistryIssues.push('packages/sdk/src/entity-actions.ts est absent');
+} else {
+  const content = readFileSync(entityActionsFile, 'utf8');
+  if (!/export\s+const\s+ENTITY_ACTIONS/.test(content)) {
+    entityRegistryIssues.push("ENTITY_ACTIONS n'est pas exporté");
+  }
+  if (!/export\s+function\s+resolveEntityActions/.test(content)) {
+    entityRegistryIssues.push("resolveEntityActions n'est pas exporté");
+  }
+  const sdkIndex = join(ROOT, 'packages/sdk/src/index.ts');
+  if (!existsSync(sdkIndex) || !readFileSync(sdkIndex, 'utf8').includes("'./entity-actions'")) {
+    entityRegistryIssues.push('packages/sdk/src/index.ts ne réexporte pas ./entity-actions');
+  }
+}
+if (!existsSync(entityMenuFile)) {
+  entityRegistryIssues.push('packages/ui/src/social/EntityActionMenu.tsx est absent');
+} else if (!readFileSync(entityMenuFile, 'utf8').includes('resolveEntityActions')) {
+  entityRegistryIssues.push("EntityActionMenu n'utilise pas resolveEntityActions");
 }
 
 // ─── BUDGET & RATCHET ────────────────────────────────────────────────
@@ -316,6 +376,31 @@ if (rogueSocialMutations.length > 0) {
   );
 }
 
+if (serverTypeReexports.length > 0) {
+  errors.push(
+    `🚨 ${serverTypeReexports.length} ré-export(s) de type dans un module 'use server' !\n` +
+      `   Règle : Turbopack casse le manifeste Server Actions sur \`export type { ... }\`.\n` +
+      `   Déplacez les types dans un fichier pur (ex: mappers.ts) et importez-les.\n` +
+      serverTypeReexports.map((e) => `   - ${e.file}:${e.line} : ${e.code}`).join('\n')
+  );
+}
+
+if (surfaceManifestIssues.length > 0) {
+  errors.push(
+    `🚨 ${surfaceManifestIssues.length} anomalie(s) du manifeste de surfaces !\n` +
+      `   Règle : packages/config/src/surfaces.ts déclare les surfaces via routes.* et est réexporté par index.ts.\n` +
+      surfaceManifestIssues.map((s) => `   - ${s}`).join('\n')
+  );
+}
+
+if (entityRegistryIssues.length > 0) {
+  errors.push(
+    `🚨 ${entityRegistryIssues.length} anomalie(s) du registre d'actions d'entités !\n` +
+      `   Règle : packages/sdk/src/entity-actions.ts exporte ENTITY_ACTIONS + resolveEntityActions, et EntityActionMenu le consomme.\n` +
+      entityRegistryIssues.map((s) => `   - ${s}`).join('\n')
+  );
+}
+
 if (nonAsyncServerActionExports.length > 0) {
   errors.push(
     `🚨 ${nonAsyncServerActionExports.length} export(s) synchrone(s) détecté(s) dans un module 'use server' !\n` +
@@ -338,6 +423,9 @@ if (asJson) {
         gooseIssues: gooseIssues.length,
         rogueSocialMutations: rogueSocialMutations.length,
         nonAsyncServerActionExports: nonAsyncServerActionExports.length,
+        serverTypeReexports: serverTypeReexports.length,
+        surfaceManifestIssues: surfaceManifestIssues.length,
+        entityRegistryIssues: entityRegistryIssues.length,
       },
       errors,
     })
@@ -365,6 +453,15 @@ if (asJson) {
   );
   console.log(
     `• Next.js 'use server' async  : ${nonAsyncServerActionExports.length === 0 ? '✅ 0 fonction non-async' : `❌ ${nonAsyncServerActionExports.length}`}`
+  );
+  console.log(
+    `• Types réexportés 'use server': ${serverTypeReexports.length === 0 ? '✅ 0' : `❌ ${serverTypeReexports.length}`}`
+  );
+  console.log(
+    `• Manifeste de surfaces       : ${surfaceManifestIssues.length === 0 ? '✅ 0 anomalie' : `❌ ${surfaceManifestIssues.length}`}`
+  );
+  console.log(
+    `• Registre d'actions          : ${entityRegistryIssues.length === 0 ? '✅ 0 anomalie' : `❌ ${entityRegistryIssues.length}`}`
   );
   console.log(`─────────────────────────────────────────────────\n`);
 

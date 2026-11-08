@@ -13,7 +13,7 @@
 // =====================================================================
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { WebThreadPost } from '../actions/feed';
+import type { WebThreadPost } from '../actions/feed/mappers';
 
 const goFetch = vi.fn();
 

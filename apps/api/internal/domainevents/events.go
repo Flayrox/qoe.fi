@@ -14,6 +14,18 @@ type UserUnblockedEvent struct {
 	BlockedID string
 }
 
+// UserMutedEvent est émis lorsqu'un utilisateur met un autre compte en sourdine.
+type UserMutedEvent struct {
+	MuterID string
+	MutedID string
+}
+
+// UserUnmutedEvent est émis lorsqu'un utilisateur retire la sourdine d'un compte.
+type UserUnmutedEvent struct {
+	MuterID string
+	MutedID string
+}
+
 // ProfileVisibilityChangedEvent représente le changement de visibilité du profil d'un utilisateur.
 type ProfileVisibilityChangedEvent struct {
 	UserID        string
