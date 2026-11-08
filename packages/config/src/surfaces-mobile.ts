@@ -2,14 +2,16 @@
 // 📱 SURFACES DE L'APPLICATION MOBILE (Expo / React Native)
 // =====================================================================
 // Même source de vérité que le web : ordre, libellés et routes des onglets
-// vivent ici. `app-tabs.tsx` (natif) et `app-tabs.web.tsx` (web) filtrent
-// cette liste par plateforme au lieu de redéclarer leurs `Tabs.Screen`.
+// ET du tiroir vivent ici. `app-tabs.tsx` (natif), `app-tabs.web.tsx` (web)
+// et `features/sidebar/sidebar.tsx` filtrent cette liste par plateforme,
+// rôle ou section au lieu de redéclarer leurs entrées.
 // =====================================================================
 
 import type { SurfaceDescriptor } from './surfaces';
 import { routes } from './routes';
 
 export const MOBILE_SURFACES: readonly SurfaceDescriptor[] = [
+  // ── Onglets ────────────────────────────────────────────────────────
   {
     id: 'mobile.profile',
     scope: 'mobile',
@@ -88,5 +90,122 @@ export const MOBILE_SURFACES: readonly SurfaceDescriptor[] = [
     showOnNative: false,
     showOnWeb: true,
     webOrder: 3,
+  },
+
+  // ── Sidebar du tiroir (ordre de rendu) ────────────────────────────
+  {
+    id: 'mobile.sidebar.profile',
+    scope: 'mobile',
+    path: routes.mobile.user(),
+    iconName: 'CircleUserRound',
+    defaultLabel: 'Profil',
+    section: 'navigation',
+    keywords: ['profil', 'compte'],
+    showInSidebar: true,
+    showInCmdK: false,
+    showOnNative: false,
+    showOnWeb: false,
+    sidebarGroup: 'main',
+  },
+  {
+    id: 'mobile.sidebar.creator',
+    scope: 'mobile',
+    path: 'https://qoe.fi/dashboard',
+    iconName: 'BarChart3',
+    defaultLabel: 'Studio Créateur',
+    section: 'creation',
+    keywords: ['studio', 'créateur', 'dashboard'],
+    requiredRole: 'creator',
+    external: true,
+    showInSidebar: true,
+    showInCmdK: false,
+    showOnNative: false,
+    showOnWeb: false,
+    sidebarGroup: 'main',
+  },
+  {
+    id: 'mobile.sidebar.notifications',
+    scope: 'mobile',
+    path: routes.mobile.notifications(),
+    iconName: 'Bell',
+    defaultLabel: 'Notifications',
+    section: 'navigation',
+    keywords: ['notifications', 'alertes'],
+    showInSidebar: true,
+    showInCmdK: false,
+    showOnNative: false,
+    showOnWeb: false,
+    sidebarGroup: 'main',
+  },
+  {
+    id: 'mobile.sidebar.library',
+    scope: 'mobile',
+    path: routes.mobile.library(),
+    iconName: 'Bookmark',
+    defaultLabel: 'Bibliothèque',
+    section: 'library',
+    keywords: ['bibliothèque', 'signets', 'lecture'],
+    showInSidebar: true,
+    showInCmdK: false,
+    showOnNative: false,
+    showOnWeb: false,
+    sidebarGroup: 'main',
+  },
+  {
+    id: 'mobile.sidebar.history',
+    scope: 'mobile',
+    path: routes.mobile.history(),
+    iconName: 'Clock',
+    defaultLabel: 'Historique',
+    section: 'library',
+    keywords: ['historique', 'lecture'],
+    showInSidebar: true,
+    showInCmdK: false,
+    showOnNative: false,
+    showOnWeb: false,
+    sidebarGroup: 'main',
+  },
+  {
+    id: 'mobile.sidebar.wallet',
+    scope: 'mobile',
+    path: routes.mobile.wallet(),
+    iconName: 'CreditCard',
+    defaultLabel: 'Portefeuille',
+    section: 'growth',
+    keywords: ['portefeuille', 'solde', 'rémunération'],
+    showInSidebar: true,
+    showInCmdK: false,
+    showOnNative: false,
+    showOnWeb: false,
+    sidebarGroup: 'main',
+  },
+  {
+    id: 'mobile.sidebar.settings',
+    scope: 'mobile',
+    path: routes.mobile.settings(),
+    iconName: 'Settings',
+    defaultLabel: 'Paramètres et confidentialité',
+    section: 'system',
+    keywords: ['paramètres', 'confidentialité', 'réglages'],
+    showInSidebar: true,
+    showInCmdK: false,
+    showOnNative: false,
+    showOnWeb: false,
+    sidebarGroup: 'bottom',
+  },
+  {
+    id: 'mobile.sidebar.support',
+    scope: 'mobile',
+    path: 'https://qoe.fi/support',
+    iconName: 'LifeBuoy',
+    defaultLabel: 'Centre d’aide & Support',
+    section: 'system',
+    keywords: ['aide', 'support', 'centre d’aide'],
+    external: true,
+    showInSidebar: true,
+    showInCmdK: false,
+    showOnNative: false,
+    showOnWeb: false,
+    sidebarGroup: 'bottom',
   },
 ];

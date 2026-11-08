@@ -11,6 +11,7 @@
 // levier existe même quand on n'a pas le droit de le toucher.
 // =====================================================================
 
+import { routes } from '@qoe/config/routes';
 import type { AdminCapability } from './admin-console';
 
 export const SETTINGS_CATEGORIES = [
@@ -62,7 +63,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     guard: 'audit + N2',
     effect:
       'Ouvre des capacités datées à un compte ; la révocation prend effet au chargement suivant.',
-    href: '/admin/access',
+    href: routes.admin.access.list(),
   },
   {
     id: 'access.matrix',
@@ -72,7 +73,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.access.read',
     guard: 'audit',
     effect: 'Décrit ce que chaque rôle détient réellement, avec la preuve associée.',
-    href: '/admin/access/roles',
+    href: routes.admin.access.roles(),
   },
   {
     id: 'access.decisions',
@@ -82,7 +83,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.audit.read',
     guard: 'audit',
     effect: 'Trace chaque refus et chaque accord : qui, quelle capacité, sur quelle cible.',
-    href: '/admin/access/decisions',
+    href: routes.admin.access.decisions(),
   },
   {
     id: 'access.sessions',
@@ -92,7 +93,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.users.sessions.revoke',
     guard: 'audit + N2',
     effect: 'Ferme toutes les sessions actives ; l’appareil doit se reconnecter.',
-    href: '/admin/users',
+    href: routes.admin.users.list(),
   },
   {
     id: 'access.review',
@@ -102,7 +103,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.access.read',
     guard: 'audit',
     effect: 'Confirme ou retire les accès existants à intervalle régulier.',
-    href: '/admin/access',
+    href: routes.admin.access.list(),
   },
 
   // ── Confiance & sécurité ────────────────────────────────────────────
@@ -114,7 +115,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.reports.write',
     guard: 'audit',
     effect: 'Masque, ignore ou escalade un contenu signalé ; le motif est conservé.',
-    href: '/admin/reports',
+    href: routes.admin.reports(),
   },
   {
     id: 'moderation.abuse',
@@ -124,7 +125,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.abuse.decide',
     guard: 'audit + N2',
     effect: 'Ferme une revue de risque (spam, fraude, réseau) et applique la sanction.',
-    href: '/admin/abuse',
+    href: routes.admin.abuse(),
   },
   {
     id: 'moderation.appeals',
@@ -134,7 +135,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.appeals.decide',
     guard: 'audit + N2',
     effect: 'Confirme ou annule une sanction contestée, avec le délai de réponse.',
-    href: '/admin/appeals',
+    href: routes.admin.appeals(),
   },
   {
     id: 'moderation.incidents',
@@ -144,7 +145,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.incidents.write',
     guard: 'audit',
     effect: 'Déclare, suit et clôture un incident ; la communication en dépend.',
-    href: '/admin/incidents',
+    href: routes.admin.incidents(),
   },
   {
     id: 'moderation.account',
@@ -154,7 +155,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.users.moderate',
     guard: 'audit + N2',
     effect: 'Change l’état d’un compte ; le motif est exigé pour une suspension.',
-    href: '/admin/users',
+    href: routes.admin.users.list(),
   },
 
   // ── Communication ───────────────────────────────────────────────────
@@ -166,7 +167,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.campaigns.write',
     guard: 'audit + N2',
     effect: 'Affiche ou retire un message en haut de toutes les pages de lecture.',
-    href: '/admin/notifications',
+    href: routes.admin.notifications(),
   },
   {
     id: 'comms.placements',
@@ -176,7 +177,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.config.write',
     guard: 'audit',
     effect: 'Programme un slot (bannière, carte, modale) par audience et format.',
-    href: '/admin/notifications',
+    href: routes.admin.notifications(),
   },
   {
     id: 'comms.campaigns',
@@ -186,7 +187,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.campaigns.write',
     guard: 'audit + N2',
     effect: 'Prépare un envoi (audience, consentement, plafond) et le soumet à revue.',
-    href: '/admin/campaigns',
+    href: routes.admin.campaigns(),
   },
   {
     id: 'comms.deliveries',
@@ -196,7 +197,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.deliveries.retry',
     guard: 'audit',
     effect: 'Relance une livraison en échec ou l’abandonne explicitement.',
-    href: '/admin/notifications',
+    href: routes.admin.notifications(),
   },
   {
     id: 'comms.imports',
@@ -206,7 +207,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.imports.review',
     guard: 'audit + N2',
     effect: 'Valide un lot en quarantaine, mappe les colonnes, refuse le reste.',
-    href: '/admin/imports',
+    href: routes.admin.imports(),
   },
 
   // ── Produit & contenu ───────────────────────────────────────────────
@@ -218,7 +219,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.flags.write',
     guard: 'audit + N2',
     effect: 'Active ou coupe une fonctionnalité sans déploiement.',
-    href: '/admin/config',
+    href: routes.admin.config(),
   },
   {
     id: 'product.features',
@@ -228,7 +229,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.config.write',
     guard: 'audit',
     effect: 'Statut produit, flag lié et intérêt exprimé par les lecteurs.',
-    href: '/admin/features',
+    href: routes.admin.features(),
   },
   {
     id: 'product.frontend',
@@ -238,7 +239,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.content.write',
     guard: 'audit',
     effect: 'Contenus éditoriaux des pages publiques, publiés depuis la console.',
-    href: '/admin/frontend',
+    href: routes.admin.frontend(),
   },
   {
     id: 'product.widgets',
@@ -248,7 +249,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.widgets.write',
     guard: 'audit',
     effect: 'Composition des blocs d’accueil et de profil.',
-    href: '/admin/widgets',
+    href: routes.admin.widgets(),
   },
   {
     id: 'product.translations',
@@ -258,7 +259,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.content.write',
     guard: 'audit',
     effect: 'Couverture des catalogues par locale ; les clés manquantes se voient.',
-    href: '/admin/translations',
+    href: routes.admin.translations(),
   },
   {
     id: 'product.storage',
@@ -268,7 +269,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.config.write',
     guard: 'audit',
     effect: 'Usage du bucket, quotas et objets orphelins.',
-    href: '/admin/storage',
+    href: routes.admin.storage(),
   },
   {
     id: 'product.api',
@@ -278,7 +279,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.api.grants.write',
     guard: 'audit + N2',
     effect: 'Ouvre ou retire des permissions API, module par module.',
-    href: '/admin/api',
+    href: routes.admin.api(),
   },
   {
     id: 'product.oauth',
@@ -288,7 +289,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.oauth.approve',
     guard: 'audit + N2',
     effect: 'Approuve ou suspend un client « Se connecter avec qoefi ».',
-    href: '/admin/oauth',
+    href: routes.admin.oauth(),
   },
 
   // ── Conformité ─────────────────────────────────────────────────────
@@ -300,7 +301,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.legal.write',
     guard: 'audit + N2',
     effect: 'Crée une version datée ; les acceptations précédentes restent immuables.',
-    href: '/admin/legal',
+    href: routes.admin.legal(),
   },
   {
     id: 'legal.consent',
@@ -310,7 +311,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.compliance.export',
     guard: 'audit + N2',
     effect: 'Exporte le registre append-only avec preuves et chaînage.',
-    href: '/admin/compliance',
+    href: routes.admin.compliance(),
   },
   {
     id: 'legal.retention',
@@ -320,7 +321,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.compliance.read',
     guard: 'audit',
     effect: 'Durée de conservation par famille de données et purges associées.',
-    href: '/admin/compliance',
+    href: routes.admin.compliance(),
   },
   {
     id: 'legal.audit',
@@ -330,7 +331,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.audit.read',
     guard: 'audit',
     effect: 'Qui a fait quoi, sur quelle cible, avec le diff ; toujours écrit.',
-    href: '/admin/audit',
+    href: routes.admin.audit(),
   },
 
   // ── Plateforme ─────────────────────────────────────────────────────
@@ -342,7 +343,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.config.write',
     guard: 'audit + N2',
     effect: 'Ouvre, ferme ou restreint la création de comptes.',
-    href: '/admin/config',
+    href: routes.admin.config(),
   },
   {
     id: 'platform.maintenance',
@@ -352,7 +353,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.config.write',
     guard: 'audit + N2',
     effect: 'Coupe une surface (lecture, envoi, API) sans redéploiement.',
-    href: '/admin/config',
+    href: routes.admin.config(),
   },
   {
     id: 'platform.health',
@@ -362,7 +363,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.dashboard.read',
     guard: 'audit',
     effect: 'Postgres, migration, journal, mode d’autorisation et sondes.',
-    href: '/admin/health',
+    href: routes.admin.health(),
   },
   {
     id: 'platform.coverage',
@@ -372,7 +373,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.dashboard.read',
     guard: 'audit',
     effect: 'Routes API admin portées par un écran, et celles assumées sans écran.',
-    href: '/admin/system',
+    href: routes.admin.system(),
   },
   {
     id: 'platform.subscriptions',
@@ -382,7 +383,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.subscriptions.write',
     guard: 'audit + N2',
     effect: 'Offre, période d’essai et octrois manuels d’accès.',
-    href: '/admin/subscriptions',
+    href: routes.admin.subscriptions(),
   },
   {
     id: 'platform.support',
@@ -392,7 +393,7 @@ export const SETTINGS_CATALOG: readonly SettingsLever[] = [
     capability: 'admin.support.write',
     guard: 'audit',
     effect: 'Répond aux tickets, publie ou retire un article d’aide.',
-    href: '/admin/support',
+    href: routes.admin.support.list(),
   },
 ];
 

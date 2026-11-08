@@ -76,9 +76,16 @@ function renderStudioOwner() {
   );
 }
 
+function anchorLabel(anchor: HTMLAnchorElement): string {
+  // Le badge non-lu est accolé au texte (« Notifications3 ») : on retire les
+  // chiffres finaux, jamais un préfixe de libellé (sinon « Accueil renommé »
+  // passerait pour « Accueil »).
+  return anchor.textContent?.trim().replace(/\d+$/, '') ?? '';
+}
+
 function anchorsFor(label: string): string[] {
   return Array.from(document.querySelectorAll<HTMLAnchorElement>('a'))
-    .filter((anchor) => anchor.textContent?.trim().startsWith(label))
+    .filter((anchor) => anchorLabel(anchor) === label)
     .map((anchor) => anchor.getAttribute('href') ?? '');
 }
 

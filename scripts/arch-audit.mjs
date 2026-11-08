@@ -440,6 +440,16 @@ requireConsumer(
   'getMobileSurfaces',
   'getMobileSurfaces (onglets web)'
 );
+requireConsumer(
+  'apps/mobile/src/features/sidebar/mobile-nav.ts',
+  'getSidebarSurfaces',
+  'getSidebarSurfaces (tiroir mobile)'
+);
+requireConsumer(
+  'apps/mobile/src/features/sidebar/sidebar.tsx',
+  'getMobileNavEntries',
+  'getMobileNavEntries (tiroir mobile)'
+);
 const adminConsolePath = join(ROOT, 'apps/admin/src/lib/admin-console.ts');
 if (existsSync(adminConsolePath)) {
   const source = readFileSync(adminConsolePath, 'utf8');
@@ -458,6 +468,19 @@ for (const file of [
   const source = readFileSync(absolute, 'utf8');
   if (/name=["'](index|home|explore|notifications|messages|profile)["']/.test(source)) {
     consumerIssues.push(`${file} code un nom de route en dur : il doit venir du manifeste`);
+  }
+}
+for (const file of [
+  'apps/admin/src/lib/admin-settings-catalog.ts',
+  'apps/admin/src/lib/admin-actions-index.ts',
+]) {
+  const absolute = join(ROOT, file);
+  if (!existsSync(absolute)) continue;
+  const source = readFileSync(absolute, 'utf8');
+  if (/href:\s*['"]\/admin/.test(source)) {
+    consumerIssues.push(
+      `${file} code une route admin en dur : elle doit venir de @qoe/config/routes`
+    );
   }
 }
 for (const shared of [
