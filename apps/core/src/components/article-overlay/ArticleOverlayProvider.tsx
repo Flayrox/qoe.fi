@@ -237,13 +237,34 @@ export function ArticleOverlayProvider({
             }
             return;
           }
-          throw new Error('article-introuvable');
+          const errMsg = !res.ok ? res.error : 'article-introuvable';
+          throw new Error(typeof errMsg === 'string' ? errMsg : 'article-introuvable');
         })
-        .catch(() => {
+        .catch((err: unknown) => {
           if (token !== requestRef.current) return;
-          // Panne ou article introuvable : on rend la main à la navigation
-          // réelle plutôt que d'afficher un tiroir vide.
-          window.location.assign(url);
+          const msg = err instanceof Error ? err.message : String(err);
+
+          // Si l'action a changé après un déploiement ("Failed to find Server Action"),
+          // le bundle client est désynchronisé : on recharge pour rafraîchir l'application.
+          if (
+            msg.includes('Failed to find Server Action') ||
+            msg.includes('older or newer deployment')
+          ) {
+            window.location.reload();
+            return;
+          }
+
+          // Panne ou article introuvable : on affiche un état propre dans le drawer
+          // au lieu de le laisser bloqué indéfiniment en skeleton de chargement.
+          setArticle((prev) => ({
+            ...(prev ?? buildPlaceholder(input)),
+            isLoading: false,
+            isError: true,
+            errorMessage:
+              msg === 'article-introuvable' || msg.toLowerCase().includes('introuvable')
+                ? "Cet article n'est plus accessible ou est en cours de modification."
+                : "Impossible de charger l'article. Veuillez vérifier votre connexion.",
+          }));
         });
     },
     []

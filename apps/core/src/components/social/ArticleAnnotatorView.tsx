@@ -2,7 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Bookmark, BookMarked, Check, Lock, Share2, UserCheck, UserPlus } from 'lucide-react';
+import {
+  Bookmark,
+  BookMarked,
+  Check,
+  FileX,
+  Lock,
+  Share2,
+  UserCheck,
+  UserPlus,
+} from 'lucide-react';
 import { createClient } from '@qoe/supabase/client';
 import { usePlus } from '@/lib/use-plus';
 import {
@@ -108,6 +117,8 @@ export interface ArticleAnnotatorViewProps {
     } | null;
     allowPublicAnnotations?: boolean;
     isLoading?: boolean;
+    isError?: boolean;
+    errorMessage?: string;
   };
   onClose?: () => void;
   initialSource?: 'feed' | 'subdomain' | 'public_profile' | 'direct';
@@ -179,6 +190,7 @@ function ArticleAnnotatorViewInner({
   spotlight,
   onOpenProfile,
   currentUserProfile: currentUserProfileProp,
+  onClose,
 }: ArticleAnnotatorViewProps) {
   const toolbar = useReaderToolbar();
   const { openAuthModal } = useAuthModal();
@@ -577,6 +589,26 @@ function ArticleAnnotatorViewInner({
     year: 'numeric',
   });
   const dateIso = dateObj.toISOString();
+
+  if (article.isError) {
+    return (
+      <div className="relative w-full max-w-xl mx-auto font-sans py-20 px-6 text-center space-y-4">
+        <div className="w-12 h-12 rounded-full bg-muted/60 flex items-center justify-center mx-auto text-muted-foreground">
+          <FileX className="w-6 h-6" />
+        </div>
+        <h3 className="text-xl font-bold text-foreground">{t`Article indisponible`}</h3>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          {article.errorMessage ||
+            t`Cet article n'est plus accessible ou est en cours de modification.`}
+        </p>
+        {onClose && (
+          <Button variant="outline" size="sm" onClick={onClose} className="mt-4">
+            {t`Fermer`}
+          </Button>
+        )}
+      </div>
+    );
+  }
 
   if (article.isLoading || !article.content) {
     return (
