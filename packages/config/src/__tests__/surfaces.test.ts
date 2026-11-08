@@ -85,6 +85,19 @@ describe('getSidebarSurfaces', () => {
     ]);
   });
 
+  it('respecte l’ordre de la sidebar lecteur', () => {
+    expect(getSidebarSurfaces('reader').map((s) => s.id)).toEqual([
+      'reader.home',
+      'reader.search',
+      'reader.notifications',
+      'reader.messages',
+      'reader.bookmarks',
+      'reader.billing',
+      'reader.pricing',
+      'reader.settings',
+    ]);
+  });
+
   it('ne garde que les surfaces de sidebar du scope demandé', () => {
     const studio = getSidebarSurfaces('studio');
     expect(studio.every((s) => s.scope === 'studio' && s.showInSidebar)).toBe(true);
