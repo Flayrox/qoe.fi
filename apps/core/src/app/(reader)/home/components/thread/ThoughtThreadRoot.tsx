@@ -211,8 +211,16 @@ export function ThoughtThreadRoot({
 
       const res = await toggleLikePost(targetId);
       if (!res.ok) {
-        if (previousPostSnapshot) setPost(previousPostSnapshot);
-        toast.error(t`Erreur lors de la mise à jour du J'aime`);
+        if (previousPostSnapshot) {
+          setPost(previousPostSnapshot);
+          if (onInteractionUpdate) {
+            onInteractionUpdate(targetId, {
+              liked: !targetNewLiked,
+              likesCount: targetNewLiked ? Math.max(0, targetNewCount - 1) : targetNewCount + 1,
+            });
+          }
+        }
+        toast.error(res.error?.message || t`Action impossible`);
       }
     },
     [currentUserId, onInteractionUpdate, onLoginRequired]
@@ -257,7 +265,7 @@ export function ThoughtThreadRoot({
       const res = await toggleRepostPost(targetId);
       if (!res.ok) {
         if (previousPostSnapshot) setPost(previousPostSnapshot);
-        toast.error(t`Impossible de repartager la pensée.`);
+        toast.error(res.error?.message || t`Impossible de repartager la pensée.`);
       } else {
         toast.success(res.data?.reposted ? t`Pensée repartagée !` : t`Repartage annulé.`);
       }

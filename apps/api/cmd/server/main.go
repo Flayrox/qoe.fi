@@ -441,7 +441,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// vérifiée du compte via ce service (pas d'adresse déclarée crue).
 	newslettersSvc.SetEmailVerifier(usersSvc)
 	usersHandler := users.NewHandler(usersSvc)
-	r.With(authmw.RateLimit("username-search", rc, time.Minute, 60, false)).Group(func(publicUsers chi.Router) {
+	r.With(auth.OptionalAuth, authmw.RateLimit("username-search", rc, time.Minute, 60, false)).Group(func(publicUsers chi.Router) {
 		usersHandler.RegisterPublic(publicUsers)
 	})
 

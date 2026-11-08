@@ -12,6 +12,7 @@ export interface ThoughtBodyProps {
   isFocus?: boolean;
   onOpenMedia?: (url: string) => void;
   className?: string;
+  blockedUsernames?: string[] | Set<string>;
 }
 
 const getImages = (
@@ -50,6 +51,7 @@ export function ThoughtBody({
   isFocus = false,
   onOpenMedia,
   className,
+  blockedUsernames,
 }: ThoughtBodyProps) {
   const [isRevealed, setIsRevealed] = React.useState<boolean>(false);
 
@@ -74,7 +76,7 @@ export function ThoughtBody({
               isFocus ? 'text-sm sm:text-base py-0.5 font-normal' : 'text-xs sm:text-sm'
             )}
           >
-            <TextParser content={cleanedText} />
+            <TextParser content={cleanedText} blockedUsernames={blockedUsernames} />
           </div>
         )}
 

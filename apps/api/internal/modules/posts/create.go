@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/identity"
@@ -83,6 +84,22 @@ func (s *Service) CreateFull(ctx context.Context, authorID string, in CreateFull
 
 	var parentText, rootText, repostText pgtype.Text
 	if in.ParentID != nil {
+		// On ne répond jamais au contenu d'un compte bloqué (dans un sens ou
+		// l'autre) : le parent doit exister et rester visible.
+		parentAuthor, err := s.q.GetPostAuthor(ctx, *in.ParentID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return FeedPost{}, errors.New("POST_NOT_FOUND")
+			}
+			return FeedPost{}, err
+		}
+		blocked, err := isBlockedBetween(ctx, s.q, authorID, parentAuthor)
+		if err != nil {
+			return FeedPost{}, err
+		}
+		if blocked {
+			return FeedPost{}, ErrBlockedContent
+		}
 		parentText = pgtype.Text{String: *in.ParentID, Valid: true}
 		// rootId = pensée de base du fil (racine de la chaîne parent), pas le
 		// parent direct : les réponses restent rattachées au fil d'origine.
@@ -91,6 +108,20 @@ func (s *Service) CreateFull(ctx context.Context, authorID string, in CreateFull
 		}
 	}
 	if in.RepostID != nil {
+		repostAuthor, err := s.q.GetPostAuthor(ctx, *in.RepostID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return FeedPost{}, errors.New("POST_NOT_FOUND")
+			}
+			return FeedPost{}, err
+		}
+		blocked, err := isBlockedBetween(ctx, s.q, authorID, repostAuthor)
+		if err != nil {
+			return FeedPost{}, err
+		}
+		if blocked {
+			return FeedPost{}, ErrBlockedContent
+		}
 		repostText = pgtype.Text{String: *in.RepostID, Valid: true}
 	}
 	restriction := in.ReplyRestriction
@@ -128,6 +159,16 @@ func (s *Service) CreateFull(ctx context.Context, authorID string, in CreateFull
 		highlight, err := s.q.GetHighlightByID(ctx, *in.QuotedAnnotationID)
 		if err != nil {
 			return FeedPost{}, errors.New("ANNOTATION_NOT_FOUND")
+		}
+		// Une annotation d'un compte bloqué n'est pas citable, même publique.
+		if highlight.ReaderId.String() != authorID {
+			blocked, err := isBlockedBetween(ctx, s.q, authorID, highlight.ReaderId.String())
+			if err != nil {
+				return FeedPost{}, err
+			}
+			if blocked {
+				return FeedPost{}, errors.New("ANNOTATION_NOT_FOUND")
+			}
 		}
 		snapshot, err := citationSnapshot(highlight)
 		if err != nil {
@@ -258,7 +299,7 @@ func citationSnapshot(h db.GetHighlightByIDRow) (QuotedAnnotation, error) {
 			Name:     textPtr(h.ReaderName),
 			Username: textPtr(h.ReaderUsername),
 			LogoURL:  textPtr(h.ReaderLogo),
-			Type:     identity.Type(h.ReaderIsMedia),
+			Type:     identity.Personal,
 		},
 	}
 	if h.CanonicalStart.Valid {

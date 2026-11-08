@@ -129,6 +129,7 @@ export interface ThoughtCardProps {
   onBlockUserToggle?: (e: React.MouseEvent) => void;
   onShowLessClick?: (e: React.MouseEvent) => void;
   onDeleteClick?: (e: React.MouseEvent) => void;
+  blockedUsernames?: string[] | Set<string>;
   className?: string;
 }
 
@@ -168,6 +169,7 @@ export function ThoughtCard({
   onBlockUserToggle,
   onShowLessClick,
   onDeleteClick,
+  blockedUsernames,
   className,
 }: ThoughtCardProps) {
   const isPureThoughtRepost = !!post.repost && !post.content?.trim();
@@ -435,6 +437,7 @@ export function ThoughtCard({
               triggerWarning={displayTriggerWarning}
               isFocus={isFocus}
               onOpenMedia={onOpenMedia}
+              blockedUsernames={blockedUsernames}
             />
 
             {/* Poll Slot */}
