@@ -29,7 +29,7 @@ vi.mock('@/lib/supabase/client', () => ({
   }),
 }));
 
-import { mapGoThreadToWebThread } from '@qoe/sdk/actions/feed';
+import { mapGoThreadToWebThread } from '@qoe/sdk/actions/feed/mappers';
 import type { OptimisticThought } from '../ThoughtThreadContext';
 import { ThoughtThreadRoot } from '../ThoughtThreadRoot';
 import { ThoughtThreadParentContext } from '../ThoughtThreadParentContext';

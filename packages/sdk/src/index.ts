@@ -18,6 +18,7 @@ export * from './actions/notifications';
 export * from './hooks/useConversations';
 export * from './actions/messages';
 export { unfurlUrlAction, removeFollowerAction } from './actions/feed';
+export * from './actions/feed/mappers';
 export * from './hooks/useSearch';
 export * from './actions/search';
 export * from './actions/polls';
