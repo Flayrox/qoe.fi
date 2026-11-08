@@ -376,6 +376,43 @@ if (rogueSocialMutations.length > 0) {
   );
 }
 
+// ─── CHECK 11 : Consommateurs uniques du manifeste et du registre ─────
+// Une brique déclarative sans consommateur réel — ou un consommateur qui
+// recopie sa propre liste — laisse la navigation diverger en silence.
+const consumerIssues = [];
+const requireConsumer = (file, needle, rule) => {
+  const absolute = join(ROOT, file);
+  if (!existsSync(absolute)) {
+    consumerIssues.push(`${file} est absent`);
+    return;
+  }
+  if (!readFileSync(absolute, 'utf8').includes(needle)) {
+    consumerIssues.push(`${file} n'utilise pas ${rule}`);
+  }
+};
+requireConsumer(
+  'apps/core/src/components/layout/AppSidebar.tsx',
+  'getSidebarSurfaces',
+  'getSidebarSurfaces'
+);
+requireConsumer(
+  'apps/studio/src/features/dashboard/components/app-sidebar.tsx',
+  'getSidebarSurfaces',
+  'getSidebarSurfaces'
+);
+requireConsumer(
+  'apps/studio/src/features/dashboard/components/GlobalCommandMenu.tsx',
+  'getCmdKSurfaces',
+  'getCmdKSurfaces'
+);
+requireConsumer('packages/ui/src/social/ThoughtHeader.tsx', 'EntityActionMenu', 'EntityActionMenu');
+requireConsumer('packages/ui/src/ArticleCard.tsx', 'EntityActionMenu', 'EntityActionMenu');
+if (existsSync(join(ROOT, 'packages/ui/src/cmdk/CommandMenu.tsx'))) {
+  consumerIssues.push(
+    'packages/ui/src/cmdk/CommandMenu.tsx est une palette parallèle : la palette Studio vit dans GlobalCommandMenu'
+  );
+}
+
 if (serverTypeReexports.length > 0) {
   errors.push(
     `🚨 ${serverTypeReexports.length} ré-export(s) de type dans un module 'use server' !\n` +
@@ -390,6 +427,14 @@ if (surfaceManifestIssues.length > 0) {
     `🚨 ${surfaceManifestIssues.length} anomalie(s) du manifeste de surfaces !\n` +
       `   Règle : packages/config/src/surfaces.ts déclare les surfaces via routes.* et est réexporté par index.ts.\n` +
       surfaceManifestIssues.map((s) => `   - ${s}`).join('\n')
+  );
+}
+
+if (consumerIssues.length > 0) {
+  errors.push(
+    `🚨 ${consumerIssues.length} anomalie(s) de consommation du manifeste/registre !\n` +
+      `   Règle : sidebars et palettes dérivent du manifeste, menus d'entités du registre, sans implémentation parallèle.\n` +
+      consumerIssues.map((s) => `   - ${s}`).join('\n')
   );
 }
 
@@ -426,6 +471,7 @@ if (asJson) {
         serverTypeReexports: serverTypeReexports.length,
         surfaceManifestIssues: surfaceManifestIssues.length,
         entityRegistryIssues: entityRegistryIssues.length,
+        consumerIssues: consumerIssues.length,
       },
       errors,
     })
@@ -462,6 +508,9 @@ if (asJson) {
   );
   console.log(
     `• Registre d'actions          : ${entityRegistryIssues.length === 0 ? '✅ 0 anomalie' : `❌ ${entityRegistryIssues.length}`}`
+  );
+  console.log(
+    `• Consommateurs manifeste    : ${consumerIssues.length === 0 ? '✅ 0 anomalie' : `❌ ${consumerIssues.length}`}`
   );
   console.log(`─────────────────────────────────────────────────\n`);
 

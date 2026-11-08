@@ -269,7 +269,9 @@ export const PLATFORM_SURFACES: readonly SurfaceDescriptor[] = [
     section: 'library',
     keywords: ['surlignages', 'annotations', 'highlights'],
     hotkey: 'g l',
-    showInSidebar: true,
+    // Accessible depuis l'onglet de la bibliothèque et le Cmd+K : la sidebar
+    // lecteur historique n'affiche qu'une entrée « Bibliothèque ».
+    showInSidebar: false,
     showInCmdK: true,
   },
   {
@@ -280,7 +282,7 @@ export const PLATFORM_SURFACES: readonly SurfaceDescriptor[] = [
     defaultLabel: 'Livres',
     section: 'library',
     keywords: ['ebooks', 'livres', 'bibliothèque'],
-    showInSidebar: true,
+    showInSidebar: false,
     showInCmdK: true,
   },
   {
@@ -291,6 +293,17 @@ export const PLATFORM_SURFACES: readonly SurfaceDescriptor[] = [
     defaultLabel: 'Portefeuille',
     section: 'system',
     keywords: ['abonnement', 'paiement', 'facturation', 'billing'],
+    showInSidebar: true,
+    showInCmdK: true,
+  },
+  {
+    id: 'reader.pricing',
+    scope: 'reader',
+    path: routes.feed.pricing(),
+    iconName: 'Crown',
+    defaultLabel: 'Abonnement Plus',
+    section: 'system',
+    keywords: ['abonnement', 'plus', 'offre', 'pricing', 'premium'],
     showInSidebar: true,
     showInCmdK: true,
   },

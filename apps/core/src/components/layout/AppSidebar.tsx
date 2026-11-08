@@ -6,6 +6,7 @@ import { Sidebar } from '@qoe/ui/sidebar';
 import { Logo } from '@qoe/ui';
 import { useUnreadNotificationCount } from '@qoe/ui/notifications';
 import { useUnreadConversationCountQuery } from '@qoe/sdk';
+import { getSidebarSurfaces } from '@qoe/config';
 import { routes } from '@qoe/config/routes';
 import { t } from '@lingui/core/macro';
 import { useMemo } from 'react';
@@ -40,58 +41,31 @@ export function AppSidebar({
 
   const profileHref = useMemo(() => {
     const username = userUsername?.trim().replace(/^@/, '').toLowerCase();
-    return username ? `/${username}` : '/settings';
+    return username ? routes.feed.profile(username) : routes.feed.settings();
   }, [userUsername]);
 
-  const menuItems = [
-    {
-      title: t`Accueil`,
-      url: routes.feed.home(),
-      iconName: 'Home',
-    },
-    {
-      title: t`Recherche`,
-      url: '/search',
-      iconName: 'Search',
-    },
-    {
-      title: t`Notifications`,
-      url: '/notifications',
-      iconName: 'Bell',
-      badge: !isOnNotificationsPage && unreadCount > 0 ? unreadCount : undefined,
-    },
-    {
-      title: t`Messages`,
-      url: '/messages',
-      iconName: 'Mail',
-      badge: !isOnMessagesPage && unreadMessages > 0 ? unreadMessages : undefined,
-    },
-    {
-      title: t`Bibliothèque`,
-      url: routes.feed.library(),
-      iconName: 'Bookmark',
-    },
-    {
-      title: t`Portefeuille`,
-      url: routes.feed.billing(),
-      iconName: 'Wallet',
-    },
-    {
-      title: t`Abonnement Plus`,
-      url: routes.feed.pricing(),
-      iconName: 'Crown',
-    },
-    {
-      title: t`Mon profil`,
-      url: profileHref,
-      iconName: 'CircleUserRound',
-    },
-    {
-      title: t`Réglages`,
-      url: '/settings',
-      iconName: 'Settings',
-    },
-  ];
+  // 🗺️ La navigation vient du manifeste de surfaces. Seule l'entrée « Mon
+  // profil » reste composée ici : son chemin dépend du viewer connecté, il ne
+  // peut donc pas être une surface statique.
+  const menuItems = useMemo(() => {
+    const surfaces = getSidebarSurfaces('reader');
+    const items = surfaces.flatMap((surface) => {
+      const item = {
+        title: surface.defaultLabel,
+        url: surface.path,
+        iconName: surface.iconName,
+        badge:
+          surface.id === 'reader.notifications' && !isOnNotificationsPage && unreadCount > 0
+            ? unreadCount
+            : surface.id === 'reader.messages' && !isOnMessagesPage && unreadMessages > 0
+              ? unreadMessages
+              : undefined,
+      };
+      if (surface.id !== 'reader.settings') return [item];
+      return [{ title: t`Mon profil`, url: profileHref, iconName: 'CircleUserRound' }, item];
+    });
+    return items;
+  }, [isOnNotificationsPage, isOnMessagesPage, unreadCount, unreadMessages, profileHref]);
 
   const handleOpenComposer = () => {
     window.dispatchEvent(new CustomEvent('open-composer'));
