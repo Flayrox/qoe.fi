@@ -14,6 +14,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/eligibility"
 	"github.com/qoefi/api/internal/identity"
 	"github.com/qoefi/api/internal/modules/posts"
 )
@@ -113,6 +114,15 @@ func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string, view
 	if len(articleIDs) == 0 {
 		return []HydrateArticle{}, nil
 	}
+	// Passe 2 : les mêmes verrous d'éligibilité que les flux d'IDs. Un
+	// identifiant pré-calculé en cache ne doit jamais contourner un blocage,
+	// une sourdine ou un mot masqué activé depuis le classement.
+	eligible := eligibility.ArticlePredicates(eligibility.Aliases{
+		Entity:      "a",
+		Authors:     []string{"u.id", "po.id"},
+		Publication: `a."publicationId"`,
+		Viewer:      "$2",
+	})
 	rows, err := s.pool.Query(ctx, `
 		SELECT a.id, a.title, a.slug, a.content, a."imageUrl", a.published, a."isPremium",
 		       a.visibility, a."readingTime", a.status, a."completionRate", a."semanticTags",
@@ -133,12 +143,7 @@ func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string, view
 		) po ON true
 		WHERE a.id = ANY($1::text[])
 		  AND a.published = true
-		  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
-		  AND NOT EXISTS (
-		    SELECT 1 FROM "BlockedUser" b
-		    WHERE (b."readerId" = $2 AND (b."creatorId" = u.id OR b."creatorId" = po.id))
-		       OR (b."creatorId" = $2 AND (b."readerId" = u.id OR b."readerId" = po.id))
-		  )
+		  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())`+eligible+`
 		  AND (
 		    COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us
 		              WHERE us."userId" = COALESCE(po.id, u.id)), 'PUBLIC') = 'PUBLIC'

@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/pgvector/pgvector-go"
+	"github.com/qoefi/api/internal/eligibility"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1727,9 +1728,9 @@ func (s *Service) fetchEngineArticles(ctx context.Context, vec *pgvector.Vector,
 		ai := 2
 		if userID != "" {
 			viewerParam := ai
-			q += fmt.Sprintf(` AND NOT is_blocked_bidirectional($%d, a."authorId")`, viewerParam)
-			q += fmt.Sprintf(` AND NOT is_muted_by($%d, a."authorId")`, viewerParam)
-			q += fmt.Sprintf(` AND NOT contains_muted_word($%d, a.title) AND NOT contains_muted_word($%d, a.content)`, viewerParam, viewerParam)
+			q += eligibility.ArticlePredicates(eligibility.Aliases{
+				Entity: "a", Authors: []string{`a."authorId"`}, Viewer: fmt.Sprintf("$%d", viewerParam),
+			})
 			// Compte privé : le contenu ne sort du profil que pour ses abonnés.
 			q += fmt.Sprintf(` AND (
 				COALESCE((SELECT us."profileVisibility"
@@ -1770,8 +1771,7 @@ func (s *Service) fetchEngineArticles(ctx context.Context, vec *pgvector.Vector,
 		WHERE a.published = true AND u."isShadowbanned" = false AND u."isSuspended" = false
 		  AND NOT is_blocked_bidirectional($3, a."authorId")
 		  AND NOT is_muted_by($3, a."authorId")
-		  AND NOT contains_muted_word($3, a.title)
-		  AND NOT contains_muted_word($3, a.content)
+		  AND NOT contains_muted_word($3, COALESCE(a.title, '') || ' ' || COALESCE(a.content, ''))
 		  AND (
 		    COALESCE((SELECT us."profileVisibility"
 		              FROM "Publication" p
@@ -1824,9 +1824,9 @@ func (s *Service) fetchEngineThoughts(ctx context.Context, vec *pgvector.Vector,
 		ai := 2
 		if userID != "" {
 			viewerParam := ai
-			q += fmt.Sprintf(` AND NOT is_blocked_bidirectional($%d, p."authorId")`, viewerParam)
-			q += fmt.Sprintf(` AND NOT is_muted_by($%d, p."authorId")`, viewerParam)
-			q += fmt.Sprintf(` AND NOT contains_muted_word($%d, p.content)`, viewerParam)
+			q += eligibility.ThoughtPredicates(eligibility.Aliases{
+				Entity: "p", Authors: []string{`p."authorId"`}, Viewer: fmt.Sprintf("$%d", viewerParam),
+			})
 			q += fmt.Sprintf(` AND (
 				COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
 				OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId"=$%d AND f."publicationId"=u."publicationId")
