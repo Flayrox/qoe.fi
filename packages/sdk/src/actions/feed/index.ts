@@ -24,7 +24,7 @@ import { goFetch } from '../utils/go-client';
 import type { MeProfileDTO } from '../auth';
 
 import { safeAction } from '../utils/safe-action';
-import { getActivePublicationId } from '../articles';
+import { getActiveWorkspaceContext } from '../workspace';
 import type {
   FeedSlice as ApiFeedSlice,
   FeedPost as ApiFeedPost,
@@ -1041,48 +1041,39 @@ export const updateProfileAction = safeAction<
   const logoUrl = input.logoUrl === undefined ? undefined : (input.logoUrl ?? null);
   const headerImageUrl =
     input.headerImageUrl === undefined ? undefined : (input.headerImageUrl ?? null);
-  // Go-only : PATCH /v1/me/profile (champs lecteur) + PATCH /v1/settings/profile
-  // (champs créateur : heroText, headerImageUrl) sur la cible choisie.
-  const [profile, publication] = await Promise.all([
-    goFetch<MeProfileDTO & { isCertified?: boolean }>('/v1/me/profile', {
-      method: 'PATCH',
-      body: {
-        name: input.name ?? undefined,
-        logoUrl,
-        onboardingText: input.onboardingText ?? undefined,
-      },
-    }),
-    (async () => {
-      if (
-        input.heroText === undefined &&
-        input.headerImageUrl === undefined &&
-        input.logoUrl === undefined &&
-        input.name === undefined
-      ) {
-        return null;
-      }
-      if (input.scope === 'personal') {
-        // Cible explicite : la publication PERSONNELLE (jamais le cookie).
-        const ws = await goFetch<{
-          personal?: { id?: string; type?: string };
-          medias?: Array<{ id?: string }>;
-        }>('/v1/media/workspaces');
-        const personalId = ws.personal?.id;
-        if (!personalId) return null;
-        return goFetch<Record<string, unknown>>('/v1/settings/profile', {
-          method: 'PATCH',
-          body: {
-            publicationId: personalId,
-            name: input.name ?? undefined,
-            logoUrl,
-            heroText: input.heroText ?? undefined,
-            headerImageUrl,
-          },
-        });
-      }
-      const publicationId = await getActivePublicationId();
-      if (!publicationId) return null;
-      return goFetch<Record<string, unknown>>('/v1/settings/profile', {
+  // Cible résolue AVANT toute écriture : le compte utilisateur n'est patché
+  // que si la cible est personnelle. Une édition média ne doit jamais passer
+  // par /v1/me/profile (bug du 19/09 : profil média écrasé).
+  const workspace = input.scope === 'personal' ? null : await getActiveWorkspaceContext();
+  const personal =
+    input.scope === 'personal'
+      ? await goFetch<{ publicationId?: string }>('/v1/me/publication')
+      : null;
+  const publicationId =
+    input.scope === 'personal' ? personal?.publicationId : workspace?.publicationId;
+  if (!publicationId) {
+    throw new Error('Publication cible introuvable');
+  }
+  const isPersonalTarget = input.scope === 'personal' || workspace?.type === 'PERSONAL';
+
+  const profile = isPersonalTarget
+    ? await goFetch<MeProfileDTO & { isCertified?: boolean }>('/v1/me/profile', {
+        method: 'PATCH',
+        body: {
+          name: input.name ?? undefined,
+          logoUrl,
+          onboardingText: input.onboardingText ?? undefined,
+        },
+      })
+    : null;
+
+  const wantsPublication =
+    input.heroText !== undefined ||
+    input.headerImageUrl !== undefined ||
+    input.logoUrl !== undefined ||
+    input.name !== undefined;
+  const publication = wantsPublication
+    ? await goFetch<Record<string, unknown>>('/v1/settings/profile', {
         method: 'PATCH',
         body: {
           publicationId,
@@ -1091,22 +1082,23 @@ export const updateProfileAction = safeAction<
           heroText: input.heroText ?? undefined,
           headerImageUrl,
         },
-      });
-    })(),
-  ]);
+      })
+    : null;
 
   const pub = (publication ?? {}) as Record<string, unknown>;
+  const pubName = typeof pub.name === 'string' ? pub.name : null;
+  const pubLogo = typeof pub.logoUrl === 'string' ? pub.logoUrl : null;
   return {
     user: {
-      id: profile.id,
-      name: profile.name ?? null,
-      username: profile.username ?? null,
-      logoUrl: profile.logoUrl ?? null,
+      id: profile?.id ?? publicationId,
+      name: profile?.name ?? pubName ?? workspace?.name ?? null,
+      username: profile?.username ?? workspace?.slug ?? null,
+      logoUrl: profile?.logoUrl ?? pubLogo ?? workspace?.logoUrl ?? null,
       heroText: (pub.heroText as string | null) ?? null,
       headerImageUrl: (pub.headerImageUrl as string | null) ?? null,
       onboardingText:
-        (profile as unknown as { onboardingText?: string | null }).onboardingText ?? null,
-      isCertified: profile.isCertified ?? false,
+        (profile as unknown as { onboardingText?: string | null })?.onboardingText ?? null,
+      isCertified: profile?.isCertified ?? false,
     },
   };
 });

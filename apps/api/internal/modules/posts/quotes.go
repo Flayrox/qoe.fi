@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/qoefi/api/internal/canon"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/identity"
@@ -56,10 +57,12 @@ func QuoteRefsFrom(all map[string]*db.GetPostsByIDsRow) []QuoteRef {
 // QuotedArticlesFor charge les articles cités par les refs (dédoublonnés) et
 // résout pour chaque post le contexte du passage. Retourne une map cléée par
 // postID ; un post dont l'extrait ne se retrouve pas dans le texte canonique
-// (contenu remanié, extrait trop long) n'a pas d'entrée — la carte retombe
-// sur l'extrait brut. Ne lève jamais pour une résolution ratée : l'erreur
-// n'est propagée que si le CHARGEMENT échoue.
-func QuotedArticlesFor(ctx context.Context, q db.Querier, refs []QuoteRef) (map[string]*QuotedArticle, error) {
+// (contenu remanié, extrait trop long) n'a pas d'entrée. Ne lève jamais pour
+// une résolution ratée : l'erreur n'est propagée que si le CHARGEMENT échoue.
+//
+// viewerID filtre les articles privés/bloqués ET les snapshots d'annotations
+// dont l'auteur est bloqué : une citation ne doit jamais contourner un blocage.
+func QuotedArticlesFor(ctx context.Context, q db.Querier, refs []QuoteRef, viewerID string) (map[string]*QuotedArticle, error) {
 	out := map[string]*QuotedArticle{}
 	if len(refs) == 0 {
 		return out, nil
@@ -74,9 +77,42 @@ func QuotedArticlesFor(ctx context.Context, q db.Querier, refs []QuoteRef) (map[
 		}
 	}
 
-	rows, err := q.GetQuotedArticlesByIDs(ctx, articleIDs)
+	rows, err := q.GetQuotedArticlesByIDs(ctx, db.GetQuotedArticlesByIDsParams{
+		Ids:      articleIDs,
+		ViewerID: toUUID(viewerID),
+	})
 	if err != nil {
 		return nil, err
+	}
+
+	// Le snapshot d'annotation est dénormalisé dans le post : la jointure SQL
+	// ne peut pas voir son auteur. On résout les blocages en un seul batch.
+	blockedReaders := map[string]bool{}
+	if viewerID != "" {
+		candidates := map[string]bool{}
+		ids := make([]pgtype.UUID, 0, len(refs))
+		for _, r := range refs {
+			if r.Annotation == nil || r.Annotation.Reader.ID == "" || r.Annotation.Reader.ID == viewerID {
+				continue
+			}
+			if candidates[r.Annotation.Reader.ID] {
+				continue
+			}
+			candidates[r.Annotation.Reader.ID] = true
+			ids = append(ids, toUUID(r.Annotation.Reader.ID))
+		}
+		if len(ids) > 0 {
+			blocked, err := q.GetBlockedUserIDs(ctx, db.GetBlockedUserIDsParams{
+				ViewerId: toUUID(viewerID),
+				Ids:      ids,
+			})
+			if err != nil {
+				return nil, err
+			}
+			for _, id := range blocked {
+				blockedReaders[id] = true
+			}
+		}
 	}
 
 	// Métadonnées par article (une entrée, partagée), documents canoniques
@@ -106,7 +142,7 @@ func QuotedArticlesFor(ctx context.Context, q db.Querier, refs []QuoteRef) (map[
 				Username:    textPtr(row.AuthorUsername),
 				LogoURL:     textPtr(row.AuthorLogo),
 				IsCertified: row.AuthorCertified,
-				Type:        identity.Type(row.AuthorIsMedia),
+				Type:        identity.Personal,
 			},
 		}
 		docs[row.ID] = canon.Parse(row.Content)
@@ -115,6 +151,9 @@ func QuotedArticlesFor(ctx context.Context, q db.Querier, refs []QuoteRef) (map[
 	// Contexte PAR POST (deux posts peuvent citer le même article avec des
 	// passages différents) — repli tolérant de canon.Find par extrait.
 	for _, r := range refs {
+		if r.Annotation != nil && blockedReaders[r.Annotation.Reader.ID] {
+			continue
+		}
 		base, ok := byArticle[r.ArticleID]
 		if !ok {
 			continue

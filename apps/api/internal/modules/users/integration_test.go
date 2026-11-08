@@ -111,9 +111,6 @@ func TestMe(t *testing.T) {
 	if p.FollowsCount != 1 || p.MutedWordsCount != 1 {
 		t.Fatalf("compteurs = follows %d / muted %d, attendu 1/1", p.FollowsCount, p.MutedWordsCount)
 	}
-	if p.IsMediaMember {
-		t.Fatal("isMediaMember = true, attendu false (aucun membership seedé)")
-	}
 	if p.CreatedAt == "" {
 		t.Fatalf("createdAt vide")
 	}
@@ -410,14 +407,6 @@ func TestMediaPublication(t *testing.T) {
 		t.Fatalf("publicationId non-membre = %q, attendu vide", empty)
 	}
 
-	// Profil : isMediaMember = true pour le membre.
-	p, err := svc.Profile(ctx, userID)
-	if err != nil {
-		t.Fatalf("Profile: %v", err)
-	}
-	if !p.IsMediaMember {
-		t.Fatal("isMediaMember = false, attendu true pour le membre actif")
-	}
 }
 
 // TestSyncUserAdoptsEmailConflict — session Supabase dont l'id JWT ne

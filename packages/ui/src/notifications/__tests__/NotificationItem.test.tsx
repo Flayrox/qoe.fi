@@ -145,4 +145,13 @@ describe('NotificationItem — carte de survol', () => {
       expect(avatar.getAttribute('data-avatar-shape')).toBe('square');
     }
   });
+
+  it('suit le lien serveur quand il porte un média', () => {
+    render(
+      <NotificationItem notification={{ ...notification, url: '/articles/art-1?ws=media-1' }} />
+    );
+
+    const link = document.querySelector('a[href="/articles/art-1?ws=media-1"]');
+    expect(link).not.toBeNull();
+  });
 });

@@ -579,8 +579,6 @@ SELECT p.id,
        u.username      AS author_username,
        u."logoUrl"     AS author_logo,
        u."isCertified" AS author_certified,
-       EXISTS (SELECT 1 FROM "MediaMember" mm
-               WHERE mm."userId" = u.id AND mm.status = 'active') AS author_is_media,
        (CASE WHEN l."userId" IS NOT NULL THEN true ELSE false END) AS viewer_liked,
        (CASE WHEN r.id IS NOT NULL THEN true ELSE false END)      AS viewer_reposted
 FROM "Post" p
@@ -643,7 +641,6 @@ type GetPostsByIDsRow struct {
 	AuthorUsername   pgtype.Text      `json:"author_username"`
 	AuthorLogo       pgtype.Text      `json:"author_logo"`
 	AuthorCertified  bool             `json:"author_certified"`
-	AuthorIsMedia    bool             `json:"author_is_media"`
 	ViewerLiked      bool             `json:"viewer_liked"`
 	ViewerReposted   bool             `json:"viewer_reposted"`
 }
@@ -681,7 +678,6 @@ func (q *Queries) GetPostsByIDs(ctx context.Context, arg GetPostsByIDsParams) ([
 			&i.AuthorUsername,
 			&i.AuthorLogo,
 			&i.AuthorCertified,
-			&i.AuthorIsMedia,
 			&i.ViewerLiked,
 			&i.ViewerReposted,
 		); err != nil {
@@ -713,16 +709,44 @@ SELECT a.id,
        u.name         AS author_name,
        u.username     AS author_username,
        u."logoUrl"    AS author_logo,
-       u."isCertified" AS author_certified,
-       EXISTS (SELECT 1 FROM "MediaMember" mm
-               WHERE mm."userId" = u.id AND mm.status = 'active') AS author_is_media
+       u."isCertified" AS author_certified
 FROM "Article" a
 JOIN "Publication" p ON p.id = a."publicationId"
 JOIN "User" u ON u.id = a."authorId"
 WHERE a.id = ANY($1::text[])
   AND a.published = true
   AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
+  -- Blocage symétrique : ni l'auteur ni le propriétaire de la publication.
+  AND NOT EXISTS (
+    SELECT 1 FROM "BlockedUser" b
+    WHERE (b."readerId" = $2 AND (
+             b."creatorId" = a."authorId"
+             OR b."creatorId" = (SELECT owner.id FROM "User" owner WHERE owner."publicationId" = p.id LIMIT 1)
+           ))
+       OR (b."creatorId" = $2 AND (
+             b."readerId" = a."authorId"
+             OR b."readerId" = (SELECT owner.id FROM "User" owner WHERE owner."publicationId" = p.id LIMIT 1)
+           ))
+  )
+  -- Compte privé / réservé aux abonnés : la visibilité du propriétaire fait foi.
+  AND (
+    COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us
+              WHERE us."userId" = COALESCE(
+                (SELECT owner.id FROM "User" owner WHERE owner."publicationId" = p.id LIMIT 1),
+                a."authorId"
+              )), 'PUBLIC') = 'PUBLIC'
+    OR COALESCE(
+         (SELECT owner.id FROM "User" owner WHERE owner."publicationId" = p.id LIMIT 1),
+         a."authorId"
+       ) = $2
+    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = $2 AND f."publicationId" = p.id)
+  )
 `
+
+type GetQuotedArticlesByIDsParams struct {
+	Ids      []string    `json:"ids"`
+	ViewerID pgtype.UUID `json:"viewer_id"`
+}
 
 type GetQuotedArticlesByIDsRow struct {
 	ID              string          `json:"id"`
@@ -743,11 +767,10 @@ type GetQuotedArticlesByIDsRow struct {
 	AuthorUsername  pgtype.Text     `json:"author_username"`
 	AuthorLogo      pgtype.Text     `json:"author_logo"`
 	AuthorCertified bool            `json:"author_certified"`
-	AuthorIsMedia   bool            `json:"author_is_media"`
 }
 
-func (q *Queries) GetQuotedArticlesByIDs(ctx context.Context, ids []string) ([]GetQuotedArticlesByIDsRow, error) {
-	rows, err := q.db.Query(ctx, getQuotedArticlesByIDs, ids)
+func (q *Queries) GetQuotedArticlesByIDs(ctx context.Context, arg GetQuotedArticlesByIDsParams) ([]GetQuotedArticlesByIDsRow, error) {
+	rows, err := q.db.Query(ctx, getQuotedArticlesByIDs, arg.Ids, arg.ViewerID)
 	if err != nil {
 		return nil, err
 	}
@@ -774,7 +797,6 @@ func (q *Queries) GetQuotedArticlesByIDs(ctx context.Context, ids []string) ([]G
 			&i.AuthorUsername,
 			&i.AuthorLogo,
 			&i.AuthorCertified,
-			&i.AuthorIsMedia,
 		); err != nil {
 			return nil, err
 		}

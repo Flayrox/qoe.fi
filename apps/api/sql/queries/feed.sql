@@ -215,8 +215,6 @@ SELECT p.id,
        u.username      AS author_username,
        u."logoUrl"     AS author_logo,
        u."isCertified" AS author_certified,
-       EXISTS (SELECT 1 FROM "MediaMember" mm
-               WHERE mm."userId" = u.id AND mm.status = 'active') AS author_is_media,
        (CASE WHEN l."userId" IS NOT NULL THEN true ELSE false END) AS viewer_liked,
        (CASE WHEN r.id IS NOT NULL THEN true ELSE false END)      AS viewer_reposted
 FROM "Post" p
@@ -267,15 +265,38 @@ SELECT a.id,
        u.name         AS author_name,
        u.username     AS author_username,
        u."logoUrl"    AS author_logo,
-       u."isCertified" AS author_certified,
-       EXISTS (SELECT 1 FROM "MediaMember" mm
-               WHERE mm."userId" = u.id AND mm.status = 'active') AS author_is_media
+       u."isCertified" AS author_certified
 FROM "Article" a
 JOIN "Publication" p ON p.id = a."publicationId"
 JOIN "User" u ON u.id = a."authorId"
 WHERE a.id = ANY(@ids::text[])
   AND a.published = true
-  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now());
+  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
+  -- Blocage symétrique : ni l'auteur ni le propriétaire de la publication.
+  AND NOT EXISTS (
+    SELECT 1 FROM "BlockedUser" b
+    WHERE (b."readerId" = @viewer_id AND (
+             b."creatorId" = a."authorId"
+             OR b."creatorId" = (SELECT owner.id FROM "User" owner WHERE owner."publicationId" = p.id LIMIT 1)
+           ))
+       OR (b."creatorId" = @viewer_id AND (
+             b."readerId" = a."authorId"
+             OR b."readerId" = (SELECT owner.id FROM "User" owner WHERE owner."publicationId" = p.id LIMIT 1)
+           ))
+  )
+  -- Compte privé / réservé aux abonnés : la visibilité du propriétaire fait foi.
+  AND (
+    COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us
+              WHERE us."userId" = COALESCE(
+                (SELECT owner.id FROM "User" owner WHERE owner."publicationId" = p.id LIMIT 1),
+                a."authorId"
+              )), 'PUBLIC') = 'PUBLIC'
+    OR COALESCE(
+         (SELECT owner.id FROM "User" owner WHERE owner."publicationId" = p.id LIMIT 1),
+         a."authorId"
+       ) = @viewer_id
+    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = @viewer_id AND f."publicationId" = p.id)
+  );
 
 -- name: GetReplyIDsForThought :many
 SELECT id

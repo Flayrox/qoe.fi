@@ -7,21 +7,22 @@ SELECT n.id, n.type, n."isRead", n."createdAt", n."thoughtId", n."articleId", n.
        u.username      AS sender_username,
        u."logoUrl"     AS sender_logo,
        u."isCertified" AS sender_certified,
-       EXISTS (SELECT 1 FROM "MediaMember" mm
-               WHERE mm."userId" = u.id AND mm.status = 'active') AS sender_is_media,
        t.content       AS thought_content,
        t."createdAt"   AS thought_created_at,
        a.title         AS article_title,
        a.slug          AS article_slug,
        c.content       AS comment_content,
        p.name          AS publication_name,
-       p.slug          AS publication_slug
+       p.slug          AS publication_slug,
+       COALESCE(p.type::text, '')::text AS publication_type,
+       COALESCE(md.id::text, '')::text  AS media_id
 FROM "Notification" n
 JOIN "User" u ON u.id = n."senderId"
 LEFT JOIN "Post" t ON t.id = n."thoughtId"
 LEFT JOIN "Article" a ON a.id = n."articleId"
 LEFT JOIN "ArticleComment" c ON c.id = n."commentId"
 LEFT JOIN "Publication" p ON p.id = n."publicationId"
+LEFT JOIN "Media" md ON md."publicationId" = n."publicationId"
 WHERE n."recipientId" = $1
   AND ($2::text[] IS NULL OR n.type::text = ANY($2::text[]))
   -- Un blocage, dans un sens ou dans l'autre, coupe aussi les notifications.

@@ -31,6 +31,10 @@ func toUUID(id string) pgtype.UUID {
 
 var errThoughtNotFound = errors.New("post introuvable")
 
+// ErrBlockedContent signale une interaction refusée parce que l'un des deux
+// comptes a bloqué l'autre. Les handlers la traduisent en 403.
+var ErrBlockedContent = errors.New("contenu bloqué")
+
 // Author est l'auteur dénormalisé d'une pensée.
 type Author struct {
 	ID          string  `json:"id"`
@@ -115,6 +119,10 @@ func (s *Service) Reply(ctx context.Context, parentID, userID, content string) (
 		return FeedPost{}, err
 	}
 	if !gate.CanReply {
+		// Parent bloqué : refus explicite (403), pas une simple validation.
+		if gate.Blocked {
+			return FeedPost{}, ErrBlockedContent
+		}
 		return FeedPost{}, errors.New(gate.Reason)
 	}
 
@@ -239,7 +247,7 @@ func (s *Service) Get(ctx context.Context, id, viewerID string) (FeedPost, error
 	if err != nil {
 		return FeedPost{}, err
 	}
-	quoted, err := QuotedArticlesFor(ctx, s.q, QuoteRefsFrom(all))
+	quoted, err := QuotedArticlesFor(ctx, s.q, QuoteRefsFrom(all), viewerID)
 	if err != nil {
 		return FeedPost{}, err
 	}
@@ -277,6 +285,23 @@ func (s *Service) ToggleLike(ctx context.Context, postID, userID string) (bool, 
 	if !errors.Is(err, pgx.ErrNoRows) {
 		_ = tx.Rollback(ctx)
 		return s.toggleArticleLike(ctx, postID, userID)
+	}
+
+	// Un like ne s'ajoute jamais sur le contenu d'un compte bloqué (dans un
+	// sens ou l'autre). Le retrait d'un like existant reste possible.
+	if authorID, err := tq.GetPostAuthor(ctx, postID); err == nil {
+		blocked, err := isBlockedBetween(ctx, tq, userID, authorID)
+		if err != nil {
+			return false, err
+		}
+		if blocked {
+			return false, ErrBlockedContent
+		}
+	} else if errors.Is(err, pgx.ErrNoRows) {
+		_ = tx.Rollback(ctx)
+		return s.toggleArticleLike(ctx, postID, userID)
+	} else {
+		return false, err
 	}
 
 	if _, err := tq.InsertLike(ctx, db.InsertLikeParams{PostId: postID, UserId: toUUID(userID)}); err != nil {
@@ -427,6 +452,10 @@ func (s *Service) ToggleRepost(ctx context.Context, postID, userID string) (bool
 		return false, tx.Commit(ctx)
 	}
 
+	if err := s.ensurePostNotBlocked(ctx, tq, canonicalID, userID); err != nil {
+		return false, err
+	}
+
 	if _, err := tq.InsertPureRepost(ctx, db.InsertPureRepostParams{AuthorId: userID, RepostId: pgtype.Text{String: canonicalID, Valid: true}}); err != nil {
 		return false, err
 	}
@@ -466,6 +495,16 @@ func (s *Service) toggleArticleRepost(ctx context.Context, articleID, userID str
 	}
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return false, err
+	}
+
+	if articleAuthorID != "" {
+		blocked, err := isBlockedBetween(ctx, s.q, userID, articleAuthorID)
+		if err != nil {
+			return false, err
+		}
+		if blocked {
+			return false, ErrBlockedContent
+		}
 	}
 
 	newPostID := "post_" + strings.ReplaceAll(uuid.New().String(), "-", "")
@@ -517,6 +556,16 @@ func (s *Service) toggleArticleLike(ctx context.Context, articleID, userID strin
 	}
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return false, err
+	}
+
+	if articleAuthorID != "" {
+		blocked, err := isBlockedBetween(ctx, s.q, userID, articleAuthorID)
+		if err != nil {
+			return false, err
+		}
+		if blocked {
+			return false, ErrBlockedContent
+		}
 	}
 
 	newID := "cf_" + strings.ReplaceAll(uuid.New().String(), "-", "")
@@ -753,7 +802,7 @@ func actorFromLike(r db.ListLikesForPostRow) Actor {
 		Username:    textPtr(r.UserUsername),
 		LogoURL:     textPtr(r.UserLogo),
 		IsCertified: r.UserCertified,
-		Type:        identity.Type(r.UserIsMedia),
+		Type:        identity.Personal,
 		FollowedAt:  r.LikedAt.Time.Format(time.RFC3339),
 	}
 }
@@ -765,7 +814,7 @@ func actorFromRepost(r db.ListRepostsForPostRow) Actor {
 		Username:    textPtr(r.UserUsername),
 		LogoURL:     textPtr(r.UserLogo),
 		IsCertified: r.UserCertified,
-		Type:        identity.Type(r.UserIsMedia),
+		Type:        identity.Personal,
 		FollowedAt:  r.RepostedAt.Time.Format(time.RFC3339),
 	}
 }
@@ -858,7 +907,7 @@ func (s *Service) Quotes(ctx context.Context, postID, viewerID string, limit, of
 		if err != nil {
 			return FeedResultPage{}, err
 		}
-		quoted, err := QuotedArticlesFor(ctx, s.q, QuoteRefsFrom(all))
+		quoted, err := QuotedArticlesFor(ctx, s.q, QuoteRefsFrom(all), viewerID)
 		if err != nil {
 			return FeedResultPage{}, err
 		}

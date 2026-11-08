@@ -84,7 +84,7 @@ func TestSitemapThoughts(t *testing.T) {
 		t.Fatalf("endpoint = %d %s", w.Code, w.Body.String())
 	}
 	var out struct {
-		Limit int `json:"limit"`
+		Limit int   `json:"limit"`
 		Total int64 `json:"total"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {

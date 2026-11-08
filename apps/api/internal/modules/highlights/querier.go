@@ -10,6 +10,7 @@ import (
 // highlightQuerier : surface sqlc utilisée par Service (mockable en test —
 // *db.Queries l'implémente en prod).
 type highlightQuerier interface {
+	CanViewArticle(ctx context.Context, arg db.CanViewArticleParams) (bool, error)
 	CountHighlightUpvotes(ctx context.Context, highlightid string) (int32, error)
 	CreateAnnotationComment(ctx context.Context, arg db.CreateAnnotationCommentParams) (string, error)
 	CreateHighlight(ctx context.Context, arg db.CreateHighlightParams) (string, error)
@@ -17,7 +18,8 @@ type highlightQuerier interface {
 	DeleteHighlight(ctx context.Context, arg db.DeleteHighlightParams) (int64, error)
 	DeleteHighlightUpvote(ctx context.Context, arg db.DeleteHighlightUpvoteParams) error
 	GetHighlightByID(ctx context.Context, id string) (db.GetHighlightByIDRow, error)
-	ListAnnotationComments(ctx context.Context, highlightid string) ([]db.ListAnnotationCommentsRow, error)
+	IsBlockedEitherWay(ctx context.Context, arg db.IsBlockedEitherWayParams) (bool, error)
+	ListAnnotationComments(ctx context.Context, arg db.ListAnnotationCommentsParams) ([]db.ListAnnotationCommentsRow, error)
 	ListBookmarksByReader(ctx context.Context, arg db.ListBookmarksByReaderParams) ([]db.ListBookmarksByReaderRow, error)
 	ListHighlightsByArticle(ctx context.Context, arg db.ListHighlightsByArticleParams) ([]db.ListHighlightsByArticleRow, error)
 	ListMyHighlights(ctx context.Context, arg db.ListMyHighlightsParams) ([]db.ListMyHighlightsRow, error)

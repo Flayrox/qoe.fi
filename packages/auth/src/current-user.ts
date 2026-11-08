@@ -34,7 +34,6 @@ export interface DbUser {
   createdAt: string;
   followsCount: number;
   mutedWordsCount: number;
-  isMediaMember: boolean;
 }
 
 /**

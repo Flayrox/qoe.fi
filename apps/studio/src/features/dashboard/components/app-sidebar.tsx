@@ -1,13 +1,14 @@
 import React from 'react';
-import { cookies, headers } from 'next/headers';
+import { headers } from 'next/headers';
 import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { getActiveWorkspace, type ActiveWorkspace } from '@/lib/active-workspace';
 import { logout } from '@/app/login/actions';
 import { t } from '@lingui/core/macro';
 import { Sidebar } from '@qoe/ui/sidebar';
 import { Logo } from '@qoe/ui';
 
-// Contrats Go (GET /v1/users/me, /v1/notifications/unread-count, /v1/media/workspaces).
+// Contrats Go (GET /v1/users/me, /v1/notifications/unread-count).
 interface MeResponse {
   data: {
     id: string;
@@ -18,20 +19,6 @@ interface MeResponse {
     publicationLogoUrl: string | null;
   };
 }
-interface WorkspacesResponse {
-  medias: { id: string; name: string }[];
-}
-
-function parseCookie(raw: string | null | undefined): { type?: string; id?: string } | null {
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(decodeURIComponent(raw)) as { type?: string; id?: string };
-    if (parsed.type && parsed.id) return parsed;
-    return null;
-  } catch {
-    return null;
-  }
-}
 
 export async function AppSidebar() {
   const supabase = await createClient();
@@ -39,17 +26,8 @@ export async function AppSidebar() {
     data: { user: authUser },
   } = await supabase.auth.getUser();
 
-  // Résout le workspace actif (cookie) pour adapter le Studio.
-  let activeMediaId: string | null = null;
-  try {
-    const cookieStore = await cookies();
-    const parsed = parseCookie(cookieStore.get('qoe_active_workspace')?.value ?? null);
-    if (parsed?.type === 'MEDIA' && parsed.id) activeMediaId = parsed.id;
-  } catch {
-    // cookie absent/invalide → Studio personnel
-  }
-
-  // 🚀 Go-first : profil, compteur de notifications non lues, nom du média actif.
+  // 🚀 Go-first : profil, compteur de notifications non lues et workspace
+  // actif (résolution unique + cache par requête).
   let dbUser: {
     id: string;
     email: string | null;
@@ -59,13 +37,13 @@ export async function AppSidebar() {
     publicationLogoUrl: string | null;
   } | null = null;
   let unreadCount = 0;
-  let mediaBrandName: string | null = null;
+  let workspace: ActiveWorkspace | null = null;
 
   try {
-    const [me, unread, workspaces] = await Promise.all([
+    const [me, unread, active] = await Promise.all([
       goFetch<MeResponse>('/v1/users/me'),
       goFetch<{ count: number }>('/v1/notifications/unread-count'),
-      goFetch<WorkspacesResponse>('/v1/media/workspaces'),
+      authUser ? getActiveWorkspace(authUser.id) : Promise.resolve(null),
     ]);
     dbUser = {
       id: me.data.id,
@@ -76,15 +54,13 @@ export async function AppSidebar() {
       publicationLogoUrl: me.data.publicationLogoUrl,
     };
     unreadCount = unread.count ?? 0;
-    if (activeMediaId) {
-      mediaBrandName = workspaces.medias.find((m) => m.id === activeMediaId)?.name ?? null;
-    }
+    workspace = active;
   } catch {
     // Erreur Go (API indisponible / non connecté) → le sidebar retombe sur
     // les métadonnées Supabase du user ; compteurs à zéro.
     dbUser = null;
     unreadCount = 0;
-    mediaBrandName = null;
+    workspace = null;
   }
 
   const userEmail = dbUser?.email || authUser?.email || 'hello@qoe.fi';
@@ -111,7 +87,20 @@ export async function AppSidebar() {
     // headers() indisponible (edge cas rare) → on garde le badge
   }
 
-  const brandName = mediaBrandName ?? t`Studio`;
+  const brandName = workspace?.type === 'MEDIA' ? workspace.name : t`Studio`;
+
+  // 🛡️ Le chrome suit le rôle réel dans le média actif : un writer/viewer ne
+  // doit pas découvrir un 403 après avoir cliqué sur Analytics ou Développeur.
+  // (PERSONAL = propriétaire, donc tout est visible.)
+  const isMediaWorkspace = workspace?.type === 'MEDIA';
+  const permissions = workspace?.permissions ?? [];
+  // Le chrome suit les permissions effectives (rôle + overrides), pas le
+  // rôle nominal : un viewer avec l'override doit voir l'entrée, un writer
+  // sans elle ne doit pas découvrir un 403.
+  const canAnalyze = !isMediaWorkspace || permissions.includes('media:view_analytics');
+  const canDevelop = !isMediaWorkspace || permissions.includes('api_keys:manage');
+  const canNewsletter = !isMediaWorkspace || permissions.includes('media:manage_newsletter');
+  const canWrite = !isMediaWorkspace || permissions.includes('media:create_articles');
 
   const menuItems = [
     {
@@ -135,26 +124,38 @@ export async function AppSidebar() {
       url: '/media',
       iconName: 'Building2',
     },
-    {
-      title: t`Newsletters`,
-      url: '/newsletters',
-      iconName: 'Mail',
-    },
-    {
-      title: t`Audience`,
-      url: '/audience',
-      iconName: 'Users',
-    },
-    {
-      title: t`Analytics`,
-      url: '/analytics',
-      iconName: 'PieChart',
-    },
-    {
-      title: t`Développeur`,
-      url: '/developer',
-      iconName: 'Code',
-    },
+    ...(canNewsletter
+      ? [
+          {
+            title: t`Newsletters`,
+            url: '/newsletters',
+            iconName: 'Mail',
+          },
+        ]
+      : []),
+    ...(canAnalyze
+      ? [
+          {
+            title: t`Audience`,
+            url: '/audience',
+            iconName: 'Users',
+          },
+          {
+            title: t`Analytics`,
+            url: '/analytics',
+            iconName: 'PieChart',
+          },
+        ]
+      : []),
+    ...(canDevelop
+      ? [
+          {
+            title: t`Développeur`,
+            url: '/developer',
+            iconName: 'Code',
+          },
+        ]
+      : []),
     {
       title: t`Settings`,
       url: '/settings',
@@ -179,10 +180,14 @@ export async function AppSidebar() {
       userFallback={userFallback}
       userAvatar={userAvatar}
       onLogout={logout}
-      primaryAction={{
-        label: t`Nouvel Écrit`,
-        href: '/articles/new',
-      }}
+      primaryAction={
+        canWrite
+          ? {
+              label: t`Nouvel Écrit`,
+              href: '/articles/new',
+            }
+          : undefined
+      }
     />
   );
 }

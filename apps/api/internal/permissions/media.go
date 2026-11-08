@@ -49,10 +49,72 @@ var rolePermissions = map[string][]string{
 	"owner":  allMediaPermissions,
 	"editor": {PermManageCategories, PermManageNewsletter, PermPublishAny, PermEditAny, PermDeleteAny, PermReview, PermViewAnalytics, PermCreateArticles, PermEditOwn},
 	"writer": {PermCreateArticles, PermEditOwn},
-	"viewer": {PermViewAnalytics},
+	// Le rôle viewer est en lecture seule : les analytics (métriques financières
+	// et audience) sont réservés aux rôles de gestion (owner/editor). Un viewer
+	// peut recevoir la permission par override explicite.
+	"viewer": {},
 }
 
 var roleOrder = map[string]int{"owner": 4, "editor": 3, "writer": 2, "viewer": 1}
+
+// AllMediaPermissions retourne la liste complète des permissions média (copie
+// défensive : un appelant ne peut pas muter l'allowlist du package).
+func AllMediaPermissions() []string {
+	out := make([]string, len(allMediaPermissions))
+	copy(out, allMediaPermissions)
+	return out
+}
+
+// EffectivePermissions calcule les permissions réellement exercées par un
+// membre : permissions de base du rôle + overrides explicites ("perm" ajoute,
+// "-perm" retire). Un membre non actif n'a aucune permission.
+func EffectivePermissions(m *MediaMember) []string {
+	if m == nil || (m.Status != "" && m.Status != "active") {
+		return []string{}
+	}
+	out := make([]string, 0, len(allMediaPermissions))
+	seen := make(map[string]bool, len(allMediaPermissions))
+	add := func(p string) {
+		if !seen[p] {
+			seen[p] = true
+			out = append(out, p)
+		}
+	}
+	for _, p := range rolePermissions[m.Role] {
+		add(p)
+	}
+	for _, o := range m.Permissions {
+		if len(o) > 0 && o[0] == '-' {
+			delete(seen, o[1:])
+			continue
+		}
+		if len(o) > 0 && o != "" {
+			add(o)
+		}
+	}
+	// Conserve l'ordre déterministe de l'allowlist, puis les overrides inconnus.
+	ordered := make([]string, 0, len(out))
+	for _, p := range allMediaPermissions {
+		if seen[p] {
+			ordered = append(ordered, p)
+		}
+	}
+	for _, p := range out {
+		if !contains(ordered, p) {
+			ordered = append(ordered, p)
+		}
+	}
+	return ordered
+}
+
+func contains(list []string, value string) bool {
+	for _, item := range list {
+		if item == value {
+			return true
+		}
+	}
+	return false
+}
 
 // CanMedia vérifie si un membre d'un média possède une permission.
 func CanMedia(m *MediaMember, permission string) bool {

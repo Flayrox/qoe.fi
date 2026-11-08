@@ -324,6 +324,7 @@ export function GeneralTab({ current, setCurrent, consoleSettingsUrl }: GeneralT
           <div className="flex items-start gap-4">
             <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/50 bg-muted">
               {current.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- URL utilisateur distante arbitraire, non déclarable dans next.config.
                 <img src={current.logoUrl} alt="" className="size-full object-cover" />
               ) : (
                 <span className="text-lg font-semibold text-muted-foreground">

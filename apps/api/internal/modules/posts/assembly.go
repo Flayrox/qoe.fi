@@ -104,7 +104,7 @@ func AuthorOf(r *db.GetPostsByIDsRow, following map[string]bool) Author {
 		LogoURL:     pgtypeTextPtr(r.AuthorLogo),
 		IsCertified: r.AuthorCertified,
 		IsFollowing: following[r.AuthorID],
-		Type:        identity.Type(r.AuthorIsMedia),
+		Type:        identity.Personal,
 	}
 }
 
@@ -151,16 +151,33 @@ func buildFeedPost(r *db.GetPostsByIDsRow, all map[string]*db.GetPostsByIDsRow, 
 			fp.Repost = &rr
 		}
 	}
-	if qa, ok := quoted[r.ID]; ok {
-		fp.QuotedArticle = qa
-	}
-	if r.QuotedExcerpt.Valid && r.QuotedExcerpt.String != "" {
-		fp.QuotedExcerpt = textPtr(r.QuotedExcerpt)
-	}
-	if len(r.QuotedAnnotation) > 0 {
-		var citation QuotedAnnotation
-		if err := json.Unmarshal(r.QuotedAnnotation, &citation); err == nil && citation.Note != "" {
-			fp.QuotedAnnotation = &citation
+	if r.QuotedArticleId.Valid && r.QuotedArticleId.String != "" {
+		// L'extrait et le snapshot d'annotation ne sortent QUE si l'article
+		// cité a été résolu pour ce viewer. Sinon un article privé ou bloqué
+		// laisserait fuiter son passage par les colonnes dénormalisées.
+		if qa, ok := quoted[r.ID]; ok {
+			fp.QuotedArticle = qa
+			if r.QuotedExcerpt.Valid && r.QuotedExcerpt.String != "" {
+				fp.QuotedExcerpt = textPtr(r.QuotedExcerpt)
+			}
+			if len(r.QuotedAnnotation) > 0 {
+				var citation QuotedAnnotation
+				if err := json.Unmarshal(r.QuotedAnnotation, &citation); err == nil && citation.Note != "" {
+					fp.QuotedAnnotation = &citation
+				}
+			}
+		}
+	} else {
+		// Citation libre (sans article) : rien à filtrer, l'extrait est déjà
+		// le contenu public du post.
+		if r.QuotedExcerpt.Valid && r.QuotedExcerpt.String != "" {
+			fp.QuotedExcerpt = textPtr(r.QuotedExcerpt)
+		}
+		if len(r.QuotedAnnotation) > 0 {
+			var citation QuotedAnnotation
+			if err := json.Unmarshal(r.QuotedAnnotation, &citation); err == nil && citation.Note != "" {
+				fp.QuotedAnnotation = &citation
+			}
 		}
 	}
 	return fp

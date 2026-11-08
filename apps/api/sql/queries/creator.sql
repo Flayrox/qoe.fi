@@ -191,9 +191,7 @@ SELECT b.id                 AS bookmark_id,
        u.id::text           AS author_id,
        u.name               AS author_name,
        u.username           AS author_username,
-       u."logoUrl"          AS author_logo,
-       EXISTS (SELECT 1 FROM "MediaMember" mm
-               WHERE mm."userId" = u.id AND mm.status = 'active') AS author_is_media
+       u."logoUrl"          AS author_logo
 FROM "Bookmark" b
 JOIN "Article" a ON a.id = b."articleId" AND a.published = true
 JOIN "Publication" p ON p.id = a."publicationId"

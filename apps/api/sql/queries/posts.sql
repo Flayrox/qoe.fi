@@ -51,6 +51,15 @@ INSERT INTO "Post" (id, "content", "authorId", "updatedAt", tags, "imageUrl", vi
 VALUES (gen_random_uuid()::text, sqlc.arg('content'), sqlc.arg('authorId'), now(), sqlc.arg('tags'), sqlc.arg('imageUrl'), sqlc.arg('visibility'), sqlc.arg('contentVisibility'), sqlc.arg('isDraft'), sqlc.arg('scheduledAt'), sqlc.arg('triggerWarning'), NULLIF(sqlc.arg('parentId'), ''), NULLIF(sqlc.arg('rootId'), ''), NULLIF(sqlc.arg('repostId'), ''), NULLIF(sqlc.arg('quotedArticleId'), ''), NULLIF(sqlc.arg('quotedExcerpt'), ''), sqlc.arg('quotedAnnotation'), sqlc.arg('replyRestriction'), false, 0, 0, 0)
 RETURNING id, "content", "authorId", "createdAt", tags, "parentId", "rootId", "repostId", "isDraft", "visibility", "contentVisibility";
 
+-- name: GetBlockedUserIDs :many
+-- IDs des utilisateurs bloqués dans un sens ou l'autre avec le viewer, parmi
+-- une liste candidate. Sert à filtrer les snapshots dénormalisés (auteur
+-- d'une annotation citée) que le serveur ne peut pas filtrer par jointure.
+SELECT (CASE WHEN b."readerId" = sqlc.arg('viewerId') THEN b."creatorId" ELSE b."readerId" END)::text AS user_id
+FROM "BlockedUser" b
+WHERE (b."readerId" = sqlc.arg('viewerId') AND b."creatorId" = ANY(sqlc.arg('ids')::uuid[]))
+   OR (b."creatorId" = sqlc.arg('viewerId') AND b."readerId" = ANY(sqlc.arg('ids')::uuid[]));
+
 -- name: ListUserDrafts :many
 SELECT id, content, "imageUrl", visibility, "scheduledAt", "triggerWarning", tags, "updatedAt"
 FROM "Post"
@@ -167,8 +176,6 @@ SELECT u.id::text     AS user_id,
        u.username     AS user_username,
        u."logoUrl"    AS user_logo,
        u."isCertified" AS user_certified,
-       EXISTS (SELECT 1 FROM "MediaMember" mm
-               WHERE mm."userId" = u.id AND mm.status = 'active') AS user_is_media,
        l."createdAt"  AS liked_at
 FROM "Like" l
 JOIN "User" u ON u.id = l."userId"
@@ -184,8 +191,6 @@ SELECT u.id::text     AS user_id,
        u.username     AS user_username,
        u."logoUrl"    AS user_logo,
        u."isCertified" AS user_certified,
-       EXISTS (SELECT 1 FROM "MediaMember" mm
-               WHERE mm."userId" = u.id AND mm.status = 'active') AS user_is_media,
        r."createdAt"  AS reposted_at
 FROM "Post" r
 JOIN "User" u ON u.id = r."authorId"

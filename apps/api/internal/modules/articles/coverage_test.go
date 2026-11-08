@@ -168,7 +168,7 @@ func TestList_CommentsAndViewsBatch(t *testing.T) {
 		t.Fatalf("session: %v", err)
 	}
 
-	items, err := svc.List(ctx, fx.AuthorID, fx.PublicationID, 100, 0, "all")
+	items, err := svc.List(ctx, fx.AuthorID, fx.PublicationID, "", 100, 0, "all")
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}

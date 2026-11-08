@@ -10,6 +10,7 @@ jette N lignes ; les résultats sautent ou se dupliquent quand du contenu est
 publié entre deux pages.
 
 **Approche** :
+
 - curseur opaque = `base64(created_at|id)` (ou `score|id` pour le feed trié) ;
 - `WHERE (created_at, id) < ($1, $2) ORDER BY created_at DESC, id DESC LIMIT n` ;
 - index composites correspondants (`(publicationId, createdAt, id)`,
@@ -25,11 +26,13 @@ historique, recherche paginée.
 appelé à chaque publication.
 
 **Approche** : version de namespace.
+
 ```
 GET  ns:feed:version        -> 42
 SET  feed:v42:...           (TTL)
 INCR ns:feed:version        (invalidation O(1))
 ```
+
 Les anciennes clés expirent seules. Ajouter un `singleflight` par clé pour
 éviter que N requêtes reconstruisent le même cache froid.
 
@@ -43,6 +46,7 @@ pour compatibilité PgBouncer.
 Postgres sature bien avant le CPU.
 
 **Approche** :
+
 - budget documenté : `(max_connections - réserve) / nb_processus` ;
 - `DB_POOL_SIZE` par service (API vs worker) ;
 - PgBouncer en mode transaction devant l'API ;
@@ -54,6 +58,7 @@ Postgres sature bien avant le CPU.
 non structurés. Le middleware `Logger` existe mais écrit du texte.
 
 **Approche minimale** :
+
 1. `slog` JSON avec `request_id`, `route`, `status`, `duration_ms`, `user_id`
    (haché), `trace_id`.
 2. Middleware qui propage `X-Request-ID` (généré si absent) et le renvoie.

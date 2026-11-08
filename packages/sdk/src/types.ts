@@ -175,6 +175,9 @@ export interface FeedPost {
   repostCount: number;
   replyCount: number;
   parentId: string | null;
+  /** Le parent existe mais est masqué (compte bloqué, supprimé ou filtré). */
+  parentUnavailable?: boolean;
+  parentUnavailableReason?: 'blocked' | 'deleted' | 'unavailable' | string | null;
   rootId: string | null;
   repostId: string | null;
   replyRestriction: string;
@@ -207,6 +210,9 @@ export interface FeedSlice {
   targetPost: FeedPost;
   isIncompleteThread: boolean;
   hiddenIntermediateCount: number;
+  /** Réponse dont le parent est bloqué/supprimé : placeholder, jamais le contenu. */
+  parentUnavailable?: boolean;
+  parentUnavailableReason?: 'blocked' | 'deleted' | 'unavailable' | string;
 }
 
 /** Réponse paginée du feed (shape Go `FeedResult`). */
@@ -606,7 +612,6 @@ export interface ReaderProfileData {
   createdAt: string;
   followsCount: number;
   mutedWordsCount: number;
-  isMediaMember: boolean;
 }
 
 /** Corps de PATCH /v1/me/profile (tous champs optionnels). */
@@ -767,6 +772,8 @@ export interface AppNotification {
   createdAt: string;
   thoughtId: string | null;
   articleId: string | null;
+  /** Lien serveur prêt à suivre (avec ?ws=<mediaId> si la cible est un média). */
+  url?: string | null;
   thought: NotificationThoughtRef | null;
   article: NotificationArticleRef | null;
   senders: NotificationSender[];

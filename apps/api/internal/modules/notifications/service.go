@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/deeplink"
 	"github.com/qoefi/api/internal/identity"
 )
 
@@ -58,9 +59,12 @@ type Notification struct {
 	Article         *ArticleRef     `json:"article"`
 	Publication     *PublicationRef `json:"publication"`
 	Metadata        json.RawMessage `json:"metadata,omitempty"`
-	Senders         []Sender        `json:"senders"`
-	TotalCount      int             `json:"totalCount"`
-	createdAtTime   time.Time
+	// URL est le lien interne prêt à suivre, avec `?ws=<mediaId>` quand la
+	// cible appartient à un média. Le client ne reconstruit plus le chemin.
+	URL           string   `json:"url"`
+	Senders       []Sender `json:"senders"`
+	TotalCount    int      `json:"totalCount"`
+	createdAtTime time.Time
 }
 
 // Preferences est l'ensemble des toggles.
@@ -349,7 +353,7 @@ func notificationFromRow(r *db.GetNotificationsRow) Notification {
 			Username:    textPtr(r.SenderUsername),
 			LogoURL:     textPtr(r.SenderLogo),
 			IsCertified: r.SenderCertified,
-			Type:        identity.Type(r.SenderIsMedia),
+			Type:        identity.Personal,
 		}},
 		TotalCount: 1,
 	}
@@ -385,7 +389,35 @@ func notificationFromRow(r *db.GetNotificationsRow) Notification {
 	if len(r.Metadata) > 0 && string(r.Metadata) != "null" {
 		n.Metadata = json.RawMessage(r.Metadata)
 	}
+
+	target := deeplink.Target{
+		Type:            n.Type,
+		ThoughtID:       derefString(n.ThoughtID),
+		ArticleID:       derefString(n.ArticleID),
+		PublicationType: r.PublicationType,
+		MediaID:         r.MediaID,
+	}
+	if n.Article != nil {
+		target.ArticleSlug = n.Article.Slug
+	}
+	if n.Publication != nil {
+		target.PublicationID = n.Publication.ID
+		if n.Publication.Slug != nil {
+			target.PublicationSlug = *n.Publication.Slug
+		}
+	}
+	if len(n.Senders) > 0 && n.Senders[0].Username != nil {
+		target.SenderUsername = *n.Senders[0].Username
+	}
+	n.URL = deeplink.Notification(target)
 	return n
+}
+
+func derefString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
 
 func within48hFast(t1, t2 time.Time) bool {

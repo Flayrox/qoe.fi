@@ -19,6 +19,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/identity"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/modules/mediaassets"
 	"github.com/qoefi/api/internal/permissions"
@@ -636,6 +637,13 @@ func (h *Handler) userMe(w http.ResponseWriter, r *http.Request) {
 
 // userByUsername résout une publication par slug OU subdomain (parité Hono),
 // avec fallback sur User.username ou User.id pour les comptes personnels.
+// publicProfileIdentity dérive le type public du profil depuis SA publication.
+// Aucun `MediaMember` n'entre dans cette décision : le profil personnel d'un
+// membre de média reste PERSONAL, seul un profil de publication média est MEDIA.
+func publicProfileIdentity(publicationType db.PublicationType) string {
+	return identity.FromPublicationType(string(publicationType))
+}
+
 func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 	username := chi.URLParam(r, "username")
 
@@ -746,7 +754,7 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 		"canViewContent":    access.CanViewContent,
 		"pronouns":          pronouns,
 		"createdAt":         timestampPtr(row.CreatedAt),
-		"type":              string(row.Type),
+		"type":              publicProfileIdentity(row.Type),
 		"_count":            map[string]int32{"followers": row.FollowersCount, "following": followingCount, "articles": row.ArticlesCount},
 	}})
 }

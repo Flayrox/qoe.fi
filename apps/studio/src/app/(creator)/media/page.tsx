@@ -7,10 +7,10 @@
 // Go en primaire (GET /v1/media) — fallback Prisma dev.
 // =====================================================================
 
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { getActiveWorkspace } from '@/lib/active-workspace';
 import { MediaStudioClient } from './MediaStudioClient';
 
 interface MediaListItem {
@@ -35,30 +35,13 @@ export default async function MediaPage() {
     redirect('/login');
   }
 
-  // Workspace actif (cookie) — utilisé pour présélectionner le Média ouvert.
-  const cookieStore = await cookies();
-  const activeRaw = cookieStore.get('qoe_active_workspace')?.value ?? null;
-  let activeWorkspace: { type: string; id: string } | null = null;
-  try {
-    activeWorkspace = activeRaw ? JSON.parse(decodeURIComponent(activeRaw)) : null;
-  } catch {
-    activeWorkspace = null;
-  }
+  // Résolveur unique et mis en cache par requête : même source que la
+  // sidebar et les autres pages (cookie média → contexte Go validé).
+  const workspace = await getActiveWorkspace(user.id);
+  const activeMediaId = workspace.type === 'MEDIA' ? (workspace.mediaId ?? null) : null;
 
   // Go : liste des médias de l'utilisateur.
   const res = await goFetch<{ medias: MediaListItem[] }>('/v1/media');
   const medias = res.medias ?? [];
-  const activeMediaId = resolveActiveMediaId(medias, activeWorkspace);
   return <MediaStudioClient medias={medias} activeMediaId={activeMediaId} />;
-}
-
-function resolveActiveMediaId(
-  medias: MediaListItem[],
-  activeWorkspace: { type: string; id: string } | null
-): string | null {
-  if (activeWorkspace?.type === 'MEDIA') {
-    const match = medias.find((m) => m.id === activeWorkspace.id);
-    if (match) return match.id;
-  }
-  return medias[0]?.id ?? null;
 }

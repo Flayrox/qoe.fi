@@ -2,6 +2,7 @@ package highlights
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"testing"
@@ -26,6 +27,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(code)
 }
+
 // requirePool skippe les tests DB quand Docker/testcontainers est absent.
 func requirePool(t *testing.T) {
 	t.Helper()
@@ -33,7 +35,6 @@ func requirePool(t *testing.T) {
 		t.Skip("DB indisponible (Docker/testcontainers requis)")
 	}
 }
-
 
 func newTestService() *Service {
 	return NewService(poolTest)
@@ -113,6 +114,91 @@ func TestCreatePrivateHighlight_VisibleOnlyToOwner(t *testing.T) {
 	}
 }
 
+// TestListByArticle_PrivateArticleHidesAnnotations : les annotations d'un
+// article porté par un compte privé ne sortent pas pour un non-abonné.
+func TestListByArticle_PrivateArticleHidesAnnotations(t *testing.T) {
+	requirePool(t)
+	fx, err := testutil.SeedPosts(context.Background(), poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	svc := newTestService()
+	ctx := context.Background()
+
+	if _, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, "Passage public", nil, true, 0); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx, `
+		INSERT INTO "UserSettings" (id, "userId", "profileVisibility", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, 'PRIVATE', now())
+		ON CONFLICT ("userId") DO UPDATE SET "profileVisibility" = 'PRIVATE'`, fx.AuthorID); err != nil {
+		t.Fatalf("private settings: %v", err)
+	}
+
+	items, err := svc.ListByArticle(ctx, fx.ArticleID, fx.ViewerID)
+	if err != nil {
+		t.Fatalf("ListByArticle(viewer): %v", err)
+	}
+	if len(items) != 0 {
+		t.Fatalf("items = %d, attendu 0 (article privé)", len(items))
+	}
+
+	items, err = svc.ListByArticle(ctx, fx.ArticleID, fx.AuthorID)
+	if err != nil {
+		t.Fatalf("ListByArticle(owner): %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("items(owner) = %d, attendu 1", len(items))
+	}
+}
+
+// TestHighlights_BlockedReaderHidden : le blocage symétrique masque les
+// surlignages et les commentaires d'annotation de l'autre compte.
+func TestHighlights_BlockedReaderHidden(t *testing.T) {
+	requirePool(t)
+	fx, err := testutil.SeedPosts(context.Background(), poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	svc := newTestService()
+	ctx := context.Background()
+
+	h, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, "Passage à commenter", nil, true, 0)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if _, err := svc.CreateComment(ctx, h.ID, fx.AuthorID, "commentaire d'Alice"); err != nil {
+		t.Fatalf("CreateComment: %v", err)
+	}
+
+	// Bob bloque Alice.
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "BlockedUser" (id, "creatorId", "readerId") VALUES ('block_highlights', $1, $2)`,
+		fx.AuthorID, fx.ViewerID); err != nil {
+		t.Fatalf("block: %v", err)
+	}
+
+	items, err := svc.ListByArticle(ctx, fx.ArticleID, fx.ViewerID)
+	if err != nil {
+		t.Fatalf("ListByArticle(blocked): %v", err)
+	}
+	if len(items) != 0 {
+		t.Fatalf("items = %d, attendu 0 (compte bloqué)", len(items))
+	}
+	if _, err := svc.ListComments(ctx, h.ID, fx.ViewerID); !errors.Is(err, errHighlightNotFound) {
+		t.Fatalf("ListComments(blocked) = %v, attendu errHighlightNotFound", err)
+	}
+
+	// Alice voit toujours son propre surlignage et son commentaire.
+	comments, err := svc.ListComments(ctx, h.ID, fx.AuthorID)
+	if err != nil {
+		t.Fatalf("ListComments(owner): %v", err)
+	}
+	if len(comments) != 1 {
+		t.Fatalf("comments(owner) = %d, attendu 1", len(comments))
+	}
+}
+
 // ─── Upvote ────────────────────────────────────────────────────────────
 
 func TestToggleUpvote_AddThenRemove(t *testing.T) {
@@ -175,7 +261,7 @@ func TestCreateAndListAnnotationComments(t *testing.T) {
 		t.Fatalf("author.id = %q", c.Author.ID)
 	}
 
-	comments, err := svc.ListComments(ctx, h.ID)
+	comments, err := svc.ListComments(ctx, h.ID, fx.ViewerID)
 	if err != nil {
 		t.Fatalf("ListComments: %v", err)
 	}
@@ -288,7 +374,7 @@ func TestCreateAndDeleteComment(t *testing.T) {
 		t.Fatalf("CreateComment 2: %v", err)
 	}
 
-	comments, err := svc.ListComments(ctx, h.ID)
+	comments, err := svc.ListComments(ctx, h.ID, fx.ViewerID)
 	if err != nil {
 		t.Fatalf("ListComments: %v", err)
 	}
@@ -306,7 +392,7 @@ func TestCreateAndDeleteComment(t *testing.T) {
 		t.Fatalf("delete par auteur = %v/%v, attendu true/nil", deleted, err)
 	}
 
-	comments, _ = svc.ListComments(ctx, h.ID)
+	comments, _ = svc.ListComments(ctx, h.ID, fx.ViewerID)
 	if len(comments) != 1 {
 		t.Fatalf("comments restants = %d, attendu 1", len(comments))
 	}

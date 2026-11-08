@@ -17,9 +17,6 @@ export interface MeProfile {
   createdAt: string;
   followsCount: number;
   mutedWordsCount: number;
-  /** Membre actif d'un média : son identité publique est un compte média
-   *  (avatar carré à coins arrondis), pas une personne physique. */
-  isMediaMember?: boolean;
 }
 
 export const getRequestDbUser = cache(async (id: string) => {
@@ -38,7 +35,9 @@ export const getRequestDbUser = cache(async (id: string) => {
     walletBalanceCents: profile.walletBalanceCents,
     onboardingText: profile.onboardingText,
     hasCompletedOnboarding: profile.hasCompletedOnboarding,
-    type: profile.isMediaMember ? ('MEDIA' as const) : ('PERSONAL' as const),
+    // Un compte /v1/me est une personne : l'appartenance à un média est du
+    // RBAC de workspace, jamais une identité publique.
+    type: 'PERSONAL' as const,
   };
 });
 

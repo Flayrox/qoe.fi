@@ -7,6 +7,7 @@ import tseslint from 'typescript-eslint';
 // Packages are plain TypeScript and must not load the Next config (it emits
 // a "Pages directory cannot be found" warning outside of a Next app).
 const nextApps = ['apps/admin', 'apps/studio', 'apps/core', 'apps/hi', 'apps/tenants'];
+const nextPlugin = nextVitals.find((cfg) => cfg.plugins?.['@next/next'])?.plugins['@next/next'];
 
 // Scope a Next config object to the Next app directories, keeping its
 // original `files` semantics intact. Configs that only carry `ignores`
@@ -67,6 +68,17 @@ const eslintConfig = defineConfig([
     ],
     rules: tseslint.configs.recommended[2].rules,
     name: tseslint.configs.recommended[2].name,
+  },
+
+  // ---- SDK: garder le garde-fou no-img actif ----
+  // Les paquets n'embarquent volontairement pas le config Next complète, mais
+  // la règle no-img-element reste pertinente pour le code TS/TSX du SDK.
+  {
+    files: ['packages/sdk/**/*.{ts,tsx}'],
+    plugins: { '@next/next': nextPlugin },
+    rules: {
+      '@next/next/no-img-element': 'warn',
+    },
   },
 
   // ---- Custom rule (all TS files) ----

@@ -7,6 +7,10 @@
 # - Auth : clé API `qoe_live_*` (médias/créateurs, délivrée après revue) ;
 #          OAuth 2.0 (apps tierces — à construire) ; JWT Supabase (app mobile).
 # - Formats de contenu : markdown ET html (WordPress vs Ghost/Payload).
+# - Multi-médias : une clé API est liée à UNE publication (PublicationID injecté
+#   par CombinedAuth). Un compte qui gère N médias utilise N clés — l'API n'a
+#   jamais de « workspace actif » implicite. Le cookie de workspace ne concerne
+#   que le Studio (voir ARCH-06).
 # - Idempotency-Key : obligatoire sur POST/PATCH pour des réessais sûrs.
 # - Les endpoints webhooks (sortants) sont la cible plateforme — marqués ⚠️.
 #

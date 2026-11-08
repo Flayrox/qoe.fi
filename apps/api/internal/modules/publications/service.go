@@ -501,6 +501,7 @@ func (s *Service) publishedArticles(ctx context.Context, pubID string) ([]Articl
 		       (SELECT count(*) FROM "ArticleComment" ac WHERE ac."articleId" = a.id) AS comments,
 		       (SELECT count(*) FROM "Post" p WHERE p."quotedArticleId" = a.id) AS reposts
 		FROM "Article" a
+		LEFT JOIN "Publication" ap ON ap.id = a."publicationId"
 		LEFT JOIN "Category" c ON c.id = a."categoryId"
 		LEFT JOIN "Category" cp ON cp.id = c."parentId"
 		WHERE a."publicationId" = $1 AND a.published = true
@@ -562,8 +563,8 @@ func scanArticleDetail(row pgx.Row) (*ArticleDetail, error) {
 	var a ArticleDetail
 	var catID, catName, catSlug, catParentSlug *string
 	var catIsDefault bool
-	var authorName, authorUsername, authorLogo *string
-	var authorIsMedia bool
+	var authorName, authorUsername, authorLogo, publicationLogo *string
+	var publicationType string
 	var imageURL, seoTitle, seoDescription *string
 	var createdAt time.Time
 	err := row.Scan(&a.ID, &a.Title, &a.Slug, &a.Content, &a.Published, &a.Status,
@@ -571,7 +572,7 @@ func scanArticleDetail(row pgx.Row) (*ArticleDetail, error) {
 		&a.AllowComments, &a.AllowDownload, &seoTitle, &seoDescription,
 		&createdAt, &a.AuthorID, &imageURL,
 		&catID, &catName, &catSlug, &catIsDefault, &catParentSlug,
-		&authorName, &authorUsername, &authorLogo, &authorIsMedia)
+		&authorName, &authorUsername, &authorLogo, &publicationType, &publicationLogo)
 	if err != nil {
 		return nil, err
 	}
@@ -585,9 +586,16 @@ func scanArticleDetail(row pgx.Row) (*ArticleDetail, error) {
 			ParentSlug: catParentSlug, IsDefault: catIsDefault,
 		}
 	}
+	pubType := identity.FromPublicationType(publicationType)
+	authorLogoOut := authorLogo
+	// Le byline d'un article média porte le logo du média ; un article
+	// personnel conserve le logo personnel de l'auteur.
+	if pubType == identity.Media && publicationLogo != nil {
+		authorLogoOut = publicationLogo
+	}
 	a.Author = &AuthorInfo{
-		ID: a.AuthorID, Name: authorName, Username: authorUsername, LogoURL: authorLogo,
-		Type: identity.Type(authorIsMedia),
+		ID: a.AuthorID, Name: authorName, Username: authorUsername, LogoURL: authorLogoOut,
+		Type: pubType,
 	}
 	return &a, nil
 }
@@ -599,9 +607,9 @@ const articleSelect = `
 	       a."seoTitle", a."seoDescription", a."createdAt", a."authorId", a."imageUrl",
 	       c.id, c.name, c.slug, COALESCE(c."isDefault", false), cp.slug,
 	       au.name, au.username, au."logoUrl",
-	       EXISTS (SELECT 1 FROM "MediaMember" mm
-	               WHERE mm."userId" = au.id AND mm.status = 'active')
+	       p.type, p."logoUrl"
 		FROM "Article" a
+		JOIN "Publication" p ON p.id = a."publicationId"
 		LEFT JOIN "Category" c ON c.id = a."categoryId"
 		LEFT JOIN "Category" cp ON cp.id = c."parentId"
 		LEFT JOIN "User" au ON au.id = a."authorId"`

@@ -12,7 +12,10 @@ import (
 
 // CanReplyResult reflète le contrôle Threadgate (miroir de threadgates.ts).
 type CanReplyResult struct {
-	CanReply    bool
+	CanReply bool
+	// Blocked distingue un refus de blocage (403) d'une restriction de
+	// threadgate classique (400).
+	Blocked     bool
 	Reason      string
 	Restriction string
 }
@@ -30,6 +33,14 @@ func (s *Service) CanReply(ctx context.Context, thoughtID, userID string) (CanRe
 	restriction := gate.ReplyRestriction
 	if restriction == "" {
 		restriction = "everyone"
+	}
+	// Blocage symétrique : aucune réponse ne part vers un compte bloqué.
+	blocked, err := isBlockedBetween(ctx, s.q, userID, gate.AuthorID)
+	if err != nil {
+		return CanReplyResult{}, err
+	}
+	if blocked {
+		return CanReplyResult{Blocked: true, Reason: "Ce contenu n'est pas disponible.", Restriction: restriction}, nil
 	}
 	if userID == gate.AuthorID {
 		return CanReplyResult{CanReply: true, Restriction: restriction}, nil
@@ -119,6 +130,15 @@ func (s *Service) replyNotifications(ctx context.Context, tq db.Querier, replyID
 
 // createReplyNotification insère REPLY/MENTION (dédup + préférences).
 func createReplyNotification(ctx context.Context, tq db.Querier, kind, recipientID, senderID, thoughtID string) error {
+	// Un blocage coupe aussi les notifications : aucun rappel du contenu.
+	blocked, err := isBlockedBetween(ctx, tq, senderID, recipientID)
+	if err != nil {
+		return err
+	}
+	if blocked {
+		return nil
+	}
+
 	recipientUUID := toUUID(recipientID)
 	senderUUID := toUUID(senderID)
 

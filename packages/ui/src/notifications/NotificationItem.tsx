@@ -44,6 +44,8 @@ export type GroupedNotificationLike = {
   articleId?: string | null;
   commentId?: string | null;
   metadata?: Record<string, unknown> | null;
+  /** Lien serveur prêt à suivre (avec ?ws=<mediaId> si la cible est un média). */
+  url?: string | null;
   thought?: { id: string; content: string; createdAt: string | Date } | null;
   article?: { id: string; title: string; slug: string } | null;
   publication?: { id: string; name: string | null; slug?: string | null } | null;
@@ -342,7 +344,8 @@ export function NotificationItem({
   }
 
   const targetLink =
-    type === 'MEDIA_ARTICLE_REJECTED'
+    notification.url ||
+    (type === 'MEDIA_ARTICLE_REJECTED'
       ? notification.articleId
         ? `/articles/${notification.articleId}`
         : '/articles'
@@ -362,7 +365,7 @@ export function NotificationItem({
                   ? `/m/${notification.publication.id}`
                   : firstSender?.username
                     ? `/@${firstSender.username}`
-                    : '#';
+                    : '#');
 
   return (
     <Link

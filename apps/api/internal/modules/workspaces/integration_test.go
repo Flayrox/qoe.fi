@@ -26,6 +26,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(code)
 }
+
 // requirePool skippe les tests DB quand Docker/testcontainers est absent.
 func requirePool(t *testing.T) {
 	t.Helper()
@@ -33,7 +34,6 @@ func requirePool(t *testing.T) {
 		t.Skip("DB indisponible (Docker/testcontainers requis)")
 	}
 }
-
 
 func TestGetActive_MediaMember(t *testing.T) {
 	requirePool(t)
@@ -91,13 +91,14 @@ func TestGetActive_PersonalFallbackWithoutPublication(t *testing.T) {
 	svc := NewService(poolTest)
 
 	// Les users seedés n'ont pas de publication personnelle : le service
-	// renvoie un workspace fictif adossé au userId.
+	// renvoie un workspace PERSONAL sans identifiant de publication (jamais
+	// publicationId = userId). La publication est créée via /v1/me/publication.
 	ws, err := svc.GetActive(context.Background(), mfx.ViewerID, "")
 	if err != nil {
 		t.Fatalf("GetActive: %v", err)
 	}
-	if ws.Type != "PERSONAL" || ws.PublicationID != mfx.ViewerID {
-		t.Fatalf("fallback = %+v, attendu PERSONAL/userId", ws)
+	if ws.Type != "PERSONAL" || ws.PublicationID != "" {
+		t.Fatalf("fallback = %+v, attendu PERSONAL sans publication", ws)
 	}
 	if ws.Slug != "personal" || ws.Name != "Profil Personnel" {
 		t.Fatalf("nom/slug fallback = %q/%q", ws.Name, ws.Slug)
@@ -133,5 +134,65 @@ func TestGetActive_RealPersonalPublication(t *testing.T) {
 	}
 	if ws.Slug == "" || ws.Name == "" {
 		t.Fatalf("nom/slug vides : %+v", ws)
+	}
+}
+
+// Un invité qui n'a pas encore accepté ne peut pas activer le workspace média :
+// Go retombe sur le workspace personnel, jamais sur le média.
+func TestGetActive_InvitedMemberFallsBackToPersonal(t *testing.T) {
+	requirePool(t)
+	if _, err := testutil.SeedMedia(context.Background(), poolTest); err != nil {
+		t.Fatalf("seed media: %v", err)
+	}
+	ctx := context.Background()
+
+	const invitedID = "00000000-0000-0000-0000-000000000024"
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
+		 VALUES ($1, 'invited@media.test', 'minvited', 'Invité', 'user', now(), now())`, invitedID); err != nil {
+		t.Fatalf("invited user: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "MediaMember" (id, "mediaId", "userId", role, status, "createdAt", "updatedAt")
+		 VALUES (gen_random_uuid()::text, 'media_001', $1, 'editor', 'invited', now(), now())`, invitedID); err != nil {
+		t.Fatalf("invited membership: %v", err)
+	}
+
+	svc := NewService(poolTest)
+	ws, err := svc.GetActive(ctx, invitedID, "media_001")
+	if err != nil {
+		t.Fatalf("GetActive: %v", err)
+	}
+	if ws.Type != "PERSONAL" {
+		t.Fatalf("type = %s, attendu PERSONAL (invitation non acceptée)", ws.Type)
+	}
+	if ws.MediaID != nil || ws.MediaRole != nil {
+		t.Fatalf("workspace invité expose des champs média : %+v", ws)
+	}
+}
+
+// Un propriétaire actif reçoit les permissions effectives (base du rôle).
+func TestGetActive_MediaExposesEffectivePermissions(t *testing.T) {
+	requirePool(t)
+	mfx, err := testutil.SeedMedia(context.Background(), poolTest)
+	if err != nil {
+		t.Fatalf("seed media: %v", err)
+	}
+	svc := NewService(poolTest)
+	ws, err := svc.GetActive(context.Background(), mfx.OwnerID, "media_001")
+	if err != nil {
+		t.Fatalf("GetActive: %v", err)
+	}
+	if len(ws.Permissions) == 0 {
+		t.Fatal("permissions effectives vides pour un owner")
+	}
+	found := false
+	for _, p := range ws.Permissions {
+		if p == "media:manage_members" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("media:manage_members absent : %v", ws.Permissions)
 	}
 }

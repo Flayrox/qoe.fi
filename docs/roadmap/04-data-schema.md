@@ -9,6 +9,7 @@ maintenu à la main **en parallèle** des 74 migrations goose.
 `schema.sql` voit un schéma faux.
 
 **Approche** :
+
 - générer `schema.sql` depuis une base migrée (`pg_dump --schema-only`) en CI ;
 - échouer si le fichier généré diffère du fichier commité ;
 - ou supprimer `schema.sql` et documenter que les migrations sont la seule
@@ -42,6 +43,7 @@ migration est bien plus simple à froid.
 
 Activer `pg_stat_statements`, collecter les 20 requêtes les plus coûteuses, et
 faire un `EXPLAIN (ANALYZE, BUFFERS)` de référence sur :
+
 - feed public et personnalisé (`personalized.go` fait plusieurs requêtes ANN +
   rerank en Go) ;
 - home widgets ;

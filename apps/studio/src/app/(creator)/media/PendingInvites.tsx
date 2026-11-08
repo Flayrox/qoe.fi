@@ -9,7 +9,9 @@
 // =====================================================================
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { t } from '@lingui/core/macro';
+import { serializeWorkspaceCookie, WORKSPACE_COOKIE } from '@qoe/sdk/workspace';
 import { toast } from '@qoe/ui/toast';
 import { Button } from '@qoe/ui/button';
 import { Loader2, MailOpen } from 'lucide-react';
@@ -21,6 +23,7 @@ import {
 import { attemptWithStepUp } from '@/lib/authz-feedback';
 
 export function PendingInvites() {
+  const router = useRouter();
   const [invites, setInvites] = useState<PendingMediaInvite[] | null>(null);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
 
@@ -46,6 +49,12 @@ export function PendingInvites() {
       if (res.success) {
         toast.success(t`Invitation acceptée.`);
         setInvites((prev) => (prev ?? []).filter((i) => i.mediaId !== mediaId));
+        // Bascule sur le média qu'on vient de rejoindre, sans changer de compte.
+        document.cookie = `${WORKSPACE_COOKIE}=${serializeWorkspaceCookie({
+          type: 'MEDIA',
+          id: mediaId,
+        })}; path=/; max-age=2592000; samesite=lax`;
+        router.refresh();
       }
     } finally {
       setAcceptingId(null);
