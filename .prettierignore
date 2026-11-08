@@ -27,3 +27,23 @@ pnpm-lock.yaml
 
 # Git
 .git
+
+# --- Vendored / generated (non-source, non-formatable sans risque) ---
+# Code tiers Onlook copié tel quel dans le Studio : ne pas reformater, il est
+# mis à jour en bloc depuis l'amont et ses styles ne suivent pas notre Prettier.
+apps/studio/src/features/stage/vendor/
+
+# Projets natifs générés par `expo prebuild` (déjà gitignorés côté mobile) :
+# ce ne sont pas des sources, ils sont régénérés depuis app.json.
+apps/mobile/android/
+apps/mobile/ios/
+apps/mobile/.expo/
+# Types d'environnement écrits automatiquement par Expo.
+apps/mobile/expo-env.d.ts
+
+# Templates HTML GoTrue : ce sont des templates Go ({{ .URL }}), pas du HTML
+# autonome ; Prettier les réécrirait en cassant/espacant les actions Go.
+docker/gotrue-templates/
+
+# Artefacts importés (conversation exportée), pas du code du dépôt.
+.cloud-attachments/

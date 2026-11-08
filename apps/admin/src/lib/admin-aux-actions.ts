@@ -493,13 +493,16 @@ export async function retryNotificationDeliveryAction(deliveryId: string) {
 export async function retryAllFailedDeliveriesAction(reason?: string, channel?: string) {
   await assertCapability('admin.deliveries.retry');
   try {
-    const data = await goFetch<{ success: boolean; retriedCount: number }>('/v1/admin/outbox/retry-all', {
-      method: 'POST',
-      body: {
-        reason: reason?.trim() || 'Relance manuelle globale',
-        channel: channel?.trim() || undefined,
-      },
-    });
+    const data = await goFetch<{ success: boolean; retriedCount: number }>(
+      '/v1/admin/outbox/retry-all',
+      {
+        method: 'POST',
+        body: {
+          reason: reason?.trim() || 'Relance manuelle globale',
+          channel: channel?.trim() || undefined,
+        },
+      }
+    );
     revalidatePath('/admin/notifications');
     return { success: true as const, retriedCount: data.retriedCount ?? 0 };
   } catch (error: unknown) {
@@ -516,12 +519,15 @@ export async function retryAllFailedDeliveriesAction(reason?: string, channel?: 
 export async function unlockStuckDeliveriesAction(reason?: string) {
   await assertCapability('admin.deliveries.retry');
   try {
-    const data = await goFetch<{ success: boolean; unlockedCount: number }>('/v1/admin/outbox/unlock-stuck', {
-      method: 'POST',
-      body: {
-        reason: reason?.trim() || 'Déblocage des messages fantômes',
-      },
-    });
+    const data = await goFetch<{ success: boolean; unlockedCount: number }>(
+      '/v1/admin/outbox/unlock-stuck',
+      {
+        method: 'POST',
+        body: {
+          reason: reason?.trim() || 'Déblocage des messages fantômes',
+        },
+      }
+    );
     revalidatePath('/admin/notifications');
     return { success: true as const, unlockedCount: data.unlockedCount ?? 0 };
   } catch (error: unknown) {
@@ -541,13 +547,16 @@ export async function batchRetryDeliveriesAction(ids: string[], reason?: string)
     return { success: false as const, error: 'Aucune livraison sélectionnée.' };
   }
   try {
-    const data = await goFetch<{ success: boolean; retriedCount: number }>('/v1/admin/outbox/batch-retry', {
-      method: 'POST',
-      body: {
-        ids,
-        reason: reason?.trim() || 'Relance par lot d’éléments sélectionnés',
-      },
-    });
+    const data = await goFetch<{ success: boolean; retriedCount: number }>(
+      '/v1/admin/outbox/batch-retry',
+      {
+        method: 'POST',
+        body: {
+          ids,
+          reason: reason?.trim() || 'Relance par lot d’éléments sélectionnés',
+        },
+      }
+    );
     revalidatePath('/admin/notifications');
     return { success: true as const, retriedCount: data.retriedCount ?? 0 };
   } catch (error: unknown) {

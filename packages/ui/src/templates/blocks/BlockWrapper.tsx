@@ -9,7 +9,19 @@ import { ArrowUp, ArrowDown, Trash2, EyeOff, GripVertical } from 'lucide-react';
 import type { BlockStyleProps, TemplateRenderContext } from '../schema';
 import { resolveBlockStyle } from '../style';
 
-interface BlockWrapperProps {
+export interface BlockStyleBox {
+  pt?: number;
+  pb?: number;
+  maxWidth?: number;
+  opacity?: number;
+}
+
+export interface BlockStyleHolder {
+  styleBox?: BlockStyleBox;
+  style?: BlockStyleProps;
+}
+
+export interface BlockWrapperProps<TProps extends object = object> {
   id: string;
   type: string;
   label: string;
@@ -17,12 +29,25 @@ interface BlockWrapperProps {
   locked?: boolean;
   context: TemplateRenderContext;
   children: React.ReactNode;
-  styleBox?: { pt?: number; pb?: number; maxWidth?: number; opacity?: number };
+  styleBox?: BlockStyleBox;
   blockStyle?: BlockStyleProps;
+  blockProps?: TProps;
   hiddenAt?: ('mobile' | 'tablet')[];
 }
 
-export function BlockWrapper({
+export function extractBlockStyles(props?: object): {
+  styleBox?: BlockStyleBox;
+  blockStyle?: BlockStyleProps;
+} {
+  if (!props || typeof props !== 'object') return {};
+  const holder = props as BlockStyleHolder;
+  return {
+    styleBox: holder.styleBox,
+    blockStyle: holder.style,
+  };
+}
+
+export function BlockWrapper<TProps extends object = object>({
   id,
   type,
   label,
@@ -30,10 +55,14 @@ export function BlockWrapper({
   locked,
   context,
   children,
-  styleBox,
-  blockStyle,
+  styleBox: directStyleBox,
+  blockStyle: directBlockStyle,
+  blockProps,
   hiddenAt,
-}: BlockWrapperProps) {
+}: BlockWrapperProps<TProps>) {
+  const extracted = extractBlockStyles(blockProps);
+  const styleBox = directStyleBox ?? extracted.styleBox;
+  const blockStyle = directBlockStyle ?? extracted.blockStyle;
   const { mode, selectedBlockId, onSelectBlock, onMoveBlock, onDeleteBlock } = context;
 
   // Personnalisation par appareil : classes Tailwind pures, zéro JS.

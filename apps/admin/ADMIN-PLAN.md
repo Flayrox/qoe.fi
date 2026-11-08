@@ -26,23 +26,23 @@ Contraintes non négociables :
 - **Aucune écriture métier directe depuis Next.js/Supabase** hors session/auth.
   Toute mutation passe par une route Go avec capacité.
 - L'audit des mutations doit être **toujours écrit** (le flag ne sert qu'au mode
-  verbeux) — *pas encore fait, voir lot C*.
+  verbeux) — _pas encore fait, voir lot C_.
 - Pas de police à chasse fixe, pas d'emoji d'interface, pas de toast de succès :
   statut inline (`Audité · à 16:04:22`).
 - Un seul accent `#EE4B2B`, réservé aux actions, jamais aux titres.
 
 ## 2. Densité de référence
 
-| Élément | Valeur | Où |
-|---|---|---|
-| Sidebar | 208 px | `DENSITY.sidebar` |
-| Item de nav | 28 px | `DENSITY.navItem` |
-| Header | 40 px | `DENSITY.header` |
-| Corps | 12,5 px | `DENSITY.body` |
-| Ligne de tableau | 26 px (`@qoe/ui/table` `size="xs"`) | `DataGrid` |
-| En-tête de tableau | 24 px | `DataGrid` |
-| Gouttière contenu | 16 px / 12 px | `(admin)/admin/layout.tsx` |
-| Panneau de détail | 480 px | à faire (lot B) |
+| Élément            | Valeur                              | Où                         |
+| ------------------ | ----------------------------------- | -------------------------- |
+| Sidebar            | 208 px                              | `DENSITY.sidebar`          |
+| Item de nav        | 28 px                               | `DENSITY.navItem`          |
+| Header             | 40 px                               | `DENSITY.header`           |
+| Corps              | 12,5 px                             | `DENSITY.body`             |
+| Ligne de tableau   | 26 px (`@qoe/ui/table` `size="xs"`) | `DataGrid`                 |
+| En-tête de tableau | 24 px                               | `DataGrid`                 |
+| Gouttière contenu  | 16 px / 12 px                       | `(admin)/admin/layout.tsx` |
+| Panneau de détail  | 480 px                              | à faire (lot B)            |
 
 Les métriques qui ne méritent pas de place (ms, octets, compteurs) vont en
 **chips de 20 px** dans la barre de titre, jamais en cartes.
@@ -56,34 +56,34 @@ commentaires 0 · `font-mono` 0 · `rounded-2xl|3xl` 0 · « Administration Cons
 
 Commits du chantier :
 
-| Commit | Contenu |
-|---|---|
+| Commit     | Contenu                                                                                                                                                                                         |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `da0a1907` | Coquille dense : tokens, sidebar 232→, header 44 px, palette ⌘K (écrans + dossiers + actions), dashboard 5 tuiles + tableau SLA, `/admin/system`, retrait déco (emoji, framer-motion, arrondis) |
-| `62ae98e6` | `DataGrid` (tri déclaré) + `RowActions` (clic droit) + fin du mono + zéro `<select>`/`<table>` natif + `ui:audit` vert |
-| `c468c924` | Facettes du triage (file, priorité, SLA) + vues nommées |
-| `971c11d5` | `useGridView` : tri + facettes + colonnes + densité dans l'URL, vues nommées en `localStorage`, barre de facettes (`GridViewToolbar`) branchée sur les comptes et la vue d'ensemble |
-| `6c6ac8b9` | `/admin/settings` : catalogue de ~35 leviers typés (`lib/admin-settings-catalog.ts`), capacité `admin.config.read`, entrée de nav |
-| `fd051fa9` | : sélection multiple + barre d'actions groupées (« M'assigner » auditée) + clavier `j/k/x/Entrée/Échap` + panneau de détail 480 px (`Drawer`) |
-| `be874ead` | Édition inline générique (B8) : `InlineChoice`, `InlineText`, `InlineDate`, `InlineToggle`, tests Vitest jsdom, intégration triage |
-| `c5986a92` | Signalements (`/admin/reports`) : migration `DataGrid` 26 px, Drawer 480 px, facettes URL, MetricChips, zéro bouton natif |
-| `d5b491e8` | Recours (`/admin/appeals`) : migration `DataGrid`, Drawer contradictoire, confirmation/levée, facettes, MetricChips |
-| `ea73341f` | Anti-abus (`/admin/abuse`) : migration `DataGrid`, Drawer 480 px, classement/escalade tracée, MetricChips |
-| `6623af7f` | Support (`/admin/support`) : migration `DataGrid`, Drawer fil d'assistance, prise en main, clôture, MetricChips télémétrie |
-| `3a4f7a2a` | Doubles validations (`/admin/approvals`) : migration `DataGrid`, Drawer décision nominative, garde auteur, MetricChips |
-| `eb914ed7` | Outbox (`/admin/notifications`) : migration `DataGrid`, Drawer diagnostic, relance unitaire, MetricChips, retrait cartes |
-| `01b8a01b` | Registre unifié des ressources d'exploitation (`lib/admin-resources.ts`) (C1) : 8 ressources, capacités, facettes, 3 tests Vitest |
-| `f7609cba` | Simulateur de droits et matrice dense des rôles (`/admin/access/roles`) (C3) : simulateur "Qui peut X ?", filtres de domaine, MetricChips |
-| `a93815b6` | Verrouillage parité Go ↔ TS des campagnes staff (C7) : test direct sur `staff_campaigns.go` (types et audiences) |
-| `45047022` | Explorateur interactif des réglages (`/admin/settings`) (C2) : DataGrid 26 px, Drawer 480 px, facettes mes droits/catégorie/portée |
-| `0d6b8df2` | Routes Go manquantes (C6) : flags (`admin.flags.write`) et annonce globale (`admin.campaigns.write` + N2, fin de `verifySuperadmin`), audit inconditionnel |
-| `6c282740` | DSAR (D1) : export et effacement par personne, attestation SHA-256 scellée, compte à rebours 30j |
-| `83347e5a` | Rétention (D2) : politiques par table, purge planifiée avec garde `AdminAuditLog`, journal audité |
-| `51a06890` | Exports signés (D3) : Ed25519 multi-registres (audit, abonnés), vérificateur universel, streaming Next.js |
-| `d0c32587` | SLO + alertes (D4) : santé 4 surfaces (latence, budget erreur, outbox, dérive goose v73), console `/admin/health` |
-| `14192b02` | Outbox observable (D5) : profondeur, verrous fantômes >10m, reprise en masse, actions groupées |
-| `b251703e` | Bac à sable (D6) : 5 scénarios de seed isolés, impersonation auditée, step-up N2, console `/admin/sandbox` |
-| `58bf736e` | Ergonomie avancée (B4, B5, B7) : largeur min, actions groupées priorité/échéance avec annulation, raccourcis e, /, f, v, g+lettre |
-| `3f89771c` | Vues d'équipe en base (B3) : table AdminSavedView (migration 00074, goose v74), routes Go /v1/admin/views, sync useGridView |
+| `62ae98e6` | `DataGrid` (tri déclaré) + `RowActions` (clic droit) + fin du mono + zéro `<select>`/`<table>` natif + `ui:audit` vert                                                                          |
+| `c468c924` | Facettes du triage (file, priorité, SLA) + vues nommées                                                                                                                                         |
+| `971c11d5` | `useGridView` : tri + facettes + colonnes + densité dans l'URL, vues nommées en `localStorage`, barre de facettes (`GridViewToolbar`) branchée sur les comptes et la vue d'ensemble             |
+| `6c6ac8b9` | `/admin/settings` : catalogue de ~35 leviers typés (`lib/admin-settings-catalog.ts`), capacité `admin.config.read`, entrée de nav                                                               |
+| `fd051fa9` | : sélection multiple + barre d'actions groupées (« M'assigner » auditée) + clavier `j/k/x/Entrée/Échap` + panneau de détail 480 px (`Drawer`)                                                   |
+| `be874ead` | Édition inline générique (B8) : `InlineChoice`, `InlineText`, `InlineDate`, `InlineToggle`, tests Vitest jsdom, intégration triage                                                              |
+| `c5986a92` | Signalements (`/admin/reports`) : migration `DataGrid` 26 px, Drawer 480 px, facettes URL, MetricChips, zéro bouton natif                                                                       |
+| `d5b491e8` | Recours (`/admin/appeals`) : migration `DataGrid`, Drawer contradictoire, confirmation/levée, facettes, MetricChips                                                                             |
+| `ea73341f` | Anti-abus (`/admin/abuse`) : migration `DataGrid`, Drawer 480 px, classement/escalade tracée, MetricChips                                                                                       |
+| `6623af7f` | Support (`/admin/support`) : migration `DataGrid`, Drawer fil d'assistance, prise en main, clôture, MetricChips télémétrie                                                                      |
+| `3a4f7a2a` | Doubles validations (`/admin/approvals`) : migration `DataGrid`, Drawer décision nominative, garde auteur, MetricChips                                                                          |
+| `eb914ed7` | Outbox (`/admin/notifications`) : migration `DataGrid`, Drawer diagnostic, relance unitaire, MetricChips, retrait cartes                                                                        |
+| `01b8a01b` | Registre unifié des ressources d'exploitation (`lib/admin-resources.ts`) (C1) : 8 ressources, capacités, facettes, 3 tests Vitest                                                               |
+| `f7609cba` | Simulateur de droits et matrice dense des rôles (`/admin/access/roles`) (C3) : simulateur "Qui peut X ?", filtres de domaine, MetricChips                                                       |
+| `a93815b6` | Verrouillage parité Go ↔ TS des campagnes staff (C7) : test direct sur `staff_campaigns.go` (types et audiences)                                                                                |
+| `45047022` | Explorateur interactif des réglages (`/admin/settings`) (C2) : DataGrid 26 px, Drawer 480 px, facettes mes droits/catégorie/portée                                                              |
+| `0d6b8df2` | Routes Go manquantes (C6) : flags (`admin.flags.write`) et annonce globale (`admin.campaigns.write` + N2, fin de `verifySuperadmin`), audit inconditionnel                                      |
+| `6c282740` | DSAR (D1) : export et effacement par personne, attestation SHA-256 scellée, compte à rebours 30j                                                                                                |
+| `83347e5a` | Rétention (D2) : politiques par table, purge planifiée avec garde `AdminAuditLog`, journal audité                                                                                               |
+| `51a06890` | Exports signés (D3) : Ed25519 multi-registres (audit, abonnés), vérificateur universel, streaming Next.js                                                                                       |
+| `d0c32587` | SLO + alertes (D4) : santé 4 surfaces (latence, budget erreur, outbox, dérive goose v73), console `/admin/health`                                                                               |
+| `14192b02` | Outbox observable (D5) : profondeur, verrous fantômes >10m, reprise en masse, actions groupées                                                                                                  |
+| `b251703e` | Bac à sable (D6) : 5 scénarios de seed isolés, impersonation auditée, step-up N2, console `/admin/sandbox`                                                                                      |
+| `58bf736e` | Ergonomie avancée (B4, B5, B7) : largeur min, actions groupées priorité/échéance avec annulation, raccourcis e, /, f, v, g+lettre                                                               |
+| `3f89771c` | Vues d'équipe en base (B3) : table AdminSavedView (migration 00074, goose v74), routes Go /v1/admin/views, sync useGridView                                                                     |
 
 ## 4. Ce qui existe (surface actuelle)
 
@@ -118,8 +118,8 @@ Commits du chantier :
 - [x] **B1. Facettes de filtre** : barre compacte (chips) au-dessus de chaque
       grille — file, état SLA, priorité, rôle, statut de compte, assignation,
       motifs, verdict, canal. Les facettes sont déclarées et synchronisées dans l'URL.
-      *Fait sur toutes les 7 grilles opérationnelles : comptes, vue d'ensemble, triage,
-      signalements, recours, anti-abus, support, doubles validations, outbox.*
+      _Fait sur toutes les 7 grilles opérationnelles : comptes, vue d'ensemble, triage,
+      signalements, recours, anti-abus, support, doubles validations, outbox._
 - [x] **B2. État dans l'URL** : tri, facettes, densité et colonnes visibles
       vivent dans `?sort=…&f=statut:open&d=compact&c=email,role`. Une URL est
       partageable et rechargeable (`components/shell/grid-view.ts`).
@@ -239,8 +239,8 @@ grep -rn "<table" apps/admin/src --include=*.tsx | wc -l
 
 ## 8. Décisions ouvertes
 
-- `/admin/settings` devient-il le 7ᵉ domaine de la sidebar ? *Proposition : oui,
-  « Système » y gagne sa place à côté de `/admin/system`.*
+- `/admin/settings` devient-il le 7ᵉ domaine de la sidebar ? _Proposition : oui,
+  « Système » y gagne sa place à côté de `/admin/system`._
 - `framer-motion` n'est plus importé mais reste déclaré dans
   `apps/admin/package.json` : le retirer demande `pnpm install` + lockfile.
 - Vues sauvegardées : local d'abord, base ensuite (une table `admin_saved_views`

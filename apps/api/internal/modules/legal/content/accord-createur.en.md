@@ -1,6 +1,6 @@
 # Creator agreement
 
-*Last updated: {{updatedAt}}* · *Effective: {{effectiveAt}}*
+_Last updated: {{updatedAt}}_ · _Effective: {{effectiveAt}}_
 
 This agreement supplements the Terms of service as soon as a creator (or a media outlet) **enables monetisation** on qoe.fi. It sets out what you earn, how and when, along with your obligations as an independent publisher.
 
@@ -12,10 +12,10 @@ qoe.fi acts as **technical platform and collection agent**: it collects reader p
 
 ## 2. Revenue split
 
-| Item | Creator | qoe.fi |
-|------|---------|--------|
-| Reader subscriptions (net revenue) | **[90 %]** | **[10 %]** |
-| Single-purchase content / one-off support | **[90 %]** | **[10 %]** |
+| Item                                      | Creator                              | qoe.fi             |
+| ----------------------------------------- | ------------------------------------ | ------------------ |
+| Reader subscriptions (net revenue)        | **[90 %]**                           | **[10 %]**         |
+| Single-purchase content / one-off support | **[90 %]**                           | **[10 %]**         |
 | Sales of third-party products or services | **100 %** (excluding technical fees) | any technical fees |
 
 - **Net revenue** means revenue after deducting payment provider fees (Stripe commissions) and VAT collected on the creator's behalf.

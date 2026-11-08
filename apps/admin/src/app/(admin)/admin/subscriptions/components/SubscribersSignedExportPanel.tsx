@@ -98,8 +98,9 @@ export function SubscribersSignedExportPanel() {
             <FileCheck2 className="h-4 w-4" /> Registre signé des abonnés (Ed25519)
           </div>
           <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-            Archive opposable contenant le statut d&apos;opt-in, la confirmation d&apos;email, les droits et
-            l&apos;historique des abonnés, scellée par signature Ed25519 autonome vérifiable sans secret.
+            Archive opposable contenant le statut d&apos;opt-in, la confirmation d&apos;email, les
+            droits et l&apos;historique des abonnés, scellée par signature Ed25519 autonome
+            vérifiable sans secret.
           </p>
         </div>
       </div>

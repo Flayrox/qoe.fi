@@ -1,6 +1,6 @@
 # Terms of sale — reader subscriptions
 
-*Last updated: {{updatedAt}}* · *Effective: {{effectiveAt}}*
+_Last updated: {{updatedAt}}_ · _Effective: {{effectiveAt}}_
 
 These terms govern the purchase of **paid subscriptions** by a reader ("**the Customer**") from a creator or media outlet publishing on **qoe.fi** ("**the Publisher**").
 

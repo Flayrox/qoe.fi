@@ -1,6 +1,6 @@
 # Cookie and tracker policy
 
-*Last updated: {{updatedAt}}*
+_Last updated: {{updatedAt}}_
 
 This page explains how qoe.fi uses cookies and similar technologies (local storage, pixels, device identifiers). Its nature has changed: **no non-essential tracker is set today**, audience measurement has become anonymous and cookieless, and there is therefore no blocking consent banner any more. The right to **object** to that measurement remains fully available.
 
@@ -14,13 +14,13 @@ A cookie is a small file placed on your device by a website. It lets the site re
 
 These trackers are essential to the service and cannot be switched off.
 
-| Name | Role | Retention |
-|------|------|-----------|
-| Authentication session | keep you signed in to your account | session / 30 days with “stay signed in” |
-| CSRF token | protect forms against forged requests | session |
-| `qoe.theme` / `qoe.locale` | remember light/dark theme and language | until you clear it |
-| `qoe_cookie_consent` | remember your possible objection to audience measurement | 6 months |
-| Load balancing and security | distribute load, detect abuse | session |
+| Name                        | Role                                                     | Retention                               |
+| --------------------------- | -------------------------------------------------------- | --------------------------------------- |
+| Authentication session      | keep you signed in to your account                       | session / 30 days with “stay signed in” |
+| CSRF token                  | protect forms against forged requests                    | session                                 |
+| `qoe.theme` / `qoe.locale`  | remember light/dark theme and language                   | until you clear it                      |
+| `qoe_cookie_consent`        | remember your possible objection to audience measurement | 6 months                                |
+| Load balancing and security | distribute load, detect abuse                            | session                                 |
 
 ### 2.2. Audience measurement — **exempt from consent**
 
@@ -28,19 +28,19 @@ Audience measurement runs **with no cookie at all** and **never reads or writes 
 
 That combination of guarantees (single purpose, no access to your device, prior anonymisation, no crossing with any other processing, no sharing with a third party, aggregated statistics) places it inside the consent-exemption regime of **Article 82(II) of the French Data Protection Act**: you do not have to click anything to benefit from it.
 
-| Name | Purpose | Retention |
-|------|---------|-----------|
-| Audience measurement (self-hosted in the EU) | count visits, page views and referrers | 12 months (aggregated) |
-| Reading aggregates | provide **creators** with statistics on their own publications | 12 months (aggregated) |
+| Name                                         | Purpose                                                        | Retention              |
+| -------------------------------------------- | -------------------------------------------------------------- | ---------------------- |
+| Audience measurement (self-hosted in the EU) | count visits, page views and referrers                         | 12 months (aggregated) |
+| Reading aggregates                           | provide **creators** with statistics on their own publications | 12 months (aggregated) |
 
 The statistics shown to creators are **aggregated** and cannot be used to re-identify an individual reader.
 
 ### 2.3. Comfort preferences — **because you ask for them**
 
-| Name | Purpose | Retention |
-|------|---------|-----------|
-| Language, currency, time zone | display content in the right language and currency | 12 months |
-| Reading preferences (size, font, audio player) | reading comfort | 12 months |
+| Name                                           | Purpose                                            | Retention |
+| ---------------------------------------------- | -------------------------------------------------- | --------- |
+| Language, currency, time zone                  | display content in the right language and currency | 12 months |
+| Reading preferences (size, font, audio player) | reading comfort                                    | 12 months |
 
 These preferences are stored only because **you choose them** (theme, language, text size): they serve the feature you requested, not a tracking purpose.
 
@@ -52,7 +52,7 @@ qoe.fi **runs no behavioural advertising** and sets no third-party advertising t
 
 - There is **no consent banner any more**, because no tracker depends on one. A banner asking you to authorise what requires no authorisation would be a fake choice.
 - A **notice** appears on your first visit: it explains the anonymous measurement in one sentence and offers **“Object”** in one click.
-- **Objecting is as easy as reading**: objecting immediately stops the script in your browser *and* server-side; no further data is transmitted.
+- **Objecting is as easy as reading**: objecting immediately stops the script in your browser _and_ server-side; no further data is transmitted.
 - Your objection is kept for **6 months**; after that, anonymous measurement resumes and the notice is offered again.
 - You stay in control at any time via **“Manage my cookies”** in the footer, which lists the trackers actually set.
 - An **objection expressed under the former banner remains effective**: it is not converted into consent by the change of regime.
@@ -74,11 +74,11 @@ Blocking strictly necessary cookies prevents you from signing in to your account
 
 Some third-party services set trackers when the corresponding feature is used:
 
-| Service | Usage | Tracker | Basis |
-|---------|-------|---------|-------|
-| Stripe | secure subscription payment | payment session and fraud cookies | necessary to the transaction |
-| Email provider | delivery of service emails | no tracking pixel | — |
-| Host / CDN | serving static files | no persistent tracker | — |
+| Service        | Usage                       | Tracker                           | Basis                        |
+| -------------- | --------------------------- | --------------------------------- | ---------------------------- |
+| Stripe         | secure subscription payment | payment session and fraud cookies | necessary to the transaction |
+| Email provider | delivery of service emails  | no tracking pixel                 | —                            |
+| Host / CDN     | serving static files        | no persistent tracker             | —                            |
 
 Audience measurement is **not** a third-party service: it is self-hosted on our own infrastructure, within the European Union.
 

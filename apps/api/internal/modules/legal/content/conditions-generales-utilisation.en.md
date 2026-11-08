@@ -1,6 +1,6 @@
 # Terms of service
 
-*Last updated: {{updatedAt}}* · *Effective: {{effectiveAt}}*
+_Last updated: {{updatedAt}}_ · _Effective: {{effectiveAt}}_
 
 These terms of service ("**ToS**") govern access to and use of the **qoe.fi** platform ("**the Platform**"), published by [COMPANY NAME] ("**the Publisher**"), by any natural or legal person creating an account or viewing content ("**the User**").
 

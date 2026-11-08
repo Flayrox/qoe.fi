@@ -1,6 +1,6 @@
 # Engagement d'accessibilité
 
-*Dernière mise à jour : {{updatedAt}}*
+_Dernière mise à jour : {{updatedAt}}_
 
 qoe.fi vise l'**accessibilité universelle** de ses interfaces, conformément au référentiel **WCAG 2.2 niveau AA**, à la directive européenne sur l'accessibilité des produits et services (2019/882, « European Accessibility Act ») et aux obligations applicables à un service numérique grand public.
 
@@ -15,12 +15,12 @@ L'accessibilité n'est pas une option : une plateforme d'édition qui exclut une
 
 ## 2. Mesures mises en œuvre
 
-| Objectif WCAG | Mise en œuvre |
-|---------------|---------------|
-| Perceptible | contrastes texte/fond conformes AA, alternatives textuelles sur les images et aperçus, sous-titres pour les contenus audio/vidéo proposés par la plateforme, pas d'information portée par la seule couleur |
-| Utilisable | navigation complète au clavier, focus visible, ordre de tabulation logique, cibles tactiles de 44 px minimum, retour en haut, absence de piège au clavier |
-| Compréhensible | libellés explicites, messages d'erreur précis et associés aux champs, langue de la page déclarée, navigation cohérente entre les pages |
-| Robuste | HTML sémantique, composants compatibles lecteurs d'écran (VoiceOver, NVDA, TalkBack), aucune dépendance à un seul mode de saisie |
+| Objectif WCAG  | Mise en œuvre                                                                                                                                                                                              |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Perceptible    | contrastes texte/fond conformes AA, alternatives textuelles sur les images et aperçus, sous-titres pour les contenus audio/vidéo proposés par la plateforme, pas d'information portée par la seule couleur |
+| Utilisable     | navigation complète au clavier, focus visible, ordre de tabulation logique, cibles tactiles de 44 px minimum, retour en haut, absence de piège au clavier                                                  |
+| Compréhensible | libellés explicites, messages d'erreur précis et associés aux champs, langue de la page déclarée, navigation cohérente entre les pages                                                                     |
+| Robuste        | HTML sémantique, composants compatibles lecteurs d'écran (VoiceOver, NVDA, TalkBack), aucune dépendance à un seul mode de saisie                                                                           |
 
 Autres mesures : thème clair et sombre respectant les préférences système, respect de `prefers-reduced-motion`, zoom jusqu'à 200 % sans perte de contenu, zones de contraste minimales respectées.
 
@@ -30,13 +30,13 @@ Autres mesures : thème clair et sombre respectant les préférences système, r
 
 ### Non-conformités connues
 
-| Zone | Description | Correction prévue |
-|------|-------------|-------------------|
-| Éditeur de texte enrichi | certaines commandes de la barre d'outils ne sont accessibles qu'à la souris | [TRIMESTRE] |
-| Éditeur de thème | aperçu couleur non restitué vocalement | [TRIMESTRE] |
-| Contenus tiers | contenus intégrés par les créateurs (embeds, iframes) ne sont pas sous notre contrôle | accompagnement + documentation |
-| Contenus des créateurs | texte alternatif des images publiées par les créateurs | recommandations et rappels dans l'éditeur |
-| Tableau de bord analytique | graphiques sans description textuelle équivalente pour certains indicateurs | [TRIMESTRE] |
+| Zone                       | Description                                                                           | Correction prévue                         |
+| -------------------------- | ------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Éditeur de texte enrichi   | certaines commandes de la barre d'outils ne sont accessibles qu'à la souris           | [TRIMESTRE]                               |
+| Éditeur de thème           | aperçu couleur non restitué vocalement                                                | [TRIMESTRE]                               |
+| Contenus tiers             | contenus intégrés par les créateurs (embeds, iframes) ne sont pas sous notre contrôle | accompagnement + documentation            |
+| Contenus des créateurs     | texte alternatif des images publiées par les créateurs                                | recommandations et rappels dans l'éditeur |
+| Tableau de bord analytique | graphiques sans description textuelle équivalente pour certains indicateurs           | [TRIMESTRE]                               |
 
 ## 4. Contenus publiés par les créateurs
 

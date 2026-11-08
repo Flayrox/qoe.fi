@@ -1,6 +1,6 @@
 # Accord de traitement des données (DPA)
 
-*Dernière mise à jour : {{updatedAt}}*
+_Dernière mise à jour : {{updatedAt}}_
 
 Cet accord (« **DPA** ») est conclu entre **qoe.fi** (« **le Sous-traitant** ») et le créateur ou le média utilisant la Plateforme (« **le Responsable de traitement** »), conformément à l'**article 28 du RGPD**. Il s'applique automatiquement à tout traitement de données personnelles effectué par qoe.fi pour le compte du Responsable de traitement.
 
@@ -12,13 +12,13 @@ La durée du traitement correspond à celle de la relation contractuelle, augmen
 
 ## 2. Nature, finalité et catégories de données
 
-| Élément | Description |
-|---------|-------------|
-| **Nature du traitement** | hébergement, messagerie électronique, statistiques, gestion d'abonnements |
-| **Finalité** | fourniture du service d'édition et d'audience au Responsable de traitement |
-| **Catégories de personnes** | lecteurs, abonnés, membres de l'équipe éditoriale, contacts CRM |
-| **Catégories de données** | identifiants, coordonnées (email), préférences, données de facturation, journaux de lecture agrégés |
-| **Données sensibles** | **aucune** — le Responsable s'engage à ne pas transmettre de données de catégories particulières (art. 9) |
+| Élément                     | Description                                                                                               |
+| --------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **Nature du traitement**    | hébergement, messagerie électronique, statistiques, gestion d'abonnements                                 |
+| **Finalité**                | fourniture du service d'édition et d'audience au Responsable de traitement                                |
+| **Catégories de personnes** | lecteurs, abonnés, membres de l'équipe éditoriale, contacts CRM                                           |
+| **Catégories de données**   | identifiants, coordonnées (email), préférences, données de facturation, journaux de lecture agrégés       |
+| **Données sensibles**       | **aucune** — le Responsable s'engage à ne pas transmettre de données de catégories particulières (art. 9) |
 
 ## 3. Obligations du Sous-traitant
 
@@ -49,14 +49,14 @@ Les données sont hébergées dans l'**Union européenne**. Tout transfert vers 
 
 ## 6. Sécurité et localisation
 
-| Mesure | Mise en œuvre |
-|--------|---------------|
-| Chiffrement en transit | TLS 1.2+ |
-| Chiffrement au repos | disques et sauvegardes chiffrés |
-| Cloisonnement | isolation multi-locataire par publication |
-| Accès | moindre privilège, journal d'audit, double authentification pour l'équipe |
-| Sauvegardes | chiffrées, restauration testée |
-| Journalisation | journaux techniques conservés 12 mois |
+| Mesure                 | Mise en œuvre                                                             |
+| ---------------------- | ------------------------------------------------------------------------- |
+| Chiffrement en transit | TLS 1.2+                                                                  |
+| Chiffrement au repos   | disques et sauvegardes chiffrés                                           |
+| Cloisonnement          | isolation multi-locataire par publication                                 |
+| Accès                  | moindre privilège, journal d'audit, double authentification pour l'équipe |
+| Sauvegardes            | chiffrées, restauration testée                                            |
+| Journalisation         | journaux techniques conservés 12 mois                                     |
 
 ## 7. Responsabilité
 

@@ -10,7 +10,10 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, RefreshCw, AlertTriangle, Mail } from 'lucide-react';
-import { batchRetryDeliveriesAction, retryNotificationDeliveryAction } from '@/lib/admin-aux-actions';
+import {
+  batchRetryDeliveriesAction,
+  retryNotificationDeliveryAction,
+} from '@/lib/admin-aux-actions';
 import { Button } from '@qoe/ui/button';
 import {
   Drawer,

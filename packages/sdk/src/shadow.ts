@@ -302,16 +302,28 @@ export function getActorShadow(idOrHandle: string): ActorShadow | undefined {
   return actorShadows.get(cleanActorKey(idOrHandle));
 }
 
-export function useActorShadow<
-  T extends {
-    id?: string;
-    username?: string | null;
-    isFollowed?: boolean;
-    viewerFollows?: boolean;
-  },
->(actor: T): T {
-  const idKey = actor?.id ? cleanActorKey(actor.id) : undefined;
-  const usernameKey = actor?.username ? cleanActorKey(actor.username) : undefined;
+export function useActorShadow(
+  idOrHandle: string | null | undefined,
+  fallback?: ActorShadow
+): ActorShadow;
+export function useActorShadow<T extends ShadowableActor>(actor: T): T;
+export function useActorShadow<T extends ShadowableActor>(
+  target: string | T | null | undefined,
+  fallback?: ActorShadow
+): T | ActorShadow {
+  const isString = typeof target === 'string' || target === null || target === undefined;
+  const idKey = isString
+    ? target && target.trim()
+      ? cleanActorKey(target)
+      : undefined
+    : target?.id
+      ? cleanActorKey(target.id)
+      : undefined;
+  const usernameKey = isString
+    ? undefined
+    : target?.username
+      ? cleanActorKey(target.username)
+      : undefined;
 
   const [shadow, setShadow] = useState<ActorShadow | undefined>(() => {
     return (
@@ -337,9 +349,24 @@ export function useActorShadow<
   }, [idKey, usernameKey]);
 
   return useMemo(() => {
-    if (!actor || (!idKey && !usernameKey) || !shadow) return actor;
-    return mergeActorShadow(actor, shadow);
-  }, [actor, idKey, usernameKey, shadow]);
+    if (isString) {
+      return {
+        ...fallback,
+        ...(shadow ?? {}),
+      };
+    }
+    if (!target || (!idKey && !usernameKey) || !shadow) return target;
+    return mergeActorShadow(target, shadow);
+  }, [
+    isString,
+    target,
+    fallback?.followed,
+    fallback?.blocked,
+    fallback?.followRequested,
+    idKey,
+    usernameKey,
+    shadow,
+  ]);
 }
 
 type ShadowableActor = {

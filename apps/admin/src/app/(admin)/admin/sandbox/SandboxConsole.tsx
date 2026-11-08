@@ -51,17 +51,14 @@ export function SandboxConsole({ scenarios }: SandboxConsoleProps) {
     setSeedStatus(null);
 
     try {
-      const res = await attemptWithStepUp(
-        () => executeSeedScenarioAction(scenarioId, 1),
-        { reason: 'L’exécution d’un scénario de données d’essai exige une preuve forte récente.' }
-      );
+      const res = await attemptWithStepUp(() => executeSeedScenarioAction(scenarioId, 1), {
+        reason: 'L’exécution d’un scénario de données d’essai exige une preuve forte récente.',
+      });
 
       if (!res.success) {
         setSeedStatus(readMessage(res) ?? res.error ?? 'Erreur d’exécution');
       } else {
-        setSeedStatus(
-          `Audité · ${res.result.message} à ${new Date().toLocaleTimeString('fr-FR')}`
-        );
+        setSeedStatus(`Audité · ${res.result.message} à ${new Date().toLocaleTimeString('fr-FR')}`);
       }
     } catch (err) {
       setSeedStatus(err instanceof Error ? err.message : 'Erreur d’exécution');
@@ -92,7 +89,9 @@ export function SandboxConsole({ scenarios }: SandboxConsoleProps) {
         setImpersonateResult(res.result);
       }
     } catch (err) {
-      setImpersonateError(err instanceof Error ? err.message : 'Erreur lors de la prise d’identité');
+      setImpersonateError(
+        err instanceof Error ? err.message : 'Erreur lors de la prise d’identité'
+      );
     } finally {
       setIsImpersonating(false);
     }
@@ -110,9 +109,10 @@ export function SandboxConsole({ scenarios }: SandboxConsoleProps) {
         <div className="space-y-1">
           <div className="font-semibold">Environnement de test &amp; simulation contrôlée</div>
           <p className="text-muted-foreground leading-relaxed">
-            Les scénarios génèrent des jeux de données d&apos;essai isolés pour valider les comportements
-            opérationnels sans polluer les comptes réels. Toute prise d&apos;identité et toute génération est
-            tracée de manière inaltérable dans le registre d&apos;audit superadmin.
+            Les scénarios génèrent des jeux de données d&apos;essai isolés pour valider les
+            comportements opérationnels sans polluer les comptes réels. Toute prise d&apos;identité
+            et toute génération est tracée de manière inaltérable dans le registre d&apos;audit
+            superadmin.
           </p>
         </div>
       </div>
@@ -124,7 +124,8 @@ export function SandboxConsole({ scenarios }: SandboxConsoleProps) {
             <Layers className="h-4 w-4 text-primary" /> Scénarios de données d&apos;essai (Seeds)
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Déclenchez des cas d&apos;usage prédéfinis pour alimenter les files de modération, d&apos;outbox et de conformité.
+            Déclenchez des cas d&apos;usage prédéfinis pour alimenter les files de modération,
+            d&apos;outbox et de conformité.
           </p>
         </div>
 
@@ -193,10 +194,12 @@ export function SandboxConsole({ scenarios }: SandboxConsoleProps) {
       <section className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
         <div className="border-b border-border pb-3">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-            <UserCheck className="h-4 w-4 text-primary" /> Prise d&apos;identité contrôlée (Impersonation)
+            <UserCheck className="h-4 w-4 text-primary" /> Prise d&apos;identité contrôlée
+            (Impersonation)
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Endossez l&apos;identité d&apos;un compte lecteur ou média pour diagnostiquer son affichage et ses accès réels.
+            Endossez l&apos;identité d&apos;un compte lecteur ou média pour diagnostiquer son
+            affichage et ses accès réels.
           </p>
         </div>
 
@@ -264,8 +267,15 @@ export function SandboxConsole({ scenarios }: SandboxConsoleProps) {
               <span>{impersonateResult.message}</span>
             </div>
             <div className="text-[11px] text-muted-foreground flex flex-wrap items-center gap-4">
-              <span>Rôle : <strong className="text-foreground">{impersonateResult.role}</strong></span>
-              <span>Identifiant : <span className="tabular-nums font-semibold text-foreground">{impersonateResult.userId}</span></span>
+              <span>
+                Rôle : <strong className="text-foreground">{impersonateResult.role}</strong>
+              </span>
+              <span>
+                Identifiant :{' '}
+                <span className="tabular-nums font-semibold text-foreground">
+                  {impersonateResult.userId}
+                </span>
+              </span>
             </div>
             <div className="pt-2">
               <a

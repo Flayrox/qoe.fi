@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/permissions"
 )
 
 var errForbidden = errors.New("permission insuffisante")
@@ -65,18 +66,29 @@ func NewService(pool *pgxpool.Pool, umamiDSN string) *Service {
 	return &Service{pool: pool, q: db.New(pool), umami: umamiPool}
 }
 
-// canAccess vérifie que l'utilisateur est owner/editor de la publication.
+// canAccess vérifie que l'utilisateur peut consulter les analytics de la
+// publication : propriétaire de sa publication personnelle OU membre média
+// actif disposant de `media:view_analytics` (rôle + overrides). La matrice de
+// permissions Go est l'unique source de vérité ; le studio lit la même
+// permission via @qoe/auth.
 func (s *Service) canAccess(ctx context.Context, userID, publicationID string) bool {
 	if personal, err := s.q.GetUserPersonalPublication(ctx, userID); err == nil && personal.String == publicationID {
 		return true
 	}
-	role, err := s.q.GetMediaRoleForUser(ctx, db.GetMediaRoleForUserParams{
+	member, err := s.q.GetMediaMemberContext(ctx, db.GetMediaMemberContextParams{
 		PublicationId: publicationID, UserId: toUUID(userID),
 	})
 	if err != nil {
 		return false
 	}
-	return role == "owner" || role == "editor"
+	return canViewAnalytics(member.Role, member.Permissions, member.Status)
+}
+
+// canViewAnalytics isole la règle pure pour la tester sans base.
+func canViewAnalytics(role string, perms []string, status string) bool {
+	return permissions.CanMedia(&permissions.MediaMember{
+		Role: role, Permissions: perms, Status: status,
+	}, permissions.PermViewAnalytics)
 }
 
 // Financial calcule MRR/ARR/volume brut + conversion (miroir TS).

@@ -79,33 +79,51 @@ func (h *Handler) toggleBlockedUser(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "Impossible de se bloquer soi-même")
 		return
 	}
+
+	tx, err := h.svc.pool.Begin(r.Context())
+	if err != nil {
+		response.Internal(w)
+		return
+	}
+	defer func() { _ = tx.Rollback(r.Context()) }()
+
 	var exists bool
-	err := h.svc.pool.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM "BlockedUser" WHERE "creatorId"=$1 AND "readerId"=$2)`, toUUID(target), toUUID(userID)).Scan(&exists)
+	err = tx.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM "BlockedUser" WHERE "creatorId"=$1 AND "readerId"=$2)`, toUUID(target), toUUID(userID)).Scan(&exists)
 	if err != nil {
 		response.Internal(w)
 		return
 	}
 	if exists {
-		_, err = h.svc.pool.Exec(r.Context(), `DELETE FROM "BlockedUser" WHERE "creatorId"=$1 AND "readerId"=$2`, toUUID(target), toUUID(userID))
+		_, err = tx.Exec(r.Context(), `DELETE FROM "BlockedUser" WHERE "creatorId"=$1 AND "readerId"=$2`, toUUID(target), toUUID(userID))
+		if err != nil {
+			response.Internal(w)
+			return
+		}
+		if err := domainevents.Dispatch(r.Context(), tx, domainevents.UserUnblockedEvent{
+			BlockerID: userID,
+			BlockedID: target,
+		}); err != nil {
+			response.Internal(w)
+			return
+		}
 	} else {
-		_, err = h.svc.pool.Exec(r.Context(), `INSERT INTO "BlockedUser" (id,"creatorId","readerId") VALUES (gen_random_uuid()::text,$1,$2) ON CONFLICT DO NOTHING`, toUUID(target), toUUID(userID))
+		_, err = tx.Exec(r.Context(), `INSERT INTO "BlockedUser" (id,"creatorId","readerId") VALUES (gen_random_uuid()::text,$1,$2) ON CONFLICT DO NOTHING`, toUUID(target), toUUID(userID))
+		if err != nil {
+			response.Internal(w)
+			return
+		}
+		if err := domainevents.Dispatch(r.Context(), tx, domainevents.UserBlockedEvent{
+			BlockerID: userID,
+			BlockedID: target,
+		}); err != nil {
+			response.Internal(w)
+			return
+		}
 	}
-	if err != nil {
+
+	if err := tx.Commit(r.Context()); err != nil {
 		response.Internal(w)
 		return
-	}
-	if !exists {
-		// Même nettoyage que posts.ToggleBlock : un blocage coupe les liens
-		// sociaux dans les deux sens, y compris depuis les réglages.
-		_ = domainevents.Dispatch(r.Context(), h.svc.pool, domainevents.UserBlockedEvent{
-			BlockerID: userID,
-			BlockedID: target,
-		})
-	} else {
-		_ = domainevents.Dispatch(r.Context(), h.svc.pool, domainevents.UserUnblockedEvent{
-			BlockerID: userID,
-			BlockedID: target,
-		})
 	}
 	response.OK(w, map[string]bool{"blocked": !exists})
 }

@@ -64,13 +64,7 @@ func Dispatch(ctx context.Context, db DB, in DispatchInput) error {
 	// Garde 2 (Blocage) : relation de blocage dans l'un ou l'autre sens.
 	if senderUUID != nil {
 		var blocked bool
-		err := db.QueryRow(ctx, `
-			SELECT EXISTS (
-				SELECT 1 FROM "BlockedUser"
-				WHERE ("creatorId" = $1 AND "readerId" = $2)
-				   OR ("creatorId" = $2 AND "readerId" = $1)
-			)
-		`, recipientUUID, *senderUUID).Scan(&blocked)
+		err := db.QueryRow(ctx, `SELECT is_blocked_bidirectional($1::uuid, $2::uuid)`, recipientUUID, *senderUUID).Scan(&blocked)
 		if err != nil {
 			return fmt.Errorf("notification dispatcher: vérification blocage: %w", err)
 		}

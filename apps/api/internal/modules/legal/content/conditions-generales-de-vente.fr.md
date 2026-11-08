@@ -1,6 +1,6 @@
 # Conditions générales de vente — abonnements lecteurs
 
-*Dernière mise à jour : {{updatedAt}}* · *Entrée en vigueur : {{effectiveAt}}*
+_Dernière mise à jour : {{updatedAt}}_ · _Entrée en vigueur : {{effectiveAt}}_
 
 Les présentes conditions régissent la souscription d'**abonnements payants** par un lecteur (« **le Client** ») auprès d'un créateur ou d'un média publiant sur **qoe.fi** (« **l'Éditeur** »).
 

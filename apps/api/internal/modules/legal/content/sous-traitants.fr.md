@@ -1,6 +1,6 @@
 # Sous-traitants
 
-*Dernière mise à jour : {{updatedAt}}*
+_Dernière mise à jour : {{updatedAt}}_
 
 Cette page recense les **sous-traitants ultérieurs** de qoe.fi au sens de l'article 28.2 du RGPD, leur usage, leur localisation et le mécanisme encadrant tout transfert hors Union européenne.
 
@@ -8,24 +8,24 @@ Cette page recense les **sous-traitants ultérieurs** de qoe.fi au sens de l'art
 
 ## 1. Sous-traitants actifs
 
-| Sous-traitant | Rôle | Catégories de données | Localisation | Encadrement du transfert |
-|---------------|------|------------------------|--------------|--------------------------|
-| [HÉBERGEUR PRINCIPAL] | application, API, base de données | compte, contenus, audience, journaux | Union européenne | intra-UE |
-| [HÉBERGEUR STOCKAGE] | stockage des fichiers (images, audio, vidéo) | contenus, médias | Union européenne | intra-UE |
-| [CDN] | diffusion des assets statiques | données techniques (IP) | UE + nœuds mondiaux | intra-UE, journaux éphémères |
-| [PRESTATAIRE EMAIL] | emails transactionnels et d'audience, liens de désabonnement | email, préférences, statistiques d'envoi | Union européenne | intra-UE |
-| Stripe Payments Europe | encaissement des abonnements, gestion des abonnés, versements | identifiant client, données de facturation, IBAN du créateur | Irlande (UE) | intra-UE |
-| [TABLEAU DE BORD ANALYTICS] | mesure d'audience agrégée des publications | données techniques anonymisées, agrégats | Union européenne (auto-hébergé) | intra-UE |
-| [MOTEUR DE RECHERCHE] | recherche plein texte des publications | titres, extraits, identifiants | Union européenne | intra-UE |
-| [MÉCANISME D'EMBEDDINGS] | recherche sémantique interne | contenus publics | Union européenne | intra-UE, traitement local |
+| Sous-traitant               | Rôle                                                          | Catégories de données                                        | Localisation                    | Encadrement du transfert     |
+| --------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------- | ---------------------------- |
+| [HÉBERGEUR PRINCIPAL]       | application, API, base de données                             | compte, contenus, audience, journaux                         | Union européenne                | intra-UE                     |
+| [HÉBERGEUR STOCKAGE]        | stockage des fichiers (images, audio, vidéo)                  | contenus, médias                                             | Union européenne                | intra-UE                     |
+| [CDN]                       | diffusion des assets statiques                                | données techniques (IP)                                      | UE + nœuds mondiaux             | intra-UE, journaux éphémères |
+| [PRESTATAIRE EMAIL]         | emails transactionnels et d'audience, liens de désabonnement  | email, préférences, statistiques d'envoi                     | Union européenne                | intra-UE                     |
+| Stripe Payments Europe      | encaissement des abonnements, gestion des abonnés, versements | identifiant client, données de facturation, IBAN du créateur | Irlande (UE)                    | intra-UE                     |
+| [TABLEAU DE BORD ANALYTICS] | mesure d'audience agrégée des publications                    | données techniques anonymisées, agrégats                     | Union européenne (auto-hébergé) | intra-UE                     |
+| [MOTEUR DE RECHERCHE]       | recherche plein texte des publications                        | titres, extraits, identifiants                               | Union européenne                | intra-UE                     |
+| [MÉCANISME D'EMBEDDINGS]    | recherche sémantique interne                                  | contenus publics                                             | Union européenne                | intra-UE, traitement local   |
 
 ## 2. Sous-traitants ultérieurs utilisés par nos prestataires
 
-| Prestataire | Sous-traitant ultérieur | Usage | Localisation |
-|-------------|-------------------------|-------|--------------|
-| Stripe | Stripe, Inc. | traitement technique des paiements | États-Unis — clauses contractuelles types + mesures additionnelles |
-| [PRESTATAIRE EMAIL] | [SOUS-TRAITANT] | routage et délivrabilité | [LOCALISATION] |
-| [HÉBERGEUR PRINCIPAL] | [SOUS-TRAITANT] | sauvegardes chiffrées | UE |
+| Prestataire           | Sous-traitant ultérieur | Usage                              | Localisation                                                       |
+| --------------------- | ----------------------- | ---------------------------------- | ------------------------------------------------------------------ |
+| Stripe                | Stripe, Inc.            | traitement technique des paiements | États-Unis — clauses contractuelles types + mesures additionnelles |
+| [PRESTATAIRE EMAIL]   | [SOUS-TRAITANT]         | routage et délivrabilité           | [LOCALISATION]                                                     |
+| [HÉBERGEUR PRINCIPAL] | [SOUS-TRAITANT]         | sauvegardes chiffrées              | UE                                                                 |
 
 ## 3. Ce que nous ne faisons jamais
 

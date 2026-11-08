@@ -305,47 +305,14 @@ func (s *Service) canViewPublication(ctx context.Context, publicationID, viewerI
 	if ownerID == "" {
 		return true, nil
 	}
-	if viewerID != "" && viewerID == ownerID {
-		return true, nil
-	}
 
-	if viewerID != "" {
-		var blocked bool
-		if err := s.pool.QueryRow(ctx, `
-			SELECT EXISTS(
-				SELECT 1 FROM "BlockedUser"
-				WHERE ("readerId" = $1 AND "creatorId" = $2)
-				   OR ("readerId" = $2 AND "creatorId" = $1)
-			)`, toUUID(viewerID), toUUID(ownerID)).Scan(&blocked); err != nil {
-			return false, err
-		}
-		if blocked {
-			return false, nil
-		}
-	}
-
-	var visibility string
+	var allowed bool
 	if err := s.pool.QueryRow(ctx, `
-		SELECT COALESCE(us."profileVisibility", 'PUBLIC')
-		FROM "User" u
-		LEFT JOIN "UserSettings" us ON us."userId" = u.id
-		WHERE u.id = $1`, toUUID(ownerID)).Scan(&visibility); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		SELECT can_view_profile($1::uuid, $2::uuid)
+	`, toUUID(viewerID), toUUID(ownerID)).Scan(&allowed); err != nil {
 		return false, err
 	}
-	if visibility == "" || visibility == "PUBLIC" {
-		return true, nil
-	}
-	if viewerID == "" {
-		return false, nil
-	}
-	var follows bool
-	if err := s.pool.QueryRow(ctx, `
-		SELECT EXISTS(
-			SELECT 1 FROM "Follows" WHERE "readerId" = $1 AND "publicationId" = $2
-		)`, toUUID(viewerID), publicationID).Scan(&follows); err != nil {
-		return false, err
-	}
-	return follows, nil
+	return allowed, nil
 }
 
 func (s *Service) GetBySlugAny(ctx context.Context, slug string, viewerID string) (ArticleResponse, error) {

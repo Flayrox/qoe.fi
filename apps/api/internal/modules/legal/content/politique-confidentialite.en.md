@@ -1,6 +1,6 @@
 # Privacy policy
 
-*Last updated: {{updatedAt}}* · *Effective: {{effectiveAt}}*
+_Last updated: {{updatedAt}}_ · _Effective: {{effectiveAt}}_
 
 This policy explains **what data qoe.fi collects, why, for how long and with whom**, in accordance with the General Data Protection Regulation (Regulation (EU) 2016/679, "**GDPR**") and the French Data Protection Act.
 
@@ -18,56 +18,56 @@ A data protection officer (DPO) [is appointed / is not appointed] and can be con
 
 ## 2. Data collected
 
-| Category | Data | Purpose |
-|----------|------|---------|
-| **Account** | email, password (hashed), display name, username, avatar, language and theme preferences | create and secure the account, personalise the interface |
-| **Public profile** | bio, website, social links, logo, banner, subdomain, publications | display the chosen public identity |
-| **Content** | articles, thoughts, highlights, comments, drafts, uploaded files | publish, save, synchronise |
-| **Audience** | subscriber email addresses, subscription status, sending preferences, unsubscribe lists | deliver newsletters, manage consent |
-| **Payment** | Stripe customer ID, subscription ID, amounts, currency, status, card brand and last digits; **never the full number** | collect subscriptions and pay out revenue |
-| **Browsing** | IP address (truncated where possible), user agent, pages viewed, reading time, referrer | security, aggregated audience measurement, anti-abuse |
-| **Technical** | application logs, errors, request identifiers, device fingerprint for security | diagnostics, fraud and scraping prevention |
-| **Support** | content of exchanges with the support team | handle the request |
-| **Legal** | timestamp and exact version of accepted documents (ToS, privacy, cookies) | evidence of consent (burden of proof) |
-| **Product interests** | feature followed, date, version and source of consent, active or withdrawn status, withdrawal date, last delivery | notify you when a requested feature launches and keep proof of consent |
+| Category              | Data                                                                                                                  | Purpose                                                                |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| **Account**           | email, password (hashed), display name, username, avatar, language and theme preferences                              | create and secure the account, personalise the interface               |
+| **Public profile**    | bio, website, social links, logo, banner, subdomain, publications                                                     | display the chosen public identity                                     |
+| **Content**           | articles, thoughts, highlights, comments, drafts, uploaded files                                                      | publish, save, synchronise                                             |
+| **Audience**          | subscriber email addresses, subscription status, sending preferences, unsubscribe lists                               | deliver newsletters, manage consent                                    |
+| **Payment**           | Stripe customer ID, subscription ID, amounts, currency, status, card brand and last digits; **never the full number** | collect subscriptions and pay out revenue                              |
+| **Browsing**          | IP address (truncated where possible), user agent, pages viewed, reading time, referrer                               | security, aggregated audience measurement, anti-abuse                  |
+| **Technical**         | application logs, errors, request identifiers, device fingerprint for security                                        | diagnostics, fraud and scraping prevention                             |
+| **Support**           | content of exchanges with the support team                                                                            | handle the request                                                     |
+| **Legal**             | timestamp and exact version of accepted documents (ToS, privacy, cookies)                                             | evidence of consent (burden of proof)                                  |
+| **Product interests** | feature followed, date, version and source of consent, active or withdrawn status, withdrawal date, last delivery     | notify you when a requested feature launches and keep proof of consent |
 
 We do **not** collect special category data (health, origin, political opinions, sexual orientation) and do not encourage its publication. We **never** sell your data.
 
 ## 3. Legal bases
 
-| Processing | Legal basis (Art. 6 GDPR) |
-|------------|---------------------------|
-| Account creation and management, provision of the service | performance of the contract (6.1.b) |
-| Subscription payment and revenue payout | performance of the contract (6.1.b) + statutory accounting obligation (6.1.c) |
-| Transactional email (confirmation, reset, receipts, security alerts) | performance of the contract (6.1.b) |
-| Newsletters and marketing notifications | consent (6.1.a), withdrawable at any time |
-| Feature launch notifications ("Notify me") | consent (6.1.a), collected through an explicit action from an authenticated account, one-click withdrawal |
-| Aggregated audience measurement | legitimate interest (6.1.f) in understanding use of the service, with minimisation |
-| Fraud, scraping and abuse prevention | legitimate interest (6.1.f) + security obligation (Art. 32) |
-| Retention of proof of legal acceptance | legal obligation (6.1.c) |
-| Moderation and handling of reports | DSA legal obligation (6.1.c) + legitimate interest |
+| Processing                                                           | Legal basis (Art. 6 GDPR)                                                                                 |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Account creation and management, provision of the service            | performance of the contract (6.1.b)                                                                       |
+| Subscription payment and revenue payout                              | performance of the contract (6.1.b) + statutory accounting obligation (6.1.c)                             |
+| Transactional email (confirmation, reset, receipts, security alerts) | performance of the contract (6.1.b)                                                                       |
+| Newsletters and marketing notifications                              | consent (6.1.a), withdrawable at any time                                                                 |
+| Feature launch notifications ("Notify me")                           | consent (6.1.a), collected through an explicit action from an authenticated account, one-click withdrawal |
+| Aggregated audience measurement                                      | legitimate interest (6.1.f) in understanding use of the service, with minimisation                        |
+| Fraud, scraping and abuse prevention                                 | legitimate interest (6.1.f) + security obligation (Art. 32)                                               |
+| Retention of proof of legal acceptance                               | legal obligation (6.1.c)                                                                                  |
+| Moderation and handling of reports                                   | DSA legal obligation (6.1.c) + legitimate interest                                                        |
 
 ## 4. Retention periods
 
-| Data | Period |
-|------|--------|
-| Active account | for as long as the account exists |
-| Inactive account (no sign-in or publication) | deleted or anonymised after **36 months** of inactivity, following a warning email |
-| Published content | until deleted by the author or the account is closed |
-| Backups | 30 rolling days maximum |
-| Technical and security logs | 12 months |
-| Proof of legal consent | **5 years** after the end of the relationship (civil limitation period) |
-| Accounting and tax records | 10 years (legal obligation) |
-| Reports and moderation decisions | 3 years |
-| Product interests ("Notify me") | for as long as the feature is announced; after withdrawal, only the proof of consent and withdrawal is kept, for as long as needed to demonstrate compliance |
-| Payment data | per Stripe Payments Europe and accounting obligations |
+| Data                                         | Period                                                                                                                                                       |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Active account                               | for as long as the account exists                                                                                                                            |
+| Inactive account (no sign-in or publication) | deleted or anonymised after **36 months** of inactivity, following a warning email                                                                           |
+| Published content                            | until deleted by the author or the account is closed                                                                                                         |
+| Backups                                      | 30 rolling days maximum                                                                                                                                      |
+| Technical and security logs                  | 12 months                                                                                                                                                    |
+| Proof of legal consent                       | **5 years** after the end of the relationship (civil limitation period)                                                                                      |
+| Accounting and tax records                   | 10 years (legal obligation)                                                                                                                                  |
+| Reports and moderation decisions             | 3 years                                                                                                                                                      |
+| Product interests ("Notify me")              | for as long as the feature is announced; after withdrawal, only the proof of consent and withdrawal is kept, for as long as needed to demonstrate compliance |
+| Payment data                                 | per Stripe Payments Europe and accounting obligations                                                                                                        |
 
 ## 5. Recipients and processors
 
 Data is accessible only to:
 
 - authorised members of the qoe.fi team, on a least-privilege basis;
-- the technical **processors** listed publicly on the *Sub-processors* page (hosting, storage, email, payment, notification delivery), each bound by a processing agreement (Art. 28 GDPR);
+- the technical **processors** listed publicly on the _Sub-processors_ page (hosting, storage, email, payment, notification delivery), each bound by a processing agreement (Art. 28 GDPR);
 - creators, for the data of **their own** audience (subscribers, reading statistics for their publications), limited to what is necessary;
 - administrative or judicial authorities, on valid legal request.
 
@@ -101,16 +101,16 @@ In the event of a data breach likely to result in a high risk to rights and free
 
 You have the following rights:
 
-| Right | What it means |
-|-------|---------------|
-| **Access** (Art. 15) | obtain a copy of the data concerning you |
-| **Rectification** (Art. 16) | correct inaccurate data |
-| **Erasure** (Art. 17) | request deletion, subject to legal obligations |
-| **Portability** (Art. 20) | receive your data in a structured, machine-readable format |
-| **Restriction** (Art. 18) | freeze processing that is being contested |
-| **Objection** (Art. 21) | object to processing based on legitimate interest, including direct marketing |
-| **Withdrawal of consent** | at any time, for processing that depends on it, without retroactive effect |
-| **Post-mortem instructions** | set out what happens to your data after your death (French law) |
+| Right                        | What it means                                                                 |
+| ---------------------------- | ----------------------------------------------------------------------------- |
+| **Access** (Art. 15)         | obtain a copy of the data concerning you                                      |
+| **Rectification** (Art. 16)  | correct inaccurate data                                                       |
+| **Erasure** (Art. 17)        | request deletion, subject to legal obligations                                |
+| **Portability** (Art. 20)    | receive your data in a structured, machine-readable format                    |
+| **Restriction** (Art. 18)    | freeze processing that is being contested                                     |
+| **Objection** (Art. 21)      | object to processing based on legitimate interest, including direct marketing |
+| **Withdrawal of consent**    | at any time, for processing that depends on it, without retroactive effect    |
+| **Post-mortem instructions** | set out what happens to your data after your death (French law)               |
 
 **How to exercise them**: write to **[DPO EMAIL]** or use the account settings (self-service export and deletion). Reply within **1 month**, extendable by 2 months for complex requests, with prior notice.
 

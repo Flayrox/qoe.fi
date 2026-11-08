@@ -9,7 +9,11 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/qoefi/api/internal/testutil"
 )
+
+// Vérification statique à la compilation que pgx.Tx implémente DB.
+var _ DB = (pgx.Tx)(nil)
 
 // mockExec enregistre un appel Exec.
 type mockExec struct {
@@ -360,4 +364,97 @@ func TestDispatch_UnsupportedEvent(t *testing.T) {
 	if err == nil {
 		t.Fatalf("attendu une erreur pour événement non supporté, obtenu nil")
 	}
+}
+
+type mockTx struct {
+	mockDB
+	committed  bool
+	rolledBack bool
+}
+
+func (m *mockTx) Begin(ctx context.Context) (pgx.Tx, error) { return m, nil }
+func (m *mockTx) Commit(ctx context.Context) error {
+	m.committed = true
+	return nil
+}
+func (m *mockTx) Rollback(ctx context.Context) error {
+	m.rolledBack = true
+	return nil
+}
+func (m *mockTx) CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNames []string, rowSrc pgx.CopyFromSource) (int64, error) {
+	return 0, nil
+}
+func (m *mockTx) SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults { return nil }
+func (m *mockTx) LargeObjects() pgx.LargeObjects                              { return pgx.LargeObjects{} }
+func (m *mockTx) Prepare(ctx context.Context, name, sql string) (*pgconn.StatementDescription, error) {
+	return nil, nil
+}
+func (m *mockTx) Conn() *pgx.Conn { return nil }
+
+var _ pgx.Tx = (*mockTx)(nil)
+
+func TestDispatch_WithTx_Mock(t *testing.T) {
+	ctx := context.Background()
+	tx := &mockTx{}
+
+	// Test que Dispatch s'exécute correctement sur une transaction pgx.Tx
+	err := Dispatch(ctx, tx, UserBlockedEvent{
+		BlockerID: "11111111-1111-1111-1111-111111111111",
+		BlockedID: "22222222-2222-2222-2222-222222222222",
+	})
+	if err != nil {
+		t.Fatalf("Dispatch sur tx a échoué: %v", err)
+	}
+	if len(tx.execs) != 5 {
+		t.Fatalf("attendu 5 requêtes sur tx, obtenu %d", len(tx.execs))
+	}
+}
+
+func TestWithTx_NilPool(t *testing.T) {
+	ctx := context.Background()
+	err := WithTx(ctx, nil, func(tx pgx.Tx) error {
+		return nil
+	})
+	if err == nil {
+		t.Fatalf("attendu une erreur pour pool nil, obtenu nil")
+	}
+}
+
+func TestWithTx_Integration(t *testing.T) {
+	ctx := context.Background()
+	p, err := testutil.TryPool(ctx)
+	if err != nil || p == nil {
+		t.Skip("DB indisponible")
+	}
+
+	t.Run("Commit réussi", func(t *testing.T) {
+		err := WithTx(ctx, p, func(tx pgx.Tx) error {
+			var one int
+			return tx.QueryRow(ctx, "SELECT 1").Scan(&one)
+		})
+		if err != nil {
+			t.Fatalf("WithTx commit a échoué: %v", err)
+		}
+	})
+
+	t.Run("Rollback sur erreur", func(t *testing.T) {
+		customErr := errors.New("custom error")
+		err := WithTx(ctx, p, func(tx pgx.Tx) error {
+			return customErr
+		})
+		if !errors.Is(err, customErr) {
+			t.Fatalf("attendu customErr, obtenu %v", err)
+		}
+	})
+
+	t.Run("Rollback sur panic", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Fatalf("attendu un panic")
+			}
+		}()
+		_ = WithTx(ctx, p, func(tx pgx.Tx) error {
+			panic("boom")
+		})
+	})
 }

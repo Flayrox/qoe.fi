@@ -28,3 +28,9 @@ UPDATE "Subscriber" SET "confirmedAt" = "createdAt" WHERE "confirmedAt" IS NULL;
 
 CREATE INDEX "Subscriber_confirmation_token_idx" ON "Subscriber"("confirmationToken")
     WHERE "confirmationToken" IS NOT NULL;
+
+-- +goose Down
+DROP INDEX IF EXISTS "Subscriber_confirmation_token_idx";
+ALTER TABLE "Subscriber"
+    DROP COLUMN IF EXISTS "confirmationToken",
+    DROP COLUMN IF EXISTS "confirmedAt";

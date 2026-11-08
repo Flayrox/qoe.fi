@@ -57,9 +57,9 @@ export function UniversalExportVerifierPanel() {
             <FileCheck2 className="h-4 w-4" /> Vérificateur d&apos;export signé universel (Ed25519)
           </div>
           <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-            Contrôle cryptographique indépendant d&apos;une pièce scellée (registre d&apos;audit, abonnés,
-            consentements). Vérifie l&apos;intégrité de la charge utile, la chaîne canonique et la validité
-            de la signature Ed25519 sans secrets partagés.
+            Contrôle cryptographique indépendant d&apos;une pièce scellée (registre d&apos;audit,
+            abonnés, consentements). Vérifie l&apos;intégrité de la charge utile, la chaîne
+            canonique et la validité de la signature Ed25519 sans secrets partagés.
           </p>
         </div>
       </div>
@@ -123,16 +123,32 @@ export function UniversalExportVerifierPanel() {
             ) : (
               <>
                 <ShieldAlert className="h-4 w-4 shrink-0 text-destructive" />
-                <span>Document invalide — {result.error || 'La signature ou le contenu a été altéré'}</span>
+                <span>
+                  Document invalide — {result.error || 'La signature ou le contenu a été altéré'}
+                </span>
               </>
             )}
           </div>
           {result.isValid && (
             <div className="mt-2 text-[11px] text-muted-foreground space-y-1">
-              <div>Registre / Périmètre : <span className="font-semibold text-foreground">{result.scope ?? 'Inconnu'}</span></div>
-              <div>Clé de signature : <span className="tabular-nums font-semibold text-foreground">{result.keyId ?? '—'}</span> ({result.algorithm ?? 'Ed25519'})</div>
+              <div>
+                Registre / Périmètre :{' '}
+                <span className="font-semibold text-foreground">{result.scope ?? 'Inconnu'}</span>
+              </div>
+              <div>
+                Clé de signature :{' '}
+                <span className="tabular-nums font-semibold text-foreground">
+                  {result.keyId ?? '—'}
+                </span>{' '}
+                ({result.algorithm ?? 'Ed25519'})
+              </div>
               {result.generatedAt && (
-                <div>Date de scellement : <span className="tabular-nums">{new Date(result.generatedAt).toLocaleString('fr-FR')}</span></div>
+                <div>
+                  Date de scellement :{' '}
+                  <span className="tabular-nums">
+                    {new Date(result.generatedAt).toLocaleString('fr-FR')}
+                  </span>
+                </div>
               )}
             </div>
           )}

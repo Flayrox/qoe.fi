@@ -131,7 +131,8 @@ export function OutboxObservabilityConsole({ metrics }: OutboxObservabilityConso
             {statusBadge(metrics.status)}
           </div>
           <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-            Supervision du dépilage transactionnel, surveillance des verrous et relance globale des échecs.
+            Supervision du dépilage transactionnel, surveillance des verrous et relance globale des
+            échecs.
           </p>
         </div>
 
@@ -253,9 +254,7 @@ export function OutboxObservabilityConsole({ metrics }: OutboxObservabilityConso
           <div className="text-2xl font-semibold tabular-nums text-foreground">
             {metrics.sent24h}
           </div>
-          <div className="text-[11px] text-muted-foreground">
-            Sur les 24 dernières heures
-          </div>
+          <div className="text-[11px] text-muted-foreground">Sur les 24 dernières heures</div>
         </div>
       </div>
 
@@ -274,13 +273,9 @@ export function OutboxObservabilityConsole({ metrics }: OutboxObservabilityConso
                 <Mail className="h-3.5 w-3.5 text-primary" />
                 <span className="font-semibold text-foreground">{ch.channel}</span>
                 <span className="text-muted-foreground">·</span>
-                <span className="tabular-nums text-muted-foreground">
-                  {ch.queued} en attente
-                </span>
+                <span className="tabular-nums text-muted-foreground">{ch.queued} en attente</span>
                 <span className="text-muted-foreground">·</span>
-                <span className="tabular-nums text-foreground">
-                  {ch.sent} livrés (24h)
-                </span>
+                <span className="tabular-nums text-foreground">{ch.sent} livrés (24h)</span>
                 {ch.failed > 0 && (
                   <>
                     <span className="text-muted-foreground">·</span>

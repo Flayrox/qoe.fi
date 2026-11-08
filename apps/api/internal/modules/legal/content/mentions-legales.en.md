@@ -1,6 +1,6 @@
 # Legal notice
 
-*Last updated: {{updatedAt}}*
+_Last updated: {{updatedAt}}_
 
 qoe.fi is a European independent publishing platform: it lets creators, writers and media outlets publish, monetise and grow their audience without depending on an advertising network.
 
@@ -27,12 +27,12 @@ The publication manager is the legal representative of the publisher named above
 
 The service infrastructure is hosted within the European Union. The full list of processors (hosts, CDN, email delivery, payments) is published and kept up to date on the **Sub-processors** page.
 
-| Item | Host | Location |
-|------|------|----------|
-| Application, API, database | [MAIN HOST] | European Union |
-| Media and files (object storage) | [STORAGE HOST] | European Union |
-| Transactional email | [EMAIL PROVIDER] | European Union |
-| Payments | Stripe Payments Europe | Ireland / EU |
+| Item                             | Host                   | Location       |
+| -------------------------------- | ---------------------- | -------------- |
+| Application, API, database       | [MAIN HOST]            | European Union |
+| Media and files (object storage) | [STORAGE HOST]         | European Union |
+| Transactional email              | [EMAIL PROVIDER]       | European Union |
+| Payments                         | Stripe Payments Europe | Ireland / EU   |
 
 ## 4. Intellectual property
 

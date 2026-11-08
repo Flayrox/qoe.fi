@@ -87,14 +87,7 @@ export function HeroBlock({
       visible={visible}
       locked={locked}
       context={context}
-      styleBox={
-        (
-          props as unknown as {
-            styleBox?: { pt?: number; pb?: number; maxWidth?: number; opacity?: number };
-          }
-        ).styleBox
-      }
-      blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
+      blockProps={props}
       hiddenAt={hiddenAt}
     >
       <section
@@ -130,7 +123,7 @@ export function HeroBlock({
                   <NodeRenderer
                     nodes={slots.subtitle}
                     blockId={id}
-                    blockProps={props as unknown as Record<string, unknown>}
+                    blockProps={props}
                     context={context}
                     path="slots/subtitle"
                   />
@@ -176,7 +169,7 @@ export function HeroBlock({
               <NodeRenderer
                 nodes={slots.title}
                 blockId={id}
-                blockProps={props as unknown as Record<string, unknown>}
+                blockProps={props}
                 context={context}
                 path="slots/title"
               />
@@ -200,7 +193,7 @@ export function HeroBlock({
                 <NodeRenderer
                   nodes={slots.subtitle}
                   blockId={id}
-                  blockProps={props as unknown as Record<string, unknown>}
+                  blockProps={props}
                   context={context}
                   path="slots/subtitle"
                 />
@@ -226,7 +219,7 @@ export function HeroBlock({
                 <NodeRenderer
                   nodes={slots.actions}
                   blockId={id}
-                  blockProps={props as unknown as Record<string, unknown>}
+                  blockProps={props}
                   context={context}
                   path="slots/actions"
                 />
@@ -236,7 +229,7 @@ export function HeroBlock({
               <NodeRenderer
                 nodes={nodes}
                 blockId={id}
-                blockProps={props as unknown as Record<string, unknown>}
+                blockProps={props}
                 context={context}
                 path="nodes"
               />

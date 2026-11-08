@@ -149,6 +149,68 @@ targetDirs.forEach((dir) => {
   });
 });
 
+// ─── CHECK 5 : Réversibilité et intégrité des migrations Goose ─────────
+const gooseIssues = [];
+const migrationsDir = join(ROOT, 'apps/api/sql/migrations');
+if (existsSync(migrationsDir)) {
+  const seenVersions = new Map();
+  const sqlFiles = readdirSync(migrationsDir)
+    .filter((f) => f.endsWith('.sql'))
+    .sort();
+  for (const file of sqlFiles) {
+    const fullPath = join(migrationsDir, file);
+    const content = readFileSync(fullPath, 'utf8');
+
+    // Vérifie le préfixe numérique
+    const prefixMatch = file.match(/^(\d+)_/);
+    if (!prefixMatch) {
+      gooseIssues.push(`Fichier sans préfixe de version : ${file}`);
+    } else {
+      const ver = prefixMatch[1];
+      if (seenVersions.has(ver)) {
+        gooseIssues.push(`Version dupliquée ${ver} : ${file} et ${seenVersions.get(ver)}`);
+      } else {
+        seenVersions.set(ver, file);
+      }
+    }
+
+    // Vérifie Up & Down
+    const hasUp = content.includes('+goose Up');
+    const hasDown = content.includes('+goose Down');
+    if (!hasUp || !hasDown) {
+      gooseIssues.push(
+        `Migration non réversible (manque ${!hasUp ? 'Up' : ''} ${!hasDown ? 'Down' : ''}) : ${file}`
+      );
+    }
+  }
+}
+
+// ─── CHECK 6 : Discipline Shadow Store UI ─────────────────────────────
+const rogueSocialMutations = [];
+const uiSrcDir = join(ROOT, 'packages/ui/src');
+if (existsSync(uiSrcDir)) {
+  walk(uiSrcDir, (path) => {
+    if (
+      path.includes('node_modules') ||
+      path.includes('__tests__') ||
+      path.endsWith('.test.ts') ||
+      path.endsWith('.test.tsx')
+    )
+      return;
+    if (!/\.(tsx?)$/.test(path)) return;
+
+    const content = readFileSync(path, 'utf8');
+    const hasSocialAction =
+      content.includes('toggleFollowCreatorHomeAction') ||
+      content.includes('toggleBookmarkArticleHomeAction');
+    const hasShadowMutation =
+      content.includes('withShadowMutation') || content.includes('usePostShadow');
+    if (hasSocialAction && !hasShadowMutation) {
+      rogueSocialMutations.push(relative(ROOT, path));
+    }
+  });
+}
+
 // ─── BUDGET & RATCHET ────────────────────────────────────────────────
 let budget = { asUnknownMax: 50 };
 if (existsSync(BUDGET_FILE)) {
@@ -202,6 +264,22 @@ if (asUnknownCount > budget.asUnknownMax && !allowIncrease) {
   );
 }
 
+if (gooseIssues.length > 0) {
+  errors.push(
+    `🚨 ${gooseIssues.length} anomalie(s) de migrations Goose détectée(s) !\n` +
+      `   Règle : chaque fichier dans apps/api/sql/migrations doit avoir un préfixe unique et contenir '-- +goose Up' et '-- +goose Down'.\n` +
+      gooseIssues.map((g) => `   - ${g}`).join('\n')
+  );
+}
+
+if (rogueSocialMutations.length > 0) {
+  errors.push(
+    `🚨 ${rogueSocialMutations.length} composant(s) UI déclenchant des mutations sociales hors du Shadow Store !\n` +
+      `   Règle : utilisez withShadowMutation pour garantir le verrouillage in-flight et le rollback automatique.\n` +
+      rogueSocialMutations.map((m) => `   - ${m}`).join('\n')
+  );
+}
+
 if (asJson) {
   console.log(
     JSON.stringify({
@@ -212,6 +290,8 @@ if (asJson) {
         duplicateShadowFiles: duplicateShadowFiles.length,
         asUnknownCount,
         asUnknownMax: budget.asUnknownMax,
+        gooseIssues: gooseIssues.length,
+        rogueSocialMutations: rogueSocialMutations.length,
       },
       errors,
     })
@@ -230,6 +310,12 @@ if (asJson) {
   );
   console.log(
     `• Casts 'as unknown as'       : ${asUnknownCount <= budget.asUnknownMax ? `✅ ${asUnknownCount}/${budget.asUnknownMax}` : `❌ ${asUnknownCount} (max ${budget.asUnknownMax})`}`
+  );
+  console.log(
+    `• Réversibilité Goose (Up/Down): ${gooseIssues.length === 0 ? '✅ 0 anomalie' : `❌ ${gooseIssues.length}`}`
+  );
+  console.log(
+    `• Discipline Shadow Store UI  : ${rogueSocialMutations.length === 0 ? '✅ 0 violation' : `❌ ${rogueSocialMutations.length}`}`
   );
   console.log(`─────────────────────────────────────────────────\n`);
 

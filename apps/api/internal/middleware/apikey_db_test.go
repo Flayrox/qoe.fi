@@ -178,3 +178,64 @@ func TestAPIKeyContext(t *testing.T) {
 		t.Error("clé inconnue doit retourner ok=false")
 	}
 }
+// Contrat multi-médias : chaque clé API est liée à UNE publication. Un compte
+// qui gère deux médias possède deux clés, et chaque clé résout sa propre
+// publication — l'API n'a jamais de « workspace actif » implicite.
+func TestAPIKeyAuth_MediaKeysResolveTheirOwnPublication(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	if _, err := apiKeyPool.Exec(ctx, `TRUNCATE TABLE "ApiKey", "User", "Publication" CASCADE`); err != nil {
+		t.Fatalf("truncate: %v", err)
+	}
+
+	keys := []struct {
+		token  string
+		keyID  string
+		pubID  string
+		pubNam string
+	}{
+		{"qoe_live_mediaone12345", "ak_media_one", "pub_media_one", "Média Un"},
+		{"qoe_live_mediatwo12345", "ak_media_two", "pub_media_two", "Média Deux"},
+	}
+	for i, k := range keys {
+		if _, err := apiKeyPool.Exec(ctx,
+			`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "UpdatedAt")
+			 VALUES ($1, 'MEDIA', $2, $3, now(), now())`,
+			k.pubID, k.pubNam, "media-"+string(rune('a'+i))); err != nil {
+			t.Fatalf("publication média: %v", err)
+		}
+		hash := sha256.Sum256([]byte(k.token))
+		if _, err := apiKeyPool.Exec(ctx,
+			`INSERT INTO "ApiKey" (id, name, "keyPrefix", "keyHash", scopes, "publicationId")
+			 VALUES ($1, 'clé média', 'qoe_live_', $2, ARRAY['READ']::TEXT[], $3)`,
+			k.keyID, hex.EncodeToString(hash[:]), k.pubID); err != nil {
+			t.Fatalf("clé média: %v", err)
+		}
+	}
+
+	q := db.New(apiKeyPool)
+	for _, k := range keys {
+		var (
+			gotPub  string
+			gotType PrincipalType
+		)
+		h := APIKeyAuth(q)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotPub, _ = PublicationID(r.Context())
+			if principal, ok := GetPrincipal(r.Context()); ok {
+				gotType = principal.Type
+			}
+			w.WriteHeader(http.StatusNoContent)
+		}))
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, bearer(k.token))
+		if rr.Code != http.StatusNoContent {
+			t.Fatalf("%s: code = %d, attendu 204", k.keyID, rr.Code)
+		}
+		if gotPub != k.pubID {
+			t.Errorf("%s: publication = %q, attendu %q", k.keyID, gotPub, k.pubID)
+		}
+		if gotType != PrincipalTypePublication {
+			t.Errorf("%s: principal = %q, attendu publication", k.keyID, gotType)
+		}
+	}
+}

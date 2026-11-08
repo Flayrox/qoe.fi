@@ -1,6 +1,6 @@
 # Conditions générales d'utilisation
 
-*Dernière mise à jour : {{updatedAt}}* · *Entrée en vigueur : {{effectiveAt}}*
+_Dernière mise à jour : {{updatedAt}}_ · _Entrée en vigueur : {{effectiveAt}}_
 
 Les présentes conditions générales d'utilisation (« **CGU** ») régissent l'accès et l'utilisation de la plateforme **qoe.fi** (« **la Plateforme** »), éditée par [RAISON SOCIALE] (« **l'Éditeur** »), par toute personne physique ou morale créant un compte ou consultant des contenus (« **l'Utilisateur** »).
 

@@ -76,7 +76,7 @@ func (h *Handler) resolveProfileAccess(ctx context.Context, publicationID, viewe
 		}
 	}
 
-	access.CanViewContent = access.IsOwn || access.Visibility == "PUBLIC" || access.IsFollowing
+	access.CanViewContent = !access.Blocked && (access.IsOwn || access.Visibility == "PUBLIC" || access.IsFollowing)
 	return access, nil
 }
 

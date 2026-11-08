@@ -7,7 +7,15 @@
 // du schéma. Visualisation du budget d'erreur restant et des alertes actives.
 // =====================================================================
 
-import { Activity, AlertTriangle, CheckCircle2, Database, Mail, ShieldAlert, Sparkles } from 'lucide-react';
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  Database,
+  Mail,
+  ShieldAlert,
+  Sparkles,
+} from 'lucide-react';
 import { Badge } from '@qoe/ui/badge';
 import type { PlatformSLOReport, SLOSurface } from '@/lib/admin-infra-data';
 
@@ -68,7 +76,8 @@ export function SLOConsole({ report }: SLOConsoleProps) {
             {statusBadge(globalStatus)}
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Mesure en continu des 4 surfaces vitales de la plateforme avec budgets d&apos;erreur associés.
+            Mesure en continu des 4 surfaces vitales de la plateforme avec budgets d&apos;erreur
+            associés.
           </p>
         </div>
         <div className="text-[11px] tabular-nums text-muted-foreground">
@@ -175,7 +184,8 @@ export function SLOConsole({ report }: SLOConsoleProps) {
         <div className="rounded-lg border border-success/30 bg-success/5 px-4 py-2.5 text-xs text-foreground flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
           <span>
-            Toutes les surfaces respectent leurs engagements de service (SLO). Aucun incident ou dérive détecté.
+            Toutes les surfaces respectent leurs engagements de service (SLO). Aucun incident ou
+            dérive détecté.
           </span>
         </div>
       )}

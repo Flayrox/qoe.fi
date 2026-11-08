@@ -46,9 +46,7 @@ function errorMessage(error: unknown, fallback: string): string {
 export async function getSandboxScenariosAction(): Promise<SandboxScenarioInfo[]> {
   await assertCapability('admin.dashboard.read');
   try {
-    const data = await goFetch<{ scenarios: SandboxScenarioInfo[] }>(
-      '/v1/admin/sandbox/scenarios'
-    );
+    const data = await goFetch<{ scenarios: SandboxScenarioInfo[] }>('/v1/admin/sandbox/scenarios');
     return data.scenarios ?? [];
   } catch {
     return [];

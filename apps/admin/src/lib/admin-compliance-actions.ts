@@ -156,20 +156,16 @@ export interface SignedExportVerification {
 export async function verifySignedExportAction(
   rawJson: string
 ): Promise<
-  | { success: true; result: SignedExportVerification }
-  | { success: false; error: string }
+  { success: true; result: SignedExportVerification } | { success: false; error: string }
 > {
   await assertCapability('admin.compliance.read');
 
   try {
     const parsed = JSON.parse(rawJson);
-    const result = await goFetch<SignedExportVerification>(
-      '/v1/admin/compliance/exports/verify',
-      {
-        method: 'POST',
-        body: parsed,
-      }
-    );
+    const result = await goFetch<SignedExportVerification>('/v1/admin/compliance/exports/verify', {
+      method: 'POST',
+      body: parsed,
+    });
     return { success: true, result };
   } catch (error: unknown) {
     return {
