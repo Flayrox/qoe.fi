@@ -196,11 +196,6 @@ func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string, view
 		a.Author.Username = authorUsername
 		a.Author.LogoURL = authorLogo
 		a.Author.Type = identity.FromPublicationType(a.Publication.Type)
-		// Article média : le byline porte le logo du média, pas le logo
-		// personnel de la personne qui a écrit.
-		if a.Author.Type == identity.Media && pubLogo != nil {
-			a.Author.LogoURL = pubLogo
-		}
 		a.Publication.Subdomain = pubSubdomain
 		a.Publication.CustomDomain = pubCustomDomain
 		a.Publication.LogoURL = pubLogo

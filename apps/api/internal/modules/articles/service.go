@@ -338,11 +338,6 @@ func (s *Service) GetBySlugAny(ctx context.Context, slug string, viewerID string
 	// un type distinct → conversion explicite vers le mapping existant.
 	pubType := identity.FromPublicationType(string(row.PublicationType))
 	authorLogo := textPtr(row.AuthorLogo)
-	if pubType == identity.Media {
-		if logo := textPtr(row.PublicationLogo); logo != nil {
-			authorLogo = logo
-		}
-	}
 	resp := ArticleResponse{
 		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: cut.Content,
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
@@ -2244,11 +2239,6 @@ func (s *Service) articleResponseFromIDRow(row db.GetArticleByIDRow) ArticleResp
 
 	pubType := identity.FromPublicationType(string(row.PublicationType))
 	authorLogo := textPtr(row.AuthorLogo)
-	if pubType == identity.Media {
-		if logo := textPtr(row.PublicationLogo); logo != nil {
-			authorLogo = logo
-		}
-	}
 	return ArticleResponse{
 		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: content,
 		DraftContent: draftContent, LiveContent: liveContent, HasUnpublishedChanges: hasUnpublishedChanges,
@@ -2276,11 +2266,6 @@ func (s *Service) articleResponseFromIDRow(row db.GetArticleByIDRow) ArticleResp
 func articleFromSlugRow(row db.GetArticleBySlugRow, cut PaywallCutResult) ArticleResponse {
 	pubType := identity.FromPublicationType(string(row.PublicationType))
 	authorLogo := textPtr(row.AuthorLogo)
-	if pubType == identity.Media {
-		if logo := textPtr(row.PublicationLogo); logo != nil {
-			authorLogo = logo
-		}
-	}
 	resp := ArticleResponse{
 		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: cut.Content,
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
@@ -2307,11 +2292,6 @@ func articleFromSlugRow(row db.GetArticleBySlugRow, cut PaywallCutResult) Articl
 func articleFromRow(row db.GetArticleByIDRow, cut PaywallCutResult) ArticleResponse {
 	pubType := identity.FromPublicationType(string(row.PublicationType))
 	authorLogo := textPtr(row.AuthorLogo)
-	if pubType == identity.Media {
-		if logo := textPtr(row.PublicationLogo); logo != nil {
-			authorLogo = logo
-		}
-	}
 	resp := ArticleResponse{
 		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: cut.Content,
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),

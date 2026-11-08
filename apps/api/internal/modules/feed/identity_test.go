@@ -10,8 +10,9 @@ import (
 
 // L'identité d'un auteur d'article suit SA publication : MEDIA quand l'article
 // est publié dans un média, PERSONAL sinon — jamais la membership de l'auteur.
-// Le logo suit la même règle : logo du média pour un article média, logo
-// personnel pour un article publié sur la publication personnelle.
+// Le logo de l'auteur conserve son avatar personnel, tandis que la publication
+// porte le logo du média — permettant au front d'attribuer clairement « [logo média] Le Média »
+// et « par [avatar auteur] Auteur ».
 func TestBuildFeedArticleCarriesAuthorIdentityType(t *testing.T) {
 	row := &publishedArticleRow{
 		ID:              "article_1",
@@ -34,8 +35,11 @@ func TestBuildFeedArticleCarriesAuthorIdentityType(t *testing.T) {
 	if article.Author.Type != "MEDIA" {
 		t.Fatalf("type auteur = %q, attendu MEDIA", article.Author.Type)
 	}
-	if article.Author.LogoURL == nil || *article.Author.LogoURL != "/logos/le-media.svg" {
-		t.Fatalf("logo auteur = %v, attendu /logos/le-media.svg", article.Author.LogoURL)
+	if article.Author.LogoURL == nil || *article.Author.LogoURL != "/avatars/camille.svg" {
+		t.Fatalf("logo auteur = %v, attendu /avatars/camille.svg (avatar personnel préservé)", article.Author.LogoURL)
+	}
+	if article.Publication.LogoURL == nil || *article.Publication.LogoURL != "/logos/le-media.svg" {
+		t.Fatalf("logo publication = %v, attendu /logos/le-media.svg", article.Publication.LogoURL)
 	}
 
 	// Même autrice membre d'un média, mais article sur sa publication perso :

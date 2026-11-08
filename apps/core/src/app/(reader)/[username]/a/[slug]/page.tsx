@@ -207,6 +207,19 @@ export default async function UserArticleDedicatedPage({
             type: article.author?.type ?? 'PERSONAL',
             subdomain: article.publication?.subdomain ?? null,
             customDomain: article.publication?.customDomain ?? null,
+            journalist:
+              article.publication?.name &&
+              article.publication.name.trim().toLowerCase() !==
+                (article.author?.name ?? '').trim().toLowerCase()
+                ? {
+                    id: article.author?.id || 'author',
+                    name: article.author?.name ?? null,
+                    username: article.author?.username ?? null,
+                    logoUrl: article.author?.logoUrl ?? null,
+                    isCertified: article.author?.isCertified ?? false,
+                    type: 'PERSONAL',
+                  }
+                : null,
           },
           category: article.category ? { name: article.category.name } : null,
           publication: article.publication

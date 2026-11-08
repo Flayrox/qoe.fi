@@ -57,6 +57,7 @@ import {
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
 import { useFlag } from '@qoe/flags';
+import { Button } from '@qoe/ui/button';
 import { useReaderToolbar } from './ReaderToolbarContext';
 
 export interface ArticleAnnotatorViewProps {
@@ -95,12 +96,15 @@ export interface ArticleAnnotatorViewProps {
     category?: { name: string } | null;
     tags?: string[];
     publication?: {
+      id?: string | null;
+      type?: 'PERSONAL' | 'MEDIA' | string | null;
       name?: string | null;
       slug?: string | null;
       subdomain?: string | null;
       logoUrl?: string | null;
       customDomain?: string | null;
       accentColor?: string | null;
+      isCertified?: boolean;
     } | null;
     allowPublicAnnotations?: boolean;
     isLoading?: boolean;
@@ -503,33 +507,69 @@ function ArticleAnnotatorViewInner({
     return preferences.bionicReading ? formatBionicHtml(article.content) : article.content;
   }, [article.content, preferences.bionicReading]);
 
-  const authorName = article.author?.name || article.author?.username || 'Auteur';
-  const authorHandle = article.author?.username || article.author?.subdomain || '';
-  // Quand l'article vient du feed, `author` est la publication (média) et le
-  // vrai rédacteur est dans `journalist` : on affiche le journaliste en
-  // premier, avec la ligne « Pour <média> » — jamais le média seul.
-  const writer = article.author?.type === 'MEDIA' ? (article.author?.journalist ?? null) : null;
-  const shownName = writer?.name || authorName;
-  const shownHandle = writer?.username || authorHandle;
-  // Le journaliste affiché garde SON avatar (ou ses initiales) : jamais le
-  // logo du média, sinon on croit que la photo d'Ephe est celle de L'Assez.
-  const shownAvatar = writer ? (writer.logoUrl ?? null) : (article.author?.logoUrl ?? null);
-  const shownCertified = writer?.isCertified || article.author?.isCertified;
   const publication = article.publication;
-  const outletForPour = writer
-    ? {
-        name: article.author?.name,
-        logoUrl: article.author?.logoUrl,
-        subdomain: article.author?.subdomain,
-      }
-    : null;
-  const publicationLabel = (publication?.name ?? '').trim().toLowerCase();
-  const showPublicationLine =
-    outletForPour != null ||
-    (publication != null &&
-      publicationLabel !== '' &&
-      publicationLabel !== shownName.trim().toLowerCase());
-  const pourTarget = outletForPour ?? publication;
+  // Attribution de l'article : Média vs Auteur
+  // Un article est un article de Média si :
+  // 1. article.publication?.type === 'MEDIA'
+  // 2. article.author?.type === 'MEDIA'
+  // 3. article.publication?.name existe et diffère du nom du rédacteur
+  const isMedia =
+    publication?.type === 'MEDIA' ||
+    article.author?.type === 'MEDIA' ||
+    Boolean(
+      publication?.name &&
+      publication.name.trim().toLowerCase() !==
+        (article.author?.journalist?.name || article.author?.name || '').trim().toLowerCase()
+    );
+
+  // Émetteur principal pour un média :
+  const mediaName =
+    publication?.name || (article.author?.type === 'MEDIA' ? article.author.name : null) || 'Média';
+  const mediaHandle =
+    publication?.subdomain ||
+    publication?.slug ||
+    (article.author?.type === 'MEDIA'
+      ? article.author.username || article.author.subdomain
+      : null) ||
+    '';
+  const mediaLogo =
+    publication?.logoUrl ||
+    (article.author?.type === 'MEDIA' ? article.author.logoUrl : null) ||
+    null;
+  const mediaCertified = Boolean(
+    publication?.isCertified || (article.author?.type === 'MEDIA' && article.author.isCertified)
+  );
+
+  // Journaliste / Rédacteur individuel :
+  const writerObj =
+    article.author?.journalist || (article.author?.type !== 'MEDIA' ? article.author : null);
+  const writerName =
+    writerObj?.name ||
+    (article.author?.name && article.author.name !== mediaName ? article.author.name : null) ||
+    'Auteur';
+  const writerHandle =
+    writerObj?.username ||
+    (article.author?.username && article.author.username !== mediaHandle
+      ? article.author.username
+      : null) ||
+    '';
+  const writerAvatar =
+    writerObj?.logoUrl ||
+    (article.author?.logoUrl !== mediaLogo ? article.author?.logoUrl : null) ||
+    null;
+  const writerCertified = Boolean(writerObj?.isCertified);
+
+  // Émetteur pour un article personnel (hors média) :
+  const personalAuthorName = article.author?.name || article.author?.username || 'Auteur';
+  const personalAuthorHandle = article.author?.username || article.author?.subdomain || '';
+  const personalAuthorAvatar = article.author?.logoUrl || null;
+  const personalAuthorCertified = Boolean(article.author?.isCertified);
+
+  const authorName = isMedia ? mediaName : personalAuthorName;
+  const authorHandle = isMedia ? mediaHandle : personalAuthorHandle;
+
+  const targetFollowId = isMedia ? publication?.id || article.author?.id : article.author?.id;
+
   const dateObj = new Date(article.createdAt || Date.now());
   const dateFormatted = dateObj.toLocaleDateString('fr-FR', {
     day: 'numeric',
@@ -606,111 +646,185 @@ function ArticleAnnotatorViewInner({
         {/* 3. EN-TÊTE AUTEUR ENRICHI & BARRE D'OUTILS DE LECTURE */}
         <div className="flex flex-wrap items-center justify-between gap-4 py-3 border-b border-border/20">
           <div className="flex items-center gap-3 min-w-0">
-            <ProfileHoverCard
-              user={{
-                id: writer?.id || article.author?.id || '',
-                name: shownName,
-                username: shownHandle,
-                logoUrl: shownAvatar,
-                heroText: article.author?.heroText,
-                isCertified: shownCertified,
-                isMedia: !writer && article.author?.type === 'MEDIA',
-                type: writer ? 'PERSONAL' : article.author?.type,
-              }}
-              onOpenProfile={onOpenProfile}
-            >
-              <SafeAvatar
-                src={shownAvatar}
-                name={shownName}
-                username={shownHandle}
-                size={42}
-                shape={!writer && article.author?.type === 'MEDIA' ? 'squircle' : 'circle'}
-                type={!writer && article.author?.type === 'MEDIA' ? 'MEDIA' : 'PERSONAL'}
-                className={cn(
-                  'shrink-0 cursor-pointer shadow-xs',
-                  !writer && article.author?.type === 'MEDIA' ? 'rounded-xl' : 'rounded-full'
-                )}
-              />
-            </ProfileHoverCard>
-
-            <div className="min-w-0 leading-tight">
-              <div className="flex items-center gap-1.5 flex-wrap">
+            {isMedia ? (
+              <>
+                {/* ── Cas Média : Grand logo du Média en squircle ── */}
                 <ProfileHoverCard
                   user={{
-                    id: writer?.id || article.author?.id || '',
-                    name: shownName,
-                    username: shownHandle,
-                    logoUrl: shownAvatar,
-                    heroText: article.author?.heroText,
-                    isCertified: shownCertified,
-                    isMedia: !writer && article.author?.type === 'MEDIA',
-                    type: writer ? 'PERSONAL' : article.author?.type,
+                    id: publication?.id || '',
+                    name: mediaName,
+                    username: mediaHandle,
+                    logoUrl: mediaLogo,
+                    isCertified: mediaCertified,
+                    isMedia: true,
+                    type: 'MEDIA',
                   }}
                   onOpenProfile={onOpenProfile}
                 >
-                  <span
-                    onClick={() => onOpenProfile?.(shownHandle)}
-                    className="font-semibold text-[15px] text-foreground hover:underline cursor-pointer truncate"
-                  >
-                    {shownName}
-                  </span>
-                </ProfileHoverCard>
-                {shownCertified && <CertifiedBadge />}
-                {shownHandle && (
-                  <span className="text-xs text-muted-foreground">@{shownHandle}</span>
-                )}
-              </div>
-              {showPublicationLine && pourTarget?.name && (
-                <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                   <SafeAvatar
-                    src={pourTarget.logoUrl ?? null}
-                    name={pourTarget.name}
-                    username={pourTarget.subdomain}
-                    size={16}
+                    src={mediaLogo}
+                    name={mediaName}
+                    username={mediaHandle}
+                    size={42}
                     shape="squircle"
                     type="MEDIA"
-                    className="rounded-[4px] shrink-0"
+                    className="shrink-0 cursor-pointer shadow-xs rounded-xl"
                   />
-                  <span>
-                    {t`Pour`}{' '}
+                </ProfileHoverCard>
+
+                <div className="min-w-0 leading-tight">
+                  {/* Titre : Nom du Média */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <ProfileHoverCard
                       user={{
-                        id: writer?.id || article.author?.id || '',
-                        name: pourTarget.name,
-                        username: pourTarget.subdomain,
-                        logoUrl: pourTarget.logoUrl ?? null,
-                        isCertified: !writer && article.author?.isCertified,
+                        id: publication?.id || '',
+                        name: mediaName,
+                        username: mediaHandle,
+                        logoUrl: mediaLogo,
+                        isCertified: mediaCertified,
                         isMedia: true,
                         type: 'MEDIA',
                       }}
                       onOpenProfile={onOpenProfile}
                     >
                       <span
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (pourTarget.subdomain) onOpenProfile?.(pourTarget.subdomain);
-                        }}
-                        className="font-semibold text-foreground/90 hover:underline cursor-pointer"
+                        onClick={() => mediaHandle && onOpenProfile?.(mediaHandle)}
+                        className="font-semibold text-[15px] text-foreground hover:underline cursor-pointer truncate"
                       >
-                        {pourTarget.name}
+                        {mediaName}
                       </span>
                     </ProfileHoverCard>
-                  </span>
-                </div>
-              )}
+                    {mediaCertified && <CertifiedBadge />}
+                  </div>
 
-              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                {article.category && (
-                  <>
-                    <span className="font-medium text-foreground/80">{article.category.name}</span>
+                  {/* Signature : par <Auteur> */}
+                  <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
+                    <span>{t`par`}</span>
+                    <ProfileHoverCard
+                      user={{
+                        id: writerObj?.id || '',
+                        name: writerName,
+                        username: writerHandle,
+                        logoUrl: writerAvatar,
+                        isCertified: writerCertified,
+                        isMedia: false,
+                        type: 'PERSONAL',
+                      }}
+                      onOpenProfile={onOpenProfile}
+                    >
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (writerHandle) onOpenProfile?.(writerHandle);
+                        }}
+                        className="inline-flex items-center gap-1.5 cursor-pointer hover:underline text-foreground/90 font-medium"
+                      >
+                        <SafeAvatar
+                          src={writerAvatar}
+                          name={writerName}
+                          username={writerHandle}
+                          size={16}
+                          shape="circle"
+                          type="PERSONAL"
+                          className="rounded-full shrink-0"
+                        />
+                        <span>{writerName}</span>
+                        {writerCertified && <CertifiedBadge />}
+                        {writerHandle && (
+                          <span className="text-muted-foreground font-normal">@{writerHandle}</span>
+                        )}
+                      </span>
+                    </ProfileHoverCard>
+                  </div>
+
+                  {/* Métadonnées : Catégorie · temps de lecture · date */}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                    {article.category && (
+                      <>
+                        <span className="font-medium text-foreground/80">
+                          {article.category.name}
+                        </span>
+                        <span>·</span>
+                      </>
+                    )}
+                    <span>{article.readingTime || 5} min de lecture</span>
                     <span>·</span>
-                  </>
-                )}
-                <span>{article.readingTime || 5} min de lecture</span>
-                <span>·</span>
-                <time dateTime={dateIso}>{dateFormatted}</time>
-              </div>
-            </div>
+                    <time dateTime={dateIso}>{dateFormatted}</time>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* ── Cas Personnel : Grand avatar de l'Auteur en cercle ── */}
+                <ProfileHoverCard
+                  user={{
+                    id: article.author?.id || '',
+                    name: personalAuthorName,
+                    username: personalAuthorHandle,
+                    logoUrl: personalAuthorAvatar,
+                    heroText: article.author?.heroText,
+                    isCertified: personalAuthorCertified,
+                    isMedia: false,
+                    type: 'PERSONAL',
+                  }}
+                  onOpenProfile={onOpenProfile}
+                >
+                  <SafeAvatar
+                    src={personalAuthorAvatar}
+                    name={personalAuthorName}
+                    username={personalAuthorHandle}
+                    size={42}
+                    shape="circle"
+                    type="PERSONAL"
+                    className="shrink-0 cursor-pointer shadow-xs rounded-full"
+                  />
+                </ProfileHoverCard>
+
+                <div className="min-w-0 leading-tight">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <ProfileHoverCard
+                      user={{
+                        id: article.author?.id || '',
+                        name: personalAuthorName,
+                        username: personalAuthorHandle,
+                        logoUrl: personalAuthorAvatar,
+                        heroText: article.author?.heroText,
+                        isCertified: personalAuthorCertified,
+                        isMedia: false,
+                        type: 'PERSONAL',
+                      }}
+                      onOpenProfile={onOpenProfile}
+                    >
+                      <span
+                        onClick={() => onOpenProfile?.(personalAuthorHandle)}
+                        className="font-semibold text-[15px] text-foreground hover:underline cursor-pointer truncate"
+                      >
+                        {personalAuthorName}
+                      </span>
+                    </ProfileHoverCard>
+                    {personalAuthorCertified && <CertifiedBadge />}
+                    {personalAuthorHandle && (
+                      <span className="text-xs text-muted-foreground">@{personalAuthorHandle}</span>
+                    )}
+                  </div>
+
+                  {/* Métadonnées */}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                    {article.category && (
+                      <>
+                        <span className="font-medium text-foreground/80">
+                          {article.category.name}
+                        </span>
+                        <span>·</span>
+                      </>
+                    )}
+                    <span>{article.readingTime || 5} min de lecture</span>
+                    <span>·</span>
+                    <time dateTime={dateIso}>{dateFormatted}</time>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           <div
@@ -720,12 +834,13 @@ function ArticleAnnotatorViewInner({
               toolbar?.isDocked && 'opacity-0 pointer-events-none'
             )}
           >
-            {user && user.id !== article.author?.id && (
-              <button
-                type="button"
+            {user && user.id !== targetFollowId && (
+              <Button
+                variant={activeFollowed ? 'secondary' : 'default'}
+                size="sm"
                 onClick={toggleFollow}
                 className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer',
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer',
                   activeFollowed
                     ? 'bg-muted text-foreground hover:bg-muted/80'
                     : 'bg-foreground text-background dark:bg-white dark:text-black hover:opacity-90'
@@ -737,11 +852,12 @@ function ArticleAnnotatorViewInner({
                   <UserPlus className="w-3.5 h-3.5" />
                 )}
                 <span>{activeFollowed ? t`Abonné` : t`Suivre`}</span>
-              </button>
+              </Button>
             )}
 
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={toggleBookmark}
               className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
               title={activeBookmarked ? t`Supprimer des signets` : t`Mettre en signet`}
@@ -751,10 +867,11 @@ function ArticleAnnotatorViewInner({
               ) : (
                 <Bookmark className="w-4 h-4" />
               )}
-            </button>
+            </Button>
 
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleShare}
               className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
               title={activeCopied ? t`Lien copié !` : t`Partager l'article`}
@@ -764,7 +881,7 @@ function ArticleAnnotatorViewInner({
               ) : (
                 <Share2 className="w-4 h-4" />
               )}
-            </button>
+            </Button>
 
             {isTtsEnabled && (
               <TextToSpeechPlayer
