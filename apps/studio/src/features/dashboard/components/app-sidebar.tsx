@@ -1,5 +1,6 @@
 import React from 'react';
 import { headers } from 'next/headers';
+import { getMainAppUrl } from '@qoe/config';
 import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { getActiveWorkspace, type ActiveWorkspace } from '@/lib/active-workspace';
@@ -79,14 +80,20 @@ export async function AppSidebar() {
 
   // 🔕 Pas de badge tant qu'on est sur la page notifications (header posé par middleware.ts)
   let isOnNotificationsPage = false;
+  let requestHost: string | undefined;
   try {
     const headerStore = await headers();
+    requestHost = headerStore.get('host') ?? undefined;
     isOnNotificationsPage = (headerStore.get('x-pathname') || '').startsWith('/notifications');
   } catch {
     // headers() indisponible (edge cas rare) → on garde le badge
   }
 
   const brandName = workspace?.type === 'MEDIA' ? workspace.name : t`Studio`;
+
+  // 🎛️ Retour au feed : URL absolue résolue depuis l'hôte de la requête, pour
+  // rester sur le domaine de la session SSO (qoe.test, lvh.me, qoe.fi).
+  const feedHref = `${getMainAppUrl(requestHost)}/home`;
 
   // 🛡️ Le chrome suit les permissions effectives (rôle + overrides) du média
   // actif ; un compte PERSONNEL est propriétaire, donc `undefined` = tout voir.
@@ -104,6 +111,7 @@ export async function AppSidebar() {
       userFallback={userFallback}
       userAvatar={userAvatar}
       brandName={brandName}
+      feedHref={feedHref}
       permissions={permissions}
       canWrite={canWrite}
       unreadCount={unreadCount}

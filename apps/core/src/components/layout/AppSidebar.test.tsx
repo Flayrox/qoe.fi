@@ -46,7 +46,13 @@ const EXPECTED: Array<[label: string, href: string]> = [
 describe('AppSidebar (lecteur)', () => {
   it('rend la navigation depuis le manifeste, « Mon profil » compris', () => {
     render(
-      <AppSidebar userId="u1" userName="Jean" userUsername="jean" userEmail="jean@qoe.test" />
+      <AppSidebar
+        userId="u1"
+        userName="Jean"
+        userUsername="jean"
+        userEmail="jean@qoe.test"
+        studioHref="http://studio.qoe.test"
+      />
     );
 
     for (const [label, href] of EXPECTED) {
@@ -56,7 +62,13 @@ describe('AppSidebar (lecteur)', () => {
 
   it('porte les badges non-lus des surfaces notifications et messages', () => {
     render(
-      <AppSidebar userId="u1" userName="Jean" userUsername="jean" userEmail="jean@qoe.test" />
+      <AppSidebar
+        userId="u1"
+        userName="Jean"
+        userUsername="jean"
+        userEmail="jean@qoe.test"
+        studioHref="http://studio.qoe.test"
+      />
     );
 
     const anchors = Array.from(document.querySelectorAll('a'));
@@ -64,5 +76,23 @@ describe('AppSidebar (lecteur)', () => {
     const messages = anchors.find((anchor) => anchorLabel(anchor) === 'Messages');
     expect(notifications?.textContent).toContain('4');
     expect(messages?.textContent).toContain('2');
+  });
+
+  it('le côté gauche du logo mène au Studio, le côté courant reste un repère', () => {
+    render(
+      <AppSidebar
+        userId="u1"
+        userName="Jean"
+        userUsername="jean"
+        userEmail="jean@qoe.test"
+        studioHref="http://studio.qoe.test"
+      />
+    );
+
+    expect(document.querySelector('a[aria-label="Studio"]')?.getAttribute('href')).toBe(
+      'http://studio.qoe.test'
+    );
+    // L'application où l'on se trouve n'est pas une destination.
+    expect(document.querySelector('a[aria-label="Lecteur"]')).toBeNull();
   });
 });

@@ -1,5 +1,7 @@
 import React from 'react';
+import { headers } from 'next/headers';
 import { createClient } from '@qoe/supabase/server';
+import { getStudioAppUrl } from '@qoe/config';
 import { getRequestDbUser } from '../../lib/cached-queries';
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { ReaderNavOverlay } from '@/components/layout/ReaderNavOverlay';
@@ -26,6 +28,12 @@ export default async function MainLayout({ children }: { children: React.ReactNo
 
   const dbUser = user ? await getRequestDbUser(user.id) : null;
   const locale = await getLanguage();
+
+  // 🎛️ Bascule vers le Studio : l'URL absolue suit l'hôte de la requête
+  // (qoe.test, lvh.me, qoe.fi). La calculer côté serveur évite un href
+  // différent à l'hydratation et garde la session SSO sur le même domaine.
+  const requestHost = (await headers()).get('host') ?? undefined;
+  const studioHref = getStudioAppUrl(requestHost);
 
   // Consentements légaux manquants (une nouvelle version d'un document
   // « à accepter » redéclenche la demande). Vide pour un visiteur anonyme.
@@ -58,6 +66,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         userType={dbUser?.type}
         userRole={dbUser?.role}
         onLogout={logout}
+        studioHref={studioHref}
       />
       <ReaderNavOverlay
         userId={dbUser?.id || user?.id}

@@ -46,14 +46,23 @@ const SURFACE_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   Compass,
 };
 
-const SECTION_LABELS: Record<SurfaceDescriptor['section'], string> = {
-  navigation: t`Navigation`,
-  library: t`Bibliothèque`,
-  creation: t`Création`,
-  growth: t`Croissance`,
-  workspace: t`Espace de travail`,
-  system: t`Système`,
-};
+// ⚠️ Les libellés sont résolus au rendu, jamais à l'évaluation du module :
+// en dev, Lingui n'a pas encore de locale activée au chargement du chunk et
+// `t` lève « Attempted to call a translation function without setting a
+// locale » avant même que le provider de langue ne monte.
+function useSectionLabels(): Record<SurfaceDescriptor['section'], string> {
+  return useMemo(
+    () => ({
+      navigation: t`Navigation`,
+      library: t`Bibliothèque`,
+      creation: t`Création`,
+      growth: t`Croissance`,
+      workspace: t`Espace de travail`,
+      system: t`Système`,
+    }),
+    []
+  );
+}
 
 export interface MeiliSearchResult {
   id: string;
@@ -66,6 +75,7 @@ export function GlobalCommandMenu({ permissions }: { permissions?: string[] }) {
   const { isOpen, setIsOpen } = useCommandMenu();
   const router = useRouter();
   const { setTheme } = useTheme();
+  const sectionLabels = useSectionLabels();
 
   const [query, setQuery] = useState('');
   const [debouncedQuery] = useDebounce(query, 300);
@@ -145,9 +155,9 @@ export function GlobalCommandMenu({ permissions }: { permissions?: string[] }) {
         label: surface.defaultLabel,
         path: surface.path,
         icon: SURFACE_ICONS[surface.iconName] ?? FileText,
-        category: SECTION_LABELS[surface.section],
+        category: sectionLabels[surface.section],
       })),
-    [permissions]
+    [permissions, sectionLabels]
   );
 
   return (
