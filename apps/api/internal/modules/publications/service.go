@@ -587,14 +587,8 @@ func scanArticleDetail(row pgx.Row) (*ArticleDetail, error) {
 		}
 	}
 	pubType := identity.FromPublicationType(publicationType)
-	authorLogoOut := authorLogo
-	// Le byline d'un article média porte le logo du média ; un article
-	// personnel conserve le logo personnel de l'auteur.
-	if pubType == identity.Media && publicationLogo != nil {
-		authorLogoOut = publicationLogo
-	}
 	a.Author = &AuthorInfo{
-		ID: a.AuthorID, Name: authorName, Username: authorUsername, LogoURL: authorLogoOut,
+		ID: a.AuthorID, Name: authorName, Username: authorUsername, LogoURL: authorLogo,
 		Type: pubType,
 	}
 	return &a, nil

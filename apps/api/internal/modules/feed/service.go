@@ -568,13 +568,6 @@ func truncatePaywall(content string, visibility db.ContentVisibility, tierID *st
 func buildFeedArticle(r *publishedArticleRow) FeedArticle {
 	authorType := identity.FromPublicationType(string(r.PublicationType))
 	authorLogo := pgtypeTextPtr(r.AuthorLogo)
-	// Un article publié dans un média porte l'identité visuelle du média
-	// (logo), pas le logo personnel de la personne qui l'a écrit.
-	if authorType == identity.Media {
-		if pubLogo := pgtypeTextPtr(r.PublicationLogo); pubLogo != nil {
-			authorLogo = pubLogo
-		}
-	}
 	return FeedArticle{
 		ID:            r.ID,
 		Title:         r.Title,

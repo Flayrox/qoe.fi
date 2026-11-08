@@ -139,10 +139,12 @@ type SharedContributor = {
 function SharedContributorLine({
   people,
   forMedia,
+  isMediaByline = false,
   onOpenProfile,
 }: {
   people: SharedContributor[];
   forMedia?: SharedContributor | null;
+  isMediaByline?: boolean;
   onOpenProfile?: (username: string) => void;
 }) {
   if (!forMedia && people.length === 0) return null;
@@ -245,6 +247,78 @@ function SharedContributorLine({
                 })}
               </>
             )}
+          </>
+        ) : isMediaByline ? (
+          <>
+            <span>{t`par`}</span>
+            {people.slice(0, 1).map((person) => {
+              const pHandle = person.username || person.id.slice(0, 8);
+              return (
+                <ProfileHoverCard
+                  key={person.id}
+                  user={{
+                    id: person.id,
+                    name: person.name,
+                    username: person.username,
+                    logoUrl: person.logoUrl,
+                    isCertified: person.isCertified,
+                    isMedia: false,
+                    type: 'PERSONAL',
+                  }}
+                  side="bottom"
+                  onOpenProfile={onOpenProfile}
+                >
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenProfile?.(pHandle);
+                    }}
+                    className="font-medium text-foreground/80 hover:underline cursor-pointer"
+                  >
+                    {person.handleOnly ? `@${pHandle}` : `${person.name || 'Auteur'} @${pHandle}`}
+                  </span>
+                </ProfileHoverCard>
+              );
+            })}
+            {people.length > 1 && (
+              <>
+                <span>{t`, avec`}</span>
+                {people.slice(1, 3).map((person, idx) => {
+                  const pHandle = person.username || person.id.slice(0, 8);
+                  return (
+                    <React.Fragment key={person.id}>
+                      {idx > 0 && <span>·</span>}
+                      <ProfileHoverCard
+                        user={{
+                          id: person.id,
+                          name: person.name,
+                          username: person.username,
+                          logoUrl: person.logoUrl,
+                          isCertified: person.isCertified,
+                          isMedia: person.isMedia,
+                          type: person.isMedia ? 'MEDIA' : 'PERSONAL',
+                        }}
+                        side="bottom"
+                        onOpenProfile={onOpenProfile}
+                      >
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenProfile?.(pHandle);
+                          }}
+                          className="font-medium text-foreground/80 hover:underline cursor-pointer"
+                        >
+                          {person.handleOnly
+                            ? `@${pHandle}`
+                            : `${person.name || 'Auteur'} @${pHandle}`}
+                        </span>
+                      </ProfileHoverCard>
+                    </React.Fragment>
+                  );
+                })}
+              </>
+            )}
+            {people.length > 3 && <span>+{people.length - 3}</span>}
           </>
         ) : (
           <>
@@ -666,6 +740,7 @@ export function ArticleCard({
               <SharedContributorLine
                 people={linePeople}
                 forMedia={useAuthorAsPrimary ? mediaContributor : profileMedia}
+                isMediaByline={isMedia && !useAuthorAsPrimary}
                 onOpenProfile={onOpenProfile}
               />
             </div>
