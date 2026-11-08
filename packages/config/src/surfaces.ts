@@ -382,6 +382,18 @@ export function getCmdKSurfaces(
   );
 }
 
+/**
+ * Nom de route expo-router d'une surface mobile. Un onglet sans `routeName`
+ * est un manifeste invalide : on échoue au rendu plutôt que de monter un
+ * onglet anonyme (`name=""`) ou de retomber silencieusement sur une route.
+ */
+export function requireRouteName(surface: SurfaceDescriptor): string {
+  if (!surface.routeName) {
+    throw new Error(`Surface mobile sans routeName : ${surface.id}`);
+  }
+  return surface.routeName;
+}
+
 /** Onglets mobiles d'une plateforme, dans l'ordre du manifeste. */
 export function getMobileSurfaces(platform: 'native' | 'web'): SurfaceDescriptor[] {
   return PLATFORM_SURFACES.map((surface, index) => ({ surface, index }))

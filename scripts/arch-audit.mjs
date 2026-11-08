@@ -450,6 +450,21 @@ requireConsumer(
   'getMobileNavEntries',
   'getMobileNavEntries (tiroir mobile)'
 );
+requireConsumer(
+  'apps/admin/src/app/(admin)/admin/components/AdminSidebar.tsx',
+  'navByDomain',
+  'navByDomain (sidebar admin)'
+);
+requireConsumer(
+  'apps/admin/src/app/(admin)/admin/components/CommandPalette.tsx',
+  'visibleNav',
+  'visibleNav (palette admin)'
+);
+requireConsumer(
+  'apps/admin/src/app/(admin)/admin/components/CommandPalette.tsx',
+  'visibleActions',
+  'visibleActions (palette admin)'
+);
 const adminConsolePath = join(ROOT, 'apps/admin/src/lib/admin-console.ts');
 if (existsSync(adminConsolePath)) {
   const source = readFileSync(adminConsolePath, 'utf8');
@@ -466,8 +481,17 @@ for (const file of [
   const absolute = join(ROOT, file);
   if (!existsSync(absolute)) continue;
   const source = readFileSync(absolute, 'utf8');
-  if (/name=["'](index|home|explore|notifications|messages|profile)["']/.test(source)) {
+  if (/\bname\s*=\s*["'](index|home|explore|notifications|messages|profile)["']/.test(source)) {
     consumerIssues.push(`${file} code un nom de route en dur : il doit venir du manifeste`);
+  }
+  if (/\bname=\{\s*["'`](index|home|explore|notifications|messages|profile)/.test(source)) {
+    consumerIssues.push(`${file} code un nom de route en dur : il doit venir du manifeste`);
+  }
+  if (/routeName\s*\?\?/.test(source)) {
+    consumerIssues.push(`${file} masque une route absente du manifeste par un fallback silencieux`);
+  }
+  if (!source.includes('requireRouteName')) {
+    consumerIssues.push(`${file} monte un onglet sans requireRouteName`);
   }
 }
 for (const file of [

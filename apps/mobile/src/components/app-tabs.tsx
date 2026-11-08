@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { getMobileSurfaces } from '@qoe/config';
+import { getMobileSurfaces, requireRouteName } from '@qoe/config';
 import { LiquidTabBar } from '@/components/liquid-tab-bar';
 import { useDrawer } from '@/components/drawer/drawer-context';
 
@@ -8,8 +8,9 @@ import { useDrawer } from '@/components/drawer/drawer-context';
 export default function AppTabs() {
   const { openDrawer } = useDrawer();
   const tabs = getMobileSurfaces('native');
-  const initialRouteName =
-    tabs.find((surface) => surface.id === 'mobile.feed')?.routeName ?? 'index';
+  const feed = tabs.find((surface) => surface.id === 'mobile.feed');
+  if (!feed) throw new Error('Onglet mobile.feed absent du manifeste de surfaces');
+  const initialRouteName = requireRouteName(feed);
 
   return (
     <Tabs
@@ -28,7 +29,7 @@ export default function AppTabs() {
       {tabs.map((surface) => (
         <Tabs.Screen
           key={surface.id}
-          name={surface.routeName ?? ''}
+          name={requireRouteName(surface)}
           options={{ title: surface.defaultLabel }}
           listeners={
             surface.id === 'mobile.profile'
