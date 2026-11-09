@@ -1,6 +1,6 @@
 'use client';
 
-import { ImageIcon, X } from 'lucide-react';
+import { Crop, ImageIcon, X } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import { Button } from '@qoe/ui/button';
 import { Input } from '@qoe/ui/input';
@@ -21,6 +21,7 @@ export interface ImageDetailsPanelProps {
   onChange: (value: ImageDetails) => void;
   onSave: () => void;
   onClose: () => void;
+  onCrop?: () => void;
 }
 
 /**
@@ -38,6 +39,7 @@ export function ImageDetailsPanel({
   onChange,
   onSave,
   onClose,
+  onCrop,
 }: ImageDetailsPanelProps) {
   const isGallery = kind === 'galleryImage';
   // Les libellés sont évalués au rendu : `t` ne peut pas être appelé au
@@ -114,13 +116,23 @@ export function ImageDetailsPanel({
         ))}
       </div>
 
-      <div className="flex items-center justify-end gap-2 border-t border-border/30 pt-2">
-        <Button size="xs" variant="ghost" onClick={onClose}>
-          {t`Annuler`}
-        </Button>
-        <Button size="xs" variant="solid" tone="brand" onClick={onSave}>
-          {t`Enregistrer`}
-        </Button>
+      <div className="flex items-center justify-between gap-2 border-t border-border/30 pt-2">
+        {onCrop ? (
+          <Button size="xs" variant="outline" onClick={onCrop} title={t`Recadrer cette image`}>
+            <Crop className="size-3.5" />
+            <span>{t`Recadrer`}</span>
+          </Button>
+        ) : (
+          <div />
+        )}
+        <div className="flex items-center gap-2">
+          <Button size="xs" variant="ghost" onClick={onClose}>
+            {t`Annuler`}
+          </Button>
+          <Button size="xs" variant="solid" tone="brand" onClick={onSave}>
+            {t`Enregistrer`}
+          </Button>
+        </div>
       </div>
     </PopoverPanel>
   );

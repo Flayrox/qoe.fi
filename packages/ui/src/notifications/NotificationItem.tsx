@@ -378,7 +378,7 @@ export function NotificationItem({
               : notification.article
                 ? `/article/${notification.article.slug}`
                 : notification.publication
-                  ? `/m/${notification.publication.id}`
+                  ? `/${notification.publication.slug || notification.publication.id}`
                   : firstSender?.username
                     ? `/@${firstSender.username}`
                     : '#');

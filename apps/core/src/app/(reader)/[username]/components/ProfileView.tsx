@@ -405,19 +405,27 @@ export function ProfileView({
                     <span>{t`Éditer le profil`}</span>
                   </Button>
                 ) : (
-                  <Button
-                    variant={effectiveFollowing ? 'outline' : 'solid'}
-                    tone="neutral"
-                    size="sm"
-                    onClick={handleFollowToggle}
-                    className={
-                      effectiveFollowing
-                        ? 'hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive-text'
-                        : undefined
-                    }
-                  >
-                    {effectiveFollowing ? t`Abonné` : followRequested ? t`Demandé` : t`Suivre`}
-                  </Button>
+                  <>
+                    <Button
+                      variant={effectiveFollowing ? 'outline' : 'solid'}
+                      tone="neutral"
+                      size="sm"
+                      onClick={handleFollowToggle}
+                      className={
+                        effectiveFollowing
+                          ? 'hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive-text'
+                          : undefined
+                      }
+                    >
+                      {effectiveFollowing ? t`Abonné` : followRequested ? t`Demandé` : t`Suivre`}
+                    </Button>
+                    {isOwnProfile && user.type === 'MEDIA' && (
+                      <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)}>
+                        <Edit3 />
+                        <span>{t`Éditer`}</span>
+                      </Button>
+                    )}
+                  </>
                 )}
 
                 {/* Partager le profil */}
@@ -570,32 +578,38 @@ export function ProfileView({
               >
                 <Tab
                   id="thoughts"
+                  icon={MessageSquare}
                   count={rootThoughts.length > 0 ? rootThoughts.length : undefined}
                 >
-                  <MessageSquare />
-                  <span>{t`Pensées`}</span>
+                  {t`Pensées`}
                 </Tab>
                 <Tab
                   id="with_replies"
+                  icon={MessageSquare}
                   count={replyThoughts.length > 0 ? replyThoughts.length : undefined}
                 >
-                  <MessageSquare className="opacity-60" />
-                  <span>{t`Réponses`}</span>
+                  {t`Réponses`}
                 </Tab>
                 <Tab
                   id="articles"
+                  icon={FileText}
                   count={articlesList.length > 0 ? articlesList.length : undefined}
                 >
-                  <FileText />
-                  <span>Articles</span>
+                  Articles
                 </Tab>
-                <Tab id="reposts" count={repostsList.length > 0 ? repostsList.length : undefined}>
-                  <Repeat />
-                  <span>Reposts</span>
+                <Tab
+                  id="reposts"
+                  icon={Repeat}
+                  count={repostsList.length > 0 ? repostsList.length : undefined}
+                >
+                  Reposts
                 </Tab>
-                <Tab id="media" count={mediaThoughts.length > 0 ? mediaThoughts.length : undefined}>
-                  <ImageIcon />
-                  <span>{t`Médias`}</span>
+                <Tab
+                  id="media"
+                  icon={ImageIcon}
+                  count={mediaThoughts.length > 0 ? mediaThoughts.length : undefined}
+                >
+                  {t`Médias`}
                 </Tab>
               </TabList>
             </Tabs>
@@ -803,7 +817,7 @@ export function ProfileView({
       </Dialog>
 
       {/* Edit Profile Modal */}
-      {isOwnProfile && user.type !== 'MEDIA' && (
+      {isOwnProfile && (
         <EditProfileModal
           isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}

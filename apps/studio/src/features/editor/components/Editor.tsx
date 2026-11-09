@@ -21,7 +21,7 @@ import { useAutoSaveArticle, type AutoSavePayload } from '@qoe/sdk';
 import type { EditorCapabilities, ArticleReviewFeedback } from '@qoe/sdk/actions/articles';
 import { MessageSquare } from 'lucide-react';
 import { t } from '@lingui/core/macro';
-import { ArticleInspectorModal } from '@/app/(creator)/analytics/components/ArticleInspectorModal';
+import { ArticleInspectorDrawer } from '@/app/(creator)/analytics/components/ArticleInspectorModal';
 import { compressImage } from '@/lib/image-compressor';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
 import {
@@ -66,7 +66,7 @@ const BRACKET_ANNOTATION_GLOBAL_REGEX = /\{([^{}\n]+?)\}\s*\(([^()\n]+?)\)/g;
 type EditorImageBatch = {
   files: File[];
   index: number;
-  mode: 'single' | 'gallery';
+  mode: 'single' | 'gallery' | 'edit-existing';
   results: File[];
   src: string;
 };
@@ -162,16 +162,12 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-/** Tolérance horizontale autour du début d'une ligne visuelle. */
-const LINE_START_SNAP_PX = 32;
+/** Tolérance horizontale élargie autour du début d'une ligne visuelle. */
+const LINE_START_SNAP_PX = 48;
 
 /**
- * Si le clic tombe près du début d'une ligne visuelle, renvoie la position
- * exacte de ce début. On remonte de proche en proche depuis le curseur, en
- * s'arrêtant dès qu'on change de ligne ou qu'on s'éloigne de la tolérance.
- *
- * Sans cette marge, un clic « presque » au début d'une ligne plaçait le
- * curseur après le premier caractère ; il fallait viser le pixel près.
+ * Si le clic tombe près du début d'une ligne visuelle (marge gauche ou début de mot),
+ * renvoie la position exacte de ce début.
  */
 function snapToVisualLineStart(view: EditorView, pos: number, event: MouseEvent): number | null {
   if (event.button !== 0 || event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) {
@@ -201,13 +197,14 @@ function snapToVisualLineStart(view: EditorView, pos: number, event: MouseEvent)
       guard += 1;
     }
 
-    // Ligne très longue : on n'a pas atteint son début, donc pas de snap.
     if (lineStart > blockStart && guard >= 120) return null;
-    if (lineStart === pos) return null;
 
     const lineStartCoords = view.coordsAtPos(lineStart, 1);
-    if (Math.abs(event.clientX - lineStartCoords.left) > LINE_START_SNAP_PX) return null;
-    return lineStart;
+    const distance = event.clientX - lineStartCoords.left;
+    if (distance >= -LINE_START_SNAP_PX && distance <= LINE_START_SNAP_PX) {
+      return lineStart;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -389,6 +386,7 @@ export function Editor({
   const toolbarSentinelRef = useRef<HTMLDivElement>(null);
   const openAnnotationPopoverRef = useRef<(text?: string, existingNote?: string) => void>(() => {});
   const openLinkPopoverRef = useRef<() => void>(() => {});
+  const openImageDetailsRef = useRef<() => void>(() => {});
   // Sélection capturée à l'ouverture du panneau : le focus passe au textarea,
   // mais la note doit s'appliquer au passage d'origine, pas au curseur perdu.
   const annotationRangeRef = useRef<{ from: number; to: number } | null>(null);
@@ -582,6 +580,13 @@ export function Editor({
         // listes apparaissaient comme des lignes de texte sans repère.
         class: 'qoe-editor article-prose max-w-none text-foreground font-sans',
       },
+      handleClickOn: (_view, _pos, node) => {
+        if (node.type.name === 'image' || node.type.name === 'galleryImage') {
+          openImageDetailsRef.current();
+          return true;
+        }
+        return false;
+      },
       handleClick: (view, pos, event) => {
         // Ne jamais écraser une sélection construite à la souris (glisser,
         // double-clic, Shift+clic) : le clic simple doit pouvoir placer le
@@ -761,6 +766,27 @@ export function Editor({
   const handleImageBatchApply = useCallback(
     async ({ file }: ImageEditorResult) => {
       if (!imageBatch) return;
+
+      if (imageBatch.mode === 'edit-existing') {
+        setImageBatch(null);
+        setIsUploading(true);
+        try {
+          const url = await uploadImageToRoute(
+            file,
+            '/api/articles/upload',
+            IMAGE_FOLDERS.articles
+          );
+          if (editor && imageDetailsTarget) {
+            editor.chain().focus().updateAttributes(imageDetailsTarget, { src: url }).run();
+            setHasUnsavedChanges(true);
+          }
+        } catch (err: unknown) {
+          setError(getErrorMessage(err, t`Échec de l'upload de l'image.`));
+        } finally {
+          setIsUploading(false);
+        }
+        return;
+      }
 
       const results = [...imageBatch.results, file];
       const nextIndex = imageBatch.index + 1;
@@ -1081,15 +1107,49 @@ export function Editor({
       credit: target === 'image' ? (attributes.credit as string) || '' : '',
     });
 
-    const coords = editor.view.coordsAtPos(editor.state.selection.from);
+    const lineCoords = editor.view.coordsAtPos(editor.state.selection.from);
     const width = 380;
     const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
     const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 900;
     setImageDetailsPosition({
-      top: Math.max(80, Math.min(coords.top, viewportHeight - 420)),
-      left: Math.max(16, Math.min(viewportWidth - width - 16, coords.left)),
+      top: Math.max(80, Math.min(lineCoords.top, viewportHeight - 420)),
+      left: Math.max(16, Math.min(viewportWidth - width - 16, lineCoords.left)),
     });
   }, [editor]);
+
+  useEffect(() => {
+    openImageDetailsRef.current = openImageDetails;
+  }, [openImageDetails]);
+
+  const handleCropExistingImage = useCallback(async () => {
+    if (!editor || !imageDetailsTarget) return;
+    const attributes = editor.getAttributes(imageDetailsTarget);
+    const src = attributes.src as string | undefined;
+    if (!src) return;
+
+    setImageDetailsPosition(null);
+    try {
+      const response = await fetch(src);
+      const blob = await response.blob();
+      const filename = src.split('/').pop()?.split('?')[0] || 'article-image.jpg';
+      const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+      setImageBatch({
+        files: [file],
+        index: 0,
+        mode: 'edit-existing',
+        results: [],
+        src: URL.createObjectURL(file),
+      });
+    } catch {
+      setImageBatch({
+        files: [new File([], 'image.jpg', { type: 'image/jpeg' })],
+        index: 0,
+        mode: 'edit-existing',
+        results: [],
+        src,
+      });
+    }
+  }, [editor, imageDetailsTarget]);
 
   const saveImageDetails = useCallback(() => {
     if (!editor) return;
@@ -2027,7 +2087,7 @@ export function Editor({
       />
 
       {showAnalyticsModal && (
-        <ArticleInspectorModal
+        <ArticleInspectorDrawer
           urlPath={slug ? `${articlePath}/${slug}` : null}
           onClose={() => setShowAnalyticsModal(false)}
           onEdit={() => setShowAnalyticsModal(false)}
@@ -2072,6 +2132,7 @@ export function Editor({
         onChange={setImageDetails}
         onSave={saveImageDetails}
         onClose={() => setImageDetailsPosition(null)}
+        onCrop={handleCropExistingImage}
       />
 
       <PublishModal

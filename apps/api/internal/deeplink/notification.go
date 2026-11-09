@@ -64,8 +64,10 @@ func Notification(t Target) string {
 			path = "/articles/" + url.PathEscape(t.ArticleID)
 		case t.ArticleSlug != "":
 			path = "/article/" + url.PathEscape(t.ArticleSlug)
+		case t.PublicationSlug != "":
+			path = "/" + url.PathEscape(t.PublicationSlug)
 		case t.PublicationID != "":
-			path = "/m/" + url.PathEscape(t.PublicationID)
+			path = "/" + url.PathEscape(t.PublicationID)
 		}
 	}
 

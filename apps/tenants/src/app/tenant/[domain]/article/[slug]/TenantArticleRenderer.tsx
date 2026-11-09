@@ -629,6 +629,15 @@ export async function TenantArticleRenderer({
         articleId={article.id}
         publicationId={publication.id}
         creatorName={name}
+        author={
+          article.author
+            ? {
+                id: article.author.id,
+                name: article.author.name || article.author.username || 'Auteur',
+                username: article.author.username,
+              }
+            : null
+        }
         isAuthenticated={!!user}
         initialBookmarked={initialBookmarked}
         initialFollowed={initialFollowed}

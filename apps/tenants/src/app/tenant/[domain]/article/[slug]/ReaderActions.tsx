@@ -8,12 +8,20 @@ import {
   BookmarkCheck,
   HelpCircle,
   MessageSquare,
+  ChevronDown,
 } from 'lucide-react';
 import { toggleFollowCreatorAction, toggleBookmarkArticleAction } from '@qoe/sdk/actions/tenant';
 
 import { motion, useReducedMotion } from 'framer-motion';
+import { cn } from '@qoe/utils';
 import { useRequireAuth } from '@qoe/ui';
 import { Button } from '@qoe/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@qoe/ui/ui/dropdown-menu';
 import { ReadingSettingsSheet, TextToSpeechPlayer } from '@qoe/ui/reader';
 import { t } from '@lingui/core/macro';
 
@@ -21,6 +29,11 @@ interface ReaderActionsProps {
   articleId: string;
   publicationId: string;
   creatorName: string;
+  author?: {
+    id: string;
+    name: string;
+    username?: string | null;
+  } | null;
   isAuthenticated: boolean;
   initialBookmarked: boolean;
   initialFollowed: boolean;
@@ -48,6 +61,7 @@ export function ReaderActions({
   articleId,
   publicationId,
   creatorName,
+  author,
   isAuthenticated,
   initialBookmarked,
   initialFollowed,
@@ -57,8 +71,10 @@ export function ReaderActions({
   const reduceMotion = useReducedMotion();
   const [bookmarked, setBookmarked] = useState(initialBookmarked);
   const [followed, setFollowed] = useState(initialFollowed);
+  const [authorFollowed, setAuthorFollowed] = useState(false);
   const [loadingBookmark, setLoadingBookmark] = useState(false);
   const [loadingFollow, setLoadingFollow] = useState(false);
+  const [loadingAuthorFollow, setLoadingAuthorFollow] = useState(false);
 
   const handleBookmark = async () => {
     if (!isAuthenticated) {
@@ -95,6 +111,29 @@ export function ReaderActions({
       setLoadingFollow(false);
     }
   };
+
+  const handleAuthorFollow = async () => {
+    if (!isAuthenticated) {
+      openAuthModal({ mode: 'signup', actionContext: 'follow' });
+      return;
+    }
+    if (!author?.id) return;
+    setLoadingAuthorFollow(true);
+    try {
+      const res = await toggleFollowCreatorAction(author.id);
+      if (res.ok) {
+        setAuthorFollowed(!!res.data.followed);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingAuthorFollow(false);
+    }
+  };
+
+  const hasAuthorOption = Boolean(
+    author?.name && author.name.trim().toLowerCase() !== creatorName.trim().toLowerCase()
+  );
 
   const scrollToComments = () => {
     const el = document.getElementById('comments');
@@ -159,27 +198,65 @@ export function ReaderActions({
 
       <span aria-hidden className="h-4 w-px shrink-0 bg-border" />
 
-      <Button
-        variant={followed ? 'ghost' : 'solid'}
-        tone={followed ? 'neutral' : 'brand'}
-        size="sm"
-        onClick={handleFollow}
-        disabled={loadingFollow}
-        aria-pressed={followed}
-        aria-busy={loadingFollow}
-        className={followed ? 'text-muted-foreground' : undefined}
-      >
-        {followed ? (
-          <>
-            <UserCheck className="size-3.5" strokeWidth={1.75} /> <span>{t`Abonné`}</span>
-          </>
-        ) : (
-          <>
-            <UserPlus className="size-3.5" strokeWidth={1.75} />{' '}
-            <span>{t`Suivre ${creatorName}`}</span>
-          </>
+      <div className="inline-flex items-center">
+        <Button
+          variant={followed ? 'ghost' : 'solid'}
+          tone={followed ? 'neutral' : 'brand'}
+          size="sm"
+          onClick={handleFollow}
+          disabled={loadingFollow}
+          aria-pressed={followed}
+          aria-busy={loadingFollow}
+          className={cn(
+            followed ? 'text-muted-foreground' : undefined,
+            hasAuthorOption && 'rounded-r-none'
+          )}
+        >
+          {followed ? (
+            <>
+              <UserCheck className="size-3.5" strokeWidth={1.75} /> <span>{t`Abonné`}</span>
+            </>
+          ) : (
+            <>
+              <UserPlus className="size-3.5" strokeWidth={1.75} />{' '}
+              <span>{t`Suivre ${creatorName}`}</span>
+            </>
+          )}
+        </Button>
+
+        {hasAuthorOption && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label={t`Options de suivi des auteurs`}
+              className={cn(
+                'inline-flex h-control-sm items-center justify-center rounded-r-control border-l border-white/20 px-1.5 transition-colors cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                followed
+                  ? 'hover:bg-muted text-muted-foreground'
+                  : 'bg-brand text-brand-foreground hover:brightness-110'
+              )}
+            >
+              <ChevronDown className="size-3.5" strokeWidth={2} />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem
+                isDisabled={loadingAuthorFollow}
+                onAction={() => void handleAuthorFollow()}
+              >
+                {authorFollowed ? (
+                  <UserCheck className="size-3.5 text-success-text" strokeWidth={1.75} />
+                ) : (
+                  <UserPlus className="size-3.5 text-muted-foreground" strokeWidth={1.75} />
+                )}
+                <span className="truncate">
+                  {authorFollowed
+                    ? t`Abonné à ${author!.name}`
+                    : t`Suivre également ${author!.name}`}
+                </span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
-      </Button>
+      </div>
 
       {!isAuthenticated && (
         <>

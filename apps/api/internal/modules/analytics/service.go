@@ -928,9 +928,10 @@ type DashboardArticle struct {
 	AuthorName      *string  `json:"authorName,omitempty"`
 	AuthorUsername  *string  `json:"authorUsername,omitempty"`
 	PublicationID   *string  `json:"publicationId,omitempty"`
-	PublicationName *string  `json:"publicationName,omitempty"`
-	PublicationType *string  `json:"publicationType,omitempty"`
-	CoAuthors       []string `json:"coAuthors,omitempty"`
+	PublicationName    *string  `json:"publicationName,omitempty"`
+	PublicationType    *string  `json:"publicationType,omitempty"`
+	PublicationLogoURL *string  `json:"publicationLogoUrl,omitempty"`
+	CoAuthors          []string `json:"coAuthors,omitempty"`
 	Relation        *string  `json:"relation,omitempty"`
 }
 
@@ -1081,7 +1082,7 @@ func (s *Service) DashboardOverview(ctx context.Context, userID, publicationID, 
 	}
 	rows, err := s.pool.Query(ctx, `SELECT a.id, a.title, a.published, a."updatedAt", c.name, a."imageUrl", a."readingTime",
 			a."authorId"::text AS author_id, au.name AS author_name, au.username AS author_username,
-			p.id AS publication_id, p.name AS publication_name, p.type::text AS publication_type,
+			p.id AS publication_id, p.name AS publication_name, p.type::text AS publication_type, p."logoUrl" AS publication_logo_url,
 			COALESCE((
 				SELECT string_agg(COALESCE(NULLIF(cu.name, ''), cu.username, 'Anonyme'), ', ' ORDER BY aa."order")
 				FROM "ArticleAttribution" aa
@@ -1103,12 +1104,12 @@ func (s *Service) DashboardOverview(ctx context.Context, userID, publicationID, 
 	if err == nil {
 		for rows.Next() {
 			var a DashboardArticle
-			var cat, image, authorName, authorUsername pgtype.Text
+			var cat, image, authorName, authorUsername, pubLogo pgtype.Text
 			var updated pgtype.Timestamp
 			var authorID, pubID, pubName, pubType, coAuthors string
 			var isCoauthor bool
 			if err := rows.Scan(&a.ID, &a.Title, &a.Published, &updated, &cat, &image, &a.ReadingTime,
-				&authorID, &authorName, &authorUsername, &pubID, &pubName, &pubType,
+				&authorID, &authorName, &authorUsername, &pubID, &pubName, &pubType, &pubLogo,
 				&coAuthors, &isCoauthor); err != nil {
 				continue
 			}
@@ -1123,6 +1124,7 @@ func (s *Service) DashboardOverview(ctx context.Context, userID, publicationID, 
 			a.PublicationID = &pubID
 			a.PublicationName = &pubName
 			a.PublicationType = &pubType
+			a.PublicationLogoURL = textPtr(pubLogo)
 			if coAuthors != "" {
 				a.CoAuthors = strings.Split(coAuthors, ", ")
 			}

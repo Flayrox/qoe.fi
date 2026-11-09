@@ -16,7 +16,7 @@ import { FeatureInterestBlock } from './components/FeatureInterestBlock';
 import { ProvenanceBlock } from './components/ProvenanceBlock';
 import { AudienceInsightsBlock } from './components/AudienceInsightsBlock';
 import { ReturningAndHeatmapBlock } from './components/ReturningAndHeatmapBlock';
-import { ArticleInspectorModal } from './components/ArticleInspectorModal';
+import { ArticleInspectorDrawer } from './components/ArticleInspectorModal';
 
 interface AnalyticsDashboardClientProps {
   initialData: AnalyticsResponseData;
@@ -238,7 +238,7 @@ export function AnalyticsDashboardClient({
 
       {/* ─── Article Inspection Modal ────────────────────────────── */}
       {selectedArticleUrl && (
-        <ArticleInspectorModal
+        <ArticleInspectorDrawer
           urlPath={selectedArticleUrl}
           period={selectedPeriod}
           onClose={() => setSelectedArticleUrl(null)}
