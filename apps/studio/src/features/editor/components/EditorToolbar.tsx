@@ -19,6 +19,9 @@ import {
   Minus,
   Eraser,
   ImageIcon,
+  ArrowLeft,
+  ArrowRight,
+  Trash2,
   Loader2,
   Highlighter,
   Lock,
@@ -182,6 +185,10 @@ export function EditorToolbar({
         isParagraph: current.isActive('paragraph') && !inCodeBlock,
         annotation: current.isActive('annotationMark'),
         isImage: current.isActive('image'),
+        isGalleryImage: current.isActive('galleryImage'),
+        canMoveGalleryLeft: safeCan(() => current.can().moveGalleryImage('left')),
+        canMoveGalleryRight: safeCan(() => current.can().moveGalleryImage('right')),
+        canRemoveGalleryImage: safeCan(() => current.can().removeGalleryImage()),
         hasPaywall: current.state.doc.content.content.some(
           (node) => node.type.name === 'paywallDivider'
         ),
@@ -406,12 +413,36 @@ export function EditorToolbar({
               onClick={onImageDetails}
               icon={<TextQuote className="h-3.5 w-3.5 stroke-2" />}
               label={
-                state.isImage
-                  ? t`Légende et crédit de l'image`
-                  : t`Sélectionnez une image pour renseigner sa légende.`
+                state.isGalleryImage
+                  ? t`Texte alternatif de l'image`
+                  : state.isImage
+                    ? t`Légende et crédit de l'image`
+                    : t`Sélectionnez une image pour renseigner sa légende.`
               }
-              disabled={!state.isImage}
+              disabled={!state.isImage && !state.isGalleryImage}
             />
+            {state.isGalleryImage && (
+              <>
+                <ToolbarButton
+                  onClick={() => editor.chain().focus().moveGalleryImage('left').run()}
+                  icon={<ArrowLeft className="h-3.5 w-3.5 stroke-2" />}
+                  label={t`Déplacer l'image vers la gauche`}
+                  disabled={!state.canMoveGalleryLeft}
+                />
+                <ToolbarButton
+                  onClick={() => editor.chain().focus().moveGalleryImage('right').run()}
+                  icon={<ArrowRight className="h-3.5 w-3.5 stroke-2" />}
+                  label={t`Déplacer l'image vers la droite`}
+                  disabled={!state.canMoveGalleryRight}
+                />
+                <ToolbarButton
+                  onClick={() => editor.chain().focus().removeGalleryImage().run()}
+                  icon={<Trash2 className="h-3.5 w-3.5 stroke-2" />}
+                  label={t`Retirer l'image de la galerie`}
+                  disabled={!state.canRemoveGalleryImage}
+                />
+              </>
+            )}
           </div>
 
           <Separator />
