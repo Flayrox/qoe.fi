@@ -507,20 +507,30 @@ export function Editor({
       },
       handleClick: (view, pos, event) => {
         // Ne jamais écraser une sélection construite à la souris (glisser,
-        // double-clic, Shift+clic) : l'ouverture de la note est réservée au
-        // clic avec modificateur, pour que le clic simple place le curseur.
+        // double-clic, Shift+clic) : le clic simple doit pouvoir placer le
+        // curseur, l'ouverture de la note passe par un modificateur ou un tap.
         if (!view.state.selection.empty) return false;
 
-        // Marge de manœuvre au début d'une ligne visuelle.
-        const lineStart = snapToVisualLineStart(view, pos, event);
-        if (lineStart !== null) {
-          view.dispatch(
-            view.state.tr.setSelection(TextSelection.create(view.state.doc, lineStart))
-          );
-          return true;
+        // Sur un écran tactile, Alt+clic n'existe pas : un tap sur une
+        // annotation ouvre directement sa note. On garde le snap de début de
+        // ligne pour la souris, où il est réellement utile.
+        const coarsePointer =
+          typeof window !== 'undefined' &&
+          typeof window.matchMedia === 'function' &&
+          window.matchMedia('(pointer: coarse)').matches;
+
+        if (!coarsePointer) {
+          // Marge de manœuvre au début d'une ligne visuelle.
+          const lineStart = snapToVisualLineStart(view, pos, event);
+          if (lineStart !== null) {
+            view.dispatch(
+              view.state.tr.setSelection(TextSelection.create(view.state.doc, lineStart))
+            );
+            return true;
+          }
         }
 
-        if (!(event.altKey || event.metaKey || event.ctrlKey)) return false;
+        if (!(coarsePointer || event.altKey || event.metaKey || event.ctrlKey)) return false;
 
         const $pos = view.state.doc.resolve(pos);
         const markType = view.state.schema.marks.annotationMark;
@@ -1851,7 +1861,7 @@ export function Editor({
               onLink={openLinkPopover}
               onAnnotation={handleAnnotationButton}
             />
-            <EditorStatusBar editor={editor} />
+            <EditorStatusBar editor={editor} onOpenAnnotation={handleAnnotationButton} />
           </div>
         </div>
       </div>
