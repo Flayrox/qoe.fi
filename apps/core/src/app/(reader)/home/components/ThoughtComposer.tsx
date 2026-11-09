@@ -246,10 +246,23 @@ export function ThoughtComposer({
   const replaceInputRef = useRef<HTMLInputElement>(null);
   const [replacingImageId, setReplacingImageId] = useState<string | null>(null);
   const [croppingImage, setCroppingImage] = useState<ComposerImage | null>(null);
+  const [pendingImport, setPendingImport] = useState<{
+    files: File[];
+    index: number;
+    results: File[];
+    replaceId?: string;
+    src: string;
+  } | null>(null);
   const [showDraftPopover, setShowDraftPopover] = useState<boolean>(false);
   const [showPollEditor, setShowPollEditor] = useState<boolean>(false);
   const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
   const [pollDurationHours, setPollDurationHours] = useState<number>(24);
+
+  const pendingImportSrc = pendingImport?.src;
+  useEffect(() => {
+    if (!pendingImportSrc) return;
+    return () => URL.revokeObjectURL(pendingImportSrc);
+  }, [pendingImportSrc]);
 
   // Brique 3 States & Refs
   const createEmptyNode = (): ThreadNode => ({
@@ -725,124 +738,88 @@ export function ThoughtComposer({
   const isOverLimit = currentLength > CHAR_LIMIT;
   const charsRemaining = CHAR_LIMIT - currentLength;
 
-  // Client-side premium image compression
-  const compressImage = (file: File): Promise<Blob> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new window.Image();
-        img.src = event.target?.result as string;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
+  const addPreparedImages = (files: File[], replaceId?: string) => {
+    if (files.length === 0) return;
 
-          const MAX_WIDTH = 1600;
-          const MAX_HEIGHT = 1600;
-
-          if (width > height) {
-            if (width > MAX_WIDTH) {
-              height = Math.round((height * MAX_WIDTH) / width);
-              width = MAX_WIDTH;
-            }
-          } else {
-            if (height > MAX_HEIGHT) {
-              width = Math.round((width * MAX_HEIGHT) / height);
-              height = MAX_HEIGHT;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            resolve(file);
-            return;
-          }
-
-          ctx.drawImage(img, 0, 0, width, height);
-          canvas.toBlob(
-            (blob) => {
-              if (blob) {
-                resolve(blob);
-              } else {
-                resolve(file);
-              }
-            },
-            'image/jpeg',
-            0.82
-          );
-        };
-        img.onerror = (err) => reject(err);
-      };
-      reader.onerror = (err) => reject(err);
-    });
-  };
-
-  const processAndAddFile = async (file: File, replaceId?: string) => {
-    if (file.size > 8 * 1024 * 1024) {
-      toast.error(`L'image ${file.name} dépasse la limite de 8 Mo.`);
+    if (replaceId) {
+      const [file] = files;
+      const url = URL.createObjectURL(file);
+      setImages((prev) =>
+        prev.map((img) => {
+          if (img.id !== replaceId) return img;
+          if (img.url.startsWith('blob:')) URL.revokeObjectURL(img.url);
+          return { ...img, url, file };
+        })
+      );
       return;
     }
 
-    const tempId = replaceId || generateUUID();
-    const initialBlobUrl = URL.createObjectURL(file);
-
-    if (replaceId) {
-      setImages((prev) =>
-        prev.map((img) => (img.id === replaceId ? { ...img, url: initialBlobUrl, file } : img))
-      );
-    } else {
-      setImages((prev) => [...prev, { id: tempId, url: initialBlobUrl, file }]);
-    }
-
-    try {
-      const compressedBlob = await compressImage(file);
-      const compressedFile = new File(
-        [compressedBlob],
-        file.name.replace(/\.[^/.]+$/, '') + '.jpg',
-        {
-          type: 'image/jpeg',
-        }
-      );
-      const compressedBlobUrl = URL.createObjectURL(compressedBlob);
-
-      setImages((prev) =>
-        prev.map((img) => {
-          if (img.id === tempId) {
-            if (img.url.startsWith('blob:')) {
-              URL.revokeObjectURL(img.url);
-            }
-            return { ...img, url: compressedBlobUrl, file: compressedFile };
-          }
-          return img;
-        })
-      );
-    } catch (err) {
-      console.error('Compression error:', err);
-    }
+    const additions = files.map((file) => ({
+      id: generateUUID(),
+      url: URL.createObjectURL(file),
+      file,
+    }));
+    setImages((prev) => [...prev, ...additions]);
   };
 
-  const handlePostImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+  const queueImageImport = (files: File[], replaceId?: string) => {
+    const incoming = files.filter((file) => file.type.startsWith('image/'));
+    if (incoming.length === 0) return;
 
-    if (images.length + files.length > 4) {
+    const accepted: File[] = [];
+    for (const file of incoming) {
+      if (file.size > 8 * 1024 * 1024) {
+        toast.error(`L'image ${file.name} dépasse la limite de 8 Mo.`);
+        continue;
+      }
+      accepted.push(file);
+    }
+    if (accepted.length === 0) return;
+
+    if (replaceId && accepted.length > 1) accepted.length = 1;
+    if (!replaceId && images.length + accepted.length > 4) {
       toast.error(t`Vous pouvez ajouter jusqu'à 4 images maximum par post.`);
       return;
     }
 
     setSubmitError(null);
+    setPendingImport({
+      files: accepted,
+      index: 0,
+      results: [],
+      replaceId,
+      src: URL.createObjectURL(accepted[0]),
+    });
+  };
 
-    for (const file of files) {
-      await processAndAddFile(file);
+  const handleImportApply = ({ file }: ImageEditorResult) => {
+    const current = pendingImport;
+    if (!current) return;
+
+    const results = [...current.results, file];
+    const nextIndex = current.index + 1;
+    if (nextIndex < current.files.length) {
+      setPendingImport({
+        ...current,
+        index: nextIndex,
+        results,
+        src: URL.createObjectURL(current.files[nextIndex]),
+      });
+      return;
     }
+
+    setPendingImport(null);
+    setReplacingImageId(null);
+    addPreparedImages(results, current.replaceId);
+  };
+
+  const handlePostImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) queueImageImport(files);
     e.target.value = '';
   };
 
-  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData.items;
     const files: File[] = [];
     for (let i = 0; i < items.length; i++) {
@@ -853,23 +830,13 @@ export function ThoughtComposer({
     }
     if (files.length > 0) {
       e.preventDefault();
-      if (images.length + files.length > 4) {
-        toast.error(t`Vous pouvez ajouter jusqu'à 4 images maximum par post.`);
-        return;
-      }
-      setSubmitError(null);
-      for (const file of files) {
-        await processAndAddFile(file);
-      }
+      queueImageImport(files);
     }
   };
 
-  const handleReplaceImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleReplaceImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && replacingImageId) {
-      await processAndAddFile(file, replacingImageId);
-      setReplacingImageId(null);
-    }
+    if (file && replacingImageId) queueImageImport([file], replacingImageId);
     e.target.value = '';
   };
 
@@ -2446,6 +2413,25 @@ export function ThoughtComposer({
           />
         )}
       </AnimatePresence>
+
+      {pendingImport && (
+        <ImageEditorDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              setPendingImport(null);
+              setReplacingImageId(null);
+            }
+          }}
+          src={pendingImport.src}
+          fileName={pendingImport.files[pendingImport.index]?.name}
+          presets={THOUGHT_IMAGE_PRESETS}
+          initialPresetId="thought-4-3"
+          title={t`Recadrer l’image`}
+          description={t`Choisissez le format, ajustez le cadrage et vérifiez l’aperçu avant de confirmer.`}
+          onApply={handleImportApply}
+        />
+      )}
     </div>
   );
 }
