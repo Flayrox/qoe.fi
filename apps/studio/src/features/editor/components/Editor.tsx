@@ -550,7 +550,7 @@ export function Editor({
               foundMark = {
                 note,
                 text: range
-                  ? view.state.doc.textBetween(range.from, range.to, ' ')
+                  ? view.state.doc.textBetween(range.from, range.to, '\n')
                   : node.text || '',
                 from: range?.from ?? abs,
                 to: range?.to ?? abs + node.nodeSize,
@@ -724,9 +724,9 @@ export function Editor({
       if (quote === undefined) {
         const from = existingRange?.from ?? selection.from;
         const to = existingRange?.to ?? selection.to;
-        quote = editor.state.doc.textBetween(from, to, ' ');
+        quote = editor.state.doc.textBetween(from, to, '\n');
         if (!quote && selection.$from.parent.isTextblock) {
-          quote = selection.$from.parent.textBetween(0, selection.$from.parent.content.size, ' ');
+          quote = selection.$from.parent.textBetween(0, selection.$from.parent.content.size, '\n');
         }
       }
       setSelectedQuoteForAnnotation(quote || '');
