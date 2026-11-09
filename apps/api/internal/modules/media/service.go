@@ -333,6 +333,77 @@ func (s *Service) mediaDetail(ctx context.Context, mediaID string, row db.GetMed
 	return detail, nil
 }
 
+// MediaAuditActor est l'auteur d'une entrée du journal média.
+type MediaAuditActor struct {
+	ID       string  `json:"id"`
+	Name     *string `json:"name"`
+	Username *string `json:"username"`
+	LogoURL  *string `json:"logoUrl"`
+}
+
+// MediaAuditEntry est une entrée du journal d'activité du média.
+type MediaAuditEntry struct {
+	ID        string           `json:"id"`
+	Action    string           `json:"action"`
+	Metadata  map[string]any   `json:"metadata"`
+	CreatedAt string           `json:"createdAt"`
+	Actor     *MediaAuditActor `json:"actor"`
+}
+
+// ListAuditLog retourne le journal d'activité du média (réglages, équipe,
+// articles et transferts). Réservé aux rôles qui administrent le média ou
+// éditent tous ses articles : un éditeur doit pouvoir voir qui a changé quoi
+// sur les contenus qu'il peut lui-même modifier.
+func (s *Service) ListAuditLog(ctx context.Context, userID, mediaID string, limit int) ([]MediaAuditEntry, error) {
+	m, err := s.authorizeMedia(ctx, mediaID, userID, "")
+	if err != nil {
+		return nil, err
+	}
+	member := &permissions.MediaMember{Role: m.Role, Permissions: m.Permissions, Status: m.Status}
+	if !permissions.CanMedia(member, permissions.PermManageSettings) &&
+		!permissions.CanMedia(member, permissions.PermManageMembers) &&
+		!permissions.CanMedia(member, permissions.PermEditAny) {
+		return nil, errForbidden
+	}
+	if limit <= 0 || limit > 200 {
+		limit = 100
+	}
+	rows, err := s.q.ListMediaAuditLogs(ctx, db.ListMediaAuditLogsParams{
+		MediaId: mediaID, Limit: int32(limit),
+	})
+	if err != nil {
+		return nil, err
+	}
+	entries := make([]MediaAuditEntry, 0, len(rows))
+	for _, row := range rows {
+		entry := MediaAuditEntry{
+			ID:        row.ID,
+			Action:    row.Action,
+			Metadata:  map[string]any{},
+			CreatedAt: row.CreatedAt.Time.Format(time.RFC3339),
+		}
+		// sqlc type la colonne jsonb en interface{} : accepter le texte comme
+		// les octets selon le driver, sans jamais faire échouer la lecture du
+		// journal pour une entrée mal formée.
+		switch raw := row.Metadata.(type) {
+		case string:
+			_ = json.Unmarshal([]byte(raw), &entry.Metadata)
+		case []byte:
+			_ = json.Unmarshal(raw, &entry.Metadata)
+		case map[string]any:
+			entry.Metadata = raw
+		}
+		entry.Actor = &MediaAuditActor{
+			ID:       row.ActorID,
+			Name:     textPtr(row.ActorName),
+			Username: textPtr(row.ActorUsername),
+			LogoURL:  textPtr(row.ActorLogo),
+		}
+		entries = append(entries, entry)
+	}
+	return entries, nil
+}
+
 // GetMedia retourne le détail complet d'un média (membre requis).
 func (s *Service) GetMedia(ctx context.Context, userID, mediaID string) (MediaDetail, string, error) {
 	m, err := s.authorizeMedia(ctx, mediaID, userID, "")

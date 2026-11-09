@@ -49,6 +49,9 @@ export interface ProvenanceBreakdown {
 export interface ArticleDetailData {
   url: string;
   title: string;
+  /** Identifiant canonique, pour ouvrir la page analytics dédiée. */
+  articleId?: string;
+  slug?: string;
   timeseries: UmamiTimeseriesPoint[];
   referrers: UmamiPageMetric[];
   totalViews: number;
@@ -527,7 +530,7 @@ export async function getArticleAnalyticsDetail(
       .replace(/^\/(articles?)\//i, '')
       .replace(/^\/+/, '')
       .split(/[?#]/)[0];
-    let matchedArticle: { id: string; title: string } | null =
+    let matchedArticle: { id: string; title: string; slug?: string } | null =
       pubLite.articles.find((a) => a.slug.toLowerCase() === slug.toLowerCase()) ?? null;
     let title =
       matchedArticle?.title || pubLite.articles.find((a) => a.slug === slug)?.title || urlPath;
@@ -535,12 +538,12 @@ export async function getArticleAnalyticsDetail(
     // Fallback : article co-signé (attribution) — GET /v1/articles/{slug}?publicationId=.
     if (!matchedArticle) {
       try {
-        const article = await goFetch<{ id: string; title: string }>(
+        const article = await goFetch<{ id: string; title: string; slug?: string }>(
           `/v1/articles/${encodeURIComponent(slug)}?publicationId=${encodeURIComponent(
             workspace.publicationId
           )}`
         );
-        matchedArticle = { id: article.id, title: article.title };
+        matchedArticle = { id: article.id, title: article.title, slug: article.slug ?? slug };
         title = article.title;
       } catch {
         matchedArticle = null;
@@ -606,6 +609,8 @@ export async function getArticleAnalyticsDetail(
       data: {
         url: urlPath,
         title,
+        articleId: matchedArticle.id,
+        slug: matchedArticle.slug ?? slug,
         timeseries,
         referrers,
         totalViews,
@@ -619,6 +624,64 @@ export async function getArticleAnalyticsDetail(
         reposts: stats.reposts ?? 0,
         totalInteractions: stats.totalInteractions ?? 0,
         completionRate: stats.completionRate ?? 0,
+      },
+    };
+  } catch (err: unknown) {
+    return { error: err instanceof Error ? err.message : "Erreur d'inspection" };
+  }
+}
+
+/**
+ * 📄 Détail analytics d'un article par identifiant canonique OU slug.
+ * Alimente la page dédiée `/analytics/articles/[identifier]` : le drawer ne
+ * montrait qu'un résumé, la page complète expose la même série et les sources
+ * avec une URL partageable.
+ */
+export async function getArticleAnalyticsDetailById(
+  identifier: string,
+  period: TimePeriod = '30d'
+): Promise<{ data?: ArticleDetailData; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return { error: 'Non autorisé' };
+    }
+
+    const workspace = await getActiveWorkspace(user.id);
+    const pubLite = await fetchPublicationLite(workspace.publicationId);
+    const needle = identifier.toLowerCase();
+    const local =
+      pubLite.articles.find(
+        (a) => a.id.toLowerCase() === needle || a.slug.toLowerCase() === needle
+      ) ?? null;
+
+    // L'article peut venir d'une autre publication (co-signé) : by-id expose
+    // le slug canonique, que la résolution existante sait ensuite retrouver.
+    let slug = local?.slug;
+    if (!slug) {
+      try {
+        const byId = await goFetch<{ slug: string }>(
+          `/v1/articles/by-id/${encodeURIComponent(identifier)}`
+        );
+        slug = byId.slug;
+      } catch {
+        slug = identifier;
+      }
+    }
+
+    const res = await getArticleAnalyticsDetail(`/articles/${slug}`, period);
+    if (!res.data) return res;
+
+    return {
+      data: {
+        ...res.data,
+        articleId: local?.id ?? res.data.articleId,
+        slug,
       },
     };
   } catch (err: unknown) {

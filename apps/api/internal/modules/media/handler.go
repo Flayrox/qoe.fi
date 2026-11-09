@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/qoefi/api/internal/authz"
@@ -38,6 +39,8 @@ func (h *Handler) Register(r chi.Router) {
 		// n'est résoluble — seul le niveau de preuve (N1) s'applique.
 		r.With(middleware.RequireAction(authz.ActionMediaCreate)).Post("/", h.createMedia)
 		r.Get("/{id}", h.getMedia)
+		// Journal d'activité : réglages, équipe, articles et transferts.
+		r.Get("/{id}/audit", h.listAuditLog)
 
 		// Réglages : l'adressage par média et par publication sont deux chemins
 		// vers la même opération — les garder tous les deux ferme un
@@ -188,16 +191,41 @@ func (h *Handler) getMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	canManageKeys := false
+	canViewAudit := false
 	if m, _ := h.svc.member(r.Context(), mediaID, id); m != nil {
-		canManageKeys = permissions.CanMedia(&permissions.MediaMember{
-			Role: m.Role, Permissions: m.Permissions, Status: m.Status,
-		}, permissions.PermManageApiKeys)
+		member := &permissions.MediaMember{Role: m.Role, Permissions: m.Permissions, Status: m.Status}
+		canManageKeys = permissions.CanMedia(member, permissions.PermManageApiKeys)
+		canViewAudit = permissions.CanMedia(member, permissions.PermManageSettings) ||
+			permissions.CanMedia(member, permissions.PermManageMembers) ||
+			permissions.CanMedia(member, permissions.PermEditAny)
 	}
 	response.OK(w, map[string]any{
 		"media":            detail,
 		"myRole":           myRole,
 		"canManageApiKeys": canManageKeys,
+		"canViewAudit":     canViewAudit,
 	})
+}
+
+// GET /v1/media/{id}/audit — journal d'activité du média.
+func (h *Handler) listAuditLog(w http.ResponseWriter, r *http.Request) {
+	id := userID(r)
+	if id == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	limit := 0
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil {
+			limit = n
+		}
+	}
+	entries, err := h.svc.ListAuditLog(r.Context(), id, chi.URLParam(r, "id"), limit)
+	if err != nil {
+		writeErr(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"entries": entries})
 }
 
 // PATCH /v1/media/{id}/settings — réglages (identity, design, SEO).

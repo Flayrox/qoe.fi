@@ -136,20 +136,57 @@ export async function getMediaByIdAction(mediaId: string) {
     await getAuthUser();
 
     // Go : GET /v1/media/{id}.
-    const res = await goFetch<{ media: GoMediaDetail; myRole: string; canManageApiKeys?: boolean }>(
-      `/v1/media/${encodeURIComponent(mediaId)}`
-    );
+    const res = await goFetch<{
+      media: GoMediaDetail;
+      myRole: string;
+      canManageApiKeys?: boolean;
+      canViewAudit?: boolean;
+    }>(`/v1/media/${encodeURIComponent(mediaId)}`);
     return {
       success: true as const,
       media: res.media,
       articlesCount: res.media.publication._count.articles,
       myRole: res.myRole,
       canManageApiKeys: res.canManageApiKeys ?? false,
+      canViewAudit: res.canViewAudit ?? false,
     };
   } catch (err: unknown) {
     return {
       success: false,
       error: err instanceof Error ? err.message : 'Erreur de récupération du Média',
+    };
+  }
+}
+
+/**
+ * 📜 Journal d'activité du média (réglages, équipe, articles, transferts).
+ * RBAC : media:manage_settings (vérifié côté Go).
+ */
+export interface MediaAuditEntry {
+  id: string;
+  action: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  actor: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    logoUrl: string | null;
+  } | null;
+}
+
+export async function listMediaAuditLogAction(mediaId: string) {
+  try {
+    await getAuthUser();
+    const res = await goFetch<{ entries: MediaAuditEntry[] }>(
+      `/v1/media/${encodeURIComponent(mediaId)}/audit`
+    );
+    return { success: true as const, entries: res.entries ?? [] };
+  } catch (err: unknown) {
+    return {
+      success: false as const,
+      entries: [] as MediaAuditEntry[],
+      error: err instanceof Error ? err.message : 'Erreur de chargement du journal',
     };
   }
 }
