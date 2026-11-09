@@ -291,6 +291,7 @@ export function GeneralTab({ current, setCurrent, consoleSettingsUrl }: GeneralT
                         uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.banners)
                       }
                       shape="banner"
+                      aspect={4}
                       maxDimension={1600}
                     />
                   </div>
