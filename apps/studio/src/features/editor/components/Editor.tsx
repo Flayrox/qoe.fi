@@ -8,6 +8,7 @@ import { CharacterCount, Placeholder } from '@tiptap/extensions';
 import Collaboration from '@tiptap/extension-collaboration';
 import { CollaborationCaret } from '@tiptap/extension-collaboration-caret';
 import { TextSelection, type Transaction } from '@tiptap/pm/state';
+import type { EditorView } from '@tiptap/pm/view';
 import type { MarkType, Node as ProseMirrorNode } from '@tiptap/pm/model';
 import {
   setArticleAllowDownloadAction,
@@ -145,6 +146,57 @@ function getErrorMessage(error: unknown, fallback: string): string {
     if (typeof message === 'string' && message) return message;
   }
   return fallback;
+}
+
+/** Tolérance horizontale autour du début d'une ligne visuelle. */
+const LINE_START_SNAP_PX = 32;
+
+/**
+ * Si le clic tombe près du début d'une ligne visuelle, renvoie la position
+ * exacte de ce début. On remonte de proche en proche depuis le curseur, en
+ * s'arrêtant dès qu'on change de ligne ou qu'on s'éloigne de la tolérance.
+ *
+ * Sans cette marge, un clic « presque » au début d'une ligne plaçait le
+ * curseur après le premier caractère ; il fallait viser le pixel près.
+ */
+function snapToVisualLineStart(view: EditorView, pos: number, event: MouseEvent): number | null {
+  if (event.button !== 0 || event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) {
+    return null;
+  }
+
+  try {
+    const $pos = view.state.doc.resolve(pos);
+    if (!$pos.parent.isTextblock || $pos.parent.type.name === 'codeBlock') return null;
+
+    let lineStart = pos;
+    const blockStart = $pos.start();
+    let guard = 0;
+
+    while (lineStart > blockStart && guard < 120) {
+      const previous = lineStart - 1;
+      const previousCoords = view.coordsAtPos(previous, 1);
+      // Une ligne visuelle peut être coupée par un retour à la ligne : on
+      // s'arrête dès que le caractère précédent appartient à une autre ligne.
+      if (event.clientY < previousCoords.top - 2 || event.clientY > previousCoords.bottom + 2) {
+        break;
+      }
+      // Le début de ligne est encore plus à gauche que ce caractère : on
+      // est sorti de la zone de tolérance, inutile de continuer.
+      if (event.clientX - previousCoords.left > LINE_START_SNAP_PX) return null;
+      lineStart = previous;
+      guard += 1;
+    }
+
+    // Ligne très longue : on n'a pas atteint son début, donc pas de snap.
+    if (lineStart > blockStart && guard >= 120) return null;
+    if (lineStart === pos) return null;
+
+    const lineStartCoords = view.coordsAtPos(lineStart, 1);
+    if (Math.abs(event.clientX - lineStartCoords.left) > LINE_START_SNAP_PX) return null;
+    return lineStart;
+  } catch {
+    return null;
+  }
 }
 
 const EMPTY_ATTRIBUTIONS: ArticleAttributionDraft[] = [];
@@ -458,6 +510,16 @@ export function Editor({
         // double-clic, Shift+clic) : l'ouverture de la note est réservée au
         // clic avec modificateur, pour que le clic simple place le curseur.
         if (!view.state.selection.empty) return false;
+
+        // Marge de manœuvre au début d'une ligne visuelle.
+        const lineStart = snapToVisualLineStart(view, pos, event);
+        if (lineStart !== null) {
+          view.dispatch(
+            view.state.tr.setSelection(TextSelection.create(view.state.doc, lineStart))
+          );
+          return true;
+        }
+
         if (!(event.altKey || event.metaKey || event.ctrlKey)) return false;
 
         const $pos = view.state.doc.resolve(pos);
