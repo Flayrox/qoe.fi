@@ -712,18 +712,31 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 		if n, err := h.q.CountFollowing(r.Context(), toUUID(ownerID)); err == nil {
 			followingCount = n
 		}
-		if p, err := h.q.GetUserPronouns(r.Context(), ownerID); err == nil && p.Valid {
-			pronouns = &p.String
+		if row.Type != db.PublicationTypeMEDIA {
+			if p, err := h.q.GetUserPronouns(r.Context(), ownerID); err == nil && p.Valid {
+				pronouns = &p.String
+			}
 		}
 		var uUsername, uOnboarding pgtype.Text
 		if err := h.pool.QueryRow(r.Context(), `SELECT username, "onboardingText" FROM "User" WHERE id = $1`, toUUID(ownerID)).Scan(&uUsername, &uOnboarding); err == nil {
 			if row.Type == db.PublicationTypePERSONAL && uUsername.Valid && uUsername.String != "" {
 				displaySlug = uUsername.String
 			}
-			if uOnboarding.Valid && strings.TrimSpace(uOnboarding.String) != "" {
+			if row.Type == db.PublicationTypePERSONAL && uOnboarding.Valid && strings.TrimSpace(uOnboarding.String) != "" {
 				loc := strings.TrimSpace(uOnboarding.String)
 				onboardingText = &loc
 			}
+		}
+	}
+
+	// Un média n'emprunte ni les pronoms ni la localisation de son owner :
+	// sa localisation est une métadonnée de la publication.
+	if row.Type == db.PublicationTypeMEDIA {
+		var mediaLocation pgtype.Text
+		if err := h.pool.QueryRow(r.Context(),
+			`SELECT NULLIF(BTRIM("siteOptions"->>'location'), '') FROM "Publication" WHERE id = $1`,
+			row.ID).Scan(&mediaLocation); err == nil && mediaLocation.Valid {
+			onboardingText = &mediaLocation.String
 		}
 	}
 

@@ -628,7 +628,7 @@ export async function TenantArticleRenderer({
       <ReaderActions
         articleId={article.id}
         publicationId={publication.id}
-        creatorName={authorName || t`le créateur`}
+        creatorName={name}
         isAuthenticated={!!user}
         initialBookmarked={initialBookmarked}
         initialFollowed={initialFollowed}

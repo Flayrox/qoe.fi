@@ -399,7 +399,7 @@ export function ProfileView({
               </div>
 
               <div className="flex items-center gap-2">
-                {isOwnProfile ? (
+                {isOwnProfile && user.type !== 'MEDIA' ? (
                   <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)}>
                     <Edit3 />
                     <span>{t`Éditer le profil`}</span>
@@ -554,7 +554,7 @@ export function ProfileView({
           {/* Profile Tabs Navigation */}
           <div
             className={cn(
-              'border-t border-border/40 px-3 overflow-x-auto no-scrollbar',
+              'border-t border-border/40 px-4 overflow-x-auto no-scrollbar sm:px-5',
               !canViewContent && 'hidden'
             )}
           >
@@ -564,7 +564,10 @@ export function ProfileView({
               selectedKey={activeTab}
               onSelectionChange={(key) => handleTabChange(key as ProfileTab)}
             >
-              <TabList aria-label={t`Sections du profil`} className="border-b-0">
+              <TabList
+                aria-label={t`Sections du profil`}
+                className="min-w-max gap-6 border-b-0 sm:gap-8"
+              >
                 <Tab
                   id="thoughts"
                   count={rootThoughts.length > 0 ? rootThoughts.length : undefined}
@@ -800,7 +803,7 @@ export function ProfileView({
       </Dialog>
 
       {/* Edit Profile Modal */}
-      {isOwnProfile && (
+      {isOwnProfile && user.type !== 'MEDIA' && (
         <EditProfileModal
           isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
