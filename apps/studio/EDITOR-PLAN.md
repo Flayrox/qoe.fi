@@ -7,7 +7,7 @@
 > **Instructions utilisateur :** la section [« 📝 Instructions »](#-instructions)
 > est prioritaire sur le reste.
 
-Dernière mise à jour : 2026-11-09 · branche `dev` · dernier commit éditeur `000f4393`.
+Dernière mise à jour : 2026-11-09 · branche `dev` · dernier commit éditeur `0a84e005`.
 
 ---
 
@@ -42,6 +42,10 @@ Derniers commits du chantier :
 | `4193684a` | Ouverture tactile des annotations + bouton « Modifier la note d’auteur » dans le bandeau          |
 | `fd56f4f7` | Retours à la ligne conservés dans les citations d’annotation multi-paragraphes                    |
 | `000f4393` | Bouton « Légende et crédit de l’image » désactivé tant qu’aucune image n’est sélectionnée          |
+| `97e71e0a` | `Tab` rendu au navigateur dans les listes ; boutons d’imbrication dans la barre d’outils           |
+| `2412f4b4` | Galeries éditables : alt, déplacement et retrait d’une image                                       |
+| `fcf13e44` | Actions de couverture visibles au tactile et au focus clavier                                       |
+| `0a84e005` | Panneau d’annotation refondu : bandeau, citation, zone d’écriture et actions séparées               |
 
 Vérifications passées à chaque étape :
 
@@ -60,11 +64,11 @@ visuellement.
 
 ### A. Clavier et focus
 
-- **A1 — `Tab` reste piégé dans les listes et les blocs de code.** `403ada88` a
-  retiré le raccourci de `ParagraphFormatting`, mais Tiptap garde ses propres
-  raccourcis : `List.Item` intercepte `Tab`/`Shift-Tab` pour imbriquer les
-  éléments, et `CodeBlock` intercepte `Tab` pour l’indentation. Le clavier ne
-  peut donc toujours pas sortir de ces blocs. C’est le point le plus urgent.
+- **A1 — ✅ `Tab` libéré dans les listes.** `97e71e0a` remplace `ListItem` et
+  `ListKeymap` par des variantes sans `Tab`/`Shift-Tab` ; l’imbrication passe
+  par deux boutons. `CodeBlock` était déjà sans capture par défaut
+  (`enableTabIndentation: false`) et reste configuré ainsi. Les autres
+  raccourcis de liste sont conservés.
 - **A2 — Plus de raccourci clavier pour l’alinéa.** C’est cohérent avec A1, mais
   les utilisateurs qui travaillaient au clavier perdent le geste. Il faut un
   raccourci dédié, autre que `Tab`, ou une entrée de menu claire.
@@ -79,17 +83,15 @@ visuellement.
 
 ### B. Médias et accessibilité
 
-- **B1 — Les images de galerie ne sont pas éditables.** `GalleryImage` accepte
-  un `alt`, mais l’upload les crée avec `alt: ''`, et `ImageDetailsPanel` ne
-  modifie que le nœud `image`. Une galerie est comptée dans l’avertissement
-  « images sans alt » à la publication sans qu’on puisse corriger. Il manque
-  aussi la sélection, la suppression et la réorganisation d’un élément.
+- **B1 — ✅ Les images de galerie sont éditables.** `2412f4b4` ajoute la
+  sélection, l’édition de l’alt, le déplacement et le retrait d’un
+  `galleryImage`. Le panneau n’affiche que l’alt pour une galerie. Les cas de
+  galerie imbriquée et de sélection purement clavier restent à vérifier.
 - **B2 — L’alt manquant n’est signalé qu’à la publication.** Le contrôle
   `countImagesWithoutAlt` vit dans la modale de publication ; dans l’éditeur,
   rien ne distingue une image correctement décrite d’une image muette.
-- **B3 — Les actions sur la couverture n’apparaissent qu’au survol.** Le bloc
-  `opacity-0 group-hover:opacity-100` de `CoverUploader` est peu fiable au
-  tactile : « Changer » et « Supprimer » peuvent rester invisibles.
+- **B3 — ✅ Les actions de couverture sont accessibles.** `fcf13e44` les rend
+  visibles sur petit écran, au survol sur ordinateur et au focus clavier.
 - **B4 — L’alt de la couverture est le titre de l’article.** `alt={title || …}`
   fait répéter le titre par le lecteur d’écran au lieu de décrire l’image. Il
   faut soit un vrai champ alt, soit une option « image décorative ».
@@ -99,6 +101,8 @@ visuellement.
 
 ### C. Annotations et tactile
 
+- **C0 — ✅ Panneau d’annotation refondu.** `0a84e005` élargit le panneau,
+  ajoute un bandeau ambre, un passage cité plus lisible et sépare les actions.
 - **C1 — L’aide de l’annotation est figée et non traduite.** `AnnotationMark`
   écrit `Option/Alt+clic pour modifier` en français dans l’attribut `title`,
   même sur mobile où le geste est un tap. Il faut un libellé i18n et adapté au
@@ -127,10 +131,10 @@ visuellement.
 
 ### Lot A — clavier (priorité haute)
 
-- [ ] **A1.** Rendre `Tab` navigable dans les listes et les blocs de code :
-      désactiver les raccourcis Tiptap concernés, conserver l’imbrication des
-      listes et l’indentation du code via une commande explicite, puis couvrir
-      `Tab` et `Shift-Tab` par des tests.
+- [x] **A1.** `Tab` navigable dans les listes ; `ListItem` et `ListKeymap`
+      remplacés par des variantes sans tabulation, imbrication via les boutons
+      de la barre d’outils (commit `97e71e0a`). Les tests clavier restent à
+      ajouter.
 - [ ] **A2.** Ajouter un raccourci clavier dédié à l’alinéa (proposition à
       valider, par exemple `Mod+Alt+I`) ou une entrée de menu « Format ».
 - [ ] **A3.** Appliquer le motif ARIA toolbar : un seul bouton tabbable par
@@ -141,18 +145,19 @@ visuellement.
 
 ### Lot B — médias (priorité haute)
 
-- [ ] **B1.** Rendre les images de galerie sélectionnables et éditables :
-      alt, suppression, réorganisation ; réutiliser ou étendre
-      `ImageDetailsPanel` sans casser le cas image seule.
+- [x] **B1.** Images de galerie sélectionnables et éditables : alt,
+      déplacement et retrait (commit `2412f4b4`).
 - [ ] **B2.** Afficher un repère « Alt manquant » sur chaque image concernée
       dans l’éditeur, avec accès direct au panneau de détails.
-- [ ] **B3.** Rendre les actions de couverture accessibles au tactile et au
-      clavier (boutons toujours visibles ou menu d’actions).
+- [x] **B3.** Actions de couverture accessibles au tactile et au focus clavier
+      (commit `fcf13e44`).
 - [ ] **B4.** Permettre un vrai alt de couverture ou une option « décorative ».
 - [ ] **B5.** Ajouter « Remplacer l’image » en conservant alt, légende et crédit.
 
 ### Lot C — annotations et tactile (priorité moyenne)
 
+- [x] **C0.** Panneau d’annotation refondu : bandeau, citation et actions
+      séparées (commit `0a84e005`).
 - [ ] **C1.** Traduire et adapter le `title` de la marque : tap sur tactile,
       `Alt`/`Option` à la souris.
 - [ ] **C2.** Rendre explicite le retour à l’édition du texte annoté (action
