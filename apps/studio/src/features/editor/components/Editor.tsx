@@ -28,6 +28,7 @@ import { PaywallDivider } from '../extensions/PaywallDivider';
 import { ArticleImage } from '../extensions/ArticleImage';
 import { AnnotationMark } from '../extensions/AnnotationMark';
 import { ParagraphFormatting } from '../extensions/ParagraphFormatting';
+import { NavigableListKeymap, NavigableListItem } from '../extensions/NavigableLists';
 import { ImageGallery, GalleryImage } from '../extensions/ImageGallery';
 import { useCollaborationSession } from '../hooks/useCollaborationSession';
 import { computePayloadHash } from '../lib/payload-hash';
@@ -452,6 +453,13 @@ export function Editor({
       // alors undo/redo).
       StarterKit.configure({
         undoRedo: collaborationDoc ? false : undefined,
+        // `Tab` doit rester une touche de navigation. Les variantes ci-dessous
+        // retirent les raccourcis de tabulation des listes ; l'imbrication
+        // passe par la barre d'outils. `CodeBlock` est déjà sans capture par
+        // défaut, on le fige explicitement pour éviter une régression.
+        listItem: false,
+        listKeymap: false,
+        codeBlock: { enableTabIndentation: false },
         // Liens fournis par StarterKit v3 : jamais ouverts au clic dans
         // l'éditeur (on veut pouvoir éditer le texte), et uniquement des
         // schémas sûrs en sortie HTML.
@@ -473,6 +481,8 @@ export function Editor({
       // Compteurs officiels Tiptap : ils suivent les transactions sans
       // reparcourir tout le document à chaque frappe.
       CharacterCount,
+      NavigableListItem,
+      NavigableListKeymap,
       ParagraphFormatting,
       PaywallDivider,
       AnnotationMark,

@@ -28,6 +28,7 @@ import {
   Link2,
   TextQuote,
   IndentIncrease,
+  IndentDecrease,
   CaseUpper,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
@@ -176,6 +177,8 @@ export function EditorToolbar({
         codeBlock: inCodeBlock,
         indent: Boolean(current.getAttributes('paragraph').indent),
         dropCap: Boolean(current.getAttributes('paragraph').dropCap),
+        canIndentList: safeCan(() => current.can().sinkListItem('listItem')),
+        canOutdentList: safeCan(() => current.can().liftListItem('listItem')),
         isParagraph: current.isActive('paragraph') && !inCodeBlock,
         annotation: current.isActive('annotationMark'),
         isImage: current.isActive('image'),
@@ -314,6 +317,18 @@ export function EditorToolbar({
               icon={<ListOrdered className="h-3.5 w-3.5 stroke-2" />}
               label={t`Liste numérotée`}
               shortcut={`${MOD}⇧7`}
+            />
+            <ToolbarButton
+              onClick={() => editor.chain().focus().sinkListItem('listItem').run()}
+              icon={<IndentIncrease className="h-3.5 w-3.5 stroke-2" />}
+              label={t`Imbriquer l'élément`}
+              disabled={!state.canIndentList}
+            />
+            <ToolbarButton
+              onClick={() => editor.chain().focus().liftListItem('listItem').run()}
+              icon={<IndentDecrease className="h-3.5 w-3.5 stroke-2" />}
+              label={t`Désimbriquer l'élément`}
+              disabled={!state.canOutdentList}
             />
           </div>
 
