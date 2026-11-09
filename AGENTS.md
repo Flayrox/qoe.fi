@@ -7,6 +7,7 @@ Ce repo tient sa mémoire dans des plans vivants versionnés. **Lis-les avant de
 | Fichier                                  | Contenu                                                 |
 | ---------------------------------------- | ------------------------------------------------------- |
 | `apps/admin/ADMIN-PLAN.md`               | Plan vivant de la console admin                         |
+| `apps/studio/EDITOR-PLAN.md`             | Plan vivant de l’éditeur studio                         |
 
 ## Architecture en une page
 
