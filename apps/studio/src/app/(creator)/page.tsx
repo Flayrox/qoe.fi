@@ -10,7 +10,6 @@ import {
   CreditCard,
   Clock,
   Plus,
-  FileText,
   ArrowUpRight,
   Zap,
   BarChart3,
@@ -18,10 +17,10 @@ import {
   Edit3,
   Feather,
   Image as ImageIcon,
-  Building2,
 } from 'lucide-react';
 import { Badge } from '@qoe/ui/badge';
 import { StudioHeader } from '@/components/studio-page';
+import { RecentArticleCard } from './recent-article-card';
 
 // ─── Données du dashboard (miroir Go GET /v1/analytics/dashboard) ───────────
 interface DashboardArticle {
@@ -276,7 +275,7 @@ export default async function CreatorDashboardPage() {
         title={t`Tableau de bord`}
         description={
           isMediaWorkspace
-            ? t`Studio du média « ${workspace.name} ».`
+            ? `${t`Studio du média`} « ${workspace.name || t`Média`} ».`
             : t`Bienvenue, ${user.name || t`Créateur`}.`
         }
         badge={
@@ -388,53 +387,11 @@ export default async function CreatorDashboardPage() {
             </a>
           ) : (
             dashboard.recentArticles.map((art) => (
-              <a key={art.id} href={`/articles/${art.id}`} className="group cursor-pointer block">
-                <div className="aspect-video bg-muted/40 rounded-xl border border-border/40 overflow-hidden relative mb-3 flex items-center justify-center group-hover:border-border/50 transition-all">
-                  {art.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- URL distante arbitraire (Supabase Storage), pas de domaine configurable.
-                    <img
-                      src={art.imageUrl}
-                      alt=""
-                      loading="lazy"
-                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                    />
-                  ) : (
-                    <FileText className="w-10 h-10 text-muted-foreground/50 stroke-[1.5]" />
-                  )}
-                </div>
-                <h4 className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
-                  {art.title}
-                </h4>
-                {(art.publicationType === 'MEDIA' ||
-                  art.relation === 'COAUTHOR' ||
-                  art.relation === 'MEDIA_TEAM') && (
-                  <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-muted-foreground">
-                    {art.publicationType === 'MEDIA' && art.publicationName && (
-                      <span className="inline-flex items-center gap-1 rounded bg-muted/60 px-1.5 py-0.5 font-medium">
-                        <Building2 className="h-3 w-3 stroke-[1.5]" />
-                        {art.publicationName}
-                      </span>
-                    )}
-                    {art.relation === 'COAUTHOR' && (art.coAuthors?.length ?? 0) > 0 && (
-                      <span className="truncate">avec {art.coAuthors!.join(', ')}</span>
-                    )}
-                    {art.relation === 'MEDIA_TEAM' && art.authorName && (
-                      <span className="truncate">par {art.authorName}</span>
-                    )}
-                  </div>
-                )}
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1 font-sans">
-                  <span
-                    className={
-                      art.published ? 'text-success-text font-medium' : 'text-muted-foreground'
-                    }
-                  >
-                    {art.published ? t`Publié` : t`Brouillon`}
-                  </span>
-                  <span>•</span>
-                  <span>{getRelativeTimeString(art.updatedAt)}</span>
-                </div>
-              </a>
+              <RecentArticleCard
+                key={art.id}
+                article={art}
+                updatedLabel={getRelativeTimeString(art.updatedAt)}
+              />
             ))
           )}
 
