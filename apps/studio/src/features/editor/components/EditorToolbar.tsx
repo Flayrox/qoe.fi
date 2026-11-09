@@ -178,6 +178,7 @@ export function EditorToolbar({
         dropCap: Boolean(current.getAttributes('paragraph').dropCap),
         isParagraph: current.isActive('paragraph') && !inCodeBlock,
         annotation: current.isActive('annotationMark'),
+        isImage: current.isActive('image'),
         hasPaywall: current.state.doc.content.content.some(
           (node) => node.type.name === 'paywallDivider'
         ),
@@ -389,7 +390,12 @@ export function EditorToolbar({
             <ToolbarButton
               onClick={onImageDetails}
               icon={<TextQuote className="h-3.5 w-3.5 stroke-2" />}
-              label={t`Légende et crédit de l'image`}
+              label={
+                state.isImage
+                  ? t`Légende et crédit de l'image`
+                  : t`Sélectionnez une image pour renseigner sa légende.`
+              }
+              disabled={!state.isImage}
             />
           </div>
 
