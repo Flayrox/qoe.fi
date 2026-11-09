@@ -94,8 +94,8 @@ const createArticle = `-- name: CreateArticle :one
 INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
                        "readingTime", "allowPublicAnnotations", "allowComments", "allowDownload", status,
                        "publicationId", "authorId", "categoryId", "tierId", "seoTitle", "seoDescription",
-                       "scheduledAt", "imageUrl", "updatedAt")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, now())
+                       "scheduledAt", "imageUrl", "showOnPersonalProfile", "updatedAt")
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, now())
 RETURNING id
 `
 
@@ -119,6 +119,7 @@ type CreateArticleParams struct {
 	SeoDescription         pgtype.Text       `json:"seoDescription"`
 	ScheduledAt            pgtype.Timestamp  `json:"scheduledAt"`
 	ImageUrl               pgtype.Text       `json:"imageUrl"`
+	ShowOnPersonalProfile  bool              `json:"showOnPersonalProfile"`
 }
 
 func (q *Queries) CreateArticle(ctx context.Context, arg CreateArticleParams) (string, error) {
@@ -142,6 +143,7 @@ func (q *Queries) CreateArticle(ctx context.Context, arg CreateArticleParams) (s
 		arg.SeoDescription,
 		arg.ScheduledAt,
 		arg.ImageUrl,
+		arg.ShowOnPersonalProfile,
 	)
 	var id string
 	err := row.Scan(&id)
@@ -174,7 +176,7 @@ func (q *Queries) DiscardArticleDraft(ctx context.Context, id string) (string, e
 
 const getArticleByID = `-- name: GetArticleByID :one
 SELECT a.id, a.title, a.slug, a.content, a."draftContent", a.published, a."isPremium", a.visibility,
-       a."readingTime", a."allowPublicAnnotations", a."allowComments", a."allowDownload", a."scheduledAt",
+       a."readingTime", a."allowPublicAnnotations", a."allowComments", a."allowDownload", a."showOnPersonalProfile", a."scheduledAt",
        a.status, a."publicationId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
        a."emailStatus", a."emailSentAt", a."emailSentCount", a."emailResendCount",
@@ -206,6 +208,7 @@ type GetArticleByIDRow struct {
 	AllowPublicAnnotations bool              `json:"allowPublicAnnotations"`
 	AllowComments          bool              `json:"allowComments"`
 	AllowDownload          bool              `json:"allowDownload"`
+	ShowOnPersonalProfile  bool              `json:"showOnPersonalProfile"`
 	ScheduledAt            pgtype.Timestamp  `json:"scheduledAt"`
 	Status                 string            `json:"status"`
 	PublicationId          string            `json:"publicationId"`
@@ -247,6 +250,7 @@ func (q *Queries) GetArticleByID(ctx context.Context, id string) (GetArticleByID
 		&i.AllowPublicAnnotations,
 		&i.AllowComments,
 		&i.AllowDownload,
+		&i.ShowOnPersonalProfile,
 		&i.ScheduledAt,
 		&i.Status,
 		&i.PublicationId,
@@ -276,7 +280,7 @@ func (q *Queries) GetArticleByID(ctx context.Context, id string) (GetArticleByID
 
 const getArticleBySlug = `-- name: GetArticleBySlug :one
 SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
-       a."readingTime", a."allowPublicAnnotations", a."allowComments", a."scheduledAt",
+       a."readingTime", a."allowPublicAnnotations", a."allowComments", a."showOnPersonalProfile", a."scheduledAt",
        a.status, a."publicationId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
        a."imageUrl"   AS article_image,
@@ -316,6 +320,7 @@ type GetArticleBySlugRow struct {
 	ReadingTime             int32             `json:"readingTime"`
 	AllowPublicAnnotations  bool              `json:"allowPublicAnnotations"`
 	AllowComments           bool              `json:"allowComments"`
+	ShowOnPersonalProfile   bool              `json:"showOnPersonalProfile"`
 	ScheduledAt             pgtype.Timestamp  `json:"scheduledAt"`
 	Status                  string            `json:"status"`
 	PublicationId           string            `json:"publicationId"`
@@ -356,6 +361,7 @@ func (q *Queries) GetArticleBySlug(ctx context.Context, arg GetArticleBySlugPara
 		&i.ReadingTime,
 		&i.AllowPublicAnnotations,
 		&i.AllowComments,
+		&i.ShowOnPersonalProfile,
 		&i.ScheduledAt,
 		&i.Status,
 		&i.PublicationId,
@@ -386,7 +392,7 @@ func (q *Queries) GetArticleBySlug(ctx context.Context, arg GetArticleBySlugPara
 
 const getArticleBySlugAny = `-- name: GetArticleBySlugAny :one
 SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
-       a."readingTime", a."allowPublicAnnotations", a."allowComments", a."scheduledAt",
+       a."readingTime", a."allowPublicAnnotations", a."allowComments", a."showOnPersonalProfile", a."scheduledAt",
        a.status, a."publicationId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
        u.id::text     AS author_id,
@@ -428,6 +434,7 @@ type GetArticleBySlugAnyRow struct {
 	ReadingTime             int32             `json:"readingTime"`
 	AllowPublicAnnotations  bool              `json:"allowPublicAnnotations"`
 	AllowComments           bool              `json:"allowComments"`
+	ShowOnPersonalProfile   bool              `json:"showOnPersonalProfile"`
 	ScheduledAt             pgtype.Timestamp  `json:"scheduledAt"`
 	Status                  string            `json:"status"`
 	PublicationId           string            `json:"publicationId"`
@@ -471,6 +478,7 @@ func (q *Queries) GetArticleBySlugAny(ctx context.Context, slug string) (GetArti
 		&i.ReadingTime,
 		&i.AllowPublicAnnotations,
 		&i.AllowComments,
+		&i.ShowOnPersonalProfile,
 		&i.ScheduledAt,
 		&i.Status,
 		&i.PublicationId,
@@ -762,21 +770,29 @@ func (q *Queries) InsertArticleReviewLog(ctx context.Context, arg InsertArticleR
 const listArticlesWithCategory = `-- name: ListArticlesWithCategory :many
 SELECT a.id, a.title, a.slug, a.published, a."isPremium", a.visibility, a."readingTime",
        a.status, a."createdAt", a."updatedAt", a."categoryId", a."publicationId",
-       a."allowPublicAnnotations", a."allowComments", a."allowDownload",
+       a."allowPublicAnnotations", a."allowComments", a."allowDownload", a."showOnPersonalProfile",
        (a."draftContent" IS NOT NULL AND a."draftContent" <> '') AS has_unpublished_changes,
        a."emailStatus", a."emailSentAt", a."emailSentCount",
        c.id  AS category_id,
        c.name AS category_name,
-       c.slug AS category_slug
+       c.slug AS category_slug,
+       p.name AS publication_name,
+       p.slug AS publication_slug,
+       p.type AS publication_type,
+       p."logoUrl" AS publication_logo
 FROM "Article" a
+JOIN "Publication" p ON p.id = a."publicationId"
 LEFT JOIN "Category" c ON c.id = a."categoryId"
 WHERE a."publicationId" = $1
-   OR ($4::boolean AND EXISTS (
-     SELECT 1 FROM "ArticleAttribution" aa
-     WHERE aa."articleId" = a.id
-       AND aa."userId" = $5::uuid
-       AND aa."consentStatus" = 'ACCEPTED'
-       AND aa."isVisible" = true
+   OR ($4::boolean AND (
+     a."authorId" = $5::uuid
+     OR EXISTS (
+       SELECT 1 FROM "ArticleAttribution" aa
+       WHERE aa."articleId" = a.id
+         AND aa."userId" = $5::uuid
+         AND aa."consentStatus" = 'ACCEPTED'
+         AND aa."isVisible" = true
+     )
    ))
 ORDER BY a."createdAt" DESC
 LIMIT $2 OFFSET $3
@@ -806,6 +822,7 @@ type ListArticlesWithCategoryRow struct {
 	AllowPublicAnnotations bool              `json:"allowPublicAnnotations"`
 	AllowComments          bool              `json:"allowComments"`
 	AllowDownload          bool              `json:"allowDownload"`
+	ShowOnPersonalProfile  bool              `json:"showOnPersonalProfile"`
 	HasUnpublishedChanges  pgtype.Bool       `json:"has_unpublished_changes"`
 	EmailStatus            string            `json:"emailStatus"`
 	EmailSentAt            pgtype.Timestamp  `json:"emailSentAt"`
@@ -813,6 +830,10 @@ type ListArticlesWithCategoryRow struct {
 	CategoryID             pgtype.Text       `json:"category_id"`
 	CategoryName           pgtype.Text       `json:"category_name"`
 	CategorySlug           pgtype.Text       `json:"category_slug"`
+	PublicationName        string            `json:"publication_name"`
+	PublicationSlug        string            `json:"publication_slug"`
+	PublicationType        PublicationType   `json:"publication_type"`
+	PublicationLogo        pgtype.Text       `json:"publication_logo"`
 }
 
 func (q *Queries) ListArticlesWithCategory(ctx context.Context, arg ListArticlesWithCategoryParams) ([]ListArticlesWithCategoryRow, error) {
@@ -846,6 +867,7 @@ func (q *Queries) ListArticlesWithCategory(ctx context.Context, arg ListArticles
 			&i.AllowPublicAnnotations,
 			&i.AllowComments,
 			&i.AllowDownload,
+			&i.ShowOnPersonalProfile,
 			&i.HasUnpublishedChanges,
 			&i.EmailStatus,
 			&i.EmailSentAt,
@@ -853,6 +875,10 @@ func (q *Queries) ListArticlesWithCategory(ctx context.Context, arg ListArticles
 			&i.CategoryID,
 			&i.CategoryName,
 			&i.CategorySlug,
+			&i.PublicationName,
+			&i.PublicationSlug,
+			&i.PublicationType,
+			&i.PublicationLogo,
 		); err != nil {
 			return nil, err
 		}
@@ -1010,6 +1036,7 @@ SELECT a.id,
        a."isPremium",
        a.visibility,
        a."readingTime",
+       a."showOnPersonalProfile",
        a."createdAt",
        a."publicationId",
        a."authorId",
@@ -1032,11 +1059,56 @@ JOIN "Publication" p ON p.id = a."publicationId"
 LEFT JOIN "Category" c ON c.id = a."categoryId"
 WHERE a.published = true
   AND (
-    LOWER(p.slug) = LOWER($1)
-    OR LOWER(COALESCE(p.subdomain, '')) = LOWER($1)
-    OR LOWER(COALESCE(u.username, '')) = LOWER($1)
-    OR LOWER(p.id) = LOWER($1)
-    OR LOWER(COALESCE(u.id::text, '')) = LOWER($1)
+    -- Si la cible est directement la publication de l'article (MEDIA ou PERSONAL)
+    (
+      LOWER(p.slug) = LOWER($1)
+      OR LOWER(COALESCE(p.subdomain, '')) = LOWER($1)
+      OR LOWER(p.id) = LOWER($1)
+    )
+    -- Si la cible résolue est un utilisateur ou une publication PERSONAL (et non un MEDIA)
+    OR (
+      NOT EXISTS (
+        SELECT 1 FROM "Publication" mp
+        WHERE mp.type = 'MEDIA'
+          AND (
+            LOWER(mp.slug) = LOWER($1)
+            OR LOWER(COALESCE(mp.subdomain, '')) = LOWER($1)
+            OR LOWER(mp.id) = LOWER($1)
+          )
+      )
+      AND EXISTS (
+        SELECT 1
+        FROM "User" tu
+        LEFT JOIN "Publication" tp ON tp.id = tu."publicationId"
+        WHERE (
+          LOWER(COALESCE(tu.username, '')) = LOWER($1)
+          OR LOWER(tu.id::text) = LOWER($1)
+          OR (
+            tp.id IS NOT NULL
+            AND tp.type = 'PERSONAL'
+            AND (
+              LOWER(tp.slug) = LOWER($1)
+              OR LOWER(COALESCE(tp.subdomain, '')) = LOWER($1)
+              OR LOWER(tp.id) = LOWER($1)
+            )
+          )
+        )
+        AND (
+          a."publicationId" = tu."publicationId"
+          OR (a."authorId" = tu.id AND a."showOnPersonalProfile" = true)
+          OR EXISTS (
+            SELECT 1
+            FROM "ArticleAttribution" aa
+            WHERE aa."articleId" = a.id
+              AND aa."userId" = tu.id
+              AND aa."consentStatus" = 'ACCEPTED'
+              AND aa."isVisible" = true
+              AND aa.role IN ('PRIMARY_AUTHOR', 'CO_AUTHOR')
+              AND (a."authorId" <> tu.id OR a."showOnPersonalProfile" = true)
+          )
+        )
+      )
+    )
   )
   AND u."isShadowbanned" = false
   AND u."isSuspended" = false
@@ -1052,30 +1124,31 @@ type ListPublishedArticlesByPublicationParams struct {
 }
 
 type ListPublishedArticlesByPublicationRow struct {
-	ID                   string            `json:"id"`
-	Title                string            `json:"title"`
-	Slug                 string            `json:"slug"`
-	Content              string            `json:"content"`
-	ArticleImage         pgtype.Text       `json:"article_image"`
-	IsPremium            bool              `json:"isPremium"`
-	Visibility           ContentVisibility `json:"visibility"`
-	ReadingTime          int32             `json:"readingTime"`
-	CreatedAt            pgtype.Timestamp  `json:"createdAt"`
-	PublicationId        string            `json:"publicationId"`
-	AuthorId             pgtype.UUID       `json:"authorId"`
-	AuthorID             string            `json:"author_id"`
-	AuthorName           pgtype.Text       `json:"author_name"`
-	AuthorUsername       pgtype.Text       `json:"author_username"`
-	AuthorLogo           pgtype.Text       `json:"author_logo"`
-	AuthorCertified      bool              `json:"author_certified"`
-	PublicationName      string            `json:"publication_name"`
-	PublicationSlug      string            `json:"publication_slug"`
-	PublicationSubdomain pgtype.Text       `json:"publication_subdomain"`
-	PublicationLogo      pgtype.Text       `json:"publication_logo"`
-	PublicationType      PublicationType   `json:"publication_type"`
-	CategoryID           pgtype.Text       `json:"category_id"`
-	CategoryName         pgtype.Text       `json:"category_name"`
-	CategorySlug         pgtype.Text       `json:"category_slug"`
+	ID                    string            `json:"id"`
+	Title                 string            `json:"title"`
+	Slug                  string            `json:"slug"`
+	Content               string            `json:"content"`
+	ArticleImage          pgtype.Text       `json:"article_image"`
+	IsPremium             bool              `json:"isPremium"`
+	Visibility            ContentVisibility `json:"visibility"`
+	ReadingTime           int32             `json:"readingTime"`
+	ShowOnPersonalProfile bool              `json:"showOnPersonalProfile"`
+	CreatedAt             pgtype.Timestamp  `json:"createdAt"`
+	PublicationId         string            `json:"publicationId"`
+	AuthorId              pgtype.UUID       `json:"authorId"`
+	AuthorID              string            `json:"author_id"`
+	AuthorName            pgtype.Text       `json:"author_name"`
+	AuthorUsername        pgtype.Text       `json:"author_username"`
+	AuthorLogo            pgtype.Text       `json:"author_logo"`
+	AuthorCertified       bool              `json:"author_certified"`
+	PublicationName       string            `json:"publication_name"`
+	PublicationSlug       string            `json:"publication_slug"`
+	PublicationSubdomain  pgtype.Text       `json:"publication_subdomain"`
+	PublicationLogo       pgtype.Text       `json:"publication_logo"`
+	PublicationType       PublicationType   `json:"publication_type"`
+	CategoryID            pgtype.Text       `json:"category_id"`
+	CategoryName          pgtype.Text       `json:"category_name"`
+	CategorySlug          pgtype.Text       `json:"category_slug"`
 }
 
 // Articles publiés d'une publication (profil), résolue par slug OU subdomain
@@ -1098,6 +1171,7 @@ func (q *Queries) ListPublishedArticlesByPublication(ctx context.Context, arg Li
 			&i.IsPremium,
 			&i.Visibility,
 			&i.ReadingTime,
+			&i.ShowOnPersonalProfile,
 			&i.CreatedAt,
 			&i.PublicationId,
 			&i.AuthorId,
@@ -1384,6 +1458,44 @@ func (q *Queries) SetArticleStatus(ctx context.Context, arg SetArticleStatusPara
 	return id, err
 }
 
+const transferArticlePublication = `-- name: TransferArticlePublication :one
+UPDATE "Article"
+SET "publicationId" = $2,
+    "categoryId" = $3,
+    slug = $4,
+    status = $5,
+    published = $6,
+    "showOnPersonalProfile" = $7,
+    "updatedAt" = now()
+WHERE id = $1
+RETURNING id
+`
+
+type TransferArticlePublicationParams struct {
+	ID                    string      `json:"id"`
+	PublicationId         string      `json:"publicationId"`
+	CategoryId            pgtype.Text `json:"categoryId"`
+	Slug                  string      `json:"slug"`
+	Status                string      `json:"status"`
+	Published             bool        `json:"published"`
+	ShowOnPersonalProfile bool        `json:"showOnPersonalProfile"`
+}
+
+func (q *Queries) TransferArticlePublication(ctx context.Context, arg TransferArticlePublicationParams) (string, error) {
+	row := q.db.QueryRow(ctx, transferArticlePublication,
+		arg.ID,
+		arg.PublicationId,
+		arg.CategoryId,
+		arg.Slug,
+		arg.Status,
+		arg.Published,
+		arg.ShowOnPersonalProfile,
+	)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
 const updateArticleContent = `-- name: UpdateArticleContent :one
 UPDATE "Article"
 SET title = $2, content = $3, slug = $4, "isPremium" = $5, "categoryId" = $6,
@@ -1445,7 +1557,7 @@ UPDATE "Article"
 SET title = $2, content = $3, slug = $4, published = $5, status = $6, "isPremium" = $7,
     "categoryId" = $8, "seoTitle" = $9, "seoDescription" = $10, "readingTime" = $11,
     "scheduledAt" = $12, "imageUrl" = $13, "allowPublicAnnotations" = $14,
-    "allowComments" = $15, "allowDownload" = $16, "updatedAt" = now()
+    "allowComments" = $15, "allowDownload" = $16, "showOnPersonalProfile" = $17, "updatedAt" = now()
 WHERE id = $1
 RETURNING id
 `
@@ -1467,6 +1579,7 @@ type UpdateArticleFullParams struct {
 	AllowPublicAnnotations bool             `json:"allowPublicAnnotations"`
 	AllowComments          bool             `json:"allowComments"`
 	AllowDownload          bool             `json:"allowDownload"`
+	ShowOnPersonalProfile  bool             `json:"showOnPersonalProfile"`
 }
 
 func (q *Queries) UpdateArticleFull(ctx context.Context, arg UpdateArticleFullParams) (string, error) {
@@ -1487,6 +1600,7 @@ func (q *Queries) UpdateArticleFull(ctx context.Context, arg UpdateArticleFullPa
 		arg.AllowPublicAnnotations,
 		arg.AllowComments,
 		arg.AllowDownload,
+		arg.ShowOnPersonalProfile,
 	)
 	var id string
 	err := row.Scan(&id)
@@ -1503,8 +1617,9 @@ SET "isPremium" = COALESCE($1, "isPremium"),
     "allowPublicAnnotations" = COALESCE($4, "allowPublicAnnotations"),
     "allowComments" = COALESCE($5, "allowComments"),
     "allowDownload" = COALESCE($6, "allowDownload"),
+    "showOnPersonalProfile" = COALESCE($7, "showOnPersonalProfile"),
     "updatedAt" = now()
-WHERE id = $7
+WHERE id = $8
 RETURNING id
 `
 
@@ -1515,6 +1630,7 @@ type UpdateArticleSettingsParams struct {
 	AllowPublicAnnotations pgtype.Bool `json:"allow_public_annotations"`
 	AllowComments          pgtype.Bool `json:"allow_comments"`
 	AllowDownload          pgtype.Bool `json:"allow_download"`
+	ShowOnPersonalProfile  pgtype.Bool `json:"show_on_personal_profile"`
 	ID                     string      `json:"id"`
 }
 
@@ -1526,6 +1642,7 @@ func (q *Queries) UpdateArticleSettings(ctx context.Context, arg UpdateArticleSe
 		arg.AllowPublicAnnotations,
 		arg.AllowComments,
 		arg.AllowDownload,
+		arg.ShowOnPersonalProfile,
 		arg.ID,
 	)
 	var id string

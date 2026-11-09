@@ -43,7 +43,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ slu
       {
         ok: true,
         data: {
-          article: article as unknown as ArticleRecord & PaywallCutResult,
+          article: article as ArticleRecord & PaywallCutResult,
           canonicalDocument,
         },
       },

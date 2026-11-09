@@ -51,6 +51,17 @@ export interface Article {
   allowPublicAnnotations?: boolean;
   /** Autorise l'espace commentaires. */
   allowComments?: boolean;
+  /** Afficher aussi sur le profil et le blog personnel de l'auteur (cross-post Média → Personnel). */
+  showOnPersonalProfile?: boolean;
+  /** Publication dénormalisée de l'article. */
+  publication?: {
+    id: string;
+    name: string;
+    slug: string;
+    subdomain?: string | null;
+    logoUrl?: string | null;
+    type?: 'PERSONAL' | 'MEDIA' | string;
+  } | null;
   /** Image de couverture de l'article (null = repli sur celle de la publication). */
   imageUrl?: string | null;
   /** Titre SEO alternatif (fallback : title). */
@@ -234,6 +245,7 @@ export interface BulkUpdateArticlesInput {
   allowPublicAnnotations?: boolean;
   allowComments?: boolean;
   allowDownload?: boolean;
+  showOnPersonalProfile?: boolean;
   published?: boolean;
 }
 
@@ -250,9 +262,58 @@ export const bulkUpdateArticlesAction = safeAction<
   return res;
 });
 
+export interface ArticleWorkspaceItem {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  type: 'PERSONAL' | 'MEDIA';
+  role?: string;
+}
+
+/** 🏢 Liste le profil personnel et les médias accessibles à l'utilisateur. */
+export const getWorkspacesAction = safeAction<
+  void,
+  { personal: ArticleWorkspaceItem; medias: ArticleWorkspaceItem[] }
+>(async () => {
+  await authenticateUser();
+  return goFetch<{ personal: ArticleWorkspaceItem; medias: ArticleWorkspaceItem[] }>(
+    '/v1/media/workspaces'
+  );
+});
+
+export interface TransferArticleInput {
+  articleId: string;
+  targetPublicationId: string;
+  targetCategoryId?: string | null;
+  showOnPersonalProfile?: boolean;
+}
+
+/** 🔀 Transfère un article vers une autre publication (Personnel ↔ Média). */
+export const transferArticleAction = safeAction<TransferArticleInput, ArticleEditorPayload>(
+  async ({ articleId, targetPublicationId, targetCategoryId, showOnPersonalProfile }) => {
+    await authenticateUser();
+    const res = await goFetch<ArticleEditorPayload>(
+      `/v1/articles/${encodeURIComponent(articleId)}/transfer`,
+      {
+        method: 'POST',
+        body: {
+          targetPublicationId,
+          ...(targetCategoryId !== undefined ? { targetCategoryId } : {}),
+          ...(showOnPersonalProfile !== undefined ? { showOnPersonalProfile } : {}),
+        },
+      }
+    );
+    revalidatePath('/articles');
+    revalidatePath(`/articles/${articleId}`);
+    return res;
+  }
+);
+
 export const saveArticleAction = safeAction<
   {
     id?: string;
+    publicationId?: string;
     title: string;
     content: string;
     imageUrl?: string | null;
@@ -264,6 +325,7 @@ export const saveArticleAction = safeAction<
     allowPublicAnnotations?: boolean;
     allowComments?: boolean;
     allowDownload?: boolean;
+    showOnPersonalProfile?: boolean;
     categoryId?: string | null;
     seoTitle?: string | null;
     seoDescription?: string | null;
@@ -277,6 +339,7 @@ export const saveArticleAction = safeAction<
   const user = await authenticateUser();
   const {
     id,
+    publicationId: requestedPublicationId,
     title,
     content,
     imageUrl = null,
@@ -288,6 +351,7 @@ export const saveArticleAction = safeAction<
     allowPublicAnnotations,
     allowComments,
     allowDownload,
+    showOnPersonalProfile,
     categoryId = null,
     seoTitle = null,
     seoDescription = null,
@@ -314,7 +378,7 @@ export const saveArticleAction = safeAction<
 
   // ✅ Go-only : le Go gère RBAC média, attributions, workflow et slug unique.
   if (id) {
-    const activePublicationId = await getActivePublicationId();
+    const activePublicationId = requestedPublicationId || (await getActivePublicationId());
     return goFetch<Article>(`/v1/articles/${id}`, {
       method: 'PATCH',
       body: {
@@ -329,6 +393,7 @@ export const saveArticleAction = safeAction<
         allowPublicAnnotations,
         allowComments,
         allowDownload,
+        showOnPersonalProfile,
         categoryId,
         seoTitle,
         seoDescription,
@@ -341,7 +406,7 @@ export const saveArticleAction = safeAction<
       },
     });
   }
-  const publicationId = await getActivePublicationId();
+  const publicationId = requestedPublicationId || (await getActivePublicationId());
   return goFetch<Article>(`/v1/articles`, {
     method: 'POST',
     body: {
@@ -357,6 +422,7 @@ export const saveArticleAction = safeAction<
       allowPublicAnnotations,
       allowComments,
       allowDownload,
+      showOnPersonalProfile,
       categoryId,
       seoTitle,
       seoDescription,

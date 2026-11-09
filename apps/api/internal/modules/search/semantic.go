@@ -11,11 +11,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pgvector/pgvector-go"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/vectorfeed"
 )
 
 // uuidString formate un pgtype.UUID en chaîne canonique.
@@ -144,6 +146,21 @@ type SemanticHit struct {
 // Erreur sentinelle ErrNoEmbeddingService si l'inférence n'est pas branchée.
 var ErrNoEmbeddingService = fmt.Errorf("service d'embedding non configuré")
 
+// truncateQueryUTF8 tronque une requête de recherche à maxBytes sur une
+// frontière de rune UTF-8 valide.
+func truncateQueryUTF8(s string, maxBytes int) string {
+	if maxBytes <= 0 {
+		return ""
+	}
+	if len(s) <= maxBytes {
+		return s
+	}
+	for maxBytes > 0 && !utf8.RuneStart(s[maxBytes]) {
+		maxBytes--
+	}
+	return s[:maxBytes]
+}
+
 func (s *SemanticService) Search(ctx context.Context, query string, limit int) ([]SemanticHit, error) {
 	if os.Getenv("EMBEDDING_URL") == "" {
 		return nil, ErrNoEmbeddingService
@@ -152,16 +169,19 @@ func (s *SemanticService) Search(ctx context.Context, query string, limit int) (
 		limit = 10
 	}
 
+	query = truncateQueryUTF8(strings.TrimSpace(query), 1500)
+
 	vec, err := s.embedder.Embed(ctx, query)
 	if err != nil {
 		return nil, err
 	}
-	// MRL : tronque à la dimension stockée (512) et refuse un vecteur trop court.
+	// MRL : tronque à la dimension stockée (512), refuse un vecteur trop court
+	// et normalise L2 sur la sphère unité (cosinus).
 	dims := embeddingDims()
 	if len(vec) < dims {
 		return nil, fmt.Errorf("dimension %d < %d", len(vec), dims)
 	}
-	vec = vec[:dims]
+	vec = vectorfeed.Normalize(vec[:dims])
 
 	rows, err := s.q.SearchSemanticArticles(ctx, db.SearchSemanticArticlesParams{
 		Column1: pgvector.NewVector(vec),

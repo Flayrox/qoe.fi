@@ -339,3 +339,63 @@ func TestInlineSpansNestedAndEdges(t *testing.T) {
 		t.Fatalf("italic englobant = %+v", b2.Inline[1])
 	}
 }
+
+func TestEmptyParagraphsPreserveTextAndSha(t *testing.T) {
+	base := Parse(`<p>Premier paragraphe</p><p>Second paragraphe</p>`)
+	withEmpty := Parse(`<p>Premier paragraphe</p><p></p><p><br></p><p>Second paragraphe</p>`)
+
+	if withEmpty.Text != base.Text {
+		t.Fatalf("Text altéré par paragraphes vides : got %q, want %q", withEmpty.Text, base.Text)
+	}
+	if withEmpty.Sha != base.Sha {
+		t.Fatalf("Sha altéré par paragraphes vides : got %q, want %q", withEmpty.Sha, base.Sha)
+	}
+	if len(withEmpty.Blocks) != 4 {
+		t.Fatalf("4 blocs attendus (2 pleins + 2 vides), got %d : %+v", len(withEmpty.Blocks), withEmpty.Blocks)
+	}
+	if withEmpty.Blocks[1].Kind != KindParagraph || withEmpty.Blocks[1].Text != "" {
+		t.Fatalf("bloc 1 vide attendu, got %+v", withEmpty.Blocks[1])
+	}
+	if withEmpty.Blocks[2].Kind != KindParagraph || withEmpty.Blocks[2].Text != "" {
+		t.Fatalf("bloc 2 vide attendu, got %+v", withEmpty.Blocks[2])
+	}
+	if len(withEmpty.Segments) != 2 {
+		t.Fatalf("2 segments attendus (les paragraphes vides n'ajoutent aucun segment), got %+v", withEmpty.Segments)
+	}
+	if withEmpty.Segments[0].BlockIdx != 0 || withEmpty.Segments[1].BlockIdx != 3 {
+		t.Fatalf("BlockIdx des segments = %+v, want 0 et 3", withEmpty.Segments)
+	}
+	if withEmpty.Segments[1].Start != base.Segments[1].Start || withEmpty.Segments[1].End != base.Segments[1].End {
+		t.Fatalf("offsets du second segment altérés : got %+v, want %+v", withEmpty.Segments[1], base.Segments[1])
+	}
+}
+
+func TestParagraphIndentAndDropCapAndStrikethrough(t *testing.T) {
+	doc := Parse(
+		`<p data-indent="true" data-drop-cap="true">Il était <s>une</s> <del>deux</del> fois</p>` +
+			`<p class="has-indent">Second alinéa</p>`,
+	)
+	if len(doc.Blocks) != 2 {
+		t.Fatalf("2 blocs attendus, got %+v", doc.Blocks)
+	}
+	b0 := doc.Blocks[0]
+	if !b0.Indent || !b0.DropCap {
+		t.Fatalf("Indent et DropCap attendus sur bloc 0, got %+v", b0)
+	}
+	wantInl := []InlineSpan{
+		{Start: 9, End: 12, Style: "strike"},
+		{Start: 13, End: 17, Style: "strike"},
+	}
+	if len(b0.Inline) != len(wantInl) {
+		t.Fatalf("inline strike = %+v, want %+v", b0.Inline, wantInl)
+	}
+	for i, w := range wantInl {
+		if b0.Inline[i] != w {
+			t.Fatalf("inline[%d] = %+v, want %+v", i, b0.Inline[i], w)
+		}
+	}
+	b1 := doc.Blocks[1]
+	if !b1.Indent || b1.DropCap {
+		t.Fatalf("Indent=true, DropCap=false attendus sur bloc 1, got %+v", b1)
+	}
+}

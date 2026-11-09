@@ -7,6 +7,7 @@
 // =====================================================================
 
 import React, { Fragment, ReactNode, useEffect, useRef } from 'react';
+import { cn } from '@qoe/utils';
 import {
   AnnotationFilterMode,
   AnnotationItem,
@@ -286,6 +287,8 @@ function RenderRich({ text, marks, inline, onMarkClick }: RichProps) {
           node = <em key={j}>{node}</em>;
         } else if (st === 'underline') {
           node = <u key={j}>{node}</u>;
+        } else if (st === 'strike' || st === 's') {
+          node = <s key={j}>{node}</s>;
         } else if (st === 'code') {
           node = <code key={j}>{node}</code>;
         }
@@ -402,8 +405,13 @@ function BlockView({
     }
     default: {
       const Tag = TAG_BY_KIND[block.kind] ?? 'p';
+      const blockClassName =
+        cn(block.indent && 'has-indent', block.dropCap && 'has-drop-cap') || undefined;
+      if (block.kind === 'p' && (!block.text || block.text.length === 0)) {
+        return <p className={cn('article-empty-paragraph', blockClassName)} aria-hidden="true" />;
+      }
       return (
-        <Tag>
+        <Tag className={blockClassName}>
           <RenderRich
             text={block.text ?? ''}
             marks={buildSegmentMarks(

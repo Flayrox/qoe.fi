@@ -741,8 +741,25 @@ func (s *Service) PublicationArticles(ctx context.Context, username, viewerID st
 
 	// Même règle de visibilité que les pensées : le contenu d'un compte
 	// privé n'est pas servi aux non-abonnés, même par l'endpoint de profil.
+	// Si le premier article est cross-posté depuis un Média, on résout d'abord
+	// la publication du profil ciblé afin de ne pas évaluer la visibilité du Média.
 	if len(rows) > 0 {
-		allowed, err := s.canViewProfileContent(ctx, rows[0].PublicationId, "", viewerID)
+		targetPubID := rows[0].PublicationId
+		var targetOwnerID string
+		if pub, errPub := s.q.GetPublicationBySlugOrSubdomain(ctx, username); errPub == nil && pub.ID != "" {
+			targetPubID = pub.ID
+		} else if s.pool != nil {
+			_ = s.pool.QueryRow(ctx, `
+				SELECT u.id::text, COALESCE(u."publicationId", '')
+				FROM "User" u
+				LEFT JOIN "Publication" p ON p.id = u."publicationId"
+				WHERE LOWER(COALESCE(u.username, '')) = LOWER($1)
+				   OR LOWER(u.id::text) = LOWER($1)
+				   OR LOWER(COALESCE(p.id, '')) = LOWER($1)
+				LIMIT 1
+			`, username).Scan(&targetOwnerID, &targetPubID)
+		}
+		allowed, err := s.canViewProfileContent(ctx, targetPubID, targetOwnerID, viewerID)
 		if err != nil {
 			return ArticleFeedResult{}, err
 		}

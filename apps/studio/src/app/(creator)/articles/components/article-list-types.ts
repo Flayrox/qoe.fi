@@ -31,6 +31,15 @@ export interface ArticleWithCategory {
   allowPublicAnnotations?: boolean;
   allowComments?: boolean;
   allowDownload?: boolean;
+  showOnPersonalProfile?: boolean;
+  publicationId?: string;
+  publication?: {
+    id: string;
+    name: string;
+    slug: string;
+    logoUrl?: string | null;
+    type?: 'PERSONAL' | 'MEDIA' | string;
+  } | null;
 }
 
 export interface CategoryWithCount {

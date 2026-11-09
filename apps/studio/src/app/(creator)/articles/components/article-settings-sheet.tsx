@@ -91,11 +91,14 @@ export function ArticleSettingsSheet({
 }) {
   const {
     draft,
+    workspaces,
     loadState,
     error,
     saving,
     scheduling,
     downloadSaving,
+    transferring,
+    crosspostSaving,
     lastSavedAt,
     dirty,
     patchDraft,
@@ -105,6 +108,8 @@ export function ArticleSettingsSheet({
     clearSchedule,
     unpublish,
     toggleDownload,
+    transferPublication,
+    toggleShowOnPersonalProfile,
     retry,
   } = useArticleSettings({ articleId, onSaved });
 
@@ -228,6 +233,16 @@ export function ArticleSettingsSheet({
       allowDownload={draft.allowDownload}
       downloadSaving={downloadSaving}
       onToggleDownload={(value) => void toggleDownload(value)}
+      workspaces={workspaces}
+      publicationId={draft.publicationId}
+      publicationName={draft.publicationName}
+      publicationSlug={draft.publicationSlug}
+      publicationType={draft.publicationType}
+      transferring={transferring}
+      onTransferPublication={(targetPubId) => void transferPublication(targetPubId)}
+      showOnPersonalProfile={draft.showOnPersonalProfile}
+      crosspostSaving={crosspostSaving}
+      onToggleShowOnPersonalProfile={(value) => void toggleShowOnPersonalProfile(value)}
       canPublish={canPublish}
       onUnpublish={() =>
         onRequestConfirm({

@@ -47,6 +47,7 @@ SELECT a.id,
        a."isPremium",
        a.visibility,
        a."readingTime",
+       a."showOnPersonalProfile",
        a."createdAt",
        a."publicationId",
        a."authorId",
@@ -69,11 +70,56 @@ JOIN "Publication" p ON p.id = a."publicationId"
 LEFT JOIN "Category" c ON c.id = a."categoryId"
 WHERE a.published = true
   AND (
-    LOWER(p.slug) = LOWER($1)
-    OR LOWER(COALESCE(p.subdomain, '')) = LOWER($1)
-    OR LOWER(COALESCE(u.username, '')) = LOWER($1)
-    OR LOWER(p.id) = LOWER($1)
-    OR LOWER(COALESCE(u.id::text, '')) = LOWER($1)
+    -- Si la cible est directement la publication de l'article (MEDIA ou PERSONAL)
+    (
+      LOWER(p.slug) = LOWER($1)
+      OR LOWER(COALESCE(p.subdomain, '')) = LOWER($1)
+      OR LOWER(p.id) = LOWER($1)
+    )
+    -- Si la cible résolue est un utilisateur ou une publication PERSONAL (et non un MEDIA)
+    OR (
+      NOT EXISTS (
+        SELECT 1 FROM "Publication" mp
+        WHERE mp.type = 'MEDIA'
+          AND (
+            LOWER(mp.slug) = LOWER($1)
+            OR LOWER(COALESCE(mp.subdomain, '')) = LOWER($1)
+            OR LOWER(mp.id) = LOWER($1)
+          )
+      )
+      AND EXISTS (
+        SELECT 1
+        FROM "User" tu
+        LEFT JOIN "Publication" tp ON tp.id = tu."publicationId"
+        WHERE (
+          LOWER(COALESCE(tu.username, '')) = LOWER($1)
+          OR LOWER(tu.id::text) = LOWER($1)
+          OR (
+            tp.id IS NOT NULL
+            AND tp.type = 'PERSONAL'
+            AND (
+              LOWER(tp.slug) = LOWER($1)
+              OR LOWER(COALESCE(tp.subdomain, '')) = LOWER($1)
+              OR LOWER(tp.id) = LOWER($1)
+            )
+          )
+        )
+        AND (
+          a."publicationId" = tu."publicationId"
+          OR (a."authorId" = tu.id AND a."showOnPersonalProfile" = true)
+          OR EXISTS (
+            SELECT 1
+            FROM "ArticleAttribution" aa
+            WHERE aa."articleId" = a.id
+              AND aa."userId" = tu.id
+              AND aa."consentStatus" = 'ACCEPTED'
+              AND aa."isVisible" = true
+              AND aa.role IN ('PRIMARY_AUTHOR', 'CO_AUTHOR')
+              AND (a."authorId" <> tu.id OR a."showOnPersonalProfile" = true)
+          )
+        )
+      )
+    )
   )
   AND u."isShadowbanned" = false
   AND u."isSuspended" = false
@@ -83,7 +129,7 @@ LIMIT $2 OFFSET $3;
 
 -- name: GetArticleByID :one
 SELECT a.id, a.title, a.slug, a.content, a."draftContent", a.published, a."isPremium", a.visibility,
-       a."readingTime", a."allowPublicAnnotations", a."allowComments", a."allowDownload", a."scheduledAt",
+       a."readingTime", a."allowPublicAnnotations", a."allowComments", a."allowDownload", a."showOnPersonalProfile", a."scheduledAt",
        a.status, a."publicationId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
        a."emailStatus", a."emailSentAt", a."emailSentCount", a."emailResendCount",
@@ -103,7 +149,7 @@ WHERE a.id = $1;
 
 -- name: GetArticleBySlug :one
 SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
-       a."readingTime", a."allowPublicAnnotations", a."allowComments", a."scheduledAt",
+       a."readingTime", a."allowPublicAnnotations", a."allowComments", a."showOnPersonalProfile", a."scheduledAt",
        a.status, a."publicationId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
        a."imageUrl"   AS article_image,
@@ -131,7 +177,7 @@ WHERE a.slug = $1 AND a."publicationId" = $2;
 -- findFirstBySlug Prisma de la page autonome /article/[slug] du reader core.
 -- Résout aussi les slugs personnalisés par auteur (ArticleSlug).
 SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
-       a."readingTime", a."allowPublicAnnotations", a."allowComments", a."scheduledAt",
+       a."readingTime", a."allowPublicAnnotations", a."allowComments", a."showOnPersonalProfile", a."scheduledAt",
        a.status, a."publicationId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
        u.id::text     AS author_id,
@@ -217,21 +263,29 @@ WHERE a."publicationId" = sqlc.arg('publicationId')
 -- name: ListArticlesWithCategory :many
 SELECT a.id, a.title, a.slug, a.published, a."isPremium", a.visibility, a."readingTime",
        a.status, a."createdAt", a."updatedAt", a."categoryId", a."publicationId",
-       a."allowPublicAnnotations", a."allowComments", a."allowDownload",
+       a."allowPublicAnnotations", a."allowComments", a."allowDownload", a."showOnPersonalProfile",
        (a."draftContent" IS NOT NULL AND a."draftContent" <> '') AS has_unpublished_changes,
        a."emailStatus", a."emailSentAt", a."emailSentCount",
        c.id  AS category_id,
        c.name AS category_name,
-       c.slug AS category_slug
+       c.slug AS category_slug,
+       p.name AS publication_name,
+       p.slug AS publication_slug,
+       p.type AS publication_type,
+       p."logoUrl" AS publication_logo
 FROM "Article" a
+JOIN "Publication" p ON p.id = a."publicationId"
 LEFT JOIN "Category" c ON c.id = a."categoryId"
 WHERE a."publicationId" = $1
-   OR ($4::boolean AND EXISTS (
-     SELECT 1 FROM "ArticleAttribution" aa
-     WHERE aa."articleId" = a.id
-       AND aa."userId" = $5::uuid
-       AND aa."consentStatus" = 'ACCEPTED'
-       AND aa."isVisible" = true
+   OR ($4::boolean AND (
+     a."authorId" = $5::uuid
+     OR EXISTS (
+       SELECT 1 FROM "ArticleAttribution" aa
+       WHERE aa."articleId" = a.id
+         AND aa."userId" = $5::uuid
+         AND aa."consentStatus" = 'ACCEPTED'
+         AND aa."isVisible" = true
+     )
    ))
 ORDER BY a."createdAt" DESC
 LIMIT $2 OFFSET $3;
@@ -244,8 +298,8 @@ SELECT id FROM "Article" WHERE "publicationId" = $1 AND slug = $2 LIMIT 1;
 INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
                        "readingTime", "allowPublicAnnotations", "allowComments", "allowDownload", status,
                        "publicationId", "authorId", "categoryId", "tierId", "seoTitle", "seoDescription",
-                       "scheduledAt", "imageUrl", "updatedAt")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, now())
+                       "scheduledAt", "imageUrl", "showOnPersonalProfile", "updatedAt")
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, now())
 RETURNING id;
 
 -- name: UpdateArticleContent :one
@@ -260,7 +314,7 @@ UPDATE "Article"
 SET title = $2, content = $3, slug = $4, published = $5, status = $6, "isPremium" = $7,
     "categoryId" = $8, "seoTitle" = $9, "seoDescription" = $10, "readingTime" = $11,
     "scheduledAt" = $12, "imageUrl" = $13, "allowPublicAnnotations" = $14,
-    "allowComments" = $15, "allowDownload" = $16, "updatedAt" = now()
+    "allowComments" = $15, "allowDownload" = $16, "showOnPersonalProfile" = $17, "updatedAt" = now()
 WHERE id = $1
 RETURNING id;
 
@@ -274,8 +328,21 @@ SET "isPremium" = COALESCE(sqlc.narg('is_premium'), "isPremium"),
     "allowPublicAnnotations" = COALESCE(sqlc.narg('allow_public_annotations'), "allowPublicAnnotations"),
     "allowComments" = COALESCE(sqlc.narg('allow_comments'), "allowComments"),
     "allowDownload" = COALESCE(sqlc.narg('allow_download'), "allowDownload"),
+    "showOnPersonalProfile" = COALESCE(sqlc.narg('show_on_personal_profile'), "showOnPersonalProfile"),
     "updatedAt" = now()
 WHERE id = sqlc.arg('id')
+RETURNING id;
+
+-- name: TransferArticlePublication :one
+UPDATE "Article"
+SET "publicationId" = $2,
+    "categoryId" = $3,
+    slug = $4,
+    status = $5,
+    published = $6,
+    "showOnPersonalProfile" = $7,
+    "updatedAt" = now()
+WHERE id = $1
 RETURNING id;
 
 -- name: UpdateArticleDraft :one

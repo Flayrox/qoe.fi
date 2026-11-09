@@ -72,6 +72,7 @@ type ArticleResponse struct {
 	AllowDownload          bool                           `json:"allowDownload"`
 	AllowPublicAnnotations bool                           `json:"allowPublicAnnotations"`
 	AllowComments          bool                           `json:"allowComments"`
+	ShowOnPersonalProfile  bool                           `json:"showOnPersonalProfile"`
 	PaywallMeta            *PaywallMeta                   `json:"paywallMeta"`
 	Author                 AuthorInfo                     `json:"author"`
 	Publication            *PublicationInfo               `json:"publication"`
@@ -155,6 +156,7 @@ type CreateArticleInput struct {
 	AllowPublicAnnotations *bool
 	AllowComments          *bool
 	AllowDownload          *bool
+	ShowOnPersonalProfile  *bool `json:"showOnPersonalProfile,omitempty"`
 	Published              bool
 	Status                 string
 	// ScheduledAt programme la publication : futur + demande de publication →
@@ -181,6 +183,7 @@ type UpdateArticleInput struct {
 	AllowPublicAnnotations *bool
 	AllowComments          *bool
 	AllowDownload          *bool
+	ShowOnPersonalProfile  *bool `json:"showOnPersonalProfile,omitempty"`
 	Published              bool
 	Status                 string
 	ActivePublicationID    string
@@ -190,6 +193,13 @@ type UpdateArticleInput struct {
 	SendEmail        *bool
 	EmailSubject     *string
 	EmailPreviewText *string
+}
+
+// TransferArticleInput est l'entrée de transfert d'article entre publications.
+type TransferArticleInput struct {
+	TargetPublicationID   string  `json:"targetPublicationId"`
+	TargetCategoryID      *string `json:"targetCategoryId,omitempty"`
+	ShowOnPersonalProfile *bool   `json:"showOnPersonalProfile,omitempty"`
 }
 
 type EmailSender func(ctx context.Context, to, subject, html, unsubURL, fromName string) error
@@ -343,7 +353,8 @@ func (s *Service) GetBySlugAny(ctx context.Context, slug string, viewerID string
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
 		ReadingTime: int(row.ReadingTime), Status: row.Status, PublicationID: row.PublicationId,
 		AllowPublicAnnotations: row.AllowPublicAnnotations, AllowComments: row.AllowComments,
-		AuthorID: row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
+		ShowOnPersonalProfile: row.ShowOnPersonalProfile,
+		AuthorID:              row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
 		CreatedAt:   row.CreatedAt.Time.Format(time.RFC3339),
 		UpdatedAt:   row.UpdatedAt.Time.Format(time.RFC3339),
@@ -509,6 +520,10 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 	if in.AllowComments != nil {
 		allowComments = *in.AllowComments
 	}
+	showOnPersonalProfile := true
+	if in.ShowOnPersonalProfile != nil {
+		showOnPersonalProfile = *in.ShowOnPersonalProfile
+	}
 
 	id, err := s.q.CreateArticle(ctx, db.CreateArticleParams{
 		Title:                  in.Title,
@@ -530,11 +545,12 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 		SeoDescription:         textVal(in.SeoDescription),
 		ScheduledAt:            timestampPtr(in.ScheduledAt),
 		ImageUrl:               imageVal(in.ImageURL),
+		ShowOnPersonalProfile:  showOnPersonalProfile,
 	})
 	if err != nil {
 		return "", err
 	}
-	s.syncAttributions(ctx, id, userID, in.Attributions)
+	s.syncAttributions(ctx, id, userID, in.Attributions, showOnPersonalProfile)
 	s.queueSearchSync(id, "upsert")
 
 	// Premier jalon de la chronologie de l'article.
@@ -583,6 +599,7 @@ func (s *Service) List(ctx context.Context, userID, publicationID, workspaceType
 	}
 	out := make([]ArticleResponse, 0, len(rows))
 	for _, r := range rows {
+		pubType := identity.FromPublicationType(string(r.PublicationType))
 		item := ArticleResponse{
 			ID: r.ID, Title: r.Title, Slug: r.Slug, Published: r.Published,
 			HasUnpublishedChanges: r.HasUnpublishedChanges.Valid && r.HasUnpublishedChanges.Bool,
@@ -591,6 +608,7 @@ func (s *Service) List(ctx context.Context, userID, publicationID, workspaceType
 			AllowPublicAnnotations: r.AllowPublicAnnotations,
 			AllowComments:          r.AllowComments,
 			AllowDownload:          r.AllowDownload,
+			ShowOnPersonalProfile:  r.ShowOnPersonalProfile,
 			CategoryID:             textPtr(r.CategoryId),
 			EmailStatus:            strPtr(r.EmailStatus),
 			EmailSentAt:            tsPtr(r.EmailSentAt),
@@ -598,8 +616,15 @@ func (s *Service) List(ctx context.Context, userID, publicationID, workspaceType
 			CreatedAt:              r.CreatedAt.Time.Format(time.RFC3339),
 			UpdatedAt:              r.UpdatedAt.Time.Format(time.RFC3339),
 			AccessGranted:          true,
-			CoAuthors:              []AuthorInfo{},
-			Attributions:           []AttributionInfo{},
+			Publication: &PublicationInfo{
+				ID:      r.PublicationId,
+				Name:    r.PublicationName,
+				Slug:    r.PublicationSlug,
+				LogoURL: textPtr(r.PublicationLogo),
+				Type:    pubType,
+			},
+			CoAuthors:    []AuthorInfo{},
+			Attributions: []AttributionInfo{},
 		}
 		if r.CategoryName.Valid {
 			item.Category = &CategoryInfo{ID: r.CategoryID.String, Name: r.CategoryName.String, Slug: r.CategorySlug.String}
@@ -672,6 +697,7 @@ type BulkUpdateInput struct {
 	AllowPublicAnnotations *bool
 	AllowComments          *bool
 	AllowDownload          *bool
+	ShowOnPersonalProfile  *bool
 	Published              *bool
 }
 
@@ -694,7 +720,7 @@ func (s *Service) BulkUpdate(ctx context.Context, userID string, in BulkUpdateIn
 		return BulkUpdateResult{}, errors.New("100 articles maximum par modification groupée")
 	}
 	hasSettings := in.IsPremium != nil || in.SetCategory || in.AllowPublicAnnotations != nil ||
-		in.AllowComments != nil || in.AllowDownload != nil
+		in.AllowComments != nil || in.AllowDownload != nil || in.ShowOnPersonalProfile != nil
 	if !hasSettings && in.Published == nil {
 		return BulkUpdateResult{}, errors.New("aucun réglage à appliquer")
 	}
@@ -730,9 +756,13 @@ func (s *Service) bulkUpdateOne(ctx context.Context, articleID, userID string, i
 			AllowPublicAnnotations: boolVal(in.AllowPublicAnnotations),
 			AllowComments:          boolVal(in.AllowComments),
 			AllowDownload:          boolVal(in.AllowDownload),
+			ShowOnPersonalProfile:  boolVal(in.ShowOnPersonalProfile),
 			ID:                     articleID,
 		}); err != nil {
 			return err
+		}
+		if in.ShowOnPersonalProfile != nil {
+			s.syncAttributions(ctx, articleID, uuidString(row.AuthorId), nil, *in.ShowOnPersonalProfile)
 		}
 		s.queueSearchSync(articleID, "upsert")
 	}
@@ -1061,6 +1091,10 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 	if in.AllowDownload != nil {
 		allowDownload = *in.AllowDownload
 	}
+	showOnPersonalProfile := row.ShowOnPersonalProfile
+	if in.ShowOnPersonalProfile != nil {
+		showOnPersonalProfile = *in.ShowOnPersonalProfile
+	}
 	imageURL := in.ImageURL
 	if imageURL == nil {
 		imageURL = s.fetchArticleImageUrl(ctx, articleID)
@@ -1103,10 +1137,11 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 			ReadingTime: row.ReadingTime, ScheduledAt: scheduledAt,
 			ImageUrl: imageVal(imageURL), AllowPublicAnnotations: allowAnnotations,
 			AllowComments: allowComments, AllowDownload: allowDownload,
+			ShowOnPersonalProfile: showOnPersonalProfile,
 		}); err != nil {
 			return err
 		}
-		s.syncAttributions(ctx, articleID, uuidString(row.AuthorId), in.Attributions)
+		s.syncAttributions(ctx, articleID, uuidString(row.AuthorId), in.Attributions, showOnPersonalProfile)
 		s.queueSearchSync(articleID, "upsert")
 		if preservedStatus == "SUBMITTED" && row.Status != "SUBMITTED" {
 			s.notifyReviewers(ctx, row.PublicationId, articleID, userID)
@@ -1145,10 +1180,11 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 		ReadingTime: int32(in.ReadingTime), ScheduledAt: scheduledAt,
 		ImageUrl: imageVal(imageURL), AllowPublicAnnotations: allowAnnotations,
 		AllowComments: allowComments, AllowDownload: allowDownload,
+		ShowOnPersonalProfile: showOnPersonalProfile,
 	}); err != nil {
 		return err
 	}
-	s.syncAttributions(ctx, articleID, uuidString(row.AuthorId), in.Attributions)
+	s.syncAttributions(ctx, articleID, uuidString(row.AuthorId), in.Attributions, showOnPersonalProfile)
 	s.queueSearchSync(articleID, "upsert")
 	s.emitArticleLifecycle(queue.TaskArticleUpdated, row, in.Title, in.Slug)
 
@@ -1743,17 +1779,22 @@ func (s *Service) fetchCoAuthors(ctx context.Context, articleID string) []Author
 	return out
 }
 
-func (s *Service) syncAttributions(ctx context.Context, articleID, authorID string, attributions []ArticleAttributionInput) {
+func (s *Service) syncAttributions(ctx context.Context, articleID, authorID string, attributions []ArticleAttributionInput, showOnPersonalProfile ...bool) {
 	if s.pool == nil {
 		return
 	}
-	// Toujours s'assurer que l'auteur principal a son attribution PRIMARY_AUTHOR ACCEPTED
+	primaryVisible := true
+	if len(showOnPersonalProfile) > 0 {
+		primaryVisible = showOnPersonalProfile[0]
+	}
+	// Toujours s'assurer que l'auteur principal a son attribution PRIMARY_AUTHOR ACCEPTED,
+	// avec isVisible synchronisé avec showOnPersonalProfile.
 	_, _ = s.pool.Exec(ctx, `
 		INSERT INTO "ArticleAttribution" (id, "articleId", "userId", role, "order", "isVisible", "consentStatus", "consentUpdatedAt", "updatedAt")
-		VALUES (gen_random_uuid()::text, $1, $2, 'PRIMARY_AUTHOR', 0, true, 'ACCEPTED', now(), now())
+		VALUES (gen_random_uuid()::text, $1, $2, 'PRIMARY_AUTHOR', 0, $3, 'ACCEPTED', now(), now())
 		ON CONFLICT ("articleId", "userId") DO UPDATE SET
-		  role = 'PRIMARY_AUTHOR', "order" = 0, "isVisible" = true, "consentStatus" = 'ACCEPTED', "updatedAt" = now()
-	`, articleID, toUUID(authorID))
+		  role = 'PRIMARY_AUTHOR', "order" = 0, "isVisible" = $3, "consentStatus" = 'ACCEPTED', "updatedAt" = now()
+	`, articleID, toUUID(authorID), primaryVisible)
 
 	if len(attributions) == 0 {
 		return
@@ -2244,8 +2285,9 @@ func (s *Service) articleResponseFromIDRow(row db.GetArticleByIDRow) ArticleResp
 		DraftContent: draftContent, LiveContent: liveContent, HasUnpublishedChanges: hasUnpublishedChanges,
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
 		AllowDownload: row.AllowDownload, AllowPublicAnnotations: row.AllowPublicAnnotations,
-		AllowComments: row.AllowComments,
-		ReadingTime:   int(row.ReadingTime), Status: row.Status, ScheduledAt: tsPtr(row.ScheduledAt),
+		AllowComments:         row.AllowComments,
+		ShowOnPersonalProfile: row.ShowOnPersonalProfile,
+		ReadingTime:           int(row.ReadingTime), Status: row.Status, ScheduledAt: tsPtr(row.ScheduledAt),
 		EmailStatus:      strPtr(row.EmailStatus),
 		EmailSentAt:      tsPtr(row.EmailSentAt),
 		EmailSentCount:   int(row.EmailSentCount),
@@ -2271,8 +2313,9 @@ func articleFromSlugRow(row db.GetArticleBySlugRow, cut PaywallCutResult) Articl
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
 		ReadingTime: int(row.ReadingTime), Status: row.Status, ScheduledAt: tsPtr(row.ScheduledAt),
 		AllowPublicAnnotations: row.AllowPublicAnnotations, AllowComments: row.AllowComments,
-		PublicationID: row.PublicationId,
-		AuthorID:      row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
+		ShowOnPersonalProfile: row.ShowOnPersonalProfile,
+		PublicationID:         row.PublicationId,
+		AuthorID:              row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
 		ImageUrl:    textPtr(row.ArticleImage),
 		CreatedAt:   row.CreatedAt.Time.Format(time.RFC3339),
@@ -2297,9 +2340,10 @@ func articleFromRow(row db.GetArticleByIDRow, cut PaywallCutResult) ArticleRespo
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
 		ReadingTime: int(row.ReadingTime), Status: row.Status, ScheduledAt: tsPtr(row.ScheduledAt),
 		AllowDownload: row.AllowDownload, AllowPublicAnnotations: row.AllowPublicAnnotations,
-		AllowComments: row.AllowComments,
-		PublicationID: row.PublicationId,
-		AuthorID:      row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
+		AllowComments:         row.AllowComments,
+		ShowOnPersonalProfile: row.ShowOnPersonalProfile,
+		PublicationID:         row.PublicationId,
+		AuthorID:              row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
 		CreatedAt:   row.CreatedAt.Time.Format(time.RFC3339),
 		UpdatedAt:   row.UpdatedAt.Time.Format(time.RFC3339),
@@ -2308,6 +2352,129 @@ func articleFromRow(row db.GetArticleByIDRow, cut PaywallCutResult) ArticleRespo
 		Publication: &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain), Type: pubType},
 	}
 	return resp
+}
+
+// TransferPublication déplace un article d'une publication à une autre (Personnel ↔ Média).
+func (s *Service) TransferPublication(ctx context.Context, userID, articleID string, in TransferArticleInput) (ArticleResponse, error) {
+	row, err := s.q.GetArticleByID(ctx, articleID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ArticleResponse{}, errNotFound
+		}
+		return ArticleResponse{}, err
+	}
+
+	targetPubID := strings.TrimSpace(in.TargetPublicationID)
+	if targetPubID == "" {
+		return ArticleResponse{}, errors.New("targetPublicationId requis")
+	}
+	if targetPubID == "personal" || targetPubID == userID {
+		if personal, err := s.q.GetUserPersonalPublication(ctx, userID); err == nil && personal.Valid && personal.String != "" {
+			targetPubID = personal.String
+		}
+	} else if m, err := s.q.GetMediaWithPublication(ctx, targetPubID); err == nil && m.PublicationID != "" {
+		targetPubID = m.PublicationID
+	}
+
+	// Vérifier que l'appelant a le droit sur la source (auteur ou OWNER/ADMIN de la source).
+	isAuthor := row.AuthorID == userID || uuidString(row.AuthorId) == userID
+	if !isAuthor {
+		srcMC, err := s.resolveMember(ctx, userID, row.PublicationId)
+		if err != nil || (!strings.EqualFold(srcMC.role, "owner") && !strings.EqualFold(srcMC.role, "admin")) {
+			return ArticleResponse{}, errForbidden
+		}
+	}
+
+	// Vérifier la publication cible.
+	targetPub, err := s.q.GetPublicationTypeByID(ctx, targetPubID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ArticleResponse{}, errNotFound
+		}
+		return ArticleResponse{}, err
+	}
+	// Si la cible est PERSONAL, imposer que le propriétaire de la publication PERSONAL cible soit l'auteur de l'article.
+	if targetPub.Type == "PERSONAL" {
+		authorPersonal, err := s.q.GetUserPersonalPublication(ctx, row.AuthorID)
+		if err != nil || !authorPersonal.Valid || authorPersonal.String != targetPubID {
+			return ArticleResponse{}, errForbidden
+		}
+	}
+
+	// Vérifier que l'appelant est membre actif de la publication cible avec au moins PermCreateArticles.
+	targetMC, err := s.resolveMember(ctx, userID, targetPubID)
+	if err != nil || !targetMC.can(permissions.PermCreateArticles) {
+		return ArticleResponse{}, errForbidden
+	}
+
+	// Résoudre la catégorie cible (ou assigner la catégorie par défaut « non-classe » si absente ou issue de l'ancienne publication).
+	categoryID, err := s.resolveCategoryID(ctx, targetPubID, in.TargetCategoryID)
+	if err != nil {
+		categoryID, err = s.resolveCategoryID(ctx, targetPubID, nil)
+		if err != nil {
+			return ArticleResponse{}, err
+		}
+	}
+
+	// Résoudre le slug unique dans la cible. Si le slug change, archiver l'ancien dans ArticleSlugHistory.
+	finalSlug := row.Slug
+	if targetPubID != row.PublicationId {
+		finalSlug = s.uniqueSlug(ctx, targetPubID, articleID, row.Slug)
+		if finalSlug != row.Slug && s.pool != nil {
+			_, _ = s.pool.Exec(ctx, `
+				INSERT INTO "ArticleSlugHistory" (id, "articleId", slug, "createdAt")
+				VALUES (gen_random_uuid()::text, $1, $2, now())
+				ON CONFLICT (slug) DO NOTHING
+			`, articleID, row.Slug)
+		}
+	}
+
+	// Résolution du statut : si l'article était PUBLISHED, conserver PUBLISHED si PermPublishAny (ou cible PERSONAL),
+	// sinon basculer en revue éditoriale (SUBMITTED, published = false).
+	newStatus := row.Status
+	newPublished := row.Published
+	if row.Published || row.Status == "PUBLISHED" {
+		if !targetMC.isMedia || targetMC.can(permissions.PermPublishAny) {
+			newPublished = true
+			newStatus = "PUBLISHED"
+		} else {
+			newPublished = false
+			newStatus = "SUBMITTED"
+		}
+	}
+
+	showOnPersonalProfile := row.ShowOnPersonalProfile
+	if in.ShowOnPersonalProfile != nil {
+		showOnPersonalProfile = *in.ShowOnPersonalProfile
+	}
+
+	if _, err := s.q.TransferArticlePublication(ctx, db.TransferArticlePublicationParams{
+		ID:                    articleID,
+		PublicationId:         targetPubID,
+		CategoryId:            textVal(categoryID),
+		Slug:                  finalSlug,
+		Status:                newStatus,
+		Published:             newPublished,
+		ShowOnPersonalProfile: showOnPersonalProfile,
+	}); err != nil {
+		return ArticleResponse{}, err
+	}
+
+	s.syncAttributions(ctx, articleID, row.AuthorID, nil, showOnPersonalProfile)
+	s.queueSearchSync(articleID, "upsert")
+
+	if newStatus == "SUBMITTED" && row.Status != "SUBMITTED" {
+		s.notifyReviewers(ctx, targetPubID, articleID, userID)
+		_ = s.q.InsertArticleReviewLog(ctx, db.InsertArticleReviewLogParams{
+			ArticleId:     articleID,
+			PublicationId: targetPubID,
+			ReviewerId:    toUUID(userID),
+			Action:        "SUBMITTED",
+			Comment:       pgtype.Text{String: "", Valid: false},
+		})
+	}
+
+	return s.GetByID(ctx, articleID, userID)
 }
 
 // ListCreatorArticles liste les articles d'une publication au format du contrat

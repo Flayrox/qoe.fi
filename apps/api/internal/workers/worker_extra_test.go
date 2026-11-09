@@ -4,15 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/hibiken/asynq"
 	"github.com/meilisearch/meilisearch-go"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/testutil"
+	"github.com/qoefi/api/internal/vectorfeed"
 )
 
 // ─── Newsletter worker ────────────────────────────────────────────────
@@ -526,13 +529,20 @@ func TestSearch_ReindexAll_BackfillsArticles(t *testing.T) {
 // mockEmbedder imite le service d'inférence (vecteur 1024 dims, tronqué en
 // 512 par le worker via MRL).
 type mockEmbedder struct {
-	vec []float32
-	err error
+	vec    []float32
+	fn     func(text string, callIdx int) []float32
+	inputs []string
+	err    error
 }
 
-func (m *mockEmbedder) Embed(_ context.Context, _ string) ([]float32, error) {
+func (m *mockEmbedder) Embed(_ context.Context, text string) ([]float32, error) {
+	idx := len(m.inputs)
+	m.inputs = append(m.inputs, text)
 	if m.err != nil {
 		return nil, m.err
+	}
+	if m.fn != nil {
+		return m.fn(text, idx), nil
 	}
 	return m.vec, nil
 }
@@ -562,10 +572,174 @@ func TestEmbedding_Normalize_StripsHTMLAndPaywall(t *testing.T) {
 }
 
 func TestEmbedding_Normalize_TruncatesLongText(t *testing.T) {
-	long := strings.Repeat("mot ", 20000) // ~100k chars
+	long := strings.Repeat("éèàœ ", 15000) // ~135k octets UTF-8
 	got := normalizeForEmbedding("T", long)
-	if len(got) > 32000 {
-		t.Fatalf("normalize: pas de troncature (%d chars)", len(got))
+	if len(got) > maxArticleBytes {
+		t.Fatalf("normalize: pas de troncature (%d octets > %d)", len(got), maxArticleBytes)
+	}
+	if !utf8.ValidString(got) {
+		t.Fatal("normalize: troncature a cassé une rune UTF-8")
+	}
+}
+
+func TestEmbedding_ChunkArticleForEmbedding_LongFrenchArticle(t *testing.T) {
+	title := "Réflexions sur l'économie, la littérature et l'œuvre d'art"
+	paragraph := "<p>« L'éducation esthétique et la liberté d'expression façonnent notre époque à travers des récits singuliers où chaque détail compte énormément. »</p>"
+	section := "<h2>Chapitre sur l'équilibre général et la création</h2>" + strings.Repeat(paragraph, 6)
+	// ~25 000 caractères avant le paywall + contenu sensible après le paywall.
+	longHTML := strings.Repeat(section, 25) + `<div data-type="paywall-divider"></div><p>SECRET_PREMIUM_PAYWALL_LEAK</p>`
+
+	chunks := chunkArticleForEmbedding(title, longHTML)
+	if len(chunks) < 10 {
+		t.Fatalf("attendu plusieurs chunks pour un article de ~25k car., obtenu %d", len(chunks))
+	}
+	for i, c := range chunks {
+		if !utf8.ValidString(c) {
+			t.Fatalf("chunk %d invalide UTF-8", i)
+		}
+		if len(c) > chunkMaxBytes {
+			t.Fatalf("chunk %d dépasse %d octets: %d", i, chunkMaxBytes, len(c))
+		}
+		if !strings.HasPrefix(c, title+"\n\n") {
+			t.Fatalf("chunk %d ne contient pas le titre en rappel en tête: %q", i, c[:min(len(c), 80)])
+		}
+		if strings.Contains(c, "SECRET_PREMIUM_PAYWALL_LEAK") {
+			t.Fatalf("chunk %d contient du texte situé après le paywall", i)
+		}
+		if strings.Contains(c, "<p>") || strings.Contains(c, "<h2>") {
+			t.Fatalf("chunk %d contient du HTML résiduel", i)
+		}
+	}
+}
+
+func TestEmbedding_EmbedChunks_MeanPoolsAndNormalizesL2(t *testing.T) {
+	t.Setenv(envEmbeddingDims, "512")
+	title := "Étude sur la littérature française et l'esthétique moderne"
+	paragraph := "<p>« L'analyse approfondie des œuvres littéraires françaises révèle une richesse sémantique remarquable à chaque époque historique. »</p>"
+	longHTML := strings.Repeat("<h2>Chapitre thématique</h2>"+strings.Repeat(paragraph, 6), 25)
+
+	chunks := chunkArticleForEmbedding(title, longHTML)
+	if len(chunks) < 10 {
+		t.Fatalf("attendu >= 10 chunks, obtenu %d", len(chunks))
+	}
+
+	mock := &mockEmbedder{
+		fn: func(_ string, callIdx int) []float32 {
+			v := make([]float32, 1024)
+			for d := range v {
+				v[d] = 0.1
+			}
+			v[callIdx%512] = 5.0
+			return v
+		},
+	}
+	worker := &EmbeddingWorker{embedder: mock}
+
+	finalVec, err := worker.embedChunks(context.Background(), "art_long", chunks)
+	if err != nil {
+		t.Fatalf("embedChunks: %v", err)
+	}
+	if len(mock.inputs) != len(chunks) {
+		t.Fatalf("mockEmbedder appelé %d fois, attendu %d", len(mock.inputs), len(chunks))
+	}
+	if len(finalVec) != 512 {
+		t.Fatalf("len(finalVec) = %d, attendu 512", len(finalVec))
+	}
+
+	var normSq float64
+	for _, x := range finalVec {
+		normSq += float64(x) * float64(x)
+	}
+	norm := math.Sqrt(normSq)
+	if math.Abs(norm-1.0) > 1e-5 {
+		t.Fatalf("norme L2 = %f, attendu 1.0", norm)
+	}
+	if finalVec[0] <= finalVec[1] {
+		t.Fatalf("bonus chapô 1.5x non appliqué: finalVec[0]=%f <= finalVec[1]=%f", finalVec[0], finalVec[1])
+	}
+}
+
+func TestEmbedding_HandleArticleEmbedding_LongArticle_MeanPoolsAndNormalizesL2(t *testing.T) {
+	requirePool(t)
+	t.Setenv(envEmbeddingURL, "http://embed.test")
+	fx, err := testutil.SeedArticles(context.Background(), poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	_ = fx
+
+	var articleID string
+	if err := poolTest.QueryRow(context.Background(),
+		`SELECT id FROM "Article" WHERE slug = 'premier-article'`,
+	).Scan(&articleID); err != nil {
+		t.Fatalf("article: %v", err)
+	}
+
+	paragraph := "<p>L'analyse approfondie des œuvres littéraires françaises révèle une richesse sémantique remarquable à chaque époque historique.</p>"
+	longContent := strings.Repeat("<h2>Section thématique</h2>"+strings.Repeat(paragraph, 5), 25)
+	if _, err := poolTest.Exec(context.Background(),
+		`UPDATE "Article" SET title = $2, content = $3, embedding = NULL WHERE id = $1`,
+		articleID, "Grande étude sur la littérature", longContent,
+	); err != nil {
+		t.Fatalf("update article long: %v", err)
+	}
+
+	mock := &mockEmbedder{
+		fn: func(_ string, callIdx int) []float32 {
+			v := make([]float32, 1024)
+			// Chaque chunk active fortement une coordonnée distincte + un fond commun.
+			for d := range v {
+				v[d] = 0.1
+			}
+			v[callIdx%512] = 5.0
+			return v
+		},
+	}
+
+	worker := &EmbeddingWorker{
+		pool:     poolTest,
+		q:        db.New(poolTest),
+		embedder: mock,
+	}
+	payload, _ := json.Marshal(map[string]any{"articleId": articleID})
+	if err := worker.HandleArticleEmbedding(context.Background(), asynq.NewTask("embedding.article", payload)); err != nil {
+		t.Fatalf("HandleArticleEmbedding: %v", err)
+	}
+
+	if len(mock.inputs) < 5 {
+		t.Fatalf("attendu plusieurs appels à Embed sur un article long, obtenu %d", len(mock.inputs))
+	}
+	for i, in := range mock.inputs {
+		if !utf8.ValidString(in) || len(in) > chunkMaxBytes {
+			t.Fatalf("chunk envoyé %d invalide (utf8=%v, len=%d)", i, utf8.ValidString(in), len(in))
+		}
+	}
+
+	var embText string
+	if err := poolTest.QueryRow(context.Background(),
+		`SELECT "embedding"::text FROM "Article" WHERE id = $1`, articleID,
+	).Scan(&embText); err != nil {
+		t.Fatalf("lecture embedding: %v", err)
+	}
+	stored, ok := vectorfeed.ParseLit(embText)
+	if !ok {
+		t.Fatalf("impossible de décoder le vecteur stocké: %q", embText)
+	}
+	if len(stored) != 512 {
+		t.Fatalf("dimension stockée = %d, attendu 512", len(stored))
+	}
+	var normSq float64
+	for _, x := range stored {
+		normSq += float64(x) * float64(x)
+	}
+	norm := math.Sqrt(normSq)
+	if math.Abs(norm-1.0) > 1e-4 {
+		t.Fatalf("norme L2 = %f, attendu 1.0", norm)
+	}
+	// Le chunk 0 a reçu un bonus de pondération 1.5x : sa coordonnée dominante (0)
+	// doit être supérieure à celle du chunk 1 (coordonnée 1) à longueur comparable.
+	if stored[0] <= stored[1] {
+		t.Fatalf("bonus chapô 1.5x non reflété: stored[0]=%f <= stored[1]=%f", stored[0], stored[1])
 	}
 }
 

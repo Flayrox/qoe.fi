@@ -79,6 +79,7 @@ func (h *Handler) RegisterProtected(r chi.Router, requireScope func(string) func
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/unpublish", h.unpublish)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/schedule", h.schedule)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/review", h.review)
+	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/transfer", h.transfer)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/send-email", h.sendEmail)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/test-email", h.testEmail)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/discard-draft", h.discardDraft)
@@ -179,6 +180,7 @@ type createInput struct {
 	AllowPublicAnnotations *bool                     `json:"allowPublicAnnotations"`
 	AllowComments          *bool                     `json:"allowComments"`
 	AllowDownload          *bool                     `json:"allowDownload"`
+	ShowOnPersonalProfile  *bool                     `json:"showOnPersonalProfile"`
 	Published              bool                      `json:"published"`
 	Status                 string                    `json:"status"`
 	ScheduledAt            string                    `json:"scheduledAt"`
@@ -216,8 +218,9 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		TierID: in.TierID, SeoTitle: in.SeoTitle, SeoDescription: in.SeoDescription,
 		ImageURL:               in.ImageURL,
 		AllowPublicAnnotations: in.AllowPublicAnnotations, AllowComments: in.AllowComments,
-		AllowDownload: in.AllowDownload,
-		ReadingTime:   in.ReadingTime, Published: in.Published, Status: in.Status,
+		AllowDownload:         in.AllowDownload,
+		ShowOnPersonalProfile: in.ShowOnPersonalProfile,
+		ReadingTime:           in.ReadingTime, Published: in.Published, Status: in.Status,
 		ScheduledAt:      scheduledAt,
 		Attributions:     in.Attributions,
 		SendEmail:        in.SendEmail,
@@ -302,6 +305,7 @@ type bulkUpdateInput struct {
 	AllowPublicAnnotations *bool    `json:"allowPublicAnnotations"`
 	AllowComments          *bool    `json:"allowComments"`
 	AllowDownload          *bool    `json:"allowDownload"`
+	ShowOnPersonalProfile  *bool    `json:"showOnPersonalProfile"`
 	Published              *bool    `json:"published"`
 }
 
@@ -318,7 +322,8 @@ func (h *Handler) bulkUpdate(w http.ResponseWriter, r *http.Request) {
 		IDs: in.IDs, IsPremium: in.IsPremium, SetCategory: in.SetCategory,
 		CategoryID: in.CategoryID, AllowPublicAnnotations: in.AllowPublicAnnotations,
 		AllowComments: in.AllowComments, AllowDownload: in.AllowDownload,
-		Published: in.Published,
+		ShowOnPersonalProfile: in.ShowOnPersonalProfile,
+		Published:             in.Published,
 	})
 	if err != nil {
 		response.BadRequest(w, err.Error())
@@ -341,6 +346,7 @@ type updateInput struct {
 	AllowPublicAnnotations *bool                     `json:"allowPublicAnnotations"`
 	AllowComments          *bool                     `json:"allowComments"`
 	AllowDownload          *bool                     `json:"allowDownload"`
+	ShowOnPersonalProfile  *bool                     `json:"showOnPersonalProfile"`
 	Published              bool                      `json:"published"`
 	Status                 string                    `json:"status"`
 	ActivePublicationID    string                    `json:"activePublicationId"`
@@ -372,8 +378,9 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 		Title: in.Title, Content: in.Content, ContentFormat: in.ContentFormat, Slug: in.Slug, IsPremium: in.IsPremium,
 		ImageURL: in.ImageURL, CategoryID: in.CategoryID, SeoTitle: in.SeoTitle, SeoDescription: in.SeoDescription,
 		AllowPublicAnnotations: in.AllowPublicAnnotations, AllowComments: in.AllowComments,
-		AllowDownload: in.AllowDownload,
-		ReadingTime:   in.ReadingTime, Published: in.Published, Status: in.Status,
+		AllowDownload:         in.AllowDownload,
+		ShowOnPersonalProfile: in.ShowOnPersonalProfile,
+		ReadingTime:           in.ReadingTime, Published: in.Published, Status: in.Status,
 		ActivePublicationID: in.ActivePublicationID, ScheduledAt: scheduledAt,
 		Attributions: in.Attributions,
 		SendEmail:    in.SendEmail, EmailSubject: in.EmailSubject, EmailPreviewText: in.EmailPreviewText,
@@ -707,6 +714,35 @@ func (h *Handler) review(w http.ResponseWriter, r *http.Request) {
 	article, err := h.svc.GetByID(r.Context(), id, userID)
 	if err != nil {
 		response.OK(w, map[string]bool{"success": true})
+		return
+	}
+	response.OK(w, article)
+}
+
+// POST /v1/articles/{id}/transfer — transfère un article vers une autre publication (Personnel ↔ Média).
+func (h *Handler) transfer(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+	var in TransferArticleInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	if in.TargetPublicationID == "" {
+		response.BadRequest(w, "targetPublicationId requis")
+		return
+	}
+	article, err := h.svc.TransferPublication(r.Context(), userID, id, in)
+	if err != nil {
+		if errors.Is(err, errNotFound) {
+			response.NotFound(w, "Article ou publication cible introuvable")
+			return
+		}
+		if errors.Is(err, errForbidden) {
+			response.Forbidden(w, "Vous n'avez pas la permission de transférer cet article vers cette publication.")
+			return
+		}
+		response.BadRequest(w, err.Error())
 		return
 	}
 	response.OK(w, article)

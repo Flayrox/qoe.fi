@@ -1,9 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
+  ArrowRightLeft,
   BarChart3,
   BookOpen,
+  Building2,
   CalendarClock,
   CheckCircle2,
   Clock,
@@ -17,10 +19,13 @@ import {
   Pin,
   Repeat2,
   Trash2,
+  UserRound,
   XCircle,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { Button } from '@qoe/ui/button';
+import { toast } from '@qoe/ui/toast';
+import { bulkUpdateArticlesAction } from '@qoe/sdk/actions/articles';
 import { t } from '@lingui/core/macro';
 
 import type { ArticleWithCategory, ListColumnPrefs } from './article-list-types';
@@ -76,6 +81,26 @@ export function ArticleListRow({
     (article._count?.highlights || 0) +
     (article._count?.letters || 0);
   const scheduledLabel = formatScheduleDate(article.scheduledAt);
+  const [showOnPersonal, setShowOnPersonal] = useState(article.showOnPersonalProfile ?? true);
+
+  const handleTogglePersonalProfile = async () => {
+    const nextValue = !showOnPersonal;
+    setShowOnPersonal(nextValue);
+    const res = await bulkUpdateArticlesAction({
+      ids: [article.id],
+      showOnPersonalProfile: nextValue,
+    });
+    if (!res.ok || res.data.failed.includes(article.id)) {
+      setShowOnPersonal(!nextValue);
+      toast.error(!res.ok ? res.error.message : t`Action impossible`);
+      return;
+    }
+    toast.success(
+      nextValue
+        ? t`Affiché sur votre profil et blog personnel`
+        : t`Masqué de votre profil et blog personnel`
+    );
+  };
 
   return (
     <div
@@ -148,6 +173,15 @@ export function ArticleListRow({
             ))}
           {columns.premium && article.isPremium && (
             <Lock className="h-3 w-3 shrink-0 text-highlight" />
+          )}
+          {article.publication?.type === 'MEDIA' && (
+            <span
+              className="inline-flex shrink-0 items-center gap-1 rounded border border-border/50 bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+              title={article.publication.name}
+            >
+              <Building2 className="h-2.5 w-2.5 text-primary" />
+              <span className="max-w-28 truncate">{article.publication.name}</span>
+            </span>
           )}
           {pinned && <Pin className="h-3 w-3 shrink-0 text-primary" />}
         </div>
@@ -286,6 +320,40 @@ export function ArticleListRow({
               {t`Comparer les versions (Diff)`}
             </button>
           )}
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={(event) => {
+              event.stopPropagation();
+              (
+                event.currentTarget.closest('details') as HTMLDetailsElement | null
+              )?.removeAttribute('open');
+              onOpenSettings(article.id);
+            }}
+            className="w-full justify-start gap-2 rounded-lg px-2.5 py-2 text-xs text-foreground"
+          >
+            <ArrowRightLeft className="h-3.5 w-3.5 text-primary" />
+            <span>{t`Transférer de publication…`}</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={(event) => {
+              event.stopPropagation();
+              (
+                event.currentTarget.closest('details') as HTMLDetailsElement | null
+              )?.removeAttribute('open');
+              void handleTogglePersonalProfile();
+            }}
+            className="w-full justify-start gap-2 rounded-lg px-2.5 py-2 text-xs text-foreground"
+          >
+            <UserRound className="h-3.5 w-3.5 text-primary" />
+            <span>
+              {showOnPersonal
+                ? t`Masquer du profil personnel`
+                : t`Afficher sur le profil personnel`}
+            </span>
+          </Button>
           <button
             onClick={(event) => {
               event.stopPropagation();

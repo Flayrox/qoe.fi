@@ -563,6 +563,7 @@ CREATE TABLE "Article" (
     "allowPublicAnnotations" BOOLEAN NOT NULL DEFAULT true,
     "allowComments" BOOLEAN NOT NULL DEFAULT true,
     "allowDownload" BOOLEAN NOT NULL DEFAULT true,
+    "showOnPersonalProfile" BOOLEAN NOT NULL DEFAULT true,
     "scheduledAt" TIMESTAMP(3),
     "status" TEXT NOT NULL DEFAULT 'DRAFT',
     "publicationId" TEXT NOT NULL,
@@ -638,6 +639,7 @@ CREATE TABLE "ArticleAttribution" (
     "isVisible" BOOLEAN NOT NULL DEFAULT true,
     "consentStatus" TEXT NOT NULL DEFAULT 'ACCEPTED',
     "consentUpdatedAt" TIMESTAMP(3),
+    "categoryId" TEXT REFERENCES "Category"("id") ON DELETE SET NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 

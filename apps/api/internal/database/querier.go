@@ -771,6 +771,7 @@ type Querier interface {
 	// séparément dans le service (les CTE PostgreSQL sont matérialisés, un
 	// COUNT dans le même statement ne verrait pas l'insertion).
 	ToggleHighlightUpvote(ctx context.Context, arg ToggleHighlightUpvoteParams) (int32, error)
+	TransferArticlePublication(ctx context.Context, arg TransferArticlePublicationParams) (string, error)
 	TryLockArticleForEmailRelease(ctx context.Context, arg TryLockArticleForEmailReleaseParams) (string, error)
 	TryLockArticleForMajorUpdate(ctx context.Context, arg TryLockArticleForMajorUpdateParams) (string, error)
 	UnhideArticleByModerator(ctx context.Context, id string) error
