@@ -214,18 +214,19 @@ func (h *Handler) listAuditLog(w http.ResponseWriter, r *http.Request) {
 		response.Unauthorized(w, "Authentification requise")
 		return
 	}
-	limit := 0
-	if raw := r.URL.Query().Get("limit"); raw != "" {
-		if n, err := strconv.Atoi(raw); err == nil {
-			limit = n
-		}
+	filter := AuditLogFilter{Category: r.URL.Query().Get("category"), Query: r.URL.Query().Get("q")}
+	if n, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil {
+		filter.Limit = n
 	}
-	entries, err := h.svc.ListAuditLog(r.Context(), id, chi.URLParam(r, "id"), limit)
+	if n, err := strconv.Atoi(r.URL.Query().Get("offset")); err == nil {
+		filter.Offset = n
+	}
+	page, err := h.svc.ListAuditLog(r.Context(), id, chi.URLParam(r, "id"), filter)
 	if err != nil {
 		writeErr(w, err)
 		return
 	}
-	response.OK(w, map[string]any{"entries": entries})
+	response.OK(w, page)
 }
 
 // PATCH /v1/media/{id}/settings — réglages (identity, design, SEO).

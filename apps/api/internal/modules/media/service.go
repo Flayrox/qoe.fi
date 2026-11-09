@@ -350,29 +350,79 @@ type MediaAuditEntry struct {
 	Actor     *MediaAuditActor `json:"actor"`
 }
 
+// AuditLogFilter borne et filtre le journal d'activité. Category est une
+// famille d'actions (articles, team, settings, invitations, api) ; Query
+// cherche dans l'action, l'acteur et les métadonnées.
+type AuditLogFilter struct {
+	Limit    int
+	Offset   int
+	Category string
+	Query    string
+}
+
+// MediaAuditPage est une page du journal avec le total filtré, pour que l'UI
+// puisse afficher « 20 sur 143 » et proposer un chargement supplémentaire.
+type MediaAuditPage struct {
+	Entries []MediaAuditEntry `json:"entries"`
+	Total   int               `json:"total"`
+	Limit   int               `json:"limit"`
+	Offset  int               `json:"offset"`
+}
+
+// auditActionPrefix traduit une famille d'activité en préfixe SQL.
+func auditActionPrefix(category string) string {
+	switch category {
+	case "articles":
+		return "media.article_%"
+	case "team":
+		return "member.%"
+	case "settings":
+		return "media.settings_%"
+	case "invitations":
+		return "media.invite_%"
+	case "api":
+		return "api_key.%"
+	default:
+		return ""
+	}
+}
+
 // ListAuditLog retourne le journal d'activité du média (réglages, équipe,
 // articles et transferts). Réservé aux rôles qui administrent le média ou
 // éditent tous ses articles : un éditeur doit pouvoir voir qui a changé quoi
 // sur les contenus qu'il peut lui-même modifier.
-func (s *Service) ListAuditLog(ctx context.Context, userID, mediaID string, limit int) ([]MediaAuditEntry, error) {
+func (s *Service) ListAuditLog(ctx context.Context, userID, mediaID string, filter AuditLogFilter) (MediaAuditPage, error) {
 	m, err := s.authorizeMedia(ctx, mediaID, userID, "")
 	if err != nil {
-		return nil, err
+		return MediaAuditPage{}, err
 	}
 	member := &permissions.MediaMember{Role: m.Role, Permissions: m.Permissions, Status: m.Status}
 	if !permissions.CanMedia(member, permissions.PermManageSettings) &&
 		!permissions.CanMedia(member, permissions.PermManageMembers) &&
 		!permissions.CanMedia(member, permissions.PermEditAny) {
-		return nil, errForbidden
+		return MediaAuditPage{}, errForbidden
 	}
-	if limit <= 0 || limit > 200 {
-		limit = 100
+	if filter.Limit <= 0 || filter.Limit > 200 {
+		filter.Limit = 50
 	}
-	rows, err := s.q.ListMediaAuditLogs(ctx, db.ListMediaAuditLogsParams{
-		MediaId: mediaID, Limit: int32(limit),
+	if filter.Offset < 0 {
+		filter.Offset = 0
+	}
+	prefix := auditActionPrefix(filter.Category)
+
+	total, err := s.q.CountMediaAuditLogs(ctx, db.CountMediaAuditLogsParams{
+		MediaId: mediaID, ActionPrefix: prefix, Query: filter.Query,
 	})
 	if err != nil {
-		return nil, err
+		return MediaAuditPage{}, err
+	}
+
+	rows, err := s.q.ListMediaAuditLogs(ctx, db.ListMediaAuditLogsParams{
+		MediaId: mediaID, ActionPrefix: prefix, Query: filter.Query,
+		Limit: int32(filter.Limit), Offset: int32(filter.Offset),
+	})
+	if err != nil {
+		return MediaAuditPage{}, err
 	}
 	entries := make([]MediaAuditEntry, 0, len(rows))
 	for _, row := range rows {
@@ -401,7 +451,9 @@ func (s *Service) ListAuditLog(ctx context.Context, userID, mediaID string, limi
 		}
 		entries = append(entries, entry)
 	}
-	return entries, nil
+	return MediaAuditPage{
+		Entries: entries, Total: int(total), Limit: filter.Limit, Offset: filter.Offset,
+	}, nil
 }
 
 // GetMedia retourne le détail complet d'un média (membre requis).

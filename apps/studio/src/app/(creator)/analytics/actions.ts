@@ -507,6 +507,141 @@ async function fetchUmamiAdvancedInsights(
   }
 }
 
+interface ResolvedAnalyticsArticle {
+  id: string;
+  title: string;
+  slug: string;
+}
+
+function emptyArticleDetail(url: string, title: string): ArticleDetailData {
+  return {
+    url,
+    title,
+    timeseries: [],
+    referrers: [],
+    totalViews: 0,
+    likes: 0,
+    bookmarks: 0,
+    comments: 0,
+    highlights: 0,
+    highlightsPublic: 0,
+    highlightsPrivate: 0,
+    annotations: 0,
+    reposts: 0,
+    totalInteractions: 0,
+    completionRate: 0,
+  };
+}
+
+/**
+ * Résout un article par identifiant canonique ou slug, y compris un article
+ * co-signé rattaché à une autre publication que le workspace actif.
+ */
+async function resolveAnalyticsArticle(
+  publicationId: string,
+  identifier: string
+): Promise<{ article: ResolvedAnalyticsArticle | null; fallbackTitle: string }> {
+  const clean = identifier
+    .replace(/^\/(articles?)\//i, '')
+    .replace(/^\/+/, '')
+    .split(/[?#]/)[0];
+  const needle = clean.toLowerCase();
+  const pubLite = await fetchPublicationLite(publicationId);
+  const fromList =
+    pubLite.articles.find(
+      (a) => a.id.toLowerCase() === needle || a.slug.toLowerCase() === needle
+    ) ?? null;
+  if (fromList) {
+    return {
+      article: { id: fromList.id, title: fromList.title, slug: fromList.slug },
+      fallbackTitle: fromList.title,
+    };
+  }
+
+  // Identifiant canonique : by-id expose le slug même hors publication active.
+  try {
+    const byId = await goFetch<{ id: string; title: string; slug: string }>(
+      `/v1/articles/by-id/${encodeURIComponent(identifier)}`
+    );
+    return {
+      article: { id: byId.id, title: byId.title, slug: byId.slug },
+      fallbackTitle: byId.title,
+    };
+  } catch {
+    // Ce n'est pas un identifiant : on tente le slug ci-dessous.
+  }
+
+  try {
+    const bySlug = await goFetch<{ id: string; title: string; slug?: string }>(
+      `/v1/articles/${encodeURIComponent(clean)}?publicationId=${encodeURIComponent(publicationId)}`
+    );
+    return {
+      article: { id: bySlug.id, title: bySlug.title, slug: bySlug.slug ?? clean },
+      fallbackTitle: bySlug.title,
+    };
+  } catch {
+    return { article: null, fallbackTitle: identifier };
+  }
+}
+
+/** Charge les stats réelles d'un article déjà résolu (une seule résolution). */
+async function buildArticleDetail(
+  article: ResolvedAnalyticsArticle,
+  urlPath: string,
+  period: TimePeriod
+): Promise<ArticleDetailData> {
+  // VUES SUR L'ÉCRIT + Évolution : lectures réelles sur CET articleId — Go-only
+  // (GET /v1/analytics/reading-sessions). Pour 'all', totalViews = tout
+  // l'historique, mais timeseries = 90j pour le graphique.
+  const isAll = period === 'all';
+  const now = Date.now();
+  const seriesStartAt = isAll ? now - 90 * 24 * 60 * 60 * 1000 : undefined;
+  const stats = await goFetch<ArticleReadingStats>(
+    `/v1/analytics/reading-sessions?articleId=${encodeURIComponent(article.id)}&period=${period}`
+  );
+
+  const seriesByDay = new Map(stats.timeseries.map((r) => [r.day, r.count]));
+  const timeseries: UmamiTimeseriesPoint[] = [];
+  for (
+    let d = new Date(
+      seriesStartAt ?? now - (period === '24h' ? 24 * 3600 * 1000 : 30 * 24 * 3600 * 1000)
+    );
+    d.getTime() <= now;
+    d.setDate(d.getDate() + 1)
+  ) {
+    const key = d.toISOString().slice(0, 10);
+    timeseries.push({ x: new Date(d).toISOString(), y: seriesByDay.get(key) || 0 });
+  }
+  const totalViews = isAll ? stats.totalViews : timeseries.reduce((acc, p) => acc + (p.y || 0), 0);
+
+  // Sources pour cet article (hostname) — provenance fine côté Go.
+  const referrers: UmamiPageMetric[] = (stats.byHostname || [])
+    .filter((h) => h.key)
+    .map((h) => ({ x: h.key, y: h.count }))
+    .sort((a, b) => b.y - a.y)
+    .slice(0, 10);
+
+  return {
+    url: urlPath,
+    title: article.title,
+    articleId: article.id,
+    slug: article.slug,
+    timeseries,
+    referrers,
+    totalViews,
+    likes: stats.likes ?? 0,
+    bookmarks: stats.bookmarks ?? 0,
+    comments: stats.comments ?? 0,
+    highlights: stats.highlights ?? 0,
+    highlightsPublic: stats.highlightsPublic ?? 0,
+    highlightsPrivate: stats.highlightsPrivate ?? 0,
+    annotations: stats.annotations ?? 0,
+    reposts: stats.reposts ?? 0,
+    totalInteractions: stats.totalInteractions ?? 0,
+    completionRate: stats.completionRate ?? 0,
+  };
+}
+
 export async function getArticleAnalyticsDetail(
   urlPath: string,
   period: TimePeriod = '30d'
@@ -523,109 +658,15 @@ export async function getArticleAnalyticsDetail(
     }
 
     const workspace = await getActiveWorkspace(user.id);
-    const pubLite = await fetchPublicationLite(workspace.publicationId);
-
-    // Résout l'article par slug dans la publication (articleId canonique).
     const slug = urlPath
       .replace(/^\/(articles?)\//i, '')
       .replace(/^\/+/, '')
       .split(/[?#]/)[0];
-    let matchedArticle: { id: string; title: string; slug?: string } | null =
-      pubLite.articles.find((a) => a.slug.toLowerCase() === slug.toLowerCase()) ?? null;
-    let title =
-      matchedArticle?.title || pubLite.articles.find((a) => a.slug === slug)?.title || urlPath;
-
-    // Fallback : article co-signé (attribution) — GET /v1/articles/{slug}?publicationId=.
-    if (!matchedArticle) {
-      try {
-        const article = await goFetch<{ id: string; title: string; slug?: string }>(
-          `/v1/articles/${encodeURIComponent(slug)}?publicationId=${encodeURIComponent(
-            workspace.publicationId
-          )}`
-        );
-        matchedArticle = { id: article.id, title: article.title, slug: article.slug ?? slug };
-        title = article.title;
-      } catch {
-        matchedArticle = null;
-      }
+    const { article, fallbackTitle } = await resolveAnalyticsArticle(workspace.publicationId, slug);
+    if (!article) {
+      return { data: emptyArticleDetail(urlPath, fallbackTitle) };
     }
-
-    if (!matchedArticle) {
-      return {
-        data: {
-          url: urlPath,
-          title,
-          timeseries: [],
-          referrers: [],
-          totalViews: 0,
-          likes: 0,
-          bookmarks: 0,
-          comments: 0,
-          highlights: 0,
-          highlightsPublic: 0,
-          highlightsPrivate: 0,
-          annotations: 0,
-          reposts: 0,
-          totalInteractions: 0,
-          completionRate: 0,
-        },
-      };
-    }
-
-    // VUES SUR L'ÉCRIT + Évolution : lectures réelles sur CET articleId — Go-only
-    // (GET /v1/analytics/reading-sessions). Pour 'all', totalViews = tout
-    // l'historique, mais timeseries = 90j pour le graphique.
-    const isAll = period === 'all';
-    const now = Date.now();
-    const seriesStartAt = isAll ? now - 90 * 24 * 60 * 60 * 1000 : undefined;
-    const stats = await goFetch<ArticleReadingStats>(
-      `/v1/analytics/reading-sessions?articleId=${encodeURIComponent(matchedArticle.id)}&period=${period}`
-    );
-
-    const seriesByDay = new Map(stats.timeseries.map((r) => [r.day, r.count]));
-    const timeseries: UmamiTimeseriesPoint[] = [];
-    for (
-      let d = new Date(
-        seriesStartAt ?? now - (period === '24h' ? 24 * 3600 * 1000 : 30 * 24 * 3600 * 1000)
-      );
-      d.getTime() <= now;
-      d.setDate(d.getDate() + 1)
-    ) {
-      const key = d.toISOString().slice(0, 10);
-      timeseries.push({ x: new Date(d).toISOString(), y: seriesByDay.get(key) || 0 });
-    }
-    const totalViews = isAll
-      ? stats.totalViews
-      : timeseries.reduce((acc, p) => acc + (p.y || 0), 0);
-
-    // Sources pour cet article (hostname) — provenance fine côté Go.
-    const referrers: UmamiPageMetric[] = (stats.byHostname || [])
-      .filter((h) => h.key)
-      .map((h) => ({ x: h.key, y: h.count }))
-      .sort((a, b) => b.y - a.y)
-      .slice(0, 10);
-
-    return {
-      data: {
-        url: urlPath,
-        title,
-        articleId: matchedArticle.id,
-        slug: matchedArticle.slug ?? slug,
-        timeseries,
-        referrers,
-        totalViews,
-        likes: stats.likes ?? 0,
-        bookmarks: stats.bookmarks ?? 0,
-        comments: stats.comments ?? 0,
-        highlights: stats.highlights ?? 0,
-        highlightsPublic: stats.highlightsPublic ?? 0,
-        highlightsPrivate: stats.highlightsPrivate ?? 0,
-        annotations: stats.annotations ?? 0,
-        reposts: stats.reposts ?? 0,
-        totalInteractions: stats.totalInteractions ?? 0,
-        completionRate: stats.completionRate ?? 0,
-      },
-    };
+    return { data: await buildArticleDetail(article, urlPath, period) };
   } catch (err: unknown) {
     return { error: err instanceof Error ? err.message : "Erreur d'inspection" };
   }
@@ -653,37 +694,11 @@ export async function getArticleAnalyticsDetailById(
     }
 
     const workspace = await getActiveWorkspace(user.id);
-    const pubLite = await fetchPublicationLite(workspace.publicationId);
-    const needle = identifier.toLowerCase();
-    const local =
-      pubLite.articles.find(
-        (a) => a.id.toLowerCase() === needle || a.slug.toLowerCase() === needle
-      ) ?? null;
-
-    // L'article peut venir d'une autre publication (co-signé) : by-id expose
-    // le slug canonique, que la résolution existante sait ensuite retrouver.
-    let slug = local?.slug;
-    if (!slug) {
-      try {
-        const byId = await goFetch<{ slug: string }>(
-          `/v1/articles/by-id/${encodeURIComponent(identifier)}`
-        );
-        slug = byId.slug;
-      } catch {
-        slug = identifier;
-      }
+    const { article } = await resolveAnalyticsArticle(workspace.publicationId, identifier);
+    if (!article) {
+      return { error: 'Article introuvable' };
     }
-
-    const res = await getArticleAnalyticsDetail(`/articles/${slug}`, period);
-    if (!res.data) return res;
-
-    return {
-      data: {
-        ...res.data,
-        articleId: local?.id ?? res.data.articleId,
-        slug,
-      },
-    };
+    return { data: await buildArticleDetail(article, `/articles/${article.slug}`, period) };
   } catch (err: unknown) {
     return { error: err instanceof Error ? err.message : "Erreur d'inspection" };
   }
