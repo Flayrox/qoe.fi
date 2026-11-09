@@ -32,6 +32,19 @@ import {
   Unlock,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
+import {
+  ImageEditorDialog,
+  type ImageEditorPreset,
+  type ImageEditorResult,
+} from '@qoe/ui/ui/ImageEditorDialog';
+
+const ADMIN_ARTICLE_IMAGE_PRESET: ImageEditorPreset = {
+  id: 'article-body',
+  label: 'Article',
+  aspect: 16 / 9,
+  width: 1600,
+  height: 900,
+};
 
 export interface EditorProps {
   initialTitle?: string;
@@ -69,9 +82,25 @@ export function Editor({
   const [isUploading, setIsUploading] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [pendingImage, setPendingImage] = useState<{ file: File; src: string } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isFirstRender = useRef(true);
+
+  const pendingImageSrc = pendingImage?.src;
+  useEffect(() => {
+    if (!pendingImageSrc) return;
+    return () => URL.revokeObjectURL(pendingImageSrc);
+  }, [pendingImageSrc]);
+
+  const openImageEditor = useCallback((file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setError('Please select a valid image file');
+      return;
+    }
+    setError(null);
+    setPendingImage({ file, src: URL.createObjectURL(file) });
+  }, []);
 
   const [debouncedTitle] = useDebounce(title, 2000);
   const [debouncedSlug] = useDebounce(slug, 2000);
@@ -102,7 +131,7 @@ export function Editor({
         ) {
           event.preventDefault();
           const file = event.dataTransfer.files[0];
-          uploadImage(file);
+          openImageEditor(file);
           return true;
         }
         return false;
@@ -184,13 +213,8 @@ export function Editor({
     performAutoSave,
   ]);
 
-  const uploadImage = async (file: File) => {
+  const uploadPreparedImage = async (file: File) => {
     if (!editor) return;
-
-    if (!file.type.startsWith('image/')) {
-      setError('Please select a valid image file');
-      return;
-    }
 
     try {
       setIsUploading(true);
@@ -218,10 +242,15 @@ export function Editor({
     }
   };
 
+  const handleEditorApply = async ({ file }: ImageEditorResult) => {
+    setPendingImage(null);
+    await uploadPreparedImage(file);
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      uploadImage(file);
+      openImageEditor(file);
     }
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -564,6 +593,18 @@ export function Editor({
           </div>
         </div>
       </div>
+
+      <ImageEditorDialog
+        open={Boolean(pendingImage)}
+        onOpenChange={(open) => {
+          if (!open) setPendingImage(null);
+        }}
+        src={pendingImage?.src ?? null}
+        fileName={pendingImage?.file.name ?? null}
+        presets={[ADMIN_ARTICLE_IMAGE_PRESET]}
+        initialPresetId={ADMIN_ARTICLE_IMAGE_PRESET.id}
+        onApply={handleEditorApply}
+      />
     </div>
   );
 }
