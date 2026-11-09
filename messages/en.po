@@ -700,6 +700,9 @@ msgstr "Show this reply"
 msgid "Afficher la description (Alt-Text)"
 msgstr "Show description (Alt-Text)"
 
+msgid "Afficher la grille"
+msgstr ""
+
 msgid "Afficher les annotations"
 msgstr "Show annotations"
 
@@ -1000,6 +1003,9 @@ msgstr ""
 
 #~ msgid "Aperçu du résultat Google"
 #~ msgstr ""
+
+msgid "Aperçu final"
+msgstr ""
 
 #~ msgid "Aperçu média qoe.fi"
 #~ msgstr "qoe.fi media preview"
@@ -3510,6 +3516,9 @@ msgstr ""
 #~ msgid "Fichier constitué à la main"
 #~ msgstr ""
 
+msgid "Fichier ré-encodé, sans métadonnées."
+msgstr ""
+
 #~ msgid "Fichier tronqué : seule une partie des lignes a été analysée."
 #~ msgstr ""
 
@@ -3536,6 +3545,9 @@ msgstr "End of the article demo."
 
 #~ msgid "Finalité annoncée aux personnes lors de la collecte"
 #~ msgstr ""
+
+msgid "Flèches : déplacer · +/− : zoom · R : pivoter · 0 : réinitialiser"
+msgstr ""
 
 msgid "Flux encombré de recommandations d'autres auteurs, popups"
 msgstr "Feed cluttered with other authors' recommendations and popups"
@@ -3606,6 +3618,9 @@ msgstr "Manage people whose content or interactions should be restricted."
 msgid "Gestion des catégories"
 msgstr ""
 
+msgid "Glisser · molette · pincer"
+msgstr ""
+
 msgid "Glisser ou cliquer pour ajouter"
 msgstr "Drag or click to add"
 
@@ -3618,8 +3633,8 @@ msgstr ""
 msgid "Glissez et déposez une catégorie pour la convertir en sous-catégorie."
 msgstr ""
 
-msgid "Glissez l’image pour la repositionner"
-msgstr ""
+#~ msgid "Glissez l’image pour la repositionner"
+#~ msgstr ""
 
 #~ msgid "Glissez-déposez à la souris pour convertir une catégorie en sous-catégorie ou réorganiser."
 #~ msgstr ""
@@ -3778,6 +3793,9 @@ msgstr "Previous image (Left arrow)"
 
 msgid "Image recadrée avec succès."
 msgstr "Image cropped successfully."
+
+msgid "Image source"
+msgstr ""
 
 msgid "Image suivante (Flèche droite)"
 msgstr "Next image (Right arrow)"
@@ -4071,8 +4089,8 @@ msgstr ""
 #~ msgid "L'ancienne clé est désormais invalide. Copiez cette nouvelle clé secrète dès maintenant : elle ne sera plus jamais réaffichée."
 #~ msgstr "The previous key is now invalid. Copy this new secret key right now: it will never be displayed again."
 
-msgid "L’aperçu est rond ; le fichier reste carré et détouré par le CSS."
-msgstr ""
+#~ msgid "L’aperçu est rond ; le fichier reste carré et détouré par le CSS."
+#~ msgstr ""
 
 msgid "L'architecture du silence"
 msgstr "The architecture of silence"
@@ -4249,8 +4267,8 @@ msgstr "the creator"
 msgid "Le créateur a désactivé les annotations publiques sur cet écrit."
 msgstr "The creator has disabled public annotations on this writing."
 
-msgid "Le fichier d’origine n’est pas modifié."
-msgstr ""
+#~ msgid "Le fichier d’origine n’est pas modifié."
+#~ msgstr ""
 
 #~ msgid "Le fichier doit être une image valide."
 #~ msgstr "The file must be a valid image."
@@ -4258,7 +4276,13 @@ msgstr ""
 msgid "Le fichier doit être une image."
 msgstr "The file must be an image."
 
-msgid "Le fichier est ré-encodé sans métadonnées."
+#~ msgid "Le fichier est ré-encodé sans métadonnées."
+#~ msgstr ""
+
+msgid "Le fichier reste carré ; l’affichage applique le masque rond."
+msgstr ""
+
+msgid "Le fichier source reste intact."
 msgstr ""
 
 msgid "Le journalisme d'enquête à l'ère du numérique"
@@ -4574,6 +4598,9 @@ msgid "Masquer du profil personnel"
 msgstr ""
 
 msgid "Masquer la configuration avancée"
+msgstr ""
+
+msgid "Masquer la grille"
 msgstr ""
 
 msgid "Masquer la version texte"
@@ -6495,8 +6522,8 @@ msgstr ""
 #~ msgid "Rotater la clé : régénère le secret et invalide l'ancienne clé"
 #~ msgstr "Rotate key: regenerates the secret and invalidates the previous key"
 
-msgid "Rotation"
-msgstr "Rotation"
+#~ msgid "Rotation"
+#~ msgstr "Rotation"
 
 msgid "S'abonner"
 msgstr "Subscribe"
@@ -6804,6 +6831,9 @@ msgstr "Poll ended"
 msgid "Sophie Laurent · Philosophie · 6 min"
 msgstr "Sophie Laurent · Philosophy · 6 min"
 
+msgid "Sortie"
+msgstr ""
+
 msgid "Sortir du cloud : l'infrastructure éthique"
 msgstr "Leaving the cloud: ethical infrastructure"
 
@@ -6823,6 +6853,9 @@ msgid "Soumettre les modifications"
 msgstr ""
 
 msgid "Soumis à relecture"
+msgstr ""
+
+msgid "Source"
 msgstr ""
 
 msgid "sous-catégorie"
@@ -7887,8 +7920,11 @@ msgstr "Real-time webhooks (publication, subscription)"
 msgid "Zéro VC. Zéro GAFAM. Zéro compromis."
 msgstr "Zero VC. Zero Big Tech. Zero compromises."
 
-msgid "Zone de recadrage. Utilisez les flèches pour déplacer l’image."
+msgid "Zone de recadrage. Utilisez les flèches pour déplacer l’image, la molette pour zoomer."
 msgstr ""
+
+#~ msgid "Zone de recadrage. Utilisez les flèches pour déplacer l’image."
+#~ msgstr ""
 
 msgid "Zone sensible"
 msgstr ""

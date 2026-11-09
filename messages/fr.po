@@ -700,6 +700,9 @@ msgstr "Afficher cette réponse"
 msgid "Afficher la description (Alt-Text)"
 msgstr "Afficher la description (Alt-Text)"
 
+msgid "Afficher la grille"
+msgstr "Afficher la grille"
+
 msgid "Afficher les annotations"
 msgstr "Afficher les annotations"
 
@@ -1000,6 +1003,9 @@ msgstr "Aperçu du recadrage"
 
 #~ msgid "Aperçu du résultat Google"
 #~ msgstr "Aperçu du résultat Google"
+
+msgid "Aperçu final"
+msgstr "Aperçu final"
 
 #~ msgid "Aperçu média qoe.fi"
 #~ msgstr "Aperçu média qoe.fi"
@@ -3510,6 +3516,9 @@ msgstr "Fermer sans enregistrer ?"
 #~ msgid "Fichier constitué à la main"
 #~ msgstr "Fichier constitué à la main"
 
+msgid "Fichier ré-encodé, sans métadonnées."
+msgstr "Fichier ré-encodé, sans métadonnées."
+
 #~ msgid "Fichier tronqué : seule une partie des lignes a été analysée."
 #~ msgstr "Fichier tronqué : seule une partie des lignes a été analysée."
 
@@ -3536,6 +3545,9 @@ msgstr "Fin de la démonstration de l'article."
 
 #~ msgid "Finalité annoncée aux personnes lors de la collecte"
 #~ msgstr "Finalité annoncée aux personnes lors de la collecte"
+
+msgid "Flèches : déplacer · +/− : zoom · R : pivoter · 0 : réinitialiser"
+msgstr "Flèches : déplacer · +/− : zoom · R : pivoter · 0 : réinitialiser"
 
 msgid "Flux encombré de recommandations d'autres auteurs, popups"
 msgstr "Flux encombré de recommandations d'autres auteurs, popups"
@@ -3606,6 +3618,9 @@ msgstr "Gérez les personnes dont le contenu ou les interactions doivent être l
 msgid "Gestion des catégories"
 msgstr "Gestion des catégories"
 
+msgid "Glisser · molette · pincer"
+msgstr "Glisser · molette · pincer"
+
 msgid "Glisser ou cliquer pour ajouter"
 msgstr "Glisser ou cliquer pour ajouter"
 
@@ -3618,8 +3633,8 @@ msgstr "Glisser pour déplacer"
 msgid "Glissez et déposez une catégorie pour la convertir en sous-catégorie."
 msgstr "Glissez et déposez une catégorie pour la convertir en sous-catégorie."
 
-msgid "Glissez l’image pour la repositionner"
-msgstr "Glissez l’image pour la repositionner"
+#~ msgid "Glissez l’image pour la repositionner"
+#~ msgstr "Glissez l’image pour la repositionner"
 
 #~ msgid "Glissez-déposez à la souris pour convertir une catégorie en sous-catégorie ou réorganiser."
 #~ msgstr "Glissez-déposez à la souris pour convertir une catégorie en sous-catégorie ou réorganiser."
@@ -3778,6 +3793,9 @@ msgstr "Image précédente (Flèche gauche)"
 
 msgid "Image recadrée avec succès."
 msgstr "Image recadrée avec succès."
+
+msgid "Image source"
+msgstr "Image source"
 
 msgid "Image suivante (Flèche droite)"
 msgstr "Image suivante (Flèche droite)"
@@ -4071,8 +4089,8 @@ msgstr "L'ancien secret est désormais révoqué. Copiez cette nouvelle clé sec
 #~ msgid "L'ancienne clé est désormais invalide. Copiez cette nouvelle clé secrète dès maintenant : elle ne sera plus jamais réaffichée."
 #~ msgstr "L'ancienne clé est désormais invalide. Copiez cette nouvelle clé secrète dès maintenant : elle ne sera plus jamais réaffichée."
 
-msgid "L’aperçu est rond ; le fichier reste carré et détouré par le CSS."
-msgstr "L’aperçu est rond ; le fichier reste carré et détouré par le CSS."
+#~ msgid "L’aperçu est rond ; le fichier reste carré et détouré par le CSS."
+#~ msgstr "L’aperçu est rond ; le fichier reste carré et détouré par le CSS."
 
 msgid "L'architecture du silence"
 msgstr "L'architecture du silence"
@@ -4249,8 +4267,8 @@ msgstr "le créateur"
 msgid "Le créateur a désactivé les annotations publiques sur cet écrit."
 msgstr "Le créateur a désactivé les annotations publiques sur cet écrit."
 
-msgid "Le fichier d’origine n’est pas modifié."
-msgstr "Le fichier d’origine n’est pas modifié."
+#~ msgid "Le fichier d’origine n’est pas modifié."
+#~ msgstr "Le fichier d’origine n’est pas modifié."
 
 #~ msgid "Le fichier doit être une image valide."
 #~ msgstr "Le fichier doit être une image valide."
@@ -4258,8 +4276,14 @@ msgstr "Le fichier d’origine n’est pas modifié."
 msgid "Le fichier doit être une image."
 msgstr "Le fichier doit être une image."
 
-msgid "Le fichier est ré-encodé sans métadonnées."
-msgstr "Le fichier est ré-encodé sans métadonnées."
+#~ msgid "Le fichier est ré-encodé sans métadonnées."
+#~ msgstr "Le fichier est ré-encodé sans métadonnées."
+
+msgid "Le fichier reste carré ; l’affichage applique le masque rond."
+msgstr "Le fichier reste carré ; l’affichage applique le masque rond."
+
+msgid "Le fichier source reste intact."
+msgstr "Le fichier source reste intact."
 
 msgid "Le journalisme d'enquête à l'ère du numérique"
 msgstr "Le journalisme d'enquête à l'ère du numérique"
@@ -4575,6 +4599,9 @@ msgstr "Masquer du profil personnel"
 
 msgid "Masquer la configuration avancée"
 msgstr "Masquer la configuration avancée"
+
+msgid "Masquer la grille"
+msgstr "Masquer la grille"
 
 msgid "Masquer la version texte"
 msgstr "Masquer la version texte"
@@ -6495,8 +6522,8 @@ msgstr "Rôle proposé : {0}"
 #~ msgid "Rotater la clé : régénère le secret et invalide l'ancienne clé"
 #~ msgstr "Rotater la clé : régénère le secret et invalide l'ancienne clé"
 
-msgid "Rotation"
-msgstr "Rotation"
+#~ msgid "Rotation"
+#~ msgstr "Rotation"
 
 msgid "S'abonner"
 msgstr "S'abonner"
@@ -6804,6 +6831,9 @@ msgstr "Sondage terminé"
 msgid "Sophie Laurent · Philosophie · 6 min"
 msgstr "Sophie Laurent · Philosophie · 6 min"
 
+msgid "Sortie"
+msgstr "Sortie"
+
 msgid "Sortir du cloud : l'infrastructure éthique"
 msgstr "Sortir du cloud : l'infrastructure éthique"
 
@@ -6824,6 +6854,9 @@ msgstr "Soumettre les modifications"
 
 msgid "Soumis à relecture"
 msgstr "Soumis à relecture"
+
+msgid "Source"
+msgstr "Source"
 
 msgid "sous-catégorie"
 msgstr "sous-catégorie"
@@ -7887,8 +7920,11 @@ msgstr "Webhooks temps réel (publication, abonnement)"
 msgid "Zéro VC. Zéro GAFAM. Zéro compromis."
 msgstr "Zéro VC. Zéro GAFAM. Zéro compromis."
 
-msgid "Zone de recadrage. Utilisez les flèches pour déplacer l’image."
-msgstr "Zone de recadrage. Utilisez les flèches pour déplacer l’image."
+msgid "Zone de recadrage. Utilisez les flèches pour déplacer l’image, la molette pour zoomer."
+msgstr "Zone de recadrage. Utilisez les flèches pour déplacer l’image, la molette pour zoomer."
+
+#~ msgid "Zone de recadrage. Utilisez les flèches pour déplacer l’image."
+#~ msgstr "Zone de recadrage. Utilisez les flèches pour déplacer l’image."
 
 msgid "Zone sensible"
 msgstr "Zone sensible"
