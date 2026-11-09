@@ -3555,6 +3555,9 @@ msgstr "Connected providers"
 msgid "Fournisseurs de connexion"
 msgstr "Login providers"
 
+msgid "Galerie"
+msgstr ""
+
 msgid "Gardez cette clé confidentielle dans vos variables d'environnement serveur. Ne l'exposez jamais dans du code client JavaScript ou sur un dépôt public."
 msgstr ""
 

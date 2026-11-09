@@ -3555,6 +3555,9 @@ msgstr "Fournisseurs connectés"
 msgid "Fournisseurs de connexion"
 msgstr "Fournisseurs de connexion"
 
+msgid "Galerie"
+msgstr "Galerie"
+
 msgid "Gardez cette clé confidentielle dans vos variables d'environnement serveur. Ne l'exposez jamais dans du code client JavaScript ou sur un dépôt public."
 msgstr "Gardez cette clé confidentielle dans vos variables d'environnement serveur. Ne l'exposez jamais dans du code client JavaScript ou sur un dépôt public."
 

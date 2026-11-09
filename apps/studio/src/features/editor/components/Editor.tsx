@@ -24,6 +24,11 @@ import { t } from '@lingui/core/macro';
 import { ArticleInspectorModal } from '@/app/(creator)/analytics/components/ArticleInspectorModal';
 import { compressImage } from '@/lib/image-compressor';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
+import {
+  ImageEditorDialog,
+  type ImageEditorPreset,
+  type ImageEditorResult,
+} from '@qoe/ui/ui/ImageEditorDialog';
 import { PaywallDivider } from '../extensions/PaywallDivider';
 import { ArticleImage } from '../extensions/ArticleImage';
 import { AnnotationMark } from '../extensions/AnnotationMark';
@@ -57,6 +62,14 @@ import { PastedAnnotationsDialog, type DetectedBracketAnnotation } from './Paste
 
 const BRACKET_ANNOTATION_TEST_REGEX = /\{([^{}\n]+?)\}\s*\(([^()\n]+?)\)/;
 const BRACKET_ANNOTATION_GLOBAL_REGEX = /\{([^{}\n]+?)\}\s*\(([^()\n]+?)\)/g;
+
+type EditorImageBatch = {
+  files: File[];
+  index: number;
+  mode: 'single' | 'gallery';
+  results: File[];
+  src: string;
+};
 
 /**
  * Parcourt les blocs de texte du document ProseMirror à partir de `minPos`
@@ -327,6 +340,7 @@ export function Editor({
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadCount, setUploadCount] = useState(0);
+  const [imageBatch, setImageBatch] = useState<EditorImageBatch | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
@@ -381,6 +395,58 @@ export function Editor({
   const scanPastedAnnotationsRef = useRef<(minPos: number) => void>(() => {});
 
   const timeZoneLabel = useMemo(() => currentTimeZoneLabel(), []);
+
+  const bodyImagePresets = useMemo<ImageEditorPreset[]>(
+    () => [
+      {
+        id: 'article-body',
+        label: t`Article`,
+        aspect: 16 / 9,
+        width: 1600,
+        height: 900,
+      },
+    ],
+    []
+  );
+
+  const galleryImagePresets = useMemo<ImageEditorPreset[]>(
+    () => [
+      {
+        id: 'article-gallery',
+        label: t`Galerie`,
+        aspect: 4 / 3,
+        width: 1200,
+        height: 900,
+      },
+    ],
+    []
+  );
+
+  // Un import multipart est découpé en une passe de recadrage par fichier.
+  // Le batch ne touche au document qu'une fois toutes les images validées.
+  const openImageBatch = useCallback((files: File[], mode: 'single' | 'gallery') => {
+    const images = files.filter((file) => file.type.startsWith('image/'));
+    if (images.length !== files.length) {
+      setError(t`Certains fichiers ne sont pas des images valides.`);
+    } else {
+      setError(null);
+    }
+    if (images.length === 0) return;
+
+    setImageBatch({
+      files: images,
+      index: 0,
+      mode,
+      results: [],
+      src: URL.createObjectURL(images[0]),
+    });
+  }, []);
+
+  const imageBatchSrc = imageBatch?.src;
+  useEffect(() => {
+    if (!imageBatchSrc) return;
+    return () => URL.revokeObjectURL(imageBatchSrc);
+  }, [imageBatchSrc]);
 
   const {
     collaborationDoc,
@@ -603,7 +669,7 @@ export function Editor({
         const files = Array.from(event.dataTransfer?.files ?? []);
         if (files.length > 0) {
           event.preventDefault();
-          void uploadFiles(files, files.length > 1 ? 'gallery' : 'single');
+          openImageBatch(files, files.length > 1 ? 'gallery' : 'single');
           return true;
         }
         return false;
@@ -614,7 +680,7 @@ export function Editor({
         );
         if (files.length > 0) {
           event.preventDefault();
-          void uploadFiles(files, files.length > 1 ? 'gallery' : 'single');
+          openImageBatch(files, files.length > 1 ? 'gallery' : 'single');
           return true;
         }
         const pastedText = event.clipboardData?.getData('text/plain') ?? '';
@@ -644,25 +710,19 @@ export function Editor({
     },
   });
 
-  const uploadFiles = useCallback(
+  const uploadCroppedImages = useCallback(
     async (files: File[], mode: 'single' | 'gallery') => {
       if (!editor || files.length === 0) return;
-      const images = files.filter((file) => file.type.startsWith('image/'));
-      if (images.length !== files.length) {
-        setError(t`Certains fichiers ne sont pas des images valides.`);
-      }
-      if (images.length === 0) return;
 
       try {
         setIsUploading(true);
-        setUploadCount(images.length);
+        setUploadCount(files.length);
         setError(null);
 
         const urls: string[] = [];
-        for (const file of images) {
-          const compressedFile = await compressImage(file);
+        for (const file of files) {
           const url = await uploadImageToRoute(
-            compressedFile,
+            file,
             '/api/articles/upload',
             IMAGE_FOLDERS.articles
           );
@@ -698,11 +758,28 @@ export function Editor({
     [editor]
   );
 
-  const uploadImage = useCallback(
-    (file: File) => {
-      void uploadFiles([file], 'single');
+  const handleImageBatchApply = useCallback(
+    async ({ file }: ImageEditorResult) => {
+      if (!imageBatch) return;
+
+      const results = [...imageBatch.results, file];
+      const nextIndex = imageBatch.index + 1;
+
+      if (nextIndex < imageBatch.files.length) {
+        setImageBatch({
+          ...imageBatch,
+          index: nextIndex,
+          results,
+          src: URL.createObjectURL(imageBatch.files[nextIndex]),
+        });
+        return;
+      }
+
+      const mode = imageBatch.mode;
+      setImageBatch(null);
+      await uploadCroppedImages(results, mode);
     },
-    [uploadFiles]
+    [imageBatch, uploadCroppedImages]
   );
 
   // ─── Annotation d'auteur ───────────────────────────────────────────────
@@ -1841,7 +1918,7 @@ export function Editor({
             aria-label={t`Insérer image`}
             onChange={(event) => {
               const file = event.target.files?.[0];
-              if (file) uploadImage(file);
+              if (file) openImageBatch([file], 'single');
               event.target.value = '';
             }}
           />
@@ -1854,7 +1931,7 @@ export function Editor({
             aria-label={t`Insérer une galerie`}
             onChange={(event) => {
               const files = Array.from(event.target.files ?? []);
-              if (files.length > 0) void uploadFiles(files, 'gallery');
+              if (files.length > 0) openImageBatch(files, 'gallery');
               event.target.value = '';
             }}
           />
@@ -2045,6 +2122,17 @@ export function Editor({
         onSkipCurrent={handleSkipCurrentPastedAnnotation}
         onConfirmAll={handleConfirmAllPastedAnnotations}
         onSkipAll={handleSkipAllPastedAnnotations}
+      />
+
+      <ImageEditorDialog
+        open={Boolean(imageBatch)}
+        onOpenChange={(open) => {
+          if (!open) setImageBatch(null);
+        }}
+        src={imageBatch?.src ?? null}
+        fileName={imageBatch?.files[imageBatch.index]?.name ?? null}
+        presets={imageBatch?.mode === 'gallery' ? galleryImagePresets : bodyImagePresets}
+        onApply={handleImageBatchApply}
       />
     </div>
   );

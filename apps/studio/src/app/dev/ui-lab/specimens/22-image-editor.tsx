@@ -72,6 +72,15 @@ const PRESETS: ImageEditorPreset[] = [
     hint: 'Couverture éditoriale',
   },
   {
+    id: 'gallery',
+    label: 'Galerie',
+    aspect: 4 / 3,
+    width: 1200,
+    height: 900,
+    shape: 'rect',
+    hint: 'Grille d’article',
+  },
+  {
     id: 'portrait',
     label: 'Portrait',
     aspect: 4 / 5,
@@ -128,9 +137,9 @@ export function ImageEditorSpecimen() {
   return (
     <div className="grid gap-10">
       <Variant
-        label="Un modal, quatre destinations"
+        label="Un modal, cinq destinations"
         kind="candidat"
-        hint="Le format est une décision de destination, pas un réglage caché : le cadre se verrouille sur 1:1, 21:9, 16:9 ou 4:5. Le zoom, la rotation et le déplacement restent libres, et l’aperçu est le rendu canvas exact."
+        hint="Le format est une décision de destination, pas un réglage caché : le cadre se verrouille sur 1:1, 21:9, 16:9, 4:5 ou 4:3. Le zoom, la rotation et le déplacement restent libres, et l’aperçu est le rendu canvas exact."
       >
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
           <div className="min-w-0">
