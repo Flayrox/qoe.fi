@@ -838,8 +838,8 @@ msgstr "Alerts when your username (@username) is mentioned."
 msgid "Alinéa de première ligne"
 msgstr ""
 
-msgid "Alinéa de première ligne (Tab)"
-msgstr ""
+#~ msgid "Alinéa de première ligne (Tab)"
+#~ msgstr ""
 
 msgid "Améliore la lisibilité des éléments d’interface."
 msgstr "Improves readability of interface elements."

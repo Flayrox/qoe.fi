@@ -149,7 +149,7 @@ export function SelectionToolbar({ editor, onLink, onAnnotation }: SelectionTool
           <BubbleButton
             active={state.indent}
             onClick={() => editor.chain().focus().toggleParagraphIndent().run()}
-            label={t`Alinéa de première ligne (Tab)`}
+            label={t`Alinéa de première ligne`}
           >
             <IndentIncrease className="h-3.5 w-3.5 stroke-2" />
           </BubbleButton>

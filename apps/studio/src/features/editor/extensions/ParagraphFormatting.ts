@@ -12,7 +12,7 @@ declare module '@tiptap/core' {
 
 /**
  * Mise en forme typographique des paragraphes :
- * - Alinéa de première ligne (`data-indent="true"` / `.has-indent`), pilotable au clavier (`Tab` / `Shift+Tab` / `Backspace` en début de ligne).
+ * - Alinéa de première ligne (`data-indent="true"` / `.has-indent`), pilotable depuis la barre d'outils ou le menu de sélection ; `Backspace` en début de ligne le retire.
  * - Lettrine (`data-drop-cap="true"` / `.has-drop-cap`) pour les ouvertures d'article ou de section.
  */
 export const ParagraphFormatting = Extension.create({
@@ -68,28 +68,8 @@ export const ParagraphFormatting = Extension.create({
 
   addKeyboardShortcuts() {
     return {
-      Tab: () => {
-        if (this.editor.isActive('listItem') || this.editor.isActive('codeBlock')) {
-          return false;
-        }
-        if (this.editor.isActive('paragraph')) {
-          this.editor.commands.setParagraphIndent(true);
-          return true;
-        }
-        return false;
-      },
-      'Shift-Tab': () => {
-        if (this.editor.isActive('listItem') || this.editor.isActive('codeBlock')) {
-          return false;
-        }
-        if (this.editor.isActive('paragraph')) {
-          if (this.editor.getAttributes('paragraph').indent) {
-            this.editor.commands.setParagraphIndent(false);
-          }
-          return true;
-        }
-        return false;
-      },
+      // `Tab` et `Shift+Tab` restent au navigateur : ils permettent de sortir
+      // de l'éditeur au clavier. L'alinéa garde ses boutons dans les barres.
       Backspace: () => {
         const { selection } = this.editor.state;
         if (!selection.empty) return false;
