@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
+import { getMarkRange } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { CharacterCount, Placeholder } from '@tiptap/extensions';
 import Collaboration from '@tiptap/extension-collaboration';
@@ -320,6 +321,9 @@ export function Editor({
   const toolbarSentinelRef = useRef<HTMLDivElement>(null);
   const openAnnotationPopoverRef = useRef<(text?: string, existingNote?: string) => void>(() => {});
   const openLinkPopoverRef = useRef<() => void>(() => {});
+  // Sélection capturée à l'ouverture du panneau : le focus passe au textarea,
+  // mais la note doit s'appliquer au passage d'origine, pas au curseur perdu.
+  const annotationRangeRef = useRef<{ from: number; to: number } | null>(null);
   const scanPastedAnnotationsRef = useRef<(minPos: number) => void>(() => {});
 
   const timeZoneLabel = useMemo(() => currentTimeZoneLabel(), []);
@@ -449,7 +453,13 @@ export function Editor({
         // listes apparaissaient comme des lignes de texte sans repère.
         class: 'qoe-editor article-prose max-w-none text-foreground font-sans',
       },
-      handleClick: (view, pos) => {
+      handleClick: (view, pos, event) => {
+        // Ne jamais écraser une sélection construite à la souris (glisser,
+        // double-clic, Shift+clic) : l'ouverture de la note est réservée au
+        // clic avec modificateur, pour que le clic simple place le curseur.
+        if (!view.state.selection.empty) return false;
+        if (!(event.altKey || event.metaKey || event.ctrlKey)) return false;
+
         const $pos = view.state.doc.resolve(pos);
         const markType = view.state.schema.marks.annotationMark;
         if (!markType) return false;
@@ -460,11 +470,18 @@ export function Editor({
           if (mark) {
             const abs = $pos.start() + offset;
             if (abs <= $pos.pos && abs + node.nodeSize >= $pos.pos) {
+              const note = (mark.attrs.note as string) || '';
+              // Une marque peut être découpée en plusieurs nœuds texte par
+              // le gras ou l'italique : on sélectionne toute l'annotation,
+              // pas seulement le fragment cliqué.
+              const range = getMarkRange($pos, markType, note ? { note } : undefined);
               foundMark = {
-                note: (mark.attrs.note as string) || '',
-                text: node.text || '',
-                from: abs,
-                to: abs + node.nodeSize,
+                note,
+                text: range
+                  ? view.state.doc.textBetween(range.from, range.to, ' ')
+                  : node.text || '',
+                from: range?.from ?? abs,
+                to: range?.to ?? abs + node.nodeSize,
               };
             }
           }
@@ -609,10 +626,33 @@ export function Editor({
   const openAnnotationPopover = useCallback(
     (text?: string, existingNote?: string) => {
       if (!editor) return;
+
+      const selection = editor.state.selection;
+      const editingExisting = editor.isActive('annotationMark');
+      if (selection.empty && !editingExisting && text === undefined) {
+        setAnnotationToast(t`Sélectionnez d'abord un passage de texte à annoter.`);
+        setTimeout(() => setAnnotationToast(null), 3000);
+        return;
+      }
+
+      const markType = editor.state.schema.marks.annotationMark;
+      const existingRange =
+        editingExisting && markType
+          ? getMarkRange(
+              selection.$from,
+              markType,
+              existingNote ? { note: existingNote } : undefined
+            )
+          : undefined;
+      annotationRangeRef.current =
+        existingRange ??
+        (selection.from < selection.to ? { from: selection.from, to: selection.to } : null);
+
       let quote = text;
       if (quote === undefined) {
-        const selection = editor.state.selection;
-        quote = editor.state.doc.textBetween(selection.from, selection.to, ' ');
+        const from = existingRange?.from ?? selection.from;
+        const to = existingRange?.to ?? selection.to;
+        quote = editor.state.doc.textBetween(from, to, ' ');
         if (!quote && selection.$from.parent.isTextblock) {
           quote = selection.$from.parent.textBetween(0, selection.$from.parent.content.size, ' ');
         }
@@ -624,28 +664,29 @@ export function Editor({
           : editor.getAttributes('annotationMark').note || ''
       );
 
-      const sel = typeof window !== 'undefined' ? window.getSelection() : null;
-      if (sel && sel.rangeCount > 0) {
-        const rect = sel.getRangeAt(0).getBoundingClientRect();
-        if (rect && (rect.top > 0 || rect.bottom > 0)) {
-          let top = rect.bottom + 10;
-          if (top + 280 > window.innerHeight) {
-            top = Math.max(70, rect.top - 270);
-          }
-          const left = Math.max(
-            20,
-            Math.min(window.innerWidth - 400, rect.left + rect.width / 2 - 190)
-          );
-          setPopoverPosition({ top, left });
-          setShowAuthorAnnotationModal(true);
-          return;
-        }
+      // Ancrer le panneau sur la sélection ProseMirror, pas sur la sélection
+      // DOM : cette dernière est perdue dès qu'on clique dans la barre
+      // flottante, et le panneau partait alors en haut de l'écran.
+      let anchor: { top: number; left: number } | null = null;
+      try {
+        const start = editor.view.coordsAtPos(selection.from);
+        const end = selection.empty ? start : editor.view.coordsAtPos(selection.to);
+        const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+        const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 900;
+        anchor = {
+          top: Math.max(70, Math.min(viewportHeight - 280, end.bottom + 4)),
+          left: Math.max(16, Math.min(viewportWidth - 400, start.left)),
+        };
+      } catch {
+        anchor = null;
       }
 
-      setPopoverPosition({
-        top: 100,
-        left: typeof window !== 'undefined' ? Math.max(20, (window.innerWidth - 380) / 2) : 100,
-      });
+      setPopoverPosition(
+        anchor ?? {
+          top: 100,
+          left: typeof window !== 'undefined' ? Math.max(20, (window.innerWidth - 380) / 2) : 100,
+        }
+      );
       setShowAuthorAnnotationModal(true);
     },
     [editor]
@@ -898,20 +939,50 @@ export function Editor({
     setImageDetailsPosition(null);
   }, [editor, imageDetails]);
 
+  const closeAnnotationPanel = useCallback(() => {
+    setShowAuthorAnnotationModal(false);
+    annotationRangeRef.current = null;
+  }, []);
+
+  // Le panneau déplace le focus dans son textarea ; on replace la sélection
+  // d'origine avant d'appliquer ou de retirer la marque.
+  const restoreAnnotationSelection = useCallback(() => {
+    if (!editor) return;
+    const range = annotationRangeRef.current;
+    if (!range) return;
+    const { doc } = editor.state;
+    const from = Math.max(0, Math.min(range.from, doc.content.size));
+    const to = Math.max(from, Math.min(range.to, doc.content.size));
+    if (from >= to) return;
+    editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(doc, from, to)));
+  }, [editor]);
+
   const handleSaveAnnotation = () => {
     if (!authorNoteInput.trim() || !editor) return;
-    editor.chain().focus().setAnnotationMark({ note: authorNoteInput.trim() }).run();
+    restoreAnnotationSelection();
+    const chain = editor.chain().focus();
+    // Curseur simplement posé dans une annotation existante : on étend la
+    // sélection à toute la marque avant de remplacer sa note.
+    if (editor.state.selection.empty && editor.isActive('annotationMark')) {
+      chain.extendMarkRange('annotationMark');
+    }
+    chain.setAnnotationMark({ note: authorNoteInput.trim() }).run();
     setHasUnsavedChanges(true);
     setAuthorNoteInput('');
-    setShowAuthorAnnotationModal(false);
+    closeAnnotationPanel();
   };
 
   const handleDeleteAnnotation = () => {
     if (!editor) return;
-    editor.chain().focus().unsetAnnotationMark().run();
+    restoreAnnotationSelection();
+    const chain = editor.chain().focus();
+    if (editor.state.selection.empty && editor.isActive('annotationMark')) {
+      chain.extendMarkRange('annotationMark');
+    }
+    chain.unsetAnnotationMark().run();
     setHasUnsavedChanges(true);
     setAuthorNoteInput('');
-    setShowAuthorAnnotationModal(false);
+    closeAnnotationPanel();
   };
 
   // ─── Chargement du document (local ou partagé) ─────────────────────────
@@ -1522,12 +1593,6 @@ export function Editor({
       openAnnotationPopover(undefined, attrs.note || '');
       return;
     }
-    const selection = editor.state.selection;
-    if (selection.empty) {
-      setAnnotationToast(t`Sélectionnez d'abord un passage de texte à annoter.`);
-      setTimeout(() => setAnnotationToast(null), 3000);
-      return;
-    }
     openAnnotationPopover();
   };
 
@@ -1817,7 +1882,7 @@ export function Editor({
         onChangeNote={setAuthorNoteInput}
         onSave={handleSaveAnnotation}
         onDelete={handleDeleteAnnotation}
-        onClose={() => setShowAuthorAnnotationModal(false)}
+        onClose={closeAnnotationPanel}
         canDelete={Boolean(editor?.isActive('annotationMark'))}
       />
 

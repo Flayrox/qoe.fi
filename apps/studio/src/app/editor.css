@@ -20,6 +20,13 @@
   cursor: text;
 }
 
+/* Dans l'éditeur, le clic simple place le curseur et permet de sélectionner
+   le passage à la souris. Option/Alt+clic ouvre la note d'auteur ; le bouton
+   dédié reste disponible dans la barre et le menu de sélection. */
+.qoe-editor .qoe-mark {
+  cursor: text;
+}
+
 /* Puces et numéros plus discrets que le texte : ils guident sans crier. */
 .qoe-editor li::marker {
   color: color-mix(in oklch, var(--foreground) 45%, transparent);
