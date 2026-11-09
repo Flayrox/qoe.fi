@@ -3666,6 +3666,9 @@ msgstr "Gratuit · Aucune carte bancaire requise · Données hébergées en Euro
 msgid "Gratuits"
 msgstr "Gratuits"
 
+msgid "Grille"
+msgstr "Grille"
+
 msgid "Groupes de liens (Colonnes)"
 msgstr "Groupes de liens (Colonnes)"
 
@@ -4600,8 +4603,8 @@ msgstr "Masquer du profil personnel"
 msgid "Masquer la configuration avancée"
 msgstr "Masquer la configuration avancée"
 
-msgid "Masquer la grille"
-msgstr "Masquer la grille"
+#~ msgid "Masquer la grille"
+#~ msgstr "Masquer la grille"
 
 msgid "Masquer la version texte"
 msgstr "Masquer la version texte"
