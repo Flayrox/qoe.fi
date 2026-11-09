@@ -150,6 +150,12 @@ export {
   type DrawerWidth,
 } from './primitives/drawer/drawer';
 export { ImageUploader } from './ui/ImageUploader';
+export {
+  ImageEditorDialog,
+  type ImageEditorPreset,
+  type ImageEditorResult,
+  type ImageEditorShape,
+} from './ui/ImageEditorDialog';
 export { CertifiedBadge, type CertifiedBadgeProps } from './ui/CertifiedBadge';
 export { CookieConsentBanner, CookiePreferencesCenter } from './legal/CookieConsentBanner';
 export { CookiePreferencesButton } from './legal/CookiePreferencesButton';

@@ -718,6 +718,9 @@ msgstr ""
 #~ msgid "Afficher uniquement les annotations officielles de l'auteur"
 #~ msgstr "Show only the author's official annotations"
 
+msgid "Agrandir"
+msgstr ""
+
 msgid "Aide & recours"
 msgstr ""
 
@@ -816,6 +819,9 @@ msgstr "Add your personal notes and thoughts to your quotes to find them here."
 
 msgid "Ajuste la taille de lecture dans l’application."
 msgstr "Adjusts the reading size across the app."
+
+msgid "Ajustez le cadrage au format 21:9 avant de remplacer l’image."
+msgstr ""
 
 msgid "Alertes Email"
 msgstr "Email Alerts"
@@ -988,6 +994,9 @@ msgstr "Reading preview"
 
 #~ msgid "Aperçu du nouvel emplacement"
 #~ msgstr ""
+
+msgid "Aperçu du recadrage"
+msgstr ""
 
 #~ msgid "Aperçu du résultat Google"
 #~ msgstr ""
@@ -1545,6 +1554,9 @@ msgstr "Posts calendar"
 msgid "Canal de diffusion"
 msgstr ""
 
+msgid "Canvas indisponible."
+msgstr ""
+
 msgid "caractères"
 msgstr ""
 
@@ -1769,6 +1781,12 @@ msgstr ""
 
 msgid "Choisissez la teinte de l’interface (clair ou sombre)."
 msgstr "Choose the interface shade (light or dark)."
+
+msgid "Choisissez le format, ajustez le cadrage et vérifiez l’aperçu avant de confirmer."
+msgstr ""
+
+msgid "Choisissez le format, ajustez le cadrage, puis vérifiez l’aperçu avant d’envoyer."
+msgstr ""
 
 msgid "Choisissez si votre identité apparaît dans les listes de personnes ayant aimé une pensée."
 msgstr "Choose whether your identity appears in the list of people who liked a thought."
@@ -2010,8 +2028,8 @@ msgstr "Configure the content of this section in the database."
 msgid "Confirmation"
 msgstr ""
 
-msgid "Confirmer"
-msgstr ""
+#~ msgid "Confirmer"
+#~ msgstr ""
 
 msgid "Confirmer l'abonnement"
 msgstr ""
@@ -2180,6 +2198,9 @@ msgid "Couleur par défaut"
 msgstr ""
 
 msgid "Courte description thématique..."
+msgstr ""
+
+msgid "Couverture"
 msgstr ""
 
 msgid "Couverture de l'article"
@@ -2713,8 +2734,8 @@ msgstr ""
 msgid "Échec de l'approbation."
 msgstr ""
 
-msgid "Échec de l’encodage de l’image"
-msgstr "Image encoding failed"
+#~ msgid "Échec de l’encodage de l’image"
+#~ msgstr "Image encoding failed"
 
 msgid "Échec de l'enregistrement"
 msgstr ""
@@ -2878,8 +2899,11 @@ msgstr "Edit"
 msgid "Éditer l'article"
 msgstr "Edit article"
 
-msgid "Éditer l'image"
-msgstr "Edit image"
+#~ msgid "Éditer l'image"
+#~ msgstr "Edit image"
+
+msgid "Éditer l’image"
+msgstr ""
 
 msgid "Éditer le profil"
 msgstr "Edit profile"
@@ -3519,8 +3543,8 @@ msgstr "Feed cluttered with other authors' recommendations and popups"
 msgid "Format"
 msgstr ""
 
-msgid "Format de recadrage"
-msgstr ""
+#~ msgid "Format de recadrage"
+#~ msgstr ""
 
 #~ msgid "Formats supportés : Substack subscribers.csv, Beehiiv exports, Ghost CSV"
 #~ msgstr ""
@@ -3589,6 +3613,9 @@ msgstr ""
 #~ msgstr ""
 
 msgid "Glissez et déposez une catégorie pour la convertir en sous-catégorie."
+msgstr ""
+
+msgid "Glissez l’image pour la repositionner"
 msgstr ""
 
 #~ msgid "Glissez-déposez à la souris pour convertir une catégorie en sous-catégorie ou réorganiser."
@@ -3740,6 +3767,9 @@ msgstr "Unlimited"
 msgid "Ils écrivent sur qoefi"
 msgstr ""
 
+msgid "Image"
+msgstr ""
+
 msgid "Image précédente (Flèche gauche)"
 msgstr "Previous image (Left arrow)"
 
@@ -3778,6 +3808,9 @@ msgstr ""
 
 msgid "Impossible d’annuler la demande."
 msgstr "Unable to cancel the request."
+
+msgid "Impossible d’encoder l’image."
+msgstr ""
 
 msgid "Impossible d’enregistrer ce réglage."
 msgstr "Could not save this setting."
@@ -3845,6 +3878,9 @@ msgstr "Unable to start verification."
 msgid "Impossible de gérer ce mot masqué."
 msgstr "Unable to manage this muted word."
 
+msgid "Impossible de lire l’image."
+msgstr ""
+
 msgid "Impossible de modifier l'épinglage."
 msgstr ""
 
@@ -3859,6 +3895,9 @@ msgstr "Could not change the reply's visibility."
 
 msgid "Impossible de modifier le masquage."
 msgstr "Unable to modify mute."
+
+msgid "Impossible de préparer cette image."
+msgstr ""
 
 msgid "Impossible de publier le fil (données de publication manquantes)."
 msgstr "Could not publish the thread (missing publication data)."
@@ -3884,8 +3923,8 @@ msgstr "Unable to delete highlight"
 msgid "Impossible de traiter cette demande."
 msgstr ""
 
-msgid "Impossible de traiter l’image."
-msgstr "Unable to process the image."
+#~ msgid "Impossible de traiter l’image."
+#~ msgstr "Unable to process the image."
 
 #~ msgid "Indexation Google autorisée"
 #~ msgstr "Google indexing allowed"
@@ -4028,6 +4067,9 @@ msgstr ""
 
 #~ msgid "L'ancienne clé est désormais invalide. Copiez cette nouvelle clé secrète dès maintenant : elle ne sera plus jamais réaffichée."
 #~ msgstr "The previous key is now invalid. Copy this new secret key right now: it will never be displayed again."
+
+msgid "L’aperçu est rond ; le fichier reste carré et détouré par le CSS."
+msgstr ""
 
 msgid "L'architecture du silence"
 msgstr "The architecture of silence"
@@ -4204,11 +4246,17 @@ msgstr "the creator"
 msgid "Le créateur a désactivé les annotations publiques sur cet écrit."
 msgstr "The creator has disabled public annotations on this writing."
 
+msgid "Le fichier d’origine n’est pas modifié."
+msgstr ""
+
 #~ msgid "Le fichier doit être une image valide."
 #~ msgstr "The file must be a valid image."
 
 msgid "Le fichier doit être une image."
 msgstr "The file must be an image."
+
+msgid "Le fichier est ré-encodé sans métadonnées."
+msgstr ""
 
 msgid "Le journalisme d'enquête à l'ère du numérique"
 msgstr "Investigative journalism in the digital age"
@@ -4473,6 +4521,9 @@ msgstr ""
 
 msgid "Localisation / Ville"
 msgstr "Location / City"
+
+msgid "Logo"
+msgstr ""
 
 msgid "Logo d'en-tête"
 msgstr ""
@@ -5493,6 +5544,12 @@ msgstr "Profile picture"
 msgid "Pied de page (Footer)"
 msgstr "Footer"
 
+msgid "Pivoter à droite"
+msgstr ""
+
+msgid "Pivoter à gauche"
+msgstr ""
+
 msgid "Plan du site"
 msgstr "Sitemap"
 
@@ -5624,6 +5681,9 @@ msgstr "Take up the pen to give shape to your thoughts."
 
 msgid "Préparation de la publication du fil..."
 msgstr "Preparing the thread publication..."
+
+msgid "Préparation…"
+msgstr ""
 
 msgid "Près de 0% (Soutien direct via Wallet, frais de réseau uniquement)"
 msgstr "Close to 0% (Direct support via Wallet, network fees only)"
@@ -5912,8 +5972,11 @@ msgstr "React to this annotation..."
 msgid "Recadrer l’image"
 msgstr ""
 
-msgid "Recadrez, zoomez et faites pivoter votre image."
-msgstr "Crop, zoom and rotate your image."
+msgid "Recadrer la couverture"
+msgstr ""
+
+#~ msgid "Recadrez, zoomez et faites pivoter votre image."
+#~ msgstr "Crop, zoom and rotate your image."
 
 msgid "Recentrer le texte sur la lecture en cours"
 msgstr ""
@@ -7447,6 +7510,9 @@ msgstr ""
 msgid "Utilisations max"
 msgstr ""
 
+msgid "Utiliser cette image"
+msgstr ""
+
 #~ msgid "Utiliser mon compte Qoe.fi"
 #~ msgstr ""
 
@@ -7817,6 +7883,9 @@ msgstr "Real-time webhooks (publication, subscription)"
 
 msgid "Zéro VC. Zéro GAFAM. Zéro compromis."
 msgstr "Zero VC. Zero Big Tech. Zero compromises."
+
+msgid "Zone de recadrage. Utilisez les flèches pour déplacer l’image."
+msgstr ""
 
 msgid "Zone sensible"
 msgstr ""
