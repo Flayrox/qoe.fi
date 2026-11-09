@@ -805,6 +805,9 @@ msgstr ""
 msgid "Ajouter vos propres mots ou sujets masqués"
 msgstr "Add your own muted words or topics"
 
+msgid "Ajoutez une note pour ce passage"
+msgstr ""
+
 msgid "Ajoutez une note, précision ou source..."
 msgstr ""
 

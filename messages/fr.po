@@ -805,6 +805,9 @@ msgstr "Ajouter une sous-catégorie directement"
 msgid "Ajouter vos propres mots ou sujets masqués"
 msgstr "Ajouter vos propres mots ou sujets masqués"
 
+msgid "Ajoutez une note pour ce passage"
+msgstr "Ajoutez une note pour ce passage"
+
 msgid "Ajoutez une note, précision ou source..."
 msgstr "Ajoutez une note, précision ou source..."
 
