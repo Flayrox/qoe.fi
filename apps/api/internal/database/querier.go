@@ -615,6 +615,10 @@ type Querier interface {
 	// Clés API Média (gestion par le média, délégation api_keys:manage)
 	// ============================================================================
 	ListMediaApiKeys(ctx context.Context, id string) ([]ListMediaApiKeysRow, error)
+	// Journal d'activité du média (réglages, membres, articles, transferts).
+	// `metadata` est rendu en texte pour rester lisible par l'appelant, qui le
+	// décode en JSON ; `actorId` est joint pour afficher l'auteur de l'action.
+	ListMediaAuditLogs(ctx context.Context, arg ListMediaAuditLogsParams) ([]ListMediaAuditLogsRow, error)
 	ListMediaMembers(ctx context.Context, mediaid string) ([]ListMediaMembersRow, error)
 	// Nouveaux messages STRICTEMENT postérieurs à `after` (polling), ordre
 	// ascendant prêt à être ajouté en fin de liste.

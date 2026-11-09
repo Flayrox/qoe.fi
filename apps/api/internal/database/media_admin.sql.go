@@ -621,6 +621,70 @@ func (q *Queries) ListMediaApiKeys(ctx context.Context, id string) ([]ListMediaA
 	return items, nil
 }
 
+const listMediaAuditLogs = `-- name: ListMediaAuditLogs :many
+SELECT l.id::text AS id,
+       l.action,
+       COALESCE(l.metadata::text, '{}') AS metadata,
+       l."createdAt",
+       l."actorId"::text AS actor_id,
+       u.name AS actor_name,
+       u.username AS actor_username,
+       u."logoUrl" AS actor_logo
+FROM "MediaAuditLog" l
+LEFT JOIN "User" u ON u.id = l."actorId"
+WHERE l."mediaId" = $1
+ORDER BY l."createdAt" DESC
+LIMIT $2
+`
+
+type ListMediaAuditLogsParams struct {
+	MediaId string `json:"mediaId"`
+	Limit   int32  `json:"limit"`
+}
+
+type ListMediaAuditLogsRow struct {
+	ID            string           `json:"id"`
+	Action        string           `json:"action"`
+	Metadata      interface{}      `json:"metadata"`
+	CreatedAt     pgtype.Timestamp `json:"createdAt"`
+	ActorID       string           `json:"actor_id"`
+	ActorName     pgtype.Text      `json:"actor_name"`
+	ActorUsername pgtype.Text      `json:"actor_username"`
+	ActorLogo     pgtype.Text      `json:"actor_logo"`
+}
+
+// Journal d'activité du média (réglages, membres, articles, transferts).
+// `metadata` est rendu en texte pour rester lisible par l'appelant, qui le
+// décode en JSON ; `actorId` est joint pour afficher l'auteur de l'action.
+func (q *Queries) ListMediaAuditLogs(ctx context.Context, arg ListMediaAuditLogsParams) ([]ListMediaAuditLogsRow, error) {
+	rows, err := q.db.Query(ctx, listMediaAuditLogs, arg.MediaId, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMediaAuditLogsRow{}
+	for rows.Next() {
+		var i ListMediaAuditLogsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Action,
+			&i.Metadata,
+			&i.CreatedAt,
+			&i.ActorID,
+			&i.ActorName,
+			&i.ActorUsername,
+			&i.ActorLogo,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMediaMembers = `-- name: ListMediaMembers :many
 SELECT m.id AS member_id, m."userId"::text AS user_id, m.role, m.permissions, m.status, m."joinedAt",
        u.name, u.username, u."logoUrl"

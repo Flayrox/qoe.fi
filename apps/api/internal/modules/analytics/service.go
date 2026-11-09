@@ -8,6 +8,7 @@ import (
 	"log"
 	"math"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -919,6 +920,33 @@ type DashboardArticle struct {
 	// icône générique à la place de l'image choisie par l'auteur.
 	ImageURL    *string `json:"imageUrl"`
 	ReadingTime int32   `json:"readingTime"`
+	// Contexte éditorial : l'accueil doit distinguer un écrit personnel, un
+	// article de média, un co-écrit et un article d'équipe dont on n'est pas
+	// l'auteur. Ces champs sont optionnels pour ne pas casser les anciens
+	// clients (brouillons, programmés, dernier publié).
+	AuthorID        *string  `json:"authorId,omitempty"`
+	AuthorName      *string  `json:"authorName,omitempty"`
+	AuthorUsername  *string  `json:"authorUsername,omitempty"`
+	PublicationID   *string  `json:"publicationId,omitempty"`
+	PublicationName *string  `json:"publicationName,omitempty"`
+	PublicationType *string  `json:"publicationType,omitempty"`
+	CoAuthors       []string `json:"coAuthors,omitempty"`
+	Relation        *string  `json:"relation,omitempty"`
+}
+
+// dashboardArticleRelation qualifie le lien entre l'utilisateur et l'article
+// récent : personnel, auteur média, co-auteur accepté, ou membre d'équipe.
+func dashboardArticleRelation(authorID, userID, publicationType string, isCoauthor bool) string {
+	switch {
+	case isCoauthor && authorID != userID:
+		return "COAUTHOR"
+	case authorID == userID && publicationType == "PERSONAL":
+		return "OWN"
+	case authorID == userID:
+		return "MEDIA_AUTHOR"
+	default:
+		return "MEDIA_TEAM"
+	}
 }
 
 // DashboardScheduledArticle est un article dont la publication est programmée.
@@ -1039,20 +1067,46 @@ func (s *Service) DashboardOverview(ctx context.Context, userID, publicationID, 
 	recentWhere := `a."publicationId" = $1`
 	recentArgs := []any{publicationID}
 	if !media {
-		recentWhere = `a."authorId" = $1`
-		recentArgs = []any{userUUID}
+		// Le scope personnel inclut les articles co-signés : un contributeur
+		// doit retrouver sur son accueil ce qu'il a écrit avec d'autres, pas
+		// seulement ses propres publications.
+		recentWhere = `(a."publicationId" = $1 OR a."authorId" = $2 OR EXISTS (
+			SELECT 1 FROM "ArticleAttribution" aa
+			WHERE aa."articleId" = a.id AND aa."userId" = $2
+			  AND aa.role = 'CO_AUTHOR' AND aa."consentStatus" = 'ACCEPTED' AND aa."isVisible" = true))`
+		recentArgs = []any{publicationID, userUUID}
 	}
-	rows, err := s.pool.Query(ctx, `SELECT a.id, a.title, a.published, a."updatedAt", c.name, a."imageUrl", a."readingTime"
-		FROM "Article" a LEFT JOIN "Category" c ON c.id = a."categoryId"
+	rows, err := s.pool.Query(ctx, `SELECT a.id, a.title, a.published, a."updatedAt", c.name, a."imageUrl", a."readingTime",
+			a."authorId"::text AS author_id, au.name AS author_name, au.username AS author_username,
+			p.id AS publication_id, p.name AS publication_name, p.type::text AS publication_type,
+			COALESCE((
+				SELECT string_agg(COALESCE(NULLIF(cu.name, ''), cu.username, 'Anonyme'), ', ' ORDER BY aa."order")
+				FROM "ArticleAttribution" aa
+				JOIN "User" cu ON cu.id = aa."userId"
+				WHERE aa."articleId" = a.id AND aa.role = 'CO_AUTHOR'
+				  AND aa."consentStatus" = 'ACCEPTED' AND aa."isVisible" = true
+			), '') AS co_authors,
+			EXISTS (
+				SELECT 1 FROM "ArticleAttribution" aa2
+				WHERE aa2."articleId" = a.id AND aa2."userId" = $2 AND aa2.role = 'CO_AUTHOR'
+				  AND aa2."consentStatus" = 'ACCEPTED' AND aa2."isVisible" = true
+			) AS is_coauthor
+		FROM "Article" a
+		LEFT JOIN "Category" c ON c.id = a."categoryId"
+		LEFT JOIN "User" au ON au.id = a."authorId"
+		JOIN "Publication" p ON p.id = a."publicationId"
 		WHERE `+recentWhere+`
-		ORDER BY a."updatedAt" DESC LIMIT 4`, recentArgs...)
+		ORDER BY a."updatedAt" DESC LIMIT 4`, publicationID, userUUID)
 	if err == nil {
 		for rows.Next() {
 			var a DashboardArticle
-			var cat pgtype.Text
+			var cat, image, authorName, authorUsername pgtype.Text
 			var updated pgtype.Timestamp
-			var image pgtype.Text
-			if err := rows.Scan(&a.ID, &a.Title, &a.Published, &updated, &cat, &image, &a.ReadingTime); err != nil {
+			var authorID, pubID, pubName, pubType, coAuthors string
+			var isCoauthor bool
+			if err := rows.Scan(&a.ID, &a.Title, &a.Published, &updated, &cat, &image, &a.ReadingTime,
+				&authorID, &authorName, &authorUsername, &pubID, &pubName, &pubType,
+				&coAuthors, &isCoauthor); err != nil {
 				continue
 			}
 			a.UpdatedAt = updated.Time.Format(time.RFC3339)
@@ -1060,6 +1114,16 @@ func (s *Service) DashboardOverview(ctx context.Context, userID, publicationID, 
 			if image.Valid && image.String != "" {
 				a.ImageURL = &image.String
 			}
+			a.AuthorID = &authorID
+			a.AuthorName = textPtr(authorName)
+			a.AuthorUsername = textPtr(authorUsername)
+			a.PublicationID = &pubID
+			a.PublicationName = &pubName
+			a.PublicationType = &pubType
+			if coAuthors != "" {
+				a.CoAuthors = strings.Split(coAuthors, ", ")
+			}
+			a.Relation = func() *string { r := dashboardArticleRelation(authorID, userID, pubType, isCoauthor); return &r }()
 			out.RecentArticles = append(out.RecentArticles, a)
 		}
 		rows.Close()

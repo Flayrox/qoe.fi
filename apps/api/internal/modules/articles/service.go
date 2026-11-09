@@ -552,6 +552,9 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 	}
 	s.syncAttributions(ctx, id, userID, in.Attributions, showOnPersonalProfile)
 	s.queueSearchSync(id, "upsert")
+	s.auditMedia(ctx, in.PublicationID, userID, "media.article_created", map[string]any{
+		"articleId": id, "title": in.Title,
+	})
 
 	// Premier jalon de la chronologie de l'article.
 	s.recordEvent(ctx, EventInput{
@@ -1192,6 +1195,31 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 	}
 	s.syncAttributions(ctx, articleID, uuidString(row.AuthorId), in.Attributions, showOnPersonalProfile)
 	s.queueSearchSync(articleID, "upsert")
+
+	// Journal média : dire quels champs ont bougé (titre, description SEO,
+	// statut…), pas seulement qu'une modification a eu lieu.
+	fields := make([]string, 0, 10)
+	addField := func(changed bool, key string) {
+		if changed {
+			fields = append(fields, key)
+		}
+	}
+	contentChanged := strings.TrimSpace(in.Content) != strings.TrimSpace(row.Content) &&
+		(!row.DraftContent.Valid || strings.TrimSpace(row.DraftContent.String) != strings.TrimSpace(in.Content))
+	addField(row.Title != in.Title, "title")
+	addField(row.Slug != finalSlug, "slug")
+	addField(contentChanged, "content")
+	addField(row.IsPremium != in.IsPremium, "paywall")
+	addField(row.Published != effectivePublished || row.Status != effectiveStatus, "status")
+	addField(textVal(categoryID) != row.CategoryId, "category")
+	addField(textVal(in.SeoTitle) != row.SeoTitle || textVal(in.SeoDescription) != row.SeoDescription, "seo")
+	addField(allowComments != row.AllowComments || allowAnnotations != row.AllowPublicAnnotations || allowDownload != row.AllowDownload, "options")
+	if len(fields) > 0 {
+		s.auditMedia(ctx, row.PublicationId, userID, "media.article_updated", map[string]any{
+			"articleId": articleID, "title": in.Title, "fields": fields,
+		})
+	}
+
 	s.emitArticleLifecycle(queue.TaskArticleUpdated, row, in.Title, in.Slug)
 
 	if effectiveStatus == "SUBMITTED" && row.Status != "SUBMITTED" {
@@ -1543,6 +1571,9 @@ func (s *Service) Delete(ctx context.Context, articleID, userID, activePublicati
 			}
 		}
 	}
+	s.auditMedia(ctx, row.PublicationId, userID, "media.article_deleted", map[string]any{
+		"articleId": articleID, "title": row.Title,
+	})
 	if err := s.q.DeleteArticle(ctx, articleID); err != nil {
 		return err
 	}
@@ -2360,6 +2391,23 @@ func articleFromRow(row db.GetArticleByIDRow, cut PaywallCutResult) ArticleRespo
 	return resp
 }
 
+// auditMedia journalise une action éditoriale dans le journal du média
+// propriétaire de la publication. Le profil personnel n'a pas de média :
+// l'action n'y produit aucune entrée, sans erreur.
+func (s *Service) auditMedia(ctx context.Context, publicationID, actorID, action string, metadata map[string]any) {
+	if s.pool == nil || publicationID == "" || actorID == "" {
+		return
+	}
+	var mediaID string
+	if err := s.pool.QueryRow(ctx, `SELECT id FROM "Media" WHERE "publicationId" = $1 LIMIT 1`, publicationID).Scan(&mediaID); err != nil {
+		return
+	}
+	raw, _ := json.Marshal(metadata)
+	_ = s.q.InsertMediaAuditLog(ctx, db.InsertMediaAuditLogParams{
+		MediaId: mediaID, ActorId: toUUID(actorID), Action: action, Metadata: string(raw),
+	})
+}
+
 // TransferPublication déplace un article d'une publication à une autre (Personnel ↔ Média).
 func (s *Service) TransferPublication(ctx context.Context, userID, articleID string, in TransferArticleInput) (ArticleResponse, error) {
 	row, err := s.q.GetArticleByID(ctx, articleID)
@@ -2487,6 +2535,18 @@ func (s *Service) TransferPublication(ctx context.Context, userID, articleID str
 
 	s.syncAttributions(ctx, articleID, row.AuthorID, nil, showOnPersonalProfile)
 	s.queueSearchSync(articleID, "upsert")
+
+	// Le transfert est journalisé dans les deux médias concernés : la source
+	// pour savoir ce qui est parti, la cible pour savoir ce qui est arrivé.
+	if targetPubID != row.PublicationId {
+		meta := map[string]any{
+			"articleId": articleID, "title": row.Title,
+			"fromPublicationId": row.PublicationId, "toPublicationId": targetPubID,
+			"status": newStatus,
+		}
+		s.auditMedia(ctx, row.PublicationId, userID, "media.article_transferred_out", meta)
+		s.auditMedia(ctx, targetPubID, userID, "media.article_transferred_in", meta)
+	}
 
 	if newStatus == "SUBMITTED" && row.Status != "SUBMITTED" {
 		s.notifyReviewers(ctx, targetPubID, articleID, userID)

@@ -9,7 +9,9 @@ import {
   Bookmark,
   Highlighter,
   MessageSquare,
+  ExternalLink,
 } from 'lucide-react';
+import Link from 'next/link';
 import { getArticleAnalyticsDetail, ArticleDetailData, TimePeriod } from '../actions';
 import { TimeseriesChart } from './TimeseriesChart';
 import { ReferrersBlock } from './ReferrersBlock';
@@ -68,6 +70,16 @@ export function ArticleInspectorModal({
 
   if (!urlPath) return null;
 
+  // Lien partageable vers la page complète : l'identifiant canonique est
+  // préféré au slug dès que le détail est chargé.
+  const fallbackSlug = urlPath
+    .replace(/^\/(articles?)\//i, '')
+    .replace(/^\/+/, '')
+    .split(/[?#]/)[0];
+  const fullPageHref = `/analytics/articles/${encodeURIComponent(
+    detail?.articleId || detail?.slug || fallbackSlug
+  )}`;
+
   const handleEditClick = () => {
     if (onEdit) {
       onEdit();
@@ -100,12 +112,21 @@ export function ArticleInspectorModal({
               </div>
             </div>
 
-            {(articleId || onEdit) && (
-              <Button variant="solid" tone="brand" size="xs" onClick={handleEditClick}>
-                <Edit3 />
-                <span>{t`Éditer l'article`}</span>
-              </Button>
-            )}
+            <div className="flex shrink-0 items-center gap-2">
+              <Link
+                href={fullPageHref}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted/50"
+              >
+                <ExternalLink className="h-3.5 w-3.5 stroke-[1.5]" />
+                <span>{t`Page complète`}</span>
+              </Link>
+              {(articleId || onEdit) && (
+                <Button variant="solid" tone="brand" size="xs" onClick={handleEditClick}>
+                  <Edit3 />
+                  <span>{t`Éditer l'article`}</span>
+                </Button>
+              )}
+            </div>
           </div>
         </DrawerHeader>
 

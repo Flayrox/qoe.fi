@@ -83,6 +83,24 @@ DELETE FROM "MediaMember" WHERE "mediaId" = $1 AND "userId" = $2;
 INSERT INTO "MediaAuditLog" (id, "mediaId", "actorId", action, metadata)
 VALUES (gen_random_uuid()::text, $1, $2, $3, sqlc.arg('metadata')::text::jsonb);
 
+-- name: ListMediaAuditLogs :many
+-- Journal d'activité du média (réglages, membres, articles, transferts).
+-- `metadata` est rendu en texte pour rester lisible par l'appelant, qui le
+-- décode en JSON ; `actorId` est joint pour afficher l'auteur de l'action.
+SELECT l.id::text AS id,
+       l.action,
+       COALESCE(l.metadata::text, '{}') AS metadata,
+       l."createdAt",
+       l."actorId"::text AS actor_id,
+       u.name AS actor_name,
+       u.username AS actor_username,
+       u."logoUrl" AS actor_logo
+FROM "MediaAuditLog" l
+LEFT JOIN "User" u ON u.id = l."actorId"
+WHERE l."mediaId" = $1
+ORDER BY l."createdAt" DESC
+LIMIT $2;
+
 -- name: GetUserByEmail :one
 SELECT id::text AS id, email, name, username, "logoUrl", "isCertified"
 FROM "User"

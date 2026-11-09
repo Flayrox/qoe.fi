@@ -18,6 +18,7 @@ import {
   Edit3,
   Feather,
   Image as ImageIcon,
+  Building2,
 } from 'lucide-react';
 import { Badge } from '@qoe/ui/badge';
 import { StudioHeader } from '@/components/studio-page';
@@ -32,6 +33,12 @@ interface DashboardArticle {
   /** Couverture de l'article (absente = carte avec repli typographique). */
   imageUrl?: string | null;
   readingTime?: number;
+  /** Contexte éditorial renvoyé par Go (relation + média + co-auteurs). */
+  authorName?: string | null;
+  publicationName?: string;
+  publicationType?: 'PERSONAL' | 'MEDIA';
+  coAuthors?: string[];
+  relation?: 'OWN' | 'MEDIA_AUTHOR' | 'COAUTHOR' | 'MEDIA_TEAM';
 }
 
 interface DashboardThought {
@@ -398,6 +405,24 @@ export default async function CreatorDashboardPage() {
                 <h4 className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
                   {art.title}
                 </h4>
+                {(art.publicationType === 'MEDIA' ||
+                  art.relation === 'COAUTHOR' ||
+                  art.relation === 'MEDIA_TEAM') && (
+                  <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-muted-foreground">
+                    {art.publicationType === 'MEDIA' && art.publicationName && (
+                      <span className="inline-flex items-center gap-1 rounded bg-muted/60 px-1.5 py-0.5 font-medium">
+                        <Building2 className="h-3 w-3 stroke-[1.5]" />
+                        {art.publicationName}
+                      </span>
+                    )}
+                    {art.relation === 'COAUTHOR' && (art.coAuthors?.length ?? 0) > 0 && (
+                      <span className="truncate">avec {art.coAuthors!.join(', ')}</span>
+                    )}
+                    {art.relation === 'MEDIA_TEAM' && art.authorName && (
+                      <span className="truncate">par {art.authorName}</span>
+                    )}
+                  </div>
+                )}
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1 font-sans">
                   <span
                     className={

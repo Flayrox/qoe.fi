@@ -26,6 +26,7 @@ import {
   Link2,
   Copy,
   Search,
+  History,
   X,
 } from 'lucide-react';
 import { SafeAvatar } from '@qoe/ui';
@@ -69,7 +70,9 @@ import {
   createMediaInviteLinkAction,
   listMediaInviteLinksAction,
   revokeMediaInviteLinkAction,
+  listMediaAuditLogAction,
   type MediaInviteLinkDTO,
+  type MediaAuditEntry,
 } from './actions';
 import { MediaApiKeysTab } from './MediaApiKeysTab';
 import { ALL_MEDIA_PERMISSIONS, MEDIA_ROLES } from '@qoe/auth/media';
@@ -177,7 +180,7 @@ const ROLE_DEFAULT_PERMS: Record<string, string[]> = {
   viewer: ['media:view_analytics'],
 };
 
-type StudioTab = 'members' | 'invites' | 'api-keys' | 'settings';
+type StudioTab = 'members' | 'invites' | 'api-keys' | 'activity' | 'settings';
 
 const MEMBER_SORT: SortSpec<MediaDetail['members'][number]> = {
   member: {
@@ -230,6 +233,97 @@ function formatDate(iso: string | null): string {
   });
 }
 
+const AUDIT_FIELD_LABELS: Record<string, string> = {
+  title: 'titre',
+  slug: 'permalien',
+  content: 'contenu',
+  paywall: 'paywall',
+  status: 'statut',
+  category: 'catégorie',
+  seo: 'SEO',
+  image: 'image',
+  options: 'options de lecture',
+  name: 'nom',
+  bio: 'bio',
+  logoUrl: 'logo',
+  subdomain: 'sous-domaine',
+  customDomain: 'domaine',
+  accentColor: 'couleur',
+  heroText: 'accroche',
+  headerImageUrl: 'bannière',
+  footerText: 'pied de page',
+  themeMode: 'thème',
+  layoutStyle: 'mise en page',
+  seoTitle: 'titre SEO',
+  seoDescription: 'description SEO',
+  allowIndexing: 'indexation',
+  fontFamily: 'police',
+  supportUrl: 'support',
+};
+
+function auditString(md: Record<string, unknown>, key: string): string {
+  const value = md[key];
+  return typeof value === 'string' ? value : '';
+}
+
+/** Traduit une entrée du journal média en phrase lisible (style Discord). */
+function describeAuditEntry(entry: MediaAuditEntry): { summary: string; detail?: string } {
+  const md = entry.metadata ?? {};
+  const fields = Array.isArray(md.fields) ? md.fields.map(String) : [];
+  const fieldLabels = fields.map((f) => AUDIT_FIELD_LABELS[f] ?? f).join(', ');
+  const title = auditString(md, 'title');
+  switch (entry.action) {
+    case 'media.created':
+      return { summary: 'a créé le Média' };
+    case 'media.settings_updated':
+      return { summary: 'a modifié les réglages du Média', detail: fieldLabels || undefined };
+    case 'media.article_created':
+      return { summary: `a créé l'article « ${title} »` };
+    case 'media.article_updated':
+      return { summary: `a modifié l'article « ${title} »`, detail: fieldLabels || undefined };
+    case 'media.article_deleted':
+      return { summary: `a supprimé l'article « ${title} »` };
+    case 'media.article_transferred_out':
+      return { summary: `a transféré l'article « ${title} » vers une autre publication` };
+    case 'media.article_transferred_in':
+      return { summary: `a reçu l'article « ${title} » depuis une autre publication` };
+    case 'member.role_changed':
+      return { summary: "a changé le rôle d'un membre", detail: auditString(md, 'role') };
+    case 'member.permissions_changed':
+      return { summary: "a modifié les permissions d'un membre" };
+    case 'member.invited_pending':
+      return { summary: `a invité @${auditString(md, 'username')}` };
+    case 'member.invitation_accepted':
+      return { summary: 'a rejoint le Média', detail: auditString(md, 'role') || undefined };
+    case 'member.removed':
+      return { summary: 'a retiré un membre du Média' };
+    case 'media.invite_link_created':
+      return { summary: "a généré un lien d'invitation" };
+    case 'media.invite_link_revoked':
+      return { summary: "a révoqué un lien d'invitation" };
+    case 'api_key.created':
+      return { summary: 'a créé une clé API' };
+    case 'api_key.updated':
+      return { summary: 'a modifié une clé API' };
+    case 'api_key.rotated':
+      return { summary: 'a régénéré une clé API' };
+    case 'api_key.revoked':
+      return { summary: 'a révoqué une clé API' };
+    default:
+      return { summary: entry.action };
+  }
+}
+
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 function QuietDot({ active }: { active?: boolean }) {
   return (
     <span
@@ -258,6 +352,9 @@ export function MediaStudioClient({
   const [tab, setTab] = useState<StudioTab>('members');
   const [myRole, setMyRole] = useState<string | null>(null);
   const [canManageApiKeys, setCanManageApiKeys] = useState(false);
+  const [canViewAudit, setCanViewAudit] = useState(false);
+  const [auditEntries, setAuditEntries] = useState<MediaAuditEntry[]>([]);
+  const [loadingAudit, setLoadingAudit] = useState(false);
 
   const [createName, setCreateName] = useState('');
   const [createSlug, setCreateSlug] = useState('');
@@ -290,6 +387,7 @@ export function MediaStudioClient({
       setDetail(res.media as unknown as MediaDetail);
       setMyRole(res.myRole ?? null);
       setCanManageApiKeys(res.canManageApiKeys ?? false);
+      setCanViewAudit(res.canViewAudit ?? false);
     } else {
       toast.error(res.error || t`Erreur de chargement du Média`);
     }
@@ -302,6 +400,27 @@ export function MediaStudioClient({
       setSelectedMediaId(medias[0].id);
     }
   }, [selectedMediaId, medias, showCreate, loadDetail]);
+
+  // Journal d'activité : chargé à l'ouverture de l'onglet et rechargé quand on
+  // change de média (une seule requête, pas de polling).
+  const auditMediaId = detail?.id;
+  useEffect(() => {
+    if (tab !== 'activity' || !auditMediaId) return;
+    let cancelled = false;
+    setLoadingAudit(true);
+    listMediaAuditLogAction(auditMediaId).then((res) => {
+      if (cancelled) return;
+      setLoadingAudit(false);
+      if (res.success) {
+        setAuditEntries(res.entries);
+      } else {
+        toast.error(res.error || t`Erreur de chargement du journal`);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, auditMediaId]);
 
   // Bascule explicite : la sélection ci-dessus ne sert qu'à gérer ce Média.
   // Ouvrir l'espace pose le cookie puis revient au studio pour que la sidebar,
@@ -795,6 +914,9 @@ export function MediaStudioClient({
             { key: 'invites' as const, label: () => t`Invitations`, icon: Mail },
             ...(canManageApiKeys
               ? [{ key: 'api-keys' as const, label: () => t`Clés API`, icon: Key }]
+              : []),
+            ...(canViewAudit
+              ? [{ key: 'activity' as const, label: () => t`Activité`, icon: History }]
               : []),
             { key: 'settings' as const, label: () => t`Réglages`, icon: Settings },
           ].map((tabItem) => (
@@ -1301,6 +1423,53 @@ export function MediaStudioClient({
       {/* ── API Keys ── */}
       {tab === 'api-keys' && canManageApiKeys && (
         <MediaApiKeysTab mediaId={detail.id} mediaName={detail.publication.name} />
+      )}
+
+      {/* ── Activité (journal du média) ── */}
+      {tab === 'activity' && canViewAudit && (
+        <div className="overflow-hidden rounded-xl border border-border/30 bg-card shadow-none">
+          {loadingAudit ? (
+            <div className="flex items-center justify-center gap-2 py-16 text-xs text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Chargement du journal…
+            </div>
+          ) : auditEntries.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+              <History className="h-6 w-6 text-muted-foreground/40 stroke-[1.5]" />
+              <p className="text-xs text-muted-foreground">
+                Aucune activité enregistrée pour ce Média.
+              </p>
+            </div>
+          ) : (
+            <ol className="divide-y divide-border/30">
+              {auditEntries.map((entry) => {
+                const actorName = entry.actor?.name || entry.actor?.username || 'Membre supprimé';
+                const description = describeAuditEntry(entry);
+                return (
+                  <li key={entry.id} className="flex gap-3 px-4 py-3">
+                    <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted/60 text-[10px] font-bold uppercase text-muted-foreground">
+                      {actorName.slice(0, 2)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-foreground">
+                        <span className="font-semibold">{actorName}</span>{' '}
+                        <span className="text-muted-foreground">{description.summary}</span>
+                      </p>
+                      {description.detail && (
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                          {description.detail}
+                        </p>
+                      )}
+                      <p className="mt-1 text-[11px] tabular-nums text-muted-foreground/70">
+                        {formatDateTime(entry.createdAt)}
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </div>
       )}
 
       {/* ── Settings ── */}
