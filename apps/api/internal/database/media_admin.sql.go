@@ -72,6 +72,35 @@ func (q *Queries) CountMediaApiKeys(ctx context.Context, id string) (int32, erro
 	return column_1, err
 }
 
+const countMediaAuditLogs = `-- name: CountMediaAuditLogs :one
+SELECT COUNT(*)::int AS total
+FROM "MediaAuditLog" l
+LEFT JOIN "User" u ON u.id = l."actorId"
+WHERE l."mediaId" = $1
+  AND ($2::text = '' OR l.action LIKE $2)
+  AND (
+    $3::text = ''
+    OR l.action ILIKE '%' || $3 || '%'
+    OR COALESCE(u.name, '') ILIKE '%' || $3 || '%'
+    OR COALESCE(u.username, '') ILIKE '%' || $3 || '%'
+    OR COALESCE(l.metadata::text, '') ILIKE '%' || $3 || '%'
+  )
+`
+
+type CountMediaAuditLogsParams struct {
+	MediaId      string `json:"mediaId"`
+	ActionPrefix string `json:"actionPrefix"`
+	Query        string `json:"query"`
+}
+
+// Compte le journal filtré pour paginer sans mentir sur le total.
+func (q *Queries) CountMediaAuditLogs(ctx context.Context, arg CountMediaAuditLogsParams) (int32, error) {
+	row := q.db.QueryRow(ctx, countMediaAuditLogs, arg.MediaId, arg.ActionPrefix, arg.Query)
+	var total int32
+	err := row.Scan(&total)
+	return total, err
+}
+
 const countMediaMembers = `-- name: CountMediaMembers :one
 SELECT COUNT(*)::int AS count FROM "MediaMember" WHERE "mediaId" = $1
 `
@@ -633,13 +662,24 @@ SELECT l.id::text AS id,
 FROM "MediaAuditLog" l
 LEFT JOIN "User" u ON u.id = l."actorId"
 WHERE l."mediaId" = $1
+  AND ($2::text = '' OR l.action LIKE $2)
+  AND (
+    $3::text = ''
+    OR l.action ILIKE '%' || $3 || '%'
+    OR COALESCE(u.name, '') ILIKE '%' || $3 || '%'
+    OR COALESCE(u.username, '') ILIKE '%' || $3 || '%'
+    OR COALESCE(l.metadata::text, '') ILIKE '%' || $3 || '%'
+  )
 ORDER BY l."createdAt" DESC
-LIMIT $2
+LIMIT $5 OFFSET $4
 `
 
 type ListMediaAuditLogsParams struct {
-	MediaId string `json:"mediaId"`
-	Limit   int32  `json:"limit"`
+	MediaId      string `json:"mediaId"`
+	ActionPrefix string `json:"actionPrefix"`
+	Query        string `json:"query"`
+	Offset       int32  `json:"offset"`
+	Limit        int32  `json:"limit"`
 }
 
 type ListMediaAuditLogsRow struct {
@@ -657,7 +697,13 @@ type ListMediaAuditLogsRow struct {
 // `metadata` est rendu en texte pour rester lisible par l'appelant, qui le
 // décode en JSON ; `actorId` est joint pour afficher l'auteur de l'action.
 func (q *Queries) ListMediaAuditLogs(ctx context.Context, arg ListMediaAuditLogsParams) ([]ListMediaAuditLogsRow, error) {
-	rows, err := q.db.Query(ctx, listMediaAuditLogs, arg.MediaId, arg.Limit)
+	rows, err := q.db.Query(ctx, listMediaAuditLogs,
+		arg.MediaId,
+		arg.ActionPrefix,
+		arg.Query,
+		arg.Offset,
+		arg.Limit,
+	)
 	if err != nil {
 		return nil, err
 	}

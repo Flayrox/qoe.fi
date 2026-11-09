@@ -233,6 +233,15 @@ function formatDate(iso: string | null): string {
   });
 }
 
+const AUDIT_CATEGORIES: Array<{ id: string; label: () => string }> = [
+  { id: 'all', label: () => t`Tout` },
+  { id: 'articles', label: () => t`Articles` },
+  { id: 'team', label: () => t`Équipe` },
+  { id: 'settings', label: () => t`Réglages` },
+  { id: 'invitations', label: () => t`Invitations` },
+  { id: 'api', label: () => t`Clés API` },
+];
+
 const AUDIT_FIELD_LABELS: Record<string, string> = {
   title: 'titre',
   slug: 'permalien',
@@ -283,10 +292,43 @@ function describeAuditEntry(entry: MediaAuditEntry): { summary: string; detail?:
       return { summary: `a modifié l'article « ${title} »`, detail: fieldLabels || undefined };
     case 'media.article_deleted':
       return { summary: `a supprimé l'article « ${title} »` };
-    case 'media.article_transferred_out':
-      return { summary: `a transféré l'article « ${title} » vers une autre publication` };
-    case 'media.article_transferred_in':
-      return { summary: `a reçu l'article « ${title} » depuis une autre publication` };
+    case 'media.article_published':
+      return { summary: `a publié l'article « ${title} »` };
+    case 'media.article_unpublished':
+      return { summary: `a dépublié l'article « ${title} »` };
+    case 'media.article_scheduled': {
+      const at = auditString(md, 'scheduledAt');
+      return {
+        summary: `a programmé l'article « ${title} »`,
+        detail: at ? formatDateTime(at) : undefined,
+      };
+    }
+    case 'media.article_schedule_cancelled':
+      return { summary: `a annulé la programmation de l'article « ${title} »` };
+    case 'media.article_draft_discarded':
+      return { summary: `a abandonné le brouillon de « ${title} »` };
+    case 'media.article_approved': {
+      const comment = auditString(md, 'comment');
+      return { summary: `a approuvé l'article « ${title} »`, detail: comment || undefined };
+    }
+    case 'media.article_rejected': {
+      const comment = auditString(md, 'comment');
+      return { summary: `a rejeté l'article « ${title} »`, detail: comment || undefined };
+    }
+    case 'media.article_transferred_out': {
+      const to = auditString(md, 'toPublicationName');
+      return {
+        summary: `a transféré l'article « ${title} »`,
+        detail: to ? `vers ${to}` : undefined,
+      };
+    }
+    case 'media.article_transferred_in': {
+      const from = auditString(md, 'fromPublicationName');
+      return {
+        summary: `a reçu l'article « ${title} »`,
+        detail: from ? `depuis ${from}` : undefined,
+      };
+    }
     case 'member.role_changed':
       return { summary: "a changé le rôle d'un membre", detail: auditString(md, 'role') };
     case 'member.permissions_changed':
@@ -355,6 +397,11 @@ export function MediaStudioClient({
   const [canViewAudit, setCanViewAudit] = useState(false);
   const [auditEntries, setAuditEntries] = useState<MediaAuditEntry[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
+  const [auditCategory, setAuditCategory] = useState('all');
+  const [auditQuery, setAuditQuery] = useState('');
+  const [auditSearch, setAuditSearch] = useState('');
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [loadingMoreAudit, setLoadingMoreAudit] = useState(false);
 
   const [createName, setCreateName] = useState('');
   const [createSlug, setCreateSlug] = useState('');
@@ -401,18 +448,27 @@ export function MediaStudioClient({
     }
   }, [selectedMediaId, medias, showCreate, loadDetail]);
 
-  // Journal d'activité : chargé à l'ouverture de l'onglet et rechargé quand on
-  // change de média (une seule requête, pas de polling).
+  // Journal d'activité : recherche debouncée puis chargement filtré à
+  // l'ouverture de l'onglet ou au changement de média/filtre.
   const auditMediaId = detail?.id;
+  useEffect(() => {
+    const timer = setTimeout(() => setAuditSearch(auditQuery.trim()), 350);
+    return () => clearTimeout(timer);
+  }, [auditQuery]);
+
   useEffect(() => {
     if (tab !== 'activity' || !auditMediaId) return;
     let cancelled = false;
     setLoadingAudit(true);
-    listMediaAuditLogAction(auditMediaId).then((res) => {
+    listMediaAuditLogAction(auditMediaId, {
+      category: auditCategory,
+      query: auditSearch,
+    }).then((res) => {
       if (cancelled) return;
       setLoadingAudit(false);
       if (res.success) {
         setAuditEntries(res.entries);
+        setAuditTotal(res.total);
       } else {
         toast.error(res.error || t`Erreur de chargement du journal`);
       }
@@ -420,7 +476,24 @@ export function MediaStudioClient({
     return () => {
       cancelled = true;
     };
-  }, [tab, auditMediaId]);
+  }, [tab, auditMediaId, auditCategory, auditSearch]);
+
+  const loadMoreAudit = async () => {
+    if (!auditMediaId || loadingMoreAudit) return;
+    setLoadingMoreAudit(true);
+    const res = await listMediaAuditLogAction(auditMediaId, {
+      category: auditCategory,
+      query: auditSearch,
+      offset: auditEntries.length,
+    });
+    setLoadingMoreAudit(false);
+    if (res.success) {
+      setAuditEntries((prev) => [...prev, ...res.entries]);
+      setAuditTotal(res.total);
+    } else {
+      toast.error(res.error || t`Erreur de chargement du journal`);
+    }
+  };
 
   // Bascule explicite : la sélection ci-dessus ne sert qu'à gérer ce Média.
   // Ouvrir l'espace pose le cookie puis revient au studio pour que la sidebar,
@@ -1428,6 +1501,28 @@ export function MediaStudioClient({
       {/* ── Activité (journal du média) ── */}
       {tab === 'activity' && canViewAudit && (
         <div className="overflow-hidden rounded-xl border border-border/30 bg-card shadow-none">
+          <div className="flex flex-col gap-3 border-b border-border/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap gap-1">
+              {AUDIT_CATEGORIES.map((category) => (
+                <Button
+                  key={category.id}
+                  variant={auditCategory === category.id ? 'soft' : 'ghost'}
+                  size="xs"
+                  onClick={() => setAuditCategory(category.id)}
+                >
+                  {category.label()}
+                </Button>
+              ))}
+            </div>
+            <Input
+              value={auditQuery}
+              onChange={(e) => setAuditQuery(e.target.value)}
+              placeholder={t`Rechercher un membre, une action…`}
+              aria-label={t`Rechercher dans le journal`}
+              className="sm:w-64"
+            />
+          </div>
+
           {loadingAudit ? (
             <div className="flex items-center justify-center gap-2 py-16 text-xs text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -1437,37 +1532,57 @@ export function MediaStudioClient({
             <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
               <History className="h-6 w-6 text-muted-foreground/40 stroke-[1.5]" />
               <p className="text-xs text-muted-foreground">
-                Aucune activité enregistrée pour ce Média.
+                {auditQuery || auditCategory !== 'all'
+                  ? t`Aucune activité ne correspond à ces filtres.`
+                  : t`Aucune activité enregistrée pour ce Média.`}
               </p>
             </div>
           ) : (
-            <ol className="divide-y divide-border/30">
-              {auditEntries.map((entry) => {
-                const actorName = entry.actor?.name || entry.actor?.username || 'Membre supprimé';
-                const description = describeAuditEntry(entry);
-                return (
-                  <li key={entry.id} className="flex gap-3 px-4 py-3">
-                    <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted/60 text-[10px] font-bold uppercase text-muted-foreground">
-                      {actorName.slice(0, 2)}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-foreground">
-                        <span className="font-semibold">{actorName}</span>{' '}
-                        <span className="text-muted-foreground">{description.summary}</span>
-                      </p>
-                      {description.detail && (
-                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                          {description.detail}
+            <>
+              <ol className="divide-y divide-border/30">
+                {auditEntries.map((entry) => {
+                  const actorName = entry.actor?.name || entry.actor?.username || 'Membre supprimé';
+                  const description = describeAuditEntry(entry);
+                  return (
+                    <li key={entry.id} className="flex gap-3 px-4 py-3">
+                      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted/60 text-[10px] font-bold uppercase text-muted-foreground">
+                        {actorName.slice(0, 2)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-foreground">
+                          <span className="font-semibold">{actorName}</span>{' '}
+                          <span className="text-muted-foreground">{description.summary}</span>
                         </p>
-                      )}
-                      <p className="mt-1 text-[11px] tabular-nums text-muted-foreground/70">
-                        {formatDateTime(entry.createdAt)}
-                      </p>
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
+                        {description.detail && (
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                            {description.detail}
+                          </p>
+                        )}
+                        <p className="mt-1 text-[11px] tabular-nums text-muted-foreground/70">
+                          {formatDateTime(entry.createdAt)}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+              <div className="flex items-center justify-between border-t border-border/30 px-4 py-3">
+                <span className="text-[11px] tabular-nums text-muted-foreground">
+                  {auditEntries.length} / {auditTotal}
+                </span>
+                {auditEntries.length < auditTotal && (
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => void loadMoreAudit()}
+                    disabled={loadingMoreAudit}
+                  >
+                    {loadingMoreAudit && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    {t`Charger plus`}
+                  </Button>
+                )}
+              </div>
+            </>
           )}
         </div>
       )}

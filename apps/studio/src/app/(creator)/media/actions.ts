@@ -160,7 +160,7 @@ export async function getMediaByIdAction(mediaId: string) {
 
 /**
  * 📜 Journal d'activité du média (réglages, équipe, articles, transferts).
- * RBAC : media:manage_settings (vérifié côté Go).
+ * RBAC : manage_settings, manage_members ou edit:any (vérifié côté Go).
  */
 export interface MediaAuditEntry {
   id: string;
@@ -175,17 +175,46 @@ export interface MediaAuditEntry {
   } | null;
 }
 
-export async function listMediaAuditLogAction(mediaId: string) {
+export interface MediaAuditPage {
+  entries: MediaAuditEntry[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface MediaAuditQuery {
+  limit?: number;
+  offset?: number;
+  category?: string;
+  query?: string;
+}
+
+export async function listMediaAuditLogAction(mediaId: string, options: MediaAuditQuery = {}) {
   try {
     await getAuthUser();
-    const res = await goFetch<{ entries: MediaAuditEntry[] }>(
-      `/v1/media/${encodeURIComponent(mediaId)}/audit`
+    const params = new URLSearchParams();
+    if (options.limit) params.set('limit', String(options.limit));
+    if (options.offset) params.set('offset', String(options.offset));
+    if (options.category && options.category !== 'all') params.set('category', options.category);
+    if (options.query) params.set('q', options.query);
+    const qs = params.toString();
+    const res = await goFetch<MediaAuditPage>(
+      `/v1/media/${encodeURIComponent(mediaId)}/audit${qs ? `?${qs}` : ''}`
     );
-    return { success: true as const, entries: res.entries ?? [] };
+    return {
+      success: true as const,
+      entries: res.entries ?? [],
+      total: res.total ?? res.entries?.length ?? 0,
+      limit: res.limit ?? options.limit ?? 50,
+      offset: res.offset ?? options.offset ?? 0,
+    };
   } catch (err: unknown) {
     return {
       success: false as const,
       entries: [] as MediaAuditEntry[],
+      total: 0,
+      limit: options.limit ?? 50,
+      offset: options.offset ?? 0,
       error: err instanceof Error ? err.message : 'Erreur de chargement du journal',
     };
   }

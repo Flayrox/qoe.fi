@@ -98,8 +98,31 @@ SELECT l.id::text AS id,
 FROM "MediaAuditLog" l
 LEFT JOIN "User" u ON u.id = l."actorId"
 WHERE l."mediaId" = $1
+  AND (sqlc.arg('actionPrefix')::text = '' OR l.action LIKE sqlc.arg('actionPrefix'))
+  AND (
+    sqlc.arg('query')::text = ''
+    OR l.action ILIKE '%' || sqlc.arg('query') || '%'
+    OR COALESCE(u.name, '') ILIKE '%' || sqlc.arg('query') || '%'
+    OR COALESCE(u.username, '') ILIKE '%' || sqlc.arg('query') || '%'
+    OR COALESCE(l.metadata::text, '') ILIKE '%' || sqlc.arg('query') || '%'
+  )
 ORDER BY l."createdAt" DESC
-LIMIT $2;
+LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
+
+-- name: CountMediaAuditLogs :one
+-- Compte le journal filtré pour paginer sans mentir sur le total.
+SELECT COUNT(*)::int AS total
+FROM "MediaAuditLog" l
+LEFT JOIN "User" u ON u.id = l."actorId"
+WHERE l."mediaId" = $1
+  AND (sqlc.arg('actionPrefix')::text = '' OR l.action LIKE sqlc.arg('actionPrefix'))
+  AND (
+    sqlc.arg('query')::text = ''
+    OR l.action ILIKE '%' || sqlc.arg('query') || '%'
+    OR COALESCE(u.name, '') ILIKE '%' || sqlc.arg('query') || '%'
+    OR COALESCE(u.username, '') ILIKE '%' || sqlc.arg('query') || '%'
+    OR COALESCE(l.metadata::text, '') ILIKE '%' || sqlc.arg('query') || '%'
+  );
 
 -- name: GetUserByEmail :one
 SELECT id::text AS id, email, name, username, "logoUrl", "isCertified"

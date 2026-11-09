@@ -90,6 +90,8 @@ type Querier interface {
 	CountLegalEligibleUsers(ctx context.Context) (CountLegalEligibleUsersRow, error)
 	CountLegalNotices(ctx context.Context) (int64, error)
 	CountMediaApiKeys(ctx context.Context, id string) (int32, error)
+	// Compte le journal filtré pour paginer sans mentir sur le total.
+	CountMediaAuditLogs(ctx context.Context, arg CountMediaAuditLogsParams) (int32, error)
 	CountMediaMembers(ctx context.Context, mediaid string) (int32, error)
 	CountModerationReportsByStatus(ctx context.Context) ([]CountModerationReportsByStatusRow, error)
 	CountNewsletterDeliveriesByIssue(ctx context.Context, issueid string) (CountNewsletterDeliveriesByIssueRow, error)

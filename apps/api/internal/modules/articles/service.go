@@ -774,6 +774,27 @@ func (s *Service) bulkUpdateOne(ctx context.Context, articleID, userID string, i
 			s.syncAttributions(ctx, articleID, uuidString(row.AuthorId), nil, *in.ShowOnPersonalProfile)
 		}
 		s.queueSearchSync(articleID, "upsert")
+
+		// Modification groupée : le journal média garde la trace de chaque
+		// article touché, avec les réglages concernés.
+		bulkFields := make([]string, 0, 4)
+		if in.IsPremium != nil {
+			bulkFields = append(bulkFields, "paywall")
+		}
+		if in.SetCategory {
+			bulkFields = append(bulkFields, "category")
+		}
+		if in.AllowPublicAnnotations != nil || in.AllowComments != nil || in.AllowDownload != nil {
+			bulkFields = append(bulkFields, "options")
+		}
+		if in.ShowOnPersonalProfile != nil {
+			bulkFields = append(bulkFields, "profile")
+		}
+		if len(bulkFields) > 0 {
+			s.auditMedia(ctx, row.PublicationId, userID, "media.article_updated", map[string]any{
+				"articleId": articleID, "title": row.Title, "fields": bulkFields, "bulk": true,
+			})
+		}
 	}
 	if in.Published != nil {
 		if *in.Published {
@@ -1219,6 +1240,17 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 			"articleId": articleID, "title": in.Title, "fields": fields,
 		})
 	}
+	// Une mise à jour peut aussi changer la visibilité sans passer par les
+	// endpoints dédiés : le journal doit le dire explicitement.
+	if effectivePublished && !row.Published {
+		s.auditMedia(ctx, row.PublicationId, userID, "media.article_published", map[string]any{
+			"articleId": articleID, "title": in.Title,
+		})
+	} else if !effectivePublished && row.Published {
+		s.auditMedia(ctx, row.PublicationId, userID, "media.article_unpublished", map[string]any{
+			"articleId": articleID, "title": in.Title,
+		})
+	}
 
 	s.emitArticleLifecycle(queue.TaskArticleUpdated, row, in.Title, in.Slug)
 
@@ -1296,6 +1328,18 @@ func (s *Service) SetStatus(ctx context.Context, articleID, userID, status strin
 			Type: EventScheduled, FromStatus: statusOrDraft(row.Status), ToStatus: "SCHEDULED", ScheduledAt: scheduledAt,
 		})
 	}
+	switch {
+	case published && !row.Published:
+		s.auditMedia(ctx, row.PublicationId, userID, "media.article_published", map[string]any{
+			"articleId": articleID, "title": row.Title,
+		})
+	case status == "SCHEDULED":
+		meta := map[string]any{"articleId": articleID, "title": row.Title}
+		if scheduledAt != nil {
+			meta["scheduledAt"] = scheduledAt.Format(time.RFC3339)
+		}
+		s.auditMedia(ctx, row.PublicationId, userID, "media.article_scheduled", meta)
+	}
 	return nil
 }
 
@@ -1332,6 +1376,9 @@ func (s *Service) Unpublish(ctx context.Context, articleID, userID string) error
 			ArticleID: articleID, PublicationID: row.PublicationId, ActorID: userID,
 			Type: EventUnpublished, FromStatus: statusOrDraft(row.Status), ToStatus: "DRAFT",
 		})
+		s.auditMedia(ctx, row.PublicationId, userID, "media.article_unpublished", map[string]any{
+			"articleId": articleID, "title": row.Title,
+		})
 	}
 	return nil
 }
@@ -1367,6 +1414,9 @@ func (s *Service) Schedule(ctx context.Context, articleID, userID string, schedu
 			ArticleID: articleID, PublicationID: row.PublicationId, ActorID: userID,
 			Type: EventScheduleCancelled, FromStatus: statusOrDraft(row.Status), ToStatus: statusOrDraft(status),
 		})
+		s.auditMedia(ctx, row.PublicationId, userID, "media.article_schedule_cancelled", map[string]any{
+			"articleId": articleID, "title": row.Title,
+		})
 		return nil
 	}
 	if !scheduledAt.After(time.Now()) {
@@ -1400,6 +1450,10 @@ func (s *Service) Schedule(ctx context.Context, articleID, userID string, schedu
 		ArticleID: articleID, PublicationID: row.PublicationId, ActorID: userID,
 		Type: eventType, FromStatus: statusOrDraft(row.Status), ToStatus: "SCHEDULED",
 		ScheduledAt: scheduledAt,
+	})
+	s.auditMedia(ctx, row.PublicationId, userID, "media.article_scheduled", map[string]any{
+		"articleId": articleID, "title": row.Title, "scheduledAt": scheduledAt.Format(time.RFC3339),
+		"rescheduled": wasScheduled,
 	})
 	return nil
 }
@@ -2086,6 +2140,18 @@ func (s *Service) Review(ctx context.Context, articleID, userID string, approve 
 		Metadata:      metaBytes,
 	})
 
+	// Journal média : l'approbation et le rejet sont des actes éditoriaux que
+	// l'équipe doit pouvoir relire, avec le commentaire éventuel.
+	auditAction := "media.article_rejected"
+	if approve {
+		auditAction = "media.article_approved"
+	}
+	auditMeta := map[string]any{"articleId": articleID, "title": row.Title}
+	if comment != "" {
+		auditMeta["comment"] = comment
+	}
+	s.auditMedia(ctx, row.PublicationId, userID, auditAction, auditMeta)
+
 	s.queueSearchSync(articleID, "upsert")
 	if approve && !row.Published {
 		s.emitPublished(ctx, row, true, "", "")
@@ -2113,6 +2179,9 @@ func (s *Service) DiscardDraft(ctx context.Context, articleID, userID string) er
 	if _, err := s.q.DiscardArticleDraft(ctx, articleID); err != nil {
 		return err
 	}
+	s.auditMedia(ctx, row.PublicationId, userID, "media.article_draft_discarded", map[string]any{
+		"articleId": articleID, "title": row.Title,
+	})
 	if row.Published && row.Status == "SUBMITTED" {
 		_, _ = s.q.SetArticleStatus(ctx, db.SetArticleStatusParams{
 			ID: articleID, Status: "PUBLISHED", Published: true,
@@ -2542,7 +2611,11 @@ func (s *Service) TransferPublication(ctx context.Context, userID, articleID str
 		meta := map[string]any{
 			"articleId": articleID, "title": row.Title,
 			"fromPublicationId": row.PublicationId, "toPublicationId": targetPubID,
-			"status": newStatus,
+			"toPublicationName": targetPub.Name,
+			"status":            newStatus,
+		}
+		if srcPub, err := s.q.GetPublicationTypeByID(ctx, row.PublicationId); err == nil {
+			meta["fromPublicationName"] = srcPub.Name
 		}
 		s.auditMedia(ctx, row.PublicationId, userID, "media.article_transferred_out", meta)
 		s.auditMedia(ctx, targetPubID, userID, "media.article_transferred_in", meta)

@@ -1055,7 +1055,10 @@ func (s *Service) DashboardOverview(ctx context.Context, userID, publicationID, 
 	if media {
 		_ = s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "Article" WHERE "publicationId" = $1 AND published = true`, publicationID).Scan(&out.PublishedCount)
 	} else {
-		_ = s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "Article" WHERE "authorId" = $1 AND published = true`, userUUID).Scan(&out.PublishedCount)
+		// Même scope que les cartes et les vues : les articles co-signés
+		// comptent aussi, sinon le compteur contredisait les publications
+		// récentes affichées juste en dessous.
+		_ = s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "Article" a WHERE `+articleScopeSQL(false)+` AND a.published = true`, publicationID, userUUID).Scan(&out.PublishedCount)
 	}
 
 	// Abonnés réseau + payants + LTV (MRR estimé = somme des ltvCents actifs).
