@@ -51,6 +51,7 @@ export function ArticleListRow({
   pinned,
   about,
   canReview,
+  canEditPersonalProfile = true,
   onToggleSelect,
   onOpenAnalytics,
   onTogglePin,
@@ -67,6 +68,8 @@ export function ArticleListRow({
   pinned: boolean;
   about: boolean;
   canReview: boolean;
+  /** Seul l'auteur peut décider de la présence de l'article sur son blog personnel. */
+  canEditPersonalProfile?: boolean;
   onToggleSelect: (id: string) => void;
   onOpenAnalytics: (article: ArticleWithCategory) => void;
   onTogglePin: (article: ArticleWithCategory) => void;
@@ -335,25 +338,27 @@ export function ArticleListRow({
             <ArrowRightLeft className="h-3.5 w-3.5 text-primary" />
             <span>{t`Transférer de publication…`}</span>
           </Button>
-          <Button
-            variant="ghost"
-            size="xs"
-            onClick={(event) => {
-              event.stopPropagation();
-              (
-                event.currentTarget.closest('details') as HTMLDetailsElement | null
-              )?.removeAttribute('open');
-              void handleTogglePersonalProfile();
-            }}
-            className="w-full justify-start gap-2 rounded-lg px-2.5 py-2 text-xs text-foreground"
-          >
-            <UserRound className="h-3.5 w-3.5 text-primary" />
-            <span>
-              {showOnPersonal
-                ? t`Masquer du profil personnel`
-                : t`Afficher sur le profil personnel`}
-            </span>
-          </Button>
+          {canEditPersonalProfile && (
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={(event) => {
+                event.stopPropagation();
+                (
+                  event.currentTarget.closest('details') as HTMLDetailsElement | null
+                )?.removeAttribute('open');
+                void handleTogglePersonalProfile();
+              }}
+              className="w-full justify-start gap-2 rounded-lg px-2.5 py-2 text-xs text-foreground"
+            >
+              <UserRound className="h-3.5 w-3.5 text-primary" />
+              <span>
+                {showOnPersonal
+                  ? t`Masquer du profil personnel`
+                  : t`Afficher sur le profil personnel`}
+              </span>
+            </Button>
+          )}
           <button
             onClick={(event) => {
               event.stopPropagation();

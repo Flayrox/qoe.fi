@@ -255,6 +255,13 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
     return false;
   };
 
+  // Seuls les rôles média autorisés à créer un article peuvent en recevoir un
+  // (un viewer ne peut pas, la cible serait refusée par l'API).
+  const transferWorkspaces = workspaces.filter(
+    (ws) => ws.type === 'PERSONAL' || !ws.role || ['owner', 'editor', 'writer'].includes(ws.role)
+  );
+  const hasTransferTarget = transferWorkspaces.some((ws) => !isWorkspaceCurrent(ws));
+
   const handleTransferClick = async (ws: ArticleWorkspaceOption) => {
     if (!articleId || isTransferring || isWorkspaceCurrent(ws)) return;
     if (onTransferPublication) {
@@ -402,13 +409,13 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
               </div>
             )}
 
-            {articleId && workspaces.length > 1 && (
+            {articleId && hasTransferTarget && (
               <div className="space-y-1.5">
                 <p className="text-[11px] text-muted-foreground">
                   {t`Transférer cet article vers une autre publication en 1 clic :`}
                 </p>
                 <div className="grid grid-cols-1 gap-1.5">
-                  {workspaces.map((ws) => {
+                  {transferWorkspaces.map((ws) => {
                     const current = isWorkspaceCurrent(ws);
                     return (
                       <Button

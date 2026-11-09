@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
+  ArrowRightLeft,
   BookOpen,
   Plus,
   Trash2,
@@ -73,6 +74,7 @@ import { t } from '@lingui/core/macro';
 
 import { ArticleInspectorModal } from '../analytics/components/ArticleInspectorModal';
 import { ArticleBulkSettingsDialog } from './components/article-bulk-settings-dialog';
+import { ArticleBulkTransferDialog } from './components/article-bulk-transfer-dialog';
 import { ArticleListRow } from './components/article-list-row';
 import { ArticleSettingsSheet } from './components/article-settings-sheet';
 import { ArticleDiffModal } from '@/features/editor/components/ArticleDiffModal';
@@ -97,6 +99,8 @@ interface ArticlesClientProps {
   initialTab?: 'articles' | 'categories';
   canReview?: boolean;
   canPublish?: boolean;
+  /** Utilisateur courant : seul l'auteur pilote la visibilité sur son profil personnel. */
+  currentUserId?: string | null;
 }
 
 export function ArticlesClient({
@@ -107,6 +111,7 @@ export function ArticlesClient({
   initialTab = 'articles',
   canReview = false,
   canPublish = false,
+  currentUserId = null,
 }: ArticlesClientProps) {
   const [activeMainTab, setActiveMainTab] = useState<'articles' | 'categories'>(initialTab);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -188,6 +193,7 @@ export function ArticlesClient({
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
   const [settingsArticleId, setSettingsArticleId] = useState<string | null>(null);
   const [bulkSettingsOpen, setBulkSettingsOpen] = useState(false);
+  const [bulkTransferOpen, setBulkTransferOpen] = useState(false);
 
   const router = useRouter();
   const [diffTarget, setDiffTarget] = useState<{
@@ -1271,7 +1277,7 @@ export function ArticlesClient({
             </div>
 
             {/* Sélection & actions groupées */}
-            <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+            <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-border/40 bg-background/95 px-1 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
               <Checkbox
                 size="sm"
                 isSelected={
@@ -1302,6 +1308,10 @@ export function ArticlesClient({
                   >
                     <SlidersHorizontal />
                     {t`Modifier les paramètres`}
+                  </Button>
+                  <Button variant="outline" size="xs" onClick={() => setBulkTransferOpen(true)}>
+                    <ArrowRightLeft />
+                    {t`Transférer…`}
                   </Button>
                   {selectedIds.size === 1 &&
                     (() => {
@@ -1378,6 +1388,9 @@ export function ArticlesClient({
                     }
                     about={isAboutArticle(art, aboutArticleId)}
                     canReview={canReview}
+                    canEditPersonalProfile={Boolean(
+                      currentUserId && art.authorId === currentUserId
+                    )}
                     onToggleSelect={toggleSelected}
                     onOpenAnalytics={(article) =>
                       setInspectingArticle({ id: article.id, slug: article.slug })
@@ -2132,6 +2145,17 @@ export function ArticlesClient({
           await refreshArticles();
         }}
         onRequestConfirm={requestConfirm}
+      />
+
+      <ArticleBulkTransferDialog
+        open={bulkTransferOpen}
+        onOpenChange={setBulkTransferOpen}
+        selectedIds={Array.from(selectedIds)}
+        selectedCount={selectedIds.size}
+        onApplied={async () => {
+          setSelectedIds(new Set());
+          await refreshArticles();
+        }}
       />
 
       <ConfirmActionDialog action={confirmAction} onClose={() => setConfirmAction(null)} />

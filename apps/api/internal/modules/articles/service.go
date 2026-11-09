@@ -604,7 +604,7 @@ func (s *Service) List(ctx context.Context, userID, publicationID, workspaceType
 			ID: r.ID, Title: r.Title, Slug: r.Slug, Published: r.Published,
 			HasUnpublishedChanges: r.HasUnpublishedChanges.Valid && r.HasUnpublishedChanges.Bool,
 			IsPremium:             r.IsPremium, Visibility: string(r.Visibility), ReadingTime: int(r.ReadingTime),
-			Status: r.Status, PublicationID: r.PublicationId,
+			Status: r.Status, PublicationID: r.PublicationId, AuthorID: uuidString(r.AuthorId),
 			AllowPublicAnnotations: r.AllowPublicAnnotations,
 			AllowComments:          r.AllowComments,
 			AllowDownload:          r.AllowDownload,
@@ -740,6 +740,12 @@ func (s *Service) bulkUpdateOne(ctx context.Context, articleID, userID string, i
 	row, _, err := s.authorizeEdit(ctx, articleID, userID, "")
 	if err != nil {
 		return err
+	}
+	// Le cross-post Média → Personnel décide de la présence de l'article sur le
+	// blog personnel de l'auteur : un owner/editor média ne peut pas en décider
+	// à sa place, même s'il peut éditer l'article.
+	if in.ShowOnPersonalProfile != nil && uuidString(row.AuthorId) != userID {
+		return errForbidden
 	}
 	if hasSettings {
 		var categoryID *string
@@ -2376,11 +2382,14 @@ func (s *Service) TransferPublication(ctx context.Context, userID, articleID str
 		targetPubID = m.PublicationID
 	}
 
-	// Vérifier que l'appelant a le droit sur la source (auteur ou OWNER/ADMIN de la source).
+	// Vérifier que l'appelant a le droit sur la source : auteur de l'article, ou
+	// membre média autorisé à éditer les articles des autres (owner/editor).
+	// Une simple appartenance (writer/viewer) ne suffit pas à déplacer l'article
+	// d'un autre auteur.
 	isAuthor := row.AuthorID == userID || uuidString(row.AuthorId) == userID
 	if !isAuthor {
 		srcMC, err := s.resolveMember(ctx, userID, row.PublicationId)
-		if err != nil || (!strings.EqualFold(srcMC.role, "owner") && !strings.EqualFold(srcMC.role, "admin")) {
+		if err != nil || !srcMC.can(permissions.PermEditAny) {
 			return ArticleResponse{}, errForbidden
 		}
 	}
@@ -2441,6 +2450,21 @@ func (s *Service) TransferPublication(ctx context.Context, userID, articleID str
 			newPublished = false
 			newStatus = "SUBMITTED"
 		}
+	} else if targetMC.isMedia && row.Status == "SCHEDULED" && !targetMC.can(permissions.PermPublishAny) {
+		// Une programmation ne doit pas contourner la revue média : sans droit de
+		// publication, l'article atterrit en revue et perd sa date de départ.
+		newPublished = false
+		newStatus = "SUBMITTED"
+	} else if !targetMC.isMedia && row.Status == "SUBMITTED" {
+		// Le profil personnel n'a pas de revue éditoriale : un brouillon soumis
+		// redevient un brouillon classique.
+		newStatus = "DRAFT"
+	}
+
+	// La date de programmation n'a de sens que tant que l'article reste programmé.
+	scheduledAt := row.ScheduledAt
+	if newStatus != "SCHEDULED" {
+		scheduledAt = pgtype.Timestamp{}
 	}
 
 	showOnPersonalProfile := row.ShowOnPersonalProfile
@@ -2456,6 +2480,7 @@ func (s *Service) TransferPublication(ctx context.Context, userID, articleID str
 		Status:                newStatus,
 		Published:             newPublished,
 		ShowOnPersonalProfile: showOnPersonalProfile,
+		ScheduledAt:           scheduledAt,
 	}); err != nil {
 		return ArticleResponse{}, err
 	}

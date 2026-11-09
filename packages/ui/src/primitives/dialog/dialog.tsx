@@ -219,7 +219,7 @@ export function DialogContent({
           data-slot="dialog-content"
           role={role}
           aria-label={ariaLabel}
-          className="outline-hidden flex w-full flex-col gap-3"
+          className="outline-hidden flex min-h-0 w-full flex-1 flex-col gap-3"
         >
           {({ close }) => {
             const handleClose = () => {

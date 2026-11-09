@@ -11,6 +11,8 @@ export interface ArticleWithCategory {
   isPremium: boolean;
   readingTime: number;
   categoryId: string | null;
+  /** Auteur réel de l'article (le cross-post personnel ne lui appartient qu'à lui). */
+  authorId?: string;
   createdAt: Date | string;
   updatedAt: Date | string;
   category: {
