@@ -18,6 +18,7 @@ import {
   Camera,
   Globe,
   Mail,
+  MapPin,
   ExternalLink,
   Trash2,
   Check,
@@ -62,6 +63,19 @@ export const MEDIA_METADATA_CONFIG: MediaMetadataField[] = [
     icon: ExternalLink,
     getValue: (p) => p.supportUrl || '',
     setValue: (val, setCurrent) => setCurrent((prev) => ({ ...prev, supportUrl: val || null })),
+  },
+  {
+    id: 'location',
+    label: 'Localisation',
+    placeholder: 'Paris, France',
+    icon: MapPin,
+    getValue: (p) =>
+      typeof p.siteOptions?.location === 'string' ? (p.siteOptions.location as string) : '',
+    setValue: (val, setCurrent) =>
+      setCurrent((prev) => ({
+        ...prev,
+        siteOptions: { ...(prev.siteOptions ?? {}), location: val || undefined },
+      })),
   },
   {
     id: 'editorialEmail',

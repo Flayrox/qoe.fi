@@ -26,6 +26,7 @@ export interface CommentReplyItem {
   content: string;
   createdAt: Date | string;
   author: CommentAuthor;
+  parentId?: string | null;
 }
 
 export interface CommentItem {
@@ -33,7 +34,31 @@ export interface CommentItem {
   content: string;
   createdAt: Date | string;
   author: CommentAuthor;
+  parentId?: string | null;
   replies: CommentReplyItem[];
+}
+
+/**
+ * L'API renvoie une liste plate ordonnée avec `parentId` ; l'affichage attend
+ * un arbre. Sans cette reconstruction, les réponses remontent en racine au
+ * rechargement (elles disparaissent sous leur commentaire parent).
+ */
+function buildCommentTree(flat: CommentItem[]): CommentItem[] {
+  const nodes = new Map<string, CommentItem>();
+  flat.forEach((comment) => nodes.set(comment.id, { ...comment, replies: [] }));
+
+  const roots: CommentItem[] = [];
+  flat.forEach((comment) => {
+    const node = nodes.get(comment.id);
+    if (!node) return;
+    const parent = comment.parentId ? nodes.get(comment.parentId) : null;
+    if (parent) {
+      parent.replies.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+  return roots;
 }
 
 interface ArticleCommentsSectionProps {
@@ -55,7 +80,7 @@ export function ArticleCommentsSection({
   isBrutalist = false,
 }: ArticleCommentsSectionProps) {
   const { openAuthModal } = useRequireAuth();
-  const [comments, setComments] = useState<CommentItem[]>(initialComments);
+  const [comments, setComments] = useState<CommentItem[]>(() => buildCommentTree(initialComments));
   const [newCommentText, setNewCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [replyingToId, setReplyingToId] = useState<string | null>(null);

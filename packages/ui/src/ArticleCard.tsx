@@ -912,7 +912,6 @@ export function ArticleCard({
             data-article-slug={article.slug}
             data-article-title={article.title}
             data-article-owner={articleOwner}
-            onClick={openArticle}
             className="rounded-full p-1.5 hover:bg-muted transition-colors cursor-pointer"
             title={t`Lire l'article`}
           >

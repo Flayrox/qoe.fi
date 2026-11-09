@@ -4,10 +4,10 @@
 
 Ce repo tient sa mémoire dans des plans vivants versionnés. **Lis-les avant de coder, mets-les à jour après.**
 
-| Fichier                                  | Contenu                                                 |
-| ---------------------------------------- | ------------------------------------------------------- |
-| `apps/admin/ADMIN-PLAN.md`               | Plan vivant de la console admin                         |
-| `apps/studio/EDITOR-PLAN.md`             | Plan vivant de l’éditeur studio                         |
+| Fichier                      | Contenu                         |
+| ---------------------------- | ------------------------------- |
+| `apps/admin/ADMIN-PLAN.md`   | Plan vivant de la console admin |
+| `apps/studio/EDITOR-PLAN.md` | Plan vivant de l’éditeur studio |
 
 ## Architecture en une page
 
@@ -15,6 +15,13 @@ Ce repo tient sa mémoire dans des plans vivants versionnés. **Lis-les avant de
 - **Front** : `apps/core` (lecteur), `apps/studio` (créateur), `apps/admin` (ops), `apps/tenants` (publications multi-tenant), `apps/hi` (vitrine), `apps/mobile` (Expo).
 - **Partagé** : `packages/sdk` (server actions → proxy vers Go), `packages/ui` (design system), `packages/supabase` (auth), `packages/auth`, `packages/flags`, `packages/observability`.
 - **Temps réel** : `apps/collab-server` (Yjs, édition collaborative uniquement).
+
+## Environnement de dev
+
+- **Aucun Docker en local.** L’infra (Postgres, Redis, etc.) tourne sur le VPS Hetzner et la base de dev principale y est hébergée. Ne pas lancer `docker compose` sur le poste.
+- `pnpm dev:vps` démarre la stack locale (Next.js + API Go via launchd + Caddy) branchée sur cette base distante (`DATABASE_URL` → `116.203.158.47:15409`).
+- Domaines locaux : `qoe.test` (core), `studio.qoe.test`, `admin.qoe.test`, `*.qoe.test` (tenants), API sur `api.qoe.test:15407`.
+- Les données de test vivent dans cette base partagée : vérifier leur existence avant d’insérer.
 
 ## Commandes utiles
 

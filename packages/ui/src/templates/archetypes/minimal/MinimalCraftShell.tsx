@@ -238,7 +238,8 @@ export function MinimalCraftShell({
                       name={publication.author?.name || displayName}
                       username={publication.author?.username || publication.subdomain}
                       size={42}
-                      shape={isLogoSquare ? 'squircle' : 'circle'}
+                      type={publication.author?.type}
+                      shape={isLogoSquare ? 'squircle' : undefined}
                       className="border border-border/50 shadow-2xs"
                     />
                   </a>
@@ -484,7 +485,7 @@ export function MinimalCraftShell({
           <main
             className={cn(
               'relative z-10 transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]',
-              isSidebarOpen && 'sm:translate-x-[240px] md:translate-x-[280px]'
+              isSidebarOpen ? 'sm:translate-x-[240px] md:translate-x-[280px]' : 'translate-x-0'
             )}
           >
             {activeCategory && !isArticleMode && (
