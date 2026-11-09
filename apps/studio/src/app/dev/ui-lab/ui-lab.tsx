@@ -27,6 +27,7 @@ import { SidebarSpecimen } from './specimens/18-sidebar';
 import { SocialCardsSpecimen } from './specimens/19-social-cards';
 import { AuthSpecimen } from './specimens/20-auth';
 import { ModalsSpecimen } from './specimens/21-modals';
+import { ImageEditorSpecimen } from './specimens/22-image-editor';
 
 const SPECIMENS = [
   {
@@ -296,6 +297,17 @@ const SPECIMENS = [
     notes:
       'Aucune action n’est envoyée : signaler et s’abonner appellent de vraies Server Actions. Les quatre modales s’ouvrent par un bouton et sont fermées au repos.',
     Component: ModalsSpecimen,
+  },
+  {
+    id: '22-image-editor',
+    index: '22',
+    title: 'Éditeur d’image — un modal, tous les formats',
+    question:
+      'Un logo carré, une bannière 21:9 et une couverture d’article 16:9 demandent-ils trois écrans différents, ou un seul geste qui verrouille le format et laisse le cadrage libre ?',
+    sources: ['packages/ui/src/ui/ImageEditorDialog.tsx', 'packages/ui/src/ui/ImageUploader.tsx'],
+    notes:
+      'Le modal est monté sur de vrais assets SVG locaux. Le bouton « Appliquer » ne fait aucun appel réseau : il produit un fichier et l’affiche dans le spécimen.',
+    Component: ImageEditorSpecimen,
   },
 ];
 

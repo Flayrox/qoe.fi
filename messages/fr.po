@@ -718,6 +718,9 @@ msgstr "Afficher sur le profil personnel"
 #~ msgid "Afficher uniquement les annotations officielles de l'auteur"
 #~ msgstr "Afficher uniquement les annotations officielles de l'auteur"
 
+msgid "Agrandir"
+msgstr "Agrandir"
+
 msgid "Aide & recours"
 msgstr "Aide & recours"
 
@@ -816,6 +819,9 @@ msgstr "Ajoutez vos notes et réflexions personnelles sur vos citations pour les
 
 msgid "Ajuste la taille de lecture dans l’application."
 msgstr "Ajuste la taille de lecture dans l’application."
+
+msgid "Ajustez le cadrage au format 21:9 avant de remplacer l’image."
+msgstr "Ajustez le cadrage au format 21:9 avant de remplacer l’image."
 
 msgid "Alertes Email"
 msgstr "Alertes Email"
@@ -988,6 +994,9 @@ msgstr "Aperçu de la lecture"
 
 #~ msgid "Aperçu du nouvel emplacement"
 #~ msgstr "Aperçu du nouvel emplacement"
+
+msgid "Aperçu du recadrage"
+msgstr "Aperçu du recadrage"
 
 #~ msgid "Aperçu du résultat Google"
 #~ msgstr "Aperçu du résultat Google"
@@ -1545,6 +1554,9 @@ msgstr "Calendrier des écrits"
 msgid "Canal de diffusion"
 msgstr "Canal de diffusion"
 
+msgid "Canvas indisponible."
+msgstr "Canvas indisponible."
+
 msgid "caractères"
 msgstr "caractères"
 
@@ -1769,6 +1781,12 @@ msgstr "Choisissez la publication de destination. Les articles déjà publiés d
 
 msgid "Choisissez la teinte de l’interface (clair ou sombre)."
 msgstr "Choisissez la teinte de l’interface (clair ou sombre)."
+
+msgid "Choisissez le format, ajustez le cadrage et vérifiez l’aperçu avant de confirmer."
+msgstr "Choisissez le format, ajustez le cadrage et vérifiez l’aperçu avant de confirmer."
+
+msgid "Choisissez le format, ajustez le cadrage, puis vérifiez l’aperçu avant d’envoyer."
+msgstr "Choisissez le format, ajustez le cadrage, puis vérifiez l’aperçu avant d’envoyer."
 
 msgid "Choisissez si votre identité apparaît dans les listes de personnes ayant aimé une pensée."
 msgstr "Choisissez si votre identité apparaît dans les listes de personnes ayant aimé une pensée."
@@ -2010,8 +2028,8 @@ msgstr "Configurez le contenu en base de données de cette section."
 msgid "Confirmation"
 msgstr "Confirmation"
 
-msgid "Confirmer"
-msgstr "Confirmer"
+#~ msgid "Confirmer"
+#~ msgstr "Confirmer"
 
 msgid "Confirmer l'abonnement"
 msgstr "Confirmer l'abonnement"
@@ -2181,6 +2199,9 @@ msgstr "Couleur par défaut"
 
 msgid "Courte description thématique..."
 msgstr "Courte description thématique..."
+
+msgid "Couverture"
+msgstr "Couverture"
 
 msgid "Couverture de l'article"
 msgstr "Couverture de l'article"
@@ -2713,8 +2734,8 @@ msgstr "Échec de l'annulation."
 msgid "Échec de l'approbation."
 msgstr "Échec de l'approbation."
 
-msgid "Échec de l’encodage de l’image"
-msgstr "Échec de l’encodage de l’image"
+#~ msgid "Échec de l’encodage de l’image"
+#~ msgstr "Échec de l’encodage de l’image"
 
 msgid "Échec de l'enregistrement"
 msgstr "Échec de l'enregistrement"
@@ -2878,8 +2899,11 @@ msgstr "Éditer"
 msgid "Éditer l'article"
 msgstr "Éditer l'article"
 
-msgid "Éditer l'image"
-msgstr "Éditer l'image"
+#~ msgid "Éditer l'image"
+#~ msgstr "Éditer l'image"
+
+msgid "Éditer l’image"
+msgstr "Éditer l’image"
 
 msgid "Éditer le profil"
 msgstr "Éditer le profil"
@@ -3519,8 +3543,8 @@ msgstr "Flux encombré de recommandations d'autres auteurs, popups"
 msgid "Format"
 msgstr "Format"
 
-msgid "Format de recadrage"
-msgstr "Format de recadrage"
+#~ msgid "Format de recadrage"
+#~ msgstr "Format de recadrage"
 
 #~ msgid "Formats supportés : Substack subscribers.csv, Beehiiv exports, Ghost CSV"
 #~ msgstr "Formats supportés : Substack subscribers.csv, Beehiiv exports, Ghost CSV"
@@ -3590,6 +3614,9 @@ msgstr "Glisser pour déplacer"
 
 msgid "Glissez et déposez une catégorie pour la convertir en sous-catégorie."
 msgstr "Glissez et déposez une catégorie pour la convertir en sous-catégorie."
+
+msgid "Glissez l’image pour la repositionner"
+msgstr "Glissez l’image pour la repositionner"
 
 #~ msgid "Glissez-déposez à la souris pour convertir une catégorie en sous-catégorie ou réorganiser."
 #~ msgstr "Glissez-déposez à la souris pour convertir une catégorie en sous-catégorie ou réorganiser."
@@ -3740,6 +3767,9 @@ msgstr "Illimité"
 msgid "Ils écrivent sur qoefi"
 msgstr "Ils écrivent sur qoefi"
 
+msgid "Image"
+msgstr "Image"
+
 msgid "Image précédente (Flèche gauche)"
 msgstr "Image précédente (Flèche gauche)"
 
@@ -3778,6 +3808,9 @@ msgstr "Impossible d'ajouter la recommandation."
 
 msgid "Impossible d’annuler la demande."
 msgstr "Impossible d’annuler la demande."
+
+msgid "Impossible d’encoder l’image."
+msgstr "Impossible d’encoder l’image."
 
 msgid "Impossible d’enregistrer ce réglage."
 msgstr "Impossible d’enregistrer ce réglage."
@@ -3845,6 +3878,9 @@ msgstr "Impossible de démarrer la vérification."
 msgid "Impossible de gérer ce mot masqué."
 msgstr "Impossible de gérer ce mot masqué."
 
+msgid "Impossible de lire l’image."
+msgstr "Impossible de lire l’image."
+
 msgid "Impossible de modifier l'épinglage."
 msgstr "Impossible de modifier l'épinglage."
 
@@ -3859,6 +3895,9 @@ msgstr "Impossible de modifier le masquage de la réponse."
 
 msgid "Impossible de modifier le masquage."
 msgstr "Impossible de modifier le masquage."
+
+msgid "Impossible de préparer cette image."
+msgstr "Impossible de préparer cette image."
 
 msgid "Impossible de publier le fil (données de publication manquantes)."
 msgstr "Impossible de publier le fil (données de publication manquantes)."
@@ -3884,8 +3923,8 @@ msgstr "Impossible de supprimer le surlignage"
 msgid "Impossible de traiter cette demande."
 msgstr "Impossible de traiter cette demande."
 
-msgid "Impossible de traiter l’image."
-msgstr "Impossible de traiter l’image."
+#~ msgid "Impossible de traiter l’image."
+#~ msgstr "Impossible de traiter l’image."
 
 #~ msgid "Indexation Google autorisée"
 #~ msgstr "Indexation Google autorisée"
@@ -4028,6 +4067,9 @@ msgstr "L'ancien secret est désormais révoqué. Copiez cette nouvelle clé sec
 
 #~ msgid "L'ancienne clé est désormais invalide. Copiez cette nouvelle clé secrète dès maintenant : elle ne sera plus jamais réaffichée."
 #~ msgstr "L'ancienne clé est désormais invalide. Copiez cette nouvelle clé secrète dès maintenant : elle ne sera plus jamais réaffichée."
+
+msgid "L’aperçu est rond ; le fichier reste carré et détouré par le CSS."
+msgstr "L’aperçu est rond ; le fichier reste carré et détouré par le CSS."
 
 msgid "L'architecture du silence"
 msgstr "L'architecture du silence"
@@ -4204,11 +4246,17 @@ msgstr "le créateur"
 msgid "Le créateur a désactivé les annotations publiques sur cet écrit."
 msgstr "Le créateur a désactivé les annotations publiques sur cet écrit."
 
+msgid "Le fichier d’origine n’est pas modifié."
+msgstr "Le fichier d’origine n’est pas modifié."
+
 #~ msgid "Le fichier doit être une image valide."
 #~ msgstr "Le fichier doit être une image valide."
 
 msgid "Le fichier doit être une image."
 msgstr "Le fichier doit être une image."
+
+msgid "Le fichier est ré-encodé sans métadonnées."
+msgstr "Le fichier est ré-encodé sans métadonnées."
 
 msgid "Le journalisme d'enquête à l'ère du numérique"
 msgstr "Le journalisme d'enquête à l'ère du numérique"
@@ -4473,6 +4521,9 @@ msgstr "Listes"
 
 msgid "Localisation / Ville"
 msgstr "Localisation / Ville"
+
+msgid "Logo"
+msgstr "Logo"
 
 msgid "Logo d'en-tête"
 msgstr "Logo d'en-tête"
@@ -5493,6 +5544,12 @@ msgstr "Photo de profil"
 msgid "Pied de page (Footer)"
 msgstr "Pied de page (Footer)"
 
+msgid "Pivoter à droite"
+msgstr "Pivoter à droite"
+
+msgid "Pivoter à gauche"
+msgstr "Pivoter à gauche"
+
 msgid "Plan du site"
 msgstr "Plan du site"
 
@@ -5624,6 +5681,9 @@ msgstr "Prenez la plume pour donner corps à vos pensées."
 
 msgid "Préparation de la publication du fil..."
 msgstr "Préparation de la publication du fil..."
+
+msgid "Préparation…"
+msgstr "Préparation…"
 
 msgid "Près de 0% (Soutien direct via Wallet, frais de réseau uniquement)"
 msgstr "Près de 0% (Soutien direct via Wallet, frais de réseau uniquement)"
@@ -5912,8 +5972,11 @@ msgstr "Réagir à cette annotation..."
 msgid "Recadrer l’image"
 msgstr "Recadrer l’image"
 
-msgid "Recadrez, zoomez et faites pivoter votre image."
-msgstr "Recadrez, zoomez et faites pivoter votre image."
+msgid "Recadrer la couverture"
+msgstr "Recadrer la couverture"
+
+#~ msgid "Recadrez, zoomez et faites pivoter votre image."
+#~ msgstr "Recadrez, zoomez et faites pivoter votre image."
 
 msgid "Recentrer le texte sur la lecture en cours"
 msgstr "Recentrer le texte sur la lecture en cours"
@@ -7447,6 +7510,9 @@ msgstr "Utilisations"
 msgid "Utilisations max"
 msgstr "Utilisations max"
 
+msgid "Utiliser cette image"
+msgstr "Utiliser cette image"
+
 #~ msgid "Utiliser mon compte Qoe.fi"
 #~ msgstr "Utiliser mon compte Qoe.fi"
 
@@ -7817,6 +7883,9 @@ msgstr "Webhooks temps réel (publication, abonnement)"
 
 msgid "Zéro VC. Zéro GAFAM. Zéro compromis."
 msgstr "Zéro VC. Zéro GAFAM. Zéro compromis."
+
+msgid "Zone de recadrage. Utilisez les flèches pour déplacer l’image."
+msgstr "Zone de recadrage. Utilisez les flèches pour déplacer l’image."
 
 msgid "Zone sensible"
 msgstr "Zone sensible"
