@@ -20,7 +20,11 @@ import { TextSelectionPopover } from './TextSelectionPopover';
 import { AnnotationSideDrawer } from './AnnotationSideDrawer';
 import { CanonicalArticleBody } from './CanonicalArticleBody';
 import { AnnotationFilterPill } from './AnnotationFilterPill';
-import { findInDocText, type CanonicalDocument } from './canonical-document';
+import {
+  findInDocText,
+  collectCanonicalAnnotations,
+  type CanonicalDocument,
+} from './canonical-document';
 import { findQuoteOccurrence } from './quote-anchor';
 import { toast } from '@qoe/ui/toast';
 import { Button } from '../primitives/button/button';
@@ -704,6 +708,18 @@ export function TextHighlighter({
 
     // Gather all annotations in the article
     const rawList: AnnotationItem[] = [];
+
+    // 1. Spans officiels issus du document canonique s'il existe
+    if (documentRef) {
+      const canonicalAnnots = collectCanonicalAnnotations(documentRef, allPublic, creatorName);
+      canonicalAnnots.forEach((ca) => {
+        if (!rawList.some((a) => a.id === ca.id)) {
+          rawList.push(ca);
+        }
+      });
+    }
+
+    // 2. Marques dans le DOM (#containerId mark[data-highlight-id])
     const allMarks = document.querySelectorAll(`#${containerId} mark[data-highlight-id]`);
     allMarks.forEach((m) => {
       const hId = m.getAttribute('data-highlight-id');
@@ -732,7 +748,37 @@ export function TextHighlighter({
           // Le profil réel prime : sinon l'avatar et le nom de l'auteur
           // étaient remplacés par ceux du lecteur courant.
           reader: prvMatch.reader || defaultReader,
+          canonicalStart: prvMatch.canonicalStart,
+          canonicalEnd: prvMatch.canonicalEnd,
         });
+        return;
+      }
+
+      // 3. Marque officielle HTML (mode hérité DOM) ayant une note
+      const htmlNote = m.getAttribute('data-annotation-note');
+      if (htmlNote && !rawList.some((a) => a.id === hId)) {
+        rawList.push({
+          id: hId,
+          text: m.textContent || '',
+          note: htmlNote,
+          isPublic: true,
+          isOfficial: true,
+          upvotesCount: 0,
+          createdAt: new Date().toISOString(),
+          reader: { id: 'creator', name: creatorName, username: 'creator', logoUrl: null },
+        });
+      }
+    });
+
+    // 4. Aussi inclure tous les allPublic officiels ou publics selon le mode de filtre
+    allPublic.forEach((pub) => {
+      if (!rawList.some((a) => a.id === pub.id)) {
+        if (filterMode === 'official' && !pub.isOfficial) return;
+        if (filterMode === 'mine') {
+          const isMine = currentUserId ? pub.reader?.id === currentUserId : false;
+          if (!isMine) return;
+        }
+        rawList.push(pub);
       }
     });
 

@@ -169,3 +169,55 @@ export function findInDocText(
   if (found === -1) return null;
   return { start: found, end: found + trimmed.length };
 }
+
+/**
+ * Rassemble toutes les annotations officielles (auteur) présentes dans un
+ * document canonique. Associe les spans annotés à un item allPublic existant
+ * s'il existe (même texte), ou produit une annotation synthétique.
+ */
+export function collectCanonicalAnnotations(
+  doc: CanonicalDocument,
+  allPublic: AnnotationItem[],
+  creatorName: string
+): AnnotationItem[] {
+  const result: AnnotationItem[] = [];
+  const usedPublic = new Set<string>();
+
+  doc.blocks.forEach((block, blockIdx) => {
+    const win = segmentWindow(doc, blockIdx, 0);
+    const blockText = block.text ?? '';
+    for (const sp of block.spans ?? []) {
+      const text = blockText.slice(sp.start, sp.end);
+      if (!text) continue;
+      const matched = allPublic.find(
+        (p) => p.isOfficial && p.text === text && !usedPublic.has(p.id)
+      );
+      if (matched) {
+        usedPublic.add(matched.id);
+        if (!result.some((a) => a.id === matched.id)) {
+          result.push({
+            ...matched,
+            canonicalStart: matched.canonicalStart ?? (win ? win.start + sp.start : undefined),
+            canonicalEnd: matched.canonicalEnd ?? (win ? win.start + sp.end : undefined),
+          });
+        }
+      } else {
+        const synth: AnnotationItem = {
+          id: `official-html-mark-${blockIdx}-${sp.start}`,
+          text,
+          note: sp.note ?? null,
+          isPublic: true,
+          isOfficial: true,
+          upvotesCount: 0,
+          createdAt: new Date().toISOString(),
+          reader: { id: 'creator', name: creatorName, username: 'creator', logoUrl: null },
+          canonicalStart: win ? win.start + sp.start : undefined,
+          canonicalEnd: win ? win.start + sp.end : undefined,
+        };
+        result.push(synth);
+      }
+    }
+  });
+
+  return result;
+}
