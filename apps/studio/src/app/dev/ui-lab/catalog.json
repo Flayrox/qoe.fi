@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-09T12:29:12.091Z",
+  "generatedAt": "2026-11-09T12:40:16.021Z",
   "total": 396,
   "signals": {
     "primitivesNeverImported": 5,
@@ -367,14 +367,14 @@
         {
           "name": "ImageEditorDialog",
           "path": "packages/ui/src/ui/ImageEditorDialog.tsx",
-          "lines": 683,
+          "lines": 667,
           "source": "ui",
-          "usages": 3
+          "usages": 5
         },
         {
           "name": "ImageUploader",
           "path": "packages/ui/src/ui/ImageUploader.tsx",
-          "lines": 301,
+          "lines": 302,
           "source": "ui",
           "usages": 6
         },
@@ -1791,7 +1791,7 @@
         {
           "name": "Editor",
           "path": "apps/studio/src/features/editor/components/Editor.tsx",
-          "lines": 2052,
+          "lines": 2139,
           "source": "studio",
           "usages": null
         },
@@ -2015,7 +2015,7 @@
         {
           "name": "MediaProfilePreviewEditor",
           "path": "apps/studio/src/features/settings/components/MediaProfilePreviewEditor.tsx",
-          "lines": 464,
+          "lines": 460,
           "source": "studio",
           "usages": null
         },
