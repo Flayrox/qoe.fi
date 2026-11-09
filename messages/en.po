@@ -2571,6 +2571,9 @@ msgstr "Design & SEO"
 #~ msgid "Design du Média"
 #~ msgstr "Media Design"
 
+msgid "Désimbriquer l'élément"
+msgstr ""
+
 msgid "Désinformation ou propos trompeurs"
 msgstr "Misinformation or misleading content"
 
@@ -3733,6 +3736,9 @@ msgstr "Image cropped successfully."
 
 msgid "Image suivante (Flèche droite)"
 msgstr "Next image (Right arrow)"
+
+msgid "Imbriquer l'élément"
+msgstr ""
 
 msgid "Import d'archives (RSS, JSON, CSV)"
 msgstr "Archive import (RSS, JSON, CSV)"
