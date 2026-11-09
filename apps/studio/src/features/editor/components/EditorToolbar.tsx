@@ -324,7 +324,6 @@ export function EditorToolbar({
               onClick={() => editor.chain().focus().toggleParagraphIndent().run()}
               icon={<IndentIncrease className="h-3.5 w-3.5 stroke-2" />}
               label={t`Alinéa de première ligne`}
-              shortcut="Tab"
               disabled={!state.isParagraph}
             />
             <ToolbarButton
