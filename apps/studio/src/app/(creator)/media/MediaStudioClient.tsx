@@ -1785,6 +1785,7 @@ function MediaSettingsForm({
               }
               aspect={21 / 9}
               shape="banner"
+              maxDimension={1600}
             />
           </div>
         </div>

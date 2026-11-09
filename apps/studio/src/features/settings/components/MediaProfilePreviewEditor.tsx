@@ -25,6 +25,11 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
+import {
+  ImageEditorDialog,
+  type ImageEditorPreset,
+  type ImageEditorResult,
+} from '@qoe/ui/ui/ImageEditorDialog';
 import { Badge } from '@qoe/ui/badge';
 import { Button } from '@qoe/ui/button';
 import { Input, Textarea } from '@qoe/ui/input';
@@ -83,26 +88,56 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
   const logoInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [pendingMediaImage, setPendingMediaImage] = useState<{
+    kind: 'banner' | 'logo';
+    file: File;
+    src: string;
+  } | null>(null);
 
-  // Upload manuel de la bannière
-  const handleBannerFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const openImageEditor = (file: File | undefined, kind: 'banner' | 'logo') => {
     if (!file) return;
-    setIsUploadingBanner(true);
-    try {
-      const url = await uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.banners);
-      setCurrent((prev) => ({ ...prev, headerImageUrl: url }));
-    } catch (err) {
-      console.error('Erreur upload bannière', err);
-    } finally {
-      setIsUploadingBanner(false);
-    }
+    const src = URL.createObjectURL(file);
+    setPendingMediaImage((current) => {
+      if (current) URL.revokeObjectURL(current.src);
+      return { kind, file, src };
+    });
   };
 
-  // Upload manuel du logo
-  const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const closeImageEditor = () => {
+    setPendingMediaImage((current) => {
+      if (current) URL.revokeObjectURL(current.src);
+      return null;
+    });
+  };
+
+  const handleBannerFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    openImageEditor(e.target.files?.[0], 'banner');
+    e.target.value = '';
+  };
+
+  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    openImageEditor(e.target.files?.[0], 'logo');
+    e.target.value = '';
+  };
+
+  const handleApplyMediaImage = async ({ file }: ImageEditorResult) => {
+    const kind = pendingMediaImage?.kind;
+    if (!kind) return;
+    closeImageEditor();
+
+    if (kind === 'banner') {
+      setIsUploadingBanner(true);
+      try {
+        const url = await uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.banners);
+        setCurrent((prev) => ({ ...prev, headerImageUrl: url }));
+      } catch (err) {
+        console.error('Erreur upload bannière', err);
+      } finally {
+        setIsUploadingBanner(false);
+      }
+      return;
+    }
+
     setIsUploadingLogo(true);
     try {
       const url = await uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.avatars);
@@ -113,6 +148,29 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
       setIsUploadingLogo(false);
     }
   };
+
+  const mediaPresets: ImageEditorPreset[] =
+    pendingMediaImage?.kind === 'banner'
+      ? [
+          {
+            id: 'banner',
+            label: 'Bannière',
+            aspect: 21 / 9,
+            width: 1600,
+            height: 686,
+            shape: 'rect',
+          },
+        ]
+      : [
+          {
+            id: 'logo',
+            label: 'Logo',
+            aspect: 1,
+            width: 512,
+            height: 512,
+            shape: 'circle',
+          },
+        ];
 
   const accentColor = current.accentColor || '#EE4B2B';
   const mediaSlug = current.subdomain || current.username || 'media';
@@ -382,6 +440,20 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
           </div>
         </div>
       </div>
+
+      <ImageEditorDialog
+        open={Boolean(pendingMediaImage)}
+        onOpenChange={(open) => {
+          if (!open) closeImageEditor();
+        }}
+        src={pendingMediaImage?.src ?? null}
+        fileName={pendingMediaImage?.file.name}
+        presets={mediaPresets}
+        initialPresetId={pendingMediaImage?.kind === 'banner' ? 'banner' : 'logo'}
+        title={pendingMediaImage?.kind === 'banner' ? 'Recadrer la bannière' : 'Recadrer le logo'}
+        description="Ajustez le cadrage avant de remplacer l’image du média."
+        onApply={handleApplyMediaImage}
+      />
     </div>
   );
 }

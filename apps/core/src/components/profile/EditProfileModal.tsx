@@ -209,6 +209,7 @@ export function EditProfileModal({
                 upload={(file) => uploadImageToRoute(file, '/api/upload', IMAGE_FOLDERS.banners)}
                 aspect={21 / 9}
                 shape="banner"
+                maxDimension={1600}
                 label={t`Bannière`}
               />
             </div>
