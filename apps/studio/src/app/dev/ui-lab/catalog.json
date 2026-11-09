@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-09T13:02:35.139Z",
+  "generatedAt": "2026-11-09T13:11:26.303Z",
   "total": 396,
   "signals": {
     "primitivesNeverImported": 5,
@@ -367,7 +367,7 @@
         {
           "name": "ImageEditorDialog",
           "path": "packages/ui/src/ui/ImageEditorDialog.tsx",
-          "lines": 721,
+          "lines": 709,
           "source": "ui",
           "usages": 5
         },

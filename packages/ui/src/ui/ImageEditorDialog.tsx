@@ -21,8 +21,6 @@
 import * as React from 'react';
 import Cropper, { type Area, type MediaSize } from 'react-easy-crop';
 import {
-  Check,
-  Grid3X3,
   Image as ImageIcon,
   Loader2,
   Move,
@@ -41,6 +39,8 @@ import {
   DialogTitle,
 } from '../primitives/dialog/dialog';
 import { Button } from '../primitives/button/button';
+import { Select } from '../primitives/select/select';
+import { Switch } from '../primitives/switch/switch';
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
@@ -430,10 +430,7 @@ export function ImageEditorDialog({
           <div className="min-w-0 p-3 sm:p-4">
             <div
               className="relative w-full overflow-hidden rounded-lg border border-border/50 bg-muted/35"
-              style={{
-                aspectRatio: activePreset.aspect,
-                maxHeight: 'min(46vh, 380px)',
-              }}
+              style={{ height: 'clamp(240px, 38vh, 340px)' }}
               tabIndex={0}
               role="group"
               aria-label={t`Zone de recadrage. Utilisez les flèches pour déplacer l’image, la molette pour zoomer.`}
@@ -476,20 +473,6 @@ export function ImageEditorDialog({
                   {formatAspect(activePreset.aspect)}
                 </span>
               </div>
-
-              <Button
-                type="button"
-                variant={showGrid ? 'soft' : 'ghost'}
-                tone={showGrid ? 'brand' : 'neutral'}
-                size="xs"
-                shape="icon"
-                className="absolute top-2 right-2 bg-background/80 backdrop-blur-xs"
-                aria-label={showGrid ? t`Masquer la grille` : t`Afficher la grille`}
-                aria-pressed={showGrid}
-                onClick={() => setShowGrid((value) => !value)}
-              >
-                <Grid3X3 className="size-3.5" />
-              </Button>
 
               <div className="pointer-events-none absolute bottom-2 left-2 flex items-center gap-1 rounded-md bg-background/80 px-2 py-1 text-[10px] text-muted-foreground backdrop-blur-xs">
                 <Move className="size-3" />
@@ -586,38 +569,46 @@ export function ImageEditorDialog({
                     {t`Format`}
                   </p>
                   <span className="font-mono text-[9px] text-muted-foreground">
-                    {formatAspect(activePreset.aspect)}
+                    {activePreset.width} × {activePreset.height}
                   </span>
                 </div>
-                <div className="mt-1.5 grid grid-cols-2 gap-1">
-                  {safePresets.map((preset) => {
-                    const selected = preset.id === activePreset.id;
-                    return (
-                      <Button
-                        key={preset.id}
-                        type="button"
-                        variant={selected ? 'soft' : 'ghost'}
-                        tone={selected ? 'brand' : 'neutral'}
-                        size="sm"
-                        className={cn(
-                          'h-auto min-h-9 flex-col items-start gap-0.5 px-2 py-1.5 text-left',
-                          selected && 'ring-1 ring-primary/25'
-                        )}
-                        aria-pressed={selected}
-                        onClick={() => selectPreset(preset)}
-                      >
-                        <span className="flex w-full items-center gap-1 text-[10.5px] font-medium">
-                          <span className="truncate">{preset.label}</span>
-                          {selected && <Check className="ml-auto size-2.5 shrink-0" />}
-                        </span>
-                        <span className="block w-full truncate font-mono text-[9px] font-normal text-muted-foreground">
-                          {formatAspect(preset.aspect)} · {preset.width} × {preset.height}
-                        </span>
-                      </Button>
-                    );
-                  })}
-                </div>
+                {safePresets.length > 1 ? (
+                  <Select
+                    label={t`Format`}
+                    hideLabel
+                    size="sm"
+                    className="mt-1.5"
+                    value={activePreset.id}
+                    options={safePresets.map((preset) => ({
+                      id: preset.id,
+                      label: formatAspect(preset.aspect),
+                      description: `${preset.label} · ${preset.width} × ${preset.height}`,
+                    }))}
+                    onValueChange={(nextId) => {
+                      const next = safePresets.find((preset) => preset.id === nextId);
+                      if (next) selectPreset(next);
+                    }}
+                  />
+                ) : (
+                  <div className="mt-1.5 flex items-center justify-between rounded-control border border-border/50 bg-muted/20 px-2.5 py-2">
+                    <span className="font-mono text-xs font-medium">
+                      {formatAspect(activePreset.aspect)}
+                    </span>
+                    <span className="font-mono text-[10px] text-muted-foreground">
+                      {activePreset.width} × {activePreset.height}
+                    </span>
+                  </div>
+                )}
               </section>
+
+              <Switch
+                size="sm"
+                label={t`Grille`}
+                aria-label={t`Afficher la grille`}
+                isSelected={showGrid}
+                onChange={setShowGrid}
+                className="items-center rounded-control border border-border/40 bg-muted/20 px-2.5 py-1.5"
+              />
 
               <section>
                 <div className="flex items-center justify-between gap-2">
@@ -627,15 +618,12 @@ export function ImageEditorDialog({
                   <span className="font-mono text-[9px] text-muted-foreground">WebP</span>
                 </div>
                 <div className="mt-1.5 flex items-center gap-2.5">
-                  <div
-                    className="relative w-[72px] shrink-0 overflow-hidden rounded-md border border-border/50 bg-muted/30"
-                    style={{ aspectRatio: activePreset.aspect }}
-                  >
+                  <div className="relative size-[72px] shrink-0 overflow-hidden rounded-md border border-border/50 bg-muted/30">
                     {previewUrl ? (
                       <img
                         src={previewUrl}
                         alt={t`Aperçu du recadrage`}
-                        className={cn('size-full object-cover', previewShape)}
+                        className={cn('size-full object-contain', previewShape)}
                       />
                     ) : (
                       <div className="flex size-full items-center justify-center text-muted-foreground">

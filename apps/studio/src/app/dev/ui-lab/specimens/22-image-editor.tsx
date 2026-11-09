@@ -139,7 +139,7 @@ export function ImageEditorSpecimen() {
       <Variant
         label="Un modal, cinq destinations"
         kind="candidat"
-        hint="Le format est une décision de destination, pas un réglage caché : le cadre se verrouille sur 1:1, 21:9, 16:9, 4:5 ou 4:3. Le stage reste la pièce principale ; les formats et l’aperçu final tiennent dans une colonne étroite. Molette et pincer zooment, le clavier déplace et pivote."
+        hint="Le format est une décision de destination, pas un réglage caché : le ratio se choisit dans un sélecteur unique (1:1, 21:9, 16:9, 4:5 ou 4:3), le stage garde sa taille, et la grille est un switch. Molette et pincer zooment, le clavier déplace et pivote."
       >
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
           <div className="min-w-0">
@@ -247,9 +247,10 @@ export function ImageEditorSpecimen() {
           items={[
             'Le cadrage est verrouillé sur le format de destination : aucun rendu déformé possible',
             'Les dimensions de sortie sont celles du preset, pas celles du fichier d’origine',
+            'Le stage garde la même taille quand le ratio change : le crop s’adapte à l’intérieur',
             'L’aperçu est produit par le même canvas que l’export, à une taille réduite',
             'La molette et le pincer zooment directement ; les flèches déplacent, +/− zooment, R pivote et 0 réinitialise',
-            'La grille se masque depuis le stage et le panneau de format reste compact',
+            'Le format se choisit dans un sélecteur de ratios et la grille est un vrai switch',
             'Un GIF animé ne passe pas par le canvas : son animation serait détruite',
           ]}
         />

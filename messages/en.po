@@ -3666,6 +3666,9 @@ msgstr "Free · No credit card required · Data hosted in Europe"
 msgid "Gratuits"
 msgstr ""
 
+msgid "Grille"
+msgstr ""
+
 msgid "Groupes de liens (Colonnes)"
 msgstr "Link groups (Columns)"
 
@@ -4600,8 +4603,8 @@ msgstr ""
 msgid "Masquer la configuration avancée"
 msgstr ""
 
-msgid "Masquer la grille"
-msgstr ""
+#~ msgid "Masquer la grille"
+#~ msgstr ""
 
 msgid "Masquer la version texte"
 msgstr ""
