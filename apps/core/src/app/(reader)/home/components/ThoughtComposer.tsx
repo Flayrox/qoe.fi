@@ -24,9 +24,6 @@ import {
 } from 'lucide-react';
 import NextImage from 'next/image';
 
-import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop';
-import type { Crop, PixelCrop } from 'react-image-crop';
-import 'react-image-crop/dist/ReactCrop.css';
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
 
@@ -34,17 +31,12 @@ import { Popover, PopoverTrigger, PopoverContent } from '@qoe/ui/ui/popover';
 import { Calendar } from '@qoe/ui/ui/calendar';
 import { TimePickerInput } from '@qoe/ui/ui/time-picker-input';
 import { toast } from '@qoe/ui/toast';
-import { Button } from '@qoe/ui/button';
 import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@qoe/ui/dialog';
+  ImageEditorDialog,
+  type ImageEditorPreset,
+  type ImageEditorResult,
+} from '@qoe/ui/ui/ImageEditorDialog';
 import { Select } from '@qoe/ui/select';
-import { Tabs, TabList, Tab } from '@qoe/ui/tabs';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@qoe/ui/ui/sheet';
 import { ProfileHoverCard } from '@qoe/ui';
 
@@ -2468,184 +2460,54 @@ interface ImageCropperModalProps {
   onConfirm: (croppedUrl: string, croppedFile: File) => void;
 }
 
+const THOUGHT_IMAGE_PRESETS: ImageEditorPreset[] = [
+  {
+    id: 'thought-4-3',
+    label: 'Paysage',
+    aspect: 4 / 3,
+    width: 1600,
+    height: 1200,
+    shape: 'rect',
+    hint: 'Format de la grille',
+  },
+  {
+    id: 'thought-1-1',
+    label: 'Carré',
+    aspect: 1,
+    width: 1600,
+    height: 1600,
+    shape: 'rect',
+    hint: 'Format compact',
+  },
+  {
+    id: 'thought-16-9',
+    label: 'Large',
+    aspect: 16 / 9,
+    width: 1600,
+    height: 900,
+    shape: 'rect',
+    hint: 'Format panoramique',
+  },
+];
+
 function ImageCropperModal({ image, onClose, onConfirm }: ImageCropperModalProps) {
-  const [crop, setCrop] = useState<Crop>({
-    unit: '%',
-    x: 10,
-    y: 10,
-    width: 80,
-    height: 80,
-  });
-  const [aspectRatio, setAspectRatio] = useState<'libre' | '1:1' | '16:9'>('libre');
-  const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
-
-  const imgRef = useRef<HTMLImageElement>(null);
-
-  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    const { width, height } = e.currentTarget;
-    const aspect = aspectRatio === '1:1' ? 1 : aspectRatio === '16:9' ? 16 / 9 : undefined;
-
-    if (aspect) {
-      const c = makeAspectCrop({ unit: '%', width: 80 }, aspect, width, height);
-      setCrop(centerCrop(c, width, height));
-    } else {
-      setCrop({
-        unit: '%',
-        x: 10,
-        y: 10,
-        width: 80,
-        height: 80,
-      });
-    }
-  };
-
-  useEffect(() => {
-    const img = imgRef.current;
-    if (!img) return;
-
-    const aspect = aspectRatio === '1:1' ? 1 : aspectRatio === '16:9' ? 16 / 9 : undefined;
-    const { width, height } = img;
-
-    if (aspect) {
-      const c = makeAspectCrop({ unit: '%', width: 80 }, aspect, width, height);
-      setCrop(centerCrop(c, width, height));
-    } else {
-      setCrop({
-        unit: '%',
-        x: 10,
-        y: 10,
-        width: 80,
-        height: 80,
-      });
-    }
-  }, [aspectRatio]);
-
-  const handleConfirm = async () => {
-    const img = imgRef.current;
-    if (!img || !completedCrop) return;
-
-    try {
-      const canvas = document.createElement('canvas');
-      const scaleX = img.naturalWidth / img.width;
-      const scaleY = img.naturalHeight / img.height;
-
-      let targetW = completedCrop.width * scaleX;
-      let targetH = completedCrop.height * scaleY;
-
-      const maxDim = 1600;
-      if (targetW > maxDim || targetH > maxDim) {
-        if (targetW > targetH) {
-          targetH = Math.round((targetH * maxDim) / targetW);
-          targetW = maxDim;
-        } else {
-          targetW = Math.round((targetW * maxDim) / targetH);
-          targetH = maxDim;
-        }
-      }
-
-      canvas.width = targetW;
-      canvas.height = targetH;
-      const ctx = canvas.getContext('2d');
-
-      if (ctx) {
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-
-        ctx.drawImage(
-          img,
-          completedCrop.x * scaleX,
-          completedCrop.y * scaleY,
-          completedCrop.width * scaleX,
-          completedCrop.height * scaleY,
-          0,
-          0,
-          targetW,
-          targetH
-        );
-
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              const croppedUrl = URL.createObjectURL(blob);
-              const croppedFile = new File([blob], `cropped-${Date.now()}.jpg`, {
-                type: 'image/jpeg',
-              });
-              onConfirm(croppedUrl, croppedFile);
-            }
-          },
-          'image/jpeg',
-          0.9
-        );
-      }
-    } catch (err) {
-      console.error('Error cropping image:', err);
-      toast.error("Impossible de recadrer l'image.");
-    }
-  };
-
-  const getAspectValue = () => {
-    if (aspectRatio === '1:1') return 1;
-    if (aspectRatio === '16:9') return 16 / 9;
-    return undefined;
+  const handleApply = ({ file }: ImageEditorResult) => {
+    onConfirm(URL.createObjectURL(file), file);
   };
 
   return (
-    <Dialog
+    <ImageEditorDialog
       open
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
-    >
-      <DialogContent size="md">
-        <DialogHeader>
-          <DialogTitle>{t`Recadrer l’image`}</DialogTitle>
-        </DialogHeader>
-
-        <DialogBody className="flex min-h-[340px] items-center justify-center bg-muted/20 p-4 select-none relative overflow-hidden rounded-control">
-          <ReactCrop
-            crop={crop}
-            onChange={(c) => setCrop(c)}
-            onComplete={(c) => setCompletedCrop(c)}
-            aspect={getAspectValue()}
-            className="max-w-full max-h-[60vh]"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              ref={imgRef}
-              src={image.url}
-              alt="To crop"
-              onLoad={handleImageLoad}
-              className="max-w-full max-h-[60vh] object-contain"
-              draggable={false}
-            />
-          </ReactCrop>
-        </DialogBody>
-
-        <div className="px-5 pt-2 flex items-center justify-between gap-4">
-          <span className="type-control-xs font-medium text-muted-foreground">{t`Format`}</span>
-          <Tabs
-            variant="segmented"
-            size="xs"
-            selectedKey={aspectRatio}
-            onSelectionChange={(key) => setAspectRatio(key as 'libre' | '1:1' | '16:9')}
-          >
-            <TabList aria-label={t`Format de recadrage`}>
-              <Tab id="libre">Libre</Tab>
-              <Tab id="1:1">1:1</Tab>
-              <Tab id="16:9">16:9</Tab>
-            </TabList>
-          </Tabs>
-        </div>
-
-        <DialogFooter>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            {t`Annuler`}
-          </Button>
-          <Button variant="solid" tone="brand" size="sm" onClick={handleConfirm}>
-            {t`Confirmer`}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      src={image.url}
+      fileName={image.file?.name}
+      presets={THOUGHT_IMAGE_PRESETS}
+      initialPresetId="thought-4-3"
+      title={t`Recadrer l’image`}
+      description={t`Choisissez le format, ajustez le cadrage et vérifiez l’aperçu avant de confirmer.`}
+      onApply={handleApply}
+    />
   );
 }
