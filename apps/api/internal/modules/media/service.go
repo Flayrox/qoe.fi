@@ -602,6 +602,17 @@ func (s *Service) UpdateSettings(ctx context.Context, userID, mediaID string, bo
 		}
 		fields["allowIndexing"] = b
 	}
+	if v, ok := body["siteOptions"]; ok {
+		if v == nil {
+			fields["siteOptions"] = []byte("{}")
+		} else {
+			raw, err := json.Marshal(v)
+			if err != nil {
+				return MediaPublication{}, errors.New("siteOptions JSON invalide")
+			}
+			fields["siteOptions"] = raw
+		}
+	}
 
 	if len(fields) > 0 {
 		if err := s.updatePublication(ctx, row.PublicationID, fields); err != nil {

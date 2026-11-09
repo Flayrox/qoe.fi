@@ -73,11 +73,9 @@ export function AnnotationNotePanel({
           </div>
 
           {quote && (
-            <div className="rounded-xl border border-highlight/20 bg-highlight/5 px-3 py-2">
-              <p className="line-clamp-3 whitespace-pre-line font-sans text-[11px] leading-relaxed text-muted-foreground italic">
-                « {quote} »
-              </p>
-            </div>
+            <p className="line-clamp-3 whitespace-pre-line font-sans text-xs leading-relaxed text-muted-foreground italic">
+              « {quote} »
+            </p>
           )}
 
           <div>

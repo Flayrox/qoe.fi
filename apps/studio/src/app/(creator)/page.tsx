@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@qoe/ui/badge';
 import { StudioHeader } from '@/components/studio-page';
-import { RecentArticleCard } from './recent-article-card';
+import { RecentArticleTile } from './recent-article-card';
 
 // ─── Données du dashboard (miroir Go GET /v1/analytics/dashboard) ───────────
 interface DashboardArticle {
@@ -36,6 +36,7 @@ interface DashboardArticle {
   authorName?: string | null;
   publicationName?: string;
   publicationType?: 'PERSONAL' | 'MEDIA';
+  publicationLogoUrl?: string | null;
   coAuthors?: string[];
   relation?: 'OWN' | 'MEDIA_AUTHOR' | 'COAUTHOR' | 'MEDIA_TEAM';
 }
@@ -387,7 +388,7 @@ export default async function CreatorDashboardPage() {
             </a>
           ) : (
             dashboard.recentArticles.map((art) => (
-              <RecentArticleCard
+              <RecentArticleTile
                 key={art.id}
                 article={art}
                 updatedLabel={getRelativeTimeString(art.updatedAt)}

@@ -1014,8 +1014,11 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if access.OwnerID == userID {
-		response.BadRequest(w, "You cannot follow yourself")
-		return
+		pubTypeRow, errPub := h.q.GetPublicationTypeByID(ctx, pubID)
+		if errPub != nil || pubTypeRow.Type != db.PublicationTypeMEDIA {
+			response.BadRequest(w, "You cannot follow yourself")
+			return
+		}
 	}
 
 	params := db.GetExistingFollowParams{ReaderId: toUUID(userID), PublicationId: pubID}

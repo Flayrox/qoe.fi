@@ -24,9 +24,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@qoe/ui/ui/dropdown-menu';
+import { UserAvatar } from '@qoe/ui/ui/UserAvatar';
 import { bulkUpdateArticlesAction, deleteArticleAction } from '@qoe/sdk/actions/articles';
 
-export interface RecentArticleCardData {
+export interface RecentArticleTileData {
   id: string;
   title: string;
   published: boolean;
@@ -36,6 +37,7 @@ export interface RecentArticleCardData {
   authorName?: string | null;
   publicationName?: string;
   publicationType?: 'PERSONAL' | 'MEDIA';
+  publicationLogoUrl?: string | null;
   coAuthors?: string[];
   relation?: 'OWN' | 'MEDIA_AUTHOR' | 'COAUTHOR' | 'MEDIA_TEAM';
 }
@@ -48,11 +50,11 @@ export interface RecentArticleCardData {
  * server actions existantes : aucune règle de permission n'est réimplémentée
  * côté client.
  */
-export function RecentArticleCard({
+export function RecentArticleTile({
   article,
   updatedLabel,
 }: {
-  article: RecentArticleCardData;
+  article: RecentArticleTileData;
   updatedLabel: string;
 }) {
   const router = useRouter();
@@ -104,6 +106,21 @@ export function RecentArticleCard({
           ) : (
             <FileText className="h-10 w-10 text-muted-foreground/50 stroke-[1.5]" />
           )}
+
+          {article.publicationType === 'MEDIA' && (
+            <div className="absolute bottom-2 left-2 z-10 drop-shadow-md">
+              <UserAvatar
+                user={{
+                  name: article.publicationName,
+                  logoUrl: article.publicationLogoUrl,
+                  type: 'MEDIA',
+                }}
+                size="sm"
+                shape="squircle"
+                type="MEDIA"
+              />
+            </div>
+          )}
         </div>
 
         <h4 className="truncate text-sm font-semibold text-foreground transition-colors group-hover:text-primary">
@@ -129,30 +146,32 @@ export function RecentArticleCard({
           </div>
         )}
 
-        <div className="mt-1 flex items-center gap-2 font-sans text-xs text-muted-foreground">
-          <span
-            className={
-              article.published ? 'font-medium text-success-text' : 'text-muted-foreground'
-            }
-          >
-            {article.published ? t`Publié` : t`Brouillon`}
-          </span>
-          <span>•</span>
-          <span>{updatedLabel}</span>
+        <div className="mt-1 flex items-center justify-between font-sans text-xs text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <span
+              className={
+                article.published ? 'font-medium text-success-text' : 'text-muted-foreground'
+              }
+            >
+              {article.published ? t`Publié` : t`Brouillon`}
+            </span>
+            <span>•</span>
+            <span>{updatedLabel}</span>
+          </div>
         </div>
       </Link>
 
-      <div className="pointer-events-none absolute right-2 top-2 z-10 opacity-0 transition-opacity focus-within:pointer-events-auto focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100">
+      <div className="pointer-events-none absolute right-0 bottom-0 z-10 opacity-0 transition-opacity focus-within:pointer-events-auto focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100">
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label={t`Actions de l'article`}
             disabled={pending !== null}
-            className="inline-flex size-8 items-center justify-center rounded-lg border border-border/60 bg-card/90 text-foreground shadow-sm backdrop-blur transition-colors outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/60 disabled:opacity-70"
+            className="inline-flex size-7 items-center justify-center rounded-lg border border-border/60 bg-card/90 text-foreground shadow-xs backdrop-blur transition-colors outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/60 disabled:opacity-70"
           >
             {pending ? (
-              <Loader2 className="size-4 animate-spin" />
+              <Loader2 className="size-3.5 animate-spin" />
             ) : (
-              <MoreHorizontal className="size-4" strokeWidth={1.75} />
+              <MoreHorizontal className="size-3.5" strokeWidth={1.75} />
             )}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">

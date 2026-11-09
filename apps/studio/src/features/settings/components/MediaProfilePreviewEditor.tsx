@@ -87,11 +87,14 @@ export const MEDIA_METADATA_CONFIG: MediaMetadataField[] = [
   },
   {
     id: 'customDomain',
-    label: 'Domaine web officiel',
-    placeholder: 'mon-media.com',
+    label: 'Site web public',
+    placeholder: 'assez.qoe.fi',
     icon: Globe,
     getValue: (p) => p.customDomain || (p.subdomain ? `${p.subdomain}.qoe.fi` : ''),
-    setValue: (val, setCurrent) => setCurrent((prev) => ({ ...prev, customDomain: val || null })),
+    setValue: (_val, _setCurrent) => {
+      // Le sous-domaine canonique et le domaine personnalisé se gèrent
+      // dans l'onglet dédié « Domaine » pour préserver l'intégrité du tenant.
+    },
   },
 ];
 
@@ -345,7 +348,9 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                 />
                 <Edit2 className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover/title:opacity-60 shrink-0 pointer-events-none" />
               </div>
-              <p className="text-xs text-muted-foreground font-mono">qoe.fi/m/{mediaSlug}</p>
+              <p className="text-xs text-muted-foreground font-mono">
+                qoe.fi/{mediaSlug} {current.subdomain ? `· ${current.subdomain}.qoe.fi` : ''}
+              </p>
             </div>
 
             {/* Description / Bio éditoriale du Média */}

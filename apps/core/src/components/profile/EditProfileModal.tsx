@@ -42,6 +42,7 @@ async function updateMediaProfile(
     heroText?: string;
     logoUrl?: string | null | undefined;
     headerImageUrl?: string | null | undefined;
+    onboardingText?: string | null | undefined;
   }
 ): Promise<{ ok: boolean; data?: { user: UpdatedUser } }> {
   try {
@@ -50,6 +51,8 @@ async function updateMediaProfile(
       heroText: input.heroText,
       logoUrl: input.logoUrl ?? null,
       headerImageUrl: input.headerImageUrl ?? null,
+      siteOptions:
+        input.onboardingText !== undefined ? { location: input.onboardingText } : undefined,
     });
     return {
       ok: true,
@@ -57,11 +60,10 @@ async function updateMediaProfile(
         user: {
           id: mediaId,
           name: input.name ?? null,
-          // Pas de username ici : un média n'en a pas, et il ne faut surtout
-          // pas écraser le slug affiché par l'état parent.
           logoUrl: (input.logoUrl ?? null) as string | null,
           headerImageUrl: (input.headerImageUrl ?? null) as string | null,
           heroText: input.heroText ?? null,
+          onboardingText: input.onboardingText ?? null,
         },
       },
     };
@@ -150,6 +152,7 @@ export function EditProfileModal({
             heroText,
             logoUrl,
             headerImageUrl,
+            onboardingText: locationText,
           })
         : await updatePersonalProfile({
             name,

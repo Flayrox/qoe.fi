@@ -27,7 +27,7 @@ import {
 } from '@qoe/ui/drawer';
 import { Select } from '@qoe/ui/select';
 
-interface ArticleInspectorModalProps {
+interface ArticleInspectorDrawerProps {
   urlPath: string | null;
   articleId?: string | null;
   period?: TimePeriod;
@@ -35,13 +35,13 @@ interface ArticleInspectorModalProps {
   onEdit?: () => void;
 }
 
-export function ArticleInspectorModal({
+export function ArticleInspectorDrawer({
   urlPath,
   articleId,
   period: initialPeriod = '30d',
   onClose,
   onEdit,
-}: ArticleInspectorModalProps) {
+}: ArticleInspectorDrawerProps) {
   const [period, setPeriod] = useState<TimePeriod>(initialPeriod);
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<ArticleDetailData | null>(null);

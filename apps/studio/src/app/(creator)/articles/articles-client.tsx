@@ -72,7 +72,7 @@ import {
 import { Select } from '@qoe/ui/select';
 import { t } from '@lingui/core/macro';
 
-import { ArticleInspectorModal } from '../analytics/components/ArticleInspectorModal';
+import { ArticleInspectorDrawer } from '../analytics/components/ArticleInspectorModal';
 import { ArticleBulkSettingsDialog } from './components/article-bulk-settings-dialog';
 import { ArticleBulkTransferDialog } from './components/article-bulk-transfer-dialog';
 import { ArticleListRow } from './components/article-list-row';
@@ -2162,7 +2162,7 @@ export function ArticlesClient({
 
       {/* Article Inspector Drawer Modal — période synchronisée avec la liste, toutes les données envoyées */}
       {inspectingArticle && (
-        <ArticleInspectorModal
+        <ArticleInspectorDrawer
           urlPath={`/article/${inspectingArticle.slug}`}
           articleId={inspectingArticle.id}
           period={period}
