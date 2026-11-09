@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FocusScope } from 'react-aria';
 import { AlertCircle } from 'lucide-react';
@@ -96,6 +97,11 @@ export function AnnotationSideDrawer({
 }: AnnotationSideDrawerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [annotationsList, setAnnotationsList] = useState<AnnotationItem[]>([]);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const activeAnnotation = annotationsList[currentIndex] || annotation;
 
@@ -610,7 +616,9 @@ export function AnnotationSideDrawer({
       ? t`Officielle`
       : kindLabel(markKind === 'highlight' ? 'highlight' : 'annotation');
 
-  return (
+  if (!mounted || typeof document === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
       {activeAnnotation && (
         <div className="pointer-events-none fixed inset-y-0 right-0 z-50 flex font-sans select-text">
@@ -761,6 +769,7 @@ export function AnnotationSideDrawer({
           </FocusScope>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

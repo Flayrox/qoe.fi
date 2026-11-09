@@ -40,6 +40,7 @@ export function buildCreatorVars(creator: CreatorTheme): Record<string, string> 
     vars['--sidebar-primary'] = creator.accentColor;
     vars['--sidebar-ring'] = creator.accentColor;
     vars['--accent-brand'] = creator.accentColor;
+    vars['--tenant-accent'] = creator.accentColor;
   }
 
   if (creator.fontFamily) {

@@ -7,6 +7,7 @@ import {
   runBoundaries,
   marksCovering,
   styleSegments,
+  collectCanonicalAnnotations,
   type CanonicalDocument,
 } from '../canonical-document';
 
@@ -101,5 +102,51 @@ describe('styleSegments', () => {
   });
   it('aucun span → un seul segment brut', () => {
     expect(styleSegments(0, 5, undefined)).toEqual([{ start: 0, end: 5, styles: [] }]);
+  });
+});
+
+describe('collectCanonicalAnnotations', () => {
+  it('extrait tous les spans annotés d’un document canonique', () => {
+    const docWithNotes: CanonicalDocument = {
+      blocks: [
+        {
+          kind: 'p',
+          text: 'Premier paragraphe avec annotation.',
+          spans: [
+            { start: 0, end: 7, note: 'Note sur Premier' },
+            { start: 24, end: 34, note: 'Note sur annotation' },
+          ],
+        },
+        {
+          kind: 'p',
+          text: 'Deuxième paragraphe sans note.',
+        },
+      ],
+      segments: [
+        { blockIdx: 0, itemIdx: 0, text: 'Premier paragraphe avec annotation.', start: 0, end: 35 },
+        { blockIdx: 1, itemIdx: 0, text: 'Deuxième paragraphe sans note.', start: 36, end: 66 },
+      ],
+      text: 'Premier paragraphe avec annotation. Deuxième paragraphe sans note.',
+      sha: 'sha-sample',
+    };
+
+    const annots = collectCanonicalAnnotations(docWithNotes, [], 'Auteur Test');
+    expect(annots).toHaveLength(2);
+    expect(annots[0]).toMatchObject({
+      id: 'official-html-mark-0-0',
+      text: 'Premier',
+      note: 'Note sur Premier',
+      isOfficial: true,
+      canonicalStart: 0,
+      canonicalEnd: 7,
+    });
+    expect(annots[1]).toMatchObject({
+      id: 'official-html-mark-0-24',
+      text: 'annotation',
+      note: 'Note sur annotation',
+      isOfficial: true,
+      canonicalStart: 24,
+      canonicalEnd: 34,
+    });
   });
 });
