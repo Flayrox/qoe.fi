@@ -247,9 +247,9 @@ export function ArticleDiffModal({
         {/* Content Viewer */}
         <DialogBody className="flex-1 p-6 text-sm font-sans leading-relaxed">
           {viewMode === 'split' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               {/* Left Column: Live Content */}
-              <div className="flex flex-col rounded-xl border border-border/40 bg-card p-4 overflow-y-auto">
+              <div className="flex flex-col rounded-xl border border-border/40 bg-card p-4">
                 <div className="mb-3 pb-2 border-b border-border/30 flex items-center justify-between">
                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     {t`Version publiée (en ligne)`}
@@ -281,7 +281,7 @@ export function ArticleDiffModal({
               </div>
 
               {/* Right Column: Proposed Draft Content */}
-              <div className="flex flex-col rounded-xl border border-border/40 bg-card p-4 overflow-y-auto">
+              <div className="flex flex-col rounded-xl border border-border/40 bg-card p-4">
                 <div className="mb-3 pb-2 border-b border-border/30 flex items-center justify-between">
                   <span className="text-xs font-semibold text-primary uppercase tracking-wider">
                     {t`Brouillon proposé`}
@@ -314,7 +314,7 @@ export function ArticleDiffModal({
             </div>
           ) : (
             /* Unified Mode */
-            <div className="rounded-xl border border-border/40 bg-card p-5 max-w-3xl mx-auto overflow-y-auto">
+            <div className="mx-auto max-w-3xl rounded-xl border border-border/40 bg-card p-5">
               <div className="whitespace-pre-wrap text-foreground leading-relaxed font-sans text-[13px]">
                 {diffResult.map((part: Change, index: number) => {
                   if (part.added) {

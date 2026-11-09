@@ -64,6 +64,7 @@ export default async function ArticlesPage({ searchParams }: ArticlesPageProps) 
         initialTab={initialTab}
         canReview={capabilities?.canReview ?? false}
         canPublish={capabilities?.canPublish ?? false}
+        currentUserId={user?.id ?? null}
       />
     </div>
   );

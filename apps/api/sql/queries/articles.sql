@@ -262,7 +262,7 @@ WHERE a."publicationId" = sqlc.arg('publicationId')
 
 -- name: ListArticlesWithCategory :many
 SELECT a.id, a.title, a.slug, a.published, a."isPremium", a.visibility, a."readingTime",
-       a.status, a."createdAt", a."updatedAt", a."categoryId", a."publicationId",
+       a.status, a."createdAt", a."updatedAt", a."categoryId", a."publicationId", a."authorId",
        a."allowPublicAnnotations", a."allowComments", a."allowDownload", a."showOnPersonalProfile",
        (a."draftContent" IS NOT NULL AND a."draftContent" <> '') AS has_unpublished_changes,
        a."emailStatus", a."emailSentAt", a."emailSentCount",
@@ -341,6 +341,10 @@ SET "publicationId" = $2,
     status = $5,
     published = $6,
     "showOnPersonalProfile" = $7,
+    -- Un palier d'abonnement appartient à la publication d'origine : il ne
+    -- peut pas suivre l'article vers une autre publication.
+    "tierId" = NULL,
+    "scheduledAt" = $8,
     "updatedAt" = now()
 WHERE id = $1
 RETURNING id;

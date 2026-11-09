@@ -769,7 +769,7 @@ func (q *Queries) InsertArticleReviewLog(ctx context.Context, arg InsertArticleR
 
 const listArticlesWithCategory = `-- name: ListArticlesWithCategory :many
 SELECT a.id, a.title, a.slug, a.published, a."isPremium", a.visibility, a."readingTime",
-       a.status, a."createdAt", a."updatedAt", a."categoryId", a."publicationId",
+       a.status, a."createdAt", a."updatedAt", a."categoryId", a."publicationId", a."authorId",
        a."allowPublicAnnotations", a."allowComments", a."allowDownload", a."showOnPersonalProfile",
        (a."draftContent" IS NOT NULL AND a."draftContent" <> '') AS has_unpublished_changes,
        a."emailStatus", a."emailSentAt", a."emailSentCount",
@@ -819,6 +819,7 @@ type ListArticlesWithCategoryRow struct {
 	UpdatedAt              pgtype.Timestamp  `json:"updatedAt"`
 	CategoryId             pgtype.Text       `json:"categoryId"`
 	PublicationId          string            `json:"publicationId"`
+	AuthorId               pgtype.UUID       `json:"authorId"`
 	AllowPublicAnnotations bool              `json:"allowPublicAnnotations"`
 	AllowComments          bool              `json:"allowComments"`
 	AllowDownload          bool              `json:"allowDownload"`
@@ -864,6 +865,7 @@ func (q *Queries) ListArticlesWithCategory(ctx context.Context, arg ListArticles
 			&i.UpdatedAt,
 			&i.CategoryId,
 			&i.PublicationId,
+			&i.AuthorId,
 			&i.AllowPublicAnnotations,
 			&i.AllowComments,
 			&i.AllowDownload,
@@ -1466,19 +1468,24 @@ SET "publicationId" = $2,
     status = $5,
     published = $6,
     "showOnPersonalProfile" = $7,
+    -- Un palier d'abonnement appartient à la publication d'origine : il ne
+    -- peut pas suivre l'article vers une autre publication.
+    "tierId" = NULL,
+    "scheduledAt" = $8,
     "updatedAt" = now()
 WHERE id = $1
 RETURNING id
 `
 
 type TransferArticlePublicationParams struct {
-	ID                    string      `json:"id"`
-	PublicationId         string      `json:"publicationId"`
-	CategoryId            pgtype.Text `json:"categoryId"`
-	Slug                  string      `json:"slug"`
-	Status                string      `json:"status"`
-	Published             bool        `json:"published"`
-	ShowOnPersonalProfile bool        `json:"showOnPersonalProfile"`
+	ID                    string           `json:"id"`
+	PublicationId         string           `json:"publicationId"`
+	CategoryId            pgtype.Text      `json:"categoryId"`
+	Slug                  string           `json:"slug"`
+	Status                string           `json:"status"`
+	Published             bool             `json:"published"`
+	ShowOnPersonalProfile bool             `json:"showOnPersonalProfile"`
+	ScheduledAt           pgtype.Timestamp `json:"scheduledAt"`
 }
 
 func (q *Queries) TransferArticlePublication(ctx context.Context, arg TransferArticlePublicationParams) (string, error) {
@@ -1490,6 +1497,7 @@ func (q *Queries) TransferArticlePublication(ctx context.Context, arg TransferAr
 		arg.Status,
 		arg.Published,
 		arg.ShowOnPersonalProfile,
+		arg.ScheduledAt,
 	)
 	var id string
 	err := row.Scan(&id)

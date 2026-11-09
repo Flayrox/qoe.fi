@@ -29,6 +29,7 @@ interface BulkSettingsDraft {
   comments: TriState;
   annotations: TriState;
   download: TriState;
+  personalProfile: TriState;
   publication: 'keep' | 'publish' | 'unpublish';
 }
 
@@ -38,6 +39,7 @@ const EMPTY_BULK_SETTINGS: BulkSettingsDraft = {
   comments: 'keep',
   annotations: 'keep',
   download: 'keep',
+  personalProfile: 'keep',
   publication: 'keep',
 };
 
@@ -109,6 +111,8 @@ export function ArticleBulkSettingsDialog({
     if (settings.annotations !== 'keep')
       input.allowPublicAnnotations = settings.annotations === 'on';
     if (settings.download !== 'keep') input.allowDownload = settings.download === 'on';
+    if (settings.personalProfile !== 'keep')
+      input.showOnPersonalProfile = settings.personalProfile === 'on';
     if (settings.publication === 'publish') input.published = true;
     if (settings.publication === 'unpublish') input.published = false;
 
@@ -118,6 +122,7 @@ export function ArticleBulkSettingsDialog({
       input.allowComments !== undefined ||
       input.allowPublicAnnotations !== undefined ||
       input.allowDownload !== undefined ||
+      input.showOnPersonalProfile !== undefined ||
       input.published !== undefined;
     if (!hasChange) {
       toast.error(t`Choisissez au moins un paramètre à modifier.`);
@@ -231,6 +236,12 @@ export function ArticleBulkSettingsDialog({
               description={t`Autoriser les lecteurs Plus à télécharger.`}
               value={settings.download}
               onChange={(value) => setSettings((prev) => ({ ...prev, download: value }))}
+            />
+            <BulkTriRow
+              label={t`Profil personnel`}
+              description={t`Afficher les articles aussi sur le profil et le blog personnel de leur auteur. Réservé à l'auteur.`}
+              value={settings.personalProfile}
+              onChange={(value) => setSettings((prev) => ({ ...prev, personalProfile: value }))}
             />
           </StudioRowList>
 
