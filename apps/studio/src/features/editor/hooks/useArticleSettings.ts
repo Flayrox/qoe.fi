@@ -2,10 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  bulkUpdateArticlesAction,
   getArticleByIdAction,
+  getWorkspacesAction,
   saveArticleAction,
   scheduleArticleAction,
   setArticleAllowDownloadAction,
+  transferArticleAction,
   unpublishArticleAction,
 } from '@qoe/sdk/actions/articles';
 import { toast } from '@qoe/ui/toast';
@@ -16,6 +19,7 @@ import {
   buildArticleSettingsSavePayload,
   parseFutureScheduleDraft,
   type ArticleSettingsDraft,
+  type ArticleWorkspaceOption,
 } from '../lib/article-settings';
 import { toDateTimeLocalValue } from '../lib/datetime';
 
@@ -34,11 +38,14 @@ export function useArticleSettings({
   onSaved?: () => Promise<void> | void;
 }) {
   const [draft, setDraft] = useState<ArticleSettingsDraft | null>(null);
+  const [workspaces, setWorkspaces] = useState<ArticleWorkspaceOption[]>([]);
   const [loadState, setLoadState] = useState<SettingsLoadState>('loading');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [scheduling, setScheduling] = useState(false);
   const [downloadSaving, setDownloadSaving] = useState(false);
+  const [transferring, setTransferring] = useState(false);
+  const [crosspostSaving, setCrosspostSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [baselineFingerprint, setBaselineFingerprint] = useState('');
 
@@ -58,10 +65,17 @@ export function useArticleSettings({
     setDraft(null);
 
     try {
-      const res = await getArticleByIdAction(articleId);
+      const [res, wsRes] = await Promise.all([
+        getArticleByIdAction(articleId),
+        getWorkspacesAction(),
+      ]);
       if (request !== requestRef.current) return;
       if (!res.ok || !res.data) {
         throw new Error(res.ok ? t`Article introuvable.` : res.error.message);
+      }
+
+      if (wsRes.ok && wsRes.data) {
+        setWorkspaces([wsRes.data.personal, ...(wsRes.data.medias ?? [])]);
       }
 
       const next = buildArticleSettingsDraft(res.data);
@@ -256,13 +270,86 @@ export function useArticleSettings({
     [draft, downloadSaving, syncBaseline]
   );
 
+  const transferPublication = useCallback(
+    async (targetPublicationId: string) => {
+      if (!draft || transferring || !targetPublicationId) return false;
+      setTransferring(true);
+      setError(null);
+      try {
+        const res = await transferArticleAction({
+          articleId: draft.id,
+          targetPublicationId,
+          showOnPersonalProfile: draft.showOnPersonalProfile,
+        });
+        if (!res.ok || !res.data) {
+          throw new Error(res.ok ? t`Échec du transfert.` : res.error.message);
+        }
+
+        const next = buildArticleSettingsDraft(res.data);
+        baselineRef.current = next;
+        setDraft(next);
+        setBaselineFingerprint(articleSettingsFingerprint(next));
+        setLastSavedAt(new Date());
+        await onSavedRef.current?.();
+        const destName = res.data.publication?.name || t`la publication sélectionnée`;
+        toast.success(t`Article transféré vers ${destName}.`);
+        return true;
+      } catch (err) {
+        const message = getErrorMessage(err, t`Échec du transfert de l'article.`);
+        setError(message);
+        toast.error(message);
+        return false;
+      } finally {
+        setTransferring(false);
+      }
+    },
+    [draft, transferring]
+  );
+
+  const toggleShowOnPersonalProfile = useCallback(
+    async (value: boolean) => {
+      if (!draft || crosspostSaving) return;
+      setCrosspostSaving(true);
+      setError(null);
+      setDraft((prev) => (prev ? { ...prev, showOnPersonalProfile: value } : prev));
+      try {
+        const res = await bulkUpdateArticlesAction({
+          ids: [draft.id],
+          showOnPersonalProfile: value,
+        });
+        if (!res.ok || res.data.failed.includes(draft.id)) {
+          throw new Error(!res.ok ? res.error.message : t`Action impossible`);
+        }
+        syncBaseline({ showOnPersonalProfile: value });
+        setLastSavedAt(new Date());
+        await onSavedRef.current?.();
+        toast.success(
+          value
+            ? t`Affiché sur votre profil et blog personnel`
+            : t`Masqué de votre profil et blog personnel`
+        );
+      } catch (err) {
+        setDraft((prev) => (prev ? { ...prev, showOnPersonalProfile: !value } : prev));
+        const message = getErrorMessage(err, t`Action impossible`);
+        setError(message);
+        toast.error(message);
+      } finally {
+        setCrosspostSaving(false);
+      }
+    },
+    [crosspostSaving, draft, syncBaseline]
+  );
+
   return {
     draft,
+    workspaces,
     loadState,
     error,
     saving,
     scheduling,
     downloadSaving,
+    transferring,
+    crosspostSaving,
     lastSavedAt,
     dirty,
     patchDraft,
@@ -272,6 +359,8 @@ export function useArticleSettings({
     clearSchedule,
     unpublish,
     toggleDownload,
+    transferPublication,
+    toggleShowOnPersonalProfile,
     retry: load,
   };
 }

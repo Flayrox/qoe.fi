@@ -65,19 +65,28 @@ type CategoryItem struct {
 	IsDefault   bool    `json:"isDefault"`
 }
 
+type OriginPublicationInfo struct {
+	ID      string  `json:"id"`
+	Name    string  `json:"name"`
+	Slug    string  `json:"slug"`
+	Type    string  `json:"type"`
+	LogoURL *string `json:"logoUrl"`
+}
+
 type ArticleSummary struct {
-	ID          string        `json:"id"`
-	Title       string        `json:"title"`
-	Slug        string        `json:"slug"`
-	Content     string        `json:"content"`
-	ImageURL    *string       `json:"imageUrl,omitempty"`
-	Published   bool          `json:"published"`
-	IsPremium   bool          `json:"isPremium"`
-	Visibility  string        `json:"visibility"`
-	ReadingTime int32         `json:"readingTime"`
-	CreatedAt   string        `json:"createdAt"`
-	CategoryID  *string       `json:"categoryId"`
-	Category    *CategoryItem `json:"category,omitempty"`
+	ID                string                 `json:"id"`
+	Title             string                 `json:"title"`
+	Slug              string                 `json:"slug"`
+	Content           string                 `json:"content"`
+	ImageURL          *string                `json:"imageUrl,omitempty"`
+	Published         bool                   `json:"published"`
+	IsPremium         bool                   `json:"isPremium"`
+	Visibility        string                 `json:"visibility"`
+	ReadingTime       int32                  `json:"readingTime"`
+	CreatedAt         string                 `json:"createdAt"`
+	CategoryID        *string                `json:"categoryId"`
+	Category          *CategoryItem          `json:"category,omitempty"`
+	OriginPublication *OriginPublicationInfo `json:"originPublication,omitempty"`
 	// Compteurs d'engagement réels (alimentent le tri par popularité côté home).
 	LikesCount    int `json:"likesCount"`
 	CommentsCount int `json:"commentsCount"`
@@ -499,12 +508,36 @@ func (s *Service) publishedArticles(ctx context.Context, pubID string) ([]Articl
 		       c.id, c.name, c.slug, COALESCE(c."isDefault", false), cp.slug, a."imageUrl",
 		       (SELECT count(*) FROM "ContentFeedback" f WHERE f."articleId" = a.id AND f."type" = 'LIKE') AS likes,
 		       (SELECT count(*) FROM "ArticleComment" ac WHERE ac."articleId" = a.id) AS comments,
-		       (SELECT count(*) FROM "Post" p WHERE p."quotedArticleId" = a.id) AS reposts
+		       (SELECT count(*) FROM "Post" p WHERE p."quotedArticleId" = a.id) AS reposts,
+		       a."publicationId", ap.name, ap.slug, ap.type::text, ap."logoUrl"
 		FROM "Article" a
 		LEFT JOIN "Publication" ap ON ap.id = a."publicationId"
 		LEFT JOIN "Category" c ON c.id = a."categoryId"
 		LEFT JOIN "Category" cp ON cp.id = c."parentId"
-		WHERE a."publicationId" = $1 AND a.published = true
+		WHERE a.published = true
+		  AND (
+		    a."publicationId" = $1
+		    OR EXISTS (
+		      SELECT 1
+		      FROM "Publication" tp
+		      JOIN "User" tu ON tu."publicationId" = tp.id
+		      WHERE tp.id = $1
+		        AND tp.type = 'PERSONAL'
+		        AND (
+		          (a."authorId" = tu.id AND a."showOnPersonalProfile" = true)
+		          OR EXISTS (
+		            SELECT 1
+		            FROM "ArticleAttribution" aa
+		            WHERE aa."articleId" = a.id
+		              AND aa."userId" = tu.id
+		              AND aa."consentStatus" = 'ACCEPTED'
+		              AND aa."isVisible" = true
+		              AND aa.role IN ('PRIMARY_AUTHOR', 'CO_AUTHOR')
+		              AND (a."authorId" <> tu.id OR a."showOnPersonalProfile" = true)
+		          )
+		        )
+		    )
+		  )
 		ORDER BY a."createdAt" DESC`, pubID)
 	if err != nil {
 		return nil, err
@@ -516,10 +549,13 @@ func (s *Service) publishedArticles(ctx context.Context, pubID string) ([]Articl
 		var createdAt time.Time
 		var catID, catName, catSlug, catParentSlug *string
 		var catIsDefault bool
+		var artPubID string
+		var artPubName, artPubSlug, artPubType, artPubLogo *string
 		if err := rows.Scan(&a.ID, &a.Title, &a.Slug, &a.Content, &a.Published, &a.IsPremium,
 			&a.Visibility, &a.ReadingTime, &createdAt, &a.CategoryID, &catID, &catName, &catSlug,
 			&catIsDefault, &catParentSlug, &a.ImageURL,
-			&a.LikesCount, &a.CommentsCount, &a.RepostsCount); err != nil {
+			&a.LikesCount, &a.CommentsCount, &a.RepostsCount,
+			&artPubID, &artPubName, &artPubSlug, &artPubType, &artPubLogo); err != nil {
 			return nil, err
 		}
 		// 🔒 Zéro-fuite : la liste d'articles publiés alimente les cartes de la
@@ -534,6 +570,15 @@ func (s *Service) publishedArticles(ctx context.Context, pubID string) ([]Articl
 			a.Category = &CategoryItem{
 				ID: *catID, Name: *catName, Slug: *catSlug,
 				ParentSlug: catParentSlug, IsDefault: catIsDefault,
+			}
+		}
+		if artPubID != "" && artPubID != pubID && artPubName != nil && artPubSlug != nil && artPubType != nil {
+			a.OriginPublication = &OriginPublicationInfo{
+				ID:      artPubID,
+				Name:    *artPubName,
+				Slug:    *artPubSlug,
+				Type:    *artPubType,
+				LogoURL: artPubLogo,
 			}
 		}
 		out = append(out, a)
@@ -625,9 +670,14 @@ func (s *Service) articleDirect(ctx context.Context, pubID, slug string) (*Artic
 func (s *Service) articleViaAttribution(ctx context.Context, slug, userID string) (*ArticleDetail, error) {
 	row := s.pool.QueryRow(ctx, articleSelect+`
 		WHERE (lower(a.slug) = lower($1) OR a.id = $1)
-		  AND EXISTS (SELECT 1 FROM "ArticleAttribution" at
-		              WHERE at."articleId" = a.id AND at."userId" = $2
-		                AND at."consentStatus" = 'ACCEPTED' AND at."isVisible" = true)
+		  AND (
+		    (a."authorId" = $2 AND a."showOnPersonalProfile" = true)
+		    OR EXISTS (SELECT 1 FROM "ArticleAttribution" at
+		               WHERE at."articleId" = a.id AND at."userId" = $2
+		                 AND at."consentStatus" = 'ACCEPTED' AND at."isVisible" = true
+		                 AND at.role IN ('PRIMARY_AUTHOR', 'CO_AUTHOR')
+		                 AND (a."authorId" <> $2 OR a."showOnPersonalProfile" = true))
+		  )
 		LIMIT 1`, slug, userID)
 	article, err := scanArticleDetail(row)
 	if err != nil {

@@ -4,7 +4,17 @@ import React from 'react';
 import { useEditorState, type Editor } from '@tiptap/react';
 import { TextSelection } from '@tiptap/pm/state';
 import { BubbleMenu } from '@tiptap/react/menus';
-import { Bold, Code2, Highlighter, Italic, Link2, Strikethrough, Underline } from 'lucide-react';
+import {
+  Bold,
+  CaseUpper,
+  Code2,
+  Highlighter,
+  IndentIncrease,
+  Italic,
+  Link2,
+  Strikethrough,
+  Underline,
+} from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
 
@@ -61,6 +71,9 @@ export function SelectionToolbar({ editor, onLink, onAnnotation }: SelectionTool
       strike: current.isActive('strike'),
       code: current.isActive('code'),
       link: current.isActive('link'),
+      indent: Boolean(current.getAttributes('paragraph').indent),
+      dropCap: Boolean(current.getAttributes('paragraph').dropCap),
+      isParagraph: current.isActive('paragraph'),
     }),
   });
 
@@ -122,6 +135,26 @@ export function SelectionToolbar({ editor, onLink, onAnnotation }: SelectionTool
       <BubbleButton onClick={onAnnotation} label={t`Note d'auteur`}>
         <Highlighter className="h-3.5 w-3.5 stroke-2" />
       </BubbleButton>
+
+      {state.isParagraph && (
+        <>
+          <BubbleDivider />
+          <BubbleButton
+            active={state.indent}
+            onClick={() => editor.chain().focus().toggleParagraphIndent().run()}
+            label={t`Alinéa de première ligne (Tab)`}
+          >
+            <IndentIncrease className="h-3.5 w-3.5 stroke-2" />
+          </BubbleButton>
+          <BubbleButton
+            active={state.dropCap}
+            onClick={() => editor.chain().focus().toggleDropCap().run()}
+            label={t`Lettrine (grande initiale)`}
+          >
+            <CaseUpper className="h-3.5 w-3.5 stroke-2" />
+          </BubbleButton>
+        </>
+      )}
     </BubbleMenu>
   );
 }

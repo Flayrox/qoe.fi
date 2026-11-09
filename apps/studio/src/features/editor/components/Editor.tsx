@@ -6,7 +6,8 @@ import StarterKit from '@tiptap/starter-kit';
 import { CharacterCount, Placeholder } from '@tiptap/extensions';
 import Collaboration from '@tiptap/extension-collaboration';
 import { CollaborationCaret } from '@tiptap/extension-collaboration-caret';
-import { TextSelection } from '@tiptap/pm/state';
+import { TextSelection, type Transaction } from '@tiptap/pm/state';
+import type { MarkType, Node as ProseMirrorNode } from '@tiptap/pm/model';
 import {
   setArticleAllowDownloadAction,
   unpublishArticleAction,
@@ -24,6 +25,7 @@ import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
 import { PaywallDivider } from '../extensions/PaywallDivider';
 import { ArticleImage } from '../extensions/ArticleImage';
 import { AnnotationMark } from '../extensions/AnnotationMark';
+import { ParagraphFormatting } from '../extensions/ParagraphFormatting';
 import { ImageGallery, GalleryImage } from '../extensions/ImageGallery';
 import { useCollaborationSession } from '../hooks/useCollaborationSession';
 import { computePayloadHash } from '../lib/payload-hash';
@@ -48,6 +50,92 @@ import { ImageDetailsPanel, type ImageDetails } from './ImageDetailsPanel';
 import { PublishModal, type PublishOptions } from './PublishModal';
 import { ArticleDiffModal } from './ArticleDiffModal';
 import { ArticleHistoryModal } from './ArticleHistoryModal';
+import { PastedAnnotationsDialog, type DetectedBracketAnnotation } from './PastedAnnotationsDialog';
+
+const BRACKET_ANNOTATION_TEST_REGEX = /\{([^{}\n]+?)\}\s*\(([^()\n]+?)\)/;
+const BRACKET_ANNOTATION_GLOBAL_REGEX = /\{([^{}\n]+?)\}\s*\(([^()\n]+?)\)/g;
+
+/**
+ * Parcourt les blocs de texte du document ProseMirror à partir de `minPos`
+ * pour détecter les motifs `{Texte annoté}(Contenu de l'annotation)` et
+ * calculer leurs positions exactes `[from, to]` dans le document.
+ */
+function findBracketAnnotations(doc: ProseMirrorNode, minPos = 0): DetectedBracketAnnotation[] {
+  const results: DetectedBracketAnnotation[] = [];
+
+  doc.descendants((node, pos) => {
+    if (!node.isTextblock) return true;
+    if (node.type.name === 'codeBlock') return false;
+
+    // Chaque caractère de blockText correspond exactement à `pos + 1 + index`
+    // dans le document ProseMirror (les feuilles inline comme <br> valent '\n').
+    let blockText = '';
+    node.forEach((child) => {
+      if (child.isText && child.text) {
+        blockText += child.text;
+      } else {
+        blockText += '\n'.repeat(child.nodeSize);
+      }
+    });
+
+    BRACKET_ANNOTATION_GLOBAL_REGEX.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = BRACKET_ANNOTATION_GLOBAL_REGEX.exec(blockText)) !== null) {
+      const matchStart = match.index;
+      const matchEnd = matchStart + match[0].length;
+      const from = pos + 1 + matchStart;
+      const to = pos + 1 + matchEnd;
+      if (from < minPos) continue;
+
+      const targetText = match[1];
+      const noteText = match[2].trim();
+      if (!targetText.trim() || !noteText) continue;
+
+      const beforeStart = Math.max(0, matchStart - 45);
+      const afterEnd = Math.min(blockText.length, matchEnd + 45);
+      const contextBefore =
+        (beforeStart > 0 ? '…' : '') +
+        blockText.slice(beforeStart, matchStart).replace(/\n+/g, ' ');
+      const contextAfter =
+        blockText.slice(matchEnd, afterEnd).replace(/\n+/g, ' ') +
+        (afterEnd < blockText.length ? '…' : '');
+
+      results.push({
+        from,
+        to,
+        targetText,
+        noteText,
+        contextBefore,
+        contextAfter,
+      });
+    }
+
+    return false;
+  });
+
+  return results;
+}
+
+/**
+ * Convertit une occurrence `{Texte}(Note)` à `[match.from, match.to]` en
+ * texte `Texte` porteur de `annotationMark`, tout en préservant les marques
+ * inline existantes (gras, italique, souligné, liens) à l'intérieur de `{...}`.
+ */
+function convertBracketMatchInTr(
+  tr: Transaction,
+  markType: MarkType,
+  match: DetectedBracketAnnotation,
+  noteOverride?: string
+) {
+  const note = (noteOverride ?? match.noteText).trim() || match.noteText;
+  const targetEndInMatch = match.from + 1 + match.targetText.length;
+  // 1. Supprimer le suffixe `}(Note)`
+  tr.delete(targetEndInMatch, match.to);
+  // 2. Supprimer l'accolade ouvrante `{`
+  tr.delete(match.from, match.from + 1);
+  // 3. Poser la marque d'annotation officielle sur `Texte`
+  tr.addMark(match.from, match.from + match.targetText.length, markType.create({ note }));
+}
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) return error.message;
@@ -211,6 +299,12 @@ export function Editor({
   const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(
     null
   );
+  const [pastedAnnotationQueue, setPastedAnnotationQueue] = useState<{
+    matches: DetectedBracketAnnotation[];
+    currentIndex: number;
+    totalCount: number;
+    convertedCount: number;
+  } | null>(null);
   const [isDocked, setIsDocked] = useState(false);
   // Garde-fou de chargement. Tant que le document de l'article n'est pas
   // réellement dans l'éditeur, aucune sauvegarde ne doit partir : un éditeur
@@ -226,6 +320,7 @@ export function Editor({
   const toolbarSentinelRef = useRef<HTMLDivElement>(null);
   const openAnnotationPopoverRef = useRef<(text?: string, existingNote?: string) => void>(() => {});
   const openLinkPopoverRef = useRef<() => void>(() => {});
+  const scanPastedAnnotationsRef = useRef<(minPos: number) => void>(() => {});
 
   const timeZoneLabel = useMemo(() => currentTimeZoneLabel(), []);
 
@@ -322,6 +417,7 @@ export function Editor({
       // Compteurs officiels Tiptap : ils suivent les transactions sans
       // reparcourir tout le document à chaque frappe.
       CharacterCount,
+      ParagraphFormatting,
       PaywallDivider,
       AnnotationMark,
       ArticleImage.configure({
@@ -412,7 +508,7 @@ export function Editor({
         }
         return false;
       },
-      handlePaste: (_view, event) => {
+      handlePaste: (view, event) => {
         const files = Array.from(event.clipboardData?.files ?? []).filter((file) =>
           file.type.startsWith('image/')
         );
@@ -420,6 +516,17 @@ export function Editor({
           event.preventDefault();
           void uploadFiles(files, files.length > 1 ? 'gallery' : 'single');
           return true;
+        }
+        const pastedText = event.clipboardData?.getData('text/plain') ?? '';
+        const pastedHtml = event.clipboardData?.getData('text/html') ?? '';
+        if (
+          BRACKET_ANNOTATION_TEST_REGEX.test(pastedText) ||
+          BRACKET_ANNOTATION_TEST_REGEX.test(pastedHtml)
+        ) {
+          const startScanPos = Math.max(0, view.state.selection.from - 2);
+          setTimeout(() => {
+            scanPastedAnnotationsRef.current(startScanPos);
+          }, 0);
         }
         return false;
       },
@@ -547,6 +654,153 @@ export function Editor({
   useEffect(() => {
     openAnnotationPopoverRef.current = openAnnotationPopover;
   }, [openAnnotationPopover]);
+
+  // ─── Détection des annotations au collage `{Texte}(Note)` ──────────────
+  const focusBracketMatch = useCallback(
+    (match: DetectedBracketAnnotation) => {
+      if (!editor) return;
+      try {
+        const tr = editor.state.tr.setSelection(
+          TextSelection.create(editor.state.doc, match.from, match.to)
+        );
+        editor.view.dispatch(tr.scrollIntoView());
+      } catch {
+        // Ignorer si la position est hors bornes
+      }
+    },
+    [editor]
+  );
+
+  const scanPastedAnnotations = useCallback(
+    (minPos: number) => {
+      if (!editor) return;
+      const matches = findBracketAnnotations(editor.state.doc, minPos);
+      if (matches.length === 0) return;
+      setPastedAnnotationQueue({
+        matches,
+        currentIndex: 1,
+        totalCount: matches.length,
+        convertedCount: 0,
+      });
+      focusBracketMatch(matches[0]);
+    },
+    [editor, focusBracketMatch]
+  );
+
+  useEffect(() => {
+    scanPastedAnnotationsRef.current = scanPastedAnnotations;
+  }, [scanPastedAnnotations]);
+
+  const handleConfirmCurrentPastedAnnotation = useCallback(
+    (note: string) => {
+      if (!editor || !pastedAnnotationQueue || pastedAnnotationQueue.matches.length === 0) return;
+      const current = pastedAnnotationQueue.matches[0];
+      const markType = editor.state.schema.marks.annotationMark;
+      if (!markType) return;
+
+      const freshMatches = findBracketAnnotations(editor.state.doc, current.from);
+      const target = freshMatches[0] ?? current;
+
+      const tr = editor.state.tr;
+      convertBracketMatchInTr(tr, markType, target, note);
+      editor.view.dispatch(tr);
+      setHasUnsavedChanges(true);
+
+      const nextMinPos = target.from + target.targetText.length;
+      const remaining = findBracketAnnotations(editor.state.doc, nextMinPos);
+      const newConverted = pastedAnnotationQueue.convertedCount + 1;
+
+      if (remaining.length === 0) {
+        setPastedAnnotationQueue(null);
+        toast.success(
+          newConverted > 1
+            ? t`${newConverted} annotations officielles créées.`
+            : t`Annotation officielle créée.`
+        );
+      } else {
+        setPastedAnnotationQueue({
+          matches: remaining,
+          currentIndex: pastedAnnotationQueue.currentIndex + 1,
+          totalCount: pastedAnnotationQueue.totalCount,
+          convertedCount: newConverted,
+        });
+        focusBracketMatch(remaining[0]);
+      }
+    },
+    [editor, pastedAnnotationQueue, focusBracketMatch]
+  );
+
+  const handleSkipCurrentPastedAnnotation = useCallback(() => {
+    if (!editor || !pastedAnnotationQueue || pastedAnnotationQueue.matches.length === 0) return;
+    const current = pastedAnnotationQueue.matches[0];
+    const remaining = findBracketAnnotations(editor.state.doc, current.to);
+
+    if (remaining.length === 0) {
+      const converted = pastedAnnotationQueue.convertedCount;
+      setPastedAnnotationQueue(null);
+      if (converted > 0) {
+        toast.success(
+          converted > 1
+            ? t`${converted} annotations officielles créées.`
+            : t`Annotation officielle créée.`
+        );
+      }
+    } else {
+      setPastedAnnotationQueue({
+        matches: remaining,
+        currentIndex: pastedAnnotationQueue.currentIndex + 1,
+        totalCount: pastedAnnotationQueue.totalCount,
+        convertedCount: pastedAnnotationQueue.convertedCount,
+      });
+      focusBracketMatch(remaining[0]);
+    }
+  }, [editor, pastedAnnotationQueue, focusBracketMatch]);
+
+  const handleConfirmAllPastedAnnotations = useCallback(
+    (currentNote: string) => {
+      if (!editor || !pastedAnnotationQueue || pastedAnnotationQueue.matches.length === 0) return;
+      const current = pastedAnnotationQueue.matches[0];
+      const markType = editor.state.schema.marks.annotationMark;
+      if (!markType) return;
+
+      const remaining = findBracketAnnotations(editor.state.doc, current.from);
+      if (remaining.length === 0) {
+        setPastedAnnotationQueue(null);
+        return;
+      }
+
+      const tr = editor.state.tr;
+      // Application de la fin vers le début pour préserver tous les offsets.
+      for (let i = remaining.length - 1; i >= 0; i--) {
+        const m = remaining[i];
+        convertBracketMatchInTr(tr, markType, m, i === 0 ? currentNote : m.noteText);
+      }
+      editor.view.dispatch(tr);
+      setHasUnsavedChanges(true);
+
+      const totalConverted = pastedAnnotationQueue.convertedCount + remaining.length;
+      setPastedAnnotationQueue(null);
+      toast.success(
+        totalConverted > 1
+          ? t`${totalConverted} annotations officielles créées.`
+          : t`Annotation officielle créée.`
+      );
+    },
+    [editor, pastedAnnotationQueue]
+  );
+
+  const handleSkipAllPastedAnnotations = useCallback(() => {
+    if (!pastedAnnotationQueue) return;
+    const converted = pastedAnnotationQueue.convertedCount;
+    setPastedAnnotationQueue(null);
+    if (converted > 0) {
+      toast.success(
+        converted > 1
+          ? t`${converted} annotations officielles créées.`
+          : t`Annotation officielle créée.`
+      );
+    }
+  }, [pastedAnnotationQueue]);
 
   // ─── Liens ─────────────────────────────────────────────────────────────
   const openLinkPopover = useCallback(() => {
@@ -1624,6 +1878,18 @@ export function Editor({
         onApprove={capabilities?.canReview && onReview ? handleDiffApprove : undefined}
         onReject={capabilities?.canReview && onReview ? handleDiffReject : undefined}
         onDiscardDraft={onDiscardDraft ? handleDiscardDraft : undefined}
+      />
+
+      <PastedAnnotationsDialog
+        open={Boolean(pastedAnnotationQueue && pastedAnnotationQueue.matches.length > 0)}
+        current={pastedAnnotationQueue?.matches[0] ?? null}
+        currentIndex={pastedAnnotationQueue?.currentIndex ?? 1}
+        totalCount={pastedAnnotationQueue?.totalCount ?? 1}
+        remainingCount={pastedAnnotationQueue?.matches.length ?? 0}
+        onConfirmCurrent={handleConfirmCurrentPastedAnnotation}
+        onSkipCurrent={handleSkipCurrentPastedAnnotation}
+        onConfirmAll={handleConfirmAllPastedAnnotations}
+        onSkipAll={handleSkipAllPastedAnnotations}
       />
     </div>
   );

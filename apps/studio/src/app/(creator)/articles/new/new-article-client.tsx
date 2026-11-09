@@ -5,6 +5,7 @@ import { t } from '@lingui/core/macro';
 import { useRouter } from 'next/navigation';
 import { Building2, UserRound } from 'lucide-react';
 import { cn } from '@qoe/utils';
+import { Button } from '@qoe/ui/button';
 import { Editor } from '@/features/editor/components/Editor';
 import type { ArticleAttributionDraft } from '@/features/editor/components/ArticleAttributionEditor';
 import { saveArticleAction } from '@qoe/sdk/actions/articles';
@@ -76,14 +77,26 @@ export function NewArticleClient({ categories, capabilities, target }: NewArticl
       {target && (
         <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
           <span className="text-muted-foreground">{t`Publier dans`}</span>
-          <span className="inline-flex items-center gap-1.5 rounded-chip border border-border/60 bg-card px-2 py-0.5 font-medium text-foreground">
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => {
+              (
+                document.querySelector(
+                  'button[aria-label="Programmer"]'
+                ) as HTMLButtonElement | null
+              )?.click();
+            }}
+            className="gap-1.5 rounded-chip px-2.5 py-0.5 text-xs font-medium"
+            title={t`Ouvrir les paramètres de publication`}
+          >
             {target.type === 'MEDIA' ? (
               <Building2 className="size-3.5 text-primary" strokeWidth={1.5} />
             ) : (
               <UserRound className="size-3.5 text-muted-foreground" strokeWidth={1.5} />
             )}
-            {target.name}
-          </span>
+            <span>{target.name}</span>
+          </Button>
           {target.fallbackFromMediaId && (
             <span className={cn('text-highlight')}>
               {t`Ce média ne vous est plus accessible : l'article part dans votre profil personnel.`}

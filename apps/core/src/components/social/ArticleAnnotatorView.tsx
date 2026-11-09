@@ -642,8 +642,7 @@ function ArticleAnnotatorViewInner({
   return (
     <div
       className={cn(
-        'relative w-full space-y-6 max-w-4xl mx-auto font-sans pb-16 transition-colors duration-200 bg-white dark:bg-black text-black dark:text-white',
-        typographyClasses
+        'relative w-full space-y-6 max-w-4xl mx-auto font-sans pb-16 transition-colors duration-200 bg-white dark:bg-black text-black dark:text-white'
       )}
     >
       <ReadingRuler />
@@ -962,7 +961,7 @@ function ArticleAnnotatorViewInner({
         filterMode={toolbar?.filterMode}
         onFilterModeChange={toolbar?.setFilterMode}
         contentClassName={cn(
-          'prose prose-sm sm:prose-base dark:prose-invert max-w-none text-foreground/90 cursor-text pt-2 leading-[1.8] antialiased [text-rendering:optimizeLegibility]',
+          'article-prose max-w-none text-foreground/90 cursor-text pt-2 antialiased [text-rendering:optimizeLegibility]',
           typographyClasses
         )}
         callbacks={callbacks}
@@ -974,7 +973,7 @@ function ArticleAnnotatorViewInner({
         <div
           id="article-content"
           className={cn(
-            'prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed space-y-6 text-foreground/90 cursor-text pt-2 antialiased [text-rendering:optimizeLegibility]',
+            'article-prose max-w-none text-foreground/90 cursor-text pt-2 antialiased [text-rendering:optimizeLegibility]',
             typographyClasses
           )}
           dangerouslySetInnerHTML={{ __html: displayedContent }}

@@ -457,7 +457,7 @@ export type CanonicalBlockKind =
 export interface CanonicalInlineSpan {
   start: number;
   end: number;
-  style: 'bold' | 'italic' | 'underline' | 'code' | 'link' | string;
+  style: 'bold' | 'italic' | 'underline' | 'strike' | 's' | 'code' | 'link' | string;
   href?: string;
 }
 
@@ -478,6 +478,8 @@ export interface CanonicalBlock {
   text?: string;
   items?: CanonicalListItem[];
   ordered?: boolean;
+  indent?: boolean;
+  dropCap?: boolean;
   src?: string;
   alt?: string;
   spans?: CanonicalSpan[];

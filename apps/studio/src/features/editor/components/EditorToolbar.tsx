@@ -26,6 +26,8 @@ import {
   Redo2,
   Link2,
   TextQuote,
+  IndentIncrease,
+  CaseUpper,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
@@ -167,6 +169,9 @@ export function EditorToolbar({
         orderedList: current.isActive('orderedList'),
         blockquote: current.isActive('blockquote'),
         codeBlock: inCodeBlock,
+        indent: Boolean(current.getAttributes('paragraph').indent),
+        dropCap: Boolean(current.getAttributes('paragraph').dropCap),
+        isParagraph: current.isActive('paragraph') && !inCodeBlock,
         annotation: current.isActive('annotationMark'),
         hasPaywall: current.state.doc.content.content.some(
           (node) => node.type.name === 'paywallDivider'
@@ -309,6 +314,21 @@ export function EditorToolbar({
           <Separator />
 
           <div role="group" aria-label={t`Blocs`} className="flex items-center gap-0.5">
+            <ToolbarButton
+              active={state.indent}
+              onClick={() => editor.chain().focus().toggleParagraphIndent().run()}
+              icon={<IndentIncrease className="h-3.5 w-3.5 stroke-2" />}
+              label={t`Alinéa de première ligne`}
+              shortcut="Tab"
+              disabled={!state.isParagraph}
+            />
+            <ToolbarButton
+              active={state.dropCap}
+              onClick={() => editor.chain().focus().toggleDropCap().run()}
+              icon={<CaseUpper className="h-3.5 w-3.5 stroke-2" />}
+              label={t`Lettrine (grande initiale)`}
+              disabled={!state.isParagraph}
+            />
             <ToolbarButton
               active={state.blockquote}
               onClick={() => editor.chain().focus().toggleBlockquote().run()}

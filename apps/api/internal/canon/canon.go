@@ -52,14 +52,14 @@ type Span struct {
 	Note  string `json:"note,omitempty"`
 }
 
-// InlineSpan décrit un style inline (bold/italic/underline/code/lien) sur
+// InlineSpan décrit un style inline (bold/italic/underline/strike/code/lien) sur
 // [Start,End) (code points du texte normalisé du bloc). Les styles imbriqués
 // produisent des spans disjoints empilables (ex. bold+italic = deux spans
 // chevauchants) — le client les applique par priorité de style.
 type InlineSpan struct {
 	Start int    `json:"start"`
 	End   int    `json:"end"`
-	Style string `json:"style"`          // bold | italic | underline | code | link
+	Style string `json:"style"`          // bold | italic | underline | strike | code | link
 	Href  string `json:"href,omitempty"` // Style == "link"
 }
 
@@ -75,6 +75,8 @@ type Block struct {
 	Text    string       `json:"text,omitempty"`  // blocs texte
 	Items   []ListItem   `json:"items,omitempty"` // KindList : contenu des <li>
 	Ordered bool         `json:"ordered,omitempty"`
+	Indent  bool         `json:"indent,omitempty"`
+	DropCap bool         `json:"dropCap,omitempty"`
 	Src     string       `json:"src,omitempty"` // KindImage
 	Alt     string       `json:"alt,omitempty"` // KindImage
 	Spans   []Span       `json:"spans,omitempty"`
@@ -327,16 +329,28 @@ type inlState struct {
 }
 
 type parser struct {
-	cur     *writer // segment en cours (paragraphe, titre, item…)
-	curKind Kind
-	isItem  bool // le segment en cours est un <li>
-	inList  bool // dans une <ul>/<ol>
-	ordered bool // la liste courante est ordonnée
-	items   []itemTmp
-	blocks  []Block
-	segs    []Segment
-	skip    int // profondeur des tags sans contenu texte (script, style, …)
-	istack  []inlState
+	cur          *writer // segment en cours (paragraphe, titre, item…)
+	curKind      Kind
+	curExplicitP bool // vrai <p> ouvert (pour préserver les paragraphes vides <p></p>)
+	curIndent    bool // alinéa de première ligne (data-indent="true" / .has-indent)
+	curDropCap   bool // lettrine (data-drop-cap="true" / .has-drop-cap)
+	isItem       bool // le segment en cours est un <li>
+	inList       bool // dans une <ul>/<ol>
+	ordered      bool // la liste courante est ordonnée
+	items        []itemTmp
+	blocks       []Block
+	segs         []Segment
+	skip         int // profondeur des tags sans contenu texte (script, style, …)
+	istack       []inlState
+}
+
+func hasClass(classAttr, target string) bool {
+	for _, c := range strings.Fields(classAttr) {
+		if c == target {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *parser) parse(src string) {
@@ -366,7 +380,10 @@ func (p *parser) parse(src string) {
 			}
 			switch name {
 			case "p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "pre":
-				p.startTextKind(blockKind(name))
+				isExplicitP := name == "p"
+				indent := isExplicitP && (attrs["data-indent"] == "true" || hasClass(attrs["class"], "has-indent"))
+				dropCap := isExplicitP && (attrs["data-drop-cap"] == "true" || hasClass(attrs["class"], "has-drop-cap"))
+				p.startTextKindWithAttrs(blockKind(name), isExplicitP, indent, dropCap)
 			case "ul", "ol":
 				p.openList(name == "ol")
 			case "li":
@@ -387,6 +404,8 @@ func (p *parser) parse(src string) {
 				p.pushInline("italic", "")
 			case "u":
 				p.pushInline("underline", "")
+			case "s", "del":
+				p.pushInline("strike", "")
 			case "code":
 				p.pushInline("code", "")
 			case "a":
@@ -408,7 +427,7 @@ func (p *parser) parse(src string) {
 			}
 			switch name {
 			case "p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "pre":
-				p.endTextKind(blockKind(name))
+				p.endTextKindWithTag(blockKind(name), name)
 			case "li":
 				p.endItem()
 			case "ul", "ol":
@@ -417,7 +436,7 @@ func (p *parser) parse(src string) {
 				if p.cur != nil {
 					p.cur.closeMark()
 				}
-			case "b", "strong", "i", "em", "u", "code", "a":
+			case "b", "strong", "i", "em", "u", "s", "del", "code", "a":
 				p.popInline()
 			}
 		}
@@ -500,6 +519,10 @@ func (p *parser) writeText(s string) {
 }
 
 func (p *parser) startTextKind(k Kind) {
+	p.startTextKindWithAttrs(k, false, false, false)
+}
+
+func (p *parser) startTextKindWithAttrs(k Kind, explicitP, indent, dropCap bool) {
 	// <p> à l'intérieur d'un blockquote/code/<li> appartient au segment parent
 	// (le conteneur, pas un nouveau paragraphe).
 	if p.cur != nil && k == KindParagraph {
@@ -513,13 +536,36 @@ func (p *parser) startTextKind(k Kind) {
 	}
 	p.cur = newWriter()
 	p.curKind = k
+	p.curExplicitP = explicitP
+	p.curIndent = indent
+	p.curDropCap = dropCap
 }
 
 func (p *parser) endTextKind(k Kind) {
+	p.endTextKindWithTag(k, "")
+}
+
+func (p *parser) endTextKindWithTag(k Kind, tagName string) {
 	if p.cur == nil {
 		return
 	}
 	if p.curKind == k && !p.isItem {
+		if tagName == "p" && p.curExplicitP && p.cur.text() == "" {
+			// Paragraphe vide explicite (<p></p> ou <p><br></p>) :
+			// émis dans Blocks pour préserver les sauts de ligne de l'auteur,
+			// mais SANS segment dans Segments pour ne pas altérer doc.Text,
+			// doc.Sha ni les offsets canonicalStart/canonicalEnd existants.
+			p.blocks = append(p.blocks, Block{
+				Kind:    KindParagraph,
+				Indent:  p.curIndent,
+				DropCap: p.curDropCap,
+			})
+			p.cur = nil
+			p.curExplicitP = false
+			p.curIndent = false
+			p.curDropCap = false
+			return
+		}
 		p.flushCur()
 		return
 	}
@@ -528,6 +574,9 @@ func (p *parser) endTextKind(k Kind) {
 		// on jette le segment vide.
 		if !(p.curKind == KindQuote || p.curKind == KindCode) {
 			p.cur = nil
+			p.curExplicitP = false
+			p.curIndent = false
+			p.curDropCap = false
 		}
 		return
 	}
@@ -615,8 +664,13 @@ func (p *parser) flushCur() {
 	text := p.cur.text()
 	spans := p.cur.spans()
 	inl := p.cur.inlineSpans()
+	indent := p.curIndent
+	dropCap := p.curDropCap
 	p.cur = nil
 	p.isItem = false
+	p.curExplicitP = false
+	p.curIndent = false
+	p.curDropCap = false
 	if text == "" {
 		return
 	}
@@ -624,7 +678,12 @@ func (p *parser) flushCur() {
 	if kind == "" {
 		kind = KindParagraph
 	}
-	blk := Block{Kind: kind, Text: text}
+	blk := Block{
+		Kind:    kind,
+		Text:    text,
+		Indent:  indent,
+		DropCap: dropCap,
+	}
 	if len(spans) > 0 {
 		blk.Spans = spans
 	}

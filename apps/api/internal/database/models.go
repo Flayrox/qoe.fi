@@ -586,6 +586,7 @@ type Article struct {
 	AllowPublicAnnotations bool              `json:"allowPublicAnnotations"`
 	AllowComments          bool              `json:"allowComments"`
 	AllowDownload          bool              `json:"allowDownload"`
+	ShowOnPersonalProfile  bool              `json:"showOnPersonalProfile"`
 	ScheduledAt            pgtype.Timestamp  `json:"scheduledAt"`
 	Status                 string            `json:"status"`
 	PublicationId          string            `json:"publicationId"`
@@ -618,6 +619,7 @@ type ArticleAttribution struct {
 	IsVisible        bool             `json:"isVisible"`
 	ConsentStatus    string           `json:"consentStatus"`
 	ConsentUpdatedAt pgtype.Timestamp `json:"consentUpdatedAt"`
+	CategoryId       pgtype.Text      `json:"categoryId"`
 	CreatedAt        pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt        pgtype.Timestamp `json:"updatedAt"`
 }

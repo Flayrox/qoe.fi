@@ -11,6 +11,15 @@ export interface ArticleCategoryOption {
   slug?: string;
 }
 
+export interface ArticleWorkspaceOption {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  type: 'PERSONAL' | 'MEDIA';
+  role?: string;
+}
+
 export interface ArticleSettingsDraft {
   id: string;
   title: string;
@@ -28,6 +37,11 @@ export interface ArticleSettingsDraft {
   allowPublicAnnotations: boolean;
   allowComments: boolean;
   allowDownload: boolean;
+  showOnPersonalProfile: boolean;
+  publicationId: string;
+  publicationName?: string;
+  publicationSlug?: string;
+  publicationType?: 'PERSONAL' | 'MEDIA' | string;
   attributions: ArticleAttributionDraft[];
   subdomain?: string;
 }
@@ -48,6 +62,7 @@ export interface ArticleSettingsSavePayload {
   allowPublicAnnotations: boolean;
   allowComments: boolean;
   allowDownload: boolean;
+  showOnPersonalProfile: boolean;
   attributions: ArticleAttributionDraft[];
 }
 
@@ -113,6 +128,11 @@ export function buildArticleSettingsDraft(article: ArticleEditorPayload): Articl
     allowPublicAnnotations: article.allowPublicAnnotations ?? true,
     allowComments: article.allowComments ?? true,
     allowDownload: article.allowDownload ?? true,
+    showOnPersonalProfile: article.showOnPersonalProfile ?? true,
+    publicationId: article.publication?.id || article.publicationId,
+    publicationName: article.publication?.name,
+    publicationSlug: article.publication?.slug,
+    publicationType: article.publication?.type,
     attributions: buildAttributionDrafts(article),
     subdomain: article.publication?.subdomain ?? undefined,
   };
@@ -137,6 +157,7 @@ export function buildArticleSettingsSavePayload(
     allowPublicAnnotations: draft.allowPublicAnnotations,
     allowComments: draft.allowComments,
     allowDownload: draft.allowDownload,
+    showOnPersonalProfile: draft.showOnPersonalProfile,
     attributions: draft.attributions,
   };
 }
@@ -191,6 +212,8 @@ export function articleSettingsFingerprint(draft: ArticleSettingsDraft): string 
     allowPublicAnnotations: draft.allowPublicAnnotations,
     allowComments: draft.allowComments,
     allowDownload: draft.allowDownload,
+    showOnPersonalProfile: draft.showOnPersonalProfile,
+    publicationId: draft.publicationId,
     attributions: draft.attributions,
     subdomain: draft.subdomain,
   });
