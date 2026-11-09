@@ -2433,6 +2433,12 @@ msgstr ""
 msgid "Dépingler"
 msgstr ""
 
+msgid "Déplacer l'image vers la droite"
+msgstr ""
+
+msgid "Déplacer l'image vers la gauche"
+msgstr ""
+
 msgid "Déplacer la catégorie"
 msgstr ""
 
@@ -2555,6 +2561,9 @@ msgstr ""
 
 #~ msgid "Description optionnelle de la sélection..."
 #~ msgstr "Optional description of the selection..."
+
+msgid "Description pour les lecteurs d'écran"
+msgstr ""
 
 msgid "Description SEO"
 msgstr ""
@@ -6317,6 +6326,9 @@ msgstr ""
 msgid "Retirer du Média"
 msgstr "Remove from Média"
 
+msgid "Retirer l'image de la galerie"
+msgstr ""
+
 msgid "Retirer la recommandation"
 msgstr ""
 
@@ -7031,6 +7043,9 @@ msgid "Testez en direct notre interface adaptative. Ajustez la typographie et l'
 msgstr "Test our adaptive interface live. Adjust the typography and atmosphere to create your own space for reflection."
 
 msgid "Texte affiché sous l'image"
+msgstr ""
+
+msgid "Texte alternatif de l'image"
 msgstr ""
 
 #~ msgid "Texte brut — les liens sont ajoutés automatiquement."

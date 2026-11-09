@@ -2433,6 +2433,12 @@ msgstr "Densité"
 msgid "Dépingler"
 msgstr "Dépingler"
 
+msgid "Déplacer l'image vers la droite"
+msgstr "Déplacer l'image vers la droite"
+
+msgid "Déplacer l'image vers la gauche"
+msgstr "Déplacer l'image vers la gauche"
+
 msgid "Déplacer la catégorie"
 msgstr "Déplacer la catégorie"
 
@@ -2555,6 +2561,9 @@ msgstr "Description générée depuis le début de l'article."
 
 #~ msgid "Description optionnelle de la sélection..."
 #~ msgstr "Description optionnelle de la sélection..."
+
+msgid "Description pour les lecteurs d'écran"
+msgstr "Description pour les lecteurs d'écran"
 
 msgid "Description SEO"
 msgstr "Description SEO"
@@ -6317,6 +6326,9 @@ msgstr "Retirer du fil"
 msgid "Retirer du Média"
 msgstr "Retirer du Média"
 
+msgid "Retirer l'image de la galerie"
+msgstr "Retirer l'image de la galerie"
+
 msgid "Retirer la recommandation"
 msgstr "Retirer la recommandation"
 
@@ -7032,6 +7044,9 @@ msgstr "Testez en direct notre interface adaptative. Ajustez la typographie et l
 
 msgid "Texte affiché sous l'image"
 msgstr "Texte affiché sous l'image"
+
+msgid "Texte alternatif de l'image"
+msgstr "Texte alternatif de l'image"
 
 #~ msgid "Texte brut — les liens sont ajoutés automatiquement."
 #~ msgstr "Texte brut — les liens sont ajoutés automatiquement."

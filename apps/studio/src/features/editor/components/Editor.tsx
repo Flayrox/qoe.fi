@@ -347,6 +347,7 @@ export function Editor({
     caption: '',
     credit: '',
   });
+  const [imageDetailsTarget, setImageDetailsTarget] = useState<'image' | 'galleryImage'>('image');
   const [authorNoteInput, setAuthorNoteInput] = useState('');
   const [selectedQuoteForAnnotation, setSelectedQuoteForAnnotation] = useState('');
   const [annotationToast, setAnnotationToast] = useState<string | null>(null);
@@ -984,17 +985,23 @@ export function Editor({
   // ─── Détails d'image (alt, légende, crédit) ────────────────────────────
   const openImageDetails = useCallback(() => {
     if (!editor) return;
-    if (!editor.isActive('image')) {
+    const target: 'image' | 'galleryImage' | null = editor.isActive('galleryImage')
+      ? 'galleryImage'
+      : editor.isActive('image')
+        ? 'image'
+        : null;
+    if (!target) {
       setAnnotationToast(t`Sélectionnez une image pour renseigner sa légende.`);
       setTimeout(() => setAnnotationToast(null), 3000);
       return;
     }
 
-    const attributes = editor.getAttributes('image');
+    const attributes = editor.getAttributes(target);
+    setImageDetailsTarget(target);
     setImageDetails({
       alt: (attributes.alt as string) || '',
-      caption: (attributes.caption as string) || '',
-      credit: (attributes.credit as string) || '',
+      caption: target === 'image' ? (attributes.caption as string) || '' : '',
+      credit: target === 'image' ? (attributes.credit as string) || '' : '',
     });
 
     const coords = editor.view.coordsAtPos(editor.state.selection.from);
@@ -1009,17 +1016,17 @@ export function Editor({
 
   const saveImageDetails = useCallback(() => {
     if (!editor) return;
-    editor
-      .chain()
-      .focus()
-      .updateAttributes('image', {
-        alt: imageDetails.alt.trim(),
-        caption: imageDetails.caption.trim(),
-        credit: imageDetails.credit.trim(),
-      })
-      .run();
+    const attributes =
+      imageDetailsTarget === 'image'
+        ? {
+            alt: imageDetails.alt.trim(),
+            caption: imageDetails.caption.trim(),
+            credit: imageDetails.credit.trim(),
+          }
+        : { alt: imageDetails.alt.trim() };
+    editor.chain().focus().updateAttributes(imageDetailsTarget, attributes).run();
     setImageDetailsPosition(null);
-  }, [editor, imageDetails]);
+  }, [editor, imageDetails, imageDetailsTarget]);
 
   const closeAnnotationPanel = useCallback(() => {
     setShowAuthorAnnotationModal(false);
@@ -1983,6 +1990,7 @@ export function Editor({
       <ImageDetailsPanel
         open={Boolean(imageDetailsPosition)}
         position={imageDetailsPosition}
+        kind={imageDetailsTarget}
         value={imageDetails}
         onChange={setImageDetails}
         onSave={saveImageDetails}

@@ -15,6 +15,8 @@ export interface ImageDetails {
 export interface ImageDetailsPanelProps {
   open: boolean;
   position: { top: number; left: number } | null;
+  /** Une image seule porte aussi légende et crédit ; une image de galerie n’a que l’alt. */
+  kind?: 'image' | 'galleryImage';
   value: ImageDetails;
   onChange: (value: ImageDetails) => void;
   onSave: () => void;
@@ -31,30 +33,40 @@ export interface ImageDetailsPanelProps {
 export function ImageDetailsPanel({
   open,
   position,
+  kind = 'image',
   value,
   onChange,
   onSave,
   onClose,
 }: ImageDetailsPanelProps) {
+  const isGallery = kind === 'galleryImage';
   // Les libellés sont évalués au rendu : `t` ne peut pas être appelé au
   // chargement du module, avant que la locale soit activée.
-  const fields = [
+  const fields: Array<{
+    key: keyof ImageDetails;
+    label: string;
+    placeholder: string;
+  }> = [
     {
       key: 'alt',
       label: t`Description (alt)`,
       placeholder: t`Décrivez l'image pour les lecteurs d'écran`,
     },
-    {
-      key: 'caption',
-      label: t`Légende`,
-      placeholder: t`Texte affiché sous l'image`,
-    },
-    {
-      key: 'credit',
-      label: t`Crédit photo`,
-      placeholder: t`Nom du photographe ou de l'agence`,
-    },
-  ] as const;
+    ...(isGallery
+      ? []
+      : [
+          {
+            key: 'caption' as const,
+            label: t`Légende`,
+            placeholder: t`Texte affiché sous l'image`,
+          },
+          {
+            key: 'credit' as const,
+            label: t`Crédit photo`,
+            placeholder: t`Nom du photographe ou de l'agence`,
+          },
+        ]),
+  ];
 
   return (
     <PopoverPanel open={open} onClose={onClose} label={t`Détails de l'image`} anchor={position}>
@@ -66,7 +78,9 @@ export function ImageDetailsPanel({
           <div>
             <h4 className="text-xs font-bold text-foreground">{t`Détails de l'image`}</h4>
             <p className="text-[10px] text-muted-foreground">
-              {t`Description, légende et crédit photo`}
+              {isGallery
+                ? t`Description pour les lecteurs d'écran`
+                : t`Description, légende et crédit photo`}
             </p>
           </div>
         </div>
