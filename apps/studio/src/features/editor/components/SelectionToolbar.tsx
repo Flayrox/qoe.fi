@@ -36,6 +36,8 @@ function BubbleButton({ active, onClick, label, children }: BubbleButtonProps) {
     <button
       type="button"
       onClick={onClick}
+      onMouseDown={(event) => event.preventDefault()}
+      title={label}
       aria-label={label}
       aria-pressed={active ?? undefined}
       className={cn(
@@ -71,6 +73,7 @@ export function SelectionToolbar({ editor, onLink, onAnnotation }: SelectionTool
       strike: current.isActive('strike'),
       code: current.isActive('code'),
       link: current.isActive('link'),
+      annotation: current.isActive('annotationMark'),
       indent: Boolean(current.getAttributes('paragraph').indent),
       dropCap: Boolean(current.getAttributes('paragraph').dropCap),
       isParagraph: current.isActive('paragraph'),
@@ -132,7 +135,11 @@ export function SelectionToolbar({ editor, onLink, onAnnotation }: SelectionTool
       <BubbleButton active={state.link} onClick={onLink} label={t`Lien`}>
         <Link2 className="h-3.5 w-3.5 stroke-2" />
       </BubbleButton>
-      <BubbleButton onClick={onAnnotation} label={t`Note d'auteur`}>
+      <BubbleButton
+        active={state.annotation}
+        onClick={onAnnotation}
+        label={state.annotation ? t`Modifier la note d'auteur` : t`Note d'auteur`}
+      >
         <Highlighter className="h-3.5 w-3.5 stroke-2" />
       </BubbleButton>
 

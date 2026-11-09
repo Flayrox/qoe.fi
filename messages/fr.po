@@ -6489,6 +6489,9 @@ msgstr "Sans"
 msgid "Sans titre"
 msgstr "Sans titre"
 
+msgid "Saut de ligne"
+msgstr "Saut de ligne"
+
 msgid "Sauvegardé à"
 msgstr "Sauvegardé à"
 

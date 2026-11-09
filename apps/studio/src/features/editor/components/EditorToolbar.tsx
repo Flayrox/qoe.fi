@@ -15,6 +15,7 @@ import {
   Quote,
   Code,
   Code2,
+  CornerDownLeft,
   Minus,
   Eraser,
   ImageIcon,
@@ -59,6 +60,10 @@ function ToolbarButton({ active, onClick, icon, label, shortcut, disabled }: Too
       <TooltipTrigger
         type="button"
         onClick={disabled ? undefined : onClick}
+        // Garde le focus et la sélection dans l'éditeur quand on clique un
+        // bouton de la barre : sans cela, la sélection pouvait être perdue
+        // avant l'application de la note ou d'une marque.
+        onMouseDown={(event) => event.preventDefault()}
         aria-label={shortcut ? `${label} (${shortcut})` : label}
         aria-pressed={active ?? undefined}
         // `aria-disabled` plutôt que `disabled` : un bouton réellement
@@ -328,6 +333,13 @@ export function EditorToolbar({
               icon={<CaseUpper className="h-3.5 w-3.5 stroke-2" />}
               label={t`Lettrine (grande initiale)`}
               disabled={!state.isParagraph}
+            />
+            <ToolbarButton
+              onClick={() => editor.chain().focus().setHardBreak().run()}
+              icon={<CornerDownLeft className="h-3.5 w-3.5 stroke-2" />}
+              label={t`Saut de ligne`}
+              shortcut="⇧⏎"
+              disabled={!state.canFormat}
             />
             <ToolbarButton
               active={state.blockquote}

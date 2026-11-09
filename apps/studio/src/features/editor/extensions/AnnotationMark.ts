@@ -39,7 +39,7 @@ export const AnnotationMark = Mark.create<AnnotationMarkOptions>({
           return {
             'data-annotation-note': attributes.note,
             'data-is-official': 'true',
-            title: `Annotation auteur : ${attributes.note}`,
+            title: `Annotation auteur : ${attributes.note} — Option/Alt+clic pour modifier`,
           };
         },
       },
