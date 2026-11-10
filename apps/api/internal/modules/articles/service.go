@@ -58,7 +58,7 @@ type ArticleResponse struct {
 	EmailSentAt            *string                        `json:"emailSentAt,omitempty"`
 	EmailSentCount         int                            `json:"emailSentCount"`
 	EmailResendCount       int                            `json:"emailResendCount"`
-	PublisherID          string                         `json:"publisherId"`
+	PublisherID            string                         `json:"publisherId"`
 	AuthorID               string                         `json:"authorId"`
 	CategoryID             *string                        `json:"categoryId"`
 	TierID                 *string                        `json:"tierId"`
@@ -82,7 +82,7 @@ type ArticleResponse struct {
 	CanEdit                bool                           `json:"canEdit"`
 	PaywallMeta            *PaywallMeta                   `json:"paywallMeta"`
 	Author                 AuthorInfo                     `json:"author"`
-	Publisher            *PublisherInfo               `json:"publisher"`
+	Publisher              *PublisherInfo                 `json:"publisher"`
 	Category               *CategoryInfo                  `json:"category"`
 	CoAuthors              []AuthorInfo                   `json:"coAuthors"`
 	Attributions           []AttributionInfo              `json:"attributions"`
@@ -147,7 +147,7 @@ type PublisherInfo struct {
 
 // CreateArticleInput est l'entrée de création d'un article.
 type CreateArticleInput struct {
-	PublisherID          string
+	PublisherID            string
 	Title                  string
 	Slug                   string
 	Content                string
@@ -193,7 +193,7 @@ type UpdateArticleInput struct {
 	ShowOnPersonalProfile  *bool `json:"showOnPersonalProfile,omitempty"`
 	Published              bool
 	Status                 string
-	ActivePublisherID    string
+	ActivePublisherID      string
 	// ScheduledAt programme la publication ; nil = conserver l'existant.
 	ScheduledAt      *time.Time
 	Attributions     []ArticleAttributionInput
@@ -204,7 +204,7 @@ type UpdateArticleInput struct {
 
 // TransferArticleInput est l'entrée de transfert d'article entre publications.
 type TransferArticleInput struct {
-	TargetPublisherID   string  `json:"targetPublisherId"`
+	TargetPublisherID     string  `json:"targetPublisherId"`
 	TargetCategoryID      *string `json:"targetCategoryId,omitempty"`
 	ShowOnPersonalProfile *bool   `json:"showOnPersonalProfile,omitempty"`
 }
@@ -371,7 +371,7 @@ func (s *Service) GetBySlugAny(ctx context.Context, slug string, viewerID string
 		UpdatedAt:   row.UpdatedAt.Time.Format(time.RFC3339),
 		IsTruncated: cut.IsTruncated, AccessGranted: cut.AccessGranted, PaywallMeta: cut.PaywallMeta,
 		Author:       AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: authorLogo, Type: pubType},
-		Publisher:  &PublisherInfo{ID: row.PublisherId, Name: row.PublisherName, Slug: row.PublisherSlug, Subdomain: textPtr(row.PublisherSubdomain), LogoURL: textPtr(row.PublisherLogo), CustomDomain: textPtr(row.PublisherCustomDomain), Type: pubType},
+		Publisher:    &PublisherInfo{ID: row.PublisherId, Name: row.PublisherName, Slug: row.PublisherSlug, Subdomain: textPtr(row.PublisherSubdomain), LogoURL: textPtr(row.PublisherLogo), CustomDomain: textPtr(row.PublisherCustomDomain), Type: pubType},
 		CoAuthors:    []AuthorInfo{},
 		Attributions: []AttributionInfo{},
 	}
@@ -555,7 +555,7 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 		AllowComments:          allowComments,
 		AllowDownload:          allowDownload,
 		Status:                 status,
-		PublisherId:          in.PublisherID,
+		PublisherId:            in.PublisherID,
 		AuthorId:               toUUID(userID),
 		CategoryId:             textVal(categoryID),
 		TierId:                 textVal(in.TierID),
@@ -583,13 +583,7 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 	switch {
 	case status == "SUBMITTED":
 		s.notifyReviewers(ctx, in.PublisherID, id, userID)
-		if mc.isMedia {
-			_, _, _ = s.ensureAuthorSovereignCopy(ctx, id, userID)
-		}
 	case published:
-		if mc.isMedia {
-			_, _, _ = s.ensureAuthorSovereignCopy(ctx, id, userID)
-		}
 		if row, err := s.q.GetArticleByID(ctx, id); err == nil {
 			sendEmail := true
 			if in.SendEmail != nil {
@@ -899,17 +893,17 @@ var (
 // contenu coupé au paywall comme la lecture (jamais de contournement),
 // droits constatés. Versionnée (v1) pour les évolutions de format.
 type OfflinePack struct {
-	Version       string `json:"version"`
-	ID            string `json:"id"`
-	Title         string `json:"title"`
-	Slug          string `json:"slug"`
-	Content       string `json:"content"`
-	ReadingTime   int    `json:"readingTime"`
-	AuthorName    string `json:"authorName"`
-	PublisherID string `json:"publisherId"`
-	Publisher   string `json:"publisher"`
-	PublishedAt   string `json:"publishedAt"`
-	Downloadable  bool   `json:"downloadable"`
+	Version      string `json:"version"`
+	ID           string `json:"id"`
+	Title        string `json:"title"`
+	Slug         string `json:"slug"`
+	Content      string `json:"content"`
+	ReadingTime  int    `json:"readingTime"`
+	AuthorName   string `json:"authorName"`
+	PublisherID  string `json:"publisherId"`
+	Publisher    string `json:"publisher"`
+	PublishedAt  string `json:"publishedAt"`
+	Downloadable bool   `json:"downloadable"`
 }
 
 // OfflinePack assemble le pack (auth + Plus + publié + droit auteur +
@@ -1240,15 +1234,12 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 		s.queueSearchSync(articleID, "upsert")
 		if preservedStatus == "SUBMITTED" && row.Status != "SUBMITTED" {
 			s.notifyReviewers(ctx, row.PublisherId, articleID, userID)
-			if mc.isMedia {
-				_, _, _ = s.ensureAuthorSovereignCopy(ctx, articleID, uuidString(row.AuthorId))
-			}
 			_ = s.q.InsertArticleReviewLog(ctx, db.InsertArticleReviewLogParams{
-				ArticleId:     articleID,
+				ArticleId:   articleID,
 				PublisherId: row.PublisherId,
-				ReviewerId:    toUUID(userID),
-				Action:        "SUBMITTED",
-				Comment:       pgtype.Text{String: "", Valid: false},
+				ReviewerId:  toUUID(userID),
+				Action:      "SUBMITTED",
+				Comment:     pgtype.Text{String: "", Valid: false},
 			})
 		}
 		return nil
@@ -1324,15 +1315,12 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 
 	if effectiveStatus == "SUBMITTED" && row.Status != "SUBMITTED" {
 		s.notifyReviewers(ctx, row.PublisherId, articleID, userID)
-		if mc.isMedia {
-			_, _, _ = s.ensureAuthorSovereignCopy(ctx, articleID, uuidString(row.AuthorId))
-		}
 		_ = s.q.InsertArticleReviewLog(ctx, db.InsertArticleReviewLogParams{
-			ArticleId:     articleID,
+			ArticleId:   articleID,
 			PublisherId: row.PublisherId,
-			ReviewerId:    toUUID(userID),
-			Action:        "SUBMITTED",
-			Comment:       pgtype.Text{String: "", Valid: false},
+			ReviewerId:  toUUID(userID),
+			Action:      "SUBMITTED",
+			Comment:     pgtype.Text{String: "", Valid: false},
 		})
 		s.recordEvent(ctx, EventInput{
 			ArticleID: articleID, PublisherID: row.PublisherId, ActorID: userID,
@@ -1342,9 +1330,6 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 
 	// Fan-out + événement à la transition draft→publié.
 	if effectivePublished && !row.Published {
-		if mc.isMedia {
-			_, _, _ = s.ensureAuthorSovereignCopy(ctx, articleID, uuidString(row.AuthorId))
-		}
 		sendEmail := true
 		if in.SendEmail != nil {
 			sendEmail = *in.SendEmail
@@ -1549,7 +1534,7 @@ func (s *Service) emitPublished(ctx context.Context, row db.GetArticleByIDRow, s
 	_ = queue.PublishArticleEmbedding(s.ac, queue.EmbeddingPayload{ArticleID: row.ID})
 	_ = queue.PublishArticlePublished(s.ac, queue.ArticlePublishedPayload{
 		EventID:          "article_published_" + row.ID,
-		PublisherID:    row.PublisherId,
+		PublisherID:      row.PublisherId,
 		ArticleID:        row.ID,
 		AuthorID:         row.AuthorID,
 		Title:            row.Title,
@@ -1606,7 +1591,7 @@ func (s *Service) SendArticleEmail(ctx context.Context, articleID, userID, subje
 			return ErrArticleAlreadySent
 		}
 		_ = s.q.InsertArticleReleaseMajorUpdateDeliveries(ctx, db.InsertArticleReleaseMajorUpdateDeliveriesParams{
-			ArticleId:     articleID,
+			ArticleId:   articleID,
 			PublisherId: row.PublisherId,
 		})
 	} else {
@@ -1618,7 +1603,7 @@ func (s *Service) SendArticleEmail(ctx context.Context, articleID, userID, subje
 			return ErrArticleAlreadySent
 		}
 		_ = s.q.InsertArticleReleaseDeliveries(ctx, db.InsertArticleReleaseDeliveriesParams{
-			ArticleId:     articleID,
+			ArticleId:   articleID,
 			PublisherId: row.PublisherId,
 		})
 	}
@@ -1659,10 +1644,10 @@ func (s *Service) SendArticleTestEmail(ctx context.Context, articleID, userID st
 		Visibility:       row.Visibility,
 		IsPremium:        row.IsPremium,
 		Content:          row.Content,
-		PublisherId:    row.PublisherId,
+		PublisherId:      row.PublisherId,
 		EmailSubject:     pgtype.Text{String: "[TEST] " + row.Title, Valid: true},
 		EmailPreviewText: pgtype.Text{String: "Aperçu test — " + row.Title, Valid: true},
-		PublisherName:  row.PublisherName,
+		PublisherName:    row.PublisherName,
 		Subdomain:        row.PublisherSubdomain,
 	}
 	link := "https://qoe.fi/p/" + row.Slug
@@ -1756,8 +1741,8 @@ func (s *Service) uniqueSlug(ctx context.Context, publisherID, articleID, base s
 func (s *Service) notifyReviewers(ctx context.Context, publisherID, articleID, senderID string) {
 	_ = s.q.InsertMediaArticleSubmittedFanout(ctx, db.InsertMediaArticleSubmittedFanoutParams{
 		PublisherID: publisherID,
-		ArticleID:     pgtype.Text{String: articleID, Valid: true},
-		SenderID:      toUUID(senderID),
+		ArticleID:   pgtype.Text{String: articleID, Valid: true},
+		SenderID:    toUUID(senderID),
 	})
 }
 
@@ -2223,11 +2208,11 @@ func (s *Service) Review(ctx context.Context, articleID, userID string, approve 
 	}
 
 	_ = s.q.InsertArticleReviewLog(ctx, db.InsertArticleReviewLogParams{
-		ArticleId:     articleID,
+		ArticleId:   articleID,
 		PublisherId: row.PublisherId,
-		ReviewerId:    toUUID(userID),
-		Action:        action,
-		Comment:       pgtype.Text{String: comment, Valid: comment != ""},
+		ReviewerId:  toUUID(userID),
+		Action:      action,
+		Comment:     pgtype.Text{String: comment, Valid: comment != ""},
 	})
 
 	meta := map[string]any{
@@ -2239,12 +2224,12 @@ func (s *Service) Review(ctx context.Context, articleID, userID string, approve 
 	}
 	metaBytes, _ := json.Marshal(meta)
 	_ = s.q.InsertArticleReviewNotification(ctx, db.InsertArticleReviewNotificationParams{
-		RecipientID:   toUUID(row.AuthorID),
-		SenderID:      toUUID(userID),
-		Type:          notifType,
-		ArticleID:     pgtype.Text{String: articleID, Valid: true},
+		RecipientID: toUUID(row.AuthorID),
+		SenderID:    toUUID(userID),
+		Type:        notifType,
+		ArticleID:   pgtype.Text{String: articleID, Valid: true},
 		PublisherID: pgtype.Text{String: row.PublisherId, Valid: true},
-		Metadata:      metaBytes,
+		Metadata:    metaBytes,
 	})
 
 	// Journal média : l'approbation et le rejet sont des actes éditoriaux que
@@ -2295,11 +2280,11 @@ func (s *Service) DiscardDraft(ctx context.Context, articleID, userID string) er
 		})
 	}
 	_ = s.q.InsertArticleReviewLog(ctx, db.InsertArticleReviewLogParams{
-		ArticleId:     articleID,
+		ArticleId:   articleID,
 		PublisherId: row.PublisherId,
-		ReviewerId:    toUUID(userID),
-		Action:        "WITHDRAWN",
-		Comment:       pgtype.Text{String: "Brouillon abandonné", Valid: true},
+		ReviewerId:  toUUID(userID),
+		Action:      "WITHDRAWN",
+		Comment:     pgtype.Text{String: "Brouillon abandonné", Valid: true},
 	})
 	return nil
 }
@@ -2375,12 +2360,12 @@ func (s *Service) SimilarArticles(ctx context.Context, articleID string, limit i
 			IsPremium:      r.IsPremium,
 			ReadingTime:    int(r.ReadingTime),
 			CreatedAt:      r.CreatedAt.Time.Format(time.RFC3339),
-			PublisherID:  r.PublisherId,
+			PublisherID:    r.PublisherId,
 			AuthorID:       uuidString(r.AuthorId),
 			AuthorName:     textPtr(r.AuthorName),
 			AuthorUsername: textPtr(r.AuthorUsername),
 			AuthorLogo:     textPtr(r.AuthorLogo),
-			Publisher:    &r.PublisherName,
+			Publisher:      &r.PublisherName,
 			Score:          r.Score,
 		})
 	}
@@ -2395,12 +2380,12 @@ type SimilarArticle struct {
 	IsPremium      bool    `json:"isPremium"`
 	ReadingTime    int     `json:"readingTime"`
 	CreatedAt      string  `json:"createdAt"`
-	PublisherID  string  `json:"publisherId"`
+	PublisherID    string  `json:"publisherId"`
 	AuthorID       string  `json:"authorId"`
 	AuthorName     *string `json:"authorName"`
 	AuthorUsername *string `json:"authorUsername"`
 	AuthorLogo     *string `json:"authorLogo"`
-	Publisher    *string `json:"publisherName"`
+	Publisher      *string `json:"publisherName"`
 	Score          float64 `json:"score"`
 }
 
@@ -2510,14 +2495,14 @@ func (s *Service) articleResponseFromIDRow(row db.GetArticleByIDRow) ArticleResp
 		EmailSentAt:      tsPtr(row.EmailSentAt),
 		EmailSentCount:   int(row.EmailSentCount),
 		EmailResendCount: int(row.EmailResendCount),
-		PublisherID:    row.PublisherId,
+		PublisherID:      row.PublisherId,
 		AuthorID:         row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
 		CreatedAt:     row.CreatedAt.Time.Format(time.RFC3339),
 		UpdatedAt:     row.UpdatedAt.Time.Format(time.RFC3339),
 		AccessGranted: true,
 		Author:        AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: authorLogo, Type: pubType},
-		Publisher:   &PublisherInfo{ID: row.PublisherId, Name: row.PublisherName, Slug: row.PublisherSlug, Subdomain: textPtr(row.PublisherSubdomain), LogoURL: textPtr(row.PublisherLogo), Type: pubType},
+		Publisher:     &PublisherInfo{ID: row.PublisherId, Name: row.PublisherName, Slug: row.PublisherSlug, Subdomain: textPtr(row.PublisherSubdomain), LogoURL: textPtr(row.PublisherLogo), Type: pubType},
 		CoAuthors:     []AuthorInfo{},
 		Attributions:  []AttributionInfo{},
 	}
@@ -2544,7 +2529,7 @@ func articleFromSlugRow(row db.GetArticleBySlugRow, cut PaywallCutResult) Articl
 		UpdatedAt:   row.UpdatedAt.Time.Format(time.RFC3339),
 		IsTruncated: cut.IsTruncated, AccessGranted: cut.AccessGranted, PaywallMeta: cut.PaywallMeta,
 		Author:       AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: authorLogo, Type: pubType},
-		Publisher:  &PublisherInfo{ID: row.PublisherId, Name: row.PublisherName, Slug: row.PublisherSlug, Subdomain: textPtr(row.PublisherSubdomain), LogoURL: textPtr(row.PublisherLogo), CustomDomain: textPtr(row.PublisherCustomDomain), Type: pubType},
+		Publisher:    &PublisherInfo{ID: row.PublisherId, Name: row.PublisherName, Slug: row.PublisherSlug, Subdomain: textPtr(row.PublisherSubdomain), LogoURL: textPtr(row.PublisherLogo), CustomDomain: textPtr(row.PublisherCustomDomain), Type: pubType},
 		CoAuthors:    []AuthorInfo{},
 		Attributions: []AttributionInfo{},
 	}
@@ -2564,13 +2549,13 @@ func articleFromRow(row db.GetArticleByIDRow, cut PaywallCutResult) ArticleRespo
 		AllowDownload: row.AllowDownload, AllowPublicAnnotations: row.AllowPublicAnnotations,
 		AllowComments:         row.AllowComments,
 		ShowOnPersonalProfile: row.ShowOnPersonalProfile,
-		PublisherID:         row.PublisherId,
+		PublisherID:           row.PublisherId,
 		AuthorID:              row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
 		CreatedAt:   row.CreatedAt.Time.Format(time.RFC3339),
 		UpdatedAt:   row.UpdatedAt.Time.Format(time.RFC3339),
 		IsTruncated: cut.IsTruncated, AccessGranted: cut.AccessGranted, PaywallMeta: cut.PaywallMeta,
-		Author:      AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: authorLogo, Type: pubType},
+		Author:    AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: authorLogo, Type: pubType},
 		Publisher: &PublisherInfo{ID: row.PublisherId, Name: row.PublisherName, Slug: row.PublisherSlug, Subdomain: textPtr(row.PublisherSubdomain), Type: pubType},
 	}
 	return resp
@@ -2707,7 +2692,7 @@ func (s *Service) TransferPublisher(ctx context.Context, userID, articleID strin
 
 	if _, err := s.q.TransferArticlePublisher(ctx, db.TransferArticlePublisherParams{
 		ID:                    articleID,
-		PublisherId:         targetPubID,
+		PublisherId:           targetPubID,
 		CategoryId:            textVal(categoryID),
 		Slug:                  finalSlug,
 		Status:                newStatus,
@@ -2720,9 +2705,6 @@ func (s *Service) TransferPublisher(ctx context.Context, userID, articleID strin
 
 	s.syncAttributions(ctx, articleID, row.AuthorID, nil, showOnPersonalProfile)
 	s.queueSearchSync(articleID, "upsert")
-	if targetMC.isMedia && (newStatus == "SUBMITTED" || newPublished) {
-		_, _, _ = s.ensureAuthorSovereignCopy(ctx, articleID, row.AuthorID)
-	}
 
 	// Le transfert est journalisé dans les deux médias concernés : la source
 	// pour savoir ce qui est parti, la cible pour savoir ce qui est arrivé.
@@ -2731,7 +2713,7 @@ func (s *Service) TransferPublisher(ctx context.Context, userID, articleID strin
 			"articleId": articleID, "title": row.Title,
 			"fromPublisherId": row.PublisherId, "toPublisherId": targetPubID,
 			"toPublisherName": targetPub.Name,
-			"status":            newStatus,
+			"status":          newStatus,
 		}
 		if srcPub, err := s.q.GetPublisherTypeByID(ctx, row.PublisherId); err == nil {
 			meta["fromPublisherName"] = srcPub.Name
@@ -2743,11 +2725,11 @@ func (s *Service) TransferPublisher(ctx context.Context, userID, articleID strin
 	if newStatus == "SUBMITTED" && row.Status != "SUBMITTED" {
 		s.notifyReviewers(ctx, targetPubID, articleID, userID)
 		_ = s.q.InsertArticleReviewLog(ctx, db.InsertArticleReviewLogParams{
-			ArticleId:     articleID,
+			ArticleId:   articleID,
 			PublisherId: targetPubID,
-			ReviewerId:    toUUID(userID),
-			Action:        "SUBMITTED",
-			Comment:       pgtype.Text{String: "", Valid: false},
+			ReviewerId:  toUUID(userID),
+			Action:      "SUBMITTED",
+			Comment:     pgtype.Text{String: "", Valid: false},
 		})
 	}
 
@@ -2773,19 +2755,19 @@ func (s *Service) ListCreatorArticles(ctx context.Context, userID, publisherID s
 	offset := PageToOffset(page, limit)
 
 	rows, err := s.q.ListCreatorArticles(ctx, db.ListCreatorArticlesParams{
-		PublisherId: publisherID,
-		Published:     pub,
-		CategorySlug:  cat,
-		Offset:        int32(offset),
-		Limit:         int32(limit),
+		PublisherId:  publisherID,
+		Published:    pub,
+		CategorySlug: cat,
+		Offset:       int32(offset),
+		Limit:        int32(limit),
 	})
 	if err != nil {
 		return CreatorListResponse{}, err
 	}
 	total, err := s.q.CountCreatorArticles(ctx, db.CountCreatorArticlesParams{
-		PublisherId: publisherID,
-		Published:     pub,
-		CategorySlug:  cat,
+		PublisherId:  publisherID,
+		Published:    pub,
+		CategorySlug: cat,
 	})
 	if err != nil {
 		return CreatorListResponse{}, err
@@ -2876,14 +2858,14 @@ func (s *Service) emitArticleLifecycle(taskType string, row db.GetArticleByIDRow
 		slug = row.Slug
 	}
 	_ = queue.PublishArticleLifecycle(s.ac, taskType, queue.ArticlePublishedPayload{
-		EventID:       "article_" + strings.TrimPrefix(taskType, "article.") + "_" + row.ID,
+		EventID:     "article_" + strings.TrimPrefix(taskType, "article.") + "_" + row.ID,
 		PublisherID: row.PublisherId,
-		ArticleID:     row.ID,
-		AuthorID:      row.AuthorID,
-		Title:         title,
-		Slug:          slug,
-		Visibility:    string(row.Visibility),
-		PublishedAt:   time.Now().UTC().Format(time.RFC3339),
+		ArticleID:   row.ID,
+		AuthorID:    row.AuthorID,
+		Title:       title,
+		Slug:        slug,
+		Visibility:  string(row.Visibility),
+		PublishedAt: time.Now().UTC().Format(time.RFC3339),
 	})
 }
 
@@ -2967,89 +2949,32 @@ func (s *Service) fetchOriginPublisher(ctx context.Context, originArticleID stri
 	}
 }
 
-// ensureAuthorSovereignCopy garantit à l'auteur (ou au co-auteur qui demande un fork)
-// un exemplaire vivant dans son propre Publisher personnel dès qu'un essai entre en média.
-// Idempotent : si une copie souveraine existe déjà pour (originArticleId, userID), la renvoie
-// telle quelle sans jamais écraser les modifications personnelles de l'auteur.
+// ensureAuthorSovereignCopy est le point d'entrée du fork manuel (« Récupérer
+// ma copie »). Le provisionnement automatique à la soumission/publication est
+// garanti atomiquement par le trigger SQL trg_provision_author_sovereign_copy,
+// qui appelle la même fonction ensure_author_sovereign_copy en base : une
+// publication ne peut plus réussir sans copie souveraine.
 func (s *Service) ensureAuthorSovereignCopy(ctx context.Context, mediaArticleID, targetUserID string) (string, bool, error) {
 	if s.pool == nil || mediaArticleID == "" || targetUserID == "" {
-		return "", false, nil
+		return "", false, errors.New("provisionnement de la copie souveraine impossible")
 	}
-	row, err := s.q.GetArticleByID(ctx, mediaArticleID)
-	if err != nil {
-		return "", false, errNotFound
-	}
-	if row.PublisherType != db.PublisherTypeMEDIA {
-		return "", false, nil
-	}
-
-	// Déjà forké pour cet auteur ? Ne jamais écraser son travail personnel.
 	if existing, err := s.q.GetSovereignCopyByOriginAndAuthor(ctx, db.GetSovereignCopyByOriginAndAuthorParams{
 		OriginArticleId: pgtype.Text{String: mediaArticleID, Valid: true},
 		AuthorId:        toUUID(targetUserID),
 	}); err == nil && existing.ID != "" {
 		return existing.ID, true, nil
 	}
-
-	// Résoudre le Publisher personnel de l'auteur.
-	personalPub, err := s.q.GetUserPersonalPublisher(ctx, targetUserID)
-	if err != nil || !personalPub.Valid || personalPub.String == "" {
-		return "", false, errors.New("espace personnel introuvable pour créer la copie souveraine")
-	}
-	personalPubID := personalPub.String
-
-	// Contenu à préserver : draftContent si un brouillon de soumission existe, sinon content.
-	contentToClone := row.Content
-	if row.DraftContent.Valid && strings.TrimSpace(row.DraftContent.String) != "" {
-		contentToClone = row.DraftContent.String
-	}
-
-	var customDomain pgtype.Text
-	_ = s.pool.QueryRow(ctx, `SELECT "customDomain" FROM "Publisher" WHERE id = $1`, row.PublisherId).Scan(&customDomain)
-	canonicalURL := ArticlePublicURL(row.PublisherSubdomain, customDomain, row.Slug)
-
-	finalSlug := s.uniqueSlug(ctx, personalPubID, "", row.Slug)
-	catID, err := s.resolveCategoryID(ctx, personalPubID, nil)
-	if err != nil {
-		catID = nil
-	}
-	imgURL := s.fetchArticleImageUrl(ctx, mediaArticleID)
-
-	newID, err := s.q.CreateSovereignArticleCopy(ctx, db.CreateSovereignArticleCopyParams{
-		Title:                  row.Title,
-		Slug:                   finalSlug,
-		Content:                contentToClone,
-		IsPremium:              row.IsPremium,
-		Visibility:             row.Visibility,
-		ReadingTime:            row.ReadingTime,
-		AllowPublicAnnotations: row.AllowPublicAnnotations,
-		AllowComments:          row.AllowComments,
-		AllowDownload:          row.AllowDownload,
-		PublisherId:            personalPubID,
-		AuthorId:               toUUID(targetUserID),
-		CategoryId:             textVal(catID),
-		SeoTitle:               row.SeoTitle,
-		SeoDescription:         row.SeoDescription,
-		ImageUrl:               imageVal(imgURL),
-		OriginArticleId:        pgtype.Text{String: mediaArticleID, Valid: true},
-		CanonicalUrl:           pgtype.Text{String: canonicalURL, Valid: true},
-	})
-	if err != nil {
+	var copyID pgtype.Text
+	if err := s.pool.QueryRow(ctx,
+		`SELECT ensure_author_sovereign_copy($1, $2)`,
+		mediaArticleID, toUUID(targetUserID),
+	).Scan(&copyID); err != nil {
 		return "", false, err
 	}
-
-	if row.CanonicalType == "ORIGINAL" {
-		_ = s.q.SetArticleCanonicalType(ctx, db.SetArticleCanonicalTypeParams{
-			ID:            mediaArticleID,
-			CanonicalType: "MEDIA_ARCHIVE",
-		})
+	if !copyID.Valid || copyID.String == "" {
+		return "", false, errors.New("la copie souveraine n'est possible que depuis un article média")
 	}
-	s.syncAttributions(ctx, newID, targetUserID, nil, true)
-	s.recordEvent(ctx, EventInput{
-		ArticleID: newID, PublisherID: personalPubID, ActorID: targetUserID,
-		Type: EventCreated, ToStatus: "DRAFT",
-	})
-	return newID, false, nil
+	return copyID.String, false, nil
 }
 
 // ForkToPersonal exerce le droit inaliénable de l'auteur (ou co-auteur accepté)

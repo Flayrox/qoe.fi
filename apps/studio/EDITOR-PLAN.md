@@ -206,6 +206,20 @@ git diff --check
 
 ---
 
+## 8. Souveraineté de l’auteur — garantie backend (00083)
+
+- La copie souveraine est créée par le trigger PostgreSQL
+  `trg_provision_author_sovereign_copy`, dans la transaction de la
+  soumission/publication : un échec annule l’écriture au lieu d’être avalé.
+- `ensure_author_sovereign_copy()` est partagée par le trigger et par
+  `ForkToPersonal` ; un auteur exclu peut toujours récupérer sa copie, mais
+  ne peut plus modifier l’article média.
+- Index unique partiel `(originArticleId, authorId)` et contrainte de
+  cohérence `isAuthorSovereignCopy ⇔ canonicalType = 'PERSONAL_FORK'`.
+- Backfill des articles média déjà soumis/publiés dans la même migration.
+
+---
+
 ## 📝 Instructions
 
 <!--

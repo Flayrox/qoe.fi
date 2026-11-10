@@ -1416,6 +1416,18 @@ CREATE INDEX "Article_status_scheduledAt_idx" ON "Article"("status", "scheduledA
 -- CreateIndex
 CREATE UNIQUE INDEX "Article_publisherId_slug_key" ON "Article"("publisherId", "slug");
 
+-- AddConstraint
+ALTER TABLE "Article" ADD CONSTRAINT "Article_sovereign_copy_check"
+    CHECK (
+        "isAuthorSovereignCopy" = ("canonicalType" = 'PERSONAL_FORK')
+        AND (NOT "isAuthorSovereignCopy" OR "originArticleId" IS NOT NULL)
+    );
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Article_origin_author_sovereign_key"
+    ON "Article"("originArticleId", "authorId")
+    WHERE "isAuthorSovereignCopy" = true;
+
 -- CreateIndex
 CREATE INDEX "collab_documents_updated_at_idx" ON "collab_documents"("updated_at");
 
@@ -2971,3 +2983,334 @@ AS $$
     )
   END;
 $$;
+
+-- Sovereignty: guaranteed author copy
+CREATE OR REPLACE FUNCTION article_public_url(article_id TEXT)
+RETURNS TEXT AS $$
+DECLARE
+    v_article RECORD;
+    v_category_path TEXT;
+BEGIN
+    SELECT a.slug,
+           a."categoryId",
+           p.type,
+           p."customDomain",
+           p.subdomain,
+           p.slug AS publisher_slug
+    INTO v_article
+    FROM "Article" a
+    JOIN "Publisher" p ON p.id = a."publisherId"
+    WHERE a.id = article_id;
+
+    IF NOT FOUND THEN
+        RETURN NULL;
+    END IF;
+
+    IF v_article."categoryId" IS NOT NULL THEN
+        WITH RECURSIVE chain AS (
+            SELECT c.id, c.slug, c."parentId", 1 AS depth
+            FROM "Category" c
+            WHERE c.id = v_article."categoryId"
+            UNION ALL
+            SELECT parent.id, parent.slug, parent."parentId", child.depth + 1
+            FROM "Category" parent
+            JOIN chain child ON child."parentId" = parent.id
+        )
+        SELECT string_agg(slug, '/' ORDER BY depth DESC)
+        INTO v_category_path
+        FROM chain;
+    END IF;
+
+    IF v_article."customDomain" IS NOT NULL AND v_article."customDomain" <> '' THEN
+        RETURN 'https://' || v_article."customDomain" || '/'
+            || COALESCE(v_category_path || '/', '') || v_article.slug;
+    ELSIF v_article.subdomain IS NOT NULL AND v_article.subdomain <> '' THEN
+        RETURN 'https://' || v_article.subdomain || '.qoe.fi/'
+            || COALESCE(v_category_path || '/', '') || v_article.slug;
+    ELSIF v_article.type = 'PERSONAL' THEN
+        RETURN 'https://qoe.fi/' || v_article.publisher_slug || '/a/' || v_article.slug;
+    ELSE
+        RETURN 'https://qoe.fi/' || COALESCE(v_category_path || '/', '') || v_article.slug;
+    END IF;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+-- 6. Espace personnel de l'auteur, créé à la demande s'il manque.
+--    Parité avec users.GetOrCreatePersonalPublisher : nom et slug depuis
+--    le compte, suffixe en cas de collision.
+CREATE OR REPLACE FUNCTION sync_user_to_personal_publisher()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF current_setting('qoe.personal_publisher_provisioning', true) = 'on' THEN
+        RETURN NEW;
+    END IF;
+    IF NEW."publisherId" IS NOT NULL THEN
+        UPDATE "Publisher"
+        SET slug = COALESCE(NEW.username, slug),
+            name = COALESCE(NULLIF(NEW.name, ''), NEW.username, name),
+            "logoUrl" = NEW."logoUrl",
+            "updatedAt" = now()
+        WHERE id = NEW."publisherId"
+          AND type = 'PERSONAL'
+          AND (
+            slug IS DISTINCT FROM NEW.username
+            OR name IS DISTINCT FROM COALESCE(NULLIF(NEW.name, ''), NEW.username, name)
+            OR "logoUrl" IS DISTINCT FROM NEW."logoUrl"
+          );
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION ensure_personal_publisher(target_user_id UUID)
+RETURNS TEXT AS $$
+DECLARE
+    v_publisher_id TEXT;
+    v_publisher_type "PublisherType";
+    v_username TEXT;
+    v_name TEXT;
+    v_logo_url TEXT;
+    v_base_slug TEXT;
+    v_slug TEXT;
+    v_suffix INTEGER := 0;
+BEGIN
+    -- Sérialise les provisioning concurrents pour le même compte.
+    PERFORM pg_advisory_xact_lock(hashtext(target_user_id::text)::bigint);
+
+    SELECT u."publisherId", p.type, u.username, u.name, u."logoUrl"
+    INTO v_publisher_id, v_publisher_type, v_username, v_name, v_logo_url
+    FROM "User" u
+    LEFT JOIN "Publisher" p ON p.id = u."publisherId"
+    WHERE u.id = target_user_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'utilisateur introuvable: %', target_user_id;
+    END IF;
+
+    IF v_publisher_id IS NOT NULL AND v_publisher_type = 'PERSONAL' THEN
+        RETURN v_publisher_id;
+    END IF;
+
+    IF v_publisher_id IS NOT NULL AND v_publisher_type IS DISTINCT FROM 'PERSONAL' THEN
+        RAISE EXCEPTION 'publisher non personnel pour utilisateur %', target_user_id;
+    END IF;
+
+    v_base_slug := COALESCE(NULLIF(v_username, ''), 'auteur-' || left(target_user_id::text, 8));
+    v_slug := v_base_slug;
+
+    WHILE EXISTS (
+        SELECT 1 FROM "Publisher" p
+        WHERE lower(p.slug) = lower(v_slug)
+    ) LOOP
+        v_suffix := v_suffix + 1;
+        v_slug := v_base_slug || '-' || v_suffix;
+    END LOOP;
+
+    PERFORM set_config('qoe.personal_publisher_provisioning', 'on', true);
+
+    INSERT INTO "Publisher" (
+        id, type, name, slug, "logoUrl", "layoutStyle", "updatedAt"
+    ) VALUES (
+        gen_random_uuid()::text,
+        'PERSONAL',
+        COALESCE(NULLIF(v_name, ''), NULLIF(v_username, ''), 'Auteur'),
+        v_slug,
+        NULLIF(v_logo_url, ''),
+        'default',
+        now()
+    )
+    RETURNING id INTO v_publisher_id;
+
+    UPDATE "User"
+    SET "publisherId" = v_publisher_id, "updatedAt" = now()
+    WHERE id = target_user_id;
+
+    PERFORM set_config('qoe.personal_publisher_provisioning', '', true);
+
+    RETURN v_publisher_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 7. Création idempotente de la copie souveraine. Utilisée à la fois par
+--    le trigger automatique et par le fork manuel (bouton Studio).
+CREATE OR REPLACE FUNCTION ensure_author_sovereign_copy(
+    media_article_id TEXT,
+    target_author_id UUID DEFAULT NULL
+)
+RETURNS TEXT AS $$
+DECLARE
+    v_article RECORD;
+    v_publisher_type "PublisherType";
+    v_target_author UUID;
+    v_personal_publisher_id TEXT;
+    v_existing_id TEXT;
+    v_new_id TEXT;
+    v_base_slug TEXT;
+    v_slug TEXT;
+    v_suffix INTEGER := 0;
+    v_category_id TEXT;
+    v_content TEXT;
+    v_canonical_url TEXT;
+    v_attempt INTEGER;
+BEGIN
+    SELECT a.*, p.type AS publisher_type
+    INTO v_article
+    FROM "Article" a
+    JOIN "Publisher" p ON p.id = a."publisherId"
+    WHERE a.id = media_article_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'article média introuvable: %', media_article_id;
+    END IF;
+
+    IF v_article.publisher_type <> 'MEDIA' THEN
+        RETURN NULL;
+    END IF;
+
+    v_target_author := COALESCE(target_author_id, v_article."authorId");
+
+    -- L'article d'origine devient l'archive média (une seule fois).
+    UPDATE "Article"
+    SET "canonicalType" = 'MEDIA_ARCHIVE', "updatedAt" = now()
+    WHERE id = media_article_id
+      AND "canonicalType" = 'ORIGINAL';
+
+    SELECT a.id INTO v_existing_id
+    FROM "Article" a
+    WHERE a."originArticleId" = media_article_id
+      AND a."authorId" = v_target_author
+      AND a."isAuthorSovereignCopy" = true
+    LIMIT 1;
+
+    IF v_existing_id IS NOT NULL THEN
+        RETURN v_existing_id;
+    END IF;
+
+    v_personal_publisher_id := ensure_personal_publisher(v_target_author);
+
+    IF v_personal_publisher_id = v_article."publisherId" THEN
+        RAISE EXCEPTION 'publisher personnel identique au média pour article %', media_article_id;
+    END IF;
+
+    v_base_slug := COALESCE(NULLIF(v_article.slug, ''), 'article-' || left(v_article.id, 8));
+    v_slug := v_base_slug;
+
+    WHILE EXISTS (
+        SELECT 1 FROM "Article" a
+        WHERE a."publisherId" = v_personal_publisher_id
+          AND a.slug = v_slug
+    ) LOOP
+        v_suffix := v_suffix + 1;
+        v_slug := v_base_slug || '-' || v_suffix;
+    END LOOP;
+
+    SELECT c.id INTO v_category_id
+    FROM "Category" c
+    WHERE c."publisherId" = v_personal_publisher_id
+      AND c."isDefault" = true
+    LIMIT 1;
+
+    v_content := COALESCE(NULLIF(v_article."draftContent", ''), v_article.content, '');
+    v_canonical_url := article_public_url(media_article_id);
+
+    FOR v_attempt IN 1..10 LOOP
+        BEGIN
+            v_new_id := NULL;
+            INSERT INTO "Article" (
+                id, title, slug, content, published, "isPremium", visibility,
+                "readingTime", "allowPublicAnnotations", "allowComments", "allowDownload",
+                status, "publisherId", "authorId", "categoryId", "seoTitle", "seoDescription",
+                "imageUrl", "showOnPersonalProfile", "originArticleId", "canonicalType",
+                "isAuthorSovereignCopy", "canonicalUrl", "updatedAt", "tierId"
+            ) VALUES (
+                gen_random_uuid()::text, v_article.title, v_slug, v_content, false,
+                v_article."isPremium", v_article.visibility,
+                v_article."readingTime", v_article."allowPublicAnnotations",
+                v_article."allowComments", v_article."allowDownload",
+                'DRAFT', v_personal_publisher_id, v_target_author, v_category_id,
+                v_article."seoTitle", v_article."seoDescription",
+                v_article."imageUrl", true, media_article_id, 'PERSONAL_FORK',
+                true, v_canonical_url, now(), v_article."tierId"
+            )
+            ON CONFLICT DO NOTHING
+            RETURNING id INTO v_new_id;
+
+            IF v_new_id IS NOT NULL THEN
+                -- Parité avec l'ancien chemin Go : l'attribution principale
+                -- et l'événement CREATED accompagnent la copie. L'audit ne
+                -- doit jamais faire échouer la soumission/publication.
+                BEGIN
+                    INSERT INTO "ArticleAttribution" (
+                        id, "articleId", "userId", role, "order", "isVisible",
+                        "consentStatus", "consentUpdatedAt", "updatedAt"
+                    ) VALUES (
+                        gen_random_uuid()::text, v_new_id, v_target_author,
+                        'PRIMARY_AUTHOR', 0, true, 'ACCEPTED', now(), now()
+                    )
+                    ON CONFLICT ("articleId", "userId") DO UPDATE SET
+                        role = 'PRIMARY_AUTHOR', "order" = 0, "isVisible" = true,
+                        "consentStatus" = 'ACCEPTED', "updatedAt" = now();
+
+                    INSERT INTO "ArticleEvent" ("articleId", "publisherId", "actorId", "type", "toStatus")
+                    VALUES (v_new_id, v_personal_publisher_id, v_target_author, 'CREATED', 'DRAFT');
+                EXCEPTION WHEN OTHERS THEN
+                    RAISE WARNING 'effets de bord de la copie souveraine % ignorés: %', v_new_id, SQLERRM;
+                END;
+
+                RETURN v_new_id;
+            END IF;
+
+            SELECT a.id INTO v_existing_id
+            FROM "Article" a
+            WHERE a."originArticleId" = media_article_id
+              AND a."authorId" = v_target_author
+              AND a."isAuthorSovereignCopy" = true
+            LIMIT 1;
+
+            IF v_existing_id IS NOT NULL THEN
+                RETURN v_existing_id;
+            END IF;
+
+            -- Conflit de slug (pas de copie souveraine concurrente) :
+            -- on essaie le suffixe suivant.
+            v_suffix := v_suffix + 1;
+            v_slug := v_base_slug || '-' || v_suffix;
+        EXCEPTION WHEN unique_violation THEN
+            SELECT a.id INTO v_existing_id
+            FROM "Article" a
+            WHERE a."originArticleId" = media_article_id
+              AND a."authorId" = v_target_author
+              AND a."isAuthorSovereignCopy" = true
+            LIMIT 1;
+
+            IF v_existing_id IS NOT NULL THEN
+                RETURN v_existing_id;
+            END IF;
+
+            v_suffix := v_suffix + 1;
+            v_slug := v_base_slug || '-' || v_suffix;
+        END;
+    END LOOP;
+
+    RAISE EXCEPTION 'copie souveraine impossible pour article %', media_article_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 8. Trigger : toute entrée en média (soumission ou publication) provisionne
+--    la copie dans la même transaction. Un échec annule l'écriture.
+CREATE OR REPLACE FUNCTION provision_author_sovereign_copy()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW."status" IN ('SUBMITTED', 'PUBLISHED') THEN
+        PERFORM ensure_author_sovereign_copy(NEW.id, NEW."authorId");
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_provision_author_sovereign_copy ON "Article";
+CREATE TRIGGER trg_provision_author_sovereign_copy
+AFTER INSERT OR UPDATE OF status, published, "publisherId" ON "Article"
+FOR EACH ROW
+WHEN (NEW."status" IN ('SUBMITTED', 'PUBLISHED'))
+EXECUTE FUNCTION provision_author_sovereign_copy();
