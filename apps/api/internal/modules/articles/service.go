@@ -2634,6 +2634,35 @@ func (s *Service) TransferPublisher(ctx context.Context, userID, articleID strin
 		return ArticleResponse{}, errForbidden
 	}
 
+	// Souveraineté de l'auteur : si la copie souveraine de cet article vit déjà
+	// dans un espace personnel, déplacer l'article média dans ce même espace
+	// créerait deux vivants identiques. La copie est le lieu de vie, l'archive
+	// reste au média.
+	if targetPub.Type == "PERSONAL" && s.pool != nil {
+		var copyID string
+		err := s.pool.QueryRow(ctx, `
+			SELECT id FROM "Article"
+			WHERE "originArticleId" = $1 AND "authorId" = $2 AND "isAuthorSovereignCopy" = true
+			LIMIT 1
+		`, articleID, row.AuthorID).Scan(&copyID)
+		switch {
+		case err == nil && copyID != "":
+			return ArticleResponse{}, errors.New("Cet article possède déjà votre copie souveraine : modifiez cet exemplaire plutôt que de déplacer l'archive du média.")
+		case errors.Is(err, pgx.ErrNoRows):
+			// Sans copie souveraine, l'article qui entre dans un espace personnel
+			// n'est plus une archive de média.
+			if _, err := s.pool.Exec(ctx, `
+				UPDATE "Article"
+				SET "canonicalType" = 'ORIGINAL', "updatedAt" = now()
+				WHERE id = $1 AND "canonicalType" = 'MEDIA_ARCHIVE'
+			`, articleID); err != nil {
+				return ArticleResponse{}, err
+			}
+		case err != nil:
+			return ArticleResponse{}, err
+		}
+	}
+
 	// Résoudre la catégorie cible (ou assigner la catégorie par défaut « non-classe » si absente ou issue de l'ancienne publication).
 	categoryID, err := s.resolveCategoryID(ctx, targetPubID, in.TargetCategoryID)
 	if err != nil {

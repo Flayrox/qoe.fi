@@ -3,6 +3,7 @@ package articles
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -276,5 +277,237 @@ func TestService_MediaSubmit_SlugCollisionDoesNotRenameUser(t *testing.T) {
 	}
 	if copyPublisher != publisherID {
 		t.Fatalf("publisher de la copie = %q, attendu %q", copyPublisher, publisherID)
+	}
+}
+
+// TestService_CoAuthorAccepted_GetsSovereignCopy vérifie la règle P1 : un
+// co-auteur ACCEPTED reçoit sa copie DRAFT au moment de son accord, tandis
+// qu'un co-auteur PENDING n'en reçoit aucune.
+func TestService_CoAuthorAccepted_GetsSovereignCopy(t *testing.T) {
+	requirePool(t)
+	fx := seedMedia(t)
+	svc := newService()
+	ctx := context.Background()
+
+	id, err := svc.Create(ctx, fx.WriterID, CreateArticleInput{
+		PublisherID:   fx.PublisherID,
+		Title:         "Essai co-signé",
+		Slug:          "essai-co-signe",
+		Content:       "Contenu co-signé",
+		ContentFormat: "markdown",
+		Status:        "SUBMITTED",
+		Attributions: []ArticleAttributionInput{
+			{UserID: fx.ViewerID, Role: "CO_AUTHOR", Order: 1, IsVisible: true},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// Tant que le co-auteur n'a pas accepté, aucune copie n'est créée.
+	var pendingCopies int
+	if err := poolTest.QueryRow(ctx, `
+		SELECT count(*) FROM "Article"
+		WHERE "originArticleId" = $1 AND "authorId" = $2 AND "isAuthorSovereignCopy" = true
+	`, id, fx.ViewerID).Scan(&pendingCopies); err != nil {
+		t.Fatalf("count copies PENDING: %v", err)
+	}
+	if pendingCopies != 0 {
+		t.Fatalf("copies PENDING = %d, attendu 0", pendingCopies)
+	}
+
+	// L'accord du co-auteur déclenche sa copie, même après publication.
+	if _, err := poolTest.Exec(ctx, `
+		UPDATE "ArticleAttribution"
+		SET "consentStatus" = 'ACCEPTED', "updatedAt" = now()
+		WHERE "articleId" = $1 AND "userId" = $2
+	`, id, fx.ViewerID); err != nil {
+		t.Fatalf("acceptation du co-auteur: %v", err)
+	}
+
+	var copyID, canonicalType, status, publisherType string
+	if err := poolTest.QueryRow(ctx, `
+		SELECT c.id, c."canonicalType", c.status, p.type
+		FROM "Article" c
+		JOIN "Publisher" p ON p.id = c."publisherId"
+		WHERE c."originArticleId" = $1 AND c."authorId" = $2 AND c."isAuthorSovereignCopy" = true
+	`, id, fx.ViewerID).Scan(&copyID, &canonicalType, &status, &publisherType); err != nil {
+		t.Fatalf("copie du co-auteur introuvable: %v", err)
+	}
+	if copyID == id {
+		t.Fatal("la copie du co-auteur ne doit pas être l'article média")
+	}
+	if canonicalType != "PERSONAL_FORK" || status != "DRAFT" || publisherType != "PERSONAL" {
+		t.Fatalf("copie co-auteur = canonical=%q status=%q publisher=%q", canonicalType, status, publisherType)
+	}
+}
+
+// TestService_SetStatus_Publish_ProvisionsAcceptedCoAuthorCopy vérifie qu'un
+// co-auteur déjà ACCEPTED avant la publication reçoit sa copie via le trigger
+// de l'article, sans attendre un nouvel accord.
+func TestService_SetStatus_Publish_ProvisionsAcceptedCoAuthorCopy(t *testing.T) {
+	requirePool(t)
+	fx := seedMedia(t)
+	svc := newService()
+	ctx := context.Background()
+
+	id, err := svc.Create(ctx, fx.WriterID, CreateArticleInput{
+		PublisherID:   fx.PublisherID,
+		Title:         "Essai co-signé avant publication",
+		Slug:          "essai-co-signe-avant",
+		Content:       "Contenu",
+		ContentFormat: "markdown",
+		Status:        "DRAFT",
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	if _, err := poolTest.Exec(ctx, `
+		INSERT INTO "ArticleAttribution"
+			(id, "articleId", "userId", role, "order", "isVisible", "consentStatus", "consentUpdatedAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2, 'CO_AUTHOR', 1, true, 'ACCEPTED', now(), now())
+	`, id, fx.ViewerID); err != nil {
+		t.Fatalf("attribution co-auteur: %v", err)
+	}
+
+	if err := svc.SetStatus(ctx, id, fx.EditorID, "PUBLISHED", true, nil); err != nil {
+		t.Fatalf("SetStatus(PUBLISHED): %v", err)
+	}
+
+	var copies int
+	if err := poolTest.QueryRow(ctx, `
+		SELECT count(*) FROM "Article"
+		WHERE "originArticleId" = $1 AND "authorId" = $2 AND "isAuthorSovereignCopy" = true
+	`, id, fx.ViewerID).Scan(&copies); err != nil {
+		t.Fatalf("count copies co-auteur: %v", err)
+	}
+	if copies != 1 {
+		t.Fatalf("copies co-auteur après publication = %d, attendu 1", copies)
+	}
+}
+
+// TestService_TransferMediaToPersonal_RefusesWhenSovereignCopyExists vérifie
+// la règle P1 : une archive média dont la copie vit déjà dans l'espace
+// personnel de l'auteur ne peut pas y être transférée, ni par le service ni
+// par un UPDATE SQL direct.
+func TestService_TransferMediaToPersonal_RefusesWhenSovereignCopyExists(t *testing.T) {
+	requirePool(t)
+	fx := seedMedia(t)
+	svc := newService()
+	ctx := context.Background()
+
+	id, err := svc.Create(ctx, fx.WriterID, CreateArticleInput{
+		PublisherID:   fx.PublisherID,
+		Title:         "Essai à rapatrier",
+		Slug:          "essai-a-rapatrier",
+		Content:       "Contenu",
+		ContentFormat: "markdown",
+		Status:        "SUBMITTED",
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	_, err = svc.TransferPublisher(ctx, fx.WriterID, id, TransferArticleInput{TargetPublisherID: "personal"})
+	if err == nil || !strings.Contains(err.Error(), "copie souveraine") {
+		t.Fatalf("TransferPublisher = %v, attendu refus pour copie souveraine", err)
+	}
+
+	// L'article n'a pas bougé et reste l'archive du média.
+	var publisherID, canonicalType string
+	if err := poolTest.QueryRow(ctx, `SELECT "publisherId", "canonicalType" FROM "Article" WHERE id = $1`, id).Scan(&publisherID, &canonicalType); err != nil {
+		t.Fatalf("article après refus: %v", err)
+	}
+	if publisherID != fx.PublisherID || canonicalType != "MEDIA_ARCHIVE" {
+		t.Fatalf("article après refus = publisher=%q canonical=%q", publisherID, canonicalType)
+	}
+
+	// Exactement un vivant : la copie personnelle, et rien d'autre.
+	var copies int
+	if err := poolTest.QueryRow(ctx, `
+		SELECT count(*) FROM "Article"
+		WHERE "originArticleId" = $1 AND "authorId" = $2 AND "isAuthorSovereignCopy" = true
+	`, id, fx.WriterID).Scan(&copies); err != nil {
+		t.Fatalf("count copies: %v", err)
+	}
+	if copies != 1 {
+		t.Fatalf("copies = %d, attendu 1", copies)
+	}
+
+	// La garde en base couvre aussi un transfert direct en SQL.
+	var personalID string
+	if err := poolTest.QueryRow(ctx, `SELECT "publisherId" FROM "User" WHERE id = $1`, fx.WriterID).Scan(&personalID); err != nil {
+		t.Fatalf("publisher personnel: %v", err)
+	}
+	if personalID == "" {
+		t.Fatal("publisher personnel non provisionné")
+	}
+	// Slug distinct pour que seul le garde-fou puisse refuser la requête
+	// (sinon un conflit de slug personnel masquerait l'absence de garde).
+	if _, err := poolTest.Exec(ctx, `UPDATE "Article" SET "publisherId" = $2, slug = $3 WHERE id = $1`, id, personalID, "essai-a-rapatrier-direct"); err == nil {
+		t.Fatal("transfert SQL direct accepté alors que la copie souveraine existe")
+	}
+}
+
+// TestService_TransferMediaToPersonal_NormalizesMediaArchive vérifie qu'un
+// article sans copie souveraine peut entrer dans un espace personnel et
+// redevient alors ORIGINAL : aucune archive média orpheline.
+func TestService_TransferMediaToPersonal_NormalizesMediaArchive(t *testing.T) {
+	requirePool(t)
+	fx := seedMedia(t)
+	svc := newService()
+	ctx := context.Background()
+
+	id, err := svc.Create(ctx, fx.WriterID, CreateArticleInput{
+		PublisherID:   fx.PublisherID,
+		Title:         "Archive sans copie",
+		Slug:          "archive-sans-copie",
+		Content:       "Contenu",
+		ContentFormat: "markdown",
+		Status:        "DRAFT",
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	// Cas legacy : archive de média dont la copie a disparu.
+	if _, err := poolTest.Exec(ctx, `UPDATE "Article" SET "canonicalType" = 'MEDIA_ARCHIVE' WHERE id = $1`, id); err != nil {
+		t.Fatalf("marquage MEDIA_ARCHIVE: %v", err)
+	}
+
+	// Espace personnel de l'auteur, sans passer par une copie souveraine.
+	var personalID string
+	if err := poolTest.QueryRow(ctx, `
+		INSERT INTO "Publisher" (id, type, name, slug, "updatedAt")
+		VALUES (gen_random_uuid()::text, 'PERSONAL', 'Perso P1', 'perso-p1-' || left(gen_random_uuid()::text, 8), now())
+		RETURNING id
+	`).Scan(&personalID); err != nil {
+		t.Fatalf("publisher personnel: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx, `UPDATE "User" SET "publisherId" = $2, "updatedAt" = now() WHERE id = $1`, fx.WriterID, personalID); err != nil {
+		t.Fatalf("rattachement du publisher personnel: %v", err)
+	}
+
+	if _, err := svc.TransferPublisher(ctx, fx.WriterID, id, TransferArticleInput{TargetPublisherID: "personal"}); err != nil {
+		t.Fatalf("TransferPublisher: %v", err)
+	}
+
+	var publisherID, canonicalType string
+	if err := poolTest.QueryRow(ctx, `SELECT "publisherId", "canonicalType" FROM "Article" WHERE id = $1`, id).Scan(&publisherID, &canonicalType); err != nil {
+		t.Fatalf("article transféré: %v", err)
+	}
+	if publisherID != personalID {
+		t.Fatalf("publisher après transfert = %q, attendu %q", publisherID, personalID)
+	}
+	if canonicalType != "ORIGINAL" {
+		t.Fatalf("canonicalType après transfert = %q, attendu ORIGINAL", canonicalType)
+	}
+
+	var copies int
+	if err := poolTest.QueryRow(ctx, `SELECT count(*) FROM "Article" WHERE "originArticleId" = $1`, id).Scan(&copies); err != nil {
+		t.Fatalf("count copies: %v", err)
+	}
+	if copies != 0 {
+		t.Fatalf("copies après transfert = %d, attendu 0", copies)
 	}
 }
