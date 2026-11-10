@@ -28,7 +28,19 @@ interface UpdatedUser {
   headerImageUrl?: string | null;
   heroText: string | null;
   onboardingText?: string | null;
+  pronouns?: string | null;
+  website?: string | null;
+  supportUrl?: string | null;
+  socialLinks?: Array<{ platform: string; url: string }> | null;
 }
+
+const SOCIAL_NETWORKS = [
+  { id: 'twitter', label: 'X (Twitter)', placeholder: 'https://x.com/...' },
+  { id: 'bluesky', label: 'Bluesky', placeholder: 'https://bsky.app/profile/...' },
+  { id: 'github', label: 'GitHub', placeholder: 'https://github.com/...' },
+  { id: 'linkedin', label: 'LinkedIn', placeholder: 'https://linkedin.com/in/...' },
+  { id: 'instagram', label: 'Instagram', placeholder: 'https://instagram.com/...' },
+];
 
 /**
  * Écrit les réglages d'un profil de MÉDIA via sa server action dédiée
@@ -43,6 +55,9 @@ async function updateMediaProfile(
     logoUrl?: string | null | undefined;
     headerImageUrl?: string | null | undefined;
     onboardingText?: string | null | undefined;
+    supportUrl?: string | null | undefined;
+    website?: string | null | undefined;
+    socialLinks?: Array<{ platform: string; url: string }> | undefined;
   }
 ): Promise<{ ok: boolean; data?: { user: UpdatedUser } }> {
   try {
@@ -51,8 +66,12 @@ async function updateMediaProfile(
       heroText: input.heroText,
       logoUrl: input.logoUrl ?? null,
       headerImageUrl: input.headerImageUrl ?? null,
-      siteOptions:
-        input.onboardingText !== undefined ? { location: input.onboardingText } : undefined,
+      supportUrl: input.supportUrl ?? null,
+      siteOptions: {
+        ...(input.onboardingText !== undefined ? { location: input.onboardingText } : {}),
+        ...(input.website !== undefined ? { website: input.website } : {}),
+        ...(input.socialLinks !== undefined ? { socialLinks: input.socialLinks } : {}),
+      },
     });
     return {
       ok: true,
@@ -64,6 +83,9 @@ async function updateMediaProfile(
           headerImageUrl: (input.headerImageUrl ?? null) as string | null,
           heroText: input.heroText ?? null,
           onboardingText: input.onboardingText ?? null,
+          supportUrl: input.supportUrl ?? null,
+          website: input.website ?? null,
+          socialLinks: input.socialLinks ?? null,
         },
       },
     };
@@ -83,6 +105,9 @@ async function updatePersonalProfile(input: {
   name?: string;
   heroText?: string;
   onboardingText?: string;
+  pronouns?: string;
+  website?: string;
+  socialLinks?: Array<{ platform: string; url: string }>;
   logoUrl?: string | null | undefined;
   headerImageUrl?: string | null | undefined;
 }): Promise<{ ok: boolean; data?: { user: UpdatedUser } }> {
@@ -107,12 +132,17 @@ interface EditProfileModalProps {
   onClose: () => void;
   user: {
     id: string;
+    type?: 'PERSONAL' | 'MEDIA';
     name: string | null;
     username: string | null;
     logoUrl: string | null;
     headerImageUrl?: string | null;
     heroText: string | null;
     onboardingText?: string | null;
+    pronouns?: string | null;
+    website?: string | null;
+    supportUrl?: string | null;
+    socialLinks?: Array<{ platform: string; url: string }> | null;
   };
   /**
    * 🎯 Ressource réellement éditée. ⚠️ BUG du 19/09 : le modal ne connaissait
@@ -133,16 +163,33 @@ export function EditProfileModal({
   publicationId,
   onProfileUpdated,
 }: EditProfileModalProps) {
+  const isMedia = user.type === 'MEDIA';
   const [name, setName] = useState(user.name || '');
   const [heroText, setHeroText] = useState(user.heroText || '');
   const [locationText, setLocationText] = useState(user.onboardingText || '');
+  const [pronouns, setPronouns] = useState(user.pronouns || '');
+  const [website, setWebsite] = useState(user.website || '');
+  const [supportUrl, setSupportUrl] = useState(user.supportUrl || '');
   const [logoUrl, setLogoUrl] = useState<string | null>(user.logoUrl);
   const [headerImageUrl, setHeaderImageUrl] = useState<string | null>(user.headerImageUrl || null);
+  const [socialUrls, setSocialUrls] = useState<Record<string, string>>(() => {
+    const map: Record<string, string> = {};
+    if (user.socialLinks) {
+      for (const s of user.socialLinks) {
+        if (s.platform && s.url) map[s.platform] = s.url;
+      }
+    }
+    return map;
+  });
   const [saving, setSaving] = useState(false);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+
+    const activeSocialLinks = Object.entries(socialUrls)
+      .map(([platform, url]) => ({ platform, url: url.trim() }))
+      .filter((s) => s.url !== '');
 
     try {
       const mediaId = publicationId ? await resolveMediaId(publicationId) : null;
@@ -152,14 +199,19 @@ export function EditProfileModal({
             heroText,
             logoUrl,
             headerImageUrl,
+            supportUrl: supportUrl || null,
             onboardingText: locationText,
+            socialLinks: activeSocialLinks,
           })
         : await updatePersonalProfile({
             name,
             heroText,
             onboardingText: locationText,
+            pronouns: pronouns || undefined,
+            website: website || undefined,
             logoUrl,
             headerImageUrl,
+            socialLinks: activeSocialLinks,
           });
       if (res.ok && res.data?.user) {
         toast.success(t`Profil mis à jour avec succès !`);
@@ -171,11 +223,19 @@ export function EditProfileModal({
             username: u.username,
             logoUrl: u.logoUrl,
             heroText:
-              (u as { publication?: { heroText?: string | null } }).publication?.heroText ?? null,
+              (u as { publication?: { heroText?: string | null } }).publication?.heroText ??
+              u.heroText ??
+              null,
             headerImageUrl:
               (u as { publication?: { headerImageUrl?: string | null } }).publication
-                ?.headerImageUrl ?? null,
+                ?.headerImageUrl ??
+              u.headerImageUrl ??
+              null,
             onboardingText: u.onboardingText,
+            pronouns: u.pronouns,
+            website: u.website,
+            supportUrl: u.supportUrl,
+            socialLinks: u.socialLinks,
           });
         }
         onClose();
@@ -199,7 +259,7 @@ export function EditProfileModal({
     >
       <DialogContent size="lg">
         <DialogHeader>
-          <DialogTitle>{t`Éditer le profil`}</DialogTitle>
+          <DialogTitle>{isMedia ? t`Éditer le profil média` : t`Éditer le profil`}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSave} className="flex flex-col min-h-0">
@@ -224,33 +284,55 @@ export function EditProfileModal({
                 onChange={setLogoUrl}
                 upload={(file) => uploadImageToRoute(file, '/api/upload', IMAGE_FOLDERS.avatars)}
                 aspect={1}
-                shape="circle"
+                shape={isMedia ? 'square' : 'circle'}
                 maxDimension={512}
-                label={t`Photo de profil`}
+                label={isMedia ? t`Logo du média` : t`Photo de profil`}
               />
             </div>
 
             {/* Name Input */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">{t`Nom complet`}</label>
+              <label className="text-xs font-semibold text-muted-foreground">
+                {isMedia ? t`Nom du média` : t`Nom complet`}
+              </label>
               <Input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder={t`Votre nom`}
+                placeholder={isMedia ? t`Nom de votre publication` : t`Votre nom`}
                 required
               />
             </div>
 
+            {/* Pronouns (only for personal) */}
+            {!isMedia && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">
+                  {t`Pronoms (optionnel)`}
+                </label>
+                <Input
+                  type="text"
+                  value={pronouns}
+                  maxLength={24}
+                  onChange={(e) => setPronouns(e.target.value)}
+                  placeholder={t`ex: iel, elle/iel, il`}
+                />
+              </div>
+            )}
+
             {/* Bio Input */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground">
-                {t`Bio / Présentation`}
+                {isMedia ? t`Ligne éditoriale / Slogan` : t`Bio / Présentation`}
               </label>
               <Textarea
                 value={heroText}
                 onChange={(e) => setHeroText(e.target.value)}
-                placeholder={t`Décrivez-vous en quelques mots...`}
+                placeholder={
+                  isMedia
+                    ? t`Présentez la mission et le positionnement du média...`
+                    : t`Décrivez-vous en quelques mots...`
+                }
                 rows={3}
               />
             </div>
@@ -258,15 +340,68 @@ export function EditProfileModal({
             {/* Location Input */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground">
-                {t`Localisation / Ville`}
+                {isMedia ? t`Siège / Rédaction` : t`Localisation / Ville`}
               </label>
               <Input
                 type="text"
                 value={locationText}
-                maxLength={30}
+                maxLength={40}
                 onChange={(e) => setLocationText(e.target.value)}
-                placeholder={t`Paris, France`}
+                placeholder={isMedia ? t`Paris, France` : t`Paris, France`}
               />
+            </div>
+
+            {/* Website / Support Link */}
+            {isMedia ? (
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">
+                  {t`Lien de contact / Support`}
+                </label>
+                <Input
+                  type="url"
+                  value={supportUrl}
+                  onChange={(e) => setSupportUrl(e.target.value)}
+                  placeholder="https://mon-media.fr/contact"
+                />
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">
+                  {t`Site web personnel / Portfolio`}
+                </label>
+                <Input
+                  type="url"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  placeholder="https://mon-site.fr"
+                />
+              </div>
+            )}
+
+            {/* Social Networks Section */}
+            <div className="space-y-2 pt-2 border-t border-border/40">
+              <label className="text-xs font-semibold text-muted-foreground">
+                {t`Réseaux sociaux & Profils`}
+              </label>
+              <div className="space-y-2">
+                {SOCIAL_NETWORKS.map((net) => (
+                  <div key={net.id} className="flex items-center gap-2">
+                    <span className="w-24 shrink-0 text-xs font-medium text-foreground/80">
+                      {net.label}
+                    </span>
+                    <Input
+                      type="url"
+                      size="sm"
+                      value={socialUrls[net.id] || ''}
+                      onChange={(e) =>
+                        setSocialUrls((prev) => ({ ...prev, [net.id]: e.target.value }))
+                      }
+                      placeholder={net.placeholder}
+                      className="flex-1"
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           </DialogBody>
 

@@ -658,6 +658,9 @@ export interface UpdatedProfileUser {
   heroText: string | null;
   headerImageUrl: string | null;
   onboardingText: string | null;
+  pronouns?: string | null;
+  website?: string | null;
+  socialLinks?: Array<{ platform: string; url: string }> | null;
   isCertified: boolean;
 }
 
@@ -666,6 +669,9 @@ export const updateProfileAction = safeAction<
     name?: string;
     heroText?: string;
     onboardingText?: string;
+    pronouns?: string;
+    website?: string;
+    socialLinks?: Array<{ platform: string; url: string }>;
     /** null = RETRAIT de l'image (doit traverser jusqu'à Go) ; undefined = inchangé. */
     logoUrl?: string | null;
     headerImageUrl?: string | null;
@@ -707,6 +713,7 @@ export const updateProfileAction = safeAction<
           name: input.name ?? undefined,
           logoUrl,
           onboardingText: input.onboardingText ?? undefined,
+          pronouns: input.pronouns ?? undefined,
         },
       })
     : null;
@@ -715,7 +722,9 @@ export const updateProfileAction = safeAction<
     input.heroText !== undefined ||
     input.headerImageUrl !== undefined ||
     input.logoUrl !== undefined ||
-    input.name !== undefined;
+    input.name !== undefined ||
+    input.website !== undefined ||
+    input.socialLinks !== undefined;
   const publication = wantsPublication
     ? await goFetch<Record<string, unknown>>('/v1/settings/profile', {
         method: 'PATCH',
@@ -725,6 +734,13 @@ export const updateProfileAction = safeAction<
           logoUrl,
           heroText: input.heroText ?? undefined,
           headerImageUrl,
+          siteOptions:
+            input.website !== undefined || input.socialLinks !== undefined
+              ? {
+                  website: input.website ?? undefined,
+                  socialLinks: input.socialLinks ?? undefined,
+                }
+              : undefined,
         },
       })
     : null;
@@ -742,6 +758,9 @@ export const updateProfileAction = safeAction<
       headerImageUrl: (pub.headerImageUrl as string | null) ?? null,
       onboardingText:
         (profile as unknown as { onboardingText?: string | null })?.onboardingText ?? null,
+      pronouns: input.pronouns ?? profile?.pronouns ?? null,
+      website: input.website ?? null,
+      socialLinks: input.socialLinks ?? null,
       isCertified: profile?.isCertified ?? false,
     },
   };
@@ -1023,6 +1042,9 @@ export const resolveProfileAction = safeAction<string, ProfileResolvePayload>(
       logoUrl: profile.logoUrl,
       heroText: profile.heroText,
       headerImageUrl: profile.headerImageUrl,
+      website: profile.website ?? null,
+      supportUrl: profile.supportUrl ?? null,
+      socialLinks: profile.socialLinks ?? null,
       onboardingText: profile.onboardingText ?? null,
       pronouns: profile.pronouns ?? null,
       isCertified: profile.isCertified,

@@ -354,6 +354,9 @@ export interface PublicProfileData {
   onboardingText?: string | null;
   logoUrl: string | null;
   headerImageUrl: string | null;
+  website?: string | null;
+  supportUrl?: string | null;
+  socialLinks?: Array<{ platform: string; url: string }> | null;
   isCertified: boolean;
   isFollowing: boolean;
   /** Demande de follow en attente (compte PRIVATE). */

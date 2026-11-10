@@ -25,6 +25,7 @@ export interface MeProfileDTO {
   username: string | null;
   logoUrl: string | null;
   role: string;
+  pronouns?: string | null;
   hasCompletedOnboarding: boolean;
   followsCount: number;
   mutedWordsCount: number;
