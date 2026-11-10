@@ -3298,12 +3298,41 @@ $$ LANGUAGE plpgsql;
 
 -- 8. Trigger : toute entrée en média (soumission ou publication) provisionne
 --    la copie dans la même transaction. Un échec annule l'écriture.
+--    Depuis 00084, les co-auteurs ACCEPTED reçoivent la même copie.
 CREATE OR REPLACE FUNCTION provision_author_sovereign_copy()
 RETURNS TRIGGER AS $$
+DECLARE
+    r RECORD;
+    v_publisher_type "PublisherType";
 BEGIN
-    IF NEW."status" IN ('SUBMITTED', 'PUBLISHED') THEN
-        PERFORM ensure_author_sovereign_copy(NEW.id, NEW."authorId");
+    IF NEW."status" NOT IN ('SUBMITTED', 'PUBLISHED') THEN
+        RETURN NEW;
     END IF;
+
+    PERFORM ensure_author_sovereign_copy(NEW.id, NEW."authorId");
+
+    SELECT p.type INTO v_publisher_type
+    FROM "Publisher" p
+    WHERE p.id = NEW."publisherId";
+
+    IF v_publisher_type <> 'MEDIA' THEN
+        RETURN NEW;
+    END IF;
+
+    FOR r IN
+        SELECT aa."userId"
+        FROM "ArticleAttribution" aa
+        JOIN "User" u ON u.id = aa."userId"
+        LEFT JOIN "Publisher" up ON up.id = u."publisherId"
+        WHERE aa."articleId" = NEW.id
+          AND aa.role = 'CO_AUTHOR'
+          AND aa."consentStatus" = 'ACCEPTED'
+          AND aa."userId" <> NEW."authorId"
+          AND (u."publisherId" IS NULL OR up.type = 'PERSONAL')
+    LOOP
+        PERFORM ensure_author_sovereign_copy(NEW.id, r."userId");
+    END LOOP;
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -3314,3 +3343,70 @@ AFTER INSERT OR UPDATE OF status, published, "publisherId" ON "Article"
 FOR EACH ROW
 WHEN (NEW."status" IN ('SUBMITTED', 'PUBLISHED'))
 EXECUTE FUNCTION provision_author_sovereign_copy();
+
+-- 9. Accord d'un co-auteur : sa copie souveraine est provisionnée même si
+--    l'article est déjà publié (00084).
+CREATE OR REPLACE FUNCTION provision_coauthor_sovereign_copy()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_article RECORD;
+BEGIN
+    IF NEW."consentStatus" <> 'ACCEPTED' OR NEW.role <> 'CO_AUTHOR' THEN
+        RETURN NEW;
+    END IF;
+
+    SELECT a.id, a."authorId", a.status, p.type
+    INTO v_article
+    FROM "Article" a
+    JOIN "Publisher" p ON p.id = a."publisherId"
+    WHERE a.id = NEW."articleId";
+
+    IF NOT FOUND THEN
+        RETURN NEW;
+    END IF;
+    IF v_article.type <> 'MEDIA'
+       OR v_article.status NOT IN ('SUBMITTED', 'PUBLISHED')
+       OR NEW."userId" = v_article."authorId" THEN
+        RETURN NEW;
+    END IF;
+
+    PERFORM ensure_author_sovereign_copy(NEW."articleId", NEW."userId");
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_provision_coauthor_sovereign_copy ON "ArticleAttribution";
+CREATE TRIGGER trg_provision_coauthor_sovereign_copy
+AFTER INSERT OR UPDATE OF "consentStatus", role ON "ArticleAttribution"
+FOR EACH ROW
+WHEN (NEW."consentStatus" = 'ACCEPTED' AND NEW.role = 'CO_AUTHOR')
+EXECUTE FUNCTION provision_coauthor_sovereign_copy();
+
+-- 10. Garde de transfert : une archive média dont la copie souveraine vit déjà
+--     dans un espace personnel ne peut pas y être déplacée (00084).
+CREATE OR REPLACE FUNCTION guard_sovereign_transfer()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW."publisherId" IS DISTINCT FROM OLD."publisherId"
+       AND EXISTS (
+           SELECT 1 FROM "Publisher" p
+           WHERE p.id = NEW."publisherId" AND p.type = 'PERSONAL'
+       )
+       AND EXISTS (
+           SELECT 1 FROM "Article" c
+           WHERE c."originArticleId" = NEW.id
+             AND c."authorId" = NEW."authorId"
+             AND c."isAuthorSovereignCopy" = true
+       ) THEN
+        RAISE EXCEPTION 'transfert refusé: la copie souveraine de l''article % vit déjà dans un espace personnel', NEW.id
+            USING ERRCODE = 'check_violation';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_guard_sovereign_transfer ON "Article";
+CREATE TRIGGER trg_guard_sovereign_transfer
+BEFORE UPDATE OF "publisherId" ON "Article"
+FOR EACH ROW
+EXECUTE FUNCTION guard_sovereign_transfer();

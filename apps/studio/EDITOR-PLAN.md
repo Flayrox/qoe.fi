@@ -232,16 +232,25 @@ git diff --check
 - Aucune sauvegarde préalable : choix explicite de l’utilisateur. Aucune
   écriture de test laissée sur la base dev.
 
-### P1 ouvert — décisions produit à trancher
+### P1 tranché et implémenté (00084)
 
-- **Co-auteurs** : le provisioning automatique ne couvre que `authorId`
-  (`PRIMARY_AUTHOR`). Faut-il créer d’office une copie souveraine pour chaque
-  co-auteur `ACCEPTED`, ou laisser le fork manuel (`ForkToPersonal`) ?
-- **Transfert média → personnel** : l’article transféré reste
-  `MEDIA_ARCHIVE` alors qu’il vit désormais dans un espace personnel, et la
-  copie souveraine déjà créée devient un doublon vivant dans le même espace.
-  Trois issues possibles : refuser le transfert, absorber la copie, ou garder
-  l’archive dans le média et ne déplacer que le vivant.
+Deux règles, dérivées de l’invariant « chaque auteur possède sa copie
+souveraine » :
+
+1. **Co-auteurs `ACCEPTED`** : ils reçoivent la même copie que l’auteur
+   principal — `DRAFT` dans leur espace personnel, publiée seulement s’ils le
+   décident. Elle est créée à la soumission/publication, et au moment où leur
+   consentement passe à `ACCEPTED` (trigger `ArticleAttribution`). Un
+   co-auteur `PENDING` n’a rien : sans accord, pas de copie. Le brouillon
+   apparaît dans la liste d’articles du studio comme celui de l’auteur
+   principal — pas de contenu caché, pas de publication automatique.
+2. **Transfert média → personnel** : si l’article possède déjà une copie
+   souveraine, le transfert est **refusé** — la copie est le lieu de vie,
+   l’archive reste au média. Cela évite deux vivants identiques et préserve
+   l’URL canonique publiée. Sans copie, l’article qui entre dans un espace
+   personnel redevient `ORIGINAL` : plus aucun `MEDIA_ARCHIVE` dans un espace
+   personnel. La garde existe aussi en base (`trg_guard_sovereign_transfer`)
+   pour couvrir un `UPDATE` SQL direct.
 
 ---
 
