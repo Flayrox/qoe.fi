@@ -218,6 +218,31 @@ git diff --check
   cohérence `isAuthorSovereignCopy ⇔ canonicalType = 'PERSONAL_FORK'`.
 - Backfill des articles média déjà soumis/publiés dans la même migration.
 
+### État du déploiement
+
+- `00083` appliquée sur la base dev partagée le 2026-11-10 : version **83**,
+  `OK 00083_author_sovereignty_guarantee.sql (355 ms)`.
+- Contrôlé après migration : contrainte `Article_sovereign_copy_check`
+  validée, index unique `Article_origin_author_sovereign_key` présent, trigger
+  `trg_provision_author_sovereign_copy` actif, 5 fonctions présentes.
+- Backfill constaté : 1 article média soumis/publié, 1 éligible, 0 sans copie,
+  1 copie, 0 incohérence, 0 doublon, 1 archive média, 1 attribution
+  `PRIMARY_AUTHOR`, 1 événement `CREATED` ; `canonicalUrl` de la copie =
+  `https://media-test.qoe.fi/societe/deserts-information-france`.
+- Aucune sauvegarde préalable : choix explicite de l’utilisateur. Aucune
+  écriture de test laissée sur la base dev.
+
+### P1 ouvert — décisions produit à trancher
+
+- **Co-auteurs** : le provisioning automatique ne couvre que `authorId`
+  (`PRIMARY_AUTHOR`). Faut-il créer d’office une copie souveraine pour chaque
+  co-auteur `ACCEPTED`, ou laisser le fork manuel (`ForkToPersonal`) ?
+- **Transfert média → personnel** : l’article transféré reste
+  `MEDIA_ARCHIVE` alors qu’il vit désormais dans un espace personnel, et la
+  copie souveraine déjà créée devient un doublon vivant dans le même espace.
+  Trois issues possibles : refuser le transfert, absorber la copie, ou garder
+  l’archive dans le média et ne déplacer que le vivant.
+
 ---
 
 ## 📝 Instructions
