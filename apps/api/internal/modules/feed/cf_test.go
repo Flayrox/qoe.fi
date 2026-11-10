@@ -22,7 +22,7 @@ func seedCoRead(t *testing.T, ctx context.Context) (readerID, neighborID string)
 	// Article candidat (publié) que seul le voisin lit.
 	if _, err := poolTest.Exec(ctx,
 		`INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime",
-		                        status, "publicationId", "authorId", "createdAt", "updatedAt", embedding)
+		                        status, "publisherId", "authorId", "createdAt", "updatedAt", embedding)
 		 VALUES ('eng_art_candidate', 'Candidat CF', 'eng-art-candidate', '<p>x</p>', true, 'PUBLIC', 5,
 		         'PUBLISHED', 'pub_engine', $1, now(), now(), `+vec512+`)`, bobID); err != nil {
 		t.Fatalf("article candidat: %v", err)

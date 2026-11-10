@@ -133,10 +133,10 @@ func (w *ImportSendWorker) buildIntroEmail(ctx context.Context, waveID string, c
 	if err != nil {
 		return EmailMessage{}, err
 	}
-	confirm := buildConfirmURL(confirmEmailBaseURL(), info.PublicationID, c.Email, c.Token)
-	unsub := buildUnsubURL(info.PublicationID, c.Email)
+	confirm := buildConfirmURL(confirmEmailBaseURL(), info.PublisherID, c.Email, c.Token)
+	unsub := buildUnsubURL(info.PublisherID, c.Email)
 
-	subject := fmt.Sprintf("%s — un message à lire avant de vous abonner / a message before you subscribe", info.PublicationName)
+	subject := fmt.Sprintf("%s — un message à lire avant de vous abonner / a message before you subscribe", info.PublisherName)
 	bodyHTML := fmt.Sprintf(`<p>Bonjour,</p>
 <p>Vous recevez cet e-mail car la publication <strong>%s</strong> a importé une liste d'adresses vous incluant, et qoe.fi a approuvé cet envoi encadré après revue du dossier. <strong>Vous n'êtes abonné(e) à rien pour l'instant.</strong></p>
 <p><a href="%s" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:9999px;">Confirmer mon abonnement</a></p>
@@ -146,8 +146,8 @@ func (w *ImportSendWorker) buildIntroEmail(ctx context.Context, waveID string, c
 <p>You are receiving this email because the publication <strong>%s</strong> imported a mailing list including your address, and qoe.fi approved this supervised sending after review. <strong>You are not subscribed to anything yet.</strong></p>
 <p><a href="%s" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:9999px;">Confirm my subscription</a></p>
 <p>If this message is not for you, ignore it or <a href="%s">unsubscribe in one click</a> — you will never be contacted again for this publication.</p>`,
-		info.PublicationName, confirm, unsub,
-		info.PublicationName, confirm, unsub)
+		info.PublisherName, confirm, unsub,
+		info.PublisherName, confirm, unsub)
 	text := fmt.Sprintf(`Bonjour,
 
 Vous recevez cet e-mail car la publication %s a importé une liste d'adresses vous incluant, et qoe.fi a approuvé cet envoi encadré après revue. Vous n'êtes abonné(e) à rien pour l'instant.
@@ -162,22 +162,22 @@ You are receiving this email because the publication %s imported a mailing list 
 
 Confirm my subscription: %s
 If this message is not for you, ignore it or unsubscribe in one click: %s`,
-		info.PublicationName, confirm, unsub,
-		info.PublicationName, confirm, unsub)
+		info.PublisherName, confirm, unsub,
+		info.PublisherName, confirm, unsub)
 
 	senderEmail := strings.TrimSpace(w.from)
 	if senderEmail == "" {
 		senderEmail = "noreply@qoe.fi"
 	}
 	from := senderEmail
-	if info.PublicationName != "" {
-		from = fmt.Sprintf("%s <%s>", info.PublicationName, senderEmail)
+	if info.PublisherName != "" {
+		from = fmt.Sprintf("%s <%s>", info.PublisherName, senderEmail)
 	}
 	return EmailMessage{
 		From:            from,
 		To:              c.Email,
 		Subject:         subject,
-		HTML:            renderEmailLayout(info.PublicationName, "", "", subject, subject, bodyHTML, unsub, ""),
+		HTML:            renderEmailLayout(info.PublisherName, "", "", subject, subject, bodyHTML, unsub, ""),
 		Text:            text,
 		ListUnsubscribe: unsub,
 		IsBulk:          true,

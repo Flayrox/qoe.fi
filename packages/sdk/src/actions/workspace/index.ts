@@ -7,7 +7,7 @@
 //    - cookie `qoe_active_workspace` → mediaId (MEDIA) ou rien (PERSONAL) ;
 //    - Go `GET /v1/workspaces/active` valide la membership active et renvoie
 //      la publication + le rôle + les permissions effectives ;
-//    - PERSONAL passe ensuite par `/v1/me/publication` (get-or-create), car
+//    - PERSONAL passe ensuite par `/v1/me/publisher` (get-or-create), car
 //      l'endpoint actif peut renvoyer l'userId quand la publication n'existe
 //      pas encore.
 //    - Aucun fallback inventé : si Go est indisponible, l'erreur remonte.
@@ -19,7 +19,7 @@ import { parseWorkspaceCookie, WORKSPACE_COOKIE, type WorkspaceType } from '../.
 
 export interface ActiveWorkspaceContext {
   type: WorkspaceType;
-  publicationId: string;
+  publisherId: string;
   name: string;
   slug: string;
   logoUrl: string | null;
@@ -39,7 +39,7 @@ export interface ActiveWorkspaceContext {
 
 interface GoActiveWorkspace {
   type?: WorkspaceType;
-  publicationId?: string;
+  publisherId?: string;
   name?: string;
   slug?: string;
   logoUrl?: string | null;
@@ -61,10 +61,10 @@ export async function getActiveWorkspaceContext(): Promise<ActiveWorkspaceContex
 
   const ws = await goFetch<GoActiveWorkspace>(`/v1/workspaces/active${qs}`);
 
-  if (ws.type === 'MEDIA' && ws.publicationId) {
+  if (ws.type === 'MEDIA' && ws.publisherId) {
     return {
       type: 'MEDIA',
-      publicationId: ws.publicationId,
+      publisherId: ws.publisherId,
       name: ws.name ?? 'Média',
       slug: ws.slug ?? 'media',
       logoUrl: ws.logoUrl ?? null,
@@ -74,12 +74,12 @@ export async function getActiveWorkspaceContext(): Promise<ActiveWorkspaceContex
     };
   }
 
-  // PERSONAL : si ws.publicationId est déjà renseigné (et n'est pas un identifiant
-  // utilisateur résiduel), retourner directement sans second appel à /v1/me/publication.
-  if (ws.publicationId && ws.publicationId !== '' && !ws.publicationId.startsWith('usr_')) {
+  // PERSONAL : si ws.publisherId est déjà renseigné (et n'est pas un identifiant
+  // utilisateur résiduel), retourner directement sans second appel à /v1/me/publisher.
+  if (ws.publisherId && ws.publisherId !== '' && !ws.publisherId.startsWith('usr_')) {
     return {
       type: 'PERSONAL',
-      publicationId: ws.publicationId,
+      publisherId: ws.publisherId,
       name: ws.name ?? 'Profil Personnel',
       slug: ws.slug ?? 'personal',
       logoUrl: ws.logoUrl ?? null,
@@ -88,12 +88,12 @@ export async function getActiveWorkspaceContext(): Promise<ActiveWorkspaceContex
     };
   }
 
-  // PERSONAL : get-or-create de la publication personnelle uniquement si ws.publicationId est vide
-  // (jamais l'userId comme publicationId — un identifiant d'utilisateur n'est pas une publication).
-  const personal = await goFetch<{ publicationId: string }>('/v1/me/publication');
+  // PERSONAL : get-or-create de la publication personnelle uniquement si ws.publisherId est vide
+  // (jamais l'userId comme publisherId — un identifiant d'utilisateur n'est pas une publication).
+  const personal = await goFetch<{ publisherId: string }>('/v1/me/publisher');
   return {
     type: 'PERSONAL',
-    publicationId: personal.publicationId,
+    publisherId: personal.publisherId,
     name: ws.name ?? 'Profil Personnel',
     slug: ws.slug ?? 'personal',
     logoUrl: ws.logoUrl ?? null,
@@ -103,6 +103,6 @@ export async function getActiveWorkspaceContext(): Promise<ActiveWorkspaceContex
 }
 
 /** Compat : la plupart des actions n'ont besoin que de la publication. */
-export async function getActivePublicationId(): Promise<string> {
-  return (await getActiveWorkspaceContext()).publicationId;
+export async function getActivePublisherId(): Promise<string> {
+  return (await getActiveWorkspaceContext()).publisherId;
 }

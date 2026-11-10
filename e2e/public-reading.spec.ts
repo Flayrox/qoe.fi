@@ -90,7 +90,7 @@ test.describe('Parcours lecture (public)', () => {
     const db = new TestDb(DATABASE_URL!);
     await db.connect();
     const media = await db.query<{ title: string }>(
-      `SELECT a.title FROM "Article" a JOIN "Publication" p ON p.id = a."publicationId"
+      `SELECT a.title FROM "Article" a JOIN "Publisher" p ON p.id = a."publisherId"
        WHERE p.type = 'MEDIA' AND a.published = true LIMIT 1`
     );
     await db.close();

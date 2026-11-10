@@ -71,7 +71,7 @@ func sigServer(statusCode int, calls *atomic.Int32) *httptest.Server {
 
 // seedWorker crée une publication + un webhook actif abonné à
 // article.published pointant vers url, avec testSecret.
-func seedWorker(t *testing.T, url string) (publicationID, webhookID string) {
+func seedWorker(t *testing.T, url string) (publisherID, webhookID string) {
 	requirePool(t)
 	t.Helper()
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
@@ -84,13 +84,13 @@ func seedWorker(t *testing.T, url string) (publicationID, webhookID string) {
 	); err != nil {
 		t.Fatalf("update webhook url: %v", err)
 	}
-	return fx.PublicationID, fx.WebhookID
+	return fx.PublisherID, fx.WebhookID
 }
 
-func makeTask(t *testing.T, publicationID string) *asynq.Task {
+func makeTask(t *testing.T, publisherID string) *asynq.Task {
 	t.Helper()
 	payload, err := json.Marshal(map[string]any{
-		"publicationId": publicationID,
+		"publisherId": publisherID,
 		"articleId":     "art_1",
 		"title":         "Mon article",
 		"slug":          "mon-article",
@@ -181,7 +181,7 @@ func TestHandleProcesses_EventNotSubscribed_NoCall(t *testing.T) {
 	pubID, _ := seedWorker(t, server.URL)
 
 	// Événement non souscrit par le webhook (article.updated) → aucun appel.
-	payload, err := json.Marshal(map[string]any{"publicationId": pubID})
+	payload, err := json.Marshal(map[string]any{"publisherId": pubID})
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
@@ -195,7 +195,7 @@ func TestHandleProcesses_EventNotSubscribed_NoCall(t *testing.T) {
 	}
 }
 
-func TestHandleProcesses_MissingPublicationID_NoOp(t *testing.T) {
+func TestHandleProcesses_MissingPublisherID_NoOp(t *testing.T) {
 	var calls atomic.Int32
 	server := sigServer(http.StatusOK, &calls)
 	defer server.Close()
@@ -208,7 +208,7 @@ func TestHandleProcesses_MissingPublicationID_NoOp(t *testing.T) {
 		t.Fatalf("HandleProcesses: %v", err)
 	}
 	if calls.Load() != 0 {
-		t.Fatalf("calls = %d, attendu 0 (pas de publicationId)", calls.Load())
+		t.Fatalf("calls = %d, attendu 0 (pas de publisherId)", calls.Load())
 	}
 }
 

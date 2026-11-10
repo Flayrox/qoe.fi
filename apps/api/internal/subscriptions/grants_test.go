@@ -53,7 +53,7 @@ func TestValidPlanSubject(t *testing.T) {
 	if ValidPlan("premium") || ValidPlan("") {
 		t.Error("plans inconnus refusés")
 	}
-	for _, s := range []string{"user", "publication"} {
+	for _, s := range []string{"user", "publisher"} {
 		if !ValidSubject(s) {
 			t.Errorf("sujet %s doit être valide", s)
 		}
@@ -68,7 +68,7 @@ func TestValidPlanSubject(t *testing.T) {
 // load » : une slice Go non initialisée sérialise en `null`, le composant
 // serveur admin crashe sur `.filter`. Le JSON doit porter `[]`, jamais `null`.
 func TestListGrants_NilPool_ReturnsNonNilEmptySlice(t *testing.T) {
-	items, err := ListGrants(context.Background(), nil, SubjectPublication, "x", false, 10, time.Now())
+	items, err := ListGrants(context.Background(), nil, SubjectPublisher, "x", false, 10, time.Now())
 	if err != nil || items == nil || len(items) != 0 {
 		t.Fatalf("nil pool = (%#v, %v), attendu (slice vide, nil)", items, err)
 	}
@@ -92,7 +92,7 @@ func TestListRecentGrants_NilPool_ReturnsNonNilEmptySlice(t *testing.T) {
 // refusent explicitement (aucun droit accordé par défaut sûr).
 func TestGrants_NilPool_Errors(t *testing.T) {
 	ctx := context.Background()
-	if _, err := GrantPlan(ctx, nil, SubjectPublication, "x", PlanPro, time.Now(), nil, "staff", "", time.Now()); err == nil {
+	if _, err := GrantPlan(ctx, nil, SubjectPublisher, "x", PlanPro, time.Now(), nil, "staff", "", time.Now()); err == nil {
 		t.Fatal("GrantPlan pool nil : erreur attendue")
 	}
 	if _, err := GetGrant(ctx, nil, "x", time.Now()); err == nil {
@@ -131,7 +131,7 @@ func TestIsEffective(t *testing.T) {
 
 func TestHasEntitlement_NilPool_Denies(t *testing.T) {
 	// Inverse des budgets : sans base, PAS de droits (défaut sûr).
-	if HasEntitlement(context.Background(), nil, SubjectPublication, "x", PlanPro, time.Now()) {
+	if HasEntitlement(context.Background(), nil, SubjectPublisher, "x", PlanPro, time.Now()) {
 		t.Fatal("pool nil : aucun droit attendu")
 	}
 	if HasPro(context.Background(), nil, "x", time.Now()) {
@@ -155,7 +155,7 @@ func TestHasPlus_DirectAndViaStudio(t *testing.T) {
 	cleanup := func() {
 		poolTest.Exec(ctx, `DELETE FROM "SubscriptionGrant" WHERE "subjectId" = $1 OR "subjectId" = $2`, user, pub)
 		poolTest.Exec(ctx, `DELETE FROM "User" WHERE id = $1::uuid`, user)
-		poolTest.Exec(ctx, `DELETE FROM "Publication" WHERE id = $1`, pub)
+		poolTest.Exec(ctx, `DELETE FROM "Publisher" WHERE id = $1`, pub)
 	}
 	cleanup()
 	defer cleanup()
@@ -180,16 +180,16 @@ func TestHasPlus_DirectAndViaStudio(t *testing.T) {
 	// Via le studio : publication Pro possédée → Plus (Pro INCLUT Plus).
 	// Slug unique par construction (dérivé de l'id) : Publication.slug est
 	// unique et un slug fixe ferait échouer un second passage.
-	if _, err := poolTest.Exec(ctx, `INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt") VALUES ($1, 'PERSONAL', 'P', $1, now(), now())`, pub); err != nil {
+	if _, err := poolTest.Exec(ctx, `INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt") VALUES ($1, 'PERSONAL', 'P', $1, now(), now())`, pub); err != nil {
 		t.Fatalf("pub : %v", err)
 	}
-	if _, err := poolTest.Exec(ctx, `UPDATE "User" SET "publicationId" = $1, "updatedAt" = now() WHERE id = $2::uuid`, pub, user); err != nil {
+	if _, err := poolTest.Exec(ctx, `UPDATE "User" SET "publisherId" = $1, "updatedAt" = now() WHERE id = $2::uuid`, pub, user); err != nil {
 		t.Fatalf("rattachement studio : %v", err)
 	}
 	if HasPlus(ctx, poolTest, user, now) {
 		t.Fatal("publication non-Pro : faux attendu")
 	}
-	if _, err := GrantPlan(ctx, poolTest, SubjectPublication, pub, PlanPro, now, nil, staff, "test", now); err != nil {
+	if _, err := GrantPlan(ctx, poolTest, SubjectPublisher, pub, PlanPro, now, nil, staff, "test", now); err != nil {
 		t.Fatalf("octroi pro pub : %v", err)
 	}
 	if !HasPlus(ctx, poolTest, user, now) {
@@ -207,11 +207,11 @@ func TestGrant_Cycle(t *testing.T) {
 	if _, err := GrantPlan(ctx, poolTest, "org", sub, PlanPro, now, nil, staff, "", now); !errors.Is(err, ErrInvalidGrant) {
 		t.Fatalf("sujet inconnu : attendu ErrInvalidGrant, obtenu %v", err)
 	}
-	if _, err := GrantPlan(ctx, poolTest, SubjectPublication, sub, "premium", now, nil, staff, "", now); !errors.Is(err, ErrInvalidGrant) {
+	if _, err := GrantPlan(ctx, poolTest, SubjectPublisher, sub, "premium", now, nil, staff, "", now); !errors.Is(err, ErrInvalidGrant) {
 		t.Fatalf("plan inconnu : attendu ErrInvalidGrant, obtenu %v", err)
 	}
 	past := now.Add(-time.Hour)
-	if _, err := GrantPlan(ctx, poolTest, SubjectPublication, sub, PlanPro, now, &past, staff, "", now); !errors.Is(err, ErrInvalidGrant) {
+	if _, err := GrantPlan(ctx, poolTest, SubjectPublisher, sub, PlanPro, now, &past, staff, "", now); !errors.Is(err, ErrInvalidGrant) {
 		t.Fatalf("fin avant début : attendu ErrInvalidGrant, obtenu %v", err)
 	}
 	if _, err := RevokeGrant(ctx, poolTest, "00000000-0000-0000-0000-000000000000", now); !errors.Is(err, ErrGrantNotFound) {
@@ -220,7 +220,7 @@ func TestGrant_Cycle(t *testing.T) {
 
 	// Octroi programmé (début futur) : pas effectif.
 	future := now.Add(2 * time.Hour)
-	g, err := GrantPlan(ctx, poolTest, SubjectPublication, sub, PlanPro, future, nil, staff, "presse", now)
+	g, err := GrantPlan(ctx, poolTest, SubjectPublisher, sub, PlanPro, future, nil, staff, "presse", now)
 	if err != nil {
 		t.Fatalf("octroi programmé : %v", err)
 	}
@@ -231,7 +231,7 @@ func TestGrant_Cycle(t *testing.T) {
 		t.Fatal("programmé : HasPro faux attendu")
 	}
 	// Le futur n'empêche pas un octroi immédiat parallèle (deux lignes).
-	g2, err := GrantPlan(ctx, poolTest, SubjectPublication, sub, PlanPro, now.Add(-time.Minute), nil, staff, "urgence", now)
+	g2, err := GrantPlan(ctx, poolTest, SubjectPublisher, sub, PlanPro, now.Add(-time.Minute), nil, staff, "urgence", now)
 	if err != nil {
 		t.Fatalf("octroi immédiat : %v", err)
 	}
@@ -240,11 +240,11 @@ func TestGrant_Cycle(t *testing.T) {
 	}
 
 	// Liste : historique complet + filtre effectifs.
-	all, err := ListGrants(ctx, poolTest, SubjectPublication, sub, false, 10, now)
+	all, err := ListGrants(ctx, poolTest, SubjectPublisher, sub, false, 10, now)
 	if err != nil || len(all) != 2 {
 		t.Fatalf("historique (2) attendu, obtenu %d (%v)", len(all), err)
 	}
-	eff, err := ListGrants(ctx, poolTest, SubjectPublication, sub, true, 10, now)
+	eff, err := ListGrants(ctx, poolTest, SubjectPublisher, sub, true, 10, now)
 	if err != nil || len(eff) != 1 || eff[0].ID != g2.ID {
 		t.Fatalf("1 effectif attendu, obtenu %+v (%v)", eff, err)
 	}
@@ -275,7 +275,7 @@ func TestGrant_Cycle(t *testing.T) {
 	// répétée (les deux sens d'arrondi sont exercés en boucle).
 	for i := 0; i < 5; i++ {
 		rs := fmt.Sprintf("%s-rev-%d", sub, i)
-		rg, err := GrantPlan(ctx, poolTest, SubjectPublication, rs, PlanPro, now, nil, staff, "", now)
+		rg, err := GrantPlan(ctx, poolTest, SubjectPublisher, rs, PlanPro, now, nil, staff, "", now)
 		if err != nil {
 			t.Fatalf("octroi %d : %v", i, err)
 		}

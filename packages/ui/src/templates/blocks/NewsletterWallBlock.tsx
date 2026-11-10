@@ -12,7 +12,7 @@
 import { Users } from 'lucide-react';
 import type {
   NewsletterWallBlockProps,
-  TemplatePublicationContext,
+  TemplatePublisherContext,
   TemplateRenderContext,
   CardCornerShape,
 } from '../schema';
@@ -24,7 +24,7 @@ import { SubscribeForm } from '../../SubscribeForm';
 interface NewsletterWallBlockComponentProps {
   id: string;
   props: NewsletterWallBlockProps;
-  publication: TemplatePublicationContext;
+  publisher: TemplatePublisherContext;
   cardShape?: CardCornerShape;
   context: TemplateRenderContext;
   visible?: boolean;
@@ -37,7 +37,7 @@ interface NewsletterWallBlockComponentProps {
 export function NewsletterWallBlock({
   id,
   props,
-  publication,
+  publisher,
   context,
   visible = true,
   locked = false,
@@ -53,7 +53,7 @@ export function NewsletterWallBlock({
     incentivePill,
   } = props;
 
-  const subscriberCount = publication.subscriberCount || 420;
+  const subscriberCount = publisher.subscriberCount || 420;
 
   return (
     <BlockWrapper
@@ -135,14 +135,14 @@ export function NewsletterWallBlock({
             {/* Formulaire d'inscription relié à l'API et au compte Qoefi */}
             <div>
               <SubscribeForm
-                publicationId={publication.id || ''}
-                authorName={publication.name || ''}
-                accentColor={publication.accentColor || undefined}
+                publisherId={publisher.id || ''}
+                authorName={publisher.name || ''}
+                accentColor={publisher.accentColor || undefined}
                 placeholder="votre.email@domaine.com"
                 buttonText={buttonText}
                 disabled={context.mode === 'editable'}
                 className="w-full"
-                mainAppUrl={publication?.mainAppUrl}
+                mainAppUrl={publisher?.mainAppUrl}
               />
               {slots?.actions && (
                 <div className="mt-3 flex flex-wrap gap-2">

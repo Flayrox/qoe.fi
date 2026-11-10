@@ -13,7 +13,7 @@
 
 import { safeAction } from '../utils/safe-action';
 import { goFetch } from '../utils/go-client';
-import { getActivePublicationId } from '../articles';
+import { getActivePublisherId } from '../articles';
 
 /** Pensée trouvée (shape Go GET /search/thoughts). */
 export interface SearchThoughtHit {
@@ -145,8 +145,8 @@ export const searchAllAction = safeAction<
     const params = new URLSearchParams({ q, limit: String(limit) });
     if (scope === 'mine') {
       try {
-        const publicationId = await getActivePublicationId();
-        params.set('publicationId', publicationId);
+        const publisherId = await getActivePublisherId();
+        params.set('publisherId', publisherId);
       } catch {
         // publication non résolue → pas de filtre
       }

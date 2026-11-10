@@ -11,32 +11,32 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const getPublicationUmamiWebsiteId = `-- name: GetPublicationUmamiWebsiteId :one
+const getPublisherUmamiWebsiteId = `-- name: GetPublisherUmamiWebsiteId :one
 SELECT "umamiWebsiteId"
-FROM "Publication"
+FROM "Publisher"
 WHERE id = $1
 `
 
-func (q *Queries) GetPublicationUmamiWebsiteId(ctx context.Context, id string) (pgtype.Text, error) {
-	row := q.db.QueryRow(ctx, getPublicationUmamiWebsiteId, id)
+func (q *Queries) GetPublisherUmamiWebsiteId(ctx context.Context, id string) (pgtype.Text, error) {
+	row := q.db.QueryRow(ctx, getPublisherUmamiWebsiteId, id)
 	var umamiWebsiteId pgtype.Text
 	err := row.Scan(&umamiWebsiteId)
 	return umamiWebsiteId, err
 }
 
-const listPublicationsWithoutUmami = `-- name: ListPublicationsWithoutUmami :many
+const listPublishersWithoutUmami = `-- name: ListPublishersWithoutUmami :many
 
 SELECT p.id,
        p.slug,
        p.name,
        COALESCE(p.subdomain, p.slug) AS tenant_domain
-FROM "Publication" p
+FROM "Publisher" p
 WHERE (p."umamiWebsiteId" IS NULL OR p."umamiWebsiteId" = '')
 ORDER BY p."createdAt" ASC
 LIMIT $1
 `
 
-type ListPublicationsWithoutUmamiRow struct {
+type ListPublishersWithoutUmamiRow struct {
 	ID           string `json:"id"`
 	Slug         string `json:"slug"`
 	Name         string `json:"name"`
@@ -47,16 +47,16 @@ type ListPublicationsWithoutUmamiRow struct {
 // Chaque publication (blog créateur) a son propre website Umami pour que
 // le créateur voie SES stats (visites, sources, pages, temps passé) sans
 // aucun lien manuel — le worker `provisioner` crée le website et stocke
-// l'id dans Publication."umamiWebsiteId".
-func (q *Queries) ListPublicationsWithoutUmami(ctx context.Context, limit int32) ([]ListPublicationsWithoutUmamiRow, error) {
-	rows, err := q.db.Query(ctx, listPublicationsWithoutUmami, limit)
+// l'id dans Publisher."umamiWebsiteId".
+func (q *Queries) ListPublishersWithoutUmami(ctx context.Context, limit int32) ([]ListPublishersWithoutUmamiRow, error) {
+	rows, err := q.db.Query(ctx, listPublishersWithoutUmami, limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListPublicationsWithoutUmamiRow{}
+	items := []ListPublishersWithoutUmamiRow{}
 	for rows.Next() {
-		var i ListPublicationsWithoutUmamiRow
+		var i ListPublishersWithoutUmamiRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Slug,
@@ -73,19 +73,19 @@ func (q *Queries) ListPublicationsWithoutUmami(ctx context.Context, limit int32)
 	return items, nil
 }
 
-const setPublicationUmamiWebsite = `-- name: SetPublicationUmamiWebsite :exec
-UPDATE "Publication"
+const setPublisherUmamiWebsite = `-- name: SetPublisherUmamiWebsite :exec
+UPDATE "Publisher"
 SET "umamiWebsiteId" = $2,
     "updatedAt"      = now()
 WHERE id = $1
 `
 
-type SetPublicationUmamiWebsiteParams struct {
+type SetPublisherUmamiWebsiteParams struct {
 	ID             string      `json:"id"`
 	UmamiWebsiteId pgtype.Text `json:"umamiWebsiteId"`
 }
 
-func (q *Queries) SetPublicationUmamiWebsite(ctx context.Context, arg SetPublicationUmamiWebsiteParams) error {
-	_, err := q.db.Exec(ctx, setPublicationUmamiWebsite, arg.ID, arg.UmamiWebsiteId)
+func (q *Queries) SetPublisherUmamiWebsite(ctx context.Context, arg SetPublisherUmamiWebsiteParams) error {
+	_, err := q.db.Exec(ctx, setPublisherUmamiWebsite, arg.ID, arg.UmamiWebsiteId)
 	return err
 }

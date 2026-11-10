@@ -28,8 +28,8 @@ func seedReader(t *testing.T, ctx context.Context) string {
 	if _, err := poolTest.Exec(ctx, `
 		DELETE FROM "SubscriptionGrant"
 		WHERE ("subjectType" = 'user' AND "subjectId" = $1::text)
-		   OR ("subjectType" = 'publication'
-		       AND "subjectId" = (SELECT u."publicationId" FROM "User" u WHERE u.id = $2::uuid))`,
+		   OR ("subjectType" = 'publisher'
+		       AND "subjectId" = (SELECT u."publisherId" FROM "User" u WHERE u.id = $2::uuid))`,
 		id, id); err != nil {
 		t.Fatalf("droits lecteur: %v", err)
 	}

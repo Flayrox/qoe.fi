@@ -1035,7 +1035,7 @@ export function ThoughtComposer({
       setSubmitProgress(
         isDraftSubmit
           ? 'Enregistrement du brouillon de fil...'
-          : 'Publication de votre fil de discussion...'
+          : 'Publisher de votre fil de discussion...'
       );
 
       const res = await createThoughtThreadAction({

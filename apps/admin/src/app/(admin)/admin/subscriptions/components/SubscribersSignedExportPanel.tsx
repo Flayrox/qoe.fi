@@ -42,7 +42,7 @@ function filenameFrom(response: Response): string {
 
 export function SubscribersSignedExportPanel() {
   const [reason, setReason] = useState('Audit de conformité des abonnements');
-  const [publicationId, setPublicationId] = useState('');
+  const [publisherId, setPublisherId] = useState('');
   const [isExporting, setIsExporting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
@@ -58,7 +58,7 @@ export function SubscribersSignedExportPanel() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               reason: reason.trim() || 'Audit de conformité',
-              publicationId: publicationId.trim() || undefined,
+              publisherId: publisherId.trim() || undefined,
             }),
           });
           if (!response.ok) return readFailure(response);
@@ -119,8 +119,8 @@ export function SubscribersSignedExportPanel() {
           Filtrer par ID média (optionnel)
           <Input
             size="sm"
-            value={publicationId}
-            onChange={(e) => setPublicationId(e.target.value)}
+            value={publisherId}
+            onChange={(e) => setPublisherId(e.target.value)}
             placeholder="Tous les médias si vide"
           />
         </label>

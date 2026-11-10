@@ -251,7 +251,7 @@ export function HeaderWorkspaceSwitcher() {
           <>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuLabel>{t`Publications & médias`}</DropdownMenuLabel>
+              <DropdownMenuLabel>{t`Publishers & médias`}</DropdownMenuLabel>
               {mediaWorkspaces.map((ws) => (
                 <DropdownMenuItem
                   key={ws.id}

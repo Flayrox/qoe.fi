@@ -3,7 +3,7 @@ import { headers } from 'next/headers';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { ArrowLeft } from 'lucide-react';
-import { fetchTenantPublication } from '@/lib/tenant-data';
+import { fetchTenantPublisher } from '@/lib/tenant-data';
 import { TenantPageShell } from '@/components/TenantPageShell';
 import { PeopleSection } from '@qoe/ui';
 
@@ -14,27 +14,27 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { domain } = await params;
   const decodedDomain = decodeURIComponent(domain);
-  const publication = await fetchTenantPublication(decodedDomain);
-  const name = publication?.name || decodedDomain;
+  const publisher = await fetchTenantPublisher(decodedDomain);
+  const name = publisher?.name || decodedDomain;
   return {
     title: `Équipe & Contributeurs | ${name}`,
     description: `Découvrez les personnes qui créent et animent ${name}.`,
     alternates: { canonical: `https://${decodedDomain}/team` },
-    robots: { index: publication?.allowIndexing !== false, follow: true },
+    robots: { index: publisher?.allowIndexing !== false, follow: true },
   };
 }
 
 export default async function TenantTeamPage({ params }: PageProps) {
   const { domain } = await params;
   const decodedDomain = decodeURIComponent(domain);
-  const publication = await fetchTenantPublication(decodedDomain);
-  if (!publication) notFound();
+  const publisher = await fetchTenantPublisher(decodedDomain);
+  if (!publisher) notFound();
 
   const headersList = await headers();
   const host = headersList.get('x-forwarded-host') || headersList.get('host') || decodedDomain;
 
   return (
-    <TenantPageShell publication={publication} domain={decodedDomain} host={host}>
+    <TenantPageShell publisher={publisher} domain={decodedDomain} host={host}>
       <div className="mx-auto w-full max-w-[680px] space-y-8 py-4">
         <div className="space-y-2">
           <Link
@@ -48,13 +48,13 @@ export default async function TenantTeamPage({ params }: PageProps) {
             Équipe & Contributeurs
           </h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Les voix, plumes et créateurs derrière {publication.name || decodedDomain}.
+            Les voix, plumes et créateurs derrière {publisher.name || decodedDomain}.
           </p>
         </div>
 
         <PeopleSection
-          publication={publication}
-          members={publication.team}
+          publisher={publisher}
+          members={publisher.team}
           title="Membres de la rédaction"
         />
       </div>

@@ -81,12 +81,12 @@ func NewService(pool *pgxpool.Pool) *Service {
 
 // resolveRole retourne le rôle de l'utilisateur sur la publication
 // ("owner" personnel ou rôle média owner/editor/writer/viewer).
-func (s *Service) resolveRole(ctx context.Context, userID, publicationID string) (string, error) {
-	if personal, err := s.q.GetUserPersonalPublication(ctx, userID); err == nil && personal.String == publicationID {
+func (s *Service) resolveRole(ctx context.Context, userID, publisherID string) (string, error) {
+	if personal, err := s.q.GetUserPersonalPublisher(ctx, userID); err == nil && personal.String == publisherID {
 		return "owner", nil
 	}
 	role, err := s.q.GetMediaRoleForUser(ctx, db.GetMediaRoleForUserParams{
-		PublicationId: publicationID, UserId: toUUID(userID),
+		PublisherId: publisherID, UserId: toUUID(userID),
 	})
 	if err != nil {
 		return "", errForbidden
@@ -122,14 +122,14 @@ func (s *Service) requireWebhookGrant(ctx context.Context, userID string) error 
 }
 
 // List renvoie les webhooks d'une publication avec leurs livraisons récentes.
-func (s *Service) List(ctx context.Context, userID, publicationID string) ([]Webhook, error) {
+func (s *Service) List(ctx context.Context, userID, publisherID string) ([]Webhook, error) {
 	if err := s.requireWebhookGrant(ctx, userID); err != nil {
 		return nil, err
 	}
-	if _, err := s.resolveRole(ctx, userID, publicationID); err != nil {
+	if _, err := s.resolveRole(ctx, userID, publisherID); err != nil {
 		return nil, err
 	}
-	rows, err := s.q.ListWebhooksByPublication(ctx, publicationID)
+	rows, err := s.q.ListWebhooksByPublisher(ctx, publisherID)
 	if err != nil {
 		return nil, err
 	}
@@ -162,11 +162,11 @@ func (s *Service) List(ctx context.Context, userID, publicationID string) ([]Web
 
 // Create crée un webhook (owner/editor requis) et retourne le secret
 // (affiché une seule fois, signature HMAC des livraisons).
-func (s *Service) Create(ctx context.Context, userID, publicationID, name, url string, events []string) (Webhook, string, error) {
+func (s *Service) Create(ctx context.Context, userID, publisherID, name, url string, events []string) (Webhook, string, error) {
 	if err := s.requireWebhookGrant(ctx, userID); err != nil {
 		return Webhook{}, "", err
 	}
-	role, err := s.resolveRole(ctx, userID, publicationID)
+	role, err := s.resolveRole(ctx, userID, publisherID)
 	if err != nil {
 		return Webhook{}, "", err
 	}
@@ -179,7 +179,7 @@ func (s *Service) Create(ctx context.Context, userID, publicationID, name, url s
 		return Webhook{}, "", err
 	}
 	row, err := s.q.CreateWebhook(ctx, db.CreateWebhookParams{
-		PublicationId: publicationID,
+		PublisherId: publisherID,
 		Name:          name,
 		Url:           url,
 		Secret:        secret,
@@ -196,36 +196,36 @@ func (s *Service) Create(ctx context.Context, userID, publicationID, name, url s
 }
 
 // Delete supprime un webhook (après contrôle d'appartenance + RBAC).
-func (s *Service) Delete(ctx context.Context, userID, id, publicationID string) error {
+func (s *Service) Delete(ctx context.Context, userID, id, publisherID string) error {
 	if err := s.requireWebhookGrant(ctx, userID); err != nil {
 		return err
 	}
-	role, err := s.resolveRole(ctx, userID, publicationID)
+	role, err := s.resolveRole(ctx, userID, publisherID)
 	if err != nil {
 		return err
 	}
 	if !canManage(role) {
 		return errForbidden
 	}
-	if _, err := s.ensureOwnership(ctx, id, publicationID); err != nil {
+	if _, err := s.ensureOwnership(ctx, id, publisherID); err != nil {
 		return err
 	}
 	return s.q.DeleteWebhook(ctx, id)
 }
 
 // Toggle inverse l'état actif et le retourne.
-func (s *Service) Toggle(ctx context.Context, userID, id, publicationID string) (bool, error) {
+func (s *Service) Toggle(ctx context.Context, userID, id, publisherID string) (bool, error) {
 	if err := s.requireWebhookGrant(ctx, userID); err != nil {
 		return false, err
 	}
-	role, err := s.resolveRole(ctx, userID, publicationID)
+	role, err := s.resolveRole(ctx, userID, publisherID)
 	if err != nil {
 		return false, err
 	}
 	if !canManage(role) {
 		return false, errForbidden
 	}
-	wh, err := s.ensureOwnership(ctx, id, publicationID)
+	wh, err := s.ensureOwnership(ctx, id, publisherID)
 	if err != nil {
 		return false, err
 	}
@@ -237,24 +237,24 @@ func (s *Service) Toggle(ctx context.Context, userID, id, publicationID string) 
 }
 
 // Test envoie un ping signé HMAC au endpoint et enregistre la livraison.
-func (s *Service) Test(ctx context.Context, userID, id, publicationID string) (TestResult, error) {
+func (s *Service) Test(ctx context.Context, userID, id, publisherID string) (TestResult, error) {
 	if err := s.requireWebhookGrant(ctx, userID); err != nil {
 		return TestResult{}, err
 	}
-	role, err := s.resolveRole(ctx, userID, publicationID)
+	role, err := s.resolveRole(ctx, userID, publisherID)
 	if err != nil {
 		return TestResult{}, err
 	}
 	if !canManage(role) {
 		return TestResult{}, errForbidden
 	}
-	wh, err := s.ensureOwnership(ctx, id, publicationID)
+	wh, err := s.ensureOwnership(ctx, id, publisherID)
 	if err != nil {
 		return TestResult{}, err
 	}
 
-	body := fmt.Sprintf(`{"event":"webhook.test","data":{"publicationId":%q},"timestamp":%q}`,
-		publicationID, time.Now().UTC().Format(time.RFC3339))
+	body := fmt.Sprintf(`{"event":"webhook.test","data":{"publisherId":%q},"timestamp":%q}`,
+		publisherID, time.Now().UTC().Format(time.RFC3339))
 	signature := signHMAC(wh.Secret, body)
 
 	status := 0
@@ -312,14 +312,14 @@ func (s *Service) Test(ctx context.Context, userID, id, publicationID string) (T
 }
 
 // ListDeliveries liste les logs de livraison d'un abonnement (RBAC requis).
-func (s *Service) ListDeliveries(ctx context.Context, userID, publicationID, webhookID string, limit int) ([]Delivery, error) {
+func (s *Service) ListDeliveries(ctx context.Context, userID, publisherID, webhookID string, limit int) ([]Delivery, error) {
 	if err := s.requireWebhookGrant(ctx, userID); err != nil {
 		return nil, err
 	}
-	if _, err := s.resolveRole(ctx, userID, publicationID); err != nil {
+	if _, err := s.resolveRole(ctx, userID, publisherID); err != nil {
 		return nil, err
 	}
-	if _, err := s.ensureOwnership(ctx, webhookID, publicationID); err != nil {
+	if _, err := s.ensureOwnership(ctx, webhookID, publisherID); err != nil {
 		return nil, err
 	}
 	if limit <= 0 || limit > 200 {
@@ -336,7 +336,7 @@ func (s *Service) ListDeliveries(ctx context.Context, userID, publicationID, web
 	return out, nil
 }
 
-func (s *Service) ensureOwnership(ctx context.Context, id, publicationID string) (db.Webhook, error) {
+func (s *Service) ensureOwnership(ctx context.Context, id, publisherID string) (db.Webhook, error) {
 	wh, err := s.q.GetWebhook(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -344,7 +344,7 @@ func (s *Service) ensureOwnership(ctx context.Context, id, publicationID string)
 		}
 		return db.Webhook{}, err
 	}
-	if wh.PublicationId != publicationID {
+	if wh.PublisherId != publisherID {
 		return db.Webhook{}, errNotFound
 	}
 	return wh, nil

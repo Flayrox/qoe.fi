@@ -226,7 +226,7 @@ func TestDispatch_ProfileVisibilityChangedEvent(t *testing.T) {
 
 		evt := ProfileVisibilityChangedEvent{
 			UserID:        userID,
-			PublicationID: pubID,
+			PublisherID: pubID,
 			OldVisibility: "PRIVATE",
 			NewVisibility: "PUBLIC",
 		}
@@ -270,7 +270,7 @@ func TestDispatch_ProfileVisibilityChangedEvent(t *testing.T) {
 
 		evt := ProfileVisibilityChangedEvent{
 			UserID:        userID,
-			PublicationID: pubID,
+			PublisherID: pubID,
 			OldVisibility: "FOLLOWERS",
 			NewVisibility: "PUBLIC",
 		}
@@ -287,7 +287,7 @@ func TestDispatch_ProfileVisibilityChangedEvent(t *testing.T) {
 		db := &mockDB{}
 		evt := ProfileVisibilityChangedEvent{
 			UserID:        userID,
-			PublicationID: pubID,
+			PublisherID: pubID,
 			OldVisibility: "PUBLIC",
 			NewVisibility: "PRIVATE",
 		}
@@ -304,7 +304,7 @@ func TestDispatch_ProfileVisibilityChangedEvent(t *testing.T) {
 		db := &mockDB{}
 		evt := ProfileVisibilityChangedEvent{
 			UserID:        userID,
-			PublicationID: pubID,
+			PublisherID: pubID,
 			OldVisibility: "PUBLIC",
 			NewVisibility: "PUBLIC",
 		}
@@ -340,7 +340,7 @@ func TestDispatch_ProfileVisibilityChangedEvent(t *testing.T) {
 
 		evt := ProfileVisibilityChangedEvent{
 			UserID:        userID,
-			PublicationID: pubID,
+			PublisherID: pubID,
 			OldVisibility: "PRIVATE",
 			NewVisibility: "PUBLIC",
 		}

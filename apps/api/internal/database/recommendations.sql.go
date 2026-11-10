@@ -38,67 +38,67 @@ func (q *Queries) AddRecommendation(ctx context.Context, arg AddRecommendationPa
 	return i, err
 }
 
-const countRecommendationsByPublication = `-- name: CountRecommendationsByPublication :one
+const countRecommendationsByPublisher = `-- name: CountRecommendationsByPublisher :one
 SELECT count(*)
 FROM "Recommendation"
 WHERE "recommenderId" = $1
 `
 
-func (q *Queries) CountRecommendationsByPublication(ctx context.Context, recommenderid string) (int64, error) {
-	row := q.db.QueryRow(ctx, countRecommendationsByPublication, recommenderid)
+func (q *Queries) CountRecommendationsByPublisher(ctx context.Context, recommenderid string) (int64, error) {
+	row := q.db.QueryRow(ctx, countRecommendationsByPublisher, recommenderid)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
 }
 
-const listRecommendationsByPublication = `-- name: ListRecommendationsByPublication :many
+const listRecommendationsByPublisher = `-- name: ListRecommendationsByPublisher :many
 
 SELECT r.id, r."description", r."createdAt",
-       p.id AS publication_id, p.name AS publication_name, p.slug AS publication_slug,
-       p.subdomain AS publication_subdomain, p."customDomain" AS publication_custom_domain,
-       p.bio AS publication_bio, p."logoUrl" AS publication_logo_url
+       p.id AS publisher_id, p.name AS publisher_name, p.slug AS publisher_slug,
+       p.subdomain AS publisher_subdomain, p."customDomain" AS publisher_custom_domain,
+       p.bio AS publisher_bio, p."logoUrl" AS publisher_logo_url
 FROM "Recommendation" r
-JOIN "Publication" p ON p.id = r."recommendedId"
+JOIN "Publisher" p ON p.id = r."recommendedId"
 WHERE r."recommenderId" = $1
 ORDER BY r."createdAt" DESC
 `
 
-type ListRecommendationsByPublicationRow struct {
-	ID                      string           `json:"id"`
-	Description             pgtype.Text      `json:"description"`
-	CreatedAt               pgtype.Timestamp `json:"createdAt"`
-	PublicationID           string           `json:"publication_id"`
-	PublicationName         string           `json:"publication_name"`
-	PublicationSlug         string           `json:"publication_slug"`
-	PublicationSubdomain    pgtype.Text      `json:"publication_subdomain"`
-	PublicationCustomDomain pgtype.Text      `json:"publication_custom_domain"`
-	PublicationBio          pgtype.Text      `json:"publication_bio"`
-	PublicationLogoUrl      pgtype.Text      `json:"publication_logo_url"`
+type ListRecommendationsByPublisherRow struct {
+	ID                    string           `json:"id"`
+	Description           pgtype.Text      `json:"description"`
+	CreatedAt             pgtype.Timestamp `json:"createdAt"`
+	PublisherID           string           `json:"publisher_id"`
+	PublisherName         string           `json:"publisher_name"`
+	PublisherSlug         string           `json:"publisher_slug"`
+	PublisherSubdomain    pgtype.Text      `json:"publisher_subdomain"`
+	PublisherCustomDomain pgtype.Text      `json:"publisher_custom_domain"`
+	PublisherBio          pgtype.Text      `json:"publisher_bio"`
+	PublisherLogoUrl      pgtype.Text      `json:"publisher_logo_url"`
 }
 
 // =====================================================================
 // 🤝 Recommandations croisées entre créateurs (Substack Killer)
 // =====================================================================
-func (q *Queries) ListRecommendationsByPublication(ctx context.Context, recommenderid string) ([]ListRecommendationsByPublicationRow, error) {
-	rows, err := q.db.Query(ctx, listRecommendationsByPublication, recommenderid)
+func (q *Queries) ListRecommendationsByPublisher(ctx context.Context, recommenderid string) ([]ListRecommendationsByPublisherRow, error) {
+	rows, err := q.db.Query(ctx, listRecommendationsByPublisher, recommenderid)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListRecommendationsByPublicationRow{}
+	items := []ListRecommendationsByPublisherRow{}
 	for rows.Next() {
-		var i ListRecommendationsByPublicationRow
+		var i ListRecommendationsByPublisherRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Description,
 			&i.CreatedAt,
-			&i.PublicationID,
-			&i.PublicationName,
-			&i.PublicationSlug,
-			&i.PublicationSubdomain,
-			&i.PublicationCustomDomain,
-			&i.PublicationBio,
-			&i.PublicationLogoUrl,
+			&i.PublisherID,
+			&i.PublisherName,
+			&i.PublisherSlug,
+			&i.PublisherSubdomain,
+			&i.PublisherCustomDomain,
+			&i.PublisherBio,
+			&i.PublisherLogoUrl,
 		); err != nil {
 			return nil, err
 		}

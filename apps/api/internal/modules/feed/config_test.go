@@ -194,11 +194,11 @@ func TestParseCfgHelpers(t *testing.T) {
 func TestEngine_ConfigDrivesPool(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
-	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE "Post", "Article", "User", "Publication" CASCADE`); err != nil {
+	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE "Post", "Article", "User", "Publisher" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	const authorID = "00000000-0000-0000-0000-0000000000b1"
-	if _, err := poolTest.Exec(ctx, `INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+	if _, err := poolTest.Exec(ctx, `INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		VALUES ('pub_cfg', 'PERSONAL', 'Cfg', 'cfg', now(), now())`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
@@ -212,7 +212,7 @@ func TestEngine_ConfigDrivesPool(t *testing.T) {
 			created = `now() - interval '30 days'`
 		}
 		if _, err := poolTest.Exec(ctx, `INSERT INTO "Article" (id, title, slug, content, published, visibility,
-			"readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt",
+			"readingTime", status, "publisherId", "authorId", "createdAt", "updatedAt",
 			"semanticTags", "completionRate", embedding)
 			VALUES ($1, $2, $2, '<p>x</p>', true, 'PUBLIC', 8, 'PUBLISHED', 'pub_cfg', $3,
 			        `+created+`, now(), ARRAY['foot']::text[], 0.5, $4)`,
@@ -267,7 +267,7 @@ func TestMilieuPenalty_DevaluesTag(t *testing.T) {
 	// que RIEN d'autre n'interfère avec le pool (les pensées fraîches du seed
 	// partagé fausseraient l'ordre attendu).
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE
-		"Post", "Article", "User", "Publication", "Follows", "BlockedUser",
+		"Post", "Article", "User", "Publisher", "Follows", "BlockedUser",
 		"ContentFeedback", "FeedImpression", "ReadingSession", "Like", "_CoAuthors" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}

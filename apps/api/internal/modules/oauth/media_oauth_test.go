@@ -17,7 +17,7 @@ func TestMediaOAuth_FullFlow(t *testing.T) {
 	const pubID = "pub_media_test_01"
 	const mediaID = "med_media_test_01"
 	if _, err := poolTest.Exec(ctx, `
-		INSERT INTO "Publication" (id, name, slug, type, "createdAt", "updatedAt")
+		INSERT INTO "Publisher" (id, name, slug, type, "createdAt", "updatedAt")
 		VALUES ($1, 'Lassez Mag', 'lassez-mag', 'MEDIA', now(), now())
 		ON CONFLICT (id) DO NOTHING
 	`, pubID); err != nil {
@@ -25,7 +25,7 @@ func TestMediaOAuth_FullFlow(t *testing.T) {
 	}
 
 	if _, err := poolTest.Exec(ctx, `
-		INSERT INTO "Media" (id, "publicationId", "createdAt", "updatedAt")
+		INSERT INTO "Media" (id, "publisherId", "createdAt", "updatedAt")
 		VALUES ($1, $2, now(), now())
 		ON CONFLICT (id) DO NOTHING
 	`, mediaID, pubID); err != nil {
@@ -46,7 +46,7 @@ func TestMediaOAuth_FullFlow(t *testing.T) {
 		RedirectURIs:  []string{"https://lassez.com/api/auth/callback"},
 		Scopes:        []string{"openid", "profile", "email", "media"},
 		ClientType:    "CONFIDENTIAL",
-		PublicationID: pubID,
+		PublisherID: pubID,
 	})
 	if err != nil {
 		t.Fatalf("CreateClientRequest: %v", err)
@@ -81,14 +81,14 @@ func TestMediaOAuth_FullFlow(t *testing.T) {
 	if !beginMem.OK || beginMem.Info == nil {
 		t.Fatalf("BeginAuthorization(member): %+v", beginMem)
 	}
-	if beginMem.Info.Publication == nil {
-		t.Fatal("Publication nulle dans AuthorizeInfo")
+	if beginMem.Info.Publisher == nil {
+		t.Fatal("Publisher nulle dans AuthorizeInfo")
 	}
-	if !beginMem.Info.Publication.IsMember || beginMem.Info.Publication.MemberRole != "editor" {
-		t.Fatalf("Publication info incorrecte: %+v", beginMem.Info.Publication)
+	if !beginMem.Info.Publisher.IsMember || beginMem.Info.Publisher.MemberRole != "editor" {
+		t.Fatalf("Publisher info incorrecte: %+v", beginMem.Info.Publisher)
 	}
-	if beginMem.Info.Publication.Name != "Lassez Mag" {
-		t.Fatalf("Publication name = %q, attendu 'Lassez Mag'", beginMem.Info.Publication.Name)
+	if beginMem.Info.Publisher.Name != "Lassez Mag" {
+		t.Fatalf("Publisher name = %q, attendu 'Lassez Mag'", beginMem.Info.Publisher.Name)
 	}
 
 	// 4. BeginAuthorization avec NON-membre (fx.ViewerID)
@@ -96,8 +96,8 @@ func TestMediaOAuth_FullFlow(t *testing.T) {
 	if !beginNonMem.OK || beginNonMem.Info == nil {
 		t.Fatalf("BeginAuthorization(non-member): %+v", beginNonMem)
 	}
-	if beginNonMem.Info.Publication == nil || beginNonMem.Info.Publication.IsMember {
-		t.Fatalf("Non-membre vu comme membre: %+v", beginNonMem.Info.Publication)
+	if beginNonMem.Info.Publisher == nil || beginNonMem.Info.Publisher.IsMember {
+		t.Fatalf("Non-membre vu comme membre: %+v", beginNonMem.Info.Publisher)
 	}
 
 	// 5. Approve & Token exchange pour le membre

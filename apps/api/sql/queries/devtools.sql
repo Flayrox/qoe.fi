@@ -8,7 +8,7 @@ SELECT role FROM "User" WHERE id = $1;
 SELECT u.id, u.name, u.email, u.username, u.role, u."createdAt",
        p."subdomain", p."customDomain", p."accentColor", p."layoutStyle"
 FROM "User" u
-LEFT JOIN "Publication" p ON p.id = u."publicationId"
+LEFT JOIN "Publisher" p ON p.id = u."publisherId"
 ORDER BY u."createdAt" DESC;
 
 -- name: CountDevtoolsUsers :one

@@ -177,11 +177,11 @@ func TestSearchSemanticSuccess(t *testing.T) {
 		IsPremium:       true,
 		ReadingTime:     4,
 		CreatedAt:       pgtype.Timestamp{Time: time.Now(), Valid: true},
-		PublicationId:   "pub_1",
+		PublisherId:   "pub_1",
 		AuthorId:        pgtype.UUID{Valid: true, Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}},
 		AuthorName:      pgtype.Text{String: "Alice", Valid: true},
 		AuthorLogo:      pgtype.Text{String: "https://img/logo.png", Valid: true},
-		PublicationName: "Le Monde",
+		PublisherName: "Le Monde",
 		Score:           0.87,
 	}
 	h := &Handler{semantic: &SemanticService{
@@ -235,12 +235,12 @@ func (c *captureSearcher) Search(_ string, req *meilisearch.SearchRequest) (*mei
 	return &meilisearch.SearchResponse{Hits: nil, EstimatedTotalHits: 0}, nil
 }
 
-func TestSearchArticlesPublicationFilter(t *testing.T) {
+func TestSearchArticlesPublisherFilter(t *testing.T) {
 	c := &captureSearcher{}
 	h := &Handler{searcher: c}
 	r := chi.NewRouter()
 	h.RegisterPublic(r)
-	req := httptest.NewRequest(http.MethodGet, "/search/articles?q=foot&publicationId=pub'1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/search/articles?q=foot&publisherId=pub'1", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -250,7 +250,7 @@ func TestSearchArticlesPublicationFilter(t *testing.T) {
 	if c.lastReq == nil || c.lastReq.Filter == nil {
 		t.Fatalf("filter attendu, req = %+v", c.lastReq)
 	}
-	want := "publicationId = 'pub''1'"
+	want := "publisherId = 'pub''1'"
 	if c.lastReq.Filter != want {
 		t.Fatalf("filter = %v, attendu %q", c.lastReq.Filter, want)
 	}
@@ -306,8 +306,8 @@ func TestSemanticSearchFakePath(t *testing.T) {
 		Title:           "Gaming",
 		Slug:            "gaming",
 		CreatedAt:       pgtype.Timestamp{Time: time.Now(), Valid: true},
-		PublicationId:   "pub_9",
-		PublicationName: "GamePub",
+		PublisherId:   "pub_9",
+		PublisherName: "GamePub",
 		Score:           0.5,
 	}
 	svc := &SemanticService{
@@ -318,7 +318,7 @@ func TestSemanticSearchFakePath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Search: %v", err)
 	}
-	if len(items) != 1 || items[0].ID != "art_9" || items[0].Publication == nil {
+	if len(items) != 1 || items[0].ID != "art_9" || items[0].Publisher == nil {
 		t.Fatalf("items = %+v", items)
 	}
 	// Vector trop court → erreur (dimension < 512).

@@ -331,12 +331,12 @@ export async function resetOnboardingAction(targetEmailOrId?: string) {
  * (POST /v1/devtools/simulate-subscriber).
  */
 export async function simulateSubscriberAction({
-  publicationId,
+  publisherId,
   email,
   isPremium = false,
   ltvCents = 0,
 }: {
-  publicationId: string;
+  publisherId: string;
   email: string;
   isPremium?: boolean;
   ltvCents?: number;
@@ -344,7 +344,7 @@ export async function simulateSubscriberAction({
   try {
     await goFetch('/v1/devtools/simulate-subscriber', {
       method: 'POST',
-      body: { publicationId, email, isPremium, ltvCents },
+      body: { publisherId, email, isPremium, ltvCents },
     });
     return { success: true };
   } catch (error) {
@@ -364,15 +364,15 @@ export async function simulateSubscriberAction({
  */
 export async function simulateFollowAction({
   readerId,
-  publicationId,
+  publisherId,
 }: {
   readerId: string;
-  publicationId: string;
+  publisherId: string;
 }) {
   try {
     await goFetch('/v1/devtools/simulate-follow', {
       method: 'POST',
-      body: { readerId, publicationId },
+      body: { readerId, publisherId },
     });
     return { success: true };
   } catch (error) {

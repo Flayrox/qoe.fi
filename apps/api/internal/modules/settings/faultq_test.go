@@ -26,11 +26,11 @@ func (f *faultQ) val(name string) (error, bool) {
 	return e, ok
 }
 
-func (f *faultQ) GetUserPersonalPublication(ctx context.Context, id string) (pgtype.Text, error) {
-	if e, ok := f.val("GetUserPersonalPublication"); ok {
+func (f *faultQ) GetUserPersonalPublisher(ctx context.Context, id string) (pgtype.Text, error) {
+	if e, ok := f.val("GetUserPersonalPublisher"); ok {
 		return pgtype.Text{}, e
 	}
-	return f.Queries.GetUserPersonalPublication(ctx, id)
+	return f.Queries.GetUserPersonalPublisher(ctx, id)
 }
 func (f *faultQ) GetMediaMemberContext(ctx context.Context, arg db.GetMediaMemberContextParams) (db.GetMediaMemberContextRow, error) {
 	if e, ok := f.val("GetMediaMemberContext"); ok {
@@ -38,23 +38,23 @@ func (f *faultQ) GetMediaMemberContext(ctx context.Context, arg db.GetMediaMembe
 	}
 	return f.Queries.GetMediaMemberContext(ctx, arg)
 }
-func (f *faultQ) GetPublicationForSettings(ctx context.Context, id string) (db.GetPublicationForSettingsRow, error) {
-	if e, ok := f.val("GetPublicationForSettings"); ok {
-		return db.GetPublicationForSettingsRow{}, e
+func (f *faultQ) GetPublisherForSettings(ctx context.Context, id string) (db.GetPublisherForSettingsRow, error) {
+	if e, ok := f.val("GetPublisherForSettings"); ok {
+		return db.GetPublisherForSettingsRow{}, e
 	}
-	return f.Queries.GetPublicationForSettings(ctx, id)
+	return f.Queries.GetPublisherForSettings(ctx, id)
 }
-func (f *faultQ) ListNavigationForPublication(ctx context.Context, publicationid string) ([]db.ListNavigationForPublicationRow, error) {
-	if e, ok := f.val("ListNavigationForPublication"); ok {
+func (f *faultQ) ListNavigationForPublisher(ctx context.Context, publicationid string) ([]db.ListNavigationForPublisherRow, error) {
+	if e, ok := f.val("ListNavigationForPublisher"); ok {
 		return nil, e
 	}
-	return f.Queries.ListNavigationForPublication(ctx, publicationid)
+	return f.Queries.ListNavigationForPublisher(ctx, publicationid)
 }
-func (f *faultQ) ListSocialLinksForPublication(ctx context.Context, publicationid string) ([]db.ListSocialLinksForPublicationRow, error) {
-	if e, ok := f.val("ListSocialLinksForPublication"); ok {
+func (f *faultQ) ListSocialLinksForPublisher(ctx context.Context, publicationid string) ([]db.ListSocialLinksForPublisherRow, error) {
+	if e, ok := f.val("ListSocialLinksForPublisher"); ok {
 		return nil, e
 	}
-	return f.Queries.ListSocialLinksForPublication(ctx, publicationid)
+	return f.Queries.ListSocialLinksForPublisher(ctx, publicationid)
 }
 func (f *faultQ) ListArticlesForSettings(ctx context.Context, publicationid string) ([]db.ListArticlesForSettingsRow, error) {
 	if e, ok := f.val("ListArticlesForSettings"); ok {
@@ -62,11 +62,11 @@ func (f *faultQ) ListArticlesForSettings(ctx context.Context, publicationid stri
 	}
 	return f.Queries.ListArticlesForSettings(ctx, publicationid)
 }
-func (f *faultQ) ListCategoriesForPublication(ctx context.Context, publicationid string) ([]db.ListCategoriesForPublicationRow, error) {
-	if e, ok := f.val("ListCategoriesForPublication"); ok {
+func (f *faultQ) ListCategoriesForPublisher(ctx context.Context, publicationid string) ([]db.ListCategoriesForPublisherRow, error) {
+	if e, ok := f.val("ListCategoriesForPublisher"); ok {
 		return nil, e
 	}
-	return f.Queries.ListCategoriesForPublication(ctx, publicationid)
+	return f.Queries.ListCategoriesForPublisher(ctx, publicationid)
 }
 func (f *faultQ) GetUserApiAccessStatus(ctx context.Context, id string) (string, error) {
 	if e, ok := f.val("GetUserApiAccessStatus"); ok {
@@ -80,11 +80,11 @@ func (f *faultQ) CheckSubdomainExists(ctx context.Context, subdomain pgtype.Text
 	}
 	return f.Queries.CheckSubdomainExists(ctx, subdomain)
 }
-func (f *faultQ) UpdatePublicationSubdomain(ctx context.Context, arg db.UpdatePublicationSubdomainParams) error {
-	if e, ok := f.val("UpdatePublicationSubdomain"); ok {
+func (f *faultQ) UpdatePublisherSubdomain(ctx context.Context, arg db.UpdatePublisherSubdomainParams) error {
+	if e, ok := f.val("UpdatePublisherSubdomain"); ok {
 		return e
 	}
-	return f.Queries.UpdatePublicationSubdomain(ctx, arg)
+	return f.Queries.UpdatePublisherSubdomain(ctx, arg)
 }
 func (f *faultQ) GetUserForSettings(ctx context.Context, id string) (db.GetUserForSettingsRow, error) {
 	if e, ok := f.val("GetUserForSettings"); ok {
@@ -98,17 +98,17 @@ func (f *faultQ) UpdateUserOnboardingText(ctx context.Context, arg db.UpdateUser
 	}
 	return f.Queries.UpdateUserOnboardingText(ctx, arg)
 }
-func (f *faultQ) CreatePersonalPublication(ctx context.Context, arg db.CreatePersonalPublicationParams) (string, error) {
-	if e, ok := f.val("CreatePersonalPublication"); ok {
+func (f *faultQ) CreatePersonalPublisher(ctx context.Context, arg db.CreatePersonalPublisherParams) (string, error) {
+	if e, ok := f.val("CreatePersonalPublisher"); ok {
 		return "", e
 	}
-	return f.Queries.CreatePersonalPublication(ctx, arg)
+	return f.Queries.CreatePersonalPublisher(ctx, arg)
 }
-func (f *faultQ) LinkUserPublication(ctx context.Context, arg db.LinkUserPublicationParams) error {
-	if e, ok := f.val("LinkUserPublication"); ok {
+func (f *faultQ) LinkUserPublisher(ctx context.Context, arg db.LinkUserPublisherParams) error {
+	if e, ok := f.val("LinkUserPublisher"); ok {
 		return e
 	}
-	return f.Queries.LinkUserPublication(ctx, arg)
+	return f.Queries.LinkUserPublisher(ctx, arg)
 }
 func (f *faultQ) CompleteOnboardingUser(ctx context.Context, arg db.CompleteOnboardingUserParams) error {
 	if e, ok := f.val("CompleteOnboardingUser"); ok {
@@ -116,11 +116,11 @@ func (f *faultQ) CompleteOnboardingUser(ctx context.Context, arg db.CompleteOnbo
 	}
 	return f.Queries.CompleteOnboardingUser(ctx, arg)
 }
-func (f *faultQ) UpdatePersonalPublication(ctx context.Context, arg db.UpdatePersonalPublicationParams) error {
-	if e, ok := f.val("UpdatePersonalPublication"); ok {
+func (f *faultQ) UpdatePersonalPublisher(ctx context.Context, arg db.UpdatePersonalPublisherParams) error {
+	if e, ok := f.val("UpdatePersonalPublisher"); ok {
 		return e
 	}
-	return f.Queries.UpdatePersonalPublication(ctx, arg)
+	return f.Queries.UpdatePersonalPublisher(ctx, arg)
 }
 func (f *faultQ) InsertNavigationItem(ctx context.Context, arg db.InsertNavigationItemParams) error {
 	if e, ok := f.val("InsertNavigationItem"); ok {
@@ -201,19 +201,19 @@ func newFaultService(qf map[string]error) (*Service, *faultQ, *faultPool) {
 
 // ── Branches « return err » du service settings ─────────────────────────
 
-func TestFault_GetPublicationSettings_QueryErrors(t *testing.T) {
+func TestFault_GetPublisherSettings_QueryErrors(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
 	cases := []string{
-		"GetPublicationForSettings",
-		"ListNavigationForPublication",
-		"ListSocialLinksForPublication",
+		"GetPublisherForSettings",
+		"ListNavigationForPublisher",
+		"ListSocialLinksForPublisher",
 		"ListArticlesForSettings",
-		"ListCategoriesForPublication",
+		"ListCategoriesForPublisher",
 	}
 	for _, m := range cases {
 		svc, _, _ := newFaultService(map[string]error{m: errBoom})
-		if _, err := svc.GetPublicationSettings(ctx, "00000000-0000-0000-0000-000000000002", "pub_any"); err == nil {
+		if _, err := svc.GetPublisherSettings(ctx, "00000000-0000-0000-0000-000000000002", "pub_any"); err == nil {
 			t.Errorf("%s: err = nil, attendu erreur", m)
 		}
 	}
@@ -224,10 +224,10 @@ func TestFault_UpdateProfile_Errors(t *testing.T) {
 	ctx := context.Background()
 	fx := seed(t)
 
-	// authorizeSettings en échec → errForbidden (via GetUserPersonalPublication en erreur).
-	svc, _, _ := newFaultService(map[string]error{"GetUserPersonalPublication": errBoom})
+	// authorizeSettings en échec → errForbidden (via GetUserPersonalPublisher en erreur).
+	svc, _, _ := newFaultService(map[string]error{"GetUserPersonalPublisher": errBoom})
 	if _, err := svc.UpdateProfile(ctx, fx.OwnerID, fx.PubID, map[string]any{"name": "X"}); !errors.Is(err, errForbidden) {
-		t.Errorf("GetUserPersonalPublication: err = %v, attendu errForbidden", err)
+		t.Errorf("GetUserPersonalPublisher: err = %v, attendu errForbidden", err)
 	}
 
 	// onboardingText non-string → erreur de validation.
@@ -289,9 +289,9 @@ func TestFault_UpdateSubdomain_QueryError(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
 	fx := seed(t)
-	svc, _, _ := newFaultService(map[string]error{"UpdatePublicationSubdomain": errBoom})
+	svc, _, _ := newFaultService(map[string]error{"UpdatePublisherSubdomain": errBoom})
 	if err := svc.UpdateSubdomain(ctx, fx.OwnerID, fx.PubID, "nouveau-sous"); err == nil {
-		t.Error("UpdatePublicationSubdomain: err = nil")
+		t.Error("UpdatePublisherSubdomain: err = nil")
 	}
 }
 
@@ -326,7 +326,7 @@ func TestFault_SaveSocial_QueryError(t *testing.T) {
 func TestFault_CompleteOnboarding_QueryError(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
-	for _, m := range []string{"GetUserApiAccessStatus", "CreatePersonalPublication", "LinkUserPublication", "CompleteOnboardingUser"} {
+	for _, m := range []string{"GetUserApiAccessStatus", "CreatePersonalPublisher", "LinkUserPublisher", "CompleteOnboardingUser"} {
 		svc, _, _ := newFaultService(map[string]error{m: errBoom})
 		if err := svc.CompleteOnboarding(ctx, "00000000-0000-0000-0000-000000000002", OnboardingInput{Name: "Nom"}); err == nil {
 			t.Errorf("%s: err = nil", m)

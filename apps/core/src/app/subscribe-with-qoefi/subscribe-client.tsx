@@ -16,9 +16,9 @@ import { subscribeWithQoeFiAction } from './actions';
 
 interface Props {
   email: string;
-  publicationSlug: string;
-  publicationId: string | null;
-  publicationName: string | null;
+  publisherSlug: string;
+  publisherId: string | null;
+  publisherName: string | null;
   returnUrl: string | null;
 }
 
@@ -33,9 +33,9 @@ function returnOrigin(returnUrl: string | null): string | null {
 
 export function SubscribeWithQoeFiClient({
   email,
-  publicationSlug,
-  publicationId,
-  publicationName,
+  publisherSlug,
+  publisherId,
+  publisherName,
   returnUrl,
 }: Props) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
@@ -43,7 +43,7 @@ export function SubscribeWithQoeFiClient({
   const [message, setMessage] = useState('');
   const [cancelled, setCancelled] = useState(false);
 
-  const displayName = publicationName ?? publicationSlug;
+  const displayName = publisherName ?? publisherSlug;
   const hasOpener = typeof window !== 'undefined' && !!window.opener;
 
   const notify = (result: { ok: true } | { cancelled: true }) => {
@@ -60,14 +60,14 @@ export function SubscribeWithQoeFiClient({
   };
 
   const confirm = async () => {
-    if (!publicationId) {
+    if (!publisherId) {
       setStatus('error');
-      setMessage('Publication introuvable. Revenez sur le site du créateur et réessayez.');
+      setMessage('Publisher introuvable. Revenez sur le site du créateur et réessayez.');
       return;
     }
     setStatus('loading');
     setMessage('');
-    const res = await subscribeWithQoeFiAction({ email, publicationId });
+    const res = await subscribeWithQoeFiAction({ email, publisherId });
     if (res.ok) {
       setStatus('done');
       setActive(!!res.active);

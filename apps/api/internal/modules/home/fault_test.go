@@ -80,7 +80,7 @@ func TestFault_Handlers_PoolErrors(t *testing.T) {
 		{"promos-500", "query", http.MethodGet, "/v1/home/promos", "", http.StatusInternalServerError},
 		{"suggested-500", "query", http.MethodGet, "/v1/home/suggested-creators", "", http.StatusInternalServerError},
 		{"semantic-500", "query", http.MethodGet, "/v1/home/semantic-trends", "", http.StatusInternalServerError},
-		{"subscribe-500", "exec", http.MethodPost, "/v1/home/subscribe", `{"email":"a@b.fr","publicationId":"pub_1"}`, http.StatusInternalServerError},
+		{"subscribe-500", "exec", http.MethodPost, "/v1/home/subscribe", `{"email":"a@b.fr","publisherId":"pub_1"}`, http.StatusInternalServerError},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -113,7 +113,7 @@ func TestSubscribe_BadRequests(t *testing.T) {
 	for _, tc := range []struct{ body string }{
 		{`{bad`},                       // JSON invalide
 		{`{"email":""}`},               // champs requis
-		{`{"email":"pas-un-email","publicationId":"p"}`}, // email invalide
+		{`{"email":"pas-un-email","publisherId":"p"}`}, // email invalide
 	} {
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/v1/home/subscribe", strings.NewReader(tc.body)))

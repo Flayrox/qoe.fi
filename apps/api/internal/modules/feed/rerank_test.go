@@ -24,7 +24,7 @@ import (
 // seedReRank crée un lecteur cold-start + 3 articles à axes contrôlés.
 func seedReRank(ctx context.Context) (readerID string, err error) {
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE
-		"Post", "Article", "User", "Publication", "Follows", "BlockedUser",
+		"Post", "Article", "User", "Publisher", "Follows", "BlockedUser",
 		"ContentFeedback", "FeedImpression", "ReadingSession", "_CoAuthors" CASCADE`); err != nil {
 		return "", err
 	}
@@ -36,7 +36,7 @@ func seedReRank(ctx context.Context) (readerID string, err error) {
 		return "", err
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ('pub_rr', 'PERSONAL', 'RR', 'rr', now(), now())`); err != nil {
 		return "", err
 	}
@@ -63,7 +63,7 @@ func seedReRank(ctx context.Context) (readerID string, err error) {
 	for _, a := range arts {
 		if _, err := poolTest.Exec(ctx,
 			`INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime",
-			                        status, "publicationId", "authorId", "createdAt", "updatedAt",
+			                        status, "publisherId", "authorId", "createdAt", "updatedAt",
 			                        "completionRate", embedding)
 			 VALUES ($1, $2, $1, '<p>corps</p>', true, 'PUBLIC', 8, 'PUBLISHED',
 			         'pub_rr', $3, now(), now(), 0.5, $4::vector)`,

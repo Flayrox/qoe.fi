@@ -50,7 +50,7 @@ import (
 	"github.com/qoefi/api/internal/modules/oauth"
 	"github.com/qoefi/api/internal/modules/placements"
 	"github.com/qoefi/api/internal/modules/posts"
-	"github.com/qoefi/api/internal/modules/publications"
+	"github.com/qoefi/api/internal/modules/publishers"
 	"github.com/qoefi/api/internal/modules/search"
 	"github.com/qoefi/api/internal/modules/settings"
 	"github.com/qoefi/api/internal/modules/support"
@@ -384,7 +384,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 	// Publications tenant (identité par sous-domaine/domaine) : lecture
 	// publique (auth optionnelle pour les entitlements/interactions du lecteur).
-	publicationsHandler := publications.NewHandler(publications.NewService(pool))
+	publicationsHandler := publishers.NewHandler(publishers.NewService(pool))
 	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
 		publicationsHandler.RegisterPublic(pub)
 	})

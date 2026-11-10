@@ -19,7 +19,7 @@ import { toast } from '@qoe/ui/toast';
 
 interface FollowActor {
   id: string;
-  publicationId: string | null;
+  publisherId: string | null;
   name: string | null;
   username: string | null;
   subdomain: string | null;
@@ -124,7 +124,7 @@ export function FollowList({
             updateActorShadow(actor.username.replace(/^@/, ''), { followed: previousFollows });
         },
         mutation: async () => {
-          const res = await toggleFollowCreator(actor.publicationId || actor.id);
+          const res = await toggleFollowCreator(actor.publisherId || actor.id);
           if (!res.ok) {
             throw new Error('Erreur lors de la modification du suivi.');
           }

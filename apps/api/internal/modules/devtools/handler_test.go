@@ -161,12 +161,12 @@ func TestDevtoolsHandler_Simulators(t *testing.T) {
 	ctx := context.Background()
 
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "updatedAt")
 		 VALUES ('pub_dev_h', 'PERSONAL', 'Dev Pub', 'dev-pub-h', now())`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`UPDATE "User" SET "publicationId" = 'pub_dev_h' WHERE id = $1`, regularID); err != nil {
+		`UPDATE "User" SET "publisherId" = 'pub_dev_h' WHERE id = $1`, regularID); err != nil {
 		t.Fatalf("link: %v", err)
 	}
 
@@ -177,7 +177,7 @@ func TestDevtoolsHandler_Simulators(t *testing.T) {
 	}
 	// Succès.
 	w = devReq(t, r, "POST", "/v1/devtools/simulate-subscriber",
-		`{"email":"sub@t.dev","publicationId":"pub_dev_h","isPremium":true,"ltvCents":500}`, true)
+		`{"email":"sub@t.dev","publisherId":"pub_dev_h","isPremium":true,"ltvCents":500}`, true)
 	if w.Code != http.StatusOK {
 		t.Fatalf("subscriber = %d, body = %s", w.Code, w.Body.String())
 	}
@@ -188,7 +188,7 @@ func TestDevtoolsHandler_Simulators(t *testing.T) {
 		t.Fatalf("follow bad json = %d", w.Code)
 	}
 	w = devReq(t, r, "POST", "/v1/devtools/simulate-follow",
-		`{"readerId":"`+regularID+`","publicationId":"pub_dev_h"}`, true)
+		`{"readerId":"`+regularID+`","publisherId":"pub_dev_h"}`, true)
 	if w.Code != http.StatusOK {
 		t.Fatalf("follow = %d, body = %s", w.Code, w.Body.String())
 	}

@@ -44,14 +44,14 @@ func (s *Service) SetEmailTestSender(p emailTester, fromAddress string) {
 
 // SendTestEmail rend l'email (template, locale, réglages brouillon ou
 // stockés) et l'envoie à l'adresse du créateur connecté.
-func (s *Service) SendTestEmail(ctx context.Context, userID, publicationID, locale, template string, draft json.RawMessage) (map[string]any, error) {
-	if err := s.authorizeSettings(ctx, userID, publicationID); err != nil {
+func (s *Service) SendTestEmail(ctx context.Context, userID, publisherID, locale, template string, draft json.RawMessage) (map[string]any, error) {
+	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
 		return nil, errForbidden
 	}
 	if s.emailProvider == nil {
 		return nil, errEmailProviderUnavailable
 	}
-	row, err := s.q.GetPublicationForEmailTest(ctx, publicationID)
+	row, err := s.q.GetPublisherForEmailTest(ctx, publisherID)
 	if err != nil {
 		if errors.Is(err, pgxNoRows) {
 			return nil, errNotFound
@@ -67,10 +67,10 @@ func (s *Service) SendTestEmail(ctx context.Context, userID, publicationID, loca
 	}
 
 	prefs := workers.ApplyTier(workers.ParseEmailPrefs(row.EmailSettings),
-		subscriptions.HasPro(ctx, s.pool, publicationID, time.Now()))
+		subscriptions.HasPro(ctx, s.pool, publisherID, time.Now()))
 	if len(draft) > 0 {
 		prefs = workers.ApplyTier(workers.ParseEmailPrefs(draft),
-		subscriptions.HasPro(ctx, s.pool, publicationID, time.Now()))
+		subscriptions.HasPro(ctx, s.pool, publisherID, time.Now()))
 	}
 	loc := workers.NormalizeEmailLocale(locale)
 	tpl := template
@@ -83,9 +83,9 @@ func (s *Service) SendTestEmail(ctx context.Context, userID, publicationID, loca
 		Template: tpl,
 		Locale:   loc,
 		Email:    user.Email,
-		PubID:    publicationID,
-		PubName:  row.PublicationName,
-		PubURL:   workers.PublicationPublicURL(row.Subdomain, row.CustomDomain),
+		PubID:    publisherID,
+		PubName:  row.PublisherName,
+		PubURL:   workers.PublisherPublicURL(row.Subdomain, row.CustomDomain),
 		Accent:   workers.PubAccentColor(row.AccentColor),
 		LogoURL:  workers.PubLogoURL(row.LogoUrl),
 	}, prefs)
@@ -117,7 +117,7 @@ func (h *Handler) sendTestEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var d struct {
-		PublicationID string          `json:"publicationId"`
+		PublisherID string          `json:"publisherId"`
 		Locale        string          `json:"locale"`
 		Template      string          `json:"template"`
 		Settings      json.RawMessage `json:"settings"`
@@ -126,17 +126,17 @@ func (h *Handler) sendTestEmail(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "Corps JSON invalide")
 		return
 	}
-	if d.PublicationID == "" {
-		response.BadRequest(w, "publicationId requis")
+	if d.PublisherID == "" {
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
-	out, err := h.svc.SendTestEmail(r.Context(), userID, d.PublicationID, d.Locale, d.Template, d.Settings)
+	out, err := h.svc.SendTestEmail(r.Context(), userID, d.PublisherID, d.Locale, d.Template, d.Settings)
 	if err != nil {
 		switch {
 		case errors.Is(err, errForbidden):
 			response.Forbidden(w, "Accès refusé à cette publication.")
 		case errors.Is(err, errNotFound):
-			response.NotFound(w, "Publication introuvable.")
+			response.NotFound(w, "Publisher introuvable.")
 		case errors.Is(err, errEmailProviderUnavailable):
 			response.Error(w, http.StatusServiceUnavailable, "Aucun fournisseur email n'est configuré sur cette instance.")
 		default:

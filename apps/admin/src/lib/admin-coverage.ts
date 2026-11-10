@@ -82,7 +82,7 @@ export const ADMIN_ROUTE_COVERAGE: Record<string, AdminRouteCoverage> = {
   // n'expose aucune route de liste des publications et la fiche d'un compte ne
   // porte pas l'état courant : afficher une bascule sans son état serait un
   // mensonge. L'écran viendra avec la liste des publications (freemium).
-  'PATCH /v1/admin/publications/{id}': apiOnly(
+  'PATCH /v1/admin/publishers/{id}': apiOnly(
     'Bascule email Pro d’une publication : sans route de liste ni état courant lisible, la console ne peut pas l’afficher honnêtement.'
   ),
   'GET /v1/admin/import/subscribers': via('/admin/imports'),

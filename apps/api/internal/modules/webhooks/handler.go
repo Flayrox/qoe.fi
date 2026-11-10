@@ -37,13 +37,13 @@ func (h *Handler) RegisterProtected(r chi.Router, requireScope func(string) func
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/webhooks/{id}/test", h.test)
 }
 
-// publicationID résout la publication depuis la clé API (contexte) ou le query
-// param `publicationId` (JWT / dashboard).
-func publicationID(r *http.Request) (string, bool) {
-	if pid, ok := middleware.PublicationID(r.Context()); ok && pid != "" {
+// publisherID résout la publication depuis la clé API (contexte) ou le query
+// param `publisherId` (JWT / dashboard).
+func publisherID(r *http.Request) (string, bool) {
+	if pid, ok := middleware.PublisherID(r.Context()); ok && pid != "" {
 		return pid, true
 	}
-	if pid := r.URL.Query().Get("publicationId"); pid != "" {
+	if pid := r.URL.Query().Get("publisherId"); pid != "" {
 		return pid, true
 	}
 	return "", false
@@ -51,9 +51,9 @@ func publicationID(r *http.Request) (string, bool) {
 
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
-	pid, ok := publicationID(r)
+	pid, ok := publisherID(r)
 	if !ok {
-		response.BadRequest(w, "publicationId requis")
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
 	items, err := h.svc.List(r.Context(), userID, pid)
@@ -65,7 +65,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 }
 
 type createInput struct {
-	PublicationID string   `json:"publicationId"`
+	PublisherID string   `json:"publisherId"`
 	Name          string   `json:"name"`
 	URL           string   `json:"url"`
 	Events        []string `json:"events"`
@@ -95,14 +95,14 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pid := in.PublicationID
+	pid := in.PublisherID
 	if pid == "" {
-		if p, ok := publicationID(r); ok {
+		if p, ok := publisherID(r); ok {
 			pid = p
 		}
 	}
 	if pid == "" {
-		response.BadRequest(w, "publicationId requis")
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
 
@@ -117,9 +117,9 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	id := chi.URLParam(r, "id")
-	pid, ok := publicationID(r)
+	pid, ok := publisherID(r)
 	if !ok {
-		response.BadRequest(w, "publicationId requis")
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
 	if err := h.svc.Delete(r.Context(), userID, id, pid); err != nil {
@@ -132,9 +132,9 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) toggle(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	id := chi.URLParam(r, "id")
-	pid, ok := publicationID(r)
+	pid, ok := publisherID(r)
 	if !ok {
-		response.BadRequest(w, "publicationId requis")
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
 	active, err := h.svc.Toggle(r.Context(), userID, id, pid)
@@ -148,9 +148,9 @@ func (h *Handler) toggle(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) test(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	id := chi.URLParam(r, "id")
-	pid, ok := publicationID(r)
+	pid, ok := publisherID(r)
 	if !ok {
-		response.BadRequest(w, "publicationId requis")
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
 	res, err := h.svc.Test(r.Context(), userID, id, pid)
@@ -173,9 +173,9 @@ func (h *Handler) test(w http.ResponseWriter, r *http.Request) {
 // GET /v1/webhooks/{id}/deliveries?limit= — logs de livraison détaillés.
 func (h *Handler) listDeliveries(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
-	pid, ok := publicationID(r)
+	pid, ok := publisherID(r)
 	if !ok {
-		response.BadRequest(w, "publicationId requis")
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
 	id := chi.URLParam(r, "id")

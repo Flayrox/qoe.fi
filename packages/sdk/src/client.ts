@@ -31,7 +31,7 @@ import type {
   NotificationPrefsPatch,
   NotificationResult,
   PublicProfileData,
-  PublicationProfileUpdateInput,
+  PublisherProfileUpdateInput,
   QuotesPage,
   ReaderProfileData,
   ReadingHistoryResult,
@@ -418,7 +418,7 @@ export class QoeApiClient {
         id?: string;
         title?: string;
         slug?: string;
-        publicationId?: string;
+        publisherId?: string;
         subdomain?: string;
         [k: string]: unknown;
       }>;
@@ -486,15 +486,12 @@ export class QoeApiClient {
   /**
    * PATCH /v1/settings/profile — met à jour le profil de la publication
    * personnelle (heroText [bio], headerImageUrl [bannière], name…).
-   * `publicationId` requis (GET /v1/users/me → profile.publicationId).
+   * `publisherId` requis (GET /v1/users/me → profile.publisherId).
    */
-  public async updatePublicationProfile(
-    publicationId: string,
-    input: PublicationProfileUpdateInput
-  ) {
+  public async updatePublisherProfile(publisherId: string, input: PublisherProfileUpdateInput) {
     return this.request<Record<string, unknown>>('/v1/settings/profile', {
       method: 'PATCH',
-      body: JSON.stringify({ publicationId, ...input }),
+      body: JSON.stringify({ publisherId, ...input }),
     });
   }
 
@@ -639,7 +636,7 @@ export class QoeApiClient {
 
   /**
    * GET /v1/users/{username} — profil public d'une publication
-   * (résolue par slug OU subdomain). ⚠️ `data.id` = publicationId.
+   * (résolue par slug OU subdomain). ⚠️ `data.id` = publisherId.
    */
   public async getUserProfile(username: string) {
     return this.request<PublicProfileData>(`/v1/users/${encodeURIComponent(username)}`);
@@ -696,12 +693,12 @@ export class QoeApiClient {
   }
 
   /**
-   * POST /v1/users/{publicationId}/follow — toggle follow.
-   * ⚠️ `id` = publicationId (pas userId). Réponse `{following, followersCount}`.
+   * POST /v1/users/{publisherId}/follow — toggle follow.
+   * ⚠️ `id` = publisherId (pas userId). Réponse `{following, followersCount}`.
    */
-  public async toggleFollowUser(publicationId: string) {
+  public async toggleFollowUser(publisherId: string) {
     return this.request<{ following: boolean; followersCount: number }>(
-      `/v1/users/${encodeURIComponent(publicationId)}/follow`,
+      `/v1/users/${encodeURIComponent(publisherId)}/follow`,
       {
         method: 'POST',
       }
@@ -710,12 +707,12 @@ export class QoeApiClient {
 
   // ─── Articles (paywall) ─────────────────────────────────────
   /**
-   * GET /v1/articles/{slug}?publicationId= — lecture publique d'un article.
-   * ⚠️ `publicationId` REQUIS (sinon 400). Le contenu est tronqué côté
+   * GET /v1/articles/{slug}?publisherId= — lecture publique d'un article.
+   * ⚠️ `publisherId` REQUIS (sinon 400). Le contenu est tronqué côté
    *    serveur si paywall non débloqué (zéro-fuite).
    */
-  public async getArticle(slug: string, publicationId: string) {
-    const query = new URLSearchParams({ publicationId });
+  public async getArticle(slug: string, publisherId: string) {
+    const query = new URLSearchParams({ publisherId });
     return this.request<ArticleData>(
       `/v1/articles/${encodeURIComponent(slug)}?${query.toString()}`
     );

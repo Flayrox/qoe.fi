@@ -44,12 +44,12 @@ test.describe('Studio créateur', () => {
     await db.connect();
     // Le créateur doit posséder une publication (layout : GET /v1/users/me).
     await db.query(
-      `INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+      `INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
        VALUES ('pub_e2e_studio', 'PERSONAL', 'Studio E2E', 'studio-e2e', now(), now())
        ON CONFLICT (id) DO NOTHING`
     );
     await db.ensureUser(CREATOR_ID, 'studio.e2e@qoe.fi', 'creator', {
-      publicationId: 'pub_e2e_studio',
+      publisherId: 'pub_e2e_studio',
     });
     await db.close();
 

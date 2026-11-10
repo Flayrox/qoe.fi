@@ -65,7 +65,7 @@ func (q *Queries) GetNotificationPreferences(ctx context.Context, userid pgtype.
 
 const getNotifications = `-- name: GetNotifications :many
 
-SELECT n.id, n.type, n."isRead", n."createdAt", n."thoughtId", n."articleId", n."commentId", n."publicationId", n.metadata,
+SELECT n.id, n.type, n."isRead", n."createdAt", n."thoughtId", n."articleId", n."commentId", n."publisherId", n.metadata,
        u.id::text      AS sender_id,
        u.name          AS sender_name,
        u.username      AS sender_username,
@@ -76,17 +76,17 @@ SELECT n.id, n.type, n."isRead", n."createdAt", n."thoughtId", n."articleId", n.
        a.title         AS article_title,
        a.slug          AS article_slug,
        c.content       AS comment_content,
-       p.name          AS publication_name,
-       p.slug          AS publication_slug,
-       COALESCE(p.type::text, '')::text AS publication_type,
+       p.name          AS publisher_name,
+       p.slug          AS publisher_slug,
+       COALESCE(p.type::text, '')::text AS publisher_type,
        COALESCE(md.id::text, '')::text  AS media_id
 FROM "Notification" n
 JOIN "User" u ON u.id = n."senderId"
 LEFT JOIN "Post" t ON t.id = n."thoughtId"
 LEFT JOIN "Article" a ON a.id = n."articleId"
 LEFT JOIN "ArticleComment" c ON c.id = n."commentId"
-LEFT JOIN "Publication" p ON p.id = n."publicationId"
-LEFT JOIN "Media" md ON md."publicationId" = n."publicationId"
+LEFT JOIN "Publisher" p ON p.id = n."publisherId"
+LEFT JOIN "Media" md ON md."publisherId" = n."publisherId"
 WHERE n."recipientId" = $1
   AND ($2::text[] IS NULL OR n.type::text = ANY($2::text[]))
   -- Un blocage, dans un sens ou dans l'autre, coupe aussi les notifications.
@@ -114,7 +114,7 @@ type GetNotificationsRow struct {
 	ThoughtId        pgtype.Text      `json:"thoughtId"`
 	ArticleId        pgtype.Text      `json:"articleId"`
 	CommentId        pgtype.Text      `json:"commentId"`
-	PublicationId    pgtype.Text      `json:"publicationId"`
+	PublisherId      pgtype.Text      `json:"publisherId"`
 	Metadata         []byte           `json:"metadata"`
 	SenderID         string           `json:"sender_id"`
 	SenderName       pgtype.Text      `json:"sender_name"`
@@ -126,9 +126,9 @@ type GetNotificationsRow struct {
 	ArticleTitle     pgtype.Text      `json:"article_title"`
 	ArticleSlug      pgtype.Text      `json:"article_slug"`
 	CommentContent   pgtype.Text      `json:"comment_content"`
-	PublicationName  pgtype.Text      `json:"publication_name"`
-	PublicationSlug  pgtype.Text      `json:"publication_slug"`
-	PublicationType  string           `json:"publication_type"`
+	PublisherName    pgtype.Text      `json:"publisher_name"`
+	PublisherSlug    pgtype.Text      `json:"publisher_slug"`
+	PublisherType    string           `json:"publisher_type"`
 	MediaID          string           `json:"media_id"`
 }
 
@@ -155,7 +155,7 @@ func (q *Queries) GetNotifications(ctx context.Context, arg GetNotificationsPara
 			&i.ThoughtId,
 			&i.ArticleId,
 			&i.CommentId,
-			&i.PublicationId,
+			&i.PublisherId,
 			&i.Metadata,
 			&i.SenderID,
 			&i.SenderName,
@@ -167,9 +167,9 @@ func (q *Queries) GetNotifications(ctx context.Context, arg GetNotificationsPara
 			&i.ArticleTitle,
 			&i.ArticleSlug,
 			&i.CommentContent,
-			&i.PublicationName,
-			&i.PublicationSlug,
-			&i.PublicationType,
+			&i.PublisherName,
+			&i.PublisherSlug,
+			&i.PublisherType,
 			&i.MediaID,
 		); err != nil {
 			return nil, err

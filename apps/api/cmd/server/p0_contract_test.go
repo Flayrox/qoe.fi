@@ -26,15 +26,15 @@ func TestP0ProtectedRoutesRequireAuthentication(t *testing.T) {
 	}{
 		{"posts create", http.MethodPost, "/v1/posts"},
 		{"feed following", http.MethodGet, "/v1/feed/"},
-		{"articles list", http.MethodGet, "/v1/articles?publicationId=missing"},
+		{"articles list", http.MethodGet, "/v1/articles?publisherId=missing"},
 		{"articles create", http.MethodPost, "/v1/articles"},
 		{"notifications list", http.MethodGet, "/v1/notifications/"},
 		{"notifications unread", http.MethodGet, "/v1/notifications/unread-count"},
 		{"highlights bookmarks", http.MethodGet, "/v1/bookmarks"},
-		{"analytics audience", http.MethodGet, "/v1/analytics/audience?publicationId=missing"},
+		{"analytics audience", http.MethodGet, "/v1/analytics/audience?publisherId=missing"},
 		{"creator me", http.MethodGet, "/v1/users/me"},
 		{"creator categories", http.MethodGet, "/v1/categories"},
-		{"settings publication", http.MethodGet, "/v1/settings/publication?publicationId=missing"},
+		{"settings publication", http.MethodGet, "/v1/settings/publisher?publisherId=missing"},
 		{"settings preferences", http.MethodGet, "/v1/settings/preferences"},
 		{"workspaces active", http.MethodGet, "/v1/workspaces/active"},
 		{"media workspaces", http.MethodGet, "/v1/media/workspaces"},
@@ -80,12 +80,12 @@ func TestP0PublicValidationContracts(t *testing.T) {
 		{"search thoughts empty query", http.MethodGet, "/search/thoughts", nil, http.StatusOK},
 		{"subscribe invalid email", http.MethodPost, "/v1/home/subscribe", map[string]any{
 			"email":         "invalid",
-			"publicationId": "missing",
+			"publisherId": "missing",
 		}, http.StatusBadRequest},
 		{"subscribe invalid json", http.MethodPost, "/v1/home/subscribe", rawJSONBody("not-json"), http.StatusBadRequest},
 		{"feed hydrate invalid json", http.MethodPost, "/v1/feed/hydrate", rawJSONBody("not-json"), http.StatusBadRequest},
-		{"article missing publication", http.MethodGet, "/v1/articles/missing?publicationId=missing", nil, http.StatusNotFound},
-		{"publication missing domain", http.MethodGet, "/v1/publications/by-domain/missing-domain", nil, http.StatusNotFound},
+		{"article missing publication", http.MethodGet, "/v1/articles/missing?publisherId=missing", nil, http.StatusNotFound},
+		{"publication missing domain", http.MethodGet, "/v1/publishers/by-domain/missing-domain", nil, http.StatusNotFound},
 	}
 
 	for _, tt := range tests {
@@ -109,7 +109,7 @@ func TestP0SeededPublicArticleContract(t *testing.T) {
 	}
 	r := testRouter(t)
 
-	w, body := doReq(t, r, http.MethodGet, "/v1/articles/recette-pates?publicationId="+fx.PublicationID, "", nil)
+	w, body := doReq(t, r, http.MethodGet, "/v1/articles/recette-pates?publisherId="+fx.PublisherID, "", nil)
 	if w.Code != http.StatusOK {
 		t.Fatalf("public article = %d, body=%s", w.Code, w.Body.String())
 	}
@@ -120,7 +120,7 @@ func TestP0SeededPublicArticleContract(t *testing.T) {
 		t.Fatalf("title=%v, body=%s", body["title"], w.Body.String())
 	}
 
-	premium, premiumBody := doReq(t, r, http.MethodGet, "/v1/articles/article-payant?publicationId="+fx.PublicationID, "", nil)
+	premium, premiumBody := doReq(t, r, http.MethodGet, "/v1/articles/article-payant?publisherId="+fx.PublisherID, "", nil)
 	if premium.Code != http.StatusOK {
 		t.Fatalf("premium article = %d, body=%s", premium.Code, premium.Body.String())
 	}
@@ -132,7 +132,7 @@ func TestP0SeededPublicArticleContract(t *testing.T) {
 	}
 }
 
-func TestP0SeededTenantPublicationContract(t *testing.T) {
+func TestP0SeededTenantPublisherContract(t *testing.T) {
 	requirePool(t)
 	fx, err := testutil.SeedSettings(context.Background(), poolTest)
 	if err != nil {
@@ -141,12 +141,12 @@ func TestP0SeededTenantPublicationContract(t *testing.T) {
 	// Slug réel de la publication personnelle : celui du compte propriétaire
 	// (le trigger 00028 réécrit Publication.name/slug depuis User).
 	if _, err := poolTest.Exec(context.Background(),
-		`UPDATE "Publication" SET subdomain = 'ownerset' WHERE id = $1`, fx.PubID); err != nil {
+		`UPDATE "Publisher" SET subdomain = 'ownerset' WHERE id = $1`, fx.PubID); err != nil {
 		t.Fatalf("configure tenant domain: %v", err)
 	}
 	r := testRouter(t)
 
-	w, body := doReq(t, r, http.MethodGet, "/v1/publications/by-domain/ownerset", "", nil)
+	w, body := doReq(t, r, http.MethodGet, "/v1/publishers/by-domain/ownerset", "", nil)
 	if w.Code != http.StatusOK {
 		t.Fatalf("publication = %d, body=%s", w.Code, w.Body.String())
 	}

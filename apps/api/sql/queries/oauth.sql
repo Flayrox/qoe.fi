@@ -3,31 +3,31 @@
 -- name: GetOAuthClientByClientId :one
 SELECT id, "clientId", "clientSecretHash", name, description, "logoUrl",
        "homepageUrl", "redirectUris", scopes, "clientType"::text, status::text,
-       "publicationId", "ownerUserId", "createdAt", "updatedAt"
+       "publisherId", "ownerUserId", "createdAt", "updatedAt"
 FROM "OAuthClient"
 WHERE "clientId" = $1;
 
 -- name: GetOAuthClientByID :one
 SELECT id, "clientId", "clientSecretHash", name, description, "logoUrl",
        "homepageUrl", "redirectUris", scopes, "clientType"::text, status::text,
-       "publicationId", "ownerUserId", "createdAt", "updatedAt"
+       "publisherId", "ownerUserId", "createdAt", "updatedAt"
 FROM "OAuthClient"
 WHERE id = $1;
 
 -- name: ListOAuthClientsByOwner :many
 SELECT id, "clientId", "clientSecretHash", name, description, "logoUrl",
        "homepageUrl", "redirectUris", scopes, "clientType"::text, status::text,
-       "publicationId", "ownerUserId", "createdAt", "updatedAt"
+       "publisherId", "ownerUserId", "createdAt", "updatedAt"
 FROM "OAuthClient"
 WHERE "ownerUserId" = $1
 ORDER BY "createdAt" DESC;
 
--- name: ListOAuthClientsByPublication :many
+-- name: ListOAuthClientsByPublisher :many
 SELECT id, "clientId", "clientSecretHash", name, description, "logoUrl",
        "homepageUrl", "redirectUris", scopes, "clientType"::text, status::text,
-       "publicationId", "ownerUserId", "createdAt", "updatedAt"
+       "publisherId", "ownerUserId", "createdAt", "updatedAt"
 FROM "OAuthClient"
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
 ORDER BY "createdAt" DESC;
 
 -- name: CountOAuthClientsByOwner :one
@@ -36,7 +36,7 @@ SELECT COUNT(*) AS count FROM "OAuthClient" WHERE "ownerUserId" = $1;
 -- name: InsertOAuthClient :exec
 INSERT INTO "OAuthClient" (id, "clientId", "clientSecretHash", name, description,
                            "logoUrl", "homepageUrl", "redirectUris", scopes,
-                           "clientType", status, "publicationId", "ownerUserId",
+                           "clientType", status, "publisherId", "ownerUserId",
                            "createdAt", "updatedAt")
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8,
                            $9::"OAuthClientType", $10::"OAuthClientStatus", $11, $12, now(), now());
@@ -75,7 +75,7 @@ VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, NULL, NULL, now());
 SELECT t.id, t."clientId", t."userId", t."accessTokenHash", t."refreshTokenHash", t.scopes,
        t."accessTokenExpiresAt", t."refreshTokenExpiresAt", t."revokedAt", t."lastUsedAt", t."createdAt",
        c."clientId" AS "publicClientId",
-       c."publicationId" AS "clientPublicationId"
+       c."publisherId" AS "clientPublisherId"
 FROM "OAuthToken" t
 JOIN "OAuthClient" c ON c.id = t."clientId"
 WHERE t."accessTokenHash" = $1;
@@ -84,24 +84,24 @@ WHERE t."accessTokenHash" = $1;
 SELECT t.id, t."clientId", t."userId", t."accessTokenHash", t."refreshTokenHash", t.scopes,
        t."accessTokenExpiresAt", t."refreshTokenExpiresAt", t."revokedAt", t."lastUsedAt", t."createdAt",
        c."clientId" AS "publicClientId",
-       c."publicationId" AS "clientPublicationId"
+       c."publisherId" AS "clientPublisherId"
 FROM "OAuthToken" t
 JOIN "OAuthClient" c ON c.id = t."clientId"
 WHERE t."refreshTokenHash" = $1;
 
 -- name: GetOAuthMediaContext :one
-SELECT p.id AS "publicationId",
-       p.name AS "publicationName",
-       p.slug AS "publicationSlug",
-       p."logoUrl" AS "publicationLogoUrl",
+SELECT p.id AS "publisherId",
+       p.name AS "publisherName",
+       p.slug AS "publisherSlug",
+       p."logoUrl" AS "publisherLogoUrl",
        COALESCE(md.id, '') AS "mediaId",
        COALESCE(m.id, '') AS "memberId",
        COALESCE(m.role, '') AS "memberRole",
        COALESCE(m.permissions, ARRAY[]::text[]) AS "memberPermissions",
        COALESCE(m.status, '') AS "memberStatus",
        (m.id IS NOT NULL AND m.status = 'active') AS "isMember"
-FROM "Publication" p
-LEFT JOIN "Media" md ON md."publicationId" = p.id
+FROM "Publisher" p
+LEFT JOIN "Media" md ON md."publisherId" = p.id
 LEFT JOIN "MediaMember" m ON m."mediaId" = md.id AND m."userId" = $2
 WHERE p.id = $1;
 

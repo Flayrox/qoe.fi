@@ -34,7 +34,7 @@ export { EmbedValidationError };
  */
 export async function subscribeEmail(input: {
   apiBase: string;
-  publication: string;
+  publisher: string;
   email: string;
   locale?: string;
   signal?: AbortSignal;

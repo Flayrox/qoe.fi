@@ -75,8 +75,8 @@ type QuotedAuthor struct {
 }
 
 // QuotedPublication est la publication de l'article cité (parité TS).
-// PublicationID est requis par le lecteur mobile (/article/{slug}).
-type QuotedPublication struct {
+// PublisherID est requis par le lecteur mobile (/article/{slug}).
+type QuotedPublisher struct {
 	ID           string  `json:"id"`
 	Name         string  `json:"name"`
 	Slug         string  `json:"slug"`
@@ -107,7 +107,7 @@ type QuotedArticle struct {
 	Slug         string            `json:"slug"`
 	IsPremium    bool              `json:"isPremium"`
 	QuoteContext *QuoteContext     `json:"quoteContext,omitempty"`
-	Publication  QuotedPublication `json:"publication"`
+	Publisher  QuotedPublisher `json:"publisher"`
 	Author       QuotedAuthor      `json:"author"`
 }
 

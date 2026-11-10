@@ -48,14 +48,14 @@ export function SimilarArticles({ articleId }: { articleId: string }) {
       </View>
 
       {items.map((item) => {
-        const publication = item.publicationName || item.authorName || 'qoefi';
+        const publisher = item.publisherName || item.authorName || 'qoefi';
         return (
           <Pressable
             key={item.id}
             onPress={() =>
               router.push({
                 pathname: '/article/[slug]',
-                params: { slug: item.slug, publicationId: item.publicationId },
+                params: { slug: item.slug, publisherId: item.publisherId },
               })
             }
             style={({ pressed }) => [
@@ -69,7 +69,7 @@ export function SimilarArticles({ articleId }: { articleId: string }) {
             </ThemedText>
             <View style={styles.cardMeta}>
               <ThemedText type="small" numberOfLines={1} style={styles.cardSource}>
-                {publication}
+                {publisher}
               </ThemedText>
               <View style={styles.metaItem}>
                 <Timer size={12} color={theme.textSecondary} />

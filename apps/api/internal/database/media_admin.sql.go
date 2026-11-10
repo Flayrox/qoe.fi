@@ -36,7 +36,7 @@ func (q *Queries) ActivateMediaMember(ctx context.Context, arg ActivateMediaMemb
 
 const checkMediaSlugExists = `-- name: CheckMediaSlugExists :one
 SELECT EXISTS(
-    SELECT 1 FROM "Publication" WHERE slug = $1 OR subdomain = $1
+    SELECT 1 FROM "Publisher" WHERE slug = $1 OR subdomain = $1
 ) AS exists
 `
 
@@ -47,12 +47,12 @@ func (q *Queries) CheckMediaSlugExists(ctx context.Context, slug string) (bool, 
 	return exists, err
 }
 
-const countArticlesByPublication = `-- name: CountArticlesByPublication :one
-SELECT COUNT(*)::int AS count FROM "Article" WHERE "publicationId" = $1
+const countArticlesByPublisher = `-- name: CountArticlesByPublisher :one
+SELECT COUNT(*)::int AS count FROM "Article" WHERE "publisherId" = $1
 `
 
-func (q *Queries) CountArticlesByPublication(ctx context.Context, publicationid string) (int32, error) {
-	row := q.db.QueryRow(ctx, countArticlesByPublication, publicationid)
+func (q *Queries) CountArticlesByPublisher(ctx context.Context, publisherid string) (int32, error) {
+	row := q.db.QueryRow(ctx, countArticlesByPublisher, publisherid)
 	var count int32
 	err := row.Scan(&count)
 	return count, err
@@ -61,7 +61,7 @@ func (q *Queries) CountArticlesByPublication(ctx context.Context, publicationid 
 const countMediaApiKeys = `-- name: CountMediaApiKeys :one
 SELECT COUNT(*)::int
 FROM "ApiKey" ak
-JOIN "Media" m ON m."publicationId" = ak."publicationId"
+JOIN "Media" m ON m."publisherId" = ak."publisherId"
 WHERE m.id = $1
 `
 
@@ -113,13 +113,13 @@ func (q *Queries) CountMediaMembers(ctx context.Context, mediaid string) (int32,
 }
 
 const createMedia = `-- name: CreateMedia :one
-INSERT INTO "Media" (id, "publicationId", "updatedAt")
+INSERT INTO "Media" (id, "publisherId", "updatedAt")
 VALUES (gen_random_uuid()::text, $1, now())
 RETURNING id
 `
 
-func (q *Queries) CreateMedia(ctx context.Context, publicationid string) (string, error) {
-	row := q.db.QueryRow(ctx, createMedia, publicationid)
+func (q *Queries) CreateMedia(ctx context.Context, publisherid string) (string, error) {
+	row := q.db.QueryRow(ctx, createMedia, publisherid)
 	var id string
 	err := row.Scan(&id)
 	return id, err
@@ -147,13 +147,13 @@ func (q *Queries) CreateMediaMember(ctx context.Context, arg CreateMediaMemberPa
 	return err
 }
 
-const createMediaPublication = `-- name: CreateMediaPublication :one
-INSERT INTO "Publication" (id, type, name, slug, subdomain, bio, "logoUrl", "accentColor", "updatedAt")
+const createMediaPublisher = `-- name: CreateMediaPublisher :one
+INSERT INTO "Publisher" (id, type, name, slug, subdomain, bio, "logoUrl", "accentColor", "updatedAt")
 VALUES (gen_random_uuid()::text, 'MEDIA', $1, $2, $3, $4, $5, $6, now())
 RETURNING id
 `
 
-type CreateMediaPublicationParams struct {
+type CreateMediaPublisherParams struct {
 	Name        string      `json:"name"`
 	Slug        string      `json:"slug"`
 	Subdomain   pgtype.Text `json:"subdomain"`
@@ -162,8 +162,8 @@ type CreateMediaPublicationParams struct {
 	AccentColor pgtype.Text `json:"accentColor"`
 }
 
-func (q *Queries) CreateMediaPublication(ctx context.Context, arg CreateMediaPublicationParams) (string, error) {
-	row := q.db.QueryRow(ctx, createMediaPublication,
+func (q *Queries) CreateMediaPublisher(ctx context.Context, arg CreateMediaPublisherParams) (string, error) {
+	row := q.db.QueryRow(ctx, createMediaPublisher,
 		arg.Name,
 		arg.Slug,
 		arg.Subdomain,
@@ -179,7 +179,7 @@ func (q *Queries) CreateMediaPublication(ctx context.Context, arg CreateMediaPub
 const deleteMediaApiKey = `-- name: DeleteMediaApiKey :execrows
 DELETE FROM "ApiKey" ak
 USING "Media" m
-WHERE ak.id = $1 AND m.id = $2 AND ak."publicationId" = m."publicationId"
+WHERE ak.id = $1 AND m.id = $2 AND ak."publisherId" = m."publisherId"
 `
 
 type DeleteMediaApiKeyParams struct {
@@ -216,11 +216,11 @@ SELECT ak.id,
        ak.scopes,
        ak."createdAt",
        ak."lastUsedAt",
-       ak."publicationId",
+       ak."publisherId",
        COALESCE(ak."createdByUserId"::text, '')::text AS created_by_user_id,
        m.id                                           AS media_id
 FROM "ApiKey" ak
-JOIN "Media" m ON m."publicationId" = ak."publicationId"
+JOIN "Media" m ON m."publisherId" = ak."publisherId"
 WHERE ak.id = $1 AND m.id = $2
 `
 
@@ -236,7 +236,7 @@ type GetMediaApiKeyByIDRow struct {
 	Scopes          []string         `json:"scopes"`
 	CreatedAt       pgtype.Timestamp `json:"createdAt"`
 	LastUsedAt      pgtype.Timestamp `json:"lastUsedAt"`
-	PublicationId   pgtype.Text      `json:"publicationId"`
+	PublisherId     pgtype.Text      `json:"publisherId"`
 	CreatedByUserID string           `json:"created_by_user_id"`
 	MediaID         string           `json:"media_id"`
 }
@@ -251,32 +251,32 @@ func (q *Queries) GetMediaApiKeyByID(ctx context.Context, arg GetMediaApiKeyByID
 		&i.Scopes,
 		&i.CreatedAt,
 		&i.LastUsedAt,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.CreatedByUserID,
 		&i.MediaID,
 	)
 	return i, err
 }
 
-const getMediaByPublicationID = `-- name: GetMediaByPublicationID :one
+const getMediaByPublisherID = `-- name: GetMediaByPublisherID :one
 SELECT md.id AS media_id,
-       md."publicationId" AS publication_id
+       md."publisherId" AS publisher_id
 FROM "Media" md
-WHERE md."publicationId" = $1
+WHERE md."publisherId" = $1
 LIMIT 1
 `
 
-type GetMediaByPublicationIDRow struct {
-	MediaID       string `json:"media_id"`
-	PublicationID string `json:"publication_id"`
+type GetMediaByPublisherIDRow struct {
+	MediaID     string `json:"media_id"`
+	PublisherID string `json:"publisher_id"`
 }
 
 // Résout un Média depuis l'identifiant de SA publication (le profil public
-// d'un média expose la publicationId, pas l'id du média).
-func (q *Queries) GetMediaByPublicationID(ctx context.Context, publicationid string) (GetMediaByPublicationIDRow, error) {
-	row := q.db.QueryRow(ctx, getMediaByPublicationID, publicationid)
-	var i GetMediaByPublicationIDRow
-	err := row.Scan(&i.MediaID, &i.PublicationID)
+// d'un média expose la publisherId, pas l'id du média).
+func (q *Queries) GetMediaByPublisherID(ctx context.Context, publisherid string) (GetMediaByPublisherIDRow, error) {
+	row := q.db.QueryRow(ctx, getMediaByPublisherID, publisherid)
+	var i GetMediaByPublisherIDRow
+	err := row.Scan(&i.MediaID, &i.PublisherID)
 	return i, err
 }
 
@@ -318,9 +318,9 @@ func (q *Queries) GetMediaMemberByID(ctx context.Context, arg GetMediaMemberByID
 	return i, err
 }
 
-const getMediaWithPublication = `-- name: GetMediaWithPublication :one
+const getMediaWithPublisher = `-- name: GetMediaWithPublisher :one
 SELECT md.id                 AS media_id,
-       md."publicationId"    AS publication_id,
+       md."publisherId"    AS publisher_id,
        p.name,
        p.slug,
        p.bio,
@@ -339,13 +339,13 @@ SELECT md.id                 AS media_id,
        p."fontFamily",
        p."supportUrl"
 FROM "Media" md
-JOIN "Publication" p ON p.id = md."publicationId"
+JOIN "Publisher" p ON p.id = md."publisherId"
 WHERE md.id = $1
 `
 
-type GetMediaWithPublicationRow struct {
+type GetMediaWithPublisherRow struct {
 	MediaID        string      `json:"media_id"`
-	PublicationID  string      `json:"publication_id"`
+	PublisherID    string      `json:"publisher_id"`
 	Name           string      `json:"name"`
 	Slug           string      `json:"slug"`
 	Bio            pgtype.Text `json:"bio"`
@@ -365,12 +365,12 @@ type GetMediaWithPublicationRow struct {
 	SupportUrl     pgtype.Text `json:"supportUrl"`
 }
 
-func (q *Queries) GetMediaWithPublication(ctx context.Context, id string) (GetMediaWithPublicationRow, error) {
-	row := q.db.QueryRow(ctx, getMediaWithPublication, id)
-	var i GetMediaWithPublicationRow
+func (q *Queries) GetMediaWithPublisher(ctx context.Context, id string) (GetMediaWithPublisherRow, error) {
+	row := q.db.QueryRow(ctx, getMediaWithPublisher, id)
+	var i GetMediaWithPublisherRow
 	err := row.Scan(
 		&i.MediaID,
-		&i.PublicationID,
+		&i.PublisherID,
 		&i.Name,
 		&i.Slug,
 		&i.Bio,
@@ -392,24 +392,24 @@ func (q *Queries) GetMediaWithPublication(ctx context.Context, id string) (GetMe
 	return i, err
 }
 
-const getPersonalPublicationForUser = `-- name: GetPersonalPublicationForUser :one
+const getPersonalPublisherForUser = `-- name: GetPersonalPublisherForUser :one
 SELECT p.id, p.name, p.slug, p."logoUrl"
-FROM "Publication" p
-JOIN "User" u ON u."publicationId" = p.id
+FROM "Publisher" p
+JOIN "User" u ON u."publisherId" = p.id
 WHERE u.id = $1 AND p.type = 'PERSONAL'
 LIMIT 1
 `
 
-type GetPersonalPublicationForUserRow struct {
+type GetPersonalPublisherForUserRow struct {
 	ID      string      `json:"id"`
 	Name    string      `json:"name"`
 	Slug    string      `json:"slug"`
 	LogoUrl pgtype.Text `json:"logoUrl"`
 }
 
-func (q *Queries) GetPersonalPublicationForUser(ctx context.Context, id string) (GetPersonalPublicationForUserRow, error) {
-	row := q.db.QueryRow(ctx, getPersonalPublicationForUser, id)
-	var i GetPersonalPublicationForUserRow
+func (q *Queries) GetPersonalPublisherForUser(ctx context.Context, id string) (GetPersonalPublisherForUserRow, error) {
+	row := q.db.QueryRow(ctx, getPersonalPublisherForUser, id)
+	var i GetPersonalPublisherForUserRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -477,31 +477,31 @@ SELECT m."mediaId"        AS media_id,
        m.role,
        m.permissions,
        m.status,
-       p.id               AS publication_id,
-       p.name             AS publication_name,
-       p.slug             AS publication_slug,
-       p.subdomain        AS publication_subdomain,
-       p.bio              AS publication_bio,
-       p."logoUrl"        AS publication_logo
+       p.id               AS publisher_id,
+       p.name             AS publisher_name,
+       p.slug             AS publisher_slug,
+       p.subdomain        AS publisher_subdomain,
+       p.bio              AS publisher_bio,
+       p."logoUrl"        AS publisher_logo
 FROM "MediaMember" m
 JOIN "Media" md ON md.id = m."mediaId"
-JOIN "Publication" p ON p.id = md."publicationId"
+JOIN "Publisher" p ON p.id = md."publisherId"
 WHERE m."userId" = $1
   AND m.status = 'active'
 ORDER BY p.name ASC
 `
 
 type GetUserMediaMembershipsRow struct {
-	MediaID              string      `json:"media_id"`
-	Role                 string      `json:"role"`
-	Permissions          []string    `json:"permissions"`
-	Status               string      `json:"status"`
-	PublicationID        string      `json:"publication_id"`
-	PublicationName      string      `json:"publication_name"`
-	PublicationSlug      string      `json:"publication_slug"`
-	PublicationSubdomain pgtype.Text `json:"publication_subdomain"`
-	PublicationBio       pgtype.Text `json:"publication_bio"`
-	PublicationLogo      pgtype.Text `json:"publication_logo"`
+	MediaID            string      `json:"media_id"`
+	Role               string      `json:"role"`
+	Permissions        []string    `json:"permissions"`
+	Status             string      `json:"status"`
+	PublisherID        string      `json:"publisher_id"`
+	PublisherName      string      `json:"publisher_name"`
+	PublisherSlug      string      `json:"publisher_slug"`
+	PublisherSubdomain pgtype.Text `json:"publisher_subdomain"`
+	PublisherBio       pgtype.Text `json:"publisher_bio"`
+	PublisherLogo      pgtype.Text `json:"publisher_logo"`
 }
 
 func (q *Queries) GetUserMediaMemberships(ctx context.Context, userid pgtype.UUID) ([]GetUserMediaMembershipsRow, error) {
@@ -518,12 +518,12 @@ func (q *Queries) GetUserMediaMemberships(ctx context.Context, userid pgtype.UUI
 			&i.Role,
 			&i.Permissions,
 			&i.Status,
-			&i.PublicationID,
-			&i.PublicationName,
-			&i.PublicationSlug,
-			&i.PublicationSubdomain,
-			&i.PublicationBio,
-			&i.PublicationLogo,
+			&i.PublisherID,
+			&i.PublisherName,
+			&i.PublisherSlug,
+			&i.PublisherSubdomain,
+			&i.PublisherBio,
+			&i.PublisherLogo,
 		); err != nil {
 			return nil, err
 		}
@@ -536,7 +536,7 @@ func (q *Queries) GetUserMediaMemberships(ctx context.Context, userid pgtype.UUI
 }
 
 const insertMediaApiKey = `-- name: InsertMediaApiKey :exec
-INSERT INTO "ApiKey" (id, name, "keyPrefix", "keyHash", scopes, "publicationId", "createdByUserId")
+INSERT INTO "ApiKey" (id, name, "keyPrefix", "keyHash", scopes, "publisherId", "createdByUserId")
 VALUES ($1, $2, $3, $4, $5, $6, $7)
 `
 
@@ -546,7 +546,7 @@ type InsertMediaApiKeyParams struct {
 	KeyPrefix       string      `json:"keyPrefix"`
 	KeyHash         string      `json:"keyHash"`
 	Scopes          []string    `json:"scopes"`
-	PublicationId   pgtype.Text `json:"publicationId"`
+	PublisherId     pgtype.Text `json:"publisherId"`
 	CreatedByUserId pgtype.UUID `json:"createdByUserId"`
 }
 
@@ -557,7 +557,7 @@ func (q *Queries) InsertMediaApiKey(ctx context.Context, arg InsertMediaApiKeyPa
 		arg.KeyPrefix,
 		arg.KeyHash,
 		arg.Scopes,
-		arg.PublicationId,
+		arg.PublisherId,
 		arg.CreatedByUserId,
 	)
 	return err
@@ -599,7 +599,7 @@ SELECT ak.id,
        u.name                                         AS created_by_name,
        u.username                                     AS created_by_username
 FROM "ApiKey" ak
-JOIN "Media" m ON m."publicationId" = ak."publicationId"
+JOIN "Media" m ON m."publisherId" = ak."publisherId"
 LEFT JOIN "User" u ON u.id = ak."createdByUserId"
 WHERE m.id = $1
 ORDER BY ak."createdAt" DESC
@@ -786,7 +786,7 @@ const updateMediaApiKeyName = `-- name: UpdateMediaApiKeyName :execrows
 UPDATE "ApiKey" ak
 SET name = $1
 FROM "Media" m
-WHERE ak.id = $2 AND m.id = $3 AND ak."publicationId" = m."publicationId"
+WHERE ak.id = $2 AND m.id = $3 AND ak."publisherId" = m."publisherId"
 `
 
 type UpdateMediaApiKeyNameParams struct {
@@ -807,7 +807,7 @@ const updateMediaApiKeySecret = `-- name: UpdateMediaApiKeySecret :execrows
 UPDATE "ApiKey" ak
 SET "keyHash" = $1, "keyPrefix" = $2
 FROM "Media" m
-WHERE ak.id = $3 AND m.id = $4 AND ak."publicationId" = m."publicationId"
+WHERE ak.id = $3 AND m.id = $4 AND ak."publisherId" = m."publisherId"
 `
 
 type UpdateMediaApiKeySecretParams struct {

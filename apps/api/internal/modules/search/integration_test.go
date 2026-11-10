@@ -132,8 +132,8 @@ func TestSearchSemanticRanksBySimilarity(t *testing.T) {
 	}
 	// Publication personnelle de l'auteur : son nom EST celui du compte
 	// (trigger 00028/00054) — la fixture ne peut pas en inventer un autre.
-	if hits[0].Publication == nil || *hits[0].Publication != "Auteur Test" {
-		t.Fatalf("publication = %v, attendu Auteur Test", hits[0].Publication)
+	if hits[0].Publisher == nil || *hits[0].Publisher != "Auteur Test" {
+		t.Fatalf("publication = %v, attendu Auteur Test", hits[0].Publisher)
 	}
 	if hits[0].AuthorID == "" {
 		t.Fatal("authorId doit être formaté (uuidString)")

@@ -18,12 +18,12 @@ async function getAuthenticatedUser() {
  * GET /v1/settings/site-layout — retourne null si aucun brouillon en cours,
  * auquel cas le Studio reste sur la version publiée.
  */
-export async function getSiteLayoutDraftAction(publicationId: string) {
+export async function getSiteLayoutDraftAction(publisherId: string) {
   try {
     await getAuthenticatedUser();
 
     const res = await goFetch<{ layout?: string | null; updatedAt?: string | null }>(
-      `/v1/settings/site-layout?publicationId=${encodeURIComponent(publicationId)}`
+      `/v1/settings/site-layout?publisherId=${encodeURIComponent(publisherId)}`
     );
     return { success: true, layout: res.layout ?? null, updatedAt: res.updatedAt ?? null };
   } catch (error) {
@@ -38,13 +38,13 @@ export async function getSiteLayoutDraftAction(publicationId: string) {
  * Enregistre le brouillon sans toucher au site public.
  * PATCH /v1/settings/site-layout
  */
-export async function saveSiteLayoutDraftAction(publicationId: string, layout: string) {
+export async function saveSiteLayoutDraftAction(publisherId: string, layout: string) {
   try {
     await getAuthenticatedUser();
 
     await goFetch('/v1/settings/site-layout', {
       method: 'PATCH',
-      body: { publicationId, layout },
+      body: { publisherId, layout },
     });
     return { success: true };
   } catch (error) {
@@ -59,19 +59,19 @@ export async function saveSiteLayoutDraftAction(publicationId: string, layout: s
  * Publie le brouillon : bascule le site public et archive l'ancienne
  * version dans SiteVersion. POST /v1/settings/site-layout/publish
  */
-export async function publishSiteLayoutAction(publicationId: string) {
+export async function publishSiteLayoutAction(publisherId: string) {
   try {
     await getAuthenticatedUser();
 
     await goFetch('/v1/settings/site-layout/publish', {
       method: 'POST',
-      body: { publicationId },
+      body: { publisherId },
     });
     return { success: true };
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Publication impossible',
+      error: error instanceof Error ? error.message : 'Publisher impossible',
     };
   }
 }
@@ -80,12 +80,12 @@ export async function publishSiteLayoutAction(publicationId: string) {
  * Instantanés publiés, du plus récent au plus ancien.
  * GET /v1/settings/site-layout/versions
  */
-export async function listSiteLayoutVersionsAction(publicationId: string) {
+export async function listSiteLayoutVersionsAction(publisherId: string) {
   try {
     await getAuthenticatedUser();
 
     const res = await goFetch<{ versions?: SiteVersionSnapshot[] }>(
-      `/v1/settings/site-layout/versions?publicationId=${encodeURIComponent(publicationId)}`
+      `/v1/settings/site-layout/versions?publisherId=${encodeURIComponent(publisherId)}`
     );
     return { success: true, versions: res.versions ?? [] };
   } catch (error) {
@@ -101,13 +101,13 @@ export async function listSiteLayoutVersionsAction(publicationId: string) {
  * Restaure un instantané publié en l'appliquant comme layout public.
  * POST /v1/settings/site-layout/restore
  */
-export async function restoreSiteLayoutVersionAction(publicationId: string, versionId: string) {
+export async function restoreSiteLayoutVersionAction(publisherId: string, versionId: string) {
   try {
     await getAuthenticatedUser();
 
     await goFetch('/v1/settings/site-layout/restore', {
       method: 'POST',
-      body: { publicationId, versionId },
+      body: { publisherId, versionId },
     });
     return { success: true };
   } catch (error) {

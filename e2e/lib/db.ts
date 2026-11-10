@@ -33,12 +33,12 @@ export class TestDb {
 
   /**
    * Garantit qu'une publication possède un sous-domaine tenant donné
-   * (résolu par GET /v1/publications/by-domain). Renvoie son id.
+   * (résolu par GET /v1/publishers/by-domain). Renvoie son id.
    */
-  async ensureSubdomain(subdomain: string, publicationId: string): Promise<void> {
-    await this.query(`UPDATE "Publication" SET subdomain = $1 WHERE id = $2`, [
+  async ensureSubdomain(subdomain: string, publisherId: string): Promise<void> {
+    await this.query(`UPDATE "Publisher" SET subdomain = $1 WHERE id = $2`, [
       subdomain,
-      publicationId,
+      publisherId,
     ]);
   }
 
@@ -47,23 +47,23 @@ export class TestDb {
     id: string,
     email: string,
     role: string,
-    opts: { publicationId?: string; hasCompletedOnboarding?: boolean } = {}
+    opts: { publisherId?: string; hasCompletedOnboarding?: boolean } = {}
   ): Promise<void> {
     // L'email est unique : si une ancienne ligne porte cet email avec un
     // autre id (ex. nouvel UUID GoTrue), on la retire pour garantir que
     // l'upsert par id passe.
     await this.query(`DELETE FROM "User" WHERE email = $2 AND id <> $1`, [id, email]);
     await this.query(
-      `INSERT INTO "User" (id, email, username, name, role, "publicationId", "hasCompletedOnboarding", "createdAt", "updatedAt")
+      `INSERT INTO "User" (id, email, username, name, role, "publisherId", "hasCompletedOnboarding", "createdAt", "updatedAt")
        VALUES ($1, $2, $3, $3, $4, $5, $6, now(), now())
-       ON CONFLICT (id) DO UPDATE SET role = $4, email = $2, "publicationId" = $5,
+       ON CONFLICT (id) DO UPDATE SET role = $4, email = $2, "publisherId" = $5,
          "hasCompletedOnboarding" = $6, "updatedAt" = now()`,
       [
         id,
         email,
         email.split('@')[0].replace(/[^a-z0-9_]/gi, '') + String(Date.now()).slice(-4),
         role,
-        opts.publicationId ?? null,
+        opts.publisherId ?? null,
         opts.hasCompletedOnboarding ?? true,
       ]
     );
@@ -77,7 +77,7 @@ export class TestDb {
    * vérifier un contenu maîtrisé (marqueur de paywall inclus) plutôt que de
    * parier sur l'état d'une base seedée.
    */
-  async ensurePublication(opts: {
+  async ensurePublisher(opts: {
     id: string;
     subdomain: string;
     name: string;
@@ -98,9 +98,9 @@ export class TestDb {
       [opts.authorId, opts.authorEmail, opts.authorUsername, opts.authorRole ?? 'creator']
     );
     await this.query(
-      `INSERT INTO "Publication" (id, type, name, slug, subdomain, "isCertified", "allowIndexing", "updatedAt")
-       VALUES ($1, $2::"PublicationType", $3, $4, $5, $6, $7, now())
-       ON CONFLICT (id) DO UPDATE SET type = $2::"PublicationType", name = $3, slug = $4,
+      `INSERT INTO "Publisher" (id, type, name, slug, subdomain, "isCertified", "allowIndexing", "updatedAt")
+       VALUES ($1, $2::"PublisherType", $3, $4, $5, $6, $7, now())
+       ON CONFLICT (id) DO UPDATE SET type = $2::"PublisherType", name = $3, slug = $4,
          subdomain = $5, "isCertified" = $6, "allowIndexing" = $7, "updatedAt" = now()`,
       [
         opts.id,
@@ -122,7 +122,7 @@ export class TestDb {
    */
   async ensureArticle(opts: {
     id: string;
-    publicationId: string;
+    publisherId: string;
     authorId: string;
     title: string;
     slug: string;
@@ -136,12 +136,12 @@ export class TestDb {
     await this.query(
       `INSERT INTO "Article"
          (id, title, slug, content, published, "isPremium", visibility, "readingTime",
-          status, "publicationId", "authorId", "createdAt", "updatedAt")
+          status, "publisherId", "authorId", "createdAt", "updatedAt")
        VALUES ($1, $2, $3, $4, $5, $6, $7::"ContentVisibility", $8, $9, $10, $11::uuid, now(), now())
        ON CONFLICT (id) DO UPDATE SET
          title = $2, slug = $3, content = $4, published = $5, "isPremium" = $6,
          visibility = $7::"ContentVisibility", "readingTime" = $8, status = $9,
-         "publicationId" = $10, "authorId" = $11::uuid, "updatedAt" = now()`,
+         "publisherId" = $10, "authorId" = $11::uuid, "updatedAt" = now()`,
       [
         opts.id,
         opts.title,
@@ -152,7 +152,7 @@ export class TestDb {
         opts.visibility ?? (opts.isPremium ? 'PAID_SUBSCRIBERS' : 'PUBLIC'),
         opts.readingTime ?? 3,
         opts.status ?? (opts.published === false ? 'DRAFT' : 'PUBLISHED'),
-        opts.publicationId,
+        opts.publisherId,
         opts.authorId,
       ]
     );
@@ -165,8 +165,8 @@ export class TestDb {
   }
 
   /** 🧹 Retire une fixture de publication (cascade sur ses dépendances). */
-  async deletePublication(id: string): Promise<void> {
-    await this.query(`DELETE FROM "Publication" WHERE id = $1`, [id]);
+  async deletePublisher(id: string): Promise<void> {
+    await this.query(`DELETE FROM "Publisher" WHERE id = $1`, [id]);
   }
 
   /** Retourne l'id d'un article seedé par slug. */

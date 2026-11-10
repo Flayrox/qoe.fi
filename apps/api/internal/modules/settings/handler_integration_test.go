@@ -135,7 +135,7 @@ func TestHandler_UpdateProfile_Owner(t *testing.T) {
 	token := testJWT(fx.OwnerID)
 
 	w, _ := doJSON(t, r, "PATCH", "/v1/settings/profile", token, map[string]any{
-		"publicationId": fx.PubID,
+		"publisherId": fx.PubID,
 		"name":          "Nouveau nom",
 		"heroText":      "Nouveau héros",
 		"siteOptions": map[string]any{
@@ -150,7 +150,7 @@ func TestHandler_UpdateProfile_Owner(t *testing.T) {
 	var name, heroText string
 	var rawSiteOptions []byte
 	if err := poolTest.QueryRow(context.Background(),
-		`SELECT name, "heroText", "siteOptions" FROM "Publication" WHERE id = $1`, fx.PubID,
+		`SELECT name, "heroText", "siteOptions" FROM "Publisher" WHERE id = $1`, fx.PubID,
 	).Scan(&name, &heroText, &rawSiteOptions); err != nil {
 		t.Fatalf("select publication: %v", err)
 	}
@@ -162,7 +162,7 @@ func TestHandler_UpdateProfile_Owner(t *testing.T) {
 	}
 }
 
-func TestHandler_UpdateProfile_NoPublication(t *testing.T) {
+func TestHandler_UpdateProfile_NoPublisher(t *testing.T) {
 	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
@@ -182,7 +182,7 @@ func TestHandler_UpdateProfile_ViewerForbidden(t *testing.T) {
 
 	// viewer n'a pas media:manage_settings.
 	w, _ := doJSON(t, r, "PATCH", "/v1/settings/profile", token, map[string]any{
-		"publicationId": fx.MediaPubID,
+		"publisherId": fx.MediaPubID,
 		"name":          "Hack",
 	})
 	if w.Code != http.StatusForbidden {
@@ -198,7 +198,7 @@ func TestHandler_UpdateProfile_EditorOverride(t *testing.T) {
 
 	// editor a l'override +media:manage_settings → autorisé.
 	w, _ := doJSON(t, r, "PATCH", "/v1/settings/profile", token, map[string]any{
-		"publicationId": fx.MediaPubID,
+		"publisherId": fx.MediaPubID,
 		"heroText":      "Édité par editor",
 	})
 	if w.Code != http.StatusOK {
@@ -226,7 +226,7 @@ func TestHandler_UpdateSubdomain_Owner(t *testing.T) {
 	token := testJWT(fx.OwnerID)
 
 	w, body := doJSON(t, r, "POST", "/v1/settings/subdomain", token, map[string]any{
-		"publicationId": fx.PubID,
+		"publisherId": fx.PubID,
 		"subdomain":     "mon-nouveau-domaine",
 	})
 	if w.Code != http.StatusOK {
@@ -244,7 +244,7 @@ func TestHandler_UpdateSubdomain_Taken(t *testing.T) {
 	token := testJWT(fx.OwnerID)
 
 	w, _ := doJSON(t, r, "POST", "/v1/settings/subdomain", token, map[string]any{
-		"publicationId": fx.PubID,
+		"publisherId": fx.PubID,
 		"subdomain":     "deja-pris",
 	})
 	if w.Code != http.StatusBadRequest {
@@ -261,7 +261,7 @@ func TestHandler_SaveNavigation_Owner(t *testing.T) {
 	token := testJWT(fx.OwnerID)
 
 	w, body := doJSON(t, r, "PUT", "/v1/settings/navigation", token, map[string]any{
-		"publicationId": fx.PubID,
+		"publisherId": fx.PubID,
 		"links": []map[string]any{
 			{"label": "Accueil", "url": "/"},
 			{"label": "À propos", "url": "/a-propos"},
@@ -282,7 +282,7 @@ func TestHandler_SaveSocial_Owner(t *testing.T) {
 	token := testJWT(fx.OwnerID)
 
 	w, _ := doJSON(t, r, "PUT", "/v1/settings/social", token, map[string]any{
-		"publicationId": fx.PubID,
+		"publisherId": fx.PubID,
 		"links": []map[string]any{
 			{"platform": "x", "url": "https://x.com/qoe"},
 			{"platform": "github", "url": "https://github.com/qoe"},
@@ -465,7 +465,7 @@ func TestHandler_CompleteOnboarding(t *testing.T) {
 	var role string
 	var pubID *string
 	if err := poolTest.QueryRow(context.Background(),
-		`SELECT role, "publicationId" FROM "User" WHERE id = $1`, fx.ViewerID,
+		`SELECT role, "publisherId" FROM "User" WHERE id = $1`, fx.ViewerID,
 	).Scan(&role, &pubID); err != nil {
 		t.Fatalf("select user: %v", err)
 	}

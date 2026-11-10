@@ -52,7 +52,7 @@ const (
 	MaxSubscriberImportBytes = 8 << 20
 	// maxOpenImportsPerPublication borne les lots ouverts simultanément : un
 	// dépôt ne doit pas servir à saturer la file de revue.
-	maxOpenImportsPerPublication = 5
+	maxOpenImportsPerPublisher = 5
 	// maxImportExclusions borne les exclusions prononcées par une décision.
 	maxImportExclusions = 2000
 	// maxEmailLength : longueur maximale d'une adresse (RFC 5321).
@@ -167,7 +167,7 @@ func (d SubscriberImportDeclarations) Complete() bool {
 
 // SubscriberImportRequest est le corps de POST /v1/import/subscribers.
 type SubscriberImportRequest struct {
-	PublicationID    string                       `json:"publicationId"`
+	PublisherID    string                       `json:"publisherId"`
 	Source           string                       `json:"source"`
 	SourceDetail     string                       `json:"sourceDetail"`
 	CollectionPeriod string                       `json:"collectionPeriod"`
@@ -195,7 +195,7 @@ type SubscriberImportStats struct {
 // SubscriberImportBatchDTO est la vue API d'un lot.
 type SubscriberImportBatchDTO struct {
 	ID            string `json:"id"`
-	PublicationID string `json:"publicationId"`
+	PublisherID string `json:"publisherId"`
 	Status        string `json:"status"`
 	Source        string `json:"source"`
 	SourceDetail  string `json:"sourceDetail,omitempty"`
@@ -398,14 +398,14 @@ type importRequester struct {
 // publication personnelle est autorisé sur la sienne.
 //
 // Returns errForbidden si la publication n'existe pas pour ce demandeur.
-func (s *Service) authorizeImportRequester(ctx context.Context, userID, publicationID string) (importRequester, error) {
+func (s *Service) authorizeImportRequester(ctx context.Context, userID, publisherID string) (importRequester, error) {
 	var out importRequester
 	var personal string
-	err := s.pool.QueryRow(ctx, `SELECT COALESCE("publicationId", '') FROM "User" WHERE id = $1`, toUUID(userID)).Scan(&personal)
+	err := s.pool.QueryRow(ctx, `SELECT COALESCE("publisherId", '') FROM "User" WHERE id = $1`, toUUID(userID)).Scan(&personal)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return out, err
 	}
-	if personal != "" && personal == publicationID {
+	if personal != "" && personal == publisherID {
 		out.Personal = true
 		return out, nil
 	}
@@ -417,8 +417,8 @@ func (s *Service) authorizeImportRequester(ctx context.Context, userID, publicat
 		SELECT m.role, COALESCE(m.permissions, '{}'), m.status
 		FROM "MediaMember" m
 		JOIN "Media" md ON md.id = m."mediaId"
-		WHERE md."publicationId" = $1 AND m."userId" = $2
-		LIMIT 1`, publicationID, toUUID(userID)).Scan(&role, &override, &status)
+		WHERE md."publisherId" = $1 AND m."userId" = $2
+		LIMIT 1`, publisherID, toUUID(userID)).Scan(&role, &override, &status)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return out, errForbidden
 	}
@@ -430,17 +430,17 @@ func (s *Service) authorizeImportRequester(ctx context.Context, userID, publicat
 	if !permissions.CanMedia(member, permissions.PermImportSubscribers) {
 		return out, errForbidden
 	}
-	out.MediaID = publicationID // conservé pour l'audit : le média de rattachement
-	if mediaID, err := s.mediaIDForPublication(ctx, publicationID); err == nil {
+	out.MediaID = publisherID // conservé pour l'audit : le média de rattachement
+	if mediaID, err := s.mediaIDForPublisher(ctx, publisherID); err == nil {
 		out.MediaID = mediaID
 	}
 	return out, nil
 }
 
-// mediaIDForPublication résout le média d'une publication (vide si personnelle).
-func (s *Service) mediaIDForPublication(ctx context.Context, publicationID string) (string, error) {
+// mediaIDForPublisher résout le média d'une publication (vide si personnelle).
+func (s *Service) mediaIDForPublisher(ctx context.Context, publisherID string) (string, error) {
 	var mediaID string
-	err := s.pool.QueryRow(ctx, `SELECT id FROM "Media" WHERE "publicationId" = $1 LIMIT 1`, publicationID).Scan(&mediaID)
+	err := s.pool.QueryRow(ctx, `SELECT id FROM "Media" WHERE "publisherId" = $1 LIMIT 1`, publisherID).Scan(&mediaID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", nil
 	}
@@ -455,8 +455,8 @@ func (s *Service) mediaIDForPublication(ctx context.Context, publicationID strin
 // d'antagonismes rendus durables. **Aucun envoi, aucune écriture dans
 // `Subscriber`** — c'est l'invariant central de ce chemin.
 func (s *Service) SubmitSubscriberImport(ctx context.Context, userID string, req SubscriberImportRequest) (SubscriberImportBatchDTO, error) {
-	if strings.TrimSpace(req.PublicationID) == "" {
-		return SubscriberImportBatchDTO{}, errors.New("publicationId requis")
+	if strings.TrimSpace(req.PublisherID) == "" {
+		return SubscriberImportBatchDTO{}, errors.New("publisherId requis")
 	}
 	if !req.Declarations.Complete() {
 		return SubscriberImportBatchDTO{}, errImportDeclarations
@@ -474,16 +474,16 @@ func (s *Service) SubmitSubscriberImport(ctx context.Context, userID string, req
 		req.ProofRefs = req.ProofRefs[:maxProofRefs]
 	}
 
-	requester, err := s.authorizeImportRequester(ctx, userID, req.PublicationID)
+	requester, err := s.authorizeImportRequester(ctx, userID, req.PublisherID)
 	if err != nil {
 		return SubscriberImportBatchDTO{}, err
 	}
 
-	open, err := s.countOpenImports(ctx, req.PublicationID)
+	open, err := s.countOpenImports(ctx, req.PublisherID)
 	if err != nil {
 		return SubscriberImportBatchDTO{}, err
 	}
-	if open >= maxOpenImportsPerPublication {
+	if open >= maxOpenImportsPerPublisher {
 		return SubscriberImportBatchDTO{}, errImportOpenBatches
 	}
 
@@ -511,13 +511,13 @@ func (s *Service) SubmitSubscriberImport(ctx context.Context, userID string, req
 	batchID := newID()
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO "SubscriberImportBatch" (
-			"id", "publicationId", "mediaId", "requesterId", "status", "source",
+			"id", "publisherId", "mediaId", "requesterId", "status", "source",
 			"sourceDetail", "collectionPeriod", "optInMethod", "lastSendAt",
 			"declarations", "proofRefs", "fileFingerprint", "fileVersion",
 			"rowCount", "stats", "submittedAt", "createdAt", "updatedAt"
 		) VALUES ($1, $2, NULLIF($3, ''), $4, 'submitted', $5, NULLIF($6, ''), NULLIF($7, ''),
 		          NULLIF($8, ''), $9, $10, $11, $12, 1, $13, '{}'::jsonb, now(), now(), now())`,
-		batchID, req.PublicationID, requester.MediaID, toUUID(userID), req.Source,
+		batchID, req.PublisherID, requester.MediaID, toUUID(userID), req.Source,
 		clip(req.SourceDetail, importSourceDetailMax), clip(req.CollectionPeriod, 120),
 		clip(req.OptInMethod, 500), req.LastSendAt, declarations, proofRefs,
 		fingerprint, len(rows),
@@ -525,7 +525,7 @@ func (s *Service) SubmitSubscriberImport(ctx context.Context, userID string, req
 		return SubscriberImportBatchDTO{}, err
 	}
 
-	classified, err := s.classifyRows(ctx, tx, batchID, req.PublicationID, rows, &stats)
+	classified, err := s.classifyRows(ctx, tx, batchID, req.PublisherID, rows, &stats)
 	if err != nil {
 		return SubscriberImportBatchDTO{}, err
 	}
@@ -562,12 +562,12 @@ func (s *Service) SubmitSubscriberImport(ctx context.Context, userID string, req
 }
 
 // countOpenImports compte les lots en attente de revue pour une publication.
-func (s *Service) countOpenImports(ctx context.Context, publicationID string) (int, error) {
+func (s *Service) countOpenImports(ctx context.Context, publisherID string) (int, error) {
 	var n int
 	err := s.pool.QueryRow(ctx, `
 		SELECT COUNT(*) FROM "SubscriberImportBatch"
-		WHERE "publicationId" = $1
-		  AND "status" IN ('submitted', 'reviewing', 'needs_info')`, publicationID).Scan(&n)
+		WHERE "publisherId" = $1
+		  AND "status" IN ('submitted', 'reviewing', 'needs_info')`, publisherID).Scan(&n)
 	return n, err
 }
 
@@ -586,7 +586,7 @@ func (s *Service) countOpenImports(ctx context.Context, publicationID string) (i
 func (s *Service) classifyRows(
 	ctx context.Context,
 	tx pgx.Tx,
-	batchID, publicationID string,
+	batchID, publisherID string,
 	rows []parsedSubscriberRow,
 	stats *SubscriberImportStats,
 ) ([]parsedSubscriberRow, error) {
@@ -599,7 +599,7 @@ func (s *Service) classifyRows(
 	if len(emails) > 0 {
 		// Une seule requête ensembliste : un appel par adresse ferait N+1
 		// requêtes sur un fichier de plusieurs dizaines de milliers de lignes.
-		found, err := s.lookupRowState(ctx, tx, publicationID, emails)
+		found, err := s.lookupRowState(ctx, tx, publisherID, emails)
 		if err != nil {
 			return nil, err
 		}
@@ -631,7 +631,7 @@ func (s *Service) classifyRows(
 			}
 		}
 		if len(durable) > 0 {
-			if err := s.persistSuppressions(ctx, tx, publicationID, durable, "unsubscribe", "import_quarantine"); err != nil {
+			if err := s.persistSuppressions(ctx, tx, publisherID, durable, "unsubscribe", "import_quarantine"); err != nil {
 				return nil, err
 			}
 		}
@@ -664,7 +664,7 @@ type rowState struct {
 
 // lookupRowState lit en une requête l'abonné existant et l'opposition
 // enregistrée pour chaque adresse du lot.
-func (s *Service) lookupRowState(ctx context.Context, tx pgx.Tx, publicationID string, emails []string) (map[string]rowState, error) {
+func (s *Service) lookupRowState(ctx context.Context, tx pgx.Tx, publisherID string, emails []string) (map[string]rowState, error) {
 	out := make(map[string]rowState, len(emails))
 	rows, err := tx.Query(ctx, `
 		SELECT e.email,
@@ -675,12 +675,12 @@ func (s *Service) lookupRowState(ctx context.Context, tx pgx.Tx, publicationID s
 		           SELECT 1 FROM "EmailSuppression" x
 		           WHERE x.email = e.email
 		             AND (x."scope" = 'global'
-		                  OR (x."scope" = 'publication' AND x."publicationId" = $1))
+		                  OR (x."scope" = 'publisher' AND x."publisherId" = $1))
 		       )
 		FROM unnest($2::text[]) AS e(email)
 		LEFT JOIN "Subscriber" s
-		       ON s."publicationId" = $1 AND s.email = e.email`,
-		publicationID, emails)
+		       ON s."publisherId" = $1 AND s.email = e.email`,
+		publisherID, emails)
 	if err != nil {
 		return nil, err
 	}
@@ -702,16 +702,16 @@ func (s *Service) lookupRowState(ctx context.Context, tx pgx.Tx, publicationID s
 // persistSuppressions enregistre durablement une opposition pour des adresses.
 // Best-effort assumé au niveau du lot : une opposition déjà présente est
 // ignorée (index uniques partiels), une erreur ici n'annule pas le dépôt.
-func (s *Service) persistSuppressions(ctx context.Context, tx pgx.Tx, publicationID string, emails []string, reason, source string) error {
+func (s *Service) persistSuppressions(ctx context.Context, tx pgx.Tx, publisherID string, emails []string, reason, source string) error {
 	if len(emails) == 0 {
 		return nil
 	}
 	_, err := tx.Exec(ctx, `
-		INSERT INTO "EmailSuppression" ("id", "email", "scope", "publicationId", "reason", "source")
-		SELECT gen_random_uuid()::text, e.email, 'publication', $1, $2, $3
+		INSERT INTO "EmailSuppression" ("id", "email", "scope", "publisherId", "reason", "source")
+		SELECT gen_random_uuid()::text, e.email, 'publisher', $1, $2, $3
 		FROM unnest($4::text[]) AS e(email)
 		ON CONFLICT DO NOTHING`,
-		publicationID, reason, source, emails)
+		publisherID, reason, source, emails)
 	return err
 }
 
@@ -744,7 +744,7 @@ func (s *Service) GetSubscriberImport(ctx context.Context, userID, batchID strin
 // ListSubscriberImports liste les lots récents du demandeur (20 max).
 func (s *Service) ListSubscriberImports(ctx context.Context, userID string) ([]SubscriberImportBatchDTO, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT b."id", b."publicationId", b."status", b."source", COALESCE(b."sourceDetail", ''),
+		SELECT b."id", b."publisherId", b."status", b."source", COALESCE(b."sourceDetail", ''),
 		       b."fileVersion", b."fileFingerprint", b."rowCount", b."stats",
 		       COALESCE(d."decision", ''), COALESCE(d."publicReason", ''),
 		       b."submittedAt", b."reviewDueAt", b."suspendedAt", b."createdAt", b."updatedAt"
@@ -790,7 +790,7 @@ func (s *Service) getBatch(ctx context.Context, batchID string, requester pgtype
 }
 
 const batchSelect = `
-	SELECT b."id", b."publicationId", b."status", b."source", COALESCE(b."sourceDetail", ''),
+	SELECT b."id", b."publisherId", b."status", b."source", COALESCE(b."sourceDetail", ''),
 	       b."fileVersion", b."fileFingerprint", b."rowCount", b."stats",
 	       COALESCE(d."decision", ''), COALESCE(d."publicReason", ''),
 	       b."submittedAt", b."reviewDueAt", b."suspendedAt", b."createdAt", b."updatedAt"
@@ -813,7 +813,7 @@ func scanBatches(rows pgx.Rows) ([]SubscriberImportBatchDTO, error) {
 			created, updated                time.Time
 		)
 		if err := rows.Scan(
-			&dto.ID, &dto.PublicationID, &dto.Status, &dto.Source, &dto.SourceDetail,
+			&dto.ID, &dto.PublisherID, &dto.Status, &dto.Source, &dto.SourceDetail,
 			&dto.FileVersion, &dto.FileFingerprint, &dto.RowCount, &statsRaw,
 			&dto.Decision, &dto.PublicReason,
 			&submitted, &reviewDue, &suspended, &created, &updated,

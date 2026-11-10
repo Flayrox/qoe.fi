@@ -410,7 +410,7 @@ SELECT a.id
 FROM "Article" a
 WHERE a.published = true
   AND (
-    a."publicationId" = $1
+    a."publisherId" = $1
     OR EXISTS (
       SELECT 1 FROM "ArticleAttribution" aa
       WHERE aa."articleId" = a.id
@@ -422,14 +422,14 @@ WHERE a.published = true
 `
 
 type ListAttributedArticleIDsParams struct {
-	PublicationId string      `json:"publicationId"`
-	UserId        pgtype.UUID `json:"userId"`
+	PublisherId string      `json:"publisherId"`
+	UserId      pgtype.UUID `json:"userId"`
 }
 
 // Articles attribués à un créateur : publication directe OU co-signés via ArticleAttribution ACCEPTED + visible.
-// Miroir de prisma.article.findMany { OR: [{publicationId}, {attributions: {some: {userId, consentStatus, isVisible}}}] } où published = true.
+// Miroir de prisma.article.findMany { OR: [{publisherId}, {attributions: {some: {userId, consentStatus, isVisible}}}] } où published = true.
 func (q *Queries) ListAttributedArticleIDs(ctx context.Context, arg ListAttributedArticleIDsParams) ([]string, error) {
-	rows, err := q.db.Query(ctx, listAttributedArticleIDs, arg.PublicationId, arg.UserId)
+	rows, err := q.db.Query(ctx, listAttributedArticleIDs, arg.PublisherId, arg.UserId)
 	if err != nil {
 		return nil, err
 	}

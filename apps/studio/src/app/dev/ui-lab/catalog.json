@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-09T13:11:26.303Z",
+  "generatedAt": "2026-11-10T12:10:46.100Z",
   "total": 396,
   "signals": {
     "primitivesNeverImported": 5,
@@ -327,7 +327,7 @@
           "path": "packages/ui/src/ui/dropdown-menu.tsx",
           "lines": 396,
           "source": "ui",
-          "usages": 2
+          "usages": 3
         },
         {
           "name": "exit-interstitial",
@@ -474,7 +474,7 @@
           "path": "packages/ui/src/ui/UserAvatar.tsx",
           "lines": 90,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         }
       ]
     },
@@ -485,7 +485,7 @@
         {
           "name": "ArticleCard",
           "path": "packages/ui/src/ArticleCard.tsx",
-          "lines": 926,
+          "lines": 925,
           "source": "ui",
           "usages": 0
         },
@@ -1407,14 +1407,14 @@
         {
           "name": "MinimalSidebarDrawer",
           "path": "packages/ui/src/templates/archetypes/minimal/MinimalSidebarDrawer.tsx",
-          "lines": 277,
+          "lines": 276,
           "source": "ui",
           "usages": 0
         },
         {
           "name": "AboutPageContent",
           "path": "packages/ui/src/templates/blocks/AboutPageContent.tsx",
-          "lines": 294,
+          "lines": 293,
           "source": "ui",
           "usages": 1
         },
@@ -1428,7 +1428,7 @@
         {
           "name": "ArticleContentBlock",
           "path": "packages/ui/src/templates/blocks/ArticleContentBlock.tsx",
-          "lines": 295,
+          "lines": 294,
           "source": "ui",
           "usages": 0
         },
@@ -1442,7 +1442,7 @@
         {
           "name": "ArticleStreamBlock",
           "path": "packages/ui/src/templates/blocks/ArticleStreamBlock.tsx",
-          "lines": 725,
+          "lines": 724,
           "source": "ui",
           "usages": 0
         },
@@ -1463,7 +1463,7 @@
         {
           "name": "CategorySpotlightBlock",
           "path": "packages/ui/src/templates/blocks/CategorySpotlightBlock.tsx",
-          "lines": 163,
+          "lines": 162,
           "source": "ui",
           "usages": 0
         },
@@ -1477,14 +1477,14 @@
         {
           "name": "FooterBlock",
           "path": "packages/ui/src/templates/blocks/FooterBlock.tsx",
-          "lines": 213,
+          "lines": 212,
           "source": "ui",
           "usages": 0
         },
         {
           "name": "HeroBlock",
           "path": "packages/ui/src/templates/blocks/HeroBlock.tsx",
-          "lines": 243,
+          "lines": 242,
           "source": "ui",
           "usages": 0
         },
@@ -1498,14 +1498,14 @@
         {
           "name": "NavbarBlock",
           "path": "packages/ui/src/templates/blocks/NavbarBlock.tsx",
-          "lines": 266,
+          "lines": 265,
           "source": "ui",
           "usages": 0
         },
         {
           "name": "NewsletterWallBlock",
           "path": "packages/ui/src/templates/blocks/NewsletterWallBlock.tsx",
-          "lines": 174,
+          "lines": 173,
           "source": "ui",
           "usages": 0
         },
@@ -1519,7 +1519,7 @@
         {
           "name": "PeopleSection",
           "path": "packages/ui/src/templates/blocks/PeopleSection.tsx",
-          "lines": 90,
+          "lines": 89,
           "source": "ui",
           "usages": 1
         },
@@ -1531,9 +1531,9 @@
           "usages": 0
         },
         {
-          "name": "PublicationSidebar",
-          "path": "packages/ui/src/templates/blocks/PublicationSidebar.tsx",
-          "lines": 312,
+          "name": "PublisherSidebar",
+          "path": "packages/ui/src/templates/blocks/PublisherSidebar.tsx",
+          "lines": 311,
           "source": "ui",
           "usages": 0
         },
@@ -1603,7 +1603,7 @@
         {
           "name": "TemplateRenderer",
           "path": "packages/ui/src/templates/TemplateRenderer.tsx",
-          "lines": 315,
+          "lines": 314,
           "source": "ui",
           "usages": 0
         }
@@ -1742,7 +1742,7 @@
         {
           "name": "AnnotationNotePanel",
           "path": "apps/studio/src/features/editor/components/AnnotationNotePanel.tsx",
-          "lines": 143,
+          "lines": 141,
           "source": "studio",
           "usages": null
         },
@@ -1791,7 +1791,7 @@
         {
           "name": "Editor",
           "path": "apps/studio/src/features/editor/components/Editor.tsx",
-          "lines": 2140,
+          "lines": 2242,
           "source": "studio",
           "usages": null
         },
@@ -1826,7 +1826,7 @@
         {
           "name": "ImageDetailsPanel",
           "path": "apps/studio/src/features/editor/components/ImageDetailsPanel.tsx",
-          "lines": 128,
+          "lines": 140,
           "source": "studio",
           "usages": null
         },
@@ -2015,7 +2015,7 @@
         {
           "name": "MediaProfilePreviewEditor",
           "path": "apps/studio/src/features/settings/components/MediaProfilePreviewEditor.tsx",
-          "lines": 460,
+          "lines": 479,
           "source": "studio",
           "usages": null
         },
@@ -2027,15 +2027,15 @@
           "usages": null
         },
         {
-          "name": "publication-live-preview",
-          "path": "apps/studio/src/features/settings/components/publication-live-preview.tsx",
+          "name": "publisher-live-preview",
+          "path": "apps/studio/src/features/settings/components/publisher-live-preview.tsx",
           "lines": 14,
           "source": "studio",
           "usages": null
         },
         {
-          "name": "publication-settings",
-          "path": "apps/studio/src/features/settings/components/publication-settings.tsx",
+          "name": "publisher-settings",
+          "path": "apps/studio/src/features/settings/components/publisher-settings.tsx",
           "lines": 12,
           "source": "studio",
           "usages": null
@@ -2085,7 +2085,7 @@
         {
           "name": "general",
           "path": "apps/studio/src/features/settings/tabs/general.tsx",
-          "lines": 374,
+          "lines": 450,
           "source": "studio",
           "usages": null
         },
@@ -2148,7 +2148,7 @@
         {
           "name": "StageCanvas",
           "path": "apps/studio/src/features/stage/canvas/StageCanvas.tsx",
-          "lines": 535,
+          "lines": 534,
           "source": "studio",
           "usages": null
         },
@@ -2162,7 +2162,7 @@
         {
           "name": "StageEngineContext",
           "path": "apps/studio/src/features/stage/context/StageEngineContext.tsx",
-          "lines": 1020,
+          "lines": 1017,
           "source": "studio",
           "usages": null
         },
@@ -2288,7 +2288,7 @@
         {
           "name": "StageClient",
           "path": "apps/studio/src/features/stage/StageClient.tsx",
-          "lines": 143,
+          "lines": 142,
           "source": "studio",
           "usages": null
         },
@@ -2434,14 +2434,14 @@
         {
           "name": "EditProfileModal",
           "path": "apps/core/src/components/profile/EditProfileModal.tsx",
-          "lines": 290,
+          "lines": 428,
           "source": "core",
           "usages": null
         },
         {
           "name": "profile-edit-actions",
           "path": "apps/core/src/components/profile/profile-edit-actions.ts",
-          "lines": 50,
+          "lines": 52,
           "source": "core",
           "usages": null
         },
@@ -2636,7 +2636,7 @@
         {
           "name": "TenantPageShell",
           "path": "apps/tenants/src/components/TenantPageShell.tsx",
-          "lines": 120,
+          "lines": 119,
           "source": "tenants",
           "usages": null
         }
@@ -2793,8 +2793,8 @@
           "usages": null
         },
         {
-          "name": "FeaturedPublications",
-          "path": "apps/hi/src/components/landing/FeaturedPublications.tsx",
+          "name": "FeaturedPublishers",
+          "path": "apps/hi/src/components/landing/FeaturedPublishers.tsx",
           "lines": 315,
           "source": "hi",
           "usages": null

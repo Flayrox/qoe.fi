@@ -174,7 +174,7 @@ export function useArticleSettings({
       syncBaseline(patch);
       setLastSavedAt(new Date());
       await onSavedRef.current?.();
-      toast.success(t`Publication programmée`);
+      toast.success(t`Publisher programmée`);
       return true;
     } catch (err) {
       const message = getErrorMessage(err, t`Échec de la programmation.`);
@@ -270,15 +270,15 @@ export function useArticleSettings({
     [draft, downloadSaving, syncBaseline]
   );
 
-  const transferPublication = useCallback(
-    async (targetPublicationId: string) => {
-      if (!draft || transferring || !targetPublicationId) return false;
+  const transferPublisher = useCallback(
+    async (targetPublisherId: string) => {
+      if (!draft || transferring || !targetPublisherId) return false;
       setTransferring(true);
       setError(null);
       try {
         const res = await transferArticleAction({
           articleId: draft.id,
-          targetPublicationId,
+          targetPublisherId,
           showOnPersonalProfile: draft.showOnPersonalProfile,
         });
         if (!res.ok || !res.data) {
@@ -291,7 +291,7 @@ export function useArticleSettings({
         setBaselineFingerprint(articleSettingsFingerprint(next));
         setLastSavedAt(new Date());
         await onSavedRef.current?.();
-        const destName = res.data.publication?.name || t`la publication sélectionnée`;
+        const destName = res.data.publisher?.name || t`la publication sélectionnée`;
         toast.success(t`Article transféré vers ${destName}.`);
         return true;
       } catch (err) {
@@ -359,7 +359,7 @@ export function useArticleSettings({
     clearSchedule,
     unpublish,
     toggleDownload,
-    transferPublication,
+    transferPublisher,
     toggleShowOnPersonalProfile,
     retry: load,
   };

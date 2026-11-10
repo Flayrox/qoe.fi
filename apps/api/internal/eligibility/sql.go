@@ -29,7 +29,7 @@ import "fmt"
 type Aliases struct {
 	Entity        string
 	Authors       []string
-	Publication   string
+	Publisher   string
 	Viewer        string
 	RequirePublic bool
 }
@@ -92,13 +92,13 @@ func visibilityPredicate(a Aliases) string {
 	if len(a.Authors) > 0 {
 		author = a.Authors[0]
 	}
-	pubExpr := a.Publication
+	pubExpr := a.Publisher
 	if pubExpr == "" {
-		pubExpr = fmt.Sprintf(`(SELECT "publicationId" FROM "User" WHERE id = %s)`, author)
+		pubExpr = fmt.Sprintf(`(SELECT "publisherId" FROM "User" WHERE id = %s)`, author)
 	}
 	return fmt.Sprintf(`COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us
 	                WHERE us."userId" = COALESCE(
-	                  (SELECT owner.id FROM "Publication" pv JOIN "User" owner ON owner."publicationId" = pv.id WHERE pv.id = %s LIMIT 1),
+	                  (SELECT owner.id FROM "Publisher" pv JOIN "User" owner ON owner."publisherId" = pv.id WHERE pv.id = %s LIMIT 1),
 	                  %s
 	                )), 'PUBLIC') = 'PUBLIC'`, pubExpr, author)
 }

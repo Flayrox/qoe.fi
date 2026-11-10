@@ -106,7 +106,7 @@ export default async function UserProfilePage({
   const {
     profileUser,
     isFollowing,
-    publicationId,
+    publisherId,
     followRequested = false,
     profileVisibility = 'PUBLIC',
     canViewContent = true,
@@ -134,7 +134,7 @@ export default async function UserProfilePage({
         profileVisibility={profileVisibility}
         initialCanViewContent={canViewContent}
         initialTab="thoughts"
-        initialPublicationId={publicationId}
+        initialPublisherId={publisherId}
       />
     </>
   );

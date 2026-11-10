@@ -63,7 +63,7 @@ const LAB_QUOTE_ARTICLE = {
   slug: 'la-lenteur-comme-methode',
   isPremium: false,
   author: { name: 'Fay Moreau', username: 'fay', subdomain: 'la-lenteur' },
-  publication: { name: 'La Lenteur', subdomain: 'la-lenteur' },
+  publisher: { name: 'La Lenteur', subdomain: 'la-lenteur' },
 };
 
 interface PublishedCitation {

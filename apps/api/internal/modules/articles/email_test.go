@@ -42,8 +42,8 @@ func TestBuildArticleReleaseEmail_Free(t *testing.T) {
 		Slug:            "mon-super-article",
 		IsPremium:       false,
 		Content:         "<p>Bonjour tout le monde ! Ceci est un article libre.</p>",
-		PublicationId:   "pub_test",
-		PublicationName: "Chronique Tech",
+		PublisherId:   "pub_test",
+		PublisherName: "Chronique Tech",
 		Subdomain:       pgtype.Text{String: "tech", Valid: true},
 	}
 	link := "https://tech.qoe.fi/mon-super-article"
@@ -72,8 +72,8 @@ func TestBuildArticleReleaseEmail_PremiumZeroLeak(t *testing.T) {
 		Slug:            "dossier-secret",
 		IsPremium:       true,
 		Content:         "<p>Teaser public.</p><!--qoe-paywall--><p>SECRET PAYANT CONFIDENTIEL</p>",
-		PublicationId:   "pub_test",
-		PublicationName: "Chronique Tech",
+		PublisherId:   "pub_test",
+		PublisherName: "Chronique Tech",
 		Subdomain:       pgtype.Text{String: "tech", Valid: true},
 	}
 	link := "https://tech.qoe.fi/dossier-secret"

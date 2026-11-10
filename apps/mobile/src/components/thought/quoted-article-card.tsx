@@ -23,24 +23,21 @@ export function QuotedArticleCard({ article }: { article: NormalizedQuotedArticl
   const theme = useTheme();
   if (!article) return null;
 
-  const domain = article.publication?.subdomain || article.publication?.customDomain;
-  const displayDomain = (domain || article.publication?.slug || 'qoefi').replace(
-    /^https?:\/\//,
-    ''
-  );
+  const domain = article.publisher?.subdomain || article.publisher?.customDomain;
+  const displayDomain = (domain || article.publisher?.slug || 'qoefi').replace(/^https?:\/\//, '');
 
   const context = article.quoteContext;
 
   const openArticle = () => {
     const params: {
       slug: string;
-      publicationId: string;
+      publisherId: string;
       hlStart?: string;
       hlEnd?: string;
       hlSha?: string;
     } = {
       slug: article.slug,
-      publicationId: article.publication.id,
+      publisherId: article.publisher.id,
     };
     // 🔦 Deep-link prêt (tranche 6-b) : le lecteur mettra le passage en
     // avant quand le câblage mobile (6-d) sera en place.

@@ -52,8 +52,8 @@ func (h *Handler) articlePublished(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	if p.ArticleID == "" || p.PublicationID == "" {
-		response.BadRequest(w, "articleId et publicationId requis")
+	if p.ArticleID == "" || p.PublisherID == "" {
+		response.BadRequest(w, "articleId et publisherId requis")
 		return
 	}
 	if err := queue.PublishArticlePublished(h.client, p); err != nil {
@@ -70,8 +70,8 @@ func (h *Handler) subscriberCreated(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	if p.Email == "" || p.PublicationID == "" {
-		response.BadRequest(w, "email et publicationId requis")
+	if p.Email == "" || p.PublisherID == "" {
+		response.BadRequest(w, "email et publisherId requis")
 		return
 	}
 	if err := queue.PublishSubscriberCreated(h.client, p); err != nil {

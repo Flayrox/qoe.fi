@@ -29,7 +29,7 @@ import {
   getRecommendationsAction,
   addRecommendationAction,
   removeRecommendationAction,
-  lookupPublicationByDomainAction,
+  lookupPublisherByDomainAction,
   type RecommendationItemDto,
 } from '@qoe/sdk/actions/recommendations';
 import type { CreatorProfile } from '../types';
@@ -93,7 +93,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
     setFoundPub(null);
 
     try {
-      const res = await lookupPublicationByDomainAction({ domain: query });
+      const res = await lookupPublisherByDomainAction({ domain: query });
       if (res.ok && res.data) {
         setFoundPub(res.data);
       } else {
@@ -139,7 +139,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
         toast.success(t`"${name}" retirée des recommandations.`);
         setConfirmDeleteId(null);
         setRecommendations((prev) =>
-          prev.filter((r) => r.id !== recommendedId && r.publicationId !== recommendedId)
+          prev.filter((r) => r.id !== recommendedId && r.publisherId !== recommendedId)
         );
         await loadRecs();
       } else {
@@ -352,32 +352,30 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
           <div className="grid grid-cols-1">
             {recommendations.map((rec) => {
               const domain =
-                rec.publicationCustomDomain ||
-                (rec.publicationSubdomain
-                  ? `${rec.publicationSubdomain}.qoe.fi`
-                  : rec.publicationSlug);
+                rec.publisherCustomDomain ||
+                (rec.publisherSubdomain ? `${rec.publisherSubdomain}.qoe.fi` : rec.publisherSlug);
               return (
                 <div
                   key={rec.id}
                   className="flex items-center justify-between gap-4 border-b border-border/40 py-3 last:border-0"
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
-                    {rec.publicationLogoUrl ? (
+                    {rec.publisherLogoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element -- URL utilisateur distante arbitraire, non déclarable dans next.config.
                       <img
-                        src={rec.publicationLogoUrl}
-                        alt={rec.publicationName}
+                        src={rec.publisherLogoUrl}
+                        alt={rec.publisherName}
                         className="w-10 h-10 rounded-full object-cover border border-border/40 shrink-0"
                       />
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-muted text-foreground flex items-center justify-center font-bold text-sm shrink-0 border border-border/40">
-                        {rec.publicationName.slice(0, 1).toUpperCase()}
+                        {rec.publisherName.slice(0, 1).toUpperCase()}
                       </div>
                     )}
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <h4 className="text-sm font-bold text-foreground truncate">
-                          {rec.publicationName}
+                          {rec.publisherName}
                         </h4>
                         <a
                           href={`https://${domain}`}
@@ -404,7 +402,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
                         variant="solid"
                         tone="danger"
                         size="xs"
-                        onClick={() => handleRemove(rec.id, rec.publicationName)}
+                        onClick={() => handleRemove(rec.id, rec.publisherName)}
                       >
                         Retirer
                       </Button>

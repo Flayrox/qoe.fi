@@ -129,7 +129,7 @@ func buildNotificationEmail(ctx context.Context, pool *pgxpool.Pool, recipient, 
 	var (
 		nType, senderName                                                  string
 		thoughtID, articleID, articleSlug                                  string
-		publicationID, publicationSlug, publicationType, mediaID, username string
+		publisherID, publisherSlug, publicationType, mediaID, username string
 	)
 	err := pool.QueryRow(ctx, `
 		SELECT n.type::text,
@@ -137,7 +137,7 @@ func buildNotificationEmail(ctx context.Context, pool *pgxpool.Pool, recipient, 
 		       COALESCE(n."thoughtId"::text, ''),
 		       COALESCE(n."articleId"::text, ''),
 		       COALESCE(a.slug, ''),
-		       COALESCE(n."publicationId"::text, ''),
+		       COALESCE(n."publisherId"::text, ''),
 		       COALESCE(p.slug, ''),
 		       COALESCE(p.type::text, ''),
 		       COALESCE(md.id::text, ''),
@@ -145,11 +145,11 @@ func buildNotificationEmail(ctx context.Context, pool *pgxpool.Pool, recipient, 
 		FROM "Notification" n
 		LEFT JOIN "User" u ON u.id = n."senderId"
 		LEFT JOIN "Article" a ON a.id = n."articleId"
-		LEFT JOIN "Publication" p ON p.id = n."publicationId"
-		LEFT JOIN "Media" md ON md."publicationId" = n."publicationId"
+		LEFT JOIN "Publisher" p ON p.id = n."publisherId"
+		LEFT JOIN "Media" md ON md."publisherId" = n."publisherId"
 		WHERE n.id = $1`, notificationID).Scan(
 		&nType, &senderName, &thoughtID, &articleID, &articleSlug,
-		&publicationID, &publicationSlug, &publicationType, &mediaID, &username,
+		&publisherID, &publisherSlug, &publicationType, &mediaID, &username,
 	)
 	if err != nil {
 		return EmailMessage{}, err
@@ -162,9 +162,9 @@ func buildNotificationEmail(ctx context.Context, pool *pgxpool.Pool, recipient, 
 		ThoughtID:       thoughtID,
 		ArticleID:       articleID,
 		ArticleSlug:     articleSlug,
-		PublicationID:   publicationID,
-		PublicationSlug: publicationSlug,
-		PublicationType: publicationType,
+		PublisherID:   publisherID,
+		PublisherSlug: publisherSlug,
+		PublisherType: publicationType,
 		MediaID:         mediaID,
 		SenderUsername:  username,
 	}))

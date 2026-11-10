@@ -19,14 +19,14 @@ import { SafeAvatar } from '../../SafeAvatar';
 import { SubscribeForm } from '../../SubscribeForm';
 import { subscribeToNewsletterAction } from '@qoe/sdk/actions/tenant';
 import type {
-  TemplatePublicationContext,
+  TemplatePublisherContext,
   TemplateArticleItem,
   TemplateRecommendationItem,
   TemplateRenderContext,
 } from '../schema';
 
-export interface PublicationSidebarProps {
-  publication?: TemplatePublicationContext;
+export interface PublisherSidebarProps {
+  publisher?: TemplatePublisherContext;
   articles?: TemplateArticleItem[];
   context: TemplateRenderContext;
   className?: string;
@@ -41,27 +41,27 @@ function popularityScore(article: TemplateArticleItem): number {
   );
 }
 
-export function PublicationSidebar({
-  publication,
+export function PublisherSidebar({
+  publisher,
   articles = [],
   context,
   className = '',
   showTopArticles = true,
-}: PublicationSidebarProps) {
+}: PublisherSidebarProps) {
   const [subscribedMap, setSubscribedMap] = useState<Record<string, boolean>>({});
   const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
   const [activeInlineEmailId, setActiveInlineEmailId] = useState<string | null>(null);
   const [inlineEmail, setInlineEmail] = useState('');
 
-  const authorName = publication?.name || 'L’Auteur';
-  const bio = publication?.heroText || publication?.author?.bio || null;
-  const avatarUrl = publication?.logoUrl || publication?.author?.avatarUrl || null;
+  const authorName = publisher?.name || 'L’Auteur';
+  const bio = publisher?.heroText || publisher?.author?.bio || null;
+  const avatarUrl = publisher?.logoUrl || publisher?.author?.avatarUrl || null;
 
   // Aucune recommandation inventée : si l'auteur n'en a pas configuré,
   // le bloc disparaît au lieu d'afficher des publications fictives.
   const recommendations: TemplateRecommendationItem[] =
-    publication?.recommendations && publication.recommendations.length > 0
-      ? publication.recommendations
+    publisher?.recommendations && publisher.recommendations.length > 0
+      ? publisher.recommendations
       : [];
 
   // Affiché seulement quand l'archive est assez fournie : sinon le flux
@@ -89,7 +89,7 @@ export function PublicationSidebar({
     try {
       const res = await subscribeToNewsletterAction({
         email: inlineEmail.trim(),
-        publicationId: recId,
+        publisherId: recId,
       });
       if (res?.ok) {
         setSubscribedMap((prev) => ({ ...prev, [recId]: true }));
@@ -97,7 +97,7 @@ export function PublicationSidebar({
         setInlineEmail('');
       }
     } catch (err) {
-      console.warn('[PublicationSidebar] subscribe error:', err);
+      console.warn('[PublisherSidebar] subscribe error:', err);
     } finally {
       setLoadingMap((prev) => ({ ...prev, [recId]: false }));
     }
@@ -127,8 +127,8 @@ export function PublicationSidebar({
           />
           <div className="min-w-0 flex-1">
             <h3 className="font-medium tracking-tight text-foreground truncate">{authorName}</h3>
-            {publication?.domain && (
-              <p className="text-[11px] text-muted-foreground truncate">{publication.domain}</p>
+            {publisher?.domain && (
+              <p className="text-[11px] text-muted-foreground truncate">{publisher.domain}</p>
             )}
           </div>
         </div>
@@ -139,9 +139,9 @@ export function PublicationSidebar({
           </p>
         )}
 
-        {publication?.socialLinks && publication.socialLinks.length > 0 && (
+        {publisher?.socialLinks && publisher.socialLinks.length > 0 && (
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-            {publication.socialLinks.map((s, idx) => (
+            {publisher.socialLinks.map((s, idx) => (
               <a
                 key={s.id || idx}
                 href={s.url}
@@ -158,7 +158,7 @@ export function PublicationSidebar({
 
       {/* ── 2. RECOMMANDATIONS (uniquement si configurées) ── */}
       {recommendations.length > 0 &&
-        (publication?.siteOptions?.showRecommendationsInSidebar ?? true) !== false && (
+        (publisher?.siteOptions?.showRecommendationsInSidebar ?? true) !== false && (
           <section className="py-6">
             <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Recommandé par {authorName}
@@ -263,14 +263,14 @@ export function PublicationSidebar({
         </p>
         <div className="mt-3">
           <SubscribeForm
-            publicationId={publication?.id || ''}
+            publisherId={publisher?.id || ''}
             authorName={authorName}
-            accentColor={publication?.accentColor || undefined}
+            accentColor={publisher?.accentColor || undefined}
             placeholder="Votre adresse email"
             buttonText="S’abonner"
             size="compact"
             disabled={context.mode === 'editable'}
-            mainAppUrl={publication?.mainAppUrl}
+            mainAppUrl={publisher?.mainAppUrl}
           />
         </div>
       </section>

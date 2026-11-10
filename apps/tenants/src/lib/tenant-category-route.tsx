@@ -1,7 +1,7 @@
 import React from 'react';
 import { notFound, permanentRedirect } from 'next/navigation';
 import type { Metadata } from 'next';
-import { fetchTenantPublication, fetchTenantRecommendations } from '@/lib/tenant-data';
+import { fetchTenantPublisher, fetchTenantRecommendations } from '@/lib/tenant-data';
 import { TenantPageRenderer } from '@/components/TenantPageRenderer';
 import { getLanguage } from '@qoe/i18n/server';
 import { findCategoryBySlug, filterArticlesByCategory } from '@qoe/ui/templates';
@@ -24,40 +24,40 @@ export async function generateTenantCategoryMetadata({
   const decodedDomain = decodeURIComponent(domain);
   const decodedCategorySlug = decodeURIComponent(categorySlug);
 
-  const publication = await fetchTenantPublication(decodedDomain);
-  if (!publication) return {};
+  const publisher = await fetchTenantPublisher(decodedDomain);
+  if (!publisher) return {};
 
-  const category = findCategoryBySlug(publication.categories || [], decodedCategorySlug);
+  const category = findCategoryBySlug(publisher.categories || [], decodedCategorySlug);
   if (!category) return {};
 
-  const title = `${category.name} | ${publication.name || decodedDomain}`;
+  const title = `${category.name} | ${publisher.name || decodedDomain}`;
   const description =
     category.description?.trim() ||
     (isFr
-      ? `Découvrez tous les articles de la rubrique ${category.name} sur ${publication.name || decodedDomain}.`
-      : `Explore articles from ${category.name} on ${publication.name || decodedDomain}.`);
+      ? `Découvrez tous les articles de la rubrique ${category.name} sur ${publisher.name || decodedDomain}.`
+      : `Explore articles from ${category.name} on ${publisher.name || decodedDomain}.`);
 
   const canonicalUrl = `https://${decodedDomain}${buildCategoryPath(
     category,
-    publication.categories
+    publisher.categories
   )}`;
 
   return {
     title,
     description,
     robots: {
-      index: publication.allowIndexing,
-      follow: publication.allowIndexing,
+      index: publisher.allowIndexing,
+      follow: publisher.allowIndexing,
     },
     alternates: {
       canonical: canonicalUrl,
     },
-    icons: publication.logoUrl ? { icon: publication.logoUrl } : undefined,
+    icons: publisher.logoUrl ? { icon: publisher.logoUrl } : undefined,
     openGraph: {
       title,
       description,
       url: canonicalUrl,
-      images: publication.headerImageUrl ? [{ url: publication.headerImageUrl }] : [],
+      images: publisher.headerImageUrl ? [{ url: publisher.headerImageUrl }] : [],
     },
   };
 }
@@ -70,35 +70,35 @@ export async function TenantCategoryRoute({
   const decodedDomain = decodeURIComponent(domain);
   const decodedCategorySlug = decodeURIComponent(categorySlug);
 
-  const [publication, recommendations] = await Promise.all([
-    fetchTenantPublication(decodedDomain),
+  const [publisher, recommendations] = await Promise.all([
+    fetchTenantPublisher(decodedDomain),
     fetchTenantRecommendations(decodedDomain),
   ]);
 
-  if (!publication) {
+  if (!publisher) {
     return notFound();
   }
 
-  const category = findCategoryBySlug(publication.categories || [], decodedCategorySlug);
+  const category = findCategoryBySlug(publisher.categories || [], decodedCategorySlug);
   if (!category) {
     return notFound();
   }
 
-  const canonicalPath = buildCategoryPath(category, publication.categories);
+  const canonicalPath = buildCategoryPath(category, publisher.categories);
   if ((requestedPath ?? `/${decodedCategorySlug}`) !== canonicalPath) {
     permanentRedirect(canonicalPath);
   }
 
   const filteredArticles = filterArticlesByCategory(
-    publication.articles || [],
+    publisher.articles || [],
     category,
-    publication.categories || []
+    publisher.categories || []
   );
 
   return (
     <TenantPageRenderer
       scope="home"
-      publication={publication}
+      publisher={publisher}
       recommendations={recommendations}
       decodedDomain={decodedDomain}
       activeCategory={category}
@@ -113,11 +113,11 @@ export async function isTenantSubcategory(
   parentSlug: string,
   candidateSlug: string
 ): Promise<boolean> {
-  const publication = await fetchTenantPublication(decodeURIComponent(domain));
-  if (!publication) return false;
-  const parent = findCategoryBySlug(publication.categories || [], decodeURIComponent(parentSlug));
+  const publisher = await fetchTenantPublisher(decodeURIComponent(domain));
+  if (!publisher) return false;
+  const parent = findCategoryBySlug(publisher.categories || [], decodeURIComponent(parentSlug));
   const candidate = findCategoryBySlug(
-    publication.categories || [],
+    publisher.categories || [],
     decodeURIComponent(candidateSlug)
   );
   return Boolean(parent && candidate && candidate.parentId === parent.id);

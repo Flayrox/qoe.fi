@@ -11,7 +11,7 @@ import (
 
 func TestDiscoveryExclusion_CoversLimitationAndHardBlock(t *testing.T) {
 	frag := DiscoveryExclusionArticle("u", "a")
-	for _, want := range []string{"'limit_distribution'", "'suspend'", "'user'", "'publication'", "decidedBy", "expiresAt"} {
+	for _, want := range []string{"'limit_distribution'", "'suspend'", "'user'", "'publisher'", "decidedBy", "expiresAt"} {
 		if !strings.Contains(frag, want) {
 			t.Errorf("fragment découverte articles : %q manquant", want)
 		}
@@ -21,14 +21,14 @@ func TestDiscoveryExclusion_CoversLimitationAndHardBlock(t *testing.T) {
 		t.Error("fragment découverte : seuls les verdicts humains excluent")
 	}
 	// Sujets liés aux bons alias (auteur ::text car UUID, publication directe).
-	if !strings.Contains(frag, "u.id::text") || !strings.Contains(frag, "a.\"publicationId\"") {
+	if !strings.Contains(frag, "u.id::text") || !strings.Contains(frag, "a.\"publisherId\"") {
 		t.Error("fragment découverte articles : sujets auteur + publication attendus")
 	}
 }
 
 func TestDiscoveryExclusionThought_AuthorOnly(t *testing.T) {
 	frag := DiscoveryExclusionThought("u", "p")
-	if strings.Contains(frag, "publication") {
+	if strings.Contains(frag, "publisher") {
 		t.Error("fragment pensées : pas de sujet publication (les pensées n'en portent pas)")
 	}
 	if !strings.Contains(frag, "'limit_distribution'") {

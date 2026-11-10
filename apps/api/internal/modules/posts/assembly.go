@@ -321,7 +321,7 @@ func PollsFor(ctx context.Context, q db.Querier, ids []string, viewerID string) 
 }
 
 // FollowingFor calcule, pour une liste d'auteurs, si le viewer les suit
-// (Follows par publicationId). Renvoie un map authorID → bool.
+// (Follows par publisherId). Renvoie un map authorID → bool.
 func FollowingFor(ctx context.Context, q db.Querier, viewerID string, authorIDs []string) (map[string]bool, error) {
 	out := map[string]bool{}
 	if viewerID == "" || len(authorIDs) == 0 {

@@ -33,7 +33,7 @@ import { feedKeys } from '@qoe/sdk/mobile';
 // =====================================================================
 // 📖 ArticleScreen — Lecteur d'article mobile (GET /v1/articles/{slug})
 // =====================================================================
-// Nécessite `slug` + `publicationId` (le Go renvoie 400 sinon). Le contenu
+// Nécessite `slug` + `publisherId` (le Go renvoie 400 sinon). Le contenu
 // est rendu via le mini-renderer HTML maison. Paywall : si le serveur a
 // tronqué le contenu (`isTruncated`) ou que l'accès est refusé, on affiche
 // un panneau d'abonnement (CTA) — le contenu payant n'est JAMAIS servi
@@ -46,11 +46,11 @@ const CONTENT_TOP_PADDING = 105;
 
 export function ArticleScreen({
   slug,
-  publicationId,
+  publisherId,
   spotlight = null,
 }: {
   slug: string;
-  publicationId: string;
+  publisherId: string;
   /** 🔦 Passage à mettre en avant (deep-link citation → article, 6-d). */
   spotlight?: { start: number; end: number; sha: string } | null;
 }) {
@@ -90,9 +90,9 @@ export function ArticleScreen({
   };
 
   const { data, isPending, isError, refetch } = useQuery({
-    queryKey: [...feedKeys.all, 'article', slug, publicationId],
+    queryKey: [...feedKeys.all, 'article', slug, publisherId],
     queryFn: async () => {
-      const res = await apiClient.getArticle(slug, publicationId);
+      const res = await apiClient.getArticle(slug, publisherId);
       if (!res.ok) throw new Error(res.error);
       return res.data;
     },
@@ -234,8 +234,7 @@ export function ArticleScreen({
   }
 
   const isLocked = data.isTruncated || !data.accessGranted;
-  const authorName =
-    data.author?.name || data.author?.username || data.publication?.name || 'Auteur';
+  const authorName = data.author?.name || data.author?.username || data.publisher?.name || 'Auteur';
   const dateLabel = new Date(data.createdAt).toLocaleDateString('fr-FR', {
     day: 'numeric',
     month: 'long',

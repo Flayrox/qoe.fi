@@ -175,7 +175,7 @@ LEFT JOIN legal_document_version v ON v.id = r.draft_version_id
 ORDER BY r.due_at ASC
 LIMIT sqlc.arg(limit_count);
 
--- ─── Publication planifiée ───────────────────────────────────────────
+-- ─── Publisher planifiée ───────────────────────────────────────────
 
 -- name: ScheduleLegalDocumentVersion :one
 -- Programme (ou déprogramme, si la date est nulle) la publication automatique

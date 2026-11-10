@@ -21,14 +21,14 @@ func TestNotification(t *testing.T) {
 		{
 			name: "commentaire d'article média → studio + ws",
 			t: Target{
-				Type: "COMMENT", ArticleID: "art-1", PublicationType: "MEDIA", MediaID: mediaID,
+				Type: "COMMENT", ArticleID: "art-1", PublisherType: "MEDIA", MediaID: mediaID,
 			},
 			want: "/articles/art-1?ws=" + mediaID,
 		},
 		{
 			name: "commentaire d'article personnel → studio sans ws",
 			t: Target{
-				Type: "COMMENT", ArticleID: "art-2", PublicationType: "PERSONAL",
+				Type: "COMMENT", ArticleID: "art-2", PublisherType: "PERSONAL",
 			},
 			want: "/articles/art-2",
 		},
@@ -36,7 +36,7 @@ func TestNotification(t *testing.T) {
 			name: "mention sur une pensée → page publique, jamais de ws",
 			t: Target{
 				Type: "MENTION", ThoughtID: "p-1", SenderUsername: "ada",
-				PublicationType: "MEDIA", MediaID: mediaID,
+				PublisherType: "MEDIA", MediaID: mediaID,
 			},
 			want: "/ada/thought/p-1",
 		},
@@ -44,35 +44,35 @@ func TestNotification(t *testing.T) {
 			name: "publication média vue par un abonné → article public, sans ws",
 			t: Target{
 				Type: "MEDIA_ARTICLE_PUBLISHED", ArticleID: "art-9", ArticleSlug: "mon-article",
-				PublicationType: "MEDIA", MediaID: mediaID,
+				PublisherType: "MEDIA", MediaID: mediaID,
 			},
 			want: "/article/mon-article",
 		},
 		{
 			name: "invitation média → page média + ws",
 			t: Target{
-				Type: "MEDIA_INVITE", PublicationType: "MEDIA", MediaID: mediaID,
+				Type: "MEDIA_INVITE", PublisherType: "MEDIA", MediaID: mediaID,
 			},
 			want: "/media?ws=" + mediaID,
 		},
 		{
 			name: "nouvel abonné → profil public",
 			t: Target{
-				Type: "FOLLOW", PublicationSlug: "le-journal", PublicationType: "MEDIA", MediaID: mediaID,
+				Type: "FOLLOW", PublisherSlug: "le-journal", PublisherType: "MEDIA", MediaID: mediaID,
 			},
 			want: "/le-journal",
 		},
 		{
 			name: "invitation à contribuer → avancé + ws",
 			t: Target{
-				Type: "ARTICLE_CONTRIBUTOR_INVITED", PublicationType: "MEDIA", MediaID: mediaID,
+				Type: "ARTICLE_CONTRIBUTOR_INVITED", PublisherType: "MEDIA", MediaID: mediaID,
 			},
 			want: "/advanced?ws=" + mediaID,
 		},
 		{
 			name: "publication média sans article → page média + ws",
 			t: Target{
-				Type: "MEDIA_MEMBER_JOINED", PublicationID: "pub-1", PublicationType: "MEDIA", MediaID: mediaID,
+				Type: "MEDIA_MEMBER_JOINED", PublisherID: "pub-1", PublisherType: "MEDIA", MediaID: mediaID,
 			},
 			want: "/media?ws=" + mediaID,
 		},

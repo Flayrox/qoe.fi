@@ -14,7 +14,7 @@ import {
 } from '@qoe/ui/dialog';
 import { Input, Textarea } from '@qoe/ui/input';
 import { updateProfileAction as updateProfile } from '@qoe/sdk/actions/feed';
-import { updateMediaProfileAction, resolveMediaIdByPublication } from './profile-edit-actions';
+import { updateMediaProfileAction, resolveMediaIdByPublisher } from './profile-edit-actions';
 
 import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
@@ -125,7 +125,7 @@ async function updatePersonalProfile(input: {
  * un (via le endpoint dédié), sinon null → profil personnel. La résolution est
  * faite par une server action : le client ne devine jamais l'identifiant.
  */
-const resolveMediaId = (publicationId: string) => resolveMediaIdByPublication(publicationId);
+const resolveMediaId = (publisherId: string) => resolveMediaIdByPublisher(publisherId);
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -149,10 +149,10 @@ interface EditProfileModalProps {
    * qu'une seule action, qui patchait /v1/me/profile (profil PERSONNEL) en plus
    * de la publication — ouvert depuis le profil d'un Média, il a écrasé le nom
    * ET l'username du compte utilisateur. Depuis, la cible est résolue côté
-   * serveur : si publicationId correspond à un Média → PATCH /v1/media/{id}/
+   * serveur : si publisherId correspond à un Média → PATCH /v1/media/{id}/
    * settings (RBAC côté Go) ; sinon → profil du compte + publication perso.
    */
-  publicationId?: string | null;
+  publisherId?: string | null;
   onProfileUpdated?: (updatedUser: UpdatedUser) => void;
 }
 
@@ -160,7 +160,7 @@ export function EditProfileModal({
   isOpen,
   onClose,
   user,
-  publicationId,
+  publisherId,
   onProfileUpdated,
 }: EditProfileModalProps) {
   const isMedia = user.type === 'MEDIA';
@@ -192,7 +192,7 @@ export function EditProfileModal({
       .filter((s) => s.url !== '');
 
     try {
-      const mediaId = publicationId ? await resolveMediaId(publicationId) : null;
+      const mediaId = publisherId ? await resolveMediaId(publisherId) : null;
       const res = mediaId
         ? await updateMediaProfile(mediaId, {
             name,
@@ -223,12 +223,11 @@ export function EditProfileModal({
             username: u.username,
             logoUrl: u.logoUrl,
             heroText:
-              (u as { publication?: { heroText?: string | null } }).publication?.heroText ??
+              (u as { publisher?: { heroText?: string | null } }).publisher?.heroText ??
               u.heroText ??
               null,
             headerImageUrl:
-              (u as { publication?: { headerImageUrl?: string | null } }).publication
-                ?.headerImageUrl ??
+              (u as { publisher?: { headerImageUrl?: string | null } }).publisher?.headerImageUrl ??
               u.headerImageUrl ??
               null,
             onboardingText: u.onboardingText,

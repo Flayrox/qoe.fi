@@ -15,9 +15,9 @@ import { StudioPage, StudioSection } from '@/components/studio-page';
 import { FeatureConsents } from '@/features/settings/components/feature-consents';
 import { AccountLink } from './account-link';
 
-// Contrat Go GET /v1/settings/publication — mêmes champs JSON que le include
+// Contrat Go GET /v1/settings/publisher — mêmes champs JSON que le include
 // Prisma d'origine (le mapping vers CreatorProfile ci-dessous est inchangé).
-interface SettingsPublicationDTO {
+interface SettingsPublisherDTO {
   id: string;
   name: string;
   slug: string;
@@ -66,11 +66,11 @@ interface SettingsPublicationDTO {
 }
 
 /**
- * 🚀 Go-first : GET /v1/settings/publication (même shape que le include Prisma).
+ * 🚀 Go-first : GET /v1/settings/publisher (même shape que le include Prisma).
  */
-async function fetchSettingsGo(publicationId: string): Promise<SettingsPublicationDTO> {
-  return goFetch<SettingsPublicationDTO>(
-    `/v1/settings/publication?publicationId=${encodeURIComponent(publicationId)}`
+async function fetchSettingsGo(publisherId: string): Promise<SettingsPublisherDTO> {
+  return goFetch<SettingsPublisherDTO>(
+    `/v1/settings/publisher?publisherId=${encodeURIComponent(publisherId)}`
   );
 }
 
@@ -90,17 +90,17 @@ export default async function CreatorSettingsPage() {
   const workspace = await getActiveWorkspace(user.id);
 
   // 3. Chargement de la publication active avec ses relations — Go.
-  let publication: SettingsPublicationDTO | null = null;
+  let publisher: SettingsPublisherDTO | null = null;
   try {
-    publication = await fetchSettingsGo(workspace.publicationId);
+    publisher = await fetchSettingsGo(workspace.publisherId);
   } catch {
-    publication = null;
+    publisher = null;
   }
 
-  if (!publication) {
+  if (!publisher) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/20 bg-destructive/5 p-12 text-center">
-        <h2 className="text-lg font-semibold text-destructive-text">Publication introuvable</h2>
+        <h2 className="text-lg font-semibold text-destructive-text">Publisher introuvable</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Contactez le support si l&apos;erreur persiste.
         </p>
@@ -108,7 +108,7 @@ export default async function CreatorSettingsPage() {
     );
   }
 
-  const owner = publication.user;
+  const owner = publisher.user;
   const isMedia = workspace.type === 'MEDIA';
 
   // Date du DTO Go = string ISO ; fallback Prisma = Date.
@@ -116,38 +116,38 @@ export default async function CreatorSettingsPage() {
 
   // 4. Mapping sécurisé vers un objet sérialisable
   const initialCreatorData: CreatorProfile = {
-    id: workspace.type === 'MEDIA' ? workspace.mediaId || publication.id : owner?.id || user.id,
+    id: workspace.type === 'MEDIA' ? workspace.mediaId || publisher.id : owner?.id || user.id,
     email: owner?.email ?? user.email ?? '',
     username: owner?.username ?? null,
-    name: publication.name,
-    heroText: publication.heroText ?? null,
-    accentColor: publication.accentColor ?? null,
-    fontFamily: publication.fontFamily ?? null,
-    themeMode: publication.themeMode || 'classic',
+    name: publisher.name,
+    heroText: publisher.heroText ?? null,
+    accentColor: publisher.accentColor ?? null,
+    fontFamily: publisher.fontFamily ?? null,
+    themeMode: publisher.themeMode || 'classic',
     layoutStyle: 'minimal',
-    logoUrl: publication.logoUrl ?? null,
-    headerImageUrl: publication.headerImageUrl ?? null,
-    footerText: publication.footerText ?? null,
-    seoTitle: publication.seoTitle ?? null,
-    seoDescription: publication.seoDescription ?? null,
-    allowIndexing: publication.allowIndexing ?? true,
-    supportUrl: publication.supportUrl ?? null,
-    subdomain: publication.subdomain ?? null,
-    customDomain: publication.customDomain ?? null,
-    navigation: publication.navigation.map((nav) => ({
+    logoUrl: publisher.logoUrl ?? null,
+    headerImageUrl: publisher.headerImageUrl ?? null,
+    footerText: publisher.footerText ?? null,
+    seoTitle: publisher.seoTitle ?? null,
+    seoDescription: publisher.seoDescription ?? null,
+    allowIndexing: publisher.allowIndexing ?? true,
+    supportUrl: publisher.supportUrl ?? null,
+    subdomain: publisher.subdomain ?? null,
+    customDomain: publisher.customDomain ?? null,
+    navigation: publisher.navigation.map((nav) => ({
       id: nav.id,
       label: nav.label,
       url: nav.url,
       order: nav.order,
       isExternal: nav.isExternal,
     })),
-    socialLinks: publication.socialLinks.map((social) => ({
+    socialLinks: publisher.socialLinks.map((social) => ({
       id: social.id,
       platform: social.platform,
       url: social.url,
       order: social.order,
     })),
-    articles: publication.articles.map((article) => ({
+    articles: publisher.articles.map((article) => ({
       id: article.id,
       title: article.title,
       slug: article.slug,
@@ -159,13 +159,13 @@ export default async function CreatorSettingsPage() {
       seoDescription: article.seoDescription,
       createdAt: toIso(article.createdAt),
     })),
-    categories: publication.categories.map((cat) => ({
+    categories: publisher.categories.map((cat) => ({
       id: cat.id,
       name: cat.name,
       slug: cat.slug,
       parentId: cat.parentId ?? null,
     })),
-    siteOptions: publication.siteOptions ?? null,
+    siteOptions: publisher.siteOptions ?? null,
     advancedSettingsMode: owner?.advancedSettingsMode ?? false,
     isMedia,
     mediaRole: isMedia ? workspace.mediaRole : undefined,
@@ -173,7 +173,7 @@ export default async function CreatorSettingsPage() {
 
   return (
     <StudioPage className="space-y-10">
-      <SettingsView initialCreator={initialCreatorData} publicationId={publication.id} />
+      <SettingsView initialCreator={initialCreatorData} publisherId={publisher.id} />
 
       <StudioSection title="Notifications de lancement">
         <FeatureConsents />

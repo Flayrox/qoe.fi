@@ -132,7 +132,7 @@ describe('Library Helpers (Bibliothèque 2026)', () => {
         id: 'a2',
         title: 'Éloge de la Lenteur et de l’Attention',
         slug: 'philosophie-du-calme',
-        publication: {
+        publisher: {
           id: 'p2',
           name: 'Éditions Minuit',
           slug: 'editions-minuit',
@@ -152,7 +152,7 @@ describe('Library Helpers (Bibliothèque 2026)', () => {
         id: 'a1',
         title: 'L’Essor des Agents Autonomes en 2026',
         slug: 'intelligence-artificielle-2026',
-        publication: {
+        publisher: {
           id: 'p1',
           name: 'Tech Horizon',
           slug: 'tech-horizon',
@@ -266,7 +266,7 @@ describe('Library Helpers (Bibliothèque 2026)', () => {
   });
 
   describe('formatQuoteForClipboard', () => {
-    it('formate une citation complète avec guillemets, publication, titre et URL', () => {
+    it('formate une citation complète avec guillemets, publisher, titre et URL', () => {
       const formatted = formatQuoteForClipboard(mockHighlights[0]);
       expect(formatted).toContain(
         '« Le véritable luxe moderne n’est plus la vitesse mais le discernement. »'
@@ -281,8 +281,8 @@ describe('Library Helpers (Bibliothèque 2026)', () => {
         ...mockHighlights[0],
         article: {
           ...mockHighlights[0].article,
-          publication: {
-            ...mockHighlights[0].article.publication,
+          publisher: {
+            ...mockHighlights[0].article.publisher,
             name: '',
           },
         },

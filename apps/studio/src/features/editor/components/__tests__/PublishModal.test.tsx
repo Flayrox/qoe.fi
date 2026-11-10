@@ -22,7 +22,7 @@ describe('PublishModal', () => {
     onConfirm: vi.fn().mockResolvedValue(undefined),
     articleTitle: 'Manifeste pour une édition libre',
     articleExcerpt: 'Les nouveaux modèles de rémunération directe...',
-    publicationName: 'La Revue Moderne',
+    publisherName: 'La Revue Moderne',
   };
 
   beforeEach(() => {
@@ -136,6 +136,23 @@ describe('PublishModal', () => {
       isPremium: false,
       emailSubject: 'Objet personnalisé spécial',
       emailPreviewText: 'Aperçu exclusif',
+    });
+  });
+
+  it('pré-sélectionne Web uniquement par défaut pour un essai souverain issu d’un média (anti-doublon newsletter)', async () => {
+    render(
+      <PublishModal {...baseProps} isAuthorSovereignCopy={true} originPublisherName="L'Assez" />
+    );
+    const user = userEvent.setup();
+
+    expect(screen.getByText(/Cet essai souverain provient de « L'Assez »/)).toBeDefined();
+
+    const confirmBtn = screen.getByRole('button', { name: /Publier sur le web/i });
+    await user.click(confirmBtn);
+
+    expect(baseProps.onConfirm).toHaveBeenCalledWith({
+      sendEmail: false,
+      isPremium: false,
     });
   });
 });

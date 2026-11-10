@@ -50,7 +50,7 @@ func subscribeFixture(t *testing.T) {
 	// La publication cible de /subscribe (seedHome ne pose que les posts).
 	ctx := context.Background()
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "isCertified", "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "isCertified", "createdAt", "updatedAt")
 		 VALUES ('pub_home_001', 'PERSONAL', 'Journal Home', 'journal-home', true, now(), now())
 		 ON CONFLICT (id) DO NOTHING`); err != nil {
 		t.Fatalf("publication: %v", err)
@@ -64,17 +64,17 @@ func TestSubscribe_RateLimited(t *testing.T) {
 
 	// Quota = 3/min/IP : les 3 premières passent, la 4e → 429.
 	for i := 0; i < 3; i++ {
-		if code := postSubscribe(h, "203.0.113.10", `{"email":"bot@qoe.test","publicationId":"pub_home_001"}`); code != http.StatusOK {
+		if code := postSubscribe(h, "203.0.113.10", `{"email":"bot@qoe.test","publisherId":"pub_home_001"}`); code != http.StatusOK {
 			t.Fatalf("requête %d → %d, attendu 200", i+1, code)
 		}
 	}
-	code := postSubscribe(h, "203.0.113.10", `{"email":"bot@qoe.test","publicationId":"pub_home_001"}`)
+	code := postSubscribe(h, "203.0.113.10", `{"email":"bot@qoe.test","publisherId":"pub_home_001"}`)
 	if code != http.StatusTooManyRequests {
 		t.Fatalf("4e requête → %d, attendu 429", code)
 	}
 
 	// Une autre IP n'est pas impactée (clé par IP, pas globale).
-	if code := postSubscribe(h, "203.0.113.11", `{"email":"bot@qoe.test","publicationId":"pub_home_001"}`); code != http.StatusOK {
+	if code := postSubscribe(h, "203.0.113.11", `{"email":"bot@qoe.test","publisherId":"pub_home_001"}`); code != http.StatusOK {
 		t.Fatalf("autre IP → %d, attendu 200", code)
 	}
 }
@@ -85,7 +85,7 @@ func TestSubscribe_NoRateLimit_Unconfigured(t *testing.T) {
 	// Handler sans SetSubscribeRateLimit (tests / rc nil) → jamais de 429.
 	h := NewHandler(&Service{pool: poolTest})
 	for i := 0; i < 10; i++ {
-		if code := postSubscribe(h, "203.0.113.20", `{"email":"a@qoe.test","publicationId":"pub_home_001"}`); code != http.StatusOK {
+		if code := postSubscribe(h, "203.0.113.20", `{"email":"a@qoe.test","publisherId":"pub_home_001"}`); code != http.StatusOK {
 			t.Fatalf("sans limiteur, requête %d → %d, attendu 200", i+1, code)
 		}
 	}
@@ -122,10 +122,10 @@ func TestSubscribe_EventOnCreationOnly(t *testing.T) {
 		t.Fatalf("resubscribe après panne d'enqueue: %v", err)
 	}
 
-	// Le conflit (email, publicationId) reste un upsert : une seule ligne.
+	// Le conflit (email, publisherId) reste un upsert : une seule ligne.
 	var count int
 	if err := poolTest.QueryRow(ctx,
-		`SELECT COUNT(*) FROM "Subscriber" WHERE email = $1 AND "publicationId" = $2`,
+		`SELECT COUNT(*) FROM "Subscriber" WHERE email = $1 AND "publisherId" = $2`,
 		email, pubID).Scan(&count); err != nil {
 		t.Fatalf("count: %v", err)
 	}

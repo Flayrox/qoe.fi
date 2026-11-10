@@ -49,13 +49,13 @@ import { ImportTab } from './tabs/import';
 
 export interface SettingsProps {
   initialCreator: CreatorProfile;
-  publicationId?: string;
+  publisherId?: string;
 }
 
 export type TabType =
   'general' | 'recommendations' | 'collaboration' | 'import' | 'domain' | 'navigation' | 'seo';
 
-export default function SettingsView({ initialCreator, publicationId }: SettingsProps) {
+export default function SettingsView({ initialCreator, publisherId }: SettingsProps) {
   // ── 💾 STATE MANAGEMENT ──
   const [original, setOriginal] = useState<CreatorProfile>(initialCreator);
   const [current, setCurrent] = useState<CreatorProfile>(initialCreator);
@@ -212,7 +212,7 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
 
       if (profileFieldsChanged || siteOptionsChanged) {
         const profileResult = await updateCreatorProfileAction({
-          publicationId,
+          publisherId,
           name: current.name,
           heroText: current.heroText,
           accentColor: current.accentColor,
@@ -239,7 +239,7 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
             throw new Error(`Sous-domaine invalide : ${subdomainCheck.error}`);
           }
           const subResult = await updateSubdomainAction({
-            publicationId,
+            publisherId,
             subdomain: current.subdomain,
           });
           if (!subResult.ok) {
@@ -249,7 +249,7 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
           }
         } else {
           const subResult = await updateSubdomainAction({
-            publicationId,
+            publisherId,
             subdomain: '',
           });
           if (!subResult.ok) {
@@ -263,7 +263,7 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
       const navChanged = JSON.stringify(current.navigation) !== JSON.stringify(original.navigation);
       if (navChanged) {
         const navResult = await saveNavigationLinksAction({
-          publicationId,
+          publisherId,
           links: current.navigation,
         });
         if (!navResult.ok) {
@@ -277,7 +277,7 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
         JSON.stringify(current.socialLinks) !== JSON.stringify(original.socialLinks);
       if (socialChanged) {
         const socialResult = await saveSocialLinksAction({
-          publicationId,
+          publisherId,
           links: current.socialLinks,
         });
         if (!socialResult.ok) {
@@ -625,4 +625,4 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
 }
 
 // Compat export
-export { SettingsView as PublicationSettings };
+export { SettingsView as PublisherSettings };

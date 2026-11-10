@@ -114,11 +114,11 @@ describe('RecommendationModal', () => {
       expect(mocks.subscribeToNewsletterAction).toHaveBeenCalledTimes(2);
       expect(mocks.subscribeToNewsletterAction).toHaveBeenCalledWith({
         email: 'alex@test.dev',
-        publicationId: 'pub_a',
+        publisherId: 'pub_a',
       });
       expect(mocks.subscribeToNewsletterAction).toHaveBeenCalledWith({
         email: 'alex@test.dev',
-        publicationId: 'pub_b',
+        publisherId: 'pub_b',
       });
     });
   });

@@ -109,7 +109,7 @@ func (h *Handler) updatePrefs(w http.ResponseWriter, r *http.Request) {
 
 type mediaNotificationInput struct {
 	RecipientId   string `json:"recipientId"`
-	PublicationId string `json:"publicationId"`
+	PublisherId string `json:"publisherId"`
 }
 
 // insertMediaNotification partagé : sender = utilisateur authentifié (jamais
@@ -117,7 +117,7 @@ type mediaNotificationInput struct {
 func (h *Handler) insertMediaNotification(
 	w http.ResponseWriter,
 	r *http.Request,
-	insert func(ctx context.Context, recipientID, senderID, publicationID string) error,
+	insert func(ctx context.Context, recipientID, senderID, publisherID string) error,
 ) {
 	senderID, ok := middleware.UserID(r.Context())
 	if !ok {
@@ -129,11 +129,11 @@ func (h *Handler) insertMediaNotification(
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	if in.RecipientId == "" || in.PublicationId == "" {
-		response.BadRequest(w, "recipientId et publicationId requis")
+	if in.RecipientId == "" || in.PublisherId == "" {
+		response.BadRequest(w, "recipientId et publisherId requis")
 		return
 	}
-	if err := insert(r.Context(), in.RecipientId, senderID, in.PublicationId); err != nil {
+	if err := insert(r.Context(), in.RecipientId, senderID, in.PublisherId); err != nil {
 		log.Printf("[notifications] media-notification: %v", err)
 		response.Internal(w)
 		return

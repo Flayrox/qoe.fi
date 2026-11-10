@@ -76,11 +76,11 @@ type MyHighlight struct {
 	CreatedAt               string  `json:"createdAt"`
 	ArticleTitle            string  `json:"articleTitle"`
 	ArticleSlug             string  `json:"articleSlug"`
-	PublicationID           string  `json:"publicationId"`
-	PublicationName         string  `json:"publicationName"`
-	PublicationSlug         string  `json:"publicationSlug"`
-	PublicationSubdomain    *string `json:"subdomain"`
-	PublicationCustomDomain *string `json:"customDomain"`
+	PublisherID           string  `json:"publisherId"`
+	PublisherName         string  `json:"publisherName"`
+	PublisherSlug         string  `json:"publisherSlug"`
+	PublisherSubdomain    *string `json:"subdomain"`
+	PublisherCustomDomain *string `json:"customDomain"`
 }
 
 // BookmarkItem est un article sauvegardé (bibliothèque).
@@ -94,12 +94,12 @@ type BookmarkItem struct {
 	ArticleIsPremium        bool    `json:"isPremium"`
 	ArticleCreatedAt        string  `json:"articleCreatedAt"`
 	ArticleContent          string  `json:"content"`
-	PublicationID           string  `json:"publicationId"`
-	PublicationName         string  `json:"publicationName"`
-	PublicationSlug         string  `json:"publicationSlug"`
-	PublicationSubdomain    *string `json:"subdomain"`
-	PublicationCustomDomain *string `json:"customDomain"`
-	PublicationLogo         *string `json:"logoUrl"`
+	PublisherID           string  `json:"publisherId"`
+	PublisherName         string  `json:"publisherName"`
+	PublisherSlug         string  `json:"publisherSlug"`
+	PublisherSubdomain    *string `json:"subdomain"`
+	PublisherCustomDomain *string `json:"customDomain"`
+	PublisherLogo         *string `json:"logoUrl"`
 	CategoryName            *string `json:"categoryName"`
 	Author                  Author  `json:"author"`
 }
@@ -543,11 +543,11 @@ func (s *Service) MyHighlights(ctx context.Context, readerID string, limit, offs
 			CreatedAt:               tsString(r.CreatedAt),
 			ArticleTitle:            r.ArticleTitle,
 			ArticleSlug:             r.ArticleSlug,
-			PublicationID:           r.PublicationID,
-			PublicationName:         r.PublicationName,
-			PublicationSlug:         r.PublicationSlug,
-			PublicationSubdomain:    textPtr(r.PublicationSubdomain),
-			PublicationCustomDomain: textPtr(r.PublicationCustomDomain),
+			PublisherID:           r.PublisherID,
+			PublisherName:         r.PublisherName,
+			PublisherSlug:         r.PublisherSlug,
+			PublisherSubdomain:    textPtr(r.PublisherSubdomain),
+			PublisherCustomDomain: textPtr(r.PublisherCustomDomain),
 		})
 	}
 	return out, nil
@@ -577,12 +577,12 @@ func (s *Service) Bookmarks(ctx context.Context, readerID string, limit, offset 
 			ArticleReadingTime:      int(r.ArticleReadingTime),
 			ArticleIsPremium:        r.ArticleIsPremium,
 			ArticleCreatedAt:        tsString(r.ArticleCreatedAt),
-			PublicationID:           r.PublicationID,
-			PublicationName:         r.PublicationName,
-			PublicationSlug:         r.PublicationSlug,
-			PublicationSubdomain:    textPtr(r.PublicationSubdomain),
-			PublicationCustomDomain: textPtr(r.PublicationCustomDomain),
-			PublicationLogo:         textPtr(r.PublicationLogo),
+			PublisherID:           r.PublisherID,
+			PublisherName:         r.PublisherName,
+			PublisherSlug:         r.PublisherSlug,
+			PublisherSubdomain:    textPtr(r.PublisherSubdomain),
+			PublisherCustomDomain: textPtr(r.PublisherCustomDomain),
+			PublisherLogo:         textPtr(r.PublisherLogo),
 			ArticleContent:          r.ArticleContent,
 			CategoryName:            textPtr(r.CategoryName), Author: authorFrom(r.AuthorID, r.AuthorName, r.AuthorUsername, r.AuthorLogo),
 		})

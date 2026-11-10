@@ -33,7 +33,7 @@ func TestFault_NotifyFollow(t *testing.T) {
 	alicePubID, aliceUserID, _, bobUserID := seedFollows(t)
 	ctx := context.Background()
 
-	for _, m := range []string{"GetPublicationOwner", "GetFollowPrefs", "ExistsUnreadFollowNotification", "InsertFollowNotification"} {
+	for _, m := range []string{"GetPublisherOwner", "GetFollowPrefs", "ExistsUnreadFollowNotification", "InsertFollowNotification"} {
 		fq := &faultQ{Queries: db.New(poolTest), fail: map[string]error{m: errBoom}}
 		if err := notifyFollow(ctx, fq, alicePubID, bobUserID); err == nil {
 			t.Errorf("notifyFollow %s: err = nil", m)
@@ -47,7 +47,7 @@ func TestFault_NotifyFollow(t *testing.T) {
 	}
 
 	// GetPublicationOwner en ErrNoRows → nil (pas d'owner à notifier).
-	fq = &faultQ{Queries: db.New(poolTest), fail: map[string]error{"GetPublicationOwner": pgx.ErrNoRows}}
+	fq = &faultQ{Queries: db.New(poolTest), fail: map[string]error{"GetPublisherOwner": pgx.ErrNoRows}}
 	if err := notifyFollow(ctx, fq, alicePubID, bobUserID); err != nil {
 		t.Fatalf("owner NoRows → %v, attendu nil", err)
 	}
@@ -58,7 +58,7 @@ func TestFault_DeleteFollowNotification(t *testing.T) {
 	alicePubID, aliceUserID, _, bobUserID := seedFollows(t)
 	ctx := context.Background()
 
-	for _, m := range []string{"GetPublicationOwner", "DeleteFollowNotification"} {
+	for _, m := range []string{"GetPublisherOwner", "DeleteFollowNotification"} {
 		fq := &faultQ{Queries: db.New(poolTest), fail: map[string]error{m: errBoom}}
 		if err := deleteFollowNotification(ctx, fq, alicePubID, bobUserID); err == nil {
 			t.Errorf("deleteFollowNotification %s: err = nil", m)

@@ -61,7 +61,7 @@ function createQuoteFixtures(suffix: string) {
       slug: `organiser-son-premier-voyage-solo-${suffix}`,
       isPremium: false,
       quoteContext: null,
-      publication: {
+      publisher: {
         name: `Le Média Clair (${suffix})`,
         slug: `media-clair-${suffix}`,
         subdomain: `media-clair-${suffix}`,
@@ -197,7 +197,7 @@ const goThread = {
     slug: 'organiser-son-premier-voyage-solo',
     isPremium: false,
     quoteContext: null,
-    publication: {
+    publisher: {
       name: 'Le Média Clair',
       slug: 'media-clair',
       subdomain: 'media-clair',

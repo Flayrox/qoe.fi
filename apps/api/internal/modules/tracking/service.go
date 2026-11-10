@@ -322,10 +322,10 @@ type ReadingHistoryArticle struct {
 	ImageURL    pgtype.Text                `json:"imageUrl"`
 	ReadingTime int32                      `json:"readingTime"`
 	CreatedAt   pgtype.Timestamp           `json:"createdAt"`
-	Publication *ReadingHistoryPublication `json:"publication"`
+	Publisher *ReadingHistoryPublisher `json:"publisher"`
 }
 
-type ReadingHistoryPublication struct {
+type ReadingHistoryPublisher struct {
 	ID        string      `json:"id"`
 	Name      string      `json:"name"`
 	Slug      string      `json:"slug"`
@@ -353,7 +353,7 @@ func (s *Service) ReadingHistory(ctx context.Context, userID string, days int) (
 			ORDER BY rs."articleId", rs."createdAt" DESC
 		) t
 		JOIN "Article" a ON a.id = t."articleId"
-		LEFT JOIN "Publication" p ON p.id = a."publicationId"
+		LEFT JOIN "Publisher" p ON p.id = a."publisherId"
 		ORDER BY t."createdAt" DESC
 		LIMIT 100
 	`, toUUID(userID), since)
@@ -375,7 +375,7 @@ func (s *Service) ReadingHistory(ctx context.Context, userID string, days int) (
 			return nil, err
 		}
 		if pubName.Valid {
-			it.Article.Publication = &ReadingHistoryPublication{ID: pubID.String, Name: pubName.String, Slug: pubSlug.String, Subdomain: pubSubdomain}
+			it.Article.Publisher = &ReadingHistoryPublisher{ID: pubID.String, Name: pubName.String, Slug: pubSlug.String, Subdomain: pubSubdomain}
 		}
 		items = append(items, it)
 	}

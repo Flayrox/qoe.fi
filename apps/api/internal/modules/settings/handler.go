@@ -30,7 +30,7 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Route("/v1/settings", func(r chi.Router) {
 		r.Patch("/profile", h.updateProfile)
-		r.Get("/publication", h.getPublicationSettings)
+		r.Get("/publisher", h.getPublisherSettings)
 		r.Get("/preferences", h.getPreferences)
 		r.Get("/consent", h.getConsent)
 		r.Patch("/consent", h.updateConsent)
@@ -44,7 +44,7 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 		r.Put("/social", h.saveSocial)
 		// Défaut de téléchargement des nouveaux articles (hors-ligne/file
 		// d'écoute — l'auteur ajuste ensuite par article).
-		r.Patch("/publication/download-default", h.setDownloadDefault)
+		r.Patch("/publisher/download-default", h.setDownloadDefault)
 		registerSiteLayoutRoutes(r, h)
 		r.Post("/api-application", h.submitApiApplication)
 		r.Get("/api-keys", h.listApiKeys)
@@ -95,30 +95,30 @@ func (h *Handler) updateConsent(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, out)
 }
 
-// GET /v1/settings/publication?publicationId= — publication + relations de la
+// GET /v1/settings/publication?publisherId= — publication + relations de la
 // page settings créateur (navigation, socialLinks, articles, catégories, owner).
-func (h *Handler) getPublicationSettings(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) getPublisherSettings(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserID(r.Context())
 	if !ok || userID == "" {
 		response.Unauthorized(w, "Authentification requise")
 		return
 	}
-	publicationID := r.URL.Query().Get("publicationId")
-	if publicationID == "" {
-		response.BadRequest(w, "publicationId requis")
+	publisherID := r.URL.Query().Get("publisherId")
+	if publisherID == "" {
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
-	pub, err := h.svc.GetPublicationSettings(r.Context(), userID, publicationID)
+	pub, err := h.svc.GetPublisherSettings(r.Context(), userID, publisherID)
 	if err != nil {
 		if errors.Is(err, errForbidden) {
 			response.Forbidden(w, "Accès refusé à cette publication.")
 			return
 		}
 		if errors.Is(err, errNotFound) {
-			response.NotFound(w, "Publication introuvable")
+			response.NotFound(w, "Publisher introuvable")
 			return
 		}
-		log.Printf("[settings] getPublicationSettings: %v", err)
+		log.Printf("[settings] getPublisherSettings: %v", err)
 		response.Internal(w)
 		return
 	}
@@ -224,14 +224,14 @@ func (h *Handler) updateProfile(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	publicationID, _ := body["publicationId"].(string)
-	if publicationID == "" {
-		response.BadRequest(w, "publicationId requis")
+	publisherID, _ := body["publisherId"].(string)
+	if publisherID == "" {
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
-	delete(body, "publicationId")
+	delete(body, "publisherId")
 
-	user, err := h.svc.UpdateProfile(r.Context(), userID, publicationID, body)
+	user, err := h.svc.UpdateProfile(r.Context(), userID, publisherID, body)
 	if err != nil {
 		if errors.Is(err, errForbidden) {
 			response.Forbidden(w, "Accès refusé à cette publication.")
@@ -252,18 +252,18 @@ func (h *Handler) updateProfile(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) updateSubdomain(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	var in struct {
-		PublicationID string `json:"publicationId"`
+		PublisherID string `json:"publisherId"`
 		Subdomain     string `json:"subdomain"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	if in.PublicationID == "" || in.Subdomain == "" {
-		response.BadRequest(w, "publicationId et subdomain requis")
+	if in.PublisherID == "" || in.Subdomain == "" {
+		response.BadRequest(w, "publisherId et subdomain requis")
 		return
 	}
-	if err := h.svc.UpdateSubdomain(r.Context(), userID, in.PublicationID, in.Subdomain); err != nil {
+	if err := h.svc.UpdateSubdomain(r.Context(), userID, in.PublisherID, in.Subdomain); err != nil {
 		if errors.Is(err, errForbidden) {
 			response.Forbidden(w, err.Error())
 			return
@@ -278,18 +278,18 @@ func (h *Handler) updateSubdomain(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) saveNavigation(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	var in struct {
-		PublicationID string           `json:"publicationId"`
+		PublisherID string           `json:"publisherId"`
 		Links         []NavigationLink `json:"links"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	if in.PublicationID == "" {
-		response.BadRequest(w, "publicationId requis")
+	if in.PublisherID == "" {
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
-	if err := h.svc.SaveNavigation(r.Context(), userID, in.PublicationID, in.Links); err != nil {
+	if err := h.svc.SaveNavigation(r.Context(), userID, in.PublisherID, in.Links); err != nil {
 		if errors.Is(err, errForbidden) {
 			response.Forbidden(w, "Accès refusé à cette publication.")
 			return
@@ -302,27 +302,27 @@ func (h *Handler) saveNavigation(w http.ResponseWriter, r *http.Request) {
 }
 
 // PATCH /v1/settings/publication/download-default — défaut de téléchargement
-// des NOUVEAUX articles (hors-ligne/file d'écoute). Body : { publicationId,
+// des NOUVEAUX articles (hors-ligne/file d'écoute). Body : { publisherId,
 // allowDownloadDefault }. L'auteur ajuste ensuite par article.
 func (h *Handler) setDownloadDefault(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	var in struct {
-		PublicationID       string `json:"publicationId"`
+		PublisherID       string `json:"publisherId"`
 		AllowDownloadDefault *bool  `json:"allowDownloadDefault"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil ||
-		in.PublicationID == "" || in.AllowDownloadDefault == nil {
-		response.BadRequest(w, "JSON invalide (publicationId et allowDownloadDefault requis)")
+		in.PublisherID == "" || in.AllowDownloadDefault == nil {
+		response.BadRequest(w, "JSON invalide (publisherId et allowDownloadDefault requis)")
 		return
 	}
-	val, err := h.svc.SetDownloadDefault(r.Context(), userID, in.PublicationID, *in.AllowDownloadDefault)
+	val, err := h.svc.SetDownloadDefault(r.Context(), userID, in.PublisherID, *in.AllowDownloadDefault)
 	if err != nil {
 		if errors.Is(err, errForbidden) {
 			response.Forbidden(w, "Accès réservé.")
 			return
 		}
 		if errors.Is(err, errNotFound) {
-			response.NotFound(w, "Publication introuvable.")
+			response.NotFound(w, "Publisher introuvable.")
 			return
 		}
 		log.Printf("[settings] download-default: %v", err)
@@ -336,18 +336,18 @@ func (h *Handler) setDownloadDefault(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) saveSocial(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	var in struct {
-		PublicationID string       `json:"publicationId"`
+		PublisherID string       `json:"publisherId"`
 		Links         []SocialLink `json:"links"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	if in.PublicationID == "" {
-		response.BadRequest(w, "publicationId requis")
+	if in.PublisherID == "" {
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
-	if err := h.svc.SaveSocial(r.Context(), userID, in.PublicationID, in.Links); err != nil {
+	if err := h.svc.SaveSocial(r.Context(), userID, in.PublisherID, in.Links); err != nil {
 		if errors.Is(err, errForbidden) {
 			response.Forbidden(w, "Accès refusé à cette publication.")
 			return

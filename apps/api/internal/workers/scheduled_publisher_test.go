@@ -11,7 +11,7 @@ func TestPublishScheduledArticlePayload(t *testing.T) {
 	before := time.Now().UTC()
 	a := ScheduledArticle{
 		ID:            "art_1",
-		PublicationID: "pub_1",
+		PublisherID: "pub_1",
 		AuthorID:      "auth_1",
 		Title:         "Mon article programmé",
 		Slug:          "mon-article-programme",
@@ -23,7 +23,7 @@ func TestPublishScheduledArticlePayload(t *testing.T) {
 	if p.EventID != "article_published_art_1" {
 		t.Errorf("EventID = %q, attendu %q", p.EventID, "article_published_art_1")
 	}
-	if p.PublicationID != "pub_1" || p.ArticleID != "art_1" || p.AuthorID != "auth_1" {
+	if p.PublisherID != "pub_1" || p.ArticleID != "art_1" || p.AuthorID != "auth_1" {
 		t.Errorf("IDs du payload incorrects : %+v", p)
 	}
 	if p.Title != "Mon article programmé" || p.Slug != "mon-article-programme" {

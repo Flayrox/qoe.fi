@@ -13,22 +13,22 @@ import (
 
 const getArticleForCollaboration = `-- name: GetArticleForCollaboration :one
 
-SELECT id, "authorId"::text AS author_id, "publicationId"
+SELECT id, "authorId"::text AS author_id, "publisherId"
 FROM "Article"
 WHERE id = $1
 `
 
 type GetArticleForCollaborationRow struct {
-	ID            string `json:"id"`
-	AuthorID      string `json:"author_id"`
-	PublicationId string `json:"publicationId"`
+	ID          string `json:"id"`
+	AuthorID    string `json:"author_id"`
+	PublisherId string `json:"publisherId"`
 }
 
 // Collaborations / attributions (migration de studio advanced/actions.ts).
 func (q *Queries) GetArticleForCollaboration(ctx context.Context, id string) (GetArticleForCollaborationRow, error) {
 	row := q.db.QueryRow(ctx, getArticleForCollaboration, id)
 	var i GetArticleForCollaborationRow
-	err := row.Scan(&i.ID, &i.AuthorID, &i.PublicationId)
+	err := row.Scan(&i.ID, &i.AuthorID, &i.PublisherId)
 	return i, err
 }
 
@@ -172,17 +172,17 @@ const isActiveMediaMember = `-- name: IsActiveMediaMember :one
 SELECT EXISTS (
   SELECT 1 FROM "MediaMember" mm
   JOIN "Media" m ON m.id = mm."mediaId"
-  WHERE m."publicationId" = $1 AND mm."userId" = $2 AND mm.status = 'active'
+  WHERE m."publisherId" = $1 AND mm."userId" = $2 AND mm.status = 'active'
 ) AS "exists"
 `
 
 type IsActiveMediaMemberParams struct {
-	PublicationId string      `json:"publicationId"`
-	UserId        pgtype.UUID `json:"userId"`
+	PublisherId string      `json:"publisherId"`
+	UserId      pgtype.UUID `json:"userId"`
 }
 
 func (q *Queries) IsActiveMediaMember(ctx context.Context, arg IsActiveMediaMemberParams) (bool, error) {
-	row := q.db.QueryRow(ctx, isActiveMediaMember, arg.PublicationId, arg.UserId)
+	row := q.db.QueryRow(ctx, isActiveMediaMember, arg.PublisherId, arg.UserId)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err

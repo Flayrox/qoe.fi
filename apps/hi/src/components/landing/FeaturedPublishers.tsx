@@ -7,7 +7,7 @@ import { useI18n } from '@qoe/i18n';
 import { ArrowUpRight } from 'lucide-react';
 import { ArticlePreviewModal, type Article } from './ArticlePreviewModal';
 
-interface FeaturedPublicationsProps {
+interface FeaturedPublishersProps {
   articles: Article[];
   config: Record<string, string>;
 }
@@ -132,7 +132,7 @@ function CenterFadeMask() {
   );
 }
 
-export const FeaturedPublications = ({ articles, config }: FeaturedPublicationsProps) => {
+export const FeaturedPublishers = ({ articles, config }: FeaturedPublishersProps) => {
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [lanes, setLanes] = useState<{
     lane1: string[];
@@ -165,7 +165,7 @@ export const FeaturedPublications = ({ articles, config }: FeaturedPublicationsP
   }, [config]);
 
   const title =
-    config[`featured_title_${locale}`] || config['featured_title'] || t`Publications récentes`;
+    config[`featured_title_${locale}`] || config['featured_title'] || t`Publishers récentes`;
   const tagline =
     config[`featured_tagline_${locale}`] || config['featured_tagline'] || t`Écrits sélectionnés`;
 

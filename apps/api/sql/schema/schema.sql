@@ -11,7 +11,7 @@ CREATE TYPE "ContentVisibility" AS ENUM ('PUBLIC', 'MEMBERS_ONLY', 'PAID_SUBSCRI
 CREATE TYPE "SubscriptionStatus" AS ENUM ('ACTIVE', 'PAST_DUE', 'CANCELED', 'UNPAID', 'INCOMPLETE');
 
 -- CreateEnum
-CREATE TYPE "PublicationType" AS ENUM ('PERSONAL', 'MEDIA');
+CREATE TYPE "PublisherType" AS ENUM ('PERSONAL', 'MEDIA');
 
 -- CreateEnum
 CREATE TYPE "Gender" AS ENUM ('FEMALE', 'MALE', 'NON_BINARY', 'OTHER', 'PREFER_NOT_TO_SAY');
@@ -26,7 +26,7 @@ CREATE TYPE "NotificationType" AS ENUM ('LIKE', 'REPOST', 'REPLY', 'COMMENT', 'M
 CREATE TYPE "MediaAssetStatus" AS ENUM ('DRAFT_ORPHAN', 'ATTACHED', 'SOFT_DELETED', 'PURGED');
 
 -- CreateEnum
-CREATE TYPE "MediaAssetTargetType" AS ENUM ('ARTICLE_COVER', 'ARTICLE_BODY', 'THOUGHT_ATTACHMENT', 'USER_AVATAR', 'USER_BANNER', 'PUBLICATION_LOGO', 'PUBLICATION_BANNER', 'SHARED');
+CREATE TYPE "MediaAssetTargetType" AS ENUM ('ARTICLE_COVER', 'ARTICLE_BODY', 'THOUGHT_ATTACHMENT', 'USER_AVATAR', 'USER_BANNER', 'PUBLISHER_LOGO', 'PUBLISHER_BANNER', 'SHARED');
 
 -- CreateEnum
 CREATE TYPE "OAuthClientType" AS ENUM ('CONFIDENTIAL', 'PUBLIC');
@@ -73,7 +73,7 @@ CREATE TABLE "User" (
     "forceStandardTheme" BOOLEAN NOT NULL DEFAULT false,
     "onboardingText" TEXT,
     "logoUrl" TEXT,
-    "publicationId" TEXT,
+    "publisherId" TEXT,
     "advancedSettingsMode" BOOLEAN NOT NULL DEFAULT false,
     "hasCompletedOnboarding" BOOLEAN NOT NULL DEFAULT false,
     "apiAccessStatus" TEXT NOT NULL DEFAULT 'none',
@@ -117,7 +117,7 @@ CREATE TABLE "Tier" (
     "stripePriceIdYearly" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "publicationId" TEXT NOT NULL,
+    "publisherId" TEXT NOT NULL,
 
     CONSTRAINT "Tier_pkey" PRIMARY KEY ("id")
 );
@@ -427,7 +427,7 @@ CREATE TABLE "Subscriber" (
     "stripeCustomerId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "publicationId" TEXT NOT NULL,
+    "publisherId" TEXT NOT NULL,
     "userId" UUID,
     "tierId" TEXT,
 
@@ -438,7 +438,7 @@ CREATE TABLE "Subscriber" (
 CREATE TABLE "Follows" (
     "id" TEXT NOT NULL,
     "readerId" UUID NOT NULL,
-    "publicationId" TEXT NOT NULL,
+    "publisherId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Follows_pkey" PRIMARY KEY ("id")
@@ -513,7 +513,7 @@ CREATE TABLE "SocialLink" (
     "platform" TEXT NOT NULL,
     "url" TEXT NOT NULL,
     "order" INTEGER NOT NULL DEFAULT 0,
-    "publicationId" TEXT NOT NULL,
+    "publisherId" TEXT NOT NULL,
 
     CONSTRAINT "SocialLink_pkey" PRIMARY KEY ("id")
 );
@@ -524,7 +524,7 @@ CREATE TABLE "Category" (
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "description" TEXT,
-    "publicationId" TEXT NOT NULL,
+    "publisherId" TEXT NOT NULL,
     "parentId" TEXT,
     "isDefault" BOOLEAN NOT NULL DEFAULT false,
 
@@ -538,7 +538,7 @@ CREATE TABLE "NavigationItem" (
     "url" TEXT,
     "order" INTEGER NOT NULL DEFAULT 0,
     "isExternal" BOOLEAN NOT NULL DEFAULT false,
-    "publicationId" TEXT NOT NULL,
+    "publisherId" TEXT NOT NULL,
     "parentId" TEXT,
 
     CONSTRAINT "NavigationItem_pkey" PRIMARY KEY ("id")
@@ -564,9 +564,13 @@ CREATE TABLE "Article" (
     "allowComments" BOOLEAN NOT NULL DEFAULT true,
     "allowDownload" BOOLEAN NOT NULL DEFAULT true,
     "showOnPersonalProfile" BOOLEAN NOT NULL DEFAULT true,
+    "originArticleId" TEXT,
+    "canonicalType" TEXT NOT NULL DEFAULT 'ORIGINAL',
+    "isAuthorSovereignCopy" BOOLEAN NOT NULL DEFAULT false,
+    "canonicalUrl" TEXT,
     "scheduledAt" TIMESTAMP(3),
     "status" TEXT NOT NULL DEFAULT 'DRAFT',
-    "publicationId" TEXT NOT NULL,
+    "publisherId" TEXT NOT NULL,
     "authorId" UUID NOT NULL,
     "categoryId" TEXT,
     "tierId" TEXT,
@@ -647,9 +651,9 @@ CREATE TABLE "ArticleAttribution" (
 );
 
 -- CreateTable
-CREATE TABLE "Publication" (
+CREATE TABLE "Publisher" (
     "id" TEXT NOT NULL,
-    "type" "PublicationType" NOT NULL DEFAULT 'PERSONAL',
+    "type" "PublisherType" NOT NULL DEFAULT 'PERSONAL',
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "bio" TEXT,
@@ -678,13 +682,13 @@ CREATE TABLE "Publication" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "Publication_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Publisher_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Media" (
     "id" TEXT NOT NULL,
-    "publicationId" TEXT NOT NULL,
+    "publisherId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -850,20 +854,20 @@ CREATE TABLE "ApiKey" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "lastUsedAt" TIMESTAMP(3),
     "userId" UUID,
-    "publicationId" TEXT,
+    "publisherId" TEXT,
     "createdByUserId" UUID,
 
     CONSTRAINT "ApiKey_pkey" PRIMARY KEY ("id"),
     CONSTRAINT "chk_apikey_single_owner" CHECK (
-        ("userId" IS NOT NULL AND "publicationId" IS NULL) OR
-        ("userId" IS NULL AND "publicationId" IS NOT NULL)
+        ("userId" IS NOT NULL AND "publisherId" IS NULL) OR
+        ("userId" IS NULL AND "publisherId" IS NOT NULL)
     )
 );
 
 -- CreateTable
 CREATE TABLE "Webhook" (
     "id" TEXT NOT NULL,
-    "publicationId" TEXT NOT NULL,
+    "publisherId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "url" TEXT NOT NULL,
     "secret" TEXT NOT NULL,
@@ -938,7 +942,7 @@ CREATE TABLE "Notification" (
     "thoughtId" TEXT,
     "articleId" TEXT,
     "commentId" TEXT,
-    "publicationId" TEXT,
+    "publisherId" TEXT,
     "isRead" BOOLEAN NOT NULL DEFAULT false,
     "metadata" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -950,7 +954,7 @@ CREATE TABLE "Notification" (
 CREATE TABLE "ArticleReviewLog" (
     "id" TEXT NOT NULL,
     "articleId" TEXT NOT NULL,
-    "publicationId" TEXT NOT NULL,
+    "publisherId" TEXT NOT NULL,
     "reviewerId" UUID NOT NULL,
     "action" TEXT NOT NULL,
     "comment" TEXT,
@@ -964,7 +968,7 @@ CREATE TABLE "ArticleReviewLog" (
 CREATE TABLE "ArticleEvent" (
     "id"            TEXT NOT NULL DEFAULT gen_random_uuid()::text,
     "articleId"     TEXT NOT NULL,
-    "publicationId" TEXT,
+    "publisherId" TEXT,
     "actorId"       UUID,
     "type"          TEXT NOT NULL,
     "fromStatus"    TEXT,
@@ -982,7 +986,7 @@ CREATE TABLE "ArticleEvent" (
 );
 
 CREATE INDEX "ArticleEvent_articleId_createdAt_idx" ON "ArticleEvent" ("articleId", "createdAt" DESC);
-CREATE INDEX "ArticleEvent_publicationId_createdAt_idx" ON "ArticleEvent" ("publicationId", "createdAt" DESC);
+CREATE INDEX "ArticleEvent_publisherId_createdAt_idx" ON "ArticleEvent" ("publisherId", "createdAt" DESC);
 
 -- CreateTable
 CREATE TABLE "UserSettings" (
@@ -1132,7 +1136,7 @@ CREATE TABLE "ModerationReport" (
 -- CreateTable
 CREATE TABLE "NewsletterIssue" (
     "id" TEXT NOT NULL,
-    "publicationId" TEXT NOT NULL,
+    "publisherId" TEXT NOT NULL,
     "subject" TEXT NOT NULL,
     "previewText" TEXT,
     "html" TEXT NOT NULL,
@@ -1220,7 +1224,7 @@ CREATE TABLE "OAuthClient" (
     "scopes" TEXT[] DEFAULT ARRAY['openid', 'profile', 'email']::TEXT[],
     "clientType" "OAuthClientType" NOT NULL DEFAULT 'CONFIDENTIAL',
     "status" "OAuthClientStatus" NOT NULL DEFAULT 'PENDING',
-    "publicationId" TEXT,
+    "publisherId" TEXT,
     "ownerUserId" UUID NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -1290,7 +1294,7 @@ CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 CREATE UNIQUE INDEX "User_username_key" ON "User"("username");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_publicationId_key" ON "User"("publicationId");
+CREATE UNIQUE INDEX "User_publisherId_key" ON "User"("publisherId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_phoneNumber_key" ON "User"("phoneNumber") WHERE "phoneNumber" IS NOT NULL;
@@ -1305,7 +1309,7 @@ CREATE INDEX "Recommendation_recommendedId_idx" ON "Recommendation"("recommended
 CREATE UNIQUE INDEX "Recommendation_recommenderId_recommendedId_key" ON "Recommendation"("recommenderId", "recommendedId");
 
 -- CreateIndex
-CREATE INDEX "Tier_publicationId_idx" ON "Tier"("publicationId");
+CREATE INDEX "Tier_publisherId_idx" ON "Tier"("publisherId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "MutedWord_userId_word_key" ON "MutedWord"("userId", "word");
@@ -1323,22 +1327,22 @@ CREATE INDEX "WalletTransaction_userId_createdAt_idx" ON "WalletTransaction"("us
 CREATE UNIQUE INDEX "Subscriber_stripeSubscriptionId_key" ON "Subscriber"("stripeSubscriptionId");
 
 -- CreateIndex
-CREATE INDEX "Subscriber_publicationId_email_status_idx" ON "Subscriber"("publicationId", "email", "status");
+CREATE INDEX "Subscriber_publisherId_email_status_idx" ON "Subscriber"("publisherId", "email", "status");
 
 -- CreateIndex
-CREATE INDEX "Subscriber_userId_publicationId_idx" ON "Subscriber"("userId", "publicationId");
+CREATE INDEX "Subscriber_userId_publisherId_idx" ON "Subscriber"("userId", "publisherId");
 
 -- CreateIndex
 CREATE INDEX "Subscriber_stripeSubscriptionId_idx" ON "Subscriber"("stripeSubscriptionId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Subscriber_email_publicationId_key" ON "Subscriber"("email", "publicationId");
+CREATE UNIQUE INDEX "Subscriber_email_publisherId_key" ON "Subscriber"("email", "publisherId");
 
 -- CreateIndex
-CREATE INDEX "Follows_publicationId_idx" ON "Follows"("publicationId");
+CREATE INDEX "Follows_publisherId_idx" ON "Follows"("publisherId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Follows_readerId_publicationId_key" ON "Follows"("readerId", "publicationId");
+CREATE UNIQUE INDEX "Follows_readerId_publisherId_key" ON "Follows"("readerId", "publisherId");
 
 -- CreateIndex
 CREATE INDEX "Bookmark_articleId_idx" ON "Bookmark"("articleId");
@@ -1377,22 +1381,22 @@ CREATE INDEX "Letter_recipientId_idx" ON "Letter"("recipientId");
 CREATE INDEX "Letter_senderId_idx" ON "Letter"("senderId");
 
 -- CreateIndex
-CREATE INDEX "SocialLink_publicationId_idx" ON "SocialLink"("publicationId");
+CREATE INDEX "SocialLink_publisherId_idx" ON "SocialLink"("publisherId");
 
 -- CreateIndex
-CREATE INDEX "Category_publicationId_idx" ON "Category"("publicationId");
+CREATE INDEX "Category_publisherId_idx" ON "Category"("publisherId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Category_slug_publicationId_key" ON "Category"("slug", "publicationId");
+CREATE UNIQUE INDEX "Category_slug_publisherId_key" ON "Category"("slug", "publisherId");
 
 -- CreateIndex
-CREATE INDEX "NavigationItem_publicationId_idx" ON "NavigationItem"("publicationId");
+CREATE INDEX "NavigationItem_publisherId_idx" ON "NavigationItem"("publisherId");
 
 -- CreateIndex
 CREATE INDEX "Article_slug_idx" ON "Article"("slug");
 
 -- CreateIndex
-CREATE INDEX "Article_publicationId_published_createdAt_idx" ON "Article"("publicationId", "published", "createdAt");
+CREATE INDEX "Article_publisherId_published_createdAt_idx" ON "Article"("publisherId", "published", "createdAt");
 
 -- CreateIndex
 CREATE INDEX "Article_authorId_published_createdAt_idx" ON "Article"("authorId", "published", "createdAt");
@@ -1410,7 +1414,7 @@ CREATE INDEX "Article_categoryId_idx" ON "Article"("categoryId");
 CREATE INDEX "Article_status_scheduledAt_idx" ON "Article"("status", "scheduledAt");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Article_publicationId_slug_key" ON "Article"("publicationId", "slug");
+CREATE UNIQUE INDEX "Article_publisherId_slug_key" ON "Article"("publisherId", "slug");
 
 -- CreateIndex
 CREATE INDEX "collab_documents_updated_at_idx" ON "collab_documents"("updated_at");
@@ -1428,19 +1432,19 @@ CREATE INDEX "ArticleAttribution_userId_idx" ON "ArticleAttribution"("userId");
 CREATE UNIQUE INDEX "ArticleAttribution_articleId_userId_key" ON "ArticleAttribution"("articleId", "userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Publication_slug_key" ON "Publication"("slug");
+CREATE UNIQUE INDEX "Publisher_slug_key" ON "Publisher"("slug");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Publication_subdomain_key" ON "Publication"("subdomain");
+CREATE UNIQUE INDEX "Publisher_subdomain_key" ON "Publisher"("subdomain");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Publication_customDomain_key" ON "Publication"("customDomain");
+CREATE UNIQUE INDEX "Publisher_customDomain_key" ON "Publisher"("customDomain");
 
 -- CreateIndex
-CREATE INDEX "Publication_type_idx" ON "Publication"("type");
+CREATE INDEX "Publisher_type_idx" ON "Publisher"("type");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Media_publicationId_key" ON "Media"("publicationId");
+CREATE UNIQUE INDEX "Media_publisherId_key" ON "Media"("publisherId");
 
 -- CreateIndex
 CREATE INDEX "MediaMember_userId_idx" ON "MediaMember"("userId");
@@ -1523,13 +1527,13 @@ CREATE INDEX "ApiKey_userId_idx" ON "ApiKey"("userId");
 CREATE INDEX "ApiKey_keyHash_idx" ON "ApiKey"("keyHash");
 
 -- CreateIndex
-CREATE INDEX "ApiKey_publicationId_idx" ON "ApiKey"("publicationId");
+CREATE INDEX "ApiKey_publisherId_idx" ON "ApiKey"("publisherId");
 
 -- CreateIndex
 CREATE INDEX "ApiKey_createdByUserId_idx" ON "ApiKey"("createdByUserId");
 
 -- CreateIndex
-CREATE INDEX "Webhook_publicationId_idx" ON "Webhook"("publicationId");
+CREATE INDEX "Webhook_publisherId_idx" ON "Webhook"("publisherId");
 
 -- CreateIndex
 CREATE INDEX "WebhookDelivery_webhookId_idx" ON "WebhookDelivery"("webhookId");
@@ -1559,7 +1563,7 @@ CREATE INDEX "Notification_thoughtId_idx" ON "Notification"("thoughtId");
 CREATE INDEX "Notification_senderId_idx" ON "Notification"("senderId");
 
 -- CreateIndex
-CREATE INDEX "Notification_publicationId_idx" ON "Notification"("publicationId");
+CREATE INDEX "Notification_publisherId_idx" ON "Notification"("publisherId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "UserSettings_userId_key" ON "UserSettings"("userId");
@@ -1616,7 +1620,7 @@ CREATE INDEX "ModerationReport_status_idx" ON "ModerationReport"("status");
 CREATE UNIQUE INDEX "ModerationReport_reporter_target_pending_key" ON "ModerationReport"("reporterId", "targetId", "targetType") WHERE status = 'pending';
 
 -- CreateIndex
-CREATE INDEX "NewsletterIssue_publicationId_idx" ON "NewsletterIssue"("publicationId");
+CREATE INDEX "NewsletterIssue_publisherId_idx" ON "NewsletterIssue"("publisherId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "NewsletterDelivery_issueId_email_key" ON "NewsletterDelivery"("issueId", "email");
@@ -1688,16 +1692,16 @@ CREATE UNIQUE INDEX "OAuthConsent_clientId_userId_key" ON "OAuthConsent"("client
 CREATE INDEX "_CoAuthors_B_index" ON "_CoAuthors"("B");
 
 -- AddForeignKey
-ALTER TABLE "User" ADD CONSTRAINT "User_publicationId_fkey" FOREIGN KEY ("publicationId") REFERENCES "Publication"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "User" ADD CONSTRAINT "User_publisherId_fkey" FOREIGN KEY ("publisherId") REFERENCES "Publisher"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Recommendation" ADD CONSTRAINT "Recommendation_recommenderId_fkey" FOREIGN KEY ("recommenderId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Recommendation" ADD CONSTRAINT "Recommendation_recommenderId_fkey" FOREIGN KEY ("recommenderId") REFERENCES "Publisher"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Recommendation" ADD CONSTRAINT "Recommendation_recommendedId_fkey" FOREIGN KEY ("recommendedId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Recommendation" ADD CONSTRAINT "Recommendation_recommendedId_fkey" FOREIGN KEY ("recommendedId") REFERENCES "Publisher"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Tier" ADD CONSTRAINT "Tier_publicationId_fkey" FOREIGN KEY ("publicationId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Tier" ADD CONSTRAINT "Tier_publisherId_fkey" FOREIGN KEY ("publisherId") REFERENCES "Publisher"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "MutedWord" ADD CONSTRAINT "MutedWord_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1718,7 +1722,7 @@ ALTER TABLE "MutedUser" ADD CONSTRAINT "MutedUser_mutedId_fkey" FOREIGN KEY ("mu
 ALTER TABLE "WalletTransaction" ADD CONSTRAINT "WalletTransaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Subscriber" ADD CONSTRAINT "Subscriber_publicationId_fkey" FOREIGN KEY ("publicationId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Subscriber" ADD CONSTRAINT "Subscriber_publisherId_fkey" FOREIGN KEY ("publisherId") REFERENCES "Publisher"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Subscriber" ADD CONSTRAINT "Subscriber_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -1730,7 +1734,7 @@ ALTER TABLE "Subscriber" ADD CONSTRAINT "Subscriber_tierId_fkey" FOREIGN KEY ("t
 ALTER TABLE "Follows" ADD CONSTRAINT "Follows_readerId_fkey" FOREIGN KEY ("readerId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Follows" ADD CONSTRAINT "Follows_publicationId_fkey" FOREIGN KEY ("publicationId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Follows" ADD CONSTRAINT "Follows_publisherId_fkey" FOREIGN KEY ("publisherId") REFERENCES "Publisher"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Bookmark" ADD CONSTRAINT "Bookmark_readerId_fkey" FOREIGN KEY ("readerId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1766,22 +1770,22 @@ ALTER TABLE "Letter" ADD CONSTRAINT "Letter_recipientId_fkey" FOREIGN KEY ("reci
 ALTER TABLE "Letter" ADD CONSTRAINT "Letter_articleId_fkey" FOREIGN KEY ("articleId") REFERENCES "Article"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "SocialLink" ADD CONSTRAINT "SocialLink_publicationId_fkey" FOREIGN KEY ("publicationId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "SocialLink" ADD CONSTRAINT "SocialLink_publisherId_fkey" FOREIGN KEY ("publisherId") REFERENCES "Publisher"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Category" ADD CONSTRAINT "Category_publicationId_fkey" FOREIGN KEY ("publicationId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Category" ADD CONSTRAINT "Category_publisherId_fkey" FOREIGN KEY ("publisherId") REFERENCES "Publisher"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Category" ADD CONSTRAINT "Category_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Category"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "NavigationItem" ADD CONSTRAINT "NavigationItem_publicationId_fkey" FOREIGN KEY ("publicationId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "NavigationItem" ADD CONSTRAINT "NavigationItem_publisherId_fkey" FOREIGN KEY ("publisherId") REFERENCES "Publisher"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "NavigationItem" ADD CONSTRAINT "NavigationItem_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "NavigationItem"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Article" ADD CONSTRAINT "Article_publicationId_fkey" FOREIGN KEY ("publicationId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Article" ADD CONSTRAINT "Article_publisherId_fkey" FOREIGN KEY ("publisherId") REFERENCES "Publisher"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Article" ADD CONSTRAINT "Article_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1799,7 +1803,7 @@ ALTER TABLE "ArticleAttribution" ADD CONSTRAINT "ArticleAttribution_articleId_fk
 ALTER TABLE "ArticleAttribution" ADD CONSTRAINT "ArticleAttribution_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Media" ADD CONSTRAINT "Media_publicationId_fkey" FOREIGN KEY ("publicationId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Media" ADD CONSTRAINT "Media_publisherId_fkey" FOREIGN KEY ("publisherId") REFERENCES "Publisher"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "MediaMember" ADD CONSTRAINT "MediaMember_mediaId_fkey" FOREIGN KEY ("mediaId") REFERENCES "Media"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1853,13 +1857,13 @@ ALTER TABLE "Like" ADD CONSTRAINT "Like_userId_fkey" FOREIGN KEY ("userId") REFE
 ALTER TABLE "ApiKey" ADD CONSTRAINT "ApiKey_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ApiKey" ADD CONSTRAINT "ApiKey_publicationId_fkey" FOREIGN KEY ("publicationId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "ApiKey" ADD CONSTRAINT "ApiKey_publisherId_fkey" FOREIGN KEY ("publisherId") REFERENCES "Publisher"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ApiKey" ADD CONSTRAINT "ApiKey_createdByUserId_fkey" FOREIGN KEY ("createdByUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Webhook" ADD CONSTRAINT "Webhook_publicationId_fkey" FOREIGN KEY ("publicationId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Webhook" ADD CONSTRAINT "Webhook_publisherId_fkey" FOREIGN KEY ("publisherId") REFERENCES "Publisher"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "WebhookDelivery" ADD CONSTRAINT "WebhookDelivery_webhookId_fkey" FOREIGN KEY ("webhookId") REFERENCES "Webhook"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1892,7 +1896,7 @@ ALTER TABLE "Notification" ADD CONSTRAINT "Notification_articleId_fkey" FOREIGN 
 ALTER TABLE "Notification" ADD CONSTRAINT "Notification_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "ArticleComment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Notification" ADD CONSTRAINT "Notification_publicationId_fkey" FOREIGN KEY ("publicationId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Notification" ADD CONSTRAINT "Notification_publisherId_fkey" FOREIGN KEY ("publisherId") REFERENCES "Publisher"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "UserSettings" ADD CONSTRAINT "UserSettings_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -2124,7 +2128,7 @@ CREATE TABLE IF NOT EXISTS "feature_flags" (
 CREATE TABLE "ArticleImportJob" (
     "id"            TEXT NOT NULL,
     "userId"        UUID NOT NULL,
-    "publicationId" TEXT NOT NULL,
+    "publisherId" TEXT NOT NULL,
     "status"        TEXT NOT NULL DEFAULT 'PENDING',
     "total"         INTEGER NOT NULL DEFAULT 0,
     "imported"      INTEGER NOT NULL DEFAULT 0,
@@ -2141,7 +2145,7 @@ CREATE TABLE "ArticleImportJob" (
 CREATE INDEX "ArticleImportJob_userId_idx" ON "ArticleImportJob"("userId");
 
 -- CreateIndex
-CREATE INDEX "ArticleImportJob_publicationId_idx" ON "ArticleImportJob"("publicationId");
+CREATE INDEX "ArticleImportJob_publisherId_idx" ON "ArticleImportJob"("publisherId");
 
 -- AddForeignKey
 ALTER TABLE "ArticleImportJob" ADD CONSTRAINT "ArticleImportJob_userId_fkey"
@@ -2403,7 +2407,7 @@ CREATE INDEX "legal_consent_export_created_idx"
 -- CreateTable
 CREATE TABLE "SubscriberImportBatch" (
     "id"              TEXT NOT NULL,
-    "publicationId"   TEXT NOT NULL,
+    "publisherId"   TEXT NOT NULL,
     "mediaId"         TEXT,
     "requesterId"     UUID NOT NULL,
     "status"          TEXT NOT NULL DEFAULT 'draft',
@@ -2436,8 +2440,8 @@ CREATE TABLE "SubscriberImportBatch" (
 );
 
 -- CreateIndex
-CREATE INDEX "SubscriberImportBatch_publication_idx"
-    ON "SubscriberImportBatch"("publicationId", "createdAt" DESC);
+CREATE INDEX "SubscriberImportBatch_publisher_idx"
+    ON "SubscriberImportBatch"("publisherId", "createdAt" DESC);
 
 -- CreateIndex
 CREATE INDEX "SubscriberImportBatch_open_review_idx"
@@ -2529,20 +2533,20 @@ CREATE TABLE "EmailSuppression" (
     "id"            TEXT NOT NULL,
     "email"         TEXT NOT NULL,
     "scope"         TEXT NOT NULL,
-    "publicationId" TEXT,
+    "publisherId" TEXT,
     "reason"        TEXT NOT NULL,
     "source"        TEXT,
     "createdAt"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "EmailSuppression_pkey" PRIMARY KEY ("id"),
-    CONSTRAINT "EmailSuppression_scope_check" CHECK ("scope" IN ('global', 'publication')),
+    CONSTRAINT "EmailSuppression_scope_check" CHECK ("scope" IN ('global', 'publisher')),
     CONSTRAINT "EmailSuppression_reason_check" CHECK ("reason" IN (
         'unsubscribe', 'hard_bounce', 'complaint', 'staff_exclusion',
         'import_exclusion', 'manual'
     )),
-    CONSTRAINT "EmailSuppression_scope_publication_check" CHECK (
-        ("scope" = 'global' AND "publicationId" IS NULL) OR
-        ("scope" = 'publication' AND "publicationId" IS NOT NULL)
+    CONSTRAINT "EmailSuppression_scope_publisher_check" CHECK (
+        ("scope" = 'global' AND "publisherId" IS NULL) OR
+        ("scope" = 'publisher' AND "publisherId" IS NOT NULL)
     )
 );
 
@@ -2551,14 +2555,14 @@ CREATE UNIQUE INDEX "EmailSuppression_global_key"
     ON "EmailSuppression"(email) WHERE "scope" = 'global';
 
 -- CreateIndex
-CREATE UNIQUE INDEX "EmailSuppression_publication_key"
-    ON "EmailSuppression"(email, "publicationId") WHERE "scope" = 'publication';
+CREATE UNIQUE INDEX "EmailSuppression_publisher_key"
+    ON "EmailSuppression"(email, "publisherId") WHERE "scope" = 'publisher';
 
 -- CreateTable
 CREATE TABLE "SubscriberImportReconfirmWave" (
     "id"            TEXT NOT NULL,
     "batchId"       TEXT NOT NULL,
-    "publicationId" TEXT NOT NULL,
+    "publisherId" TEXT NOT NULL,
     "decisionId"    TEXT NOT NULL,
     "status"        TEXT NOT NULL DEFAULT 'queued',
     "waveSize"      INTEGER NOT NULL,
@@ -2593,7 +2597,7 @@ CREATE TABLE "SubscriberImportReconfirmRequest" (
     "id"            TEXT NOT NULL,
     "waveId"        TEXT NOT NULL,
     "batchId"       TEXT NOT NULL,
-    "publicationId" TEXT NOT NULL,
+    "publisherId" TEXT NOT NULL,
     "rowId"         TEXT,
     "email"         TEXT NOT NULL,
     "tokenHash"     TEXT NOT NULL,
@@ -2632,7 +2636,7 @@ CREATE INDEX "SubscriberImportReconfirmRequest_expiry_idx"
 CREATE TABLE "ImportSendBudget" (
     "id"            TEXT NOT NULL,
     "batchId"       TEXT NOT NULL,
-    "publicationId" TEXT NOT NULL,
+    "publisherId" TEXT NOT NULL,
     "decisionId"    TEXT NOT NULL,
     "cap"           INTEGER NOT NULL,
     "consumed"      INTEGER NOT NULL DEFAULT 0,
@@ -2653,7 +2657,7 @@ CREATE UNIQUE INDEX "ImportSendBudget_batch_key"
 CREATE TABLE "ImportSendWave" (
     "id"            TEXT NOT NULL,
     "batchId"       TEXT NOT NULL,
-    "publicationId" TEXT NOT NULL,
+    "publisherId" TEXT NOT NULL,
     "decisionId"    TEXT NOT NULL,
     "budgetId"      TEXT NOT NULL,
     "status"        TEXT NOT NULL DEFAULT 'queued',
@@ -2692,7 +2696,7 @@ CREATE TABLE "ImportSendDelivery" (
     "id"            TEXT NOT NULL,
     "waveId"        TEXT NOT NULL,
     "batchId"       TEXT NOT NULL,
-    "publicationId" TEXT NOT NULL,
+    "publisherId" TEXT NOT NULL,
     "email"         TEXT NOT NULL,
     "status"        TEXT NOT NULL DEFAULT 'queued',
     "error"         TEXT,
@@ -2750,7 +2754,7 @@ CREATE TABLE "StaffCampaign" (
     "bodyHtmlEn"    TEXT,
     "bodyTextEn"    TEXT,
     "audienceType"  TEXT NOT NULL,
-    "audiencePublicationId" TEXT,
+    "audiencePublisherId" TEXT,
     "audienceSnapshot" JSONB NOT NULL DEFAULT '{}'::jsonb,
     "status"        TEXT NOT NULL DEFAULT 'draft',
     "draftedBy"     UUID,
@@ -2769,15 +2773,15 @@ CREATE TABLE "StaffCampaign" (
         'legal.version_notice', 'staff.direct', 'product.announcement'
     )),
     CONSTRAINT "StaffCampaign_audience_check" CHECK ("audienceType" IN (
-        'all_active_users', 'publication_subscribers'
+        'all_active_users', 'publisher_subscribers'
     )),
     CONSTRAINT "StaffCampaign_status_check" CHECK ("status" IN (
         'draft', 'pending_review', 'approved', 'sending', 'paused',
         'completed', 'cancelled'
     )),
-    CONSTRAINT "StaffCampaign_scope_publication_check" CHECK (
-        ("audienceType" = 'publication_subscribers' AND "audiencePublicationId" IS NOT NULL) OR
-        ("audienceType" = 'all_active_users' AND "audiencePublicationId" IS NULL)
+    CONSTRAINT "StaffCampaign_scope_publisher_check" CHECK (
+        ("audienceType" = 'publisher_subscribers' AND "audiencePublisherId" IS NOT NULL) OR
+        ("audienceType" = 'all_active_users' AND "audiencePublisherId" IS NULL)
     ),
     CONSTRAINT "StaffCampaign_approver_check" CHECK (
         "approvedBy" IS NULL OR "draftedBy" IS NULL OR "approvedBy" <> "draftedBy"
@@ -2842,7 +2846,7 @@ CREATE TABLE "FeatureSignal" (
     "kind"          TEXT NOT NULL,
     "source"        TEXT NOT NULL DEFAULT 'studio',
     "userId"        TEXT,
-    "publicationId" TEXT,
+    "publisherId" TEXT,
     "createdAt"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "FeatureSignal_pkey" PRIMARY KEY ("id"),
@@ -2852,8 +2856,8 @@ CREATE TABLE "FeatureSignal" (
 );
 
 -- CreateIndex
-CREATE INDEX "FeatureSignal_publication_kind_idx"
-    ON "FeatureSignal" ("publicationId", "kind", "featureKey");
+CREATE INDEX "FeatureSignal_publisher_kind_idx"
+    ON "FeatureSignal" ("publisherId", "kind", "featureKey");
 
 -- CreateIndex
 CREATE INDEX "FeatureSignal_user_feature_created_idx"
@@ -2869,23 +2873,23 @@ CREATE INDEX "FeatureSignal_created_idx"
     ON "FeatureSignal" ("createdAt");
 
 -- CreateIndex
-CREATE INDEX "FeatureSignal_publication_created_idx"
-    ON "FeatureSignal" ("publicationId", "createdAt" DESC);
+CREATE INDEX "FeatureSignal_publisher_created_idx"
+    ON "FeatureSignal" ("publisherId", "createdAt" DESC);
 
 -- CreateIndex
 CREATE INDEX "ArticleReviewLog_articleId_createdAt_idx" ON "ArticleReviewLog"("articleId", "createdAt" DESC);
-CREATE INDEX "ArticleReviewLog_publicationId_createdAt_idx" ON "ArticleReviewLog"("publicationId", "createdAt" DESC);
+CREATE INDEX "ArticleReviewLog_publisherId_createdAt_idx" ON "ArticleReviewLog"("publisherId", "createdAt" DESC);
 
 -- AddForeignKey
 ALTER TABLE "ArticleReviewLog" ADD CONSTRAINT "ArticleReviewLog_articleId_fkey" FOREIGN KEY ("articleId") REFERENCES "Article"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "ArticleReviewLog" ADD CONSTRAINT "ArticleReviewLog_publicationId_fkey" FOREIGN KEY ("publicationId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "ArticleReviewLog" ADD CONSTRAINT "ArticleReviewLog_publisherId_fkey" FOREIGN KEY ("publisherId") REFERENCES "Publisher"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "ArticleReviewLog" ADD CONSTRAINT "ArticleReviewLog_reviewerId_fkey" FOREIGN KEY ("reviewerId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- CreateTable
 CREATE TABLE "FollowRequest" (
     "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
     "requesterId" UUID NOT NULL,
-    "publicationId" TEXT NOT NULL,
+    "publisherId" TEXT NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'PENDING',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "decidedAt" TIMESTAMP(3),
@@ -2895,13 +2899,13 @@ CREATE TABLE "FollowRequest" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "FollowRequest_pending_key" ON "FollowRequest"("requesterId", "publicationId") WHERE "status" = 'PENDING';
-CREATE INDEX "FollowRequest_publication_pending_idx" ON "FollowRequest"("publicationId", "createdAt" DESC) WHERE "status" = 'PENDING';
+CREATE UNIQUE INDEX "FollowRequest_pending_key" ON "FollowRequest"("requesterId", "publisherId") WHERE "status" = 'PENDING';
+CREATE INDEX "FollowRequest_publisher_pending_idx" ON "FollowRequest"("publisherId", "createdAt" DESC) WHERE "status" = 'PENDING';
 CREATE INDEX "FollowRequest_requester_status_idx" ON "FollowRequest"("requesterId", "status");
 
 -- AddForeignKey
 ALTER TABLE "FollowRequest" ADD CONSTRAINT "FollowRequest_requesterId_fkey" FOREIGN KEY ("requesterId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "FollowRequest" ADD CONSTRAINT "FollowRequest_publicationId_fkey" FOREIGN KEY ("publicationId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "FollowRequest" ADD CONSTRAINT "FollowRequest_publisherId_fkey" FOREIGN KEY ("publisherId") REFERENCES "Publisher"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 
 -- Functions: visibility and mute predicates
@@ -2934,7 +2938,7 @@ AS $$
     WHEN viewer_id IS NULL THEN false
     ELSE EXISTS (
       SELECT 1 FROM "Follows" f
-      JOIN "User" u ON u."publicationId" = f."publicationId"
+      JOIN "User" u ON u."publisherId" = f."publisherId"
       WHERE f."readerId" = viewer_id AND u.id = target_user_id
     )
   END;

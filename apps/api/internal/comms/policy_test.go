@@ -14,7 +14,7 @@ var (
 
 func checkedBulkInput() Input {
 	return Input{
-		MessageType: "creator.newsletter", Email: "a@b.fr", PublicationID: "pub",
+		MessageType: "creator.newsletter", Email: "a@b.fr", PublisherID: "pub",
 		SuppressionChecked: true, BudgetChecked: true, BudgetAvailable: true,
 		ApprovalChecked: true, ApprovalGranted: true,
 	}
@@ -39,7 +39,7 @@ func TestEvaluate_SuppressionDefinitive(t *testing.T) {
 		t.Fatalf("opposition globale = %+v", v)
 	}
 	in = checkedBulkInput()
-	in.SuppressedPublication = true
+	in.SuppressedPublisher = true
 	if v := Evaluate(newsletterPolicy, in); v.Decision != DecisionSuppress || v.Reason != ReasonSuppressedPublisher {
 		t.Fatalf("opposition publication = %+v", v)
 	}
@@ -60,7 +60,7 @@ func TestEvaluate_SecurityIgnoresNewsletterOpposition(t *testing.T) {
 	// sinon, signaler les e-mails de quelqu'un verrouillerait son compte.
 	in := Input{
 		MessageType: "auth.code", Email: "a@b.fr",
-		SuppressionChecked: true, SuppressedGlobal: true, SuppressedPublication: true,
+		SuppressionChecked: true, SuppressedGlobal: true, SuppressedPublisher: true,
 	}
 	if v := Evaluate(securityPolicy, in); v.Decision != DecisionAllow {
 		t.Fatalf("sécurité bloquée par une opposition newsletter : %+v", v)

@@ -51,7 +51,7 @@ describe('parité Go ↔ TS des campagnes staff (C7)', () => {
     expect(goValues.length).toBe(3);
     expect(tsValues).toEqual(goValues);
     expect(tsValues).toContain('all_active_users');
-    expect(tsValues).toContain('publication_subscribers');
+    expect(tsValues).toContain('publisher_subscribers');
     expect(tsValues).toContain('feature_interested');
   });
 });

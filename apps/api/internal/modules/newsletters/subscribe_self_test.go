@@ -56,7 +56,7 @@ func TestSubscribeSelf_UnverifiedGoesPending(t *testing.T) {
 	var token *string
 	if err := poolTest.QueryRow(ctx,
 		`SELECT "receiveArticles", "confirmedAt" IS NOT NULL, "confirmationToken"
-		 FROM "Subscriber" WHERE email = 'attente@test.dev' AND "publicationId" = $1`,
+		 FROM "Subscriber" WHERE email = 'attente@test.dev' AND "publisherId" = $1`,
 		pubID).Scan(&receive, &confirmed, &token); err != nil {
 		t.Fatalf("read subscriber: %v", err)
 	}
@@ -83,7 +83,7 @@ func TestSubscribeSelf_VerifiedActivatesDirectly(t *testing.T) {
 	var userID *string
 	if err := poolTest.QueryRow(ctx,
 		`SELECT "receiveArticles", "confirmedAt" IS NOT NULL, "userId"
-		 FROM "Subscriber" WHERE email = 'verifie@test.dev' AND "publicationId" = $1`,
+		 FROM "Subscriber" WHERE email = 'verifie@test.dev' AND "publisherId" = $1`,
 		pubID).Scan(&receive, &confirmed, &userID); err != nil {
 		t.Fatalf("read subscriber: %v", err)
 	}

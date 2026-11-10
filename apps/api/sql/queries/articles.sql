@@ -10,24 +10,24 @@ SELECT a.id,
        a.visibility,
        a."readingTime",
        a."createdAt",
-       a."publicationId",
+       a."publisherId",
        a."authorId",
        u.id::text       AS author_id,
        u.name           AS author_name,
        u.username       AS author_username,
        u."logoUrl"      AS author_logo,
        u."isCertified"  AS author_certified,
-       p.name           AS publication_name,
-       p.slug           AS publication_slug,
-       p.subdomain      AS publication_subdomain,
-       p."logoUrl"      AS publication_logo,
-       p.type           AS publication_type,
+       p.name           AS publisher_name,
+       p.slug           AS publisher_slug,
+       p.subdomain      AS publisher_subdomain,
+       p."logoUrl"      AS publisher_logo,
+       p.type           AS publisher_type,
        c.id             AS category_id,
        c.name           AS category_name,
        c.slug           AS category_slug
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 LEFT JOIN "Category" c ON c.id = a."categoryId"
 WHERE a.published = true
   AND u."isShadowbanned" = false
@@ -36,7 +36,7 @@ WHERE a.published = true
 ORDER BY a."createdAt" DESC, a.id DESC
 LIMIT $1 OFFSET $2;
 
--- name: ListPublishedArticlesByPublication :many
+-- name: ListPublishedArticlesByPublisher :many
 -- Articles publiés d'une publication (profil), résolue par slug OU subdomain
 -- (insensible à la casse). Même shape que ListRecentPublishedArticles.
 SELECT a.id,
@@ -49,24 +49,24 @@ SELECT a.id,
        a."readingTime",
        a."showOnPersonalProfile",
        a."createdAt",
-       a."publicationId",
+       a."publisherId",
        a."authorId",
        u.id::text       AS author_id,
        u.name           AS author_name,
        u.username       AS author_username,
        u."logoUrl"      AS author_logo,
        u."isCertified"  AS author_certified,
-       p.name           AS publication_name,
-       p.slug           AS publication_slug,
-       p.subdomain      AS publication_subdomain,
-       p."logoUrl"      AS publication_logo,
-       p.type           AS publication_type,
+       p.name           AS publisher_name,
+       p.slug           AS publisher_slug,
+       p.subdomain      AS publisher_subdomain,
+       p."logoUrl"      AS publisher_logo,
+       p.type           AS publisher_type,
        c.id             AS category_id,
        c.name           AS category_name,
        c.slug           AS category_slug
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 LEFT JOIN "Category" c ON c.id = a."categoryId"
 WHERE a.published = true
   AND (
@@ -79,7 +79,7 @@ WHERE a.published = true
     -- Si la cible résolue est un utilisateur ou une publication PERSONAL (et non un MEDIA)
     OR (
       NOT EXISTS (
-        SELECT 1 FROM "Publication" mp
+        SELECT 1 FROM "Publisher" mp
         WHERE mp.type = 'MEDIA'
           AND (
             LOWER(mp.slug) = LOWER($1)
@@ -90,7 +90,7 @@ WHERE a.published = true
       AND EXISTS (
         SELECT 1
         FROM "User" tu
-        LEFT JOIN "Publication" tp ON tp.id = tu."publicationId"
+        LEFT JOIN "Publisher" tp ON tp.id = tu."publisherId"
         WHERE (
           LOWER(COALESCE(tu.username, '')) = LOWER($1)
           OR LOWER(tu.id::text) = LOWER($1)
@@ -105,17 +105,27 @@ WHERE a.published = true
           )
         )
         AND (
-          a."publicationId" = tu."publicationId"
-          OR (a."authorId" = tu.id AND a."showOnPersonalProfile" = true)
-          OR EXISTS (
-            SELECT 1
-            FROM "ArticleAttribution" aa
-            WHERE aa."articleId" = a.id
-              AND aa."userId" = tu.id
-              AND aa."consentStatus" = 'ACCEPTED'
-              AND aa."isVisible" = true
-              AND aa.role IN ('PRIMARY_AUTHOR', 'CO_AUTHOR')
-              AND (a."authorId" <> tu.id OR a."showOnPersonalProfile" = true)
+          a."publisherId" = tu."publisherId"
+          OR (
+            (
+              (a."authorId" = tu.id AND a."showOnPersonalProfile" = true)
+              OR EXISTS (
+                SELECT 1
+                FROM "ArticleAttribution" aa
+                WHERE aa."articleId" = a.id
+                  AND aa."userId" = tu.id
+                  AND aa."consentStatus" = 'ACCEPTED'
+                  AND aa."isVisible" = true
+                  AND aa.role IN ('PRIMARY_AUTHOR', 'CO_AUTHOR')
+                  AND (a."authorId" <> tu.id OR a."showOnPersonalProfile" = true)
+              )
+            )
+            AND NOT EXISTS (
+              SELECT 1 FROM "Article" fork
+              WHERE fork."originArticleId" = a.id
+                AND fork."publisherId" = tu."publisherId"
+                AND fork.published = true
+            )
           )
         )
       )
@@ -130,47 +140,49 @@ LIMIT $2 OFFSET $3;
 -- name: GetArticleByID :one
 SELECT a.id, a.title, a.slug, a.content, a."draftContent", a.published, a."isPremium", a.visibility,
        a."readingTime", a."allowPublicAnnotations", a."allowComments", a."allowDownload", a."showOnPersonalProfile", a."scheduledAt",
-       a.status, a."publicationId", a."authorId", a."categoryId", a."tierId",
+       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."canonicalUrl",
+       a.status, a."publisherId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
        a."emailStatus", a."emailSentAt", a."emailSentCount", a."emailResendCount",
        u.id::text     AS author_id,
        u.name         AS author_name,
        u.username     AS author_username,
        u."logoUrl"    AS author_logo,
-       p.name         AS publication_name,
-       p.slug         AS publication_slug,
-       p.subdomain    AS publication_subdomain,
-       p.type         AS publication_type,
-       p."logoUrl"    AS publication_logo
+       p.name         AS publisher_name,
+       p.slug         AS publisher_slug,
+       p.subdomain    AS publisher_subdomain,
+       p.type         AS publisher_type,
+       p."logoUrl"    AS publisher_logo
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 WHERE a.id = $1;
 
 -- name: GetArticleBySlug :one
 SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
        a."readingTime", a."allowPublicAnnotations", a."allowComments", a."showOnPersonalProfile", a."scheduledAt",
-       a.status, a."publicationId", a."authorId", a."categoryId", a."tierId",
+       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."canonicalUrl",
+       a.status, a."publisherId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
        a."imageUrl"   AS article_image,
        u.id::text     AS author_id,
        u.name         AS author_name,
        u.username     AS author_username,
        u."logoUrl"    AS author_logo,
-       p.name         AS publication_name,
-       p.slug         AS publication_slug,
-       p.subdomain    AS publication_subdomain,
-       p.type         AS publication_type,
-       p."logoUrl"    AS publication_logo,
-       p."customDomain" AS publication_custom_domain,
+       p.name         AS publisher_name,
+       p.slug         AS publisher_slug,
+       p.subdomain    AS publisher_subdomain,
+       p.type         AS publisher_type,
+       p."logoUrl"    AS publisher_logo,
+       p."customDomain" AS publisher_custom_domain,
        c.id           AS category_id,
        c.name         AS category_name,
        c.slug         AS category_slug
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 LEFT JOIN "Category" c ON c.id = a."categoryId"
-WHERE a.slug = $1 AND a."publicationId" = $2;
+WHERE a.slug = $1 AND a."publisherId" = $2;
 
 -- name: GetArticleBySlugAny :one
 -- Lecture publique par slug SEUL (premier article publié) — parité avec
@@ -178,25 +190,26 @@ WHERE a.slug = $1 AND a."publicationId" = $2;
 -- Résout aussi les slugs personnalisés par auteur (ArticleSlug).
 SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
        a."readingTime", a."allowPublicAnnotations", a."allowComments", a."showOnPersonalProfile", a."scheduledAt",
-       a.status, a."publicationId", a."authorId", a."categoryId", a."tierId",
+       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."canonicalUrl",
+       a.status, a."publisherId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
        u.id::text     AS author_id,
        u.name         AS author_name,
        u.username     AS author_username,
        u."logoUrl"    AS author_logo,
-       p.name         AS publication_name,
-       p.slug         AS publication_slug,
-       p.subdomain    AS publication_subdomain,
-       p.type         AS publication_type,
-       p."logoUrl"    AS publication_logo,
-       p."customDomain" AS publication_custom_domain,
+       p.name         AS publisher_name,
+       p.slug         AS publisher_slug,
+       p.subdomain    AS publisher_subdomain,
+       p.type         AS publisher_type,
+       p."logoUrl"    AS publisher_logo,
+       p."customDomain" AS publisher_custom_domain,
        a."imageUrl"   AS article_image,
        c.id           AS category_id,
        c.name         AS category_name,
        c.slug         AS category_slug
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 LEFT JOIN "Category" c ON c.id = a."categoryId"
 WHERE (a.slug = $1
        OR EXISTS (SELECT 1 FROM "ArticleSlug" s
@@ -216,7 +229,7 @@ SELECT a.id, a.title, a.slug, a.content, a."imageUrl", a.published, a."isPremium
        c.description AS category_description
 FROM "Article" a
 LEFT JOIN "Category" c ON c.id = a."categoryId"
-WHERE a.slug = $1 AND a."publicationId" = $2 AND a.published = true;
+WHERE a.slug = $1 AND a."publisherId" = $2 AND a.published = true;
 
 -- name: ListCreatorArticles :many
 -- Liste des articles d'une publication au format contrat créateurs (Hono) :
@@ -227,7 +240,7 @@ SELECT a.id, a.title, a.slug, a.content, a."imageUrl", a.published, a."isPremium
        c.description AS category_description
 FROM "Article" a
 LEFT JOIN "Category" c ON c.id = a."categoryId"
-WHERE a."publicationId" = sqlc.arg('publicationId')
+WHERE a."publisherId" = sqlc.arg('publisherId')
   AND (sqlc.narg('published')::boolean IS NULL OR a.published = sqlc.narg('published'))
   AND (
     sqlc.narg('categorySlug')::text IS NULL
@@ -235,7 +248,7 @@ WHERE a."publicationId" = sqlc.arg('publicationId')
     OR c.id = sqlc.narg('categorySlug')
     OR c."parentId" IN (
       SELECT parent_cat.id FROM "Category" parent_cat
-      WHERE parent_cat."publicationId" = sqlc.arg('publicationId')
+      WHERE parent_cat."publisherId" = sqlc.arg('publisherId')
         AND (parent_cat.slug = sqlc.narg('categorySlug') OR parent_cat.id = sqlc.narg('categorySlug'))
     )
   )
@@ -247,7 +260,7 @@ LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 SELECT COUNT(*)
 FROM "Article" a
 LEFT JOIN "Category" c ON c.id = a."categoryId"
-WHERE a."publicationId" = sqlc.arg('publicationId')
+WHERE a."publisherId" = sqlc.arg('publisherId')
   AND (sqlc.narg('published')::boolean IS NULL OR a.published = sqlc.narg('published'))
   AND (
     sqlc.narg('categorySlug')::text IS NULL
@@ -255,28 +268,29 @@ WHERE a."publicationId" = sqlc.arg('publicationId')
     OR c.id = sqlc.narg('categorySlug')
     OR c."parentId" IN (
       SELECT parent_cat.id FROM "Category" parent_cat
-      WHERE parent_cat."publicationId" = sqlc.arg('publicationId')
+      WHERE parent_cat."publisherId" = sqlc.arg('publisherId')
         AND (parent_cat.slug = sqlc.narg('categorySlug') OR parent_cat.id = sqlc.narg('categorySlug'))
     )
   );
 
 -- name: ListArticlesWithCategory :many
 SELECT a.id, a.title, a.slug, a.published, a."isPremium", a.visibility, a."readingTime",
-       a.status, a."createdAt", a."updatedAt", a."categoryId", a."publicationId", a."authorId",
+       a.status, a."createdAt", a."updatedAt", a."categoryId", a."publisherId", a."authorId",
        a."allowPublicAnnotations", a."allowComments", a."allowDownload", a."showOnPersonalProfile",
+       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."canonicalUrl",
        (a."draftContent" IS NOT NULL AND a."draftContent" <> '') AS has_unpublished_changes,
        a."emailStatus", a."emailSentAt", a."emailSentCount",
        c.id  AS category_id,
        c.name AS category_name,
        c.slug AS category_slug,
-       p.name AS publication_name,
-       p.slug AS publication_slug,
-       p.type AS publication_type,
-       p."logoUrl" AS publication_logo
+       p.name AS publisher_name,
+       p.slug AS publisher_slug,
+       p.type AS publisher_type,
+       p."logoUrl" AS publisher_logo
 FROM "Article" a
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 LEFT JOIN "Category" c ON c.id = a."categoryId"
-WHERE a."publicationId" = $1
+WHERE a."publisherId" = $1
    OR ($4::boolean AND (
      a."authorId" = $5::uuid
      OR EXISTS (
@@ -290,14 +304,14 @@ WHERE a."publicationId" = $1
 ORDER BY a."createdAt" DESC
 LIMIT $2 OFFSET $3;
 
--- name: GetArticleIdByPublicationAndSlug :one
--- Dédoublonnage import RSS : un article existe déjà si publicationId + slug matchent.
-SELECT id FROM "Article" WHERE "publicationId" = $1 AND slug = $2 LIMIT 1;
+-- name: GetArticleIdByPublisherAndSlug :one
+-- Dédoublonnage import RSS : un article existe déjà si publisherId + slug matchent.
+SELECT id FROM "Article" WHERE "publisherId" = $1 AND slug = $2 LIMIT 1;
 
 -- name: CreateArticle :one
 INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
                        "readingTime", "allowPublicAnnotations", "allowComments", "allowDownload", status,
-                       "publicationId", "authorId", "categoryId", "tierId", "seoTitle", "seoDescription",
+                       "publisherId", "authorId", "categoryId", "tierId", "seoTitle", "seoDescription",
                        "scheduledAt", "imageUrl", "showOnPersonalProfile", "updatedAt")
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, now())
 RETURNING id;
@@ -333,9 +347,9 @@ SET "isPremium" = COALESCE(sqlc.narg('is_premium'), "isPremium"),
 WHERE id = sqlc.arg('id')
 RETURNING id;
 
--- name: TransferArticlePublication :one
+-- name: TransferArticlePublisher :one
 UPDATE "Article"
-SET "publicationId" = $2,
+SET "publisherId" = $2,
     "categoryId" = $3,
     slug = $4,
     status = $5,
@@ -370,12 +384,12 @@ RETURNING id;
 -- name: GetSubscriberEntitlement :one
 SELECT s."isPremium", s."isActive", s."tierId"
 FROM "Subscriber" s
-WHERE s."publicationId" = $1
+WHERE s."publisherId" = $1
   AND (s."userId" = $2 OR s.email = $3)
 LIMIT 1;
 
--- name: GetUserPersonalPublication :one
-SELECT "publicationId" AS id
+-- name: GetUserPersonalPublisher :one
+SELECT "publisherId" AS id
 FROM "User"
 WHERE id = $1;
 
@@ -383,7 +397,7 @@ WHERE id = $1;
 SELECT m.role
 FROM "MediaMember" m
 JOIN "Media" md ON md.id = m."mediaId"
-WHERE md."publicationId" = $1 AND m."userId" = $2
+WHERE md."publisherId" = $1 AND m."userId" = $2
   AND m.status = 'active'
 LIMIT 1;
 
@@ -402,17 +416,17 @@ SELECT a.slug,
        a."updatedAt" AS "updatedAt"
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 WHERE a.published = true
   AND u."isShadowbanned" = false
   AND u."isSuspended" = false
   AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
   AND NOT EXISTS (
     SELECT 1
-    FROM "Publication" pv
-    JOIN "User" owner ON owner."publicationId" = pv.id
+    FROM "Publisher" pv
+    JOIN "User" owner ON owner."publisherId" = pv.id
     JOIN "UserSettings" us ON us."userId" = owner.id
-    WHERE pv.id = a."publicationId" AND us."profileVisibility" <> 'PUBLIC'
+    WHERE pv.id = a."publisherId" AND us."profileVisibility" <> 'PUBLIC'
   )
 ORDER BY a."createdAt" DESC, a.id DESC
 LIMIT $1 OFFSET $2;
@@ -428,10 +442,10 @@ WHERE a.published = true
   AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
   AND NOT EXISTS (
     SELECT 1
-    FROM "Publication" pv
-    JOIN "User" owner ON owner."publicationId" = pv.id
+    FROM "Publisher" pv
+    JOIN "User" owner ON owner."publisherId" = pv.id
     JOIN "UserSettings" us ON us."userId" = owner.id
-    WHERE pv.id = a."publicationId" AND us."profileVisibility" <> 'PUBLIC'
+    WHERE pv.id = a."publisherId" AND us."profileVisibility" <> 'PUBLIC'
   );
 
 -- name: SetArticleAllowDownload :one
@@ -451,11 +465,11 @@ RETURNING id, "allowDownload";
 -- Le contenu est coupé au paywall par le service (même SliceContentAtPaywall
 -- que la lecture : le hors-ligne ne contourne jamais le paywall contenu).
 SELECT a.id, a.title, a.slug, a.content, a."readingTime", a."isPremium",
-       a."allowDownload", a.published, a."publicationId", a.visibility, a."tierId", a."createdAt",
-       p.name AS publication_name,
+       a."allowDownload", a.published, a."publisherId", a.visibility, a."tierId", a."createdAt",
+       p.name AS publisher_name,
        u.name AS author_name
 FROM "Article" a
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 JOIN "User" u ON u.id = a."authorId"
 WHERE a.id = $1;
 
@@ -485,15 +499,45 @@ WHERE id = $1
 RETURNING id;
 
 -- name: InsertArticleReviewLog :exec
-INSERT INTO "ArticleReviewLog" (id, "articleId", "publicationId", "reviewerId", action, comment)
+INSERT INTO "ArticleReviewLog" (id, "articleId", "publisherId", "reviewerId", action, comment)
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5);
 
 -- name: GetLatestArticleReviewFeedback :one
-SELECT r.id, r."articleId", r."publicationId", r."reviewerId", r.action, r.comment, r."createdAt",
+SELECT r.id, r."articleId", r."publisherId", r."reviewerId", r.action, r.comment, r."createdAt",
        u.name AS reviewer_name, u.username AS reviewer_username, u."logoUrl" AS reviewer_logo
 FROM "ArticleReviewLog" r
 JOIN "User" u ON u.id = r."reviewerId"
 WHERE r."articleId" = $1
 ORDER BY r."createdAt" DESC
 LIMIT 1;
+
+-- name: GetSovereignCopyByOriginAndAuthor :one
+SELECT id, "publisherId", status, published
+FROM "Article"
+WHERE "originArticleId" = $1
+  AND "authorId" = $2
+  AND "isAuthorSovereignCopy" = true
+LIMIT 1;
+
+-- name: CreateSovereignArticleCopy :one
+INSERT INTO "Article" (
+    id, title, slug, content, published, "isPremium", visibility,
+    "readingTime", "allowPublicAnnotations", "allowComments", "allowDownload",
+    status, "publisherId", "authorId", "categoryId", "seoTitle", "seoDescription",
+    "imageUrl", "showOnPersonalProfile", "originArticleId", "canonicalType",
+    "isAuthorSovereignCopy", "canonicalUrl", "updatedAt"
+)
+VALUES (
+    gen_random_uuid()::text, $1, $2, $3, false, $4, $5,
+    $6, $7, $8, $9,
+    'DRAFT', $10, $11, $12, $13, $14,
+    $15, true, $16, 'PERSONAL_FORK',
+    true, $17, now()
+)
+RETURNING id;
+
+-- name: SetArticleCanonicalType :exec
+UPDATE "Article"
+SET "canonicalType" = $2, "updatedAt" = now()
+WHERE id = $1;
 

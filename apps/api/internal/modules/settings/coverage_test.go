@@ -16,8 +16,8 @@ func TestHandlers_ZeroCoverage_Routes(t *testing.T) {
 	r := newTestRouter()
 	tok := testJWT(fx.OwnerID)
 
-	// GET /v1/settings/publication?publicationId=<pub de l'owner>
-	path := "/v1/settings/publication?publicationId=" + fx.PubID
+	// GET /v1/settings/publication?publisherId=<pub de l'owner>
+	path := "/v1/settings/publisher?publisherId=" + fx.PubID
 	if w, _ := doJSON(t, r, http.MethodGet, path, tok, nil); w.Code != http.StatusOK {
 		t.Fatalf("publication → %d (%s), attendu 200", w.Code, w.Body.String())
 	}
@@ -104,12 +104,12 @@ func TestHandlers_UpdateProfile_BadField(t *testing.T) {
 	}
 }
 
-func TestHandlers_GetPublication_Forbidden(t *testing.T) {
+func TestHandlers_GetPublisher_Forbidden(t *testing.T) {
 	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	// Le viewer n'est pas membre de la publication personnelle de l'owner → 403.
-	w, _ := doJSON(t, r, http.MethodGet, "/v1/settings/publication?publicationId="+fx.PubID,
+	w, _ := doJSON(t, r, http.MethodGet, "/v1/settings/publisher?publisherId="+fx.PubID,
 		testJWT(fx.ViewerID), nil)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("viewer sur pub owner → %d (%s), attendu 403", w.Code, w.Body.String())
@@ -122,7 +122,7 @@ func TestHandlers_NoAuth_Unauthorized(t *testing.T) {
 	r := newTestRouter()
 
 	for _, tc := range []struct{ method, path string }{
-		{http.MethodGet, "/v1/settings/publication"},
+		{http.MethodGet, "/v1/settings/publisher"},
 		{http.MethodGet, "/v1/settings/preferences"},
 		{http.MethodGet, "/v1/me/account-deletion-request"},
 	} {

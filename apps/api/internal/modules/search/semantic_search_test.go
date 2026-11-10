@@ -128,11 +128,11 @@ func TestSearchMapsHits(t *testing.T) {
 		IsPremium:     true,
 		ReadingTime:   4,
 		CreatedAt:     pgtype.Timestamp{Valid: true, Time: created},
-		PublicationId: "pub_1",
+		PublisherId: "pub_1",
 		AuthorId:      uuid16([16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}),
 		AuthorName:    pgtype.Text{Valid: true, String: "Alice"},
 		AuthorLogo:    pgtype.Text{Valid: true, String: "alice.png"},
-		PublicationName: "Journal Test",
+		PublisherName: "Journal Test",
 		Score:         0.87,
 	}
 	q := &stubQuerier{rows: []db.SearchSemanticArticlesRow{row}}
@@ -155,8 +155,8 @@ func TestSearchMapsHits(t *testing.T) {
 	if it.CreatedAt != "2026-08-19T10:30:00Z" {
 		t.Fatalf("CreatedAt = %q, attendu RFC3339 UTC", it.CreatedAt)
 	}
-	if it.PublicationID != "pub_1" {
-		t.Fatalf("PublicationID = %q", it.PublicationID)
+	if it.PublisherID != "pub_1" {
+		t.Fatalf("PublisherID = %q", it.PublisherID)
 	}
 	if it.AuthorID != "00010203-0405-0607-0809-0a0b0c0d0e0f" {
 		t.Fatalf("AuthorID = %q, attendu forme canonique", it.AuthorID)
@@ -167,8 +167,8 @@ func TestSearchMapsHits(t *testing.T) {
 	if it.AuthorLogo == nil || *it.AuthorLogo != "alice.png" {
 		t.Fatalf("AuthorLogo = %v, attendu *alice.png", it.AuthorLogo)
 	}
-	if it.Publication == nil || *it.Publication != "Journal Test" {
-		t.Fatalf("Publication = %v, attendu *Journal Test", it.Publication)
+	if it.Publisher == nil || *it.Publisher != "Journal Test" {
+		t.Fatalf("Publisher = %v, attendu *Journal Test", it.Publisher)
 	}
 	if it.Score != 0.87 {
 		t.Fatalf("Score = %v, attendu 0.87", it.Score)
@@ -179,8 +179,8 @@ func TestSearchMapsNulls(t *testing.T) {
 	row := db.SearchSemanticArticlesRow{
 		ID: "art_2", Title: "Sans auteur", Slug: "sans-auteur",
 		CreatedAt:     pgtype.Timestamp{Valid: true, Time: time.Now()},
-		PublicationId: "pub_1",
-		PublicationName: "Journal Test",
+		PublisherId: "pub_1",
+		PublisherName: "Journal Test",
 		// AuthorName / AuthorLogo invalides → pointeurs nil.
 	}
 	q := &stubQuerier{rows: []db.SearchSemanticArticlesRow{row}}
@@ -200,7 +200,7 @@ func TestSearchMapsNulls(t *testing.T) {
 	if it.AuthorID != "" {
 		t.Fatalf("AuthorID = %q, attendu vide (uuid invalide)", it.AuthorID)
 	}
-	if it.Publication == nil || *it.Publication != "Journal Test" {
-		t.Fatalf("Publication = %v, attendu *Journal Test (string non null)", it.Publication)
+	if it.Publisher == nil || *it.Publisher != "Journal Test" {
+		t.Fatalf("Publisher = %v, attendu *Journal Test (string non null)", it.Publisher)
 	}
 }

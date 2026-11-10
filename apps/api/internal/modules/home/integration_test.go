@@ -51,31 +51,31 @@ func seedHomeWidgets(t *testing.T, ctx context.Context) {
 	requirePool(t)
 	t.Helper()
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE
-		"Article", "Category", "User", "Publication", "Recommendation", "Follows", "Subscriber"
+		"Article", "Category", "User", "Publisher", "Recommendation", "Follows", "Subscriber"
 		CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	const pubID = "pub_home_001"
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "isCertified", "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "isCertified", "createdAt", "updatedAt")
 		 VALUES ($1, 'PERSONAL', 'Journal Home', 'journal-home', true, now(), now())`, pubID); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
 	const authorID = "00000000-0000-0000-0000-0000000000aa"
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "User" (id, email, username, name, role, "publisherId", "createdAt", "updatedAt")
 		 VALUES ($1, 'author-home@test.dev', 'authorhome', 'Auteur Home', 'creator', $2, now(), now())`,
 		authorID, pubID); err != nil {
 		t.Fatalf("user: %v", err)
 	}
 	var catTech, catFood string
 	if err := poolTest.QueryRow(ctx,
-		`INSERT INTO "Category" (id, name, slug, description, "publicationId")
+		`INSERT INTO "Category" (id, name, slug, description, "publisherId")
 		 VALUES ('cat_home_tech', 'Technologie', 'tech', 'Actualité tech', $1) RETURNING id`, pubID).Scan(&catTech); err != nil {
 		t.Fatalf("cat tech: %v", err)
 	}
 	if err := poolTest.QueryRow(ctx,
-		`INSERT INTO "Category" (id, name, slug, description, "publicationId")
+		`INSERT INTO "Category" (id, name, slug, description, "publisherId")
 		 VALUES ('cat_home_food', 'Gastronomie', 'food', 'Recettes', $1) RETURNING id`, pubID).Scan(&catFood); err != nil {
 		t.Fatalf("cat food: %v", err)
 	}
@@ -95,7 +95,7 @@ func seedHomeWidgets(t *testing.T, ctx context.Context) {
 	for _, a := range articles {
 		if _, err := poolTest.Exec(ctx,
 			`INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
-			                        "readingTime", status, "publicationId", "authorId", "categoryId",
+			                        "readingTime", status, "publisherId", "authorId", "categoryId",
 			                        "createdAt", "updatedAt", "embedding")
 			 VALUES ($1, $2, $3, '<p>Contenu</p>', true, false, 'PUBLIC', 5, 'PUBLISHED',
 			         $4, $5, $6, $7, now(),
@@ -168,12 +168,12 @@ func TestSuggestedCreators_ThoughtOnly(t *testing.T) {
 	const pubID = "pub_home_thought"
 	const authorID = "00000000-0000-0000-0000-0000000000cc"
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "isCertified", "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "isCertified", "createdAt", "updatedAt")
 		 VALUES ($1, 'PERSONAL', 'Pensees-only', 'pensees-only', true, now(), now())`, pubID); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "User" (id, email, username, name, role, "publisherId", "createdAt", "updatedAt")
 		 VALUES ($1::uuid, 'thoughtonly@test.dev', 'thoughtonly', 'Pensees Only', 'creator', $2, now(), now())`,
 		authorID, pubID); err != nil {
 		t.Fatalf("user: %v", err)
@@ -330,7 +330,7 @@ func TestSubscribeToNewsletter(t *testing.T) {
 	}
 	var count int
 	if err := poolTest.QueryRow(ctx,
-		`SELECT COUNT(*) FROM "Subscriber" WHERE email = 'newsletter@test.dev' AND "publicationId" = 'pub_home_001'`).Scan(&count); err != nil {
+		`SELECT COUNT(*) FROM "Subscriber" WHERE email = 'newsletter@test.dev' AND "publisherId" = 'pub_home_001'`).Scan(&count); err != nil {
 		t.Fatalf("count: %v", err)
 	}
 	if count != 1 {

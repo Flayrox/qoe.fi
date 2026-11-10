@@ -21,7 +21,7 @@ func TestHydrateArticles_Visibility(t *testing.T) {
 
 	if _, err := poolTest.Exec(ctx, `
 		INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime",
-		                        status, "publicationId", "authorId", "createdAt", "updatedAt")
+		                        status, "publisherId", "authorId", "createdAt", "updatedAt")
 		VALUES ($1, 'Brouillon', 'brouillon', '<p>Brouillon</p>', false, 'PUBLIC', 8,
 		        'DRAFT', 'pub_engine', $2, now(), now())`, draftArticleID, aliceID); err != nil {
 		t.Fatalf("seed draft article: %v", err)
@@ -77,7 +77,7 @@ func TestHydrateArticles_Visibility(t *testing.T) {
 		t.Fatalf("article privé anonyme = %d, attendu 0", len(arts))
 	}
 	if _, err := poolTest.Exec(ctx, `
-		INSERT INTO "Follows" (id, "readerId", "publicationId", "createdAt")
+		INSERT INTO "Follows" (id, "readerId", "publisherId", "createdAt")
 		VALUES ('follow_visibility', $1, 'pub_engine', now())`, readerID); err != nil {
 		t.Fatalf("follow: %v", err)
 	}
@@ -107,7 +107,7 @@ func TestHydrateArticles_Visibility(t *testing.T) {
 // TestHydrateArticles_MediaUsesPublicationOwnerVisibility vérifie qu'un membre
 // de média au profil personnel privé ne masque pas les articles du média, et
 // qu'un blocage contre le propriétaire du média les masque bien.
-func TestHydrateArticles_MediaUsesPublicationOwnerVisibility(t *testing.T) {
+func TestHydrateArticles_MediaUsesPublisherOwnerVisibility(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
 	readerID, err := seedEngine(ctx, poolTest)
@@ -119,10 +119,10 @@ func TestHydrateArticles_MediaUsesPublicationOwnerVisibility(t *testing.T) {
 	const memberID = "00000000-0000-0000-0000-000000000013"
 
 	if _, err := poolTest.Exec(ctx,
-		`UPDATE "User" SET "publicationId" = 'pub_engine' WHERE id = $1`, ownerID); err != nil {
+		`UPDATE "User" SET "publisherId" = 'pub_engine' WHERE id = $1`, ownerID); err != nil {
 		t.Fatalf("owner publication: %v", err)
 	}
-	// Le membre n'a pas la publication du média dans "User"."publicationId" :
+	// Le membre n'a pas la publication du média dans "User"."publisherId" :
 	// son appartenance passe par MediaMember, et son profil personnel suit sa
 	// propre visibilité. Sinon le propriétaire serait ambigu.
 	if _, err := poolTest.Exec(ctx, `
@@ -137,7 +137,7 @@ func TestHydrateArticles_MediaUsesPublicationOwnerVisibility(t *testing.T) {
 	}
 	if _, err := poolTest.Exec(ctx, `
 		INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime",
-		                        status, "publicationId", "authorId", "createdAt", "updatedAt")
+		                        status, "publisherId", "authorId", "createdAt", "updatedAt")
 		VALUES ('eng_art_member', 'Article média', 'article-media', '<p>Média</p>', true, 'PUBLIC', 8,
 		        'PUBLISHED', 'pub_engine', $1, now(), now())`, memberID); err != nil {
 		t.Fatalf("member article: %v", err)

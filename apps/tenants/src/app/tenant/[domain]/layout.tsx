@@ -10,7 +10,7 @@ import {
 } from '@qoe/ui';
 import { getLanguage } from '@qoe/i18n/server';
 import { completeOnboarding } from './onboarding-actions';
-import { fetchTenantPublication } from '@/lib/tenant-data';
+import { fetchTenantPublisher } from '@/lib/tenant-data';
 import { AnalyticsGate } from '@/components/AnalyticsGate';
 
 interface TenantLayoutProps {
@@ -22,15 +22,15 @@ export default async function TenantLayout({ children, params }: TenantLayoutPro
   const { domain } = await params;
   const decodedDomain = decodeURIComponent(domain);
 
-  // Go-first : GET /v1/publications/by-domain/{domain} — résolution polymorphe
+  // Go-first : GET /v1/publishers/by-domain/{domain} — résolution polymorphe
   // de la Publication (personnelle OU média) comme identité tenant.
-  const publication = await fetchTenantPublication(decodedDomain);
+  const publisher = await fetchTenantPublisher(decodedDomain);
 
-  if (!publication) {
+  if (!publisher) {
     notFound();
   }
 
-  const umamiWebsiteId = publication.umamiWebsiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
+  const umamiWebsiteId = publisher.umamiWebsiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
   const locale = await getLanguage();
 
   // Onboarding en popup : si l'utilisateur est connecté mais n'a pas terminé

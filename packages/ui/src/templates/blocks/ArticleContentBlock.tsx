@@ -5,7 +5,7 @@ import DOMPurify from 'isomorphic-dompurify';
 import type {
   ArticleContentBlockProps,
   TemplateArticleItem,
-  TemplatePublicationContext,
+  TemplatePublisherContext,
   TemplateRenderContext,
 } from '../schema';
 import { BlockWrapper } from './BlockWrapper';
@@ -16,7 +16,7 @@ import { ArticleEngagementBar } from './ArticleEngagementBar';
 interface ArticleContentBlockComponentProps {
   id: string;
   props: ArticleContentBlockProps;
-  publication: TemplatePublicationContext;
+  publisher: TemplatePublisherContext;
   article?: TemplateArticleItem | null;
   context: TemplateRenderContext;
   visible?: boolean;
@@ -82,7 +82,7 @@ function sanitizeArticleHtml(html: string): string {
 export function ArticleContentBlock({
   id,
   props,
-  publication,
+  publisher,
   article: articleProp,
   context,
   visible = true,
@@ -109,10 +109,10 @@ export function ArticleContentBlock({
       excerpt: '',
       readingTime: 4,
       publishedAt: new Date().toISOString(),
-      author: { name: publication.name || 'Auteur' },
+      author: { name: publisher.name || 'Auteur' },
     };
 
-  const authorName = article.author?.name || article.author?.username || publication.name || '';
+  const authorName = article.author?.name || article.author?.username || publisher.name || '';
   const safeHtml = sanitizeArticleHtml(article.content || '');
 
   const rawAuthors = article.authors;
@@ -130,7 +130,7 @@ export function ArticleContentBlock({
       : [
           {
             name: authorName || 'Auteur',
-            logoUrl: article.author?.logoUrl || publication.logoUrl || null,
+            logoUrl: article.author?.logoUrl || publisher.logoUrl || null,
             type: article.author?.type,
           },
         ];

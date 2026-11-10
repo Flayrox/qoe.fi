@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MinimalCraftShell } from '../MinimalCraftShell';
-import type { TemplatePublicationContext, TemplateArticleItem } from '../../../schema';
+import type { TemplatePublisherContext, TemplateArticleItem } from '../../../schema';
 
 global.IntersectionObserver = class {
   observe = vi.fn();
@@ -10,7 +10,7 @@ global.IntersectionObserver = class {
   disconnect = vi.fn();
 } as unknown as typeof IntersectionObserver;
 
-const mockPublication: TemplatePublicationContext = {
+const mockPublisher: TemplatePublisherContext = {
   id: 'pub_1',
   name: 'Devouring Details',
   domain: 'devouringdetails.com',
@@ -29,11 +29,7 @@ const mockArticle: TemplateArticleItem = {
 describe('MinimalCraftShell - Devouring Details Exact Match (Screenshots 1 & 2)', () => {
   it('hides sidebar completely when closed, slides it in when open, and only shifts main content right while header remains fixed', () => {
     const { container } = render(
-      <MinimalCraftShell
-        publication={mockPublication}
-        article={mockArticle}
-        articles={[mockArticle]}
-      >
+      <MinimalCraftShell publisher={mockPublisher} article={mockArticle} articles={[mockArticle]}>
         <article id="test-article-body">Contenu de test</article>
       </MinimalCraftShell>
     );
@@ -79,13 +75,13 @@ describe('MinimalCraftShell - Devouring Details Exact Match (Screenshots 1 & 2)'
   });
 
   it('renders the configured wordmark next to the avatar instead of the publication name', () => {
-    const publicationWithWordmark: TemplatePublicationContext = {
-      ...mockPublication,
+    const publicationWithWordmark: TemplatePublisherContext = {
+      ...mockPublisher,
       siteOptions: { wordmarkUrl: 'https://cdn.example.com/rose-period.png' },
     };
 
     const { container } = render(
-      <MinimalCraftShell publication={publicationWithWordmark} articles={[]}>
+      <MinimalCraftShell publisher={publicationWithWordmark} articles={[]}>
         <article>Contenu</article>
       </MinimalCraftShell>
     );
@@ -107,7 +103,7 @@ describe('MinimalCraftShell - Devouring Details Exact Match (Screenshots 1 & 2)'
 
     const { container } = render(
       <MinimalCraftShell
-        publication={mockPublication}
+        publisher={mockPublisher}
         article={articleWithCategory}
         articles={[articleWithCategory]}
       >
@@ -131,7 +127,7 @@ describe('MinimalCraftShell - Devouring Details Exact Match (Screenshots 1 & 2)'
 
     const { container } = render(
       <MinimalCraftShell
-        publication={mockPublication}
+        publisher={mockPublisher}
         article={articleWithoutCategory}
         articles={[articleWithoutCategory]}
       >
@@ -147,8 +143,8 @@ describe('MinimalCraftShell - Devouring Details Exact Match (Screenshots 1 & 2)'
   });
 
   it('renders a readable category header with breadcrumb, description and subcategory chips', () => {
-    const publicationWithCategories: TemplatePublicationContext = {
-      ...mockPublication,
+    const publicationWithCategories: TemplatePublisherContext = {
+      ...mockPublisher,
       categories: [
         { id: 'cat_tech', name: 'Technologie', slug: 'tech', parentId: null },
         {
@@ -164,7 +160,7 @@ describe('MinimalCraftShell - Devouring Details Exact Match (Screenshots 1 & 2)'
 
     const { container } = render(
       <MinimalCraftShell
-        publication={publicationWithCategories}
+        publisher={publicationWithCategories}
         articles={[mockArticle]}
         activeCategory={publicationWithCategories.categories![1]}
       >
@@ -198,7 +194,7 @@ describe('MinimalCraftShell - Devouring Details Exact Match (Screenshots 1 & 2)'
 
   it('displays publication name on home page when no article is active, without Sommaire suffix', () => {
     const { container } = render(
-      <MinimalCraftShell publication={mockPublication} articles={[mockArticle]}>
+      <MinimalCraftShell publisher={mockPublisher} articles={[mockArticle]}>
         <div>Page d'accueil</div>
       </MinimalCraftShell>
     );

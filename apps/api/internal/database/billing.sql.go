@@ -34,7 +34,7 @@ const getMediaOwnerForCredit = `-- name: GetMediaOwnerForCredit :one
 SELECT mm."userId"::text AS owner_id, 'creator' AS owner_role
 FROM "MediaMember" mm
 JOIN "Media" md ON md.id = mm."mediaId"
-WHERE md."publicationId" = $1 AND mm.role = 'owner' AND mm.status = 'active'
+WHERE md."publisherId" = $1 AND mm.role = 'owner' AND mm.status = 'active'
 LIMIT 1
 `
 
@@ -43,8 +43,8 @@ type GetMediaOwnerForCreditRow struct {
 	OwnerRole string `json:"owner_role"`
 }
 
-func (q *Queries) GetMediaOwnerForCredit(ctx context.Context, publicationid string) (GetMediaOwnerForCreditRow, error) {
-	row := q.db.QueryRow(ctx, getMediaOwnerForCredit, publicationid)
+func (q *Queries) GetMediaOwnerForCredit(ctx context.Context, publisherid string) (GetMediaOwnerForCreditRow, error) {
+	row := q.db.QueryRow(ctx, getMediaOwnerForCredit, publisherid)
 	var i GetMediaOwnerForCreditRow
 	err := row.Scan(&i.OwnerID, &i.OwnerRole)
 	return i, err
@@ -53,7 +53,7 @@ func (q *Queries) GetMediaOwnerForCredit(ctx context.Context, publicationid stri
 const getPersonalOwnerForCredit = `-- name: GetPersonalOwnerForCredit :one
 SELECT id::text AS owner_id, role AS owner_role
 FROM "User"
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
 `
 
 type GetPersonalOwnerForCreditRow struct {
@@ -61,30 +61,30 @@ type GetPersonalOwnerForCreditRow struct {
 	OwnerRole string `json:"owner_role"`
 }
 
-func (q *Queries) GetPersonalOwnerForCredit(ctx context.Context, publicationid pgtype.Text) (GetPersonalOwnerForCreditRow, error) {
-	row := q.db.QueryRow(ctx, getPersonalOwnerForCredit, publicationid)
+func (q *Queries) GetPersonalOwnerForCredit(ctx context.Context, publisherid pgtype.Text) (GetPersonalOwnerForCreditRow, error) {
+	row := q.db.QueryRow(ctx, getPersonalOwnerForCredit, publisherid)
 	var i GetPersonalOwnerForCreditRow
 	err := row.Scan(&i.OwnerID, &i.OwnerRole)
 	return i, err
 }
 
-const getPersonalPublicationByUserID = `-- name: GetPersonalPublicationByUserID :one
-SELECT "publicationId" AS id FROM "User" WHERE id = $1
+const getPersonalPublisherByUserID = `-- name: GetPersonalPublisherByUserID :one
+SELECT "publisherId" AS id FROM "User" WHERE id = $1
 `
 
-func (q *Queries) GetPersonalPublicationByUserID(ctx context.Context, id string) (pgtype.Text, error) {
-	row := q.db.QueryRow(ctx, getPersonalPublicationByUserID, id)
+func (q *Queries) GetPersonalPublisherByUserID(ctx context.Context, id string) (pgtype.Text, error) {
+	row := q.db.QueryRow(ctx, getPersonalPublisherByUserID, id)
 	var id_2 pgtype.Text
 	err := row.Scan(&id_2)
 	return id_2, err
 }
 
-const getPublicationByID = `-- name: GetPublicationByID :one
-SELECT id FROM "Publication" WHERE id = $1
+const getPublisherByID = `-- name: GetPublisherByID :one
+SELECT id FROM "Publisher" WHERE id = $1
 `
 
-func (q *Queries) GetPublicationByID(ctx context.Context, id string) (string, error) {
-	row := q.db.QueryRow(ctx, getPublicationByID, id)
+func (q *Queries) GetPublisherByID(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRow(ctx, getPublisherByID, id)
 	var id_2 string
 	err := row.Scan(&id_2)
 	return id_2, err
@@ -109,19 +109,19 @@ func (q *Queries) IncrementWalletBalance(ctx context.Context, arg IncrementWalle
 const setSubscriberPremiumStatus = `-- name: SetSubscriberPremiumStatus :exec
 UPDATE "Subscriber"
 SET "isActive" = $3, "isPremium" = $3, status = $4
-WHERE "publicationId" = $1 AND email = $2
+WHERE "publisherId" = $1 AND email = $2
 `
 
 type SetSubscriberPremiumStatusParams struct {
-	PublicationId string             `json:"publicationId"`
-	Email         string             `json:"email"`
-	IsActive      bool               `json:"isActive"`
-	Status        SubscriptionStatus `json:"status"`
+	PublisherId string             `json:"publisherId"`
+	Email       string             `json:"email"`
+	IsActive    bool               `json:"isActive"`
+	Status      SubscriptionStatus `json:"status"`
 }
 
 func (q *Queries) SetSubscriberPremiumStatus(ctx context.Context, arg SetSubscriberPremiumStatusParams) error {
 	_, err := q.db.Exec(ctx, setSubscriberPremiumStatus,
-		arg.PublicationId,
+		arg.PublisherId,
 		arg.Email,
 		arg.IsActive,
 		arg.Status,
@@ -130,9 +130,9 @@ func (q *Queries) SetSubscriberPremiumStatus(ctx context.Context, arg SetSubscri
 }
 
 const upsertSubscriberPayment = `-- name: UpsertSubscriberPayment :one
-INSERT INTO "Subscriber" (id, email, "publicationId", status, "isActive", "isPremium", "ltvCents", "confirmedAt", "updatedAt")
+INSERT INTO "Subscriber" (id, email, "publisherId", status, "isActive", "isPremium", "ltvCents", "confirmedAt", "updatedAt")
 VALUES (gen_random_uuid()::text, $1, $2, 'ACTIVE', true, true, $3, now(), now())
-ON CONFLICT ("email", "publicationId") DO UPDATE SET
+ON CONFLICT ("email", "publisherId") DO UPDATE SET
   "isActive" = true, "isPremium" = true,
   "ltvCents" = "Subscriber"."ltvCents" + EXCLUDED."ltvCents",
   status = 'ACTIVE',
@@ -143,15 +143,15 @@ RETURNING id
 `
 
 type UpsertSubscriberPaymentParams struct {
-	Email         string `json:"email"`
-	PublicationId string `json:"publicationId"`
-	LtvCents      int32  `json:"ltvCents"`
+	Email       string `json:"email"`
+	PublisherId string `json:"publisherId"`
+	LtvCents    int32  `json:"ltvCents"`
 }
 
 // Double opt-in : Stripe/paiement confirme d'office l'email (relation facturée
 // authentifiée) — receiveArticles reste actif sans confirmation email.
 func (q *Queries) UpsertSubscriberPayment(ctx context.Context, arg UpsertSubscriberPaymentParams) (string, error) {
-	row := q.db.QueryRow(ctx, upsertSubscriberPayment, arg.Email, arg.PublicationId, arg.LtvCents)
+	row := q.db.QueryRow(ctx, upsertSubscriberPayment, arg.Email, arg.PublisherId, arg.LtvCents)
 	var id string
 	err := row.Scan(&id)
 	return id, err

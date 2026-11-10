@@ -189,8 +189,8 @@ func TestQuotedArticlesFor_ContextPerPost(t *testing.T) {
 			a.QuoteContext.Start, b.QuoteContext.Start)
 	}
 	// Métadonnées dénormalisées.
-	if a.Title == "" || a.Slug == "" || a.Publication.Name == "" ||
-		a.Publication.ID == "" || // requis par le lecteur mobile (/article/{slug})
+	if a.Title == "" || a.Slug == "" || a.Publisher.Name == "" ||
+		a.Publisher.ID == "" || // requis par le lecteur mobile (/article/{slug})
 		a.Author.Username == nil || *a.Author.Username == "" {
 		t.Errorf("métadonnées incomplètes : %+v", a)
 	}

@@ -174,7 +174,7 @@ func buildLegalReviewReminderEmail(ctx context.Context, q *db.Queries, item db.C
 		scheduled := ""
 		if info.DraftScheduledAt.Valid {
 			scheduled = fmt.Sprintf(
-				`<p style="margin:6px 0 0;color:#3f3f46;font-size:14px;">Publication planifiée le <strong>%s</strong> — elle partira automatiquement à cette date si personne ne la déplace.</p>`,
+				`<p style="margin:6px 0 0;color:#3f3f46;font-size:14px;">Publisher planifiée le <strong>%s</strong> — elle partira automatiquement à cette date si personne ne la déplace.</p>`,
 				info.DraftScheduledAt.Time.UTC().Format("02/01/2006 15:04")+" UTC",
 			)
 		} else {

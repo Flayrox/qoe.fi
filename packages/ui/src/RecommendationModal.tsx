@@ -6,7 +6,7 @@ import { subscribeToNewsletterAction } from '@qoe/sdk/actions/tenant';
 import { Check, Loader2, Sparkles, X, ArrowRight } from 'lucide-react';
 import { SafeAvatar } from './SafeAvatar';
 
-export interface RecommendedPublication {
+export interface RecommendedPublisher {
   id: string;
   name: string;
   slug: string;
@@ -25,7 +25,7 @@ interface RecommendationModalProps {
   isOpen: boolean;
   onClose: () => void;
   authorName?: string;
-  recommendations: RecommendedPublication[];
+  recommendations: RecommendedPublisher[];
   subscriberEmail: string;
 }
 
@@ -65,10 +65,10 @@ export function RecommendationModal({
     try {
       // Subscribe to all selected publications in parallel
       await Promise.allSettled(
-        Array.from(selectedIds).map((publicationId) =>
+        Array.from(selectedIds).map((publisherId) =>
           subscribeToNewsletterAction({
             email: subscriberEmail,
-            publicationId,
+            publisherId,
           })
         )
       );
@@ -111,14 +111,14 @@ export function RecommendationModal({
           <h3 className="text-xl font-semibold tracking-tight">
             {authorName
               ? t`${authorName} vous recommande également :`
-              : t`Publications recommandées pour vous`}
+              : t`Publishers recommandées pour vous`}
           </h3>
           <p className="text-sm text-muted-foreground mt-1">
             {t`Abonnez-vous en 1 clic aux auteurs qui partagent cette même vision d'exigence.`}
           </p>
         </div>
 
-        {/* List of Recommended Publications */}
+        {/* List of Recommended Publishers */}
         <div className="p-6 overflow-y-auto space-y-3 divide-y divide-border/40">
           {recommendations.map((rec) => {
             const isChecked = selectedIds.has(rec.id);

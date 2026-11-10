@@ -9,7 +9,7 @@ import { buildArticlePath, buildCategoryPath } from '@qoe/utils';
 import type { MetadataRoute } from 'next';
 import { headers } from 'next/headers';
 import { parseTenantHost } from '@qoe/config';
-import { fetchPublicTenantPublication } from '@/lib/tenant-data';
+import { fetchPublicTenantPublisher } from '@/lib/tenant-data';
 
 export const revalidate = 3600; // Cache 1 heure
 
@@ -34,7 +34,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (!targetDomain) return staticPages;
 
   try {
-    const pub = await fetchPublicTenantPublication(targetDomain);
+    const pub = await fetchPublicTenantPublisher(targetDomain);
     if (!pub) return staticPages;
     if (pub.allowIndexing === false) {
       return [];

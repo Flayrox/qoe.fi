@@ -191,14 +191,14 @@ func TestCreatorAPI_Highlights(t *testing.T) {
 
 	if _, err := poolTest.Exec(ctx,
 		`TRUNCATE TABLE "Highlight", "AnnotationComment", "Article", "_CoAuthors",
-		 "Publication", "User" CASCADE`); err != nil {
+		 "Publisher", "User" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	// Publication PERSONNELLE du créateur : elle porte SON identité
 	// (triggers 00028/00054 → slug = username, name = nom du compte). Le nom
 	// et le slug ci-dessous sont donc ceux du compte propriétaire.
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ($1, 'PERSONAL', 'apicreator', 'apicreator', now(), now())`, pubID); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
@@ -211,7 +211,7 @@ func TestCreatorAPI_Highlights(t *testing.T) {
 			pub = &pubID
 		}
 		if _, err := poolTest.Exec(ctx,
-			`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+			`INSERT INTO "User" (id, email, username, name, role, "publisherId", "createdAt", "updatedAt")
 			 VALUES ($1, $2, $3, $3, 'user', $4, now(), now())`,
 			u.id, u.username+"@test.dev", u.username, pub); err != nil {
 			t.Fatalf("user %s: %v", u.username, err)
@@ -221,7 +221,7 @@ func TestCreatorAPI_Highlights(t *testing.T) {
 	// Article signé par le créateur + article co-écrit.
 	if _, err := poolTest.Exec(ctx,
 		`INSERT INTO "Article" (id, title, slug, content, published, visibility,
-		                        "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt")
+		                        "readingTime", status, "publisherId", "authorId", "createdAt", "updatedAt")
 		 VALUES ('art_api_1', 'Article Solo', 'article-solo', '<p>x</p>', true, 'PUBLIC',
 		         3, 'PUBLISHED', $1, $2, now(), now())`,
 		pubID, creatorID); err != nil {
@@ -229,7 +229,7 @@ func TestCreatorAPI_Highlights(t *testing.T) {
 	}
 	if _, err := poolTest.Exec(ctx,
 		`INSERT INTO "Article" (id, title, slug, content, published, visibility,
-		                        "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt")
+		                        "readingTime", status, "publisherId", "authorId", "createdAt", "updatedAt")
 		 VALUES ('art_api_2', 'Article Duo', 'article-duo', '<p>y</p>', true, 'PUBLIC',
 		         3, 'PUBLISHED', $1, $2, now(), now())`,
 		pubID, creatorID); err != nil {
@@ -415,7 +415,7 @@ func TestCreatorAPI_Content(t *testing.T) {
 	if code != http.StatusOK {
 		t.Fatalf("me = %d %v", code, me)
 	}
-	pub, _ := me["publication"].(map[string]any)
+	pub, _ := me["publisher"].(map[string]any)
 	// La publication renvoyée est celle du compte propriétaire de la clé :
 	// pour une PERSONAL, son slug EST le pseudo du compte.
 	if pub == nil || pub["slug"] != "apicreator" || pub["name"] != "apicreator" {
@@ -495,16 +495,16 @@ func TestCreatorAPI_ArticleMarkdown(t *testing.T) {
 
 	// Fixture autonome (ce test peut tourner seul) : publication + auteur.
 	if _, err := poolTest.Exec(ctx,
-		`TRUNCATE TABLE "Highlight", "Article", "_CoAuthors", "Publication", "User" CASCADE`); err != nil {
+		`TRUNCATE TABLE "Highlight", "Article", "_CoAuthors", "Publisher", "User" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ('pub_api_hl', 'PERSONAL', 'Créateur API', 'createur-api', now(), now())`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "User" (id, email, username, name, role, "publisherId", "createdAt", "updatedAt")
 		 VALUES ('00000000-0000-0000-0000-000000000c01', 'apicreator@test.dev', 'apicreator', 'apicreator', 'user', 'pub_api_hl', now(), now())`); err != nil {
 		t.Fatalf("user: %v", err)
 	}
@@ -515,7 +515,7 @@ func TestCreatorAPI_ArticleMarkdown(t *testing.T) {
 	// Article avec du HTML sémantique riche.
 	if _, err := poolTest.Exec(ctx,
 		`INSERT INTO "Article" (id, title, slug, content, published, visibility,
-		                        "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt")
+		                        "readingTime", status, "publisherId", "authorId", "createdAt", "updatedAt")
 		 VALUES ('art_api_md', 'Article Markdown', 'article-markdown',
 		         '<h2>Introduction</h2><p>Du texte avec du <strong>gras</strong> et un <a href="https://qoe.fi">lien</a>.</p><ul><li>Puce un</li><li>Puce deux</li></ul><blockquote>Citation</blockquote>',
 		         true, 'PUBLIC', 2, 'PUBLISHED', $1, $2, now(), now())`,
@@ -554,13 +554,13 @@ func TestCreatorAPI_OfficialAnnotationsAndComments(t *testing.T) {
 	// surlignage officiel de l'auteur + lecteur, et discussion.
 	if _, err := poolTest.Exec(ctx,
 		`TRUNCATE TABLE "AnnotationComment", "Highlight", "Article", "_CoAuthors",
-		 "Publication", "User" CASCADE`); err != nil {
+		 "Publisher", "User" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	authorID := "00000000-0000-0000-0000-000000000d01"
 	readerID := "00000000-0000-0000-0000-000000000d02"
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ('pub_official', 'PERSONAL', 'Éditorial', 'editorial', now(), now())`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
@@ -576,7 +576,7 @@ func TestCreatorAPI_OfficialAnnotationsAndComments(t *testing.T) {
 	}
 	if _, err := poolTest.Exec(ctx,
 		`INSERT INTO "Article" (id, title, slug, content, published, visibility,
-		                        "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt")
+		                        "readingTime", status, "publisherId", "authorId", "createdAt", "updatedAt")
 		 VALUES ('art_official', 'Analyse annotée', 'analyse-annotee',
 		         '<p>Un passage important à souligner.</p>',
 		         true, 'PUBLIC', 2, 'PUBLISHED', 'pub_official', $1, now(), now())`,
@@ -679,24 +679,24 @@ func TestCreatorAPI_CMSTaxonomyAndFilters(t *testing.T) {
 	// 3 articles répartis (tags, premium, dates échelonnées).
 	if _, err := poolTest.Exec(ctx,
 		`TRUNCATE TABLE "Highlight", "Article", "Category", "_CoAuthors",
-		 "Publication", "User" CASCADE`); err != nil {
+		 "Publisher", "User" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	authorID := "00000000-0000-0000-0000-000000000c01"
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ('pub_api_hl', 'PERSONAL', 'Créateur API', 'createur-api', now(), now())
 		 ON CONFLICT (id) DO NOTHING`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "User" (id, email, username, name, role, "publisherId", "createdAt", "updatedAt")
 		 VALUES ($1, 'apicreator@test.dev', 'apicreator', 'Créateur API', 'user', 'pub_api_hl', now(), now())
 		 ON CONFLICT (id) DO NOTHING`, authorID); err != nil {
 		t.Fatalf("user: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Category" (id, name, slug, description, "publicationId")
+		`INSERT INTO "Category" (id, name, slug, description, "publisherId")
 		 VALUES ('cat_politique', 'Politique', 'politique', 'Vie publique', 'pub_api_hl'),
 		        ('cat_culture', 'Culture', 'culture', NULL, 'pub_api_hl')`); err != nil {
 		t.Fatalf("categories: %v", err)
@@ -707,7 +707,7 @@ func TestCreatorAPI_CMSTaxonomyAndFilters(t *testing.T) {
 		if _, err := poolTest.Exec(ctx,
 			`INSERT INTO "Article" (id, title, slug, content, published, visibility,
 			                        "readingTime", status, "isPremium", "semanticTags",
-			                        "categoryId", "publicationId", "authorId", "createdAt", "updatedAt")
+			                        "categoryId", "publisherId", "authorId", "createdAt", "updatedAt")
 			 VALUES ($1, $2, $3, '<p>Corps</p>', true, 'PUBLIC', 3, 'PUBLISHED', $4, $5,
 			         NULLIF($6,''), 'pub_api_hl', $7, now() - make_interval(days => $8), now())`,
 			id, title, slug, premium, tags, catID, authorID, daysAgo); err != nil {
@@ -831,13 +831,13 @@ func TestCreatorAPI_CMSLifecycle(t *testing.T) {
 
 	if _, err := poolTest.Exec(ctx,
 		`TRUNCATE TABLE "Highlight", "AnnotationComment", "Article", "Category",
-		 "_CoAuthors", "Publication", "User" CASCADE`); err != nil {
+		 "_CoAuthors", "Publisher", "User" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	authorID := "00000000-0000-0000-0000-000000000e01"
 	readerID := "00000000-0000-0000-0000-000000000e02"
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ('pub_cms', 'PERSONAL', 'Rédaction CMS', 'redaction-cms', now(), now())`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
@@ -853,14 +853,14 @@ func TestCreatorAPI_CMSLifecycle(t *testing.T) {
 			pub = &[]string{"pub_cms"}[0]
 		}
 		if _, err := poolTest.Exec(ctx,
-			`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+			`INSERT INTO "User" (id, email, username, name, role, "publisherId", "createdAt", "updatedAt")
 			 VALUES ($1, $2, $3, $3, 'user', $4, now(), now())`,
 			u.id, u.username+"@test.dev", u.username, pub); err != nil {
 			t.Fatalf("user %s: %v", u.username, err)
 		}
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Category" (id, name, slug, description, "publicationId")
+		`INSERT INTO "Category" (id, name, slug, description, "publisherId")
 		 VALUES ('cat_cms_pol', 'Politique CMS', 'politique-cms', NULL, 'pub_cms')`); err != nil {
 		t.Fatalf("category: %v", err)
 	}

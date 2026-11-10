@@ -17,8 +17,8 @@ func TestNotificationFromRowIncludesWorkspaceLink(t *testing.T) {
 			ArticleId:       pgtype.Text{String: "art-1", Valid: true},
 			ArticleTitle:    pgtype.Text{String: "Titre", Valid: true},
 			ArticleSlug:     pgtype.Text{String: "titre", Valid: true},
-			PublicationId:   pgtype.Text{String: "pub-1", Valid: true},
-			PublicationType: publicationType,
+			PublisherId:   pgtype.Text{String: "pub-1", Valid: true},
+			PublisherType: publicationType,
 			MediaID:         mediaID,
 		}
 	}

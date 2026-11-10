@@ -68,15 +68,15 @@ type Input struct {
 	MessageType string
 	// Email du destinataire envisagé (normalisé par l'appelant).
 	Email string
-	// PublicationID concernée (vide pour les messages sans publication).
-	PublicationID string
+	// PublisherID concernée (vide pour les messages sans publication).
+	PublisherID string
 
 	// SuppressionChecked indique que l'opposition a été consultée.
 	SuppressionChecked bool
 	// SuppressedGlobal : opposition globale (plainte, rejet durable global).
 	SuppressedGlobal bool
 	// SuppressedPublication : opposition pour cette publication.
-	SuppressedPublication bool
+	SuppressedPublisher bool
 	// Suspended : lot, publication ou identité d'envoi suspendu.
 	Suspended bool
 	// BudgetChecked indique que le budget a été consulté.
@@ -132,7 +132,7 @@ func Evaluate(policy *MessageTypePolicy, in Input) Verdict {
 		if in.SuppressedGlobal {
 			return Verdict{Decision: DecisionSuppress, Reason: ReasonSuppressedGlobal}
 		}
-		if in.SuppressedPublication {
+		if in.SuppressedPublisher {
 			return Verdict{Decision: DecisionSuppress, Reason: ReasonSuppressedPublisher}
 		}
 	}
@@ -204,7 +204,7 @@ const (
 	// l'action (dont Accept-Language replié).
 	LocaleSession LocaleKind = "session"
 	// LocalePublication : langue par défaut de la publication.
-	LocalePublication LocaleKind = "publication"
+	LocalePublisher LocaleKind = "publisher"
 	// LocalePlatform : langue par défaut qoe.fi (dernier recours).
 	LocalePlatform LocaleKind = "platform"
 )
@@ -234,7 +234,7 @@ func ResolveLocale(supported []string, fallback string, sources ...LocaleSource)
 	byKind := map[LocaleKind]string{}
 	order := []LocaleKind{
 		LocaleExplicit, LocaleAccount, LocaleSubscription,
-		LocaleSession, LocalePublication, LocalePlatform,
+		LocaleSession, LocalePublisher, LocalePlatform,
 	}
 	for _, s := range sources {
 		if _, ok := byKind[s.Kind]; !ok {
@@ -305,14 +305,14 @@ func matchLocale(supported []string, raw string) (string, bool) {
 // SuppressionState est l'opposition connue pour un couple (email, publication).
 type SuppressionState struct {
 	Global      bool
-	Publication bool
+	Publisher bool
 }
 
 // LookupSuppression lit l'opposition durable pour un destinataire : portée
 // globale OU portée publication. Une seule requête, réutilisée par tous les
 // chemins d'envoi — c'est le point central qui empêche les divergences entre
 // la quarantaine d'import, les campagnes et les reconfirmations.
-func LookupSuppression(ctx context.Context, pool *pgxpool.Pool, email, publicationID string) (SuppressionState, error) {
+func LookupSuppression(ctx context.Context, pool *pgxpool.Pool, email, publisherID string) (SuppressionState, error) {
 	var out SuppressionState
 	email = strings.ToLower(strings.TrimSpace(email))
 	if email == "" {
@@ -321,7 +321,7 @@ func LookupSuppression(ctx context.Context, pool *pgxpool.Pool, email, publicati
 	err := pool.QueryRow(ctx, `
 		SELECT
 		  EXISTS(SELECT 1 FROM "EmailSuppression" WHERE email = $1 AND "scope" = 'global'),
-		  EXISTS(SELECT 1 FROM "EmailSuppression" WHERE email = $1 AND "scope" = 'publication' AND "publicationId" = $2)`,
-		email, publicationID).Scan(&out.Global, &out.Publication)
+		  EXISTS(SELECT 1 FROM "EmailSuppression" WHERE email = $1 AND "scope" = 'publisher' AND "publisherId" = $2)`,
+		email, publisherID).Scan(&out.Global, &out.Publisher)
 	return out, err
 }

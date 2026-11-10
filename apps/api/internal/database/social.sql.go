@@ -52,16 +52,16 @@ func (q *Queries) ExistsUnreadReplyNotification(ctx context.Context, arg ExistsU
 const getActiveSubscriptionForReply = `-- name: GetActiveSubscriptionForReply :one
 SELECT 1 AS present
 FROM "Subscriber"
-WHERE "publicationId" = $1 AND "userId" = $2 AND "isActive" = true
+WHERE "publisherId" = $1 AND "userId" = $2 AND "isActive" = true
 `
 
 type GetActiveSubscriptionForReplyParams struct {
-	PublicationId string      `json:"publicationId"`
-	UserId        pgtype.UUID `json:"userId"`
+	PublisherId string      `json:"publisherId"`
+	UserId      pgtype.UUID `json:"userId"`
 }
 
 func (q *Queries) GetActiveSubscriptionForReply(ctx context.Context, arg GetActiveSubscriptionForReplyParams) (int32, error) {
-	row := q.db.QueryRow(ctx, getActiveSubscriptionForReply, arg.PublicationId, arg.UserId)
+	row := q.db.QueryRow(ctx, getActiveSubscriptionForReply, arg.PublisherId, arg.UserId)
 	var present int32
 	err := row.Scan(&present)
 	return present, err
@@ -70,29 +70,29 @@ func (q *Queries) GetActiveSubscriptionForReply(ctx context.Context, arg GetActi
 const getFollowForReply = `-- name: GetFollowForReply :one
 SELECT 1 AS present
 FROM "Follows"
-WHERE "readerId" = $1 AND "publicationId" = $2
+WHERE "readerId" = $1 AND "publisherId" = $2
 `
 
 type GetFollowForReplyParams struct {
-	ReaderId      pgtype.UUID `json:"readerId"`
-	PublicationId string      `json:"publicationId"`
+	ReaderId    pgtype.UUID `json:"readerId"`
+	PublisherId string      `json:"publisherId"`
 }
 
 func (q *Queries) GetFollowForReply(ctx context.Context, arg GetFollowForReplyParams) (int32, error) {
-	row := q.db.QueryRow(ctx, getFollowForReply, arg.ReaderId, arg.PublicationId)
+	row := q.db.QueryRow(ctx, getFollowForReply, arg.ReaderId, arg.PublisherId)
 	var present int32
 	err := row.Scan(&present)
 	return present, err
 }
 
-const getPersonalPublicationID = `-- name: GetPersonalPublicationID :one
-SELECT "publicationId" AS id
+const getPersonalPublisherID = `-- name: GetPersonalPublisherID :one
+SELECT "publisherId" AS id
 FROM "User"
 WHERE id = $1
 `
 
-func (q *Queries) GetPersonalPublicationID(ctx context.Context, id string) (pgtype.Text, error) {
-	row := q.db.QueryRow(ctx, getPersonalPublicationID, id)
+func (q *Queries) GetPersonalPublisherID(ctx context.Context, id string) (pgtype.Text, error) {
+	row := q.db.QueryRow(ctx, getPersonalPublisherID, id)
 	var id_2 pgtype.Text
 	err := row.Scan(&id_2)
 	return id_2, err

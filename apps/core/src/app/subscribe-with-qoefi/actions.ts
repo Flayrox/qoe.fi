@@ -24,7 +24,7 @@ export interface QoeSubscribeConfirmResult {
  */
 export async function subscribeWithQoeFiAction(input: {
   email: string;
-  publicationId: string;
+  publisherId: string;
 }): Promise<QoeSubscribeConfirmResult> {
   try {
     const res = await goFetch<{ success: boolean; active: boolean }>('/v1/me/subscriptions', {
@@ -37,7 +37,7 @@ export async function subscribeWithQoeFiAction(input: {
   }
 }
 
-export interface PublicationProfile {
+export interface PublisherProfile {
   id: string;
   name: string;
   logoUrl: string | null;
@@ -47,12 +47,12 @@ export interface PublicationProfile {
  * Profil public minimal d'une publication (nom + logo, rien de sensible)
  * pour afficher « Confirmer l'abonnement à [publication] ». Sans auth.
  */
-export async function getSubscribePublicationProfile(
+export async function getSubscribePublisherProfile(
   slugOrId: string
-): Promise<PublicationProfile | null> {
+): Promise<PublisherProfile | null> {
   try {
-    const res = await goFetch<PublicationProfile>(
-      `/v1/publications/${encodeURIComponent(slugOrId)}/profile`
+    const res = await goFetch<PublisherProfile>(
+      `/v1/publishers/${encodeURIComponent(slugOrId)}/profile`
     );
     if (!res?.id) return null;
     return res;

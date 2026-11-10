@@ -132,13 +132,13 @@ func (h *Handler) simulateFollow(w http.ResponseWriter, r *http.Request) {
 	}
 	var p struct {
 		ReaderID      string `json:"readerId"`
-		PublicationID string `json:"publicationId"`
+		PublisherID string `json:"publisherId"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	if err := h.svc.SimulateFollow(r.Context(), userID, p.ReaderID, p.PublicationID); err != nil {
+	if err := h.svc.SimulateFollow(r.Context(), userID, p.ReaderID, p.PublisherID); err != nil {
 		h.handleErr(w, err)
 		return
 	}

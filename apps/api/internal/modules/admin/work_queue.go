@@ -156,7 +156,7 @@ var queueDefinitions = []queueDefinition{
 		Key: QueueImports, Label: "Imports en revue", Href: "/admin/imports",
 		Table: `"SubscriberImportBatch"`, IDColumn: `"id"`, Source: `"SubscriberImportBatch" q`,
 		OpenPredicate: `q."status" IN ('submitted', 'reviewing', 'needs_info')`,
-		TitleExpr:     `'Import ' || q."publicationId"`,
+		TitleExpr:     `'Import ' || q."publisherId"`,
 		StatusExpr:    `q."status"::text`,
 		DueExpr:       `COALESCE(q."dueAt", q."createdAt" + interval '72 hours')`,
 	},

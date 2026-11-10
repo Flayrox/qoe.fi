@@ -35,9 +35,9 @@ export interface RecentArticleTileData {
   imageUrl?: string | null;
   readingTime?: number;
   authorName?: string | null;
-  publicationName?: string;
-  publicationType?: 'PERSONAL' | 'MEDIA';
-  publicationLogoUrl?: string | null;
+  publisherName?: string;
+  publisherType?: 'PERSONAL' | 'MEDIA';
+  publisherLogoUrl?: string | null;
   coAuthors?: string[];
   relation?: 'OWN' | 'MEDIA_AUTHOR' | 'COAUTHOR' | 'MEDIA_TEAM';
 }
@@ -58,10 +58,10 @@ export function RecentArticleTile({
   updatedLabel: string;
 }) {
   const router = useRouter();
-  const [pending, setPending] = useState<'publication' | 'delete' | null>(null);
+  const [pending, setPending] = useState<'publisher' | 'delete' | null>(null);
 
-  const togglePublication = async () => {
-    setPending('publication');
+  const togglePublisher = async () => {
+    setPending('publisher');
     const res = await bulkUpdateArticlesAction({
       ids: [article.id],
       published: !article.published,
@@ -107,12 +107,12 @@ export function RecentArticleTile({
             <FileText className="h-10 w-10 text-muted-foreground/50 stroke-[1.5]" />
           )}
 
-          {article.publicationType === 'MEDIA' && (
+          {article.publisherType === 'MEDIA' && (
             <div className="absolute bottom-2 left-2 z-10 drop-shadow-md">
               <UserAvatar
                 user={{
-                  name: article.publicationName,
-                  logoUrl: article.publicationLogoUrl,
+                  name: article.publisherName,
+                  logoUrl: article.publisherLogoUrl,
                   type: 'MEDIA',
                 }}
                 size="sm"
@@ -127,14 +127,14 @@ export function RecentArticleTile({
           {article.title}
         </h4>
 
-        {(article.publicationType === 'MEDIA' ||
+        {(article.publisherType === 'MEDIA' ||
           article.relation === 'COAUTHOR' ||
           article.relation === 'MEDIA_TEAM') && (
           <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-muted-foreground">
-            {article.publicationType === 'MEDIA' && article.publicationName && (
+            {article.publisherType === 'MEDIA' && article.publisherName && (
               <span className="inline-flex items-center gap-1 rounded bg-muted/60 px-1.5 py-0.5 font-medium">
                 <Building2 className="h-3 w-3 stroke-[1.5]" />
-                {article.publicationName}
+                {article.publisherName}
               </span>
             )}
             {article.relation === 'COAUTHOR' && (article.coAuthors?.length ?? 0) > 0 && (
@@ -183,10 +183,7 @@ export function RecentArticleTile({
               <BarChart3 className="text-muted-foreground" strokeWidth={1.75} />
               <span>{t`Voir les analytics`}</span>
             </DropdownMenuItem>
-            <DropdownMenuItem
-              isDisabled={pending !== null}
-              onAction={() => void togglePublication()}
-            >
+            <DropdownMenuItem isDisabled={pending !== null} onAction={() => void togglePublisher()}>
               {article.published ? (
                 <EyeOff className="text-muted-foreground" strokeWidth={1.75} />
               ) : (

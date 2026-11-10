@@ -11,15 +11,18 @@ import { TextSelection, type Transaction } from '@tiptap/pm/state';
 import type { EditorView } from '@tiptap/pm/view';
 import type { MarkType, Node as ProseMirrorNode } from '@tiptap/pm/model';
 import {
-  setArticleAllowDownloadAction,
-  unpublishArticleAction,
+  forkArticleToPersonalAction,
   scheduleArticleAction,
+  setArticleAllowDownloadAction,
+  submitRevisionToOriginAction,
+  unpublishArticleAction,
 } from '@qoe/sdk/actions/articles';
+import { Button } from '@qoe/ui/button';
 import { toast } from '@qoe/ui/toast';
 import { resolveAppUrl } from '@qoe/config';
 import { useAutoSaveArticle, type AutoSavePayload } from '@qoe/sdk';
 import type { EditorCapabilities, ArticleReviewFeedback } from '@qoe/sdk/actions/articles';
-import { MessageSquare } from 'lucide-react';
+import { GitFork, MessageSquare, Send, ShieldCheck } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import { ArticleInspectorDrawer } from '@/app/(creator)/analytics/components/ArticleInspectorModal';
 import { compressImage } from '@/lib/image-compressor';
@@ -222,6 +225,11 @@ export interface EditorProps {
   initialEmailStatus?: 'NOT_SENT' | 'SENDING' | 'SENT' | 'FAILED' | null;
   initialEmailSentAt?: string | null;
   initialEmailSentCount?: number;
+  initialCanEdit?: boolean;
+  initialIsAuthorSovereignCopy?: boolean;
+  initialOriginArticleId?: string | null;
+  initialOriginPublisherName?: string | null;
+  initialSovereignCopyId?: string | null;
   initialAttributions?: ArticleAttributionDraft[];
   collaborationRoomId?: string;
   collaborationEnabled?: boolean;
@@ -275,6 +283,11 @@ export function Editor({
   initialEmailStatus = null,
   initialEmailSentAt = null,
   initialEmailSentCount = 0,
+  initialCanEdit = true,
+  initialIsAuthorSovereignCopy = false,
+  initialOriginArticleId = null,
+  initialOriginPublisherName = null,
+  initialSovereignCopyId = null,
   initialAttributions = EMPTY_ATTRIBUTIONS,
   collaborationRoomId,
   // ⚠️ Désactivé par défaut tant que l'échange de jeton avec le serveur de
@@ -305,6 +318,8 @@ export function Editor({
   );
   const [showDiffModal, setShowDiffModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [forkPending, setForkPending] = useState(false);
+  const [revisionPending, setRevisionPending] = useState(false);
   const [status, setStatus] = useState<string>(initialStatus || 'DRAFT');
   const [scheduledAt, setScheduledAt] = useState<string | null>(initialScheduledAt ?? null);
   const [scheduleDraft, setScheduleDraft] = useState(() =>
@@ -499,6 +514,7 @@ export function Editor({
     // l'option explicite coupe l'avertissement SSR de Tiptap et évite une
     // double construction du document.
     immediatelyRender: false,
+    editable: initialCanEdit,
     extensions: [
       // StarterKit v3 fournit déjà Underline : l'importer en plus créait un
       // doublon d'extension (« Duplicate extension names found: ['underline'] »).
@@ -1340,8 +1356,8 @@ export function Editor({
     saveNow,
   } = useAutoSaveArticle({
     delay: 2500,
-    // Rien ne part tant que le contenu n'est pas chargé.
-    enabled: contentReady,
+    // Rien ne part tant que le contenu n'est pas chargé ou si l'article est archivé en lecture seule.
+    enabled: contentReady && initialCanEdit,
     onSave: async (payload: AutoSavePayload) => {
       const s = editorStateRef.current;
       const request = {
@@ -1712,7 +1728,7 @@ export function Editor({
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
       setShowSettings(false);
-      toast.success(t`Publication programmée`);
+      toast.success(t`Publisher programmée`);
     } catch (err: unknown) {
       setError(getErrorMessage(err, t`Échec de la programmation.`));
     } finally {
@@ -1920,6 +1936,86 @@ export function Editor({
           onPointerDown={handleEditorGutterPointerDown}
           className="relative bg-card text-card-foreground border border-border/70 rounded-2xl md:rounded-3xl shadow-xs md:shadow-sm p-6 sm:p-10 md:p-14 space-y-6 transition-all ring-1 ring-border/20"
         >
+          {!initialCanEdit && (persistedIdRef.current || collaborationRoomId) && (
+            <div className="rounded-xl border border-highlight/30 bg-highlight/10 p-4 text-xs font-sans text-foreground flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <p className="font-semibold text-highlight flex items-center gap-2">
+                  <GitFork className="w-4 h-4 shrink-0" />
+                  {t`Archive média en lecture seule`}
+                </p>
+                <p className="text-muted-foreground leading-relaxed">
+                  {t`Vous n'êtes plus membre actif de ce média : cet exemplaire publié reste intact chez lui, mais vous conservez tous vos droits d'auteur et pouvez éditer votre copie souveraine personnelle.`}
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="solid"
+                tone="brand"
+                disabled={forkPending}
+                onClick={async () => {
+                  if (initialSovereignCopyId) {
+                    window.location.href = `/articles/${initialSovereignCopyId}`;
+                    return;
+                  }
+                  const targetId = persistedIdRef.current || collaborationRoomId;
+                  if (!targetId) return;
+                  setForkPending(true);
+                  const res = await forkArticleToPersonalAction({ articleId: targetId });
+                  setForkPending(false);
+                  if (res.ok) {
+                    window.location.href = `/articles/${res.data.id}`;
+                  } else {
+                    toast.error(res.error.message);
+                  }
+                }}
+                className="shrink-0"
+              >
+                <GitFork className="w-3.5 h-3.5" />
+                {initialSovereignCopyId
+                  ? t`Ouvrir ma copie personnelle`
+                  : forkPending
+                    ? t`Clonage...`
+                    : t`Récupérer ma copie personnelle`}
+              </Button>
+            </div>
+          )}
+
+          {initialIsAuthorSovereignCopy && initialOriginArticleId && (
+            <div className="rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 text-xs font-sans text-foreground flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-primary font-medium">
+                <ShieldCheck className="w-4 h-4 shrink-0" />
+                <span>
+                  {initialOriginPublisherName
+                    ? t`Essai souverain personnel • Issu du média « ${initialOriginPublisherName} »`
+                    : t`Essai souverain personnel (copie liée à un média)`}
+                </span>
+              </div>
+              <Button
+                type="button"
+                size="xs"
+                variant="outline"
+                disabled={revisionPending}
+                onClick={async () => {
+                  const targetId = persistedIdRef.current || collaborationRoomId;
+                  if (!targetId) return;
+                  setRevisionPending(true);
+                  const res = await submitRevisionToOriginAction({ articleId: targetId });
+                  setRevisionPending(false);
+                  if (res.ok) {
+                    toast.success(t`Révision soumise au comité éditorial du média pour relecture.`);
+                  } else {
+                    toast.error(res.error.message);
+                  }
+                }}
+                className="shrink-0 gap-1.5"
+              >
+                <Send className="w-3 h-3" />
+                {revisionPending ? t`Envoi...` : t`Proposer cette révision au média`}
+              </Button>
+            </div>
+          )}
+
           {reviewFeedback && reviewFeedback.action === 'REJECTED' && (
             <div className="rounded-xl border border-highlight/30 bg-highlight/5 p-4 text-xs font-sans text-foreground space-y-2">
               <div className="flex items-center justify-between">
@@ -1953,7 +2049,10 @@ export function Editor({
             <input
               type="text"
               value={title}
-              onChange={(event) => setTitle(event.target.value)}
+              readOnly={!initialCanEdit}
+              onChange={(event) => {
+                if (initialCanEdit) setTitle(event.target.value);
+              }}
               placeholder={t`Titre de votre article...`}
               className="w-full bg-transparent border-0 text-3xl md:text-4xl font-bold tracking-tight text-foreground focus:outline-none placeholder:text-muted-foreground/30 font-sans leading-tight"
             />
@@ -2183,12 +2282,14 @@ export function Editor({
         articleTitle={title}
         articleExcerpt={editor.getText().slice(0, 180)}
         articleId={persistedIdRef.current || collaborationRoomId}
-        publicationName={subdomain ? `${subdomain}.qoe.fi` : 'Votre site web'}
+        publisherName={subdomain ? `${subdomain}.qoe.fi` : 'Votre site web'}
         initialIsPremium={isPremium}
         isAlreadyPublished={published}
         emailStatus={initialEmailStatus}
         emailSentAt={initialEmailSentAt}
         emailSentCount={initialEmailSentCount}
+        isAuthorSovereignCopy={initialIsAuthorSovereignCopy}
+        originPublisherName={initialOriginPublisherName}
         warnings={publishWarnings}
       />
 

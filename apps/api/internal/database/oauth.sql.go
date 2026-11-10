@@ -108,7 +108,7 @@ const getOAuthClientByClientId = `-- name: GetOAuthClientByClientId :one
 
 SELECT id, "clientId", "clientSecretHash", name, description, "logoUrl",
        "homepageUrl", "redirectUris", scopes, "clientType"::text, status::text,
-       "publicationId", "ownerUserId", "createdAt", "updatedAt"
+       "publisherId", "ownerUserId", "createdAt", "updatedAt"
 FROM "OAuthClient"
 WHERE "clientId" = $1
 `
@@ -125,7 +125,7 @@ type GetOAuthClientByClientIdRow struct {
 	Scopes           []string         `json:"scopes"`
 	ClientType       string           `json:"clientType"`
 	Status           string           `json:"status"`
-	PublicationId    pgtype.Text      `json:"publicationId"`
+	PublisherId      pgtype.Text      `json:"publisherId"`
 	OwnerUserId      string           `json:"ownerUserId"`
 	CreatedAt        pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt        pgtype.Timestamp `json:"updatedAt"`
@@ -147,7 +147,7 @@ func (q *Queries) GetOAuthClientByClientId(ctx context.Context, clientid string)
 		&i.Scopes,
 		&i.ClientType,
 		&i.Status,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.OwnerUserId,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -158,7 +158,7 @@ func (q *Queries) GetOAuthClientByClientId(ctx context.Context, clientid string)
 const getOAuthClientByID = `-- name: GetOAuthClientByID :one
 SELECT id, "clientId", "clientSecretHash", name, description, "logoUrl",
        "homepageUrl", "redirectUris", scopes, "clientType"::text, status::text,
-       "publicationId", "ownerUserId", "createdAt", "updatedAt"
+       "publisherId", "ownerUserId", "createdAt", "updatedAt"
 FROM "OAuthClient"
 WHERE id = $1
 `
@@ -175,7 +175,7 @@ type GetOAuthClientByIDRow struct {
 	Scopes           []string         `json:"scopes"`
 	ClientType       string           `json:"clientType"`
 	Status           string           `json:"status"`
-	PublicationId    pgtype.Text      `json:"publicationId"`
+	PublisherId      pgtype.Text      `json:"publisherId"`
 	OwnerUserId      string           `json:"ownerUserId"`
 	CreatedAt        pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt        pgtype.Timestamp `json:"updatedAt"`
@@ -196,7 +196,7 @@ func (q *Queries) GetOAuthClientByID(ctx context.Context, id string) (GetOAuthCl
 		&i.Scopes,
 		&i.ClientType,
 		&i.Status,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.OwnerUserId,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -230,18 +230,18 @@ func (q *Queries) GetOAuthConsent(ctx context.Context, arg GetOAuthConsentParams
 }
 
 const getOAuthMediaContext = `-- name: GetOAuthMediaContext :one
-SELECT p.id AS "publicationId",
-       p.name AS "publicationName",
-       p.slug AS "publicationSlug",
-       p."logoUrl" AS "publicationLogoUrl",
+SELECT p.id AS "publisherId",
+       p.name AS "publisherName",
+       p.slug AS "publisherSlug",
+       p."logoUrl" AS "publisherLogoUrl",
        COALESCE(md.id, '') AS "mediaId",
        COALESCE(m.id, '') AS "memberId",
        COALESCE(m.role, '') AS "memberRole",
        COALESCE(m.permissions, ARRAY[]::text[]) AS "memberPermissions",
        COALESCE(m.status, '') AS "memberStatus",
        (m.id IS NOT NULL AND m.status = 'active') AS "isMember"
-FROM "Publication" p
-LEFT JOIN "Media" md ON md."publicationId" = p.id
+FROM "Publisher" p
+LEFT JOIN "Media" md ON md."publisherId" = p.id
 LEFT JOIN "MediaMember" m ON m."mediaId" = md.id AND m."userId" = $2
 WHERE p.id = $1
 `
@@ -252,26 +252,26 @@ type GetOAuthMediaContextParams struct {
 }
 
 type GetOAuthMediaContextRow struct {
-	PublicationId      string      `json:"publicationId"`
-	PublicationName    string      `json:"publicationName"`
-	PublicationSlug    string      `json:"publicationSlug"`
-	PublicationLogoUrl pgtype.Text `json:"publicationLogoUrl"`
-	MediaId            string      `json:"mediaId"`
-	MemberId           string      `json:"memberId"`
-	MemberRole         string      `json:"memberRole"`
-	MemberPermissions  []string    `json:"memberPermissions"`
-	MemberStatus       string      `json:"memberStatus"`
-	IsMember           pgtype.Bool `json:"isMember"`
+	PublisherId       string      `json:"publisherId"`
+	PublisherName     string      `json:"publisherName"`
+	PublisherSlug     string      `json:"publisherSlug"`
+	PublisherLogoUrl  pgtype.Text `json:"publisherLogoUrl"`
+	MediaId           string      `json:"mediaId"`
+	MemberId          string      `json:"memberId"`
+	MemberRole        string      `json:"memberRole"`
+	MemberPermissions []string    `json:"memberPermissions"`
+	MemberStatus      string      `json:"memberStatus"`
+	IsMember          pgtype.Bool `json:"isMember"`
 }
 
 func (q *Queries) GetOAuthMediaContext(ctx context.Context, arg GetOAuthMediaContextParams) (GetOAuthMediaContextRow, error) {
 	row := q.db.QueryRow(ctx, getOAuthMediaContext, arg.ID, arg.UserId)
 	var i GetOAuthMediaContextRow
 	err := row.Scan(
-		&i.PublicationId,
-		&i.PublicationName,
-		&i.PublicationSlug,
-		&i.PublicationLogoUrl,
+		&i.PublisherId,
+		&i.PublisherName,
+		&i.PublisherSlug,
+		&i.PublisherLogoUrl,
 		&i.MediaId,
 		&i.MemberId,
 		&i.MemberRole,
@@ -286,7 +286,7 @@ const getOAuthTokenByAccessHash = `-- name: GetOAuthTokenByAccessHash :one
 SELECT t.id, t."clientId", t."userId", t."accessTokenHash", t."refreshTokenHash", t.scopes,
        t."accessTokenExpiresAt", t."refreshTokenExpiresAt", t."revokedAt", t."lastUsedAt", t."createdAt",
        c."clientId" AS "publicClientId",
-       c."publicationId" AS "clientPublicationId"
+       c."publisherId" AS "clientPublisherId"
 FROM "OAuthToken" t
 JOIN "OAuthClient" c ON c.id = t."clientId"
 WHERE t."accessTokenHash" = $1
@@ -305,7 +305,7 @@ type GetOAuthTokenByAccessHashRow struct {
 	LastUsedAt            pgtype.Timestamp `json:"lastUsedAt"`
 	CreatedAt             pgtype.Timestamp `json:"createdAt"`
 	PublicClientId        string           `json:"publicClientId"`
-	ClientPublicationId   pgtype.Text      `json:"clientPublicationId"`
+	ClientPublisherId     pgtype.Text      `json:"clientPublisherId"`
 }
 
 func (q *Queries) GetOAuthTokenByAccessHash(ctx context.Context, accesstokenhash string) (GetOAuthTokenByAccessHashRow, error) {
@@ -324,7 +324,7 @@ func (q *Queries) GetOAuthTokenByAccessHash(ctx context.Context, accesstokenhash
 		&i.LastUsedAt,
 		&i.CreatedAt,
 		&i.PublicClientId,
-		&i.ClientPublicationId,
+		&i.ClientPublisherId,
 	)
 	return i, err
 }
@@ -333,7 +333,7 @@ const getOAuthTokenByRefreshHash = `-- name: GetOAuthTokenByRefreshHash :one
 SELECT t.id, t."clientId", t."userId", t."accessTokenHash", t."refreshTokenHash", t.scopes,
        t."accessTokenExpiresAt", t."refreshTokenExpiresAt", t."revokedAt", t."lastUsedAt", t."createdAt",
        c."clientId" AS "publicClientId",
-       c."publicationId" AS "clientPublicationId"
+       c."publisherId" AS "clientPublisherId"
 FROM "OAuthToken" t
 JOIN "OAuthClient" c ON c.id = t."clientId"
 WHERE t."refreshTokenHash" = $1
@@ -352,7 +352,7 @@ type GetOAuthTokenByRefreshHashRow struct {
 	LastUsedAt            pgtype.Timestamp `json:"lastUsedAt"`
 	CreatedAt             pgtype.Timestamp `json:"createdAt"`
 	PublicClientId        string           `json:"publicClientId"`
-	ClientPublicationId   pgtype.Text      `json:"clientPublicationId"`
+	ClientPublisherId     pgtype.Text      `json:"clientPublisherId"`
 }
 
 func (q *Queries) GetOAuthTokenByRefreshHash(ctx context.Context, refreshtokenhash pgtype.Text) (GetOAuthTokenByRefreshHashRow, error) {
@@ -371,7 +371,7 @@ func (q *Queries) GetOAuthTokenByRefreshHash(ctx context.Context, refreshtokenha
 		&i.LastUsedAt,
 		&i.CreatedAt,
 		&i.PublicClientId,
-		&i.ClientPublicationId,
+		&i.ClientPublisherId,
 	)
 	return i, err
 }
@@ -446,7 +446,7 @@ func (q *Queries) InsertOAuthAuthorizationCode(ctx context.Context, arg InsertOA
 const insertOAuthClient = `-- name: InsertOAuthClient :exec
 INSERT INTO "OAuthClient" (id, "clientId", "clientSecretHash", name, description,
                            "logoUrl", "homepageUrl", "redirectUris", scopes,
-                           "clientType", status, "publicationId", "ownerUserId",
+                           "clientType", status, "publisherId", "ownerUserId",
                            "createdAt", "updatedAt")
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8,
                            $9::"OAuthClientType", $10::"OAuthClientStatus", $11, $12, now(), now())
@@ -463,7 +463,7 @@ type InsertOAuthClientParams struct {
 	Scopes           []string          `json:"scopes"`
 	Column9          OAuthClientType   `json:"column_9"`
 	Column10         OAuthClientStatus `json:"column_10"`
-	PublicationId    pgtype.Text       `json:"publicationId"`
+	PublisherId      pgtype.Text       `json:"publisherId"`
 	OwnerUserId      string            `json:"ownerUserId"`
 }
 
@@ -479,7 +479,7 @@ func (q *Queries) InsertOAuthClient(ctx context.Context, arg InsertOAuthClientPa
 		arg.Scopes,
 		arg.Column9,
 		arg.Column10,
-		arg.PublicationId,
+		arg.PublisherId,
 		arg.OwnerUserId,
 	)
 	return err
@@ -518,7 +518,7 @@ func (q *Queries) InsertOAuthToken(ctx context.Context, arg InsertOAuthTokenPara
 const listOAuthClientsByOwner = `-- name: ListOAuthClientsByOwner :many
 SELECT id, "clientId", "clientSecretHash", name, description, "logoUrl",
        "homepageUrl", "redirectUris", scopes, "clientType"::text, status::text,
-       "publicationId", "ownerUserId", "createdAt", "updatedAt"
+       "publisherId", "ownerUserId", "createdAt", "updatedAt"
 FROM "OAuthClient"
 WHERE "ownerUserId" = $1
 ORDER BY "createdAt" DESC
@@ -536,7 +536,7 @@ type ListOAuthClientsByOwnerRow struct {
 	Scopes           []string         `json:"scopes"`
 	ClientType       string           `json:"clientType"`
 	Status           string           `json:"status"`
-	PublicationId    pgtype.Text      `json:"publicationId"`
+	PublisherId      pgtype.Text      `json:"publisherId"`
 	OwnerUserId      string           `json:"ownerUserId"`
 	CreatedAt        pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt        pgtype.Timestamp `json:"updatedAt"`
@@ -563,7 +563,7 @@ func (q *Queries) ListOAuthClientsByOwner(ctx context.Context, owneruserid strin
 			&i.Scopes,
 			&i.ClientType,
 			&i.Status,
-			&i.PublicationId,
+			&i.PublisherId,
 			&i.OwnerUserId,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -578,16 +578,16 @@ func (q *Queries) ListOAuthClientsByOwner(ctx context.Context, owneruserid strin
 	return items, nil
 }
 
-const listOAuthClientsByPublication = `-- name: ListOAuthClientsByPublication :many
+const listOAuthClientsByPublisher = `-- name: ListOAuthClientsByPublisher :many
 SELECT id, "clientId", "clientSecretHash", name, description, "logoUrl",
        "homepageUrl", "redirectUris", scopes, "clientType"::text, status::text,
-       "publicationId", "ownerUserId", "createdAt", "updatedAt"
+       "publisherId", "ownerUserId", "createdAt", "updatedAt"
 FROM "OAuthClient"
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
 ORDER BY "createdAt" DESC
 `
 
-type ListOAuthClientsByPublicationRow struct {
+type ListOAuthClientsByPublisherRow struct {
 	ID               string           `json:"id"`
 	ClientId         string           `json:"clientId"`
 	ClientSecretHash pgtype.Text      `json:"clientSecretHash"`
@@ -599,21 +599,21 @@ type ListOAuthClientsByPublicationRow struct {
 	Scopes           []string         `json:"scopes"`
 	ClientType       string           `json:"clientType"`
 	Status           string           `json:"status"`
-	PublicationId    pgtype.Text      `json:"publicationId"`
+	PublisherId      pgtype.Text      `json:"publisherId"`
 	OwnerUserId      string           `json:"ownerUserId"`
 	CreatedAt        pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt        pgtype.Timestamp `json:"updatedAt"`
 }
 
-func (q *Queries) ListOAuthClientsByPublication(ctx context.Context, publicationid pgtype.Text) ([]ListOAuthClientsByPublicationRow, error) {
-	rows, err := q.db.Query(ctx, listOAuthClientsByPublication, publicationid)
+func (q *Queries) ListOAuthClientsByPublisher(ctx context.Context, publisherid pgtype.Text) ([]ListOAuthClientsByPublisherRow, error) {
+	rows, err := q.db.Query(ctx, listOAuthClientsByPublisher, publisherid)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListOAuthClientsByPublicationRow{}
+	items := []ListOAuthClientsByPublisherRow{}
 	for rows.Next() {
-		var i ListOAuthClientsByPublicationRow
+		var i ListOAuthClientsByPublisherRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.ClientId,
@@ -626,7 +626,7 @@ func (q *Queries) ListOAuthClientsByPublication(ctx context.Context, publication
 			&i.Scopes,
 			&i.ClientType,
 			&i.Status,
-			&i.PublicationId,
+			&i.PublisherId,
 			&i.OwnerUserId,
 			&i.CreatedAt,
 			&i.UpdatedAt,

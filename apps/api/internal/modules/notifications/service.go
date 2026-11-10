@@ -39,7 +39,7 @@ type ArticleRef struct {
 	Slug  string `json:"slug"`
 }
 
-type PublicationRef struct {
+type PublisherRef struct {
 	ID   string  `json:"id"`
 	Name *string `json:"name"`
 	Slug *string `json:"slug"`
@@ -57,7 +57,7 @@ type Notification struct {
 	CommentID       *string         `json:"commentId"`
 	Thought         *ThoughtRef     `json:"thought"`
 	Article         *ArticleRef     `json:"article"`
-	Publication     *PublicationRef `json:"publication"`
+	Publisher     *PublisherRef `json:"publisher"`
 	Metadata        json.RawMessage `json:"metadata,omitempty"`
 	// URL est le lien interne prêt à suivre, avec `?ws=<mediaId>` quand la
 	// cible appartient à un média. Le client ne reconstruit plus le chemin.
@@ -164,7 +164,7 @@ func (s *Service) List(ctx context.Context, recipientID, filter string, limit, o
 				sameTarget = true
 			} else if g.CommentID != nil && item.CommentID != nil && *g.CommentID == *item.CommentID {
 				sameTarget = true
-			} else if g.Publication != nil && item.Publication != nil && g.Publication.ID == item.Publication.ID {
+			} else if g.Publisher != nil && item.Publisher != nil && g.Publisher.ID == item.Publisher.ID {
 				sameTarget = true
 			}
 			closeInTime := within48hFast(g.createdAtTime, item.createdAtTime)
@@ -242,20 +242,20 @@ func markReadIDs(ids []string) []string {
 }
 
 // InsertMediaInvite crée une notification MEDIA_INVITE (dédup + prefs en SQL).
-func (s *Service) InsertMediaInvite(ctx context.Context, recipientID, senderID, publicationID string) error {
+func (s *Service) InsertMediaInvite(ctx context.Context, recipientID, senderID, publisherID string) error {
 	return s.q.InsertMediaInviteNotification(ctx, db.InsertMediaInviteNotificationParams{
 		RecipientID:   toUUID(recipientID),
 		SenderID:      toUUID(senderID),
-		PublicationID: publicationID,
+		PublisherID: publisherID,
 	})
 }
 
 // InsertMediaMemberJoined crée une notification MEDIA_MEMBER_JOINED.
-func (s *Service) InsertMediaMemberJoined(ctx context.Context, recipientID, senderID, publicationID string) error {
+func (s *Service) InsertMediaMemberJoined(ctx context.Context, recipientID, senderID, publisherID string) error {
 	return s.q.InsertMediaMemberJoinedNotification(ctx, db.InsertMediaMemberJoinedNotificationParams{
 		RecipientID:   toUUID(recipientID),
 		SenderID:      toUUID(senderID),
-		PublicationID: publicationID,
+		PublisherID: publisherID,
 	})
 }
 
@@ -383,8 +383,8 @@ func notificationFromRow(r *db.GetNotificationsRow) Notification {
 			Slug:  r.ArticleSlug.String,
 		}
 	}
-	if r.PublicationId.Valid {
-		n.Publication = &PublicationRef{ID: r.PublicationId.String, Name: textPtr(r.PublicationName), Slug: textPtr(r.PublicationSlug)}
+	if r.PublisherId.Valid {
+		n.Publisher = &PublisherRef{ID: r.PublisherId.String, Name: textPtr(r.PublisherName), Slug: textPtr(r.PublisherSlug)}
 	}
 	if len(r.Metadata) > 0 && string(r.Metadata) != "null" {
 		n.Metadata = json.RawMessage(r.Metadata)
@@ -394,16 +394,16 @@ func notificationFromRow(r *db.GetNotificationsRow) Notification {
 		Type:            n.Type,
 		ThoughtID:       derefString(n.ThoughtID),
 		ArticleID:       derefString(n.ArticleID),
-		PublicationType: r.PublicationType,
+		PublisherType: r.PublisherType,
 		MediaID:         r.MediaID,
 	}
 	if n.Article != nil {
 		target.ArticleSlug = n.Article.Slug
 	}
-	if n.Publication != nil {
-		target.PublicationID = n.Publication.ID
-		if n.Publication.Slug != nil {
-			target.PublicationSlug = *n.Publication.Slug
+	if n.Publisher != nil {
+		target.PublisherID = n.Publisher.ID
+		if n.Publisher.Slug != nil {
+			target.PublisherSlug = *n.Publisher.Slug
 		}
 	}
 	if len(n.Senders) > 0 && n.Senders[0].Username != nil {

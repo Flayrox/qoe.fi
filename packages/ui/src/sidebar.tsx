@@ -831,7 +831,7 @@ export function Sidebar({
 
                       <DropdownMenuGroup>
                         <DropdownMenuLabel>
-                          {userType === 'MEDIA' ? t`Publication` : t`Compte`}
+                          {userType === 'MEDIA' ? t`Publisher` : t`Compte`}
                         </DropdownMenuLabel>
                         {/* Un seul point d’entrée vers les réglages, qui reste dans
                             l’application courante : surface sobre (bg-secondary au focus),

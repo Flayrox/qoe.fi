@@ -8,7 +8,7 @@ import { ArrowRight, Clock } from 'lucide-react';
 import type {
   CategorySpotlightBlockProps,
   TemplateArticleItem,
-  TemplatePublicationContext,
+  TemplatePublisherContext,
   TemplateRenderContext,
   CardCornerShape,
 } from '../schema';
@@ -20,7 +20,7 @@ interface CategorySpotlightBlockComponentProps {
   id: string;
   props: CategorySpotlightBlockProps;
   articles?: TemplateArticleItem[];
-  publication?: TemplatePublicationContext;
+  publisher?: TemplatePublisherContext;
   cardShape?: CardCornerShape;
   context: TemplateRenderContext;
   visible?: boolean;
@@ -34,7 +34,7 @@ export function CategorySpotlightBlock({
   id,
   props,
   articles = [],
-  publication,
+  publisher,
   context,
   visible = true,
   locked = false,
@@ -45,11 +45,11 @@ export function CategorySpotlightBlock({
   const { categorySlug, title, layout = 'framed', maxArticles = 3, showReadingTime = true } = props;
 
   const targetCategory = categorySlug
-    ? findCategoryBySlug(publication?.categories || [], categorySlug)
+    ? findCategoryBySlug(publisher?.categories || [], categorySlug)
     : undefined;
 
   const pool = targetCategory
-    ? filterArticlesByCategory(articles, targetCategory, publication?.categories || [])
+    ? filterArticlesByCategory(articles, targetCategory, publisher?.categories || [])
     : categorySlug
       ? articles.filter((a) => a.category?.slug === categorySlug)
       : articles;

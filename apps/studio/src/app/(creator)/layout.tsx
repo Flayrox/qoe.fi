@@ -21,11 +21,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   // Si l'utilisateur n'a pas fait l'onboarding mais a déjà un domaine (anciens comptes), on le skip.
-  // Go : GET /v1/users/me → publicationId (null si aucun tenant).
+  // Go : GET /v1/users/me → publisherId (null si aucun tenant).
   let hasTenant = false;
   try {
-    const me = await goFetch<{ data: { publicationId: string | null } }>('/v1/users/me');
-    hasTenant = Boolean(me.data.publicationId);
+    const me = await goFetch<{ data: { publisherId: string | null } }>('/v1/users/me');
+    hasTenant = Boolean(me.data.publisherId);
   } catch {
     hasTenant = false;
   }

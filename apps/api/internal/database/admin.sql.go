@@ -121,13 +121,13 @@ func (q *Queries) DeleteTrend(ctx context.Context, id string) error {
 const getAdminUser = `-- name: GetAdminUser :one
 SELECT u.id, u.name, u.email, u.username, u.role, u."isCertified", u."isShadowbanned",
        u."isSuspended", u."suspendReason", u."shadowbanReason", u."shadowbanUntil", u."shadowbanReviewAt",
-       u."logoUrl", u."publicationId", u."createdAt",
-       p."subdomain", p."name" AS publication_name,
-       (SELECT count(*) FROM "Article" a WHERE a."publicationId" = p.id) AS articles_count,
-       (SELECT count(*) FROM "Subscriber" s WHERE s."publicationId" = p.id) AS subscribers_count,
+       u."logoUrl", u."publisherId", u."createdAt",
+       p."subdomain", p."name" AS publisher_name,
+       (SELECT count(*) FROM "Article" a WHERE a."publisherId" = p.id) AS articles_count,
+       (SELECT count(*) FROM "Subscriber" s WHERE s."publisherId" = p.id) AS subscribers_count,
        (SELECT count(*) FROM "WalletTransaction" w WHERE w."userId" = u.id) AS wallet_transactions_count
 FROM "User" u
-LEFT JOIN "Publication" p ON p.id = u."publicationId"
+LEFT JOIN "Publisher" p ON p.id = u."publisherId"
 WHERE u.id = $1
 `
 
@@ -145,10 +145,10 @@ type GetAdminUserRow struct {
 	ShadowbanUntil          pgtype.Timestamp `json:"shadowbanUntil"`
 	ShadowbanReviewAt       pgtype.Timestamp `json:"shadowbanReviewAt"`
 	LogoUrl                 pgtype.Text      `json:"logoUrl"`
-	PublicationId           pgtype.Text      `json:"publicationId"`
+	PublisherId             pgtype.Text      `json:"publisherId"`
 	CreatedAt               pgtype.Timestamp `json:"createdAt"`
 	Subdomain               pgtype.Text      `json:"subdomain"`
-	PublicationName         pgtype.Text      `json:"publication_name"`
+	PublisherName           pgtype.Text      `json:"publisher_name"`
 	ArticlesCount           int64            `json:"articles_count"`
 	SubscribersCount        int64            `json:"subscribers_count"`
 	WalletTransactionsCount int64            `json:"wallet_transactions_count"`
@@ -171,10 +171,10 @@ func (q *Queries) GetAdminUser(ctx context.Context, id string) (GetAdminUserRow,
 		&i.ShadowbanUntil,
 		&i.ShadowbanReviewAt,
 		&i.LogoUrl,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.CreatedAt,
 		&i.Subdomain,
-		&i.PublicationName,
+		&i.PublisherName,
 		&i.ArticlesCount,
 		&i.SubscribersCount,
 		&i.WalletTransactionsCount,
@@ -269,9 +269,9 @@ func (q *Queries) InsertAdminAuditLog(ctx context.Context, arg InsertAdminAuditL
 const listAdminApiApplicants = `-- name: ListAdminApiApplicants :many
 
 SELECT u.id, u.name, u.email, u."apiAccessStatus", u."apiGrants", u."apiApplicationReason", u."createdAt", u."updatedAt",
-       p."subdomain" AS publication_subdomain
+       p."subdomain" AS publisher_subdomain
 FROM "User" u
-LEFT JOIN "Publication" p ON p.id = u."publicationId"
+LEFT JOIN "Publisher" p ON p.id = u."publisherId"
 WHERE u.role IN ('creator', 'superadmin') AND u."apiAccessStatus" <> 'none'
 ORDER BY u."updatedAt" DESC
 `
@@ -285,7 +285,7 @@ type ListAdminApiApplicantsRow struct {
 	ApiApplicationReason pgtype.Text      `json:"apiApplicationReason"`
 	CreatedAt            pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt            pgtype.Timestamp `json:"updatedAt"`
-	PublicationSubdomain pgtype.Text      `json:"publication_subdomain"`
+	PublisherSubdomain   pgtype.Text      `json:"publisher_subdomain"`
 }
 
 // ── Demandes d'accès API ─────────────────────────────────────────────────────
@@ -307,7 +307,7 @@ func (q *Queries) ListAdminApiApplicants(ctx context.Context) ([]ListAdminApiApp
 			&i.ApiApplicationReason,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.PublicationSubdomain,
+			&i.PublisherSubdomain,
 		); err != nil {
 			return nil, err
 		}
@@ -554,25 +554,25 @@ func (q *Queries) ListAdminTrends(ctx context.Context) ([]Trend, error) {
 const listAdminUsers = `-- name: ListAdminUsers :many
 SELECT u.id, u.name, u.email, u.username, u.role, u."isCertified", u."isShadowbanned",
        u."isSuspended", u."suspendReason", u."createdAt", u."updatedAt",
-       p."subdomain" AS publication_subdomain
+       p."subdomain" AS publisher_subdomain
 FROM "User" u
-LEFT JOIN "Publication" p ON p.id = u."publicationId"
+LEFT JOIN "Publisher" p ON p.id = u."publisherId"
 ORDER BY u."createdAt" DESC
 `
 
 type ListAdminUsersRow struct {
-	ID                   string           `json:"id"`
-	Name                 pgtype.Text      `json:"name"`
-	Email                string           `json:"email"`
-	Username             pgtype.Text      `json:"username"`
-	Role                 string           `json:"role"`
-	IsCertified          bool             `json:"isCertified"`
-	IsShadowbanned       bool             `json:"isShadowbanned"`
-	IsSuspended          bool             `json:"isSuspended"`
-	SuspendReason        pgtype.Text      `json:"suspendReason"`
-	CreatedAt            pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt            pgtype.Timestamp `json:"updatedAt"`
-	PublicationSubdomain pgtype.Text      `json:"publication_subdomain"`
+	ID                 string           `json:"id"`
+	Name               pgtype.Text      `json:"name"`
+	Email              string           `json:"email"`
+	Username           pgtype.Text      `json:"username"`
+	Role               string           `json:"role"`
+	IsCertified        bool             `json:"isCertified"`
+	IsShadowbanned     bool             `json:"isShadowbanned"`
+	IsSuspended        bool             `json:"isSuspended"`
+	SuspendReason      pgtype.Text      `json:"suspendReason"`
+	CreatedAt          pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt          pgtype.Timestamp `json:"updatedAt"`
+	PublisherSubdomain pgtype.Text      `json:"publisher_subdomain"`
 }
 
 func (q *Queries) ListAdminUsers(ctx context.Context) ([]ListAdminUsersRow, error) {
@@ -596,7 +596,7 @@ func (q *Queries) ListAdminUsers(ctx context.Context) ([]ListAdminUsersRow, erro
 			&i.SuspendReason,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.PublicationSubdomain,
+			&i.PublisherSubdomain,
 		); err != nil {
 			return nil, err
 		}
@@ -859,26 +859,26 @@ func (q *Queries) UpdatePromoActive(ctx context.Context, arg UpdatePromoActivePa
 	return i, err
 }
 
-const updatePublicationCertified = `-- name: UpdatePublicationCertified :one
-UPDATE "Publication"
+const updatePublisherCertified = `-- name: UpdatePublisherCertified :one
+UPDATE "Publisher"
 SET "isCertified" = $2, "updatedAt" = now()
 WHERE id = $1
 RETURNING id, "isCertified"
 `
 
-type UpdatePublicationCertifiedParams struct {
+type UpdatePublisherCertifiedParams struct {
 	ID          string `json:"id"`
 	IsCertified bool   `json:"isCertified"`
 }
 
-type UpdatePublicationCertifiedRow struct {
+type UpdatePublisherCertifiedRow struct {
 	ID          string `json:"id"`
 	IsCertified bool   `json:"isCertified"`
 }
 
-func (q *Queries) UpdatePublicationCertified(ctx context.Context, arg UpdatePublicationCertifiedParams) (UpdatePublicationCertifiedRow, error) {
-	row := q.db.QueryRow(ctx, updatePublicationCertified, arg.ID, arg.IsCertified)
-	var i UpdatePublicationCertifiedRow
+func (q *Queries) UpdatePublisherCertified(ctx context.Context, arg UpdatePublisherCertifiedParams) (UpdatePublisherCertifiedRow, error) {
+	row := q.db.QueryRow(ctx, updatePublisherCertified, arg.ID, arg.IsCertified)
+	var i UpdatePublisherCertifiedRow
 	err := row.Scan(&i.ID, &i.IsCertified)
 	return i, err
 }

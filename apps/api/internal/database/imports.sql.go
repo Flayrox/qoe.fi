@@ -46,7 +46,7 @@ func (q *Queries) FinishArticleImportJob(ctx context.Context, arg FinishArticleI
 }
 
 const getArticleImportJob = `-- name: GetArticleImportJob :one
-SELECT id, "userId"::text, "publicationId", status, total, imported, duplicates,
+SELECT id, "userId"::text, "publisherId", status, total, imported, duplicates,
        errors, "createdAt", "updatedAt"
 FROM "ArticleImportJob"
 WHERE id = $1 AND "userId" = $2
@@ -58,16 +58,16 @@ type GetArticleImportJobParams struct {
 }
 
 type GetArticleImportJobRow struct {
-	ID            string           `json:"id"`
-	UserId        string           `json:"userId"`
-	PublicationId string           `json:"publicationId"`
-	Status        string           `json:"status"`
-	Total         int32            `json:"total"`
-	Imported      int32            `json:"imported"`
-	Duplicates    int32            `json:"duplicates"`
-	Errors        []byte           `json:"errors"`
-	CreatedAt     pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt     pgtype.Timestamp `json:"updatedAt"`
+	ID          string           `json:"id"`
+	UserId      string           `json:"userId"`
+	PublisherId string           `json:"publisherId"`
+	Status      string           `json:"status"`
+	Total       int32            `json:"total"`
+	Imported    int32            `json:"imported"`
+	Duplicates  int32            `json:"duplicates"`
+	Errors      []byte           `json:"errors"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt   pgtype.Timestamp `json:"updatedAt"`
 }
 
 func (q *Queries) GetArticleImportJob(ctx context.Context, arg GetArticleImportJobParams) (GetArticleImportJobRow, error) {
@@ -76,7 +76,7 @@ func (q *Queries) GetArticleImportJob(ctx context.Context, arg GetArticleImportJ
 	err := row.Scan(
 		&i.ID,
 		&i.UserId,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.Status,
 		&i.Total,
 		&i.Imported,
@@ -89,24 +89,24 @@ func (q *Queries) GetArticleImportJob(ctx context.Context, arg GetArticleImportJ
 }
 
 const getArticleImportJobByID = `-- name: GetArticleImportJobByID :one
-SELECT id, "userId"::text, "publicationId", status, total, imported, duplicates,
+SELECT id, "userId"::text, "publisherId", status, total, imported, duplicates,
        errors, articles, "createdAt", "updatedAt"
 FROM "ArticleImportJob"
 WHERE id = $1
 `
 
 type GetArticleImportJobByIDRow struct {
-	ID            string           `json:"id"`
-	UserId        string           `json:"userId"`
-	PublicationId string           `json:"publicationId"`
-	Status        string           `json:"status"`
-	Total         int32            `json:"total"`
-	Imported      int32            `json:"imported"`
-	Duplicates    int32            `json:"duplicates"`
-	Errors        []byte           `json:"errors"`
-	Articles      []byte           `json:"articles"`
-	CreatedAt     pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt     pgtype.Timestamp `json:"updatedAt"`
+	ID          string           `json:"id"`
+	UserId      string           `json:"userId"`
+	PublisherId string           `json:"publisherId"`
+	Status      string           `json:"status"`
+	Total       int32            `json:"total"`
+	Imported    int32            `json:"imported"`
+	Duplicates  int32            `json:"duplicates"`
+	Errors      []byte           `json:"errors"`
+	Articles    []byte           `json:"articles"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt   pgtype.Timestamp `json:"updatedAt"`
 }
 
 func (q *Queries) GetArticleImportJobByID(ctx context.Context, id string) (GetArticleImportJobByIDRow, error) {
@@ -115,7 +115,7 @@ func (q *Queries) GetArticleImportJobByID(ctx context.Context, id string) (GetAr
 	err := row.Scan(
 		&i.ID,
 		&i.UserId,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.Status,
 		&i.Total,
 		&i.Imported,
@@ -130,23 +130,23 @@ func (q *Queries) GetArticleImportJobByID(ctx context.Context, id string) (GetAr
 
 const insertArticleImportJob = `-- name: InsertArticleImportJob :one
 
-INSERT INTO "ArticleImportJob" (id, "userId", "publicationId", total, articles)
+INSERT INTO "ArticleImportJob" (id, "userId", "publisherId", total, articles)
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4)
 RETURNING id
 `
 
 type InsertArticleImportJobParams struct {
-	UserId        pgtype.UUID `json:"userId"`
-	PublicationId string      `json:"publicationId"`
-	Total         int32       `json:"total"`
-	Articles      []byte      `json:"articles"`
+	UserId      pgtype.UUID `json:"userId"`
+	PublisherId string      `json:"publisherId"`
+	Total       int32       `json:"total"`
+	Articles    []byte      `json:"articles"`
 }
 
 // Import bulk d'articles — jobs asynq + rapports d'erreurs.
 func (q *Queries) InsertArticleImportJob(ctx context.Context, arg InsertArticleImportJobParams) (string, error) {
 	row := q.db.QueryRow(ctx, insertArticleImportJob,
 		arg.UserId,
-		arg.PublicationId,
+		arg.PublisherId,
 		arg.Total,
 		arg.Articles,
 	)
@@ -156,7 +156,7 @@ func (q *Queries) InsertArticleImportJob(ctx context.Context, arg InsertArticleI
 }
 
 const listArticleImportJobs = `-- name: ListArticleImportJobs :many
-SELECT id, "userId"::text, "publicationId", status, total, imported, duplicates,
+SELECT id, "userId"::text, "publisherId", status, total, imported, duplicates,
        errors, "createdAt", "updatedAt"
 FROM "ArticleImportJob"
 WHERE "userId" = $1
@@ -170,16 +170,16 @@ type ListArticleImportJobsParams struct {
 }
 
 type ListArticleImportJobsRow struct {
-	ID            string           `json:"id"`
-	UserId        string           `json:"userId"`
-	PublicationId string           `json:"publicationId"`
-	Status        string           `json:"status"`
-	Total         int32            `json:"total"`
-	Imported      int32            `json:"imported"`
-	Duplicates    int32            `json:"duplicates"`
-	Errors        []byte           `json:"errors"`
-	CreatedAt     pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt     pgtype.Timestamp `json:"updatedAt"`
+	ID          string           `json:"id"`
+	UserId      string           `json:"userId"`
+	PublisherId string           `json:"publisherId"`
+	Status      string           `json:"status"`
+	Total       int32            `json:"total"`
+	Imported    int32            `json:"imported"`
+	Duplicates  int32            `json:"duplicates"`
+	Errors      []byte           `json:"errors"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt   pgtype.Timestamp `json:"updatedAt"`
 }
 
 func (q *Queries) ListArticleImportJobs(ctx context.Context, arg ListArticleImportJobsParams) ([]ListArticleImportJobsRow, error) {
@@ -194,7 +194,7 @@ func (q *Queries) ListArticleImportJobs(ctx context.Context, arg ListArticleImpo
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserId,
-			&i.PublicationId,
+			&i.PublisherId,
 			&i.Status,
 			&i.Total,
 			&i.Imported,

@@ -27,7 +27,7 @@ func burstFacts(signalType, subjectType, subjectID string, n int, now time.Time)
 
 func TestPolicyV1_EmptyIsAllow(t *testing.T) {
 	now := time.Now()
-	out := PolicyV1.Evaluate(SubjectPublication, "pub-x", nil, now)
+	out := PolicyV1.Evaluate(SubjectPublisher, "pub-x", nil, now)
 	if out.Decision != DecisionAllow {
 		t.Fatalf("aucun fait : attendu allow, obtenu %s", out.Decision)
 	}
@@ -40,7 +40,7 @@ func TestPolicyV1_NormalNoiseIsAllow(t *testing.T) {
 	now := time.Now()
 	// Une publication qui cartonne (99 inscriptions en 10 min) : c'est le
 	// succès, pas une attaque. Le seuil (100) ne doit pas punir la croissance.
-	facts := burstFacts(SignalSignupAttempt, SubjectPublication, "pub-ok", 99, now)
+	facts := burstFacts(SignalSignupAttempt, SubjectPublisher, "pub-ok", 99, now)
 	// Quelques signalements épars contre des cibles différentes : la vie
 	// normale de la modération communautaire.
 	for i := 0; i < 9; i++ {
@@ -51,7 +51,7 @@ func TestPolicyV1_NormalNoiseIsAllow(t *testing.T) {
 			ObservedAt:  now.Add(-time.Duration(i) * time.Minute),
 		})
 	}
-	out := PolicyV1.Evaluate(SubjectPublication, "pub-ok", facts, now)
+	out := PolicyV1.Evaluate(SubjectPublisher, "pub-ok", facts, now)
 	if out.Decision != DecisionAllow {
 		t.Fatalf("bruit normal : attendu allow, obtenu %s (%v)", out.Decision, out.Reasons)
 	}
@@ -61,8 +61,8 @@ func TestPolicyV1_SignupBurstNeedsReview(t *testing.T) {
 	now := time.Now()
 	// 100 inscriptions en 10 min sur UNE publication : gabarit ferme de
 	// comptes → revue priorisée, pas sanction.
-	facts := burstFacts(SignalSignupAttempt, SubjectPublication, "pub-hit", 100, now)
-	out := PolicyV1.Evaluate(SubjectPublication, "pub-hit", facts, now)
+	facts := burstFacts(SignalSignupAttempt, SubjectPublisher, "pub-hit", 100, now)
+	out := PolicyV1.Evaluate(SubjectPublisher, "pub-hit", facts, now)
 	if out.Decision != DecisionNeedsReview {
 		t.Fatalf("rafale : attendu needs_review, obtenu %s", out.Decision)
 	}
@@ -82,12 +82,12 @@ func TestPolicyV1_StaleFactsIgnored(t *testing.T) {
 	for i := 0; i < 200; i++ {
 		facts = append(facts, Fact{
 			Type:        SignalSignupAttempt,
-			SubjectType: SubjectPublication,
+			SubjectType: SubjectPublisher,
 			SubjectID:   "pub-cold",
 			ObservedAt:  now.Add(-2 * time.Hour),
 		})
 	}
-	if out := PolicyV1.Evaluate(SubjectPublication, "pub-cold", facts, now); out.Decision != DecisionAllow {
+	if out := PolicyV1.Evaluate(SubjectPublisher, "pub-cold", facts, now); out.Decision != DecisionAllow {
 		t.Fatalf("faits périmés : attendu allow, obtenu %s", out.Decision)
 	}
 }
@@ -160,12 +160,12 @@ func TestPolicyV1_MostSevereWinsReasonsAccumulate(t *testing.T) {
 func TestMatch_FutureTolerance(t *testing.T) {
 	now := time.Now()
 	rule := PolicyV1.Rules[0] // signup-burst
-	rounding := Fact{Type: SignalSignupAttempt, SubjectType: SubjectPublication, SubjectID: "p", ObservedAt: now.Add(500 * time.Millisecond)}
-	if !rule.Match(rounding, SubjectPublication, "p", now) {
+	rounding := Fact{Type: SignalSignupAttempt, SubjectType: SubjectPublisher, SubjectID: "p", ObservedAt: now.Add(500 * time.Millisecond)}
+	if !rule.Match(rounding, SubjectPublisher, "p", now) {
 		t.Fatal("fait +500 ms (arrondi) : doit compter")
 	}
-	skew := Fact{Type: SignalSignupAttempt, SubjectType: SubjectPublication, SubjectID: "p", ObservedAt: now.Add(2 * time.Second)}
-	if rule.Match(skew, SubjectPublication, "p", now) {
+	skew := Fact{Type: SignalSignupAttempt, SubjectType: SubjectPublisher, SubjectID: "p", ObservedAt: now.Add(2 * time.Second)}
+	if rule.Match(skew, SubjectPublisher, "p", now) {
 		t.Fatal("fait +2 s (anomalie) : doit être exclu")
 	}
 }

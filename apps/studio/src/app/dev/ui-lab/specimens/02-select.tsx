@@ -117,7 +117,7 @@ export function SelectSpecimen() {
             </Select>
           </Field>
 
-          <Field label="Publication" hint="icône + libellé, largeur fixe">
+          <Field label="Publisher" hint="icône + libellé, largeur fixe">
             <Select items={{ climat: 'Climat', atelier: 'Atelier Nord' }} defaultValue="climat">
               <SelectTrigger className="h-8 w-48 rounded-lg border-border/60 bg-card">
                 <Building2 className="size-3.5 text-muted-foreground" strokeWidth={1.5} />

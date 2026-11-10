@@ -1,4 +1,4 @@
-package publications
+package publishers
 
 import (
 	"context"
@@ -22,10 +22,10 @@ func doRoute(h *Handler, method, path string) *httptest.ResponseRecorder {
 }
 
 func TestHandlerByDomain(t *testing.T) {
-	seedPublication(t)
+	seedPublisher(t)
 	h := NewHandler(NewService(poolTest))
 
-	w := doRoute(h, http.MethodGet, "/v1/publications/by-domain/tenant")
+	w := doRoute(h, http.MethodGet, "/v1/publishers/by-domain/tenant")
 	if w.Code != http.StatusOK {
 		t.Fatalf("code = %d, attendu 200 (body %s)", w.Code, w.Body.String())
 	}
@@ -37,8 +37,8 @@ func TestHandlerByDomain(t *testing.T) {
 func TestHandlerByDomainBadRequest(t *testing.T) {
 	h := NewHandler(NewService(poolTest))
 	for _, path := range []string{
-		"/v1/publications/by-domain/%20",
-		"/v1/publications/by-domain/tenant/article/%20",
+		"/v1/publishers/by-domain/%20",
+		"/v1/publishers/by-domain/tenant/article/%20",
 	} {
 		w := doRoute(h, http.MethodGet, path)
 		if w.Code != http.StatusBadRequest {
@@ -50,7 +50,7 @@ func TestHandlerByDomainBadRequest(t *testing.T) {
 func TestHandlerByDomainNotFound(t *testing.T) {
 	requirePool(t)
 	h := NewHandler(NewService(poolTest))
-	w := doRoute(h, http.MethodGet, "/v1/publications/by-domain/introuvable")
+	w := doRoute(h, http.MethodGet, "/v1/publishers/by-domain/introuvable")
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("code = %d, attendu 404", w.Code)
 	}
@@ -59,7 +59,7 @@ func TestHandlerByDomainNotFound(t *testing.T) {
 // TestHandlerTLSAsk vérifie le garde-fou on-demand TLS : publication connue
 // et updates autorisés, sous-domaine inventé ou réservé refusé.
 func TestHandlerTLSAsk(t *testing.T) {
-	seedPublication(t)
+	seedPublisher(t)
 	h := NewHandler(NewService(poolTest))
 
 	for _, domain := range []string{"tenant.qoe.fi", "TENANT.qoe.fi", "updates.qoe.fi"} {
@@ -77,10 +77,10 @@ func TestHandlerTLSAsk(t *testing.T) {
 }
 
 func TestHandlerArticle(t *testing.T) {
-	seedPublication(t)
+	seedPublisher(t)
 	h := NewHandler(NewService(poolTest))
 
-	w := doRoute(h, http.MethodGet, "/v1/publications/by-domain/tenant/article/article-tenant")
+	w := doRoute(h, http.MethodGet, "/v1/publishers/by-domain/tenant/article/article-tenant")
 	if w.Code != http.StatusOK {
 		t.Fatalf("code = %d, attendu 200 (body %s)", w.Code, w.Body.String())
 	}
@@ -90,9 +90,9 @@ func TestHandlerArticle(t *testing.T) {
 }
 
 func TestHandlerArticleNotFound(t *testing.T) {
-	seedPublication(t)
+	seedPublisher(t)
 	h := NewHandler(NewService(poolTest))
-	w := doRoute(h, http.MethodGet, "/v1/publications/by-domain/tenant/article/introuvable")
+	w := doRoute(h, http.MethodGet, "/v1/publishers/by-domain/tenant/article/introuvable")
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("code = %d, attendu 404", w.Code)
 	}
@@ -102,11 +102,11 @@ func TestHandlerInternalError(t *testing.T) {
 	fp := &faultPool{err: errors.New("db down")}
 	h := NewHandler(&Service{pool: fp})
 
-	w := doRoute(h, http.MethodGet, "/v1/publications/by-domain/tenant")
+	w := doRoute(h, http.MethodGet, "/v1/publishers/by-domain/tenant")
 	if w.Code != http.StatusInternalServerError {
 		t.Fatalf("code = %d, attendu 500", w.Code)
 	}
-	w = doRoute(h, http.MethodGet, "/v1/publications/by-domain/tenant/article/x")
+	w = doRoute(h, http.MethodGet, "/v1/publishers/by-domain/tenant/article/x")
 	if w.Code != http.StatusInternalServerError {
 		t.Fatalf("article: code = %d, attendu 500", w.Code)
 	}
@@ -142,7 +142,7 @@ type errRow struct{ err error }
 func (e errRow) Scan(dest ...any) error { return e.err }
 
 func TestServiceErrorBranches(t *testing.T) {
-	seedPublication(t)
+	seedPublisher(t)
 	ctx := context.Background()
 	real := NewService(poolTest)
 
@@ -168,7 +168,7 @@ func TestServiceErrorBranches(t *testing.T) {
 	if _, err := svc.publishedArticles(ctx, "pub_tenant_test"); err == nil {
 		t.Fatal("publishedArticles attendu erreur")
 	}
-	if _, _, err := svc.articleBySlugOrID(ctx, "pub_tenant_test", "article-tenant", &PublicationUser{ID: "x"}); err == nil {
+	if _, _, err := svc.articleBySlugOrID(ctx, "pub_tenant_test", "article-tenant", &PublisherUser{ID: "x"}); err == nil {
 		t.Fatal("articleBySlugOrID attendu erreur")
 	}
 	if _, err := svc.articleDirect(ctx, "pub_tenant_test", "article-tenant"); err == nil {
@@ -222,7 +222,7 @@ func (badRows) Conn() *pgx.Conn                               { return nil }
 
 // TestServiceRowScanErrors force une erreur de scan dans les boucles de rows.
 func TestServiceRowScanErrors(t *testing.T) {
-	seedPublication(t)
+	seedPublisher(t)
 	ctx := context.Background()
 
 	// Rows dont le Scan échoue systématiquement → erreur remontée.

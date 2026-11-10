@@ -25,8 +25,8 @@ function StageWorkbench({ sidebarProps }: { sidebarProps?: StageClientProps['sid
     <div className="fixed inset-0 w-screen h-screen flex flex-col bg-background overflow-hidden z-50">
       {/* ── 1. TopBar 40px ── */}
       <TopBar
-        publicationName={engine.publication.name || 'Publication'}
-        domain={engine.publication.domain || 'nom.qoe.fi'}
+        publisherName={engine.publisher.name || 'Publisher'}
+        domain={engine.publisher.domain || 'nom.qoe.fi'}
         mode={engine.editorMode === StageEditorMode.PREVIEW ? 'preview' : 'design'}
         onModeChange={(m) =>
           engine.setEditorMode(m === 'preview' ? StageEditorMode.PREVIEW : StageEditorMode.DESIGN)
@@ -54,7 +54,7 @@ function StageWorkbench({ sidebarProps }: { sidebarProps?: StageClientProps['sid
         {/* Canvas Infini */}
         <StageCanvas
           layout={engine.layout}
-          publication={engine.publication}
+          publisher={engine.publisher}
           articles={engine.articles}
           device={engine.device}
           mode={engine.editorMode === StageEditorMode.PREVIEW ? 'preview' : 'design'}
@@ -111,12 +111,7 @@ function StageWorkbench({ sidebarProps }: { sidebarProps?: StageClientProps['sid
   );
 }
 
-export function StageClient({
-  publication,
-  articles,
-  sidebarProps,
-  initialDraft,
-}: StageClientProps) {
+export function StageClient({ publisher, articles, sidebarProps, initialDraft }: StageClientProps) {
   // Un seul thème : l'éditeur charge toujours le layout minimal, même pour
   // une publication historiquement en editorial/magazine.
   const initialLayouts = useRef(parseSiteLayouts('minimal')).current;
@@ -132,7 +127,7 @@ export function StageClient({
         initialArticleLayout={initialArticleLayout}
         initialOverrides={initialOverrides}
         initialUnpublished={initialUnpublished}
-        publication={publication}
+        publisher={publisher}
         articles={articles}
       >
         <StageWorkbench sidebarProps={sidebarProps} />

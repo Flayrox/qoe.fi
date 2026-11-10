@@ -50,7 +50,7 @@ export type GroupedNotificationLike = {
   url?: string | null;
   thought?: { id: string; content: string; createdAt: string | Date } | null;
   article?: { id: string; title: string; slug: string } | null;
-  publication?: { id: string; name: string | null; slug?: string | null } | null;
+  publisher?: { id: string; name: string | null; slug?: string | null } | null;
   senders: Array<{
     id: string;
     name: string | null;
@@ -159,7 +159,7 @@ export function NotificationItem({
     case 'MEDIA_INVITE':
       Icon = UserPlus;
       iconColorClass = 'text-highlight bg-highlight/10';
-      actionText = notification.publication?.name
+      actionText = notification.publisher?.name
         ? otherSendersCount > 0
           ? t`vous ont invité à rejoindre le Média`
           : t`vous a invité à rejoindre le Média`
@@ -170,7 +170,7 @@ export function NotificationItem({
     case 'MEDIA_MEMBER_JOINED':
       Icon = UserPlus;
       iconColorClass = 'text-success-text bg-success/10';
-      actionText = notification.publication?.name
+      actionText = notification.publisher?.name
         ? otherSendersCount > 0
           ? t`ont rejoint le Média`
           : t`a rejoint le Média`
@@ -181,14 +181,14 @@ export function NotificationItem({
     case 'MEDIA_ARTICLE_PUBLISHED':
       Icon = Newspaper;
       iconColorClass = 'text-primary bg-primary/10';
-      actionText = notification.publication?.name
+      actionText = notification.publisher?.name
         ? t`a publié « ${notification.article?.title ?? t`un nouvel article`} » dans le Média`
         : t`a publié dans le Média`;
       break;
     case 'MEDIA_ARTICLE_SUBMITTED':
       Icon = Clock;
       iconColorClass = 'text-highlight bg-highlight/10';
-      actionText = notification.publication?.name
+      actionText = notification.publisher?.name
         ? t`a soumis un article pour revue dans le Média`
         : t`a soumis un article pour revue`;
       break;
@@ -369,16 +369,16 @@ export function NotificationItem({
         ? '/advanced'
         : type === 'MEDIA_INVITE'
           ? '/media'
-          : type === 'FOLLOW' && notification.publication?.slug
-            ? `/${notification.publication.slug}`
+          : type === 'FOLLOW' && notification.publisher?.slug
+            ? `/${notification.publisher.slug}`
             : notification.thoughtId
               ? firstSender?.username
                 ? `/${encodeURIComponent(firstSender.username.replace(/^@/, ''))}/thought/${encodeURIComponent(notification.thoughtId)}`
                 : `/thought/${notification.thoughtId}`
               : notification.article
                 ? `/article/${notification.article.slug}`
-                : notification.publication
-                  ? `/${notification.publication.slug || notification.publication.id}`
+                : notification.publisher
+                  ? `/${notification.publisher.slug || notification.publisher.id}`
                   : firstSender?.username
                     ? `/@${firstSender.username}`
                     : '#');

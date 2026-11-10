@@ -168,7 +168,7 @@ var PolicyV1 = Policy{
 		{
 			Name:         "signup-burst",
 			SignalType:   SignalSignupAttempt,
-			SubjectScope: SubjectPublication,
+			SubjectScope: SubjectPublisher,
 			Window:       10 * time.Minute,
 			Threshold:    100,
 			Result:       DecisionNeedsReview,
@@ -320,8 +320,8 @@ const (
 	// constaté par nos soins (compte exact de nos propres lignes).
 	SignalReportVolume = "report.volume"
 
-	// SubjectPublication : la rafale vise une publication (son audience).
-	SubjectPublication = "publication"
+	// SubjectPublisher : la rafale vise une publication (son audience).
+	SubjectPublisher = "publisher"
 	// SubjectReportTarget : l'essaim vise une cible signalée. Le sujet réel
 	// est dans SubjectID sous la forme reçue du signalement (<type>:<id>,
 	// ex article:xxx). Convention générale : partout ailleurs, SubjectID

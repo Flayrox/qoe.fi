@@ -310,7 +310,7 @@ export interface LayoutConfig {
 /** Scopes de pages éditables dans Stage */
 export type SiteScopeId = 'home' | 'article';
 
-/** Fichier multi-scopes persisté dans `Publication.layoutStyle` (v2) */
+/** Fichier multi-scopes persisté dans `Publisher.layoutStyle` (v2) */
 export interface SiteLayoutsFile {
   version: 2;
   scopes: {
@@ -413,7 +413,7 @@ export interface TemplateTeamMember {
 }
 
 /** Shape minimale de la publication requise pour l'affichage */
-export interface TemplatePublicationContext {
+export interface TemplatePublisherContext {
   id?: string;
   name: string | null;
   slug?: string;

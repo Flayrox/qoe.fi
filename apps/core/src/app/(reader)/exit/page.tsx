@@ -16,7 +16,7 @@ export default async function CoreExitPage({ searchParams }: PageProps) {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <ExitCard targetUrl={rawTargetUrl} publicationName="Qoefi" onBackUrl="/home" />
+      <ExitCard targetUrl={rawTargetUrl} publisherName="Qoefi" onBackUrl="/home" />
     </div>
   );
 }

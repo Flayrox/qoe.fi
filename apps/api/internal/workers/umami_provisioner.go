@@ -53,7 +53,7 @@ func RunUmamiProvisioner(ctx context.Context, pool *pgxpool.Pool, umamiCli websi
 func runUmamiProvisionOnce(ctx context.Context, pool *pgxpool.Pool, umamiCli websiteCreator) error {
 	q := db.New(pool)
 
-	rows, err := q.ListPublicationsWithoutUmami(ctx, 50)
+	rows, err := q.ListPublishersWithoutUmami(ctx, 50)
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func runUmamiProvisionOnce(ctx context.Context, pool *pgxpool.Pool, umamiCli web
 			log.Printf("[umami-provisioner] création website pour %q (slug %s): %v", r.Name, r.Slug, err)
 			continue // on retentera au prochain tick
 		}
-		if err := q.SetPublicationUmamiWebsite(ctx, db.SetPublicationUmamiWebsiteParams{
+		if err := q.SetPublisherUmamiWebsite(ctx, db.SetPublisherUmamiWebsiteParams{
 			ID:             r.ID,
 			UmamiWebsiteId: pgtype.Text{String: websiteID, Valid: true},
 		}); err != nil {

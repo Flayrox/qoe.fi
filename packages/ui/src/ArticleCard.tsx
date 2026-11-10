@@ -44,7 +44,7 @@ export type ArticleCardArticle = Omit<
   repostsCount?: number;
   isBookmarked?: boolean;
   bookmarked?: boolean;
-  publication?: {
+  publisher?: {
     id: string;
     name: string;
     slug?: string | null;
@@ -478,16 +478,16 @@ export function ArticleCard({
         : otherContributors.map((coAuthor) => ({ ...coAuthor, isMedia: false }))
       : otherContributors.map((coAuthor) => ({ ...coAuthor, isMedia: false }));
   const authorLabel = (article.author.name ?? '').trim().toLowerCase();
-  const mediaLabel = (article.publication?.name ?? '').trim().toLowerCase();
+  const mediaLabel = (article.publisher?.name ?? '').trim().toLowerCase();
   const isAuthorTheMedia = authorLabel !== '' && authorLabel === mediaLabel;
   const profileMedia: SharedContributor | null =
     disableAuthorOverride && isMedia && !isAuthorTheMedia
-      ? article.publication
+      ? article.publisher
         ? {
-            id: article.publication.id,
-            name: article.publication.name,
-            username: article.publication.subdomain ?? null,
-            logoUrl: article.publication.logoUrl ?? null,
+            id: article.publisher.id,
+            name: article.publisher.name,
+            username: article.publisher.subdomain ?? null,
+            logoUrl: article.publisher.logoUrl ?? null,
             isMedia: true,
             handleOnly: true,
           }
@@ -514,7 +514,7 @@ export function ArticleCard({
     month: 'short',
     year: 'numeric',
   });
-  const articleOwner = article.publication?.slug || article.publication?.subdomain || primaryHandle;
+  const articleOwner = article.publisher?.slug || article.publisher?.subdomain || primaryHandle;
   const url = getArticleUrl(article, { preferTenant: true });
 
   const openProfile = (event: React.MouseEvent) => {
@@ -654,8 +654,8 @@ export function ArticleCard({
               content: article.content,
               author: {
                 ...article.author,
-                subdomain: article.author.subdomain || article.publication?.subdomain,
-                customDomain: article.author.customDomain || article.publication?.customDomain,
+                subdomain: article.author.subdomain || article.publisher?.subdomain,
+                customDomain: article.author.customDomain || article.publisher?.customDomain,
               },
             },
           },

@@ -22,7 +22,7 @@ const vec512 = `('[' || array_to_string(array_fill(0.1::float8, ARRAY[512]), ','
 // et 2 pensées, avec embeddings (pour le chemin personnalisé ANN).
 func seedEngine(ctx context.Context, pool *pgxpool.Pool) (readerID string, err error) {
 	if _, err = pool.Exec(ctx, `TRUNCATE TABLE
-		"Post", "Article", "User", "Publication", "Follows", "BlockedUser",
+		"Post", "Article", "User", "Publisher", "Follows", "BlockedUser",
 		"ContentFeedback", "ReadingSession", "FeedImpression", "Like", "_CoAuthors" CASCADE`); err != nil {
 		return "", err
 	}
@@ -48,9 +48,9 @@ func seedEngine(ctx context.Context, pool *pgxpool.Pool) (readerID string, err e
 		}
 	}
 
-	// Publication unique pour les deux articles (sinon publicationId NOT NULL).
+	// Publication unique pour les deux articles (sinon publisherId NOT NULL).
 	if _, err = pool.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ('pub_engine', 'PERSONAL', 'Eng Pub', 'eng-pub', now(), now())`); err != nil {
 		return "", err
 	}
@@ -59,7 +59,7 @@ func seedEngine(ctx context.Context, pool *pgxpool.Pool) (readerID string, err e
 	for i, au := range []string{"00000000-0000-0000-0000-000000000011", "00000000-0000-0000-0000-000000000012"} {
 		if _, err = pool.Exec(ctx,
 			`INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime",
-			                        status, "publicationId", "authorId", "createdAt", "updatedAt", embedding)
+			                        status, "publisherId", "authorId", "createdAt", "updatedAt", embedding)
 			 VALUES ($1, $2, $2, $3, true, 'PUBLIC', 8, 'PUBLISHED', 'pub_engine', $4, now(), now(), `+vec512+`)`,
 			"eng_art_"+string(rune('a'+i)), "Article "+string(rune('a'+i)), "<p>Corps</p>", au); err != nil {
 			return "", err
@@ -387,7 +387,7 @@ func TestThread_PreservesAnnotationCitationsAcrossAncestorsAndReplies(t *testing
 
 // TestPublicationArticles vérifie que les articles d'une publication (profil)
 // sont listés par slug (insensible à la casse) avec le même shape que le feed.
-func TestPublicationArticles(t *testing.T) {
+func TestPublisherArticles(t *testing.T) {
 	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
@@ -402,12 +402,12 @@ func TestPublicationArticles(t *testing.T) {
 	svc := newTestService()
 	// La publication personnelle d'Alice a le slug de son propriétaire ; la
 	// requête reste insensible à la casse (contrat de l'endpoint).
-	res, err := svc.PublicationArticles(context.Background(), "ALICE", "", 20, 0)
+	res, err := svc.PublisherArticles(context.Background(), "ALICE", "", 20, 0)
 	if err != nil {
-		t.Fatalf("PublicationArticles: %v", err)
+		t.Fatalf("PublisherArticles: %v", err)
 	}
 	if len(res.Items) == 0 {
-		t.Fatal("PublicationArticles ne renvoie aucun article")
+		t.Fatal("PublisherArticles ne renvoie aucun article")
 	}
 	found := false
 	for _, a := range res.Items {
@@ -423,8 +423,8 @@ func TestPublicationArticles(t *testing.T) {
 			if a.Author.Username == nil || *a.Author.Username != "alice" {
 				t.Fatalf("author = %+v", a.Author)
 			}
-			if a.PublicationID == "" {
-				t.Fatal("publicationId vide")
+			if a.PublisherID == "" {
+				t.Fatal("publisherId vide")
 			}
 		}
 	}
@@ -487,7 +487,7 @@ func TestPersonalizedEngine_Pagination(t *testing.T) {
 	// boosté) dépassent leur seuil même à offset 16.
 	for i := 0; i < 34; i++ {
 		if _, err := poolTest.Exec(ctx,
-			`INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt", embedding)
+			`INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publisherId", "authorId", "createdAt", "updatedAt", embedding)
 			 VALUES ($1, $2, $2, '<p>Corps</p>', true, 'PUBLIC', 8, 'PUBLISHED', 'pub_engine', '00000000-0000-0000-0000-000000000011', now(), now(), `+vec512+`)`,
 			fmt.Sprintf("page_art_%d", i), fmt.Sprintf("Article pagination %d", i)); err != nil {
 			t.Fatalf("insert article %d: %v", i, err)
@@ -754,7 +754,7 @@ func TestPersonalizedEngine_AdaptiveMix(t *testing.T) {
 	// Suffisamment d'articles ET de pensées pour laisser le ratio jouer.
 	for i := 0; i < 10; i++ {
 		if _, err := poolTest.Exec(ctx,
-			`INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt", embedding)
+			`INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publisherId", "authorId", "createdAt", "updatedAt", embedding)
 			 VALUES ($1, $2, $2, '<p>Corps</p>', true, 'PUBLIC', 8, 'PUBLISHED', 'pub_engine', '00000000-0000-0000-0000-000000000011', now(), now(), `+vec512+`)`,
 			fmt.Sprintf("mix_art_%d", i), fmt.Sprintf("Article mix %d", i)); err != nil {
 			t.Fatalf("insert article %d: %v", i, err)
@@ -844,10 +844,10 @@ func TestHydrate(t *testing.T) {
 				if a.ID == it.ID {
 					found = true
 					// Parité publicationProfileSelect.
-					if a.Publication.ID == "" || a.Publication.Name == "" || a.Publication.Slug == "" {
-						t.Fatalf("article %s: publication incomplète %+v", a.ID, a.Publication)
+					if a.Publisher.ID == "" || a.Publisher.Name == "" || a.Publisher.Slug == "" {
+						t.Fatalf("article %s: publication incomplète %+v", a.ID, a.Publisher)
 					}
-					if a.Publication.Type == "" {
+					if a.Publisher.Type == "" {
 						t.Fatalf("article %s: publication.type vide", a.ID)
 					}
 					// Les champs optionnels (logoUrl, heroText, customDomain) doivent être
@@ -926,16 +926,16 @@ func TestShowMoreBoost(t *testing.T) {
 	readerID := "00000000-0000-0000-0000-000000000010"
 
 	// Trois articles supplémentaires à directions contrôlées.
-	if _, err := poolTest.Exec(ctx, `INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt", embedding)
+	if _, err := poolTest.Exec(ctx, `INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publisherId", "authorId", "createdAt", "updatedAt", embedding)
 		VALUES ('boost_anchor', 'Anchor', 'anchor', '<p>a</p>', true, 'PUBLIC', 5, 'PUBLISHED', 'pub_engine', '00000000-0000-0000-0000-000000000011', now(), now(), $1::vector)`, axisVector([2]float64{0, 1})); err != nil {
 		t.Fatalf("insert anchor: %v", err)
 	}
 	// Candidat proche de l'ancre (axe 0) et candidat orthogonal (axe 1).
-	if _, err := poolTest.Exec(ctx, `INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt", embedding)
+	if _, err := poolTest.Exec(ctx, `INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publisherId", "authorId", "createdAt", "updatedAt", embedding)
 		VALUES ('boost_sim', 'Similaire', 'sim', '<p>s</p>', true, 'PUBLIC', 5, 'PUBLISHED', 'pub_engine', '00000000-0000-0000-0000-000000000012', now(), now(), $1::vector)`, axisVector([2]float64{0, 0.95})); err != nil {
 		t.Fatalf("insert sim: %v", err)
 	}
-	if _, err := poolTest.Exec(ctx, `INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt", embedding)
+	if _, err := poolTest.Exec(ctx, `INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publisherId", "authorId", "createdAt", "updatedAt", embedding)
 		VALUES ('boost_orth', 'Orthogonal', 'orth', '<p>o</p>', true, 'PUBLIC', 5, 'PUBLISHED', 'pub_engine', '00000000-0000-0000-0000-000000000011', now(), now(), $1::vector)`, axisVector([2]float64{1, 1})); err != nil {
 		t.Fatalf("insert orth: %v", err)
 	}
@@ -973,7 +973,7 @@ func TestShowMoreBoost(t *testing.T) {
 // avec 1 article + 1 pensée d'un créateur certifié), le lecteur suit pubA.
 func seedHomeFeed(ctx context.Context, pool *pgxpool.Pool) (readerID, pubAID, pubBID string, err error) {
 	if _, err = pool.Exec(ctx, `TRUNCATE TABLE
-		"Follows", "Bookmark", "Highlight", "MutedWord", "Post", "Article", "User", "Publication", "_CoAuthors" CASCADE`); err != nil {
+		"Follows", "Bookmark", "Highlight", "MutedWord", "Post", "Article", "User", "Publisher", "_CoAuthors" CASCADE`); err != nil {
 		return "", "", "", err
 	}
 	readerID = "00000000-0000-0000-0000-000000000020"
@@ -991,7 +991,7 @@ func seedHomeFeed(ctx context.Context, pool *pgxpool.Pool) (readerID, pubAID, pu
 		{pubBID, "Pub B", "pub-b"},
 	} {
 		if _, err = pool.Exec(ctx,
-			`INSERT INTO "Publication" (id, type, name, slug, "isCertified", "createdAt", "updatedAt")
+			`INSERT INTO "Publisher" (id, type, name, slug, "isCertified", "createdAt", "updatedAt")
 			 VALUES ($1, 'PERSONAL', $2, $3, true, now(), now())`, pub.id, pub.name, pub.slug); err != nil {
 			return "", "", "", err
 		}
@@ -1000,12 +1000,12 @@ func seedHomeFeed(ctx context.Context, pool *pgxpool.Pool) (readerID, pubAID, pu
 	for i, pub := range []string{pubAID, pubBID} {
 		authorID := fmt.Sprintf("00000000-0000-0000-0000-00000000002%d", i+1)
 		if _, err = pool.Exec(ctx,
-			`INSERT INTO "User" (id, email, username, name, role, "isCertified", "publicationId", "createdAt", "updatedAt")
+			`INSERT INTO "User" (id, email, username, name, role, "isCertified", "publisherId", "createdAt", "updatedAt")
 			 VALUES ($1, $2||'@h.dev', $2, $2, 'creator', true, $3, now(), now())`, authorID, "auth"+string(rune('a'+i)), pub); err != nil {
 			return "", "", "", err
 		}
 		if _, err = pool.Exec(ctx,
-			`INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt")
+			`INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publisherId", "authorId", "createdAt", "updatedAt")
 			 VALUES ($1, $2, $2, '<p>Corps</p>', true, 'PUBLIC', 6, 'PUBLISHED', $3, $4, now(), now())`,
 			"home_art_"+pub, "Article "+pub, pub, authorID); err != nil {
 			return "", "", "", err
@@ -1022,7 +1022,7 @@ func seedHomeFeed(ctx context.Context, pool *pgxpool.Pool) (readerID, pubAID, pu
 
 	// Le lecteur suit la publication A.
 	if _, err = pool.Exec(ctx,
-		`INSERT INTO "Follows" (id, "readerId", "publicationId", "createdAt")
+		`INSERT INTO "Follows" (id, "readerId", "publisherId", "createdAt")
 		 VALUES (gen_random_uuid()::text, $1, $2, now())`, readerID, pubAID); err != nil {
 		return "", "", "", err
 	}
@@ -1142,11 +1142,11 @@ func TestRecentArticles(t *testing.T) {
 			}
 			// Publication personnelle de l'auteur : elle porte son identité
 			// (trigger 00028/00054), donc son nom est celui du compte.
-			if a.Publication.Name != "Alice" {
-				t.Fatalf("publication = %+v", a.Publication)
+			if a.Publisher.Name != "Alice" {
+				t.Fatalf("publication = %+v", a.Publisher)
 			}
-			if a.PublicationID == "" {
-				t.Fatal("publicationId vide")
+			if a.PublisherID == "" {
+				t.Fatal("publisherId vide")
 			}
 		}
 	}

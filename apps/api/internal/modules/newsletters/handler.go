@@ -109,7 +109,7 @@ func (h *Handler) handleErr(w http.ResponseWriter, err error) {
 }
 
 // POST /v1/me/subscriptions — abonne le compte connecté à une publication,
-// sans ressaisir d'adresse (fiche 01 §2). Corps : { email, publicationId }.
+// sans ressaisir d'adresse (fiche 01 §2). Corps : { email, publisherId }.
 // L'adresse demandée doit être exactement celle du compte ; si elle est
 // confirmée côté fournisseur, activation directe, sinon parcours invité.
 // Réponse neutre : { success, active } — `active: false` signifie « vérifiez
@@ -125,13 +125,13 @@ func (h *Handler) subscribeSelf(w http.ResponseWriter, r *http.Request) {
 	}
 	var in struct {
 		Email         string `json:"email"`
-		PublicationID string `json:"publicationId"`
+		PublisherID string `json:"publisherId"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	res, err := h.svc.SubscribeSelf(r.Context(), uid, in.Email, in.PublicationID)
+	res, err := h.svc.SubscribeSelf(r.Context(), uid, in.Email, in.PublisherID)
 	if err != nil {
 		h.handleErr(w, err)
 		return
@@ -139,13 +139,13 @@ func (h *Handler) subscribeSelf(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, map[string]any{"success": true, "active": res.Active})
 }
 
-// GET /v1/newsletters?publicationId= — liste des newsletters du créateur.
+// GET /v1/newsletters?publisherId= — liste des newsletters du créateur.
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	uid, ok := h.userID(w, r)
 	if !ok {
 		return
 	}
-	items, err := h.svc.ListIssues(r.Context(), uid, r.URL.Query().Get("publicationId"))
+	items, err := h.svc.ListIssues(r.Context(), uid, r.URL.Query().Get("publisherId"))
 	if err != nil {
 		h.handleErr(w, err)
 		return
@@ -222,7 +222,7 @@ func (h *Handler) send(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) unsubscribe(w http.ResponseWriter, r *http.Request) {
 	pubID := r.URL.Query().Get("pub")
 	if pubID == "" {
-		pubID = r.URL.Query().Get("publicationId")
+		pubID = r.URL.Query().Get("publisherId")
 	}
 	email := r.URL.Query().Get("email")
 	sig := r.URL.Query().Get("sig")
@@ -307,7 +307,7 @@ document.getElementById('resend').onclick = async (e) => {
     const r = await fetch('/v1/home/subscribe', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({email: q.get('email'), publicationId: q.get('pub') || q.get('publicationId')})
+      body: JSON.stringify({email: q.get('email'), publisherId: q.get('pub') || q.get('publisherId')})
     });
     document.getElementById('resend-msg').textContent = ` + "`" + resentMsg + "`" + `;
   } catch (_) {
@@ -338,7 +338,7 @@ document.getElementById('resend').onclick = async (e) => {
 func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 	pubID := r.URL.Query().Get("pub")
 	if pubID == "" {
-		pubID = r.URL.Query().Get("publicationId")
+		pubID = r.URL.Query().Get("publisherId")
 	}
 	email := r.URL.Query().Get("email")
 	token := r.URL.Query().Get("token")
@@ -403,7 +403,7 @@ func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,0.04);padding:40px 32px;max-width:440px;width:100%;text-align:center;">
 <div style="width:48px;height:48px;background:#f0fdf4;border:1px solid #dcfce7;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:22px;color:#16a34a;">✓</div>
 <h1 style="font-size:20px;font-weight:600;color:#111827;margin:0 0 8px;letter-spacing:-0.01em;">Abonnement confirmé !</h1>
-<p style="font-size:14px;line-height:1.6;color:#6b7280;margin:0 0 24px;">Votre adresse email est validée : vous recevrez désormais les nouvelles publications. Chaque email contiendra un lien de désabonnement en un clic.</p>
+<p style="font-size:14px;line-height:1.6;color:#6b7280;margin:0 0 24px;">Votre adresse email est validée : vous recevrez désormais les nouvelles publishers. Chaque email contiendra un lien de désabonnement en un clic.</p>
 <a href="https://qoe.fi" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;font-size:13px;font-weight:500;padding:10px 24px;border-radius:9999px;">Retourner à l'accueil</a>
 </div></body></html>`))
 }

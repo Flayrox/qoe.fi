@@ -77,7 +77,7 @@ func seedTriageFixtures(t *testing.T, ctx context.Context) []triageFixture {
 		},
 		{
 			sql: `INSERT INTO "SubscriberImportBatch"
-				("id", "publicationId", "requesterId", "status", "source", "declarations",
+				("id", "publisherId", "requesterId", "status", "source", "declarations",
 				 "fileFingerprint", "fileVersion", "rowCount", "stats", "submittedAt", "createdAt", "updatedAt")
 				VALUES ($1, 'pub-triage', $2::uuid, 'submitted', 'csv_manual', '{"noPurchased":true}'::jsonb,
 				        'fp-triage', 1, 0, '{}'::jsonb, $3, $3, $3)

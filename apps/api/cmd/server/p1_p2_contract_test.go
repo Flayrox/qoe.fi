@@ -51,7 +51,7 @@ func TestP1AuthenticatedReaderContracts(t *testing.T) {
 	}
 }
 
-func TestP1CreatorPublicationIsolation(t *testing.T) {
+func TestP1CreatorPublisherIsolation(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
 	fx, err := testutil.SeedArticles(ctx, poolTest)
@@ -61,12 +61,12 @@ func TestP1CreatorPublicationIsolation(t *testing.T) {
 	otherUserID := "00000000-0000-0000-0000-0000000000d1"
 	otherPubID := "pub_contract_other"
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ($1, 'PERSONAL', 'Autre publication', 'autre-publication', now(), now())`, otherPubID); err != nil {
 		t.Fatalf("other publication: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "User" (id, email, username, name, role, "publisherId", "createdAt", "updatedAt")
 		 VALUES ($1, 'other-contract@test.dev', 'othercontract', 'Autre', 'creator', $2, now(), now())`, otherUserID, otherPubID); err != nil {
 		t.Fatalf("other user: %v", err)
 	}
@@ -74,13 +74,13 @@ func TestP1CreatorPublicationIsolation(t *testing.T) {
 	r := testRouter(t)
 	otherToken := routerJWT(otherUserID)
 
-	w, _ := doReq(t, r, http.MethodGet, "/v1/articles?publicationId="+fx.PublicationID, otherToken, nil)
+	w, _ := doReq(t, r, http.MethodGet, "/v1/articles?publisherId="+fx.PublisherID, otherToken, nil)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("other creator list = %d, body=%s; expected 403", w.Code, w.Body.String())
 	}
 
 	w, _ = doReq(t, r, http.MethodPost, "/v1/articles", otherToken, map[string]any{
-		"publicationId": fx.PublicationID,
+		"publisherId": fx.PublisherID,
 		"title":         "Cross tenant",
 		"content":       "must be rejected",
 		"contentFormat": "markdown",
@@ -190,7 +190,7 @@ func TestP1ApiKeyScopesAndOwnershipContracts(t *testing.T) {
 		t.Fatalf("read-only key read = %d, body=%s", w.Code, w.Body.String())
 	}
 	w, _ = doReq(t, r, http.MethodPost, "/v1/articles", readOnly, map[string]any{
-		"publicationId": fx.PublicationID,
+		"publisherId": fx.PublisherID,
 		"title":         "write denied",
 		"content":       "x",
 		"contentFormat": "markdown",
@@ -224,7 +224,7 @@ func TestP2CorsAndSecurityContracts(t *testing.T) {
 		t.Fatalf("large public query caused 500: %s", w.Body.String())
 	}
 
-	w, body := doReq(t, r, http.MethodGet, "/v1/articles/missing?publicationId=missing", "not-a-jwt", nil)
+	w, body := doReq(t, r, http.MethodGet, "/v1/articles/missing?publisherId=missing", "not-a-jwt", nil)
 	if w.Code != http.StatusOK && w.Code != http.StatusNotFound {
 		t.Fatalf("invalid optional JWT changed public contract: %d, body=%s", w.Code, w.Body.String())
 	}
@@ -238,11 +238,11 @@ func TestP2NewsletterSubscriptionConcurrentIdempotence(t *testing.T) {
 	ctx := context.Background()
 	const pubID = "pub_concurrent_newsletter"
 	if _, err := poolTest.Exec(ctx,
-		`TRUNCATE TABLE "Subscriber", "Publication", "User" CASCADE`); err != nil {
+		`TRUNCATE TABLE "Subscriber", "Publisher", "User" CASCADE`); err != nil {
 		t.Fatalf("truncate newsletter: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ($1, 'PERSONAL', 'Concurrent', 'concurrent', now(), now())`, pubID); err != nil {
 		t.Fatalf("seed publication: %v", err)
 	}
@@ -257,7 +257,7 @@ func TestP2NewsletterSubscriptionConcurrentIdempotence(t *testing.T) {
 			defer wg.Done()
 			w, _ := doReq(t, r, http.MethodPost, "/v1/home/subscribe", "", map[string]any{
 				"email":         "Concurrent@Test.dev",
-				"publicationId": pubID,
+				"publisherId": pubID,
 			})
 			if w.Code != http.StatusOK {
 				errs <- fmt.Errorf("status %d: %s", w.Code, w.Body.String())
@@ -272,7 +272,7 @@ func TestP2NewsletterSubscriptionConcurrentIdempotence(t *testing.T) {
 
 	var count int
 	if err := poolTest.QueryRow(ctx,
-		`SELECT COUNT(*) FROM "Subscriber" WHERE email = 'concurrent@test.dev' AND "publicationId" = $1`, pubID).Scan(&count); err != nil {
+		`SELECT COUNT(*) FROM "Subscriber" WHERE email = 'concurrent@test.dev' AND "publisherId" = $1`, pubID).Scan(&count); err != nil {
 		t.Fatalf("subscriber count: %v", err)
 	}
 	if count != 1 {
@@ -293,11 +293,11 @@ func seedMediaContract(t *testing.T, ctx context.Context) {
 	requirePool(t)
 	t.Helper()
 	if _, err := poolTest.Exec(ctx,
-		`TRUNCATE TABLE "MediaAuditLog", "MediaMember", "Media", "MediaAsset", "Publication", "User" CASCADE`); err != nil {
+		`TRUNCATE TABLE "MediaAuditLog", "MediaMember", "Media", "MediaAsset", "Publisher", "User" CASCADE`); err != nil {
 		t.Fatalf("media fixture truncate: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ('pub_contract_media', 'MEDIA', 'Média Contrat', 'media-contrat', now(), now())`); err != nil {
 		t.Fatalf("media fixture publication: %v", err)
 	}
@@ -309,7 +309,7 @@ func seedMediaContract(t *testing.T, ctx context.Context) {
 		t.Fatalf("media fixture users: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Media" (id, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "Media" (id, "publisherId", "createdAt", "updatedAt")
 		 VALUES ('media_contract_001', 'pub_contract_media', now(), now())`); err != nil {
 		t.Fatalf("media fixture media: %v", err)
 	}
@@ -326,7 +326,7 @@ func seedReaderContract(t *testing.T, ctx context.Context) {
 	requirePool(t)
 	t.Helper()
 	if _, err := poolTest.Exec(ctx,
-		`TRUNCATE TABLE "UserSettings", "WalletTransaction", "Subscriber", "Follows", "MutedWord", "Publication", "User" CASCADE`); err != nil {
+		`TRUNCATE TABLE "UserSettings", "WalletTransaction", "Subscriber", "Follows", "MutedWord", "Publisher", "User" CASCADE`); err != nil {
 		t.Fatalf("reader fixture truncate: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
@@ -340,7 +340,7 @@ func seedAdminContract(t *testing.T, ctx context.Context) {
 	requirePool(t)
 	t.Helper()
 	if _, err := poolTest.Exec(ctx,
-		`TRUNCATE TABLE "WalletTransaction", "Article", "Publication", "User" CASCADE`); err != nil {
+		`TRUNCATE TABLE "WalletTransaction", "Article", "Publisher", "User" CASCADE`); err != nil {
 		t.Fatalf("admin fixture truncate: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,

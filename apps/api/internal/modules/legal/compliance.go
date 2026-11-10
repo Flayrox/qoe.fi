@@ -67,7 +67,7 @@ type ComplianceSummary struct {
 	Critical            int `json:"critical"`
 	Warning             int `json:"warning"`
 	DocumentsTracked    int `json:"documentsTracked"`
-	MissingPublications int `json:"missingPublications"`
+	MissingPublishers int `json:"missingPublishers"`
 	OverdueObligations  int `json:"overdueObligations"`
 }
 
@@ -195,7 +195,7 @@ func (s *Service) Compliance(ctx context.Context, actor string) (*ComplianceSnap
 		if doc.Status == "critical" {
 			snapshot.Summary.Critical++
 			if doc.RequiresAcceptance && doc.PublishedLocales == 0 {
-				snapshot.Summary.MissingPublications++
+				snapshot.Summary.MissingPublishers++
 			}
 		} else if doc.Status == "warning" {
 			snapshot.Summary.Warning++

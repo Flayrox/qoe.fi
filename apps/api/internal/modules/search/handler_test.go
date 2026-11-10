@@ -91,8 +91,8 @@ func TestSearchArticlesMeiliError(t *testing.T) {
 	}
 }
 
-func TestSearchArticlesPremiumRedactedWithPublicationID(t *testing.T) {
-	// Fuite paywall : même avec publicationId, un appel anonyme (sans pool
+func TestSearchArticlesPremiumRedactedWithPublisherID(t *testing.T) {
+	// Fuite paywall : même avec publisherId, un appel anonyme (sans pool
 	// donc sans preuve de propriété) doit retronquer le contenu premium.
 	hit := meilisearch.Hit{
 		"id":        json.RawMessage(`"art_9"`),
@@ -104,7 +104,7 @@ func TestSearchArticlesPremiumRedactedWithPublicationID(t *testing.T) {
 	}}
 	r := chi.NewRouter()
 	h.RegisterPublic(r)
-	req := httptest.NewRequest(http.MethodGet, "/search/articles?q=climat&publicationId=pub_1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/search/articles?q=climat&publisherId=pub_1", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 

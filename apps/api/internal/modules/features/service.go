@@ -99,7 +99,7 @@ type SignalInput struct {
 	FeatureKey    string
 	Kind          string
 	Source        string
-	PublicationID string
+	PublisherID string
 }
 
 // SignalSummary est une ligne d'agrégat exposée au studio.
@@ -136,14 +136,14 @@ func (s *Service) Record(ctx context.Context, userID string, in SignalInput) (bo
 		return false, ErrFeatureUnavailable
 	}
 
-	publicationID, err := s.resolvePublication(ctx, userID, in.PublicationID)
+	publisherID, err := s.resolvePublisher(ctx, userID, in.PublisherID)
 	if err != nil {
 		return false, err
 	}
 
 	pub := pgtype.Text{}
-	if publicationID != "" {
-		pub = pgtype.Text{String: publicationID, Valid: true}
+	if publisherID != "" {
+		pub = pgtype.Text{String: publisherID, Valid: true}
 	}
 
 	if in.Kind == KindNotify {
@@ -157,12 +157,12 @@ func (s *Service) Record(ctx context.Context, userID string, in SignalInput) (bo
 		// pour le funnel, mais il n'est plus la source de vérité du bouton.
 		if _, err := s.pool.Exec(ctx, `
 			INSERT INTO "FeatureInterest"
-			    ("featureKey", "userId", "publicationId", "source", "status", "consentVersion", "consentAt", "updatedAt")
+			    ("featureKey", "userId", "publisherId", "source", "status", "consentVersion", "consentAt", "updatedAt")
 			VALUES ($1, $2::uuid, $3, $4, 'active', 'v1', now(), now())
 			ON CONFLICT ("userId", "featureKey") DO UPDATE SET
 			    "status" = 'active',
 			    "unsubscribedAt" = NULL,
-			    "publicationId" = EXCLUDED."publicationId",
+			    "publisherId" = EXCLUDED."publisherId",
 			    "source" = EXCLUDED."source",
 			    "consentVersion" = EXCLUDED."consentVersion",
 			    "consentAt" = now(),
@@ -171,7 +171,7 @@ func (s *Service) Record(ctx context.Context, userID string, in SignalInput) (bo
 			return false, err
 		}
 		if _, err := s.pool.Exec(ctx, `
-			INSERT INTO "FeatureSignal" ("featureKey", "kind", "source", "userId", "publicationId")
+			INSERT INTO "FeatureSignal" ("featureKey", "kind", "source", "userId", "publisherId")
 			VALUES ($1, $2, $3, $4, $5)
 			ON CONFLICT DO NOTHING
 		`, in.FeatureKey, in.Kind, in.Source, userID, pub); err != nil {
@@ -185,7 +185,7 @@ func (s *Service) Record(ctx context.Context, userID string, in SignalInput) (bo
 
 	// Vue : au plus une par utilisateur et par fonctionnalité sur 24 h.
 	_, err = s.pool.Exec(ctx, `
-		INSERT INTO "FeatureSignal" ("featureKey", "kind", "source", "userId", "publicationId")
+		INSERT INTO "FeatureSignal" ("featureKey", "kind", "source", "userId", "publisherId")
 		SELECT $1, $2, $3, $4, $5
 		WHERE NOT EXISTS (
 			SELECT 1 FROM "FeatureSignal"
@@ -380,11 +380,11 @@ func (s *Service) UnsubscribeForUser(ctx context.Context, userID, featureKey str
 }
 
 // Summary agrège les signaux d'une publication sur 90 jours.
-func (s *Service) Summary(ctx context.Context, userID, publicationID string) ([]SignalSummary, error) {
-	if publicationID == "" {
+func (s *Service) Summary(ctx context.Context, userID, publisherID string) ([]SignalSummary, error) {
+	if publisherID == "" {
 		return nil, ErrInvalidSignal
 	}
-	allowed, err := s.canAccess(ctx, userID, publicationID)
+	allowed, err := s.canAccess(ctx, userID, publisherID)
 	if err != nil {
 		return nil, err
 	}
@@ -397,11 +397,11 @@ func (s *Service) Summary(ctx context.Context, userID, publicationID string) ([]
 		       COUNT(*) FILTER (WHERE "kind" = 'view')::int   AS views,
 		       COUNT(*) FILTER (WHERE "kind" = 'notify')::int AS notifies
 		  FROM "FeatureSignal"
-		 WHERE "publicationId" = $1
+		 WHERE "publisherId" = $1
 		   AND "createdAt" >= now() - $2::interval
 		 GROUP BY "featureKey"
 		 ORDER BY notifies DESC, views DESC, "featureKey" ASC
-	`, publicationID, summaryWindow)
+	`, publisherID, summaryWindow)
 	if err != nil {
 		return nil, err
 	}
@@ -420,7 +420,7 @@ func (s *Service) Summary(ctx context.Context, userID, publicationID string) ([]
 
 // resolvePublication attribue le signal : publication demandée (après contrôle
 // d'accès), sinon la publication personnelle du créateur.
-func (s *Service) resolvePublication(ctx context.Context, userID, requested string) (string, error) {
+func (s *Service) resolvePublisher(ctx context.Context, userID, requested string) (string, error) {
 	if requested != "" {
 		allowed, err := s.canAccess(ctx, userID, requested)
 		if err != nil {
@@ -431,7 +431,7 @@ func (s *Service) resolvePublication(ctx context.Context, userID, requested stri
 		}
 		return requested, nil
 	}
-	personal, err := s.q.GetUserPersonalPublication(ctx, userID)
+	personal, err := s.q.GetUserPersonalPublisher(ctx, userID)
 	if err != nil || !personal.Valid {
 		// Pas de publication personnelle (compte sans espace) : le signal
 		// reste utile pour l'utilisateur, simplement non rattaché.
@@ -442,16 +442,16 @@ func (s *Service) resolvePublication(ctx context.Context, userID, requested stri
 
 // canAccess reprend la règle des analytics : publication personnelle, ou
 // rôle owner/editor sur le média.
-func (s *Service) canAccess(ctx context.Context, userID, publicationID string) (bool, error) {
+func (s *Service) canAccess(ctx context.Context, userID, publisherID string) (bool, error) {
 	if userID == "" {
 		return false, nil
 	}
-	if personal, err := s.q.GetUserPersonalPublication(ctx, userID); err == nil &&
-		personal.Valid && personal.String == publicationID {
+	if personal, err := s.q.GetUserPersonalPublisher(ctx, userID); err == nil &&
+		personal.Valid && personal.String == publisherID {
 		return true, nil
 	}
 	role, err := s.q.GetMediaRoleForUser(ctx, db.GetMediaRoleForUserParams{
-		PublicationId: publicationID, UserId: toUUID(userID),
+		PublisherId: publisherID, UserId: toUUID(userID),
 	})
 	if err != nil {
 		// Aucun rôle = pas d'accès ; une vraie panne DB remontera sur les

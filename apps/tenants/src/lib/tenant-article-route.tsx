@@ -39,8 +39,8 @@ export async function generateTenantArticleMetadata(
   const bundle = await fetchTenantArticle(decodedDomain, decodedArticleSlug);
   if (!bundle) return {};
 
-  const { publication, article } = bundle;
-  const siteName = publication.name || decodedDomain;
+  const { publisher, article } = bundle;
+  const siteName = publisher.name || decodedDomain;
   const defaultDesc = isFr
     ? `Lisez ${article.title} sur ${siteName}.`
     : `Read ${article.title} on ${siteName}.`;
@@ -55,18 +55,18 @@ export async function generateTenantArticleMetadata(
     ) || defaultDesc;
   const description = article.seoDescription?.trim() || autoDescription;
   const title = article.seoTitle?.trim() || `${article.title} | ${siteName}`;
-  const canonicalUrl = `https://${decodedDomain}${buildArticlePath(article, publication.categories)}`;
+  const canonicalUrl = `https://${decodedDomain}${buildArticlePath(article, publisher.categories)}`;
   const authorName =
     article.author?.name || article.author?.username || siteName || (isFr ? 'Auteur' : 'Author');
   const coverImage =
-    article.imageUrl || publication.headerImageUrl || article.author?.logoUrl || undefined;
+    article.imageUrl || publisher.headerImageUrl || article.author?.logoUrl || undefined;
 
   return {
     title,
     description,
     robots: {
-      index: publication.allowIndexing !== false,
-      follow: publication.allowIndexing !== false,
+      index: publisher.allowIndexing !== false,
+      follow: publisher.allowIndexing !== false,
     },
     alternates: { canonical: canonicalUrl },
     openGraph: {
@@ -100,8 +100,8 @@ export async function TenantArticleRoute(params: TenantArticleRouteParams) {
   const bundle = await fetchTenantArticle(decodedDomain, decodedArticleSlug);
   if (!bundle) notFound();
 
-  const { publication, article } = bundle;
-  const displayName = publication.name || publication.user?.username || t`le créateur`;
+  const { publisher, article } = bundle;
+  const displayName = publisher.name || publisher.user?.username || t`le créateur`;
 
   if (!article) {
     return (
@@ -131,15 +131,14 @@ export async function TenantArticleRoute(params: TenantArticleRouteParams) {
 
   // URL canonique hiérarchique : redirection permanente si le chemin demandé
   // ne correspond pas à la catégorie/sous-catégorie réelle de l'article.
-  const canonicalPath = buildArticlePath(article, publication.categories);
+  const canonicalPath = buildArticlePath(article, publisher.categories);
   if (requestedArticlePath(params) !== canonicalPath) {
     permanentRedirect(canonicalPath);
   }
 
-  const isPublicationOwner =
-    publication.type === 'MEDIA' ? false : publication.user?.id === user?.id;
+  const isPublisherOwner = publisher.type === 'MEDIA' ? false : publisher.user?.id === user?.id;
 
-  if (!article.published && !isPublicationOwner && user?.id !== article.authorId) {
+  if (!article.published && !isPublisherOwner && user?.id !== article.authorId) {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 text-center font-sans select-none">
         <div className="w-12 h-12 rounded-2xl bg-highlight/10 text-highlight border border-highlight/20 flex items-center justify-center font-black text-xl mb-4 shadow-sm">
@@ -175,14 +174,14 @@ export async function TenantArticleRoute(params: TenantArticleRouteParams) {
   const initialComments = (commentsRes?.comments || []) as unknown as CommentItem[];
 
   const breadcrumbJsonLd = buildBreadcrumbSchema([
-    { name: publication.name || decodedDomain, url: `https://${decodedDomain}` },
+    { name: publisher.name || decodedDomain, url: `https://${decodedDomain}` },
     ...(article.category
       ? [
           {
             name: article.category.name,
             url: `https://${decodedDomain}${buildCategoryPath(
               article.category,
-              publication.categories
+              publisher.categories
             )}`,
           },
         ]
@@ -196,7 +195,7 @@ export async function TenantArticleRoute(params: TenantArticleRouteParams) {
   return (
     <TenantPageRenderer
       scope="article"
-      publication={publication}
+      publisher={publisher}
       article={article}
       user={user}
       bundle={bundle}

@@ -62,7 +62,7 @@ const (
 	// Audiences prédéfinies : jamais de liste libre. L'audience est générée
 	// côté serveur au démarrage de l'envoi, depuis ces seuls sélecteurs.
 	CampaignAudienceAllUsers    = "all_active_users"
-	CampaignAudienceSubscribers = "publication_subscribers"
+	CampaignAudienceSubscribers = "publisher_subscribers"
 	CampaignAudienceInterested  = "feature_interested"
 
 	// Statuts, miroir de la contrainte CHECK.
@@ -91,7 +91,7 @@ var (
 	// errCampaignTranslation : traduction requise manquante.
 	errCampaignTranslation = errors.New("traduction requise manquante pour ce type de message")
 	// errCampaignBadVariable : variable hors liste blanche dans le contenu.
-	errCampaignBadVariable = errors.New("variable inconnue dans le contenu (liste blanche : publication_name, unsubscribe_url)")
+	errCampaignBadVariable = errors.New("variable inconnue dans le contenu (liste blanche : publisher_name, unsubscribe_url)")
 )
 
 // Exportées pour la façade HTTP et les tests (même pattern que le reste).
@@ -109,7 +109,7 @@ var (
 // et à la modification — aucun HTML arbitraire injecté via une variable,
 // aucun en-tête e-mail fourni librement.
 var campaignVarWhitelist = map[string]bool{
-	"publication_name": true,
+	"publisher_name": true,
 	"unsubscribe_url":  true,
 }
 
@@ -164,8 +164,8 @@ type CampaignClaim struct {
 type CampaignSendContext struct {
 	FeatureKey      string
 	InterestID      string
-	PublicationID   string
-	PublicationName string
+	PublisherID   string
+	PublisherName string
 	Locale          string // fr/en (FR par défaut documenté)
 	SubjectFR       string
 	BodyFR          string
@@ -176,10 +176,10 @@ type CampaignSendContext struct {
 // RenderCampaignVars substitue les variables autorisées avec échappement HTML.
 // `unsubscribe_url` est une URL signée générée par l'appelant : on l'échappe
 // comme attribut, on ne la valide pas ici (le signataire l'a construite).
-func RenderCampaignVars(text, publicationName, unsubscribeURL string) string {
+func RenderCampaignVars(text, publisherName, unsubscribeURL string) string {
 	out := text
-	out = strings.ReplaceAll(out, "{{publication_name}}", html.EscapeString(publicationName))
-	out = strings.ReplaceAll(out, "{{ publication_name }}", html.EscapeString(publicationName))
+	out = strings.ReplaceAll(out, "{{publisher_name}}", html.EscapeString(publisherName))
+	out = strings.ReplaceAll(out, "{{ publisher_name }}", html.EscapeString(publisherName))
 	out = strings.ReplaceAll(out, "{{unsubscribe_url}}", html.EscapeString(unsubscribeURL))
 	out = strings.ReplaceAll(out, "{{ unsubscribe_url }}", html.EscapeString(unsubscribeURL))
 	return out
@@ -197,7 +197,7 @@ type StaffCampaignDTO struct {
 	BodyHTMLEn       string `json:"bodyHtmlEn,omitempty"`
 	BodyTextEn       string `json:"bodyTextEn,omitempty"`
 	AudienceType     string `json:"audienceType"`
-	AudiencePubID    string `json:"audiencePublicationId,omitempty"`
+	AudiencePubID    string `json:"audiencePublisherId,omitempty"`
 	AudienceSnapshot string `json:"audienceSnapshot,omitempty"`
 	Status           string `json:"status"`
 	DraftedBy        string `json:"draftedBy,omitempty"`
@@ -223,7 +223,7 @@ type StaffCampaignInput struct {
 	BodyHTMLEn    string `json:"bodyHtmlEn"`
 	BodyTextEn    string `json:"bodyTextEn"`
 	AudienceType  string `json:"audienceType"`
-	AudiencePubID string `json:"audiencePublicationId"`
+	AudiencePubID string `json:"audiencePublisherId"`
 	ScheduledAt   string `json:"scheduledAt"`
 }
 
@@ -270,7 +270,7 @@ func (s *Service) CreateCampaign(ctx context.Context, staffID string, in StaffCa
 		INSERT INTO "StaffCampaign" (
 		    "id", "type", "featureKey", "subject", "bodyHtml", "bodyText",
 		    "subjectEn", "bodyHtmlEn", "bodyTextEn",
-		    "audienceType", "audiencePublicationId",
+		    "audienceType", "audiencePublisherId",
 		    "status", "draftedBy", "scheduledAt", "createdAt", "updatedAt"
 		) VALUES ($1, $2, NULLIF($3, ''), $4, $5, $6, NULLIF($7, ''), NULLIF($8, ''), NULLIF($9, ''),
 		          $10, NULLIF($11, ''), 'draft', $12, NULLIF($13, '')::timestamptz, now(), now())`,
@@ -321,7 +321,7 @@ func (s *Service) UpdateDraft(ctx context.Context, staffID, id string, in StaffC
 		UPDATE "StaffCampaign"
 		SET "type" = $2, "featureKey" = NULLIF($3, ''), "subject" = $4, "bodyHtml" = $5, "bodyText" = $6,
 		    "subjectEn" = NULLIF($7, ''), "bodyHtmlEn" = NULLIF($8, ''), "bodyTextEn" = NULLIF($9, ''),
-		    "audienceType" = $10, "audiencePublicationId" = NULLIF($11, ''),
+		    "audienceType" = $10, "audiencePublisherId" = NULLIF($11, ''),
 		    "scheduledAt" = NULLIF($12, '')::timestamptz, "updatedAt" = now()
 		WHERE "id" = $1`, id, in.Type, strings.TrimSpace(in.FeatureKey), strings.TrimSpace(in.Subject), in.BodyHTML,
 		strings.TrimSpace(in.BodyText), strings.TrimSpace(in.SubjectEn),
@@ -355,7 +355,7 @@ func (s *Service) ApproveCampaign(ctx context.Context, staffID, id string) (Staf
 	var status, draftedBy, audienceType, audiencePubID, featureKey string
 	err := s.pool.QueryRow(ctx, `
 		SELECT "status", COALESCE("draftedBy"::text, ''),
-		       "audienceType", COALESCE("audiencePublicationId", ''), COALESCE("featureKey", '')
+		       "audienceType", COALESCE("audiencePublisherId", ''), COALESCE("featureKey", '')
 		FROM "StaffCampaign" WHERE "id" = $1`,
 		id).Scan(&status, &draftedBy, &audienceType, &audiencePubID, &featureKey)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -378,7 +378,7 @@ func (s *Service) ApproveCampaign(ctx context.Context, staffID, id string) (Staf
 		return StaffCampaignDTO{}, err
 	}
 	snapshot := map[string]any{
-		"audienceType": audienceType, "publicationId": audiencePubID,
+		"audienceType": audienceType, "publisherId": audiencePubID,
 		"estimatedRecipients": count, "frozenAt": time.Now().UTC().Format(time.RFC3339),
 	}
 	snapshotRaw, err := json.Marshal(snapshot)
@@ -403,7 +403,7 @@ func (s *Service) ApproveCampaign(ctx context.Context, staffID, id string) (Staf
 // mêmes prédicats que la matérialisation (abonnés actifs confirmés non
 // supprimés ; comptes non suspendus). Le chiffre est indicatif (figé au
 // snapshot) : l'éligibilité réelle est revérifiée à chaque envoi.
-func (s *Service) estimateAudience(ctx context.Context, audienceType, publicationID, featureKey string) (int, error) {
+func (s *Service) estimateAudience(ctx context.Context, audienceType, publisherID, featureKey string) (int, error) {
 	var n int
 	var err error
 	switch audienceType {
@@ -418,7 +418,7 @@ func (s *Service) estimateAudience(ctx context.Context, audienceType, publicatio
 	case CampaignAudienceSubscribers:
 		err = s.pool.QueryRow(ctx, `
 			SELECT COUNT(*) FROM "Subscriber" s
-			WHERE s."publicationId" = $1
+			WHERE s."publisherId" = $1
 			  AND s."isActive" = true
 			  AND s."receiveArticles" = true
 			  AND s."confirmedAt" IS NOT NULL
@@ -426,8 +426,8 @@ func (s *Service) estimateAudience(ctx context.Context, audienceType, publicatio
 			      SELECT 1 FROM "EmailSuppression" x
 			      WHERE x.email = s.email
 			        AND (x."scope" = 'global'
-			             OR (x."scope" = 'publication' AND x."publicationId" = s."publicationId")))`,
-			publicationID).Scan(&n)
+			             OR (x."scope" = 'publisher' AND x."publisherId" = s."publisherId")))`,
+			publisherID).Scan(&n)
 	case CampaignAudienceInterested:
 		err = s.pool.QueryRow(ctx, `
 			SELECT COUNT(*) FROM "FeatureInterest" i
@@ -457,7 +457,7 @@ func (s *Service) GetCampaign(ctx context.Context, id string) (StaffCampaignDTO,
 	err := s.pool.QueryRow(ctx, `
 		SELECT "id", "type", COALESCE("featureKey", ''), "subject", "bodyHtml", "bodyText",
 		       "subjectEn", "bodyHtmlEn", "bodyTextEn",
-		       "audienceType", "audiencePublicationId", "audienceSnapshot",
+		       "audienceType", "audiencePublisherId", "audienceSnapshot",
 		       "status", "draftedBy", "approvedBy",
 		       "approvedAt", "scheduledAt",
 		       "sentCount", "failedCount", "skippedCount",
@@ -545,7 +545,7 @@ func (s *Service) ListCampaigns(ctx context.Context, limit int) ([]StaffCampaign
 func (s *Service) StartCampaign(ctx context.Context, staffID, id string) (StaffCampaignDTO, error) {
 	var status, audienceType, audiencePubID, campaignType, featureKey string
 	err := s.pool.QueryRow(ctx, `
-		SELECT "status", "audienceType", COALESCE("audiencePublicationId", ''), "type", COALESCE("featureKey", '')
+		SELECT "status", "audienceType", COALESCE("audiencePublisherId", ''), "type", COALESCE("featureKey", '')
 		FROM "StaffCampaign" WHERE "id" = $1`,
 		id).Scan(&status, &audienceType, &audiencePubID, &campaignType, &featureKey)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -578,7 +578,7 @@ func (s *Service) StartCampaign(ctx context.Context, staffID, id string) (StaffC
 			INSERT INTO "StaffCampaignDelivery" ("id", "campaignId", "email", "status", "createdAt", "updatedAt")
 			SELECT gen_random_uuid()::text, $1, s.email, 'queued', now(), now()
 			FROM "Subscriber" s
-			WHERE s."publicationId" = $2
+			WHERE s."publisherId" = $2
 			  AND s."isActive" = true
 			  AND s."receiveArticles" = true
 			  AND s."confirmedAt" IS NOT NULL
@@ -586,7 +586,7 @@ func (s *Service) StartCampaign(ctx context.Context, staffID, id string) (StaffC
 			      SELECT 1 FROM "EmailSuppression" x
 			      WHERE x.email = s.email
 			        AND (x."scope" = 'global'
-			             OR (x."scope" = 'publication' AND x."publicationId" = s."publicationId")))
+			             OR (x."scope" = 'publisher' AND x."publisherId" = s."publisherId")))
 			ON CONFLICT ("campaignId", "email") DO NOTHING`, id, audiencePubID)
 		if err != nil {
 			return StaffCampaignDTO{}, err
@@ -848,7 +848,7 @@ func (s *Service) FinishCampaignIfDrained(ctx context.Context, campaignID string
 func (s *Service) CampaignRecipientContext(ctx context.Context, campaignID, email string) (pubName, locale string, err error) {
 	var audienceType, audiencePubID string
 	err = s.pool.QueryRow(ctx, `
-		SELECT "audienceType", COALESCE("audiencePublicationId", '')
+		SELECT "audienceType", COALESCE("audiencePublisherId", '')
 		FROM "StaffCampaign" WHERE "id" = $1`, campaignID).Scan(&audienceType, &audiencePubID)
 	if err != nil {
 		return "", "", err
@@ -858,8 +858,8 @@ func (s *Service) CampaignRecipientContext(ctx context.Context, campaignID, emai
 		err = s.pool.QueryRow(ctx, `
 			SELECT COALESCE(p."name", ''), COALESCE(
 			  (SELECT s2."locale" FROM "Subscriber" s2
-			   WHERE s2."publicationId" = $1 AND s2."email" = $2 LIMIT 1), 'fr')
-			FROM "Publication" p WHERE p."id" = $1`, audiencePubID, email).Scan(&pubName, &locale)
+			   WHERE s2."publisherId" = $1 AND s2."email" = $2 LIMIT 1), 'fr')
+			FROM "Publisher" p WHERE p."id" = $1`, audiencePubID, email).Scan(&pubName, &locale)
 		if err != nil {
 			return "", "", err
 		}
@@ -879,18 +879,18 @@ func (s *Service) CampaignSendContext(ctx context.Context, campaignID, email str
 	var out CampaignSendContext
 	err := s.pool.QueryRow(ctx, `
 		SELECT COALESCE(c."featureKey", ''), COALESCE(d."interestId", ''),
-		       c."audiencePublicationId", COALESCE(p."name", ''),
+		       c."audiencePublisherId", COALESCE(p."name", ''),
 		       COALESCE(c."subject", ''), COALESCE(c."bodyHtml", ''),
 		       COALESCE(c."subjectEn", ''), COALESCE(c."bodyHtmlEn", ''),
 		       COALESCE(
 		         (SELECT s2."locale" FROM "Subscriber" s2
-		          WHERE s2."publicationId" = c."audiencePublicationId" AND s2."email" = $2 LIMIT 1),
+		          WHERE s2."publisherId" = c."audiencePublisherId" AND s2."email" = $2 LIMIT 1),
 		         'fr')
 		FROM "StaffCampaign" c
-		LEFT JOIN "Publication" p ON p."id" = c."audiencePublicationId"
+		LEFT JOIN "Publisher" p ON p."id" = c."audiencePublisherId"
 		JOIN "StaffCampaignDelivery" d ON d."campaignId" = c."id" AND d."email" = $2
 		WHERE c."id" = $1`, campaignID, email).Scan(
-		&out.FeatureKey, &out.InterestID, &out.PublicationID, &out.PublicationName,
+		&out.FeatureKey, &out.InterestID, &out.PublisherID, &out.PublisherName,
 		&out.SubjectFR, &out.BodyFR, &out.SubjectEN, &out.BodyEN,
 		&out.Locale)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -900,8 +900,8 @@ func (s *Service) CampaignSendContext(ctx context.Context, campaignID, email str
 		return out, err
 	}
 	// Audience globale : pas de publication, pas de nom inventé.
-	if out.PublicationID == "" {
-		out.PublicationName = "qoe.fi"
+	if out.PublisherID == "" {
+		out.PublisherName = "qoe.fi"
 	}
 	if out.Locale != "en" {
 		out.Locale = "fr"

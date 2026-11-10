@@ -36,11 +36,7 @@ describe('parseExternalUrl — Analyseur souverain d’URL externe', () => {
 describe('ExitCard — Rendu Apple-esque de la carte de sortie', () => {
   it('affiche le nom de domaine cible et le bouton de continuation pour une URL valide', () => {
     const html = renderToStaticMarkup(
-      <ExitCard
-        targetUrl="https://substack.com/@creator"
-        publicationName="Le Carnet"
-        onBackUrl="/"
-      />
+      <ExitCard targetUrl="https://substack.com/@creator" publisherName="Le Carnet" onBackUrl="/" />
     );
 
     expect(html).toContain('Redirection externe');
@@ -53,7 +49,7 @@ describe('ExitCard — Rendu Apple-esque de la carte de sortie', () => {
 
   it('affiche un message de sécurité élégant si l’URL est absente ou invalide', () => {
     const html = renderToStaticMarkup(
-      <ExitCard targetUrl="javascript:void(0)" publicationName="Le Carnet" onBackUrl="/" />
+      <ExitCard targetUrl="javascript:void(0)" publisherName="Le Carnet" onBackUrl="/" />
     );
 
     expect(html).toContain('L’adresse fournie est incomplète ou utilise un protocole non reconnu.');

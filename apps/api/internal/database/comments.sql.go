@@ -37,18 +37,18 @@ func (q *Queries) GetArticleCommentAuthor(ctx context.Context, id string) (strin
 const getArticleCommentsConfig = `-- name: GetArticleCommentsConfig :one
 SELECT a."allowComments" AS article_allow_comments,
        a."authorId"::text AS author_id,
-       a."publicationId" AS publication_id,
-       p."allowComments" AS publication_allow_comments
+       a."publisherId" AS publisher_id,
+       p."allowComments" AS publisher_allow_comments
 FROM "Article" a
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 WHERE a.id = $1
 `
 
 type GetArticleCommentsConfigRow struct {
-	ArticleAllowComments     bool   `json:"article_allow_comments"`
-	AuthorID                 string `json:"author_id"`
-	PublicationID            string `json:"publication_id"`
-	PublicationAllowComments bool   `json:"publication_allow_comments"`
+	ArticleAllowComments   bool   `json:"article_allow_comments"`
+	AuthorID               string `json:"author_id"`
+	PublisherID            string `json:"publisher_id"`
+	PublisherAllowComments bool   `json:"publisher_allow_comments"`
 }
 
 func (q *Queries) GetArticleCommentsConfig(ctx context.Context, id string) (GetArticleCommentsConfigRow, error) {
@@ -57,8 +57,8 @@ func (q *Queries) GetArticleCommentsConfig(ctx context.Context, id string) (GetA
 	err := row.Scan(
 		&i.ArticleAllowComments,
 		&i.AuthorID,
-		&i.PublicationID,
-		&i.PublicationAllowComments,
+		&i.PublisherID,
+		&i.PublisherAllowComments,
 	)
 	return i, err
 }
@@ -182,7 +182,7 @@ WHERE c."articleId" = $1
   AND (
     COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
     OR u.id = $2
-    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = $2 AND f."publicationId" = u."publicationId")
+    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = $2 AND f."publisherId" = u."publisherId")
   )
 ORDER BY c."createdAt" ASC
 `

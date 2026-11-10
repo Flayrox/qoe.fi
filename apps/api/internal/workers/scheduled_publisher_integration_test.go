@@ -23,11 +23,11 @@ func seedScheduledArticles(t *testing.T) (dueID, futureID, draftID string) {
 		t.Helper()
 		if _, err := poolTest.Exec(context.Background(),
 			`INSERT INTO "Article" (id, title, slug, content, published, visibility,
-			                        "readingTime", status, "publicationId", "authorId",
+			                        "readingTime", status, "publisherId", "authorId",
 			                        "scheduledAt", "createdAt", "updatedAt")
 			 VALUES ($1, $2, $3, '<p>Test</p>', false, 'PUBLIC', 3, $4, $5, $6,
 			         $7, now(), now())`,
-			id, "Titre "+id, "slug-"+id, status, fx.PublicationID, fx.OwnerID, scheduledAt,
+			id, "Titre "+id, "slug-"+id, status, fx.PublisherID, fx.OwnerID, scheduledAt,
 		); err != nil {
 			t.Fatalf("insert %s: %v", id, err)
 		}

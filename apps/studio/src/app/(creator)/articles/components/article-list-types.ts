@@ -34,8 +34,18 @@ export interface ArticleWithCategory {
   allowComments?: boolean;
   allowDownload?: boolean;
   showOnPersonalProfile?: boolean;
-  publicationId?: string;
-  publication?: {
+  canEdit?: boolean;
+  isAuthorSovereignCopy?: boolean;
+  originArticleId?: string | null;
+  sovereignCopyId?: string | null;
+  originPublisher?: {
+    id: string;
+    name: string;
+    slug: string;
+    type?: string;
+  } | null;
+  publisherId?: string;
+  publisher?: {
     id: string;
     name: string;
     slug: string;

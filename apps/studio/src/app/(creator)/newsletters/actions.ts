@@ -26,12 +26,12 @@ async function getContext() {
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Non authentifié');
   const workspace = await getActiveWorkspace(user.id);
-  return { user, publicationId: workspace.publicationId, workspaceName: workspace.name };
+  return { user, publisherId: workspace.publisherId, workspaceName: workspace.name };
 }
 
 export interface NewsletterIssue {
   id: string;
-  publicationId: string;
+  publisherId: string;
   subject: string;
   previewText: string | null;
   html: string;
@@ -45,10 +45,10 @@ export interface NewsletterIssue {
 }
 
 export async function listNewslettersAction() {
-  const { publicationId } = await getContext();
+  const { publisherId } = await getContext();
   try {
     const res = await goFetch<{ items: NewsletterIssue[] }>(
-      `/v1/newsletters?publicationId=${encodeURIComponent(publicationId)}`
+      `/v1/newsletters?publisherId=${encodeURIComponent(publisherId)}`
     );
     return { success: true as const, items: res.items ?? [] };
   } catch (err) {
@@ -61,7 +61,7 @@ export async function createNewsletterAction(input: {
   previewText: string;
   html: string;
 }) {
-  const { publicationId } = await getContext();
+  const { publisherId } = await getContext();
   const subject = input.subject?.trim();
   const html = input.html?.trim();
   if (!subject || !html) return { success: false as const, error: 'Sujet et contenu requis' };
@@ -69,7 +69,7 @@ export async function createNewsletterAction(input: {
   try {
     const issue = await goFetch<NewsletterIssue>('/v1/newsletters', {
       method: 'POST',
-      body: { publicationId, subject, previewText: input.previewText?.trim() ?? '', html },
+      body: { publisherId, subject, previewText: input.previewText?.trim() ?? '', html },
     });
     revalidatePath('/newsletters');
     // L'issue créée est renvoyée : le compositeur peut enchaîner sur un
@@ -84,7 +84,7 @@ export async function updateNewsletterAction(
   id: string,
   input: { subject: string; previewText: string; html: string }
 ) {
-  const { publicationId } = await getContext();
+  const { publisherId } = await getContext();
   const subject = input.subject?.trim();
   const html = input.html?.trim();
   if (!subject || !html) return { success: false as const, error: 'Sujet et contenu requis' };
@@ -92,7 +92,7 @@ export async function updateNewsletterAction(
   try {
     const issue = await goFetch<NewsletterIssue>(`/v1/newsletters/${encodeURIComponent(id)}`, {
       method: 'PATCH',
-      body: { publicationId, subject, previewText: input.previewText?.trim() ?? '', html },
+      body: { publisherId, subject, previewText: input.previewText?.trim() ?? '', html },
     });
     revalidatePath('/newsletters');
     return { success: true as const, issue };

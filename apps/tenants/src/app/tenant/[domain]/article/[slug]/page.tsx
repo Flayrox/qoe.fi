@@ -13,5 +13,5 @@ export default async function LegacyArticlePage({ params }: PageProps) {
   const decodedSlug = decodeURIComponent(slug);
   const bundle = await fetchTenantArticle(decodedDomain, decodedSlug);
   if (!bundle) permanentRedirect('/');
-  permanentRedirect(buildArticlePath(bundle.article, bundle.publication.categories));
+  permanentRedirect(buildArticlePath(bundle.article, bundle.publisher.categories));
 }

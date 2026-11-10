@@ -6,7 +6,7 @@
 // publiés et ses catégories. L'article d'une publication inclut l'auteur,
 // la catégorie, les entitlements du lecteur (abonné) et ses interactions
 // (bookmark + follow). Auth optionnelle : le viewer est lu du JWT.
-package publications
+package publishers
 
 import (
 	"context"
@@ -43,7 +43,7 @@ type NavItem struct {
 	URL           string  `json:"url"`
 	Order         int32   `json:"order"`
 	IsExternal    bool    `json:"isExternal"`
-	PublicationID string  `json:"publicationId"`
+	PublisherID string  `json:"publisherId"`
 	ParentID      *string `json:"parentId"`
 }
 
@@ -52,7 +52,7 @@ type SocialLinkItem struct {
 	Platform      string `json:"platform"`
 	URL           string `json:"url"`
 	Order         int32  `json:"order"`
-	PublicationID string `json:"publicationId"`
+	PublisherID string `json:"publisherId"`
 }
 
 type CategoryItem struct {
@@ -65,7 +65,7 @@ type CategoryItem struct {
 	IsDefault   bool    `json:"isDefault"`
 }
 
-type OriginPublicationInfo struct {
+type OriginPublisherInfo struct {
 	ID      string  `json:"id"`
 	Name    string  `json:"name"`
 	Slug    string  `json:"slug"`
@@ -86,14 +86,14 @@ type ArticleSummary struct {
 	CreatedAt         string                 `json:"createdAt"`
 	CategoryID        *string                `json:"categoryId"`
 	Category          *CategoryItem          `json:"category,omitempty"`
-	OriginPublication *OriginPublicationInfo `json:"originPublication,omitempty"`
+	OriginPublisher *OriginPublisherInfo `json:"originPublisher,omitempty"`
 	// Compteurs d'engagement réels (alimentent le tri par popularité côté home).
 	LikesCount    int `json:"likesCount"`
 	CommentsCount int `json:"commentsCount"`
 	RepostsCount  int `json:"repostsCount"`
 }
 
-type PublicationUser struct {
+type PublisherUser struct {
 	ID       string  `json:"id"`
 	Username *string `json:"username"`
 	Name     *string `json:"name,omitempty"`
@@ -101,7 +101,7 @@ type PublicationUser struct {
 }
 
 // PublicationDetail est la publication dénormalisée (header + home).
-type PublicationDetail struct {
+type PublisherDetail struct {
 	ID                     string           `json:"id"`
 	Type                   string           `json:"type"`
 	Name                   string           `json:"name"`
@@ -130,7 +130,7 @@ type PublicationDetail struct {
 	SocialLinks            []SocialLinkItem `json:"socialLinks"`
 	Categories             []CategoryItem   `json:"categories"`
 	Articles               []ArticleSummary `json:"articles,omitempty"`
-	User                   *PublicationUser `json:"user,omitempty"`
+	User                   *PublisherUser `json:"user,omitempty"`
 	SiteOptions            any              `json:"siteOptions,omitempty"`
 	Team                   []TeamMemberItem `json:"team,omitempty"`
 }
@@ -149,13 +149,13 @@ type TeamMemberItem struct {
 // RecommendationItem est une publication recommandée par un créateur.
 type RecommendationItem struct {
 	ID                      string  `json:"id"`
-	PublicationID           string  `json:"publicationId"`
-	PublicationName         string  `json:"name"`
-	PublicationSlug         string  `json:"slug"`
-	PublicationSubdomain    *string `json:"subdomain"`
-	PublicationCustomDomain *string `json:"customDomain"`
-	PublicationBio          *string `json:"bio"`
-	PublicationLogoURL      *string `json:"logoUrl"`
+	PublisherID           string  `json:"publisherId"`
+	PublisherName         string  `json:"name"`
+	PublisherSlug         string  `json:"slug"`
+	PublisherSubdomain    *string `json:"subdomain"`
+	PublisherCustomDomain *string `json:"customDomain"`
+	PublisherBio          *string `json:"bio"`
+	PublisherLogoURL      *string `json:"logoUrl"`
 	Description             *string `json:"description"`
 }
 
@@ -191,8 +191,12 @@ type ArticleDetail struct {
 	AllowDownload          bool          `json:"allowDownload"`
 	SeoTitle               *string       `json:"seoTitle"`
 	SeoDescription         *string       `json:"seoDescription"`
-	CreatedAt              string        `json:"createdAt"`
-	AuthorID               string        `json:"authorId"`
+	CreatedAt              string               `json:"createdAt"`
+	OriginArticleID        *string              `json:"originArticleId,omitempty"`
+	CanonicalType          string               `json:"canonicalType,omitempty"`
+	CanonicalURL           *string              `json:"canonicalUrl,omitempty"`
+	OriginPublisher        *OriginPublisherInfo `json:"originPublisher,omitempty"`
+	AuthorID               string               `json:"authorId"`
 	Category               *CategoryItem `json:"category"`
 	Author                 *AuthorInfo   `json:"author"`
 	LikesCount             int           `json:"likesCount"`
@@ -210,7 +214,7 @@ type Entitlements struct {
 
 // ArticleBundle est la réponse complète de la page article tenant.
 type ArticleBundle struct {
-	Publication             PublicationDetail `json:"publication"`
+	Publisher             PublisherDetail `json:"publisher"`
 	Article                 ArticleDetail     `json:"article"`
 	Entitlements            Entitlements      `json:"entitlements"`
 	Bookmarked              bool              `json:"bookmarked"`
@@ -226,7 +230,7 @@ type ArticleBundle struct {
 // ByDomain retourne la publication identifiée par sous-domaine ou domaine
 // personnalisé, avec navigation, réseaux sociaux, catégories et articles
 // publiés (tri createdAt DESC).
-func (s *Service) ByDomain(ctx context.Context, domain string) (*PublicationDetail, error) {
+func (s *Service) ByDomain(ctx context.Context, domain string) (*PublisherDetail, error) {
 	domain = strings.ToLower(strings.TrimSpace(domain))
 	pub, err := s.publicationByDomain(ctx, domain)
 	if err != nil {
@@ -284,7 +288,7 @@ func (s *Service) Article(ctx context.Context, domain, slug, viewerID, viewerEma
 	}
 	pub.Categories = cats
 
-	bundle := &ArticleBundle{Publication: *pub}
+	bundle := &ArticleBundle{Publisher: *pub}
 	article, viaAttribution, err := s.articleBySlugOrID(ctx, pub.ID, slug, pub.User)
 	if err != nil {
 		return nil, err
@@ -295,6 +299,17 @@ func (s *Service) Article(ctx context.Context, domain, slug, viewerID, viewerEma
 		attributionSlug, err := s.attributionCategorySlug(ctx, article.ID, pub.User.ID)
 		if err == nil {
 			bundle.AttributionCategorySlug = attributionSlug
+		}
+	}
+	if bundle.Article.OriginArticleID != nil && *bundle.Article.OriginArticleID != "" {
+		var orig OriginPublisherInfo
+		if err := s.pool.QueryRow(ctx, `
+			SELECT p.id, p.name, p.slug, p.type::text, p."logoUrl"
+			FROM "Article" a
+			JOIN "Publisher" p ON p.id = a."publisherId"
+			WHERE a.id = $1
+		`, *bundle.Article.OriginArticleID).Scan(&orig.ID, &orig.Name, &orig.Slug, &orig.Type, &orig.LogoURL); err == nil {
+			bundle.Article.OriginPublisher = &orig
 		}
 	}
 
@@ -385,21 +400,21 @@ func (s *Service) AllowTLS(ctx context.Context, domain string) (bool, error) {
 	}
 	var exists bool
 	err := s.pool.QueryRow(ctx,
-		`SELECT EXISTS(SELECT 1 FROM "Publication" WHERE lower(subdomain) = $1)`, sub).Scan(&exists)
+		`SELECT EXISTS(SELECT 1 FROM "Publisher" WHERE lower(subdomain) = $1)`, sub).Scan(&exists)
 	if err != nil {
 		return false, err
 	}
 	return exists, nil
 }
 
-func (s *Service) publicationByDomain(ctx context.Context, domain string) (*PublicationDetail, error) {
+func (s *Service) publicationByDomain(ctx context.Context, domain string) (*PublisherDetail, error) {
 	clean := strings.TrimSpace(domain)
 	sub := clean
 	for _, suffix := range []string{".qoe.fi", ".qoe.test", ".localhost", ":15403", ":80", ":443"} {
 		sub = strings.TrimSuffix(sub, suffix)
 	}
 
-	var p PublicationDetail
+	var p PublisherDetail
 	var userID, username, userName, userLogo *string
 	var createdAt, updatedAt time.Time
 	var siteOptionsBytes []byte
@@ -412,8 +427,8 @@ func (s *Service) publicationByDomain(ctx context.Context, domain string) (*Publ
 		       p."seoDescription", p."supportUrl", p."stripeAccountId",
 		       p."siteOptions",
 		       p."createdAt", p."updatedAt", u.id, u.username, u.name, u."logoUrl"
-		FROM "Publication" p
-		LEFT JOIN "User" u ON u."publicationId" = p.id
+		FROM "Publisher" p
+		LEFT JOIN "User" u ON u."publisherId" = p.id
 		WHERE lower(p.subdomain) = lower($1) OR lower(p.subdomain) = lower($2) OR lower(p."customDomain") = lower($1) OR lower(p.slug) = lower($1)
 		LIMIT 1`, clean, sub).Scan(
 		&p.ID, &p.Type, &p.Name, &p.Slug, &p.Bio, &p.LogoURL, &p.IsCertified,
@@ -437,16 +452,16 @@ func (s *Service) publicationByDomain(ctx context.Context, domain string) (*Publ
 		}
 	}
 	if userID != nil {
-		p.User = &PublicationUser{ID: *userID, Username: username, Name: userName, LogoURL: userLogo}
+		p.User = &PublisherUser{ID: *userID, Username: username, Name: userName, LogoURL: userLogo}
 	}
 	return &p, nil
 }
 
 func (s *Service) navigation(ctx context.Context, pubID string) ([]NavItem, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT id, label, url, "order", "isExternal", "publicationId", "parentId"
+		SELECT id, label, url, "order", "isExternal", "publisherId", "parentId"
 		FROM "NavigationItem"
-		WHERE "publicationId" = $1 ORDER BY "order" ASC`, pubID)
+		WHERE "publisherId" = $1 ORDER BY "order" ASC`, pubID)
 	if err != nil {
 		return nil, err
 	}
@@ -455,7 +470,7 @@ func (s *Service) navigation(ctx context.Context, pubID string) ([]NavItem, erro
 	for rows.Next() {
 		var n NavItem
 		if err := rows.Scan(&n.ID, &n.Label, &n.URL, &n.Order, &n.IsExternal,
-			&n.PublicationID, &n.ParentID); err != nil {
+			&n.PublisherID, &n.ParentID); err != nil {
 			return nil, err
 		}
 		out = append(out, n)
@@ -465,8 +480,8 @@ func (s *Service) navigation(ctx context.Context, pubID string) ([]NavItem, erro
 
 func (s *Service) socialLinks(ctx context.Context, pubID string) ([]SocialLinkItem, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT id, platform, url, "order", "publicationId" FROM "SocialLink"
-		WHERE "publicationId" = $1 ORDER BY "order" ASC`, pubID)
+		SELECT id, platform, url, "order", "publisherId" FROM "SocialLink"
+		WHERE "publisherId" = $1 ORDER BY "order" ASC`, pubID)
 	if err != nil {
 		return nil, err
 	}
@@ -474,7 +489,7 @@ func (s *Service) socialLinks(ctx context.Context, pubID string) ([]SocialLinkIt
 	out := []SocialLinkItem{}
 	for rows.Next() {
 		var sl SocialLinkItem
-		if err := rows.Scan(&sl.ID, &sl.Platform, &sl.URL, &sl.Order, &sl.PublicationID); err != nil {
+		if err := rows.Scan(&sl.ID, &sl.Platform, &sl.URL, &sl.Order, &sl.PublisherID); err != nil {
 			return nil, err
 		}
 		out = append(out, sl)
@@ -485,7 +500,7 @@ func (s *Service) socialLinks(ctx context.Context, pubID string) ([]SocialLinkIt
 func (s *Service) categories(ctx context.Context, pubID string) ([]CategoryItem, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, name, slug, description, "parentId", "isDefault" FROM "Category"
-		WHERE "publicationId" = $1 ORDER BY "isDefault" ASC, name ASC`, pubID)
+		WHERE "publisherId" = $1 ORDER BY "isDefault" ASC, name ASC`, pubID)
 	if err != nil {
 		return nil, err
 	}
@@ -509,18 +524,18 @@ func (s *Service) publishedArticles(ctx context.Context, pubID string) ([]Articl
 		       (SELECT count(*) FROM "ContentFeedback" f WHERE f."articleId" = a.id AND f."type" = 'LIKE') AS likes,
 		       (SELECT count(*) FROM "ArticleComment" ac WHERE ac."articleId" = a.id) AS comments,
 		       (SELECT count(*) FROM "Post" p WHERE p."quotedArticleId" = a.id) AS reposts,
-		       a."publicationId", ap.name, ap.slug, ap.type::text, ap."logoUrl"
+		       a."publisherId", ap.name, ap.slug, ap.type::text, ap."logoUrl"
 		FROM "Article" a
-		LEFT JOIN "Publication" ap ON ap.id = a."publicationId"
+		LEFT JOIN "Publisher" ap ON ap.id = a."publisherId"
 		LEFT JOIN "Category" c ON c.id = a."categoryId"
 		LEFT JOIN "Category" cp ON cp.id = c."parentId"
 		WHERE a.published = true
 		  AND (
-		    a."publicationId" = $1
+		    a."publisherId" = $1
 		    OR EXISTS (
 		      SELECT 1
-		      FROM "Publication" tp
-		      JOIN "User" tu ON tu."publicationId" = tp.id
+		      FROM "Publisher" tp
+		      JOIN "User" tu ON tu."publisherId" = tp.id
 		      WHERE tp.id = $1
 		        AND tp.type = 'PERSONAL'
 		        AND (
@@ -573,7 +588,7 @@ func (s *Service) publishedArticles(ctx context.Context, pubID string) ([]Articl
 			}
 		}
 		if artPubID != "" && artPubID != pubID && artPubName != nil && artPubSlug != nil && artPubType != nil {
-			a.OriginPublication = &OriginPublicationInfo{
+			a.OriginPublisher = &OriginPublisherInfo{
 				ID:      artPubID,
 				Name:    *artPubName,
 				Slug:    *artPubSlug,
@@ -586,7 +601,7 @@ func (s *Service) publishedArticles(ctx context.Context, pubID string) ([]Articl
 	return out, rows.Err()
 }
 
-func (s *Service) articleBySlugOrID(ctx context.Context, pubID, slug string, pubUser *PublicationUser) (*ArticleDetail, bool, error) {
+func (s *Service) articleBySlugOrID(ctx context.Context, pubID, slug string, pubUser *PublisherUser) (*ArticleDetail, bool, error) {
 	article, err := s.articleDirect(ctx, pubID, slug)
 	if err == nil {
 		return article, false, nil
@@ -608,16 +623,18 @@ func scanArticleDetail(row pgx.Row) (*ArticleDetail, error) {
 	var a ArticleDetail
 	var catID, catName, catSlug, catParentSlug *string
 	var catIsDefault bool
-	var authorName, authorUsername, authorLogo, publicationLogo *string
+	var authorName, authorUsername, authorLogo, publisherLogo *string
 	var publicationType string
-	var imageURL, seoTitle, seoDescription *string
+	var imageURL, seoTitle, seoDescription, originArticleID, canonicalURL *string
+	var canonicalType string
 	var createdAt time.Time
 	err := row.Scan(&a.ID, &a.Title, &a.Slug, &a.Content, &a.Published, &a.Status,
 		&a.IsPremium, &a.Visibility, &a.ReadingTime, &a.AllowPublicAnnotations,
 		&a.AllowComments, &a.AllowDownload, &seoTitle, &seoDescription,
 		&createdAt, &a.AuthorID, &imageURL,
+		&originArticleID, &canonicalType, &canonicalURL,
 		&catID, &catName, &catSlug, &catIsDefault, &catParentSlug,
-		&authorName, &authorUsername, &authorLogo, &publicationType, &publicationLogo)
+		&authorName, &authorUsername, &authorLogo, &publicationType, &publisherLogo)
 	if err != nil {
 		return nil, err
 	}
@@ -625,13 +642,16 @@ func scanArticleDetail(row pgx.Row) (*ArticleDetail, error) {
 	a.ImageURL = imageURL
 	a.SeoTitle = seoTitle
 	a.SeoDescription = seoDescription
+	a.OriginArticleID = originArticleID
+	a.CanonicalType = canonicalType
+	a.CanonicalURL = canonicalURL
 	if catID != nil {
 		a.Category = &CategoryItem{
 			ID: *catID, Name: *catName, Slug: *catSlug,
 			ParentSlug: catParentSlug, IsDefault: catIsDefault,
 		}
 	}
-	pubType := identity.FromPublicationType(publicationType)
+	pubType := identity.FromPublisherType(publicationType)
 	a.Author = &AuthorInfo{
 		ID: a.AuthorID, Name: authorName, Username: authorUsername, LogoURL: authorLogo,
 		Type: pubType,
@@ -644,18 +664,19 @@ const articleSelect = `
 	       a."isPremium", a.visibility, a."readingTime",
 	       a."allowPublicAnnotations", a."allowComments", a."allowDownload",
 	       a."seoTitle", a."seoDescription", a."createdAt", a."authorId", a."imageUrl",
+	       a."originArticleId", a."canonicalType", a."canonicalUrl",
 	       c.id, c.name, c.slug, COALESCE(c."isDefault", false), cp.slug,
 	       au.name, au.username, au."logoUrl",
 	       p.type, p."logoUrl"
 		FROM "Article" a
-		JOIN "Publication" p ON p.id = a."publicationId"
+		JOIN "Publisher" p ON p.id = a."publisherId"
 		LEFT JOIN "Category" c ON c.id = a."categoryId"
 		LEFT JOIN "Category" cp ON cp.id = c."parentId"
 		LEFT JOIN "User" au ON au.id = a."authorId"`
 
 func (s *Service) articleDirect(ctx context.Context, pubID, slug string) (*ArticleDetail, error) {
 	row := s.pool.QueryRow(ctx, articleSelect+`
-		WHERE a."publicationId" = $1 AND (lower(a.slug) = lower($2) OR a.id = $2)
+		WHERE a."publisherId" = $1 AND (lower(a.slug) = lower($2) OR a.id = $2)
 		LIMIT 1`, pubID, slug)
 	article, err := scanArticleDetail(row)
 	if err != nil {
@@ -708,7 +729,7 @@ func (s *Service) subscriberEntitlements(ctx context.Context, pubID, viewerID, v
 	var isActive, isPremium bool
 	err := s.pool.QueryRow(ctx, `
 		SELECT "isActive", "isPremium", "tierId" FROM "Subscriber"
-		WHERE "publicationId" = $1
+		WHERE "publisherId" = $1
 		  AND (("userId"::text = $2 AND $2 <> '') OR (lower(email) = lower($3) AND $3 <> ''))
 		LIMIT 1`, pubID, viewerID, viewerEmail).Scan(&isActive, &isPremium, &tierID)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
@@ -741,7 +762,7 @@ func (s *Service) isBookmarked(ctx context.Context, articleID, viewerID string) 
 func (s *Service) isFollowed(ctx context.Context, pubID, viewerID string) (bool, error) {
 	var one int
 	err := s.pool.QueryRow(ctx,
-		`SELECT 1 FROM "Follows" WHERE "publicationId" = $1 AND "readerId" = $2 LIMIT 1`,
+		`SELECT 1 FROM "Follows" WHERE "publisherId" = $1 AND "readerId" = $2 LIMIT 1`,
 		pubID, viewerID).Scan(&one)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, nil
@@ -762,7 +783,7 @@ func (s *Service) Recommendations(ctx context.Context, domain string) ([]Recomme
 	rows, err := s.pool.Query(ctx, `
 		SELECT r.id, r."description", p.id, p.name, p.slug, p.subdomain, p."customDomain", p.bio, p."logoUrl"
 		FROM "Recommendation" r
-		JOIN "Publication" p ON p.id = r."recommendedId"
+		JOIN "Publisher" p ON p.id = r."recommendedId"
 		WHERE r."recommenderId" = $1
 		ORDER BY r."createdAt" DESC
 	`, pub.ID)
@@ -775,20 +796,20 @@ func (s *Service) Recommendations(ctx context.Context, domain string) ([]Recomme
 	for rows.Next() {
 		var item RecommendationItem
 		var desc, sub, custom, bio, logo *string
-		if err := rows.Scan(&item.ID, &desc, &item.PublicationID, &item.PublicationName, &item.PublicationSlug, &sub, &custom, &bio, &logo); err != nil {
+		if err := rows.Scan(&item.ID, &desc, &item.PublisherID, &item.PublisherName, &item.PublisherSlug, &sub, &custom, &bio, &logo); err != nil {
 			return nil, err
 		}
 		item.Description = desc
-		item.PublicationSubdomain = sub
-		item.PublicationCustomDomain = custom
-		item.PublicationBio = bio
-		item.PublicationLogoURL = logo
+		item.PublisherSubdomain = sub
+		item.PublisherCustomDomain = custom
+		item.PublisherBio = bio
+		item.PublisherLogoURL = logo
 		out = append(out, item)
 	}
 	return out, rows.Err()
 }
 
-func (s *Service) teamMembers(ctx context.Context, pub *PublicationDetail) ([]TeamMemberItem, error) {
+func (s *Service) teamMembers(ctx context.Context, pub *PublisherDetail) ([]TeamMemberItem, error) {
 	membersMap := make(map[string]TeamMemberItem)
 
 	// 1. Owner / Créateur principal
@@ -826,7 +847,7 @@ func (s *Service) teamMembers(ctx context.Context, pub *PublicationDetail) ([]Te
 			FROM "Media" m
 			JOIN "MediaMember" mm ON mm."mediaId" = m.id AND mm.status = 'active'
 			JOIN "User" u ON u.id = mm."userId"
-			WHERE m."publicationId" = $1
+			WHERE m."publisherId" = $1
 			ORDER BY mm."joinedAt" ASC`, pub.ID)
 		if err == nil {
 			for rows.Next() {
@@ -869,7 +890,7 @@ func (s *Service) teamMembers(ctx context.Context, pub *PublicationDetail) ([]Te
 		SELECT DISTINCT u.id, u.name, u.username, u."logoUrl", u."isCertified"
 		FROM "Article" a
 		JOIN "User" u ON u.id = a."authorId"
-		WHERE a."publicationId" = $1 AND a.published = true
+		WHERE a."publisherId" = $1 AND a.published = true
 		LIMIT 15`, pub.ID)
 	if err == nil {
 		for rows.Next() {

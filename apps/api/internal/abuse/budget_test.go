@@ -65,7 +65,7 @@ func TestDailyWindow_Deterministic(t *testing.T) {
 func TestConsumeBudget_NilPool_OpenDegradation(t *testing.T) {
 	// Sans base (tests purs), le budget n'existe pas : on autorise. Une panne
 	// de budget ne doit jamais bloquer une inscription légitime.
-	ok, err := ConsumeBudget(context.Background(), nil, "publication", "x", ActionConfirmRequest, time.Now(), 1, 1)
+	ok, err := ConsumeBudget(context.Background(), nil, "publisher", "x", ActionConfirmRequest, time.Now(), 1, 1)
 	if err != nil || !ok {
 		t.Fatalf("pool nil : attendu (true, nil), obtenu (%v, %v)", ok, err)
 	}
@@ -197,7 +197,7 @@ func TestConfirmAllowed_TwoScopes(t *testing.T) {
 
 	// 3 demandes accordées (plafond adresse), la 4e refuse : l'adresse est
 	// protégée contre le harcèlement par confirmations.
-	for i := 0; i < ConfirmCapPerEmailPublication; i++ {
+	for i := 0; i < ConfirmCapPerEmailPublisher; i++ {
 		if !ConfirmAllowed(ctx, poolTest, email, pub, now) {
 			t.Fatalf("demande %d : attendu accord", i+1)
 		}

@@ -50,9 +50,9 @@ export interface AdminUserDetail {
   isSuspended: boolean;
   suspendReason: string | null;
   logoUrl: string | null;
-  publicationId: string | null;
+  publisherId: string | null;
   subdomain: string | null;
-  publicationName: string | null;
+  publisherName: string | null;
   articlesCount: number;
   subscribersCount: number;
   walletTransactions: number;
@@ -443,7 +443,7 @@ export async function getAdminSupportArticles(): Promise<{
 /** 💎 Octrois d'abonnements (intérim Stripe) : staff uniquement. */
 export interface SubscriptionGrantItem {
   id: string;
-  subjectType: 'user' | 'publication';
+  subjectType: 'user' | 'publisher';
   subjectId: string;
   plan: 'pro' | 'plus';
   startsAt: string;
@@ -732,7 +732,7 @@ export interface ComplianceSnapshot {
     critical: number;
     warning: number;
     documentsTracked: number;
-    missingPublications: number;
+    missingPublishers: number;
     overdueObligations: number;
   };
 }
@@ -1049,7 +1049,7 @@ export async function getAdminFeatureFlags(): Promise<FeatureFlagItem[]> {
 /** 👥 File de revue des imports d'abonnés (lots ouverts, plus anciens d'abord). */
 export interface ImportBatchItem {
   id: string;
-  publicationId: string;
+  publisherId: string;
   status: string;
   source: string;
   sourceDetail?: string;

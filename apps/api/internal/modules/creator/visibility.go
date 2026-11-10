@@ -25,13 +25,13 @@ type profileAccess struct {
 
 // resolveProfileAccess calcule l'accès au profil d'une publication.
 // Un blocage, dans un sens ou dans l'autre, rend le profil invisible.
-func (h *Handler) resolveProfileAccess(ctx context.Context, publicationID, viewerID string) (profileAccess, error) {
+func (h *Handler) resolveProfileAccess(ctx context.Context, publisherID, viewerID string) (profileAccess, error) {
 	access := profileAccess{Visibility: "PUBLIC"}
-	if publicationID == "" {
+	if publisherID == "" {
 		return access, nil
 	}
 
-	ownerID, err := h.q.GetPublicationOwner(ctx, publicationID)
+	ownerID, err := h.q.GetPublisherOwner(ctx, publisherID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return access, nil
@@ -59,7 +59,7 @@ func (h *Handler) resolveProfileAccess(ctx context.Context, publicationID, viewe
 
 		if _, err := h.q.GetExistingFollow(ctx, db.GetExistingFollowParams{
 			ReaderId:      toUUID(viewerID),
-			PublicationId: publicationID,
+			PublisherId: publisherID,
 		}); err == nil {
 			access.IsFollowing = true
 		} else if !errors.Is(err, pgx.ErrNoRows) {
@@ -68,7 +68,7 @@ func (h *Handler) resolveProfileAccess(ctx context.Context, publicationID, viewe
 
 		if _, err := h.q.GetExistingFollowRequest(ctx, db.GetExistingFollowRequestParams{
 			RequesterId:   toUUID(viewerID),
-			PublicationId: publicationID,
+			PublisherId: publisherID,
 		}); err == nil {
 			access.Requested = true
 		} else if !errors.Is(err, pgx.ErrNoRows) {
@@ -83,8 +83,8 @@ func (h *Handler) resolveProfileAccess(ctx context.Context, publicationID, viewe
 // canManagePublication vérifie que l'utilisateur possède la publication
 // (compte personnel) ou en est owner/admin (média). Sert aux décisions sur
 // les demandes d'abonnement.
-func (h *Handler) canManagePublication(ctx context.Context, userID, publicationID string) bool {
-	if ownerID, err := h.q.GetPublicationOwner(ctx, publicationID); err == nil && ownerID == userID {
+func (h *Handler) canManagePublisher(ctx context.Context, userID, publisherID string) bool {
+	if ownerID, err := h.q.GetPublisherOwner(ctx, publisherID); err == nil && ownerID == userID {
 		return true
 	}
 	var ok bool
@@ -93,10 +93,10 @@ func (h *Handler) canManagePublication(ctx context.Context, userID, publicationI
 			SELECT 1
 			FROM "MediaMember" mm
 			JOIN "Media" md ON md.id = mm."mediaId"
-			WHERE md."publicationId" = $2
+			WHERE md."publisherId" = $2
 			  AND mm."userId" = $1
 			  AND mm.status = 'active'
 			  AND mm.role IN ('owner', 'admin')
-		)`, toUUID(userID), publicationID).Scan(&ok)
+		)`, toUUID(userID), publisherID).Scan(&ok)
 	return err == nil && ok
 }

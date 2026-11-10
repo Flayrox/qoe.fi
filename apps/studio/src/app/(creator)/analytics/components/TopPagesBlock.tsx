@@ -19,7 +19,7 @@ export function TopPagesBlock({ topPages, articleTitlesMap, onSelectArticle }: T
       <div className="flex items-center justify-between mb-5">
         <div>
           <h3 className="text-[17px] font-semibold tracking-tight text-foreground">
-            Publications & Pages lues
+            Publishers & Pages lues
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
             Cliquez sur un article pour analyser ses métriques dédiées

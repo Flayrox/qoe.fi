@@ -73,7 +73,7 @@ func seedJourneyWorld(t *testing.T) (readerID string, niches map[string]*journey
 	t.Helper()
 	ctx := context.Background()
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE
-		"Post", "Article", "User", "Publication", "Follows", "BlockedUser",
+		"Post", "Article", "User", "Publisher", "Follows", "BlockedUser",
 		"ContentFeedback", "ReadingSession", "FeedImpression", "Like",
 		"Bookmark", "Highlight", "Notification", "_CoAuthors" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
@@ -105,7 +105,7 @@ func seedJourneyWorld(t *testing.T) (readerID string, niches map[string]*journey
 			t.Fatalf("seed auteur %s: %v", n.prefix, err)
 		}
 		if _, err := poolTest.Exec(ctx,
-			`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+			`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 			 VALUES ($1, 'PERSONAL', $2, $2, now(), now())`, pubID, "Pub "+n.prefix); err != nil {
 			t.Fatalf("seed publication %s: %v", n.prefix, err)
 		}
@@ -116,7 +116,7 @@ func seedJourneyWorld(t *testing.T) (readerID string, niches map[string]*journey
 			artID := fmt.Sprintf("%s_art_%d", n.prefix, k)
 			if _, err := poolTest.Exec(ctx,
 				`INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime",
-				                        status, "publicationId", "authorId", "createdAt", "updatedAt", embedding)
+				                        status, "publisherId", "authorId", "createdAt", "updatedAt", embedding)
 				 VALUES ($1, $2, $2, $3, true, 'PUBLIC', 8, 'PUBLISHED', $4, $5, now(), now(), $6::vector)`,
 				artID, "Article "+n.prefix+" "+fmt.Sprint(k), "<p>Corps "+n.prefix+"</p>", pubID, authorID,
 				vecAt512([2]float64{float64(n.axis), 1}, [2]float64{float64(100 + i*100 + k), 0.6})); err != nil {
@@ -203,7 +203,7 @@ func TestJourney_FullReaderJourney_MovesEmbeddingAndFeed(t *testing.T) {
 	// ▸ 1. Abonnement à la publication foot (nourrit l'onglet Abonnements ;
 	//    le suivi ne touche PAS l'embedding — seule la consommation le fait).
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Follows" (id, "readerId", "publicationId", "createdAt")
+		`INSERT INTO "Follows" (id, "readerId", "publisherId", "createdAt")
 		 VALUES ('follow_j1', $1, 'pub_foot', now())`, readerID); err != nil {
 		t.Fatalf("follow: %v", err)
 	}
@@ -334,7 +334,7 @@ func TestInteractions_AllTypes_WeightsOrdering(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE
-		"Post", "Article", "User", "Publication", "Follows", "BlockedUser",
+		"Post", "Article", "User", "Publisher", "Follows", "BlockedUser",
 		"ContentFeedback", "ReadingSession", "FeedImpression", "Like",
 		"Bookmark", "Highlight", "Notification", "_CoAuthors" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)

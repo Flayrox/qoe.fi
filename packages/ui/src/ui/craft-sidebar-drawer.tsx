@@ -18,7 +18,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@qoe/utils';
-import type { TemplatePublicationContext } from '../templates/schema';
+import type { TemplatePublisherContext } from '../templates/schema';
 
 export interface SidebarToggleIconProps {
   isOpen: boolean;
@@ -89,7 +89,7 @@ export interface CraftSidebarProps {
   subtitle?: string;
   section?: string;
   side?: 'left' | 'right';
-  publication?: TemplatePublicationContext;
+  publisher?: TemplatePublisherContext;
   items: CraftDrawerItem[];
   activeId?: string;
   indicatorColor?: string;

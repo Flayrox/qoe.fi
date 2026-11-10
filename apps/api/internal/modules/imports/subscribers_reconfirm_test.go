@@ -64,7 +64,7 @@ func seedReconfirmBatch(t *testing.T, ctx context.Context, svc *Service, batchID
 	t.Helper()
 	if _, err := poolTest.Exec(ctx, `
 		INSERT INTO "SubscriberImportBatch"
-		    ("id", "publicationId", "requesterId", "status", "source",
+		    ("id", "publisherId", "requesterId", "status", "source",
 		     "declarations", "fileFingerprint", "fileVersion", "rowCount", "stats",
 		     "submittedAt", "createdAt", "updatedAt")
 		VALUES ($1, $2, $3, 'approved_reconfirm', 'csv_manual',
@@ -120,7 +120,7 @@ func TestReconfirmWave_LifecycleComplet(t *testing.T) {
 	if err := poolTest.QueryRow(ctx, `
 		SELECT COUNT(*) FILTER (WHERE "confirmedAt" IS NULL AND "receiveArticles" = false),
 		       COUNT(*) FILTER (WHERE "confirmedAt" IS NOT NULL)
-		FROM "Subscriber" WHERE "publicationId" = $1 AND "email" = ANY($2::text[])`,
+		FROM "Subscriber" WHERE "publisherId" = $1 AND "email" = ANY($2::text[])`,
 		importPubPerso, emails).Scan(&inactive, &confirmed); err != nil {
 		t.Fatalf("état abonnés: %v", err)
 	}
@@ -200,7 +200,7 @@ func TestReconfirmWave_LifecycleComplet(t *testing.T) {
 	var tokensLeft int
 	if err := poolTest.QueryRow(ctx, `
 		SELECT COUNT(*) FROM "Subscriber"
-		WHERE "publicationId" = $1 AND "email" = ANY($2::text[])
+		WHERE "publisherId" = $1 AND "email" = ANY($2::text[])
 		  AND "confirmedAt" IS NULL AND "confirmationToken" IS NOT NULL`,
 		importPubPerso, []string{"rc2@test.dev", "rc3@test.dev"}).Scan(&tokensLeft); err != nil {
 		t.Fatalf("jetons restants: %v", err)
@@ -211,7 +211,7 @@ func TestReconfirmWave_LifecycleComplet(t *testing.T) {
 	var suppressions int
 	if err := poolTest.QueryRow(ctx, `
 		SELECT COUNT(*) FROM "EmailSuppression"
-		WHERE "publicationId" = $1 AND "email" = ANY($2::text[])`,
+		WHERE "publisherId" = $1 AND "email" = ANY($2::text[])`,
 		importPubPerso, []string{"rc2@test.dev", "rc3@test.dev"}).Scan(&suppressions); err != nil {
 		t.Fatalf("suppressions: %v", err)
 	}

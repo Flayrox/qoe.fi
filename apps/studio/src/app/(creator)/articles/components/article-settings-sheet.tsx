@@ -108,7 +108,7 @@ export function ArticleSettingsSheet({
     clearSchedule,
     unpublish,
     toggleDownload,
-    transferPublication,
+    transferPublisher,
     toggleShowOnPersonalProfile,
     retry,
   } = useArticleSettings({ articleId, onSaved });
@@ -234,12 +234,12 @@ export function ArticleSettingsSheet({
       downloadSaving={downloadSaving}
       onToggleDownload={(value) => void toggleDownload(value)}
       workspaces={workspaces}
-      publicationId={draft.publicationId}
-      publicationName={draft.publicationName}
-      publicationSlug={draft.publicationSlug}
-      publicationType={draft.publicationType}
+      publisherId={draft.publisherId}
+      publisherName={draft.publisherName}
+      publisherSlug={draft.publisherSlug}
+      publisherType={draft.publisherType}
       transferring={transferring}
-      onTransferPublication={(targetPubId) => void transferPublication(targetPubId)}
+      onTransferPublisher={(targetPubId) => void transferPublisher(targetPubId)}
       showOnPersonalProfile={draft.showOnPersonalProfile}
       crosspostSaving={crosspostSaving}
       onToggleShowOnPersonalProfile={(value) => void toggleShowOnPersonalProfile(value)}

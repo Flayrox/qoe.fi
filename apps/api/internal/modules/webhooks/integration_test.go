@@ -48,18 +48,18 @@ func seedWebhooks(t *testing.T) *testutil.WebhookFixtures {
 	return fx
 }
 
-func TestGetActiveWebhooksByPublication_FiltersEventAndActive(t *testing.T) {
+func TestGetActiveWebhooksByPublisher_FiltersEventAndActive(t *testing.T) {
 	fx := seedWebhooks(t)
 	q := db.New(poolTest)
 
 	// article.published → seulement le webhook actif qui y est abonné
 	// (wh_act_pub), pas l'inactif (wh_inact).
-	rows, err := q.GetActiveWebhooksByPublication(context.Background(), db.GetActiveWebhooksByPublicationParams{
-		PublicationId: fx.PublicationID,
+	rows, err := q.GetActiveWebhooksByPublisher(context.Background(), db.GetActiveWebhooksByPublisherParams{
+		PublisherId: fx.PublisherID,
 		Column2:       "article.published",
 	})
 	if err != nil {
-		t.Fatalf("GetActiveWebhooksByPublication: %v", err)
+		t.Fatalf("GetActiveWebhooksByPublisher: %v", err)
 	}
 	if len(rows) != 1 {
 		t.Fatalf("len = %d, attendu 1 (actif + abonné à article.published)", len(rows))
@@ -73,34 +73,34 @@ func TestGetActiveWebhooksByPublication_FiltersEventAndActive(t *testing.T) {
 	}
 }
 
-func TestGetActiveWebhooksByPublication_EventNotSubscribed(t *testing.T) {
+func TestGetActiveWebhooksByPublisher_EventNotSubscribed(t *testing.T) {
 	fx := seedWebhooks(t)
 	q := db.New(poolTest)
 
 	// article.updated : aucun webhook n'y est abonné → vide (pas d'erreur).
-	rows, err := q.GetActiveWebhooksByPublication(context.Background(), db.GetActiveWebhooksByPublicationParams{
-		PublicationId: fx.PublicationID,
+	rows, err := q.GetActiveWebhooksByPublisher(context.Background(), db.GetActiveWebhooksByPublisherParams{
+		PublisherId: fx.PublisherID,
 		Column2:       "article.updated",
 	})
 	if err != nil {
-		t.Fatalf("GetActiveWebhooksByPublication(article.updated): %v", err)
+		t.Fatalf("GetActiveWebhooksByPublisher(article.updated): %v", err)
 	}
 	if len(rows) != 0 {
 		t.Fatalf("len = %d, attendu 0 (personne n'est abonné à article.updated)", len(rows))
 	}
 }
 
-func TestListWebhooksByPublication_ExcludesSecret(t *testing.T) {
+func TestListWebhooksByPublisher_ExcludesSecret(t *testing.T) {
 	fx := seedWebhooks(t)
 	q := db.New(poolTest)
 
 	// ⚠️ La requête de liste ne sélectionne pas la colonne `secret` : c'est
-	// garanti statiquement par le type généré ListWebhooksByPublicationRow
+	// garanti statiquement par le type généré ListWebhooksByPublisherRow
 	// (aucun champ Secret). On le vérifie au niveau du DTO du service : le
 	// JSON de List ne doit pas contenir la clé "secret".
-	rows, err := q.ListWebhooksByPublication(context.Background(), fx.PublicationID)
+	rows, err := q.ListWebhooksByPublisher(context.Background(), fx.PublisherID)
 	if err != nil {
-		t.Fatalf("ListWebhooksByPublication: %v", err)
+		t.Fatalf("ListWebhooksByPublisher: %v", err)
 	}
 	if len(rows) != 3 {
 		t.Fatalf("len = %d, attendu 3", len(rows))
@@ -108,7 +108,7 @@ func TestListWebhooksByPublication_ExcludesSecret(t *testing.T) {
 
 	// Le service List expose un DTO Webhook sans secret.
 	svc := NewService(poolTest)
-	items, err := svc.List(context.Background(), fx.OwnerID, fx.PublicationID)
+	items, err := svc.List(context.Background(), fx.OwnerID, fx.PublisherID)
 	if err != nil {
 		t.Fatalf("service List: %v", err)
 	}
@@ -175,7 +175,7 @@ func TestResolveRole(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			role, err := svc.resolveRole(ctx, tc.userID, fx.PublicationID)
+			role, err := svc.resolveRole(ctx, tc.userID, fx.PublisherID)
 			if err != nil {
 				t.Fatalf("resolveRole: %v", err)
 			}
@@ -186,7 +186,7 @@ func TestResolveRole(t *testing.T) {
 	}
 
 	// Utilisateur sans lien avec la publication → errForbidden.
-	_, err := svc.resolveRole(ctx, "00000000-0000-0000-0000-000000000099", fx.PublicationID)
+	_, err := svc.resolveRole(ctx, "00000000-0000-0000-0000-000000000099", fx.PublisherID)
 	if err == nil {
 		t.Fatal("resolveRole d'un inconnu doit échouer")
 	}

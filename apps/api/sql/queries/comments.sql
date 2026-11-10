@@ -1,10 +1,10 @@
 -- name: GetArticleCommentsConfig :one
 SELECT a."allowComments" AS article_allow_comments,
        a."authorId"::text AS author_id,
-       a."publicationId" AS publication_id,
-       p."allowComments" AS publication_allow_comments
+       a."publisherId" AS publisher_id,
+       p."allowComments" AS publisher_allow_comments
 FROM "Article" a
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 WHERE a.id = $1;
 
 -- name: GetCommentParentAuthor :one
@@ -51,7 +51,7 @@ WHERE c."articleId" = sqlc.arg('article_id')
   AND (
     COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
     OR u.id = sqlc.arg('viewer_id')
-    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = sqlc.arg('viewer_id') AND f."publicationId" = u."publicationId")
+    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = sqlc.arg('viewer_id') AND f."publisherId" = u."publisherId")
   )
 ORDER BY c."createdAt" ASC;
 

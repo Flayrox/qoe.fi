@@ -5,7 +5,7 @@ import { AboutPageContent } from '../blocks/AboutPageContent';
 
 describe('AboutPageContent', () => {
   it('affiche le contenu personnalisable de la page À Propos avec widget d’abonnement et section People', () => {
-    const mockPublication = {
+    const mockPublisher = {
       id: 'pub-1',
       name: 'The Rose Period',
       slug: 'the-rose-period',
@@ -23,7 +23,7 @@ describe('AboutPageContent', () => {
 
     const html = renderToStaticMarkup(
       <AboutPageContent
-        publication={mockPublication}
+        publisher={mockPublisher}
         customConfig={{
           title: 'Manifeste éditorial de The Rose Period',
           showSubscribeWidget: true,
@@ -42,7 +42,7 @@ describe('AboutPageContent', () => {
   });
 
   it('affiche le corps rédigé d’un article riche quand articleContent est renseigné', () => {
-    const mockPublication = {
+    const mockPublisher = {
       id: 'pub-2',
       name: 'Les Chroniques',
       slug: 'les-chroniques',
@@ -53,7 +53,7 @@ describe('AboutPageContent', () => {
 
     const html = renderToStaticMarkup(
       <AboutPageContent
-        publication={mockPublication}
+        publisher={mockPublisher}
         articleContent={richHtml}
         articleTitle="À propos de notre revue"
       />

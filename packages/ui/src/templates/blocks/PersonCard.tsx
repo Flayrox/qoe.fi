@@ -27,10 +27,10 @@ export interface PersonCardProps {
   bio?: string | null;
   role?: string;
   isCertified?: boolean;
-  publicationName?: string | null;
-  publicationLogoUrl?: string | null;
+  publisherName?: string | null;
+  publisherLogoUrl?: string | null;
   publicationDomain?: string | null;
-  publicationId?: string | null;
+  publisherId?: string | null;
   className?: string;
 }
 
@@ -42,9 +42,9 @@ export function PersonCard({
   bio,
   role = 'Auteur',
   isCertified = false,
-  publicationName,
-  publicationLogoUrl,
-  publicationId,
+  publisherName,
+  publisherLogoUrl,
+  publisherId,
   className,
 }: PersonCardProps) {
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -61,13 +61,13 @@ export function PersonCard({
 
   const handleSubscribeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !publicationId) return;
+    if (!email.trim() || !publisherId) return;
 
     setIsLoading(true);
     try {
       const res = await subscribeToNewsletterAction({
         email: email.trim(),
-        publicationId,
+        publisherId,
       });
       if (res?.ok) {
         setIsSubscribed(true);
@@ -235,17 +235,17 @@ export function PersonCard({
         )}
 
         {/* ── 4. Cartouche d'affiliation publication ── */}
-        {publicationName && (
+        {publisherName && (
           <div className="pt-2 border-t border-border/20 flex items-center gap-2 text-[11px] text-muted-foreground/80 truncate">
-            {publicationLogoUrl && (
+            {publisherLogoUrl && (
               <img
-                src={publicationLogoUrl}
-                alt={publicationName}
+                src={publisherLogoUrl}
+                alt={publisherName}
                 className="w-4 h-4 rounded-[3px] object-cover shrink-0 border border-border/30"
               />
             )}
             <span className="truncate">
-              Écrit pour <span className="font-medium text-foreground">{publicationName}</span>
+              Écrit pour <span className="font-medium text-foreground">{publisherName}</span>
             </span>
           </div>
         )}

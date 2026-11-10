@@ -139,19 +139,19 @@ func (h *Handler) getSemanticTrends(w http.ResponseWriter, r *http.Request) {
 }
 
 // POST /v1/home/subscribe — inscription newsletter d'une publication (public).
-// Body : { email, publicationId }. Idempotent (upsert isActive=true).
+// Body : { email, publisherId }. Idempotent (upsert isActive=true).
 func (h *Handler) subscribe(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Email         string `json:"email"`
-		PublicationID string `json:"publicationId"`
+		PublisherID string `json:"publisherId"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
 	body.Email = strings.TrimSpace(strings.ToLower(body.Email))
-	if body.Email == "" || body.PublicationID == "" {
-		response.BadRequest(w, "email et publicationId requis")
+	if body.Email == "" || body.PublisherID == "" {
+		response.BadRequest(w, "email et publisherId requis")
 		return
 	}
 	if !emailRegex.MatchString(body.Email) {
@@ -161,7 +161,7 @@ func (h *Handler) subscribe(w http.ResponseWriter, r *http.Request) {
 	// Langue de l'abonné : ?locale= explicite puis Accept-Language, bornée
 	// à fr/en (défaut fr) — pilote la langue des emails transactionnels.
 	locale := normalizeSubscribeLocale(r)
-	if _, err := h.svc.SubscribeToNewsletter(r.Context(), body.Email, body.PublicationID, locale); err != nil {
+	if _, err := h.svc.SubscribeToNewsletter(r.Context(), body.Email, body.PublisherID, locale); err != nil {
 		// Coupe-feu engagé → 503 explicite (urgence assumée, Retry-After
 		// indicatif), pas de furtivité ni de 500 trompeur.
 		if errors.Is(err, abuse.ErrSignupSuspended) {

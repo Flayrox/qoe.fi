@@ -21,7 +21,7 @@ import {
 import type { StageMode } from '../types';
 
 interface TopBarProps {
-  publicationName: string;
+  publisherName: string;
   domain: string;
   mode: StageMode;
   onModeChange: (mode: StageMode) => void;
@@ -44,7 +44,7 @@ interface TopBarProps {
 }
 
 export function TopBar({
-  publicationName,
+  publisherName,
   domain,
   mode,
   onModeChange,
@@ -84,7 +84,7 @@ export function TopBar({
 
         {/* Fil d'ariane */}
         <div className="flex items-center gap-1.5 font-medium text-muted-foreground">
-          <span className="text-foreground max-w-[140px] truncate">{publicationName}</span>
+          <span className="text-foreground max-w-[140px] truncate">{publisherName}</span>
           <span className="opacity-40">/</span>
           <span className="text-foreground font-semibold">Stage</span>
         </div>
@@ -118,7 +118,7 @@ export function TopBar({
         </button>
       </div>
 
-      {/* ── Droite : Zoom, Undo/Redo, Live Link & Publication ── */}
+      {/* ── Droite : Zoom, Undo/Redo, Live Link & Publisher ── */}
       <div className="flex items-center gap-2">
         {/* Contrôles de Zoom */}
         <div className="hidden md:flex items-center gap-1 bg-muted/50 px-1 py-0.5 rounded-lg border border-border/30">

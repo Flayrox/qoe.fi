@@ -29,10 +29,10 @@ function scheduleCountdown(iso: string): string | null {
   if (Number.isNaN(target)) return null;
   const diffMinutes = Math.round((target - Date.now()) / 60000);
   if (diffMinutes <= 0) return null;
-  if (diffMinutes < 60) return t`Publication dans ${diffMinutes} min.`;
+  if (diffMinutes < 60) return t`Publisher dans ${diffMinutes} min.`;
   const hours = Math.round(diffMinutes / 60);
-  if (hours < 24) return t`Publication dans ${hours} h.`;
-  return t`Publication dans ${Math.round(hours / 24)} j.`;
+  if (hours < 24) return t`Publisher dans ${hours} h.`;
+  return t`Publisher dans ${Math.round(hours / 24)} j.`;
 }
 
 export function ArticleScheduleSection({
@@ -72,7 +72,7 @@ export function ArticleScheduleSection({
               <p className="mt-0.5 text-sm font-medium text-foreground">{scheduledLabel}</p>
               <p className="mt-0.5 text-[11px] text-muted-foreground">
                 {scheduleCountdown(scheduledAt) ??
-                  t`Publication automatique à cette heure (${timeZoneLabel}).`}
+                  t`Publisher automatique à cette heure (${timeZoneLabel}).`}
               </p>
             </div>
           ) : (

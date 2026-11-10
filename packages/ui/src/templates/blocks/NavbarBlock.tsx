@@ -14,11 +14,7 @@ import Link from 'next/link';
 import { ChevronDown, ArrowUpRight, Search } from 'lucide-react';
 import type { SocialLink } from '@qoe/sdk/types';
 import { SocialIcon } from '../../SocialIcon';
-import type {
-  NavbarBlockProps,
-  TemplatePublicationContext,
-  TemplateRenderContext,
-} from '../schema';
+import type { NavbarBlockProps, TemplatePublisherContext, TemplateRenderContext } from '../schema';
 import { BlockWrapper } from './BlockWrapper';
 import { EditableText } from './EditableText';
 import { NodeRenderer } from './NodeRenderer';
@@ -27,7 +23,7 @@ import { resolveTenantNavigation } from '../navigation';
 interface NavbarBlockComponentProps {
   id: string;
   props: NavbarBlockProps;
-  publication: TemplatePublicationContext;
+  publisher: TemplatePublisherContext;
   context: TemplateRenderContext;
   visible?: boolean;
   locked?: boolean;
@@ -39,7 +35,7 @@ interface NavbarBlockComponentProps {
 export function NavbarBlock({
   id,
   props,
-  publication,
+  publisher,
   context,
   visible = true,
   locked = false,
@@ -67,7 +63,7 @@ export function NavbarBlock({
     stripeAccountId,
     supportUrl,
     siteOptions,
-  } = publication;
+  } = publisher;
 
   const allowLogo = (siteOptions?.showLogo ?? true) !== false;
   const allowSocial = (siteOptions?.showSocialLinks ?? true) !== false;
@@ -81,10 +77,10 @@ export function NavbarBlock({
 
   // Résolution souveraine et unifiée de la navigation (rubriques + liens externes + pages)
   const { navItems: nestedNav } = resolveTenantNavigation({
-    categories: publication.categories,
+    categories: publisher.categories,
     navigation,
     siteOptions,
-    publicationId: publication.id,
+    publisherId: publisher.id,
     includePages: true,
   });
 

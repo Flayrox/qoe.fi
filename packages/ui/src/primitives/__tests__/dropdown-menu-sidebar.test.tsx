@@ -50,7 +50,7 @@ describe('DropdownMenu (@qoe/ui/ui/dropdown-menu)', () => {
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuLabel>Publications & médias</DropdownMenuLabel>
+            <DropdownMenuLabel>Publishers & médias</DropdownMenuLabel>
             <DropdownMenuItem>Le Journal Éco</DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
@@ -62,7 +62,7 @@ describe('DropdownMenu (@qoe/ui/ui/dropdown-menu)', () => {
     await user.click(screen.getByRole('button', { name: 'Changer d’espace' }));
 
     expect(screen.getByText('Compte personnel')).toBeTruthy();
-    expect(screen.getByText('Publications & médias')).toBeTruthy();
+    expect(screen.getByText('Publishers & médias')).toBeTruthy();
 
     await user.click(screen.getByRole('menuitem', { name: 'Créer un média' }));
     expect(onCreateMedia).toHaveBeenCalledTimes(1);

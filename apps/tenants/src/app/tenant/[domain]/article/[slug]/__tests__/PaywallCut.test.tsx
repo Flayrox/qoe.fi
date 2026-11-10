@@ -28,7 +28,7 @@ import { PaywallCut } from '@/app/tenant/[domain]/article/[slug]/PaywallCut';
 const baseProps = {
   contentHtml: '<p>Teaser content</p>',
   isPremium: true,
-  name: 'My Publication',
+  name: 'My Publisher',
   isBrutalist: false,
   accentColor: '#EE4B2B',
   mainAppUrl: 'https://qoe.fi',

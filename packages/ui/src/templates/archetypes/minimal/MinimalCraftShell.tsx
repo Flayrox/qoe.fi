@@ -27,13 +27,13 @@ import { MinimalDock } from './MinimalDock';
 import { SafeAvatar } from '../../../SafeAvatar';
 import { ProfileHoverCard } from '../../../social/ProfileHoverCard';
 import { getMainAppUrl } from '@qoe/config';
-import type { TemplatePublicationContext, TemplateArticleItem } from '../../schema';
+import type { TemplatePublisherContext, TemplateArticleItem } from '../../schema';
 import { AuthModalContext } from '../../../auth/AuthModalContext';
 import { resolveTenantNavigation } from '../../navigation';
 import { ExitInterstitialProvider, ExternalLinkInterceptor } from '../../../ui/exit-interstitial';
 
 export interface MinimalCraftShellProps {
-  publication: TemplatePublicationContext;
+  publisher: TemplatePublisherContext;
   article?: TemplateArticleItem | null;
   articles?: TemplateArticleItem[];
   activeCategory?: import('../../schema').TemplateCategoryItem | null;
@@ -44,7 +44,7 @@ export interface MinimalCraftShellProps {
 }
 
 export function MinimalCraftShell({
-  publication,
+  publisher,
   article,
   articles = [],
   activeCategory: propActiveCategory,
@@ -68,10 +68,9 @@ export function MinimalCraftShell({
 
   const authContext = useContext(AuthModalContext);
 
-  const accentColor = publication.accentColor || '#F97316';
-  const displayName =
-    publication.name || publication.domain || publication.subdomain || 'Mon Carnet';
-  const siteOptions = publication.siteOptions ?? {};
+  const accentColor = publisher.accentColor || '#F97316';
+  const displayName = publisher.name || publisher.domain || publisher.subdomain || 'Mon Carnet';
+  const siteOptions = publisher.siteOptions ?? {};
 
   // 📌 Sidebar mise de côté pour notre to-do future : désactivée par défaut
   const showCraftIndex = Boolean(siteOptions.showCraftIndex);
@@ -87,22 +86,22 @@ export function MinimalCraftShell({
 
   // Résolution souveraine et unifiée de la navigation (rubriques + liens externes + pages)
   const { navItems } = resolveTenantNavigation({
-    categories: publication.categories,
-    navigation: publication.navigation,
+    categories: publisher.categories,
+    navigation: publisher.navigation,
     siteOptions,
-    publicationId: publication.id,
+    publisherId: publisher.id,
     includePages: true,
   });
 
-  const activeCategory = propActiveCategory || publication.activeCategory || null;
+  const activeCategory = propActiveCategory || publisher.activeCategory || null;
   const activeCategorySlug = activeCategory?.slug || article?.category?.slug || null;
   const activeCategoryParent =
-    activeCategory?.parentId && publication.categories
-      ? (publication.categories.find((c) => c.id === activeCategory.parentId) ?? null)
+    activeCategory?.parentId && publisher.categories
+      ? (publisher.categories.find((c) => c.id === activeCategory.parentId) ?? null)
       : null;
   const activeCategoryChildren =
-    activeCategory && publication.categories
-      ? publication.categories.filter((c) => c.parentId === activeCategory.id)
+    activeCategory && publisher.categories
+      ? publisher.categories.filter((c) => c.parentId === activeCategory.id)
       : [];
 
   const isArticleMode = Boolean(article);
@@ -144,7 +143,7 @@ export function MinimalCraftShell({
 
   const hasCategoryBar = showCategoryTabs && navItems.length > 0;
 
-  const supportLink = publication.stripeAccountId ? '/support' : publication.supportUrl || null;
+  const supportLink = publisher.stripeAccountId ? '/support' : publisher.supportUrl || null;
   const allowSupport = (siteOptions.showSubscribeButton ?? true) !== false;
 
   /**
@@ -152,9 +151,9 @@ export function MinimalCraftShell({
    * vit sur Core, pas sur le domaine tenant. On y renvoie explicitement :
    * sans cela, la carte de survol pointerait vers `/handle` sur le tenant.
    */
-  const openPublicationProfile = (handle: string) => {
+  const openPublisherProfile = (handle: string) => {
     const base =
-      publication.mainAppUrl ||
+      publisher.mainAppUrl ||
       (typeof window !== 'undefined' ? getMainAppUrl(window.location.host) : '');
     if (!base || typeof window === 'undefined') return;
     window.location.href = `${base.replace(/\/+$/, '')}/${encodeURIComponent(handle.replace(/^@/, ''))}`;
@@ -216,17 +215,16 @@ export function MinimalCraftShell({
               {showLogo && (
                 <ProfileHoverCard
                   user={{
-                    id: publication.id,
-                    name: publication.author?.name || publication.name || displayName,
-                    username:
-                      publication.author?.username || publication.subdomain || publication.slug,
-                    logoUrl: publication.logoUrl || publication.author?.avatarUrl || null,
-                    headerImageUrl: publication.headerImageUrl,
-                    heroText: publication.bio || publication.heroText,
-                    isMedia: publication.author?.type === 'MEDIA',
-                    type: publication.author?.type,
+                    id: publisher.id,
+                    name: publisher.author?.name || publisher.name || displayName,
+                    username: publisher.author?.username || publisher.subdomain || publisher.slug,
+                    logoUrl: publisher.logoUrl || publisher.author?.avatarUrl || null,
+                    headerImageUrl: publisher.headerImageUrl,
+                    heroText: publisher.bio || publisher.heroText,
+                    isMedia: publisher.author?.type === 'MEDIA',
+                    type: publisher.author?.type,
                   }}
-                  onOpenProfile={openPublicationProfile}
+                  onOpenProfile={openPublisherProfile}
                 >
                   <a
                     href="/"
@@ -234,11 +232,11 @@ export function MinimalCraftShell({
                     title={displayName}
                   >
                     <SafeAvatar
-                      src={publication.logoUrl || publication.author?.avatarUrl || null}
-                      name={publication.author?.name || displayName}
-                      username={publication.author?.username || publication.subdomain}
+                      src={publisher.logoUrl || publisher.author?.avatarUrl || null}
+                      name={publisher.author?.name || displayName}
+                      username={publisher.author?.username || publisher.subdomain}
                       size={42}
-                      type={publication.author?.type}
+                      type={publisher.author?.type}
                       shape={isLogoSquare ? 'squircle' : undefined}
                       className="border border-border/50 shadow-2xs"
                     />
@@ -333,7 +331,7 @@ export function MinimalCraftShell({
                     }
                   }}
                   className="px-3 sm:px-4 py-1.5 rounded-full text-xs font-semibold text-white hover:opacity-90 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xs shrink-0 cursor-pointer"
-                  style={{ backgroundColor: publication.accentColor || '#C04328' }}
+                  style={{ backgroundColor: publisher.accentColor || '#C04328' }}
                 >
                   S'abonner
                 </a>
@@ -560,7 +558,7 @@ export function MinimalCraftShell({
               isOpen={isSidebarOpen}
               onClose={() => setIsSidebarOpen(false)}
               onToggle={() => setIsSidebarOpen((prev) => !prev)}
-              publication={publication}
+              publisher={publisher}
               items={drawerItems}
               activeId={article?.id}
               indicatorColor={accentColor}
@@ -578,7 +576,7 @@ export function MinimalCraftShell({
               indicatorColor={accentColor}
               isDrawerOpen={isSidebarOpen}
               onToggleDrawer={() => setIsSidebarOpen((prev) => !prev)}
-              supportUrl={publication.supportUrl}
+              supportUrl={publisher.supportUrl}
             />
           )}
         </div>

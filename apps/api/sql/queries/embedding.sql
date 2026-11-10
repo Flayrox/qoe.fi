@@ -28,18 +28,18 @@ SELECT a.id,
        a."isPremium",
        a."readingTime",
        a."createdAt",
-       a."publicationId",
+       a."publisherId",
        a."authorId",
        u.name          AS author_name,
        u.username      AS author_username,
        u."logoUrl"     AS author_logo,
-       p.name          AS publication_name,
-       p.subdomain     AS publication_subdomain,
-       p."logoUrl"     AS publication_logo,
+       p.name          AS publisher_name,
+       p.subdomain     AS publisher_subdomain,
+       p."logoUrl"     AS publisher_logo,
        (1 - (a."embedding" <=> $1::vector))::float8 AS score
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 WHERE a.published = true
   AND a."embedding" IS NOT NULL
   AND a.id <> $2
@@ -56,18 +56,18 @@ SELECT a.id,
        a."isPremium",
        a."readingTime",
        a."createdAt",
-       a."publicationId",
+       a."publisherId",
        a."authorId",
        u.name          AS author_name,
        u.username      AS author_username,
        u."logoUrl"     AS author_logo,
-       p.name          AS publication_name,
-       p.subdomain     AS publication_subdomain,
-       p."logoUrl"     AS publication_logo,
+       p.name          AS publisher_name,
+       p.subdomain     AS publisher_subdomain,
+       p."logoUrl"     AS publisher_logo,
        (1 - (a."embedding" <=> $1::vector))::float8 AS score
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 WHERE a.published = true
   AND a."embedding" IS NOT NULL
   AND u."isShadowbanned" = false

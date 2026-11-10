@@ -153,7 +153,7 @@ export function ComplianceDashboard({ snapshot }: { snapshot: ComplianceSnapshot
           value={summary.critical}
           tone={summary.critical > 0 ? 'danger' : 'success'}
           icon={FileWarning}
-          hint={`${summary.missingPublications} sans version publiée`}
+          hint={`${summary.missingPublishers} sans version publiée`}
         />
         <Metric
           label="Échéances dépassées"

@@ -10,7 +10,7 @@ import (
 // Fixtures contient les IDs créés par SeedArticles pour être référencés
 // dans les assertions de test.
 type Fixtures struct {
-	PublicationID string
+	PublisherID string
 	AuthorID      string
 	CategoryTech  string
 	CategoryFood  string
@@ -36,7 +36,7 @@ func SeedArticles(ctx context.Context, pool *pgxpool.Pool) (*Fixtures, error) {
 
 	// Vide les tables dépendantes (FK) avant de re-seeder.
 	if _, err := pool.Exec(ctx, `TRUNCATE TABLE
-		"Article", "Category", "User", "Publication", "_CoAuthors"
+		"Article", "Category", "User", "Publisher", "_CoAuthors"
 		CASCADE`); err != nil {
 		return nil, fmt.Errorf("truncate: %w", err)
 	}
@@ -48,36 +48,36 @@ func SeedArticles(ctx context.Context, pool *pgxpool.Pool) (*Fixtures, error) {
 	// l'utilisateur lié. La fixture pose donc directement l'état réel de
 	// production, pas un état que la base refuserait de conserver.
 	if err := pool.QueryRow(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ('pub_test_001', 'PERSONAL', 'Auteur Test', 'author', now(), now())
 		 RETURNING id`,
-	).Scan(&fx.PublicationID); err != nil {
+	).Scan(&fx.PublisherID); err != nil {
 		return nil, fmt.Errorf("publication: %w", err)
 	}
 
 	// Utilisateur auteur (id UUID)
 	const authorID = "00000000-0000-0000-0000-000000000001"
 	if err := pool.QueryRow(ctx,
-		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "User" (id, email, username, name, role, "publisherId", "createdAt", "updatedAt")
 		 VALUES ($1, 'author@test.dev', 'author', 'Auteur Test', 'creator', $2, now(), now())
 		 RETURNING id`,
-		authorID, fx.PublicationID,
+		authorID, fx.PublisherID,
 	).Scan(&fx.AuthorID); err != nil {
 		return nil, fmt.Errorf("user: %w", err)
 	}
 
 	// Catégories
 	if err := pool.QueryRow(ctx,
-		`INSERT INTO "Category" (id, name, slug, description, "publicationId")
+		`INSERT INTO "Category" (id, name, slug, description, "publisherId")
 		 VALUES ('cat_tech', 'Technologie', 'tech', 'Actualité tech', $1) RETURNING id`,
-		fx.PublicationID,
+		fx.PublisherID,
 	).Scan(&fx.CategoryTech); err != nil {
 		return nil, fmt.Errorf("category tech: %w", err)
 	}
 	if err := pool.QueryRow(ctx,
-		`INSERT INTO "Category" (id, name, slug, description, "publicationId")
+		`INSERT INTO "Category" (id, name, slug, description, "publisherId")
 		 VALUES ('cat_food', 'Gastronomie', 'food', 'Recettes et restaurants', $1) RETURNING id`,
-		fx.PublicationID,
+		fx.PublisherID,
 	).Scan(&fx.CategoryFood); err != nil {
 		return nil, fmt.Errorf("category food: %w", err)
 	}
@@ -100,13 +100,13 @@ func SeedArticles(ctx context.Context, pool *pgxpool.Pool) (*Fixtures, error) {
 		var id string
 		if err := pool.QueryRow(ctx,
 			`INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
-			                        "readingTime", status, "publicationId", "authorId", "categoryId",
+			                        "readingTime", status, "publisherId", "authorId", "categoryId",
 			                        "createdAt", "updatedAt")
 			 VALUES ('art_test_00'||$1, $2, $3, $4, $5, $6, $7, 5, $8, $9, $10, $11,
 			         now() - $12::text::interval, now())
 			 RETURNING id`,
 			fmt.Sprintf("%d", i), a.title, a.slug, a.content, a.published, a.isPremium,
-			a.visibility, a.status, fx.PublicationID, fx.AuthorID, a.category,
+			a.visibility, a.status, fx.PublisherID, fx.AuthorID, a.category,
 			fmt.Sprintf("%d minutes", delta),
 		).Scan(&id); err != nil {
 			return nil, fmt.Errorf("article %s: %w", a.slug, err)

@@ -300,7 +300,7 @@ func (s *Service) ExportSignedAudit(
 type SubscriberExportInput struct {
 	Subject       string `json:"subject,omitempty"`
 	Reason        string `json:"reason,omitempty"`
-	PublicationID string `json:"publicationId,omitempty"`
+	PublisherID string `json:"publisherId,omitempty"`
 	Status        string `json:"status,omitempty"`
 	Limit         int    `json:"limit,omitempty"`
 }
@@ -335,16 +335,16 @@ func (s *Service) ExportSignedSubscribers(
 				s."receiveArticles",
 				s."confirmedAt",
 				s."createdAt",
-				s."publicationId"
+				s."publisherId"
 			FROM "Subscriber" s
 			WHERE 1=1
 		`
 		var args []any
 		argIdx := 1
 
-		if in.PublicationID != "" {
-			query += fmt.Sprintf(` AND s."publicationId" = $%d`, argIdx)
-			args = append(args, in.PublicationID)
+		if in.PublisherID != "" {
+			query += fmt.Sprintf(` AND s."publisherId" = $%d`, argIdx)
+			args = append(args, in.PublisherID)
 			argIdx++
 		}
 		if in.Status != "" {
@@ -391,7 +391,7 @@ func (s *Service) ExportSignedSubscribers(
 						"receiveArticles": rec,
 						"confirmedAt":     confStr,
 						"createdAt":       createdAt.UTC().Format(time.RFC3339),
-						"publicationId":   pubID,
+						"publisherId":   pubID,
 					})
 				}
 			}
@@ -411,7 +411,7 @@ func (s *Service) ExportSignedSubscribers(
 	now := time.Now().UTC()
 	exportID := uuid.New().String()
 	filters := map[string]any{
-		"publicationId": in.PublicationID,
+		"publisherId": in.PublisherID,
 		"status":        in.Status,
 		"limit":         limit,
 	}

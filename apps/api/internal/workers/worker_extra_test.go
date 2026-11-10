@@ -39,14 +39,14 @@ func seedNewsletter(t *testing.T) string {
 	}
 	for _, s := range subs {
 		if _, err := poolTest.Exec(context.Background(),
-			`INSERT INTO "Subscriber" (id, email, "publicationId", status, "isActive", "isPremium", "updatedAt")
+			`INSERT INTO "Subscriber" (id, email, "publisherId", status, "isActive", "isPremium", "updatedAt")
 			 VALUES (gen_random_uuid()::text, $1, $2, 'ACTIVE', $3, $4, now())`,
-			s.email, fx.PublicationID, s.active, s.premium,
+			s.email, fx.PublisherID, s.active, s.premium,
 		); err != nil {
 			t.Fatalf("subscriber %s: %v", s.email, err)
 		}
 	}
-	return fx.PublicationID
+	return fx.PublisherID
 }
 
 func TestNewsletter_HandleArticlePublished_ProcessesActiveSubscribers(t *testing.T) {
@@ -54,7 +54,7 @@ func TestNewsletter_HandleArticlePublished_ProcessesActiveSubscribers(t *testing
 	worker := NewNewsletterWorker(poolTest)
 
 	payload, _ := json.Marshal(map[string]any{
-		"publicationId": pubID,
+		"publisherId": pubID,
 		"articleId":     "art_news",
 		"authorId":      "00000000-0000-0000-0000-000000000010",
 		"title":         "Lettre",
@@ -74,7 +74,7 @@ func TestNewsletter_HandleArticlePublished_NoSubscribers(t *testing.T) {
 	worker := NewNewsletterWorker(poolTest)
 
 	payload, _ := json.Marshal(map[string]any{
-		"publicationId": fx.PublicationID,
+		"publisherId": fx.PublisherID,
 		"articleId":     "art_1", "title": "x",
 	})
 	if err := worker.HandleArticlePublished(context.Background(), asynq.NewTask("article.published", payload)); err != nil {
@@ -114,7 +114,7 @@ func seedStripe(t *testing.T) (pubID, ownerID string) {
 		t.Fatalf("seed: %v", err)
 	}
 	// Le owner du seed a la publication personnelle → GetPersonalOwnerForCredit.
-	return fx.PublicationID, fx.OwnerID
+	return fx.PublisherID, fx.OwnerID
 }
 
 func stripeTask(t *testing.T, eventID, eventType string, data map[string]any) *asynq.Task {
@@ -157,7 +157,7 @@ func TestStripe_PaymentSucceeded_CreditsOwnerWallet(t *testing.T) {
 	// L'abonné est premium (isActive + isPremium + LTV).
 	var isPremium bool
 	if err := poolTest.QueryRow(context.Background(),
-		`SELECT "isPremium" FROM "Subscriber" WHERE email = 'reader@test.dev' AND "publicationId" = $1`,
+		`SELECT "isPremium" FROM "Subscriber" WHERE email = 'reader@test.dev' AND "publisherId" = $1`,
 		pubID,
 	).Scan(&isPremium); err != nil {
 		t.Fatalf("subscriber: %v", err)
@@ -173,7 +173,7 @@ func TestStripe_SubscriptionDeleted_SetsCanceled(t *testing.T) {
 
 	// Abonné actif au départ.
 	if _, err := poolTest.Exec(context.Background(),
-		`INSERT INTO "Subscriber" (id, email, "publicationId", status, "isActive", "isPremium", "updatedAt")
+		`INSERT INTO "Subscriber" (id, email, "publisherId", status, "isActive", "isPremium", "updatedAt")
 		 VALUES (gen_random_uuid()::text, 'del@test.dev', $1, 'ACTIVE', true, true, now())`,
 		pubID,
 	); err != nil {
@@ -216,7 +216,7 @@ func TestStripe_PaymentFailed_SetsPastDue(t *testing.T) {
 	worker := NewStripeWorker(poolTest, nil)
 
 	if _, err := poolTest.Exec(context.Background(),
-		`INSERT INTO "Subscriber" (id, email, "publicationId", status, "isActive", "isPremium", "updatedAt")
+		`INSERT INTO "Subscriber" (id, email, "publisherId", status, "isActive", "isPremium", "updatedAt")
 		 VALUES (gen_random_uuid()::text, 'failed@test.dev', $1, 'ACTIVE', true, true, now())`,
 		pubID,
 	); err != nil {
@@ -244,9 +244,9 @@ func TestStripe_PaymentFailed_SetsPastDue(t *testing.T) {
 	}
 }
 
-// resolvePublicationID doit retomber sur la publication personnelle quand
+// resolvePublisherID doit retomber sur la publication personnelle quand
 // creatorRef est un user (et non une publication).
-func TestStripe_PaymentFailed_PersonalPublicationFallback(t *testing.T) {
+func TestStripe_PaymentFailed_PersonalPublisherFallback(t *testing.T) {
 	_, ownerID := seedStripe(t)
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
 	if err != nil {
@@ -255,9 +255,9 @@ func TestStripe_PaymentFailed_PersonalPublicationFallback(t *testing.T) {
 	worker := NewStripeWorker(poolTest, nil)
 
 	if _, err := poolTest.Exec(context.Background(),
-		`INSERT INTO "Subscriber" (id, email, "publicationId", status, "isActive", "isPremium", "updatedAt")
+		`INSERT INTO "Subscriber" (id, email, "publisherId", status, "isActive", "isPremium", "updatedAt")
 		 VALUES (gen_random_uuid()::text, 'personal@test.dev', $1, 'ACTIVE', true, true, now())`,
-		fx.PublicationID,
+		fx.PublisherID,
 	); err != nil {
 		t.Fatalf("subscriber: %v", err)
 	}

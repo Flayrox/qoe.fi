@@ -83,7 +83,7 @@ export interface LibraryHighlight {
     id: string;
     title: string;
     slug: string;
-    publication: {
+    publisher: {
       id: string;
       name: string;
       slug: string;
@@ -821,13 +821,13 @@ export function LibraryClient({
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
                           <a
                             href={
-                              h.article.publication.slug
-                                ? routes.feed.profile(h.article.publication.slug)
+                              h.article.publisher.slug
+                                ? routes.feed.profile(h.article.publisher.slug)
                                 : '#'
                             }
                             className="font-semibold hover:text-foreground transition-colors shrink-0 text-foreground/80"
                           >
-                            {h.article.publication.name}
+                            {h.article.publisher.name}
                           </a>
                           <span className="text-muted-foreground/40">•</span>
                           <a
@@ -837,8 +837,8 @@ export function LibraryClient({
                             data-article-slug={h.article.slug}
                             data-article-title={h.article.title}
                             data-article-owner={
-                              h.article.publication?.slug ||
-                              h.article.publication?.subdomain ||
+                              h.article.publisher?.slug ||
+                              h.article.publisher?.subdomain ||
                               undefined
                             }
                             className="hover:underline hover:text-primary transition-colors truncate"

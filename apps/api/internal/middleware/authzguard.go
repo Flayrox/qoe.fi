@@ -55,7 +55,7 @@ const (
 	// AuthzResourceMedia — le paramètre d'URL porte l'identifiant du média.
 	AuthzResourceMedia
 	// AuthzResourcePublication — le paramètre porte une publication.
-	AuthzResourcePublication
+	AuthzResourcePublisher
 	// AuthzResourceNewsletter — le paramètre porte une édition de newsletter.
 	AuthzResourceNewsletter
 )

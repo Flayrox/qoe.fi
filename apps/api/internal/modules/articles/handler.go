@@ -80,6 +80,8 @@ func (h *Handler) RegisterProtected(r chi.Router, requireScope func(string) func
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/schedule", h.schedule)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/review", h.review)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/transfer", h.transfer)
+	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/fork-personal", h.forkPersonal)
+	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/submit-revision", h.submitRevision)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/send-email", h.sendEmail)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/test-email", h.testEmail)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/discard-draft", h.discardDraft)
@@ -94,7 +96,7 @@ func (h *Handler) RegisterProtected(r chi.Router, requireScope func(string) func
 // GET /v1/articles/{slug} — double mode :
 //   - clé API (Bearer qoe_live_…) → contrat créateurs : { data: CreatorItem }
 //     (contentHtml tronqué), publication résolue depuis la clé, publié uniquement ;
-//   - sinon → lecture publique ?publicationId=&viewerEmail= (paywall lecteur).
+//   - sinon → lecture publique ?publisherId=&viewerEmail= (paywall lecteur).
 func (h *Handler) getBySlug(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
 
@@ -104,7 +106,7 @@ func (h *Handler) getBySlug(w http.ResponseWriter, r *http.Request) {
 			response.Forbidden(w, "Scope READ requis")
 			return
 		}
-		if pid, has := middleware.PublicationID(ctx); has && pid != "" {
+		if pid, has := middleware.PublisherID(ctx); has && pid != "" {
 			item, err := h.svc.GetCreatorBySlug(ctx, slug, pid)
 			if err != nil {
 				if errors.Is(err, errNotFound) {
@@ -121,12 +123,12 @@ func (h *Handler) getBySlug(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	publicationID := r.URL.Query().Get("publicationId")
+	publisherID := r.URL.Query().Get("publisherId")
 	viewerID, _ := middleware.UserID(r.Context())
 
 	// Mode slug seul (page autonome /article/[slug] du reader core) : premier
 	// article publié par slug, contenu complet — parité findFirstBySlug Prisma.
-	if publicationID == "" {
+	if publisherID == "" {
 		article, err := h.svc.GetBySlugAny(r.Context(), slug, viewerID)
 		if err != nil {
 			if errors.Is(err, errNotFound) {
@@ -143,7 +145,7 @@ func (h *Handler) getBySlug(w http.ResponseWriter, r *http.Request) {
 
 	viewerEmail := r.URL.Query().Get("viewerEmail")
 
-	article, err := h.svc.GetBySlug(r.Context(), slug, publicationID, viewerID, viewerEmail)
+	article, err := h.svc.GetBySlug(r.Context(), slug, publisherID, viewerID, viewerEmail)
 	if err != nil {
 		if errors.Is(err, errNotFound) {
 			response.NotFound(w, "Article introuvable")
@@ -164,7 +166,7 @@ type ArticleAttributionInput struct {
 }
 
 type createInput struct {
-	PublicationID          string                    `json:"publicationId"`
+	PublisherID          string                    `json:"publisherId"`
 	Title                  string                    `json:"title"`
 	Slug                   string                    `json:"slug"`
 	Content                string                    `json:"content"`
@@ -197,8 +199,8 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	if in.PublicationID == "" || in.Title == "" {
-		response.BadRequest(w, "publicationId et title requis")
+	if in.PublisherID == "" || in.Title == "" {
+		response.BadRequest(w, "publisherId et title requis")
 		return
 	}
 	if !IsValidContentFormat(in.ContentFormat) {
@@ -212,7 +214,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id, err := h.svc.Create(r.Context(), userID, CreateArticleInput{
-		PublicationID: in.PublicationID, Title: in.Title, Slug: in.Slug, Content: in.Content,
+		PublisherID: in.PublisherID, Title: in.Title, Slug: in.Slug, Content: in.Content,
 		ContentFormat: in.ContentFormat,
 		IsPremium:     in.IsPremium, Visibility: in.Visibility, CategoryID: in.CategoryID,
 		TierID: in.TierID, SeoTitle: in.SeoTitle, SeoDescription: in.SeoDescription,
@@ -245,19 +247,19 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 
 	// Publication résolue depuis la clé API (contexte) ou le query param
-	// `publicationId` (JWT / backward-compat). La présence d'une publication
+	// `publisherId` (JWT / backward-compat). La présence d'une publication
 	// en contexte est le marqueur du mode clé API (CombinedAuth l'injecte).
-	publicationID := ""
+	publisherID := ""
 	apiKeyMode := false
-	if pid, ok := middleware.PublicationID(r.Context()); ok {
-		publicationID = pid
+	if pid, ok := middleware.PublisherID(r.Context()); ok {
+		publisherID = pid
 		apiKeyMode = true
 	}
-	if publicationID == "" {
-		publicationID = r.URL.Query().Get("publicationId")
+	if publisherID == "" {
+		publisherID = r.URL.Query().Get("publisherId")
 	}
-	if publicationID == "" {
-		response.BadRequest(w, "publicationId requis")
+	if publisherID == "" {
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
 
@@ -271,7 +273,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 			published = v == "true"
 		}
 
-		resp, err := h.svc.ListCreatorArticles(r.Context(), userID, publicationID, page, limit, category, published)
+		resp, err := h.svc.ListCreatorArticles(r.Context(), userID, publisherID, page, limit, category, published)
 		if err != nil {
 			response.Forbidden(w, err.Error())
 			return
@@ -289,7 +291,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 		period = "30d"
 	}
 	workspaceType := r.URL.Query().Get("workspaceType")
-	articles, err := h.svc.List(r.Context(), userID, publicationID, workspaceType, 100, 0, period)
+	articles, err := h.svc.List(r.Context(), userID, publisherID, workspaceType, 100, 0, period)
 	if err != nil {
 		response.Forbidden(w, err.Error())
 		return
@@ -349,7 +351,7 @@ type updateInput struct {
 	ShowOnPersonalProfile  *bool                     `json:"showOnPersonalProfile"`
 	Published              bool                      `json:"published"`
 	Status                 string                    `json:"status"`
-	ActivePublicationID    string                    `json:"activePublicationId"`
+	ActivePublisherID    string                    `json:"activePublisherId"`
 	ScheduledAt            string                    `json:"scheduledAt"`
 	Attributions           []ArticleAttributionInput `json:"attributions"`
 	SendEmail              *bool                     `json:"sendEmail"`
@@ -381,7 +383,7 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 		AllowDownload:         in.AllowDownload,
 		ShowOnPersonalProfile: in.ShowOnPersonalProfile,
 		ReadingTime:           in.ReadingTime, Published: in.Published, Status: in.Status,
-		ActivePublicationID: in.ActivePublicationID, ScheduledAt: scheduledAt,
+		ActivePublisherID: in.ActivePublisherID, ScheduledAt: scheduledAt,
 		Attributions: in.Attributions,
 		SendEmail:    in.SendEmail, EmailSubject: in.EmailSubject, EmailPreviewText: in.EmailPreviewText,
 	}); err != nil {
@@ -663,8 +665,8 @@ func (h *Handler) removeListenLater(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	id := chi.URLParam(r, "id")
-	activePublicationID := r.URL.Query().Get("activePublicationId")
-	if err := h.svc.Delete(r.Context(), id, userID, activePublicationID); err != nil {
+	activePublisherID := r.URL.Query().Get("activePublisherId")
+	if err := h.svc.Delete(r.Context(), id, userID, activePublisherID); err != nil {
 		response.BadRequest(w, err.Error())
 		return
 	}
@@ -728,11 +730,11 @@ func (h *Handler) transfer(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	if in.TargetPublicationID == "" {
-		response.BadRequest(w, "targetPublicationId requis")
+	if in.TargetPublisherID == "" {
+		response.BadRequest(w, "targetPublisherId requis")
 		return
 	}
-	article, err := h.svc.TransferPublication(r.Context(), userID, id, in)
+	article, err := h.svc.TransferPublisher(r.Context(), userID, id, in)
 	if err != nil {
 		if errors.Is(err, errNotFound) {
 			response.NotFound(w, "Article ou publication cible introuvable")
@@ -746,6 +748,52 @@ func (h *Handler) transfer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, article)
+}
+
+// POST /v1/articles/{id}/fork-personal — crée ou récupère l'exemplaire personnel souverain d'un essai média.
+func (h *Handler) forkPersonal(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+	copyID, alreadyExisted, err := h.svc.ForkToPersonal(r.Context(), id, userID)
+	if err != nil {
+		if errors.Is(err, errNotFound) {
+			response.NotFound(w, "Article introuvable")
+			return
+		}
+		if errors.Is(err, errForbidden) {
+			response.Forbidden(w, "Seul l'auteur ou un co-auteur accepté peut dupliquer cet essai vers son espace personnel.")
+			return
+		}
+		response.BadRequest(w, err.Error())
+		return
+	}
+	response.OK(w, map[string]any{
+		"id":             copyID,
+		"alreadyExisted": alreadyExisted,
+	})
+}
+
+// POST /v1/articles/{id}/submit-revision — propose les modifications de l'essai personnel à l'article média d'origine.
+func (h *Handler) submitRevision(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+	originID, err := h.svc.SubmitRevisionToOrigin(r.Context(), id, userID)
+	if err != nil {
+		if errors.Is(err, errNotFound) {
+			response.NotFound(w, "Article introuvable")
+			return
+		}
+		if errors.Is(err, errForbidden) {
+			response.Forbidden(w, err.Error())
+			return
+		}
+		response.BadRequest(w, err.Error())
+		return
+	}
+	response.OK(w, map[string]any{
+		"originArticleId": originID,
+		"status":          "SUBMITTED",
+	})
 }
 
 // POST /v1/articles/{id}/discard-draft — abandonne le brouillon non publié.
@@ -788,22 +836,22 @@ func (h *Handler) getReviewFeedback(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, fb)
 }
 
-// GET /v1/articles/capabilities?publicationId= — capacités d'édition.
+// GET /v1/articles/capabilities?publisherId= — capacités d'édition.
 func (h *Handler) capabilities(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
-	publicationID := r.URL.Query().Get("publicationId")
-	if publicationID == "" {
-		response.BadRequest(w, "publicationId requis")
+	publisherID := r.URL.Query().Get("publisherId")
+	if publisherID == "" {
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
 	articleID := r.URL.Query().Get("articleId")
-	caps, err := h.svc.EditorCapabilities(r.Context(), userID, publicationID, articleID)
+	caps, err := h.svc.EditorCapabilities(r.Context(), userID, publisherID, articleID)
 	if err != nil {
 		if errors.Is(err, errForbidden) {
 			response.Forbidden(w, "Accès refusé à cette publication.")
 			return
 		}
-		response.NotFound(w, "Publication introuvable")
+		response.NotFound(w, "Publisher introuvable")
 		return
 	}
 	response.OK(w, caps)

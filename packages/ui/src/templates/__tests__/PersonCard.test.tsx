@@ -14,8 +14,8 @@ describe('PersonCard', () => {
         bio="Historienne d'art et fondatrice de The Rose Period."
         role="Rédactrice en chef"
         isCertified={true}
-        publicationName="The Rose Period"
-        publicationId="pub-1"
+        publisherName="The Rose Period"
+        publisherId="pub-1"
       />
     );
 

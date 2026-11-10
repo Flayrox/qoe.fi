@@ -45,12 +45,12 @@ func TestEligibility_LimitedAuthorStaysInFollowing(t *testing.T) {
 	bobID := "00000000-0000-0000-0000-000000000012"
 
 	// Discover exige une publication certifiée.
-	if _, err := poolTest.Exec(ctx, `UPDATE "Publication" SET "isCertified" = true WHERE id = 'pub_engine'`); err != nil {
+	if _, err := poolTest.Exec(ctx, `UPDATE "Publisher" SET "isCertified" = true WHERE id = 'pub_engine'`); err != nil {
 		t.Fatalf("certify: %v", err)
 	}
 	// Le lecteur suit la publication (following = ses articles).
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Follows" (id, "readerId", "publicationId")
+		`INSERT INTO "Follows" (id, "readerId", "publisherId")
 		 VALUES (gen_random_uuid()::text, $1::uuid, 'pub_engine')`, readerID); err != nil {
 		t.Fatalf("follow: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestFollowingHidden_NamesRestrictedAuthors(t *testing.T) {
 	aliceID := "00000000-0000-0000-0000-000000000011"
 	bobID := "00000000-0000-0000-0000-000000000012"
 
-	// Les publications d'abord : "User"."publicationId" est une clé étrangère.
+	// Les publications d'abord : "User"."publisherId" est une clé étrangère.
 	// Elles portent l'identité de leur propriétaire (publications PERSONAL,
 	// triggers 00028/00054) : le nom/slug saisis ici sont ceux des comptes.
 	for _, p := range []struct{ id, name, slug string }{
@@ -108,12 +108,12 @@ func TestFollowingHidden_NamesRestrictedAuthors(t *testing.T) {
 		{"pub_bob", "bob", "bob"},
 	} {
 		if _, err := poolTest.Exec(ctx,
-			`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt") VALUES ($1, 'PERSONAL', $2, $3, now(), now())`,
+			`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt") VALUES ($1, 'PERSONAL', $2, $3, now(), now())`,
 			p.id, p.name, p.slug); err != nil {
 			t.Fatalf("pub %s: %v", p.id, err)
 		}
 		if _, err := poolTest.Exec(ctx,
-			`INSERT INTO "Follows" (id, "readerId", "publicationId") VALUES (gen_random_uuid()::text, $1::uuid, $2)`,
+			`INSERT INTO "Follows" (id, "readerId", "publisherId") VALUES (gen_random_uuid()::text, $1::uuid, $2)`,
 			readerID, p.id); err != nil {
 			t.Fatalf("follow %s: %v", p.id, err)
 		}
@@ -121,16 +121,16 @@ func TestFollowingHidden_NamesRestrictedAuthors(t *testing.T) {
 	// alice : shadowban motivé et borné (+24 h), propriétaire d'une
 	// publication PERSONAL suivie, avec un article dedans.
 	if _, err := poolTest.Exec(ctx,
-		`UPDATE "User" SET "isShadowbanned" = true, "shadowbanReason" = 'test', "shadowbanUntil" = now() + interval '24 hours', "publicationId" = 'pub_alice' WHERE id = $1::uuid`, aliceID); err != nil {
+		`UPDATE "User" SET "isShadowbanned" = true, "shadowbanReason" = 'test', "shadowbanUntil" = now() + interval '24 hours', "publisherId" = 'pub_alice' WHERE id = $1::uuid`, aliceID); err != nil {
 		t.Fatalf("shadowban alice: %v", err)
 	}
 	// bob : suspendu (refus dur), même montage.
 	if _, err := poolTest.Exec(ctx,
-		`UPDATE "User" SET "isSuspended" = true, "suspendReason" = 'test', "publicationId" = 'pub_bob' WHERE id = $1::uuid`, bobID); err != nil {
+		`UPDATE "User" SET "isSuspended" = true, "suspendReason" = 'test', "publisherId" = 'pub_bob' WHERE id = $1::uuid`, bobID); err != nil {
 		t.Fatalf("suspend bob: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt")
+		`INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publisherId", "authorId", "createdAt", "updatedAt")
 		 VALUES ('follow_art_alice', 'Alice', 'alice', '<p>x</p>', true, 'PUBLIC', 5, 'PUBLISHED', 'pub_alice', $1::uuid, now(), now())`, aliceID); err != nil {
 		t.Fatalf("article alice: %v", err)
 	}

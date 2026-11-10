@@ -3,7 +3,7 @@
 // =====================================================================
 // HERMÉTIQUE : ce spec ne dépend PLUS du seed. Il crée lui-même sa
 // publication MEDIA (et sa publication personnelle) + ses articles via pg,
-// puis vérifie la résolution par sous-domaine (GET /v1/publications/by-domain
+// puis vérifie la résolution par sous-domaine (GET /v1/publishers/by-domain
 // via l'API Go), le rendu home/article et l'étanchéité du paywall.
 //
 // Le tenant média porte un article premium dont le passage réservé est une
@@ -67,7 +67,7 @@ test.describe('Parcours public tenants — hermétique', () => {
     await db.connect();
 
     // Tenant média (+ article premium à sentinelle).
-    await db.ensurePublication({
+    await db.ensurePublisher({
       id: MEDIA.id,
       subdomain: MEDIA.subdomain,
       name: MEDIA.name,
@@ -78,7 +78,7 @@ test.describe('Parcours public tenants — hermétique', () => {
     });
     await db.ensureArticle({
       id: MEDIA_ARTICLE.id,
-      publicationId: MEDIA.id,
+      publisherId: MEDIA.id,
       authorId: MEDIA.authorId,
       title: MEDIA_ARTICLE.title,
       slug: MEDIA_ARTICLE.slug,
@@ -90,7 +90,7 @@ test.describe('Parcours public tenants — hermétique', () => {
     });
 
     // Tenant personnel (+ article public).
-    await db.ensurePublication({
+    await db.ensurePublisher({
       id: PERSONAL.id,
       subdomain: PERSONAL.subdomain,
       name: PERSONAL.name,
@@ -102,7 +102,7 @@ test.describe('Parcours public tenants — hermétique', () => {
     });
     await db.ensureArticle({
       id: PERSONAL_ARTICLE.id,
-      publicationId: PERSONAL.id,
+      publisherId: PERSONAL.id,
       authorId: PERSONAL.authorId,
       title: PERSONAL_ARTICLE.title,
       slug: PERSONAL_ARTICLE.slug,
@@ -129,7 +129,7 @@ test.describe('Parcours public tenants — hermétique', () => {
       await db.deleteArticle(id).catch(() => {});
     }
     for (const id of [PERSONAL.id, MEDIA.id]) {
-      await db.deletePublication(id).catch(() => {});
+      await db.deletePublisher(id).catch(() => {});
     }
     await db.close();
   });

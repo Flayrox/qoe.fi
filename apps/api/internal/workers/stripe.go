@@ -63,12 +63,12 @@ func (s *StripeWorker) HandleStripeEvent(ctx context.Context, t *asynq.Task) err
 	}
 }
 
-// resolvePublicationID mappe creatorRef (publication ou user) → publication.
-func (s *StripeWorker) resolvePublicationID(ctx context.Context, creatorRef string) (string, error) {
-	if pub, err := s.q.GetPublicationByID(ctx, creatorRef); err == nil && pub != "" {
+// resolvePublisherID mappe creatorRef (publication ou user) → publication.
+func (s *StripeWorker) resolvePublisherID(ctx context.Context, creatorRef string) (string, error) {
+	if pub, err := s.q.GetPublisherByID(ctx, creatorRef); err == nil && pub != "" {
 		return pub, nil
 	}
-	personal, err := s.q.GetPersonalPublicationByUserID(ctx, creatorRef)
+	personal, err := s.q.GetPersonalPublisherByUserID(ctx, creatorRef)
 	if err != nil {
 		return "", err
 	}
@@ -79,14 +79,14 @@ func (s *StripeWorker) resolvePublicationID(ctx context.Context, creatorRef stri
 }
 
 // creditOwner calcule la commission et crédite le wallet du propriétaire.
-func (s *StripeWorker) creditOwner(ctx context.Context, publicationID string, amountPaidCents int) error {
+func (s *StripeWorker) creditOwner(ctx context.Context, publisherID string, amountPaidCents int) error {
 	// Propriétaire : publication personnelle, sinon membre owner du média.
 	ownerID := ""
 	role := "FREE"
-	if owner, err := s.q.GetPersonalOwnerForCredit(ctx, pgtype.Text{String: publicationID, Valid: true}); err == nil {
+	if owner, err := s.q.GetPersonalOwnerForCredit(ctx, pgtype.Text{String: publisherID, Valid: true}); err == nil {
 		ownerID = owner.OwnerID
 		role = owner.OwnerRole
-	} else if mediaOwner, err := s.q.GetMediaOwnerForCredit(ctx, publicationID); err == nil {
+	} else if mediaOwner, err := s.q.GetMediaOwnerForCredit(ctx, publisherID); err == nil {
 		ownerID = mediaOwner.OwnerID
 		role = "creator"
 	} else {
@@ -130,7 +130,7 @@ func (s *StripeWorker) handlePaymentSucceeded(ctx context.Context, data map[stri
 		return nil
 	}
 
-	publicationID, err := s.resolvePublicationID(ctx, creatorRef)
+	publisherID, err := s.resolvePublisherID(ctx, creatorRef)
 	if err != nil {
 		return nil
 	}
@@ -141,12 +141,12 @@ func (s *StripeWorker) handlePaymentSucceeded(ctx context.Context, data map[stri
 	}
 
 	if _, err := s.q.UpsertSubscriberPayment(ctx, db.UpsertSubscriberPaymentParams{
-		Email: email, PublicationId: publicationID, LtvCents: int32(amountPaid),
+		Email: email, PublisherId: publisherID, LtvCents: int32(amountPaid),
 	}); err != nil {
 		return fmt.Errorf("upsert subscriber: %w", err)
 	}
 
-	return s.creditOwner(ctx, publicationID, amountPaid)
+	return s.creditOwner(ctx, publisherID, amountPaid)
 }
 
 func (s *StripeWorker) handleSubscriptionDeleted(ctx context.Context, data map[string]any) error {
@@ -156,12 +156,12 @@ func (s *StripeWorker) handleSubscriptionDeleted(ctx context.Context, data map[s
 	if creatorRef == "" || email == "" {
 		return nil
 	}
-	publicationID, err := s.resolvePublicationID(ctx, creatorRef)
+	publisherID, err := s.resolvePublisherID(ctx, creatorRef)
 	if err != nil {
 		return nil
 	}
 	return s.q.SetSubscriberPremiumStatus(ctx, db.SetSubscriberPremiumStatusParams{
-		PublicationId: publicationID, Email: email, IsActive: false, Status: db.SubscriptionStatusCANCELED,
+		PublisherId: publisherID, Email: email, IsActive: false, Status: db.SubscriptionStatusCANCELED,
 	})
 }
 
@@ -175,12 +175,12 @@ func (s *StripeWorker) handlePaymentFailed(ctx context.Context, data map[string]
 	if creatorRef == "" || email == "" {
 		return nil
 	}
-	publicationID, err := s.resolvePublicationID(ctx, creatorRef)
+	publisherID, err := s.resolvePublisherID(ctx, creatorRef)
 	if err != nil {
 		return nil
 	}
 	return s.q.SetSubscriberPremiumStatus(ctx, db.SetSubscriberPremiumStatusParams{
-		PublicationId: publicationID, Email: email, IsActive: false, Status: db.SubscriptionStatusPASTDUE,
+		PublisherId: publisherID, Email: email, IsActive: false, Status: db.SubscriptionStatusPASTDUE,
 	})
 }
 

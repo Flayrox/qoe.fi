@@ -29,7 +29,7 @@ type UserUnmutedEvent struct {
 // ProfileVisibilityChangedEvent représente le changement de visibilité du profil d'un utilisateur.
 type ProfileVisibilityChangedEvent struct {
 	UserID        string
-	PublicationID string
+	PublisherID string
 	OldVisibility string
 	NewVisibility string
 }

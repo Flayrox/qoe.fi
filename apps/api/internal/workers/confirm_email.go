@@ -115,7 +115,7 @@ func (w *ConfirmEmailWorker) HandleSubscriberConfirm(ctx context.Context, t *asy
 	if err := json.Unmarshal(t.Payload(), &p); err != nil {
 		return err
 	}
-	if p.Email == "" || p.PublicationID == "" {
+	if p.Email == "" || p.PublisherID == "" {
 		log.Printf("[confirm] payload incomplet : %v", p)
 		return nil
 	}
@@ -134,12 +134,12 @@ func (w *ConfirmEmailWorker) HandleSubscriberConfirm(ctx context.Context, t *asy
 	q := db.New(w.pool)
 	info, err := q.GetPendingConfirmation(ctx, db.GetPendingConfirmationParams{
 		Email:         p.Email,
-		PublicationId: p.PublicationID,
+		PublisherId: p.PublisherID,
 	})
 	if err != nil {
 		// Déjà confirmé (ou abonné inexistant) → rien à faire, pas d'erreur :
 		// une re-inscription ne doit jamais re-déclencher un envoi.
-		log.Printf("[confirm] %s / %s : déjà confirmé ou absent (%v)", p.Email, p.PublicationID, err)
+		log.Printf("[confirm] %s / %s : déjà confirmé ou absent (%v)", p.Email, p.PublisherID, err)
 		return nil
 	}
 
@@ -148,27 +148,27 @@ func (w *ConfirmEmailWorker) HandleSubscriberConfirm(ctx context.Context, t *asy
 	// sont ignorés ici (seconde barrière — la première est à la sauvegarde).
 	// Droit lu des octrois (source unique), jamais du JSON (forgeable).
 	prefs := ApplyTier(ParseEmailPrefs(info.EmailSettings),
-		subscriptions.HasPro(ctx, w.pool, p.PublicationID, time.Now()))
+		subscriptions.HasPro(ctx, w.pool, p.PublisherID, time.Now()))
 	pubURL := publicationPublicURL(info.Subdomain, info.CustomDomain)
-	link := buildConfirmURL(confirmEmailBaseURL(), p.PublicationID, p.Email, info.ConfirmationToken.String)
+	link := buildConfirmURL(confirmEmailBaseURL(), p.PublisherID, p.Email, info.ConfirmationToken.String)
 
 	msg := BuildSubscriberEmail(&w.subscriberMailer, SubscriberEmailSpec{
 		Template: EmailTemplateConfirm,
 		Locale:   locale,
 		Email:    p.Email,
-		PubID:    p.PublicationID,
-		PubName:  info.PublicationName,
+		PubID:    p.PublisherID,
+		PubName:  info.PublisherName,
 		PubURL:   pubURL,
 		Accent:   PubAccentColor(info.AccentColor),
 		LogoURL:  PubLogoURL(info.LogoUrl),
 	}, prefs)
 	// Le vrai lien signé remplace le placeholder de la coquille confirm.
-	msg.HTML = strings.Replace(msg.HTML, buildConfirmURL(confirmEmailBaseURL(), p.PublicationID, p.Email, "TOKEN"), link, 1)
-	msg.Text = strings.Replace(msg.Text, buildConfirmURL(confirmEmailBaseURL(), p.PublicationID, p.Email, "TOKEN"), link, 1)
+	msg.HTML = strings.Replace(msg.HTML, buildConfirmURL(confirmEmailBaseURL(), p.PublisherID, p.Email, "TOKEN"), link, 1)
+	msg.Text = strings.Replace(msg.Text, buildConfirmURL(confirmEmailBaseURL(), p.PublisherID, p.Email, "TOKEN"), link, 1)
 
 	if err := w.provider.Send(ctx, msg); err != nil {
 		return fmt.Errorf("confirm: envoi à %s: %w", p.Email, err)
 	}
-	log.Printf("[confirm] email de confirmation envoyé à %s (%s) [%s]", p.Email, p.PublicationID, locale)
+	log.Printf("[confirm] email de confirmation envoyé à %s (%s) [%s]", p.Email, p.PublisherID, locale)
 	return nil
 }

@@ -12,17 +12,17 @@ import (
 )
 
 const createWebhook = `-- name: CreateWebhook :one
-INSERT INTO "Webhook" (id, "publicationId", name, url, secret, events, active, "createdAt", "updatedAt")
+INSERT INTO "Webhook" (id, "publisherId", name, url, secret, events, active, "createdAt", "updatedAt")
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, true, now(), now())
 RETURNING id, name, url, events, active, "createdAt"
 `
 
 type CreateWebhookParams struct {
-	PublicationId string   `json:"publicationId"`
-	Name          string   `json:"name"`
-	Url           string   `json:"url"`
-	Secret        string   `json:"secret"`
-	Events        []string `json:"events"`
+	PublisherId string   `json:"publisherId"`
+	Name        string   `json:"name"`
+	Url         string   `json:"url"`
+	Secret      string   `json:"secret"`
+	Events      []string `json:"events"`
 }
 
 type CreateWebhookRow struct {
@@ -36,7 +36,7 @@ type CreateWebhookRow struct {
 
 func (q *Queries) CreateWebhook(ctx context.Context, arg CreateWebhookParams) (CreateWebhookRow, error) {
 	row := q.db.QueryRow(ctx, createWebhook,
-		arg.PublicationId,
+		arg.PublisherId,
 		arg.Name,
 		arg.Url,
 		arg.Secret,
@@ -83,36 +83,36 @@ func (q *Queries) DeleteWebhook(ctx context.Context, id string) error {
 	return err
 }
 
-const getActiveSubscribersByPublication = `-- name: GetActiveSubscribersByPublication :many
+const getActiveSubscribersByPublisher = `-- name: GetActiveSubscribersByPublisher :many
 SELECT id, email, "isPremium", "tierId"
 FROM "Subscriber"
-WHERE "publicationId" = $1 AND "isActive" = true
+WHERE "publisherId" = $1 AND "isActive" = true
 ORDER BY id ASC
 LIMIT $2 OFFSET $3
 `
 
-type GetActiveSubscribersByPublicationParams struct {
-	PublicationId string `json:"publicationId"`
-	Limit         int32  `json:"limit"`
-	Offset        int32  `json:"offset"`
+type GetActiveSubscribersByPublisherParams struct {
+	PublisherId string `json:"publisherId"`
+	Limit       int32  `json:"limit"`
+	Offset      int32  `json:"offset"`
 }
 
-type GetActiveSubscribersByPublicationRow struct {
+type GetActiveSubscribersByPublisherRow struct {
 	ID        string      `json:"id"`
 	Email     string      `json:"email"`
 	IsPremium bool        `json:"isPremium"`
 	TierId    pgtype.Text `json:"tierId"`
 }
 
-func (q *Queries) GetActiveSubscribersByPublication(ctx context.Context, arg GetActiveSubscribersByPublicationParams) ([]GetActiveSubscribersByPublicationRow, error) {
-	rows, err := q.db.Query(ctx, getActiveSubscribersByPublication, arg.PublicationId, arg.Limit, arg.Offset)
+func (q *Queries) GetActiveSubscribersByPublisher(ctx context.Context, arg GetActiveSubscribersByPublisherParams) ([]GetActiveSubscribersByPublisherRow, error) {
+	rows, err := q.db.Query(ctx, getActiveSubscribersByPublisher, arg.PublisherId, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []GetActiveSubscribersByPublicationRow{}
+	items := []GetActiveSubscribersByPublisherRow{}
 	for rows.Next() {
-		var i GetActiveSubscribersByPublicationRow
+		var i GetActiveSubscribersByPublisherRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Email,
@@ -129,34 +129,34 @@ func (q *Queries) GetActiveSubscribersByPublication(ctx context.Context, arg Get
 	return items, nil
 }
 
-const getActiveWebhooksByPublication = `-- name: GetActiveWebhooksByPublication :many
+const getActiveWebhooksByPublisher = `-- name: GetActiveWebhooksByPublisher :many
 SELECT id, url, secret
 FROM "Webhook"
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
   AND active = true
   AND $2::text = ANY(events)
 `
 
-type GetActiveWebhooksByPublicationParams struct {
-	PublicationId string `json:"publicationId"`
-	Column2       string `json:"column_2"`
+type GetActiveWebhooksByPublisherParams struct {
+	PublisherId string `json:"publisherId"`
+	Column2     string `json:"column_2"`
 }
 
-type GetActiveWebhooksByPublicationRow struct {
+type GetActiveWebhooksByPublisherRow struct {
 	ID     string `json:"id"`
 	Url    string `json:"url"`
 	Secret string `json:"secret"`
 }
 
-func (q *Queries) GetActiveWebhooksByPublication(ctx context.Context, arg GetActiveWebhooksByPublicationParams) ([]GetActiveWebhooksByPublicationRow, error) {
-	rows, err := q.db.Query(ctx, getActiveWebhooksByPublication, arg.PublicationId, arg.Column2)
+func (q *Queries) GetActiveWebhooksByPublisher(ctx context.Context, arg GetActiveWebhooksByPublisherParams) ([]GetActiveWebhooksByPublisherRow, error) {
+	rows, err := q.db.Query(ctx, getActiveWebhooksByPublisher, arg.PublisherId, arg.Column2)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []GetActiveWebhooksByPublicationRow{}
+	items := []GetActiveWebhooksByPublisherRow{}
 	for rows.Next() {
-		var i GetActiveWebhooksByPublicationRow
+		var i GetActiveWebhooksByPublisherRow
 		if err := rows.Scan(&i.ID, &i.Url, &i.Secret); err != nil {
 			return nil, err
 		}
@@ -169,7 +169,7 @@ func (q *Queries) GetActiveWebhooksByPublication(ctx context.Context, arg GetAct
 }
 
 const getWebhook = `-- name: GetWebhook :one
-SELECT id, "publicationId", name, url, secret, events, active, "createdAt", "updatedAt"
+SELECT id, "publisherId", name, url, secret, events, active, "createdAt", "updatedAt"
 FROM "Webhook"
 WHERE id = $1
 `
@@ -179,7 +179,7 @@ func (q *Queries) GetWebhook(ctx context.Context, id string) (Webhook, error) {
 	var i Webhook
 	err := row.Scan(
 		&i.ID,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.Name,
 		&i.Url,
 		&i.Secret,
@@ -268,14 +268,14 @@ func (q *Queries) ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeli
 	return items, nil
 }
 
-const listWebhooksByPublication = `-- name: ListWebhooksByPublication :many
+const listWebhooksByPublisher = `-- name: ListWebhooksByPublisher :many
 SELECT id, name, url, events, active, "createdAt", "updatedAt"
 FROM "Webhook"
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
 ORDER BY "createdAt" DESC
 `
 
-type ListWebhooksByPublicationRow struct {
+type ListWebhooksByPublisherRow struct {
 	ID        string           `json:"id"`
 	Name      string           `json:"name"`
 	Url       string           `json:"url"`
@@ -285,15 +285,15 @@ type ListWebhooksByPublicationRow struct {
 	UpdatedAt pgtype.Timestamp `json:"updatedAt"`
 }
 
-func (q *Queries) ListWebhooksByPublication(ctx context.Context, publicationid string) ([]ListWebhooksByPublicationRow, error) {
-	rows, err := q.db.Query(ctx, listWebhooksByPublication, publicationid)
+func (q *Queries) ListWebhooksByPublisher(ctx context.Context, publisherid string) ([]ListWebhooksByPublisherRow, error) {
+	rows, err := q.db.Query(ctx, listWebhooksByPublisher, publisherid)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListWebhooksByPublicationRow{}
+	items := []ListWebhooksByPublisherRow{}
 	for rows.Next() {
-		var i ListWebhooksByPublicationRow
+		var i ListWebhooksByPublisherRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,

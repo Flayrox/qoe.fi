@@ -5,15 +5,15 @@ import (
 	"testing"
 )
 
-// TestGetOrCreatePersonalPublication — création + réutilisation.
-func TestGetOrCreatePersonalPublication(t *testing.T) {
+// TestGetOrCreatePersonalPublisher — création + réutilisation.
+func TestGetOrCreatePersonalPublisher(t *testing.T) {
 	requirePool(t)
 	seedMe(t)
 	svc := NewService(poolTest)
 	ctx := context.Background()
 
 	// L'utilisateur seedé n'a pas de publication → création.
-	pub1, err := svc.GetOrCreatePersonalPublication(ctx, userID)
+	pub1, err := svc.GetOrCreatePersonalPublisher(ctx, userID)
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -22,7 +22,7 @@ func TestGetOrCreatePersonalPublication(t *testing.T) {
 	}
 
 	// Idempotent : même publication à la 2e lecture.
-	pub2, err := svc.GetOrCreatePersonalPublication(ctx, userID)
+	pub2, err := svc.GetOrCreatePersonalPublisher(ctx, userID)
 	if err != nil {
 		t.Fatalf("resolve again: %v", err)
 	}
@@ -71,13 +71,13 @@ func TestUnlockArticleWithWallet(t *testing.T) {
 	// Publication appartenant à otherID.
 	var pubID2 string
 	if err := poolTest.QueryRow(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "updatedAt")
 		 VALUES ('pub_wallet_owner', 'PERSONAL', 'Owner Pub', 'owner-pub', now())
 		 RETURNING id`).Scan(&pubID2); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`UPDATE "User" SET "publicationId" = $2 WHERE id = $1`, otherID, pubID2); err != nil {
+		`UPDATE "User" SET "publisherId" = $2 WHERE id = $1`, otherID, pubID2); err != nil {
 		t.Fatalf("link: %v", err)
 	}
 

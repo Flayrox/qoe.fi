@@ -109,8 +109,8 @@ describe('Billing Helpers (Portefeuille & Abonnements 2026)', () => {
           { id: '3', type: 'Tip', amountCents: -500, createdAt: '2026-03-03' },
         ],
         subscriptions: [
-          { id: 's1', publication: { name: 'Le Monde 2026', logoUrl: null, slug: 'lemonde' } },
-          { id: 's2', publication: { name: 'Mediapart', logoUrl: null, slug: 'mediapart' } },
+          { id: 's1', publisher: { name: 'Le Monde 2026', logoUrl: null, slug: 'lemonde' } },
+          { id: 's2', publisher: { name: 'Mediapart', logoUrl: null, slug: 'mediapart' } },
         ],
       };
 

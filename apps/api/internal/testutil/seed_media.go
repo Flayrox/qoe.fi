@@ -9,7 +9,7 @@ import (
 
 // MediaFixtures contient les IDs du seed Média (vraie publication MEDIA).
 type MediaFixtures struct {
-	PublicationID string // publication de type MEDIA
+	PublisherID string // publication de type MEDIA
 	OwnerID       string // role owner (membre média)
 	EditorID      string // role editor
 	WriterID      string // role writer (création + édition own)
@@ -23,18 +23,18 @@ func SeedMedia(ctx context.Context, pool *pgxpool.Pool) (*MediaFixtures, error) 
 	fx := &MediaFixtures{}
 
 	if _, err := pool.Exec(ctx, `TRUNCATE TABLE
-		"Article", "MediaMember", "Media", "User", "Publication"
+		"Article", "MediaMember", "Media", "User", "Publisher"
 		CASCADE`); err != nil {
 		return nil, fmt.Errorf("truncate: %w", err)
 	}
 
-	fx.PublicationID = "pub_media_001"
+	fx.PublisherID = "pub_media_001"
 	if err := pool.QueryRow(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ($1, 'MEDIA', 'Média Quotidien', 'media-quotidien', now(), now())
 		 RETURNING id`,
-		fx.PublicationID,
-	).Scan(&fx.PublicationID); err != nil {
+		fx.PublisherID,
+	).Scan(&fx.PublisherID); err != nil {
 		return nil, fmt.Errorf("publication: %w", err)
 	}
 
@@ -62,9 +62,9 @@ func SeedMedia(ctx context.Context, pool *pgxpool.Pool) (*MediaFixtures, error) 
 	}
 
 	if _, err := pool.Exec(ctx,
-		`INSERT INTO "Media" (id, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "Media" (id, "publisherId", "createdAt", "updatedAt")
 		 VALUES ('media_001', $1, now(), now())`,
-		fx.PublicationID,
+		fx.PublisherID,
 	); err != nil {
 		return nil, fmt.Errorf("media: %w", err)
 	}

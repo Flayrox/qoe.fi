@@ -25,7 +25,7 @@ export * from './blocks/CategorySpotlightBlock';
 export * from './blocks/BlockWrapper';
 export * from './blocks/EditableText';
 export * from './blocks/NodeRenderer';
-export * from './blocks/PublicationSidebar';
+export * from './blocks/PublisherSidebar';
 export * from './blocks/ArticleEngagementBar';
 export * from './blocks/PersonCard';
 export * from './blocks/PeopleSection';

@@ -314,7 +314,7 @@ func ResolveCustomization(prefs EmailPrefs, locale string) CustomizedEmail {
 		Accent:          prefs.AccentColor,
 		LogoURL:         prefs.LogoURL,
 		FooterNote:      prefs.FooterNote,
-		WelcomeBody:     WelcomeBody(prefs, locale, localizedPublicationName(locale, "")),
+		WelcomeBody:     WelcomeBody(prefs, locale, localizedPublisherName(locale, "")),
 		WelcomeDisabled: prefs.WelcomeEnabled != nil && !*prefs.WelcomeEnabled,
 	}
 	c.Subject = func(template, defaultFR, defaultEN string) string {

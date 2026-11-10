@@ -87,13 +87,13 @@ describe('ArticleListRow — badge de statut', () => {
     expect(screen.getByText(/Programmé/)).toBeDefined();
     expect(screen.queryByText('Brouillon')).toBeNull();
     // La date de programmation apparaît (format local court, ex. « 2 nov. 09:30 »).
-    expect(screen.getByTitle('Publication automatique programmée').textContent).toMatch(/\d/);
+    expect(screen.getByTitle('Publisher automatique programmée').textContent).toMatch(/\d/);
   });
 
   it('reste lisible quand la date de programmation manque', () => {
     renderRow(makeArticle({ status: 'SCHEDULED', published: false, scheduledAt: null }));
 
-    const pill = screen.getByTitle('Publication automatique programmée');
+    const pill = screen.getByTitle('Publisher automatique programmée');
     expect(pill.textContent).toBe('Programmé');
   });
 

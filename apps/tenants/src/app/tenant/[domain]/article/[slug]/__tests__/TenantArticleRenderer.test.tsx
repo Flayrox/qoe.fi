@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import React from 'react';
 import { TenantArticleRenderer } from '../TenantArticleRenderer';
-import type { TenantPublication, TenantArticle } from '@/lib/tenant-data';
+import type { TenantPublisher, TenantArticle } from '@/lib/tenant-data';
 
 vi.mock('next/headers', () => ({
   headers: vi.fn(async () => new Headers({ host: 'journal.qoe.fi' })),
@@ -69,7 +69,7 @@ vi.mock('@qoe/ui/templates', () => ({
 }));
 
 describe('TenantArticleRenderer — Annotations et placement du Paywall', () => {
-  const dummyPublication: TenantPublication = {
+  const dummyPublisher: TenantPublisher = {
     id: 'pub_1',
     name: 'Artisan Journal',
     slug: 'artisan-journal',
@@ -126,7 +126,7 @@ describe('TenantArticleRenderer — Annotations et placement du Paywall', () => 
 
   it("affiche la barre d'annotations en haut, avant le corps tronqué et avant le paywall", async () => {
     const Component = await TenantArticleRenderer({
-      publication: dummyPublication,
+      publisher: dummyPublisher,
       article: dummyPaidArticle,
       user: null,
       bundle: {

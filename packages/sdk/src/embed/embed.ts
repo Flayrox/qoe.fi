@@ -29,7 +29,7 @@ export interface EmbedSubscribeInput {
   /** Racine de l'API, ex. https://api.qoe.fi (sans slash final de préférence). */
   apiBase: string;
   /** Slug ou identifiant PUBLIC de la publication (ni secret ni preuve). */
-  publication: string;
+  publisher: string;
   /** Adresse saisie par le visiteur. */
   email: string;
   /** Locale explicite du visiteur (fr/en), sinon le backend déduit. */
@@ -51,8 +51,8 @@ function cleanBase(base: string): string | null {
   return trimmed;
 }
 
-function cleanPublication(publication: string): string | null {
-  const trimmed = publication.trim();
+function cleanPublisher(publisher: string): string | null {
+  const trimmed = publisher.trim();
   if (!trimmed || trimmed.length > MAX_SLUG_LENGTH || /[\s<>"]/.test(trimmed)) {
     return null;
   }
@@ -83,13 +83,13 @@ export class EmbedValidationError extends Error {
 export function buildSubscribeRequest(input: EmbedSubscribeInput): EmbedRequest {
   const apiBase = cleanBase(input.apiBase);
   if (!apiBase) throw new EmbedValidationError('apiBase invalide (http(s)://hôte attendu).');
-  const publication = cleanPublication(input.publication);
-  if (!publication) throw new EmbedValidationError('Identifiant de publication invalide.');
+  const publisher = cleanPublisher(input.publisher);
+  if (!publisher) throw new EmbedValidationError('Identifiant de publication invalide.');
   const email = cleanEmail(input.email);
   if (!email) throw new EmbedValidationError('Adresse e-mail invalide.');
   const locale = input.locale === 'en' || input.locale === 'fr' ? input.locale : undefined;
   return {
-    url: `${apiBase}/v1/publications/${encodeURIComponent(publication)}/subscribe${
+    url: `${apiBase}/v1/publishers/${encodeURIComponent(publisher)}/subscribe${
       locale ? `?locale=${locale}` : ''
     }`,
     method: 'POST',
@@ -102,7 +102,7 @@ export interface QoeSubscribePopupInput {
   /** Racine de l'app qoe.fi, ex. https://qoe.fi (sans slash final). */
   appBase: string;
   /** Slug ou identifiant PUBLIC de la publication. */
-  publication: string;
+  publisher: string;
   /** URL de retour vers le site tiers (optionnelle, validée : http(s) uniquement). */
   returnUrl?: string;
 }
@@ -114,9 +114,9 @@ export interface QoeSubscribePopupInput {
 export function buildSubscribePopupUrl(input: QoeSubscribePopupInput): string {
   const appBase = cleanBase(input.appBase);
   if (!appBase) throw new EmbedValidationError('appBase invalide (http(s)://hôte attendu).');
-  const publication = cleanPublication(input.publication);
-  if (!publication) throw new EmbedValidationError('Identifiant de publication invalide.');
-  const params = new URLSearchParams({ publication });
+  const publisher = cleanPublisher(input.publisher);
+  if (!publisher) throw new EmbedValidationError('Identifiant de publication invalide.');
+  const params = new URLSearchParams({ publisher });
   if (input.returnUrl !== undefined) {
     const cleaned = cleanReturnUrl(input.returnUrl);
     if (!cleaned) throw new EmbedValidationError('URL de retour invalide (http(s) uniquement).');

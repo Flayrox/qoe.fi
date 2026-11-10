@@ -108,7 +108,7 @@ func TestP3MediaAssetDedupeKeepsOriginalOwner(t *testing.T) {
 
 // ─── Isolation tenant ────────────────────────────────────────────────────────
 
-func TestP3TenantIsolation_ArticleNotLeakedAcrossPublications(t *testing.T) {
+func TestP3TenantIsolation_ArticleNotLeakedAcrossPublishers(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
 	fx, err := testutil.SeedArticles(ctx, poolTest)
@@ -118,7 +118,7 @@ func TestP3TenantIsolation_ArticleNotLeakedAcrossPublications(t *testing.T) {
 	// Une seconde publication sans lien avec la première.
 	otherPubID := "pub_sec_other"
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ($1, 'PERSONAL', 'Autre', 'autre-sec', now(), now())`, otherPubID); err != nil {
 		t.Fatalf("other publication: %v", err)
 	}
@@ -126,7 +126,7 @@ func TestP3TenantIsolation_ArticleNotLeakedAcrossPublications(t *testing.T) {
 
 	// L'article existe (slug recette-pates) mais demandé sous la publication B :
 	// le tenant B ne doit PAS voir le contenu du tenant A.
-	w, _ := doReq(t, r, http.MethodGet, "/v1/articles/recette-pates?publicationId="+otherPubID, "", nil)
+	w, _ := doReq(t, r, http.MethodGet, "/v1/articles/recette-pates?publisherId="+otherPubID, "", nil)
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("article tenant A via tenant B = %d, body=%s; attendu 404", w.Code, w.Body.String())
 	}
@@ -134,12 +134,12 @@ func TestP3TenantIsolation_ArticleNotLeakedAcrossPublications(t *testing.T) {
 	// La liste créateur de B ne doit pas contenir l'article de A.
 	bOwner := "00000000-0000-0000-0000-0000000000f1"
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "User" (id, email, username, name, role, "publisherId", "createdAt", "updatedAt")
 		 VALUES ($1, 'owner-b-sec@test.dev', 'ownerbsec', 'Owner B', 'creator', $2, now(), now())`,
 		bOwner, otherPubID); err != nil {
 		t.Fatalf("owner B: %v", err)
 	}
-	w, _ = doReq(t, r, http.MethodGet, "/v1/articles?publicationId="+otherPubID, routerJWT(bOwner), nil)
+	w, _ = doReq(t, r, http.MethodGet, "/v1/articles?publisherId="+otherPubID, routerJWT(bOwner), nil)
 	if w.Code != http.StatusOK {
 		t.Fatalf("liste B = %d, body=%s", w.Code, w.Body.String())
 	}
@@ -159,7 +159,7 @@ func TestP3RBAC_ReaderCannotWriteCreatorResources(t *testing.T) {
 	readerToken := routerJWT(securityReaderID)
 
 	// Un lecteur (rôle user, sans publication) ne peut pas créer d'article :
-	// soit 400 (publicationId requis), soit 403/401 (autorisation) — en aucun
+	// soit 400 (publisherId requis), soit 403/401 (autorisation) — en aucun
 	// cas 201 et en aucun cas l'article n'est créé.
 	w, _ := doReq(t, r, http.MethodPost, "/v1/articles", readerToken, map[string]any{
 		"title":         "Reader article",
@@ -241,11 +241,11 @@ func seedSecurityUsers(t *testing.T, ctx context.Context) {
 	t.Helper()
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE
 		"MediaAsset", "MediaAuditLog", "MediaMember", "Media",
-		"Article", "Publication", "User" CASCADE`); err != nil {
+		"Article", "Publisher", "User" CASCADE`); err != nil {
 		t.Fatalf("truncate sécurité: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt") VALUES
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt") VALUES
 		 ('pub_sec_main', 'PERSONAL', 'Média Sécurité', 'media-securite', now(), now()),
 		 ('pub_sec_other_admin', 'PERSONAL', 'Autre Sécurité', 'autre-securite', now(), now())`); err != nil {
 		t.Fatalf("publication: %v", err)
@@ -253,7 +253,7 @@ func seedSecurityUsers(t *testing.T, ctx context.Context) {
 	// owner (creator lié à la publication), reader (user), creator sans accès
 	// admin (creator d'une autre publication), admin (superadmin).
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt") VALUES
+		`INSERT INTO "User" (id, email, username, name, role, "publisherId", "createdAt", "updatedAt") VALUES
 		($1, 'owner-sec@test.dev', 'ownersec', 'Owner', 'creator', 'pub_sec_main', now(), now()),
 		($2, 'reader-sec@test.dev', 'readersec', 'Reader', 'user', NULL, now(), now()),
 		($3, 'creator-sec@test.dev', 'creatorsec', 'Creator', 'creator', 'pub_sec_other_admin', now(), now()),

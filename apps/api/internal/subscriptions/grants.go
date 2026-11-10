@@ -31,7 +31,7 @@ const (
 // Sujets (vocabulaire fermé, CHECK en base).
 const (
 	SubjectUser        = "user"
-	SubjectPublication = "publication"
+	SubjectPublisher = "publisher"
 )
 
 // Erreurs sentinelles (mappées en statuts HTTP par les handlers).
@@ -49,7 +49,7 @@ func ValidPlan(plan string) bool {
 
 // ValidSubject dit si le sujet appartient au vocabulaire fermé.
 func ValidSubject(subjectType string) bool {
-	return subjectType == SubjectUser || subjectType == SubjectPublication
+	return subjectType == SubjectUser || subjectType == SubjectPublisher
 }
 
 // Grant est un octroi (sérialisable pour la console).
@@ -141,15 +141,15 @@ func HasEntitlement(ctx context.Context, pool HasDB, subjectType, subjectID, pla
 // HasPro : la publication a-t-elle la personnalisation e-mails (et, demain,
 // le reste du Pro) ? Raccourci de HasEntitlement — UNE fonction pour tous
 // les chemins e-mails (workers, preview, test, save).
-func HasPro(ctx context.Context, pool HasDB, publicationID string, now time.Time) bool {
-	return HasEntitlement(ctx, pool, SubjectPublication, publicationID, PlanPro, now)
+func HasPro(ctx context.Context, pool HasDB, publisherID string, now time.Time) bool {
+	return HasEntitlement(ctx, pool, SubjectPublisher, publisherID, PlanPro, now)
 }
 
 // HasPlus : l'utilisateur a-t-il les avantages lecteur Plus ? Deux voies
 // (décision produit : Pro INCLUT Plus) :
 //   - octroi direct : grant (user, plus) effectif ;
 //   - via le studio : l'utilisateur possède une publication (User.
-//     publicationId) sous octroi (publication, pro) effectif.
+//     publisherId) sous octroi (publication, pro) effectif.
 //
 // Une seule requête (EXISTS + sous-requête owner). Pool nil : false.
 func HasPlus(ctx context.Context, pool HasDB, userID string, now time.Time) bool {
@@ -165,8 +165,8 @@ func HasPlus(ctx context.Context, pool HasDB, userID string, now time.Time) bool
 		SELECT EXISTS(
 			SELECT 1 FROM "SubscriptionGrant" g
 			WHERE ((g."subjectType" = 'user' AND g."subjectId" = $1 AND g."plan" = 'plus')
-			    OR (g."subjectType" = 'publication' AND g."plan" = 'pro'
-			        AND g."subjectId" = (SELECT u."publicationId" FROM "User" u WHERE u.id = $1::uuid)))
+			    OR (g."subjectType" = 'publisher' AND g."plan" = 'pro'
+			        AND g."subjectId" = (SELECT u."publisherId" FROM "User" u WHERE u.id = $1::uuid)))
 			  AND g."startsAt" <= $2 AND (g."endsAt" IS NULL OR g."endsAt" > $3)
 		)`, userID, since, now).Scan(&ok)
 	return err == nil && ok

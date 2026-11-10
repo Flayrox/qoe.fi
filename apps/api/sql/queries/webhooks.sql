@@ -1,7 +1,7 @@
--- name: GetActiveWebhooksByPublication :many
+-- name: GetActiveWebhooksByPublisher :many
 SELECT id, url, secret
 FROM "Webhook"
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
   AND active = true
   AND $2::text = ANY(events);
 
@@ -15,17 +15,17 @@ UPDATE "WebhookDelivery"
 SET status = $2, "httpStatus" = $3, "responseBody" = $4, attempts = attempts + 1
 WHERE id = $1;
 
--- name: GetActiveSubscribersByPublication :many
+-- name: GetActiveSubscribersByPublisher :many
 SELECT id, email, "isPremium", "tierId"
 FROM "Subscriber"
-WHERE "publicationId" = $1 AND "isActive" = true
+WHERE "publisherId" = $1 AND "isActive" = true
 ORDER BY id ASC
 LIMIT $2 OFFSET $3;
 
--- name: ListWebhooksByPublication :many
+-- name: ListWebhooksByPublisher :many
 SELECT id, name, url, events, active, "createdAt", "updatedAt"
 FROM "Webhook"
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
 ORDER BY "createdAt" DESC;
 
 -- name: ListWebhookDeliveries :many
@@ -36,12 +36,12 @@ ORDER BY d."createdAt" DESC
 LIMIT $2;
 
 -- name: CreateWebhook :one
-INSERT INTO "Webhook" (id, "publicationId", name, url, secret, events, active, "createdAt", "updatedAt")
+INSERT INTO "Webhook" (id, "publisherId", name, url, secret, events, active, "createdAt", "updatedAt")
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, true, now(), now())
 RETURNING id, name, url, events, active, "createdAt";
 
 -- name: GetWebhook :one
-SELECT id, "publicationId", name, url, secret, events, active, "createdAt", "updatedAt"
+SELECT id, "publisherId", name, url, secret, events, active, "createdAt", "updatedAt"
 FROM "Webhook"
 WHERE id = $1;
 

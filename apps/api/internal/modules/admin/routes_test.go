@@ -192,7 +192,7 @@ func TestSensitiveRoutesDeclareTheRightCapability(t *testing.T) {
 		{"GET", "/v1/admin/audit-log", adminauthz.AuditRead},
 		{"POST", "/v1/admin/subscriptions/grants", adminauthz.SubscriptionsWrite},
 		{"POST", "/v1/admin/subscriptions/grants/{id}/revoke", adminauthz.SubscriptionsWrite},
-		{"PATCH", "/v1/admin/publications/{id}", adminauthz.SubscriptionsWrite},
+		{"PATCH", "/v1/admin/publishers/{id}", adminauthz.SubscriptionsWrite},
 		{"PATCH", "/v1/admin/users/{userID}", adminauthz.UsersModerate},
 		{"POST", "/v1/admin/users/{userID}/revoke-sessions", adminauthz.UsersSessionsRevoke},
 		{"POST", "/v1/admin/users/{userID}/dsar-export", adminauthz.ComplianceExport},

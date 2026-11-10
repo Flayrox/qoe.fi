@@ -4,7 +4,7 @@
 
 import type {
   LayoutConfig,
-  TemplatePublicationContext,
+  TemplatePublisherContext,
   TemplateArticleItem,
 } from '@qoe/ui/templates';
 import type { SidebarProps } from '@qoe/ui/sidebar';
@@ -28,7 +28,7 @@ export interface StageHistoryState {
 }
 
 export interface StageClientProps {
-  publication: TemplatePublicationContext;
+  publisher: TemplatePublisherContext;
   articles: TemplateArticleItem[];
   sidebarProps?: SidebarProps;
   /** Brouillon serveur : prime sur layoutStyle (publié) au chargement. */

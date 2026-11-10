@@ -75,8 +75,8 @@ func TestAbuseGuards_ForbiddenForStranger(t *testing.T) {
 	if _, err := svc.RevokeSubscriptionGrant(ctx, stranger, "x"); !errors.Is(err, errForbidden) {
 		t.Errorf("RevokeSubscriptionGrant = %v, attendu errForbidden", err)
 	}
-	if _, err := svc.SetPublicationEmailPro(ctx, stranger, "pub_adm_001", true); !errors.Is(err, errForbidden) {
-		t.Errorf("SetPublicationEmailPro = %v, attendu errForbidden", err)
+	if _, err := svc.SetPublisherEmailPro(ctx, stranger, "pub_adm_001", true); !errors.Is(err, errForbidden) {
+		t.Errorf("SetPublisherEmailPro = %v, attendu errForbidden", err)
 	}
 }
 
@@ -113,17 +113,17 @@ func TestAbuseWiring_SuperadminPassthrough(t *testing.T) {
 		t.Errorf("UpdateAbuseIncident inexistant = %v, attendu ErrNoIncident", err)
 	}
 	// Toggle Pro : idempotent + révoque (sémantique octrois, même forme).
-	if pro, err := svc.SetPublicationEmailPro(ctx, adminAdminID, "pub_adm_001", true); err != nil || !pro {
+	if pro, err := svc.SetPublisherEmailPro(ctx, adminAdminID, "pub_adm_001", true); err != nil || !pro {
 		t.Fatalf("toggle on = (%v, %v), attendu (true, nil)", pro, err)
 	}
-	if pro, err := svc.SetPublicationEmailPro(ctx, adminAdminID, "pub_adm_001", true); err != nil || !pro {
+	if pro, err := svc.SetPublisherEmailPro(ctx, adminAdminID, "pub_adm_001", true); err != nil || !pro {
 		t.Fatalf("toggle on idempotent = (%v, %v)", pro, err)
 	}
-	if pro, err := svc.SetPublicationEmailPro(ctx, adminAdminID, "pub_adm_001", false); err != nil || pro {
+	if pro, err := svc.SetPublisherEmailPro(ctx, adminAdminID, "pub_adm_001", false); err != nil || pro {
 		t.Fatalf("toggle off = (%v, %v), attendu (false, nil)", pro, err)
 	}
 	// Octroi daté + historique via les routes grants.
-	g, err := svc.GrantSubscription(ctx, adminAdminID, "publication", "pub_adm_001", "pro", "", "", "test console")
+	g, err := svc.GrantSubscription(ctx, adminAdminID, "publisher", "pub_adm_001", "pro", "", "", "test console")
 	if err != nil {
 		t.Fatalf("grant = %v", err)
 	}
@@ -135,7 +135,7 @@ func TestAbuseWiring_SuperadminPassthrough(t *testing.T) {
 	if _, err := svc.RevokeSubscriptionGrant(ctx, adminAdminID, g.ID); err != nil {
 		t.Fatalf("revoke = %v", err)
 	}
-	if pro, err := svc.SetPublicationEmailPro(ctx, adminAdminID, "pub_adm_001", false); err != nil || pro {
+	if pro, err := svc.SetPublisherEmailPro(ctx, adminAdminID, "pub_adm_001", false); err != nil || pro {
 		t.Fatalf("off après revoke = (%v, %v)", pro, err)
 	}
 }

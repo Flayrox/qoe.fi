@@ -202,7 +202,7 @@ func seedWorldUsers(ctx context.Context, pool *pgxpool.Pool, cast []worldCharact
 			// la clé primaire pour l'idempotence.
 			pubID := topID("pubw", int(i))
 			if _, err := pool.Exec(ctx, `
-			INSERT INTO "Publication" (id, type, name, slug, subdomain, bio, "logoUrl", "headerImageUrl", "accentColor", "layoutStyle", "createdAt", "updatedAt")
+			INSERT INTO "Publisher" (id, type, name, slug, subdomain, bio, "logoUrl", "headerImageUrl", "accentColor", "layoutStyle", "createdAt", "updatedAt")
 			VALUES ($1,'PERSONAL',$2,$3,$4,$5,$6,$7,$8,$9, now() - interval '120 days', now())
 			ON CONFLICT (id) DO UPDATE SET
 			  name = $2, slug = $3, subdomain = $4, bio = $5, "accentColor" = $6, "layoutStyle" = $7, "updatedAt" = now()`,
@@ -210,7 +210,7 @@ func seedWorldUsers(ctx context.Context, pool *pgxpool.Pool, cast []worldCharact
 				return fmt.Errorf("world pub %s: %w", ch.username, err)
 			}
 			if _, err := pool.Exec(ctx, `
-				UPDATE "User" SET "publicationId" = $2, "updatedAt" = now() WHERE id = $1`,
+				UPDATE "User" SET "publisherId" = $2, "updatedAt" = now() WHERE id = $1`,
 				ch.id, pubID); err != nil {
 				return fmt.Errorf("world link user/pub %s: %w", ch.id, err)
 			}
@@ -255,9 +255,9 @@ func seedWorldRelations(ctx context.Context, pool *pgxpool.Pool, cast []worldCha
 		follower := cast[p[0]].id
 		pubID := topID("pubw", int(p[1])) // publication du créateur suivi
 		if _, err := pool.Exec(ctx, `
-			INSERT INTO "Follows" (id, "readerId", "publicationId", "createdAt")
+			INSERT INTO "Follows" (id, "readerId", "publisherId", "createdAt")
 			VALUES ($1,$2,$3, now() - interval '60 days')
-			ON CONFLICT ("readerId", "publicationId") DO NOTHING`,
+			ON CONFLICT ("readerId", "publisherId") DO NOTHING`,
 			topID("wflw", int(seq)), follower, pubID); err != nil {
 			return fmt.Errorf("world follow: %w", err)
 		}
@@ -528,9 +528,9 @@ func seedWorldArticles(ctx context.Context, pool *pgxpool.Pool, cast []worldChar
 			vis = "PAID_SUBSCRIBERS"
 		}
 		if _, err := pool.Exec(ctx, `
-			INSERT INTO "Article" (id, title, slug, content, "imageUrl", published, status, visibility, "isPremium", "readingTime", "semanticTags", "publicationId", "authorId", "createdAt", "updatedAt")
+			INSERT INTO "Article" (id, title, slug, content, "imageUrl", published, status, visibility, "isPremium", "readingTime", "semanticTags", "publisherId", "authorId", "createdAt", "updatedAt")
 			VALUES ($1,$2,$3,$4,$5,true,'PUBLISHED',$6::"ContentVisibility",$7,6,$8,$9,$10, now() - interval '5 days', now() - interval '5 days')
-			ON CONFLICT ("publicationId", slug) DO UPDATE SET title=$2, content=$4, visibility=$6::"ContentVisibility", "isPremium"=$7, "updatedAt"=now()`,
+			ON CONFLICT ("publisherId", slug) DO UPDATE SET title=$2, content=$4, visibility=$6::"ContentVisibility", "isPremium"=$7, "updatedAt"=now()`,
 			a.id, a.title, a.slug, a.content, visualURL(len(a.slug), "editorial_landscape"), vis, a.premium, a.tags, a.pub, a.author); err != nil {
 			return fmt.Errorf("world article %s: %w", a.slug, err)
 		}

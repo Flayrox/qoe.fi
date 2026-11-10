@@ -7,7 +7,7 @@ export interface BillingTransaction {
 
 export interface BillingSubscription {
   id: string;
-  publication: { name: string | null; logoUrl: string | null; slug: string } | null;
+  publisher: { name: string | null; logoUrl: string | null; slug: string } | null;
 }
 
 export interface BillingData {

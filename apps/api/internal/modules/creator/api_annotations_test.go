@@ -24,7 +24,7 @@ func seedAnnotationsFixture(t *testing.T) (slug string, doc *canon.Document) {
 
 	if _, err := poolTest.Exec(ctx,
 		`TRUNCATE TABLE "AnnotationUpvote", "AnnotationComment", "Highlight", "Article",
-		 "_CoAuthors", "Publication", "User" CASCADE`); err != nil {
+		 "_CoAuthors", "Publisher", "User" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 
@@ -33,7 +33,7 @@ func seedAnnotationsFixture(t *testing.T) (slug string, doc *canon.Document) {
 	pubID := "pub_annot_001"
 
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ($1, 'PERSONAL', 'Annotations API', 'annot-api', now(), now())`, pubID); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
@@ -53,7 +53,7 @@ func seedAnnotationsFixture(t *testing.T) (slug string, doc *canon.Document) {
 		`<p>La conclusion referme le sujet abordé plus haut.</p>`
 	if _, err := poolTest.Exec(ctx,
 		`INSERT INTO "Article" (id, title, slug, content, published, visibility,
-		                        "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt")
+		                        "readingTime", status, "publisherId", "authorId", "createdAt", "updatedAt")
 		 VALUES ('art_annot', 'Article annoté', 'article-annote', $1, true, 'PUBLIC',
 		         3, 'PUBLISHED', $2, $3, now(), now())`,
 		content, pubID, creatorID); err != nil {
@@ -291,7 +291,7 @@ func TestCreatorAPI_AnnotationsExport_NotFoundOrUnowned(t *testing.T) {
 	otherID := "00000000-0000-0000-0000-00000000a003"
 	ctx := context.Background()
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ('pub_annot_other', 'PERSONAL', 'Autre', 'autre', now(), now())`); err != nil {
 		t.Fatalf("publication autre: %v", err)
 	}

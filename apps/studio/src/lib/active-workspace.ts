@@ -26,7 +26,7 @@ export type { WorkspaceRef };
 
 export interface ActiveWorkspace {
   type: 'PERSONAL' | 'MEDIA';
-  publicationId: string;
+  publisherId: string;
   name: string;
   slug: string;
   logoUrl: string | null;
@@ -50,7 +50,7 @@ export const parseCookie = parseWorkspaceCookie;
  *
  * Pas de fallback inventé : si Go est indisponible, l'erreur remonte (mieux
  * vaut une page d'erreur qu'une écriture silencieuse dans la mauvaise
- * publication avec `publicationId = userId`).
+ * publication avec `publisherId = userId`).
  */
 export const getActiveWorkspace = cache(async (userId: string): Promise<ActiveWorkspace> => {
   // La clé de cache est le userId ; la résolution elle-même lit le cookie.
@@ -62,7 +62,7 @@ export const getActiveWorkspace = cache(async (userId: string): Promise<ActiveWo
  * 🎛️ Version "server action" : résout la publication active.
  * À utiliser dans les actions serveur du dashboard pour être workspace-aware.
  */
-export async function getActivePublicationId(userId: string): Promise<string> {
+export async function getActivePublisherId(userId: string): Promise<string> {
   const ws = await getActiveWorkspace(userId);
-  return ws.publicationId;
+  return ws.publisherId;
 }

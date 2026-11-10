@@ -18,7 +18,7 @@ import { PLACEHOLDER_COVER_1 } from '../placeholders';
 import type {
   LeadStoryBlockProps,
   TemplateArticleItem,
-  TemplatePublicationContext,
+  TemplatePublisherContext,
   TemplateRenderContext,
   CardCornerShape,
 } from '../schema';
@@ -30,7 +30,7 @@ interface LeadStoryBlockComponentProps {
   id: string;
   props: LeadStoryBlockProps;
   articles?: TemplateArticleItem[];
-  publication?: TemplatePublicationContext;
+  publisher?: TemplatePublisherContext;
   cardShape?: CardCornerShape;
   context: TemplateRenderContext;
   visible?: boolean;

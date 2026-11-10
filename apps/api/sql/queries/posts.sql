@@ -263,10 +263,10 @@ WHERE p."isDraft" = false
   AND NOT (p."repostId" IS NOT NULL AND TRIM(p.content) = '')
   AND NOT EXISTS (
     SELECT 1
-    FROM "Publication" pv
-    JOIN "User" owner ON owner."publicationId" = pv.id
+    FROM "Publisher" pv
+    JOIN "User" owner ON owner."publisherId" = pv.id
     JOIN "UserSettings" us ON us."userId" = owner.id
-    WHERE pv.id = u."publicationId" AND us."profileVisibility" <> 'PUBLIC'
+    WHERE pv.id = u."publisherId" AND us."profileVisibility" <> 'PUBLIC'
   )
 ORDER BY p."createdAt" DESC, p.id DESC
 LIMIT $1 OFFSET $2;
@@ -286,8 +286,8 @@ WHERE p."isDraft" = false
   AND NOT (p."repostId" IS NOT NULL AND TRIM(p.content) = '')
   AND NOT EXISTS (
     SELECT 1
-    FROM "Publication" pv
-    JOIN "User" owner ON owner."publicationId" = pv.id
+    FROM "Publisher" pv
+    JOIN "User" owner ON owner."publisherId" = pv.id
     JOIN "UserSettings" us ON us."userId" = owner.id
-    WHERE pv.id = u."publicationId" AND us."profileVisibility" <> 'PUBLIC'
+    WHERE pv.id = u."publisherId" AND us."profileVisibility" <> 'PUBLIC'
   );

@@ -30,7 +30,7 @@ interface BulkSettingsDraft {
   annotations: TriState;
   download: TriState;
   personalProfile: TriState;
-  publication: 'keep' | 'publish' | 'unpublish';
+  publisher: 'keep' | 'publish' | 'unpublish';
 }
 
 const EMPTY_BULK_SETTINGS: BulkSettingsDraft = {
@@ -40,7 +40,7 @@ const EMPTY_BULK_SETTINGS: BulkSettingsDraft = {
   annotations: 'keep',
   download: 'keep',
   personalProfile: 'keep',
-  publication: 'keep',
+  publisher: 'keep',
 };
 
 function BulkTriRow({
@@ -113,8 +113,8 @@ export function ArticleBulkSettingsDialog({
     if (settings.download !== 'keep') input.allowDownload = settings.download === 'on';
     if (settings.personalProfile !== 'keep')
       input.showOnPersonalProfile = settings.personalProfile === 'on';
-    if (settings.publication === 'publish') input.published = true;
-    if (settings.publication === 'unpublish') input.published = false;
+    if (settings.publisher === 'publish') input.published = true;
+    if (settings.publisher === 'unpublish') input.published = false;
 
     const hasChange =
       input.setCategory ||
@@ -158,11 +158,11 @@ export function ArticleBulkSettingsDialog({
   };
 
   const handleApply = () => {
-    if (settings.publication === 'keep') {
+    if (settings.publisher === 'keep') {
       void apply();
       return;
     }
-    const publish = settings.publication === 'publish';
+    const publish = settings.publisher === 'publish';
     onRequestConfirm({
       title: publish
         ? t`Publier ${selectedCount} article(s) ?`
@@ -247,14 +247,14 @@ export function ArticleBulkSettingsDialog({
 
           <div className="space-y-1.5">
             <Select
-              label={t`Publication`}
+              label={t`Publisher`}
               hideLabel
               size="sm"
-              value={settings.publication}
-              onValueChange={(publication) =>
+              value={settings.publisher}
+              onValueChange={(publisher) =>
                 setSettings((prev) => ({
                   ...prev,
-                  publication: publication as BulkSettingsDraft['publication'],
+                  publisher: publisher as BulkSettingsDraft['publisher'],
                 }))
               }
               options={[
@@ -263,10 +263,10 @@ export function ArticleBulkSettingsDialog({
                 { id: 'unpublish', label: t`Dépublier (brouillon)` },
               ]}
             />
-            {settings.publication !== 'keep' && (
+            {settings.publisher !== 'keep' && (
               <p className="flex items-start gap-1.5 rounded-md bg-highlight/10 p-2 text-[10px] text-highlight">
                 <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
-                {settings.publication === 'publish'
+                {settings.publisher === 'publish'
                   ? t`Les articles seront immédiatement visibles publiquement.`
                   : t`Les articles seront immédiatement retirés du site public.`}
               </p>

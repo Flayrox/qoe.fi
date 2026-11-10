@@ -3,7 +3,7 @@ import { headers } from 'next/headers';
 import { buildCategoryPath } from '@qoe/utils';
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { fetchTenantPublication } from '@/lib/tenant-data';
+import { fetchTenantPublisher } from '@/lib/tenant-data';
 import { TenantPageShell } from '@/components/TenantPageShell';
 
 interface PageProps {
@@ -13,28 +13,28 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { domain } = await params;
   const decodedDomain = decodeURIComponent(domain);
-  const publication = await fetchTenantPublication(decodedDomain);
-  const name = publication?.name || decodedDomain;
+  const publisher = await fetchTenantPublisher(decodedDomain);
+  const name = publisher?.name || decodedDomain;
   return {
     title: `Plan du site | ${name}`,
     description: `Index des parutions et rubriques de ${name}.`,
     alternates: { canonical: `https://${decodedDomain}/sitemap` },
-    robots: { index: publication?.allowIndexing !== false, follow: true },
+    robots: { index: publisher?.allowIndexing !== false, follow: true },
   };
 }
 
 export default async function TenantSitemapPage({ params }: PageProps) {
   const { domain } = await params;
   const decodedDomain = decodeURIComponent(domain);
-  const publication = await fetchTenantPublication(decodedDomain);
-  if (!publication) notFound();
+  const publisher = await fetchTenantPublisher(decodedDomain);
+  if (!publisher) notFound();
 
   const headersList = await headers();
   const host = headersList.get('x-forwarded-host') || headersList.get('host') || decodedDomain;
 
   // Regrouper les articles par année
-  const articlesByYear = new Map<number, typeof publication.articles>();
-  for (const art of publication.articles || []) {
+  const articlesByYear = new Map<number, typeof publisher.articles>();
+  for (const art of publisher.articles || []) {
     if (art.published === false) continue;
     const year = new Date(art.createdAt).getFullYear() || 2026;
     const list = articlesByYear.get(year) || [];
@@ -45,11 +45,11 @@ export default async function TenantSitemapPage({ params }: PageProps) {
   const sortedYears = [...articlesByYear.keys()].sort((a, b) => b - a);
 
   return (
-    <TenantPageShell publication={publication} domain={decodedDomain} host={host}>
+    <TenantPageShell publisher={publisher} domain={decodedDomain} host={host}>
       <div className="mx-auto w-full max-w-[624px] space-y-8 py-4">
         <div className="space-y-2 border-b border-border/40 pb-4">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-            Plan du site — {publication.name || decodedDomain}
+            Plan du site — {publisher.name || decodedDomain}
           </h1>
           <p className="text-sm text-muted-foreground">
             Index complet des archives, rubriques et pages de la publication.
@@ -85,18 +85,18 @@ export default async function TenantSitemapPage({ params }: PageProps) {
           </div>
 
           {/* Rubriques */}
-          {publication.categories && publication.categories.length > 0 && (
+          {publisher.categories && publisher.categories.length > 0 && (
             <div className="space-y-3 pt-4 border-t border-border/30">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                 Rubriques
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {publication.categories
+                {publisher.categories
                   .filter((cat) => !cat.isDefault)
                   .map((cat) => (
                     <Link
                       key={cat.id}
-                      href={buildCategoryPath(cat, publication.categories)}
+                      href={buildCategoryPath(cat, publisher.categories)}
                       className="p-3 rounded-[6px] border border-border/40 hover:bg-muted/40 text-sm font-medium text-foreground transition-colors flex items-center justify-between"
                     >
                       <span>{cat.name}</span>

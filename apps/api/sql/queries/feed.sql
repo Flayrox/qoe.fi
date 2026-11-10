@@ -1,9 +1,9 @@
--- name: GetFollowedPersonalPublicationOwnerIDs :many
+-- name: GetFollowedPersonalPublisherOwnerIDs :many
 SELECT u.id::text AS user_id
 FROM "Follows" f
-JOIN "User" u ON u."publicationId" = f."publicationId"
+JOIN "User" u ON u."publisherId" = f."publisherId"
 WHERE f."readerId" = $1
-  AND u."publicationId" IS NOT NULL;
+  AND u."publisherId" IS NOT NULL;
 
 -- name: FindFollowingFeed :many
 SELECT p.id,
@@ -217,21 +217,21 @@ WHERE p.id = ANY(@ids::text[])
     SELECT 1 FROM "BlockedUser" b
     WHERE (b."readerId" = @viewer_id AND (
              b."creatorId" = u.id
-             OR b."creatorId" = (SELECT owner.id FROM "Publication" pv JOIN "User" owner ON owner."publicationId" = pv.id WHERE pv.id = u."publicationId" LIMIT 1)
+             OR b."creatorId" = (SELECT owner.id FROM "Publisher" pv JOIN "User" owner ON owner."publisherId" = pv.id WHERE pv.id = u."publisherId" LIMIT 1)
            ))
        OR (b."creatorId" = @viewer_id AND (
              b."readerId" = u.id
-             OR b."readerId" = (SELECT owner.id FROM "Publication" pv JOIN "User" owner ON owner."publicationId" = pv.id WHERE pv.id = u."publicationId" LIMIT 1)
+             OR b."readerId" = (SELECT owner.id FROM "Publisher" pv JOIN "User" owner ON owner."publisherId" = pv.id WHERE pv.id = u."publisherId" LIMIT 1)
            ))
   )
   AND (
     COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us
               WHERE us."userId" = COALESCE(
-                (SELECT owner.id FROM "Publication" pv JOIN "User" owner ON owner."publicationId" = pv.id WHERE pv.id = u."publicationId" LIMIT 1),
+                (SELECT owner.id FROM "Publisher" pv JOIN "User" owner ON owner."publisherId" = pv.id WHERE pv.id = u."publisherId" LIMIT 1),
                 u.id
               )), 'PUBLIC') = 'PUBLIC'
     OR u.id = @viewer_id
-    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = @viewer_id AND f."publicationId" = u."publicationId")
+    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = @viewer_id AND f."publisherId" = u."publisherId")
   );
 
 -- name: GetQuotedArticlesByIDs :many
@@ -254,7 +254,7 @@ SELECT a.id,
        u."logoUrl"    AS author_logo,
        u."isCertified" AS author_certified
 FROM "Article" a
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 JOIN "User" u ON u.id = a."authorId"
 WHERE a.id = ANY(@ids::text[])
   AND a.published = true
@@ -264,25 +264,25 @@ WHERE a.id = ANY(@ids::text[])
     SELECT 1 FROM "BlockedUser" b
     WHERE (b."readerId" = @viewer_id AND (
              b."creatorId" = a."authorId"
-             OR b."creatorId" = (SELECT owner.id FROM "User" owner WHERE owner."publicationId" = p.id LIMIT 1)
+             OR b."creatorId" = (SELECT owner.id FROM "User" owner WHERE owner."publisherId" = p.id LIMIT 1)
            ))
        OR (b."creatorId" = @viewer_id AND (
              b."readerId" = a."authorId"
-             OR b."readerId" = (SELECT owner.id FROM "User" owner WHERE owner."publicationId" = p.id LIMIT 1)
+             OR b."readerId" = (SELECT owner.id FROM "User" owner WHERE owner."publisherId" = p.id LIMIT 1)
            ))
   )
   -- Compte privé / réservé aux abonnés : la visibilité du propriétaire fait foi.
   AND (
     COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us
               WHERE us."userId" = COALESCE(
-                (SELECT owner.id FROM "User" owner WHERE owner."publicationId" = p.id LIMIT 1),
+                (SELECT owner.id FROM "User" owner WHERE owner."publisherId" = p.id LIMIT 1),
                 a."authorId"
               )), 'PUBLIC') = 'PUBLIC'
     OR COALESCE(
-         (SELECT owner.id FROM "User" owner WHERE owner."publicationId" = p.id LIMIT 1),
+         (SELECT owner.id FROM "User" owner WHERE owner."publisherId" = p.id LIMIT 1),
          a."authorId"
        ) = @viewer_id
-    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = @viewer_id AND f."publicationId" = p.id)
+    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = @viewer_id AND f."publisherId" = p.id)
   );
 
 -- name: GetReplyIDsForThought :many
@@ -299,6 +299,6 @@ SELECT u.id::text AS author_id,
        (f.id IS NOT NULL)::boolean AS is_following
 FROM "User" u
 LEFT JOIN "Follows" f ON f."readerId" = @viewer_id
-  AND f."publicationId" = u."publicationId"
+  AND f."publisherId" = u."publisherId"
 WHERE u.id = ANY(@ids::uuid[])
-  AND u."publicationId" IS NOT NULL;
+  AND u."publisherId" IS NOT NULL;

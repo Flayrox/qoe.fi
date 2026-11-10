@@ -118,7 +118,7 @@ func (o TopOptions) defaults() TopOptions {
 // TopResult expose les entités générées (réutilisées par umami/embeddings).
 type TopResult struct {
 	Users        []TopUser
-	Publications []TopPublication
+	Publishers []TopPublisher
 	Articles     []TopArticle
 	Posts        []TopPost
 	PostIDs      []string
@@ -152,7 +152,7 @@ type TopUser struct {
 	AgeRange  string
 }
 
-type TopPublication struct {
+type TopPublisher struct {
 	ID        string
 	OwnerID   string
 	Name      string
@@ -165,7 +165,7 @@ type TopPublication struct {
 
 type TopArticle struct {
 	ID            string
-	PublicationID string
+	PublisherID string
 	AuthorID      string
 	Slug          string
 	Title         string
@@ -643,8 +643,8 @@ func seedArticleDiscussion(ctx context.Context, pool *pgxpool.Pool, res *TopResu
 		return nil
 	}
 	pubTags := map[string][]string{}
-	for i := range res.Publications {
-		pubTags[res.Publications[i].ID] = res.Publications[i].Tags
+	for i := range res.Publishers {
+		pubTags[res.Publishers[i].ID] = res.Publishers[i].Tags
 	}
 
 	for i := range res.Articles {
@@ -653,7 +653,7 @@ func seedArticleDiscussion(ctx context.Context, pool *pgxpool.Pool, res *TopResu
 		if anchor%100 >= 40 {
 			continue // ~60% des articles sans fil — l'édition reste crédible.
 		}
-		tags := pubTags[art.PublicationID]
+		tags := pubTags[art.PublisherID]
 		niche := ""
 		if len(tags) > 0 {
 			niche = tags[0]
@@ -771,7 +771,7 @@ var WipeTables = []string{
 	"OAuthClient", "ModerationReport", "MediaAsset",
 	"User",
 	"Trend", "PartnerPromo", "SystemConfig",
-	"Publication",
+	"Publisher",
 }
 
 // WipeAll vide la base dans l'ordre sûr (liste WipeTables).
@@ -991,22 +991,22 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		if role == "creator" {
 			creators++
 			pubID := topID("pub", i)
-			pub := TopPublication{
+			pub := TopPublisher{
 				ID: pubID, OwnerID: u.ID, Name: name, Slug: username,
 				Subdomain: username, Bio: bio, Accent: prngPick(rng, topAccents),
 				Tags: append([]string(nil), per.tags...),
 			}
 			u.PubID = pubID
-			res.Publications = append(res.Publications, pub)
+			res.Publishers = append(res.Publishers, pub)
 			if _, err := pool.Exec(ctx, `
-				INSERT INTO "Publication" (id, type, name, slug, subdomain, bio, "logoUrl", "headerImageUrl", "isCertified", "accentColor", "layoutStyle", "createdAt", "updatedAt")
+				INSERT INTO "Publisher" (id, type, name, slug, subdomain, bio, "logoUrl", "headerImageUrl", "isCertified", "accentColor", "layoutStyle", "createdAt", "updatedAt")
 				VALUES ($1, 'PERSONAL', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)`,
 				pub.ID, pub.Name, pub.Slug, pub.Subdomain, pub.Bio, avatar, coverURLFor(covers, pub.Tags, i+4), rng.next() < 0.25, pub.Accent, []string{"minimal", "editorial", "magazine"}[i%3], created); err != nil {
 				return nil, fmt.Errorf("publication %s: %w", pub.ID, err)
 			}
 		}
 		if _, err := pool.Exec(ctx, `
-			INSERT INTO "User" (id, email, username, name, role, "isCertified", "countryCode", "languageCode", gender, "ageRange", "hasCompletedOnboarding", "publicationId", "logoUrl", "createdAt", "updatedAt")
+			INSERT INTO "User" (id, email, username, name, role, "isCertified", "countryCode", "languageCode", gender, "ageRange", "hasCompletedOnboarding", "publisherId", "logoUrl", "createdAt", "updatedAt")
 			VALUES ($1, $2, $3, $4, $5, $6, $7, 'fr', $8, $9, true, $10, $11, $12, $12)`,
 			u.ID, u.Email, u.Username, u.Name, u.Role, rng.next() < 0.06, u.Country, gender, ageRange, nullStr(u.PubID), avatar, created); err != nil {
 			return nil, fmt.Errorf("user %s: %w", u.ID, err)
@@ -1033,7 +1033,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	catByKey := map[string]int{"foot": 0, "gaming": 1, "anime": 2, "cuisine": 3, "musique": 4, "mode": 5, "fitness": 6, "tech": 7, "voyage": 8}
 	catByPub := map[string][]string{}
 	catSeq := 0
-	for _, pub := range res.Publications {
+	for _, pub := range res.Publishers {
 		nb := 2 + rng.intn(2)
 		first := -1
 		if len(pub.Tags) > 0 {
@@ -1049,7 +1049,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			catID := topID("cat", catSeq)
 			catSeq++
 			if _, err := pool.Exec(ctx, `
-				INSERT INTO "Category" (id, name, slug, description, "publicationId")
+				INSERT INTO "Category" (id, name, slug, description, "publisherId")
 				VALUES ($1, $2, $3, $4, $5)`,
 				catID, catNames[ci], fmt.Sprintf("%s-%s-%d", catSlugs[ci], slugify(pub.Slug), c), "Catégorie "+catNames[ci], pub.ID); err != nil {
 				return nil, fmt.Errorf("category: %w", err)
@@ -1059,15 +1059,15 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	}
 
 	// ── 3. Articles (~200, loi puissance sur les créateurs) ────────────────
-	if len(res.Publications) == 0 {
+	if len(res.Publishers) == 0 {
 		return nil, fmt.Errorf("aucun créateur généré — impossible de créer des articles")
 	}
 	var pubWeights []float64
-	for range res.Publications {
+	for range res.Publishers {
 		pubWeights = append(pubWeights, 1.0)
 	}
 	for i := 0; i < opts.Articles; i++ {
-		pub := res.Publications[rng.weightedIndex(pubWeights)]
+		pub := res.Publishers[rng.weightedIndex(pubWeights)]
 		cats := catByPub[pub.ID]
 		topic := prngPick(rng, topTopics)
 		// 100% : sujet aligné avec le milieu du créateur (foot, gaming…).
@@ -1092,7 +1092,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		created := now.AddDate(0, 0, -rng.intn(60)).Add(-time.Duration(rng.intn(12)) * time.Hour)
 		art := TopArticle{
 			ID:            topID("art", i),
-			PublicationID: pub.ID,
+			PublisherID: pub.ID,
 			AuthorID:      pub.OwnerID,
 			Slug:          fmt.Sprintf("%s-%d", slugify(title), i),
 			Title:         title,
@@ -1106,11 +1106,11 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		}
 		if _, err := pool.Exec(ctx, `
 			INSERT INTO "Article" (id, title, slug, content, "imageUrl", published, status, visibility,
-				"isPremium", "isEditorPick", "readingTime", "semanticTags", "publicationId", "authorId", "categoryId", "createdAt", "updatedAt")
+				"isPremium", "isEditorPick", "readingTime", "semanticTags", "publisherId", "authorId", "categoryId", "createdAt", "updatedAt")
 			VALUES ($1, $2, $3, $4, $5, true, 'PUBLISHED', 'PUBLIC', $6, $7, $8, $9, $10, $11, $12, $13, $13)`,
 			art.ID, art.Title, art.Slug, art.Content, coverURLFor(covers, pub.Tags, i+8), art.Premium,
 			topic.editor && rng.next() < 0.3, int32(art.ReadingTime), topic.tags,
-			art.PublicationID, art.AuthorID, nullStr(art.CategoryID), created); err != nil {
+			art.PublisherID, art.AuthorID, nullStr(art.CategoryID), created); err != nil {
 			return nil, fmt.Errorf("article %s: %w", art.ID, err)
 		}
 		res.Articles = append(res.Articles, art)
@@ -1137,16 +1137,16 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		artID := topID("artc", i)
 		if _, err := pool.Exec(ctx, `
 			INSERT INTO "Article" (id, title, slug, content, "imageUrl", published, status, visibility,
-				"isPremium", "isEditorPick", "readingTime", "semanticTags", "publicationId", "authorId", "createdAt", "updatedAt")
+				"isPremium", "isEditorPick", "readingTime", "semanticTags", "publisherId", "authorId", "createdAt", "updatedAt")
 			VALUES ($1, $2, $3, $4, $5, true, 'PUBLISHED', $6, $7, $8, 6, $9, $10, $11, now(), now())
-			ON CONFLICT ("publicationId", slug) DO UPDATE SET
+			ON CONFLICT ("publisherId", slug) DO UPDATE SET
 			  title = $2, content = $4, visibility = $6, "isPremium" = $7, "isEditorPick" = $8, "updatedAt" = now()`,
 			artID, a.title, a.slug, a.content, visualURL(200+i, "editorial_landscape"), a.visibility,
 			a.premium, a.editorPick, []string{"edito"}, AdminPubID, AdminUserID); err != nil {
 			return nil, fmt.Errorf("article canonique %s: %w", a.slug, err)
 		}
 		res.Articles = append(res.Articles, TopArticle{
-			ID: artID, PublicationID: AdminPubID, AuthorID: AdminUserID,
+			ID: artID, PublisherID: AdminPubID, AuthorID: AdminUserID,
 			Slug: a.slug, Title: a.title, Content: a.content, Premium: a.premium,
 			ReadingTime: 6, CreatedAt: time.Now().UTC().Truncate(time.Second),
 		})
@@ -1256,13 +1256,13 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	}
 	// Index publications → indices par tag, + loi puissance de popularité.
 	pubByTag := map[string][]int{}
-	for pi := range res.Publications {
-		for _, t := range res.Publications[pi].Tags {
+	for pi := range res.Publishers {
+		for _, t := range res.Publishers[pi].Tags {
 			pubByTag[t] = append(pubByTag[t], pi)
 		}
 	}
 	var pubFollowWeights []float64
-	for j := range res.Publications {
+	for j := range res.Publishers {
 		pubFollowWeights = append(pubFollowWeights, 2.0/float64(j+2))
 	}
 	followSeq := 0
@@ -1278,14 +1278,14 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			} else {
 				pi = rng.weightedIndex(pubFollowWeights)
 			}
-			pub := res.Publications[pi]
+			pub := res.Publishers[pi]
 			key := rid + "|" + pub.ID
 			if seenFollow[key] {
 				continue
 			}
 			seenFollow[key] = true
 			if _, err := pool.Exec(ctx, `
-				INSERT INTO "Follows" (id, "readerId", "publicationId", "createdAt")
+				INSERT INTO "Follows" (id, "readerId", "publisherId", "createdAt")
 				VALUES ($1, $2, $3, $4)`,
 				topID("flw", followSeq), rid, pub.ID, now.AddDate(0, 0, -rng.intn(90))); err != nil {
 				return nil, fmt.Errorf("follow: %w", err)
@@ -1380,14 +1380,14 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	subSeq := 0
 	walletSeq := 0
 	for i := 0; i < 1500; i++ {
-		pub := res.Publications[rng.weightedIndex(pubFollowWeights)]
+		pub := res.Publishers[rng.weightedIndex(pubFollowWeights)]
 		premium := rng.next() < 0.3
 		ltv := 0
 		if premium {
 			ltv = []int{500, 1000, 2000, 5000}[rng.intn(4)]
 		}
 		if _, err := pool.Exec(ctx, `
-			INSERT INTO "Subscriber" (id, email, "isActive", "isPremium", "ltvCents", "receiveArticles", "publicationId", "createdAt", "updatedAt")
+			INSERT INTO "Subscriber" (id, email, "isActive", "isPremium", "ltvCents", "receiveArticles", "publisherId", "createdAt", "updatedAt")
 			VALUES ($1, $2, true, $3, $4, true, $5, $6, $6)`,
 			topID("sub", subSeq), fmt.Sprintf("abonne%d@mail.com", subSeq), premium, ltv, pub.ID, now.AddDate(0, 0, -rng.intn(60))); err != nil {
 			return nil, fmt.Errorf("subscriber: %w", err)
@@ -1671,7 +1671,7 @@ func AddTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 
 	// Reprendre les utilisateurs et publications déjà présents permet de
 	// brancher le contenu additionnel au graphe existant sans le remplacer.
-	rows, err := pool.Query(ctx, `SELECT id::text, email, COALESCE(name,''), COALESCE(username,''), role, COALESCE("countryCode",'FR'), "createdAt", COALESCE("publicationId",'') FROM "User" WHERE role <> 'superadmin' ORDER BY "createdAt", id`)
+	rows, err := pool.Query(ctx, `SELECT id::text, email, COALESCE(name,''), COALESCE(username,''), role, COALESCE("countryCode",'FR'), "createdAt", COALESCE("publisherId",'') FROM "User" WHERE role <> 'superadmin' ORDER BY "createdAt", id`)
 	if err != nil {
 		return nil, fmt.Errorf("addtop users: %w", err)
 	}
@@ -1692,9 +1692,9 @@ func AddTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	}
 
 	var pubIDs []string
-	pubRows, err := pool.Query(ctx, `SELECT id FROM "Publication" WHERE type = 'PERSONAL' ORDER BY id`)
+	pubRows, err := pool.Query(ctx, `SELECT id FROM "Publisher" WHERE type = 'PERSONAL' ORDER BY id`)
 	if err != nil {
-		return nil, fmt.Errorf("addtop publications: %w", err)
+		return nil, fmt.Errorf("addtop publishers: %w", err)
 	}
 	if err == nil {
 		for pubRows.Next() {
@@ -1752,7 +1752,7 @@ func AddTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	for i := 0; i < opts.Articles; i++ {
 		pubID := pubIDs[i%len(pubIDs)]
 		var authorID string
-		if err := pool.QueryRow(ctx, `SELECT id::text FROM "User" WHERE "publicationId" = $1 LIMIT 1`, pubID).Scan(&authorID); err != nil {
+		if err := pool.QueryRow(ctx, `SELECT id::text FROM "User" WHERE "publisherId" = $1 LIMIT 1`, pubID).Scan(&authorID); err != nil {
 			if err := pool.QueryRow(ctx, `SELECT id::text FROM "User" WHERE role='creator' ORDER BY id LIMIT 1`).Scan(&authorID); err != nil {
 				return nil, err
 			}
@@ -1770,10 +1770,10 @@ func AddTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		title := topicTitle(topic, word)
 		content := longFormContent(topic, rng)
 		cover := coverURLFor(covers, []string{nicheByUser[authorID]}, i+40)
-		if _, err := pool.Exec(ctx, `INSERT INTO "Article" (id,title,slug,content,"imageUrl",published,status,visibility,"isPremium","isEditorPick","readingTime","semanticTags","publicationId","authorId","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,true,'PUBLISHED','PUBLIC',$6,$7,10,$8,$9,$10,$11,$11) ON CONFLICT (id) DO NOTHING`, id, title, fmt.Sprintf("%s-add-%d", slugify(title), i), content, cover, rng.next() < opts.PremiumRatio, topic.editor && rng.next() < .25, topic.tags, pubID, authorID, now.Add(-time.Duration(i)*time.Hour)); err != nil {
+		if _, err := pool.Exec(ctx, `INSERT INTO "Article" (id,title,slug,content,"imageUrl",published,status,visibility,"isPremium","isEditorPick","readingTime","semanticTags","publisherId","authorId","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,true,'PUBLISHED','PUBLIC',$6,$7,10,$8,$9,$10,$11,$11) ON CONFLICT (id) DO NOTHING`, id, title, fmt.Sprintf("%s-add-%d", slugify(title), i), content, cover, rng.next() < opts.PremiumRatio, topic.editor && rng.next() < .25, topic.tags, pubID, authorID, now.Add(-time.Duration(i)*time.Hour)); err != nil {
 			return nil, err
 		}
-		res.Articles = append(res.Articles, TopArticle{ID: id, PublicationID: pubID, AuthorID: authorID, Title: title, Content: content})
+		res.Articles = append(res.Articles, TopArticle{ID: id, PublisherID: pubID, AuthorID: authorID, Title: title, Content: content})
 	}
 	for i := 0; i < opts.Posts; i++ {
 		u := &res.Users[rng.intn(len(res.Users))]
@@ -1805,7 +1805,7 @@ func AddTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 // cohérente côté app (GET /v1/me) et côté RBAC (role superadmin).
 func upsertTopAdmin(ctx context.Context, pool *pgxpool.Pool) error {
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO "Publication" (id, type, name, slug, subdomain, "isCertified", "createdAt", "updatedAt")
+		INSERT INTO "Publisher" (id, type, name, slug, subdomain, "isCertified", "createdAt", "updatedAt")
 		VALUES ($1, 'PERSONAL', 'Super Admin', 'admin', 'admin', true, now(), now())
 		ON CONFLICT (id) DO UPDATE SET name = 'Super Admin', slug = 'admin',
 		  subdomain = 'admin', "isCertified" = true, "updatedAt" = now()`,
@@ -1813,10 +1813,10 @@ func upsertTopAdmin(ctx context.Context, pool *pgxpool.Pool) error {
 		return fmt.Errorf("publication admin (top): %w", err)
 	}
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO "User" (id, email, username, name, role, "isCertified", "countryCode", "languageCode", "hasCompletedOnboarding", "publicationId", "createdAt", "updatedAt")
+		INSERT INTO "User" (id, email, username, name, role, "isCertified", "countryCode", "languageCode", "hasCompletedOnboarding", "publisherId", "createdAt", "updatedAt")
 		VALUES ($1, 'admin@qoe.fi', 'admin', 'Admin Sanctuaire', 'superadmin', true, 'FR', 'fr', true, $2, now(), now())
 		ON CONFLICT (id) DO UPDATE SET email = 'admin@qoe.fi', username = 'admin', name = 'Admin Sanctuaire',
-		  role = 'superadmin', "isCertified" = true, "publicationId" = $2, "updatedAt" = now()`,
+		  role = 'superadmin', "isCertified" = true, "publisherId" = $2, "updatedAt" = now()`,
 		AdminUserID, AdminPubID); err != nil {
 		return fmt.Errorf("user admin (top): %w", err)
 	}

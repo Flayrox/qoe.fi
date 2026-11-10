@@ -134,11 +134,11 @@ type SemanticHit struct {
 	IsPremium     bool    `json:"isPremium"`
 	ReadingTime   int     `json:"readingTime"`
 	CreatedAt     string  `json:"createdAt"`
-	PublicationID string  `json:"publicationId"`
+	PublisherID string  `json:"publisherId"`
 	AuthorID      string  `json:"authorId"`
 	AuthorName    *string `json:"authorName"`
 	AuthorLogo    *string `json:"authorLogo"`
-	Publication   *string `json:"publicationName"`
+	Publisher   *string `json:"publisherName"`
 	Score         float64 `json:"score"`
 }
 
@@ -203,7 +203,7 @@ func (s *SemanticService) Search(ctx context.Context, query string, limit int) (
 			authorLogo = &v
 		}
 		var pubName *string
-		v := r.PublicationName
+		v := r.PublisherName
 		pubName = &v
 		out = append(out, SemanticHit{
 			ID:            r.ID,
@@ -212,11 +212,11 @@ func (s *SemanticService) Search(ctx context.Context, query string, limit int) (
 			IsPremium:     r.IsPremium,
 			ReadingTime:   int(r.ReadingTime),
 			CreatedAt:     r.CreatedAt.Time.Format(time.RFC3339),
-			PublicationID: r.PublicationId,
+			PublisherID: r.PublisherId,
 			AuthorID:      uuidString(r.AuthorId),
 			AuthorName:    authorName,
 			AuthorLogo:    authorLogo,
-			Publication:   pubName,
+			Publisher:   pubName,
 			Score:         r.Score,
 		})
 	}

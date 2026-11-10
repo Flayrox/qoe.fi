@@ -41,13 +41,23 @@ interface ArticleData {
   emailStatus?: string | null;
   emailSentAt?: string | null;
   emailSentCount?: number;
+  canEdit?: boolean;
+  isAuthorSovereignCopy?: boolean;
+  originArticleId?: string | null;
+  originPublisher?: {
+    id: string;
+    name: string;
+    slug: string;
+    type?: string;
+  } | null;
+  sovereignCopyId?: string | null;
   allowDownload?: boolean;
   allowPublicAnnotations?: boolean;
   allowComments?: boolean;
   categoryId: string | null;
   seoTitle: string | null;
   seoDescription: string | null;
-  publication?: {
+  publisher?: {
     id: string;
     name: string;
     slug: string;
@@ -141,10 +151,10 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
     router.refresh();
   };
   const initialAttributions = React.useMemo(() => buildAttributionDrafts(article), [article]);
-  const target = article.publication
+  const target = article.publisher
     ? {
-        type: article.publication.type === 'MEDIA' ? 'MEDIA' : 'PERSONAL',
-        name: article.publication.name,
+        type: article.publisher.type === 'MEDIA' ? 'MEDIA' : 'PERSONAL',
+        name: article.publisher.name,
       }
     : undefined;
 
@@ -195,6 +205,11 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
         }
         initialEmailSentAt={article.emailSentAt}
         initialEmailSentCount={article.emailSentCount}
+        initialCanEdit={article.canEdit ?? true}
+        initialIsAuthorSovereignCopy={article.isAuthorSovereignCopy ?? false}
+        initialOriginArticleId={article.originArticleId ?? null}
+        initialOriginPublisherName={article.originPublisher?.name ?? null}
+        initialSovereignCopyId={article.sovereignCopyId ?? null}
         initialCategoryId={article.categoryId}
         initialSeoTitle={article.seoTitle || ''}
         initialSeoDescription={article.seoDescription || ''}

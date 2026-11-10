@@ -15,8 +15,8 @@ const canViewArticle = `-- name: CanViewArticle :one
 SELECT EXISTS (
   SELECT 1
   FROM "Article" a
-  JOIN "Publication" p ON p.id = a."publicationId"
-  LEFT JOIN "User" u ON u."publicationId" = p.id
+  JOIN "Publisher" p ON p.id = a."publisherId"
+  LEFT JOIN "User" u ON u."publisherId" = p.id
   WHERE a.id = $1
     AND a.published = true
     AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
@@ -24,7 +24,7 @@ SELECT EXISTS (
       u.id IS NULL
       OR u.id = $2::uuid
       OR COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
-      OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = $2::uuid AND f."publicationId" = p.id)
+      OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = $2::uuid AND f."publisherId" = p.id)
     )
     AND NOT EXISTS (
       SELECT 1 FROM "BlockedUser" b
@@ -408,14 +408,14 @@ SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."quoteOrdinal", h."
        h."readerId", h."articleId", h."createdAt",
        a.title      AS article_title,
        a.slug       AS article_slug,
-       p.id         AS publication_id,
-       p.name       AS publication_name,
-       p.slug       AS publication_slug,
-       p.subdomain  AS publication_subdomain,
-       p."customDomain" AS publication_custom_domain
+       p.id         AS publisher_id,
+       p.name       AS publisher_name,
+       p.slug       AS publisher_slug,
+       p.subdomain  AS publisher_subdomain,
+       p."customDomain" AS publisher_custom_domain
 FROM "Highlight" h
 JOIN "Article" a ON a.id = h."articleId"
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 WHERE h."readerId" = $1
 ORDER BY h."createdAt" DESC
 LIMIT $2 OFFSET $3
@@ -428,23 +428,23 @@ type ListMyHighlightsParams struct {
 }
 
 type ListMyHighlightsRow struct {
-	ID                      string           `json:"id"`
-	Text                    string           `json:"text"`
-	Note                    pgtype.Text      `json:"note"`
-	IsPublic                bool             `json:"isPublic"`
-	IsOfficial              bool             `json:"isOfficial"`
-	QuoteOrdinal            int32            `json:"quoteOrdinal"`
-	UpvotesCount            int32            `json:"upvotesCount"`
-	ReaderId                pgtype.UUID      `json:"readerId"`
-	ArticleId               string           `json:"articleId"`
-	CreatedAt               pgtype.Timestamp `json:"createdAt"`
-	ArticleTitle            string           `json:"article_title"`
-	ArticleSlug             string           `json:"article_slug"`
-	PublicationID           string           `json:"publication_id"`
-	PublicationName         string           `json:"publication_name"`
-	PublicationSlug         string           `json:"publication_slug"`
-	PublicationSubdomain    pgtype.Text      `json:"publication_subdomain"`
-	PublicationCustomDomain pgtype.Text      `json:"publication_custom_domain"`
+	ID                    string           `json:"id"`
+	Text                  string           `json:"text"`
+	Note                  pgtype.Text      `json:"note"`
+	IsPublic              bool             `json:"isPublic"`
+	IsOfficial            bool             `json:"isOfficial"`
+	QuoteOrdinal          int32            `json:"quoteOrdinal"`
+	UpvotesCount          int32            `json:"upvotesCount"`
+	ReaderId              pgtype.UUID      `json:"readerId"`
+	ArticleId             string           `json:"articleId"`
+	CreatedAt             pgtype.Timestamp `json:"createdAt"`
+	ArticleTitle          string           `json:"article_title"`
+	ArticleSlug           string           `json:"article_slug"`
+	PublisherID           string           `json:"publisher_id"`
+	PublisherName         string           `json:"publisher_name"`
+	PublisherSlug         string           `json:"publisher_slug"`
+	PublisherSubdomain    pgtype.Text      `json:"publisher_subdomain"`
+	PublisherCustomDomain pgtype.Text      `json:"publisher_custom_domain"`
 }
 
 // Tous les surlignages d'un lecteur (bibliothèque), avec l'article associé.
@@ -470,11 +470,11 @@ func (q *Queries) ListMyHighlights(ctx context.Context, arg ListMyHighlightsPara
 			&i.CreatedAt,
 			&i.ArticleTitle,
 			&i.ArticleSlug,
-			&i.PublicationID,
-			&i.PublicationName,
-			&i.PublicationSlug,
-			&i.PublicationSubdomain,
-			&i.PublicationCustomDomain,
+			&i.PublisherID,
+			&i.PublisherName,
+			&i.PublisherSlug,
+			&i.PublisherSubdomain,
+			&i.PublisherCustomDomain,
 		); err != nil {
 			return nil, err
 		}

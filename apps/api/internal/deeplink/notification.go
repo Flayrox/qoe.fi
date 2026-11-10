@@ -17,10 +17,10 @@ type Target struct {
 	ThoughtID       string
 	ArticleID       string
 	ArticleSlug     string
-	PublicationID   string
-	PublicationSlug string
-	// PublicationType vaut PERSONAL ou MEDIA.
-	PublicationType string
+	PublisherID   string
+	PublisherSlug string
+	// PublisherType vaut PERSONAL ou MEDIA.
+	PublisherType string
 	// MediaID est requis pour ajouter ?ws= (publication de type MEDIA).
 	MediaID string
 	// SenderUsername sert aux pensées (route /<username>/thought/<id>).
@@ -44,8 +44,8 @@ func Notification(t Target) string {
 			path = "/article/" + url.PathEscape(t.ArticleSlug)
 		}
 	case "FOLLOW":
-		if t.PublicationSlug != "" {
-			path = "/" + url.PathEscape(t.PublicationSlug)
+		if t.PublisherSlug != "" {
+			path = "/" + url.PathEscape(t.PublisherSlug)
 		}
 	case "MEDIA_ARTICLE_PUBLISHED":
 		// Fan-out aux abonnés : c'est une lecture publique, pas une édition.
@@ -64,17 +64,17 @@ func Notification(t Target) string {
 			path = "/articles/" + url.PathEscape(t.ArticleID)
 		case t.ArticleSlug != "":
 			path = "/article/" + url.PathEscape(t.ArticleSlug)
-		case t.PublicationSlug != "":
-			path = "/" + url.PathEscape(t.PublicationSlug)
-		case t.PublicationID != "":
-			path = "/" + url.PathEscape(t.PublicationID)
+		case t.PublisherSlug != "":
+			path = "/" + url.PathEscape(t.PublisherSlug)
+		case t.PublisherID != "":
+			path = "/" + url.PathEscape(t.PublisherID)
 		}
 	}
 
 	// `?ws=` n'a de sens que sur les pages du studio : un article public ou
 	// une pensée se lisent hors workspace (et une pensée n'appartient qu'à
 	// une personne).
-	if t.PublicationType == "MEDIA" && t.MediaID != "" && isStudioPath(path) {
+	if t.PublisherType == "MEDIA" && t.MediaID != "" && isStudioPath(path) {
 		path += "?ws=" + url.QueryEscape(t.MediaID)
 	}
 	return path

@@ -164,13 +164,13 @@ function BookmarkRow({ item }: { item: BookmarkItem }) {
   const open = () =>
     router.push({
       pathname: '/article/[slug]',
-      params: { slug: item.articleSlug, publicationId: item.publicationId },
+      params: { slug: item.articleSlug, publisherId: item.publisherId },
     });
   return (
     <Pressable onPress={open} style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}>
       <ThemedView type="card" style={styles.rowCard}>
         <ThemedText type="small" style={{ color: theme.textSecondary }}>
-          {item.publicationName}
+          {item.publisherName}
         </ThemedText>
         <ThemedText numberOfLines={2} style={styles.rowTitle}>
           {item.articleTitle}
@@ -191,13 +191,13 @@ function HighlightRow({ item }: { item: MyHighlight }) {
   const open = () =>
     router.push({
       pathname: '/article/[slug]',
-      params: { slug: item.articleSlug, publicationId: item.publicationId },
+      params: { slug: item.articleSlug, publisherId: item.publisherId },
     });
   return (
     <ThemedView type="card" style={styles.rowCard}>
       <Pressable onPress={open} style={({ pressed }) => pressed && styles.rowPressed}>
         <ThemedText type="small" style={{ color: theme.textSecondary }}>
-          {item.publicationName} · {item.articleTitle}
+          {item.publisherName} · {item.articleTitle}
         </ThemedText>
         <ThemedText numberOfLines={3} style={styles.highlightText}>
           « {item.text} »

@@ -1,5 +1,5 @@
 -- name: GetArticleForSearch :one
-SELECT id, title, content, slug, "authorId", "categoryId", "publicationId", published, "isPremium",
+SELECT id, title, content, slug, "authorId", "categoryId", "publisherId", published, "isPremium",
        "seoTitle", "seoDescription", "createdAt", "updatedAt"
 FROM "Article"
 WHERE id = $1;
@@ -32,7 +32,7 @@ WHERE p."isDraft" = false
     COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
     OR EXISTS (
       SELECT 1 FROM "Follows" f
-      WHERE f."readerId" = @viewer_id AND f."publicationId" = u."publicationId"
+      WHERE f."readerId" = @viewer_id AND f."publisherId" = u."publisherId"
     )
   )
   AND (

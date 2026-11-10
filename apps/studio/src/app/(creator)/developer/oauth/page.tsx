@@ -29,7 +29,7 @@ export default async function OAuthAppsPage() {
     type: activeWorkspace.type,
     name: activeWorkspace.name,
     mediaId: activeWorkspace.mediaId,
-    publicationId: activeWorkspace.publicationId,
+    publisherId: activeWorkspace.publisherId,
   };
   const access: DeveloperAccess =
     workspace.type === 'MEDIA' ? developerWorkspaceAccess(workspace) : await getDeveloperAccess();
@@ -38,7 +38,7 @@ export default async function OAuthAppsPage() {
   const workspaceContext = {
     type: workspace.type,
     name: workspace.name,
-    publicationId: workspace.publicationId,
+    publisherId: workspace.publisherId,
   };
 
   if (access.status !== 'approved' || !hasOAuthGrant) {
@@ -46,7 +46,7 @@ export default async function OAuthAppsPage() {
   }
 
   const res = await listOAuthClientsAction(
-    workspace.type === 'MEDIA' ? workspace.publicationId : undefined
+    workspace.type === 'MEDIA' ? workspace.publisherId : undefined
   );
   return (
     <OAuthAppsClient

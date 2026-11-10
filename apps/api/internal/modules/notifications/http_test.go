@@ -111,7 +111,7 @@ func TestHTTP_MediaNotifications(t *testing.T) {
 	}
 	var pubID string
 	if err := poolTest.QueryRow(context.Background(),
-		`SELECT "publicationId" FROM "User" WHERE id = $1`, fx.AuthorID).Scan(&pubID); err != nil {
+		`SELECT "publisherId" FROM "User" WHERE id = $1`, fx.AuthorID).Scan(&pubID); err != nil {
 		t.Fatalf("pub: %v", err)
 	}
 	r := newHTTPRouter()
@@ -124,7 +124,7 @@ func TestHTTP_MediaNotifications(t *testing.T) {
 
 	// Nominal invite + member joined.
 	for _, path := range []string{"/v1/notifications/media-invite", "/v1/notifications/media-member-joined"} {
-		body := `{"recipientId":"` + fx.ViewerID + `","publicationId":"` + pubID + `"}`
+		body := `{"recipientId":"` + fx.ViewerID + `","publisherId":"` + pubID + `"}`
 		w = doReq(r, http.MethodPost, path, fx.AuthorID, body)
 		if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"success":true`) {
 			t.Fatalf("%s = %d %s", path, w.Code, w.Body.String())

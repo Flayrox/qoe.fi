@@ -19,7 +19,7 @@ import {
   resolveFontFamily,
   MinimalCraftShell,
   ArticleEngagementBar,
-  type TemplatePublicationContext,
+  type TemplatePublisherContext,
   type TemplateArticleItem,
 } from '@qoe/ui/templates';
 import { buildPublicDescription, sliceContentAtPaywall } from '@qoe/utils';
@@ -28,13 +28,13 @@ import { t } from '@lingui/core/macro';
 import { buildCreatorVars, ThemeStyle } from '@qoe/theme';
 import {
   fetchCanonicalDocument,
-  type TenantPublication,
+  type TenantPublisher,
   type TenantArticle,
 } from '@/lib/tenant-data';
 import type { User } from '@supabase/supabase-js';
 
 export interface TenantArticleRendererProps {
-  publication: TenantPublication;
+  publisher: TenantPublisher;
   article: TenantArticle;
   user: User | null;
   bundle: {
@@ -55,7 +55,7 @@ export interface TenantArticleRendererProps {
 }
 
 export async function TenantArticleRenderer({
-  publication,
+  publisher,
   article,
   user,
   bundle,
@@ -67,20 +67,19 @@ export async function TenantArticleRenderer({
   initialComments,
   breadcrumbJsonLd,
 }: TenantArticleRendererProps) {
-  const { name, accentColor, fontFamily, themeMode, navigation, socialLinks } = publication;
+  const { name, accentColor, fontFamily, themeMode, navigation, socialLinks } = publisher;
 
   const authorName = article.author?.name || article.author?.username || name;
   const showAnnotationsOption =
-    (publication as { siteOptions?: Record<string, boolean> | null })?.siteOptions
-      ?.showAnnotations ??
-    (publication as { site_options?: Record<string, boolean> | null })?.site_options
+    (publisher as { siteOptions?: Record<string, boolean> | null })?.siteOptions?.showAnnotations ??
+    (publisher as { site_options?: Record<string, boolean> | null })?.site_options
       ?.showAnnotations ??
     true;
   const allowPublicAnnotations =
-    (publication.allowPublicAnnotations ?? true) &&
+    (publisher.allowPublicAnnotations ?? true) &&
     (article.allowPublicAnnotations ?? true) &&
     showAnnotationsOption !== false;
-  const allowComments = (publication.allowComments ?? true) && (article.allowComments ?? true);
+  const allowComments = (publisher.allowComments ?? true) && (article.allowComments ?? true);
   const headersList = await headers();
   const host = headersList.get('x-forwarded-host') || headersList.get('host') || decodedDomain;
   const mainAppUrl = getMainAppUrl(host);
@@ -98,8 +97,8 @@ export async function TenantArticleRenderer({
     siteLayouts.home?.tokens?.fontFamily ||
     'sans';
 
-  const siteOpts = (publication.siteOptions ??
-    (publication as unknown as { site_options?: Record<string, unknown> | null }).site_options ??
+  const siteOpts = (publisher.siteOptions ??
+    (publisher as unknown as { site_options?: Record<string, unknown> | null }).site_options ??
     {}) as Record<string, unknown>;
   const backgroundColor = (siteOpts.backgroundColor as string) || null;
 
@@ -151,7 +150,7 @@ export async function TenantArticleRenderer({
       : [
           {
             name: authorName,
-            logoUrl: article.author?.logoUrl || publication.logoUrl || null,
+            logoUrl: article.author?.logoUrl || publisher.logoUrl || null,
             type: article.author?.type,
           },
         ];
@@ -184,47 +183,47 @@ export async function TenantArticleRenderer({
         }
       : sliceContentAtPaywall(article.content || '', { isMember, isPaidSubscriber }, visibility);
 
-  const templatePublication: TemplatePublicationContext = {
-    id: publication.id,
-    name: publication.name,
+  const templatePublisher: TemplatePublisherContext = {
+    id: publisher.id,
+    name: publisher.name,
     domain: host,
     mainAppUrl,
-    logoUrl: publication.logoUrl,
-    heroText: publication.heroText,
-    accentColor: publication.accentColor,
-    fontFamily: publication.fontFamily,
-    themeMode: publication.themeMode,
-    navigation: navigation as TemplatePublicationContext['navigation'],
-    socialLinks: socialLinks as TemplatePublicationContext['socialLinks'],
-    categories: (publication.categories ?? []).map((c) => ({
+    logoUrl: publisher.logoUrl,
+    heroText: publisher.heroText,
+    accentColor: publisher.accentColor,
+    fontFamily: publisher.fontFamily,
+    themeMode: publisher.themeMode,
+    navigation: navigation as TemplatePublisherContext['navigation'],
+    socialLinks: socialLinks as TemplatePublisherContext['socialLinks'],
+    categories: (publisher.categories ?? []).map((c) => ({
       id: c.id,
       name: c.name,
       slug: c.slug,
       description: c.description ?? null,
       parentId: c.parentId ?? null,
     })),
-    supportUrl: publication.supportUrl,
-    stripeAccountId: publication.stripeAccountId,
+    supportUrl: publisher.supportUrl,
+    stripeAccountId: publisher.stripeAccountId,
     siteOptions:
       (
-        publication as {
+        publisher as {
           siteOptions?: Record<string, boolean> | null;
           site_options?: Record<string, boolean> | null;
         }
       ).siteOptions ??
       (
-        publication as {
+        publisher as {
           siteOptions?: Record<string, boolean> | null;
           site_options?: Record<string, boolean> | null;
         }
       ).site_options ??
       null,
     author: {
-      name: publication.user?.name ?? publication.name,
-      username: publication.user?.username ?? publication.subdomain ?? null,
-      avatarUrl: publication.user?.logoUrl ?? null,
-      bio: publication.bio ?? null,
-      type: publication.type,
+      name: publisher.user?.name ?? publisher.name,
+      username: publisher.user?.username ?? publisher.subdomain ?? null,
+      avatarUrl: publisher.user?.logoUrl ?? null,
+      bio: publisher.bio ?? null,
+      type: publisher.type,
     },
   };
 
@@ -253,7 +252,7 @@ export async function TenantArticleRenderer({
     authors: authorsList,
   };
 
-  const drawerArticles: TemplateArticleItem[] = (publication.articles ?? []).map((art) => ({
+  const drawerArticles: TemplateArticleItem[] = (publisher.articles ?? []).map((art) => ({
     id: art.id,
     title: art.title,
     slug: art.slug,
@@ -276,7 +275,7 @@ export async function TenantArticleRenderer({
     authorName,
     authorUsername: article.author?.username,
     authorLogo: article.author?.logoUrl,
-    coverImage: article.imageUrl || publication.headerImageUrl || article.author?.logoUrl,
+    coverImage: article.imageUrl || publisher.headerImageUrl || article.author?.logoUrl,
     baseUrl: `https://${decodedDomain}`,
   });
 
@@ -335,7 +334,7 @@ export async function TenantArticleRenderer({
             />
             <TemplateRenderer
               config={articleLayout}
-              publication={templatePublication}
+              publisher={templatePublisher}
               articles={drawerArticles}
               article={templateArticle}
               standaloneShell={false}
@@ -367,6 +366,25 @@ export async function TenantArticleRenderer({
           <>
             {/* En-tête épuré d'orfèvre Devouring Details / Rauno */}
             <header className="mt-4 sm:mt-8 mb-10 space-y-6 sm:space-y-8">
+              {article.originPublisher && (
+                <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-xs font-medium text-muted-foreground">
+                  <span>{t`Publié à l'origine dans`}</span>
+                  {article.canonicalUrl ? (
+                    <a
+                      href={article.canonicalUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-foreground font-semibold hover:text-primary hover:underline"
+                    >
+                      {article.originPublisher.name}
+                    </a>
+                  ) : (
+                    <span className="text-foreground font-semibold">
+                      {article.originPublisher.name}
+                    </span>
+                  )}
+                </div>
+              )}
               {/* 1. Grand titre h1 */}
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-foreground leading-[1.18]">
                 {article.title}
@@ -533,7 +551,7 @@ export async function TenantArticleRenderer({
             </p>
             <div className="mt-5">
               <SubscribeForm
-                publicationId={publication.id}
+                publisherId={publisher.id}
                 isBrutalist={false}
                 userEmail={user?.email || null}
                 authorName={name}
@@ -599,7 +617,7 @@ export async function TenantArticleRenderer({
       disableFontOverride={true}
       articleMetadata={{
         title: article.title,
-        coverUrl: article.imageUrl || publication.headerImageUrl || article.author?.logoUrl,
+        coverUrl: article.imageUrl || publisher.headerImageUrl || article.author?.logoUrl,
         authorName,
         contentSelector: '#article-content',
       }}
@@ -616,7 +634,7 @@ export async function TenantArticleRenderer({
       />
 
       <MinimalCraftShell
-        publication={templatePublication}
+        publisher={templatePublisher}
         article={templateArticle}
         articles={drawerArticles}
         style={customStyle}
@@ -627,7 +645,7 @@ export async function TenantArticleRenderer({
       {/* Barre d'actions globale du lecteur (Audio TTS, typographie, signets, follow créateur) */}
       <ReaderActions
         articleId={article.id}
-        publicationId={publication.id}
+        publisherId={publisher.id}
         creatorName={name}
         author={
           article.author

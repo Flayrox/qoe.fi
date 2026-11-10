@@ -64,8 +64,8 @@ export async function listWebhookDeliveriesAction(webhookId: string) {
 
   try {
     const deliveries = await goFetch<WebhookDeliveryLog[]>(
-      `/v1/webhooks/${webhookId}/deliveries?publicationId=${encodeURIComponent(
-        workspace.publicationId
+      `/v1/webhooks/${webhookId}/deliveries?publisherId=${encodeURIComponent(
+        workspace.publisherId
       )}&limit=50`
     );
     return { success: true as const, deliveries };
@@ -83,7 +83,7 @@ export async function listWebhooksAction() {
     const workspace = await getActiveWorkspace(user.id);
 
     const webhooks = await goFetch<WebhookWithDeliveries[]>(
-      `/v1/webhooks?publicationId=${encodeURIComponent(workspace.publicationId)}`
+      `/v1/webhooks?publisherId=${encodeURIComponent(workspace.publisherId)}`
     );
     return {
       success: true as const,
@@ -128,7 +128,7 @@ export async function createWebhookAction(input: {
   try {
     const res = await goFetch<{ webhook: WebhookWithDeliveries; secret: string }>('/v1/webhooks', {
       method: 'POST',
-      body: { publicationId: workspace.publicationId, name, url, events },
+      body: { publisherId: workspace.publisherId, name, url, events },
     });
     revalidatePath('/developer/webhooks');
     return { success: true as const, webhook: res.webhook, secret: res.secret };
@@ -145,12 +145,9 @@ export async function deleteWebhookAction(id: string) {
   const workspace = await getActiveWorkspace(user.id);
 
   try {
-    await goFetch(
-      `/v1/webhooks/${id}?publicationId=${encodeURIComponent(workspace.publicationId)}`,
-      {
-        method: 'DELETE',
-      }
-    );
+    await goFetch(`/v1/webhooks/${id}?publisherId=${encodeURIComponent(workspace.publisherId)}`, {
+      method: 'DELETE',
+    });
     revalidatePath('/developer/webhooks');
     return { success: true as const };
   } catch (err) {
@@ -167,7 +164,7 @@ export async function toggleWebhookAction(id: string) {
 
   try {
     const res = await goFetch<{ success: boolean; active: boolean }>(
-      `/v1/webhooks/${id}/toggle?publicationId=${encodeURIComponent(workspace.publicationId)}`,
+      `/v1/webhooks/${id}/toggle?publisherId=${encodeURIComponent(workspace.publisherId)}`,
       { method: 'POST' }
     );
     revalidatePath('/developer/webhooks');
@@ -187,7 +184,7 @@ export async function testWebhookAction(id: string) {
 
   try {
     const res = await goFetch<{ success: boolean; status: number; response: string }>(
-      `/v1/webhooks/${id}/test?publicationId=${encodeURIComponent(workspace.publicationId)}`,
+      `/v1/webhooks/${id}/test?publisherId=${encodeURIComponent(workspace.publisherId)}`,
       { method: 'POST' }
     );
     revalidatePath('/developer/webhooks');

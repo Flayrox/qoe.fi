@@ -13,10 +13,10 @@ describe('buildSubscribeRequest', () => {
   it('construit la requête vers la publication publique, email normalisé', () => {
     const req = buildSubscribeRequest({
       apiBase: 'https://api.qoe.fi/',
-      publication: 'mon-journal',
+      publisher: 'mon-journal',
       email: '  Lecteur@Exemple.fr ',
     });
-    expect(req.url).toBe('https://api.qoe.fi/v1/publications/mon-journal/subscribe');
+    expect(req.url).toBe('https://api.qoe.fi/v1/publishers/mon-journal/subscribe');
     expect(req.method).toBe('POST');
     expect(JSON.parse(req.body)).toEqual({ email: 'lecteur@exemple.fr' });
   });
@@ -24,39 +24,39 @@ describe('buildSubscribeRequest', () => {
   it('ajoute la locale explicite fr/en seulement', () => {
     const fr = buildSubscribeRequest({
       apiBase: 'https://a.b',
-      publication: 'p',
+      publisher: 'p',
       email: 'a@b.fr',
       locale: 'en',
     });
     expect(fr.url).toContain('?locale=en');
     const other = buildSubscribeRequest({
       apiBase: 'https://a.b',
-      publication: 'p',
+      publisher: 'p',
       email: 'a@b.fr',
       locale: 'de' as 'fr',
     });
     expect(other.url).not.toContain('locale=');
   });
 
-  it('refuse base, publication et email invalides avant tout réseau', () => {
+  it('refuse base, publisher et email invalides avant tout réseau', () => {
     expect(() =>
-      buildSubscribeRequest({ apiBase: 'ftp://x', publication: 'p', email: 'a@b.fr' })
+      buildSubscribeRequest({ apiBase: 'ftp://x', publisher: 'p', email: 'a@b.fr' })
     ).toThrow(EmbedValidationError);
     expect(() =>
-      buildSubscribeRequest({ apiBase: 'https://a.b', publication: '  ', email: 'a@b.fr' })
+      buildSubscribeRequest({ apiBase: 'https://a.b', publisher: '  ', email: 'a@b.fr' })
     ).toThrow(EmbedValidationError);
     expect(() =>
-      buildSubscribeRequest({ apiBase: 'https://a.b', publication: 'p', email: 'pas-un-email' })
+      buildSubscribeRequest({ apiBase: 'https://a.b', publisher: 'p', email: 'pas-un-email' })
     ).toThrow(EmbedValidationError);
     expect(() =>
-      buildSubscribeRequest({ apiBase: 'https://a.b', publication: 'p', email: 'a@b' })
+      buildSubscribeRequest({ apiBase: 'https://a.b', publisher: 'p', email: 'a@b' })
     ).toThrow(EmbedValidationError);
   });
 
   it("n'envoie jamais d'identifiant secret : que l'identifiant public", () => {
     const req = buildSubscribeRequest({
       apiBase: 'https://a.b',
-      publication: 'pub_123',
+      publisher: 'pub_123',
       email: 'a@b.fr',
     });
     expect(req.body).not.toMatch(/key|secret|token/i);
@@ -68,18 +68,18 @@ describe('parcours compte (popup)', () => {
   it('construit une URL qoe.fi avec publication et retour validé', () => {
     const url = buildSubscribePopupUrl({
       appBase: 'https://qoe.fi/',
-      publication: 'mon-journal',
+      publisher: 'mon-journal',
       returnUrl: 'https://blog.example.com/merci',
     });
     expect(url.startsWith('https://qoe.fi/subscribe-with-qoefi?')).toBe(true);
-    expect(url).toContain('publication=mon-journal');
+    expect(url).toContain('publisher=mon-journal');
     expect(url).toContain(encodeURIComponent('https://blog.example.com/merci'));
   });
 
   it('refuse les URL de retour non http(s)', () => {
     for (const bad of ['javascript:alert(1)', 'data:text/html,x', 'notaurl', 'ftp://f.b/x']) {
       expect(() =>
-        buildSubscribePopupUrl({ appBase: 'https://qoe.fi', publication: 'p', returnUrl: bad })
+        buildSubscribePopupUrl({ appBase: 'https://qoe.fi', publisher: 'p', returnUrl: bad })
       ).toThrow(EmbedValidationError);
     }
   });

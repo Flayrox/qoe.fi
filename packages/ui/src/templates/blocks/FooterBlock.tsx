@@ -15,11 +15,7 @@ import type { SocialLink } from '@qoe/sdk/types';
 import { getLegalDocumentUrl } from '@qoe/config';
 import { COOKIE_POLICY_SLUG } from '@qoe/utils/cookie-consent';
 import { SocialIcon } from '../../SocialIcon';
-import type {
-  FooterBlockProps,
-  TemplatePublicationContext,
-  TemplateRenderContext,
-} from '../schema';
+import type { FooterBlockProps, TemplatePublisherContext, TemplateRenderContext } from '../schema';
 import { BlockWrapper } from './BlockWrapper';
 import { EditableText } from './EditableText';
 import { NodeRenderer } from './NodeRenderer';
@@ -27,7 +23,7 @@ import { NodeRenderer } from './NodeRenderer';
 interface FooterBlockComponentProps {
   id: string;
   props: FooterBlockProps;
-  publication: TemplatePublicationContext;
+  publisher: TemplatePublisherContext;
   context: TemplateRenderContext;
   visible?: boolean;
   locked?: boolean;
@@ -39,7 +35,7 @@ interface FooterBlockComponentProps {
 export function FooterBlock({
   id,
   props,
-  publication,
+  publisher,
   context,
   visible = true,
   locked = false,
@@ -54,7 +50,7 @@ export function FooterBlock({
     layout = 'columns',
   } = props;
 
-  const { name, domain, socialLinks = [], footerText } = publication;
+  const { name, domain, socialLinks = [], footerText } = publisher;
   const displayName = name || domain || 'Mon Site Web';
   const year = new Date().getFullYear();
   // Les documents légaux sont ceux de la plateforme : ils vivent uniquement

@@ -10,38 +10,38 @@ SELECT m."mediaId"        AS media_id,
        m.role,
        m.permissions,
        m.status,
-       p.id               AS publication_id,
-       p.name             AS publication_name,
-       p.slug             AS publication_slug,
-       p.subdomain        AS publication_subdomain,
-       p.bio              AS publication_bio,
-       p."logoUrl"        AS publication_logo
+       p.id               AS publisher_id,
+       p.name             AS publisher_name,
+       p.slug             AS publisher_slug,
+       p.subdomain        AS publisher_subdomain,
+       p.bio              AS publisher_bio,
+       p."logoUrl"        AS publisher_logo
 FROM "MediaMember" m
 JOIN "Media" md ON md.id = m."mediaId"
-JOIN "Publication" p ON p.id = md."publicationId"
+JOIN "Publisher" p ON p.id = md."publisherId"
 WHERE m."userId" = $1
   AND m.status = 'active'
 ORDER BY p.name ASC;
 
--- name: GetPersonalPublicationForUser :one
+-- name: GetPersonalPublisherForUser :one
 SELECT p.id, p.name, p.slug, p."logoUrl"
-FROM "Publication" p
-JOIN "User" u ON u."publicationId" = p.id
+FROM "Publisher" p
+JOIN "User" u ON u."publisherId" = p.id
 WHERE u.id = $1 AND p.type = 'PERSONAL'
 LIMIT 1;
 
 -- name: CheckMediaSlugExists :one
 SELECT EXISTS(
-    SELECT 1 FROM "Publication" WHERE slug = $1 OR subdomain = $1
+    SELECT 1 FROM "Publisher" WHERE slug = $1 OR subdomain = $1
 ) AS exists;
 
--- name: CreateMediaPublication :one
-INSERT INTO "Publication" (id, type, name, slug, subdomain, bio, "logoUrl", "accentColor", "updatedAt")
+-- name: CreateMediaPublisher :one
+INSERT INTO "Publisher" (id, type, name, slug, subdomain, bio, "logoUrl", "accentColor", "updatedAt")
 VALUES (gen_random_uuid()::text, 'MEDIA', $1, $2, $3, $4, $5, $6, now())
 RETURNING id;
 
 -- name: CreateMedia :one
-INSERT INTO "Media" (id, "publicationId", "updatedAt")
+INSERT INTO "Media" (id, "publisherId", "updatedAt")
 VALUES (gen_random_uuid()::text, $1, now())
 RETURNING id;
 
@@ -129,9 +129,9 @@ SELECT id::text AS id, email, name, username, "logoUrl", "isCertified"
 FROM "User"
 WHERE email = $1;
 
--- name: GetMediaWithPublication :one
+-- name: GetMediaWithPublisher :one
 SELECT md.id                 AS media_id,
-       md."publicationId"    AS publication_id,
+       md."publisherId"    AS publisher_id,
        p.name,
        p.slug,
        p.bio,
@@ -150,11 +150,11 @@ SELECT md.id                 AS media_id,
        p."fontFamily",
        p."supportUrl"
 FROM "Media" md
-JOIN "Publication" p ON p.id = md."publicationId"
+JOIN "Publisher" p ON p.id = md."publisherId"
 WHERE md.id = $1;
 
--- name: CountArticlesByPublication :one
-SELECT COUNT(*)::int AS count FROM "Article" WHERE "publicationId" = $1;
+-- name: CountArticlesByPublisher :one
+SELECT COUNT(*)::int AS count FROM "Article" WHERE "publisherId" = $1;
 
 -- name: CountMediaMembers :one
 SELECT COUNT(*)::int AS count FROM "MediaMember" WHERE "mediaId" = $1;
@@ -186,7 +186,7 @@ SELECT ak.id,
        u.name                                         AS created_by_name,
        u.username                                     AS created_by_username
 FROM "ApiKey" ak
-JOIN "Media" m ON m."publicationId" = ak."publicationId"
+JOIN "Media" m ON m."publisherId" = ak."publisherId"
 LEFT JOIN "User" u ON u.id = ak."createdByUserId"
 WHERE m.id = $1
 ORDER BY ak."createdAt" DESC;
@@ -194,11 +194,11 @@ ORDER BY ak."createdAt" DESC;
 -- name: CountMediaApiKeys :one
 SELECT COUNT(*)::int
 FROM "ApiKey" ak
-JOIN "Media" m ON m."publicationId" = ak."publicationId"
+JOIN "Media" m ON m."publisherId" = ak."publisherId"
 WHERE m.id = $1;
 
 -- name: InsertMediaApiKey :exec
-INSERT INTO "ApiKey" (id, name, "keyPrefix", "keyHash", scopes, "publicationId", "createdByUserId")
+INSERT INTO "ApiKey" (id, name, "keyPrefix", "keyHash", scopes, "publisherId", "createdByUserId")
 VALUES ($1, $2, $3, $4, $5, $6, $7);
 
 -- name: GetMediaApiKeyByID :one
@@ -208,35 +208,35 @@ SELECT ak.id,
        ak.scopes,
        ak."createdAt",
        ak."lastUsedAt",
-       ak."publicationId",
+       ak."publisherId",
        COALESCE(ak."createdByUserId"::text, '')::text AS created_by_user_id,
        m.id                                           AS media_id
 FROM "ApiKey" ak
-JOIN "Media" m ON m."publicationId" = ak."publicationId"
+JOIN "Media" m ON m."publisherId" = ak."publisherId"
 WHERE ak.id = sqlc.arg('key_id') AND m.id = sqlc.arg('media_id');
 
 -- name: UpdateMediaApiKeyName :execrows
 UPDATE "ApiKey" ak
 SET name = sqlc.arg('name')
 FROM "Media" m
-WHERE ak.id = sqlc.arg('key_id') AND m.id = sqlc.arg('media_id') AND ak."publicationId" = m."publicationId";
+WHERE ak.id = sqlc.arg('key_id') AND m.id = sqlc.arg('media_id') AND ak."publisherId" = m."publisherId";
 
 -- name: UpdateMediaApiKeySecret :execrows
 UPDATE "ApiKey" ak
 SET "keyHash" = sqlc.arg('key_hash'), "keyPrefix" = sqlc.arg('key_prefix')
 FROM "Media" m
-WHERE ak.id = sqlc.arg('key_id') AND m.id = sqlc.arg('media_id') AND ak."publicationId" = m."publicationId";
+WHERE ak.id = sqlc.arg('key_id') AND m.id = sqlc.arg('media_id') AND ak."publisherId" = m."publisherId";
 
 -- name: DeleteMediaApiKey :execrows
 DELETE FROM "ApiKey" ak
 USING "Media" m
-WHERE ak.id = sqlc.arg('key_id') AND m.id = sqlc.arg('media_id') AND ak."publicationId" = m."publicationId";
+WHERE ak.id = sqlc.arg('key_id') AND m.id = sqlc.arg('media_id') AND ak."publisherId" = m."publisherId";
 
--- name: GetMediaByPublicationID :one
+-- name: GetMediaByPublisherID :one
 -- Résout un Média depuis l'identifiant de SA publication (le profil public
--- d'un média expose la publicationId, pas l'id du média).
+-- d'un média expose la publisherId, pas l'id du média).
 SELECT md.id AS media_id,
-       md."publicationId" AS publication_id
+       md."publisherId" AS publisher_id
 FROM "Media" md
-WHERE md."publicationId" = $1
+WHERE md."publisherId" = $1
 LIMIT 1;

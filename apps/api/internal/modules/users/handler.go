@@ -45,11 +45,11 @@ func (h *Handler) Register(r chi.Router) {
 	r.Post("/v1/me/sessions/revoke-others", h.revokeOtherSessions)
 	r.Post("/v1/me/sessions/revoke-all", h.revokeAllSessions)
 	r.Patch("/v1/me/profile", h.updateProfile)
-	r.Get("/v1/me/media/{mediaId}", h.mediaPublication)
+	r.Get("/v1/me/media/{mediaId}", h.mediaPublisher)
 	r.Get("/v1/me/billing", h.billing)
 	r.Post("/v1/me/onboarding-complete", h.onboardingComplete)
 	r.Get("/v1/me/data-export", h.dataExport)
-	r.Get("/v1/me/publication", h.myPublication)
+	r.Get("/v1/me/publisher", h.myPublisher)
 	r.Get("/v1/me/muted-words", h.listMutedWords)
 	r.Post("/v1/me/muted-words", h.toggleMuteWord)
 	r.Get("/v1/me/blocked-users", h.blockedUsers)
@@ -520,35 +520,35 @@ func (h *Handler) dataExport(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/me/media/{mediaId} — publication d'un média pour lequel l'utilisateur
 // est membre actif (résolution du workspace MEDIA du dashboard créateur).
-func (h *Handler) mediaPublication(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) mediaPublisher(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	if userID == "" {
 		response.Unauthorized(w, "Authentification requise")
 		return
 	}
 	mediaID := chi.URLParam(r, "mediaId")
-	pubID, err := h.svc.MediaPublicationForUser(r.Context(), userID, mediaID)
+	pubID, err := h.svc.MediaPublisherForUser(r.Context(), userID, mediaID)
 	if err != nil {
 		response.Internal(w)
 		return
 	}
-	response.OK(w, map[string]string{"publicationId": pubID})
+	response.OK(w, map[string]string{"publisherId": pubID})
 }
 
 // GET /v1/me/publication — publication personnelle (créée si absente).
-// Remplace publications.getOrCreatePersonalPublication (web).
-func (h *Handler) myPublication(w http.ResponseWriter, r *http.Request) {
+// Remplace publications.getOrCreatePersonalPublisher (web).
+func (h *Handler) myPublisher(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	if userID == "" {
 		response.Unauthorized(w, "Authentification requise")
 		return
 	}
-	pubID, err := h.svc.GetOrCreatePersonalPublication(r.Context(), userID)
+	pubID, err := h.svc.GetOrCreatePersonalPublisher(r.Context(), userID)
 	if err != nil {
 		response.Internal(w)
 		return
 	}
-	response.OK(w, map[string]string{"publicationId": pubID})
+	response.OK(w, map[string]string{"publisherId": pubID})
 }
 
 // GET /v1/me/muted-words — liste tous les mots masqués de l'utilisateur.
@@ -632,7 +632,7 @@ func (h *Handler) syncUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // POST /v1/me/wallet/unlock — débloque un article via le wallet.
-// Body : { creatorId (publicationId), costCents? }.
+// Body : { creatorId (publisherId), costCents? }.
 func (h *Handler) walletUnlock(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	if userID == "" {

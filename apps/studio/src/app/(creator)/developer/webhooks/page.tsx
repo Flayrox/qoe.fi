@@ -27,7 +27,7 @@ export default async function WebhooksPage() {
   let workspace: DeveloperWorkspace = {
     type: 'PERSONAL',
     name: '',
-    publicationId: '',
+    publisherId: '',
   };
 
   try {
@@ -37,7 +37,7 @@ export default async function WebhooksPage() {
       type: activeWorkspace.type,
       name: activeWorkspace.name,
       mediaId: activeWorkspace.mediaId,
-      publicationId: activeWorkspace.publicationId,
+      publisherId: activeWorkspace.publisherId,
     };
   } catch (err) {
     console.warn('[webhooks] impossible de lire le workspace actif:', err);

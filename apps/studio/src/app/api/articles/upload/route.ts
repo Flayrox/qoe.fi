@@ -49,8 +49,8 @@ export async function POST(request: NextRequest) {
 
     // 📝 Enregistrement dans le registre de cycle de vie MediaAsset (TTL 3j orphan)
     // Go-first : POST /v1/media-assets (dédoublonnage CAS par SHA-256).
-    const targetType: 'PUBLICATION_BANNER' | 'ARTICLE_BODY' =
-      folder === IMAGE_FOLDERS.banners ? 'PUBLICATION_BANNER' : 'ARTICLE_BODY';
+    const targetType: 'PUBLISHER_BANNER' | 'ARTICLE_BODY' =
+      folder === IMAGE_FOLDERS.banners ? 'PUBLISHER_BANNER' : 'ARTICLE_BODY';
     const assetPayload = {
       sha256: result.sha256,
       url: result.url,

@@ -53,7 +53,7 @@ export async function recordFeatureSignalAction(
   if (!user) throw new Error('Non autorisé');
 
   const workspace = await getActiveWorkspace(user.id);
-  return recordSignalSdk(feature, kind, 'studio', workspace.publicationId);
+  return recordSignalSdk(feature, kind, 'studio', workspace.publisherId);
 }
 
 /**
@@ -116,7 +116,7 @@ export async function getFeatureSignalSummaryAction(): Promise<FeatureSignalSumm
 
     const workspace = await getActiveWorkspace(user.id);
     const res = await goFetch<{ signals: FeatureSignalSummary[] }>(
-      `/v1/features/signals/summary?publicationId=${encodeURIComponent(workspace.publicationId)}`
+      `/v1/features/signals/summary?publisherId=${encodeURIComponent(workspace.publisherId)}`
     );
     return res.signals ?? [];
   } catch {

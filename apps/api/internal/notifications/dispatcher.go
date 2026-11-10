@@ -28,7 +28,7 @@ type DispatchInput struct {
 	Type          string // Ex: "FOLLOW", "LIKE", "REPOST", "COMMENT", "REPLY", "MENTION", etc.
 	ArticleID     *string
 	ThoughtID     *string
-	PublicationID *string
+	PublisherID *string
 	CommentID     *string
 	Metadata      map[string]any
 }
@@ -109,11 +109,11 @@ func Dispatch(ctx context.Context, db DB, in DispatchInput) error {
 			  AND (($3::uuid IS NULL AND "senderId" IS NULL) OR ("senderId" = $3))
 			  AND (($4::text IS NULL AND "articleId" IS NULL) OR ("articleId" = $4))
 			  AND (($5::text IS NULL AND "thoughtId" IS NULL) OR ("thoughtId" = $5))
-			  AND (($6::text IS NULL AND "publicationId" IS NULL) OR ("publicationId" = $6))
+			  AND (($6::text IS NULL AND "publisherId" IS NULL) OR ("publisherId" = $6))
 			  AND (($7::text IS NULL AND "commentId" IS NULL) OR ("commentId" = $7))
 			  AND (($8::text IS NULL AND (metadata IS NULL OR metadata->>'kind' IS NULL)) OR (metadata->>'kind' = $8))
 		)
-	`, recipientUUID, in.Type, senderUUID, in.ArticleID, in.ThoughtID, in.PublicationID, in.CommentID, metaKind).Scan(&exists)
+	`, recipientUUID, in.Type, senderUUID, in.ArticleID, in.ThoughtID, in.PublisherID, in.CommentID, metaKind).Scan(&exists)
 	if err != nil {
 		return fmt.Errorf("notification dispatcher: vérification doublon: %w", err)
 	}
@@ -139,7 +139,7 @@ func Dispatch(ctx context.Context, db DB, in DispatchInput) error {
 			"type",
 			"articleId",
 			"thoughtId",
-			"publicationId",
+			"publisherId",
 			"commentId",
 			"metadata",
 			"isRead",
@@ -157,7 +157,7 @@ func Dispatch(ctx context.Context, db DB, in DispatchInput) error {
 			false,
 			now()
 		)
-	`, notifID, recipientUUID, senderUUID, in.Type, in.ArticleID, in.ThoughtID, in.PublicationID, in.CommentID, metaJSON)
+	`, notifID, recipientUUID, senderUUID, in.Type, in.ArticleID, in.ThoughtID, in.PublisherID, in.CommentID, metaJSON)
 	if err != nil {
 		return fmt.Errorf("notification dispatcher: insertion: %w", err)
 	}

@@ -6,7 +6,7 @@
 // CRUD articles + catégories + commentaires, avec workflow média
 // (soumission/revue) et RBAC `@qoe/auth` (canMedia), délégué au Go.
 // - Workspace actif résolu via le cookie `qoe_active_workspace`
-//   (getActivePublicationId) : personnel OU média.
+//   (getActivePublisherId) : personnel OU média.
 // - Attribution/co-auteurs : consentement géré en base (jamais fabriqué
 //   par le client), invitations + notifications de collaboration.
 // - Publication : fan-out newsletter + webhooks entièrement gérés par le Go.
@@ -23,7 +23,7 @@ import { slugify, shortId } from '@qoe/utils';
 import { safeAction } from '../utils/safe-action';
 import { goFetch } from '../utils/go-client';
 import {
-  getActivePublicationId as resolveActivePublicationId,
+  getActivePublisherId as resolveActivePublisherId,
   getActiveWorkspaceContext,
 } from '../workspace';
 import type { SimilarArticle } from '../../types';
@@ -42,7 +42,7 @@ export interface Article {
   readingTime: number;
   categoryId: string | null;
   authorId: string;
-  publicationId: string;
+  publisherId: string;
   createdAt: string;
   updatedAt: string;
   /** Droit de téléchargement (hors-ligne/file d'écoute) — l'auteur choisit. */
@@ -53,8 +53,30 @@ export interface Article {
   allowComments?: boolean;
   /** Afficher aussi sur le profil et le blog personnel de l'auteur (cross-post Média → Personnel). */
   showOnPersonalProfile?: boolean;
-  /** Publication dénormalisée de l'article. */
-  publication?: {
+  /** Souveraineté de l'auteur : identifiant de l'article média d'origine. */
+  originArticleId?: string | null;
+  /** 'ORIGINAL' | 'MEDIA_ARCHIVE' | 'PERSONAL_FORK' */
+  canonicalType?: 'ORIGINAL' | 'MEDIA_ARCHIVE' | 'PERSONAL_FORK' | string;
+  /** true s'il s'agit de l'exemplaire souverain personnel de l'auteur. */
+  isAuthorSovereignCopy?: boolean;
+  /** URL canonique pointant vers l'origine (SEO). */
+  canonicalUrl?: string | null;
+  /** Éditeur/Média d'origine si l'article est un fork souverain. */
+  originPublisher?: {
+    id: string;
+    name: string;
+    slug: string;
+    subdomain?: string | null;
+    logoUrl?: string | null;
+    customDomain?: string | null;
+    type?: string;
+  } | null;
+  /** ID de la copie personnelle existante si cet article média a déjà été forké par l'auteur. */
+  sovereignCopyId?: string | null;
+  /** Indique si l'utilisateur courant peut toujours modifier cet article. */
+  canEdit?: boolean;
+  /** Publisher dénormalisée de l'article. */
+  publisher?: {
     id: string;
     name: string;
     slug: string;
@@ -97,7 +119,7 @@ export interface Category {
   name: string;
   slug: string;
   description: string | null;
-  publicationId: string;
+  publisherId: string;
   parentId: string | null;
   /** Catégorie technique « Non classé », non supprimable et masquée de la nav. */
   isDefault?: boolean;
@@ -128,8 +150,8 @@ async function authenticateUser() {
  * 🎛️ Publication active — délègue au résolveur unique `actions/workspace`.
  * Conservé à l'export pour les actions historiques (recommandations, etc.).
  */
-export async function getActivePublicationId(): Promise<string> {
-  return resolveActivePublicationId();
+export async function getActivePublisherId(): Promise<string> {
+  return resolveActivePublisherId();
 }
 
 export const getArticlesAction = safeAction<string | void, ArticleListPayload>(async (period) => {
@@ -138,7 +160,7 @@ export const getArticlesAction = safeAction<string | void, ArticleListPayload>(a
   // workspaceType=PERSONAL inclut les articles co-signés (attribution
   // acceptée + visible), pas seulement ceux de la publication personnelle.
   return goFetch<ArticleListPayload>(
-    `/v1/articles?publicationId=${encodeURIComponent(workspace.publicationId)}&workspaceType=${workspace.type}&period=${encodeURIComponent(p)}`
+    `/v1/articles?publisherId=${encodeURIComponent(workspace.publisherId)}&workspaceType=${workspace.type}&period=${encodeURIComponent(p)}`
   );
 });
 
@@ -171,7 +193,7 @@ export interface ArticleEditorPayload extends Article {
   seoTitle: string | null;
   seoDescription: string | null;
   category: Category | null;
-  publication?: {
+  publisher?: {
     id: string;
     name: string;
     slug: string;
@@ -284,21 +306,21 @@ export const getWorkspacesAction = safeAction<
 
 export interface TransferArticleInput {
   articleId: string;
-  targetPublicationId: string;
+  targetPublisherId: string;
   targetCategoryId?: string | null;
   showOnPersonalProfile?: boolean;
 }
 
 /** 🔀 Transfère un article vers une autre publication (Personnel ↔ Média). */
 export const transferArticleAction = safeAction<TransferArticleInput, ArticleEditorPayload>(
-  async ({ articleId, targetPublicationId, targetCategoryId, showOnPersonalProfile }) => {
+  async ({ articleId, targetPublisherId, targetCategoryId, showOnPersonalProfile }) => {
     await authenticateUser();
     const res = await goFetch<ArticleEditorPayload>(
       `/v1/articles/${encodeURIComponent(articleId)}/transfer`,
       {
         method: 'POST',
         body: {
-          targetPublicationId,
+          targetPublisherId,
           ...(targetCategoryId !== undefined ? { targetCategoryId } : {}),
           ...(showOnPersonalProfile !== undefined ? { showOnPersonalProfile } : {}),
         },
@@ -310,10 +332,39 @@ export const transferArticleAction = safeAction<TransferArticleInput, ArticleEdi
   }
 );
 
+/** 🛡️ Clone ou récupère l'exemplaire souverain personnel d'un essai écrit dans un média. */
+export const forkArticleToPersonalAction = safeAction<
+  { articleId: string },
+  { id: string; alreadyExisted: boolean }
+>(async ({ articleId }) => {
+  await authenticateUser();
+  const res = await goFetch<{ id: string; alreadyExisted: boolean }>(
+    `/v1/articles/${encodeURIComponent(articleId)}/fork-personal`,
+    { method: 'POST' }
+  );
+  revalidatePath('/articles');
+  return res;
+});
+
+/** 📤 Soumet le texte modifié de l'essai personnel comme révision à l'article média d'origine. */
+export const submitRevisionToOriginAction = safeAction<
+  { articleId: string },
+  { originArticleId: string; status: string }
+>(async ({ articleId }) => {
+  await authenticateUser();
+  const res = await goFetch<{ originArticleId: string; status: string }>(
+    `/v1/articles/${encodeURIComponent(articleId)}/submit-revision`,
+    { method: 'POST' }
+  );
+  revalidatePath('/articles');
+  revalidatePath(`/articles/${articleId}`);
+  return res;
+});
+
 export const saveArticleAction = safeAction<
   {
     id?: string;
-    publicationId?: string;
+    publisherId?: string;
     title: string;
     content: string;
     imageUrl?: string | null;
@@ -339,7 +390,7 @@ export const saveArticleAction = safeAction<
   const user = await authenticateUser();
   const {
     id,
-    publicationId: requestedPublicationId,
+    publisherId: requestedPublisherId,
     title,
     content,
     imageUrl = null,
@@ -378,7 +429,7 @@ export const saveArticleAction = safeAction<
 
   // ✅ Go-only : le Go gère RBAC média, attributions, workflow et slug unique.
   if (id) {
-    const activePublicationId = requestedPublicationId || (await getActivePublicationId());
+    const activePublisherId = requestedPublisherId || (await getActivePublisherId());
     return goFetch<Article>(`/v1/articles/${id}`, {
       method: 'PATCH',
       body: {
@@ -399,18 +450,18 @@ export const saveArticleAction = safeAction<
         seoDescription,
         readingTime,
         attributions: normalizeArticleAttributions(attributions, user.id),
-        activePublicationId,
+        activePublisherId,
         sendEmail,
         emailSubject,
         emailPreviewText,
       },
     });
   }
-  const publicationId = requestedPublicationId || (await getActivePublicationId());
+  const publisherId = requestedPublisherId || (await getActivePublisherId());
   return goFetch<Article>(`/v1/articles`, {
     method: 'POST',
     body: {
-      publicationId,
+      publisherId,
       title,
       content,
       imageUrl,
@@ -523,11 +574,10 @@ export const searchArticleContributorsAction = safeAction<
 });
 
 export const deleteArticleAction = safeAction<string, { success: boolean }>(async (id) => {
-  const activePublicationId = await getActivePublicationId();
-  await goFetch(
-    `/v1/articles/${id}?activePublicationId=${encodeURIComponent(activePublicationId)}`,
-    { method: 'DELETE' }
-  );
+  const activePublisherId = await getActivePublisherId();
+  await goFetch(`/v1/articles/${id}?activePublisherId=${encodeURIComponent(activePublisherId)}`, {
+    method: 'DELETE',
+  });
   revalidatePath('/articles');
   return { success: true };
 });
@@ -580,10 +630,10 @@ export const getArticleReviewFeedbackAction = safeAction<
 export type CategoryWithCount = Category & { _count: { articles: number } };
 
 export const getCategoriesAction = safeAction<string | void, CategoryWithCount[]>(
-  async (requestedPublicationId) => {
+  async (requestedPublisherId) => {
     // Un co-auteur peut éditer un article d'une autre publication : les
     // catégories doivent être celles de l'article, pas celles du workspace actif.
-    const publicationId = requestedPublicationId || (await getActivePublicationId());
+    const publisherId = requestedPublisherId || (await getActivePublisherId());
     const res = await goFetch<{
       data: Array<{
         id: string;
@@ -593,13 +643,13 @@ export const getCategoriesAction = safeAction<string | void, CategoryWithCount[]
         parentId: string | null;
         articlesCount: number;
       }>;
-    }>(`/v1/categories?publicationId=${publicationId}`);
+    }>(`/v1/categories?publisherId=${publisherId}`);
     return res.data.map((c) => ({
       id: c.id,
       name: c.name?.trim() || c.slug,
       slug: c.slug,
       description: c.description,
-      publicationId,
+      publisherId,
       parentId: c.parentId ?? null,
       _count: { articles: c.articlesCount },
     }));
@@ -622,11 +672,11 @@ export interface EditorCapabilities {
  * récupérer ses droits réels sur l'article qu'il édite.
  */
 export const getEditorCapabilitiesAction = safeAction<
-  { publicationId?: string; articleId?: string } | void,
+  { publisherId?: string; articleId?: string } | void,
   EditorCapabilities
 >(async (request) => {
-  const publicationId = request?.publicationId || (await getActivePublicationId());
-  const qs = new URLSearchParams({ publicationId });
+  const publisherId = request?.publisherId || (await getActivePublisherId());
+  const qs = new URLSearchParams({ publisherId });
   if (request?.articleId) qs.set('articleId', request.articleId);
   return goFetch<EditorCapabilities>(`/v1/articles/capabilities?${qs.toString()}`);
 });
@@ -653,10 +703,10 @@ export const saveCategoryAction = safeAction<
     revalidatePath('/articles');
     return res;
   }
-  const publicationId = await getActivePublicationId();
+  const publisherId = await getActivePublisherId();
   const res = await goFetch<Category>(`/v1/categories`, {
     method: 'POST',
-    body: { publicationId, name, slug, description, parentId },
+    body: { publisherId, name, slug, description, parentId },
   });
   revalidatePath('/articles');
   return res;

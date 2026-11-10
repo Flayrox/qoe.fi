@@ -5,12 +5,12 @@ import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import {
   buildVectorFeedPage,
   mapArticleToFeedItem,
-  mapPublicationToAuthor,
+  mapPublisherToAuthor,
   mapSliceToFeedItem,
   type ArticleWithDetails,
   type FeedItem,
   type HydrateArticle,
-  type HydratePublication,
+  type HydratePublisher,
 } from '@/lib/vector-feed';
 import type { ComponentProps } from 'react';
 import type { FeedDashboard } from '@/app/(reader)/home/FeedDashboard';
@@ -73,7 +73,7 @@ export interface HiddenAuthor {
 }
 
 interface HomeFeedResult {
-  followedCreators: HydratePublication[];
+  followedCreators: HydratePublisher[];
   followedUserIds: string[];
   following: HomeFeedGroup;
   discover: HomeFeedGroup;
@@ -93,7 +93,7 @@ interface HomeData {
   recommendationArticles: FeedItem[];
   discoverArticles: FeedItem[];
   bookmarks: ArticleFeedItem[];
-  followedCreators: ReturnType<typeof mapPublicationToAuthor>[];
+  followedCreators: ReturnType<typeof mapPublisherToAuthor>[];
   followedAuthorIds: string[];
   initialFollowsCount: number;
   initialBookmarksCount: number;
@@ -140,7 +140,7 @@ export function homeDataFromGo(h: HomeFeedResult, userId?: string): HomeData {
       userId
     ),
     bookmarks: list(h.bookmarks).map(mapHydrated),
-    followedCreators: list(h.followedCreators).map((p) => mapPublicationToAuthor(p)),
+    followedCreators: list(h.followedCreators).map((p) => mapPublisherToAuthor(p)),
     followedAuthorIds: list(h.followedUserIds),
     initialFollowsCount: list(h.followedCreators).length,
     initialBookmarksCount: list(h.bookmarks).length,

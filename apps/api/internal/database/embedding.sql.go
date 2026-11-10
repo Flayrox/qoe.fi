@@ -19,18 +19,18 @@ SELECT a.id,
        a."isPremium",
        a."readingTime",
        a."createdAt",
-       a."publicationId",
+       a."publisherId",
        a."authorId",
        u.name          AS author_name,
        u.username      AS author_username,
        u."logoUrl"     AS author_logo,
-       p.name          AS publication_name,
-       p.subdomain     AS publication_subdomain,
-       p."logoUrl"     AS publication_logo,
+       p.name          AS publisher_name,
+       p.subdomain     AS publisher_subdomain,
+       p."logoUrl"     AS publisher_logo,
        (1 - (a."embedding" <=> $1::vector))::float8 AS score
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 WHERE a.published = true
   AND a."embedding" IS NOT NULL
   AND a.id <> $2
@@ -47,21 +47,21 @@ type FindSimilarArticlesParams struct {
 }
 
 type FindSimilarArticlesRow struct {
-	ID                   string           `json:"id"`
-	Title                string           `json:"title"`
-	Slug                 string           `json:"slug"`
-	IsPremium            bool             `json:"isPremium"`
-	ReadingTime          int32            `json:"readingTime"`
-	CreatedAt            pgtype.Timestamp `json:"createdAt"`
-	PublicationId        string           `json:"publicationId"`
-	AuthorId             pgtype.UUID      `json:"authorId"`
-	AuthorName           pgtype.Text      `json:"author_name"`
-	AuthorUsername       pgtype.Text      `json:"author_username"`
-	AuthorLogo           pgtype.Text      `json:"author_logo"`
-	PublicationName      string           `json:"publication_name"`
-	PublicationSubdomain pgtype.Text      `json:"publication_subdomain"`
-	PublicationLogo      pgtype.Text      `json:"publication_logo"`
-	Score                float64          `json:"score"`
+	ID                 string           `json:"id"`
+	Title              string           `json:"title"`
+	Slug               string           `json:"slug"`
+	IsPremium          bool             `json:"isPremium"`
+	ReadingTime        int32            `json:"readingTime"`
+	CreatedAt          pgtype.Timestamp `json:"createdAt"`
+	PublisherId        string           `json:"publisherId"`
+	AuthorId           pgtype.UUID      `json:"authorId"`
+	AuthorName         pgtype.Text      `json:"author_name"`
+	AuthorUsername     pgtype.Text      `json:"author_username"`
+	AuthorLogo         pgtype.Text      `json:"author_logo"`
+	PublisherName      string           `json:"publisher_name"`
+	PublisherSubdomain pgtype.Text      `json:"publisher_subdomain"`
+	PublisherLogo      pgtype.Text      `json:"publisher_logo"`
+	Score              float64          `json:"score"`
 }
 
 // Articles publiés classés par similarité cosinus avec un vecteur donné,
@@ -82,14 +82,14 @@ func (q *Queries) FindSimilarArticles(ctx context.Context, arg FindSimilarArticl
 			&i.IsPremium,
 			&i.ReadingTime,
 			&i.CreatedAt,
-			&i.PublicationId,
+			&i.PublisherId,
 			&i.AuthorId,
 			&i.AuthorName,
 			&i.AuthorUsername,
 			&i.AuthorLogo,
-			&i.PublicationName,
-			&i.PublicationSubdomain,
-			&i.PublicationLogo,
+			&i.PublisherName,
+			&i.PublisherSubdomain,
+			&i.PublisherLogo,
 			&i.Score,
 		); err != nil {
 			return nil, err
@@ -146,18 +146,18 @@ SELECT a.id,
        a."isPremium",
        a."readingTime",
        a."createdAt",
-       a."publicationId",
+       a."publisherId",
        a."authorId",
        u.name          AS author_name,
        u.username      AS author_username,
        u."logoUrl"     AS author_logo,
-       p.name          AS publication_name,
-       p.subdomain     AS publication_subdomain,
-       p."logoUrl"     AS publication_logo,
+       p.name          AS publisher_name,
+       p.subdomain     AS publisher_subdomain,
+       p."logoUrl"     AS publisher_logo,
        (1 - (a."embedding" <=> $1::vector))::float8 AS score
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 WHERE a.published = true
   AND a."embedding" IS NOT NULL
   AND u."isShadowbanned" = false
@@ -172,21 +172,21 @@ type SearchSemanticArticlesParams struct {
 }
 
 type SearchSemanticArticlesRow struct {
-	ID                   string           `json:"id"`
-	Title                string           `json:"title"`
-	Slug                 string           `json:"slug"`
-	IsPremium            bool             `json:"isPremium"`
-	ReadingTime          int32            `json:"readingTime"`
-	CreatedAt            pgtype.Timestamp `json:"createdAt"`
-	PublicationId        string           `json:"publicationId"`
-	AuthorId             pgtype.UUID      `json:"authorId"`
-	AuthorName           pgtype.Text      `json:"author_name"`
-	AuthorUsername       pgtype.Text      `json:"author_username"`
-	AuthorLogo           pgtype.Text      `json:"author_logo"`
-	PublicationName      string           `json:"publication_name"`
-	PublicationSubdomain pgtype.Text      `json:"publication_subdomain"`
-	PublicationLogo      pgtype.Text      `json:"publication_logo"`
-	Score                float64          `json:"score"`
+	ID                 string           `json:"id"`
+	Title              string           `json:"title"`
+	Slug               string           `json:"slug"`
+	IsPremium          bool             `json:"isPremium"`
+	ReadingTime        int32            `json:"readingTime"`
+	CreatedAt          pgtype.Timestamp `json:"createdAt"`
+	PublisherId        string           `json:"publisherId"`
+	AuthorId           pgtype.UUID      `json:"authorId"`
+	AuthorName         pgtype.Text      `json:"author_name"`
+	AuthorUsername     pgtype.Text      `json:"author_username"`
+	AuthorLogo         pgtype.Text      `json:"author_logo"`
+	PublisherName      string           `json:"publisher_name"`
+	PublisherSubdomain pgtype.Text      `json:"publisher_subdomain"`
+	PublisherLogo      pgtype.Text      `json:"publisher_logo"`
+	Score              float64          `json:"score"`
 }
 
 // Recherche sémantique plein corpus (ordre par similarité cosinus).
@@ -206,14 +206,14 @@ func (q *Queries) SearchSemanticArticles(ctx context.Context, arg SearchSemantic
 			&i.IsPremium,
 			&i.ReadingTime,
 			&i.CreatedAt,
-			&i.PublicationId,
+			&i.PublisherId,
 			&i.AuthorId,
 			&i.AuthorName,
 			&i.AuthorUsername,
 			&i.AuthorLogo,
-			&i.PublicationName,
-			&i.PublicationSubdomain,
-			&i.PublicationLogo,
+			&i.PublisherName,
+			&i.PublisherSubdomain,
+			&i.PublisherLogo,
 			&i.Score,
 		); err != nil {
 			return nil, err

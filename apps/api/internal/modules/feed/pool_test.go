@@ -36,11 +36,11 @@ func halfVec(first, second float64) pgvector.Vector {
 func TestEnginePool_SimDominant(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
-	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE "Post", "Article", "User", "Publication" CASCADE`); err != nil {
+	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE "Post", "Article", "User", "Publisher" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	const authorID = "00000000-0000-0000-0000-0000000000a1"
-	if _, err := poolTest.Exec(ctx, `INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+	if _, err := poolTest.Exec(ctx, `INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		VALUES ('pub_pool', 'PERSONAL', 'Pool Pub', 'pool-pub', now(), now())`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestEnginePool_SimDominant(t *testing.T) {
 			created = `now() - interval '30 days'`
 		}
 		if _, err := poolTest.Exec(ctx, `INSERT INTO "Article" (id, title, slug, content, published, visibility,
-			"readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt",
+			"readingTime", status, "publisherId", "authorId", "createdAt", "updatedAt",
 			"semanticTags", "completionRate", embedding)
 			VALUES ($1, $2, $2, '<p>Corps</p>', true, 'PUBLIC', 8, 'PUBLISHED', 'pub_pool', $3,
 			        `+created+`, now(), $4, 0.5, $5)`,

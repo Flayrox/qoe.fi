@@ -41,7 +41,7 @@ interface AbuseQueueProps {
 }
 
 const REASON_LABELS: Record<string, string> = {
-  'burst.signup.publication': 'Rafale d’inscriptions sur une publication',
+  'burst.signup.publisher': 'Rafale d’inscriptions sur une publication',
   'swarm.report.target': 'Essaim de signalements contre une cible',
   'swarm.report.reporter': 'Raid de signalement (volume du plaignant)',
   'swarm.like.target': 'Essaim de likes sur une pensée',

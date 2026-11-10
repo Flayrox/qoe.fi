@@ -17,44 +17,44 @@ import (
 
 type apiRecommendationItem struct {
 	ID                      string  `json:"id"`
-	PublicationID           string  `json:"publicationId"`
-	PublicationName         string  `json:"name"`
-	PublicationSlug         string  `json:"slug"`
-	PublicationSubdomain    *string `json:"subdomain"`
-	PublicationCustomDomain *string `json:"customDomain"`
-	PublicationBio          *string `json:"bio"`
-	PublicationLogoURL      *string `json:"logoUrl"`
+	PublisherID           string  `json:"publisherId"`
+	PublisherName         string  `json:"name"`
+	PublisherSlug         string  `json:"slug"`
+	PublisherSubdomain    *string `json:"subdomain"`
+	PublisherCustomDomain *string `json:"customDomain"`
+	PublisherBio          *string `json:"bio"`
+	PublisherLogoURL      *string `json:"logoUrl"`
 	Description             *string `json:"description"`
 	CreatedAt               string  `json:"createdAt"`
 }
 
 type apiRecommendationInput struct {
-	PublicationID string  `json:"publicationId"`
+	PublisherID string  `json:"publisherId"`
 	RecommendedID string  `json:"recommendedId"`
 	Description   *string `json:"description"`
 }
 
-// resolveTargetPublicationId résout l'identifiant de la publication ciblée (paramètre d'URL, contexte ou publication personnelle).
-func (h *Handler) resolveTargetPublicationId(r *http.Request) (string, error) {
-	pubID := r.URL.Query().Get("publicationId")
+// resolveTargetPublisherId résout l'identifiant de la publication ciblée (paramètre d'URL, contexte ou publication personnelle).
+func (h *Handler) resolveTargetPublisherId(r *http.Request) (string, error) {
+	pubID := r.URL.Query().Get("publisherId")
 	if pubID != "" {
 		return pubID, nil
 	}
-	if ctxPubID, ok := middleware.PublicationID(r.Context()); ok && ctxPubID != "" {
+	if ctxPubID, ok := middleware.PublisherID(r.Context()); ok && ctxPubID != "" {
 		return ctxPubID, nil
 	}
 	if userID, ok := middleware.UserID(r.Context()); ok && userID != "" {
-		if personal, err := h.q.GetUserPersonalPublication(r.Context(), userID); err == nil && personal.Valid && personal.String != "" {
+		if personal, err := h.q.GetUserPersonalPublisher(r.Context(), userID); err == nil && personal.Valid && personal.String != "" {
 			return personal.String, nil
 		}
 	}
-	return "", errors.New("publicationId requis")
+	return "", errors.New("publisherId requis")
 }
 
 // apiRecommendationsList — GET /v1/creator/recommendations
 func (h *Handler) apiRecommendationsList(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
-	pubID, err := h.resolveTargetPublicationId(r)
+	pubID, err := h.resolveTargetPublisherId(r)
 	if err != nil {
 		response.BadRequest(w, err.Error())
 		return
@@ -67,7 +67,7 @@ func (h *Handler) apiRecommendationsList(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	rows, err := h.q.ListRecommendationsByPublication(r.Context(), pubID)
+	rows, err := h.q.ListRecommendationsByPublisher(r.Context(), pubID)
 	if err != nil {
 		log.Printf("[creator] list recommendations: %v", err)
 		response.Internal(w)
@@ -77,20 +77,20 @@ func (h *Handler) apiRecommendationsList(w http.ResponseWriter, r *http.Request)
 	items := make([]apiRecommendationItem, 0, len(rows))
 	for _, row := range rows {
 		sub := (*string)(nil)
-		if row.PublicationSubdomain.Valid {
-			sub = &row.PublicationSubdomain.String
+		if row.PublisherSubdomain.Valid {
+			sub = &row.PublisherSubdomain.String
 		}
 		custom := (*string)(nil)
-		if row.PublicationCustomDomain.Valid {
-			custom = &row.PublicationCustomDomain.String
+		if row.PublisherCustomDomain.Valid {
+			custom = &row.PublisherCustomDomain.String
 		}
 		bio := (*string)(nil)
-		if row.PublicationBio.Valid {
-			bio = &row.PublicationBio.String
+		if row.PublisherBio.Valid {
+			bio = &row.PublisherBio.String
 		}
 		logo := (*string)(nil)
-		if row.PublicationLogoUrl.Valid {
-			logo = &row.PublicationLogoUrl.String
+		if row.PublisherLogoUrl.Valid {
+			logo = &row.PublisherLogoUrl.String
 		}
 		desc := (*string)(nil)
 		if row.Description.Valid {
@@ -99,13 +99,13 @@ func (h *Handler) apiRecommendationsList(w http.ResponseWriter, r *http.Request)
 
 		items = append(items, apiRecommendationItem{
 			ID:                      row.ID,
-			PublicationID:           row.PublicationID,
-			PublicationName:         row.PublicationName,
-			PublicationSlug:         row.PublicationSlug,
-			PublicationSubdomain:    sub,
-			PublicationCustomDomain: custom,
-			PublicationBio:          bio,
-			PublicationLogoURL:      logo,
+			PublisherID:           row.PublisherID,
+			PublisherName:         row.PublisherName,
+			PublisherSlug:         row.PublisherSlug,
+			PublisherSubdomain:    sub,
+			PublisherCustomDomain: custom,
+			PublisherBio:          bio,
+			PublisherLogoURL:      logo,
 			Description:             desc,
 			CreatedAt:               row.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
 		})
@@ -124,22 +124,22 @@ func (h *Handler) apiRecommendationAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	in.PublicationID = strings.TrimSpace(in.PublicationID)
+	in.PublisherID = strings.TrimSpace(in.PublisherID)
 	in.RecommendedID = strings.TrimSpace(in.RecommendedID)
 
-	if in.PublicationID == "" || in.RecommendedID == "" {
-		response.BadRequest(w, "publicationId et recommendedId requis")
+	if in.PublisherID == "" || in.RecommendedID == "" {
+		response.BadRequest(w, "publisherId et recommendedId requis")
 		return
 	}
 
 	// 🛡️ Interdiction formelle de s'auto-recommander
-	if in.PublicationID == in.RecommendedID {
+	if in.PublisherID == in.RecommendedID {
 		response.BadRequest(w, "Une publication ne peut pas se recommander elle-même")
 		return
 	}
 
 	if userID != "" {
-		if err := h.authorizeCategories(r.Context(), userID, in.PublicationID); err != nil {
+		if err := h.authorizeCategories(r.Context(), userID, in.PublisherID); err != nil {
 			response.Forbidden(w, "Accès refusé à cette publication")
 			return
 		}
@@ -147,9 +147,9 @@ func (h *Handler) apiRecommendationAdd(w http.ResponseWriter, r *http.Request) {
 
 	// Vérification de l'existence de la publication recommandée
 	var targetExists int
-	err := h.pool.QueryRow(r.Context(), `SELECT 1 FROM "Publication" WHERE id = $1 LIMIT 1`, in.RecommendedID).Scan(&targetExists)
+	err := h.pool.QueryRow(r.Context(), `SELECT 1 FROM "Publisher" WHERE id = $1 LIMIT 1`, in.RecommendedID).Scan(&targetExists)
 	if errors.Is(err, pgx.ErrNoRows) {
-		response.NotFound(w, "Publication recommandée introuvable")
+		response.NotFound(w, "Publisher recommandée introuvable")
 		return
 	}
 	if err != nil {
@@ -164,7 +164,7 @@ func (h *Handler) apiRecommendationAdd(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rec, err := h.q.AddRecommendation(r.Context(), db.AddRecommendationParams{
-		RecommenderId: in.PublicationID,
+		RecommenderId: in.PublisherID,
 		RecommendedId: in.RecommendedID,
 		Description:   descText,
 	})
@@ -184,10 +184,10 @@ func (h *Handler) apiRecommendationAdd(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// apiRecommendationRemove — DELETE /v1/creator/recommendations/{recommendedId}?publicationId=
+// apiRecommendationRemove — DELETE /v1/creator/recommendations/{recommendedId}?publisherId=
 func (h *Handler) apiRecommendationRemove(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
-	pubID, err := h.resolveTargetPublicationId(r)
+	pubID, err := h.resolveTargetPublisherId(r)
 	if err != nil {
 		response.BadRequest(w, err.Error())
 		return

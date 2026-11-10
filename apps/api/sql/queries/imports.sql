@@ -1,18 +1,18 @@
 -- Import bulk d'articles — jobs asynq + rapports d'erreurs.
 
 -- name: InsertArticleImportJob :one
-INSERT INTO "ArticleImportJob" (id, "userId", "publicationId", total, articles)
+INSERT INTO "ArticleImportJob" (id, "userId", "publisherId", total, articles)
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4)
 RETURNING id;
 
 -- name: GetArticleImportJob :one
-SELECT id, "userId"::text, "publicationId", status, total, imported, duplicates,
+SELECT id, "userId"::text, "publisherId", status, total, imported, duplicates,
        errors, "createdAt", "updatedAt"
 FROM "ArticleImportJob"
 WHERE id = $1 AND "userId" = $2;
 
 -- name: GetArticleImportJobByID :one
-SELECT id, "userId"::text, "publicationId", status, total, imported, duplicates,
+SELECT id, "userId"::text, "publisherId", status, total, imported, duplicates,
        errors, articles, "createdAt", "updatedAt"
 FROM "ArticleImportJob"
 WHERE id = $1;
@@ -33,7 +33,7 @@ SET status = 'FAILED', "updatedAt" = now()
 WHERE id = $1;
 
 -- name: ListArticleImportJobs :many
-SELECT id, "userId"::text, "publicationId", status, total, imported, duplicates,
+SELECT id, "userId"::text, "publisherId", status, total, imported, duplicates,
        errors, "createdAt", "updatedAt"
 FROM "ArticleImportJob"
 WHERE "userId" = $1

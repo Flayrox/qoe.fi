@@ -42,7 +42,7 @@ describe('buildArticleUrl', () => {
     const url = buildArticleUrl(
       {
         slug: 'la-ville-sans-voiture',
-        publication: { slug: 'le-media', subdomain: 'le-media', customDomain: 'le-media.fr' },
+        publisher: { slug: 'le-media', subdomain: 'le-media', customDomain: 'le-media.fr' },
         author: { id: 'a1', username: 'camille' },
       },
       'la-ville-sans-voiture'
@@ -61,7 +61,7 @@ describe('buildArticleUrl', () => {
   });
 
   it('utilise le sous-domaine de la publication si le slug média est absent', () => {
-    const url = buildArticleUrl({ slug: 'actu', publication: { subdomain: 'gazette' } }, 'actu');
+    const url = buildArticleUrl({ slug: 'actu', publisher: { subdomain: 'gazette' } }, 'actu');
     expect(url).toBe('/gazette/a/actu');
   });
 
@@ -109,7 +109,7 @@ describe('buildPlaceholder', () => {
     expect(placeholder.readingTime).toBe(3);
     // Un auteur fantôme plutôt qu'une carte qui plante sur `author.id`.
     expect(placeholder.author.id).toBe('loading');
-    expect(placeholder.publication).toBeNull();
+    expect(placeholder.publisher).toBeNull();
   });
 
   it('accepte un contenu null venu des cartes du feed', () => {

@@ -77,7 +77,7 @@ func TestWebhook_TenantIsolation_LocalEventDoesNotDispatchForeignWebhooks(t *tes
 	// déclencher le webhook de A.
 	pubB := "pub_wh_tenant_b"
 	if _, err := poolTest.Exec(context.Background(),
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ($1, 'PERSONAL', 'Tenant B', 'tenant-b', now(), now())`, pubB); err != nil {
 		t.Fatalf("publication B: %v", err)
 	}
@@ -109,7 +109,7 @@ func seedMediaFanout(t *testing.T) (pubID, authorID string) {
 	t.Helper()
 	// Vide les tables utiles au fanout (IDs fixes, seed rejouable).
 	if _, err := poolTest.Exec(context.Background(), `TRUNCATE TABLE
-		"Notification", "Follows", "NotificationPreference", "User", "Publication" CASCADE`); err != nil {
+		"Notification", "Follows", "NotificationPreference", "User", "Publisher" CASCADE`); err != nil {
 		t.Fatalf("truncate fanout: %v", err)
 	}
 
@@ -119,7 +119,7 @@ func seedMediaFanout(t *testing.T) (pubID, authorID string) {
 	readerB := "00000000-0000-0000-0000-000000000032"
 
 	if _, err := poolTest.Exec(context.Background(),
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ($1, 'MEDIA', 'Média Fanout', 'media-fanout', now(), now())`, pubID); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
@@ -137,7 +137,7 @@ func seedMediaFanout(t *testing.T) (pubID, authorID string) {
 	}
 	// readerA suit la publication ; readerB est l'auteur (exclu).
 	if _, err := poolTest.Exec(context.Background(),
-		`INSERT INTO "Follows" (id, "readerId", "publicationId", "createdAt")
+		`INSERT INTO "Follows" (id, "readerId", "publisherId", "createdAt")
 		 VALUES (gen_random_uuid()::text, $1, $2, now()),
 		        (gen_random_uuid()::text, $3, $2, now())`,
 		readerA, pubID, authorID); err != nil {
@@ -146,7 +146,7 @@ func seedMediaFanout(t *testing.T) (pubID, authorID string) {
 	// L'article existe (FK Notification.articleId → Article).
 	if _, err := poolTest.Exec(context.Background(),
 		`INSERT INTO "Article" (id, title, slug, content, published, visibility,
-		                        "readingTime", status, "publicationId", "authorId",
+		                        "readingTime", status, "publisherId", "authorId",
 		                        "createdAt", "updatedAt")
 		 VALUES ('art_fanout_1', 'Article média', 'article-media', '<p>x</p>', true,
 		         'PUBLIC', 3, 'PUBLISHED', $1, $2, now(), now())`,
@@ -159,7 +159,7 @@ func seedMediaFanout(t *testing.T) (pubID, authorID string) {
 func mediaFanoutTask(t *testing.T, pubID, authorID string) *asynq.Task {
 	t.Helper()
 	payload, _ := json.Marshal(map[string]any{
-		"publicationId": pubID,
+		"publisherId": pubID,
 		"articleId":     "art_fanout_1",
 		"authorId":      authorID,
 		"title":         "Article média",
@@ -184,7 +184,7 @@ func TestNewsletter_MediaFanout_CreatesNotificationsDeduped(t *testing.T) {
 	var count int
 	if err := poolTest.QueryRow(context.Background(),
 		`SELECT COUNT(*) FROM "Notification"
-		 WHERE type = 'MEDIA_ARTICLE_PUBLISHED' AND "articleId" = 'art_fanout_1' AND "publicationId" = $1`,
+		 WHERE type = 'MEDIA_ARTICLE_PUBLISHED' AND "articleId" = 'art_fanout_1' AND "publisherId" = $1`,
 		pubID).Scan(&count); err != nil {
 		t.Fatalf("count notifications: %v", err)
 	}
@@ -203,7 +203,7 @@ func TestNewsletter_MediaFanout_CreatesNotificationsDeduped(t *testing.T) {
 	}
 }
 
-func TestNewsletter_PersonalPublication_NoFanoutNotifications(t *testing.T) {
+func TestNewsletter_PersonalPublisher_NoFanoutNotifications(t *testing.T) {
 	requirePool(t)
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
 	if err != nil {
@@ -211,13 +211,13 @@ func TestNewsletter_PersonalPublication_NoFanoutNotifications(t *testing.T) {
 	}
 	// Le seed crée une publication PERSONAL → le fanout MEDIA doit être no-op.
 	if _, err := poolTest.Exec(context.Background(),
-		`INSERT INTO "Follows" (id, "readerId", "publicationId", "createdAt")
-		 VALUES (gen_random_uuid()::text, $1, $2, now())`, fx.EditorID, fx.PublicationID); err != nil {
+		`INSERT INTO "Follows" (id, "readerId", "publisherId", "createdAt")
+		 VALUES (gen_random_uuid()::text, $1, $2, now())`, fx.EditorID, fx.PublisherID); err != nil {
 		t.Fatalf("follow: %v", err)
 	}
 
 	worker := NewNewsletterWorker(poolTest)
-	if err := worker.HandleArticlePublished(context.Background(), mediaFanoutTask(t, fx.PublicationID, fx.OwnerID)); err != nil {
+	if err := worker.HandleArticlePublished(context.Background(), mediaFanoutTask(t, fx.PublisherID, fx.OwnerID)); err != nil {
 		t.Fatalf("HandleArticlePublished: %v", err)
 	}
 

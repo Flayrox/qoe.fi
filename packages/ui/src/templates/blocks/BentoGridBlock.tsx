@@ -15,7 +15,7 @@ import { PLACEHOLDER_COVER_1, PLACEHOLDER_COVER_2, PLACEHOLDER_COVER_3 } from '.
 import type {
   BentoGridBlockProps,
   TemplateArticleItem,
-  TemplatePublicationContext,
+  TemplatePublisherContext,
   TemplateRenderContext,
   CardCornerShape,
   SurfaceStyle,
@@ -27,7 +27,7 @@ interface BentoGridBlockComponentProps {
   id: string;
   props: BentoGridBlockProps;
   articles?: TemplateArticleItem[];
-  publication: TemplatePublicationContext;
+  publisher: TemplatePublisherContext;
   cardShape?: CardCornerShape;
   surface?: SurfaceStyle;
   context: TemplateRenderContext;

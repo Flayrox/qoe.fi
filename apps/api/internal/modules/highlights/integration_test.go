@@ -303,8 +303,8 @@ func TestBookmarksAndMyHighlights(t *testing.T) {
 	if mine[0].ArticleSlug == "" {
 		t.Fatal("articleSlug vide")
 	}
-	if mine[0].PublicationID == "" {
-		t.Fatal("publicationId vide — requis pour ouvrir l'article")
+	if mine[0].PublisherID == "" {
+		t.Fatal("publisherId vide — requis pour ouvrir l'article")
 	}
 }
 

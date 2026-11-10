@@ -58,7 +58,7 @@ func TestListCreatorArticles_AllPublished(t *testing.T) {
 	q := db.New(poolTest)
 
 	rows, err := q.ListCreatorArticles(context.Background(), db.ListCreatorArticlesParams{
-		PublicationId: fx.PublicationID,
+		PublisherId: fx.PublisherID,
 		Published:     pgtype.Bool{Bool: true, Valid: true},
 		Limit:         10,
 		Offset:        0,
@@ -93,7 +93,7 @@ func TestListCreatorArticles_FilterByCategory(t *testing.T) {
 	q := db.New(poolTest)
 
 	rows, err := q.ListCreatorArticles(context.Background(), db.ListCreatorArticlesParams{
-		PublicationId: fx.PublicationID,
+		PublisherId: fx.PublisherID,
 		Published:     pgtype.Bool{Bool: true, Valid: true},
 		CategorySlug:  pgtype.Text{String: "food", Valid: true},
 		Limit:         10,
@@ -107,7 +107,7 @@ func TestListCreatorArticles_FilterByCategory(t *testing.T) {
 	}
 
 	rows, err = q.ListCreatorArticles(context.Background(), db.ListCreatorArticlesParams{
-		PublicationId: fx.PublicationID,
+		PublisherId: fx.PublisherID,
 		Published:     pgtype.Bool{Bool: true, Valid: true},
 		CategorySlug:  pgtype.Text{String: "tech", Valid: true},
 		Limit:         10,
@@ -128,7 +128,7 @@ func TestListCreatorArticles_Pagination(t *testing.T) {
 
 	// page 1 : limit 2 → 2 articles, page 2 : limit 2 → 1 article.
 	page1, err := q.ListCreatorArticles(context.Background(), db.ListCreatorArticlesParams{
-		PublicationId: fx.PublicationID,
+		PublisherId: fx.PublisherID,
 		Published:     pgtype.Bool{Bool: true, Valid: true},
 		Limit:         2,
 		Offset:        0,
@@ -141,7 +141,7 @@ func TestListCreatorArticles_Pagination(t *testing.T) {
 	}
 
 	page2, err := q.ListCreatorArticles(context.Background(), db.ListCreatorArticlesParams{
-		PublicationId: fx.PublicationID,
+		PublisherId: fx.PublisherID,
 		Published:     pgtype.Bool{Bool: true, Valid: true},
 		Limit:         2,
 		Offset:        2,
@@ -169,7 +169,7 @@ func TestCountCreatorArticles(t *testing.T) {
 	q := db.New(poolTest)
 
 	total, err := q.CountCreatorArticles(context.Background(), db.CountCreatorArticlesParams{
-		PublicationId: fx.PublicationID,
+		PublisherId: fx.PublisherID,
 		Published:     pgtype.Bool{Bool: true, Valid: true},
 	})
 	if err != nil {
@@ -181,7 +181,7 @@ func TestCountCreatorArticles(t *testing.T) {
 
 	// Filtre par catégorie.
 	totalFood, err := q.CountCreatorArticles(context.Background(), db.CountCreatorArticlesParams{
-		PublicationId: fx.PublicationID,
+		PublisherId: fx.PublisherID,
 		Published:     pgtype.Bool{Bool: true, Valid: true},
 		CategorySlug:  pgtype.Text{String: "food", Valid: true},
 	})
@@ -201,7 +201,7 @@ func TestGetCreatorArticleBySlug_PublishedOnly(t *testing.T) {
 	// Article publié → trouvé.
 	row, err := q.GetCreatorArticleBySlug(context.Background(), db.GetCreatorArticleBySlugParams{
 		Slug:          "article-payant",
-		PublicationId: fx.PublicationID,
+		PublisherId: fx.PublisherID,
 	})
 	if err != nil {
 		t.Fatalf("GetCreatorArticleBySlug(publié): %v", err)
@@ -216,7 +216,7 @@ func TestGetCreatorArticleBySlug_PublishedOnly(t *testing.T) {
 	// Article brouillon → introuvable (published = true requis).
 	_, err = q.GetCreatorArticleBySlug(context.Background(), db.GetCreatorArticleBySlugParams{
 		Slug:          "brouillon",
-		PublicationId: fx.PublicationID,
+		PublisherId: fx.PublisherID,
 	})
 	if err == nil {
 		t.Fatal("brouillon ne doit pas être retourné (published=false)")
@@ -229,7 +229,7 @@ func TestListCreatorArticles_NoPaywallLeak(t *testing.T) {
 	q := db.New(poolTest)
 
 	rows, err := q.ListCreatorArticles(context.Background(), db.ListCreatorArticlesParams{
-		PublicationId: fx.PublicationID,
+		PublisherId: fx.PublisherID,
 		Published:     pgtype.Bool{Bool: true, Valid: true},
 		Limit:         10,
 		Offset:        0,

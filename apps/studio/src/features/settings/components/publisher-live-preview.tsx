@@ -7,7 +7,7 @@
 // =====================================================================
 
 export {
-  Preview as PublicationLivePreview,
-  type PreviewProps as PublicationLivePreviewProps,
+  Preview as PublisherLivePreview,
+  type PreviewProps as PublisherLivePreviewProps,
   type SiteOptions,
 } from '../preview';

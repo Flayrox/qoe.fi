@@ -106,9 +106,9 @@ type AdminUserDetail struct {
 	IsSuspended        bool    `json:"isSuspended"`
 	SuspendReason      *string `json:"suspendReason"`
 	LogoURL            *string `json:"logoUrl"`
-	PublicationID      *string `json:"publicationId"`
+	PublisherID      *string `json:"publisherId"`
 	Subdomain          *string `json:"subdomain"`
-	PublicationName    *string `json:"publicationName"`
+	PublisherName    *string `json:"publisherName"`
 	ArticlesCount      int64   `json:"articlesCount"`
 	SubscribersCount   int64   `json:"subscribersCount"`
 	WalletTransactions int64   `json:"walletTransactions"`
@@ -122,7 +122,7 @@ type ModerationInput struct {
 	IsShadowbanned       *bool   `json:"isShadowbanned"`
 	IsSuspended          *bool   `json:"isSuspended"`
 	SuspendReason        *string `json:"suspendReason"`
-	PublicationCertified *bool   `json:"publicationCertified"`
+	PublisherCertified *bool   `json:"publisherCertified"`
 	// Mise en shadowban (fiche 06 §6) : mesure punitive invisible par nature,
 	// donc motif ET échéance obligatoires — un shadowban sans fin ni motif
 	// est refusé. La levée est automatique à l'échéance (job planifié).
@@ -208,7 +208,7 @@ func (s *Service) ListUsers(ctx context.Context, userID string) ([]AdminUser, er
 			IsShadowbanned: r.IsShadowbanned,
 			IsSuspended:    r.IsSuspended,
 			SuspendReason:  textPtr(r.SuspendReason),
-			Subdomain:      textPtr(r.PublicationSubdomain),
+			Subdomain:      textPtr(r.PublisherSubdomain),
 			CreatedAt:      r.CreatedAt.Time.Format(time.RFC3339),
 			UpdatedAt:      r.UpdatedAt.Time.Format(time.RFC3339),
 		})
@@ -248,9 +248,9 @@ func (s *Service) GetUser(ctx context.Context, userID, targetID string) (*AdminU
 		IsSuspended:        row.IsSuspended,
 		SuspendReason:      textPtr(row.SuspendReason),
 		LogoURL:            textPtr(row.LogoUrl),
-		PublicationID:      textPtr(row.PublicationId),
+		PublisherID:      textPtr(row.PublisherId),
 		Subdomain:          textPtr(row.Subdomain),
-		PublicationName:    textPtr(row.PublicationName),
+		PublisherName:    textPtr(row.PublisherName),
 		ArticlesCount:      row.ArticlesCount,
 		SubscribersCount:   row.SubscribersCount,
 		WalletTransactions: row.WalletTransactionsCount,
@@ -335,10 +335,10 @@ func (s *Service) UpdateModeration(ctx context.Context, userID, targetID string,
 	}
 
 	// Certification de la publication associée (le cas échéant).
-	if in.PublicationCertified != nil && cur.PublicationId.Valid {
-		if _, err := s.q.UpdatePublicationCertified(ctx, db.UpdatePublicationCertifiedParams{
-			ID:          cur.PublicationId.String,
-			IsCertified: *in.PublicationCertified,
+	if in.PublisherCertified != nil && cur.PublisherId.Valid {
+		if _, err := s.q.UpdatePublisherCertified(ctx, db.UpdatePublisherCertifiedParams{
+			ID:          cur.PublisherId.String,
+			IsCertified: *in.PublisherCertified,
 		}); err != nil {
 			return nil, err
 		}

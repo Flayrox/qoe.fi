@@ -52,23 +52,23 @@ func seedImport(t *testing.T, ctx context.Context) {
 	requirePool(t)
 	t.Helper()
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE
-		"MediaMember", "Media", "Article", "Publication", "User" CASCADE`); err != nil {
+		"MediaMember", "Media", "Article", "Publisher", "User" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ($1, 'PERSONAL', 'Journal Perso', 'journal-perso', now(), now()),
 		        ($2, 'MEDIA', 'Média Import', 'media-import', now(), now())`,
 		importPubPerso, importPubMedia); err != nil {
-		t.Fatalf("publications: %v", err)
+		t.Fatalf("publishers: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Media" (id, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "Media" (id, "publisherId", "createdAt", "updatedAt")
 		 VALUES ($1, $2, now(), now())`, importMediaID, importPubMedia); err != nil {
 		t.Fatalf("media: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "User" (id, email, username, name, role, "publisherId", "createdAt", "updatedAt")
 		 VALUES ($1, 'owner-import@test.dev', 'ownerimport', 'Owner', 'creator', $2, now(), now()),
 		        ($3, 'stranger-import@test.dev', 'strangerimport', 'Étranger', 'user', NULL, now(), now())`,
 		importOwnerID, importPubPerso, importStranger); err != nil {
@@ -93,7 +93,7 @@ func TestImportArticles(t *testing.T) {
 
 	// 2 articles nouveaux + 1 slug vide (ignoré).
 	req := ImportArticlesRequest{
-		PublicationID: importPubPerso,
+		PublisherID: importPubPerso,
 		Articles: []ImportArticle{
 			{Title: "Article un", Slug: "article-un", Content: "<p>Un</p>", ReadingTime: 2},
 			{Title: "Article deux", Slug: "article-deux", Content: "<p>Deux</p>", ReadingTime: 3},
@@ -119,7 +119,7 @@ func TestImportArticles(t *testing.T) {
 
 	// Nouveau slug dans le lot → 1 seul créé.
 	req2 := ImportArticlesRequest{
-		PublicationID: importPubPerso,
+		PublisherID: importPubPerso,
 		Articles: []ImportArticle{
 			{Title: "Article un", Slug: "article-un", Content: "<p>Un</p>", ReadingTime: 2},
 			{Title: "Article trois", Slug: "article-trois", Content: "<p>Trois</p>", ReadingTime: 4},
@@ -135,7 +135,7 @@ func TestImportArticles(t *testing.T) {
 
 	// Le créateur owner d'un média peut importer dans la publication média.
 	created, err = svc.ImportArticles(ctx, importOwnerID, ImportArticlesRequest{
-		PublicationID: importPubMedia,
+		PublisherID: importPubMedia,
 		Articles:      []ImportArticle{{Title: "Média un", Slug: "media-un", Content: "<p>M</p>", ReadingTime: 1}},
 	})
 	if err != nil || created != 1 {
@@ -144,7 +144,7 @@ func TestImportArticles(t *testing.T) {
 
 	// Étranger → refus.
 	if _, err := svc.ImportArticles(ctx, importStranger, ImportArticlesRequest{
-		PublicationID: importPubPerso,
+		PublisherID: importPubPerso,
 		Articles:      []ImportArticle{{Title: "X", Slug: "x", Content: "<p>X</p>", ReadingTime: 1}},
 	}); err != errForbidden {
 		t.Fatalf("import étranger = %v, attendu errForbidden", err)
@@ -162,7 +162,7 @@ func TestImportJobLifecycle(t *testing.T) {
 	// Pré-importe « article-un » pour que le job le trouve en doublon
 	// (chaque test re-truncate la base, rien ne survit d'un test à l'autre).
 	if _, err := svc.ImportArticles(ctx, importOwnerID, ImportArticlesRequest{
-		PublicationID: importPubPerso,
+		PublisherID: importPubPerso,
 		Articles:      []ImportArticle{{Title: "Article un", Slug: "article-un", Content: "<p>Un</p>", ReadingTime: 2}},
 	}); err != nil {
 		t.Fatalf("pré-import doublon: %v", err)
@@ -171,7 +171,7 @@ func TestImportJobLifecycle(t *testing.T) {
 	// 1. Création d'un job : 3 articles dont un doublon (article-un) et un
 	// invalide (slug vide).
 	jobID, err := svc.CreateImportJob(ctx, importOwnerID, ImportArticlesRequest{
-		PublicationID: importPubPerso,
+		PublisherID: importPubPerso,
 		Articles: []ImportArticle{
 			{Title: "Bulk un", Slug: "bulk-un", Content: "<p>U</p>", ReadingTime: 2},
 			{Title: "Article un", Slug: "article-un", Content: "<p>Un</p>", ReadingTime: 2}, // doublon
@@ -250,7 +250,7 @@ func TestCreateImportJob_Forbidden(t *testing.T) {
 	seedImport(t, ctx)
 	svc := NewService(poolTest, nil)
 	if _, err := svc.CreateImportJob(ctx, importStranger, ImportArticlesRequest{
-		PublicationID: importPubPerso,
+		PublisherID: importPubPerso,
 		Articles:      []ImportArticle{{Title: "X", Slug: "x", Content: "<p>X</p>", ReadingTime: 1}},
 	}); err != errForbidden {
 		t.Fatalf("CreateImportJob(étranger) = %v, attendu errForbidden", err)

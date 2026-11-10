@@ -8,7 +8,7 @@ package imports
 //
 // Invariants structurels (pas documentaires) :
 //   • jeton à usage unique rattaché à (publication, email) : le lien vérifie
-//     déjà ce triplet (email + publicationId + token, plus signature HMAC) et
+//     déjà ce triplet (email + publisherId + token, plus signature HMAC) et
 //     consomme le jeton (`confirmationToken = NULL`). Ici on ajoute l'unicité
 //     du jeton entre demandes (index unique sur l'empreinte) pour qu'un même
 //     jeton ne serve jamais deux adresses, et on ne stocke que l'empreinte —
@@ -114,14 +114,14 @@ func newReconfirmToken() (token, hash string, err error) {
 // était en pause après une suspension levée) au lieu d'en créer une seconde.
 func (s *Service) StartReconfirmWave(ctx context.Context, staffID, batchID string, waveSize int) (ReconfirmWaveDTO, error) {
 	var (
-		status, publicationID, decisionID string
+		status, publisherID, decisionID string
 		fileVersion                       int
 		fileFingerprint                   string
 	)
 	err := s.pool.QueryRow(ctx, `
-		SELECT "status", "publicationId", "fileVersion", "fileFingerprint"
+		SELECT "status", "publisherId", "fileVersion", "fileFingerprint"
 		FROM "SubscriberImportBatch" WHERE "id" = $1`,
-		batchID).Scan(&status, &publicationID, &fileVersion, &fileFingerprint)
+		batchID).Scan(&status, &publisherID, &fileVersion, &fileFingerprint)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ReconfirmWaveDTO{}, errNotFound
 	}
@@ -198,14 +198,14 @@ func (s *Service) StartReconfirmWave(ctx context.Context, staffID, batchID strin
 	waveID := uuid.NewString()
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO "SubscriberImportReconfirmWave"
-		    ("id", "batchId", "publicationId", "decisionId", "status",
+		    ("id", "batchId", "publisherId", "decisionId", "status",
 		     "waveSize", "expiresAt", "createdAt", "updatedAt")
 		VALUES ($1, $2, $3, $4, 'queued', $5, $6, now(), now())`,
-		waveID, batchID, publicationID, decisionID, size, expiresAt); err != nil {
+		waveID, batchID, publisherID, decisionID, size, expiresAt); err != nil {
 		return ReconfirmWaveDTO{}, err
 	}
 
-	created, err := s.createWaveRequests(ctx, tx, waveID, batchID, publicationID, size, expiresAt)
+	created, err := s.createWaveRequests(ctx, tx, waveID, batchID, publisherID, size, expiresAt)
 	if err != nil {
 		return ReconfirmWaveDTO{}, err
 	}
@@ -260,7 +260,7 @@ func decisionWaveCap(limitsRaw []byte) int {
 // d'un jeton frais + demandes en attente. Seules les lignes encore
 // `pending_confirmation` et sans demande vivante sont prises, par ordre
 // alphabétique stable (curseur de reprise déterministe).
-func (s *Service) createWaveRequests(ctx context.Context, tx pgx.Tx, waveID, batchID, publicationID string, size int, expiresAt time.Time) (int, error) {
+func (s *Service) createWaveRequests(ctx context.Context, tx pgx.Tx, waveID, batchID, publisherID string, size int, expiresAt time.Time) (int, error) {
 	rows, err := tx.Query(ctx, `
 		SELECT r."id", r."email"
 		FROM "SubscriberImportRow" r
@@ -309,12 +309,12 @@ func (s *Service) createWaveRequests(ctx context.Context, tx pgx.Tx, waveID, bat
 		// à rien et on la sort de la vague.
 		var ensured bool
 		err = tx.QueryRow(ctx, `
-			INSERT INTO "Subscriber" ("id", "email", "publicationId", "locale",
+			INSERT INTO "Subscriber" ("id", "email", "publisherId", "locale",
 			                          "isActive", "receiveArticles", "confirmedAt",
 			                          "confirmationToken", "createdAt", "updatedAt")
 			VALUES (gen_random_uuid()::text, $1, $2, 'fr', true, false, NULL, $3, now(), now())
-			ON CONFLICT ("email", "publicationId") DO NOTHING
-			RETURNING true`, c.email, publicationID, token).Scan(&ensured)
+			ON CONFLICT ("email", "publisherId") DO NOTHING
+			RETURNING true`, c.email, publisherID, token).Scan(&ensured)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return created, err
 		}
@@ -338,18 +338,18 @@ func (s *Service) createWaveRequests(ctx context.Context, tx pgx.Tx, waveID, bat
 		if _, err := tx.Exec(ctx, `
 			UPDATE "SubscriberImportReconfirmRequest"
 			SET "status" = 'expired', "updatedAt" = now()
-			WHERE "publicationId" = $1 AND "email" = $2
+			WHERE "publisherId" = $1 AND "email" = $2
 			  AND "status" IN ('pending', 'sent')
-			  AND "waveId" <> $3`, publicationID, c.email, waveID); err != nil {
+			  AND "waveId" <> $3`, publisherID, c.email, waveID); err != nil {
 			return created, err
 		}
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO "SubscriberImportReconfirmRequest"
-			    ("id", "waveId", "batchId", "publicationId", "rowId",
+			    ("id", "waveId", "batchId", "publisherId", "rowId",
 			     "email", "tokenHash", "status", "expiresAt", "createdAt", "updatedAt")
 			VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, now(), now())
 			ON CONFLICT ("waveId", "email") DO NOTHING`,
-			uuid.NewString(), waveID, batchID, publicationID, c.rowID,
+			uuid.NewString(), waveID, batchID, publisherID, c.rowID,
 			c.email, hash, expiresAt); err != nil {
 			return created, err
 		}
@@ -449,12 +449,12 @@ func (s *Service) ListReconfirmWaves(ctx context.Context, batchID string) ([]Rec
 func (s *Service) ProcessReconfirmWave(ctx context.Context, waveID string) (bool, error) {
 	// Lecture des deux statuts (vague + lot) : un lot suspendu ou rejeté met
 	// la vague en pause au lieu de continuer à envoyer.
-	var waveStatus, batchStatus, batchID, publicationID string
+	var waveStatus, batchStatus, batchID, publisherID string
 	if err := s.pool.QueryRow(ctx, `
-		SELECT w."status", b."status", w."batchId", w."publicationId"
+		SELECT w."status", b."status", w."batchId", w."publisherId"
 		FROM "SubscriberImportReconfirmWave" w
 		JOIN "SubscriberImportBatch" b ON b."id" = w."batchId"
-		WHERE w."id" = $1`, waveID).Scan(&waveStatus, &batchStatus, &batchID, &publicationID); err != nil {
+		WHERE w."id" = $1`, waveID).Scan(&waveStatus, &batchStatus, &batchID, &publisherID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return true, nil // vague supprimée entre-temps : rien à faire.
 		}
@@ -507,13 +507,13 @@ func (s *Service) ProcessReconfirmWave(ctx context.Context, waveID string) (bool
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	claimed, err := s.claimReconfirmChunk(ctx, tx, waveID, publicationID)
+	claimed, err := s.claimReconfirmChunk(ctx, tx, waveID, publisherID)
 	if err != nil {
 		return false, err
 	}
 	sent, skipped, expired := 0, 0, 0
 	for _, c := range claimed {
-		switch s.sendReconfirmOne(ctx, tx, waveID, publicationID, c) {
+		switch s.sendReconfirmOne(ctx, tx, waveID, publisherID, c) {
 		case reconfirmSent:
 			sent++
 		case reconfirmSkipped:
@@ -573,8 +573,8 @@ const (
 
 // claimReconfirmChunk réclame une tranche de demandes (verrou sauté : deux
 // workers ne se disputent jamais la même adresse).
-func (s *Service) claimReconfirmChunk(ctx context.Context, tx pgx.Tx, waveID, publicationID string) ([]reconfirmClaim, error) {
-	_ = publicationID
+func (s *Service) claimReconfirmChunk(ctx context.Context, tx pgx.Tx, waveID, publisherID string) ([]reconfirmClaim, error) {
+	_ = publisherID
 	rows, err := tx.Query(ctx, `
 		SELECT "id", "email" FROM "SubscriberImportReconfirmRequest"
 		WHERE "waveId" = $1 AND "status" = 'pending'
@@ -600,7 +600,7 @@ func (s *Service) claimReconfirmChunk(ctx context.Context, tx pgx.Tx, waveID, pu
 // l'abonné sont revérifiés **au moment de l'envoi**, pas au moment de la
 // création de la vague — un désabonnement ou une plainte entre-temps doit
 // gagner contre la vague.
-func (s *Service) sendReconfirmOne(ctx context.Context, tx pgx.Tx, waveID, publicationID string, c reconfirmClaim) reconfirmOutcome {
+func (s *Service) sendReconfirmOne(ctx context.Context, tx pgx.Tx, waveID, publisherID string, c reconfirmClaim) reconfirmOutcome {
 	var (
 		expiresAt                 *time.Time
 		isActive, receiveArticles bool
@@ -618,12 +618,12 @@ func (s *Service) sendReconfirmOne(ctx context.Context, tx pgx.Tx, waveID, publi
 		           SELECT 1 FROM "EmailSuppression" x
 		           WHERE x.email = q."email"
 		             AND (x."scope" = 'global'
-		                  OR (x."scope" = 'publication' AND x."publicationId" = $1))
+		                  OR (x."scope" = 'publisher' AND x."publisherId" = $1))
 		       )
 		FROM "SubscriberImportReconfirmRequest" q
 		LEFT JOIN "Subscriber" s
-		       ON s."publicationId" = $1 AND s.email = q."email"
-		WHERE q."id" = $2`, publicationID, c.id).Scan(
+		       ON s."publisherId" = $1 AND s.email = q."email"
+		WHERE q."id" = $2`, publisherID, c.id).Scan(
 		&expiresAt, &isActive, &receiveArticles, &confirmed, &hasSubscriber, &suppressed)
 	if err != nil {
 		log.Printf("[imports] vague %s demande %s: %v", waveID, c.id, err)
@@ -631,7 +631,7 @@ func (s *Service) sendReconfirmOne(ctx context.Context, tx pgx.Tx, waveID, publi
 	}
 	now := time.Now().UTC()
 	if (expiresAt != nil && !expiresAt.IsZero() && now.After(*expiresAt)) || !hasSubscriber {
-		return s.expireReconfirmRequest(ctx, tx, waveID, publicationID, c)
+		return s.expireReconfirmRequest(ctx, tx, waveID, publisherID, c)
 	}
 	// Opposition survenue entre la création de la vague et l'envoi. Le signal
 	// est la DÉSACTIVATION (`isActive` faux : c'est ce que pose toute
@@ -651,12 +651,12 @@ func (s *Service) sendReconfirmOne(ctx context.Context, tx pgx.Tx, waveID, publi
 			return reconfirmSkipped
 		}
 		if _, err := tx.Exec(ctx, `
-			INSERT INTO "EmailSuppression" ("id", "email", "scope", "publicationId", "reason", "source")
-			SELECT gen_random_uuid()::text, $2, 'publication', $1, 'unsubscribe', $3
+			INSERT INTO "EmailSuppression" ("id", "email", "scope", "publisherId", "reason", "source")
+			SELECT gen_random_uuid()::text, $2, 'publisher', $1, 'unsubscribe', $3
 			WHERE NOT EXISTS (
 			    SELECT 1 FROM "EmailSuppression" x WHERE x.email = $2
-			      AND (x."scope" = 'global' OR (x."scope" = 'publication' AND x."publicationId" = $1))
-			)`, publicationID, c.email, waveID); err != nil {
+			      AND (x."scope" = 'global' OR (x."scope" = 'publisher' AND x."publisherId" = $1))
+			)`, publisherID, c.email, waveID); err != nil {
 			log.Printf("[imports] vague %s suppression %s: %v", waveID, c.email, err)
 		}
 		return reconfirmSkipped
@@ -680,7 +680,7 @@ func (s *Service) sendReconfirmOne(ctx context.Context, tx pgx.Tx, waveID, publi
 	}
 	if err := queue.PublishSubscriberConfirm(s.asynq, queue.SubscriberConfirmPayload{
 		Email:         c.email,
-		PublicationID: publicationID,
+		PublisherID: publisherID,
 	}); err != nil {
 		log.Printf("[imports] vague %s envoi %s: %v", waveID, c.email, err)
 		return reconfirmSkipped
@@ -697,7 +697,7 @@ func (s *Service) sendReconfirmOne(ctx context.Context, tx pgx.Tx, waveID, publi
 
 // expireReconfirmRequest périme une demande et efface le token de l'abonné
 // resté non confirmé : un lien expiré ne doit plus rien activer.
-func (s *Service) expireReconfirmRequest(ctx context.Context, tx pgx.Tx, waveID, publicationID string, c reconfirmClaim) reconfirmOutcome {
+func (s *Service) expireReconfirmRequest(ctx context.Context, tx pgx.Tx, waveID, publisherID string, c reconfirmClaim) reconfirmOutcome {
 	if _, err := tx.Exec(ctx, `
 		UPDATE "SubscriberImportReconfirmRequest"
 		SET "status" = 'expired', "updatedAt" = now()
@@ -708,8 +708,8 @@ func (s *Service) expireReconfirmRequest(ctx context.Context, tx pgx.Tx, waveID,
 	if _, err := tx.Exec(ctx, `
 		UPDATE "Subscriber"
 		SET "confirmationToken" = NULL, "updatedAt" = now()
-		WHERE "publicationId" = $1 AND "email" = $2
-		  AND "confirmedAt" IS NULL AND "confirmationToken" IS NOT NULL`, publicationID, c.email); err != nil {
+		WHERE "publisherId" = $1 AND "email" = $2
+		  AND "confirmedAt" IS NULL AND "confirmationToken" IS NOT NULL`, publisherID, c.email); err != nil {
 		log.Printf("[imports] vague %s purge token %s: %v", waveID, c.email, err)
 	}
 	return reconfirmExpired
@@ -756,12 +756,12 @@ func (s *Service) finishBatchIfDrained(ctx context.Context, batchID string) {
 // après un clic sur le lien (chemin `ConfirmSubscriber` existant). On ne
 // fabrique rien ici — on constate que `confirmedAt` a été franchi par le
 // chemin normal, et on l'impute à la demande pour les compteurs.
-func (s *Service) MarkReconfirmConfirmed(ctx context.Context, publicationID, email string) error {
+func (s *Service) MarkReconfirmConfirmed(ctx context.Context, publisherID, email string) error {
 	tag, err := s.pool.Exec(ctx, `
 		UPDATE "SubscriberImportReconfirmRequest"
 		SET "status" = 'confirmed', "confirmedAt" = now(), "updatedAt" = now()
-		WHERE "publicationId" = $1 AND "email" = $2
-		  AND "status" IN ('pending', 'sent')`, publicationID, email)
+		WHERE "publisherId" = $1 AND "email" = $2
+		  AND "status" IN ('pending', 'sent')`, publisherID, email)
 	if err != nil {
 		return err
 	}
@@ -772,8 +772,8 @@ func (s *Service) MarkReconfirmConfirmed(ctx context.Context, publicationID, ema
 		UPDATE "SubscriberImportReconfirmWave" w
 		SET "confirmedCount" = "confirmedCount" + $3, "updatedAt" = now()
 		FROM "SubscriberImportReconfirmRequest" q
-		WHERE q."waveId" = w."id" AND q."publicationId" = $1 AND q."email" = $2
-		  AND q."status" = 'confirmed'`, publicationID, email, tag.RowsAffected())
+		WHERE q."waveId" = w."id" AND q."publisherId" = $1 AND q."email" = $2
+		  AND q."status" = 'confirmed'`, publisherID, email, tag.RowsAffected())
 	return err
 }
 
@@ -783,7 +783,7 @@ func (s *Service) MarkReconfirmConfirmed(ctx context.Context, publicationID, ema
 // staff (et rejouable sans effet : une demande expirée reste expirée).
 func (s *Service) PurgeExpiredReconfirms(ctx context.Context, actorID, batchID string) (int, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT "id", "email", "publicationId", "waveId"
+		SELECT "id", "email", "publisherId", "waveId"
 		FROM "SubscriberImportReconfirmRequest"
 		WHERE "batchId" = $1 AND "status" IN ('pending', 'sent')
 		  AND "expiresAt" IS NOT NULL AND "expiresAt" < now()
@@ -793,12 +793,12 @@ func (s *Service) PurgeExpiredReconfirms(ctx context.Context, actorID, batchID s
 		return 0, err
 	}
 	type expired struct {
-		id, email, publicationID, waveID string
+		id, email, publisherID, waveID string
 	}
 	out := []expired{}
 	for rows.Next() {
 		var e expired
-		if err := rows.Scan(&e.id, &e.email, &e.publicationID, &e.waveID); err != nil {
+		if err := rows.Scan(&e.id, &e.email, &e.publisherID, &e.waveID); err != nil {
 			rows.Close()
 			return 0, err
 		}
@@ -837,7 +837,7 @@ func (s *Service) PurgeExpiredReconfirms(ctx context.Context, actorID, batchID s
 		SET "confirmationToken" = NULL, "updatedAt" = now()
 		FROM "SubscriberImportReconfirmRequest" q
 		WHERE q."id" = ANY($1::text[])
-		  AND s."publicationId" = q."publicationId"
+		  AND s."publisherId" = q."publisherId"
 		  AND s."email" = q."email"
 		  AND s."confirmedAt" IS NULL
 		  AND s."confirmationToken" IS NOT NULL`, ids); err != nil {

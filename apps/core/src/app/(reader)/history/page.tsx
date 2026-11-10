@@ -12,7 +12,7 @@ interface HistoryArticle {
   imageUrl: string | null;
   readingTime: number;
   createdAt: string;
-  publication?: { name: string; slug?: string | null; subdomain?: string | null } | null;
+  publisher?: { name: string; slug?: string | null; subdomain?: string | null } | null;
 }
 interface HistorySession {
   id: string;
@@ -80,7 +80,7 @@ export default async function ReadingHistoryPage() {
               data-article-slug={s.article.slug}
               data-article-title={s.article.title}
               data-article-owner={
-                s.article.publication?.slug || s.article.publication?.subdomain || undefined
+                s.article.publisher?.slug || s.article.publisher?.subdomain || undefined
               }
               className="flex gap-4 p-4 rounded-xl border border-border/60 hover:bg-muted/30 transition-colors"
             >
@@ -97,7 +97,7 @@ export default async function ReadingHistoryPage() {
               <div className="min-w-0 flex-1">
                 <h3 className="font-semibold text-sm line-clamp-1">{s.article.title}</h3>
                 <p className="text-xs text-muted-foreground">
-                  {s.article.publication?.name} • {s.article.readingTime} min •{' '}
+                  {s.article.publisher?.name} • {s.article.readingTime} min •{' '}
                   {new Date(s.createdAt).toLocaleDateString('fr-FR')}
                 </p>
                 <div className="flex gap-2 mt-1">

@@ -102,7 +102,7 @@ var stepUpRoutes = map[string]authz.Level{
 	"POST /v1/admin/users/{userID}/revoke-sessions":    authz.Level2,
 	"POST /v1/admin/subscriptions/grants":              authz.Level2,
 	"POST /v1/admin/subscriptions/grants/{id}/revoke":  authz.Level2,
-	"PATCH /v1/admin/publications/{id}":                authz.Level2,
+	"PATCH /v1/admin/publishers/{id}":                authz.Level2,
 	"PUT /v1/admin/config":                             authz.Level2,
 	"DELETE /v1/admin/config/{key}":                    authz.Level2,
 	"PUT /v1/admin/reserved-identifiers/{kind}":        authz.Level2,
@@ -213,7 +213,7 @@ func (h *Handler) routeTable() []adminRoute {
 		{http.MethodPatch, "/v1/admin/support/articles/{id}", adminauthz.ContentWrite, h.updateSupportArticle},
 		// Palier email Pro (freemium, intérim Stripe) : c'est un droit
 		// d'abonnement, donc la capacité des octrois, pas celle du contenu.
-		{http.MethodPatch, "/v1/admin/publications/{id}", adminauthz.SubscriptionsWrite, h.setPublicationEmailPro},
+		{http.MethodPatch, "/v1/admin/publishers/{id}", adminauthz.SubscriptionsWrite, h.setPublisherEmailPro},
 		// Abonnements manuels : octroyer (daté, programmé), révoquer, historique.
 		{http.MethodGet, "/v1/admin/subscriptions/grants", adminauthz.SubscriptionsRead, h.subscriptionGrants},
 		{http.MethodPost, "/v1/admin/subscriptions/grants", adminauthz.SubscriptionsWrite, h.grantSubscription},
@@ -1025,7 +1025,7 @@ func (h *Handler) updateSupportArticle(w http.ResponseWriter, r *http.Request) {
 // PATCH /v1/admin/publications/{id} — palier email Pro (réservé superadmin).
 // Body : { "emailPro": true|false }. Effet immédiat (lu en base à chaque
 // rendu, sans cache). Retourne { emailPro }.
-func (h *Handler) setPublicationEmailPro(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) setPublisherEmailPro(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
@@ -1037,10 +1037,10 @@ func (h *Handler) setPublicationEmailPro(w http.ResponseWriter, r *http.Request)
 		response.BadRequest(w, "JSON invalide (emailPro requis)")
 		return
 	}
-	pro, err := h.svc.SetPublicationEmailPro(r.Context(), userID, chi.URLParam(r, "id"), *in.EmailPro)
+	pro, err := h.svc.SetPublisherEmailPro(r.Context(), userID, chi.URLParam(r, "id"), *in.EmailPro)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			response.NotFound(w, "Publication introuvable.")
+			response.NotFound(w, "Publisher introuvable.")
 			return
 		}
 		h.handleErr(w, err)

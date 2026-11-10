@@ -46,11 +46,11 @@ export async function generateMetadata({
       const art = await goFetch<{
         slug: string;
         author?: { username?: string | null };
-        publication?: { slug?: string | null; subdomain?: string | null };
+        publisher?: { slug?: string | null; subdomain?: string | null };
       }>(`/v1/articles/${encodeURIComponent(rawTab)}`);
       if (art && art.slug) {
         const canonicalOwner =
-          art.publication?.slug || art.publication?.subdomain || art.author?.username || 'qoefi';
+          art.publisher?.slug || art.publisher?.subdomain || art.author?.username || 'qoefi';
         return {
           alternates: {
             canonical: `${(process.env.NEXT_PUBLIC_APP_URL || 'https://qoe.fi').replace(/\/$/, '')}${routes.feed.article(canonicalOwner, art.slug)}`,
@@ -119,11 +119,11 @@ export default async function UserProfileTabPage({
       const art = await goFetch<{
         slug: string;
         author?: { username?: string | null };
-        publication?: { slug?: string | null; subdomain?: string | null };
+        publisher?: { slug?: string | null; subdomain?: string | null };
       }>(`/v1/articles/${encodeURIComponent(rawTab)}`);
       if (art && art.slug) {
         const canonicalOwner =
-          art.publication?.slug || art.publication?.subdomain || art.author?.username || 'qoefi';
+          art.publisher?.slug || art.publisher?.subdomain || art.author?.username || 'qoefi';
         permanentRedirect(routes.feed.article(canonicalOwner, art.slug));
       }
     } catch {
@@ -151,7 +151,7 @@ export default async function UserProfileTabPage({
     const {
       profileUser,
       isFollowing,
-      publicationId,
+      publisherId,
       followRequested = false,
       profileVisibility = 'PUBLIC',
       canViewContent = true,
@@ -168,7 +168,7 @@ export default async function UserProfileTabPage({
         profileVisibility={profileVisibility}
         initialCanViewContent={canViewContent}
         initialTab={rawTab}
-        initialPublicationId={publicationId}
+        initialPublisherId={publisherId}
       />
     );
   }

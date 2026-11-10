@@ -52,7 +52,7 @@ describe('📡 actions/features — Contrat serveur', () => {
       expect(res).toEqual({ success: true, notified: true });
     });
 
-    it('enregistre un signal view avec source et publicationId personnalisés', async () => {
+    it('enregistre un signal view avec source et publisherId personnalisés', async () => {
       goFetch.mockResolvedValue({ success: true, notified: false });
       const res = await recordFeatureSignalAction('monetization', 'view', 'site', 'pub_123');
       expect(calls()[0][0]).toBe('/v1/features/signals');
@@ -62,7 +62,7 @@ describe('📡 actions/features — Contrat serveur', () => {
           feature: 'monetization',
           kind: 'view',
           source: 'site',
-          publicationId: 'pub_123',
+          publisherId: 'pub_123',
         },
       });
       expect(res).toEqual({ success: true, notified: false });

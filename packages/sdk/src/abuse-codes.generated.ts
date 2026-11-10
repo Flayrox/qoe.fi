@@ -17,7 +17,7 @@ export type AbuseDecision =
   | 'suspend';
 
 export type AbuseReasonCode =
-  | 'burst.signup.publication'
+  | 'burst.signup.publisher'
   | 'swarm.like.liker'
   | 'swarm.like.target'
   | 'swarm.report.reporter'

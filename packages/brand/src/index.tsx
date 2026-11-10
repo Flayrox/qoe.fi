@@ -117,7 +117,7 @@ export function CertifiedBadge({
 export function MediaBadge({
   size = 14,
   className = '',
-  title = 'Publication vérifiée',
+  title = 'Publisher vérifiée',
 }: CertifiedBadgeProps) {
   const { viewBox, bgRect, iconPath, iconColor } = BRAND_BADGES.media;
 

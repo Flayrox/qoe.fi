@@ -83,7 +83,7 @@ func seedSendBatch(t *testing.T, ctx context.Context, batchID, pubID, requester 
 	t.Helper()
 	if _, err := poolTest.Exec(ctx, `
 		INSERT INTO "SubscriberImportBatch"
-		    ("id", "publicationId", "requesterId", "status", "source",
+		    ("id", "publisherId", "requesterId", "status", "source",
 		     "declarations", "fileFingerprint", "fileVersion", "rowCount", "stats",
 		     "submittedAt", "createdAt", "updatedAt")
 		VALUES ($1, $2, $3, 'approved_direct', 'csv_manual',
@@ -146,7 +146,7 @@ func TestSendWave_LifecycleComplet(t *testing.T) {
 	var confirmed int
 	if err := poolTest.QueryRow(ctx, `
 		SELECT COUNT(*) FROM "Subscriber"
-		WHERE "publicationId" = $1 AND "email" = ANY($2::text[]) AND "confirmedAt" IS NOT NULL`,
+		WHERE "publisherId" = $1 AND "email" = ANY($2::text[]) AND "confirmedAt" IS NOT NULL`,
 		importPubPerso, emails).Scan(&confirmed); err != nil {
 		t.Fatalf("confirmés: %v", err)
 	}
@@ -182,7 +182,7 @@ func TestSendWave_LifecycleComplet(t *testing.T) {
 	var inactive int
 	if err := poolTest.QueryRow(ctx, `
 		SELECT COUNT(*) FROM "Subscriber"
-		WHERE "publicationId" = $1 AND "email" = ANY($2::text[])
+		WHERE "publisherId" = $1 AND "email" = ANY($2::text[])
 		  AND "confirmedAt" IS NULL AND "receiveArticles" = false AND "confirmationToken" IS NOT NULL`,
 		importPubPerso, emails).Scan(&inactive); err != nil {
 		t.Fatalf("inactifs: %v", err)
@@ -218,7 +218,7 @@ func TestSendWave_LifecycleComplet(t *testing.T) {
 	var active int
 	if err := poolTest.QueryRow(ctx, `
 		SELECT COUNT(*) FROM "Subscriber"
-		WHERE "publicationId" = $1 AND "email" = ANY($2::text[])
+		WHERE "publisherId" = $1 AND "email" = ANY($2::text[])
 		  AND "receiveArticles" = true AND "confirmedAt" IS NOT NULL`,
 		importPubPerso, emails).Scan(&active); err != nil {
 		t.Fatalf("actifs: %v", err)

@@ -49,7 +49,7 @@ func (h *Handler) registerPendingSubscriber(r *http.Request, pubID, email string
 	}
 	sub, err := h.q.UpsertSubscriberPending(r.Context(), db.UpsertSubscriberPendingParams{
 		Email:         email,
-		PublicationID: pubID,
+		PublisherID: pubID,
 		Token:         token,
 	})
 	if err != nil {
@@ -70,7 +70,7 @@ func (h *Handler) registerPendingSubscriber(r *http.Request, pubID, email string
 		}
 		if err := queue.PublishSubscriberConfirm(h.asynq, queue.SubscriberConfirmPayload{
 			Email:         email,
-			PublicationID: pubID,
+			PublisherID: pubID,
 		}); err != nil {
 			log.Printf("[creator] confirm enqueue %s: %v", email, err)
 		}
@@ -100,16 +100,16 @@ type apiSubscribersPage struct {
 }
 
 func (h *Handler) apiSubscribersList(w http.ResponseWriter, r *http.Request) {
-	pubID, ok := middleware.PublicationID(r.Context())
+	pubID, ok := middleware.PublisherID(r.Context())
 	if !ok || pubID == "" {
-		response.NotFound(w, "Publication introuvable")
+		response.NotFound(w, "Publisher introuvable")
 		return
 	}
 
 	limit, offset := parseLimitCursor(r)
 
-	rows, err := h.q.ListSubscribersByPublication(r.Context(), db.ListSubscribersByPublicationParams{
-		PublicationId: pubID,
+	rows, err := h.q.ListSubscribersByPublisher(r.Context(), db.ListSubscribersByPublisherParams{
+		PublisherId: pubID,
 		Limit:         int32(limit),
 		Offset:        int32(offset),
 	})
@@ -119,7 +119,7 @@ func (h *Handler) apiSubscribersList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	total, err := h.q.CountSubscribersByPublication(r.Context(), pubID)
+	total, err := h.q.CountSubscribersByPublisher(r.Context(), pubID)
 	if err != nil {
 		log.Printf("[creator] count subscribers: %v", err)
 		response.Internal(w)
@@ -158,13 +158,13 @@ type apiSubscribersStatsResponse struct {
 }
 
 func (h *Handler) apiSubscribersStats(w http.ResponseWriter, r *http.Request) {
-	pubID, ok := middleware.PublicationID(r.Context())
+	pubID, ok := middleware.PublisherID(r.Context())
 	if !ok || pubID == "" {
-		response.NotFound(w, "Publication introuvable")
+		response.NotFound(w, "Publisher introuvable")
 		return
 	}
 
-	stats, err := h.q.GetSubscriberStatsByPublication(r.Context(), pubID)
+	stats, err := h.q.GetSubscriberStatsByPublisher(r.Context(), pubID)
 	if err != nil {
 		log.Printf("[creator] subscribers stats: %v", err)
 		response.Internal(w)
@@ -185,9 +185,9 @@ type apiSubscriberCreateBody struct {
 }
 
 func (h *Handler) apiSubscriberCreate(w http.ResponseWriter, r *http.Request) {
-	pubID, ok := middleware.PublicationID(r.Context())
+	pubID, ok := middleware.PublisherID(r.Context())
 	if !ok || pubID == "" {
-		response.NotFound(w, "Publication introuvable")
+		response.NotFound(w, "Publisher introuvable")
 		return
 	}
 
@@ -237,9 +237,9 @@ func (h *Handler) apiSubscriberCreate(w http.ResponseWriter, r *http.Request) {
 // ─── DELETE /v1/creator/subscribers/{idOrEmail} ──────────────────────
 
 func (h *Handler) apiSubscriberDelete(w http.ResponseWriter, r *http.Request) {
-	pubID, ok := middleware.PublicationID(r.Context())
+	pubID, ok := middleware.PublisherID(r.Context())
 	if !ok || pubID == "" {
-		response.NotFound(w, "Publication introuvable")
+		response.NotFound(w, "Publisher introuvable")
 		return
 	}
 
@@ -250,7 +250,7 @@ func (h *Handler) apiSubscriberDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err := h.q.DeactivateSubscriber(r.Context(), db.DeactivateSubscriberParams{
-		PublicationID: pubID,
+		PublisherID: pubID,
 		ID:            target,
 	})
 	if err != nil {
@@ -268,17 +268,17 @@ func (h *Handler) apiSubscriberDelete(w http.ResponseWriter, r *http.Request) {
 
 // ─── GET /v1/creator/publication ─────────────────────────────────────
 
-func (h *Handler) apiPublicationMetadata(w http.ResponseWriter, r *http.Request) {
-	pubID, ok := middleware.PublicationID(r.Context())
+func (h *Handler) apiPublisherMetadata(w http.ResponseWriter, r *http.Request) {
+	pubID, ok := middleware.PublisherID(r.Context())
 	if !ok || pubID == "" {
-		response.NotFound(w, "Publication introuvable")
+		response.NotFound(w, "Publisher introuvable")
 		return
 	}
 
-	meta, err := h.q.GetPublicationMetadataByID(r.Context(), pubID)
+	meta, err := h.q.GetPublisherMetadataByID(r.Context(), pubID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			response.NotFound(w, "Publication introuvable")
+			response.NotFound(w, "Publisher introuvable")
 			return
 		}
 		log.Printf("[creator] get publication metadata: %v", err)
@@ -316,11 +316,11 @@ func (h *Handler) apiPublicationMetadata(w http.ResponseWriter, r *http.Request)
 
 // ─── GET /v1/publications/{slugOrId}/profile (Public with CORS) ───
 
-// publicPublicationProfile renvoie le profil public minimal d'une publication
+// publicPublisherProfile renvoie le profil public minimal d'une publication
 // (nom + logo) pour les intégrations externes (fiche 02) : le site tiers
 // affiche « Confirmer l'abonnement à [publication] » sans clé API et sans
 // recevoir autre chose. Réponse 404 neutre si inconnue (ne révèle rien).
-func (h *Handler) publicPublicationProfile(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) publicPublisherProfile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
@@ -330,10 +330,10 @@ func (h *Handler) publicPublicationProfile(w http.ResponseWriter, r *http.Reques
 		response.BadRequest(w, "Identifiant ou slug de publication requis")
 		return
 	}
-	profile, err := h.q.GetPublicationPublicProfile(r.Context(), slugOrID)
+	profile, err := h.q.GetPublisherPublicProfile(r.Context(), slugOrID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			response.NotFound(w, "Publication introuvable")
+			response.NotFound(w, "Publisher introuvable")
 			return
 		}
 		log.Printf("[public profile] %s: %v", slugOrID, err)
@@ -371,10 +371,10 @@ func (h *Handler) publicSubscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pubID, err := h.q.ResolvePublicationIDBySlugOrID(r.Context(), slugOrID)
+	pubID, err := h.q.ResolvePublisherIDBySlugOrID(r.Context(), slugOrID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			response.NotFound(w, "Publication introuvable")
+			response.NotFound(w, "Publisher introuvable")
 			return
 		}
 		log.Printf("[public subscribe] resolve publication: %v", err)
@@ -413,6 +413,6 @@ func (h *Handler) publicSubscribe(w http.ResponseWriter, r *http.Request) {
 
 	response.OK(w, map[string]any{
 		"success":       true,
-		"publicationId": pubID,
+		"publisherId": pubID,
 	})
 }

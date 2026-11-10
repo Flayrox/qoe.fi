@@ -53,7 +53,7 @@ export interface RawQuotedArticle {
     end: number;
     sha: string;
   } | null;
-  publication?: {
+  publisher?: {
     name?: string | null;
     slug?: string | null;
     subdomain?: string | null;
@@ -105,7 +105,7 @@ export type MappedQuotedArticle = {
     isCertified: boolean;
     type?: string;
   };
-  publication: {
+  publisher: {
     name: string | null;
     subdomain: string | null;
     customDomain: string | null;
@@ -149,16 +149,16 @@ export function mapQuotedArticleForCard(
       id: article.author?.id ?? '',
       name: article.author?.name ?? null,
       username: article.author?.username ?? null,
-      subdomain: article.publication?.subdomain ?? null,
-      logoUrl: article.publication?.logoUrl ?? article.author?.logoUrl ?? null,
-      isCertified: Boolean(article.author?.isCertified ?? article.publication?.isCertified),
-      type: article.author?.type ?? article.publication?.type ?? undefined,
+      subdomain: article.publisher?.subdomain ?? null,
+      logoUrl: article.publisher?.logoUrl ?? article.author?.logoUrl ?? null,
+      isCertified: Boolean(article.author?.isCertified ?? article.publisher?.isCertified),
+      type: article.author?.type ?? article.publisher?.type ?? undefined,
     },
-    publication: article.publication
+    publisher: article.publisher
       ? {
-          name: article.publication.name ?? null,
-          subdomain: article.publication.subdomain ?? null,
-          customDomain: article.publication.customDomain ?? null,
+          name: article.publisher.name ?? null,
+          subdomain: article.publisher.subdomain ?? null,
+          customDomain: article.publisher.customDomain ?? null,
         }
       : null,
   };

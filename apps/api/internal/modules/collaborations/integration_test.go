@@ -55,15 +55,15 @@ func seedCollab(t *testing.T, ctx context.Context) {
 	t.Helper()
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE
 		"ArticleAttribution", "CollaborationRequest", "Notification", "Article", "Category",
-		"MediaMember", "Media", "Publication", "User" CASCADE`); err != nil {
+		"MediaMember", "Media", "Publisher", "User" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ($1, 'PERSONAL', 'Journal Adv', 'journal-adv', now(), now()),
 		        ($2, 'MEDIA', 'Média Adv', 'media-adv', now(), now())`,
 		pubPerso, pubMedia); err != nil {
-		t.Fatalf("publications: %v", err)
+		t.Fatalf("publishers: %v", err)
 	}
 	users := []struct{ id, email, username, pub string }{
 		{authorID, "author-adv@test.dev", "authoradv", pubPerso},
@@ -73,14 +73,14 @@ func seedCollab(t *testing.T, ctx context.Context) {
 	}
 	for _, u := range users {
 		if _, err := poolTest.Exec(ctx,
-			`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+			`INSERT INTO "User" (id, email, username, name, role, "publisherId", "createdAt", "updatedAt")
 			 VALUES ($1, $2, $3, $3, 'creator', NULLIF($4, ''), now(), now())`,
 			u.id, u.email, u.username, u.pub); err != nil {
 			t.Fatalf("user %s: %v", u.username, err)
 		}
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Media" (id, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "Media" (id, "publisherId", "createdAt", "updatedAt")
 		 VALUES ($1, $2, now(), now())`, mediaAdv, pubMedia); err != nil {
 		t.Fatalf("media: %v", err)
 	}
@@ -96,7 +96,7 @@ func seedCollab(t *testing.T, ctx context.Context) {
 	} {
 		if _, err := poolTest.Exec(ctx,
 			`INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime",
-			                        status, "publicationId", "authorId", "createdAt", "updatedAt")
+			                        status, "publisherId", "authorId", "createdAt", "updatedAt")
 			 VALUES ($1, 'Article ' || $1, 'slug-' || $1, '<p>x</p>', false, 'PUBLIC', 3,
 			         'DRAFT', $2, $3, now(), now())`,
 			a.id, a.pub, a.author); err != nil {

@@ -51,10 +51,10 @@ func (s *Service) CanReply(ctx context.Context, thoughtID, userID string) (CanRe
 
 	switch restriction {
 	case "subscribers":
-		authorPub, err := s.q.GetPersonalPublicationID(ctx, gate.AuthorID)
+		authorPub, err := s.q.GetPersonalPublisherID(ctx, gate.AuthorID)
 		if err == nil && authorPub.Valid {
 			ok, err := s.q.GetActiveSubscriptionForReply(ctx, db.GetActiveSubscriptionForReplyParams{
-				PublicationId: authorPub.String, UserId: toUUID(userID),
+				PublisherId: authorPub.String, UserId: toUUID(userID),
 			})
 			if err == nil && ok == 1 {
 				return CanReplyResult{CanReply: true, Restriction: restriction}, nil
@@ -65,10 +65,10 @@ func (s *Service) CanReply(ctx context.Context, thoughtID, userID string) (CanRe
 		}, nil
 
 	case "following":
-		replyingPub, err := s.q.GetPersonalPublicationID(ctx, userID)
+		replyingPub, err := s.q.GetPersonalPublisherID(ctx, userID)
 		if err == nil && replyingPub.Valid {
 			ok, err := s.q.GetFollowForReply(ctx, db.GetFollowForReplyParams{
-				ReaderId: toUUID(gate.AuthorID), PublicationId: replyingPub.String,
+				ReaderId: toUUID(gate.AuthorID), PublisherId: replyingPub.String,
 			})
 			if err == nil && ok == 1 {
 				return CanReplyResult{CanReply: true, Restriction: restriction}, nil

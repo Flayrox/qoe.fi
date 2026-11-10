@@ -71,7 +71,7 @@ export function Sidebar() {
   const currentUserId = user?.id;
   const fullName = me?.name || (user?.user_metadata?.full_name as string | undefined);
   const username = me?.username || (user?.user_metadata?.username as string | undefined);
-  const profileHandle = username || me?.publicationId || user?.id || 'me';
+  const profileHandle = username || me?.publisherId || user?.id || 'me';
   const displayHandle = username || user?.email?.split('@')[0] || 'me';
   const displayName = fullName || username || user?.email?.split('@')[0] || 'Utilisateur';
 
@@ -98,7 +98,7 @@ export function Sidebar() {
     closeDrawer();
     const target =
       me?.username ||
-      me?.publicationId ||
+      me?.publisherId ||
       user?.user_metadata?.username ||
       (user?.email ? user.email.split('@')[0] : 'admin');
     const profilePath = routes.mobile.user().replace('[username]', encodeURIComponent(target));

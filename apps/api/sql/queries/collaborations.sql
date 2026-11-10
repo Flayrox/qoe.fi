@@ -1,7 +1,7 @@
 -- Collaborations / attributions (migration de studio advanced/actions.ts).
 
 -- name: GetArticleForCollaboration :one
-SELECT id, "authorId"::text AS author_id, "publicationId"
+SELECT id, "authorId"::text AS author_id, "publisherId"
 FROM "Article"
 WHERE id = $1;
 
@@ -9,7 +9,7 @@ WHERE id = $1;
 SELECT EXISTS (
   SELECT 1 FROM "MediaMember" mm
   JOIN "Media" m ON m.id = mm."mediaId"
-  WHERE m."publicationId" = $1 AND mm."userId" = $2 AND mm.status = 'active'
+  WHERE m."publisherId" = $1 AND mm."userId" = $2 AND mm.status = 'active'
 ) AS "exists";
 
 -- name: GetUserWithCollabPrefsByEmail :one

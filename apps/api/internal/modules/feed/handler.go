@@ -93,7 +93,7 @@ func (h *Handler) userArticles(w http.ResponseWriter, r *http.Request) {
 	username := chi.URLParam(r, "username")
 	limit, offset := parseLimitCursor(r)
 
-	result, err := h.svc.PublicationArticles(r.Context(), username, userID, limit, offset)
+	result, err := h.svc.PublisherArticles(r.Context(), username, userID, limit, offset)
 	if err != nil {
 		log.Printf("[feed] userArticles: %v", err)
 		response.Internal(w)

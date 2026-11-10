@@ -1719,7 +1719,7 @@ func (s *Service) fetchEngineArticles(ctx context.Context, vec *pgvector.Vector,
 	if vec != nil {
 		args := []any{*vec}
 		q := `
-		SELECT a.id, a.title, a.content, a."readingTime", a."completionRate", a."authorId", a."publicationId", a."createdAt", COALESCE(a."semanticTags", '{}'),
+		SELECT a.id, a.title, a.content, a."readingTime", a."completionRate", a."authorId", a."publisherId", a."createdAt", COALESCE(a."semanticTags", '{}'),
 		       (1 - (a."embedding" <=> $1::vector))::float8 AS sim,
 		       EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800)::float8 AS fresh
 		FROM "Article" a JOIN "User" u ON u.id::text = a."authorId"::text
@@ -1734,11 +1734,11 @@ func (s *Service) fetchEngineArticles(ctx context.Context, vec *pgvector.Vector,
 			// Compte privé : le contenu ne sort du profil que pour ses abonnés.
 			q += fmt.Sprintf(` AND (
 				COALESCE((SELECT us."profileVisibility"
-				          FROM "Publication" p
-				          JOIN "User" ow ON ow."publicationId" = p.id
+				          FROM "Publisher" p
+				          JOIN "User" ow ON ow."publisherId" = p.id
 				          LEFT JOIN "UserSettings" us ON us."userId" = ow.id
-				          WHERE p.id = a."publicationId" LIMIT 1), 'PUBLIC') = 'PUBLIC'
-				OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId"=$%d AND f."publicationId"=a."publicationId")
+				          WHERE p.id = a."publisherId" LIMIT 1), 'PUBLIC') = 'PUBLIC'
+				OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId"=$%d AND f."publisherId"=a."publisherId")
 			)`, viewerParam)
 			args = append(args, toUUID(userID))
 			ai++
@@ -1764,7 +1764,7 @@ func (s *Service) fetchEngineArticles(ctx context.Context, vec *pgvector.Vector,
 		// Cold-start : similarité neutre (feed.cold_start_sim) faute d'embedding
 		// utilisateur ; l'ordre retombe sur fraîcheur + complétion.
 		q := fmt.Sprintf(`
-		SELECT a.id, a.title, a.content, a."readingTime", a."completionRate", a."authorId", a."publicationId", a."createdAt", COALESCE(a."semanticTags", '{}'),
+		SELECT a.id, a.title, a.content, a."readingTime", a."completionRate", a."authorId", a."publisherId", a."createdAt", COALESCE(a."semanticTags", '{}'),
 		       %.2f::float8 AS sim,
 		       EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800)::float8 AS fresh
 		FROM "Article" a JOIN "User" u ON u.id::text = a."authorId"::text
@@ -1774,11 +1774,11 @@ func (s *Service) fetchEngineArticles(ctx context.Context, vec *pgvector.Vector,
 		  AND NOT contains_muted_word($3, COALESCE(a.title, '') || ' ' || COALESCE(a.content, ''))
 		  AND (
 		    COALESCE((SELECT us."profileVisibility"
-		              FROM "Publication" p
-		              JOIN "User" ow ON ow."publicationId" = p.id
+		              FROM "Publisher" p
+		              JOIN "User" ow ON ow."publisherId" = p.id
 		              LEFT JOIN "UserSettings" us ON us."userId" = ow.id
-		              WHERE p.id = a."publicationId" LIMIT 1), 'PUBLIC') = 'PUBLIC'
-		    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId"=$3 AND f."publicationId"=a."publicationId")
+		              WHERE p.id = a."publisherId" LIMIT 1), 'PUBLIC') = 'PUBLIC'
+		    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId"=$3 AND f."publisherId"=a."publisherId")
 		  )
 		ORDER BY (0.50*EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800) + 0.50*(0.70 + 0.30*a."completionRate")) DESC
 		LIMIT $1 OFFSET $2`, cfg.coldStartSim)
@@ -1829,7 +1829,7 @@ func (s *Service) fetchEngineThoughts(ctx context.Context, vec *pgvector.Vector,
 			})
 			q += fmt.Sprintf(` AND (
 				COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
-				OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId"=$%d AND f."publicationId"=u."publicationId")
+				OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId"=$%d AND f."publisherId"=u."publisherId")
 			)`, viewerParam)
 			args = append(args, toUUID(userID))
 			ai++
@@ -1862,7 +1862,7 @@ func (s *Service) fetchEngineThoughts(ctx context.Context, vec *pgvector.Vector,
 		  AND NOT contains_muted_word($3, p.content)
 		  AND (
 		    COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
-		    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId"=$3 AND f."publicationId"=u."publicationId")
+		    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId"=$3 AND f."publisherId"=u."publisherId")
 		  )
 		ORDER BY (0.50*EXP(-EXTRACT(EPOCH FROM (NOW() - p."createdAt"))/86400) + 0.50*LEAST(1.0,(p."likeCount" + p."replyCount"*2 + p."repostCount"*2)/30.0)) DESC
 		LIMIT $1 OFFSET $2`, cfg.coldStartSim)
@@ -1939,7 +1939,7 @@ func (s *Service) injectDiscovery(ctx context.Context, userID string, items []En
 
 	// Bulle = publications suivies. Si l'utilisateur n'en suit aucune, rien à casser.
 	var followed []string
-	rows, err := s.pool.Query(ctx, `SELECT "publicationId" FROM "Follows" WHERE "readerId"=$1 AND "publicationId" IS NOT NULL`, toUUID(userID))
+	rows, err := s.pool.Query(ctx, `SELECT "publisherId" FROM "Follows" WHERE "readerId"=$1 AND "publisherId" IS NOT NULL`, toUUID(userID))
 	if err != nil {
 		return items
 	}
@@ -1962,7 +1962,7 @@ func (s *Service) injectDiscovery(ctx context.Context, userID string, items []En
 	drows, err := s.pool.Query(ctx, `
 		SELECT id FROM "Article"
 		WHERE published = true AND "completionRate" >= $1
-		  AND "publicationId" <> ALL($2::text[])
+		  AND "publisherId" <> ALL($2::text[])
 		  AND "authorId"::text <> $3
 		ORDER BY "createdAt" DESC LIMIT $4`, cfg.explorationMinQuality, followed, userID, slots)
 	if err != nil {

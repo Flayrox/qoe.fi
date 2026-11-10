@@ -9,7 +9,7 @@ import { redirect } from 'next/navigation';
 import { requireUser } from '@qoe/auth/current-user';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import { listNewslettersAction, NewsletterIssue } from './actions';
-import { getEmailSettingsAction, type PublicationEmailSettings } from '@/features/settings/actions';
+import { getEmailSettingsAction, type PublisherEmailSettings } from '@/features/settings/actions';
 import { NewsletterClient } from './NewsletterClient';
 
 export default async function NewslettersPage() {
@@ -19,21 +19,21 @@ export default async function NewslettersPage() {
   const workspace = await getActiveWorkspace(user.id);
   const [newslettersRes, emailSettingsRes] = await Promise.all([
     listNewslettersAction(),
-    getEmailSettingsAction(workspace.publicationId).catch(() => null),
+    getEmailSettingsAction(workspace.publisherId).catch(() => null),
   ]);
 
   const items: NewsletterIssue[] = newslettersRes.success ? newslettersRes.items : [];
-  const emailSettings: PublicationEmailSettings | null = emailSettingsRes
+  const emailSettings: PublisherEmailSettings | null = emailSettingsRes
     ? emailSettingsRes.emailSettings
     : null;
   const emailPro = Boolean(emailSettingsRes?.emailPro);
-  const publicationName = emailSettingsRes?.publicationName || workspace.name || 'Votre média';
+  const publisherName = emailSettingsRes?.publisherName || workspace.name || 'Votre média';
 
   return (
     <NewsletterClient
       initialIssues={items}
-      publicationId={workspace.publicationId}
-      publicationName={publicationName}
+      publisherId={workspace.publisherId}
+      publisherName={publisherName}
       initialEmailSettings={emailSettings}
       emailPro={emailPro}
       locales={emailSettingsRes?.locales ?? ['fr', 'en']}

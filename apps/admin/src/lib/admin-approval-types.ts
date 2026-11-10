@@ -25,7 +25,7 @@ export interface AdminApprovalItem {
 
 /** Libellés lisibles des actes soumis à quorum (jamais un code brut à l'écran). */
 export const APPROVAL_ACT_LABELS: Record<string, string> = {
-  legal_publish: 'Publication juridique',
+  legal_publish: 'Publisher juridique',
   staff_high_impact: 'Acte staff à fort impact',
 };
 

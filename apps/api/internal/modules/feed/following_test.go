@@ -16,11 +16,11 @@ func TestFollowingFeed_ReturnsFollowedPosts(t *testing.T) {
 
 	// Alice possède la publication ; le lecteur la suit.
 	if _, err := poolTest.Exec(ctx,
-		`UPDATE "User" SET "publicationId" = 'pub_engine' WHERE id = $1::uuid`, aliceID); err != nil {
+		`UPDATE "User" SET "publisherId" = 'pub_engine' WHERE id = $1::uuid`, aliceID); err != nil {
 		t.Fatalf("link alice pub: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Follows" (id, "readerId", "publicationId")
+		`INSERT INTO "Follows" (id, "readerId", "publisherId")
 		 VALUES (gen_random_uuid()::text, $1::uuid, 'pub_engine')`, readerID); err != nil {
 		t.Fatalf("follow: %v", err)
 	}

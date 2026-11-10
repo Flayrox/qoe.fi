@@ -102,13 +102,13 @@ func TestCategories_UpdateAndDelete(t *testing.T) {
 
 	// Crée une catégorie (owner alice).
 	created := authedRequest(r, http.MethodPost, "/v1/categories", aliceUserID,
-		`{"publicationId":"`+alicePubID+`","name":"Sport","slug":"sport"}`)
+		`{"publisherId":"`+alicePubID+`","name":"Sport","slug":"sport"}`)
 	if created.Code != http.StatusOK && created.Code != http.StatusCreated {
 		t.Fatalf("create = %d %s", created.Code, created.Body.String())
 	}
 	var catID string
 	if err := poolTest.QueryRow(context.Background(),
-		`SELECT id FROM "Category" WHERE slug='sport' AND "publicationId"=$1`, alicePubID).Scan(&catID); err != nil {
+		`SELECT id FROM "Category" WHERE slug='sport' AND "publisherId"=$1`, alicePubID).Scan(&catID); err != nil {
 		t.Fatalf("catID: %v", err)
 	}
 
@@ -137,7 +137,7 @@ func TestCategories_UpdateAndDelete(t *testing.T) {
 	}
 	// Delete par non-owner → 403.
 	authedRequest(r, http.MethodPost, "/v1/categories", aliceUserID,
-		`{"publicationId":"`+alicePubID+`","name":"Cuisine","slug":"cuisine"}`)
+		`{"publisherId":"`+alicePubID+`","name":"Cuisine","slug":"cuisine"}`)
 	var cat2 string
 	_ = poolTest.QueryRow(context.Background(),
 		`SELECT id FROM "Category" WHERE slug='cuisine' LIMIT 1`).Scan(&cat2)

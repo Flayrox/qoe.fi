@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import type { Metadata } from 'next';
-import { fetchTenantPublication } from '@/lib/tenant-data';
+import { fetchTenantPublisher } from '@/lib/tenant-data';
 import { TenantPageShell } from '@/components/TenantPageShell';
 
 interface PageProps {
@@ -14,15 +14,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { domain, username } = await params;
   const decodedDomain = decodeURIComponent(domain);
   const decodedUsername = decodeURIComponent(username);
-  const publication = await fetchTenantPublication(decodedDomain);
-  const name = publication?.name || decodedDomain;
+  const publisher = await fetchTenantPublisher(decodedDomain);
+  const name = publisher?.name || decodedDomain;
   return {
     title: `@${decodedUsername} | ${name}`,
     description: `Articles de @${decodedUsername} sur ${name}.`,
     alternates: {
       canonical: `https://${decodedDomain}/author/${encodeURIComponent(decodedUsername)}`,
     },
-    robots: { index: publication?.allowIndexing !== false, follow: true },
+    robots: { index: publisher?.allowIndexing !== false, follow: true },
   };
 }
 
@@ -30,15 +30,15 @@ export default async function TenantAuthorPage({ params }: PageProps) {
   const { domain, username } = await params;
   const decodedDomain = decodeURIComponent(domain);
   const decodedUsername = decodeURIComponent(username).replace(/^@/, '');
-  const publication = await fetchTenantPublication(decodedDomain);
-  if (!publication) notFound();
+  const publisher = await fetchTenantPublisher(decodedDomain);
+  if (!publisher) notFound();
 
-  const items = (publication.articles || []).filter((a) => {
+  const items = (publisher.articles || []).filter((a) => {
     const author = (a as { author?: { name?: string | null; username?: string | null } | null })
       .author;
     if (author?.username === decodedUsername || author?.name === decodedUsername)
       return a.published !== false;
-    if (!author && publication.user?.username === decodedUsername) return a.published !== false;
+    if (!author && publisher.user?.username === decodedUsername) return a.published !== false;
     return false;
   });
 
@@ -48,7 +48,7 @@ export default async function TenantAuthorPage({ params }: PageProps) {
   const host = headersList.get('x-forwarded-host') || headersList.get('host') || decodedDomain;
 
   return (
-    <TenantPageShell publication={publication} domain={decodedDomain} host={host}>
+    <TenantPageShell publisher={publisher} domain={decodedDomain} host={host}>
       <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
         Auteur
       </p>

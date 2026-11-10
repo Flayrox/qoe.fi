@@ -182,11 +182,11 @@ func (s *Service) Summarize(ctx context.Context, userID, articleID, locale strin
 	if err != nil {
 		return Summary{Usage: usage}, err
 	}
-	var title, content, visibility, tierID, publicationID string
+	var title, content, visibility, tierID, publisherID string
 	var published bool
 	if err := s.pool.QueryRow(ctx, `
-		SELECT title, content, visibility::text, COALESCE("tierId", ''), published, "publicationId"
-		FROM "Article" WHERE id = $1`, articleID).Scan(&title, &content, &visibility, &tierID, &published, &publicationID); err != nil {
+		SELECT title, content, visibility::text, COALESCE("tierId", ''), published, "publisherId"
+		FROM "Article" WHERE id = $1`, articleID).Scan(&title, &content, &visibility, &tierID, &published, &publisherID); err != nil {
 		return Summary{Usage: usage}, errNotFoundGeneric()
 	}
 	if !published {
@@ -196,7 +196,7 @@ func (s *Service) Summarize(ctx context.Context, userID, articleID, locale strin
 	// jamais de résumé au-delà du paywall non acheté.
 	ent := articles.UserEntitlements{}
 	sub, err := s.q.GetSubscriberEntitlement(ctx, db.GetSubscriberEntitlementParams{
-		PublicationId: publicationID, UserId: toUUID(userID), Email: "",
+		PublisherId: publisherID, UserId: toUUID(userID), Email: "",
 	})
 	if err == nil {
 		ent.IsMember = sub.IsActive

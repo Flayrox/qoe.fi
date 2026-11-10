@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
-import { fetchTenantPublication, fetchTenantRecommendations } from '@/lib/tenant-data';
+import { fetchTenantPublisher, fetchTenantRecommendations } from '@/lib/tenant-data';
 import { TenantPageRenderer } from '@/components/TenantPageRenderer';
 import { getLanguage } from '@qoe/i18n/server';
 
@@ -15,42 +15,42 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { domain } = await params;
   const decodedDomain = decodeURIComponent(domain);
 
-  // Go-first : GET /v1/publications/by-domain/{domain}.
-  const publication = await fetchTenantPublication(decodedDomain);
+  // Go-first : GET /v1/publishers/by-domain/{domain}.
+  const publisher = await fetchTenantPublisher(decodedDomain);
 
-  if (!publication) return {};
+  if (!publisher) return {};
 
   const defaultDesc = isFr
-    ? `Découvrez les écrits et analyses de ${publication.name || decodedDomain}.`
-    : `Explore the articles and insights of ${publication.name || decodedDomain}.`;
+    ? `Découvrez les écrits et analyses de ${publisher.name || decodedDomain}.`
+    : `Explore the articles and insights of ${publisher.name || decodedDomain}.`;
 
-  const title = publication.seoTitle || `${publication.name} | ${decodedDomain}`;
-  const description = publication.seoDescription || publication.heroText || defaultDesc;
+  const title = publisher.seoTitle || `${publisher.name} | ${decodedDomain}`;
+  const description = publisher.seoDescription || publisher.heroText || defaultDesc;
   const canonicalUrl = `https://${decodedDomain}`;
 
   return {
     title,
     description,
     robots: {
-      index: publication.allowIndexing,
-      follow: publication.allowIndexing,
+      index: publisher.allowIndexing,
+      follow: publisher.allowIndexing,
     },
     alternates: {
       canonical: canonicalUrl,
     },
-    icons: publication.logoUrl ? { icon: publication.logoUrl } : undefined,
+    icons: publisher.logoUrl ? { icon: publisher.logoUrl } : undefined,
     openGraph: {
       locale: isFr ? 'fr_FR' : 'en_US',
-      title: publication.seoTitle || publication.name || decodedDomain,
+      title: publisher.seoTitle || publisher.name || decodedDomain,
       description,
       url: canonicalUrl,
-      images: publication.headerImageUrl ? [{ url: publication.headerImageUrl }] : [],
+      images: publisher.headerImageUrl ? [{ url: publisher.headerImageUrl }] : [],
     },
     twitter: {
       card: 'summary_large_image',
-      title: publication.seoTitle || publication.name || decodedDomain,
+      title: publisher.seoTitle || publisher.name || decodedDomain,
       description,
-      images: publication.headerImageUrl ? [publication.headerImageUrl] : [],
+      images: publisher.headerImageUrl ? [publisher.headerImageUrl] : [],
     },
   };
 }
@@ -59,21 +59,21 @@ export default async function TenantHomepage({ params }: PageProps) {
   const { domain } = await params;
   const decodedDomain = decodeURIComponent(domain);
 
-  // Go-first : GET /v1/publications/by-domain/{domain} — publication avec
+  // Go-first : GET /v1/publishers/by-domain/{domain} — publication avec
   // navigation, réseaux sociaux, catégories, articles et recommandations.
-  const [publication, recommendations] = await Promise.all([
-    fetchTenantPublication(decodedDomain),
+  const [publisher, recommendations] = await Promise.all([
+    fetchTenantPublisher(decodedDomain),
     fetchTenantRecommendations(decodedDomain),
   ]);
 
-  if (!publication) {
+  if (!publisher) {
     return notFound();
   }
 
   return (
     <TenantPageRenderer
       scope="home"
-      publication={publication}
+      publisher={publisher}
       recommendations={recommendations}
       decodedDomain={decodedDomain}
     />

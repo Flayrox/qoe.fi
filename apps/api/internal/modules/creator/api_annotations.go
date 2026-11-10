@@ -70,10 +70,10 @@ type annotationRow struct {
 // slug principal ou variante personnelle accepté.
 func (h *Handler) apiArticleAnnotations(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
-	publicationID, _ := middleware.PublicationID(r.Context())
+	publisherID, _ := middleware.PublisherID(r.Context())
 	userID, _ := middleware.UserID(r.Context())
 
-	full, err := h.loadCreatorArticleFull(r.Context(), publicationID, userID, slug)
+	full, err := h.loadCreatorArticleFull(r.Context(), publisherID, userID, slug)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			response.NotFound(w, "Article introuvable")

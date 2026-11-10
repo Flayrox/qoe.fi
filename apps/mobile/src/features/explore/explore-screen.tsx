@@ -26,7 +26,7 @@ type Hit = {
   title?: string;
   slug?: string;
   subdomain?: string;
-  publicationName?: string;
+  publisherName?: string;
 };
 
 export function ExploreScreen() {
@@ -111,7 +111,7 @@ export function ExploreScreen() {
                 onPress={() =>
                   router.push({
                     pathname: '/article/[slug]',
-                    params: { slug: hit.slug ?? '', publicationId: hit.subdomain ?? '' },
+                    params: { slug: hit.slug ?? '', publisherId: hit.subdomain ?? '' },
                   })
                 }
                 style={({ pressed }) => [
@@ -124,13 +124,13 @@ export function ExploreScreen() {
                   <ThemedText type="smallBold" numberOfLines={2}>
                     {hit.title ?? 'Article'}
                   </ThemedText>
-                  {hit.publicationName || hit.subdomain ? (
+                  {hit.publisherName || hit.subdomain ? (
                     <ThemedText
                       type="small"
                       style={{ color: theme.textSecondary }}
                       numberOfLines={1}
                     >
-                      {hit.publicationName ?? hit.subdomain}
+                      {hit.publisherName ?? hit.subdomain}
                     </ThemedText>
                   ) : null}
                 </View>

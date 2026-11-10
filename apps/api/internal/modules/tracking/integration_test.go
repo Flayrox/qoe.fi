@@ -64,7 +64,7 @@ func seedTracking(ctx context.Context, pool *pgxpool.Pool) (userID, articleID, p
 
 	if _, err = pool.Exec(ctx, `TRUNCATE TABLE
 		"ReadingSession", "FeedImpression", "ContentFeedback", "Post", "Article",
-		"User", "Publication", "_CoAuthors" CASCADE`); err != nil {
+		"User", "Publisher", "_CoAuthors" CASCADE`); err != nil {
 		return "", "", "", "", err
 	}
 
@@ -76,15 +76,15 @@ func seedTracking(ctx context.Context, pool *pgxpool.Pool) (userID, articleID, p
 	}
 
 	if _, err = pool.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
-		 VALUES ($1, 'PERSONAL', 'Publication Track', 'publication-track', now(), now())`,
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
+		 VALUES ($1, 'PERSONAL', 'Publisher Track', 'publication-track', now(), now())`,
 		pubID); err != nil {
 		return "", "", "", "", err
 	}
 
 	if _, err = pool.Exec(ctx,
 		`INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime",
-		                        "completionRate", status, "publicationId", "authorId", "createdAt", "updatedAt", embedding)
+		                        "completionRate", status, "publisherId", "authorId", "createdAt", "updatedAt", embedding)
 		 VALUES ($1, 'Article Track', 'article-track', '<p>Contenu</p>', true, 'PUBLIC', 5,
 		         0.5, 'PUBLISHED', $2, $3, now(), now(), `+vec512+`)`,
 		articleID, pubID, userID); err != nil {
@@ -491,7 +491,7 @@ func TestReadingHistory(t *testing.T) {
 	for _, id := range []string{article2, article3} {
 		if _, err := poolTest.Exec(ctx,
 			`INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime",
-			                        "completionRate", status, "publicationId", "authorId", "createdAt", "updatedAt", embedding)
+			                        "completionRate", status, "publisherId", "authorId", "createdAt", "updatedAt", embedding)
 			 VALUES ($1, 'Article '||$1, $1, '<p>Contenu</p>', true, 'PUBLIC', 4,
 			          0.5, 'PUBLISHED', $2, $3, now(), now(), `+vec512+`)`,
 			id, pubID, userID); err != nil {
@@ -533,8 +533,8 @@ func TestReadingHistory(t *testing.T) {
 	if second.Article.ID != articleID || second.Status != "READ_COMPLETE" || second.ScrollDepth != 100 || second.DwellSeconds != 42 {
 		t.Fatalf("second item = %s (%s), attendu article READ_COMPLETE 100/42", second.Article.ID, second.Status)
 	}
-	if second.Article.Publication == nil || second.Article.Publication.Name != "Publication Track" {
-		t.Fatalf("publication manquante ou erronée: %+v", second.Article.Publication)
+	if second.Article.Publisher == nil || second.Article.Publisher.Name != "Publisher Track" {
+		t.Fatalf("publication manquante ou erronée: %+v", second.Article.Publisher)
 	}
 	if !second.CreatedAt.Valid {
 		t.Fatalf("createdAt non renseigné")

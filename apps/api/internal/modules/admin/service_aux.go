@@ -538,7 +538,7 @@ func (s *Service) ListApiApplicants(ctx context.Context, userID string) ([]Admin
 	for _, r := range rows {
 		out = append(out, AdminApiApplicant{
 			ID: r.ID, Name: textPtr(r.Name), Email: r.Email,
-			Subdomain:            textPtr(r.PublicationSubdomain),
+			Subdomain:            textPtr(r.PublisherSubdomain),
 			ApiAccessStatus:      r.ApiAccessStatus,
 			ApiGrants:            r.ApiGrants,
 			ApiApplicationReason: textPtr(r.ApiApplicationReason),

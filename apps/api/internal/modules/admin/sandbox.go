@@ -41,10 +41,10 @@ var availableSandboxScenarios = []SandboxScenarioInfo{
 	},
 	{
 		ID:          "active_media",
-		Title:       "Média & Publication Active",
+		Title:       "Média & Publisher Active",
 		Description: "Génère une publication avec articles publiés, abonnés et statistiques de lecture pour tester la consultation média et le studio.",
 		TargetFile:  "Médias & Abonnements",
-		Entities:    []string{"User", "Publication", "Article", "Subscriber"},
+		Entities:    []string{"User", "Publisher", "Article", "Subscriber"},
 	},
 	{
 		ID:          "moderation_incident",
@@ -131,14 +131,14 @@ func (s *Service) ExecuteSeedScenario(ctx context.Context, staffID, scenario str
 
 		pubID := uuid.New().String()
 		_, err = s.pool.Exec(ctx, `
-			INSERT INTO "Publication" ("id", "name", "slug", "ownerId", "createdAt", "updatedAt")
+			INSERT INTO "Publisher" ("id", "name", "slug", "ownerId", "createdAt", "updatedAt")
 			VALUES ($1, $2, $3, $4::uuid, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
 			pubID, name, username, uID)
 		if err == nil {
 			// Article exemple
 			artID := uuid.New().String()
 			_, _ = s.pool.Exec(ctx, `
-				INSERT INTO "Article" ("id", "title", "slug", "status", "authorId", "publicationId", "content", "publishedAt", "createdAt", "updatedAt")
+				INSERT INTO "Article" ("id", "title", "slug", "status", "authorId", "publisherId", "content", "publishedAt", "createdAt", "updatedAt")
 				VALUES ($1, 'Édition Spéciale Sandbox', $2, 'published', $3::uuid, $4, '{"type":"doc","content":[]}'::jsonb, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
 				artID, fmt.Sprintf("edition-sandbox-%d", rnd), uID, pubID)
 		}
@@ -147,7 +147,7 @@ func (s *Service) ExecuteSeedScenario(ctx context.Context, staffID, scenario str
 		res.Message = fmt.Sprintf("Média actif créé avec publication et article : %s", email)
 		res.Entities["userId"] = uID
 		res.Entities["email"] = email
-		res.Entities["publicationId"] = pubID
+		res.Entities["publisherId"] = pubID
 
 	case "moderation_incident":
 		reporterID := uuid.New().String()

@@ -32,7 +32,7 @@ type Hit = {
   title?: string;
   slug?: string;
   subdomain?: string;
-  publicationName?: string;
+  publisherName?: string;
 };
 
 type SearchFilter = 'all' | 'articles' | 'creators' | 'thoughts';
@@ -220,9 +220,9 @@ export function SearchScreen() {
                 <ThemedText style={styles.hitTitle} numberOfLines={2}>
                   {h.title || 'Sans titre'}
                 </ThemedText>
-                {h.publicationName ? (
+                {h.publisherName ? (
                   <ThemedText type="small" style={[styles.hitMeta, { color: theme.textSecondary }]}>
-                    {h.publicationName}
+                    {h.publisherName}
                   </ThemedText>
                 ) : null}
               </Pressable>

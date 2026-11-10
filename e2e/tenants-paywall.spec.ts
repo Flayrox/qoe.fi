@@ -49,7 +49,7 @@ test.describe('Parcours Paywall Tenant — Déverrouillage & Zero-Leak', () => {
     db = new TestDb(DATABASE_URL);
     await db.connect();
 
-    await db.ensurePublication({
+    await db.ensurePublisher({
       id: PAYWALL.id,
       subdomain: PAYWALL.subdomain,
       name: PAYWALL.name,
@@ -60,7 +60,7 @@ test.describe('Parcours Paywall Tenant — Déverrouillage & Zero-Leak', () => {
     });
     await db.ensureArticle({
       id: ARTICLE.id,
-      publicationId: PAYWALL.id,
+      publisherId: PAYWALL.id,
       authorId: PAYWALL.authorId,
       title: ARTICLE.title,
       slug: ARTICLE.slug,
@@ -82,7 +82,7 @@ test.describe('Parcours Paywall Tenant — Déverrouillage & Zero-Leak', () => {
     if (!db) return;
     // Nettoyage : ce spec ne doit pas polluer la base partagée.
     await db.deleteArticle(ARTICLE.id).catch(() => {});
-    await db.deletePublication(PAYWALL.id).catch(() => {});
+    await db.deletePublisher(PAYWALL.id).catch(() => {});
     await db.close();
   });
 

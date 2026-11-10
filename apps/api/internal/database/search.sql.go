@@ -12,7 +12,7 @@ import (
 )
 
 const getArticleForSearch = `-- name: GetArticleForSearch :one
-SELECT id, title, content, slug, "authorId", "categoryId", "publicationId", published, "isPremium",
+SELECT id, title, content, slug, "authorId", "categoryId", "publisherId", published, "isPremium",
        "seoTitle", "seoDescription", "createdAt", "updatedAt"
 FROM "Article"
 WHERE id = $1
@@ -25,7 +25,7 @@ type GetArticleForSearchRow struct {
 	Slug           string           `json:"slug"`
 	AuthorId       pgtype.UUID      `json:"authorId"`
 	CategoryId     pgtype.Text      `json:"categoryId"`
-	PublicationId  string           `json:"publicationId"`
+	PublisherId    string           `json:"publisherId"`
 	Published      bool             `json:"published"`
 	IsPremium      bool             `json:"isPremium"`
 	SeoTitle       pgtype.Text      `json:"seoTitle"`
@@ -44,7 +44,7 @@ func (q *Queries) GetArticleForSearch(ctx context.Context, id string) (GetArticl
 		&i.Slug,
 		&i.AuthorId,
 		&i.CategoryId,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.Published,
 		&i.IsPremium,
 		&i.SeoTitle,
@@ -104,7 +104,7 @@ WHERE p."isDraft" = false
     COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
     OR EXISTS (
       SELECT 1 FROM "Follows" f
-      WHERE f."readerId" = $3 AND f."publicationId" = u."publicationId"
+      WHERE f."readerId" = $3 AND f."publisherId" = u."publisherId"
     )
   )
   AND (

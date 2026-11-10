@@ -20,7 +20,7 @@ func TestBuildFeedArticle_NeverLeaksPremiumContent(t *testing.T) {
 		IsPremium:     true,
 		Visibility:    db.ContentVisibility("PAID_SUBSCRIBERS"),
 		ReadingTime:   4,
-		PublicationID: "pub_1", AuthorID: "user_1",
+		PublisherID: "pub_1", AuthorID: "user_1",
 	})
 
 	if strings.Contains(art.Content, "PAYANT SENSIBLE") {

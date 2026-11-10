@@ -14,9 +14,9 @@ import { Logo } from '@qoe/ui';
 import { getSidebarSurfaces } from '@qoe/config';
 import { logout } from '@/app/login/actions';
 import type { SidebarProps } from '@qoe/ui/sidebar';
-import type { TemplatePublicationContext, TemplateArticleItem } from '@qoe/ui/templates';
+import type { TemplatePublisherContext, TemplateArticleItem } from '@qoe/ui/templates';
 
-interface SettingsPublicationDTO {
+interface SettingsPublisherDTO {
   id: string;
   name: string;
   slug: string;
@@ -64,7 +64,7 @@ interface MeResponse {
     username: string | null;
     name: string | null;
     logoUrl: string | null;
-    publicationLogoUrl: string | null;
+    publisherLogoUrl: string | null;
   };
 }
 
@@ -94,16 +94,16 @@ export default async function SettingsDesignPage() {
   const workspace = await getActiveWorkspace(authUser.id);
 
   // 1. Récupération de la publication
-  let publication: SettingsPublicationDTO | null = null;
+  let publisher: SettingsPublisherDTO | null = null;
   try {
-    publication = await goFetch<SettingsPublicationDTO>(
-      `/v1/settings/publication?publicationId=${encodeURIComponent(workspace.publicationId)}`
+    publisher = await goFetch<SettingsPublisherDTO>(
+      `/v1/settings/publisher?publisherId=${encodeURIComponent(workspace.publisherId)}`
     );
   } catch {
-    publication = null;
+    publisher = null;
   }
 
-  if (!publication) {
+  if (!publisher) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-background text-center">
         <h2 className="text-xl font-bold text-destructive-text">Site web introuvable</h2>
@@ -143,7 +143,7 @@ export default async function SettingsDesignPage() {
   const userEmail = dbUser?.email || authUser.email || 'hello@qoe.fi';
   const userAvatar =
     dbUser?.logoUrl ||
-    dbUser?.publicationLogoUrl ||
+    dbUser?.publisherLogoUrl ||
     (authUser.user_metadata?.avatar_url as string | undefined) ||
     null;
 
@@ -168,42 +168,42 @@ export default async function SettingsDesignPage() {
     },
   };
 
-  // 3. Mapper vers TemplatePublicationContext
+  // 3. Mapper vers TemplatePublisherContext
   const domain =
-    publication.customDomain ||
-    (publication.subdomain ? `${publication.subdomain}.qoe.fi` : 'nom.qoe.fi');
-  const templatePub: TemplatePublicationContext = {
-    id: publication.id,
-    name: publication.name,
-    slug: publication.slug,
+    publisher.customDomain ||
+    (publisher.subdomain ? `${publisher.subdomain}.qoe.fi` : 'nom.qoe.fi');
+  const templatePub: TemplatePublisherContext = {
+    id: publisher.id,
+    name: publisher.name,
+    slug: publisher.slug,
     domain,
-    subdomain: publication.subdomain,
-    customDomain: publication.customDomain,
-    logoUrl: publication.logoUrl,
-    heroText: publication.heroText,
-    headerImageUrl: publication.headerImageUrl,
-    footerText: publication.footerText,
-    accentColor: publication.accentColor,
-    fontFamily: publication.fontFamily,
-    themeMode: publication.themeMode,
-    supportUrl: publication.supportUrl,
-    navigation: publication.navigation.map((n) => ({
+    subdomain: publisher.subdomain,
+    customDomain: publisher.customDomain,
+    logoUrl: publisher.logoUrl,
+    heroText: publisher.heroText,
+    headerImageUrl: publisher.headerImageUrl,
+    footerText: publisher.footerText,
+    accentColor: publisher.accentColor,
+    fontFamily: publisher.fontFamily,
+    themeMode: publisher.themeMode,
+    supportUrl: publisher.supportUrl,
+    navigation: publisher.navigation.map((n) => ({
       id: n.id,
       label: n.label,
       url: n.url,
       order: n.order,
       isExternal: n.isExternal,
-      publicationId: publication.id,
+      publisherId: publisher.id,
       parentId: n.parentId || null,
     })),
-    socialLinks: publication.socialLinks.map((s) => ({
+    socialLinks: publisher.socialLinks.map((s) => ({
       id: s.id,
       platform: s.platform,
       url: s.url,
       order: s.order,
-      publicationId: publication.id,
+      publisherId: publisher.id,
     })),
-    categories: (publication.categories || []).map((c) => ({
+    categories: (publisher.categories || []).map((c) => ({
       id: c.id,
       name: c.name,
       slug: c.slug,
@@ -211,7 +211,7 @@ export default async function SettingsDesignPage() {
     subscriberCount: 380,
   };
 
-  const templateArticles: TemplateArticleItem[] = publication.articles.map((art) => ({
+  const templateArticles: TemplateArticleItem[] = publisher.articles.map((art) => ({
     id: art.id,
     title: art.title,
     slug: art.slug,
@@ -229,7 +229,7 @@ export default async function SettingsDesignPage() {
   let initialDraft: string | null = null;
   try {
     const draft = await goFetch<{ layout?: string | null }>(
-      `/v1/settings/site-layout?publicationId=${encodeURIComponent(publication.id)}`
+      `/v1/settings/site-layout?publisherId=${encodeURIComponent(publisher.id)}`
     );
     if (draft?.layout) initialDraft = draft.layout;
   } catch {
@@ -238,7 +238,7 @@ export default async function SettingsDesignPage() {
 
   return (
     <StageClient
-      publication={templatePub}
+      publisher={templatePub}
       articles={templateArticles}
       sidebarProps={sidebarProps}
       initialDraft={initialDraft}

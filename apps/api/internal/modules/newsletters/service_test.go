@@ -46,21 +46,21 @@ const (
 func seedNewsletterEnv(t *testing.T, ctx context.Context) {
 	requirePool(t)
 	t.Helper()
-	if _, err := poolTest.Exec(ctx, `TRUNCATE "NewsletterIssue", "NewsletterDelivery", "Subscriber", "User", "Publication" CASCADE`); err != nil {
+	if _, err := poolTest.Exec(ctx, `TRUNCATE "NewsletterIssue", "NewsletterDelivery", "Subscriber", "User", "Publisher" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
-	if _, err := poolTest.Exec(ctx, `INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt") VALUES ($1, 'PERSONAL', 'Pub Test', 'pub-test', now(), now())`, pubID); err != nil {
+	if _, err := poolTest.Exec(ctx, `INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt") VALUES ($1, 'PERSONAL', 'Pub Test', 'pub-test', now(), now())`, pubID); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
-	// L'owner porte la publication (contrainte unique sur User.publicationId) ;
+	// L'owner porte la publication (contrainte unique sur User.publisherId) ;
 	// l'étranger n'en a pas → non-owner.
-	if _, err := poolTest.Exec(ctx, `INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, 'creator', $5, now(), now())`, ownerID, "owner@test.dev", "owner", "Owner", pubID); err != nil {
+	if _, err := poolTest.Exec(ctx, `INSERT INTO "User" (id, email, username, name, role, "publisherId", "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, 'creator', $5, now(), now())`, ownerID, "owner@test.dev", "owner", "Owner", pubID); err != nil {
 		t.Fatalf("user owner: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx, `INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, 'creator', now(), now())`, stranger, "stranger@test.dev", "stranger", "Stranger"); err != nil {
 		t.Fatalf("user stranger: %v", err)
 	}
-	if _, err := poolTest.Exec(ctx, `INSERT INTO "Subscriber" (id, email, "publicationId", "receiveArticles", "updatedAt") VALUES ('sub_1', 'reader@test.dev', $1, true, now()), ('sub_2', 'reader2@test.dev', $1, true, now()), ('sub_3', 'optout@test.dev', $1, false, now())`, pubID); err != nil {
+	if _, err := poolTest.Exec(ctx, `INSERT INTO "Subscriber" (id, email, "publisherId", "receiveArticles", "updatedAt") VALUES ('sub_1', 'reader@test.dev', $1, true, now()), ('sub_2', 'reader2@test.dev', $1, true, now()), ('sub_3', 'optout@test.dev', $1, false, now())`, pubID); err != nil {
 		t.Fatalf("subscribers: %v", err)
 	}
 }
@@ -76,7 +76,7 @@ func TestNewsletterLifecycle(t *testing.T) {
 
 	// Création d'un brouillon.
 	issue, err := svc.CreateDraft(ctx, ownerID, CreateInput{
-		PublicationID: pubID,
+		PublisherID: pubID,
 		Subject:       "Ma première newsletter",
 		PreviewText:   "Un aperçu",
 		Html:          "<h1>Bonjour</h1>",
@@ -99,7 +99,7 @@ func TestNewsletterLifecycle(t *testing.T) {
 
 	// Mise à jour du brouillon.
 	updated, err := svc.UpdateDraft(ctx, ownerID, issue.ID, CreateInput{
-		PublicationID: pubID,
+		PublisherID: pubID,
 		Subject:       "Sujet corrigé",
 		Html:          "<h1>Bonjour</h1><p>Mise à jour</p>",
 	})
@@ -130,24 +130,24 @@ func TestNewsletterOwnershipAndValidation(t *testing.T) {
 
 	// Non-owner → refusé.
 	if _, err := svc.CreateDraft(ctx, stranger, CreateInput{
-		PublicationID: pubID, Subject: "S", Html: "<p>H</p>",
+		PublisherID: pubID, Subject: "S", Html: "<p>H</p>",
 	}); !errors.Is(err, errForbidden) {
 		t.Fatalf("create par étranger = %v, attendu errForbidden", err)
 	}
 
-	// Owner sans publicationId → résolu via User.publicationId.
+	// Owner sans publisherId → résolu via User.publisherId.
 	issue, err := svc.CreateDraft(ctx, ownerID, CreateInput{
-		Subject: "Sans publicationId", Html: "<p>OK</p>",
+		Subject: "Sans publisherId", Html: "<p>OK</p>",
 	})
 	if err != nil {
-		t.Fatalf("create sans publicationId: %v", err)
+		t.Fatalf("create sans publisherId: %v", err)
 	}
-	if issue.PublicationID != pubID {
-		t.Fatalf("publicationId = %s, attendu %s", issue.PublicationID, pubID)
+	if issue.PublisherID != pubID {
+		t.Fatalf("publisherId = %s, attendu %s", issue.PublisherID, pubID)
 	}
 
 	// Champs manquants → erreur.
-	if _, err := svc.CreateDraft(ctx, ownerID, CreateInput{PublicationID: pubID}); err == nil {
+	if _, err := svc.CreateDraft(ctx, ownerID, CreateInput{PublisherID: pubID}); err == nil {
 		t.Fatal("create sans contenu = nil, attendu erreur")
 	}
 
@@ -181,7 +181,7 @@ func TestNewsletterUnsubscribe(t *testing.T) {
 
 	// Champs vides → erreur explicite.
 	if err := svc.Unsubscribe(ctx, "", "reader@test.dev"); err == nil {
-		t.Fatal("unsubscribe sans publicationId = nil, attendu erreur")
+		t.Fatal("unsubscribe sans publisherId = nil, attendu erreur")
 	}
 	if err := svc.Unsubscribe(ctx, pubID, ""); err == nil {
 		t.Fatal("unsubscribe sans email = nil, attendu erreur")
@@ -196,7 +196,7 @@ func TestNewsletterDraftEdgeCases(t *testing.T) {
 	svc := newTestService()
 
 	issue, err := svc.CreateDraft(ctx, ownerID, CreateInput{
-		PublicationID: pubID, Subject: "Edge", Html: "<p>E</p>",
+		PublisherID: pubID, Subject: "Edge", Html: "<p>E</p>",
 	})
 	if err != nil {
 		t.Fatalf("create: %v", err)
@@ -204,19 +204,19 @@ func TestNewsletterDraftEdgeCases(t *testing.T) {
 
 	// Update avec contenu vide → erreur.
 	if _, err := svc.UpdateDraft(ctx, ownerID, issue.ID, CreateInput{
-		PublicationID: pubID, Subject: "X", Html: "",
+		PublisherID: pubID, Subject: "X", Html: "",
 	}); err == nil {
 		t.Fatal("update sans html = nil, attendu erreur")
 	}
 	// Update d'une issue inexistante → errNotFound.
 	if _, err := svc.UpdateDraft(ctx, ownerID, "nope", CreateInput{
-		PublicationID: pubID, Subject: "X", Html: "<p>Y</p>",
+		PublisherID: pubID, Subject: "X", Html: "<p>Y</p>",
 	}); !errors.Is(err, errNotFound) {
 		t.Fatalf("update inexistante = %v, attendu errNotFound", err)
 	}
 	// Update par l'étranger → errForbidden.
 	if _, err := svc.UpdateDraft(ctx, stranger, issue.ID, CreateInput{
-		PublicationID: pubID, Subject: "X", Html: "<p>Y</p>",
+		PublisherID: pubID, Subject: "X", Html: "<p>Y</p>",
 	}); !errors.Is(err, errForbidden) {
 		t.Fatalf("update étranger = %v, attendu errForbidden", err)
 	}
@@ -230,7 +230,7 @@ func TestNewsletterDraftEdgeCases(t *testing.T) {
 		t.Fatalf("send: %v", err)
 	}
 	if _, err := svc.UpdateDraft(ctx, ownerID, issue.ID, CreateInput{
-		PublicationID: pubID, Subject: "X", Html: "<p>Y</p>",
+		PublisherID: pubID, Subject: "X", Html: "<p>Y</p>",
 	}); !errors.Is(err, errNotDraft) {
 		t.Fatalf("update après send = %v, attendu errNotDraft", err)
 	}
@@ -245,7 +245,7 @@ func TestNewsletterFailedRetry(t *testing.T) {
 	svc := newTestService()
 
 	issue, err := svc.CreateDraft(ctx, ownerID, CreateInput{
-		PublicationID: pubID,
+		PublisherID: pubID,
 		Subject:       "Sujet initial",
 		Html:          "<p>Texte</p>",
 	})
@@ -266,7 +266,7 @@ func TestNewsletterFailedRetry(t *testing.T) {
 
 	// 1. Modification d'une issue FAILED permise.
 	updated, err := svc.UpdateDraft(ctx, ownerID, issue.ID, CreateInput{
-		PublicationID: pubID,
+		PublisherID: pubID,
 		Subject:       "Sujet corrigé",
 		Html:          "<p>Texte corrigé</p>",
 	})
@@ -298,7 +298,7 @@ func TestNewsletterSend_ProRequired(t *testing.T) {
 	svc.SetPool(poolTest)
 
 	issue, err := svc.CreateDraft(ctx, ownerID, CreateInput{
-		PublicationID: pubID,
+		PublisherID: pubID,
 		Subject:       "Broadcast sans Pro",
 		Html:          "<p>Texte</p>",
 	})
@@ -314,7 +314,7 @@ func TestNewsletterSend_ProRequired(t *testing.T) {
 	// 2. Avec octroi Pro effectif sur la publication → succès.
 	if _, err := poolTest.Exec(ctx, `
 		INSERT INTO "SubscriptionGrant" (id, "subjectType", "subjectId", plan, "startsAt", "grantedBy", note)
-		VALUES ('grant_pro_test', 'publication', $1, 'pro', now() - INTERVAL '1 hour', 'test', 'test pro grant')
+		VALUES ('grant_pro_test', 'publisher', $1, 'pro', now() - INTERVAL '1 hour', 'test', 'test pro grant')
 	`, pubID); err != nil {
 		t.Fatalf("grant pro: %v", err)
 	}

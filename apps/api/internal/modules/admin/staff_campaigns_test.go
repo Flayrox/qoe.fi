@@ -9,7 +9,7 @@ import (
 // La validation du contenu est pure : catégories fermées, variables sur liste
 // blanche, traductions requises pour le légal. Aucune DB nécessaire.
 func TestValidateCampaignContent(t *testing.T) {
-	ok := validateCampaignContent(CampaignStaffDirect, "Sujet", "<p>Bonjour {{publication_name}}</p>", "", "")
+	ok := validateCampaignContent(CampaignStaffDirect, "Sujet", "<p>Bonjour {{publisher_name}}</p>", "", "")
 	if ok != nil {
 		t.Fatalf("contenu valide refusé : %v", ok)
 	}
@@ -39,7 +39,7 @@ func TestValidateCampaignContent(t *testing.T) {
 
 func TestRenderCampaignVars_Escapes(t *testing.T) {
 	out := RenderCampaignVars(
-		"<p>{{publication_name}}</p><a href=\"{{unsubscribe_url}}\">stop</a>",
+		"<p>{{publisher_name}}</p><a href=\"{{unsubscribe_url}}\">stop</a>",
 		"<Journal & Co>",
 		"https://x.test/u?a=1&b=2",
 	)
@@ -98,7 +98,7 @@ func seedCampaignPub(t *testing.T, ctx context.Context, pubID string) {
 	// Slug unique par publication : un slug fixe ferait échouer la seconde
 	// publication sur l'unicité de Publication.slug (test 1 puis test 2).
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ($1, 'PERSONAL', 'Campagne Test', 'campagne-test-' || $1, now(), now())
 		 ON CONFLICT (id) DO NOTHING`, pubID); err != nil {
 		t.Fatalf("publication: %v", err)
@@ -117,7 +117,7 @@ func TestStaffCampaign_LifecycleComplet(t *testing.T) {
 
 	seedCampaignPub(t, ctx, "pub_camp_001")
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
+		`INSERT INTO "Subscriber" (id, email, "publisherId", "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
 		 VALUES
 		  (gen_random_uuid()::text, 'camp-ok@test.dev', 'pub_camp_001', true, true, now(), now(), now()),
 		  (gen_random_uuid()::text, 'camp-off@test.dev', 'pub_camp_001', true, false, now(), now(), now())`); err != nil {
@@ -126,7 +126,7 @@ func TestStaffCampaign_LifecycleComplet(t *testing.T) {
 	t.Cleanup(func() {
 		_, _ = poolTest.Exec(ctx, `DELETE FROM "StaffCampaignDelivery" WHERE "campaignId" LIKE 'camp-%'`)
 		_, _ = poolTest.Exec(ctx, `DELETE FROM "StaffCampaign" WHERE id LIKE 'camp-%'`)
-		_, _ = poolTest.Exec(ctx, `DELETE FROM "Subscriber" WHERE "publicationId" = 'pub_camp_001'`)
+		_, _ = poolTest.Exec(ctx, `DELETE FROM "Subscriber" WHERE "publisherId" = 'pub_camp_001'`)
 	})
 
 	// 1. Brouillon invalide refusé (catégorie inconnue).
@@ -138,7 +138,7 @@ func TestStaffCampaign_LifecycleComplet(t *testing.T) {
 	}
 
 	created, err := svc.CreateCampaign(ctx, campaignOwnerA, StaffCampaignInput{
-		Type: "product.announcement", Subject: "Nouveauté {{publication_name}}",
+		Type: "product.announcement", Subject: "Nouveauté {{publisher_name}}",
 		BodyHTML:     "<p>Bonjour, <a href=\"{{unsubscribe_url}}\">stop</a></p>",
 		AudienceType: CampaignAudienceSubscribers, AudiencePubID: "pub_camp_001",
 	})
@@ -231,18 +231,18 @@ func TestStaffCampaign_CancelAbandonneSansEnvoyer(t *testing.T) {
 
 	seedCampaignPub(t, ctx, "pub_camp_002")
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
+		`INSERT INTO "Subscriber" (id, email, "publisherId", "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
 		 VALUES (gen_random_uuid()::text, 'cancel@test.dev', 'pub_camp_002', true, true, now(), now(), now())`); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 	t.Cleanup(func() {
 		_, _ = poolTest.Exec(ctx, `DELETE FROM "StaffCampaignDelivery" WHERE "campaignId" LIKE 'camp-%'`)
 		_, _ = poolTest.Exec(ctx, `DELETE FROM "StaffCampaign" WHERE id LIKE 'camp-%'`)
-		_, _ = poolTest.Exec(ctx, `DELETE FROM "Subscriber" WHERE "publicationId" = 'pub_camp_002'`)
+		_, _ = poolTest.Exec(ctx, `DELETE FROM "Subscriber" WHERE "publisherId" = 'pub_camp_002'`)
 	})
 
 	created, err := svc.CreateCampaign(ctx, campaignOwnerA, StaffCampaignInput{
-		Type: "staff.direct", Subject: "Info", BodyHTML: "<p>Info {{publication_name}}</p>",
+		Type: "staff.direct", Subject: "Info", BodyHTML: "<p>Info {{publisher_name}}</p>",
 		AudienceType: CampaignAudienceSubscribers, AudiencePubID: "pub_camp_002",
 	})
 	if err != nil {

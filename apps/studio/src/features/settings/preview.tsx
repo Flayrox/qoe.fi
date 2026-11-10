@@ -353,4 +353,4 @@ export function Preview({
 }
 
 // Compat export
-export { Preview as PublicationLivePreview };
+export { Preview as PublisherLivePreview };

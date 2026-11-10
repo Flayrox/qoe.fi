@@ -26,7 +26,7 @@ import (
 // PublicationPublicURL calcule l'URL racine publique d'une publication
 // (domaine personnalisé > sous-domaine > plateforme). Exporté pour le
 // module settings (prévisualisation).
-func PublicationPublicURL(subdomain, customDomain pgtype.Text) string {
+func PublisherPublicURL(subdomain, customDomain pgtype.Text) string {
 	return publicationPublicURL(subdomain, customDomain)
 }
 
@@ -48,9 +48,9 @@ func PubLogoURL(t pgtype.Text) string {
 	return ""
 }
 
-// localizedPublicationName borne le nom de publication (vide → libellé
+// localizedPublisherName borne le nom de publication (vide → libellé
 // localisé « la publication » pour les phrases).
-func localizedPublicationName(locale, rawName string) string {
+func localizedPublisherName(locale, rawName string) string {
 	if rawName != "" {
 		return rawName
 	}
@@ -96,7 +96,7 @@ type subscriberEmailContent struct {
 // sur l'identité (réglages emailSettings > colonnes Publication > défauts).
 func buildContent(spec SubscriberEmailSpec, prefs EmailPrefs) subscriberEmailContent {
 	locale := spec.Locale
-	pubName := localizedPublicationName(locale, spec.PubName)
+	pubName := localizedPublisherName(locale, spec.PubName)
 
 	c := subscriberEmailContent{
 		locale:     locale,
@@ -131,7 +131,7 @@ func buildContent(spec SubscriberEmailSpec, prefs EmailPrefs) subscriberEmailCon
 		c.preheader = ConfirmPreheader(prefs, locale, pubName)
 		c.body = []string{
 			T(locale,
-				"Vous avez demandé à recevoir les nouvelles publications de "+pubName+". Confirmez votre adresse email pour finaliser votre inscription.",
+				"Vous avez demandé à recevoir les nouvelles publishers de "+pubName+". Confirmez votre adresse email pour finaliser votre inscription.",
 				"You asked to receive new posts from "+pubName+". Confirm your email address to complete your subscription.",
 			),
 		}

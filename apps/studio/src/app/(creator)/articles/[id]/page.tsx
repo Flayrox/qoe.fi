@@ -28,9 +28,9 @@ export default async function ArticleEditPage({ params }: PageProps) {
     // Co-auteurs : catégories et capacités doivent être celles de la
     // publication de l'article, pas celles du workspace actif.
     const [categoriesRes, capsRes] = await Promise.all([
-      getCategoriesAction(article.publicationId),
+      getCategoriesAction(article.publisherId),
       getEditorCapabilitiesAction({
-        publicationId: article.publicationId,
+        publisherId: article.publisherId,
         articleId: article.id,
       }),
     ]);

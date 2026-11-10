@@ -32,19 +32,19 @@ func seedConfirmFixture(t *testing.T, ctx context.Context) (string, string, stri
 	pool := testutil.MustPool(t)
 
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO "Publication" (id, name, slug, "updatedAt")
+		INSERT INTO "Publisher" (id, name, slug, "updatedAt")
 		VALUES ('pub_confirm', 'La Gazette Confirm', 'gazette-confirm', now())
 		ON CONFLICT (id) DO NOTHING`); err != nil {
 		t.Fatalf("seed publication: %v", err)
 	}
 	// Nettoyage des abonnés de la fixture (relance entre tests du package).
-	if _, err := pool.Exec(ctx, `DELETE FROM "Subscriber" WHERE "publicationId" = 'pub_confirm'`); err != nil {
+	if _, err := pool.Exec(ctx, `DELETE FROM "Subscriber" WHERE "publisherId" = 'pub_confirm'`); err != nil {
 		t.Fatalf("cleanup subscribers: %v", err)
 	}
 
 	token := "tok-e2e-confirmation-1234"
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "receiveArticles", "confirmationToken", "createdAt", "updatedAt")
+		INSERT INTO "Subscriber" (id, email, "publisherId", "isActive", "receiveArticles", "confirmationToken", "createdAt", "updatedAt")
 		VALUES ('sub_confirm_1', 'pending@test.dev', 'pub_confirm', true, false, $1, now(), now())`, token); err != nil {
 		t.Fatalf("seed subscriber: %v", err)
 	}
@@ -59,7 +59,7 @@ func TestConfirmEmailWorker_SendsSignedLink(t *testing.T) {
 	w := NewConfirmEmailWorker(testutil.MustPool(t))
 	w.SetEmailProvider(fake, "noreply@qoe.fi")
 
-	payload, err := json.Marshal(queue.SubscriberConfirmPayload{Email: email, PublicationID: pubID})
+	payload, err := json.Marshal(queue.SubscriberConfirmPayload{Email: email, PublisherID: pubID})
 	if err != nil {
 		t.Fatalf("payload: %v", err)
 	}
@@ -93,11 +93,11 @@ func TestConfirmEmailWorker_AlreadyConfirmed_IsSilent(t *testing.T) {
 	pubID, email, _ := seedConfirmFixture(t, ctx)
 
 	// Abonné déjà confirmé (token effacé) → la tâche doit être un no-op.
-	if _, err := pool.Exec(ctx, `DELETE FROM "Subscriber" WHERE "publicationId" = $1`, pubID); err != nil {
+	if _, err := pool.Exec(ctx, `DELETE FROM "Subscriber" WHERE "publisherId" = $1`, pubID); err != nil {
 		t.Fatalf("cleanup: %v", err)
 	}
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
+		INSERT INTO "Subscriber" (id, email, "publisherId", "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
 		VALUES ('sub_confirm_2', $1, $2, true, true, now(), now(), now())`, email, pubID); err != nil {
 		t.Fatalf("seed confirmed: %v", err)
 	}
@@ -106,7 +106,7 @@ func TestConfirmEmailWorker_AlreadyConfirmed_IsSilent(t *testing.T) {
 	w := NewConfirmEmailWorker(pool)
 	w.SetEmailProvider(fake, "noreply@qoe.fi")
 
-	payload, _ := json.Marshal(queue.SubscriberConfirmPayload{Email: email, PublicationID: pubID})
+	payload, _ := json.Marshal(queue.SubscriberConfirmPayload{Email: email, PublisherID: pubID})
 	if err := w.HandleSubscriberConfirm(ctx, asynq.NewTask(queue.TaskSubscriberConfirm, payload)); err != nil {
 		t.Fatalf("HandleSubscriberConfirm (déjà confirmé) doit être silencieux: %v", err)
 	}
@@ -121,7 +121,7 @@ func TestConfirmEmailWorker_NoProvider_IsNoOp(t *testing.T) {
 
 	w := NewConfirmEmailWorker(testutil.MustPool(t))
 	// SetEmailProvider jamais appelé → provider nil.
-	payload, _ := json.Marshal(queue.SubscriberConfirmPayload{Email: email, PublicationID: pubID})
+	payload, _ := json.Marshal(queue.SubscriberConfirmPayload{Email: email, PublisherID: pubID})
 	if err := w.HandleSubscriberConfirm(ctx, asynq.NewTask(queue.TaskSubscriberConfirm, payload)); err != nil {
 		t.Fatalf("sans provider, la tâche doit être un no-op: %v", err)
 	}
@@ -154,7 +154,7 @@ func TestBulkFanout_NeverMailsUnconfirmedSubscribers(t *testing.T) {
 	// 1) abonné « hérité » : actif + receiveArticles=true, jamais confirmé.
 	// 2) contrôle positif : abonné confirmé receiveArticles=true.
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "receiveArticles", "confirmationToken", "confirmedAt", "createdAt", "updatedAt")
+		INSERT INTO "Subscriber" (id, email, "publisherId", "isActive", "receiveArticles", "confirmationToken", "confirmedAt", "createdAt", "updatedAt")
 		VALUES
 		  ('sub_confirm_legacy', 'legacy@test.dev', 'pub_confirm', true, true, NULL, NULL, now(), now()),
 		  ('sub_confirm_ok',     'confirmed@test.dev', 'pub_confirm', true, true, NULL, now(), now(), now())`); err != nil {
@@ -165,7 +165,7 @@ func TestBulkFanout_NeverMailsUnconfirmedSubscribers(t *testing.T) {
 
 	// Fanout d'une newsletter créateur.
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO "NewsletterIssue" (id, "publicationId", subject, html, status, "updatedAt")
+		INSERT INTO "NewsletterIssue" (id, "publisherId", subject, html, status, "updatedAt")
 		VALUES ('issue_confirm_t', 'pub_confirm', 'Test', '<p>x</p>', 'SENDING', now())
 		ON CONFLICT (id) DO NOTHING`); err != nil {
 		t.Fatalf("seed issue: %v", err)
@@ -173,10 +173,10 @@ func TestBulkFanout_NeverMailsUnconfirmedSubscribers(t *testing.T) {
 	t.Cleanup(func() {
 		_, _ = pool.Exec(ctx, `DELETE FROM "NewsletterDelivery" WHERE "issueId" = 'issue_confirm_t'`)
 		_, _ = pool.Exec(ctx, `DELETE FROM "NewsletterIssue" WHERE id = 'issue_confirm_t'`)
-		_, _ = pool.Exec(ctx, `DELETE FROM "Subscriber" WHERE "publicationId" = 'pub_confirm'`)
+		_, _ = pool.Exec(ctx, `DELETE FROM "Subscriber" WHERE "publisherId" = 'pub_confirm'`)
 	})
 	if err := q.InsertNewsletterDeliveries(ctx, db.InsertNewsletterDeliveriesParams{
-		IssueId: "issue_confirm_t", PublicationId: "pub_confirm",
+		IssueId: "issue_confirm_t", PublisherId: "pub_confirm",
 	}); err != nil {
 		t.Fatalf("InsertNewsletterDeliveries: %v", err)
 	}
@@ -203,28 +203,28 @@ func TestBulkFanout_NeverMailsUnconfirmedSubscribers(t *testing.T) {
 	// publication) ne doit jamais être matérialisée — même si sa ligne
 	// Subscriber est restée active (course désinscription/envoi).
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
+		INSERT INTO "Subscriber" (id, email, "publisherId", "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
 		VALUES
 		  ('sub_confirm_sup_g', 'suppressed-global@test.dev', 'pub_confirm', true, true, now(), now(), now()),
 		  ('sub_confirm_sup_p', 'suppressed-pub@test.dev', 'pub_confirm', true, true, now(), now(), now())
-		ON CONFLICT ("email", "publicationId") DO UPDATE SET
+		ON CONFLICT ("email", "publisherId") DO UPDATE SET
 		  "isActive" = true, "receiveArticles" = true, "confirmedAt" = COALESCE("Subscriber"."confirmedAt", now())`); err != nil {
 		t.Fatalf("seed opposés: %v", err)
 	}
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO "EmailSuppression" ("id", "email", "scope", "publicationId", "reason")
+		INSERT INTO "EmailSuppression" ("id", "email", "scope", "publisherId", "reason")
 		VALUES
 		  (gen_random_uuid()::text, 'suppressed-global@test.dev', 'global', NULL, 'complaint'),
-		  (gen_random_uuid()::text, 'suppressed-pub@test.dev', 'publication', 'pub_confirm', 'unsubscribe')
+		  (gen_random_uuid()::text, 'suppressed-pub@test.dev', 'publisher', 'pub_confirm', 'unsubscribe')
 		ON CONFLICT DO NOTHING`); err != nil {
 		t.Fatalf("seed suppressions: %v", err)
 	}
 	t.Cleanup(func() {
 		_, _ = pool.Exec(ctx, `DELETE FROM "EmailSuppression" WHERE email IN ('suppressed-global@test.dev', 'suppressed-pub@test.dev')`)
-		_, _ = pool.Exec(ctx, `DELETE FROM "Subscriber" WHERE email IN ('suppressed-global@test.dev', 'suppressed-pub@test.dev') AND "publicationId" = 'pub_confirm'`)
+		_, _ = pool.Exec(ctx, `DELETE FROM "Subscriber" WHERE email IN ('suppressed-global@test.dev', 'suppressed-pub@test.dev') AND "publisherId" = 'pub_confirm'`)
 	})
 	if err := q.InsertNewsletterDeliveries(ctx, db.InsertNewsletterDeliveriesParams{
-		IssueId: "issue_confirm_t", PublicationId: "pub_confirm",
+		IssueId: "issue_confirm_t", PublisherId: "pub_confirm",
 	}); err != nil {
 		t.Fatalf("InsertNewsletterDeliveries (2e passe): %v", err)
 	}
@@ -243,7 +243,7 @@ func TestBulkFanout_NeverMailsUnconfirmedSubscribers(t *testing.T) {
 
 	// Fanout d'une release d'article.
 	if err := q.InsertArticleReleaseDeliveries(ctx, db.InsertArticleReleaseDeliveriesParams{
-		ArticleId: "art_confirm_t", PublicationId: "pub_confirm",
+		ArticleId: "art_confirm_t", PublisherId: "pub_confirm",
 	}); err != nil {
 		t.Fatalf("InsertArticleReleaseDeliveries: %v", err)
 	}
@@ -272,9 +272,9 @@ func TestConfirmEmailWorker_KillSwitchStopsSend(t *testing.T) {
 	pubID, email, _ := seedConfirmFixture(t, ctx)
 	const token = "tok-kill-switch"
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "receiveArticles", "confirmationToken", "createdAt", "updatedAt")
+		`INSERT INTO "Subscriber" (id, email, "publisherId", "isActive", "receiveArticles", "confirmationToken", "createdAt", "updatedAt")
 		 VALUES (gen_random_uuid()::text, $1, $2, true, false, $3, now(), now())
-		 ON CONFLICT ("email", "publicationId") DO UPDATE SET "confirmationToken" = EXCLUDED."confirmationToken"`,
+		 ON CONFLICT ("email", "publisherId") DO UPDATE SET "confirmationToken" = EXCLUDED."confirmationToken"`,
 		email, pubID, token); err != nil {
 		t.Fatalf("seed pending: %v", err)
 	}
@@ -290,7 +290,7 @@ func TestConfirmEmailWorker_KillSwitchStopsSend(t *testing.T) {
 	w := NewConfirmEmailWorker(poolTest)
 	w.SetEmailProvider(fake, "noreply@qoe.fi")
 
-	payload, err := json.Marshal(queue.SubscriberConfirmPayload{Email: email, PublicationID: pubID})
+	payload, err := json.Marshal(queue.SubscriberConfirmPayload{Email: email, PublisherID: pubID})
 	if err != nil {
 		t.Fatalf("payload: %v", err)
 	}
@@ -304,7 +304,7 @@ func TestConfirmEmailWorker_KillSwitchStopsSend(t *testing.T) {
 	var tok *string
 	var receive bool
 	if err := poolTest.QueryRow(ctx,
-		`SELECT "confirmationToken", "receiveArticles" FROM "Subscriber" WHERE email = $1 AND "publicationId" = $2`,
+		`SELECT "confirmationToken", "receiveArticles" FROM "Subscriber" WHERE email = $1 AND "publisherId" = $2`,
 		email, pubID).Scan(&tok, &receive); err != nil {
 		t.Fatalf("read subscriber: %v", err)
 	}

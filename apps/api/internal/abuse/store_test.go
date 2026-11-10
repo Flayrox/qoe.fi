@@ -12,7 +12,7 @@ import (
 )
 
 func TestEvaluateSubject_NilPool_Neutral(t *testing.T) {
-	out := EvaluateSubject(context.Background(), nil, SignalSignupAttempt, SubjectPublication, "pub", time.Now())
+	out := EvaluateSubject(context.Background(), nil, SignalSignupAttempt, SubjectPublisher, "pub", time.Now())
 	if out.Decision != DecisionAllow {
 		t.Fatalf("pool nil : attendu allow, obtenu %s", out.Decision)
 	}
@@ -49,9 +49,9 @@ func TestRecordSignal_NonUTCTimezoneStillCounts(t *testing.T) {
 	nowLocal := time.Now().In(cest)
 	subject := fmt.Sprintf("pub-tz-%d", nowLocal.UnixNano())
 
-	RecordSignal(ctx, poolTest, "test.tz", SubjectPublication, subject,
+	RecordSignal(ctx, poolTest, "test.tz", SubjectPublisher, subject,
 		"test", ConfidenceObserved, time.Hour, nowLocal)
-	facts, err := loadRecentFacts(ctx, poolTest, "test.tz", SubjectPublication, subject, time.Now().UTC().Add(-time.Hour))
+	facts, err := loadRecentFacts(ctx, poolTest, "test.tz", SubjectPublisher, subject, time.Now().UTC().Add(-time.Hour))
 	if err != nil {
 		t.Fatalf("lecture faits : %v", err)
 	}
@@ -108,17 +108,17 @@ func TestEvaluateSubject_AllowPersistsNothing(t *testing.T) {
 	// 3 inscriptions : bruit normal → allow, et AUCUN verdict persisté (les
 	// faits restent, les verdicts triviaux ne polluent pas la table).
 	for i := 0; i < 3; i++ {
-		RecordSignal(ctx, poolTest, SignalSignupAttempt, SubjectPublication, subject,
+		RecordSignal(ctx, poolTest, SignalSignupAttempt, SubjectPublisher, subject,
 			"test", ConfidenceObserved, SignupSignalRetention, now.Add(-time.Duration(i)*time.Minute))
 	}
-	out := EvaluateSubject(ctx, poolTest, SignalSignupAttempt, SubjectPublication, subject, now)
+	out := EvaluateSubject(ctx, poolTest, SignalSignupAttempt, SubjectPublisher, subject, now)
 	if out.Decision != DecisionAllow {
 		t.Fatalf("bruit : attendu allow, obtenu %s", out.Decision)
 	}
 	var n int
 	if err := poolTest.QueryRow(ctx,
 		`SELECT COUNT(*) FROM "RiskDecision" WHERE "subjectType" = $1 AND "subjectId" = $2`,
-		SubjectPublication, subject,
+		SubjectPublisher, subject,
 	).Scan(&n); err != nil {
 		t.Fatalf("comptage verdicts : %v", err)
 	}

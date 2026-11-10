@@ -280,7 +280,7 @@ func TestHTTP_ListMutedWords(t *testing.T) {
 
 // ─── Publications & wallet ─────────────────────────────────────────────
 
-func TestHTTP_MyPublicationAndMedia(t *testing.T) {
+func TestHTTP_MyPublisherAndMedia(t *testing.T) {
 	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
@@ -288,17 +288,17 @@ func TestHTTP_MyPublicationAndMedia(t *testing.T) {
 	}
 	r := newRouter()
 
-	w := do(r, http.MethodGet, "/v1/me/publication", fx.AuthorID, "")
+	w := do(r, http.MethodGet, "/v1/me/publisher", fx.AuthorID, "")
 	if w.Code != http.StatusOK {
 		t.Fatalf("my publication = %d %s", w.Code, w.Body.String())
 	}
 
 	w = do(r, http.MethodGet, "/v1/me/media/media_inconnu", fx.AuthorID, "")
-	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"publicationId":""`) {
-		t.Fatalf("media inconnu = %d %s, attendu 200 publicationId vide", w.Code, w.Body.String())
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"publisherId":""`) {
+		t.Fatalf("media inconnu = %d %s, attendu 200 publisherId vide", w.Code, w.Body.String())
 	}
 
-	if w = do(r, http.MethodGet, "/v1/me/publication", "", ""); w.Code != http.StatusUnauthorized {
+	if w = do(r, http.MethodGet, "/v1/me/publisher", "", ""); w.Code != http.StatusUnauthorized {
 		t.Fatalf("anonyme = %d, attendu 401", w.Code)
 	}
 }

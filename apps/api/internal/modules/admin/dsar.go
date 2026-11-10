@@ -248,7 +248,7 @@ func (s *Service) ExportUserDSAR(ctx context.Context, staffID, userID, reason st
 		ORDER BY "createdAt" ASC`, userID)
 
 	subscriptions := s.exportRows(ctx, `
-		SELECT id, "publicationId", email, confirmed, "createdAt"
+		SELECT id, "publisherId", email, confirmed, "createdAt"
 		FROM "Subscriber"
 		WHERE "userId" = $1
 		ORDER BY "createdAt" DESC`, toDSARUUID(userID))

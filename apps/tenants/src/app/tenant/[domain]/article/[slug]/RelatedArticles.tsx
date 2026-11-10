@@ -1,6 +1,6 @@
 import { buildArticlePath } from '@qoe/utils';
 import Link from 'next/link';
-import { fetchTenantPublication } from '@/lib/tenant-data';
+import { fetchTenantPublisher } from '@/lib/tenant-data';
 
 interface RelatedArticlesProps {
   domain: string;
@@ -15,8 +15,8 @@ export async function RelatedArticles({
   categorySlug,
   categoryName,
 }: RelatedArticlesProps) {
-  const publication = await fetchTenantPublication(domain);
-  const items = (publication?.articles || []).filter(
+  const publisher = await fetchTenantPublisher(domain);
+  const items = (publisher?.articles || []).filter(
     (a) => a.published !== false && a.slug && a.slug !== currentSlug
   );
   if (items.length === 0) return null;

@@ -3,7 +3,7 @@
 // =====================================================================
 // Le moteur (packages/db/feed.ts) classe les articles et pensées par
 // affinité sémantique (pgvector) + circadien + MMR. Ce module résout les
-// ids ordonnés vers les enregistrements complets (auteur, publication,
+// ids ordonnés vers les enregistrements complets (auteur, publisher,
 // catégorie, threads…) et les sérialise dans la forme rendue par le
 // dashboard. Utilisé par page.tsx (première page, SSR) et par la route
 // API /api/feed/personalized (pages suivantes au scroll).
@@ -97,7 +97,7 @@ export interface FeedPostRecord {
       end: number;
       sha: string;
     } | null;
-    publication: {
+    publisher: {
       name: string;
       slug: string;
       subdomain: string | null;
@@ -121,7 +121,7 @@ export interface FeedPostRecord {
   poll?: FeedPoll | FormattedPoll | null;
 }
 
-export const mapPublicationToAuthor = (
+export const mapPublisherToAuthor = (
   pub: {
     id: string;
     type: 'PERSONAL' | 'MEDIA';
@@ -181,15 +181,15 @@ export const mapQuotedArticle = (article: FeedPostRecord['quotedArticle']) =>
           id: article.author.id,
           name: article.author.name,
           username: article.author.username,
-          subdomain: article.publication?.subdomain,
-          logoUrl: article.publication?.logoUrl,
-          isCertified: article.publication?.isCertified,
+          subdomain: article.publisher?.subdomain,
+          logoUrl: article.publisher?.logoUrl,
+          isCertified: article.publisher?.isCertified,
         },
-        publication: article.publication
+        publisher: article.publisher
           ? {
-              name: article.publication.name,
-              subdomain: article.publication.subdomain,
-              customDomain: article.publication.customDomain,
+              name: article.publisher.name,
+              subdomain: article.publisher.subdomain,
+              customDomain: article.publisher.customDomain,
             }
           : null,
       }
@@ -299,7 +299,7 @@ export const mapArticleToFeedItem = (art: ArticleWithDetails) => ({
     : new Date(art.createdAt)
   ).toISOString(),
   author: {
-    ...mapPublicationToAuthor(art.publication, art.author?.name, art.author?.logoUrl),
+    ...mapPublisherToAuthor(art.publisher, art.author?.name, art.author?.logoUrl),
     journalist: art.author
       ? {
           id: art.author.id,
@@ -403,7 +403,7 @@ export interface HydrateAuthor {
   isCertified: boolean;
   type?: 'PERSONAL' | 'MEDIA' | string | null;
 }
-export interface HydratePublication {
+export interface HydratePublisher {
   id: string;
   type: 'PERSONAL' | 'MEDIA';
   name: string;
@@ -437,7 +437,7 @@ export interface HydrateArticle {
   allowPublicAnnotations: boolean;
   allowComments: boolean;
   scheduledAt: string | null;
-  publicationId: string;
+  publisherId: string;
   authorId: string;
   categoryId: string | null;
   tierId: string | null;
@@ -446,7 +446,7 @@ export interface HydrateArticle {
   createdAt: string;
   updatedAt: string;
   author: HydrateAuthor;
-  publication: HydratePublication;
+  publisher: HydratePublisher;
   coAuthors: HydrateAuthor[];
   attributions: HydrateAttribution[];
 }

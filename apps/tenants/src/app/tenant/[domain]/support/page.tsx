@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import type { Metadata } from 'next';
 import { Heart } from 'lucide-react';
-import { fetchTenantPublication } from '@/lib/tenant-data';
+import { fetchTenantPublisher } from '@/lib/tenant-data';
 import { TenantPageShell } from '@/components/TenantPageShell';
 
 interface PageProps {
@@ -12,27 +12,27 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { domain } = await params;
   const decodedDomain = decodeURIComponent(domain);
-  const publication = await fetchTenantPublication(decodedDomain);
-  const name = publication?.name || decodedDomain;
+  const publisher = await fetchTenantPublisher(decodedDomain);
+  const name = publisher?.name || decodedDomain;
   return {
     title: `Soutenir | ${name}`,
     description: `Soutenir ${name}.`,
     alternates: { canonical: `https://${decodedDomain}/support` },
-    robots: { index: publication?.allowIndexing !== false, follow: true },
+    robots: { index: publisher?.allowIndexing !== false, follow: true },
   };
 }
 
 export default async function TenantSupportPage({ params }: PageProps) {
   const { domain } = await params;
   const decodedDomain = decodeURIComponent(domain);
-  const publication = await fetchTenantPublication(decodedDomain);
-  if (!publication) notFound();
+  const publisher = await fetchTenantPublisher(decodedDomain);
+  if (!publisher) notFound();
 
   const headersList = await headers();
   const host = headersList.get('x-forwarded-host') || headersList.get('host') || decodedDomain;
 
   return (
-    <TenantPageShell publication={publication} domain={decodedDomain} host={host}>
+    <TenantPageShell publisher={publisher} domain={decodedDomain} host={host}>
       <div className="flex items-center gap-3">
         <span className="rounded-lg bg-muted p-2.5">
           <Heart className="h-5 w-5" />
@@ -40,13 +40,13 @@ export default async function TenantSupportPage({ params }: PageProps) {
         <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Soutenir</h1>
       </div>
       <p className="mt-4 leading-relaxed text-muted-foreground">
-        Votre soutien finance directement le travail de {publication.name || decodedDomain}.
+        Votre soutien finance directement le travail de {publisher.name || decodedDomain}.
       </p>
 
       <div className="mt-8">
-        {publication.supportUrl ? (
+        {publisher.supportUrl ? (
           <a
-            href={publication.supportUrl}
+            href={publisher.supportUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground"
@@ -58,7 +58,7 @@ export default async function TenantSupportPage({ params }: PageProps) {
             Aucun moyen de soutien n&apos;est configuré pour le moment.
           </p>
         )}
-        {publication.stripeAccountId && (
+        {publisher.stripeAccountId && (
           <p className="mt-4 text-xs text-muted-foreground">Paiements sécurisés par Stripe.</p>
         )}
       </div>

@@ -28,7 +28,7 @@ func grantEmailPro(t *testing.T, pubID string) {
 	t.Helper()
 	now := time.Now()
 	if _, err := subscriptions.GrantPlan(context.Background(), poolTest,
-		subscriptions.SubjectPublication, pubID, subscriptions.PlanPro, now, nil,
+		subscriptions.SubjectPublisher, pubID, subscriptions.PlanPro, now, nil,
 		"staff-test", "test réglages email pro", now); err != nil {
 		t.Fatalf("octroi pro: %v", err)
 	}
@@ -40,7 +40,7 @@ func TestHandler_EmailSettings_GetDefaults(t *testing.T) {
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
 
-	w, body := doJSON(t, r, "GET", "/v1/settings/email?publicationId="+fx.PubID, token, nil)
+	w, body := doJSON(t, r, "GET", "/v1/settings/email?publisherId="+fx.PubID, token, nil)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
 	}
@@ -48,8 +48,8 @@ func TestHandler_EmailSettings_GetDefaults(t *testing.T) {
 	if !ok {
 		t.Fatalf("emailSettings absent : %s", w.Body.String())
 	}
-	if name, _ := body["publicationName"].(string); name == "" {
-		t.Error("publicationName attendu dans la réponse")
+	if name, _ := body["publisherName"].(string); name == "" {
+		t.Error("publisherName attendu dans la réponse")
 	}
 	// Défauts : réglages vides (le front pré-remplit avec accentColor/logoUrl).
 	if _, exists := settings["fromName"]; exists {
@@ -65,7 +65,7 @@ func TestHandler_EmailSettings_PatchValidatesAndPersists(t *testing.T) {
 	token := testJWT(fx.OwnerID)
 
 	payload := map[string]any{
-		"publicationId": fx.PubID,
+		"publisherId": fx.PubID,
 		"settings": map[string]any{
 			"fromName":    "Léa de La Gazette",
 			"accentColor": "#7C3AED",               // sera normalisé en minuscules
@@ -103,7 +103,7 @@ func TestHandler_EmailSettings_PatchValidatesAndPersists(t *testing.T) {
 	// Persistance de la version assainie en base.
 	var stored []byte
 	if err := poolTest.QueryRow(context.Background(),
-		`SELECT "emailSettings" FROM "Publication" WHERE id = $1`, fx.PubID).Scan(&stored); err != nil {
+		`SELECT "emailSettings" FROM "Publisher" WHERE id = $1`, fx.PubID).Scan(&stored); err != nil {
 		t.Fatalf("lecture emailSettings: %v", err)
 	}
 	var m map[string]any
@@ -115,7 +115,7 @@ func TestHandler_EmailSettings_PatchValidatesAndPersists(t *testing.T) {
 	}
 
 	// Le GET reflète la personnalisation.
-	w2, body2 := doJSON(t, r, "GET", "/v1/settings/email?publicationId="+fx.PubID, token, nil)
+	w2, body2 := doJSON(t, r, "GET", "/v1/settings/email?publisherId="+fx.PubID, token, nil)
 	if w2.Code != http.StatusOK {
 		t.Fatalf("GET après PATCH: %d", w2.Code)
 	}
@@ -131,27 +131,27 @@ func TestHandler_EmailSettings_AuthAndErrors(t *testing.T) {
 	r := newTestRouter()
 
 	// Sans token → 401.
-	w, _ := doJSON(t, r, "GET", "/v1/settings/email?publicationId="+fx.PubID, "", nil)
+	w, _ := doJSON(t, r, "GET", "/v1/settings/email?publisherId="+fx.PubID, "", nil)
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("sans token: %d, attendu 401", w.Code)
 	}
 
-	// publicationId manquant → 400.
+	// publisherId manquant → 400.
 	w2, _ := doJSON(t, r, "GET", "/v1/settings/email", testJWT(fx.OwnerID), nil)
 	if w2.Code != http.StatusBadRequest {
-		t.Fatalf("sans publicationId: %d, attendu 400", w2.Code)
+		t.Fatalf("sans publisherId: %d, attendu 400", w2.Code)
 	}
 
 	// JSON invalide au PATCH → 400.
 	w3, _ := doJSON(t, r, "PATCH", "/v1/settings/email", testJWT(fx.OwnerID), map[string]any{})
 	if w3.Code != http.StatusBadRequest {
-		t.Fatalf("PATCH sans publicationId: %d, attendu 400", w3.Code)
+		t.Fatalf("PATCH sans publisherId: %d, attendu 400", w3.Code)
 	}
 
 	// Réglages JSON complètement invalides → le service ne casse pas :
 	// ParseEmailPrefs rend les défauts et le PATCH reste 200.
 	w4, body4 := doJSON(t, r, "PATCH", "/v1/settings/email", testJWT(fx.OwnerID), map[string]any{
-		"publicationId": fx.PubID,
+		"publisherId": fx.PubID,
 		"settings":      "not an object",
 	})
 	if w4.Code != http.StatusOK {
@@ -178,7 +178,7 @@ func TestHandler_EmailSettings_PreviewConfirmFR(t *testing.T) {
 	token := testJWT(fx.OwnerID)
 
 	w, body := doJSON(t, r, "POST", "/v1/settings/email/preview", token, map[string]any{
-		"publicationId": fx.PubID,
+		"publisherId": fx.PubID,
 		"template":      "confirm",
 		"locale":        "fr",
 	})
@@ -209,7 +209,7 @@ func TestHandler_EmailSettings_PreviewWelcomeEN(t *testing.T) {
 	token := testJWT(fx.OwnerID)
 
 	w, body := doJSON(t, r, "POST", "/v1/settings/email/preview", token, map[string]any{
-		"publicationId": fx.PubID,
+		"publisherId": fx.PubID,
 		"template":      "welcome",
 		"locale":        "en-US", // borne → "en"
 	})
@@ -233,13 +233,13 @@ func TestHandler_EmailSettings_PreviewDraftOverridesStored(t *testing.T) {
 
 	// 1) Stocker une personnalisation.
 	_, _ = doJSON(t, r, "PATCH", "/v1/settings/email", token, map[string]any{
-		"publicationId": fx.PubID,
+		"publisherId": fx.PubID,
 		"settings":      map[string]any{"accentColor": "#2563eb", "subjects": map[string]any{"confirm": "Sujet stocké"}},
 	})
 
 	// 2) Prévisualiser avec un brouillon différent : le brouillon gagne.
 	w, body := doJSON(t, r, "POST", "/v1/settings/email/preview", token, map[string]any{
-		"publicationId": fx.PubID,
+		"publisherId": fx.PubID,
 		"template":      "confirm",
 		"locale":        "fr",
 		"settings":      map[string]any{"subjects": map[string]any{"confirm": "Sujet brouillon"}},
@@ -253,7 +253,7 @@ func TestHandler_EmailSettings_PreviewDraftOverridesStored(t *testing.T) {
 
 	// 3) Sans brouillon : les réglages stockés s'appliquent.
 	w2, body2 := doJSON(t, r, "POST", "/v1/settings/email/preview", token, map[string]any{
-		"publicationId": fx.PubID,
+		"publisherId": fx.PubID,
 		"template":      "confirm",
 		"locale":        "fr",
 	})
@@ -272,20 +272,20 @@ func TestHandler_EmailSettings_PreviewAuthAndBounds(t *testing.T) {
 	token := testJWT(fx.OwnerID)
 
 	// Sans auth → 401.
-	if w, _ := doJSON(t, r, "POST", "/v1/settings/email/preview", "", map[string]any{"publicationId": fx.PubID}); w.Code != http.StatusUnauthorized {
+	if w, _ := doJSON(t, r, "POST", "/v1/settings/email/preview", "", map[string]any{"publisherId": fx.PubID}); w.Code != http.StatusUnauthorized {
 		t.Errorf("sans token : status = %d, veut 401", w.Code)
 	}
 	// Pas owner → 403.
-	if w, _ := doJSON(t, r, "POST", "/v1/settings/email/preview", testJWT(fx.ViewerID), map[string]any{"publicationId": fx.PubID}); w.Code != http.StatusForbidden {
+	if w, _ := doJSON(t, r, "POST", "/v1/settings/email/preview", testJWT(fx.ViewerID), map[string]any{"publisherId": fx.PubID}); w.Code != http.StatusForbidden {
 		t.Errorf("viewer : status = %d, veut 403", w.Code)
 	}
-	// publicationId manquant → 400.
+	// publisherId manquant → 400.
 	if w, _ := doJSON(t, r, "POST", "/v1/settings/email/preview", token, map[string]any{}); w.Code != http.StatusBadRequest {
-		t.Errorf("sans publicationId : status = %d, veut 400", w.Code)
+		t.Errorf("sans publisherId : status = %d, veut 400", w.Code)
 	}
 	// Template inconnu → borné à confirm (200, jamais d'erreur).
 	w, body := doJSON(t, r, "POST", "/v1/settings/email/preview", token, map[string]any{
-		"publicationId": fx.PubID, "template": "hack", "locale": "xx",
+		"publisherId": fx.PubID, "template": "hack", "locale": "xx",
 	})
 	if w.Code != http.StatusOK {
 		t.Fatalf("template inconnu : status = %d", w.Code)
@@ -319,7 +319,7 @@ func TestHandler_EmailTest_SendsToCreator(t *testing.T) {
 	token := testJWT(fx.OwnerID)
 
 	w, body := doJSON(t, r, "POST", "/v1/settings/email/test", token, map[string]any{
-		"publicationId": fx.PubID,
+		"publisherId": fx.PubID,
 		"template":      "welcome",
 		"locale":        "en",
 	})
@@ -353,7 +353,7 @@ func TestHandler_EmailTest_DraftSettingsApplied(t *testing.T) {
 	token := testJWT(fx.OwnerID)
 
 	w, _ := doJSON(t, r, "POST", "/v1/settings/email/test", token, map[string]any{
-		"publicationId": fx.PubID,
+		"publisherId": fx.PubID,
 		"template":      "confirm",
 		"locale":        "fr",
 		"settings": map[string]any{
@@ -379,7 +379,7 @@ func TestHandler_EmailTest_NoProvider503(t *testing.T) {
 	// Pas de SetEmailTestSender : fonctionnalité éteinte → 503, jamais un
 	// faux « envoyé ».
 	w, _ := doJSON(t, r, "POST", "/v1/settings/email/test", token, map[string]any{
-		"publicationId": fx.PubID,
+		"publisherId": fx.PubID,
 	})
 	if w.Code != http.StatusServiceUnavailable {
 		t.Errorf("503 attendu, got %d (%s)", w.Code, w.Body.String())
@@ -393,14 +393,14 @@ func TestHandler_EmailTest_UnauthorizedAndForbidden(t *testing.T) {
 
 	// Pas de token → 401.
 	if w, _ := doJSON(t, r, "POST", "/v1/settings/email/test", "", map[string]any{
-		"publicationId": fx.PubID,
+		"publisherId": fx.PubID,
 	}); w.Code != http.StatusUnauthorized {
 		t.Errorf("401 attendu, got %d", w.Code)
 	}
 
 	// Token valide mais publication d'un autre créateur → 403.
 	if w, _ := doJSON(t, r, "POST", "/v1/settings/email/test", testJWT("user-other"), map[string]any{
-		"publicationId": fx.PubID,
+		"publisherId": fx.PubID,
 	}); w.Code != http.StatusForbidden {
 		t.Errorf("403 attendu, got %d (%s)", w.Code, w.Body.String())
 	}

@@ -196,7 +196,7 @@ func TestRouter_FullCreatorFlow(t *testing.T) {
 	token := routerJWT(fx.AuthorID)
 
 	// 1) Lecture publique d'un article publié (paywall sur le premium).
-	w, body := doReq(t, r, "GET", "/v1/articles/recette-pates?publicationId="+fx.PublicationID, "", nil)
+	w, body := doReq(t, r, "GET", "/v1/articles/recette-pates?publisherId="+fx.PublisherID, "", nil)
 	if w.Code != http.StatusOK {
 		t.Fatalf("lecture publique = %d, body = %s", w.Code, w.Body.String())
 	}
@@ -206,7 +206,7 @@ func TestRouter_FullCreatorFlow(t *testing.T) {
 
 	// 2) Liste créateur avec JWT : tableau brut d'articles complets (dashboard),
 	// brouillons inclus — parité avec les server actions du studio.
-	w2, _ := doReq(t, r, "GET", "/v1/articles?publicationId="+fx.PublicationID, token, nil)
+	w2, _ := doReq(t, r, "GET", "/v1/articles?publisherId="+fx.PublisherID, token, nil)
 	if w2.Code != http.StatusOK {
 		t.Fatalf("liste = %d, body = %s", w2.Code, w2.Body.String())
 	}
@@ -223,7 +223,7 @@ func TestRouter_FullCreatorFlow(t *testing.T) {
 
 	// 3) Création d'un article via le routeur complet.
 	w3, body3 := doReq(t, r, "POST", "/v1/articles", token, map[string]any{
-		"publicationId": fx.PublicationID,
+		"publisherId": fx.PublisherID,
 		"title":         "Via routeur",
 		"slug":          "via-routeur",
 		"content":       "Contenu complet via le routeur de prod",
@@ -237,13 +237,13 @@ func TestRouter_FullCreatorFlow(t *testing.T) {
 	createdID, _ := body3["id"].(string)
 
 	// 4) Lecture publique du nouvel article.
-	w4, _ := doReq(t, r, "GET", "/v1/articles/via-routeur?publicationId="+fx.PublicationID, "", nil)
+	w4, _ := doReq(t, r, "GET", "/v1/articles/via-routeur?publisherId="+fx.PublisherID, "", nil)
 	if w4.Code != http.StatusOK {
 		t.Fatalf("lecture nouvel article = %d", w4.Code)
 	}
 
 	// 5) Capabilities (route statique — régression du bug chi).
-	w5, body5 := doReq(t, r, "GET", "/v1/articles/capabilities?publicationId="+fx.PublicationID, token, nil)
+	w5, body5 := doReq(t, r, "GET", "/v1/articles/capabilities?publisherId="+fx.PublisherID, token, nil)
 	if w5.Code != http.StatusOK {
 		t.Fatalf("capabilities = %d, body = %s", w5.Code, w5.Body.String())
 	}
@@ -252,7 +252,7 @@ func TestRouter_FullCreatorFlow(t *testing.T) {
 	}
 
 	// 6) Suppression.
-	w6, _ := doReq(t, r, "DELETE", "/v1/articles/"+createdID+"?activePublicationId="+fx.PublicationID, token, nil)
+	w6, _ := doReq(t, r, "DELETE", "/v1/articles/"+createdID+"?activePublisherId="+fx.PublisherID, token, nil)
 	if w6.Code != http.StatusOK {
 		t.Fatalf("suppression = %d", w6.Code)
 	}

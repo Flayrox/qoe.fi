@@ -30,9 +30,7 @@ export default async function AudiencePage() {
 
   // Go : liste des abonnés de la publication.
   const res = await goFetch<{ subscribers: SubscriberDTO[] }>(
-    `/v1/analytics/audience/subscribers?publicationId=${encodeURIComponent(
-      workspace.publicationId
-    )}`
+    `/v1/analytics/audience/subscribers?publisherId=${encodeURIComponent(workspace.publisherId)}`
   );
   const serializedSubscribers: SubscriberItem[] = (res.subscribers ?? []).map((sub) => ({
     id: sub.id,

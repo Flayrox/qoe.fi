@@ -38,7 +38,7 @@ const ARTICLE: QuotedArticleData = {
     sha: 'sha-1',
   },
   author: { name: 'Camille Roux', username: 'camille', subdomain: null },
-  publication: { name: 'Le Journal Éco', subdomain: 'journaleco', customDomain: null },
+  publisher: { name: 'Le Journal Éco', subdomain: 'journaleco', customDomain: null },
 };
 
 /** Maillon 3 : une pensée qui cite un article. */
