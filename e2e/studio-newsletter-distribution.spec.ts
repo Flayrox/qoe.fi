@@ -101,7 +101,7 @@ function publishModalFixture() {
           });
 
           btnSubmit.addEventListener('click', () => {
-            btnSubmit.textContent = 'Publication en cours...';
+            btnSubmit.textContent = 'Publisher en cours...';
             btnSubmit.disabled = true;
             setTimeout(() => {
               document.querySelector('.modal-backdrop').style.display = 'none';

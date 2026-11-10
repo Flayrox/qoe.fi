@@ -9,11 +9,11 @@ const (
 	Media    = "MEDIA"
 )
 
-// FromPublicationType dérive l'identité publique d'un auteur d'article depuis
+// FromPublisherType dérive l'identité publique d'un auteur d'article depuis
 // le type de SA publication : MEDIA pour une publication média, PERSONAL sinon.
 // C'est la seule règle correcte pour un article : un membre de média qui publie
 // sur sa publication personnelle reste une personne.
-func FromPublicationType(publicationType string) string {
+func FromPublisherType(publicationType string) string {
 	if publicationType == Media {
 		return Media
 	}

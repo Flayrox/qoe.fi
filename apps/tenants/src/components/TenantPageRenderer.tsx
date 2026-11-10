@@ -6,13 +6,13 @@ import { buildCreatorVars, ThemeStyle } from '@qoe/theme';
 import {
   TemplateRenderer,
   parseSiteLayouts,
-  type TemplatePublicationContext,
+  type TemplatePublisherContext,
   type TemplateArticleItem,
 } from '@qoe/ui/templates';
 import { RecommendedSection } from '@/components/RecommendedSection';
 import { buildPublicDescription, sliceContentAtPaywall } from '@qoe/utils';
 import { ContentVisibility } from '@qoe/config';
-import type { TenantPublication, RecommendationItem } from '@/lib/tenant-data';
+import type { TenantPublisher, RecommendationItem } from '@/lib/tenant-data';
 import {
   TenantArticleRenderer,
   type TenantArticleRendererProps,
@@ -20,7 +20,7 @@ import {
 
 export interface TenantHomeRendererProps {
   scope: 'home';
-  publication: TenantPublication;
+  publisher: TenantPublisher;
   recommendations?: RecommendationItem[] | null;
   decodedDomain: string;
   activeCategory?: {
@@ -46,7 +46,7 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
     return <TenantArticleRenderer {...props} />;
   }
 
-  const { publication, recommendations, decodedDomain } = props;
+  const { publisher, recommendations, decodedDomain } = props;
   const activeCategory = 'activeCategory' in props ? props.activeCategory : null;
   const filteredArticles = 'filteredArticles' in props ? props.filteredArticles : null;
   const {
@@ -63,7 +63,7 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
     socialLinks = [],
     stripeAccountId,
     supportUrl,
-  } = publication;
+  } = publisher;
 
   const effectiveArticles = filteredArticles ?? articles;
 
@@ -98,14 +98,14 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
   const host = headersList.get('x-forwarded-host') || headersList.get('host') || decodedDomain;
   const mainAppUrl = getMainAppUrl(host);
 
-  const templatePub: TemplatePublicationContext = {
-    id: publication.id,
+  const templatePub: TemplatePublisherContext = {
+    id: publisher.id,
     name,
-    slug: publication.slug,
+    slug: publisher.slug,
     domain: host,
     mainAppUrl,
-    subdomain: publication.subdomain,
-    customDomain: publication.customDomain,
+    subdomain: publisher.subdomain,
+    customDomain: publisher.customDomain,
     logoUrl,
     heroText,
     headerImageUrl,
@@ -115,7 +115,7 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
     themeMode,
     stripeAccountId,
     supportUrl,
-    categories: (publication.categories ?? []).map((c) => ({
+    categories: (publisher.categories ?? []).map((c) => ({
       id: c.id,
       name: c.name,
       slug: c.slug,
@@ -134,13 +134,13 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
       : null,
     siteOptions:
       (
-        publication as {
+        publisher as {
           siteOptions?: Record<string, unknown> | null;
           site_options?: Record<string, unknown> | null;
         }
       ).siteOptions ??
       (
-        publication as {
+        publisher as {
           siteOptions?: Record<string, unknown> | null;
           site_options?: Record<string, unknown> | null;
         }
@@ -152,7 +152,7 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
       url: n.url,
       order: n.order,
       isExternal: n.isExternal,
-      publicationId: publication.id,
+      publisherId: publisher.id,
       parentId: n.parentId,
     })),
     socialLinks: socialLinks.map((s) => ({
@@ -160,22 +160,22 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
       platform: s.platform,
       url: s.url,
       order: s.order,
-      publicationId: publication.id,
+      publisherId: publisher.id,
     })),
     recommendations: recommendations ?? null,
     author: {
       // L'avatar de la personne (et non le logo de la publication) : l'en-tête
       // s'en sert comme identité de repli quand aucun logo n'est configuré.
-      name: publication.user?.name ?? publication.name,
-      username: publication.user?.username ?? publication.subdomain ?? null,
-      avatarUrl: publication.user?.logoUrl ?? null,
-      bio: publication.heroText ?? publication.bio ?? null,
-      type: publication.type,
+      name: publisher.user?.name ?? publisher.name,
+      username: publisher.user?.username ?? publisher.subdomain ?? null,
+      avatarUrl: publisher.user?.logoUrl ?? null,
+      bio: publisher.heroText ?? publisher.bio ?? null,
+      type: publisher.type,
     },
   };
 
-  const rawSiteOpts = (publication.siteOptions ??
-    (publication as unknown as { site_options?: Record<string, unknown> | null }).site_options ??
+  const rawSiteOpts = (publisher.siteOptions ??
+    (publisher as unknown as { site_options?: Record<string, unknown> | null }).site_options ??
     {}) as Record<string, unknown>;
   const pinnedArticleId = rawSiteOpts?.pinnedArticleId as string | undefined;
 
@@ -229,7 +229,7 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
       <JsonLd data={jsonLdData} />
       <TemplateRenderer
         config={siteLayouts.home}
-        publication={templatePub}
+        publisher={templatePub}
         articles={templateArticles}
         mode="live"
       />

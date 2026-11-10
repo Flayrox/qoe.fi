@@ -109,7 +109,7 @@ func (h *Handler) RegisterAPIKey(r chi.Router) {
 	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Post("/v1/creator/subscribers", h.apiSubscriberCreate)
 	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Delete("/v1/creator/subscribers/{idOrEmail}", h.apiSubscriberDelete)
 	// Métadonnées complètes de branding de la publication pour front headless
-	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/publication", h.apiPublicationMetadata)
+	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/publisher", h.apiPublisherMetadata)
 	// ⚠️ /v1/creator/recommendations N'EST PAS déclaré ici : il vit dans
 	// RegisterProtected (CombinedAuth JWT + clés API). Un double enregistrement
 	// ferait masquer la route JWT par le groupe clé API → 401 sur le dashboard.
@@ -119,9 +119,9 @@ func (h *Handler) RegisterAPIKey(r chi.Router) {
 // lecteurs sur les articles liés au créateur (multi-auteurs inclus),
 // paginés. Réservé aux clés API (scope READ).
 func (h *Handler) apiHighlights(w http.ResponseWriter, r *http.Request) {
-	publicationID, _ := middleware.PublicationID(r.Context())
+	publisherID, _ := middleware.PublisherID(r.Context())
 	userID, _ := middleware.UserID(r.Context())
-	if userID == "" && publicationID == "" {
+	if userID == "" && publisherID == "" {
 		response.Unauthorized(w, "Authentification requise")
 		return
 	}
@@ -129,7 +129,7 @@ func (h *Handler) apiHighlights(w http.ResponseWriter, r *http.Request) {
 	officialOnly := r.URL.Query().Get("official") == "true"
 	page, err := h.apiHighlightsPage(
 		r.Context(),
-		publicationID,
+		publisherID,
 		userID,
 		r.URL.Query().Get("article"),
 		officialOnly,
@@ -153,12 +153,17 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 	// Inscription publique à la newsletter d'une publication (CORS activé pour intégration externe).
 	// Rate-limitée : la confirmation n'empêche pas à elle seule le harcèlement
 	// par e-mails de confirmation (fiche 01 §5).
+	r.Options("/v1/publishers/{slugOrId}/subscribe", h.publicSubscribeOptions)
+	r.Post("/v1/publishers/{slugOrId}/subscribe", h.publicSubscribeLimiter(h.publicSubscribe).ServeHTTP)
+	// Profil public minimal (nom + logo, rien de sensible) : le site tiers et
+	// la page qoe.fi affichent « Confirmer l'abonnement à [éditeur] »
+	// sans clé API. Lecture seule indexée, pas de PII.
+	r.Get("/v1/publishers/{slugOrId}/profile", h.publicPublisherProfile)
+
+	// Alias de rétrocompatibilité pour d'anciens formulaires embeds externes.
 	r.Options("/v1/publications/{slugOrId}/subscribe", h.publicSubscribeOptions)
 	r.Post("/v1/publications/{slugOrId}/subscribe", h.publicSubscribeLimiter(h.publicSubscribe).ServeHTTP)
-	// Profil public minimal (nom + logo, rien de sensible) : le site tiers et
-	// la page qoe.fi affichent « Confirmer l'abonnement à [publication] »
-	// sans clé API. Lecture seule indexée, pas de PII.
-	r.Get("/v1/publications/{slugOrId}/profile", h.publicPublicationProfile)
+	r.Get("/v1/publications/{slugOrId}/profile", h.publicPublisherProfile)
 }
 
 // RegisterProtected — routes créateur authentifiées JWT (ou clé API via
@@ -199,12 +204,12 @@ type category struct {
 }
 
 func (h *Handler) categories(w http.ResponseWriter, r *http.Request) {
-	pubID := r.URL.Query().Get("publicationId")
+	pubID := r.URL.Query().Get("publisherId")
 	if pubID == "" {
-		pubID, _ = middleware.PublicationID(r.Context())
+		pubID, _ = middleware.PublisherID(r.Context())
 	}
 	if pubID == "" {
-		response.NotFound(w, "Publication not found")
+		response.NotFound(w, "Publisher not found")
 		return
 	}
 
@@ -214,7 +219,7 @@ func (h *Handler) categories(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[creator] ensureDefaultCategory: %v", err)
 	}
 
-	rows, err := h.q.ListCategoriesByPublication(r.Context(), pubID)
+	rows, err := h.q.ListCategoriesByPublisher(r.Context(), pubID)
 	if err != nil {
 		log.Printf("[creator] categories: %v", err)
 		response.Internal(w)
@@ -246,17 +251,17 @@ func (h *Handler) categories(w http.ResponseWriter, r *http.Request) {
 }
 
 // authorizeCategories vérifie que l'utilisateur peut gérer les catégories de la publication.
-func (h *Handler) authorizeCategories(ctx context.Context, userID, publicationID string) error {
-	if p, ok := middleware.GetPrincipal(ctx); ok && p.Type == middleware.PrincipalTypePublication {
-		if p.PublicationID != nil && *p.PublicationID == publicationID {
+func (h *Handler) authorizeCategories(ctx context.Context, userID, publisherID string) error {
+	if p, ok := middleware.GetPrincipal(ctx); ok && p.Type == middleware.PrincipalTypePublisher {
+		if p.PublisherID != nil && *p.PublisherID == publisherID {
 			return nil
 		}
 	}
-	if personal, err := h.q.GetUserPersonalPublication(ctx, userID); err == nil && personal.String == publicationID {
+	if personal, err := h.q.GetUserPersonalPublisher(ctx, userID); err == nil && personal.String == publisherID {
 		return nil
 	}
 	member, err := h.q.GetMediaMemberContext(ctx, db.GetMediaMemberContextParams{
-		PublicationId: publicationID, UserId: toUUID(userID),
+		PublisherId: publisherID, UserId: toUUID(userID),
 	})
 	if err != nil {
 		return errForbidden
@@ -271,7 +276,7 @@ func (h *Handler) authorizeCategories(ctx context.Context, userID, publicationID
 
 // categoryInput est la charge utile de création/édition d'une catégorie.
 type categoryInput struct {
-	PublicationID string  `json:"publicationId"`
+	PublisherID string  `json:"publisherId"`
 	Name          string  `json:"name"`
 	Slug          string  `json:"slug"`
 	Description   *string `json:"description"`
@@ -285,11 +290,11 @@ func (h *Handler) createCategory(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	if in.PublicationID == "" || in.Name == "" {
-		response.BadRequest(w, "publicationId et name requis")
+	if in.PublisherID == "" || in.Name == "" {
+		response.BadRequest(w, "publisherId et name requis")
 		return
 	}
-	if err := h.authorizeCategories(r.Context(), userID, in.PublicationID); err != nil {
+	if err := h.authorizeCategories(r.Context(), userID, in.PublisherID); err != nil {
 		response.Forbidden(w, "Accès refusé à cette publication.")
 		return
 	}
@@ -306,7 +311,7 @@ func (h *Handler) createCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	exists, err := h.q.CheckCategorySlugExists(r.Context(), db.CheckCategorySlugExistsParams{
-		PublicationId: in.PublicationID, Slug: finalSlug, ID: "",
+		PublisherId: in.PublisherID, Slug: finalSlug, ID: "",
 	})
 	if err == nil && exists {
 		response.BadRequest(w, fmt.Sprintf("Le slug %q est déjà utilisé par une autre de vos catégories.", finalSlug))
@@ -320,7 +325,7 @@ func (h *Handler) createCategory(w http.ResponseWriter, r *http.Request) {
 			response.BadRequest(w, "Catégorie parente introuvable.")
 			return
 		}
-		if parent.PublicationId != in.PublicationID {
+		if parent.PublisherId != in.PublisherID {
 			response.BadRequest(w, "La catégorie parente n'appartient pas à cette publication.")
 			return
 		}
@@ -335,7 +340,7 @@ func (h *Handler) createCategory(w http.ResponseWriter, r *http.Request) {
 		Name:          in.Name,
 		Slug:          finalSlug,
 		Description:   textVal(in.Description),
-		PublicationId: in.PublicationID,
+		PublisherId: in.PublisherID,
 		ParentId:      parentID,
 	})
 	if err != nil {
@@ -360,7 +365,7 @@ func (h *Handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 		response.NotFound(w, "Catégorie introuvable.")
 		return
 	}
-	if err := h.authorizeCategories(r.Context(), userID, existing.PublicationId); err != nil {
+	if err := h.authorizeCategories(r.Context(), userID, existing.PublisherId); err != nil {
 		response.Forbidden(w, "Vous n'êtes pas autorisé à modifier cette catégorie.")
 		return
 	}
@@ -387,7 +392,7 @@ func (h *Handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	exists, err := h.q.CheckCategorySlugExists(r.Context(), db.CheckCategorySlugExistsParams{
-		PublicationId: existing.PublicationId, Slug: finalSlug, ID: id,
+		PublisherId: existing.PublisherId, Slug: finalSlug, ID: id,
 	})
 	if err == nil && exists {
 		response.BadRequest(w, fmt.Sprintf("Le slug %q est déjà utilisé par une autre de vos catégories.", finalSlug))
@@ -408,7 +413,7 @@ func (h *Handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 				response.BadRequest(w, "Catégorie parente introuvable.")
 				return
 			}
-			if parent.PublicationId != existing.PublicationId {
+			if parent.PublisherId != existing.PublisherId {
 				response.BadRequest(w, "La catégorie parente n'appartient pas à cette publication.")
 				return
 			}
@@ -417,7 +422,7 @@ func (h *Handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			// Empêcher de convertir une catégorie mère contenant des sous-catégories en sous-catégorie
-			siblings, err := h.q.ListCategoriesByPublication(r.Context(), existing.PublicationId)
+			siblings, err := h.q.ListCategoriesByPublisher(r.Context(), existing.PublisherId)
 			if err == nil {
 				for _, sib := range siblings {
 					if sib.ParentId.Valid && sib.ParentId.String == id {
@@ -463,7 +468,7 @@ func (h *Handler) deleteCategory(w http.ResponseWriter, r *http.Request) {
 		response.NotFound(w, "Catégorie introuvable.")
 		return
 	}
-	if err := h.authorizeCategories(r.Context(), userID, existing.PublicationId); err != nil {
+	if err := h.authorizeCategories(r.Context(), userID, existing.PublisherId); err != nil {
 		response.Forbidden(w, "Vous n'êtes pas autorisé à supprimer cette catégorie.")
 		return
 	}
@@ -566,14 +571,14 @@ func (h *Handler) userMe(w http.ResponseWriter, r *http.Request) {
 			}
 
 			_, _ = h.pool.Exec(r.Context(), `
-				INSERT INTO "Publication" (id, type, name, slug, subdomain, "createdAt", "updatedAt")
+				INSERT INTO "Publisher" (id, type, name, slug, subdomain, "createdAt", "updatedAt")
 				VALUES ($1, 'PERSONAL', $2, $3, $3, now(), now())
 				ON CONFLICT (id) DO NOTHING`, pubID, name, slugVal)
 
 			_, _ = h.pool.Exec(r.Context(), `
-				INSERT INTO "User" (id, email, name, username, role, "publicationId", "createdAt", "updatedAt")
+				INSERT INTO "User" (id, email, name, username, role, "publisherId", "createdAt", "updatedAt")
 				VALUES ($1, $2, $3, $4, 'user', $5, now(), now())
-				ON CONFLICT (id) DO UPDATE SET email = $2, name = $3, username = $4, "publicationId" = $5, "updatedAt" = now()`,
+				ON CONFLICT (id) DO UPDATE SET email = $2, name = $3, username = $4, "publisherId" = $5, "updatedAt" = now()`,
 				toUUID(userID), email, name, username, pubID)
 
 			// Re-fetch de la ligne fraîchement créée
@@ -598,19 +603,19 @@ func (h *Handler) userMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var followers int32
-	if row.PublicationId.Valid && row.PublicationId.String != "" {
-		if n, err := h.q.CountFollowers(r.Context(), row.PublicationId.String); err == nil {
+	if row.PublisherId.Valid && row.PublisherId.String != "" {
+		if n, err := h.q.CountFollowers(r.Context(), row.PublisherId.String); err == nil {
 			followers = n
 		}
 	}
 
 	// Avatar du compte : logo personnel (User.logoUrl), sinon logo de la
 	// publication personnelle (convention PERSONAL : avatar auteur ?? logo pub).
-	var publicationLogoUrl *string
-	if row.PublicationId.Valid && row.PublicationId.String != "" {
+	var publisherLogoUrl *string
+	if row.PublisherId.Valid && row.PublisherId.String != "" {
 		var logo pgtype.Text
-		if err := h.pool.QueryRow(r.Context(), `SELECT "logoUrl" FROM "Publication" WHERE id = $1`, row.PublicationId.String).Scan(&logo); err == nil && logo.Valid {
-			publicationLogoUrl = &logo.String
+		if err := h.pool.QueryRow(r.Context(), `SELECT "logoUrl" FROM "Publisher" WHERE id = $1`, row.PublisherId.String).Scan(&logo); err == nil && logo.Valid {
+			publisherLogoUrl = &logo.String
 		}
 	}
 
@@ -627,8 +632,8 @@ func (h *Handler) userMe(w http.ResponseWriter, r *http.Request) {
 		"forceStandardTheme":     row.ForceStandardTheme,
 		"onboardingText":         textPtr(row.OnboardingText),
 		"logoUrl":                textPtr(row.LogoUrl),
-		"publicationLogoUrl":     publicationLogoUrl,
-		"publicationId":          textPtr(row.PublicationId),
+		"publisherLogoUrl":     publisherLogoUrl,
+		"publisherId":          textPtr(row.PublisherId),
 		"advancedSettingsMode":   row.AdvancedSettingsMode,
 		"hasCompletedOnboarding": row.HasCompletedOnboarding,
 		"apiAccessStatus":        row.ApiAccessStatus,
@@ -646,14 +651,14 @@ func (h *Handler) userMe(w http.ResponseWriter, r *http.Request) {
 // publicProfileIdentity dérive le type public du profil depuis SA publication.
 // Aucun `MediaMember` n'entre dans cette décision : le profil personnel d'un
 // membre de média reste PERSONAL, seul un profil de publication média est MEDIA.
-func publicProfileIdentity(publicationType db.PublicationType) string {
-	return identity.FromPublicationType(string(publicationType))
+func publicProfileIdentity(publicationType db.PublisherType) string {
+	return identity.FromPublisherType(string(publicationType))
 }
 
 func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 	username := chi.URLParam(r, "username")
 
-	row, err := h.q.GetPublicationBySlugOrSubdomain(r.Context(), username)
+	row, err := h.q.GetPublisherBySlugOrSubdomain(r.Context(), username)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			// Fallback : cherche si c'est un User.username ou User.id
@@ -662,19 +667,19 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 			var uBio, uLogo pgtype.Text
 			var uCreatedAt pgtype.Timestamp
 			errUser := h.pool.QueryRow(r.Context(), `
-				SELECT id, "publicationId", COALESCE(name, username, 'Lecteur'), COALESCE(username, id::text), "onboardingText", "logoUrl", "createdAt"
+				SELECT id, "publisherId", COALESCE(name, username, 'Lecteur'), COALESCE(username, id::text), "onboardingText", "logoUrl", "createdAt"
 				FROM "User" 
 				WHERE LOWER(username) = LOWER($1) 
 				   OR id::text = $1 
-				   OR "publicationId" = $1
+				   OR "publisherId" = $1
 				LIMIT 1`, username).Scan(&uID, &pubID, &uName, &uUsername, &uBio, &uLogo, &uCreatedAt)
 			if errUser == nil {
 				if pubID.Valid && pubID.String != "" {
-					row, err = h.q.GetPublicationBySlugOrSubdomain(r.Context(), pubID.String)
+					row, err = h.q.GetPublisherBySlugOrSubdomain(r.Context(), pubID.String)
 				} else {
-					row = db.GetPublicationBySlugOrSubdomainRow{
+					row = db.GetPublisherBySlugOrSubdomainRow{
 						ID:             uID,
-						Type:           db.PublicationTypePERSONAL,
+						Type:           db.PublisherTypePERSONAL,
 						Name:           uName,
 						Slug:           uUsername,
 						HeroText:       uBio,
@@ -707,22 +712,22 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 	var pronouns *string
 	var onboardingText *string
 	displaySlug := row.Slug
-	if ownerID, err := h.q.GetPublicationOwner(r.Context(), row.ID); err == nil {
+	if ownerID, err := h.q.GetPublisherOwner(r.Context(), row.ID); err == nil {
 		ownerUserID = ownerID
 		if n, err := h.q.CountFollowing(r.Context(), toUUID(ownerID)); err == nil {
 			followingCount = n
 		}
-		if row.Type != db.PublicationTypeMEDIA {
+		if row.Type != db.PublisherTypeMEDIA {
 			if p, err := h.q.GetUserPronouns(r.Context(), ownerID); err == nil && p.Valid {
 				pronouns = &p.String
 			}
 		}
 		var uUsername, uOnboarding pgtype.Text
 		if err := h.pool.QueryRow(r.Context(), `SELECT username, "onboardingText" FROM "User" WHERE id = $1`, toUUID(ownerID)).Scan(&uUsername, &uOnboarding); err == nil {
-			if row.Type == db.PublicationTypePERSONAL && uUsername.Valid && uUsername.String != "" {
+			if row.Type == db.PublisherTypePERSONAL && uUsername.Valid && uUsername.String != "" {
 				displaySlug = uUsername.String
 			}
-			if row.Type == db.PublicationTypePERSONAL && uOnboarding.Valid && strings.TrimSpace(uOnboarding.String) != "" {
+			if row.Type == db.PublisherTypePERSONAL && uOnboarding.Valid && strings.TrimSpace(uOnboarding.String) != "" {
 				loc := strings.TrimSpace(uOnboarding.String)
 				onboardingText = &loc
 			}
@@ -731,10 +736,10 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 
 	// Un média n'emprunte ni les pronoms ni la localisation de son owner :
 	// sa localisation est une métadonnée de la publication.
-	if row.Type == db.PublicationTypeMEDIA {
+	if row.Type == db.PublisherTypeMEDIA {
 		var mediaLocation pgtype.Text
 		if err := h.pool.QueryRow(r.Context(),
-			`SELECT NULLIF(BTRIM("siteOptions"->>'location'), '') FROM "Publication" WHERE id = $1`,
+			`SELECT NULLIF(BTRIM("siteOptions"->>'location'), '') FROM "Publisher" WHERE id = $1`,
 			row.ID).Scan(&mediaLocation); err == nil && mediaLocation.Valid {
 			onboardingText = &mediaLocation.String
 		}
@@ -762,7 +767,7 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 	var siteOptJSON []byte
 	var supp pgtype.Text
 	if err := h.pool.QueryRow(r.Context(),
-		`SELECT "supportUrl", "siteOptions" FROM "Publication" WHERE id = $1`,
+		`SELECT "supportUrl", "siteOptions" FROM "Publisher" WHERE id = $1`,
 		row.ID).Scan(&supp, &siteOptJSON); err == nil {
 		if supp.Valid && strings.TrimSpace(supp.String) != "" {
 			s := strings.TrimSpace(supp.String)
@@ -812,7 +817,7 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 // followActor est un utilisateur listé dans followers/following.
 type followActor struct {
 	ID            string  `json:"id"`
-	PublicationID *string `json:"publicationId"`
+	PublisherID *string `json:"publisherId"`
 	Name          *string `json:"name"`
 	Username      *string `json:"username"`
 	LogoURL       *string `json:"logoUrl"`
@@ -834,12 +839,12 @@ func (h *Handler) userFollowers(w http.ResponseWriter, r *http.Request) {
 	username := chi.URLParam(r, "username")
 	limit, offset := parseFollowPage(r)
 
-	pub, err := h.q.GetPublicationBySlugOrSubdomain(r.Context(), username)
+	pub, err := h.q.GetPublisherBySlugOrSubdomain(r.Context(), username)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			var userPubID pgtype.Text
-			if errUser := h.pool.QueryRow(r.Context(), `SELECT "publicationId" FROM "User" WHERE id::text = $1 OR lower(username) = lower($1)`, username).Scan(&userPubID); errUser == nil && userPubID.Valid && userPubID.String != "" {
-				pub, err = h.q.GetPublicationBySlugOrSubdomain(r.Context(), userPubID.String)
+			if errUser := h.pool.QueryRow(r.Context(), `SELECT "publisherId" FROM "User" WHERE id::text = $1 OR lower(username) = lower($1)`, username).Scan(&userPubID); errUser == nil && userPubID.Valid && userPubID.String != "" {
+				pub, err = h.q.GetPublisherBySlugOrSubdomain(r.Context(), userPubID.String)
 			}
 		}
 		if err != nil {
@@ -867,8 +872,8 @@ func (h *Handler) userFollowers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := h.q.ListFollowersByPublication(r.Context(), db.ListFollowersByPublicationParams{
-		PublicationId: pub.ID,
+	rows, err := h.q.ListFollowersByPublisher(r.Context(), db.ListFollowersByPublisherParams{
+		PublisherId: pub.ID,
 		ViewerID:      toUUID(userID),
 		Limit:         int32(limit + 1),
 		Offset:        int32(offset),
@@ -885,10 +890,10 @@ func (h *Handler) userFollowers(w http.ResponseWriter, r *http.Request) {
 	}
 	items := make([]followActor, 0, len(rows))
 	for _, row := range rows {
-		pubID := row.UserPublicationID
+		pubID := row.UserPublisherID
 		items = append(items, followActor{
 			ID:            row.UserID,
-			PublicationID: &pubID,
+			PublisherID: &pubID,
 			Name:          textPtr(row.UserName),
 			Username:      textPtr(row.UserUsername),
 			LogoURL:       textPtr(row.UserLogo),
@@ -911,12 +916,12 @@ func (h *Handler) userFollowing(w http.ResponseWriter, r *http.Request) {
 	username := chi.URLParam(r, "username")
 	limit, offset := parseFollowPage(r)
 
-	pub, err := h.q.GetPublicationBySlugOrSubdomain(r.Context(), username)
+	pub, err := h.q.GetPublisherBySlugOrSubdomain(r.Context(), username)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			var userPubID pgtype.Text
-			if errUser := h.pool.QueryRow(r.Context(), `SELECT "publicationId" FROM "User" WHERE id::text = $1 OR lower(username) = lower($1)`, username).Scan(&userPubID); errUser == nil && userPubID.Valid && userPubID.String != "" {
-				pub, err = h.q.GetPublicationBySlugOrSubdomain(r.Context(), userPubID.String)
+			if errUser := h.pool.QueryRow(r.Context(), `SELECT "publisherId" FROM "User" WHERE id::text = $1 OR lower(username) = lower($1)`, username).Scan(&userPubID); errUser == nil && userPubID.Valid && userPubID.String != "" {
+				pub, err = h.q.GetPublisherBySlugOrSubdomain(r.Context(), userPubID.String)
 			}
 		}
 		if err != nil {
@@ -928,7 +933,7 @@ func (h *Handler) userFollowing(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	ownerID, err := h.q.GetPublicationOwner(r.Context(), pub.ID)
+	ownerID, err := h.q.GetPublisherOwner(r.Context(), pub.ID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			response.NotFound(w, "User not found")
@@ -971,10 +976,10 @@ func (h *Handler) userFollowing(w http.ResponseWriter, r *http.Request) {
 	}
 	items := make([]followActor, 0, len(rows))
 	for _, row := range rows {
-		pubID := row.UserPublicationID
+		pubID := row.UserPublisherID
 		items = append(items, followActor{
 			ID:            row.UserID,
-			PublicationID: &pubID,
+			PublisherID: &pubID,
 			Name:          stringPtr(row.UserName),
 			Username:      stringPtr(row.UserUsername),
 			LogoURL:       textPtr(row.UserLogo),
@@ -1021,11 +1026,11 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 
 	// Résout targetID vers l'ID de publication si un slug, username ou User.id est passé
 	pubID := targetID
-	if pub, err := h.q.GetPublicationBySlugOrSubdomain(ctx, targetID); err == nil {
+	if pub, err := h.q.GetPublisherBySlugOrSubdomain(ctx, targetID); err == nil {
 		pubID = pub.ID
 	} else {
 		var userPubID pgtype.Text
-		if errUser := h.pool.QueryRow(ctx, `SELECT "publicationId" FROM "User" WHERE id::text = $1 OR lower(username) = lower($1)`, targetID).Scan(&userPubID); errUser == nil && userPubID.Valid && userPubID.String != "" {
+		if errUser := h.pool.QueryRow(ctx, `SELECT "publisherId" FROM "User" WHERE id::text = $1 OR lower(username) = lower($1)`, targetID).Scan(&userPubID); errUser == nil && userPubID.Valid && userPubID.String != "" {
 			pubID = userPubID.String
 		}
 	}
@@ -1045,17 +1050,17 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if access.OwnerID == userID {
-		pubTypeRow, errPub := h.q.GetPublicationTypeByID(ctx, pubID)
-		if errPub != nil || pubTypeRow.Type != db.PublicationTypeMEDIA {
+		pubTypeRow, errPub := h.q.GetPublisherTypeByID(ctx, pubID)
+		if errPub != nil || pubTypeRow.Type != db.PublisherTypeMEDIA {
 			response.BadRequest(w, "You cannot follow yourself")
 			return
 		}
 	}
 
-	params := db.GetExistingFollowParams{ReaderId: toUUID(userID), PublicationId: pubID}
+	params := db.GetExistingFollowParams{ReaderId: toUUID(userID), PublisherId: pubID}
 
 	if _, err := h.q.GetExistingFollow(ctx, params); err == nil {
-		if err := h.q.DeleteFollow(ctx, db.DeleteFollowParams{ReaderId: toUUID(userID), PublicationId: pubID}); err != nil {
+		if err := h.q.DeleteFollow(ctx, db.DeleteFollowParams{ReaderId: toUUID(userID), PublisherId: pubID}); err != nil {
 			log.Printf("[creator] unfollow: %v", err)
 			response.Internal(w)
 			return
@@ -1091,7 +1096,7 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 	if access.Visibility == "PRIVATE" {
 		if err := h.q.InsertFollowRequest(ctx, db.InsertFollowRequestParams{
 			RequesterId:   toUUID(userID),
-			PublicationId: pubID,
+			PublisherId: pubID,
 		}); err != nil {
 			log.Printf("[creator] follow request: %v", err)
 			response.Internal(w)
@@ -1108,7 +1113,7 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.q.InsertFollow(ctx, db.InsertFollowParams{ReaderId: toUUID(userID), PublicationId: pubID}); err != nil {
+	if err := h.q.InsertFollow(ctx, db.InsertFollowParams{ReaderId: toUUID(userID), PublisherId: pubID}); err != nil {
 		log.Printf("[creator] follow: %v", err)
 		response.Internal(w)
 		return
@@ -1126,8 +1131,8 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 // notifyFollow crée la notification FOLLOW au propriétaire d'une publication
 // (PERSONAL → créateur, MEDIA → membre owner). Best-effort, respecte les
 // préférences du destinataire et déduplique les suivis non lus.
-func notifyFollow(ctx context.Context, tq ServiceQuerier, publicationID, senderID string) error {
-	ownerID, err := tq.GetPublicationOwner(ctx, publicationID)
+func notifyFollow(ctx context.Context, tq ServiceQuerier, publisherID, senderID string) error {
+	ownerID, err := tq.GetPublisherOwner(ctx, publisherID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
@@ -1153,7 +1158,7 @@ func notifyFollow(ctx context.Context, tq ServiceQuerier, publicationID, senderI
 	exists, err := tq.ExistsUnreadFollowNotification(ctx, db.ExistsUnreadFollowNotificationParams{
 		RecipientId:   ownerUUID,
 		SenderId:      senderUUID,
-		PublicationId: pgtype.Text{String: publicationID, Valid: true},
+		PublisherId: pgtype.Text{String: publisherID, Valid: true},
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -1169,13 +1174,13 @@ func notifyFollow(ctx context.Context, tq ServiceQuerier, publicationID, senderI
 	return tq.InsertFollowNotification(ctx, db.InsertFollowNotificationParams{
 		RecipientId:   ownerUUID,
 		SenderId:      senderUUID,
-		PublicationId: pgtype.Text{String: publicationID, Valid: true},
+		PublisherId: pgtype.Text{String: publisherID, Valid: true},
 	})
 }
 
 // deleteFollowNotification supprime la notification FOLLOW lors d'un unfollow.
-func deleteFollowNotification(ctx context.Context, tq ServiceQuerier, publicationID, senderID string) error {
-	ownerID, err := tq.GetPublicationOwner(ctx, publicationID)
+func deleteFollowNotification(ctx context.Context, tq ServiceQuerier, publisherID, senderID string) error {
+	ownerID, err := tq.GetPublisherOwner(ctx, publisherID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
@@ -1189,7 +1194,7 @@ func deleteFollowNotification(ctx context.Context, tq ServiceQuerier, publicatio
 	return tq.DeleteFollowNotification(ctx, db.DeleteFollowNotificationParams{
 		RecipientId:   toUUID(ownerID),
 		SenderId:      toUUID(senderID),
-		PublicationId: pgtype.Text{String: publicationID, Valid: true},
+		PublisherId: pgtype.Text{String: publisherID, Valid: true},
 	})
 }
 
@@ -1207,10 +1212,10 @@ func (h *Handler) removeFollower(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pubID, _ := middleware.PublicationID(r.Context())
+	pubID, _ := middleware.PublisherID(r.Context())
 	if pubID == "" {
 		var userPubID pgtype.Text
-		err := h.pool.QueryRow(r.Context(), `SELECT "publicationId" FROM "User" WHERE id = $1::uuid`, toUUID(userID)).Scan(&userPubID)
+		err := h.pool.QueryRow(r.Context(), `SELECT "publisherId" FROM "User" WHERE id = $1::uuid`, toUUID(userID)).Scan(&userPubID)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				response.NotFound(w, "Utilisateur introuvable")
@@ -1225,13 +1230,13 @@ func (h *Handler) removeFollower(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if pubID == "" {
-		response.NotFound(w, "Publication introuvable")
+		response.NotFound(w, "Publisher introuvable")
 		return
 	}
 
 	if _, err := h.pool.Exec(r.Context(), `
 		DELETE FROM "Follows"
-		WHERE "readerId" = $1::uuid AND "publicationId" = $2
+		WHERE "readerId" = $1::uuid AND "publisherId" = $2
 	`, toUUID(targetUserID), pubID); err != nil {
 		log.Printf("[creator] remove follower: %v", err)
 		response.Internal(w)

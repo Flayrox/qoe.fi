@@ -74,7 +74,7 @@ export function OAuthConsentClient({
     );
   }
 
-  const { client, publication, scopes } = info;
+  const { client, publisher, scopes } = info;
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-background px-4 py-12 text-foreground">
@@ -126,17 +126,17 @@ export function OAuthConsentClient({
           </div>
 
           {/* Média affilié (si présent) */}
-          {publication && (
+          {publisher && (
             <div
               className={`p-4 rounded-2xl border flex items-start gap-3.5 transition-all ${
-                publication.isMember
+                publisher.isMember
                   ? 'bg-success/10 border-success/30'
                   : 'bg-highlight/10 border-highlight/30'
               }`}
             >
               <div
                 className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                  publication.isMember
+                  publisher.isMember
                     ? 'bg-success/20 text-success-text'
                     : 'bg-highlight/20 text-highlight'
                 }`}
@@ -145,18 +145,18 @@ export function OAuthConsentClient({
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-bold leading-tight">{publication.name}</span>
+                  <span className="text-xs font-bold leading-tight">{publisher.name}</span>
                   <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-background/70 border border-border text-muted-foreground">
                     Média officiel
                   </span>
                 </div>
-                {publication.isMember ? (
+                {publisher.isMember ? (
                   <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5 font-medium">
                     <CheckCircle2 className="w-3.5 h-3.5 text-success-text shrink-0" />
                     <span>
                       Vous êtes connecté en tant que{' '}
                       <strong className="text-foreground capitalize">
-                        {publication.memberRole || 'membre'}
+                        {publisher.memberRole || 'membre'}
                       </strong>{' '}
                       de ce média.
                     </span>

@@ -27,8 +27,8 @@ var scalarImageColumns = []struct {
 	column string
 }{
 	{`"User"`, `"logoUrl"`},
-	{`"Publication"`, `"logoUrl"`},
-	{`"Publication"`, `"headerImageUrl"`},
+	{`"Publisher"`, `"logoUrl"`},
+	{`"Publisher"`, `"headerImageUrl"`},
 	{`"Article"`, `"imageUrl"`},
 	{`"Post"`, `"imageUrl"`},
 	{`"PartnerPromo"`, `"imageUrl"`},

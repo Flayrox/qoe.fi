@@ -111,7 +111,7 @@ export function ModerationReportModal({
                 <div>
                   <DialogTitle>{t`Signaler un contenu`}</DialogTitle>
                   <DialogDescription>
-                    {t`Pourquoi souhaitez-vous signaler cette publication ?`}
+                    {t`Pourquoi souhaitez-vous signaler cette publisher ?`}
                   </DialogDescription>
                 </div>
               </div>

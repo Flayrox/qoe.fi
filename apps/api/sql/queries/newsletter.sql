@@ -3,14 +3,14 @@
 -- =====================================================================
 
 -- name: CreateNewsletterIssue :one
-INSERT INTO "NewsletterIssue" (id, "publicationId", subject, "previewText", html, "updatedAt")
+INSERT INTO "NewsletterIssue" (id, "publisherId", subject, "previewText", html, "updatedAt")
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4, now())
 RETURNING *;
 
--- name: ListNewsletterIssuesByPublication :many
+-- name: ListNewsletterIssuesByPublisher :many
 SELECT *
 FROM "NewsletterIssue"
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
 ORDER BY "createdAt" DESC;
 
 -- name: GetNewsletterIssue :one
@@ -18,11 +18,11 @@ SELECT *
 FROM "NewsletterIssue"
 WHERE id = $1;
 
--- name: GetNewsletterIssueWithPublication :one
-SELECT i.*, p.name AS publication_name, p.subdomain AS publication_subdomain,
-       p."customDomain" AS publication_custom_domain, p."logoUrl" AS publication_logo_url
+-- name: GetNewsletterIssueWithPublisher :one
+SELECT i.*, p.name AS publisher_name, p.subdomain AS publisher_subdomain,
+       p."customDomain" AS publisher_custom_domain, p."logoUrl" AS publisher_logo_url
 FROM "NewsletterIssue" i
-JOIN "Publication" p ON p.id = i."publicationId"
+JOIN "Publisher" p ON p.id = i."publisherId"
 WHERE i.id = $1;
 
 -- name: UpdateNewsletterIssueDraft :one
@@ -71,7 +71,7 @@ RETURNING id;
 INSERT INTO "NewsletterDelivery" (id, "issueId", email, "subscriberId", "updatedAt")
 SELECT gen_random_uuid()::text, $1, s.email, s.id, now()
 FROM "Subscriber" s
-WHERE s."publicationId" = $2
+WHERE s."publisherId" = $2
   AND s."isActive" = true
   AND s."receiveArticles" = true
   AND s."confirmedAt" IS NOT NULL  -- double opt-in : jamais de bulk vers un email non confirmé
@@ -82,7 +82,7 @@ WHERE s."publicationId" = $2
       SELECT 1 FROM "EmailSuppression" x
       WHERE x.email = s.email
         AND (x."scope" = 'global'
-             OR (x."scope" = 'publication' AND x."publicationId" = s."publicationId"))
+             OR (x."scope" = 'publisher' AND x."publisherId" = s."publisherId"))
   )
 ON CONFLICT ("issueId", email) DO NOTHING;
 
@@ -107,7 +107,7 @@ WHERE "issueId" = $1
 INSERT INTO "ArticleReleaseDelivery" (id, "articleId", email, "subscriberId", "deliveryType", "updatedAt")
 SELECT gen_random_uuid()::text, $1, s.email, s.id, 'INITIAL', now()
 FROM "Subscriber" s
-WHERE s."publicationId" = $2
+WHERE s."publisherId" = $2
   AND s."isActive" = true
   AND s."receiveArticles" = true
   AND s."confirmedAt" IS NOT NULL  -- double opt-in : jamais de bulk vers un email non confirmé
@@ -117,7 +117,7 @@ ON CONFLICT ("articleId", email, "deliveryType") DO NOTHING;
 INSERT INTO "ArticleReleaseDelivery" (id, "articleId", email, "subscriberId", "deliveryType", "updatedAt")
 SELECT gen_random_uuid()::text, $1, s.email, s.id, 'MAJOR_UPDATE', now()
 FROM "Subscriber" s
-WHERE s."publicationId" = $2
+WHERE s."publisherId" = $2
   AND s."isActive" = true
   AND s."receiveArticles" = true
   AND s."confirmedAt" IS NOT NULL
@@ -128,7 +128,7 @@ INSERT INTO "ArticleReleaseDelivery" (id, "articleId", email, "subscriberId", "d
 SELECT gen_random_uuid()::text, $1, s.email, s.id, 'CATCH_UP', now()
 FROM "Subscriber" s
 JOIN "Article" a ON a.id = $1
-WHERE s."publicationId" = $2
+WHERE s."publisherId" = $2
   AND s."isActive" = true
   AND s."receiveArticles" = true
   AND s."confirmedAt" IS NOT NULL
@@ -174,10 +174,10 @@ SELECT id, "emailStatus", "emailSentAt", "emailSubject", "emailPreviewText",
 FROM "Article"
 WHERE id = $1;
 
--- name: CheckPublicationEmailCooldown :one
+-- name: CheckPublisherEmailCooldown :one
 SELECT "emailSentAt"
 FROM "Article"
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
   AND "emailSentAt" > now() - INTERVAL '2 hours'
 ORDER BY "emailSentAt" DESC
 LIMIT 1;
@@ -208,10 +208,10 @@ WHERE id = $1
 
 -- name: GetArticleReleaseInfo :one
 SELECT a.id, a.title, a.slug, a.visibility, a."isPremium", a.content,
-       a."publicationId", a."emailSubject", a."emailPreviewText",
-       p.name AS publication_name, p.subdomain, p."customDomain"
+       a."publisherId", a."emailSubject", a."emailPreviewText",
+       p.name AS publisher_name, p.subdomain, p."customDomain"
 FROM "Article" a
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 WHERE a.id = $1
   AND a.published = true
   AND a.status = 'PUBLISHED';
@@ -234,19 +234,19 @@ WHERE "issueId" = $1;
 UPDATE "Subscriber"
 SET "receiveArticles" = false,
     "updatedAt"       = now()
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
   AND email = $2;
 
--- name: GetUserPublicationID :one
-SELECT COALESCE("publicationId", '')
+-- name: GetUserPublisherID :one
+SELECT COALESCE("publisherId", '')
 FROM "User"
 WHERE id = $1;
 
--- name: UserOwnsPublication :one
+-- name: UserOwnsPublisher :one
 SELECT (
-    EXISTS (SELECT 1 FROM "User" WHERE "User".id = $1 AND "User"."publicationId" = $2)
+    EXISTS (SELECT 1 FROM "User" WHERE "User".id = $1 AND "User"."publisherId" = $2)
     OR EXISTS (SELECT 1 FROM "MediaMember" mm JOIN "Media" md ON md.id = mm."mediaId"
-               WHERE mm."userId" = $1 AND md."publicationId" = $2
+               WHERE mm."userId" = $1 AND md."publisherId" = $2
                  AND mm.role = 'owner' AND mm.status = 'active')
 )::boolean AS owns;
 
@@ -256,19 +256,19 @@ SELECT (
 
 -- name: UpsertSubscriber :one
 INSERT INTO "Subscriber" (
-    id, email, "publicationId", status, "isActive", "receiveArticles", "createdAt", "updatedAt"
+    id, email, "publisherId", status, "isActive", "receiveArticles", "createdAt", "updatedAt"
 )
 VALUES (
     gen_random_uuid()::text,
     LOWER(TRIM(sqlc.arg(email)::text)),
-    sqlc.arg(publication_id)::text,
+    sqlc.arg(publisher_id)::text,
     'ACTIVE',
     true,
     true,
     now(),
     now()
 )
-ON CONFLICT ("email", "publicationId") DO UPDATE
+ON CONFLICT ("email", "publisherId") DO UPDATE
 -- Double opt-in : les canaux authentifiés (studio, API clé) confirment
 -- d'office l'email — pas de friction là où la relation est déjà vérifiée.
 SET "isActive" = true,
@@ -276,7 +276,7 @@ SET "isActive" = true,
     status = 'ACTIVE',
     "confirmedAt" = COALESCE("Subscriber"."confirmedAt", now()),
     "updatedAt" = now()
-RETURNING id, email, status, "isActive", "isPremium", "receiveArticles", "createdAt", "updatedAt", "publicationId";
+RETURNING id, email, status, "isActive", "isPremium", "receiveArticles", "createdAt", "updatedAt", "publisherId";
 
 -- name: UpsertSubscriberPending :one
 -- Inscription en attente de confirmation (double opt-in) : crée un abonné
@@ -297,13 +297,13 @@ RETURNING id, email, status, "isActive", "isPremium", "receiveArticles", "create
 --     désabonné n'est donc réactivé que par son propre clic, jamais par une
 --     nouvelle saisie.
 INSERT INTO "Subscriber" (
-    id, email, "publicationId", status, "isActive", "receiveArticles",
+    id, email, "publisherId", status, "isActive", "receiveArticles",
     "confirmationToken", "createdAt", "updatedAt"
 )
 VALUES (
     gen_random_uuid()::text,
     LOWER(TRIM(sqlc.arg(email)::text)),
-    sqlc.arg(publication_id)::text,
+    sqlc.arg(publisher_id)::text,
     'ACTIVE',
     true,
     false,
@@ -311,7 +311,7 @@ VALUES (
     now(),
     now()
 )
-ON CONFLICT ("email", "publicationId") DO UPDATE SET
+ON CONFLICT ("email", "publisherId") DO UPDATE SET
     "isActive" = true,
     "confirmationToken" = CASE
         WHEN "Subscriber"."confirmedAt" IS NOT NULL
@@ -330,27 +330,27 @@ ON CONFLICT ("email", "publicationId") DO UPDATE SET
     "updatedAt" = now()
 RETURNING id, email, status, "isActive", "isPremium", "receiveArticles",
     ("confirmedAt" IS NOT NULL) AS confirmed,
-    "createdAt", "updatedAt", "publicationId";
+    "createdAt", "updatedAt", "publisherId";
 
--- name: ListSubscribersByPublication :many
+-- name: ListSubscribersByPublisher :many
 SELECT id, email, status, "isActive", "isPremium", "receiveArticles", "createdAt", "updatedAt"
 FROM "Subscriber"
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
 ORDER BY "createdAt" DESC
 LIMIT $2 OFFSET $3;
 
--- name: CountSubscribersByPublication :one
+-- name: CountSubscribersByPublisher :one
 SELECT COUNT(*)::bigint
 FROM "Subscriber"
-WHERE "publicationId" = $1;
+WHERE "publisherId" = $1;
 
--- name: GetSubscriberStatsByPublication :one
+-- name: GetSubscriberStatsByPublisher :one
 SELECT 
     COUNT(*)::bigint AS total,
     COUNT(*) FILTER (WHERE "isActive" = true)::bigint AS active,
     COUNT(*) FILTER (WHERE "isActive" = true AND "isPremium" = true)::bigint AS premium
 FROM "Subscriber"
-WHERE "publicationId" = $1;
+WHERE "publisherId" = $1;
 
 -- name: DeactivateSubscriber :one
 UPDATE "Subscriber"
@@ -358,19 +358,19 @@ SET "isActive" = false,
     "receiveArticles" = false,
     status = 'CANCELED',
     "updatedAt" = now()
-WHERE "publicationId" = sqlc.arg(publication_id)::text
+WHERE "publisherId" = sqlc.arg(publisher_id)::text
   AND (id = sqlc.arg(id)::text OR LOWER(email) = LOWER(TRIM(sqlc.arg(id)::text)))
 RETURNING id;
 
--- name: ResolvePublicationIDBySlugOrID :one
+-- name: ResolvePublisherIDBySlugOrID :one
 SELECT id
-FROM "Publication"
+FROM "Publisher"
 WHERE id = $1
    OR LOWER(slug) = LOWER($1)
    OR LOWER(COALESCE(subdomain, '')) = LOWER($1)
 LIMIT 1;
 
--- name: GetPublicationMetadataByID :one
+-- name: GetPublisherMetadataByID :one
 SELECT 
     p.id,
     p.type,
@@ -396,7 +396,7 @@ SELECT
     p."isCertified",
     p."createdAt",
     p."updatedAt"
-FROM "Publication" p
+FROM "Publisher" p
 WHERE p.id = $1;
 
 
@@ -410,29 +410,29 @@ WHERE p.id = $1;
 -- géré côté Go ("fr" si ligne absente).
 SELECT s.locale FROM "Subscriber" s
 WHERE s.email = $1
-  AND s."publicationId" = $2;
+  AND s."publisherId" = $2;
 
 -- name: GetPendingConfirmation :one
-SELECT s.email, s."publicationId", s.locale,
+SELECT s.email, s."publisherId", s.locale,
        s."confirmationToken",
-       p.name AS publication_name, p.subdomain, p."customDomain", p."accentColor",
+       p.name AS publisher_name, p.subdomain, p."customDomain", p."accentColor",
        p."logoUrl", p."emailSettings"
 FROM "Subscriber" s
-JOIN "Publication" p ON p.id = s."publicationId"
+JOIN "Publisher" p ON p.id = s."publisherId"
 WHERE s.email = $1
-  AND s."publicationId" = $2
+  AND s."publisherId" = $2
   AND s."confirmationToken" IS NOT NULL;
 
 -- name: GetSubscriberEmailContext :one
 -- Contexte complet pour les emails transactionnels (bienvenue) :
 -- locale de l'abonné + personnalisation de la publication.
 SELECT s.email, s.locale, s."confirmedAt",
-       p.name AS publication_name, p.subdomain, p."customDomain", p."accentColor",
+       p.name AS publisher_name, p.subdomain, p."customDomain", p."accentColor",
        p."logoUrl", p."emailSettings"
 FROM "Subscriber" s
-JOIN "Publication" p ON p.id = s."publicationId"
+JOIN "Publisher" p ON p.id = s."publisherId"
 WHERE s.email = $1
-  AND s."publicationId" = $2;
+  AND s."publisherId" = $2;
 
 -- name: ConfirmSubscriberByToken :one
 UPDATE "Subscriber"
@@ -441,7 +441,7 @@ SET "receiveArticles" = true,
     "confirmationToken" = NULL,
     "updatedAt" = now()
 WHERE email = $1
-  AND "publicationId" = $2
+  AND "publisherId" = $2
   AND "confirmationToken" = $3
 RETURNING id;
 
@@ -453,13 +453,13 @@ RETURNING id;
 -- Sur conflit avec un désabonné : nouveau token, jamais de réactivation — seul
 -- son propre clic réactive (ConfirmSubscriberByToken).
 INSERT INTO "Subscriber" (
-    id, email, "publicationId", status, "isActive", "receiveArticles",
+    id, email, "publisherId", status, "isActive", "receiveArticles",
     "confirmationToken", "createdAt", "updatedAt"
 )
 VALUES (
     gen_random_uuid()::text,
     LOWER(TRIM(sqlc.arg(email)::text)),
-    sqlc.arg(publication_id)::text,
+    sqlc.arg(publisher_id)::text,
     'ACTIVE',
     true,
     false,
@@ -467,7 +467,7 @@ VALUES (
     now(),
     now()
 )
-ON CONFLICT ("email", "publicationId") DO UPDATE SET
+ON CONFLICT ("email", "publisherId") DO UPDATE SET
     "isActive" = true,
     "confirmationToken" = CASE
         WHEN "Subscriber"."confirmedAt" IS NOT NULL
@@ -490,13 +490,13 @@ ON CONFLICT ("email", "publicationId") DO UPDATE SET
 -- (unicité email+publication), pas de réactivation silencieuse ici puisque
 -- l'adresse est vérifiée et l'action explicite.
 INSERT INTO "Subscriber" (
-    id, email, "publicationId", status, "isActive", "receiveArticles",
+    id, email, "publisherId", status, "isActive", "receiveArticles",
     "confirmedAt", "userId", "createdAt", "updatedAt"
 )
 VALUES (
     gen_random_uuid()::text,
     LOWER(TRIM(sqlc.arg(email)::text)),
-    sqlc.arg(publication_id)::text,
+    sqlc.arg(publisher_id)::text,
     'ACTIVE',
     true,
     true,
@@ -505,20 +505,20 @@ VALUES (
     now(),
     now()
 )
-ON CONFLICT ("email", "publicationId") DO UPDATE SET
+ON CONFLICT ("email", "publisherId") DO UPDATE SET
     "isActive" = true,
     "receiveArticles" = true,
     "confirmedAt" = COALESCE("Subscriber"."confirmedAt", now()),
     "userId" = COALESCE("Subscriber"."userId", EXCLUDED."userId"),
     "updatedAt" = now();
 
--- name: GetPublicationPublicProfile :one
+-- name: GetPublisherPublicProfile :one
 -- Profil public minimal d'une publication pour les intégrations externes
 -- (fiche 02) : nom + logo uniquement. Rien de sensible, aucune adresse,
 -- aucun compteur — le site tiers n'a pas besoin d'en savoir plus pour
 -- afficher « Confirmer l'abonnement à [publication] ».
 SELECT id, name, "logoUrl"
-FROM "Publication"
+FROM "Publisher"
 WHERE id = $1 OR slug = $1
 LIMIT 1;
 
@@ -533,6 +533,6 @@ SET "userId" = u.id,
     "updatedAt" = now()
 FROM "User" u
 WHERE s.email = $1
-  AND s."publicationId" = $2
+  AND s."publisherId" = $2
   AND s."userId" IS NULL
   AND LOWER(u.email) = LOWER(s.email);

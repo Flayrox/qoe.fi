@@ -20,7 +20,7 @@ func NewService(pool *pgxpool.Pool) *Service {
 
 type ActiveWorkspace struct {
 	Type          string  `json:"type"`
-	PublicationID string  `json:"publicationId"`
+	PublisherID string  `json:"publisherId"`
 	Name          string  `json:"name"`
 	Slug          string  `json:"slug"`
 	LogoURL       *string `json:"logoUrl"`
@@ -58,7 +58,7 @@ func (s *Service) GetActive(ctx context.Context, userID, mediaID string) (Active
 			SELECT p.id, p.name, p.slug, p."logoUrl", mm.role, mm.permissions
 			FROM "MediaMember" mm
 			JOIN "Media" m ON m.id = mm."mediaId"
-			JOIN "Publication" p ON p.id = m."publicationId"
+			JOIN "Publisher" p ON p.id = m."publisherId"
 			WHERE mm."mediaId" = $1 AND mm."userId" = $2
 			  AND mm.status = 'active'
 		`, mediaID, toUUID(userID)).Scan(&pubID, &pubName, &pubSlug, &pubLogo, &role, &memberPerms)
@@ -66,7 +66,7 @@ func (s *Service) GetActive(ctx context.Context, userID, mediaID string) (Active
 			return ActiveWorkspace{
 				Type:          "MEDIA",
 				MediaID:       &mediaID,
-				PublicationID: pubID,
+				PublisherID: pubID,
 				Name:          pubName,
 				Slug:          pubSlug,
 				LogoURL:       textPtr(pubLogo),
@@ -82,17 +82,17 @@ func (s *Service) GetActive(ctx context.Context, userID, mediaID string) (Active
 	var pubLogo pgtype.Text
 	err := s.pool.QueryRow(ctx, `
 		SELECT p.id, p.name, p.slug, p."logoUrl"
-		FROM "Publication" p
-		WHERE p.type = 'PERSONAL' AND p.id = (SELECT "publicationId" FROM "User" WHERE id = $1)
+		FROM "Publisher" p
+		WHERE p.type = 'PERSONAL' AND p.id = (SELECT "publisherId" FROM "User" WHERE id = $1)
 	`, userID).Scan(&pubID, &pubName, &pubSlug, &pubLogo)
 	if err != nil {
 		// Pas encore de publication personnelle : aucun identifiant de
-		// publication n'existe. On ne fabrique JAMAIS publicationId = userId
+		// publication n'existe. On ne fabrique JAMAIS publisherId = userId
 		// (un id utilisateur n'est pas une publication) ; le client appelle
 		// /v1/me/publication pour la créer à la demande.
 		return ActiveWorkspace{
 			Type:          "PERSONAL",
-			PublicationID: "",
+			PublisherID: "",
 			Name:          "Profil Personnel",
 			Slug:          "personal",
 			LogoURL:       nil,
@@ -101,7 +101,7 @@ func (s *Service) GetActive(ctx context.Context, userID, mediaID string) (Active
 	}
 	return ActiveWorkspace{
 		Type:          "PERSONAL",
-		PublicationID: pubID,
+		PublisherID: pubID,
 		Name:          pubName,
 		Slug:          pubSlug,
 		LogoURL:       textPtr(pubLogo),

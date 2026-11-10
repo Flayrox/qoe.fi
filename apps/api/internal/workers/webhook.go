@@ -34,13 +34,13 @@ func (w *WebhookWorker) HandleProcesses(ctx context.Context, t *asynq.Task, even
 	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
 		return err
 	}
-	publicationID, _ := payload["publicationId"].(string)
-	if publicationID == "" {
+	publisherID, _ := payload["publisherId"].(string)
+	if publisherID == "" {
 		return nil
 	}
 
-	webhooks, err := w.q.GetActiveWebhooksByPublication(ctx, db.GetActiveWebhooksByPublicationParams{
-		PublicationId: publicationID, Column2: event,
+	webhooks, err := w.q.GetActiveWebhooksByPublisher(ctx, db.GetActiveWebhooksByPublisherParams{
+		PublisherId: publisherID, Column2: event,
 	})
 	if err != nil {
 		return err

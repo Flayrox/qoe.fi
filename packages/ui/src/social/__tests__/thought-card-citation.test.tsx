@@ -32,7 +32,7 @@ const citationPost: ThoughtData = {
       sha: 'sha-1',
     },
     author: { name: 'Fay Moreau', username: 'fay', subdomain: 'la-lenteur' },
-    publication: { name: 'La Lenteur', subdomain: 'la-lenteur', customDomain: null },
+    publisher: { name: 'La Lenteur', subdomain: 'la-lenteur', customDomain: null },
   },
   quotedExcerpt: 'ce qu’il relirait deux fois',
   annotationQuote: {

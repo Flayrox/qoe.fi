@@ -101,7 +101,7 @@ const PRESETS = {
       features: [
         'API REST documentée (OpenAPI 3.0)',
         'Authentification via Supabase JWT',
-        'Webhooks temps réel (publication, abonnement)',
+        'Webhooks temps réel (publisher, abonnement)',
         'SDK TypeScript open-source',
         'Sandbox de test gratuit',
         'SLA 99.9% — hébergement Hetzner (Allemagne)',
@@ -1024,7 +1024,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'banner', label: t`Bannière & Global` },
     { key: 'hero', label: t`Hero & Simulateur` },
-    { key: 'featured', label: t`Publications phares` },
+    { key: 'featured', label: t`Publishers phares` },
     { key: 'creator', label: t`Espace Créateurs` },
     { key: 'cta', label: t`Appel à l'action (CTA)` },
     { key: 'footer', label: t`Pied de page (Footer)` },
@@ -1222,7 +1222,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                         onChange={(e) =>
                           updateValue(`featured_title_${activeLang}`, e.target.value)
                         }
-                        placeholder={t`Publications récentes`}
+                        placeholder={t`Publishers récentes`}
                         className="w-full bg-transparent border-b border-border px-0 py-2 text-base font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
                       />
                     </div>

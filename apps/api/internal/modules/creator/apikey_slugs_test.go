@@ -19,13 +19,13 @@ func TestCreatorAPI_PerAuthorSlugs(t *testing.T) {
 
 	if _, err := poolTest.Exec(ctx,
 		`TRUNCATE TABLE "Highlight", "AnnotationComment", "ArticleSlug", "Article",
-		 "_CoAuthors", "Publication", "User" CASCADE`); err != nil {
+		 "_CoAuthors", "Publisher", "User" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	authorID := "00000000-0000-0000-0000-000000000f01"
 	coAuthorID := "00000000-0000-0000-0000-000000000f02"
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ('pub_slugs', 'PERSONAL', 'Multi Auteurs', 'multi-auteurs', now(), now())`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
@@ -43,7 +43,7 @@ func TestCreatorAPI_PerAuthorSlugs(t *testing.T) {
 			pub = &s
 		}
 		if _, err := poolTest.Exec(ctx,
-			`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+			`INSERT INTO "User" (id, email, username, name, role, "publisherId", "createdAt", "updatedAt")
 			 VALUES ($1, $2, $3, $3, 'user', $4, now(), now())`,
 			u.id, u.username+"@test.dev", u.username, pub); err != nil {
 			t.Fatalf("user %s: %v", u.username, err)
@@ -51,7 +51,7 @@ func TestCreatorAPI_PerAuthorSlugs(t *testing.T) {
 	}
 	if _, err := poolTest.Exec(ctx,
 		`INSERT INTO "Article" (id, title, slug, content, published, visibility,
-		                        "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt")
+		                        "readingTime", status, "publisherId", "authorId", "createdAt", "updatedAt")
 		 VALUES ('art_slugs', 'Enquête commune', 'enquete-commune',
 		         '<p>Signée à deux.</p>', true, 'PUBLIC', 2, 'PUBLISHED',
 		         'pub_slugs', $1, now(), now())`, authorID); err != nil {
@@ -120,20 +120,20 @@ func TestCreatorAPI_PerAuthorSlugs(t *testing.T) {
 	// 3. Conflit global avec auto-suffixe : un slug déjà pris (principal
 	//    d'un autre article) est automatiquement suffixé en -1.
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ('pub_tiers', 'PERSONAL', 'Tiers', 'tiers-pub', now(), now())
 		 ON CONFLICT (id) DO NOTHING`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "User" (id, email, username, name, role, "publisherId", "createdAt", "updatedAt")
 		 VALUES ('00000000-0000-0000-0000-00000000f004', 'ownslug@test.dev', 'ownslug', 'O', 'user', 'pub_tiers', now(), now())
 		 ON CONFLICT (id) DO NOTHING`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := poolTest.Exec(ctx,
 		`INSERT INTO "Article" (id, title, slug, content, published, visibility,
-		                        "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt")
+		                        "readingTime", status, "publisherId", "authorId", "createdAt", "updatedAt")
 		 VALUES ('art_autre_slug', 'Autre', 'enquete-commune-2', '<p>x</p>', true, 'PUBLIC',
 		         1, 'PUBLISHED', 'pub_tiers', '00000000-0000-0000-0000-00000000f004', now(), now())
 		 ON CONFLICT (id) DO NOTHING`); err != nil {
@@ -163,7 +163,7 @@ func TestCreatorAPI_PerAuthorSlugs(t *testing.T) {
 	//     slug sur l'article partagé -> auto-suffixe en -1.
 	if _, err := poolTest.Exec(ctx,
 		`INSERT INTO "Article" (id, title, slug, content, published, visibility,
-		                        "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt")
+		                        "readingTime", status, "publisherId", "authorId", "createdAt", "updatedAt")
 		 VALUES ('art_co_perso', 'Mon Article Perso', 'mon-article-perso', '<p>perso</p>', true, 'PUBLIC',
 		         1, 'PUBLISHED', 'pub_slugs', $1, now(), now())
 		 ON CONFLICT (id) DO NOTHING`, coAuthorID); err != nil {
@@ -208,27 +208,27 @@ func TestCreatorAPI_CMSFiltersAndValidation(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
 	if _, err := poolTest.Exec(ctx,
-		`TRUNCATE TABLE "ArticleSlugHistory", "ArticleSlug", "Article", "Category", "_CoAuthors", "Publication", "User" CASCADE`); err != nil {
+		`TRUNCATE TABLE "ArticleSlugHistory", "ArticleSlug", "Article", "Category", "_CoAuthors", "Publisher", "User" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	authorID := "00000000-0000-0000-0000-000000000f10"
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ('pub_cms_test', 'PERSONAL', 'CMS Test', 'cms-test', now(), now())`); err != nil {
 		t.Fatalf("pub: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "User" (id, email, username, name, role, "publisherId", "createdAt", "updatedAt")
 		 VALUES ($1, 'cms@test.dev', 'cmstest', 'CMS', 'user', 'pub_cms_test', now(), now())`, authorID); err != nil {
 		t.Fatalf("user: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Category" (id, name, slug, "publicationId") VALUES ('cat_news', 'News', 'news', 'pub_cms_test')`); err != nil {
+		`INSERT INTO "Category" (id, name, slug, "publisherId") VALUES ('cat_news', 'News', 'news', 'pub_cms_test')`); err != nil {
 		t.Fatalf("cat: %v", err)
 	}
 	// 2 articles : un publié, un brouillon
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt")
+		`INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publisherId", "authorId", "createdAt", "updatedAt")
 		 VALUES ('art_pub', 'Publié', 'publie', '<p>pub</p>', true, 'PUBLIC', 1, 'PUBLISHED', 'pub_cms_test', $1, now(), now()),
 		        ('art_draft', 'Brouillon', 'brouillon', '<p>draft</p>', false, 'PUBLIC', 1, 'DRAFT', 'pub_cms_test', $1, now(), now())`, authorID); err != nil {
 		t.Fatalf("articles: %v", err)

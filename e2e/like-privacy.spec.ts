@@ -31,7 +31,7 @@ test.describe('Confidentialité des likes (Core)', () => {
   let refreshToken = '';
   let targetPostId = '';
   let targetAuthorId = '';
-  let targetPublicationId = '';
+  let targetPublisherId = '';
   let targetAuthorUsername = '';
   let privateUsername = '';
   let initialLikeCount = 0;
@@ -99,23 +99,23 @@ test.describe('Confidentialité des likes (Core)', () => {
     // son auteur, sa publication et son post cible pour rester indépendante du
     // contenu de démonstration (et ne pas modifier la base de développement).
     targetAuthorId = randomUUID();
-    targetPublicationId = `e2e-like-publication-${Date.now()}`;
+    targetPublisherId = `e2e-like-publication-${Date.now()}`;
     targetAuthorUsername = `e2e-target-${Date.now()}`;
     targetPostId = `e2e-like-post-${Date.now()}`;
     await db.query(
-      `INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+      `INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
        VALUES ($1, 'PERSONAL', $2, $3, now(), now())`,
-      [targetPublicationId, 'Auteur cible E2E', targetAuthorUsername]
+      [targetPublisherId, 'Auteur cible E2E', targetAuthorUsername]
     );
     await db.query(
-      `INSERT INTO "User" (id, email, username, name, role, "publicationId", "hasCompletedOnboarding", "createdAt", "updatedAt")
+      `INSERT INTO "User" (id, email, username, name, role, "publisherId", "hasCompletedOnboarding", "createdAt", "updatedAt")
        VALUES ($1, $2, $3, $4, 'creator', $5, true, now(), now())`,
       [
         targetAuthorId,
         `e2e.target.${Date.now()}@qoe.fi`,
         targetAuthorUsername,
         'Auteur cible E2E',
-        targetPublicationId,
+        targetPublisherId,
       ]
     );
     await db.query(
@@ -134,8 +134,8 @@ test.describe('Confidentialité des likes (Core)', () => {
           [userId, targetAuthorId].filter(Boolean),
         ]);
       }
-      if (targetPublicationId) {
-        await db.query(`DELETE FROM "Publication" WHERE id = $1`, [targetPublicationId]);
+      if (targetPublisherId) {
+        await db.query(`DELETE FROM "Publisher" WHERE id = $1`, [targetPublisherId]);
       }
       await db.end();
     }

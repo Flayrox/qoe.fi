@@ -283,7 +283,7 @@ export function CompositionSpecimen() {
       >
         <div className="max-w-xl">
           <Accordion defaultExpandedKeys={['1']}>
-            <AccordionItem id="1" title="Comment fonctionne la publication ?">
+            <AccordionItem id="1" title="Comment fonctionne la publisher ?">
               Un écrit se rédige, se relit, puis se publie. Les brouillons restent privés jusqu’à la
               publication, et l’adresse courte est réservée dès la création.
             </AccordionItem>

@@ -32,8 +32,8 @@ import { t } from '@/lib/i18n';
 // Charge le profil (GET /v1/users/{username}) et ses pensées publiques
 // (GET /v1/users/{username}/posts). Header : image de couverture, avatar,
 // nom + handle, bio (heroText), stats (followers/articles) et bouton
-// « Suivre » (POST /v1/users/{publicationId}/follow). ⚠️ L'id du profil
-// public est le **publicationId** — c'est lui qu'attend l'endpoint follow.
+// « Suivre » (POST /v1/users/{publisherId}/follow). ⚠️ L'id du profil
+// public est le **publisherId** — c'est lui qu'attend l'endpoint follow.
 // =====================================================================
 
 import { CustomSubHeader } from '@/components/header/CustomSubHeader';
@@ -75,11 +75,11 @@ export function ProfileScreen({
     scrollY.value = event.nativeEvent.contentOffset.y;
   };
 
-  // Si username vaut 'me', on résout avec le username/publicationId du compte connecté
+  // Si username vaut 'me', on résout avec le username/publisherId du compte connecté
   const resolvedUsername =
-    initialUsername === 'me' ? me?.username || me?.publicationId || 'admin' : initialUsername;
+    initialUsername === 'me' ? me?.username || me?.publisherId || 'admin' : initialUsername;
 
-  // Profil public (publicationId dans data.id).
+  // Profil public (publisherId dans data.id).
   const { data: profile, isPending: profilePending } = useQuery({
     queryKey: userKeys.profile(resolvedUsername),
     queryFn: async () => {
@@ -125,7 +125,7 @@ export function ProfileScreen({
     if (!profile || followBusy) return;
     setFollowBusy(true);
     try {
-      const res = await apiClient.toggleFollowUser(profile.id); // id = publicationId
+      const res = await apiClient.toggleFollowUser(profile.id); // id = publisherId
       if (res.ok) {
         setFollowing(res.data.following);
         await queryClient.invalidateQueries({ queryKey: feedKeys.all });
@@ -179,7 +179,7 @@ export function ProfileScreen({
   const handle = profile.subdomain || profile.slug;
   const isOwn =
     (!!me?.id && (me.id === profile.id || me.id === profile.ownerUserId)) ||
-    (!!me?.publicationId && me.publicationId === profile.id) ||
+    (!!me?.publisherId && me.publisherId === profile.id) ||
     (!!me?.username &&
       (me.username.toLowerCase() === handle.toLowerCase() ||
         me.username.toLowerCase() === (profile.slug || '').toLowerCase()));

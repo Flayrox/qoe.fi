@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import type { Metadata } from 'next';
-import { fetchTenantPublication, fetchTenantThoughts } from '@/lib/tenant-data';
+import { fetchTenantPublisher, fetchTenantThoughts } from '@/lib/tenant-data';
 import { TenantPageShell } from '@/components/TenantPageShell';
 import { ThoughtCard, type ThoughtData } from '@qoe/ui';
 import { MessageSquareText } from 'lucide-react';
@@ -13,28 +13,28 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { domain } = await params;
   const decodedDomain = decodeURIComponent(domain);
-  const publication = await fetchTenantPublication(decodedDomain);
-  const name = publication?.name || decodedDomain;
+  const publisher = await fetchTenantPublisher(decodedDomain);
+  const name = publisher?.name || decodedDomain;
   return {
     title: `Pensées | ${name}`,
     description: `Le flux des pensées et réflexions de ${name}.`,
     alternates: { canonical: `https://${decodedDomain}/thoughts` },
-    robots: { index: publication?.allowIndexing !== false, follow: true },
+    robots: { index: publisher?.allowIndexing !== false, follow: true },
   };
 }
 
 export default async function TenantThoughtsPage({ params }: PageProps) {
   const { domain } = await params;
   const decodedDomain = decodeURIComponent(domain);
-  const publication = await fetchTenantPublication(decodedDomain);
-  if (!publication) notFound();
+  const publisher = await fetchTenantPublisher(decodedDomain);
+  if (!publisher) notFound();
 
   const headersList = await headers();
   const host = headersList.get('x-forwarded-host') || headersList.get('host') || decodedDomain;
 
-  const authorName = publication.name || 'L’Auteur';
+  const authorName = publisher.name || 'L’Auteur';
   const authorUsername =
-    publication.user?.username || publication.slug || publication.subdomain || decodedDomain;
+    publisher.user?.username || publisher.slug || publisher.subdomain || decodedDomain;
 
   // Récupération des VRAIES pensées de la publication / auteur
   const { items } = await fetchTenantThoughts(authorUsername, 30, 0);
@@ -63,7 +63,7 @@ export default async function TenantThoughtsPage({ params }: PageProps) {
 
   return (
     <TenantPageShell
-      publication={publication}
+      publisher={publisher}
       domain={decodedDomain}
       host={host}
       currentPath="/thoughts"

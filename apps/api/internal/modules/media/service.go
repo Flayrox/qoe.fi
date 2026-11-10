@@ -164,7 +164,7 @@ func (s *Service) ListWorkspaces(ctx context.Context, userID string) (map[string
 	personal.LogoURL = textPtr(identity.LogoUrl)
 
 	// Publication personnelle existante → id/slug officiels.
-	if pub, err := s.q.GetPersonalPublicationForUser(ctx, userID); err == nil {
+	if pub, err := s.q.GetPersonalPublisherForUser(ctx, userID); err == nil {
 		personal.ID = pub.ID
 		personal.Name = pub.Name
 		personal.Slug = pub.Slug
@@ -179,8 +179,8 @@ func (s *Service) ListWorkspaces(ctx context.Context, userID string) (map[string
 	for _, r := range rows {
 		role := r.Role
 		medias = append(medias, WorkspaceDTO{
-			ID: r.MediaID, Name: r.PublicationName, Slug: r.PublicationSlug,
-			LogoURL: textPtr(r.PublicationLogo), Type: "MEDIA", Role: &role,
+			ID: r.MediaID, Name: r.PublisherName, Slug: r.PublisherSlug,
+			LogoURL: textPtr(r.PublisherLogo), Type: "MEDIA", Role: &role,
 		})
 	}
 	return map[string]any{"personal": personal, "medias": medias}, nil
@@ -211,11 +211,11 @@ func (s *Service) ListMedia(ctx context.Context, userID string) ([]MediaListItem
 		members, _ := s.q.CountMediaMembers(ctx, r.MediaID)
 		items = append(items, MediaListItem{
 			ID:           r.MediaID,
-			Name:         r.PublicationName,
-			Slug:         r.PublicationSlug,
-			Subdomain:    textPtr(r.PublicationSubdomain),
-			Bio:          textPtr(r.PublicationBio),
-			LogoURL:      textPtr(r.PublicationLogo),
+			Name:         r.PublisherName,
+			Slug:         r.PublisherSlug,
+			Subdomain:    textPtr(r.PublisherSubdomain),
+			Bio:          textPtr(r.PublisherBio),
+			LogoURL:      textPtr(r.PublisherLogo),
 			Role:         r.Role,
 			MembersCount: members,
 		})
@@ -226,7 +226,7 @@ func (s *Service) ListMedia(ctx context.Context, userID string) ([]MediaListItem
 // ── Détail (parité getMediaByIdAction — shapes Prisma) ──────────────────────
 
 // MediaPublication est la publication d'un média (détail studio).
-type MediaPublication struct {
+type MediaPublisher struct {
 	ID             string     `json:"id"`
 	Name           string     `json:"name"`
 	Slug           string     `json:"slug"`
@@ -282,12 +282,12 @@ type MediaInviter struct {
 // MediaDetail est le média complet (parité include Prisma de getMediaByIdAction).
 type MediaDetail struct {
 	ID          string           `json:"id"`
-	Publication MediaPublication `json:"publication"`
+	Publisher MediaPublisher `json:"publisher"`
 	Members     []MediaMemberDTO `json:"members"`
 }
 
-func (s *Service) mediaDetail(ctx context.Context, mediaID string, row db.GetMediaWithPublicationRow) (MediaDetail, error) {
-	articles, err := s.q.CountArticlesByPublication(ctx, row.PublicationID)
+func (s *Service) mediaDetail(ctx context.Context, mediaID string, row db.GetMediaWithPublisherRow) (MediaDetail, error) {
+	articles, err := s.q.CountArticlesByPublisher(ctx, row.PublisherID)
 	if err != nil {
 		return MediaDetail{}, err
 	}
@@ -297,8 +297,8 @@ func (s *Service) mediaDetail(ctx context.Context, mediaID string, row db.GetMed
 	}
 	detail := MediaDetail{
 		ID: row.MediaID,
-		Publication: MediaPublication{
-			ID:             row.PublicationID,
+		Publisher: MediaPublisher{
+			ID:             row.PublisherID,
 			Name:           row.Name,
 			Slug:           row.Slug,
 			Subdomain:      textPtr(row.Subdomain),
@@ -462,7 +462,7 @@ func (s *Service) GetMedia(ctx context.Context, userID, mediaID string) (MediaDe
 	if err != nil {
 		return MediaDetail{}, "", err
 	}
-	row, err := s.q.GetMediaWithPublication(ctx, mediaID)
+	row, err := s.q.GetMediaWithPublisher(ctx, mediaID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return MediaDetail{}, "", errNotFound
@@ -500,7 +500,7 @@ func (s *Service) CreateMedia(ctx context.Context, userID, name, slug, bio, logo
 	defer func() { _ = tx.Rollback(ctx) }()
 	tq := s.q.WithTx(tx)
 
-	pubID, err := tq.CreateMediaPublication(ctx, db.CreateMediaPublicationParams{
+	pubID, err := tq.CreateMediaPublisher(ctx, db.CreateMediaPublisherParams{
 		Name: name, Slug: clean, Subdomain: textFromString(clean),
 		Bio: textFromString(bio), LogoUrl: textFromString(logoURL), AccentColor: textFromString("#EE4B2B"),
 	})
@@ -525,7 +525,7 @@ func (s *Service) CreateMedia(ctx context.Context, userID, name, slug, bio, logo
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
-	return map[string]string{"id": mediaID, "publicationId": pubID}, nil
+	return map[string]string{"id": mediaID, "publisherId": pubID}, nil
 }
 
 var slugCleaner = regexp.MustCompile(`[^a-z0-9]+`)
@@ -552,11 +552,11 @@ var mediaStringColumns = map[string]string{
 	"fontFamily": "fontFamily", "supportUrl": "supportUrl",
 }
 
-// MediaIDByPublication résout l'id d'un média depuis l'id de sa publication.
-// Les profils publics n'exposent que la publicationId (profil média) — l'erreur
+// MediaIDByPublisher résout l'id d'un média depuis l'id de sa publication.
+// Les profils publics n'exposent que la publisherId (profil média) — l'erreur
 // du 19/09 venait de ces deux identifiants confondus par le front.
-func (s *Service) MediaIDByPublication(ctx context.Context, publicationID string) (string, error) {
-	row, err := s.q.GetMediaByPublicationID(ctx, publicationID)
+func (s *Service) MediaIDByPublisher(ctx context.Context, publisherID string) (string, error) {
+	row, err := s.q.GetMediaByPublisherID(ctx, publisherID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return "", errNotFound
@@ -568,17 +568,17 @@ func (s *Service) MediaIDByPublication(ctx context.Context, publicationID string
 
 // UpdateSettings applique une mise à jour partielle des réglages du média
 // (identity, design, SEO) — RBAC media:manage_settings. Retourne la publication.
-func (s *Service) UpdateSettings(ctx context.Context, userID, mediaID string, body map[string]any) (MediaPublication, error) {
+func (s *Service) UpdateSettings(ctx context.Context, userID, mediaID string, body map[string]any) (MediaPublisher, error) {
 	if _, err := s.authorizeMedia(ctx, mediaID, userID, permissions.PermManageSettings); err != nil {
-		return MediaPublication{}, err
+		return MediaPublisher{}, err
 	}
 
-	row, err := s.q.GetMediaWithPublication(ctx, mediaID)
+	row, err := s.q.GetMediaWithPublisher(ctx, mediaID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return MediaPublication{}, errNotFound
+			return MediaPublisher{}, errNotFound
 		}
-		return MediaPublication{}, err
+		return MediaPublisher{}, err
 	}
 
 	fields := map[string]any{}
@@ -590,7 +590,7 @@ func (s *Service) UpdateSettings(ctx context.Context, userID, mediaID string, bo
 			}
 			str, ok := v.(string)
 			if !ok {
-				return MediaPublication{}, errors.New("champ invalide: " + key)
+				return MediaPublisher{}, errors.New("champ invalide: " + key)
 			}
 			fields[col] = str
 		}
@@ -598,7 +598,7 @@ func (s *Service) UpdateSettings(ctx context.Context, userID, mediaID string, bo
 	if v, ok := body["allowIndexing"]; ok {
 		b, ok := v.(bool)
 		if !ok {
-			return MediaPublication{}, errors.New("allowIndexing doit être un booléen")
+			return MediaPublisher{}, errors.New("allowIndexing doit être un booléen")
 		}
 		fields["allowIndexing"] = b
 	}
@@ -608,15 +608,15 @@ func (s *Service) UpdateSettings(ctx context.Context, userID, mediaID string, bo
 		} else {
 			raw, err := json.Marshal(v)
 			if err != nil {
-				return MediaPublication{}, errors.New("siteOptions JSON invalide")
+				return MediaPublisher{}, errors.New("siteOptions JSON invalide")
 			}
 			fields["siteOptions"] = raw
 		}
 	}
 
 	if len(fields) > 0 {
-		if err := s.updatePublication(ctx, row.PublicationID, fields); err != nil {
-			return MediaPublication{}, err
+		if err := s.updatePublisher(ctx, row.PublisherID, fields); err != nil {
+			return MediaPublisher{}, err
 		}
 	}
 
@@ -627,19 +627,19 @@ func (s *Service) UpdateSettings(ctx context.Context, userID, mediaID string, bo
 	sort.Strings(keys)
 	s.audit(ctx, mediaID, userID, "media.settings_updated", map[string]any{"fields": keys})
 
-	updated, err := s.q.GetMediaWithPublication(ctx, mediaID)
+	updated, err := s.q.GetMediaWithPublisher(ctx, mediaID)
 	if err != nil {
-		return MediaPublication{}, err
+		return MediaPublisher{}, err
 	}
 	detail, err := s.mediaDetail(ctx, mediaID, updated)
 	if err != nil {
-		return MediaPublication{}, err
+		return MediaPublisher{}, err
 	}
-	return detail.Publication, nil
+	return detail.Publisher, nil
 }
 
 // updatePublication construit un UPDATE dynamique limité à un allowlist de colonnes.
-func (s *Service) updatePublication(ctx context.Context, publicationID string, fields map[string]any) error {
+func (s *Service) updatePublisher(ctx context.Context, publisherID string, fields map[string]any) error {
 	keys := make([]string, 0, len(fields))
 	for k := range fields {
 		keys = append(keys, k)
@@ -648,12 +648,12 @@ func (s *Service) updatePublication(ctx context.Context, publicationID string, f
 
 	sets := make([]string, 0, len(keys))
 	args := make([]any, 0, len(keys)+1)
-	args = append(args, publicationID)
+	args = append(args, publisherID)
 	for _, k := range keys {
 		sets = append(sets, `"`+k+`" = $`+strconv.Itoa(len(args)+1))
 		args = append(args, fields[k])
 	}
-	query := `UPDATE "Publication" SET ` + strings.Join(sets, ", ") + `, "updatedAt" = now() WHERE id = $1`
+	query := `UPDATE "Publisher" SET ` + strings.Join(sets, ", ") + `, "updatedAt" = now() WHERE id = $1`
 	_, err := s.pool.Exec(ctx, query, args...)
 	return err
 }
@@ -726,11 +726,11 @@ func (s *Service) InviteMemberByUsername(ctx context.Context, userID, mediaID, u
 
 	// Notification au nouveau membre (dédup + préférences gérées en SQL).
 	var pub string
-	if m, merr := s.q.GetMediaWithPublication(ctx, mediaID); merr == nil {
-		pub = textFromString(m.PublicationID).String
+	if m, merr := s.q.GetMediaWithPublisher(ctx, mediaID); merr == nil {
+		pub = textFromString(m.PublisherID).String
 	}
 	_ = s.q.InsertMediaInviteNotification(ctx, db.InsertMediaInviteNotificationParams{
-		RecipientID: toUUID(targetID), SenderID: toUUID(userID), PublicationID: pub,
+		RecipientID: toUUID(targetID), SenderID: toUUID(userID), PublisherID: pub,
 	})
 
 	return map[string]any{"success": true, "userId": targetID, "role": role, "pending": true}, nil
@@ -756,7 +756,7 @@ func (s *Service) ListPendingInvites(ctx context.Context, userID string) ([]Pend
 		SELECT m."mediaId", COALESCE(p."name", m."mediaId"), m."role", m."updatedAt"
 		FROM "MediaMember" m
 		JOIN "Media" md ON md.id = m."mediaId"
-		LEFT JOIN "Publication" p ON p.id = md."publicationId"
+		LEFT JOIN "Publisher" p ON p.id = md."publisherId"
 		WHERE m."userId" = $1 AND m."status" = 'invited'
 		ORDER BY m."updatedAt" DESC`, toUUID(userID))
 	if err != nil {
@@ -993,7 +993,7 @@ func (s *Service) GetInviteLinkPreview(ctx context.Context, token string) (*Medi
 	err = s.pool.QueryRow(ctx, `
 		SELECT p.name, p.slug, p."logoUrl", p."heroText", u.name, u.username, u."logoUrl"
 		FROM "Media" m
-		JOIN "Publication" p ON p.id = m."publicationId"
+		JOIN "Publisher" p ON p.id = m."publisherId"
 		LEFT JOIN "User" u ON u.id = $2::uuid
 		WHERE m.id = $1
 	`, mediaID, inviterID).Scan(&pubName, &pubSlug, &pubLogo, &pubHero, &inviterName, &inviterUsername, &inviterLogo)
@@ -1299,7 +1299,7 @@ func (s *Service) CreateApiKey(ctx context.Context, userID, mediaID, name string
 		return nil, errors.New("Limite de clés API actives atteinte pour ce média")
 	}
 
-	mediaWithPub, err := s.q.GetMediaWithPublication(ctx, mediaID)
+	mediaWithPub, err := s.q.GetMediaWithPublisher(ctx, mediaID)
 	if err != nil {
 		return nil, errNotFound
 	}
@@ -1344,7 +1344,7 @@ func (s *Service) CreateApiKey(ctx context.Context, userID, mediaID, name string
 		KeyPrefix:       keyPrefix,
 		KeyHash:         keyHash,
 		Scopes:          finalScopes,
-		PublicationId:   textFromString(mediaWithPub.PublicationID),
+		PublisherId:   textFromString(mediaWithPub.PublisherID),
 		CreatedByUserId: toUUID(userID),
 	}); err != nil {
 		return nil, err

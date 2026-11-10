@@ -17,24 +17,24 @@ import (
 
 // SetPublicationEmailPro bascule le palier email d'une publication via les
 // octrois (staff uniquement). Effet immédiat (lu à chaque rendu, sans cache).
-func (s *Service) SetPublicationEmailPro(ctx context.Context, userID, publicationID string, pro bool) (bool, error) {
+func (s *Service) SetPublisherEmailPro(ctx context.Context, userID, publisherID string, pro bool) (bool, error) {
 	if err := s.checkSuperadmin(ctx, userID); err != nil {
 		return false, err
 	}
 	now := time.Now()
 	if pro {
-		if subscriptions.HasPro(ctx, s.pool, publicationID, now) {
+		if subscriptions.HasPro(ctx, s.pool, publisherID, now) {
 			return true, nil // déjà effectif : idempotent, pas de doublon
 		}
 		if _, err := subscriptions.GrantPlan(ctx, s.pool,
-			subscriptions.SubjectPublication, publicationID, subscriptions.PlanPro,
+			subscriptions.SubjectPublisher, publisherID, subscriptions.PlanPro,
 			now, nil, userID, "bascule console (toggle)", now); err != nil {
 			return false, err
 		}
 		return true, nil
 	}
 	effective, err := subscriptions.ListGrants(ctx, s.pool,
-		subscriptions.SubjectPublication, publicationID, true, 100, now)
+		subscriptions.SubjectPublisher, publisherID, true, 100, now)
 	if err != nil {
 		return false, err
 	}
@@ -46,5 +46,5 @@ func (s *Service) SetPublicationEmailPro(ctx context.Context, userID, publicatio
 			return false, err
 		}
 	}
-	return subscriptions.HasPro(ctx, s.pool, publicationID, now), nil
+	return subscriptions.HasPro(ctx, s.pool, publisherID, now), nil
 }

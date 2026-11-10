@@ -24,14 +24,14 @@ import {
 import type {
   ArticleStreamBlockProps,
   TemplateArticleItem,
-  TemplatePublicationContext,
+  TemplatePublisherContext,
   TemplateRenderContext,
   CardCornerShape,
 } from '../schema';
 import { BlockWrapper } from './BlockWrapper';
 import { NodeRenderer } from './NodeRenderer';
 import { buildArticlePath, buildCategoryPath, cn } from '@qoe/utils';
-import { PublicationSidebar } from './PublicationSidebar';
+import { PublisherSidebar } from './PublisherSidebar';
 import { ArticleCard } from './ArticleCard';
 import { findCategoryBySlug, filterArticlesByCategory } from '../navigation';
 
@@ -39,7 +39,7 @@ interface ArticleStreamBlockComponentProps {
   id: string;
   props: ArticleStreamBlockProps;
   articles?: TemplateArticleItem[];
-  publication?: TemplatePublicationContext;
+  publisher?: TemplatePublisherContext;
   cardShape?: CardCornerShape;
   context: TemplateRenderContext;
   visible?: boolean;
@@ -53,7 +53,7 @@ export function ArticleStreamBlock({
   id,
   props,
   articles = [],
-  publication,
+  publisher,
   cardShape = 'rounded-xl',
   context,
   visible = true,
@@ -113,19 +113,19 @@ export function ArticleStreamBlock({
 
   const targetCategory = useMemo(() => {
     if (!categoryFilter) return undefined;
-    return findCategoryBySlug(publication?.categories || [], categoryFilter);
-  }, [categoryFilter, publication?.categories]);
+    return findCategoryBySlug(publisher?.categories || [], categoryFilter);
+  }, [categoryFilter, publisher?.categories]);
 
   const sourceArticles = useMemo(() => {
     if (!categoryFilter) return articles;
     if (targetCategory) {
-      return filterArticlesByCategory(articles, targetCategory, publication?.categories || []);
+      return filterArticlesByCategory(articles, targetCategory, publisher?.categories || []);
     }
     return articles.filter((a) => a.category?.slug === categoryFilter);
-  }, [categoryFilter, targetCategory, articles, publication?.categories]);
+  }, [categoryFilter, targetCategory, articles, publisher?.categories]);
   const items = categoryFilter
     ? sourceArticles
-    : context.mode === 'live' || Boolean(publication?.id)
+    : context.mode === 'live' || Boolean(publisher?.id)
       ? sourceArticles
       : sourceArticles.length > 0
         ? sourceArticles
@@ -142,7 +142,7 @@ export function ArticleStreamBlock({
     return Array.from(cats);
   }, [items]);
 
-  const siteOpts = (publication?.siteOptions ?? {}) as Record<string, unknown>;
+  const siteOpts = (publisher?.siteOptions ?? {}) as Record<string, unknown>;
   const pinnedArticleId = siteOpts?.pinnedArticleId as string | undefined;
 
   const isArticlePinned = (art?: TemplateArticleItem | null) => {
@@ -245,7 +245,7 @@ export function ArticleStreamBlock({
     <BlockWrapper
       id={id}
       type="article-stream"
-      label="Flux de Publications"
+      label="Flux de Publishers"
       visible={visible}
       locked={locked}
       context={context}
@@ -345,7 +345,7 @@ export function ArticleStreamBlock({
                   <ArticleCard
                     article={centerHeroArticle}
                     variant="hero-center"
-                    publicationName={publication?.name}
+                    publisherName={publisher?.name}
                     showExcerpts={showExcerpts}
                     showReadingTime={showReadingTime}
                     showCategories={showCategories}
@@ -508,7 +508,7 @@ export function ArticleStreamBlock({
                                 key={article.id}
                                 article={article}
                                 variant="row"
-                                publicationName={publication?.name}
+                                publisherName={publisher?.name}
                                 showExcerpts={showExcerpts}
                                 showReadingTime={showReadingTime}
                                 showCategories={showCategories}
@@ -543,7 +543,7 @@ export function ArticleStreamBlock({
                           key={article.id}
                           article={article}
                           variant="row"
-                          publicationName={publication?.name}
+                          publisherName={publisher?.name}
                           showExcerpts={showExcerpts}
                           showReadingTime={showReadingTime}
                           showCategories={showCategories}
@@ -570,8 +570,8 @@ export function ArticleStreamBlock({
               {/* Colonne Latérale (~35%) Sticky : Auteur + Recommandations Réseau + Newsletter + Top Lectures */}
               <div className="lg:col-span-4 lg:sticky lg:top-24">
                 <div className="rounded-2xl border border-border/50 bg-card/60 p-6 backdrop-blur-xs shadow-2xs">
-                  <PublicationSidebar
-                    publication={publication}
+                  <PublisherSidebar
+                    publisher={publisher}
                     articles={items}
                     context={context}
                     showTopArticles={!isTrioMode}

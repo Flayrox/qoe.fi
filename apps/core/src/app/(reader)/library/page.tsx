@@ -15,9 +15,9 @@ interface BookmarkItem {
   isPremium: boolean;
   articleCreatedAt: string;
   content: string;
-  publicationId: string;
-  publicationName: string;
-  publicationSlug: string;
+  publisherId: string;
+  publisherName: string;
+  publisherSlug: string;
   subdomain: string | null;
   customDomain: string | null;
   logoUrl: string | null;
@@ -36,11 +36,11 @@ interface MyHighlightItem {
   createdAt: string;
   articleTitle: string;
   articleSlug: string;
-  publicationId: string;
-  publicationName: string;
-  publicationSlug: string;
-  publicationSubdomain: string | null;
-  publicationCustomDomain: string | null;
+  publisherId: string;
+  publisherName: string;
+  publisherSlug: string;
+  publisherSubdomain: string | null;
+  publisherCustomDomain: string | null;
 }
 
 export default async function LibraryPage({
@@ -79,8 +79,8 @@ export default async function LibraryPage({
       content: b.content,
       readingTime: b.readingTime,
       author: {
-        name: b.publicationName,
-        username: b.publicationSlug,
+        name: b.publisherName,
+        username: b.publisherSlug,
         subdomain: b.subdomain,
         customDomain: b.customDomain,
         logoUrl: b.logoUrl,
@@ -100,12 +100,12 @@ export default async function LibraryPage({
       id: h.articleId,
       title: h.articleTitle,
       slug: h.articleSlug,
-      publication: {
-        id: h.publicationId,
-        name: h.publicationName,
-        slug: h.publicationSlug,
-        subdomain: h.publicationSubdomain,
-        customDomain: h.publicationCustomDomain,
+      publisher: {
+        id: h.publisherId,
+        name: h.publisherName,
+        slug: h.publisherSlug,
+        subdomain: h.publisherSubdomain,
+        customDomain: h.publisherCustomDomain,
         type: 'MEDIA' as const,
       },
     },

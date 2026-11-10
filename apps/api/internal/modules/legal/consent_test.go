@@ -590,7 +590,7 @@ func TestLegal_Compliance(t *testing.T) {
 	if risky == nil || risky.Status != "critical" {
 		t.Fatalf("document sans version publiée non signalé: %+v", risky)
 	}
-	if snapshot.Summary.Critical == 0 || snapshot.Summary.MissingPublications == 0 {
+	if snapshot.Summary.Critical == 0 || snapshot.Summary.MissingPublishers == 0 {
 		t.Fatalf("synthèse non mise à jour: %+v", snapshot.Summary)
 	}
 	if snapshot.Summary.Score >= 100 {

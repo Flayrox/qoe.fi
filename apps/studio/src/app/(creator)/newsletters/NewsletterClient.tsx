@@ -56,16 +56,16 @@ import {
   previewEmailSettingsAction,
   sendTestEmailAction,
   updateEmailSettingsAction,
-  type PublicationEmailSettings,
+  type PublisherEmailSettings,
 } from '@/features/settings/actions';
 import { attemptWithStepUp } from '@/lib/authz-feedback';
 import { StudioHeader } from '@/components/studio-page';
 
 interface NewsletterClientProps {
   initialIssues: NewsletterIssue[];
-  publicationId: string;
-  publicationName: string;
-  initialEmailSettings: PublicationEmailSettings | null;
+  publisherId: string;
+  publisherName: string;
+  initialEmailSettings: PublisherEmailSettings | null;
   emailPro: boolean;
   locales: string[];
   accentColor?: string;
@@ -168,8 +168,8 @@ function ProBadge() {
 
 export function NewsletterClient({
   initialIssues,
-  publicationId,
-  publicationName,
+  publisherId,
+  publisherName,
   initialEmailSettings,
   emailPro,
   locales = ['fr', 'en'],
@@ -180,7 +180,7 @@ export function NewsletterClient({
   const [issues, setIssues] = useState<NewsletterIssue[]>(initialIssues);
 
   // ─── Configuration ───
-  const initialSettings: PublicationEmailSettings = initialEmailSettings ?? {
+  const initialSettings: PublisherEmailSettings = initialEmailSettings ?? {
     fromName: '',
     replyTo: '',
     footerNote: '',
@@ -189,8 +189,8 @@ export function NewsletterClient({
     logoUrl: logoUrl ?? '',
     accentColor: accentColor ?? '#18181b',
   };
-  const [settings, setSettings] = useState<PublicationEmailSettings>(initialSettings);
-  const [savedSettings, setSavedSettings] = useState<PublicationEmailSettings>(initialSettings);
+  const [settings, setSettings] = useState<PublisherEmailSettings>(initialSettings);
+  const [savedSettings, setSavedSettings] = useState<PublisherEmailSettings>(initialSettings);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
 
@@ -226,9 +226,9 @@ export function NewsletterClient({
     if (res.success) setIssues(res.items);
   };
 
-  const updateSetting = <K extends keyof PublicationEmailSettings>(
+  const updateSetting = <K extends keyof PublisherEmailSettings>(
     key: K,
-    value: PublicationEmailSettings[K]
+    value: PublisherEmailSettings[K]
   ) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
@@ -246,12 +246,12 @@ export function NewsletterClient({
    * Débounce court : une frappe ne déclenche pas un rendu par caractère.
    */
   const refreshPreview = useCallback(
-    async (next: PublicationEmailSettings) => {
+    async (next: PublisherEmailSettings) => {
       const request = ++previewRequest.current;
       setIsPreviewing(true);
       try {
         const res = await previewEmailSettingsAction(
-          publicationId,
+          publisherId,
           previewTemplate,
           previewLocale,
           next
@@ -265,7 +265,7 @@ export function NewsletterClient({
         if (request === previewRequest.current) setIsPreviewing(false);
       }
     },
-    [publicationId, previewTemplate, previewLocale]
+    [publisherId, previewTemplate, previewLocale]
   );
 
   useEffect(() => {
@@ -276,7 +276,7 @@ export function NewsletterClient({
   const handleSaveSettings = async () => {
     setIsSavingSettings(true);
     try {
-      const res = await updateEmailSettingsAction(publicationId, settings);
+      const res = await updateEmailSettingsAction(publisherId, settings);
       const stored = res.emailSettings ?? settings;
       setSettings(stored);
       setSavedSettings(stored);
@@ -291,7 +291,7 @@ export function NewsletterClient({
   const handleSendTestEmail = async () => {
     setIsSendingTest(true);
     try {
-      await sendTestEmailAction(publicationId, previewTemplate, previewLocale, settings);
+      await sendTestEmailAction(publisherId, previewTemplate, previewLocale, settings);
       toast.success(t`Email test envoyé.`);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : t`Échec de l'envoi du test.`);
@@ -458,7 +458,7 @@ export function NewsletterClient({
                   disabled={!emailPro}
                   maxLength={60}
                   onChange={(e) => updateSetting('fromName', e.target.value)}
-                  placeholder={publicationName}
+                  placeholder={publisherName}
                 />
               </Field>
 
@@ -512,7 +512,7 @@ export function NewsletterClient({
                   disabled={!emailPro}
                   maxLength={120}
                   onChange={(e) => setTemplateMap('subjects', 'confirm', e.target.value)}
-                  placeholder={t`Confirmez votre abonnement — ${publicationName}`}
+                  placeholder={t`Confirmez votre abonnement — ${publisherName}`}
                 />
               </Field>
 
@@ -545,7 +545,7 @@ export function NewsletterClient({
                   disabled={!emailPro}
                   maxLength={120}
                   onChange={(e) => setTemplateMap('subjects', 'welcome', e.target.value)}
-                  placeholder={t`Bienvenue chez ${publicationName}`}
+                  placeholder={t`Bienvenue chez ${publisherName}`}
                 />
               </Field>
 
@@ -638,7 +638,7 @@ export function NewsletterClient({
                   disabled={!emailPro}
                   maxLength={200}
                   onChange={(e) => updateSetting('footerNote', e.target.value)}
-                  placeholder={t`Merci de lire ${publicationName}. Retrouvez nos archives sur le site.`}
+                  placeholder={t`Merci de lire ${publisherName}. Retrouvez nos archives sur le site.`}
                 />
               </Field>
             </SettingsCard>
@@ -762,7 +762,7 @@ export function NewsletterClient({
                 >
                   <div className="border-b border-border/40 bg-muted/30 px-3.5 py-2.5">
                     <p className="truncate text-[11px] font-semibold text-foreground">
-                      {preview?.from || publicationName}
+                      {preview?.from || publisherName}
                     </p>
                     <p className="mt-0.5 truncate text-[11px] text-foreground">
                       {preview?.subject || t`Chargement…`}

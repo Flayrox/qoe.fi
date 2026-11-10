@@ -49,7 +49,7 @@ test.describe('Parcours Cross-Recommandations Creator Network', () => {
     await db.connect();
 
     // Tenant recommandeur + tenant partenaire, reliés par une Recommendation.
-    await db.ensurePublication({
+    await db.ensurePublisher({
       id: MAIN.id,
       subdomain: MAIN.subdomain,
       name: MAIN.name,
@@ -58,7 +58,7 @@ test.describe('Parcours Cross-Recommandations Creator Network', () => {
       authorEmail: MAIN.authorEmail,
       authorUsername: MAIN.authorUsername,
     });
-    await db.ensurePublication({
+    await db.ensurePublisher({
       id: PARTNER.id,
       subdomain: PARTNER.subdomain,
       name: PARTNER.name,
@@ -84,7 +84,7 @@ test.describe('Parcours Cross-Recommandations Creator Network', () => {
     // Nettoyage : ce spec ne doit pas polluer la base partagée.
     await db.query(`DELETE FROM "Recommendation" WHERE "id" = $1`, [RECO_ID]).catch(() => {});
     for (const id of [PARTNER.id, MAIN.id]) {
-      await db.deletePublication(id).catch(() => {});
+      await db.deletePublisher(id).catch(() => {});
     }
     await db.close();
   });

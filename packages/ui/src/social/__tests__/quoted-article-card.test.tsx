@@ -8,7 +8,7 @@ const baseArticle: QuotedArticleData = {
   title: 'Un article',
   slug: 'un-article',
   author: { name: 'Alice', username: 'alice', subdomain: 'alice' },
-  publication: { name: 'Pub', subdomain: 'pub', customDomain: null },
+  publisher: { name: 'Pub', subdomain: 'pub', customDomain: null },
 };
 
 describe('QuotedArticleCard', () => {

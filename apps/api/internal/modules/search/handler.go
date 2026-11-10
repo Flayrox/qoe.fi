@@ -76,18 +76,18 @@ func (h *Handler) SetPool(pool *pgxpool.Pool) {
 
 // ownsPublication vérifie qu'un utilisateur détient une publication
 // (publication personnelle ou membre owner/admin d'un média).
-func (h *Handler) ownsPublication(ctx context.Context, userID, publicationID string) bool {
-	if h.pool == nil || userID == "" || publicationID == "" {
+func (h *Handler) ownsPublisher(ctx context.Context, userID, publisherID string) bool {
+	if h.pool == nil || userID == "" || publisherID == "" {
 		return false
 	}
 	var ok bool
 	err := h.pool.QueryRow(ctx, `SELECT EXISTS(
-		SELECT 1 FROM "User" WHERE id::text = $1 AND "publicationId" = $2
+		SELECT 1 FROM "User" WHERE id::text = $1 AND "publisherId" = $2
 		UNION
 		SELECT 1 FROM "MediaMember" mm JOIN "Media" md ON md.id = mm."mediaId"
-		WHERE md."publicationId" = $2 AND mm."userId"::text = $1
+		WHERE md."publisherId" = $2 AND mm."userId"::text = $1
 			AND mm.status = 'active' AND mm.role IN ('owner', 'admin')
-	)`, userID, publicationID).Scan(&ok)
+	)`, userID, publisherID).Scan(&ok)
 	return err == nil && ok
 }
 
@@ -137,10 +137,10 @@ func (h *Handler) searchArticles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Filtre optionnel par publication (scope « mine » du Cmd+K studio).
-	pubID := r.URL.Query().Get("publicationId")
+	pubID := r.URL.Query().Get("publisherId")
 	req := &meilisearch.SearchRequest{Limit: 10}
 	if pubID != "" {
-		req.Filter = "publicationId = '" + strings.ReplaceAll(pubID, "'", "''") + "'"
+		req.Filter = "publisherId = '" + strings.ReplaceAll(pubID, "'", "''") + "'"
 	}
 
 	results, err := h.searcher.Search(query, req)
@@ -160,7 +160,7 @@ func (h *Handler) searchArticles(w http.ResponseWriter, r *http.Request) {
 	// que si l'appelant authentifié détient la publication (scope studio) ;
 	// sinon (public, anonyme, ou publication d'un tiers) on retronque.
 	userID, _ := middleware.UserID(r.Context())
-	if !h.ownsPublication(r.Context(), userID, pubID) {
+	if !h.ownsPublisher(r.Context(), userID, pubID) {
 		redactPremiumHitContents(hits)
 	}
 
@@ -190,7 +190,7 @@ func (h *Handler) searchArticles(w http.ResponseWriter, r *http.Request) {
 
 // filterVisibleArticleHits retire les hits dont la publication n'est pas
 // visible par le viewer (compte privé / abonnés uniquement) ou dont l'auteur
-// est bloqué dans un sens ou l'autre. Les hits sans publicationId sont
+// est bloqué dans un sens ou l'autre. Les hits sans publisherId sont
 // conservés : on ne peut pas prouver qu'ils sont privés.
 func (h *Handler) filterVisibleArticleHits(ctx context.Context, hits meilisearch.Hits, viewerID string) meilisearch.Hits {
 	if h.pool == nil || len(hits) == 0 {
@@ -201,7 +201,7 @@ func (h *Handler) filterVisibleArticleHits(ctx context.Context, hits meilisearch
 	hitPub := make([]string, len(hits))
 	for i, hit := range hits {
 		var pubID string
-		if raw, ok := hit["publicationId"]; ok {
+		if raw, ok := hit["publisherId"]; ok {
 			_ = json.Unmarshal(raw, &pubID)
 		}
 		hitPub[i] = pubID
@@ -224,12 +224,12 @@ func (h *Handler) filterVisibleArticleHits(ctx context.Context, hits meilisearch
 		SELECT p.id::text,
 		       COALESCE(us."profileVisibility", 'PUBLIC'),
 		       (u.id = $2) AS is_own,
-		       EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = $2 AND f."publicationId" = p.id) AS follows,
+		       EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = $2 AND f."publisherId" = p.id) AS follows,
 		       EXISTS (SELECT 1 FROM "BlockedUser" bu
 		               WHERE (bu."readerId" = $2 AND bu."creatorId" = u.id)
 		                  OR (bu."readerId" = u.id AND bu."creatorId" = $2)) AS blocked
-		FROM "Publication" p
-		JOIN "User" u ON u."publicationId" = p.id
+		FROM "Publisher" p
+		JOIN "User" u ON u."publisherId" = p.id
 		LEFT JOIN "UserSettings" us ON us."userId" = u.id
 		WHERE p.id = ANY($1)`, pubIDs, toUUID(viewerID))
 	if err != nil {

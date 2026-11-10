@@ -28,10 +28,10 @@ beforeEach(() => {
 });
 
 describe('getActiveWorkspaceContext', () => {
-  it('ne fait PAS de second appel à /v1/me/publication si ws.publicationId est renseigné en PERSONAL', async () => {
+  it('ne fait PAS de second appel à /v1/me/publisher si ws.publisherId est renseigné en PERSONAL', async () => {
     goFetch.mockResolvedValue({
       type: 'PERSONAL',
-      publicationId: 'pub_perso_123',
+      publisherId: 'pub_perso_123',
       name: 'Mon Blog',
       slug: 'mon-blog',
       logoUrl: null,
@@ -41,29 +41,29 @@ describe('getActiveWorkspaceContext', () => {
     const ctx = await getActiveWorkspaceContext();
     expect(calls()).toHaveLength(1);
     expect(calls()[0][0]).toBe('/v1/workspaces/active');
-    expect(ctx.publicationId).toBe('pub_perso_123');
+    expect(ctx.publisherId).toBe('pub_perso_123');
     expect(ctx.type).toBe('PERSONAL');
   });
 
-  it('appelle /v1/me/publication si ws.publicationId est vide en PERSONAL', async () => {
+  it('appelle /v1/me/publisher si ws.publisherId est vide en PERSONAL', async () => {
     goFetch
       .mockResolvedValueOnce({
         type: 'PERSONAL',
-        publicationId: '',
+        publisherId: '',
         name: null,
         slug: null,
         logoUrl: null,
         permissions: [],
       })
       .mockResolvedValueOnce({
-        publicationId: 'pub_created_456',
+        publisherId: 'pub_created_456',
       });
 
     const ctx = await getActiveWorkspaceContext();
     expect(calls()).toHaveLength(2);
     expect(calls()[0][0]).toBe('/v1/workspaces/active');
-    expect(calls()[1][0]).toBe('/v1/me/publication');
-    expect(ctx.publicationId).toBe('pub_created_456');
+    expect(calls()[1][0]).toBe('/v1/me/publisher');
+    expect(ctx.publisherId).toBe('pub_created_456');
     expect(ctx.type).toBe('PERSONAL');
   });
 });

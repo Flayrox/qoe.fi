@@ -34,7 +34,7 @@ export interface NormalizedQuotedArticle {
    *  mobile n'a plus à stripper le HTML ni à re-chercher l'extrait.
    *  Optionnel : absent quand le serveur n'a pas résolu de passage. */
   quoteContext?: SdkQuotedArticle['quoteContext'] | null;
-  publication: SdkQuotedArticle['publication'];
+  publisher: SdkQuotedArticle['publisher'];
   author: SdkQuotedArticle['author'];
 }
 

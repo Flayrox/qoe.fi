@@ -4,7 +4,7 @@ import { render, screen } from '@testing-library/react';
 import { ReturningAndHeatmapBlock } from '../ReturningAndHeatmapBlock';
 
 describe('ReturningAndHeatmapBlock', () => {
-  it('ne casse pas sur un payload partiel (publication sans Umami)', () => {
+  it('ne casse pas sur un payload partiel (publisher sans Umami)', () => {
     // Régression : le backend renvoyait `{}` et le composant lisait
     // `returningVisitors` sans garde → page analytics entière en erreur.
     render(

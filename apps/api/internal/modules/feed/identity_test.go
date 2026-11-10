@@ -21,14 +21,14 @@ func TestBuildFeedArticleCarriesAuthorIdentityType(t *testing.T) {
 		Content:         "<p>Contenu</p>",
 		Visibility:      db.ContentVisibilityPUBLIC,
 		CreatedAt:       pgtype.Timestamp{Time: time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC), Valid: true},
-		PublicationID:   "pub_1",
+		PublisherID:   "pub_1",
 		AuthorID:        "user_camille",
 		AuthorLogo:      pgtype.Text{String: "/avatars/camille.svg", Valid: true},
 		AuthorCertified: true,
-		PublicationName: "Le Média",
-		PublicationSlug: "le-media",
-		PublicationLogo: pgtype.Text{String: "/logos/le-media.svg", Valid: true},
-		PublicationType: db.PublicationTypeMEDIA,
+		PublisherName: "Le Média",
+		PublisherSlug: "le-media",
+		PublisherLogo: pgtype.Text{String: "/logos/le-media.svg", Valid: true},
+		PublisherType: db.PublisherTypeMEDIA,
 	}
 
 	article := buildFeedArticle(row)
@@ -38,13 +38,13 @@ func TestBuildFeedArticleCarriesAuthorIdentityType(t *testing.T) {
 	if article.Author.LogoURL == nil || *article.Author.LogoURL != "/avatars/camille.svg" {
 		t.Fatalf("logo auteur = %v, attendu /avatars/camille.svg (avatar personnel préservé)", article.Author.LogoURL)
 	}
-	if article.Publication.LogoURL == nil || *article.Publication.LogoURL != "/logos/le-media.svg" {
-		t.Fatalf("logo publication = %v, attendu /logos/le-media.svg", article.Publication.LogoURL)
+	if article.Publisher.LogoURL == nil || *article.Publisher.LogoURL != "/logos/le-media.svg" {
+		t.Fatalf("logo publication = %v, attendu /logos/le-media.svg", article.Publisher.LogoURL)
 	}
 
 	// Même autrice membre d'un média, mais article sur sa publication perso :
 	// identité ET logo personnels.
-	row.PublicationType = db.PublicationTypePERSONAL
+	row.PublisherType = db.PublisherTypePERSONAL
 	personal := buildFeedArticle(row)
 	if personal.Author.Type != "PERSONAL" {
 		t.Fatalf("type auteur = %q, attendu PERSONAL", personal.Author.Type)

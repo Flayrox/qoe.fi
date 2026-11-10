@@ -84,7 +84,7 @@ func LoadViewerGraph(ctx context.Context, pool *pgxpool.Pool, viewerID string, a
 		SELECT u.id::text,
 		       EXISTS (
 		         SELECT 1 FROM "Follows" f
-		         JOIN "User" me ON me."publicationId" = f."publicationId"
+		         JOIN "User" me ON me."publisherId" = f."publisherId"
 		         WHERE f."readerId" = u.id AND me.id = $1
 		       ) AS author_follows_viewer,
 		       is_muted_by($1, u.id) AS muted,

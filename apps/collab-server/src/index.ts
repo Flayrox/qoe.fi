@@ -18,7 +18,7 @@ import { resolve } from 'node:path';
 import { loadConfig } from './config';
 import { PostgresDatabase, MemoryDatabase, type CollabDatabase } from './database';
 import { createSupabaseVerifier } from './auth';
-import { createPublicationAccessChecker } from './permissions';
+import { createPublisherAccessChecker } from './permissions';
 import { createCollabServer } from './server';
 
 /**
@@ -85,7 +85,7 @@ const verifier = createSupabaseVerifier(config.supabaseUrl, config.supabaseAnonK
 // ─── RBAC publication (qui peut éditer) ──────────────────────────────
 // Seulement quand la persistance Postgres est active (pas de mode mémoire).
 const canEditDocument =
-  database instanceof PostgresDatabase ? createPublicationAccessChecker(database.pool) : undefined;
+  database instanceof PostgresDatabase ? createPublisherAccessChecker(database.pool) : undefined;
 
 const server = createCollabServer({
   database,

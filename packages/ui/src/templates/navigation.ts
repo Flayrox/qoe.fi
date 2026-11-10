@@ -27,7 +27,7 @@ export interface TenantNavigationInput {
     parentId?: string | null;
   }>;
   siteOptions?: Record<string, unknown> | null;
-  publicationId?: string;
+  publisherId?: string;
   /** Inclut les pages intégrées (Accueil, À propos, Pensées) dans navItems. */
   includePages?: boolean;
 }
@@ -38,7 +38,7 @@ export interface ResolvedTenantNavItem {
   url: string;
   order: number;
   isExternal: boolean;
-  publicationId: string;
+  publisherId: string;
   isCategory: boolean;
   categorySlug?: string;
   isHome?: boolean;
@@ -123,7 +123,7 @@ export function resolveTenantNavigation(input: TenantNavigationInput): ResolvedT
     url: `/${cat.slug}`,
     order: idx,
     isExternal: false,
-    publicationId: input.publicationId || '',
+    publisherId: input.publisherId || '',
     isCategory: true,
     categorySlug: cat.slug,
     children: getSubcategories(cat.id).map((sub, sIdx) => ({
@@ -132,7 +132,7 @@ export function resolveTenantNavigation(input: TenantNavigationInput): ResolvedT
       url: `/${cat.slug}/${sub.slug}`,
       order: sIdx,
       isExternal: false,
-      publicationId: input.publicationId || '',
+      publisherId: input.publisherId || '',
       isCategory: true,
       categorySlug: sub.slug,
     })),
@@ -153,7 +153,7 @@ export function resolveTenantNavigation(input: TenantNavigationInput): ResolvedT
         order: parent.order ?? 100 + idx,
         isExternal: normalized.isExternal,
         isMail: normalized.isMail,
-        publicationId: input.publicationId || '',
+        publisherId: input.publisherId || '',
         isCategory: false,
         children: (input.navigation || [])
           .filter((n) => n.parentId === parent.id && isConfiguredExternalUrl(n.url))
@@ -166,7 +166,7 @@ export function resolveTenantNavigation(input: TenantNavigationInput): ResolvedT
               order: child.order ?? cIdx,
               isExternal: childNorm.isExternal,
               isMail: childNorm.isMail,
-              publicationId: input.publicationId || '',
+              publisherId: input.publisherId || '',
               isCategory: false,
             };
           }),
@@ -184,7 +184,7 @@ export function resolveTenantNavigation(input: TenantNavigationInput): ResolvedT
             url: parent.url || '#',
             order: parent.order ?? idx,
             isExternal: false,
-            publicationId: input.publicationId || '',
+            publisherId: input.publisherId || '',
             isCategory: false,
             children: (input.navigation || [])
               .filter((n) => n.parentId === parent.id)
@@ -194,7 +194,7 @@ export function resolveTenantNavigation(input: TenantNavigationInput): ResolvedT
                 url: child.url || '#',
                 order: child.order ?? cIdx,
                 isExternal: false,
-                publicationId: input.publicationId || '',
+                publisherId: input.publisherId || '',
                 isCategory: false,
               })),
           }))
@@ -224,7 +224,7 @@ export function resolveTenantNavigation(input: TenantNavigationInput): ResolvedT
         url: '/',
         order: -10,
         isExternal: false,
-        publicationId: input.publicationId || '',
+        publisherId: input.publisherId || '',
         isCategory: false,
         isHome: true,
       });
@@ -237,7 +237,7 @@ export function resolveTenantNavigation(input: TenantNavigationInput): ResolvedT
         url: '/thoughts',
         order: 80,
         isExternal: false,
-        publicationId: input.publicationId || '',
+        publisherId: input.publisherId || '',
         isCategory: false,
         isPage: true,
       });
@@ -250,7 +250,7 @@ export function resolveTenantNavigation(input: TenantNavigationInput): ResolvedT
         url: '/about',
         order: 90,
         isExternal: false,
-        publicationId: input.publicationId || '',
+        publisherId: input.publisherId || '',
         isCategory: false,
         isPage: true,
       });

@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       body = {
         subject: String(form.get('subject') ?? '').slice(0, 200),
         reason: String(form.get('reason') ?? '').slice(0, 500),
-        publicationId: String(form.get('publicationId') ?? '').slice(0, 100),
+        publisherId: String(form.get('publisherId') ?? '').slice(0, 100),
         status: String(form.get('status') ?? '').slice(0, 50),
       };
     }

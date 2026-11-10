@@ -123,7 +123,7 @@ export async function requestAccountSecurityDeletionAction() {
 // POST /v1/settings/email/preview → rendu réel (même moteur que les
 //                                  envois) pour la prévisualisation live.
 
-export interface PublicationEmailSettings {
+export interface PublisherEmailSettings {
   // Champs PRO (verrouillés sans palier — voir emailPro) : nom
   // d'expéditeur, reply-to, accent, sujets, aperçus, note, corps — TOUS
   // UNIQUES (fini les variantes par langue, côté API comme ici).
@@ -141,47 +141,47 @@ export interface PublicationEmailSettings {
   emailPro?: boolean;
 }
 
-export async function getEmailSettingsAction(publicationId: string) {
+export async function getEmailSettingsAction(publisherId: string) {
   return goFetch<{
-    publicationName: string;
-    emailSettings: PublicationEmailSettings;
+    publisherName: string;
+    emailSettings: PublisherEmailSettings;
     accentColor?: string;
     logoUrl?: string;
     locales: string[];
     emailPro: boolean;
-  }>(`/v1/settings/email?publicationId=${encodeURIComponent(publicationId)}`);
+  }>(`/v1/settings/email?publisherId=${encodeURIComponent(publisherId)}`);
 }
 
 export async function updateEmailSettingsAction(
-  publicationId: string,
-  settings: PublicationEmailSettings
+  publisherId: string,
+  settings: PublisherEmailSettings
 ) {
-  return goFetch<{ emailSettings: PublicationEmailSettings }>('/v1/settings/email', {
+  return goFetch<{ emailSettings: PublisherEmailSettings }>('/v1/settings/email', {
     method: 'PATCH',
-    body: { publicationId, settings },
+    body: { publisherId, settings },
   });
 }
 
 export async function previewEmailSettingsAction(
-  publicationId: string,
+  publisherId: string,
   template: 'confirm' | 'welcome',
   locale: string,
-  settings: PublicationEmailSettings
+  settings: PublisherEmailSettings
 ) {
   return goFetch<{ subject: string; from: string; html: string; text: string }>(
     '/v1/settings/email/preview',
-    { method: 'POST', body: { publicationId, template, locale, settings } }
+    { method: 'POST', body: { publisherId, template, locale, settings } }
   );
 }
 
 export async function sendTestEmailAction(
-  publicationId: string,
+  publisherId: string,
   template: 'confirm' | 'welcome',
   locale: string,
-  settings: PublicationEmailSettings
+  settings: PublisherEmailSettings
 ) {
   return goFetch<{ sent: boolean; to: string; subject: string }>('/v1/settings/email/test', {
     method: 'POST',
-    body: { publicationId, template, locale, settings },
+    body: { publisherId, template, locale, settings },
   });
 }

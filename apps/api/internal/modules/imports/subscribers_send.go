@@ -110,15 +110,15 @@ type SendWaveDTO struct {
 // état). L'envoi encadré ne s'adresse qu'aux inconnus : si l'adresse s'est
 // inscrite ou confirmée entre-temps par un autre chemin, elle sort de la
 // vague au lieu de voir son parcours écrasé.
-func ensureInactiveImportSubscriber(ctx context.Context, tx pgx.Tx, publicationID, email, token string) (created bool, err error) {
+func ensureInactiveImportSubscriber(ctx context.Context, tx pgx.Tx, publisherID, email, token string) (created bool, err error) {
 	var ensured bool
 	err = tx.QueryRow(ctx, `
-		INSERT INTO "Subscriber" ("id", "email", "publicationId", "locale",
+		INSERT INTO "Subscriber" ("id", "email", "publisherId", "locale",
 		                          "isActive", "receiveArticles", "confirmedAt",
 		                          "confirmationToken", "createdAt", "updatedAt")
 		VALUES (gen_random_uuid()::text, $1, $2, 'fr', true, false, NULL, $3, now(), now())
-		ON CONFLICT ("email", "publicationId") DO NOTHING
-		RETURNING true`, email, publicationID, token).Scan(&ensured)
+		ON CONFLICT ("email", "publisherId") DO NOTHING
+		RETURNING true`, email, publisherID, token).Scan(&ensured)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return false, err
 	}
@@ -131,11 +131,11 @@ func ensureInactiveImportSubscriber(ctx context.Context, tx pgx.Tx, publicationI
 // seconde qui doublerait les envois.
 func (s *Service) StartSendWave(ctx context.Context, staffID, batchID string, capOverride int) (SendWaveDTO, error) {
 	var (
-		status, publicationID string
+		status, publisherID string
 	)
 	err := s.pool.QueryRow(ctx, `
-		SELECT "status", "publicationId"
-		FROM "SubscriberImportBatch" WHERE "id" = $1`, batchID).Scan(&status, &publicationID)
+		SELECT "status", "publisherId"
+		FROM "SubscriberImportBatch" WHERE "id" = $1`, batchID).Scan(&status, &publisherID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return SendWaveDTO{}, errNotFound
 	}
@@ -208,11 +208,11 @@ func (s *Service) StartSendWave(ctx context.Context, staffID, batchID string, ca
 	// lot, pas par vague.
 	var budgetID string
 	err = tx.QueryRow(ctx, `
-		INSERT INTO "ImportSendBudget" ("id", "batchId", "publicationId", "decisionId", "cap", "createdAt", "updatedAt")
+		INSERT INTO "ImportSendBudget" ("id", "batchId", "publisherId", "decisionId", "cap", "createdAt", "updatedAt")
 		VALUES ($1, $2, $3, $4, $5, now(), now())
 		ON CONFLICT ("batchId") DO UPDATE SET "updatedAt" = now()
 		RETURNING "id"`,
-		uuid.NewString(), batchID, publicationID, decisionID, cap).Scan(&budgetID)
+		uuid.NewString(), batchID, publisherID, decisionID, cap).Scan(&budgetID)
 	if err != nil {
 		return SendWaveDTO{}, err
 	}
@@ -220,11 +220,11 @@ func (s *Service) StartSendWave(ctx context.Context, staffID, batchID string, ca
 	waveID := uuid.NewString()
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO "ImportSendWave"
-		    ("id", "batchId", "publicationId", "decisionId", "budgetId", "status",
+		    ("id", "batchId", "publisherId", "decisionId", "budgetId", "status",
 		     "maxHardBounceRate", "maxComplaints", "maxFailedRate", "minSample",
 		     "createdAt", "updatedAt")
 		VALUES ($1, $2, $3, $4, $5, 'queued', $6, $7, $8, $9, now(), now())`,
-		waveID, batchID, publicationID, decisionID, budgetID,
+		waveID, batchID, publisherID, decisionID, budgetID,
 		thresholds.maxHardBounceRate, thresholds.maxComplaints,
 		thresholds.maxFailedRate, thresholds.minSample); err != nil {
 		return SendWaveDTO{}, err
@@ -234,13 +234,13 @@ func (s *Service) StartSendWave(ctx context.Context, staffID, batchID string, ca
 	// dédupliquées par la contrainte (waveId, email).
 	var snapshotted int64
 	if err := tx.QueryRow(ctx, `
-		INSERT INTO "ImportSendDelivery" ("id", "waveId", "batchId", "publicationId", "email", "status", "createdAt", "updatedAt")
+		INSERT INTO "ImportSendDelivery" ("id", "waveId", "batchId", "publisherId", "email", "status", "createdAt", "updatedAt")
 		SELECT gen_random_uuid()::text, $1, $2, $3, r."email", 'queued', now(), now()
 		FROM "SubscriberImportRow" r
 		WHERE r."batchId" = $2 AND r."status" = 'eligible_direct'
 		ON CONFLICT ("waveId", "email") DO NOTHING
 		RETURNING 1`,
-		waveID, batchID, publicationID).Scan(&snapshotted); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		waveID, batchID, publisherID).Scan(&snapshotted); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return SendWaveDTO{}, err
 	}
 	// Compte réel (l'INSERT...RETURNING 1 ne rend qu'une ligne en pgx).
@@ -359,8 +359,8 @@ type SendClaim struct {
 // RecipientContext est le contexte d'envoi d'un destinataire : publication
 // d'origine (nom pour l'expéditeur et le contenu).
 type RecipientContext struct {
-	PublicationID   string
-	PublicationName string
+	PublisherID   string
+	PublisherName string
 }
 
 // SendRecipientContext résout le contexte d'envoi d'une livraison : la vague
@@ -369,11 +369,11 @@ type RecipientContext struct {
 func (s *Service) SendRecipientContext(ctx context.Context, waveID, email string) (RecipientContext, error) {
 	var out RecipientContext
 	err := s.pool.QueryRow(ctx, `
-		SELECT d."publicationId", COALESCE(p."name", d."publicationId")
+		SELECT d."publisherId", COALESCE(p."name", d."publisherId")
 		FROM "ImportSendDelivery" d
 		JOIN "ImportSendWave" w ON w."id" = d."waveId"
-		LEFT JOIN "Publication" p ON p."id" = d."publicationId"
-		WHERE d."waveId" = $1 AND d."email" = $2`, waveID, email).Scan(&out.PublicationID, &out.PublicationName)
+		LEFT JOIN "Publisher" p ON p."id" = d."publisherId"
+		WHERE d."waveId" = $1 AND d."email" = $2`, waveID, email).Scan(&out.PublisherID, &out.PublisherName)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return out, errNotFound
 	}
@@ -399,12 +399,12 @@ func (s *Service) ClaimSendChunk(ctx context.Context, waveID string, limit int) 
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	var waveStatus, batchStatus, publicationID string
+	var waveStatus, batchStatus, publisherID string
 	if err := tx.QueryRow(ctx, `
-		SELECT w."status", bb."status", w."publicationId"
+		SELECT w."status", bb."status", w."publisherId"
 		FROM "ImportSendWave" w
 		JOIN "SubscriberImportBatch" bb ON bb."id" = w."batchId"
-		WHERE w."id" = $1`, waveID).Scan(&waveStatus, &batchStatus, &publicationID); err != nil {
+		WHERE w."id" = $1`, waveID).Scan(&waveStatus, &batchStatus, &publisherID); err != nil {
 		return nil, err
 	}
 	if waveStatus != "queued" && waveStatus != "sending" {
@@ -475,7 +475,7 @@ func (s *Service) ClaimSendChunk(ctx context.Context, waveID string, limit int) 
 	// segment et cette tranche ne doit jamais partir. Les adresses concernées
 	// sont écartées avec motif et comptées comme ignorées — la tranche ne les
 	// réserve même pas au budget.
-	claimedRows, err = s.excludeSuppressedClaim(ctx, tx, waveID, publicationID, claimedRows)
+	claimedRows, err = s.excludeSuppressedClaim(ctx, tx, waveID, publisherID, claimedRows)
 	if err != nil {
 		return nil, err
 	}
@@ -514,7 +514,7 @@ func (s *Service) ClaimSendChunk(ctx context.Context, waveID string, limit int) 
 		if err != nil {
 			return nil, err
 		}
-		created, err := ensureInactiveImportSubscriber(ctx, tx, publicationID, c.email, token)
+		created, err := ensureInactiveImportSubscriber(ctx, tx, publisherID, c.email, token)
 		if err != nil {
 			return nil, err
 		}
@@ -581,7 +581,7 @@ type claimedSendRow struct {
 // transaction est annulée et la tâche retentée avec backoff asynq — on ne
 // tranche jamais une opposition qu'on n'a pas pu lire.
 func (s *Service) excludeSuppressedClaim(
-	ctx context.Context, tx pgx.Tx, waveID, publicationID string, rows []claimedSendRow,
+	ctx context.Context, tx pgx.Tx, waveID, publisherID string, rows []claimedSendRow,
 ) ([]claimedSendRow, error) {
 	if len(rows) == 0 {
 		return rows, nil
@@ -597,8 +597,8 @@ func (s *Service) excludeSuppressedClaim(
 		    SELECT 1 FROM "EmailSuppression" x
 		    WHERE x.email = e.email
 		      AND (x."scope" = 'global'
-		           OR (x."scope" = 'publication' AND x."publicationId" = $1))
-		)`, publicationID, emails)
+		           OR (x."scope" = 'publisher' AND x."publisherId" = $1))
+		)`, publisherID, emails)
 	if err != nil {
 		return nil, err
 	}
@@ -701,18 +701,18 @@ func isHardBounce(errText string) bool {
 // elle n'efface rien et ne punit personne — elle stoppe l'hémorragie.
 func (s *Service) EvaluateSendSuspension(ctx context.Context, waveID string) (bool, error) {
 	var (
-		batchID, publicationID                string
+		batchID, publisherID                string
 		sent, failed, hardBounces, complaints int
 		maxHardBounceRate                     float64
 		maxComplaints, minSample              int
 		maxFailedRate                         float64
 	)
 	err := s.pool.QueryRow(ctx, `
-		SELECT "batchId", "publicationId", "sentCount", "failedCount",
+		SELECT "batchId", "publisherId", "sentCount", "failedCount",
 		       "hardBounceCount", "complaintCount",
 		       "maxHardBounceRate", "maxComplaints", "maxFailedRate", "minSample"
 		FROM "ImportSendWave" WHERE "id" = $1`, waveID).Scan(
-		&batchID, &publicationID, &sent, &failed, &hardBounces, &complaints,
+		&batchID, &publisherID, &sent, &failed, &hardBounces, &complaints,
 		&maxHardBounceRate, &maxComplaints, &maxFailedRate, &minSample)
 	if err != nil {
 		return false, err
@@ -774,7 +774,7 @@ func (s *Service) EvaluateSendSuspension(ctx context.Context, waveID string) (bo
 		})); err != nil {
 		return false, err
 	}
-	_ = publicationID
+	_ = publisherID
 	if err := tx.Commit(ctx); err != nil {
 		return false, err
 	}

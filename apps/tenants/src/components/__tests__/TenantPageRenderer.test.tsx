@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import React from 'react';
 import { TenantPageRenderer } from '../TenantPageRenderer';
-import type { TenantPublication } from '@/lib/tenant-data';
+import type { TenantPublisher } from '@/lib/tenant-data';
 
 vi.mock('next/headers', () => ({
   headers: vi.fn(async () => new Headers({ host: 'journal.qoe.fi' })),
@@ -10,16 +10,16 @@ vi.mock('next/headers', () => ({
 
 vi.mock('@qoe/ui/templates', () => ({
   TemplateRenderer: ({
-    publication,
+    publisher,
     config,
     articles,
   }: {
-    publication: { name: string };
+    publisher: { name: string };
     config?: { archetype?: string };
     articles: Array<{ excerpt?: string }>;
   }) => (
     <div data-testid="template-renderer" data-archetype={config?.archetype}>
-      <h1 data-testid="pub-name">{publication.name}</h1>
+      <h1 data-testid="pub-name">{publisher.name}</h1>
       <span data-testid="articles-count">{articles.length}</span>
       <span data-testid="first-excerpt">{articles[0]?.excerpt}</span>
     </div>
@@ -91,7 +91,7 @@ describe('TenantPageRenderer — Contrôleur universel unifié', () => {
         order: 0,
         isExternal: false,
         parentId: null,
-        publicationId: 'pub_test_1',
+        publisherId: 'pub_test_1',
       },
     ],
     socialLinks: [],
@@ -131,7 +131,7 @@ describe('TenantPageRenderer — Contrôleur universel unifié', () => {
   it('scope="home" : instancie TemplateRenderer avec les données et le paywall sain', async () => {
     const Component = await TenantPageRenderer({
       scope: 'home',
-      publication: dummyPub as unknown as TenantPublication,
+      publisher: dummyPub as unknown as TenantPublisher,
       decodedDomain: 'craft.qoe.fi',
       recommendations: [
         {
@@ -161,7 +161,7 @@ describe('TenantPageRenderer — Contrôleur universel unifié', () => {
   it('scope="article" : délègue au TenantArticleRenderer avec tous les props requis', async () => {
     const Component = await TenantPageRenderer({
       scope: 'article',
-      publication: dummyPub as unknown as TenantPublication,
+      publisher: dummyPub as unknown as TenantPublisher,
       article: dummyFullArticle,
       user: null,
       bundle: {

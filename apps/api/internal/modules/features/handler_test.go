@@ -73,7 +73,7 @@ func TestRecord_RequiresUser(t *testing.T) {
 	}
 }
 
-func TestSummary_RequiresPublication(t *testing.T) {
+func TestSummary_RequiresPublisher(t *testing.T) {
 	svc := NewService(nil)
 	if _, err := svc.Summary(context.Background(), "user", ""); !errors.Is(err, ErrInvalidSignal) {
 		t.Fatalf("err = %v, attendu ErrInvalidSignal", err)
@@ -107,7 +107,7 @@ func TestHandler_RejectsInvalidKindWithoutDatabase(t *testing.T) {
 	}
 }
 
-func TestHandler_SummaryRequiresPublicationID(t *testing.T) {
+func TestHandler_SummaryRequiresPublisherID(t *testing.T) {
 	r := newTestRouter("11111111-1111-4111-8111-111111111111")
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/features/signals/summary", nil))

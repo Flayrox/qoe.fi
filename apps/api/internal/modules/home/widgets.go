@@ -42,8 +42,8 @@ func (s *Service) GetOnboardingData(ctx context.Context) OnboardingData {
 	var creators []OnboardingCreator
 	rows, err := s.pool.Query(ctx, `
 		SELECT p.id::text, u.name, p.slug, p.subdomain, p."logoUrl", p."heroText", p."isCertified"
-		FROM "Publication" p
-		JOIN "User" u ON u."publicationId" = p.id
+		FROM "Publisher" p
+		JOIN "User" u ON u."publisherId" = p.id
 		WHERE p.type = 'PERSONAL' AND p."isCertified" = true AND u.role = 'creator'
 		LIMIT 8`)
 	if err != nil {
@@ -70,8 +70,8 @@ func (s *Service) GetOnboardingData(ctx context.Context) OnboardingData {
 		// Fallback dev : n'importe quel créateur.
 		rows2, err := s.pool.Query(ctx, `
 			SELECT p.id::text, u.name, p.slug, p.subdomain, p."logoUrl", p."heroText", p."isCertified"
-			FROM "Publication" p
-			JOIN "User" u ON u."publicationId" = p.id
+			FROM "Publisher" p
+			JOIN "User" u ON u."publisherId" = p.id
 			WHERE p.type = 'PERSONAL' AND u.role = 'creator'
 			LIMIT 8`)
 		if err == nil {
@@ -128,7 +128,7 @@ func (s *Service) GetSuggestedCreators(ctx context.Context, userID string, limit
 			`SELECT COALESCE("embedding"::text, '') FROM "User" WHERE id = $1`, toUUID(userID)).Scan(&emb); err == nil && emb.Valid && emb.String != "" {
 			userVector = &emb.String
 		}
-		rows, err := s.pool.Query(ctx, `SELECT "publicationId"::text FROM "Follows" WHERE "readerId" = $1`, toUUID(userID))
+		rows, err := s.pool.Query(ctx, `SELECT "publisherId"::text FROM "Follows" WHERE "readerId" = $1`, toUUID(userID))
 		if err == nil {
 			for rows.Next() {
 				var pid string
@@ -155,8 +155,8 @@ func (s *Service) GetSuggestedCreators(ctx context.Context, userID string, limit
 				ROW_NUMBER() OVER(PARTITION BY u.id ORDER BY a."createdAt" DESC) as rn
 			FROM "User" u
 			LEFT JOIN "Article" a ON a."authorId" = u.id AND a.published = true
-			LEFT JOIN "Publication" p ON p.id = a."publicationId"
-			LEFT JOIN "Subscriber" s ON s."publicationId" = p.id AND s."isActive" = true
+			LEFT JOIN "Publisher" p ON p.id = a."publisherId"
+			LEFT JOIN "Subscriber" s ON s."publisherId" = p.id AND s."isActive" = true
 			WHERE u."isShadowbanned" = false AND u."isSuspended" = false
 		`
 		if len(excluded) > 0 {
@@ -201,8 +201,8 @@ func (s *Service) GetSuggestedCreators(ctx context.Context, userID string, limit
 				ROW_NUMBER() OVER(PARTITION BY u.id ORDER BY a."createdAt" DESC) as rn
 			FROM "User" u
 			LEFT JOIN "Article" a ON a."authorId" = u.id AND a.published = true
-			LEFT JOIN "Publication" p ON p.id = a."publicationId"
-			LEFT JOIN "Subscriber" s ON s."publicationId" = p.id AND s."isActive" = true
+			LEFT JOIN "Publisher" p ON p.id = a."publisherId"
+			LEFT JOIN "Subscriber" s ON s."publisherId" = p.id AND s."isActive" = true
 			WHERE u."isShadowbanned" = false AND u."isSuspended" = false
 			GROUP BY u.id, u.name, u.username, u."logoUrl", p."heroText", u."isCertified", p.subdomain, p."customDomain", a.title, a."createdAt"
 		)
@@ -255,7 +255,7 @@ func (s *Service) platformPickUserIDs(ctx context.Context) []string {
 		return []string{}
 	}
 	users, err := s.queryIDs(ctx,
-		`SELECT u.id::text FROM "User" u WHERE u."publicationId"::text = ANY($1::text[])`, ids)
+		`SELECT u.id::text FROM "User" u WHERE u."publisherId"::text = ANY($1::text[])`, ids)
 	if err != nil {
 		return []string{}
 	}
@@ -413,7 +413,7 @@ func (s *Service) GetSemanticTrends(ctx context.Context, limit int) ([]SemanticT
 // confirmation. Une réinscription après désabonnement RFC 8058 NE réactive
 // PAS : seul le clic sur le nouveau lien le fait (fiche 01 : aucune
 // réactivation silencieuse).
-func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationID, locale string) (bool, error) {
+func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publisherID, locale string) (bool, error) {
 	// Coupe-feu inscriptions (fiche 06 §10) : engagé → refus AVANT toute
 	// lecture/écriture. Les confirmations de clics en cours ne passent pas
 	// par ici et aboutissent normalement.
@@ -422,7 +422,7 @@ func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationI
 	}
 	var exists bool
 	err := s.pool.QueryRow(ctx,
-		`SELECT EXISTS(SELECT 1 FROM "Publication" WHERE id = $1)`, publicationID).Scan(&exists)
+		`SELECT EXISTS(SELECT 1 FROM "Publisher" WHERE id = $1)`, publisherID).Scan(&exists)
 	if err != nil {
 		return false, err
 	}
@@ -439,9 +439,9 @@ func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationI
 	var receiveArticles bool
 	var confirmed bool
 	err = s.pool.QueryRow(ctx, `
-		INSERT INTO "Subscriber" (id, email, "publicationId", locale, "isActive", "receiveArticles", "confirmationToken", "createdAt", "updatedAt")
+		INSERT INTO "Subscriber" (id, email, "publisherId", locale, "isActive", "receiveArticles", "confirmationToken", "createdAt", "updatedAt")
 		VALUES (gen_random_uuid()::text, $1, $2, $3, true, false, $4, now(), now())
-		ON CONFLICT ("email", "publicationId") DO UPDATE SET
+		ON CONFLICT ("email", "publisherId") DO UPDATE SET
 		  "isActive" = true,
 		  -- La langue N'EST PAS réécrite : elle est capturée à la première
 		  -- inscription (choix du lecteur pour ses emails) et une réinscription
@@ -456,7 +456,7 @@ func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationI
 		  "updatedAt" = now()
 		RETURNING id, (xmax = 0) AS inserted, "receiveArticles",
 		          ("confirmedAt" IS NOT NULL) AS confirmed`,
-		email, publicationID, locale, token).Scan(&subscriberID, &inserted, &receiveArticles, &confirmed)
+		email, publisherID, locale, token).Scan(&subscriberID, &inserted, &receiveArticles, &confirmed)
 	if err != nil {
 		return false, err
 	}
@@ -468,7 +468,7 @@ func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationI
 	// automatique sur un signal faible). Un seul appel Observe (pivot lot 1 :
 	// enregistrer sans évaluer est impossible).
 	abuse.Observe(ctx, s.pool, time.Now(), abuse.Signal{
-		Type: abuse.SignalSignupAttempt, SubjectType: abuse.SubjectPublication, SubjectID: publicationID,
+		Type: abuse.SignalSignupAttempt, SubjectType: abuse.SubjectPublisher, SubjectID: publisherID,
 		Source: abuse.SourceHomeSubscribe, Confidence: abuse.ConfidenceObserved, Retention: abuse.SignupSignalRetention,
 	})
 
@@ -477,7 +477,7 @@ func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationI
 	if inserted && s.events != nil {
 		if err := queue.PublishSubscriberCreated(s.events, queue.SubscriberCreatedPayload{
 			SubscriberID:  subscriberID,
-			PublicationID: publicationID,
+			PublisherID: publisherID,
 			Email:         email,
 		}); err != nil {
 			log.Printf("[home] subscriber.created enqueue: %v", err)
@@ -490,13 +490,13 @@ func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationI
 	// 2000/jour pour la publication, la demande reste enregistrée en attente
 	// mais aucun e-mail ne part — sans le dire (réponse neutre).
 	if !(receiveArticles && confirmed) && s.events != nil {
-		if !abuse.ConfirmAllowed(ctx, s.pool, email, publicationID, time.Now()) {
+		if !abuse.ConfirmAllowed(ctx, s.pool, email, publisherID, time.Now()) {
 			log.Printf("[home] confirmation non envoyée (budget épuisé) %s", email)
 			return true, nil
 		}
 		if err := queue.PublishSubscriberConfirm(s.events, queue.SubscriberConfirmPayload{
 			Email:         email,
-			PublicationID: publicationID,
+			PublisherID: publisherID,
 		}); err != nil {
 			log.Printf("[home] subscriber.confirm enqueue: %v", err)
 		}

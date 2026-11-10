@@ -12,7 +12,7 @@ import (
 )
 
 const checkSubdomainExists = `-- name: CheckSubdomainExists :one
-SELECT EXISTS(SELECT 1 FROM "Publication" WHERE "subdomain" = $1) AS exists
+SELECT EXISTS(SELECT 1 FROM "Publisher" WHERE "subdomain" = $1) AS exists
 `
 
 func (q *Queries) CheckSubdomainExists(ctx context.Context, subdomain pgtype.Text) (bool, error) {
@@ -23,7 +23,7 @@ func (q *Queries) CheckSubdomainExists(ctx context.Context, subdomain pgtype.Tex
 }
 
 const checkSubdomainExistsOther = `-- name: CheckSubdomainExistsOther :one
-SELECT EXISTS(SELECT 1 FROM "Publication" WHERE "subdomain" = $1 AND id != $2) AS exists
+SELECT EXISTS(SELECT 1 FROM "Publisher" WHERE "subdomain" = $1 AND id != $2) AS exists
 `
 
 type CheckSubdomainExistsOtherParams struct {
@@ -55,14 +55,14 @@ func (q *Queries) CompleteOnboardingUser(ctx context.Context, arg CompleteOnboar
 	return err
 }
 
-const createPersonalPublication = `-- name: CreatePersonalPublication :one
-INSERT INTO "Publication" (id, type, name, slug, "subdomain", "heroText", "layoutStyle",
+const createPersonalPublisher = `-- name: CreatePersonalPublisher :one
+INSERT INTO "Publisher" (id, type, name, slug, "subdomain", "heroText", "layoutStyle",
                            "logoUrl", "isCertified", "updatedAt")
 VALUES (gen_random_uuid()::text, 'PERSONAL', $1, $2, $3, $4, $5, $6, $7, now())
 RETURNING id
 `
 
-type CreatePersonalPublicationParams struct {
+type CreatePersonalPublisherParams struct {
 	Name        string      `json:"name"`
 	Slug        string      `json:"slug"`
 	Subdomain   pgtype.Text `json:"subdomain"`
@@ -72,8 +72,8 @@ type CreatePersonalPublicationParams struct {
 	IsCertified bool        `json:"isCertified"`
 }
 
-func (q *Queries) CreatePersonalPublication(ctx context.Context, arg CreatePersonalPublicationParams) (string, error) {
-	row := q.db.QueryRow(ctx, createPersonalPublication,
+func (q *Queries) CreatePersonalPublisher(ctx context.Context, arg CreatePersonalPublisherParams) (string, error) {
+	row := q.db.QueryRow(ctx, createPersonalPublisher,
 		arg.Name,
 		arg.Slug,
 		arg.Subdomain,
@@ -102,30 +102,30 @@ func (q *Queries) DeleteApiKey(ctx context.Context, arg DeleteApiKeyParams) erro
 }
 
 const deleteNavigationItems = `-- name: DeleteNavigationItems :exec
-DELETE FROM "NavigationItem" WHERE "publicationId" = $1
+DELETE FROM "NavigationItem" WHERE "publisherId" = $1
 `
 
-func (q *Queries) DeleteNavigationItems(ctx context.Context, publicationid string) error {
-	_, err := q.db.Exec(ctx, deleteNavigationItems, publicationid)
+func (q *Queries) DeleteNavigationItems(ctx context.Context, publisherid string) error {
+	_, err := q.db.Exec(ctx, deleteNavigationItems, publisherid)
 	return err
 }
 
 const deleteSocialLinks = `-- name: DeleteSocialLinks :exec
-DELETE FROM "SocialLink" WHERE "publicationId" = $1
+DELETE FROM "SocialLink" WHERE "publisherId" = $1
 `
 
-func (q *Queries) DeleteSocialLinks(ctx context.Context, publicationid string) error {
-	_, err := q.db.Exec(ctx, deleteSocialLinks, publicationid)
+func (q *Queries) DeleteSocialLinks(ctx context.Context, publisherid string) error {
+	_, err := q.db.Exec(ctx, deleteSocialLinks, publisherid)
 	return err
 }
 
-const getPublicationEmailDefaults = `-- name: GetPublicationEmailDefaults :one
+const getPublisherEmailDefaults = `-- name: GetPublisherEmailDefaults :one
 SELECT p.name, p."accentColor", p."logoUrl", p."emailSettings"
-FROM "Publication" p
+FROM "Publisher" p
 WHERE p.id = $1
 `
 
-type GetPublicationEmailDefaultsRow struct {
+type GetPublisherEmailDefaultsRow struct {
 	Name          string      `json:"name"`
 	AccentColor   pgtype.Text `json:"accentColor"`
 	LogoUrl       pgtype.Text `json:"logoUrl"`
@@ -134,9 +134,9 @@ type GetPublicationEmailDefaultsRow struct {
 
 // Identité par défaut de la publication (pré-remplissage du formulaire
 // email du studio) + réglages email stockés.
-func (q *Queries) GetPublicationEmailDefaults(ctx context.Context, id string) (GetPublicationEmailDefaultsRow, error) {
-	row := q.db.QueryRow(ctx, getPublicationEmailDefaults, id)
-	var i GetPublicationEmailDefaultsRow
+func (q *Queries) GetPublisherEmailDefaults(ctx context.Context, id string) (GetPublisherEmailDefaultsRow, error) {
+	row := q.db.QueryRow(ctx, getPublisherEmailDefaults, id)
+	var i GetPublisherEmailDefaultsRow
 	err := row.Scan(
 		&i.Name,
 		&i.AccentColor,
@@ -146,34 +146,34 @@ func (q *Queries) GetPublicationEmailDefaults(ctx context.Context, id string) (G
 	return i, err
 }
 
-const getPublicationForEmailTest = `-- name: GetPublicationForEmailTest :one
-SELECT p.name AS publication_name,
+const getPublisherForEmailTest = `-- name: GetPublisherForEmailTest :one
+SELECT p.name AS publisher_name,
        p.subdomain,
        p."customDomain" AS custom_domain,
        p."accentColor" AS accent_color,
        p."logoUrl" AS logo_url,
        p."emailSettings"
-FROM "Publication" p
+FROM "Publisher" p
 WHERE p.id = $1
 `
 
-type GetPublicationForEmailTestRow struct {
-	PublicationName string      `json:"publication_name"`
-	Subdomain       pgtype.Text `json:"subdomain"`
-	CustomDomain    pgtype.Text `json:"custom_domain"`
-	AccentColor     pgtype.Text `json:"accent_color"`
-	LogoUrl         pgtype.Text `json:"logo_url"`
-	EmailSettings   []byte      `json:"emailSettings"`
+type GetPublisherForEmailTestRow struct {
+	PublisherName string      `json:"publisher_name"`
+	Subdomain     pgtype.Text `json:"subdomain"`
+	CustomDomain  pgtype.Text `json:"custom_domain"`
+	AccentColor   pgtype.Text `json:"accent_color"`
+	LogoUrl       pgtype.Text `json:"logo_url"`
+	EmailSettings []byte      `json:"emailSettings"`
 }
 
 // Identité complète de la publication pour l'envoi d'un email de test
 // (POST /v1/settings/email/test) : mêmes colonnes que
 // GetSubscriberEmailDefaults + réglages stockés rendus par le moteur.
-func (q *Queries) GetPublicationForEmailTest(ctx context.Context, id string) (GetPublicationForEmailTestRow, error) {
-	row := q.db.QueryRow(ctx, getPublicationForEmailTest, id)
-	var i GetPublicationForEmailTestRow
+func (q *Queries) GetPublisherForEmailTest(ctx context.Context, id string) (GetPublisherForEmailTestRow, error) {
+	row := q.db.QueryRow(ctx, getPublisherForEmailTest, id)
+	var i GetPublisherForEmailTestRow
 	err := row.Scan(
-		&i.PublicationName,
+		&i.PublisherName,
 		&i.Subdomain,
 		&i.CustomDomain,
 		&i.AccentColor,
@@ -183,7 +183,7 @@ func (q *Queries) GetPublicationForEmailTest(ctx context.Context, id string) (Ge
 	return i, err
 }
 
-const getPublicationForSettings = `-- name: GetPublicationForSettings :one
+const getPublisherForSettings = `-- name: GetPublisherForSettings :one
 
 SELECT p.id, p.name, p.slug, p."subdomain", p."customDomain", p."heroText",
        p."accentColor", p."fontFamily", p."themeMode", p."layoutStyle",
@@ -192,43 +192,43 @@ SELECT p.id, p.name, p.slug, p."subdomain", p."customDomain", p."heroText",
        p."siteOptions",
        COALESCE(u.id::text, '')::text AS owner_id, u.email AS owner_email, u.username AS owner_username,
        u."advancedSettingsMode" AS owner_advanced_settings_mode
-FROM "Publication" p
-LEFT JOIN "User" u ON u."publicationId" = p.id
+FROM "Publisher" p
+LEFT JOIN "User" u ON u."publisherId" = p.id
 WHERE p.id = $1
 `
 
-type GetPublicationForSettingsRow struct {
-	ID                        string          `json:"id"`
-	Name                      string          `json:"name"`
-	Slug                      string          `json:"slug"`
-	Subdomain                 pgtype.Text     `json:"subdomain"`
-	CustomDomain              pgtype.Text     `json:"customDomain"`
-	HeroText                  pgtype.Text     `json:"heroText"`
-	AccentColor               pgtype.Text     `json:"accentColor"`
-	FontFamily                pgtype.Text     `json:"fontFamily"`
-	ThemeMode                 pgtype.Text     `json:"themeMode"`
-	LayoutStyle               pgtype.Text     `json:"layoutStyle"`
-	LogoUrl                   pgtype.Text     `json:"logoUrl"`
-	HeaderImageUrl            pgtype.Text     `json:"headerImageUrl"`
-	FooterText                pgtype.Text     `json:"footerText"`
-	SeoTitle                  pgtype.Text     `json:"seoTitle"`
-	SeoDescription            pgtype.Text     `json:"seoDescription"`
-	AllowIndexing             bool            `json:"allowIndexing"`
-	SupportUrl                pgtype.Text     `json:"supportUrl"`
-	Type                      PublicationType `json:"type"`
-	UmamiWebsiteId            pgtype.Text     `json:"umamiWebsiteId"`
-	SiteOptions               []byte          `json:"siteOptions"`
-	OwnerID                   string          `json:"owner_id"`
-	OwnerEmail                pgtype.Text     `json:"owner_email"`
-	OwnerUsername             pgtype.Text     `json:"owner_username"`
-	OwnerAdvancedSettingsMode pgtype.Bool     `json:"owner_advanced_settings_mode"`
+type GetPublisherForSettingsRow struct {
+	ID                        string        `json:"id"`
+	Name                      string        `json:"name"`
+	Slug                      string        `json:"slug"`
+	Subdomain                 pgtype.Text   `json:"subdomain"`
+	CustomDomain              pgtype.Text   `json:"customDomain"`
+	HeroText                  pgtype.Text   `json:"heroText"`
+	AccentColor               pgtype.Text   `json:"accentColor"`
+	FontFamily                pgtype.Text   `json:"fontFamily"`
+	ThemeMode                 pgtype.Text   `json:"themeMode"`
+	LayoutStyle               pgtype.Text   `json:"layoutStyle"`
+	LogoUrl                   pgtype.Text   `json:"logoUrl"`
+	HeaderImageUrl            pgtype.Text   `json:"headerImageUrl"`
+	FooterText                pgtype.Text   `json:"footerText"`
+	SeoTitle                  pgtype.Text   `json:"seoTitle"`
+	SeoDescription            pgtype.Text   `json:"seoDescription"`
+	AllowIndexing             bool          `json:"allowIndexing"`
+	SupportUrl                pgtype.Text   `json:"supportUrl"`
+	Type                      PublisherType `json:"type"`
+	UmamiWebsiteId            pgtype.Text   `json:"umamiWebsiteId"`
+	SiteOptions               []byte        `json:"siteOptions"`
+	OwnerID                   string        `json:"owner_id"`
+	OwnerEmail                pgtype.Text   `json:"owner_email"`
+	OwnerUsername             pgtype.Text   `json:"owner_username"`
+	OwnerAdvancedSettingsMode pgtype.Bool   `json:"owner_advanced_settings_mode"`
 }
 
 // Page settings créateur (parité prisma.publication.findUnique include dans
 // apps/studio/src/app/(creator)/settings/page.tsx).
-func (q *Queries) GetPublicationForSettings(ctx context.Context, id string) (GetPublicationForSettingsRow, error) {
-	row := q.db.QueryRow(ctx, getPublicationForSettings, id)
-	var i GetPublicationForSettingsRow
+func (q *Queries) GetPublisherForSettings(ctx context.Context, id string) (GetPublisherForSettingsRow, error) {
+	row := q.db.QueryRow(ctx, getPublisherForSettings, id)
+	var i GetPublisherForSettingsRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -259,23 +259,23 @@ func (q *Queries) GetPublicationForSettings(ctx context.Context, id string) (Get
 }
 
 const getSubscriberEmailDefaults = `-- name: GetSubscriberEmailDefaults :one
-SELECT p.name AS publication_name,
+SELECT p.name AS publisher_name,
        p.subdomain,
        p."customDomain" AS custom_domain,
        p."accentColor" AS accent_color,
        p."logoUrl" AS logo_url,
        p."emailSettings"
-FROM "Publication" p
+FROM "Publisher" p
 WHERE p.id = $1
 `
 
 type GetSubscriberEmailDefaultsRow struct {
-	PublicationName string      `json:"publication_name"`
-	Subdomain       pgtype.Text `json:"subdomain"`
-	CustomDomain    pgtype.Text `json:"custom_domain"`
-	AccentColor     pgtype.Text `json:"accent_color"`
-	LogoUrl         pgtype.Text `json:"logo_url"`
-	EmailSettings   []byte      `json:"emailSettings"`
+	PublisherName string      `json:"publisher_name"`
+	Subdomain     pgtype.Text `json:"subdomain"`
+	CustomDomain  pgtype.Text `json:"custom_domain"`
+	AccentColor   pgtype.Text `json:"accent_color"`
+	LogoUrl       pgtype.Text `json:"logo_url"`
+	EmailSettings []byte      `json:"emailSettings"`
 }
 
 // Identité d'une publication pour la prévisualisation des emails
@@ -286,7 +286,7 @@ func (q *Queries) GetSubscriberEmailDefaults(ctx context.Context, id string) (Ge
 	row := q.db.QueryRow(ctx, getSubscriberEmailDefaults, id)
 	var i GetSubscriberEmailDefaultsRow
 	err := row.Scan(
-		&i.PublicationName,
+		&i.PublisherName,
 		&i.Subdomain,
 		&i.CustomDomain,
 		&i.AccentColor,
@@ -327,7 +327,7 @@ SELECT u.id::text         AS id,
        u.role,
        u."isCertified",
        u."logoUrl",
-       u."publicationId",
+       u."publisherId",
        u."advancedSettingsMode",
        u."hasCompletedOnboarding",
        u."apiAccessStatus",
@@ -346,7 +346,7 @@ type GetUserForSettingsRow struct {
 	Role                   string           `json:"role"`
 	IsCertified            bool             `json:"isCertified"`
 	LogoUrl                pgtype.Text      `json:"logoUrl"`
-	PublicationId          pgtype.Text      `json:"publicationId"`
+	PublisherId            pgtype.Text      `json:"publisherId"`
 	AdvancedSettingsMode   bool             `json:"advancedSettingsMode"`
 	HasCompletedOnboarding bool             `json:"hasCompletedOnboarding"`
 	ApiAccessStatus        string           `json:"apiAccessStatus"`
@@ -367,7 +367,7 @@ func (q *Queries) GetUserForSettings(ctx context.Context, id string) (GetUserFor
 		&i.Role,
 		&i.IsCertified,
 		&i.LogoUrl,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.AdvancedSettingsMode,
 		&i.HasCompletedOnboarding,
 		&i.ApiAccessStatus,
@@ -403,16 +403,16 @@ func (q *Queries) InsertApiKey(ctx context.Context, arg InsertApiKeyParams) erro
 }
 
 const insertNavigationItem = `-- name: InsertNavigationItem :exec
-INSERT INTO "NavigationItem" (id, label, url, "order", "isExternal", "publicationId")
+INSERT INTO "NavigationItem" (id, label, url, "order", "isExternal", "publisherId")
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5)
 `
 
 type InsertNavigationItemParams struct {
-	Label         string      `json:"label"`
-	Url           pgtype.Text `json:"url"`
-	Order         int32       `json:"order"`
-	IsExternal    bool        `json:"isExternal"`
-	PublicationId string      `json:"publicationId"`
+	Label       string      `json:"label"`
+	Url         pgtype.Text `json:"url"`
+	Order       int32       `json:"order"`
+	IsExternal  bool        `json:"isExternal"`
+	PublisherId string      `json:"publisherId"`
 }
 
 func (q *Queries) InsertNavigationItem(ctx context.Context, arg InsertNavigationItemParams) error {
@@ -421,21 +421,21 @@ func (q *Queries) InsertNavigationItem(ctx context.Context, arg InsertNavigation
 		arg.Url,
 		arg.Order,
 		arg.IsExternal,
-		arg.PublicationId,
+		arg.PublisherId,
 	)
 	return err
 }
 
 const insertSocialLink = `-- name: InsertSocialLink :exec
-INSERT INTO "SocialLink" (id, platform, url, "order", "publicationId")
+INSERT INTO "SocialLink" (id, platform, url, "order", "publisherId")
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4)
 `
 
 type InsertSocialLinkParams struct {
-	Platform      string `json:"platform"`
-	Url           string `json:"url"`
-	Order         int32  `json:"order"`
-	PublicationId string `json:"publicationId"`
+	Platform    string `json:"platform"`
+	Url         string `json:"url"`
+	Order       int32  `json:"order"`
+	PublisherId string `json:"publisherId"`
 }
 
 func (q *Queries) InsertSocialLink(ctx context.Context, arg InsertSocialLinkParams) error {
@@ -443,22 +443,22 @@ func (q *Queries) InsertSocialLink(ctx context.Context, arg InsertSocialLinkPara
 		arg.Platform,
 		arg.Url,
 		arg.Order,
-		arg.PublicationId,
+		arg.PublisherId,
 	)
 	return err
 }
 
-const linkUserPublication = `-- name: LinkUserPublication :exec
-UPDATE "User" SET "publicationId" = $2, "updatedAt" = now() WHERE id = $1
+const linkUserPublisher = `-- name: LinkUserPublisher :exec
+UPDATE "User" SET "publisherId" = $2, "updatedAt" = now() WHERE id = $1
 `
 
-type LinkUserPublicationParams struct {
-	ID            string      `json:"id"`
-	PublicationId pgtype.Text `json:"publicationId"`
+type LinkUserPublisherParams struct {
+	ID          string      `json:"id"`
+	PublisherId pgtype.Text `json:"publisherId"`
 }
 
-func (q *Queries) LinkUserPublication(ctx context.Context, arg LinkUserPublicationParams) error {
-	_, err := q.db.Exec(ctx, linkUserPublication, arg.ID, arg.PublicationId)
+func (q *Queries) LinkUserPublisher(ctx context.Context, arg LinkUserPublisherParams) error {
+	_, err := q.db.Exec(ctx, linkUserPublisher, arg.ID, arg.PublisherId)
 	return err
 }
 
@@ -509,7 +509,7 @@ const listArticlesForSettings = `-- name: ListArticlesForSettings :many
 SELECT id, title, slug, content, published, "isPremium", "categoryId", "seoTitle",
        "seoDescription", "createdAt"
 FROM "Article"
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
 ORDER BY "createdAt" DESC
 `
 
@@ -526,8 +526,8 @@ type ListArticlesForSettingsRow struct {
 	CreatedAt      pgtype.Timestamp `json:"createdAt"`
 }
 
-func (q *Queries) ListArticlesForSettings(ctx context.Context, publicationid string) ([]ListArticlesForSettingsRow, error) {
-	rows, err := q.db.Query(ctx, listArticlesForSettings, publicationid)
+func (q *Queries) ListArticlesForSettings(ctx context.Context, publisherid string) ([]ListArticlesForSettingsRow, error) {
+	rows, err := q.db.Query(ctx, listArticlesForSettings, publisherid)
 	if err != nil {
 		return nil, err
 	}
@@ -557,14 +557,14 @@ func (q *Queries) ListArticlesForSettings(ctx context.Context, publicationid str
 	return items, nil
 }
 
-const listCategoriesForPublication = `-- name: ListCategoriesForPublication :many
+const listCategoriesForPublisher = `-- name: ListCategoriesForPublisher :many
 SELECT id, name, slug, description, "parentId"
 FROM "Category"
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
 ORDER BY name ASC
 `
 
-type ListCategoriesForPublicationRow struct {
+type ListCategoriesForPublisherRow struct {
 	ID          string      `json:"id"`
 	Name        string      `json:"name"`
 	Slug        string      `json:"slug"`
@@ -572,15 +572,15 @@ type ListCategoriesForPublicationRow struct {
 	ParentId    pgtype.Text `json:"parentId"`
 }
 
-func (q *Queries) ListCategoriesForPublication(ctx context.Context, publicationid string) ([]ListCategoriesForPublicationRow, error) {
-	rows, err := q.db.Query(ctx, listCategoriesForPublication, publicationid)
+func (q *Queries) ListCategoriesForPublisher(ctx context.Context, publisherid string) ([]ListCategoriesForPublisherRow, error) {
+	rows, err := q.db.Query(ctx, listCategoriesForPublisher, publisherid)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListCategoriesForPublicationRow{}
+	items := []ListCategoriesForPublisherRow{}
 	for rows.Next() {
-		var i ListCategoriesForPublicationRow
+		var i ListCategoriesForPublisherRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
@@ -598,14 +598,14 @@ func (q *Queries) ListCategoriesForPublication(ctx context.Context, publicationi
 	return items, nil
 }
 
-const listNavigationForPublication = `-- name: ListNavigationForPublication :many
+const listNavigationForPublisher = `-- name: ListNavigationForPublisher :many
 SELECT id, label, url, "order", "isExternal"
 FROM "NavigationItem"
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
 ORDER BY "order" ASC
 `
 
-type ListNavigationForPublicationRow struct {
+type ListNavigationForPublisherRow struct {
 	ID         string      `json:"id"`
 	Label      string      `json:"label"`
 	Url        pgtype.Text `json:"url"`
@@ -613,15 +613,15 @@ type ListNavigationForPublicationRow struct {
 	IsExternal bool        `json:"isExternal"`
 }
 
-func (q *Queries) ListNavigationForPublication(ctx context.Context, publicationid string) ([]ListNavigationForPublicationRow, error) {
-	rows, err := q.db.Query(ctx, listNavigationForPublication, publicationid)
+func (q *Queries) ListNavigationForPublisher(ctx context.Context, publisherid string) ([]ListNavigationForPublisherRow, error) {
+	rows, err := q.db.Query(ctx, listNavigationForPublisher, publisherid)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListNavigationForPublicationRow{}
+	items := []ListNavigationForPublisherRow{}
 	for rows.Next() {
-		var i ListNavigationForPublicationRow
+		var i ListNavigationForPublisherRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Label,
@@ -639,29 +639,29 @@ func (q *Queries) ListNavigationForPublication(ctx context.Context, publicationi
 	return items, nil
 }
 
-const listSocialLinksForPublication = `-- name: ListSocialLinksForPublication :many
+const listSocialLinksForPublisher = `-- name: ListSocialLinksForPublisher :many
 SELECT id, platform, url, "order"
 FROM "SocialLink"
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
 ORDER BY "order" ASC
 `
 
-type ListSocialLinksForPublicationRow struct {
+type ListSocialLinksForPublisherRow struct {
 	ID       string `json:"id"`
 	Platform string `json:"platform"`
 	Url      string `json:"url"`
 	Order    int32  `json:"order"`
 }
 
-func (q *Queries) ListSocialLinksForPublication(ctx context.Context, publicationid string) ([]ListSocialLinksForPublicationRow, error) {
-	rows, err := q.db.Query(ctx, listSocialLinksForPublication, publicationid)
+func (q *Queries) ListSocialLinksForPublisher(ctx context.Context, publisherid string) ([]ListSocialLinksForPublisherRow, error) {
+	rows, err := q.db.Query(ctx, listSocialLinksForPublisher, publisherid)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListSocialLinksForPublicationRow{}
+	items := []ListSocialLinksForPublisherRow{}
 	for rows.Next() {
-		var i ListSocialLinksForPublicationRow
+		var i ListSocialLinksForPublisherRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Platform,
@@ -694,22 +694,22 @@ func (q *Queries) SetApiApplication(ctx context.Context, arg SetApiApplicationPa
 	return err
 }
 
-const setPublicationDownloadDefault = `-- name: SetPublicationDownloadDefault :one
-UPDATE "Publication"
+const setPublisherDownloadDefault = `-- name: SetPublisherDownloadDefault :one
+UPDATE "Publisher"
 SET "allowDownloadDefault" = $2, "updatedAt" = now()
 WHERE id = $1
 RETURNING "allowDownloadDefault"
 `
 
-type SetPublicationDownloadDefaultParams struct {
+type SetPublisherDownloadDefaultParams struct {
 	ID                   string `json:"id"`
 	AllowDownloadDefault bool   `json:"allowDownloadDefault"`
 }
 
 // Défaut de téléchargement des NOUVEAUX articles (l'auteur ajuste ensuite
 // par article). Réservé au propriétaire/membre via authorizeSettings.
-func (q *Queries) SetPublicationDownloadDefault(ctx context.Context, arg SetPublicationDownloadDefaultParams) (bool, error) {
-	row := q.db.QueryRow(ctx, setPublicationDownloadDefault, arg.ID, arg.AllowDownloadDefault)
+func (q *Queries) SetPublisherDownloadDefault(ctx context.Context, arg SetPublisherDownloadDefaultParams) (bool, error) {
+	row := q.db.QueryRow(ctx, setPublisherDownloadDefault, arg.ID, arg.AllowDownloadDefault)
 	var allowDownloadDefault bool
 	err := row.Scan(&allowDownloadDefault)
 	return allowDownloadDefault, err
@@ -741,13 +741,13 @@ func (q *Queries) UpdateApiKeySecret(ctx context.Context, arg UpdateApiKeySecret
 	return result.RowsAffected(), nil
 }
 
-const updatePersonalPublication = `-- name: UpdatePersonalPublication :exec
-UPDATE "Publication"
+const updatePersonalPublisher = `-- name: UpdatePersonalPublisher :exec
+UPDATE "Publisher"
 SET name = $2, "subdomain" = $3, "heroText" = $4, "layoutStyle" = $5, "updatedAt" = now()
 WHERE id = $1
 `
 
-type UpdatePersonalPublicationParams struct {
+type UpdatePersonalPublisherParams struct {
 	ID          string      `json:"id"`
 	Name        string      `json:"name"`
 	Subdomain   pgtype.Text `json:"subdomain"`
@@ -755,8 +755,8 @@ type UpdatePersonalPublicationParams struct {
 	LayoutStyle pgtype.Text `json:"layoutStyle"`
 }
 
-func (q *Queries) UpdatePersonalPublication(ctx context.Context, arg UpdatePersonalPublicationParams) error {
-	_, err := q.db.Exec(ctx, updatePersonalPublication,
+func (q *Queries) UpdatePersonalPublisher(ctx context.Context, arg UpdatePersonalPublisherParams) error {
+	_, err := q.db.Exec(ctx, updatePersonalPublisher,
 		arg.ID,
 		arg.Name,
 		arg.Subdomain,
@@ -766,16 +766,16 @@ func (q *Queries) UpdatePersonalPublication(ctx context.Context, arg UpdatePerso
 	return err
 }
 
-const updatePublicationEmailSettings = `-- name: UpdatePublicationEmailSettings :exec
+const updatePublisherEmailSettings = `-- name: UpdatePublisherEmailSettings :exec
 
-UPDATE "Publication"
+UPDATE "Publisher"
 SET "emailSettings" = $1::text::jsonb, "updatedAt" = now()
 WHERE id = $2
 `
 
-type UpdatePublicationEmailSettingsParams struct {
+type UpdatePublisherEmailSettingsParams struct {
 	EmailSettings string `json:"email_settings"`
-	PublicationID string `json:"publication_id"`
+	PublisherID   string `json:"publisher_id"`
 }
 
 // =====================================================================
@@ -784,24 +784,24 @@ type UpdatePublicationEmailSettingsParams struct {
 //	bienvenue) — personnalisation + délivrabilité.
 //
 // =====================================================================
-func (q *Queries) UpdatePublicationEmailSettings(ctx context.Context, arg UpdatePublicationEmailSettingsParams) error {
-	_, err := q.db.Exec(ctx, updatePublicationEmailSettings, arg.EmailSettings, arg.PublicationID)
+func (q *Queries) UpdatePublisherEmailSettings(ctx context.Context, arg UpdatePublisherEmailSettingsParams) error {
+	_, err := q.db.Exec(ctx, updatePublisherEmailSettings, arg.EmailSettings, arg.PublisherID)
 	return err
 }
 
-const updatePublicationSubdomain = `-- name: UpdatePublicationSubdomain :exec
-UPDATE "Publication"
+const updatePublisherSubdomain = `-- name: UpdatePublisherSubdomain :exec
+UPDATE "Publisher"
 SET "subdomain" = $2, "updatedAt" = now()
 WHERE id = $1
 `
 
-type UpdatePublicationSubdomainParams struct {
+type UpdatePublisherSubdomainParams struct {
 	ID        string      `json:"id"`
 	Subdomain pgtype.Text `json:"subdomain"`
 }
 
-func (q *Queries) UpdatePublicationSubdomain(ctx context.Context, arg UpdatePublicationSubdomainParams) error {
-	_, err := q.db.Exec(ctx, updatePublicationSubdomain, arg.ID, arg.Subdomain)
+func (q *Queries) UpdatePublisherSubdomain(ctx context.Context, arg UpdatePublisherSubdomainParams) error {
+	_, err := q.db.Exec(ctx, updatePublisherSubdomain, arg.ID, arg.Subdomain)
 	return err
 }
 

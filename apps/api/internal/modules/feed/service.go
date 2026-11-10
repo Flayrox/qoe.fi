@@ -41,13 +41,13 @@ func (s *Service) invalidate(ctx context.Context, prefixes ...string) {
 
 // canViewProfileContent applique la visibilité du profil (PUBLIC | FOLLOWERS |
 // PRIVATE) et le blocage symétrique aux listes de contenu d'un profil.
-func (s *Service) canViewProfileContent(ctx context.Context, publicationID, ownerID, viewerID string) (bool, error) {
-	if publicationID == "" {
+func (s *Service) canViewProfileContent(ctx context.Context, publisherID, ownerID, viewerID string) (bool, error) {
+	if publisherID == "" {
 		return true, nil
 	}
 	if ownerID == "" {
 		var err error
-		ownerID, err = s.q.GetPublicationOwner(ctx, publicationID)
+		ownerID, err = s.q.GetPublisherOwner(ctx, publisherID)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return true, nil
@@ -88,7 +88,7 @@ func (s *Service) canViewProfileContent(ctx context.Context, publicationID, owne
 	}
 	_, err = s.q.GetExistingFollow(ctx, db.GetExistingFollowParams{
 		ReaderId:      toUUID(viewerID),
-		PublicationId: publicationID,
+		PublisherId: publisherID,
 	})
 	if err == nil {
 		return true, nil
@@ -103,7 +103,7 @@ func (s *Service) canViewProfileContent(ctx context.Context, publicationID, owne
 // blocage symétrique à un contenu adressé par son id (fil direct).
 func (s *Service) canViewAuthorContent(ctx context.Context, authorID, viewerID string) (bool, error) {
 	var pubID pgtype.Text
-	if err := s.pool.QueryRow(ctx, `SELECT "publicationId" FROM "User" WHERE id = $1`, toUUID(authorID)).Scan(&pubID); err != nil {
+	if err := s.pool.QueryRow(ctx, `SELECT "publisherId" FROM "User" WHERE id = $1`, toUUID(authorID)).Scan(&pubID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return true, nil
 		}
@@ -135,7 +135,7 @@ func (s *Service) FollowingFeed(ctx context.Context, viewerID string, limit, off
 	// take+1 pour détecter hasMore.
 	fetch := limit + 1
 
-	ownerIDs, err := s.q.GetFollowedPersonalPublicationOwnerIDs(ctx, toUUID(viewerID))
+	ownerIDs, err := s.q.GetFollowedPersonalPublisherOwnerIDs(ctx, toUUID(viewerID))
 	if err != nil {
 		return FeedResult{}, err
 	}
@@ -220,7 +220,7 @@ func (s *Service) UserPosts(ctx context.Context, username, viewerID string, limi
 	}
 	fetch := limit + 1
 
-	pub, err := s.q.GetPublicationBySlugOrSubdomain(ctx, username)
+	pub, err := s.q.GetPublisherBySlugOrSubdomain(ctx, username)
 	var ownerID string
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -246,7 +246,7 @@ func (s *Service) UserPosts(ctx context.Context, username, viewerID string, limi
 		}
 	} else {
 		var errOwner error
-		ownerID, errOwner = s.q.GetPublicationOwner(ctx, pub.ID)
+		ownerID, errOwner = s.q.GetPublisherOwner(ctx, pub.ID)
 		if errOwner != nil {
 			if errors.Is(errOwner, pgx.ErrNoRows) {
 				return FeedResult{Items: []posts.FeedSlice{}, HasMore: false}, nil
@@ -260,7 +260,7 @@ func (s *Service) UserPosts(ctx context.Context, username, viewerID string, limi
 	// liste sans révéler l'existence du contenu.
 	if pub.ID == "" {
 		var pID pgtype.Text
-		if err := s.pool.QueryRow(ctx, `SELECT "publicationId" FROM "User" WHERE id = $1`, toUUID(ownerID)).Scan(&pID); err == nil && pID.Valid {
+		if err := s.pool.QueryRow(ctx, `SELECT "publisherId" FROM "User" WHERE id = $1`, toUUID(ownerID)).Scan(&pID); err == nil && pID.Valid {
 			pub.ID = pID.String
 		}
 	}
@@ -305,9 +305,9 @@ type FeedArticle struct {
 	Visibility    string            `json:"visibility"`
 	ReadingTime   int               `json:"readingTime"`
 	CreatedAt     string            `json:"createdAt"`
-	PublicationID string            `json:"publicationId"`
+	PublisherID string            `json:"publisherId"`
 	Author        FeedArticleAuthor `json:"author"`
-	Publication   FeedArticlePub    `json:"publication"`
+	Publisher   FeedArticlePub    `json:"publisher"`
 	Category      *FeedArticleCat   `json:"category"`
 }
 
@@ -534,17 +534,17 @@ type publishedArticleRow struct {
 	Visibility           db.ContentVisibility
 	ReadingTime          int32
 	CreatedAt            pgtype.Timestamp
-	PublicationID        string
+	PublisherID        string
 	AuthorID             string
 	AuthorName           pgtype.Text
 	AuthorUsername       pgtype.Text
 	AuthorLogo           pgtype.Text
 	AuthorCertified      bool
-	PublicationName      string
-	PublicationSlug      string
-	PublicationSubdomain pgtype.Text
-	PublicationLogo      pgtype.Text
-	PublicationType      db.PublicationType
+	PublisherName      string
+	PublisherSlug      string
+	PublisherSubdomain pgtype.Text
+	PublisherLogo      pgtype.Text
+	PublisherType      db.PublisherType
 	CategoryID           pgtype.Text
 	CategoryName         pgtype.Text
 	CategorySlug         pgtype.Text
@@ -566,7 +566,7 @@ func truncatePaywall(content string, visibility db.ContentVisibility, tierID *st
 
 // buildFeedArticle construit la carte d'article du feed depuis la vue commune.
 func buildFeedArticle(r *publishedArticleRow) FeedArticle {
-	authorType := identity.FromPublicationType(string(r.PublicationType))
+	authorType := identity.FromPublisherType(string(r.PublisherType))
 	authorLogo := pgtypeTextPtr(r.AuthorLogo)
 	return FeedArticle{
 		ID:            r.ID,
@@ -578,7 +578,7 @@ func buildFeedArticle(r *publishedArticleRow) FeedArticle {
 		Visibility:    string(r.Visibility),
 		ReadingTime:   int(r.ReadingTime),
 		CreatedAt:     r.CreatedAt.Time.Format(time.RFC3339),
-		PublicationID: r.PublicationID,
+		PublisherID: r.PublisherID,
 		Author: FeedArticleAuthor{
 			ID:          r.AuthorID,
 			Name:        pgtypeTextPtr(r.AuthorName),
@@ -587,13 +587,13 @@ func buildFeedArticle(r *publishedArticleRow) FeedArticle {
 			IsCertified: r.AuthorCertified,
 			Type:        authorType,
 		},
-		Publication: FeedArticlePub{
-			ID:        r.PublicationID,
-			Name:      r.PublicationName,
-			Slug:      r.PublicationSlug,
-			Subdomain: pgtypeTextPtr(r.PublicationSubdomain),
-			LogoURL:   pgtypeTextPtr(r.PublicationLogo),
-			Type:      string(r.PublicationType),
+		Publisher: FeedArticlePub{
+			ID:        r.PublisherID,
+			Name:      r.PublisherName,
+			Slug:      r.PublisherSlug,
+			Subdomain: pgtypeTextPtr(r.PublisherSubdomain),
+			LogoURL:   pgtypeTextPtr(r.PublisherLogo),
+			Type:      string(r.PublisherType),
 		},
 		Category: feedArticleCat(&r.CategoryID, &r.CategoryName, &r.CategorySlug),
 	}
@@ -695,17 +695,17 @@ func (s *Service) RecentArticles(ctx context.Context, limit, offset int) (Articl
 			Visibility:           r.Visibility,
 			ReadingTime:          r.ReadingTime,
 			CreatedAt:            r.CreatedAt,
-			PublicationID:        r.PublicationId,
+			PublisherID:        r.PublisherId,
 			AuthorID:             r.AuthorID,
 			AuthorName:           r.AuthorName,
 			AuthorUsername:       r.AuthorUsername,
 			AuthorLogo:           r.AuthorLogo,
 			AuthorCertified:      r.AuthorCertified,
-			PublicationName:      r.PublicationName,
-			PublicationSlug:      r.PublicationSlug,
-			PublicationSubdomain: r.PublicationSubdomain,
-			PublicationLogo:      r.PublicationLogo,
-			PublicationType:      r.PublicationType,
+			PublisherName:      r.PublisherName,
+			PublisherSlug:      r.PublisherSlug,
+			PublisherSubdomain: r.PublisherSubdomain,
+			PublisherLogo:      r.PublisherLogo,
+			PublisherType:      r.PublisherType,
 			CategoryID:           r.CategoryID,
 			CategoryName:         r.CategoryName,
 			CategorySlug:         r.CategorySlug,
@@ -724,13 +724,13 @@ func (s *Service) RecentArticles(ctx context.Context, limit, offset int) (Articl
 
 // PublicationArticles retourne les articles publiés d'une publication (profil),
 // résolue par slug OU subdomain (insensible à la casse), paginés.
-func (s *Service) PublicationArticles(ctx context.Context, username, viewerID string, limit, offset int) (ArticleFeedResult, error) {
+func (s *Service) PublisherArticles(ctx context.Context, username, viewerID string, limit, offset int) (ArticleFeedResult, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}
 	fetch := limit + 1
 
-	rows, err := s.q.ListPublishedArticlesByPublication(ctx, db.ListPublishedArticlesByPublicationParams{
+	rows, err := s.q.ListPublishedArticlesByPublisher(ctx, db.ListPublishedArticlesByPublisherParams{
 		Lower:  username,
 		Limit:  int32(fetch),
 		Offset: int32(offset),
@@ -744,15 +744,15 @@ func (s *Service) PublicationArticles(ctx context.Context, username, viewerID st
 	// Si le premier article est cross-posté depuis un Média, on résout d'abord
 	// la publication du profil ciblé afin de ne pas évaluer la visibilité du Média.
 	if len(rows) > 0 {
-		targetPubID := rows[0].PublicationId
+		targetPubID := rows[0].PublisherId
 		var targetOwnerID string
-		if pub, errPub := s.q.GetPublicationBySlugOrSubdomain(ctx, username); errPub == nil && pub.ID != "" {
+		if pub, errPub := s.q.GetPublisherBySlugOrSubdomain(ctx, username); errPub == nil && pub.ID != "" {
 			targetPubID = pub.ID
 		} else if s.pool != nil {
 			_ = s.pool.QueryRow(ctx, `
-				SELECT u.id::text, COALESCE(u."publicationId", '')
+				SELECT u.id::text, COALESCE(u."publisherId", '')
 				FROM "User" u
-				LEFT JOIN "Publication" p ON p.id = u."publicationId"
+				LEFT JOIN "Publisher" p ON p.id = u."publisherId"
 				WHERE LOWER(COALESCE(u.username, '')) = LOWER($1)
 				   OR LOWER(u.id::text) = LOWER($1)
 				   OR LOWER(COALESCE(p.id, '')) = LOWER($1)
@@ -786,17 +786,17 @@ func (s *Service) PublicationArticles(ctx context.Context, username, viewerID st
 			Visibility:           r.Visibility,
 			ReadingTime:          r.ReadingTime,
 			CreatedAt:            r.CreatedAt,
-			PublicationID:        r.PublicationId,
+			PublisherID:        r.PublisherId,
 			AuthorID:             r.AuthorID,
 			AuthorName:           r.AuthorName,
 			AuthorUsername:       r.AuthorUsername,
 			AuthorLogo:           r.AuthorLogo,
 			AuthorCertified:      r.AuthorCertified,
-			PublicationName:      r.PublicationName,
-			PublicationSlug:      r.PublicationSlug,
-			PublicationSubdomain: r.PublicationSubdomain,
-			PublicationLogo:      r.PublicationLogo,
-			PublicationType:      r.PublicationType,
+			PublisherName:      r.PublisherName,
+			PublisherSlug:      r.PublisherSlug,
+			PublisherSubdomain: r.PublisherSubdomain,
+			PublisherLogo:      r.PublisherLogo,
+			PublisherType:      r.PublisherType,
 			CategoryID:           r.CategoryID,
 			CategoryName:         r.CategoryName,
 			CategorySlug:         r.CategorySlug,

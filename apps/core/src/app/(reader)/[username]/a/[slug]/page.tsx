@@ -37,7 +37,7 @@ interface GoArticle {
     isCertified?: boolean;
     type?: 'PERSONAL' | 'MEDIA';
   };
-  publication?: {
+  publisher?: {
     name?: string | null;
     slug?: string | null;
     subdomain?: string | null;
@@ -95,8 +95,8 @@ export async function generateMetadata({
   const cleanDescription = buildPublicDescription(article.content, 160);
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://qoe.fi').replace(/\/$/, '');
   const canonicalOwner =
-    article.publication?.slug ||
-    article.publication?.subdomain ||
+    article.publisher?.slug ||
+    article.publisher?.subdomain ||
     article.author?.username ||
     rawUsername;
   const canonicalUrl = `${appUrl}/${encodeURIComponent(canonicalOwner)}/a/${encodeURIComponent(article.slug)}`;
@@ -152,7 +152,7 @@ export default async function UserArticleDedicatedPage({
 
   // Redirection SEO permanente si l'URL utilise le préfixe générique /article/a/:slug ou /articles/a/:slug
   const canonicalOwner =
-    article.publication?.slug || article.publication?.subdomain || article.author?.username;
+    article.publisher?.slug || article.publisher?.subdomain || article.author?.username;
   if (canonicalOwner && (rawUsername === 'article' || rawUsername === 'articles')) {
     permanentRedirect(routes.feed.article(canonicalOwner, article.slug));
   }
@@ -205,11 +205,11 @@ export default async function UserArticleDedicatedPage({
             heroText: article.author?.heroText ?? null,
             isCertified: article.author?.isCertified ?? false,
             type: article.author?.type ?? 'PERSONAL',
-            subdomain: article.publication?.subdomain ?? null,
-            customDomain: article.publication?.customDomain ?? null,
+            subdomain: article.publisher?.subdomain ?? null,
+            customDomain: article.publisher?.customDomain ?? null,
             journalist:
-              article.publication?.name &&
-              article.publication.name.trim().toLowerCase() !==
+              article.publisher?.name &&
+              article.publisher.name.trim().toLowerCase() !==
                 (article.author?.name ?? '').trim().toLowerCase()
                 ? {
                     id: article.author?.id || 'author',
@@ -222,13 +222,13 @@ export default async function UserArticleDedicatedPage({
                 : null,
           },
           category: article.category ? { name: article.category.name } : null,
-          publication: article.publication
+          publisher: article.publisher
             ? {
-                name: article.publication.name,
-                slug: article.publication.slug,
-                subdomain: article.publication.subdomain,
-                logoUrl: article.publication.logoUrl,
-                customDomain: article.publication.customDomain,
+                name: article.publisher.name,
+                slug: article.publisher.slug,
+                subdomain: article.publisher.subdomain,
+                logoUrl: article.publisher.logoUrl,
+                customDomain: article.publisher.customDomain,
               }
             : null,
         }}

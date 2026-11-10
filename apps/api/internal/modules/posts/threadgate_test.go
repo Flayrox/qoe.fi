@@ -88,16 +88,16 @@ func TestCanReply_Following_DeniedAndAllowed(t *testing.T) {
 	// Donne à Bob une publication personnelle + un follow par l'auteur.
 	bobPub := "pub_bob_personal"
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ($1, 'PERSONAL', 'BobPub', 'bob-pub', now(), now())`, bobPub); err != nil {
 		t.Fatalf("bob pub: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`UPDATE "User" SET "publicationId" = $1 WHERE id = $2`, bobPub, fx.ViewerID); err != nil {
+		`UPDATE "User" SET "publisherId" = $1 WHERE id = $2`, bobPub, fx.ViewerID); err != nil {
 		t.Fatalf("link bob pub: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Follows" (id, "readerId", "publicationId")
+		`INSERT INTO "Follows" (id, "readerId", "publisherId")
 		 VALUES (gen_random_uuid()::text, $1::uuid, $2)`, fx.AuthorID, bobPub); err != nil {
 		t.Fatalf("follow: %v", err)
 	}

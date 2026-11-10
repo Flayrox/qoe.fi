@@ -99,7 +99,7 @@ describe('QoeApiClient — contrat d’URL des méthodes', () => {
     await expectCall(() => client.getUserFollowing('alice'), '/v1/users/alice/following');
     await expectCall(
       () => client.toggleFollowUser('pub1'),
-      // ⚠️ Quirk du contrat actuel : l'arg s'appelle publicationId mais
+      // ⚠️ Quirk du contrat actuel : l'arg s'appelle publisherId mais
       // la route réelle est /v1/users/{id}/follow.
       '/v1/users/pub1/follow',
       'POST'
@@ -109,7 +109,7 @@ describe('QoeApiClient — contrat d’URL des méthodes', () => {
   it('articles & surlignages', async () => {
     await expectCall(
       () => client.getArticle('mon-slug', 'pub1'),
-      '/v1/articles/mon-slug?publicationId=pub1'
+      '/v1/articles/mon-slug?publisherId=pub1'
     );
     await expectCall(() => client.getSimilarArticles('a1'), '/v1/articles/a1/similar?limit=6');
     await expectCall(() => client.getBookmarks(), '/v1/bookmarks');
@@ -154,7 +154,7 @@ describe('QoeApiClient — contrat d’URL des méthodes', () => {
     await expectCall(() => client.getMe(), '/v1/me');
     await expectCall(() => client.updateMyProfile({ name: 'X' }), '/v1/me/profile', 'PATCH');
     await expectCall(
-      () => client.updatePublicationProfile('pub1', { heroText: 'bio' }),
+      () => client.updatePublisherProfile('pub1', { heroText: 'bio' }),
       '/v1/settings/profile',
       'PATCH'
     );

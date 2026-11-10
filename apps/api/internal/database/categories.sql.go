@@ -14,18 +14,18 @@ import (
 const checkArticleSlugExists = `-- name: CheckArticleSlugExists :one
 SELECT EXISTS(
     SELECT 1 FROM "Article"
-    WHERE "publicationId" = $1 AND slug = $2 AND id <> $3
+    WHERE "publisherId" = $1 AND slug = $2 AND id <> $3
 ) AS exists
 `
 
 type CheckArticleSlugExistsParams struct {
-	PublicationId string `json:"publicationId"`
-	Slug          string `json:"slug"`
-	ID            string `json:"id"`
+	PublisherId string `json:"publisherId"`
+	Slug        string `json:"slug"`
+	ID          string `json:"id"`
 }
 
 func (q *Queries) CheckArticleSlugExists(ctx context.Context, arg CheckArticleSlugExistsParams) (bool, error) {
-	row := q.db.QueryRow(ctx, checkArticleSlugExists, arg.PublicationId, arg.Slug, arg.ID)
+	row := q.db.QueryRow(ctx, checkArticleSlugExists, arg.PublisherId, arg.Slug, arg.ID)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
@@ -34,35 +34,35 @@ func (q *Queries) CheckArticleSlugExists(ctx context.Context, arg CheckArticleSl
 const checkCategorySlugExists = `-- name: CheckCategorySlugExists :one
 SELECT EXISTS(
     SELECT 1 FROM "Category"
-    WHERE "publicationId" = $1 AND slug = $2 AND id <> $3
+    WHERE "publisherId" = $1 AND slug = $2 AND id <> $3
 ) AS exists
 `
 
 type CheckCategorySlugExistsParams struct {
-	PublicationId string `json:"publicationId"`
-	Slug          string `json:"slug"`
-	ID            string `json:"id"`
+	PublisherId string `json:"publisherId"`
+	Slug        string `json:"slug"`
+	ID          string `json:"id"`
 }
 
 func (q *Queries) CheckCategorySlugExists(ctx context.Context, arg CheckCategorySlugExistsParams) (bool, error) {
-	row := q.db.QueryRow(ctx, checkCategorySlugExists, arg.PublicationId, arg.Slug, arg.ID)
+	row := q.db.QueryRow(ctx, checkCategorySlugExists, arg.PublisherId, arg.Slug, arg.ID)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
 }
 
 const createCategory = `-- name: CreateCategory :one
-INSERT INTO "Category" (id, name, slug, description, "publicationId", "parentId")
+INSERT INTO "Category" (id, name, slug, description, "publisherId", "parentId")
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5)
-RETURNING id, name, slug, description, "publicationId", "parentId", "isDefault"
+RETURNING id, name, slug, description, "publisherId", "parentId", "isDefault"
 `
 
 type CreateCategoryParams struct {
-	Name          string      `json:"name"`
-	Slug          string      `json:"slug"`
-	Description   pgtype.Text `json:"description"`
-	PublicationId string      `json:"publicationId"`
-	ParentId      pgtype.Text `json:"parentId"`
+	Name        string      `json:"name"`
+	Slug        string      `json:"slug"`
+	Description pgtype.Text `json:"description"`
+	PublisherId string      `json:"publisherId"`
+	ParentId    pgtype.Text `json:"parentId"`
 }
 
 func (q *Queries) CreateCategory(ctx context.Context, arg CreateCategoryParams) (Category, error) {
@@ -70,7 +70,7 @@ func (q *Queries) CreateCategory(ctx context.Context, arg CreateCategoryParams) 
 		arg.Name,
 		arg.Slug,
 		arg.Description,
-		arg.PublicationId,
+		arg.PublisherId,
 		arg.ParentId,
 	)
 	var i Category
@@ -79,7 +79,7 @@ func (q *Queries) CreateCategory(ctx context.Context, arg CreateCategoryParams) 
 		&i.Name,
 		&i.Slug,
 		&i.Description,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.ParentId,
 		&i.IsDefault,
 	)
@@ -96,23 +96,23 @@ func (q *Queries) DeleteCategory(ctx context.Context, id string) error {
 }
 
 const ensureDefaultCategory = `-- name: EnsureDefaultCategory :one
-INSERT INTO "Category" (id, name, slug, description, "publicationId", "parentId", "isDefault")
+INSERT INTO "Category" (id, name, slug, description, "publisherId", "parentId", "isDefault")
 VALUES (gen_random_uuid()::text, 'Non classé', 'uncategorized', NULL, $1, NULL, true)
-ON CONFLICT ("publicationId") WHERE "isDefault" DO UPDATE SET "isDefault" = EXCLUDED."isDefault"
-RETURNING id, name, slug, description, "publicationId", "parentId", "isDefault"
+ON CONFLICT ("publisherId") WHERE "isDefault" DO UPDATE SET "isDefault" = EXCLUDED."isDefault"
+RETURNING id, name, slug, description, "publisherId", "parentId", "isDefault"
 `
 
 // Crée (ou récupère) la catégorie « Non classé » d'une publication.
-// Idempotent grâce à l'index unique partiel sur ("publicationId") WHERE "isDefault".
-func (q *Queries) EnsureDefaultCategory(ctx context.Context, publicationid string) (Category, error) {
-	row := q.db.QueryRow(ctx, ensureDefaultCategory, publicationid)
+// Idempotent grâce à l'index unique partiel sur ("publisherId") WHERE "isDefault".
+func (q *Queries) EnsureDefaultCategory(ctx context.Context, publisherid string) (Category, error) {
+	row := q.db.QueryRow(ctx, ensureDefaultCategory, publisherid)
 	var i Category
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.Slug,
 		&i.Description,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.ParentId,
 		&i.IsDefault,
 	)
@@ -121,7 +121,7 @@ func (q *Queries) EnsureDefaultCategory(ctx context.Context, publicationid strin
 
 const getCategoryByID = `-- name: GetCategoryByID :one
 
-SELECT id, name, slug, description, "publicationId", "parentId", "isDefault"
+SELECT id, name, slug, description, "publisherId", "parentId", "isDefault"
 FROM "Category"
 WHERE id = $1
 `
@@ -135,7 +135,7 @@ func (q *Queries) GetCategoryByID(ctx context.Context, id string) (Category, err
 		&i.Name,
 		&i.Slug,
 		&i.Description,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.ParentId,
 		&i.IsDefault,
 	)

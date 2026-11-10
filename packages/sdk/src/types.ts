@@ -130,8 +130,8 @@ export interface QuotedAuthor {
   type?: 'PERSONAL' | 'MEDIA' | string | null;
 }
 
-/** Publication de l'article cité (miroir Go `QuotedPublication`). */
-export interface QuotedPublication {
+/** Publisher de l'article cité (miroir Go `QuotedPublisher`). */
+export interface QuotedPublisher {
   id: string;
   name: string;
   slug: string;
@@ -165,7 +165,7 @@ export interface QuotedArticle {
   slug: string;
   isPremium: boolean;
   quoteContext: QuoteContext | null;
-  publication: QuotedPublication;
+  publisher: QuotedPublisher;
   author: QuotedAuthor;
 }
 
@@ -292,8 +292,8 @@ export interface QuotesPage {
 /** Utilisateur listé dans les abonnés/abonnements d'un profil. */
 export interface FollowActor {
   id: string;
-  /** Publication personnelle de l'acteur — cible de l'endpoint follow. */
-  publicationId: string | null;
+  /** Publisher personnelle de l'acteur — cible de l'endpoint follow. */
+  publisherId: string | null;
   name: string | null;
   username: string | null;
   logoUrl: string | null;
@@ -330,7 +330,7 @@ export interface MyProfileData {
   forceStandardTheme: boolean;
   onboardingText: string | null;
   logoUrl: string | null;
-  publicationId: string | null;
+  publisherId: string | null;
   advancedSettingsMode: boolean;
   hasCompletedOnboarding: boolean;
   apiAccessStatus: string;
@@ -389,10 +389,23 @@ export interface ArticleData {
   isPremium: boolean;
   createdAt: string;
   updatedAt: string;
+  originArticleId?: string | null;
+  canonicalType?: string;
+  isAuthorSovereignCopy?: boolean;
+  canonicalUrl?: string | null;
+  originPublisher?: {
+    id: string;
+    name: string;
+    slug: string;
+    subdomain?: string | null;
+    logoUrl?: string | null;
+    customDomain?: string | null;
+    type?: string;
+  } | null;
   paywallMeta: unknown | null;
   category: { id: string; name: string; slug: string } | null;
   author: { id: string; name: string | null; username: string | null; logoUrl: string | null };
-  publication: {
+  publisher: {
     id: string;
     name: string;
     slug: string;
@@ -527,16 +540,16 @@ export interface MyHighlight {
   createdAt: string;
   articleTitle: string;
   articleSlug: string;
-  publicationId: string;
-  publicationName: string;
-  publicationSlug: string;
+  publisherId: string;
+  publisherName: string;
+  publisherSlug: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────
 // Historique de lecture (shape Go /v1/me/reading-history)
 // ─────────────────────────────────────────────────────────────────────
 
-export interface ReadingHistoryPublication {
+export interface ReadingHistoryPublisher {
   id: string;
   name: string;
   slug: string;
@@ -550,7 +563,7 @@ export interface ReadingHistoryArticle {
   imageUrl: string | null;
   readingTime: number;
   createdAt: string;
-  publication: ReadingHistoryPublication | null;
+  publisher: ReadingHistoryPublisher | null;
 }
 
 /** Session de lecture dédupliquée par article (la plus récente), avec son article. */
@@ -577,12 +590,12 @@ export interface SimilarArticle {
   isPremium: boolean;
   readingTime: number;
   createdAt: string;
-  publicationId: string;
+  publisherId: string;
   authorId: string;
   authorName: string | null;
   authorUsername: string | null;
   authorLogo: string | null;
-  publicationName: string | null;
+  publisherName: string | null;
   score: number;
 }
 
@@ -602,7 +615,7 @@ export interface FeedArticle {
   visibility: string;
   readingTime: number;
   createdAt: string;
-  publicationId: string;
+  publisherId: string;
   author: {
     id: string;
     name: string | null;
@@ -611,7 +624,7 @@ export interface FeedArticle {
     isCertified: boolean;
     type?: 'PERSONAL' | 'MEDIA' | string | null;
   };
-  publication: {
+  publisher: {
     id: string;
     name: string;
     slug: string;
@@ -662,8 +675,8 @@ export interface MyProfileUpdateInput {
   pronouns?: string | null;
 }
 
-/** Corps de PATCH /v1/settings/profile (champs créateur, sans publicationId). */
-export interface PublicationProfileUpdateInput {
+/** Corps de PATCH /v1/settings/profile (champs créateur, sans publisherId). */
+export interface PublisherProfileUpdateInput {
   name?: string | null;
   heroText?: string | null;
   headerImageUrl?: string | null;
@@ -761,9 +774,9 @@ export interface BookmarkItem {
   readingTime: number;
   isPremium: boolean;
   articleCreatedAt: string;
-  publicationId: string;
-  publicationName: string;
-  publicationSlug: string;
+  publisherId: string;
+  publisherName: string;
+  publisherSlug: string;
   subdomain: string | null;
   author: HighlightAuthor;
 }
@@ -870,8 +883,8 @@ export interface MessagePage {
   hasMore: boolean;
 }
 
-/** 📰 DTO Publication (identité brand polymorphe : personnel OU média). */
-export interface PublicationDTO {
+/** 📰 DTO Publisher (identité brand polymorphe : personnel OU média). */
+export interface PublisherDTO {
   id: string;
   type: 'PERSONAL' | 'MEDIA';
   name: string | null;
@@ -944,7 +957,7 @@ export interface NavigationItem {
   url: string | null;
   order: number;
   isExternal: boolean;
-  publicationId: string;
+  publisherId: string;
   parentId: string | null;
   children?: NavigationItem[];
 }
@@ -955,7 +968,7 @@ export interface SocialLink {
   platform: string;
   url: string;
   order: number;
-  publicationId: string;
+  publisherId: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────

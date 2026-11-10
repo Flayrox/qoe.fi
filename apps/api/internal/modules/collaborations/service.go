@@ -139,7 +139,7 @@ type JoinCollaborationResultDTO struct {
 type articleAuthorization struct {
 	articleID     string
 	authorID      string
-	publicationID string
+	publisherID string
 	canInvite     bool
 }
 
@@ -152,12 +152,12 @@ func (s *Service) authorizeArticle(ctx context.Context, userID, articleID string
 		return nil, err
 	}
 	auth := &articleAuthorization{
-		articleID: row.ID, authorID: row.AuthorID, publicationID: row.PublicationId,
+		articleID: row.ID, authorID: row.AuthorID, publisherID: row.PublisherId,
 		canInvite: row.AuthorID == userID,
 	}
 	if !auth.canInvite {
 		isMember, err := s.q.IsActiveMediaMember(ctx, db.IsActiveMediaMemberParams{
-			PublicationId: row.PublicationId, UserId: toUUID(userID),
+			PublisherId: row.PublisherId, UserId: toUUID(userID),
 		})
 		if err != nil {
 			return nil, err
@@ -237,7 +237,7 @@ func (s *Service) checkCollaborationPermission(ctx context.Context, inviterID, i
 		_ = s.pool.QueryRow(ctx, `
 			SELECT EXISTS (
 				SELECT 1 FROM "Follows" f
-				JOIN "Publication" p ON p.id = f."publicationId"
+				JOIN "Publisher" p ON p.id = f."publisherId"
 				WHERE f."readerId" = $1 AND p."authorId" = $2
 			)
 		`, toUUID(inviteeID), toUUID(inviterID)).Scan(&isFollowing)
@@ -250,11 +250,11 @@ func (s *Service) checkCollaborationPermission(ctx context.Context, inviterID, i
 			SELECT (
 				EXISTS (
 					SELECT 1 FROM "Follows" f1
-					JOIN "Publication" p1 ON p1.id = f1."publicationId"
+					JOIN "Publisher" p1 ON p1.id = f1."publisherId"
 					WHERE f1."readerId" = $1 AND p1."authorId" = $2
 				) AND EXISTS (
 					SELECT 1 FROM "Follows" f2
-					JOIN "Publication" p2 ON p2.id = f2."publicationId"
+					JOIN "Publisher" p2 ON p2.id = f2."publisherId"
 					WHERE f2."readerId" = $2 AND p2."authorId" = $1
 				)
 			)

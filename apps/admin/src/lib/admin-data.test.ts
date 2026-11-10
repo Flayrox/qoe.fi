@@ -78,7 +78,7 @@ describe('getAdminSubscriptionGrants', () => {
   it('préserve les octrois renvoyés', async () => {
     const grant = {
       id: 'g1',
-      subjectType: 'publication' as const,
+      subjectType: 'publisher' as const,
       subjectId: 'pub_1',
       plan: 'pro' as const,
       startsAt: '2026-01-01T00:00:00Z',

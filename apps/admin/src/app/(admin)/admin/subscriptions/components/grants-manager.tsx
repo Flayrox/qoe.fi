@@ -90,7 +90,7 @@ export function GrantsManager({ initialItems }: GrantsManagerProps) {
                 value={subjectType}
                 onValueChange={setSubjectType}
                 options={[
-                  { id: 'publication', label: 'Média (publication)' },
+                  { id: 'publication', label: 'Média (publisher)' },
                   { id: 'user', label: 'Lecteur (compte)' },
                 ]}
               />

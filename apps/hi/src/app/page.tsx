@@ -10,7 +10,7 @@ import { ComparisonTable } from '@/components/landing/ComparisonTable';
 import { TrustedCreators } from '@/components/landing/TrustedCreators';
 import { CreatorHub } from '@/components/landing/CreatorHub';
 import { ProductPreview } from '@/components/landing/ProductPreview';
-import { FeaturedPublications } from '@/components/landing/FeaturedPublications';
+import { FeaturedPublishers } from '@/components/landing/FeaturedPublishers';
 import { CTA } from '@/components/landing/CTA';
 
 import { unstable_cache } from 'next/cache';
@@ -62,7 +62,7 @@ export default async function StartLanding() {
 
       <ProductPreview config={config} />
 
-      <FeaturedPublications config={config} articles={[]} />
+      <FeaturedPublishers config={config} articles={[]} />
 
       <CTA config={config} />
 

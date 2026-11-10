@@ -31,7 +31,7 @@ const KNOWN_FOLDERS = new Set<string>(Object.values(IMAGE_FOLDERS));
 
 export interface UploadImageOptions {
   folder?: ImageFolder;
-  /** Identifiant propriétaire (userId ou publicationId) pour l'isolation. */
+  /** Identifiant propriétaire (userId ou publisherId) pour l'isolation. */
   ownerId?: string;
   /** Format de sortie : 'webp' force la conversion, sinon extension d'origine. */
   ext?: string;

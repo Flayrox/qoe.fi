@@ -8,7 +8,7 @@
 //      session GoTrue (createRealSession, car getUser server-side exige un
 //      compte réel), une ligne User role superadmin, puis le parcours
 //      complet dans le CMS légal : création d'un brouillon, avertissement
-//      « jetons à compléter », publication (double confirmation), et
+//      « jetons à compléter », publisher (double confirmation), et
 //      vérification de la page publique /legal/{slug}.
 //
 // Le document créé est supprimé en fin de parcours : la base reste propre.

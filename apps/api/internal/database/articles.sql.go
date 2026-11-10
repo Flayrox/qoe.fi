@@ -37,7 +37,7 @@ const countCreatorArticles = `-- name: CountCreatorArticles :one
 SELECT COUNT(*)
 FROM "Article" a
 LEFT JOIN "Category" c ON c.id = a."categoryId"
-WHERE a."publicationId" = $1
+WHERE a."publisherId" = $1
   AND ($2::boolean IS NULL OR a.published = $2)
   AND (
     $3::text IS NULL
@@ -45,21 +45,21 @@ WHERE a."publicationId" = $1
     OR c.id = $3
     OR c."parentId" IN (
       SELECT parent_cat.id FROM "Category" parent_cat
-      WHERE parent_cat."publicationId" = $1
+      WHERE parent_cat."publisherId" = $1
         AND (parent_cat.slug = $3 OR parent_cat.id = $3)
     )
   )
 `
 
 type CountCreatorArticlesParams struct {
-	PublicationId string      `json:"publicationId"`
-	Published     pgtype.Bool `json:"published"`
-	CategorySlug  pgtype.Text `json:"categorySlug"`
+	PublisherId  string      `json:"publisherId"`
+	Published    pgtype.Bool `json:"published"`
+	CategorySlug pgtype.Text `json:"categorySlug"`
 }
 
 // Compte des articles d'une publication (mêmes filtres que ListCreatorArticles).
 func (q *Queries) CountCreatorArticles(ctx context.Context, arg CountCreatorArticlesParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countCreatorArticles, arg.PublicationId, arg.Published, arg.CategorySlug)
+	row := q.db.QueryRow(ctx, countCreatorArticles, arg.PublisherId, arg.Published, arg.CategorySlug)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -75,10 +75,10 @@ WHERE a.published = true
   AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
   AND NOT EXISTS (
     SELECT 1
-    FROM "Publication" pv
-    JOIN "User" owner ON owner."publicationId" = pv.id
+    FROM "Publisher" pv
+    JOIN "User" owner ON owner."publisherId" = pv.id
     JOIN "UserSettings" us ON us."userId" = owner.id
-    WHERE pv.id = a."publicationId" AND us."profileVisibility" <> 'PUBLIC'
+    WHERE pv.id = a."publisherId" AND us."profileVisibility" <> 'PUBLIC'
   )
 `
 
@@ -93,7 +93,7 @@ func (q *Queries) CountPublishedArticles(ctx context.Context) (int64, error) {
 const createArticle = `-- name: CreateArticle :one
 INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
                        "readingTime", "allowPublicAnnotations", "allowComments", "allowDownload", status,
-                       "publicationId", "authorId", "categoryId", "tierId", "seoTitle", "seoDescription",
+                       "publisherId", "authorId", "categoryId", "tierId", "seoTitle", "seoDescription",
                        "scheduledAt", "imageUrl", "showOnPersonalProfile", "updatedAt")
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, now())
 RETURNING id
@@ -111,7 +111,7 @@ type CreateArticleParams struct {
 	AllowComments          bool              `json:"allowComments"`
 	AllowDownload          bool              `json:"allowDownload"`
 	Status                 string            `json:"status"`
-	PublicationId          string            `json:"publicationId"`
+	PublisherId            string            `json:"publisherId"`
 	AuthorId               pgtype.UUID       `json:"authorId"`
 	CategoryId             pgtype.Text       `json:"categoryId"`
 	TierId                 pgtype.Text       `json:"tierId"`
@@ -135,7 +135,7 @@ func (q *Queries) CreateArticle(ctx context.Context, arg CreateArticleParams) (s
 		arg.AllowComments,
 		arg.AllowDownload,
 		arg.Status,
-		arg.PublicationId,
+		arg.PublisherId,
 		arg.AuthorId,
 		arg.CategoryId,
 		arg.TierId,
@@ -144,6 +144,69 @@ func (q *Queries) CreateArticle(ctx context.Context, arg CreateArticleParams) (s
 		arg.ScheduledAt,
 		arg.ImageUrl,
 		arg.ShowOnPersonalProfile,
+	)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
+const createSovereignArticleCopy = `-- name: CreateSovereignArticleCopy :one
+INSERT INTO "Article" (
+    id, title, slug, content, published, "isPremium", visibility,
+    "readingTime", "allowPublicAnnotations", "allowComments", "allowDownload",
+    status, "publisherId", "authorId", "categoryId", "seoTitle", "seoDescription",
+    "imageUrl", "showOnPersonalProfile", "originArticleId", "canonicalType",
+    "isAuthorSovereignCopy", "canonicalUrl", "updatedAt"
+)
+VALUES (
+    gen_random_uuid()::text, $1, $2, $3, false, $4, $5,
+    $6, $7, $8, $9,
+    'DRAFT', $10, $11, $12, $13, $14,
+    $15, true, $16, 'PERSONAL_FORK',
+    true, $17, now()
+)
+RETURNING id
+`
+
+type CreateSovereignArticleCopyParams struct {
+	Title                  string            `json:"title"`
+	Slug                   string            `json:"slug"`
+	Content                string            `json:"content"`
+	IsPremium              bool              `json:"isPremium"`
+	Visibility             ContentVisibility `json:"visibility"`
+	ReadingTime            int32             `json:"readingTime"`
+	AllowPublicAnnotations bool              `json:"allowPublicAnnotations"`
+	AllowComments          bool              `json:"allowComments"`
+	AllowDownload          bool              `json:"allowDownload"`
+	PublisherId            string            `json:"publisherId"`
+	AuthorId               pgtype.UUID       `json:"authorId"`
+	CategoryId             pgtype.Text       `json:"categoryId"`
+	SeoTitle               pgtype.Text       `json:"seoTitle"`
+	SeoDescription         pgtype.Text       `json:"seoDescription"`
+	ImageUrl               pgtype.Text       `json:"imageUrl"`
+	OriginArticleId        pgtype.Text       `json:"originArticleId"`
+	CanonicalUrl           pgtype.Text       `json:"canonicalUrl"`
+}
+
+func (q *Queries) CreateSovereignArticleCopy(ctx context.Context, arg CreateSovereignArticleCopyParams) (string, error) {
+	row := q.db.QueryRow(ctx, createSovereignArticleCopy,
+		arg.Title,
+		arg.Slug,
+		arg.Content,
+		arg.IsPremium,
+		arg.Visibility,
+		arg.ReadingTime,
+		arg.AllowPublicAnnotations,
+		arg.AllowComments,
+		arg.AllowDownload,
+		arg.PublisherId,
+		arg.AuthorId,
+		arg.CategoryId,
+		arg.SeoTitle,
+		arg.SeoDescription,
+		arg.ImageUrl,
+		arg.OriginArticleId,
+		arg.CanonicalUrl,
 	)
 	var id string
 	err := row.Scan(&id)
@@ -177,21 +240,22 @@ func (q *Queries) DiscardArticleDraft(ctx context.Context, id string) (string, e
 const getArticleByID = `-- name: GetArticleByID :one
 SELECT a.id, a.title, a.slug, a.content, a."draftContent", a.published, a."isPremium", a.visibility,
        a."readingTime", a."allowPublicAnnotations", a."allowComments", a."allowDownload", a."showOnPersonalProfile", a."scheduledAt",
-       a.status, a."publicationId", a."authorId", a."categoryId", a."tierId",
+       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."canonicalUrl",
+       a.status, a."publisherId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
        a."emailStatus", a."emailSentAt", a."emailSentCount", a."emailResendCount",
        u.id::text     AS author_id,
        u.name         AS author_name,
        u.username     AS author_username,
        u."logoUrl"    AS author_logo,
-       p.name         AS publication_name,
-       p.slug         AS publication_slug,
-       p.subdomain    AS publication_subdomain,
-       p.type         AS publication_type,
-       p."logoUrl"    AS publication_logo
+       p.name         AS publisher_name,
+       p.slug         AS publisher_slug,
+       p.subdomain    AS publisher_subdomain,
+       p.type         AS publisher_type,
+       p."logoUrl"    AS publisher_logo
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 WHERE a.id = $1
 `
 
@@ -210,8 +274,12 @@ type GetArticleByIDRow struct {
 	AllowDownload          bool              `json:"allowDownload"`
 	ShowOnPersonalProfile  bool              `json:"showOnPersonalProfile"`
 	ScheduledAt            pgtype.Timestamp  `json:"scheduledAt"`
+	OriginArticleId        pgtype.Text       `json:"originArticleId"`
+	CanonicalType          string            `json:"canonicalType"`
+	IsAuthorSovereignCopy  bool              `json:"isAuthorSovereignCopy"`
+	CanonicalUrl           pgtype.Text       `json:"canonicalUrl"`
 	Status                 string            `json:"status"`
-	PublicationId          string            `json:"publicationId"`
+	PublisherId            string            `json:"publisherId"`
 	AuthorId               pgtype.UUID       `json:"authorId"`
 	CategoryId             pgtype.Text       `json:"categoryId"`
 	TierId                 pgtype.Text       `json:"tierId"`
@@ -227,11 +295,11 @@ type GetArticleByIDRow struct {
 	AuthorName             pgtype.Text       `json:"author_name"`
 	AuthorUsername         pgtype.Text       `json:"author_username"`
 	AuthorLogo             pgtype.Text       `json:"author_logo"`
-	PublicationName        string            `json:"publication_name"`
-	PublicationSlug        string            `json:"publication_slug"`
-	PublicationSubdomain   pgtype.Text       `json:"publication_subdomain"`
-	PublicationType        PublicationType   `json:"publication_type"`
-	PublicationLogo        pgtype.Text       `json:"publication_logo"`
+	PublisherName          string            `json:"publisher_name"`
+	PublisherSlug          string            `json:"publisher_slug"`
+	PublisherSubdomain     pgtype.Text       `json:"publisher_subdomain"`
+	PublisherType          PublisherType     `json:"publisher_type"`
+	PublisherLogo          pgtype.Text       `json:"publisher_logo"`
 }
 
 func (q *Queries) GetArticleByID(ctx context.Context, id string) (GetArticleByIDRow, error) {
@@ -252,8 +320,12 @@ func (q *Queries) GetArticleByID(ctx context.Context, id string) (GetArticleByID
 		&i.AllowDownload,
 		&i.ShowOnPersonalProfile,
 		&i.ScheduledAt,
+		&i.OriginArticleId,
+		&i.CanonicalType,
+		&i.IsAuthorSovereignCopy,
+		&i.CanonicalUrl,
 		&i.Status,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.AuthorId,
 		&i.CategoryId,
 		&i.TierId,
@@ -269,11 +341,11 @@ func (q *Queries) GetArticleByID(ctx context.Context, id string) (GetArticleByID
 		&i.AuthorName,
 		&i.AuthorUsername,
 		&i.AuthorLogo,
-		&i.PublicationName,
-		&i.PublicationSlug,
-		&i.PublicationSubdomain,
-		&i.PublicationType,
-		&i.PublicationLogo,
+		&i.PublisherName,
+		&i.PublisherSlug,
+		&i.PublisherSubdomain,
+		&i.PublisherType,
+		&i.PublisherLogo,
 	)
 	return i, err
 }
@@ -281,74 +353,79 @@ func (q *Queries) GetArticleByID(ctx context.Context, id string) (GetArticleByID
 const getArticleBySlug = `-- name: GetArticleBySlug :one
 SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
        a."readingTime", a."allowPublicAnnotations", a."allowComments", a."showOnPersonalProfile", a."scheduledAt",
-       a.status, a."publicationId", a."authorId", a."categoryId", a."tierId",
+       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."canonicalUrl",
+       a.status, a."publisherId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
        a."imageUrl"   AS article_image,
        u.id::text     AS author_id,
        u.name         AS author_name,
        u.username     AS author_username,
        u."logoUrl"    AS author_logo,
-       p.name         AS publication_name,
-       p.slug         AS publication_slug,
-       p.subdomain    AS publication_subdomain,
-       p.type         AS publication_type,
-       p."logoUrl"    AS publication_logo,
-       p."customDomain" AS publication_custom_domain,
+       p.name         AS publisher_name,
+       p.slug         AS publisher_slug,
+       p.subdomain    AS publisher_subdomain,
+       p.type         AS publisher_type,
+       p."logoUrl"    AS publisher_logo,
+       p."customDomain" AS publisher_custom_domain,
        c.id           AS category_id,
        c.name         AS category_name,
        c.slug         AS category_slug
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 LEFT JOIN "Category" c ON c.id = a."categoryId"
-WHERE a.slug = $1 AND a."publicationId" = $2
+WHERE a.slug = $1 AND a."publisherId" = $2
 `
 
 type GetArticleBySlugParams struct {
-	Slug          string `json:"slug"`
-	PublicationId string `json:"publicationId"`
+	Slug        string `json:"slug"`
+	PublisherId string `json:"publisherId"`
 }
 
 type GetArticleBySlugRow struct {
-	ID                      string            `json:"id"`
-	Title                   string            `json:"title"`
-	Slug                    string            `json:"slug"`
-	Content                 string            `json:"content"`
-	Published               bool              `json:"published"`
-	IsPremium               bool              `json:"isPremium"`
-	Visibility              ContentVisibility `json:"visibility"`
-	ReadingTime             int32             `json:"readingTime"`
-	AllowPublicAnnotations  bool              `json:"allowPublicAnnotations"`
-	AllowComments           bool              `json:"allowComments"`
-	ShowOnPersonalProfile   bool              `json:"showOnPersonalProfile"`
-	ScheduledAt             pgtype.Timestamp  `json:"scheduledAt"`
-	Status                  string            `json:"status"`
-	PublicationId           string            `json:"publicationId"`
-	AuthorId                pgtype.UUID       `json:"authorId"`
-	CategoryId              pgtype.Text       `json:"categoryId"`
-	TierId                  pgtype.Text       `json:"tierId"`
-	SeoTitle                pgtype.Text       `json:"seoTitle"`
-	SeoDescription          pgtype.Text       `json:"seoDescription"`
-	CreatedAt               pgtype.Timestamp  `json:"createdAt"`
-	UpdatedAt               pgtype.Timestamp  `json:"updatedAt"`
-	ArticleImage            pgtype.Text       `json:"article_image"`
-	AuthorID                string            `json:"author_id"`
-	AuthorName              pgtype.Text       `json:"author_name"`
-	AuthorUsername          pgtype.Text       `json:"author_username"`
-	AuthorLogo              pgtype.Text       `json:"author_logo"`
-	PublicationName         string            `json:"publication_name"`
-	PublicationSlug         string            `json:"publication_slug"`
-	PublicationSubdomain    pgtype.Text       `json:"publication_subdomain"`
-	PublicationType         PublicationType   `json:"publication_type"`
-	PublicationLogo         pgtype.Text       `json:"publication_logo"`
-	PublicationCustomDomain pgtype.Text       `json:"publication_custom_domain"`
-	CategoryID              pgtype.Text       `json:"category_id"`
-	CategoryName            pgtype.Text       `json:"category_name"`
-	CategorySlug            pgtype.Text       `json:"category_slug"`
+	ID                     string            `json:"id"`
+	Title                  string            `json:"title"`
+	Slug                   string            `json:"slug"`
+	Content                string            `json:"content"`
+	Published              bool              `json:"published"`
+	IsPremium              bool              `json:"isPremium"`
+	Visibility             ContentVisibility `json:"visibility"`
+	ReadingTime            int32             `json:"readingTime"`
+	AllowPublicAnnotations bool              `json:"allowPublicAnnotations"`
+	AllowComments          bool              `json:"allowComments"`
+	ShowOnPersonalProfile  bool              `json:"showOnPersonalProfile"`
+	ScheduledAt            pgtype.Timestamp  `json:"scheduledAt"`
+	OriginArticleId        pgtype.Text       `json:"originArticleId"`
+	CanonicalType          string            `json:"canonicalType"`
+	IsAuthorSovereignCopy  bool              `json:"isAuthorSovereignCopy"`
+	CanonicalUrl           pgtype.Text       `json:"canonicalUrl"`
+	Status                 string            `json:"status"`
+	PublisherId            string            `json:"publisherId"`
+	AuthorId               pgtype.UUID       `json:"authorId"`
+	CategoryId             pgtype.Text       `json:"categoryId"`
+	TierId                 pgtype.Text       `json:"tierId"`
+	SeoTitle               pgtype.Text       `json:"seoTitle"`
+	SeoDescription         pgtype.Text       `json:"seoDescription"`
+	CreatedAt              pgtype.Timestamp  `json:"createdAt"`
+	UpdatedAt              pgtype.Timestamp  `json:"updatedAt"`
+	ArticleImage           pgtype.Text       `json:"article_image"`
+	AuthorID               string            `json:"author_id"`
+	AuthorName             pgtype.Text       `json:"author_name"`
+	AuthorUsername         pgtype.Text       `json:"author_username"`
+	AuthorLogo             pgtype.Text       `json:"author_logo"`
+	PublisherName          string            `json:"publisher_name"`
+	PublisherSlug          string            `json:"publisher_slug"`
+	PublisherSubdomain     pgtype.Text       `json:"publisher_subdomain"`
+	PublisherType          PublisherType     `json:"publisher_type"`
+	PublisherLogo          pgtype.Text       `json:"publisher_logo"`
+	PublisherCustomDomain  pgtype.Text       `json:"publisher_custom_domain"`
+	CategoryID             pgtype.Text       `json:"category_id"`
+	CategoryName           pgtype.Text       `json:"category_name"`
+	CategorySlug           pgtype.Text       `json:"category_slug"`
 }
 
 func (q *Queries) GetArticleBySlug(ctx context.Context, arg GetArticleBySlugParams) (GetArticleBySlugRow, error) {
-	row := q.db.QueryRow(ctx, getArticleBySlug, arg.Slug, arg.PublicationId)
+	row := q.db.QueryRow(ctx, getArticleBySlug, arg.Slug, arg.PublisherId)
 	var i GetArticleBySlugRow
 	err := row.Scan(
 		&i.ID,
@@ -363,8 +440,12 @@ func (q *Queries) GetArticleBySlug(ctx context.Context, arg GetArticleBySlugPara
 		&i.AllowComments,
 		&i.ShowOnPersonalProfile,
 		&i.ScheduledAt,
+		&i.OriginArticleId,
+		&i.CanonicalType,
+		&i.IsAuthorSovereignCopy,
+		&i.CanonicalUrl,
 		&i.Status,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.AuthorId,
 		&i.CategoryId,
 		&i.TierId,
@@ -377,12 +458,12 @@ func (q *Queries) GetArticleBySlug(ctx context.Context, arg GetArticleBySlugPara
 		&i.AuthorName,
 		&i.AuthorUsername,
 		&i.AuthorLogo,
-		&i.PublicationName,
-		&i.PublicationSlug,
-		&i.PublicationSubdomain,
-		&i.PublicationType,
-		&i.PublicationLogo,
-		&i.PublicationCustomDomain,
+		&i.PublisherName,
+		&i.PublisherSlug,
+		&i.PublisherSubdomain,
+		&i.PublisherType,
+		&i.PublisherLogo,
+		&i.PublisherCustomDomain,
 		&i.CategoryID,
 		&i.CategoryName,
 		&i.CategorySlug,
@@ -393,25 +474,26 @@ func (q *Queries) GetArticleBySlug(ctx context.Context, arg GetArticleBySlugPara
 const getArticleBySlugAny = `-- name: GetArticleBySlugAny :one
 SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
        a."readingTime", a."allowPublicAnnotations", a."allowComments", a."showOnPersonalProfile", a."scheduledAt",
-       a.status, a."publicationId", a."authorId", a."categoryId", a."tierId",
+       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."canonicalUrl",
+       a.status, a."publisherId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
        u.id::text     AS author_id,
        u.name         AS author_name,
        u.username     AS author_username,
        u."logoUrl"    AS author_logo,
-       p.name         AS publication_name,
-       p.slug         AS publication_slug,
-       p.subdomain    AS publication_subdomain,
-       p.type         AS publication_type,
-       p."logoUrl"    AS publication_logo,
-       p."customDomain" AS publication_custom_domain,
+       p.name         AS publisher_name,
+       p.slug         AS publisher_slug,
+       p.subdomain    AS publisher_subdomain,
+       p.type         AS publisher_type,
+       p."logoUrl"    AS publisher_logo,
+       p."customDomain" AS publisher_custom_domain,
        a."imageUrl"   AS article_image,
        c.id           AS category_id,
        c.name         AS category_name,
        c.slug         AS category_slug
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 LEFT JOIN "Category" c ON c.id = a."categoryId"
 WHERE (a.slug = $1
        OR EXISTS (SELECT 1 FROM "ArticleSlug" s
@@ -424,41 +506,45 @@ LIMIT 1
 `
 
 type GetArticleBySlugAnyRow struct {
-	ID                      string            `json:"id"`
-	Title                   string            `json:"title"`
-	Slug                    string            `json:"slug"`
-	Content                 string            `json:"content"`
-	Published               bool              `json:"published"`
-	IsPremium               bool              `json:"isPremium"`
-	Visibility              ContentVisibility `json:"visibility"`
-	ReadingTime             int32             `json:"readingTime"`
-	AllowPublicAnnotations  bool              `json:"allowPublicAnnotations"`
-	AllowComments           bool              `json:"allowComments"`
-	ShowOnPersonalProfile   bool              `json:"showOnPersonalProfile"`
-	ScheduledAt             pgtype.Timestamp  `json:"scheduledAt"`
-	Status                  string            `json:"status"`
-	PublicationId           string            `json:"publicationId"`
-	AuthorId                pgtype.UUID       `json:"authorId"`
-	CategoryId              pgtype.Text       `json:"categoryId"`
-	TierId                  pgtype.Text       `json:"tierId"`
-	SeoTitle                pgtype.Text       `json:"seoTitle"`
-	SeoDescription          pgtype.Text       `json:"seoDescription"`
-	CreatedAt               pgtype.Timestamp  `json:"createdAt"`
-	UpdatedAt               pgtype.Timestamp  `json:"updatedAt"`
-	AuthorID                string            `json:"author_id"`
-	AuthorName              pgtype.Text       `json:"author_name"`
-	AuthorUsername          pgtype.Text       `json:"author_username"`
-	AuthorLogo              pgtype.Text       `json:"author_logo"`
-	PublicationName         string            `json:"publication_name"`
-	PublicationSlug         string            `json:"publication_slug"`
-	PublicationSubdomain    pgtype.Text       `json:"publication_subdomain"`
-	PublicationType         PublicationType   `json:"publication_type"`
-	PublicationLogo         pgtype.Text       `json:"publication_logo"`
-	PublicationCustomDomain pgtype.Text       `json:"publication_custom_domain"`
-	ArticleImage            pgtype.Text       `json:"article_image"`
-	CategoryID              pgtype.Text       `json:"category_id"`
-	CategoryName            pgtype.Text       `json:"category_name"`
-	CategorySlug            pgtype.Text       `json:"category_slug"`
+	ID                     string            `json:"id"`
+	Title                  string            `json:"title"`
+	Slug                   string            `json:"slug"`
+	Content                string            `json:"content"`
+	Published              bool              `json:"published"`
+	IsPremium              bool              `json:"isPremium"`
+	Visibility             ContentVisibility `json:"visibility"`
+	ReadingTime            int32             `json:"readingTime"`
+	AllowPublicAnnotations bool              `json:"allowPublicAnnotations"`
+	AllowComments          bool              `json:"allowComments"`
+	ShowOnPersonalProfile  bool              `json:"showOnPersonalProfile"`
+	ScheduledAt            pgtype.Timestamp  `json:"scheduledAt"`
+	OriginArticleId        pgtype.Text       `json:"originArticleId"`
+	CanonicalType          string            `json:"canonicalType"`
+	IsAuthorSovereignCopy  bool              `json:"isAuthorSovereignCopy"`
+	CanonicalUrl           pgtype.Text       `json:"canonicalUrl"`
+	Status                 string            `json:"status"`
+	PublisherId            string            `json:"publisherId"`
+	AuthorId               pgtype.UUID       `json:"authorId"`
+	CategoryId             pgtype.Text       `json:"categoryId"`
+	TierId                 pgtype.Text       `json:"tierId"`
+	SeoTitle               pgtype.Text       `json:"seoTitle"`
+	SeoDescription         pgtype.Text       `json:"seoDescription"`
+	CreatedAt              pgtype.Timestamp  `json:"createdAt"`
+	UpdatedAt              pgtype.Timestamp  `json:"updatedAt"`
+	AuthorID               string            `json:"author_id"`
+	AuthorName             pgtype.Text       `json:"author_name"`
+	AuthorUsername         pgtype.Text       `json:"author_username"`
+	AuthorLogo             pgtype.Text       `json:"author_logo"`
+	PublisherName          string            `json:"publisher_name"`
+	PublisherSlug          string            `json:"publisher_slug"`
+	PublisherSubdomain     pgtype.Text       `json:"publisher_subdomain"`
+	PublisherType          PublisherType     `json:"publisher_type"`
+	PublisherLogo          pgtype.Text       `json:"publisher_logo"`
+	PublisherCustomDomain  pgtype.Text       `json:"publisher_custom_domain"`
+	ArticleImage           pgtype.Text       `json:"article_image"`
+	CategoryID             pgtype.Text       `json:"category_id"`
+	CategoryName           pgtype.Text       `json:"category_name"`
+	CategorySlug           pgtype.Text       `json:"category_slug"`
 }
 
 // Lecture publique par slug SEUL (premier article publié) — parité avec
@@ -480,8 +566,12 @@ func (q *Queries) GetArticleBySlugAny(ctx context.Context, slug string) (GetArti
 		&i.AllowComments,
 		&i.ShowOnPersonalProfile,
 		&i.ScheduledAt,
+		&i.OriginArticleId,
+		&i.CanonicalType,
+		&i.IsAuthorSovereignCopy,
+		&i.CanonicalUrl,
 		&i.Status,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.AuthorId,
 		&i.CategoryId,
 		&i.TierId,
@@ -493,12 +583,12 @@ func (q *Queries) GetArticleBySlugAny(ctx context.Context, slug string) (GetArti
 		&i.AuthorName,
 		&i.AuthorUsername,
 		&i.AuthorLogo,
-		&i.PublicationName,
-		&i.PublicationSlug,
-		&i.PublicationSubdomain,
-		&i.PublicationType,
-		&i.PublicationLogo,
-		&i.PublicationCustomDomain,
+		&i.PublisherName,
+		&i.PublisherSlug,
+		&i.PublisherSubdomain,
+		&i.PublisherType,
+		&i.PublisherLogo,
+		&i.PublisherCustomDomain,
 		&i.ArticleImage,
 		&i.CategoryID,
 		&i.CategoryName,
@@ -507,18 +597,18 @@ func (q *Queries) GetArticleBySlugAny(ctx context.Context, slug string) (GetArti
 	return i, err
 }
 
-const getArticleIdByPublicationAndSlug = `-- name: GetArticleIdByPublicationAndSlug :one
-SELECT id FROM "Article" WHERE "publicationId" = $1 AND slug = $2 LIMIT 1
+const getArticleIdByPublisherAndSlug = `-- name: GetArticleIdByPublisherAndSlug :one
+SELECT id FROM "Article" WHERE "publisherId" = $1 AND slug = $2 LIMIT 1
 `
 
-type GetArticleIdByPublicationAndSlugParams struct {
-	PublicationId string `json:"publicationId"`
-	Slug          string `json:"slug"`
+type GetArticleIdByPublisherAndSlugParams struct {
+	PublisherId string `json:"publisherId"`
+	Slug        string `json:"slug"`
 }
 
-// Dédoublonnage import RSS : un article existe déjà si publicationId + slug matchent.
-func (q *Queries) GetArticleIdByPublicationAndSlug(ctx context.Context, arg GetArticleIdByPublicationAndSlugParams) (string, error) {
-	row := q.db.QueryRow(ctx, getArticleIdByPublicationAndSlug, arg.PublicationId, arg.Slug)
+// Dédoublonnage import RSS : un article existe déjà si publisherId + slug matchent.
+func (q *Queries) GetArticleIdByPublisherAndSlug(ctx context.Context, arg GetArticleIdByPublisherAndSlugParams) (string, error) {
+	row := q.db.QueryRow(ctx, getArticleIdByPublisherAndSlug, arg.PublisherId, arg.Slug)
 	var id string
 	err := row.Scan(&id)
 	return id, err
@@ -526,30 +616,30 @@ func (q *Queries) GetArticleIdByPublicationAndSlug(ctx context.Context, arg GetA
 
 const getArticleOfflinePack = `-- name: GetArticleOfflinePack :one
 SELECT a.id, a.title, a.slug, a.content, a."readingTime", a."isPremium",
-       a."allowDownload", a.published, a."publicationId", a.visibility, a."tierId", a."createdAt",
-       p.name AS publication_name,
+       a."allowDownload", a.published, a."publisherId", a.visibility, a."tierId", a."createdAt",
+       p.name AS publisher_name,
        u.name AS author_name
 FROM "Article" a
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 JOIN "User" u ON u.id = a."authorId"
 WHERE a.id = $1
 `
 
 type GetArticleOfflinePackRow struct {
-	ID              string            `json:"id"`
-	Title           string            `json:"title"`
-	Slug            string            `json:"slug"`
-	Content         string            `json:"content"`
-	ReadingTime     int32             `json:"readingTime"`
-	IsPremium       bool              `json:"isPremium"`
-	AllowDownload   bool              `json:"allowDownload"`
-	Published       bool              `json:"published"`
-	PublicationId   string            `json:"publicationId"`
-	Visibility      ContentVisibility `json:"visibility"`
-	TierId          pgtype.Text       `json:"tierId"`
-	CreatedAt       pgtype.Timestamp  `json:"createdAt"`
-	PublicationName string            `json:"publication_name"`
-	AuthorName      pgtype.Text       `json:"author_name"`
+	ID            string            `json:"id"`
+	Title         string            `json:"title"`
+	Slug          string            `json:"slug"`
+	Content       string            `json:"content"`
+	ReadingTime   int32             `json:"readingTime"`
+	IsPremium     bool              `json:"isPremium"`
+	AllowDownload bool              `json:"allowDownload"`
+	Published     bool              `json:"published"`
+	PublisherId   string            `json:"publisherId"`
+	Visibility    ContentVisibility `json:"visibility"`
+	TierId        pgtype.Text       `json:"tierId"`
+	CreatedAt     pgtype.Timestamp  `json:"createdAt"`
+	PublisherName string            `json:"publisher_name"`
+	AuthorName    pgtype.Text       `json:"author_name"`
 }
 
 // Pack hors-ligne (fiche Plus P1) : contenu + droits + publication, en une
@@ -569,11 +659,11 @@ func (q *Queries) GetArticleOfflinePack(ctx context.Context, id string) (GetArti
 		&i.IsPremium,
 		&i.AllowDownload,
 		&i.Published,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.Visibility,
 		&i.TierId,
 		&i.CreatedAt,
-		&i.PublicationName,
+		&i.PublisherName,
 		&i.AuthorName,
 	)
 	return i, err
@@ -586,12 +676,12 @@ SELECT a.id, a.title, a.slug, a.content, a."imageUrl", a.published, a."isPremium
        c.description AS category_description
 FROM "Article" a
 LEFT JOIN "Category" c ON c.id = a."categoryId"
-WHERE a.slug = $1 AND a."publicationId" = $2 AND a.published = true
+WHERE a.slug = $1 AND a."publisherId" = $2 AND a.published = true
 `
 
 type GetCreatorArticleBySlugParams struct {
-	Slug          string `json:"slug"`
-	PublicationId string `json:"publicationId"`
+	Slug        string `json:"slug"`
+	PublisherId string `json:"publisherId"`
 }
 
 type GetCreatorArticleBySlugRow struct {
@@ -617,7 +707,7 @@ type GetCreatorArticleBySlugRow struct {
 // Lecture d'un article PUBLIÉ d'une publication au format contrat créateurs
 // (clé API → publication du créateur), catégorie embarquée.
 func (q *Queries) GetCreatorArticleBySlug(ctx context.Context, arg GetCreatorArticleBySlugParams) (GetCreatorArticleBySlugRow, error) {
-	row := q.db.QueryRow(ctx, getCreatorArticleBySlug, arg.Slug, arg.PublicationId)
+	row := q.db.QueryRow(ctx, getCreatorArticleBySlug, arg.Slug, arg.PublisherId)
 	var i GetCreatorArticleBySlugRow
 	err := row.Scan(
 		&i.ID,
@@ -642,7 +732,7 @@ func (q *Queries) GetCreatorArticleBySlug(ctx context.Context, arg GetCreatorArt
 }
 
 const getLatestArticleReviewFeedback = `-- name: GetLatestArticleReviewFeedback :one
-SELECT r.id, r."articleId", r."publicationId", r."reviewerId", r.action, r.comment, r."createdAt",
+SELECT r.id, r."articleId", r."publisherId", r."reviewerId", r.action, r.comment, r."createdAt",
        u.name AS reviewer_name, u.username AS reviewer_username, u."logoUrl" AS reviewer_logo
 FROM "ArticleReviewLog" r
 JOIN "User" u ON u.id = r."reviewerId"
@@ -654,7 +744,7 @@ LIMIT 1
 type GetLatestArticleReviewFeedbackRow struct {
 	ID               string           `json:"id"`
 	ArticleId        string           `json:"articleId"`
-	PublicationId    string           `json:"publicationId"`
+	PublisherId      string           `json:"publisherId"`
 	ReviewerId       pgtype.UUID      `json:"reviewerId"`
 	Action           string           `json:"action"`
 	Comment          pgtype.Text      `json:"comment"`
@@ -670,7 +760,7 @@ func (q *Queries) GetLatestArticleReviewFeedback(ctx context.Context, articleid 
 	err := row.Scan(
 		&i.ID,
 		&i.ArticleId,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.ReviewerId,
 		&i.Action,
 		&i.Comment,
@@ -686,35 +776,68 @@ const getMediaRoleForUser = `-- name: GetMediaRoleForUser :one
 SELECT m.role
 FROM "MediaMember" m
 JOIN "Media" md ON md.id = m."mediaId"
-WHERE md."publicationId" = $1 AND m."userId" = $2
+WHERE md."publisherId" = $1 AND m."userId" = $2
   AND m.status = 'active'
 LIMIT 1
 `
 
 type GetMediaRoleForUserParams struct {
-	PublicationId string      `json:"publicationId"`
-	UserId        pgtype.UUID `json:"userId"`
+	PublisherId string      `json:"publisherId"`
+	UserId      pgtype.UUID `json:"userId"`
 }
 
 func (q *Queries) GetMediaRoleForUser(ctx context.Context, arg GetMediaRoleForUserParams) (string, error) {
-	row := q.db.QueryRow(ctx, getMediaRoleForUser, arg.PublicationId, arg.UserId)
+	row := q.db.QueryRow(ctx, getMediaRoleForUser, arg.PublisherId, arg.UserId)
 	var role string
 	err := row.Scan(&role)
 	return role, err
 }
 
+const getSovereignCopyByOriginAndAuthor = `-- name: GetSovereignCopyByOriginAndAuthor :one
+SELECT id, "publisherId", status, published
+FROM "Article"
+WHERE "originArticleId" = $1
+  AND "authorId" = $2
+  AND "isAuthorSovereignCopy" = true
+LIMIT 1
+`
+
+type GetSovereignCopyByOriginAndAuthorParams struct {
+	OriginArticleId pgtype.Text `json:"originArticleId"`
+	AuthorId        pgtype.UUID `json:"authorId"`
+}
+
+type GetSovereignCopyByOriginAndAuthorRow struct {
+	ID          string `json:"id"`
+	PublisherId string `json:"publisherId"`
+	Status      string `json:"status"`
+	Published   bool   `json:"published"`
+}
+
+func (q *Queries) GetSovereignCopyByOriginAndAuthor(ctx context.Context, arg GetSovereignCopyByOriginAndAuthorParams) (GetSovereignCopyByOriginAndAuthorRow, error) {
+	row := q.db.QueryRow(ctx, getSovereignCopyByOriginAndAuthor, arg.OriginArticleId, arg.AuthorId)
+	var i GetSovereignCopyByOriginAndAuthorRow
+	err := row.Scan(
+		&i.ID,
+		&i.PublisherId,
+		&i.Status,
+		&i.Published,
+	)
+	return i, err
+}
+
 const getSubscriberEntitlement = `-- name: GetSubscriberEntitlement :one
 SELECT s."isPremium", s."isActive", s."tierId"
 FROM "Subscriber" s
-WHERE s."publicationId" = $1
+WHERE s."publisherId" = $1
   AND (s."userId" = $2 OR s.email = $3)
 LIMIT 1
 `
 
 type GetSubscriberEntitlementParams struct {
-	PublicationId string      `json:"publicationId"`
-	UserId        pgtype.UUID `json:"userId"`
-	Email         string      `json:"email"`
+	PublisherId string      `json:"publisherId"`
+	UserId      pgtype.UUID `json:"userId"`
+	Email       string      `json:"email"`
 }
 
 type GetSubscriberEntitlementRow struct {
@@ -724,42 +847,42 @@ type GetSubscriberEntitlementRow struct {
 }
 
 func (q *Queries) GetSubscriberEntitlement(ctx context.Context, arg GetSubscriberEntitlementParams) (GetSubscriberEntitlementRow, error) {
-	row := q.db.QueryRow(ctx, getSubscriberEntitlement, arg.PublicationId, arg.UserId, arg.Email)
+	row := q.db.QueryRow(ctx, getSubscriberEntitlement, arg.PublisherId, arg.UserId, arg.Email)
 	var i GetSubscriberEntitlementRow
 	err := row.Scan(&i.IsPremium, &i.IsActive, &i.TierId)
 	return i, err
 }
 
-const getUserPersonalPublication = `-- name: GetUserPersonalPublication :one
-SELECT "publicationId" AS id
+const getUserPersonalPublisher = `-- name: GetUserPersonalPublisher :one
+SELECT "publisherId" AS id
 FROM "User"
 WHERE id = $1
 `
 
-func (q *Queries) GetUserPersonalPublication(ctx context.Context, id string) (pgtype.Text, error) {
-	row := q.db.QueryRow(ctx, getUserPersonalPublication, id)
+func (q *Queries) GetUserPersonalPublisher(ctx context.Context, id string) (pgtype.Text, error) {
+	row := q.db.QueryRow(ctx, getUserPersonalPublisher, id)
 	var id_2 pgtype.Text
 	err := row.Scan(&id_2)
 	return id_2, err
 }
 
 const insertArticleReviewLog = `-- name: InsertArticleReviewLog :exec
-INSERT INTO "ArticleReviewLog" (id, "articleId", "publicationId", "reviewerId", action, comment)
+INSERT INTO "ArticleReviewLog" (id, "articleId", "publisherId", "reviewerId", action, comment)
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5)
 `
 
 type InsertArticleReviewLogParams struct {
-	ArticleId     string      `json:"articleId"`
-	PublicationId string      `json:"publicationId"`
-	ReviewerId    pgtype.UUID `json:"reviewerId"`
-	Action        string      `json:"action"`
-	Comment       pgtype.Text `json:"comment"`
+	ArticleId   string      `json:"articleId"`
+	PublisherId string      `json:"publisherId"`
+	ReviewerId  pgtype.UUID `json:"reviewerId"`
+	Action      string      `json:"action"`
+	Comment     pgtype.Text `json:"comment"`
 }
 
 func (q *Queries) InsertArticleReviewLog(ctx context.Context, arg InsertArticleReviewLogParams) error {
 	_, err := q.db.Exec(ctx, insertArticleReviewLog,
 		arg.ArticleId,
-		arg.PublicationId,
+		arg.PublisherId,
 		arg.ReviewerId,
 		arg.Action,
 		arg.Comment,
@@ -769,21 +892,22 @@ func (q *Queries) InsertArticleReviewLog(ctx context.Context, arg InsertArticleR
 
 const listArticlesWithCategory = `-- name: ListArticlesWithCategory :many
 SELECT a.id, a.title, a.slug, a.published, a."isPremium", a.visibility, a."readingTime",
-       a.status, a."createdAt", a."updatedAt", a."categoryId", a."publicationId", a."authorId",
+       a.status, a."createdAt", a."updatedAt", a."categoryId", a."publisherId", a."authorId",
        a."allowPublicAnnotations", a."allowComments", a."allowDownload", a."showOnPersonalProfile",
+       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."canonicalUrl",
        (a."draftContent" IS NOT NULL AND a."draftContent" <> '') AS has_unpublished_changes,
        a."emailStatus", a."emailSentAt", a."emailSentCount",
        c.id  AS category_id,
        c.name AS category_name,
        c.slug AS category_slug,
-       p.name AS publication_name,
-       p.slug AS publication_slug,
-       p.type AS publication_type,
-       p."logoUrl" AS publication_logo
+       p.name AS publisher_name,
+       p.slug AS publisher_slug,
+       p.type AS publisher_type,
+       p."logoUrl" AS publisher_logo
 FROM "Article" a
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 LEFT JOIN "Category" c ON c.id = a."categoryId"
-WHERE a."publicationId" = $1
+WHERE a."publisherId" = $1
    OR ($4::boolean AND (
      a."authorId" = $5::uuid
      OR EXISTS (
@@ -799,11 +923,11 @@ LIMIT $2 OFFSET $3
 `
 
 type ListArticlesWithCategoryParams struct {
-	PublicationId string      `json:"publicationId"`
-	Limit         int32       `json:"limit"`
-	Offset        int32       `json:"offset"`
-	Column4       bool        `json:"column_4"`
-	Column5       pgtype.UUID `json:"column_5"`
+	PublisherId string      `json:"publisherId"`
+	Limit       int32       `json:"limit"`
+	Offset      int32       `json:"offset"`
+	Column4     bool        `json:"column_4"`
+	Column5     pgtype.UUID `json:"column_5"`
 }
 
 type ListArticlesWithCategoryRow struct {
@@ -818,12 +942,16 @@ type ListArticlesWithCategoryRow struct {
 	CreatedAt              pgtype.Timestamp  `json:"createdAt"`
 	UpdatedAt              pgtype.Timestamp  `json:"updatedAt"`
 	CategoryId             pgtype.Text       `json:"categoryId"`
-	PublicationId          string            `json:"publicationId"`
+	PublisherId            string            `json:"publisherId"`
 	AuthorId               pgtype.UUID       `json:"authorId"`
 	AllowPublicAnnotations bool              `json:"allowPublicAnnotations"`
 	AllowComments          bool              `json:"allowComments"`
 	AllowDownload          bool              `json:"allowDownload"`
 	ShowOnPersonalProfile  bool              `json:"showOnPersonalProfile"`
+	OriginArticleId        pgtype.Text       `json:"originArticleId"`
+	CanonicalType          string            `json:"canonicalType"`
+	IsAuthorSovereignCopy  bool              `json:"isAuthorSovereignCopy"`
+	CanonicalUrl           pgtype.Text       `json:"canonicalUrl"`
 	HasUnpublishedChanges  pgtype.Bool       `json:"has_unpublished_changes"`
 	EmailStatus            string            `json:"emailStatus"`
 	EmailSentAt            pgtype.Timestamp  `json:"emailSentAt"`
@@ -831,15 +959,15 @@ type ListArticlesWithCategoryRow struct {
 	CategoryID             pgtype.Text       `json:"category_id"`
 	CategoryName           pgtype.Text       `json:"category_name"`
 	CategorySlug           pgtype.Text       `json:"category_slug"`
-	PublicationName        string            `json:"publication_name"`
-	PublicationSlug        string            `json:"publication_slug"`
-	PublicationType        PublicationType   `json:"publication_type"`
-	PublicationLogo        pgtype.Text       `json:"publication_logo"`
+	PublisherName          string            `json:"publisher_name"`
+	PublisherSlug          string            `json:"publisher_slug"`
+	PublisherType          PublisherType     `json:"publisher_type"`
+	PublisherLogo          pgtype.Text       `json:"publisher_logo"`
 }
 
 func (q *Queries) ListArticlesWithCategory(ctx context.Context, arg ListArticlesWithCategoryParams) ([]ListArticlesWithCategoryRow, error) {
 	rows, err := q.db.Query(ctx, listArticlesWithCategory,
-		arg.PublicationId,
+		arg.PublisherId,
 		arg.Limit,
 		arg.Offset,
 		arg.Column4,
@@ -864,12 +992,16 @@ func (q *Queries) ListArticlesWithCategory(ctx context.Context, arg ListArticles
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.CategoryId,
-			&i.PublicationId,
+			&i.PublisherId,
 			&i.AuthorId,
 			&i.AllowPublicAnnotations,
 			&i.AllowComments,
 			&i.AllowDownload,
 			&i.ShowOnPersonalProfile,
+			&i.OriginArticleId,
+			&i.CanonicalType,
+			&i.IsAuthorSovereignCopy,
+			&i.CanonicalUrl,
 			&i.HasUnpublishedChanges,
 			&i.EmailStatus,
 			&i.EmailSentAt,
@@ -877,10 +1009,10 @@ func (q *Queries) ListArticlesWithCategory(ctx context.Context, arg ListArticles
 			&i.CategoryID,
 			&i.CategoryName,
 			&i.CategorySlug,
-			&i.PublicationName,
-			&i.PublicationSlug,
-			&i.PublicationType,
-			&i.PublicationLogo,
+			&i.PublisherName,
+			&i.PublisherSlug,
+			&i.PublisherType,
+			&i.PublisherLogo,
 		); err != nil {
 			return nil, err
 		}
@@ -899,7 +1031,7 @@ SELECT a.id, a.title, a.slug, a.content, a."imageUrl", a.published, a."isPremium
        c.description AS category_description
 FROM "Article" a
 LEFT JOIN "Category" c ON c.id = a."categoryId"
-WHERE a."publicationId" = $1
+WHERE a."publisherId" = $1
   AND ($2::boolean IS NULL OR a.published = $2)
   AND (
     $3::text IS NULL
@@ -907,7 +1039,7 @@ WHERE a."publicationId" = $1
     OR c.id = $3
     OR c."parentId" IN (
       SELECT parent_cat.id FROM "Category" parent_cat
-      WHERE parent_cat."publicationId" = $1
+      WHERE parent_cat."publisherId" = $1
         AND (parent_cat.slug = $3 OR parent_cat.id = $3)
     )
   )
@@ -916,11 +1048,11 @@ LIMIT $5 OFFSET $4
 `
 
 type ListCreatorArticlesParams struct {
-	PublicationId string      `json:"publicationId"`
-	Published     pgtype.Bool `json:"published"`
-	CategorySlug  pgtype.Text `json:"categorySlug"`
-	Offset        int32       `json:"offset"`
-	Limit         int32       `json:"limit"`
+	PublisherId  string      `json:"publisherId"`
+	Published    pgtype.Bool `json:"published"`
+	CategorySlug pgtype.Text `json:"categorySlug"`
+	Offset       int32       `json:"offset"`
+	Limit        int32       `json:"limit"`
 }
 
 type ListCreatorArticlesRow struct {
@@ -947,7 +1079,7 @@ type ListCreatorArticlesRow struct {
 // filtres `published` (défaut true) et `category` (slug ou UUID ou catégorie parente), catégorie embarquée.
 func (q *Queries) ListCreatorArticles(ctx context.Context, arg ListCreatorArticlesParams) ([]ListCreatorArticlesRow, error) {
 	rows, err := q.db.Query(ctx, listCreatorArticles,
-		arg.PublicationId,
+		arg.PublisherId,
 		arg.Published,
 		arg.CategorySlug,
 		arg.Offset,
@@ -1029,7 +1161,7 @@ func (q *Queries) ListListenLater(ctx context.Context, userID pgtype.UUID) ([]Li
 	return items, nil
 }
 
-const listPublishedArticlesByPublication = `-- name: ListPublishedArticlesByPublication :many
+const listPublishedArticlesByPublisher = `-- name: ListPublishedArticlesByPublisher :many
 SELECT a.id,
        a.title,
        a.slug,
@@ -1040,24 +1172,24 @@ SELECT a.id,
        a."readingTime",
        a."showOnPersonalProfile",
        a."createdAt",
-       a."publicationId",
+       a."publisherId",
        a."authorId",
        u.id::text       AS author_id,
        u.name           AS author_name,
        u.username       AS author_username,
        u."logoUrl"      AS author_logo,
        u."isCertified"  AS author_certified,
-       p.name           AS publication_name,
-       p.slug           AS publication_slug,
-       p.subdomain      AS publication_subdomain,
-       p."logoUrl"      AS publication_logo,
-       p.type           AS publication_type,
+       p.name           AS publisher_name,
+       p.slug           AS publisher_slug,
+       p.subdomain      AS publisher_subdomain,
+       p."logoUrl"      AS publisher_logo,
+       p.type           AS publisher_type,
        c.id             AS category_id,
        c.name           AS category_name,
        c.slug           AS category_slug
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 LEFT JOIN "Category" c ON c.id = a."categoryId"
 WHERE a.published = true
   AND (
@@ -1070,7 +1202,7 @@ WHERE a.published = true
     -- Si la cible résolue est un utilisateur ou une publication PERSONAL (et non un MEDIA)
     OR (
       NOT EXISTS (
-        SELECT 1 FROM "Publication" mp
+        SELECT 1 FROM "Publisher" mp
         WHERE mp.type = 'MEDIA'
           AND (
             LOWER(mp.slug) = LOWER($1)
@@ -1081,7 +1213,7 @@ WHERE a.published = true
       AND EXISTS (
         SELECT 1
         FROM "User" tu
-        LEFT JOIN "Publication" tp ON tp.id = tu."publicationId"
+        LEFT JOIN "Publisher" tp ON tp.id = tu."publisherId"
         WHERE (
           LOWER(COALESCE(tu.username, '')) = LOWER($1)
           OR LOWER(tu.id::text) = LOWER($1)
@@ -1096,17 +1228,27 @@ WHERE a.published = true
           )
         )
         AND (
-          a."publicationId" = tu."publicationId"
-          OR (a."authorId" = tu.id AND a."showOnPersonalProfile" = true)
-          OR EXISTS (
-            SELECT 1
-            FROM "ArticleAttribution" aa
-            WHERE aa."articleId" = a.id
-              AND aa."userId" = tu.id
-              AND aa."consentStatus" = 'ACCEPTED'
-              AND aa."isVisible" = true
-              AND aa.role IN ('PRIMARY_AUTHOR', 'CO_AUTHOR')
-              AND (a."authorId" <> tu.id OR a."showOnPersonalProfile" = true)
+          a."publisherId" = tu."publisherId"
+          OR (
+            (
+              (a."authorId" = tu.id AND a."showOnPersonalProfile" = true)
+              OR EXISTS (
+                SELECT 1
+                FROM "ArticleAttribution" aa
+                WHERE aa."articleId" = a.id
+                  AND aa."userId" = tu.id
+                  AND aa."consentStatus" = 'ACCEPTED'
+                  AND aa."isVisible" = true
+                  AND aa.role IN ('PRIMARY_AUTHOR', 'CO_AUTHOR')
+                  AND (a."authorId" <> tu.id OR a."showOnPersonalProfile" = true)
+              )
+            )
+            AND NOT EXISTS (
+              SELECT 1 FROM "Article" fork
+              WHERE fork."originArticleId" = a.id
+                AND fork."publisherId" = tu."publisherId"
+                AND fork.published = true
+            )
           )
         )
       )
@@ -1119,13 +1261,13 @@ ORDER BY a."createdAt" DESC, a.id DESC
 LIMIT $2 OFFSET $3
 `
 
-type ListPublishedArticlesByPublicationParams struct {
+type ListPublishedArticlesByPublisherParams struct {
 	Lower  string `json:"lower"`
 	Limit  int32  `json:"limit"`
 	Offset int32  `json:"offset"`
 }
 
-type ListPublishedArticlesByPublicationRow struct {
+type ListPublishedArticlesByPublisherRow struct {
 	ID                    string            `json:"id"`
 	Title                 string            `json:"title"`
 	Slug                  string            `json:"slug"`
@@ -1136,18 +1278,18 @@ type ListPublishedArticlesByPublicationRow struct {
 	ReadingTime           int32             `json:"readingTime"`
 	ShowOnPersonalProfile bool              `json:"showOnPersonalProfile"`
 	CreatedAt             pgtype.Timestamp  `json:"createdAt"`
-	PublicationId         string            `json:"publicationId"`
+	PublisherId           string            `json:"publisherId"`
 	AuthorId              pgtype.UUID       `json:"authorId"`
 	AuthorID              string            `json:"author_id"`
 	AuthorName            pgtype.Text       `json:"author_name"`
 	AuthorUsername        pgtype.Text       `json:"author_username"`
 	AuthorLogo            pgtype.Text       `json:"author_logo"`
 	AuthorCertified       bool              `json:"author_certified"`
-	PublicationName       string            `json:"publication_name"`
-	PublicationSlug       string            `json:"publication_slug"`
-	PublicationSubdomain  pgtype.Text       `json:"publication_subdomain"`
-	PublicationLogo       pgtype.Text       `json:"publication_logo"`
-	PublicationType       PublicationType   `json:"publication_type"`
+	PublisherName         string            `json:"publisher_name"`
+	PublisherSlug         string            `json:"publisher_slug"`
+	PublisherSubdomain    pgtype.Text       `json:"publisher_subdomain"`
+	PublisherLogo         pgtype.Text       `json:"publisher_logo"`
+	PublisherType         PublisherType     `json:"publisher_type"`
 	CategoryID            pgtype.Text       `json:"category_id"`
 	CategoryName          pgtype.Text       `json:"category_name"`
 	CategorySlug          pgtype.Text       `json:"category_slug"`
@@ -1155,15 +1297,15 @@ type ListPublishedArticlesByPublicationRow struct {
 
 // Articles publiés d'une publication (profil), résolue par slug OU subdomain
 // (insensible à la casse). Même shape que ListRecentPublishedArticles.
-func (q *Queries) ListPublishedArticlesByPublication(ctx context.Context, arg ListPublishedArticlesByPublicationParams) ([]ListPublishedArticlesByPublicationRow, error) {
-	rows, err := q.db.Query(ctx, listPublishedArticlesByPublication, arg.Lower, arg.Limit, arg.Offset)
+func (q *Queries) ListPublishedArticlesByPublisher(ctx context.Context, arg ListPublishedArticlesByPublisherParams) ([]ListPublishedArticlesByPublisherRow, error) {
+	rows, err := q.db.Query(ctx, listPublishedArticlesByPublisher, arg.Lower, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListPublishedArticlesByPublicationRow{}
+	items := []ListPublishedArticlesByPublisherRow{}
 	for rows.Next() {
-		var i ListPublishedArticlesByPublicationRow
+		var i ListPublishedArticlesByPublisherRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
@@ -1175,18 +1317,18 @@ func (q *Queries) ListPublishedArticlesByPublication(ctx context.Context, arg Li
 			&i.ReadingTime,
 			&i.ShowOnPersonalProfile,
 			&i.CreatedAt,
-			&i.PublicationId,
+			&i.PublisherId,
 			&i.AuthorId,
 			&i.AuthorID,
 			&i.AuthorName,
 			&i.AuthorUsername,
 			&i.AuthorLogo,
 			&i.AuthorCertified,
-			&i.PublicationName,
-			&i.PublicationSlug,
-			&i.PublicationSubdomain,
-			&i.PublicationLogo,
-			&i.PublicationType,
+			&i.PublisherName,
+			&i.PublisherSlug,
+			&i.PublisherSubdomain,
+			&i.PublisherLogo,
+			&i.PublisherType,
 			&i.CategoryID,
 			&i.CategoryName,
 			&i.CategorySlug,
@@ -1211,24 +1353,24 @@ SELECT a.id,
        a.visibility,
        a."readingTime",
        a."createdAt",
-       a."publicationId",
+       a."publisherId",
        a."authorId",
        u.id::text       AS author_id,
        u.name           AS author_name,
        u.username       AS author_username,
        u."logoUrl"      AS author_logo,
        u."isCertified"  AS author_certified,
-       p.name           AS publication_name,
-       p.slug           AS publication_slug,
-       p.subdomain      AS publication_subdomain,
-       p."logoUrl"      AS publication_logo,
-       p.type           AS publication_type,
+       p.name           AS publisher_name,
+       p.slug           AS publisher_slug,
+       p.subdomain      AS publisher_subdomain,
+       p."logoUrl"      AS publisher_logo,
+       p.type           AS publisher_type,
        c.id             AS category_id,
        c.name           AS category_name,
        c.slug           AS category_slug
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 LEFT JOIN "Category" c ON c.id = a."categoryId"
 WHERE a.published = true
   AND u."isShadowbanned" = false
@@ -1244,30 +1386,30 @@ type ListRecentPublishedArticlesParams struct {
 }
 
 type ListRecentPublishedArticlesRow struct {
-	ID                   string            `json:"id"`
-	Title                string            `json:"title"`
-	Slug                 string            `json:"slug"`
-	Content              string            `json:"content"`
-	ArticleImage         pgtype.Text       `json:"article_image"`
-	IsPremium            bool              `json:"isPremium"`
-	Visibility           ContentVisibility `json:"visibility"`
-	ReadingTime          int32             `json:"readingTime"`
-	CreatedAt            pgtype.Timestamp  `json:"createdAt"`
-	PublicationId        string            `json:"publicationId"`
-	AuthorId             pgtype.UUID       `json:"authorId"`
-	AuthorID             string            `json:"author_id"`
-	AuthorName           pgtype.Text       `json:"author_name"`
-	AuthorUsername       pgtype.Text       `json:"author_username"`
-	AuthorLogo           pgtype.Text       `json:"author_logo"`
-	AuthorCertified      bool              `json:"author_certified"`
-	PublicationName      string            `json:"publication_name"`
-	PublicationSlug      string            `json:"publication_slug"`
-	PublicationSubdomain pgtype.Text       `json:"publication_subdomain"`
-	PublicationLogo      pgtype.Text       `json:"publication_logo"`
-	PublicationType      PublicationType   `json:"publication_type"`
-	CategoryID           pgtype.Text       `json:"category_id"`
-	CategoryName         pgtype.Text       `json:"category_name"`
-	CategorySlug         pgtype.Text       `json:"category_slug"`
+	ID                 string            `json:"id"`
+	Title              string            `json:"title"`
+	Slug               string            `json:"slug"`
+	Content            string            `json:"content"`
+	ArticleImage       pgtype.Text       `json:"article_image"`
+	IsPremium          bool              `json:"isPremium"`
+	Visibility         ContentVisibility `json:"visibility"`
+	ReadingTime        int32             `json:"readingTime"`
+	CreatedAt          pgtype.Timestamp  `json:"createdAt"`
+	PublisherId        string            `json:"publisherId"`
+	AuthorId           pgtype.UUID       `json:"authorId"`
+	AuthorID           string            `json:"author_id"`
+	AuthorName         pgtype.Text       `json:"author_name"`
+	AuthorUsername     pgtype.Text       `json:"author_username"`
+	AuthorLogo         pgtype.Text       `json:"author_logo"`
+	AuthorCertified    bool              `json:"author_certified"`
+	PublisherName      string            `json:"publisher_name"`
+	PublisherSlug      string            `json:"publisher_slug"`
+	PublisherSubdomain pgtype.Text       `json:"publisher_subdomain"`
+	PublisherLogo      pgtype.Text       `json:"publisher_logo"`
+	PublisherType      PublisherType     `json:"publisher_type"`
+	CategoryID         pgtype.Text       `json:"category_id"`
+	CategoryName       pgtype.Text       `json:"category_name"`
+	CategorySlug       pgtype.Text       `json:"category_slug"`
 }
 
 // Articles publiés récents (feed mobile « écran principal »), avec auteur /
@@ -1291,18 +1433,18 @@ func (q *Queries) ListRecentPublishedArticles(ctx context.Context, arg ListRecen
 			&i.Visibility,
 			&i.ReadingTime,
 			&i.CreatedAt,
-			&i.PublicationId,
+			&i.PublisherId,
 			&i.AuthorId,
 			&i.AuthorID,
 			&i.AuthorName,
 			&i.AuthorUsername,
 			&i.AuthorLogo,
 			&i.AuthorCertified,
-			&i.PublicationName,
-			&i.PublicationSlug,
-			&i.PublicationSubdomain,
-			&i.PublicationLogo,
-			&i.PublicationType,
+			&i.PublisherName,
+			&i.PublisherSlug,
+			&i.PublisherSubdomain,
+			&i.PublisherLogo,
+			&i.PublisherType,
 			&i.CategoryID,
 			&i.CategoryName,
 			&i.CategorySlug,
@@ -1323,17 +1465,17 @@ SELECT a.slug,
        a."updatedAt" AS "updatedAt"
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 WHERE a.published = true
   AND u."isShadowbanned" = false
   AND u."isSuspended" = false
   AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
   AND NOT EXISTS (
     SELECT 1
-    FROM "Publication" pv
-    JOIN "User" owner ON owner."publicationId" = pv.id
+    FROM "Publisher" pv
+    JOIN "User" owner ON owner."publisherId" = pv.id
     JOIN "UserSettings" us ON us."userId" = owner.id
-    WHERE pv.id = a."publicationId" AND us."profileVisibility" <> 'PUBLIC'
+    WHERE pv.id = a."publisherId" AND us."profileVisibility" <> 'PUBLIC'
   )
 ORDER BY a."createdAt" DESC, a.id DESC
 LIMIT $1 OFFSET $2
@@ -1434,6 +1576,22 @@ func (q *Queries) SetArticleAllowDownload(ctx context.Context, arg SetArticleAll
 	return i, err
 }
 
+const setArticleCanonicalType = `-- name: SetArticleCanonicalType :exec
+UPDATE "Article"
+SET "canonicalType" = $2, "updatedAt" = now()
+WHERE id = $1
+`
+
+type SetArticleCanonicalTypeParams struct {
+	ID            string `json:"id"`
+	CanonicalType string `json:"canonicalType"`
+}
+
+func (q *Queries) SetArticleCanonicalType(ctx context.Context, arg SetArticleCanonicalTypeParams) error {
+	_, err := q.db.Exec(ctx, setArticleCanonicalType, arg.ID, arg.CanonicalType)
+	return err
+}
+
 const setArticleStatus = `-- name: SetArticleStatus :one
 UPDATE "Article"
 SET status = $2, published = $3, "scheduledAt" = $4, "updatedAt" = now()
@@ -1460,9 +1618,9 @@ func (q *Queries) SetArticleStatus(ctx context.Context, arg SetArticleStatusPara
 	return id, err
 }
 
-const transferArticlePublication = `-- name: TransferArticlePublication :one
+const transferArticlePublisher = `-- name: TransferArticlePublisher :one
 UPDATE "Article"
-SET "publicationId" = $2,
+SET "publisherId" = $2,
     "categoryId" = $3,
     slug = $4,
     status = $5,
@@ -1477,9 +1635,9 @@ WHERE id = $1
 RETURNING id
 `
 
-type TransferArticlePublicationParams struct {
+type TransferArticlePublisherParams struct {
 	ID                    string           `json:"id"`
-	PublicationId         string           `json:"publicationId"`
+	PublisherId           string           `json:"publisherId"`
 	CategoryId            pgtype.Text      `json:"categoryId"`
 	Slug                  string           `json:"slug"`
 	Status                string           `json:"status"`
@@ -1488,10 +1646,10 @@ type TransferArticlePublicationParams struct {
 	ScheduledAt           pgtype.Timestamp `json:"scheduledAt"`
 }
 
-func (q *Queries) TransferArticlePublication(ctx context.Context, arg TransferArticlePublicationParams) (string, error) {
-	row := q.db.QueryRow(ctx, transferArticlePublication,
+func (q *Queries) TransferArticlePublisher(ctx context.Context, arg TransferArticlePublisherParams) (string, error) {
+	row := q.db.QueryRow(ctx, transferArticlePublisher,
 		arg.ID,
-		arg.PublicationId,
+		arg.PublisherId,
 		arg.CategoryId,
 		arg.Slug,
 		arg.Status,

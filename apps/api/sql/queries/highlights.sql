@@ -47,14 +47,14 @@ SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."quoteOrdinal", h."
        h."readerId", h."articleId", h."createdAt",
        a.title      AS article_title,
        a.slug       AS article_slug,
-       p.id         AS publication_id,
-       p.name       AS publication_name,
-       p.slug       AS publication_slug,
-       p.subdomain  AS publication_subdomain,
-       p."customDomain" AS publication_custom_domain
+       p.id         AS publisher_id,
+       p.name       AS publisher_name,
+       p.slug       AS publisher_slug,
+       p.subdomain  AS publisher_subdomain,
+       p."customDomain" AS publisher_custom_domain
 FROM "Highlight" h
 JOIN "Article" a ON a.id = h."articleId"
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 WHERE h."readerId" = $1
 ORDER BY h."createdAt" DESC
 LIMIT $2 OFFSET $3;
@@ -66,8 +66,8 @@ LIMIT $2 OFFSET $3;
 SELECT EXISTS (
   SELECT 1
   FROM "Article" a
-  JOIN "Publication" p ON p.id = a."publicationId"
-  LEFT JOIN "User" u ON u."publicationId" = p.id
+  JOIN "Publisher" p ON p.id = a."publisherId"
+  LEFT JOIN "User" u ON u."publisherId" = p.id
   WHERE a.id = sqlc.arg('articleId')
     AND a.published = true
     AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
@@ -75,7 +75,7 @@ SELECT EXISTS (
       u.id IS NULL
       OR u.id = sqlc.arg('viewerId')::uuid
       OR COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
-      OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = sqlc.arg('viewerId')::uuid AND f."publicationId" = p.id)
+      OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = sqlc.arg('viewerId')::uuid AND f."publisherId" = p.id)
     )
     AND NOT EXISTS (
       SELECT 1 FROM "BlockedUser" b

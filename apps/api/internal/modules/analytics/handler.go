@@ -38,15 +38,15 @@ func (h *Handler) Register(r chi.Router) {
 	})
 }
 
-func publicationID(r *http.Request) string {
-	return r.URL.Query().Get("publicationId")
+func publisherID(r *http.Request) string {
+	return r.URL.Query().Get("publisherId")
 }
 
 func (h *Handler) financial(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
-	pub := publicationID(r)
+	pub := publisherID(r)
 	if pub == "" {
-		response.BadRequest(w, "publicationId requis")
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
 	metrics, err := h.svc.Financial(r.Context(), userID, pub)
@@ -64,9 +64,9 @@ func (h *Handler) financial(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) topContent(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
-	pub := publicationID(r)
+	pub := publisherID(r)
 	if pub == "" {
-		response.BadRequest(w, "publicationId requis")
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
@@ -85,9 +85,9 @@ func (h *Handler) topContent(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) audience(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
-	pub := publicationID(r)
+	pub := publisherID(r)
 	if pub == "" {
-		response.BadRequest(w, "publicationId requis")
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
 	summary, err := h.svc.Audience(r.Context(), userID, pub)
@@ -104,12 +104,12 @@ func (h *Handler) audience(w http.ResponseWriter, r *http.Request) {
 }
 
 // audienceSubscribers expose la liste des abonnés (page audience studio).
-// GET /v1/analytics/audience/subscribers?publicationId=xxx
+// GET /v1/analytics/audience/subscribers?publisherId=xxx
 func (h *Handler) audienceSubscribers(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
-	pub := publicationID(r)
+	pub := publisherID(r)
 	if pub == "" {
-		response.BadRequest(w, "publicationId requis")
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
 	subs, err := h.svc.ListSubscribers(r.Context(), userID, pub)
@@ -128,9 +128,9 @@ func (h *Handler) audienceSubscribers(w http.ResponseWriter, r *http.Request) {
 // umamiReturning expose visiteurs nouveaux vs récurrents (DB Umami).
 func (h *Handler) umamiReturning(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
-	pub := publicationID(r)
+	pub := publisherID(r)
 	if pub == "" {
-		response.BadRequest(w, "publicationId requis")
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
 	websiteID, err := h.svc.publicationWebsiteID(r.Context(), userID, pub)
@@ -158,9 +158,9 @@ func (h *Handler) umamiReturning(w http.ResponseWriter, r *http.Request) {
 // umamiHours expose la heatmap des visites par heure (DB Umami).
 func (h *Handler) umamiHours(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
-	pub := publicationID(r)
+	pub := publisherID(r)
 	if pub == "" {
-		response.BadRequest(w, "publicationId requis")
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
 	websiteID, err := h.svc.publicationWebsiteID(r.Context(), userID, pub)
@@ -210,12 +210,12 @@ func (h *Handler) readingSessions(w http.ResponseWriter, r *http.Request) {
 }
 
 // creatorAnalytics expose les stats agrégées créateur (vues plein + provenance + série).
-// GET /v1/analytics/creator?publicationId=xxx&period=30d
+// GET /v1/analytics/creator?publisherId=xxx&period=30d
 func (h *Handler) creatorAnalytics(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
-	pub := publicationID(r)
+	pub := publisherID(r)
 	if pub == "" {
-		response.BadRequest(w, "publicationId requis")
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
 	if !h.svc.canAccess(r.Context(), userID, pub) {
@@ -237,12 +237,12 @@ func (h *Handler) creatorAnalytics(w http.ResponseWriter, r *http.Request) {
 }
 
 // provenance expose le breakdown provenance seul (léger).
-// GET /v1/analytics/provenance?publicationId=xxx&period=30d
+// GET /v1/analytics/provenance?publisherId=xxx&period=30d
 func (h *Handler) provenance(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
-	pub := publicationID(r)
+	pub := publisherID(r)
 	if pub == "" {
-		response.BadRequest(w, "publicationId requis")
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
 	if !h.svc.canAccess(r.Context(), userID, pub) {
@@ -260,12 +260,12 @@ func (h *Handler) provenance(w http.ResponseWriter, r *http.Request) {
 }
 
 // audienceInsights expose la démographie agrégée (gender/age/country/language) créateur + plateforme.
-// GET /v1/analytics/audience/insights?publicationId=xxx
+// GET /v1/analytics/audience/insights?publisherId=xxx
 func (h *Handler) audienceInsights(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
-	pub := publicationID(r)
+	pub := publisherID(r)
 	if pub == "" {
-		response.BadRequest(w, "publicationId requis")
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
 	out, err := h.svc.GetAudienceInsights(r.Context(), userID, pub)
@@ -343,9 +343,9 @@ func parsePeriod(r *http.Request) (int64, int64) {
 // qualité de lecture) — parité getCreatorAnalyticsData Prisma.
 func (h *Handler) productMetrics(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
-	pub := publicationID(r)
+	pub := publisherID(r)
 	if pub == "" {
-		response.BadRequest(w, "publicationId requis")
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
 	out, err := h.svc.ProductMetrics(r.Context(), userID, pub)
@@ -361,14 +361,14 @@ func (h *Handler) productMetrics(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, out)
 }
 
-// GET /v1/analytics/dashboard?publicationId=&workspaceType=PERSONAL|MEDIA
+// GET /v1/analytics/dashboard?publisherId=&workspaceType=PERSONAL|MEDIA
 // — page d'accueil du studio (métriques, articles récents, brouillons,
 // pensées programmées, dernier écrit, lectures 30j).
 func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
-	pub := publicationID(r)
+	pub := publisherID(r)
 	if pub == "" {
-		response.BadRequest(w, "publicationId requis")
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
 	workspaceType := r.URL.Query().Get("workspaceType")

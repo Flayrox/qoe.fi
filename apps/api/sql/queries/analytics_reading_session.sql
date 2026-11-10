@@ -56,12 +56,12 @@ ORDER BY count DESC;
 
 -- name: ListAttributedArticleIDs :many
 -- Articles attribués à un créateur : publication directe OU co-signés via ArticleAttribution ACCEPTED + visible.
--- Miroir de prisma.article.findMany { OR: [{publicationId}, {attributions: {some: {userId, consentStatus, isVisible}}}] } où published = true.
+-- Miroir de prisma.article.findMany { OR: [{publisherId}, {attributions: {some: {userId, consentStatus, isVisible}}}] } où published = true.
 SELECT a.id
 FROM "Article" a
 WHERE a.published = true
   AND (
-    a."publicationId" = $1
+    a."publisherId" = $1
     OR EXISTS (
       SELECT 1 FROM "ArticleAttribution" aa
       WHERE aa."articleId" = a.id

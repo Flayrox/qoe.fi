@@ -24,7 +24,7 @@ var (
 	errForbidden      = errors.New("vous ne gérez pas cette publication")
 	errNotDraft       = errors.New("seuls les brouillons ou les envois en échec peuvent être modifiés ou envoyés")
 	errConfirmInvalid = errors.New("lien de confirmation invalide ou déjà utilisé")
-	errProRequired    = errors.New("l'envoi d'un message direct sans article public est réservé aux publications Pro")
+	errProRequired    = errors.New("l'envoi d'un message direct sans article public est réservé aux publishers Pro")
 )
 
 // Service porte les opérations newsletters (côté créateur).
@@ -39,7 +39,7 @@ type Service struct {
 	// suivi des vagues de reconfirmation (compteurs). Branché par le serveur ;
 	// nil en test. On ne fabrique rien ici : `confirmedAt` a déjà été franchi
 	// par le chemin normal juste au-dessus.
-	onReconfirmConfirmed func(ctx context.Context, publicationID, email string) error
+	onReconfirmConfirmed func(ctx context.Context, publisherID, email string) error
 	// budgetPool (optionnel) : plafonne les e-mails de confirmation.
 	budgetPool abuse.BudgetDB
 }
@@ -47,7 +47,7 @@ type Service struct {
 // SetReconfirmConfirmedHook branche le constat de confirmation (module
 // imports). Même pattern que les autres injections : pas de cycle d'import,
 // appel best-effort qui n'invalide jamais une confirmation.
-func (s *Service) SetReconfirmConfirmedHook(fn func(ctx context.Context, publicationID, email string) error) {
+func (s *Service) SetReconfirmConfirmedHook(fn func(ctx context.Context, publisherID, email string) error) {
 	s.onReconfirmConfirmed = fn
 }
 
@@ -77,7 +77,7 @@ func NewService(q newsletterQuerier, ac *asynq.Client) *Service {
 // Issue est une newsletter (brouillon, en cours ou envoyée).
 type Issue struct {
 	ID              string  `json:"id"`
-	PublicationID   string  `json:"publicationId"`
+	PublisherID   string  `json:"publisherId"`
 	Subject         string  `json:"subject"`
 	PreviewText     *string `json:"previewText"`
 	Html            string  `json:"html"`
@@ -92,7 +92,7 @@ type Issue struct {
 
 // CreateInput est le contenu rédigeable d'une newsletter.
 type CreateInput struct {
-	PublicationID string `json:"publicationId"`
+	PublisherID string `json:"publisherId"`
 	Subject       string `json:"subject"`
 	PreviewText   string `json:"previewText"`
 	Html          string `json:"html"`
@@ -100,17 +100,17 @@ type CreateInput struct {
 
 // resolvePublication vérifie que l'utilisateur gère la publication (perso ou
 // owner d'un média) et renvoie son id.
-func (s *Service) resolvePublication(ctx context.Context, userID, publicationID string) (string, error) {
-	if publicationID == "" {
-		pubID, err := s.q.GetUserPublicationID(ctx, userID)
+func (s *Service) resolvePublisher(ctx context.Context, userID, publisherID string) (string, error) {
+	if publisherID == "" {
+		pubID, err := s.q.GetUserPublisherID(ctx, userID)
 		if err != nil || pubID == "" {
 			return "", errForbidden
 		}
 		return pubID, nil
 	}
-	owns, err := s.q.UserOwnsPublication(ctx, db.UserOwnsPublicationParams{
+	owns, err := s.q.UserOwnsPublisher(ctx, db.UserOwnsPublisherParams{
 		ID:            userID,
-		PublicationId: pgtype.Text{String: publicationID, Valid: true},
+		PublisherId: pgtype.Text{String: publisherID, Valid: true},
 	})
 	if err != nil {
 		return "", err
@@ -118,13 +118,13 @@ func (s *Service) resolvePublication(ctx context.Context, userID, publicationID 
 	if !owns {
 		return "", errForbidden
 	}
-	return publicationID, nil
+	return publisherID, nil
 }
 
 func fromModel(r db.NewsletterIssue) Issue {
 	issue := Issue{
 		ID:              r.ID,
-		PublicationID:   r.PublicationId,
+		PublisherID:   r.PublisherId,
 		Subject:         r.Subject,
 		Html:            r.Html,
 		Status:          r.Status,
@@ -146,12 +146,12 @@ func fromModel(r db.NewsletterIssue) Issue {
 }
 
 // ListIssues renvoie les newsletters de la publication du créateur (DESC).
-func (s *Service) ListIssues(ctx context.Context, userID, publicationID string) ([]Issue, error) {
-	pubID, err := s.resolvePublication(ctx, userID, publicationID)
+func (s *Service) ListIssues(ctx context.Context, userID, publisherID string) ([]Issue, error) {
+	pubID, err := s.resolvePublisher(ctx, userID, publisherID)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.q.ListNewsletterIssuesByPublication(ctx, pubID)
+	rows, err := s.q.ListNewsletterIssuesByPublisher(ctx, pubID)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +167,7 @@ func (s *Service) CreateDraft(ctx context.Context, userID string, in CreateInput
 	if in.Subject == "" || in.Html == "" {
 		return nil, errors.New("subject et html requis")
 	}
-	pubID, err := s.resolvePublication(ctx, userID, in.PublicationID)
+	pubID, err := s.resolvePublisher(ctx, userID, in.PublisherID)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +176,7 @@ func (s *Service) CreateDraft(ctx context.Context, userID string, in CreateInput
 		preview = pgtype.Text{String: in.PreviewText, Valid: true}
 	}
 	row, err := s.q.CreateNewsletterIssue(ctx, db.CreateNewsletterIssueParams{
-		PublicationId: pubID,
+		PublisherId: pubID,
 		Subject:       in.Subject,
 		PreviewText:   preview,
 		Html:          in.Html,
@@ -244,7 +244,7 @@ func (s *Service) Send(ctx context.Context, userID, issueID string) error {
 		return err
 	}
 	// 🛡️ Garde PRO : l'envoi d'un broadcast libre sans article est STRICTEMENT PRO
-	if s.pool != nil && !subscriptions.HasPro(ctx, s.pool, issue.PublicationId, time.Now()) {
+	if s.pool != nil && !subscriptions.HasPro(ctx, s.pool, issue.PublisherId, time.Now()) {
 		return errProRequired
 	}
 	if issue.Status != "DRAFT" && issue.Status != "FAILED" {
@@ -268,9 +268,9 @@ func (s *Service) checkOwnership(ctx context.Context, userID, issueID string) (d
 	if err != nil {
 		return db.NewsletterIssue{}, errNotFound
 	}
-	owns, err := s.q.UserOwnsPublication(ctx, db.UserOwnsPublicationParams{
+	owns, err := s.q.UserOwnsPublisher(ctx, db.UserOwnsPublisherParams{
 		ID:            userID,
-		PublicationId: pgtype.Text{String: issue.PublicationId, Valid: true},
+		PublisherId: pgtype.Text{String: issue.PublisherId, Valid: true},
 	})
 	if err != nil {
 		return db.NewsletterIssue{}, err
@@ -282,12 +282,12 @@ func (s *Service) checkOwnership(ctx context.Context, userID, issueID string) (d
 }
 
 // Unsubscribe désactive receiveArticles pour un abonné (lien public, sans auth).
-func (s *Service) Unsubscribe(ctx context.Context, publicationID, email string) error {
-	if publicationID == "" || email == "" {
-		return errors.New("publicationId et email requis")
+func (s *Service) Unsubscribe(ctx context.Context, publisherID, email string) error {
+	if publisherID == "" || email == "" {
+		return errors.New("publisherId et email requis")
 	}
 	return s.q.UnsubscribeNewsletterSubscriber(ctx, db.UnsubscribeNewsletterSubscriberParams{
-		PublicationId: publicationID,
+		PublisherId: publisherID,
 		Email:         email,
 	})
 }
@@ -312,10 +312,10 @@ func NewConfirmationToken() (string, error) {
 // ConfirmLocaleRaw lit la langue brute de l'abonné ("" si ligne absente).
 // Le handler normalise via workers.NormalizeEmailLocale (QOE_EMAIL_LOCALES)
 // — le service ne dépend pas de workers (pas de cycle d'import).
-func (s *Service) ConfirmLocaleRaw(ctx context.Context, publicationID, email string) string {
+func (s *Service) ConfirmLocaleRaw(ctx context.Context, publisherID, email string) string {
 	locale, err := s.q.GetSubscriberLocale(ctx, db.GetSubscriberLocaleParams{
 		Email:         email,
-		PublicationId: publicationID,
+		PublisherId: publisherID,
 	})
 	if err != nil {
 		return ""
@@ -323,13 +323,13 @@ func (s *Service) ConfirmLocaleRaw(ctx context.Context, publicationID, email str
 	return locale
 }
 
-func (s *Service) ConfirmSubscriber(ctx context.Context, publicationID, email, token string) error {
-	if publicationID == "" || email == "" || token == "" {
+func (s *Service) ConfirmSubscriber(ctx context.Context, publisherID, email, token string) error {
+	if publisherID == "" || email == "" || token == "" {
 		return errConfirmInvalid
 	}
 	_, err := s.q.ConfirmSubscriberByToken(ctx, db.ConfirmSubscriberByTokenParams{
 		Email:             email,
-		PublicationId:     publicationID,
+		PublisherId:     publisherID,
 		ConfirmationToken: pgtype.Text{String: token, Valid: true},
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -346,7 +346,7 @@ func (s *Service) ConfirmSubscriber(ctx context.Context, publicationID, email, t
 	// ainsi que les abonnements de SA propre adresse vérifiée d'inscription.
 	if err := s.q.AttachSubscriberToAccount(ctx, db.AttachSubscriberToAccountParams{
 		Email:         email,
-		PublicationId: publicationID,
+		PublisherId: publisherID,
 	}); err != nil {
 		log.Printf("[newsletters] rattachement %s: %v", email, err)
 	}
@@ -355,7 +355,7 @@ func (s *Service) ConfirmSubscriber(ctx context.Context, publicationID, email, t
 	// n'invalide JAMAIS une confirmation.
 	if err := queue.PublishSubscriberWelcome(s.ac, queue.SubscriberWelcomePayload{
 		Email:         email,
-		PublicationID: publicationID,
+		PublisherID: publisherID,
 	}); err != nil {
 		log.Printf("[newsletters] subscriber.welcome enqueue: %v", err)
 	}
@@ -363,8 +363,8 @@ func (s *Service) ConfirmSubscriber(ctx context.Context, publicationID, email, t
 	// la vague (compteurs). Best-effort également : un échec ici ne change
 	// rien à la confirmation, déjà actée et définitive.
 	if s.onReconfirmConfirmed != nil {
-		if err := s.onReconfirmConfirmed(ctx, publicationID, email); err != nil {
-			log.Printf("[newsletters] reconfirm impute %s/%s: %v", publicationID, email, err)
+		if err := s.onReconfirmConfirmed(ctx, publisherID, email); err != nil {
+			log.Printf("[newsletters] reconfirm impute %s/%s: %v", publisherID, email, err)
 		}
 	}
 	return nil
@@ -385,12 +385,12 @@ type SelfSubscribeResult struct {
 // adresse vérifiée + action explicite + session) ; sinon, parcours invité
 // (pending + e-mail de confirmation). La réponse ne distingue pas les cas
 // au-delà du flag `active`, et ne révèle jamais l'existence d'un compte.
-func (s *Service) SubscribeSelf(ctx context.Context, userID, email, publicationID string) (SelfSubscribeResult, error) {
+func (s *Service) SubscribeSelf(ctx context.Context, userID, email, publisherID string) (SelfSubscribeResult, error) {
 	if s.emailVerifier == nil {
 		return SelfSubscribeResult{}, errors.New("parcours connecté indisponible")
 	}
-	if strings.TrimSpace(publicationID) == "" {
-		return SelfSubscribeResult{}, errors.New("publicationId requis")
+	if strings.TrimSpace(publisherID) == "" {
+		return SelfSubscribeResult{}, errors.New("publisherId requis")
 	}
 	want := strings.ToLower(strings.TrimSpace(email))
 	if want == "" || !strings.Contains(want, "@") {
@@ -404,14 +404,14 @@ func (s *Service) SubscribeSelf(ctx context.Context, userID, email, publicationI
 		return SelfSubscribeResult{}, errForbidden
 	}
 	if !confirmed {
-		return SelfSubscribeResult{}, s.subscribePending(ctx, accountEmail, publicationID)
+		return SelfSubscribeResult{}, s.subscribePending(ctx, accountEmail, publisherID)
 	}
-	return SelfSubscribeResult{Active: true}, s.subscribeActive(ctx, userID, accountEmail, publicationID)
+	return SelfSubscribeResult{Active: true}, s.subscribeActive(ctx, userID, accountEmail, publisherID)
 }
 
 // subscribePending enregistre une demande en attente et enfile la confirmation
 // (même contrat que les voies publiques : jamais d'activation sans clic).
-func (s *Service) subscribePending(ctx context.Context, email, publicationID string) error {
+func (s *Service) subscribePending(ctx context.Context, email, publisherID string) error {
 	// Coupe-feu inscriptions (fiche 06 §10), troisième voie (connectée).
 	// budgetPool est nil en test → désengagé (dégradation ouverte).
 	if abuse.SignupKillEngaged(ctx, s.budgetPool) {
@@ -423,7 +423,7 @@ func (s *Service) subscribePending(ctx context.Context, email, publicationID str
 	}
 	if err := s.q.SubscribePending(ctx, db.SubscribePendingParams{
 		Email:         email,
-		PublicationID: publicationID,
+		PublisherID: publisherID,
 		Token:         token,
 	}); err != nil {
 		return err
@@ -431,13 +431,13 @@ func (s *Service) subscribePending(ctx context.Context, email, publicationID str
 	// Budget anti-abus (fiche 06 P0) : comme les deux autres voies, la demande
 	// reste enregistrée en attente mais aucun e-mail ne part au-delà du
 	// plafond — sans le dire (réponse neutre).
-	if !abuse.ConfirmAllowed(ctx, s.budgetPool, email, publicationID, time.Now()) {
+	if !abuse.ConfirmAllowed(ctx, s.budgetPool, email, publisherID, time.Now()) {
 		log.Printf("[newsletters] confirmation non envoyée (budget épuisé) %s", email)
 		return nil
 	}
 	if err := queue.PublishSubscriberConfirm(s.ac, queue.SubscriberConfirmPayload{
 		Email:         email,
-		PublicationID: publicationID,
+		PublisherID: publisherID,
 	}); err != nil {
 		log.Printf("[newsletters] subscriber.confirm enqueue: %v", err)
 	}
@@ -448,21 +448,21 @@ func (s *Service) subscribePending(ctx context.Context, email, publicationID str
 // (compte connecté + adresse confirmée côté fournisseur). Seul cas où
 // `confirmedAt` est posé sans clic sur un lien : la preuve (adresse vérifiée)
 // préexiste et l'action est explicite. Rattache aussi l'abonnement au compte.
-func (s *Service) subscribeActive(ctx context.Context, userID, email, publicationID string) error {
+func (s *Service) subscribeActive(ctx context.Context, userID, email, publisherID string) error {
 	uid := pgtype.UUID{}
 	if err := uid.Scan(userID); err != nil {
 		return err
 	}
 	if err := s.q.ActivateVerifiedSubscriber(ctx, db.ActivateVerifiedSubscriberParams{
 		Email:         email,
-		PublicationID: publicationID,
+		PublisherID: publisherID,
 		UserID:        uid,
 	}); err != nil {
 		return err
 	}
 	if err := queue.PublishSubscriberWelcome(s.ac, queue.SubscriberWelcomePayload{
 		Email:         email,
-		PublicationID: publicationID,
+		PublisherID: publisherID,
 	}); err != nil {
 		log.Printf("[newsletters] subscriber.welcome enqueue: %v", err)
 	}

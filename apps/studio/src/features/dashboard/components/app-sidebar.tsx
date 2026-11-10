@@ -16,7 +16,7 @@ interface MeResponse {
     username: string | null;
     name: string | null;
     logoUrl: string | null;
-    publicationLogoUrl: string | null;
+    publisherLogoUrl: string | null;
   };
 }
 
@@ -34,7 +34,7 @@ export async function AppSidebar() {
     name: string | null;
     username: string | null;
     logoUrl: string | null;
-    publicationLogoUrl: string | null;
+    publisherLogoUrl: string | null;
   } | null = null;
   let unreadCount = 0;
   let workspace: ActiveWorkspace | null = null;
@@ -51,7 +51,7 @@ export async function AppSidebar() {
       name: me.data.name,
       username: me.data.username,
       logoUrl: me.data.logoUrl,
-      publicationLogoUrl: me.data.publicationLogoUrl,
+      publisherLogoUrl: me.data.publisherLogoUrl,
     };
     unreadCount = unread.count ?? 0;
     workspace = active;
@@ -74,7 +74,7 @@ export async function AppSidebar() {
   // personnelle (convention PERSONAL), sinon avatar Supabase.
   const userAvatar =
     dbUser?.logoUrl ||
-    dbUser?.publicationLogoUrl ||
+    dbUser?.publisherLogoUrl ||
     (authUser?.user_metadata?.avatar_url as string | undefined) ||
     null;
 

@@ -69,7 +69,7 @@ func TestRunWorld(t *testing.T) {
 	}
 
 	// Réseau : au moins un follow vers la pub d'un créateur du cast.
-	if n := count(t, `SELECT COUNT(*) FROM "Follows" f JOIN "Publication" p ON p.id = f."publicationId" WHERE p.subdomain IN ('ambrefeuillet','noehertig','raphmeriot')`); n < 3 {
+	if n := count(t, `SELECT COUNT(*) FROM "Follows" f JOIN "Publisher" p ON p.id = f."publisherId" WHERE p.subdomain IN ('ambrefeuillet','noehertig','raphmeriot')`); n < 3 {
 		t.Fatalf("follows du cast = %d, attendu >= 3", n)
 	}
 
@@ -198,7 +198,7 @@ func TestRunTopKeepAdmin(t *testing.T) {
 	if n := count(t, `SELECT COUNT(*) FROM "User" WHERE id = $1 AND role = 'superadmin' AND email = 'admin@qoe.fi'`, AdminUserID); n != 1 {
 		t.Fatalf("admin superadmin après RunTop = %d, attendu 1", n)
 	}
-	if n := count(t, `SELECT COUNT(*) FROM "Publication" WHERE id = $1 AND "isCertified"`, AdminPubID); n != 1 {
+	if n := count(t, `SELECT COUNT(*) FROM "Publisher" WHERE id = $1 AND "isCertified"`, AdminPubID); n != 1 {
 		t.Fatalf("publication admin certifiée après RunTop = %d, attendu 1", n)
 	}
 }
@@ -339,10 +339,10 @@ func TestSeedRun(t *testing.T) {
 	if n := count(t, `SELECT COUNT(*) FROM "User" WHERE id = $1`, AdminUserID); n != 1 {
 		t.Fatalf("admin user = %d, attendu 1", n)
 	}
-	if n := count(t, `SELECT COUNT(*) FROM "Publication" WHERE id = $1 AND "isCertified"`, AdminPubID); n != 1 {
+	if n := count(t, `SELECT COUNT(*) FROM "Publisher" WHERE id = $1 AND "isCertified"`, AdminPubID); n != 1 {
 		t.Fatalf("publication admin certifiée = %d, attendu 1", n)
 	}
-	if n := count(t, `SELECT COUNT(*) FROM "Publication" WHERE id = $1 AND type = 'MEDIA'`, MediaPubID); n != 1 {
+	if n := count(t, `SELECT COUNT(*) FROM "Publisher" WHERE id = $1 AND type = 'MEDIA'`, MediaPubID); n != 1 {
 		t.Fatalf("publication média = %d, attendu 1", n)
 	}
 	if n := count(t, `SELECT COUNT(*) FROM "MediaMember" WHERE "mediaId" = $1`, MediaID); n != 4 {
@@ -350,22 +350,22 @@ func TestSeedRun(t *testing.T) {
 	}
 
 	// Contenu.
-	if n := count(t, `SELECT COUNT(*) FROM "Article" WHERE "publicationId" = $1 AND published`, AdminPubID); n != 4 {
+	if n := count(t, `SELECT COUNT(*) FROM "Article" WHERE "publisherId" = $1 AND published`, AdminPubID); n != 4 {
 		t.Fatalf("articles admin publiés = %d, attendu 4 (3 démo + 1 premium)", n)
 	}
-	if n := count(t, `SELECT COUNT(*) FROM "Article" WHERE "publicationId" = $1`, MediaPubID); n != 1 {
+	if n := count(t, `SELECT COUNT(*) FROM "Article" WHERE "publisherId" = $1`, MediaPubID); n != 1 {
 		t.Fatalf("articles média = %d, attendu 1", n)
 	}
 	if n := count(t, `SELECT COUNT(*) FROM "Article" WHERE slug = 'essai-premium-souverainete' AND "isPremium"`); n != 1 {
 		t.Fatalf("article premium = %d, attendu 1", n)
 	}
-	if n := count(t, `SELECT COUNT(*) FROM "NavigationItem" WHERE "publicationId" = $1`, AdminPubID); n != 4 {
+	if n := count(t, `SELECT COUNT(*) FROM "NavigationItem" WHERE "publisherId" = $1`, AdminPubID); n != 4 {
 		t.Fatalf("navigation = %d, attendu 4", n)
 	}
-	if n := count(t, `SELECT COUNT(*) FROM "SocialLink" WHERE "publicationId" = $1`, AdminPubID); n != 4 {
+	if n := count(t, `SELECT COUNT(*) FROM "SocialLink" WHERE "publisherId" = $1`, AdminPubID); n != 4 {
 		t.Fatalf("socialLinks = %d, attendu 4", n)
 	}
-	if n := count(t, `SELECT COUNT(*) FROM "Category" WHERE "publicationId" = $1`, AdminPubID); n != 2 {
+	if n := count(t, `SELECT COUNT(*) FROM "Category" WHERE "publisherId" = $1`, AdminPubID); n != 2 {
 		t.Fatalf("catégories = %d, attendu 2", n)
 	}
 	if n := count(t, `SELECT COUNT(*) FROM "SystemConfig"`); n != 18+len(DefaultEngineConfigs()) {
@@ -381,7 +381,7 @@ func TestSeedRun(t *testing.T) {
 	if before != after {
 		t.Fatalf("doublons articles: %d → %d", before, after)
 	}
-	if n := count(t, `SELECT COUNT(*) FROM "NavigationItem" WHERE "publicationId" = $1`, AdminPubID); n != 4 {
+	if n := count(t, `SELECT COUNT(*) FROM "NavigationItem" WHERE "publisherId" = $1`, AdminPubID); n != 4 {
 		t.Fatalf("navigation après re-run = %d, attendu 4", n)
 	}
 }

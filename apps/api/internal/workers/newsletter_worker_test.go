@@ -36,7 +36,7 @@ func TestNewsletterSend_Fanout(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
 	for _, table := range []string{
-		`"NewsletterDelivery"`, `"NewsletterIssue"`, `"Subscriber"`, `"Publication"`,
+		`"NewsletterDelivery"`, `"NewsletterIssue"`, `"Subscriber"`, `"Publisher"`,
 	} {
 		if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE `+table+` CASCADE`); err != nil {
 			t.Fatalf("truncate %s: %v", table, err)
@@ -44,18 +44,18 @@ func TestNewsletterSend_Fanout(t *testing.T) {
 	}
 
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, name, slug, "updatedAt") VALUES ('pub_nl_test', 'Test Pub', 'test-pub', now())`); err != nil {
+		`INSERT INTO "Publisher" (id, name, slug, "updatedAt") VALUES ('pub_nl_test', 'Test Pub', 'test-pub', now())`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
 	// Abonné actif + opt-in articles (confirmé) → doit recevoir ; actif mais opt-out → non.
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "receiveArticles", "confirmedAt", "updatedAt", "publicationId")
+		`INSERT INTO "Subscriber" (id, email, "receiveArticles", "confirmedAt", "updatedAt", "publisherId")
 		 VALUES ('sub_nl_1', 'active@test.dev', true, now(), now(), 'pub_nl_test'),
 		        ('sub_nl_2', 'muted@test.dev', false, NULL, now(), 'pub_nl_test')`); err != nil {
 		t.Fatalf("subscribers: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "NewsletterIssue" (id, "publicationId", subject, "previewText", html, status, "updatedAt")
+		`INSERT INTO "NewsletterIssue" (id, "publisherId", subject, "previewText", html, status, "updatedAt")
 		 VALUES ('issue_nl_1', 'pub_nl_test', 'Ma newsletter #1', 'Aperçu', '<h1>Salut</h1>', 'SENDING', now())`); err != nil {
 		t.Fatalf("issue: %v", err)
 	}
@@ -124,7 +124,7 @@ func TestNewsletterSend_Fanout(t *testing.T) {
 func TestNewsletterSend_KillSwitch(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
-	for _, table := range []string{`"NewsletterDelivery"`, `"NewsletterIssue"`, `"Subscriber"`, `"Publication"`} {
+	for _, table := range []string{`"NewsletterDelivery"`, `"NewsletterIssue"`, `"Subscriber"`, `"Publisher"`} {
 		if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE `+table+` CASCADE`); err != nil {
 			t.Fatalf("truncate %s: %v", table, err)
 		}
@@ -133,16 +133,16 @@ func TestNewsletterSend_KillSwitch(t *testing.T) {
 		t.Fatalf("clear flag: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, name, slug, "updatedAt") VALUES ('pub_nl_kill', 'Kill Pub', 'kill-pub', now())`); err != nil {
+		`INSERT INTO "Publisher" (id, name, slug, "updatedAt") VALUES ('pub_nl_kill', 'Kill Pub', 'kill-pub', now())`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "updatedAt", "publicationId")
+		`INSERT INTO "Subscriber" (id, email, "updatedAt", "publisherId")
 		 VALUES ('sub_nl_k1', 'kill@test.dev', now(), 'pub_nl_kill')`); err != nil {
 		t.Fatalf("subscriber: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "NewsletterIssue" (id, "publicationId", subject, html, status, "updatedAt")
+		`INSERT INTO "NewsletterIssue" (id, "publisherId", subject, html, status, "updatedAt")
 		 VALUES ('issue_nl_k1', 'pub_nl_kill', 'Kill', '<p>x</p>', 'SENDING', now())`); err != nil {
 		t.Fatalf("issue: %v", err)
 	}
@@ -198,26 +198,26 @@ func TestNewsletterSend_KillSwitch(t *testing.T) {
 func TestNewsletterSend_Batches(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
-	for _, table := range []string{`"NewsletterDelivery"`, `"NewsletterIssue"`, `"Subscriber"`, `"Publication"`} {
+	for _, table := range []string{`"NewsletterDelivery"`, `"NewsletterIssue"`, `"Subscriber"`, `"Publisher"`} {
 		if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE `+table+` CASCADE`); err != nil {
 			t.Fatalf("truncate %s: %v", table, err)
 		}
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, name, slug, "updatedAt") VALUES ('pub_nl_batch', 'Batch Pub', 'batch-pub', now())`); err != nil {
+		`INSERT INTO "Publisher" (id, name, slug, "updatedAt") VALUES ('pub_nl_batch', 'Batch Pub', 'batch-pub', now())`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
 	// 65 abonnés opt-in : 2 lots pleins (30) + 1 lot partiel (5).
 	for i := 0; i < 65; i++ {
 		email := fmt.Sprintf("sub%02d@test.dev", i)
 		if _, err := poolTest.Exec(ctx,
-			`INSERT INTO "Subscriber" (id, email, "confirmedAt", "updatedAt", "publicationId")
+			`INSERT INTO "Subscriber" (id, email, "confirmedAt", "updatedAt", "publisherId")
 			 VALUES (gen_random_uuid()::text, $1, now(), now(), 'pub_nl_batch')`, email); err != nil {
 			t.Fatalf("subscriber %s: %v", email, err)
 		}
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "NewsletterIssue" (id, "publicationId", subject, html, status, "updatedAt")
+		`INSERT INTO "NewsletterIssue" (id, "publisherId", subject, html, status, "updatedAt")
 		 VALUES ('issue_nl_b1', 'pub_nl_batch', 'Batch', '<p>x</p>', 'SENDING', now())`); err != nil {
 		t.Fatalf("issue: %v", err)
 	}
@@ -286,14 +286,14 @@ func TestArticleRelease_Fanout(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
 	for _, table := range []string{
-		`"ArticleReleaseDelivery"`, `"Subscriber"`, `"Publication"`, `"Article"`,
+		`"ArticleReleaseDelivery"`, `"Subscriber"`, `"Publisher"`, `"Article"`,
 	} {
 		if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE `+table+` CASCADE`); err != nil {
 			t.Fatalf("truncate %s: %v", table, err)
 		}
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, name, slug, subdomain, "updatedAt")
+		`INSERT INTO "Publisher" (id, name, slug, subdomain, "updatedAt")
 		 VALUES ('pub_rel_1', 'Release Pub', 'release-pub', 'release-pub', now())`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
@@ -303,13 +303,13 @@ func TestArticleRelease_Fanout(t *testing.T) {
 		t.Fatalf("user: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "receiveArticles", "confirmedAt", "updatedAt", "publicationId")
+		`INSERT INTO "Subscriber" (id, email, "receiveArticles", "confirmedAt", "updatedAt", "publisherId")
 		 VALUES ('sub_rel_1', 'reader@test.dev', true, now(), now(), 'pub_rel_1'),
 		        ('sub_rel_2', 'muted@test.dev', false, NULL, now(), 'pub_rel_1')`); err != nil {
 		t.Fatalf("subscribers: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Article" (id, title, slug, content, published, status, "publicationId", "authorId", "createdAt", "updatedAt")
+		`INSERT INTO "Article" (id, title, slug, content, published, status, "publisherId", "authorId", "createdAt", "updatedAt")
 		 VALUES ('art_rel_1', 'Grand reportage', 'grand-reportage', '<p>Un long contenu public.</p>', true, 'PUBLISHED',
 		         'pub_rel_1', '00000000-0000-0000-0000-000000000001', now(), now())`); err != nil {
 		t.Fatalf("article: %v", err)
@@ -359,14 +359,14 @@ func TestArticleRelease_Premium(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
 	for _, table := range []string{
-		`"ArticleReleaseDelivery"`, `"Subscriber"`, `"Publication"`, `"Article"`,
+		`"ArticleReleaseDelivery"`, `"Subscriber"`, `"Publisher"`, `"Article"`,
 	} {
 		if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE `+table+` CASCADE`); err != nil {
 			t.Fatalf("truncate %s: %v", table, err)
 		}
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, name, slug, subdomain, "updatedAt")
+		`INSERT INTO "Publisher" (id, name, slug, subdomain, "updatedAt")
 		 VALUES ('pub_rel_p', 'Premium Pub', 'premium-pub', 'premium-pub', now())`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
@@ -376,12 +376,12 @@ func TestArticleRelease_Premium(t *testing.T) {
 		t.Fatalf("user: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "confirmedAt", "updatedAt", "publicationId")
+		`INSERT INTO "Subscriber" (id, email, "confirmedAt", "updatedAt", "publisherId")
 		 VALUES ('sub_rel_p', 'prem@test.dev', now(), now(), 'pub_rel_p')`); err != nil {
 		t.Fatalf("subscriber: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Article" (id, title, slug, content, "isPremium", published, status, "publicationId", "authorId", "createdAt", "updatedAt")
+		`INSERT INTO "Article" (id, title, slug, content, "isPremium", published, status, "publisherId", "authorId", "createdAt", "updatedAt")
 		 VALUES ('art_rel_p', 'Paywall secret', 'paywall-secret', '<p>CONTENU PAYANT CONFIDENTIEL</p>', true, true, 'PUBLISHED',
 		         'pub_rel_p', '00000000-0000-0000-0000-000000000001', now(), now())`); err != nil {
 		t.Fatalf("article: %v", err)
@@ -413,7 +413,7 @@ func TestArticleRelease_KillSwitch(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
 	for _, table := range []string{
-		`"ArticleReleaseDelivery"`, `"Subscriber"`, `"Publication"`, `"Article"`,
+		`"ArticleReleaseDelivery"`, `"Subscriber"`, `"Publisher"`, `"Article"`,
 	} {
 		if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE `+table+` CASCADE`); err != nil {
 			t.Fatalf("truncate %s: %v", table, err)
@@ -427,7 +427,7 @@ func TestArticleRelease_KillSwitch(t *testing.T) {
 	}
 	defer poolTest.Exec(ctx, `DELETE FROM feature_flags WHERE key = 'workers-newsletter-dispatch'`)
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, name, slug, "updatedAt")
+		`INSERT INTO "Publisher" (id, name, slug, "updatedAt")
 		 VALUES ('pub_rel_k', 'Kill Rel', 'kill-rel', now())`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
@@ -437,12 +437,12 @@ func TestArticleRelease_KillSwitch(t *testing.T) {
 		t.Fatalf("user: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "updatedAt", "publicationId")
+		`INSERT INTO "Subscriber" (id, email, "updatedAt", "publisherId")
 		 VALUES ('sub_rel_k', 'killrel@test.dev', now(), 'pub_rel_k')`); err != nil {
 		t.Fatalf("subscriber: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Article" (id, title, slug, content, published, status, "publicationId", "authorId", "createdAt", "updatedAt")
+		`INSERT INTO "Article" (id, title, slug, content, published, status, "publisherId", "authorId", "createdAt", "updatedAt")
 		 VALUES ('art_rel_k', 'Kill', 'kill', '<p>x</p>', true, 'PUBLISHED',
 		         'pub_rel_k', '00000000-0000-0000-0000-000000000001', now(), now())`); err != nil {
 		t.Fatalf("article: %v", err)
@@ -473,22 +473,22 @@ func TestArticleRelease_KillSwitch(t *testing.T) {
 func TestNewsletterSend_Failure(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
-	for _, table := range []string{`"NewsletterDelivery"`, `"NewsletterIssue"`, `"Subscriber"`, `"Publication"`} {
+	for _, table := range []string{`"NewsletterDelivery"`, `"NewsletterIssue"`, `"Subscriber"`, `"Publisher"`} {
 		if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE `+table+` CASCADE`); err != nil {
 			t.Fatalf("truncate %s: %v", table, err)
 		}
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, name, slug, "updatedAt") VALUES ('pub_nl_fail', 'Fail Pub', 'fail-pub', now())`); err != nil {
+		`INSERT INTO "Publisher" (id, name, slug, "updatedAt") VALUES ('pub_nl_fail', 'Fail Pub', 'fail-pub', now())`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "confirmedAt", "updatedAt", "publicationId")
+		`INSERT INTO "Subscriber" (id, email, "confirmedAt", "updatedAt", "publisherId")
 		 VALUES ('sub_nl_f1', 'fail@test.dev', now(), now(), 'pub_nl_fail')`); err != nil {
 		t.Fatalf("subscriber: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "NewsletterIssue" (id, "publicationId", subject, html, status, "updatedAt")
+		`INSERT INTO "NewsletterIssue" (id, "publisherId", subject, html, status, "updatedAt")
 		 VALUES ('issue_nl_f1', 'pub_nl_fail', 'Fail', '<p>x</p>', 'SENDING', now())`); err != nil {
 		t.Fatalf("issue: %v", err)
 	}
@@ -543,7 +543,7 @@ func TestNewsletterSend_Failure(t *testing.T) {
 func TestNewsletterSend_EmailKillSwitch(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
-	for _, table := range []string{`"NewsletterDelivery"`, `"NewsletterIssue"`, `"Subscriber"`, `"Publication"`} {
+	for _, table := range []string{`"NewsletterDelivery"`, `"NewsletterIssue"`, `"Subscriber"`, `"Publisher"`} {
 		if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE `+table+` CASCADE`); err != nil {
 			t.Fatalf("truncate %s: %v", table, err)
 		}
@@ -552,16 +552,16 @@ func TestNewsletterSend_EmailKillSwitch(t *testing.T) {
 		t.Fatalf("clear flag: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, name, slug, "updatedAt") VALUES ('pub_nl_ekill', 'EKill Pub', 'ekill-pub', now())`); err != nil {
+		`INSERT INTO "Publisher" (id, name, slug, "updatedAt") VALUES ('pub_nl_ekill', 'EKill Pub', 'ekill-pub', now())`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "updatedAt", "publicationId")
+		`INSERT INTO "Subscriber" (id, email, "updatedAt", "publisherId")
 		 VALUES ('sub_nl_ek1', 'ekill@test.dev', now(), 'pub_nl_ekill')`); err != nil {
 		t.Fatalf("subscriber: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "NewsletterIssue" (id, "publicationId", subject, html, status, "updatedAt")
+		`INSERT INTO "NewsletterIssue" (id, "publisherId", subject, html, status, "updatedAt")
 		 VALUES ('issue_nl_ek1', 'pub_nl_ekill', 'EKill', '<p>x</p>', 'SENDING', now())`); err != nil {
 		t.Fatalf("issue: %v", err)
 	}

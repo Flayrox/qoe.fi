@@ -11,7 +11,7 @@
 import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import type {
   LayoutConfig,
-  TemplatePublicationContext,
+  TemplatePublisherContext,
   TemplateArticleItem,
 } from '@qoe/ui/templates';
 import { TemplateRenderer } from '@qoe/ui/templates';
@@ -45,7 +45,7 @@ import { StageEditorMode } from '../engine/models';
 
 interface StageCanvasProps {
   layout: LayoutConfig;
-  publication: TemplatePublicationContext;
+  publisher: TemplatePublisherContext;
   articles: TemplateArticleItem[];
   device: StageDevice;
   mode: StageMode;
@@ -68,7 +68,7 @@ function clampTransform(t: StageCanvasTransform): StageCanvasTransform {
 
 export function StageCanvas({
   layout,
-  publication,
+  publisher,
   articles,
   device,
   mode,
@@ -485,7 +485,7 @@ export function StageCanvas({
           >
             <TemplateRenderer
               config={layout}
-              publication={publication}
+              publisher={publisher}
               articles={articles}
               article={isPreview ? (articles[0] ?? DEMO_ARTICLES[0] ?? null) : undefined}
               mode={isPreview ? 'live' : 'editable'}

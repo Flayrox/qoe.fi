@@ -201,8 +201,8 @@ const (
 	MediaAssetTargetTypeTHOUGHTATTACHMENT MediaAssetTargetType = "THOUGHT_ATTACHMENT"
 	MediaAssetTargetTypeUSERAVATAR        MediaAssetTargetType = "USER_AVATAR"
 	MediaAssetTargetTypeUSERBANNER        MediaAssetTargetType = "USER_BANNER"
-	MediaAssetTargetTypePUBLICATIONLOGO   MediaAssetTargetType = "PUBLICATION_LOGO"
-	MediaAssetTargetTypePUBLICATIONBANNER MediaAssetTargetType = "PUBLICATION_BANNER"
+	MediaAssetTargetTypePUBLISHERLOGO     MediaAssetTargetType = "PUBLISHER_LOGO"
+	MediaAssetTargetTypePUBLISHERBANNER   MediaAssetTargetType = "PUBLISHER_BANNER"
 	MediaAssetTargetTypeSHARED            MediaAssetTargetType = "SHARED"
 )
 
@@ -383,46 +383,46 @@ func (ns NullOAuthClientType) Value() (driver.Value, error) {
 	return string(ns.OAuthClientType), nil
 }
 
-type PublicationType string
+type PublisherType string
 
 const (
-	PublicationTypePERSONAL PublicationType = "PERSONAL"
-	PublicationTypeMEDIA    PublicationType = "MEDIA"
+	PublisherTypePERSONAL PublisherType = "PERSONAL"
+	PublisherTypeMEDIA    PublisherType = "MEDIA"
 )
 
-func (e *PublicationType) Scan(src interface{}) error {
+func (e *PublisherType) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = PublicationType(s)
+		*e = PublisherType(s)
 	case string:
-		*e = PublicationType(s)
+		*e = PublisherType(s)
 	default:
-		return fmt.Errorf("unsupported scan type for PublicationType: %T", src)
+		return fmt.Errorf("unsupported scan type for PublisherType: %T", src)
 	}
 	return nil
 }
 
-type NullPublicationType struct {
-	PublicationType PublicationType `json:"PublicationType"`
-	Valid           bool            `json:"valid"` // Valid is true if PublicationType is not NULL
+type NullPublisherType struct {
+	PublisherType PublisherType `json:"PublisherType"`
+	Valid         bool          `json:"valid"` // Valid is true if PublisherType is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullPublicationType) Scan(value interface{}) error {
+func (ns *NullPublisherType) Scan(value interface{}) error {
 	if value == nil {
-		ns.PublicationType, ns.Valid = "", false
+		ns.PublisherType, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.PublicationType.Scan(value)
+	return ns.PublisherType.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullPublicationType) Value() (driver.Value, error) {
+func (ns NullPublisherType) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.PublicationType), nil
+	return string(ns.PublisherType), nil
 }
 
 type SubscriptionStatus string
@@ -541,7 +541,7 @@ type ApiKey struct {
 	CreatedAt       pgtype.Timestamp `json:"createdAt"`
 	LastUsedAt      pgtype.Timestamp `json:"lastUsedAt"`
 	UserId          pgtype.UUID      `json:"userId"`
-	PublicationId   pgtype.Text      `json:"publicationId"`
+	PublisherId     pgtype.Text      `json:"publisherId"`
 	CreatedByUserId pgtype.UUID      `json:"createdByUserId"`
 }
 
@@ -587,9 +587,13 @@ type Article struct {
 	AllowComments          bool              `json:"allowComments"`
 	AllowDownload          bool              `json:"allowDownload"`
 	ShowOnPersonalProfile  bool              `json:"showOnPersonalProfile"`
+	OriginArticleId        pgtype.Text       `json:"originArticleId"`
+	CanonicalType          string            `json:"canonicalType"`
+	IsAuthorSovereignCopy  bool              `json:"isAuthorSovereignCopy"`
+	CanonicalUrl           pgtype.Text       `json:"canonicalUrl"`
 	ScheduledAt            pgtype.Timestamp  `json:"scheduledAt"`
 	Status                 string            `json:"status"`
-	PublicationId          string            `json:"publicationId"`
+	PublisherId            string            `json:"publisherId"`
 	AuthorId               pgtype.UUID       `json:"authorId"`
 	CategoryId             pgtype.Text       `json:"categoryId"`
 	TierId                 pgtype.Text       `json:"tierId"`
@@ -635,29 +639,29 @@ type ArticleComment struct {
 }
 
 type ArticleEvent struct {
-	ID            string           `json:"id"`
-	ArticleId     string           `json:"articleId"`
-	PublicationId pgtype.Text      `json:"publicationId"`
-	ActorId       pgtype.UUID      `json:"actorId"`
-	Type          string           `json:"type"`
-	FromStatus    pgtype.Text      `json:"fromStatus"`
-	ToStatus      pgtype.Text      `json:"toStatus"`
-	ScheduledAt   pgtype.Timestamp `json:"scheduledAt"`
-	CreatedAt     pgtype.Timestamp `json:"createdAt"`
+	ID          string           `json:"id"`
+	ArticleId   string           `json:"articleId"`
+	PublisherId pgtype.Text      `json:"publisherId"`
+	ActorId     pgtype.UUID      `json:"actorId"`
+	Type        string           `json:"type"`
+	FromStatus  pgtype.Text      `json:"fromStatus"`
+	ToStatus    pgtype.Text      `json:"toStatus"`
+	ScheduledAt pgtype.Timestamp `json:"scheduledAt"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
 }
 
 type ArticleImportJob struct {
-	ID            string           `json:"id"`
-	UserId        pgtype.UUID      `json:"userId"`
-	PublicationId string           `json:"publicationId"`
-	Status        string           `json:"status"`
-	Total         int32            `json:"total"`
-	Imported      int32            `json:"imported"`
-	Duplicates    int32            `json:"duplicates"`
-	Errors        []byte           `json:"errors"`
-	Articles      []byte           `json:"articles"`
-	CreatedAt     pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt     pgtype.Timestamp `json:"updatedAt"`
+	ID          string           `json:"id"`
+	UserId      pgtype.UUID      `json:"userId"`
+	PublisherId string           `json:"publisherId"`
+	Status      string           `json:"status"`
+	Total       int32            `json:"total"`
+	Imported    int32            `json:"imported"`
+	Duplicates  int32            `json:"duplicates"`
+	Errors      []byte           `json:"errors"`
+	Articles    []byte           `json:"articles"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt   pgtype.Timestamp `json:"updatedAt"`
 }
 
 type ArticleReleaseDelivery struct {
@@ -674,13 +678,13 @@ type ArticleReleaseDelivery struct {
 }
 
 type ArticleReviewLog struct {
-	ID            string           `json:"id"`
-	ArticleId     string           `json:"articleId"`
-	PublicationId string           `json:"publicationId"`
-	ReviewerId    pgtype.UUID      `json:"reviewerId"`
-	Action        string           `json:"action"`
-	Comment       pgtype.Text      `json:"comment"`
-	CreatedAt     pgtype.Timestamp `json:"createdAt"`
+	ID          string           `json:"id"`
+	ArticleId   string           `json:"articleId"`
+	PublisherId string           `json:"publisherId"`
+	ReviewerId  pgtype.UUID      `json:"reviewerId"`
+	Action      string           `json:"action"`
+	Comment     pgtype.Text      `json:"comment"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
 }
 
 type ArticleSlug struct {
@@ -726,13 +730,13 @@ type CapabilityBudget struct {
 }
 
 type Category struct {
-	ID            string      `json:"id"`
-	Name          string      `json:"name"`
-	Slug          string      `json:"slug"`
-	Description   pgtype.Text `json:"description"`
-	PublicationId string      `json:"publicationId"`
-	ParentId      pgtype.Text `json:"parentId"`
-	IsDefault     bool        `json:"isDefault"`
+	ID          string      `json:"id"`
+	Name        string      `json:"name"`
+	Slug        string      `json:"slug"`
+	Description pgtype.Text `json:"description"`
+	PublisherId string      `json:"publisherId"`
+	ParentId    pgtype.Text `json:"parentId"`
+	IsDefault   bool        `json:"isDefault"`
 }
 
 type CoAuthor struct {
@@ -846,13 +850,13 @@ type EbookNote struct {
 }
 
 type EmailSuppression struct {
-	ID            string           `json:"id"`
-	Email         string           `json:"email"`
-	Scope         string           `json:"scope"`
-	PublicationId pgtype.Text      `json:"publicationId"`
-	Reason        string           `json:"reason"`
-	Source        pgtype.Text      `json:"source"`
-	CreatedAt     pgtype.Timestamp `json:"createdAt"`
+	ID          string           `json:"id"`
+	Email       string           `json:"email"`
+	Scope       string           `json:"scope"`
+	PublisherId pgtype.Text      `json:"publisherId"`
+	Reason      string           `json:"reason"`
+	Source      pgtype.Text      `json:"source"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
 }
 
 type FeatureFlag struct {
@@ -865,13 +869,13 @@ type FeatureFlag struct {
 }
 
 type FeatureSignal struct {
-	ID            string           `json:"id"`
-	FeatureKey    string           `json:"featureKey"`
-	Kind          string           `json:"kind"`
-	Source        string           `json:"source"`
-	UserId        pgtype.Text      `json:"userId"`
-	PublicationId pgtype.Text      `json:"publicationId"`
-	CreatedAt     pgtype.Timestamp `json:"createdAt"`
+	ID          string           `json:"id"`
+	FeatureKey  string           `json:"featureKey"`
+	Kind        string           `json:"kind"`
+	Source      string           `json:"source"`
+	UserId      pgtype.Text      `json:"userId"`
+	PublisherId pgtype.Text      `json:"publisherId"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
 }
 
 type FeedImpression struct {
@@ -885,19 +889,19 @@ type FeedImpression struct {
 }
 
 type Follow struct {
-	ID            string           `json:"id"`
-	ReaderId      pgtype.UUID      `json:"readerId"`
-	PublicationId string           `json:"publicationId"`
-	CreatedAt     pgtype.Timestamp `json:"createdAt"`
+	ID          string           `json:"id"`
+	ReaderId    pgtype.UUID      `json:"readerId"`
+	PublisherId string           `json:"publisherId"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
 }
 
 type FollowRequest struct {
-	ID            string           `json:"id"`
-	RequesterId   pgtype.UUID      `json:"requesterId"`
-	PublicationId string           `json:"publicationId"`
-	Status        string           `json:"status"`
-	CreatedAt     pgtype.Timestamp `json:"createdAt"`
-	DecidedAt     pgtype.Timestamp `json:"decidedAt"`
+	ID          string           `json:"id"`
+	RequesterId pgtype.UUID      `json:"requesterId"`
+	PublisherId string           `json:"publisherId"`
+	Status      string           `json:"status"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+	DecidedAt   pgtype.Timestamp `json:"decidedAt"`
 }
 
 type Highlight struct {
@@ -917,34 +921,34 @@ type Highlight struct {
 }
 
 type ImportSendBudget struct {
-	ID            string           `json:"id"`
-	BatchId       string           `json:"batchId"`
-	PublicationId string           `json:"publicationId"`
-	DecisionId    string           `json:"decisionId"`
-	Cap           int32            `json:"cap"`
-	Consumed      int32            `json:"consumed"`
-	Version       int32            `json:"version"`
-	CreatedAt     pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt     pgtype.Timestamp `json:"updatedAt"`
+	ID          string           `json:"id"`
+	BatchId     string           `json:"batchId"`
+	PublisherId string           `json:"publisherId"`
+	DecisionId  string           `json:"decisionId"`
+	Cap         int32            `json:"cap"`
+	Consumed    int32            `json:"consumed"`
+	Version     int32            `json:"version"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt   pgtype.Timestamp `json:"updatedAt"`
 }
 
 type ImportSendDelivery struct {
-	ID            string           `json:"id"`
-	WaveId        string           `json:"waveId"`
-	BatchId       string           `json:"batchId"`
-	PublicationId string           `json:"publicationId"`
-	Email         string           `json:"email"`
-	Status        string           `json:"status"`
-	Error         pgtype.Text      `json:"error"`
-	SentAt        pgtype.Timestamp `json:"sentAt"`
-	CreatedAt     pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt     pgtype.Timestamp `json:"updatedAt"`
+	ID          string           `json:"id"`
+	WaveId      string           `json:"waveId"`
+	BatchId     string           `json:"batchId"`
+	PublisherId string           `json:"publisherId"`
+	Email       string           `json:"email"`
+	Status      string           `json:"status"`
+	Error       pgtype.Text      `json:"error"`
+	SentAt      pgtype.Timestamp `json:"sentAt"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt   pgtype.Timestamp `json:"updatedAt"`
 }
 
 type ImportSendWave struct {
 	ID                string           `json:"id"`
 	BatchId           string           `json:"batchId"`
-	PublicationId     string           `json:"publicationId"`
+	PublisherId       string           `json:"publisherId"`
 	DecisionId        string           `json:"decisionId"`
 	BudgetId          string           `json:"budgetId"`
 	Status            string           `json:"status"`
@@ -1197,10 +1201,10 @@ type MediaMember struct {
 }
 
 type Medium struct {
-	ID            string           `json:"id"`
-	PublicationId string           `json:"publicationId"`
-	CreatedAt     pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt     pgtype.Timestamp `json:"updatedAt"`
+	ID          string           `json:"id"`
+	PublisherId string           `json:"publisherId"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt   pgtype.Timestamp `json:"updatedAt"`
 }
 
 type Message struct {
@@ -1255,13 +1259,13 @@ type MutedWord struct {
 }
 
 type NavigationItem struct {
-	ID            string      `json:"id"`
-	Label         string      `json:"label"`
-	Url           pgtype.Text `json:"url"`
-	Order         int32       `json:"order"`
-	IsExternal    bool        `json:"isExternal"`
-	PublicationId string      `json:"publicationId"`
-	ParentId      pgtype.Text `json:"parentId"`
+	ID          string      `json:"id"`
+	Label       string      `json:"label"`
+	Url         pgtype.Text `json:"url"`
+	Order       int32       `json:"order"`
+	IsExternal  bool        `json:"isExternal"`
+	PublisherId string      `json:"publisherId"`
+	ParentId    pgtype.Text `json:"parentId"`
 }
 
 type NewsletterDelivery struct {
@@ -1278,7 +1282,7 @@ type NewsletterDelivery struct {
 
 type NewsletterIssue struct {
 	ID              string           `json:"id"`
-	PublicationId   string           `json:"publicationId"`
+	PublisherId     string           `json:"publisherId"`
 	Subject         string           `json:"subject"`
 	PreviewText     pgtype.Text      `json:"previewText"`
 	Html            string           `json:"html"`
@@ -1292,17 +1296,17 @@ type NewsletterIssue struct {
 }
 
 type Notification struct {
-	ID            string           `json:"id"`
-	RecipientId   pgtype.UUID      `json:"recipientId"`
-	SenderId      pgtype.UUID      `json:"senderId"`
-	Type          NotificationType `json:"type"`
-	ThoughtId     pgtype.Text      `json:"thoughtId"`
-	ArticleId     pgtype.Text      `json:"articleId"`
-	CommentId     pgtype.Text      `json:"commentId"`
-	PublicationId pgtype.Text      `json:"publicationId"`
-	IsRead        bool             `json:"isRead"`
-	Metadata      []byte           `json:"metadata"`
-	CreatedAt     pgtype.Timestamp `json:"createdAt"`
+	ID          string           `json:"id"`
+	RecipientId pgtype.UUID      `json:"recipientId"`
+	SenderId    pgtype.UUID      `json:"senderId"`
+	Type        NotificationType `json:"type"`
+	ThoughtId   pgtype.Text      `json:"thoughtId"`
+	ArticleId   pgtype.Text      `json:"articleId"`
+	CommentId   pgtype.Text      `json:"commentId"`
+	PublisherId pgtype.Text      `json:"publisherId"`
+	IsRead      bool             `json:"isRead"`
+	Metadata    []byte           `json:"metadata"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
 }
 
 type NotificationDelivery struct {
@@ -1372,7 +1376,7 @@ type OAuthClient struct {
 	Scopes           []string          `json:"scopes"`
 	ClientType       OAuthClientType   `json:"clientType"`
 	Status           OAuthClientStatus `json:"status"`
-	PublicationId    pgtype.Text       `json:"publicationId"`
+	PublisherId      pgtype.Text       `json:"publisherId"`
 	OwnerUserId      string            `json:"ownerUserId"`
 	CreatedAt        pgtype.Timestamp  `json:"createdAt"`
 	UpdatedAt        pgtype.Timestamp  `json:"updatedAt"`
@@ -1467,9 +1471,9 @@ type Post struct {
 	Embedding           pgvector.Vector   `json:"embedding"`
 }
 
-type Publication struct {
+type Publisher struct {
 	ID                     string           `json:"id"`
-	Type                   PublicationType  `json:"type"`
+	Type                   PublisherType    `json:"type"`
 	Name                   string           `json:"name"`
 	Slug                   string           `json:"slug"`
 	Bio                    pgtype.Text      `json:"bio"`
@@ -1547,36 +1551,36 @@ type RiskDecision struct {
 }
 
 type SocialLink struct {
-	ID            string `json:"id"`
-	Platform      string `json:"platform"`
-	Url           string `json:"url"`
-	Order         int32  `json:"order"`
-	PublicationId string `json:"publicationId"`
+	ID          string `json:"id"`
+	Platform    string `json:"platform"`
+	Url         string `json:"url"`
+	Order       int32  `json:"order"`
+	PublisherId string `json:"publisherId"`
 }
 
 type StaffCampaign struct {
-	ID                    string           `json:"id"`
-	Type                  string           `json:"type"`
-	Subject               string           `json:"subject"`
-	BodyHtml              string           `json:"bodyHtml"`
-	BodyText              pgtype.Text      `json:"bodyText"`
-	SubjectEn             pgtype.Text      `json:"subjectEn"`
-	BodyHtmlEn            pgtype.Text      `json:"bodyHtmlEn"`
-	BodyTextEn            pgtype.Text      `json:"bodyTextEn"`
-	AudienceType          string           `json:"audienceType"`
-	AudiencePublicationId pgtype.Text      `json:"audiencePublicationId"`
-	AudienceSnapshot      []byte           `json:"audienceSnapshot"`
-	Status                string           `json:"status"`
-	DraftedBy             pgtype.UUID      `json:"draftedBy"`
-	ApprovedBy            pgtype.UUID      `json:"approvedBy"`
-	ApprovedAt            pgtype.Timestamp `json:"approvedAt"`
-	ScheduledAt           pgtype.Timestamp `json:"scheduledAt"`
-	SentCount             int32            `json:"sentCount"`
-	FailedCount           int32            `json:"failedCount"`
-	SkippedCount          int32            `json:"skippedCount"`
-	CompletedAt           pgtype.Timestamp `json:"completedAt"`
-	CreatedAt             pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt             pgtype.Timestamp `json:"updatedAt"`
+	ID                  string           `json:"id"`
+	Type                string           `json:"type"`
+	Subject             string           `json:"subject"`
+	BodyHtml            string           `json:"bodyHtml"`
+	BodyText            pgtype.Text      `json:"bodyText"`
+	SubjectEn           pgtype.Text      `json:"subjectEn"`
+	BodyHtmlEn          pgtype.Text      `json:"bodyHtmlEn"`
+	BodyTextEn          pgtype.Text      `json:"bodyTextEn"`
+	AudienceType        string           `json:"audienceType"`
+	AudiencePublisherId pgtype.Text      `json:"audiencePublisherId"`
+	AudienceSnapshot    []byte           `json:"audienceSnapshot"`
+	Status              string           `json:"status"`
+	DraftedBy           pgtype.UUID      `json:"draftedBy"`
+	ApprovedBy          pgtype.UUID      `json:"approvedBy"`
+	ApprovedAt          pgtype.Timestamp `json:"approvedAt"`
+	ScheduledAt         pgtype.Timestamp `json:"scheduledAt"`
+	SentCount           int32            `json:"sentCount"`
+	FailedCount         int32            `json:"failedCount"`
+	SkippedCount        int32            `json:"skippedCount"`
+	CompletedAt         pgtype.Timestamp `json:"completedAt"`
+	CreatedAt           pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt           pgtype.Timestamp `json:"updatedAt"`
 }
 
 type StaffCampaignDelivery struct {
@@ -1607,14 +1611,14 @@ type Subscriber struct {
 	StripeCustomerId     pgtype.Text        `json:"stripeCustomerId"`
 	CreatedAt            pgtype.Timestamp   `json:"createdAt"`
 	UpdatedAt            pgtype.Timestamp   `json:"updatedAt"`
-	PublicationId        string             `json:"publicationId"`
+	PublisherId          string             `json:"publisherId"`
 	UserId               pgtype.UUID        `json:"userId"`
 	TierId               pgtype.Text        `json:"tierId"`
 }
 
 type SubscriberImportBatch struct {
 	ID               string           `json:"id"`
-	PublicationId    string           `json:"publicationId"`
+	PublisherId      string           `json:"publisherId"`
 	MediaId          pgtype.Text      `json:"mediaId"`
 	RequesterId      pgtype.UUID      `json:"requesterId"`
 	Status           string           `json:"status"`
@@ -1662,26 +1666,26 @@ type SubscriberImportEvent struct {
 }
 
 type SubscriberImportReconfirmRequest struct {
-	ID            string           `json:"id"`
-	WaveId        string           `json:"waveId"`
-	BatchId       string           `json:"batchId"`
-	PublicationId string           `json:"publicationId"`
-	RowId         pgtype.Text      `json:"rowId"`
-	Email         string           `json:"email"`
-	TokenHash     string           `json:"tokenHash"`
-	Status        string           `json:"status"`
-	Attempts      int32            `json:"attempts"`
-	SentAt        pgtype.Timestamp `json:"sentAt"`
-	ConfirmedAt   pgtype.Timestamp `json:"confirmedAt"`
-	ExpiresAt     pgtype.Timestamp `json:"expiresAt"`
-	CreatedAt     pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt     pgtype.Timestamp `json:"updatedAt"`
+	ID          string           `json:"id"`
+	WaveId      string           `json:"waveId"`
+	BatchId     string           `json:"batchId"`
+	PublisherId string           `json:"publisherId"`
+	RowId       pgtype.Text      `json:"rowId"`
+	Email       string           `json:"email"`
+	TokenHash   string           `json:"tokenHash"`
+	Status      string           `json:"status"`
+	Attempts    int32            `json:"attempts"`
+	SentAt      pgtype.Timestamp `json:"sentAt"`
+	ConfirmedAt pgtype.Timestamp `json:"confirmedAt"`
+	ExpiresAt   pgtype.Timestamp `json:"expiresAt"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt   pgtype.Timestamp `json:"updatedAt"`
 }
 
 type SubscriberImportReconfirmWave struct {
 	ID             string           `json:"id"`
 	BatchId        string           `json:"batchId"`
-	PublicationId  string           `json:"publicationId"`
+	PublisherId    string           `json:"publisherId"`
 	DecisionId     string           `json:"decisionId"`
 	Status         string           `json:"status"`
 	WaveSize       int32            `json:"waveSize"`
@@ -1762,7 +1766,7 @@ type Tier struct {
 	StripePriceIdYearly  pgtype.Text      `json:"stripePriceIdYearly"`
 	CreatedAt            pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt            pgtype.Timestamp `json:"updatedAt"`
-	PublicationId        string           `json:"publicationId"`
+	PublisherId          string           `json:"publisherId"`
 }
 
 type TranslationAuditLog struct {
@@ -1799,7 +1803,7 @@ type User struct {
 	ForceStandardTheme     bool             `json:"forceStandardTheme"`
 	OnboardingText         pgtype.Text      `json:"onboardingText"`
 	LogoUrl                pgtype.Text      `json:"logoUrl"`
-	PublicationId          pgtype.Text      `json:"publicationId"`
+	PublisherId            pgtype.Text      `json:"publisherId"`
 	AdvancedSettingsMode   bool             `json:"advancedSettingsMode"`
 	HasCompletedOnboarding bool             `json:"hasCompletedOnboarding"`
 	ApiAccessStatus        string           `json:"apiAccessStatus"`
@@ -1846,15 +1850,15 @@ type WalletTransaction struct {
 }
 
 type Webhook struct {
-	ID            string           `json:"id"`
-	PublicationId string           `json:"publicationId"`
-	Name          string           `json:"name"`
-	Url           string           `json:"url"`
-	Secret        string           `json:"secret"`
-	Events        []string         `json:"events"`
-	Active        bool             `json:"active"`
-	CreatedAt     pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt     pgtype.Timestamp `json:"updatedAt"`
+	ID          string           `json:"id"`
+	PublisherId string           `json:"publisherId"`
+	Name        string           `json:"name"`
+	Url         string           `json:"url"`
+	Secret      string           `json:"secret"`
+	Events      []string         `json:"events"`
+	Active      bool             `json:"active"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt   pgtype.Timestamp `json:"updatedAt"`
 }
 
 type WebhookDelivery struct {

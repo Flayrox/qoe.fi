@@ -123,8 +123,8 @@ type SubscriberImportSignals struct {
 	PreviousSuspended     int    `json:"previousSuspended"`
 	SameFileFingerprint   bool   `json:"sameFileFingerprint"`
 	CrossBatchDuplicates  int    `json:"crossBatchDuplicates"`
-	PublicationName       string `json:"publicationName"`
-	PublicationType       string `json:"publicationType"`
+	PublisherName       string `json:"publisherName"`
+	PublisherType       string `json:"publisherType"`
 	RequesterUsername     string `json:"requesterUsername"`
 	RequesterEmail        string `json:"requesterEmail"`
 	RequesterPhoneChecked bool   `json:"requesterPhoneVerified"`
@@ -172,13 +172,13 @@ func (s *Service) buildReview(ctx context.Context, batchID string, redactInterna
 
 	var (
 		declarationsRaw, proofRefsRaw, statsRaw  []byte
-		sourceDetail, optInMethod, publicationID string
+		sourceDetail, optInMethod, publisherID string
 	)
 	err := s.pool.QueryRow(ctx, `
 		SELECT "declarations", "proofRefs", "stats", COALESCE("sourceDetail", ''),
-		       COALESCE("optInMethod", ''), "publicationId"
+		       COALESCE("optInMethod", ''), "publisherId"
 		FROM "SubscriberImportBatch"
-		WHERE "id" = $1`, batchID).Scan(&declarationsRaw, &proofRefsRaw, &statsRaw, &sourceDetail, &optInMethod, &publicationID)
+		WHERE "id" = $1`, batchID).Scan(&declarationsRaw, &proofRefsRaw, &statsRaw, &sourceDetail, &optInMethod, &publisherID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return out, errNotFound
 	}
@@ -221,7 +221,7 @@ func (s *Service) buildReview(ctx context.Context, batchID string, redactInterna
 	if out.Events, err = s.listEvents(ctx, batchID); err != nil {
 		return out, err
 	}
-	if out.Signals, err = s.importSignals(ctx, batchID, publicationID); err != nil {
+	if out.Signals, err = s.importSignals(ctx, batchID, publisherID); err != nil {
 		// Les signaux sont un confort de revue : leur absence ne doit pas
 		// empêcher le staff de traiter un dossier.
 		log.Printf("[imports] signals lot %s: %v", batchID, err)
@@ -358,32 +358,32 @@ func (s *Service) listEvents(ctx context.Context, batchID string) ([]SubscriberI
 }
 
 // importSignals rassemble les éléments de contexte de la décision.
-func (s *Service) importSignals(ctx context.Context, batchID, publicationID string) (SubscriberImportSignals, error) {
+func (s *Service) importSignals(ctx context.Context, batchID, publisherID string) (SubscriberImportSignals, error) {
 	var out SubscriberImportSignals
 	err := s.pool.QueryRow(ctx, `
 		SELECT
 		  (SELECT COUNT(*) FROM "SubscriberImportBatch" b2
-		    WHERE b2."publicationId" = $2 AND b2."id" <> $1),
+		    WHERE b2."publisherId" = $2 AND b2."id" <> $1),
 		  (SELECT COUNT(*) FROM "SubscriberImportBatch" b3
-		    WHERE b3."publicationId" = $2 AND b3."status" = 'rejected'),
+		    WHERE b3."publisherId" = $2 AND b3."status" = 'rejected'),
 		  (SELECT COUNT(*) FROM "SubscriberImportBatch" b4
-		    WHERE b4."publicationId" = $2 AND b4."status" = 'suspended'),
+		    WHERE b4."publisherId" = $2 AND b4."status" = 'suspended'),
 		  EXISTS(
 		    SELECT 1 FROM "SubscriberImportBatch" b5
 		    JOIN "SubscriberImportBatch" b6 ON b6."fileFingerprint" = b5."fileFingerprint"
-		    WHERE b6."id" = $1 AND b5."id" <> b6."id" AND b5."publicationId" = $2
+		    WHERE b6."id" = $1 AND b5."id" <> b6."id" AND b5."publisherId" = $2
 		  ),
 		  (SELECT COUNT(*) FROM "SubscriberImportRow" r1
 		    JOIN "SubscriberImportRow" r2 ON r2.email = r1.email
-		    JOIN "SubscriberImportBatch" b7 ON b7."id" = r2."batchId" AND b7."publicationId" = $2
+		    JOIN "SubscriberImportBatch" b7 ON b7."id" = r2."batchId" AND b7."publisherId" = $2
 		    WHERE r1."batchId" = $1 AND r2."batchId" <> $1),
 		  COALESCE(p.name, ''), COALESCE(p.type::text, ''),
 		  COALESCE(u.username, ''), COALESCE(u.email, ''),
 		  (u."phoneVerifiedAt" IS NOT NULL)`,
-		batchID, publicationID).Scan(
+		batchID, publisherID).Scan(
 		&out.PreviousBatches, &out.PreviousRejected, &out.PreviousSuspended,
 		&out.SameFileFingerprint, &out.CrossBatchDuplicates,
-		&out.PublicationName, &out.PublicationType,
+		&out.PublisherName, &out.PublisherType,
 		&out.RequesterUsername, &out.RequesterEmail, &out.RequesterPhoneChecked,
 	)
 	if err != nil {
@@ -445,11 +445,11 @@ func (s *Service) DecideSubscriberImport(ctx context.Context, staffID, batchID s
 		status          string
 		fileVersion     int
 		fileFingerprint string
-		publicationID   string
+		publisherID   string
 	)
 	err := s.pool.QueryRow(ctx, `
-		SELECT "status", "fileVersion", "fileFingerprint", "publicationId"
-		FROM "SubscriberImportBatch" WHERE "id" = $1`, batchID).Scan(&status, &fileVersion, &fileFingerprint, &publicationID)
+		SELECT "status", "fileVersion", "fileFingerprint", "publisherId"
+		FROM "SubscriberImportBatch" WHERE "id" = $1`, batchID).Scan(&status, &fileVersion, &fileFingerprint, &publisherID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return SubscriberImportBatchDTO{}, errNotFound
 	}
@@ -509,7 +509,7 @@ func (s *Service) DecideSubscriberImport(ctx context.Context, staffID, batchID s
 		return SubscriberImportBatchDTO{}, err
 	}
 
-	excluded, err := s.applyExclusions(ctx, tx, batchID, publicationID, decisionID, in.ExcludeEmails)
+	excluded, err := s.applyExclusions(ctx, tx, batchID, publisherID, decisionID, in.ExcludeEmails)
 	if err != nil {
 		return SubscriberImportBatchDTO{}, err
 	}
@@ -592,7 +592,7 @@ func (s *Service) lastApproval(ctx context.Context, batchID string) (string, err
 // un autre import une adresse déjà exclue » (fiche 03 §5) — ce qui viderait
 // l'exclusion de son sens.
 func (s *Service) applyExclusions(
-	ctx context.Context, tx pgx.Tx, batchID, publicationID, decisionID string, emails []string,
+	ctx context.Context, tx pgx.Tx, batchID, publisherID, decisionID string, emails []string,
 ) (int, error) {
 	if len(emails) == 0 {
 		return 0, nil
@@ -619,11 +619,11 @@ func (s *Service) applyExclusions(
 	}
 
 	if _, err := tx.Exec(ctx, `
-		INSERT INTO "EmailSuppression" ("id", "email", "scope", "publicationId", "reason", "source")
-		SELECT gen_random_uuid()::text, e.email, 'publication', $1, 'import_exclusion', $2
+		INSERT INTO "EmailSuppression" ("id", "email", "scope", "publisherId", "reason", "source")
+		SELECT gen_random_uuid()::text, e.email, 'publisher', $1, 'import_exclusion', $2
 		FROM unnest($3::text[]) AS e(email)
 		ON CONFLICT DO NOTHING`,
-		publicationID, decisionID, cleaned); err != nil {
+		publisherID, decisionID, cleaned); err != nil {
 		return 0, err
 	}
 	return int(tag.RowsAffected()), nil

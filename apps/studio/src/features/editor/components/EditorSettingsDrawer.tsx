@@ -83,12 +83,12 @@ export interface EditorSettingsDrawerProps {
   downloadSaving: boolean;
   onToggleDownload: (value: boolean) => void;
   workspaces?: ArticleWorkspaceOption[];
-  publicationId?: string;
-  publicationName?: string;
-  publicationSlug?: string;
-  publicationType?: 'PERSONAL' | 'MEDIA' | string;
+  publisherId?: string;
+  publisherName?: string;
+  publisherSlug?: string;
+  publisherType?: 'PERSONAL' | 'MEDIA' | string;
   transferring?: boolean;
-  onTransferPublication?: (targetPublicationId: string) => void | Promise<boolean | void>;
+  onTransferPublisher?: (targetPublisherId: string) => void | Promise<boolean | void>;
   showOnPersonalProfile?: boolean;
   crosspostSaving?: boolean;
   onToggleShowOnPersonalProfile?: (value: boolean) => void;
@@ -183,12 +183,12 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
     downloadSaving,
     onToggleDownload,
     workspaces: externalWorkspaces,
-    publicationId: externalPublicationId,
-    publicationName: externalPublicationName,
-    publicationSlug: externalPublicationSlug,
-    publicationType: externalPublicationType,
+    publisherId: externalPublisherId,
+    publisherName: externalPublisherName,
+    publisherSlug: externalPublisherSlug,
+    publisherType: externalPublisherType,
     transferring: externalTransferring = false,
-    onTransferPublication,
+    onTransferPublisher,
     showOnPersonalProfile: externalShowOnPersonalProfile,
     crosspostSaving: externalCrosspostSaving = false,
     onToggleShowOnPersonalProfile,
@@ -221,14 +221,14 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
         setInternalWorkspaces([res.data.personal, ...(res.data.medias ?? [])]);
       });
     }
-    if (articleId && externalPublicationId === undefined) {
+    if (articleId && externalPublisherId === undefined) {
       void getArticleByIdAction(articleId).then((res) => {
         if (cancelled || !res.ok || !res.data) return;
         setInternalPub({
-          id: res.data.publication?.id || res.data.publicationId,
-          name: res.data.publication?.name,
-          slug: res.data.publication?.slug,
-          type: res.data.publication?.type,
+          id: res.data.publisher?.id || res.data.publisherId,
+          name: res.data.publisher?.name,
+          slug: res.data.publisher?.slug,
+          type: res.data.publisher?.type,
         });
         setInternalShowOnPersonal(res.data.showOnPersonalProfile ?? true);
       });
@@ -236,13 +236,13 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
     return () => {
       cancelled = true;
     };
-  }, [open, articleId, externalWorkspaces, externalPublicationId]);
+  }, [open, articleId, externalWorkspaces, externalPublisherId]);
 
   const workspaces = externalWorkspaces ?? internalWorkspaces;
-  const effectivePubId = externalPublicationId ?? internalPub.id;
-  const effectivePubName = externalPublicationName ?? internalPub.name;
-  const effectivePubSlug = externalPublicationSlug ?? internalPub.slug;
-  const effectivePubType = externalPublicationType ?? internalPub.type;
+  const effectivePubId = externalPublisherId ?? internalPub.id;
+  const effectivePubName = externalPublisherName ?? internalPub.name;
+  const effectivePubSlug = externalPublisherSlug ?? internalPub.slug;
+  const effectivePubType = externalPublisherType ?? internalPub.type;
   const effectiveShowOnPersonal = externalShowOnPersonalProfile ?? internalShowOnPersonal;
   const isTransferring = externalTransferring || internalTransferring;
   const isCrosspostSaving = externalCrosspostSaving || internalCrosspostSaving;
@@ -264,25 +264,25 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
 
   const handleTransferClick = async (ws: ArticleWorkspaceOption) => {
     if (!articleId || isTransferring || isWorkspaceCurrent(ws)) return;
-    if (onTransferPublication) {
-      await onTransferPublication(ws.id);
+    if (onTransferPublisher) {
+      await onTransferPublisher(ws.id);
       return;
     }
     setInternalTransferring(true);
     try {
       const res = await transferArticleAction({
         articleId,
-        targetPublicationId: ws.id,
+        targetPublisherId: ws.id,
         showOnPersonalProfile: effectiveShowOnPersonal,
       });
       if (!res.ok || !res.data) {
         throw new Error(res.ok ? t`Échec du transfert.` : res.error.message);
       }
       setInternalPub({
-        id: res.data.publication?.id || res.data.publicationId,
-        name: res.data.publication?.name || ws.name,
-        slug: res.data.publication?.slug || ws.slug,
-        type: res.data.publication?.type || ws.type,
+        id: res.data.publisher?.id || res.data.publisherId,
+        name: res.data.publisher?.name || ws.name,
+        slug: res.data.publisher?.slug || ws.slug,
+        type: res.data.publisher?.type || ws.type,
       });
       if (res.data.categoryId !== undefined) {
         onCategoryChange(res.data.categoryId);
@@ -290,7 +290,7 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
       if (res.data.slug) {
         onSlugChange(res.data.slug);
       }
-      toast.success(t`Article transféré vers ${res.data.publication?.name || ws.name}.`);
+      toast.success(t`Article transféré vers ${res.data.publisher?.name || ws.name}.`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t`Échec du transfert de l'article.`);
     } finally {
@@ -392,7 +392,7 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
             <SectionTitle
               icon={<ArrowRightLeft className="h-3.5 w-3.5 text-primary stroke-[1.5]" />}
             >
-              {t`Publication & Diffusion`}
+              {t`Publisher & Diffusion`}
             </SectionTitle>
 
             {effectivePubName && (

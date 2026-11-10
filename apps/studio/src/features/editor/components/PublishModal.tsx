@@ -47,12 +47,15 @@ interface PublishModalProps {
   articleTitle: string;
   articleExcerpt?: string;
   articleId?: string;
-  publicationName: string;
+  publisherName: string;
   initialIsPremium?: boolean;
   isAlreadyPublished?: boolean;
   emailStatus?: string | null;
   emailSentAt?: string | null;
   emailSentCount?: number;
+  /** True si cet article est une copie souveraine issue d'un média (évite le doublon newsletter). */
+  isAuthorSovereignCopy?: boolean;
+  originPublisherName?: string | null;
   /** Points à vérifier avant publication (non bloquants). */
   warnings?: string[];
 }
@@ -64,17 +67,19 @@ export function PublishModal({
   articleTitle,
   articleExcerpt = '',
   articleId,
-  publicationName,
+  publisherName,
   initialIsPremium = false,
   isAlreadyPublished = false,
   emailStatus = null,
   emailSentAt = null,
   emailSentCount = 0,
+  isAuthorSovereignCopy = false,
+  originPublisherName = null,
   warnings = [],
 }: PublishModalProps) {
   const isAlreadySent = emailStatus === 'SENT';
 
-  const [sendEmail, setSendEmail] = useState(!isAlreadySent);
+  const [sendEmail, setSendEmail] = useState(!isAlreadySent && !isAuthorSovereignCopy);
   const [isPremium, setIsPremium] = useState(initialIsPremium);
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -190,7 +195,7 @@ export function PublishModal({
           </DialogTitle>
           <DialogDescription className="text-xs flex items-center gap-2">
             <span>
-              {t`Diffusion sur`} <strong className="text-foreground">{publicationName}</strong>
+              {t`Diffusion sur`} <strong className="text-foreground">{publisherName}</strong>
             </span>
             {isAlreadySent && (
               <Badge variant="soft" tone="success" dot size="xs">
@@ -256,6 +261,13 @@ export function PublishModal({
                 </p>
               </div>
             </div>
+            {isAuthorSovereignCopy && (
+              <p className="text-[11px] text-muted-foreground rounded-lg border border-border/50 bg-muted/30 px-3 py-2">
+                {originPublisherName
+                  ? t`Cet essai souverain provient de « ${originPublisherName} ». « Web uniquement » est pré-sélectionné par défaut afin d'éviter un doublon newsletter aux lecteurs qui suivent le média.`
+                  : t`Cet essai souverain provient d'un média. « Web uniquement » est pré-sélectionné par défaut pour éviter un doublon newsletter.`}
+              </p>
+            )}
           </div>
 
           {/* Si déjà envoyé par le passé : alerte et option Major Update */}
@@ -472,7 +484,7 @@ export function PublishModal({
                       <div className="text-muted-foreground">
                         {t`De :`}{' '}
                         <span className="text-foreground font-medium">
-                          {publicationName} &lt;noreply@qoe.fi&gt;
+                          {publisherName} &lt;noreply@qoe.fi&gt;
                         </span>
                       </div>
                       <div className="text-muted-foreground">
@@ -561,7 +573,7 @@ export function PublishModal({
             {isSubmitting ? (
               <>
                 <Loader2 className="animate-spin" />
-                <span>{t`Publication en cours...`}</span>
+                <span>{t`Publisher en cours...`}</span>
               </>
             ) : (
               <>

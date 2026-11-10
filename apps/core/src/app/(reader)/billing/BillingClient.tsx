@@ -230,8 +230,8 @@ export function BillingClient({ billing, userEmail, userName }: BillingClientPro
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {billing.subscriptions.map((sub) => {
-              const pub = sub.publication;
-              const pubName = pub?.name || 'Publication';
+              const pub = sub.publisher;
+              const pubName = pub?.name || 'Publisher';
               const profileHref = pub?.slug ? routes.feed.profile(pub.slug) : '#';
 
               return (

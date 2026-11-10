@@ -3,11 +3,11 @@
 // =====================================================================
 // Vérifie que l'utilisateur a le droit d'éditer l'article associé au
 // document Yjs (`article:{id}`). Peuvent éditer :
-//   - l'auteur principal de l'article (`Article.authorId`) ;
-//   - les co-auteurs (table de relation `_CoAuthors`) ;
-//   - les membres ACTIFS du média propriétaire de la publication
-//     (`MediaMember.status = 'active'`, tous rôles owner/editor/writer).
-// Les lecteurs / invités / membres "left" sont refusés.
+//   - l'auteur principal sur SON espace personnel (`p.type = 'PERSONAL'`) ;
+//   - les membres ACTIFS du média propriétaire (`MediaMember.status = 'active'`) ;
+//   - les co-auteurs invités externes (`ArticleAttribution` ou `CollaborationRequest`).
+// Un auteur exclu d'un média (`status != 'active'`) ne peut plus altérer la
+// version du média : il édite sa copie personnelle souveraine.
 // =====================================================================
 
 import type { Pool } from 'pg';
@@ -18,17 +18,20 @@ const CAN_EDIT_SQL = `
   SELECT EXISTS (
     SELECT 1
     FROM "Article" a
-    LEFT JOIN "Publication" p ON p.id = a."publicationId"
-    LEFT JOIN "Media" m ON m."publicationId" = p.id
+    LEFT JOIN "Publisher" p ON p.id = a."publisherId"
+    LEFT JOIN "Media" m ON m."publisherId" = p.id
     LEFT JOIN "MediaMember" mm
       ON mm."mediaId" = m.id AND mm."userId" = $1 AND mm."status" = 'active'
     WHERE a.id = $2
       AND (
-        a."authorId" = $1
-        OR mm.id IS NOT NULL
+        mm.id IS NOT NULL
+        OR (p.type = 'PERSONAL' AND a."authorId" = $1)
         OR EXISTS (
           SELECT 1 FROM "ArticleAttribution" aa
-          WHERE aa."articleId" = a.id AND aa."userId" = $1 AND aa."consentStatus" IN ('PENDING', 'ACCEPTED')
+          WHERE aa."articleId" = a.id
+            AND aa."userId" = $1
+            AND aa."consentStatus" IN ('PENDING', 'ACCEPTED')
+            AND (p.type = 'PERSONAL' OR aa.role <> 'PRIMARY_AUTHOR')
         )
         OR EXISTS (
           SELECT 1 FROM "CollaborationRequest" cr
@@ -42,7 +45,7 @@ const CAN_EDIT_SQL = `
  * Fabrique un contrôleur d'accès basé sur la base Postgres.
  * `documentName` attendu au format `article:{id}`.
  */
-export function createPublicationAccessChecker(pool: Pool): DocumentAccessChecker {
+export function createPublisherAccessChecker(pool: Pool): DocumentAccessChecker {
   return async (userId: string, documentName: string): Promise<boolean> => {
     const articleId = parseArticleId(documentName);
     if (!articleId) return false;

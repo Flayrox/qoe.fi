@@ -17,7 +17,7 @@ describe('isStaleServerActionError', () => {
   });
 
   it('ignore les autres erreurs applicatives', () => {
-    expect(isStaleServerActionError(new Error('Publication ou article introuvable.'))).toBe(false);
+    expect(isStaleServerActionError(new Error('Publisher ou article introuvable.'))).toBe(false);
     expect(isStaleServerActionError(null)).toBe(false);
   });
 });

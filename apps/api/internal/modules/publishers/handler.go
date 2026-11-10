@@ -1,4 +1,4 @@
-package publications
+package publishers
 
 import (
 	"errors"
@@ -23,9 +23,9 @@ func NewHandler(svc *Service) *Handler {
 // RegisterPublic enregistre les routes (auth optionnelle : le viewer est lu
 // du JWT pour les entitlements/interactions).
 func (h *Handler) RegisterPublic(r chi.Router) {
-	r.Get("/v1/publications/by-domain/{domain}", h.byDomain)
-	r.Get("/v1/publications/by-domain/{domain}/article/{slug}", h.article)
-	r.Get("/v1/publications/by-domain/{domain}/recommendations", h.recommendations)
+	r.Get("/v1/publishers/by-domain/{domain}", h.byDomain)
+	r.Get("/v1/publishers/by-domain/{domain}/article/{slug}", h.article)
+	r.Get("/v1/publishers/by-domain/{domain}/recommendations", h.recommendations)
 	// Autorisation interne Caddy on-demand TLS (l'entrée publique api.qoe.fi
 	// bloque /internal/* : seul le réseau Docker atteint cette route).
 	r.Get("/internal/tls-ask", h.tlsAsk)
@@ -34,9 +34,9 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 func (h *Handler) handleErr(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, errNotFound):
-		response.NotFound(w, "Publication ou article introuvable.")
+		response.NotFound(w, "Publisher ou article introuvable.")
 	default:
-		log.Printf("[publications] %v", err)
+		log.Printf("[publishers] %v", err)
 		response.Internal(w)
 	}
 }
@@ -99,7 +99,7 @@ func (h *Handler) recommendations(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) tlsAsk(w http.ResponseWriter, r *http.Request) {
 	allowed, err := h.svc.AllowTLS(r.Context(), r.URL.Query().Get("domain"))
 	if err != nil {
-		log.Printf("[publications] tls-ask: %v", err)
+		log.Printf("[publishers] tls-ask: %v", err)
 		response.Internal(w)
 		return
 	}

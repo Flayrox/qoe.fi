@@ -41,18 +41,18 @@ func seedMigrateAccount(t *testing.T, ctx context.Context, userID, email string)
 }
 
 // seedMigratePublication pose la publication visée par les abonnements :
-// "Subscriber"."publicationId" est une vraie clé étrangère — un abonné dont la
+// "Subscriber"."publisherId" est une vraie clé étrangère — un abonné dont la
 // publication n'existe pas n'est pas un cas de test, c'est une donnée corrompue.
-func seedMigratePublication(t *testing.T, ctx context.Context, id string) {
+func seedMigratePublisher(t *testing.T, ctx context.Context, id string) {
 	t.Helper()
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
-		 VALUES ($1, 'PERSONAL', 'Publication migration', $1, now(), now())
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
+		 VALUES ($1, 'PERSONAL', 'Publisher migration', $1, now(), now())
 		 ON CONFLICT (id) DO NOTHING`, id); err != nil {
 		t.Fatalf("seed publication %s: %v", id, err)
 	}
 	t.Cleanup(func() {
-		_, _ = poolTest.Exec(ctx, `DELETE FROM "Publication" WHERE id = $1`, id)
+		_, _ = poolTest.Exec(ctx, `DELETE FROM "Publisher" WHERE id = $1`, id)
 	})
 }
 
@@ -77,20 +77,20 @@ func TestMigrateSubscriptions_MovesOnlyActive(t *testing.T) {
 	ctx := context.Background()
 	const uid = "00000000-0000-0000-0000-00000000aa02"
 	seedMigrateAccount(t, ctx, uid, "arrivee@test.dev")
-	seedMigratePublication(t, ctx, "pub_mig_001")
-	seedMigratePublication(t, ctx, "pub_mig_002")
+	seedMigratePublisher(t, ctx, "pub_mig_001")
+	seedMigratePublisher(t, ctx, "pub_mig_002")
 
 	// Un abonnement actif lié au compte (ancienne adresse) + un désabonné lié
 	// au compte : seul l'actif doit migrer.
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "publicationId", "userId", locale, "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
+		`INSERT INTO "Subscriber" (id, email, "publisherId", "userId", locale, "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
 		 VALUES (gen_random_uuid()::text, 'ancienne@test.dev', 'pub_mig_001', $1, 'fr', true, true, now(), now(), now()),
 		        (gen_random_uuid()::text, 'ancienne@test.dev', 'pub_mig_002', $1, 'fr', false, false, now() - interval '10 days', now(), now())`,
 		uid); err != nil {
 		t.Fatalf("seed subscribers: %v", err)
 	}
 	t.Cleanup(func() {
-		_, _ = poolTest.Exec(ctx, `DELETE FROM "Subscriber" WHERE "publicationId" IN ('pub_mig_001', 'pub_mig_002')`)
+		_, _ = poolTest.Exec(ctx, `DELETE FROM "Subscriber" WHERE "publisherId" IN ('pub_mig_001', 'pub_mig_002')`)
 	})
 
 	server := fakeGoTrue(t, "arrivee@test.dev", "2026-09-28T10:00:00Z")
@@ -108,7 +108,7 @@ func TestMigrateSubscriptions_MovesOnlyActive(t *testing.T) {
 	var activeAddr string
 	var activeReceive bool
 	if err := poolTest.QueryRow(ctx,
-		`SELECT email, "receiveArticles" FROM "Subscriber" WHERE "userId" = $1 AND "publicationId" = 'pub_mig_001'`,
+		`SELECT email, "receiveArticles" FROM "Subscriber" WHERE "userId" = $1 AND "publisherId" = 'pub_mig_001'`,
 		uid).Scan(&activeAddr, &activeReceive); err != nil {
 		t.Fatalf("read actif: %v", err)
 	}
@@ -119,7 +119,7 @@ func TestMigrateSubscriptions_MovesOnlyActive(t *testing.T) {
 	var offAddr string
 	var offReceive bool
 	if err := poolTest.QueryRow(ctx,
-		`SELECT email, "receiveArticles" FROM "Subscriber" WHERE "userId" = $1 AND "publicationId" = 'pub_mig_002'`,
+		`SELECT email, "receiveArticles" FROM "Subscriber" WHERE "userId" = $1 AND "publisherId" = 'pub_mig_002'`,
 		uid).Scan(&offAddr, &offReceive); err != nil {
 		t.Fatalf("read désabonné: %v", err)
 	}
@@ -142,19 +142,19 @@ func TestMigrateSubscriptions_NoDuplicate(t *testing.T) {
 	ctx := context.Background()
 	const uid = "00000000-0000-0000-0000-00000000aa03"
 	seedMigrateAccount(t, ctx, uid, "double@test.dev")
-	seedMigratePublication(t, ctx, "pub_mig_003")
+	seedMigratePublisher(t, ctx, "pub_mig_003")
 
 	// L'ancienne adresse a un abonnement actif, et la nouvelle en a déjà un
 	// (créé directement) : la migration ne doit pas fusionner ni doublonner.
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "publicationId", "userId", locale, "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
+		`INSERT INTO "Subscriber" (id, email, "publisherId", "userId", locale, "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
 		 VALUES (gen_random_uuid()::text, 'vieux@test.dev', 'pub_mig_003', $1, 'fr', true, true, now(), now(), now()),
 		        (gen_random_uuid()::text, 'double@test.dev', 'pub_mig_003', NULL, 'fr', true, true, now(), now(), now())`,
 		uid); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 	t.Cleanup(func() {
-		_, _ = poolTest.Exec(ctx, `DELETE FROM "Subscriber" WHERE "publicationId" = 'pub_mig_003'`)
+		_, _ = poolTest.Exec(ctx, `DELETE FROM "Subscriber" WHERE "publisherId" = 'pub_mig_003'`)
 	})
 
 	server := fakeGoTrue(t, "double@test.dev", "2026-09-28T10:00:00Z")
@@ -170,7 +170,7 @@ func TestMigrateSubscriptions_NoDuplicate(t *testing.T) {
 	}
 	var count int
 	if err := poolTest.QueryRow(ctx,
-		`SELECT COUNT(*) FROM "Subscriber" WHERE "publicationId" = 'pub_mig_003'`).Scan(&count); err != nil {
+		`SELECT COUNT(*) FROM "Subscriber" WHERE "publisherId" = 'pub_mig_003'`).Scan(&count); err != nil {
 		t.Fatalf("count: %v", err)
 	}
 	if count != 2 {

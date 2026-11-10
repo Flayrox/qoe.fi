@@ -18,7 +18,7 @@ import { Link as LinkIcon, Check, Loader2, Mail, MessageSquare, Maximize2 } from
 import { cn } from '@qoe/utils';
 import { PeopleSection } from './PeopleSection';
 import { subscribeToNewsletterAction } from '@qoe/sdk/actions/tenant';
-import type { TemplatePublicationContext, TemplateTeamMember } from '../schema';
+import type { TemplatePublisherContext, TemplateTeamMember } from '../schema';
 
 export interface AboutCustomConfig {
   title?: string;
@@ -33,7 +33,7 @@ export interface AboutCustomConfig {
 }
 
 export interface AboutPageContentProps {
-  publication: TemplatePublicationContext;
+  publisher: TemplatePublisherContext;
   members?: TemplateTeamMember[];
   domain?: string;
   customConfig?: AboutCustomConfig;
@@ -43,7 +43,7 @@ export interface AboutPageContentProps {
 }
 
 export function AboutPageContent({
-  publication,
+  publisher,
   members,
   customConfig,
   articleContent,
@@ -57,22 +57,22 @@ export function AboutPageContent({
   const [isZoomed, setIsZoomed] = useState(false);
 
   // Fusion des configurations personnalisées (props OU publication.siteOptions.about)
-  const siteOptionsAbout = (publication.siteOptions?.about as AboutCustomConfig | undefined) || {};
+  const siteOptionsAbout = (publisher.siteOptions?.about as AboutCustomConfig | undefined) || {};
   const config: AboutCustomConfig = {
     title:
       customConfig?.title ||
       articleTitle ||
       siteOptionsAbout.title ||
-      `À propos de ${publication.name || 'la publication'}`,
+      `À propos de ${publisher.name || 'la publication'}`,
     captionedImageUrl:
       customConfig?.captionedImageUrl ??
       siteOptionsAbout.captionedImageUrl ??
-      publication.headerImageUrl ??
+      publisher.headerImageUrl ??
       null,
     imageCaption:
       customConfig?.imageCaption ??
       siteOptionsAbout.imageCaption ??
-      (publication.heroText ? `${publication.name} — ${publication.heroText}` : null),
+      (publisher.heroText ? `${publisher.name} — ${publisher.heroText}` : null),
     showSubscribeWidget:
       customConfig?.showSubscribeWidget ?? siteOptionsAbout.showSubscribeWidget ?? true,
     showNewsletterReassurance:
@@ -93,13 +93,13 @@ export function AboutPageContent({
 
   const handleSubscribeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !publication.id) return;
+    if (!email.trim() || !publisher.id) return;
 
     setIsLoading(true);
     try {
       const res = await subscribeToNewsletterAction({
         email: email.trim(),
-        publicationId: publication.id,
+        publisherId: publisher.id,
       });
       if (res?.ok) {
         setIsSubscribed(true);
@@ -141,9 +141,9 @@ export function AboutPageContent({
           </button>
         </div>
 
-        {publication.heroText && (
+        {publisher.heroText && (
           <p className="text-base sm:text-lg text-muted-foreground leading-relaxed">
-            {publication.heroText}
+            {publisher.heroText}
           </p>
         )}
       </header>
@@ -157,11 +157,11 @@ export function AboutPageContent({
         />
       ) : (
         <div className="prose prose-neutral dark:prose-invert max-w-none text-[15px] sm:text-base leading-relaxed space-y-4">
-          {publication.bio ? (
-            <p className="whitespace-pre-line text-foreground/90">{publication.bio}</p>
+          {publisher.bio ? (
+            <p className="whitespace-pre-line text-foreground/90">{publisher.bio}</p>
           ) : (
             <p className="text-foreground/90">
-              Bienvenue sur <strong>{publication.name}</strong>. Une publication indépendante et
+              Bienvenue sur <strong>{publisher.name}</strong>. Une publication indépendante et
               souveraine dédiée aux récits profonds, analyses fouillées et réflexions régulières.
             </p>
           )}
@@ -220,7 +220,7 @@ export function AboutPageContent({
           <div className="relative overflow-hidden rounded-[8px] border border-border/40 bg-muted/20">
             <img
               src={config.captionedImageUrl}
-              alt={publication.name || 'Illustration'}
+              alt={publisher.name || 'Illustration'}
               className={cn(
                 'w-full object-cover transition-all duration-300',
                 isZoomed ? 'max-h-[85vh] object-contain' : 'max-h-[440px]'
@@ -282,10 +282,10 @@ export function AboutPageContent({
       {/* ── 6. Section People (Équipe / Contributeurs) intégrée ── */}
       <div className="pt-4 border-t border-border/40">
         <PeopleSection
-          publication={publication}
+          publisher={publisher}
           members={members}
           title={config.peopleTitle}
-          description={`Découvrez les personnes qui conçoivent et animent ${publication.name || 'cette publication'}.`}
+          description={`Découvrez les personnes qui conçoivent et animent ${publisher.name || 'cette publication'}.`}
         />
       </div>
     </div>

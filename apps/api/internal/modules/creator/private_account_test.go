@@ -47,7 +47,7 @@ func TestPrivateAccount_FollowRequestThenAccept(t *testing.T) {
 
 	// Le seed crée bob→alice ; on repart d'un compte privé sans abonné.
 	if _, err := poolTest.Exec(ctx,
-		`DELETE FROM "Follows" WHERE "readerId" = $1 AND "publicationId" = $2`,
+		`DELETE FROM "Follows" WHERE "readerId" = $1 AND "publisherId" = $2`,
 		bobUserID, alicePubID); err != nil {
 		t.Fatalf("delete seed follow: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestPrivateAccount_FollowRequestThenAccept(t *testing.T) {
 	}
 	if err := poolTest.QueryRow(ctx, `
 		SELECT id FROM "FollowRequest"
-		WHERE "requesterId" = $1 AND "publicationId" = $2 AND status = 'PENDING'`,
+		WHERE "requesterId" = $1 AND "publisherId" = $2 AND status = 'PENDING'`,
 		bobUserID, alicePubID).Scan(&pendingRequestID); err != nil {
 		t.Fatalf("pending follow request: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestPrivateAccount_FollowRequestThenAccept(t *testing.T) {
 	}
 	var exists bool
 	if err := poolTest.QueryRow(ctx,
-		`SELECT EXISTS(SELECT 1 FROM "Follows" WHERE "readerId" = $1 AND "publicationId" = $2)`,
+		`SELECT EXISTS(SELECT 1 FROM "Follows" WHERE "readerId" = $1 AND "publisherId" = $2)`,
 		bobUserID, alicePubID).Scan(&exists); err != nil {
 		t.Fatalf("verify follow: %v", err)
 	}

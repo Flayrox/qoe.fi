@@ -60,7 +60,7 @@ const apiHighlightsQuery = `
 	JOIN "User" u ON u.id = h."readerId"
 	WHERE h."isPublic" = true
 	  AND (
-	    a."publicationId" = $1
+	    a."publisherId" = $1
 	    OR ($2 <> '' AND a."authorId"::text = $2)
 	    OR ($3 <> '' AND a.id IN (SELECT "A" FROM "_CoAuthors" WHERE "B"::text = $3))
 	  )`
@@ -69,7 +69,7 @@ const apiHighlightsQuery = `
 // articleSlug optionnel : restreint à un seul article.
 func (h *Handler) apiHighlightsPage(
 	ctx context.Context,
-	publicationID, userID, articleSlug string,
+	publisherID, userID, articleSlug string,
 	officialOnly bool,
 	limit, offset int,
 ) (apiHighlightsPage, error) {
@@ -82,7 +82,7 @@ func (h *Handler) apiHighlightsPage(
 	}
 
 	query := apiHighlightsQuery
-	args := []any{publicationID, userID, userID}
+	args := []any{publisherID, userID, userID}
 	if articleSlug != "" {
 		query += ` AND a.slug = $4`
 		args = append(args, articleSlug)

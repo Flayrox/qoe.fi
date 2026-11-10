@@ -11,41 +11,41 @@
 import { revalidatePath } from 'next/cache';
 import { safeAction } from '../utils/safe-action';
 import { goFetch } from '../utils/go-client';
-import { getActivePublicationId } from '../articles';
+import { getActivePublisherId } from '../articles';
 
 export interface RecommendationItemDto {
   id: string;
-  publicationId: string;
-  publicationName: string;
-  publicationSlug: string;
-  publicationSubdomain: string | null;
-  publicationCustomDomain: string | null;
+  publisherId: string;
+  publisherName: string;
+  publisherSlug: string;
+  publisherSubdomain: string | null;
+  publisherCustomDomain: string | null;
   publicationBio: string | null;
-  publicationLogoUrl: string | null;
+  publisherLogoUrl: string | null;
   description: string | null;
   createdAt: string;
 }
 
 export const getRecommendationsAction = safeAction<
-  { publicationId?: string } | void,
+  { publisherId?: string } | void,
   RecommendationItemDto[]
 >(async (input) => {
-  const pubId = input?.publicationId || (await getActivePublicationId());
+  const pubId = input?.publisherId || (await getActivePublisherId());
   const res = await goFetch<{ items: RecommendationItemDto[] }>(
-    `/v1/creator/recommendations?publicationId=${encodeURIComponent(pubId)}`
+    `/v1/creator/recommendations?publisherId=${encodeURIComponent(pubId)}`
   );
   return res.items || [];
 });
 
 export const addRecommendationAction = safeAction<
-  { recommendedId: string; description?: string; publicationId?: string },
+  { recommendedId: string; description?: string; publisherId?: string },
   { success: boolean }
->(async ({ recommendedId, description, publicationId }) => {
-  const pubId = publicationId || (await getActivePublicationId());
+>(async ({ recommendedId, description, publisherId }) => {
+  const pubId = publisherId || (await getActivePublisherId());
   await goFetch(`/v1/creator/recommendations`, {
     method: 'POST',
     body: {
-      publicationId: pubId,
+      publisherId: pubId,
       recommendedId,
       description: description?.trim() || undefined,
     },
@@ -56,12 +56,12 @@ export const addRecommendationAction = safeAction<
 });
 
 export const removeRecommendationAction = safeAction<
-  { recommendedId: string; publicationId?: string },
+  { recommendedId: string; publisherId?: string },
   { success: boolean }
->(async ({ recommendedId, publicationId }) => {
-  const pubId = publicationId || (await getActivePublicationId());
+>(async ({ recommendedId, publisherId }) => {
+  const pubId = publisherId || (await getActivePublisherId());
   await goFetch(
-    `/v1/creator/recommendations/${encodeURIComponent(recommendedId)}?publicationId=${encodeURIComponent(pubId)}`,
+    `/v1/creator/recommendations/${encodeURIComponent(recommendedId)}?publisherId=${encodeURIComponent(pubId)}`,
     {
       method: 'DELETE',
     }
@@ -71,7 +71,7 @@ export const removeRecommendationAction = safeAction<
   return { success: true };
 });
 
-export const lookupPublicationByDomainAction = safeAction<
+export const lookupPublisherByDomainAction = safeAction<
   { domain: string },
   {
     id: string;
@@ -96,7 +96,7 @@ export const lookupPublicationByDomainAction = safeAction<
       logoUrl: string | null;
       heroText?: string | null;
       bio?: string | null;
-    }>(`/v1/publications/by-domain/${encodeURIComponent(clean)}`);
+    }>(`/v1/publishers/by-domain/${encodeURIComponent(clean)}`);
     return {
       id: res.id,
       name: res.name,

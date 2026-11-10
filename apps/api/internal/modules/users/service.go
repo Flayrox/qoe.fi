@@ -208,7 +208,7 @@ func (s *Service) MigrateSubscriptionsToVerifiedEmail(ctx context.Context, userI
 		    AND s."receiveArticles" = true
 		    AND NOT EXISTS (
 		      SELECT 1 FROM "Subscriber" d
-		      WHERE d."publicationId" = s."publicationId" AND d.email = $2
+		      WHERE d."publisherId" = s."publisherId" AND d.email = $2
 		    )
 		  RETURNING id
 		) SELECT COUNT(*) FROM moved`, toUUID(userID), newEmail).Scan(&migrated)
@@ -312,7 +312,7 @@ func (s *Service) SearchForContributors(ctx context.Context, query string, exclu
 		SELECT u.id::text, u.name, u.username, u."logoUrl", u."isCertified",
 		       p.slug, p."subdomain", p."heroText"
 		FROM "User" u
-		LEFT JOIN "Publication" p ON p.id = u."publicationId"
+		LEFT JOIN "Publisher" p ON p.id = u."publisherId"
 		WHERE u."isSuspended" = false AND u."isShadowbanned" = false
 		  AND u.id != ALL($2::uuid[])
 		  AND (u.name ILIKE $1 OR u.username ILIKE $1)
@@ -355,13 +355,13 @@ func (s *Service) SearchForContributors(ctx context.Context, query string, exclu
 // MediaPublicationForUser renvoie l'id de publication d'un média pour lequel
 // l'utilisateur est membre actif (résolution du workspace MEDIA du dashboard).
 // Retourne ("", nil) si non membre — parité prisma.mediaMember.findUnique.
-func (s *Service) MediaPublicationForUser(ctx context.Context, userID, mediaID string) (string, error) {
+func (s *Service) MediaPublisherForUser(ctx context.Context, userID, mediaID string) (string, error) {
 	var pubID pgtype.Text
 	err := s.pool.QueryRow(ctx, `
 		SELECT p.id::text
 		FROM "MediaMember" mm
 		JOIN "Media" m ON m.id = mm."mediaId"
-		JOIN "Publication" p ON p.id = m."publicationId"
+		JOIN "Publisher" p ON p.id = m."publisherId"
 		WHERE mm."userId" = $1 AND mm."mediaId" = $2 AND mm.status = 'active'`,
 		toUUID(userID), mediaID).Scan(&pubID)
 	if err != nil {
@@ -484,7 +484,7 @@ func (s *Service) UpdateProfilePatch(ctx context.Context, userID string, patch P
 			}
 			var mediaExists bool
 			if err := s.pool.QueryRow(ctx,
-				`SELECT EXISTS(SELECT 1 FROM "Publication" WHERE lower(slug) = lower($1) AND type <> 'PERSONAL')`,
+				`SELECT EXISTS(SELECT 1 FROM "Publisher" WHERE lower(slug) = lower($1) AND type <> 'PERSONAL')`,
 				un).Scan(&mediaExists); err == nil && mediaExists {
 				return nil, errors.New("Ce nom d'utilisateur est déjà utilisé.")
 			}
@@ -604,7 +604,7 @@ type BillingTransaction struct {
 }
 
 // BillingPublication est la publication d'un abonnement (parité publication {select} Prisma).
-type BillingPublication struct {
+type BillingPublisher struct {
 	Name    *string `json:"name"`
 	LogoURL *string `json:"logoUrl"`
 	Slug    string  `json:"slug"`
@@ -613,7 +613,7 @@ type BillingPublication struct {
 // BillingSubscription est un abonnement premium actif du lecteur.
 type BillingSubscription struct {
 	ID          string              `json:"id"`
-	Publication *BillingPublication `json:"publication"`
+	Publisher *BillingPublisher `json:"publisher"`
 }
 
 // BillingData est la réponse de GET /v1/me/billing : portefeuille +
@@ -668,7 +668,7 @@ func (s *Service) Billing(ctx context.Context, userID string) (*BillingData, err
 	subRows, err := s.pool.Query(ctx, `
 		SELECT s.id, p.name, p."logoUrl", p.slug
 		FROM "Subscriber" s
-		JOIN "Publication" p ON p.id = s."publicationId"
+		JOIN "Publisher" p ON p.id = s."publisherId"
 		WHERE s.email = $1 AND s."isPremium" = true AND s."isActive" = true
 		ORDER BY s."createdAt" DESC`, email)
 	if err != nil {
@@ -682,7 +682,7 @@ func (s *Service) Billing(ctx context.Context, userID string) (*BillingData, err
 		if err := subRows.Scan(&s.ID, &name, &logo, &slug); err != nil {
 			continue
 		}
-		s.Publication = &BillingPublication{Name: textPtr(name), LogoURL: textPtr(logo), Slug: slug}
+		s.Publisher = &BillingPublisher{Name: textPtr(name), LogoURL: textPtr(logo), Slug: slug}
 		data.Subscriptions = append(data.Subscriptions, s)
 	}
 	if err := subRows.Err(); err != nil {
@@ -789,14 +789,14 @@ func (s *Service) OnboardingComplete(ctx context.Context, userID string, in Onbo
 		var pubID string
 		errPub := s.pool.QueryRow(ctx, `
 			SELECT COALESCE(
-				(SELECT id FROM "Publication" WHERE id = $1 LIMIT 1),
-				(SELECT "publicationId" FROM "User" WHERE id::text = $1 AND "publicationId" IS NOT NULL LIMIT 1)
+				(SELECT id FROM "Publisher" WHERE id = $1 LIMIT 1),
+				(SELECT "publisherId" FROM "User" WHERE id::text = $1 AND "publisherId" IS NOT NULL LIMIT 1)
 			)`, target).Scan(&pubID)
 		if errPub == nil && pubID != "" {
 			if _, err := s.pool.Exec(ctx, `
-				INSERT INTO "Follows" (id, "readerId", "publicationId", "createdAt")
+				INSERT INTO "Follows" (id, "readerId", "publisherId", "createdAt")
 				VALUES (gen_random_uuid()::text, $1, $2, now())
-				ON CONFLICT ("readerId", "publicationId") DO NOTHING`, toUUID(userID), pubID); err != nil {
+				ON CONFLICT ("readerId", "publisherId") DO NOTHING`, toUUID(userID), pubID); err != nil {
 				log.Printf("[users] onboarding follow %s: %v", pubID, err)
 			}
 		}
@@ -959,7 +959,7 @@ func (s *Service) DataExport(ctx context.Context, userID string) (map[string]any
 	out["articles"] = s.exportRows(ctx, `SELECT id, title, slug, content, published, "createdAt", "updatedAt" FROM "Article" WHERE "authorId" = $1 ORDER BY "createdAt" ASC`, toUUID(userID))
 	out["highlights"] = s.exportRows(ctx, `SELECT * FROM "Highlight" WHERE "readerId" = $1 ORDER BY "createdAt" ASC`, toUUID(userID))
 	out["bookmarks"] = s.exportRows(ctx, `SELECT * FROM "Bookmark" WHERE "readerId" = $1 ORDER BY "createdAt" ASC`, toUUID(userID))
-	out["follows"] = s.exportRows(ctx, `SELECT "publicationId", "createdAt" FROM "Follows" WHERE "readerId" = $1 ORDER BY "createdAt" ASC`, toUUID(userID))
+	out["follows"] = s.exportRows(ctx, `SELECT "publisherId", "createdAt" FROM "Follows" WHERE "readerId" = $1 ORDER BY "createdAt" ASC`, toUUID(userID))
 
 	return out, nil
 }

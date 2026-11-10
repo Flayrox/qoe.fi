@@ -103,7 +103,7 @@ func TestHandler_GetBySlug_Public_WithPaywall(t *testing.T) {
 	r := newTestRouter()
 
 	// Article premium → contenu tronqué, paywallMeta présent.
-	w, body := doJSON(t, r, "GET", "/v1/articles/article-payant?publicationId="+fx.PublicationID, "", nil)
+	w, body := doJSON(t, r, "GET", "/v1/articles/article-payant?publisherId="+fx.PublisherID, "", nil)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
 	}
@@ -119,7 +119,7 @@ func TestHandler_GetBySlug_Public_WithPaywall(t *testing.T) {
 	}
 }
 
-// Sans publicationId, GET /v1/articles/{slug} bascule en mode « slug seul »
+// Sans publisherId, GET /v1/articles/{slug} bascule en mode « slug seul »
 // (page autonome /article/[slug], unfurl OpenGraph, thread de citation).
 // Zéro-fuite : ce mode est public par nature (aucun entitlement résolvable),
 // donc l'article premium est tronqué côté serveur — le passage réservé ne
@@ -157,7 +157,7 @@ func TestHandler_GetBySlug_Public_UnknownArticle(t *testing.T) {
 	fx := seed(t)
 	r := newTestRouter()
 
-	w, _ := doJSON(t, r, "GET", "/v1/articles/n-existe-pas?publicationId="+fx.PublicationID, "", nil)
+	w, _ := doJSON(t, r, "GET", "/v1/articles/n-existe-pas?publisherId="+fx.PublisherID, "", nil)
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, attendu 404", w.Code)
 	}
@@ -208,8 +208,8 @@ func TestHandler_GetBySlug_InvalidAPIKey(t *testing.T) {
 	fx := seed(t)
 	r := newTestRouter()
 
-	w, _ := doJSON(t, r, "GET", "/v1/articles/recette-pates?publicationId="+fx.PublicationID, "qoe_live_badkey", nil)
-	// Clé invalide → mode créateur ignoré → lecture publique (avec publicationId OK).
+	w, _ := doJSON(t, r, "GET", "/v1/articles/recette-pates?publisherId="+fx.PublisherID, "qoe_live_badkey", nil)
+	// Clé invalide → mode créateur ignoré → lecture publique (avec publisherId OK).
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, attendu 200 (fallback public)", w.Code)
 	}
@@ -223,7 +223,7 @@ func TestHandler_List_WithJWT(t *testing.T) {
 	r := newTestRouter()
 	token := testJWT(fx.AuthorID)
 
-	w, _ := doJSON(t, r, "GET", "/v1/articles?publicationId="+fx.PublicationID, token, nil)
+	w, _ := doJSON(t, r, "GET", "/v1/articles?publisherId="+fx.PublisherID, token, nil)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
 	}
@@ -241,7 +241,7 @@ func TestHandler_List_NoAuth(t *testing.T) {
 	fx := seed(t)
 	r := newTestRouter()
 
-	w, _ := doJSON(t, r, "GET", "/v1/articles?publicationId="+fx.PublicationID, "", nil)
+	w, _ := doJSON(t, r, "GET", "/v1/articles?publisherId="+fx.PublisherID, "", nil)
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, attendu 401", w.Code)
 	}
@@ -253,7 +253,7 @@ func TestHandler_Create_WithJWT(t *testing.T) {
 	token := testJWT(fx.AuthorID)
 
 	w, body := doJSON(t, r, "POST", "/v1/articles", token, map[string]any{
-		"publicationId": fx.PublicationID,
+		"publisherId": fx.PublisherID,
 		"title":         "Via HTTP",
 		"slug":          "via-http",
 		"content":       "Contenu via handler",
@@ -285,7 +285,7 @@ func TestHandler_Create_InvalidContentFormat(t *testing.T) {
 	token := testJWT(fx.AuthorID)
 
 	w, _ := doJSON(t, r, "POST", "/v1/articles", token, map[string]any{
-		"publicationId": fx.PublicationID,
+		"publisherId": fx.PublisherID,
 		"title":         "X",
 		"content":       "x",
 		"contentFormat": "docx",
@@ -309,7 +309,7 @@ func TestHandler_Publish_WithJWT(t *testing.T) {
 	}
 
 	// Le brouillon est maintenant publié.
-	w2, _ := doJSON(t, r, "GET", "/v1/articles/brouillon?publicationId="+fx.PublicationID, "", nil)
+	w2, _ := doJSON(t, r, "GET", "/v1/articles/brouillon?publisherId="+fx.PublisherID, "", nil)
 	if w2.Code != http.StatusOK {
 		t.Fatalf("status après publication = %d", w2.Code)
 	}
@@ -320,7 +320,7 @@ func TestHandler_Delete_WithJWT(t *testing.T) {
 	r := newTestRouter()
 	token := testJWT(fx.AuthorID)
 
-	w, _ := doJSON(t, r, "DELETE", "/v1/articles/art_test_001?activePublicationId="+fx.PublicationID, token, nil)
+	w, _ := doJSON(t, r, "DELETE", "/v1/articles/art_test_001?activePublisherId="+fx.PublisherID, token, nil)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
 	}
@@ -345,7 +345,7 @@ func TestHandler_Capabilities_WithJWT(t *testing.T) {
 	r := newTestRouter()
 	token := testJWT(fx.AuthorID)
 
-	w, body := doJSON(t, r, "GET", "/v1/articles/capabilities?publicationId="+fx.PublicationID, token, nil)
+	w, body := doJSON(t, r, "GET", "/v1/articles/capabilities?publisherId="+fx.PublisherID, token, nil)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
 	}
@@ -354,7 +354,7 @@ func TestHandler_Capabilities_WithJWT(t *testing.T) {
 	}
 }
 
-func TestHandler_Capabilities_NoPublication(t *testing.T) {
+func TestHandler_Capabilities_NoPublisher(t *testing.T) {
 	seed(t)
 	r := newTestRouter()
 	token := testJWT("00000000-0000-0000-0000-000000000099")
@@ -374,7 +374,7 @@ func TestHandler_Create_ThenList_Integration(t *testing.T) {
 
 	// Création.
 	w, _ := doJSON(t, r, "POST", "/v1/articles", token, map[string]any{
-		"publicationId": fx.PublicationID,
+		"publisherId": fx.PublisherID,
 		"title":         "Cycle complet",
 		"slug":          "cycle-complet",
 		"content":       "Contenu",

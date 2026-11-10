@@ -55,17 +55,17 @@ func seedMedia(t *testing.T, ctx context.Context) {
 	requirePool(t)
 	t.Helper()
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE
-		"MediaAuditLog", "MediaMember", "Media", "User", "Publication"
+		"MediaAuditLog", "MediaMember", "Media", "User", "Publisher"
 		CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, subdomain, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, subdomain, "createdAt", "updatedAt")
 		 VALUES ('pub_media_001', 'MEDIA', 'Média Un', 'media-un', 'media-un', now(), now())`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Media" (id, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "Media" (id, "publisherId", "createdAt", "updatedAt")
 		 VALUES ('media_001', 'pub_media_001', now(), now())`); err != nil {
 		t.Fatalf("media: %v", err)
 	}
@@ -107,14 +107,14 @@ func TestCreateMedia_Owner(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateMedia: %v", err)
 	}
-	if out["id"] == "" || out["publicationId"] == "" {
+	if out["id"] == "" || out["publisherId"] == "" {
 		t.Fatalf("out = %v", out)
 	}
 
 	// Publication MEDIA + membre owner + audit.
 	var ptype string
 	if err := poolTest.QueryRow(ctx,
-		`SELECT type FROM "Publication" WHERE id = $1`, out["publicationId"]).Scan(&ptype); err != nil || ptype != "MEDIA" {
+		`SELECT type FROM "Publisher" WHERE id = $1`, out["publisherId"]).Scan(&ptype); err != nil || ptype != "MEDIA" {
 		t.Fatalf("type publication = %q (err %v), attendu MEDIA", ptype, err)
 	}
 	var role string
@@ -196,14 +196,14 @@ func TestGetMedia_Owner(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetMedia: %v", err)
 	}
-	if detail.Publication.Name != "Média Un" || myRole != "owner" {
+	if detail.Publisher.Name != "Média Un" || myRole != "owner" {
 		t.Fatalf("detail = %+v, myRole = %s", detail, myRole)
 	}
 	if len(detail.Members) != 3 {
 		t.Fatalf("membres = %d, attendu 3", len(detail.Members))
 	}
-	if detail.Publication.Count.Articles != 0 {
-		t.Fatalf("articlesCount = %d, attendu 0", detail.Publication.Count.Articles)
+	if detail.Publisher.Count.Articles != 0 {
+		t.Fatalf("articlesCount = %d, attendu 0", detail.Publisher.Count.Articles)
 	}
 	// Shapes Prisma : member.user imbriqué + invite.inviter.
 	if detail.Members[0].User.ID == "" || detail.Members[0].ID == "" {
@@ -371,7 +371,7 @@ func TestUpdateSettings(t *testing.T) {
 	var name, hero string
 	var idx bool
 	if err := poolTest.QueryRow(ctx,
-		`SELECT name, "heroText", "allowIndexing" FROM "Publication" WHERE id = 'pub_media_001'`,
+		`SELECT name, "heroText", "allowIndexing" FROM "Publisher" WHERE id = 'pub_media_001'`,
 	).Scan(&name, &hero, &idx); err != nil || name != "Média Renommé" || hero != "Nouveau héros" || idx {
 		t.Fatalf("publication = %q/%q/%v (err %v)", name, hero, idx, err)
 	}

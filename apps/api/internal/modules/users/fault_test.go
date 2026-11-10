@@ -104,7 +104,7 @@ func TestFault_Handlers_PoolErrors(t *testing.T) {
 		{"me-500", "queryrow", http.MethodGet, "/v1/me", "", http.StatusInternalServerError},
 		{"billing-500", "queryrow", http.MethodGet, "/v1/me/billing", "", http.StatusInternalServerError},
 		{"dataExport-500", "queryrow", http.MethodGet, "/v1/me/data-export", "", http.StatusInternalServerError},
-		{"mediaPublication-500", "queryrow", http.MethodGet, "/v1/me/media/pub_media_1", "", http.StatusInternalServerError},
+		{"mediaPublisher-500", "queryrow", http.MethodGet, "/v1/me/media/pub_media_1", "", http.StatusInternalServerError},
 		{"onboardingComplete-500", "exec", http.MethodPost, "/v1/me/onboarding-complete", `{"interests":["foot"]}`, http.StatusInternalServerError},
 		{"mutedWords-400", "exec", http.MethodPost, "/v1/me/muted-words", `{"word":"spoiler"}`, http.StatusBadRequest},
 		{"search-500", "query", http.MethodGet, "/v1/users/search?q=ali", "", http.StatusInternalServerError},

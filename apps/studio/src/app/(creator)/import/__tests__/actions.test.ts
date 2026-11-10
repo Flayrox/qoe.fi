@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   goFetch: vi.fn(),
-  getActivePublicationId: vi.fn(),
+  getActivePublisherId: vi.fn(),
   getUser: vi.fn(),
 }));
 
@@ -19,7 +19,7 @@ vi.mock('@qoe/sdk/actions/utils/go-client', () => ({
 }));
 
 vi.mock('@/lib/active-workspace', () => ({
-  getActivePublicationId: mocks.getActivePublicationId,
+  getActivePublisherId: mocks.getActivePublisherId,
 }));
 
 import { importSubscribersCsvAction, type SubscriberImportOptions } from '../actions';
@@ -41,7 +41,7 @@ describe('importSubscribersCsvAction', () => {
     mocks.getUser.mockResolvedValue({
       data: { user: { id: 'u_creator_1', email: 'creator@qoe.fi' } },
     });
-    mocks.getActivePublicationId.mockResolvedValue('pub_test_123');
+    mocks.getActivePublisherId.mockResolvedValue('pub_test_123');
     mocks.goFetch.mockResolvedValue({
       id: 'batch_1',
       status: 'submitted',
@@ -67,7 +67,7 @@ describe('importSubscribersCsvAction', () => {
     ]) {
       vi.clearAllMocks();
       mocks.getUser.mockResolvedValue({ data: { user: { id: 'u_creator_1' } } });
-      mocks.getActivePublicationId.mockResolvedValue('pub_test_123');
+      mocks.getActivePublisherId.mockResolvedValue('pub_test_123');
 
       const res = await importSubscribersCsvAction(csv, { declarations: incomplete });
       expect(res.success).toBe(false);
@@ -98,7 +98,7 @@ charlie@domain.org,2024-01-05,free`;
       string,
       { method: string; body: Record<string, unknown> },
     ];
-    expect(url).toBe('/v1/import/publications/pub_test_123/subscribers');
+    expect(url).toBe('/v1/import/publishers/pub_test_123/subscribers');
     expect(init.method).toBe('POST');
     expect(init.body.content).toBe(csvContent);
     expect(init.body.declarations).toEqual(DECLARATIONS);

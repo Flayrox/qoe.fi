@@ -19,7 +19,7 @@ const basePost: ThoughtData = {
     title: 'Souveraineté des médias indépendants',
     slug: 'souverainete-medias-independants',
     author: { name: 'Bob', username: 'bob', subdomain: 'bob' },
-    publication: { name: 'Revue Bob', subdomain: 'revue-bob', customDomain: null },
+    publisher: { name: 'Revue Bob', subdomain: 'revue-bob', customDomain: null },
   },
 };
 

@@ -59,7 +59,7 @@ describe('🔒 Contrat global : goFetch reçoit toujours un body NON sérialisé
       data: { following: true },
       bookmarked: true,
     });
-    await subscribeToNewsletterAction({ email: 'a@b.co', publicationId: 'pub_1' });
+    await subscribeToNewsletterAction({ email: 'a@b.co', publisherId: 'pub_1' });
     await createHighlightAction({ articleId: 'art_1', text: 'passage', note: 'note' });
     await unlockArticleWithWalletAction({ creatorId: 'creator_1' });
 
@@ -79,7 +79,7 @@ describe('📮 subscribeToNewsletterAction', () => {
 
     const result = await subscribeToNewsletterAction({
       email: '  Reader@Example.COM  ',
-      publicationId: 'pub_1',
+      publisherId: 'pub_1',
     });
 
     expect(result).toEqual({ success: true });
@@ -88,14 +88,14 @@ describe('📮 subscribeToNewsletterAction', () => {
     expect(calls()[0][1]?.method).toBe('POST');
     expect(calls()[0][1]?.body).toEqual({
       email: 'reader@example.com',
-      publicationId: 'pub_1',
+      publisherId: 'pub_1',
       locale: 'fr', // hors contexte de requête (tests) : défaut fr
     });
   });
 
   it('rejette un email invalide sans appeler le backend', async () => {
     await expect(
-      subscribeToNewsletterAction({ email: 'pas-un-email', publicationId: 'pub_1' })
+      subscribeToNewsletterAction({ email: 'pas-un-email', publisherId: 'pub_1' })
     ).rejects.toThrow(/email valide/i);
     expect(goFetch).not.toHaveBeenCalled();
   });
@@ -226,7 +226,7 @@ describe('🔗 quotePassageToFeedAction', () => {
         id: 'art_1',
         title: 'Titre',
         slug: 'slug-1',
-        publication: { subdomain: 'media', customDomain: null, name: 'Média' },
+        publisher: { subdomain: 'media', customDomain: null, name: 'Média' },
       })
       .mockResolvedValueOnce({ id: 'post_1' });
 

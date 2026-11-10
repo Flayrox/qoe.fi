@@ -47,8 +47,8 @@ func (h *Handler) Register(r chi.Router) {
 		// contournement si un seul était protégé.
 		r.With(mediaGuard(authz.ActionMediaSettingsWrite)).Patch("/{id}/settings", h.updateSettings)
 		r.With(middleware.RequireAction(authz.ActionMediaSettingsWrite,
-			middleware.WithAuthzResource(middleware.AuthzResourcePublication, "publicationId"))).
-			Patch("/by-publication/{publicationId}/settings", h.updateSettingsByPublication)
+			middleware.WithAuthzResource(middleware.AuthzResourcePublisher, "publisherId"))).
+			Patch("/by-publication/{publisherId}/settings", h.updateSettingsByPublisher)
 
 		// Membres, rôles et invitations média : N1 + media:manage_members.
 		manageMembers := mediaGuard(authz.ActionMediaMembersWrite)
@@ -78,9 +78,9 @@ func (h *Handler) Register(r chi.Router) {
 		r.With(middleware.RequireAction(authz.ActionInvitationAccept)).
 			Post("/invites/link/{token}/join", h.joinLink)
 
-		// GET /v1/media/by-publication/{publicationId} — résout {mediaId} pour que
+		// GET /v1/media/by-publication/{publisherId} — résout {mediaId} pour que
 		// le front puisse adresser les autres endpoints sans deviner.
-		r.Get("/by-publication/{publicationId}", h.mediaIdByPublication)
+		r.Get("/by-publication/{publisherId}", h.mediaIdByPublisher)
 
 		// Clés API Média (gestion workspace / délégation fine api_keys:manage) :
 		// N2 — le gestionnaire humain prouve sa session, le bot ne rejoue pas un
@@ -246,11 +246,11 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, err)
 		return
 	}
-	response.OK(w, map[string]any{"success": true, "publication": publication})
+	response.OK(w, map[string]any{"success": true, "publisher": publication})
 }
 
-// PATCH /v1/media/by-publication/{publicationId}/settings — voit /{id}/settings.
-func (h *Handler) updateSettingsByPublication(w http.ResponseWriter, r *http.Request) {
+// PATCH /v1/media/by-publication/{publisherId}/settings — voit /{id}/settings.
+func (h *Handler) updateSettingsByPublisher(w http.ResponseWriter, r *http.Request) {
 	id := userID(r)
 	if id == "" {
 		response.Unauthorized(w, "Authentification requise")
@@ -261,7 +261,7 @@ func (h *Handler) updateSettingsByPublication(w http.ResponseWriter, r *http.Req
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	mediaID, err := h.svc.MediaIDByPublication(r.Context(), chi.URLParam(r, "publicationId"))
+	mediaID, err := h.svc.MediaIDByPublisher(r.Context(), chi.URLParam(r, "publisherId"))
 	if err != nil {
 		writeErr(w, err)
 		return
@@ -271,17 +271,17 @@ func (h *Handler) updateSettingsByPublication(w http.ResponseWriter, r *http.Req
 		writeErr(w, err)
 		return
 	}
-	response.OK(w, map[string]any{"success": true, "publication": publication})
+	response.OK(w, map[string]any{"success": true, "publisher": publication})
 }
 
-// GET /v1/media/by-publication/{publicationId} — {mediaId}.
-func (h *Handler) mediaIdByPublication(w http.ResponseWriter, r *http.Request) {
+// GET /v1/media/by-publication/{publisherId} — {mediaId}.
+func (h *Handler) mediaIdByPublisher(w http.ResponseWriter, r *http.Request) {
 	id := userID(r)
 	if id == "" {
 		response.Unauthorized(w, "Authentification requise")
 		return
 	}
-	mediaID, err := h.svc.MediaIDByPublication(r.Context(), chi.URLParam(r, "publicationId"))
+	mediaID, err := h.svc.MediaIDByPublisher(r.Context(), chi.URLParam(r, "publisherId"))
 	if err != nil {
 		writeErr(w, err)
 		return

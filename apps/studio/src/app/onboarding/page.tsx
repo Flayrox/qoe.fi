@@ -7,24 +7,24 @@ import { redirect } from 'next/navigation';
 import { OnboardingWizard } from '@/features/onboarding/components/wizard';
 
 export default async function OnboardingPage() {
-  // Go : GET /v1/users/me — hasCompletedOnboarding + publicationId personnelle
+  // Go : GET /v1/users/me — hasCompletedOnboarding + publisherId personnelle
   // (le tenant créateur).
   const user = await requireUser();
-  let me: { data: { hasCompletedOnboarding: boolean; publicationId: string | null } };
+  let me: { data: { hasCompletedOnboarding: boolean; publisherId: string | null } };
   try {
-    me = await goFetch<{ data: { hasCompletedOnboarding: boolean; publicationId: string | null } }>(
+    me = await goFetch<{ data: { hasCompletedOnboarding: boolean; publisherId: string | null } }>(
       '/v1/users/me'
     );
   } catch {
     me = {
       data: {
         hasCompletedOnboarding: user.hasCompletedOnboarding,
-        publicationId: null,
+        publisherId: null,
       },
     };
   }
 
-  const hasTenant = Boolean(me.data.publicationId);
+  const hasTenant = Boolean(me.data.publisherId);
   // On ne reboucle vers / que si un espace créateur existe déjà. Un compte
   // 'user' (onboarding lecteur fait dans core) sans tenant doit voir le
   // wizard — sinon boucle infinie / → /onboarding → / (le layout (creator)

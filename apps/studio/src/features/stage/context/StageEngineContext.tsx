@@ -9,7 +9,7 @@ import type {
   LayoutConfig,
   TemplateBlock,
   TemplateNode,
-  TemplatePublicationContext,
+  TemplatePublisherContext,
   TemplateArticleItem,
 } from '@qoe/ui/templates';
 import {
@@ -43,7 +43,7 @@ export interface StageSnapshot {
 export interface StageEngineContextType {
   // ── Modèle de Données & Layout ──
   layout: LayoutConfig;
-  publication: TemplatePublicationContext;
+  publisher: TemplatePublisherContext;
   articles: TemplateArticleItem[];
   selectedBlockId: string | null;
   selectedBlock: TemplateBlock | null;
@@ -147,7 +147,7 @@ export function StageEngineProvider({
   initialArticleLayout,
   initialOverrides,
   initialUnpublished,
-  publication,
+  publisher,
   articles,
 }: {
   children: React.ReactNode;
@@ -155,7 +155,7 @@ export function StageEngineProvider({
   initialArticleLayout: LayoutConfig | null;
   initialOverrides: Record<string, LayoutConfig>;
   initialUnpublished: boolean;
-  publication: TemplatePublicationContext;
+  publisher: TemplatePublisherContext;
   articles: TemplateArticleItem[];
 }) {
   const [scoped, setScoped] = useState<{ home: LayoutConfig; article: LayoutConfig | null }>({
@@ -786,7 +786,7 @@ export function StageEngineProvider({
 
   // ── Versions serveur (instantanés publiés) ──
   const loadSnapshots = useCallback(async () => {
-    const pubId = publication.id;
+    const pubId = publisher.id;
     if (!pubId) return;
     setSnapshotsLoading(true);
     try {
@@ -798,7 +798,7 @@ export function StageEngineProvider({
     } finally {
       setSnapshotsLoading(false);
     }
-  }, [publication.id]);
+  }, [publisher.id]);
 
   const applyScopesPayload = useCallback((payload: string) => {
     try {
@@ -818,7 +818,7 @@ export function StageEngineProvider({
 
   const restoreSnapshot = useCallback(
     async (id: string) => {
-      const pubId = publication.id;
+      const pubId = publisher.id;
       if (!pubId) return;
       try {
         const res = await restoreSiteLayoutVersionAction(pubId, id);
@@ -831,7 +831,7 @@ export function StageEngineProvider({
         // Restauration impossible : état local inchangé.
       }
     },
-    [publication.id, applyScopesPayload]
+    [publisher.id, applyScopesPayload]
   );
 
   // ── Zoom Actions ──
@@ -854,7 +854,7 @@ export function StageEngineProvider({
     setIsSaving(true);
     try {
       const payload = serializeSiteLayouts(scoped.home, scoped.article, overrides);
-      const pubId = publication.id || '';
+      const pubId = publisher.id || '';
       const res = await saveSiteLayoutDraftAction(pubId, payload);
       if (!res.success) {
         setSaveError(res.error ?? 'Enregistrement impossible');
@@ -868,16 +868,16 @@ export function StageEngineProvider({
     } finally {
       setIsSaving(false);
     }
-  }, [scoped, publication.id]);
+  }, [scoped, publisher.id]);
 
   const publish = useCallback(async () => {
-    const pubId = publication.id;
+    const pubId = publisher.id;
     if (!pubId) return;
     setIsPublishing(true);
     try {
       const res = await publishSiteLayoutAction(pubId);
       if (!res.success) {
-        setSaveError(res.error ?? 'Publication impossible');
+        setSaveError(res.error ?? 'Publisher impossible');
         return;
       }
       setSaveError(null);
@@ -889,7 +889,7 @@ export function StageEngineProvider({
     } finally {
       setIsPublishing(false);
     }
-  }, [publication.id, loadSnapshots]);
+  }, [publisher.id, loadSnapshots]);
 
   const value = useMemo<StageEngineContextType>(
     () => ({
@@ -907,7 +907,7 @@ export function StageEngineProvider({
       unpublished,
       isPublishing,
       publish,
-      publication,
+      publisher,
       articles,
       selectedBlockId,
       selectedBlock,
@@ -971,7 +971,7 @@ export function StageEngineProvider({
       unpublished,
       isPublishing,
       publish,
-      publication,
+      publisher,
       articles,
       selectedBlockId,
       selectedBlock,

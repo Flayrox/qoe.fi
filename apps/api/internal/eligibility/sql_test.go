@@ -26,7 +26,7 @@ func TestArticlePredicates_FullLocks(t *testing.T) {
 	sql := ArticlePredicates(Aliases{
 		Entity:        "a",
 		Authors:       []string{"u.id"},
-		Publication:   `a."publicationId"`,
+		Publisher:   `a."publisherId"`,
 		Viewer:        "$2",
 		RequirePublic: true,
 	})
@@ -38,7 +38,7 @@ func TestArticlePredicates_FullLocks(t *testing.T) {
 	if !strings.Contains(sql, `COALESCE(a.title, '') || ' ' || COALESCE(a.content, '')`) {
 		t.Fatalf("les mots masqués doivent couvrir titre ET contenu :\n%s", sql)
 	}
-	if !strings.Contains(sql, `pv.id = a."publicationId"`) {
+	if !strings.Contains(sql, `pv.id = a."publisherId"`) {
 		t.Fatalf("la publication de l'article doit porter la visibilité :\n%s", sql)
 	}
 	if !strings.Contains(sql, "$2, u.id") {
@@ -83,14 +83,14 @@ func TestThoughtPredicates_NoVisibilityWhenNotRequired(t *testing.T) {
 
 // La publication vide fait résoudre la publication personnelle de l'auteur
 // (pensées rattachées à leur auteur, pas à une publication de média).
-func TestThoughtPredicates_VisibilityFallsBackToAuthorPublication(t *testing.T) {
+func TestThoughtPredicates_VisibilityFallsBackToAuthorPublisher(t *testing.T) {
 	sql := ThoughtPredicates(Aliases{
 		Entity:        "p",
 		Authors:       []string{"u.id"},
 		Viewer:        "$3",
 		RequirePublic: true,
 	})
-	if !strings.Contains(sql, `(SELECT "publicationId" FROM "User" WHERE id = u.id)`) {
+	if !strings.Contains(sql, `(SELECT "publisherId" FROM "User" WHERE id = u.id)`) {
 		t.Fatalf("publication de l'auteur attendue :\n%s", sql)
 	}
 }

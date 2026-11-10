@@ -253,11 +253,11 @@ func TestDecayIfStale(t *testing.T) {
 		t.Fatalf("auteur: %v", err)
 	}
 	// Publication + article avec embedding orienté y (position 1) → centroïde ≈ [0,1,...].
-	if _, err := poolTest.Exec(ctx, `INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+	if _, err := poolTest.Exec(ctx, `INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		VALUES ('pub_decay', 'PERSONAL', 'Decay', 'decay', now(), now()) ON CONFLICT (id) DO NOTHING`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
-	if _, err := poolTest.Exec(ctx, `INSERT INTO "Article" (id, title, slug, content, published, visibility, status, "publicationId", "authorId", "createdAt", "updatedAt", embedding)
+	if _, err := poolTest.Exec(ctx, `INSERT INTO "Article" (id, title, slug, content, published, visibility, status, "publisherId", "authorId", "createdAt", "updatedAt", embedding)
 		VALUES ('art_decay', 'Article', 'art-decay', '<p>x</p>', true, 'PUBLIC', 'PUBLISHED', 'pub_decay', $1::uuid, now(), now(), $2::vector)
 		ON CONFLICT (id) DO NOTHING`, authorID, axis512([2]float64{1, 10})); err != nil {
 		t.Fatalf("article: %v", err)

@@ -27,7 +27,7 @@ import { t } from '@lingui/core/macro';
 
 interface ReaderActionsProps {
   articleId: string;
-  publicationId: string;
+  publisherId: string;
   creatorName: string;
   author?: {
     id: string;
@@ -59,7 +59,7 @@ interface ReaderActionsProps {
  */
 export function ReaderActions({
   articleId,
-  publicationId,
+  publisherId,
   creatorName,
   author,
   isAuthenticated,
@@ -101,7 +101,7 @@ export function ReaderActions({
     }
     setLoadingFollow(true);
     try {
-      const res = await toggleFollowCreatorAction(publicationId);
+      const res = await toggleFollowCreatorAction(publisherId);
       if (res.ok) {
         setFollowed(!!res.data.followed);
       }

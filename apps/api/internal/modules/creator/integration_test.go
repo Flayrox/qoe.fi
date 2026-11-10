@@ -44,7 +44,7 @@ func seedFollows(t *testing.T) (alicePubID, aliceUserID, bobPubID, bobUserID str
 	ctx := context.Background()
 
 	if _, err := poolTest.Exec(ctx,
-		`TRUNCATE TABLE "Follows", "Publication", "User" CASCADE`); err != nil {
+		`TRUNCATE TABLE "Follows", "Publisher", "User" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 
@@ -61,14 +61,14 @@ func seedFollows(t *testing.T) (alicePubID, aliceUserID, bobPubID, bobUserID str
 		{bobPubID, "Bob", "bob", bobUserID},
 	} {
 		if _, err := poolTest.Exec(ctx,
-			`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+			`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 			 VALUES ($1, 'PERSONAL', $2, $3, now(), now())`,
 			pub.id, pub.name, pub.slug,
 		); err != nil {
 			t.Fatalf("publication %s: %v", pub.slug, err)
 		}
 		if _, err := poolTest.Exec(ctx,
-			`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+			`INSERT INTO "User" (id, email, username, name, role, "publisherId", "createdAt", "updatedAt")
 			 VALUES ($1, $2, $3, $4, 'creator', $5, now(), now())`,
 			pub.userID, pub.slug+"@test.dev", pub.slug, pub.name, pub.id,
 		); err != nil {
@@ -78,7 +78,7 @@ func seedFollows(t *testing.T) (alicePubID, aliceUserID, bobPubID, bobUserID str
 
 	// bob suit alice.
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Follows" (id, "readerId", "publicationId", "createdAt")
+		`INSERT INTO "Follows" (id, "readerId", "publisherId", "createdAt")
 		 VALUES ('follow_001', $1, $2, now())`,
 		bobUserID, alicePubID,
 	); err != nil {
@@ -97,15 +97,15 @@ func TestFollowers_List(t *testing.T) {
 	h := newTestHandler()
 	ctx := context.Background()
 
-	params := db.ListFollowersByPublicationParams{
-		PublicationId: alicePubID,
+	params := db.ListFollowersByPublisherParams{
+		PublisherId: alicePubID,
 		ViewerID:      toUUID(bobUserID),
 		Limit:         20,
 		Offset:        0,
 	}
-	followers, err := h.q.ListFollowersByPublication(ctx, params)
+	followers, err := h.q.ListFollowersByPublisher(ctx, params)
 	if err != nil {
-		t.Fatalf("ListFollowersByPublication: %v", err)
+		t.Fatalf("ListFollowersByPublisher: %v", err)
 	}
 	if len(followers) != 1 {
 		t.Fatalf("followers = %d, attendu 1", len(followers))
@@ -129,48 +129,48 @@ func TestFollowers_ViewerFollowsAnotherFollower(t *testing.T) {
 	carolPubID := "pub-carol-0003"
 
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ($1, 'PERSONAL', 'Carol', 'carol', now(), now())`,
 		carolPubID,
 	); err != nil {
 		t.Fatalf("publication carol: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "User" (id, email, username, name, role, "publisherId", "createdAt", "updatedAt")
 		 VALUES ($1, 'carol@test.dev', 'carol', 'Carol', 'creator', $2, now(), now())`,
 		carolUserID, carolPubID,
 	); err != nil {
 		t.Fatalf("user carol: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Follows" (id, "readerId", "publicationId", "createdAt")
+		`INSERT INTO "Follows" (id, "readerId", "publisherId", "createdAt")
 		 VALUES ('follow_002', $1, $2, now())`,
 		carolUserID, alicePubID,
 	); err != nil {
 		t.Fatalf("follow carol→alice: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Follows" (id, "readerId", "publicationId", "createdAt")
+		`INSERT INTO "Follows" (id, "readerId", "publisherId", "createdAt")
 		 VALUES ('follow_003', $1, $2, now())`,
 		bobUserID, carolPubID,
 	); err != nil {
 		t.Fatalf("follow bob→carol: %v", err)
 	}
 
-	params := db.ListFollowersByPublicationParams{
-		PublicationId: alicePubID,
+	params := db.ListFollowersByPublisherParams{
+		PublisherId: alicePubID,
 		ViewerID:      toUUID(bobUserID),
 		Limit:         20,
 		Offset:        0,
 	}
-	followers, err := h.q.ListFollowersByPublication(ctx, params)
+	followers, err := h.q.ListFollowersByPublisher(ctx, params)
 	if err != nil {
 		t.Fatalf("followers: %v", err)
 	}
 	if len(followers) != 2 {
 		t.Fatalf("followers = %d, attendu 2", len(followers))
 	}
-	byID := map[string]db.ListFollowersByPublicationRow{}
+	byID := map[string]db.ListFollowersByPublisherRow{}
 	for _, f := range followers {
 		byID[f.UserID] = f
 	}

@@ -89,14 +89,14 @@ func TestSummarize_FullCycle(t *testing.T) {
 		t.Fatalf("user: %v", err)
 	}
 	pub := "ai_pub_cycle"
-	poolTest.Exec(ctx, `INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt") VALUES ($1, 'PERSONAL', 'A', 'a', now(), now())`, pub)
+	poolTest.Exec(ctx, `INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt") VALUES ($1, 'PERSONAL', 'A', 'a', now(), now())`, pub)
 	art := "ai_art_cycle"
-	poolTest.Exec(ctx, `INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt") VALUES ($1, 'Titre', 'titre', '<p>Contenu à résumer, assez long pour compter.</p>', true, 'PUBLIC', 2, 'PUBLISHED', $2, $3::uuid, now(), now())`, art, pub, uid)
+	poolTest.Exec(ctx, `INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publisherId", "authorId", "createdAt", "updatedAt") VALUES ($1, 'Titre', 'titre', '<p>Contenu à résumer, assez long pour compter.</p>', true, 'PUBLIC', 2, 'PUBLISHED', $2, $3::uuid, now(), now())`, art, pub, uid)
 	cleanup := func() {
 		poolTest.Exec(ctx, `DELETE FROM "CapabilityBudget" WHERE "scopeId" = $1`, uid)
 		poolTest.Exec(ctx, `DELETE FROM "SubscriptionGrant" WHERE "subjectId" = $1`, uid)
 		poolTest.Exec(ctx, `DELETE FROM "Article" WHERE id = $1`, art)
-		poolTest.Exec(ctx, `DELETE FROM "Publication" WHERE id = $1`, pub)
+		poolTest.Exec(ctx, `DELETE FROM "Publisher" WHERE id = $1`, pub)
 		poolTest.Exec(ctx, `DELETE FROM "User" WHERE id = $1::uuid`, uid)
 	}
 	defer cleanup()

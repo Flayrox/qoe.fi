@@ -16,7 +16,7 @@ export interface FeedAuthor {
   type?: 'PERSONAL' | 'MEDIA' | string | null;
 }
 
-export interface FeedPublication {
+export interface FeedPublisher {
   id: string;
   type: 'PERSONAL' | 'MEDIA';
   name: string;
@@ -112,7 +112,7 @@ export interface FeedPost {
       end: number;
       sha: string;
     } | null;
-    publication: FeedPublication;
+    publisher: FeedPublisher;
     author: FeedAuthor;
   } | null;
   likes?: { userId: string }[];
@@ -158,7 +158,7 @@ export interface FeedArticle {
   allowPublicAnnotations: boolean;
   allowComments: boolean;
   scheduledAt: string | null;
-  publicationId: string;
+  publisherId: string;
   authorId: string;
   categoryId: string | null;
   tierId: string | null;
@@ -167,7 +167,7 @@ export interface FeedArticle {
   createdAt: string | Date;
   updatedAt: string | Date;
   author: FeedAuthor;
-  publication: FeedPublication;
+  publisher: FeedPublisher;
   coAuthors: FeedAuthor[];
   attributions: FeedAttribution[];
   category: {

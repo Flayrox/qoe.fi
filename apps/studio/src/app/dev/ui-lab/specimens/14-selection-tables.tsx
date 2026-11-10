@@ -108,13 +108,13 @@ const COMMENTS = [
   },
 ];
 
-type PublicationState = 'published' | 'scheduled' | 'draft';
+type PublisherState = 'published' | 'scheduled' | 'draft';
 
 const DRAFTS: {
   id: string;
   title: string;
   author: string;
-  state: PublicationState;
+  state: PublisherState;
   when: string;
 }[] = [
   {
@@ -141,7 +141,7 @@ const DRAFTS: {
   },
 ];
 
-const STATE_LABEL: Record<PublicationState, string> = {
+const STATE_LABEL: Record<PublisherState, string> = {
   published: 'Publié',
   scheduled: 'Programmé',
   draft: 'Brouillon',
@@ -150,7 +150,7 @@ const STATE_LABEL: Record<PublicationState, string> = {
 /* Le seul endroit du lab où la couleur porte une intention. Le vert et
    l'orange ne sont pas des accents ici : ils disent un état de publication,
    et ils lisent le jumeau texte (5,4:1), pas le fond fluo. */
-const STATE_STYLE: Record<PublicationState, string> = {
+const STATE_STYLE: Record<PublisherState, string> = {
   published: 'bg-success/15 text-success-text',
   scheduled: 'bg-brand-vivid/15 text-brand-vivid-strong',
   draft: 'bg-muted text-muted-foreground',
@@ -550,7 +550,7 @@ export function SelectionTablesSpecimen() {
               Auteur
             </TableColumn>
             <TableColumn id="state" allowsSorting>
-              Publication
+              Publisher
             </TableColumn>
             <TableColumn id="when" allowsSorting>
               Quand

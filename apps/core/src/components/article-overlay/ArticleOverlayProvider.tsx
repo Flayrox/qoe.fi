@@ -361,7 +361,7 @@ export function ArticleOverlayProvider({
       const owner =
         link.dataset.articleOwner ||
         link.dataset.articleAuthor ||
-        link.dataset.articlePublication ||
+        link.dataset.articlePublisher ||
         (() => {
           const parts = url.pathname.split('/').filter(Boolean);
           const aIdx = parts.indexOf('a');

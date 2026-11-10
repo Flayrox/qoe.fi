@@ -99,7 +99,7 @@ export const EDITORIAL_MAGAZINE_CONFIG: LayoutConfig = {
     {
       id: 'block_stream_mag',
       type: 'article-stream',
-      label: 'Flux de Publications',
+      label: 'Flux de Publishers',
       visible: true,
       locked: false,
       props: {
@@ -229,7 +229,7 @@ export const BROADSHEET_MODERN_CONFIG: LayoutConfig = {
       props: {
         showLegalLinks: true,
         showSocialLinks: true,
-        customCopyright: 'Publication souveraine et libre.',
+        customCopyright: 'Publisher souveraine et libre.',
         layout: 'minimal-row',
       } satisfies FooterBlockProps,
     },

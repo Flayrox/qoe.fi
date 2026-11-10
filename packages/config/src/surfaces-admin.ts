@@ -164,7 +164,7 @@ export const ADMIN_SURFACES: readonly SurfaceDescriptor[] = [
     keywords: ['aide', 'articles', 'centre d’aide'],
     capability: 'admin.content.read',
     alsoUses: ['admin.content.write'],
-    description: 'Centre d’aide : brouillons, publication, révision',
+    description: 'Centre d’aide : brouillons, publisher, révision',
     showInSidebar: false,
     showInCmdK: false,
   },

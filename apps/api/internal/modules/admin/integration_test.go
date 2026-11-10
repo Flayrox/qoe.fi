@@ -60,13 +60,13 @@ func seedAdmin(t *testing.T, ctx context.Context) {
 	}
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE
 		"WalletTransaction", "NotificationDelivery", "Notification", "OAuthClient", "SystemConfig",
-		"PartnerPromo", "Trend", "Subscriber", "Like", "Post", "Article", "Category", "Publication", "User"
+		"PartnerPromo", "Trend", "Subscriber", "Like", "Post", "Article", "Category", "Publisher", "User"
 		CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, subdomain, "isCertified", "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, subdomain, "isCertified", "createdAt", "updatedAt")
 		 VALUES ('pub_adm_001', 'PERSONAL', 'Journal Admin', 'journal-admin', 'journal-admin', false, now(), now())`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
@@ -86,7 +86,7 @@ func seedAdmin(t *testing.T, ctx context.Context) {
 			continue
 		}
 		if _, err := poolTest.Exec(ctx,
-			`INSERT INTO "User" (id, email, username, name, role, "publicationId", "apiAccessStatus", "createdAt", "updatedAt")
+			`INSERT INTO "User" (id, email, username, name, role, "publisherId", "apiAccessStatus", "createdAt", "updatedAt")
 			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamp, $8::timestamp)`,
 			u.id, u.email, u.username, u.name, u.role, u.pubID, "pending", u.createdAt); err != nil {
 			t.Fatalf("user %s: %v", u.username, err)
@@ -95,13 +95,13 @@ func seedAdmin(t *testing.T, ctx context.Context) {
 
 	if _, err := poolTest.Exec(ctx,
 		`INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
-		                        "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt")
+		                        "readingTime", status, "publisherId", "authorId", "createdAt", "updatedAt")
 		 VALUES ('art_adm_01', 'Article Admin', 'article-admin', '<p>x</p>', true, true, 'PUBLIC', 4, 'PUBLISHED',
 		         'pub_adm_001', $1, now(), now())`, adminCreator); err != nil {
 		t.Fatalf("article: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "isPremium", "receiveArticles", "createdAt", "updatedAt")
+		`INSERT INTO "Subscriber" (id, email, "publisherId", "isActive", "isPremium", "receiveArticles", "createdAt", "updatedAt")
 		 VALUES (gen_random_uuid()::text, 'sub-adm@test.dev', 'pub_adm_001', true, true, true, now(), now())`); err != nil {
 		t.Fatalf("subscriber: %v", err)
 	}
@@ -187,14 +187,14 @@ func TestUpdateModeration(t *testing.T) {
 	// Certification + publication associée.
 	_, err := svc.UpdateModeration(ctx, adminAdminID, adminCreator, ModerationInput{
 		IsCertified:          boolPtr(true),
-		PublicationCertified: boolPtr(true),
+		PublisherCertified: boolPtr(true),
 	})
 	if err != nil {
 		t.Fatalf("UpdateModeration certify: %v", err)
 	}
 
 	var pubCert bool
-	if err := poolTest.QueryRow(ctx, `SELECT "isCertified" FROM "Publication" WHERE id = 'pub_adm_001'`).Scan(&pubCert); err != nil {
+	if err := poolTest.QueryRow(ctx, `SELECT "isCertified" FROM "Publisher" WHERE id = 'pub_adm_001'`).Scan(&pubCert); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
 	if !pubCert {

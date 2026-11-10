@@ -127,7 +127,7 @@ func (s *Service) Data(ctx context.Context, userID string) (*struct {
 		       p.subdomain, p."customDomain", p."accentColor", p."layoutStyle",
 		       u."createdAt"
 		FROM "User" u
-		LEFT JOIN "Publication" p ON p.id = u."publicationId"
+		LEFT JOIN "Publisher" p ON p.id = u."publisherId"
 		ORDER BY u."createdAt" DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("users: %w", err)
@@ -209,14 +209,14 @@ func (s *Service) CreateUser(ctx context.Context, userID string, p CreateUserPar
 	// 2. Publication personnelle (get-or-create).
 	var pubID string
 	err := s.pool.QueryRow(ctx, `
-		SELECT p.id FROM "Publication" p
-		JOIN "User" u ON u."publicationId" = p.id
+		SELECT p.id FROM "Publisher" p
+		JOIN "User" u ON u."publisherId" = p.id
 		WHERE u.id = $1 AND p.type = 'PERSONAL'
 		LIMIT 1`, p.ID).Scan(&pubID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		pubID = "pub_" + p.ID
 		if _, err := s.pool.Exec(ctx, `
-			INSERT INTO "Publication" (id, type, name, slug, subdomain, "accentColor", "layoutStyle", "themeMode", "createdAt", "updatedAt")
+			INSERT INTO "Publisher" (id, type, name, slug, subdomain, "accentColor", "layoutStyle", "themeMode", "createdAt", "updatedAt")
 			VALUES ($1, 'PERSONAL', $2, $3, $4, $5, $6, 'system', now(), now())`,
 			pubID, p.Name, p.Username, nullIfEmpty(cleanSub), accent, layout); err != nil {
 			return fmt.Errorf("publication create: %w", err)
@@ -225,16 +225,16 @@ func (s *Service) CreateUser(ctx context.Context, userID string, p CreateUserPar
 		return fmt.Errorf("publication lookup: %w", err)
 	} else {
 		if _, err := s.pool.Exec(ctx, `
-			UPDATE "Publication" SET name = $2, slug = $3, subdomain = $4,
+			UPDATE "Publisher" SET name = $2, slug = $3, subdomain = $4,
 			  "layoutStyle" = $5, "accentColor" = $6, "themeMode" = 'system', "updatedAt" = now()
 			WHERE id = $1`, pubID, p.Name, p.Username, nullIfEmpty(cleanSub), layout, accent); err != nil {
 			return fmt.Errorf("publication update: %w", err)
 		}
 	}
 	if _, err := s.pool.Exec(ctx,
-		`UPDATE "User" SET "publicationId" = $1, "updatedAt" = now() WHERE id = $2`,
+		`UPDATE "User" SET "publisherId" = $1, "updatedAt" = now() WHERE id = $2`,
 		pubID, p.ID); err != nil {
-		return fmt.Errorf("lien user/publication: %w", err)
+		return fmt.Errorf("lien user/publisher: %w", err)
 	}
 
 	// 3. Pack de départ si créateur.
@@ -248,13 +248,13 @@ func (s *Service) CreateUser(ctx context.Context, userID string, p CreateUserPar
 
 func (s *Service) seedCreatorPack(ctx context.Context, pubID, authorID string) error {
 	// Nettoyer les anciennes données pour éviter les collisions de clés uniques.
-	if _, err := s.pool.Exec(ctx, `DELETE FROM "NavigationItem" WHERE "publicationId" = $1`, pubID); err != nil {
+	if _, err := s.pool.Exec(ctx, `DELETE FROM "NavigationItem" WHERE "publisherId" = $1`, pubID); err != nil {
 		return fmt.Errorf("nav delete: %w", err)
 	}
-	if _, err := s.pool.Exec(ctx, `DELETE FROM "SocialLink" WHERE "publicationId" = $1`, pubID); err != nil {
+	if _, err := s.pool.Exec(ctx, `DELETE FROM "SocialLink" WHERE "publisherId" = $1`, pubID); err != nil {
 		return fmt.Errorf("social delete: %w", err)
 	}
-	if _, err := s.pool.Exec(ctx, `DELETE FROM "Category" WHERE "publicationId" = $1`, pubID); err != nil {
+	if _, err := s.pool.Exec(ctx, `DELETE FROM "Category" WHERE "publisherId" = $1`, pubID); err != nil {
 		return fmt.Errorf("category delete: %w", err)
 	}
 	if _, err := s.pool.Exec(ctx, `DELETE FROM "Article" WHERE "authorId" = $1`, authorID); err != nil {
@@ -272,7 +272,7 @@ func (s *Service) seedCreatorPack(ctx context.Context, pubID, authorID string) e
 	}
 	for _, n := range navs {
 		if _, err := s.pool.Exec(ctx, `
-			INSERT INTO "NavigationItem" (id, label, url, "order", "isExternal", "publicationId")
+			INSERT INTO "NavigationItem" (id, label, url, "order", "isExternal", "publisherId")
 			VALUES (gen_random_uuid()::text, $1, $2, $3, false, $4)`,
 			n.label, n.url, n.order, pubID); err != nil {
 			return fmt.Errorf("nav insert: %w", err)
@@ -289,7 +289,7 @@ func (s *Service) seedCreatorPack(ctx context.Context, pubID, authorID string) e
 	}
 	for _, soc := range socials {
 		if _, err := s.pool.Exec(ctx, `
-			INSERT INTO "SocialLink" (id, platform, url, "order", "publicationId")
+			INSERT INTO "SocialLink" (id, platform, url, "order", "publisherId")
 			VALUES (gen_random_uuid()::text, $1, $2, $3, $4)`,
 			soc.platform, soc.url, soc.order, pubID); err != nil {
 			return fmt.Errorf("social insert: %w", err)
@@ -298,17 +298,17 @@ func (s *Service) seedCreatorPack(ctx context.Context, pubID, authorID string) e
 
 	var cat1 string
 	if err := s.pool.QueryRow(ctx, `
-		INSERT INTO "Category" (id, name, slug, "publicationId")
+		INSERT INTO "Category" (id, name, slug, "publisherId")
 		VALUES (gen_random_uuid()::text, 'Souveraineté', 'souverainete', $1)
-		ON CONFLICT (slug, "publicationId") DO UPDATE SET name = 'Souveraineté'
+		ON CONFLICT (slug, "publisherId") DO UPDATE SET name = 'Souveraineté'
 		RETURNING id`, pubID).Scan(&cat1); err != nil {
 		return fmt.Errorf("catégorie souveraineté: %w", err)
 	}
 	var cat2 string
 	if err := s.pool.QueryRow(ctx, `
-		INSERT INTO "Category" (id, name, slug, "publicationId")
+		INSERT INTO "Category" (id, name, slug, "publisherId")
 		VALUES (gen_random_uuid()::text, 'Écologie', 'ecologie', $1)
-		ON CONFLICT (slug, "publicationId") DO UPDATE SET name = 'Écologie'
+		ON CONFLICT (slug, "publisherId") DO UPDATE SET name = 'Écologie'
 		RETURNING id`, pubID).Scan(&cat2); err != nil {
 		return fmt.Errorf("catégorie écologie: %w", err)
 	}
@@ -336,7 +336,7 @@ func (s *Service) seedCreatorPack(ctx context.Context, pubID, authorID string) e
 		}
 		// Lier la catégorie (UpsertArticle ne gère pas categoryId).
 		if _, err := s.pool.Exec(ctx,
-			`UPDATE "Article" SET "categoryId" = $1 WHERE "publicationId" = $2 AND slug = $3`,
+			`UPDATE "Article" SET "categoryId" = $1 WHERE "publisherId" = $2 AND slug = $3`,
 			a.categoryID, pubID, a.slug); err != nil {
 			return fmt.Errorf("category link %s: %w", a.slug, err)
 		}
@@ -369,8 +369,8 @@ func (s *Service) Reset(ctx context.Context, userID string) error {
 		{"creators_tagline", "Des voix libres et indépendantes", "Tagline de la section des créateurs de confiance"},
 		{"format_title", "Cinq Formats de Récits", "Titre de la section de prévisualisation des formats"},
 		{"format_tagline", "Au-delà du simple mur de texte", "Tagline de la section de prévisualisation des formats"},
-		{"featured_title", "Écrits Majeurs", "Titre de la section des publications phares"},
-		{"featured_tagline", "Sélection Écologique et Politique", "Tagline de la section des publications phares"},
+		{"featured_title", "Écrits Majeurs", "Titre de la section des publishers phares"},
+		{"featured_tagline", "Sélection Écologique et Politique", "Tagline de la section des publishers phares"},
 		{"comparison_title", "Souveraineté ou Intermédiation ?", "Titre du tableau comparatif avec Substack"},
 		{"comparison_tagline", "Pourquoi qoefi redéfinit l'édition indépendante", "Tagline du tableau comparatif avec Substack"},
 		{"preview_title", "L'architecture du silence", "Titre de l'aperçu du produit (ProductPreview)"},
@@ -860,7 +860,7 @@ func enqueueMissingEmbeddings(ctx context.Context, pool *pgxpool.Pool) error {
 // SimulateSubscriberParams alimente la simulation d'un abonné CRM.
 type SimulateSubscriberParams struct {
 	Email         string `json:"email"`
-	PublicationID string `json:"publicationId"`
+	PublisherID string `json:"publisherId"`
 	IsPremium     bool   `json:"isPremium"`
 	LtvCents      int    `json:"ltvCents"`
 }
@@ -872,18 +872,18 @@ func (s *Service) SimulateSubscriber(ctx context.Context, userID string, p Simul
 		return err
 	}
 	email := strings.ToLower(strings.TrimSpace(p.Email))
-	if email == "" || p.PublicationID == "" {
-		return errors.New("email et publicationId requis")
+	if email == "" || p.PublisherID == "" {
+		return errors.New("email et publisherId requis")
 	}
 
 	if _, err := s.pool.Exec(ctx, `
-		INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "isPremium", "ltvCents", "confirmedAt", "createdAt", "updatedAt")
+		INSERT INTO "Subscriber" (id, email, "publisherId", "isActive", "isPremium", "ltvCents", "confirmedAt", "createdAt", "updatedAt")
 		VALUES (gen_random_uuid()::text, $1, $2, true, $3, $4, now(), now(), now())
-		ON CONFLICT ("email", "publicationId") DO UPDATE SET
+		ON CONFLICT ("email", "publisherId") DO UPDATE SET
 		  "isActive" = true, "isPremium" = $3, "ltvCents" = "Subscriber"."ltvCents" + $4,
 		  "confirmedAt" = COALESCE("Subscriber"."confirmedAt", now()),
 		  "updatedAt" = now()`,
-		email, p.PublicationID, p.IsPremium, p.LtvCents); err != nil {
+		email, p.PublisherID, p.IsPremium, p.LtvCents); err != nil {
 		return fmt.Errorf("subscriber: %w", err)
 	}
 
@@ -904,15 +904,15 @@ func (s *Service) SimulateSubscriber(ctx context.Context, userID string, p Simul
 		// Propriétaire de la publication (user direct ou owner du média).
 		var ownerID *string
 		err = s.pool.QueryRow(ctx, `
-			SELECT u.id FROM "Publication" p
-			JOIN "User" u ON u."publicationId" = p.id
+			SELECT u.id FROM "Publisher" p
+			JOIN "User" u ON u."publisherId" = p.id
 			WHERE p.id = $1
 			UNION
-			SELECT mm."userId" FROM "Publication" p
-			JOIN "Media" m ON m."publicationId" = p.id
+			SELECT mm."userId" FROM "Publisher" p
+			JOIN "Media" m ON m."publisherId" = p.id
 			JOIN "MediaMember" mm ON mm."mediaId" = m.id AND mm.role = 'owner' AND mm.status = 'active'
 			WHERE p.id = $1
-			LIMIT 1`, p.PublicationID).Scan(&ownerID)
+			LIMIT 1`, p.PublisherID).Scan(&ownerID)
 		if err == nil && ownerID != nil {
 			if _, err := s.pool.Exec(ctx,
 				`UPDATE "User" SET "walletBalanceCents" = "walletBalanceCents" + $2, "updatedAt" = now() WHERE id = $1`,
@@ -931,18 +931,18 @@ func (s *Service) SimulateSubscriber(ctx context.Context, userID string, p Simul
 }
 
 // SimulateFollow crée une liaison lecteur → publication (idempotent).
-func (s *Service) SimulateFollow(ctx context.Context, userID, readerID, publicationID string) error {
+func (s *Service) SimulateFollow(ctx context.Context, userID, readerID, publisherID string) error {
 	if err := s.checkSuperadmin(ctx, userID); err != nil {
 		return err
 	}
-	if readerID == "" || publicationID == "" {
-		return errors.New("readerId et publicationId requis")
+	if readerID == "" || publisherID == "" {
+		return errors.New("readerId et publisherId requis")
 	}
 	if _, err := s.pool.Exec(ctx, `
-		INSERT INTO "Follows" (id, "readerId", "publicationId", "createdAt")
+		INSERT INTO "Follows" (id, "readerId", "publisherId", "createdAt")
 		VALUES (gen_random_uuid()::text, $1, $2, now())
-		ON CONFLICT ("readerId", "publicationId") DO NOTHING`,
-		readerID, publicationID); err != nil {
+		ON CONFLICT ("readerId", "publisherId") DO NOTHING`,
+		readerID, publisherID); err != nil {
 		return fmt.Errorf("follow: %w", err)
 	}
 	return nil

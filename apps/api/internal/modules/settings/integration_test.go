@@ -49,42 +49,42 @@ func seedSettings(t *testing.T) *testutil.SettingsFixtures {
 
 // ─── Lecture de la page settings (parité prisma.publication.findUnique include) ───
 
-func TestGetPublicationSettings(t *testing.T) {
+func TestGetPublisherSettings(t *testing.T) {
 	fx := seedSettings(t)
 	svc := NewService(poolTest)
 	ctx := context.Background()
 
 	// Relations : 1 navigation, 1 lien social, 1 article, 1 catégorie.
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "NavigationItem" (id, label, url, "order", "isExternal", "publicationId")
+		`INSERT INTO "NavigationItem" (id, label, url, "order", "isExternal", "publisherId")
 		 VALUES (gen_random_uuid()::text, 'Accueil', '/', 0, false, $1)`,
 		fx.PubID); err != nil {
 		t.Fatalf("navigation: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "SocialLink" (id, platform, url, "order", "publicationId")
+		`INSERT INTO "SocialLink" (id, platform, url, "order", "publisherId")
 		 VALUES (gen_random_uuid()::text, 'x', 'https://x.com/owner', 0, $1)`,
 		fx.PubID); err != nil {
 		t.Fatalf("social: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Category" (id, name, slug, description, "publicationId")
+		`INSERT INTO "Category" (id, name, slug, description, "publisherId")
 		 VALUES ('cat_set_1', 'Technologie', 'tech', 'desc', $1)`,
 		fx.PubID); err != nil {
 		t.Fatalf("catégorie: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
 		`INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
-		                        "readingTime", status, "publicationId", "authorId", "categoryId", "createdAt", "updatedAt")
+		                        "readingTime", status, "publisherId", "authorId", "categoryId", "createdAt", "updatedAt")
 		 VALUES ('art_set_1', 'Article settings', 'article-settings', '<p>Contenu</p>', true, false, 'PUBLIC',
 		         5, 'PUBLISHED', $1, $2, 'cat_set_1', now(), now())`,
 		fx.PubID, fx.OwnerID); err != nil {
 		t.Fatalf("article: %v", err)
 	}
 
-	pub, err := svc.GetPublicationSettings(ctx, fx.OwnerID, fx.PubID)
+	pub, err := svc.GetPublisherSettings(ctx, fx.OwnerID, fx.PubID)
 	if err != nil {
-		t.Fatalf("GetPublicationSettings: %v", err)
+		t.Fatalf("GetPublisherSettings: %v", err)
 	}
 	// Nom/slug de la publication personnelle = ceux du compte propriétaire
 	// (trigger 00028 : sync_user_to_personal_publication).
@@ -111,16 +111,16 @@ func TestGetPublicationSettings(t *testing.T) {
 	}
 
 	// Viewer sans manage_settings → refus.
-	if _, err := svc.GetPublicationSettings(ctx, fx.ViewerID, fx.MediaPubID); err != errForbidden {
+	if _, err := svc.GetPublisherSettings(ctx, fx.ViewerID, fx.MediaPubID); err != errForbidden {
 		t.Fatalf("viewer = %v, attendu errForbidden", err)
 	}
 	// Editor avec manage_settings → OK.
-	if _, err := svc.GetPublicationSettings(ctx, fx.EditorID, fx.MediaPubID); err != nil {
+	if _, err := svc.GetPublisherSettings(ctx, fx.EditorID, fx.MediaPubID); err != nil {
 		t.Fatalf("editor: %v", err)
 	}
 	// Publication inconnue → errForbidden (pas de fuite d'existence : le check
 	// d'accès passe avant la lecture).
-	if _, err := svc.GetPublicationSettings(ctx, fx.OwnerID, "pub_inconnue"); err != errForbidden {
+	if _, err := svc.GetPublisherSettings(ctx, fx.OwnerID, "pub_inconnue"); err != errForbidden {
 		t.Fatalf("inconnue = %v, attendu errForbidden", err)
 	}
 }
@@ -356,7 +356,7 @@ func TestUpdateSubdomain_Owner_Success(t *testing.T) {
 	}
 	var subdomain *string
 	_ = poolTest.QueryRow(ctx,
-		`SELECT "subdomain" FROM "Publication" WHERE id = $1`, fx.PubID,
+		`SELECT "subdomain" FROM "Publisher" WHERE id = $1`, fx.PubID,
 	).Scan(&subdomain)
 	if subdomain == nil || *subdomain != "nouveau-blog" {
 		t.Fatalf("subdomain = %v, attendu nouveau-blog", subdomain)
@@ -375,7 +375,7 @@ func TestUpdateSubdomain_ForbiddenForViewer(t *testing.T) {
 
 // ─── Onboarding ────────────────────────────────────────────────────────
 
-func TestCompleteOnboarding_CreatesPublication(t *testing.T) {
+func TestCompleteOnboarding_CreatesPublisher(t *testing.T) {
 	fx := seedSettings(t)
 	svc := NewService(poolTest)
 	ctx := context.Background()
@@ -393,7 +393,7 @@ func TestCompleteOnboarding_CreatesPublication(t *testing.T) {
 	// Le user est créator + publication liée.
 	var role string
 	var pubID *string
-	_ = poolTest.QueryRow(ctx, `SELECT role, "publicationId" FROM "User" WHERE id = $1`, fx.ViewerID).
+	_ = poolTest.QueryRow(ctx, `SELECT role, "publisherId" FROM "User" WHERE id = $1`, fx.ViewerID).
 		Scan(&role, &pubID)
 	if role != "creator" {
 		t.Fatalf("role = %q, attendu creator", role)
@@ -417,9 +417,9 @@ func TestCompleteOnboarding_UpdatesExisting(t *testing.T) {
 		t.Fatalf("CompleteOnboarding(existing): %v", err)
 	}
 	var pubs int
-	_ = poolTest.QueryRow(ctx, `SELECT COUNT(*) FROM "Publication"`).Scan(&pubs)
+	_ = poolTest.QueryRow(ctx, `SELECT COUNT(*) FROM "Publisher"`).Scan(&pubs)
 	if pubs != 2 { // pub owner + pub média
-		t.Fatalf("publications = %d, attendu 2 (pas de doublon)", pubs)
+		t.Fatalf("publishers = %d, attendu 2 (pas de doublon)", pubs)
 	}
 }
 
@@ -566,9 +566,9 @@ func TestUpdateUserSettings_TransitionToPublic_AutoAcceptFollowRequests(t *testi
 	// Bob a une demande d'abonnement en attente pour la publication de fx.ViewerID
 	reqID := "req_test_auto_accept"
 	_, _ = poolTest.Exec(ctx, `DELETE FROM "FollowRequest" WHERE id = $1`, reqID)
-	_, _ = poolTest.Exec(ctx, `DELETE FROM "Follows" WHERE "readerId" = $1::uuid AND "publicationId" = $2`, bobID, fx.PubID)
+	_, _ = poolTest.Exec(ctx, `DELETE FROM "Follows" WHERE "readerId" = $1::uuid AND "publisherId" = $2`, bobID, fx.PubID)
 	if _, err := poolTest.Exec(ctx, `
-		INSERT INTO "FollowRequest" (id, "requesterId", "publicationId", status)
+		INSERT INTO "FollowRequest" (id, "requesterId", "publisherId", status)
 		VALUES ($1, $2::uuid, $3, 'PENDING')`, reqID, bobID, fx.PubID); err != nil {
 		t.Fatalf("insert follow request: %v", err)
 	}
@@ -577,7 +577,7 @@ func TestUpdateUserSettings_TransitionToPublic_AutoAcceptFollowRequests(t *testi
 	notifOwnerID := "notif_owner_auto_accept"
 	_, _ = poolTest.Exec(ctx, `DELETE FROM "Notification" WHERE id = $1`, notifOwnerID)
 	if _, err := poolTest.Exec(ctx, `
-		INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publicationId", metadata, "isRead")
+		INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publisherId", metadata, "isRead")
 		VALUES ($1, $2::uuid, $3::uuid, 'FOLLOW', $4, '{"kind": "FOLLOW_REQUEST"}'::jsonb, false)`,
 		notifOwnerID, fx.ViewerID, bobID, fx.PubID); err != nil {
 		t.Fatalf("insert owner notification: %v", err)
@@ -592,7 +592,7 @@ func TestUpdateUserSettings_TransitionToPublic_AutoAcceptFollowRequests(t *testi
 	// a. Follow créé dans Follows
 	var followCount int
 	if err := poolTest.QueryRow(ctx, `
-		SELECT count(*) FROM "Follows" WHERE "readerId" = $1::uuid AND "publicationId" = $2`,
+		SELECT count(*) FROM "Follows" WHERE "readerId" = $1::uuid AND "publisherId" = $2`,
 		bobID, fx.PubID).Scan(&followCount); err != nil || followCount != 1 {
 		t.Fatalf("Follows count = %d (err %v), attendu 1", followCount, err)
 	}

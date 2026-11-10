@@ -74,8 +74,8 @@ describe('TenantCategoryFilterPage — Filtrage par rubrique et sous-rubrique', 
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(tenantData, 'fetchTenantPublication').mockResolvedValue(
-      dummyPub as unknown as tenantData.TenantPublication
+    vi.spyOn(tenantData, 'fetchTenantPublisher').mockResolvedValue(
+      dummyPub as unknown as tenantData.TenantPublisher
     );
     vi.spyOn(tenantData, 'fetchTenantRecommendations').mockResolvedValue([]);
   });

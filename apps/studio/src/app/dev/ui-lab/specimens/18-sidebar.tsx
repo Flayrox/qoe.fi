@@ -285,7 +285,7 @@ function WorkspaceSwitcher({
         <DropdownMenuSeparator />
 
         <DropdownMenuGroup>
-          <DropdownMenuLabel>Publications & médias</DropdownMenuLabel>
+          <DropdownMenuLabel>Publishers & médias</DropdownMenuLabel>
           {mediaWorkspaces.map((workspace) => (
             <WorkspaceOptionItem
               key={workspace.id}

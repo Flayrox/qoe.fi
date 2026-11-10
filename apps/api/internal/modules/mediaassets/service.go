@@ -26,8 +26,8 @@ var errNotFound = errors.New("introuvable")
 // validTargetTypes est l'allowlist des targetType MediaAsset (parité enum Prisma).
 var validTargetTypes = map[string]bool{
 	"ARTICLE_COVER": true, "ARTICLE_BODY": true, "THOUGHT_ATTACHMENT": true,
-	"USER_AVATAR": true, "USER_BANNER": true, "PUBLICATION_LOGO": true,
-	"PUBLICATION_BANNER": true, "SHARED": true,
+	"USER_AVATAR": true, "USER_BANNER": true, "PUBLISHER_LOGO": true,
+	"PUBLISHER_BANNER": true, "SHARED": true,
 }
 
 // defaultQuotaBytes borne le volume stocké par utilisateur (défaut 512 Mo,

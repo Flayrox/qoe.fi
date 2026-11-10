@@ -374,16 +374,16 @@ func (q *Queries) FindTrending(ctx context.Context, arg FindTrendingParams) ([]F
 	return items, nil
 }
 
-const getFollowedPersonalPublicationOwnerIDs = `-- name: GetFollowedPersonalPublicationOwnerIDs :many
+const getFollowedPersonalPublisherOwnerIDs = `-- name: GetFollowedPersonalPublisherOwnerIDs :many
 SELECT u.id::text AS user_id
 FROM "Follows" f
-JOIN "User" u ON u."publicationId" = f."publicationId"
+JOIN "User" u ON u."publisherId" = f."publisherId"
 WHERE f."readerId" = $1
-  AND u."publicationId" IS NOT NULL
+  AND u."publisherId" IS NOT NULL
 `
 
-func (q *Queries) GetFollowedPersonalPublicationOwnerIDs(ctx context.Context, readerid pgtype.UUID) ([]string, error) {
-	rows, err := q.db.Query(ctx, getFollowedPersonalPublicationOwnerIDs, readerid)
+func (q *Queries) GetFollowedPersonalPublisherOwnerIDs(ctx context.Context, readerid pgtype.UUID) ([]string, error) {
+	rows, err := q.db.Query(ctx, getFollowedPersonalPublisherOwnerIDs, readerid)
 	if err != nil {
 		return nil, err
 	}
@@ -407,9 +407,9 @@ SELECT u.id::text AS author_id,
        (f.id IS NOT NULL)::boolean AS is_following
 FROM "User" u
 LEFT JOIN "Follows" f ON f."readerId" = $1
-  AND f."publicationId" = u."publicationId"
+  AND f."publisherId" = u."publisherId"
 WHERE u.id = ANY($2::uuid[])
-  AND u."publicationId" IS NOT NULL
+  AND u."publisherId" IS NOT NULL
 `
 
 type GetFollowingStateByAuthorIDsParams struct {
@@ -581,21 +581,21 @@ WHERE p.id = ANY($2::text[])
     SELECT 1 FROM "BlockedUser" b
     WHERE (b."readerId" = $1 AND (
              b."creatorId" = u.id
-             OR b."creatorId" = (SELECT owner.id FROM "Publication" pv JOIN "User" owner ON owner."publicationId" = pv.id WHERE pv.id = u."publicationId" LIMIT 1)
+             OR b."creatorId" = (SELECT owner.id FROM "Publisher" pv JOIN "User" owner ON owner."publisherId" = pv.id WHERE pv.id = u."publisherId" LIMIT 1)
            ))
        OR (b."creatorId" = $1 AND (
              b."readerId" = u.id
-             OR b."readerId" = (SELECT owner.id FROM "Publication" pv JOIN "User" owner ON owner."publicationId" = pv.id WHERE pv.id = u."publicationId" LIMIT 1)
+             OR b."readerId" = (SELECT owner.id FROM "Publisher" pv JOIN "User" owner ON owner."publisherId" = pv.id WHERE pv.id = u."publisherId" LIMIT 1)
            ))
   )
   AND (
     COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us
               WHERE us."userId" = COALESCE(
-                (SELECT owner.id FROM "Publication" pv JOIN "User" owner ON owner."publicationId" = pv.id WHERE pv.id = u."publicationId" LIMIT 1),
+                (SELECT owner.id FROM "Publisher" pv JOIN "User" owner ON owner."publisherId" = pv.id WHERE pv.id = u."publisherId" LIMIT 1),
                 u.id
               )), 'PUBLIC') = 'PUBLIC'
     OR u.id = $1
-    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = $1 AND f."publicationId" = u."publicationId")
+    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = $1 AND f."publisherId" = u."publisherId")
   )
 `
 
@@ -698,7 +698,7 @@ SELECT a.id,
        u."logoUrl"    AS author_logo,
        u."isCertified" AS author_certified
 FROM "Article" a
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 JOIN "User" u ON u.id = a."authorId"
 WHERE a.id = ANY($1::text[])
   AND a.published = true
@@ -708,25 +708,25 @@ WHERE a.id = ANY($1::text[])
     SELECT 1 FROM "BlockedUser" b
     WHERE (b."readerId" = $2 AND (
              b."creatorId" = a."authorId"
-             OR b."creatorId" = (SELECT owner.id FROM "User" owner WHERE owner."publicationId" = p.id LIMIT 1)
+             OR b."creatorId" = (SELECT owner.id FROM "User" owner WHERE owner."publisherId" = p.id LIMIT 1)
            ))
        OR (b."creatorId" = $2 AND (
              b."readerId" = a."authorId"
-             OR b."readerId" = (SELECT owner.id FROM "User" owner WHERE owner."publicationId" = p.id LIMIT 1)
+             OR b."readerId" = (SELECT owner.id FROM "User" owner WHERE owner."publisherId" = p.id LIMIT 1)
            ))
   )
   -- Compte privé / réservé aux abonnés : la visibilité du propriétaire fait foi.
   AND (
     COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us
               WHERE us."userId" = COALESCE(
-                (SELECT owner.id FROM "User" owner WHERE owner."publicationId" = p.id LIMIT 1),
+                (SELECT owner.id FROM "User" owner WHERE owner."publisherId" = p.id LIMIT 1),
                 a."authorId"
               )), 'PUBLIC') = 'PUBLIC'
     OR COALESCE(
-         (SELECT owner.id FROM "User" owner WHERE owner."publicationId" = p.id LIMIT 1),
+         (SELECT owner.id FROM "User" owner WHERE owner."publisherId" = p.id LIMIT 1),
          a."authorId"
        ) = $2
-    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = $2 AND f."publicationId" = p.id)
+    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = $2 AND f."publisherId" = p.id)
   )
 `
 
@@ -736,24 +736,24 @@ type GetQuotedArticlesByIDsParams struct {
 }
 
 type GetQuotedArticlesByIDsRow struct {
-	ID              string          `json:"id"`
-	Title           string          `json:"title"`
-	Slug            string          `json:"slug"`
-	Content         string          `json:"content"`
-	IsPremium       bool            `json:"isPremium"`
-	PubID           string          `json:"pub_id"`
-	Type            PublicationType `json:"type"`
-	Name            string          `json:"name"`
-	PubSlug         string          `json:"pub_slug"`
-	Subdomain       pgtype.Text     `json:"subdomain"`
-	CustomDomain    pgtype.Text     `json:"customDomain"`
-	PubLogo         pgtype.Text     `json:"pub_logo"`
-	PubCertified    bool            `json:"pub_certified"`
-	AuthorID        string          `json:"author_id"`
-	AuthorName      pgtype.Text     `json:"author_name"`
-	AuthorUsername  pgtype.Text     `json:"author_username"`
-	AuthorLogo      pgtype.Text     `json:"author_logo"`
-	AuthorCertified bool            `json:"author_certified"`
+	ID              string        `json:"id"`
+	Title           string        `json:"title"`
+	Slug            string        `json:"slug"`
+	Content         string        `json:"content"`
+	IsPremium       bool          `json:"isPremium"`
+	PubID           string        `json:"pub_id"`
+	Type            PublisherType `json:"type"`
+	Name            string        `json:"name"`
+	PubSlug         string        `json:"pub_slug"`
+	Subdomain       pgtype.Text   `json:"subdomain"`
+	CustomDomain    pgtype.Text   `json:"customDomain"`
+	PubLogo         pgtype.Text   `json:"pub_logo"`
+	PubCertified    bool          `json:"pub_certified"`
+	AuthorID        string        `json:"author_id"`
+	AuthorName      pgtype.Text   `json:"author_name"`
+	AuthorUsername  pgtype.Text   `json:"author_username"`
+	AuthorLogo      pgtype.Text   `json:"author_logo"`
+	AuthorCertified bool          `json:"author_certified"`
 }
 
 func (q *Queries) GetQuotedArticlesByIDs(ctx context.Context, arg GetQuotedArticlesByIDsParams) ([]GetQuotedArticlesByIDsRow, error) {

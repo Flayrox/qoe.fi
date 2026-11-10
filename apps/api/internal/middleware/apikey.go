@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	// PublicationIDKey porte l'id de la publication (PERSONAL ou MEDIA) via clé API.
-	PublicationIDKey ctxKey = "publicationId"
+	// PublisherIDKey porte l'id de la publication (PERSONAL ou MEDIA) via clé API.
+	PublisherIDKey ctxKey = "publisherId"
 	// UmamiWebsiteIDKey porte l'umamiWebsiteId de la publication (pour analytics/stats).
 	UmamiWebsiteIDKey ctxKey = "umamiWebsiteId"
 	// ScopesKey porte les scopes effectifs d'une clé API (moindre privilège).
@@ -40,14 +40,14 @@ type PrincipalType string
 
 const (
 	PrincipalTypeUser        PrincipalType = "user"
-	PrincipalTypePublication PrincipalType = "publication"
+	PrincipalTypePublisher PrincipalType = "publisher"
 )
 
 // Principal est l'identité explicite et typée résolue depuis une clé API.
 type Principal struct {
 	Type            PrincipalType `json:"type"`
 	UserID          *string       `json:"userId,omitempty"`
-	PublicationID   *string       `json:"publicationId,omitempty"`
+	PublisherID   *string       `json:"publisherId,omitempty"`
 	MediaID         *string       `json:"mediaId,omitempty"`
 	CreatedByUserID *string       `json:"createdByUserId,omitempty"`
 	APIKeyID        string        `json:"apiKeyId"`
@@ -99,9 +99,9 @@ func writeForbidden(w http.ResponseWriter, msg string) {
 	_, _ = w.Write([]byte(`{"error":"` + msg + `"}`))
 }
 
-// PublicationID extrait l'id de publication (PERSONAL ou MEDIA) du contexte.
-func PublicationID(ctx context.Context) (string, bool) {
-	id, ok := ctx.Value(PublicationIDKey).(string)
+// PublisherID extrait l'id de publication (PERSONAL ou MEDIA) du contexte.
+func PublisherID(ctx context.Context) (string, bool) {
+	id, ok := ctx.Value(PublisherIDKey).(string)
 	return id, ok
 }
 
@@ -156,7 +156,7 @@ func hasGrant(grants []string, target string) bool {
 
 func resolveAPIKeyRow(ctx context.Context, row db.GetApiKeyByHashRow) (context.Context, bool) {
 	isPersonal := row.KeyUserID != ""
-	isMedia := row.KeyPublicationID != ""
+	isMedia := row.KeyPublisherID != ""
 
 	if !isPersonal && !isMedia {
 		return ctx, false
@@ -170,7 +170,7 @@ func resolveAPIKeyRow(ctx context.Context, row db.GetApiKeyByHashRow) (context.C
 	}
 
 	// Si clé média : la publication média doit exister.
-	if isMedia && row.PublicationID == "" {
+	if isMedia && row.PublisherID == "" {
 		return ctx, false
 	}
 
@@ -192,15 +192,15 @@ func resolveAPIKeyRow(ctx context.Context, row db.GetApiKeyByHashRow) (context.C
 		principal.Type = PrincipalTypeUser
 		uid := row.UserID
 		principal.UserID = &uid
-		if row.PublicationID != "" {
-			pid := row.PublicationID
-			principal.PublicationID = &pid
+		if row.PublisherID != "" {
+			pid := row.PublisherID
+			principal.PublisherID = &pid
 		}
 		ctx = context.WithValue(ctx, UserIDKey, row.UserID)
 	} else {
-		principal.Type = PrincipalTypePublication
-		pid := row.PublicationID
-		principal.PublicationID = &pid
+		principal.Type = PrincipalTypePublisher
+		pid := row.PublisherID
+		principal.PublisherID = &pid
 		if row.MediaID != "" {
 			mid := row.MediaID
 			principal.MediaID = &mid
@@ -215,8 +215,8 @@ func resolveAPIKeyRow(ctx context.Context, row db.GetApiKeyByHashRow) (context.C
 	ctx = context.WithValue(ctx, PrincipalKey, principal)
 	ctx = context.WithValue(ctx, APIKeyIDKey, row.ApiKeyID)
 	ctx = context.WithValue(ctx, ScopesKey, effectiveScopes)
-	if row.PublicationID != "" {
-		ctx = context.WithValue(ctx, PublicationIDKey, row.PublicationID)
+	if row.PublisherID != "" {
+		ctx = context.WithValue(ctx, PublisherIDKey, row.PublisherID)
 	}
 	if row.UmamiWebsiteID.Valid && row.UmamiWebsiteID.String != "" {
 		ctx = context.WithValue(ctx, UmamiWebsiteIDKey, row.UmamiWebsiteID.String)

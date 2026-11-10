@@ -39,7 +39,7 @@ export function SeoPreview({
 }: SeoPreviewProps) {
   const [view, setView] = useState<PreviewView>('search');
 
-  const domain = customDomain || `${subdomain || 'publication'}.qoe.fi`;
+  const domain = customDomain || `${subdomain || 'publisher'}.qoe.fi`;
 
   // Sans surcharge, l'aperçu montre ce que le site génère déjà : le nom et
   // le slogan. C'est exactement ce que le visiteur verra tant que les champs
@@ -50,7 +50,7 @@ export function SeoPreview({
   const description =
     seoDescription?.trim() ||
     heroText?.trim() ||
-    `Publications, analyses et articles de ${name || 'cette publication'}.`;
+    `Publishers, analyses et articles de ${name || 'cette publication'}.`;
 
   return (
     <StudioSection title="Aperçu">
@@ -85,7 +85,7 @@ export function SeoPreview({
             </div>
             <div className="min-w-0">
               <span className="block truncate text-xs font-medium leading-tight text-foreground">
-                {name || 'Publication'}
+                {name || 'Publisher'}
               </span>
               <span className="block truncate text-[11px] text-muted-foreground">{domain}</span>
             </div>
@@ -110,7 +110,7 @@ export function SeoPreview({
             ) : (
               <div className="flex size-full flex-col items-center justify-center gap-2 p-4 text-center">
                 <Globe className="size-6 text-muted-foreground/50" />
-                <span className="text-xs font-medium text-foreground">{name || 'Publication'}</span>
+                <span className="text-xs font-medium text-foreground">{name || 'Publisher'}</span>
               </div>
             )}
           </div>

@@ -14,7 +14,7 @@ import type { EditorCapabilities } from '@qoe/sdk/actions/articles';
 interface NewArticleClientProps {
   categories: { id: string; name: string; parentId?: string | null }[];
   capabilities?: EditorCapabilities;
-  /** Publication dans laquelle l'article sera créé (workspace actif). */
+  /** Publisher dans laquelle l'article sera créé (workspace actif). */
   target?: {
     type: 'PERSONAL' | 'MEDIA';
     name: string;

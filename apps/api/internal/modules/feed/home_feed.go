@@ -38,7 +38,7 @@ type HiddenAuthor struct {
 
 // HomeFeedResult est la réponse complète de la page d'accueil lecteur.
 type HomeFeedResult struct {
-	FollowedCreators []HydratePublication `json:"followedCreators"`
+	FollowedCreators []HydratePublisher `json:"followedCreators"`
 	FollowedUserIDs  []string             `json:"followedUserIds"`
 	Following        HomeFeedGroup        `json:"following"`
 	Discover         HomeFeedGroup        `json:"discover"`
@@ -78,7 +78,7 @@ func articleEligibility(viewerParam string, requirePublic bool) string {
 	return eligibility.ArticlePredicates(eligibility.Aliases{
 		Entity:        "a",
 		Authors:       []string{"u.id"},
-		Publication:   `a."publicationId"`,
+		Publisher:   `a."publisherId"`,
 		Viewer:        viewerParam,
 		RequirePublic: requirePublic,
 	})
@@ -98,7 +98,7 @@ func thoughtEligibility(viewerParam string, requirePublic bool) string {
 // HomeFeed construit le bundle de la home lecteur (parité home/page.tsx).
 func (s *Service) HomeFeed(ctx context.Context, userID string) (HomeFeedResult, error) {
 	res := HomeFeedResult{
-		FollowedCreators: []HydratePublication{},
+		FollowedCreators: []HydratePublisher{},
 		FollowedUserIDs:  []string{},
 		Following:        HomeFeedGroup{Articles: []HydrateArticle{}, Thoughts: []posts.FeedSlice{}},
 		Discover:         HomeFeedGroup{Articles: []HydrateArticle{}, Thoughts: []posts.FeedSlice{}},
@@ -115,7 +115,7 @@ func (s *Service) HomeFeed(ctx context.Context, userID string) (HomeFeedResult, 
 	}
 
 	// 1. Publications suivies (créateurs) + ids des propriétaires PERSONAL.
-	followed, pubIDs, err := s.fetchFollowedPublications(ctx, userID)
+	followed, pubIDs, err := s.fetchFollowedPublishers(ctx, userID)
 	if err != nil {
 		return res, err
 	}
@@ -129,7 +129,7 @@ func (s *Service) HomeFeed(ctx context.Context, userID string) (HomeFeedResult, 
 	// tableaux (jamais null) — l'appelant fait .map(...), .length et
 	// .includes(...) sur ces champs.
 	if res.FollowedCreators == nil {
-		res.FollowedCreators = []HydratePublication{}
+		res.FollowedCreators = []HydratePublisher{}
 	}
 	if res.FollowedUserIDs == nil {
 		res.FollowedUserIDs = []string{}
@@ -192,21 +192,21 @@ func (s *Service) feedHomeGroups(ctx context.Context, followedUserIDs []string, 
 }
 
 // fetchFollowedPublications renvoie les publications suivies + leurs ids.
-func (s *Service) fetchFollowedPublications(ctx context.Context, userID string) ([]HydratePublication, []string, error) {
+func (s *Service) fetchFollowedPublishers(ctx context.Context, userID string) ([]HydratePublisher, []string, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT p.id, p.type, p.name, p.slug, p.subdomain, p."customDomain", p."logoUrl", p."heroText", p."isCertified"
 		FROM "Follows" f
-		JOIN "Publication" p ON p.id = f."publicationId"
+		JOIN "Publisher" p ON p.id = f."publisherId"
 		WHERE f."readerId" = $1
 		ORDER BY f."createdAt" DESC`, toUUID(userID))
 	if err != nil {
 		return nil, nil, err
 	}
 	defer rows.Close()
-	var pubs []HydratePublication
+	var pubs []HydratePublisher
 	var ids []string
 	for rows.Next() {
-		var p HydratePublication
+		var p HydratePublisher
 		if err := rows.Scan(&p.ID, &p.Type, &p.Name, &p.Slug, &p.Subdomain, &p.CustomDomain, &p.LogoURL, &p.HeroText, &p.IsCertified); err == nil {
 			pubs = append(pubs, p)
 			ids = append(ids, p.ID)
@@ -223,7 +223,7 @@ func (s *Service) fetchPersonalOwners(ctx context.Context, pubIDs []string) ([]s
 	}
 	return s.queryIDs(ctx, `
 		SELECT u.id::text FROM "User" u
-		JOIN "Publication" p ON p.id = u."publicationId"
+		JOIN "Publisher" p ON p.id = u."publisherId"
 		WHERE p.id = ANY($1::text[]) AND p.type = 'PERSONAL' AND u.role = 'creator'`, pubIDs)
 }
 
@@ -247,7 +247,7 @@ func (s *Service) fetchHiddenAuthors(ctx context.Context, followedUserIDs, pubID
 		FROM "User" u
 		WHERE (u.id::text = ANY($1::text[])
 		    OR u.id IN (SELECT a."authorId" FROM "Article" a
-		                WHERE a."publicationId" = ANY($2::text[]) AND a.published = true))
+		                WHERE a."publisherId" = ANY($2::text[]) AND a.published = true))
 		  AND (u."isShadowbanned" = true OR u."isSuspended" = true
 		    OR EXISTS (SELECT 1 FROM "RiskDecision" rd
 		               WHERE rd."decidedBy" = 'human' AND rd."result" = 'suspend'
@@ -306,7 +306,7 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 		// restreint jusqu'au ... »), pas un filtre de plus.
 		artQuery = `
 			SELECT a.id FROM "Article" a JOIN "User" u ON u.id = a."authorId"
-			WHERE a."publicationId" = ANY($1::text[]) AND a.published = true
+			WHERE a."publisherId" = ANY($1::text[]) AND a.published = true
 			  AND u."isShadowbanned" = false AND u."isSuspended" = false
 			  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
 			` + abuse.FollowingExclusionArticle("u", "a") + articleEligibility("$2", false) + `
@@ -316,11 +316,11 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 		artQuery = `
 			SELECT a.id FROM "Article" a
 			JOIN "User" u ON u.id = a."authorId"
-			JOIN "Publication" p ON p.id = a."publicationId"
+			JOIN "Publisher" p ON p.id = a."publisherId"
 			WHERE a.published = true AND p."isCertified" = true
 			  AND u."isShadowbanned" = false AND u."isSuspended" = false
 			  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
-			  AND NOT (a."publicationId" = ANY($1::text[]))
+			  AND NOT (a."publisherId" = ANY($1::text[]))
 			` + abuse.DiscoveryExclusionArticle("u", "a") + articleEligibility("$2", true) + `
 			ORDER BY a."createdAt" DESC, a.id DESC LIMIT 20`
 		artArgs = []any{pubIDs, toUUID(userID)}

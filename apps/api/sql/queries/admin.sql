@@ -14,21 +14,21 @@ SELECT
 -- name: ListAdminUsers :many
 SELECT u.id, u.name, u.email, u.username, u.role, u."isCertified", u."isShadowbanned",
        u."isSuspended", u."suspendReason", u."createdAt", u."updatedAt",
-       p."subdomain" AS publication_subdomain
+       p."subdomain" AS publisher_subdomain
 FROM "User" u
-LEFT JOIN "Publication" p ON p.id = u."publicationId"
+LEFT JOIN "Publisher" p ON p.id = u."publisherId"
 ORDER BY u."createdAt" DESC;
 
 -- name: GetAdminUser :one
 SELECT u.id, u.name, u.email, u.username, u.role, u."isCertified", u."isShadowbanned",
        u."isSuspended", u."suspendReason", u."shadowbanReason", u."shadowbanUntil", u."shadowbanReviewAt",
-       u."logoUrl", u."publicationId", u."createdAt",
-       p."subdomain", p."name" AS publication_name,
-       (SELECT count(*) FROM "Article" a WHERE a."publicationId" = p.id) AS articles_count,
-       (SELECT count(*) FROM "Subscriber" s WHERE s."publicationId" = p.id) AS subscribers_count,
+       u."logoUrl", u."publisherId", u."createdAt",
+       p."subdomain", p."name" AS publisher_name,
+       (SELECT count(*) FROM "Article" a WHERE a."publisherId" = p.id) AS articles_count,
+       (SELECT count(*) FROM "Subscriber" s WHERE s."publisherId" = p.id) AS subscribers_count,
        (SELECT count(*) FROM "WalletTransaction" w WHERE w."userId" = u.id) AS wallet_transactions_count
 FROM "User" u
-LEFT JOIN "Publication" p ON p.id = u."publicationId"
+LEFT JOIN "Publisher" p ON p.id = u."publisherId"
 WHERE u.id = $1;
 
 -- name: GetAdminUserRevenue :one
@@ -44,8 +44,8 @@ SET "isCertified" = $2, "isShadowbanned" = $3, "isSuspended" = $4,
 WHERE id = $1
 RETURNING id, role, "isCertified", "isShadowbanned", "isSuspended", "suspendReason";
 
--- name: UpdatePublicationCertified :one
-UPDATE "Publication"
+-- name: UpdatePublisherCertified :one
+UPDATE "Publisher"
 SET "isCertified" = $2, "updatedAt" = now()
 WHERE id = $1
 RETURNING id, "isCertified";
@@ -139,9 +139,9 @@ RETURNING id, status;
 
 -- name: ListAdminApiApplicants :many
 SELECT u.id, u.name, u.email, u."apiAccessStatus", u."apiGrants", u."apiApplicationReason", u."createdAt", u."updatedAt",
-       p."subdomain" AS publication_subdomain
+       p."subdomain" AS publisher_subdomain
 FROM "User" u
-LEFT JOIN "Publication" p ON p.id = u."publicationId"
+LEFT JOIN "Publisher" p ON p.id = u."publisherId"
 WHERE u.role IN ('creator', 'superadmin') AND u."apiAccessStatus" <> 'none'
 ORDER BY u."updatedAt" DESC;
 

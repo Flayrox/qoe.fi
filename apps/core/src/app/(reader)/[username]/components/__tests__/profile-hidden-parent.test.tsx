@@ -128,7 +128,7 @@ function renderReply(reason: 'blocked' | 'deleted') {
       isOwnProfile={false}
       initialIsFollowing={false}
       initialTab="with_replies"
-      initialPublicationId="profile-1"
+      initialPublisherId="profile-1"
     />
   );
 }

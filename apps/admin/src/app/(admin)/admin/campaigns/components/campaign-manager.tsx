@@ -59,7 +59,7 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
   const [subject, setSubject] = useState('');
   const [bodyHtml, setBodyHtml] = useState('');
   const [audienceType, setAudienceType] = useState<string>(CAMPAIGN_AUDIENCES[0].value);
-  const [audiencePublicationId, setAudiencePublicationId] = useState('');
+  const [audiencePublisherId, setAudiencePublisherId] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
 
   const running = loadingId !== null;
@@ -74,7 +74,7 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
           subject,
           bodyHtml,
           audienceType,
-          audiencePublicationId,
+          audiencePublisherId,
           scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : '',
         }),
       { ok: 'Brouillon de campagne créé' }
@@ -84,7 +84,7 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
       setSubject('');
       setBodyHtml('');
       setFeatureKey('');
-      setAudiencePublicationId('');
+      setAudiencePublisherId('');
       setScheduledAt('');
       router.refresh();
     }
@@ -171,10 +171,10 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
               data-testid="campaign-feature-key"
             />
           )}
-          {audienceType === 'publication_subscribers' && (
+          {audienceType === 'publisher_subscribers' && (
             <input
-              value={audiencePublicationId}
-              onChange={(e) => setAudiencePublicationId(e.target.value)}
+              value={audiencePublisherId}
+              onChange={(e) => setAudiencePublisherId(e.target.value)}
               placeholder="Identifiant de la publication (obligatoire pour cette audience)"
               className={inputCls}
               data-testid="campaign-audience-publication"
@@ -248,8 +248,8 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
                 <span>catégorie : {campaign.type}</span>
                 {campaign.featureKey ? <span>feature : {campaign.featureKey}</span> : null}
                 <span>audience : {campaign.audienceType}</span>
-                {campaign.audiencePublicationId ? (
-                  <span className="tabular-nums">{campaign.audiencePublicationId}</span>
+                {campaign.audiencePublisherId ? (
+                  <span className="tabular-nums">{campaign.audiencePublisherId}</span>
                 ) : null}
                 <span>envoyés : {campaign.sentCount}</span>
                 <span>échecs : {campaign.failedCount}</span>

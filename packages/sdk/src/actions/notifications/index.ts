@@ -47,7 +47,7 @@ export interface GroupedNotification {
   thought?: { id: string; content: string; createdAt: string } | null;
   article?: { id: string; title: string; slug: string } | null;
   comment?: { id: string; content: string } | null;
-  publication?: { id: string; name: string | null; slug?: string | null } | null;
+  publisher?: { id: string; name: string | null; slug?: string | null } | null;
   metadata?: Record<string, unknown> | null;
   senders: Array<{
     id: string;

@@ -26,7 +26,7 @@ func SeedSettings(ctx context.Context, pool *pgxpool.Pool) (*SettingsFixtures, e
 	fx := &SettingsFixtures{}
 
 	if _, err := pool.Exec(ctx, `TRUNCATE TABLE
-		"ApiKey", "MediaMember", "Media", "User", "Publication"
+		"ApiKey", "MediaMember", "Media", "User", "Publisher"
 		CASCADE`); err != nil {
 		return nil, fmt.Errorf("truncate: %w", err)
 	}
@@ -37,7 +37,7 @@ func SeedSettings(ctx context.Context, pool *pgxpool.Pool) (*SettingsFixtures, e
 	// username à l'insertion du propriétaire — le seed doit dire la vérité
 	// sur ce que la base contient réellement.
 	if err := pool.QueryRow(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ('pub_set_own', 'PERSONAL', 'Owner Set', 'ownerset', now(), now())
 		 RETURNING id`,
 	).Scan(&fx.PubID); err != nil {
@@ -46,7 +46,7 @@ func SeedSettings(ctx context.Context, pool *pgxpool.Pool) (*SettingsFixtures, e
 
 	const ownerID = "00000000-0000-0000-0000-000000000020"
 	if err := pool.QueryRow(ctx,
-		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "apiAccessStatus", "apiGrants", "createdAt", "updatedAt")
+		`INSERT INTO "User" (id, email, username, name, role, "publisherId", "apiAccessStatus", "apiGrants", "createdAt", "updatedAt")
 		 VALUES ($1, 'owner.set@test.dev', 'ownerset', 'Owner Set', 'creator', $2, 'approved',
 		         ARRAY['api:read','api:write','api:analytics','webhooks','oauth'], now(), now())
 		 RETURNING id`,
@@ -57,7 +57,7 @@ func SeedSettings(ctx context.Context, pool *pgxpool.Pool) (*SettingsFixtures, e
 
 	// Publication du Média avec subdomain pris.
 	if err := pool.QueryRow(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, subdomain, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, subdomain, "createdAt", "updatedAt")
 		 VALUES ('pub_set_media', 'MEDIA', 'Média Test', 'media-test', 'deja-pris', now(), now())
 		 RETURNING id`,
 	).Scan(&fx.MediaPubID); err != nil {
@@ -82,7 +82,7 @@ func SeedSettings(ctx context.Context, pool *pgxpool.Pool) (*SettingsFixtures, e
 	fx.ViewerID = viewerID
 
 	if _, err := pool.Exec(ctx,
-		`INSERT INTO "Media" (id, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "Media" (id, "publisherId", "createdAt", "updatedAt")
 		 VALUES ('media_set_001', $1, now(), now())`,
 		fx.MediaPubID,
 	); err != nil {

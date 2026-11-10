@@ -55,7 +55,7 @@ export default function EditProfileRoute() {
   const [uploading, setUploading] = useState<'avatar' | 'banner' | null>(null);
 
   // heroText/headerImageUrl vivent sur la publication : chargés depuis le profil public.
-  const handle = me?.username || me?.publicationId || '';
+  const handle = me?.username || me?.publisherId || '';
   const { data: publicProfile } = useQuery({
     queryKey: userKeys.profile(handle || 'me'),
     queryFn: async () => {
@@ -141,8 +141,8 @@ export default function EditProfileRoute() {
       if (!profileRes.ok) throw new Error(profileRes.error);
 
       // Publication personnelle : PATCH /v1/settings/profile (bio + bannière).
-      if (me?.publicationId) {
-        const pubRes = await apiClient.updatePublicationProfile(me.publicationId, {
+      if (me?.publisherId) {
+        const pubRes = await apiClient.updatePublisherProfile(me.publisherId, {
           heroText: bio.trim(),
           headerImageUrl: headerImageUrl ?? null,
         });

@@ -16,7 +16,7 @@ import (
 // SiteVersion est un instantané publié d'une mise en page (restauration).
 type SiteVersion struct {
 	ID            string `json:"id"`
-	PublicationID string `json:"publicationId"`
+	PublisherID string `json:"publisherId"`
 	Layout        string `json:"layout"`
 	Label         string `json:"label"`
 	CreatedBy     *string `json:"createdBy"`
@@ -30,15 +30,15 @@ type SiteDraft struct {
 }
 
 // GetSiteDraft retourne le brouillon (nil si aucun).
-func (s *Service) GetSiteDraft(ctx context.Context, userID, publicationID string) (*SiteDraft, error) {
-	if err := s.authorizeSettings(ctx, userID, publicationID); err != nil {
+func (s *Service) GetSiteDraft(ctx context.Context, userID, publisherID string) (*SiteDraft, error) {
+	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
 		return nil, err
 	}
 	var layout *string
 	var updatedAt *time.Time
 	err := s.pool.QueryRow(ctx,
-		`SELECT "draft", "updatedAt" FROM "SiteLayout" WHERE "publicationId" = $1`,
-		publicationID,
+		`SELECT "draft", "updatedAt" FROM "SiteLayout" WHERE "publisherId" = $1`,
+		publisherID,
 	).Scan(&layout, &updatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -56,8 +56,8 @@ func (s *Service) GetSiteDraft(ctx context.Context, userID, publicationID string
 
 // SaveSiteDraft enregistre le brouillon (ne touche pas au site public).
 // Le layout doit être un JSON valide non vide (< 512 Ko).
-func (s *Service) SaveSiteDraft(ctx context.Context, userID, publicationID, layout string) error {
-	if err := s.authorizeSettings(ctx, userID, publicationID); err != nil {
+func (s *Service) SaveSiteDraft(ctx context.Context, userID, publisherID, layout string) error {
+	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
 		return err
 	}
 	if len(layout) == 0 || len(layout) > 512*1024 {
@@ -68,25 +68,25 @@ func (s *Service) SaveSiteDraft(ctx context.Context, userID, publicationID, layo
 		return errors.New("mise en page invalide")
 	}
 	_, err := s.pool.Exec(ctx, `
-		INSERT INTO "SiteLayout" ("publicationId", "draft", "updatedAt")
+		INSERT INTO "SiteLayout" ("publisherId", "draft", "updatedAt")
 		VALUES ($1, $2, CURRENT_TIMESTAMP)
-		ON CONFLICT ("publicationId") DO UPDATE
+		ON CONFLICT ("publisherId") DO UPDATE
 		SET "draft" = EXCLUDED."draft", "updatedAt" = CURRENT_TIMESTAMP`,
-		publicationID, layout,
+		publisherID, layout,
 	)
 	return err
 }
 
 // PublishSiteLayout publie le brouillon : archive la version publiée
 // actuelle puis copie le brouillon vers Publication.layoutStyle.
-func (s *Service) PublishSiteLayout(ctx context.Context, userID, publicationID string) error {
-	if err := s.authorizeSettings(ctx, userID, publicationID); err != nil {
+func (s *Service) PublishSiteLayout(ctx context.Context, userID, publisherID string) error {
+	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
 		return err
 	}
 	var draft *string
 	err := s.pool.QueryRow(ctx,
-		`SELECT "draft" FROM "SiteLayout" WHERE "publicationId" = $1`,
-		publicationID,
+		`SELECT "draft" FROM "SiteLayout" WHERE "publisherId" = $1`,
+		publisherID,
 	).Scan(&draft)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -99,8 +99,8 @@ func (s *Service) PublishSiteLayout(ctx context.Context, userID, publicationID s
 	}
 	var current *string
 	err = s.pool.QueryRow(ctx,
-		`SELECT "layoutStyle" FROM "Publication" WHERE "id" = $1`,
-		publicationID,
+		`SELECT "layoutStyle" FROM "Publisher" WHERE "id" = $1`,
+		publisherID,
 	).Scan(&current)
 	if err != nil {
 		return err
@@ -112,22 +112,22 @@ func (s *Service) PublishSiteLayout(ctx context.Context, userID, publicationID s
 	defer func() { _ = tx.Rollback(ctx) }()
 	if current != nil && *current != "" && *current != *draft {
 		if _, err := tx.Exec(ctx, `
-			INSERT INTO "SiteVersion" ("id", "publicationId", "layout", "label", "createdBy")
+			INSERT INTO "SiteVersion" ("id", "publisherId", "layout", "label", "createdBy")
 			VALUES ('ver_' || extract(epoch from now())::bigint || '_' || substr(md5(random()::text), 1, 6), $1, $2, 'Avant publication', $3)`,
-			publicationID, *current, userID,
+			publisherID, *current, userID,
 		); err != nil {
 			return err
 		}
 	}
 	if _, err := tx.Exec(ctx,
-		`UPDATE "Publication" SET "layoutStyle" = $1, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = $2`,
-		*draft, publicationID,
+		`UPDATE "Publisher" SET "layoutStyle" = $1, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = $2`,
+		*draft, publisherID,
 	); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(ctx,
-		`DELETE FROM "SiteLayout" WHERE "publicationId" = $1`,
-		publicationID,
+		`DELETE FROM "SiteLayout" WHERE "publisherId" = $1`,
+		publisherID,
 	); err != nil {
 		return err
 	}
@@ -135,15 +135,15 @@ func (s *Service) PublishSiteLayout(ctx context.Context, userID, publicationID s
 }
 
 // ListSiteVersions retourne les 20 derniers instantanés publiés.
-func (s *Service) ListSiteVersions(ctx context.Context, userID, publicationID string) ([]SiteVersion, error) {
-	if err := s.authorizeSettings(ctx, userID, publicationID); err != nil {
+func (s *Service) ListSiteVersions(ctx context.Context, userID, publisherID string) ([]SiteVersion, error) {
+	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
 		return nil, err
 	}
 	rows, err := s.pool.Query(ctx, `
-		SELECT "id", "publicationId", "layout", "label", "createdBy", "createdAt"
-		FROM "SiteVersion" WHERE "publicationId" = $1
+		SELECT "id", "publisherId", "layout", "label", "createdBy", "createdAt"
+		FROM "SiteVersion" WHERE "publisherId" = $1
 		ORDER BY "createdAt" DESC LIMIT 20`,
-		publicationID,
+		publisherID,
 	)
 	if err != nil {
 		return nil, err
@@ -153,7 +153,7 @@ func (s *Service) ListSiteVersions(ctx context.Context, userID, publicationID st
 	for rows.Next() {
 		var v SiteVersion
 		var createdAt time.Time
-		if err := rows.Scan(&v.ID, &v.PublicationID, &v.Layout, &v.Label, &v.CreatedBy, &createdAt); err != nil {
+		if err := rows.Scan(&v.ID, &v.PublisherID, &v.Layout, &v.Label, &v.CreatedBy, &createdAt); err != nil {
 			return nil, err
 		}
 		v.CreatedAt = createdAt.Format(time.RFC3339)
@@ -163,14 +163,14 @@ func (s *Service) ListSiteVersions(ctx context.Context, userID, publicationID st
 }
 
 // RestoreSiteVersion recopie un instantané vers le brouillon (sans publier).
-func (s *Service) RestoreSiteVersion(ctx context.Context, userID, publicationID, versionID string) error {
-	if err := s.authorizeSettings(ctx, userID, publicationID); err != nil {
+func (s *Service) RestoreSiteVersion(ctx context.Context, userID, publisherID, versionID string) error {
+	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
 		return err
 	}
 	var layout string
 	err := s.pool.QueryRow(ctx,
-		`SELECT "layout" FROM "SiteVersion" WHERE "id" = $1 AND "publicationId" = $2`,
-		versionID, publicationID,
+		`SELECT "layout" FROM "SiteVersion" WHERE "id" = $1 AND "publisherId" = $2`,
+		versionID, publisherID,
 	).Scan(&layout)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -178,7 +178,7 @@ func (s *Service) RestoreSiteVersion(ctx context.Context, userID, publicationID,
 		}
 		return err
 	}
-	return s.SaveSiteDraft(ctx, userID, publicationID, layout)
+	return s.SaveSiteDraft(ctx, userID, publisherID, layout)
 }
 
 // ─── Routes ───────────────────────────────────────────────────────────
@@ -189,12 +189,12 @@ func (h *Handler) getSiteDraft(w http.ResponseWriter, r *http.Request) {
 		response.Unauthorized(w, "Authentification requise")
 		return
 	}
-	publicationID := r.URL.Query().Get("publicationId")
-	if publicationID == "" {
-		response.BadRequest(w, "publicationId requis")
+	publisherID := r.URL.Query().Get("publisherId")
+	if publisherID == "" {
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
-	draft, err := h.svc.GetSiteDraft(r.Context(), userID, publicationID)
+	draft, err := h.svc.GetSiteDraft(r.Context(), userID, publisherID)
 	if err != nil {
 		if errors.Is(err, errForbidden) {
 			response.Forbidden(w, "Accès refusé à cette publication.")
@@ -213,18 +213,18 @@ func (h *Handler) saveSiteDraft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		PublicationID string `json:"publicationId"`
+		PublisherID string `json:"publisherId"`
 		Layout        string `json:"layout"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	if body.PublicationID == "" {
-		response.BadRequest(w, "publicationId requis")
+	if body.PublisherID == "" {
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
-	if err := h.svc.SaveSiteDraft(r.Context(), userID, body.PublicationID, body.Layout); err != nil {
+	if err := h.svc.SaveSiteDraft(r.Context(), userID, body.PublisherID, body.Layout); err != nil {
 		if errors.Is(err, errForbidden) {
 			response.Forbidden(w, "Accès refusé à cette publication.")
 			return
@@ -242,17 +242,17 @@ func (h *Handler) publishSiteLayout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		PublicationID string `json:"publicationId"`
+		PublisherID string `json:"publisherId"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	if body.PublicationID == "" {
-		response.BadRequest(w, "publicationId requis")
+	if body.PublisherID == "" {
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
-	if err := h.svc.PublishSiteLayout(r.Context(), userID, body.PublicationID); err != nil {
+	if err := h.svc.PublishSiteLayout(r.Context(), userID, body.PublisherID); err != nil {
 		if errors.Is(err, errForbidden) {
 			response.Forbidden(w, "Accès refusé à cette publication.")
 			return
@@ -269,12 +269,12 @@ func (h *Handler) listSiteVersions(w http.ResponseWriter, r *http.Request) {
 		response.Unauthorized(w, "Authentification requise")
 		return
 	}
-	publicationID := r.URL.Query().Get("publicationId")
-	if publicationID == "" {
-		response.BadRequest(w, "publicationId requis")
+	publisherID := r.URL.Query().Get("publisherId")
+	if publisherID == "" {
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
-	versions, err := h.svc.ListSiteVersions(r.Context(), userID, publicationID)
+	versions, err := h.svc.ListSiteVersions(r.Context(), userID, publisherID)
 	if err != nil {
 		if errors.Is(err, errForbidden) {
 			response.Forbidden(w, "Accès refusé à cette publication.")
@@ -293,18 +293,18 @@ func (h *Handler) restoreSiteVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		PublicationID string `json:"publicationId"`
+		PublisherID string `json:"publisherId"`
 		VersionID     string `json:"versionId"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	if body.PublicationID == "" || body.VersionID == "" {
-		response.BadRequest(w, "publicationId et versionId requis")
+	if body.PublisherID == "" || body.VersionID == "" {
+		response.BadRequest(w, "publisherId et versionId requis")
 		return
 	}
-	if err := h.svc.RestoreSiteVersion(r.Context(), userID, body.PublicationID, body.VersionID); err != nil {
+	if err := h.svc.RestoreSiteVersion(r.Context(), userID, body.PublisherID, body.VersionID); err != nil {
 		if errors.Is(err, errForbidden) {
 			response.Forbidden(w, "Accès refusé à cette publication.")
 			return

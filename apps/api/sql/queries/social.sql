@@ -5,20 +5,20 @@ SELECT "authorId"::text AS author_id, "replyRestriction", content
 FROM "Post"
 WHERE id = $1;
 
--- name: GetPersonalPublicationID :one
-SELECT "publicationId" AS id
+-- name: GetPersonalPublisherID :one
+SELECT "publisherId" AS id
 FROM "User"
 WHERE id = $1;
 
 -- name: GetActiveSubscriptionForReply :one
 SELECT 1 AS present
 FROM "Subscriber"
-WHERE "publicationId" = $1 AND "userId" = $2 AND "isActive" = true;
+WHERE "publisherId" = $1 AND "userId" = $2 AND "isActive" = true;
 
 -- name: GetFollowForReply :one
 SELECT 1 AS present
 FROM "Follows"
-WHERE "readerId" = $1 AND "publicationId" = $2;
+WHERE "readerId" = $1 AND "publisherId" = $2;
 
 -- name: GetUserUsername :one
 SELECT username

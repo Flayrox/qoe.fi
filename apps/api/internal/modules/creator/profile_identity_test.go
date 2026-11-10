@@ -9,14 +9,14 @@ import (
 
 // Le profil public d'une personne est PERSONAL : la décision ne prend que le
 // type de sa publication, jamais une appartenance à un média (MediaMember).
-func TestPublicProfileIdentityUsesPublicationType(t *testing.T) {
+func TestPublicProfileIdentityUsesPublisherType(t *testing.T) {
 	tests := []struct {
 		name            string
-		publicationType db.PublicationType
+		publicationType db.PublisherType
 		want            string
 	}{
-		{"profil personnel d'un membre média", db.PublicationTypePERSONAL, identity.Personal},
-		{"profil d'une publication média", db.PublicationTypeMEDIA, identity.Media},
+		{"profil personnel d'un membre média", db.PublisherTypePERSONAL, identity.Personal},
+		{"profil d'une publication média", db.PublisherTypeMEDIA, identity.Media},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

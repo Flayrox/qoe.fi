@@ -46,7 +46,7 @@ export async function createCampaignAction(input: StaffCampaignInput): Promise<I
         bodyHtmlEn: input.bodyHtmlEn ?? '',
         bodyTextEn: input.bodyTextEn ?? '',
         audienceType: input.audienceType,
-        audiencePublicationId: input.audiencePublicationId ?? '',
+        audiencePublisherId: input.audiencePublisherId ?? '',
         scheduledAt: input.scheduledAt ?? '',
       },
     });

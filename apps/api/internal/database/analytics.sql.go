@@ -17,7 +17,7 @@ SELECT
   COUNT(*) FILTER (WHERE "isActive" = true)::int AS active,
   COUNT(*) FILTER (WHERE "isPremium" = true)::int AS premium
 FROM "Subscriber"
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
 `
 
 type GetAudienceSummaryRow struct {
@@ -26,8 +26,8 @@ type GetAudienceSummaryRow struct {
 	Premium int32 `json:"premium"`
 }
 
-func (q *Queries) GetAudienceSummary(ctx context.Context, publicationid string) (GetAudienceSummaryRow, error) {
-	row := q.db.QueryRow(ctx, getAudienceSummary, publicationid)
+func (q *Queries) GetAudienceSummary(ctx context.Context, publisherid string) (GetAudienceSummaryRow, error) {
+	row := q.db.QueryRow(ctx, getAudienceSummary, publisherid)
 	var i GetAudienceSummaryRow
 	err := row.Scan(&i.Total, &i.Active, &i.Premium)
 	return i, err
@@ -36,11 +36,11 @@ func (q *Queries) GetAudienceSummary(ctx context.Context, publicationid string) 
 const getFreeSubscriberCount = `-- name: GetFreeSubscriberCount :one
 SELECT COUNT(*)::int AS count
 FROM "Subscriber"
-WHERE "publicationId" = $1 AND "isPremium" = false
+WHERE "publisherId" = $1 AND "isPremium" = false
 `
 
-func (q *Queries) GetFreeSubscriberCount(ctx context.Context, publicationid string) (int32, error) {
-	row := q.db.QueryRow(ctx, getFreeSubscriberCount, publicationid)
+func (q *Queries) GetFreeSubscriberCount(ctx context.Context, publisherid string) (int32, error) {
+	row := q.db.QueryRow(ctx, getFreeSubscriberCount, publisherid)
 	var count int32
 	err := row.Scan(&count)
 	return count, err
@@ -50,7 +50,7 @@ const getPremiumActiveSubscribers = `-- name: GetPremiumActiveSubscribers :many
 SELECT s."ltvCents", t."monthlyPriceCents"
 FROM "Subscriber" s
 LEFT JOIN "Tier" t ON t.id = s."tierId"
-WHERE s."publicationId" = $1 AND s.status = 'ACTIVE' AND s."isPremium" = true
+WHERE s."publisherId" = $1 AND s.status = 'ACTIVE' AND s."isPremium" = true
 `
 
 type GetPremiumActiveSubscribersRow struct {
@@ -58,8 +58,8 @@ type GetPremiumActiveSubscribersRow struct {
 	MonthlyPriceCents pgtype.Int4 `json:"monthlyPriceCents"`
 }
 
-func (q *Queries) GetPremiumActiveSubscribers(ctx context.Context, publicationid string) ([]GetPremiumActiveSubscribersRow, error) {
-	rows, err := q.db.Query(ctx, getPremiumActiveSubscribers, publicationid)
+func (q *Queries) GetPremiumActiveSubscribers(ctx context.Context, publisherid string) ([]GetPremiumActiveSubscribersRow, error) {
+	rows, err := q.db.Query(ctx, getPremiumActiveSubscribers, publisherid)
 	if err != nil {
 		return nil, err
 	}
@@ -81,14 +81,14 @@ func (q *Queries) GetPremiumActiveSubscribers(ctx context.Context, publicationid
 const getRecentArticlesForAnalytics = `-- name: GetRecentArticlesForAnalytics :many
 SELECT id, title, "createdAt"
 FROM "Article"
-WHERE "publicationId" = $1 AND published = true
+WHERE "publisherId" = $1 AND published = true
 ORDER BY "createdAt" DESC
 LIMIT $2
 `
 
 type GetRecentArticlesForAnalyticsParams struct {
-	PublicationId string `json:"publicationId"`
-	Limit         int32  `json:"limit"`
+	PublisherId string `json:"publisherId"`
+	Limit       int32  `json:"limit"`
 }
 
 type GetRecentArticlesForAnalyticsRow struct {
@@ -98,7 +98,7 @@ type GetRecentArticlesForAnalyticsRow struct {
 }
 
 func (q *Queries) GetRecentArticlesForAnalytics(ctx context.Context, arg GetRecentArticlesForAnalyticsParams) ([]GetRecentArticlesForAnalyticsRow, error) {
-	rows, err := q.db.Query(ctx, getRecentArticlesForAnalytics, arg.PublicationId, arg.Limit)
+	rows, err := q.db.Query(ctx, getRecentArticlesForAnalytics, arg.PublisherId, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +167,7 @@ func (q *Queries) GetRecentThoughtsForAnalytics(ctx context.Context, arg GetRece
 const listSubscribers = `-- name: ListSubscribers :many
 SELECT id, email, "isActive", "isPremium", "ltvCents", "createdAt"
 FROM "Subscriber"
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
 ORDER BY "createdAt" DESC
 `
 
@@ -180,8 +180,8 @@ type ListSubscribersRow struct {
 	CreatedAt pgtype.Timestamp `json:"createdAt"`
 }
 
-func (q *Queries) ListSubscribers(ctx context.Context, publicationid string) ([]ListSubscribersRow, error) {
-	rows, err := q.db.Query(ctx, listSubscribers, publicationid)
+func (q *Queries) ListSubscribers(ctx context.Context, publisherid string) ([]ListSubscribersRow, error) {
+	rows, err := q.db.Query(ctx, listSubscribers, publisherid)
 	if err != nil {
 		return nil, err
 	}

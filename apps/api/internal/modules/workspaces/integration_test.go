@@ -56,8 +56,8 @@ func TestGetActive_MediaMember(t *testing.T) {
 	if ws.MediaRole == nil || *ws.MediaRole != "owner" {
 		t.Fatalf("role = %v, attendu owner", ws.MediaRole)
 	}
-	if ws.PublicationID != mfx.PublicationID {
-		t.Fatalf("publicationId = %s, attendu %s", ws.PublicationID, mfx.PublicationID)
+	if ws.PublisherID != mfx.PublisherID {
+		t.Fatalf("publisherId = %s, attendu %s", ws.PublisherID, mfx.PublisherID)
 	}
 	if ws.Name != "Média Quotidien" || ws.Slug != "media-quotidien" {
 		t.Fatalf("nom/slug = %q/%q", ws.Name, ws.Slug)
@@ -82,7 +82,7 @@ func TestGetActive_FallbackPersonalWhenNotMember(t *testing.T) {
 	}
 }
 
-func TestGetActive_PersonalFallbackWithoutPublication(t *testing.T) {
+func TestGetActive_PersonalFallbackWithoutPublisher(t *testing.T) {
 	requirePool(t)
 	mfx, err := testutil.SeedMedia(context.Background(), poolTest)
 	if err != nil {
@@ -92,12 +92,12 @@ func TestGetActive_PersonalFallbackWithoutPublication(t *testing.T) {
 
 	// Les users seedés n'ont pas de publication personnelle : le service
 	// renvoie un workspace PERSONAL sans identifiant de publication (jamais
-	// publicationId = userId). La publication est créée via /v1/me/publication.
+	// publisherId = userId). La publication est créée via /v1/me/publication.
 	ws, err := svc.GetActive(context.Background(), mfx.ViewerID, "")
 	if err != nil {
 		t.Fatalf("GetActive: %v", err)
 	}
-	if ws.Type != "PERSONAL" || ws.PublicationID != "" {
+	if ws.Type != "PERSONAL" || ws.PublisherID != "" {
 		t.Fatalf("fallback = %+v, attendu PERSONAL sans publication", ws)
 	}
 	if ws.Slug != "personal" || ws.Name != "Profil Personnel" {
@@ -105,7 +105,7 @@ func TestGetActive_PersonalFallbackWithoutPublication(t *testing.T) {
 	}
 }
 
-func TestGetActive_RealPersonalPublication(t *testing.T) {
+func TestGetActive_RealPersonalPublisher(t *testing.T) {
 	requirePool(t)
 	if _, err := testutil.SeedMedia(context.Background(), poolTest); err != nil {
 		t.Fatalf("seed media: %v", err)
@@ -120,7 +120,7 @@ func TestGetActive_RealPersonalPublication(t *testing.T) {
 
 	var wantPub string
 	if err := poolTest.QueryRow(context.Background(),
-		`SELECT "publicationId" FROM "User" WHERE id = $1`, pfx.AuthorID,
+		`SELECT "publisherId" FROM "User" WHERE id = $1`, pfx.AuthorID,
 	).Scan(&wantPub); err != nil {
 		t.Fatalf("publication auteur: %v", err)
 	}
@@ -129,7 +129,7 @@ func TestGetActive_RealPersonalPublication(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetActive: %v", err)
 	}
-	if ws.Type != "PERSONAL" || ws.PublicationID != wantPub {
+	if ws.Type != "PERSONAL" || ws.PublisherID != wantPub {
 		t.Fatalf("workspace = %+v, attendu PERSONAL/%s", ws, wantPub)
 	}
 	if ws.Slug == "" || ws.Name == "" {

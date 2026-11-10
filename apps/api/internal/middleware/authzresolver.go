@@ -84,8 +84,8 @@ func mediaIDForRoute(ctx context.Context, q *db.Queries, r *http.Request, kind A
 	switch kind {
 	case AuthzResourceMedia:
 		return value
-	case AuthzResourcePublication:
-		if row, err := q.GetMediaByPublicationID(ctx, value); err == nil {
+	case AuthzResourcePublisher:
+		if row, err := q.GetMediaByPublisherID(ctx, value); err == nil {
 			return row.MediaID
 		}
 	case AuthzResourceNewsletter:
@@ -95,7 +95,7 @@ func mediaIDForRoute(ctx context.Context, q *db.Queries, r *http.Request, kind A
 		if err != nil {
 			return ""
 		}
-		if row, err := q.GetMediaByPublicationID(ctx, issue.PublicationId); err == nil {
+		if row, err := q.GetMediaByPublisherID(ctx, issue.PublisherId); err == nil {
 			return row.MediaID
 		}
 	}

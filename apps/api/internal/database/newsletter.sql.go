@@ -13,7 +13,7 @@ import (
 
 const activateVerifiedSubscriber = `-- name: ActivateVerifiedSubscriber :exec
 INSERT INTO "Subscriber" (
-    id, email, "publicationId", status, "isActive", "receiveArticles",
+    id, email, "publisherId", status, "isActive", "receiveArticles",
     "confirmedAt", "userId", "createdAt", "updatedAt"
 )
 VALUES (
@@ -28,7 +28,7 @@ VALUES (
     now(),
     now()
 )
-ON CONFLICT ("email", "publicationId") DO UPDATE SET
+ON CONFLICT ("email", "publisherId") DO UPDATE SET
     "isActive" = true,
     "receiveArticles" = true,
     "confirmedAt" = COALESCE("Subscriber"."confirmedAt", now()),
@@ -37,9 +37,9 @@ ON CONFLICT ("email", "publicationId") DO UPDATE SET
 `
 
 type ActivateVerifiedSubscriberParams struct {
-	Email         string      `json:"email"`
-	PublicationID string      `json:"publication_id"`
-	UserID        pgtype.UUID `json:"user_id"`
+	Email       string      `json:"email"`
+	PublisherID string      `json:"publisher_id"`
+	UserID      pgtype.UUID `json:"user_id"`
 }
 
 // Activation directe réservée au parcours connecté à adresse vérifiée
@@ -50,7 +50,7 @@ type ActivateVerifiedSubscriberParams struct {
 // (unicité email+publication), pas de réactivation silencieuse ici puisque
 // l'adresse est vérifiée et l'action explicite.
 func (q *Queries) ActivateVerifiedSubscriber(ctx context.Context, arg ActivateVerifiedSubscriberParams) error {
-	_, err := q.db.Exec(ctx, activateVerifiedSubscriber, arg.Email, arg.PublicationID, arg.UserID)
+	_, err := q.db.Exec(ctx, activateVerifiedSubscriber, arg.Email, arg.PublisherID, arg.UserID)
 	return err
 }
 
@@ -60,14 +60,14 @@ SET "userId" = u.id,
     "updatedAt" = now()
 FROM "User" u
 WHERE s.email = $1
-  AND s."publicationId" = $2
+  AND s."publisherId" = $2
   AND s."userId" IS NULL
   AND LOWER(u.email) = LOWER(s.email)
 `
 
 type AttachSubscriberToAccountParams struct {
-	Email         string `json:"email"`
-	PublicationId string `json:"publicationId"`
+	Email       string `json:"email"`
+	PublisherId string `json:"publisherId"`
 }
 
 // Rattache un abonnement confirmé au compte qui utilise cette adresse
@@ -76,21 +76,21 @@ type AttachSubscriberToAccountParams struct {
 // statuts, ni les dates, ni quoi que ce soit qui réactiverait un choix passé.
 // `User.email` est unique (User_email_key) : au plus un compte récupère.
 func (q *Queries) AttachSubscriberToAccount(ctx context.Context, arg AttachSubscriberToAccountParams) error {
-	_, err := q.db.Exec(ctx, attachSubscriberToAccount, arg.Email, arg.PublicationId)
+	_, err := q.db.Exec(ctx, attachSubscriberToAccount, arg.Email, arg.PublisherId)
 	return err
 }
 
-const checkPublicationEmailCooldown = `-- name: CheckPublicationEmailCooldown :one
+const checkPublisherEmailCooldown = `-- name: CheckPublisherEmailCooldown :one
 SELECT "emailSentAt"
 FROM "Article"
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
   AND "emailSentAt" > now() - INTERVAL '2 hours'
 ORDER BY "emailSentAt" DESC
 LIMIT 1
 `
 
-func (q *Queries) CheckPublicationEmailCooldown(ctx context.Context, publicationid string) (pgtype.Timestamp, error) {
-	row := q.db.QueryRow(ctx, checkPublicationEmailCooldown, publicationid)
+func (q *Queries) CheckPublisherEmailCooldown(ctx context.Context, publisherid string) (pgtype.Timestamp, error) {
+	row := q.db.QueryRow(ctx, checkPublisherEmailCooldown, publisherid)
 	var emailSentAt pgtype.Timestamp
 	err := row.Scan(&emailSentAt)
 	return emailSentAt, err
@@ -103,19 +103,19 @@ SET "receiveArticles" = true,
     "confirmationToken" = NULL,
     "updatedAt" = now()
 WHERE email = $1
-  AND "publicationId" = $2
+  AND "publisherId" = $2
   AND "confirmationToken" = $3
 RETURNING id
 `
 
 type ConfirmSubscriberByTokenParams struct {
 	Email             string      `json:"email"`
-	PublicationId     string      `json:"publicationId"`
+	PublisherId       string      `json:"publisherId"`
 	ConfirmationToken pgtype.Text `json:"confirmationToken"`
 }
 
 func (q *Queries) ConfirmSubscriberByToken(ctx context.Context, arg ConfirmSubscriberByTokenParams) (string, error) {
-	row := q.db.QueryRow(ctx, confirmSubscriberByToken, arg.Email, arg.PublicationId, arg.ConfirmationToken)
+	row := q.db.QueryRow(ctx, confirmSubscriberByToken, arg.Email, arg.PublisherId, arg.ConfirmationToken)
 	var id string
 	err := row.Scan(&id)
 	return id, err
@@ -163,14 +163,14 @@ func (q *Queries) CountNewsletterDeliveriesByIssue(ctx context.Context, issueid 
 	return i, err
 }
 
-const countSubscribersByPublication = `-- name: CountSubscribersByPublication :one
+const countSubscribersByPublisher = `-- name: CountSubscribersByPublisher :one
 SELECT COUNT(*)::bigint
 FROM "Subscriber"
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
 `
 
-func (q *Queries) CountSubscribersByPublication(ctx context.Context, publicationid string) (int64, error) {
-	row := q.db.QueryRow(ctx, countSubscribersByPublication, publicationid)
+func (q *Queries) CountSubscribersByPublisher(ctx context.Context, publisherid string) (int64, error) {
+	row := q.db.QueryRow(ctx, countSubscribersByPublisher, publisherid)
 	var column_1 int64
 	err := row.Scan(&column_1)
 	return column_1, err
@@ -178,16 +178,16 @@ func (q *Queries) CountSubscribersByPublication(ctx context.Context, publication
 
 const createNewsletterIssue = `-- name: CreateNewsletterIssue :one
 
-INSERT INTO "NewsletterIssue" (id, "publicationId", subject, "previewText", html, "updatedAt")
+INSERT INTO "NewsletterIssue" (id, "publisherId", subject, "previewText", html, "updatedAt")
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4, now())
-RETURNING id, "publicationId", subject, "previewText", html, status, "totalRecipients", "sentCount", "failedCount", "createdAt", "updatedAt", "sentAt"
+RETURNING id, "publisherId", subject, "previewText", html, status, "totalRecipients", "sentCount", "failedCount", "createdAt", "updatedAt", "sentAt"
 `
 
 type CreateNewsletterIssueParams struct {
-	PublicationId string      `json:"publicationId"`
-	Subject       string      `json:"subject"`
-	PreviewText   pgtype.Text `json:"previewText"`
-	Html          string      `json:"html"`
+	PublisherId string      `json:"publisherId"`
+	Subject     string      `json:"subject"`
+	PreviewText pgtype.Text `json:"previewText"`
+	Html        string      `json:"html"`
 }
 
 // =====================================================================
@@ -195,7 +195,7 @@ type CreateNewsletterIssueParams struct {
 // =====================================================================
 func (q *Queries) CreateNewsletterIssue(ctx context.Context, arg CreateNewsletterIssueParams) (NewsletterIssue, error) {
 	row := q.db.QueryRow(ctx, createNewsletterIssue,
-		arg.PublicationId,
+		arg.PublisherId,
 		arg.Subject,
 		arg.PreviewText,
 		arg.Html,
@@ -203,7 +203,7 @@ func (q *Queries) CreateNewsletterIssue(ctx context.Context, arg CreateNewslette
 	var i NewsletterIssue
 	err := row.Scan(
 		&i.ID,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.Subject,
 		&i.PreviewText,
 		&i.Html,
@@ -224,18 +224,18 @@ SET "isActive" = false,
     "receiveArticles" = false,
     status = 'CANCELED',
     "updatedAt" = now()
-WHERE "publicationId" = $1::text
+WHERE "publisherId" = $1::text
   AND (id = $2::text OR LOWER(email) = LOWER(TRIM($2::text)))
 RETURNING id
 `
 
 type DeactivateSubscriberParams struct {
-	PublicationID string `json:"publication_id"`
-	ID            string `json:"id"`
+	PublisherID string `json:"publisher_id"`
+	ID          string `json:"id"`
 }
 
 func (q *Queries) DeactivateSubscriber(ctx context.Context, arg DeactivateSubscriberParams) (string, error) {
-	row := q.db.QueryRow(ctx, deactivateSubscriber, arg.PublicationID, arg.ID)
+	row := q.db.QueryRow(ctx, deactivateSubscriber, arg.PublisherID, arg.ID)
 	var id string
 	err := row.Scan(&id)
 	return id, err
@@ -353,10 +353,10 @@ func (q *Queries) GetArticleEmailReleaseStatus(ctx context.Context, id string) (
 
 const getArticleReleaseInfo = `-- name: GetArticleReleaseInfo :one
 SELECT a.id, a.title, a.slug, a.visibility, a."isPremium", a.content,
-       a."publicationId", a."emailSubject", a."emailPreviewText",
-       p.name AS publication_name, p.subdomain, p."customDomain"
+       a."publisherId", a."emailSubject", a."emailPreviewText",
+       p.name AS publisher_name, p.subdomain, p."customDomain"
 FROM "Article" a
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 WHERE a.id = $1
   AND a.published = true
   AND a.status = 'PUBLISHED'
@@ -369,10 +369,10 @@ type GetArticleReleaseInfoRow struct {
 	Visibility       ContentVisibility `json:"visibility"`
 	IsPremium        bool              `json:"isPremium"`
 	Content          string            `json:"content"`
-	PublicationId    string            `json:"publicationId"`
+	PublisherId      string            `json:"publisherId"`
 	EmailSubject     pgtype.Text       `json:"emailSubject"`
 	EmailPreviewText pgtype.Text       `json:"emailPreviewText"`
-	PublicationName  string            `json:"publication_name"`
+	PublisherName    string            `json:"publisher_name"`
 	Subdomain        pgtype.Text       `json:"subdomain"`
 	CustomDomain     pgtype.Text       `json:"customDomain"`
 }
@@ -387,10 +387,10 @@ func (q *Queries) GetArticleReleaseInfo(ctx context.Context, id string) (GetArti
 		&i.Visibility,
 		&i.IsPremium,
 		&i.Content,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.EmailSubject,
 		&i.EmailPreviewText,
-		&i.PublicationName,
+		&i.PublisherName,
 		&i.Subdomain,
 		&i.CustomDomain,
 	)
@@ -398,7 +398,7 @@ func (q *Queries) GetArticleReleaseInfo(ctx context.Context, id string) (GetArti
 }
 
 const getNewsletterIssue = `-- name: GetNewsletterIssue :one
-SELECT id, "publicationId", subject, "previewText", html, status, "totalRecipients", "sentCount", "failedCount", "createdAt", "updatedAt", "sentAt"
+SELECT id, "publisherId", subject, "previewText", html, status, "totalRecipients", "sentCount", "failedCount", "createdAt", "updatedAt", "sentAt"
 FROM "NewsletterIssue"
 WHERE id = $1
 `
@@ -408,7 +408,7 @@ func (q *Queries) GetNewsletterIssue(ctx context.Context, id string) (Newsletter
 	var i NewsletterIssue
 	err := row.Scan(
 		&i.ID,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.Subject,
 		&i.PreviewText,
 		&i.Html,
@@ -423,39 +423,39 @@ func (q *Queries) GetNewsletterIssue(ctx context.Context, id string) (Newsletter
 	return i, err
 }
 
-const getNewsletterIssueWithPublication = `-- name: GetNewsletterIssueWithPublication :one
-SELECT i.id, i."publicationId", i.subject, i."previewText", i.html, i.status, i."totalRecipients", i."sentCount", i."failedCount", i."createdAt", i."updatedAt", i."sentAt", p.name AS publication_name, p.subdomain AS publication_subdomain,
-       p."customDomain" AS publication_custom_domain, p."logoUrl" AS publication_logo_url
+const getNewsletterIssueWithPublisher = `-- name: GetNewsletterIssueWithPublisher :one
+SELECT i.id, i."publisherId", i.subject, i."previewText", i.html, i.status, i."totalRecipients", i."sentCount", i."failedCount", i."createdAt", i."updatedAt", i."sentAt", p.name AS publisher_name, p.subdomain AS publisher_subdomain,
+       p."customDomain" AS publisher_custom_domain, p."logoUrl" AS publisher_logo_url
 FROM "NewsletterIssue" i
-JOIN "Publication" p ON p.id = i."publicationId"
+JOIN "Publisher" p ON p.id = i."publisherId"
 WHERE i.id = $1
 `
 
-type GetNewsletterIssueWithPublicationRow struct {
-	ID                      string           `json:"id"`
-	PublicationId           string           `json:"publicationId"`
-	Subject                 string           `json:"subject"`
-	PreviewText             pgtype.Text      `json:"previewText"`
-	Html                    string           `json:"html"`
-	Status                  string           `json:"status"`
-	TotalRecipients         int32            `json:"totalRecipients"`
-	SentCount               int32            `json:"sentCount"`
-	FailedCount             int32            `json:"failedCount"`
-	CreatedAt               pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt               pgtype.Timestamp `json:"updatedAt"`
-	SentAt                  pgtype.Timestamp `json:"sentAt"`
-	PublicationName         string           `json:"publication_name"`
-	PublicationSubdomain    pgtype.Text      `json:"publication_subdomain"`
-	PublicationCustomDomain pgtype.Text      `json:"publication_custom_domain"`
-	PublicationLogoUrl      pgtype.Text      `json:"publication_logo_url"`
+type GetNewsletterIssueWithPublisherRow struct {
+	ID                    string           `json:"id"`
+	PublisherId           string           `json:"publisherId"`
+	Subject               string           `json:"subject"`
+	PreviewText           pgtype.Text      `json:"previewText"`
+	Html                  string           `json:"html"`
+	Status                string           `json:"status"`
+	TotalRecipients       int32            `json:"totalRecipients"`
+	SentCount             int32            `json:"sentCount"`
+	FailedCount           int32            `json:"failedCount"`
+	CreatedAt             pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt             pgtype.Timestamp `json:"updatedAt"`
+	SentAt                pgtype.Timestamp `json:"sentAt"`
+	PublisherName         string           `json:"publisher_name"`
+	PublisherSubdomain    pgtype.Text      `json:"publisher_subdomain"`
+	PublisherCustomDomain pgtype.Text      `json:"publisher_custom_domain"`
+	PublisherLogoUrl      pgtype.Text      `json:"publisher_logo_url"`
 }
 
-func (q *Queries) GetNewsletterIssueWithPublication(ctx context.Context, id string) (GetNewsletterIssueWithPublicationRow, error) {
-	row := q.db.QueryRow(ctx, getNewsletterIssueWithPublication, id)
-	var i GetNewsletterIssueWithPublicationRow
+func (q *Queries) GetNewsletterIssueWithPublisher(ctx context.Context, id string) (GetNewsletterIssueWithPublisherRow, error) {
+	row := q.db.QueryRow(ctx, getNewsletterIssueWithPublisher, id)
+	var i GetNewsletterIssueWithPublisherRow
 	err := row.Scan(
 		&i.ID,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.Subject,
 		&i.PreviewText,
 		&i.Html,
@@ -466,37 +466,37 @@ func (q *Queries) GetNewsletterIssueWithPublication(ctx context.Context, id stri
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.SentAt,
-		&i.PublicationName,
-		&i.PublicationSubdomain,
-		&i.PublicationCustomDomain,
-		&i.PublicationLogoUrl,
+		&i.PublisherName,
+		&i.PublisherSubdomain,
+		&i.PublisherCustomDomain,
+		&i.PublisherLogoUrl,
 	)
 	return i, err
 }
 
 const getPendingConfirmation = `-- name: GetPendingConfirmation :one
-SELECT s.email, s."publicationId", s.locale,
+SELECT s.email, s."publisherId", s.locale,
        s."confirmationToken",
-       p.name AS publication_name, p.subdomain, p."customDomain", p."accentColor",
+       p.name AS publisher_name, p.subdomain, p."customDomain", p."accentColor",
        p."logoUrl", p."emailSettings"
 FROM "Subscriber" s
-JOIN "Publication" p ON p.id = s."publicationId"
+JOIN "Publisher" p ON p.id = s."publisherId"
 WHERE s.email = $1
-  AND s."publicationId" = $2
+  AND s."publisherId" = $2
   AND s."confirmationToken" IS NOT NULL
 `
 
 type GetPendingConfirmationParams struct {
-	Email         string `json:"email"`
-	PublicationId string `json:"publicationId"`
+	Email       string `json:"email"`
+	PublisherId string `json:"publisherId"`
 }
 
 type GetPendingConfirmationRow struct {
 	Email             string      `json:"email"`
-	PublicationId     string      `json:"publicationId"`
+	PublisherId       string      `json:"publisherId"`
 	Locale            string      `json:"locale"`
 	ConfirmationToken pgtype.Text `json:"confirmationToken"`
-	PublicationName   string      `json:"publication_name"`
+	PublisherName     string      `json:"publisher_name"`
 	Subdomain         pgtype.Text `json:"subdomain"`
 	CustomDomain      pgtype.Text `json:"customDomain"`
 	AccentColor       pgtype.Text `json:"accentColor"`
@@ -505,14 +505,14 @@ type GetPendingConfirmationRow struct {
 }
 
 func (q *Queries) GetPendingConfirmation(ctx context.Context, arg GetPendingConfirmationParams) (GetPendingConfirmationRow, error) {
-	row := q.db.QueryRow(ctx, getPendingConfirmation, arg.Email, arg.PublicationId)
+	row := q.db.QueryRow(ctx, getPendingConfirmation, arg.Email, arg.PublisherId)
 	var i GetPendingConfirmationRow
 	err := row.Scan(
 		&i.Email,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.Locale,
 		&i.ConfirmationToken,
-		&i.PublicationName,
+		&i.PublisherName,
 		&i.Subdomain,
 		&i.CustomDomain,
 		&i.AccentColor,
@@ -522,7 +522,7 @@ func (q *Queries) GetPendingConfirmation(ctx context.Context, arg GetPendingConf
 	return i, err
 }
 
-const getPublicationMetadataByID = `-- name: GetPublicationMetadataByID :one
+const getPublisherMetadataByID = `-- name: GetPublisherMetadataByID :one
 SELECT 
     p.id,
     p.type,
@@ -548,13 +548,13 @@ SELECT
     p."isCertified",
     p."createdAt",
     p."updatedAt"
-FROM "Publication" p
+FROM "Publisher" p
 WHERE p.id = $1
 `
 
-type GetPublicationMetadataByIDRow struct {
+type GetPublisherMetadataByIDRow struct {
 	ID                     string           `json:"id"`
-	Type                   PublicationType  `json:"type"`
+	Type                   PublisherType    `json:"type"`
 	Name                   string           `json:"name"`
 	Slug                   string           `json:"slug"`
 	Bio                    pgtype.Text      `json:"bio"`
@@ -579,9 +579,9 @@ type GetPublicationMetadataByIDRow struct {
 	UpdatedAt              pgtype.Timestamp `json:"updatedAt"`
 }
 
-func (q *Queries) GetPublicationMetadataByID(ctx context.Context, id string) (GetPublicationMetadataByIDRow, error) {
-	row := q.db.QueryRow(ctx, getPublicationMetadataByID, id)
-	var i GetPublicationMetadataByIDRow
+func (q *Queries) GetPublisherMetadataByID(ctx context.Context, id string) (GetPublisherMetadataByIDRow, error) {
+	row := q.db.QueryRow(ctx, getPublisherMetadataByID, id)
+	var i GetPublisherMetadataByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.Type,
@@ -611,14 +611,14 @@ func (q *Queries) GetPublicationMetadataByID(ctx context.Context, id string) (Ge
 	return i, err
 }
 
-const getPublicationPublicProfile = `-- name: GetPublicationPublicProfile :one
+const getPublisherPublicProfile = `-- name: GetPublisherPublicProfile :one
 SELECT id, name, "logoUrl"
-FROM "Publication"
+FROM "Publisher"
 WHERE id = $1 OR slug = $1
 LIMIT 1
 `
 
-type GetPublicationPublicProfileRow struct {
+type GetPublisherPublicProfileRow struct {
 	ID      string      `json:"id"`
 	Name    string      `json:"name"`
 	LogoUrl pgtype.Text `json:"logoUrl"`
@@ -628,50 +628,50 @@ type GetPublicationPublicProfileRow struct {
 // (fiche 02) : nom + logo uniquement. Rien de sensible, aucune adresse,
 // aucun compteur — le site tiers n'a pas besoin d'en savoir plus pour
 // afficher « Confirmer l'abonnement à [publication] ».
-func (q *Queries) GetPublicationPublicProfile(ctx context.Context, id string) (GetPublicationPublicProfileRow, error) {
-	row := q.db.QueryRow(ctx, getPublicationPublicProfile, id)
-	var i GetPublicationPublicProfileRow
+func (q *Queries) GetPublisherPublicProfile(ctx context.Context, id string) (GetPublisherPublicProfileRow, error) {
+	row := q.db.QueryRow(ctx, getPublisherPublicProfile, id)
+	var i GetPublisherPublicProfileRow
 	err := row.Scan(&i.ID, &i.Name, &i.LogoUrl)
 	return i, err
 }
 
 const getSubscriberEmailContext = `-- name: GetSubscriberEmailContext :one
 SELECT s.email, s.locale, s."confirmedAt",
-       p.name AS publication_name, p.subdomain, p."customDomain", p."accentColor",
+       p.name AS publisher_name, p.subdomain, p."customDomain", p."accentColor",
        p."logoUrl", p."emailSettings"
 FROM "Subscriber" s
-JOIN "Publication" p ON p.id = s."publicationId"
+JOIN "Publisher" p ON p.id = s."publisherId"
 WHERE s.email = $1
-  AND s."publicationId" = $2
+  AND s."publisherId" = $2
 `
 
 type GetSubscriberEmailContextParams struct {
-	Email         string `json:"email"`
-	PublicationId string `json:"publicationId"`
+	Email       string `json:"email"`
+	PublisherId string `json:"publisherId"`
 }
 
 type GetSubscriberEmailContextRow struct {
-	Email           string           `json:"email"`
-	Locale          string           `json:"locale"`
-	ConfirmedAt     pgtype.Timestamp `json:"confirmedAt"`
-	PublicationName string           `json:"publication_name"`
-	Subdomain       pgtype.Text      `json:"subdomain"`
-	CustomDomain    pgtype.Text      `json:"customDomain"`
-	AccentColor     pgtype.Text      `json:"accentColor"`
-	LogoUrl         pgtype.Text      `json:"logoUrl"`
-	EmailSettings   []byte           `json:"emailSettings"`
+	Email         string           `json:"email"`
+	Locale        string           `json:"locale"`
+	ConfirmedAt   pgtype.Timestamp `json:"confirmedAt"`
+	PublisherName string           `json:"publisher_name"`
+	Subdomain     pgtype.Text      `json:"subdomain"`
+	CustomDomain  pgtype.Text      `json:"customDomain"`
+	AccentColor   pgtype.Text      `json:"accentColor"`
+	LogoUrl       pgtype.Text      `json:"logoUrl"`
+	EmailSettings []byte           `json:"emailSettings"`
 }
 
 // Contexte complet pour les emails transactionnels (bienvenue) :
 // locale de l'abonné + personnalisation de la publication.
 func (q *Queries) GetSubscriberEmailContext(ctx context.Context, arg GetSubscriberEmailContextParams) (GetSubscriberEmailContextRow, error) {
-	row := q.db.QueryRow(ctx, getSubscriberEmailContext, arg.Email, arg.PublicationId)
+	row := q.db.QueryRow(ctx, getSubscriberEmailContext, arg.Email, arg.PublisherId)
 	var i GetSubscriberEmailContextRow
 	err := row.Scan(
 		&i.Email,
 		&i.Locale,
 		&i.ConfirmedAt,
-		&i.PublicationName,
+		&i.PublisherName,
 		&i.Subdomain,
 		&i.CustomDomain,
 		&i.AccentColor,
@@ -685,12 +685,12 @@ const getSubscriberLocale = `-- name: GetSubscriberLocale :one
 
 SELECT s.locale FROM "Subscriber" s
 WHERE s.email = $1
-  AND s."publicationId" = $2
+  AND s."publisherId" = $2
 `
 
 type GetSubscriberLocaleParams struct {
-	Email         string `json:"email"`
-	PublicationId string `json:"publicationId"`
+	Email       string `json:"email"`
+	PublisherId string `json:"publisherId"`
 }
 
 // =====================================================================
@@ -700,45 +700,45 @@ type GetSubscriberLocaleParams struct {
 // confirmation (succès comme erreur) dans la langue de l'abonné. Défaut
 // géré côté Go ("fr" si ligne absente).
 func (q *Queries) GetSubscriberLocale(ctx context.Context, arg GetSubscriberLocaleParams) (string, error) {
-	row := q.db.QueryRow(ctx, getSubscriberLocale, arg.Email, arg.PublicationId)
+	row := q.db.QueryRow(ctx, getSubscriberLocale, arg.Email, arg.PublisherId)
 	var locale string
 	err := row.Scan(&locale)
 	return locale, err
 }
 
-const getSubscriberStatsByPublication = `-- name: GetSubscriberStatsByPublication :one
+const getSubscriberStatsByPublisher = `-- name: GetSubscriberStatsByPublisher :one
 SELECT 
     COUNT(*)::bigint AS total,
     COUNT(*) FILTER (WHERE "isActive" = true)::bigint AS active,
     COUNT(*) FILTER (WHERE "isActive" = true AND "isPremium" = true)::bigint AS premium
 FROM "Subscriber"
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
 `
 
-type GetSubscriberStatsByPublicationRow struct {
+type GetSubscriberStatsByPublisherRow struct {
 	Total   int64 `json:"total"`
 	Active  int64 `json:"active"`
 	Premium int64 `json:"premium"`
 }
 
-func (q *Queries) GetSubscriberStatsByPublication(ctx context.Context, publicationid string) (GetSubscriberStatsByPublicationRow, error) {
-	row := q.db.QueryRow(ctx, getSubscriberStatsByPublication, publicationid)
-	var i GetSubscriberStatsByPublicationRow
+func (q *Queries) GetSubscriberStatsByPublisher(ctx context.Context, publisherid string) (GetSubscriberStatsByPublisherRow, error) {
+	row := q.db.QueryRow(ctx, getSubscriberStatsByPublisher, publisherid)
+	var i GetSubscriberStatsByPublisherRow
 	err := row.Scan(&i.Total, &i.Active, &i.Premium)
 	return i, err
 }
 
-const getUserPublicationID = `-- name: GetUserPublicationID :one
-SELECT COALESCE("publicationId", '')
+const getUserPublisherID = `-- name: GetUserPublisherID :one
+SELECT COALESCE("publisherId", '')
 FROM "User"
 WHERE id = $1
 `
 
-func (q *Queries) GetUserPublicationID(ctx context.Context, id string) (string, error) {
-	row := q.db.QueryRow(ctx, getUserPublicationID, id)
-	var publicationId string
-	err := row.Scan(&publicationId)
-	return publicationId, err
+func (q *Queries) GetUserPublisherID(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRow(ctx, getUserPublisherID, id)
+	var publisherId string
+	err := row.Scan(&publisherId)
+	return publisherId, err
 }
 
 const insertArticleReleaseCatchUpDeliveries = `-- name: InsertArticleReleaseCatchUpDeliveries :exec
@@ -746,7 +746,7 @@ INSERT INTO "ArticleReleaseDelivery" (id, "articleId", email, "subscriberId", "d
 SELECT gen_random_uuid()::text, $1, s.email, s.id, 'CATCH_UP', now()
 FROM "Subscriber" s
 JOIN "Article" a ON a.id = $1
-WHERE s."publicationId" = $2
+WHERE s."publisherId" = $2
   AND s."isActive" = true
   AND s."receiveArticles" = true
   AND s."confirmedAt" IS NOT NULL
@@ -756,12 +756,12 @@ ON CONFLICT ("articleId", email, "deliveryType") DO NOTHING
 `
 
 type InsertArticleReleaseCatchUpDeliveriesParams struct {
-	ArticleId     string `json:"articleId"`
-	PublicationId string `json:"publicationId"`
+	ArticleId   string `json:"articleId"`
+	PublisherId string `json:"publisherId"`
 }
 
 func (q *Queries) InsertArticleReleaseCatchUpDeliveries(ctx context.Context, arg InsertArticleReleaseCatchUpDeliveriesParams) error {
-	_, err := q.db.Exec(ctx, insertArticleReleaseCatchUpDeliveries, arg.ArticleId, arg.PublicationId)
+	_, err := q.db.Exec(ctx, insertArticleReleaseCatchUpDeliveries, arg.ArticleId, arg.PublisherId)
 	return err
 }
 
@@ -769,7 +769,7 @@ const insertArticleReleaseDeliveries = `-- name: InsertArticleReleaseDeliveries 
 INSERT INTO "ArticleReleaseDelivery" (id, "articleId", email, "subscriberId", "deliveryType", "updatedAt")
 SELECT gen_random_uuid()::text, $1, s.email, s.id, 'INITIAL', now()
 FROM "Subscriber" s
-WHERE s."publicationId" = $2
+WHERE s."publisherId" = $2
   AND s."isActive" = true
   AND s."receiveArticles" = true
   AND s."confirmedAt" IS NOT NULL  -- double opt-in : jamais de bulk vers un email non confirmé
@@ -777,12 +777,12 @@ ON CONFLICT ("articleId", email, "deliveryType") DO NOTHING
 `
 
 type InsertArticleReleaseDeliveriesParams struct {
-	ArticleId     string `json:"articleId"`
-	PublicationId string `json:"publicationId"`
+	ArticleId   string `json:"articleId"`
+	PublisherId string `json:"publisherId"`
 }
 
 func (q *Queries) InsertArticleReleaseDeliveries(ctx context.Context, arg InsertArticleReleaseDeliveriesParams) error {
-	_, err := q.db.Exec(ctx, insertArticleReleaseDeliveries, arg.ArticleId, arg.PublicationId)
+	_, err := q.db.Exec(ctx, insertArticleReleaseDeliveries, arg.ArticleId, arg.PublisherId)
 	return err
 }
 
@@ -790,7 +790,7 @@ const insertArticleReleaseMajorUpdateDeliveries = `-- name: InsertArticleRelease
 INSERT INTO "ArticleReleaseDelivery" (id, "articleId", email, "subscriberId", "deliveryType", "updatedAt")
 SELECT gen_random_uuid()::text, $1, s.email, s.id, 'MAJOR_UPDATE', now()
 FROM "Subscriber" s
-WHERE s."publicationId" = $2
+WHERE s."publisherId" = $2
   AND s."isActive" = true
   AND s."receiveArticles" = true
   AND s."confirmedAt" IS NOT NULL
@@ -798,12 +798,12 @@ ON CONFLICT ("articleId", email, "deliveryType") DO NOTHING
 `
 
 type InsertArticleReleaseMajorUpdateDeliveriesParams struct {
-	ArticleId     string `json:"articleId"`
-	PublicationId string `json:"publicationId"`
+	ArticleId   string `json:"articleId"`
+	PublisherId string `json:"publisherId"`
 }
 
 func (q *Queries) InsertArticleReleaseMajorUpdateDeliveries(ctx context.Context, arg InsertArticleReleaseMajorUpdateDeliveriesParams) error {
-	_, err := q.db.Exec(ctx, insertArticleReleaseMajorUpdateDeliveries, arg.ArticleId, arg.PublicationId)
+	_, err := q.db.Exec(ctx, insertArticleReleaseMajorUpdateDeliveries, arg.ArticleId, arg.PublisherId)
 	return err
 }
 
@@ -811,7 +811,7 @@ const insertNewsletterDeliveries = `-- name: InsertNewsletterDeliveries :exec
 INSERT INTO "NewsletterDelivery" (id, "issueId", email, "subscriberId", "updatedAt")
 SELECT gen_random_uuid()::text, $1, s.email, s.id, now()
 FROM "Subscriber" s
-WHERE s."publicationId" = $2
+WHERE s."publisherId" = $2
   AND s."isActive" = true
   AND s."receiveArticles" = true
   AND s."confirmedAt" IS NOT NULL  -- double opt-in : jamais de bulk vers un email non confirmé
@@ -822,18 +822,18 @@ WHERE s."publicationId" = $2
       SELECT 1 FROM "EmailSuppression" x
       WHERE x.email = s.email
         AND (x."scope" = 'global'
-             OR (x."scope" = 'publication' AND x."publicationId" = s."publicationId"))
+             OR (x."scope" = 'publisher' AND x."publisherId" = s."publisherId"))
   )
 ON CONFLICT ("issueId", email) DO NOTHING
 `
 
 type InsertNewsletterDeliveriesParams struct {
-	IssueId       string `json:"issueId"`
-	PublicationId string `json:"publicationId"`
+	IssueId     string `json:"issueId"`
+	PublisherId string `json:"publisherId"`
 }
 
 func (q *Queries) InsertNewsletterDeliveries(ctx context.Context, arg InsertNewsletterDeliveriesParams) error {
-	_, err := q.db.Exec(ctx, insertNewsletterDeliveries, arg.IssueId, arg.PublicationId)
+	_, err := q.db.Exec(ctx, insertNewsletterDeliveries, arg.IssueId, arg.PublisherId)
 	return err
 }
 
@@ -883,15 +883,15 @@ func (q *Queries) ListNewsletterDeliveriesByIssue(ctx context.Context, arg ListN
 	return items, nil
 }
 
-const listNewsletterIssuesByPublication = `-- name: ListNewsletterIssuesByPublication :many
-SELECT id, "publicationId", subject, "previewText", html, status, "totalRecipients", "sentCount", "failedCount", "createdAt", "updatedAt", "sentAt"
+const listNewsletterIssuesByPublisher = `-- name: ListNewsletterIssuesByPublisher :many
+SELECT id, "publisherId", subject, "previewText", html, status, "totalRecipients", "sentCount", "failedCount", "createdAt", "updatedAt", "sentAt"
 FROM "NewsletterIssue"
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
 ORDER BY "createdAt" DESC
 `
 
-func (q *Queries) ListNewsletterIssuesByPublication(ctx context.Context, publicationid string) ([]NewsletterIssue, error) {
-	rows, err := q.db.Query(ctx, listNewsletterIssuesByPublication, publicationid)
+func (q *Queries) ListNewsletterIssuesByPublisher(ctx context.Context, publisherid string) ([]NewsletterIssue, error) {
+	rows, err := q.db.Query(ctx, listNewsletterIssuesByPublisher, publisherid)
 	if err != nil {
 		return nil, err
 	}
@@ -901,7 +901,7 @@ func (q *Queries) ListNewsletterIssuesByPublication(ctx context.Context, publica
 		var i NewsletterIssue
 		if err := rows.Scan(
 			&i.ID,
-			&i.PublicationId,
+			&i.PublisherId,
 			&i.Subject,
 			&i.PreviewText,
 			&i.Html,
@@ -969,21 +969,21 @@ func (q *Queries) ListQueuedArticleReleaseDeliveries(ctx context.Context, arg Li
 	return items, nil
 }
 
-const listSubscribersByPublication = `-- name: ListSubscribersByPublication :many
+const listSubscribersByPublisher = `-- name: ListSubscribersByPublisher :many
 SELECT id, email, status, "isActive", "isPremium", "receiveArticles", "createdAt", "updatedAt"
 FROM "Subscriber"
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
 ORDER BY "createdAt" DESC
 LIMIT $2 OFFSET $3
 `
 
-type ListSubscribersByPublicationParams struct {
-	PublicationId string `json:"publicationId"`
-	Limit         int32  `json:"limit"`
-	Offset        int32  `json:"offset"`
+type ListSubscribersByPublisherParams struct {
+	PublisherId string `json:"publisherId"`
+	Limit       int32  `json:"limit"`
+	Offset      int32  `json:"offset"`
 }
 
-type ListSubscribersByPublicationRow struct {
+type ListSubscribersByPublisherRow struct {
 	ID              string             `json:"id"`
 	Email           string             `json:"email"`
 	Status          SubscriptionStatus `json:"status"`
@@ -994,15 +994,15 @@ type ListSubscribersByPublicationRow struct {
 	UpdatedAt       pgtype.Timestamp   `json:"updatedAt"`
 }
 
-func (q *Queries) ListSubscribersByPublication(ctx context.Context, arg ListSubscribersByPublicationParams) ([]ListSubscribersByPublicationRow, error) {
-	rows, err := q.db.Query(ctx, listSubscribersByPublication, arg.PublicationId, arg.Limit, arg.Offset)
+func (q *Queries) ListSubscribersByPublisher(ctx context.Context, arg ListSubscribersByPublisherParams) ([]ListSubscribersByPublisherRow, error) {
+	rows, err := q.db.Query(ctx, listSubscribersByPublisher, arg.PublisherId, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListSubscribersByPublicationRow{}
+	items := []ListSubscribersByPublisherRow{}
 	for rows.Next() {
-		var i ListSubscribersByPublicationRow
+		var i ListSubscribersByPublisherRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Email,
@@ -1104,17 +1104,17 @@ func (q *Queries) ResetNewsletterIssueToDraft(ctx context.Context, id string) er
 	return err
 }
 
-const resolvePublicationIDBySlugOrID = `-- name: ResolvePublicationIDBySlugOrID :one
+const resolvePublisherIDBySlugOrID = `-- name: ResolvePublisherIDBySlugOrID :one
 SELECT id
-FROM "Publication"
+FROM "Publisher"
 WHERE id = $1
    OR LOWER(slug) = LOWER($1)
    OR LOWER(COALESCE(subdomain, '')) = LOWER($1)
 LIMIT 1
 `
 
-func (q *Queries) ResolvePublicationIDBySlugOrID(ctx context.Context, id string) (string, error) {
-	row := q.db.QueryRow(ctx, resolvePublicationIDBySlugOrID, id)
+func (q *Queries) ResolvePublisherIDBySlugOrID(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRow(ctx, resolvePublisherIDBySlugOrID, id)
 	var id_2 string
 	err := row.Scan(&id_2)
 	return id_2, err
@@ -1138,7 +1138,7 @@ func (q *Queries) SetNewsletterIssueSending(ctx context.Context, id string) (str
 
 const subscribePending = `-- name: SubscribePending :exec
 INSERT INTO "Subscriber" (
-    id, email, "publicationId", status, "isActive", "receiveArticles",
+    id, email, "publisherId", status, "isActive", "receiveArticles",
     "confirmationToken", "createdAt", "updatedAt"
 )
 VALUES (
@@ -1152,7 +1152,7 @@ VALUES (
     now(),
     now()
 )
-ON CONFLICT ("email", "publicationId") DO UPDATE SET
+ON CONFLICT ("email", "publisherId") DO UPDATE SET
     "isActive" = true,
     "confirmationToken" = CASE
         WHEN "Subscriber"."confirmedAt" IS NOT NULL
@@ -1168,9 +1168,9 @@ ON CONFLICT ("email", "publicationId") DO UPDATE SET
 `
 
 type SubscribePendingParams struct {
-	Email         string `json:"email"`
-	PublicationID string `json:"publication_id"`
-	Token         string `json:"token"`
+	Email       string `json:"email"`
+	PublisherID string `json:"publisher_id"`
+	Token       string `json:"token"`
 }
 
 // Demande d'abonnement en attente (parcours invité et connecté non vérifié,
@@ -1180,7 +1180,7 @@ type SubscribePendingParams struct {
 // Sur conflit avec un désabonné : nouveau token, jamais de réactivation — seul
 // son propre clic réactive (ConfirmSubscriberByToken).
 func (q *Queries) SubscribePending(ctx context.Context, arg SubscribePendingParams) error {
-	_, err := q.db.Exec(ctx, subscribePending, arg.Email, arg.PublicationID, arg.Token)
+	_, err := q.db.Exec(ctx, subscribePending, arg.Email, arg.PublisherID, arg.Token)
 	return err
 }
 
@@ -1238,17 +1238,17 @@ const unsubscribeNewsletterSubscriber = `-- name: UnsubscribeNewsletterSubscribe
 UPDATE "Subscriber"
 SET "receiveArticles" = false,
     "updatedAt"       = now()
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
   AND email = $2
 `
 
 type UnsubscribeNewsletterSubscriberParams struct {
-	PublicationId string `json:"publicationId"`
-	Email         string `json:"email"`
+	PublisherId string `json:"publisherId"`
+	Email       string `json:"email"`
 }
 
 func (q *Queries) UnsubscribeNewsletterSubscriber(ctx context.Context, arg UnsubscribeNewsletterSubscriberParams) error {
-	_, err := q.db.Exec(ctx, unsubscribeNewsletterSubscriber, arg.PublicationId, arg.Email)
+	_, err := q.db.Exec(ctx, unsubscribeNewsletterSubscriber, arg.PublisherId, arg.Email)
 	return err
 }
 
@@ -1260,7 +1260,7 @@ SET subject       = $2,
     "updatedAt"   = now()
 WHERE id = $1
   AND (status = 'DRAFT' OR status = 'FAILED')
-RETURNING id, "publicationId", subject, "previewText", html, status, "totalRecipients", "sentCount", "failedCount", "createdAt", "updatedAt", "sentAt"
+RETURNING id, "publisherId", subject, "previewText", html, status, "totalRecipients", "sentCount", "failedCount", "createdAt", "updatedAt", "sentAt"
 `
 
 type UpdateNewsletterIssueDraftParams struct {
@@ -1280,7 +1280,7 @@ func (q *Queries) UpdateNewsletterIssueDraft(ctx context.Context, arg UpdateNews
 	var i NewsletterIssue
 	err := row.Scan(
 		&i.ID,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.Subject,
 		&i.PreviewText,
 		&i.Html,
@@ -1298,7 +1298,7 @@ func (q *Queries) UpdateNewsletterIssueDraft(ctx context.Context, arg UpdateNews
 const upsertSubscriber = `-- name: UpsertSubscriber :one
 
 INSERT INTO "Subscriber" (
-    id, email, "publicationId", status, "isActive", "receiveArticles", "createdAt", "updatedAt"
+    id, email, "publisherId", status, "isActive", "receiveArticles", "createdAt", "updatedAt"
 )
 VALUES (
     gen_random_uuid()::text,
@@ -1310,18 +1310,18 @@ VALUES (
     now(),
     now()
 )
-ON CONFLICT ("email", "publicationId") DO UPDATE
+ON CONFLICT ("email", "publisherId") DO UPDATE
 SET "isActive" = true,
     "receiveArticles" = true,
     status = 'ACTIVE',
     "confirmedAt" = COALESCE("Subscriber"."confirmedAt", now()),
     "updatedAt" = now()
-RETURNING id, email, status, "isActive", "isPremium", "receiveArticles", "createdAt", "updatedAt", "publicationId"
+RETURNING id, email, status, "isActive", "isPremium", "receiveArticles", "createdAt", "updatedAt", "publisherId"
 `
 
 type UpsertSubscriberParams struct {
-	Email         string `json:"email"`
-	PublicationID string `json:"publication_id"`
+	Email       string `json:"email"`
+	PublisherID string `json:"publisher_id"`
 }
 
 type UpsertSubscriberRow struct {
@@ -1333,7 +1333,7 @@ type UpsertSubscriberRow struct {
 	ReceiveArticles bool               `json:"receiveArticles"`
 	CreatedAt       pgtype.Timestamp   `json:"createdAt"`
 	UpdatedAt       pgtype.Timestamp   `json:"updatedAt"`
-	PublicationId   string             `json:"publicationId"`
+	PublisherId     string             `json:"publisherId"`
 }
 
 // =====================================================================
@@ -1342,7 +1342,7 @@ type UpsertSubscriberRow struct {
 // Double opt-in : les canaux authentifiés (studio, API clé) confirment
 // d'office l'email — pas de friction là où la relation est déjà vérifiée.
 func (q *Queries) UpsertSubscriber(ctx context.Context, arg UpsertSubscriberParams) (UpsertSubscriberRow, error) {
-	row := q.db.QueryRow(ctx, upsertSubscriber, arg.Email, arg.PublicationID)
+	row := q.db.QueryRow(ctx, upsertSubscriber, arg.Email, arg.PublisherID)
 	var i UpsertSubscriberRow
 	err := row.Scan(
 		&i.ID,
@@ -1353,14 +1353,14 @@ func (q *Queries) UpsertSubscriber(ctx context.Context, arg UpsertSubscriberPara
 		&i.ReceiveArticles,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.PublicationId,
+		&i.PublisherId,
 	)
 	return i, err
 }
 
 const upsertSubscriberPending = `-- name: UpsertSubscriberPending :one
 INSERT INTO "Subscriber" (
-    id, email, "publicationId", status, "isActive", "receiveArticles",
+    id, email, "publisherId", status, "isActive", "receiveArticles",
     "confirmationToken", "createdAt", "updatedAt"
 )
 VALUES (
@@ -1374,7 +1374,7 @@ VALUES (
     now(),
     now()
 )
-ON CONFLICT ("email", "publicationId") DO UPDATE SET
+ON CONFLICT ("email", "publisherId") DO UPDATE SET
     "isActive" = true,
     "confirmationToken" = CASE
         WHEN "Subscriber"."confirmedAt" IS NOT NULL
@@ -1393,13 +1393,13 @@ ON CONFLICT ("email", "publicationId") DO UPDATE SET
     "updatedAt" = now()
 RETURNING id, email, status, "isActive", "isPremium", "receiveArticles",
     ("confirmedAt" IS NOT NULL) AS confirmed,
-    "createdAt", "updatedAt", "publicationId"
+    "createdAt", "updatedAt", "publisherId"
 `
 
 type UpsertSubscriberPendingParams struct {
-	Email         string `json:"email"`
-	PublicationID string `json:"publication_id"`
-	Token         string `json:"token"`
+	Email       string `json:"email"`
+	PublisherID string `json:"publisher_id"`
+	Token       string `json:"token"`
 }
 
 type UpsertSubscriberPendingRow struct {
@@ -1412,7 +1412,7 @@ type UpsertSubscriberPendingRow struct {
 	Confirmed       interface{}        `json:"confirmed"`
 	CreatedAt       pgtype.Timestamp   `json:"createdAt"`
 	UpdatedAt       pgtype.Timestamp   `json:"updatedAt"`
-	PublicationId   string             `json:"publicationId"`
+	PublisherId     string             `json:"publisherId"`
 }
 
 // Inscription en attente de confirmation (double opt-in) : crée un abonné
@@ -1433,7 +1433,7 @@ type UpsertSubscriberPendingRow struct {
 //     désabonné n'est donc réactivé que par son propre clic, jamais par une
 //     nouvelle saisie.
 func (q *Queries) UpsertSubscriberPending(ctx context.Context, arg UpsertSubscriberPendingParams) (UpsertSubscriberPendingRow, error) {
-	row := q.db.QueryRow(ctx, upsertSubscriberPending, arg.Email, arg.PublicationID, arg.Token)
+	row := q.db.QueryRow(ctx, upsertSubscriberPending, arg.Email, arg.PublisherID, arg.Token)
 	var i UpsertSubscriberPendingRow
 	err := row.Scan(
 		&i.ID,
@@ -1445,27 +1445,27 @@ func (q *Queries) UpsertSubscriberPending(ctx context.Context, arg UpsertSubscri
 		&i.Confirmed,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.PublicationId,
+		&i.PublisherId,
 	)
 	return i, err
 }
 
-const userOwnsPublication = `-- name: UserOwnsPublication :one
+const userOwnsPublisher = `-- name: UserOwnsPublisher :one
 SELECT (
-    EXISTS (SELECT 1 FROM "User" WHERE "User".id = $1 AND "User"."publicationId" = $2)
+    EXISTS (SELECT 1 FROM "User" WHERE "User".id = $1 AND "User"."publisherId" = $2)
     OR EXISTS (SELECT 1 FROM "MediaMember" mm JOIN "Media" md ON md.id = mm."mediaId"
-               WHERE mm."userId" = $1 AND md."publicationId" = $2
+               WHERE mm."userId" = $1 AND md."publisherId" = $2
                  AND mm.role = 'owner' AND mm.status = 'active')
 )::boolean AS owns
 `
 
-type UserOwnsPublicationParams struct {
-	ID            string      `json:"id"`
-	PublicationId pgtype.Text `json:"publicationId"`
+type UserOwnsPublisherParams struct {
+	ID          string      `json:"id"`
+	PublisherId pgtype.Text `json:"publisherId"`
 }
 
-func (q *Queries) UserOwnsPublication(ctx context.Context, arg UserOwnsPublicationParams) (bool, error) {
-	row := q.db.QueryRow(ctx, userOwnsPublication, arg.ID, arg.PublicationId)
+func (q *Queries) UserOwnsPublisher(ctx context.Context, arg UserOwnsPublisherParams) (bool, error) {
+	row := q.db.QueryRow(ctx, userOwnsPublisher, arg.ID, arg.PublisherId)
 	var owns bool
 	err := row.Scan(&owns)
 	return owns, err

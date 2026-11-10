@@ -23,7 +23,7 @@ import { ReaderActions } from '../ReaderActions';
 
 const defaultProps = {
   articleId: 'art_123',
-  publicationId: 'pub_456',
+  publisherId: 'pub_456',
   creatorName: 'Victor Hugo',
   isAuthenticated: false,
   initialBookmarked: false,

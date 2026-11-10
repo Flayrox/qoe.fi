@@ -79,7 +79,7 @@ func TruncateRunes(s string, max int) string {
 }
 
 // PublicationPublicURL calcule l'URL racine d'un média.
-func PublicationPublicURL(subdomain, customDomain pgtype.Text) string {
+func PublisherPublicURL(subdomain, customDomain pgtype.Text) string {
 	if customDomain.Valid && customDomain.String != "" {
 		return "https://" + customDomain.String
 	}
@@ -203,9 +203,9 @@ func StripHTML(html string) string {
 // BuildArticleReleaseEmail compose l'email de parution d'un article façon Substack :
 // titre, contenu complet formaté pour email ou teaser + CTA paywall si article premium.
 func BuildArticleReleaseEmail(info db.GetArticleReleaseInfoRow, link, email string) RenderedArticleEmail {
-	pubName := info.PublicationName
-	pubURL := PublicationPublicURL(info.Subdomain, info.CustomDomain)
-	unsub := BuildUnsubURL(info.PublicationId, email)
+	pubName := info.PublisherName
+	pubURL := PublisherPublicURL(info.Subdomain, info.CustomDomain)
+	unsub := BuildUnsubURL(info.PublisherId, email)
 
 	subject := info.Title
 	if info.EmailSubject.Valid && strings.TrimSpace(info.EmailSubject.String) != "" {

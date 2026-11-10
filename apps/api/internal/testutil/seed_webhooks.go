@@ -9,7 +9,7 @@ import (
 
 // WebhookFixtures contient les IDs du seed webhooks.
 type WebhookFixtures struct {
-	PublicationID string
+	PublisherID string
 	OwnerID       string
 	EditorID      string
 	ViewerID      string
@@ -29,29 +29,29 @@ func SeedWebhooks(ctx context.Context, pool *pgxpool.Pool) (*WebhookFixtures, er
 
 	// Vide les tables (IDs fixes → seed rejouable entre tests).
 	if _, err := pool.Exec(ctx, `TRUNCATE TABLE
-		"WebhookDelivery", "Webhook", "MediaMember", "Media", "User", "Publication"
+		"WebhookDelivery", "Webhook", "MediaMember", "Media", "User", "Publisher"
 		CASCADE`); err != nil {
 		return nil, fmt.Errorf("truncate: %w", err)
 	}
 
 	// Publication
 	if err := pool.QueryRow(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ('pub_wh_001', 'PERSONAL', 'Média Test', 'media-test', now(), now())
 		 RETURNING id`,
-	).Scan(&fx.PublicationID); err != nil {
+	).Scan(&fx.PublisherID); err != nil {
 		return nil, fmt.Errorf("publication: %w", err)
 	}
 
 	// Owner : publication personnelle = la publication du média (comme le fait
-	// le service resolveRole : GetUserPersonalPublication).
+	// le service resolveRole : GetUserPersonalPublisher).
 	const ownerID = "00000000-0000-0000-0000-000000000010"
 	if err := pool.QueryRow(ctx,
-		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "apiGrants", "createdAt", "updatedAt")
+		`INSERT INTO "User" (id, email, username, name, role, "publisherId", "apiGrants", "createdAt", "updatedAt")
 		 VALUES ($1, 'owner@test.dev', 'owner', 'Owner', 'creator', $2,
 		         ARRAY['api:read','api:write','api:analytics','webhooks','oauth'], now(), now())
 		 RETURNING id`,
-		ownerID, fx.PublicationID,
+		ownerID, fx.PublisherID,
 	).Scan(&fx.OwnerID); err != nil {
 		return nil, fmt.Errorf("owner: %w", err)
 	}
@@ -76,9 +76,9 @@ func SeedWebhooks(ctx context.Context, pool *pgxpool.Pool) (*WebhookFixtures, er
 	fx.ViewerID = viewerID
 
 	if _, err := pool.Exec(ctx,
-		`INSERT INTO "Media" (id, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "Media" (id, "publisherId", "createdAt", "updatedAt")
 		 VALUES ('media_wh_001', $1, now(), now())`,
-		fx.PublicationID,
+		fx.PublisherID,
 	); err != nil {
 		return nil, fmt.Errorf("media: %w", err)
 	}
@@ -104,10 +104,10 @@ func SeedWebhooks(ctx context.Context, pool *pgxpool.Pool) (*WebhookFixtures, er
 	for _, w := range webhooks {
 		var id string
 		if err := pool.QueryRow(ctx,
-			`INSERT INTO "Webhook" (id, "publicationId", name, url, secret, events, active, "createdAt", "updatedAt")
+			`INSERT INTO "Webhook" (id, "publisherId", name, url, secret, events, active, "createdAt", "updatedAt")
 			 VALUES ($1, $2, $3, $4, 'secret_placeholder', $5, $6, now(), now())
 			 RETURNING id`,
-			w.id, fx.PublicationID, w.name, w.url, w.events, w.active,
+			w.id, fx.PublisherID, w.name, w.url, w.events, w.active,
 		).Scan(&id); err != nil {
 			return nil, fmt.Errorf("webhook %s: %w", w.name, err)
 		}

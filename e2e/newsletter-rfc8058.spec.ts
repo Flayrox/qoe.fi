@@ -29,9 +29,9 @@ test.describe('RFC 8058 Newsletter Unsubscribe & HMAC Security', () => {
 
     // Insérer un abonné actif pour tester la désinscription réelle
     await db.query(
-      `INSERT INTO "Subscriber" ("id", "publicationId", "email", "receiveArticles", "createdAt", "updatedAt")
+      `INSERT INTO "Subscriber" ("id", "publisherId", "email", "receiveArticles", "createdAt", "updatedAt")
        VALUES ($1, $2, $3, true, now(), now())
-       ON CONFLICT ("publicationId", "email") DO UPDATE SET "receiveArticles" = true`,
+       ON CONFLICT ("publisherId", "email") DO UPDATE SET "receiveArticles" = true`,
       [`sub_${Date.now()}`, pubID, email]
     );
   });
@@ -86,7 +86,7 @@ test.describe('RFC 8058 Newsletter Unsubscribe & HMAC Security', () => {
   test('accepte le POST RFC 8058 One-Click Mail-Client et désactive receiveArticles en base', async () => {
     // Réactiver l'abonné d'abord
     await db.query(
-      `UPDATE "Subscriber" SET "receiveArticles" = true WHERE "publicationId" = $1 AND "email" = $2`,
+      `UPDATE "Subscriber" SET "receiveArticles" = true WHERE "publisherId" = $1 AND "email" = $2`,
       [pubID, email]
     );
 
@@ -109,7 +109,7 @@ test.describe('RFC 8058 Newsletter Unsubscribe & HMAC Security', () => {
 
     // Vérification en base de données : receiveArticles doit être à false
     const rows = await db.query<{ receiveArticles: boolean }>(
-      `SELECT "receiveArticles" FROM "Subscriber" WHERE "publicationId" = $1 AND "email" = $2`,
+      `SELECT "receiveArticles" FROM "Subscriber" WHERE "publisherId" = $1 AND "email" = $2`,
       [pubID, email]
     );
     expect(rows[0]?.receiveArticles).toBe(false);

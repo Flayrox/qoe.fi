@@ -40,7 +40,7 @@ func TestConfirm_AttachesToMatchingAccount(t *testing.T) {
 
 	var userID *string
 	if err := poolTest.QueryRow(ctx,
-		`SELECT "userId" FROM "Subscriber" WHERE email = $1 AND "publicationId" = $2`,
+		`SELECT "userId" FROM "Subscriber" WHERE email = $1 AND "publisherId" = $2`,
 		email, pubID).Scan(&userID); err != nil {
 		t.Fatalf("read subscriber: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestConfirm_WithoutMatchingAccount(t *testing.T) {
 	var userID *string
 	var receive bool
 	if err := poolTest.QueryRow(ctx,
-		`SELECT "userId", "receiveArticles" FROM "Subscriber" WHERE email = $1 AND "publicationId" = $2`,
+		`SELECT "userId", "receiveArticles" FROM "Subscriber" WHERE email = $1 AND "publisherId" = $2`,
 		email, pubID).Scan(&userID, &receive); err != nil {
 		t.Fatalf("read subscriber: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestConfirm_NeverOverwritesUserID(t *testing.T) {
 		t.Fatalf("seed user attaché: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`UPDATE "Subscriber" SET "userId" = $1 WHERE email = $2 AND "publicationId" = $3`,
+		`UPDATE "Subscriber" SET "userId" = $1 WHERE email = $2 AND "publisherId" = $3`,
 		existing, email, pubID); err != nil {
 		t.Fatalf("seed userId: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestConfirm_NeverOverwritesUserID(t *testing.T) {
 
 	var userID string
 	if err := poolTest.QueryRow(ctx,
-		`SELECT "userId" FROM "Subscriber" WHERE email = $1 AND "publicationId" = $2`,
+		`SELECT "userId" FROM "Subscriber" WHERE email = $1 AND "publisherId" = $2`,
 		email, pubID).Scan(&userID); err != nil {
 		t.Fatalf("read subscriber: %v", err)
 	}

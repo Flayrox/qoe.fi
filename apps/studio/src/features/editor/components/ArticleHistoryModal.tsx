@@ -83,13 +83,13 @@ function visualFor(event: ArticleEvent): EventVisual {
       tone: 'warning',
     },
     SCHEDULED: {
-      label: t`Publication programmée`,
+      label: t`Publisher programmée`,
       description: t`L'article sera publié automatiquement à la date choisie.`,
       icon: <CalendarClock className="h-3.5 w-3.5" />,
       tone: 'neutral',
     },
     RESCHEDULED: {
-      label: t`Publication reportée`,
+      label: t`Publisher reportée`,
       description: t`La date de publication programmée a changé.`,
       icon: <RotateCcw className="h-3.5 w-3.5" />,
       tone: 'neutral',

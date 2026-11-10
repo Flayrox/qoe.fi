@@ -36,7 +36,7 @@ func TestPublish_RealEnqueue(t *testing.T) {
 	c := newTestClient(t)
 
 	checkEnqueued(t, c, PublishArticlePublished(c, ArticlePublishedPayload{
-		ArticleID: "art_1", PublicationID: "pub_1",
+		ArticleID: "art_1", PublisherID: "pub_1",
 	}))
 }
 

@@ -94,8 +94,8 @@ func handleUserBlocked(ctx context.Context, db DB, event UserBlockedEvent) error
 	// 1. Supprime de "Follows" dans les 2 sens
 	_, err := db.Exec(ctx, `
 		DELETE FROM "Follows"
-		WHERE ("readerId" = $1 AND "publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $2))
-		   OR ("readerId" = $2 AND "publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $1))`,
+		WHERE ("readerId" = $1 AND "publisherId" = (SELECT "publisherId" FROM "User" WHERE id = $2))
+		   OR ("readerId" = $2 AND "publisherId" = (SELECT "publisherId" FROM "User" WHERE id = $1))`,
 		blockerUUID, blockedUUID)
 	if err != nil {
 		return fmt.Errorf("suppression follows: %w", err)
@@ -104,8 +104,8 @@ func handleUserBlocked(ctx context.Context, db DB, event UserBlockedEvent) error
 	// 2. Supprime de "FollowRequest" dans les 2 sens
 	_, err = db.Exec(ctx, `
 		DELETE FROM "FollowRequest"
-		WHERE ("requesterId" = $1 AND "publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $2))
-		   OR ("requesterId" = $2 AND "publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $1))`,
+		WHERE ("requesterId" = $1 AND "publisherId" = (SELECT "publisherId" FROM "User" WHERE id = $2))
+		   OR ("requesterId" = $2 AND "publisherId" = (SELECT "publisherId" FROM "User" WHERE id = $1))`,
 		blockerUUID, blockedUUID)
 	if err != nil {
 		return fmt.Errorf("suppression follow requests: %w", err)
@@ -195,10 +195,10 @@ func handleProfileVisibilityChanged(ctx context.Context, db DB, event ProfileVis
 	userUUID := toUUID(event.UserID)
 
 	// Résolution de la publication si non fournie dans l'événement
-	pubID := event.PublicationID
+	pubID := event.PublisherID
 	if pubID == "" {
 		var pID pgtype.Text
-		_ = db.QueryRow(ctx, `SELECT "publicationId" FROM "User" WHERE id = $1`, userUUID).Scan(&pID)
+		_ = db.QueryRow(ctx, `SELECT "publisherId" FROM "User" WHERE id = $1`, userUUID).Scan(&pID)
 		if pID.Valid {
 			pubID = pID.String
 		}
@@ -209,16 +209,16 @@ func handleProfileVisibilityChanged(ctx context.Context, db DB, event ProfileVis
 	var err error
 	if pubID != "" {
 		rows, err = db.Query(ctx, `
-			SELECT fr."requesterId"::text, fr."publicationId"
+			SELECT fr."requesterId"::text, fr."publisherId"
 			FROM "FollowRequest" fr
-			WHERE fr."publicationId" = $1
+			WHERE fr."publisherId" = $1
 			  AND fr.status = 'PENDING'
 		`, pubID)
 	} else {
 		rows, err = db.Query(ctx, `
-			SELECT fr."requesterId"::text, fr."publicationId"
+			SELECT fr."requesterId"::text, fr."publisherId"
 			FROM "FollowRequest" fr
-			WHERE fr."publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $1)
+			WHERE fr."publisherId" = (SELECT "publisherId" FROM "User" WHERE id = $1)
 			  AND fr.status = 'PENDING'
 		`, userUUID)
 	}
@@ -228,12 +228,12 @@ func handleProfileVisibilityChanged(ctx context.Context, db DB, event ProfileVis
 
 	type pendingReq struct {
 		requesterID   string
-		publicationID string
+		publisherID string
 	}
 	var pending []pendingReq
 	for rows.Next() {
 		var pr pendingReq
-		if err := rows.Scan(&pr.requesterID, &pr.publicationID); err == nil {
+		if err := rows.Scan(&pr.requesterID, &pr.publisherID); err == nil {
 			pending = append(pending, pr)
 		}
 	}
@@ -246,19 +246,19 @@ func handleProfileVisibilityChanged(ctx context.Context, db DB, event ProfileVis
 	// a. Insérer dans "Follows"
 	if pubID != "" {
 		_, err = db.Exec(ctx, `
-			INSERT INTO "Follows" (id, "readerId", "publicationId")
-			SELECT gen_random_uuid()::text, fr."requesterId", fr."publicationId"
+			INSERT INTO "Follows" (id, "readerId", "publisherId")
+			SELECT gen_random_uuid()::text, fr."requesterId", fr."publisherId"
 			FROM "FollowRequest" fr
-			WHERE fr."publicationId" = $1
+			WHERE fr."publisherId" = $1
 			  AND fr.status = 'PENDING'
 			ON CONFLICT DO NOTHING
 		`, pubID)
 	} else {
 		_, err = db.Exec(ctx, `
-			INSERT INTO "Follows" (id, "readerId", "publicationId")
-			SELECT gen_random_uuid()::text, fr."requesterId", fr."publicationId"
+			INSERT INTO "Follows" (id, "readerId", "publisherId")
+			SELECT gen_random_uuid()::text, fr."requesterId", fr."publisherId"
 			FROM "FollowRequest" fr
-			WHERE fr."publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $1)
+			WHERE fr."publisherId" = (SELECT "publisherId" FROM "User" WHERE id = $1)
 			  AND fr.status = 'PENDING'
 			ON CONFLICT DO NOTHING
 		`, userUUID)
@@ -272,14 +272,14 @@ func handleProfileVisibilityChanged(ctx context.Context, db DB, event ProfileVis
 		_, err = db.Exec(ctx, `
 			UPDATE "FollowRequest"
 			SET status = 'ACCEPTED', "decidedAt" = now()
-			WHERE "publicationId" = $1
+			WHERE "publisherId" = $1
 			  AND status = 'PENDING'
 		`, pubID)
 	} else {
 		_, err = db.Exec(ctx, `
 			UPDATE "FollowRequest"
 			SET status = 'ACCEPTED', "decidedAt" = now()
-			WHERE "publicationId" = (SELECT "publicationId" FROM "User" WHERE id = $1)
+			WHERE "publisherId" = (SELECT "publisherId" FROM "User" WHERE id = $1)
 			  AND status = 'PENDING'
 		`, userUUID)
 	}
@@ -300,12 +300,12 @@ func handleProfileVisibilityChanged(ctx context.Context, db DB, event ProfileVis
 
 	// d. Envoi de la notification FOLLOW_ACCEPTED à chaque demandeur via notifications.Dispatch
 	for _, pr := range pending {
-		reqPubID := pr.publicationID
+		reqPubID := pr.publisherID
 		_ = notifications.Dispatch(ctx, db, notifications.DispatchInput{
 			RecipientID:   pr.requesterID,
 			SenderID:      event.UserID,
 			Type:          "FOLLOW",
-			PublicationID: &reqPubID,
+			PublisherID: &reqPubID,
 			Metadata:      map[string]any{"kind": "FOLLOW_ACCEPTED"},
 		})
 	}

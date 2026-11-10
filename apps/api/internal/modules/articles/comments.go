@@ -44,7 +44,7 @@ func (s *Service) CreateComment(ctx context.Context, articleID, authorID, conten
 		}
 		return Comment{}, err
 	}
-	if !cfg.ArticleAllowComments || !cfg.PublicationAllowComments {
+	if !cfg.ArticleAllowComments || !cfg.PublisherAllowComments {
 		return Comment{}, errCommentsDisabled
 	}
 
@@ -181,7 +181,7 @@ func (s *Service) notifyComment(ctx context.Context, articleID, authorID, commen
 		SenderId:      senderUUID,
 		ArticleId:     pgtype.Text{String: articleID, Valid: true},
 		CommentId:     pgtype.Text{String: commentID, Valid: true},
-		PublicationId: pgtype.Text{String: cfg.PublicationID, Valid: true},
+		PublisherId: pgtype.Text{String: cfg.PublisherID, Valid: true},
 	}); err != nil {
 		log.Printf("[articles] comment notif: %v", err)
 	}

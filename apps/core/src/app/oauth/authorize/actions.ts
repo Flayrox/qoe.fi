@@ -36,7 +36,7 @@ export interface OAuthClientInfo {
   homepageUrl: string;
 }
 
-export interface OAuthPublicationInfo {
+export interface OAuthPublisherInfo {
   id: string;
   name: string;
   slug: string;
@@ -47,7 +47,7 @@ export interface OAuthPublicationInfo {
 
 export interface OAuthAuthorizeInfo {
   client: OAuthClientInfo;
-  publication?: OAuthPublicationInfo;
+  publisher?: OAuthPublisherInfo;
   scopes: OAuthScopeInfo[];
   state: string;
   alreadyConsented: boolean;

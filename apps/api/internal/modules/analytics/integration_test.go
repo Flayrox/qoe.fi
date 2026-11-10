@@ -53,18 +53,18 @@ func seedProductMetrics(t *testing.T, ctx context.Context) {
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE
 		"ArticleAttribution", "AnnotationComment", "AnnotationUpvote", "ArticleComment",
 		"Bookmark", "Highlight", "Subscriber", "Article", "Category", "MediaMember",
-		"Publication", "User" CASCADE`); err != nil {
+		"Publisher", "User" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	const pubID = "pub_analytics_001"
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ($1, 'PERSONAL', 'Journal Analytics', 'journal-analytics', now(), now())`, pubID); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
 	const ownerID = "00000000-0000-0000-0000-0000000000cc"
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "User" (id, email, username, name, role, "publisherId", "createdAt", "updatedAt")
 		 VALUES ($1, 'owner-analytics@test.dev', 'owneranalytics', 'Owner', 'creator', $2, now(), now())`,
 		ownerID, pubID); err != nil {
 		t.Fatalf("user: %v", err)
@@ -76,7 +76,7 @@ func seedProductMetrics(t *testing.T, ctx context.Context) {
 	} {
 		var inserted string
 		if err := poolTest.QueryRow(ctx,
-			`INSERT INTO "Category" (id, name, slug, description, "publicationId")
+			`INSERT INTO "Category" (id, name, slug, description, "publisherId")
 			 VALUES ($1, $2, $3, 'desc', $4) RETURNING id`, c.id, c.name, c.slug, pubID).Scan(&inserted); err != nil {
 			t.Fatalf("cat %s: %v", c.name, err)
 		}
@@ -99,7 +99,7 @@ func seedProductMetrics(t *testing.T, ctx context.Context) {
 	for _, a := range articles {
 		if _, err := poolTest.Exec(ctx,
 			`INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
-			                        "readingTime", status, "publicationId", "authorId", "categoryId",
+			                        "readingTime", status, "publisherId", "authorId", "categoryId",
 			                        "completionRate", "createdAt", "updatedAt")
 			 VALUES ($1, $2, $3, '<p>Contenu</p>', true, false, 'PUBLIC', 5, 'PUBLISHED',
 			         $4, $5, $6, $7, now() - $8::int * interval '1 day', now())`,
@@ -111,7 +111,7 @@ func seedProductMetrics(t *testing.T, ctx context.Context) {
 	seedCounters(t, ctx)
 	// 2 subscribers : 1 récent (7j), 1 ancien.
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "receiveArticles", "createdAt", "updatedAt")
+		`INSERT INTO "Subscriber" (id, email, "publisherId", "isActive", "receiveArticles", "createdAt", "updatedAt")
 		 VALUES (gen_random_uuid()::text, 'sub1@test.dev', $1, true, true, now() - interval '2 days', now()),
 		        (gen_random_uuid()::text, 'sub2@test.dev', $1, true, true, now() - interval '30 days', now())`, pubID); err != nil {
 		t.Fatalf("subscribers: %v", err)
@@ -232,18 +232,18 @@ func seedDashboard(t *testing.T, ctx context.Context) {
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE
 		"ArticleAttribution", "AnnotationComment", "AnnotationUpvote", "ArticleComment",
 		"Bookmark", "Highlight", "Letter", "Subscriber", "Article", "Category", "MediaMember",
-		"ReadingSession", "Post", "Publication", "User" CASCADE`); err != nil {
+		"ReadingSession", "Post", "Publisher", "User" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	const pubID = "pub_dash_001"
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "umamiWebsiteId", "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "umamiWebsiteId", "createdAt", "updatedAt")
 		 VALUES ($1, 'PERSONAL', 'Journal Dashboard', 'journal-dashboard', 'site-umami-001', now(), now())`, pubID); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
 	const ownerID = "00000000-0000-0000-0000-0000000000ee"
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "User" (id, email, username, name, role, "publisherId", "createdAt", "updatedAt")
 		 VALUES ($1, 'owner-dash@test.dev', 'ownerdash', 'Owner', 'creator', $2, now(), now())`,
 		ownerID, pubID); err != nil {
 		t.Fatalf("user: %v", err)
@@ -251,7 +251,7 @@ func seedDashboard(t *testing.T, ctx context.Context) {
 	// 1 article publié + 1 brouillon.
 	if _, err := poolTest.Exec(ctx,
 		`INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
-		                        "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt")
+		                        "readingTime", status, "publisherId", "authorId", "createdAt", "updatedAt")
 		 VALUES ('art_dash_01', 'Article publié', 'article-publie', '<p>Contenu</p>', true, false, 'PUBLIC', 6, 'PUBLISHED',
 		         $1, $2, now() - interval '1 day', now() - interval '1 hour'),
 		        ('art_dash_02', 'Brouillon en cours', 'brouillon', '<p>En cours</p>', false, false, 'PUBLIC', 2, 'DRAFT',
@@ -260,7 +260,7 @@ func seedDashboard(t *testing.T, ctx context.Context) {
 	}
 	// 1 subscriber actif payant (LTV 1500 cts) + 1 inactif (ignoré).
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "isPremium", "ltvCents", "receiveArticles", "createdAt", "updatedAt")
+		`INSERT INTO "Subscriber" (id, email, "publisherId", "isActive", "isPremium", "ltvCents", "receiveArticles", "createdAt", "updatedAt")
 		 VALUES (gen_random_uuid()::text, 'payant@test.dev', $1, true, true, 1500, true, now(), now()),
 		        (gen_random_uuid()::text, 'inactif@test.dev', $1, false, false, 999, true, now(), now())`, pubID); err != nil {
 		t.Fatalf("subscribers: %v", err)
@@ -289,8 +289,8 @@ func TestDashboardOverview(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DashboardOverview: %v", err)
 	}
-	if overview.PublicationWebsiteID != "site-umami-001" {
-		t.Fatalf("websiteId = %q, attendu site-umami-001", overview.PublicationWebsiteID)
+	if overview.PublisherWebsiteID != "site-umami-001" {
+		t.Fatalf("websiteId = %q, attendu site-umami-001", overview.PublisherWebsiteID)
 	}
 	if overview.PublishedCount != 1 {
 		t.Fatalf("publishedCount = %d, attendu 1", overview.PublishedCount)

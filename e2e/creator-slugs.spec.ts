@@ -46,10 +46,10 @@ test.describe('Slugs par auteur (API créateur)', () => {
     db = new TestDb(DATABASE_URL);
     await db.connect();
     await db.query(
-      `TRUNCATE TABLE "ArticleSlugHistory","ArticleSlug","Article","Category","_CoAuthors","ApiKey","Publication","User" CASCADE`
+      `TRUNCATE TABLE "ArticleSlugHistory","ArticleSlug","Article","Category","_CoAuthors","ApiKey","Publisher","User" CASCADE`
     );
     await db.query(
-      `INSERT INTO "Publication" (id, type, name, slug, "createdAt","updatedAt") VALUES ($1,'PERSONAL','E2E Slugs','e2e-slugs',now(),now())`,
+      `INSERT INTO "Publisher" (id, type, name, slug, "createdAt","updatedAt") VALUES ($1,'PERSONAL','E2E Slugs','e2e-slugs',now(),now())`,
       [PUB_ID]
     );
     for (const u of [
@@ -58,19 +58,19 @@ test.describe('Slugs par auteur (API créateur)', () => {
     ]) {
       const pub = u.withPub ? PUB_ID : null;
       await db.query(
-        `INSERT INTO "User" (id, email, username, name, role, "publicationId","createdAt","updatedAt")
+        `INSERT INTO "User" (id, email, username, name, role, "publisherId","createdAt","updatedAt")
          VALUES ($1,$2,$3,$3,'user',$4,now(),now())`,
         [u.id, u.email, u.email.split('@')[0], pub]
       );
     }
     await db.query(
-      `INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publicationId","authorId","createdAt","updatedAt")
+      `INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publisherId","authorId","createdAt","updatedAt")
        VALUES ($1,'Duo E2E','duo-e2e','<p>duo</p>',true,'PUBLIC',2,'PUBLISHED',$2,$3,now(),now())`,
       [ARTICLE_ID, PUB_ID, AUTHOR_ID]
     );
     await db.query(`INSERT INTO "_CoAuthors" ("A","B") VALUES ($1,$2)`, [ARTICLE_ID, COAUTHOR_ID]);
     await db.query(
-      `INSERT INTO "Category" (id,name,slug,"publicationId") VALUES ('cat_e2e','E2E','e2e',$1) ON CONFLICT DO NOTHING`,
+      `INSERT INTO "Category" (id,name,slug,"publisherId") VALUES ('cat_e2e','E2E','e2e',$1) ON CONFLICT DO NOTHING`,
       [PUB_ID]
     );
   });
@@ -109,14 +109,14 @@ test.describe('Slugs par auteur (API créateur)', () => {
 
     // conflit global → auto-suffixe
     await db.query(
-      `INSERT INTO "Publication" (id,type,name,slug,"createdAt","updatedAt") VALUES ('pub_tiers_e2e','PERSONAL','Tiers','tiers-e2e',now(),now()) ON CONFLICT DO NOTHING`
+      `INSERT INTO "Publisher" (id,type,name,slug,"createdAt","updatedAt") VALUES ('pub_tiers_e2e','PERSONAL','Tiers','tiers-e2e',now(),now()) ON CONFLICT DO NOTHING`
     );
     await db.query(
-      `INSERT INTO "User" (id,email,username,name,role,"publicationId","createdAt","updatedAt")
+      `INSERT INTO "User" (id,email,username,name,role,"publisherId","createdAt","updatedAt")
        VALUES ('00000000-0000-4000-8000-0000000000a3','own@qoe.fi','own_e2e','Own','user','pub_tiers_e2e',now(),now()) ON CONFLICT DO NOTHING`
     );
     await db.query(
-      `INSERT INTO "Article" (id,title,slug,content,published,visibility,"readingTime",status,"publicationId","authorId","createdAt","updatedAt")
+      `INSERT INTO "Article" (id,title,slug,content,published,visibility,"readingTime",status,"publisherId","authorId","createdAt","updatedAt")
        VALUES ('art_autre_e2e','Autre','duo-e2e-2','<p>x</p>',true,'PUBLIC',1,'PUBLISHED','pub_tiers_e2e','00000000-0000-4000-8000-0000000000a3',now(),now()) ON CONFLICT DO NOTHING`
     );
     res = await request.patch(`${GO_API_URL}/v1/creator/articles/${ARTICLE_ID}/slug`, {

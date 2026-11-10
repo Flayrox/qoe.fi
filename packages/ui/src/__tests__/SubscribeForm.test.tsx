@@ -47,14 +47,14 @@ describe('SubscribeForm', () => {
   });
 
   it('rend le champ email et le bouton d’abonnement pour un visiteur anonyme', () => {
-    render(<SubscribeForm publicationId="pub_test_1" />);
+    render(<SubscribeForm publisherId="pub_test_1" />);
     expect(screen.getByPlaceholderText(/Votre adresse email/i)).toBeDefined();
     expect(screen.getByRole('button', { name: /S'abonner/i })).toBeDefined();
   });
 
   it('affiche le message de succès après inscription en mode anonyme', async () => {
     mocks.subscribeToNewsletterAction.mockResolvedValue({ ok: true });
-    render(<SubscribeForm publicationId="pub_test_1" />);
+    render(<SubscribeForm publisherId="pub_test_1" />);
 
     const user = userEvent.setup();
     const input = screen.getByPlaceholderText(/Votre adresse email/i);
@@ -71,7 +71,7 @@ describe('SubscribeForm', () => {
   it('ouvre la modal de recommandations si des partenaires sont configurés', async () => {
     mocks.subscribeToNewsletterAction.mockResolvedValue({ ok: true });
     render(
-      <SubscribeForm publicationId="pub_test_1" recommendations={dummyRecs} authorName="Camus" />
+      <SubscribeForm publisherId="pub_test_1" recommendations={dummyRecs} authorName="Camus" />
     );
 
     const user = userEvent.setup();
@@ -91,7 +91,7 @@ describe('SubscribeForm', () => {
       ok: false,
       error: { message: 'Adresse email non autorisée' },
     });
-    render(<SubscribeForm publicationId="pub_test_1" />);
+    render(<SubscribeForm publisherId="pub_test_1" />);
 
     const user = userEvent.setup();
     const input = screen.getByPlaceholderText(/Votre adresse email/i);
@@ -107,7 +107,7 @@ describe('SubscribeForm', () => {
 
   it('propose l’inscription 1-clic native quand un utilisateur est connecté', async () => {
     mocks.subscribeToNewsletterAction.mockResolvedValue({ ok: true });
-    render(<SubscribeForm publicationId="pub_test_1" userEmail="abonne@qoefi.com" />);
+    render(<SubscribeForm publisherId="pub_test_1" userEmail="abonne@qoefi.com" />);
 
     // Doit afficher le bouton 1-clic avec son email
     expect(screen.getByText('abonne@qoefi.com')).toBeDefined();
@@ -120,14 +120,14 @@ describe('SubscribeForm', () => {
     await waitFor(() => {
       expect(mocks.subscribeToNewsletterAction).toHaveBeenCalledWith({
         email: 'abonne@qoefi.com',
-        publicationId: 'pub_test_1',
+        publisherId: 'pub_test_1',
       });
       expect(screen.getByText(/Plus qu'une étape !/i)).toBeDefined();
     });
   });
 
   it('permet de basculer sur une autre adresse email via le chevron d’options', async () => {
-    render(<SubscribeForm publicationId="pub_test_1" userEmail="abonne@qoefi.com" />);
+    render(<SubscribeForm publisherId="pub_test_1" userEmail="abonne@qoefi.com" />);
 
     const user = userEvent.setup();
     const chevronBtn = screen.getByLabelText(/Options d'inscription/i);
@@ -142,7 +142,7 @@ describe('SubscribeForm', () => {
   });
 
   it('propose le bouton S’abonner en 1 clic avec Qoefi pour un invité anonyme', () => {
-    render(<SubscribeForm publicationId="pub_test_1" />);
+    render(<SubscribeForm publisherId="pub_test_1" />);
     const qoefiBtn = screen.getByRole('link', { name: /S'abonner en 1 clic avec Qoefi/i });
     expect(qoefiBtn).toBeDefined();
     expect(qoefiBtn.getAttribute('href')).toContain('subscribe-with-qoefi?publication=pub_test_1');
@@ -153,7 +153,7 @@ describe('SubscribeForm', () => {
       ok: true,
       data: { success: true, active: true },
     });
-    render(<SubscribeForm publicationId="pub_test_1" userEmail="abonne@qoefi.com" />);
+    render(<SubscribeForm publisherId="pub_test_1" userEmail="abonne@qoefi.com" />);
 
     const user = userEvent.setup();
     const oneClickBtn = screen.getByTitle(/S'abonner immédiatement avec abonne@qoefi.com/i);
@@ -166,7 +166,7 @@ describe('SubscribeForm', () => {
   });
 
   it('permet de basculer sur une autre adresse email via le bouton sous le 1-clic', async () => {
-    render(<SubscribeForm publicationId="pub_test_1" userEmail="abonne@qoefi.com" />);
+    render(<SubscribeForm publisherId="pub_test_1" userEmail="abonne@qoefi.com" />);
 
     const user = userEvent.setup();
     const switchBtn = screen.getByRole('button', { name: /Utiliser une autre adresse email/i });

@@ -26,7 +26,7 @@ func insertMediaAPIKey(t *testing.T, pubID, name string, scopes []string) string
 	key := "qoe_live_" + hex.EncodeToString(raw)
 	sum := sha256.Sum256([]byte(key))
 	if _, err := poolTest.Exec(context.Background(),
-		`INSERT INTO "ApiKey" (id, name, "keyPrefix", "keyHash", scopes, "publicationId")
+		`INSERT INTO "ApiKey" (id, name, "keyPrefix", "keyHash", scopes, "publisherId")
 		 VALUES (gen_random_uuid()::text, $1, 'qoe_live', $2, $3, $4)`,
 		name, hex.EncodeToString(sum[:]), scopes, pubID); err != nil {
 		t.Fatalf("insert media api key: %v", err)
@@ -166,7 +166,7 @@ func TestCreatorAPI_PublicSubscribe_CORS(t *testing.T) {
 	r := newSubscribersTestRouter()
 
 	// 1. Preflight OPTIONS avec CORS
-	optReq := httptest.NewRequest(http.MethodOptions, "/v1/publications/alice/subscribe", nil)
+	optReq := httptest.NewRequest(http.MethodOptions, "/v1/publishers/alice/subscribe", nil)
 	optRec := httptest.NewRecorder()
 	r.ServeHTTP(optRec, optReq)
 	if optRec.Code != http.StatusNoContent {
@@ -178,7 +178,7 @@ func TestCreatorAPI_PublicSubscribe_CORS(t *testing.T) {
 
 	// 2. Inscription publique
 	body, _ := json.Marshal(map[string]string{"email": "fan@custom-domain.org"})
-	postReq := httptest.NewRequest(http.MethodPost, "/v1/publications/alice/subscribe", bytes.NewReader(body))
+	postReq := httptest.NewRequest(http.MethodPost, "/v1/publishers/alice/subscribe", bytes.NewReader(body))
 	postReq.Header.Set("Content-Type", "application/json")
 	postRec := httptest.NewRecorder()
 	r.ServeHTTP(postRec, postReq)
@@ -190,7 +190,7 @@ func TestCreatorAPI_PublicSubscribe_CORS(t *testing.T) {
 	}
 
 	// 3. Publication inexistante
-	errReq := httptest.NewRequest(http.MethodPost, "/v1/publications/inconnue/subscribe", bytes.NewReader(body))
+	errReq := httptest.NewRequest(http.MethodPost, "/v1/publishers/inconnue/subscribe", bytes.NewReader(body))
 	errReq.Header.Set("Content-Type", "application/json")
 	errRec := httptest.NewRecorder()
 	r.ServeHTTP(errRec, errReq)
@@ -199,12 +199,12 @@ func TestCreatorAPI_PublicSubscribe_CORS(t *testing.T) {
 	}
 }
 
-func TestCreatorAPI_PublicationMetadata(t *testing.T) {
+func TestCreatorAPI_PublisherMetadata(t *testing.T) {
 	alicePubID, aliceUserID, _, _ := seedFollows(t)
 	r := newSubscribersTestRouter()
 	key := insertAPIKey(t, aliceUserID, "meta-test", authmw.AllScopes)
 
-	req := httptest.NewRequest(http.MethodGet, "/v1/creator/publication", nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/creator/publisher", nil)
 	req.Header.Set("Authorization", "Bearer "+key)
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
@@ -230,7 +230,7 @@ func TestCreatorAPI_MediaKey_Highlights(t *testing.T) {
 	mediaID := "media-news-001"
 	ownerUserID := "00000000-0000-0000-0000-000000000200"
 
-	_, _ = poolTest.Exec(ctx, `DELETE FROM "Publication" WHERE id = $1`, mediaPubID)
+	_, _ = poolTest.Exec(ctx, `DELETE FROM "Publisher" WHERE id = $1`, mediaPubID)
 	_, _ = poolTest.Exec(ctx, `DELETE FROM "User" WHERE id = $1`, ownerUserID)
 
 	if _, err := poolTest.Exec(ctx,
@@ -241,14 +241,14 @@ func TestCreatorAPI_MediaKey_Highlights(t *testing.T) {
 	}
 
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ($1, 'MEDIA', 'Media News', 'medianews', now(), now())`,
 		mediaPubID); err != nil {
 		t.Fatalf("insert publication: %v", err)
 	}
 
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Media" (id, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "Media" (id, "publisherId", "createdAt", "updatedAt")
 		 VALUES ($1, $2, now(), now())`,
 		mediaID, mediaPubID); err != nil {
 		t.Fatalf("insert media: %v", err)
@@ -264,7 +264,7 @@ func TestCreatorAPI_MediaKey_Highlights(t *testing.T) {
 	// 2. Créer un article publié pour ce média
 	articleID := "art-media-001"
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Article" (id, title, slug, content, published, status, "publicationId", "authorId", "createdAt", "updatedAt")
+		`INSERT INTO "Article" (id, title, slug, content, published, status, "publisherId", "authorId", "createdAt", "updatedAt")
 		 VALUES ($1, 'Grand Reportage', 'grand-reportage', '<p>Texte</p>', true, 'PUBLISHED', $2, $3, now(), now())`,
 		articleID, mediaPubID, ownerUserID); err != nil {
 		t.Fatalf("insert article: %v", err)
@@ -328,7 +328,7 @@ func TestCreatorAPI_Subscribers_DoubleOptIn(t *testing.T) {
 		t.Helper()
 		var confirmedAt any
 		if err := poolTest.QueryRow(ctx,
-			`SELECT "receiveArticles", "confirmedAt", "confirmationToken" FROM "Subscriber" WHERE email = $1 AND "publicationId" = $2`,
+			`SELECT "receiveArticles", "confirmedAt", "confirmationToken" FROM "Subscriber" WHERE email = $1 AND "publisherId" = $2`,
 			email, alicePubID).Scan(&receiveArticles, &confirmedAt, &token); err != nil {
 			t.Fatalf("subscriber row %s: %v", email, err)
 		}
@@ -347,7 +347,7 @@ func TestCreatorAPI_Subscribers_DoubleOptIn(t *testing.T) {
 
 	// 2. Route publique : 200 neutre, en attente aussi (fiche 01 : réponse qui
 	// ne révèle ni compte ni statut, activation uniquement au clic).
-	pubRec := postJSON("/v1/publications/alice/subscribe", "doi2@example.com", "")
+	pubRec := postJSON("/v1/publishers/alice/subscribe", "doi2@example.com", "")
 	if pubRec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", pubRec.Code, pubRec.Body.String())
 	}
@@ -358,7 +358,7 @@ func TestCreatorAPI_Subscribers_DoubleOptIn(t *testing.T) {
 	// 3. Réinscription d'un désabonné via clé API : PAS de réactivation
 	// silencieuse — nouveau token, toujours en attente.
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "publicationId", status, "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
+		`INSERT INTO "Subscriber" (id, email, "publisherId", status, "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
 		 VALUES (gen_random_uuid()::text, 'doi3@example.com', $1, 'ACTIVE', false, false, now(), now(), now())`,
 		alicePubID); err != nil {
 		t.Fatalf("seed unsubscribed: %v", err)
@@ -374,7 +374,7 @@ func TestCreatorAPI_Subscribers_DoubleOptIn(t *testing.T) {
 	// 4. Abonné déjà actif et confirmé : pas de nouveau token, pas de
 	// confirmation à renvoyer.
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "publicationId", status, "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
+		`INSERT INTO "Subscriber" (id, email, "publisherId", status, "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
 		 VALUES (gen_random_uuid()::text, 'doi4@example.com', $1, 'ACTIVE', true, true, now(), now(), now())`,
 		alicePubID); err != nil {
 		t.Fatalf("seed active: %v", err)
@@ -395,7 +395,7 @@ func TestCreatorAPI_PublicProfile(t *testing.T) {
 	r := newSubscribersTestRouter()
 
 	// Par slug.
-	req := httptest.NewRequest(http.MethodGet, "/v1/publications/alice/profile", nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/publishers/alice/profile", nil)
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -418,7 +418,7 @@ func TestCreatorAPI_PublicProfile(t *testing.T) {
 	}
 
 	// Par identifiant : même réponse.
-	reqID := httptest.NewRequest(http.MethodGet, "/v1/publications/"+alicePubID+"/profile", nil)
+	reqID := httptest.NewRequest(http.MethodGet, "/v1/publishers/"+alicePubID+"/profile", nil)
 	recID := httptest.NewRecorder()
 	r.ServeHTTP(recID, reqID)
 	if recID.Code != http.StatusOK {
@@ -426,7 +426,7 @@ func TestCreatorAPI_PublicProfile(t *testing.T) {
 	}
 
 	// Inconnue : 404 neutre (ne révèle rien).
-	req404 := httptest.NewRequest(http.MethodGet, "/v1/publications/nonexistent-xyz/profile", nil)
+	req404 := httptest.NewRequest(http.MethodGet, "/v1/publishers/nonexistent-xyz/profile", nil)
 	rec404 := httptest.NewRecorder()
 	r.ServeHTTP(rec404, req404)
 	if rec404.Code != http.StatusNotFound {

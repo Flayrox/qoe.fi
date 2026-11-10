@@ -10,7 +10,7 @@
 
 import React from 'react';
 import { SafeImage } from '../../SafeImage';
-import type { HeroBlockProps, TemplatePublicationContext, TemplateRenderContext } from '../schema';
+import type { HeroBlockProps, TemplatePublisherContext, TemplateRenderContext } from '../schema';
 import { BlockWrapper } from './BlockWrapper';
 import { EditableText } from './EditableText';
 import { NodeRenderer } from './NodeRenderer';
@@ -19,7 +19,7 @@ import { SubscribeForm } from '../../SubscribeForm';
 interface HeroBlockComponentProps {
   id: string;
   props: HeroBlockProps;
-  publication: TemplatePublicationContext;
+  publisher: TemplatePublisherContext;
   context: TemplateRenderContext;
   visible?: boolean;
   locked?: boolean;
@@ -31,7 +31,7 @@ interface HeroBlockComponentProps {
 export function HeroBlock({
   id,
   props,
-  publication,
+  publisher,
   context,
   visible = true,
   locked = false,
@@ -51,7 +51,7 @@ export function HeroBlock({
     showCoverImage = true,
   } = props;
 
-  const { name, heroText, headerImageUrl, siteOptions } = publication;
+  const { name, heroText, headerImageUrl, siteOptions } = publisher;
 
   const allowBanner = (siteOptions?.showBanner ?? true) !== false;
   const allowTagline = (siteOptions?.showTagline ?? true) !== false;
@@ -147,16 +147,16 @@ export function HeroBlock({
                 className="mt-6 pt-4 border-t border-border/40 select-none"
               >
                 <SubscribeForm
-                  publicationId={publication?.id || ''}
+                  publisherId={publisher?.id || ''}
                   authorName={title}
-                  accentColor={publication?.accentColor || undefined}
+                  accentColor={publisher?.accentColor || undefined}
                   placeholder="Entrez votre email..."
                   buttonText="S’abonner"
                   helperText={`Rejoignez les lecteurs de ${title}. Désinscription libre en un clic.`}
                   disabled={context.mode === 'editable'}
                   size="compact"
                   className="max-w-md mx-0"
-                  mainAppUrl={publication?.mainAppUrl}
+                  mainAppUrl={publisher?.mainAppUrl}
                 />
               </div>
             </div>

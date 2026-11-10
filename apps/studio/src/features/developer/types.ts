@@ -20,7 +20,7 @@ export interface DeveloperWorkspace {
   type: 'PERSONAL' | 'MEDIA';
   name: string;
   mediaId?: string | null;
-  publicationId: string;
+  publisherId: string;
 }
 
 export type DeveloperCapabilityKey =

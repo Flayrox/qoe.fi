@@ -42,22 +42,22 @@ WHERE "recipientId" = $1 AND "senderId" = $2 AND type = 'LIKE' AND "thoughtId" =
 DELETE FROM "Notification"
 WHERE "recipientId" = $1 AND "senderId" = $2 AND type = 'REPOST' AND "thoughtId" = $3;
 
--- name: GetPublicationOwner :one
+-- name: GetPublisherOwner :one
 SELECT COALESCE(
   CASE
     WHEN p.type = 'MEDIA' THEN (
       SELECT mm."userId"::text
       FROM "MediaMember" mm
       JOIN "Media" m ON m.id = mm."mediaId"
-      WHERE m."publicationId" = p.id AND mm.role = 'owner' AND mm.status = 'active'
+      WHERE m."publisherId" = p.id AND mm.role = 'owner' AND mm.status = 'active'
       LIMIT 1
     )
     ELSE u.id::text
   END,
   ''
 )::text AS owner_id
-FROM "Publication" p
-LEFT JOIN "User" u ON u."publicationId" = p.id
+FROM "Publisher" p
+LEFT JOIN "User" u ON u."publisherId" = p.id
 WHERE p.id = $1;
 
 -- name: GetFollowPrefs :one
@@ -71,16 +71,16 @@ FROM "Notification"
 WHERE "recipientId" = $1
   AND "senderId" = $2
   AND type = 'FOLLOW'
-  AND "publicationId" = $3
+  AND "publisherId" = $3
   AND "isRead" = false;
 
 -- name: InsertFollowNotification :exec
-INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publicationId")
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publisherId")
 VALUES (gen_random_uuid()::text, $1, $2, 'FOLLOW', $3);
 
 -- name: DeleteFollowNotification :exec
 DELETE FROM "Notification"
-WHERE "recipientId" = $1 AND "senderId" = $2 AND type = 'FOLLOW' AND "publicationId" = $3;
+WHERE "recipientId" = $1 AND "senderId" = $2 AND type = 'FOLLOW' AND "publisherId" = $3;
 
 -- name: GetCommentPrefs :one
 SELECT "emailComments", "pushComments"
@@ -97,21 +97,21 @@ WHERE "recipientId" = $1
   AND "isRead" = false;
 
 -- name: InsertCommentNotification :exec
-INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId", "commentId", "publicationId")
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId", "commentId", "publisherId")
 VALUES (gen_random_uuid()::text, $1, $2, 'COMMENT', $3, $4, $5);
 
 -- name: InsertMediaArticlePublishedFanout :exec
-INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId", "publicationId")
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId", "publisherId")
 SELECT gen_random_uuid()::text,
        f."readerId",
        sqlc.arg('sender_id'),
        'MEDIA_ARTICLE_PUBLISHED',
        sqlc.arg('article_id'),
-       f."publicationId"
+       f."publisherId"
 FROM "Follows" f
-JOIN "Publication" pub ON pub.id = f."publicationId"
+JOIN "Publisher" pub ON pub.id = f."publisherId"
 LEFT JOIN "NotificationPreference" np ON np."userId" = f."readerId"
-WHERE f."publicationId" = sqlc.arg('publication_id')
+WHERE f."publisherId" = sqlc.arg('publisher_id')
   AND pub.type = 'MEDIA'
   AND f."readerId" <> sqlc.arg('sender_id')
   AND (COALESCE(np."emailMedia", true) OR COALESCE(np."pushMedia", true))
@@ -126,12 +126,12 @@ WHERE f."publicationId" = sqlc.arg('publication_id')
 LIMIT 500;
 
 -- name: InsertMediaInviteNotification :exec
-INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publicationId")
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publisherId")
 SELECT gen_random_uuid()::text,
        sqlc.arg('recipient_id')::uuid,
        sqlc.arg('sender_id')::uuid,
        'MEDIA_INVITE',
-       sqlc.arg('publication_id')::text
+       sqlc.arg('publisher_id')::text
 WHERE sqlc.arg('recipient_id')::uuid <> sqlc.arg('sender_id')::uuid
   AND (
     COALESCE((SELECT "pushMedia" FROM "NotificationPreference"
@@ -144,17 +144,17 @@ WHERE sqlc.arg('recipient_id')::uuid <> sqlc.arg('sender_id')::uuid
     WHERE n."recipientId" = sqlc.arg('recipient_id')::uuid
       AND n."senderId" = sqlc.arg('sender_id')::uuid
       AND n.type = 'MEDIA_INVITE'
-      AND n."publicationId" = sqlc.arg('publication_id')::text
+      AND n."publisherId" = sqlc.arg('publisher_id')::text
       AND n."isRead" = false
   );
 
 -- name: InsertMediaMemberJoinedNotification :exec
-INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publicationId")
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publisherId")
 SELECT gen_random_uuid()::text,
        sqlc.arg('recipient_id')::uuid,
        sqlc.arg('sender_id')::uuid,
        'MEDIA_MEMBER_JOINED',
-       sqlc.arg('publication_id')::text
+       sqlc.arg('publisher_id')::text
 WHERE sqlc.arg('recipient_id')::uuid <> sqlc.arg('sender_id')::uuid
   AND (
     COALESCE((SELECT "pushMedia" FROM "NotificationPreference"
@@ -167,21 +167,21 @@ WHERE sqlc.arg('recipient_id')::uuid <> sqlc.arg('sender_id')::uuid
     WHERE n."recipientId" = sqlc.arg('recipient_id')::uuid
       AND n."senderId" = sqlc.arg('sender_id')::uuid
       AND n.type = 'MEDIA_MEMBER_JOINED'
-      AND n."publicationId" = sqlc.arg('publication_id')::text
+      AND n."publisherId" = sqlc.arg('publisher_id')::text
       AND n."isRead" = false
   );
 
 -- name: InsertMediaArticleSubmittedFanout :exec
-INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId", "publicationId")
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId", "publisherId")
 SELECT gen_random_uuid()::text,
        m."userId",
        sqlc.arg('sender_id'),
        'MEDIA_ARTICLE_SUBMITTED',
        sqlc.arg('article_id'),
-       md."publicationId"
+       md."publisherId"
 FROM "MediaMember" m
 JOIN "Media" md ON md.id = m."mediaId"
-WHERE md."publicationId" = sqlc.arg('publication_id')
+WHERE md."publisherId" = sqlc.arg('publisher_id')
   AND m."userId" <> sqlc.arg('sender_id')
   AND (m.status = 'active' OR m.status = 'invited')
   AND (
@@ -199,6 +199,6 @@ WHERE md."publicationId" = sqlc.arg('publication_id')
 LIMIT 500;
 
 -- name: InsertArticleReviewNotification :exec
-INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId", "publicationId", metadata)
-VALUES (gen_random_uuid()::text, sqlc.arg('recipient_id')::uuid, sqlc.arg('sender_id')::uuid, sqlc.arg('type')::"NotificationType", sqlc.arg('article_id'), sqlc.arg('publication_id'), sqlc.narg('metadata'));
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId", "publisherId", metadata)
+VALUES (gen_random_uuid()::text, sqlc.arg('recipient_id')::uuid, sqlc.arg('sender_id')::uuid, sqlc.arg('type')::"NotificationType", sqlc.arg('article_id'), sqlc.arg('publisher_id'), sqlc.narg('metadata'));
 

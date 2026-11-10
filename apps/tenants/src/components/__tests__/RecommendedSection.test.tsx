@@ -80,7 +80,7 @@ describe('RecommendedSection', () => {
 
     expect(mocks.subscribeToNewsletterAction).toHaveBeenCalledWith({
       email: 'test@subscriber.dev',
-      publicationId: 'pub_partner_1',
+      publisherId: 'pub_partner_1',
     });
   });
 });

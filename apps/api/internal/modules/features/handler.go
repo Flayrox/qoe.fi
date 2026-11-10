@@ -46,7 +46,7 @@ type signalRequest struct {
 	Feature       string `json:"feature"`
 	Kind          string `json:"kind"`
 	Source        string `json:"source"`
-	PublicationID string `json:"publicationId"`
+	PublisherID string `json:"publisherId"`
 }
 
 func (h *Handler) record(w http.ResponseWriter, r *http.Request) {
@@ -64,14 +64,14 @@ func (h *Handler) record(w http.ResponseWriter, r *http.Request) {
 		FeatureKey:    body.Feature,
 		Kind:          body.Kind,
 		Source:        body.Source,
-		PublicationID: body.PublicationID,
+		PublisherID: body.PublisherID,
 	})
 	switch {
 	case errors.Is(err, ErrInvalidSignal):
 		response.ErrorCode(w, http.StatusBadRequest, "invalid_signal", "signal de fonctionnalité invalide")
 		return
 	case errors.Is(err, ErrForbidden):
-		response.Forbidden(w, "Publication inaccessible")
+		response.Forbidden(w, "Publisher inaccessible")
 		return
 	case errors.Is(err, ErrFeatureUnavailable):
 		response.ErrorCode(w, http.StatusConflict, "notify_closed", "les notifications sont fermées pour cette fonctionnalité")
@@ -124,15 +124,15 @@ func (h *Handler) summary(w http.ResponseWriter, r *http.Request) {
 		response.Unauthorized(w, "Authentification requise")
 		return
 	}
-	publicationID := r.URL.Query().Get("publicationId")
-	if publicationID == "" {
-		response.BadRequest(w, "publicationId requis")
+	publisherID := r.URL.Query().Get("publisherId")
+	if publisherID == "" {
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
-	signals, err := h.svc.Summary(r.Context(), userID, publicationID)
+	signals, err := h.svc.Summary(r.Context(), userID, publisherID)
 	switch {
 	case errors.Is(err, ErrInvalidSignal):
-		response.BadRequest(w, "publicationId requis")
+		response.BadRequest(w, "publisherId requis")
 		return
 	case errors.Is(err, ErrForbidden):
 		response.Forbidden(w, "Permission insuffisante")

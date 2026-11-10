@@ -24,17 +24,17 @@ func TestHandler_Test_NetworkError(t *testing.T) {
 
 	var whID string
 	if err := poolTest.QueryRow(context.Background(),
-		`INSERT INTO "Webhook" (id, "publicationId", name, url, secret, events, active, "createdAt", "updatedAt")
+		`INSERT INTO "Webhook" (id, "publisherId", name, url, secret, events, active, "createdAt", "updatedAt")
 		 VALUES (gen_random_uuid()::text, $1, 'Down', 'http://127.0.0.1:1/hook', 'secret_x', ARRAY['article.published'], true, now(), now())
 		 RETURNING id`,
-		fx.PublicationID,
+		fx.PublisherID,
 	).Scan(&whID); err != nil {
 		t.Fatalf("insert webhook: %v", err)
 	}
 
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
-	w, body := doJSON(t, r, "POST", "/v1/webhooks/"+whID+"/test?publicationId="+fx.PublicationID, token, nil)
+	w, body := doJSON(t, r, "POST", "/v1/webhooks/"+whID+"/test?publisherId="+fx.PublisherID, token, nil)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, attendu 200 (erreur réseau → success=false)", w.Code)
 	}
@@ -61,7 +61,7 @@ func TestHandler_Test_ViewerForbidden(t *testing.T) {
 	r := newTestRouter()
 	token := testJWT(fx.ViewerID)
 
-	w, _ := doJSON(t, r, "POST", "/v1/webhooks/"+fx.WebhookID+"/test?publicationId="+fx.PublicationID, token, nil)
+	w, _ := doJSON(t, r, "POST", "/v1/webhooks/"+fx.WebhookID+"/test?publisherId="+fx.PublisherID, token, nil)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, attendu 403 (viewer)", w.Code)
 	}
@@ -73,14 +73,14 @@ func TestHandler_Delete_ViewerForbidden(t *testing.T) {
 	r := newTestRouter()
 	token := testJWT(fx.ViewerID)
 
-	w, _ := doJSON(t, r, "DELETE", "/v1/webhooks/"+fx.WebhookID+"?publicationId="+fx.PublicationID, token, nil)
+	w, _ := doJSON(t, r, "DELETE", "/v1/webhooks/"+fx.WebhookID+"?publisherId="+fx.PublisherID, token, nil)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, attendu 403 (viewer)", w.Code)
 	}
 }
 
-// TestHandler_Delete_NoPublicationID → 400.
-func TestHandler_Delete_NoPublicationID(t *testing.T) {
+// TestHandler_Delete_NoPublisherID → 400.
+func TestHandler_Delete_NoPublisherID(t *testing.T) {
 	fx := seedWH(t)
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
@@ -98,19 +98,19 @@ func TestHandler_ListDeliveries_Branches(t *testing.T) {
 	token := testJWT(fx.OwnerID)
 
 	// limit hors bornes → clamp 50 (aucune erreur).
-	w, _ := doJSONArray(t, r, "GET", "/v1/webhooks/"+fx.WebhookID+"/deliveries?publicationId="+fx.PublicationID+"&limit=9999", token)
+	w, _ := doJSONArray(t, r, "GET", "/v1/webhooks/"+fx.WebhookID+"/deliveries?publisherId="+fx.PublisherID+"&limit=9999", token)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, attendu 200 (limit clamp)", w.Code)
 	}
 
 	// Publication étrangère → resolveRole échoue → 403 (RBAC avant ownership).
-	w2, _ := doJSON(t, r, "GET", "/v1/webhooks/"+fx.WebhookID+"/deliveries?publicationId=pub_autre", token, nil)
+	w2, _ := doJSON(t, r, "GET", "/v1/webhooks/"+fx.WebhookID+"/deliveries?publisherId=pub_autre", token, nil)
 	if w2.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, attendu 403 (publication étrangère)", w2.Code)
 	}
 
 	// Id inexistant → 404.
-	w3, _ := doJSON(t, r, "GET", "/v1/webhooks/wh_inexistant/deliveries?publicationId="+fx.PublicationID, token, nil)
+	w3, _ := doJSON(t, r, "GET", "/v1/webhooks/wh_inexistant/deliveries?publisherId="+fx.PublisherID, token, nil)
 	if w3.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, attendu 404", w3.Code)
 	}
@@ -130,7 +130,7 @@ func TestHandler_Create_Validation(t *testing.T) {
 
 	// Nom vide.
 	w2, _ := doJSON(t, r, "POST", "/v1/webhooks", token, map[string]any{
-		"publicationId": fx.PublicationID, "name": "  ", "url": "https://x.example.com/hook",
+		"publisherId": fx.PublisherID, "name": "  ", "url": "https://x.example.com/hook",
 		"events": []string{"article.published"},
 	})
 	if w2.Code != http.StatusBadRequest {
@@ -151,7 +151,7 @@ func TestService_Delete_ViewerForbidden(t *testing.T) {
 	fx := seedWH(t)
 	svc := NewService(poolTest)
 
-	if err := svc.Delete(context.Background(), fx.ViewerID, fx.WebhookID, fx.PublicationID); err == nil {
+	if err := svc.Delete(context.Background(), fx.ViewerID, fx.WebhookID, fx.PublisherID); err == nil {
 		t.Fatal("Delete(viewer) attendu errForbidden")
 	}
 }
@@ -161,7 +161,7 @@ func TestService_Toggle_ViewerForbidden(t *testing.T) {
 	fx := seedWH(t)
 	svc := NewService(poolTest)
 
-	if _, err := svc.Toggle(context.Background(), fx.ViewerID, fx.WebhookID, fx.PublicationID); err == nil {
+	if _, err := svc.Toggle(context.Background(), fx.ViewerID, fx.WebhookID, fx.PublisherID); err == nil {
 		t.Fatal("Toggle(viewer) attendu errForbidden")
 	}
 }
@@ -176,7 +176,7 @@ func TestService_ListDeliveries_NotFound(t *testing.T) {
 		t.Fatal("ListDeliveries(autre publication) attendu erreur")
 	}
 	// Id inexistant → errNotFound.
-	if _, err := svc.ListDeliveries(context.Background(), fx.OwnerID, fx.PublicationID, "wh_inexistant", 10); err == nil {
+	if _, err := svc.ListDeliveries(context.Background(), fx.OwnerID, fx.PublisherID, "wh_inexistant", 10); err == nil {
 		t.Fatal("ListDeliveries(inexistant) attendu errNotFound")
 	}
 }
@@ -198,15 +198,15 @@ func TestService_Test_NetworkError(t *testing.T) {
 
 	var whID string
 	if err := poolTest.QueryRow(context.Background(),
-		`INSERT INTO "Webhook" (id, "publicationId", name, url, secret, events, active, "createdAt", "updatedAt")
+		`INSERT INTO "Webhook" (id, "publisherId", name, url, secret, events, active, "createdAt", "updatedAt")
 		 VALUES (gen_random_uuid()::text, $1, 'Down2', 'http://127.0.0.1:1/hook', 'secret_y', ARRAY['article.published'], true, now(), now())
 		 RETURNING id`,
-		fx.PublicationID,
+		fx.PublisherID,
 	).Scan(&whID); err != nil {
 		t.Fatalf("insert: %v", err)
 	}
 
-	res, err := svc.Test(context.Background(), fx.OwnerID, whID, fx.PublicationID)
+	res, err := svc.Test(context.Background(), fx.OwnerID, whID, fx.PublisherID)
 	if err == nil {
 		t.Fatal("Test(endpoint down) attendu erreur réseau")
 	}
@@ -239,7 +239,7 @@ func TestDeliveryFromRow_NilFields(t *testing.T) {
 		t.Fatalf("insert delivery: %v", err)
 	}
 
-	items, err := svc.ListDeliveries(context.Background(), fx.OwnerID, fx.PublicationID, fx.WebhookID, 10)
+	items, err := svc.ListDeliveries(context.Background(), fx.OwnerID, fx.PublisherID, fx.WebhookID, 10)
 	if err != nil {
 		t.Fatalf("ListDeliveries: %v", err)
 	}

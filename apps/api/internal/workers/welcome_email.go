@@ -49,7 +49,7 @@ func (w *WelcomeEmailWorker) HandleSubscriberWelcome(ctx context.Context, t *asy
 	if err := json.Unmarshal(t.Payload(), &p); err != nil {
 		return err
 	}
-	if p.Email == "" || p.PublicationID == "" {
+	if p.Email == "" || p.PublisherID == "" {
 		log.Printf("[welcome] payload incomplet : %v", p)
 		return nil
 	}
@@ -68,17 +68,17 @@ func (w *WelcomeEmailWorker) HandleSubscriberWelcome(ctx context.Context, t *asy
 	q := db.New(w.pool)
 	info, err := q.GetSubscriberEmailContext(ctx, db.GetSubscriberEmailContextParams{
 		Email:         p.Email,
-		PublicationId: p.PublicationID,
+		PublisherId: p.PublisherID,
 	})
 	if err != nil {
 		// Abonné absent (nettoyage) → rien à faire, pas d'erreur asynq.
-		log.Printf("[welcome] %s / %s : abonné absent (%v)", p.Email, p.PublicationID, err)
+		log.Printf("[welcome] %s / %s : abonné absent (%v)", p.Email, p.PublisherID, err)
 		return nil
 	}
 	// Garde : un abonné qui aurait été dé-confirmé entre-temps ne reçoit
 	// pas de bienvenue (aucun envoi hors abonné actif).
 	if !info.ConfirmedAt.Valid {
-		log.Printf("[welcome] %s / %s : abonné non confirmé, bienvenue ignoré", p.Email, p.PublicationID)
+		log.Printf("[welcome] %s / %s : abonné non confirmé, bienvenue ignoré", p.Email, p.PublisherID)
 		return nil
 	}
 
@@ -88,9 +88,9 @@ func (w *WelcomeEmailWorker) HandleSubscriberWelcome(ctx context.Context, t *asy
 	// Droit lu des octrois (source unique), jamais du JSON (forgeable).
 	// Freemium : droit lu des octrois (source unique), jamais du JSON.
 	prefs := ApplyTier(ParseEmailPrefs(info.EmailSettings),
-		subscriptions.HasPro(ctx, w.pool, p.PublicationID, time.Now()))
+		subscriptions.HasPro(ctx, w.pool, p.PublisherID, time.Now()))
 	if prefs.WelcomeEnabled != nil && !*prefs.WelcomeEnabled {
-		log.Printf("[welcome] bienvenue désactivé par le créateur pour %s", p.PublicationID)
+		log.Printf("[welcome] bienvenue désactivé par le créateur pour %s", p.PublisherID)
 		return nil
 	}
 
@@ -100,8 +100,8 @@ func (w *WelcomeEmailWorker) HandleSubscriberWelcome(ctx context.Context, t *asy
 		Template: EmailTemplateWelcome,
 		Locale:   locale,
 		Email:    p.Email,
-		PubID:    p.PublicationID,
-		PubName:  info.PublicationName,
+		PubID:    p.PublisherID,
+		PubName:  info.PublisherName,
 		PubURL:   pubURL,
 		Accent:   PubAccentColor(info.AccentColor),
 		LogoURL:  PubLogoURL(info.LogoUrl),
@@ -110,6 +110,6 @@ func (w *WelcomeEmailWorker) HandleSubscriberWelcome(ctx context.Context, t *asy
 	if err := w.provider.Send(ctx, msg); err != nil {
 		return err
 	}
-	log.Printf("[welcome] email de bienvenue envoyé à %s (%s) [%s]", p.Email, p.PublicationID, locale)
+	log.Printf("[welcome] email de bienvenue envoyé à %s (%s) [%s]", p.Email, p.PublisherID, locale)
 	return nil
 }

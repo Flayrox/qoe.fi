@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import type { TemplatePublicationContext } from '../schema';
+import type { TemplatePublisherContext } from '../schema';
 import { ARCHETYPES_REGISTRY } from '../defaults';
 
 describe('siteOptions — Contrat AST et intégrité des options', () => {
-  it('accepte un dictionnaire siteOptions complet dans TemplatePublicationContext', () => {
-    const publication: TemplatePublicationContext = {
-      name: 'Test Publication',
+  it('accepte un dictionnaire siteOptions complet dans TemplatePublisherContext', () => {
+    const publisher: TemplatePublisherContext = {
+      name: 'Test Publisher',
       siteOptions: {
         showBanner: true,
         showLogo: false,
@@ -18,16 +18,16 @@ describe('siteOptions — Contrat AST et intégrité des options', () => {
       },
     };
 
-    expect(publication.siteOptions?.showBanner).toBe(true);
-    expect(publication.siteOptions?.showLogo).toBe(false);
-    expect(publication.siteOptions?.showCraftIndex).toBe(true);
-    expect(publication.siteOptions?.showProgressiveBlur).toBe(false);
-    expect(publication.siteOptions?.showNewsletterWall).toBe(false);
+    expect(publisher.siteOptions?.showBanner).toBe(true);
+    expect(publisher.siteOptions?.showLogo).toBe(false);
+    expect(publisher.siteOptions?.showCraftIndex).toBe(true);
+    expect(publisher.siteOptions?.showProgressiveBlur).toBe(false);
+    expect(publisher.siteOptions?.showNewsletterWall).toBe(false);
   });
 
   it('gère gracieusement siteOptions absent ou null sans crash', () => {
-    const pubWithoutOptions: TemplatePublicationContext = {
-      name: 'Publication sans options',
+    const pubWithoutOptions: TemplatePublisherContext = {
+      name: 'Publisher sans options',
       siteOptions: null,
     };
 
@@ -42,7 +42,7 @@ describe('siteOptions — Contrat AST et intégrité des options', () => {
   });
 
   it('permet de désactiver sélectivement le sommaire Craft ou les flous progressifs', () => {
-    const pubMinimalNoBlur: TemplatePublicationContext = {
+    const pubMinimalNoBlur: TemplatePublisherContext = {
       name: 'Journal Minimal',
       siteOptions: {
         showCraftIndex: true,

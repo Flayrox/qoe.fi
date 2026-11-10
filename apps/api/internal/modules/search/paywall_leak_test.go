@@ -86,18 +86,18 @@ func TestSearchArticlesPublic_RedactsPremiumContent(t *testing.T) {
 	}
 }
 
-// Le scope studio (filtre publicationId) ne suffit PLUS à lui seul : sans
+// Le scope studio (filtre publisherId) ne suffit PLUS à lui seul : sans
 // preuve de propriété (JWT du détenteur), le contenu premium est retronqué.
-// Un publicationId se devine et l'ancienne règle exposait les passages
+// Un publisherId se devine et l'ancienne règle exposait les passages
 // réservés à tout appelant anonyme.
 func TestSearchArticlesStudioScope_KeepsFullContent(t *testing.T) {
 	h := &Handler{searcher: stubSearcher{
 		resp: &meilisearch.SearchResponse{Hits: premiumHits()},
 	}}
-	w := searchWithQuery(h, "/search/articles?q=enquete&publicationId=pub_1")
+	w := searchWithQuery(h, "/search/articles?q=enquete&publisherId=pub_1")
 
 	if strings.Contains(w.Body.String(), "PAYANT SENSIBLE") {
-		t.Fatal("fuite : publicationId seul ne doit plus exposer le contenu premium")
+		t.Fatal("fuite : publisherId seul ne doit plus exposer le contenu premium")
 	}
 }
 

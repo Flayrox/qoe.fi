@@ -181,13 +181,13 @@ func (n *NewsletterWorker) HandleArticlePublished(ctx context.Context, t *asynq.
 		return err
 	}
 
-	log.Printf("[newsletter] article %s (%s) — fanout pour publication %s", p.ArticleID, p.Visibility, p.PublicationID)
+	log.Printf("[newsletter] article %s (%s) — fanout pour publication %s", p.ArticleID, p.Visibility, p.PublisherID)
 
 	// 🔔 Notification MEDIA_ARTICLE_PUBLISHED (fan-out ≤500, prefs + dédup, no-op hors MEDIA) — best-effort.
 	if err := n.q.InsertMediaArticlePublishedFanout(ctx, db.InsertMediaArticlePublishedFanoutParams{
 		SenderID:      toUUID(p.AuthorID),
 		ArticleID:     pgtype.Text{String: p.ArticleID, Valid: true},
-		PublicationID: p.PublicationID,
+		PublisherID: p.PublisherID,
 	}); err != nil {
 		log.Printf("[newsletter] notif MEDIA_ARTICLE_PUBLISHED fanout: %v", err)
 	}
@@ -264,7 +264,7 @@ func (n *NewsletterWorker) HandleArticleRelease(ctx context.Context, t *asynq.Ta
 	}
 
 	if err := n.q.InsertArticleReleaseDeliveries(ctx, db.InsertArticleReleaseDeliveriesParams{
-		ArticleId: p.ArticleID, PublicationId: info.PublicationId,
+		ArticleId: p.ArticleID, PublisherId: info.PublisherId,
 	}); err != nil {
 		return err
 	}
@@ -335,7 +335,7 @@ func (n *NewsletterWorker) HandleNewsletterSend(ctx context.Context, t *asynq.Ta
 	if err := json.Unmarshal(t.Payload(), &p); err != nil {
 		return err
 	}
-	issueWithPub, err := n.q.GetNewsletterIssueWithPublication(ctx, p.IssueID)
+	issueWithPub, err := n.q.GetNewsletterIssueWithPublisher(ctx, p.IssueID)
 	if err != nil {
 		return err
 	}
@@ -374,7 +374,7 @@ func (n *NewsletterWorker) HandleNewsletterSend(ctx context.Context, t *asynq.Ta
 
 	// Matérialise les destinataires (idempotent : ON CONFLICT DO NOTHING).
 	if err := n.q.InsertNewsletterDeliveries(ctx, db.InsertNewsletterDeliveriesParams{
-		IssueId: issueWithPub.ID, PublicationId: issueWithPub.PublicationId,
+		IssueId: issueWithPub.ID, PublisherId: issueWithPub.PublisherId,
 	}); err != nil {
 		return err
 	}
@@ -568,14 +568,14 @@ func renderEmailLayout(pubName, pubLogoURL, pubURL, preheader, subject, bodyHTML
 
 // buildNewsletterEmail enveloppe le contenu HTML du créateur dans une coquille
 // email brandée avec preheader + lien de désabonnement RFC 8058 et token HMAC.
-func (n *NewsletterWorker) buildNewsletterEmail(issue db.GetNewsletterIssueWithPublicationRow, email string) EmailMessage {
-	pubName := issue.PublicationName
+func (n *NewsletterWorker) buildNewsletterEmail(issue db.GetNewsletterIssueWithPublisherRow, email string) EmailMessage {
+	pubName := issue.PublisherName
 	logoURL := ""
-	if issue.PublicationLogoUrl.Valid {
-		logoURL = issue.PublicationLogoUrl.String
+	if issue.PublisherLogoUrl.Valid {
+		logoURL = issue.PublisherLogoUrl.String
 	}
-	pubURL := publicationPublicURL(issue.PublicationSubdomain, issue.PublicationCustomDomain)
-	unsub := buildUnsubURL(issue.PublicationId, email)
+	pubURL := publicationPublicURL(issue.PublisherSubdomain, issue.PublisherCustomDomain)
+	unsub := buildUnsubURL(issue.PublisherId, email)
 
 	preview := ""
 	if issue.PreviewText.Valid {

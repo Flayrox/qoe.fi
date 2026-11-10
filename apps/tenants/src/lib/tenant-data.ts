@@ -4,8 +4,8 @@
 // 🏗️ tenant-data — couche de données des pages tenant (Go-only, Phase 3)
 // =====================================================================
 // Remplace les reads Prisma des pages tenant par les endpoints Go :
-//   - GET /v1/publications/by-domain/{domain}          (home + header + layout)
-//   - GET /v1/publications/by-domain/{domain}/article/{slug} (article bundle)
+//   - GET /v1/publishers/by-domain/{domain}          (home + header + layout)
+//   - GET /v1/publishers/by-domain/{domain}/article/{slug} (article bundle)
 //   - GET /v1/articles/{id}/highlights                 (publics + les siens)
 //   - GET /v1/highlights/{id}/comments                 (commentaires d'annotation)
 //   - GET /v1/home/onboarding                          (données du modal)
@@ -21,7 +21,7 @@ export interface TenantNavItem {
   url: string;
   order: number;
   isExternal: boolean;
-  publicationId: string;
+  publisherId: string;
   parentId: string | null;
 }
 
@@ -30,7 +30,7 @@ export interface TenantSocialLink {
   platform: string;
   url: string;
   order: number;
-  publicationId: string;
+  publisherId: string;
 }
 
 export interface TenantCategory {
@@ -78,7 +78,7 @@ export interface TenantTeamMember {
   isCertified: boolean;
 }
 
-export interface TenantPublication {
+export interface TenantPublisher {
   id: string;
   type: string;
   name: string;
@@ -151,6 +151,16 @@ export interface TenantArticle {
   seoTitle?: string | null;
   seoDescription?: string | null;
   createdAt: string;
+  originArticleId?: string | null;
+  canonicalType?: string;
+  canonicalUrl?: string | null;
+  originPublisher?: {
+    id: string;
+    name: string;
+    slug: string;
+    type?: string;
+    logoUrl?: string | null;
+  } | null;
   authorId: string;
   category?: TenantCategory | null;
   author?: TenantArticleAuthor | null;
@@ -164,7 +174,7 @@ export interface TenantArticle {
 }
 
 export interface TenantArticleBundle {
-  publication: TenantPublication;
+  publisher: TenantPublisher;
   article: TenantArticle;
   entitlements: { isMember: boolean; isPaidSubscriber: boolean; tierId?: string };
   bookmarked: boolean;
@@ -210,12 +220,10 @@ interface GoAnnotationComment {
   };
 }
 
-/** Publication tenant (home + header + metadata). Retourne null sur 404. */
-export async function fetchTenantPublication(domain: string): Promise<TenantPublication | null> {
+/** Publisher tenant (home + header + metadata). Retourne null sur 404. */
+export async function fetchTenantPublisher(domain: string): Promise<TenantPublisher | null> {
   try {
-    return await goFetch<TenantPublication>(
-      `/v1/publications/by-domain/${encodeURIComponent(domain)}`
-    );
+    return await goFetch<TenantPublisher>(`/v1/publishers/by-domain/${encodeURIComponent(domain)}`);
   } catch (err) {
     if ((err as { status?: number })?.status === 404) return null;
     throw err;
@@ -228,16 +236,14 @@ export async function fetchTenantPublication(domain: string): Promise<TenantPubl
  * `cookies()` lève DynamicServerError pendant le (pré)rendu du sitemap,
  * ce qui vidait silencieusement les sitemaps tenants).
  */
-export async function fetchPublicTenantPublication(
-  domain: string
-): Promise<TenantPublication | null> {
+export async function fetchPublicTenantPublisher(domain: string): Promise<TenantPublisher | null> {
   try {
     const base = (process.env.QOE_API_URL || 'http://localhost:8090').replace(/\/$/, '');
-    const res = await fetch(`${base}/v1/publications/by-domain/${encodeURIComponent(domain)}`, {
+    const res = await fetch(`${base}/v1/publishers/by-domain/${encodeURIComponent(domain)}`, {
       next: { revalidate: 3600 },
     });
     if (!res.ok) return null;
-    return (await res.json()) as TenantPublication;
+    return (await res.json()) as TenantPublisher;
   } catch (err) {
     console.error('[tenants/sitemap] fetch publication:', err);
     return null;
@@ -251,7 +257,7 @@ export async function fetchTenantArticle(
 ): Promise<TenantArticleBundle | null> {
   try {
     return await goFetch<TenantArticleBundle>(
-      `/v1/publications/by-domain/${encodeURIComponent(domain)}/article/${encodeURIComponent(slug)}`
+      `/v1/publishers/by-domain/${encodeURIComponent(domain)}/article/${encodeURIComponent(slug)}`
     );
   } catch (err) {
     if ((err as { status?: number })?.status === 404) return null;
@@ -369,7 +375,7 @@ export interface RecommendationItem {
 export async function fetchTenantRecommendations(domain: string): Promise<RecommendationItem[]> {
   try {
     const res = await goFetch<{ items: RecommendationItem[] }>(
-      `/v1/publications/by-domain/${encodeURIComponent(domain)}/recommendations`
+      `/v1/publishers/by-domain/${encodeURIComponent(domain)}/recommendations`
     );
     return res?.items ?? [];
   } catch (err) {
@@ -402,7 +408,7 @@ export interface TenantThoughtItem {
     title: string;
     slug: string;
     isPremium: boolean;
-    publication: {
+    publisher: {
       name: string;
       slug: string;
       logoUrl?: string | null;
@@ -454,7 +460,7 @@ export async function fetchTenantThoughts(
             title: string;
             slug: string;
             isPremium: boolean;
-            publication: {
+            publisher: {
               name: string;
               slug: string;
               logoUrl?: string | null;

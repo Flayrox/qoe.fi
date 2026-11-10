@@ -34,7 +34,7 @@ export async function recordFeatureSignalAction(
   feature: string,
   kind: 'view' | 'notify',
   source?: string,
-  publicationId?: string
+  publisherId?: string
 ): Promise<{ success: boolean; notified: boolean }> {
   try {
     return await goFetch<{ success: boolean; notified: boolean }>('/v1/features/signals', {
@@ -43,7 +43,7 @@ export async function recordFeatureSignalAction(
         feature,
         kind,
         source: source ?? 'studio',
-        ...(publicationId ? { publicationId } : {}),
+        ...(publisherId ? { publisherId } : {}),
       },
     });
   } catch (err) {

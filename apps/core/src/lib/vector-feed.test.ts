@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import type { FeedSlice, FeedPoll, FeedPost } from './feed-types';
 import {
-  mapPublicationToAuthor,
+  mapPublisherToAuthor,
   mapQuotedArticle,
   mapPostToFeedItem,
   mapArticleToFeedItem,
@@ -29,7 +29,7 @@ const baseAuthor = {
   type: 'MEDIA' as const,
 };
 
-const basePublication = {
+const basePublisher = {
   id: 'pub1',
   type: 'MEDIA' as const,
   name: 'La Gazette',
@@ -77,7 +77,7 @@ function article(overrides: Partial<ArticleWithDetails> = {}): ArticleWithDetail
     allowPublicAnnotations: true,
     allowComments: true,
     scheduledAt: null,
-    publicationId: 'pub1',
+    publisherId: 'pub1',
     authorId: 'u1',
     categoryId: 'c1',
     tierId: null,
@@ -86,7 +86,7 @@ function article(overrides: Partial<ArticleWithDetails> = {}): ArticleWithDetail
     createdAt: '2026-08-01T10:00:00Z',
     updatedAt: '2026-08-01T10:00:00Z',
     author: { ...baseAuthor },
-    publication: { ...basePublication },
+    publisher: { ...basePublisher },
     coAuthors: [],
     attributions: [],
     category: { name: 'Sport' },
@@ -154,10 +154,10 @@ afterEach(() => {
 
 // ── mapPublicationToAuthor ──────────────────────────────────────────────────
 
-describe('mapPublicationToAuthor', () => {
+describe('mapPublisherToAuthor', () => {
   it('PERSONAL : l’avatar de l’auteur prime sur le logo de la publication', () => {
-    const out = mapPublicationToAuthor(
-      { ...basePublication, type: 'PERSONAL' },
+    const out = mapPublisherToAuthor(
+      { ...basePublisher, type: 'PERSONAL' },
       'Alice',
       'author-avatar.png'
     );
@@ -169,21 +169,21 @@ describe('mapPublicationToAuthor', () => {
   });
 
   it('PERSONAL sans avatar auteur : repli sur le logo de la publication', () => {
-    const out = mapPublicationToAuthor({ ...basePublication, type: 'PERSONAL' });
+    const out = mapPublisherToAuthor({ ...basePublisher, type: 'PERSONAL' });
     expect(out.logoUrl).toBe('gazette.png');
     expect(out.authorName).toBeNull();
     expect(out.heroText).toBe('Toute l’actu');
   });
 
   it('MEDIA : le logo de la publication est toujours utilisé', () => {
-    const out = mapPublicationToAuthor(basePublication, 'Alice', 'author-avatar.png');
+    const out = mapPublisherToAuthor(basePublisher, 'Alice', 'author-avatar.png');
     expect(out.logoUrl).toBe('gazette.png');
     expect(out.isCertified).toBe(true);
   });
 
   it('défauts : isCertified false et heroText null quand absents', () => {
-    const out = mapPublicationToAuthor({
-      ...basePublication,
+    const out = mapPublisherToAuthor({
+      ...basePublisher,
       isCertified: undefined as unknown as boolean,
       heroText: null,
     });
@@ -206,7 +206,7 @@ describe('mapQuotedArticle', () => {
       slug: 'un-titre',
       content: 'Contenu cité',
       isPremium: true,
-      publication: { ...basePublication, subdomain: null, logoUrl: 'pub-logo.png' },
+      publisher: { ...basePublisher, subdomain: null, logoUrl: 'pub-logo.png' },
       author: { id: 'ua1', name: 'Bob', username: 'bob', logoUrl: null, isCertified: false },
     } as NonNullable<FeedPostRecord['quotedArticle']>;
     const out = mapQuotedArticle(quoted);
@@ -345,7 +345,7 @@ describe('mapPostToFeedItem', () => {
               slug: 'la-ville-sans-voiture',
               isPremium: false,
               quoteContext: null,
-              publication: {
+              publisher: {
                 name: 'La Gazette',
                 slug: 'la-gazette',
                 subdomain: 'gazette',
@@ -414,7 +414,7 @@ describe('mapPostToFeedItem', () => {
       slug: 'titre-cite',
       content: '…',
       isPremium: false,
-      publication: { ...basePublication },
+      publisher: { ...basePublisher },
       author: { ...baseAuthor },
     } as NonNullable<FeedPostRecord['quotedArticle']>;
     const fromPost = mapPostToFeedItem(post({ quotedArticle: quoted }));
@@ -451,7 +451,7 @@ describe('mapPostToFeedItem', () => {
           slug: 'titre-cite',
           content: '…',
           isPremium: false,
-          publication: { ...basePublication },
+          publisher: { ...basePublisher },
           author: { ...baseAuthor },
         },
       })
@@ -561,7 +561,7 @@ describe('mapArticleToFeedItem', () => {
   it('PERSONAL : logo auteur prioritaire', () => {
     const out = mapArticleToFeedItem(
       article({
-        publication: { ...basePublication, type: 'PERSONAL', logoUrl: 'pub.png' },
+        publisher: { ...basePublisher, type: 'PERSONAL', logoUrl: 'pub.png' },
         author: { ...baseAuthor, logoUrl: 'author.png' },
       })
     );

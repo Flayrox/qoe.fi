@@ -73,7 +73,7 @@ func TestHTTP_NewsletterAuthRequired(t *testing.T) {
 
 	// 3. Avec signature valide en GET.
 	validSig := workers.SignUnsubscribe(pubID, "reader@test.dev")
-	w := nlReq(r, http.MethodGet, "/v1/newsletters/unsubscribe?publicationId="+pubID+"&email=reader@test.dev&sig="+validSig, "", "")
+	w := nlReq(r, http.MethodGet, "/v1/newsletters/unsubscribe?publisherId="+pubID+"&email=reader@test.dev&sig="+validSig, "", "")
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "désabonné") {
 		t.Fatalf("unsubscribe GET = %d %s", w.Code, w.Body.String())
 	}
@@ -98,7 +98,7 @@ func TestHTTP_NewsletterCrudAndSend(t *testing.T) {
 
 	// Création d'un brouillon.
 	w = nlReq(r, http.MethodPost, "/v1/newsletters", ownerID,
-		`{"publicationId":"`+pubID+`","subject":"Sujet","previewText":"Aperçu","html":"<p>Bonjour</p>"}`)
+		`{"publisherId":"`+pubID+`","subject":"Sujet","previewText":"Aperçu","html":"<p>Bonjour</p>"}`)
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"status":"DRAFT"`) {
 		t.Fatalf("create = %d %s", w.Code, w.Body.String())
 	}
@@ -106,14 +106,14 @@ func TestHTTP_NewsletterCrudAndSend(t *testing.T) {
 	_ = poolTest.QueryRow(ctx, `SELECT id FROM "NewsletterIssue" LIMIT 1`).Scan(&id)
 
 	// Liste.
-	w = nlReq(r, http.MethodGet, "/v1/newsletters?publicationId="+pubID, ownerID, "")
+	w = nlReq(r, http.MethodGet, "/v1/newsletters?publisherId="+pubID, ownerID, "")
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "Sujet") {
 		t.Fatalf("list = %d %s", w.Code, w.Body.String())
 	}
 
 	// Mise à jour du brouillon.
 	w = nlReq(r, http.MethodPatch, "/v1/newsletters/"+id, ownerID,
-		`{"publicationId":"`+pubID+`","subject":"Sujet 2","html":"<p>MàJ</p>"}`)
+		`{"publisherId":"`+pubID+`","subject":"Sujet 2","html":"<p>MàJ</p>"}`)
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "Sujet 2") {
 		t.Fatalf("update = %d %s", w.Code, w.Body.String())
 	}
@@ -132,7 +132,7 @@ func TestHTTP_NewsletterCrudAndSend(t *testing.T) {
 
 	// Suppression d'un brouillon (en créer un autre d'abord).
 	w = nlReq(r, http.MethodPost, "/v1/newsletters", ownerID,
-		`{"publicationId":"`+pubID+`","subject":"À supprimer","html":"<p>x</p>"}`)
+		`{"publisherId":"`+pubID+`","subject":"À supprimer","html":"<p>x</p>"}`)
 	if w.Code != http.StatusOK {
 		t.Fatalf("create 2 = %d", w.Code)
 	}
@@ -156,7 +156,7 @@ func TestHTTP_NewsletterForbiddenForStranger(t *testing.T) {
 
 	// L'étranger (pas owner de la publication) ne peut pas lister la
 	// publication de l'owner → 403.
-	w := nlReq(r, http.MethodGet, "/v1/newsletters?publicationId="+pubID, stranger, "")
+	w := nlReq(r, http.MethodGet, "/v1/newsletters?publisherId="+pubID, stranger, "")
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("list étranger = %d, attendu 403", w.Code)
 	}

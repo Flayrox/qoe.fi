@@ -20,7 +20,7 @@ import (
 // payload ArticlePublishedPayload du publish manuel).
 type ScheduledArticle struct {
 	ID            string
-	PublicationID string
+	PublisherID string
 	AuthorID      string
 	Title         string
 	Slug          string
@@ -36,7 +36,7 @@ type ScheduledArticle struct {
 func PublishScheduledArticlePayload(a ScheduledArticle) queue.ArticlePublishedPayload {
 	return queue.ArticlePublishedPayload{
 		EventID:       "article_published_" + a.ID,
-		PublicationID: a.PublicationID,
+		PublisherID: a.PublisherID,
 		ArticleID:     a.ID,
 		AuthorID:      a.AuthorID,
 		Title:         a.Title,
@@ -86,7 +86,7 @@ func runScheduledPublisherOnce(ctx context.Context, pool *pgxpool.Pool, ac *asyn
 	defer func() { _ = tx.Rollback(ctx) }() // no-op après commit
 
 	rows, err := tx.Query(ctx, `
-		SELECT id, "publicationId", "authorId", title, slug, visibility, "scheduledAt"
+		SELECT id, "publisherId", "authorId", title, slug, visibility, "scheduledAt"
 		FROM "Article"
 		WHERE status = 'SCHEDULED' AND "scheduledAt" IS NOT NULL AND "scheduledAt" <= now()
 		ORDER BY "scheduledAt" ASC
@@ -98,7 +98,7 @@ func runScheduledPublisherOnce(ctx context.Context, pool *pgxpool.Pool, ac *asyn
 	var due []ScheduledArticle
 	for rows.Next() {
 		var a ScheduledArticle
-		if err := rows.Scan(&a.ID, &a.PublicationID, &a.AuthorID, &a.Title, &a.Slug, &a.Visibility, &a.ScheduledAt); err != nil {
+		if err := rows.Scan(&a.ID, &a.PublisherID, &a.AuthorID, &a.Title, &a.Slug, &a.Visibility, &a.ScheduledAt); err != nil {
 			rows.Close()
 			return 0, fmt.Errorf("scan: %w", err)
 		}
@@ -134,8 +134,8 @@ func runScheduledPublisherOnce(ctx context.Context, pool *pgxpool.Pool, ac *asyn
 		// Trace dans la chronologie de l'article. Après le commit : un échec
 		// d'audit ne doit pas annuler une publication déjà acquise.
 		if _, err := pool.Exec(ctx, `
-			INSERT INTO "ArticleEvent" ("articleId", "publicationId", "type", "fromStatus", "toStatus", "scheduledAt")
-			VALUES ($1, $2, 'SCHEDULED_PUBLISHED', 'SCHEDULED', 'PUBLISHED', $3)`, a.ID, a.PublicationID, a.ScheduledAt); err != nil {
+			INSERT INTO "ArticleEvent" ("articleId", "publisherId", "type", "fromStatus", "toStatus", "scheduledAt")
+			VALUES ($1, $2, 'SCHEDULED_PUBLISHED', 'SCHEDULED', 'PUBLISHED', $3)`, a.ID, a.PublisherID, a.ScheduledAt); err != nil {
 			log.Printf("scheduled publisher: historique article %s: %v", a.ID, err)
 		}
 

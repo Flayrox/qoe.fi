@@ -25,27 +25,27 @@ func (q *Queries) AcceptFollowRequest(ctx context.Context, id string) error {
 const cancelFollowRequest = `-- name: CancelFollowRequest :exec
 UPDATE "FollowRequest"
 SET status = 'CANCELLED', "decidedAt" = now()
-WHERE "requesterId" = $1 AND "publicationId" = $2 AND status = 'PENDING'
+WHERE "requesterId" = $1 AND "publisherId" = $2 AND status = 'PENDING'
 `
 
 type CancelFollowRequestParams struct {
-	RequesterId   pgtype.UUID `json:"requesterId"`
-	PublicationId string      `json:"publicationId"`
+	RequesterId pgtype.UUID `json:"requesterId"`
+	PublisherId string      `json:"publisherId"`
 }
 
 func (q *Queries) CancelFollowRequest(ctx context.Context, arg CancelFollowRequestParams) error {
-	_, err := q.db.Exec(ctx, cancelFollowRequest, arg.RequesterId, arg.PublicationId)
+	_, err := q.db.Exec(ctx, cancelFollowRequest, arg.RequesterId, arg.PublisherId)
 	return err
 }
 
 const countFollowers = `-- name: CountFollowers :one
 SELECT COUNT(*)::int AS count
 FROM "Follows"
-WHERE "publicationId" = $1
+WHERE "publisherId" = $1
 `
 
-func (q *Queries) CountFollowers(ctx context.Context, publicationid string) (int32, error) {
-	row := q.db.QueryRow(ctx, countFollowers, publicationid)
+func (q *Queries) CountFollowers(ctx context.Context, publisherid string) (int32, error) {
+	row := q.db.QueryRow(ctx, countFollowers, publisherid)
 	var count int32
 	err := row.Scan(&count)
 	return count, err
@@ -81,48 +81,48 @@ func (q *Queries) DeleteBookmark(ctx context.Context, arg DeleteBookmarkParams) 
 
 const deleteFollow = `-- name: DeleteFollow :exec
 DELETE FROM "Follows"
-WHERE "readerId" = $1 AND "publicationId" = $2
+WHERE "readerId" = $1 AND "publisherId" = $2
 `
 
 type DeleteFollowParams struct {
-	ReaderId      pgtype.UUID `json:"readerId"`
-	PublicationId string      `json:"publicationId"`
+	ReaderId    pgtype.UUID `json:"readerId"`
+	PublisherId string      `json:"publisherId"`
 }
 
 func (q *Queries) DeleteFollow(ctx context.Context, arg DeleteFollowParams) error {
-	_, err := q.db.Exec(ctx, deleteFollow, arg.ReaderId, arg.PublicationId)
+	_, err := q.db.Exec(ctx, deleteFollow, arg.ReaderId, arg.PublisherId)
 	return err
 }
 
 const deleteFollowRequest = `-- name: DeleteFollowRequest :exec
 DELETE FROM "FollowRequest"
-WHERE "requesterId" = $1 AND "publicationId" = $2 AND status = 'PENDING'
+WHERE "requesterId" = $1 AND "publisherId" = $2 AND status = 'PENDING'
 `
 
 type DeleteFollowRequestParams struct {
-	RequesterId   pgtype.UUID `json:"requesterId"`
-	PublicationId string      `json:"publicationId"`
+	RequesterId pgtype.UUID `json:"requesterId"`
+	PublisherId string      `json:"publisherId"`
 }
 
 func (q *Queries) DeleteFollowRequest(ctx context.Context, arg DeleteFollowRequestParams) error {
-	_, err := q.db.Exec(ctx, deleteFollowRequest, arg.RequesterId, arg.PublicationId)
+	_, err := q.db.Exec(ctx, deleteFollowRequest, arg.RequesterId, arg.PublisherId)
 	return err
 }
 
 const deleteFollowRequestNotification = `-- name: DeleteFollowRequestNotification :exec
 DELETE FROM "Notification"
-WHERE "recipientId" = $1 AND "senderId" = $2 AND type = 'FOLLOW' AND "publicationId" = $3
+WHERE "recipientId" = $1 AND "senderId" = $2 AND type = 'FOLLOW' AND "publisherId" = $3
   AND metadata->>'kind' = 'FOLLOW_REQUEST'
 `
 
 type DeleteFollowRequestNotificationParams struct {
-	RecipientId   pgtype.UUID `json:"recipientId"`
-	SenderId      pgtype.UUID `json:"senderId"`
-	PublicationId pgtype.Text `json:"publicationId"`
+	RecipientId pgtype.UUID `json:"recipientId"`
+	SenderId    pgtype.UUID `json:"senderId"`
+	PublisherId pgtype.Text `json:"publisherId"`
 }
 
 func (q *Queries) DeleteFollowRequestNotification(ctx context.Context, arg DeleteFollowRequestNotificationParams) error {
-	_, err := q.db.Exec(ctx, deleteFollowRequestNotification, arg.RecipientId, arg.SenderId, arg.PublicationId)
+	_, err := q.db.Exec(ctx, deleteFollowRequestNotification, arg.RecipientId, arg.SenderId, arg.PublisherId)
 	return err
 }
 
@@ -132,7 +132,7 @@ SELECT ak.id                                            AS api_key_id,
        ak."keyHash"                                     AS key_hash,
        ak.scopes                                        AS scopes,
        COALESCE(ak."userId"::text, '')::text            AS key_user_id,
-       COALESCE(ak."publicationId"::text, '')::text    AS key_publication_id,
+       COALESCE(ak."publisherId"::text, '')::text    AS key_publisher_id,
        COALESCE(ak."createdByUserId"::text, '')::text  AS created_by_user_id,
        COALESCE(u.id::text, '')::text                   AS user_id,
        u.email                                          AS user_email,
@@ -143,15 +143,15 @@ SELECT ak.id                                            AS api_key_id,
        u.role                                           AS user_role,
        u."apiAccessStatus"                              AS user_api_access_status,
        u."apiGrants"                                    AS user_api_grants,
-       COALESCE(p.id::text, '')::text                   AS publication_id,
-       COALESCE(p.type::text, '')::text                 AS publication_type,
+       COALESCE(p.id::text, '')::text                   AS publisher_id,
+       COALESCE(p.type::text, '')::text                 AS publisher_type,
        p."umamiWebsiteId"                               AS umami_website_id,
        COALESCE(md.id::text, '')::text                  AS media_id,
        sc.value                                         AS platform_api_modules
 FROM "ApiKey" ak
 LEFT JOIN "User" u ON u.id = ak."userId"
-LEFT JOIN "Publication" p ON p.id = COALESCE(ak."publicationId", u."publicationId")
-LEFT JOIN "Media" md ON md."publicationId" = p.id
+LEFT JOIN "Publisher" p ON p.id = COALESCE(ak."publisherId", u."publisherId")
+LEFT JOIN "Media" md ON md."publisherId" = p.id
 LEFT JOIN "SystemConfig" sc ON sc.key = 'API_ACCESS_MODULES'
 WHERE ak."keyHash" = $1
 LIMIT 1
@@ -162,7 +162,7 @@ type GetApiKeyByHashRow struct {
 	KeyHash             string      `json:"key_hash"`
 	Scopes              []string    `json:"scopes"`
 	KeyUserID           string      `json:"key_user_id"`
-	KeyPublicationID    string      `json:"key_publication_id"`
+	KeyPublisherID      string      `json:"key_publisher_id"`
 	CreatedByUserID     string      `json:"created_by_user_id"`
 	UserID              string      `json:"user_id"`
 	UserEmail           pgtype.Text `json:"user_email"`
@@ -173,8 +173,8 @@ type GetApiKeyByHashRow struct {
 	UserRole            pgtype.Text `json:"user_role"`
 	UserApiAccessStatus pgtype.Text `json:"user_api_access_status"`
 	UserApiGrants       []string    `json:"user_api_grants"`
-	PublicationID       string      `json:"publication_id"`
-	PublicationType     string      `json:"publication_type"`
+	PublisherID         string      `json:"publisher_id"`
+	PublisherType       string      `json:"publisher_type"`
 	UmamiWebsiteID      pgtype.Text `json:"umami_website_id"`
 	MediaID             string      `json:"media_id"`
 	PlatformApiModules  pgtype.Text `json:"platform_api_modules"`
@@ -189,7 +189,7 @@ func (q *Queries) GetApiKeyByHash(ctx context.Context, keyhash string) (GetApiKe
 		&i.KeyHash,
 		&i.Scopes,
 		&i.KeyUserID,
-		&i.KeyPublicationID,
+		&i.KeyPublisherID,
 		&i.CreatedByUserID,
 		&i.UserID,
 		&i.UserEmail,
@@ -200,8 +200,8 @@ func (q *Queries) GetApiKeyByHash(ctx context.Context, keyhash string) (GetApiKe
 		&i.UserRole,
 		&i.UserApiAccessStatus,
 		&i.UserApiGrants,
-		&i.PublicationID,
-		&i.PublicationType,
+		&i.PublisherID,
+		&i.PublisherType,
 		&i.UmamiWebsiteID,
 		&i.MediaID,
 		&i.PlatformApiModules,
@@ -230,16 +230,16 @@ func (q *Queries) GetExistingBookmark(ctx context.Context, arg GetExistingBookma
 const getExistingFollow = `-- name: GetExistingFollow :one
 SELECT 1 AS present
 FROM "Follows"
-WHERE "readerId" = $1 AND "publicationId" = $2
+WHERE "readerId" = $1 AND "publisherId" = $2
 `
 
 type GetExistingFollowParams struct {
-	ReaderId      pgtype.UUID `json:"readerId"`
-	PublicationId string      `json:"publicationId"`
+	ReaderId    pgtype.UUID `json:"readerId"`
+	PublisherId string      `json:"publisherId"`
 }
 
 func (q *Queries) GetExistingFollow(ctx context.Context, arg GetExistingFollowParams) (int32, error) {
-	row := q.db.QueryRow(ctx, getExistingFollow, arg.ReaderId, arg.PublicationId)
+	row := q.db.QueryRow(ctx, getExistingFollow, arg.ReaderId, arg.PublisherId)
 	var present int32
 	err := row.Scan(&present)
 	return present, err
@@ -248,16 +248,16 @@ func (q *Queries) GetExistingFollow(ctx context.Context, arg GetExistingFollowPa
 const getExistingFollowRequest = `-- name: GetExistingFollowRequest :one
 SELECT 1 AS present
 FROM "FollowRequest"
-WHERE "requesterId" = $1 AND "publicationId" = $2 AND status = 'PENDING'
+WHERE "requesterId" = $1 AND "publisherId" = $2 AND status = 'PENDING'
 `
 
 type GetExistingFollowRequestParams struct {
-	RequesterId   pgtype.UUID `json:"requesterId"`
-	PublicationId string      `json:"publicationId"`
+	RequesterId pgtype.UUID `json:"requesterId"`
+	PublisherId string      `json:"publisherId"`
 }
 
 func (q *Queries) GetExistingFollowRequest(ctx context.Context, arg GetExistingFollowRequestParams) (int32, error) {
-	row := q.db.QueryRow(ctx, getExistingFollowRequest, arg.RequesterId, arg.PublicationId)
+	row := q.db.QueryRow(ctx, getExistingFollowRequest, arg.RequesterId, arg.PublisherId)
 	var present int32
 	err := row.Scan(&present)
 	return present, err
@@ -266,23 +266,23 @@ func (q *Queries) GetExistingFollowRequest(ctx context.Context, arg GetExistingF
 const getPendingFollowRequestID = `-- name: GetPendingFollowRequestID :one
 SELECT id
 FROM "FollowRequest"
-WHERE "requesterId" = $1 AND "publicationId" = $2 AND status = 'PENDING'
+WHERE "requesterId" = $1 AND "publisherId" = $2 AND status = 'PENDING'
 LIMIT 1
 `
 
 type GetPendingFollowRequestIDParams struct {
-	RequesterId   pgtype.UUID `json:"requesterId"`
-	PublicationId string      `json:"publicationId"`
+	RequesterId pgtype.UUID `json:"requesterId"`
+	PublisherId string      `json:"publisherId"`
 }
 
 func (q *Queries) GetPendingFollowRequestID(ctx context.Context, arg GetPendingFollowRequestIDParams) (string, error) {
-	row := q.db.QueryRow(ctx, getPendingFollowRequestID, arg.RequesterId, arg.PublicationId)
+	row := q.db.QueryRow(ctx, getPendingFollowRequestID, arg.RequesterId, arg.PublisherId)
 	var id string
 	err := row.Scan(&id)
 	return id, err
 }
 
-const getPublicationBySlugOrSubdomain = `-- name: GetPublicationBySlugOrSubdomain :one
+const getPublisherBySlugOrSubdomain = `-- name: GetPublisherBySlugOrSubdomain :one
 SELECT p.id,
        p.type,
        p.name,
@@ -294,10 +294,10 @@ SELECT p.id,
        p."headerImageUrl",
        p."isCertified",
        p."createdAt",
-       (SELECT COUNT(*)::int FROM "Follows" f WHERE f."publicationId" = p.id) AS followers_count,
-       (SELECT COUNT(*)::int FROM "Article" a WHERE a."publicationId" = p.id AND a."published" = true) AS articles_count
-FROM "Publication" p
-LEFT JOIN "User" u ON u."publicationId" = p.id
+       (SELECT COUNT(*)::int FROM "Follows" f WHERE f."publisherId" = p.id) AS followers_count,
+       (SELECT COUNT(*)::int FROM "Article" a WHERE a."publisherId" = p.id AND a."published" = true) AS articles_count
+FROM "Publisher" p
+LEFT JOIN "User" u ON u."publisherId" = p.id
 WHERE LOWER(p.slug) = LOWER($1)
    OR LOWER(COALESCE(p.subdomain, '')) = LOWER($1)
    OR LOWER(COALESCE(u.username, '')) = LOWER($1)
@@ -306,9 +306,9 @@ WHERE LOWER(p.slug) = LOWER($1)
 LIMIT 1
 `
 
-type GetPublicationBySlugOrSubdomainRow struct {
+type GetPublisherBySlugOrSubdomainRow struct {
 	ID             string           `json:"id"`
-	Type           PublicationType  `json:"type"`
+	Type           PublisherType    `json:"type"`
 	Name           string           `json:"name"`
 	Slug           string           `json:"slug"`
 	Subdomain      pgtype.Text      `json:"subdomain"`
@@ -322,9 +322,9 @@ type GetPublicationBySlugOrSubdomainRow struct {
 	ArticlesCount  int32            `json:"articles_count"`
 }
 
-func (q *Queries) GetPublicationBySlugOrSubdomain(ctx context.Context, lower string) (GetPublicationBySlugOrSubdomainRow, error) {
-	row := q.db.QueryRow(ctx, getPublicationBySlugOrSubdomain, lower)
-	var i GetPublicationBySlugOrSubdomainRow
+func (q *Queries) GetPublisherBySlugOrSubdomain(ctx context.Context, lower string) (GetPublisherBySlugOrSubdomainRow, error) {
+	row := q.db.QueryRow(ctx, getPublisherBySlugOrSubdomain, lower)
+	var i GetPublisherBySlugOrSubdomainRow
 	err := row.Scan(
 		&i.ID,
 		&i.Type,
@@ -356,7 +356,7 @@ SELECT u.id::text        AS user_id,
        u."forceStandardTheme",
        u."onboardingText",
        u."logoUrl",
-       u."publicationId",
+       u."publisherId",
        u."advancedSettingsMode",
        u."hasCompletedOnboarding",
        u."apiAccessStatus",
@@ -382,7 +382,7 @@ type GetUserByIDFullRow struct {
 	ForceStandardTheme     bool             `json:"forceStandardTheme"`
 	OnboardingText         pgtype.Text      `json:"onboardingText"`
 	LogoUrl                pgtype.Text      `json:"logoUrl"`
-	PublicationId          pgtype.Text      `json:"publicationId"`
+	PublisherId            pgtype.Text      `json:"publisherId"`
 	AdvancedSettingsMode   bool             `json:"advancedSettingsMode"`
 	HasCompletedOnboarding bool             `json:"hasCompletedOnboarding"`
 	ApiAccessStatus        string           `json:"apiAccessStatus"`
@@ -409,7 +409,7 @@ func (q *Queries) GetUserByIDFull(ctx context.Context, id string) (GetUserByIDFu
 		&i.ForceStandardTheme,
 		&i.OnboardingText,
 		&i.LogoUrl,
-		&i.PublicationId,
+		&i.PublisherId,
 		&i.AdvancedSettingsMode,
 		&i.HasCompletedOnboarding,
 		&i.ApiAccessStatus,
@@ -465,47 +465,47 @@ func (q *Queries) InsertBookmark(ctx context.Context, arg InsertBookmarkParams) 
 }
 
 const insertFollow = `-- name: InsertFollow :exec
-INSERT INTO "Follows" (id, "readerId", "publicationId")
+INSERT INTO "Follows" (id, "readerId", "publisherId")
 VALUES (gen_random_uuid()::text, $1, $2)
 `
 
 type InsertFollowParams struct {
-	ReaderId      pgtype.UUID `json:"readerId"`
-	PublicationId string      `json:"publicationId"`
+	ReaderId    pgtype.UUID `json:"readerId"`
+	PublisherId string      `json:"publisherId"`
 }
 
 func (q *Queries) InsertFollow(ctx context.Context, arg InsertFollowParams) error {
-	_, err := q.db.Exec(ctx, insertFollow, arg.ReaderId, arg.PublicationId)
+	_, err := q.db.Exec(ctx, insertFollow, arg.ReaderId, arg.PublisherId)
 	return err
 }
 
 const insertFollowRequest = `-- name: InsertFollowRequest :exec
-INSERT INTO "FollowRequest" (id, "requesterId", "publicationId", status)
+INSERT INTO "FollowRequest" (id, "requesterId", "publisherId", status)
 VALUES (gen_random_uuid()::text, $1, $2, 'PENDING')
 ON CONFLICT DO NOTHING
 `
 
 type InsertFollowRequestParams struct {
-	RequesterId   pgtype.UUID `json:"requesterId"`
-	PublicationId string      `json:"publicationId"`
+	RequesterId pgtype.UUID `json:"requesterId"`
+	PublisherId string      `json:"publisherId"`
 }
 
 func (q *Queries) InsertFollowRequest(ctx context.Context, arg InsertFollowRequestParams) error {
-	_, err := q.db.Exec(ctx, insertFollowRequest, arg.RequesterId, arg.PublicationId)
+	_, err := q.db.Exec(ctx, insertFollowRequest, arg.RequesterId, arg.PublisherId)
 	return err
 }
 
 const insertFollowRequestNotification = `-- name: InsertFollowRequestNotification :exec
-INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publicationId", metadata)
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publisherId", metadata)
 VALUES (gen_random_uuid()::text, $1, $2, 'FOLLOW', $3,
         jsonb_build_object('kind', 'FOLLOW_REQUEST', 'requestId', $4::text))
 `
 
 type InsertFollowRequestNotificationParams struct {
-	RecipientID   pgtype.UUID `json:"recipient_id"`
-	SenderID      pgtype.UUID `json:"sender_id"`
-	PublicationID pgtype.Text `json:"publication_id"`
-	RequestID     string      `json:"request_id"`
+	RecipientID pgtype.UUID `json:"recipient_id"`
+	SenderID    pgtype.UUID `json:"sender_id"`
+	PublisherID pgtype.Text `json:"publisher_id"`
+	RequestID   string      `json:"request_id"`
 }
 
 // Réutilise le type FOLLOW (pas de migration d'enum) : metadata.kind permet
@@ -515,7 +515,7 @@ func (q *Queries) InsertFollowRequestNotification(ctx context.Context, arg Inser
 	_, err := q.db.Exec(ctx, insertFollowRequestNotification,
 		arg.RecipientID,
 		arg.SenderID,
-		arg.PublicationID,
+		arg.PublisherID,
 		arg.RequestID,
 	)
 	return err
@@ -552,12 +552,12 @@ SELECT b.id                 AS bookmark_id,
        a."readingTime"      AS article_reading_time,
        a."isPremium"        AS article_is_premium,
        a."createdAt"        AS article_created_at,
-       p.id                 AS publication_id,
-       p.name               AS publication_name,
-       p.slug               AS publication_slug,
-       p.subdomain          AS publication_subdomain,
-       p."customDomain"     AS publication_custom_domain,
-       p."logoUrl"          AS publication_logo,
+       p.id                 AS publisher_id,
+       p.name               AS publisher_name,
+       p.slug               AS publisher_slug,
+       p.subdomain          AS publisher_subdomain,
+       p."customDomain"     AS publisher_custom_domain,
+       p."logoUrl"          AS publisher_logo,
        a.content            AS article_content,
        c.name               AS category_name,
        u.id::text           AS author_id,
@@ -566,7 +566,7 @@ SELECT b.id                 AS bookmark_id,
        u."logoUrl"          AS author_logo
 FROM "Bookmark" b
 JOIN "Article" a ON a.id = b."articleId" AND a.published = true
-JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "Publisher" p ON p.id = a."publisherId"
 LEFT JOIN "Category" c ON c.id = a."categoryId"
 JOIN "User" u ON u.id = a."authorId"
 WHERE b."readerId" = $1
@@ -581,26 +581,26 @@ type ListBookmarksByReaderParams struct {
 }
 
 type ListBookmarksByReaderRow struct {
-	BookmarkID              string           `json:"bookmark_id"`
-	BookmarkedAt            pgtype.Timestamp `json:"bookmarked_at"`
-	ArticleID               string           `json:"article_id"`
-	ArticleTitle            string           `json:"article_title"`
-	ArticleSlug             string           `json:"article_slug"`
-	ArticleReadingTime      int32            `json:"article_reading_time"`
-	ArticleIsPremium        bool             `json:"article_is_premium"`
-	ArticleCreatedAt        pgtype.Timestamp `json:"article_created_at"`
-	PublicationID           string           `json:"publication_id"`
-	PublicationName         string           `json:"publication_name"`
-	PublicationSlug         string           `json:"publication_slug"`
-	PublicationSubdomain    pgtype.Text      `json:"publication_subdomain"`
-	PublicationCustomDomain pgtype.Text      `json:"publication_custom_domain"`
-	PublicationLogo         pgtype.Text      `json:"publication_logo"`
-	ArticleContent          string           `json:"article_content"`
-	CategoryName            pgtype.Text      `json:"category_name"`
-	AuthorID                string           `json:"author_id"`
-	AuthorName              pgtype.Text      `json:"author_name"`
-	AuthorUsername          pgtype.Text      `json:"author_username"`
-	AuthorLogo              pgtype.Text      `json:"author_logo"`
+	BookmarkID            string           `json:"bookmark_id"`
+	BookmarkedAt          pgtype.Timestamp `json:"bookmarked_at"`
+	ArticleID             string           `json:"article_id"`
+	ArticleTitle          string           `json:"article_title"`
+	ArticleSlug           string           `json:"article_slug"`
+	ArticleReadingTime    int32            `json:"article_reading_time"`
+	ArticleIsPremium      bool             `json:"article_is_premium"`
+	ArticleCreatedAt      pgtype.Timestamp `json:"article_created_at"`
+	PublisherID           string           `json:"publisher_id"`
+	PublisherName         string           `json:"publisher_name"`
+	PublisherSlug         string           `json:"publisher_slug"`
+	PublisherSubdomain    pgtype.Text      `json:"publisher_subdomain"`
+	PublisherCustomDomain pgtype.Text      `json:"publisher_custom_domain"`
+	PublisherLogo         pgtype.Text      `json:"publisher_logo"`
+	ArticleContent        string           `json:"article_content"`
+	CategoryName          pgtype.Text      `json:"category_name"`
+	AuthorID              string           `json:"author_id"`
+	AuthorName            pgtype.Text      `json:"author_name"`
+	AuthorUsername        pgtype.Text      `json:"author_username"`
+	AuthorLogo            pgtype.Text      `json:"author_logo"`
 }
 
 // Articles sauvegardés (bookmarks) d'un lecteur, avec titre/slug/publication
@@ -623,12 +623,12 @@ func (q *Queries) ListBookmarksByReader(ctx context.Context, arg ListBookmarksBy
 			&i.ArticleReadingTime,
 			&i.ArticleIsPremium,
 			&i.ArticleCreatedAt,
-			&i.PublicationID,
-			&i.PublicationName,
-			&i.PublicationSlug,
-			&i.PublicationSubdomain,
-			&i.PublicationCustomDomain,
-			&i.PublicationLogo,
+			&i.PublisherID,
+			&i.PublisherName,
+			&i.PublisherSlug,
+			&i.PublisherSubdomain,
+			&i.PublisherCustomDomain,
+			&i.PublisherLogo,
 			&i.ArticleContent,
 			&i.CategoryName,
 			&i.AuthorID,
@@ -646,7 +646,7 @@ func (q *Queries) ListBookmarksByReader(ctx context.Context, arg ListBookmarksBy
 	return items, nil
 }
 
-const listCategoriesByPublication = `-- name: ListCategoriesByPublication :many
+const listCategoriesByPublisher = `-- name: ListCategoriesByPublisher :many
 SELECT c.id,
        c.name,
        c.slug,
@@ -657,11 +657,11 @@ SELECT c.id,
         FROM "Article" a
         WHERE a."categoryId" = c.id AND a."published" = true) AS articles_count
 FROM "Category" c
-WHERE c."publicationId" = $1
+WHERE c."publisherId" = $1
 ORDER BY c.name ASC
 `
 
-type ListCategoriesByPublicationRow struct {
+type ListCategoriesByPublisherRow struct {
 	ID            string      `json:"id"`
 	Name          string      `json:"name"`
 	Slug          string      `json:"slug"`
@@ -671,15 +671,15 @@ type ListCategoriesByPublicationRow struct {
 	ArticlesCount int32       `json:"articles_count"`
 }
 
-func (q *Queries) ListCategoriesByPublication(ctx context.Context, publicationid string) ([]ListCategoriesByPublicationRow, error) {
-	rows, err := q.db.Query(ctx, listCategoriesByPublication, publicationid)
+func (q *Queries) ListCategoriesByPublisher(ctx context.Context, publisherid string) ([]ListCategoriesByPublisherRow, error) {
+	rows, err := q.db.Query(ctx, listCategoriesByPublisher, publisherid)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListCategoriesByPublicationRow{}
+	items := []ListCategoriesByPublisherRow{}
 	for rows.Next() {
-		var i ListCategoriesByPublicationRow
+		var i ListCategoriesByPublisherRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
@@ -699,46 +699,46 @@ func (q *Queries) ListCategoriesByPublication(ctx context.Context, publicationid
 	return items, nil
 }
 
-const listFollowersByPublication = `-- name: ListFollowersByPublication :many
+const listFollowersByPublisher = `-- name: ListFollowersByPublisher :many
 SELECT u.id::text            AS user_id,
        u.name                AS user_name,
        u.username            AS user_username,
        u."logoUrl"           AS user_logo,
        u."isCertified"      AS user_certified,
-       u."publicationId"::text AS user_publication_id,
+       u."publisherId"::text AS user_publisher_id,
        f."createdAt"        AS followed_at,
        (vf.id IS NOT NULL)::boolean AS viewer_follows
 FROM "Follows" f
 JOIN "User" u ON u.id = f."readerId"
-LEFT JOIN "Follows" vf ON vf."readerId" = $4 AND vf."publicationId" = u."publicationId"
-WHERE f."publicationId" = $1
-  AND u."publicationId" IS NOT NULL
+LEFT JOIN "Follows" vf ON vf."readerId" = $4 AND vf."publisherId" = u."publisherId"
+WHERE f."publisherId" = $1
+  AND u."publisherId" IS NOT NULL
 ORDER BY f."createdAt" DESC, u.id DESC
 LIMIT $2 OFFSET $3
 `
 
-type ListFollowersByPublicationParams struct {
-	PublicationId string      `json:"publicationId"`
-	Limit         int32       `json:"limit"`
-	Offset        int32       `json:"offset"`
-	ViewerID      pgtype.UUID `json:"viewer_id"`
+type ListFollowersByPublisherParams struct {
+	PublisherId string      `json:"publisherId"`
+	Limit       int32       `json:"limit"`
+	Offset      int32       `json:"offset"`
+	ViewerID    pgtype.UUID `json:"viewer_id"`
 }
 
-type ListFollowersByPublicationRow struct {
-	UserID            string           `json:"user_id"`
-	UserName          pgtype.Text      `json:"user_name"`
-	UserUsername      pgtype.Text      `json:"user_username"`
-	UserLogo          pgtype.Text      `json:"user_logo"`
-	UserCertified     bool             `json:"user_certified"`
-	UserPublicationID string           `json:"user_publication_id"`
-	FollowedAt        pgtype.Timestamp `json:"followed_at"`
-	ViewerFollows     bool             `json:"viewer_follows"`
+type ListFollowersByPublisherRow struct {
+	UserID          string           `json:"user_id"`
+	UserName        pgtype.Text      `json:"user_name"`
+	UserUsername    pgtype.Text      `json:"user_username"`
+	UserLogo        pgtype.Text      `json:"user_logo"`
+	UserCertified   bool             `json:"user_certified"`
+	UserPublisherID string           `json:"user_publisher_id"`
+	FollowedAt      pgtype.Timestamp `json:"followed_at"`
+	ViewerFollows   bool             `json:"viewer_follows"`
 }
 
 // Abonnés d'une publication (profil), paginés — avec état follow du viewer.
-func (q *Queries) ListFollowersByPublication(ctx context.Context, arg ListFollowersByPublicationParams) ([]ListFollowersByPublicationRow, error) {
-	rows, err := q.db.Query(ctx, listFollowersByPublication,
-		arg.PublicationId,
+func (q *Queries) ListFollowersByPublisher(ctx context.Context, arg ListFollowersByPublisherParams) ([]ListFollowersByPublisherRow, error) {
+	rows, err := q.db.Query(ctx, listFollowersByPublisher,
+		arg.PublisherId,
 		arg.Limit,
 		arg.Offset,
 		arg.ViewerID,
@@ -747,16 +747,16 @@ func (q *Queries) ListFollowersByPublication(ctx context.Context, arg ListFollow
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListFollowersByPublicationRow{}
+	items := []ListFollowersByPublisherRow{}
 	for rows.Next() {
-		var i ListFollowersByPublicationRow
+		var i ListFollowersByPublisherRow
 		if err := rows.Scan(
 			&i.UserID,
 			&i.UserName,
 			&i.UserUsername,
 			&i.UserLogo,
 			&i.UserCertified,
-			&i.UserPublicationID,
+			&i.UserPublisherID,
 			&i.FollowedAt,
 			&i.ViewerFollows,
 		); err != nil {
@@ -776,13 +776,13 @@ SELECT COALESCE(owner.id::text, p.id)       AS user_id,
        COALESCE(owner.username, p.slug)     AS user_username,
        COALESCE(owner."logoUrl", p."logoUrl") AS user_logo,
        COALESCE(owner."isCertified", p."isCertified") AS user_certified,
-       p.id::text                           AS user_publication_id,
+       p.id::text                           AS user_publisher_id,
        f."createdAt"                        AS followed_at,
        (vf.id IS NOT NULL)::boolean         AS viewer_follows
 FROM "Follows" f
-JOIN "Publication" p ON p.id = f."publicationId"
-LEFT JOIN "User" owner ON owner."publicationId" = p.id
-LEFT JOIN "Follows" vf ON vf."readerId" = $4 AND vf."publicationId" = p.id
+JOIN "Publisher" p ON p.id = f."publisherId"
+LEFT JOIN "User" owner ON owner."publisherId" = p.id
+LEFT JOIN "Follows" vf ON vf."readerId" = $4 AND vf."publisherId" = p.id
 WHERE f."readerId" = $1
 ORDER BY f."createdAt" DESC, f.id DESC
 LIMIT $2 OFFSET $3
@@ -796,14 +796,14 @@ type ListFollowingByUserParams struct {
 }
 
 type ListFollowingByUserRow struct {
-	UserID            string           `json:"user_id"`
-	UserName          string           `json:"user_name"`
-	UserUsername      string           `json:"user_username"`
-	UserLogo          pgtype.Text      `json:"user_logo"`
-	UserCertified     bool             `json:"user_certified"`
-	UserPublicationID string           `json:"user_publication_id"`
-	FollowedAt        pgtype.Timestamp `json:"followed_at"`
-	ViewerFollows     bool             `json:"viewer_follows"`
+	UserID          string           `json:"user_id"`
+	UserName        string           `json:"user_name"`
+	UserUsername    string           `json:"user_username"`
+	UserLogo        pgtype.Text      `json:"user_logo"`
+	UserCertified   bool             `json:"user_certified"`
+	UserPublisherID string           `json:"user_publisher_id"`
+	FollowedAt      pgtype.Timestamp `json:"followed_at"`
+	ViewerFollows   bool             `json:"viewer_follows"`
 }
 
 // Abonnements d'un utilisateur (profil), résolus vers les propriétaires des
@@ -828,7 +828,7 @@ func (q *Queries) ListFollowingByUser(ctx context.Context, arg ListFollowingByUs
 			&i.UserUsername,
 			&i.UserLogo,
 			&i.UserCertified,
-			&i.UserPublicationID,
+			&i.UserPublisherID,
 			&i.FollowedAt,
 			&i.ViewerFollows,
 		); err != nil {

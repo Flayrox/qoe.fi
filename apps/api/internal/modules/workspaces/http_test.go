@@ -53,7 +53,7 @@ func TestGetActive_HTTP(t *testing.T) {
 	}
 	var ws struct {
 		Type          string `json:"type"`
-		PublicationID string `json:"publicationId"`
+		PublisherID string `json:"publisherId"`
 		Name          string `json:"name"`
 		MediaRole     string `json:"mediaRole"`
 	}
@@ -63,8 +63,8 @@ func TestGetActive_HTTP(t *testing.T) {
 	if ws.Type != "MEDIA" || ws.MediaRole != "owner" || ws.Name != "Média Quotidien" {
 		t.Fatalf("workspace = %+v", ws)
 	}
-	if !strings.HasPrefix(ws.PublicationID, "pub_media") {
-		t.Fatalf("publicationId = %q", ws.PublicationID)
+	if !strings.HasPrefix(ws.PublisherID, "pub_media") {
+		t.Fatalf("publisherId = %q", ws.PublisherID)
 	}
 
 	// Sans mediaId → fallback personnel fictif (users seedés sans publication).

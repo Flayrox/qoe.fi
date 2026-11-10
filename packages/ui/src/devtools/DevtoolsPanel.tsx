@@ -137,13 +137,13 @@ export interface DevtoolsActions {
 
   simulateSubscriberAction: (data: {
     email: string;
-    publicationId: string;
+    publisherId: string;
     isPremium?: boolean;
     ltvCents?: number;
   }) => Promise<{ success: boolean; error?: string }>;
   simulateFollowAction: (data: {
     readerId: string;
-    publicationId: string;
+    publisherId: string;
   }) => Promise<{ success: boolean; error?: string }>;
 
   simulateLikeAction?: (data: {
@@ -200,7 +200,7 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
   });
   const [simSubscribe, setSimSubscribe] = useState({
     email: '',
-    publicationId: '',
+    publisherId: '',
     isPremium: false,
     ltvCents: 1000,
   });
@@ -525,7 +525,7 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
 
   const handleSimulateSubscriber = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!simSubscribe.email || !simSubscribe.publicationId) {
+    if (!simSubscribe.email || !simSubscribe.publisherId) {
       triggerAlert('error', 'Email et créateur requis.');
       return;
     }
@@ -533,7 +533,7 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
     startTransition(async () => {
       const res = await simulateSubscriberAction({
         email: simSubscribe.email,
-        publicationId: simSubscribe.publicationId,
+        publisherId: simSubscribe.publisherId,
         isPremium: simSubscribe.isPremium,
         ltvCents: simSubscribe.isPremium ? simSubscribe.ltvCents : 0,
       });
@@ -927,9 +927,9 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
                       <select
                         required
                         className="apple-select"
-                        value={simSubscribe.publicationId}
+                        value={simSubscribe.publisherId}
                         onChange={(e) =>
-                          setSimSubscribe({ ...simSubscribe, publicationId: e.target.value })
+                          setSimSubscribe({ ...simSubscribe, publisherId: e.target.value })
                         }
                       >
                         <option value="">{t`-- Créateur --`}</option>

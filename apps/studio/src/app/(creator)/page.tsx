@@ -34,9 +34,9 @@ interface DashboardArticle {
   readingTime?: number;
   /** Contexte éditorial renvoyé par Go (relation + média + co-auteurs). */
   authorName?: string | null;
-  publicationName?: string;
-  publicationType?: 'PERSONAL' | 'MEDIA';
-  publicationLogoUrl?: string | null;
+  publisherName?: string;
+  publisherType?: 'PERSONAL' | 'MEDIA';
+  publisherLogoUrl?: string | null;
   coAuthors?: string[];
   relation?: 'OWN' | 'MEDIA_AUTHOR' | 'COAUTHOR' | 'MEDIA_TEAM';
 }
@@ -83,7 +83,7 @@ async function fetchDashboardGo(
   _userId: string,
   workspace: ActiveWorkspace
 ): Promise<DashboardData> {
-  const qs = `?publicationId=${encodeURIComponent(workspace.publicationId)}&workspaceType=${workspace.type}`;
+  const qs = `?publisherId=${encodeURIComponent(workspace.publisherId)}&workspaceType=${workspace.type}`;
   return goFetch<DashboardData>(`/v1/analytics/dashboard${qs}`);
 }
 
@@ -357,7 +357,7 @@ export default async function CreatorDashboardPage() {
       <section className="space-y-6">
         <div className="flex items-center justify-between">
           <h3 className="text-xl font-bold text-foreground tracking-tight">
-            {t`Publications récentes`}
+            {t`Publishers récentes`}
           </h3>
           <a
             href="/articles"

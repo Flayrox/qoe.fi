@@ -2,13 +2,13 @@
 -- 🤝 Recommandations croisées entre créateurs (Substack Killer)
 -- =====================================================================
 
--- name: ListRecommendationsByPublication :many
+-- name: ListRecommendationsByPublisher :many
 SELECT r.id, r."description", r."createdAt",
-       p.id AS publication_id, p.name AS publication_name, p.slug AS publication_slug,
-       p.subdomain AS publication_subdomain, p."customDomain" AS publication_custom_domain,
-       p.bio AS publication_bio, p."logoUrl" AS publication_logo_url
+       p.id AS publisher_id, p.name AS publisher_name, p.slug AS publisher_slug,
+       p.subdomain AS publisher_subdomain, p."customDomain" AS publisher_custom_domain,
+       p.bio AS publisher_bio, p."logoUrl" AS publisher_logo_url
 FROM "Recommendation" r
-JOIN "Publication" p ON p.id = r."recommendedId"
+JOIN "Publisher" p ON p.id = r."recommendedId"
 WHERE r."recommenderId" = $1
 ORDER BY r."createdAt" DESC;
 
@@ -23,7 +23,7 @@ RETURNING *;
 DELETE FROM "Recommendation"
 WHERE "recommenderId" = $1 AND "recommendedId" = $2;
 
--- name: CountRecommendationsByPublication :one
+-- name: CountRecommendationsByPublisher :one
 SELECT count(*)
 FROM "Recommendation"
 WHERE "recommenderId" = $1;

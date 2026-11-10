@@ -33,7 +33,7 @@ type HydrateAuthor struct {
 
 // HydratePublication est la publication dénormalisée complète (parité
 // publicationProfileSelect du client — inclut customDomain/heroText/isCertified).
-type HydratePublication struct {
+type HydratePublisher struct {
 	ID           string  `json:"id"`
 	Type         string  `json:"type"`
 	Name         string  `json:"name"`
@@ -72,7 +72,7 @@ type HydrateArticle struct {
 	AllowPublicAnnotations bool                 `json:"allowPublicAnnotations"`
 	AllowComments          bool                 `json:"allowComments"`
 	ScheduledAt            *string              `json:"scheduledAt"`
-	PublicationID          string               `json:"publicationId"`
+	PublisherID          string               `json:"publisherId"`
 	AuthorID               string               `json:"authorId"`
 	CategoryID             *string              `json:"categoryId"`
 	TierID                 *string              `json:"tierId"`
@@ -81,7 +81,7 @@ type HydrateArticle struct {
 	CreatedAt              string               `json:"createdAt"`
 	UpdatedAt              string               `json:"updatedAt"`
 	Author                 HydrateAuthor        `json:"author"`
-	Publication            HydratePublication   `json:"publication"`
+	Publisher            HydratePublisher   `json:"publisher"`
 	CoAuthors              []HydrateAuthor      `json:"coAuthors"`
 	Attributions           []HydrateAttribution `json:"attributions"`
 	Capabilities           ArticleCapabilities  `json:"capabilities"`
@@ -120,25 +120,25 @@ func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string, view
 	eligible := eligibility.ArticlePredicates(eligibility.Aliases{
 		Entity:      "a",
 		Authors:     []string{"u.id", "po.id"},
-		Publication: `a."publicationId"`,
+		Publisher: `a."publisherId"`,
 		Viewer:      "$2",
 	})
 	rows, err := s.pool.Query(ctx, `
 		SELECT a.id, a.title, a.slug, a.content, a."imageUrl", a.published, a."isPremium",
 		       a.visibility, a."readingTime", a.status, a."completionRate", a."semanticTags",
 		       a."allowPublicAnnotations", a."allowComments", a."scheduledAt",
-		       a."publicationId", a."authorId", a."categoryId", a."tierId",
+		       a."publisherId", a."authorId", a."categoryId", a."tierId",
 		       a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
 		       u.id::text, u.name, u.username, u."logoUrl", u."isCertified",
 		       p.id, p.type, p.name, p.slug, p.subdomain, p."customDomain", p."logoUrl", p."heroText", p."isCertified"
 		FROM "Article" a
 		JOIN "User" u ON u.id = a."authorId"
-		JOIN "Publication" p ON p.id = a."publicationId"
+		JOIN "Publisher" p ON p.id = a."publisherId"
 		LEFT JOIN LATERAL (
 		  SELECT owner.id AS id
-		  FROM "Publication" pv
-		  JOIN "User" owner ON owner."publicationId" = pv.id
-		  WHERE pv.id = a."publicationId"
+		  FROM "Publisher" pv
+		  JOIN "User" owner ON owner."publisherId" = pv.id
+		  WHERE pv.id = a."publisherId"
 		  LIMIT 1
 		) po ON true
 		WHERE a.id = ANY($1::text[])
@@ -149,7 +149,7 @@ func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string, view
 		              WHERE us."userId" = COALESCE(po.id, u.id)), 'PUBLIC') = 'PUBLIC'
 		    OR u.id = $2
 		    OR po.id = $2
-		    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = $2 AND f."publicationId" = a."publicationId")
+		    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = $2 AND f."publisherId" = a."publisherId")
 		    OR EXISTS (SELECT 1 FROM "_CoAuthors" ca WHERE ca."A" = a.id AND ca."B" = $2)
 		  )`, articleIDs, toUUID(viewerID))
 	if err != nil {
@@ -170,11 +170,11 @@ func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string, view
 			&a.ID, &a.Title, &a.Slug, &a.Content, &img, &a.Published, &a.IsPremium,
 			&a.Visibility, &a.ReadingTime, &a.Status, &a.CompletionRate, &a.SemanticTags,
 			&a.AllowPublicAnnotations, &a.AllowComments, &scheduled,
-			&a.PublicationID, &a.AuthorID, &cat, &tier,
+			&a.PublisherID, &a.AuthorID, &cat, &tier,
 			&seoTitle, &seoDesc, &createdAt, &updatedAt,
 			&a.Author.ID, &authorName, &authorUsername, &authorLogo, &a.Author.IsCertified,
-			&a.Publication.ID, &a.Publication.Type, &a.Publication.Name, &a.Publication.Slug,
-			&pubSubdomain, &pubCustomDomain, &pubLogo, &pubHero, &a.Publication.IsCertified,
+			&a.Publisher.ID, &a.Publisher.Type, &a.Publisher.Name, &a.Publisher.Slug,
+			&pubSubdomain, &pubCustomDomain, &pubLogo, &pubHero, &a.Publisher.IsCertified,
 		); err != nil {
 			continue
 		}
@@ -195,11 +195,11 @@ func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string, view
 		a.Author.Name = authorName
 		a.Author.Username = authorUsername
 		a.Author.LogoURL = authorLogo
-		a.Author.Type = identity.FromPublicationType(a.Publication.Type)
-		a.Publication.Subdomain = pubSubdomain
-		a.Publication.CustomDomain = pubCustomDomain
-		a.Publication.LogoURL = pubLogo
-		a.Publication.HeroText = pubHero
+		a.Author.Type = identity.FromPublisherType(a.Publisher.Type)
+		a.Publisher.Subdomain = pubSubdomain
+		a.Publisher.CustomDomain = pubCustomDomain
+		a.Publisher.LogoURL = pubLogo
+		a.Publisher.HeroText = pubHero
 		a.CoAuthors = []HydrateAuthor{}
 		a.Attributions = []HydrateAttribution{}
 		isSelf := viewerID != "" && viewerID == a.AuthorID

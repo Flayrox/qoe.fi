@@ -30,7 +30,7 @@ type oauthQuerier interface {
 	InsertOAuthClient(ctx context.Context, arg db.InsertOAuthClientParams) error
 	InsertOAuthToken(ctx context.Context, arg db.InsertOAuthTokenParams) error
 	ListOAuthClientsByOwner(ctx context.Context, owneruserid string) ([]db.ListOAuthClientsByOwnerRow, error)
-	ListOAuthClientsByPublication(ctx context.Context, publicationid pgtype.Text) ([]db.ListOAuthClientsByPublicationRow, error)
+	ListOAuthClientsByPublisher(ctx context.Context, publicationid pgtype.Text) ([]db.ListOAuthClientsByPublisherRow, error)
 	ListOAuthConfig(ctx context.Context) ([]db.ListOAuthConfigRow, error)
 	RevokeOAuthTokenByAccessHash(ctx context.Context, accesstokenhash string) error
 	RevokeOAuthTokenByRefreshHash(ctx context.Context, refreshtokenhash pgtype.Text) error

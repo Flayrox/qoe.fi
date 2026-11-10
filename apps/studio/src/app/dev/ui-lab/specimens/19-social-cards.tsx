@@ -80,7 +80,7 @@ const ARTICLE: QuotedArticleData = {
     sha: 'sha-lab-article',
   },
   author: { name: 'Camille Roux', username: 'camille', subdomain: null },
-  publication: { name: 'Le Journal Éco', subdomain: 'journaleco', customDomain: null },
+  publisher: { name: 'Le Journal Éco', subdomain: 'journaleco', customDomain: null },
 };
 
 const ARTICLE_ILLUSTRATED: QuotedArticleData = {

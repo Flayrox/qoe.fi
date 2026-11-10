@@ -126,7 +126,7 @@ func QuotedArticlesFor(ctx context.Context, q db.Querier, refs []QuoteRef, viewe
 			Title:     row.Title,
 			Slug:      row.Slug,
 			IsPremium: row.IsPremium,
-			Publication: QuotedPublication{
+			Publisher: QuotedPublisher{
 				ID:           row.PubID,
 				Name:         row.Name,
 				Slug:         row.PubSlug,

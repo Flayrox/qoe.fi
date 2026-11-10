@@ -131,7 +131,7 @@ func TestFollowToggle_OnThenOff(t *testing.T) {
 	// Vérifie l'état en base.
 	var n int
 	if err := poolTest.QueryRow(context.Background(),
-		`SELECT COUNT(*) FROM "Follows" WHERE "readerId" = $1 AND "publicationId" = $2`,
+		`SELECT COUNT(*) FROM "Follows" WHERE "readerId" = $1 AND "publisherId" = $2`,
 		viewerID, alicePubID).Scan(&n); err != nil {
 		t.Fatalf("count: %v", err)
 	}
@@ -145,7 +145,7 @@ func TestFollowToggle_OnThenOff(t *testing.T) {
 		t.Fatalf("follow off = %d %s", w.Code, w.Body.String())
 	}
 	if err := poolTest.QueryRow(context.Background(),
-		`SELECT COUNT(*) FROM "Follows" WHERE "readerId" = $1 AND "publicationId" = $2`,
+		`SELECT COUNT(*) FROM "Follows" WHERE "readerId" = $1 AND "publisherId" = $2`,
 		viewerID, alicePubID).Scan(&n); err != nil {
 		t.Fatalf("count: %v", err)
 	}
@@ -176,7 +176,7 @@ func TestCategories_OwnerCanCreateAndList(t *testing.T) {
 		return func(next http.Handler) http.Handler { return next }
 	})
 
-	body := `{"publicationId":"` + alicePubID + `","name":"Politique","slug":"politique"}`
+	body := `{"publisherId":"` + alicePubID + `","name":"Politique","slug":"politique"}`
 	w := authedRequest(r, http.MethodPost, "/v1/categories", aliceUserID, body)
 	if w.Code != http.StatusOK && w.Code != http.StatusCreated {
 		t.Fatalf("create = %d %s", w.Code, w.Body.String())
@@ -185,7 +185,7 @@ func TestCategories_OwnerCanCreateAndList(t *testing.T) {
 	// La catégorie existe en base.
 	var n int
 	if err := poolTest.QueryRow(context.Background(),
-		`SELECT COUNT(*) FROM "Category" WHERE "publicationId" = $1 AND slug = 'politique'`,
+		`SELECT COUNT(*) FROM "Category" WHERE "publisherId" = $1 AND slug = 'politique'`,
 		alicePubID).Scan(&n); err != nil {
 		t.Fatalf("count: %v", err)
 	}
@@ -193,7 +193,7 @@ func TestCategories_OwnerCanCreateAndList(t *testing.T) {
 		t.Fatal("catégorie non créée")
 	}
 
-	w = authedRequest(r, http.MethodGet, "/v1/categories?publicationId="+alicePubID, aliceUserID, "")
+	w = authedRequest(r, http.MethodGet, "/v1/categories?publisherId="+alicePubID, aliceUserID, "")
 	if w.Code != http.StatusOK {
 		t.Fatalf("list = %d %s", w.Code, w.Body.String())
 	}
@@ -210,7 +210,7 @@ func TestCategories_NonOwnerForbidden(t *testing.T) {
 	})
 
 	// Bob n'est ni owner d'alice ni membre média : interdit.
-	body := `{"publicationId":"` + alicePubID + `","name":"X","slug":"x"}`
+	body := `{"publisherId":"` + alicePubID + `","name":"X","slug":"x"}`
 	w := authedRequest(r, http.MethodPost, "/v1/categories", bobUserID, body)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("create par non-owner = %d %s, attendu 403", w.Code, w.Body.String())
@@ -243,7 +243,7 @@ func TestRemoveFollower(t *testing.T) {
 	// Vérifie que la ligne Follows n'existe plus
 	var count int
 	if err := poolTest.QueryRow(context.Background(),
-		`SELECT count(*) FROM "Follows" WHERE "readerId" = $1 AND "publicationId" = $2`,
+		`SELECT count(*) FROM "Follows" WHERE "readerId" = $1 AND "publisherId" = $2`,
 		bobUserID, alicePubID).Scan(&count); err != nil {
 		t.Fatalf("count follows: %v", err)
 	}

@@ -16,7 +16,7 @@
 
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@qoe/auth';
-import { getSubscribePublicationProfile } from './actions';
+import { getSubscribePublisherProfile } from './actions';
 import { SubscribeWithQoeFiClient } from './subscribe-client';
 
 export const dynamic = 'force-dynamic';
@@ -50,15 +50,15 @@ export default async function SubscribeWithQoeFiPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const sp = await searchParams;
-  const publication = readParam(sp.publication);
+  const publisher = readParam(sp.publisher) || readParam(sp.publication);
   const returnUrl = cleanReturnUrl(readParam(sp.return));
 
-  if (!publication) {
+  if (!publisher) {
     return (
       <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center p-6 text-center">
         <h1 className="text-lg font-semibold">Lien d'abonnement incomplet</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Il manque la publication concernée. Revenez sur le site du créateur et réessayez.
+          Il manque l'éditeur concerné. Revenez sur le site du créateur et réessayez.
         </p>
       </main>
     );
@@ -66,20 +66,20 @@ export default async function SubscribeWithQoeFiPage({
 
   const user = await getCurrentUser();
   if (!user?.email) {
-    const backTo = `/subscribe-with-qoefi?publication=${encodeURIComponent(publication)}${
+    const backTo = `/subscribe-with-qoefi?publisher=${encodeURIComponent(publisher)}${
       returnUrl ? `&return=${encodeURIComponent(returnUrl)}` : ''
     }`;
     redirect(`/login?redirect=${encodeURIComponent(backTo)}`);
   }
 
-  const profile = await getSubscribePublicationProfile(publication);
+  const profile = await getSubscribePublisherProfile(publisher);
 
   return (
     <SubscribeWithQoeFiClient
       email={user.email}
-      publicationSlug={publication}
-      publicationId={profile?.id ?? null}
-      publicationName={profile?.name ?? null}
+      publisherSlug={publisher}
+      publisherId={profile?.id ?? null}
+      publisherName={profile?.name ?? null}
       returnUrl={returnUrl}
     />
   );

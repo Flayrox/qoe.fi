@@ -42,22 +42,22 @@ func requirePool(t *testing.T) {
 
 // seedApiKey crée un créateur avec sa publication PERSONAL + une clé API
 // `qoe_live_<token>` dont le hash correspond à celui que calcule l'auth.
-// Retourne le userID et le publicationID pour les assertions.
+// Retourne le userID et le publisherID pour les assertions.
 func seedApiKey(t *testing.T, ctx context.Context, token string) (userID, pubID string) {
 	requirePool(t)
 	t.Helper()
-	if _, err := apiKeyPool.Exec(ctx, `TRUNCATE TABLE "ApiKey", "User", "Publication" CASCADE`); err != nil {
+	if _, err := apiKeyPool.Exec(ctx, `TRUNCATE TABLE "ApiKey", "User", "Publisher" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	userID = "00000000-0000-0000-0000-0000000000a1"
 	pubID = "pub_apikey"
 	if _, err := apiKeyPool.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "umamiWebsiteId", "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "umamiWebsiteId", "createdAt", "updatedAt")
 		 VALUES ($1, 'PERSONAL', 'CléPub', 'cle', 'uma-1', now(), now())`, pubID); err != nil {
 		t.Fatalf("pub: %v", err)
 	}
 	if _, err := apiKeyPool.Exec(ctx,
-		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "User" (id, email, username, name, role, "publisherId", "createdAt", "updatedAt")
 		 VALUES ($1, 'cle@t.dev', 'cle', 'Clé', 'creator', $2, now(), now())`, userID, pubID); err != nil {
 		t.Fatalf("user: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestAPIKeyAuth_Success(t *testing.T) {
 	)
 	h := APIKeyAuth(q)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotSub, _ = UserID(r.Context())
-		gotPub, _ = PublicationID(r.Context())
+		gotPub, _ = PublisherID(r.Context())
 		gotUmi, _ = UmamiWebsiteID(r.Context())
 		gotScopes, _ = Scopes(r.Context())
 		w.WriteHeader(http.StatusNoContent)
@@ -181,10 +181,10 @@ func TestAPIKeyContext(t *testing.T) {
 // Contrat multi-médias : chaque clé API est liée à UNE publication. Un compte
 // qui gère deux médias possède deux clés, et chaque clé résout sa propre
 // publication — l'API n'a jamais de « workspace actif » implicite.
-func TestAPIKeyAuth_MediaKeysResolveTheirOwnPublication(t *testing.T) {
+func TestAPIKeyAuth_MediaKeysResolveTheirOwnPublisher(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
-	if _, err := apiKeyPool.Exec(ctx, `TRUNCATE TABLE "ApiKey", "User", "Publication" CASCADE`); err != nil {
+	if _, err := apiKeyPool.Exec(ctx, `TRUNCATE TABLE "ApiKey", "User", "Publisher" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 
@@ -199,14 +199,14 @@ func TestAPIKeyAuth_MediaKeysResolveTheirOwnPublication(t *testing.T) {
 	}
 	for i, k := range keys {
 		if _, err := apiKeyPool.Exec(ctx,
-			`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "UpdatedAt")
+			`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "UpdatedAt")
 			 VALUES ($1, 'MEDIA', $2, $3, now(), now())`,
 			k.pubID, k.pubNam, "media-"+string(rune('a'+i))); err != nil {
 			t.Fatalf("publication média: %v", err)
 		}
 		hash := sha256.Sum256([]byte(k.token))
 		if _, err := apiKeyPool.Exec(ctx,
-			`INSERT INTO "ApiKey" (id, name, "keyPrefix", "keyHash", scopes, "publicationId")
+			`INSERT INTO "ApiKey" (id, name, "keyPrefix", "keyHash", scopes, "publisherId")
 			 VALUES ($1, 'clé média', 'qoe_live_', $2, ARRAY['READ']::TEXT[], $3)`,
 			k.keyID, hex.EncodeToString(hash[:]), k.pubID); err != nil {
 			t.Fatalf("clé média: %v", err)
@@ -220,7 +220,7 @@ func TestAPIKeyAuth_MediaKeysResolveTheirOwnPublication(t *testing.T) {
 			gotType PrincipalType
 		)
 		h := APIKeyAuth(q)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			gotPub, _ = PublicationID(r.Context())
+			gotPub, _ = PublisherID(r.Context())
 			if principal, ok := GetPrincipal(r.Context()); ok {
 				gotType = principal.Type
 			}
@@ -234,7 +234,7 @@ func TestAPIKeyAuth_MediaKeysResolveTheirOwnPublication(t *testing.T) {
 		if gotPub != k.pubID {
 			t.Errorf("%s: publication = %q, attendu %q", k.keyID, gotPub, k.pubID)
 		}
-		if gotType != PrincipalTypePublication {
+		if gotType != PrincipalTypePublisher {
 			t.Errorf("%s: principal = %q, attendu publication", k.keyID, gotType)
 		}
 	}

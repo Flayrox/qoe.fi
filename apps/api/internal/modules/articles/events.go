@@ -55,7 +55,7 @@ type ArticleEvent struct {
 // EventInput décrit un événement à enregistrer.
 type EventInput struct {
 	ArticleID     string
-	PublicationID string
+	PublisherID string
 	// ActorID vide = action automatique (planificateur).
 	ActorID     string
 	Type        string
@@ -70,9 +70,9 @@ func (s *Service) recordEvent(ctx context.Context, in EventInput) {
 		return
 	}
 
-	var publicationID *string
-	if in.PublicationID != "" {
-		publicationID = &in.PublicationID
+	var publisherID *string
+	if in.PublisherID != "" {
+		publisherID = &in.PublisherID
 	}
 	var scheduledAt pgtype.Timestamp
 	if in.ScheduledAt != nil {
@@ -80,9 +80,9 @@ func (s *Service) recordEvent(ctx context.Context, in EventInput) {
 	}
 
 	_, err := s.pool.Exec(ctx, `
-		INSERT INTO "ArticleEvent" ("articleId", "publicationId", "actorId", "type", "fromStatus", "toStatus", "scheduledAt")
+		INSERT INTO "ArticleEvent" ("articleId", "publisherId", "actorId", "type", "fromStatus", "toStatus", "scheduledAt")
 		VALUES ($1, $2, NULLIF($3, '')::uuid, $4, NULLIF($5, ''), NULLIF($6, ''), $7)`,
-		in.ArticleID, publicationID, in.ActorID, in.Type,
+		in.ArticleID, publisherID, in.ActorID, in.Type,
 		in.FromStatus, in.ToStatus, scheduledAt,
 	)
 	if err != nil {

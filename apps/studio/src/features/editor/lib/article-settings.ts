@@ -38,10 +38,10 @@ export interface ArticleSettingsDraft {
   allowComments: boolean;
   allowDownload: boolean;
   showOnPersonalProfile: boolean;
-  publicationId: string;
-  publicationName?: string;
-  publicationSlug?: string;
-  publicationType?: 'PERSONAL' | 'MEDIA' | string;
+  publisherId: string;
+  publisherName?: string;
+  publisherSlug?: string;
+  publisherType?: 'PERSONAL' | 'MEDIA' | string;
   attributions: ArticleAttributionDraft[];
   subdomain?: string;
 }
@@ -129,12 +129,12 @@ export function buildArticleSettingsDraft(article: ArticleEditorPayload): Articl
     allowComments: article.allowComments ?? true,
     allowDownload: article.allowDownload ?? true,
     showOnPersonalProfile: article.showOnPersonalProfile ?? true,
-    publicationId: article.publication?.id || article.publicationId,
-    publicationName: article.publication?.name,
-    publicationSlug: article.publication?.slug,
-    publicationType: article.publication?.type,
+    publisherId: article.publisher?.id || article.publisherId,
+    publisherName: article.publisher?.name,
+    publisherSlug: article.publisher?.slug,
+    publisherType: article.publisher?.type,
     attributions: buildAttributionDrafts(article),
-    subdomain: article.publication?.subdomain ?? undefined,
+    subdomain: article.publisher?.subdomain ?? undefined,
   };
 }
 
@@ -213,7 +213,7 @@ export function articleSettingsFingerprint(draft: ArticleSettingsDraft): string 
     allowComments: draft.allowComments,
     allowDownload: draft.allowDownload,
     showOnPersonalProfile: draft.showOnPersonalProfile,
-    publicationId: draft.publicationId,
+    publisherId: draft.publisherId,
     attributions: draft.attributions,
     subdomain: draft.subdomain,
   });

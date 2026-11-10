@@ -171,14 +171,14 @@ func TestRateLimitAPIKey_ByKey(t *testing.T) {
 
 func TestContextHelpers(t *testing.T) {
 	base := context.Background()
-	// PublicationID / UmamiWebsiteID.
-	if _, ok := PublicationID(base); ok {
-		t.Error("PublicationID absent du contexte, doit renvoyer ok=false")
+	// PublisherID / UmamiWebsiteID.
+	if _, ok := PublisherID(base); ok {
+		t.Error("PublisherID absent du contexte, doit renvoyer ok=false")
 	}
-	ctx := context.WithValue(base, PublicationIDKey, "pub_1")
+	ctx := context.WithValue(base, PublisherIDKey, "pub_1")
 	ctx = context.WithValue(ctx, UmamiWebsiteIDKey, "site_1")
-	if id, ok := PublicationID(ctx); !ok || id != "pub_1" {
-		t.Errorf("PublicationID = %q %v", id, ok)
+	if id, ok := PublisherID(ctx); !ok || id != "pub_1" {
+		t.Errorf("PublisherID = %q %v", id, ok)
 	}
 	if id, ok := UmamiWebsiteID(ctx); !ok || id != "site_1" {
 		t.Errorf("UmamiWebsiteID = %q %v", id, ok)

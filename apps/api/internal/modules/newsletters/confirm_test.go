@@ -21,14 +21,14 @@ func seedPendingSubscriber(t *testing.T, ctx context.Context, email, token strin
 	t.Helper()
 	// ID déterministe dérivé de l'email : plusieurs emails par test sans collision.
 	if _, err := poolTest.Exec(ctx, `
-		INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "receiveArticles", "confirmationToken", "createdAt", "updatedAt")
+		INSERT INTO "Subscriber" (id, email, "publisherId", "isActive", "receiveArticles", "confirmationToken", "createdAt", "updatedAt")
 		VALUES ('sub_confirm_' || left(md5($1), 12), $1, $2, true, false, $3, now(), now())
-		ON CONFLICT (email, "publicationId") DO UPDATE SET
+		ON CONFLICT (email, "publisherId") DO UPDATE SET
 		  "receiveArticles" = false, "confirmationToken" = $3, "confirmedAt" = NULL`, email, pubID, token); err != nil {
 		t.Fatalf("seed pending subscriber: %v", err)
 	}
 	t.Cleanup(func() {
-		_, _ = poolTest.Exec(ctx, `DELETE FROM "Subscriber" WHERE email = $1 AND "publicationId" = $2`, email, pubID)
+		_, _ = poolTest.Exec(ctx, `DELETE FROM "Subscriber" WHERE email = $1 AND "publisherId" = $2`, email, pubID)
 	})
 }
 
@@ -50,7 +50,7 @@ func TestHTTP_Confirm_HappyPath(t *testing.T) {
 	var receive bool
 	var confirmedNull bool
 	if err := poolTest.QueryRow(ctx,
-		`SELECT "receiveArticles", "confirmedAt" IS NULL FROM "Subscriber" WHERE email = $1 AND "publicationId" = $2`,
+		`SELECT "receiveArticles", "confirmedAt" IS NULL FROM "Subscriber" WHERE email = $1 AND "publisherId" = $2`,
 		email, pubID).Scan(&receive, &confirmedNull); err != nil {
 		t.Fatalf("read subscriber: %v", err)
 	}
@@ -171,9 +171,9 @@ func TestSubscribe_PublicSignupStaysPending(t *testing.T) {
 	// (miroir de SubscribeToNewsletter) puis on vérifie le contrat opt-in :
 	// receiveArticles=false + token posé + confirmedAt NULL.
 	if _, err := poolTest.Exec(ctx, `
-		INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "receiveArticles", "confirmationToken", "createdAt", "updatedAt")
+		INSERT INTO "Subscriber" (id, email, "publisherId", "isActive", "receiveArticles", "confirmationToken", "createdAt", "updatedAt")
 		VALUES ('sub_pending_flow', $1, $2, true, false, 'tok-pending-flow', now(), now())
-		ON CONFLICT (email, "publicationId") DO UPDATE SET "receiveArticles" = false, "confirmationToken" = 'tok-pending-flow'`, email, pubID); err != nil {
+		ON CONFLICT (email, "publisherId") DO UPDATE SET "receiveArticles" = false, "confirmationToken" = 'tok-pending-flow'`, email, pubID); err != nil {
 		t.Fatalf("seed pending: %v", err)
 	}
 	t.Cleanup(func() {
@@ -183,7 +183,7 @@ func TestSubscribe_PublicSignupStaysPending(t *testing.T) {
 	// Le fanout bulk ignore l'abonné en attente (contrat consentement).
 	var receive bool
 	if err := poolTest.QueryRow(ctx,
-		`SELECT "receiveArticles" FROM "Subscriber" WHERE email = $1 AND "publicationId" = $2`,
+		`SELECT "receiveArticles" FROM "Subscriber" WHERE email = $1 AND "publisherId" = $2`,
 		email, pubID).Scan(&receive); err != nil {
 		t.Fatalf("read: %v", err)
 	}

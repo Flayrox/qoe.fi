@@ -17,7 +17,7 @@ import (
 
 // TestMediaApiKeys_OwnerCreate vérifie le scénario 1 :
 // L'owner peut créer une clé API média avec les scopes READ et WRITE,
-// et la clé est bien rattachée au publicationId du média avec userId NULL.
+// et la clé est bien rattachée au publisherId du média avec userId NULL.
 func TestMediaApiKeys_OwnerCreate(t *testing.T) {
 	ctx := context.Background()
 	seedMedia(t, ctx)
@@ -47,17 +47,17 @@ func TestMediaApiKeys_OwnerCreate(t *testing.T) {
 		t.Fatalf("keyPrefix (%s) ne correspond pas au secret (%s)", res.KeyPrefix, res.Secret)
 	}
 
-	// Vérification en base : publicationId = pub_media_001, userId = NULL, createdByUserId = mediaOwnerID
+	// Vérification en base : publisherId = pub_media_001, userId = NULL, createdByUserId = mediaOwnerID
 	var pubID, createdBy *string
 	var isUserNull bool
 	err := poolTest.QueryRow(ctx, `
-		SELECT "publicationId", "createdByUserId"::text, ("userId" IS NULL)
+		SELECT "publisherId", "createdByUserId"::text, ("userId" IS NULL)
 		FROM "ApiKey" WHERE id = $1`, res.ID).Scan(&pubID, &createdBy, &isUserNull)
 	if err != nil {
 		t.Fatalf("select apikey: %v", err)
 	}
 	if pubID == nil || *pubID != "pub_media_001" {
-		t.Fatalf("publicationId = %v, attendu pub_media_001", pubID)
+		t.Fatalf("publisherId = %v, attendu pub_media_001", pubID)
 	}
 	if createdBy == nil || *createdBy != mediaOwnerID {
 		t.Fatalf("createdByUserId = %v, attendu %s", createdBy, mediaOwnerID)
@@ -238,12 +238,12 @@ func TestMediaApiKeys_MultiTenantIsolation(t *testing.T) {
 
 	// Création d'un second média (media_002) avec stranger comme owner
 	if _, err := poolTest.Exec(ctx, `
-		INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		VALUES ('pub_media_002', 'MEDIA', 'Média Deux', 'media-deux', now(), now())`); err != nil {
 		t.Fatalf("seed pub_media_002: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx, `
-		INSERT INTO "Media" (id, "publicationId", "createdAt", "updatedAt")
+		INSERT INTO "Media" (id, "publisherId", "createdAt", "updatedAt")
 		VALUES ('media_002', 'pub_media_002', now(), now())`); err != nil {
 		t.Fatalf("seed media_002: %v", err)
 	}
@@ -409,12 +409,12 @@ func TestMediaApiKeys_LifecycleAndPlatformGrant(t *testing.T) {
 	rKey.Use(middleware.APIKeyAuth(svc.q))
 	rKey.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Post("/test-write", func(w http.ResponseWriter, r *http.Request) {
 		p, ok := middleware.GetPrincipal(r.Context())
-		if !ok || p.Type != middleware.PrincipalTypePublication {
+		if !ok || p.Type != middleware.PrincipalTypePublisher {
 			t.Fatalf("principal invalide: %+v", p)
 		}
-		pubID, _ := middleware.PublicationID(r.Context())
+		pubID, _ := middleware.PublisherID(r.Context())
 		if pubID != "pub_media_001" {
-			t.Fatalf("publicationId = %s, attendu pub_media_001", pubID)
+			t.Fatalf("publisherId = %s, attendu pub_media_001", pubID)
 		}
 		w.WriteHeader(http.StatusOK)
 	})

@@ -342,16 +342,16 @@ func TestInsertMediaInviteAndMemberJoined(t *testing.T) {
 	svc := NewService(poolTest)
 	ctx := context.Background()
 
-	// La FK Notification.publicationId exige une publication réelle.
+	// La FK Notification.publisherId exige une publication réelle.
 	var pubID string
 	if err := poolTest.QueryRow(ctx,
-		`SELECT "publicationId" FROM "User" WHERE id = $1`, fx.AuthorID,
+		`SELECT "publisherId" FROM "User" WHERE id = $1`, fx.AuthorID,
 	).Scan(&pubID); err != nil {
 		t.Fatalf("publication de l'auteur: %v", err)
 	}
 
 	if _, err := poolTest.Exec(ctx,
-		`UPDATE "User" SET "publicationId" = NULL WHERE id = $1`,
+		`UPDATE "User" SET "publisherId" = NULL WHERE id = $1`,
 		fx.ViewerID); err != nil {
 		t.Fatalf("detach publication: %v", err)
 	}
@@ -370,7 +370,7 @@ func TestInsertMediaInviteAndMemberJoined(t *testing.T) {
 	types := map[string]bool{}
 	for _, n := range res.Notifications {
 		types[n.Type] = true
-		if n.Publication == nil || n.Publication.ID != pubID {
+		if n.Publisher == nil || n.Publisher.ID != pubID {
 			t.Fatalf("notification %s sans référence publication", n.Type)
 		}
 	}

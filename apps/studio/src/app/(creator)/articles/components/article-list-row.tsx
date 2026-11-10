@@ -12,12 +12,14 @@ import {
   Edit3,
   Eye,
   GitCompare,
+  GitFork,
   Heart,
   Lock,
   MessageSquare,
   MoreHorizontal,
   Pin,
   Repeat2,
+  ShieldCheck,
   Trash2,
   UserRound,
   XCircle,
@@ -25,7 +27,7 @@ import {
 import { cn } from '@qoe/utils';
 import { Button } from '@qoe/ui/button';
 import { toast } from '@qoe/ui/toast';
-import { bulkUpdateArticlesAction } from '@qoe/sdk/actions/articles';
+import { bulkUpdateArticlesAction, forkArticleToPersonalAction } from '@qoe/sdk/actions/articles';
 import { t } from '@lingui/core/macro';
 
 import type { ArticleWithCategory, ListColumnPrefs } from './article-list-types';
@@ -138,7 +140,7 @@ export function ArticleListRow({
               // Un article programmé n'est PAS un brouillon : il partira seul.
               <span
                 className="inline-flex shrink-0 items-center gap-1 rounded border border-success/25 bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold text-success-text"
-                title={t`Publication automatique programmée`}
+                title={t`Publisher automatique programmée`}
               >
                 <CalendarClock className="h-2.5 w-2.5" />
                 {t`Programmé`}
@@ -177,14 +179,49 @@ export function ArticleListRow({
           {columns.premium && article.isPremium && (
             <Lock className="h-3 w-3 shrink-0 text-highlight" />
           )}
-          {article.publication?.type === 'MEDIA' && (
+          {article.publisher?.type === 'MEDIA' && (
             <span
               className="inline-flex shrink-0 items-center gap-1 rounded border border-border/50 bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
-              title={article.publication.name}
+              title={article.publisher.name}
             >
               <Building2 className="h-2.5 w-2.5 text-primary" />
-              <span className="max-w-28 truncate">{article.publication.name}</span>
+              <span className="max-w-28 truncate">{article.publisher.name}</span>
             </span>
+          )}
+          {article.isAuthorSovereignCopy && article.originPublisher && (
+            <span
+              className="inline-flex shrink-0 items-center gap-1 rounded border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary"
+              title={t`Exemplaire personnel souverain issu de ${article.originPublisher.name}`}
+            >
+              <ShieldCheck className="h-2.5 w-2.5" />
+              <span className="max-w-36 truncate">{t`Souverain · ${article.originPublisher.name}`}</span>
+            </span>
+          )}
+          {article.publisher?.type === 'MEDIA' && article.canEdit === false && (
+            <Button
+              type="button"
+              variant="outline"
+              size="xs"
+              onClick={async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (article.sovereignCopyId) {
+                  window.location.href = `/articles/${article.sovereignCopyId}`;
+                  return;
+                }
+                const res = await forkArticleToPersonalAction({ articleId: article.id });
+                if (res.ok) {
+                  window.location.href = `/articles/${res.data.id}`;
+                } else {
+                  toast.error(res.error.message);
+                }
+              }}
+              className="h-5 gap-1 border-highlight/30 bg-highlight/10 px-1.5 text-[10px] font-medium text-highlight hover:bg-highlight/20"
+              title={t`Archive média (lecture seule). Cliquez pour ouvrir ou créer votre copie souveraine éditable.`}
+            >
+              <GitFork className="h-2.5 w-2.5" />
+              <span>{article.sovereignCopyId ? t`Ouvrir ma copie` : t`Récupérer ma copie`}</span>
+            </Button>
           )}
           {pinned && <Pin className="h-3 w-3 shrink-0 text-primary" />}
         </div>

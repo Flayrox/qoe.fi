@@ -15,7 +15,7 @@
 import { revalidatePath } from 'next/cache';
 import { safeAction } from '../utils/safe-action';
 import { goFetch } from '../utils/go-client';
-import { getActivePublicationId } from '../workspace';
+import { getActivePublisherId } from '../workspace';
 import type { ArticleAuthorBrief } from '../articles';
 
 type User = ArticleAuthorBrief & {
@@ -25,7 +25,7 @@ type User = ArticleAuthorBrief & {
 };
 
 interface UpdateCreatorProfileInput {
-  publicationId?: string;
+  publisherId?: string;
   name?: string | null;
   heroText?: string | null;
   onboardingText?: string | null;
@@ -62,10 +62,10 @@ interface CompleteOnboardingInput {
 
 export const updateCreatorProfileAction = safeAction<UpdateCreatorProfileInput, User>(
   async (data) => {
-    const publicationId = data.publicationId || (await getActivePublicationId());
+    const publisherId = data.publisherId || (await getActivePublisherId());
     const res = await goFetch<User>('/v1/settings/profile', {
       method: 'PATCH',
-      body: { ...data, publicationId },
+      body: { ...data, publisherId },
     });
     revalidatePath('/settings');
     return res;
@@ -82,45 +82,45 @@ export const checkSubdomainAvailabilityAction = safeAction<
 });
 
 export const updateSubdomainAction = safeAction<
-  { publicationId?: string; subdomain: string } | string,
+  { publisherId?: string; subdomain: string } | string,
   { success: boolean; subdomain: string }
 >(async (input) => {
   const subdomain = typeof input === 'string' ? input : input.subdomain;
-  const publicationId =
-    (typeof input === 'object' && input.publicationId) || (await getActivePublicationId());
+  const publisherId =
+    (typeof input === 'object' && input.publisherId) || (await getActivePublisherId());
   const res = await goFetch<{ success: boolean; subdomain: string }>('/v1/settings/subdomain', {
     method: 'POST',
-    body: { publicationId, subdomain },
+    body: { publisherId, subdomain },
   });
   revalidatePath('/settings');
   return res;
 });
 
 export const saveNavigationLinksAction = safeAction<
-  { publicationId?: string; links: NavigationLinkInput[] } | NavigationLinkInput[],
+  { publisherId?: string; links: NavigationLinkInput[] } | NavigationLinkInput[],
   { success: boolean }
 >(async (input) => {
   const links = Array.isArray(input) ? input : input.links;
-  const publicationId =
-    (!Array.isArray(input) && input.publicationId) || (await getActivePublicationId());
+  const publisherId =
+    (!Array.isArray(input) && input.publisherId) || (await getActivePublisherId());
   await goFetch('/v1/settings/navigation', {
     method: 'PUT',
-    body: { publicationId, links },
+    body: { publisherId, links },
   });
   revalidatePath('/settings');
   return { success: true };
 });
 
 export const saveSocialLinksAction = safeAction<
-  { publicationId?: string; links: SocialLinkInput[] } | SocialLinkInput[],
+  { publisherId?: string; links: SocialLinkInput[] } | SocialLinkInput[],
   { success: boolean }
 >(async (input) => {
   const links = Array.isArray(input) ? input : input.links;
-  const publicationId =
-    (!Array.isArray(input) && input.publicationId) || (await getActivePublicationId());
+  const publisherId =
+    (!Array.isArray(input) && input.publisherId) || (await getActivePublisherId());
   await goFetch('/v1/settings/social', {
     method: 'PUT',
-    body: { publicationId, links },
+    body: { publisherId, links },
   });
   revalidatePath('/settings');
   return { success: true };

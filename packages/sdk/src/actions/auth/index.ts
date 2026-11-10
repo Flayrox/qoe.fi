@@ -49,7 +49,7 @@ export async function getCurrentUserAction() {
     role: profile.role,
     logoUrl: profile.logoUrl,
     hasCompletedOnboarding: profile.hasCompletedOnboarding,
-    publication: null,
+    publisher: null,
   };
 }
 

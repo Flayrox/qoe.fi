@@ -124,10 +124,10 @@ func ConsumeBudget(ctx context.Context, pool BudgetDB, scopeType, scopeID, actio
 // doivent être accordés pour envoyer ; si l'un est épuisé, la demande est
 // enregistrée en attente mais aucun e-mail ne part (réponse neutre, pas de
 // fuite sur la limite atteinte).
-func ConfirmBudgetScopes(email, publicationID string) [][2]string {
+func ConfirmBudgetScopes(email, publisherID string) [][2]string {
 	return [][2]string{
-		{"email_publication", email + "|" + publicationID},
-		{"publication", publicationID},
+		{"email_publication", email + "|" + publisherID},
+		{"publisher", publisherID},
 	}
 }
 
@@ -156,15 +156,15 @@ func RefundBudget(ctx context.Context, pool BudgetDB, scopeType, scopeID, action
 // attaque). Une erreur DB, elle, est journalisée et traitée en autorisation
 // (dégradation ouverte : une panne de budget ne doit pas bloquer une
 // inscription légitime — le rate-limit Redis reste la première barrière).
-func ConfirmAllowed(ctx context.Context, pool BudgetDB, email, publicationID string, now time.Time) bool {
+func ConfirmAllowed(ctx context.Context, pool BudgetDB, email, publisherID string, now time.Time) bool {
 	if pool == nil {
 		return true
 	}
 	window := DailyWindow(now)
-	for _, scope := range ConfirmBudgetScopes(email, publicationID) {
-		cap := ConfirmCapPerPublication
+	for _, scope := range ConfirmBudgetScopes(email, publisherID) {
+		cap := ConfirmCapPerPublisher
 		if scope[0] == "email_publication" {
-			cap = ConfirmCapPerEmailPublication
+			cap = ConfirmCapPerEmailPublisher
 		}
 		ok, err := ConsumeBudget(ctx, pool, scope[0], scope[1], ActionConfirmRequest, window, 1, cap)
 		if err != nil {
@@ -184,6 +184,6 @@ func ConfirmAllowed(ctx context.Context, pool BudgetDB, email, publicationID str
 // publication et par jour (une liste légitime ne redemande jamais autant en
 // 24 h ; au-delà, c'est une attaque ou un bug d'intégration à examiner).
 const (
-	ConfirmCapPerEmailPublication = 3
-	ConfirmCapPerPublication      = 2000
+	ConfirmCapPerEmailPublisher = 3
+	ConfirmCapPerPublisher      = 2000
 )

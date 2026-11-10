@@ -32,19 +32,19 @@ func Run(ctx context.Context, pool *pgxpool.Pool) error {
 
 	// 0b. Publication personnelle (identité tenant) + lien + certification.
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO "Publication" (id, type, name, slug, subdomain, "createdAt", "updatedAt")
+		INSERT INTO "Publisher" (id, type, name, slug, subdomain, "createdAt", "updatedAt")
 		VALUES ($1, 'PERSONAL', 'Super Admin', 'admin', 'admin', now(), now())
 		ON CONFLICT (id) DO UPDATE SET name = 'Super Admin', slug = 'admin',
 		  subdomain = 'admin', "updatedAt" = now()`, AdminPubID); err != nil {
 		return fmt.Errorf("publication admin: %w", err)
 	}
 	if _, err := pool.Exec(ctx, `
-		UPDATE "User" SET "publicationId" = $1, "updatedAt" = now() WHERE id = $2`,
+		UPDATE "User" SET "publisherId" = $1, "updatedAt" = now() WHERE id = $2`,
 		AdminPubID, AdminUserID); err != nil {
-		return fmt.Errorf("lien user/publication: %w", err)
+		return fmt.Errorf("lien user/publisher: %w", err)
 	}
 	if _, err := pool.Exec(ctx, `
-		UPDATE "Publication" SET "isCertified" = true, "updatedAt" = now() WHERE id = $1`,
+		UPDATE "Publisher" SET "isCertified" = true, "updatedAt" = now() WHERE id = $1`,
 		AdminPubID); err != nil {
 		return fmt.Errorf("certification: %w", err)
 	}
@@ -62,7 +62,7 @@ func Run(ctx context.Context, pool *pgxpool.Pool) error {
 		}
 	}
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO "Publication" (id, type, name, slug, subdomain, bio, "isCertified", "createdAt", "updatedAt")
+		INSERT INTO "Publisher" (id, type, name, slug, subdomain, bio, "isCertified", "createdAt", "updatedAt")
 		VALUES ($1, 'MEDIA', 'Le Média Clair', 'media-clair', 'media-clair',
 		        'Un média local indépendant, financé par ses lecteurs.', true, now(), now())
 		ON CONFLICT (id) DO UPDATE SET type = 'MEDIA', name = 'Le Média Clair',
@@ -72,9 +72,9 @@ func Run(ctx context.Context, pool *pgxpool.Pool) error {
 		return fmt.Errorf("publication média: %w", err)
 	}
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO "Media" (id, "publicationId", "createdAt", "updatedAt")
+		INSERT INTO "Media" (id, "publisherId", "createdAt", "updatedAt")
 		VALUES ($1, $2, now(), now())
-		ON CONFLICT ("publicationId") DO UPDATE SET "updatedAt" = now()`,
+		ON CONFLICT ("publisherId") DO UPDATE SET "updatedAt" = now()`,
 		MediaID, MediaPubID); err != nil {
 		return fmt.Errorf("media: %w", err)
 	}
@@ -140,7 +140,7 @@ func Run(ctx context.Context, pool *pgxpool.Pool) error {
 	}
 
 	// 1. Navigation (pas d'unicité → delete + insert pour l'idempotence).
-	if _, err := pool.Exec(ctx, `DELETE FROM "NavigationItem" WHERE "publicationId" = $1`, AdminPubID); err != nil {
+	if _, err := pool.Exec(ctx, `DELETE FROM "NavigationItem" WHERE "publisherId" = $1`, AdminPubID); err != nil {
 		return fmt.Errorf("navigation delete: %w", err)
 	}
 	navs := []struct {
@@ -154,7 +154,7 @@ func Run(ctx context.Context, pool *pgxpool.Pool) error {
 	}
 	for _, n := range navs {
 		if _, err := pool.Exec(ctx, `
-			INSERT INTO "NavigationItem" (id, label, url, "order", "isExternal", "publicationId")
+			INSERT INTO "NavigationItem" (id, label, url, "order", "isExternal", "publisherId")
 			VALUES (gen_random_uuid()::text, $1, $2, $3, false, $4)`,
 			n.label, n.url, n.order, AdminPubID); err != nil {
 			return fmt.Errorf("navigation insert: %w", err)
@@ -162,7 +162,7 @@ func Run(ctx context.Context, pool *pgxpool.Pool) error {
 	}
 
 	// 2. Réseaux sociaux (idem : delete + insert).
-	if _, err := pool.Exec(ctx, `DELETE FROM "SocialLink" WHERE "publicationId" = $1`, AdminPubID); err != nil {
+	if _, err := pool.Exec(ctx, `DELETE FROM "SocialLink" WHERE "publisherId" = $1`, AdminPubID); err != nil {
 		return fmt.Errorf("social delete: %w", err)
 	}
 	socials := []struct {
@@ -176,7 +176,7 @@ func Run(ctx context.Context, pool *pgxpool.Pool) error {
 	}
 	for _, s := range socials {
 		if _, err := pool.Exec(ctx, `
-			INSERT INTO "SocialLink" (id, platform, url, "order", "publicationId")
+			INSERT INTO "SocialLink" (id, platform, url, "order", "publisherId")
 			VALUES (gen_random_uuid()::text, $1, $2, $3, $4)`,
 			s.platform, s.url, s.order, AdminPubID); err != nil {
 			return fmt.Errorf("social insert: %w", err)
@@ -186,16 +186,16 @@ func Run(ctx context.Context, pool *pgxpool.Pool) error {
 	// 3. Catégories (Politique + International en enfant).
 	var catPolitique string
 	if err := pool.QueryRow(ctx, `
-		INSERT INTO "Category" (id, name, slug, description, "publicationId")
+		INSERT INTO "Category" (id, name, slug, description, "publisherId")
 		VALUES (gen_random_uuid()::text, 'Politique', 'politique', 'desc', $1)
-		ON CONFLICT (slug, "publicationId") DO UPDATE SET name = 'Politique'
+		ON CONFLICT (slug, "publisherId") DO UPDATE SET name = 'Politique'
 		RETURNING id`, AdminPubID).Scan(&catPolitique); err != nil {
 		return fmt.Errorf("catégorie politique: %w", err)
 	}
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO "Category" (id, name, slug, description, "publicationId", "parentId")
+		INSERT INTO "Category" (id, name, slug, description, "publisherId", "parentId")
 		VALUES (gen_random_uuid()::text, 'International', 'international', 'desc', $1, $2)
-		ON CONFLICT (slug, "publicationId") DO UPDATE SET name = 'International', "parentId" = $2`,
+		ON CONFLICT (slug, "publisherId") DO UPDATE SET name = 'International', "parentId" = $2`,
 		AdminPubID, catPolitique); err != nil {
 		return fmt.Errorf("catégorie international: %w", err)
 	}
@@ -210,8 +210,8 @@ func Run(ctx context.Context, pool *pgxpool.Pool) error {
 		{"creators_tagline", "Des voix libres et indépendantes", "Tagline de la section des créateurs de confiance"},
 		{"format_title", "Cinq Formats de Récits", "Titre de la section de prévisualisation des formats"},
 		{"format_tagline", "Au-delà du simple mur de texte", "Tagline de la section de prévisualisation des formats"},
-		{"featured_title", "Écrits Majeurs", "Titre de la section des publications phares"},
-		{"featured_tagline", "Sélection Écologique et Politique", "Tagline de la section des publications phares"},
+		{"featured_title", "Écrits Majeurs", "Titre de la section des publishers phares"},
+		{"featured_tagline", "Sélection Écologique et Politique", "Tagline de la section des publishers phares"},
 		{"comparison_title", "Souveraineté ou Intermédiation ?", "Titre du tableau comparatif avec Substack"},
 		{"comparison_tagline", "Pourquoi qoefi redéfinit l'édition indépendante", "Tagline du tableau comparatif avec Substack"},
 		{"preview_title", "L'architecture du silence", "Titre de l'aperçu du produit (ProductPreview)"},
@@ -258,21 +258,21 @@ func upsertUser(ctx context.Context, pool *pgxpool.Pool, id, email, name, role s
 	return nil
 }
 
-// UpsertArticle crée/met à jour un article publié (dédup publicationId + slug).
-func UpsertArticle(ctx context.Context, pool *pgxpool.Pool, publicationID, authorID, slug, title, content string,
+// UpsertArticle crée/met à jour un article publié (dédup publisherId + slug).
+func UpsertArticle(ctx context.Context, pool *pgxpool.Pool, publisherID, authorID, slug, title, content string,
 	readingTime int32, isPremium bool, visibility string, editorPick bool) error {
 	imageURL := ""
 	_, err := pool.Exec(ctx, `
 		INSERT INTO "Article" (id, title, slug, content, published, status, visibility,
-		                       "isPremium", "isEditorPick", "readingTime", "publicationId", "authorId",
+		                       "isPremium", "isEditorPick", "readingTime", "publisherId", "authorId",
 		                       "imageUrl", "createdAt", "updatedAt")
 		VALUES (gen_random_uuid()::text, $2, $3, $4, true, 'PUBLISHED', $5, $6, $7, $8, $1, $9,
 		        $10, now(), now())
-		ON CONFLICT ("publicationId", slug) DO UPDATE SET
+		ON CONFLICT ("publisherId", slug) DO UPDATE SET
 		  title = $2, content = $4, published = true, status = 'PUBLISHED', visibility = $5,
 		  "isPremium" = $6, "isEditorPick" = $7, "imageUrl" = COALESCE("Article"."imageUrl", $10),
 		  "updatedAt" = now()`,
-		publicationID, title, slug, content, visibility, isPremium, editorPick, readingTime, authorID, imageURL)
+		publisherID, title, slug, content, visibility, isPremium, editorPick, readingTime, authorID, imageURL)
 	if err != nil {
 		return fmt.Errorf("article %s: %w", slug, err)
 	}

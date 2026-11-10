@@ -58,12 +58,12 @@ func TestArticlePublished(t *testing.T) {
 	// Champs requis manquants.
 	w = post(r, "/internal/events/article-published", "s3cret", `{"articleId":"a1"}`)
 	if w.Code != http.StatusBadRequest {
-		t.Fatalf("publicationId manquant = %d, attendu 400", w.Code)
+		t.Fatalf("publisherId manquant = %d, attendu 400", w.Code)
 	}
 
 	// Nominal (client asynq nil : enqueue simulé).
 	w = post(r, "/internal/events/article-published", "s3cret",
-		`{"articleId":"a1","publicationId":"p1"}`)
+		`{"articleId":"a1","publisherId":"p1"}`)
 	if w.Code != http.StatusOK {
 		t.Fatalf("nominal = %d body=%s, attendu 200", w.Code, w.Body.String())
 	}
@@ -82,11 +82,11 @@ func TestSubscriberCreated(t *testing.T) {
 
 	w = post(r, "/internal/events/subscriber-created", "s3cret", `{"email":"a@b.c"}`)
 	if w.Code != http.StatusBadRequest {
-		t.Fatalf("publicationId manquant = %d, attendu 400", w.Code)
+		t.Fatalf("publisherId manquant = %d, attendu 400", w.Code)
 	}
 
 	w = post(r, "/internal/events/subscriber-created", "s3cret",
-		`{"email":"a@b.c","publicationId":"p1"}`)
+		`{"email":"a@b.c","publisherId":"p1"}`)
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"queued":true`) {
 		t.Fatalf("nominal = %d %s, attendu 200 queued:true", w.Code, w.Body.String())
 	}

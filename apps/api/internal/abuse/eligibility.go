@@ -45,7 +45,7 @@ func exclusionFragment(authorAlias, articleAlias string, results []Decision) str
 	}
 	subject := `(rd."subjectType" = '` + SubjectUser + `' AND rd."subjectId" = ` + authorAlias + `.id::text)`
 	if articleAlias != "" {
-		subject += ` OR (rd."subjectType" = '` + SubjectPublication + `' AND rd."subjectId" = ` + articleAlias + `."publicationId")`
+		subject += ` OR (rd."subjectType" = '` + SubjectPublisher + `' AND rd."subjectId" = ` + articleAlias + `."publisherId")`
 	}
 	return `AND NOT EXISTS (
 		  SELECT 1 FROM "RiskDecision" rd
@@ -57,7 +57,7 @@ func exclusionFragment(authorAlias, articleAlias string, results []Decision) str
 }
 
 // DiscoveryExclusionArticle s'ajoute aux requêtes de découverte portant sur
-// des articles (alias auteur `u`, alias article `a` avec publicationId) :
+// des articles (alias auteur `u`, alias article `a` avec publisherId) :
 // retire les auteurs/publications en limitation ou refus dur.
 func DiscoveryExclusionArticle(authorAlias, articleAlias string) string {
 	return exclusionFragment(authorAlias, articleAlias, discoveryResults)

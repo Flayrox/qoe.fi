@@ -1,7 +1,7 @@
 -- Centre de notifications : liste groupée, non-lus, lecture, préférences.
 
 -- name: GetNotifications :many
-SELECT n.id, n.type, n."isRead", n."createdAt", n."thoughtId", n."articleId", n."commentId", n."publicationId", n.metadata,
+SELECT n.id, n.type, n."isRead", n."createdAt", n."thoughtId", n."articleId", n."commentId", n."publisherId", n.metadata,
        u.id::text      AS sender_id,
        u.name          AS sender_name,
        u.username      AS sender_username,
@@ -12,17 +12,17 @@ SELECT n.id, n.type, n."isRead", n."createdAt", n."thoughtId", n."articleId", n.
        a.title         AS article_title,
        a.slug          AS article_slug,
        c.content       AS comment_content,
-       p.name          AS publication_name,
-       p.slug          AS publication_slug,
-       COALESCE(p.type::text, '')::text AS publication_type,
+       p.name          AS publisher_name,
+       p.slug          AS publisher_slug,
+       COALESCE(p.type::text, '')::text AS publisher_type,
        COALESCE(md.id::text, '')::text  AS media_id
 FROM "Notification" n
 JOIN "User" u ON u.id = n."senderId"
 LEFT JOIN "Post" t ON t.id = n."thoughtId"
 LEFT JOIN "Article" a ON a.id = n."articleId"
 LEFT JOIN "ArticleComment" c ON c.id = n."commentId"
-LEFT JOIN "Publication" p ON p.id = n."publicationId"
-LEFT JOIN "Media" md ON md."publicationId" = n."publicationId"
+LEFT JOIN "Publisher" p ON p.id = n."publisherId"
+LEFT JOIN "Media" md ON md."publisherId" = n."publisherId"
 WHERE n."recipientId" = $1
   AND ($2::text[] IS NULL OR n.type::text = ANY($2::text[]))
   -- Un blocage, dans un sens ou dans l'autre, coupe aussi les notifications.

@@ -32,7 +32,7 @@ func TestService_Create_FutureScheduledAt(t *testing.T) {
 
 	future := time.Now().Add(2 * time.Hour).UTC()
 	id, err := svc.Create(ctx, fx.AuthorID, CreateArticleInput{
-		PublicationID: fx.PublicationID,
+		PublisherID: fx.PublisherID,
 		Title:         "Programmé", Slug: "programme",
 		Content: "<p>x</p>", ContentFormat: "html",
 		Status: "PUBLISHED", Published: true, ScheduledAt: &future,
@@ -57,7 +57,7 @@ func TestService_Create_PastScheduledAt(t *testing.T) {
 
 	past := time.Now().Add(-time.Hour).UTC()
 	id, err := svc.Create(ctx, fx.AuthorID, CreateArticleInput{
-		PublicationID: fx.PublicationID,
+		PublisherID: fx.PublisherID,
 		Title:         "Déjà mûr", Slug: "deja-mur",
 		Content: "<p>x</p>", ContentFormat: "html",
 		Status: "PUBLISHED", Published: true, ScheduledAt: &past,
@@ -106,7 +106,7 @@ func TestService_Schedule_Guards(t *testing.T) {
 
 	// Brouillon créé par l'owner du média.
 	id, err := svc.Create(ctx, fx.OwnerID, CreateArticleInput{
-		PublicationID: fx.PublicationID,
+		PublisherID: fx.PublisherID,
 		Title:         "À programmer", Slug: "a-programmer",
 		Content: "<p>x</p>", ContentFormat: "html", Status: "DRAFT",
 	})

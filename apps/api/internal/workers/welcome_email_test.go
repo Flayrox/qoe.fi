@@ -29,7 +29,7 @@ func grantProPub(t *testing.T, ctx context.Context, pubID string) {
 	t.Helper()
 	now := time.Now()
 	if _, err := subscriptions.GrantPlan(ctx, testutil.MustPool(t),
-		subscriptions.SubjectPublication, pubID, subscriptions.PlanPro, now, nil,
+		subscriptions.SubjectPublisher, pubID, subscriptions.PlanPro, now, nil,
 		"staff-test", "test email pro", now); err != nil {
 		t.Fatalf("octroi pro: %v", err)
 	}
@@ -43,16 +43,16 @@ func seedWelcomeFixture(t *testing.T, ctx context.Context, email, locale, emailS
 	pool := testutil.MustPool(t)
 
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO "Publication" (id, name, slug, "emailSettings", "updatedAt")
+		INSERT INTO "Publisher" (id, name, slug, "emailSettings", "updatedAt")
 		VALUES ('pub_welcome', 'La Gazette Welcome', 'gazette-welcome', COALESCE(NULLIF($1, '')::jsonb, '{}'::jsonb), now())
 		ON CONFLICT (id) DO UPDATE SET "emailSettings" = EXCLUDED."emailSettings"`, emailSettings); err != nil {
 		t.Fatalf("seed publication: %v", err)
 	}
-	if _, err := pool.Exec(ctx, `DELETE FROM "Subscriber" WHERE "publicationId" = 'pub_welcome'`); err != nil {
+	if _, err := pool.Exec(ctx, `DELETE FROM "Subscriber" WHERE "publisherId" = 'pub_welcome'`); err != nil {
 		t.Fatalf("cleanup subscribers: %v", err)
 	}
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO "Subscriber" (id, email, "publicationId", locale, "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
+		INSERT INTO "Subscriber" (id, email, "publisherId", locale, "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
 		VALUES ('sub_welcome_1', $1, 'pub_welcome', $2, true, true, now(), now(), now())`, email, locale); err != nil {
 		t.Fatalf("seed subscriber: %v", err)
 	}
@@ -63,7 +63,7 @@ func runWelcome(t *testing.T, ctx context.Context, fake *fakeProvider, email, pu
 	t.Helper()
 	w := NewWelcomeEmailWorker(testutil.MustPool(t))
 	w.SetEmailProvider(fake, "noreply@qoe.fi")
-	payload, _ := json.Marshal(queue.SubscriberWelcomePayload{Email: email, PublicationID: pubID})
+	payload, _ := json.Marshal(queue.SubscriberWelcomePayload{Email: email, PublisherID: pubID})
 	if err := w.HandleSubscriberWelcome(ctx, asynq.NewTask(queue.TaskSubscriberWelcome, payload)); err != nil {
 		t.Fatalf("HandleSubscriberWelcome: %v", err)
 	}
@@ -173,7 +173,7 @@ func TestWelcomeEmailWorker_UnconfirmedOrMissing_IsSilent(t *testing.T) {
 	pubID, email := seedWelcomeFixture(t, ctx, "ghost@test.dev", "fr", "")
 
 	// Abonné repassé non confirmé (confirmedAt NULL).
-	if _, err := pool.Exec(ctx, `UPDATE "Subscriber" SET "confirmedAt" = NULL WHERE email = $1 AND "publicationId" = 'pub_welcome'`, email); err != nil {
+	if _, err := pool.Exec(ctx, `UPDATE "Subscriber" SET "confirmedAt" = NULL WHERE email = $1 AND "publisherId" = 'pub_welcome'`, email); err != nil {
 		t.Fatalf("unconfirm: %v", err)
 	}
 	fake := &fakeProvider{}
@@ -195,7 +195,7 @@ func TestWelcomeEmailWorker_NoProvider_IsNoOp(t *testing.T) {
 	pubID, email := seedWelcomeFixture(t, ctx, "noprovider@test.dev", "fr", "")
 
 	w := NewWelcomeEmailWorker(testutil.MustPool(t))
-	payload, _ := json.Marshal(queue.SubscriberWelcomePayload{Email: email, PublicationID: pubID})
+	payload, _ := json.Marshal(queue.SubscriberWelcomePayload{Email: email, PublisherID: pubID})
 	if err := w.HandleSubscriberWelcome(ctx, asynq.NewTask(queue.TaskSubscriberWelcome, payload)); err != nil {
 		t.Fatalf("sans provider, la tâche doit être un no-op: %v", err)
 	}

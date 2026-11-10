@@ -111,7 +111,7 @@ export function buildPlaceholder(input: OpenArticleInput): OverlayArticle {
     accessGranted: input.accessGranted,
     category: input.category ?? null,
     tags: input.tags,
-    publication: input.publication ?? null,
+    publisher: input.publisher ?? null,
     allowPublicAnnotations: input.allowPublicAnnotations,
     isLoading: true,
     isError: false,

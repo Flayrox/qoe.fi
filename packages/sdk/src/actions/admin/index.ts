@@ -224,7 +224,7 @@ export const createSupportArticleAction = safeAction<
   return { success: true };
 });
 
-/** 📝 Modification (contenu, position, publication). Champs absents = inchangés. */
+/** 📝 Modification (contenu, position, publisher). Champs absents = inchangés. */
 export const updateSupportArticleAction = safeAction<
   {
     articleId: string;

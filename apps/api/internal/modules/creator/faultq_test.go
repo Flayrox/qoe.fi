@@ -78,17 +78,17 @@ func (f *faultQ) GetMediaMemberContext(ctx context.Context, arg db.GetMediaMembe
 	}
 	return f.Queries.GetMediaMemberContext(ctx, arg)
 }
-func (f *faultQ) GetPublicationBySlugOrSubdomain(ctx context.Context, lower string) (db.GetPublicationBySlugOrSubdomainRow, error) {
-	if e, ok := f.val("GetPublicationBySlugOrSubdomain"); ok {
-		return db.GetPublicationBySlugOrSubdomainRow{}, e
+func (f *faultQ) GetPublisherBySlugOrSubdomain(ctx context.Context, lower string) (db.GetPublisherBySlugOrSubdomainRow, error) {
+	if e, ok := f.val("GetPublisherBySlugOrSubdomain"); ok {
+		return db.GetPublisherBySlugOrSubdomainRow{}, e
 	}
-	return f.Queries.GetPublicationBySlugOrSubdomain(ctx, lower)
+	return f.Queries.GetPublisherBySlugOrSubdomain(ctx, lower)
 }
-func (f *faultQ) GetPublicationOwner(ctx context.Context, id string) (string, error) {
-	if e, ok := f.val("GetPublicationOwner"); ok {
+func (f *faultQ) GetPublisherOwner(ctx context.Context, id string) (string, error) {
+	if e, ok := f.val("GetPublisherOwner"); ok {
 		return "", e
 	}
-	return f.Queries.GetPublicationOwner(ctx, id)
+	return f.Queries.GetPublisherOwner(ctx, id)
 }
 func (f *faultQ) GetUserByIDFull(ctx context.Context, id string) (db.GetUserByIDFullRow, error) {
 	if e, ok := f.val("GetUserByIDFull"); ok {
@@ -96,11 +96,11 @@ func (f *faultQ) GetUserByIDFull(ctx context.Context, id string) (db.GetUserByID
 	}
 	return f.Queries.GetUserByIDFull(ctx, id)
 }
-func (f *faultQ) GetUserPersonalPublication(ctx context.Context, id string) (pgtype.Text, error) {
-	if e, ok := f.val("GetUserPersonalPublication"); ok {
+func (f *faultQ) GetUserPersonalPublisher(ctx context.Context, id string) (pgtype.Text, error) {
+	if e, ok := f.val("GetUserPersonalPublisher"); ok {
 		return pgtype.Text{}, e
 	}
-	return f.Queries.GetUserPersonalPublication(ctx, id)
+	return f.Queries.GetUserPersonalPublisher(ctx, id)
 }
 func (f *faultQ) GetUserPronouns(ctx context.Context, id string) (pgtype.Text, error) {
 	if e, ok := f.val("GetUserPronouns"); ok {
@@ -114,17 +114,17 @@ func (f *faultQ) InsertFollow(ctx context.Context, arg db.InsertFollowParams) er
 	}
 	return f.Queries.InsertFollow(ctx, arg)
 }
-func (f *faultQ) ListCategoriesByPublication(ctx context.Context, publicationid string) ([]db.ListCategoriesByPublicationRow, error) {
-	if e, ok := f.val("ListCategoriesByPublication"); ok {
+func (f *faultQ) ListCategoriesByPublisher(ctx context.Context, publicationid string) ([]db.ListCategoriesByPublisherRow, error) {
+	if e, ok := f.val("ListCategoriesByPublisher"); ok {
 		return nil, e
 	}
-	return f.Queries.ListCategoriesByPublication(ctx, publicationid)
+	return f.Queries.ListCategoriesByPublisher(ctx, publicationid)
 }
-func (f *faultQ) ListFollowersByPublication(ctx context.Context, arg db.ListFollowersByPublicationParams) ([]db.ListFollowersByPublicationRow, error) {
-	if e, ok := f.val("ListFollowersByPublication"); ok {
+func (f *faultQ) ListFollowersByPublisher(ctx context.Context, arg db.ListFollowersByPublisherParams) ([]db.ListFollowersByPublisherRow, error) {
+	if e, ok := f.val("ListFollowersByPublisher"); ok {
 		return nil, e
 	}
-	return f.Queries.ListFollowersByPublication(ctx, arg)
+	return f.Queries.ListFollowersByPublisher(ctx, arg)
 }
 func (f *faultQ) ListFollowingByUser(ctx context.Context, arg db.ListFollowingByUserParams) ([]db.ListFollowingByUserRow, error) {
 	if e, ok := f.val("ListFollowingByUser"); ok {

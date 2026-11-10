@@ -17,13 +17,13 @@ type newsletterQuerier interface {
 	DeleteNewsletterIssueDraft(ctx context.Context, id string) error
 	FinishNewsletterIssue(ctx context.Context, arg db.FinishNewsletterIssueParams) (string, error)
 	GetNewsletterIssue(ctx context.Context, id string) (db.NewsletterIssue, error)
-	GetUserPublicationID(ctx context.Context, id string) (string, error)
-	ListNewsletterIssuesByPublication(ctx context.Context, publicationid string) ([]db.NewsletterIssue, error)
+	GetUserPublisherID(ctx context.Context, id string) (string, error)
+	ListNewsletterIssuesByPublisher(ctx context.Context, publicationid string) ([]db.NewsletterIssue, error)
 	ResetFailedNewsletterDeliveries(ctx context.Context, issueid string) error
 	SetNewsletterIssueSending(ctx context.Context, id string) (string, error)
 	UnsubscribeNewsletterSubscriber(ctx context.Context, arg db.UnsubscribeNewsletterSubscriberParams) error
 	UpdateNewsletterIssueDraft(ctx context.Context, arg db.UpdateNewsletterIssueDraftParams) (db.NewsletterIssue, error)
-	UserOwnsPublication(ctx context.Context, arg db.UserOwnsPublicationParams) (bool, error)
+	UserOwnsPublisher(ctx context.Context, arg db.UserOwnsPublisherParams) (bool, error)
 }
 
 var _ newsletterQuerier = (*db.Queries)(nil)

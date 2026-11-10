@@ -118,22 +118,22 @@ func (w *StaffCampaignWorker) buildCampaignEmail(ctx context.Context, campaignID
 			return EmailMessage{}, err
 		}
 		body += "\n\nVous recevez cet email parce que vous avez demandé à être prévenu·e.\nYou receive this email because you asked to be notified."
-	} else if info.PublicationID != "" {
-		unsub = buildUnsubURL(info.PublicationID, c.Email)
+	} else if info.PublisherID != "" {
+		unsub = buildUnsubURL(info.PublisherID, c.Email)
 	} else {
 		body += "\n\nGérez vos préférences depuis votre compte qoe.fi.\nManage your preferences from your qoe.fi account."
 	}
-	body = admin.RenderCampaignVars(body, info.PublicationName, unsub)
+	body = admin.RenderCampaignVars(body, info.PublisherName, unsub)
 	msg := EmailMessage{
 		From:    w.from,
 		To:      c.Email,
 		Subject: subject,
-		HTML:    renderEmailLayout(info.PublicationName, "", "", subject, subject, body, unsub, ""),
+		HTML:    renderEmailLayout(info.PublisherName, "", "", subject, subject, body, unsub, ""),
 		Text:    body,
 		IsBulk:  true,
 	}
-	if info.PublicationName != "" {
-		msg.From = fmt.Sprintf("%s <%s>", info.PublicationName, w.from)
+	if info.PublisherName != "" {
+		msg.From = fmt.Sprintf("%s <%s>", info.PublisherName, w.from)
 	}
 	if unsub != "" {
 		msg.ListUnsubscribe = unsub

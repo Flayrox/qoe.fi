@@ -16,7 +16,7 @@ import React from 'react';
 import Link from 'next/link';
 import { X, ArrowUpRight, Folder } from 'lucide-react';
 import { cn } from '@qoe/utils';
-import type { TemplatePublicationContext } from '../../schema';
+import type { TemplatePublisherContext } from '../../schema';
 import { SocialIcon } from '../../../SocialIcon';
 
 export interface CraftDrawerItem {
@@ -31,7 +31,7 @@ export interface CraftDrawerItem {
 export interface MinimalSidebarDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  publication: TemplatePublicationContext;
+  publisher: TemplatePublisherContext;
   items: CraftDrawerItem[];
   activeId?: string;
   indicatorColor?: string;
@@ -42,7 +42,7 @@ export interface MinimalSidebarDrawerProps {
 export function MinimalSidebarDrawer({
   isOpen,
   onClose,
-  publication,
+  publisher,
   items,
   activeId,
   indicatorColor = '#F97316',
@@ -62,7 +62,7 @@ export function MinimalSidebarDrawer({
     stripeAccountId,
     supportUrl,
     siteOptions,
-  } = publication;
+  } = publisher;
 
   const displayName = name || domain || subdomain || 'Mon Carnet';
   const allowSocial = (siteOptions?.showSocialLinks ?? true) !== false;

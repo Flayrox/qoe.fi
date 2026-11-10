@@ -6,6 +6,6 @@
 // et features/settings/tabs/
 // =====================================================================
 
-export { default, default as PublicationSettings } from '../settings';
+export { default, default as PublisherSettings } from '../settings';
 export * from '../types';
-export { Preview as PublicationLivePreview } from '../preview';
+export { Preview as PublisherLivePreview } from '../preview';

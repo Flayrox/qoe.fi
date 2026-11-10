@@ -113,7 +113,7 @@ func TestHandler_List_OwnerJWT(t *testing.T) {
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
 
-	w, items := doJSONArray(t, r, "GET", "/v1/webhooks?publicationId="+fx.PublicationID, token)
+	w, items := doJSONArray(t, r, "GET", "/v1/webhooks?publisherId="+fx.PublisherID, token)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
 	}
@@ -127,7 +127,7 @@ func TestHandler_List_OwnerJWT(t *testing.T) {
 	}
 }
 
-func TestHandler_List_NoPublicationID(t *testing.T) {
+func TestHandler_List_NoPublisherID(t *testing.T) {
 	requirePool(t)
 	if _, err := testutil.SeedWebhooks(context.Background(), poolTest); err != nil {
 		t.Fatalf("seed: %v", err)
@@ -148,7 +148,7 @@ func TestHandler_List_NoAuth(t *testing.T) {
 	}
 	r := newTestRouter()
 
-	w, _ := doJSON(t, r, "GET", "/v1/webhooks?publicationId=pub_wh_001", "", nil)
+	w, _ := doJSON(t, r, "GET", "/v1/webhooks?publisherId=pub_wh_001", "", nil)
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, attendu 401", w.Code)
 	}
@@ -165,7 +165,7 @@ func TestHandler_List_ViewerCanRead(t *testing.T) {
 
 	// La LECTURE est ouverte à tout membre (y compris viewer) ; c'est la
 	// gestion (create/delete/toggle) qui est réservée à owner/editor.
-	w, items := doJSONArray(t, r, "GET", "/v1/webhooks?publicationId="+fx.PublicationID, token)
+	w, items := doJSONArray(t, r, "GET", "/v1/webhooks?publisherId="+fx.PublisherID, token)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, attendu 200 (viewer peut lire)", w.Code)
 	}
@@ -186,7 +186,7 @@ func TestHandler_Create_OwnerJWT(t *testing.T) {
 	token := testJWT(fx.OwnerID)
 
 	w, body := doJSON(t, r, "POST", "/v1/webhooks", token, map[string]any{
-		"publicationId": fx.PublicationID,
+		"publisherId": fx.PublisherID,
 		"name":          "Nouveau CMS",
 		"url":           "https://cms2.example.com/hook",
 		"events":        []string{"article.published", "article.updated", "EVENT_INCONNU"},
@@ -219,7 +219,7 @@ func TestHandler_Create_InvalidURL(t *testing.T) {
 	token := testJWT(fx.OwnerID)
 
 	w, _ := doJSON(t, r, "POST", "/v1/webhooks", token, map[string]any{
-		"publicationId": fx.PublicationID,
+		"publisherId": fx.PublisherID,
 		"name":          "Mauvais",
 		"url":           "ftp://insecure.example.com",
 		"events":        []string{"article.published"},
@@ -239,7 +239,7 @@ func TestHandler_Create_NoEvents(t *testing.T) {
 	token := testJWT(fx.OwnerID)
 
 	w, _ := doJSON(t, r, "POST", "/v1/webhooks", token, map[string]any{
-		"publicationId": fx.PublicationID,
+		"publisherId": fx.PublisherID,
 		"name":          "Sans événement",
 		"url":           "https://x.example.com/hook",
 		"events":        []string{"NOPE"},
@@ -259,7 +259,7 @@ func TestHandler_Create_EditorAllowed(t *testing.T) {
 	token := testJWT(fx.EditorID)
 
 	w, _ := doJSON(t, r, "POST", "/v1/webhooks", token, map[string]any{
-		"publicationId": fx.PublicationID,
+		"publisherId": fx.PublisherID,
 		"name":          "Par editor",
 		"url":           "https://editor.example.com/hook",
 		"events":        []string{"subscriber.created"},
@@ -279,7 +279,7 @@ func TestHandler_Create_ViewerForbidden(t *testing.T) {
 	token := testJWT(fx.ViewerID)
 
 	w, _ := doJSON(t, r, "POST", "/v1/webhooks", token, map[string]any{
-		"publicationId": fx.PublicationID,
+		"publisherId": fx.PublisherID,
 		"name":          "Tentative",
 		"url":           "https://x.example.com/hook",
 		"events":        []string{"article.published"},
@@ -321,7 +321,7 @@ func TestHandler_Toggle_OwnerJWT(t *testing.T) {
 	token := testJWT(fx.OwnerID)
 
 	// Le webhook actif devient inactif.
-	w, body := doJSON(t, r, "POST", "/v1/webhooks/"+fx.WebhookID+"/toggle?publicationId="+fx.PublicationID, token, nil)
+	w, body := doJSON(t, r, "POST", "/v1/webhooks/"+fx.WebhookID+"/toggle?publisherId="+fx.PublisherID, token, nil)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
 	}
@@ -339,7 +339,7 @@ func TestHandler_Toggle_NotFound(t *testing.T) {
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
 
-	w, _ := doJSON(t, r, "POST", "/v1/webhooks/wh_inexistant/toggle?publicationId="+fx.PublicationID, token, nil)
+	w, _ := doJSON(t, r, "POST", "/v1/webhooks/wh_inexistant/toggle?publisherId="+fx.PublisherID, token, nil)
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, attendu 404", w.Code)
 	}
@@ -354,7 +354,7 @@ func TestHandler_Delete_OwnerJWT(t *testing.T) {
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
 
-	w, _ := doJSON(t, r, "DELETE", "/v1/webhooks/"+fx.WebhookID+"?publicationId="+fx.PublicationID, token, nil)
+	w, _ := doJSON(t, r, "DELETE", "/v1/webhooks/"+fx.WebhookID+"?publisherId="+fx.PublisherID, token, nil)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
 	}
@@ -389,7 +389,7 @@ func TestHandler_ListDeliveries_OwnerJWT(t *testing.T) {
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
 
-	w, items := doJSONArray(t, r, "GET", "/v1/webhooks/"+fx.WebhookID+"/deliveries?publicationId="+fx.PublicationID, token)
+	w, items := doJSONArray(t, r, "GET", "/v1/webhooks/"+fx.WebhookID+"/deliveries?publisherId="+fx.PublisherID, token)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
 	}
@@ -431,10 +431,10 @@ func TestHandler_Test_Ping_ReceivesSignedRequest(t *testing.T) {
 	// Webhook pointant vers le serveur de test.
 	var whID string
 	if err := poolTest.QueryRow(context.Background(),
-		`INSERT INTO "Webhook" (id, "publicationId", name, url, secret, events, active, "createdAt", "updatedAt")
+		`INSERT INTO "Webhook" (id, "publisherId", name, url, secret, events, active, "createdAt", "updatedAt")
 		 VALUES (gen_random_uuid()::text, $1, 'Test', $2, 'secret_placeholder', ARRAY['article.published'], true, now(), now())
 		 RETURNING id`,
-		fx.PublicationID, srv.URL,
+		fx.PublisherID, srv.URL,
 	).Scan(&whID); err != nil {
 		t.Fatalf("insert webhook test: %v", err)
 	}
@@ -442,7 +442,7 @@ func TestHandler_Test_Ping_ReceivesSignedRequest(t *testing.T) {
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
 
-	w, body := doJSON(t, r, "POST", "/v1/webhooks/"+whID+"/test?publicationId="+fx.PublicationID, token, nil)
+	w, body := doJSON(t, r, "POST", "/v1/webhooks/"+whID+"/test?publisherId="+fx.PublisherID, token, nil)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
 	}
@@ -482,7 +482,7 @@ func TestHandler_Test_NotFound(t *testing.T) {
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
 
-	w, _ := doJSON(t, r, "POST", "/v1/webhooks/wh_inexistant/test?publicationId="+fx.PublicationID, token, nil)
+	w, _ := doJSON(t, r, "POST", "/v1/webhooks/wh_inexistant/test?publisherId="+fx.PublisherID, token, nil)
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, attendu 404", w.Code)
 	}

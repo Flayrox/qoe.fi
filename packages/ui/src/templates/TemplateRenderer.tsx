@@ -16,7 +16,7 @@
 import React from 'react';
 import type {
   LayoutConfig,
-  TemplatePublicationContext,
+  TemplatePublisherContext,
   TemplateArticleItem,
   TemplateRenderContext,
   AnyBlockProps,
@@ -46,7 +46,7 @@ import { buildCreatorVars } from '@qoe/theme';
 
 export interface TemplateRendererProps {
   config: LayoutConfig;
-  publication: TemplatePublicationContext;
+  publisher: TemplatePublisherContext;
   articles?: TemplateArticleItem[];
   mode?: 'live' | 'editable';
   selectedBlockId?: string | null;
@@ -68,7 +68,7 @@ export interface TemplateRendererProps {
 
 export function TemplateRenderer({
   config,
-  publication,
+  publisher,
   articles = [],
   mode = 'live',
   selectedBlockId = null,
@@ -100,24 +100,23 @@ export function TemplateRenderer({
     onDeleteBlock,
   };
 
-  const accentColor =
-    config.tokens?.accentColor || publication.accentColor || 'hsl(var(--primary))';
-  const rawFontFamily = config.tokens?.fontFamily || publication.fontFamily || 'inherit';
+  const accentColor = config.tokens?.accentColor || publisher.accentColor || 'hsl(var(--primary))';
+  const rawFontFamily = config.tokens?.fontFamily || publisher.fontFamily || 'inherit';
   const resolvedFont = resolveFontFamily(rawFontFamily);
 
-  const rawSiteOptions = (publication.siteOptions ?? {}) as Record<string, unknown>;
+  const rawSiteOptions = (publisher.siteOptions ?? {}) as Record<string, unknown>;
   const backgroundColor = (rawSiteOptions.backgroundColor as string) || null;
   const creatorThemeVars = buildCreatorVars({
-    accentColor: config.tokens?.accentColor || publication.accentColor || null,
+    accentColor: config.tokens?.accentColor || publisher.accentColor || null,
     backgroundColor,
     fontFamily: rawFontFamily,
-    themeMode: publication.themeMode,
+    themeMode: publisher.themeMode,
   });
 
   const customStyle: React.CSSProperties = {
     '--tenant-accent': accentColor,
     fontFamily: resolvedFont,
-    ...(publication.themeMode === 'dark' && { colorScheme: 'dark' }),
+    ...(publisher.themeMode === 'dark' && { colorScheme: 'dark' }),
     ...creatorThemeVars,
   } as React.CSSProperties;
 
@@ -126,7 +125,7 @@ export function TemplateRenderer({
 
   const theme = resolveTheme(config.archetype);
   const Shell = theme.Shell;
-  const showNewsletterWall = (publication.siteOptions?.showNewsletterWall ?? true) !== false;
+  const showNewsletterWall = (publisher.siteOptions?.showNewsletterWall ?? true) !== false;
 
   const renderedBlocks = config.blocks.map((block) => {
     // En mode live, on ignore les blocs invisibles
@@ -141,7 +140,7 @@ export function TemplateRenderer({
             key={block.id}
             id={block.id}
             props={block.props as NavbarBlockProps}
-            publication={publication}
+            publisher={publisher}
             context={context}
             visible={block.visible}
             locked={block.locked}
@@ -157,7 +156,7 @@ export function TemplateRenderer({
             key={block.id}
             id={block.id}
             props={block.props as HeroBlockProps}
-            publication={publication}
+            publisher={publisher}
             context={context}
             visible={block.visible}
             locked={block.locked}
@@ -174,7 +173,7 @@ export function TemplateRenderer({
             id={block.id}
             props={block.props as LeadStoryBlockProps}
             articles={effectiveArticles}
-            publication={publication}
+            publisher={publisher}
             cardShape={cardShape}
             context={context}
             visible={block.visible}
@@ -192,7 +191,7 @@ export function TemplateRenderer({
             id={block.id}
             props={block.props as BentoGridBlockProps}
             articles={effectiveArticles}
-            publication={publication}
+            publisher={publisher}
             cardShape={cardShape}
             surface={surface}
             context={context}
@@ -211,7 +210,7 @@ export function TemplateRenderer({
             id={block.id}
             props={block.props as ArticleStreamBlockProps}
             articles={effectiveArticles}
-            publication={publication}
+            publisher={publisher}
             cardShape={cardShape}
             context={context}
             visible={block.visible}
@@ -229,7 +228,7 @@ export function TemplateRenderer({
             key={block.id}
             id={block.id}
             props={block.props as NewsletterWallBlockProps}
-            publication={publication}
+            publisher={publisher}
             cardShape={cardShape}
             context={context}
             visible={block.visible}
@@ -246,7 +245,7 @@ export function TemplateRenderer({
             key={block.id}
             id={block.id}
             props={block.props as FooterBlockProps}
-            publication={publication}
+            publisher={publisher}
             context={context}
             visible={block.visible}
             locked={block.locked}
@@ -262,7 +261,7 @@ export function TemplateRenderer({
             key={block.id}
             id={block.id}
             props={block.props as ArticleContentBlockProps}
-            publication={publication}
+            publisher={publisher}
             article={context.article}
             context={context}
             visible={block.visible}
@@ -280,7 +279,7 @@ export function TemplateRenderer({
             id={block.id}
             props={block.props as CategorySpotlightBlockProps}
             articles={effectiveArticles}
-            publication={publication}
+            publisher={publisher}
             cardShape={cardShape}
             context={context}
             visible={block.visible}
@@ -302,7 +301,7 @@ export function TemplateRenderer({
 
   return (
     <Shell
-      publication={publication}
+      publisher={publisher}
       article={context.article}
       articles={effectiveArticles}
       className={className}

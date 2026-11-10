@@ -75,7 +75,7 @@ export function calculateTotalReadingMinutes(bookmarks: LibraryBookmark[]): numb
  * Formate une citation pour le presse-papier avec les métadonnées de source.
  */
 export function formatQuoteForClipboard(h: LibraryHighlight): string {
-  const pubName = h.article.publication.name || 'Qoefi';
+  const pubName = h.article.publisher.name || 'Qoefi';
   const url = getArticleUrl(h.article, { preferTenant: true });
   const fullUrl = url.startsWith('http') ? url : `https://qoe.fi${url}`;
   return `« ${h.text} »\n— ${pubName}, dans "${h.article.title}"\n${fullUrl}`;
@@ -94,7 +94,7 @@ export function filterHighlights(
     const textMatch = h.text.toLowerCase().includes(normalized);
     const noteMatch = (h.note || '').toLowerCase().includes(normalized);
     const titleMatch = h.article.title.toLowerCase().includes(normalized);
-    const pubMatch = (h.article.publication.name || '').toLowerCase().includes(normalized);
+    const pubMatch = (h.article.publisher.name || '').toLowerCase().includes(normalized);
     return textMatch || noteMatch || titleMatch || pubMatch;
   });
 }
@@ -130,14 +130,14 @@ export function generateHighlightsMarkdown(
 
   const grouped = new Map<
     string,
-    { title: string; publication: string; items: LibraryHighlight[] }
+    { title: string; publisher: string; items: LibraryHighlight[] }
   >();
 
   highlights.forEach((h) => {
     if (!grouped.has(h.article.id)) {
       grouped.set(h.article.id, {
         title: h.article.title,
-        publication: h.article.publication.name,
+        publisher: h.article.publisher.name,
         items: [],
       });
     }
@@ -146,7 +146,7 @@ export function generateHighlightsMarkdown(
 
   grouped.forEach((group) => {
     md += `## 📖 ${group.title}\n`;
-    md += `*Source : ${group.publication}*\n\n`;
+    md += `*Source : ${group.publisher}*\n\n`;
     group.items.forEach((item) => {
       md += `> « ${item.text} »\n`;
       if (item.note) {

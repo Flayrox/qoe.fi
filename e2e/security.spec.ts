@@ -57,15 +57,15 @@ test.describe('Sécurité (browser/HTTP)', () => {
 
     // Article seedé de la publication admin (pub_123…), demandé sous une
     // publication tierce : 404, aucune fuite de contenu.
-    const rows = await db.query<{ publicationId: string }>(
-      `SELECT "publicationId" FROM "Article" WHERE slug = 'souverainete-medias-independants' LIMIT 1`
+    const rows = await db.query<{ publisherId: string }>(
+      `SELECT "publisherId" FROM "Article" WHERE slug = 'souverainete-medias-independants' LIMIT 1`
     );
-    expect(rows[0]?.publicationId).toBeTruthy();
+    expect(rows[0]?.publisherId).toBeTruthy();
     await db.close();
 
     const api = await pwRequest.newContext({ baseURL: GO_API_URL });
     const res = await api.get(
-      `/v1/articles/souverainete-medias-independants?publicationId=pub_tiers_inexistant`
+      `/v1/articles/souverainete-medias-independants?publisherId=pub_tiers_inexistant`
     );
     expect(res.status()).toBe(404);
     await api.dispose();

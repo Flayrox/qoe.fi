@@ -126,7 +126,7 @@ interface Article {
   createdAt: Date | string;
   author: Author;
   category: { name: string } | null;
-  publication?: {
+  publisher?: {
     name?: string | null;
     slug?: string | null;
     subdomain?: string | null;

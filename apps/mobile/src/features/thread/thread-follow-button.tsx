@@ -3,8 +3,8 @@
 //    (port de .reference/bluesky/.../ThreadItemAnchorFollowButton.tsx)
 // =====================================================================
 // Résout la publication de l'auteur par son handle (GET /v1/users/{handle})
-// pour obtenir le publicationId + l'état `isFollowing`, puis toggle le suivi
-// (POST /v1/users/{publicationId}/follow). Masqué pour ses propres posts.
+// pour obtenir le publisherId + l'état `isFollowing`, puis toggle le suivi
+// (POST /v1/users/{publisherId}/follow). Masqué pour ses propres posts.
 // =====================================================================
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -26,7 +26,7 @@ export function ThreadFollowButton({
 }: {
   /** userId de l'auteur (pour masquer le bouton sur ses propres posts). */
   authorId: string;
-  /** Handle de l'auteur (résolution publication → publicationId). */
+  /** Handle de l'auteur (résolution publication → publisherId). */
   username: string;
 }) {
   const theme = useTheme();

@@ -368,7 +368,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
   function schedule(version: LegalVersionRow) {
     const current = version.scheduledAt ? version.scheduledAt.slice(0, 16) : '';
     const raw = prompt(
-      `Publication automatique de la version ${version.version} (${version.locale.toUpperCase()})\n\n` +
+      `Publisher automatique de la version ${version.version} (${version.locale.toUpperCase()})\n\n` +
         'Date et heure locales, au format AAAA-MM-JJTHH:MM.\n' +
         'Laissez vide pour annuler la planification.',
       current
@@ -394,7 +394,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
       notify(
         'ok',
         iso
-          ? `Publication de ${version.version} planifiée.`
+          ? `Publisher de ${version.version} planifiée.`
           : `Planification de ${version.version} annulée.`
       );
       if (selected) await loadVersions(selected.id);

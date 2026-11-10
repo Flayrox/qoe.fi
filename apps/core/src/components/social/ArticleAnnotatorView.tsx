@@ -82,6 +82,18 @@ export interface ArticleAnnotatorViewProps {
     accessGranted?: boolean;
     isBookmarked?: boolean;
     isFollowed?: boolean;
+    originArticleId?: string | null;
+    canonicalType?: string;
+    canonicalUrl?: string | null;
+    originPublisher?: {
+      id: string;
+      name: string;
+      slug: string;
+      subdomain?: string | null;
+      logoUrl?: string | null;
+      customDomain?: string | null;
+      type?: string;
+    } | null;
     author: {
       id: string;
       name?: string | null;
@@ -104,7 +116,7 @@ export interface ArticleAnnotatorViewProps {
     };
     category?: { name: string } | null;
     tags?: string[];
-    publication?: {
+    publisher?: {
       id?: string | null;
       type?: 'PERSONAL' | 'MEDIA' | string | null;
       name?: string | null;
@@ -372,9 +384,9 @@ function ArticleAnnotatorViewInner({
                       content: article.content,
                       author: {
                         ...article.author,
-                        subdomain: article.author.subdomain || article.publication?.subdomain,
+                        subdomain: article.author.subdomain || article.publisher?.subdomain,
                         customDomain:
-                          article.author.customDomain || article.publication?.customDomain,
+                          article.author.customDomain || article.publisher?.customDomain,
                       },
                     },
                     quotedExcerpt: text,
@@ -523,37 +535,37 @@ function ArticleAnnotatorViewInner({
     return preferences.bionicReading ? formatBionicHtml(article.content) : article.content;
   }, [article.content, preferences.bionicReading]);
 
-  const publication = article.publication;
+  const publisher = article.publisher;
   // Attribution de l'article : Média vs Auteur
   // Un article est un article de Média si :
-  // 1. article.publication?.type === 'MEDIA'
+  // 1. article.publisher?.type === 'MEDIA'
   // 2. article.author?.type === 'MEDIA'
-  // 3. article.publication?.name existe et diffère du nom du rédacteur
+  // 3. article.publisher?.name existe et diffère du nom du rédacteur
   const isMedia =
-    publication?.type === 'MEDIA' ||
+    publisher?.type === 'MEDIA' ||
     article.author?.type === 'MEDIA' ||
     Boolean(
-      publication?.name &&
-      publication.name.trim().toLowerCase() !==
+      publisher?.name &&
+      publisher.name.trim().toLowerCase() !==
         (article.author?.journalist?.name || article.author?.name || '').trim().toLowerCase()
     );
 
   // Émetteur principal pour un média :
   const mediaName =
-    publication?.name || (article.author?.type === 'MEDIA' ? article.author.name : null) || 'Média';
+    publisher?.name || (article.author?.type === 'MEDIA' ? article.author.name : null) || 'Média';
   const mediaHandle =
-    publication?.subdomain ||
-    publication?.slug ||
+    publisher?.subdomain ||
+    publisher?.slug ||
     (article.author?.type === 'MEDIA'
       ? article.author.username || article.author.subdomain
       : null) ||
     '';
   const mediaLogo =
-    publication?.logoUrl ||
+    publisher?.logoUrl ||
     (article.author?.type === 'MEDIA' ? article.author.logoUrl : null) ||
     null;
   const mediaCertified = Boolean(
-    publication?.isCertified || (article.author?.type === 'MEDIA' && article.author.isCertified)
+    publisher?.isCertified || (article.author?.type === 'MEDIA' && article.author.isCertified)
   );
 
   // Journaliste / Rédacteur individuel :
@@ -591,7 +603,7 @@ function ArticleAnnotatorViewInner({
   const authorName = isMedia ? mediaName : personalAuthorName;
   const authorHandle = isMedia ? mediaHandle : personalAuthorHandle;
 
-  const targetFollowId = isMedia ? publication?.id || article.author?.id : article.author?.id;
+  const targetFollowId = isMedia ? publisher?.id || article.author?.id : article.author?.id;
 
   const dateObj = new Date(article.createdAt || Date.now());
   const dateFormatted = dateObj.toLocaleDateString('fr-FR', {
@@ -659,6 +671,23 @@ function ArticleAnnotatorViewInner({
 
       {/* 1. ARTICLE HEADER : TITRE EN GRAND */}
       <div className="space-y-4 pb-2">
+        {article.originPublisher && (
+          <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-xs font-medium text-muted-foreground">
+            <span>{t`Publié à l'origine dans`}</span>
+            {article.canonicalUrl ? (
+              <a
+                href={article.canonicalUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-foreground font-semibold hover:text-primary hover:underline"
+              >
+                {article.originPublisher.name}
+              </a>
+            ) : (
+              <span className="text-foreground font-semibold">{article.originPublisher.name}</span>
+            )}
+          </div>
+        )}
         <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-foreground leading-[1.14]">
           {article.title}
         </h1>
@@ -693,7 +722,7 @@ function ArticleAnnotatorViewInner({
                 {/* ── Cas Média : Grand logo du Média en squircle ── */}
                 <ProfileHoverCard
                   user={{
-                    id: publication?.id || '',
+                    id: publisher?.id || '',
                     name: mediaName,
                     username: mediaHandle,
                     logoUrl: mediaLogo,
@@ -719,7 +748,7 @@ function ArticleAnnotatorViewInner({
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <ProfileHoverCard
                       user={{
-                        id: publication?.id || '',
+                        id: publisher?.id || '',
                         name: mediaName,
                         username: mediaHandle,
                         logoUrl: mediaLogo,
@@ -1005,12 +1034,12 @@ function ArticleAnnotatorViewInner({
             </p>
           </div>
           <SubscribeForm
-            publicationId={article.author.id}
+            publisherId={article.author.id}
             authorName={authorName || undefined}
             userEmail={user?.email || null}
             accentColor={
               initialSource === 'subdomain'
-                ? article.author.accentColor || article.publication?.accentColor || undefined
+                ? article.author.accentColor || article.publisher?.accentColor || undefined
                 : undefined
             }
           />
@@ -1044,7 +1073,7 @@ function ArticleAnnotatorViewInner({
               href={
                 article.author.subdomain
                   ? `https://${article.author.subdomain}.qoe.fi/article/${article.slug}`
-                  : `/${encodeURIComponent(article.publication?.slug || article.author.username || 'article')}/${encodeURIComponent(article.slug)}`
+                  : `/${encodeURIComponent(article.publisher?.slug || article.author.username || 'article')}/${encodeURIComponent(article.slug)}`
               }
               target="_blank"
               rel="noopener noreferrer"

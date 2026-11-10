@@ -155,7 +155,7 @@ func (s *Service) syncUserFromAuth(ctx context.Context, userID string, claims ma
 			`SELECT EXISTS(
 				SELECT 1 FROM "User" WHERE lower(username) = lower($1)
 				UNION
-				SELECT 1 FROM "Publication" WHERE lower(slug) = lower($1) AND type <> 'PERSONAL'
+				SELECT 1 FROM "Publisher" WHERE lower(slug) = lower($1) AND type <> 'PERSONAL'
 			)`, finalUsername).Scan(&usernameTaken)
 		if err == nil && usernameTaken {
 			finalUsername = uniqueProvisionedUsername(ctx, s.pool, finalUsername)
@@ -184,7 +184,7 @@ func (s *Service) syncUserFromAuth(ctx context.Context, userID string, claims ma
 			// Invitation consommée (accès privé) : usage unique.
 			s.consumeAllowlist(ctx, email, userID)
 			// Initialise sa publication personnelle pour que son profil /@username existe toujours
-			_, _ = s.GetOrCreatePersonalPublication(ctx, userID)
+			_, _ = s.GetOrCreatePersonalPublisher(ctx, userID)
 			return true, true, nil
 		}
 		// L'email existe déjà avec un AUTRE id (session Supabase plus récente
@@ -214,9 +214,9 @@ func (s *Service) syncUserFromAuth(ctx context.Context, userID string, claims ma
 	// quand la colonne est vide.
 	var dbName, dbUsername, dbPubID pgtype.Text
 	_ = s.pool.QueryRow(ctx,
-		`SELECT name, username, "publicationId" FROM "User" WHERE id = $1`, userID).Scan(&dbName, &dbUsername, &dbPubID)
+		`SELECT name, username, "publisherId" FROM "User" WHERE id = $1`, userID).Scan(&dbName, &dbUsername, &dbPubID)
 	if !dbPubID.Valid || dbPubID.String == "" {
-		_, _ = s.GetOrCreatePersonalPublication(ctx, userID)
+		_, _ = s.GetOrCreatePersonalPublisher(ctx, userID)
 	}
 	needsUsername := !dbUsername.Valid || dbUsername.String == ""
 	if needsUsername || !dbName.Valid || dbName.String == "" {
@@ -292,7 +292,7 @@ func uniqueProvisionedUsername(ctx context.Context, pool pooler, base string) st
 	queryExists := `SELECT EXISTS(
 		SELECT 1 FROM "User" WHERE lower(username) = lower($1)
 		UNION
-		SELECT 1 FROM "Publication" WHERE lower(slug) = lower($1) AND type <> 'PERSONAL'
+		SELECT 1 FROM "Publisher" WHERE lower(slug) = lower($1) AND type <> 'PERSONAL'
 	)`
 	for i := 1; i <= 30; i++ {
 		candidate := fmt.Sprintf("%s%d", base, i)
@@ -325,14 +325,14 @@ func shortID() string {
 	return hex.EncodeToString(b)
 }
 
-// GetOrCreatePersonalPublication résout la publication personnelle de
+// GetOrCreatePersonalPublisher résout la publication personnelle de
 // l'utilisateur, en la créant si elle n'existe pas (parité
-// publications.getOrCreatePersonalPublication Prisma).
-func (s *Service) GetOrCreatePersonalPublication(ctx context.Context, userID string) (string, error) {
+// publications.getOrCreatePersonalPublisher Prisma).
+func (s *Service) GetOrCreatePersonalPublisher(ctx context.Context, userID string) (string, error) {
 	// 1. Publication déjà liée ?
 	var pubID pgtype.Text
 	err := s.pool.QueryRow(ctx,
-		`SELECT "publicationId" FROM "User" WHERE id = $1`, userID).Scan(&pubID)
+		`SELECT "publisherId" FROM "User" WHERE id = $1`, userID).Scan(&pubID)
 	if err != nil {
 		return "", err
 	}
@@ -364,7 +364,7 @@ func (s *Service) GetOrCreatePersonalPublication(ctx context.Context, userID str
 	}
 
 	var slugConflict bool
-	_ = s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM "Publication" WHERE lower(slug) = lower($1))`, pubSlug).Scan(&slugConflict)
+	_ = s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM "Publisher" WHERE lower(slug) = lower($1))`, pubSlug).Scan(&slugConflict)
 	if slugConflict {
 		pubSlug = uniqueProvisionedUsername(ctx, s.pool, pubSlug)
 	}
@@ -377,7 +377,7 @@ func (s *Service) GetOrCreatePersonalPublication(ctx context.Context, userID str
 
 	var createdID string
 	err = tx.QueryRow(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "subdomain", "heroText", "layoutStyle",
+		`INSERT INTO "Publisher" (id, type, name, slug, "subdomain", "heroText", "layoutStyle",
 		                           "logoUrl", "isCertified", "updatedAt")
 		 VALUES (gen_random_uuid()::text, 'PERSONAL', $1, $2, NULL, NULL, 'default',
 		         NULLIF($3, ''), false, now())
@@ -387,7 +387,7 @@ func (s *Service) GetOrCreatePersonalPublication(ctx context.Context, userID str
 	}
 
 	_, err = tx.Exec(ctx,
-		`UPDATE "User" SET "publicationId" = $2, "updatedAt" = now() WHERE id = $1`,
+		`UPDATE "User" SET "publisherId" = $2, "updatedAt" = now() WHERE id = $1`,
 		userID, createdID)
 	if err != nil {
 		return "", err
@@ -452,11 +452,11 @@ func (s *Service) ListMutedWords(ctx context.Context, userID string) ([]string, 
 }
 
 // getPublicationOwnerID résout le propriétaire d'une publication :
-// créateur perso (user.publicationId) OU owner du média.
-func (s *Service) getPublicationOwnerID(ctx context.Context, publicationID string) (string, error) {
+// créateur perso (user.publisherId) OU owner du média.
+func (s *Service) getPublisherOwnerID(ctx context.Context, publisherID string) (string, error) {
 	var ownerID string
 	err := s.pool.QueryRow(ctx,
-		`SELECT id::text FROM "User" WHERE "publicationId" = $1`, publicationID).Scan(&ownerID)
+		`SELECT id::text FROM "User" WHERE "publisherId" = $1`, publisherID).Scan(&ownerID)
 	if err == nil {
 		return ownerID, nil
 	}
@@ -468,8 +468,8 @@ func (s *Service) getPublicationOwnerID(ctx context.Context, publicationID strin
 		`SELECT mm."userId"::text
 		 FROM "MediaMember" mm
 		 JOIN "Media" md ON md.id = mm."mediaId"
-		 WHERE md."publicationId" = $1 AND mm.role = 'owner' AND mm.status = 'active'
-		 LIMIT 1`, publicationID).Scan(&ownerID)
+		 WHERE md."publisherId" = $1 AND mm.role = 'owner' AND mm.status = 'active'
+		 LIMIT 1`, publisherID).Scan(&ownerID)
 	if err != nil {
 		return "", err
 	}
@@ -478,7 +478,7 @@ func (s *Service) getPublicationOwnerID(ctx context.Context, publicationID strin
 
 // UnlockArticleWithWallet débite le lecteur et crédite le propriétaire
 // (parité wallet.unlockArticleWithWallet Prisma, transaction atomique).
-func (s *Service) UnlockArticleWithWallet(ctx context.Context, readerID, publicationID string, costCents int) (string, error) {
+func (s *Service) UnlockArticleWithWallet(ctx context.Context, readerID, publisherID string, costCents int) (string, error) {
 	if costCents <= 0 {
 		costCents = 200
 	}
@@ -499,7 +499,7 @@ func (s *Service) UnlockArticleWithWallet(ctx context.Context, readerID, publica
 		return "INSUFFICIENT_FUNDS", nil
 	}
 
-	ownerID, err := s.getPublicationOwnerID(ctx, publicationID)
+	ownerID, err := s.getPublisherOwnerID(ctx, publisherID)
 	if err != nil {
 		return "PUBLICATION_NOT_FOUND", err
 	}

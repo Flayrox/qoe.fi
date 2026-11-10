@@ -170,7 +170,7 @@ export interface ArticleResolvable {
       id?: string;
     } | null;
   } | null;
-  publication?: {
+  publisher?: {
     slug?: string | null;
     subdomain?: string | null;
     customDomain?: string | null;
@@ -189,8 +189,8 @@ export interface ArticleResolvable {
  */
 export function getArticleOwner(article: ArticleResolvable, fallbackOwner?: string): string {
   return (
-    article.publication?.slug ||
-    article.publication?.subdomain ||
+    article.publisher?.slug ||
+    article.publisher?.subdomain ||
     article.author?.username ||
     article.author?.subdomain ||
     article.author?.journalist?.username ||
@@ -224,15 +224,15 @@ export function getArticleUrl(
   }
 ): string {
   if (options?.preferTenant) {
-    if (article.publication?.customDomain) {
-      return `https://${article.publication.customDomain}/article/${encodeURIComponent(article.slug)}`;
+    if (article.publisher?.customDomain) {
+      return `https://${article.publisher.customDomain}/article/${encodeURIComponent(article.slug)}`;
     }
     if (article.author?.customDomain) {
       return `https://${article.author.customDomain}/article/${encodeURIComponent(article.slug)}`;
     }
-    if (article.publication?.subdomain) {
+    if (article.publisher?.subdomain) {
       return routes.tenant.article(
-        article.publication.subdomain,
+        article.publisher.subdomain,
         article.slug,
         options?.host,
         article.category?.slug

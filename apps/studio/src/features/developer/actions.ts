@@ -23,7 +23,7 @@ export async function listDeveloperKeysAction(): Promise<
     type: workspace.type,
     name: workspace.name,
     mediaId: workspace.mediaId,
-    publicationId: workspace.publicationId,
+    publisherId: workspace.publisherId,
   };
 
   return { success: true, keys: await getDeveloperKeys(workspaceContext) };

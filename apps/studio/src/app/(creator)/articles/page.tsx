@@ -34,7 +34,7 @@ export default async function ArticlesPage({ searchParams }: ArticlesPageProps) 
     try {
       const workspace = await getActiveWorkspace(user.id);
       const pub = await goFetch<{ siteOptions?: Record<string, unknown> }>(
-        `/v1/settings/publication?publicationId=${encodeURIComponent(workspace.publicationId)}`
+        `/v1/settings/publisher?publisherId=${encodeURIComponent(workspace.publisherId)}`
       );
       pinnedArticleId = (pub.siteOptions?.pinnedArticleId as string) || null;
       aboutArticleId = (pub.siteOptions?.aboutArticleId as string) || null;

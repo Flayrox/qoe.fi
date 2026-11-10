@@ -24,7 +24,7 @@ describe('UserProfileTabPage - resilient article routing', () => {
       author: {
         username: 'charlottegauthier',
       },
-      publication: {
+      publisher: {
         slug: 'charlottegauthier',
       },
     } as never);

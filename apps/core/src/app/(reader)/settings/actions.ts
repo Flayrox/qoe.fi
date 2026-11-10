@@ -122,7 +122,7 @@ export async function updateAccountSettingsAction(input: AccountSettingsPatch) {
 export interface FollowRequestItem {
   requestId: string;
   id: string;
-  publicationId: string | null;
+  publisherId: string | null;
   name: string | null;
   username: string | null;
   logoUrl: string | null;

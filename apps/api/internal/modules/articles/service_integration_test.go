@@ -25,7 +25,7 @@ func TestService_Create_PersonalOwner(t *testing.T) {
 	ctx := context.Background()
 
 	id, err := svc.Create(ctx, fx.AuthorID, CreateArticleInput{
-		PublicationID: fx.PublicationID,
+		PublisherID: fx.PublisherID,
 		Title:         "Nouvel article",
 		Slug:          "nouvel-article",
 		Content:       "# Titre\n\nContenu markdown",
@@ -59,7 +59,7 @@ func TestService_Create_InvalidContentFormat(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := svc.Create(ctx, fx.AuthorID, CreateArticleInput{
-		PublicationID: fx.PublicationID,
+		PublisherID: fx.PublisherID,
 		Title:         "X", Content: "x", ContentFormat: "docx",
 	})
 	if err == nil || !strings.Contains(err.Error(), "contentFormat") {
@@ -72,7 +72,7 @@ func TestService_List_Owner(t *testing.T) {
 	svc := newService()
 	ctx := context.Background()
 
-	items, err := svc.List(ctx, fx.AuthorID, fx.PublicationID, "", 10, 0, "30d")
+	items, err := svc.List(ctx, fx.AuthorID, fx.PublisherID, "", 10, 0, "30d")
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestService_List_ForbiddenForViewer(t *testing.T) {
 	ctx := context.Background()
 
 	// Un utilisateur inconnu (aucun lien avec la publication) est refusé.
-	_, err := svc.List(ctx, "00000000-0000-0000-0000-000000000099", fx.PublicationID, "", 10, 0, "30d")
+	_, err := svc.List(ctx, "00000000-0000-0000-0000-000000000099", fx.PublisherID, "", 10, 0, "30d")
 	if err == nil {
 		t.Fatal("List(inconnu) = nil, attendu errForbidden")
 	}
@@ -107,7 +107,7 @@ func TestService_GetBySlug_Published(t *testing.T) {
 	svc := newService()
 	ctx := context.Background()
 
-	art, err := svc.GetBySlug(ctx, "premier-article", fx.PublicationID, "", "")
+	art, err := svc.GetBySlug(ctx, "premier-article", fx.PublisherID, "", "")
 	if err != nil {
 		t.Fatalf("GetBySlug: %v", err)
 	}
@@ -122,16 +122,16 @@ func TestService_GetBySlug_Published(t *testing.T) {
 	}
 	// La publication personnelle de l'auteur porte son identité
 	// (slug = username) : la fixture ne peut pas en inventer une autre.
-	if art.Publication == nil || art.Publication.Slug != "author" {
-		t.Fatalf("publication = %+v", art.Publication)
+	if art.Publisher == nil || art.Publisher.Slug != "author" {
+		t.Fatalf("publication = %+v", art.Publisher)
 	}
 	// Même contrat que le slug seul : image + tableaux jamais null.
 	if _, err := poolTest.Exec(ctx,
-		`UPDATE "Article" SET "imageUrl" = 'https://cdn.qoe.fi/test-cover.jpg' WHERE slug = 'premier-article' AND "publicationId" = $1`,
-		fx.PublicationID); err != nil {
+		`UPDATE "Article" SET "imageUrl" = 'https://cdn.qoe.fi/test-cover.jpg' WHERE slug = 'premier-article' AND "publisherId" = $1`,
+		fx.PublisherID); err != nil {
 		t.Fatalf("image seed: %v", err)
 	}
-	art, err = svc.GetBySlug(ctx, "premier-article", fx.PublicationID, "", "")
+	art, err = svc.GetBySlug(ctx, "premier-article", fx.PublisherID, "", "")
 	if err != nil {
 		t.Fatalf("GetBySlug image: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestService_GetBySlug_Unknown(t *testing.T) {
 	svc := newService()
 	ctx := context.Background()
 
-	_, err := svc.GetBySlug(ctx, "n-existe-pas", fx.PublicationID, "", "")
+	_, err := svc.GetBySlug(ctx, "n-existe-pas", fx.PublisherID, "", "")
 	if err == nil {
 		t.Fatal("GetBySlug(inconnu) = nil, attendu erreur")
 	}
@@ -164,13 +164,13 @@ func TestService_GetBySlugAny_Enrichment(t *testing.T) {
 	ctx := context.Background()
 
 	if _, err := poolTest.Exec(ctx,
-		`UPDATE "Article" SET "imageUrl" = 'https://cdn.qoe.fi/test-cover.jpg' WHERE slug = 'premier-article' AND "publicationId" = $1`,
-		fx.PublicationID); err != nil {
+		`UPDATE "Article" SET "imageUrl" = 'https://cdn.qoe.fi/test-cover.jpg' WHERE slug = 'premier-article' AND "publisherId" = $1`,
+		fx.PublisherID); err != nil {
 		t.Fatalf("image seed: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`UPDATE "Publication" SET "logoUrl" = 'https://cdn.qoe.fi/test-logo.jpg' WHERE id = $1`,
-		fx.PublicationID); err != nil {
+		`UPDATE "Publisher" SET "logoUrl" = 'https://cdn.qoe.fi/test-logo.jpg' WHERE id = $1`,
+		fx.PublisherID); err != nil {
 		t.Fatalf("logo seed: %v", err)
 	}
 
@@ -181,9 +181,9 @@ func TestService_GetBySlugAny_Enrichment(t *testing.T) {
 	if art.ImageUrl == nil || *art.ImageUrl != "https://cdn.qoe.fi/test-cover.jpg" {
 		t.Fatalf("imageUrl = %+v, attendu la couverture seedée", art.ImageUrl)
 	}
-	if art.Publication == nil || art.Publication.LogoURL == nil ||
-		*art.Publication.LogoURL != "https://cdn.qoe.fi/test-logo.jpg" {
-		t.Fatalf("publication = %+v, attendu le logo seedé", art.Publication)
+	if art.Publisher == nil || art.Publisher.LogoURL == nil ||
+		*art.Publisher.LogoURL != "https://cdn.qoe.fi/test-logo.jpg" {
+		t.Fatalf("publication = %+v, attendu le logo seedé", art.Publisher)
 	}
 	if art.Attributions == nil || art.CoAuthors == nil {
 		t.Fatal("attributions/co-auteurs nil, attendu tableaux (même vides)")
@@ -200,7 +200,7 @@ func TestService_GetByID_Author(t *testing.T) {
 
 	// L'auteur lit son article complet (contenu non tronqué).
 	id, err := svc.Create(ctx, fx.AuthorID, CreateArticleInput{
-		PublicationID: fx.PublicationID,
+		PublisherID: fx.PublisherID,
 		Title:         "Éditable", Slug: "editable",
 		Content: "Contenu complet", ContentFormat: "markdown", Status: "DRAFT",
 	})
@@ -232,7 +232,7 @@ func TestService_Update_Owner(t *testing.T) {
 		Slug:                "premier-article",
 		Status:              "PUBLISHED",
 		Published:           true,
-		ActivePublicationID: fx.PublicationID,
+		ActivePublisherID: fx.PublisherID,
 	})
 	if err != nil {
 		t.Fatalf("Update: %v", err)
@@ -255,7 +255,7 @@ func TestService_Update_NotFound(t *testing.T) {
 	ctx := context.Background()
 
 	err := svc.Update(ctx, "art_inexistant", fx.AuthorID, UpdateArticleInput{
-		Title: "X", Content: "x", ContentFormat: "markdown", ActivePublicationID: fx.PublicationID,
+		Title: "X", Content: "x", ContentFormat: "markdown", ActivePublisherID: fx.PublisherID,
 	})
 	if err == nil {
 		t.Fatal("Update(inexistant) = nil, attendu erreur")
@@ -290,7 +290,7 @@ func TestService_Delete_Owner(t *testing.T) {
 	svc := newService()
 	ctx := context.Background()
 
-	if err := svc.Delete(ctx, "art_test_001", fx.AuthorID, fx.PublicationID); err != nil {
+	if err := svc.Delete(ctx, "art_test_001", fx.AuthorID, fx.PublisherID); err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
 
@@ -312,7 +312,7 @@ func TestService_ListCreatorArticles_Service(t *testing.T) {
 	svc := newService()
 	ctx := context.Background()
 
-	resp, err := svc.ListCreatorArticles(ctx, fx.AuthorID, fx.PublicationID, 1, 10, "", true)
+	resp, err := svc.ListCreatorArticles(ctx, fx.AuthorID, fx.PublisherID, 1, 10, "", true)
 	if err != nil {
 		t.Fatalf("ListCreatorArticles: %v", err)
 	}
@@ -340,14 +340,14 @@ func TestService_ListCreatorArticles_MediaPrincipal(t *testing.T) {
 	svc := newService()
 
 	// Contexte avec Principal Média (sans userID)
-	pubID := fx.PublicationID
+	pubID := fx.PublisherID
 	ctx := context.WithValue(context.Background(), middleware.PrincipalKey, &middleware.Principal{
-		Type:          middleware.PrincipalTypePublication,
-		PublicationID: &pubID,
+		Type:          middleware.PrincipalTypePublisher,
+		PublisherID: &pubID,
 	})
 
 	// Appel avec userID = "" (comme lors d'un appel avec clé API Média)
-	resp, err := svc.ListCreatorArticles(ctx, "", fx.PublicationID, 1, 10, "", true)
+	resp, err := svc.ListCreatorArticles(ctx, "", fx.PublisherID, 1, 10, "", true)
 	if err != nil {
 		t.Fatalf("ListCreatorArticles via Media Principal: %v", err)
 	}
@@ -362,7 +362,7 @@ func TestService_GetCreatorBySlug_DraftNotFound(t *testing.T) {
 	ctx := context.Background()
 
 	// Le brouillon n'est jamais exposé par le contrat créateurs.
-	_, err := svc.GetCreatorBySlug(ctx, "brouillon", fx.PublicationID)
+	_, err := svc.GetCreatorBySlug(ctx, "brouillon", fx.PublisherID)
 	if err == nil {
 		t.Fatal("GetCreatorBySlug(brouillon) = nil, attendu errNotFound")
 	}
@@ -374,7 +374,7 @@ func TestService_GetCreatorBySlug_Published(t *testing.T) {
 	svc := newService()
 	ctx := context.Background()
 
-	item, err := svc.GetCreatorBySlug(ctx, "recette-pates", fx.PublicationID)
+	item, err := svc.GetCreatorBySlug(ctx, "recette-pates", fx.PublisherID)
 	if err != nil {
 		t.Fatalf("GetCreatorBySlug: %v", err)
 	}
@@ -405,7 +405,7 @@ func TestService_Create_AsViewer_Forbidden(t *testing.T) {
 
 	// viewer n'a pas media:create_articles → refus.
 	_, err := svc.Create(ctx, fx.ViewerID, CreateArticleInput{
-		PublicationID: fx.PublicationID,
+		PublisherID: fx.PublisherID,
 		Title:         "Tentative", Slug: "tentative",
 		Content: "x", ContentFormat: "markdown",
 	})
@@ -423,7 +423,7 @@ func TestService_Create_AsWriter_Submit(t *testing.T) {
 	// writer a media:create_articles mais PAS media:publish:any : une
 	// demande de publication directe est refusée.
 	_, err := svc.Create(ctx, fx.WriterID, CreateArticleInput{
-		PublicationID: fx.PublicationID,
+		PublisherID: fx.PublisherID,
 		Title:         "Soumission", Slug: "soumission",
 		Content: "Contenu soumis", ContentFormat: "markdown",
 		Status: "PUBLISHED", Published: true,
@@ -434,7 +434,7 @@ func TestService_Create_AsWriter_Submit(t *testing.T) {
 
 	// En revanche, une soumission explicite (SUBMITTED) est acceptée.
 	id, err := svc.Create(ctx, fx.WriterID, CreateArticleInput{
-		PublicationID: fx.PublicationID,
+		PublisherID: fx.PublisherID,
 		Title:         "Soumission", Slug: "soumission",
 		Content: "Contenu soumis", ContentFormat: "markdown",
 		Status: "SUBMITTED",
@@ -463,7 +463,7 @@ func TestService_Review_EditorApproves(t *testing.T) {
 
 	// writer soumet un article.
 	id, err := svc.Create(ctx, fx.WriterID, CreateArticleInput{
-		PublicationID: fx.PublicationID,
+		PublisherID: fx.PublisherID,
 		Title:         "À revoir", Slug: "a-revoir",
 		Content: "Contenu", ContentFormat: "markdown", Status: "SUBMITTED",
 	})
@@ -495,7 +495,7 @@ func TestService_Review_RejectBackToDraft(t *testing.T) {
 	ctx := context.Background()
 
 	id, err := svc.Create(ctx, fx.WriterID, CreateArticleInput{
-		PublicationID: fx.PublicationID,
+		PublisherID: fx.PublisherID,
 		Title:         "Rejeté", Slug: "rejete",
 		Content: "Contenu", ContentFormat: "markdown", Status: "SUBMITTED",
 	})
@@ -524,7 +524,7 @@ func TestService_Review_NonSubmittedError(t *testing.T) {
 	ctx := context.Background()
 
 	id, err := svc.Create(ctx, fx.WriterID, CreateArticleInput{
-		PublicationID: fx.PublicationID,
+		PublisherID: fx.PublisherID,
 		Title:         "Direct", Slug: "direct",
 		Content: "Contenu", ContentFormat: "markdown", Status: "DRAFT",
 	})
@@ -610,7 +610,7 @@ func TestService_EditorCapabilities_Personal(t *testing.T) {
 	svc := newService()
 	ctx := context.Background()
 
-	caps, err := svc.EditorCapabilities(ctx, fx.AuthorID, fx.PublicationID)
+	caps, err := svc.EditorCapabilities(ctx, fx.AuthorID, fx.PublisherID)
 	if err != nil {
 		t.Fatalf("EditorCapabilities: %v", err)
 	}
@@ -625,7 +625,7 @@ func TestService_EditorCapabilities_Media(t *testing.T) {
 	ctx := context.Background()
 
 	// editor : publie + revoie (rôle editor = media:publish:any + media:review).
-	caps, err := svc.EditorCapabilities(ctx, fx.EditorID, fx.PublicationID)
+	caps, err := svc.EditorCapabilities(ctx, fx.EditorID, fx.PublisherID)
 	if err != nil {
 		t.Fatalf("EditorCapabilities(editor): %v", err)
 	}
@@ -634,7 +634,7 @@ func TestService_EditorCapabilities_Media(t *testing.T) {
 	}
 
 	// writer : soumet mais ne publie pas.
-	capsWriter, err := svc.EditorCapabilities(ctx, fx.WriterID, fx.PublicationID)
+	capsWriter, err := svc.EditorCapabilities(ctx, fx.WriterID, fx.PublisherID)
 	if err != nil {
 		t.Fatalf("EditorCapabilities(writer): %v", err)
 	}
@@ -643,7 +643,7 @@ func TestService_EditorCapabilities_Media(t *testing.T) {
 	}
 
 	// viewer : rien.
-	capsViewer, err := svc.EditorCapabilities(ctx, fx.ViewerID, fx.PublicationID)
+	capsViewer, err := svc.EditorCapabilities(ctx, fx.ViewerID, fx.PublisherID)
 	if err != nil {
 		t.Fatalf("EditorCapabilities(viewer): %v", err)
 	}

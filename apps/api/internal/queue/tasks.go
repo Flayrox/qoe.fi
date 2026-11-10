@@ -53,7 +53,7 @@ type StripeEventPayload struct {
 // ArticlePublishedPayload est le payload de TaskArticlePublished.
 type ArticlePublishedPayload struct {
 	EventID          string `json:"eventId"`
-	PublicationID    string `json:"publicationId"`
+	PublisherID    string `json:"publisherId"`
 	ArticleID        string `json:"articleId"`
 	AuthorID         string `json:"authorId"`
 	Title            string `json:"title"`
@@ -69,7 +69,7 @@ type ArticlePublishedPayload struct {
 type SubscriberCreatedPayload struct {
 	EventID       string `json:"eventId"`
 	SubscriberID  string `json:"subscriberId"`
-	PublicationID string `json:"publicationId"`
+	PublisherID string `json:"publisherId"`
 	CreatorID     string `json:"creatorId"`
 	Email         string `json:"email"`
 	IsPremium     bool   `json:"isPremium"`
@@ -80,14 +80,14 @@ type SubscriberCreatedPayload struct {
 // l'email de confirmation double opt-in après une inscription publique.
 type SubscriberConfirmPayload struct {
 	Email         string `json:"email"`
-	PublicationID string `json:"publicationId"`
+	PublisherID string `json:"publisherId"`
 }
 
 // SubscriberWelcomePayload est le payload de TaskSubscriberWelcome : envoi de
 // l'email de bienvenue après confirmation du double opt-in.
 type SubscriberWelcomePayload struct {
 	Email         string `json:"email"`
-	PublicationID string `json:"publicationId"`
+	PublisherID string `json:"publisherId"`
 }
 
 // SubscriberImportReconfirmPayload est le payload de
@@ -136,6 +136,6 @@ type PostLikedPayload struct {
 	PostID        string `json:"postId"`
 	UserID        string `json:"userId"`
 	AuthorID      string `json:"authorId"`
-	PublicationID string `json:"publicationId"`
+	PublisherID string `json:"publisherId"`
 	CreatedAt     string `json:"createdAt"`
 }

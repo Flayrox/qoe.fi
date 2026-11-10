@@ -87,7 +87,7 @@ export function ArticleBulkTransferDialog({
       try {
         const res = await transferArticleAction({
           articleId: id,
-          targetPublicationId: targetId,
+          targetPublisherId: targetId,
         });
         if (res.ok && res.data) updated += 1;
         else failed.push(id);

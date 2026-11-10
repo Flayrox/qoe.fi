@@ -50,7 +50,7 @@ func seedMe(t *testing.T) {
 	ctx := context.Background()
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE
 		"UserSettings", "AccountDeletionRequest", "Follows", "MutedWord",
-		"Publication", "User" CASCADE`); err != nil {
+		"Publisher", "User" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
@@ -66,12 +66,12 @@ func seedMe(t *testing.T) {
 		t.Fatalf("user other: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ($1, 'PERSONAL', 'Pub Me', 'pub-me', now(), now())`, pubID); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Follows" (id, "readerId", "publicationId", "createdAt")
+		`INSERT INTO "Follows" (id, "readerId", "publisherId", "createdAt")
 		 VALUES (gen_random_uuid()::text, $1, $2, now())`, userID, pubID); err != nil {
 		t.Fatalf("follow: %v", err)
 	}
@@ -183,14 +183,14 @@ func TestBilling(t *testing.T) {
 	ctx := context.Background()
 	// Publications + abonnements du lecteur.
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "logoUrl", "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "logoUrl", "createdAt", "updatedAt")
 		 VALUES ('pub_bill_001', 'PERSONAL', 'Journal Billing', 'journal-billing', 'https://x/logo.png', now(), now()),
 		        ('pub_bill_002', 'PERSONAL', 'Journal Inactif', 'journal-inactif', NULL, now(), now())`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
-	// (email, publicationId) est UNIQUE → l'abonné inactif porte une autre publication.
+	// (email, publisherId) est UNIQUE → l'abonné inactif porte une autre publication.
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "isPremium", "receiveArticles", "createdAt", "updatedAt")
+		`INSERT INTO "Subscriber" (id, email, "publisherId", "isActive", "isPremium", "receiveArticles", "createdAt", "updatedAt")
 		 VALUES (gen_random_uuid()::text, 'reader.me@test.dev', 'pub_bill_001', true, true, true, now(), now()),
 		        (gen_random_uuid()::text, 'reader.me@test.dev', 'pub_bill_002', false, true, true, now(), now()),
 		        (gen_random_uuid()::text, 'other.me@test.dev', 'pub_bill_001', true, true, true, now(), now())`); err != nil {
@@ -228,12 +228,12 @@ func TestBilling(t *testing.T) {
 		t.Fatalf("subscriptions = %d, attendu 1", len(data.Subscriptions))
 	}
 	sub := data.Subscriptions[0]
-	if sub.Publication == nil || sub.Publication.Name == nil || *sub.Publication.Name != "Journal Billing" {
+	if sub.Publisher == nil || sub.Publisher.Name == nil || *sub.Publisher.Name != "Journal Billing" {
 		t.Fatalf("subscription = %+v", sub)
 	}
-	if sub.Publication.Slug != "journal-billing" || sub.Publication.LogoURL == nil ||
-		*sub.Publication.LogoURL != "https://x/logo.png" {
-		t.Fatalf("publication = %+v", sub.Publication)
+	if sub.Publisher.Slug != "journal-billing" || sub.Publisher.LogoURL == nil ||
+		*sub.Publisher.LogoURL != "https://x/logo.png" {
+		t.Fatalf("publication = %+v", sub.Publisher)
 	}
 
 	// otherID voit SON abonnement (filtrage par email) et aucune transaction.
@@ -242,7 +242,7 @@ func TestBilling(t *testing.T) {
 		t.Fatalf("Billing(other): %v", err)
 	}
 	if len(other.WalletTransactions) != 0 || len(other.Subscriptions) != 1 ||
-		other.Subscriptions[0].Publication == nil {
+		other.Subscriptions[0].Publisher == nil {
 		t.Fatalf("other = %+v, attendu 0 transaction / 1 abonnement", other)
 	}
 
@@ -366,7 +366,7 @@ func TestProfileNotFound(t *testing.T) {
 
 // TestMediaPublication vérifie GET /v1/me/media/{mediaId} : résolution de la
 // publication d'un média pour un membre actif, et "" pour un non-membre.
-func TestMediaPublication(t *testing.T) {
+func TestMediaPublisher(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
 	seedMe(t)
@@ -374,12 +374,12 @@ func TestMediaPublication(t *testing.T) {
 
 	// Média lié à une publication + membership actif.
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ('pub_media_test', 'MEDIA', 'Media Test', 'media-test', now(), now())`); err != nil {
 		t.Fatalf("pub media: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Media" (id, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "Media" (id, "publisherId", "createdAt", "updatedAt")
 		 VALUES ('media_test_001', 'pub_media_test', now(), now())`); err != nil {
 		t.Fatalf("media: %v", err)
 	}
@@ -390,21 +390,21 @@ func TestMediaPublication(t *testing.T) {
 		t.Fatalf("member: %v", err)
 	}
 
-	pubID, err := svc.MediaPublicationForUser(ctx, userID, "media_test_001")
+	pubID, err := svc.MediaPublisherForUser(ctx, userID, "media_test_001")
 	if err != nil {
-		t.Fatalf("MediaPublicationForUser: %v", err)
+		t.Fatalf("MediaPublisherForUser: %v", err)
 	}
 	if pubID != "pub_media_test" {
-		t.Fatalf("publicationId = %q, attendu pub_media_test", pubID)
+		t.Fatalf("publisherId = %q, attendu pub_media_test", pubID)
 	}
 
 	// Non-membre → chaîne vide.
-	empty, err := svc.MediaPublicationForUser(ctx, otherID, "media_test_001")
+	empty, err := svc.MediaPublisherForUser(ctx, otherID, "media_test_001")
 	if err != nil {
 		t.Fatalf("non-member: %v", err)
 	}
 	if empty != "" {
-		t.Fatalf("publicationId non-membre = %q, attendu vide", empty)
+		t.Fatalf("publisherId non-membre = %q, attendu vide", empty)
 	}
 
 }

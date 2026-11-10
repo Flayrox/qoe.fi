@@ -56,11 +56,11 @@ func TestSubscribeToNewsletter_StoresLocale(t *testing.T) {
 	var frLocale, enLocale string
 	pool := testutil.MustPool(t)
 	if err := pool.QueryRow(ctx,
-		`SELECT locale FROM "Subscriber" WHERE email = 'locale-fr@qoe.test' AND "publicationId" = 'pub_home_001'`).Scan(&frLocale); err != nil {
+		`SELECT locale FROM "Subscriber" WHERE email = 'locale-fr@qoe.test' AND "publisherId" = 'pub_home_001'`).Scan(&frLocale); err != nil {
 		t.Fatalf("lecture locale fr: %v", err)
 	}
 	if err := pool.QueryRow(ctx,
-		`SELECT locale FROM "Subscriber" WHERE email = 'locale-en@qoe.test' AND "publicationId" = 'pub_home_001'`).Scan(&enLocale); err != nil {
+		`SELECT locale FROM "Subscriber" WHERE email = 'locale-en@qoe.test' AND "publisherId" = 'pub_home_001'`).Scan(&enLocale); err != nil {
 		t.Fatalf("lecture locale en: %v", err)
 	}
 	if frLocale != "fr" || enLocale != "en" {
@@ -73,7 +73,7 @@ func TestSubscribeToNewsletter_StoresLocale(t *testing.T) {
 		t.Fatalf("resubscribe: %v", err)
 	}
 	if err := pool.QueryRow(ctx,
-		`SELECT locale FROM "Subscriber" WHERE email = 'locale-en@qoe.test' AND "publicationId" = 'pub_home_001'`).Scan(&enLocale); err != nil {
+		`SELECT locale FROM "Subscriber" WHERE email = 'locale-en@qoe.test' AND "publisherId" = 'pub_home_001'`).Scan(&enLocale); err != nil {
 		t.Fatalf("relecture locale: %v", err)
 	}
 	if enLocale != "en" {

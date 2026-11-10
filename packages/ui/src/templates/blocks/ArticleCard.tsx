@@ -28,7 +28,7 @@ export type ArticleCardVariant = 'hero-center' | 'secondary' | 'row';
 export interface ArticleCardProps {
   article: TemplateArticleItem;
   variant?: ArticleCardVariant;
-  publicationName?: string | null;
+  publisherName?: string | null;
   showExcerpts?: boolean;
   showReadingTime?: boolean;
   showCategories?: boolean;
@@ -42,7 +42,7 @@ export interface ArticleCardProps {
 export function ArticleCard({
   article,
   variant = 'secondary',
-  publicationName,
+  publisherName,
   showExcerpts = true,
   showReadingTime = true,
   showCategories = true,
@@ -69,7 +69,7 @@ export function ArticleCard({
       })
     : null;
 
-  const authorName = article.author?.name || publicationName || 'Rédaction';
+  const authorName = article.author?.name || publisherName || 'Rédaction';
 
   // Métadonnées communes réutilisables
   const renderMetaItems = (isCenter = false) => (

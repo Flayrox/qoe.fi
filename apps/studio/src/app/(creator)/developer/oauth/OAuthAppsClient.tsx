@@ -67,7 +67,7 @@ interface OAuthAppsClientProps {
   workspace?: {
     type: string;
     name: string;
-    publicationId?: string;
+    publisherId?: string;
   };
 }
 
@@ -116,7 +116,7 @@ export function OAuthAppsClient({
   };
 
   const refresh = async () => {
-    const res = await listOAuthClientsAction(workspace?.publicationId);
+    const res = await listOAuthClientsAction(workspace?.publisherId);
     if (res.success) setClients(res.clients);
     router.refresh();
   };

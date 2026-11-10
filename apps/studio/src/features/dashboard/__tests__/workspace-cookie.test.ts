@@ -76,9 +76,9 @@ vi.mock('react', async (importOriginal) => ({
   cache: <T>(fn: T) => fn,
 }));
 
-import { getActiveWorkspace, getActivePublicationId } from '@/lib/active-workspace';
+import { getActiveWorkspace, getActivePublisherId } from '@/lib/active-workspace';
 
-describe('getActiveWorkspace & getActivePublicationId', () => {
+describe('getActiveWorkspace & getActivePublisherId', () => {
   beforeEach(() => {
     mockGoFetch.mockReset();
     mockCookies.mockReset();
@@ -91,7 +91,7 @@ describe('getActiveWorkspace & getActivePublicationId', () => {
     });
     mockGoFetch.mockResolvedValue({
       type: 'MEDIA',
-      publicationId: 'pub_media_1',
+      publisherId: 'pub_media_1',
       name: 'Media Actu',
       slug: 'media-actu',
       logoUrl: null,
@@ -101,12 +101,12 @@ describe('getActiveWorkspace & getActivePublicationId', () => {
     });
 
     const ws = await getActiveWorkspace('usr_1');
-    expect(ws.publicationId).toBe('pub_media_1');
+    expect(ws.publisherId).toBe('pub_media_1');
     expect(ws.type).toBe('MEDIA');
     expect(ws.permissions).toEqual(['media:create_articles']);
     expect(mockGoFetch).toHaveBeenCalledWith('/v1/workspaces/active?mediaId=med_456');
 
-    const pubId = await getActivePublicationId('usr_1');
+    const pubId = await getActivePublisherId('usr_1');
     expect(pubId).toBe('pub_media_1');
   });
 
@@ -114,23 +114,23 @@ describe('getActiveWorkspace & getActivePublicationId', () => {
     mockCookies.mockResolvedValue({ get: () => undefined });
     mockGoFetch.mockResolvedValueOnce({
       type: 'PERSONAL',
-      publicationId: 'usr_1',
+      publisherId: 'usr_1',
       name: 'Ada',
       slug: 'ada',
       logoUrl: null,
     });
-    mockGoFetch.mockResolvedValueOnce({ publicationId: 'pub_personal_1' });
+    mockGoFetch.mockResolvedValueOnce({ publisherId: 'pub_personal_1' });
 
     const ws = await getActiveWorkspace('usr_1');
     expect(ws).toEqual({
       type: 'PERSONAL',
-      publicationId: 'pub_personal_1',
+      publisherId: 'pub_personal_1',
       name: 'Ada',
       slug: 'ada',
       logoUrl: null,
       permissions: [],
     });
-    expect(mockGoFetch).toHaveBeenNthCalledWith(2, '/v1/me/publication');
+    expect(mockGoFetch).toHaveBeenNthCalledWith(2, '/v1/me/publisher');
   });
 
   it('flags a stale MEDIA cookie instead of silently pretending it is active', async () => {
@@ -140,16 +140,16 @@ describe('getActiveWorkspace & getActivePublicationId', () => {
     });
     mockGoFetch.mockResolvedValueOnce({
       type: 'PERSONAL',
-      publicationId: 'usr_1',
+      publisherId: 'usr_1',
       name: 'Ada',
       slug: 'ada',
       logoUrl: null,
     });
-    mockGoFetch.mockResolvedValueOnce({ publicationId: 'pub_personal_1' });
+    mockGoFetch.mockResolvedValueOnce({ publisherId: 'pub_personal_1' });
 
     const ws = await getActiveWorkspace('usr_1');
     expect(ws.type).toBe('PERSONAL');
-    expect(ws.publicationId).toBe('pub_personal_1');
+    expect(ws.publisherId).toBe('pub_personal_1');
     expect(ws.fallbackFromMediaId).toBe('med_gone');
   });
 

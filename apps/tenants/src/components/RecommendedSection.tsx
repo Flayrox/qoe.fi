@@ -41,7 +41,7 @@ export function RecommendedSection({ authorName, recommendations }: RecommendedS
     try {
       const res = await subscribeToNewsletterAction({
         email: emailInput.trim(),
-        publicationId: pubId,
+        publisherId: pubId,
       });
       if (res.ok) {
         setSubscribedMap((prev) => ({ ...prev, [pubId]: true }));
@@ -63,7 +63,7 @@ export function RecommendedSection({ authorName, recommendations }: RecommendedS
           <h3 className="mt-2 text-xl sm:text-2xl font-semibold tracking-tight">
             {authorName
               ? t`Les lectures recommandées par ${authorName}`
-              : t`Publications recommandées`}
+              : t`Publishers recommandées`}
           </h3>
         </div>
 

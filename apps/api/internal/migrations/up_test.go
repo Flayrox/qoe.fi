@@ -79,7 +79,7 @@ func TestGooseUpFreshDatabase(t *testing.T) {
 	}
 
 	// Le schéma est exploitable : tables clés, enums, index unique.
-	for _, table := range []string{"User", "Publication", "Article", "MediaAsset", "Media", "Post", "Subscriber"} {
+	for _, table := range []string{"User", "Publisher", "Article", "MediaAsset", "Media", "Post", "Subscriber"} {
 		var exists bool
 		if err := db.QueryRow(`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name=$1)`, table).Scan(&exists); err != nil {
 			t.Fatalf("check table %s: %v", table, err)
@@ -96,9 +96,9 @@ func TestGooseUpFreshDatabase(t *testing.T) {
 		t.Fatalf("extension vector absente")
 	}
 	var hasEnum bool
-	_ = db.QueryRow(`SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname='PublicationType')`).Scan(&hasEnum)
+	_ = db.QueryRow(`SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname='PublisherType')`).Scan(&hasEnum)
 	if !hasEnum {
-		t.Fatalf("enum PublicationType absente")
+		t.Fatalf("enum PublisherType absente")
 	}
 
 	// Idempotence : une 2e passe ne crée rien (toutes les migrations appliquées).

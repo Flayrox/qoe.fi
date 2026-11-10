@@ -67,17 +67,17 @@ func TestDevtools_SimulateSubscriber_ValidationAndWalletPaths(t *testing.T) {
 	ctx := context.Background()
 
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "updatedAt")
 		 VALUES ('pub_dev_svc', 'PERSONAL', 'Svc Pub', 'svc-pub', now())`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`UPDATE "User" SET "publicationId" = 'pub_dev_svc' WHERE id = $1`, regularID); err != nil {
+		`UPDATE "User" SET "publisherId" = 'pub_dev_svc' WHERE id = $1`, regularID); err != nil {
 		t.Fatalf("link: %v", err)
 	}
 
 	// Validation : email vide / publication vide.
-	if err := svc.SimulateSubscriber(ctx, DevSecretUserID, SimulateSubscriberParams{PublicationID: "p"}); err == nil {
+	if err := svc.SimulateSubscriber(ctx, DevSecretUserID, SimulateSubscriberParams{PublisherID: "p"}); err == nil {
 		t.Fatal("email vide attendu erreur")
 	}
 	if err := svc.SimulateSubscriber(ctx, DevSecretUserID, SimulateSubscriberParams{Email: "a@b.c"}); err == nil {
@@ -91,7 +91,7 @@ func TestDevtools_SimulateSubscriber_ValidationAndWalletPaths(t *testing.T) {
 		t.Fatalf("reader: %v", err)
 	}
 	if err := svc.SimulateSubscriber(ctx, DevSecretUserID, SimulateSubscriberParams{
-		Email: "reader-wallet@t.dev", PublicationID: "pub_dev_svc", IsPremium: true, LtvCents: 700,
+		Email: "reader-wallet@t.dev", PublisherID: "pub_dev_svc", IsPremium: true, LtvCents: 700,
 	}); err != nil {
 		t.Fatalf("SimulateSubscriber(reader wallet): %v", err)
 	}
@@ -134,12 +134,12 @@ func TestDevtools_SimulateSubscriber_MediaOwner(t *testing.T) {
 
 	// Publication média + Media + owner.
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "updatedAt")
 		 VALUES ('pub_dev_media', 'MEDIA', 'Média Svc', 'media-svc', now())`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Media" (id, "publicationId", "createdAt", "updatedAt")
+		`INSERT INTO "Media" (id, "publisherId", "createdAt", "updatedAt")
 		 VALUES ('media_dev_svc', 'pub_dev_media', now(), now())`); err != nil {
 		t.Fatalf("media: %v", err)
 	}
@@ -156,7 +156,7 @@ func TestDevtools_SimulateSubscriber_MediaOwner(t *testing.T) {
 	}
 
 	if err := svc.SimulateSubscriber(ctx, DevSecretUserID, SimulateSubscriberParams{
-		Email: "media-sub@t.dev", PublicationID: "pub_dev_media", IsPremium: true, LtvCents: 900,
+		Email: "media-sub@t.dev", PublisherID: "pub_dev_media", IsPremium: true, LtvCents: 900,
 	}); err != nil {
 		t.Fatalf("SimulateSubscriber(media owner): %v", err)
 	}

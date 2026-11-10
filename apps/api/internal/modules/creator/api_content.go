@@ -88,7 +88,7 @@ type apiArticleFull struct {
 
 // apiMe agrège l'identité de la clé : publication portée + scopes effectifs.
 type apiMe struct {
-	Publication struct {
+	Publisher struct {
 		ID           string  `json:"id"`
 		Name         string  `json:"name"`
 		Slug         string  `json:"slug"`
@@ -96,14 +96,14 @@ type apiMe struct {
 		HeroText     *string `json:"heroText"`
 		Subdomain    *string `json:"subdomain"`
 		CustomDomain *string `json:"customDomain"`
-	} `json:"publication"`
+	} `json:"publisher"`
 	UserID string   `json:"userId"`
 	Scopes []string `json:"scopes"`
 }
 
 func (h *Handler) apiMe(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
-	pubID, _ := middleware.PublicationID(r.Context())
+	pubID, _ := middleware.PublisherID(r.Context())
 
 	var m apiMe
 	m.UserID = userID
@@ -115,10 +115,10 @@ func (h *Handler) apiMe(w http.ResponseWriter, r *http.Request) {
 
 	err := h.pool.QueryRow(r.Context(), `
 		SELECT id::text, name, slug, "logoUrl", "heroText", subdomain, "customDomain"
-		FROM "Publication" WHERE id = $1`,
-		pubID).Scan(&m.Publication.ID, &m.Publication.Name, &m.Publication.Slug,
-		&m.Publication.LogoURL, &m.Publication.HeroText,
-		&m.Publication.Subdomain, &m.Publication.CustomDomain)
+		FROM "Publisher" WHERE id = $1`,
+		pubID).Scan(&m.Publisher.ID, &m.Publisher.Name, &m.Publisher.Slug,
+		&m.Publisher.LogoURL, &m.Publisher.HeroText,
+		&m.Publisher.Subdomain, &m.Publisher.CustomDomain)
 	if err != nil {
 		log.Printf("[creator] api me: %v", err)
 		response.Internal(w)
@@ -136,7 +136,7 @@ const apiArticlesFrom = `
 	FROM "Article" a
 	LEFT JOIN "Category" cat ON cat.id = a."categoryId"
 	WHERE (
-	    a."publicationId" = $1
+	    a."publisherId" = $1
 	    OR ($2 <> '' AND a."authorId"::text = $2)
 	    OR ($3 <> '' AND a.id IN (SELECT "A" FROM "_CoAuthors" WHERE "B"::text = $3))
 	  )`
@@ -192,7 +192,7 @@ type apiCategoryItem struct {
 }
 
 func (h *Handler) apiCategories(w http.ResponseWriter, r *http.Request) {
-	publicationID, _ := middleware.PublicationID(r.Context())
+	publisherID, _ := middleware.PublisherID(r.Context())
 	userID, _ := middleware.UserID(r.Context())
 
 	items := []apiCategoryItem{}
@@ -202,13 +202,13 @@ func (h *Handler) apiCategories(w http.ResponseWriter, r *http.Request) {
 		FROM "Category" c
 		LEFT JOIN "Article" a
 		  ON a."categoryId" = c.id AND a.published = true AND a.status = 'PUBLISHED'
-		WHERE c."publicationId" = $1
-		   OR c."publicationId" IN (
-		     SELECT DISTINCT a2."publicationId" FROM "Article" a2
+		WHERE c."publisherId" = $1
+		   OR c."publisherId" IN (
+		     SELECT DISTINCT a2."publisherId" FROM "Article" a2
 		     WHERE a2."authorId"::text = $2 AND a2.published = true
 		   )
 		GROUP BY c.id, c.slug, c.name, c.description
-		ORDER BY c.name ASC`, publicationID, userID)
+		ORDER BY c.name ASC`, publisherID, userID)
 	if err != nil {
 		log.Printf("[creator] api categories: %v", err)
 		response.Internal(w)
@@ -235,7 +235,7 @@ func (p *apiArticlesPage) setAuthor(index int, a apiAuthor) {
 }
 
 func (h *Handler) apiArticles(w http.ResponseWriter, r *http.Request) {
-	publicationID, _ := middleware.PublicationID(r.Context())
+	publisherID, _ := middleware.PublisherID(r.Context())
 	userID, _ := middleware.UserID(r.Context())
 
 	q := r.URL.Query()
@@ -243,7 +243,7 @@ func (h *Handler) apiArticles(w http.ResponseWriter, r *http.Request) {
 
 	// ── Filtres CMS : catégorie, tag, premium, recherche, dates ──
 	where := apiArticlesFrom
-	args := []any{publicationID, userID, userID}
+	args := []any{publisherID, userID, userID}
 	add := func(fragment string, v ...any) {
 		for _, val := range v {
 			args = append(args, val)
@@ -361,7 +361,7 @@ func (h *Handler) apiArticles(w http.ResponseWriter, r *http.Request) {
 // pgx.ErrNoRows si l'article n'est pas lié au créateur.
 func (h *Handler) loadCreatorArticleFull(
 	ctx context.Context,
-	publicationID, userID, slug string,
+	publisherID, userID, slug string,
 ) (*apiArticleFull, error) {
 	var full apiArticleFull
 	full.Authors = []apiAuthor{}
@@ -376,7 +376,7 @@ func (h *Handler) loadCreatorArticleFull(
 		   OR EXISTS (SELECT 1 FROM "ArticleSlug" s WHERE s.slug = $4 AND s."articleId" = a.id)
 		   OR EXISTS (SELECT 1 FROM "ArticleSlugHistory" h WHERE h.slug = $4 AND h."articleId" = a.id))
 		LIMIT 1`,
-		publicationID, userID, userID, slug).Scan(
+		publisherID, userID, userID, slug).Scan(
 		&full.ID, &full.Slug, &full.Title, &full.ContentHTML, &full.CoverURL,
 		&full.ReadingTime, &full.IsPremium, &publishedAt, &tags,
 		&catID, &catSlug, &catName)
@@ -410,10 +410,10 @@ func (h *Handler) loadCreatorArticleFull(
 // GET /v1/creator/articles/{slug} — article complet (contenu HTML).
 func (h *Handler) apiArticleBySlug(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
-	publicationID, _ := middleware.PublicationID(r.Context())
+	publisherID, _ := middleware.PublisherID(r.Context())
 	userID, _ := middleware.UserID(r.Context())
 
-	full, err := h.loadCreatorArticleFull(r.Context(), publicationID, userID, slug)
+	full, err := h.loadCreatorArticleFull(r.Context(), publisherID, userID, slug)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			response.NotFound(w, "Article introuvable")
@@ -492,17 +492,17 @@ func (h *Handler) uniqueArticleSlug(ctx context.Context, base string) string {
 
 // creatorOwnsArticle vérifie le lien de propriété : publication de la clé,
 // auteur, ou co-auteur.
-func (h *Handler) creatorOwnsArticle(ctx context.Context, articleID, publicationID, userID string) bool {
+func (h *Handler) creatorOwnsArticle(ctx context.Context, articleID, publisherID, userID string) bool {
 	var n int
 	err := h.pool.QueryRow(ctx, `
 		SELECT COUNT(*)::int FROM "Article" a
 		WHERE a.id = $1
 		  AND (
-		    a."publicationId" = $2
+		    a."publisherId" = $2
 		    OR a."authorId"::text = $3
 		    OR a.id IN (SELECT "A" FROM "_CoAuthors" WHERE "B"::text = $4)
 		  )`,
-		articleID, publicationID, userID, userID).Scan(&n)
+		articleID, publisherID, userID, userID).Scan(&n)
 	return err == nil && n > 0
 }
 
@@ -532,7 +532,7 @@ type apiArticleCreateInput struct {
 
 func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
-	publicationID, _ := middleware.PublicationID(r.Context())
+	publisherID, _ := middleware.PublisherID(r.Context())
 
 	var in apiArticleCreateInput
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
@@ -580,12 +580,12 @@ func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	if authorID == "" && publicationID != "" {
+	if authorID == "" && publisherID != "" {
 		_ = h.pool.QueryRow(r.Context(),
 			`SELECT mm."userId"::text FROM "MediaMember" mm
 			 JOIN "Media" m ON m.id = mm."mediaId"
-			 WHERE m."publicationId" = $1 AND mm.role = 'owner' LIMIT 1`,
-			publicationID).Scan(&authorID)
+			 WHERE m."publisherId" = $1 AND mm.role = 'owner' LIMIT 1`,
+			publisherID).Scan(&authorID)
 	}
 
 	tags := in.Tags
@@ -595,12 +595,12 @@ func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 	if _, err := h.pool.Exec(r.Context(), `
 		INSERT INTO "Article" (id, title, slug, content, published, visibility,
 		                       "readingTime", status, "isPremium", "semanticTags",
-		                       "categoryId", "publicationId", "authorId", "createdAt", "updatedAt")
+		                       "categoryId", "publisherId", "authorId", "createdAt", "updatedAt")
 		VALUES ($1, $2, $3, NULLIF($4,''), false, $5, $6, 'DRAFT', $7, $8,
 		        NULLIF($9,''), NULLIF($10,''), $11, now(), now())`,
 		id, in.Title, slug, in.Content, visibility,
 		readingTimeFromHTML(in.Content), in.IsPremium, tags,
-		in.CategoryID, publicationID, authorID); err != nil {
+		in.CategoryID, publisherID, authorID); err != nil {
 		log.Printf("[creator] article create: %v", err)
 		response.Internal(w)
 		return
@@ -674,10 +674,10 @@ type apiArticleUpdateInput struct {
 // PATCH /v1/creator/articles/{id} — met à jour un de SES articles.
 func (h *Handler) apiArticleUpdate(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	publicationID, _ := middleware.PublicationID(r.Context())
+	publisherID, _ := middleware.PublisherID(r.Context())
 	userID, _ := middleware.UserID(r.Context())
 
-	if !h.creatorOwnsArticle(r.Context(), id, publicationID, userID) {
+	if !h.creatorOwnsArticle(r.Context(), id, publisherID, userID) {
 		response.NotFound(w, "Article introuvable")
 		return
 	}
@@ -794,17 +794,17 @@ func (h *Handler) apiArticleUpdate(w http.ResponseWriter, r *http.Request) {
 // DELETE /v1/creator/articles/{id} — supprime définitivement un de SES articles.
 func (h *Handler) apiArticleDelete(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	publicationID, _ := middleware.PublicationID(r.Context())
+	publisherID, _ := middleware.PublisherID(r.Context())
 	userID, _ := middleware.UserID(r.Context())
 
 	tag, err := h.pool.Exec(r.Context(), `
 		DELETE FROM "Article" a
 		WHERE a.id = $1 AND (
 		  a."authorId"::text = $2
-		  OR a."publicationId" = $3
+		  OR a."publisherId" = $3
 		  OR a.id IN (SELECT "A" FROM "_CoAuthors" WHERE "B"::text = $2)
 		)`,
-		id, userID, publicationID)
+		id, userID, publisherID)
 	if err != nil {
 		log.Printf("[creator] article delete: %v", err)
 		response.Internal(w)
@@ -820,7 +820,7 @@ func (h *Handler) apiArticleDelete(w http.ResponseWriter, r *http.Request) {
 // ─── GET /v1/creator/search?q= — recherche plein-texte du CMS ──────────
 
 func (h *Handler) apiSearch(w http.ResponseWriter, r *http.Request) {
-	publicationID, _ := middleware.PublicationID(r.Context())
+	publisherID, _ := middleware.PublisherID(r.Context())
 	userID, _ := middleware.UserID(r.Context())
 
 	term := strings.TrimSpace(r.URL.Query().Get("q"))
@@ -839,7 +839,7 @@ func (h *Handler) apiSearch(w http.ResponseWriter, r *http.Request) {
 	where := apiArticlesFrom + `
 	  AND (a.title ILIKE '%' || $4 || '%' OR a.content ILIKE '%' || $4 || '%'
 	       OR EXISTS (SELECT 1 FROM unnest(a."semanticTags") t WHERE t ILIKE '%' || $4 || '%'))`
-	args := []any{publicationID, userID, userID, term}
+	args := []any{publisherID, userID, userID, term}
 	if category != "" {
 		// Accepte id OU slug pour la catégorie (technique = id, humain = slug)
 		where += ` AND (cat.slug = $` + strconv.Itoa(len(args)+1) + ` OR cat.id = $` + strconv.Itoa(len(args)+2) + `)`
@@ -965,10 +965,10 @@ type apiSlugInput struct {
 
 func (h *Handler) apiArticleSlugSet(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	publicationID, _ := middleware.PublicationID(r.Context())
+	publisherID, _ := middleware.PublisherID(r.Context())
 	userID, _ := middleware.UserID(r.Context())
 
-	if !h.creatorOwnsArticle(r.Context(), id, publicationID, userID) {
+	if !h.creatorOwnsArticle(r.Context(), id, publisherID, userID) {
 		response.NotFound(w, "Article introuvable")
 		return
 	}

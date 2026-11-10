@@ -61,17 +61,17 @@ func (s *Service) SetFlags(f *flags.Service) {
 
 // authorizeSettings vérifie que l'utilisateur peut administrer la publication :
 // publication personnelle, ou Média avec la permission manage_settings.
-func (s *Service) authorizeSettings(ctx context.Context, userID, publicationID string) error {
-	if p, ok := middleware.GetPrincipal(ctx); ok && p.Type == middleware.PrincipalTypePublication {
-		if p.PublicationID != nil && *p.PublicationID == publicationID {
+func (s *Service) authorizeSettings(ctx context.Context, userID, publisherID string) error {
+	if p, ok := middleware.GetPrincipal(ctx); ok && p.Type == middleware.PrincipalTypePublisher {
+		if p.PublisherID != nil && *p.PublisherID == publisherID {
 			return nil
 		}
 	}
-	if personal, err := s.q.GetUserPersonalPublication(ctx, userID); err == nil && personal.String == publicationID {
+	if personal, err := s.q.GetUserPersonalPublisher(ctx, userID); err == nil && personal.String == publisherID {
 		return nil
 	}
 	member, err := s.q.GetMediaMemberContext(ctx, db.GetMediaMemberContextParams{
-		PublicationId: publicationID, UserId: toUUID(userID),
+		PublisherId: publisherID, UserId: toUUID(userID),
 	})
 	if err != nil {
 		return errForbidden
@@ -136,7 +136,7 @@ type SettingsOwner struct {
 
 // SettingsPublication est la publication complète de la page settings
 // (mêmes champs JSON que le include Prisma — mapping studio inchangé).
-type SettingsPublication struct {
+type SettingsPublisher struct {
 	ID             string               `json:"id"`
 	Name           string               `json:"name"`
 	Slug           string               `json:"slug"`
@@ -164,15 +164,15 @@ type SettingsPublication struct {
 	User           *SettingsOwner       `json:"user"`
 }
 
-// GetPublicationSettings retourne la publication + relations de la page
+// GetPublisherSettings retourne la publication + relations de la page
 // settings créateur. Accès : publication personnelle OU média avec
 // manage_settings (même check que les écritures).
-func (s *Service) GetPublicationSettings(ctx context.Context, userID, publicationID string) (*SettingsPublication, error) {
-	if err := s.authorizeSettings(ctx, userID, publicationID); err != nil {
+func (s *Service) GetPublisherSettings(ctx context.Context, userID, publisherID string) (*SettingsPublisher, error) {
+	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
 		return nil, errForbidden
 	}
 
-	row, err := s.q.GetPublicationForSettings(ctx, publicationID)
+	row, err := s.q.GetPublisherForSettings(ctx, publisherID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errNotFound
@@ -180,7 +180,7 @@ func (s *Service) GetPublicationSettings(ctx context.Context, userID, publicatio
 		return nil, err
 	}
 
-	pub := &SettingsPublication{
+	pub := &SettingsPublisher{
 		ID: row.ID, Name: row.Name, Slug: row.Slug,
 		Subdomain: textPtr(row.Subdomain), CustomDomain: textPtr(row.CustomDomain),
 		HeroText: textPtr(row.HeroText), AccentColor: textPtr(row.AccentColor),
@@ -210,7 +210,7 @@ func (s *Service) GetPublicationSettings(ctx context.Context, userID, publicatio
 		}
 	}
 
-	navRows, err := s.q.ListNavigationForPublication(ctx, publicationID)
+	navRows, err := s.q.ListNavigationForPublisher(ctx, publisherID)
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +221,7 @@ func (s *Service) GetPublicationSettings(ctx context.Context, userID, publicatio
 		})
 	}
 
-	socialRows, err := s.q.ListSocialLinksForPublication(ctx, publicationID)
+	socialRows, err := s.q.ListSocialLinksForPublisher(ctx, publisherID)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +231,7 @@ func (s *Service) GetPublicationSettings(ctx context.Context, userID, publicatio
 		})
 	}
 
-	articleRows, err := s.q.ListArticlesForSettings(ctx, publicationID)
+	articleRows, err := s.q.ListArticlesForSettings(ctx, publisherID)
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +245,7 @@ func (s *Service) GetPublicationSettings(ctx context.Context, userID, publicatio
 		})
 	}
 
-	catRows, err := s.q.ListCategoriesForPublication(ctx, publicationID)
+	catRows, err := s.q.ListCategoriesForPublisher(ctx, publisherID)
 	if err != nil {
 		return nil, err
 	}
@@ -280,8 +280,8 @@ var profileStringColumns = map[string]string{
 
 // UpdateProfile applique une mise à jour partielle du profil (miroir updateCreatorProfileAction).
 // body : clés présentes = champs à modifier, valeur null = effacer.
-func (s *Service) UpdateProfile(ctx context.Context, userID, publicationID string, body map[string]any) (db.GetUserForSettingsRow, error) {
-	if err := s.authorizeSettings(ctx, userID, publicationID); err != nil {
+func (s *Service) UpdateProfile(ctx context.Context, userID, publisherID string, body map[string]any) (db.GetUserForSettingsRow, error) {
+	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
 		return db.GetUserForSettingsRow{}, err
 	}
 
@@ -322,7 +322,7 @@ func (s *Service) UpdateProfile(ctx context.Context, userID, publicationID strin
 	}
 
 	if len(fields) > 0 {
-		if err := s.updatePublication(ctx, publicationID, fields); err != nil {
+		if err := s.updatePublisher(ctx, publisherID, fields); err != nil {
 			return db.GetUserForSettingsRow{}, err
 		}
 	}
@@ -347,7 +347,7 @@ func (s *Service) UpdateProfile(ctx context.Context, userID, publicationID strin
 }
 
 // updatePublication construit un UPDATE dynamique limité à un allowlist de colonnes.
-func (s *Service) updatePublication(ctx context.Context, publicationID string, fields map[string]any) error {
+func (s *Service) updatePublisher(ctx context.Context, publisherID string, fields map[string]any) error {
 	keys := make([]string, 0, len(fields))
 	for k := range fields {
 		keys = append(keys, k)
@@ -356,7 +356,7 @@ func (s *Service) updatePublication(ctx context.Context, publicationID string, f
 
 	sets := make([]string, 0, len(keys))
 	args := make([]any, 0, len(keys)+1)
-	args = append(args, publicationID)
+	args = append(args, publisherID)
 	for _, k := range keys {
 		switch v := fields[k].(type) {
 		case []byte:
@@ -371,7 +371,7 @@ func (s *Service) updatePublication(ctx context.Context, publicationID string, f
 		}
 	}
 	query := fmt.Sprintf(
-		`UPDATE "Publication" SET %s, "updatedAt" = now() WHERE id = $1`,
+		`UPDATE "Publisher" SET %s, "updatedAt" = now() WHERE id = $1`,
 		strings.Join(sets, ", "),
 	)
 	_, err := s.pool.Exec(ctx, query, args...)
@@ -430,21 +430,21 @@ func (s *Service) CheckSubdomain(ctx context.Context, subdomain string) (availab
 }
 
 // UpdateSubdomain change le sous-domaine de la publication active.
-func (s *Service) UpdateSubdomain(ctx context.Context, userID, publicationID, subdomain string) error {
-	if err := s.authorizeSettings(ctx, userID, publicationID); err != nil {
+func (s *Service) UpdateSubdomain(ctx context.Context, userID, publisherID, subdomain string) error {
+	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
 		return err
 	}
 	clean := strings.ToLower(strings.TrimSpace(subdomain))
 	if clean == "" {
-		return s.q.UpdatePublicationSubdomain(ctx, db.UpdatePublicationSubdomainParams{
-			ID:        publicationID,
+		return s.q.UpdatePublisherSubdomain(ctx, db.UpdatePublisherSubdomainParams{
+			ID:        publisherID,
 			Subdomain: pgtype.Text{Valid: false},
 		})
 	}
 
 	existsOther, err := s.q.CheckSubdomainExistsOther(ctx, db.CheckSubdomainExistsOtherParams{
 		Subdomain: pgtype.Text{String: clean, Valid: true},
-		ID:        publicationID,
+		ID:        publisherID,
 	})
 	if err != nil {
 		return errors.New("Vérification impossible, réessayez.")
@@ -470,8 +470,8 @@ func (s *Service) UpdateSubdomain(ctx context.Context, userID, publicationID, su
 		return errors.New("Ce nom de sous-domaine est réservé par la plateforme.")
 	}
 
-	if err := s.q.UpdatePublicationSubdomain(ctx, db.UpdatePublicationSubdomainParams{
-		ID:        publicationID,
+	if err := s.q.UpdatePublisherSubdomain(ctx, db.UpdatePublisherSubdomainParams{
+		ID:        publisherID,
 		Subdomain: pgtype.Text{String: clean, Valid: true},
 	}); err != nil {
 		// The database unique index is authoritative under concurrent requests.
@@ -496,11 +496,11 @@ type NavigationLink struct {
 }
 
 // SaveNavigation remplace la liste des liens de navigation.
-func (s *Service) SaveNavigation(ctx context.Context, userID, publicationID string, links []NavigationLink) error {
-	if err := s.authorizeSettings(ctx, userID, publicationID); err != nil {
+func (s *Service) SaveNavigation(ctx context.Context, userID, publisherID string, links []NavigationLink) error {
+	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
 		return err
 	}
-	if err := s.q.DeleteNavigationItems(ctx, publicationID); err != nil {
+	if err := s.q.DeleteNavigationItems(ctx, publisherID); err != nil {
 		return err
 	}
 	for i, link := range links {
@@ -509,7 +509,7 @@ func (s *Service) SaveNavigation(ctx context.Context, userID, publicationID stri
 			Url:           textFromString(link.URL),
 			Order:         int32(i),
 			IsExternal:    strings.HasPrefix(link.URL, "http"),
-			PublicationId: publicationID,
+			PublisherId: publisherID,
 		}); err != nil {
 			return err
 		}
@@ -524,11 +524,11 @@ type SocialLink struct {
 }
 
 // SaveSocial remplace la liste des liens sociaux.
-func (s *Service) SaveSocial(ctx context.Context, userID, publicationID string, links []SocialLink) error {
-	if err := s.authorizeSettings(ctx, userID, publicationID); err != nil {
+func (s *Service) SaveSocial(ctx context.Context, userID, publisherID string, links []SocialLink) error {
+	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
 		return err
 	}
-	if err := s.q.DeleteSocialLinks(ctx, publicationID); err != nil {
+	if err := s.q.DeleteSocialLinks(ctx, publisherID); err != nil {
 		return err
 	}
 	for i, link := range links {
@@ -536,7 +536,7 @@ func (s *Service) SaveSocial(ctx context.Context, userID, publicationID string, 
 			Platform:      link.Platform,
 			Url:           link.URL,
 			Order:         int32(i),
-			PublicationId: publicationID,
+			PublisherId: publisherID,
 		}); err != nil {
 			return err
 		}
@@ -547,12 +547,12 @@ func (s *Service) SaveSocial(ctx context.Context, userID, publicationID string, 
 // SetDownloadDefault règle le défaut de téléchargement des NOUVEAUX articles
 // (appliqué à la création — l'auteur ajuste ensuite par article). Retourne
 // la valeur stockée.
-func (s *Service) SetDownloadDefault(ctx context.Context, userID, publicationID string, allow bool) (bool, error) {
-	if err := s.authorizeSettings(ctx, userID, publicationID); err != nil {
+func (s *Service) SetDownloadDefault(ctx context.Context, userID, publisherID string, allow bool) (bool, error) {
+	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
 		return false, err
 	}
-	return s.q.SetPublicationDownloadDefault(ctx, db.SetPublicationDownloadDefaultParams{
-		ID:                   publicationID,
+	return s.q.SetPublisherDownloadDefault(ctx, db.SetPublisherDownloadDefaultParams{
+		ID:                   publisherID,
 		AllowDownloadDefault: allow,
 	})
 }
@@ -773,22 +773,22 @@ func (s *Service) CompleteOnboarding(ctx context.Context, userID string, in Onbo
 	layoutStyle := textFromString(in.LayoutStyle)
 
 	// Publication personnelle existante → synchronisation, sinon création.
-	if user.PublicationId.Valid && user.PublicationId.String != "" {
-		return s.q.UpdatePersonalPublication(ctx, db.UpdatePersonalPublicationParams{
-			ID: user.PublicationId.String, Name: name, Subdomain: subdomain,
+	if user.PublisherId.Valid && user.PublisherId.String != "" {
+		return s.q.UpdatePersonalPublisher(ctx, db.UpdatePersonalPublisherParams{
+			ID: user.PublisherId.String, Name: name, Subdomain: subdomain,
 			HeroText: heroText, LayoutStyle: layoutStyle,
 		})
 	}
 
-	id, err := s.q.CreatePersonalPublication(ctx, db.CreatePersonalPublicationParams{
+	id, err := s.q.CreatePersonalPublisher(ctx, db.CreatePersonalPublisherParams{
 		Name: name, Slug: pubSlug, Subdomain: subdomain, HeroText: heroText,
 		LayoutStyle: layoutStyle, LogoUrl: user.LogoUrl, IsCertified: user.IsCertified,
 	})
 	if err != nil {
 		return err
 	}
-	return s.q.LinkUserPublication(ctx, db.LinkUserPublicationParams{
-		ID: userID, PublicationId: textFromString(id),
+	return s.q.LinkUserPublisher(ctx, db.LinkUserPublisherParams{
+		ID: userID, PublisherId: textFromString(id),
 	})
 }
 

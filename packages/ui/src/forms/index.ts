@@ -1,2 +1,2 @@
 export { SubscribeForm } from '../SubscribeForm';
-export { RecommendationModal, type RecommendedPublication } from '../RecommendationModal';
+export { RecommendationModal, type RecommendedPublisher } from '../RecommendationModal';

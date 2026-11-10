@@ -34,18 +34,18 @@ func (h *Handler) Register(r chi.Router) {
 	// serait résolu par personne, et le refus par défaut du garde
 	// s'appliquerait faute de permission connue.
 	r.With(middleware.RequireAction(authz.ActionImportRequest,
-		middleware.WithAuthzResource(middleware.AuthzResourcePublication, "publicationId"),
-	)).Post("/v1/import/publications/{publicationId}/subscribers", h.submitSubscriberImport)
+		middleware.WithAuthzResource(middleware.AuthzResourcePublisher, "publisherId"),
+	)).Post("/v1/import/publishers/{publisherId}/subscribers", h.submitSubscriberImport)
 
 	// Suivi côté demandeur : agrégats et décisions communicables uniquement.
 	r.Get("/v1/import/subscribers", h.listSubscriberImports)
 	r.Get("/v1/import/subscribers/{id}", h.getSubscriberImport)
 }
 
-// POST /v1/import/publications/{publicationId}/subscribers — dépose un CSV
+// POST /v1/import/publications/{publisherId}/subscribers — dépose un CSV
 // d'abonnés en quarantaine et le soumet à la revue staff.
 //
-// Corps : { publicationId, source, sourceDetail, collectionPeriod,
+// Corps : { publisherId, source, sourceDetail, collectionPeriod,
 // optInMethod, lastSendAt, declarations, proofRefs, content }.
 //
 // La réponse annonce un **bilan**, jamais un envoi : le dépôt ne rend aucun
@@ -63,9 +63,9 @@ func (h *Handler) submitSubscriberImport(w http.ResponseWriter, r *http.Request)
 	}
 	// La publication vient du chemin : le corps ne peut pas la contredire,
 	// sinon un demandeur autorisé sur une publication viserait une autre.
-	in.PublicationID = chi.URLParam(r, "publicationId")
-	if in.PublicationID == "" {
-		response.BadRequest(w, "publicationId requis")
+	in.PublisherID = chi.URLParam(r, "publisherId")
+	if in.PublisherID == "" {
+		response.BadRequest(w, "publisherId requis")
 		return
 	}
 	batch, err := h.svc.SubmitSubscriberImport(r.Context(), userID, in)

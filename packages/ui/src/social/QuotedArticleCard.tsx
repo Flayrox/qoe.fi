@@ -33,7 +33,7 @@ export interface QuotedArticleData {
     username?: string | null;
     subdomain?: string | null;
   } | null;
-  publication?: {
+  publisher?: {
     name?: string | null;
     subdomain?: string | null;
     customDomain?: string | null;
@@ -160,9 +160,7 @@ export function QuotedArticleCard({
 
   const authorName = article.author?.name || article.author?.username || t`Auteur`;
   const articleDomain =
-    article.author?.subdomain ||
-    article.publication?.subdomain ||
-    article.publication?.customDomain;
+    article.author?.subdomain || article.publisher?.subdomain || article.publisher?.customDomain;
   const subdomain = articleDomain ? articleDomain.replace(/^https?:\/\//, '') : 'qoefi';
 
   // 1) Contexte serveur (texte canonique, passages résolus par le backend) —

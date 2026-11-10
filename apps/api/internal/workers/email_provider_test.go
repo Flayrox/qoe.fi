@@ -82,7 +82,7 @@ func TestCleanEnvelopeAddress(t *testing.T) {
 	}{
 		{"relay@qoe.fi", "relay@qoe.fi"},
 		{"<relay@qoe.fi>", "relay@qoe.fi"},
-		{"Publication Name <relay@qoe.fi>", "relay@qoe.fi"},
+		{"Publisher Name <relay@qoe.fi>", "relay@qoe.fi"},
 		{"  Qoe.fi Platform  <noreply@qoe.fi> ", "noreply@qoe.fi"},
 		{"\"Quotes, In Name\" <user@test.org>", "user@test.org"},
 		{"L'Assez <>", ""},

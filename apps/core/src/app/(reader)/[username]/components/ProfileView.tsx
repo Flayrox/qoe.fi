@@ -105,8 +105,8 @@ interface ProfileViewProps {
   /** false = le contenu est masqué au viewer (privé / abonnés uniquement). */
   initialCanViewContent?: boolean;
   initialTab?: string;
-  /** PublicationId (cible de l'endpoint follow) — le profile.id du Go. */
-  initialPublicationId?: string;
+  /** PublisherId (cible de l'endpoint follow) — le profile.id du Go. */
+  initialPublisherId?: string;
 }
 
 type ProfileTab = 'thoughts' | 'with_replies' | 'articles' | 'reposts' | 'media';
@@ -122,7 +122,7 @@ export function ProfileView({
   profileVisibility = 'PUBLIC',
   initialCanViewContent = true,
   initialTab = 'thoughts',
-  initialPublicationId,
+  initialPublisherId,
 }: ProfileViewProps) {
   const router = useRouter();
   const overlay = useArticleOverlay();
@@ -232,7 +232,7 @@ export function ProfileView({
     const optimisticFollowing = !wasFollowing && !wasRequested && !isPrivate;
     const optimisticRequested = !wasFollowing && (wasRequested || isPrivate);
 
-    const targetKey = user.id || initialPublicationId || '';
+    const targetKey = user.id || initialPublisherId || '';
     await withShadowMutation({
       lockKey: `actor:${targetKey}:follow`,
       optimisticUpdate: () => {
@@ -250,7 +250,7 @@ export function ProfileView({
           updateActorShadow(user.username.replace(/^@/, ''), { followed: wasFollowing });
       },
       mutation: async () => {
-        const res = await toggleFollowCreator(initialPublicationId || user.id);
+        const res = await toggleFollowCreator(initialPublisherId || user.id);
         if (!res.ok) {
           throw new Error('Erreur lors de la modification du suivi.');
         }
@@ -861,9 +861,9 @@ export function ProfileView({
           onClose={() => setIsEditModalOpen(false)}
           user={user}
           // 🎯 Cible d'écriture explicite : sur un profil de MÉDIA, la
-          // publicationId est celle du média — le modal écrira alors
+          // publisherId est celle du média — le modal écrira alors
           // PATCH /v1/media/{id}/settings et JAMAIS le profil personnel.
-          publicationId={initialPublicationId}
+          publisherId={initialPublisherId}
           onProfileUpdated={(updatedUser) => {
             setUser((prev: ProfileUser) => ({
               ...prev,

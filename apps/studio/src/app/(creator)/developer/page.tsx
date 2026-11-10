@@ -25,7 +25,7 @@ export default async function DeveloperPage() {
     type: workspace.type,
     name: workspace.name,
     mediaId: workspace.mediaId,
-    publicationId: workspace.publicationId,
+    publisherId: workspace.publisherId,
   };
   const access =
     workspace.type === 'MEDIA'

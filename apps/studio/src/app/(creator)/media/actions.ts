@@ -48,7 +48,7 @@ export async function createMediaAction(
   try {
     await getAuthUser();
 
-    const media = await goFetch<{ id: string; publicationId: string }>('/v1/media', {
+    const media = await goFetch<{ id: string; publisherId: string }>('/v1/media', {
       method: 'POST',
       body: { name, slug, bio: bio ?? '', logoUrl: logoUrl ?? '' },
     });
@@ -97,7 +97,7 @@ export async function getUserWorkspacesAction(): Promise<GetUserWorkspacesRespon
 // Forme Go du détail média (parité include Prisma consommé par MediaStudioClient).
 interface GoMediaDetail {
   id: string;
-  publication: {
+  publisher: {
     id: string;
     name: string;
     slug: string;
@@ -145,7 +145,7 @@ export async function getMediaByIdAction(mediaId: string) {
     return {
       success: true as const,
       media: res.media,
-      articlesCount: res.media.publication._count.articles,
+      articlesCount: res.media.publisher._count.articles,
       myRole: res.myRole,
       canManageApiKeys: res.canManageApiKeys ?? false,
       canViewAudit: res.canViewAudit ?? false,
@@ -223,11 +223,11 @@ export async function listMediaAuditLogAction(mediaId: string, options: MediaAud
 /**
  * 🎯 Résout la publication d'un média (pour le studio / tenant).
  */
-export async function getMediaPublicationAction(mediaId: string) {
+export async function getMediaPublisherAction(mediaId: string) {
   try {
     // Go : GET /v1/media/{id}.
     const res = await goFetch<{ media: GoMediaDetail }>(`/v1/media/${encodeURIComponent(mediaId)}`);
-    return { success: true as const, publication: res.media.publication };
+    return { success: true as const, publisher: res.media.publisher };
   } catch (err: unknown) {
     return {
       success: false,
@@ -409,12 +409,12 @@ export async function updateMediaSettingsAction(
     await getAuthUser();
 
     // Go : PATCH /v1/media/{id}/settings.
-    const res = await goFetch<{ success: boolean; publication: GoMediaDetail['publication'] }>(
+    const res = await goFetch<{ success: boolean; publisher: GoMediaDetail['publisher'] }>(
       `/v1/media/${encodeURIComponent(mediaId)}/settings`,
       { method: 'PATCH', body: data }
     );
     revalidatePath('/settings');
-    return { success: true as const, publication: res.publication };
+    return { success: true as const, publisher: res.publisher };
   } catch (err: unknown) {
     return failure(err, 'Échec de la mise à jour');
   }

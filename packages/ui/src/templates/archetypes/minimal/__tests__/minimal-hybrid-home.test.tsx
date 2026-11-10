@@ -6,12 +6,12 @@ import { ArticleStreamBlock } from '../../../blocks/ArticleStreamBlock';
 import type {
   HeroBlockProps,
   ArticleStreamBlockProps,
-  TemplatePublicationContext,
+  TemplatePublisherContext,
   TemplateArticleItem,
   TemplateRenderContext,
 } from '../../../schema';
 
-const mockPublication: TemplatePublicationContext = {
+const mockPublisher: TemplatePublisherContext = {
   id: 'pub_1',
   name: 'Devouring Details',
   domain: 'devouringdetails.com',
@@ -70,7 +70,7 @@ describe('Option B - Minimal Hybrid Home (Devouring Details)', () => {
         <HeroBlock
           id="hero_test"
           props={heroProps}
-          publication={mockPublication}
+          publisher={mockPublisher}
           context={mockContext}
         />
       );
@@ -108,7 +108,7 @@ describe('Option B - Minimal Hybrid Home (Devouring Details)', () => {
           id="stream_test"
           props={streamProps}
           articles={mockArticles}
-          publication={mockPublication}
+          publisher={mockPublisher}
           context={mockContext}
         />
       );
@@ -131,7 +131,7 @@ describe('Option B - Minimal Hybrid Home (Devouring Details)', () => {
           id="stream_pinned"
           props={streamProps}
           articles={pinnedOldest}
-          publication={mockPublication}
+          publisher={mockPublisher}
           context={mockContext}
         />
       );
@@ -163,7 +163,7 @@ describe('Option B - Minimal Hybrid Home (Devouring Details)', () => {
           id="stream_popular"
           props={streamProps}
           articles={engaged}
-          publication={mockPublication}
+          publisher={mockPublisher}
           context={mockContext}
         />
       );
@@ -184,7 +184,7 @@ describe('Option B - Minimal Hybrid Home (Devouring Details)', () => {
           id="stream_test"
           props={streamProps}
           articles={mockArticles}
-          publication={mockPublication}
+          publisher={mockPublisher}
           context={mockContext}
         />
       );
@@ -209,7 +209,7 @@ describe('Option B - Minimal Hybrid Home (Devouring Details)', () => {
           id="stream_single"
           props={streamProps}
           articles={singleArticle}
-          publication={mockPublication}
+          publisher={mockPublisher}
           context={mockContext}
         />
       );
@@ -230,7 +230,7 @@ describe('Option B - Minimal Hybrid Home (Devouring Details)', () => {
           id="stream_two"
           props={streamProps}
           articles={twoArticles}
-          publication={mockPublication}
+          publisher={mockPublisher}
           context={mockContext}
         />
       );
@@ -252,7 +252,7 @@ describe('Option B - Minimal Hybrid Home (Devouring Details)', () => {
           id="stream_three"
           props={streamProps}
           articles={mockArticles}
-          publication={mockPublication}
+          publisher={mockPublisher}
           context={mockContext}
         />
       );
@@ -292,7 +292,7 @@ describe('Option B - Minimal Hybrid Home (Devouring Details)', () => {
           id="stream_many"
           props={streamProps}
           articles={many}
-          publication={mockPublication}
+          publisher={mockPublisher}
           context={mockContext}
         />
       );

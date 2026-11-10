@@ -20,7 +20,7 @@ export interface StaffCampaign {
   bodyHtmlEn?: string;
   bodyTextEn?: string;
   audienceType: string;
-  audiencePublicationId?: string;
+  audiencePublisherId?: string;
   audienceSnapshot?: string;
   status: string;
   draftedBy?: string;
@@ -44,7 +44,7 @@ export interface StaffCampaignInput {
   bodyHtmlEn?: string;
   bodyTextEn?: string;
   audienceType: string;
-  audiencePublicationId?: string;
+  audiencePublisherId?: string;
   scheduledAt?: string;
 }
 
@@ -56,10 +56,10 @@ export const CAMPAIGN_TYPES = [
   { value: 'feature.launch', label: 'Lancement d’une fonctionnalité' },
 ] as const;
 
-/** Audiences fermées (publication = média nommé, sinon tout le monde). */
+/** Audiences fermées (publisher = média nommé, sinon tout le monde). */
 export const CAMPAIGN_AUDIENCES = [
   { value: 'all_active_users', label: 'Tous les comptes actifs' },
-  { value: 'publication_subscribers', label: 'Abonnés d’une publication' },
+  { value: 'publisher_subscribers', label: 'Abonnés d’une publication' },
   { value: 'feature_interested', label: 'Personnes ayant demandé à être prévenues' },
 ] as const;
 

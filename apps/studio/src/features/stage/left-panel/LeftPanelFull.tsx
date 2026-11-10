@@ -408,7 +408,7 @@ function PagesTab() {
   useEffect(() => {
     void engine.loadSnapshots();
   }, [engine.loadSnapshots]);
-  const nav = engine.publication.navigation || [];
+  const nav = engine.publisher.navigation || [];
   const childrenOf = (parentId: string | null) =>
     nav.filter((n) => (n.parentId ?? null) === parentId);
   const [open, setOpen] = useState<Record<string, boolean>>({});
@@ -480,7 +480,7 @@ function PagesTab() {
             onValueChange={(category) => engine.setArticleCategory(category || null)}
             options={[
               { id: '', label: 'Toutes les rubriques' },
-              ...(engine.publication.categories || []).map((category) => ({
+              ...(engine.publisher.categories || []).map((category) => ({
                 id: category.slug,
                 label: category.name,
               })),
@@ -588,15 +588,15 @@ function ImagesTab() {
   const [query, setQuery] = useState('');
   const assets = useMemo(() => {
     const out: { url: string; label: string }[] = [];
-    if (engine.publication.logoUrl) out.push({ url: engine.publication.logoUrl, label: 'Logo' });
-    if (engine.publication.headerImageUrl)
-      out.push({ url: engine.publication.headerImageUrl, label: 'Couverture' });
+    if (engine.publisher.logoUrl) out.push({ url: engine.publisher.logoUrl, label: 'Logo' });
+    if (engine.publisher.headerImageUrl)
+      out.push({ url: engine.publisher.headerImageUrl, label: 'Couverture' });
     for (const a of engine.articles) {
       if (a.imageUrl) out.push({ url: a.imageUrl, label: a.title });
     }
     const seen = new Set<string>();
     return out.filter((a) => (seen.has(a.url) ? false : (seen.add(a.url), true)));
-  }, [engine.publication, engine.articles]);
+  }, [engine.publisher, engine.articles]);
   const q = query.trim().toLowerCase();
   const list = q ? assets.filter((a) => a.label.toLowerCase().includes(q)) : assets;
   return (

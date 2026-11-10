@@ -41,7 +41,7 @@ func seedDevtools(t *testing.T) (adminID, regularID string) {
 	t.Helper()
 	ctx := context.Background()
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE
-		"Follows", "Subscriber", "WalletTransaction", "User", "Publication", "Post",
+		"Follows", "Subscriber", "WalletTransaction", "User", "Publisher", "Post",
 		"Like", "SystemConfig", "NavigationItem", "SocialLink", "Category", "Article" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestDevtoolsRBAC(t *testing.T) {
 	if err := svc.Reset(ctx, regularID); err == nil {
 		t.Fatal("Reset: attendu errForbidden")
 	}
-	if err := svc.SimulateSubscriber(ctx, regularID, SimulateSubscriberParams{Email: "x@y.dev", PublicationID: "p"}); err == nil {
+	if err := svc.SimulateSubscriber(ctx, regularID, SimulateSubscriberParams{Email: "x@y.dev", PublisherID: "p"}); err == nil {
 		t.Fatal("SimulateSubscriber: attendu errForbidden")
 	}
 	if err := svc.SimulateFollow(ctx, regularID, regularID, "p"); err == nil {
@@ -139,8 +139,8 @@ func TestDevtoolsDataAndCreateUser(t *testing.T) {
 		t.Fatalf("articles créés = %d, attendu 3", count)
 	}
 	if err := poolTest.QueryRow(ctx,
-		`SELECT COUNT(*) FROM "NavigationItem" n JOIN "Publication" p ON p.id = n."publicationId"
-		 JOIN "User" u ON u."publicationId" = p.id WHERE u.id = $1`, creatorID).Scan(&count); err != nil {
+		`SELECT COUNT(*) FROM "NavigationItem" n JOIN "Publisher" p ON p.id = n."publisherId"
+		 JOIN "User" u ON u."publisherId" = p.id WHERE u.id = $1`, creatorID).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
 	if count != 4 {
@@ -170,18 +170,18 @@ func TestDevtoolsSimulators(t *testing.T) {
 
 	// Publication personnelle du user régulier (cible des simulateurs).
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "updatedAt")
+		`INSERT INTO "Publisher" (id, type, name, slug, "updatedAt")
 		 VALUES ('pub_devtools', 'PERSONAL', 'Dev Pub', 'dev-pub', now())`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`UPDATE "User" SET "publicationId" = 'pub_devtools' WHERE id = $1`, regularID); err != nil {
+		`UPDATE "User" SET "publisherId" = 'pub_devtools' WHERE id = $1`, regularID); err != nil {
 		t.Fatalf("link: %v", err)
 	}
 
 	// Abonné premium → crédit le propriétaire.
 	if err := svc.SimulateSubscriber(ctx, adminID, SimulateSubscriberParams{
-		Email: "reader@test.dev", PublicationID: "pub_devtools", IsPremium: true, LtvCents: 1000,
+		Email: "reader@test.dev", PublisherID: "pub_devtools", IsPremium: true, LtvCents: 1000,
 	}); err != nil {
 		t.Fatalf("SimulateSubscriber: %v", err)
 	}
@@ -307,12 +307,12 @@ func TestDevtoolsEmbeddingDiagnostic(t *testing.T) {
 
 	// Publication + article de base (FK des ReadingSessions).
 	if _, err := poolTest.Exec(ctx, `
-		INSERT INTO "Publication" (id, type, name, slug, "updatedAt")
+		INSERT INTO "Publisher" (id, type, name, slug, "updatedAt")
 		VALUES ('pub_diag', 'PERSONAL', 'Diag Pub', 'diag-pub', now())`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx, `
-		INSERT INTO "Article" (id, title, content, slug, published, "publicationId", "authorId", "createdAt", "updatedAt")
+		INSERT INTO "Article" (id, title, content, slug, published, "publisherId", "authorId", "createdAt", "updatedAt")
 		VALUES ('art_diag', 'Titre', '<p>corps</p>', 'diagnostic', true, 'pub_diag', $1, now(), now())`,
 		adminID); err != nil {
 		t.Fatalf("article: %v", err)

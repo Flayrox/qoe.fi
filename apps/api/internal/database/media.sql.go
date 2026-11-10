@@ -20,13 +20,13 @@ SELECT m.id            AS member_id,
        m.status
 FROM "MediaMember" m
 JOIN "Media" md ON md.id = m."mediaId"
-WHERE md."publicationId" = $1 AND m."userId" = $2 AND m.status = 'active'
+WHERE md."publisherId" = $1 AND m."userId" = $2 AND m.status = 'active'
 LIMIT 1
 `
 
 type GetMediaMemberContextParams struct {
-	PublicationId string      `json:"publicationId"`
-	UserId        pgtype.UUID `json:"userId"`
+	PublisherId string      `json:"publisherId"`
+	UserId      pgtype.UUID `json:"userId"`
 }
 
 type GetMediaMemberContextRow struct {
@@ -39,7 +39,7 @@ type GetMediaMemberContextRow struct {
 
 // RBAC Média (rôles + permissions) — partagé par settings, articles et media.
 func (q *Queries) GetMediaMemberContext(ctx context.Context, arg GetMediaMemberContextParams) (GetMediaMemberContextRow, error) {
-	row := q.db.QueryRow(ctx, getMediaMemberContext, arg.PublicationId, arg.UserId)
+	row := q.db.QueryRow(ctx, getMediaMemberContext, arg.PublisherId, arg.UserId)
 	var i GetMediaMemberContextRow
 	err := row.Scan(
 		&i.MemberID,
@@ -51,18 +51,18 @@ func (q *Queries) GetMediaMemberContext(ctx context.Context, arg GetMediaMemberC
 	return i, err
 }
 
-const getPublicationTypeByID = `-- name: GetPublicationTypeByID :one
-SELECT type, name FROM "Publication" WHERE id = $1
+const getPublisherTypeByID = `-- name: GetPublisherTypeByID :one
+SELECT type, name FROM "Publisher" WHERE id = $1
 `
 
-type GetPublicationTypeByIDRow struct {
-	Type PublicationType `json:"type"`
-	Name string          `json:"name"`
+type GetPublisherTypeByIDRow struct {
+	Type PublisherType `json:"type"`
+	Name string        `json:"name"`
 }
 
-func (q *Queries) GetPublicationTypeByID(ctx context.Context, id string) (GetPublicationTypeByIDRow, error) {
-	row := q.db.QueryRow(ctx, getPublicationTypeByID, id)
-	var i GetPublicationTypeByIDRow
+func (q *Queries) GetPublisherTypeByID(ctx context.Context, id string) (GetPublisherTypeByIDRow, error) {
+	row := q.db.QueryRow(ctx, getPublisherTypeByID, id)
+	var i GetPublisherTypeByIDRow
 	err := row.Scan(&i.Type, &i.Name)
 	return i, err
 }

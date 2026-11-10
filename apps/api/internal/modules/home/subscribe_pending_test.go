@@ -22,7 +22,7 @@ func TestSubscribeToNewsletter_Pending(t *testing.T) {
 	var locale string
 	if err := poolTest.QueryRow(ctx,
 		`SELECT "receiveArticles", "confirmedAt" IS NOT NULL, "confirmationToken", locale
-		 FROM "Subscriber" WHERE email = 'pending1@test.dev' AND "publicationId" = 'pub_home_001'`,
+		 FROM "Subscriber" WHERE email = 'pending1@test.dev' AND "publisherId" = 'pub_home_001'`,
 	).Scan(&receive, &confirmed, &token, &locale); err != nil {
 		t.Fatalf("read subscriber: %v", err)
 	}
@@ -45,7 +45,7 @@ func TestSubscribeToNewsletter_Pending(t *testing.T) {
 		t.Fatalf("resubscribe: %v", err)
 	}
 	if err := poolTest.QueryRow(ctx,
-		`SELECT "confirmationToken" FROM "Subscriber" WHERE email = 'pending1@test.dev' AND "publicationId" = 'pub_home_001'`,
+		`SELECT "confirmationToken" FROM "Subscriber" WHERE email = 'pending1@test.dev' AND "publisherId" = 'pub_home_001'`,
 	).Scan(&token2); err != nil {
 		t.Fatalf("read token: %v", err)
 	}
@@ -54,7 +54,7 @@ func TestSubscribeToNewsletter_Pending(t *testing.T) {
 	}
 	var receive2 bool
 	if err := poolTest.QueryRow(ctx,
-		`SELECT "receiveArticles" FROM "Subscriber" WHERE email = 'pending1@test.dev' AND "publicationId" = 'pub_home_001'`,
+		`SELECT "receiveArticles" FROM "Subscriber" WHERE email = 'pending1@test.dev' AND "publisherId" = 'pub_home_001'`,
 	).Scan(&receive2); err != nil {
 		t.Fatalf("read: %v", err)
 	}
@@ -71,9 +71,9 @@ func TestSubscribeToNewsletter_AlreadyConfirmedUntouched(t *testing.T) {
 	svc := newTestService()
 
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "publicationId", locale, "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
+		`INSERT INTO "Subscriber" (id, email, "publisherId", locale, "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
 		 VALUES (gen_random_uuid()::text, 'deja@test.dev', 'pub_home_001', 'en', true, true, now(), now(), now())
-		 ON CONFLICT ("email", "publicationId") DO NOTHING`); err != nil {
+		 ON CONFLICT ("email", "publisherId") DO NOTHING`); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 	if _, err := svc.SubscribeToNewsletter(ctx, "deja@test.dev", "pub_home_001", "en"); err != nil {
@@ -84,7 +84,7 @@ func TestSubscribeToNewsletter_AlreadyConfirmedUntouched(t *testing.T) {
 	var locale string
 	if err := poolTest.QueryRow(ctx,
 		`SELECT "receiveArticles", "confirmedAt" IS NOT NULL, "confirmationToken", locale
-		 FROM "Subscriber" WHERE email = 'deja@test.dev' AND "publicationId" = 'pub_home_001'`,
+		 FROM "Subscriber" WHERE email = 'deja@test.dev' AND "publisherId" = 'pub_home_001'`,
 	).Scan(&receive, &confirmed, &token, &locale); err != nil {
 		t.Fatalf("read: %v", err)
 	}
@@ -103,9 +103,9 @@ func TestSubscribeToNewsletter_UnsubscribedStaysOff(t *testing.T) {
 	svc := newTestService()
 
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "publicationId", locale, "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
+		`INSERT INTO "Subscriber" (id, email, "publisherId", locale, "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
 		 VALUES (gen_random_uuid()::text, 'parti@test.dev', 'pub_home_001', 'fr', false, false, now() - interval '30 days', now(), now())
-		 ON CONFLICT ("email", "publicationId") DO UPDATE SET "isActive" = false, "receiveArticles" = false`); err != nil {
+		 ON CONFLICT ("email", "publisherId") DO UPDATE SET "isActive" = false, "receiveArticles" = false`); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 	if _, err := svc.SubscribeToNewsletter(ctx, "parti@test.dev", "pub_home_001", "fr"); err != nil {
@@ -114,7 +114,7 @@ func TestSubscribeToNewsletter_UnsubscribedStaysOff(t *testing.T) {
 	var receive bool
 	var token *string
 	if err := poolTest.QueryRow(ctx,
-		`SELECT "receiveArticles", "confirmationToken" FROM "Subscriber" WHERE email = 'parti@test.dev' AND "publicationId" = 'pub_home_001'`,
+		`SELECT "receiveArticles", "confirmationToken" FROM "Subscriber" WHERE email = 'parti@test.dev' AND "publisherId" = 'pub_home_001'`,
 	).Scan(&receive, &token); err != nil {
 		t.Fatalf("read: %v", err)
 	}

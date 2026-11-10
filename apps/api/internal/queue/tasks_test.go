@@ -21,7 +21,7 @@ func TestNewServer_InvalidURL(t *testing.T) {
 
 func TestNewArticlePublishedTask(t *testing.T) {
 	p := ArticlePublishedPayload{
-		PublicationID: "pub_1",
+		PublisherID: "pub_1",
 		ArticleID:     "art_1",
 		Title:         "Titre",
 		Slug:          "slug",

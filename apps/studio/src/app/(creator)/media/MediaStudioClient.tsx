@@ -98,7 +98,7 @@ interface MediaSummary {
 
 interface MediaDetail {
   id: string;
-  publication: {
+  publisher: {
     id: string;
     name: string;
     slug: string;
@@ -316,14 +316,14 @@ function describeAuditEntry(entry: MediaAuditEntry): { summary: string; detail?:
       return { summary: `a rejeté l'article « ${title} »`, detail: comment || undefined };
     }
     case 'media.article_transferred_out': {
-      const to = auditString(md, 'toPublicationName');
+      const to = auditString(md, 'toPublisherName');
       return {
         summary: `a transféré l'article « ${title} »`,
         detail: to ? `vers ${to}` : undefined,
       };
     }
     case 'media.article_transferred_in': {
-      const from = auditString(md, 'fromPublicationName');
+      const from = auditString(md, 'fromPublisherName');
       return {
         summary: `a reçu l'article « ${title} »`,
         detail: from ? `depuis ${from}` : undefined,
@@ -860,9 +860,9 @@ export function MediaStudioClient({
 
   const myRoleMeta = ROLE_META[myRole || 'writer'] || ROLE_META.writer;
   const MyRoleIcon = myRoleMeta.icon;
-  const domain = detail.publication.subdomain
-    ? `${detail.publication.subdomain}.qoe.fi`
-    : `qoe.fi/${detail.publication.slug}`;
+  const domain = detail.publisher.subdomain
+    ? `${detail.publisher.subdomain}.qoe.fi`
+    : `qoe.fi/${detail.publisher.slug}`;
 
   return (
     <div className={cn(STUDIO_PAGE_CLASS, 'pb-16 text-foreground')}>
@@ -871,15 +871,15 @@ export function MediaStudioClient({
       </div>
       {/* ── Hero ── */}
       <div className="mb-8">
-        {detail.publication.headerImageUrl && (
+        {detail.publisher.headerImageUrl && (
           <div className="relative mb-4 h-32 w-full overflow-hidden rounded-xl bg-muted/30 md:h-40">
-            <Image src={detail.publication.headerImageUrl} alt="" fill className="object-cover" />
+            <Image src={detail.publisher.headerImageUrl} alt="" fill className="object-cover" />
           </div>
         )}
         <div className="flex items-start gap-4">
-          {detail.publication.logoUrl ? (
+          {detail.publisher.logoUrl ? (
             <Image
-              src={detail.publication.logoUrl}
+              src={detail.publisher.logoUrl}
               alt=""
               width={64}
               height={64}
@@ -892,7 +892,7 @@ export function MediaStudioClient({
           )}
           <div className="min-w-0 pt-0.5">
             <h1 className="truncate text-2xl font-semibold tracking-tight">
-              {detail.publication.name}
+              {detail.publisher.name}
             </h1>
             <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
               <Globe className="w-3.5 h-3.5" strokeWidth={1.5} />
@@ -902,9 +902,9 @@ export function MediaStudioClient({
                 <MyRoleIcon className="w-3.5 h-3.5" strokeWidth={1.5} /> {myRoleMeta.label()}
               </span>
             </div>
-            {detail.publication.bio && (
+            {detail.publisher.bio && (
               <p className="text-sm text-muted-foreground mt-3 max-w-2xl leading-relaxed">
-                {detail.publication.bio}
+                {detail.publisher.bio}
               </p>
             )}
           </div>
@@ -918,7 +918,7 @@ export function MediaStudioClient({
           </span>
           <span className="h-3 w-px bg-border/60" />
           <span className="flex items-baseline gap-1.5">
-            <span className="font-bold tabular-nums">{detail.publication._count.articles}</span>
+            <span className="font-bold tabular-nums">{detail.publisher._count.articles}</span>
             <span className="text-xs text-muted-foreground">articles</span>
           </span>
         </div>
@@ -1495,7 +1495,7 @@ export function MediaStudioClient({
 
       {/* ── API Keys ── */}
       {tab === 'api-keys' && canManageApiKeys && (
-        <MediaApiKeysTab mediaId={detail.id} mediaName={detail.publication.name} />
+        <MediaApiKeysTab mediaId={detail.id} mediaName={detail.publisher.name} />
       )}
 
       {/* ── Activité (journal du média) ── */}
@@ -1591,7 +1591,7 @@ export function MediaStudioClient({
       {tab === 'settings' && (
         <MediaSettingsForm
           mediaId={detail.id}
-          publication={detail.publication}
+          publisher={detail.publisher}
           onSaved={() => loadDetail(detail.id)}
         />
       )}
@@ -1640,14 +1640,14 @@ function PermissionPopover({
 
 function MediaSettingsForm({
   mediaId,
-  publication,
+  publisher,
   onSaved,
 }: {
   mediaId: string;
-  publication: MediaDetail['publication'];
+  publisher: MediaDetail['publisher'];
   onSaved: () => void;
 }) {
-  const [form, setForm] = useState({ ...publication });
+  const [form, setForm] = useState({ ...publisher });
   const [saving, setSaving] = useState(false);
 
   const set = (key: string, value: unknown) => setForm((prev) => ({ ...prev, [key]: value }));

@@ -957,7 +957,7 @@ type ScheduleLegalDocumentVersionParams struct {
 	ID          string           `json:"id"`
 }
 
-// ─── Publication planifiée ───────────────────────────────────────────
+// ─── Publisher planifiée ───────────────────────────────────────────
 // Programme (ou déprogramme, si la date est nulle) la publication automatique
 // d'un brouillon. Refusé sur une version déjà publiée.
 func (q *Queries) ScheduleLegalDocumentVersion(ctx context.Context, arg ScheduleLegalDocumentVersionParams) (LegalDocumentVersion, error) {

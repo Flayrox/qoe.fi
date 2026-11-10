@@ -16,10 +16,10 @@ import { goFetch } from '../utils/go-client';
 import type { HighlightDTO, AnnotationCommentDTO } from '../highlights';
 
 export const subscribeToNewsletterAction = safeAction<
-  { email: string; publicationId: string },
+  { email: string; publisherId: string },
   { success: boolean; active?: boolean }
 >(
-  async ({ email, publicationId }) => {
+  async ({ email, publisherId }) => {
     const cleanEmail = email.trim().toLowerCase();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(cleanEmail)) {
@@ -39,7 +39,7 @@ export const subscribeToNewsletterAction = safeAction<
       if (user?.email && user.email.toLowerCase() === cleanEmail) {
         const res = await goFetch<{ success: boolean; active?: boolean }>('/v1/me/subscriptions', {
           method: 'POST',
-          body: { email: cleanEmail, publicationId },
+          body: { email: cleanEmail, publisherId },
         });
         return { success: true, active: res.active ?? true };
       }
@@ -52,7 +52,7 @@ export const subscribeToNewsletterAction = safeAction<
     // double encodage JSON (le backend reçoit un string littéral → 400).
     await goFetch<{ success: boolean }>('/v1/home/subscribe', {
       method: 'POST',
-      body: { email: cleanEmail, publicationId, locale: await detectLocale() },
+      body: { email: cleanEmail, publisherId, locale: await detectLocale() },
     });
     return { success: true };
   },
@@ -77,9 +77,9 @@ async function detectLocale(): Promise<string> {
 export const toggleFollowCreatorAction = safeAction<
   string,
   { followed: boolean; requested: boolean }
->(async (publicationId) => {
+>(async (publisherId) => {
   const res = await goFetch<{ data: { following: boolean; requested?: boolean } }>(
-    `/v1/users/${encodeURIComponent(publicationId)}/follow`,
+    `/v1/users/${encodeURIComponent(publisherId)}/follow`,
     { method: 'POST' }
   );
   return { followed: res.data.following, requested: res.data.requested ?? false };
@@ -175,7 +175,7 @@ export const quotePassageToFeedAction = safeAction<QuotePassageInput, QuotePassa
       id: string;
       title: string;
       slug: string;
-      publication: {
+      publisher: {
         subdomain: string | null;
         customDomain: string | null;
         name: string | null;
@@ -183,7 +183,7 @@ export const quotePassageToFeedAction = safeAction<QuotePassageInput, QuotePassa
     }>(`/v1/articles/by-id/${encodeURIComponent(articleId)}`);
     if (!article) throw new Error('ARTICLE_NOT_FOUND');
 
-    const subdomain = article.publication?.subdomain || article.publication?.customDomain;
+    const subdomain = article.publisher?.subdomain || article.publisher?.customDomain;
     const articleUrl = subdomain
       ? `https://${subdomain}.qoe.fi/article/${article.slug}`
       : `https://qoe.fi/article/${article.slug}`;

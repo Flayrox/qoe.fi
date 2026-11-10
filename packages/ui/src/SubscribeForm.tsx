@@ -6,13 +6,13 @@ import { subscribeToNewsletterAction } from '@qoe/sdk/actions/tenant';
 import { createClient } from '@qoe/supabase/client';
 import { getMainAppUrl } from '@qoe/config';
 import { Check, ChevronDown, Loader2, Mail, Sparkles } from 'lucide-react';
-import { RecommendationModal, type RecommendedPublication } from './RecommendationModal';
+import { RecommendationModal, type RecommendedPublisher } from './RecommendationModal';
 
 export interface SubscribeFormProps {
-  publicationId: string;
+  publisherId: string;
   isBrutalist?: boolean;
   authorName?: string;
-  recommendations?: RecommendedPublication[];
+  recommendations?: RecommendedPublisher[];
   userEmail?: string | null;
   className?: string;
   accentColor?: string;
@@ -25,7 +25,7 @@ export interface SubscribeFormProps {
 }
 
 export function SubscribeForm({
-  publicationId,
+  publisherId,
   isBrutalist,
   authorName,
   recommendations = [],
@@ -64,7 +64,7 @@ export function SubscribeForm({
 
   const mainApp = mainAppUrl || getMainAppUrl(currentHostname || undefined);
   const qoefiSubscribeUrl = `${mainApp}/subscribe-with-qoefi?publication=${encodeURIComponent(
-    publicationId
+    publisherId
   )}${currentUrl ? `&return=${encodeURIComponent(currentUrl)}` : ''}`;
 
   // Auto-detect connected user if not passed explicitly as prop
@@ -119,7 +119,7 @@ export function SubscribeForm({
     setMessage('');
     setSubmittedEmail(email);
 
-    const res = await subscribeToNewsletterAction({ email, publicationId });
+    const res = await subscribeToNewsletterAction({ email, publisherId });
 
     if (res.ok) {
       setStatus('success');
@@ -340,7 +340,7 @@ export function SubscribeForm({
 
           <form onSubmit={handleFormSubmit} className="flex flex-col gap-2">
             <div className="flex flex-col sm:flex-row gap-2.5">
-              <input type="hidden" name="publicationId" value={publicationId} />
+              <input type="hidden" name="publisherId" value={publisherId} />
               <input
                 type="email"
                 name="email"
@@ -384,7 +384,7 @@ export function SubscribeForm({
         /* Explicit Other Email Input Mode for connected user */
         <form onSubmit={handleFormSubmit} className="flex flex-col gap-2">
           <div className="flex flex-col sm:flex-row gap-2.5">
-            <input type="hidden" name="publicationId" value={publicationId} />
+            <input type="hidden" name="publisherId" value={publisherId} />
             <input
               type="email"
               name="email"

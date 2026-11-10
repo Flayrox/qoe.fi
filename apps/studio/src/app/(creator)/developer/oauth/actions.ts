@@ -24,7 +24,7 @@ export interface OAuthClientDTO {
   scopes: string[];
   clientType: 'CONFIDENTIAL' | 'PUBLIC';
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'REVOKED';
-  publicationId?: string;
+  publisherId?: string;
   hasSecret: boolean;
   createdAt: string;
 }
@@ -43,11 +43,11 @@ async function getAuthenticatedUser() {
 
 /** 📋 Liste les applications OAuth de l'utilisateur ou du média (GET /v1/oauth/clients). */
 export async function listOAuthClientsAction(
-  publicationId?: string
+  publisherId?: string
 ): Promise<OAuthActionOk<{ clients: OAuthClientDTO[] }> | OAuthActionErr> {
   try {
     await getAuthenticatedUser();
-    const query = publicationId ? `?publicationId=${encodeURIComponent(publicationId)}` : '';
+    const query = publisherId ? `?publisherId=${encodeURIComponent(publisherId)}` : '';
     const res = await goFetch<{ clients: OAuthClientDTO[] }>(`/v1/oauth/clients${query}`);
     return { success: true, clients: res.clients ?? [] };
   } catch (err) {
@@ -82,7 +82,7 @@ export async function createOAuthClientAction(input: {
         redirectUris: input.redirectUris,
         scopes: input.scopes,
         clientType: input.clientType,
-        publicationId: workspace.publicationId,
+        publisherId: workspace.publisherId,
       },
     });
     revalidatePath('/developer/oauth');

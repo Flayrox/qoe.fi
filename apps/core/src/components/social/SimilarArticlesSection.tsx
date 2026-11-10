@@ -53,11 +53,11 @@ export function SimilarArticlesSection({ articleId }: SimilarArticlesSectionProp
           const url = getArticleUrl({
             slug: item.slug,
             author: { username: item.authorUsername },
-            publication: {
+            publisher: {
               slug:
-                ('publicationSlug' in item &&
-                typeof (item as { publicationSlug?: string }).publicationSlug === 'string'
-                  ? (item as { publicationSlug?: string }).publicationSlug
+                ('publisherSlug' in item &&
+                typeof (item as { publisherSlug?: string }).publisherSlug === 'string'
+                  ? (item as { publisherSlug?: string }).publisherSlug
                   : undefined) || null,
             },
           });
@@ -70,8 +70,8 @@ export function SimilarArticlesSection({ articleId }: SimilarArticlesSectionProp
               data-article-title={item.title}
               data-article-owner={
                 item.authorUsername ||
-                (typeof (item as { publicationSlug?: string }).publicationSlug === 'string'
-                  ? (item as { publicationSlug?: string }).publicationSlug
+                (typeof (item as { publisherSlug?: string }).publisherSlug === 'string'
+                  ? (item as { publisherSlug?: string }).publisherSlug
                   : undefined)
               }
               className="block group"
@@ -82,7 +82,7 @@ export function SimilarArticlesSection({ articleId }: SimilarArticlesSectionProp
                 </h3>
                 <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-medium">
                   <span className="truncate">
-                    {item.publicationName || item.authorName || 'qoefi'}
+                    {item.publisherName || item.authorName || 'qoefi'}
                   </span>
                   <span>•</span>
                   <span className="flex items-center gap-1">

@@ -83,7 +83,7 @@ export interface ArticleRecord {
   isPremium: boolean;
   readingTime: number;
   createdAt: Date | string;
-  publicationId: string;
+  publisherId: string;
   authorId: string;
   isTruncated: boolean;
   accessGranted: boolean;
@@ -131,9 +131,9 @@ const unfurlCache = new Map<string, UnfurlResult>();
 export const toggleFollowCreatorHomeAction = safeAction<
   string,
   { followed: boolean; requested: boolean }
->(async (publicationId) => {
+>(async (publisherId) => {
   const res = await goFetch<{ data: { following: boolean; requested?: boolean } }>(
-    `/v1/users/${encodeURIComponent(publicationId)}/follow`,
+    `/v1/users/${encodeURIComponent(publisherId)}/follow`,
     { method: 'POST' }
   );
   return { followed: res.data.following, requested: res.data.requested ?? false };
@@ -147,7 +147,7 @@ export const toggleFollowCreatorHomeAction = safeAction<
  */
 export interface FollowActorWebDTO {
   id: string;
-  publicationId: string | null;
+  publisherId: string | null;
   name: string | null;
   username: string | null;
   subdomain: string | null;
@@ -169,7 +169,7 @@ export const getFollowListAction = safeAction<
     );
     const items: FollowActorWebDTO[] = (page.items ?? []).map((a) => ({
       id: a.id,
-      publicationId: a.publicationId,
+      publisherId: a.publisherId,
       name: a.name,
       username: a.username,
       subdomain: null,
@@ -696,13 +696,10 @@ export const updateProfileAction = safeAction<
   // par /v1/me/profile (bug du 19/09 : profil média écrasé).
   const workspace = input.scope === 'personal' ? null : await getActiveWorkspaceContext();
   const personal =
-    input.scope === 'personal'
-      ? await goFetch<{ publicationId?: string }>('/v1/me/publication')
-      : null;
-  const publicationId =
-    input.scope === 'personal' ? personal?.publicationId : workspace?.publicationId;
-  if (!publicationId) {
-    throw new Error('Publication cible introuvable');
+    input.scope === 'personal' ? await goFetch<{ publisherId?: string }>('/v1/me/publisher') : null;
+  const publisherId = input.scope === 'personal' ? personal?.publisherId : workspace?.publisherId;
+  if (!publisherId) {
+    throw new Error('Publisher cible introuvable');
   }
   const isPersonalTarget = input.scope === 'personal' || workspace?.type === 'PERSONAL';
 
@@ -718,18 +715,18 @@ export const updateProfileAction = safeAction<
       })
     : null;
 
-  const wantsPublication =
+  const wantsPublisher =
     input.heroText !== undefined ||
     input.headerImageUrl !== undefined ||
     input.logoUrl !== undefined ||
     input.name !== undefined ||
     input.website !== undefined ||
     input.socialLinks !== undefined;
-  const publication = wantsPublication
+  const publisher = wantsPublisher
     ? await goFetch<Record<string, unknown>>('/v1/settings/profile', {
         method: 'PATCH',
         body: {
-          publicationId,
+          publisherId,
           name: input.name ?? undefined,
           logoUrl,
           heroText: input.heroText ?? undefined,
@@ -745,12 +742,12 @@ export const updateProfileAction = safeAction<
       })
     : null;
 
-  const pub = (publication ?? {}) as Record<string, unknown>;
+  const pub = (publisher ?? {}) as Record<string, unknown>;
   const pubName = typeof pub.name === 'string' ? pub.name : null;
   const pubLogo = typeof pub.logoUrl === 'string' ? pub.logoUrl : null;
   return {
     user: {
-      id: profile?.id ?? publicationId,
+      id: profile?.id ?? publisherId,
       name: profile?.name ?? pubName ?? workspace?.name ?? null,
       username: profile?.username ?? workspace?.slug ?? null,
       logoUrl: profile?.logoUrl ?? pubLogo ?? workspace?.logoUrl ?? null,
@@ -899,7 +896,7 @@ export interface ProfileResolvePayload {
       visibility: string;
       readingTime: number;
       createdAt: string;
-      publicationId: string;
+      publisherId: string;
       author: {
         id: string;
         name: string | null;
@@ -930,7 +927,7 @@ export interface ProfileResolvePayload {
           consentStatus: string;
         }>;
       };
-      publication: {
+      publisher: {
         id: string;
         name: string;
         slug: string;
@@ -943,7 +940,7 @@ export interface ProfileResolvePayload {
     _count: { followers: number; following: number; posts: number; articles: number };
   };
   isFollowing: boolean;
-  publicationId: string;
+  publisherId: string;
   /** Demande de follow en attente (compte PRIVATE). */
   followRequested: boolean;
   /** Visibilité effective du profil. */
@@ -955,7 +952,7 @@ export interface ProfileResolvePayload {
 function mapProfileArticle(
   a: ApiFeedArticle
 ): ProfileResolvePayload['profileUser']['articles'][number] {
-  const isMediaPublication = a.publication?.type === 'MEDIA';
+  const isMediaPublisher = a.publisher?.type === 'MEDIA';
   return {
     id: a.id,
     title: a.title,
@@ -967,22 +964,22 @@ function mapProfileArticle(
     visibility: a.visibility,
     readingTime: a.readingTime,
     createdAt: a.createdAt,
-    publicationId: a.publicationId,
+    publisherId: a.publisherId,
     author: {
       id: a.author.id,
       name: a.author.name,
       username: a.author.username,
       logoUrl: a.author.logoUrl,
-      subdomain: a.publication?.subdomain ?? null,
+      subdomain: a.publisher?.subdomain ?? null,
       customDomain: null,
       heroText: null,
       isCertified: a.author.isCertified,
       // Convention ArticleCard : un article rattaché à un média porte le type
       // MEDIA, avec le journaliste en attributions — c'est ce qui affiche la
       // ligne « Pour <média> ».
-      type: isMediaPublication ? 'MEDIA' : 'PERSONAL',
+      type: isMediaPublisher ? 'MEDIA' : 'PERSONAL',
       authorName: a.author.name,
-      journalist: isMediaPublication
+      journalist: isMediaPublisher
         ? {
             id: a.author.id,
             name: a.author.name,
@@ -993,14 +990,14 @@ function mapProfileArticle(
         : null,
       contributors: [],
     } as ProfileResolvePayload['profileUser']['articles'][number]['author'],
-    publication: a.publication
+    publisher: a.publisher
       ? {
-          id: a.publication.id,
-          name: a.publication.name,
-          slug: a.publication.slug,
-          subdomain: a.publication.subdomain,
-          logoUrl: a.publication.logoUrl,
-          type: a.publication.type,
+          id: a.publisher.id,
+          name: a.publisher.name,
+          slug: a.publisher.slug,
+          subdomain: a.publisher.subdomain,
+          logoUrl: a.publisher.logoUrl,
+          type: a.publisher.type,
         }
       : null,
     category: a.category
@@ -1080,7 +1077,7 @@ export const resolveProfileAction = safeAction<string, ProfileResolvePayload>(
     return {
       profileUser,
       isFollowing: profile.isFollowing,
-      publicationId: profile.id,
+      publisherId: profile.id,
       followRequested: profile.followRequested ?? false,
       profileVisibility: profile.profileVisibility ?? 'PUBLIC',
       canViewContent: profile.canViewContent ?? true,

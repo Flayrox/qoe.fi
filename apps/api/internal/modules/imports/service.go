@@ -56,19 +56,19 @@ type ImportArticle struct {
 }
 
 type ImportArticlesRequest struct {
-	PublicationID string          `json:"publicationId"`
+	PublisherID string          `json:"publisherId"`
 	Articles      []ImportArticle `json:"articles"`
 }
 
 // canImport vérifie que l'utilisateur peut créer des articles dans la
 // publication : propriétaire de sa publication personnelle OU owner/editor d'un
 // média (parité analytics.canAccess).
-func (s *Service) canImport(ctx context.Context, userID, publicationID string) bool {
-	if personal, err := s.q.GetUserPersonalPublication(ctx, userID); err == nil && personal.String == publicationID {
+func (s *Service) canImport(ctx context.Context, userID, publisherID string) bool {
+	if personal, err := s.q.GetUserPersonalPublisher(ctx, userID); err == nil && personal.String == publisherID {
 		return true
 	}
 	role, err := s.q.GetMediaRoleForUser(ctx, db.GetMediaRoleForUserParams{
-		PublicationId: publicationID, UserId: toUUID(userID),
+		PublisherId: publisherID, UserId: toUUID(userID),
 	})
 	if err != nil {
 		return false
@@ -76,14 +76,14 @@ func (s *Service) canImport(ctx context.Context, userID, publicationID string) b
 	return role == "owner" || role == "editor"
 }
 
-// ImportArticles crée les articles manquants (dédup par publicationId + slug,
+// ImportArticles crée les articles manquants (dédup par publisherId + slug,
 // parité prisma.article.findUnique + create du fallback TS). Renvoie le nombre
 // d'articles réellement créés (mode synchrone historique).
 func (s *Service) ImportArticles(ctx context.Context, userID string, req ImportArticlesRequest) (int, error) {
-	if !s.canImport(ctx, userID, req.PublicationID) {
+	if !s.canImport(ctx, userID, req.PublisherID) {
 		return 0, errForbidden
 	}
-	return s.importBatch(ctx, req.PublicationID, toUUID(userID), req.Articles).imported, nil
+	return s.importBatch(ctx, req.PublisherID, toUUID(userID), req.Articles).imported, nil
 }
 
 // ImportError est une erreur par article du rapport d'un job.
@@ -102,15 +102,15 @@ type importOutcome struct {
 
 // importBatch applique un lot : dédup par publication+slug, best-effort par
 // article (un échec n'interrompt pas le lot) et rapport d'erreurs par article.
-func (s *Service) importBatch(ctx context.Context, publicationID string, authorID pgtype.UUID, articles []ImportArticle) importOutcome {
+func (s *Service) importBatch(ctx context.Context, publisherID string, authorID pgtype.UUID, articles []ImportArticle) importOutcome {
 	var out importOutcome
 	for _, art := range articles {
 		if art.Title == "" || art.Slug == "" {
 			out.errors = append(out.errors, ImportError{Slug: art.Slug, Title: art.Title, Reason: "Titre ou slug manquant"})
 			continue
 		}
-		if _, err := s.q.GetArticleIdByPublicationAndSlug(ctx, db.GetArticleIdByPublicationAndSlugParams{
-			PublicationId: publicationID, Slug: art.Slug,
+		if _, err := s.q.GetArticleIdByPublisherAndSlug(ctx, db.GetArticleIdByPublisherAndSlugParams{
+			PublisherId: publisherID, Slug: art.Slug,
 		}); err == nil {
 			// Déjà importé — on compte (dédup).
 			out.duplicates++
@@ -134,7 +134,7 @@ func (s *Service) importBatch(ctx context.Context, publicationID string, authorI
 			AllowPublicAnnotations: true,
 			AllowComments:          true,
 			Status:                 "DRAFT",
-			PublicationId:          publicationID,
+			PublisherId:          publisherID,
 			AuthorId:               authorID,
 		}); err != nil {
 			out.errors = append(out.errors, ImportError{Slug: art.Slug, Title: art.Title, Reason: "Création de l'article échouée"})
@@ -151,7 +151,7 @@ func (s *Service) importBatch(ctx context.Context, publicationID string, authorI
 // met à jour la progression et le rapport d'erreurs ; l'API expose le statut
 // (endpoint public retiré avec l'import d'articles ; la refonte le rebranchera).
 func (s *Service) CreateImportJob(ctx context.Context, userID string, req ImportArticlesRequest) (string, error) {
-	if !s.canImport(ctx, userID, req.PublicationID) {
+	if !s.canImport(ctx, userID, req.PublisherID) {
 		return "", errForbidden
 	}
 	if len(req.Articles) > maxImportArticles {
@@ -163,7 +163,7 @@ func (s *Service) CreateImportJob(ctx context.Context, userID string, req Import
 	}
 	id, err := s.q.InsertArticleImportJob(ctx, db.InsertArticleImportJobParams{
 		UserId:        toUUID(userID),
-		PublicationId: req.PublicationID,
+		PublisherId: req.PublisherID,
 		Total:         int32(len(req.Articles)),
 		Articles:      raw,
 	})
@@ -195,7 +195,7 @@ func (s *Service) ProcessImportJob(ctx context.Context, jobID string) error {
 		_ = s.q.FailArticleImportJob(ctx, jobID)
 		return fmt.Errorf("articles du job %s: %w", jobID, err)
 	}
-	out := s.importBatch(ctx, job.PublicationId, toUUID(job.UserId), articles)
+	out := s.importBatch(ctx, job.PublisherId, toUUID(job.UserId), articles)
 	if len(out.errors) > maxImportErrors {
 		out.errors = out.errors[:maxImportErrors]
 	}
@@ -214,7 +214,7 @@ func (s *Service) ProcessImportJob(ctx context.Context, jobID string) error {
 // ImportJobDTO est la vue API d'un job d'import (statut + progression + rapport).
 type ImportJobDTO struct {
 	ID            string        `json:"id"`
-	PublicationID string        `json:"publicationId"`
+	PublisherID string        `json:"publisherId"`
 	Status        string        `json:"status"`
 	Total         int           `json:"total"`
 	Imported      int           `json:"imported"`
@@ -229,7 +229,7 @@ type ImportJobDTO struct {
 // distincts mais aux mêmes champs).
 type importJobRow struct {
 	ID            string
-	PublicationID string
+	PublisherID string
 	Status        string
 	Total         int32
 	Imported      int32
@@ -250,7 +250,7 @@ func toImportJobDTO(row importJobRow) (ImportJobDTO, error) {
 		errs = []ImportError{}
 	}
 	return ImportJobDTO{
-		ID: row.ID, PublicationID: row.PublicationID, Status: row.Status,
+		ID: row.ID, PublisherID: row.PublisherID, Status: row.Status,
 		Total: int(row.Total), Imported: int(row.Imported), Duplicates: int(row.Duplicates),
 		Errors:    errs,
 		CreatedAt: row.CreatedAt.Format(time.RFC3339),
@@ -260,7 +260,7 @@ func toImportJobDTO(row importJobRow) (ImportJobDTO, error) {
 
 func importJobRowFromGet(row db.GetArticleImportJobRow) importJobRow {
 	return importJobRow{
-		ID: row.ID, PublicationID: row.PublicationId, Status: row.Status,
+		ID: row.ID, PublisherID: row.PublisherId, Status: row.Status,
 		Total: row.Total, Imported: row.Imported, Duplicates: row.Duplicates,
 		Errors:    row.Errors,
 		CreatedAt: row.CreatedAt.Time, UpdatedAt: row.UpdatedAt.Time,
@@ -269,7 +269,7 @@ func importJobRowFromGet(row db.GetArticleImportJobRow) importJobRow {
 
 func importJobRowFromList(row db.ListArticleImportJobsRow) importJobRow {
 	return importJobRow{
-		ID: row.ID, PublicationID: row.PublicationId, Status: row.Status,
+		ID: row.ID, PublisherID: row.PublisherId, Status: row.Status,
 		Total: row.Total, Imported: row.Imported, Duplicates: row.Duplicates,
 		Errors:    row.Errors,
 		CreatedAt: row.CreatedAt.Time, UpdatedAt: row.UpdatedAt.Time,

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { Pool } from 'pg';
-import { createPublicationAccessChecker, parseArticleId } from './permissions';
+import { createPublisherAccessChecker, parseArticleId } from './permissions';
 
 function mockPool(result: unknown): Pool {
   return {
@@ -20,10 +20,10 @@ describe('parseArticleId', () => {
   });
 });
 
-describe('createPublicationAccessChecker', () => {
+describe('createPublisherAccessChecker', () => {
   it('autorise quand la requête répond allowed=true', async () => {
     const pool = mockPool({ allowed: true });
-    const check = createPublicationAccessChecker(pool);
+    const check = createPublisherAccessChecker(pool);
     await expect(check('user-1', 'article:art-1')).resolves.toBe(true);
     expect(pool.query).toHaveBeenCalledTimes(1);
     expect(pool.query).toHaveBeenCalledWith(expect.stringContaining('FROM "Article"'), [
@@ -33,14 +33,23 @@ describe('createPublicationAccessChecker', () => {
   });
 
   it('refuse quand allowed=false', async () => {
-    const check = createPublicationAccessChecker(mockPool({ allowed: false }));
+    const check = createPublisherAccessChecker(mockPool({ allowed: false }));
     await expect(check('user-1', 'article:art-1')).resolves.toBe(false);
   });
 
   it('refuse un document au nom invalide sans interroger la base', async () => {
     const pool = mockPool({ allowed: true });
-    const check = createPublicationAccessChecker(pool);
+    const check = createPublisherAccessChecker(pool);
     await expect(check('user-1', 'pas-un-article')).resolves.toBe(false);
     expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it('vérifie la requête SQL : protège les médias contre un auteur exclu (PERSONAL requis pour authorId seul)', async () => {
+    const pool = mockPool({ allowed: true });
+    const check = createPublisherAccessChecker(pool);
+    await check('user-1', 'article:art-1');
+    const sql = (pool.query as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(sql).toContain('p.type = \'PERSONAL\' AND a."authorId" = $1');
+    expect(sql).toContain("aa.role <> 'PRIMARY_AUTHOR'");
   });
 });

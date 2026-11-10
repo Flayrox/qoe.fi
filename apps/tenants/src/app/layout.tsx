@@ -60,8 +60,8 @@ export async function generateMetadata(): Promise<Metadata> {
           : 'https://qoe.fi'
     ),
     title: isFr
-      ? 'qoefi — Publications et blogs indépendants'
-      : 'qoefi — Independent Publications & Blogs',
+      ? 'qoefi — Publishers et blogs indépendants'
+      : 'qoefi — Independent Publishers & Blogs',
     description: isFr
       ? 'Découvrez les publications, articles et réflexions de créateurs indépendants propulsés par qoefi.'
       : 'Discover publications, articles, and insights from independent creators powered by qoefi.',

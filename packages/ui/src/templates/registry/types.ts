@@ -5,14 +5,14 @@
 import type React from 'react';
 import type {
   LayoutConfig,
-  TemplatePublicationContext,
+  TemplatePublisherContext,
   TemplateArticleItem,
   DesignTokensConfig,
 } from '../schema';
 
 /** Propriétés passées à l'enveloppe souveraine (Shell) d'un thème */
 export interface ThemeShellProps {
-  publication: TemplatePublicationContext;
+  publisher: TemplatePublisherContext;
   article?: TemplateArticleItem | null;
   articles?: TemplateArticleItem[];
   children: React.ReactNode;

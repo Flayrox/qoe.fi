@@ -2,7 +2,7 @@
 
 import { createClient as createServerClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
-import { getActivePublicationId } from '@/lib/active-workspace';
+import { getActivePublisherId } from '@/lib/active-workspace';
 
 async function getAuthenticatedCreator() {
   const supabase = await createServerClient();
@@ -75,7 +75,7 @@ export async function importSubscribersCsvAction(
 ): Promise<SubscriberImportResult> {
   try {
     const creator = await getAuthenticatedCreator();
-    const publicationId = await getActivePublicationId(creator.id);
+    const publisherId = await getActivePublisherId(creator.id);
 
     if (!csvContent || !csvContent.trim()) {
       return { success: false, error: 'Fichier CSV vide' };
@@ -103,7 +103,7 @@ export async function importSubscribersCsvAction(
       id: string;
       status: string;
       stats: SubscriberImportStats;
-    }>(`/v1/import/publications/${encodeURIComponent(publicationId)}/subscribers`, {
+    }>(`/v1/import/publishers/${encodeURIComponent(publisherId)}/subscribers`, {
       method: 'POST',
       body: {
         source: options.source ?? 'csv_manual',

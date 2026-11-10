@@ -1,6 +1,6 @@
 import { headers } from 'next/headers';
 import { parseTenantHost } from '@qoe/config';
-import { fetchPublicTenantPublication } from '@/lib/tenant-data';
+import { fetchPublicTenantPublisher } from '@/lib/tenant-data';
 import { buildArticlePath, buildPublicExcerpt } from '@qoe/utils';
 import { ContentVisibility } from '@qoe/config';
 
@@ -33,7 +33,7 @@ export async function GET(): Promise<Response> {
   if (!targetDomain) return new Response('Not found', { status: 404 });
 
   try {
-    const pub = await fetchPublicTenantPublication(targetDomain);
+    const pub = await fetchPublicTenantPublisher(targetDomain);
     if (!pub || pub.allowIndexing === false) return new Response('Not found', { status: 404 });
 
     const items = (pub.articles || [])

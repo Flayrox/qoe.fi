@@ -1,4 +1,4 @@
-package publications
+package publishers
 
 import (
 	"context"
@@ -35,13 +35,13 @@ func requirePool(t *testing.T) {
 	}
 }
 
-func seedPublication(t *testing.T) (pubID, userID, articleID string) {
+func seedPublisher(t *testing.T) (pubID, userID, articleID string) {
 	requirePool(t)
 	t.Helper()
 	ctx := context.Background()
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE
 		"Follows", "Subscriber", "Bookmark", "ArticleAttribution", "Article",
-		"Category", "NavigationItem", "SocialLink", "Publication", "User" CASCADE`); err != nil {
+		"Category", "NavigationItem", "SocialLink", "Publisher", "User" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	userID = "00000000-0000-0000-0000-0000000000e1"
@@ -59,41 +59,41 @@ func seedPublication(t *testing.T) (pubID, userID, articleID string) {
 		}
 	}
 	if _, err := poolTest.Exec(ctx, `
-		INSERT INTO "Publication" (id, type, name, slug, subdomain, "accentColor", "layoutStyle", "updatedAt")
+		INSERT INTO "Publisher" (id, type, name, slug, subdomain, "accentColor", "layoutStyle", "updatedAt")
 		VALUES ($1, 'PERSONAL', 'Tenant Test', 'tenant-test', 'tenant', '#c5a880', 'minimal', now())`,
 		pubID); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`UPDATE "User" SET "publicationId" = $1 WHERE id = $2`, pubID, userID); err != nil {
+		`UPDATE "User" SET "publisherId" = $1 WHERE id = $2`, pubID, userID); err != nil {
 		t.Fatalf("link: %v", err)
 	}
 	// Navigation + socials + catégorie + article publié.
 	if _, err := poolTest.Exec(ctx, `
-		INSERT INTO "NavigationItem" (id, label, url, "order", "isExternal", "publicationId")
+		INSERT INTO "NavigationItem" (id, label, url, "order", "isExternal", "publisherId")
 		VALUES (gen_random_uuid()::text, 'Accueil', '/', 1, false, $1)`, pubID); err != nil {
 		t.Fatalf("nav: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx, `
-		INSERT INTO "SocialLink" (id, platform, url, "order", "publicationId")
+		INSERT INTO "SocialLink" (id, platform, url, "order", "publisherId")
 		VALUES (gen_random_uuid()::text, 'x', 'https://x.com/tenant', 1, $1)`, pubID); err != nil {
 		t.Fatalf("social: %v", err)
 	}
 	var catID string
 	if err := poolTest.QueryRow(ctx, `
-		INSERT INTO "Category" (id, name, slug, description, "publicationId")
+		INSERT INTO "Category" (id, name, slug, description, "publisherId")
 		VALUES (gen_random_uuid()::text, 'Écologie', 'ecologie', 'Enjeux planétaires', $1) RETURNING id`,
 		pubID).Scan(&catID); err != nil {
 		t.Fatalf("category: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx, `
-		INSERT INTO "Category" (id, name, slug, "publicationId", "parentId")
+		INSERT INTO "Category" (id, name, slug, "publisherId", "parentId")
 		VALUES (gen_random_uuid()::text, 'Climat', 'climat', $1, $2)`, pubID, catID); err != nil {
 		t.Fatalf("sous-catégorie: %v", err)
 	}
 	articleID = "article_tenant_1"
 	if _, err := poolTest.Exec(ctx, `
-		INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility, "readingTime", "publicationId", "authorId", "categoryId", "createdAt", "updatedAt")
+		INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility, "readingTime", "publisherId", "authorId", "categoryId", "createdAt", "updatedAt")
 		VALUES ($1, 'Article Tenant', 'article-tenant', '<p>Contenu</p>', true, false, 'PUBLIC', 3, $2, $3, $4, now(), now())`,
 		articleID, pubID, userID, catID); err != nil {
 		t.Fatalf("article: %v", err)
@@ -105,13 +105,13 @@ func seedPublication(t *testing.T) (pubID, userID, articleID string) {
 		t.Fatalf("bookmark: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx, `
-		INSERT INTO "Follows" (id, "readerId", "publicationId", "createdAt")
+		INSERT INTO "Follows" (id, "readerId", "publisherId", "createdAt")
 		VALUES (gen_random_uuid()::text, $2, $1, now())`, pubID, readerID); err != nil {
 		t.Fatalf("follow: %v", err)
 	}
 	// Abonné premium du lecteur.
 	if _, err := poolTest.Exec(ctx, `
-		INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "isPremium", "createdAt", "updatedAt")
+		INSERT INTO "Subscriber" (id, email, "publisherId", "isActive", "isPremium", "createdAt", "updatedAt")
 		VALUES (gen_random_uuid()::text, 'tenant.reader@test.dev', $1, true, true, now(), now())`,
 		pubID); err != nil {
 		t.Fatalf("subscriber: %v", err)
@@ -130,8 +130,8 @@ func findCategory(t *testing.T, categories []CategoryItem, slug string) Category
 	return CategoryItem{}
 }
 
-func TestPublicationsByDomain(t *testing.T) {
-	pubID, _, _ := seedPublication(t)
+func TestPublishersByDomain(t *testing.T) {
+	pubID, _, _ := seedPublisher(t)
 	svc := NewService(poolTest)
 	ctx := context.Background()
 
@@ -174,8 +174,8 @@ func TestPublicationsByDomain(t *testing.T) {
 	}
 }
 
-func TestPublicationsArticleBundle(t *testing.T) {
-	_, userID, articleID := seedPublication(t)
+func TestPublishersArticleBundle(t *testing.T) {
+	_, userID, articleID := seedPublisher(t)
 	svc := NewService(poolTest)
 	ctx := context.Background()
 	readerID := "00000000-0000-0000-0000-0000000000e2"
@@ -208,7 +208,7 @@ func TestPublicationsArticleBundle(t *testing.T) {
 		t.Fatalf("entitlements = %+v, attendu member+paid", bundle.Entitlements)
 	}
 	// Header : publication renseignée.
-	if bundle.Publication.ID == "" || len(bundle.Publication.Navigation) != 1 {
+	if bundle.Publisher.ID == "" || len(bundle.Publisher.Navigation) != 1 {
 		t.Fatal("publication du bundle incomplète")
 	}
 
@@ -227,21 +227,21 @@ func TestPublicationsArticleBundle(t *testing.T) {
 	}
 }
 
-func TestPublicationsAttributionFallback(t *testing.T) {
-	pubID, userID, _ := seedPublication(t)
+func TestPublishersAttributionFallback(t *testing.T) {
+	pubID, userID, _ := seedPublisher(t)
 	svc := NewService(poolTest)
 	ctx := context.Background()
 
 	// Article co-écrit par le propriétaire de la publication (hors publication).
 	coauthorPub := "pub_attribution_test"
 	if _, err := poolTest.Exec(ctx, `
-		INSERT INTO "Publication" (id, type, name, slug, subdomain, "updatedAt")
+		INSERT INTO "Publisher" (id, type, name, slug, subdomain, "updatedAt")
 		VALUES ($1, 'PERSONAL', 'Co-Author', 'co-author', 'coauthor', now())`,
 		coauthorPub); err != nil {
 		t.Fatalf("publication coauthor: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx, `
-		INSERT INTO "Article" (id, title, slug, content, published, status, "isPremium", visibility, "readingTime", "publicationId", "authorId", "createdAt", "updatedAt")
+		INSERT INTO "Article" (id, title, slug, content, published, status, "isPremium", visibility, "readingTime", "publisherId", "authorId", "createdAt", "updatedAt")
 		VALUES ('article_coauthored', 'Co-écrit', 'co-ecrit', '<p>Ensemble</p>', true, 'PUBLISHED', false, 'PUBLIC', 2, $1, $2, now(), now())`,
 		coauthorPub, userID); err != nil {
 		t.Fatalf("article coauthor: %v", err)

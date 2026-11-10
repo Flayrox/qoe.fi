@@ -200,11 +200,11 @@ function emptyDemographics(): AudienceDemographics {
   return { declared: 0, gender: [], ageRange: [], countries: [], languages: [] };
 }
 
-async function getAudienceInsights(publicationId: string): Promise<AudienceInsights> {
+async function getAudienceInsights(publisherId: string): Promise<AudienceInsights> {
   // Go : GET /v1/analytics/audience/insights.
   try {
     const go = await goFetch<AudienceInsights>(
-      `/v1/analytics/audience/insights?publicationId=${encodeURIComponent(publicationId)}`
+      `/v1/analytics/audience/insights?publisherId=${encodeURIComponent(publisherId)}`
     );
     if (go?.creator && go?.platform) {
       return go;
@@ -215,16 +215,16 @@ async function getAudienceInsights(publicationId: string): Promise<AudienceInsig
   return { creator: emptyDemographics(), platform: emptyDemographics() };
 }
 
-// Contrat Go GET /v1/settings/publication (umamiWebsiteId + articles pour les titres).
-interface SettingsPublicationLite {
+// Contrat Go GET /v1/settings/publisher (umamiWebsiteId + articles pour les titres).
+interface SettingsPublisherLite {
   id: string;
   umamiWebsiteId: string | null;
   articles: { id: string; slug: string; title: string }[];
 }
 
-async function fetchPublicationLite(publicationId: string): Promise<SettingsPublicationLite> {
-  return goFetch<SettingsPublicationLite>(
-    `/v1/settings/publication?publicationId=${encodeURIComponent(publicationId)}`
+async function fetchPublisherLite(publisherId: string): Promise<SettingsPublisherLite> {
+  return goFetch<SettingsPublisherLite>(
+    `/v1/settings/publisher?publisherId=${encodeURIComponent(publisherId)}`
   );
 }
 
@@ -232,10 +232,10 @@ async function fetchPublicationLite(publicationId: string): Promise<SettingsPubl
  * Intérêt pour les fonctionnalités à venir (interstitiel @qoe/ui).
  * Statistique secondaire : l'API peut être indisponible sans casser la page.
  */
-async function fetchFeatureInterest(publicationId: string): Promise<FeatureSignalSummary[]> {
+async function fetchFeatureInterest(publisherId: string): Promise<FeatureSignalSummary[]> {
   try {
     const res = await goFetch<{ signals: FeatureSignalSummary[] }>(
-      `/v1/features/signals/summary?publicationId=${encodeURIComponent(publicationId)}`
+      `/v1/features/signals/summary?publisherId=${encodeURIComponent(publisherId)}`
     );
     return res.signals ?? [];
   } catch {
@@ -286,13 +286,13 @@ export async function getCreatorAnalyticsData(
     const workspace = await getActiveWorkspace(user.id);
 
     // Publication légère (umamiWebsiteId + articles pour le map slug → titre).
-    const pubLite = await fetchPublicationLite(workspace.publicationId);
+    const pubLite = await fetchPublisherLite(workspace.publisherId);
 
     // Provenance fine (le plus poussé) : breakdown par source + hostname/referrer — Go-only
     let provenance: ProvenanceBreakdown = { bySource: [], byHostname: [], byReferrer: [] };
     try {
       provenance = await goFetch<ProvenanceBreakdown>(
-        `/v1/analytics/provenance?publicationId=${workspace.publicationId}&period=7d`
+        `/v1/analytics/provenance?publisherId=${workspace.publisherId}&period=7d`
       );
     } catch {
       provenance = { bySource: [], byHostname: [], byReferrer: [] };
@@ -307,7 +307,7 @@ export async function getCreatorAnalyticsData(
 
     // 📦 productMetrics — Go (GET /v1/analytics/product-metrics).
     const go = await goFetch<GoProductMetrics>(
-      `/v1/analytics/product-metrics?publicationId=${workspace.publicationId}`
+      `/v1/analytics/product-metrics?publisherId=${workspace.publisherId}`
     );
     const productMetrics: ProductMetrics = {
       subscriberCount: go.subscriberCount,
@@ -355,7 +355,7 @@ export async function getCreatorAnalyticsData(
     };
 
     const audience = await getAudienceInsights(pubLite.id);
-    const featureInterest = await fetchFeatureInterest(workspace.publicationId);
+    const featureInterest = await fetchFeatureInterest(workspace.publisherId);
 
     const targetWebsiteId =
       pubLite.umamiWebsiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || '';
@@ -400,7 +400,7 @@ export async function getCreatorAnalyticsData(
 
     // 🎯 Vues PLEIN : agrégation par articleId (canonique) via ReadingSession — Go-only
     const goStats = await goFetch<CreatorReadingStats>(
-      `/v1/analytics/creator?publicationId=${workspace.publicationId}&period=${period}`
+      `/v1/analytics/creator?publisherId=${workspace.publisherId}&period=${period}`
     );
     const perArticleViewsMap = new Map(Object.entries(goStats.perArticle || {}));
     const creatorTotalViews = goStats.totalViews || 0;
@@ -491,12 +491,12 @@ export async function getCreatorAnalyticsData(
  * 📊 Inspecter les métriques détaillées d'un article en particulier (Modal Inspection)
  */
 async function fetchUmamiAdvancedInsights(
-  publicationId: string,
+  publisherId: string,
   startAt: number,
   endAt: number
 ): Promise<UmamiAdvancedInsights> {
   try {
-    const params = `publicationId=${encodeURIComponent(publicationId)}&startAt=${startAt}&endAt=${endAt}`;
+    const params = `publisherId=${encodeURIComponent(publisherId)}&startAt=${startAt}&endAt=${endAt}`;
     const [returning, hours] = await Promise.all([
       goFetch<ReturningVisitors>(`/v1/analytics/umami/returning?${params}`).catch(() => null),
       goFetch<HourVisit[]>(`/v1/analytics/umami/hours?${params}`).catch(() => []),
@@ -538,7 +538,7 @@ function emptyArticleDetail(url: string, title: string): ArticleDetailData {
  * co-signé rattaché à une autre publication que le workspace actif.
  */
 async function resolveAnalyticsArticle(
-  publicationId: string,
+  publisherId: string,
   identifier: string
 ): Promise<{ article: ResolvedAnalyticsArticle | null; fallbackTitle: string }> {
   const clean = identifier
@@ -546,7 +546,7 @@ async function resolveAnalyticsArticle(
     .replace(/^\/+/, '')
     .split(/[?#]/)[0];
   const needle = clean.toLowerCase();
-  const pubLite = await fetchPublicationLite(publicationId);
+  const pubLite = await fetchPublisherLite(publisherId);
   const fromList =
     pubLite.articles.find(
       (a) => a.id.toLowerCase() === needle || a.slug.toLowerCase() === needle
@@ -573,7 +573,7 @@ async function resolveAnalyticsArticle(
 
   try {
     const bySlug = await goFetch<{ id: string; title: string; slug?: string }>(
-      `/v1/articles/${encodeURIComponent(clean)}?publicationId=${encodeURIComponent(publicationId)}`
+      `/v1/articles/${encodeURIComponent(clean)}?publisherId=${encodeURIComponent(publisherId)}`
     );
     return {
       article: { id: bySlug.id, title: bySlug.title, slug: bySlug.slug ?? clean },
@@ -662,7 +662,7 @@ export async function getArticleAnalyticsDetail(
       .replace(/^\/(articles?)\//i, '')
       .replace(/^\/+/, '')
       .split(/[?#]/)[0];
-    const { article, fallbackTitle } = await resolveAnalyticsArticle(workspace.publicationId, slug);
+    const { article, fallbackTitle } = await resolveAnalyticsArticle(workspace.publisherId, slug);
     if (!article) {
       return { data: emptyArticleDetail(urlPath, fallbackTitle) };
     }
@@ -694,7 +694,7 @@ export async function getArticleAnalyticsDetailById(
     }
 
     const workspace = await getActiveWorkspace(user.id);
-    const { article } = await resolveAnalyticsArticle(workspace.publicationId, identifier);
+    const { article } = await resolveAnalyticsArticle(workspace.publisherId, identifier);
     if (!article) {
       return { error: 'Article introuvable' };
     }

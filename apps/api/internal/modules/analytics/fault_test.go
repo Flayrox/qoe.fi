@@ -28,11 +28,11 @@ func (f *faultQ) val(name string) (error, bool) {
 	return e, ok
 }
 
-func (f *faultQ) GetUserPersonalPublication(ctx context.Context, id string) (pgtype.Text, error) {
-	if e, ok := f.val("GetUserPersonalPublication"); ok {
+func (f *faultQ) GetUserPersonalPublisher(ctx context.Context, id string) (pgtype.Text, error) {
+	if e, ok := f.val("GetUserPersonalPublisher"); ok {
 		return pgtype.Text{}, e
 	}
-	return f.Queries.GetUserPersonalPublication(ctx, id)
+	return f.Queries.GetUserPersonalPublisher(ctx, id)
 }
 func (f *faultQ) GetMediaRoleForUser(ctx context.Context, arg db.GetMediaRoleForUserParams) (string, error) {
 	if e, ok := f.val("GetMediaRoleForUser"); ok {
@@ -70,11 +70,11 @@ func (f *faultQ) GetRecentThoughtsForAnalytics(ctx context.Context, arg db.GetRe
 	}
 	return f.Queries.GetRecentThoughtsForAnalytics(ctx, arg)
 }
-func (f *faultQ) GetPublicationUmamiWebsiteId(ctx context.Context, id string) (pgtype.Text, error) {
-	if e, ok := f.val("GetPublicationUmamiWebsiteId"); ok {
+func (f *faultQ) GetPublisherUmamiWebsiteId(ctx context.Context, id string) (pgtype.Text, error) {
+	if e, ok := f.val("GetPublisherUmamiWebsiteId"); ok {
 		return pgtype.Text{}, e
 	}
-	return f.Queries.GetPublicationUmamiWebsiteId(ctx, id)
+	return f.Queries.GetPublisherUmamiWebsiteId(ctx, id)
 }
 func (f *faultQ) ListSubscribers(ctx context.Context, publicationid string) ([]db.ListSubscribersRow, error) {
 	if e, ok := f.val("ListSubscribers"); ok {
@@ -121,12 +121,12 @@ func TestFinancial_Success(t *testing.T) {
 	seedProductMetrics(t, ctx)
 	// Premium : Tier (500cts/mois) + abonné lié (LTV 1500).
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Tier" (id, name, "monthlyPriceCents", "updatedAt", "publicationId")
+		`INSERT INTO "Tier" (id, name, "monthlyPriceCents", "updatedAt", "publisherId")
 		 VALUES ('tier_prem', 'Premium', 500, now(), $1)`, analyticsPub); err != nil {
 		t.Fatalf("seed tier: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "isPremium", "ltvCents", "receiveArticles", "createdAt", "updatedAt", "tierId")
+		`INSERT INTO "Subscriber" (id, email, "publisherId", "isActive", "isPremium", "ltvCents", "receiveArticles", "createdAt", "updatedAt", "tierId")
 		 VALUES (gen_random_uuid()::text, 'prem@test.dev', $1, true, true, 1500, true, now(), now(), 'tier_prem')`,
 		analyticsPub); err != nil {
 		t.Fatalf("seed premium: %v", err)
@@ -169,7 +169,7 @@ func TestFault_Financial_QueryErrors(t *testing.T) {
 	}
 
 	// canAccess en erreur → errForbidden.
-	svc := &Service{pool: poolTest, q: &faultQ{Queries: db.New(poolTest), fail: map[string]error{"GetUserPersonalPublication": errBoom}}}
+	svc := &Service{pool: poolTest, q: &faultQ{Queries: db.New(poolTest), fail: map[string]error{"GetUserPersonalPublisher": errBoom}}}
 	if _, err := svc.Financial(ctx, analyticsOwner, analyticsPub); !errors.Is(err, errForbidden) {
 		t.Fatalf("canAccess erreur = %v, attendu errForbidden", err)
 	}
@@ -214,7 +214,7 @@ func TestHTTP_Umami_Returning_PoolError(t *testing.T) {
 	seedProductMetrics(t, ctx)
 	// La publication doit avoir un umamiWebsiteId pour atteindre le pool.
 	if _, err := poolTest.Exec(ctx,
-		`UPDATE "Publication" SET "umamiWebsiteId" = 'site-umami-test' WHERE id = $1`, analyticsPub); err != nil {
+		`UPDATE "Publisher" SET "umamiWebsiteId" = 'site-umami-test' WHERE id = $1`, analyticsPub); err != nil {
 		t.Fatalf("set umamiWebsiteId: %v", err)
 	}
 
@@ -227,7 +227,7 @@ func TestHTTP_Umami_Returning_PoolError(t *testing.T) {
 	r := chi.NewRouter()
 	h.Register(r)
 
-	req := httptest.NewRequest(http.MethodGet, "/v1/analytics/umami/returning?publicationId="+analyticsPub, nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/analytics/umami/returning?publisherId="+analyticsPub, nil)
 	req = req.WithContext(contextWithUser(req, analyticsOwner))
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -253,7 +253,7 @@ func TestFault_Handlers_FinancialTopContent(t *testing.T) {
 	h := NewHandler(&Service{pool: poolTest, q: fq})
 	h.Register(r)
 
-	w := get(t, r, "/v1/analytics/financial?publicationId="+analyticsPub, analyticsOwner)
+	w := get(t, r, "/v1/analytics/financial?publisherId="+analyticsPub, analyticsOwner)
 	if w.Code != http.StatusInternalServerError {
 		t.Fatalf("financial q faute → %d (%s), attendu 500", w.Code, w.Body.String())
 	}
@@ -264,7 +264,7 @@ func TestFault_Handlers_FinancialTopContent(t *testing.T) {
 	r2 := chi.NewRouter()
 	h2 := NewHandler(&Service{pool: poolTest, q: fq2})
 	h2.Register(r2)
-	w2 := get(t, r2, "/v1/analytics/top-content?publicationId="+analyticsPub, analyticsOwner)
+	w2 := get(t, r2, "/v1/analytics/top-content?publisherId="+analyticsPub, analyticsOwner)
 	if w2.Code != http.StatusInternalServerError {
 		t.Fatalf("top-content q faute → %d (%s), attendu 500", w2.Code, w2.Body.String())
 	}
@@ -278,15 +278,15 @@ func TestHTTP_AllRoutes_Outsider_Forbidden(t *testing.T) {
 	r := newAnalyticsRouter()
 	outsider := "00000000-0000-0000-0000-000000000099"
 	for _, path := range []string{
-		"/v1/analytics/financial?publicationId=" + analyticsPub,
-		"/v1/analytics/top-content?publicationId=" + analyticsPub,
-		"/v1/analytics/audience?publicationId=" + analyticsPub,
-		"/v1/analytics/audience/subscribers?publicationId=" + analyticsPub,
-		"/v1/analytics/creator?publicationId=" + analyticsPub,
-		"/v1/analytics/provenance?publicationId=" + analyticsPub,
-		"/v1/analytics/audience/insights?publicationId=" + analyticsPub,
-		"/v1/analytics/product-metrics?publicationId=" + analyticsPub,
-		"/v1/analytics/dashboard?publicationId=" + analyticsPub,
+		"/v1/analytics/financial?publisherId=" + analyticsPub,
+		"/v1/analytics/top-content?publisherId=" + analyticsPub,
+		"/v1/analytics/audience?publisherId=" + analyticsPub,
+		"/v1/analytics/audience/subscribers?publisherId=" + analyticsPub,
+		"/v1/analytics/creator?publisherId=" + analyticsPub,
+		"/v1/analytics/provenance?publisherId=" + analyticsPub,
+		"/v1/analytics/audience/insights?publisherId=" + analyticsPub,
+		"/v1/analytics/product-metrics?publisherId=" + analyticsPub,
+		"/v1/analytics/dashboard?publisherId=" + analyticsPub,
 	} {
 		w := get(t, r, path, outsider)
 		if w.Code != http.StatusForbidden {
@@ -301,7 +301,7 @@ func TestHTTP_Umami_Hours_PoolError(t *testing.T) {
 	ctx := context.Background()
 	seedProductMetrics(t, ctx)
 	if _, err := poolTest.Exec(ctx,
-		`UPDATE "Publication" SET "umamiWebsiteId" = 'site-umami-test' WHERE id = $1`, analyticsPub); err != nil {
+		`UPDATE "Publisher" SET "umamiWebsiteId" = 'site-umami-test' WHERE id = $1`, analyticsPub); err != nil {
 		t.Fatalf("set umamiWebsiteId: %v", err)
 	}
 
@@ -310,7 +310,7 @@ func TestHTTP_Umami_Hours_PoolError(t *testing.T) {
 		umami: &faultPool{pooler: poolTest, failQueryRow: true}})
 	h.Register(r)
 
-	w := get(t, r, "/v1/analytics/umami/hours?publicationId="+analyticsPub, analyticsOwner)
+	w := get(t, r, "/v1/analytics/umami/hours?publisherId="+analyticsPub, analyticsOwner)
 	if w.Code != http.StatusInternalServerError {
 		t.Fatalf("umami/hours pool faute → %d (%s), attendu 500", w.Code, w.Body.String())
 	}
@@ -332,12 +332,12 @@ func TestFault_Handlers_InternalErrors(t *testing.T) {
 	h.Register(r)
 
 	for _, tc := range []struct{ path, user string }{
-		{"/v1/analytics/audience?publicationId=" + analyticsPub, analyticsOwner},
-		{"/v1/analytics/audience/subscribers?publicationId=" + analyticsPub, analyticsOwner},
+		{"/v1/analytics/audience?publisherId=" + analyticsPub, analyticsOwner},
+		{"/v1/analytics/audience/subscribers?publisherId=" + analyticsPub, analyticsOwner},
 		{"/v1/analytics/reading-sessions?articleId=art_an_01", analyticsOwner},
-		{"/v1/analytics/creator?publicationId=" + analyticsPub, analyticsOwner},
-		{"/v1/analytics/provenance?publicationId=" + analyticsPub, analyticsOwner},
-		{"/v1/analytics/audience/insights?publicationId=" + analyticsPub, analyticsOwner},
+		{"/v1/analytics/creator?publisherId=" + analyticsPub, analyticsOwner},
+		{"/v1/analytics/provenance?publisherId=" + analyticsPub, analyticsOwner},
+		{"/v1/analytics/audience/insights?publisherId=" + analyticsPub, analyticsOwner},
 	} {
 		w := get(t, r, tc.path, tc.user)
 		if w.Code != http.StatusInternalServerError {
@@ -355,12 +355,12 @@ func TestHTTP_ProductMetrics(t *testing.T) {
 	h := NewHandler(newTestService())
 	h.Register(r)
 
-	w := get(t, r, "/v1/analytics/product-metrics?publicationId="+analyticsPub, analyticsOwner)
+	w := get(t, r, "/v1/analytics/product-metrics?publisherId="+analyticsPub, analyticsOwner)
 	if w.Code != http.StatusOK {
 		t.Fatalf("product-metrics owner → %d (%s), attendu 200", w.Code, w.Body.String())
 	}
 
-	w = get(t, r, "/v1/analytics/product-metrics?publicationId="+analyticsPub, "00000000-0000-0000-0000-000000000099")
+	w = get(t, r, "/v1/analytics/product-metrics?publisherId="+analyticsPub, "00000000-0000-0000-0000-000000000099")
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("product-metrics étranger → %d (%s), attendu 403", w.Code, w.Body.String())
 	}

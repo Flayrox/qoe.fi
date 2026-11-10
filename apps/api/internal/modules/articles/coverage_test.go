@@ -25,7 +25,7 @@ func fixtureIDRow() db.GetArticleByIDRow {
 		ID: "art_x", Title: "Titre", Slug: "slug-x", Content: "contenu",
 		Published: true, IsPremium: true, Visibility: "PUBLIC", ReadingTime: 4,
 		AllowPublicAnnotations: true, AllowComments: true, Status: "PUBLISHED",
-		PublicationId: "pub_1", AuthorId: pgtype.UUID{}, AuthorID: "user_1",
+		PublisherId: "pub_1", AuthorId: pgtype.UUID{}, AuthorID: "user_1",
 		CategoryId:      pgtype.Text{String: "cat_1", Valid: true},
 		TierId:          pgtype.Text{String: "tier_1", Valid: true},
 		SeoTitle:        pgtype.Text{String: "seo", Valid: true},
@@ -33,8 +33,8 @@ func fixtureIDRow() db.GetArticleByIDRow {
 		UpdatedAt:       pgtype.Timestamp{Time: now, Valid: true},
 		AuthorName:      pgtype.Text{String: "Alice", Valid: true},
 		AuthorLogo:      pgtype.Text{String: "logo.png", Valid: true},
-		PublicationName: "Média", PublicationSlug: "media",
-		PublicationSubdomain: pgtype.Text{String: "media.qoe", Valid: true},
+		PublisherName: "Média", PublisherSlug: "media",
+		PublisherSubdomain: pgtype.Text{String: "media.qoe", Valid: true},
 	}
 }
 
@@ -52,8 +52,8 @@ func TestArticleFromRow(t *testing.T) {
 	if art.Author.ID != "user_1" || art.Author.Name == nil || *art.Author.Name != "Alice" {
 		t.Fatalf("author = %+v", art.Author)
 	}
-	if art.Publication == nil || art.Publication.Slug != "media" || art.Publication.Subdomain == nil {
-		t.Fatalf("publication = %+v", art.Publication)
+	if art.Publisher == nil || art.Publisher.Slug != "media" || art.Publisher.Subdomain == nil {
+		t.Fatalf("publication = %+v", art.Publisher)
 	}
 	if art.CategoryID == nil || *art.CategoryID != "cat_1" || art.TierID == nil || *art.TierID != "tier_1" {
 		t.Fatalf("ids = %v / %v", art.CategoryID, art.TierID)
@@ -168,7 +168,7 @@ func TestList_CommentsAndViewsBatch(t *testing.T) {
 		t.Fatalf("session: %v", err)
 	}
 
-	items, err := svc.List(ctx, fx.AuthorID, fx.PublicationID, "", 100, 0, "all")
+	items, err := svc.List(ctx, fx.AuthorID, fx.PublisherID, "", 100, 0, "all")
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -200,14 +200,14 @@ func TestGetBySlug_SubscriberEntitled(t *testing.T) {
 		t.Fatalf("user abonné: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "isActive", "isPremium", "updatedAt", "publicationId", "userId")
+		`INSERT INTO "Subscriber" (id, email, "isActive", "isPremium", "updatedAt", "publisherId", "userId")
 		 VALUES ('sub_cov_1', 'abonne@t.dev', true, true, now(), $1, $2::uuid)
-		 ON CONFLICT (id) DO NOTHING`, fx.PublicationID, reader); err != nil {
+		 ON CONFLICT (id) DO NOTHING`, fx.PublisherID, reader); err != nil {
 		t.Fatalf("subscriber: %v", err)
 	}
 
 	// Lecteur abonné premium → accès complet au contenu payant.
-	art, err := svc.GetBySlug(ctx, "article-payant", fx.PublicationID, reader, "")
+	art, err := svc.GetBySlug(ctx, "article-payant", fx.PublisherID, reader, "")
 	if err != nil {
 		t.Fatalf("GetBySlug: %v", err)
 	}
@@ -226,7 +226,7 @@ func TestGetBySlug_NonSubscriberTruncated(t *testing.T) {
 	svc := newService()
 
 	// Lecteur lambda avec viewerEmail → pas d'entitlement → tronqué.
-	art, err := svc.GetBySlug(ctx, "article-payant", fx.PublicationID, "", "lambda@t.dev")
+	art, err := svc.GetBySlug(ctx, "article-payant", fx.PublisherID, "", "lambda@t.dev")
 	if err != nil {
 		t.Fatalf("GetBySlug: %v", err)
 	}
@@ -245,7 +245,7 @@ func TestService_Update_MediaWorkflow(t *testing.T) {
 
 	// Le writer crée puis l'editor publie (revue) → article publié par le writer.
 	subID, err := svc.Create(ctx, fx.WriterID, CreateArticleInput{
-		PublicationID: fx.PublicationID, Title: "À publier", Slug: "media-publie",
+		PublisherID: fx.PublisherID, Title: "À publier", Slug: "media-publie",
 		Content: "x", ContentFormat: "markdown", Status: "SUBMITTED",
 	})
 	if err != nil {
@@ -258,7 +258,7 @@ func TestService_Update_MediaWorkflow(t *testing.T) {
 
 	// Gate 1 : non-auteur + publication active différente → forbidden (viewer).
 	if err := svc.Update(ctx, pubID, fx.ViewerID, UpdateArticleInput{
-		Title: "X", Content: "x", ContentFormat: "markdown", ActivePublicationID: "autre-pub",
+		Title: "X", Content: "x", ContentFormat: "markdown", ActivePublisherID: "autre-pub",
 	}); err == nil {
 		t.Fatal("Update(autre publication) = nil, attendu errForbidden")
 	}
@@ -267,7 +267,7 @@ func TestService_Update_MediaWorkflow(t *testing.T) {
 	if err := svc.Update(ctx, pubID, fx.WriterID, UpdateArticleInput{
 		Title: "Retouché", Content: "retouche", ContentFormat: "markdown",
 		Slug: "media-publie", Status: "DRAFT", Published: false,
-		ActivePublicationID: fx.PublicationID,
+		ActivePublisherID: fx.PublisherID,
 	}); err != nil {
 		t.Fatalf("Update(writer sur publié): %v", err)
 	}
@@ -283,7 +283,7 @@ func TestService_Update_MediaWorkflow(t *testing.T) {
 	// Soumission d'un article déjà publié → accepté (brouillon en révision, article reste publié en ligne).
 	if err := svc.Update(ctx, pubID, fx.WriterID, UpdateArticleInput{
 		Title: "T", Content: "c", ContentFormat: "markdown", Status: "SUBMITTED",
-		ActivePublicationID: fx.PublicationID,
+		ActivePublisherID: fx.PublisherID,
 	}); err != nil {
 		t.Fatalf("Update(SUBMITTED sur publié) = %v, attendu succès", err)
 	}
@@ -297,7 +297,7 @@ func TestService_Update_MediaWorkflow(t *testing.T) {
 
 	// Le writer (sans publish:any) ne peut pas publier un brouillon.
 	draftID, err := svc.Create(ctx, fx.WriterID, CreateArticleInput{
-		PublicationID: fx.PublicationID, Title: "Draft", Slug: "draft-w",
+		PublisherID: fx.PublisherID, Title: "Draft", Slug: "draft-w",
 		Content: "x", ContentFormat: "markdown",
 	})
 	if err != nil {
@@ -305,7 +305,7 @@ func TestService_Update_MediaWorkflow(t *testing.T) {
 	}
 	if err := svc.Update(ctx, draftID, fx.WriterID, UpdateArticleInput{
 		Title: "Draft", Content: "x", ContentFormat: "markdown", Status: "PUBLISHED", Published: true,
-		ActivePublicationID: fx.PublicationID,
+		ActivePublisherID: fx.PublisherID,
 	}); err == nil || !strings.Contains(err.Error(), "Soumettre pour revue") {
 		t.Fatalf("Update(writer PUBLISHED) = %v, attendu refus de publication", err)
 	}
@@ -327,24 +327,24 @@ func TestService_Delete_MediaBranches(t *testing.T) {
 
 	// L'editor crée un article publié ; le writer n'est ni auteur ni delete:any.
 	pubID, err := svc.Create(ctx, fx.EditorID, CreateArticleInput{
-		PublicationID: fx.PublicationID, Title: "À garder", Slug: "a-garder",
+		PublisherID: fx.PublisherID, Title: "À garder", Slug: "a-garder",
 		Content: "x", ContentFormat: "markdown", Status: "PUBLISHED", Published: true,
 	})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if err := svc.Delete(ctx, pubID, fx.WriterID, fx.PublicationID); err == nil {
+	if err := svc.Delete(ctx, pubID, fx.WriterID, fx.PublisherID); err == nil {
 		t.Fatal("Delete(writer non-auteur) = nil, attendu errForbidden")
 	}
 	// Le writer supprime son propre brouillon → OK (edit:own).
 	draftID, err := svc.Create(ctx, fx.WriterID, CreateArticleInput{
-		PublicationID: fx.PublicationID, Title: "Mon draft", Slug: "mon-draft",
+		PublisherID: fx.PublisherID, Title: "Mon draft", Slug: "mon-draft",
 		Content: "x", ContentFormat: "markdown",
 	})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if err := svc.Delete(ctx, draftID, fx.WriterID, fx.PublicationID); err != nil {
+	if err := svc.Delete(ctx, draftID, fx.WriterID, fx.PublisherID); err != nil {
 		t.Fatalf("Delete(own draft): %v", err)
 	}
 }
@@ -355,7 +355,7 @@ func TestService_Review_DeniedForViewer(t *testing.T) {
 	svc := newService()
 
 	id, err := svc.Create(ctx, fx.WriterID, CreateArticleInput{
-		PublicationID: fx.PublicationID, Title: "À revoir 2", Slug: "a-revoir-2",
+		PublisherID: fx.PublisherID, Title: "À revoir 2", Slug: "a-revoir-2",
 		Content: "x", ContentFormat: "markdown", Status: "SUBMITTED",
 	})
 	if err != nil {
@@ -394,7 +394,7 @@ func TestService_Update_PublishedArticle_IsolatesDraft(t *testing.T) {
 	svc := newService()
 
 	id, err := svc.Create(ctx, fx.EditorID, CreateArticleInput{
-		PublicationID: fx.PublicationID, Title: "Version publique", Slug: "iso-draft",
+		PublisherID: fx.PublisherID, Title: "Version publique", Slug: "iso-draft",
 		Content: "<p>contenu public</p>", ContentFormat: "html",
 		Status: "PUBLISHED", Published: true,
 	})
@@ -410,7 +410,7 @@ func TestService_Update_PublishedArticle_IsolatesDraft(t *testing.T) {
 		Title: "Titre retouché", Content: "<p>contenu brouillon</p>",
 		ContentFormat: "html", Slug: "slug-retouche", Status: "PUBLISHED",
 		SeoTitle:  &seoDraft,
-		Published: false, ActivePublicationID: fx.PublicationID,
+		Published: false, ActivePublisherID: fx.PublisherID,
 	}); err != nil {
 		t.Fatalf("Update(auto-save): %v", err)
 	}
@@ -438,7 +438,7 @@ func TestService_Update_PublishedArticle_IsolatesDraft(t *testing.T) {
 	if err := svc.Update(ctx, id, fx.EditorID, UpdateArticleInput{
 		Title: "Titre live", Content: "<p>contenu live</p>",
 		ContentFormat: "html", Slug: "iso-draft", Status: "PUBLISHED",
-		Published: true, ActivePublicationID: fx.PublicationID,
+		Published: true, ActivePublisherID: fx.PublisherID,
 	}); err != nil {
 		t.Fatalf("Update(live): %v", err)
 	}
@@ -459,7 +459,7 @@ func TestService_Unpublish_ClearsScheduleAndPublishesDraft(t *testing.T) {
 	svc := newService()
 
 	id, err := svc.Create(ctx, fx.EditorID, CreateArticleInput{
-		PublicationID: fx.PublicationID, Title: "À dépublier", Slug: "a-depublier",
+		PublisherID: fx.PublisherID, Title: "À dépublier", Slug: "a-depublier",
 		Content: "<p>en ligne</p>", ContentFormat: "html",
 		Status: "PUBLISHED", Published: true,
 	})
@@ -491,7 +491,7 @@ func TestService_Unpublish_ClearsScheduleAndPublishesDraft(t *testing.T) {
 
 	// Un utilisateur étranger ne peut pas dépublier.
 	id2, err := svc.Create(ctx, fx.EditorID, CreateArticleInput{
-		PublicationID: fx.PublicationID, Title: "Protégé", Slug: "protege",
+		PublisherID: fx.PublisherID, Title: "Protégé", Slug: "protege",
 		Content: "<p>x</p>", ContentFormat: "html",
 		Status: "PUBLISHED", Published: true,
 	})

@@ -1,27 +1,27 @@
--- name: GetPublicationByID :one
-SELECT id FROM "Publication" WHERE id = $1;
+-- name: GetPublisherByID :one
+SELECT id FROM "Publisher" WHERE id = $1;
 
--- name: GetPersonalPublicationByUserID :one
-SELECT "publicationId" AS id FROM "User" WHERE id = $1;
+-- name: GetPersonalPublisherByUserID :one
+SELECT "publisherId" AS id FROM "User" WHERE id = $1;
 
 -- name: GetPersonalOwnerForCredit :one
 SELECT id::text AS owner_id, role AS owner_role
 FROM "User"
-WHERE "publicationId" = $1;
+WHERE "publisherId" = $1;
 
 -- name: GetMediaOwnerForCredit :one
 SELECT mm."userId"::text AS owner_id, 'creator' AS owner_role
 FROM "MediaMember" mm
 JOIN "Media" md ON md.id = mm."mediaId"
-WHERE md."publicationId" = $1 AND mm.role = 'owner' AND mm.status = 'active'
+WHERE md."publisherId" = $1 AND mm.role = 'owner' AND mm.status = 'active'
 LIMIT 1;
 
 -- name: UpsertSubscriberPayment :one
 -- Double opt-in : Stripe/paiement confirme d'office l'email (relation facturée
 -- authentifiée) — receiveArticles reste actif sans confirmation email.
-INSERT INTO "Subscriber" (id, email, "publicationId", status, "isActive", "isPremium", "ltvCents", "confirmedAt", "updatedAt")
+INSERT INTO "Subscriber" (id, email, "publisherId", status, "isActive", "isPremium", "ltvCents", "confirmedAt", "updatedAt")
 VALUES (gen_random_uuid()::text, $1, $2, 'ACTIVE', true, true, $3, now(), now())
-ON CONFLICT ("email", "publicationId") DO UPDATE SET
+ON CONFLICT ("email", "publisherId") DO UPDATE SET
   "isActive" = true, "isPremium" = true,
   "ltvCents" = "Subscriber"."ltvCents" + EXCLUDED."ltvCents",
   status = 'ACTIVE',
@@ -33,7 +33,7 @@ RETURNING id;
 -- name: SetSubscriberPremiumStatus :exec
 UPDATE "Subscriber"
 SET "isActive" = $3, "isPremium" = $3, status = $4
-WHERE "publicationId" = $1 AND email = $2;
+WHERE "publisherId" = $1 AND email = $2;
 
 -- name: IncrementWalletBalance :exec
 UPDATE "User"

@@ -298,11 +298,11 @@ export function ExternalLinkInterceptor({
 
 export interface ExitCardProps {
   targetUrl?: string | null;
-  publicationName?: string;
+  publisherName?: string;
   onBackUrl?: string;
 }
 
-export function ExitCard({ targetUrl, publicationName, onBackUrl = '/' }: ExitCardProps) {
+export function ExitCard({ targetUrl, publisherName, onBackUrl = '/' }: ExitCardProps) {
   const parsed = parseExternalUrl(targetUrl);
 
   return (
@@ -320,10 +320,10 @@ export function ExitCard({ targetUrl, publicationName, onBackUrl = '/' }: ExitCa
             {parsed.isValid ? `Ouvrir ${parsed.hostname}` : 'Redirection introuvable'}
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-md">
-            {publicationName ? (
+            {publisherName ? (
               <>
                 Ce lien vous redirige vers un site tiers hors de{' '}
-                <span className="font-medium text-foreground">{publicationName}</span>.
+                <span className="font-medium text-foreground">{publisherName}</span>.
               </>
             ) : (
               'Ce lien ouvre une ressource extérieure.'

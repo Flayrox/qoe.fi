@@ -13,10 +13,10 @@ import (
 	"github.com/qoefi/api/internal/testutil"
 )
 
-// reqCtx ajoute UserID + PublicationID au contexte (comme CombinedAuth API-key).
+// reqCtx ajoute UserID + PublisherID au contexte (comme CombinedAuth API-key).
 func reqCtx(r *http.Request, userID, pubID string) *http.Request {
 	ctx := context.WithValue(r.Context(), middleware.UserIDKey, userID)
-	ctx = context.WithValue(ctx, middleware.PublicationIDKey, pubID)
+	ctx = context.WithValue(ctx, middleware.PublisherIDKey, pubID)
 	return r.WithContext(ctx)
 }
 

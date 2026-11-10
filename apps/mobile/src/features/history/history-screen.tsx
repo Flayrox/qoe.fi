@@ -110,7 +110,7 @@ function HistoryRow({ item }: { item: ReadingHistoryItem }) {
       pathname: '/article/[slug]',
       params: {
         slug: article.slug,
-        publicationId: article.publication?.id ?? '',
+        publisherId: article.publisher?.id ?? '',
       },
     });
 
@@ -128,7 +128,7 @@ function HistoryRow({ item }: { item: ReadingHistoryItem }) {
               {article.title}
             </ThemedText>
             <ThemedText type="small" numberOfLines={1} style={{ color: theme.textSecondary }}>
-              {article.publication?.name ? `${article.publication.name} · ` : ''}
+              {article.publisher?.name ? `${article.publisher.name} · ` : ''}
               {t('history.minutes', '{minutes} min', {
                 minutes: article.readingTime,
               })}
