@@ -252,6 +252,24 @@ souveraine » :
    personnel. La garde existe aussi en base (`trg_guard_sovereign_transfer`)
    pour couvrir un `UPDATE` SQL direct.
 
+### Clôture du P1 (2026-11-10)
+
+- `00084` appliquée en dev : version **84**, 3 triggers actifs
+  (`trg_provision_author_sovereign_copy`,
+  `trg_provision_coauthor_sovereign_copy`, `trg_guard_sovereign_transfer`),
+  4 fonctions présentes, boucle co-auteur confirmée dans la fonction.
+- Invariants dev : 1 copie, 1 archive média, 0 archive en espace personnel,
+  0 doublon, 0 co-auteur `ACCEPTED` sans copie.
+- Suite complète `go test ./...` sur base éphémère, timeout de 180 s par
+  paquet : **55 paquets OK, 12 en échec, 8 sans test**, run terminé seul. Les
+  12 échecs (`abuse`, `adminauthz`, `middleware`, `creator`, `devtools`,
+  `feed`, `highlights`, `posts`, `publishers`, `settings`, `seed`, `users`)
+  sont reproduits à l’identique sur un worktree propre à HEAD — mêmes tests,
+  mêmes messages. Aucune régression imputable au P1.
+- `adminauthz`, `devtools` et `seed` dépassent 180 s parce que leur harnais
+  recrée une base et rejoue les migrations par test ; aucune attente de
+  verrou constatée, la migration progresse.
+
 ---
 
 ## 📝 Instructions
