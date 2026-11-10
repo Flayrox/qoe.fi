@@ -38,6 +38,7 @@ export async function updateMediaProfileAction(
     heroText?: string;
     logoUrl?: string | null;
     headerImageUrl?: string | null;
+    supportUrl?: string | null;
     siteOptions?: Record<string, unknown>;
   }
 ) {

@@ -11,7 +11,8 @@
 .qoe-editor {
   outline: none;
   caret-color: var(--primary);
-  min-height: 60vh;
+  min-height: 50vh;
+  cursor: text;
 }
 
 /* Les liens ne s'ouvrent pas au clic dans l'éditeur : le curseur texte

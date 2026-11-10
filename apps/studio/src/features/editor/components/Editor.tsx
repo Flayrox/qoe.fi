@@ -178,32 +178,21 @@ function snapToVisualLineStart(view: EditorView, pos: number, event: MouseEvent)
     const $pos = view.state.doc.resolve(pos);
     if (!$pos.parent.isTextblock || $pos.parent.type.name === 'codeBlock') return null;
 
-    let lineStart = pos;
-    const blockStart = $pos.start();
-    let guard = 0;
+    // Détection directe du début de ligne visuelle à la même hauteur clientY
+    const domRect = view.dom.getBoundingClientRect();
+    const lineStartCoords = view.posAtCoords({
+      left: domRect.left + 6,
+      top: event.clientY,
+    });
 
-    while (lineStart > blockStart && guard < 120) {
-      const previous = lineStart - 1;
-      const previousCoords = view.coordsAtPos(previous, 1);
-      // Une ligne visuelle peut être coupée par un retour à la ligne : on
-      // s'arrête dès que le caractère précédent appartient à une autre ligne.
-      if (event.clientY < previousCoords.top - 2 || event.clientY > previousCoords.bottom + 2) {
-        break;
+    if (lineStartCoords && lineStartCoords.pos !== undefined) {
+      const startCoords = view.coordsAtPos(lineStartCoords.pos, 1);
+      const distance = event.clientX - startCoords.left;
+      if (distance >= -LINE_START_SNAP_PX && distance <= LINE_START_SNAP_PX) {
+        return lineStartCoords.pos;
       }
-      // Le début de ligne est encore plus à gauche que ce caractère : on
-      // est sorti de la zone de tolérance, inutile de continuer.
-      if (event.clientX - previousCoords.left > LINE_START_SNAP_PX) return null;
-      lineStart = previous;
-      guard += 1;
     }
 
-    if (lineStart > blockStart && guard >= 120) return null;
-
-    const lineStartCoords = view.coordsAtPos(lineStart, 1);
-    const distance = event.clientX - lineStartCoords.left;
-    if (distance >= -LINE_START_SNAP_PX && distance <= LINE_START_SNAP_PX) {
-      return lineStart;
-    }
     return null;
   } catch {
     return null;
@@ -1822,6 +1811,53 @@ export function Editor({
     openAnnotationPopover();
   };
 
+  const handleEditorGutterPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!editor || !editor.view) return;
+    if (event.button !== 0 || event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) {
+      return;
+    }
+
+    const target = event.target as HTMLElement | null;
+    if (
+      target?.closest(
+        'button, input, select, textarea, [role="button"], [role="toolbar"], a, .image-details-panel'
+      )
+    ) {
+      return;
+    }
+
+    const view = editor.view;
+    const dom = view.dom;
+    const domRect = dom.getBoundingClientRect();
+
+    // Clic sous la zone de texte (fond vide de la feuille)
+    if (event.clientY > domRect.bottom) {
+      const endPos = view.state.doc.content.size;
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, endPos)));
+      view.focus();
+      return;
+    }
+
+    // Clic dans la gouttière gauche (à gauche du texte ou dans les 32px de l'amorce de la ligne)
+    if (
+      event.clientX < domRect.left + 32 &&
+      event.clientY >= domRect.top &&
+      event.clientY <= domRect.bottom
+    ) {
+      const coordsPos = view.posAtCoords({
+        left: domRect.left + 6,
+        top: event.clientY,
+      });
+
+      if (coordsPos && coordsPos.pos !== undefined) {
+        view.dispatch(
+          view.state.tr.setSelection(TextSelection.create(view.state.doc, coordsPos.pos))
+        );
+        view.focus();
+      }
+    }
+  };
+
   if (!editor) {
     return null;
   }
@@ -1879,143 +1915,148 @@ export function Editor({
         </div>
       )}
 
-      <div className="max-w-3xl mx-auto w-full space-y-6">
-        {reviewFeedback && reviewFeedback.action === 'REJECTED' && (
-          <div className="rounded-xl border border-highlight/30 bg-highlight/5 p-4 text-xs font-sans text-foreground space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-semibold text-highlight flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 shrink-0" />
-                {t`Retouches demandées par le comité éditorial`}
-              </span>
-              <span className="text-[11px] text-muted-foreground">
-                {reviewFeedback.reviewerName || reviewFeedback.reviewerUsername
-                  ? `${reviewFeedback.reviewerName || reviewFeedback.reviewerUsername} • `
-                  : ''}
-                {new Date(reviewFeedback.createdAt).toLocaleDateString(undefined, {
-                  day: 'numeric',
-                  month: 'short',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </span>
+      <div className="max-w-4xl mx-auto w-full px-2 sm:px-4 md:px-6">
+        <div
+          onPointerDown={handleEditorGutterPointerDown}
+          className="relative bg-card text-card-foreground border border-border/70 rounded-2xl md:rounded-3xl shadow-xs md:shadow-sm p-6 sm:p-10 md:p-14 space-y-6 transition-all ring-1 ring-border/20"
+        >
+          {reviewFeedback && reviewFeedback.action === 'REJECTED' && (
+            <div className="rounded-xl border border-highlight/30 bg-highlight/5 p-4 text-xs font-sans text-foreground space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-highlight flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 shrink-0" />
+                  {t`Retouches demandées par le comité éditorial`}
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  {reviewFeedback.reviewerName || reviewFeedback.reviewerUsername
+                    ? `${reviewFeedback.reviewerName || reviewFeedback.reviewerUsername} • `
+                    : ''}
+                  {new Date(reviewFeedback.createdAt).toLocaleDateString(undefined, {
+                    day: 'numeric',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </div>
+              {reviewFeedback.comment && (
+                <blockquote className="border-l-2 border-highlight/40 pl-3 py-0.5 text-muted-foreground italic text-xs leading-relaxed">
+                  « {reviewFeedback.comment} »
+                </blockquote>
+              )}
+              <p className="text-[11px] text-muted-foreground">
+                {t`Effectuez les ajustements demandés ci-dessous, puis soumettez à nouveau votre article.`}
+              </p>
             </div>
-            {reviewFeedback.comment && (
-              <blockquote className="border-l-2 border-highlight/40 pl-3 py-0.5 text-muted-foreground italic text-xs leading-relaxed">
-                « {reviewFeedback.comment} »
-              </blockquote>
-            )}
-            <p className="text-[11px] text-muted-foreground">
-              {t`Effectuez les ajustements demandés ci-dessous, puis soumettez à nouveau votre article.`}
-            </p>
-          </div>
-        )}
-        <div className="space-y-3">
-          <input
-            type="text"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder={t`Titre de votre article...`}
-            className="w-full bg-transparent border-0 text-3xl md:text-4xl font-bold tracking-tight text-foreground focus:outline-none placeholder:text-muted-foreground/30 font-sans leading-tight"
-          />
-
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-sans flex-nowrap">
-            <span className="text-muted-foreground/60 font-medium whitespace-nowrap shrink-0 select-none">
-              slug:
-            </span>
+          )}
+          <div className="space-y-3">
             <input
               type="text"
-              value={slug}
-              onChange={(event) =>
-                setSlug(event.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'))
-              }
-              placeholder="slug-url"
-              className="bg-transparent border-0 p-0 text-xs font-sans font-medium text-muted-foreground focus:outline-none flex-1 min-w-0"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder={t`Titre de votre article...`}
+              className="w-full bg-transparent border-0 text-3xl md:text-4xl font-bold tracking-tight text-foreground focus:outline-none placeholder:text-muted-foreground/30 font-sans leading-tight"
             />
+
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-sans flex-nowrap">
+              <span className="text-muted-foreground/60 font-medium whitespace-nowrap shrink-0 select-none">
+                slug:
+              </span>
+              <input
+                type="text"
+                value={slug}
+                onChange={(event) =>
+                  setSlug(event.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'))
+                }
+                placeholder="slug-url"
+                className="bg-transparent border-0 p-0 text-xs font-sans font-medium text-muted-foreground focus:outline-none flex-1 min-w-0"
+              />
+            </div>
           </div>
-        </div>
 
-        <CoverUploader
-          imageUrl={imageUrl}
-          title={title}
-          isUploading={isUploading}
-          onUpload={(file) => {
-            void (async () => {
-              try {
-                setIsUploading(true);
-                setError(null);
-                const compressed = await compressImage(file);
-                const url = await uploadImageToRoute(
-                  compressed,
-                  '/api/articles/upload',
-                  IMAGE_FOLDERS.articles
-                );
-                setImageUrl(url);
-                setHasUnsavedChanges(true);
-              } catch (err: unknown) {
-                setError(getErrorMessage(err, t`Échec de l'upload de l'image.`));
-              } finally {
-                setIsUploading(false);
-              }
-            })();
-          }}
-          onRemove={() => {
-            setImageUrl(null);
-            setHasUnsavedChanges(true);
-          }}
-        />
-
-        <div className="space-y-3">
-          <div
-            ref={toolbarSentinelRef}
-            className="h-px w-full pointer-events-none opacity-0 -mb-4"
-          />
-
-          <input
-            ref={bodyImageInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            aria-label={t`Insérer image`}
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) openImageBatch([file], 'single');
-              event.target.value = '';
-            }}
-          />
-          <input
-            ref={galleryInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            aria-label={t`Insérer une galerie`}
-            onChange={(event) => {
-              const files = Array.from(event.target.files ?? []);
-              if (files.length > 0) openImageBatch(files, 'gallery');
-              event.target.value = '';
-            }}
-          />
-
-          <EditorToolbar
-            editor={editor}
-            docked={isDocked}
+          <CoverUploader
+            imageUrl={imageUrl}
+            title={title}
             isUploading={isUploading}
-            uploadCount={uploadCount}
-            onPickImage={() => bodyImageInputRef.current?.click()}
-            onPickGallery={() => galleryInputRef.current?.click()}
-            onAnnotation={handleAnnotationButton}
-            onLink={openLinkPopover}
-            onImageDetails={openImageDetails}
+            onUpload={(file) => {
+              void (async () => {
+                try {
+                  setIsUploading(true);
+                  setError(null);
+                  const compressed = await compressImage(file);
+                  const url = await uploadImageToRoute(
+                    compressed,
+                    '/api/articles/upload',
+                    IMAGE_FOLDERS.articles
+                  );
+                  setImageUrl(url);
+                  setHasUnsavedChanges(true);
+                } catch (err: unknown) {
+                  setError(getErrorMessage(err, t`Échec de l'upload de l'image.`));
+                } finally {
+                  setIsUploading(false);
+                }
+              })();
+            }}
+            onRemove={() => {
+              setImageUrl(null);
+              setHasUnsavedChanges(true);
+            }}
           />
 
-          <div className="py-4">
-            <EditorContent editor={editor} />
-            <SelectionToolbar
-              editor={editor}
-              onLink={openLinkPopover}
-              onAnnotation={handleAnnotationButton}
+          <div className="space-y-3">
+            <div
+              ref={toolbarSentinelRef}
+              className="h-px w-full pointer-events-none opacity-0 -mb-4"
             />
-            <EditorStatusBar editor={editor} onOpenAnnotation={handleAnnotationButton} />
+
+            <input
+              ref={bodyImageInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              aria-label={t`Insérer image`}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) openImageBatch([file], 'single');
+                event.target.value = '';
+              }}
+            />
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              aria-label={t`Insérer une galerie`}
+              onChange={(event) => {
+                const files = Array.from(event.target.files ?? []);
+                if (files.length > 0) openImageBatch(files, 'gallery');
+                event.target.value = '';
+              }}
+            />
+
+            <EditorToolbar
+              editor={editor}
+              docked={isDocked}
+              isUploading={isUploading}
+              uploadCount={uploadCount}
+              onPickImage={() => bodyImageInputRef.current?.click()}
+              onPickGallery={() => galleryInputRef.current?.click()}
+              onAnnotation={handleAnnotationButton}
+              onLink={openLinkPopover}
+              onImageDetails={openImageDetails}
+            />
+
+            <div className="py-4">
+              <EditorContent editor={editor} />
+              <SelectionToolbar
+                editor={editor}
+                onLink={openLinkPopover}
+                onAnnotation={handleAnnotationButton}
+              />
+              <EditorStatusBar editor={editor} onOpenAnnotation={handleAnnotationButton} />
+            </div>
           </div>
         </div>
       </div>

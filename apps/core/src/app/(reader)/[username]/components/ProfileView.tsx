@@ -16,6 +16,7 @@ import {
   Pin,
   Share2,
   Lock,
+  ExternalLink,
 } from 'lucide-react';
 import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
 import { ThoughtCard } from '@/components/social/ThoughtCard';
@@ -77,6 +78,9 @@ interface ProfileUser {
   headerImageUrl?: string | null;
   onboardingText?: string | null;
   pronouns?: string | null;
+  website?: string | null;
+  supportUrl?: string | null;
+  socialLinks?: Array<{ platform: string; url: string }> | null;
   isCertified?: boolean;
   createdAt: string | Date;
   posts?: ProfilePost[];
@@ -338,7 +342,8 @@ export function ProfileView({
   const mediaThoughts = enrichedPosts.filter((p) => !!p.imageUrl);
   const pinnedThoughts = rootThoughts.filter((p) => p.isPinned);
   const regularThoughts = rootThoughts.filter((p) => !p.isPinned);
-  const siteUrl = user.customDomain || (user.subdomain ? `${user.subdomain}.qoe.fi` : null);
+  const siteUrl =
+    user.website || user.customDomain || (user.subdomain ? `${user.subdomain}.qoe.fi` : null);
 
   const formattedJoinedDate = new Date(user.createdAt).toLocaleDateString('fr-FR', {
     month: 'long',
@@ -490,16 +495,49 @@ export function ProfileView({
               </div>
               {siteUrl && (
                 <a
-                  href={`https://${siteUrl}`}
+                  href={siteUrl.startsWith('http') ? siteUrl : `https://${siteUrl}`}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-1.5 text-brand hover:underline cursor-pointer"
                 >
                   <LinkIcon className="w-3.5 h-3.5" />
-                  <span>{siteUrl}</span>
+                  <span>{siteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}</span>
+                </a>
+              )}
+              {user.supportUrl && (
+                <a
+                  href={
+                    user.supportUrl.startsWith('http')
+                      ? user.supportUrl
+                      : `https://${user.supportUrl}`
+                  }
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground hover:underline cursor-pointer"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Contact & Support</span>
                 </a>
               )}
             </div>
+
+            {/* Social Links Chips */}
+            {user.socialLinks && user.socialLinks.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 pt-3">
+                {user.socialLinks.map((s) => (
+                  <a
+                    key={s.platform}
+                    href={s.url.startsWith('http') ? s.url : `https://${s.url}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  >
+                    <ExternalLink className="size-3" />
+                    <span className="capitalize">{s.platform}</span>
+                  </a>
+                ))}
+              </div>
+            )}
 
             {/* Stats — cliquables */}
             <div className="flex items-center gap-6 pt-4 text-xs">
@@ -562,7 +600,7 @@ export function ProfileView({
           {/* Profile Tabs Navigation */}
           <div
             className={cn(
-              'border-t border-border/40 px-4 overflow-x-auto no-scrollbar sm:px-5',
+              'border-t border-border/40 px-4 sm:px-5 overflow-x-auto sm:overflow-x-visible no-scrollbar overscroll-contain',
               !canViewContent && 'hidden'
             )}
           >
@@ -574,7 +612,7 @@ export function ProfileView({
             >
               <TabList
                 aria-label={t`Sections du profil`}
-                className="min-w-max gap-6 border-b-0 sm:gap-8"
+                className="gap-5 sm:gap-7 border-b-0 min-w-max sm:min-w-0 sm:w-full sm:justify-start overflow-x-auto sm:overflow-x-visible"
               >
                 <Tab
                   id="thoughts"

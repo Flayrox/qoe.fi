@@ -754,6 +754,34 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 		ownerUserID = access.OwnerID
 	}
 
+	// Métadonnées étendues de la publication (site web, supportUrl, réseaux sociaux)
+	var website *string
+	var supportUrl *string
+	var socialLinks any
+
+	var siteOptJSON []byte
+	var supp pgtype.Text
+	if err := h.pool.QueryRow(r.Context(),
+		`SELECT "supportUrl", "siteOptions" FROM "Publication" WHERE id = $1`,
+		row.ID).Scan(&supp, &siteOptJSON); err == nil {
+		if supp.Valid && strings.TrimSpace(supp.String) != "" {
+			s := strings.TrimSpace(supp.String)
+			supportUrl = &s
+		}
+		if len(siteOptJSON) > 0 {
+			var opt map[string]any
+			if json.Unmarshal(siteOptJSON, &opt) == nil {
+				if w, ok := opt["website"].(string); ok && strings.TrimSpace(w) != "" {
+					ws := strings.TrimSpace(w)
+					website = &ws
+				}
+				if sl, ok := opt["socialLinks"]; ok {
+					socialLinks = sl
+				}
+			}
+		}
+	}
+
 	response.OK(w, map[string]any{"data": map[string]any{
 		"id":                row.ID,
 		"ownerUserId":       ownerUserID,
@@ -765,6 +793,9 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 		"onboardingText":    onboardingText,
 		"logoUrl":           textPtr(row.LogoUrl),
 		"headerImageUrl":    textPtr(row.HeaderImageUrl),
+		"website":           website,
+		"supportUrl":        supportUrl,
+		"socialLinks":       socialLinks,
 		"isCertified":       row.IsCertified,
 		"isFollowing":       access.IsFollowing,
 		"followRequested":   access.Requested,

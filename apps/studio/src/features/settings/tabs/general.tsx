@@ -9,7 +9,7 @@
 
 import React, { useState } from 'react';
 import { ColorPicker } from '@qoe/ui';
-import { Button, buttonClasses } from '@qoe/ui/button';
+import { Button } from '@qoe/ui/button';
 import { Input, Textarea } from '@qoe/ui/input';
 import { Switch } from '@qoe/ui/switch';
 import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
@@ -18,7 +18,6 @@ import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
 import { cn } from '@qoe/utils';
 import {
   Check,
-  ExternalLink,
   Globe,
   Image as ImageIcon,
   Palette,
@@ -35,7 +34,7 @@ import { StudioField, StudioRow, StudioRowList, StudioSection } from '@/componen
 interface GeneralTabProps {
   current: CreatorProfile;
   setCurrent: React.Dispatch<React.SetStateAction<CreatorProfile>>;
-  consoleSettingsUrl: string;
+  consoleSettingsUrl?: string;
   publicBlogUrl?: string;
 }
 
@@ -49,7 +48,7 @@ const DISPLAY_OPTIONS = [
   { key: 'showNewsletterWall', label: 'Mur newsletter' },
 ];
 
-export function GeneralTab({ current, setCurrent, consoleSettingsUrl }: GeneralTabProps) {
+export function GeneralTab({ current, setCurrent }: GeneralTabProps) {
   const [identityScope, setIdentityScope] = useState<'tenant' | 'core'>('tenant');
   const isMedia = Boolean(current.isMedia);
 
@@ -321,52 +320,129 @@ export function GeneralTab({ current, setCurrent, consoleSettingsUrl }: GeneralT
       ) : isMedia ? (
         <MediaProfilePreviewEditor current={current} setCurrent={setCurrent} />
       ) : (
-        <StudioSection title="Profil public" icon={User} className="max-w-3xl">
-          <div className="flex items-start gap-4">
-            <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/50 bg-muted">
-              {current.logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element -- URL utilisateur distante arbitraire, non déclarable dans next.config.
-                <img src={current.logoUrl} alt="" className="size-full object-cover" />
-              ) : (
-                <span className="text-lg font-semibold text-muted-foreground">
-                  {(current.name || 'A').charAt(0).toUpperCase()}
-                </span>
-              )}
-            </div>
+        <div className="space-y-6 max-w-3xl">
+          <StudioSection title="Identité de l'auteur" icon={User}>
+            <StudioRowList>
+              <StudioRow
+                title="Bannière de profil"
+                description="Image d'en-tête affichée sur votre profil public (ratio recommandé 21/9)."
+              >
+                <div className="w-64">
+                  <ImageUploader
+                    value={current.headerImageUrl}
+                    onChange={(url) => setCurrent((prev) => ({ ...prev, headerImageUrl: url }))}
+                    upload={(file) =>
+                      uploadImageToRoute(file, '/api/upload', IMAGE_FOLDERS.banners)
+                    }
+                    shape="banner"
+                    aspect={21 / 9}
+                    maxDimension={1600}
+                    label="Bannière"
+                  />
+                </div>
+              </StudioRow>
 
-            <div className="min-w-0 flex-1 space-y-1">
-              <div className="flex items-center gap-2">
-                <h3 className="truncate text-sm font-semibold text-foreground">
-                  {current.name || 'Auteur Qoefi'}
-                </h3>
-                {current.username ? (
-                  <span className="font-mono text-xs text-muted-foreground">
-                    @{current.username}
-                  </span>
-                ) : null}
-              </div>
-              <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                {current.heroText || 'Aucune biographie renseignée.'}
-              </p>
-            </div>
-          </div>
+              <StudioRow
+                title="Photo de profil"
+                description="Votre avatar public affiché sur vos articles et pensées."
+              >
+                <div className="size-20">
+                  <ImageUploader
+                    value={current.logoUrl}
+                    onChange={(url) => setCurrent((prev) => ({ ...prev, logoUrl: url }))}
+                    upload={(file) =>
+                      uploadImageToRoute(file, '/api/upload', IMAGE_FOLDERS.avatars)
+                    }
+                    shape="circle"
+                    aspect={1}
+                    maxDimension={512}
+                    label="Avatar"
+                  />
+                </div>
+              </StudioRow>
 
-          <div className="mt-5 flex flex-col gap-3 border-t border-border/40 pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="max-w-lg text-xs leading-relaxed text-muted-foreground">
-              Le nom, la biographie, l’avatar et la sécurité du compte sont gérés sur Qoefi Core.
-              Les modifications s’appliquent à tous vos articles.
-            </p>
-            <a
-              href={consoleSettingsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={buttonClasses({ variant: 'outline', size: 'sm' })}
-            >
-              <span>Gérer mon profil</span>
-              <ExternalLink />
-            </a>
-          </div>
-        </StudioSection>
+              <StudioRow
+                title="Nom complet"
+                description="Nom public sous lequel vous écrivez et publiez vos articles."
+              >
+                <div className="max-w-md">
+                  <Input
+                    type="text"
+                    value={current.name || ''}
+                    onChange={(e) => setCurrent((prev) => ({ ...prev, name: e.target.value }))}
+                    placeholder="Votre nom"
+                  />
+                </div>
+              </StudioRow>
+
+              <StudioRow
+                title="Biographie / Présentation"
+                description="Une courte présentation affichée en haut de votre profil et sous vos articles."
+              >
+                <div className="max-w-md">
+                  <Textarea
+                    value={current.heroText || ''}
+                    onChange={(e) => setCurrent((prev) => ({ ...prev, heroText: e.target.value }))}
+                    placeholder="Décrivez-vous en quelques mots..."
+                    rows={3}
+                  />
+                </div>
+              </StudioRow>
+
+              <StudioRow
+                title="Localisation"
+                description="Ville ou région affichée sur votre profil public."
+              >
+                <div className="max-w-md">
+                  <Input
+                    type="text"
+                    value={
+                      typeof current.siteOptions?.location === 'string'
+                        ? (current.siteOptions.location as string)
+                        : ''
+                    }
+                    onChange={(e) =>
+                      setCurrent((prev) => ({
+                        ...prev,
+                        siteOptions: {
+                          ...(prev.siteOptions || {}),
+                          location: e.target.value || undefined,
+                        },
+                      }))
+                    }
+                    placeholder="Paris, France"
+                  />
+                </div>
+              </StudioRow>
+
+              <StudioRow
+                title="Site web personnel"
+                description="Lien externe vers votre portfolio ou site personnel."
+              >
+                <div className="max-w-md">
+                  <Input
+                    type="url"
+                    value={
+                      typeof current.siteOptions?.website === 'string'
+                        ? (current.siteOptions.website as string)
+                        : ''
+                    }
+                    onChange={(e) =>
+                      setCurrent((prev) => ({
+                        ...prev,
+                        siteOptions: {
+                          ...(prev.siteOptions || {}),
+                          website: e.target.value || undefined,
+                        },
+                      }))
+                    }
+                    placeholder="https://mon-site.fr"
+                  />
+                </div>
+              </StudioRow>
+            </StudioRowList>
+          </StudioSection>
+        </div>
       )}
     </div>
   );
