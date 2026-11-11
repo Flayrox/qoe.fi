@@ -42,6 +42,9 @@ type Service struct {
 	pool    *pgxpool.Pool
 	devOnly bool
 
+	// seedOpts réduit le volume des seeds de test ; zéro = défauts de production.
+	seedOpts seed.TopOptions
+
 	// Job de régénération asynchrone (un seul à la fois).
 	jobMu sync.Mutex
 	job   *SeedJob
@@ -594,7 +597,7 @@ func (s *Service) SeedTopComplete(ctx context.Context, userID string) (map[strin
 	if err := s.checkSuperadmin(ctx, userID); err != nil {
 		return nil, err
 	}
-	return runSeedTopComplete(ctx, s.pool, nil)
+	return runSeedTopComplete(ctx, s.pool, nil, s.seedOpts)
 }
 
 // ---------------------------------------------------------------------------
@@ -690,7 +693,7 @@ func (s *Service) StartSeedTopComplete(ctx context.Context, userID string) (*See
 	s.jobMu.Unlock()
 
 	go func() {
-		res, err := runSeedTopComplete(context.Background(), s.pool, job.markStep)
+		res, err := runSeedTopComplete(context.Background(), s.pool, job.markStep, s.seedOpts)
 		job.finish(res, err)
 	}()
 	return job.Snapshot(), nil
@@ -711,7 +714,7 @@ func (s *Service) SeedJobProgress(ctx context.Context, userID, jobID string) (*S
 
 // runSeedTopComplete exécute les étapes de la régénération complète. onStep
 // (optionnel) est appelé au début de chaque étape pour suivre la progression.
-func runSeedTopComplete(ctx context.Context, pool *pgxpool.Pool, onStep func(string)) (map[string]any, error) {
+func runSeedTopComplete(ctx context.Context, pool *pgxpool.Pool, onStep func(string), opts seed.TopOptions) (map[string]any, error) {
 	step := func(label string) {
 		if onStep != nil {
 			onStep(label)
@@ -720,13 +723,13 @@ func runSeedTopComplete(ctx context.Context, pool *pgxpool.Pool, onStep func(str
 	}
 
 	step("Wipe + génération du volume (RunTop)")
-	res, err := seed.RunTop(ctx, pool, seed.TopOptions{})
+	res, err := seed.RunTop(ctx, pool, opts)
 	if err != nil {
 		return nil, err
 	}
 
 	step("Contenu additif (AddTop)")
-	added, err := seed.AddTop(ctx, pool, seed.TopOptions{Articles: 200, Posts: 1480})
+	added, err := seed.AddTop(ctx, pool, seed.TopOptions{Articles: opts.Articles, Posts: opts.Posts})
 	if err != nil {
 		return nil, err
 	}

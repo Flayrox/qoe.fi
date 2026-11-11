@@ -66,8 +66,8 @@ func TestPolicyV1_SignupBurstNeedsReview(t *testing.T) {
 	if out.Decision != DecisionNeedsReview {
 		t.Fatalf("rafale : attendu needs_review, obtenu %s", out.Decision)
 	}
-	if len(out.Reasons) != 1 || out.Reasons[0] != "burst.signup.publication" {
-		t.Fatalf("raison attendue [burst.signup.publication], obtenu %v", out.Reasons)
+	if len(out.Reasons) != 1 || out.Reasons[0] != "burst.signup.publisher" {
+		t.Fatalf("raison attendue [burst.signup.publisher], obtenu %v", out.Reasons)
 	}
 	if out.Policy != "abuse-core" || out.Version != "v1" {
 		t.Fatalf("traçabilité : attendu abuse-core/v1, obtenu %s/%s", out.Policy, out.Version)

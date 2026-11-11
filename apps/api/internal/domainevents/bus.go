@@ -158,8 +158,8 @@ func handleUserMuted(ctx context.Context, db DB, event UserMutedEvent) error {
 	}
 	_, err := db.Exec(ctx, `
 		UPDATE "Notification"
-		SET read = true
-		WHERE "recipientId" = $1 AND "senderId" = $2 AND read = false`,
+		SET "isRead" = true
+		WHERE "recipientId" = $1 AND "senderId" = $2 AND "isRead" = false`,
 		toUUID(event.MuterID), toUUID(event.MutedID))
 	if err != nil {
 		return fmt.Errorf("lecture notifications auteur mis en sourdine: %w", err)

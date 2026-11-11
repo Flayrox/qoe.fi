@@ -174,7 +174,7 @@ func (s *Service) Reply(ctx context.Context, parentID, userID, content string) (
 // liked/reposted, compteurs, pièces jointes, sondage, chaîne d'ancêtres et
 // isFollowing de l'auteur. C'est LA même shape que /v1/feed et /thread.
 func (s *Service) Get(ctx context.Context, id, viewerID string) (FeedPost, error) {
-	rows, err := s.q.GetPostsByIDs(ctx, db.GetPostsByIDsParams{Ids: []string{id}, ViewerID: toUUID(viewerID)})
+	rows, err := s.q.GetPostsByIDs(ctx, db.GetPostsByIDsParams{Ids: []string{id}, ViewerID: toUUID(viewerID), IncludeOwnDrafts: true})
 	if err != nil {
 		return FeedPost{}, err
 	}
@@ -214,7 +214,7 @@ func (s *Service) Get(ctx context.Context, id, viewerID string) (FeedPost, error
 		if len(toFetch) == 0 {
 			break
 		}
-		extraRows, err := s.q.GetPostsByIDs(ctx, db.GetPostsByIDsParams{Ids: toFetch, ViewerID: toUUID(viewerID)})
+		extraRows, err := s.q.GetPostsByIDs(ctx, db.GetPostsByIDsParams{Ids: toFetch, ViewerID: toUUID(viewerID), IncludeOwnDrafts: true})
 		if err != nil {
 			return FeedPost{}, err
 		}

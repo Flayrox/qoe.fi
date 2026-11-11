@@ -96,17 +96,23 @@ func TestHTTP_UpdateDeleteToggleUpvote(t *testing.T) {
 	}
 	r := newHTTPRouter()
 
+	// Toggle upvote par le viewer sur un surlignage encore public.
+	w := doReq(r, http.MethodPost, "/v1/highlights/"+h0.ID+"/upvote", fx.ViewerID, "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("upvote = %d %s", w.Code, w.Body.String())
+	}
+
 	// Update partiel (visibilité privée).
-	w := doReq(r, http.MethodPatch, "/v1/highlights/"+h0.ID,
+	w = doReq(r, http.MethodPatch, "/v1/highlights/"+h0.ID,
 		fx.AuthorID, `{"isPublic":false}`)
 	if w.Code != http.StatusOK {
 		t.Fatalf("update = %d %s", w.Code, w.Body.String())
 	}
 
-	// Toggle upvote par le viewer.
+	// Un surlignage privé n'est plus visible : l'upvote d'un tiers reste 404.
 	w = doReq(r, http.MethodPost, "/v1/highlights/"+h0.ID+"/upvote", fx.ViewerID, "")
-	if w.Code != http.StatusOK {
-		t.Fatalf("upvote = %d %s", w.Code, w.Body.String())
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("upvote privé = %d %s, attendu 404", w.Code, w.Body.String())
 	}
 
 	// Suppression par un tiers : ok:false (0 ligne affectée).

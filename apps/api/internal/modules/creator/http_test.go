@@ -218,7 +218,7 @@ func TestCategories_NonOwnerForbidden(t *testing.T) {
 }
 
 func TestRemoveFollower(t *testing.T) {
-	alicePubID, aliceUserID, bobUserID, _ := seedFollows(t)
+	alicePubID, aliceUserID, _, bobUserID := seedFollows(t)
 	r := newFullRouter()
 
 	// Bob suit Alice

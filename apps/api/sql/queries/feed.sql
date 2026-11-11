@@ -210,9 +210,9 @@ LEFT JOIN "Like" l ON l."postId" = p.id AND l."userId" = @viewer_id
 LEFT JOIN "Post" r ON r."repostId" = p.id AND r."authorId" = @viewer_id AND r."deletedAt" IS NULL AND (r.content = '' OR r.content = ' ')
 WHERE p.id = ANY(@ids::text[])
   AND p."deletedAt" IS NULL
-  AND p."isDraft" = false
+  AND (p."isDraft" = false OR (sqlc.arg(include_own_drafts)::boolean AND p."authorId" = @viewer_id))
   AND p."isHiddenByModerator" = false
-  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
+  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now() OR (sqlc.arg(include_own_drafts)::boolean AND p."authorId" = @viewer_id))
   AND NOT EXISTS (
     SELECT 1 FROM "BlockedUser" b
     WHERE (b."readerId" = @viewer_id AND (
