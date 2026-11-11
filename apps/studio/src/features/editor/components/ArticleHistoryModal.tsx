@@ -15,8 +15,13 @@ import {
   Send,
   Undo2,
   XCircle,
+  User,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
+import { Button } from '@qoe/ui/button';
+import { Badge } from '@qoe/ui/badge';
+import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
+import { toast } from '@qoe/ui/toast';
 import {
   Dialog,
   DialogBody,
@@ -28,14 +33,19 @@ import {
 import { t } from '@lingui/core/macro';
 import {
   getArticleEventsAction,
+  getArticleSnapshotsAction,
+  restoreArticleSnapshotAction,
   type ArticleEvent,
   type ArticleEventType,
+  type ArticleSnapshotDTO,
 } from '@qoe/sdk/actions/articles';
 
 export interface ArticleHistoryModalProps {
   open: boolean;
   articleId: string | null;
+  canEdit?: boolean;
   onClose: () => void;
+  onRestored?: () => void;
 }
 
 interface EventVisual {
@@ -142,28 +152,78 @@ const TONE_CLASSES: Record<EventVisual['tone'], string> = {
   negative: 'bg-destructive/10 text-destructive-text border-destructive/25',
 };
 
+function snapshotReasonLabel(reason: string): string {
+  switch (reason) {
+    case 'INITIAL':
+      return t`Création initiale`;
+    case 'AUTHOR_SWITCH':
+      return t`Changement de rédacteur`;
+    case 'SUBMITTED':
+      return t`Soumis à relecture`;
+    case 'PUBLISHED':
+      return t`Publié`;
+    case 'BEFORE_REVOCATION':
+      return t`Avant révocation`;
+    case 'BEFORE_RESTORE':
+      return t`Avant restauration`;
+    default:
+      return reason;
+  }
+}
+
 /**
- * Chronologie de publication. Volontairement en lecture seule : l'historique
- * est un journal append-only, rien ici ne se modifie ni ne s'efface.
+ * Historique des versions et chronologie des événements de publication.
  */
-export function ArticleHistoryModal({ open, articleId, onClose }: ArticleHistoryModalProps) {
+export function ArticleHistoryModal({
+  open,
+  articleId,
+  canEdit = true,
+  onClose,
+  onRestored,
+}: ArticleHistoryModalProps) {
+  const [activeTab, setActiveTab] = React.useState<'snapshots' | 'events'>('snapshots');
   const [events, setEvents] = React.useState<ArticleEvent[] | null>(null);
+  const [snapshots, setSnapshots] = React.useState<ArticleSnapshotDTO[] | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [restoringId, setRestoringId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!open || !articleId) return;
     let cancelled = false;
     setEvents(null);
+    setSnapshots(null);
     setError(null);
-    void getArticleEventsAction(articleId).then((res) => {
+
+    void Promise.all([
+      getArticleEventsAction(articleId),
+      getArticleSnapshotsAction({ articleId }),
+    ]).then(([eventsRes, snapshotsRes]) => {
       if (cancelled) return;
-      if (res.ok) setEvents(res.data);
-      else setError(res.error?.message || t`Impossible de charger l'historique.`);
+      if (eventsRes.ok) setEvents(eventsRes.data);
+      if (snapshotsRes.ok) setSnapshots(snapshotsRes.data);
+      if (!eventsRes.ok && !snapshotsRes.ok) {
+        setError(eventsRes.error?.message || t`Impossible de charger l'historique.`);
+      }
     });
+
     return () => {
       cancelled = true;
     };
   }, [open, articleId]);
+
+  const handleRestore = async (snapshotId: string) => {
+    if (!articleId) return;
+    setRestoringId(snapshotId);
+    const res = await restoreArticleSnapshotAction({ articleId, snapshotId });
+    setRestoringId(null);
+    if (res.ok) {
+      toast.success(t`Version restaurée avec succès.`);
+      onRestored?.();
+      onClose();
+    } else {
+      toast.error(res.error?.message || t`Échec de la restauration`);
+    }
+  };
 
   if (!open) return null;
 
@@ -176,17 +236,33 @@ export function ArticleHistoryModal({ open, articleId, onClose }: ArticleHistory
       }}
     >
       <DialogContent overlayClassName="z-[100] items-start pt-[8vh]">
-        <DialogHeader className="border-b border-border/50 pb-4">
+        <DialogHeader className="border-b border-border/50 pb-3">
           <div className="flex items-start gap-3">
             <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
               <History className="h-4 w-4" strokeWidth={1.8} />
             </span>
             <div>
-              <DialogTitle className="text-sm">{t`Historique de publication`}</DialogTitle>
-              <DialogDescription className="mt-0.5 text-xs">
-                {t`Chaque étape de la vie publique de cet écrit.`}
+              <DialogTitle className="text-sm font-semibold">{t`Historique de l'écrit`}</DialogTitle>
+              <DialogDescription className="mt-0.5 text-xs text-muted-foreground">
+                {t`Versions du texte enregistrées et jalons éditoriaux.`}
               </DialogDescription>
             </div>
+          </div>
+
+          <div className="mt-3">
+            <Tabs
+              selectedKey={activeTab}
+              onSelectionChange={(val) => setActiveTab(val as 'snapshots' | 'events')}
+            >
+              <TabList>
+                <Tab id="snapshots" className="text-xs">
+                  {t`Versions du texte`}
+                </Tab>
+                <Tab id="events" className="text-xs">
+                  {t`Journal d'activité`}
+                </Tab>
+              </TabList>
+            </Tabs>
           </div>
         </DialogHeader>
 
@@ -197,8 +273,8 @@ export function ArticleHistoryModal({ open, articleId, onClose }: ArticleHistory
             </p>
           )}
 
-          {articleId && events === null && !error && (
-            <div className="flex items-center gap-2 py-8 text-xs text-muted-foreground">
+          {articleId && events === null && snapshots === null && !error && (
+            <div className="flex items-center justify-center gap-2 py-8 text-xs text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
               {t`Chargement…`}
             </div>
@@ -211,13 +287,84 @@ export function ArticleHistoryModal({ open, articleId, onClose }: ArticleHistory
             </div>
           )}
 
-          {events && events.length === 0 && (
+          {activeTab === 'snapshots' && snapshots && snapshots.length === 0 && (
             <p className="py-8 text-center text-xs text-muted-foreground">
-              {t`Aucun événement pour l'instant. La chronologie se remplit dès la première publication.`}
+              {t`Aucune version textuelle enregistrée pour l'instant.`}
             </p>
           )}
 
-          {events && events.length > 0 && (
+          {activeTab === 'snapshots' && snapshots && snapshots.length > 0 && (
+            <div className="space-y-3 py-1">
+              {snapshots.map((snap, idx) => (
+                <div
+                  key={snap.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/20 p-3 transition-colors hover:bg-muted/40"
+                >
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-foreground truncate">
+                        {snap.title || t`Sans titre`}
+                      </span>
+                      <Badge variant="outline" size="sm" className="text-[10px]">
+                        {snapshotReasonLabel(snap.reason)}
+                      </Badge>
+                      {idx === 0 && (
+                        <Badge variant="soft" size="sm" className="text-[9px]">
+                          {t`Plus récent`}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+                      <span>
+                        {snap.wordCount} {t`mots`}
+                      </span>
+                      <span>·</span>
+                      <time dateTime={snap.createdAt}>{formatDateTime(snap.createdAt)}</time>
+                      {snap.actorName && (
+                        <>
+                          <span>·</span>
+                          <span className="flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            {snap.actorName}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {canEdit && (
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      disabled={restoringId !== null}
+                      onClick={() => handleRestore(snap.id)}
+                      className="shrink-0 text-xs"
+                    >
+                      {restoringId === snap.id ? (
+                        <>
+                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          {t`Restauration…`}
+                        </>
+                      ) : (
+                        <>
+                          <RotateCcw className="mr-1 h-3 w-3" />
+                          {t`Restaurer`}
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {activeTab === 'events' && events && events.length === 0 && (
+            <p className="py-8 text-center text-xs text-muted-foreground">
+              {t`Aucun événement pour l'instant.`}
+            </p>
+          )}
+
+          {activeTab === 'events' && events && events.length > 0 && (
             <ol className="relative space-y-5 border-l border-border/60 pl-5 ml-3">
               {events.map((event) => {
                 const visual = visualFor(event);

@@ -59,6 +59,7 @@ type Querier interface {
 	// peuvent tourner sans envoyer deux fois le même email.
 	ClaimLegalNoticeDeliveries(ctx context.Context, batchSize int32) ([]ClaimLegalNoticeDeliveriesRow, error)
 	ClaimLegalReviewReminders(ctx context.Context, batchSize int32) ([]ClaimLegalReviewRemindersRow, error)
+	ClaimSovereignCopy(ctx context.Context, arg ClaimSovereignCopyParams) error
 	ClearArticleEditorPicks(ctx context.Context) error
 	ClearPinnedPosts(ctx context.Context, authorid string) error
 	// Publier le brouillon d'une revue clôt la revue : la boucle est bouclée sans
@@ -242,6 +243,7 @@ type Querier interface {
 	// que la lecture : le hors-ligne ne contourne jamais le paywall contenu).
 	GetArticleOfflinePack(ctx context.Context, id string) (GetArticleOfflinePackRow, error)
 	GetArticleReleaseInfo(ctx context.Context, id string) (GetArticleReleaseInfoRow, error)
+	GetArticleSnapshotByID(ctx context.Context, id string) (GetArticleSnapshotByIDRow, error)
 	GetAttachmentsByIDs(ctx context.Context, dollar_1 []string) ([]GetAttachmentsByIDsRow, error)
 	GetAudienceSummary(ctx context.Context, publisherid string) (GetAudienceSummaryRow, error)
 	// IDs des utilisateurs bloqués dans un sens ou l'autre avec le viewer, parmi
@@ -277,6 +279,8 @@ type Querier interface {
 	// Tables : Highlight, AnnotationComment, AnnotationUpvote.
 	GetHighlightByID(ctx context.Context, id string) (GetHighlightByIDRow, error)
 	GetLatestArticleReviewFeedback(ctx context.Context, articleid string) (GetLatestArticleReviewFeedbackRow, error)
+	GetLatestArticleSnapshotByArticle(ctx context.Context, articleid string) (ArticleSnapshot, error)
+	GetLatestArticleSnapshotByArticleAndActor(ctx context.Context, arg GetLatestArticleSnapshotByArticleAndActorParams) (ArticleSnapshot, error)
 	GetLatestLegalConsentExport(ctx context.Context) (LegalConsentExport, error)
 	GetLegalAcceptance(ctx context.Context, arg GetLegalAcceptanceParams) (LegalAcceptance, error)
 	// ─── Rappels aux superadmins ─────────────────────────────────────────
@@ -463,6 +467,7 @@ type Querier interface {
 	InsertArticleReleaseMajorUpdateDeliveries(ctx context.Context, arg InsertArticleReleaseMajorUpdateDeliveriesParams) error
 	InsertArticleReviewLog(ctx context.Context, arg InsertArticleReviewLogParams) error
 	InsertArticleReviewNotification(ctx context.Context, arg InsertArticleReviewNotificationParams) error
+	InsertArticleSnapshot(ctx context.Context, arg InsertArticleSnapshotParams) (ArticleSnapshot, error)
 	InsertBlock(ctx context.Context, arg InsertBlockParams) error
 	InsertBookmark(ctx context.Context, arg InsertBookmarkParams) error
 	InsertCommentNotification(ctx context.Context, arg InsertCommentNotificationParams) error
@@ -550,6 +555,7 @@ type Querier interface {
 	ListArticleComments(ctx context.Context, arg ListArticleCommentsParams) ([]ListArticleCommentsRow, error)
 	ListArticleImportJobs(ctx context.Context, arg ListArticleImportJobsParams) ([]ListArticleImportJobsRow, error)
 	ListArticleSlugs(ctx context.Context, articleid string) ([]string, error)
+	ListArticleSnapshots(ctx context.Context, articleid string) ([]ListArticleSnapshotsRow, error)
 	ListArticlesForSettings(ctx context.Context, publisherid string) ([]ListArticlesForSettingsRow, error)
 	ListArticlesWithCategory(ctx context.Context, arg ListArticlesWithCategoryParams) ([]ListArticlesWithCategoryRow, error)
 	// Articles attribués à un créateur : publication directe OU co-signés via ArticleAttribution ACCEPTED + visible.

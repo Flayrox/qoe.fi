@@ -511,3 +511,174 @@ func TestService_TransferMediaToPersonal_NormalizesMediaArchive(t *testing.T) {
 		t.Fatalf("copies après transfert = %d, attendu 0", copies)
 	}
 }
+
+// TestService_Snapshots_MilestonesAndRestore vérifie que les jalons (INITIAL, SUBMITTED)
+// créent des snapshots et que RestoreSnapshot restaure le contenu tout en préservant
+// un snapshot BEFORE_RESTORE.
+func TestService_Snapshots_MilestonesAndRestore(t *testing.T) {
+	requirePool(t)
+	fx := seedMedia(t)
+	svc := newService()
+	ctx := context.Background()
+
+	id, err := svc.Create(ctx, fx.WriterID, CreateArticleInput{
+		PublisherID:   fx.PublisherID,
+		Title:         "Article avec Snapshots",
+		Slug:          "article-avec-snapshots",
+		Content:       "Version 1 originale",
+		ContentFormat: "markdown",
+		Status:        "DRAFT",
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// 1. Vérifier snapshot INITIAL
+	snaps, err := svc.ListSnapshots(ctx, id, fx.WriterID)
+	if err != nil {
+		t.Fatalf("ListSnapshots: %v", err)
+	}
+	if len(snaps) < 1 {
+		t.Fatalf("attendu au moins 1 snapshot INITIAL, reçu %d", len(snaps))
+	}
+	if snaps[len(snaps)-1].Reason != "INITIAL" {
+		t.Fatalf("premier snapshot reason = %q, attendu INITIAL", snaps[len(snaps)-1].Reason)
+	}
+	initialSnapID := snaps[len(snaps)-1].ID
+
+	// 2. Mise à jour du contenu par l'auteur (altération)
+	if err := svc.Update(ctx, id, fx.WriterID, UpdateArticleInput{
+		Title:         "Article Modifié",
+		Slug:          "article-avec-snapshots",
+		Content:       "Version 2 altérée",
+		ContentFormat: "markdown",
+		Status:        "DRAFT",
+	}); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	// 3. Restauration du snapshot INITIAL
+	if err := svc.RestoreSnapshot(ctx, id, initialSnapID, fx.WriterID); err != nil {
+		t.Fatalf("RestoreSnapshot: %v", err)
+	}
+
+	// 4. Vérifier que le contenu est revenu à la version 1
+	restored, err := svc.GetByID(ctx, id, fx.WriterID)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	if !strings.Contains(restored.Content, "Version 1 originale") {
+		t.Fatalf("contenu après restore = %q, attendu 'Version 1 originale'", restored.Content)
+	}
+
+	// 5. Vérifier la présence du snapshot BEFORE_RESTORE
+	snapsAfter, err := svc.ListSnapshots(ctx, id, fx.WriterID)
+	if err != nil {
+		t.Fatalf("ListSnapshots after: %v", err)
+	}
+	hasBeforeRestore := false
+	for _, s := range snapsAfter {
+		if s.Reason == "BEFORE_RESTORE" {
+			hasBeforeRestore = true
+			break
+		}
+	}
+	if !hasBeforeRestore {
+		t.Fatal("snapshot BEFORE_RESTORE manquant après restauration")
+	}
+}
+
+// TestService_Snapshots_RevokedCoAuthorProtection vérifie qu'un co-auteur exclu
+// conserve un snapshot BEFORE_REVOCATION et peut revendiquer son exemplaire personnel.
+func TestService_Snapshots_RevokedCoAuthorProtection(t *testing.T) {
+	requirePool(t)
+	fx := seedMedia(t)
+	svc := newService()
+	ctx := context.Background()
+
+	// Création d'un second auteur (co-auteur)
+	var coAuthorID string
+	if err := poolTest.QueryRow(ctx, `
+		INSERT INTO "User" (id, email, name, username, "publisherId", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, 'coauthor-snap@test.qoe', 'Co Auteur Snap', 'coauthorsnap', NULL, now(), now())
+		RETURNING id
+	`).Scan(&coAuthorID); err != nil {
+		t.Fatalf("création coauteur: %v", err)
+	}
+
+	id, err := svc.Create(ctx, fx.WriterID, CreateArticleInput{
+		PublisherID:   fx.PublisherID,
+		Title:         "Article Collaboratif Protégé",
+		Slug:          "article-collab-protege",
+		Content:       "Texte co-rédigé initial",
+		ContentFormat: "markdown",
+		Status:        "DRAFT",
+		Attributions: []ArticleAttributionInput{
+			{UserID: fx.WriterID, Role: "PRIMARY_AUTHOR", Order: 0, IsVisible: true},
+			{UserID: coAuthorID, Role: "CO_AUTHOR", Order: 1, IsVisible: true},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// Accepter la collaboration
+	if _, err := poolTest.Exec(ctx, `
+		UPDATE "ArticleAttribution"
+		SET "consentStatus" = 'ACCEPTED', "updatedAt" = now()
+		WHERE "articleId" = $1 AND "userId" = $2
+	`, id, coAuthorID); err != nil {
+		t.Fatalf("accept attribution: %v", err)
+	}
+
+	// L'auteur principal révoque le co-auteur en retirant son attribution
+	svc.syncAttributions(ctx, id, fx.WriterID, []ArticleAttributionInput{
+		{UserID: fx.WriterID, Role: "PRIMARY_AUTHOR", Order: 0, IsVisible: true},
+	})
+
+	// Vérifier que le co-auteur est bien REVOKED
+	var status string
+	if err := poolTest.QueryRow(ctx, `
+		SELECT "consentStatus" FROM "ArticleAttribution"
+		WHERE "articleId" = $1 AND "userId" = $2
+	`, id, coAuthorID).Scan(&status); err != nil {
+		t.Fatalf("statut coauteur: %v", err)
+	}
+	if status != "REVOKED" {
+		t.Fatalf("consentStatus coauteur = %q, attendu REVOKED", status)
+	}
+
+	// Le co-auteur révoqué peut toujours accéder à la liste des snapshots
+	snaps, err := svc.ListSnapshots(ctx, id, coAuthorID)
+	if err != nil {
+		t.Fatalf("co-auteur révoqué ListSnapshots: %v", err)
+	}
+	hasRevocationSnap := false
+	for _, s := range snaps {
+		if s.Reason == "BEFORE_REVOCATION" {
+			hasRevocationSnap = true
+			break
+		}
+	}
+	if !hasRevocationSnap {
+		t.Fatal("snapshot BEFORE_REVOCATION introuvable pour le co-auteur révoqué")
+	}
+
+	// Le co-auteur révoqué peut forker vers son espace personnel
+	copyID, _, err := svc.ForkToPersonal(ctx, id, coAuthorID)
+	if err != nil {
+		t.Fatalf("ForkToPersonal par co-auteur révoqué: %v", err)
+	}
+	if copyID == "" {
+		t.Fatal("copie ID vide pour co-auteur révoqué")
+	}
+
+	// Vérifier que la copie est marquée isClaimed = true
+	var isClaimed bool
+	if err := poolTest.QueryRow(ctx, `SELECT "isClaimed" FROM "Article" WHERE id = $1`, copyID).Scan(&isClaimed); err != nil {
+		t.Fatalf("isClaimed check: %v", err)
+	}
+	if !isClaimed {
+		t.Fatal("la copie forquée par le co-auteur révoqué doit être isClaimed = true")
+	}
+}

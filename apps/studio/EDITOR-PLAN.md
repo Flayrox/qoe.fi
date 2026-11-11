@@ -302,6 +302,13 @@ souveraine » :
 
 ### Correctifs éditeur (2026-11-11)
 
+- **Souveraineté d'auteur v2 & Coffre-fort invisible (Migration 00085)** :
+  - Fin des brouillons fantômes dans Studio : les copies souveraines provisionnées automatiquement restent en veille (`isClaimed = false`) et sont invisibles jusqu'à ce que l'auteur ou co-auteur clique sur « Récupérer ma version » (`isClaimed = true`).
+  - Table `ArticleSnapshot` pour figer l'état textuel aux jalons clés : `INITIAL` (création), `AUTHOR_SWITCH` (sauvegarde par un contributeur tiers), `SUBMITTED` (soumission revue), `PUBLISHED` (publication), `BEFORE_REVOCATION` (éviction d'un co-auteur), et `BEFORE_RESTORE` (avant rollback).
+  - Protection des co-auteurs (personnels ou médias) révoqués ou exclus : capture automatique d'un snapshot `BEFORE_REVOCATION`, maintien du droit d'accès aux snapshots et droit inaliénable de forker vers leur propre espace personnel.
+  - `RecoverArticleModal` : choix clair entre « Votre dernière version rédigée » et « Dernière version collective », avec prévisualisation et diff textuel mot-à-mot.
+  - `ArticleHistoryModal` : onglet « Versions du texte » avec historique des jalons, mot-compte, auteur et restauration réversible en 1 clic.
+  - Vocabulaire clarifié : remplacement du badge brut « Souverain · [Média] » par « Version personnelle · [Média] », badge « Lecture seule », et raccourci « Ma version ».
 - **A2** : `Mod+Alt+A` bascule l'alinéa, avec garde `paragraph` et infobulle
   du bouton de barre (`63cf082f`) ; `Mod+Alt+I` a été écarté car il ouvre
   les DevTools de Chrome sur macOS.

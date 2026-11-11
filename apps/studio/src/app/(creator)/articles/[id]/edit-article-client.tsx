@@ -205,6 +205,7 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
         }
         initialEmailSentAt={article.emailSentAt}
         initialEmailSentCount={article.emailSentCount}
+        initialAuthorId={article.author.id}
         initialCanEdit={article.canEdit ?? true}
         initialIsAuthorSovereignCopy={article.isAuthorSovereignCopy ?? false}
         initialOriginArticleId={article.originArticleId ?? null}

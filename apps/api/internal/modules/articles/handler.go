@@ -82,6 +82,8 @@ func (h *Handler) RegisterProtected(r chi.Router, requireScope func(string) func
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/transfer", h.transfer)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/fork-personal", h.forkPersonal)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/submit-revision", h.submitRevision)
+	r.With(requireScope(middleware.ScopeRead)).Get("/v1/articles/{id}/snapshots", h.listSnapshots)
+	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/snapshots/{snapshotId}/restore", h.restoreSnapshot)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/send-email", h.sendEmail)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/test-email", h.testEmail)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/discard-draft", h.discardDraft)
@@ -750,18 +752,30 @@ func (h *Handler) transfer(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, article)
 }
 
+type forkPersonalInput struct {
+	SnapshotID *string `json:"snapshotId,omitempty"`
+}
+
 // POST /v1/articles/{id}/fork-personal — crée ou récupère l'exemplaire personnel souverain d'un essai média.
 func (h *Handler) forkPersonal(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	id := chi.URLParam(r, "id")
-	copyID, alreadyExisted, err := h.svc.ForkToPersonal(r.Context(), id, userID)
+	var in forkPersonalInput
+	if r.Body != nil {
+		_ = json.NewDecoder(r.Body).Decode(&in)
+	}
+	var snapID string
+	if in.SnapshotID != nil {
+		snapID = *in.SnapshotID
+	}
+	copyID, alreadyExisted, err := h.svc.ForkToPersonal(r.Context(), id, userID, snapID)
 	if err != nil {
 		if errors.Is(err, errNotFound) {
 			response.NotFound(w, "Article introuvable")
 			return
 		}
 		if errors.Is(err, errForbidden) {
-			response.Forbidden(w, "Seul l'auteur ou un co-auteur accepté peut dupliquer cet essai vers son espace personnel.")
+			response.Forbidden(w, "Seul l'auteur ou un co-auteur peut dupliquer cet essai vers son espace personnel.")
 			return
 		}
 		response.BadRequest(w, err.Error())
@@ -771,6 +785,46 @@ func (h *Handler) forkPersonal(w http.ResponseWriter, r *http.Request) {
 		"id":             copyID,
 		"alreadyExisted": alreadyExisted,
 	})
+}
+
+// GET /v1/articles/{id}/snapshots — liste l'historique des versions textuelles d'un article.
+func (h *Handler) listSnapshots(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+	items, err := h.svc.ListSnapshots(r.Context(), id, userID)
+	if err != nil {
+		if errors.Is(err, errNotFound) {
+			response.NotFound(w, "Article introuvable")
+			return
+		}
+		if errors.Is(err, errForbidden) {
+			response.Forbidden(w, "Accès refusé aux versions de cet article")
+			return
+		}
+		response.BadRequest(w, err.Error())
+		return
+	}
+	response.OK(w, items)
+}
+
+// POST /v1/articles/{id}/snapshots/{snapshotId}/restore — restaure une version textuelle antérieure.
+func (h *Handler) restoreSnapshot(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+	snapshotID := chi.URLParam(r, "snapshotId")
+	if err := h.svc.RestoreSnapshot(r.Context(), id, snapshotID, userID); err != nil {
+		if errors.Is(err, errNotFound) {
+			response.NotFound(w, "Article ou version introuvable")
+			return
+		}
+		if errors.Is(err, errForbidden) {
+			response.Forbidden(w, "Vous n'avez pas la permission de restaurer cette version")
+			return
+		}
+		response.BadRequest(w, err.Error())
+		return
+	}
+	response.OK(w, map[string]bool{"success": true})
 }
 
 // POST /v1/articles/{id}/submit-revision — propose les modifications de l'essai personnel à l'article média d'origine.
