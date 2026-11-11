@@ -255,6 +255,18 @@ interface RichProps {
   onMarkClick: (annotation: AnnotationItem) => void;
 }
 
+/**
+ * Une sélection native est en cours dans cette marque (glisser ou double-clic).
+ * Le clic qui suit le mouseup ne doit pas ouvrir le tiroir : il volerait la
+ * sélection et empêcherait de surligner un passage déjà annoté.
+ */
+function hasSelectionInside(element: HTMLElement): boolean {
+  const selection = window.getSelection();
+  if (!selection || selection.isCollapsed || selection.rangeCount === 0) return false;
+  const range = selection.getRangeAt(0);
+  return element.contains(range.startContainer) || element.contains(range.endContainer);
+}
+
 const SPOTLIGHT_MARK_ID = 'spotlight-passage';
 
 /** Texte d'un run découpé en styles inline puis enveloppé des marques. */
@@ -266,7 +278,12 @@ function RenderRich({ text, marks, inline, onMarkClick }: RichProps) {
     const b = boundaries[i + 1];
     if (b <= a) continue;
     const segText = text.slice(a, b);
-    const covering = marksCovering(marks, a, b);
+    // On enveloppe de la plus petite à la plus grande : la marque extérieure
+    // doit rester l’ancêtre, sinon la cible du clic dans le passage imbriqué
+    // devient l’annotation extérieure.
+    const covering = marksCovering(marks, a, b).sort(
+      (m1, m2) => m1.end - m1.start - (m2.end - m2.start)
+    );
 
     const styled: ReactNode[] = styleSegments(a, b, inline).map((ss, j) => {
       let node: ReactNode = text.slice(ss.start, ss.end);
@@ -321,6 +338,7 @@ function RenderRich({ text, marks, inline, onMarkClick }: RichProps) {
               ? undefined
               : (e) => {
                   e.stopPropagation();
+                  if (hasSelectionInside(e.currentTarget)) return;
                   onMarkClick(m.annotation);
                 }
           }

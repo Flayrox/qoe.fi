@@ -306,6 +306,23 @@ export async function TenantArticleRenderer({
       }
     : null;
 
+  const highlighter = (
+    <TenantArticleHighlighter
+      articleId={article.id}
+      creatorName={authorName || t`L'Auteur`}
+      allowPublicAnnotations={allowPublicAnnotations}
+      isAuthenticated={!!user}
+      initialHighlights={initialHighlights}
+      publicHighlights={publicHighlights as AnnotationItem[]}
+      currentUserId={user?.id || null}
+      currentUserProfile={currentUserProfile}
+      articleAuthorId={article.authorId}
+      mainAppUrl={mainAppUrl}
+      canonicalDocument={canonicalDocument}
+      contentClassName="article-prose max-w-none"
+    />
+  );
+
   const articleBodyContent = (
     <>
       <TenantArticleReadingTracker
@@ -317,26 +334,16 @@ export async function TenantArticleRenderer({
       <div className="container mx-auto px-4 lg:px-8 max-w-3xl">
         {articleLayout ? (
           <div className="relative">
-            {/* Surligneur Genius et moteur de sélections (rendu avec le corps d'article ou barre d'annotations en haut) */}
-            <TenantArticleHighlighter
-              articleId={article.id}
-              creatorName={authorName || t`L'Auteur`}
-              allowPublicAnnotations={allowPublicAnnotations}
-              isAuthenticated={!!user}
-              initialHighlights={initialHighlights}
-              publicHighlights={publicHighlights as AnnotationItem[]}
-              currentUserId={user?.id || null}
-              currentUserProfile={currentUserProfile}
-              articleAuthorId={article.authorId}
-              mainAppUrl={mainAppUrl}
-              canonicalDocument={canonicalDocument}
-              contentClassName="article-prose max-w-none"
-            />
+            {/* Surligneur Genius et moteur de sélections. En mode canonique,
+                son corps est rendu DANS le bloc article du template pour ne
+                pas peindre deux fois le même article. */}
+            {!canonicalDocument && highlighter}
             <TemplateRenderer
               config={articleLayout}
               publisher={templatePublisher}
               articles={drawerArticles}
               article={templateArticle}
+              articleContent={canonicalDocument ? highlighter : undefined}
               standaloneShell={false}
               mode="live"
             />
@@ -468,20 +475,7 @@ export async function TenantArticleRenderer({
             </header>
 
             {/* Surligneur Genius et moteur de sélections (rendu avec le corps d'article ou barre d'annotations en haut) */}
-            <TenantArticleHighlighter
-              articleId={article.id}
-              creatorName={authorName || t`L'Auteur`}
-              allowPublicAnnotations={allowPublicAnnotations}
-              isAuthenticated={!!user}
-              initialHighlights={initialHighlights}
-              publicHighlights={publicHighlights as AnnotationItem[]}
-              currentUserId={user?.id || null}
-              currentUserProfile={currentUserProfile}
-              articleAuthorId={article.authorId}
-              mainAppUrl={mainAppUrl}
-              canonicalDocument={canonicalDocument}
-              contentClassName="article-prose max-w-none"
-            />
+            {highlighter}
 
             {/* Corps de l'article de secours (HTML tronqué) + Paywall si document non canonique (article restreint/payant) */}
             {!canonicalDocument && (

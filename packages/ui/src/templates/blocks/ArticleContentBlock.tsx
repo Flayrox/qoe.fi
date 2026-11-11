@@ -19,6 +19,8 @@ interface ArticleContentBlockComponentProps {
   publisher: TemplatePublisherContext;
   article?: TemplateArticleItem | null;
   context: TemplateRenderContext;
+  /** Corps canonique déjà annotable, fourni par l'app hôte (tenant). */
+  content?: React.ReactNode;
   visible?: boolean;
   locked?: boolean;
   slots?: Record<string, import('../schema').TemplateNode[]>;
@@ -85,6 +87,7 @@ export function ArticleContentBlock({
   publisher,
   article: articleProp,
   context,
+  content,
   visible = true,
   locked = false,
   slots,
@@ -113,7 +116,9 @@ export function ArticleContentBlock({
     };
 
   const authorName = article.author?.name || article.author?.username || publisher.name || '';
-  const safeHtml = sanitizeArticleHtml(article.content || '');
+  // Le corps canonique annotable remplace le HTML brut : inutile de le
+  // sanitiser et de le parser en double.
+  const safeHtml = content ? '' : sanitizeArticleHtml(article.content || '');
 
   const rawAuthors = article.authors;
   const authorsList: Array<{
@@ -261,13 +266,15 @@ export function ArticleContentBlock({
           </div>
         )}
 
-        {safeHtml && (
+        {content ? (
+          <div className="mt-8">{content}</div>
+        ) : safeHtml ? (
           <div
             id="article-content"
             className="article-prose mt-8 font-sans"
             dangerouslySetInnerHTML={{ __html: safeHtml }}
           />
-        )}
+        ) : null}
         {slots?.after && (
           <div className="mt-8">
             <NodeRenderer

@@ -299,6 +299,18 @@ export function TextHighlighter({
     mark.setAttribute('aria-label', label);
     mark.onclick = (event) => {
       event.stopPropagation();
+      // Même règle que le rendu canonique : un clic qui termine une sélection
+      // dans la marque ne doit pas ouvrir le tiroir et voler le passage qu'on
+      // cherche à surligner.
+      const selection = window.getSelection();
+      if (
+        selection &&
+        !selection.isCollapsed &&
+        selection.rangeCount > 0 &&
+        (mark.contains(selection.anchorNode) || mark.contains(selection.focusNode))
+      ) {
+        return;
+      }
       open();
     };
     mark.onkeydown = (event: KeyboardEvent) => {

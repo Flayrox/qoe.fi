@@ -52,6 +52,8 @@ export interface TemplateRendererProps {
   selectedBlockId?: string | null;
   selectedOid?: string | null;
   article?: TemplateArticleItem | null;
+  /** Contenu canonique annotable rendu à la place du HTML brut par le bloc article. */
+  articleContent?: React.ReactNode;
   standaloneShell?: boolean;
   onSelectBlock?: (blockId: string) => void;
   onSelectNode?: (oid: string, path: string, blockId: string) => void;
@@ -74,6 +76,7 @@ export function TemplateRenderer({
   selectedBlockId = null,
   selectedOid = null,
   article = null,
+  articleContent,
   standaloneShell = true,
   onSelectBlock,
   onSelectNode,
@@ -264,6 +267,7 @@ export function TemplateRenderer({
             publisher={publisher}
             article={context.article}
             context={context}
+            content={articleContent}
             visible={block.visible}
             locked={block.locked}
             slots={block.slots}
