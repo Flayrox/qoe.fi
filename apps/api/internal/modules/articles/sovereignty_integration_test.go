@@ -597,12 +597,11 @@ func TestService_Snapshots_RevokedCoAuthorProtection(t *testing.T) {
 	ctx := context.Background()
 
 	// Création d'un second auteur (co-auteur)
-	var coAuthorID string
-	if err := poolTest.QueryRow(ctx, `
+	coAuthorID := "00000000-0000-0000-0000-000000000099"
+	if _, err := poolTest.Exec(ctx, `
 		INSERT INTO "User" (id, email, name, username, "publisherId", "createdAt", "updatedAt")
-		VALUES (gen_random_uuid()::text, 'coauthor-snap@test.qoe', 'Co Auteur Snap', 'coauthorsnap', NULL, now(), now())
-		RETURNING id
-	`).Scan(&coAuthorID); err != nil {
+		VALUES ($1, 'coauthor-snap@test.qoe', 'Co Auteur Snap', 'coauthorsnap', NULL, now(), now())
+	`, coAuthorID); err != nil {
 		t.Fatalf("création coauteur: %v", err)
 	}
 
