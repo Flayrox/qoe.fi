@@ -590,6 +590,7 @@ type Article struct {
 	OriginArticleId        pgtype.Text       `json:"originArticleId"`
 	CanonicalType          string            `json:"canonicalType"`
 	IsAuthorSovereignCopy  bool              `json:"isAuthorSovereignCopy"`
+	IsClaimed              bool              `json:"isClaimed"`
 	CanonicalUrl           pgtype.Text       `json:"canonicalUrl"`
 	ScheduledAt            pgtype.Timestamp  `json:"scheduledAt"`
 	Status                 string            `json:"status"`
@@ -700,6 +701,17 @@ type ArticleSlugHistory struct {
 	ID        string           `json:"id"`
 	ArticleId string           `json:"articleId"`
 	Slug      string           `json:"slug"`
+	CreatedAt pgtype.Timestamp `json:"createdAt"`
+}
+
+type ArticleSnapshot struct {
+	ID        string           `json:"id"`
+	ArticleId string           `json:"articleId"`
+	ActorId   pgtype.UUID      `json:"actorId"`
+	Title     string           `json:"title"`
+	Content   string           `json:"content"`
+	WordCount int32            `json:"wordCount"`
+	Reason    string           `json:"reason"`
 	CreatedAt pgtype.Timestamp `json:"createdAt"`
 }
 

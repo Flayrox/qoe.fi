@@ -140,7 +140,7 @@ LIMIT $2 OFFSET $3;
 -- name: GetArticleByID :one
 SELECT a.id, a.title, a.slug, a.content, a."draftContent", a.published, a."isPremium", a.visibility,
        a."readingTime", a."allowPublicAnnotations", a."allowComments", a."allowDownload", a."showOnPersonalProfile", a."scheduledAt",
-       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."canonicalUrl",
+       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."isClaimed", a."canonicalUrl",
        a.status, a."publisherId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
        a."emailStatus", a."emailSentAt", a."emailSentCount", a."emailResendCount",
@@ -161,7 +161,7 @@ WHERE a.id = $1;
 -- name: GetArticleBySlug :one
 SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
        a."readingTime", a."allowPublicAnnotations", a."allowComments", a."showOnPersonalProfile", a."scheduledAt",
-       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."canonicalUrl",
+       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."isClaimed", a."canonicalUrl",
        a.status, a."publisherId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
        a."imageUrl"   AS article_image,
@@ -190,7 +190,7 @@ WHERE a.slug = $1 AND a."publisherId" = $2;
 -- Résout aussi les slugs personnalisés par auteur (ArticleSlug).
 SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
        a."readingTime", a."allowPublicAnnotations", a."allowComments", a."showOnPersonalProfile", a."scheduledAt",
-       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."canonicalUrl",
+       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."isClaimed", a."canonicalUrl",
        a.status, a."publisherId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
        u.id::text     AS author_id,
@@ -277,7 +277,7 @@ WHERE a."publisherId" = sqlc.arg('publisherId')
 SELECT a.id, a.title, a.slug, a.published, a."isPremium", a.visibility, a."readingTime",
        a.status, a."createdAt", a."updatedAt", a."categoryId", a."publisherId", a."authorId",
        a."allowPublicAnnotations", a."allowComments", a."allowDownload", a."showOnPersonalProfile",
-       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."canonicalUrl",
+       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."isClaimed", a."canonicalUrl",
        (a."draftContent" IS NOT NULL AND a."draftContent" <> '') AS has_unpublished_changes,
        a."emailStatus", a."emailSentAt", a."emailSentCount",
        c.id  AS category_id,
@@ -290,17 +290,20 @@ SELECT a.id, a.title, a.slug, a.published, a."isPremium", a.visibility, a."readi
 FROM "Article" a
 JOIN "Publisher" p ON p.id = a."publisherId"
 LEFT JOIN "Category" c ON c.id = a."categoryId"
-WHERE a."publisherId" = $1
+WHERE (a."publisherId" = $1
    OR ($4::boolean AND (
      a."authorId" = $5::uuid
      OR EXISTS (
        SELECT 1 FROM "ArticleAttribution" aa
        WHERE aa."articleId" = a.id
          AND aa."userId" = $5::uuid
-         AND aa."consentStatus" = 'ACCEPTED'
-         AND aa."isVisible" = true
+         AND (
+           (aa."consentStatus" = 'ACCEPTED' AND aa."isVisible" = true)
+           OR aa."consentStatus" = 'REVOKED'
+         )
      )
-   ))
+   )))
+   AND NOT (a."isAuthorSovereignCopy" = true AND a."isClaimed" = false)
 ORDER BY a."createdAt" DESC
 LIMIT $2 OFFSET $3;
 
@@ -539,5 +542,48 @@ RETURNING id;
 -- name: SetArticleCanonicalType :exec
 UPDATE "Article"
 SET "canonicalType" = $2, "updatedAt" = now()
+WHERE id = $1;
+
+-- name: InsertArticleSnapshot :one
+INSERT INTO "ArticleSnapshot" (
+    id, "articleId", "actorId", title, content, "wordCount", reason, "createdAt"
+) VALUES (
+    gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, now()
+)
+RETURNING *;
+
+-- name: ListArticleSnapshots :many
+SELECT s.id, s."articleId", s."actorId", s.title, s.content, s."wordCount", s.reason, s."createdAt",
+       u.name AS actor_name, u.username AS actor_username, u."logoUrl" AS actor_avatar
+FROM "ArticleSnapshot" s
+LEFT JOIN "User" u ON u.id = s."actorId"
+WHERE s."articleId" = $1
+ORDER BY s."createdAt" DESC;
+
+-- name: GetArticleSnapshotByID :one
+SELECT s.id, s."articleId", s."actorId", s.title, s.content, s."wordCount", s.reason, s."createdAt",
+       u.name AS actor_name, u.username AS actor_username, u."logoUrl" AS actor_avatar
+FROM "ArticleSnapshot" s
+LEFT JOIN "User" u ON u.id = s."actorId"
+WHERE s.id = $1 LIMIT 1;
+
+-- name: GetLatestArticleSnapshotByArticle :one
+SELECT * FROM "ArticleSnapshot"
+WHERE "articleId" = $1
+ORDER BY "createdAt" DESC
+LIMIT 1;
+
+-- name: GetLatestArticleSnapshotByArticleAndActor :one
+SELECT * FROM "ArticleSnapshot"
+WHERE "articleId" = $1 AND "actorId" = $2
+ORDER BY "createdAt" DESC
+LIMIT 1;
+
+-- name: ClaimSovereignCopy :exec
+UPDATE "Article"
+SET "isClaimed" = true,
+    title = COALESCE(sqlc.narg('title'), title),
+    content = COALESCE(sqlc.narg('content'), content),
+    "updatedAt" = now()
 WHERE id = $1;
 

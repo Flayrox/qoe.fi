@@ -11,7 +11,6 @@ import { TextSelection, type Transaction } from '@tiptap/pm/state';
 import type { EditorView } from '@tiptap/pm/view';
 import type { MarkType, Node as ProseMirrorNode } from '@tiptap/pm/model';
 import {
-  forkArticleToPersonalAction,
   scheduleArticleAction,
   setArticleAllowDownloadAction,
   submitRevisionToOriginAction,
@@ -61,6 +60,7 @@ import { ImageDetailsPanel, type ImageDetails } from './ImageDetailsPanel';
 import { PublishModal, type PublishOptions } from './PublishModal';
 import { ArticleDiffModal } from './ArticleDiffModal';
 import { ArticleHistoryModal } from './ArticleHistoryModal';
+import { RecoverArticleModal } from './RecoverArticleModal';
 import { PastedAnnotationsDialog, type DetectedBracketAnnotation } from './PastedAnnotationsDialog';
 
 const BRACKET_ANNOTATION_TEST_REGEX = /\{([^{}\n]+?)\}\s*\(([^()\n]+?)\)/;
@@ -225,6 +225,7 @@ export interface EditorProps {
   initialEmailStatus?: 'NOT_SENT' | 'SENDING' | 'SENT' | 'FAILED' | null;
   initialEmailSentAt?: string | null;
   initialEmailSentCount?: number;
+  initialAuthorId?: string;
   initialCanEdit?: boolean;
   initialIsAuthorSovereignCopy?: boolean;
   initialOriginArticleId?: string | null;
@@ -283,6 +284,7 @@ export function Editor({
   initialEmailStatus = null,
   initialEmailSentAt = null,
   initialEmailSentCount = 0,
+  initialAuthorId,
   initialCanEdit = true,
   initialIsAuthorSovereignCopy = false,
   initialOriginArticleId = null,
@@ -318,7 +320,7 @@ export function Editor({
   );
   const [showDiffModal, setShowDiffModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [forkPending, setForkPending] = useState(false);
+  const [showRecoverModal, setShowRecoverModal] = useState(false);
   const [revisionPending, setRevisionPending] = useState(false);
   const [status, setStatus] = useState<string>(initialStatus || 'DRAFT');
   const [scheduledAt, setScheduledAt] = useState<string | null>(initialScheduledAt ?? null);
@@ -1957,7 +1959,7 @@ export function Editor({
                   {t`Archive média en lecture seule`}
                 </p>
                 <p className="text-muted-foreground leading-relaxed">
-                  {t`Vous n'êtes plus membre actif de ce média : cet exemplaire publié reste intact chez lui, mais vous conservez tous vos droits d'auteur et pouvez éditer votre copie souveraine personnelle.`}
+                  {t`Cet exemplaire appartient à une publication en lecture seule. Vous pouvez importer et éditer votre version personnelle en toute indépendance.`}
                 </p>
               </div>
               <Button
@@ -1965,31 +1967,19 @@ export function Editor({
                 size="sm"
                 variant="solid"
                 tone="brand"
-                disabled={forkPending}
-                onClick={async () => {
+                onClick={() => {
                   if (initialSovereignCopyId) {
                     window.location.href = `/articles/${initialSovereignCopyId}`;
                     return;
                   }
-                  const targetId = persistedIdRef.current || collaborationRoomId;
-                  if (!targetId) return;
-                  setForkPending(true);
-                  const res = await forkArticleToPersonalAction({ articleId: targetId });
-                  setForkPending(false);
-                  if (res.ok) {
-                    window.location.href = `/articles/${res.data.id}`;
-                  } else {
-                    toast.error(res.error.message);
-                  }
+                  setShowRecoverModal(true);
                 }}
                 className="shrink-0"
               >
                 <GitFork className="w-3.5 h-3.5" />
                 {initialSovereignCopyId
-                  ? t`Ouvrir ma copie personnelle`
-                  : forkPending
-                    ? t`Clonage...`
-                    : t`Récupérer ma copie personnelle`}
+                  ? t`Ouvrir ma version personnelle`
+                  : t`Récupérer ma version`}
               </Button>
             </div>
           )}
@@ -2000,8 +1990,8 @@ export function Editor({
                 <ShieldCheck className="w-4 h-4 shrink-0" />
                 <span>
                   {initialOriginPublisherName
-                    ? t`Essai souverain personnel • Issu du média « ${initialOriginPublisherName} »`
-                    : t`Essai souverain personnel (copie liée à un média)`}
+                    ? t`Version personnelle • Écrit pour « ${initialOriginPublisherName} »`
+                    : t`Version personnelle`}
                 </span>
               </div>
               <Button
@@ -2309,7 +2299,21 @@ export function Editor({
       <ArticleHistoryModal
         open={showHistoryModal}
         articleId={persistedIdRef.current ?? null}
+        canEdit={initialCanEdit}
         onClose={() => setShowHistoryModal(false)}
+        onRestored={() => {
+          window.location.reload();
+        }}
+      />
+
+      <RecoverArticleModal
+        open={showRecoverModal}
+        onClose={() => setShowRecoverModal(false)}
+        articleId={persistedIdRef.current || collaborationRoomId || ''}
+        articleTitle={title}
+        publisherName={initialOriginPublisherName}
+        currentUserId={initialAuthorId}
+        currentLiveContent={liveContent || editor?.getHTML() || ''}
       />
 
       <ArticleDiffModal

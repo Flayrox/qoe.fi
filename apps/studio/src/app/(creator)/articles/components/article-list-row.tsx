@@ -27,8 +27,9 @@ import {
 import { cn } from '@qoe/utils';
 import { Button } from '@qoe/ui/button';
 import { toast } from '@qoe/ui/toast';
-import { bulkUpdateArticlesAction, forkArticleToPersonalAction } from '@qoe/sdk/actions/articles';
+import { bulkUpdateArticlesAction } from '@qoe/sdk/actions/articles';
 import { t } from '@lingui/core/macro';
+import { RecoverArticleModal } from '@/features/editor/components/RecoverArticleModal';
 
 import type { ArticleWithCategory, ListColumnPrefs } from './article-list-types';
 
@@ -87,6 +88,7 @@ export function ArticleListRow({
     (article._count?.letters || 0);
   const scheduledLabel = formatScheduleDate(article.scheduledAt);
   const [showOnPersonal, setShowOnPersonal] = useState(article.showOnPersonalProfile ?? true);
+  const [recoverModalOpen, setRecoverModalOpen] = useState(false);
 
   const handleTogglePersonalProfile = async () => {
     const nextValue = !showOnPersonal;
@@ -191,38 +193,44 @@ export function ArticleListRow({
           {article.isAuthorSovereignCopy && article.originPublisher && (
             <span
               className="inline-flex shrink-0 items-center gap-1 rounded border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary"
-              title={t`Exemplaire personnel souverain issu de ${article.originPublisher.name}`}
+              title={t`Exemplaire personnel issu de ${article.originPublisher.name}`}
             >
               <ShieldCheck className="h-2.5 w-2.5" />
-              <span className="max-w-36 truncate">{t`Souverain · ${article.originPublisher.name}`}</span>
+              <span className="max-w-36 truncate">{t`Version personnelle · ${article.originPublisher.name}`}</span>
             </span>
           )}
-          {article.publisher?.type === 'MEDIA' && article.canEdit === false && (
+          {article.canEdit === false && (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded border border-muted bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+              {t`Lecture seule`}
+            </span>
+          )}
+          {article.sovereignCopyId ? (
+            <a
+              href={`/articles/${article.sovereignCopyId}`}
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex shrink-0 items-center gap-1 rounded border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20"
+              title={t`Ouvrir votre exemplaire personnel de cet essai`}
+            >
+              <GitFork className="h-2.5 w-2.5" />
+              <span>{t`Ma version`}</span>
+            </a>
+          ) : article.publisher?.type === 'MEDIA' ? (
             <Button
               type="button"
               variant="outline"
               size="xs"
-              onClick={async (event) => {
+              onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                if (article.sovereignCopyId) {
-                  window.location.href = `/articles/${article.sovereignCopyId}`;
-                  return;
-                }
-                const res = await forkArticleToPersonalAction({ articleId: article.id });
-                if (res.ok) {
-                  window.location.href = `/articles/${res.data.id}`;
-                } else {
-                  toast.error(res.error.message);
-                }
+                setRecoverModalOpen(true);
               }}
               className="h-5 gap-1 border-highlight/30 bg-highlight/10 px-1.5 text-[10px] font-medium text-highlight hover:bg-highlight/20"
-              title={t`Archive média (lecture seule). Cliquez pour ouvrir ou créer votre copie souveraine éditable.`}
+              title={t`Créer ou importer un exemplaire personnel éditable.`}
             >
               <GitFork className="h-2.5 w-2.5" />
-              <span>{article.sovereignCopyId ? t`Ouvrir ma copie` : t`Récupérer ma copie`}</span>
+              <span>{t`Récupérer ma version`}</span>
             </Button>
-          )}
+          ) : null}
           {pinned && <Pin className="h-3 w-3 shrink-0 text-primary" />}
         </div>
 
@@ -439,6 +447,32 @@ export function ArticleListRow({
               </button>
             </>
           )}
+          {(article.publisher?.type === 'MEDIA' || article.originPublisher) &&
+            !article.isAuthorSovereignCopy && (
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  (
+                    event.currentTarget.closest('details') as HTMLDetailsElement | null
+                  )?.removeAttribute('open');
+                  if (article.sovereignCopyId) {
+                    window.location.href = `/articles/${article.sovereignCopyId}`;
+                  } else {
+                    setRecoverModalOpen(true);
+                  }
+                }}
+                className="w-full justify-start gap-2 rounded-lg px-2.5 py-2 text-xs text-foreground"
+              >
+                <GitFork className="h-3.5 w-3.5 text-primary" />
+                <span>
+                  {article.sovereignCopyId
+                    ? t`Ouvrir ma version personnelle`
+                    : t`Dupliquer dans mon espace personnel`}
+                </span>
+              </Button>
+            )}
           <button
             onClick={(event) => {
               event.stopPropagation();
@@ -454,6 +488,16 @@ export function ArticleListRow({
           </button>
         </div>
       </details>
+
+      <RecoverArticleModal
+        open={recoverModalOpen}
+        onClose={() => setRecoverModalOpen(false)}
+        articleId={article.id}
+        articleTitle={article.title}
+        publisherName={article.publisher?.name}
+        currentUserId={article.authorId}
+        currentLiveContent={article.content}
+      />
     </div>
   );
 }

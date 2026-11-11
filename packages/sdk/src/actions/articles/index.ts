@@ -59,6 +59,8 @@ export interface Article {
   canonicalType?: 'ORIGINAL' | 'MEDIA_ARCHIVE' | 'PERSONAL_FORK' | string;
   /** true s'il s'agit de l'exemplaire souverain personnel de l'auteur. */
   isAuthorSovereignCopy?: boolean;
+  /** true si l'exemplaire a été explicitement réclamé (les copies automatiques en veille restent isClaimed: false). */
+  isClaimed?: boolean;
   /** URL canonique pointant vers l'origine (SEO). */
   canonicalUrl?: string | null;
   /** Éditeur/Média d'origine si l'article est un fork souverain. */
@@ -332,17 +334,64 @@ export const transferArticleAction = safeAction<TransferArticleInput, ArticleEdi
   }
 );
 
+export interface ArticleSnapshotDTO {
+  id: string;
+  articleId: string;
+  actorId?: string | null;
+  actorName?: string | null;
+  actorUsername?: string | null;
+  actorAvatar?: string | null;
+  title: string;
+  content: string;
+  wordCount: number;
+  reason:
+    | 'INITIAL'
+    | 'AUTHOR_SWITCH'
+    | 'SUBMITTED'
+    | 'PUBLISHED'
+    | 'BEFORE_REVOCATION'
+    | 'BEFORE_RESTORE'
+    | string;
+  createdAt: string;
+}
+
 /** 🛡️ Clone ou récupère l'exemplaire souverain personnel d'un essai écrit dans un média. */
 export const forkArticleToPersonalAction = safeAction<
-  { articleId: string },
+  { articleId: string; snapshotId?: string },
   { id: string; alreadyExisted: boolean }
->(async ({ articleId }) => {
+>(async ({ articleId, snapshotId }) => {
   await authenticateUser();
   const res = await goFetch<{ id: string; alreadyExisted: boolean }>(
     `/v1/articles/${encodeURIComponent(articleId)}/fork-personal`,
+    {
+      method: 'POST',
+      body: snapshotId ? { snapshotId } : undefined,
+    }
+  );
+  revalidatePath('/articles');
+  return res;
+});
+
+/** 📜 Liste les versions et jalons textuels d'un article. */
+export const getArticleSnapshotsAction = safeAction<{ articleId: string }, ArticleSnapshotDTO[]>(
+  async ({ articleId }) => {
+    await authenticateUser();
+    return goFetch<ArticleSnapshotDTO[]>(`/v1/articles/${encodeURIComponent(articleId)}/snapshots`);
+  }
+);
+
+/** ⏪ Restaure une version textuelle antérieure de l'article. */
+export const restoreArticleSnapshotAction = safeAction<
+  { articleId: string; snapshotId: string },
+  { success: boolean }
+>(async ({ articleId, snapshotId }) => {
+  await authenticateUser();
+  const res = await goFetch<{ success: boolean }>(
+    `/v1/articles/${encodeURIComponent(articleId)}/snapshots/${encodeURIComponent(snapshotId)}/restore`,
     { method: 'POST' }
   );
   revalidatePath('/articles');
+  revalidatePath(`/articles/${articleId}`);
   return res;
 });
 

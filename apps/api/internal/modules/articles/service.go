@@ -38,6 +38,20 @@ var (
 	ErrArticleNotEligible = errors.New("l'article doit être publié pour être envoyé par email")
 )
 
+type ArticleSnapshotItem struct {
+	ID            string  `json:"id"`
+	ArticleID     string  `json:"articleId"`
+	ActorID       *string `json:"actorId,omitempty"`
+	ActorName     *string `json:"actorName,omitempty"`
+	ActorUsername *string `json:"actorUsername,omitempty"`
+	ActorAvatar   *string `json:"actorAvatar,omitempty"`
+	Title         string  `json:"title"`
+	Content       string  `json:"content"`
+	WordCount     int     `json:"wordCount"`
+	Reason        string  `json:"reason"`
+	CreatedAt     string  `json:"createdAt"`
+}
+
 // ArticleResponse est la forme API d'un article (contenu éventuellement tronqué).
 type ArticleResponse struct {
 	ID                     string                         `json:"id"`
@@ -76,6 +90,7 @@ type ArticleResponse struct {
 	OriginArticleID        *string                        `json:"originArticleId,omitempty"`
 	CanonicalType          string                         `json:"canonicalType"`
 	IsAuthorSovereignCopy  bool                           `json:"isAuthorSovereignCopy"`
+	IsClaimed              bool                           `json:"isClaimed"`
 	CanonicalURL           *string                        `json:"canonicalUrl,omitempty"`
 	OriginPublisher        *PublisherInfo                 `json:"originPublisher,omitempty"`
 	SovereignCopyID        *string                        `json:"sovereignCopyId,omitempty"`
@@ -364,6 +379,7 @@ func (s *Service) GetBySlugAny(ctx context.Context, slug string, viewerID string
 		OriginArticleID:       textPtr(row.OriginArticleId),
 		CanonicalType:         row.CanonicalType,
 		IsAuthorSovereignCopy: row.IsAuthorSovereignCopy,
+		IsClaimed:             row.IsClaimed,
 		CanonicalURL:          textPtr(row.CanonicalUrl),
 		AuthorID:              row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
@@ -568,6 +584,12 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 	if err != nil {
 		return "", err
 	}
+	_ = s.captureSnapshot(ctx, id, &userID, in.Title, NormalizeContent(in.Content, in.ContentFormat), "INITIAL")
+	if published {
+		_ = s.captureSnapshot(ctx, id, &userID, in.Title, NormalizeContent(in.Content, in.ContentFormat), "PUBLISHED")
+	} else if status == "SUBMITTED" {
+		_ = s.captureSnapshot(ctx, id, &userID, in.Title, NormalizeContent(in.Content, in.ContentFormat), "SUBMITTED")
+	}
 	s.syncAttributions(ctx, id, userID, in.Attributions, showOnPersonalProfile)
 	s.queueSearchSync(id, "upsert")
 	s.auditMedia(ctx, in.PublisherID, userID, "media.article_created", map[string]any{
@@ -633,6 +655,7 @@ func (s *Service) List(ctx context.Context, userID, publisherID, workspaceType s
 			OriginArticleID:        textPtr(r.OriginArticleId),
 			CanonicalType:          r.CanonicalType,
 			IsAuthorSovereignCopy:  r.IsAuthorSovereignCopy,
+			IsClaimed:              r.IsClaimed,
 			CanonicalURL:           textPtr(r.CanonicalUrl),
 			CanEdit:                true,
 			CategoryID:             textPtr(r.CategoryId),
@@ -1189,6 +1212,19 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 		imageURL = s.fetchArticleImageUrl(ctx, articleID)
 	}
 
+	contentToSave := NormalizeContent(in.Content, in.ContentFormat)
+	latestSnap, errSnap := s.q.GetLatestArticleSnapshotByArticle(ctx, articleID)
+	if errSnap == nil && latestSnap.ActorId.Valid && uuidString(latestSnap.ActorId) != userID {
+		baseContent := row.Content
+		if row.DraftContent.Valid && row.DraftContent.String != "" {
+			baseContent = row.DraftContent.String
+		}
+		if baseContent != latestSnap.Content || row.Title != latestSnap.Title {
+			prevActor := uuidString(latestSnap.ActorId)
+			_ = s.captureSnapshot(ctx, articleID, &prevActor, row.Title, baseContent, "AUTHOR_SWITCH")
+		}
+	}
+
 	// 🛡️ Protection de l'article en ligne :
 	// Si l'article est déjà publié et que la requête ne demande PAS la publication directe
 	// (ex: auto-save en cours d'édition dans Studio), on ne touche JAMAIS au contenu public en direct.
@@ -1233,6 +1269,7 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 		s.syncAttributions(ctx, articleID, uuidString(row.AuthorId), in.Attributions, showOnPersonalProfile)
 		s.queueSearchSync(articleID, "upsert")
 		if preservedStatus == "SUBMITTED" && row.Status != "SUBMITTED" {
+			_ = s.captureSnapshot(ctx, articleID, &userID, in.Title, normalizedDraft, "SUBMITTED")
 			s.notifyReviewers(ctx, row.PublisherId, articleID, userID)
 			_ = s.q.InsertArticleReviewLog(ctx, db.InsertArticleReviewLogParams{
 				ArticleId:   articleID,
@@ -1247,7 +1284,6 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 
 	// Si l'article est publié ET que l'auteur demande explicitement de publier/mettre à jour en ligne :
 	// Le nouveau contenu est promu en public, et on purge draftContent.
-	contentToSave := NormalizeContent(in.Content, in.ContentFormat)
 	if row.Published && in.Published {
 		_, _ = s.q.UpdateArticleDraft(ctx, db.UpdateArticleDraftParams{
 			ID:           articleID,
@@ -1313,7 +1349,12 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 
 	s.emitArticleLifecycle(queue.TaskArticleUpdated, row, in.Title, in.Slug)
 
+	if row.Published && in.Published && (contentChanged || row.Title != in.Title) {
+		_ = s.captureSnapshot(ctx, articleID, &userID, in.Title, contentToSave, "PUBLISHED")
+	}
+
 	if effectiveStatus == "SUBMITTED" && row.Status != "SUBMITTED" {
+		_ = s.captureSnapshot(ctx, articleID, &userID, in.Title, contentToSave, "SUBMITTED")
 		s.notifyReviewers(ctx, row.PublisherId, articleID, userID)
 		_ = s.q.InsertArticleReviewLog(ctx, db.InsertArticleReviewLogParams{
 			ArticleId:   articleID,
@@ -1330,6 +1371,7 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 
 	// Fan-out + événement à la transition draft→publié.
 	if effectivePublished && !row.Published {
+		_ = s.captureSnapshot(ctx, articleID, &userID, in.Title, contentToSave, "PUBLISHED")
 		sendEmail := true
 		if in.SendEmail != nil {
 			sendEmail = *in.SendEmail
@@ -1373,6 +1415,17 @@ func (s *Service) SetStatus(ctx context.Context, articleID, userID, status strin
 	}
 	if published {
 		_, _ = s.q.PublishArticleDraft(ctx, articleID)
+		publishedContent := row.Content
+		if row.DraftContent.Valid && row.DraftContent.String != "" {
+			publishedContent = row.DraftContent.String
+		}
+		_ = s.captureSnapshot(ctx, articleID, &userID, row.Title, publishedContent, "PUBLISHED")
+	} else if status == "SUBMITTED" && row.Status != "SUBMITTED" {
+		submittedContent := row.Content
+		if row.DraftContent.Valid && row.DraftContent.String != "" {
+			submittedContent = row.DraftContent.String
+		}
+		_ = s.captureSnapshot(ctx, articleID, &userID, row.Title, submittedContent, "SUBMITTED")
 	}
 	s.queueSearchSync(articleID, "upsert")
 	if published {
@@ -1979,6 +2032,59 @@ func (s *Service) syncAttributions(ctx context.Context, articleID, authorID stri
 		  role = 'PRIMARY_AUTHOR', "order" = 0, "isVisible" = $3, "consentStatus" = 'ACCEPTED', "updatedAt" = now()
 	`, articleID, toUUID(authorID), primaryVisible)
 
+	newUsers := make(map[string]bool)
+	for _, attr := range attributions {
+		if attr.UserID != "" && attr.UserID != authorID {
+			newUsers[attr.UserID] = true
+		}
+	}
+
+	// Détecter les attributions supprimées / révoquées
+	existingRows, err := s.pool.Query(ctx, `
+		SELECT "userId"::text, "consentStatus"
+		FROM "ArticleAttribution"
+		WHERE "articleId" = $1 AND "userId" != $2
+	`, articleID, toUUID(authorID))
+	if err == nil {
+		type existingContr struct {
+			userID string
+			status string
+		}
+		var toRevoke []existingContr
+		var toDelete []string
+		for existingRows.Next() {
+			var uID, status string
+			if scanErr := existingRows.Scan(&uID, &status); scanErr == nil {
+				if !newUsers[uID] {
+					if status == "ACCEPTED" {
+						toRevoke = append(toRevoke, existingContr{userID: uID, status: status})
+					} else if status == "PENDING" {
+						toDelete = append(toDelete, uID)
+					}
+				}
+			}
+		}
+		existingRows.Close()
+
+		if len(toRevoke) > 0 {
+			articleRow, _ := s.q.GetArticleByID(ctx, articleID)
+			for _, r := range toRevoke {
+				if articleRow.ID != "" {
+					_ = s.captureSnapshot(ctx, articleID, &r.userID, articleRow.Title, articleRow.Content, "BEFORE_REVOCATION")
+				}
+				_, _ = s.pool.Exec(ctx, `
+					UPDATE "ArticleAttribution"
+					SET "consentStatus" = 'REVOKED', "isVisible" = false, "updatedAt" = now()
+					WHERE "articleId" = $1 AND "userId" = $2
+				`, articleID, toUUID(r.userID))
+			}
+		}
+		for _, dID := range toDelete {
+			_, _ = s.pool.Exec(ctx, `DELETE FROM "ArticleAttribution" WHERE "articleId" = $1 AND "userId" = $2`, articleID, toUUID(dID))
+			_, _ = s.pool.Exec(ctx, `DELETE FROM "CollaborationRequest" WHERE "articleId" = $1 AND "inviteeId" = $2`, articleID, toUUID(dID))
+		}
+	}
+
 	if len(attributions) == 0 {
 		return
 	}
@@ -2488,6 +2594,7 @@ func (s *Service) articleResponseFromIDRow(row db.GetArticleByIDRow) ArticleResp
 		OriginArticleID:       textPtr(row.OriginArticleId),
 		CanonicalType:         row.CanonicalType,
 		IsAuthorSovereignCopy: row.IsAuthorSovereignCopy,
+		IsClaimed:             row.IsClaimed,
 		CanonicalURL:          textPtr(row.CanonicalUrl),
 		CanEdit:               true,
 		ReadingTime:           int(row.ReadingTime), Status: row.Status, ScheduledAt: tsPtr(row.ScheduledAt),
@@ -2520,6 +2627,7 @@ func articleFromSlugRow(row db.GetArticleBySlugRow, cut PaywallCutResult) Articl
 		OriginArticleID:       textPtr(row.OriginArticleId),
 		CanonicalType:         row.CanonicalType,
 		IsAuthorSovereignCopy: row.IsAuthorSovereignCopy,
+		IsClaimed:             row.IsClaimed,
 		CanonicalURL:          textPtr(row.CanonicalUrl),
 		PublisherID:           row.PublisherId,
 		AuthorID:              row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
@@ -2549,6 +2657,11 @@ func articleFromRow(row db.GetArticleByIDRow, cut PaywallCutResult) ArticleRespo
 		AllowDownload: row.AllowDownload, AllowPublicAnnotations: row.AllowPublicAnnotations,
 		AllowComments:         row.AllowComments,
 		ShowOnPersonalProfile: row.ShowOnPersonalProfile,
+		OriginArticleID:       textPtr(row.OriginArticleId),
+		CanonicalType:         row.CanonicalType,
+		IsAuthorSovereignCopy: row.IsAuthorSovereignCopy,
+		IsClaimed:             row.IsClaimed,
+		CanonicalURL:          textPtr(row.CanonicalUrl),
 		PublisherID:           row.PublisherId,
 		AuthorID:              row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
@@ -2978,58 +3091,215 @@ func (s *Service) fetchOriginPublisher(ctx context.Context, originArticleID stri
 	}
 }
 
+func countWords(content string) int {
+	return len(strings.Fields(content))
+}
+
+func (s *Service) captureSnapshot(ctx context.Context, articleID string, actorID *string, title, content, reason string) error {
+	if s.pool == nil || articleID == "" {
+		return nil
+	}
+	var actorUUID pgtype.UUID
+	if actorID != nil && *actorID != "" {
+		actorUUID = toUUID(*actorID)
+	}
+	words := countWords(content)
+	_, err := s.q.InsertArticleSnapshot(ctx, db.InsertArticleSnapshotParams{
+		ArticleId: articleID,
+		ActorId:   actorUUID,
+		Title:     title,
+		Content:   content,
+		WordCount: int32(words),
+		Reason:    reason,
+	})
+	return err
+}
+
 // ensureAuthorSovereignCopy est le point d'entrée du fork manuel (« Récupérer
 // ma copie »). Le provisionnement automatique à la soumission/publication est
 // garanti atomiquement par le trigger SQL trg_provision_author_sovereign_copy,
 // qui appelle la même fonction ensure_author_sovereign_copy en base : une
 // publication ne peut plus réussir sans copie souveraine.
-func (s *Service) ensureAuthorSovereignCopy(ctx context.Context, mediaArticleID, targetUserID string) (string, bool, error) {
+func (s *Service) ensureAuthorSovereignCopy(ctx context.Context, mediaArticleID, targetUserID string, claimNow bool, overrideTitle, overrideContent *string) (string, bool, error) {
 	if s.pool == nil || mediaArticleID == "" || targetUserID == "" {
 		return "", false, errors.New("provisionnement de la copie souveraine impossible")
 	}
+	var alreadyExisted bool
 	if existing, err := s.q.GetSovereignCopyByOriginAndAuthor(ctx, db.GetSovereignCopyByOriginAndAuthorParams{
 		OriginArticleId: pgtype.Text{String: mediaArticleID, Valid: true},
 		AuthorId:        toUUID(targetUserID),
 	}); err == nil && existing.ID != "" {
-		return existing.ID, true, nil
+		alreadyExisted = true
 	}
+
 	var copyID pgtype.Text
 	if err := s.pool.QueryRow(ctx,
-		`SELECT ensure_author_sovereign_copy($1, $2)`,
-		mediaArticleID, toUUID(targetUserID),
+		`SELECT ensure_author_sovereign_copy($1, $2, $3, $4, $5)`,
+		mediaArticleID, toUUID(targetUserID), claimNow, overrideTitle, overrideContent,
 	).Scan(&copyID); err != nil {
 		return "", false, err
 	}
 	if !copyID.Valid || copyID.String == "" {
-		return "", false, errors.New("la copie souveraine n'est possible que depuis un article média")
+		return "", false, errors.New("la copie souveraine n'a pas pu être créée")
 	}
-	return copyID.String, false, nil
+	return copyID.String, alreadyExisted, nil
 }
 
 // ForkToPersonal exerce le droit inaliénable de l'auteur (ou co-auteur accepté)
 // de rapatrier une copie éditable dans son propre espace personnel, même s'il
 // a été exclu du média.
-func (s *Service) ForkToPersonal(ctx context.Context, articleID, userID string) (string, bool, error) {
+func (s *Service) ForkToPersonal(ctx context.Context, articleID, userID string, snapshotID ...string) (string, bool, error) {
 	row, err := s.q.GetArticleByID(ctx, articleID)
 	if err != nil {
 		return "", false, errNotFound
 	}
-	if row.PublisherType != db.PublisherTypeMEDIA {
-		return "", false, errors.New("Cet article appartient déjà à un espace personnel.")
+	if row.PublisherType != db.PublisherTypeMEDIA && row.AuthorID == userID {
+		return "", false, errors.New("Cet article est déjà votre article personnel.")
 	}
 	allowed := row.AuthorID == userID
 	if !allowed && s.pool != nil {
 		_ = s.pool.QueryRow(ctx, `
 			SELECT EXISTS (
 				SELECT 1 FROM "ArticleAttribution" aa
-				WHERE aa."articleId" = $1 AND aa."userId" = $2 AND aa."consentStatus" = 'ACCEPTED'
+				WHERE aa."articleId" = $1 AND aa."userId" = $2 AND aa."consentStatus" IN ('ACCEPTED', 'REVOKED')
 			)
 		`, articleID, toUUID(userID)).Scan(&allowed)
 	}
 	if !allowed {
 		return "", false, errForbidden
 	}
-	return s.ensureAuthorSovereignCopy(ctx, articleID, userID)
+
+	var overrideTitle, overrideContent *string
+	if len(snapshotID) > 0 && strings.TrimSpace(snapshotID[0]) != "" {
+		snap, err := s.q.GetArticleSnapshotByID(ctx, snapshotID[0])
+		if err == nil && snap.ArticleId == articleID {
+			overrideTitle = &snap.Title
+			overrideContent = &snap.Content
+		}
+	}
+
+	return s.ensureAuthorSovereignCopy(ctx, articleID, userID, true, overrideTitle, overrideContent)
+}
+
+// ListSnapshots retourne la liste ordonnée des versions enregistrées de l'article.
+func (s *Service) ListSnapshots(ctx context.Context, articleID, userID string) ([]ArticleSnapshotItem, error) {
+	row, err := s.q.GetArticleByID(ctx, articleID)
+	if err != nil {
+		return nil, errNotFound
+	}
+	allowed := row.AuthorID == userID
+	if !allowed {
+		if mc, err := s.resolveMember(ctx, userID, row.PublisherId); err == nil && (mc.isMedia || mc.role == "owner") {
+			allowed = true
+		}
+	}
+	if !allowed && s.pool != nil {
+		_ = s.pool.QueryRow(ctx, `
+			SELECT EXISTS (
+				SELECT 1 FROM "ArticleAttribution"
+				WHERE "articleId" = $1 AND "userId" = $2 AND "consentStatus" IN ('ACCEPTED', 'REVOKED')
+			)
+		`, articleID, toUUID(userID)).Scan(&allowed)
+	}
+	if !allowed {
+		return nil, errForbidden
+	}
+
+	rows, err := s.q.ListArticleSnapshots(ctx, articleID)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]ArticleSnapshotItem, 0, len(rows))
+	for _, r := range rows {
+		item := ArticleSnapshotItem{
+			ID:        r.ID,
+			ArticleID: r.ArticleId,
+			Title:     r.Title,
+			Content:   r.Content,
+			WordCount: int(r.WordCount),
+			Reason:    r.Reason,
+			CreatedAt: r.CreatedAt.Time.Format(time.RFC3339),
+		}
+		if r.ActorId.Valid {
+			actID := uuidString(r.ActorId)
+			item.ActorID = &actID
+		}
+		item.ActorName = textPtr(r.ActorName)
+		item.ActorUsername = textPtr(r.ActorUsername)
+		item.ActorAvatar = textPtr(r.ActorAvatar)
+		items = append(items, item)
+	}
+	return items, nil
+}
+
+// RestoreSnapshot restaure le contenu d'un snapshot antérieur dans l'article.
+func (s *Service) RestoreSnapshot(ctx context.Context, articleID, snapshotID, userID string) error {
+	row, mc, err := s.authorizeEdit(ctx, articleID, userID, "")
+	if err != nil {
+		return err
+	}
+	_ = mc
+
+	snap, err := s.q.GetArticleSnapshotByID(ctx, snapshotID)
+	if err != nil || snap.ArticleId != articleID {
+		return errors.New("version introuvable pour cet article")
+	}
+
+	// Sauvegarder la version actuelle avant restauration
+	currentContent := row.Content
+	if row.DraftContent.Valid && row.DraftContent.String != "" {
+		currentContent = row.DraftContent.String
+	}
+	_ = s.captureSnapshot(ctx, articleID, &userID, row.Title, currentContent, "BEFORE_RESTORE")
+
+	if row.Published {
+		_, err = s.q.UpdateArticleDraft(ctx, db.UpdateArticleDraftParams{
+			ID:           articleID,
+			DraftContent: pgtype.Text{String: snap.Content, Valid: true},
+		})
+	} else {
+		_, _ = s.q.UpdateArticleDraft(ctx, db.UpdateArticleDraftParams{
+			ID:           articleID,
+			DraftContent: pgtype.Text{Valid: false},
+		})
+		words := countWords(snap.Content)
+		readingTime := words / 200
+		if readingTime < 1 {
+			readingTime = 1
+		}
+		_, err = s.q.UpdateArticleFull(ctx, db.UpdateArticleFullParams{
+			ID:                     articleID,
+			Title:                  snap.Title,
+			Content:                snap.Content,
+			Slug:                   row.Slug,
+			Published:              row.Published,
+			Status:                 row.Status,
+			IsPremium:              row.IsPremium,
+			CategoryId:             row.CategoryId,
+			SeoTitle:               row.SeoTitle,
+			SeoDescription:         row.SeoDescription,
+			ReadingTime:            int32(readingTime),
+			ScheduledAt:            row.ScheduledAt,
+			ImageUrl:               imageVal(s.fetchArticleImageUrl(ctx, articleID)),
+			AllowPublicAnnotations: row.AllowPublicAnnotations,
+			AllowComments:          row.AllowComments,
+			AllowDownload:          row.AllowDownload,
+			ShowOnPersonalProfile:  row.ShowOnPersonalProfile,
+		})
+	}
+	if err != nil {
+		return err
+	}
+
+	s.recordEvent(ctx, EventInput{
+		ArticleID:   articleID,
+		PublisherID: row.PublisherId,
+		ActorID:     userID,
+		Type:        "SNAPSHOT_RESTORED",
+		FromStatus:  row.Status,
+		ToStatus:    row.Status,
+	})
+	return nil
 }
 
 // SubmitRevisionToOrigin soumet le contenu modifié d'un essai souverain personnel

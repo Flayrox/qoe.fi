@@ -33,6 +33,26 @@ func (q *Queries) AddListenLater(ctx context.Context, arg AddListenLaterParams) 
 	return id, err
 }
 
+const claimSovereignCopy = `-- name: ClaimSovereignCopy :exec
+UPDATE "Article"
+SET "isClaimed" = true,
+    title = COALESCE($2, title),
+    content = COALESCE($3, content),
+    "updatedAt" = now()
+WHERE id = $1
+`
+
+type ClaimSovereignCopyParams struct {
+	ID      string      `json:"id"`
+	Title   pgtype.Text `json:"title"`
+	Content pgtype.Text `json:"content"`
+}
+
+func (q *Queries) ClaimSovereignCopy(ctx context.Context, arg ClaimSovereignCopyParams) error {
+	_, err := q.db.Exec(ctx, claimSovereignCopy, arg.ID, arg.Title, arg.Content)
+	return err
+}
+
 const countCreatorArticles = `-- name: CountCreatorArticles :one
 SELECT COUNT(*)
 FROM "Article" a
@@ -240,7 +260,7 @@ func (q *Queries) DiscardArticleDraft(ctx context.Context, id string) (string, e
 const getArticleByID = `-- name: GetArticleByID :one
 SELECT a.id, a.title, a.slug, a.content, a."draftContent", a.published, a."isPremium", a.visibility,
        a."readingTime", a."allowPublicAnnotations", a."allowComments", a."allowDownload", a."showOnPersonalProfile", a."scheduledAt",
-       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."canonicalUrl",
+       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."isClaimed", a."canonicalUrl",
        a.status, a."publisherId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
        a."emailStatus", a."emailSentAt", a."emailSentCount", a."emailResendCount",
@@ -277,6 +297,7 @@ type GetArticleByIDRow struct {
 	OriginArticleId        pgtype.Text       `json:"originArticleId"`
 	CanonicalType          string            `json:"canonicalType"`
 	IsAuthorSovereignCopy  bool              `json:"isAuthorSovereignCopy"`
+	IsClaimed              bool              `json:"isClaimed"`
 	CanonicalUrl           pgtype.Text       `json:"canonicalUrl"`
 	Status                 string            `json:"status"`
 	PublisherId            string            `json:"publisherId"`
@@ -323,6 +344,7 @@ func (q *Queries) GetArticleByID(ctx context.Context, id string) (GetArticleByID
 		&i.OriginArticleId,
 		&i.CanonicalType,
 		&i.IsAuthorSovereignCopy,
+		&i.IsClaimed,
 		&i.CanonicalUrl,
 		&i.Status,
 		&i.PublisherId,
@@ -353,7 +375,7 @@ func (q *Queries) GetArticleByID(ctx context.Context, id string) (GetArticleByID
 const getArticleBySlug = `-- name: GetArticleBySlug :one
 SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
        a."readingTime", a."allowPublicAnnotations", a."allowComments", a."showOnPersonalProfile", a."scheduledAt",
-       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."canonicalUrl",
+       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."isClaimed", a."canonicalUrl",
        a.status, a."publisherId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
        a."imageUrl"   AS article_image,
@@ -398,6 +420,7 @@ type GetArticleBySlugRow struct {
 	OriginArticleId        pgtype.Text       `json:"originArticleId"`
 	CanonicalType          string            `json:"canonicalType"`
 	IsAuthorSovereignCopy  bool              `json:"isAuthorSovereignCopy"`
+	IsClaimed              bool              `json:"isClaimed"`
 	CanonicalUrl           pgtype.Text       `json:"canonicalUrl"`
 	Status                 string            `json:"status"`
 	PublisherId            string            `json:"publisherId"`
@@ -443,6 +466,7 @@ func (q *Queries) GetArticleBySlug(ctx context.Context, arg GetArticleBySlugPara
 		&i.OriginArticleId,
 		&i.CanonicalType,
 		&i.IsAuthorSovereignCopy,
+		&i.IsClaimed,
 		&i.CanonicalUrl,
 		&i.Status,
 		&i.PublisherId,
@@ -474,7 +498,7 @@ func (q *Queries) GetArticleBySlug(ctx context.Context, arg GetArticleBySlugPara
 const getArticleBySlugAny = `-- name: GetArticleBySlugAny :one
 SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
        a."readingTime", a."allowPublicAnnotations", a."allowComments", a."showOnPersonalProfile", a."scheduledAt",
-       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."canonicalUrl",
+       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."isClaimed", a."canonicalUrl",
        a.status, a."publisherId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
        u.id::text     AS author_id,
@@ -521,6 +545,7 @@ type GetArticleBySlugAnyRow struct {
 	OriginArticleId        pgtype.Text       `json:"originArticleId"`
 	CanonicalType          string            `json:"canonicalType"`
 	IsAuthorSovereignCopy  bool              `json:"isAuthorSovereignCopy"`
+	IsClaimed              bool              `json:"isClaimed"`
 	CanonicalUrl           pgtype.Text       `json:"canonicalUrl"`
 	Status                 string            `json:"status"`
 	PublisherId            string            `json:"publisherId"`
@@ -569,6 +594,7 @@ func (q *Queries) GetArticleBySlugAny(ctx context.Context, slug string) (GetArti
 		&i.OriginArticleId,
 		&i.CanonicalType,
 		&i.IsAuthorSovereignCopy,
+		&i.IsClaimed,
 		&i.CanonicalUrl,
 		&i.Status,
 		&i.PublisherId,
@@ -665,6 +691,47 @@ func (q *Queries) GetArticleOfflinePack(ctx context.Context, id string) (GetArti
 		&i.CreatedAt,
 		&i.PublisherName,
 		&i.AuthorName,
+	)
+	return i, err
+}
+
+const getArticleSnapshotByID = `-- name: GetArticleSnapshotByID :one
+SELECT s.id, s."articleId", s."actorId", s.title, s.content, s."wordCount", s.reason, s."createdAt",
+       u.name AS actor_name, u.username AS actor_username, u."logoUrl" AS actor_avatar
+FROM "ArticleSnapshot" s
+LEFT JOIN "User" u ON u.id = s."actorId"
+WHERE s.id = $1 LIMIT 1
+`
+
+type GetArticleSnapshotByIDRow struct {
+	ID            string           `json:"id"`
+	ArticleId     string           `json:"articleId"`
+	ActorId       pgtype.UUID      `json:"actorId"`
+	Title         string           `json:"title"`
+	Content       string           `json:"content"`
+	WordCount     int32            `json:"wordCount"`
+	Reason        string           `json:"reason"`
+	CreatedAt     pgtype.Timestamp `json:"createdAt"`
+	ActorName     pgtype.Text      `json:"actor_name"`
+	ActorUsername pgtype.Text      `json:"actor_username"`
+	ActorAvatar   pgtype.Text      `json:"actor_avatar"`
+}
+
+func (q *Queries) GetArticleSnapshotByID(ctx context.Context, id string) (GetArticleSnapshotByIDRow, error) {
+	row := q.db.QueryRow(ctx, getArticleSnapshotByID, id)
+	var i GetArticleSnapshotByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.ArticleId,
+		&i.ActorId,
+		&i.Title,
+		&i.Content,
+		&i.WordCount,
+		&i.Reason,
+		&i.CreatedAt,
+		&i.ActorName,
+		&i.ActorUsername,
+		&i.ActorAvatar,
 	)
 	return i, err
 }
@@ -768,6 +835,57 @@ func (q *Queries) GetLatestArticleReviewFeedback(ctx context.Context, articleid 
 		&i.ReviewerName,
 		&i.ReviewerUsername,
 		&i.ReviewerLogo,
+	)
+	return i, err
+}
+
+const getLatestArticleSnapshotByArticle = `-- name: GetLatestArticleSnapshotByArticle :one
+SELECT id, "articleId", "actorId", title, content, "wordCount", reason, "createdAt" FROM "ArticleSnapshot"
+WHERE "articleId" = $1
+ORDER BY "createdAt" DESC
+LIMIT 1
+`
+
+func (q *Queries) GetLatestArticleSnapshotByArticle(ctx context.Context, articleid string) (ArticleSnapshot, error) {
+	row := q.db.QueryRow(ctx, getLatestArticleSnapshotByArticle, articleid)
+	var i ArticleSnapshot
+	err := row.Scan(
+		&i.ID,
+		&i.ArticleId,
+		&i.ActorId,
+		&i.Title,
+		&i.Content,
+		&i.WordCount,
+		&i.Reason,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getLatestArticleSnapshotByArticleAndActor = `-- name: GetLatestArticleSnapshotByArticleAndActor :one
+SELECT id, "articleId", "actorId", title, content, "wordCount", reason, "createdAt" FROM "ArticleSnapshot"
+WHERE "articleId" = $1 AND "actorId" = $2
+ORDER BY "createdAt" DESC
+LIMIT 1
+`
+
+type GetLatestArticleSnapshotByArticleAndActorParams struct {
+	ArticleId string      `json:"articleId"`
+	ActorId   pgtype.UUID `json:"actorId"`
+}
+
+func (q *Queries) GetLatestArticleSnapshotByArticleAndActor(ctx context.Context, arg GetLatestArticleSnapshotByArticleAndActorParams) (ArticleSnapshot, error) {
+	row := q.db.QueryRow(ctx, getLatestArticleSnapshotByArticleAndActor, arg.ArticleId, arg.ActorId)
+	var i ArticleSnapshot
+	err := row.Scan(
+		&i.ID,
+		&i.ArticleId,
+		&i.ActorId,
+		&i.Title,
+		&i.Content,
+		&i.WordCount,
+		&i.Reason,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -890,11 +1008,107 @@ func (q *Queries) InsertArticleReviewLog(ctx context.Context, arg InsertArticleR
 	return err
 }
 
+const insertArticleSnapshot = `-- name: InsertArticleSnapshot :one
+INSERT INTO "ArticleSnapshot" (
+    id, "articleId", "actorId", title, content, "wordCount", reason, "createdAt"
+) VALUES (
+    gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, now()
+)
+RETURNING id, "articleId", "actorId", title, content, "wordCount", reason, "createdAt"
+`
+
+type InsertArticleSnapshotParams struct {
+	ArticleId string      `json:"articleId"`
+	ActorId   pgtype.UUID `json:"actorId"`
+	Title     string      `json:"title"`
+	Content   string      `json:"content"`
+	WordCount int32       `json:"wordCount"`
+	Reason    string      `json:"reason"`
+}
+
+func (q *Queries) InsertArticleSnapshot(ctx context.Context, arg InsertArticleSnapshotParams) (ArticleSnapshot, error) {
+	row := q.db.QueryRow(ctx, insertArticleSnapshot,
+		arg.ArticleId,
+		arg.ActorId,
+		arg.Title,
+		arg.Content,
+		arg.WordCount,
+		arg.Reason,
+	)
+	var i ArticleSnapshot
+	err := row.Scan(
+		&i.ID,
+		&i.ArticleId,
+		&i.ActorId,
+		&i.Title,
+		&i.Content,
+		&i.WordCount,
+		&i.Reason,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const listArticleSnapshots = `-- name: ListArticleSnapshots :many
+SELECT s.id, s."articleId", s."actorId", s.title, s.content, s."wordCount", s.reason, s."createdAt",
+       u.name AS actor_name, u.username AS actor_username, u."logoUrl" AS actor_avatar
+FROM "ArticleSnapshot" s
+LEFT JOIN "User" u ON u.id = s."actorId"
+WHERE s."articleId" = $1
+ORDER BY s."createdAt" DESC
+`
+
+type ListArticleSnapshotsRow struct {
+	ID            string           `json:"id"`
+	ArticleId     string           `json:"articleId"`
+	ActorId       pgtype.UUID      `json:"actorId"`
+	Title         string           `json:"title"`
+	Content       string           `json:"content"`
+	WordCount     int32            `json:"wordCount"`
+	Reason        string           `json:"reason"`
+	CreatedAt     pgtype.Timestamp `json:"createdAt"`
+	ActorName     pgtype.Text      `json:"actor_name"`
+	ActorUsername pgtype.Text      `json:"actor_username"`
+	ActorAvatar   pgtype.Text      `json:"actor_avatar"`
+}
+
+func (q *Queries) ListArticleSnapshots(ctx context.Context, articleid string) ([]ListArticleSnapshotsRow, error) {
+	rows, err := q.db.Query(ctx, listArticleSnapshots, articleid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListArticleSnapshotsRow{}
+	for rows.Next() {
+		var i ListArticleSnapshotsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ArticleId,
+			&i.ActorId,
+			&i.Title,
+			&i.Content,
+			&i.WordCount,
+			&i.Reason,
+			&i.CreatedAt,
+			&i.ActorName,
+			&i.ActorUsername,
+			&i.ActorAvatar,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listArticlesWithCategory = `-- name: ListArticlesWithCategory :many
 SELECT a.id, a.title, a.slug, a.published, a."isPremium", a.visibility, a."readingTime",
        a.status, a."createdAt", a."updatedAt", a."categoryId", a."publisherId", a."authorId",
        a."allowPublicAnnotations", a."allowComments", a."allowDownload", a."showOnPersonalProfile",
-       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."canonicalUrl",
+       a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."isClaimed", a."canonicalUrl",
        (a."draftContent" IS NOT NULL AND a."draftContent" <> '') AS has_unpublished_changes,
        a."emailStatus", a."emailSentAt", a."emailSentCount",
        c.id  AS category_id,
@@ -907,17 +1121,20 @@ SELECT a.id, a.title, a.slug, a.published, a."isPremium", a.visibility, a."readi
 FROM "Article" a
 JOIN "Publisher" p ON p.id = a."publisherId"
 LEFT JOIN "Category" c ON c.id = a."categoryId"
-WHERE a."publisherId" = $1
+WHERE (a."publisherId" = $1
    OR ($4::boolean AND (
      a."authorId" = $5::uuid
      OR EXISTS (
        SELECT 1 FROM "ArticleAttribution" aa
        WHERE aa."articleId" = a.id
          AND aa."userId" = $5::uuid
-         AND aa."consentStatus" = 'ACCEPTED'
-         AND aa."isVisible" = true
+         AND (
+           (aa."consentStatus" = 'ACCEPTED' AND aa."isVisible" = true)
+           OR aa."consentStatus" = 'REVOKED'
+         )
      )
-   ))
+   )))
+   AND NOT (a."isAuthorSovereignCopy" = true AND a."isClaimed" = false)
 ORDER BY a."createdAt" DESC
 LIMIT $2 OFFSET $3
 `
@@ -951,6 +1168,7 @@ type ListArticlesWithCategoryRow struct {
 	OriginArticleId        pgtype.Text       `json:"originArticleId"`
 	CanonicalType          string            `json:"canonicalType"`
 	IsAuthorSovereignCopy  bool              `json:"isAuthorSovereignCopy"`
+	IsClaimed              bool              `json:"isClaimed"`
 	CanonicalUrl           pgtype.Text       `json:"canonicalUrl"`
 	HasUnpublishedChanges  pgtype.Bool       `json:"has_unpublished_changes"`
 	EmailStatus            string            `json:"emailStatus"`
@@ -1001,6 +1219,7 @@ func (q *Queries) ListArticlesWithCategory(ctx context.Context, arg ListArticles
 			&i.OriginArticleId,
 			&i.CanonicalType,
 			&i.IsAuthorSovereignCopy,
+			&i.IsClaimed,
 			&i.CanonicalUrl,
 			&i.HasUnpublishedChanges,
 			&i.EmailStatus,
