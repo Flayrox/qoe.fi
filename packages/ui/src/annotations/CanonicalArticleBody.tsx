@@ -408,10 +408,16 @@ function BlockView({
       const blockClassName =
         cn(block.indent && 'has-indent', block.dropCap && 'has-drop-cap') || undefined;
       if (block.kind === 'p' && (!block.text || block.text.length === 0)) {
-        return <p className={cn('article-empty-paragraph', blockClassName)} aria-hidden="true" />;
+        return (
+          <p
+            className={cn('article-empty-paragraph', blockClassName)}
+            data-drop-cap={block.dropCap ? 'true' : undefined}
+            aria-hidden="true"
+          />
+        );
       }
       return (
-        <Tag className={blockClassName}>
+        <Tag className={blockClassName} data-drop-cap={block.dropCap ? 'true' : undefined}>
           <RenderRich
             text={block.text ?? ''}
             marks={buildSegmentMarks(

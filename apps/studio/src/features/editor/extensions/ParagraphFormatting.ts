@@ -69,7 +69,12 @@ export const ParagraphFormatting = Extension.create({
   addKeyboardShortcuts() {
     return {
       // `Tab` et `Shift+Tab` restent au navigateur : ils permettent de sortir
-      // de l'éditeur au clavier. L'alinéa garde ses boutons dans les barres.
+      // de l'éditeur au clavier. L'alinéa a un raccourci dédié, disponible
+      // aussi depuis la barre d'outils.
+      'Mod-Alt-i': () => {
+        if (!this.editor.isActive('paragraph')) return false;
+        return this.editor.commands.toggleParagraphIndent();
+      },
       Backspace: () => {
         const { selection } = this.editor.state;
         if (!selection.empty) return false;

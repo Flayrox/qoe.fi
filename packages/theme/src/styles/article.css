@@ -49,6 +49,15 @@
   text-indent: 2em;
 }
 
+/* Alinéa et lettrine ne se cumulent pas : l'indentation décale la première
+   ligne hors de l'épaulement du flottant. `text-wrap: pretty` peut aussi
+   faire ignorer le flottant par la première ligne : on repasse en `wrap`. */
+.article-prose p.has-drop-cap,
+.article-prose p[data-drop-cap='true'] {
+  text-indent: 0;
+  text-wrap: wrap;
+}
+
 .article-prose p.has-drop-cap::first-letter,
 .article-prose p[data-drop-cap='true']::first-letter {
   float: left;
