@@ -421,4 +421,24 @@ describe('CanonicalArticleBody — spotlight deep-link (tranche 6-b)', () => {
     });
     expect(empty).toHaveLength(0);
   });
+
+  it('rend la lettrine avec la classe et l’attribut canoniques', () => {
+    const dropCapDoc: CanonicalDocument = {
+      ...doc,
+      blocks: doc.blocks.map((block, index) => (index === 0 ? { ...block, dropCap: true } : block)),
+    };
+    const html = renderToStaticMarkup(
+      <CanonicalArticleBody
+        document={dropCapDoc}
+        highlights={[]}
+        allPublic={[]}
+        filterMode="all"
+        containerId="article-content"
+        creatorName="Créatrice"
+        onMarkClick={() => {}}
+      />
+    );
+    expect(html).toContain('data-drop-cap="true"');
+    expect(html).toContain('has-drop-cap');
+  });
 });

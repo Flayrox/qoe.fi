@@ -391,6 +391,8 @@ export function Editor({
   const openAnnotationPopoverRef = useRef<(text?: string, existingNote?: string) => void>(() => {});
   const openLinkPopoverRef = useRef<() => void>(() => {});
   const openImageDetailsRef = useRef<() => void>(() => {});
+  // Position du dernier mousedown : distingue un clic simple d'un glisser.
+  const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
   // Sélection capturée à l'ouverture du panneau : le focus passe au textarea,
   // mais la note doit s'appliquer au passage d'origine, pas au curseur perdu.
   const annotationRangeRef = useRef<{ from: number; to: number } | null>(null);
@@ -585,6 +587,12 @@ export function Editor({
         // listes apparaissaient comme des lignes de texte sans repère.
         class: 'qoe-editor article-prose max-w-none text-foreground font-sans',
       },
+      handleDOMEvents: {
+        mousedown: (_view, event) => {
+          pointerDownRef.current = { x: event.clientX, y: event.clientY };
+          return false;
+        },
+      },
       handleClickOn: (_view, _pos, node) => {
         if (node.type.name === 'image' || node.type.name === 'galleryImage') {
           openImageDetailsRef.current();
@@ -593,10 +601,13 @@ export function Editor({
         return false;
       },
       handleClick: (view, pos, event) => {
-        // Ne jamais écraser une sélection construite à la souris (glisser,
-        // double-clic, Shift+clic) : le clic simple doit pouvoir placer le
-        // curseur, l'ouverture de la note passe par un modificateur ou un tap.
-        if (!view.state.selection.empty) return false;
+        // Un glisser, un double-clic ou un Shift+clic construit une sélection :
+        // on ne la remplace pas. Un simple clic, même après une sélection
+        // existante, doit pouvoir viser le début de ligne. L'ouverture de la
+        // note reste réservée au modificateur ou au tap.
+        const down = pointerDownRef.current;
+        const moved = down ? Math.hypot(event.clientX - down.x, event.clientY - down.y) : 0;
+        if (event.detail !== 1 || event.shiftKey || moved > 4) return false;
 
         // Sur un écran tactile, Alt+clic n'existe pas : un tap sur une
         // annotation ouvre directement sa note. On garde le snap de début de
@@ -1854,14 +1865,16 @@ export function Editor({
       return;
     }
 
-    // Clic dans la gouttière gauche (à gauche du texte ou dans les 32px de l'amorce de la ligne)
+    // Toute la gouttière gauche, pas seulement les 32 px : sur desktop le
+    // padding `md:p-14` laisse 56 px entre la carte et le texte. Un clic dans
+    // cette marge doit poser le curseur au début de la ligne correspondante.
     if (
-      event.clientX < domRect.left + 32 &&
+      event.clientX < domRect.left &&
       event.clientY >= domRect.top &&
       event.clientY <= domRect.bottom
     ) {
       const coordsPos = view.posAtCoords({
-        left: domRect.left + 6,
+        left: domRect.left + 2,
         top: event.clientY,
       });
 

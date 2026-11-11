@@ -37,6 +37,7 @@ import {
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@qoe/ui/ui/tooltip';
+import { nextToolbarIndex } from '../lib/toolbar-navigation';
 
 interface ToolbarButtonProps {
   /** État « allumé » : la mise en forme est active au curseur. */
@@ -63,6 +64,8 @@ function ToolbarButton({ active, onClick, icon, label, shortcut, disabled }: Too
     <Tooltip>
       <TooltipTrigger
         type="button"
+        data-toolbar-item=""
+        tabIndex={-1}
         onClick={disabled ? undefined : onClick}
         // Garde le focus et la sélection dans l'éditeur quand on clique un
         // bouton de la barre : sans cela, la sélection pouvait être perdue
@@ -200,11 +203,51 @@ export function EditorToolbar({
     },
   });
 
+  // Une seule tabulation entre dans la barre ; les flèches parcourent les
+  // boutons, Home/End vont aux extrémités (motif ARIA toolbar).
+  const toolbarRef = React.useRef<HTMLDivElement>(null);
+  const toolbarItems = React.useCallback(
+    () =>
+      Array.from(
+        toolbarRef.current?.querySelectorAll<HTMLButtonElement>('[data-toolbar-item]') ?? []
+      ),
+    []
+  );
+
+  React.useEffect(() => {
+    const items = toolbarItems();
+    if (items.length === 0 || items.some((item) => item.tabIndex === 0)) return;
+    items[0].tabIndex = 0;
+  });
+
+  const handleToolbarKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const target = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-toolbar-item]');
+    if (!target) return;
+    const items = toolbarItems();
+    const next = nextToolbarIndex(items.indexOf(target), items.length, event.key);
+    if (next === null) return;
+    event.preventDefault();
+    items.forEach((item, index) => {
+      item.tabIndex = index === next ? 0 : -1;
+    });
+    items[next]?.focus();
+  };
+
+  const handleToolbarFocus = (event: React.FocusEvent<HTMLDivElement>) => {
+    const target = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-toolbar-item]');
+    if (!target) return;
+    for (const item of toolbarItems()) item.tabIndex = item === target ? 0 : -1;
+  };
+
   return (
     <TooltipProvider delay={450}>
       <div
+        ref={toolbarRef}
         role="toolbar"
         aria-label={t`Mise en forme`}
+        aria-orientation="horizontal"
+        onKeyDown={handleToolbarKeyDown}
+        onFocus={handleToolbarFocus}
         className={cn(
           'sticky top-14 z-20 transition-all duration-300 py-1.5 px-2',
           docked
@@ -347,6 +390,7 @@ export function EditorToolbar({
               onClick={() => editor.chain().focus().toggleParagraphIndent().run()}
               icon={<IndentIncrease className="h-3.5 w-3.5 stroke-2" />}
               label={t`Alinéa de première ligne`}
+              shortcut={`${MOD}⌥I`}
               disabled={!state.isParagraph}
             />
             <ToolbarButton
