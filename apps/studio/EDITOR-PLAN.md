@@ -7,7 +7,7 @@
 > **Instructions utilisateur :** la section [« 📝 Instructions »](#-instructions)
 > est prioritaire sur le reste.
 
-Dernière mise à jour : 2026-11-11 · branche `main` · dernier commit éditeur `8495cb3d`.
+Dernière mise à jour : 2026-11-11 · branche `main` · dernier commit éditeur `63cf082f`.
 
 ---
 
@@ -35,19 +35,20 @@ Contraintes :
 
 Derniers commits du chantier :
 
-| Commit     | Contenu                                                                                            |
-| ---------- | -------------------------------------------------------------------------------------------------- |
-| `8495cb3d` | Toolbar ARIA à arrêt unique, raccourci alinéa `Mod+Alt+I`, lettrine canonique et snap de gouttière |
-| `109123c7` | Suite API Go verte (67 paquets), correctifs des 9 paquets rouges                                   |
-| `0bfccbe8` | Tolérance de 32 px autour du début de ligne visuelle, y compris sur les lignes coupées             |
-| `403ada88` | `Tab` libéré pour les paragraphes ; l’alinéa reste dans les barres d’outils                        |
-| `4193684a` | Ouverture tactile des annotations + bouton « Modifier la note d’auteur » dans le bandeau           |
-| `fd56f4f7` | Retours à la ligne conservés dans les citations d’annotation multi-paragraphes                     |
-| `000f4393` | Bouton « Légende et crédit de l’image » désactivé tant qu’aucune image n’est sélectionnée          |
-| `97e71e0a` | `Tab` rendu au navigateur dans les listes ; boutons d’imbrication dans la barre d’outils           |
-| `2412f4b4` | Galeries éditables : alt, déplacement et retrait d’une image                                       |
-| `fcf13e44` | Actions de couverture visibles au tactile et au focus clavier                                      |
-| `0a84e005` | Panneau d’annotation refondu : bandeau, citation, zone d’écriture et actions séparées              |
+| Commit     | Contenu                                                                                   |
+| ---------- | ----------------------------------------------------------------------------------------- |
+| `63cf082f` | Raccourci alinéa `Mod+Alt+A`, hors du conflit DevTools macOS                              |
+| `8495cb3d` | Toolbar ARIA à arrêt unique, lettrine canonique et snap de gouttière                      |
+| `109123c7` | Suite API Go verte (67 paquets), correctifs des 9 paquets rouges                          |
+| `0bfccbe8` | Tolérance de 32 px autour du début de ligne visuelle, y compris sur les lignes coupées    |
+| `403ada88` | `Tab` libéré pour les paragraphes ; l’alinéa reste dans les barres d’outils               |
+| `4193684a` | Ouverture tactile des annotations + bouton « Modifier la note d’auteur » dans le bandeau  |
+| `fd56f4f7` | Retours à la ligne conservés dans les citations d’annotation multi-paragraphes            |
+| `000f4393` | Bouton « Légende et crédit de l’image » désactivé tant qu’aucune image n’est sélectionnée |
+| `97e71e0a` | `Tab` rendu au navigateur dans les listes ; boutons d’imbrication dans la barre d’outils  |
+| `2412f4b4` | Galeries éditables : alt, déplacement et retrait d’une image                              |
+| `fcf13e44` | Actions de couverture visibles au tactile et au focus clavier                             |
+| `0a84e005` | Panneau d’annotation refondu : bandeau, citation, zone d’écriture et actions séparées     |
 
 Vérifications passées à chaque étape :
 
@@ -141,8 +142,8 @@ combinaisons clavier réelles restent à valider.
       remplacés par des variantes sans tabulation, imbrication via les boutons
       de la barre d’outils (commit `97e71e0a`). Les tests clavier restent à
       ajouter.
-- [x] **A2.** Raccourci `Mod+Alt+I` + bouton de barre avec infobulle
-      (`8495cb3d`).
+- [x] **A2.** Raccourci `Mod+Alt+A` + bouton de barre avec infobulle
+      (`63cf082f`).
 - [x] **A3.** Motif ARIA toolbar : un seul arrêt de tabulation pour la barre,
       flèches, `Home`/`End`, focus visible conservé ; helper testé
       (`8495cb3d`).
@@ -301,8 +302,9 @@ souveraine » :
 
 ### Correctifs éditeur (2026-11-11)
 
-- **A2** : `Mod+Alt+I` bascule l'alinéa, avec garde `paragraph` et infobulle
-  du bouton de barre (`8495cb3d`).
+- **A2** : `Mod+Alt+A` bascule l'alinéa, avec garde `paragraph` et infobulle
+  du bouton de barre (`63cf082f`) ; `Mod+Alt+I` a été écarté car il ouvre
+  les DevTools de Chrome sur macOS.
 - **A3** : la toolbar n'a plus qu'un arrêt de tabulation ; les flèches
   parcourent les boutons et `Home`/`End` vont aux extrémités. Le calcul est
   testé dans `toolbar-navigation.test.ts` (`8495cb3d`).
