@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { fireEvent, render } from '@testing-library/react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { CanonicalArticleBody } from '../CanonicalArticleBody';
 import { buildSegmentMarks } from '../CanonicalArticleBody';
@@ -81,6 +82,35 @@ const noAnchorsHighlight: HighlightItem = {
   isOfficial: false,
 };
 
+const nestedDoc: CanonicalDocument = {
+  blocks: [{ kind: 'p', text: 'Le passage entier' }],
+  segments: [{ blockIdx: 0, itemIdx: 0, text: 'Le passage entier', start: 0, end: 17 }],
+  text: 'Le passage entier',
+  sha: 'sha-nested',
+};
+
+const outerHighlight: HighlightItem = {
+  id: 'outer',
+  text: 'Le passage entier',
+  canonicalStart: 0,
+  canonicalEnd: 17,
+  contentSha: 'sha-nested',
+  note: null,
+  isPublic: false,
+  isOfficial: false,
+};
+
+const innerHighlight: HighlightItem = {
+  id: 'inner',
+  text: 'passage',
+  canonicalStart: 3,
+  canonicalEnd: 10,
+  contentSha: 'sha-nested',
+  note: null,
+  isPublic: false,
+  isOfficial: false,
+};
+
 function renderBody(
   highlights: HighlightItem[],
   allPublic: AnnotationItem[],
@@ -130,6 +160,56 @@ describe('CanonicalArticleBody — marques par offsets', () => {
     // le trait qui double sans rien signaler d'autre.
     const html = renderBody([privateHighlight, { ...privateHighlight }], [], 'all');
     expect(html.match(/data-highlight-id="priv-1"/g) ?? []).toHaveLength(1);
+  });
+
+  it('imbrique un surlignage intérieur dans le surlignage extérieur', () => {
+    const { container } = render(
+      <CanonicalArticleBody
+        document={nestedDoc}
+        highlights={[outerHighlight, innerHighlight]}
+        allPublic={[]}
+        filterMode="all"
+        creatorName="Créatrice"
+        onMarkClick={() => {}}
+      />
+    );
+
+    const innerMark = container.querySelector('mark[data-highlight-id="inner"]');
+    const outerMark = innerMark?.closest('mark[data-highlight-id="outer"]');
+
+    expect(innerMark).not.toBeNull();
+    expect(outerMark).not.toBeNull();
+    expect(container.querySelectorAll('mark[data-highlight-id="inner"]')).toHaveLength(1);
+  });
+
+  it('ne vole pas une sélection commencée dans une marque', () => {
+    const onMarkClick = vi.fn();
+    const { container } = render(
+      <CanonicalArticleBody
+        document={nestedDoc}
+        highlights={[outerHighlight, innerHighlight]}
+        allPublic={[]}
+        filterMode="all"
+        creatorName="Créatrice"
+        onMarkClick={onMarkClick}
+      />
+    );
+    const innerMark = container.querySelector<HTMLElement>('mark[data-highlight-id="inner"]');
+    const selection = window.getSelection();
+    if (!innerMark || !selection) throw new Error('marque ou sélection introuvable');
+
+    const range = document.createRange();
+    range.selectNodeContents(innerMark);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    fireEvent.click(innerMark);
+    expect(onMarkClick).not.toHaveBeenCalled();
+
+    selection.removeAllRanges();
+    fireEvent.click(innerMark);
+    expect(onMarkClick).toHaveBeenCalledTimes(1);
+    expect(onMarkClick.mock.calls[0][0]).toMatchObject({ id: 'inner' });
   });
 
   it('ignore les ancres périmées (sha différent) et sans offsets', () => {
