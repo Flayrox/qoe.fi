@@ -8,9 +8,17 @@
 // =====================================================================
 
 import { defineConfig } from 'vitest/config';
+import react from '@vitejs/plugin-react';
 import path from 'path';
 
+process.env.SKIP_ENV_VALIDATION = 'true';
+process.env.NEXT_PUBLIC_SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder_anon_key';
+
 export default defineConfig({
+  plugins: [react()],
   resolve: {
     // Un seul React partout : sans cet alias, le hook testé importe le react
     // local du sdk pendant que @testing-library/react utilise celui de la
@@ -26,6 +34,7 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    setupFiles: [path.resolve(__dirname, 'apps/core/vitest.setup.ts')],
     include: [
       'packages/sdk/src/**/*.test.{ts,tsx}',
       'packages/auth/src/**/*.test.{ts,tsx}',
