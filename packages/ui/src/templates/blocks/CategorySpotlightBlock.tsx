@@ -111,7 +111,13 @@ export function CategorySpotlightBlock({
                 >
                   {item.imageUrl && (
                     <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md bg-muted">
-                      <SafeImage src={item.imageUrl} alt="" fill className="object-cover" />
+                      <SafeImage
+                        src={item.imageUrl}
+                        alt=""
+                        fill
+                        sizes="64px"
+                        className="object-cover"
+                      />
                     </div>
                   )}
                   <div className="min-w-0 flex-1">

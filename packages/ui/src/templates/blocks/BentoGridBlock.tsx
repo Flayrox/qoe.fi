@@ -165,7 +165,17 @@ export function BentoGridBlock({
                       isLead ? 'h-48 md:h-56' : 'h-36'
                     }`}
                   >
-                    <SafeImage src={item.imageUrl} alt="" fill className="object-cover" />
+                    <SafeImage
+                      src={item.imageUrl}
+                      alt=""
+                      fill
+                      sizes={
+                        isLead
+                          ? '(max-width: 768px) 100vw, 720px'
+                          : '(max-width: 640px) 50vw, 360px'
+                      }
+                      className="object-cover"
+                    />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
 
                     <div className="absolute top-3 left-3 z-10 flex items-center gap-2">

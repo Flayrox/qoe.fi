@@ -108,6 +108,7 @@ export function HeroBlock({
               src={effectiveHeaderImageUrl}
               alt="Bannière de couverture"
               fill
+              sizes="100vw"
               className="object-cover object-center"
               priority
             />
