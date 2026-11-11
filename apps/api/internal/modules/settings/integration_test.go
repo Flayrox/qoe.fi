@@ -552,18 +552,18 @@ func TestUpdateUserSettings_TransitionToPublic_AutoAcceptFollowRequests(t *testi
 	ctx := context.Background()
 
 	// 1. Mettre le compte en PRIVATE
-	if _, err := svc.UpdateUserSettings(ctx, fx.ViewerID, map[string]any{"profileVisibility": "PRIVATE"}); err != nil {
+	if _, err := svc.UpdateUserSettings(ctx, fx.OwnerID, map[string]any{"profileVisibility": "PRIVATE"}); err != nil {
 		t.Fatalf("set private: %v", err)
 	}
 
 	// Créer un utilisateur tiers (Bob)
 	bobID := "00000000-0000-0000-0000-000000000088"
 	_, _ = poolTest.Exec(ctx, `
-		INSERT INTO "User" (id, email, username, name, role)
-		VALUES ($1::uuid, 'bob_auto_accept@qoe.test', 'bob_auto_accept', 'Bob', 'user')
+		INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
+		VALUES ($1::uuid, 'bob_auto_accept@qoe.test', 'bob_auto_accept', 'Bob', 'user', now(), now())
 		ON CONFLICT (id) DO NOTHING`, bobID)
 
-	// Bob a une demande d'abonnement en attente pour la publication de fx.ViewerID
+	// Bob a une demande d'abonnement en attente pour la publication de fx.OwnerID
 	reqID := "req_test_auto_accept"
 	_, _ = poolTest.Exec(ctx, `DELETE FROM "FollowRequest" WHERE id = $1`, reqID)
 	_, _ = poolTest.Exec(ctx, `DELETE FROM "Follows" WHERE "readerId" = $1::uuid AND "publisherId" = $2`, bobID, fx.PubID)
@@ -579,12 +579,12 @@ func TestUpdateUserSettings_TransitionToPublic_AutoAcceptFollowRequests(t *testi
 	if _, err := poolTest.Exec(ctx, `
 		INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publisherId", metadata, "isRead")
 		VALUES ($1, $2::uuid, $3::uuid, 'FOLLOW', $4, '{"kind": "FOLLOW_REQUEST"}'::jsonb, false)`,
-		notifOwnerID, fx.ViewerID, bobID, fx.PubID); err != nil {
+		notifOwnerID, fx.OwnerID, bobID, fx.PubID); err != nil {
 		t.Fatalf("insert owner notification: %v", err)
 	}
 
 	// 2. Basculer de PRIVATE à PUBLIC
-	if _, err := svc.UpdateUserSettings(ctx, fx.ViewerID, map[string]any{"profileVisibility": "PUBLIC"}); err != nil {
+	if _, err := svc.UpdateUserSettings(ctx, fx.OwnerID, map[string]any{"profileVisibility": "PUBLIC"}); err != nil {
 		t.Fatalf("set public: %v", err)
 	}
 
@@ -620,7 +620,7 @@ func TestUpdateUserSettings_TransitionToPublic_AutoAcceptFollowRequests(t *testi
 		SELECT count(*) FROM "Notification"
 		WHERE "recipientId" = $1::uuid AND "senderId" = $2::uuid AND type = 'FOLLOW'
 		  AND metadata->>'kind' = 'FOLLOW_ACCEPTED'`,
-		bobID, fx.ViewerID).Scan(&notifBobCount); err != nil || notifBobCount != 1 {
+		bobID, fx.OwnerID).Scan(&notifBobCount); err != nil || notifBobCount != 1 {
 		t.Fatalf("notif Bob count = %d (err %v), attendu 1 (FOLLOW_ACCEPTED)", notifBobCount, err)
 	}
 }

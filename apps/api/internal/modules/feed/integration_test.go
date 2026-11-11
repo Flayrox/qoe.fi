@@ -296,8 +296,8 @@ func TestThread_PreservesAnnotationCitationsAcrossAncestorsAndReplies(t *testing
 		if p.QuotedAnnotation == nil {
 			t.Fatalf("[%s] QuotedAnnotation est nil pour post %s", label, p.ID)
 		}
-		if p.QuotedAnnotation.Reader.Type != "PERSONAL" {
-			t.Errorf("[%s] Reader.Type = %q, attendu PERSONAL", label, p.QuotedAnnotation.Reader.Type)
+		if p.QuotedAnnotation.Reader.Type != "MEDIA" {
+			t.Errorf("[%s] Reader.Type = %q, attendu MEDIA", label, p.QuotedAnnotation.Reader.Type)
 		}
 		if p.QuotedAnnotation.CanonicalStart == nil || p.QuotedAnnotation.CanonicalEnd == nil {
 			t.Fatalf("[%s] ancres canoniques manquantes sur QuotedAnnotation", label)

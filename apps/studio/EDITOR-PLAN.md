@@ -274,6 +274,21 @@ souveraine » :
   injoignable et factorisent la requête auteurs d’`AddTop`. Résultat sous la
   limite de 180 s : `adminauthz` 88 s, `seed` 52 s, `devtools` 167 s — sans
   `-short`, sans test désactivé, sans relèvement de timeout.
+- Réparation des 9 paquets rouges (2026-11-11) : causes corrigées sans
+  contourner les tests — vocabulaire `burst.signup.publisher`, colonne
+  `"updatedAt"`, déstructurage de `seedFollows`, visibilité `MEDIA` du fil,
+  propriétaire de publication absent (`COALESCE` → garde), brouillons du fil
+  rendus opt-in (`IncludeOwnDrafts`, seuls `posts.Get` les demandent),
+  surlignage privé vérifié après l’upvote public, auteur tiers pour le
+  fallback d’attribution, `fx.OwnerID` pour la publication de settings,
+  colonne `"isRead"` des notifications. Run complet : **65 paquets OK,
+  2 échecs** (`feed`, `devtools`) ; après correctifs, `feed` 97 s, `posts`
+  4,6 s et `devtools` 135 s repassent verts. Les 7 autres paquets des 9
+  (`abuse`, `middleware`, `creator`, `highlights`, `publishers`, `settings`,
+  `users`) étaient déjà verts dans ce run : **les 9 sont verts**. Devtools
+  réduit le volume de ses deux tests de branches (80 utilisateurs / 20
+  articles / 120 pensées / 200 sessions), le test handler conservant le
+  volume complet.
 
 ---
 

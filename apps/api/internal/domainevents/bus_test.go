@@ -502,7 +502,7 @@ func TestDispatchUserMutedMarksNotificationsRead(t *testing.T) {
 		t.Fatalf("1 requête attendue, obtenu %d", len(db.execs))
 	}
 	sql := db.execs[0].sql
-	if !strings.Contains(sql, `UPDATE "Notification"`) || !strings.Contains(sql, "read = true") {
+	if !strings.Contains(sql, `UPDATE "Notification"`) || !strings.Contains(sql, `"isRead" = true`) {
 		t.Fatalf("la sourdine doit marquer les notifications lues : %s", sql)
 	}
 	if len(db.execs[0].args) != 2 {

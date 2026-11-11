@@ -232,7 +232,8 @@ func TestPublishersAttributionFallback(t *testing.T) {
 	svc := NewService(poolTest)
 	ctx := context.Background()
 
-	// Article co-écrit par le propriétaire de la publication (hors publication).
+	// Article écrit par un tiers, co-écrit (attribution) par le propriétaire de
+	// la publication : l'auteur direct ne doit pas suffire à le résoudre.
 	coauthorPub := "pub_attribution_test"
 	if _, err := poolTest.Exec(ctx, `
 		INSERT INTO "Publisher" (id, type, name, slug, subdomain, "updatedAt")
@@ -243,7 +244,7 @@ func TestPublishersAttributionFallback(t *testing.T) {
 	if _, err := poolTest.Exec(ctx, `
 		INSERT INTO "Article" (id, title, slug, content, published, status, "isPremium", visibility, "readingTime", "publisherId", "authorId", "createdAt", "updatedAt")
 		VALUES ('article_coauthored', 'Co-écrit', 'co-ecrit', '<p>Ensemble</p>', true, 'PUBLISHED', false, 'PUBLIC', 2, $1, $2, now(), now())`,
-		coauthorPub, userID); err != nil {
+		coauthorPub, "00000000-0000-0000-0000-0000000000e2"); err != nil {
 		t.Fatalf("article coauthor: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx, `

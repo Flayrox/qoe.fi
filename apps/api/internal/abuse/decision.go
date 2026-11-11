@@ -172,7 +172,7 @@ var PolicyV1 = Policy{
 			Window:       10 * time.Minute,
 			Threshold:    100,
 			Result:       DecisionNeedsReview,
-			Reason:       "burst.signup.publication",
+			Reason:       "burst.signup.publisher",
 		},
 		{
 			Name:         "report-swarm",

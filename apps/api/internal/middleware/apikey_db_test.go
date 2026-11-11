@@ -199,7 +199,7 @@ func TestAPIKeyAuth_MediaKeysResolveTheirOwnPublisher(t *testing.T) {
 	}
 	for i, k := range keys {
 		if _, err := apiKeyPool.Exec(ctx,
-			`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "UpdatedAt")
+			`INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
 			 VALUES ($1, 'MEDIA', $2, $3, now(), now())`,
 			k.pubID, k.pubNam, "media-"+string(rune('a'+i))); err != nil {
 			t.Fatalf("publication média: %v", err)

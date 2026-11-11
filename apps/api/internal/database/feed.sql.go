@@ -574,9 +574,9 @@ LEFT JOIN "Like" l ON l."postId" = p.id AND l."userId" = $1
 LEFT JOIN "Post" r ON r."repostId" = p.id AND r."authorId" = $1 AND r."deletedAt" IS NULL AND (r.content = '' OR r.content = ' ')
 WHERE p.id = ANY($2::text[])
   AND p."deletedAt" IS NULL
-  AND p."isDraft" = false
+  AND (p."isDraft" = false OR ($3::boolean AND p."authorId" = $1))
   AND p."isHiddenByModerator" = false
-  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
+  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now() OR ($3::boolean AND p."authorId" = $1))
   AND NOT EXISTS (
     SELECT 1 FROM "BlockedUser" b
     WHERE (b."readerId" = $1 AND (
@@ -600,8 +600,9 @@ WHERE p.id = ANY($2::text[])
 `
 
 type GetPostsByIDsParams struct {
-	ViewerID pgtype.UUID `json:"viewer_id"`
-	Ids      []string    `json:"ids"`
+	ViewerID         pgtype.UUID `json:"viewer_id"`
+	Ids              []string    `json:"ids"`
+	IncludeOwnDrafts bool        `json:"include_own_drafts"`
 }
 
 type GetPostsByIDsRow struct {
@@ -633,7 +634,7 @@ type GetPostsByIDsRow struct {
 }
 
 func (q *Queries) GetPostsByIDs(ctx context.Context, arg GetPostsByIDsParams) ([]GetPostsByIDsRow, error) {
-	rows, err := q.db.Query(ctx, getPostsByIDs, arg.ViewerID, arg.Ids)
+	rows, err := q.db.Query(ctx, getPostsByIDs, arg.ViewerID, arg.Ids, arg.IncludeOwnDrafts)
 	if err != nil {
 		return nil, err
 	}

@@ -3,6 +3,7 @@ package feed
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -54,6 +55,11 @@ func (s *Service) canViewProfileContent(ctx context.Context, publisherID, ownerI
 			}
 			return false, err
 		}
+	}
+	// Publication sans propriétaire résolu (média sans owner actif) : aucune
+	// visibilité à interroger, et surtout aucun uuid vide à envoyer.
+	if ownerID == "" {
+		return true, nil
 	}
 	if viewerID != "" && viewerID == ownerID {
 		return true, nil
@@ -221,6 +227,9 @@ func (s *Service) UserPosts(ctx context.Context, username, viewerID string, limi
 	fetch := limit + 1
 
 	pub, err := s.q.GetPublisherBySlugOrSubdomain(ctx, username)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return FeedResult{}, fmt.Errorf("profil: publication: %w", err)
+	}
 	var ownerID string
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -251,7 +260,7 @@ func (s *Service) UserPosts(ctx context.Context, username, viewerID string, limi
 			if errors.Is(errOwner, pgx.ErrNoRows) {
 				return FeedResult{Items: []posts.FeedSlice{}, HasMore: false}, nil
 			}
-			return FeedResult{}, errOwner
+			return FeedResult{}, fmt.Errorf("profil: proprietaire: %w", errOwner)
 		}
 	}
 
@@ -267,7 +276,7 @@ func (s *Service) UserPosts(ctx context.Context, username, viewerID string, limi
 	if pub.ID != "" {
 		allowed, err := s.canViewProfileContent(ctx, pub.ID, ownerID, viewerID)
 		if err != nil {
-			return FeedResult{}, err
+			return FeedResult{}, fmt.Errorf("profil: acces: %w", err)
 		}
 		if !allowed {
 			return FeedResult{Items: []posts.FeedSlice{}, NextCursor: "", HasMore: false}, nil
@@ -281,7 +290,7 @@ func (s *Service) UserPosts(ctx context.Context, username, viewerID string, limi
 		SkipCount: int32(offset),
 	})
 	if err != nil {
-		return FeedResult{}, err
+		return FeedResult{}, fmt.Errorf("profil: posts: %w", err)
 	}
 
 	var ids []string
@@ -290,7 +299,11 @@ func (s *Service) UserPosts(ctx context.Context, username, viewerID string, limi
 	}
 	// Profil : on garde les réponses au parent indisponible pour afficher
 	// un placeholder explicite côté UI (jamais le contenu du compte bloqué).
-	return s.finalizeIDs(ctx, ids, viewerID, limit, offset, true)
+	res, err := s.finalizeIDs(ctx, ids, viewerID, limit, offset, true)
+	if err != nil {
+		return FeedResult{}, fmt.Errorf("profil: assemblage: %w", err)
+	}
+	return res, nil
 }
 
 // FeedArticle est un article du feed mobile (écran principal), avec auteur /

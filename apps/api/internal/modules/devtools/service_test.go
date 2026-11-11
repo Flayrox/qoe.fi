@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/qoefi/api/internal/seed"
 )
 
 // TestDevtools_CheckSuperadmin_UnknownUser : lookup DB en échec (utilisateur
@@ -255,6 +256,7 @@ func TestDevtools_SeedTopComplete_RedisAndUmami(t *testing.T) {
 	t.Setenv("MEILISEARCH_HOST", "http://127.0.0.1:1")
 
 	svc := NewService(poolTest, Options{DevOnly: true})
+	svc.seedOpts = seed.TopOptions{Users: 80, Articles: 20, Posts: 120, ReadingSessions: 200}
 	res, err := svc.SeedTopComplete(ctx, DevSecretUserID)
 	if err != nil {
 		t.Fatalf("SeedTopComplete: %v", err)
@@ -294,6 +296,7 @@ func TestDevtools_SeedTopComplete_Additive(t *testing.T) {
 	t.Setenv("MEILISEARCH_HOST", "http://127.0.0.1:1")
 
 	svc := NewService(poolTest, Options{DevOnly: true})
+	svc.seedOpts = seed.TopOptions{Users: 80, Articles: 20, Posts: 120, ReadingSessions: 200}
 	res, err := svc.SeedTopComplete(ctx, DevSecretUserID)
 	if err != nil {
 		t.Fatalf("SeedTopComplete: %v", err)
