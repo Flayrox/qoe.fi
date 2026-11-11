@@ -48,11 +48,22 @@ var (
 	pgURL  string
 	pgStop func()
 	pgErr  error
+
+	// Gabarits de schéma : une base migrée une fois par processus et par
+	// version, clonée pour chaque test. Le coût des migrations n'est plus
+	// payé à chaque test.
+	tplMu   sync.Mutex
+	tplDone = map[int64]string{}
+	cloneMu sync.Mutex
 )
+
+// templateLatest désigne le gabarit migré jusqu'à la dernière migration.
+const templateLatest int64 = -1
 
 // TestMain arrête le conteneur partagé par le paquet à la fin de la suite.
 func TestMain(m *testing.M) {
 	code := m.Run()
+	dropTemplates()
 	if pgStop != nil {
 		pgStop()
 	}
@@ -142,7 +153,105 @@ func startPGServer() (url string, stop func(), err error) {
 	return conn, func() { _ = container.Terminate(context.Background()) }, nil
 }
 
-// testDatabase est une base neuve, migrée à la demande, détruite en fin de test.
+// templateName donne un nom stable par processus : un run interrompu peut
+// laisser son gabarit, un autre processus ne le confond pas avec le sien.
+func templateName(version int64) string {
+	label := "latest"
+	if version != templateLatest {
+		label = fmt.Sprintf("%d", version)
+	}
+	return fmt.Sprintf("qoe_tpl_%d_%s_test", os.Getpid(), label)
+}
+
+// ensureTemplate migre une base gabarit UNE fois par processus et par version.
+// Les tests en reçoivent ensuite une copie par CREATE DATABASE … TEMPLATE :
+// l'isolation par base jetable est conservée, les 84 migrations ne sont plus
+// rejouées pour chaque test.
+func ensureTemplate(t *testing.T, version int64) string {
+	t.Helper()
+	adminURL := pgServerURL(t)
+	name := templateName(version)
+
+	tplMu.Lock()
+	defer tplMu.Unlock()
+	if done, ok := tplDone[version]; ok {
+		return done
+	}
+
+	ctx := context.Background()
+	admin, err := pgx.Connect(ctx, adminURL)
+	if err != nil {
+		failOrSkip(t, "connexion au serveur de test", err)
+		return ""
+	}
+	defer admin.Close(ctx)
+
+	// Un run précédent interrompu (timeout) a pu laisser le même nom : le
+	// gabarit est reconstruit, jamais réutilisé à l'aveugle.
+	if _, err := admin.Exec(ctx, `DROP DATABASE IF EXISTS `+pgx.Identifier{name}.Sanitize()+` WITH (FORCE)`); err != nil {
+		t.Fatalf("nettoyage du gabarit %s: %v", name, err)
+	}
+	if _, err := admin.Exec(ctx, `CREATE DATABASE `+pgx.Identifier{name}.Sanitize()); err != nil {
+		t.Fatalf("création du gabarit %s: %v", name, err)
+	}
+
+	sqlDB, err := sql.Open("pgx", withDatabase(t, adminURL, name))
+	if err != nil {
+		t.Fatalf("connexion goose au gabarit %s: %v", name, err)
+	}
+	sqlDB.SetMaxOpenConns(1)
+	sqlDB.SetMaxIdleConns(1)
+	if err := goose.SetDialect("postgres"); err != nil {
+		_ = sqlDB.Close()
+		t.Fatalf("dialecte goose: %v", err)
+	}
+	var upErr error
+	if version == templateLatest {
+		upErr = goose.Up(sqlDB, migrationsDir(t))
+	} else {
+		upErr = goose.UpTo(sqlDB, migrationsDir(t), version)
+	}
+	closeErr := sqlDB.Close()
+	if upErr != nil {
+		t.Fatalf("migration du gabarit %s: %v", name, upErr)
+	}
+	if closeErr != nil {
+		t.Fatalf("fermeture du gabarit %s: %v", name, closeErr)
+	}
+
+	// Aucune connexion ne doit rester ouverte : le clonage refuse un gabarit
+	// occupé, et ALLOW_CONNECTIONS false le protège pour la suite du run.
+	if _, err := admin.Exec(ctx, `ALTER DATABASE `+pgx.Identifier{name}.Sanitize()+` ALLOW_CONNECTIONS false`); err != nil {
+		t.Fatalf("verrouillage du gabarit %s: %v", name, err)
+	}
+	tplDone[version] = name
+	return name
+}
+
+// dropTemplates supprime les gabarits du processus. Appelé par TestMain :
+// même après un test en échec, le run ne laisse pas de base derrière lui.
+func dropTemplates() {
+	tplMu.Lock()
+	defer tplMu.Unlock()
+	if pgURL == "" || len(tplDone) == 0 {
+		return
+	}
+	ctx := context.Background()
+	admin, err := pgx.Connect(ctx, pgURL)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "nettoyage des gabarits: %v\n", err)
+		return
+	}
+	defer admin.Close(ctx)
+	for _, name := range tplDone {
+		if _, err := admin.Exec(ctx, `DROP DATABASE IF EXISTS `+pgx.Identifier{name}.Sanitize()+` WITH (FORCE)`); err != nil {
+			fmt.Fprintf(os.Stderr, "nettoyage du gabarit %s: %v\n", name, err)
+		}
+	}
+	tplDone = map[int64]string{}
+}
+
+// testDatabase est une base neuve, clonée d'un gabarit, détruite en fin de test.
 type testDatabase struct {
 	name string
 	url  string
@@ -155,9 +264,19 @@ type testDatabase struct {
 
 var dbSeq atomic.Int64
 
+// newTestDatabase clone le gabarit « dernière migration ».
 func newTestDatabase(t *testing.T) *testDatabase {
 	t.Helper()
+	return newTestDatabaseAt(t, templateLatest)
+}
+
+// newTestDatabaseAt clone le gabarit migré jusqu'à `version` inclus. Les tests
+// de déploiement qui doivent partir d'un schéma antérieur passent leur
+// version : ils ne rejouent pas 52 migrations à la main.
+func newTestDatabaseAt(t *testing.T, version int64) *testDatabase {
+	t.Helper()
 	adminURL := pgServerURL(t)
+	template := ensureTemplate(t, version)
 	ctx := context.Background()
 	name := fmt.Sprintf("rbac_%d_%d_test", os.Getpid(), dbSeq.Add(1))
 
@@ -168,9 +287,15 @@ func newTestDatabase(t *testing.T) *testDatabase {
 		failOrSkip(t, "connexion au serveur de test", err)
 		return nil
 	}
-	if _, err := admin.Exec(ctx, `CREATE DATABASE `+pgx.Identifier{name}.Sanitize()); err != nil {
+	// PostgreSQL sérialise les clones d'un même gabarit : le verrou explicite
+	// rend la contrainte visible plutôt que de dépendre de ce détail.
+	cloneMu.Lock()
+	_, cloneErr := admin.Exec(ctx, `CREATE DATABASE `+pgx.Identifier{name}.Sanitize()+
+		` TEMPLATE `+pgx.Identifier{template}.Sanitize())
+	cloneMu.Unlock()
+	if cloneErr != nil {
 		_ = admin.Close(ctx)
-		t.Fatalf("création de la base %s: %v", name, err)
+		t.Fatalf("création de la base %s depuis le gabarit %s: %v", name, template, cloneErr)
 	}
 	_ = admin.Close(ctx)
 
@@ -231,17 +356,6 @@ func migrationsDir(t *testing.T) string {
 		t.Fatalf("dossier des migrations: %v", err)
 	}
 	return dir
-}
-
-// upTo applique les migrations jusqu'à `version` inclus.
-func (db *testDatabase) upTo(t *testing.T, version int64) {
-	t.Helper()
-	if err := goose.SetDialect("postgres"); err != nil {
-		t.Fatalf("dialecte goose: %v", err)
-	}
-	if err := goose.UpTo(db.sqlDB, migrationsDir(t), version); err != nil {
-		t.Fatalf("goose up to %d: %v", version, err)
-	}
 }
 
 // upToLatest applique toutes les migrations (00053 inclus).

@@ -16,16 +16,19 @@ package seed
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"maps"
 	"net/http"
+	"net/url"
 	"slices"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -117,16 +120,16 @@ func (o TopOptions) defaults() TopOptions {
 
 // TopResult expose les entités générées (réutilisées par umami/embeddings).
 type TopResult struct {
-	Users        []TopUser
-	Publishers []TopPublisher
-	Articles     []TopArticle
-	Posts        []TopPost
-	PostIDs      []string
-	ReadingSess  int
-	Follows      int
-	Likes        int
-	Subscribers  int
-	Embeddings   int
+	Users       []TopUser
+	Publishers  []TopPublisher
+	Articles    []TopArticle
+	Posts       []TopPost
+	PostIDs     []string
+	ReadingSess int
+	Follows     int
+	Likes       int
+	Subscribers int
+	Embeddings  int
 }
 
 // TopPost est une pensée générée (contenu + tags), utilisée notamment pour
@@ -164,16 +167,16 @@ type TopPublisher struct {
 }
 
 type TopArticle struct {
-	ID            string
+	ID          string
 	PublisherID string
-	AuthorID      string
-	Slug          string
-	Title         string
-	Content       string
-	CategoryID    string
-	Premium       bool
-	ReadingTime   int
-	CreatedAt     time.Time
+	AuthorID    string
+	Slug        string
+	Title       string
+	Content     string
+	CategoryID  string
+	Premium     bool
+	ReadingTime int
+	CreatedAt   time.Time
 }
 
 // ---------------------------------------------------------------------------
@@ -647,6 +650,7 @@ func seedArticleDiscussion(ctx context.Context, pool *pgxpool.Pool, res *TopResu
 		pubTags[res.Publishers[i].ID] = res.Publishers[i].Tags
 	}
 
+	batch := newBatchInserter(ctx, pool, "article comments")
 	for i := range res.Articles {
 		art := &res.Articles[i]
 		anchor := stableAnchor(art.ID)
@@ -687,7 +691,7 @@ func seedArticleDiscussion(ctx context.Context, pool *pgxpool.Pool, res *TopResu
 			if created.After(time.Now().UTC()) {
 				created = time.Now().UTC().Add(-time.Hour)
 			}
-			if _, err := pool.Exec(ctx, `
+			if err := batch.add(`
 				INSERT INTO "ArticleComment" (id, content, "articleId", "authorId", "createdAt", "updatedAt")
 				VALUES ($1,$2,$3,$4,$5,$5)
 				ON CONFLICT (id) DO NOTHING`,
@@ -695,6 +699,9 @@ func seedArticleDiscussion(ctx context.Context, pool *pgxpool.Pool, res *TopResu
 				return fmt.Errorf("article comment %s: %w", id, err)
 			}
 		}
+	}
+	if err := batch.flush(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -925,6 +932,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	creators := 0
 	seenUsername := map[string]bool{}
 	seenEmail := map[string]bool{}
+	userBatch := newBatchInserter(ctx, pool, "users")
 	for i := 0; i < opts.Users; i++ {
 		role := "user"
 		if rng.next() < opts.CreatorsRatio {
@@ -998,20 +1006,23 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			}
 			u.PubID = pubID
 			res.Publishers = append(res.Publishers, pub)
-			if _, err := pool.Exec(ctx, `
+			if err := userBatch.add(`
 				INSERT INTO "Publisher" (id, type, name, slug, subdomain, bio, "logoUrl", "headerImageUrl", "isCertified", "accentColor", "layoutStyle", "createdAt", "updatedAt")
 				VALUES ($1, 'PERSONAL', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)`,
 				pub.ID, pub.Name, pub.Slug, pub.Subdomain, pub.Bio, avatar, coverURLFor(covers, pub.Tags, i+4), rng.next() < 0.25, pub.Accent, []string{"minimal", "editorial", "magazine"}[i%3], created); err != nil {
 				return nil, fmt.Errorf("publication %s: %w", pub.ID, err)
 			}
 		}
-		if _, err := pool.Exec(ctx, `
+		if err := userBatch.add(`
 			INSERT INTO "User" (id, email, username, name, role, "isCertified", "countryCode", "languageCode", gender, "ageRange", "hasCompletedOnboarding", "publisherId", "logoUrl", "createdAt", "updatedAt")
 			VALUES ($1, $2, $3, $4, $5, $6, $7, 'fr', $8, $9, true, $10, $11, $12, $12)`,
 			u.ID, u.Email, u.Username, u.Name, u.Role, rng.next() < 0.06, u.Country, gender, ageRange, nullStr(u.PubID), avatar, created); err != nil {
 			return nil, fmt.Errorf("user %s: %w", u.ID, err)
 		}
 		res.Users = append(res.Users, u)
+	}
+	if err := userBatch.flush(); err != nil {
+		return nil, err
 	}
 	log.Printf("[seed-top] ✔ %d users (%d créateurs)", len(res.Users), creators)
 
@@ -1033,6 +1044,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	catByKey := map[string]int{"foot": 0, "gaming": 1, "anime": 2, "cuisine": 3, "musique": 4, "mode": 5, "fitness": 6, "tech": 7, "voyage": 8}
 	catByPub := map[string][]string{}
 	catSeq := 0
+	catBatch := newBatchInserter(ctx, pool, "categories")
 	for _, pub := range res.Publishers {
 		nb := 2 + rng.intn(2)
 		first := -1
@@ -1048,7 +1060,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			}
 			catID := topID("cat", catSeq)
 			catSeq++
-			if _, err := pool.Exec(ctx, `
+			if err := catBatch.add(`
 				INSERT INTO "Category" (id, name, slug, description, "publisherId")
 				VALUES ($1, $2, $3, $4, $5)`,
 				catID, catNames[ci], fmt.Sprintf("%s-%s-%d", catSlugs[ci], slugify(pub.Slug), c), "Catégorie "+catNames[ci], pub.ID); err != nil {
@@ -1056,6 +1068,9 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			}
 			catByPub[pub.ID] = append(catByPub[pub.ID], catID)
 		}
+	}
+	if err := catBatch.flush(); err != nil {
+		return nil, err
 	}
 
 	// ── 3. Articles (~200, loi puissance sur les créateurs) ────────────────
@@ -1066,6 +1081,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	for range res.Publishers {
 		pubWeights = append(pubWeights, 1.0)
 	}
+	artBatch := newBatchInserter(ctx, pool, "articles")
 	for i := 0; i < opts.Articles; i++ {
 		pub := res.Publishers[rng.weightedIndex(pubWeights)]
 		cats := catByPub[pub.ID]
@@ -1091,20 +1107,20 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		readingTime := 4 + rng.intn(7)
 		created := now.AddDate(0, 0, -rng.intn(60)).Add(-time.Duration(rng.intn(12)) * time.Hour)
 		art := TopArticle{
-			ID:            topID("art", i),
+			ID:          topID("art", i),
 			PublisherID: pub.ID,
-			AuthorID:      pub.OwnerID,
-			Slug:          fmt.Sprintf("%s-%d", slugify(title), i),
-			Title:         title,
-			Content:       content,
-			Premium:       premium,
-			ReadingTime:   readingTime,
-			CreatedAt:     created,
+			AuthorID:    pub.OwnerID,
+			Slug:        fmt.Sprintf("%s-%d", slugify(title), i),
+			Title:       title,
+			Content:     content,
+			Premium:     premium,
+			ReadingTime: readingTime,
+			CreatedAt:   created,
 		}
 		if len(cats) > 0 {
 			art.CategoryID = prngPick(rng, cats)
 		}
-		if _, err := pool.Exec(ctx, `
+		if err := artBatch.add(`
 			INSERT INTO "Article" (id, title, slug, content, "imageUrl", published, status, visibility,
 				"isPremium", "isEditorPick", "readingTime", "semanticTags", "publisherId", "authorId", "categoryId", "createdAt", "updatedAt")
 			VALUES ($1, $2, $3, $4, $5, true, 'PUBLISHED', 'PUBLIC', $6, $7, $8, $9, $10, $11, $12, $13, $13)`,
@@ -1135,7 +1151,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	// Bookmark.articleId). On insère donc en direct avec un id canonique fixe.
 	for i, a := range canonical {
 		artID := topID("artc", i)
-		if _, err := pool.Exec(ctx, `
+		if err := artBatch.add(`
 			INSERT INTO "Article" (id, title, slug, content, "imageUrl", published, status, visibility,
 				"isPremium", "isEditorPick", "readingTime", "semanticTags", "publisherId", "authorId", "createdAt", "updatedAt")
 			VALUES ($1, $2, $3, $4, $5, true, 'PUBLISHED', $6, $7, $8, 6, $9, $10, $11, now(), now())
@@ -1150,6 +1166,9 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			Slug: a.slug, Title: a.title, Content: a.content, Premium: a.premium,
 			ReadingTime: 6, CreatedAt: time.Now().UTC().Truncate(time.Second),
 		})
+	}
+	if err := artBatch.flush(); err != nil {
+		return nil, err
 	}
 	log.Printf("[seed-top] ✔ %d articles", len(res.Articles))
 
@@ -1179,6 +1198,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	postTags := map[string][]string{}       // tags par post (pour aligner les réponses)
 	postCreatedAt := map[string]time.Time{} // date par post (pour répondre APRÈS son parent)
 	postRoot := map[string]string{}         // pensée de base du fil de chaque post (rootId)
+	postBatch := newBatchInserter(ctx, pool, "posts")
 	for i := 0; i < opts.Posts; i++ {
 		author := res.Users[rng.weightedIndex(userWeights)]
 		created := now.AddDate(0, 0, -rng.intn(40)).Add(-time.Duration(rng.intn(24)) * time.Hour).Add(-time.Duration(rng.intn(60)) * time.Minute)
@@ -1197,7 +1217,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			if rng.next() < 0.25 {
 				postImage = coverURLFor(covers, author.Interests, i+16)
 			}
-			if _, err := pool.Exec(ctx, `
+			if err := postBatch.add(`
 				INSERT INTO "Post" (id, content, "authorId", tags, "imageUrl", visibility, "isDraft", "likeCount", "repostCount", "replyCount", "createdAt", "updatedAt")
 				VALUES ($1, $2, $3, $4, $5, 'public', false, $6, $7, 0, $8, $8)`,
 				postID, content, author.ID, tags, postImage, rng.intn(40), rng.intn(12), created); err != nil {
@@ -1225,7 +1245,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			if root == "" {
 				root = parent
 			}
-			if _, err := pool.Exec(ctx, `
+			if err := postBatch.add(`
 				INSERT INTO "Post" (id, content, "authorId", tags, visibility, "isDraft", "likeCount", "repostCount", "replyCount", "parentId", "rootId", "createdAt", "updatedAt")
 				VALUES ($1, $2, $3, $4, 'public', false, $5, 0, 0, $6, $7, $8, $8)`,
 				postID, content, author.ID, tags, rng.intn(10), parent, root, created); err != nil {
@@ -1237,6 +1257,9 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		}
 		res.Posts = append(res.Posts, TopPost{ID: postID, Content: content, Tags: tags})
 		allPostIDs = append(allPostIDs, postID)
+	}
+	if err := postBatch.flush(); err != nil {
+		return nil, err
 	}
 	res.PostIDs = allPostIDs
 	log.Printf("[seed-top] ✔ %d pensées (%d racines / %d réponses)", len(allPostIDs), rootCount, replyCount)
@@ -1267,6 +1290,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	}
 	followSeq := 0
 	seenFollow := map[string]bool{}
+	followBatch := newBatchInserter(ctx, pool, "follows")
 	for _, rid := range readerIDs {
 		niche := publicationIndexesMatching(res.Users[usrIdxByID[rid]].Interests, pubByTag)
 		nb := 1 + rng.intn(12)
@@ -1284,7 +1308,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 				continue
 			}
 			seenFollow[key] = true
-			if _, err := pool.Exec(ctx, `
+			if err := followBatch.add(`
 				INSERT INTO "Follows" (id, "readerId", "publisherId", "createdAt")
 				VALUES ($1, $2, $3, $4)`,
 				topID("flw", followSeq), rid, pub.ID, now.AddDate(0, 0, -rng.intn(90))); err != nil {
@@ -1294,11 +1318,15 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			res.Follows++
 		}
 	}
+	if err := followBatch.flush(); err != nil {
+		return nil, err
+	}
 	log.Printf("[seed-top] ✔ %d follows (alignés niche + populaires)", res.Follows)
 
 	// ── 6. Likes (~12k) + abonnés CRM (~1.5k) + wallet + bookmarks ────────
 	likeSeq := 0
 	seenLike := map[string]bool{}
+	likeBatch := newBatchInserter(ctx, pool, "likes")
 	// Index des pensées par tag (les tags sont alignés sur la niche de leur
 	// auteur via thoughtFor) → on peut liker « dans son milieu ».
 	postsByTag := map[string][]string{}
@@ -1321,7 +1349,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			continue
 		}
 		seenLike[key] = true
-		if _, err := pool.Exec(ctx, `
+		if err := likeBatch.add(`
 			INSERT INTO "Like" (id, "postId", "userId", "createdAt")
 			VALUES ($1, $2, $3, $4)`,
 			topID("lik", likeSeq), post, user.ID, now.AddDate(0, 0, -rng.intn(14))); err != nil {
@@ -1367,7 +1395,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 				continue
 			}
 			seenLike[key] = true
-			if _, err := pool.Exec(ctx, `
+			if err := likeBatch.add(`
 				INSERT INTO "Like" (id, "postId", "userId", "createdAt")
 				VALUES ($1, $2, $3, $4)`,
 				topID("lik", likeSeq), post, user.ID, now.Add(-time.Duration(rng.intn(48))*time.Hour)); err != nil {
@@ -1377,8 +1405,13 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			res.Likes++
 		}
 	}
+	if err := likeBatch.flush(); err != nil {
+		return nil, err
+	}
 	subSeq := 0
 	walletSeq := 0
+	subBatch := newBatchInserter(ctx, pool, "subscribers")
+	walletBatch := newBatchInserter(ctx, pool, "wallet")
 	for i := 0; i < 1500; i++ {
 		pub := res.Publishers[rng.weightedIndex(pubFollowWeights)]
 		premium := rng.next() < 0.3
@@ -1386,7 +1419,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		if premium {
 			ltv = []int{500, 1000, 2000, 5000}[rng.intn(4)]
 		}
-		if _, err := pool.Exec(ctx, `
+		if err := subBatch.add(`
 			INSERT INTO "Subscriber" (id, email, "isActive", "isPremium", "ltvCents", "receiveArticles", "publisherId", "createdAt", "updatedAt")
 			VALUES ($1, $2, true, $3, $4, true, $5, $6, $6)`,
 			topID("sub", subSeq), fmt.Sprintf("abonne%d@mail.com", subSeq), premium, ltv, pub.ID, now.AddDate(0, 0, -rng.intn(60))); err != nil {
@@ -1395,7 +1428,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		subSeq++
 		res.Subscribers++
 		if premium {
-			if _, err := pool.Exec(ctx, `
+			if err := walletBatch.add(`
 				INSERT INTO "WalletTransaction" (id, "userId", "amountCents", type, "createdAt")
 				VALUES ($1, $2, $3, 'SUBSCRIPTION_PAYMENT', $4)`,
 				topID("wal", walletSeq), pub.OwnerID, ltv, now.AddDate(0, 0, -rng.intn(60))); err != nil {
@@ -1404,8 +1437,15 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			walletSeq++
 		}
 	}
+	if err := subBatch.flush(); err != nil {
+		return nil, err
+	}
+	if err := walletBatch.flush(); err != nil {
+		return nil, err
+	}
 	bmkSeq := 0
 	seenBmk := map[string]bool{}
+	bmkBatch := newBatchInserter(ctx, pool, "bookmarks")
 	// Index des articles (id + tags + texte) pour aligner signets et
 	// surlignages sur la niche du lecteur.
 	type artNiche struct {
@@ -1451,7 +1491,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			continue
 		}
 		seenBmk[key] = true
-		if _, err := pool.Exec(ctx, `
+		if err := bmkBatch.add(`
 			INSERT INTO "Bookmark" (id, "readerId", "articleId", "createdAt")
 			VALUES ($1, $2, $3, $4)`,
 			topID("bmk", bmkSeq), reader.ID, artID, now.AddDate(0, 0, -rng.intn(30))); err != nil {
@@ -1464,7 +1504,11 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	// La table Highlight était vide : ~40% des comptes surlignent maintenant
 	// 2-3 passages d'articles de leur niche, pour que le profil vectoriel
 	// dispose de ce signal explicite (comme en prod).
+	if err := bmkBatch.flush(); err != nil {
+		return nil, err
+	}
 	hlSeq := 0
+	hlBatch := newBatchInserter(ctx, pool, "highlights")
 	for _, u := range res.Users {
 		if rng.next() >= 0.4 {
 			continue
@@ -1481,7 +1525,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			if phrase == "" {
 				phrase = "Passage qui m'a marqué."
 			}
-			if _, err := pool.Exec(ctx, `
+			if err := hlBatch.add(`
 				INSERT INTO "Highlight" (id, text, "isPublic", "isOfficial", "upvotesCount", "readerId", "articleId", "createdAt", "quoteOrdinal")
 				VALUES ($1, $2, true, false, $3, $4, $5, $6, $7)`,
 				topID("hl", hlSeq), phrase, rng.intn(20), u.ID, art.id, now.AddDate(0, 0, -rng.intn(30)), i); err != nil {
@@ -1489,6 +1533,9 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			}
 			hlSeq++
 		}
+	}
+	if err := hlBatch.flush(); err != nil {
+		return nil, err
 	}
 	log.Printf("[seed-top] ✔ %d likes, %d abonnés CRM, %d wallet, %d bookmarks, %d highlights",
 		res.Likes, res.Subscribers, walletSeq, bmkSeq, hlSeq)
@@ -1533,6 +1580,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	}
 
 	sessSeq := 0
+	sessBatch := newBatchInserter(ctx, pool, "reading sessions")
 	statuses := []string{"BOUNCE", "SKIM", "READ_PARTIAL", "READ_COMPLETE"}
 	sources := []string{"feed", "feed", "feed", "subdomain", "subdomain", "direct", "notification"}
 	for i := 0; i < opts.ReadingSessions; i++ {
@@ -1570,7 +1618,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 				created = time.Now().UTC()
 			}
 		}
-		if _, err := pool.Exec(ctx, `
+		if err := sessBatch.add(`
 			INSERT INTO "ReadingSession" (id, "articleId", "userId", source, status, "scrollDepth", "dwellSeconds", "readingTimeMinutes", hostname, "createdAt")
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
 			topID("rs", sessSeq), art.id, user.ID, prngPick(rng, sources), status, scroll, dwell,
@@ -1599,7 +1647,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 					created = time.Now().UTC()
 				}
 			}
-			if _, err := pool.Exec(ctx, `
+			if err := sessBatch.add(`
 				INSERT INTO "ReadingSession" (id, "articleId", "userId", source, status, "scrollDepth", "dwellSeconds", "readingTimeMinutes", hostname, "createdAt")
 				VALUES ($1, $2, $3, 'feed', 'READ_COMPLETE', 95, $4, $5, 'qoe.test', $6)`,
 				topID("rs", sessSeq), art.id, user.ID, art.readingTime*60, art.readingTime, created); err != nil {
@@ -1608,6 +1656,9 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			sessSeq++
 			res.ReadingSess++
 		}
+	}
+	if err := sessBatch.flush(); err != nil {
+		return nil, err
 	}
 	log.Printf("[seed-top] ✔ %d reading sessions (alignées milieu + bursts trending)", res.ReadingSess)
 
@@ -1657,6 +1708,50 @@ func reconcileEngagementCounters(ctx context.Context, pool *pgxpool.Pool) error 
 			return err
 		}
 	}
+	return nil
+}
+
+// batchInserter regroupe des INSERT indépendants en un seul aller-retour
+// réseau. Le seed tourne aussi bien sur un PostgreSQL local que sur la base
+// distante de dev : sans regroupement, des dizaines de milliers d'INSERT
+// unitaires coûtent des minutes de latence. Les écritures restent autocommit
+// et dans le même ordre qu'avant.
+type batchInserter struct {
+	ctx   context.Context
+	pool  *pgxpool.Pool
+	label string
+	batch *pgx.Batch
+}
+
+const batchInserterSize = 200
+
+func newBatchInserter(ctx context.Context, pool *pgxpool.Pool, label string) *batchInserter {
+	return &batchInserter{ctx: ctx, pool: pool, label: label, batch: &pgx.Batch{}}
+}
+
+func (b *batchInserter) add(sql string, args ...any) error {
+	b.batch.Queue(sql, args...)
+	if b.batch.Len() >= batchInserterSize {
+		return b.flush()
+	}
+	return nil
+}
+
+func (b *batchInserter) flush() error {
+	if b.batch.Len() == 0 {
+		return nil
+	}
+	results := b.pool.SendBatch(b.ctx, b.batch)
+	for i := 0; i < b.batch.Len(); i++ {
+		if _, err := results.Exec(); err != nil {
+			_ = results.Close()
+			return fmt.Errorf("%s: %w", b.label, err)
+		}
+	}
+	if err := results.Close(); err != nil {
+		return fmt.Errorf("%s: %w", b.label, err)
+	}
+	b.batch = &pgx.Batch{}
 	return nil
 }
 
@@ -1746,16 +1841,40 @@ func AddTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	}
 
 	covers := loadCoverCatalog()
+	// Auteurs par publication : une seule requête au lieu d'un SELECT par
+	// article (200 allers-retours sur une base distante).
+	authorByPub := map[string]string{}
+	authorRows, err := pool.Query(ctx, `SELECT DISTINCT ON ("publisherId") "publisherId", id::text
+		FROM "User" WHERE "publisherId" IS NOT NULL ORDER BY "publisherId", id`)
+	if err != nil {
+		return nil, fmt.Errorf("addtop authors: %w", err)
+	}
+	for authorRows.Next() {
+		var pubID, authorID string
+		if err := authorRows.Scan(&pubID, &authorID); err != nil {
+			authorRows.Close()
+			return nil, err
+		}
+		authorByPub[pubID] = authorID
+	}
+	authorRows.Close()
+	if err := authorRows.Err(); err != nil {
+		return nil, err
+	}
+	var fallbackAuthor string
+	if err := pool.QueryRow(ctx, `SELECT id::text FROM "User" WHERE role='creator' ORDER BY id LIMIT 1`).Scan(&fallbackAuthor); err != nil {
+		return nil, err
+	}
+
 	// Distribution cyclique (et non aléatoire) : avec le même volume d'articles
 	// que de publications, chaque créateur recoit au moins un article dans son
 	// fil — aucun profil avec zéro contenu éditorial.
+	addBatch := newBatchInserter(ctx, pool, "addtop")
 	for i := 0; i < opts.Articles; i++ {
 		pubID := pubIDs[i%len(pubIDs)]
-		var authorID string
-		if err := pool.QueryRow(ctx, `SELECT id::text FROM "User" WHERE "publisherId" = $1 LIMIT 1`, pubID).Scan(&authorID); err != nil {
-			if err := pool.QueryRow(ctx, `SELECT id::text FROM "User" WHERE role='creator' ORDER BY id LIMIT 1`).Scan(&authorID); err != nil {
-				return nil, err
-			}
+		authorID := authorByPub[pubID]
+		if authorID == "" {
+			authorID = fallbackAuthor
 		}
 		// Sujet aligné sur la niche du créateur (comme la passe principale).
 		topic := topTopics[i%len(topTopics)]
@@ -1770,7 +1889,7 @@ func AddTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		title := topicTitle(topic, word)
 		content := longFormContent(topic, rng)
 		cover := coverURLFor(covers, []string{nicheByUser[authorID]}, i+40)
-		if _, err := pool.Exec(ctx, `INSERT INTO "Article" (id,title,slug,content,"imageUrl",published,status,visibility,"isPremium","isEditorPick","readingTime","semanticTags","publisherId","authorId","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,true,'PUBLISHED','PUBLIC',$6,$7,10,$8,$9,$10,$11,$11) ON CONFLICT (id) DO NOTHING`, id, title, fmt.Sprintf("%s-add-%d", slugify(title), i), content, cover, rng.next() < opts.PremiumRatio, topic.editor && rng.next() < .25, topic.tags, pubID, authorID, now.Add(-time.Duration(i)*time.Hour)); err != nil {
+		if err := addBatch.add(`INSERT INTO "Article" (id,title,slug,content,"imageUrl",published,status,visibility,"isPremium","isEditorPick","readingTime","semanticTags","publisherId","authorId","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,true,'PUBLISHED','PUBLIC',$6,$7,10,$8,$9,$10,$11,$11) ON CONFLICT (id) DO NOTHING`, id, title, fmt.Sprintf("%s-add-%d", slugify(title), i), content, cover, rng.next() < opts.PremiumRatio, topic.editor && rng.next() < .25, topic.tags, pubID, authorID, now.Add(-time.Duration(i)*time.Hour)); err != nil {
 			return nil, err
 		}
 		res.Articles = append(res.Articles, TopArticle{ID: id, PublisherID: pubID, AuthorID: authorID, Title: title, Content: content})
@@ -1781,12 +1900,15 @@ func AddTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		// tag dominant de ses posts) — comme la passe principale.
 		text, tags := thoughtFor(rng, *u)
 		id := topID("addpost", i)
-		if _, err := pool.Exec(ctx, `
+		if err := addBatch.add(`
 			INSERT INTO "Post" (id,content,"authorId",tags,"imageUrl",visibility,"isDraft","likeCount","repostCount","replyCount","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,'public',false,$6,$7,0,$8,$8) ON CONFLICT (id) DO NOTHING`, id, text, u.ID, tags, visualURL(i+60, ""), rng.intn(80), rng.intn(20), now.Add(-time.Duration(i)*time.Hour)); err != nil {
 			return nil, err
 		}
 		res.Posts = append(res.Posts, TopPost{ID: id, Content: text, Tags: tags})
 		res.PostIDs = append(res.PostIDs, id)
+	}
+	if err := addBatch.flush(); err != nil {
+		return nil, err
 	}
 	// Fils de commentaires sur les articles additifs aussi.
 	if err := seedArticleDiscussion(ctx, pool, res, rng); err != nil {
@@ -1880,6 +2002,7 @@ func RunTopUmami(ctx context.Context, umamiPool *pgxpool.Pool, res *TopResult, o
 
 	events := 0
 	sessions := 0
+	umamiBatch := newBatchInserter(ctx, umamiPool, "umami")
 	for day := 29; day >= 0; day-- {
 		base := now.AddDate(0, 0, -day)
 		weekend := base.Weekday() == time.Saturday || base.Weekday() == time.Sunday
@@ -1920,7 +2043,7 @@ func RunTopUmami(ctx context.Context, umamiPool *pgxpool.Pool, res *TopResult, o
 						path += res.Users[rng.intn(len(res.Users))].Username
 					}
 				}
-				if _, err := umamiPool.Exec(ctx, `
+				if err := umamiBatch.add(`
 					INSERT INTO website_event (event_id, website_id, session_id, created_at, url_path, referrer_domain, page_title, event_type, event_name, hostname, visit_id)
 					VALUES ($1, $2, $3, $4, $5, $6, $7, 1, 'pageview', $8, $1)`,
 					uuid.NewSHA1(uuid.NameSpaceDNS, []byte(fmt.Sprintf("umami-ev-%d-%d-%d", day, s, v))).String(),
@@ -1930,7 +2053,7 @@ func RunTopUmami(ctx context.Context, umamiPool *pgxpool.Pool, res *TopResult, o
 				}
 				events++
 			}
-			if _, err := umamiPool.Exec(ctx, `
+			if err := umamiBatch.add(`
 				INSERT INTO session (session_id, website_id, created_at, browser, os, device, screen, language, country, region, city, distinct_id)
 				VALUES ($1, $2, $3, $4, $5, $6, $7, 'fr-FR', $8, $9, $10, $11)`,
 				sessionID, site.id, created, prngPick(rng, browsers), prngPick(rng, oss), prngPick(rng, devices),
@@ -1940,6 +2063,9 @@ func RunTopUmami(ctx context.Context, umamiPool *pgxpool.Pool, res *TopResult, o
 			}
 			sessions++
 		}
+	}
+	if err := umamiBatch.flush(); err != nil {
+		return err
 	}
 	log.Printf("[seed-top] ✔ umami : %d sessions, %d events", sessions, events)
 	return nil
@@ -2136,6 +2262,14 @@ func EmbedTop(ctx context.Context, pool *pgxpool.Pool, res *TopResult, embedding
 			}
 			vecs, err := embedBatch(texts)
 			if err != nil {
+				// Service injoignable (dial/TLS/timeout) : réessayer texte par
+				// texte ne peut pas réussir et coûte un aller-retour par entrée.
+				// On arrête les embeddings de cette passe, best-effort assumé.
+				var urlErr *url.Error
+				if errors.As(err, &urlErr) {
+					log.Printf("[seed-top] service d'embedding injoignable (%v) — embeddings interrompus", err)
+					return done, nil
+				}
 				log.Printf("[seed-top] lot %d-%d refusé (%v) — repli texte par texte", start+1, end, err)
 				vecs = make([][]float64, len(chunk))
 				for i, r := range chunk {

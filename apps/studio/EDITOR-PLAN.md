@@ -261,14 +261,19 @@ souveraine » :
 - Invariants dev : 1 copie, 1 archive média, 0 archive en espace personnel,
   0 doublon, 0 co-auteur `ACCEPTED` sans copie.
 - Suite complète `go test ./...` sur base éphémère, timeout de 180 s par
-  paquet : **55 paquets OK, 12 en échec, 8 sans test**, run terminé seul. Les
-  12 échecs (`abuse`, `adminauthz`, `middleware`, `creator`, `devtools`,
-  `feed`, `highlights`, `posts`, `publishers`, `settings`, `seed`, `users`)
-  sont reproduits à l’identique sur un worktree propre à HEAD — mêmes tests,
-  mêmes messages. Aucune régression imputable au P1.
-- `adminauthz`, `devtools` et `seed` dépassent 180 s parce que leur harnais
-  recrée une base et rejoue les migrations par test ; aucune attente de
-  verrou constatée, la migration progresse.
+  paquet : **58 paquets OK, 9 en échec, 8 sans test**, run terminé seul. Les
+  9 échecs restants (`abuse`, `middleware`, `creator`, `feed`, `highlights`,
+  `posts`, `publishers`, `settings`, `users`) sont reproduits à l’identique
+  sur un worktree propre à HEAD — mêmes tests, mêmes messages. Aucune
+  régression imputable au P1.
+- Harnais des paquets lents (2026-11-11) : `adminauthz` migre une base
+  gabarit une fois par processus puis la clone (`CREATE DATABASE … TEMPLATE`),
+  avec un gabarit à 52 pour les tests de déploiement ; `seed` et `devtools`
+  regroupent leurs INSERT par lots (`pgx.Batch`), y compris `RunWorld` et les
+  commentaires, arrêtent le repli d’`EmbedTop` quand le service est
+  injoignable et factorisent la requête auteurs d’`AddTop`. Résultat sous la
+  limite de 180 s : `adminauthz` 88 s, `seed` 52 s, `devtools` 167 s — sans
+  `-short`, sans test désactivé, sans relèvement de timeout.
 
 ---
 
