@@ -316,6 +316,7 @@ export function ArticleStreamBlock({
                                 src={art.imageUrl || getCoverPlaceholder(art.slug || art.id)}
                                 alt=""
                                 fill
+                                sizes="64px"
                                 className="object-cover"
                               />
                             </Link>
@@ -648,7 +649,13 @@ export function ArticleStreamBlock({
                     <div
                       className={`relative w-full sm:w-44 h-32 shrink-0 overflow-hidden bg-muted ${cardShape}`}
                     >
-                      <SafeImage src={article.imageUrl} alt="" fill className="object-cover" />
+                      <SafeImage
+                        src={article.imageUrl}
+                        alt=""
+                        fill
+                        sizes="(max-width: 640px) 100vw, 176px"
+                        className="object-cover"
+                      />
                     </div>
                   )}
                 </div>
@@ -666,7 +673,13 @@ export function ArticleStreamBlock({
                 <div className="flex flex-col h-full">
                   {article.imageUrl && (
                     <div className="relative w-full h-44 overflow-hidden bg-muted">
-                      <SafeImage src={article.imageUrl} alt="" fill className="object-cover" />
+                      <SafeImage
+                        src={article.imageUrl}
+                        alt=""
+                        fill
+                        sizes="(max-width: 768px) 100vw, 360px"
+                        className="object-cover"
+                      />
                     </div>
                   )}
 

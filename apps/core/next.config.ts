@@ -74,6 +74,8 @@ const nextConfig: NextConfig = {
     dangerouslyAllowLocalIP: true, // 🧪 Allow 127.0.0.1:54321 (Supabase local) — SSRF guard Next 16
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 86400,
     remotePatterns: [
       // 🧪 Local Supabase Storage (DB de test)
       { protocol: 'http', hostname: '127.0.0.1' },
