@@ -93,12 +93,10 @@ func TestMigration00053_AppliesRollsBackAndReapplies(t *testing.T) {
 // TestBackfill_GrantsSuperadminToLegacyPromotionsOnly — le point de sûreté du
 // déploiement : personne ne perd l'accès, personne n'en gagne.
 func TestBackfill_GrantsSuperadminToLegacyPromotionsOnly(t *testing.T) {
-	db := newTestDatabase(t)
-
-	// On s'arrête AVANT 00053, on peuple des comptes comme en production (des
-	// superadmins historiques existent déjà), puis on applique 00053 : c'est le
-	// seul ordre qui reproduise un vrai déploiement.
-	db.upTo(t, 52)
+	// Le gabarit s'arrête AVANT 00053 : on peuple des comptes comme en
+	// production (des superadmins historiques existent déjà), puis on applique
+	// 00053 : c'est le seul ordre qui reproduise un vrai déploiement.
+	db := newTestDatabaseAt(t, 52)
 
 	superadmin := db.createUser(t, uuid(1), "legacy-super@test.dev", "superadmin")
 	admin2 := db.createUser(t, uuid(2), "legacy-super-2@test.dev", "superadmin")
@@ -167,8 +165,7 @@ func TestBackfill_GrantsSuperadminToLegacyPromotionsOnly(t *testing.T) {
 // TestBackfill_IsIdempotent — rejouer la migration (redéploiement, reprise
 // après échec) ne duplique rien : la PK et le ON CONFLICT DO NOTHING font foi.
 func TestBackfill_IsIdempotent(t *testing.T) {
-	db := newTestDatabase(t)
-	db.upTo(t, 52)
+	db := newTestDatabaseAt(t, 52)
 	db.createUser(t, uuid(1), "legacy-super@test.dev", "superadmin")
 	db.upToLatest(t)
 

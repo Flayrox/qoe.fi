@@ -184,10 +184,11 @@ func RunWorld(ctx context.Context, pool *pgxpool.Pool) error {
 // (catalogue de photos réelles), comme le reste des comptes générés.
 func seedWorldUsers(ctx context.Context, pool *pgxpool.Pool, cast []worldCharacter) error {
 	avatars := loadAvatarCatalog()
+	batch := newBatchInserter(ctx, pool, "world users")
 	for i, ch := range cast {
 		role := ch.role
 		avatar := avatars.pick(ch.gender, ch.theme, ch.name)
-		if _, err := pool.Exec(ctx, `
+		if err := batch.add(`
 			INSERT INTO "User" (id, email, username, name, role, "isCertified", "hasCompletedOnboarding", gender, "ageRange", "logoUrl", "createdAt", "updatedAt")
 			VALUES ($1,$2,$3,$4,$5,$6, true, $7, $8, $9, now() - interval '120 days', now())
 			ON CONFLICT (id) DO UPDATE SET
@@ -201,7 +202,7 @@ func seedWorldUsers(ctx context.Context, pool *pgxpool.Pool, cast []worldCharact
 			// Publication perso du créateur : id déterministe (topID). Upsert sur
 			// la clé primaire pour l'idempotence.
 			pubID := topID("pubw", int(i))
-			if _, err := pool.Exec(ctx, `
+			if err := batch.add(`
 			INSERT INTO "Publisher" (id, type, name, slug, subdomain, bio, "logoUrl", "headerImageUrl", "accentColor", "layoutStyle", "createdAt", "updatedAt")
 			VALUES ($1,'PERSONAL',$2,$3,$4,$5,$6,$7,$8,$9, now() - interval '120 days', now())
 			ON CONFLICT (id) DO UPDATE SET
@@ -209,12 +210,15 @@ func seedWorldUsers(ctx context.Context, pool *pgxpool.Pool, cast []worldCharact
 				pubID, ch.name, ch.username, ch.publication, ch.bio, avatar, visualURL(i+8, "editorial_landscape"), ch.accent, ch.layout); err != nil {
 				return fmt.Errorf("world pub %s: %w", ch.username, err)
 			}
-			if _, err := pool.Exec(ctx, `
+			if err := batch.add(`
 				UPDATE "User" SET "publisherId" = $2, "updatedAt" = now() WHERE id = $1`,
 				ch.id, pubID); err != nil {
 				return fmt.Errorf("world link user/pub %s: %w", ch.id, err)
 			}
 		}
+	}
+	if err := batch.flush(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -223,6 +227,7 @@ func seedWorldUsers(ctx context.Context, pool *pgxpool.Pool, cast []worldCharact
 func seedWorldRelations(ctx context.Context, pool *pgxpool.Pool, cast []worldCharacter) error {
 	creators := castRoleIdx(cast, "creator")
 	readers := castRoleIdx(cast, "user")
+	batch := newBatchInserter(ctx, pool, "world relations")
 
 	// 1. Suivis (bande entre créateurs + lecteurs → créateurs favoris), ids
 	//    déterministes (préfixe wflw — évite la collision avec les flw de RunTop).
@@ -254,7 +259,7 @@ func seedWorldRelations(ctx context.Context, pool *pgxpool.Pool, cast []worldCha
 		seen[p] = true
 		follower := cast[p[0]].id
 		pubID := topID("pubw", int(p[1])) // publication du créateur suivi
-		if _, err := pool.Exec(ctx, `
+		if err := batch.add(`
 			INSERT INTO "Follows" (id, "readerId", "publisherId", "createdAt")
 			VALUES ($1,$2,$3, now() - interval '60 days')
 			ON CONFLICT ("readerId", "publisherId") DO NOTHING`,
@@ -265,7 +270,7 @@ func seedWorldRelations(ctx context.Context, pool *pgxpool.Pool, cast []worldCha
 	}
 
 	// 2. Un blocage (drame léger) : Noé bloque Lucas repris à la BAND E.
-	if _, err := pool.Exec(ctx, `
+	if err := batch.add(`
 		INSERT INTO "BlockedUser" (id, "creatorId", "readerId", "createdAt")
 		VALUES ($1,$2,$3, now() - interval '20 days') ON CONFLICT DO NOTHING`,
 		topID("blk", 1), cast[1].id, cast[5].id); err != nil {
@@ -274,7 +279,7 @@ func seedWorldRelations(ctx context.Context, pool *pgxpool.Pool, cast []worldCha
 
 	// 3. Mutes mutuels (Clara ↔ Léa).
 	for _, w := range [][2]int{{2, 7}, {7, 2}} {
-		if _, err := pool.Exec(ctx, `
+		if err := batch.add(`
 			INSERT INTO "MutedUser" (id, "muterId", "mutedId", "createdAt")
 			VALUES ($1,$2,$3, now() - interval '30 days') ON CONFLICT DO NOTHING`,
 			topID("mut", int(100+w[0]*10+w[1])), cast[w[0]].id, cast[w[1]].id); err != nil {
@@ -286,7 +291,7 @@ func seedWorldRelations(ctx context.Context, pool *pgxpool.Pool, cast []worldCha
 	mwdSeq := 0
 	for i, ch := range cast {
 		for _, wd := range ch.mutedWords {
-			if _, err := pool.Exec(ctx, `
+			if err := batch.add(`
 				INSERT INTO "MutedWord" (id, word, "userId", "createdAt")
 				VALUES ($1,$2,$3, now()) ON CONFLICT ("userId", word) DO NOTHING`,
 				topID("mwd", mwdSeq), wd, ch.id); err != nil {
@@ -294,18 +299,21 @@ func seedWorldRelations(ctx context.Context, pool *pgxpool.Pool, cast []worldCha
 			}
 			mwdSeq++
 		}
-		if _, err := pool.Exec(ctx, `
+		if err := batch.add(`
 			INSERT INTO "NotificationPreference" (id, "userId", "createdAt", "updatedAt")
 			VALUES ($1, $2, now(), now()) ON CONFLICT ("userId") DO NOTHING`,
 			topID("wnpref", i), ch.id); err != nil {
 			return fmt.Errorf("world notif pref: %w", err)
 		}
-		if _, err := pool.Exec(ctx, `
+		if err := batch.add(`
 			INSERT INTO "UserSettings" (id, "userId", "createdAt", "updatedAt")
 			VALUES ($1, $2, now(), now()) ON CONFLICT ("userId") DO NOTHING`,
 			topID("wsettings", i), ch.id); err != nil {
 			return fmt.Errorf("world user settings: %w", err)
 		}
+	}
+	if err := batch.flush(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -353,6 +361,7 @@ func seedWorldConversations(ctx context.Context, pool *pgxpool.Pool, cast []worl
 	if _, err := pool.Exec(ctx, `DELETE FROM "Post" WHERE id LIKE 'world_post_%'`); err != nil {
 		return fmt.Errorf("world posts purge: %w", err)
 	}
+	batch := newBatchInserter(ctx, pool, "world conversations")
 
 	rootID := func(n int) string { return fmt.Sprintf("world_post_root_%d", n) }
 	replyID := func(root, n int) string { return fmt.Sprintf("world_post_r%d_%d", root, n) }
@@ -415,7 +424,7 @@ func seedWorldConversations(ctx context.Context, pool *pgxpool.Pool, cast []worl
 			restrict = "followers"
 		}
 		rID := rootID(ti)
-		if _, err := pool.Exec(ctx, `
+		if err := batch.add(`
 			INSERT INTO "Post" (id, content, "authorId", "createdAt", "updatedAt", tags, visibility, "contentVisibility", "isDraft", "replyRestriction", "likeCount", "repostCount", "replyCount")
 			VALUES ($1,$2,$3,$4,$4,$5,$6,$7,false,$8,$9,$10,$11)
 			ON CONFLICT (id) DO UPDATE SET content=$2, tags=$5, "updatedAt"=$4`,
@@ -431,7 +440,7 @@ func seedWorldConversations(ctx context.Context, pool *pgxpool.Pool, cast []worl
 				text = fmt.Sprintf(text, worldQuotes[(ti*5+n)%len(worldQuotes)])
 			}
 			pID := replyID(ti, n)
-			if _, err := pool.Exec(ctx, `
+			if err := batch.add(`
 				INSERT INTO "Post" (id, content, "authorId", "createdAt", "updatedAt", visibility, "contentVisibility", "isDraft", "replyRestriction", "likeCount", "parentId", "rootId")
 				VALUES ($1,$2,$3,$4,$4,$5,$6,false,'everyone',$7,$8,$8)
 				ON CONFLICT (id) DO UPDATE SET content=$2, visibility=$5, "contentVisibility"=$6, "updatedAt"=$4`,
@@ -440,7 +449,7 @@ func seedWorldConversations(ctx context.Context, pool *pgxpool.Pool, cast []worl
 				return fmt.Errorf("world reply: %w", err)
 			}
 			// Notif REPLY qualifiée (indéterminée mais toujours présentable).
-			if _, err := pool.Exec(ctx, `
+			if err := batch.add(`
 				INSERT INTO "Notification" (id, "recipientId", "senderId", type, "thoughtId", "isRead", "createdAt")
 				VALUES ($1,$2,$3,'REPLY',$4,false,$5) ON CONFLICT (id) DO NOTHING`,
 				fmt.Sprintf("world_notif_reply_%d_%d", ti, n), cast[th.author].id, who.id, rID,
@@ -451,12 +460,15 @@ func seedWorldConversations(ctx context.Context, pool *pgxpool.Pool, cast []worl
 	}
 
 	// Repost par un lecteur du thread public 0 + quote-article par Lucas.
-	if _, err := pool.Exec(ctx, `
+	if err := batch.add(`
 		INSERT INTO "Post" (id, content, "authorId", "createdAt", "updatedAt", visibility, "contentVisibility", "isDraft", "repostCount", "repostId")
 		VALUES ($1, '—', $2, now() - interval '2 days', now() - interval '2 days', 'public', 'PUBLIC', false, 1, $3)
 		ON CONFLICT (id) DO NOTHING`,
 		"world_post_repost_0", cast[readerIdxOf(cast)].id, rootID(0)); err != nil {
 		return fmt.Errorf("world repost: %w", err)
+	}
+	if err := batch.flush(); err != nil {
+		return err
 	}
 
 	return nil
@@ -522,12 +534,13 @@ func seedWorldArticles(ctx context.Context, pool *pgxpool.Pool, cast []worldChar
 			content: "<p>On a tous un souvenir du 4-4-2 de notre enfance. Puis un jour, tout le monde a basculé sur le 4-3-3. Que s'est-il passé ?</p><p>Le football moderne aime les triangles. Le 4-3-3 en fabrique partout : au milieu, sur les côtés, devant. Le 4-4-2, lui, alignait des lignes.</p>", tags: []string{"foot", "tactique"},
 		},
 	}
+	batch := newBatchInserter(ctx, pool, "world articles")
 	for _, a := range articles {
 		vis := "PUBLIC"
 		if a.premium {
 			vis = "PAID_SUBSCRIBERS"
 		}
-		if _, err := pool.Exec(ctx, `
+		if err := batch.add(`
 			INSERT INTO "Article" (id, title, slug, content, "imageUrl", published, status, visibility, "isPremium", "readingTime", "semanticTags", "publisherId", "authorId", "createdAt", "updatedAt")
 			VALUES ($1,$2,$3,$4,$5,true,'PUBLISHED',$6::"ContentVisibility",$7,6,$8,$9,$10, now() - interval '5 days', now() - interval '5 days')
 			ON CONFLICT ("publisherId", slug) DO UPDATE SET title=$2, content=$4, visibility=$6::"ContentVisibility", "isPremium"=$7, "updatedAt"=now()`,
@@ -536,12 +549,15 @@ func seedWorldArticles(ctx context.Context, pool *pgxpool.Pool, cast []worldChar
 		}
 	}
 	// Co-auteur sur la réponse éditoriale.
-	if _, err := pool.Exec(ctx, `
+	if err := batch.add(`
 		INSERT INTO "ArticleAttribution" (id, "articleId", "userId", role, "order", "isVisible", "consentStatus", "createdAt", "updatedAt")
 		VALUES ($1, $2, $3, 'CO_AUTHOR', 1, true, 'ACCEPTED', now(), now())
 		ON CONFLICT ("articleId","userId") DO NOTHING`,
 		topID("wattr", 1), topID("wart", 1), cast[2].id); err != nil {
 		return fmt.Errorf("world attribution: %w", err)
+	}
+	if err := batch.flush(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -557,13 +573,17 @@ func seedWorldArticleComments(ctx context.Context, pool *pgxpool.Pool, cast []wo
 		{"world_comment_foot_1", topID("wart", 7), cast[12].id, "Enfin quelqu'un qui explique la bascule du 4-4-2 au 4-3-3 sans jargon. Merci pour ce texte."},
 		{"world_comment_gaming_1", topID("wart", 6), cast[9].id, "Le passage sur la régularité m'a parlé. Je range mon bureau après avoir lu, promis."},
 	}
+	batch := newBatchInserter(ctx, pool, "world comments")
 	for _, c := range comments {
-		if _, err := pool.Exec(ctx, `
+		if err := batch.add(`
 			INSERT INTO "ArticleComment" (id, content, "articleId", "authorId", "createdAt", "updatedAt")
 			VALUES ($1,$2,$3,$4,now() - interval '2 days',now() - interval '2 days')
 			ON CONFLICT (id) DO UPDATE SET content=$2, "updatedAt"=now()`, c.id, c.content, c.article, c.author); err != nil {
 			return fmt.Errorf("world article comment: %w", err)
 		}
+	}
+	if err := batch.flush(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -573,16 +593,17 @@ func seedWorldArticleComments(ctx context.Context, pool *pgxpool.Pool, cast []wo
 // ---------------------------------------------------------------------------
 
 func seedWorldPollsAndTrends(ctx context.Context, pool *pgxpool.Pool, cast []worldCharacter) error {
+	batch := newBatchInserter(ctx, pool, "world polls")
 	pollID := topID("wpol", 1)
 	opts := []string{"Souveraineté numérique", "Écologie territoriale", "Journalisme d'attention", "Ville qui écoute"}
-	if _, err := pool.Exec(ctx, `
+	if err := batch.add(`
 			INSERT INTO "Poll" (id, "thoughtId", "expiresAt", "createdAt")
 			VALUES ($1,'world_post_root_1', now() + interval '30 days', now() - interval '2 days')
 			ON CONFLICT (id) DO UPDATE SET "expiresAt" = EXCLUDED."expiresAt"`, pollID); err != nil {
 		return fmt.Errorf("world poll: %w", err)
 	}
 	for i, t := range opts {
-		if _, err := pool.Exec(ctx, `
+		if err := batch.add(`
 			INSERT INTO "PollOption" (id, "pollId", text, "order")
 			VALUES ($1,$2,$3,$4) ON CONFLICT (id) DO NOTHING`,
 			topID("wpop", int(i)), pollID, t, i); err != nil {
@@ -590,7 +611,7 @@ func seedWorldPollsAndTrends(ctx context.Context, pool *pgxpool.Pool, cast []wor
 		}
 	}
 	for i := 0; i < len(cast)-2; i++ {
-		if _, err := pool.Exec(ctx, `
+		if err := batch.add(`
 			INSERT INTO "PollVote" (id, "pollId", "optionId", "userId", "createdAt")
 			VALUES ($1,$2,$3,$4, now() - interval '30 hours') ON CONFLICT ("pollId","userId") DO NOTHING`,
 			topID("wvote", int(i)), pollID, topID("wpop", int(i%len(opts))), cast[i].id); err != nil {
@@ -604,13 +625,16 @@ func seedWorldPollsAndTrends(ctx context.Context, pool *pgxpool.Pool, cast []wor
 		{"#souverainete", 1240}, {"#ecologie", 890}, {"#attention", 512}, {"#villeqoe", 331}, {"#bande", 214},
 		{"#ligue1", 780}, {"#gaming", 540}, {"#anime", 430}, {"#cuisine", 310}, {"#esport", 265},
 	} {
-		if _, err := pool.Exec(ctx, `
+		if err := batch.add(`
 			INSERT INTO "Trend" (id, hashtag, count, "createdAt", "updatedAt")
 			VALUES ($1,$2,$3, now() - interval '10 days', now())
 			ON CONFLICT (hashtag) DO UPDATE SET count = EXCLUDED.count, "updatedAt" = now()`,
 			topID("wtr", int(hashStr(tr.tag))), tr.tag, tr.count); err != nil {
 			return fmt.Errorf("world trend: %w", err)
 		}
+	}
+	if err := batch.flush(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -661,6 +685,7 @@ func seedWorldReadingsAndNotifs(ctx context.Context, pool *pgxpool.Pool, cast []
 	// moins le temps de lecture annoncé, SKIM/READ_PARTIAL en dessous.
 	statuses := []string{"BOUNCE", "SKIM", "READ_PARTIAL", "READ_COMPLETE"}
 	readers := castRoleIdx(cast, "user")
+	batch := newBatchInserter(ctx, pool, "world readings")
 	for i, art := range arts {
 		full := art.readingTime * 60 // durée totale en secondes
 		for ri := range readers {
@@ -686,7 +711,7 @@ func seedWorldReadingsAndNotifs(ctx context.Context, pool *pgxpool.Pool, cast []
 			if dwell < 1 {
 				dwell = 1
 			}
-			if _, err := pool.Exec(ctx, `
+			if err := batch.add(`
 				INSERT INTO "ReadingSession" (id, "articleId", "userId", source, status, "scrollDepth", "dwellSeconds", "readingTimeMinutes", hostname, "createdAt")
 				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'qoe.test', now() - interval '4 days')
 				ON CONFLICT (id) DO NOTHING`,
@@ -702,14 +727,14 @@ func seedWorldReadingsAndNotifs(ctx context.Context, pool *pgxpool.Pool, cast []
 		if i == 0 || i == 1 { // l'auteur & le co-espoir ne se like pas
 			continue
 		}
-		if _, err := pool.Exec(ctx, `
+		if err := batch.add(`
 			INSERT INTO "Like" (id, "postId", "userId", "createdAt")
 			VALUES ($1,'world_post_root_0',$2, now() - interval '3 days')
 			ON CONFLICT ("postId","userId") DO NOTHING`,
 			topID("wlik", int(i)), c.id); err != nil {
 			return fmt.Errorf("world like: %w", err)
 		}
-		if _, err := pool.Exec(ctx, `
+		if err := batch.add(`
 			INSERT INTO "Notification" (id, "recipientId", "senderId", type, "thoughtId", "isRead", "createdAt")
 			VALUES ($1,$2,$3,'LIKE','world_post_root_0',false, now() - interval '3 days')
 			ON CONFLICT (id) DO NOTHING`,
@@ -721,13 +746,16 @@ func seedWorldReadingsAndNotifs(ctx context.Context, pool *pgxpool.Pool, cast []
 
 	// Follow notifications pour les créateurs.
 	for _, ci := range castRoleIdx(cast, "creator") {
-		if _, err := pool.Exec(ctx, `
+		if err := batch.add(`
 			INSERT INTO "Notification" (id, "recipientId", "senderId", type, "isRead", "createdAt")
 			VALUES ($1,$2,$3,'FOLLOW',false, now() - interval '2 days')
 			ON CONFLICT (id) DO NOTHING`,
 			fmt.Sprintf("world_notif_follow_%d", ci), cast[ci].id, cast[readerIdxOf(cast)].id); err != nil {
 			return fmt.Errorf("world follow notif: %w", err)
 		}
+	}
+	if err := batch.flush(); err != nil {
+		return err
 	}
 	return nil
 }
