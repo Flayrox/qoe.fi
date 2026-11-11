@@ -287,8 +287,8 @@ BEGIN
         RETURN NEW;
     END IF;
 
-    -- Pour un article média ou personnel soumis ou publié
-    IF v_article.status IN ('SUBMITTED', 'PUBLISHED') THEN
+    -- Pour un article média soumis ou publié
+    IF v_article.type = 'MEDIA' AND v_article.status IN ('SUBMITTED', 'PUBLISHED') THEN
         PERFORM ensure_author_sovereign_copy(NEW."articleId", NEW."userId", false);
     END IF;
 

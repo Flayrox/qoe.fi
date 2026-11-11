@@ -677,6 +677,7 @@ const articleSelect = `
 func (s *Service) articleDirect(ctx context.Context, pubID, slug string) (*ArticleDetail, error) {
 	row := s.pool.QueryRow(ctx, articleSelect+`
 		WHERE a."publisherId" = $1 AND (lower(a.slug) = lower($2) OR a.id = $2)
+		  AND (a."isClaimed" = true OR a."isAuthorSovereignCopy" = false)
 		LIMIT 1`, pubID, slug)
 	article, err := scanArticleDetail(row)
 	if err != nil {
