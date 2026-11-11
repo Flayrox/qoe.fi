@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Image, { type ImageProps } from 'next/image';
 import { ImageIcon } from 'lucide-react';
 import { cn } from '@qoe/utils';
+import { canOptimizeImageSrc } from './image-utils';
 
 export interface SafeImageProps extends Omit<ImageProps, 'onError'> {
   fallbackSrc?: string;
@@ -28,23 +29,11 @@ export function SafeImage({
 }: SafeImageProps) {
   const [hasError, setHasError] = useState(false);
 
-  // Détection automatique de format SVG ou URL dynamique / Data-URI
-  const isSvg = typeof src === 'string' && (src.endsWith('.svg') || src.includes('.svg?'));
-  const isDataUri = typeof src === 'string' && src.startsWith('data:');
-  const shouldUnoptimize =
-    unoptimized ?? (isSvg || isDataUri || (typeof src === 'string' && src.startsWith('http')));
+  const shouldUnoptimize = unoptimized ?? !canOptimizeImageSrc(src);
 
   if (hasError || !src) {
     if (fallbackSrc && !hasError) {
-      const fallbackIsSvg =
-        typeof fallbackSrc === 'string' &&
-        (fallbackSrc.endsWith('.svg') || fallbackSrc.includes('.svg?'));
-      const fallbackIsDataUri = typeof fallbackSrc === 'string' && fallbackSrc.startsWith('data:');
-      const fallbackUnoptimized =
-        unoptimized ??
-        (fallbackIsSvg ||
-          fallbackIsDataUri ||
-          (typeof fallbackSrc === 'string' && fallbackSrc.startsWith('http')));
+      const fallbackUnoptimized = unoptimized ?? !canOptimizeImageSrc(fallbackSrc);
 
       return (
         <Image

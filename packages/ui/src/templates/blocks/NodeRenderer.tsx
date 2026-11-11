@@ -7,6 +7,7 @@
 import React from 'react';
 import type { TemplateNode, TemplateRenderContext } from '../schema';
 import { EditableText } from './EditableText';
+import { SafeImage } from '../../SafeImage';
 
 export interface NodeRendererProps {
   nodes: TemplateNode[];
@@ -126,14 +127,16 @@ export function NodeRenderer({
               typeof node.overrides?.src === 'string' ? (node.overrides.src as string) : undefined;
             if (!src) return null;
             return (
-              <img
+              <SafeImage
                 key={node.oid}
                 src={src}
                 alt={resolveNodeText(node, blockProps) || ''}
+                width={1200}
+                height={800}
+                sizes="(max-width: 768px) 100vw, 720px"
                 onClick={editable ? handleClick : undefined}
                 {...(editable ? { 'data-oid': node.oid } : {})}
-                className={`max-w-full rounded-lg ${cls}`}
-                loading="lazy"
+                className={`h-auto max-w-full rounded-lg ${cls}`}
               />
             );
           }

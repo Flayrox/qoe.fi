@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { ChevronDown, ArrowUpRight, Search } from 'lucide-react';
 import type { SocialLink } from '@qoe/sdk/types';
 import { SocialIcon } from '../../SocialIcon';
+import { SafeImage } from '../../SafeImage';
 import type { NavbarBlockProps, TemplatePublisherContext, TemplateRenderContext } from '../schema';
 import { BlockWrapper } from './BlockWrapper';
 import { EditableText } from './EditableText';
@@ -118,9 +119,12 @@ export function NavbarBlock({
               className="flex items-center gap-3 group/brand transition-transform active:scale-98"
             >
               {logoUrl && allowLogo && brandDisplay !== 'name-only' && (
-                <img
+                <SafeImage
                   src={logoUrl}
                   alt={`${displayName} logo`}
+                  width={44}
+                  height={44}
+                  sizes="44px"
                   className="w-9 h-9 md:w-11 md:h-11 rounded-md object-cover transition-opacity"
                 />
               )}

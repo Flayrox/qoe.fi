@@ -3,6 +3,7 @@
 import React from 'react';
 import { cn } from '@qoe/utils';
 import { TextParser } from '../ui/TextParser';
+import { SafeImage } from '../SafeImage';
 
 export interface ThoughtBodyProps {
   content?: string | null;
@@ -161,10 +162,12 @@ function ImageGrid({
             }}
             className="relative overflow-hidden bg-card border border-border/40 shadow-2xs rounded-xl group/img aspect-video"
           >
-            <img
+            <SafeImage
               src={item.url}
               alt={item.altText || ''}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-[1.02]"
+              fill
+              sizes="(max-width: 640px) 50vw, 320px"
+              className="object-cover transition-transform duration-500 group-hover/img:scale-[1.02]"
             />
             {item.altText && (
               <button

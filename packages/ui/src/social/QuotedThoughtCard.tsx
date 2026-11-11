@@ -5,6 +5,7 @@ import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
 import { CornerDownRight } from 'lucide-react';
 import { SafeAvatar } from '../SafeAvatar';
+import { SafeImage } from '../SafeImage';
 import { CertifiedBadge } from '../ui/CertifiedBadge';
 import { TextParser } from '../ui/TextParser';
 import { ProfileHoverCard } from './ProfileHoverCard';
@@ -206,11 +207,17 @@ export function QuotedThoughtCard({
         <div
           data-quoted-media
           className={cn(
-            'mt-1.5 aspect-video overflow-hidden rounded-lg border border-border/30 bg-muted/30',
+            'relative mt-1.5 aspect-video overflow-hidden rounded-lg border border-border/30 bg-muted/30',
             nested ? 'max-h-28' : 'max-h-48'
           )}
         >
-          <img src={images[0].url} alt={images[0].altText} className="h-full w-full object-cover" />
+          <SafeImage
+            src={images[0].url}
+            alt={images[0].altText}
+            fill
+            sizes="(max-width: 640px) 100vw, 480px"
+            className="object-cover"
+          />
         </div>
       )}
 
@@ -227,7 +234,13 @@ export function QuotedThoughtCard({
               key={`${img.url}-${idx}`}
               className="relative aspect-video overflow-hidden rounded-md border border-border/30 bg-muted/30"
             >
-              <img src={img.url} alt={img.altText} className="h-full w-full object-cover" />
+              <SafeImage
+                src={img.url}
+                alt={img.altText}
+                fill
+                sizes="(max-width: 640px) 50vw, 240px"
+                className="object-cover"
+              />
               {idx === 3 && images.length > 4 && (
                 <span className="absolute inset-0 flex items-center justify-center bg-foreground/65 font-mono type-control-xs font-semibold text-background">
                   +{images.length - 4}

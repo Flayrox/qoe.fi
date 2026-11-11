@@ -18,6 +18,7 @@ import { X, ArrowUpRight, Folder } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import type { TemplatePublisherContext } from '../../schema';
 import { SocialIcon } from '../../../SocialIcon';
+import { SafeImage } from '../../../SafeImage';
 
 export interface CraftDrawerItem {
   id: string;
@@ -115,9 +116,12 @@ export function MinimalSidebarDrawer({
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               {logoUrl ? (
-                <img
+                <SafeImage
                   src={logoUrl}
                   alt={displayName}
+                  width={40}
+                  height={40}
+                  sizes="40px"
                   className="w-10 h-10 rounded-full object-cover border border-border/40 shadow-2xs"
                 />
               ) : (

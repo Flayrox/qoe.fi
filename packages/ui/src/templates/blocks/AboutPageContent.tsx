@@ -17,6 +17,7 @@ import React, { useState } from 'react';
 import { Link as LinkIcon, Check, Loader2, Mail, MessageSquare, Maximize2 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { PeopleSection } from './PeopleSection';
+import { SafeImage } from '../../SafeImage';
 import { subscribeToNewsletterAction } from '@qoe/sdk/actions/tenant';
 import type { TemplatePublisherContext, TemplateTeamMember } from '../schema';
 
@@ -218,9 +219,12 @@ export function AboutPageContent({
       {config.captionedImageUrl && (
         <figure className="space-y-2 group/figure relative">
           <div className="relative overflow-hidden rounded-[8px] border border-border/40 bg-muted/20">
-            <img
+            <SafeImage
               src={config.captionedImageUrl}
               alt={publisher.name || 'Illustration'}
+              width={1200}
+              height={800}
+              sizes="(max-width: 768px) 100vw, 720px"
               className={cn(
                 'w-full object-cover transition-all duration-300',
                 isZoomed ? 'max-h-[85vh] object-contain' : 'max-h-[440px]'

@@ -228,7 +228,32 @@ describe('ProfileHoverCard — contenu de la carte ouverte', () => {
 
     const content = await screen.findByText('@camille');
     const container = content.closest('[data-slot="hover-card-content"]');
-    expect(container?.className).toContain('top-full');
+    expect(container?.getAttribute('data-side')).toBe('bottom');
+  });
+
+  it('porte le contenu hors du conteneur et le garde ouvert au passage de la souris', async () => {
+    render(
+      <ProfileHoverCard user={user}>
+        <span>Camille Survol</span>
+      </ProfileHoverCard>
+    );
+
+    const trigger = screen
+      .getByText('Camille Survol')
+      .closest('[data-slot="hover-card-trigger"]') as HTMLElement;
+    fireEvent.mouseEnter(trigger);
+
+    const handle = await screen.findByText('@camille');
+    const content = handle.closest('[data-slot="hover-card-content"]') as HTMLElement;
+
+    expect(document.body.contains(content)).toBe(true);
+    expect(trigger.closest('[data-slot="hover-card"]')?.contains(content)).toBe(false);
+
+    fireEvent.mouseLeave(trigger);
+    fireEvent.mouseEnter(content);
+    await new Promise((resolve) => setTimeout(resolve, 220));
+
+    expect(screen.getByText('@camille')).toBeDefined();
   });
 
   it('ne rend aucun hover card ni action quand isBlocked est vrai', () => {

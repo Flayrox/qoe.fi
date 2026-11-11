@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { headers } from 'next/headers';
-import { SubscribeForm, JsonLd, buildArticleSchema, SafeAvatar } from '@qoe/ui';
+import { SubscribeForm, JsonLd, buildArticleSchema, SafeAvatar, SafeImage } from '@qoe/ui';
 import { buildArticlePath } from '@qoe/utils';
 import { type AnnotationItem, type HighlightItem } from '@qoe/ui/annotations';
 import { getCurrentUser } from '@qoe/auth/current-user';
@@ -464,10 +464,12 @@ export async function TenantArticleRenderer({
               {article.imageUrl && (
                 <div className="mt-8 mb-10 -mx-4 sm:-mx-8 md:-mx-12">
                   <div className="relative aspect-[16/9] sm:aspect-[2/1] rounded-2xl overflow-hidden border border-border/40 bg-muted/30 shadow-2xs">
-                    <img
+                    <SafeImage
                       src={article.imageUrl}
                       alt={article.title}
-                      className="w-full h-full object-cover"
+                      fill
+                      sizes="(max-width: 768px) 100vw, 680px"
+                      className="object-cover"
                     />
                   </div>
                 </div>

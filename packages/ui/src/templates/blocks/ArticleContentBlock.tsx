@@ -11,6 +11,7 @@ import type {
 import { BlockWrapper } from './BlockWrapper';
 import { NodeRenderer } from './NodeRenderer';
 import { SafeAvatar } from '../../SafeAvatar';
+import { SafeImage } from '../../SafeImage';
 import { ArticleEngagementBar } from './ArticleEngagementBar';
 
 interface ArticleContentBlockComponentProps {
@@ -256,11 +257,12 @@ export function ArticleContentBlock({
         {showCover && article.imageUrl && (
           <div className="mt-8 mb-8 -mx-4 sm:-mx-8 md:-mx-12">
             <div className="relative aspect-[16/9] sm:aspect-[2/1] rounded-2xl overflow-hidden border border-border/40 bg-muted/30 shadow-2xs">
-              <img
+              <SafeImage
                 src={article.imageUrl}
                 alt={article.title}
-                className="w-full h-full object-cover"
-                loading="lazy"
+                fill
+                sizes="(max-width: 768px) 100vw, 680px"
+                className="object-cover"
               />
             </div>
           </div>

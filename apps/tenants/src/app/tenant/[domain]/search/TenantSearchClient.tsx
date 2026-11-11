@@ -10,6 +10,7 @@ import { Search, X, Clock, Calendar, ArrowRight, Sparkles } from 'lucide-react';
 import { Badge } from '@qoe/ui/badge';
 import { Button } from '@qoe/ui/button';
 import { Input, InputGroup } from '@qoe/ui/input';
+import { SafeImage } from '@qoe/ui';
 import { buildArticlePath } from '@qoe/utils';
 
 export interface SearchArticleItem {
@@ -200,12 +201,13 @@ export function TenantSearchClient({
                 </div>
 
                 {art.imageUrl && (
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden border border-border/40 shrink-0 bg-muted/30">
-                    <img
+                  <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden border border-border/40 shrink-0 bg-muted/30">
+                    <SafeImage
                       src={art.imageUrl}
                       alt={art.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      loading="lazy"
+                      fill
+                      sizes="96px"
+                      className="object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                   </div>
                 )}

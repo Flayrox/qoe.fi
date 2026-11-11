@@ -6,6 +6,7 @@ import { getArticleUrl } from '@qoe/config';
 import { ArrowUpRight } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import { SafeAvatar } from '../SafeAvatar';
+import { SafeImage } from '../SafeImage';
 import { Badge } from '../primitives/badge/badge';
 import type { AnnotationCitation } from '../annotations/citation';
 
@@ -265,11 +266,11 @@ export function QuotedArticleCard({
           <div
             data-quoted-article-media
             className={cn(
-              'shrink-0 overflow-hidden rounded-lg border border-border/30 bg-muted/30',
+              'relative shrink-0 overflow-hidden rounded-lg border border-border/30 bg-muted/30',
               compact ? 'h-11 w-16' : 'h-14 w-20'
             )}
           >
-            <img src={article.imageUrl} alt="" className="h-full w-full object-cover" />
+            <SafeImage src={article.imageUrl} alt="" fill sizes="80px" className="object-cover" />
           </div>
         )}
       </div>

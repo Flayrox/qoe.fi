@@ -2,6 +2,7 @@
 
 import React, { useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
+import { SafeImage } from '@qoe/ui';
 import { BookOpen, Upload, Trash2, Loader2, ArrowLeft, Lock, NotebookPen } from 'lucide-react';
 import { deleteEbookAction, type EbookSummary } from '@qoe/sdk';
 import { toast } from '@qoe/ui/toast';
@@ -203,11 +204,12 @@ export function EbooksClient({ initialEbooks, plus }: EbooksClientProps) {
                   className="relative block aspect-[2/3] bg-muted/40 overflow-hidden"
                 >
                   {book.hasCover ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <SafeImage
                       src={ebookCoverUrl(book.id)}
                       alt=""
-                      className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform"
+                      fill
+                      sizes="(max-width: 640px) 50vw, 240px"
+                      className="object-cover group-hover:scale-[1.02] transition-transform"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">

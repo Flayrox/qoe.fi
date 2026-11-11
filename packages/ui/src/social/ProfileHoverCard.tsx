@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { cn } from '@qoe/utils';
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '../ui/hover-card';
 import { SafeAvatar } from '../SafeAvatar';
+import { SafeImage } from '../SafeImage';
 import { CertifiedBadge } from '../ui/CertifiedBadge';
 import { Button } from '../primitives/button/button';
 import { routes } from '@qoe/config/routes';
@@ -422,13 +423,7 @@ export function ProfileHoverCard({
         {/* ── BANNER (Optimisé, 0 Ko si fallback gradient) ── */}
         <div className="h-20 w-full relative bg-muted overflow-hidden">
           {bannerUrl ? (
-            <img
-              src={bannerUrl}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              className="w-full h-full object-cover"
-            />
+            <SafeImage src={bannerUrl} alt="" fill sizes="320px" className="object-cover" />
           ) : (
             <div
               className="w-full h-full"

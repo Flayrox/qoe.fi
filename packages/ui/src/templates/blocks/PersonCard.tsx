@@ -17,6 +17,7 @@ import Link from 'next/link';
 import { Mail, Check, Loader2 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { SafeAvatar } from '../../SafeAvatar';
+import { SafeImage } from '../../SafeImage';
 import { subscribeToNewsletterAction } from '@qoe/sdk/actions/tenant';
 
 export interface PersonCardProps {
@@ -238,9 +239,12 @@ export function PersonCard({
         {publisherName && (
           <div className="pt-2 border-t border-border/20 flex items-center gap-2 text-[11px] text-muted-foreground/80 truncate">
             {publisherLogoUrl && (
-              <img
+              <SafeImage
                 src={publisherLogoUrl}
                 alt={publisherName}
+                width={16}
+                height={16}
+                sizes="16px"
                 className="w-4 h-4 rounded-[3px] object-cover shrink-0 border border-border/30"
               />
             )}

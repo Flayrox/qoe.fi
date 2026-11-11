@@ -3,11 +3,10 @@
 import React from 'react';
 import { t } from '@lingui/core/macro';
 import { motion } from 'framer-motion';
-import Image from 'next/image';
 import { BookMarked, Bookmark, ArrowUpRight, Clock } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { getArticleUrl } from '@qoe/config/routes';
-import { SafeAvatar, CertifiedBadge, ProfileHoverCard } from '@qoe/ui';
+import { SafeAvatar, SafeImage, CertifiedBadge, ProfileHoverCard } from '@qoe/ui';
 import { useArticleOverlay } from '@/components/article-overlay/ArticleOverlayProvider';
 
 export interface ArticleRowProps {
@@ -83,14 +82,12 @@ export function ArticleRow({
         {/* Miniature carrée (36px) */}
         <div className="h-9 w-9 rounded-lg overflow-hidden shrink-0">
           {article.imageUrl && !article.imageUrl.includes('unsplash') ? (
-            <Image
+            <SafeImage
               src={article.imageUrl}
               alt={article.title}
               width={36}
               height={36}
-              unoptimized={
-                article.imageUrl.startsWith('data:') || article.imageUrl.startsWith('http')
-              }
+              sizes="36px"
               className="h-full w-full object-cover rounded-lg border border-border/20"
             />
           ) : (
