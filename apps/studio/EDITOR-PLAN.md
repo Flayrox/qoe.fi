@@ -7,7 +7,7 @@
 > **Instructions utilisateur :** la section [« 📝 Instructions »](#-instructions)
 > est prioritaire sur le reste.
 
-Dernière mise à jour : 2026-11-09 · branche `dev` · dernier commit éditeur `0a84e005`.
+Dernière mise à jour : 2026-11-11 · branche `main` · dernier commit éditeur `8495cb3d`.
 
 ---
 
@@ -35,30 +35,36 @@ Contraintes :
 
 Derniers commits du chantier :
 
-| Commit     | Contenu                                                                                           |
-| ---------- | ------------------------------------------------------------------------------------------------- |
-| `0bfccbe8` | Tolérance de 32 px autour du début de ligne visuelle, y compris sur les lignes coupées            |
-| `403ada88` | `Tab` libéré pour les paragraphes ; l’alinéa reste dans les barres d’outils                       |
-| `4193684a` | Ouverture tactile des annotations + bouton « Modifier la note d’auteur » dans le bandeau          |
-| `fd56f4f7` | Retours à la ligne conservés dans les citations d’annotation multi-paragraphes                    |
+| Commit     | Contenu                                                                                            |
+| ---------- | -------------------------------------------------------------------------------------------------- |
+| `8495cb3d` | Toolbar ARIA à arrêt unique, raccourci alinéa `Mod+Alt+I`, lettrine canonique et snap de gouttière |
+| `109123c7` | Suite API Go verte (67 paquets), correctifs des 9 paquets rouges                                   |
+| `0bfccbe8` | Tolérance de 32 px autour du début de ligne visuelle, y compris sur les lignes coupées             |
+| `403ada88` | `Tab` libéré pour les paragraphes ; l’alinéa reste dans les barres d’outils                        |
+| `4193684a` | Ouverture tactile des annotations + bouton « Modifier la note d’auteur » dans le bandeau           |
+| `fd56f4f7` | Retours à la ligne conservés dans les citations d’annotation multi-paragraphes                     |
 | `000f4393` | Bouton « Légende et crédit de l’image » désactivé tant qu’aucune image n’est sélectionnée          |
 | `97e71e0a` | `Tab` rendu au navigateur dans les listes ; boutons d’imbrication dans la barre d’outils           |
 | `2412f4b4` | Galeries éditables : alt, déplacement et retrait d’une image                                       |
-| `fcf13e44` | Actions de couverture visibles au tactile et au focus clavier                                       |
-| `0a84e005` | Panneau d’annotation refondu : bandeau, citation, zone d’écriture et actions séparées               |
+| `fcf13e44` | Actions de couverture visibles au tactile et au focus clavier                                      |
+| `0a84e005` | Panneau d’annotation refondu : bandeau, citation, zone d’écriture et actions séparées              |
 
 Vérifications passées à chaque étape :
 
 ```bash
 pnpm --filter @qoe/studio typecheck
+pnpm --filter @qoe/ui typecheck
 pnpm exec eslint apps/studio/src/features/editor
 pnpm --filter @qoe/studio exec vitest run src/features/editor
+pnpm --filter @qoe/studio exec vitest run src/features/editor/lib/__tests__/toolbar-navigation.test.ts
+pnpm --filter @qoe/ui exec vitest run src/annotations/__tests__/canonical-article-body.test.tsx
 git diff --check
 ```
 
-Les tests éditeur comptent **10 fichiers / 49 tests**. Le rendu navigateur, les
-gestes tactiles et les combinaisons clavier réelles n’ont pas encore été validés
-visuellement.
+Les tests éditeur comptent **11 fichiers / 53 tests**. La lettrine a été
+contrôlée visuellement dans le CSS partagé (flottant à gauche, texte qui
+l’épouse, `text-indent: 0` avec alinéa) ; les gestes tactiles et les
+combinaisons clavier réelles restent à valider.
 
 ## 3. Audit d’ergonomie
 
@@ -135,10 +141,11 @@ visuellement.
       remplacés par des variantes sans tabulation, imbrication via les boutons
       de la barre d’outils (commit `97e71e0a`). Les tests clavier restent à
       ajouter.
-- [ ] **A2.** Ajouter un raccourci clavier dédié à l’alinéa (proposition à
-      valider, par exemple `Mod+Alt+I`) ou une entrée de menu « Format ».
-- [ ] **A3.** Appliquer le motif ARIA toolbar : un seul bouton tabbable par
-      groupe, navigation aux flèches, `Home`/`End`, focus visible conservé.
+- [x] **A2.** Raccourci `Mod+Alt+I` + bouton de barre avec infobulle
+      (`8495cb3d`).
+- [x] **A3.** Motif ARIA toolbar : un seul arrêt de tabulation pour la barre,
+      flèches, `Home`/`End`, focus visible conservé ; helper testé
+      (`8495cb3d`).
 - [ ] **A4.** Centraliser l’affichage `⌘` / `Ctrl` pour l’enregistrement, le lien
       et l’annotation, comme le fait déjà `useModKey` dans la barre d’outils.
 - [ ] **A5.** Ajouter une aide des raccourcis de l’éditeur (panneau `?` ou menu).
@@ -178,14 +185,16 @@ visuellement.
   la marque puis proposer « Modifier la note » / « Modifier le texte » ?
 - **Galerie** : alt uniquement, ou aussi légende et crédit par image ?
 - **Couverture** : champ alt dédié, ou case « image décorative » ?
-- **Raccourci alinéa** : `Mod+Alt+I`, autre combinaison, ou uniquement menu ?
 
 ## 6. Comment vérifier
 
 ```bash
 pnpm --filter @qoe/studio typecheck
+pnpm --filter @qoe/ui typecheck
 pnpm exec eslint apps/studio/src/features/editor
 pnpm --filter @qoe/studio exec vitest run src/features/editor
+pnpm --filter @qoe/studio exec vitest run src/features/editor/lib/__tests__/toolbar-navigation.test.ts
+pnpm --filter @qoe/ui exec vitest run src/annotations/__tests__/canonical-article-body.test.tsx
 git diff --check
 ```
 
@@ -281,14 +290,34 @@ souveraine » :
   rendus opt-in (`IncludeOwnDrafts`, seuls `posts.Get` les demandent),
   surlignage privé vérifié après l’upvote public, auteur tiers pour le
   fallback d’attribution, `fx.OwnerID` pour la publication de settings,
-  colonne `"isRead"` des notifications. Run complet : **65 paquets OK,
-  2 échecs** (`feed`, `devtools`) ; après correctifs, `feed` 97 s, `posts`
-  4,6 s et `devtools` 135 s repassent verts. Les 7 autres paquets des 9
-  (`abuse`, `middleware`, `creator`, `highlights`, `publishers`, `settings`,
-  `users`) étaient déjà verts dans ce run : **les 9 sont verts**. Devtools
+  colonne `"isRead"` des notifications. Run complet final sur base neuve :
+  **67 paquets OK, 0 échec, 0 timeout**, **27 min 23 s** (1643 s). Les 7
+  autres paquets des 9 (`abuse`, `middleware`, `creator`, `highlights`,
+  `publishers`, `settings`, `users`) étaient déjà verts ; `feed` 97 s,
+  `posts` 4,6 s et `devtools` 135 s. **Les 9 sont verts.** Devtools
   réduit le volume de ses deux tests de branches (80 utilisateurs / 20
   articles / 120 pensées / 200 sessions), le test handler conservant le
   volume complet.
+
+### Correctifs éditeur (2026-11-11)
+
+- **A2** : `Mod+Alt+I` bascule l'alinéa, avec garde `paragraph` et infobulle
+  du bouton de barre (`8495cb3d`).
+- **A3** : la toolbar n'a plus qu'un arrêt de tabulation ; les flèches
+  parcourent les boutons et `Home`/`End` vont aux extrémités. Le calcul est
+  testé dans `toolbar-navigation.test.ts` (`8495cb3d`).
+- **Lettrine** : le corps canonique émet `data-drop-cap="true"` en plus de
+  `has-drop-cap` ; le CSS neutralise l'alinéa et `text-wrap: pretty` sur ces
+  paragraphes, pour que la première ligne épouse le flottant dans le core
+  comme dans les tenants (`8495cb3d`).
+- **Clic début de ligne** : toute la gouttière gauche du padding desktop est
+  captée (plus seulement 32 px), et un simple clic est distingué d'un glisser
+  pour ne pas écraser une sélection (`8495cb3d`).
+- Vérifié : `pnpm --filter @qoe/studio test` (107 tests), canonical body
+  (22 tests), typechecks studio/ui, eslint, prettier.
+- Contrôle visuel : lettrine rendue dans `article-prose` via le UI lab du
+  studio (capture), flottant à gauche et texte qui l’épouse ; les pages core
+  et tenants utilisent la même feuille et le même conteneur.
 
 ---
 
