@@ -3295,7 +3295,7 @@ func (s *Service) RestoreSnapshot(ctx context.Context, articleID, snapshotID, us
 		ArticleID:   articleID,
 		PublisherID: row.PublisherId,
 		ActorID:     userID,
-		Type:        "SNAPSHOT_RESTORED",
+		Type:        EventLiveUpdated,
 		FromStatus:  row.Status,
 		ToStatus:    row.Status,
 	})
