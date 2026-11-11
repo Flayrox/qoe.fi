@@ -5,6 +5,7 @@ import { Loader2, ArrowUpRight } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { QuotedArticleCard, type QuotedArticleData } from './QuotedArticleCard';
 import { QuotedThoughtCard, type QuotedThoughtData } from './QuotedThoughtCard';
+import { SafeImage } from '../SafeImage';
 
 export interface UnfurlPreview {
   isInternal: boolean;
@@ -155,11 +156,13 @@ export function LinkPreview({
         )}
       >
         {meta.image && (
-          <div className="sm:w-32 aspect-video sm:aspect-square shrink-0 overflow-hidden border-b sm:border-b-0 sm:border-r border-border/40">
-            <img
+          <div className="relative sm:w-32 aspect-video sm:aspect-square shrink-0 overflow-hidden border-b sm:border-b-0 sm:border-r border-border/40">
+            <SafeImage
               src={meta.image}
               alt=""
-              className="w-full h-full object-cover group-hover/link:scale-[1.02] transition-transform duration-500"
+              fill
+              sizes="(max-width: 640px) 100vw, 128px"
+              className="object-cover group-hover/link:scale-[1.02] transition-transform duration-500"
             />
           </div>
         )}

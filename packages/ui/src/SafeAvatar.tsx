@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { cn } from '@qoe/utils';
 import { getAvatarTheme } from '@qoe/theme';
 import { UserSilhouette, MediaEmblem } from '@qoe/brand';
+import { canOptimizeImageSrc } from './image-utils';
 
 export type AvatarShape = 'circle' | 'square';
 export type AvatarAccountType = 'PERSONAL' | 'MEDIA';
@@ -53,7 +54,7 @@ export function SafeAvatar({
   type,
   className,
   fallbackClass,
-  unoptimized = true,
+  unoptimized,
 }: SafeAvatarProps) {
   const [hasError, setHasError] = useState(false);
   const displayName = name || alt || username || 'Utilisateur';
@@ -143,7 +144,7 @@ export function SafeAvatar({
         alt={displayName}
         width={size}
         height={size}
-        unoptimized={unoptimized}
+        unoptimized={unoptimized ?? !canOptimizeImageSrc(cleanSrc)}
         className={cn('w-full h-full object-cover', shapeClass)}
         onError={() => setHasError(true)}
       />

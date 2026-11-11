@@ -121,6 +121,7 @@ export function ArticleCard({
                 src={coverUrl}
                 alt={article.title}
                 fill
+                sizes="(max-width: 768px) 100vw, 720px"
                 className="object-cover transition-transform duration-500 group-hover/cover:scale-[1.01]"
               />
             </div>
@@ -188,6 +189,7 @@ export function ArticleCard({
               src={coverUrl}
               alt={article.title}
               fill
+              sizes="(max-width: 768px) 100vw, 360px"
               className="object-cover transition-transform duration-500 group-hover/cover:scale-[1.03]"
             />
           </div>
@@ -292,11 +294,12 @@ export function ArticleCard({
         onClick={handleLinkClick}
         className="relative w-full sm:w-44 md:w-48 aspect-[16/10] sm:h-32 shrink-0 rounded-[6px] overflow-hidden bg-muted border border-border/40 group/thumb block"
       >
-        <img
+        <SafeImage
           src={coverUrl}
           alt={article.title}
-          className="w-full h-full object-cover transition-transform duration-300 group-hover/thumb:scale-[1.03]"
-          loading="lazy"
+          fill
+          sizes="(max-width: 640px) 100vw, 192px"
+          className="object-cover transition-transform duration-300 group-hover/thumb:scale-[1.03]"
         />
       </Link>
     </article>

@@ -2,6 +2,7 @@ import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { BookOpen, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
+import { SafeImage } from '@qoe/ui';
 import { getArticleUrl } from '@qoe/config/routes';
 
 // ── Contrat de l'historique de lecture (GET /v1/me/reading-history) ─────────
@@ -85,11 +86,13 @@ export default async function ReadingHistoryPage() {
               className="flex gap-4 p-4 rounded-xl border border-border/60 hover:bg-muted/30 transition-colors"
             >
               {s.article.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <SafeImage
                   src={s.article.imageUrl}
                   alt=""
-                  className="w-20 h-14 object-cover rounded-lg shrink-0"
+                  width={80}
+                  height={56}
+                  sizes="80px"
+                  className="object-cover rounded-lg shrink-0"
                 />
               ) : (
                 <div className="w-20 h-14 bg-muted rounded-lg shrink-0" />

@@ -25,6 +25,7 @@ import {
 } from '../../../ui/craft-sidebar-drawer';
 import { MinimalDock } from './MinimalDock';
 import { SafeAvatar } from '../../../SafeAvatar';
+import { SafeImage } from '../../../SafeImage';
 import { ProfileHoverCard } from '../../../social/ProfileHoverCard';
 import { getMainAppUrl } from '@qoe/config';
 import type { TemplatePublisherContext, TemplateArticleItem } from '../../schema';
@@ -276,9 +277,12 @@ export function MinimalCraftShell({
                 title={displayName}
               >
                 {wordmarkUrl ? (
-                  <img
+                  <SafeImage
                     src={wordmarkUrl}
                     alt={displayName}
+                    width={200}
+                    height={40}
+                    sizes="(max-width: 640px) 42vw, 300px"
                     className="h-7 sm:h-8 md:h-9 w-auto max-w-full object-contain object-center"
                   />
                 ) : (

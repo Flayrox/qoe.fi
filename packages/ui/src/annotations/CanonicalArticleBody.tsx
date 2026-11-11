@@ -29,6 +29,7 @@ import {
 } from './canonical-document';
 import { isAnnotation } from './annotation-kind';
 import { t } from '@lingui/core/macro';
+import { SafeImage } from '../SafeImage';
 
 export interface CanonicalArticleBodyProps {
   document: CanonicalDocument;
@@ -391,7 +392,17 @@ function BlockView({
 
   switch (block.kind) {
     case 'img':
-      return <img src={block.src} alt={block.alt || ''} loading="lazy" />;
+      if (!block.src) return null;
+      return (
+        <SafeImage
+          src={block.src}
+          alt={block.alt || ''}
+          width={1200}
+          height={800}
+          sizes="(max-width: 768px) 100vw, 720px"
+          className="h-auto max-w-full"
+        />
+      );
     case 'hr':
       return <hr />;
     case 'list': {

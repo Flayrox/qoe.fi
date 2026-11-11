@@ -7,6 +7,7 @@ import { t } from '@lingui/core/macro';
 import type { NavigationItem, SocialLink } from '@qoe/sdk/types';
 import { SocialIcon } from './SocialIcon';
 import { SafeAvatar } from './SafeAvatar';
+import { SafeImage } from './SafeImage';
 import { resolveTenantNavigation } from './templates/navigation';
 
 // Define the nested type since Prisma returns flat by default without includes
@@ -82,9 +83,12 @@ export function TenantHeader({
 
           <Link href="/" className="flex items-center gap-4 group">
             {logoUrl ? (
-              <img
+              <SafeImage
                 src={logoUrl}
                 alt={`${name} logo`}
+                width={64}
+                height={64}
+                sizes="64px"
                 className={`object-cover ${isBrutalist ? 'w-12 h-12 md:w-16 md:h-16 border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] group-hover:translate-x-1 group-hover:translate-y-1 group-hover:shadow-none transition-all' : 'w-10 h-10 md:w-14 md:h-14 rounded-xl shadow-md group-hover:opacity-80 transition-opacity'}`}
               />
             ) : (
