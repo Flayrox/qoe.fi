@@ -15,6 +15,7 @@ import (
 	"github.com/qoefi/api/internal/abuse"
 	"github.com/qoefi/api/internal/antispam"
 	"github.com/qoefi/api/internal/middleware"
+	"github.com/qoefi/api/internal/observability"
 	"github.com/qoefi/api/internal/response"
 	"github.com/qoefi/api/internal/trust"
 	"github.com/redis/go-redis/v9"
@@ -404,6 +405,7 @@ func WriteRejection(w http.ResponseWriter, err error) bool {
 	if !errors.As(err, &rej) {
 		return false
 	}
+	observability.Default().IncSecGuardRejection("write", rej.Code)
 	if rej.HTTPStatus == http.StatusTooManyRequests {
 		response.TooManyRequests(w, rej.RetryAfterSec, rej.Code, rej.Message)
 		return true

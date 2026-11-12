@@ -19,6 +19,7 @@ import { loadConfig } from './config';
 import { PostgresDatabase, MemoryDatabase, type CollabDatabase } from './database';
 import { createSupabaseVerifier } from './auth';
 import { createPublisherAccessChecker } from './permissions';
+import { CollabGuard } from './guard';
 import { createCollabServer } from './server';
 
 /**
@@ -87,11 +88,20 @@ const verifier = createSupabaseVerifier(config.supabaseUrl, config.supabaseAnonK
 const canEditDocument =
   database instanceof PostgresDatabase ? createPublisherAccessChecker(database.pool) : undefined;
 
+// ─── Garde-fou anti-abus ─────────────────────────────────────────────
+const guard = new CollabGuard({
+  maxConnsPerUser: config.maxConnsPerUser,
+  maxConnsPerIP: config.maxConnsPerIP,
+  maxMessageBytes: config.maxMessageBytes,
+  maxMessagesPerWindow: config.maxMessagesPerWindow,
+});
+
 const server = createCollabServer({
   database,
   verifier,
   maxDocumentBytes: config.maxDocumentBytes,
   canEditDocument,
+  guard,
 });
 
 server

@@ -16,6 +16,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/observability"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -278,7 +279,7 @@ func (s *Service) Evaluate(ctx context.Context, userID, subnet, userAgent string
 		}
 	}
 
-	return ComputeScore(Signals{
+	prof := ComputeScore(Signals{
 		UserID:                  userID,
 		PhoneVerified:           dbSig.PhoneVerified,
 		OnboardingDone:          dbSig.OnboardingDone,
@@ -293,7 +294,9 @@ func (s *Service) Evaluate(ctx context.Context, userID, subnet, userAgent string
 		Shadowbanned:            dbSig.Shadowbanned,
 		Suspended:               dbSig.Suspended,
 		ActiveRiskDecision:      dbSig.ActiveRiskDecision,
-	}), nil
+	})
+	observability.Default().IncTrustTierEvaluation(string(prof.Tier))
+	return prof, nil
 }
 
 func (s *Service) collectRealtimeSignals(ctx context.Context, userID, subnet, userAgent string) (strikes int, subnetUsers int64) {

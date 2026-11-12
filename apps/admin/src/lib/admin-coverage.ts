@@ -55,6 +55,8 @@ export const ADMIN_ROUTE_COVERAGE: Record<string, AdminRouteCoverage> = {
   'PATCH /v1/admin/abuse/decisions': via('/admin/abuse'),
   'PUT /v1/admin/abuse/decisions/{id}/triage': via('/admin/work'),
   'GET /v1/admin/abuse/metrics': via('/admin/abuse'),
+  'GET /v1/admin/security/overview': via('/admin/security'),
+  'POST /v1/admin/security/trust/{userId}/recompute': via('/admin/security'),
   'GET /v1/admin/abuse/incidents': via('/admin/incidents'),
   'POST /v1/admin/abuse/incidents': via('/admin/incidents'),
   'PATCH /v1/admin/abuse/incidents/{id}': via('/admin/incidents'),

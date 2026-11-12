@@ -8,11 +8,13 @@ package admin
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/qoefi/api/internal/abuse"
+	"github.com/qoefi/api/internal/flags"
 	"github.com/qoefi/api/internal/subscriptions"
 	"github.com/qoefi/api/internal/support"
 )
@@ -276,4 +278,178 @@ func (s *Service) ResolveAbuseDecision(ctx context.Context, userID, subjectType,
 		s.trustSvc.InvalidateUser(ctx, subjectID)
 	}
 	return id, nil
+}
+
+// ── Cockpit Sécurité & Trust (Lot 5) ─────────────────────────────────────────
+
+var (
+	errTrustServiceUnavailable = errors.New("service de confiance indisponible")
+	errInvalidTargetUser       = errors.New("identifiant utilisateur requis")
+)
+
+// PolicyV3RuleStat agrège les déclenchements récents d'une règle PolicyV3.
+type PolicyV3RuleStat struct {
+	Rule   string `json:"rule"`
+	Reason string `json:"reason"`
+	Count  int    `json:"count"`
+}
+
+// SecurityOverview regroupe l'état du cockpit Sécurité & Trust sur 30 jours.
+type SecurityOverview struct {
+	Metrics             abuse.Metrics      `json:"metrics"`
+	PolicyV3            []PolicyV3RuleStat `json:"policyV3"`
+	AuthzEnforceEnabled bool               `json:"authzEnforceEnabled"`
+	ShadowbannedCount   int64              `json:"shadowbannedCount"`
+	SuspendedCount      int64              `json:"suspendedCount"`
+}
+
+// TrustRecomputeResult détaille le score de confiance recalculé à chaud.
+type TrustRecomputeResult struct {
+	UserID             string   `json:"userId"`
+	Score              int      `json:"score"`
+	Tier               string   `json:"tier"`
+	AccountAgeDays     int      `json:"accountAgeDays"`
+	PhoneVerified      bool     `json:"phoneVerified"`
+	MfaEnabled         bool     `json:"mfaEnabled"`
+	EffectiveFollowers int      `json:"effectiveFollowers"`
+	SubnetAccountCount int64    `json:"subnetAccountCount"`
+	Reasons            []string `json:"reasons"`
+}
+
+// SecurityOverview retourne la vue agrégée Sécurité & Trust sur 30 jours :
+// métriques anti-abus, ventilation PolicyV3, état du flag authz-enforce et
+// compteurs actifs de shadowban/suspension.
+func (s *Service) SecurityOverview(ctx context.Context, _ string) (SecurityOverview, error) {
+	var signalDB abuse.SignalDB
+	if s.pool != nil {
+		signalDB = s.pool
+	}
+	metrics, err := abuse.ComputeMetrics(ctx, signalDB, 30, time.Now())
+	if err != nil {
+		return SecurityOverview{}, err
+	}
+
+	rules := []struct {
+		rule   string
+		reason string
+	}{
+		{"follow-ring", "sybil.follow.ring"},
+		{"follow-churn", "sybil.follow.churn"},
+		{"comment-swarm", "swarm.comment.target"},
+		{"dm-cold-burst", "spam.dm.cold_burst"},
+		{"coordinated-spam", "spam.coordinated"},
+		{"subnet-multi-account", "network.multi_account"},
+	}
+	breakdown := make([]PolicyV3RuleStat, 0, len(rules))
+	for _, r := range rules {
+		breakdown = append(breakdown, PolicyV3RuleStat{
+			Rule:   r.rule,
+			Reason: r.reason,
+			Count:  metrics.AutoByReason[r.reason],
+		})
+	}
+
+	authzEnforce := false
+	if s.flags != nil {
+		authzEnforce = s.flags.IsOn(ctx, flags.AuthzEnforce)
+	}
+
+	var shadowbannedCount, suspendedCount int64
+	if s.pool != nil {
+		_ = s.pool.QueryRow(ctx, `
+			SELECT
+				COUNT(*) FILTER (WHERE "isShadowbanned" = true),
+				COUNT(*) FILTER (WHERE "isSuspended" = true)
+			FROM "User"
+		`).Scan(&shadowbannedCount, &suspendedCount)
+	}
+
+	return SecurityOverview{
+		Metrics:             metrics,
+		PolicyV3:            breakdown,
+		AuthzEnforceEnabled: authzEnforce,
+		ShadowbannedCount:   shadowbannedCount,
+		SuspendedCount:      suspendedCount,
+	}, nil
+}
+
+// RecomputeUserTrust invalide le cache Trust Redis d'un utilisateur, réévalue
+// son profil de confiance en direct et trace l'acte dans AdminAuditLog.
+func (s *Service) RecomputeUserTrust(ctx context.Context, actorID, targetUserID string) (TrustRecomputeResult, error) {
+	targetUserID = strings.TrimSpace(targetUserID)
+	if targetUserID == "" {
+		return TrustRecomputeResult{}, errInvalidTargetUser
+	}
+	if s.trustSvc == nil {
+		return TrustRecomputeResult{}, errTrustServiceUnavailable
+	}
+
+	s.trustSvc.InvalidateUser(ctx, targetUserID)
+
+	profile, err := s.trustSvc.Evaluate(ctx, targetUserID, "", "")
+	if err != nil {
+		return TrustRecomputeResult{}, err
+	}
+
+	var phoneVerified, mfaEnabled bool
+	if s.pool != nil {
+		_ = s.pool.QueryRow(ctx, `
+			SELECT "phoneVerifiedAt" IS NOT NULL
+			FROM "User"
+			WHERE id = $1::uuid
+		`, targetUserID).Scan(&phoneVerified)
+
+		_ = s.pool.QueryRow(ctx, `
+			SELECT EXISTS (
+				SELECT 1
+				FROM auth.mfa_factors
+				WHERE user_id = $1::uuid AND status = 'verified'
+			)
+		`, targetUserID).Scan(&mfaEnabled)
+	}
+
+	accountAgeDays := int(profile.AccountAge.Hours() / 24)
+	if accountAgeDays < 0 {
+		accountAgeDays = 0
+	}
+
+	reasons := make([]string, 0, 6)
+	if phoneVerified {
+		reasons = append(reasons, "phone_verified")
+	}
+	if mfaEnabled {
+		reasons = append(reasons, "mfa_enabled")
+	}
+	if profile.FollowRingSuspected {
+		reasons = append(reasons, "follow_ring_suspected")
+	}
+	if profile.MultiAccountSuspected {
+		reasons = append(reasons, "multi_account_suspected")
+	}
+	if profile.Strikes > 0 {
+		reasons = append(reasons, fmt.Sprintf("active_strikes:%d", profile.Strikes))
+	}
+	if accountAgeDays < 7 {
+		reasons = append(reasons, "new_account")
+	}
+
+	if s.pool != nil {
+		s.logAudit(ctx, actorID, "security.trust.recompute", "user", targetUserID, map[string]any{
+			"score":   profile.Score,
+			"tier":    string(profile.Tier),
+			"reasons": reasons,
+		})
+	}
+
+	return TrustRecomputeResult{
+		UserID:             targetUserID,
+		Score:              profile.Score,
+		Tier:               string(profile.Tier),
+		AccountAgeDays:     accountAgeDays,
+		PhoneVerified:      phoneVerified,
+		MfaEnabled:         mfaEnabled,
+		EffectiveFollowers: profile.EffectiveFollowers,
+		SubnetAccountCount: profile.SubnetUsers,
+		Reasons:            reasons,
+	}, nil
 }

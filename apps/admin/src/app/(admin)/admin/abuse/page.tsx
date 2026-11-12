@@ -8,6 +8,7 @@
 // =====================================================================
 
 import React from 'react';
+import Link from 'next/link';
 import { getAdminAbuseDecisions } from '@/lib/admin-data';
 import { AbuseQueue } from './components/abuse-queue';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
@@ -29,7 +30,11 @@ export default async function AdminAbusePage() {
           </h1>
           <p className="text-[12px] text-muted-foreground">
             Verdicts automatiques non triviaux (rafales, essaims, raids) · classement sans suite ou
-            escalade tracée.
+            escalade tracée.{' '}
+            <Link href="/admin/security" className="underline hover:text-foreground">
+              Cockpit sécurité &amp; Trust
+            </Link>
+            .
           </p>
         </div>
         <MetricChips

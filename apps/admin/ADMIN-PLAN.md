@@ -84,10 +84,11 @@ Commits du chantier :
 | `b251703e` | Bac à sable (D6) : 5 scénarios de seed isolés, impersonation auditée, step-up N2, console `/admin/sandbox`                                                                                      |
 | `58bf736e` | Ergonomie avancée (B4, B5, B7) : largeur min, actions groupées priorité/échéance avec annulation, raccourcis e, /, f, v, g+lettre                                                               |
 | `3f89771c` | Vues d'équipe en base (B3) : table AdminSavedView (migration 00074, goose v74), routes Go /v1/admin/views, sync useGridView                                                                     |
+| _(en cours)_ | **Lot 5 — Cockpit Sécurité & Trust** : `GET /v1/admin/security/overview` (`AbuseRead`), `POST /v1/admin/security/trust/{userId}/recompute` (`AbuseDecide`, audit + invalidation Redis), page `/admin/security` (`DataGrid` PolicyV3, `MetricChips`, recalcul Trust `#EE4B2B`, entrée nav). |
 
 ## 4. Ce qui existe (surface actuelle)
 
-34 `page.tsx` sous `apps/admin/src/app/(admin)/admin`, 6 domaines de navigation,
+35 `page.tsx` sous `apps/admin/src/app/(admin)/admin`, 6 domaines de navigation,
 20 modules `lib/admin-*`. Briques réutilisables :
 
 - `components/shell/tokens.ts` — `DENSITY`, `ACCENT`.

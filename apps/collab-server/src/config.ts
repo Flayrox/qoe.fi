@@ -17,6 +17,17 @@ function env(name: string, fallback = ''): string {
   return value;
 }
 
+function envInt(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '') return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    console.warn(`[collab-server] Valeur invalide pour ${name} (« ${raw} »), fallback=${fallback}`);
+    return fallback;
+  }
+  return parsed;
+}
+
 export interface CollabConfig {
   /** Port du serveur WebSocket. */
   port: number;
@@ -28,6 +39,14 @@ export interface CollabConfig {
   supabaseAnonKey: string;
   /** Taille maximale d'un document (octets) — garde-fou anti-abuse. */
   maxDocumentBytes: number;
+  /** Taille maximale d'un message WebSocket (octets). */
+  maxMessageBytes: number;
+  /** Nombre maximal de messages par fenêtre de 10s et par connexion. */
+  maxMessagesPerWindow: number;
+  /** Nombre maximal de connexions simultanées par utilisateur. */
+  maxConnsPerUser: number;
+  /** Nombre maximal de connexions simultanées par IP. */
+  maxConnsPerIP: number;
 }
 
 export function loadConfig(): CollabConfig {
@@ -39,6 +58,10 @@ export function loadConfig(): CollabConfig {
       'SUPABASE_ANON_KEY',
       env('NEXT_PUBLIC_SUPABASE_ANON_KEY', env('SUPABASE_SERVICE_ROLE_KEY'))
     ),
-    maxDocumentBytes: Number(env('COLLAB_MAX_DOCUMENT_BYTES', String(8 * 1024 * 1024))),
+    maxDocumentBytes: envInt('COLLAB_MAX_DOCUMENT_BYTES', 8 * 1024 * 1024),
+    maxMessageBytes: envInt('COLLAB_MAX_MESSAGE_BYTES', 131_072),
+    maxMessagesPerWindow: envInt('COLLAB_MAX_MESSAGES_PER_10S', 120),
+    maxConnsPerUser: envInt('COLLAB_MAX_CONNS_PER_USER', 10),
+    maxConnsPerIP: envInt('COLLAB_MAX_CONNS_PER_IP', 25),
   };
 }

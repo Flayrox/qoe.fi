@@ -55,16 +55,49 @@ func TestCORS_AllowAndExposeHeaders(t *testing.T) {
 		t.Errorf("Allow-Origin = %q, attendu https://qoe.fi", got)
 	}
 	allowHeaders := rr.Header().Get("Access-Control-Allow-Headers")
-	for _, want := range []string{"Authorization", "Content-Type", "X-Qoe-Signature", "Idempotency-Key"} {
+	for _, want := range []string{"Authorization", "Content-Type", "X-Qoe-Signature", "X-Qoe-Challenge", "X-Request-Id", "Idempotency-Key"} {
 		if !strings.Contains(allowHeaders, want) {
 			t.Errorf("Access-Control-Allow-Headers = %q, manque %q", allowHeaders, want)
 		}
 	}
 	exposeHeaders := rr.Header().Get("Access-Control-Expose-Headers")
-	for _, want := range []string{"X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset", "Retry-After"} {
+	for _, want := range []string{"X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset", "Retry-After", "X-Request-Id"} {
 		if !strings.Contains(exposeHeaders, want) {
 			t.Errorf("Access-Control-Expose-Headers = %q, manque %q", exposeHeaders, want)
 		}
+	}
+}
+
+func TestRequestID_GenerateSanitizeAndPropagate(t *testing.T) {
+	var seenCtx string
+	h := RequestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seenCtx = GetRequestID(r.Context())
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	// 1. Pas d'en-tête → génère 24 chars hex + propage dans header et contexte.
+	rr1 := httptest.NewRecorder()
+	h.ServeHTTP(rr1, httptest.NewRequest(http.MethodGet, "/v1/health", nil))
+	if len(seenCtx) != 24 || rr1.Header().Get("X-Request-Id") != seenCtx {
+		t.Fatalf("RequestID généré invalide: ctx=%q hdr=%q", seenCtx, rr1.Header().Get("X-Request-Id"))
+	}
+
+	// 2. En-tête valide → conservé tel quel.
+	req2 := httptest.NewRequest(http.MethodGet, "/v1/health", nil)
+	req2.Header.Set("X-Request-Id", "trace_abc-123")
+	rr2 := httptest.NewRecorder()
+	h.ServeHTTP(rr2, req2)
+	if seenCtx != "trace_abc-123" || rr2.Header().Get("X-Request-Id") != "trace_abc-123" {
+		t.Fatalf("RequestID valide non propagé: ctx=%q", seenCtx)
+	}
+
+	// 3. En-tête injecté/malveillant → rejeté et régénéré.
+	req3 := httptest.NewRequest(http.MethodGet, "/v1/health", nil)
+	req3.Header.Set("X-Request-Id", "bad\r\nheader value")
+	rr3 := httptest.NewRecorder()
+	h.ServeHTTP(rr3, req3)
+	if seenCtx == "" || strings.ContainsAny(seenCtx, "\r\n ") {
+		t.Fatalf("RequestID malveillant non sanitisé: %q", seenCtx)
 	}
 }
 
