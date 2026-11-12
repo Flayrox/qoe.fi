@@ -43,6 +43,18 @@ const (
 	SourcePostsReport = "api:posts.report"
 	// SourcePostsLike : ajout de like (posts.ToggleLike).
 	SourcePostsLike = "api:posts.like"
+	// SourcePostsWrite : publication de pensée/réponse (spam coordonné).
+	SourcePostsWrite = "api:posts.write"
+	// SourceCommentsWrite : publication de commentaire (essaim ou spam).
+	SourceCommentsWrite = "api:comments.write"
+	// SourceConversationsDM : ouverture de conversation à froid.
+	SourceConversationsDM = "api:conversations.dm"
+	// SourceCreatorFollow : churn ou anneau de follow.
+	SourceCreatorFollow = "api:creator.follow"
+	// SourceTrustNetwork : multi-comptes sur même sous-réseau IP.
+	SourceTrustNetwork = "api:trust.network"
+	// SourceWorkerFollowRing : audit périodique du graphe des follows.
+	SourceWorkerFollowRing = "worker:follow.ring"
 )
 
 // clampConfidence borne la confiance 0-100 (l'anti-abus n'invalide jamais

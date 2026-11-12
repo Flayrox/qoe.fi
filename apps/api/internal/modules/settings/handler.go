@@ -10,6 +10,7 @@ import (
 	"github.com/qoefi/api/internal/authz"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
+	"github.com/qoefi/api/internal/secguard"
 )
 
 // Handler expose les endpoints de settings du créateur.
@@ -241,6 +242,9 @@ func (h *Handler) updateProfile(w http.ResponseWriter, r *http.Request) {
 			response.NotFound(w, "Utilisateur introuvable")
 			return
 		}
+		if secguard.WriteRejection(w, err) {
+			return
+		}
 		log.Printf("[settings] updateProfile: %v", err)
 		response.BadRequest(w, err.Error())
 		return
@@ -292,6 +296,9 @@ func (h *Handler) saveNavigation(w http.ResponseWriter, r *http.Request) {
 	if err := h.svc.SaveNavigation(r.Context(), userID, in.PublisherID, in.Links); err != nil {
 		if errors.Is(err, errForbidden) {
 			response.Forbidden(w, "Accès refusé à cette publication.")
+			return
+		}
+		if secguard.WriteRejection(w, err) {
 			return
 		}
 		log.Printf("[settings] saveNavigation: %v", err)
@@ -350,6 +357,9 @@ func (h *Handler) saveSocial(w http.ResponseWriter, r *http.Request) {
 	if err := h.svc.SaveSocial(r.Context(), userID, in.PublisherID, in.Links); err != nil {
 		if errors.Is(err, errForbidden) {
 			response.Forbidden(w, "Accès refusé à cette publication.")
+			return
+		}
+		if secguard.WriteRejection(w, err) {
 			return
 		}
 		log.Printf("[settings] saveSocial: %v", err)

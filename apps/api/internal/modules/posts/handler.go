@@ -1,7 +1,6 @@
 package posts
 
 import (
-	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
@@ -9,16 +8,48 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/qoefi/api/internal/antispam"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
+	"github.com/qoefi/api/internal/secguard"
+	"github.com/qoefi/api/internal/trust"
 )
 
 type Handler struct {
 	svc *Service
+	sec *secguard.Guard
 }
 
 func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
+}
+
+// SetSecurityGuard attache le garde anti-spam et rate-limit temps réel (nil-safe).
+func (h *Handler) SetSecurityGuard(g *secguard.Guard) *Handler {
+	h.sec = g
+	return h
+}
+
+func (h *Handler) enforceRateLimit(w http.ResponseWriter, r *http.Request, scope, userID string, quotas secguard.TierQuotas) bool {
+	prof := h.sec.EvaluateRequest(r.Context(), r, userID)
+	return h.sec.EnforceRateLimit(r.Context(), w, r, scope, userID, prof.Tier, quotas)
+}
+
+func (h *Handler) enforceThoughtWrite(w http.ResponseWriter, r *http.Request, userID, text string, validate func(trust.Tier) error) bool {
+	prof := h.sec.EvaluateRequest(r.Context(), r, userID)
+	if !h.sec.EnforceRateLimit(r.Context(), w, r, "thoughts", userID, prof.Tier, secguard.QuotasThoughts) {
+		return false
+	}
+	if h.sec != nil {
+		return h.sec.EnforceContentWrite(r.Context(), w, userID, "thoughts", text, prof, validate)
+	}
+	if err := validate(prof.Tier); err != nil {
+		if !secguard.WriteRejection(w, err) {
+			response.BadRequest(w, err.Error())
+		}
+		return false
+	}
+	return true
 }
 
 type createThoughtInput struct {
@@ -85,8 +116,22 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 
 	var in createThoughtInput
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		response.BadRequest(w, "JSON invalide")
+	if !response.DecodeJSON(w, r, &in) {
+		return
+	}
+	if !h.enforceThoughtWrite(w, r, userID, in.Content, func(tier trust.Tier) error {
+		if in.ImageURL != nil {
+			if err := antispam.ValidateSafeURL(*in.ImageURL); err != nil {
+				return err
+			}
+		}
+		for _, att := range in.Attachments {
+			if err := antispam.ValidateSafeURL(att.URL); err != nil {
+				return err
+			}
+		}
+		return antispam.ValidateThought(in.Content, in.Tags, tier)
+	}) {
 		return
 	}
 
@@ -174,10 +219,7 @@ func (h *Handler) quotes(w http.ResponseWriter, r *http.Request) {
 }
 
 func parsePage(r *http.Request) (limit, offset int) {
-	limit, _ = strconv.Atoi(r.URL.Query().Get("limit"))
-	if limit <= 0 || limit > 100 {
-		limit = 50
-	}
+	limit = middleware.ClampLimit(r.URL.Query().Get("limit"), 50, 100)
 	if c := r.URL.Query().Get("cursor"); c != "" {
 		offset, _ = strconv.Atoi(c)
 	}
@@ -224,8 +266,10 @@ func (h *Handler) createReport(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 
 	var in reportInput
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		response.BadRequest(w, "JSON invalide")
+	if !response.DecodeJSON(w, r, &in) {
+		return
+	}
+	if !h.enforceRateLimit(w, r, "reports", userID, secguard.QuotasReports) {
 		return
 	}
 	if err := h.svc.Report(r.Context(), userID, in.TargetID, in.TargetType, in.Reason, in.Details); err != nil {
@@ -238,6 +282,9 @@ func (h *Handler) createReport(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) toggleLike(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	id := chi.URLParam(r, "id")
+	if !h.enforceRateLimit(w, r, "engagement", userID, secguard.QuotasEngagement) {
+		return
+	}
 
 	liked, err := h.svc.ToggleLike(r.Context(), id, userID)
 	if err != nil {
@@ -255,6 +302,9 @@ func (h *Handler) toggleLike(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) toggleRepost(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	id := chi.URLParam(r, "id")
+	if !h.enforceRateLimit(w, r, "engagement", userID, secguard.QuotasEngagement) {
+		return
+	}
 
 	reposted, err := h.svc.ToggleRepost(r.Context(), id, userID)
 	if err != nil {
@@ -274,8 +324,12 @@ func (h *Handler) reply(w http.ResponseWriter, r *http.Request) {
 	parentID := chi.URLParam(r, "id")
 
 	var in createThoughtInput
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		response.BadRequest(w, "JSON invalide")
+	if !response.DecodeJSON(w, r, &in) {
+		return
+	}
+	if !h.enforceThoughtWrite(w, r, userID, in.Content, func(tier trust.Tier) error {
+		return antispam.ValidateThought(in.Content, nil, tier)
+	}) {
 		return
 	}
 
@@ -301,12 +355,14 @@ func (h *Handler) votePoll(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
 	var in votePollInput
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		response.BadRequest(w, "JSON invalide")
+	if !response.DecodeJSON(w, r, &in) {
 		return
 	}
 	if in.OptionID == "" {
 		response.BadRequest(w, "optionId requis")
+		return
+	}
+	if !h.enforceRateLimit(w, r, "engagement", userID, secguard.QuotasEngagement) {
 		return
 	}
 
@@ -322,6 +378,9 @@ func (h *Handler) votePoll(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) unvotePoll(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	id := chi.URLParam(r, "id")
+	if !h.enforceRateLimit(w, r, "engagement", userID, secguard.QuotasEngagement) {
+		return
+	}
 
 	poll, err := h.svc.UnvotePoll(r.Context(), id, userID)
 	if err != nil {
@@ -334,6 +393,9 @@ func (h *Handler) unvotePoll(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) toggleBookmark(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	id := chi.URLParam(r, "id")
+	if !h.enforceRateLimit(w, r, "engagement", userID, secguard.QuotasEngagement) {
+		return
+	}
 
 	bookmarked, err := h.svc.ToggleBookmark(r.Context(), id, userID)
 	if err != nil {
@@ -380,10 +442,7 @@ func (h *Handler) listDrafts(w http.ResponseWriter, r *http.Request) {
 		response.Unauthorized(w, "Authentification requise")
 		return
 	}
-	limit := 50
-	if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && v > 0 && v <= 100 {
-		limit = v
-	}
+	limit := middleware.ClampLimit(r.URL.Query().Get("limit"), 50, 100)
 	drafts, err := h.svc.ListDrafts(r.Context(), userID, limit)
 	if err != nil {
 		log.Printf("[posts] drafts: %v", err)
@@ -427,7 +486,7 @@ func (h *Handler) canReply(w http.ResponseWriter, r *http.Request) {
 // Public, sans auth : {items: [{id, authorUsername, updatedAt}], total,
 // limit, offset}. Consommé par l'index de sitemaps (shards de 1000).
 func (h *Handler) sitemapThoughts(w http.ResponseWriter, r *http.Request) {
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	limit := middleware.ClampLimit(r.URL.Query().Get("limit"), maxSitemapLimit, maxSitemapLimit)
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 
 	result, err := h.svc.SitemapThoughts(r.Context(), limit, offset)

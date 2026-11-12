@@ -24,6 +24,7 @@ import (
 	"github.com/qoefi/api/internal/modules/mediaassets"
 	"github.com/qoefi/api/internal/permissions"
 	"github.com/qoefi/api/internal/response"
+	"github.com/qoefi/api/internal/secguard"
 	"github.com/qoefi/api/internal/shared/identifier"
 	"github.com/qoefi/api/internal/slug"
 	"github.com/qoefi/api/internal/supastorage"
@@ -50,6 +51,23 @@ type Handler struct {
 	subRC     *redis.Client
 	subWindow time.Duration
 	subMax    int
+	sec       *secguard.Guard
+}
+
+// SetSecurityGuard branche le garde de sécurité temps réel (Trust + GCRA + churn).
+func (h *Handler) SetSecurityGuard(g *secguard.Guard) *Handler {
+	h.sec = g
+	return h
+}
+
+func (h *Handler) invalidateFollowTrust(ctx context.Context, actorID, targetUserID string) {
+	if h.sec == nil {
+		return
+	}
+	h.sec.InvalidateTrust(ctx, actorID)
+	if targetUserID != "" && targetUserID != actorID {
+		h.sec.InvalidateTrust(ctx, targetUserID)
+	}
 }
 
 // SetAsynqClient branche le client asynq (envoi des confirmations).
@@ -286,8 +304,7 @@ type categoryInput struct {
 func (h *Handler) createCategory(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	var in categoryInput
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		response.BadRequest(w, "JSON invalide")
+	if !response.DecodeJSON(w, r, &in) {
 		return
 	}
 	if in.PublisherID == "" || in.Name == "" {
@@ -355,8 +372,7 @@ func (h *Handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	id := chi.URLParam(r, "id")
 	var in categoryInput
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		response.BadRequest(w, "JSON invalide")
+	if !response.DecodeJSON(w, r, &in) {
 		return
 	}
 
@@ -997,10 +1013,7 @@ func (h *Handler) userFollowing(w http.ResponseWriter, r *http.Request) {
 }
 
 func parseFollowPage(r *http.Request) (limit, offset int) {
-	limit, _ = strconv.Atoi(r.URL.Query().Get("limit"))
-	if limit <= 0 || limit > 100 {
-		limit = 50
-	}
+	limit = middleware.ClampLimit(r.URL.Query().Get("limit"), 50, 100)
 	if c := r.URL.Query().Get("cursor"); c != "" {
 		offset, _ = strconv.Atoi(c)
 	}
@@ -1021,8 +1034,12 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 		response.Unauthorized(w, "Non authentifié")
 		return
 	}
-	targetID := chi.URLParam(r, "id")
 	ctx := r.Context()
+	prof := h.sec.EvaluateRequest(ctx, r, userID)
+	if !h.sec.EnforceRateLimit(ctx, w, r, "follow", userID, prof.Tier, secguard.QuotasFollow) {
+		return
+	}
+	targetID := chi.URLParam(r, "id")
 
 	// Résout targetID vers l'ID de publication si un slug, username ou User.id est passé
 	pubID := targetID
@@ -1069,6 +1086,8 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 			log.Printf("[creator] delete follow notification: %v", err)
 		}
 		h.cancelFollowRequest(ctx, userID, pubID)
+		h.sec.TrackFollowAction(ctx, userID, targetID)
+		h.invalidateFollowTrust(ctx, userID, access.OwnerID)
 		count, err := h.q.CountFollowers(ctx, pubID)
 		if err != nil {
 			count = 0
@@ -1084,6 +1103,8 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 	// Une demande est déjà en attente : le clic l'annule.
 	if access.Requested {
 		h.cancelFollowRequest(ctx, userID, pubID)
+		h.sec.TrackFollowAction(ctx, userID, targetID)
+		h.invalidateFollowTrust(ctx, userID, access.OwnerID)
 		count, err := h.q.CountFollowers(ctx, pubID)
 		if err != nil {
 			count = 0
@@ -1105,6 +1126,8 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 		if err := notifyFollowRequest(ctx, h.q, pubID, userID); err != nil {
 			log.Printf("[creator] follow request notification: %v", err)
 		}
+		h.sec.TrackFollowAction(ctx, userID, targetID)
+		h.invalidateFollowTrust(ctx, userID, access.OwnerID)
 		count, err := h.q.CountFollowers(ctx, pubID)
 		if err != nil {
 			count = 0
@@ -1121,6 +1144,8 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 	if err := notifyFollow(ctx, h.q, pubID, userID); err != nil {
 		log.Printf("[creator] follow notification: %v", err)
 	}
+	h.sec.TrackFollowAction(ctx, userID, targetID)
+	h.invalidateFollowTrust(ctx, userID, access.OwnerID)
 	count, err := h.q.CountFollowers(ctx, pubID)
 	if err != nil {
 		count = 0
@@ -1245,6 +1270,7 @@ func (h *Handler) removeFollower(w http.ResponseWriter, r *http.Request) {
 
 	// Suppression d'éventuelles notifications d'abonnement en attente.
 	_ = deleteFollowNotification(r.Context(), h.q, pubID, targetUserID)
+	h.invalidateFollowTrust(r.Context(), userID, targetUserID)
 
 	response.OK(w, map[string]any{"removed": true})
 }
@@ -1289,11 +1315,8 @@ func timestampPtr(t pgtype.Timestamp) *string {
 
 // parseLimitCursor borne limit (20 défaut, 100 max) et offset.
 func parseLimitCursor(r *http.Request) (int, int) {
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	limit := middleware.ClampLimit(r.URL.Query().Get("limit"), 20, 100)
 	offset, _ := strconv.Atoi(r.URL.Query().Get("cursor"))
-	if limit <= 0 || limit > 100 {
-		limit = 20
-	}
 	if offset < 0 {
 		offset = 0
 	}

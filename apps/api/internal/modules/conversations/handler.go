@@ -1,24 +1,32 @@
 package conversations
 
 import (
-	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/qoefi/api/internal/antispam"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
+	"github.com/qoefi/api/internal/secguard"
+	"github.com/qoefi/api/internal/trust"
 )
 
 type Handler struct {
 	svc *Service
+	sec *secguard.Guard
 }
 
 func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
+}
+
+// SetSecurityGuard attache le garde anti-spam et rate-limit temps réel (nil-safe).
+func (h *Handler) SetSecurityGuard(g *secguard.Guard) *Handler {
+	h.sec = g
+	return h
 }
 
 func (h *Handler) Register(r chi.Router) {
@@ -44,8 +52,16 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		ParticipantID string `json:"participantId"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		response.BadRequest(w, "JSON invalide")
+	if !response.DecodeJSON(w, r, &in) {
+		return
+	}
+	prof := h.sec.EvaluateRequest(r.Context(), r, userID)
+	if !h.sec.EnforceRateLimit(r.Context(), w, r, "dm", userID, prof.Tier, secguard.QuotasDMs) {
+		return
+	}
+	isFollower := h.svc.IsFollower(r.Context(), in.ParticipantID, userID)
+	if err := h.sec.CheckColdDM(r.Context(), userID, in.ParticipantID, isFollower, prof); err != nil {
+		h.writeErr(w, err)
 		return
 	}
 	conv, err := h.svc.CreateDirect(r.Context(), userID, in.ParticipantID)
@@ -62,7 +78,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 		response.Unauthorized(w, "Non authentifié")
 		return
 	}
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	limit := middleware.ClampLimit(r.URL.Query().Get("limit"), 50, 100)
 	convs, err := h.svc.List(r.Context(), userID, limit)
 	if err != nil {
 		log.Printf("[conversations] list: %v", err)
@@ -116,7 +132,7 @@ func (h *Handler) listMessages(w http.ResponseWriter, r *http.Request) {
 		}
 		before = &t
 	}
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	limit := middleware.ClampLimit(r.URL.Query().Get("limit"), 50, 100)
 	page, err := h.svc.ListMessages(r.Context(), userID, chi.URLParam(r, "id"), before, limit)
 	if err != nil {
 		h.writeErr(w, err)
@@ -134,8 +150,24 @@ func (h *Handler) sendMessage(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		Content string `json:"content"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		response.BadRequest(w, "JSON invalide")
+	if !response.DecodeJSON(w, r, &in) {
+		return
+	}
+	prof := h.sec.EvaluateRequest(r.Context(), r, userID)
+	if !h.sec.EnforceRateLimit(r.Context(), w, r, "dm", userID, prof.Tier, secguard.QuotasDMs) {
+		return
+	}
+	validate := func(tier trust.Tier) error {
+		return antispam.ValidateDM(in.Content, tier)
+	}
+	if h.sec != nil {
+		if !h.sec.EnforceContentWrite(r.Context(), w, userID, "dm", in.Content, prof, validate) {
+			return
+		}
+	} else if err := validate(prof.Tier); err != nil {
+		if !secguard.WriteRejection(w, err) {
+			response.BadRequest(w, err.Error())
+		}
 		return
 	}
 	msg, err := h.svc.SendMessage(r.Context(), userID, chi.URLParam(r, "id"), in.Content)
@@ -161,6 +193,9 @@ func (h *Handler) markRead(w http.ResponseWriter, r *http.Request) {
 
 // writeErr mappe les erreurs métier en réponses HTTP.
 func (h *Handler) writeErr(w http.ResponseWriter, err error) {
+	if secguard.WriteRejection(w, err) {
+		return
+	}
 	switch {
 	case errors.Is(err, ErrNotFound), errors.Is(err, ErrParticipantMissing):
 		response.NotFound(w, "Conversation introuvable")
@@ -168,6 +203,10 @@ func (h *Handler) writeErr(w http.ResponseWriter, err error) {
 		response.BadRequest(w, "Impossible de se messager soi-même")
 	case errors.Is(err, ErrBlocked):
 		response.Forbidden(w, "Conversation bloquée")
+	case errors.Is(err, ErrConversationRateLimit), errors.Is(err, ErrMessageRateLimit):
+		response.TooManyRequests(w, 60, antispam.CodeWriteCooldown, err.Error())
+	case errors.Is(err, ErrDuplicateMessage):
+		response.TooManyRequests(w, 5, antispam.CodeSpamDuplicate, err.Error())
 	case err != nil && err.Error() == "message vide":
 		response.BadRequest(w, "Message vide")
 	case err != nil && err.Error() == "message trop long":

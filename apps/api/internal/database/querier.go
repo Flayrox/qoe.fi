@@ -281,6 +281,8 @@ type Querier interface {
 	GetLatestArticleReviewFeedback(ctx context.Context, articleid string) (GetLatestArticleReviewFeedbackRow, error)
 	GetLatestArticleSnapshotByArticle(ctx context.Context, articleid string) (ArticleSnapshot, error)
 	GetLatestArticleSnapshotByArticleAndActor(ctx context.Context, arg GetLatestArticleSnapshotByArticleAndActorParams) (ArticleSnapshot, error)
+	GetLatestArticleSnapshotByReason(ctx context.Context, arg GetLatestArticleSnapshotByReasonParams) (GetLatestArticleSnapshotByReasonRow, error)
+	GetLatestArticleSnapshotMeta(ctx context.Context, articleid string) (GetLatestArticleSnapshotMetaRow, error)
 	GetLatestLegalConsentExport(ctx context.Context) (LegalConsentExport, error)
 	GetLegalAcceptance(ctx context.Context, arg GetLegalAcceptanceParams) (LegalAcceptance, error)
 	// ─── Rappels aux superadmins ─────────────────────────────────────────
@@ -727,6 +729,7 @@ type Querier interface {
 	// Volume et nombre d'assets non purgés d'un utilisateur (quota de stockage).
 	OwnerMediaUsage(ctx context.Context, ownerid string) (OwnerMediaUsageRow, error)
 	PinPost(ctx context.Context, arg PinPostParams) (bool, error)
+	PruneOldArticleSnapshots(ctx context.Context, arg PruneOldArticleSnapshotsParams) error
 	PublishArticleDraft(ctx context.Context, id string) (string, error)
 	PublishLegalDocumentVersion(ctx context.Context, id string) (LegalDocumentVersion, error)
 	// Réactive un asset purgé/supprimé (nouvelle fenêtre de 3 jours).

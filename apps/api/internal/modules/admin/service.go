@@ -16,6 +16,7 @@ import (
 	"github.com/qoefi/api/internal/adminauthz"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/flags"
+	"github.com/qoefi/api/internal/trust"
 )
 
 var errForbidden = errors.New("réservé au superadmin")
@@ -43,6 +44,8 @@ type Service struct {
 	// observation, ou un garde non branché, laisserait valider un acte lourd
 	// par quelqu'un qui n'a pas le droit de le commettre.
 	access adminauthz.Lookup
+
+	trustSvc *trust.Service
 }
 
 // SetAsynqClient branche le client asynq (enfilement des tranches de
@@ -66,6 +69,11 @@ func NewService(pool *pgxpool.Pool) *Service {
 // SetFlags branche le service feature flags (gating du journal d'audit).
 func (s *Service) SetFlags(f *flags.Service) {
 	s.flags = f
+}
+
+// SetTrustService branche le cache Trust pour invalidation temps réel.
+func (s *Service) SetTrustService(ts *trust.Service) {
+	s.trustSvc = ts
 }
 
 // DashboardCounts sont les compteurs de la page d'accueil admin (parité
@@ -342,6 +350,10 @@ func (s *Service) UpdateModeration(ctx context.Context, userID, targetID string,
 		}); err != nil {
 			return nil, err
 		}
+	}
+
+	if isShadowbanned != cur.IsShadowbanned || isSuspended != cur.IsSuspended || isCertified != cur.IsCertified {
+		s.trustSvc.InvalidateUser(ctx, targetID)
 	}
 
 	s.logAudit(ctx, userID, "moderation.update", "user", targetID, map[string]any{

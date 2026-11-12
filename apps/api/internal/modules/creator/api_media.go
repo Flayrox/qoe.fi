@@ -15,21 +15,13 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/modules/mediaassets"
+	"github.com/qoefi/api/internal/netguard"
 	"github.com/qoefi/api/internal/response"
 	"github.com/qoefi/api/internal/supastorage"
 )
 
 // maxMediaBytes borne la taille des uploads (10 Mo — couvertures/corps).
 const maxMediaBytes = 10 << 20
-
-// allowedMediaTypes est l'allowlist MIME des images acceptées (ext → nom).
-var allowedMediaTypes = map[string]string{
-	"image/jpeg": "jpg",
-	"image/png":  "png",
-	"image/gif":  "gif",
-	"image/webp": "webp",
-	"image/avif": "avif",
-}
 
 // WithMediaUpload injecte le client de stockage + le registre d'assets
 // (upload d'images créateur). Nil-safe : sans eux, POST /v1/creator/media
@@ -64,9 +56,8 @@ func (h *Handler) apiMediaUpload(w http.ResponseWriter, r *http.Request) {
 
 	// Lecture du fichier : multipart (champ `file`) ou body brut (curl --data-binary).
 	var (
-		data        []byte
-		contentType string
-		err         error
+		data []byte
+		err  error
 	)
 	headerCT := strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0])
 	if strings.HasPrefix(headerCT, "multipart/form-data") {
@@ -74,7 +65,7 @@ func (h *Handler) apiMediaUpload(w http.ResponseWriter, r *http.Request) {
 			response.BadRequest(w, "Formulaire invalide ou fichier trop volumineux (max 10 Mo)")
 			return
 		}
-		file, header, ferr := r.FormFile("file")
+		file, _, ferr := r.FormFile("file")
 		if ferr != nil {
 			response.BadRequest(w, "Champ `file` manquant")
 			return
@@ -85,17 +76,12 @@ func (h *Handler) apiMediaUpload(w http.ResponseWriter, r *http.Request) {
 			response.BadRequest(w, "Lecture du fichier impossible")
 			return
 		}
-		contentType = strings.TrimSpace(strings.Split(header.Header.Get("Content-Type"), ";")[0])
-		if _, ok := allowedMediaTypes[contentType]; !ok {
-			contentType = http.DetectContentType(data)
-		}
 	} else {
 		data, err = io.ReadAll(io.LimitReader(r.Body, maxMediaBytes+1))
 		if err != nil {
 			response.BadRequest(w, "Lecture du fichier impossible")
 			return
 		}
-		contentType = headerCT
 	}
 
 	if len(data) == 0 {
@@ -106,9 +92,9 @@ func (h *Handler) apiMediaUpload(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "Fichier trop volumineux (max 10 Mo)")
 		return
 	}
-	ext, ok := allowedMediaTypes[contentType]
+	contentType, ext, ok := netguard.SniffImageMIME(data)
 	if !ok {
-		response.BadRequest(w, "Type de fichier non supporté (jpeg, png, gif, webp, avif)")
+		response.BadRequest(w, "Type de fichier non supporté ou contenu invalide (jpeg, png, gif, webp, avif)")
 		return
 	}
 

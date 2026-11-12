@@ -120,7 +120,14 @@ func (s *Service) DecideAbuseAppeal(ctx context.Context, userID, id, status, out
 	if err := s.checkSuperadmin(ctx, userID); err != nil {
 		return abuse.Appeal{}, err
 	}
-	return abuse.DecideAppeal(ctx, s.pool, id, userID, status, outcome, staffNote, reply, time.Now())
+	a, err := abuse.DecideAppeal(ctx, s.pool, id, userID, status, outcome, staffNote, reply, time.Now())
+	if err != nil {
+		return abuse.Appeal{}, err
+	}
+	if a.SubjectType == "user" && a.SubjectID != "" {
+		s.trustSvc.InvalidateUser(ctx, a.SubjectID)
+	}
+	return a, nil
 }
 
 // Support général (tranche 6, superadmin uniquement) : file, détail,
@@ -261,5 +268,12 @@ func (s *Service) ResolveAbuseDecision(ctx context.Context, userID, subjectType,
 	if err := s.checkSuperadmin(ctx, userID); err != nil {
 		return "", err
 	}
-	return abuse.ResolveDecision(ctx, s.pool, subjectType, subjectID, userID, abuse.Decision(result), note, time.Now())
+	id, err := abuse.ResolveDecision(ctx, s.pool, subjectType, subjectID, userID, abuse.Decision(result), note, time.Now())
+	if err != nil {
+		return "", err
+	}
+	if subjectType == "user" && subjectID != "" {
+		s.trustSvc.InvalidateUser(ctx, subjectID)
+	}
+	return id, nil
 }

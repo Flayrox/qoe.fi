@@ -9,9 +9,10 @@ package ai
 // l'éditorial).
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
 	goai "github.com/qoefi/api/internal/ai"
@@ -71,8 +72,11 @@ func (h *Handler) summarize(w http.ResponseWriter, r *http.Request) {
 		ArticleID string `json:"articleId"`
 		Locale    string `json:"locale"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.ArticleID == "" {
-		response.BadRequest(w, "JSON invalide (articleId requis)")
+	if !response.DecodeJSON(w, r, &in) {
+		return
+	}
+	if in.ArticleID == "" {
+		response.BadRequest(w, "articleId requis")
 		return
 	}
 	out, err := h.svc.Summarize(r.Context(), uid, in.ArticleID, in.Locale)
@@ -94,11 +98,15 @@ func (h *Handler) explain(w http.ResponseWriter, r *http.Request) {
 		Text   string `json:"text"`
 		Locale string `json:"locale"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		response.BadRequest(w, "JSON invalide")
+	if !response.DecodeJSON(w, r, &in) {
 		return
 	}
-	out, err := h.svc.Explain(r.Context(), uid, in.Text, in.Locale)
+	trimmed := strings.TrimSpace(in.Text)
+	if n := utf8.RuneCountInString(trimmed); n < 1 || n > 2000 {
+		response.BadRequest(w, "extrait de 1 à 2000 caractères")
+		return
+	}
+	out, err := h.svc.Explain(r.Context(), uid, trimmed, in.Locale)
 	if err != nil {
 		h.mapErr(w, err)
 		return

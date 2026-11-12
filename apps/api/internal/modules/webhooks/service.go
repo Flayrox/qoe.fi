@@ -24,11 +24,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qoefi/api/internal/apiaccess"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/netguard"
 )
 
 var (
-	errNotFound  = errors.New("webhook introuvable")
-	errForbidden = errors.New("permission insuffisante")
+	errNotFound   = errors.New("webhook introuvable")
+	errForbidden  = errors.New("permission insuffisante")
+	errInvalidURL = errors.New("URL invalide")
 )
 
 // ValidWebhookEvents est la liste blanche des événements souscriptibles.
@@ -71,12 +73,20 @@ type TestResult struct {
 }
 
 type Service struct {
-	pool *pgxpool.Pool
-	q    *db.Queries
+	pool       *pgxpool.Pool
+	q          *db.Queries
+	httpClient *http.Client
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
 	return &Service{pool: pool, q: db.New(pool)}
+}
+
+func (s *Service) client() *http.Client {
+	if s.httpClient != nil {
+		return s.httpClient
+	}
+	return netguard.SafeHTTPClient(10 * time.Second)
 }
 
 // resolveRole retourne le rôle de l'utilisateur sur la publication
@@ -163,6 +173,9 @@ func (s *Service) List(ctx context.Context, userID, publisherID string) ([]Webho
 // Create crée un webhook (owner/editor requis) et retourne le secret
 // (affiché une seule fois, signature HMAC des livraisons).
 func (s *Service) Create(ctx context.Context, userID, publisherID, name, url string, events []string) (Webhook, string, error) {
+	if err := netguard.ValidateExternalURL(url); err != nil {
+		return Webhook{}, "", fmt.Errorf("%w : %w", errInvalidURL, err)
+	}
 	if err := s.requireWebhookGrant(ctx, userID); err != nil {
 		return Webhook{}, "", err
 	}
@@ -252,6 +265,9 @@ func (s *Service) Test(ctx context.Context, userID, id, publisherID string) (Tes
 	if err != nil {
 		return TestResult{}, err
 	}
+	if err := netguard.ValidateExternalURL(wh.Url); err != nil {
+		return TestResult{}, fmt.Errorf("%w : %w", errInvalidURL, err)
+	}
 
 	body := fmt.Sprintf(`{"event":"webhook.test","data":{"publisherId":%q},"timestamp":%q}`,
 		publisherID, time.Now().UTC().Format(time.RFC3339))
@@ -269,8 +285,7 @@ func (s *Service) Test(ctx context.Context, userID, id, publisherID string) (Tes
 		req.Header.Set("X-Qoe-Signature", "sha256="+signature)
 		req.Header.Set("X-Qoe-Event", "webhook.test")
 		req.Header.Set("User-Agent", "qoe-fi-webhook/1.0")
-		client := &http.Client{Timeout: 10 * time.Second}
-		res, err := client.Do(req)
+		res, err := s.client().Do(req)
 		if err != nil {
 			respErr = err
 		} else {

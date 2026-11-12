@@ -252,9 +252,79 @@ var PolicyV2 = Policy{
 	},
 }
 
+// PolicyV3 étend PolicyV2 avec la détection temps réel des attaques
+// coordonnées et anti-sybil : anneaux de follows mutuels, churn agressif,
+// raids de commentaires, démarchage DM à froid, campagnes de spam SimHash
+// multi-comptes et fermes multi-comptes sur même sous-réseau IP.
+var PolicyV3 = Policy{
+	Name:    "abuse-core",
+	Version: "v3",
+	Rules: []BurstRule{
+		PolicyV2.Rules[0],
+		PolicyV2.Rules[1],
+		PolicyV2.Rules[2],
+		PolicyV2.Rules[3],
+		PolicyV2.Rules[4],
+		{
+			Name:         "follow-ring",
+			SignalType:   SignalFollowRing,
+			SubjectScope: SubjectUser,
+			Window:       24 * time.Hour,
+			Threshold:    3,
+			Result:       DecisionLimitDistribution,
+			Reason:       "sybil.follow.ring",
+		},
+		{
+			Name:         "follow-churn",
+			SignalType:   SignalFollowChurn,
+			SubjectScope: SubjectUser,
+			Window:       time.Hour,
+			Threshold:    20,
+			Result:       DecisionSlow,
+			Reason:       "sybil.follow.churn",
+		},
+		{
+			Name:         "comment-swarm",
+			SignalType:   SignalCommentSwarm,
+			SubjectScope: SubjectArticle,
+			Window:       10 * time.Minute,
+			Threshold:    30,
+			Result:       DecisionNeedsReview,
+			Reason:       "swarm.comment.target",
+		},
+		{
+			Name:         "dm-cold-burst",
+			SignalType:   SignalDMColdBurst,
+			SubjectScope: SubjectUser,
+			Window:       time.Hour,
+			Threshold:    20,
+			Result:       DecisionPauseSending,
+			Reason:       "spam.dm.cold_burst",
+		},
+		{
+			Name:         "coordinated-spam",
+			SignalType:   SignalCoordinatedSpam,
+			SubjectScope: SubjectUser,
+			Window:       time.Hour,
+			Threshold:    2,
+			Result:       DecisionLimitDistribution,
+			Reason:       "spam.coordinated",
+		},
+		{
+			Name:         "subnet-multi-account",
+			SignalType:   SignalSubnetMultiAccount,
+			SubjectScope: SubjectSubnet,
+			Window:       time.Hour,
+			Threshold:    4,
+			Result:       DecisionNeedsReview,
+			Reason:       "network.multi_account",
+		},
+	},
+}
+
 // CurrentPolicy est la politique appliquée par le noyau (persistance +
-// évaluation). V1 reste testée et rejouable pour l'audit historique.
-var CurrentPolicy = PolicyV2
+// évaluation). V1 et V2 restent testées et rejouables pour l'audit historique.
+var CurrentPolicy = PolicyV3
 
 const (
 	// SignalLikeCast : un like a été AJOUTÉ sur une pensée (les retraits ne
@@ -264,10 +334,31 @@ const (
 	// Détecte les fermes d'engagement côté acteur.
 	SignalLikeVolume = "like.volume"
 
+	// SignalFollowRing : participation suspecte à une clique fermée de follows mutuels.
+	SignalFollowRing = "follow.ring"
+	// SignalFollowChurn : rafale rapide de follow/unfollow (follow-farming).
+	SignalFollowChurn = "follow.churn"
+	// SignalCommentSwarm : raid soudain de commentaires sur un même article.
+	SignalCommentSwarm = "comment.swarm"
+	// SignalDMColdBurst : ouverture répétée de conversations DM avec des non-abonnés.
+	SignalDMColdBurst = "dm.cold_burst"
+	// SignalCoordinatedSpam : même contenu/SimHash publié par plusieurs comptes.
+	SignalCoordinatedSpam = "spam.coordinated"
+	// SignalSubnetMultiAccount : trop de comptes actifs simultanés sur un même /24 ou /64.
+	SignalSubnetMultiAccount = "network.multi_account"
+
 	// SubjectLikeTarget : l'essaim vise une pensée likée. Le sujet réel
 	// (post:<id>) est dans SubjectID.
 	SubjectLikeTarget = "like_target"
+	// SubjectArticle : un article ciblé par un essaim de commentaires.
+	SubjectArticle = "article"
+	// SubjectSubnet : un sous-réseau IP (/24 IPv4 ou /64 IPv6).
+	SubjectSubnet = "subnet"
 )
+
+// CoordinatedSignalRetention : 7 jours — les campagnes anti-sybil et
+// anneaux de bots peuvent être rejoués sur la semaine pour la revue admin.
+const CoordinatedSignalRetention = 7 * 24 * time.Hour
 
 // LikeSignalRetention : 24 h — une ferme d'engagement frappe vite ; au
 // delà, les faits bruts n'apprennent plus rien (même régime que signup).
@@ -294,7 +385,7 @@ func Decisions() []string {
 func ReasonCodes() []string {
 	seen := map[string]bool{}
 	var out []string
-	for _, p := range []Policy{PolicyV1, PolicyV2} {
+	for _, p := range []Policy{PolicyV1, PolicyV2, PolicyV3} {
 		for _, r := range p.Rules {
 			if !seen[r.Reason] {
 				seen[r.Reason] = true

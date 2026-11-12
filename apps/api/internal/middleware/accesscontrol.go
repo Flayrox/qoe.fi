@@ -45,6 +45,9 @@ func (s *accessControlState) load(ctx context.Context) apiaccess.AccessControlCo
 	if time.Since(s.at) < accessControlTTL {
 		return s.cfg
 	}
+	if s.pool == nil {
+		return s.cfg
+	}
 	cfg, err := apiaccess.LoadAccessControl(ctx, s.pool)
 	if err != nil {
 		// Lecture config impossible → on laisse l'API ouverte (disponibilité

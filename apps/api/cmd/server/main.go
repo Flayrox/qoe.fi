@@ -59,7 +59,9 @@ import (
 	"github.com/qoefi/api/internal/modules/webhooks"
 	"github.com/qoefi/api/internal/modules/workspaces"
 	"github.com/qoefi/api/internal/queue"
+	"github.com/qoefi/api/internal/secguard"
 	"github.com/qoefi/api/internal/supastorage"
+	"github.com/qoefi/api/internal/trust"
 	"github.com/qoefi/api/internal/umami"
 	"github.com/qoefi/api/internal/workers"
 )
@@ -133,6 +135,10 @@ func run(ctx context.Context) error {
 		Addr:              ":" + cfg.Port,
 		Handler:           r,
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    64 << 10,
 	}
 
 	serveErr := make(chan error, 1)
@@ -229,16 +235,24 @@ func newRouter(d RouterDeps) *chi.Mux {
 		return flagsSvc.IsOn(ctx, flags.AuthzEnforce)
 	})
 
+	// Score de confiance temps réel (0..100) et garde anti-spam / anti-sybil
+	// multi-couches partagés par tous les modules sensibles.
+	trustSvc := trust.NewService(pool, rc)
+	secGuard := secguard.New(pool, rc)
+
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
 	r.Use(authmw.Recovery)
 	r.Use(authmw.Logger)
-	r.Use(authmw.CORS([]string{"http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "https://qoe.fi", "https://*.qoe.fi"}))
-	// Rate-limiting global : 120 req/min par IP (anti-spam public).
-	// Global généreux : le trafic pages (SSR + widgets) compte ici ; les
-	// routes sensibles ont leur propre limiteur namespacé en plus.
+	r.Use(authmw.SecurityHeaders)
+	r.Use(authmw.CORS(corsAllowedOrigins(d.DevtoolsDevOnly)))
+	r.Use(routeAwareMaxBodyBytes())
+	// Rate-limiting global : 600 req/min par IP (GCRA Redis) + limites
+	// dédiées sur les endpoints publics critiques (/search/semantic,
+	// /v1/tracking/*, /v1/auth/registration-status, etc.).
 	r.Use(authmw.RateLimit("global", rc, time.Minute, 600, false))
+	r.Use(publicRouteRateLimit(rc))
 	// Contrôle d'accès global de l'API (coupure générale + endpoints désactivés),
 	// piloté par les superadmins — la console admin / l'IdP OAuth / les webhooks
 	// entrants infra restent toujours joignables.
@@ -283,10 +297,12 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// Amorçage du contenu juridique : une base sans documents (premier
 	// déploiement, base de test) reçoit le contenu embarqué. Idempotent et
 	// respectueux de l'éditeur : un contenu déjà publié n'est jamais touché.
-	if seeded, err := legalSvc.EnsureSeeded(context.Background()); err != nil {
-		log.Printf("[legal] amorçage du contenu juridique: %v", err)
-	} else if seeded.Created > 0 {
-		log.Printf("[legal] %d document(s) juridique(s) installé(s)", seeded.Created)
+	if pool != nil {
+		if seeded, err := legalSvc.EnsureSeeded(context.Background()); err != nil {
+			log.Printf("[legal] amorçage du contenu juridique: %v", err)
+		} else if seeded.Created > 0 {
+			log.Printf("[legal] %d document(s) juridique(s) installé(s)", seeded.Created)
+		}
 	}
 
 	// Endpoints internes (émission d'événements → asynq), protégés par secret.
@@ -319,7 +335,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 			})
 		})
 	}
-	articlesHandler := articles.NewHandler(articlesSvc)
+	articlesHandler := articles.NewHandler(articlesSvc).SetSecurityGuard(secGuard)
 	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
 		articlesHandler.RegisterPublic(pub)
 	})
@@ -349,7 +365,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// mesures visant son compte, Y COMPRIS suspendu (l'auth n'exclut pas les
 	// suspendus — contester reste possible). Routes enregistrées sur le
 	// groupe protégé plus bas.
-	appealsHandler := appeals.NewHandler(appeals.NewService(pool))
+	appealsSvc := appeals.NewService(pool)
+	appealsSvc.SetTrustService(trustSvc)
+	appealsHandler := appeals.NewHandler(appealsSvc)
 	// EPUBs personnels (fiche Plus P1) : bibliothèque strictement
 	// personnelle (upload, liste, lecture, couverture, progression).
 	ebooksHandler := ebooks.NewHandler(ebooks.NewService(pool))
@@ -370,7 +388,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 	// Feed & Posts : lecture publique (auth optionnelle : threads, trending, posts, profil, engagement).
 	feedHandler := feed.NewHandler(feed.NewService(pool, rc))
-	postsHandler := posts.NewHandler(posts.NewService(pool, rc, asynqClient))
+	postsHandler := posts.NewHandler(posts.NewService(pool, rc, asynqClient)).SetSecurityGuard(secGuard)
 	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
 		feedHandler.RegisterPublic(pub)
 		postsHandler.RegisterPublic(pub)
@@ -412,6 +430,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// Settings créateur : sous-domaine (public) + profil/onboarding/clés API (protégé).
 	settingsSvc := settings.NewService(pool)
 	settingsSvc.SetFlags(flagsSvc)
+	settingsSvc.SetTrustService(trustSvc)
 	// Envoi d'email de test du panneau email : même fournisseur que les
 	// workers (SMTP/Resend). Nil → 503 explicite côté endpoint.
 	settingsSvc.SetEmailTestSender(d.EmailProvider, d.EmailFrom)
@@ -437,6 +456,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// des preuves de consentement recueillies au formulaire d'inscription.
 	usersSvc := users.NewServiceWithGoTrue(pool, d.SupabaseAuthURL, d.SupabaseServiceRoleKey)
 	usersSvc.SetSignupConsentRecorder(legalSvc)
+	usersSvc.SetTrustService(trustSvc)
 	// Parcours connecté fiche 01 : l'abonnement sans ressaisie lit l'adresse
 	// vérifiée du compte via ce service (pas d'adresse déclarée crue).
 	newslettersSvc.SetEmailVerifier(usersSvc)
@@ -446,7 +466,8 @@ func newRouter(d RouterDeps) *chi.Mux {
 	})
 
 	// Profils créateurs / publications publics (/v1/users/{username}, /followers, /following)
-	creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite)
+	creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite).
+		SetSecurityGuard(secGuard)
 	creatorHandler.SetAsynqClient(asynqClient)
 	creatorHandler.SetPublicSubscribeRateLimit(rc, time.Minute, 10)
 	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
@@ -478,17 +499,19 @@ func newRouter(d RouterDeps) *chi.Mux {
 		// Quota PAR CLÉ API en plus du limiteur par user/IP (après CombinedAuth :
 		// l'id de clé est dans le contexte). Les requêtes JWT ne comptent pas ici.
 		protected.Use(authmw.RateLimitAPIKey("apikey", rc, time.Minute, d.APIKeyRateLimit))
+		// Limiteurs dédiés par route sensible (MFA TOTP 5/5m, IA 10/m, webhooks
+		// 10/m) et idempotence globale via Idempotency-Key (posts, DMs, articles…).
+		protected.Use(protectedRouteRateLimit(rc))
+		protected.Use(authmw.Idempotency(rc, 24*time.Hour))
 
 		postsHandler.RegisterProtected(protected)
 
-		// Écritures CMS (articles, catégories créateur, webhooks) : idempotence
-		// via Idempotency-Key (réessais sûrs — pas de doublon d'article).
+		// Écritures CMS (articles, catégories créateur, webhooks).
 		protected.Group(func(apiWrite chi.Router) {
-			apiWrite.Use(authmw.Idempotency(rc, 24*time.Hour))
-
 			articlesHandler.RegisterProtected(apiWrite, authmw.RequireAPIScope)
 
-			creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite)
+			creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite).
+				SetSecurityGuard(secGuard)
 			creatorHandler.WithMediaUpload(mediaStore, mediaAssetsSvc).WithMediaCDNBase(d.MediaCDNBaseURL)
 			creatorHandler.RegisterProtected(apiWrite, authmw.RequireAPIScope)
 
@@ -536,6 +559,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 		adminSvc := admin.NewService(pool)
 		adminSvc.SetFlags(flagsSvc)
+		adminSvc.SetTrustService(trustSvc)
 		adminSvc.SetFeatureUnsubscribeSecret(d.JWTSecret)
 		// Tranches des campagnes staff : sans client, StartCampaign laisse la
 		// campagne en `sending` sans avancer (reprise manuelle).
@@ -614,7 +638,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 			legalHandler.RegisterProtected(reader)
 
 			// Messagerie directe : conversations + messages (reader).
-			conversationsHandler := conversations.NewHandler(conversations.NewService(pool))
+			conversationsHandler := conversations.NewHandler(conversations.NewService(pool)).SetSecurityGuard(secGuard)
 			conversationsHandler.Register(reader)
 		})
 

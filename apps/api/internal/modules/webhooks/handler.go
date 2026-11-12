@@ -1,15 +1,14 @@
 package webhooks
 
 import (
-	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/qoefi/api/internal/middleware"
+	"github.com/qoefi/api/internal/netguard"
 	"github.com/qoefi/api/internal/response"
 )
 
@@ -74,8 +73,7 @@ type createInput struct {
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	var in createInput
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		response.BadRequest(w, "JSON invalide")
+	if !response.DecodeJSON(w, r, &in) {
 		return
 	}
 	in.Name = strings.TrimSpace(in.Name)
@@ -84,9 +82,12 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "Nom et URL requis")
 		return
 	}
-	if !strings.HasPrefix(strings.ToLower(in.URL), "https://") &&
-		!strings.HasPrefix(strings.ToLower(in.URL), "http://localhost") {
-		response.BadRequest(w, "L'URL doit commencer par https:// (ou http://localhost en dev)")
+	if !strings.HasPrefix(strings.ToLower(in.URL), "https://") {
+		response.BadRequest(w, "L'URL doit commencer par https://")
+		return
+	}
+	if err := netguard.ValidateExternalURL(in.URL); err != nil {
+		response.BadRequest(w, err.Error())
 		return
 	}
 	events := filterValidEvents(in.Events)
@@ -163,6 +164,10 @@ func (h *Handler) test(w http.ResponseWriter, r *http.Request) {
 			response.Forbidden(w, err.Error())
 			return
 		}
+		if errors.Is(err, errInvalidURL) || errors.Is(err, netguard.ErrUnsafeURL) {
+			response.BadRequest(w, err.Error())
+			return
+		}
 		// Erreur réseau → réponse 200 avec le détail (miroir du TS).
 		response.OK(w, map[string]any{"success": false, "status": res.Status, "response": res.Response})
 		return
@@ -179,7 +184,7 @@ func (h *Handler) listDeliveries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := chi.URLParam(r, "id")
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	limit := middleware.ClampLimit(r.URL.Query().Get("limit"), 50, 100)
 	items, err := h.svc.ListDeliveries(r.Context(), userID, pid, id, limit)
 	if err != nil {
 		h.writeWebhookError(w, err)
@@ -194,6 +199,8 @@ func (h *Handler) writeWebhookError(w http.ResponseWriter, err error) {
 		response.NotFound(w, "Webhook introuvable")
 	case errors.Is(err, errForbidden):
 		response.Forbidden(w, err.Error())
+	case errors.Is(err, errInvalidURL), errors.Is(err, netguard.ErrUnsafeURL):
+		response.BadRequest(w, err.Error())
 	default:
 		log.Printf("[webhooks] %v", err)
 		response.Internal(w)

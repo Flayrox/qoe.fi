@@ -5,7 +5,6 @@ package appeals
 // fiche tranche 6 : ouverture accessible quand un compte est restreint).
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -67,8 +66,11 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	limit := middleware.ClampLimit(r.URL.Query().Get("limit"), 50, 100)
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	if offset < 0 {
+		offset = 0
+	}
 	items, total, err := h.svc.ListAppeals(r.Context(), uid, limit, offset)
 	if err != nil {
 		h.mapErr(w, err)
@@ -90,7 +92,10 @@ func (h *Handler) open(w http.ResponseWriter, r *http.Request) {
 		SubjectID   string `json:"subjectId"`
 		Message     string `json:"message"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.SubjectType == "" || in.SubjectID == "" {
+	if !response.DecodeJSON(w, r, &in) {
+		return
+	}
+	if in.SubjectType == "" || in.SubjectID == "" {
 		response.BadRequest(w, "JSON invalide (subjectType, subjectId et message requis)")
 		return
 	}
@@ -125,7 +130,10 @@ func (h *Handler) addMessage(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		Body string `json:"body"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Body == "" {
+	if !response.DecodeJSON(w, r, &in) {
+		return
+	}
+	if in.Body == "" {
 		response.BadRequest(w, "JSON invalide (body requis)")
 		return
 	}

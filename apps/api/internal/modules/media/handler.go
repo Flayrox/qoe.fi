@@ -215,10 +215,8 @@ func (h *Handler) listAuditLog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	filter := AuditLogFilter{Category: r.URL.Query().Get("category"), Query: r.URL.Query().Get("q")}
-	if n, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil {
-		filter.Limit = n
-	}
-	if n, err := strconv.Atoi(r.URL.Query().Get("offset")); err == nil {
+	filter.Limit = middleware.ClampLimit(r.URL.Query().Get("limit"), 50, 100)
+	if n, err := strconv.Atoi(r.URL.Query().Get("offset")); err == nil && n >= 0 {
 		filter.Offset = n
 	}
 	page, err := h.svc.ListAuditLog(r.Context(), id, chi.URLParam(r, "id"), filter)

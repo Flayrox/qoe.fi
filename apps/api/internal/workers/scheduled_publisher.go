@@ -158,6 +158,7 @@ func RunScheduledPublisher(ctx context.Context, pool *pgxpool.Pool, ac *asynq.Cl
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
+	var lastRingAudit time.Time
 	run := func() {
 		ctxTimeout, cancel := context.WithTimeout(ctx, 2*time.Minute)
 		defer cancel()
@@ -173,6 +174,15 @@ func RunScheduledPublisher(ctx context.Context, pool *pgxpool.Pool, ac *asynq.Cl
 			log.Printf("scheduled publisher: purge anti-abus: %v", err)
 		} else if sig+bud > 0 {
 			log.Printf("scheduled publisher: purge anti-abus (%d signal/signaux, %d budget(s))", sig, bud)
+		}
+		// Audit périodique des anneaux de follow mutuel toutes les 15 min (PolicyV3).
+		if interval >= time.Second && time.Since(lastRingAudit) >= 15*time.Minute {
+			lastRingAudit = time.Now()
+			if flagged, err := AuditRecentFollowRings(ctxTimeout, pool, lastRingAudit); err != nil {
+				log.Printf("scheduled publisher: audit follow-rings: %v", err)
+			} else if flagged > 0 {
+				log.Printf("scheduled publisher: %d compte(s) signalé(s) pour anneau de follow", flagged)
+			}
 		}
 		n, err := runScheduledPublisherOnce(ctxTimeout, pool, ac)
 		if err != nil {

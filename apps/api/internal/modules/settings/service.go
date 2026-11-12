@@ -18,15 +18,17 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/antispam"
 	"github.com/qoefi/api/internal/apiaccess"
 	"github.com/qoefi/api/internal/auditlog"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/domainevents"
 	"github.com/qoefi/api/internal/flags"
 	"github.com/qoefi/api/internal/middleware"
-	"github.com/qoefi/api/internal/domainevents"
 	"github.com/qoefi/api/internal/permissions"
 	"github.com/qoefi/api/internal/shared/identifier"
 	"github.com/qoefi/api/internal/slug"
+	"github.com/qoefi/api/internal/trust"
 )
 
 var (
@@ -48,6 +50,8 @@ type Service struct {
 	// éteinte (503 explicite).
 	emailProvider emailTester
 	emailFrom     string
+
+	trustSvc *trust.Service
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
@@ -57,6 +61,11 @@ func NewService(pool *pgxpool.Pool) *Service {
 // SetFlags branche le service feature flags (journal d'audit admin).
 func (s *Service) SetFlags(f *flags.Service) {
 	s.flags = f
+}
+
+// SetTrustService branche le cache Trust pour invalidation temps réel.
+func (s *Service) SetTrustService(ts *trust.Service) {
+	s.trustSvc = ts
 }
 
 // authorizeSettings vérifie que l'utilisateur peut administrer la publication :
@@ -296,6 +305,11 @@ func (s *Service) UpdateProfile(ctx context.Context, userID, publisherID string,
 				if key == "name" && v == "" {
 					continue
 				}
+				if key == "logoUrl" || key == "headerImageUrl" || key == "supportUrl" {
+					if err := antispam.ValidateSafeURL(v.(string)); err != nil {
+						return db.GetUserForSettingsRow{}, err
+					}
+				}
 				fields[col] = v
 			default:
 				return db.GetUserForSettingsRow{}, fmt.Errorf("champ invalide: %s", key)
@@ -500,6 +514,11 @@ func (s *Service) SaveNavigation(ctx context.Context, userID, publisherID string
 	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
 		return err
 	}
+	for _, link := range links {
+		if err := antispam.ValidateSafeURL(link.URL); err != nil {
+			return err
+		}
+	}
 	if err := s.q.DeleteNavigationItems(ctx, publisherID); err != nil {
 		return err
 	}
@@ -527,6 +546,11 @@ type SocialLink struct {
 func (s *Service) SaveSocial(ctx context.Context, userID, publisherID string, links []SocialLink) error {
 	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
 		return err
+	}
+	for _, link := range links {
+		if err := antispam.ValidateSafeURL(link.URL); err != nil {
+			return err
+		}
 	}
 	if err := s.q.DeleteSocialLinks(ctx, publisherID); err != nil {
 		return err
@@ -774,10 +798,14 @@ func (s *Service) CompleteOnboarding(ctx context.Context, userID string, in Onbo
 
 	// Publication personnelle existante → synchronisation, sinon création.
 	if user.PublisherId.Valid && user.PublisherId.String != "" {
-		return s.q.UpdatePersonalPublisher(ctx, db.UpdatePersonalPublisherParams{
+		if err := s.q.UpdatePersonalPublisher(ctx, db.UpdatePersonalPublisherParams{
 			ID: user.PublisherId.String, Name: name, Subdomain: subdomain,
 			HeroText: heroText, LayoutStyle: layoutStyle,
-		})
+		}); err != nil {
+			return err
+		}
+		s.trustSvc.InvalidateUser(ctx, userID)
+		return nil
 	}
 
 	id, err := s.q.CreatePersonalPublisher(ctx, db.CreatePersonalPublisherParams{
@@ -787,9 +815,13 @@ func (s *Service) CompleteOnboarding(ctx context.Context, userID string, in Onbo
 	if err != nil {
 		return err
 	}
-	return s.q.LinkUserPublisher(ctx, db.LinkUserPublisherParams{
+	if err := s.q.LinkUserPublisher(ctx, db.LinkUserPublisherParams{
 		ID: userID, PublisherId: textFromString(id),
-	})
+	}); err != nil {
+		return err
+	}
+	s.trustSvc.InvalidateUser(ctx, userID)
+	return nil
 }
 
 func textPtr(t pgtype.Text) *string {

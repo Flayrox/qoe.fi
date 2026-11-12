@@ -2,11 +2,21 @@ package webhooks
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
+	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/testutil"
 )
+
+type failingRoundTripper struct{ err error }
+
+func (f failingRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, f.err
+}
 
 func seedWH(t *testing.T) *testutil.WebhookFixtures {
 	requirePool(t)
@@ -25,14 +35,22 @@ func TestHandler_Test_NetworkError(t *testing.T) {
 	var whID string
 	if err := poolTest.QueryRow(context.Background(),
 		`INSERT INTO "Webhook" (id, "publisherId", name, url, secret, events, active, "createdAt", "updatedAt")
-		 VALUES (gen_random_uuid()::text, $1, 'Down', 'http://127.0.0.1:1/hook', 'secret_x', ARRAY['article.published'], true, now(), now())
+		 VALUES (gen_random_uuid()::text, $1, 'Down', 'https://unreachable.example.com/hook', 'secret_x', ARRAY['article.published'], true, now(), now())
 		 RETURNING id`,
 		fx.PublisherID,
 	).Scan(&whID); err != nil {
 		t.Fatalf("insert webhook: %v", err)
 	}
 
-	r := newTestRouter()
+	svc := NewService(poolTest)
+	svc.httpClient = &http.Client{Transport: failingRoundTripper{err: errors.New("connection refused")}}
+	h := NewHandler(svc)
+	auth := middleware.NewAuth(testSecret, "")
+	r := chi.NewRouter()
+	r.Group(func(protected chi.Router) {
+		protected.Use(auth.CombinedAuth(db.New(poolTest)))
+		h.RegisterProtected(protected, middleware.RequireAPIScope)
+	})
 	token := testJWT(fx.OwnerID)
 	w, body := doJSON(t, r, "POST", "/v1/webhooks/"+whID+"/test?publisherId="+fx.PublisherID, token, nil)
 	if w.Code != http.StatusOK {
@@ -52,6 +70,28 @@ func TestHandler_Test_NetworkError(t *testing.T) {
 	}
 	if status != "FAILED" {
 		t.Fatalf("status = %q, attendu FAILED", status)
+	}
+}
+
+// TestHandler_Test_SSRFBlocked : URL privée déjà en base → 400 Bad Request.
+func TestHandler_Test_SSRFBlocked(t *testing.T) {
+	fx := seedWH(t)
+
+	var whID string
+	if err := poolTest.QueryRow(context.Background(),
+		`INSERT INTO "Webhook" (id, "publisherId", name, url, secret, events, active, "createdAt", "updatedAt")
+		 VALUES (gen_random_uuid()::text, $1, 'SSRF', 'http://127.0.0.1:1/hook', 'secret_x', ARRAY['article.published'], true, now(), now())
+		 RETURNING id`,
+		fx.PublisherID,
+	).Scan(&whID); err != nil {
+		t.Fatalf("insert webhook: %v", err)
+	}
+
+	r := newTestRouter()
+	token := testJWT(fx.OwnerID)
+	w, _ := doJSON(t, r, "POST", "/v1/webhooks/"+whID+"/test?publisherId="+fx.PublisherID, token, nil)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, attendu 400 (SSRF bloqué)", w.Code)
 	}
 }
 
@@ -195,11 +235,12 @@ func TestEnsureOwnership_Mismatch(t *testing.T) {
 func TestService_Test_NetworkError(t *testing.T) {
 	fx := seedWH(t)
 	svc := NewService(poolTest)
+	svc.httpClient = &http.Client{Transport: failingRoundTripper{err: errors.New("connection refused")}}
 
 	var whID string
 	if err := poolTest.QueryRow(context.Background(),
 		`INSERT INTO "Webhook" (id, "publisherId", name, url, secret, events, active, "createdAt", "updatedAt")
-		 VALUES (gen_random_uuid()::text, $1, 'Down2', 'http://127.0.0.1:1/hook', 'secret_y', ARRAY['article.published'], true, now(), now())
+		 VALUES (gen_random_uuid()::text, $1, 'Down2', 'https://unreachable.example.com/hook', 'secret_y', ARRAY['article.published'], true, now(), now())
 		 RETURNING id`,
 		fx.PublisherID,
 	).Scan(&whID); err != nil {
