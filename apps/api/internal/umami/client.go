@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/qoefi/api/internal/resilience"
 )
 
 // Stats est la métrique globale d'un website (miroir de UmamiStats côté TS).
@@ -36,6 +38,7 @@ type Client struct {
 	pass   string
 
 	httpCli *http.Client
+	breaker *resilience.CircuitBreaker
 
 	mu        sync.Mutex
 	token     string
@@ -51,6 +54,12 @@ func NewClient(apiURL, apiKey, user, pass string) *Client {
 		user:    user,
 		pass:    pass,
 		httpCli: &http.Client{Timeout: 10 * time.Second},
+		breaker: resilience.NewCircuitBreaker(resilience.Options{
+			Name:             "umami",
+			FailureThreshold: 5,
+			Cooldown:         30 * time.Second,
+			CallTimeout:      5 * time.Second,
+		}),
 	}
 }
 
@@ -140,7 +149,12 @@ func (c *Client) bearerToken(ctx context.Context) (string, error) {
 	}
 
 	body, _ := json.Marshal(map[string]string{"username": c.user, "password": c.pass})
-	resp, err := c.httpCli.Post(c.apiURL+"/auth/login", "application/json", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.apiURL+"/auth/login", bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.httpCli.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -162,27 +176,34 @@ func (c *Client) bearerToken(ctx context.Context) (string, error) {
 }
 
 func (c *Client) get(ctx context.Context, url string, out any) error {
-	token, err := c.bearerToken(ctx)
-	if err != nil {
-		return err
+	exec := func(callCtx context.Context) error {
+		token, err := c.bearerToken(callCtx)
+		if err != nil {
+			return err
+		}
+
+		req, err := http.NewRequestWithContext(callCtx, http.MethodGet, url, nil)
+		if err != nil {
+			return err
+		}
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := c.httpCli.Do(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("umami status %d", resp.StatusCode)
+		}
+		return json.NewDecoder(resp.Body).Decode(out)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return err
+	if c.breaker != nil {
+		return c.breaker.Execute(ctx, exec)
 	}
-	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpCli.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("umami status %d", resp.StatusCode)
-	}
-	return json.NewDecoder(resp.Body).Decode(out)
+	return exec(ctx)
 }

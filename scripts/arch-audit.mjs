@@ -151,6 +151,7 @@ targetDirs.forEach((dir) => {
 
 // ─── CHECK 5 : Réversibilité et intégrité des migrations Goose ─────────
 const gooseIssues = [];
+const zeroDowntimeMigrationIssues = [];
 const migrationsDir = join(ROOT, 'apps/api/sql/migrations');
 if (existsSync(migrationsDir)) {
   const seenVersions = new Map();
@@ -171,6 +172,50 @@ if (existsSync(migrationsDir)) {
         gooseIssues.push(`Version dupliquée ${ver} : ${file} et ${seenVersions.get(ver)}`);
       } else {
         seenVersions.set(ver, file);
+      }
+
+      // Garde-fou Zero-Downtime uniquement pour les migrations > 00086 (00087+)
+      const versionNum = Number.parseInt(ver, 10);
+      if (versionNum > 86) {
+        const upMatch = content.match(/--\s*\+goose\s+Up([\s\S]*?)(?:--\s*\+goose\s+Down|$)/i);
+        const upSection = upMatch ? upMatch[1] : content;
+        // Retire les commentaires SQL pour l'analyse DDL tout en conservant upSection pour les marqueurs
+        const upSqlOnly = upSection.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/--.*$/gm, ' ');
+
+        const createdTables = new Set(
+          [...upSqlOnly.matchAll(/\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([^\s(]+)/gi)].map(
+            (m) => m[1].replace(/"/g, '').toLowerCase()
+          )
+        );
+
+        const indexMatches = [
+          ...upSqlOnly.matchAll(
+            /\bCREATE\s+(?:UNIQUE\s+)?INDEX\s+(?!CONCURRENTLY\b)[\s\S]*?\bON\s+([^\s(]+)/gi
+          ),
+        ];
+        for (const idxMatch of indexMatches) {
+          const targetTable = idxMatch[1].replace(/"/g, '').toLowerCase();
+          if (!createdTables.has(targetTable)) {
+            zeroDowntimeMigrationIssues.push(
+              `${file} : CREATE INDEX sans CONCURRENTLY sur table existante (${targetTable})`
+            );
+          }
+        }
+
+        if (
+          /\bDROP\s+COLUMN\b/i.test(upSqlOnly) &&
+          !/--\s*allow-destructive-drop\b/i.test(upSection)
+        ) {
+          zeroDowntimeMigrationIssues.push(
+            `${file} : DROP COLUMN sans commentaire '-- allow-destructive-drop'`
+          );
+        }
+
+        if (/\bALTER\s+TABLE\b/i.test(upSqlOnly) && !/\block_timeout\b/i.test(upSqlOnly)) {
+          zeroDowntimeMigrationIssues.push(
+            `${file} : ALTER TABLE sans définition de lock_timeout (ex: SET lock_timeout = '2s';)`
+          );
+        }
       }
     }
 
@@ -368,6 +413,14 @@ if (gooseIssues.length > 0) {
   );
 }
 
+if (zeroDowntimeMigrationIssues.length > 0) {
+  errors.push(
+    `🚨 ${zeroDowntimeMigrationIssues.length} violation(s) Zero-Downtime dans les migrations (> 00086) !\n` +
+      `   Règle : toute migration 00087+ doit utiliser CREATE INDEX CONCURRENTLY (sauf table créée dans la même migration), SET lock_timeout pour ALTER TABLE, et '-- allow-destructive-drop' pour DROP COLUMN.\n` +
+      zeroDowntimeMigrationIssues.map((z) => `   - ${z}`).join('\n')
+  );
+}
+
 if (rogueSocialMutations.length > 0) {
   errors.push(
     `🚨 ${rogueSocialMutations.length} composant(s) UI déclenchant des mutations sociales hors du Shadow Store !\n` +
@@ -558,6 +611,7 @@ if (asJson) {
         asUnknownCount,
         asUnknownMax: budget.asUnknownMax,
         gooseIssues: gooseIssues.length,
+        zeroDowntimeMigrationIssues: zeroDowntimeMigrationIssues.length,
         rogueSocialMutations: rogueSocialMutations.length,
         nonAsyncServerActionExports: nonAsyncServerActionExports.length,
         serverTypeReexports: serverTypeReexports.length,
@@ -585,6 +639,9 @@ if (asJson) {
   );
   console.log(
     `• Réversibilité Goose (Up/Down): ${gooseIssues.length === 0 ? '✅ 0 anomalie' : `❌ ${gooseIssues.length}`}`
+  );
+  console.log(
+    `• Migrations Zero-Downtime (> 00086): ${zeroDowntimeMigrationIssues.length === 0 ? '✅ 0 anomalie' : `❌ ${zeroDowntimeMigrationIssues.length}`}`
   );
   console.log(
     `• Discipline Shadow Store UI  : ${rogueSocialMutations.length === 0 ? '✅ 0 violation' : `❌ ${rogueSocialMutations.length}`}`

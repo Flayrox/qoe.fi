@@ -1,0 +1,74 @@
+groups:
+  - name: qoe-security-and-slo
+    rules:
+      - alert: QoeHigh5xxBurnRate
+        expr: |
+          (
+            sum(rate(qoe_http_requests_total{status=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(qoe_http_requests_total[5m])), 1)
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+          service: qoe-api
+          team: security-slo
+        annotations:
+          summary: "Taux d'erreurs HTTP 5xx élevé sur l'API Go (> 1%)"
+          description: "Le ratio de réponses 5xx dépasse 1% sur les 5 dernières minutes (valeur actuelle : {{ $value | humanizePercentage }})."
+          runbook: "docs/RUNBOOK-SECURITY-SLO.md#qoe-high-5xx-burn-rate"
+
+      - alert: QoeHighP99Latency
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum(rate(qoe_http_request_duration_ms_bucket[5m])) by (le, route_group)
+          ) > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: qoe-api
+          team: security-slo
+        annotations:
+          summary: "Latence p99 élevée sur {{ $labels.route_group }} (> 1000 ms)"
+          description: "La latence p99 du groupe de routes {{ $labels.route_group }} dépasse 1000 ms pendant 5 minutes (valeur : {{ $value | printf \"%.0f\" }} ms)."
+          runbook: "docs/RUNBOOK-SECURITY-SLO.md#qoe-high-p99-latency"
+
+      - alert: QoeSecguardSpamSpike
+        expr: |
+          sum(rate(qoe_secguard_rejections_total[5m])) by (action, code) > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: qoe-api
+          team: security
+        annotations:
+          summary: "Pic de rejets SecGuard ({{ $labels.action }} / {{ $labels.code }})"
+          description: "SecGuard rejette plus de 5 requêtes/s sur l'action {{ $labels.action }} (code : {{ $labels.code }}), indiquant un pic de spam ou de défis PoW/Turnstile."
+          runbook: "docs/RUNBOOK-SECURITY-SLO.md#qoe-secguard-spam-spike"
+
+      - alert: QoeSsrfAttemptBlocked
+        expr: |
+          increase(qoe_netguard_ssrf_blocked_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: qoe-api
+          team: security
+        annotations:
+          summary: "Tentative SSRF bloquée par NetGuard"
+          description: "NetGuard a bloqué {{ $value | printf \"%.0f\" }} requête(s) sortante(s) vers une cible réseau interdite sur les 5 dernières minutes."
+          runbook: "docs/RUNBOOK-SECURITY-SLO.md#qoe-ssrf-attempt-blocked"
+
+      - alert: QoeRateLimitRedisFailOpen
+        expr: |
+          increase(qoe_ratelimit_decisions_total{result="fail_open"}[5m]) > 0
+        for: 2m
+        labels:
+          severity: critical
+          service: qoe-api
+          team: security-slo
+        annotations:
+          summary: "Rate-limiter Redis en mode fail-open"
+          description: "Le rate-limiter bascule en fail-open ({{ $value | printf \"%.0f\" }} décisions sur 5m) suite à une indisponibilité ou latence Redis."
+          runbook: "docs/RUNBOOK-SECURITY-SLO.md#qoe-ratelimit-redis-fail-open"
