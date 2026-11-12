@@ -6,22 +6,17 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
-)
 
-type reqIDCtxKey struct{}
+	"github.com/qoefi/api/internal/logging"
+)
 
 // GetRequestID renvoie l'identifiant de corrélation attaché à la requête.
 func GetRequestID(ctx context.Context) string {
-	if ctx == nil {
-		return ""
-	}
-	v, _ := ctx.Value(reqIDCtxKey{}).(string)
-	return v
+	return logging.RequestIDFromContext(ctx)
 }
 
 // RequestID propage X-Request-Id (sanitisé) ou génère un identifiant aléatoire
@@ -35,7 +30,7 @@ func RequestID(next http.Handler) http.Handler {
 			id = hex.EncodeToString(b[:])
 		}
 		w.Header().Set("X-Request-Id", id)
-		ctx := context.WithValue(r.Context(), reqIDCtxKey{}, id)
+		ctx := logging.WithRequestID(r.Context(), id)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -106,7 +101,7 @@ func Recovery(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rec := recover(); rec != nil {
-				log.Printf("[panic] %v", rec)
+				logging.FromContext(r.Context()).Error("panic recovered", "panic", rec, "method", r.Method, "path", r.URL.Path)
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusInternalServerError)
 				_, _ = w.Write([]byte(`{"error":"Internal Server Error"}`))
@@ -171,11 +166,12 @@ func Logger(next http.Handler) http.Handler {
 		start := time.Now()
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(rec, r)
-		if reqID := GetRequestID(r.Context()); reqID != "" {
-			log.Printf("%s %s %d %s reqId=%s", r.Method, r.URL.Path, rec.status, time.Since(start), reqID)
-			return
-		}
-		log.Printf("%s %s %d %s", r.Method, r.URL.Path, rec.status, time.Since(start))
+		logging.FromContext(r.Context()).Info("http request",
+			"method", r.Method,
+			"path", r.URL.Path,
+			"status", rec.status,
+			"duration_ms", time.Since(start).Milliseconds(),
+		)
 	})
 }
 

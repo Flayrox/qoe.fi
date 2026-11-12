@@ -3,10 +3,13 @@ package umami
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sync"
 	"testing"
+
+	"github.com/qoefi/api/internal/resilience"
 )
 
 // newTestServer monte un serveur Umami factice qui enregistre les appels
@@ -143,5 +146,42 @@ func TestCreateWebsiteWithoutAuth(t *testing.T) {
 	_, err := client.CreateWebsite(context.Background(), "X", "x.qoe.fi")
 	if err == nil {
 		t.Fatal("expected error without auth configured")
+	}
+}
+
+func TestCircuitOpensOnRepeated500s(t *testing.T) {
+	srv, calls := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+
+	client := NewClient(srv.URL, "cloud-key", "", "")
+	ctx := context.Background()
+
+	for i := 0; i < 5; i++ {
+		_, err := client.WebsiteStats(ctx, "w1", 1000, 2000)
+		if err == nil {
+			t.Fatalf("call %d: expected error on 500", i)
+		}
+		if errors.Is(err, resilience.ErrCircuitOpen) {
+			t.Fatalf("call %d: circuit opened prematurely before 5 failures", i)
+		}
+	}
+
+	if got := len(calls.calls); got != 5 {
+		t.Fatalf("expected 5 HTTP calls before circuit opens, got %d", got)
+	}
+
+	// Le 6e appel doit échouer immédiatement sans toucher le serveur Umami.
+	_, err := client.WebsiteStats(ctx, "w1", 1000, 2000)
+	if !errors.Is(err, resilience.ErrCircuitOpen) {
+		t.Fatalf("expected ErrCircuitOpen on WebsiteStats, got %v", err)
+	}
+	_, err = client.TopPages(ctx, "w1", 1000, 2000, 5)
+	if !errors.Is(err, resilience.ErrCircuitOpen) {
+		t.Fatalf("expected ErrCircuitOpen on TopPages, got %v", err)
+	}
+
+	if got := len(calls.calls); got != 5 {
+		t.Fatalf("expected no additional HTTP calls while circuit is open, got %d", got)
 	}
 }

@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"crypto/subtle"
 	"encoding/json"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	authmw "github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/observability"
 	"github.com/qoefi/api/internal/pow"
@@ -335,5 +338,30 @@ func requirePoWOnBurst(rc *redis.Client, secret string, freeBurst int, window ti
 				"challenge": ch,
 			})
 		})
+	}
+}
+
+func readinessHandler(ready *atomic.Bool, pool *pgxpool.Pool, rc *redis.Client) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if ready != nil && !ready.Load() {
+			response.Error(w, http.StatusServiceUnavailable, "Serveur en cours d'arrêt (draining)")
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), time.Second)
+		defer cancel()
+		if pool != nil {
+			if err := pool.Ping(ctx); err != nil {
+				response.Error(w, http.StatusServiceUnavailable, "Base de données indisponible")
+				return
+			}
+		}
+		if rc != nil {
+			if err := rc.Ping(ctx).Err(); err != nil {
+				response.Error(w, http.StatusServiceUnavailable, "Redis indisponible")
+				return
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"ready"}`))
 	}
 }

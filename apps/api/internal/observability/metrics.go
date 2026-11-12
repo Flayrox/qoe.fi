@@ -51,9 +51,11 @@ type Registry struct {
 	httpDurations       sync.Map // httpDurKey -> *histogramSeries
 	rateLimitDecisions  sync.Map // rateLimitKey -> *atomic.Uint64
 	secGuardRejections  sync.Map // secGuardKey -> *atomic.Uint64
-	trustTierEvals      sync.Map // string -> *atomic.Uint64
-	netGuardSSRFBlocked atomic.Uint64
-	mediaMIMERejected   atomic.Uint64
+	trustTierEvals       sync.Map // string -> *atomic.Uint64
+	circuitBreakerStates sync.Map // string -> *atomic.Pointer[string]
+	circuitBreakerTrips  sync.Map // string -> *atomic.Uint64
+	netGuardSSRFBlocked  atomic.Uint64
+	mediaMIMERejected    atomic.Uint64
 }
 
 var defaultRegistry = NewRegistry()
@@ -143,6 +145,26 @@ func (r *Registry) IncMediaMIMERejected() {
 // IncTrustTierEvaluation incrémente le compteur d'évaluations de trust tier.
 func (r *Registry) IncTrustTierEvaluation(tier string) {
 	incCounter(&r.trustTierEvals, tier)
+}
+
+// SetCircuitBreakerState enregistre l'état courant d'un circuit breaker.
+func (r *Registry) SetCircuitBreakerState(name, state string) {
+	s := state
+	if v, ok := r.circuitBreakerStates.Load(name); ok {
+		v.(*atomic.Pointer[string]).Store(&s)
+		return
+	}
+	p := &atomic.Pointer[string]{}
+	p.Store(&s)
+	actual, loaded := r.circuitBreakerStates.LoadOrStore(name, p)
+	if loaded {
+		actual.(*atomic.Pointer[string]).Store(&s)
+	}
+}
+
+// IncCircuitBreakerTrip incrémente le compteur de bascules vers l'état open d'un circuit breaker.
+func (r *Registry) IncCircuitBreakerTrip(name string) {
+	incCounter(&r.circuitBreakerTrips, name)
 }
 
 // Handler retourne un http.Handler exposant les métriques au format Prometheus 0.0.4.
@@ -324,6 +346,58 @@ func (r *Registry) Render() string {
 	for _, e := range ttEntries {
 		fmt.Fprintf(&b, "qoe_trust_tier_evaluations_total{tier=\"%s\"} %d\n",
 			escapeLabelValue(e.tier),
+			e.val,
+		)
+	}
+
+	// 8. qoe_circuit_breaker_state
+	b.WriteString("# HELP qoe_circuit_breaker_state Current state of each circuit breaker (1 = active state).\n")
+	b.WriteString("# TYPE qoe_circuit_breaker_state gauge\n")
+	type cbStateEntry struct {
+		name  string
+		state string
+	}
+	var cbStateEntries []cbStateEntry
+	r.circuitBreakerStates.Range(func(k, v any) bool {
+		if ptr := v.(*atomic.Pointer[string]).Load(); ptr != nil {
+			cbStateEntries = append(cbStateEntries, cbStateEntry{
+				name:  k.(string),
+				state: *ptr,
+			})
+		}
+		return true
+	})
+	slices.SortFunc(cbStateEntries, func(a, c cbStateEntry) int {
+		return strings.Compare(a.name, c.name)
+	})
+	for _, e := range cbStateEntries {
+		fmt.Fprintf(&b, "qoe_circuit_breaker_state{name=\"%s\",state=\"%s\"} 1\n",
+			escapeLabelValue(e.name),
+			escapeLabelValue(e.state),
+		)
+	}
+
+	// 9. qoe_circuit_breaker_trips_total
+	b.WriteString("# HELP qoe_circuit_breaker_trips_total Total number of times a circuit breaker tripped to open.\n")
+	b.WriteString("# TYPE qoe_circuit_breaker_trips_total counter\n")
+	type cbTripEntry struct {
+		name string
+		val  uint64
+	}
+	var cbTripEntries []cbTripEntry
+	r.circuitBreakerTrips.Range(func(k, v any) bool {
+		cbTripEntries = append(cbTripEntries, cbTripEntry{
+			name: k.(string),
+			val:  v.(*atomic.Uint64).Load(),
+		})
+		return true
+	})
+	slices.SortFunc(cbTripEntries, func(a, c cbTripEntry) int {
+		return strings.Compare(a.name, c.name)
+	})
+	for _, e := range cbTripEntries {
+		fmt.Fprintf(&b, "qoe_circuit_breaker_trips_total{name=\"%s\"} %d\n",
+			escapeLabelValue(e.name),
 			e.val,
 		)
 	}

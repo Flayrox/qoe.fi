@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os/signal"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/dbpool"
 	"github.com/qoefi/api/internal/flags"
+	"github.com/qoefi/api/internal/logging"
 	authmw "github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/modules/admin"
 	aimod "github.com/qoefi/api/internal/modules/ai"
@@ -82,6 +84,7 @@ func run(ctx context.Context) error {
 	// ou celui de la racine du monorepo, selon le CWD de lancement.
 	_ = godotenv.Load(".env", "../.env", "../../.env")
 
+	logging.InitDefault()
 	cfg := config.Load()
 
 	pool, err := dbpool.New(ctx, cfg.DatabaseURL, cfg.PoolSize())
@@ -95,8 +98,12 @@ func run(ctx context.Context) error {
 	oauthService := oauth.NewService(pool, cfg.OAuthIssuer, cfg.OAuthAuthorizeURL, cfg.OAuthSigningKey)
 	go oauth.Cleanup(ctx, oauthService, time.Hour)
 
+	readyState := &atomic.Bool{}
+	readyState.Store(true)
+
 	r := newRouter(RouterDeps{
 		Pool:                   pool,
+		Ready:                  readyState,
 		Redis:                  cache.Client(cfg.RedisURL),
 		Asynq:                  queue.NewClient(cfg.RedisURL),
 		JWTSecret:              cfg.JWTSecret,
@@ -157,6 +164,9 @@ func run(ctx context.Context) error {
 	case <-ctx.Done():
 	}
 
+	// Drain zéro-coupure : /readyz bascule immédiatement en 503 pour que Caddy /
+	// le load-balancer cesse d'envoyer du trafic avant l'arrêt des connexions.
+	readyState.Store(false)
 	log.Println("arrêt en cours…")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -166,6 +176,7 @@ func run(ctx context.Context) error {
 // RouterDeps porte les dépendances partagées par newRouter (injectables en test).
 type RouterDeps struct {
 	Pool                   *pgxpool.Pool
+	Ready                  *atomic.Bool
 	Redis                  *redis.Client
 	Asynq                  *asynq.Client
 	JWTSecret              string
@@ -269,6 +280,11 @@ func newRouter(d RouterDeps) *chi.Mux {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
+	r.Get("/livez", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"alive"}`))
+	})
+	r.Get("/readyz", readinessHandler(d.Ready, pool, rc))
 	r.Get("/metrics", metricsHandler(d.InternalSecret))
 	r.With(authmw.RateLimit("pow-challenge", rc, time.Minute, 30, false)).
 		Get("/v1/security/challenge", challengeHandler(powSecretFromDeps(d)))

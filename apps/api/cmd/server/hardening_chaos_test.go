@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -174,5 +175,38 @@ func TestChaos_RedisOutageFailOpenUnderConcurrency(t *testing.T) {
 	close(errs)
 	for code := range errs {
 		t.Fatalf("fail-open attendu (200) pendant la panne Redis, obtenu %d", code)
+	}
+}
+
+func TestReadinessProbe_DrainingReturns503(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rc := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	defer func() { _ = rc.Close() }()
+
+	ready := &atomic.Bool{}
+	ready.Store(true)
+	r := newRouter(RouterDeps{
+		Redis: rc,
+		Ready: ready,
+	})
+
+	wLive := httptest.NewRecorder()
+	r.ServeHTTP(wLive, httptest.NewRequest(http.MethodGet, "/livez", nil))
+	if wLive.Code != http.StatusOK {
+		t.Fatalf("GET /livez = %d", wLive.Code)
+	}
+
+	wReady := httptest.NewRecorder()
+	r.ServeHTTP(wReady, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+	if wReady.Code != http.StatusOK {
+		t.Fatalf("GET /readyz = %d, attendu 200", wReady.Code)
+	}
+
+	// Bascule en draining -> /readyz doit répondre 503 immédiatement, /livez reste 200.
+	ready.Store(false)
+	wDrain := httptest.NewRecorder()
+	r.ServeHTTP(wDrain, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+	if wDrain.Code != http.StatusServiceUnavailable {
+		t.Fatalf("GET /readyz pendant drain = %d, attendu 503", wDrain.Code)
 	}
 }

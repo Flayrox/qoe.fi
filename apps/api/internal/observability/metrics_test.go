@@ -33,6 +33,9 @@ func TestPrometheusExpositionAndHistogramBuckets(t *testing.T) {
 	reg.IncNetGuardSSRFBlocked()
 	reg.IncMediaMIMERejected()
 	reg.IncTrustTierEvaluation("trusted")
+	reg.SetCircuitBreakerState("umami", "closed")
+	reg.SetCircuitBreakerState("umami", "open")
+	reg.IncCircuitBreakerTrip("umami")
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
@@ -69,6 +72,8 @@ func TestPrometheusExpositionAndHistogramBuckets(t *testing.T) {
 		"qoe_netguard_ssrf_blocked_total 2",
 		"qoe_media_mime_rejected_total 1",
 		`qoe_trust_tier_evaluations_total{tier="trusted"} 1`,
+		`qoe_circuit_breaker_state{name="umami",state="open"} 1`,
+		`qoe_circuit_breaker_trips_total{name="umami"} 1`,
 	}
 
 	for _, want := range expectedSubstrings {

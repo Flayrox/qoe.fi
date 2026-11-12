@@ -4,7 +4,7 @@ package middleware
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/netip"
@@ -325,7 +325,7 @@ func logRateLimitWarnThrottled(err error) {
 		return
 	}
 	if lastRateLimitWarnUnixNano.CompareAndSwap(last, now) {
-		log.Printf("[ratelimit] Redis indisponible, fail-open activé : %v", err)
+		slog.Warn("[ratelimit] Redis indisponible, fail-open activé", "err", err)
 	}
 }
 

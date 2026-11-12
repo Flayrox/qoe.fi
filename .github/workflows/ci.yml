@@ -395,3 +395,46 @@ jobs:
           path: playwright-report/
           retention-days: 7
           if-no-files-found: ignore
+
+  supply-chain-security:
+    name: Supply Chain & Secret Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Repository (full history for gitleaks)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Secret Scanning (Gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
+
+      - name: Go Vulnerability Check (govulncheck)
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          cd apps/api && govulncheck ./...
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+
+      # Audit des dépendances JS/TS : rapport non bloquant sur les CVE critiques
+      # afin de ne pas casser la CI en cas d'indisponibilité du registre npm.
+      - name: pnpm Vulnerability Audit (critical CVEs)
+        continue-on-error: true
+        run: pnpm audit --audit-level=critical
