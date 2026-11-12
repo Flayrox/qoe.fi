@@ -185,6 +185,7 @@ check() { # check <nom> <commande-ssh>
   else warn "   $name (échec)"; fail=$((fail+1)); fi
 }
 check "api /health"          "curl -sf -o /dev/null https://api.qoe.fi/health"
+check "api /readyz"          "curl -sf -o /dev/null https://api.qoe.fi/readyz"
 check "updates /healthz"      "curl -sf -o /dev/null https://updates.qoe.fi/healthz"
 check "qoe.fi (core)"        "curl -sf -o /dev/null https://qoe.fi/home"
 check "hi.qoe.fi"            "curl -sf -o /dev/null https://hi.qoe.fi"
