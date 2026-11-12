@@ -3,7 +3,9 @@ package response
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strconv"
 )
 
 type ErrorBody struct {
@@ -58,4 +60,36 @@ func Forbidden(w http.ResponseWriter, msg string) { Error(w, http.StatusForbidde
 // Internal écrit une erreur 500 (message générique, détails en log).
 func Internal(w http.ResponseWriter) {
 	Error(w, http.StatusInternalServerError, "Internal Server Error")
+}
+
+// TooManyRequests écrit une erreur 429 avec l'en-tête Retry-After explicite
+// et un code machine optionnel.
+func TooManyRequests(w http.ResponseWriter, retryAfterSec int, code, msg string) {
+	if retryAfterSec > 0 {
+		w.Header().Set("Retry-After", strconv.Itoa(retryAfterSec))
+	}
+	if code != "" {
+		ErrorCode(w, http.StatusTooManyRequests, code, msg)
+		return
+	}
+	Error(w, http.StatusTooManyRequests, msg)
+}
+
+// DecodeJSON décode le corps JSON de la requête et répond automatiquement 413
+// si http.MaxBytesReader a rejeté le payload, ou 400 si le JSON est invalide.
+func DecodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
+	if r == nil || r.Body == nil {
+		BadRequest(w, "Corps JSON requis")
+		return false
+	}
+	if err := json.NewDecoder(r.Body).Decode(dst); err != nil {
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			ErrorCode(w, http.StatusRequestEntityTooLarge, "PAYLOAD_TOO_LARGE", "Contenu trop volumineux.")
+			return false
+		}
+		BadRequest(w, "JSON invalide")
+		return false
+	}
+	return true
 }

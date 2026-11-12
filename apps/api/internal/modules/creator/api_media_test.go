@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"strings"
 	"testing"
 
@@ -175,5 +177,76 @@ func TestCreatorAPI_MediaUpload_Unconfigured(t *testing.T) {
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusServiceUnavailable {
 		t.Fatalf("non configuré = %d %s, attendu 503", w.Code, w.Body.String())
+	}
+}
+
+func TestCreatorAPI_MediaUpload_RejectsSpoofedMIME(t *testing.T) {
+	h := NewHandler(nil, nil, "")
+	h.WithMediaUpload(supastorage.New("https://storage.example.com", "test-secret"), mediaassets.NewService(nil))
+
+	doUpload := func(body *bytes.Buffer, ct string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/v1/creator/media", body)
+		req = req.WithContext(context.WithValue(req.Context(), authmw.UserIDKey, "user_test_1"))
+		if ct != "" {
+			req.Header.Set("Content-Type", ct)
+		}
+		w := httptest.NewRecorder()
+		h.apiMediaUpload(w, req)
+		return w
+	}
+
+	rawCases := []struct {
+		name    string
+		payload string
+		ct      string
+	}{
+		{"svg_pretending_png", `<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`, "image/png"},
+		{"html_pretending_jpeg", `<!doctype html><html><script>alert(1)</script></html>`, "image/jpeg"},
+		{"js_pretending_webp", `console.log("xss")`, "image/webp"},
+		{"empty_pretending_png", ``, "image/png"},
+	}
+
+	for _, tc := range rawCases {
+		t.Run("raw_"+tc.name, func(t *testing.T) {
+			w := doUpload(bytes.NewBufferString(tc.payload), tc.ct)
+			if w.Code != http.StatusBadRequest {
+				t.Fatalf("raw %s: code = %d (%s), attendu 400", tc.name, w.Code, w.Body.String())
+			}
+		})
+	}
+
+	multipartCases := []struct {
+		name    string
+		partCT  string
+		payload string
+	}{
+		{"svg_part_image_png", "image/png", `<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`},
+		{"html_part_image_webp", "image/webp", `<html><body>xss</body></html>`},
+		{"text_part_image_avif", "image/avif", `not an avif image`},
+	}
+
+	for _, tc := range multipartCases {
+		t.Run("multipart_"+tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			mw := multipart.NewWriter(&buf)
+			hdr := make(textproto.MIMEHeader)
+			hdr.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="evil.%s"`, "png"))
+			hdr.Set("Content-Type", tc.partCT)
+			pw, err := mw.CreatePart(hdr)
+			if err != nil {
+				t.Fatalf("CreatePart: %v", err)
+			}
+			if _, err := pw.Write([]byte(tc.payload)); err != nil {
+				t.Fatalf("write part: %v", err)
+			}
+			if err := mw.Close(); err != nil {
+				t.Fatalf("close multipart: %v", err)
+			}
+
+			w := doUpload(&buf, mw.FormDataContentType())
+			if w.Code != http.StatusBadRequest {
+				t.Fatalf("multipart %s: code = %d (%s), attendu 400", tc.name, w.Code, w.Body.String())
+			}
+		})
 	}
 }

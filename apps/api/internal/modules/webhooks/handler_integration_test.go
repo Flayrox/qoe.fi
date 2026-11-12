@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -428,18 +429,32 @@ func TestHandler_Test_Ping_ReceivesSignedRequest(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	// Webhook pointant vers le serveur de test.
+	// Webhook pointant vers une URL publique routée vers le serveur de test.
 	var whID string
 	if err := poolTest.QueryRow(context.Background(),
 		`INSERT INTO "Webhook" (id, "publisherId", name, url, secret, events, active, "createdAt", "updatedAt")
-		 VALUES (gen_random_uuid()::text, $1, 'Test', $2, 'secret_placeholder', ARRAY['article.published'], true, now(), now())
+		 VALUES (gen_random_uuid()::text, $1, 'Test', 'https://webhook.example.com/hook', 'secret_placeholder', ARRAY['article.published'], true, now(), now())
 		 RETURNING id`,
-		fx.PublisherID, srv.URL,
+		fx.PublisherID,
 	).Scan(&whID); err != nil {
 		t.Fatalf("insert webhook test: %v", err)
 	}
 
-	r := newTestRouter()
+	svc := NewService(poolTest)
+	targetURL, _ := url.Parse(srv.URL)
+	svc.httpClient = &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		clone := req.Clone(req.Context())
+		clone.URL.Scheme = targetURL.Scheme
+		clone.URL.Host = targetURL.Host
+		return srv.Client().Transport.RoundTrip(clone)
+	})}
+	h := NewHandler(svc)
+	auth := middleware.NewAuth(testSecret, "")
+	r := chi.NewRouter()
+	r.Group(func(protected chi.Router) {
+		protected.Use(auth.CombinedAuth(db.New(poolTest)))
+		h.RegisterProtected(protected, middleware.RequireAPIScope)
+	})
 	token := testJWT(fx.OwnerID)
 
 	w, body := doJSON(t, r, "POST", "/v1/webhooks/"+whID+"/test?publisherId="+fx.PublisherID, token, nil)
@@ -472,6 +487,10 @@ func TestHandler_Test_Ping_ReceivesSignedRequest(t *testing.T) {
 		t.Fatalf("status = %q, attendu SUCCESS", status)
 	}
 }
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 func TestHandler_Test_NotFound(t *testing.T) {
 	requirePool(t)

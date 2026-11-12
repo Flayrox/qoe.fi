@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -106,12 +105,7 @@ func (h *Handler) searchThoughts(w http.ResponseWriter, r *http.Request) {
 	// Le `#` d'un hashtag est un marqueur d'intention : on cherche le terme nu
 	// (le tag comme le contenu), parité searchThoughts TS.
 	query = strings.TrimPrefix(strings.TrimSpace(query), "#")
-	limit := 20
-	if v := r.URL.Query().Get("limit"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 50 {
-			limit = n
-		}
-	}
+	limit := middleware.ClampLimit(r.URL.Query().Get("limit"), 20, 50)
 
 	userID, _ := middleware.UserID(r.Context())
 	items, err := h.semantic.SearchThoughts(r.Context(), query, limit, userID)
@@ -307,12 +301,11 @@ func (h *Handler) searchSemantic(w http.ResponseWriter, r *http.Request) {
 		response.OK(w, map[string]any{"items": []any{}})
 		return
 	}
-	limit := 10
-	if v := r.URL.Query().Get("limit"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			limit = n
-		}
+	if len(query) > maxSearchQueryLength {
+		response.Error(w, http.StatusBadRequest, "Recherche trop longue")
+		return
 	}
+	limit := middleware.ClampLimit(r.URL.Query().Get("limit"), 10, 50)
 
 	items, err := h.semantic.Search(r.Context(), query, limit)
 	if err != nil {

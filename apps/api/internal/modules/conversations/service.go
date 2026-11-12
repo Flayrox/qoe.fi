@@ -27,10 +27,13 @@ import (
 
 // Erreurs métier (mappées en HTTP par le handler).
 var (
-	ErrNotFound           = errors.New("conversation introuvable")
-	ErrParticipantMissing = errors.New("participant introuvable")
-	ErrSelfDirect         = errors.New("impossible de se messager soi-même")
-	ErrBlocked            = errors.New("conversation bloquée")
+	ErrNotFound              = errors.New("conversation introuvable")
+	ErrParticipantMissing    = errors.New("participant introuvable")
+	ErrSelfDirect            = errors.New("impossible de se messager soi-même")
+	ErrBlocked               = errors.New("conversation bloquée")
+	ErrConversationRateLimit = errors.New("Limite de création de conversations atteinte (15 max par heure). Veuillez patienter.")
+	ErrMessageRateLimit      = errors.New("Vous envoyez des messages trop rapidement. Veuillez patienter un instant.")
+	ErrDuplicateMessage      = errors.New("Message identique envoyé récemment.")
 )
 
 const maxContentRunes = 2000
@@ -95,6 +98,23 @@ func directKey(a, b string) string {
 	return pair[0] + ":" + pair[1]
 }
 
+// IsFollower indique si followerID suit la publication personnelle de publisherOwnerID.
+func (s *Service) IsFollower(ctx context.Context, followerID, publisherOwnerID string) bool {
+	if s == nil || s.pool == nil || followerID == "" || publisherOwnerID == "" {
+		return false
+	}
+	var exists bool
+	err := s.pool.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1
+			FROM "Follows" f
+			JOIN "User" u ON u."publisherId" = f."publisherId"
+			WHERE f."readerId" = $1 AND u.id = $2
+		)
+	`, toUUID(followerID), toUUID(publisherOwnerID)).Scan(&exists)
+	return err == nil && exists
+}
+
 // CreateDirect crée (ou récupère) la conversation directe entre l'utilisateur
 // et le participant. Vérifie l'existence du participant et les blocages
 // mutuels. Idempotent : deux appels concurrents ne créent qu'une ligne.
@@ -105,6 +125,9 @@ func (s *Service) CreateDirect(ctx context.Context, userID, participantID string
 	if participantID == userID {
 		return nil, ErrSelfDirect
 	}
+	if s == nil || s.pool == nil {
+		return nil, ErrNotFound
+	}
 
 	// Anti-spam : limitation du nombre de nouvelles conversations directes initiées (15 max par heure)
 	var recentConvsCount int
@@ -114,7 +137,7 @@ func (s *Service) CreateDirect(ctx context.Context, userID, participantID string
 		WHERE cm."userId" = $1 AND c."createdAt" > now() - INTERVAL '1 hour'
 	`, toUUID(userID)).Scan(&recentConvsCount)
 	if recentConvsCount >= 15 {
-		return nil, errors.New("Limite de création de conversations atteinte (15 max par heure). Veuillez patienter.")
+		return nil, ErrConversationRateLimit
 	}
 
 	exists, err := s.q.UserExists(ctx, participantID)
@@ -185,6 +208,9 @@ func (s *Service) CreateDirect(ctx context.Context, userID, participantID string
 
 // List retourne les conversations de l'utilisateur, triées par activité.
 func (s *Service) List(ctx context.Context, userID string, limit int) ([]Conversation, error) {
+	if s == nil || s.pool == nil {
+		return []Conversation{}, nil
+	}
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
@@ -204,6 +230,9 @@ func (s *Service) List(ctx context.Context, userID string, limit int) ([]Convers
 
 // Get retourne une conversation si l'utilisateur en est membre.
 func (s *Service) Get(ctx context.Context, userID, convID string) (*Conversation, error) {
+	if s == nil || s.pool == nil {
+		return nil, ErrNotFound
+	}
 	row, err := s.q.GetConversationForUser(ctx, db.GetConversationForUserParams{
 		UserId: toUUID(userID),
 		ID:     convID,
@@ -220,6 +249,9 @@ func (s *Service) Get(ctx context.Context, userID, convID string) (*Conversation
 
 // UnreadCount retourne le nombre de conversations avec des non-lus (badge).
 func (s *Service) UnreadCount(ctx context.Context, userID string) (int, error) {
+	if s == nil || s.pool == nil {
+		return 0, nil
+	}
 	n, err := s.q.CountUnreadConversations(ctx, toUUID(userID))
 	return int(n), err
 }
@@ -275,7 +307,7 @@ func (s *Service) SendMessage(ctx context.Context, userID, convID, content strin
 		WHERE "senderId" = $1 AND "createdAt" > now() - INTERVAL '1 minute'
 	`, toUUID(userID)).Scan(&recentMsgsCount)
 	if recentMsgsCount >= 30 {
-		return nil, errors.New("Vous envoyez des messages trop rapidement. Veuillez patienter un instant.")
+		return nil, ErrMessageRateLimit
 	}
 
 	// Anti-spam doublon : message identique dans les 5 dernières secondes
@@ -288,7 +320,7 @@ func (s *Service) SendMessage(ctx context.Context, userID, convID, content strin
 		)
 	`, convID, toUUID(userID), content).Scan(&hasDuplicate)
 	if hasDuplicate {
-		return nil, errors.New("Message identique envoyé récemment.")
+		return nil, ErrDuplicateMessage
 	}
 	row, err := s.q.InsertMessage(ctx, db.InsertMessageParams{
 		ConversationId: convID,

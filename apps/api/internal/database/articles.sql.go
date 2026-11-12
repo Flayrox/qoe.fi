@@ -840,7 +840,7 @@ func (q *Queries) GetLatestArticleReviewFeedback(ctx context.Context, articleid 
 }
 
 const getLatestArticleSnapshotByArticle = `-- name: GetLatestArticleSnapshotByArticle :one
-SELECT id, "articleId", "actorId", title, content, "wordCount", reason, "createdAt" FROM "ArticleSnapshot"
+SELECT id, "articleId", "actorId", title, content, "wordCount", reason, "contentHash", "createdAt" FROM "ArticleSnapshot"
 WHERE "articleId" = $1
 ORDER BY "createdAt" DESC
 LIMIT 1
@@ -857,13 +857,14 @@ func (q *Queries) GetLatestArticleSnapshotByArticle(ctx context.Context, article
 		&i.Content,
 		&i.WordCount,
 		&i.Reason,
+		&i.ContentHash,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getLatestArticleSnapshotByArticleAndActor = `-- name: GetLatestArticleSnapshotByArticleAndActor :one
-SELECT id, "articleId", "actorId", title, content, "wordCount", reason, "createdAt" FROM "ArticleSnapshot"
+SELECT id, "articleId", "actorId", title, content, "wordCount", reason, "contentHash", "createdAt" FROM "ArticleSnapshot"
 WHERE "articleId" = $1 AND "actorId" = $2
 ORDER BY "createdAt" DESC
 LIMIT 1
@@ -885,6 +886,60 @@ func (q *Queries) GetLatestArticleSnapshotByArticleAndActor(ctx context.Context,
 		&i.Content,
 		&i.WordCount,
 		&i.Reason,
+		&i.ContentHash,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getLatestArticleSnapshotByReason = `-- name: GetLatestArticleSnapshotByReason :one
+SELECT id, "contentHash", "createdAt"
+FROM "ArticleSnapshot"
+WHERE "articleId" = $1 AND reason = $2
+ORDER BY "createdAt" DESC
+LIMIT 1
+`
+
+type GetLatestArticleSnapshotByReasonParams struct {
+	ArticleId string `json:"articleId"`
+	Reason    string `json:"reason"`
+}
+
+type GetLatestArticleSnapshotByReasonRow struct {
+	ID          string           `json:"id"`
+	ContentHash pgtype.Text      `json:"contentHash"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+}
+
+func (q *Queries) GetLatestArticleSnapshotByReason(ctx context.Context, arg GetLatestArticleSnapshotByReasonParams) (GetLatestArticleSnapshotByReasonRow, error) {
+	row := q.db.QueryRow(ctx, getLatestArticleSnapshotByReason, arg.ArticleId, arg.Reason)
+	var i GetLatestArticleSnapshotByReasonRow
+	err := row.Scan(&i.ID, &i.ContentHash, &i.CreatedAt)
+	return i, err
+}
+
+const getLatestArticleSnapshotMeta = `-- name: GetLatestArticleSnapshotMeta :one
+SELECT id, reason, "contentHash", "createdAt"
+FROM "ArticleSnapshot"
+WHERE "articleId" = $1
+ORDER BY "createdAt" DESC
+LIMIT 1
+`
+
+type GetLatestArticleSnapshotMetaRow struct {
+	ID          string           `json:"id"`
+	Reason      string           `json:"reason"`
+	ContentHash pgtype.Text      `json:"contentHash"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+}
+
+func (q *Queries) GetLatestArticleSnapshotMeta(ctx context.Context, articleid string) (GetLatestArticleSnapshotMetaRow, error) {
+	row := q.db.QueryRow(ctx, getLatestArticleSnapshotMeta, articleid)
+	var i GetLatestArticleSnapshotMetaRow
+	err := row.Scan(
+		&i.ID,
+		&i.Reason,
+		&i.ContentHash,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -1010,20 +1065,21 @@ func (q *Queries) InsertArticleReviewLog(ctx context.Context, arg InsertArticleR
 
 const insertArticleSnapshot = `-- name: InsertArticleSnapshot :one
 INSERT INTO "ArticleSnapshot" (
-    id, "articleId", "actorId", title, content, "wordCount", reason, "createdAt"
+    id, "articleId", "actorId", title, content, "wordCount", reason, "contentHash", "createdAt"
 ) VALUES (
-    gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, now()
+    gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, now()
 )
-RETURNING id, "articleId", "actorId", title, content, "wordCount", reason, "createdAt"
+RETURNING id, "articleId", "actorId", title, content, "wordCount", reason, "contentHash", "createdAt"
 `
 
 type InsertArticleSnapshotParams struct {
-	ArticleId string      `json:"articleId"`
-	ActorId   pgtype.UUID `json:"actorId"`
-	Title     string      `json:"title"`
-	Content   string      `json:"content"`
-	WordCount int32       `json:"wordCount"`
-	Reason    string      `json:"reason"`
+	ArticleId   string      `json:"articleId"`
+	ActorId     pgtype.UUID `json:"actorId"`
+	Title       string      `json:"title"`
+	Content     string      `json:"content"`
+	WordCount   int32       `json:"wordCount"`
+	Reason      string      `json:"reason"`
+	ContentHash pgtype.Text `json:"contentHash"`
 }
 
 func (q *Queries) InsertArticleSnapshot(ctx context.Context, arg InsertArticleSnapshotParams) (ArticleSnapshot, error) {
@@ -1034,6 +1090,7 @@ func (q *Queries) InsertArticleSnapshot(ctx context.Context, arg InsertArticleSn
 		arg.Content,
 		arg.WordCount,
 		arg.Reason,
+		arg.ContentHash,
 	)
 	var i ArticleSnapshot
 	err := row.Scan(
@@ -1044,6 +1101,7 @@ func (q *Queries) InsertArticleSnapshot(ctx context.Context, arg InsertArticleSn
 		&i.Content,
 		&i.WordCount,
 		&i.Reason,
+		&i.ContentHash,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -1734,6 +1792,29 @@ func (q *Queries) ListSitemapArticles(ctx context.Context, arg ListSitemapArticl
 		return nil, err
 	}
 	return items, nil
+}
+
+const pruneOldArticleSnapshots = `-- name: PruneOldArticleSnapshots :exec
+DELETE FROM "ArticleSnapshot" AS a
+WHERE a."articleId" = $1
+  AND a.reason NOT IN ('INITIAL', 'PUBLISHED', 'BEFORE_REVOCATION')
+  AND a.id NOT IN (
+      SELECT s.id FROM "ArticleSnapshot" AS s
+      WHERE s."articleId" = $1
+        AND s.reason NOT IN ('INITIAL', 'PUBLISHED', 'BEFORE_REVOCATION')
+      ORDER BY s."createdAt" DESC
+      LIMIT $2
+  )
+`
+
+type PruneOldArticleSnapshotsParams struct {
+	ArticleId string `json:"articleId"`
+	Limit     int32  `json:"limit"`
+}
+
+func (q *Queries) PruneOldArticleSnapshots(ctx context.Context, arg PruneOldArticleSnapshotsParams) error {
+	_, err := q.db.Exec(ctx, pruneOldArticleSnapshots, arg.ArticleId, arg.Limit)
+	return err
 }
 
 const publishArticleDraft = `-- name: PublishArticleDraft :one

@@ -16,16 +16,25 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/netguard"
 )
 
 // WebhookWorker dispatche les événements de domaine vers les webhooks HMAC-signés.
 type WebhookWorker struct {
-	pool *pgxpool.Pool
-	q    *db.Queries
+	pool       *pgxpool.Pool
+	q          *db.Queries
+	httpClient *http.Client
 }
 
 func NewWebhookWorker(pool *pgxpool.Pool) *WebhookWorker {
 	return &WebhookWorker{pool: pool, q: db.New(pool)}
+}
+
+func (w *WebhookWorker) client() *http.Client {
+	if w.httpClient != nil {
+		return w.httpClient
+	}
+	return netguard.SafeHTTPClient(10 * time.Second)
 }
 
 // HandleProcesses l'événement et dispatche vers les webhooks abonnés.
@@ -67,27 +76,26 @@ func (w *WebhookWorker) dispatch(ctx context.Context, webhookID, url, secret, ev
 		return err
 	}
 
+	if err := netguard.ValidateExternalURL(url); err != nil {
+		return w.failDelivery(ctx, deliveryID, err)
+	}
+
 	body := map[string]any{"event": event, "data": payload, "timestamp": time.Now().UTC().Format(time.RFC3339)}
 	bodyBytes, _ := json.Marshal(body)
 	sig := signHMAC(secret, bodyBytes)
 
-	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(string(bodyBytes)))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(string(bodyBytes)))
+	if err != nil {
+		return w.failDelivery(ctx, deliveryID, err)
+	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Qoe-Signature", "sha256="+sig)
 	req.Header.Set("X-Qoe-Event", event)
 	req.Header.Set("User-Agent", "qoe-fi-webhook/1.0")
 
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := w.client().Do(req)
 	if err != nil {
-		msg := err.Error()
-		if len(msg) > 2000 {
-			msg = msg[:2000]
-		}
-		_ = w.q.UpdateWebhookDelivery(ctx, db.UpdateWebhookDeliveryParams{
-			ID: deliveryID, Status: "FAILED", HttpStatus: pgtype.Int4{}, ResponseBody: pgtype.Text{String: msg, Valid: true},
-		})
-		return err
+		return w.failDelivery(ctx, deliveryID, err)
 	}
 	defer resp.Body.Close()
 
@@ -116,6 +124,17 @@ func (w *WebhookWorker) dispatch(ctx context.Context, webhookID, url, secret, ev
 	return w.q.UpdateWebhookDelivery(ctx, db.UpdateWebhookDeliveryParams{
 		ID: deliveryID, Status: status, HttpStatus: pgtype.Int4{Int32: httpStatus, Valid: true}, ResponseBody: pgtype.Text{String: bodyStr, Valid: true},
 	})
+}
+
+func (w *WebhookWorker) failDelivery(ctx context.Context, deliveryID string, err error) error {
+	msg := err.Error()
+	if len(msg) > 2000 {
+		msg = msg[:2000]
+	}
+	_ = w.q.UpdateWebhookDelivery(ctx, db.UpdateWebhookDeliveryParams{
+		ID: deliveryID, Status: "FAILED", HttpStatus: pgtype.Int4{}, ResponseBody: pgtype.Text{String: msg, Valid: true},
+	})
+	return err
 }
 
 func signHMAC(secret string, body []byte) string {

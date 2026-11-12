@@ -272,3 +272,45 @@ func TestSeverity_UnknownNeverWins(t *testing.T) {
 		t.Fatal("une décision inconnue ne doit jamais gagner contre allow")
 	}
 }
+
+func TestPolicyV3_FollowRingLimitsDistribution(t *testing.T) {
+	now := time.Now()
+	facts := burstFacts(SignalFollowRing, SubjectUser, "sybil-1", 3, now)
+	out := PolicyV3.Evaluate(SubjectUser, "sybil-1", facts, now)
+	if out.Decision != DecisionLimitDistribution {
+		t.Fatalf("anneau de follow : attendu limit_distribution, obtenu %s", out.Decision)
+	}
+	if len(out.Reasons) != 1 || out.Reasons[0] != "sybil.follow.ring" {
+		t.Fatalf("raison attendue [sybil.follow.ring], obtenu %v", out.Reasons)
+	}
+}
+
+func TestPolicyV3_CoordinatedSpamLimitsDistribution(t *testing.T) {
+	now := time.Now()
+	facts := burstFacts(SignalCoordinatedSpam, SubjectUser, "spammer-1", 2, now)
+	out := PolicyV3.Evaluate(SubjectUser, "spammer-1", facts, now)
+	if out.Decision != DecisionLimitDistribution {
+		t.Fatalf("spam coordonné : attendu limit_distribution, obtenu %s", out.Decision)
+	}
+	if len(out.Reasons) != 1 || out.Reasons[0] != "spam.coordinated" {
+		t.Fatalf("raison attendue [spam.coordinated], obtenu %v", out.Reasons)
+	}
+}
+
+func TestPolicyV3_DMColdBurstPausesSending(t *testing.T) {
+	now := time.Now()
+	facts := burstFacts(SignalDMColdBurst, SubjectUser, "dm-spammer", 20, now)
+	out := PolicyV3.Evaluate(SubjectUser, "dm-spammer", facts, now)
+	if out.Decision != DecisionPauseSending {
+		t.Fatalf("dm cold burst : attendu pause_sending, obtenu %s", out.Decision)
+	}
+}
+
+func TestPolicyV3_SubnetMultiAccountNeedsReview(t *testing.T) {
+	now := time.Now()
+	facts := burstFacts(SignalSubnetMultiAccount, SubjectSubnet, "198.51.100.0/24", 4, now)
+	out := PolicyV3.Evaluate(SubjectSubnet, "198.51.100.0/24", facts, now)
+	if out.Decision != DecisionNeedsReview {
+		t.Fatalf("multi-comptes subnet : attendu needs_review, obtenu %s", out.Decision)
+	}
+}

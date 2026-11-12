@@ -19,15 +19,21 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/antispam"
 	"github.com/qoefi/api/internal/shared/identifier"
 	"github.com/qoefi/api/internal/subscriptions"
+	"github.com/qoefi/api/internal/trust"
 )
 
 type Service struct {
-	pool    pooler
-	gotrue  *goTrueClient
-	consent SignupConsentRecorder
+	pool     pooler
+	gotrue   *goTrueClient
+	consent  SignupConsentRecorder
+	trustSvc *trust.Service
 }
+
+// SetTrustService branche le cache Trust pour invalidation temps réel.
+func (s *Service) SetTrustService(ts *trust.Service) { s.trustSvc = ts }
 
 type Identity struct {
 	Email string `json:"email"`
@@ -517,6 +523,9 @@ func (s *Service) UpdateProfilePatch(ctx context.Context, userID string, patch P
 		if len(logo) > 2000 {
 			logo = logo[:2000]
 		}
+		if err := antispam.ValidateSafeURL(logo); err != nil {
+			return nil, err
+		}
 		args = append(args, optText(logo))
 		sets = append(sets, fmt.Sprintf(`"logoUrl" = $%d`, len(args)))
 	}
@@ -802,6 +811,7 @@ func (s *Service) OnboardingComplete(ctx context.Context, userID string, in Onbo
 		}
 	}
 
+	s.trustSvc.InvalidateUser(ctx, userID)
 	return nil
 }
 

@@ -998,6 +998,7 @@ CREATE TABLE "ArticleSnapshot" (
     "content"     TEXT NOT NULL,
     "wordCount"   INTEGER NOT NULL DEFAULT 0,
     "reason"      TEXT NOT NULL DEFAULT 'AUTO',
+    "contentHash" TEXT,
     "createdAt"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "ArticleSnapshot_pkey" PRIMARY KEY ("id"),
@@ -1011,6 +1012,7 @@ CREATE TABLE "ArticleSnapshot" (
 
 CREATE INDEX "ArticleSnapshot_articleId_createdAt_idx" ON "ArticleSnapshot" ("articleId", "createdAt" DESC);
 CREATE INDEX "ArticleSnapshot_articleId_actorId_createdAt_idx" ON "ArticleSnapshot" ("articleId", "actorId", "createdAt" DESC);
+CREATE INDEX "ArticleSnapshot_articleId_reason_createdAt_idx" ON "ArticleSnapshot" ("articleId", "reason", "createdAt" DESC);
 
 -- CreateTable
 CREATE TABLE "UserSettings" (

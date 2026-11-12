@@ -18,10 +18,16 @@ export type AbuseDecision =
 
 export type AbuseReasonCode =
   | 'burst.signup.publisher'
+  | 'network.multi_account'
+  | 'spam.coordinated'
+  | 'spam.dm.cold_burst'
+  | 'swarm.comment.target'
   | 'swarm.like.liker'
   | 'swarm.like.target'
   | 'swarm.report.reporter'
-  | 'swarm.report.target';
+  | 'swarm.report.target'
+  | 'sybil.follow.churn'
+  | 'sybil.follow.ring';
 
 export type AbuseIncidentKind =
   | 'account_farm'

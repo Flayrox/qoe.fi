@@ -10,15 +10,20 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qoefi/api/internal/abuse"
+	"github.com/qoefi/api/internal/trust"
 )
 
 // Service porte les opérations recours côté utilisateur.
 type Service struct {
-	pool *pgxpool.Pool
+	pool     *pgxpool.Pool
+	trustSvc *trust.Service
 }
 
 // NewService construit le service (pool concret : requêtes multi-lignes).
 func NewService(pool *pgxpool.Pool) *Service { return &Service{pool: pool} }
+
+// SetTrustService branche le cache Trust pour invalidation temps réel.
+func (s *Service) SetTrustService(ts *trust.Service) { s.trustSvc = ts }
 
 // OpenAppeal ouvre un recours pour soi (le sujet contesté doit être soi-même
 // — vérifié dans abuse, pas ici : même en forgeant le corps, on ne conteste

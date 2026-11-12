@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -120,14 +121,49 @@ func lastDeliveryStatus(t *testing.T, webhookID string) (string, int32) {
 	return status, httpStatus
 }
 
+type workerRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f workerRoundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func newTestWebhookWorker(server *httptest.Server) *WebhookWorker {
+	w := NewWebhookWorker(poolTest)
+	target, _ := url.Parse(server.URL)
+	w.httpClient = &http.Client{Transport: workerRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		clone := req.Clone(req.Context())
+		clone.URL.Scheme = target.Scheme
+		clone.URL.Host = target.Host
+		return server.Client().Transport.RoundTrip(clone)
+	})}
+	return w
+}
+
+func TestWebhookWorker_DefaultClientBlocksLoopback(t *testing.T) {
+	called := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	worker := NewWebhookWorker(nil)
+	resp, err := worker.client().Get(srv.URL)
+	if err == nil {
+		resp.Body.Close()
+		t.Fatalf("worker.client().Get(%s) aurait dû être bloqué par netguard", srv.URL)
+	}
+	if called {
+		t.Fatal("le serveur loopback a été appelé malgré SafeHTTPClient")
+	}
+}
+
 func TestHandleProcesses_Success_SignedAndRecorded(t *testing.T) {
 	var calls atomic.Int32
 	server := sigServer(http.StatusOK, &calls)
 	defer server.Close()
 
-	pubID, webhookID := seedWorker(t, server.URL)
+	pubID, webhookID := seedWorker(t, "https://webhook.example.com/hook")
 
-	worker := NewWebhookWorker(poolTest)
+	worker := newTestWebhookWorker(server)
 	if err := worker.HandleProcesses(context.Background(), makeTask(t, pubID), "article.published"); err != nil {
 		t.Fatalf("HandleProcesses: %v", err)
 	}
@@ -152,9 +188,9 @@ func TestHandleProcesses_ServerError_RecordedFailed(t *testing.T) {
 	server := sigServer(http.StatusInternalServerError, &calls)
 	defer server.Close()
 
-	pubID, webhookID := seedWorker(t, server.URL)
+	pubID, webhookID := seedWorker(t, "https://webhook.example.com/hook")
 
-	worker := NewWebhookWorker(poolTest)
+	worker := newTestWebhookWorker(server)
 	// Le worker ne remonte pas l'erreur HTTP (dispatch échoue mais le worker
 	// logge et continue — comportement actuel) → nil ici.
 	if err := worker.HandleProcesses(context.Background(), makeTask(t, pubID), "article.published"); err != nil {
@@ -178,14 +214,14 @@ func TestHandleProcesses_EventNotSubscribed_NoCall(t *testing.T) {
 	server := sigServer(http.StatusOK, &calls)
 	defer server.Close()
 
-	pubID, _ := seedWorker(t, server.URL)
+	pubID, _ := seedWorker(t, "https://webhook.example.com/hook")
 
 	// Événement non souscrit par le webhook (article.updated) → aucun appel.
 	payload, err := json.Marshal(map[string]any{"publisherId": pubID})
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	worker := NewWebhookWorker(poolTest)
+	worker := newTestWebhookWorker(server)
 	if err := worker.HandleProcesses(context.Background(), asynq.NewTask("article.updated", payload), "article.updated"); err != nil {
 		t.Fatalf("HandleProcesses: %v", err)
 	}
@@ -200,10 +236,10 @@ func TestHandleProcesses_MissingPublisherID_NoOp(t *testing.T) {
 	server := sigServer(http.StatusOK, &calls)
 	defer server.Close()
 
-	seedWorker(t, server.URL)
+	seedWorker(t, "https://webhook.example.com/hook")
 
 	payload, _ := json.Marshal(map[string]any{"foo": "bar"})
-	worker := NewWebhookWorker(poolTest)
+	worker := newTestWebhookWorker(server)
 	if err := worker.HandleProcesses(context.Background(), asynq.NewTask("article.published", payload), "article.published"); err != nil {
 		t.Fatalf("HandleProcesses: %v", err)
 	}
@@ -224,9 +260,9 @@ func TestHandleProcesses_PayloadShape(t *testing.T) {
 	}))
 	defer server.Close()
 
-	pubID, _ := seedWorker(t, server.URL)
+	pubID, _ := seedWorker(t, "https://webhook.example.com/hook")
 
-	worker := NewWebhookWorker(poolTest)
+	worker := newTestWebhookWorker(server)
 	if err := worker.HandleProcesses(context.Background(), makeTask(t, pubID), "article.published"); err != nil {
 		t.Fatalf("HandleProcesses: %v", err)
 	}

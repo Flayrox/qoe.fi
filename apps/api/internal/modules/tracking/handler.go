@@ -1,9 +1,7 @@
 package tracking
 
 import (
-	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/qoefi/api/internal/middleware"
@@ -36,12 +34,7 @@ func (h *Handler) readingHistory(w http.ResponseWriter, r *http.Request) {
 		response.Unauthorized(w, "Authentification requise")
 		return
 	}
-	days := 14
-	if v := r.URL.Query().Get("days"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			days = n
-		}
-	}
+	days := middleware.ClampLimit(r.URL.Query().Get("days"), 14, 365)
 	sessions, err := h.svc.ReadingHistory(r.Context(), userID, days)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "historique de lecture indisponible")
@@ -65,25 +58,24 @@ func (h *Handler) track(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	// Also allow anonymous (userID may be empty) — article completionRate still updated
 	var req trackRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.BadRequest(w, "JSON invalide")
+	if !response.DecodeJSON(w, r, &req) {
 		return
 	}
-	if req.ArticleID == "" {
-		response.BadRequest(w, "articleId required")
+	if req.ArticleID == "" || len(req.ArticleID) > 128 {
+		response.BadRequest(w, "articleId invalide")
 		return
 	}
 	scroll := 0
 	if req.ScrollDepth != nil {
-		scroll = *req.ScrollDepth
+		scroll = max(0, min(100, *req.ScrollDepth))
 	}
 	dwell := 0
 	if req.DwellSeconds != nil {
-		dwell = *req.DwellSeconds
+		dwell = max(0, min(86400, *req.DwellSeconds))
 	}
 	rt := 5
 	if req.ReadingTimeMinutes != nil {
-		rt = *req.ReadingTimeMinutes
+		rt = max(1, min(240, *req.ReadingTimeMinutes))
 	}
 	updated, err := h.svc.TrackReadingSession(r.Context(), userID, req.ArticleID, req.Source, req.Status, scroll, dwell, rt, req.Hostname, req.ReferrerUsername)
 	if err != nil {
@@ -98,9 +90,11 @@ func (h *Handler) feedImpression(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Items []FeedImpressionItem `json:"items"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		response.BadRequest(w, "JSON invalide")
+	if !response.DecodeJSON(w, r, &body) {
 		return
+	}
+	if len(body.Items) > 100 {
+		body.Items = body.Items[:100]
 	}
 	inserted, err := h.svc.TrackFeedImpression(r.Context(), userID, body.Items)
 	if err != nil {
@@ -120,8 +114,7 @@ func (h *Handler) showLess(w http.ResponseWriter, r *http.Request) {
 		ArticleID *string `json:"articleId"`
 		ThoughtID *string `json:"thoughtId"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		response.BadRequest(w, "JSON invalide")
+	if !response.DecodeJSON(w, r, &body) {
 		return
 	}
 	articleID := ""
@@ -154,8 +147,7 @@ func (h *Handler) showMore(w http.ResponseWriter, r *http.Request) {
 		ArticleID *string `json:"articleId"`
 		ThoughtID *string `json:"thoughtId"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		response.BadRequest(w, "JSON invalide")
+	if !response.DecodeJSON(w, r, &body) {
 		return
 	}
 	articleID := ""

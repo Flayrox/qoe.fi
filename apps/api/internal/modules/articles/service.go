@@ -3,6 +3,8 @@ package articles
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -3095,24 +3097,69 @@ func countWords(content string) int {
 	return len(strings.Fields(content))
 }
 
+const (
+	authorSwitchSnapshotCooldown = 5 * time.Minute
+	maxNonMilestoneSnapshots     = 50
+)
+
+func snapshotContentHash(title, content string) string {
+	sum := sha256.Sum256([]byte(title + "\x00" + content))
+	return hex.EncodeToString(sum[:])
+}
+
+func isMilestoneSnapshotReason(reason string) bool {
+	return reason == "INITIAL" || reason == "PUBLISHED" || reason == "BEFORE_REVOCATION"
+}
+
 func (s *Service) captureSnapshot(ctx context.Context, articleID string, actorID *string, title, content, reason string) error {
 	if s.pool == nil || articleID == "" {
 		return nil
 	}
+	contentHash := snapshotContentHash(title, content)
+
+	// Cooldown anti-flood sur AUTHOR_SWITCH (éditions collaboratives alternées rapides).
+	if reason == "AUTHOR_SWITCH" {
+		if lastSwitch, err := s.q.GetLatestArticleSnapshotByReason(ctx, db.GetLatestArticleSnapshotByReasonParams{
+			ArticleId: articleID,
+			Reason:    "AUTHOR_SWITCH",
+		}); err == nil && lastSwitch.CreatedAt.Valid && time.Since(lastSwitch.CreatedAt.Time) < authorSwitchSnapshotCooldown {
+			return nil
+		}
+	}
+
+	// Déduplication SHA-256 : évite de dupliquer des snapshots identiques.
+	// Les jalons (INITIAL, PUBLISHED, BEFORE_REVOCATION) ne sont dédupliqués
+	// que contre un jalon de même raison.
+	if latest, err := s.q.GetLatestArticleSnapshotMeta(ctx, articleID); err == nil && latest.ContentHash.Valid && latest.ContentHash.String == contentHash {
+		if !isMilestoneSnapshotReason(reason) || latest.Reason == reason {
+			return nil
+		}
+	}
+
 	var actorUUID pgtype.UUID
 	if actorID != nil && *actorID != "" {
 		actorUUID = toUUID(*actorID)
 	}
 	words := countWords(content)
 	_, err := s.q.InsertArticleSnapshot(ctx, db.InsertArticleSnapshotParams{
-		ArticleId: articleID,
-		ActorId:   actorUUID,
-		Title:     title,
-		Content:   content,
-		WordCount: int32(words),
-		Reason:    reason,
+		ArticleId:   articleID,
+		ActorId:     actorUUID,
+		Title:       title,
+		Content:     content,
+		WordCount:   int32(words),
+		Reason:      reason,
+		ContentHash: pgtype.Text{String: contentHash, Valid: true},
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	if !isMilestoneSnapshotReason(reason) {
+		_ = s.q.PruneOldArticleSnapshots(ctx, db.PruneOldArticleSnapshotsParams{
+			ArticleId: articleID,
+			Limit:     maxNonMilestoneSnapshots,
+		})
+	}
+	return nil
 }
 
 // ensureAuthorSovereignCopy est le point d'entrée du fork manuel (« Récupérer

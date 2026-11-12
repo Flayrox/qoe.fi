@@ -141,6 +141,10 @@ func (h *Handler) acceptFollowRequest(w http.ResponseWriter, r *http.Request) {
 	}
 	h.deleteFollowRequestNotification(r.Context(), userID, requesterID, publisherID)
 	h.notifyFollowAccepted(r.Context(), publisherID, userID, requesterID)
+	h.invalidateFollowTrust(r.Context(), requesterID, userID)
+	if ownerID, err := h.q.GetPublisherOwner(r.Context(), publisherID); err == nil && ownerID != "" && ownerID != userID {
+		h.sec.InvalidateTrust(r.Context(), ownerID)
+	}
 	response.OK(w, map[string]any{"accepted": true})
 }
 

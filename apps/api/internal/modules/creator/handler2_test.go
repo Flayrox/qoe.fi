@@ -151,8 +151,8 @@ func TestCreator_PureHelpers(t *testing.T) {
 	if l, o := parseFollowPage(reqPath("?limit=5&cursor=2")); l != 5 || o != 2 {
 		t.Errorf("parseFollowPage = (%d,%d), attendu (5,2)", l, o)
 	}
-	if l, _ := parseFollowPage(reqPath("?limit=999")); l != 50 {
-		t.Errorf("limit 999 clampé = %d, attendu 50", l)
+	if l, _ := parseFollowPage(reqPath("?limit=999")); l != 100 {
+		t.Errorf("limit 999 clampé = %d, attendu 100", l)
 	}
 	// parseLimitCursor
 	if l, o := parseLimitCursor(reqPath("?limit=8&cursor=3")); l != 8 || o != 3 {

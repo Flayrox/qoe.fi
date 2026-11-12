@@ -1,12 +1,61 @@
-// Middlewares génériques : CORS, récupération de panique, logging.
+// Middlewares génériques : CORS, durcissement transport, récupération de panique, logging.
 package middleware
 
 import (
+	"errors"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
+
+// SecurityHeaders ajoute les en-têtes de durcissement HTTP sur chaque réponse.
+func SecurityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// MaxBodyBytes plafonne la taille du corps de requête sur les méthodes avec payload
+// (POST, PUT, PATCH) via http.MaxBytesReader.
+func MaxBodyBytes(limit int64) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodPost, http.MethodPut, http.MethodPatch:
+				if r.Body != nil {
+					r.Body = http.MaxBytesReader(w, r.Body, limit)
+				}
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// IsBodyTooLarge indique si l'erreur correspond à un dépassement de MaxBodyBytes.
+func IsBodyTooLarge(err error) bool {
+	var maxBytesErr *http.MaxBytesError
+	return errors.As(err, &maxBytesErr)
+}
+
+// ClampLimit parse un entier strictement positif borné entre 1 et maxLimit,
+// et renvoie defaultLimit si la valeur est invalide ou <= 0.
+func ClampLimit(raw string, defaultLimit, maxLimit int) int {
+	n, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil || n <= 0 {
+		return defaultLimit
+	}
+	if maxLimit > 0 && n > maxLimit {
+		return maxLimit
+	}
+	return n
+}
 
 // Recovery récupère les paniques et répond 500 au lieu de faire tomber le serveur.
 func Recovery(next http.Handler) http.Handler {
@@ -37,7 +86,8 @@ func CORS(allowedOrigins []string) func(http.Handler) http.Handler {
 				w.Header().Set("Vary", "Origin")
 			}
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Qoe-Signature")
+			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Qoe-Signature, Idempotency-Key")
+			w.Header().Set("Access-Control-Expose-Headers", "X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After")
 			w.Header().Set("Access-Control-Max-Age", "86400")
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusNoContent)

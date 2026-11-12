@@ -546,11 +546,37 @@ WHERE id = $1;
 
 -- name: InsertArticleSnapshot :one
 INSERT INTO "ArticleSnapshot" (
-    id, "articleId", "actorId", title, content, "wordCount", reason, "createdAt"
+    id, "articleId", "actorId", title, content, "wordCount", reason, "contentHash", "createdAt"
 ) VALUES (
-    gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, now()
+    gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, now()
 )
 RETURNING *;
+
+-- name: GetLatestArticleSnapshotMeta :one
+SELECT id, reason, "contentHash", "createdAt"
+FROM "ArticleSnapshot"
+WHERE "articleId" = $1
+ORDER BY "createdAt" DESC
+LIMIT 1;
+
+-- name: GetLatestArticleSnapshotByReason :one
+SELECT id, "contentHash", "createdAt"
+FROM "ArticleSnapshot"
+WHERE "articleId" = $1 AND reason = $2
+ORDER BY "createdAt" DESC
+LIMIT 1;
+
+-- name: PruneOldArticleSnapshots :exec
+DELETE FROM "ArticleSnapshot" AS a
+WHERE a."articleId" = $1
+  AND a.reason NOT IN ('INITIAL', 'PUBLISHED', 'BEFORE_REVOCATION')
+  AND a.id NOT IN (
+      SELECT s.id FROM "ArticleSnapshot" AS s
+      WHERE s."articleId" = $1
+        AND s.reason NOT IN ('INITIAL', 'PUBLISHED', 'BEFORE_REVOCATION')
+      ORDER BY s."createdAt" DESC
+      LIMIT $2
+  );
 
 -- name: ListArticleSnapshots :many
 SELECT s.id, s."articleId", s."actorId", s.title, s.content, s."wordCount", s.reason, s."createdAt",

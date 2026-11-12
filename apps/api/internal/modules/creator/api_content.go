@@ -436,11 +436,8 @@ func (a *apiArticleFull) setAuthor(index int, author apiAuthor) {
 // GET /v1/creator/highlights?article=slug délègue au handler existant avec
 // le filtre ajouté dans apiHighlightsPageQuery.
 func parseCursor(r *http.Request) (int, int) {
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	limit := middleware.ClampLimit(r.URL.Query().Get("limit"), 20, 100)
 	offset, _ := strconv.Atoi(r.URL.Query().Get("cursor"))
-	if limit <= 0 || limit > 100 {
-		limit = 20
-	}
 	if offset < 0 {
 		offset = 0
 	}

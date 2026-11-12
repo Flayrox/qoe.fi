@@ -5,21 +5,48 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
+	"github.com/qoefi/api/internal/antispam"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
+	"github.com/qoefi/api/internal/secguard"
+	"github.com/qoefi/api/internal/trust"
 )
 
 type Handler struct {
 	svc *Service
+	sec *secguard.Guard
 }
 
 func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
+}
+
+// SetSecurityGuard attache le garde de sécurité temps réel (nil-safe).
+func (h *Handler) SetSecurityGuard(g *secguard.Guard) *Handler {
+	h.sec = g
+	return h
+}
+
+// enforceContentWrite délègue au Guard si présent, ou applique la validation
+// standard en écrivant la réponse d'erreur HTTP si le Guard est nil.
+func (h *Handler) enforceContentWrite(w http.ResponseWriter, r *http.Request, userID, scope, text string, prof trust.Profile, validate func(trust.Tier) error) bool {
+	if h.sec != nil {
+		return h.sec.EnforceContentWrite(r.Context(), w, userID, scope, text, prof, validate)
+	}
+	if validate != nil {
+		if err := validate(trust.TierStandard); err != nil {
+			if !secguard.WriteRejection(w, err) {
+				response.BadRequest(w, err.Error())
+			}
+			return false
+		}
+	}
+	return true
 }
 
 // RegisterPublic enregistre la lecture publique (auth optionnelle) — hors auth.
@@ -194,11 +221,24 @@ type createInput struct {
 	EmailPreviewText       *string                   `json:"emailPreviewText"`
 }
 
+func validateArticlePayload(title, content string, imageURL *string) func(trust.Tier) error {
+	return func(tier trust.Tier) error {
+		if err := antispam.ValidateArticle(title, content, tier); err != nil {
+			return err
+		}
+		if imageURL != nil {
+			if err := antispam.ValidateSafeURL(*imageURL); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}
+
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	var in createInput
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		response.BadRequest(w, "JSON invalide")
+	if !response.DecodeJSON(w, r, &in) {
 		return
 	}
 	if in.PublisherID == "" || in.Title == "" {
@@ -210,9 +250,23 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	prof := h.sec.EvaluateRequest(r.Context(), r, userID)
+	if !h.sec.EnforceRateLimit(r.Context(), w, r, "articles-create", userID, prof.Tier, secguard.QuotasArticlesCreate) {
+		return
+	}
+	// Empreinte vide : pas de SimHash sur les articles longs à la création,
+	// tout en conservant le gel éventuel, l'hygiène XSS/tailles et l'URL sûre.
+	if !h.enforceContentWrite(w, r, userID, "articles-create", "", prof, validateArticlePayload(in.Title, in.Content, in.ImageURL)) {
+		return
+	}
+
 	scheduledAt, err := parseScheduledAt(in.ScheduledAt)
 	if err != nil {
 		response.BadRequest(w, err.Error())
+		return
+	}
+	if h.svc == nil {
+		response.Internal(w)
 		return
 	}
 	id, err := h.svc.Create(r.Context(), userID, CreateArticleInput{
@@ -234,6 +288,9 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		response.Forbidden(w, err.Error())
 		return
+	}
+	if in.Published || strings.EqualFold(in.Status, "PUBLISHED") {
+		h.sec.InvalidateTrust(r.Context(), userID)
 	}
 	article, err := h.svc.GetByID(r.Context(), id, userID)
 	if err != nil {
@@ -318,8 +375,15 @@ type bulkUpdateInput struct {
 func (h *Handler) bulkUpdate(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	var in bulkUpdateInput
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		response.BadRequest(w, "JSON invalide")
+	if !response.DecodeJSON(w, r, &in) {
+		return
+	}
+	prof := h.sec.EvaluateRequest(r.Context(), r, userID)
+	if !h.sec.EnforceRateLimit(r.Context(), w, r, "articles-edit", userID, prof.Tier, secguard.QuotasArticlesEdit) {
+		return
+	}
+	if h.svc == nil {
+		response.Internal(w)
 		return
 	}
 	result, err := h.svc.BulkUpdate(r.Context(), userID, BulkUpdateInput{
@@ -365,17 +429,29 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	id := chi.URLParam(r, "id")
 	var in updateInput
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		response.BadRequest(w, "JSON invalide")
+	if !response.DecodeJSON(w, r, &in) {
 		return
 	}
 	if !IsValidContentFormat(in.ContentFormat) {
 		response.BadRequest(w, "contentFormat invalide (markdown|html)")
 		return
 	}
+	prof := h.sec.EvaluateRequest(r.Context(), r, userID)
+	if !h.sec.EnforceRateLimit(r.Context(), w, r, "articles-edit", userID, prof.Tier, secguard.QuotasArticlesEdit) {
+		return
+	}
+	// Aucun SimHash sur update pour ne jamais bloquer les auto-sauvegardes
+	// ni les Ctrl+S répétés sur un même article.
+	if !h.enforceContentWrite(w, r, userID, "articles-edit", "", prof, validateArticlePayload(in.Title, in.Content, in.ImageURL)) {
+		return
+	}
 	scheduledAt, err := parseScheduledAt(in.ScheduledAt)
 	if err != nil {
 		response.BadRequest(w, err.Error())
+		return
+	}
+	if h.svc == nil {
+		response.Internal(w)
 		return
 	}
 	if err := h.svc.Update(r.Context(), id, userID, UpdateArticleInput{
@@ -392,6 +468,9 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, err.Error())
 		return
 	}
+	if in.Published || strings.EqualFold(in.Status, "PUBLISHED") {
+		h.sec.InvalidateTrust(r.Context(), userID)
+	}
 	article, err := h.svc.GetByID(r.Context(), id, userID)
 	if err != nil {
 		response.OK(w, map[string]bool{"updated": true})
@@ -405,12 +484,7 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) events(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	id := chi.URLParam(r, "id")
-	limit := int32(100)
-	if v := r.URL.Query().Get("limit"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			limit = int32(n)
-		}
-	}
+	limit := int32(middleware.ClampLimit(r.URL.Query().Get("limit"), 100, 200))
 
 	eventsList, err := h.svc.ListEvents(r.Context(), id, userID, limit)
 	if err != nil {
@@ -436,6 +510,7 @@ func (h *Handler) publish(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, err.Error())
 		return
 	}
+	h.sec.InvalidateTrust(r.Context(), userID)
 	response.OK(w, map[string]bool{"published": true})
 }
 
@@ -761,8 +836,18 @@ func (h *Handler) forkPersonal(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	id := chi.URLParam(r, "id")
 	var in forkPersonalInput
-	if r.Body != nil {
-		_ = json.NewDecoder(r.Body).Decode(&in)
+	if r.Body != nil && r.ContentLength != 0 {
+		if !response.DecodeJSON(w, r, &in) {
+			return
+		}
+	}
+	prof := h.sec.EvaluateRequest(r.Context(), r, userID)
+	if !h.sec.EnforceRateLimit(r.Context(), w, r, "articles-create", userID, prof.Tier, secguard.QuotasArticlesCreate) {
+		return
+	}
+	if h.svc == nil {
+		response.Internal(w)
+		return
 	}
 	var snapID string
 	if in.SnapshotID != nil {
@@ -812,6 +897,14 @@ func (h *Handler) restoreSnapshot(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	id := chi.URLParam(r, "id")
 	snapshotID := chi.URLParam(r, "snapshotId")
+	prof := h.sec.EvaluateRequest(r.Context(), r, userID)
+	if !h.sec.EnforceRateLimit(r.Context(), w, r, "articles-edit", userID, prof.Tier, secguard.QuotasArticlesEdit) {
+		return
+	}
+	if h.svc == nil {
+		response.Internal(w)
+		return
+	}
 	if err := h.svc.RestoreSnapshot(r.Context(), id, snapshotID, userID); err != nil {
 		if errors.Is(err, errNotFound) {
 			response.NotFound(w, "Article ou version introuvable")
@@ -916,12 +1009,7 @@ func (h *Handler) capabilities(w http.ResponseWriter, r *http.Request) {
 // n'a pas indexé (liste vide ≠ erreur).
 func (h *Handler) similar(w http.ResponseWriter, r *http.Request) {
 	articleID := chi.URLParam(r, "id")
-	limit := 6
-	if v := r.URL.Query().Get("limit"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			limit = n
-		}
-	}
+	limit := middleware.ClampLimit(r.URL.Query().Get("limit"), 6, 20)
 	items, err := h.svc.SimilarArticles(r.Context(), articleID, limit)
 	if err != nil {
 		if errors.Is(err, errNotFound) {
@@ -970,12 +1058,24 @@ func (h *Handler) createComment(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	articleID := chi.URLParam(r, "id")
 	var in createCommentInput
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		response.BadRequest(w, "JSON invalide")
+	if !response.DecodeJSON(w, r, &in) {
 		return
 	}
 	if in.Content == "" {
 		response.BadRequest(w, "content requis")
+		return
+	}
+	prof := h.sec.EvaluateRequest(r.Context(), r, userID)
+	if !h.sec.EnforceRateLimit(r.Context(), w, r, "comments", userID, prof.Tier, secguard.QuotasComments) {
+		return
+	}
+	if !h.enforceContentWrite(w, r, userID, "comments", in.Content, prof, func(tier trust.Tier) error {
+		return antispam.ValidateComment(in.Content, tier)
+	}) {
+		return
+	}
+	if h.svc == nil {
+		response.Internal(w)
 		return
 	}
 	comment, err := h.svc.CreateComment(r.Context(), articleID, userID, in.Content, in.ParentID)
@@ -991,6 +1091,7 @@ func (h *Handler) createComment(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	h.sec.ObserveCommentTarget(r.Context(), articleID)
 	response.Created(w, comment)
 }
 

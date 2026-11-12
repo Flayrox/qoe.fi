@@ -705,14 +705,15 @@ type ArticleSlugHistory struct {
 }
 
 type ArticleSnapshot struct {
-	ID        string           `json:"id"`
-	ArticleId string           `json:"articleId"`
-	ActorId   pgtype.UUID      `json:"actorId"`
-	Title     string           `json:"title"`
-	Content   string           `json:"content"`
-	WordCount int32            `json:"wordCount"`
-	Reason    string           `json:"reason"`
-	CreatedAt pgtype.Timestamp `json:"createdAt"`
+	ID          string           `json:"id"`
+	ArticleId   string           `json:"articleId"`
+	ActorId     pgtype.UUID      `json:"actorId"`
+	Title       string           `json:"title"`
+	Content     string           `json:"content"`
+	WordCount   int32            `json:"wordCount"`
+	Reason      string           `json:"reason"`
+	ContentHash pgtype.Text      `json:"contentHash"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
 }
 
 type BlockedUser struct {

@@ -605,10 +605,14 @@ func (s *Service) MarkPhoneVerified(ctx context.Context, userID, number string, 
 	_, err := s.pool.Exec(ctx,
 		`UPDATE "User" SET "phoneNumber" = $2, "phoneVerifiedAt" = $3, "updatedAt" = now() WHERE id = $1`,
 		toUUID(userID), number, at.UTC())
-	if err != nil && isPhoneNumberConflict(err) {
-		return ErrPhoneNumberTaken
+	if err != nil {
+		if isPhoneNumberConflict(err) {
+			return ErrPhoneNumberTaken
+		}
+		return err
 	}
-	return err
+	s.trustSvc.InvalidateUser(ctx, userID)
+	return nil
 }
 
 // ClearPhoneVerification retire le numéro (changement de numéro, suppression de
@@ -618,7 +622,11 @@ func (s *Service) ClearPhoneVerification(ctx context.Context, userID string) err
 	_, err := s.pool.Exec(ctx,
 		`UPDATE "User" SET "phoneNumber" = NULL, "phoneVerifiedAt" = NULL, "updatedAt" = now() WHERE id = $1`,
 		toUUID(userID))
-	return err
+	if err != nil {
+		return err
+	}
+	s.trustSvc.InvalidateUser(ctx, userID)
+	return nil
 }
 
 // isPhoneNumberConflict détecte la violation d'unicité sur User.phoneNumber

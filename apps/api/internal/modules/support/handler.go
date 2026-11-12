@@ -4,7 +4,6 @@ package support
 // demander de l'aide reste possible — tranche 6).
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -99,8 +98,7 @@ func (h *Handler) openPublic(w http.ResponseWriter, r *http.Request) {
 		Subject string `json:"subject"`
 		Message string `json:"message"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		response.BadRequest(w, "JSON invalide")
+	if !response.DecodeJSON(w, r, &in) {
 		return
 	}
 	uid, _ := middleware.UserID(r.Context()) // absent = invité (pas une erreur)
@@ -144,8 +142,11 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	limit := middleware.ClampLimit(r.URL.Query().Get("limit"), 50, 100)
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	if offset < 0 {
+		offset = 0
+	}
 	items, total, err := h.svc.ListTickets(r.Context(), uid, limit, offset)
 	if err != nil {
 		h.mapErr(w, err)
@@ -169,7 +170,10 @@ func (h *Handler) open(w http.ResponseWriter, r *http.Request) {
 		RelatedType string `json:"relatedType"`
 		RelatedID   string `json:"relatedId"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Kind == "" || in.Subject == "" {
+	if !response.DecodeJSON(w, r, &in) {
+		return
+	}
+	if in.Kind == "" || in.Subject == "" {
 		response.BadRequest(w, "JSON invalide (kind, subject et message requis)")
 		return
 	}
@@ -204,7 +208,10 @@ func (h *Handler) addMessage(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		Body string `json:"body"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Body == "" {
+	if !response.DecodeJSON(w, r, &in) {
+		return
+	}
+	if in.Body == "" {
 		response.BadRequest(w, "JSON invalide (body requis)")
 		return
 	}
