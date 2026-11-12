@@ -1,11 +1,16 @@
 package main
 
 import (
+	"crypto/subtle"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
 
 	authmw "github.com/qoefi/api/internal/middleware"
+	"github.com/qoefi/api/internal/observability"
+	"github.com/qoefi/api/internal/pow"
+	"github.com/qoefi/api/internal/response"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -195,4 +200,140 @@ func publicRouteRateLimit(rc *redis.Client) func(http.Handler) http.Handler {
 // (brute-force MFA TOTP 5/5min, changement mot de passe/email, IA, webhooks).
 func protectedRouteRateLimit(rc *redis.Client) func(http.Handler) http.Handler {
 	return applyRouteQuotas(rc, protectedRouteQuotas)
+}
+
+type metricsStatusWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (w *metricsStatusWriter) WriteHeader(code int) {
+	w.status = code
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func normalizeMetricRouteGroup(path string) string {
+	trimmed := strings.Trim(path, "/")
+	if trimmed == "" {
+		return "/"
+	}
+	parts := strings.Split(trimmed, "/")
+	if len(parts) >= 2 && parts[0] == "v1" {
+		return "/v1/" + parts[1]
+	}
+	return "/" + parts[0]
+}
+
+// httpMetricsMiddleware enregistre le volume et la latence de chaque requête HTTP.
+func httpMetricsMiddleware() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
+			rec := &metricsStatusWriter{ResponseWriter: w, status: http.StatusOK}
+			next.ServeHTTP(rec, r)
+			observability.Default().ObserveHTTPRequest(
+				r.Method,
+				normalizeMetricRouteGroup(r.URL.Path),
+				rec.status,
+				time.Since(start),
+			)
+		})
+	}
+}
+
+// metricsHandler expose les métriques Prometheus sur /metrics derrière le secret interne.
+func metricsHandler(internalSecret string) http.HandlerFunc {
+	promHandler := observability.Default().Handler()
+	return func(w http.ResponseWriter, r *http.Request) {
+		if internalSecret == "" {
+			response.Unauthorized(w, "Secret interne non configuré")
+			return
+		}
+		provided := strings.TrimSpace(r.Header.Get("x-qoe-internal-secret"))
+		if provided == "" {
+			if authz := r.Header.Get("Authorization"); strings.HasPrefix(authz, "Bearer ") {
+				provided = strings.TrimSpace(strings.TrimPrefix(authz, "Bearer "))
+			}
+		}
+		if subtle.ConstantTimeCompare([]byte(provided), []byte(internalSecret)) != 1 {
+			response.Unauthorized(w, "Accès métriques refusé")
+			return
+		}
+		promHandler.ServeHTTP(w, r)
+	}
+}
+
+func powSecretFromDeps(d RouterDeps) string {
+	if s := strings.TrimSpace(d.InternalSecret); s != "" {
+		return s
+	}
+	return strings.TrimSpace(d.JWTSecret)
+}
+
+func challengeHandler(secret string) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		if secret == "" {
+			response.Error(w, http.StatusServiceUnavailable, "Service de challenge indisponible")
+			return
+		}
+		ch, err := pow.GenerateChallenge(secret, 25000, 5*time.Minute)
+		if err != nil {
+			response.Internal(w)
+			return
+		}
+		response.OK(w, ch)
+	}
+}
+
+func isPoWBurstCandidate(r *http.Request) bool {
+	if r.Method != http.MethodPost {
+		return false
+	}
+	p := r.URL.Path
+	if p == "/v1/support/public/tickets" {
+		return true
+	}
+	return strings.HasPrefix(p, "/v1/users/") && strings.HasSuffix(p, "/subscribe")
+}
+
+// requirePoWOnBurst déclenche un challenge Proof-of-Work Altcha adaptatif lors
+// d'une rafale sur les formulaires publics sensibles sans bloquer le trafic normal.
+func requirePoWOnBurst(rc *redis.Client, secret string, freeBurst int, window time.Duration) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		if rc == nil || secret == "" || freeBurst <= 0 {
+			return next
+		}
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !isPoWBurstCandidate(r) {
+				next.ServeHTTP(w, r)
+				return
+			}
+			key := "rl:pow-burst:" + authmw.ClientIP(r)
+			allowed, _, err := authmw.CheckGCRA(r.Context(), rc, key, window, freeBurst)
+			if err == nil && allowed {
+				next.ServeHTTP(w, r)
+				return
+			}
+			token := strings.TrimSpace(r.Header.Get("X-Qoe-Challenge"))
+			if token != "" {
+				if verifyErr := pow.VerifyAndConsume(r.Context(), rc, secret, token); verifyErr == nil {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+			ch, chErr := pow.GenerateChallenge(secret, 25000, 5*time.Minute)
+			if chErr != nil {
+				response.Internal(w)
+				return
+			}
+			observability.Default().IncSecGuardRejection("pow", "CHALLENGE_REQUIRED")
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusPreconditionRequired)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"error":     "Vérification anti-robot requise.",
+				"code":      "CHALLENGE_REQUIRED",
+				"challenge": ch,
+			})
+		})
+	}
 }

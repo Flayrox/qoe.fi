@@ -59,6 +59,7 @@
     "./cards": "./src/cards/index.ts",
     "./forms": "./src/forms/index.ts",
     "./social": "./src/social/index.ts",
+    "./security": "./src/security/index.ts",
     "./templates": "./src/templates/index.ts",
     "./templates/*": "./src/templates/*"
   },

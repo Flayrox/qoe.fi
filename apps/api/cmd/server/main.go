@@ -244,15 +244,18 @@ func newRouter(d RouterDeps) *chi.Mux {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
 	r.Use(authmw.Recovery)
+	r.Use(authmw.RequestID)
+	r.Use(httpMetricsMiddleware())
 	r.Use(authmw.Logger)
 	r.Use(authmw.SecurityHeaders)
 	r.Use(authmw.CORS(corsAllowedOrigins(d.DevtoolsDevOnly)))
 	r.Use(routeAwareMaxBodyBytes())
 	// Rate-limiting global : 600 req/min par IP (GCRA Redis) + limites
 	// dédiées sur les endpoints publics critiques (/search/semantic,
-	// /v1/tracking/*, /v1/auth/registration-status, etc.).
+	// /v1/tracking/*, /v1/auth/registration-status, etc.) + PoW adaptatif.
 	r.Use(authmw.RateLimit("global", rc, time.Minute, 600, false))
 	r.Use(publicRouteRateLimit(rc))
+	r.Use(requirePoWOnBurst(rc, powSecretFromDeps(d), 3, time.Minute))
 	// Contrôle d'accès global de l'API (coupure générale + endpoints désactivés),
 	// piloté par les superadmins — la console admin / l'IdP OAuth / les webhooks
 	// entrants infra restent toujours joignables.
@@ -266,6 +269,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
+	r.Get("/metrics", metricsHandler(d.InternalSecret))
+	r.With(authmw.RateLimit("pow-challenge", rc, time.Minute, 30, false)).
+		Get("/v1/security/challenge", challengeHandler(powSecretFromDeps(d)))
 
 	// Feature flags : état serveur des flags (même table Postgres que la
 	// console admin / @qoe/flags — une seule source de vérité, cache 30 s).

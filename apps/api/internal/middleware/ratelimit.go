@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/qoefi/api/internal/observability"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -124,7 +125,7 @@ func RateLimit(name string, rc *redis.Client, window time.Duration, max int, sco
 			}
 
 			redisKey := fmt.Sprintf("rl:%s:%s", name, key)
-			serveWithGCRA(w, r, next, rc, redisKey, window, max)
+			serveWithGCRA(w, r, next, rc, name, redisKey, window, max)
 		})
 	}
 }
@@ -148,7 +149,7 @@ func RateLimitAPIKey(name string, rc *redis.Client, window time.Duration, max in
 			}
 
 			redisKey := fmt.Sprintf("rl:%s:key:%s", name, keyID)
-			serveWithGCRA(w, r, next, rc, redisKey, window, max)
+			serveWithGCRA(w, r, next, rc, name, redisKey, window, max)
 		})
 	}
 }
@@ -178,10 +179,12 @@ func RateLimitDual(name string, rc *redis.Client, userWin time.Duration, userMax
 				res, err := evalGCRA(r.Context(), rc, userKey, userWin, userMax)
 				if err != nil {
 					logRateLimitWarnThrottled(err)
+					observability.Default().IncRateLimitDecision(name, "fail_open")
 					next.ServeHTTP(w, r)
 					return
 				}
 				if !res.Allowed {
+					observability.Default().IncRateLimitDecision(name, "blocked")
 					setRateLimitHeaders(w, res)
 					writeRateLimited(w, res)
 					return
@@ -195,6 +198,7 @@ func RateLimitDual(name string, rc *redis.Client, userWin time.Duration, userMax
 				res, err := evalGCRA(r.Context(), rc, subnetKey, subnetWin, subnetMax)
 				if err != nil {
 					logRateLimitWarnThrottled(err)
+					observability.Default().IncRateLimitDecision(name, "fail_open")
 					if hasRes {
 						setRateLimitHeaders(w, best)
 					}
@@ -202,6 +206,7 @@ func RateLimitDual(name string, rc *redis.Client, userWin time.Duration, userMax
 					return
 				}
 				if !res.Allowed {
+					observability.Default().IncRateLimitDecision(name, "blocked")
 					setRateLimitHeaders(w, res)
 					writeRateLimited(w, res)
 					return
@@ -212,6 +217,7 @@ func RateLimitDual(name string, rc *redis.Client, userWin time.Duration, userMax
 				}
 			}
 
+			observability.Default().IncRateLimitDecision(name, "allowed")
 			if hasRes {
 				setRateLimitHeaders(w, best)
 			}
@@ -220,20 +226,23 @@ func RateLimitDual(name string, rc *redis.Client, userWin time.Duration, userMax
 	}
 }
 
-func serveWithGCRA(w http.ResponseWriter, r *http.Request, next http.Handler, rc *redis.Client, key string, window time.Duration, max int) {
+func serveWithGCRA(w http.ResponseWriter, r *http.Request, next http.Handler, rc *redis.Client, namespace, key string, window time.Duration, max int) {
 	res, err := evalGCRA(r.Context(), rc, key, window, max)
 	if err != nil {
 		logRateLimitWarnThrottled(err)
+		observability.Default().IncRateLimitDecision(namespace, "fail_open")
 		next.ServeHTTP(w, r)
 		return
 	}
 
 	setRateLimitHeaders(w, res)
 	if !res.Allowed {
+		observability.Default().IncRateLimitDecision(namespace, "blocked")
 		writeRateLimited(w, res)
 		return
 	}
 
+	observability.Default().IncRateLimitDecision(namespace, "allowed")
 	next.ServeHTTP(w, r)
 }
 

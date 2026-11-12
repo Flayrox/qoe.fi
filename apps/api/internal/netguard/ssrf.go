@@ -11,6 +11,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/qoefi/api/internal/observability"
 )
 
 const maxRedirects = 3
@@ -155,6 +157,7 @@ func SafeHTTPClient(timeout time.Duration) *http.Client {
 			}
 			ip := net.ParseIP(host)
 			if !IsPublicIP(ip) {
+				observability.Default().IncNetGuardSSRFBlocked()
 				return fmt.Errorf("%w : connexion vers une adresse non publique bloquée (%s)", ErrUnsafeURL, host)
 			}
 			return nil

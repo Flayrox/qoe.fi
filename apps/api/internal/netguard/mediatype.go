@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"net/http"
+
+	"github.com/qoefi/api/internal/observability"
 )
 
 // allowedImageMIMEs associe chaque type MIME autorisé à son extension canonique.
@@ -20,6 +22,7 @@ var allowedImageMIMEs = map[string]string{
 // WebP et AVIF. Les payloads vides, HTML, SVG, XML ou JS sont rejetés.
 func SniffImageMIME(data []byte) (mime string, ext string, ok bool) {
 	if len(data) == 0 {
+		observability.Default().IncMediaMIMERejected()
 		return "", "", false
 	}
 
@@ -31,6 +34,7 @@ func SniffImageMIME(data []byte) (mime string, ext string, ok bool) {
 	// Rejet explicite des contenus textuels/balisés (SVG, HTML, XML) avant tout sniffing.
 	trimmed := bytes.TrimSpace(bytes.TrimPrefix(head, []byte("\xef\xbb\xbf")))
 	if len(trimmed) > 0 && trimmed[0] == '<' {
+		observability.Default().IncMediaMIMERejected()
 		return "", "", false
 	}
 
@@ -44,6 +48,7 @@ func SniffImageMIME(data []byte) (mime string, ext string, ok bool) {
 	detected := http.DetectContentType(head)
 	ext, ok = allowedImageMIMEs[detected]
 	if !ok {
+		observability.Default().IncMediaMIMERejected()
 		return "", "", false
 	}
 	return detected, ext, true

@@ -48,7 +48,81 @@ export interface QoeApiClientConfig {
   getAuthToken?: () => string | Promise<string | null> | null;
 }
 
-export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string; status?: number };
+export type ApiResult<T> =
+  | { ok: true; data: T }
+  | {
+      ok: false;
+      error: string;
+      status?: number;
+      code?: string;
+      retryAfterSeconds?: number;
+      requestId?: string;
+    };
+
+function formatRetryCountdown(retryAfterSeconds?: number): string {
+  if (
+    typeof retryAfterSeconds === 'number' &&
+    Number.isFinite(retryAfterSeconds) &&
+    retryAfterSeconds > 0
+  ) {
+    const sec = Math.ceil(retryAfterSeconds);
+    return ` Réessayez dans ${sec} seconde${sec > 1 ? 's' : ''}.`;
+  }
+  return '';
+}
+
+/**
+ * Traduit les codes d'erreur de sécurité / anti-abus en messages français clairs.
+ */
+export function formatSecurityErrorMessage(err: {
+  status?: number;
+  code?: string;
+  retryAfterSeconds?: number;
+  error?: string;
+}): string {
+  const countdown = formatRetryCountdown(err.retryAfterSeconds);
+
+  switch (err.code) {
+    case 'WRITE_COOLDOWN':
+      return `Vous publiez un peu trop vite.${countdown || ' Veuillez patienter un instant avant de réessayer.'}`;
+    case 'SPAM_DUPLICATE':
+      return `Ce contenu ressemble à un envoi récent identique.${countdown || ' Veuillez modifier votre message ou patienter.'}`;
+    case 'SPAM_UNICODE':
+      return 'Votre message contient des caractères non autorisés ou suspects.';
+    case 'UNSAFE_URL':
+      return 'Un lien présent dans votre message a été bloqué par sécurité.';
+    case 'UNSAFE_HTML':
+      return 'Le contenu HTML fourni contient des éléments non autorisés.';
+    case 'PAYLOAD_TOO_LARGE':
+      return 'Le contenu envoyé dépasse la taille maximale autorisée.';
+    case 'CHALLENGE_REQUIRED':
+      return 'Une vérification de sécurité supplémentaire est requise avant de continuer.';
+  }
+
+  if (err.status === 429) {
+    return `Trop de requêtes effectuées.${countdown || ' Veuillez patienter un instant.'}`;
+  }
+  if (err.status === 413) {
+    return 'Le contenu envoyé dépasse la taille maximale autorisée.';
+  }
+
+  return err.error || 'Une erreur est survenue. Veuillez réessayer.';
+}
+
+function parseRetryAfterSeconds(headers?: Headers): number | undefined {
+  const raw = headers?.get?.('Retry-After') ?? headers?.get?.('retry-after');
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  if (!/^\d+$/.test(trimmed)) return undefined;
+  const parsed = Number.parseInt(trimmed, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function parseRequestId(headers?: Headers): string | undefined {
+  const raw = headers?.get?.('X-Request-Id') ?? headers?.get?.('x-request-id');
+  const trimmed = raw?.trim();
+  return trimmed ? trimmed : undefined;
+}
 
 export class QoeApiClient {
   private baseUrl: string;
@@ -71,6 +145,9 @@ export class QoeApiClient {
 
     let lastError = '';
     let lastStatus: number | undefined;
+    let lastCode: string | undefined;
+    let lastRetryAfterSeconds: number | undefined;
+    let lastRequestId: string | undefined;
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       if (attempt > 0) {
@@ -102,6 +179,10 @@ export class QoeApiClient {
           lastStatus = response.status;
           lastError =
             json.error || json.message || `HTTP ${response.status}: ${response.statusText}`;
+          lastCode = typeof json.code === 'string' && json.code.length > 0 ? json.code : undefined;
+          lastRetryAfterSeconds = parseRetryAfterSeconds(response.headers);
+          lastRequestId = parseRequestId(response.headers);
+
           if (retryable && (response.status === 429 || response.status >= 500)) {
             continue;
           }
@@ -109,6 +190,11 @@ export class QoeApiClient {
             ok: false,
             error: lastError,
             status: response.status,
+            ...(lastCode ? { code: lastCode } : {}),
+            ...(lastRetryAfterSeconds !== undefined
+              ? { retryAfterSeconds: lastRetryAfterSeconds }
+              : {}),
+            ...(lastRequestId ? { requestId: lastRequestId } : {}),
           };
         }
 
@@ -131,7 +217,10 @@ export class QoeApiClient {
     return {
       ok: false,
       error: lastError || 'Network Error',
-      status: lastStatus,
+      ...(lastStatus !== undefined ? { status: lastStatus } : {}),
+      ...(lastCode ? { code: lastCode } : {}),
+      ...(lastRetryAfterSeconds !== undefined ? { retryAfterSeconds: lastRetryAfterSeconds } : {}),
+      ...(lastRequestId ? { requestId: lastRequestId } : {}),
     };
   }
 

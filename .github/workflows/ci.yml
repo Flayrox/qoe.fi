@@ -169,6 +169,14 @@ jobs:
           # rôles (colonne legacy + grants), expiration et cache TTL, garde
           # HTTP. Tests live Postgres (Testcontainers) — lancés à 90%.
           check "internal/adminauthz" 90
+          # Défense multi-couches (2026-11) : anti-spam/SimHash, trust temps réel,
+          # secguard, anti-SSRF/MIME, Proof-of-Work Altcha et métriques Prometheus.
+          check "internal/antispam" 70
+          check "internal/trust" 65
+          check "internal/secguard" 40
+          check "internal/netguard" 75
+          check "internal/pow" 80
+          check "internal/observability" 85
         env:
           TESTCONTAINERS_RYUK_DISABLED: 'true'
 

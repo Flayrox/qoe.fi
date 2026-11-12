@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { QoeApiClient } from '../client';
+import { QoeApiClient, formatSecurityErrorMessage } from '../client';
 
 // Le client lit `fetch` global : on le remplace intégralement.
 const mockFetch = vi.fn();
@@ -13,11 +13,17 @@ function okResponse(body: unknown) {
   };
 }
 
-function errResponse(status: number, statusText = 'Error', body: unknown = {}) {
+function errResponse(
+  status: number,
+  statusText = 'Error',
+  body: unknown = {},
+  headers?: Record<string, string>
+) {
   return {
     ok: false,
     status,
     statusText,
+    headers: headers ? new Headers(headers) : undefined,
     json: async () => body,
   };
 }
@@ -199,5 +205,103 @@ describe('QoeApiClient — transport HTTP universel', () => {
     expect(mockFetch.mock.calls[0][0]).toBe(
       'https://api.qoe.fi/v1/posts/id%20avec%20espace/thread'
     );
+  });
+
+  it('429 sur POST : aucun retry et propage code, Retry-After et X-Request-Id', async () => {
+    const client = new QoeApiClient();
+    mockFetch.mockResolvedValueOnce(
+      errResponse(
+        429,
+        'Too Many Requests',
+        { error: 'Ralentissez', code: 'WRITE_COOLDOWN' },
+        { 'Retry-After': '12', 'X-Request-Id': 'req-abc-123' }
+      )
+    );
+
+    const res = await client.createThought('salut');
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(res).toEqual({
+      ok: false,
+      error: 'Ralentissez',
+      status: 429,
+      code: 'WRITE_COOLDOWN',
+      retryAfterSeconds: 12,
+      requestId: 'req-abc-123',
+    });
+  });
+
+  it('ignore un Retry-After invalide ou nul', async () => {
+    const client = new QoeApiClient();
+    mockFetch.mockResolvedValueOnce(
+      errResponse(
+        400,
+        'Bad Request',
+        { error: 'Lien bloqué', code: 'UNSAFE_URL' },
+        { 'Retry-After': '0', 'X-Request-Id': 'req-xyz' }
+      )
+    );
+
+    const res = await client.createThought('http://evil.example');
+    expect(res).toEqual({
+      ok: false,
+      error: 'Lien bloqué',
+      status: 400,
+      code: 'UNSAFE_URL',
+      requestId: 'req-xyz',
+    });
+  });
+
+  it('429 persistant sur GET : conserve code, retryAfterSeconds et requestId après retries', async () => {
+    const client = new QoeApiClient();
+    const hdrs = { 'Retry-After': '5', 'X-Request-Id': 'req-get-429' };
+    mockFetch
+      .mockResolvedValueOnce(
+        errResponse(429, 'Too Many Requests', { code: 'WRITE_COOLDOWN', error: 'Limite' }, hdrs)
+      )
+      .mockResolvedValueOnce(
+        errResponse(429, 'Too Many Requests', { code: 'WRITE_COOLDOWN', error: 'Limite' }, hdrs)
+      )
+      .mockResolvedValueOnce(
+        errResponse(429, 'Too Many Requests', { code: 'WRITE_COOLDOWN', error: 'Limite' }, hdrs)
+      );
+
+    const promise = client.getFeed();
+    await vi.advanceTimersByTimeAsync(2000);
+    const res = await promise;
+
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+    expect(res).toEqual({
+      ok: false,
+      error: 'Limite',
+      status: 429,
+      code: 'WRITE_COOLDOWN',
+      retryAfterSeconds: 5,
+      requestId: 'req-get-429',
+    });
+  });
+});
+
+describe('formatSecurityErrorMessage', () => {
+  it('traduit tous les codes de sécurité connus en français', () => {
+    expect(formatSecurityErrorMessage({ code: 'WRITE_COOLDOWN', retryAfterSeconds: 8 })).toContain(
+      '8 secondes'
+    );
+    expect(formatSecurityErrorMessage({ code: 'SPAM_DUPLICATE', retryAfterSeconds: 1 })).toContain(
+      '1 seconde.'
+    );
+    expect(formatSecurityErrorMessage({ code: 'SPAM_UNICODE' })).toContain('caractères');
+    expect(formatSecurityErrorMessage({ code: 'UNSAFE_URL' })).toContain('lien');
+    expect(formatSecurityErrorMessage({ code: 'UNSAFE_HTML' })).toContain('HTML');
+    expect(formatSecurityErrorMessage({ code: 'PAYLOAD_TOO_LARGE' })).toContain('taille maximale');
+    expect(formatSecurityErrorMessage({ code: 'CHALLENGE_REQUIRED' })).toContain('vérification');
+  });
+
+  it('gère les fallbacks HTTP 429, 413 et erreur générique', () => {
+    expect(formatSecurityErrorMessage({ status: 429, retryAfterSeconds: 15 })).toContain(
+      '15 secondes'
+    );
+    expect(formatSecurityErrorMessage({ status: 413 })).toContain('taille maximale');
+    expect(formatSecurityErrorMessage({ error: 'Erreur custom' })).toBe('Erreur custom');
+    expect(formatSecurityErrorMessage({})).toContain('Une erreur est survenue');
   });
 });

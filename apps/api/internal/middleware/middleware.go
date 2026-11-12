@@ -2,6 +2,9 @@
 package middleware
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"log"
 	"net/http"
@@ -9,6 +12,47 @@ import (
 	"strings"
 	"time"
 )
+
+type reqIDCtxKey struct{}
+
+// GetRequestID renvoie l'identifiant de corrélation attaché à la requête.
+func GetRequestID(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	v, _ := ctx.Value(reqIDCtxKey{}).(string)
+	return v
+}
+
+// RequestID propage X-Request-Id (sanitisé) ou génère un identifiant aléatoire
+// injecté dans le contexte et renvoyé dans la réponse HTTP.
+func RequestID(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id := sanitizeRequestID(r.Header.Get("X-Request-Id"))
+		if id == "" {
+			var b [12]byte
+			_, _ = rand.Read(b[:])
+			id = hex.EncodeToString(b[:])
+		}
+		w.Header().Set("X-Request-Id", id)
+		ctx := context.WithValue(r.Context(), reqIDCtxKey{}, id)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func sanitizeRequestID(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if len(raw) == 0 || len(raw) > 64 {
+		return ""
+	}
+	for i := 0; i < len(raw); i++ {
+		c := raw[i]
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_') {
+			return ""
+		}
+	}
+	return raw
+}
 
 // SecurityHeaders ajoute les en-têtes de durcissement HTTP sur chaque réponse.
 func SecurityHeaders(next http.Handler) http.Handler {
@@ -86,8 +130,8 @@ func CORS(allowedOrigins []string) func(http.Handler) http.Handler {
 				w.Header().Set("Vary", "Origin")
 			}
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Qoe-Signature, Idempotency-Key")
-			w.Header().Set("Access-Control-Expose-Headers", "X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After")
+			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Qoe-Signature, X-Qoe-Challenge, X-Request-Id, Idempotency-Key")
+			w.Header().Set("Access-Control-Expose-Headers", "X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After, X-Request-Id")
 			w.Header().Set("Access-Control-Max-Age", "86400")
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusNoContent)
@@ -121,12 +165,16 @@ func originAllowed(origin string, exact map[string]bool, allowed []string) bool 
 	return false
 }
 
-// Logger journalise méthode, chemin, statut et durée.
+// Logger journalise méthode, chemin, statut, durée et identifiant de corrélation.
 func Logger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(rec, r)
+		if reqID := GetRequestID(r.Context()); reqID != "" {
+			log.Printf("%s %s %d %s reqId=%s", r.Method, r.URL.Path, rec.status, time.Since(start), reqID)
+			return
+		}
 		log.Printf("%s %s %d %s", r.Method, r.URL.Path, rec.status, time.Since(start))
 	})
 }

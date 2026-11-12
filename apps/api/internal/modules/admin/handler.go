@@ -111,8 +111,9 @@ var stepUpRoutes = map[string]authz.Level{
 	"PATCH /v1/admin/oauth/clients/{id}":               authz.Level2,
 	// Modération qui mesure un compte : un verdict humain confirmé ou levé, et
 	// un recours dont le prononcé peut lever la mesure.
-	"PATCH /v1/admin/abuse/decisions":    authz.Level2,
-	"PATCH /v1/admin/abuse/appeals/{id}": authz.Level2,
+	"PATCH /v1/admin/abuse/decisions":                     authz.Level2,
+	"PATCH /v1/admin/abuse/appeals/{id}":                  authz.Level2,
+	"POST /v1/admin/security/trust/{userId}/recompute":    authz.Level2,
 	// Valider la double validation d'un acte N3 est un acte lourd : on ne
 	// s'auto-valide pas, et une seconde personne doit prouver sa présence.
 	"POST /v1/admin/approvals/{id}/decide": authz.Level2,
@@ -183,6 +184,10 @@ func (h *Handler) routeTable() []adminRoute {
 		// Métriques anti-abus (les deux erreurs : abus manqué vs légitimes
 		// bloqués). Query : ?days=30 (1-90).
 		{http.MethodGet, "/v1/admin/abuse/metrics", adminauthz.AbuseRead, h.abuseMetrics},
+
+		// Cockpit Sécurité & Trust (Lot 5).
+		{http.MethodGet, "/v1/admin/security/overview", adminauthz.AbuseRead, h.securityOverview},
+		{http.MethodPost, "/v1/admin/security/trust/{userId}/recompute", adminauthz.AbuseDecide, h.recomputeUserTrust},
 
 		// Registre d'incidents (attaques confirmées, dossier tenu par le staff).
 		{http.MethodGet, "/v1/admin/abuse/incidents", adminauthz.IncidentsRead, h.abuseIncidents},
@@ -658,6 +663,42 @@ func (h *Handler) abuseMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, m)
+}
+
+// GET /v1/admin/security/overview — cockpit Sécurité & Trust (30 jours).
+func (h *Handler) securityOverview(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireAuthenticated(w, r)
+	if !ok {
+		return
+	}
+	overview, err := h.svc.SecurityOverview(r.Context(), userID)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, overview)
+}
+
+// POST /v1/admin/security/trust/{userId}/recompute — recalcul à chaud du score Trust.
+func (h *Handler) recomputeUserTrust(w http.ResponseWriter, r *http.Request) {
+	actorID, ok := h.requireAuthenticated(w, r)
+	if !ok {
+		return
+	}
+	targetUserID := chi.URLParam(r, "userId")
+	res, err := h.svc.RecomputeUserTrust(r.Context(), actorID, targetUserID)
+	if err != nil {
+		switch {
+		case errors.Is(err, errInvalidTargetUser):
+			response.BadRequest(w, err.Error())
+		case errors.Is(err, errTrustServiceUnavailable):
+			response.Error(w, http.StatusServiceUnavailable, err.Error())
+		default:
+			h.handleErr(w, err)
+		}
+		return
+	}
+	response.OK(w, res)
 }
 
 // GET /v1/admin/abuse/incidents — dossiers d'attaques (ouverts d'abord).
