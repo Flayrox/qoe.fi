@@ -14,6 +14,22 @@
 import { z } from 'zod';
 
 /**
+ * 📊 URL du script Umami : URL absolue (http/https) OU chemin first-party same-origin
+ * (ex. `/_q/m.js`, servi par le proxy Caddy). Le protocole-relatif `//hôte` est refusé :
+ * il permettrait de charger un script tiers sans passer par une URL explicite.
+ */
+const umamiScriptUrlSchema = z
+  .string()
+  .refine(
+    (value) => {
+      if (value.startsWith('/') && !value.startsWith('//')) return true;
+      return z.string().url().safeParse(value).success;
+    },
+    { message: 'URL absolue ou chemin first-party commençant par un seul "/" attendu' }
+  )
+  .optional();
+
+/**
  * 📋 Schéma des variables d'environnement.
  * Adapter selon les besoins (DB, Stripe, Supabase, etc.)
  */
@@ -54,7 +70,7 @@ const envSchema = z.object({
 
   // ─── Analytics ─────────────────────────────────────────
   NEXT_PUBLIC_UMAMI_WEBSITE_ID: z.string().optional(),
-  NEXT_PUBLIC_UMAMI_SCRIPT_URL: z.string().url().optional(),
+  NEXT_PUBLIC_UMAMI_SCRIPT_URL: umamiScriptUrlSchema,
 
   // ─── Feature flags ─────────────────────────────────────
   FEATURE_BILLING: z.enum(['true', 'false']).optional(),
@@ -100,7 +116,7 @@ export function parseEnv() {
       NEXT_PUBLIC_STUDIO_URL: z.string().url().default('http://studio.localhost'),
       NEXT_PUBLIC_DASHBOARD_URL: z.string().url().default('http://studio.localhost'),
       NEXT_PUBLIC_UMAMI_WEBSITE_ID: z.string().optional(),
-      NEXT_PUBLIC_UMAMI_SCRIPT_URL: z.string().url().optional(),
+      NEXT_PUBLIC_UMAMI_SCRIPT_URL: umamiScriptUrlSchema,
     });
 
     const clientValues = {
