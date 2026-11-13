@@ -198,11 +198,14 @@ export function PricingCompare({ supportUrl }: { supportUrl: string }) {
       <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
         <div>
           <p className="font-bold text-foreground">💡 Vous écrivez ou éditez un média ?</p>
-          {/* ⚠️ {' '} explicite : le SSR perdait l'espace en tête du texte
-              suivant <strong> → mismatch d'hydratation (React #418). */}
+          {/* ⚠️ L'espace reste dans une CHAÎNE : Prettier replie {' '} en espace
+              inline, et le SSR perd cet espace après <strong> (mismatch
+              d'hydratation React #418, vécu le 13/11 sur cette page). */}
           <p className="text-muted-foreground text-[11px] mt-0.5">
-            L&apos;abonnement <strong>Pro</strong> dans Studio inclut l&apos;intégralité des
-            avantages Plus sans aucun surcoût. Un seul abonnement pour tout l&apos;écosystème.
+            L&apos;abonnement <strong>Pro</strong>
+            {
+              " dans Studio inclut l'intégralité des avantages Plus sans aucun surcoût. Un seul abonnement pour tout l'écosystème."
+            }
           </p>
         </div>
         <Link
