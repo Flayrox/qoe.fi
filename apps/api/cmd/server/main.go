@@ -118,6 +118,7 @@ func run(ctx context.Context) error {
 		UmamiPass:              cfg.UmamiPass,
 		DefaultUmamiSite:       cfg.DefaultUmamiWebsiteID,
 		UmamiDatabaseURL:       cfg.UmamiDatabaseURL,
+		AnalyticsAnonSecret:    cfg.AnalyticsAnonSecret,
 		SupabaseURL:            cfg.SupabaseURL,
 		MediaCDNBaseURL:        cfg.MediaCDNBaseURL,
 		MediaQuotaBytesPerUser: cfg.MediaQuotaBytesPerUser,
@@ -192,6 +193,9 @@ type RouterDeps struct {
 	UmamiPass        string
 	DefaultUmamiSite string
 	UmamiDatabaseURL string
+	// AnalyticsAnonSecret est la clé HMAC dédiée au hash journalier des
+	// sessions de lecture anonymes (aucun repli, cf. internal/config).
+	AnalyticsAnonSecret string
 	// OAuth est le service du fournisseur d'identité OAuth 2.1 / OIDC.
 	OAuth *oauth.Service
 	// SupabaseURL est l'origine Supabase (auth + storage REST) pour les uploads.
@@ -511,7 +515,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 	// Tracking de lecture : service partagé entre le groupe anonyme (lectures/
 	// impressions captées même sans session) et le groupe protégé (historique).
-	trackingHandler := tracking.NewHandler(tracking.NewService(pool))
+	trackingHandler := tracking.NewHandler(tracking.NewService(pool)).SetAnalyticsAnonSecret(d.AnalyticsAnonSecret)
 
 	// Toute l'API créateur exige un Bearer token valide (JWT OU clé API qoe_live_).
 	r.Group(func(protected chi.Router) {

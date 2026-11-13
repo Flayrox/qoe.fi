@@ -5,10 +5,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
-	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -18,10 +19,19 @@ import (
 
 type Handler struct {
 	svc *Service
+	// anonSecret est la clé HMAC dédiée au hachage journalier des sessions
+	// anonymes. Vide → pas d'anonHash (aucune clé de repli, cf. config).
+	anonSecret string
 }
 
 func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
+}
+
+// SetAnalyticsAnonSecret injecte la clé dédiée (ANALYTICS_ANON_SECRET).
+func (h *Handler) SetAnalyticsAnonSecret(secret string) *Handler {
+	h.anonSecret = strings.TrimSpace(secret)
+	return h
 }
 
 func (h *Handler) RegisterProtected(r chi.Router) {
@@ -87,7 +97,7 @@ func (h *Handler) track(w http.ResponseWriter, r *http.Request) {
 	}
 	anonHash := ""
 	if userID == "" {
-		anonHash = computeDailyAnonHash(r)
+		anonHash = h.dailyAnonHash(r)
 	}
 	updated, err := h.svc.TrackReadingSessionWithAnon(r.Context(), userID, anonHash, req.ArticleID, req.Source, req.Status, scroll, dwell, rt, req.Hostname, req.ReferrerUsername)
 	if err != nil {
@@ -97,15 +107,24 @@ func (h *Handler) track(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, map[string]interface{}{"success": true, "updatedCompletionRate": updated})
 }
 
-// computeDailyAnonHash calcule un hash journalier HMAC SHA-256 non-identifiant
+// warnAnonSecretOnce n'avertit qu'une fois par processus (pas de spam de logs
+// à chaque lecture anonyme).
+var warnAnonSecretOnce sync.Once
+
+// dailyAnonHash calcule un hash journalier HMAC SHA-256 non-identifiant
 // (IP client + User-Agent + date UTC du jour) sans cookie ni PII stockée.
-func computeDailyAnonHash(r *http.Request) string {
-	secret := os.Getenv("ANALYTICS_ANON_SECRET")
+//
+// La clé est dédiée (ANALYTICS_ANON_SECRET) : pas de repli sur la clé JWT ni
+// sur une constante publique, sinon le hash serait recalculable par un tiers
+// et la promesse « non identifiant » serait fausse. Clé absente → chaîne vide
+// (session enregistrée sans anonHash, comptage des visiteurs uniques indisponible).
+func (h *Handler) dailyAnonHash(r *http.Request) string {
+	secret := h.anonSecret
 	if secret == "" {
-		secret = os.Getenv("SUPABASE_JWT_SECRET")
-	}
-	if secret == "" {
-		secret = "qoefi-anon-reading-session"
+		warnAnonSecretOnce.Do(func() {
+			log.Printf("[tracking] ANALYTICS_ANON_SECRET absent : sessions anonymes enregistrées sans anonHash (visiteurs uniques indisponibles)")
+		})
+		return ""
 	}
 	ip := ""
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {

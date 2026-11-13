@@ -36,6 +36,10 @@ type Config struct {
 	DefaultUmamiWebsiteID string
 	// UmamiDatabaseURL = DSN read-only vers la DB Postgres d'Umami (récurrents, heatmap).
 	UmamiDatabaseURL string
+	// AnalyticsAnonSecret est la clé HMAC dédiée au hachage journalier des
+	// sessions de lecture anonymes (visiteurs uniques sans cookie ni PII).
+	// Aucune clé de repli : absente → pas d'anonHash (unicité indisponible).
+	AnalyticsAnonSecret string
 	// OAuthIssuer est l'origine canonique de l'AS (ex: https://qoe.fi). Sert au
 	// document de discovery et au claim `iss` des id_token.
 	OAuthIssuer string
@@ -119,7 +123,8 @@ func Load() *Config {
 		DefaultUmamiWebsiteID:  envOr("NEXT_PUBLIC_UMAMI_WEBSITE_ID", ""),
 		// Connexion read-only à la DB Postgres d'Umami (visiteurs récurrents,
 		// heatmap horaire — métriques absentes de l'API REST).
-		UmamiDatabaseURL: envOr("UMAMI_DATABASE_URL", ""),
+		UmamiDatabaseURL:    envOr("UMAMI_DATABASE_URL", ""),
+		AnalyticsAnonSecret: envOr("ANALYTICS_ANON_SECRET", ""),
 		// OAuth 2.1 / OIDC — fournisseur d'identité qoefi.
 		OAuthIssuer:       envOr("OAUTH_ISSUER", "http://localhost:8090"),
 		OAuthAuthorizeURL: envOr("OAUTH_AUTHORIZE_URL", "http://localhost:3010/oauth/authorize"),
@@ -146,7 +151,7 @@ func Load() *Config {
 		// cadence du worker de purge et grâce avant suppression définitive.
 		MediaCDNBaseURL:               envOr("MEDIA_CDN_BASE_URL", "https://cdn.qoe.fi"),
 		MediaQuotaBytesPerUser:        envInt64("MEDIA_QUOTA_BYTES", 512<<20),
-		MediaUploadsPerHour:          envInt64("MEDIA_UPLOADS_PER_HOUR", 100),
+		MediaUploadsPerHour:           envInt64("MEDIA_UPLOADS_PER_HOUR", 100),
 		MediaLifecycleIntervalMinutes: envInt("MEDIA_LIFECYCLE_INTERVAL_MINUTES", 60),
 		MediaSoftDeleteGraceDays:      envInt("MEDIA_SOFT_DELETE_GRACE_DAYS", 7),
 	}
