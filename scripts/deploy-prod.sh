@@ -156,30 +156,24 @@ else
   ssh_vps "cd $VPS_DIR && docker compose up -d"
   success "Stack démarrée"
 fi
-# Le Caddyfile est monté en bind direct : le tar de l'étape 1 remplace le
-# fichier sans que Caddy le relise (vécu 13/11 : /_q/m.js servait encore
-# l'ancienne config → 308). `admin off` interdit `caddy reload` via l'API et
-# SIGUSR1 ne suffit pas si l'inode a changé (bind-mount d'un fichier unique :
-# le conteneur garde l'ancien fichier) → on compare les md5 et on ne redémarre
-# QUE dans ce cas (quelques secondes de coupure), sinon reload à chaud.
-log "   Rechargement de Caddy (Caddyfile monté en bind)…"
-# ⚠️ Monter /etc/letsencrypt : `caddy validate` provisionne les TLS et
-# échoue sur les certs absents (faux négatif vécu le 13/11).
-if ssh_vps "cd $VPS_DIR && docker run --rm -v \$PWD/docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro -v /etc/letsencrypt:/etc/letsencrypt:ro caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1"; then
-  HOST_MD5=$(ssh_vps "md5sum $VPS_DIR/docker/caddy/Caddyfile | cut -d' ' -f1")
-  CTR_MD5=$(ssh_vps "docker exec qoefi-caddy md5sum /etc/caddy/Caddyfile 2>/dev/null | cut -d' ' -f1")
-  if [ "$HOST_MD5" = "$CTR_MD5" ]; then
-    ssh_vps "docker kill -s SIGUSR1 qoefi-caddy" \
-      && success "Caddy rechargé à chaud" \
-      || warn "SIGUSR1 Caddy en échec — redémarrage manuel : docker restart qoefi-caddy"
-  else
-    warn "Caddyfile désynchronisé dans le conteneur (inode changé) — redémarrage de Caddy"
-    ssh_vps "docker restart qoefi-caddy" \
-      && success "Caddy redémarré avec le nouveau Caddyfile" \
-      || warn "Redémarrage Caddy en échec — vérifier docker logs qoefi-caddy"
-  fi
+# Le Caddyfile est monté en bind (fichier unique) : après le tar, Caddy ne
+# relit rien, et si l'inode a changé le conteneur garde l'ancien fichier.
+# → reload SIGUSR1 si les md5 concordent, sinon validation + redémarrage.
+log "   Rechargement de Caddy…"
+HOST_MD5=$(ssh_vps "md5sum $VPS_DIR/docker/caddy/Caddyfile | cut -d' ' -f1")
+CTR_MD5=$(ssh_vps "docker exec qoefi-caddy md5sum /etc/caddy/Caddyfile 2>/dev/null | cut -d' ' -f1")
+if [ "$HOST_MD5" = "$CTR_MD5" ]; then
+  ssh_vps "docker kill -s SIGUSR1 qoefi-caddy" \
+    && success "Caddy rechargé à chaud" \
+    || warn "SIGUSR1 Caddy en échec — docker restart qoefi-caddy"
+elif ssh_vps "cd $VPS_DIR && docker run --rm -v \$PWD/docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro -v /etc/letsencrypt:/etc/letsencrypt:ro caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1"; then
+  # ⚠️ Monter /etc/letsencrypt : `caddy validate` provisionne les TLS et
+  # échouerait sur les certs absents.
+  ssh_vps "docker restart qoefi-caddy" \
+    && success "Caddy redémarré avec le Caddyfile à jour" \
+    || warn "Redémarrage Caddy en échec — docker logs qoefi-caddy"
 else
-  warn "Caddyfile invalide — Caddy laissé sur l'ancienne config (validation : docker run --rm -v \$PWD/docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro -v /etc/letsencrypt:/etc/letsencrypt:ro caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile)"
+  warn "Caddyfile invalide — Caddy laissé sur l'ancienne config"
 fi
 # Re-applique le firewall tailnet (une recreate de qoefi-caddy change son IP
 # docker → le DNAT PREROUTING pointerait vers une IP périmée sinon).

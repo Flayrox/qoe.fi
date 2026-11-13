@@ -158,6 +158,14 @@ export default defineConfig({
       testMatch: /admin-legal\.spec\.ts/,
     },
     {
+      // 🧬 Garde-fou d'hydratation : échoue si le HTML SSR et le premier
+      // rendu client divergent (React #418/#423/#425). Pages publiques, sans
+      // session — c'est exactement le trou qui a laissé passer /pricing.
+      name: 'hydration',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /hydration\.spec\.ts/,
+    },
+    {
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
@@ -166,7 +174,7 @@ export default defineConfig({
       // Les specs publics/annotations/journeys/security/like-privacy tournent
       // dans leurs propres projets ; studio/admin/tenants ont leur propre config.
       testIgnore:
-        /(public|annotations|core-journeys|security|oauth-consent|like-privacy|studio|admin|tenants)\.spec\.ts/,
+        /(hydration|public|annotations|core-journeys|security|oauth-consent|like-privacy|studio|admin|tenants)\.spec\.ts/,
       dependencies: ['setup'],
     },
   ],
