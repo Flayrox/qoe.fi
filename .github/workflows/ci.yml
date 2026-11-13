@@ -283,14 +283,19 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm e2e:install
 
-      # --project=hydration : garde-fou bloquant — toute divergence entre le
-      # HTML rendu par le serveur et le premier rendu client (React #418/#423…)
-      # échoue, même si la page répond 200 et s'affiche correctement.
-      - name: Run E2E (hydratation + public + journeys + security + standalone contracts)
-        run: pnpm e2e --project=hydration --project=public-web --project=core-journeys --project=security --project=standalone-contracts --project=oauth-consent
+      # --project=hydration : toute divergence entre le HTML rendu par le
+      # serveur et le premier rendu client (React #418/#423…) échoue, même si
+      # la page répond 200 et s'affiche correctement.
+      # --project=routes : chaque page core/admin découverte sur le disque est
+      # rendue, et une page sans test fait échouer le job.
+      - name: Run E2E (hydratation + routes + public + journeys + security + standalone contracts)
+        run: pnpm e2e --project=hydration --project=routes --project=public-web --project=core-journeys --project=security --project=standalone-contracts --project=oauth-consent
         env:
           CI: 'true'
           PLAYWRIGHT_TEST_BASE_URL: 'http://localhost:3010'
+          # Matrice de routes admin : la console est démarrée par le webServer
+          # de playwright.config.ts (PORT 15405) et canonicalise sur lvh.me.
+          PLAYWRIGHT_ADMIN_URL: 'http://admin.lvh.me:15405'
           DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe'
           NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co'
           NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key'

@@ -13,19 +13,11 @@
 // =====================================================================
 
 import { test, expect } from '@playwright/test';
+import { HYDRATION_ERROR } from './lib/hydration';
 
 // Pages publiques rendues côté serveur : c'est là que le SSR et le client
 // doivent produire exactement le même texte.
 const ROUTES = ['/home', '/pricing', '/login', '/search'];
-
-const HYDRATION_ERROR = [
-  /Hydration failed/i,
-  /server rendered (text|HTML) didn't match/i,
-  /Text content does not match/i,
-  /Expected server HTML to contain/i,
-  /A tree hydrated but some attributes/i,
-  /Minified React error #(418|419|421|422|423|425)/,
-];
 
 test.describe('Hydratation React', () => {
   for (const route of ROUTES) {
