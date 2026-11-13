@@ -14,6 +14,12 @@
 SET lock_timeout = '3s';
 ALTER TABLE "Article" ADD COLUMN IF NOT EXISTS "shortCode" TEXT;
 
+-- Index non unique temporaire : sans lui le `NOT EXISTS` de la boucle de
+-- backfill scanne toute la table à chaque ligne (O(n²)). Il est supprimé juste
+-- avant la création de l'index unique.
+CREATE INDEX CONCURRENTLY IF NOT EXISTS "Article_shortCode_backfill_idx"
+    ON "Article" ("shortCode");
+
 -- +goose StatementBegin
 DO $$
 DECLARE
@@ -38,6 +44,8 @@ BEGIN
     END LOOP;
 END $$;
 -- +goose StatementEnd
+
+DROP INDEX CONCURRENTLY IF EXISTS "Article_shortCode_backfill_idx";
 
 CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS "Article_shortCode_key"
     ON "Article" ("shortCode");
