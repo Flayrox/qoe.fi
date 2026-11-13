@@ -115,20 +115,31 @@ export default async function UserProfileTabPage({
   // 0. Récupération résiliente : /article/:slug, /articles/:slug, /a/:slug
   // Redirige directement vers l'URL canonique /:owner/a/:slug si le slug correspond à un article
   if (rawUsername === 'article' || rawUsername === 'articles' || rawUsername === 'a') {
+    // ⚠️ `permanentRedirect` signale la redirection en levant une exception de
+    // contrôle (NEXT_REDIRECT). Appelée dans le `try`, elle était attrapée par
+    // le `catch` juste en dessous : TOUS les liens profonds `/article/<slug>`
+    // tombaient donc sur `notFound()` (404), même pour un article publié.
+    let art: {
+      slug: string;
+      author?: { username?: string | null };
+      publisher?: { slug?: string | null; subdomain?: string | null };
+    } | null = null;
     try {
-      const art = await goFetch<{
+      art = await goFetch<{
         slug: string;
         author?: { username?: string | null };
         publisher?: { slug?: string | null; subdomain?: string | null };
       }>(`/v1/articles/${encodeURIComponent(rawTab)}`);
-      if (art && art.slug) {
-        const canonicalOwner =
-          art.publisher?.slug || art.publisher?.subdomain || art.author?.username || 'qoefi';
-        permanentRedirect(routes.feed.article(canonicalOwner, art.slug));
-      }
     } catch {
-      // Slug introuvable
+      art = null; // slug introuvable ou API indisponible → 404 propre
     }
+
+    if (art && art.slug) {
+      const canonicalOwner =
+        art.publisher?.slug || art.publisher?.subdomain || art.author?.username || 'qoefi';
+      permanentRedirect(routes.feed.article(canonicalOwner, art.slug));
+    }
+
     notFound();
   }
 
