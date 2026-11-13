@@ -239,6 +239,19 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      # Sans Redis, l'API Go retombe sur localhost:6379 et chaque requête
+      # enchaîne 5 tentatives de dial (journal `redis: connection pool: failed
+      # to dial`) : les lectures dépassent les timeouts Playwright (#article-content
+      # jamais visible). Le cache est un service, pas une option.
+      redis:
+        image: redis:7-alpine
+        ports:
+          - '6379:6379'
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout Repository
@@ -296,6 +309,7 @@ jobs:
           # Matrice de routes admin : la console est démarrée par le webServer
           # de playwright.config.ts (PORT 15405) et canonicalise sur lvh.me.
           PLAYWRIGHT_ADMIN_URL: 'http://admin.lvh.me:15405'
+          REDIS_URL: 'redis://localhost:6379'
           DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe'
           NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co'
           NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key'
