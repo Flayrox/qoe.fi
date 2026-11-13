@@ -205,6 +205,28 @@ export function getArticleOwner(article: ArticleResolvable, fallbackOwner?: stri
   );
 }
 
+/**
+ * Chemin canonique d'un article sur le site lecteur (core) : `/<owner>/a/<slug>`.
+ *
+ * Décision de stratégie, pas un détail d'implémentation : la forme core est LA
+ * canonique — c'est elle que la page article déclare en `alternates.canonical`,
+ * et c'est donc elle que doit viser un lien court `/article/<slug>`. Cette
+ * fonction est la SEULE résolution propriétaire + slug : `generateMetadata` et
+ * la redirection des liens courts l'appellent toutes les deux. Si l'une des
+ * deux dérivait, le site publierait deux URLs canoniques concurrentes.
+ *
+ * Basculer vers « le domaine de la publication d'abord » (sous-domaine +
+ * catégorie, cf. `getArticleUrl({ preferTenant: true })`) n'est pas un
+ * changement de cette fonction seule : il faut bouger les trois étages
+ * ensemble (métadonnées canoniques, liens générés, redirections).
+ */
+export function getCanonicalArticlePath(
+  article: ArticleResolvable,
+  fallbackOwner: string = 'qoefi'
+): string {
+  return routes.feed.article(getArticleOwner(article, fallbackOwner), article.slug);
+}
+
 function getClientHost(): string | undefined {
   if (typeof globalThis !== 'undefined' && 'window' in globalThis) {
     const win = (globalThis as { window?: { location?: { host?: string } } }).window;

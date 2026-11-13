@@ -7,7 +7,7 @@ import { JsonLd, buildArticleSchema } from '@qoe/ui';
 import { getLanguage } from '@qoe/i18n/server';
 import type { Metadata } from 'next';
 import { loadHomeFeedData } from '@/lib/home-feed-data';
-import { routes } from '@qoe/config/routes';
+import { getArticleOwner, getCanonicalArticlePath } from '@qoe/config/routes';
 import { FeedDashboard } from '../../../home/FeedDashboard';
 
 const STATIC_ASSET_REGEX = /\.(ico|png|jpg|jpeg|gif|svg|webp|js|css|json|xml|txt|map)$/i;
@@ -94,12 +94,10 @@ export async function generateMetadata({
 
   const cleanDescription = buildPublicDescription(article.content, 160);
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://qoe.fi').replace(/\/$/, '');
-  const canonicalOwner =
-    article.publisher?.slug ||
-    article.publisher?.subdomain ||
-    article.author?.username ||
-    rawUsername;
-  const canonicalUrl = `${appUrl}/${encodeURIComponent(canonicalOwner)}/a/${encodeURIComponent(article.slug)}`;
+  // Même règle que la redirection des liens courts : une seule source de
+  // vérité (`getCanonicalArticlePath`), sinon le site déclarerait une
+  // canonique que ses propres redirections contrediraient.
+  const canonicalUrl = `${appUrl}${getCanonicalArticlePath(article, rawUsername)}`;
   const authorName =
     article.author?.name ||
     (article.author?.username ? `@${article.author.username}` : isFr ? 'Auteur' : 'Author');
@@ -152,10 +150,9 @@ export default async function UserArticleDedicatedPage({
 
   // Redirection SEO permanente (HTTP 308) si l'URL demandée ne correspond pas
   // au propriétaire canonique ou au slug canonique (ancien slug, -shortCode, /article/a/:slug).
-  const canonicalOwner =
-    article.publisher?.slug || article.publisher?.subdomain || article.author?.username;
-  if ((canonicalOwner && canonicalOwner !== rawUsername) || article.slug !== rawSlug) {
-    permanentRedirect(routes.feed.article(canonicalOwner || rawUsername, article.slug));
+  const canonicalOwner = getArticleOwner(article, rawUsername);
+  if (canonicalOwner !== rawUsername || article.slug !== rawSlug) {
+    permanentRedirect(getCanonicalArticlePath(article, rawUsername));
   }
 
   // 🔦 Deep-link citation → article
