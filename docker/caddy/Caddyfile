@@ -94,6 +94,29 @@
     @tailnet remote_ip 100.64.0.0/10 fd7a:115c:a1e0::/48 172.16.0.0/12
 }
 
+# 📊 Proxy first-party Umami : sert le tracker et l'endpoint d'envoi depuis
+#    le même domaine (qoe.fi, hi.qoe.fi, *.qoe.fi, custom domains) afin que
+#    les bloqueurs tiers ne coupent pas la mesure et que script-src 'self'
+#    suffise. X-Forwarded-For est préservé pour l'anonymisation côté Umami.
+(umami_first_party) {
+    handle /_q/m.js {
+        rewrite * /script.js
+        reverse_proxy umami:3000 {
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+    handle /_q/api/send {
+        rewrite * /api/send
+        reverse_proxy umami:3000 {
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+}
+
 # ─────────────────────────────────────────────────────────────────────
 # 🌍 DOMAINE PRINCIPAL : qoe.fi (home + auth + feed)
 # ─────────────────────────────────────────────────────────────────────
@@ -101,6 +124,7 @@
 #        /settings, /onboarding
 qoe.fi, www.qoe.fi {
     import qoe_cert
+    import umami_first_party
     encode zstd gzip
 
     # Headers de sécurité
@@ -214,6 +238,7 @@ admin.qoe.fi {
 # ─────────────────────────────────────────────────────────────────────
 hi.qoe.fi {
     import qoe_cert
+    import umami_first_party
     encode zstd gzip
 
     # Headers plus permissifs (site public, pas d'auth)
@@ -309,6 +334,7 @@ updates.qoe.fi {
     tls {
         on_demand
     }
+    import umami_first_party
     encode zstd gzip
 
     header {
@@ -345,6 +371,7 @@ updates.qoe.fi {
     # Catch-all pour custom domains (tout ce qui n'est pas qoe.fi)
     @custom not host qoe.fi www.qoe.fi hi.qoe.fi api.qoe.fi umami.qoe.fi studio.qoe.fi admin.qoe.fi *.admin.qoe.fi
     handle @custom {
+        import umami_first_party
         reverse_proxy tenants:3000 {
             header_up Host {host}
             header_up X-Forwarded-Host {host}

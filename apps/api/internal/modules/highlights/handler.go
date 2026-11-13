@@ -8,16 +8,55 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/qoefi/api/internal/antispam"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
+	"github.com/qoefi/api/internal/secguard"
+	"github.com/qoefi/api/internal/trust"
+)
+
+const (
+	maxHighlightTextRunes    = 2000
+	maxHighlightNoteRunes    = 2000
+	maxHighlightCommentRunes = 2000
+	maxQuoteOrdinal          = 1000
 )
 
 type Handler struct {
 	svc *Service
+	sec *secguard.Guard
 }
 
 func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
+}
+
+// WithSecGuard attache le garde anti-spam et rate-limit temps réel (nil-safe).
+func (h *Handler) WithSecGuard(g *secguard.Guard) *Handler {
+	h.sec = g
+	return h
+}
+
+func (h *Handler) enforceRateLimit(w http.ResponseWriter, r *http.Request, scope, userID string, quotas secguard.TierQuotas) bool {
+	prof := h.sec.EvaluateRequest(r.Context(), r, userID)
+	return h.sec.EnforceRateLimit(r.Context(), w, r, scope, userID, prof.Tier, quotas)
+}
+
+func (h *Handler) enforceContentWrite(w http.ResponseWriter, r *http.Request, scope, userID, text string, quotas secguard.TierQuotas, validate func(trust.Tier) error) bool {
+	prof := h.sec.EvaluateRequest(r.Context(), r, userID)
+	if !h.sec.EnforceRateLimit(r.Context(), w, r, scope, userID, prof.Tier, quotas) {
+		return false
+	}
+	if h.sec != nil {
+		return h.sec.EnforceContentWrite(r.Context(), w, userID, scope, text, prof, validate)
+	}
+	if err := validate(prof.Tier); err != nil {
+		if !secguard.WriteRejection(w, err) {
+			response.BadRequest(w, err.Error())
+		}
+		return false
+	}
+	return true
 }
 
 // RegisterPublic enregistre la lecture publique des surlignages (auth optionnelle) :
@@ -86,21 +125,55 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	if in.Text == "" {
-		response.BadRequest(w, "text requis")
+
+	// quoteOrdinal : quelle occurrence du passage (0..1000).
+	ordinal := 0
+	if in.QuoteOrdinal != nil {
+		if *in.QuoteOrdinal < 0 || *in.QuoteOrdinal > maxQuoteOrdinal {
+			response.BadRequest(w, "quoteOrdinal doit être compris entre 0 et 1000")
+			return
+		}
+		ordinal = *in.QuoteOrdinal
+	}
+
+	var cleanText string
+	var cleanNote *string
+	combined := in.Text
+	if in.Note != nil {
+		combined += "\n" + *in.Note
+	}
+	if !h.enforceContentWrite(w, r, "highlights", userID, combined, secguard.QuotasComments, func(tier trust.Tier) error {
+		var err error
+		cleanText, err = antispam.SanitizeAndValidateText(in.Text, 1, maxHighlightTextRunes, antispam.TextOptions{
+			AllowNewlines: true,
+			CheckXSS:      true,
+		})
+		if err != nil {
+			return err
+		}
+		if in.Note != nil {
+			n, err := antispam.SanitizeAndValidateText(*in.Note, 0, maxHighlightNoteRunes, antispam.TextOptions{
+				AllowNewlines: true,
+				CheckXSS:      true,
+			})
+			if err != nil {
+				return err
+			}
+			cleanNote = &n
+		}
+		return nil
+	}) {
 		return
 	}
 
-	// quoteOrdinal : quelle occurrence du passage (déduplication quand le
-	// même texte apparaît plusieurs fois). Absent/négatif → 0.
-	ordinal := 0
-	if in.QuoteOrdinal != nil && *in.QuoteOrdinal > 0 {
-		ordinal = *in.QuoteOrdinal
-	}
-	item, err := h.svc.Create(r.Context(), articleID, userID, in.Text, in.Note, in.IsPublic, ordinal)
+	item, err := h.svc.Create(r.Context(), articleID, userID, cleanText, cleanNote, in.IsPublic, ordinal)
 	if err != nil {
 		if errors.Is(err, errHighlightNotFound) {
 			response.NotFound(w, "Article introuvable")
+			return
+		}
+		if errors.Is(err, errQuoteNotFound) {
+			response.BadRequest(w, "Passage introuvable dans l'article")
 			return
 		}
 		log.Printf("[highlights] create: %v", err)
@@ -125,7 +198,27 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	item, err := h.svc.Update(r.Context(), id, userID, in.Note, in.IsPublic)
+
+	var cleanNote *string
+	if in.Note != nil {
+		if !h.enforceContentWrite(w, r, "highlights", userID, *in.Note, secguard.QuotasComments, func(tier trust.Tier) error {
+			n, err := antispam.SanitizeAndValidateText(*in.Note, 0, maxHighlightNoteRunes, antispam.TextOptions{
+				AllowNewlines: true,
+				CheckXSS:      true,
+			})
+			if err != nil {
+				return err
+			}
+			cleanNote = &n
+			return nil
+		}) {
+			return
+		}
+	} else if !h.enforceRateLimit(w, r, "highlights", userID, secguard.QuotasComments) {
+		return
+	}
+
+	item, err := h.svc.Update(r.Context(), id, userID, cleanNote, in.IsPublic)
 	if err != nil {
 		log.Printf("[highlights] update: %v", err)
 		response.Internal(w)
@@ -158,6 +251,10 @@ func (h *Handler) toggleUpvote(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserID(r.Context())
 	if !ok || userID == "" {
 		response.Unauthorized(w, "Non authentifié")
+		return
+	}
+
+	if !h.enforceRateLimit(w, r, "highlight-upvote", userID, secguard.QuotasEngagement) {
 		return
 	}
 
@@ -212,12 +309,20 @@ func (h *Handler) createComment(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	if in.Content == "" {
-		response.BadRequest(w, "content requis")
+
+	var cleanContent string
+	if !h.enforceContentWrite(w, r, "highlight-comments", userID, in.Content, secguard.QuotasComments, func(tier trust.Tier) error {
+		var err error
+		cleanContent, err = antispam.SanitizeAndValidateText(in.Content, 1, maxHighlightCommentRunes, antispam.TextOptions{
+			AllowNewlines: true,
+			CheckXSS:      true,
+		})
+		return err
+	}) {
 		return
 	}
 
-	comment, err := h.svc.CreateComment(r.Context(), id, userID, in.Content)
+	comment, err := h.svc.CreateComment(r.Context(), id, userID, cleanContent)
 	if err != nil {
 		if errors.Is(err, errHighlightNotFound) {
 			response.NotFound(w, "Surlignage introuvable")

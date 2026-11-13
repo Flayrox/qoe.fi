@@ -532,7 +532,29 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 		published = false
 	}
 
-	finalSlug := s.uniqueSlug(ctx, in.PublisherID, "", in.Slug)
+	shortCode := slug.ExtractTrailingShortCode(in.Slug)
+	if shortCode != "" {
+		var exists bool
+		if err := s.pool.QueryRow(ctx,
+			`SELECT EXISTS(SELECT 1 FROM "Article" WHERE "shortCode" = $1)`, shortCode,
+		).Scan(&exists); err != nil || exists {
+			shortCode = s.uniqueShortCode(ctx)
+		}
+	} else {
+		shortCode = s.uniqueShortCode(ctx)
+	}
+
+	baseSlug := strings.TrimSpace(in.Slug)
+	if baseSlug == "" {
+		baseSlug = slug.Slugify(in.Title)
+		if baseSlug == "" {
+			baseSlug = "article"
+		}
+	}
+	if slug.ExtractTrailingShortCode(baseSlug) == "" {
+		baseSlug = baseSlug + "-" + shortCode
+	}
+	finalSlug := s.uniqueSlug(ctx, in.PublisherID, "", baseSlug)
 	categoryID, err := s.resolveCategoryID(ctx, in.PublisherID, in.CategoryID)
 	if err != nil {
 		return "", err
@@ -584,6 +606,11 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 		ShowOnPersonalProfile:  showOnPersonalProfile,
 	})
 	if err != nil {
+		return "", err
+	}
+	if _, err := s.pool.Exec(ctx,
+		`UPDATE "Article" SET "shortCode" = $2 WHERE id = $1 AND "shortCode" IS NULL`,
+		id, shortCode); err != nil {
 		return "", err
 	}
 	_ = s.captureSnapshot(ctx, id, &userID, in.Title, NormalizeContent(in.Content, in.ContentFormat), "INITIAL")
@@ -1311,6 +1338,7 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 	}); err != nil {
 		return err
 	}
+	s.archiveSlugIfPreviouslyPublished(ctx, articleID, row.Slug, finalSlug, row.Published, row.Status)
 	s.syncAttributions(ctx, articleID, uuidString(row.AuthorId), in.Attributions, showOnPersonalProfile)
 	s.queueSearchSync(articleID, "upsert")
 
@@ -1790,6 +1818,81 @@ func (s *Service) uniqueSlug(ctx context.Context, publisherID, articleID, base s
 		final = final + "-" + slug.ShortID(4)
 	}
 	return final
+}
+
+func (s *Service) uniqueShortCode(ctx context.Context) string {
+	for i := 0; i < 20; i++ {
+		code := slug.ShortNumericCode()
+		var exists bool
+		if err := s.pool.QueryRow(ctx,
+			`SELECT EXISTS(SELECT 1 FROM "Article" WHERE "shortCode" = $1)`, code,
+		).Scan(&exists); err == nil && !exists {
+			return code
+		}
+	}
+	return slug.ShortNumericCode()
+}
+
+func (s *Service) archiveSlugIfPreviouslyPublished(ctx context.Context, articleID, oldSlug, newSlug string, currentlyPublished bool, currentStatus string) {
+	if oldSlug == "" || newSlug == "" || oldSlug == newSlug {
+		return
+	}
+	wasPublished := currentlyPublished || currentStatus == "PUBLISHED"
+	if !wasPublished {
+		_ = s.pool.QueryRow(ctx, `
+			SELECT EXISTS(
+				SELECT 1 FROM "ArticleSnapshot"
+				WHERE "articleId" = $1 AND reason = 'PUBLISHED'
+			)`, articleID).Scan(&wasPublished)
+	}
+	if !wasPublished {
+		return
+	}
+	_, _ = s.pool.Exec(ctx, `
+		INSERT INTO "ArticleSlugHistory" (id, "articleId", slug, "createdAt")
+		VALUES (gen_random_uuid()::text, $1, $2, now())
+		ON CONFLICT (slug) DO NOTHING`,
+		articleID, oldSlug)
+}
+
+// ShortCodeResolution contient les informations de redirection canonique pour GET /v1/articles/short/{code}.
+type ShortCodeResolution struct {
+	ID                 string  `json:"id"`
+	Slug               string  `json:"slug"`
+	ShortCode          string  `json:"shortCode"`
+	OwnerSlug          string  `json:"ownerSlug"`
+	CategorySlug       *string `json:"categorySlug"`
+	ParentCategorySlug *string `json:"parentCategorySlug"`
+	Subdomain          *string `json:"subdomain"`
+	CustomDomain       *string `json:"customDomain"`
+}
+
+// GetByShortCode résout un article publié par son code court numérique pour redirection canonique.
+func (s *Service) GetByShortCode(ctx context.Context, code string) (*ShortCodeResolution, error) {
+	code = strings.TrimSpace(code)
+	if slug.ExtractTrailingShortCode(code) == "" {
+		return nil, pgx.ErrNoRows
+	}
+	var out ShortCodeResolution
+	err := s.pool.QueryRow(ctx, `
+		SELECT a.id, a.slug, a."shortCode", p.slug,
+		       c.slug, cp.slug, p.subdomain, p."customDomain"
+		FROM "Article" a
+		JOIN "Publisher" p ON p.id = a."publisherId"
+		LEFT JOIN "Category" c ON c.id = a."categoryId"
+		LEFT JOIN "Category" cp ON cp.id = c."parentId"
+		WHERE a."shortCode" = $1
+		  AND a.published = true
+		  AND a.status = 'PUBLISHED'
+		  AND (a."isClaimed" = true OR a."isAuthorSovereignCopy" = false)
+		LIMIT 1`, code).Scan(
+		&out.ID, &out.Slug, &out.ShortCode, &out.OwnerSlug,
+		&out.CategorySlug, &out.ParentCategorySlug, &out.Subdomain, &out.CustomDomain,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // notifyReviewers notifie les approbateurs (media:review) d'une soumission — best-effort.

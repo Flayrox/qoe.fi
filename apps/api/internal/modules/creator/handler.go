@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/antispam"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/identity"
 	"github.com/qoefi/api/internal/middleware"
@@ -307,9 +308,46 @@ func (h *Handler) createCategory(w http.ResponseWriter, r *http.Request) {
 	if !response.DecodeJSON(w, r, &in) {
 		return
 	}
-	if in.PublisherID == "" || in.Name == "" {
+	if in.PublisherID == "" || strings.TrimSpace(in.Name) == "" {
 		response.BadRequest(w, "publisherId et name requis")
 		return
+	}
+	cleanName, err := antispam.SanitizeAndValidateText(in.Name, 1, 80, antispam.TextOptions{
+		AllowNewlines: false,
+		CheckXSS:      true,
+	})
+	if err != nil {
+		if !secguard.WriteRejection(w, err) {
+			response.BadRequest(w, err.Error())
+		}
+		return
+	}
+	in.Name = cleanName
+	if in.Slug != "" {
+		cleanSlug, err := antispam.SanitizeAndValidateText(in.Slug, 1, 80, antispam.TextOptions{
+			AllowNewlines: false,
+			CheckXSS:      true,
+		})
+		if err != nil {
+			if !secguard.WriteRejection(w, err) {
+				response.BadRequest(w, err.Error())
+			}
+			return
+		}
+		in.Slug = cleanSlug
+	}
+	if in.Description != nil {
+		cleanDesc, err := antispam.SanitizeAndValidateText(*in.Description, 0, 500, antispam.TextOptions{
+			AllowNewlines: true,
+			CheckXSS:      true,
+		})
+		if err != nil {
+			if !secguard.WriteRejection(w, err) {
+				response.BadRequest(w, err.Error())
+			}
+			return
+		}
+		in.Description = &cleanDesc
 	}
 	if err := h.authorizeCategories(r.Context(), userID, in.PublisherID); err != nil {
 		response.Forbidden(w, "Accès refusé à cette publication.")
@@ -390,8 +428,46 @@ func (h *Handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if in.Name == "" {
+	if strings.TrimSpace(in.Name) == "" {
 		in.Name = existing.Name
+	} else {
+		cleanName, err := antispam.SanitizeAndValidateText(in.Name, 1, 80, antispam.TextOptions{
+			AllowNewlines: false,
+			CheckXSS:      true,
+		})
+		if err != nil {
+			if !secguard.WriteRejection(w, err) {
+				response.BadRequest(w, err.Error())
+			}
+			return
+		}
+		in.Name = cleanName
+	}
+	if in.Slug != "" {
+		cleanSlug, err := antispam.SanitizeAndValidateText(in.Slug, 1, 80, antispam.TextOptions{
+			AllowNewlines: false,
+			CheckXSS:      true,
+		})
+		if err != nil {
+			if !secguard.WriteRejection(w, err) {
+				response.BadRequest(w, err.Error())
+			}
+			return
+		}
+		in.Slug = cleanSlug
+	}
+	if in.Description != nil {
+		cleanDesc, err := antispam.SanitizeAndValidateText(*in.Description, 0, 500, antispam.TextOptions{
+			AllowNewlines: true,
+			CheckXSS:      true,
+		})
+		if err != nil {
+			if !secguard.WriteRejection(w, err) {
+				response.BadRequest(w, err.Error())
+			}
+			return
+		}
+		in.Description = &cleanDesc
 	}
 
 	finalSlug := slug.Slugify(in.Slug)

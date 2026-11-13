@@ -38,17 +38,21 @@ interface AnalyticsScriptProps {
 /**
  * 📊 Composant script Umami avec support du websiteId dynamic par tenant.
  */
-export function AnalyticsScript({ websiteId }: AnalyticsScriptProps) {
+export function AnalyticsScript({ websiteId, exempt = true }: AnalyticsScriptProps) {
   const targetId = websiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
-  const scriptUrl = process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL || 'https://cloud.umami.is/script.js';
+  const scriptUrl = process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL || '/_q/m.js';
 
   if (!targetId) return null;
+
+  const isFirstParty = scriptUrl.startsWith('/_q/');
 
   return (
     <Script
       defer
       src={scriptUrl}
       data-website-id={targetId}
+      {...(isFirstParty ? { 'data-host-url': '/_q' } : {})}
+      {...(exempt ? { 'data-do-not-track': 'true' } : {})}
       data-exclude-hash="true"
       strategy="afterInteractive"
     />

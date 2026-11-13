@@ -1,7 +1,15 @@
 package tracking
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"net"
 	"net/http"
+	"os"
+	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/qoefi/api/internal/middleware"
@@ -77,12 +85,51 @@ func (h *Handler) track(w http.ResponseWriter, r *http.Request) {
 	if req.ReadingTimeMinutes != nil {
 		rt = max(1, min(240, *req.ReadingTimeMinutes))
 	}
-	updated, err := h.svc.TrackReadingSession(r.Context(), userID, req.ArticleID, req.Source, req.Status, scroll, dwell, rt, req.Hostname, req.ReferrerUsername)
+	anonHash := ""
+	if userID == "" {
+		anonHash = computeDailyAnonHash(r)
+	}
+	updated, err := h.svc.TrackReadingSessionWithAnon(r.Context(), userID, anonHash, req.ArticleID, req.Source, req.Status, scroll, dwell, rt, req.Hostname, req.ReferrerUsername)
 	if err != nil {
 		response.Internal(w)
 		return
 	}
 	response.OK(w, map[string]interface{}{"success": true, "updatedCompletionRate": updated})
+}
+
+// computeDailyAnonHash calcule un hash journalier HMAC SHA-256 non-identifiant
+// (IP client + User-Agent + date UTC du jour) sans cookie ni PII stockée.
+func computeDailyAnonHash(r *http.Request) string {
+	secret := os.Getenv("ANALYTICS_ANON_SECRET")
+	if secret == "" {
+		secret = os.Getenv("SUPABASE_JWT_SECRET")
+	}
+	if secret == "" {
+		secret = "qoefi-anon-reading-session"
+	}
+	ip := ""
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		if first, _, ok := strings.Cut(xff, ","); ok {
+			ip = strings.TrimSpace(first)
+		} else {
+			ip = strings.TrimSpace(xff)
+		}
+	}
+	if ip == "" {
+		ip = strings.TrimSpace(r.Header.Get("X-Real-IP"))
+	}
+	if ip == "" {
+		host, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err == nil {
+			ip = host
+		} else {
+			ip = r.RemoteAddr
+		}
+	}
+	day := time.Now().UTC().Format("2006-01-02")
+	mac := hmac.New(sha256.New, []byte(secret))
+	_, _ = fmt.Fprintf(mac, "%s|%s|%s", day, ip, r.UserAgent())
+	return hex.EncodeToString(mac.Sum(nil))[:32]
 }
 
 func (h *Handler) feedImpression(w http.ResponseWriter, r *http.Request) {

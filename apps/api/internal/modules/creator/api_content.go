@@ -15,8 +15,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/qoefi/api/internal/anchors"
+	"github.com/qoefi/api/internal/antispam"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
+	pkgslug "github.com/qoefi/api/internal/slug"
 )
 
 // =====================================================================
@@ -487,6 +489,19 @@ func (h *Handler) uniqueArticleSlug(ctx context.Context, base string) string {
 	}
 }
 
+func (h *Handler) uniqueShortCode(ctx context.Context) string {
+	for i := 0; i < 20; i++ {
+		code := pkgslug.ShortNumericCode()
+		var exists bool
+		if err := h.pool.QueryRow(ctx,
+			`SELECT EXISTS(SELECT 1 FROM "Article" WHERE "shortCode" = $1)`, code,
+		).Scan(&exists); err == nil && !exists {
+			return code
+		}
+	}
+	return pkgslug.ShortNumericCode()
+}
+
 // creatorOwnsArticle vérifie le lien de propriété : publication de la clé,
 // auteur, ou co-auteur.
 func (h *Handler) creatorOwnsArticle(ctx context.Context, articleID, publisherID, userID string) bool {
@@ -536,10 +551,31 @@ func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	in.Title = strings.TrimSpace(in.Title)
-	if in.Title == "" {
-		response.BadRequest(w, "title requis")
+	cleanTitle, err := antispam.SanitizeAndValidateText(in.Title, 1, 300, antispam.TextOptions{CheckXSS: true})
+	if err != nil {
+		response.BadRequest(w, err.Error())
 		return
+	}
+	in.Title = cleanTitle
+	if in.Content != "" {
+		cleanContent, cerr := antispam.SanitizeAndValidateText(in.Content, 0, 500_000, antispam.TextOptions{AllowNewlines: true, CheckXSS: true})
+		if cerr != nil {
+			response.BadRequest(w, cerr.Error())
+			return
+		}
+		in.Content = cleanContent
+	}
+	if len(in.Tags) > 10 {
+		response.BadRequest(w, "trop de tags (max 10)")
+		return
+	}
+	for i, tag := range in.Tags {
+		cleanTag, terr := antispam.SanitizeAndValidateText(tag, 1, 50, antispam.TextOptions{CheckXSS: true})
+		if terr != nil {
+			response.BadRequest(w, terr.Error())
+			return
+		}
+		in.Tags[i] = cleanTag
 	}
 	if in.CategoryID != "" {
 		var ok bool
@@ -563,9 +599,23 @@ func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 		visibility = "PAID_SUBSCRIBERS"
 	}
 
-	id := "api_" + strings.ReplaceAll(slugify(in.Title), "-", "")[:8] + "-" +
+	idPrefix := strings.ReplaceAll(slugify(in.Title), "-", "")
+	if len(idPrefix) > 8 {
+		idPrefix = idPrefix[:8]
+	} else if idPrefix == "" {
+		idPrefix = "art"
+	}
+	id := "api_" + idPrefix + "-" +
 		strconv.FormatInt(time.Now().UnixNano()%100000, 10)
-	slug := h.uniqueArticleSlug(r.Context(), slugify(in.Title))
+	shortCode := h.uniqueShortCode(r.Context())
+	baseSlug := slugify(in.Title)
+	if baseSlug == "" {
+		baseSlug = "article"
+	}
+	if pkgslug.ExtractTrailingShortCode(baseSlug) == "" {
+		baseSlug = baseSlug + "-" + shortCode
+	}
+	slug := h.uniqueArticleSlug(r.Context(), baseSlug)
 
 	authorID := userID
 	if authorID == "" {
@@ -590,12 +640,12 @@ func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 		tags = []string{}
 	}
 	if _, err := h.pool.Exec(r.Context(), `
-		INSERT INTO "Article" (id, title, slug, content, published, visibility,
+		INSERT INTO "Article" (id, title, slug, "shortCode", content, published, visibility,
 		                       "readingTime", status, "isPremium", "semanticTags",
 		                       "categoryId", "publisherId", "authorId", "createdAt", "updatedAt")
-		VALUES ($1, $2, $3, NULLIF($4,''), false, $5, $6, 'DRAFT', $7, $8,
-		        NULLIF($9,''), NULLIF($10,''), $11, now(), now())`,
-		id, in.Title, slug, in.Content, visibility,
+		VALUES ($1, $2, $3, $4, NULLIF($5,''), false, $6, $7, 'DRAFT', $8, $9,
+		        NULLIF($10,''), NULLIF($11,''), $12, now(), now())`,
+		id, in.Title, slug, shortCode, in.Content, visibility,
 		readingTimeFromHTML(in.Content), in.IsPremium, tags,
 		in.CategoryID, publisherID, authorID); err != nil {
 		log.Printf("[creator] article create: %v", err)
@@ -687,7 +737,11 @@ func (h *Handler) apiArticleUpdate(w http.ResponseWriter, r *http.Request) {
 
 	// Titre.
 	if in.Title != nil && strings.TrimSpace(*in.Title) != "" {
-		title := strings.TrimSpace(*in.Title)
+		title, terr := antispam.SanitizeAndValidateText(*in.Title, 1, 300, antispam.TextOptions{CheckXSS: true})
+		if terr != nil {
+			response.BadRequest(w, terr.Error())
+			return
+		}
 		if _, err := h.pool.Exec(r.Context(),
 			`UPDATE "Article" SET title = $2, "updatedAt" = now() WHERE id = $1`,
 			id, title); err != nil {
@@ -696,9 +750,36 @@ func (h *Handler) apiArticleUpdate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if in.RegenSlug != nil && *in.RegenSlug {
-			slug := h.uniqueArticleSlug(r.Context(), slugify(title))
-			h.pool.Exec(r.Context(),
-				`UPDATE "Article" SET slug = $2, "updatedAt" = now() WHERE id = $1`, id, slug)
+			var oldSlug, status string
+			var published bool
+			var shortCode sql.NullString
+			_ = h.pool.QueryRow(r.Context(),
+				`SELECT slug, published, status, "shortCode" FROM "Article" WHERE id = $1`, id).
+				Scan(&oldSlug, &published, &status, &shortCode)
+
+			base := slugify(title)
+			if base == "" {
+				base = "article"
+			}
+			if shortCode.Valid && shortCode.String != "" && pkgslug.ExtractTrailingShortCode(base) == "" {
+				base = base + "-" + shortCode.String
+			}
+			newSlug := h.uniqueArticleSlug(r.Context(), base)
+			if newSlug != oldSlug && oldSlug != "" {
+				wasPublished := published || status == "PUBLISHED"
+				if !wasPublished {
+					_ = h.pool.QueryRow(r.Context(),
+						`SELECT EXISTS(SELECT 1 FROM "ArticleSnapshot" WHERE "articleId" = $1 AND reason = 'PUBLISHED')`,
+						id).Scan(&wasPublished)
+				}
+				if wasPublished {
+					_, _ = h.pool.Exec(r.Context(),
+						`INSERT INTO "ArticleSlugHistory" (id, "articleId", slug) VALUES (gen_random_uuid()::text, $1, $2) ON CONFLICT (slug) DO NOTHING`,
+						id, oldSlug)
+				}
+			}
+			_, _ = h.pool.Exec(r.Context(),
+				`UPDATE "Article" SET slug = $2, "updatedAt" = now() WHERE id = $1`, id, newSlug)
 		}
 	}
 	// Contenu (+ temps de lecture recalculé).

@@ -31,7 +31,7 @@ var reservedTenantRoutes = map[string]struct{}{
 	// Routes éditoriales canoniques
 	"about": {}, "team": {}, "thoughts": {}, "author": {},
 	// Routes d'articles et de catégories
-	"article": {}, "articles": {},
+	"article": {}, "articles": {}, "l": {},
 	// Routes système du tenant
 	"search": {}, "support": {}, "sitemap": {}, "exit": {}, "rss.xml": {},
 	// Routes de l'app servies sur le même host

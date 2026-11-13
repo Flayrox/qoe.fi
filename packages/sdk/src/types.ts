@@ -381,6 +381,7 @@ export interface ArticleData {
   id: string;
   title: string;
   slug: string;
+  shortCode?: string | null;
   content: string;
   isTruncated: boolean;
   accessGranted: boolean;

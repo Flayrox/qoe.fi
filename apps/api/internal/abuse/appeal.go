@@ -20,6 +20,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/qoefi/api/internal/antispam"
 )
 
 // Erreurs sentinelles (mappées en statuts HTTP par les handlers).
@@ -135,8 +136,11 @@ func OpenAppeal(ctx context.Context, pool SignalDB, subjectType, subjectID, open
 	if subjectType != SubjectUser || subjectID != openedBy {
 		return Appeal{}, ErrAppealForbidden
 	}
-	if m := strings.TrimSpace(message); len([]rune(m)) < 1 || len([]rune(m)) > 5000 {
-		return Appeal{}, fmt.Errorf("%w : message de 1 à 5000 caractères", ErrInvalidAppeal)
+	if m, err := antispam.SanitizeAndValidateText(message, 1, 5000, antispam.TextOptions{
+		AllowNewlines: true,
+		CheckXSS:      true,
+	}); err != nil {
+		return Appeal{}, fmt.Errorf("%w : %s", ErrInvalidAppeal, err.Error())
 	} else {
 		message = m
 	}
@@ -229,8 +233,11 @@ func AddUserMessage(ctx context.Context, pool SignalDB, appealID, userID, body s
 	if a.Status == AppealDecided {
 		return Appeal{}, ErrAppealClosed
 	}
-	if b := strings.TrimSpace(body); len([]rune(b)) < 1 || len([]rune(b)) > 5000 {
-		return Appeal{}, fmt.Errorf("%w : message de 1 à 5000 caractères", ErrInvalidAppeal)
+	if b, err := antispam.SanitizeAndValidateText(body, 1, 5000, antispam.TextOptions{
+		AllowNewlines: true,
+		CheckXSS:      true,
+	}); err != nil {
+		return Appeal{}, fmt.Errorf("%w : %s", ErrInvalidAppeal, err.Error())
 	} else {
 		body = b
 	}

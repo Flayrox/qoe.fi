@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/qoefi/api/internal/antispam"
 	"github.com/qoefi/api/internal/shared/identifier"
 	"github.com/qoefi/api/internal/slug"
 )
@@ -402,13 +403,17 @@ func (s *Service) GetOrCreatePersonalPublisher(ctx context.Context, userID strin
 // ToggleMuteWord ajoute ou retire un mot masqué (parité
 // moderation.toggleMuteWord Prisma : normalisé lowercase/trim).
 func (s *Service) ToggleMuteWord(ctx context.Context, userID, rawWord string) (bool, string, error) {
-	word := strings.ToLower(strings.TrimSpace(rawWord))
-	if word == "" {
-		return false, "", errors.New("Mot-clé invalide.")
+	cleaned, err := antispam.SanitizeAndValidateText(rawWord, 1, 100, antispam.TextOptions{
+		AllowNewlines: false,
+		CheckXSS:      true,
+	})
+	if err != nil {
+		return false, "", err
 	}
+	word := strings.ToLower(cleaned)
 
 	var existingID string
-	err := s.pool.QueryRow(ctx,
+	err = s.pool.QueryRow(ctx,
 		`SELECT id FROM "MutedWord" WHERE "userId" = $1 AND word = $2`, userID, word).Scan(&existingID)
 	if err == nil {
 		_, err = s.pool.Exec(ctx, `DELETE FROM "MutedWord" WHERE id = $1`, existingID)
@@ -416,6 +421,10 @@ func (s *Service) ToggleMuteWord(ctx context.Context, userID, rawWord string) (b
 			return false, "", err
 		}
 		return false, word, nil
+	}
+	var count int
+	if err := s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "MutedWord" WHERE "userId" = $1`, userID).Scan(&count); err == nil && count >= 200 {
+		return false, "", errors.New("Maximum 200 mots masqués autorisés.")
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return false, "", err

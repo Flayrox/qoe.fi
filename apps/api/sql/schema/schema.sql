@@ -549,6 +549,7 @@ CREATE TABLE "Article" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
+    "shortCode" TEXT,
     "content" TEXT NOT NULL,
     "draftContent" TEXT,
     "contentSha" TEXT,
@@ -1442,6 +1443,9 @@ CREATE INDEX "Article_status_scheduledAt_idx" ON "Article"("status", "scheduledA
 -- CreateIndex
 CREATE UNIQUE INDEX "Article_publisherId_slug_key" ON "Article"("publisherId", "slug");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "Article_shortCode_key" ON "Article"("shortCode");
+
 -- AddConstraint
 ALTER TABLE "Article" ADD CONSTRAINT "Article_sovereign_copy_check"
     CHECK (
@@ -1995,6 +1999,7 @@ CREATE TABLE "ReadingSession" (
     "id" TEXT NOT NULL,
     "articleId" TEXT NOT NULL,
     "userId" UUID,
+    "anonHash" TEXT,
     "source" TEXT NOT NULL,
     "status" TEXT NOT NULL,
     "scrollDepth" INTEGER NOT NULL DEFAULT 0,
@@ -2021,6 +2026,9 @@ CREATE INDEX "ReadingSession_articleId_hostname_idx" ON "ReadingSession"("articl
 
 -- CreateIndex
 CREATE INDEX "ReadingSession_userId_articleId_idx" ON "ReadingSession"("userId", "articleId");
+
+-- CreateIndex
+CREATE INDEX "ReadingSession_anonHash_createdAt_idx" ON "ReadingSession"("anonHash", "createdAt") WHERE "anonHash" IS NOT NULL;
 
 -- AddForeignKey
 ALTER TABLE "ReadingSession" ADD CONSTRAINT "ReadingSession_articleId_fkey" FOREIGN KEY ("articleId") REFERENCES "Article"("id") ON DELETE CASCADE ON UPDATE CASCADE;

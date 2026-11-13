@@ -22,6 +22,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/qoefi/api/internal/abuse"
+	"github.com/qoefi/api/internal/antispam"
 	"github.com/qoefi/api/internal/flags"
 )
 
@@ -173,9 +174,12 @@ type DB interface {
 }
 
 func checkBody(body string) (string, error) {
-	b := strings.TrimSpace(body)
-	if len([]rune(b)) < 1 || len([]rune(b)) > 5000 {
-		return "", fmt.Errorf("%w : message de 1 à 5000 caractères", ErrInvalidTicket)
+	b, err := antispam.SanitizeAndValidateText(body, 1, 5000, antispam.TextOptions{
+		AllowNewlines: true,
+		CheckXSS:      true,
+	})
+	if err != nil {
+		return "", fmt.Errorf("%w : %s", ErrInvalidTicket, err.Error())
 	}
 	return b, nil
 }
@@ -191,11 +195,15 @@ func OpenTicket(ctx context.Context, pool DB, kind, subject, openedBy, message, 
 	if !ValidKind(kind) {
 		return Ticket{}, fmt.Errorf("%w : kind inconnu", ErrInvalidTicket)
 	}
-	subject = strings.TrimSpace(subject)
-	if len([]rune(subject)) < 5 || len([]rune(subject)) > 200 {
-		return Ticket{}, fmt.Errorf("%w : sujet de 5 à 200 caractères", ErrInvalidTicket)
+	cleanSubj, err := antispam.SanitizeAndValidateText(subject, 5, 200, antispam.TextOptions{
+		AllowNewlines: false,
+		CheckXSS:      true,
+	})
+	if err != nil {
+		return Ticket{}, fmt.Errorf("%w : %s", ErrInvalidTicket, err.Error())
 	}
-	message, err := checkBody(message)
+	subject = cleanSubj
+	message, err = checkBody(message)
 	if err != nil {
 		return Ticket{}, err
 	}
@@ -257,11 +265,21 @@ func OpenPublicTicket(ctx context.Context, pool DB, userID, name, email, kind, s
 	if !emailFormat.MatchString(email) {
 		return Ticket{}, fmt.Errorf("%w : adresse e-mail invalide", ErrInvalidTicket)
 	}
-	if n := strings.TrimSpace(name); n != "" {
-		if len([]rune(n)) > 100 {
-			return Ticket{}, fmt.Errorf("%w : nom trop long (100 max)", ErrInvalidTicket)
-		}
+	cleanMsg, err := checkBody(message)
+	if err != nil {
+		return Ticket{}, err
+	}
+	message = cleanMsg
+	if n, err := antispam.SanitizeAndValidateText(name, 0, 100, antispam.TextOptions{
+		AllowNewlines: false,
+		CheckXSS:      true,
+	}); err != nil {
+		return Ticket{}, fmt.Errorf("%w : %s", ErrInvalidTicket, err.Error())
+	} else if n != "" {
 		message = n + " — " + message
+		if _, err := checkBody(message); err != nil {
+			return Ticket{}, err
+		}
 	}
 	now = now.UTC()
 	ok, err := abuse.ConsumeBudget(ctx, pool, "email_day", email, ActionSupportPublic, abuse.DailyWindow(now), 1, PublicCapPerEmailDay)

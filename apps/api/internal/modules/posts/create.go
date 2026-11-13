@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -52,12 +53,13 @@ type CreateFullInput struct {
 
 var urlRe = regexp.MustCompile(`https?://[^\s]+`)
 
-// validateContentLen reproduit la règle TS : 500 caractères, URLs externes
+// validateContentLen reproduit la règle TS : 500 runes, URLs externes
 // comptées pour 20, URLs internes (post/article/thought) pour 0.
 func validateContentLen(content string) error {
-	weight := len(content)
-	for _, u := range urlRe.FindAllString(content, -1) {
-		weight -= len(u)
+	trimmed := strings.TrimSpace(content)
+	weight := utf8.RuneCountInString(trimmed)
+	for _, u := range urlRe.FindAllString(trimmed, -1) {
+		weight -= utf8.RuneCountInString(u)
 		if !strings.Contains(u, "/post/") &&
 			!strings.Contains(u, "/article/") &&
 			!strings.Contains(u, "/thought/") {

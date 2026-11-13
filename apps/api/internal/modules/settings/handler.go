@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/qoefi/api/internal/antispam"
 	"github.com/qoefi/api/internal/authz"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
@@ -379,11 +380,17 @@ func (h *Handler) submitApiApplication(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	if len([]rune(in.Reason)) < 10 {
-		response.BadRequest(w, "Veuillez fournir une explication détaillée (au moins 10 caractères).")
+	cleanReason, err := antispam.SanitizeAndValidateText(in.Reason, 10, 1000, antispam.TextOptions{
+		AllowNewlines: true,
+		CheckXSS:      true,
+	})
+	if err != nil {
+		if !secguard.WriteRejection(w, err) {
+			response.BadRequest(w, err.Error())
+		}
 		return
 	}
-	if err := h.svc.SubmitApiApplication(r.Context(), userID, in.Reason); err != nil {
+	if err := h.svc.SubmitApiApplication(r.Context(), userID, cleanReason); err != nil {
 		log.Printf("[settings] submitApiApplication: %v", err)
 		response.Internal(w)
 		return
@@ -402,7 +409,17 @@ func (h *Handler) generateApiKey(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	apiKey, err := h.svc.GenerateApiKey(r.Context(), userID, in.Name, in.Scopes)
+	cleanName, err := antispam.SanitizeAndValidateText(in.Name, 1, 80, antispam.TextOptions{
+		AllowNewlines: false,
+		CheckXSS:      true,
+	})
+	if err != nil {
+		if !secguard.WriteRejection(w, err) {
+			response.BadRequest(w, err.Error())
+		}
+		return
+	}
+	apiKey, err := h.svc.GenerateApiKey(r.Context(), userID, cleanName, in.Scopes)
 	if err != nil {
 		response.Forbidden(w, err.Error())
 		return

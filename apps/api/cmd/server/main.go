@@ -417,7 +417,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 	})
 
 	// Highlights : surlignages publics d'un article (auth optionnelle).
-	highlightsHandler := highlights.NewHandler(highlights.NewService(pool))
+	highlightsHandler := highlights.NewHandler(highlights.NewService(pool)).WithSecGuard(secGuard)
 	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
 		highlightsHandler.RegisterPublic(pub)
 	})

@@ -65,6 +65,7 @@ export const routes = {
       }
       return `/a/${encodeURIComponent(ownerOrSlug)}`;
     },
+    shortArticle: (shortCode: string) => `/l/${encodeURIComponent(shortCode)}`,
     thought: (username: string, id: string) =>
       `/${encodeURIComponent(username.replace(/^@/, ''))}/thought/${encodeURIComponent(id)}`,
     notifications: () => '/notifications',
@@ -152,6 +153,8 @@ export const routes = {
         : `${getMonorepoUrl('tenant', host, subdomain)}/article/${encodeURIComponent(slug)}`,
     articleLegacy: (subdomain: string, slug: string, host?: string) =>
       `${getMonorepoUrl('tenant', host, subdomain)}/article/${encodeURIComponent(slug)}`,
+    shortArticle: (subdomain: string, shortCode: string, host?: string) =>
+      `${getMonorepoUrl('tenant', host, subdomain)}/l/${encodeURIComponent(shortCode)}`,
   },
 } as const;
 
@@ -160,6 +163,7 @@ export type AppRoutes = typeof routes;
 /** Shape minimale pour résoudre l'URL canonique d'un article */
 export interface ArticleResolvable {
   slug: string;
+  shortCode?: string | null;
   author?: {
     username?: string | null;
     subdomain?: string | null;
@@ -209,6 +213,12 @@ function getClientHost(): string | undefined {
   return undefined;
 }
 
+function buildCustomDomainArticlePath(slug: string, categorySlug?: string | null): string {
+  return categorySlug
+    ? `/${encodeURIComponent(categorySlug)}/${encodeURIComponent(slug)}`
+    : `/article/${encodeURIComponent(slug)}`;
+}
+
 /**
  * Génère l'URL d'un article (format feed /:owner/:slug ou format tenant multi-domaine).
  * S'adapte au contexte d'exécution (génère une URL absolue inter-applications si
@@ -224,11 +234,9 @@ export function getArticleUrl(
   }
 ): string {
   if (options?.preferTenant) {
-    if (article.publisher?.customDomain) {
-      return `https://${article.publisher.customDomain}/article/${encodeURIComponent(article.slug)}`;
-    }
-    if (article.author?.customDomain) {
-      return `https://${article.author.customDomain}/article/${encodeURIComponent(article.slug)}`;
+    const customDomain = article.publisher?.customDomain || article.author?.customDomain;
+    if (customDomain) {
+      return `https://${customDomain}${buildCustomDomainArticlePath(article.slug, article.category?.slug)}`;
     }
     if (article.publisher?.subdomain) {
       return routes.tenant.article(
@@ -250,6 +258,44 @@ export function getArticleUrl(
 
   const owner = getArticleOwner(article, options?.fallbackOwner);
   const relativePath = routes.feed.article(owner, article.slug);
+  const activeHost = options?.host || getClientHost();
+
+  const shouldBeAbsolute =
+    Boolean(options?.absolute) || (activeHost ? !isMainAppHost(activeHost) : false);
+
+  if (shouldBeAbsolute) {
+    return `${getMainAppUrl(options?.host)}${relativePath}`;
+  }
+
+  return relativePath;
+}
+
+/**
+ * Génère l'URL courte `/l/{shortCode}` d'un article si `article.shortCode` est présent.
+ */
+export function getArticleShortUrl(
+  article: Pick<ArticleResolvable, 'shortCode' | 'author' | 'publisher'>,
+  options?: {
+    preferTenant?: boolean;
+    host?: string;
+    absolute?: boolean;
+  }
+): string | null {
+  const shortCode = article.shortCode?.trim();
+  if (!shortCode) return null;
+
+  if (options?.preferTenant) {
+    const customDomain = article.publisher?.customDomain || article.author?.customDomain;
+    if (customDomain) {
+      return `https://${customDomain}/l/${encodeURIComponent(shortCode)}`;
+    }
+    const subdomain = article.publisher?.subdomain || article.author?.subdomain;
+    if (subdomain) {
+      return routes.tenant.shortArticle(subdomain, shortCode, options?.host);
+    }
+  }
+
+  const relativePath = routes.feed.shortArticle(shortCode);
   const activeHost = options?.host || getClientHost();
 
   const shouldBeAbsolute =

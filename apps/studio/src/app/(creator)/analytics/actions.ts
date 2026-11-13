@@ -31,6 +31,8 @@ export interface AnalyticsResponseData {
   audience: AudienceInsights;
   umamiAdvanced: UmamiAdvancedInsights;
   provenance: ProvenanceBreakdown;
+  /** Temps de lecture actif moyen d'article (ReadingSession.dwellSeconds, en secondes). */
+  avgDwellSeconds?: number;
   /** Intérêt porté aux fonctionnalités à venir / Pro (90 j, espace actif). */
   featureInterest: FeatureSignalSummary[];
 }
@@ -247,6 +249,7 @@ async function fetchFeatureInterest(publisherId: string): Promise<FeatureSignalS
 interface CreatorReadingStats {
   perArticle: Record<string, number>;
   totalViews: number;
+  avgDwellSeconds?: number;
   dailySeries: { day: string; count: number }[];
 }
 
@@ -292,7 +295,7 @@ export async function getCreatorAnalyticsData(
     let provenance: ProvenanceBreakdown = { bySource: [], byHostname: [], byReferrer: [] };
     try {
       provenance = await goFetch<ProvenanceBreakdown>(
-        `/v1/analytics/provenance?publisherId=${workspace.publisherId}&period=7d`
+        `/v1/analytics/provenance?publisherId=${workspace.publisherId}&period=${period}`
       );
     } catch {
       provenance = { bySource: [], byHostname: [], byReferrer: [] };
@@ -475,6 +478,7 @@ export async function getCreatorAnalyticsData(
         audience,
         umamiAdvanced,
         provenance,
+        avgDwellSeconds: goStats.avgDwellSeconds ?? 0,
         featureInterest,
       },
     };

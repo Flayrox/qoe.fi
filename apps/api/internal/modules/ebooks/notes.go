@@ -16,6 +16,7 @@ import (
 	"unicode"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/qoefi/api/internal/antispam"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -63,14 +64,29 @@ func truncateRunes(s string, limit int) string {
 	return string(r[:limit])
 }
 
-// normalizeNote applique les bornes et refuse une note vide.
+// normalizeNote applique les bornes et refuse une note vide ou invalide.
 func normalizeNote(in NoteInput) (NoteInput, error) {
 	in.ChapterTitle = clampMeta(in.ChapterTitle) // trim + ≤ 300 runes
-	in.Excerpt = truncateRunes(strings.TrimSpace(in.Excerpt), MaxNoteExcerpt)
-	in.Note = strings.TrimSpace(in.Note)
-	if len([]rune(in.Note)) > MaxNoteLength {
-		return in, ErrNoteTooLong
+	excerpt, err := antispam.SanitizeAndValidateText(truncateRunes(strings.TrimSpace(in.Excerpt), MaxNoteExcerpt), 0, MaxNoteExcerpt, antispam.TextOptions{
+		AllowNewlines: true,
+		CheckXSS:      true,
+	})
+	if err != nil {
+		return in, err
 	}
+	in.Excerpt = excerpt
+	note, err := antispam.SanitizeAndValidateText(in.Note, 0, MaxNoteLength, antispam.TextOptions{
+		AllowNewlines: true,
+		CheckXSS:      true,
+	})
+	if err != nil {
+		var rej *antispam.RejectionError
+		if errors.As(err, &rej) && rej.Code == antispam.CodeContentTooLarge {
+			return in, ErrNoteTooLong
+		}
+		return in, err
+	}
+	in.Note = note
 	if in.Excerpt == "" && in.Note == "" {
 		return in, ErrNoteEmpty
 	}
@@ -162,13 +178,21 @@ func (s *Service) Notes(ctx context.Context, userID, ebookID string) ([]Note, er
 // la note reste possible TANT QU'il reste un extrait ; sinon la ligne ne
 // dirait plus rien et le refus est explicite.
 func (s *Service) UpdateNote(ctx context.Context, userID, ebookID, noteID, note string) (Note, error) {
-	note = strings.TrimSpace(note)
-	if len([]rune(note)) > MaxNoteLength {
-		return Note{}, ErrNoteTooLong
+	cleanNote, err := antispam.SanitizeAndValidateText(note, 0, MaxNoteLength, antispam.TextOptions{
+		AllowNewlines: true,
+		CheckXSS:      true,
+	})
+	if err != nil {
+		var rej *antispam.RejectionError
+		if errors.As(err, &rej) && rej.Code == antispam.CodeContentTooLarge {
+			return Note{}, ErrNoteTooLong
+		}
+		return Note{}, err
 	}
+	note = cleanNote
 	var n Note
 	var created, updated time.Time
-	err := s.pool.QueryRow(ctx, `
+	err = s.pool.QueryRow(ctx, `
 		UPDATE "EbookNote" SET "note" = $4, "updatedAt" = now()
 		WHERE "id" = $1 AND "ownerId" = $2::uuid AND "ebookId" = $3
 		  AND (char_length("excerpt") > 0 OR char_length($4) > 0)

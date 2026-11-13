@@ -108,6 +108,10 @@ type BookmarkItem struct {
 // privé ou d'un compte bloqué est indistinguable d'un 404 (zéro-fuite).
 var errHighlightNotFound = errors.New("surlignage introuvable")
 
+// errQuoteNotFound signale qu'une citation publique ne correspond à aucun
+// passage réel de l'article (anti-spoofing de citation).
+var errQuoteNotFound = errors.New("passage introuvable dans l'article")
+
 // Service porte les dépendances du domaine highlights.
 type Service struct {
 	pool *pgxpool.Pool
@@ -259,6 +263,9 @@ func (s *Service) ListByArticle(ctx context.Context, articleID, viewerID string)
 // offsets (code points) + empreinte. En cas d'échec, retourne des ancres NULL
 // (le surlignage reste lisible via text + quoteOrdinal — modèle hérité).
 func (s *Service) resolveAnchor(ctx context.Context, articleID, text string, quoteOrdinal int) (pgtype.Int4, pgtype.Int4, pgtype.Text) {
+	if s.pool == nil {
+		return pgtype.Int4{}, pgtype.Int4{}, pgtype.Text{}
+	}
 	var html string
 	if err := s.pool.QueryRow(ctx, `SELECT "content" FROM "Article" WHERE id=$1`, articleID).Scan(&html); err != nil {
 		return pgtype.Int4{}, pgtype.Int4{}, pgtype.Text{}
@@ -300,6 +307,9 @@ func (s *Service) Create(ctx context.Context, articleID, readerID, text string, 
 		quoteOrdinal = 0
 	}
 	start, end, sha := s.resolveAnchor(ctx, articleID, text, quoteOrdinal)
+	if isPublic && !start.Valid {
+		return Highlight{}, errQuoteNotFound
+	}
 	id, err := s.q.CreateHighlight(ctx, db.CreateHighlightParams{
 		Text:           text,
 		Note:           pgtype.Text{String: deref(note), Valid: note != nil},

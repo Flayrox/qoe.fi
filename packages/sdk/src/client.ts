@@ -808,6 +808,13 @@ export class QoeApiClient {
   }
 
   /**
+   * GET /v1/articles/short/{code} — résolution d'un article par son code court.
+   */
+  public async getArticleByShortCode(code: string) {
+    return this.request<ArticleData>(`/v1/articles/short/${encodeURIComponent(code)}`);
+  }
+
+  /**
    * GET /v1/articles/{id}/similar — recommandations sémantiques (pgvector).
    * Retourne une liste vide tant que le worker d'embedding n'a pas indexé.
    */

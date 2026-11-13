@@ -111,6 +111,7 @@ describe('QoeApiClient — contrat d’URL des méthodes', () => {
       () => client.getArticle('mon-slug', 'pub1'),
       '/v1/articles/mon-slug?publisherId=pub1'
     );
+    await expectCall(() => client.getArticleByShortCode('81083'), '/v1/articles/short/81083');
     await expectCall(() => client.getSimilarArticles('a1'), '/v1/articles/a1/similar?limit=6');
     await expectCall(() => client.getBookmarks(), '/v1/bookmarks');
     await expectCall(() => client.getMyHighlights(), '/v1/me/highlights');

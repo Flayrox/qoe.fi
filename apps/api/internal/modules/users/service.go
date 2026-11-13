@@ -500,19 +500,24 @@ func (s *Service) UpdateProfilePatch(ctx context.Context, userID string, patch P
 	}
 
 	if patch.Name != nil {
-		name := strings.TrimSpace(*patch.Name)
-		if len(name) > 120 {
-			name = name[:120]
+		name, err := antispam.SanitizeAndValidateText(*patch.Name, 0, 120, antispam.TextOptions{
+			AllowNewlines: false,
+			CheckXSS:      true,
+		})
+		if err != nil {
+			return nil, err
 		}
 		args = append(args, optText(name))
 		sets = append(sets, fmt.Sprintf("name = $%d", len(args)))
 	}
 
 	if patch.OnboardingText != nil {
-		txt := strings.TrimSpace(*patch.OnboardingText)
-		runes := []rune(txt)
-		if len(runes) > 30 {
-			txt = string(runes[:30])
+		txt, err := antispam.SanitizeAndValidateText(*patch.OnboardingText, 0, 1000, antispam.TextOptions{
+			AllowNewlines: true,
+			CheckXSS:      true,
+		})
+		if err != nil {
+			return nil, err
 		}
 		args = append(args, optText(txt))
 		sets = append(sets, fmt.Sprintf(`"onboardingText" = $%d`, len(args)))
@@ -520,8 +525,8 @@ func (s *Service) UpdateProfilePatch(ctx context.Context, userID string, patch P
 
 	if patch.LogoURL != nil {
 		logo := strings.TrimSpace(*patch.LogoURL)
-		if len(logo) > 2000 {
-			logo = logo[:2000]
+		if len([]rune(logo)) > 2000 {
+			return nil, errors.New("L'URL du logo dépasse 2000 caractères.")
 		}
 		if err := antispam.ValidateSafeURL(logo); err != nil {
 			return nil, err
@@ -531,9 +536,12 @@ func (s *Service) UpdateProfilePatch(ctx context.Context, userID string, patch P
 	}
 
 	if patch.Pronouns != nil {
-		pro := strings.TrimSpace(*patch.Pronouns)
-		if len(pro) > 50 {
-			pro = pro[:50]
+		pro, err := antispam.SanitizeAndValidateText(*patch.Pronouns, 0, 50, antispam.TextOptions{
+			AllowNewlines: false,
+			CheckXSS:      true,
+		})
+		if err != nil {
+			return nil, err
 		}
 		args = append(args, optText(pro))
 		sets = append(sets, fmt.Sprintf("pronouns = $%d", len(args)))
@@ -744,9 +752,36 @@ func (s *Service) OnboardingComplete(ctx context.Context, userID string, in Onbo
 	if !validAgeRanges[ageRange] {
 		ageRange = ""
 	}
-	pronouns := strings.TrimSpace(in.Pronouns)
-	if len(pronouns) > 50 {
-		pronouns = pronouns[:50]
+	pronouns, err := antispam.SanitizeAndValidateText(in.Pronouns, 0, 50, antispam.TextOptions{
+		AllowNewlines: false,
+		CheckXSS:      true,
+	})
+	if err != nil {
+		return err
+	}
+	onboardingText, err := antispam.SanitizeAndValidateText(in.OnboardingText, 0, 1000, antispam.TextOptions{
+		AllowNewlines: true,
+		CheckXSS:      true,
+	})
+	if err != nil {
+		return err
+	}
+	if len(in.MutedWords) > 200 {
+		return errors.New("Maximum 200 mots masqués autorisés.")
+	}
+	cleanMuted := make([]string, 0, len(in.MutedWords))
+	for _, word := range in.MutedWords {
+		if strings.TrimSpace(word) == "" {
+			continue
+		}
+		w, err := antispam.SanitizeAndValidateText(word, 1, 100, antispam.TextOptions{
+			AllowNewlines: false,
+			CheckXSS:      true,
+		})
+		if err != nil {
+			return err
+		}
+		cleanMuted = append(cleanMuted, strings.ToLower(w))
 	}
 
 	// 1. Marque l'onboarding terminé + démographie.
@@ -772,16 +807,12 @@ func (s *Service) OnboardingComplete(ctx context.Context, userID string, in Onbo
 	// 2. Embedding sémantique (best-effort : service d'inférence OU fallback
 	// déterministe — même comportement que le TS).
 	allTopics := append(append([]string{}, in.Interests...), in.Subtopics...)
-	if err := s.saveUserEmbedding(ctx, userID, in.OnboardingText, allTopics); err != nil {
+	if err := s.saveUserEmbedding(ctx, userID, onboardingText, allTopics); err != nil {
 		log.Printf("[users] onboarding embedding: %v", err)
 	}
 
 	// 3. Mots masqués (skip duplicates — parité createMany skipDuplicates).
-	for _, word := range in.MutedWords {
-		w := strings.ToLower(strings.TrimSpace(word))
-		if w == "" {
-			continue
-		}
+	for _, w := range cleanMuted {
 		if _, err := s.pool.Exec(ctx, `
 			INSERT INTO "MutedWord" (id, word, "userId", "createdAt")
 			VALUES (gen_random_uuid()::text, $1, $2, now())
