@@ -166,6 +166,14 @@ export default defineConfig({
       testMatch: /hydration\.spec\.ts/,
     },
     {
+      // 🗺️ Matrice de routes : rend CHAQUE page core + admin découverte sur
+      // le disque, et échoue si une page n'est ni visitée ni exemptée.
+      // C'est la couverture « 100 % des pages » qui manquait.
+      name: 'routes',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /routes\.spec\.ts/,
+    },
+    {
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
@@ -174,7 +182,7 @@ export default defineConfig({
       // Les specs publics/annotations/journeys/security/like-privacy tournent
       // dans leurs propres projets ; studio/admin/tenants ont leur propre config.
       testIgnore:
-        /(hydration|public|annotations|core-journeys|security|oauth-consent|like-privacy|studio|admin|tenants)\.spec\.ts/,
+        /(hydration|routes|public|annotations|core-journeys|security|oauth-consent|like-privacy|studio|admin|tenants)\.spec\.ts/,
       dependencies: ['setup'],
     },
   ],

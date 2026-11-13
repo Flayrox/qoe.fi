@@ -49,12 +49,20 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
       reportsDirectory: 'coverage/ts',
+      // ⚠️ .tsx inclus : sans lui, toute la couche React (composants core et
+      // mobile) échappait à la mesure — 0 % mesuré, donc 0 % piloté.
       include: [
-        'packages/{sdk,auth,utils,flags,moderation}/src/**/*.ts',
-        'apps/core/src/**/*.ts',
-        'apps/mobile/src/**/*.ts',
+        'packages/{sdk,auth,utils,flags,moderation}/src/**/*.{ts,tsx}',
+        'apps/core/src/**/*.{ts,tsx}',
+        'apps/mobile/src/**/*.{ts,tsx}',
       ],
-      exclude: ['**/*.test.ts', '**/*.test.tsx', '**/*.d.ts'],
+      exclude: [
+        '**/*.test.ts',
+        '**/*.test.tsx',
+        '**/*.d.ts',
+        '**/vendor/**',
+        '**/*.stories.{ts,tsx}',
+      ],
       // Seuils progressifs par package, mesurés au moment de l'introduction
       // du gate (2026-08). Une baisse DOIT s'accompagner de nouveaux tests,
       // pas d'un seuil abaissé. Objectif final : 80% sur le code métier.
