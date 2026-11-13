@@ -163,7 +163,9 @@ fi
 # le conteneur garde l'ancien fichier) → on compare les md5 et on ne redémarre
 # QUE dans ce cas (quelques secondes de coupure), sinon reload à chaud.
 log "   Rechargement de Caddy (Caddyfile monté en bind)…"
-if ssh_vps "cd $VPS_DIR && docker run --rm -v \$PWD/docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1"; then
+# ⚠️ Monter /etc/letsencrypt : `caddy validate` provisionne les TLS et
+# échoue sur les certs absents (faux négatif vécu le 13/11).
+if ssh_vps "cd $VPS_DIR && docker run --rm -v \$PWD/docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro -v /etc/letsencrypt:/etc/letsencrypt:ro caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1"; then
   HOST_MD5=$(ssh_vps "md5sum $VPS_DIR/docker/caddy/Caddyfile | cut -d' ' -f1")
   CTR_MD5=$(ssh_vps "docker exec qoefi-caddy md5sum /etc/caddy/Caddyfile 2>/dev/null | cut -d' ' -f1")
   if [ "$HOST_MD5" = "$CTR_MD5" ]; then
@@ -177,7 +179,7 @@ if ssh_vps "cd $VPS_DIR && docker run --rm -v \$PWD/docker/caddy/Caddyfile:/etc/
       || warn "Redémarrage Caddy en échec — vérifier docker logs qoefi-caddy"
   fi
 else
-  warn "Caddyfile invalide — Caddy laissé sur l'ancienne config (validation : docker run --rm -v \$PWD/docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile)"
+  warn "Caddyfile invalide — Caddy laissé sur l'ancienne config (validation : docker run --rm -v \$PWD/docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro -v /etc/letsencrypt:/etc/letsencrypt:ro caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile)"
 fi
 # Re-applique le firewall tailnet (une recreate de qoefi-caddy change son IP
 # docker → le DNAT PREROUTING pointerait vers une IP périmée sinon).
