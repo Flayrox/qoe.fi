@@ -270,7 +270,11 @@ api.qoe.fi {
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains"
         X-Content-Type-Options "nosniff"
-        Access-Control-Allow-Origin "*"
+        # ⚠️ PAS d'Access-Control-Allow-Origin ici : le middleware CORS de l'API
+        # Go (cmd/server/hardening.go → corsAllowedOrigins) est la SEULE source
+        # de cet en-tête. Les deux émettaient la valeur et le navigateur
+        # recevait « *, https://qoe.fi » → CORS invalide, appels /v1/* bloqués
+        # (diagnostiqué 13/11 sur /login et studio).
     }
 
     # /internal/* n'est joignable qu'en direct dans le réseau Docker (Caddy →

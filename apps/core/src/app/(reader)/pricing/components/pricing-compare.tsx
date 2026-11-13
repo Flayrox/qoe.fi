@@ -198,9 +198,15 @@ export function PricingCompare({ supportUrl }: { supportUrl: string }) {
       <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
         <div>
           <p className="font-bold text-foreground">💡 Vous écrivez ou éditez un média ?</p>
+          {/* ⚠️ Espaces explicites ({' '}) : en SSR, React supprimait l'espace
+              en tête du texte suivant <strong>, ce qui provoquait un mismatch
+              d'hydratation (#418) entre serveur et client. */}
           <p className="text-muted-foreground text-[11px] mt-0.5">
-            L&apos;abonnement <strong>Pro</strong> dans Studio inclut l&apos;intégralité des
-            avantages Plus sans aucun surcoût. Un seul abonnement pour tout l&apos;écosystème.
+            {"L'abonnement "}
+            <strong>Pro</strong>
+            {
+              " dans Studio inclut l'intégralité des avantages Plus sans aucun surcoût. Un seul abonnement pour tout l'écosystème."
+            }
           </p>
         </div>
         <Link
