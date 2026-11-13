@@ -9,7 +9,7 @@
 //    comme le reste de `apps/core` (pas de jsdom dans ce package).
 // =====================================================================
 
-import { getArticleUrl } from '@qoe/config/routes';
+import { getArticleUrl, sameOriginPath } from '@qoe/config/routes';
 import type { ArticleAnnotatorViewProps } from '@/components/social/ArticleAnnotatorView';
 
 export type OverlayArticle = ArticleAnnotatorViewProps['article'];
@@ -81,7 +81,10 @@ export function readCachedArticle(slug: string, now = Date.now()): OverlayArticl
 /** L'URL canonique in-app : jamais le domaine tenant depuis le cœur. */
 export function buildArticleUrl(input: OpenArticleInput, slug: string): string {
   try {
-    return getArticleUrl({ ...input, slug }, { preferTenant: false });
+    // `getArticleUrl` peut renvoyer une URL absolue (hôte courant ≠ hôte
+    // principal : port de dev, e2e, tenants). pushState refuse une URL d'une
+    // autre origine, donc on ne pousse que le chemin servi par cette app.
+    return sameOriginPath(getArticleUrl({ ...input, slug }, { preferTenant: false }));
   } catch {
     return `/${encodeURIComponent(slug)}`;
   }

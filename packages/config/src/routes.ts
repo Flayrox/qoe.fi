@@ -271,6 +271,26 @@ export function getArticleUrl(
 }
 
 /**
+ * Chemin interne d'une URL de route (chemin + query + hash).
+ *
+ * `getArticleUrl` renvoie une URL absolue dès que l'hôte courant n'est pas
+ * l'hôte principal : port de dev (15402), e2e sur 3010, tenants sur 15403.
+ * Or `history.pushState` lève une SecurityError si l'URL n'a pas l'origine du
+ * document — l'overlay d'article ne s'ouvrait alors jamais (6 tests e2e
+ * rouges : `#article-content` introuvable). Pour une navigation interne, seule
+ * la partie chemin compte, et elle est toujours servie par l'app courante.
+ */
+export function sameOriginPath(url: string): string {
+  if (!url || url.startsWith('/')) return url;
+  try {
+    const { pathname, search, hash } = new URL(url);
+    return `${pathname}${search}${hash}`;
+  } catch {
+    return url;
+  }
+}
+
+/**
  * Génère l'URL courte `/l/{shortCode}` d'un article si `article.shortCode` est présent.
  */
 export function getArticleShortUrl(

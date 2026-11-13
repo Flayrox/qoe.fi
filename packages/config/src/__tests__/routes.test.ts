@@ -1,7 +1,26 @@
 import { describe, it, expect } from 'vitest';
-import { getArticleShortUrl, getArticleUrl, routes } from '../routes';
+import { getArticleShortUrl, getArticleUrl, routes, sameOriginPath } from '../routes';
 
 describe('🗺️ packages/config/src/routes.ts', () => {
+  describe('sameOriginPath', () => {
+    it('laisse passer un chemin déjà relatif', () => {
+      expect(sameOriginPath('/alex/a/mon-article')).toBe('/alex/a/mon-article');
+      expect(sameOriginPath('/alex?tab=articles#top')).toBe('/alex?tab=articles#top');
+    });
+
+    it('réduit une URL absolue à son chemin (pushState refuse une autre origine)', () => {
+      expect(sameOriginPath('http://lvh.me:15402/alex/a/mon-article')).toBe('/alex/a/mon-article');
+      expect(sameOriginPath('https://qoe.fi/alex/a/mon-article?utm=x#haut')).toBe(
+        '/alex/a/mon-article?utm=x#haut'
+      );
+    });
+
+    it('rend la valeur telle quelle si elle est inexploitable', () => {
+      expect(sameOriginPath('')).toBe('');
+      expect(sameOriginPath('pas une url')).toBe('pas une url');
+    });
+  });
+
   it('studio routes inclut media, notifications, pricing, import', () => {
     expect(routes.studio.media()).toBe('/media');
     expect(routes.studio.notifications()).toBe('/notifications');
