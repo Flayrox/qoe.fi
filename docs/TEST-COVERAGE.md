@@ -145,7 +145,15 @@ une route sans décision explicite.
    qu'il est en `h2`). Les deux `test.skip` conditionnels (article premium hors
    classement, donnée absente) sont remplacés par des attentes déterministes : cibles
    identifiées en base puis retrouvées dans le DOM par `article[data-overlay-anchor]`, ou
-   `expect.poll` sur les titres réellement rendus.
+   `expect.poll` sur les titres réellement rendus. Run vertical : CI `43520531800`
+   sur `3cc696c1`, job `E2E (Playwright)` 23 passed / 0 failed (1 flaky sur
+   `public-feed-capture`, budget relevé depuis) et 2 skipped — les 2 cas de
+   `oauth-consent`, sautés en bloc faute de Supabase local. Ce projet est donc
+   retiré de la commande du job (il reste exécuté en local avec Supabase) et le
+   job passe en `--reporter=list` pour nommer chaque cas, comme `e2e-routes`.
+   Nota local : le projet `security` exige Redis (`REDIS_URL`) ; sans lui l'API
+   Go répond 503 sur `/v1/me`. Docker étant proscrit sur le poste, la preuve
+   locale porte sur `--project=public-web --project=core-journeys`.
 1. **Contrat d'API** : énumérer les routes Go (`chi.Walk`) et échouer si une route n'est
    ni testée ni exemptée (équivalent de la matrice de routes, côté backend).
 2. **Matrices studio / tenants / hi** : brancher `routes.spec.ts` dans
