@@ -283,8 +283,11 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm e2e:install
 
-      - name: Run E2E (public + journeys + security + standalone contracts)
-        run: pnpm e2e --project=public-web --project=core-journeys --project=security --project=standalone-contracts --project=oauth-consent
+      # --project=hydration : garde-fou bloquant — toute divergence entre le
+      # HTML rendu par le serveur et le premier rendu client (React #418/#423…)
+      # échoue, même si la page répond 200 et s'affiche correctement.
+      - name: Run E2E (hydratation + public + journeys + security + standalone contracts)
+        run: pnpm e2e --project=hydration --project=public-web --project=core-journeys --project=security --project=standalone-contracts --project=oauth-consent
         env:
           CI: 'true'
           PLAYWRIGHT_TEST_BASE_URL: 'http://localhost:3010'
