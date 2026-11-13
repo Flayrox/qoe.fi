@@ -133,12 +133,19 @@ une route sans décision explicite.
 
 ## 5. Ce qui reste (par ordre de rentabilité)
 
-0. **5 échecs restants du job `e2e`** (parcours de lecture, sans lien avec la matrice) :
-   `public-reading` attend le bouton « Lire l'article » sur `article.first()` — sélection
-   dépendante du classement du feed, donc instable ; `core-journeys` cherche un article
-   seedé précis. Ce chemin a déjà livré deux vrais bugs, corrigés : absence de Redis dans
-   le job E2E et `pushState` sur une URL absolue (port 15402) → `SecurityError`, overlay
-   d'article jamais ouvert (`sameOriginPath`).
+0. ~~**5 échecs du job `e2e`** (parcours de lecture)~~ — traités. Ce chemin a livré cinq
+   vrais bugs applicatifs, tous corrigés : absence de Redis dans le job E2E ;
+   `pushState` sur une URL absolue (port 15402) → `SecurityError` (`sameOriginPath`) ;
+   **`/article/[slug]` toujours en 404** : `permanentRedirect` était appelé *dans* le
+   `try`, son exception de contrôle (NEXT_REDIRECT) était donc attrapée par le `catch`
+   voisin → `notFound()` systématique, même pour un article publié ; et trois sélecteurs
+   qui décrivaient un DOM inexistant (bouton « Lire l'article » d'un `ArticleRow` plus
+   rendu → l'affordance réelle est `[data-article-cover]` ; onglet Explorer pris pour un
+   `button` alors que les tabs sont des `role=tab` ; titre de carte cherché en `h3` alors
+   qu'il est en `h2`). Les deux `test.skip` conditionnels (article premium hors
+   classement, donnée absente) sont remplacés par des attentes déterministes : cibles
+   identifiées en base puis retrouvées dans le DOM par `article[data-overlay-anchor]`, ou
+   `expect.poll` sur les titres réellement rendus.
 1. **Contrat d'API** : énumérer les routes Go (`chi.Walk`) et échouer si une route n'est
    ni testée ni exemptée (équivalent de la matrice de routes, côté backend).
 2. **Matrices studio / tenants / hi** : brancher `routes.spec.ts` dans

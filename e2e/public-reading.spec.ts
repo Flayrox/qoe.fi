@@ -25,17 +25,19 @@ test.describe('Parcours lecture (public)', () => {
   }) => {
     await page.goto('/', { waitUntil: 'networkidle' });
 
-    // 1. Ouvrir le drawer via le bouton « Lire l'article » de la première
-    // carte. Les liens titres pointent vers les domaines tenants (les
-    // cartes du feed sont multi-publications) : seul ce bouton ouvre la
-    // lecture in-page, indépendamment du classement du moteur.
-    const firstCard = page.locator('article').first();
+    // 1. Ouvrir le drawer via la couverture de la première carte. Le DOM
+    // réel des cartes du feed est `<article data-overlay-anchor>` avec une
+    // zone `[data-article-cover]` cliquable : il n'existe pas de bouton
+    // « Lire l'article » (l'ancien ArticleRow qui en portait un n'est plus
+    // rendu). Cibler la couverture reste indépendant du classement moteur.
+    const firstCard = page.locator('article[data-overlay-anchor]').first();
     await expect(firstCard).toBeVisible({ timeout: 15_000 });
-    await firstCard.getByRole('button', { name: "Lire l'article" }).click();
+    const cardTitle = (await firstCard.locator('h2').first().innerText()).trim();
+    await firstCard.locator('[data-article-cover]').click();
 
-    // 2. Le drawer de lecture s'ouvre : titre h1 + corps de l'article.
+    // 2. Le drawer de lecture s'ouvre sur CET article : titre h1 + corps.
     // #article-content ne contient que le corps — le h1 est son propre bloc.
-    const drawerTitle = page.getByRole('heading', { level: 1 });
+    const drawerTitle = page.getByRole('heading', { level: 1 }).filter({ hasText: cardTitle });
     await expect(drawerTitle).toBeVisible({ timeout: 15_000 });
     await expect(page.locator('#article-content')).toBeVisible();
 
@@ -45,23 +47,46 @@ test.describe('Parcours lecture (public)', () => {
   });
 
   test("affiche l'indicateur premium sur la carte de l'article payant", async ({ page }) => {
-    // L'article premium est lu en base (titre réel) ; s'il n'est pas dans
-    // la première page du feed (diversification du moteur), on passe.
+    // Les articles premium sont identifiés en base par leur id, puis
+    // retrouvés dans le DOM via `article[data-overlay-anchor]` : aucune
+    // supposition sur le rang du classement. Si le feed « Pour vous » n'en
+    // expose aucun, l'onglet Explorer les liste.
     const db = new TestDb(DATABASE_URL!);
     await db.connect();
-    const rows = await db.query<{ title: string }>(
-      `SELECT title FROM "Article" WHERE published = true AND "isPremium" = true LIMIT 1`
+    const rows = await db.query<{ id: string }>(
+      `SELECT id FROM "Article" WHERE published = true AND "isPremium" = true`
     );
     await db.close();
-    const premiumTitle = rows[0]?.title ?? '';
-    test.skip(!premiumTitle, 'aucun article premium seedé');
+    expect(rows.length, 'au moins un article premium seedé').toBeGreaterThan(0);
+    const premiumIds = new Set(rows.map((row) => row.id));
+
+    const premiumCardId = async () => {
+      const ids = await page
+        .locator('article[data-overlay-anchor]')
+        .evaluateAll((els) => els.map((el) => el.getAttribute('data-overlay-anchor') || ''));
+      return ids.find((id) => premiumIds.has(id)) ?? null;
+    };
 
     await page.goto('/', { waitUntil: 'networkidle' });
-    const premiumCard = page.locator('article', { hasText: premiumTitle });
-    const visible = await premiumCard.isVisible().catch(() => false);
-    test.skip(!visible, 'article premium hors classement actuel du feed');
+    let cardId = await premiumCardId();
+
+    if (!cardId) {
+      const explorerTab = page.getByRole('tab', { name: 'Explorer' });
+      await explorerTab.click();
+      await expect(explorerTab).toHaveAttribute('aria-selected', 'true');
+      await expect
+        .poll(premiumCardId, {
+          timeout: 15_000,
+          message: "l'onglet Explorer doit exposer au moins un article premium",
+        })
+        .not.toBeNull();
+      cardId = await premiumCardId();
+    }
+
     // L'indicateur premium est l'icône Crown (lucide), pas un texte.
-    await expect(premiumCard.locator('svg.lucide-crown')).toBeVisible();
+    await expect(
+      page.locator(`article[data-overlay-anchor="${cardId}"] svg.lucide-crown`)
+    ).toBeVisible();
   });
 
   test('lit un article en lien profond (page serveur /article/[slug])', async ({ page }) => {
@@ -72,7 +97,7 @@ test.describe('Parcours lecture (public)', () => {
       `SELECT slug, title FROM "Article" WHERE published = true ORDER BY "createdAt" DESC LIMIT 1`
     );
     await db.close();
-    test.skip(rows.length === 0, 'aucun article seedé');
+    expect(rows.length, 'au moins un article publié en base').toBeGreaterThan(0);
     const { slug, title } = rows[0];
 
     await page.goto(`/article/${slug}`, { waitUntil: 'networkidle' });
@@ -91,17 +116,35 @@ test.describe('Parcours lecture (public)', () => {
     await db.connect();
     const media = await db.query<{ title: string }>(
       `SELECT a.title FROM "Article" a JOIN "Publisher" p ON p.id = a."publisherId"
-       WHERE p.type = 'MEDIA' AND a.published = true LIMIT 1`
+       WHERE p.type = 'MEDIA' AND a.published = true`
     );
     await db.close();
-    test.skip(media.length === 0, 'aucun média certifié seedé');
-    const MEDIA_TITLE = media[0].title;
+    expect(media.length, 'au moins un média certifié seedé').toBeGreaterThan(0);
+    const mediaTitles = new Set(media.map((row) => row.title.trim()));
 
     await page.goto('/', { waitUntil: 'networkidle' });
-    await page.getByRole('button', { name: 'Explorer' }).click();
+    // Les onglets du fil sont des tabs react-aria (role=tab), pas des boutons.
+    const explorerTab = page.getByRole('tab', { name: 'Explorer' });
+    await explorerTab.click();
+    await expect(explorerTab).toHaveAttribute('aria-selected', 'true');
 
-    await expect(page.getByRole('heading', { level: 3, name: MEDIA_TITLE }).first()).toBeVisible({
-      timeout: 15_000,
-    });
+    // Le titre d'une carte d'article est un h2 (plus de h3 dans ce DOM). La
+    // carte du média est identifiée parmi les titres réellement rendus, sans
+    // présumer de l'ordre de la découverte.
+    const renderedMediaTitle = async () => {
+      const titles = (await page.locator('article h2').allTextContents()).map((title) =>
+        title.trim()
+      );
+      return titles.find((title) => mediaTitles.has(title)) ?? null;
+    };
+    await expect
+      .poll(renderedMediaTitle, {
+        timeout: 15_000,
+        message: "l'onglet Explorer doit afficher au moins un article de média certifié",
+      })
+      .not.toBeNull();
+
+    const mediaTitle = await renderedMediaTitle();
+    await expect(page.getByRole('heading', { level: 2, name: mediaTitle! })).toBeVisible();
   });
 });
