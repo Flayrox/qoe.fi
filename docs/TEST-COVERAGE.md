@@ -52,7 +52,8 @@ exclus du rapport) : `apps/core/src/components/messages/MessagesApp.tsx` et
 ## 4. Couverture des pages (e2e)
 
 `e2e/routes.spec.ts` (projet Playwright `routes`) couvre **chaque page** découverte sur le
-disque et échoue si une page n'est ni visitée ni exemptée. 65 tests au total :
+disque et échoue si une page n'est ni visitée ni exemptée. Exécuté par le job
+**`e2e-routes`** de `.github/workflows/ci.yml` (15 min de budget). 65 tests au total :
 
 | Volet | Tests exécutés                     | Contrat                                                                                                                                           |
 | ----- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
