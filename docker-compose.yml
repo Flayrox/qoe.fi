@@ -426,6 +426,9 @@ services:
       API_PORT: 8080
       REDIS_URL: redis://redis:6379
       QOE_INTERNAL_SECRET: ${QOE_INTERNAL_SECRET:-}
+      # 🔐 Clé HMAC *dédiée* au hash journalier des sessions anonymes (aucun repli :
+      # absente → les lectures anonymes sont enregistrées sans anonHash).
+      ANALYTICS_ANON_SECRET: ${ANALYTICS_ANON_SECRET:-}
       # Umami self-hosted (réseau Docker). L'API REST v2 est sous /api (vs /v1 cloud).
       UMAMI_API_URL: http://umami:3000/api
       # Auth : soit UMAMI_API_KEY (cloud), soit UMAMI_USERNAME/UMAMI_PASSWORD (self-hosted v2).
