@@ -219,7 +219,10 @@ jobs:
     name: E2E (Playwright)
     needs: build-and-test
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 94 tests dont la matrice de routes (22 navigations core + 39 contrôles
+    # de redirection admin) : la borne précédente de 20 min coupait le job en
+    # pleine exécution (step « cancelled »), ce qui ressemblait à un échec.
+    timeout-minutes: 35
 
     # La page /home interroge la DB : sans Postgres, le serveur Next démarre
     # mais chaque requête DB échoue (500) → e2e rouge.
@@ -327,7 +330,9 @@ jobs:
     name: E2E Apps (tenants/studio/admin)
     needs: build-and-test
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Même raison que le job e2e : la borne de 20 min coupait le step en
+    # pleine exécution (« cancelled »).
+    timeout-minutes: 30
 
     # Les specs tenants/studio/admin interrogent la DB directement (fixtures)
     # et l'API Go (rendu). Même service Postgres que le job e2e principal.

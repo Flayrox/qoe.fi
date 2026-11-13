@@ -149,50 +149,70 @@ test.describe('Matrice de routes — admin (visiteur anonyme)', () => {
     expect(pages.length).toBeGreaterThanOrEqual(30);
   });
 
-  // Compile le layout admin une fois : sans ce préchauffage, le premier des 39
-  // tests paie la compilation Turbopack et peut dépasser son timeout.
-  test.beforeAll(async ({ browser }) => {
-    const page = await browser.newPage();
-    await page.goto(`${ADMIN_URL}/admin`, {
-      waitUntil: 'domcontentloaded',
-      timeout: 120_000,
-    });
-    await page.close();
+  // Le layout compile une fois pour toutes ; sans ce préchauffage le premier
+  // appel paie la compilation Turbopack (~12 s local, plus en CI froide).
+  test.beforeAll(async ({ playwright }) => {
+    const api = await playwright.request.newContext();
+    await api.get(`${ADMIN_URL}/admin`, { maxRedirects: 0, timeout: 120_000 });
+    await api.dispose();
   });
 
+  // ⚠️ On n'ouvre PAS 39 navigateurs : le layout redirige avant tout rendu,
+  // donc le contrat vérifiable est la réponse HTTP (307 + Location). Naviguer
+  // chargeait 39 fois la page de login du site lecteur — correct, mais 20 min
+  // de CI pour prouver un en-tête.
   for (const pattern of pages) {
-    test(`redirige ${pattern} vers le login`, async ({ page }) => {
-      test.setTimeout(90_000);
-
-      // Les segments dynamiques reçoivent une valeur fictive : la page doit
+    test(`redirige ${pattern} vers le login`, async ({ request }) => {
+      // Les segments dynamiques reçoivent une valeur fictive : ils doivent
       // rediriger comme les autres, jamais répondre 5xx.
       const pathname = pattern
         .replace(/\[\.\.\.[^\]]+\]/g, 'inconnu')
         .replace(/\[[^\]]+\]/g, 'inconnu');
-      const hydrationErrors = watchErrors(page);
 
-      const response = await page.goto(`${ADMIN_URL}${pathname}`, {
-        waitUntil: 'domcontentloaded',
-        timeout: 60_000,
-      });
-      expect(response, `aucune réponse pour ${pattern}`).not.toBeNull();
-      expect(response?.status(), `${pattern} a répondu ${response?.status()}`).toBeLessThan(400);
+      const response = await request.get(`${ADMIN_URL}${pathname}`, { maxRedirects: 0 });
+      const status = response.status();
+      const location = response.headers()['location'] ?? '';
 
-      await expect(page.locator('body'), `${pattern} affiche l'error boundary`).not.toContainText(
-        CRASH_TEXT
+      // Le contrat d'accès d'abord : jamais 200 (écran métier servi à un
+      // anonyme), jamais 404, jamais 5xx — une redirection, toujours.
+      expect([307, 308], `${pattern} a répondu ${status} au lieu d'une redirection`).toContain(
+        status
       );
 
-      // Le contrat d'accès : un anonyme atterrit sur le login, pas sur un écran
-      // métier et pas sur une 404 (d'où la dépendance assumée au serveur core).
-      const finalUrl = new URL(page.url());
-      expect(
-        finalUrl.pathname,
-        `${pattern} devrait rediriger vers ${LOGIN_PATH}, on est sur ${page.url()}`
-      ).toBe(LOGIN_PATH);
-
-      await page.waitForTimeout(1000);
-      const errors = hydrationErrors();
-      expect(errors, `Hydratation en échec sur ${pattern} :\n${errors.join('\n\n')}`).toEqual([]);
+      if (pattern === '/') {
+        // La racine de la console renvoie d'abord vers /admin (même hôte).
+        expect(location, `la racine devrait renvoyer vers /admin, Location=${location}`).toMatch(
+          /\/admin$/
+        );
+      } else {
+        expect(
+          location,
+          `${pattern} devrait renvoyer vers ${LOGIN_PATH}, Location=${location}`
+        ).toContain(`${LOGIN_PATH}?redirect=`);
+      }
     });
   }
+
+  // Une seule navigation réelle : prouve que la redirection aboutit sur une page
+  // qui se rend et s'hydrate (le reste de la matrice n'a pas de HTML à hydrater).
+  test('la redirection aboutit sur le login du site lecteur', async ({ page }) => {
+    test.setTimeout(90_000);
+    const hydrationErrors = watchErrors(page);
+
+    const response = await page.goto(`${ADMIN_URL}/admin`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 60_000,
+    });
+    expect(response, 'aucune réponse pour /admin').not.toBeNull();
+    expect(response?.status()).toBeLessThan(400);
+
+    await expect(page.locator('body'), '/admin affiche l’error boundary').not.toContainText(
+      CRASH_TEXT
+    );
+    expect(new URL(page.url()).pathname, `on est sur ${page.url()}`).toBe(LOGIN_PATH);
+
+    await page.waitForTimeout(1500);
+    const errors = hydrationErrors();
+    expect(errors, `Hydratation en échec après redirection :\n${errors.join('\n\n')}`).toEqual([]);
+  });
 });
