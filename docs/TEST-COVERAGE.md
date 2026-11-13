@@ -60,6 +60,11 @@ disque et échoue si une page n'est ni visitée ni exemptée. Exécuté par le j
 | Core  | 22 cas + 1 garde d'inventaire      | rendu réel ou redirection d'auth : jamais 5xx, jamais l'error boundary, jamais d'erreur d'hydratation                                             |
 | Admin | 39 pages + 2 gardes + 1 navigation | réponse 307 avec `Location: …/login?redirect=…` pour un anonyme (jamais 200, 404 ou 5xx) ; la navigation prouve que la cible se rend et s'hydrate |
 
+**Run de référence** : CI `43494477019` sur `0d00f769` — job `E2E Routes (core +
+console admin)` **vert** en 5,3 min, 69 tests exécutés (65 `routes` + 4 `hydration`),
+0 skipped. Le log du job liste chaque cas (`--reporter=list`), donc les 39 écrans
+admin sont nommés un par un, pas seulement comptés.
+
 - 30 pages core : 21 patterns visités + 9 exemptions motivées dans `CORE_EXEMPT`.
 - 39 pages admin : `apps/admin` n'a **pas** de page `/login` ; le layout `(admin)/admin`
   redirige vers `http://lvh.me:3010/login?redirect=…`. Le contrat est vérifié au niveau
