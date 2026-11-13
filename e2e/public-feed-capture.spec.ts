@@ -21,6 +21,12 @@ test.describe('Capture du feed (public)', () => {
   test('le feed charge et les impressions + la lecture anonyme sont captées (200)', async ({
     page,
   }) => {
+    // En CI, ce parcours est le premier à toucher le serveur Next (compilation
+    // à froid) puis l'API Go (premier hit Redis/DB) : les 4 attentes bornées de
+    // ce cas (30 s chacune) dépassaient le budget par défaut de 60 s, d'où un
+    // flaky « 1 flaky » au run 43520531800. Le budget, pas les assertions.
+    test.setTimeout(120_000);
+
     const impressionRequests: string[] = [];
     const readingRequests: string[] = [];
     const impressionStatuses: number[] = [];

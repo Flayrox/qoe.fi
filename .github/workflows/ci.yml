@@ -302,8 +302,13 @@ jobs:
       # Les projets `routes` et `hydration` ont leur propre job (e2e-routes) :
       # plus courts, ils restent lisibles et à l'abri des timeouts du parcours
       # de lecture complet.
+      # `oauth-consent` est exclu : ses 2 cas exigent un Supabase local
+      # (GoTrue sur 127.0.0.1:54321) que ce job ne monte pas — ils étaient donc
+      # sautés à chaque run, et un job vert qui saute des cas ne prouve rien.
+      # Le parcours est couvert en local (cf. docs/TEST-COVERAGE.md).
+      # `--reporter=list` : le log doit nommer chaque cas exécuté.
       - name: Run E2E (public + journeys + security + standalone contracts)
-        run: pnpm e2e --project=public-web --project=core-journeys --project=security --project=standalone-contracts --project=oauth-consent
+        run: pnpm e2e --project=public-web --project=core-journeys --project=security --project=standalone-contracts --reporter=list
         env:
           CI: 'true'
           PLAYWRIGHT_TEST_BASE_URL: 'http://localhost:3010'
