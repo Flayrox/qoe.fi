@@ -14,12 +14,22 @@ import { getImportReview } from '@/lib/admin-data';
 import { ImportReviewClient } from '../components/import-review-client';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
-export default async function AdminImportReviewPage({ params }: { params: { id: string } }) {
+export default async function AdminImportReviewPage({
+  params,
+}: {
+  // Next 16 : `params` est une Promise. Cette page était la seule à lire
+  // `params.id` de façon synchrone — l'id valait donc `undefined` et la route
+  // répondait 500 au lieu de rediriger ou de 404 (détecté par la matrice de
+  // routes, `/admin/imports/[id]`).
+  params: Promise<{ id: string }>;
+}) {
   requireCapability(await getAdminIdentity(), 'admin.imports.read');
+
+  const { id } = await params;
 
   let review;
   try {
-    review = await getImportReview(params.id);
+    review = await getImportReview(id);
   } catch {
     notFound();
   }
