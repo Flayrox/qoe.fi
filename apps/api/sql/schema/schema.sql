@@ -2030,6 +2030,9 @@ CREATE INDEX "ReadingSession_userId_articleId_idx" ON "ReadingSession"("userId",
 -- CreateIndex
 CREATE INDEX "ReadingSession_anonHash_createdAt_idx" ON "ReadingSession"("anonHash", "createdAt") WHERE "anonHash" IS NOT NULL;
 
+-- CreateIndex
+CREATE INDEX "ReadingSession_createdAt_idx" ON "ReadingSession"("createdAt");
+
 -- AddForeignKey
 ALTER TABLE "ReadingSession" ADD CONSTRAINT "ReadingSession_articleId_fkey" FOREIGN KEY ("articleId") REFERENCES "Article"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

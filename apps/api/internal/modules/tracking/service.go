@@ -31,8 +31,9 @@ func (s *Service) TrackReadingSession(ctx context.Context, userID, articleID, so
 }
 
 // TrackReadingSessionWithAnon enregistre la ReadingSession pour les lecteurs
-// connectés (userID) comme anonymes (anonHash journalier non-identifiant),
-// avec une rétention de 90 jours pour alimenter les stats Studio 30d/90d.
+// connectés (userID) comme anonymes (anonHash journalier non-identifiant).
+// La rétention de 90 jours (stats Studio 30d/90d) est purgée par le worker,
+// pas ici : aucun DELETE sur le chemin chaud.
 func (s *Service) TrackReadingSessionWithAnon(ctx context.Context, userID, anonHash, articleID, source, status string, scrollDepth int, dwellSeconds int, readingTimeMinutes int, hostname, referrerUsername *string) (float64, error) {
 	if articleID == "" {
 		return 0, nil
@@ -108,9 +109,9 @@ func (s *Service) TrackReadingSessionWithAnon(ctx context.Context, userID, anonH
 			INSERT INTO "ReadingSession" (id, "articleId", "userId", "anonHash", source, status, "scrollDepth", "dwellSeconds", "readingTimeMinutes", hostname, "referrerUsername", "createdAt")
 			VALUES (gen_random_uuid()::text, $1, $2, NULL, $3, $4, $5, $6, $7, $8, $9, now())
 		`, articleID, toUUID(userID), source, status, scrollDepth, dwellSeconds, readingTimeMinutes, hostname, referrerUsername)
-		// Rétention 90j (pour fiabiliser les statistiques Studio 30d et 90d)
-		cutoff := time.Now().Add(-90 * 24 * time.Hour)
-		_, _ = s.pool.Exec(ctx, `DELETE FROM "ReadingSession" WHERE "userId"=$1 AND "createdAt" < $2`, toUUID(userID), cutoff)
+		// Rétention : aucune suppression ici. La purge des sessions > 90 jours
+		// est assurée par le worker (workers.RunReadingSessionRetention), hors
+		// du chemin chaud de lecture.
 		// Vector EMA: trigger async (fire-and-forget)
 		_ = s.updateUserVector(ctx, userID, articleID, status)
 	} else {
@@ -118,11 +119,6 @@ func (s *Service) TrackReadingSessionWithAnon(ctx context.Context, userID, anonH
 			INSERT INTO "ReadingSession" (id, "articleId", "userId", "anonHash", source, status, "scrollDepth", "dwellSeconds", "readingTimeMinutes", hostname, "referrerUsername", "createdAt")
 			VALUES (gen_random_uuid()::text, $1, NULL, $2, $3, $4, $5, $6, $7, $8, $9, now())
 		`, articleID, pgTextPtr(anonHash), source, status, scrollDepth, dwellSeconds, readingTimeMinutes, hostname, referrerUsername)
-		// Purge 90j des sessions anonymes (5% du temps, best-effort)
-		if time.Now().UnixNano()%20 == 0 {
-			cutoff := time.Now().Add(-90 * 24 * time.Hour)
-			_, _ = s.pool.Exec(ctx, `DELETE FROM "ReadingSession" WHERE "userId" IS NULL AND "createdAt" < $1`, cutoff)
-		}
 	}
 
 	return updated, nil
@@ -331,13 +327,13 @@ type ReadingHistoryItem struct {
 }
 
 type ReadingHistoryArticle struct {
-	ID          string                     `json:"id"`
-	Title       string                     `json:"title"`
-	Slug        string                     `json:"slug"`
-	ImageURL    pgtype.Text                `json:"imageUrl"`
-	ReadingTime int32                      `json:"readingTime"`
-	CreatedAt   pgtype.Timestamp           `json:"createdAt"`
-	Publisher *ReadingHistoryPublisher `json:"publisher"`
+	ID          string                   `json:"id"`
+	Title       string                   `json:"title"`
+	Slug        string                   `json:"slug"`
+	ImageURL    pgtype.Text              `json:"imageUrl"`
+	ReadingTime int32                    `json:"readingTime"`
+	CreatedAt   pgtype.Timestamp         `json:"createdAt"`
+	Publisher   *ReadingHistoryPublisher `json:"publisher"`
 }
 
 type ReadingHistoryPublisher struct {

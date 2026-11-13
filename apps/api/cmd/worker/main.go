@@ -124,6 +124,11 @@ func main() {
 	// voit ses stats dans le studio sans aucun lien manuel. Toutes les 5 min.
 	go workers.RunUmamiProvisioner(ctx, pool, umami.NewClient(cfg.UmamiAPIURL, cfg.UmamiAPIKey, cfg.UmamiUser, cfg.UmamiPass), 5*time.Minute)
 
+	// Rétention des sessions de lecture (90 jours) : purge par lots bornés,
+	// toutes les heures. Seul point de suppression — le chemin chaud du
+	// tracking n'écrit plus aucun DELETE.
+	go workers.RunReadingSessionRetention(ctx, pool, time.Hour, workers.ReadingSessionRetention)
+
 	// Fournisseur email partagé (SMTP self-hosté / Resend) : utilisé par le
 	// drain NotificationDelivery ET les newsletters créateurs. Inactif si aucun
 	// fournisseur n'est configuré (EMAIL_PROVIDER absent).
