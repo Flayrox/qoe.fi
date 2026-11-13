@@ -127,6 +127,12 @@ une route sans décision explicite.
 
 ## 5. Ce qui reste (par ordre de rentabilité)
 
+0. **5 échecs restants du job `e2e`** (parcours de lecture, sans lien avec la matrice) :
+   `public-reading` attend le bouton « Lire l'article » sur `article.first()` — sélection
+   dépendante du classement du feed, donc instable ; `core-journeys` cherche un article
+   seedé précis. Ce chemin a déjà livré deux vrais bugs, corrigés : absence de Redis dans
+   le job E2E et `pushState` sur une URL absolue (port 15402) → `SecurityError`, overlay
+   d'article jamais ouvert (`sameOriginPath`).
 1. **Contrat d'API** : énumérer les routes Go (`chi.Walk`) et échouer si une route n'est
    ni testée ni exemptée (équivalent de la matrice de routes, côté backend).
 2. **Matrices studio / tenants / hi** : brancher `routes.spec.ts` dans
