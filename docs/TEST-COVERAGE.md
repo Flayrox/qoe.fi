@@ -66,11 +66,17 @@ disque et échoue si une page n'est ni visitée ni exemptée. Exécuté par le j
 - CI `43500804885` sur `59e6d97b` — 69 tests, 0 skipped, log nominatif :
   38 lignes `redirige /admin/… vers le login` + la racine = **39 écrans admin
   exécutés**, plus les 22 cas core et les gardes.
+- CI `43514596938` sur `76abc0a0` — 4,5 min, 69 tests, 0 skipped, 39 écrans
+  nommés, 0 échec, après correction du 500 de `/admin/imports/[id]`.
 
 Le log du job liste chaque cas (`--reporter=list`) : les 39 écrans admin sont nommés
 un par un, pas seulement comptés.
 
 - 30 pages core : 21 patterns visités + 9 exemptions motivées dans `CORE_EXEMPT`.
+- Bug réel trouvé par cette matrice : `/admin/imports/[id]` lisait `params` en
+  synchrone alors que Next 16 le fournit en Promise (`params.id === undefined`) →
+  **500** au lieu d'une redirection. Corrigé (les pages voisines faisaient déjà
+  `await params`).
 - 39 pages admin : `apps/admin` n'a **pas** de page `/login` ; le layout `(admin)/admin`
   redirige vers `http://lvh.me:3010/login?redirect=…`. Le contrat est vérifié au niveau
   HTTP (`maxRedirects: 0` → statut + en-tête `Location`), pas en ouvrant 39 navigateurs :
