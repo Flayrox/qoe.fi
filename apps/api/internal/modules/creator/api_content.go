@@ -18,6 +18,7 @@ import (
 	"github.com/qoefi/api/internal/antispam"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
+	"github.com/qoefi/api/internal/shortcode"
 	pkgslug "github.com/qoefi/api/internal/slug"
 )
 
@@ -486,20 +487,15 @@ func (h *Handler) uniqueArticleSlug(ctx context.Context, base string) string {
 			return candidate
 		}
 		candidate = base + "-" + strconv.Itoa(i)
+		if code := pkgslug.ExtractTrailingShortCode(base); code != "" {
+			// Garder le code court en dernier jeton (résolution par /l/{code}).
+			candidate = strings.TrimSuffix(base, "-"+code) + "-" + strconv.Itoa(i) + "-" + code
+		}
 	}
 }
 
 func (h *Handler) uniqueShortCode(ctx context.Context) string {
-	for i := 0; i < 20; i++ {
-		code := pkgslug.ShortNumericCode()
-		var exists bool
-		if err := h.pool.QueryRow(ctx,
-			`SELECT EXISTS(SELECT 1 FROM "Article" WHERE "shortCode" = $1)`, code,
-		).Scan(&exists); err == nil && !exists {
-			return code
-		}
-	}
-	return pkgslug.ShortNumericCode()
+	return shortcode.Generate(ctx, h.pool)
 }
 
 // creatorOwnsArticle vérifie le lien de propriété : publication de la clé,
@@ -639,16 +635,31 @@ func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 	if tags == nil {
 		tags = []string{}
 	}
-	if _, err := h.pool.Exec(r.Context(), `
+	// L'index unique fait foi sur le code court : le pré-contrôle ne protège pas
+	// d'une course entre deux créations. On régénère le code (et le suffixe du
+	// slug) puis on rejoue l'insertion.
+	var insertErr error
+	for attempt := 0; attempt < 5; attempt++ {
+		_, insertErr = h.pool.Exec(r.Context(), `
 		INSERT INTO "Article" (id, title, slug, "shortCode", content, published, visibility,
 		                       "readingTime", status, "isPremium", "semanticTags",
 		                       "categoryId", "publisherId", "authorId", "createdAt", "updatedAt")
 		VALUES ($1, $2, $3, $4, NULLIF($5,''), false, $6, $7, 'DRAFT', $8, $9,
 		        NULLIF($10,''), NULLIF($11,''), $12, now(), now())`,
-		id, in.Title, slug, shortCode, in.Content, visibility,
-		readingTimeFromHTML(in.Content), in.IsPremium, tags,
-		in.CategoryID, publisherID, authorID); err != nil {
-		log.Printf("[creator] article create: %v", err)
+			id, in.Title, slug, shortCode, in.Content, visibility,
+			readingTimeFromHTML(in.Content), in.IsPremium, tags,
+			in.CategoryID, publisherID, authorID)
+		if insertErr == nil || !shortcode.IsUniqueViolation(insertErr) {
+			break
+		}
+		newCode := h.uniqueShortCode(r.Context())
+		if strings.HasSuffix(slug, "-"+shortCode) {
+			slug = strings.TrimSuffix(slug, "-"+shortCode) + "-" + newCode
+		}
+		shortCode = newCode
+	}
+	if insertErr != nil {
+		log.Printf("[creator] article create: %v", insertErr)
 		response.Internal(w)
 		return
 	}

@@ -22,6 +22,7 @@ import (
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/permissions"
 	"github.com/qoefi/api/internal/queue"
+	"github.com/qoefi/api/internal/shortcode"
 	"github.com/qoefi/api/internal/slug"
 	"github.com/qoefi/api/internal/subscriptions"
 	"github.com/redis/go-redis/v9"
@@ -608,9 +609,7 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 	if err != nil {
 		return "", err
 	}
-	if _, err := s.pool.Exec(ctx,
-		`UPDATE "Article" SET "shortCode" = $2 WHERE id = $1 AND "shortCode" IS NULL`,
-		id, shortCode); err != nil {
+	if err := s.assignShortCode(ctx, id, shortCode, shortCode); err != nil {
 		return "", err
 	}
 	_ = s.captureSnapshot(ctx, id, &userID, in.Title, NormalizeContent(in.Content, in.ContentFormat), "INITIAL")
@@ -1815,22 +1814,46 @@ func (s *Service) uniqueSlug(ctx context.Context, publisherID, articleID, base s
 		PublisherId: publisherID, Slug: final, ID: articleID,
 	})
 	if err == nil && exists {
-		final = final + "-" + slug.ShortID(4)
+		// Le code court doit rester le dernier jeton du slug : sinon
+		// ExtractTrailingShortCode ne le retrouve plus et le repli de résolution
+		// par code (publishers.resolveArticleWithFallbacks) est mort.
+		if code := slug.ExtractTrailingShortCode(final); code != "" {
+			final = strings.TrimSuffix(final, "-"+code) + "-" + slug.ShortID(4) + "-" + code
+		} else {
+			final = final + "-" + slug.ShortID(4)
+		}
 	}
 	return final
 }
 
 func (s *Service) uniqueShortCode(ctx context.Context) string {
-	for i := 0; i < 20; i++ {
-		code := slug.ShortNumericCode()
-		var exists bool
-		if err := s.pool.QueryRow(ctx,
-			`SELECT EXISTS(SELECT 1 FROM "Article" WHERE "shortCode" = $1)`, code,
-		).Scan(&exists); err == nil && !exists {
-			return code
+	return shortcode.Generate(ctx, s.pool)
+}
+
+// assignShortCode pose le code court sur l'article. Le pré-contrôle
+// uniqueShortCode ne suffit pas (course entre deux créations) : l'index unique
+// fait foi, on régénère le code en cas de collision et on réaligne le suffixe
+// du slug pour que le code reste le dernier jeton de l'URL.
+func (s *Service) assignShortCode(ctx context.Context, articleID, oldCode, code string) error {
+	for attempt := 0; attempt < 5; attempt++ {
+		_, err := s.pool.Exec(ctx, `
+			UPDATE "Article"
+			SET "shortCode" = $2,
+			    slug = CASE
+			        WHEN slug LIKE '%-' || $3 THEN left(slug, length(slug) - length($3)) || $2
+			        ELSE slug
+			    END,
+			    "updatedAt" = now()
+			WHERE id = $1 AND "shortCode" IS NULL`, articleID, code, oldCode)
+		if err == nil {
+			return nil
 		}
+		if !shortcode.IsUniqueViolation(err) {
+			return err
+		}
+		code = s.uniqueShortCode(ctx)
 	}
-	return slug.ShortNumericCode()
+	return fmt.Errorf("code court : collisions répétées pour l'article %s", articleID)
 }
 
 func (s *Service) archiveSlugIfPreviouslyPublished(ctx context.Context, articleID, oldSlug, newSlug string, currentlyPublished bool, currentStatus string) {
