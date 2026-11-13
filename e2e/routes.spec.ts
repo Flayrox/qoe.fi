@@ -15,7 +15,7 @@
 // =====================================================================
 
 import { test, expect, type Page } from '@playwright/test';
-import { discoverPages, isDynamic, uncoveredPages } from './lib/route-inventory';
+import { discoverPages, uncoveredPages } from './lib/route-inventory';
 import { CRASH_TEXT, watchErrors } from './lib/hydration';
 
 interface RouteCase {
@@ -122,30 +122,77 @@ test.describe('Matrice de routes — core', () => {
   });
 });
 
-// La console admin canonicalise localhost → admin.lvh.me : on attaque
-// directement ce host (lvh.me résout vers 127.0.0.1, y compris en CI).
-// Opt-in via PLAYWRIGHT_ADMIN_URL : la console est démarrée par la CI
-// (`webServer` de playwright.config.ts) ; en local, lancer l'app puis
-// PLAYWRIGHT_ADMIN_URL=http://admin.lvh.me:15405 pnpm e2e --project=routes.
-const ADMIN_URL = process.env.PLAYWRIGHT_ADMIN_URL;
+// La console est servie sur admin.lvh.me (lvh.me résout vers 127.0.0.1, en CI
+// comme en local) et n'a PAS de page /login : son layout (admin)/admin redirige
+// un visiteur anonyme vers le login du site lecteur, sur le port 3010. Le
+// contrat à prouver est donc « toute page admin → login core », jamais un 5xx.
+//
+// L'URL est surchargeable, mais en CI son absence doit échouer bruyamment :
+// une matrice sautée en silence, c'est 39 pages non testées qui passent pour
+// vertes.
+const ADMIN_URL = process.env.PLAYWRIGHT_ADMIN_URL ?? 'http://admin.lvh.me:15405';
+const LOGIN_PATH = '/login';
 
 test.describe('Matrice de routes — admin (visiteur anonyme)', () => {
-  test.skip(!ADMIN_URL, 'PLAYWRIGHT_ADMIN_URL absent : console admin non démarrée');
+  test("PLAYWRIGHT_ADMIN_URL est défini quand la CI l'exige", () => {
+    if (process.env.CI && !process.env.PLAYWRIGHT_ADMIN_URL) {
+      throw new Error(
+        'PLAYWRIGHT_ADMIN_URL absent en CI : la matrice admin serait sautée sans que ' +
+          'personne ne le voie. Déclare-le dans le job E2E (http://admin.lvh.me:15405).'
+      );
+    }
+  });
+
   const pages = discoverPages('admin');
 
+  test("l'inventaire admin n'est pas vide (découverte cassée)", () => {
+    expect(pages.length).toBeGreaterThanOrEqual(30);
+  });
+
+  // Compile le layout admin une fois : sans ce préchauffage, le premier des 39
+  // tests paie la compilation Turbopack et peut dépasser son timeout.
+  test.beforeAll(async ({ browser }) => {
+    const page = await browser.newPage();
+    await page.goto(`${ADMIN_URL}/admin`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 120_000,
+    });
+    await page.close();
+  });
+
   for (const pattern of pages) {
-    test(`répond sur ${pattern}`, async ({ page }) => {
+    test(`redirige ${pattern} vers le login`, async ({ page }) => {
+      test.setTimeout(90_000);
+
       // Les segments dynamiques reçoivent une valeur fictive : la page doit
-      // rediriger vers /login ou répondre 404, jamais 500.
+      // rediriger comme les autres, jamais répondre 5xx.
       const pathname = pattern
         .replace(/\[\.\.\.[^\]]+\]/g, 'inconnu')
         .replace(/\[[^\]]+\]/g, 'inconnu');
-      await visit(page, `${ADMIN_URL}${pathname}`, { allowNotFound: isDynamic(pattern) });
+      const hydrationErrors = watchErrors(page);
+
+      const response = await page.goto(`${ADMIN_URL}${pathname}`, {
+        waitUntil: 'domcontentloaded',
+        timeout: 60_000,
+      });
+      expect(response, `aucune réponse pour ${pattern}`).not.toBeNull();
+      expect(response?.status(), `${pattern} a répondu ${response?.status()}`).toBeLessThan(400);
+
+      await expect(page.locator('body'), `${pattern} affiche l'error boundary`).not.toContainText(
+        CRASH_TEXT
+      );
+
+      // Le contrat d'accès : un anonyme atterrit sur le login, pas sur un écran
+      // métier et pas sur une 404 (d'où la dépendance assumée au serveur core).
+      const finalUrl = new URL(page.url());
+      expect(
+        finalUrl.pathname,
+        `${pattern} devrait rediriger vers ${LOGIN_PATH}, on est sur ${page.url()}`
+      ).toBe(LOGIN_PATH);
+
+      await page.waitForTimeout(1000);
+      const errors = hydrationErrors();
+      expect(errors, `Hydratation en échec sur ${pattern} :\n${errors.join('\n\n')}`).toEqual([]);
     });
   }
-
-  test("l'inventaire admin est entièrement visité", () => {
-    expect(pages.length).toBeGreaterThan(0);
-    expect(pages.filter((pattern) => isDynamic(pattern)).length).toBeLessThanOrEqual(5);
-  });
 });
