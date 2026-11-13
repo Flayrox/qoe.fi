@@ -68,18 +68,6 @@ func (s *Service) TrackReadingSessionWithAnon(ctx context.Context, userID, anonH
 		readingTimeMinutes = 5
 	}
 
-	// Fetch current completionRate
-	var currentRate float64
-	var completionRate pgtype.Float8
-	err := s.pool.QueryRow(ctx, `SELECT "completionRate" FROM "Article" WHERE id=$1`, articleID).Scan(&completionRate)
-	if err != nil {
-		return 0, err
-	}
-	if completionRate.Valid {
-		currentRate = completionRate.Float64
-	} else {
-		currentRate = 0.5
-	}
 	// Compute sessionRate
 	sessionRate := 0.5
 	switch status {
@@ -96,12 +84,18 @@ func (s *Service) TrackReadingSessionWithAnon(ctx context.Context, userID, anonH
 	case "BOUNCE":
 		sessionRate = 0.05
 	}
-	updated := currentRate*0.9 + sessionRate*0.1
-	// Round to 2 decimals
-	updated = float64(int(updated*100+0.5)) / 100
-
-	// Update article completionRate
-	_, _ = s.pool.Exec(ctx, `UPDATE "Article" SET "completionRate"=$1, "updatedAt"=now() WHERE id=$2`, updated, articleID)
+	// Mise à jour atomique de l'EMA (0.9/0.1) : un SELECT suivi d'un UPDATE
+	// perdait des mises à jour quand deux lectures du même article arrivaient
+	// en parallèle (article chaud). L'arrondi à 2 décimales est fait en SQL.
+	var updated float64
+	if err := s.pool.QueryRow(ctx, `
+		UPDATE "Article"
+		SET "completionRate" = ROUND(("completionRate" * 0.9 + $2 * 0.1)::numeric, 2)::float8,
+		    "updatedAt" = now()
+		WHERE id = $1
+		RETURNING "completionRate"`, articleID, sessionRate).Scan(&updated); err != nil {
+		return 0, err
+	}
 
 	// Enregistre la ReadingSession pour les lecteurs connectés ET anonymes (avec anonHash)
 	if userID != "" {

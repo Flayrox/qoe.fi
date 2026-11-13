@@ -137,6 +137,17 @@ var publicRouteQuotas = []routeQuotaRule{
 		subnetMax: 30,
 	},
 	{
+		// Résolution de permalien court /l/{code} : route publique non
+		// authentifiée, appelée en SSR à chaque redirection. Sans quota, elle
+		// permet d'énumérer les ~900 000 codes et d'aspirer les articles publiés.
+		name:      "article-shortcode",
+		method:    http.MethodGet,
+		match:     func(p string) bool { return strings.HasPrefix(p, "/v1/articles/short/") },
+		window:    time.Minute,
+		userMax:   60,
+		subnetMax: 150,
+	},
+	{
 		name:   "tracking-write",
 		method: http.MethodPost,
 		match: func(p string) bool {
