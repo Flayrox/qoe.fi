@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { getArticleShortUrl, getArticleUrl, routes, sameOriginPath } from '../routes';
+import {
+  getArticleShortUrl,
+  getArticleUrl,
+  getCanonicalArticlePath,
+  routes,
+  sameOriginPath,
+} from '../routes';
 
 describe('🗺️ packages/config/src/routes.ts', () => {
   describe('sameOriginPath', () => {
@@ -18,6 +24,51 @@ describe('🗺️ packages/config/src/routes.ts', () => {
     it('rend la valeur telle quelle si elle est inexploitable', () => {
       expect(sameOriginPath('')).toBe('');
       expect(sameOriginPath('pas une url')).toBe('pas une url');
+    });
+  });
+
+  describe('getCanonicalArticlePath — décision : la forme core est la canonique', () => {
+    // Ces cas verrouillent l'ordre de résolution du propriétaire. Si l'ordre
+    // change, la page article et la redirection des liens courts changeraient
+    // ensemble (même fonction) — mais le contrat public, lui, changerait :
+    // c'est ce que ces assertions rendent visible.
+    it('privilégie le slug de publication', () => {
+      expect(
+        getCanonicalArticlePath({
+          slug: 'mon-article',
+          publisher: { slug: 'le-media', subdomain: 'lemedia' },
+          author: { username: 'jane' },
+        })
+      ).toBe('/le-media/a/mon-article');
+    });
+
+    it("retombe sur le sous-domaine quand la publication n'a pas de slug", () => {
+      expect(
+        getCanonicalArticlePath({
+          slug: 'mon-article',
+          publisher: { subdomain: 'lemedia' },
+          author: { username: 'jane' },
+        })
+      ).toBe('/lemedia/a/mon-article');
+    });
+
+    it("retombe sur l'username de l'auteur sans publication", () => {
+      expect(getCanonicalArticlePath({ slug: 'mon-article', author: { username: 'jane' } })).toBe(
+        '/jane/a/mon-article'
+      );
+    });
+
+    it('accepte un propriétaire de repli, puis « qoefi » par défaut', () => {
+      expect(getCanonicalArticlePath({ slug: 'mon-article' }, 'qoe.fi')).toBe(
+        '/qoe.fi/a/mon-article'
+      );
+      expect(getCanonicalArticlePath({ slug: 'mon-article' })).toBe('/qoefi/a/mon-article');
+    });
+
+    it('encode propriétaire et slug exactement comme le routeur du feed', () => {
+      const article = { slug: 'a b', author: { username: 'jane doe' } };
+      expect(getCanonicalArticlePath(article)).toBe('/jane%20doe/a/a%20b');
+      expect(getCanonicalArticlePath(article)).toBe(routes.feed.article('jane doe', article.slug));
     });
   });
 

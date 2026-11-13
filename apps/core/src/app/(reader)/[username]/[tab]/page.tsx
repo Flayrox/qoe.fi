@@ -2,7 +2,7 @@ import { createClient } from '@qoe/supabase/server';
 import { notFound, permanentRedirect } from 'next/navigation';
 import { resolveProfileAction } from '@qoe/sdk/actions/feed';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
-import { routes } from '@qoe/config/routes';
+import { getCanonicalArticlePath, routes } from '@qoe/config/routes';
 import type { PublicProfileData } from '@qoe/sdk';
 import type { Metadata } from 'next';
 import { ProfileView } from '../components/ProfileView';
@@ -49,12 +49,9 @@ export async function generateMetadata({
         publisher?: { slug?: string | null; subdomain?: string | null };
       }>(`/v1/articles/${encodeURIComponent(rawTab)}`);
       if (art && art.slug) {
-        const canonicalOwner =
-          art.publisher?.slug || art.publisher?.subdomain || art.author?.username || 'qoefi';
+        const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://qoe.fi').replace(/\/$/, '');
         return {
-          alternates: {
-            canonical: `${(process.env.NEXT_PUBLIC_APP_URL || 'https://qoe.fi').replace(/\/$/, '')}${routes.feed.article(canonicalOwner, art.slug)}`,
-          },
+          alternates: { canonical: `${appUrl}${getCanonicalArticlePath(art, 'qoefi')}` },
         };
       }
     } catch {
@@ -135,9 +132,13 @@ export default async function UserProfileTabPage({
     }
 
     if (art && art.slug) {
-      const canonicalOwner =
-        art.publisher?.slug || art.publisher?.subdomain || art.author?.username || 'qoefi';
-      permanentRedirect(routes.feed.article(canonicalOwner, art.slug));
+      // Décision de stratégie : la forme core `/<owner>/a/<slug>` est LA
+      // canonique (celle que la page article déclare en `alternates.canonical`).
+      // Un lien court doit donc y atterrir à l'identique, jamais en 404, et via
+      // la MÊME fonction que la page (`getCanonicalArticlePath`). Passer au
+      // « domaine de la publication d'abord » exigerait de bouger les trois
+      // étages ensemble (canonical + liens + redirections) : ce n'est pas ici.
+      permanentRedirect(getCanonicalArticlePath(art, 'qoefi'));
     }
 
     notFound();
