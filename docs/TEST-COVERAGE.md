@@ -51,19 +51,20 @@ exclus du rapport) : `apps/core/src/components/messages/MessagesApp.tsx` et
 
 ## 4. Couverture des pages (e2e)
 
-`e2e/routes.spec.ts` (projet Playwright `routes`) rend **chaque page** découverte sur le
-disque et échoue si une page n'est ni visitée ni exemptée. 64 tests au total :
+`e2e/routes.spec.ts` (projet Playwright `routes`) couvre **chaque page** découverte sur le
+disque et échoue si une page n'est ni visitée ni exemptée. 65 tests au total :
 
-| Volet | Tests exécutés                | Contrat                                                                                               |
-| ----- | ----------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Core  | 22 cas + 1 garde d'inventaire | rendu réel ou redirection d'auth : jamais 5xx, jamais l'error boundary, jamais d'erreur d'hydratation |
-| Admin | 39 pages + 2 gardes           | tout anonyme atterrit sur `/login` du site lecteur, jamais 5xx / crash / hydratation                  |
+| Volet | Tests exécutés                     | Contrat                                                                                                                                           |
+| ----- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Core  | 22 cas + 1 garde d'inventaire      | rendu réel ou redirection d'auth : jamais 5xx, jamais l'error boundary, jamais d'erreur d'hydratation                                             |
+| Admin | 39 pages + 2 gardes + 1 navigation | réponse 307 avec `Location: …/login?redirect=…` pour un anonyme (jamais 200, 404 ou 5xx) ; la navigation prouve que la cible se rend et s'hydrate |
 
 - 30 pages core : 21 patterns visités + 9 exemptions motivées dans `CORE_EXEMPT`.
 - 39 pages admin : `apps/admin` n'a **pas** de page `/login` ; le layout `(admin)/admin`
-  redirige vers `http://lvh.me:3010/login?redirect=…`. La matrice vérifie donc l'URL
-  **finale** (`pathname === '/login'`), pas seulement l'absence d'erreur — une redirection
-  cassée ou une 404 « propre » échoue.
+  redirige vers `http://lvh.me:3010/login?redirect=…`. Le contrat est vérifié au niveau
+  HTTP (`maxRedirects: 0` → statut + en-tête `Location`), pas en ouvrant 39 navigateurs :
+  le layout redirige avant tout rendu, et charger 39 fois la page de login faisait
+  dépasser le timeout du job CI (step annulé à 20 min). Durée locale : ~22 s.
 - Pages restantes à brancher : `apps/studio` (24), `apps/tenants` (16), `apps/hi` (4) —
   le même inventaire s'y applique (`discoverPages('studio')`, etc.).
 
@@ -74,9 +75,10 @@ disque et échoue si une page n'est ni visitée ni exemptée. 64 tests au total 
 | `PLAYWRIGHT_TEST_BASE_URL` | URL du site lecteur (défaut `http://localhost:3010`) | —                                                                                      |
 | `PLAYWRIGHT_ADMIN_URL`     | URL de la console (`http://admin.lvh.me:15405`)      | défaut = cette valeur en local ; **en CI le test échoue** (`CI=true` sans la variable) |
 
-Le volet admin dépend du site lecteur pour la cible de redirection : la CI démarre les
-deux `webServer` de `playwright.config.ts` (core 3010, console 15405) et `lvh.me` résout
-vers `127.0.0.1`.
+Le volet admin dépend du site lecteur pour la cible de redirection (test de navigation
+final) : la CI démarre les deux `webServer` de `playwright.config.ts` (core 3010, console 15405) et `lvh.me` résout vers `127.0.0.1`. Le job E2E monte aussi un `redis:7-alpine` :
+sans lui, l'API Go retente `localhost:6379` à chaque requête et les parcours de lecture
+dépassent leurs timeouts.
 
 ### Lancer la matrice admin en local
 
