@@ -150,11 +150,12 @@ export default async function UserArticleDedicatedPage({
     return;
   }
 
-  // Redirection SEO permanente si l'URL utilise le préfixe générique /article/a/:slug ou /articles/a/:slug
+  // Redirection SEO permanente (HTTP 308) si l'URL demandée ne correspond pas
+  // au propriétaire canonique ou au slug canonique (ancien slug, -shortCode, /article/a/:slug).
   const canonicalOwner =
     article.publisher?.slug || article.publisher?.subdomain || article.author?.username;
-  if (canonicalOwner && (rawUsername === 'article' || rawUsername === 'articles')) {
-    permanentRedirect(routes.feed.article(canonicalOwner, article.slug));
+  if ((canonicalOwner && canonicalOwner !== rawUsername) || article.slug !== rawSlug) {
+    permanentRedirect(routes.feed.article(canonicalOwner || rawUsername, article.slug));
   }
 
   // 🔦 Deep-link citation → article

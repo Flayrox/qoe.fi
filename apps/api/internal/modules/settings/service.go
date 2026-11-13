@@ -309,8 +309,24 @@ func (s *Service) UpdateProfile(ctx context.Context, userID, publisherID string,
 					if err := antispam.ValidateSafeURL(v.(string)); err != nil {
 						return db.GetUserForSettingsRow{}, err
 					}
+					fields[col] = v
+				} else {
+					maxR := 200
+					switch key {
+					case "name":
+						maxR = 120
+					case "heroText", "footerText", "seoDescription":
+						maxR = 1000
+					}
+					cleaned, err := antispam.SanitizeAndValidateText(v.(string), 0, maxR, antispam.TextOptions{
+						AllowNewlines: key == "heroText" || key == "footerText" || key == "seoDescription",
+						CheckXSS:      true,
+					})
+					if err != nil {
+						return db.GetUserForSettingsRow{}, err
+					}
+					fields[col] = cleaned
 				}
-				fields[col] = v
 			default:
 				return db.GetUserForSettingsRow{}, fmt.Errorf("champ invalide: %s", key)
 			}
@@ -345,6 +361,16 @@ func (s *Service) UpdateProfile(ctx context.Context, userID, publisherID string,
 		t, err := textFromAny(v)
 		if err != nil {
 			return db.GetUserForSettingsRow{}, err
+		}
+		if t.Valid {
+			cleaned, err := antispam.SanitizeAndValidateText(t.String, 0, 1000, antispam.TextOptions{
+				AllowNewlines: true,
+				CheckXSS:      true,
+			})
+			if err != nil {
+				return db.GetUserForSettingsRow{}, err
+			}
+			t = pgtype.Text{String: cleaned, Valid: cleaned != ""}
 		}
 		if err := s.q.UpdateUserOnboardingText(ctx, db.UpdateUserOnboardingTextParams{
 			ID: userID, OnboardingText: t,
@@ -514,8 +540,19 @@ func (s *Service) SaveNavigation(ctx context.Context, userID, publisherID string
 	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
 		return err
 	}
-	for _, link := range links {
-		if err := antispam.ValidateSafeURL(link.URL); err != nil {
+	if len(links) > 20 {
+		return &antispam.RejectionError{HTTPStatus: 400, Code: antispam.CodeContentTooLarge, Message: "Maximum 20 liens de navigation autorisés."}
+	}
+	for i := range links {
+		cleaned, err := antispam.SanitizeAndValidateText(links[i].Label, 1, 80, antispam.TextOptions{
+			AllowNewlines: false,
+			CheckXSS:      true,
+		})
+		if err != nil {
+			return err
+		}
+		links[i].Label = cleaned
+		if err := antispam.ValidateSafeURL(links[i].URL); err != nil {
 			return err
 		}
 	}
@@ -547,8 +584,19 @@ func (s *Service) SaveSocial(ctx context.Context, userID, publisherID string, li
 	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
 		return err
 	}
-	for _, link := range links {
-		if err := antispam.ValidateSafeURL(link.URL); err != nil {
+	if len(links) > 20 {
+		return &antispam.RejectionError{HTTPStatus: 400, Code: antispam.CodeContentTooLarge, Message: "Maximum 20 liens sociaux autorisés."}
+	}
+	for i := range links {
+		cleaned, err := antispam.SanitizeAndValidateText(links[i].Platform, 1, 40, antispam.TextOptions{
+			AllowNewlines: false,
+			CheckXSS:      true,
+		})
+		if err != nil {
+			return err
+		}
+		links[i].Platform = cleaned
+		if err := antispam.ValidateSafeURL(links[i].URL); err != nil {
 			return err
 		}
 	}

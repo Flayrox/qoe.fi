@@ -161,14 +161,18 @@ func TestTrackReadingSession(t *testing.T) {
 		t.Fatalf("sessions READ_PARTIAL = %d, attendu 1", n)
 	}
 
-	// 3. Anonyme (userID vide) : completionRate MAJ mais AUCUNE session insérée
+	// 3. Anonyme (userID vide) : completionRate MAJ ET ReadingSession anonyme insérée avec anonHash
 	before, _ := countRows(ctx, poolTest, `SELECT COUNT(*) FROM "ReadingSession" WHERE "articleId"=$1`, articleID)
-	if _, err := svc.TrackReadingSession(ctx, "", articleID, "feed", "READ_COMPLETE", 100, 20, 5, nil, nil); err != nil {
-		t.Fatalf("TrackReadingSession(anon): %v", err)
+	if _, err := svc.TrackReadingSessionWithAnon(ctx, "", "anon_hash_test_01", articleID, "subdomain", "READ_COMPLETE", 100, 20, 5, nil, nil); err != nil {
+		t.Fatalf("TrackReadingSessionWithAnon(anon): %v", err)
 	}
 	after, _ := countRows(ctx, poolTest, `SELECT COUNT(*) FROM "ReadingSession" WHERE "articleId"=$1`, articleID)
-	if after != before {
-		t.Fatalf("sessions avant=%d après=%d : l'anonyme ne doit pas insérer de session", before, after)
+	if after != before+1 {
+		t.Fatalf("sessions avant=%d après=%d : l'anonyme doit insérer une session", before, after)
+	}
+	anonCount, _ := countRows(ctx, poolTest, `SELECT COUNT(*) FROM "ReadingSession" WHERE "articleId"=$1 AND "userId" IS NULL AND "anonHash"='anon_hash_test_01'`, articleID)
+	if anonCount != 1 {
+		t.Fatalf("sessions anonymes avec anonHash = %d, attendu 1", anonCount)
 	}
 	var anonCR float64
 	if err := poolTest.QueryRow(ctx, `SELECT "completionRate" FROM "Article" WHERE id=$1`, articleID).Scan(&anonCR); err != nil {

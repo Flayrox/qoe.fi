@@ -1,11 +1,17 @@
 import React from 'react';
 import { notFound, permanentRedirect } from 'next/navigation';
 import type { Metadata } from 'next';
-import { fetchTenantPublisher, fetchTenantRecommendations } from '@/lib/tenant-data';
+import {
+  fetchArticleByShortCode,
+  fetchTenantPublisher,
+  fetchTenantRecommendations,
+} from '@/lib/tenant-data';
 import { TenantPageRenderer } from '@/components/TenantPageRenderer';
 import { getLanguage } from '@qoe/i18n/server';
 import { findCategoryBySlug, filterArticlesByCategory } from '@qoe/ui/templates';
-import { buildCategoryPath } from '@qoe/utils';
+import { buildArticlePath, buildCategoryPath } from '@qoe/utils';
+
+const NUMERIC_SHORT_CODE_REGEX = /^[1-9][0-9]{4,9}$/;
 
 interface TenantCategoryRouteParams {
   domain: string;
@@ -81,6 +87,12 @@ export async function TenantCategoryRoute({
 
   const category = findCategoryBySlug(publisher.categories || [], decodedCategorySlug);
   if (!category) {
+    if (NUMERIC_SHORT_CODE_REGEX.test(decodedCategorySlug)) {
+      const shortArticle = await fetchArticleByShortCode(decodedCategorySlug);
+      if (shortArticle) {
+        permanentRedirect(buildArticlePath(shortArticle, publisher.categories || []));
+      }
+    }
     return notFound();
   }
 

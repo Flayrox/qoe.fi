@@ -25,8 +25,15 @@ func toUUID(id string) pgtype.UUID {
 }
 
 // TrackReadingSession mirrors apps/core/src/app/api/analytics/reading-session/route.ts
-// Updates article completionRate (EMA 0.9/0.1), inserts ReadingSession, purges 14j, and triggers vector EMA.
+// Updates article completionRate (EMA 0.9/0.1), inserts ReadingSession, purges 90j, and triggers vector EMA.
 func (s *Service) TrackReadingSession(ctx context.Context, userID, articleID, source, status string, scrollDepth int, dwellSeconds int, readingTimeMinutes int, hostname, referrerUsername *string) (float64, error) {
+	return s.TrackReadingSessionWithAnon(ctx, userID, "", articleID, source, status, scrollDepth, dwellSeconds, readingTimeMinutes, hostname, referrerUsername)
+}
+
+// TrackReadingSessionWithAnon enregistre la ReadingSession pour les lecteurs
+// connectés (userID) comme anonymes (anonHash journalier non-identifiant),
+// avec une rétention de 90 jours pour alimenter les stats Studio 30d/90d.
+func (s *Service) TrackReadingSessionWithAnon(ctx context.Context, userID, anonHash, articleID, source, status string, scrollDepth int, dwellSeconds int, readingTimeMinutes int, hostname, referrerUsername *string) (float64, error) {
 	if articleID == "" {
 		return 0, nil
 	}
@@ -95,19 +102,27 @@ func (s *Service) TrackReadingSession(ctx context.Context, userID, articleID, so
 	// Update article completionRate
 	_, _ = s.pool.Exec(ctx, `UPDATE "Article" SET "completionRate"=$1, "updatedAt"=now() WHERE id=$2`, updated, articleID)
 
-	// Insert ReadingSession if userID present
+	// Enregistre la ReadingSession pour les lecteurs connectés ET anonymes (avec anonHash)
 	if userID != "" {
 		_, _ = s.pool.Exec(ctx, `
-			INSERT INTO "ReadingSession" (id, "articleId", "userId", source, status, "scrollDepth", "dwellSeconds", "readingTimeMinutes", hostname, "referrerUsername", "createdAt")
-			VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, now())
+			INSERT INTO "ReadingSession" (id, "articleId", "userId", "anonHash", source, status, "scrollDepth", "dwellSeconds", "readingTimeMinutes", hostname, "referrerUsername", "createdAt")
+			VALUES (gen_random_uuid()::text, $1, $2, NULL, $3, $4, $5, $6, $7, $8, $9, now())
 		`, articleID, toUUID(userID), source, status, scrollDepth, dwellSeconds, readingTimeMinutes, hostname, referrerUsername)
-		// TTL 14j
-		cutoff := time.Now().Add(-14 * 24 * time.Hour)
+		// Rétention 90j (pour fiabiliser les statistiques Studio 30d et 90d)
+		cutoff := time.Now().Add(-90 * 24 * time.Hour)
 		_, _ = s.pool.Exec(ctx, `DELETE FROM "ReadingSession" WHERE "userId"=$1 AND "createdAt" < $2`, toUUID(userID), cutoff)
-		// Vector EMA: trigger async (fire-and-forget) — same as updateUserVectorOnInteraction
-		// We do not block; the Go worker will handle embedding updates via the feed module if needed.
-		// For now, we just update the completionRate and session, vector is updated by the core route's Prisma logic fallback.
+		// Vector EMA: trigger async (fire-and-forget)
 		_ = s.updateUserVector(ctx, userID, articleID, status)
+	} else {
+		_, _ = s.pool.Exec(ctx, `
+			INSERT INTO "ReadingSession" (id, "articleId", "userId", "anonHash", source, status, "scrollDepth", "dwellSeconds", "readingTimeMinutes", hostname, "referrerUsername", "createdAt")
+			VALUES (gen_random_uuid()::text, $1, NULL, $2, $3, $4, $5, $6, $7, $8, $9, now())
+		`, articleID, pgTextPtr(anonHash), source, status, scrollDepth, dwellSeconds, readingTimeMinutes, hostname, referrerUsername)
+		// Purge 90j des sessions anonymes (5% du temps, best-effort)
+		if time.Now().UnixNano()%20 == 0 {
+			cutoff := time.Now().Add(-90 * 24 * time.Hour)
+			_, _ = s.pool.Exec(ctx, `DELETE FROM "ReadingSession" WHERE "userId" IS NULL AND "createdAt" < $1`, cutoff)
+		}
 	}
 
 	return updated, nil

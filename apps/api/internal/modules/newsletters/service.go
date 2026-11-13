@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/qoefi/api/internal/abuse"
+	"github.com/qoefi/api/internal/antispam"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/queue"
 	"github.com/qoefi/api/internal/subscriptions"
@@ -162,10 +163,39 @@ func (s *Service) ListIssues(ctx context.Context, userID, publisherID string) ([
 	return out, nil
 }
 
+func validateIssueInput(in *CreateInput) error {
+	subj, err := antispam.SanitizeAndValidateText(in.Subject, 1, 200, antispam.TextOptions{
+		AllowNewlines: false,
+		CheckXSS:      true,
+	})
+	if err != nil {
+		return err
+	}
+	in.Subject = subj
+	if in.PreviewText != "" {
+		prev, err := antispam.SanitizeAndValidateText(in.PreviewText, 0, 500, antispam.TextOptions{
+			AllowNewlines: false,
+			CheckXSS:      true,
+		})
+		if err != nil {
+			return err
+		}
+		in.PreviewText = prev
+	}
+	in.Html = strings.TrimSpace(in.Html)
+	if in.Html == "" {
+		return errors.New("subject et html requis")
+	}
+	if len(in.Html) > antispam.MaxArticleBodyBytes {
+		return errors.New("le contenu HTML dépasse la taille maximale autorisée")
+	}
+	return nil
+}
+
 // CreateDraft crée un brouillon de newsletter pour la publication du créateur.
 func (s *Service) CreateDraft(ctx context.Context, userID string, in CreateInput) (*Issue, error) {
-	if in.Subject == "" || in.Html == "" {
-		return nil, errors.New("subject et html requis")
+	if err := validateIssueInput(&in); err != nil {
+		return nil, err
 	}
 	pubID, err := s.resolvePublisher(ctx, userID, in.PublisherID)
 	if err != nil {
@@ -190,8 +220,8 @@ func (s *Service) CreateDraft(ctx context.Context, userID string, in CreateInput
 
 // UpdateDraft met à jour un brouillon (DRAFT ou FAILED).
 func (s *Service) UpdateDraft(ctx context.Context, userID, issueID string, in CreateInput) (*Issue, error) {
-	if in.Subject == "" || in.Html == "" {
-		return nil, errors.New("subject et html requis")
+	if err := validateIssueInput(&in); err != nil {
+		return nil, err
 	}
 	issue, err := s.checkOwnership(ctx, userID, issueID)
 	if err != nil {

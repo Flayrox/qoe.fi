@@ -7,7 +7,7 @@ import { Inter, JetBrains_Mono, Geist } from 'next/font/google';
 import { I18nClientProvider } from '@qoe/i18n/provider';
 import { getStaticTranslations, getLanguage, initI18n } from '@qoe/i18n/server';
 import { cn } from '@qoe/utils';
-import { AnalyticsScript } from '@qoe/analytics/client';
+import { AnalyticsGate } from '@/components/AnalyticsGate';
 import { DevtoolsPanel, ThemeProvider, ThemeSeedScript } from '@qoe/ui';
 import { JsonLd } from '@qoe/ui';
 import {
@@ -212,7 +212,7 @@ export default async function RootLayout({
           </I18nClientProvider>
         </ThemeProvider>
 
-        <AnalyticsScript />
+        <AnalyticsGate />
       </body>
     </html>
   );

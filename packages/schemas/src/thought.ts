@@ -9,6 +9,7 @@ import { z } from 'zod';
  */
 export const postContentSchema = z
   .string()
+  .trim()
   .min(1, 'Le post ne peut pas être vide')
   .max(10_000, '10 000 caractères maximum');
 
@@ -17,13 +18,16 @@ export const postContentSchema = z
  */
 export const createThoughtSchema = z
   .object({
-    content: z.string().trim(),
-    tags: z.array(z.string()).default([]),
-    imageUrl: z.string().nullable().optional(),
+    content: z.string().trim().max(10_000, '10 000 caractères maximum'),
+    tags: z
+      .array(z.string().trim().min(1).max(40, '40 caractères maximum par tag'))
+      .max(10, '10 tags maximum')
+      .default([]),
+    imageUrl: z.string().trim().max(2000, '2000 caractères maximum').nullable().optional(),
     visibility: z.enum(['public', 'followers', 'subscribers', 'private']).default('public'),
     isDraft: z.boolean().default(false),
     scheduledAt: z.string().nullable().optional(),
-    triggerWarning: z.string().nullable().optional(),
+    triggerWarning: z.string().trim().max(120, '120 caractères maximum').nullable().optional(),
     repostId: z.string().nullable().optional(),
     parentId: z.string().nullable().optional(),
   })
@@ -49,8 +53,12 @@ export type CreateThoughtInput = z.infer<typeof createThoughtSchema>;
  * 💬 Schéma de réponse à un post existant.
  */
 export const replyToPostSchema = z.object({
-  postId: z.string().min(1, 'ID du post requis'),
-  content: z.string().trim().min(1, 'Le contenu de la réponse ne peut pas être vide.'),
+  postId: z.string().trim().min(1, 'ID du post requis'),
+  content: z
+    .string()
+    .trim()
+    .min(1, 'Le contenu de la réponse ne peut pas être vide.')
+    .max(10_000, '10 000 caractères maximum'),
 });
 
 export type ReplyToPostInput = z.infer<typeof replyToPostSchema>;

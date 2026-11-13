@@ -1,27 +1,20 @@
 'use client';
 
+import { trackEvent as trackUmamiEvent } from '@qoe/analytics/client';
+
 declare global {
   interface Window {
-    umami?: { track: (event: string, data?: Record<string, unknown>) => void };
     posthog?: { capture: (name: string, props?: unknown) => void };
   }
 }
 
-// Abstract analytics wrapper to prepare the ground for Umami & PostHog
+// Wrapper analytics unifié : délègue Umami à @qoe/analytics/client et conserve PostHog si présent.
 export const trackServerEvent = (eventName: string, properties?: Record<string, unknown>) => {
-  const umami = typeof window !== 'undefined' ? window.umami : undefined;
-  const posthog = typeof window !== 'undefined' ? window.posthog : undefined;
-
   // 1. Umami (public metrics, cookie-less)
-  if (umami) {
-    try {
-      umami.track(eventName, properties);
-    } catch (e) {
-      console.warn('Umami tracking failed:', e);
-    }
-  }
+  trackUmamiEvent(eventName, properties);
 
   // 2. PostHog (heavy product analytics)
+  const posthog = typeof window !== 'undefined' ? window.posthog : undefined;
   if (posthog) {
     try {
       posthog.capture(eventName, properties);

@@ -516,3 +516,31 @@ export async function fetchTenantThoughts(
     return { items: [], hasMore: false };
   }
 }
+
+export interface ShortArticleResolution {
+  id: string;
+  slug: string;
+  shortCode?: string | null;
+  category?: {
+    id?: string;
+    name?: string | null;
+    slug?: string | null;
+    parentId?: string | null;
+    parentSlug?: string | null;
+  } | null;
+}
+
+/**
+ * Résout un article via son code court (`GET /v1/articles/short/{code}`).
+ * Retourne `null` si introuvable (404).
+ */
+export async function fetchArticleByShortCode(
+  code: string
+): Promise<ShortArticleResolution | null> {
+  try {
+    return await goFetch<ShortArticleResolution>(`/v1/articles/short/${encodeURIComponent(code)}`);
+  } catch (err) {
+    if ((err as { status?: number })?.status === 404) return null;
+    throw err;
+  }
+}

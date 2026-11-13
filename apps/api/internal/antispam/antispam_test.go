@@ -309,3 +309,55 @@ func TestGuard_ColdDMAndFollowChurn(t *testing.T) {
 		t.Fatalf("TrackFollowChurn #2 = (%d, %d, %v), attendu (2, 1, nil)", churn2, actors2, err)
 	}
 }
+
+func TestSanitizeAndValidateText(t *testing.T) {
+	// TrimSpace + normalisation NFC (e + \u0301 -> é en 1 rune).
+	got, err := SanitizeAndValidateText("  Cafe\u0301  ", 1, 4, TextOptions{})
+	if err != nil {
+		t.Fatalf("NFC valide rejeté: %v", err)
+	}
+	if got != "Café" {
+		t.Fatalf("got = %q, attendu %q", got, "Café")
+	}
+
+	// Null byte et contrôles C0/C1.
+	assertRejection(t, func() error { _, err := SanitizeAndValidateText("abc\x00def", 1, 50, TextOptions{}); return err }(), 400, CodeSpamUnicode)
+	assertRejection(t, func() error { _, err := SanitizeAndValidateText("abc\x07def", 1, 50, TextOptions{}); return err }(), 400, CodeSpamUnicode)
+	assertRejection(t, func() error { _, err := SanitizeAndValidateText("abc\u0085def", 1, 50, TextOptions{}); return err }(), 400, CodeSpamUnicode)
+
+	// Newline interdit si AllowNewlines=false, autorisé si AllowNewlines=true.
+	assertRejection(t, func() error { _, err := SanitizeAndValidateText("ligne1\nligne2", 1, 50, TextOptions{AllowNewlines: false}); return err }(), 400, CodeSpamUnicode)
+	if _, err := SanitizeAndValidateText("ligne1\n\tligne2", 1, 50, TextOptions{AllowNewlines: true}); err != nil {
+		t.Fatalf("multiligne autorisé rejeté: %v", err)
+	}
+
+	// Contrôles Bidi interdits.
+	bidiCases := []string{
+		"abc\u202Edef", // RLO
+		"abc\u202Adef", // LRE
+		"abc\u2066def", // LRI
+		"abc\u2069def", // PDI
+		"abc\u200Edef", // LRM
+		"abc\u200Fdef", // RLM
+		"abc\u061Cdef", // ALM
+	}
+	for _, bc := range bidiCases {
+		assertRejection(t, func() error { _, err := SanitizeAndValidateText(bc, 1, 50, TextOptions{}); return err }(), 400, CodeSpamUnicode)
+	}
+
+	// Bornes minRunes / maxRunes en runes UTF-8.
+	assertRejection(t, func() error { _, err := SanitizeAndValidateText("   ", 1, 50, TextOptions{}); return err }(), 400, CodeContentTooShort)
+	assertRejection(t, func() error { _, err := SanitizeAndValidateText("ab", 3, 50, TextOptions{}); return err }(), 400, CodeContentTooShort)
+	assertRejection(t, func() error { _, err := SanitizeAndValidateText("éééé", 1, 3, TextOptions{}); return err }(), 400, CodeContentTooLarge)
+
+	// Champ optionnel (minRunes=0) vide autorisé.
+	if got, err := SanitizeAndValidateText("   ", 0, 50, TextOptions{}); err != nil || got != "" {
+		t.Fatalf("champ optionnel vide: got=%q err=%v", got, err)
+	}
+
+	// CheckXSS optionnel.
+	assertRejection(t, func() error {
+		_, err := SanitizeAndValidateText("<script>alert(1)</script>", 1, 100, TextOptions{CheckXSS: true})
+		return err
+	}(), 400, CodeUnsafeHTML)
+}

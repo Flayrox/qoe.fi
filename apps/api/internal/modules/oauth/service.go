@@ -30,6 +30,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/antispam"
 	"github.com/qoefi/api/internal/apiaccess"
 	db "github.com/qoefi/api/internal/database"
 )
@@ -347,10 +348,21 @@ func (s *Service) CreateClientRequest(ctx context.Context, userID string, in Cre
 		return nil, oauthError("forbidden", "Les applications OAuth sont temporairement désactivées sur la plateforme.", 403)
 	}
 
-	name := strings.TrimSpace(in.Name)
-	if name == "" {
-		return nil, oauthError("invalid_request", "Le nom de l'application est requis.", 400)
+	name, err := antispam.SanitizeAndValidateText(in.Name, 1, 100, antispam.TextOptions{
+		AllowNewlines: false,
+		CheckXSS:      true,
+	})
+	if err != nil {
+		return nil, oauthError("invalid_request", err.Error(), 400)
 	}
+	desc, err := antispam.SanitizeAndValidateText(in.Description, 0, 500, antispam.TextOptions{
+		AllowNewlines: true,
+		CheckXSS:      true,
+	})
+	if err != nil {
+		return nil, oauthError("invalid_request", err.Error(), 400)
+	}
+	in.Description = desc
 	if len(in.RedirectURIs) == 0 {
 		return nil, oauthError("invalid_request", "Au moins une URL de redirection est requise.", 400)
 	}

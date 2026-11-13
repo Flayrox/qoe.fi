@@ -37,6 +37,7 @@ const (
 
 // Codes d'erreur stables exposés par RejectionError.
 const (
+	CodeContentTooShort  = "CONTENT_TOO_SHORT"
 	CodeContentTooLarge  = "CONTENT_TOO_LARGE"
 	CodeSpamUnicode      = "SPAM_UNICODE"
 	CodeSpamLinkLimit    = "SPAM_LINK_LIMIT"
@@ -167,6 +168,74 @@ func CheckUnicodeHygiene(text string) error {
 		return rejectBadRequest(CodeSpamUnicode, "Le texte contient un nombre excessif de sauts de ligne.")
 	}
 	return nil
+}
+
+// TextOptions configure la validation OWASP ASVS de SanitizeAndValidateText.
+type TextOptions struct {
+	AllowNewlines bool
+	CheckXSS      bool
+}
+
+func isBidiControl(r rune) bool {
+	return r == 0x061C || r == 0x200E || r == 0x200F ||
+		(r >= 0x202A && r <= 0x202E) ||
+		(r >= 0x2066 && r <= 0x2069)
+}
+
+func isDisallowedControl(r rune, allowNewlines bool) bool {
+	if r == 0x00 || r == 0x7F || (r >= 0x80 && r <= 0x9F) {
+		return true
+	}
+	if r < 0x20 {
+		if allowNewlines && (r == '\n' || r == '\r' || r == '\t') {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+// SanitizeAndValidateText applique la pipeline OWASP ASVS :
+// 1. TrimSpace + normalisation Unicode NFC
+// 2. Rejet UTF-8 invalide, null bytes, contrôles C0/C1 (hors \n/\r/\t si AllowNewlines) et contrôles Bidi
+// 3. Hygiène zero-width, Zalgo et flood de retours à la ligne
+// 4. Vérification des bornes en runes UTF-8 (minRunes..maxRunes) et XSS optionnel.
+func SanitizeAndValidateText(s string, minRunes, maxRunes int, opts TextOptions) (string, error) {
+	if !utf8.ValidString(s) {
+		return "", rejectBadRequest(CodeSpamUnicode, "Le texte contient une séquence UTF-8 invalide.")
+	}
+	cleaned := strings.TrimSpace(norm.NFC.String(strings.TrimSpace(s)))
+
+	for _, r := range cleaned {
+		if isDisallowedControl(r, opts.AllowNewlines) {
+			return "", rejectBadRequest(CodeSpamUnicode, "Le texte contient des caractères de contrôle interdits.")
+		}
+		if isBidiControl(r) {
+			return "", rejectBadRequest(CodeSpamUnicode, "Le texte contient des caractères de contrôle directionnels (Bidi) interdits.")
+		}
+	}
+
+	if err := CheckUnicodeHygiene(cleaned); err != nil {
+		return "", err
+	}
+
+	runeCount := utf8.RuneCountInString(cleaned)
+	if minRunes > 0 && runeCount < minRunes {
+		if minRunes == 1 {
+			return "", rejectBadRequest(CodeContentTooShort, "Ce champ ne peut pas être vide.")
+		}
+		return "", rejectBadRequest(CodeContentTooShort, fmt.Sprintf("Le contenu doit contenir au moins %d caractères.", minRunes))
+	}
+	if maxRunes > 0 && runeCount > maxRunes {
+		return "", rejectBadRequest(CodeContentTooLarge, fmt.Sprintf("Le contenu dépasse la limite de %d caractères.", maxRunes))
+	}
+
+	if opts.CheckXSS {
+		if err := CheckNoXSS(cleaned); err != nil {
+			return "", err
+		}
+	}
+	return cleaned, nil
 }
 
 // ValidateSafeURL vérifie qu'une URL est soit vide (champ optionnel), soit un

@@ -9,5 +9,6 @@ import { z } from 'zod';
  */
 export const articleTitleSchema = z
   .string()
+  .trim()
   .min(3, 'Le titre doit comporter au moins 3 caractères')
   .max(200, 'Le titre ne peut pas dépasser 200 caractères');

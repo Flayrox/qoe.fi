@@ -50,6 +50,7 @@ export function AnalyticsDashboardClient({
   const totaltime = stats?.totaltime || 0;
 
   const avgDurationSeconds = visits > 0 ? Math.round(totaltime / visits) : 0;
+  const avgDwellSeconds = data.avgDwellSeconds ?? 0;
   const formatDuration = (sec: number) => {
     if (sec < 60) return `${sec}s`;
     const mins = Math.floor(sec / 60);
@@ -178,11 +179,11 @@ export function AnalyticsDashboardClient({
           <p className="text-xs text-muted-foreground mt-2">{t`Sessions`}</p>
         </div>
 
-        {/* KPI 4: Avg Duration */}
+        {/* KPI 4: Avg Active Reading Dwell & Umami Session Duration */}
         <div className="rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
-              Temps de lecture
+              Temps de lecture actif
             </span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
               <Clock className="h-4 w-4 stroke-[1.5]" />
@@ -190,11 +191,13 @@ export function AnalyticsDashboardClient({
           </div>
           <div className="flex items-baseline justify-between">
             <span className="text-3xl font-bold tracking-tight text-foreground">
-              {formatDuration(avgDurationSeconds)}
+              {formatDuration(avgDwellSeconds)}
             </span>
             <span className="text-xs text-muted-foreground font-medium">Rebond {bounceRate}%</span>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">{t`Durée moyenne`}</p>
+          <p className="text-xs text-muted-foreground mt-2">
+            {t`Moyenne par article`} · Session Umami {formatDuration(avgDurationSeconds)}
+          </p>
         </div>
       </div>
 

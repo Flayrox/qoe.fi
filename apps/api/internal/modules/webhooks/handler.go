@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/qoefi/api/internal/antispam"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/netguard"
 	"github.com/qoefi/api/internal/response"
@@ -76,10 +77,22 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	if !response.DecodeJSON(w, r, &in) {
 		return
 	}
-	in.Name = strings.TrimSpace(in.Name)
+	cleanName, err := antispam.SanitizeAndValidateText(in.Name, 1, 80, antispam.TextOptions{
+		AllowNewlines: false,
+		CheckXSS:      true,
+	})
+	if err != nil {
+		response.BadRequest(w, err.Error())
+		return
+	}
+	in.Name = cleanName
 	in.URL = strings.TrimSpace(in.URL)
-	if in.Name == "" || in.URL == "" {
+	if in.URL == "" {
 		response.BadRequest(w, "Nom et URL requis")
+		return
+	}
+	if len([]rune(in.URL)) > 2000 {
+		response.BadRequest(w, "URL trop longue (2000 caractères maximum)")
 		return
 	}
 	if !strings.HasPrefix(strings.ToLower(in.URL), "https://") {

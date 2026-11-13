@@ -118,7 +118,7 @@ jobs:
           NEXT_PUBLIC_API_URL=https://api.qoe.fi
           NEXT_PUBLIC_ADMIN_URL=https://admin.qoe.fi
           NEXT_PUBLIC_DASHBOARD_URL=https://studio.qoe.fi
-          NEXT_PUBLIC_UMAMI_SCRIPT_URL=https://umami.qoe.fi/script.js
+          NEXT_PUBLIC_UMAMI_SCRIPT_URL=/_q/m.js
           # Vides en attendant leur activation (voir VPS_DEPLOYMENT_PREP.md)
           NEXT_PUBLIC_UMAMI_WEBSITE_ID=
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=

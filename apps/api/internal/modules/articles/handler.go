@@ -51,11 +51,32 @@ func (h *Handler) enforceContentWrite(w http.ResponseWriter, r *http.Request, us
 
 // RegisterPublic enregistre la lecture publique (auth optionnelle) — hors auth.
 func (h *Handler) RegisterPublic(r chi.Router) {
+	r.Get("/v1/articles/short/{code}", h.getByShortCode)
 	r.Get("/v1/articles/{slug}", h.getBySlug)
 	r.Get("/v1/articles/{id}/comments", h.listComments)
 	r.Get("/v1/articles/{id}/similar", h.similar)
 	// Document canonique (blocs + texte plat + offsets) — base des ancres.
 	r.Get("/v1/articles/{id}/document", h.document)
+}
+
+// GET /v1/articles/short/{code} — résolution d'un code court numérique pour redirection canonique.
+func (h *Handler) getByShortCode(w http.ResponseWriter, r *http.Request) {
+	code := strings.TrimSpace(chi.URLParam(r, "code"))
+	if code == "" {
+		response.BadRequest(w, "Code court requis")
+		return
+	}
+	res, err := h.svc.GetByShortCode(r.Context(), code)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			response.NotFound(w, "Article introuvable")
+			return
+		}
+		log.Printf("[articles] getByShortCode: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, res)
 }
 
 // GET /v1/articles/{id}/document — document canonique public de l'article.
@@ -235,14 +256,51 @@ func validateArticlePayload(title, content string, imageURL *string) func(trust.
 	}
 }
 
+func sanitizeArticleMeta(slug, seoTitle, seoDesc, emailSubject, emailPreview *string) error {
+	check := func(p *string, max int) error {
+		if p == nil || *p == "" {
+			return nil
+		}
+		clean, err := antispam.SanitizeAndValidateText(*p, 0, max, antispam.TextOptions{CheckXSS: true})
+		if err != nil {
+			return err
+		}
+		*p = clean
+		return nil
+	}
+	if err := check(slug, 160); err != nil {
+		return err
+	}
+	if err := check(seoTitle, 120); err != nil {
+		return err
+	}
+	if err := check(seoDesc, 320); err != nil {
+		return err
+	}
+	if err := check(emailSubject, 200); err != nil {
+		return err
+	}
+	return check(emailPreview, 300)
+}
+
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	var in createInput
 	if !response.DecodeJSON(w, r, &in) {
 		return
 	}
-	if in.PublisherID == "" || in.Title == "" {
-		response.BadRequest(w, "publisherId et title requis")
+	cleanTitle, err := antispam.SanitizeAndValidateText(in.Title, 1, 300, antispam.TextOptions{CheckXSS: true})
+	if err != nil || in.PublisherID == "" {
+		response.BadRequest(w, "publisherId et title valides requis")
+		return
+	}
+	in.Title = cleanTitle
+	if len(in.Attributions) > 20 {
+		response.BadRequest(w, "trop d'attributions (max 20)")
+		return
+	}
+	if err := sanitizeArticleMeta(&in.Slug, in.SeoTitle, in.SeoDescription, in.EmailSubject, in.EmailPreviewText); err != nil {
+		response.BadRequest(w, err.Error())
 		return
 	}
 	if !IsValidContentFormat(in.ContentFormat) {
@@ -436,6 +494,18 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "contentFormat invalide (markdown|html)")
 		return
 	}
+	if in.Title != "" {
+		cleanTitle, err := antispam.SanitizeAndValidateText(in.Title, 1, 300, antispam.TextOptions{CheckXSS: true})
+		if err != nil {
+			response.BadRequest(w, err.Error())
+			return
+		}
+		in.Title = cleanTitle
+	}
+	if err := sanitizeArticleMeta(&in.Slug, in.SeoTitle, in.SeoDescription, nil, nil); err != nil {
+		response.BadRequest(w, err.Error())
+		return
+	}
 	prof := h.sec.EvaluateRequest(r.Context(), r, userID)
 	if !h.sec.EnforceRateLimit(r.Context(), w, r, "articles-edit", userID, prof.Tier, secguard.QuotasArticlesEdit) {
 		return
@@ -526,6 +596,10 @@ func (h *Handler) sendEmail(w http.ResponseWriter, r *http.Request) {
 	articleID := chi.URLParam(r, "id")
 	var in sendEmailInput
 	_ = json.NewDecoder(r.Body).Decode(&in)
+	if err := sanitizeArticleMeta(nil, nil, nil, &in.Subject, &in.PreviewText); err != nil {
+		response.BadRequest(w, err.Error())
+		return
+	}
 
 	if err := h.svc.SendArticleEmail(r.Context(), articleID, userID, in.Subject, in.PreviewText, in.IsMajorUpdate); err != nil {
 		if errors.Is(err, errNotFound) {
@@ -781,6 +855,14 @@ func (h *Handler) review(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		response.BadRequest(w, "JSON invalide")
 		return
+	}
+	if in.Comment != "" {
+		cleanComment, err := antispam.SanitizeAndValidateText(in.Comment, 0, 2000, antispam.TextOptions{AllowNewlines: true, CheckXSS: true})
+		if err != nil {
+			response.BadRequest(w, err.Error())
+			return
+		}
+		in.Comment = cleanComment
 	}
 	if err := h.svc.Review(r.Context(), id, userID, in.Approve, in.Comment); err != nil {
 		if errors.Is(err, errNotFound) {
@@ -1061,10 +1143,12 @@ func (h *Handler) createComment(w http.ResponseWriter, r *http.Request) {
 	if !response.DecodeJSON(w, r, &in) {
 		return
 	}
-	if in.Content == "" {
-		response.BadRequest(w, "content requis")
+	cleanContent, err := antispam.SanitizeAndValidateText(in.Content, 1, 2000, antispam.TextOptions{AllowNewlines: true, CheckXSS: true})
+	if err != nil {
+		response.BadRequest(w, err.Error())
 		return
 	}
+	in.Content = cleanContent
 	prof := h.sec.EvaluateRequest(r.Context(), r, userID)
 	if !h.sec.EnforceRateLimit(r.Context(), w, r, "comments", userID, prof.Tier, secguard.QuotasComments) {
 		return

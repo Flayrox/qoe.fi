@@ -20,6 +20,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qoefi/api/internal/identity"
 	"github.com/qoefi/api/internal/modules/articles"
+	pkgslug "github.com/qoefi/api/internal/slug"
 )
 
 var errNotFound = errors.New("introuvable")
@@ -674,41 +675,61 @@ const articleSelect = `
 		LEFT JOIN "Category" cp ON cp.id = c."parentId"
 		LEFT JOIN "User" au ON au.id = a."authorId"`
 
-func (s *Service) articleDirect(ctx context.Context, pubID, slug string) (*ArticleDetail, error) {
-	row := s.pool.QueryRow(ctx, articleSelect+`
-		WHERE a."publisherId" = $1 AND (lower(a.slug) = lower($2) OR a.id = $2)
-		  AND (a."isClaimed" = true OR a."isAuthorSovereignCopy" = false)
-		LIMIT 1`, pubID, slug)
-	article, err := scanArticleDetail(row)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errNotFound
+func (s *Service) resolveArticleWithFallbacks(ctx context.Context, scopeCond, scopeArg, slugOrID, errLabel string) (*ArticleDetail, error) {
+	run := func(matchCond, param string) (*ArticleDetail, error) {
+		row := s.pool.QueryRow(ctx,
+			articleSelect+` WHERE (`+matchCond+`) AND `+scopeCond+` LIMIT 1`,
+			param, scopeArg)
+		article, err := scanArticleDetail(row)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, errNotFound
+			}
+			return nil, fmt.Errorf("%s: %w", errLabel, err)
 		}
-		return nil, fmt.Errorf("article direct: %w", err)
+		return article, nil
 	}
-	return article, nil
+
+	// 1. Slug canonique ou ID direct.
+	if art, err := run(`lower(a.slug) = lower($1) OR a.id = $1`, slugOrID); err == nil || !errors.Is(err, errNotFound) {
+		return art, err
+	}
+	// 2. Code court numérique extrait du suffixe (ex. mon-article-810839 → 810839).
+	if shortCode := pkgslug.ExtractTrailingShortCode(slugOrID); shortCode != "" {
+		if art, err := run(`a."shortCode" = $1`, shortCode); err == nil || !errors.Is(err, errNotFound) {
+			return art, err
+		}
+	}
+	// 3. Slugs personnalisés (ArticleSlug) ou historique des slugs (ArticleSlugHistory).
+	return run(`EXISTS (SELECT 1 FROM "ArticleSlug" s WHERE lower(s.slug) = lower($1) AND s."articleId" = a.id)
+		OR EXISTS (SELECT 1 FROM "ArticleSlugHistory" h WHERE lower(h.slug) = lower($1) AND h."articleId" = a.id)`, slugOrID)
+}
+
+func (s *Service) articleDirect(ctx context.Context, pubID, slug string) (*ArticleDetail, error) {
+	return s.resolveArticleWithFallbacks(
+		ctx,
+		`a."publisherId" = $2 AND (a."isClaimed" = true OR a."isAuthorSovereignCopy" = false)`,
+		pubID,
+		slug,
+		"article direct",
+	)
 }
 
 func (s *Service) articleViaAttribution(ctx context.Context, slug, userID string) (*ArticleDetail, error) {
-	row := s.pool.QueryRow(ctx, articleSelect+`
-		WHERE (lower(a.slug) = lower($1) OR a.id = $1)
-		  AND (
+	return s.resolveArticleWithFallbacks(
+		ctx,
+		`(
 		    (a."authorId" = $2 AND a."showOnPersonalProfile" = true)
 		    OR EXISTS (SELECT 1 FROM "ArticleAttribution" at
 		               WHERE at."articleId" = a.id AND at."userId" = $2
 		                 AND at."consentStatus" = 'ACCEPTED' AND at."isVisible" = true
 		                 AND at.role IN ('PRIMARY_AUTHOR', 'CO_AUTHOR')
 		                 AND (a."authorId" <> $2 OR a."showOnPersonalProfile" = true))
-		  )
-		LIMIT 1`, slug, userID)
-	article, err := scanArticleDetail(row)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errNotFound
-		}
-		return nil, fmt.Errorf("article attribution: %w", err)
-	}
-	return article, nil
+		  )`,
+		userID,
+		slug,
+		"article attribution",
+	)
 }
 
 func (s *Service) attributionCategorySlug(ctx context.Context, articleID, userID string) (*string, error) {

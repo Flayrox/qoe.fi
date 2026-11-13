@@ -120,14 +120,68 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !h.enforceThoughtWrite(w, r, userID, in.Content, func(tier trust.Tier) error {
+		cleanContent, err := antispam.SanitizeAndValidateText(in.Content, 0, antispam.MaxThoughtRunes, antispam.TextOptions{
+			AllowNewlines: true,
+			CheckXSS:      true,
+		})
+		if err != nil {
+			return err
+		}
+		in.Content = cleanContent
 		if in.ImageURL != nil {
 			if err := antispam.ValidateSafeURL(*in.ImageURL); err != nil {
 				return err
 			}
 		}
-		for _, att := range in.Attachments {
-			if err := antispam.ValidateSafeURL(att.URL); err != nil {
+		if len(in.Attachments) > 10 {
+			return errors.New("Trop de pièces jointes (maximum 10).")
+		}
+		for i := range in.Attachments {
+			if err := antispam.ValidateSafeURL(in.Attachments[i].URL); err != nil {
 				return err
+			}
+			cleanAlt, err := antispam.SanitizeAndValidateText(in.Attachments[i].AltText, 0, 500, antispam.TextOptions{
+				AllowNewlines: false,
+				CheckXSS:      true,
+			})
+			if err != nil {
+				return err
+			}
+			in.Attachments[i].AltText = cleanAlt
+		}
+		if in.TriggerWarning != nil {
+			cleanTW, err := antispam.SanitizeAndValidateText(*in.TriggerWarning, 0, 120, antispam.TextOptions{
+				AllowNewlines: false,
+				CheckXSS:      true,
+			})
+			if err != nil {
+				return err
+			}
+			in.TriggerWarning = &cleanTW
+		}
+		if in.QuotedExcerpt != nil {
+			cleanQE, err := antispam.SanitizeAndValidateText(*in.QuotedExcerpt, 0, 1000, antispam.TextOptions{
+				AllowNewlines: true,
+				CheckXSS:      true,
+			})
+			if err != nil {
+				return err
+			}
+			in.QuotedExcerpt = &cleanQE
+		}
+		if in.Poll != nil {
+			if len(in.Poll.Options) > 6 {
+				return errors.New("Un sondage ne peut pas dépasser 6 options.")
+			}
+			for i, opt := range in.Poll.Options {
+				cleanOpt, err := antispam.SanitizeAndValidateText(opt, 1, 100, antispam.TextOptions{
+					AllowNewlines: false,
+					CheckXSS:      true,
+				})
+				if err != nil {
+					return err
+				}
+				in.Poll.Options[i] = cleanOpt
 			}
 		}
 		return antispam.ValidateThought(in.Content, in.Tags, tier)
@@ -272,7 +326,27 @@ func (h *Handler) createReport(w http.ResponseWriter, r *http.Request) {
 	if !h.enforceRateLimit(w, r, "reports", userID, secguard.QuotasReports) {
 		return
 	}
-	if err := h.svc.Report(r.Context(), userID, in.TargetID, in.TargetType, in.Reason, in.Details); err != nil {
+	cleanReason, err := antispam.SanitizeAndValidateText(in.Reason, 1, 100, antispam.TextOptions{
+		AllowNewlines: false,
+		CheckXSS:      true,
+	})
+	if err != nil {
+		if !secguard.WriteRejection(w, err) {
+			response.BadRequest(w, err.Error())
+		}
+		return
+	}
+	cleanDetails, err := antispam.SanitizeAndValidateText(in.Details, 0, 500, antispam.TextOptions{
+		AllowNewlines: true,
+		CheckXSS:      true,
+	})
+	if err != nil {
+		if !secguard.WriteRejection(w, err) {
+			response.BadRequest(w, err.Error())
+		}
+		return
+	}
+	if err := h.svc.Report(r.Context(), userID, in.TargetID, in.TargetType, cleanReason, cleanDetails); err != nil {
 		response.BadRequest(w, err.Error())
 		return
 	}
@@ -328,6 +402,17 @@ func (h *Handler) reply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !h.enforceThoughtWrite(w, r, userID, in.Content, func(tier trust.Tier) error {
+		cleanContent, err := antispam.SanitizeAndValidateText(in.Content, 1, antispam.MaxThoughtRunes, antispam.TextOptions{
+			AllowNewlines: true,
+			CheckXSS:      true,
+		})
+		if err != nil {
+			return err
+		}
+		in.Content = cleanContent
+		if err := validateContentLen(in.Content); err != nil {
+			return err
+		}
 		return antispam.ValidateThought(in.Content, nil, tier)
 	}) {
 		return

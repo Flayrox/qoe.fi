@@ -287,11 +287,12 @@ type ArticleDetailStats struct {
 
 // CreatorReadingStats est la réponse pour le dashboard créateur (creator endpoint).
 type CreatorReadingStats struct {
-	ArticleIDs  []string             `json:"articleIds"`
-	PerArticle  ReadingSessionCounts `json:"perArticle"`
-	TotalViews  int                  `json:"totalViews"`
-	DailySeries []DailySeriesPoint   `json:"dailySeries"`
-	Provenance  ProvenanceBreakdown  `json:"provenance"`
+	ArticleIDs      []string             `json:"articleIds"`
+	PerArticle      ReadingSessionCounts `json:"perArticle"`
+	TotalViews      int                  `json:"totalViews"`
+	AvgDwellSeconds int                  `json:"avgDwellSeconds"`
+	DailySeries     []DailySeriesPoint   `json:"dailySeries"`
+	Provenance      ProvenanceBreakdown  `json:"provenance"`
 }
 
 // attributedArticleIDs retourne les IDs d'articles attribués au créateur :
@@ -559,6 +560,25 @@ func (s *Service) GetProvenance(ctx context.Context, userID, publisherID string,
 	return ProvenanceBreakdown{BySource: bySource, ByHostname: byHostname, ByReferrer: byReferrer}, nil
 }
 
+// AverageReadingDwellSeconds calcule le temps de lecture actif moyen (dwellSeconds > 0).
+func (s *Service) AverageReadingDwellSeconds(ctx context.Context, articleIDs []string, since *time.Time) (int, error) {
+	if s.pool == nil || len(articleIDs) == 0 {
+		return 0, nil
+	}
+	var avg int
+	var err error
+	if since != nil {
+		err = s.pool.QueryRow(ctx, `
+			SELECT COALESCE(ROUND(AVG("dwellSeconds"))::int, 0) FROM "ReadingSession"
+			WHERE "articleId" = ANY($1::text[]) AND "dwellSeconds" > 0 AND "createdAt" >= $2`, articleIDs, *since).Scan(&avg)
+	} else {
+		err = s.pool.QueryRow(ctx, `
+			SELECT COALESCE(ROUND(AVG("dwellSeconds"))::int, 0) FROM "ReadingSession"
+			WHERE "articleId" = ANY($1::text[]) AND "dwellSeconds" > 0`, articleIDs).Scan(&avg)
+	}
+	return avg, err
+}
+
 // GetCreatorReadingStats agrège les stats lecture du créateur (vues plein + provenance + série quotidienne).
 // Remplace le bloc provenance + perArticleDb + rawSeries dans getCreatorAnalyticsData.
 func (s *Service) GetCreatorReadingStats(ctx context.Context, userID, publisherID string, since *time.Time) (CreatorReadingStats, error) {
@@ -582,6 +602,10 @@ func (s *Service) GetCreatorReadingStats(ctx context.Context, userID, publisherI
 	for _, v := range perArticle {
 		total += v
 	}
+	avgDwell, err := s.AverageReadingDwellSeconds(ctx, ids, since)
+	if err != nil {
+		return CreatorReadingStats{}, err
+	}
 	series, err := s.GetReadingSessionDailySeries(ctx, ids, since)
 	if err != nil {
 		return CreatorReadingStats{}, err
@@ -591,11 +615,12 @@ func (s *Service) GetCreatorReadingStats(ctx context.Context, userID, publisherI
 		return CreatorReadingStats{}, err
 	}
 	return CreatorReadingStats{
-		ArticleIDs:  ids,
-		PerArticle:  perArticle,
-		TotalViews:  total,
-		DailySeries: series,
-		Provenance:  prov,
+		ArticleIDs:      ids,
+		PerArticle:      perArticle,
+		TotalViews:      total,
+		AvgDwellSeconds: avgDwell,
+		DailySeries:     series,
+		Provenance:      prov,
 	}, nil
 }
 
@@ -1214,9 +1239,9 @@ func (s *Service) DashboardOverview(ctx context.Context, userID, publisherID, wo
 	_ = s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "ReadingSession" rs
 		JOIN "Article" a ON a.id = rs."articleId"
 		WHERE rs."createdAt" >= now() - interval '30 days' AND `+articleScope, scopeArgs...).Scan(&out.Pageviews30d)
-	_ = s.pool.QueryRow(ctx, `SELECT COUNT(DISTINCT rs."userId")::int FROM "ReadingSession" rs
+	_ = s.pool.QueryRow(ctx, `SELECT COUNT(DISTINCT COALESCE(rs."userId"::text, rs."anonHash"))::int FROM "ReadingSession" rs
 		JOIN "Article" a ON a.id = rs."articleId"
-		WHERE rs."createdAt" >= now() - interval '30 days' AND rs."userId" IS NOT NULL AND `+articleScope, scopeArgs...).Scan(&out.Visitors30d)
+		WHERE rs."createdAt" >= now() - interval '30 days' AND (rs."userId" IS NOT NULL OR rs."anonHash" IS NOT NULL) AND `+articleScope, scopeArgs...).Scan(&out.Visitors30d)
 
 	return out, nil
 }
