@@ -419,7 +419,9 @@ jobs:
           cache-dependency-path: apps/api/go.sum
 
       - name: Go Vulnerability Check (govulncheck)
-        continue-on-error: true
+        # 🛡️ Bloquant volontairement : aucun contournement de guard (cf. AGENTS.md).
+        # Une faille transitive sans correctif amont se traite par une allowlist
+        # explicite et datée, jamais par un continue-on-error silencieux.
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
           cd apps/api && govulncheck ./...
