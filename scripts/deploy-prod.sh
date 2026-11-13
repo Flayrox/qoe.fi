@@ -156,6 +156,29 @@ else
   ssh_vps "cd $VPS_DIR && docker compose up -d"
   success "Stack démarrée"
 fi
+# Le Caddyfile est monté en bind direct : le tar de l'étape 1 remplace le
+# fichier sans que Caddy le relise (vécu 13/11 : /_q/m.js servait encore
+# l'ancienne config → 308). `admin off` interdit `caddy reload` via l'API et
+# SIGUSR1 ne suffit pas si l'inode a changé (bind-mount d'un fichier unique :
+# le conteneur garde l'ancien fichier) → on compare les md5 et on ne redémarre
+# QUE dans ce cas (quelques secondes de coupure), sinon reload à chaud.
+log "   Rechargement de Caddy (Caddyfile monté en bind)…"
+if ssh_vps "cd $VPS_DIR && docker run --rm -v \$PWD/docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1"; then
+  HOST_MD5=$(ssh_vps "md5sum $VPS_DIR/docker/caddy/Caddyfile | cut -d' ' -f1")
+  CTR_MD5=$(ssh_vps "docker exec qoefi-caddy md5sum /etc/caddy/Caddyfile 2>/dev/null | cut -d' ' -f1")
+  if [ "$HOST_MD5" = "$CTR_MD5" ]; then
+    ssh_vps "docker kill -s SIGUSR1 qoefi-caddy" \
+      && success "Caddy rechargé à chaud" \
+      || warn "SIGUSR1 Caddy en échec — redémarrage manuel : docker restart qoefi-caddy"
+  else
+    warn "Caddyfile désynchronisé dans le conteneur (inode changé) — redémarrage de Caddy"
+    ssh_vps "docker restart qoefi-caddy" \
+      && success "Caddy redémarré avec le nouveau Caddyfile" \
+      || warn "Redémarrage Caddy en échec — vérifier docker logs qoefi-caddy"
+  fi
+else
+  warn "Caddyfile invalide — Caddy laissé sur l'ancienne config (validation : docker run --rm -v \$PWD/docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile)"
+fi
 # Re-applique le firewall tailnet (une recreate de qoefi-caddy change son IP
 # docker → le DNAT PREROUTING pointerait vers une IP périmée sinon).
 log "   Firewall tailnet (re-application post-up)…"
@@ -200,6 +223,10 @@ check "admin.qoe.fi injoignable hors tailnet" "! curl -s --max-time 8 -o /dev/nu
 check "admin tailnet :3002"  "curl -sf -o /dev/null --max-time 8 http://100.117.195.127:3002/"  # fallback direct (Caddy : admin.qoe.fi tailnet-only)
 check "auth (kong)"          "SR=\$(grep '^SERVICE_ROLE_KEY=' $SUPABASE_DIR/.env | cut -d= -f2-); curl -sk -o /dev/null -w '%{http_code}' https://auth.qoe.fi/auth/v1/health -H \"apikey: \$SR\" | grep -q 200"
 check "config /v1/home/config" "curl -sf https://api.qoe.fi/v1/home/config | grep -q AUTH_METHODS"
+# Un seul Access-Control-Allow-Origin : Caddy et le middleware CORS Go en
+# émettaient chacun un ("*, https://qoe.fi"), ce qui bloque tout appel
+# navigateur cross-origin vers api.qoe.fi (diagnostiqué 13/11).
+check "cors api mono-valeur" "p=\$(curl -s -o /dev/null -D - -H 'Origin: https://qoe.fi' https://api.qoe.fi/v1/home/config | grep -ci '^access-control-allow-origin'); test \"\$p\" -eq 1"
 check "worker email loop"    "docker logs qoefi-worker 2>&1 | grep -q 'email-delivery'"
 check "containers healthy"   "test \$(docker ps --format '{{.Names}}' | grep qoefi | wc -l) -ge 14"
 
