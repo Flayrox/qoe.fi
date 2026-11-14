@@ -157,6 +157,8 @@ Critère de done B : le log nomme chaque page visitée, 0 skip, et le job
 | 2026-11-14 | **B4** | Matrice apps en mode **prod** : `PLAYWRIGHT_APPS_PROD=1` fait servir `next start` par les `webServer`. Mesure locale : 42/42 en **16,3 s** (vs >20 min de compilation dev, job CI annulé deux fois). Le job `e2e-apps-routes` construit tenants + studio avant. Budgets e2e-routes relevés (job 15→25 min, `expectRedirect` requête 90 s, test admin 180 s) — assertions inchangées, c'est la compilation qui tombait. | _(commit B4)_ |
 | 2026-11-14 | **B5 — matrice verte en CI** | Run `43545803259` sur `2f38d123` : job `e2e-apps-routes` **success**, `42 passed (16.5s)` dans le log (mode prod, admin laissé en dev). `Build & Verify Monorepo` (dont le gate de couverture front) **success** sur les trois derniers commits. | `2f38d123` |
 | 2026-11-14 | **B6 — rouge résiduel expliqué** | `E2E Routes` : le premier run affichait la matrice admin en échec rapide, puis deux runs ont fini en `shutdown signal` du runner après ~6 min (aucun log de test conservé) ; au run `2f38d123` la matrice admin est **toute verte** (tests 30→68 ✓) et le job est tué par l'infra. `E2E Apps` repasse à **exactement** les 6 échecs préexistants (le test admin `redirige /admin` échouait par timeout de compilation : budget 180 s). | `c784cdff` |
+| 2026-11-14 | **B7 — état final du run** | Sur `75d01ba6` (run de référence) : `Build & Verify Monorepo` **success** (coverage front inclus), `E2E (Playwright)` **success**, `e2e-apps-routes` **success** (42 cas), `E2E Apps` **failure = les 6 préexistants** (`7 passed, 11.5m`), `E2E Routes` **cancelled**. | `75d01ba6` |
+| 2026-11-14 | **E2E Routes à reprendre** | Trois annulations le 14/11 (shutdown runner, puis 15 min, puis 25 min). Mesuré : mise en place ~6 min + 107 pages en ~3,5 min quand le runner va bien ; 106/107 verts en local et la matrice admin déjà **toute verte** en CI. Suspect : boot webServer (`go run` compile deux fois + deux `next dev`) et reprises lentes. Piste éprouvée : `PLAYWRIGHT_ROUTES_PROD=1` (build core + admin, ~35 s/app) — testé localement en **1 min 36** (~106/107, seul écart : en prod `/` de la console redirige direct vers le login, sans passer par `/admin`, contrat à réécrire si on l'adopte). | _à faire_ |
 | 2026-11-14 | Constat (hors matrice) | `E2E Apps` **échec préexistant** : 6 failed / 2 skipped / 7 passed sur `b8dfda31` (run `43522975160`), mêmes 6 échecs qu'en local (`tenants-legal` ×3, `tenants-paywall`, `tenants-recommendations`, `tenants.spec`). Aucun n'est dans la matrice : prochain chantier (fixtures tenants). | `b8dfda31` |
 
 ---
@@ -168,4 +170,7 @@ Critère de done B : le log nomme chaque page visitée, 0 skip, et le job
 - Matrice de routes sur **les 5 apps** (core, admin, studio, tenants, hi) avec
   garde d'inventaire, 0 skip.
 - Jobs CI web/e2e verts sur un commit poussé, avec URL et compteurs cités.
+  État au 14/11 sur `75d01ba6` : Build & Verify ✅, E2E (Playwright) ✅,
+  e2e-apps-routes ✅ (42 cas), e2e-apps ❌ = 6 échecs préexistants, e2e-routes
+  ❌ annulé (chantier suivant, cf. journal B7).
 - Aucun test supprimé, skippé ou affaibli pendant le chantier.
