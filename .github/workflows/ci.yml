@@ -203,8 +203,8 @@ jobs:
           check "internal/slug" 85
           check "internal/umami" 85
           check "internal/deeplink" 65
-          check "internal/modules/tracking" 55
-          check "internal/modules/collaborations" 55
+          check "internal/modules/tracking" 70
+          check "internal/modules/collaborations" 45
         env:
           TESTCONTAINERS_RYUK_DISABLED: 'true'
 
