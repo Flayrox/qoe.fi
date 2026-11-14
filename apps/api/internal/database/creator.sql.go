@@ -155,7 +155,7 @@ SELECT ak.id                                            AS api_key_id,
        EXISTS(
          SELECT 1 FROM "RiskDecision" rd
          WHERE rd."subjectId" = COALESCE(ak."userId"::text, ak."createdByUserId"::text)
-           AND rd.decision IN ('suspend', 'pause_sending')
+           AND rd.result IN ('suspend', 'pause_sending')
            AND (rd."expiresAt" IS NULL OR rd."expiresAt" > now())
        )::boolean                                       AS has_active_risk_suspension
 FROM "ApiKey" ak

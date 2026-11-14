@@ -55,6 +55,7 @@ func testDeps() workerDeps {
 		reconfirm:     workers.NewImportReconfirmWorker(imports.NewService(poolTest, nil)),
 		importSend:    workers.NewImportSendWorker(imports.NewService(poolTest, nil)),
 		staffCampaign: workers.NewStaffCampaignWorker(poolTest, admin.NewService(poolTest)),
+		securityAlert: workers.NewSecurityAlertWorker(poolTest),
 	}
 }
 
@@ -81,6 +82,7 @@ func TestBuildHandlers(t *testing.T) {
 		queue.TaskSubscriberImportReconfirm,
 		queue.TaskSubscriberImportSend,
 		queue.TaskStaffCampaign,
+		queue.TaskSecurityAlertEmail,
 	}
 	if len(handlers) != len(expected) {
 		t.Fatalf("handlers = %d, attendu %d", len(handlers), len(expected))
