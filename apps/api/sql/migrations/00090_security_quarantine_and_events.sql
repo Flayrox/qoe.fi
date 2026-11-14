@@ -16,6 +16,7 @@ ALTER TABLE "ApiKey"
     ADD COLUMN IF NOT EXISTS "suspendedAt" TIMESTAMP(3),
     ADD COLUMN IF NOT EXISTS "suspendReason" TEXT;
 
+-- +goose StatementBegin
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -26,6 +27,7 @@ BEGIN
             CHECK (status IN ('ACTIVE', 'READ_ONLY', 'REVOKED'));
     END IF;
 END$$;
+-- +goose StatementEnd
 
 ALTER TABLE "Publisher"
     ADD COLUMN IF NOT EXISTS "apiReadOnlyAt" TIMESTAMP(3),
