@@ -99,8 +99,22 @@ describe('🛡️ SSRF Shield — validateSafeExternalUrl', () => {
   });
 
   it('accepte les URLs publiques légitimes', async () => {
-    const resGitHub = await validateSafeExternalUrl('https://github.com/blog.atom');
+    // Résolution injectée : le test vérifie la RÈGLE (IP publique acceptée),
+    // pas la disponibilité du DNS de github.com au moment du run.
+    const publicLookup = async () => [{ address: '140.82.121.3', family: 4 }];
+    const resGitHub = await validateSafeExternalUrl('https://github.com/blog.atom', {
+      lookup: publicLookup,
+    });
     expect(resGitHub.valid).toBe(true);
     expect(resGitHub.url?.hostname).toBe('github.com');
+  });
+
+  it('rejette un domaine public qui résout vers une IP privée (DNS rebinding)', async () => {
+    const rebindingLookup = async () => [{ address: '10.0.0.7', family: 4 }];
+    const res = await validateSafeExternalUrl('https://exemple.test/feed.xml', {
+      lookup: rebindingLookup,
+    });
+    expect(res.valid).toBe(false);
+    expect(res.error).toContain('IP privée interdite');
   });
 });

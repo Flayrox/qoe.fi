@@ -116,8 +116,20 @@ const FORBIDDEN_HOSTNAMES = new Set([
 
 /**
  * Valide qu'une URL externe est strictement publique et inoffensive.
+ *
+ * `options.lookup` remplace la résolution DNS réelle : les tests n'ont pas à
+ * dépendre du réseau (un lookup de `github.com` peut dépasser le délai d'un
+ * test sur un runner lent, ce qui faisait échouer la CI sans qu'aucune règle
+ * de sécurité soit en cause). En production, le défaut est `node:dns`.
  */
-export async function validateSafeExternalUrl(rawUrl: string): Promise<SSRFValidationResult> {
+export type DnsLookup = (
+  hostname: string
+) => Promise<ReadonlyArray<{ address: string; family: number }>>;
+
+export async function validateSafeExternalUrl(
+  rawUrl: string,
+  options: { lookup?: DnsLookup } = {}
+): Promise<SSRFValidationResult> {
   if (!rawUrl || typeof rawUrl !== 'string') {
     return { valid: false, error: 'URL invalide ou vide' };
   }
@@ -189,9 +201,14 @@ export async function validateSafeExternalUrl(rawUrl: string): Promise<SSRFValid
   }
 
   try {
-    const mod = 'node:dns';
-    const dns = await import(/* webpackIgnore: true */ `${mod}`);
-    const addresses = await dns.promises.lookup(hostname, { all: true });
+    let addresses: ReadonlyArray<{ address: string; family: number }>;
+    if (options.lookup) {
+      addresses = await options.lookup(hostname);
+    } else {
+      const mod = 'node:dns';
+      const dns = await import(/* webpackIgnore: true */ `${mod}`);
+      addresses = await dns.promises.lookup(hostname, { all: true });
+    }
     if (!addresses || addresses.length === 0) {
       return { valid: false, error: `Impossible de résoudre le nom d'hôte : ${hostname}` };
     }
