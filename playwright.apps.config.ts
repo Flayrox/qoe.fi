@@ -29,6 +29,25 @@ const appEnv = {
   QOE_API_URL: GO_API_URL,
 };
 
+// Mode « prod » : sert le build (`next start`) au lieu de `next dev`. En dev,
+// chaque première visite compile sa route — la matrice de 42 pages dépassait
+// les 20 min de budget CI et se faisait annuler. Avec un build, une page
+// répond en millisecondes. Activé par le job `e2e-apps-routes`, qui construit
+// les deux apps avant de lancer la matrice.
+const APP_PROD = process.env.PLAYWRIGHT_APPS_PROD === '1';
+
+function appServer(pkg: string, port: number) {
+  return {
+    command: APP_PROD
+      ? `pnpm --filter ${pkg} exec next start -p ${port}`
+      : `pnpm --filter ${pkg} dev`,
+    port,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+    env: { ...appEnv, HOSTNAME: '127.0.0.1' },
+  };
+}
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -62,29 +81,11 @@ export default defineConfig({
         REDIS_URL: process.env.REDIS_URL ?? '',
       },
     },
-    {
-      // Health-check TCP : la racine de tenants est publique mais les routes
-      // de studio/admin redirigent (auth) — le port suffit à attendre le boot.
-      command: 'pnpm --filter @qoe/tenants dev',
-      port: 15403,
-      reuseExistingServer: !process.env.CI,
-      timeout: 120_000,
-      env: { ...appEnv, HOSTNAME: '127.0.0.1' },
-    },
-    {
-      command: 'pnpm --filter @qoe/studio dev',
-      port: 15404,
-      reuseExistingServer: !process.env.CI,
-      timeout: 120_000,
-      env: { ...appEnv, HOSTNAME: '127.0.0.1' },
-    },
-    {
-      command: 'pnpm --filter @qoe/admin dev',
-      port: 15405,
-      reuseExistingServer: !process.env.CI,
-      timeout: 120_000,
-      env: { ...appEnv, HOSTNAME: '127.0.0.1' },
-    },
+    // Health-check TCP : la racine de tenants est publique mais les routes
+    // de studio/admin redirigent (auth) — le port suffit à attendre le boot.
+    appServer('@qoe/tenants', 15403),
+    appServer('@qoe/studio', 15404),
+    appServer('@qoe/admin', 15405),
   ],
   projects: [
     {

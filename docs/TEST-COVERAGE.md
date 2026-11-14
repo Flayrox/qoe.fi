@@ -112,6 +112,11 @@ Le job fonctionnel `e2e-apps` les exclut (`--grep-invert`) : la matrice est un r
 pages, pas un parcours métier, et 40 rendus de plus le poussaient vers sa borne de
 30 min.
 
+Le job construit tenants + studio puis lance la matrice avec `PLAYWRIGHT_APPS_PROD=1`
+(les `webServer` servent alors `next start` au lieu de `next dev`). Raison mesurée : en
+dev, chaque première visite compile sa route et les 42 pages dépassaient le budget
+(job annulé deux fois à 20 min) ; sur build, la matrice entière prend **16 s**.
+
 `apps/hi` reste à brancher : `playwright.apps.config.ts` ne démarre pas de serveur pour
 cette app (4 pages). Exemption assumée et tracée ici, pas sautée en silence.
 
