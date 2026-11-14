@@ -39,11 +39,12 @@ test.describe('Console admin', () => {
       '/admin/audit',
     ];
 
+    const adminHeaders = { Host: 'admin.lvh.me:15405' };
     for (const path of adminPaths) {
-      const status = await expectRedirect(request, `${ADMIN}${path}`);
+      const status = await expectRedirect(request, `${ADMIN}${path}`, 12, adminHeaders);
       expect(status, `${path} doit rediriger avec 307`).toBe(307);
 
-      const res = await request.get(`${ADMIN}${path}`, { maxRedirects: 0 });
+      const res = await request.get(`${ADMIN}${path}`, { maxRedirects: 0, headers: adminHeaders });
       const location = res.headers()['location'] ?? '';
       expect(location, `Location de ${path} = ${location}`).toContain('/login');
 
@@ -64,7 +65,8 @@ test.describe('Console admin', () => {
     request,
   }) => {
     const adminEndpoints = [
-      '/v1/admin/overview',
+      '/v1/admin/dashboard',
+      '/v1/admin/security/overview',
       '/v1/admin/users',
       '/v1/admin/publishers',
       '/v1/admin/audit-logs',
@@ -84,7 +86,7 @@ test.describe('Console admin', () => {
     // Faux token
     const fakeToken =
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.fake_signature_xyz';
-    const fakeRes = await request.get(`${GO_API_URL}/v1/admin/overview`, {
+    const fakeRes = await request.get(`${GO_API_URL}/v1/admin/dashboard`, {
       headers: { Authorization: `Bearer ${fakeToken}` },
     });
     expect(fakeRes.status(), 'Token invalide doit être 401').toBe(401);
@@ -92,7 +94,7 @@ test.describe('Console admin', () => {
     // Utilisateur non superadmin
     if (JWT_SECRET) {
       const normalUserToken = mintJwt('00000000-0000-4000-8000-000000000099', { role: 'user' });
-      const nonAdminRes = await request.get(`${GO_API_URL}/v1/admin/overview`, {
+      const nonAdminRes = await request.get(`${GO_API_URL}/v1/admin/dashboard`, {
         headers: { Authorization: `Bearer ${normalUserToken}` },
       });
       expect([401, 403]).toContain(nonAdminRes.status());

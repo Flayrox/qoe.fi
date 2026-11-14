@@ -37,12 +37,16 @@ test.describe('Studio créateur', () => {
       '/account',
     ];
 
+    const studioHeaders = { Host: 'studio.lvh.me:15404' };
     for (const path of protectedPaths) {
-      const status = await expectRedirect(request, `${STUDIO}${path}`);
+      const status = await expectRedirect(request, `${STUDIO}${path}`, 12, studioHeaders);
       expect(status, `${path} doit rediriger avec un code 3xx`).toBeGreaterThanOrEqual(300);
       expect(status, `${path} doit rediriger (307/302)`).toBeLessThan(400);
 
-      const res = await request.get(`${STUDIO}${path}`, { maxRedirects: 0 });
+      const res = await request.get(`${STUDIO}${path}`, {
+        maxRedirects: 0,
+        headers: studioHeaders,
+      });
       const location = res.headers()['location'] ?? '';
       expect(location, `Location de ${path} = ${location}`).toContain('/login');
 

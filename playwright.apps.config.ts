@@ -37,6 +37,8 @@ const appEnv = {
 // les deux apps avant de lancer la matrice.
 const APP_PROD = process.env.PLAYWRIGHT_APPS_PROD === '1';
 const hasProjectArg = process.argv.some((a) => a.startsWith('--project'));
+const NEEDS_TENANTS = !hasProjectArg || process.argv.some((a) => a.includes('tenants'));
+const NEEDS_STUDIO = !hasProjectArg || process.argv.some((a) => a.includes('studio'));
 const NEEDS_HI = !hasProjectArg || process.argv.some((a) => a.includes('hi'));
 const NEEDS_ADMIN = !hasProjectArg || process.argv.some((a) => a.includes('admin'));
 
@@ -89,8 +91,8 @@ export default defineConfig({
     },
     // Health-check TCP : la racine de tenants est publique mais les routes
     // de studio/admin redirigent (auth) — le port suffit à attendre le boot.
-    appServer('@qoe/tenants', 15403),
-    appServer('@qoe/studio', 15404),
+    ...(NEEDS_TENANTS ? [appServer('@qoe/tenants', 15403)] : []),
+    ...(NEEDS_STUDIO ? [appServer('@qoe/studio', 15404)] : []),
     ...(NEEDS_ADMIN ? [appServer('@qoe/admin', 15405)] : []),
     ...(NEEDS_HI ? [appServer('@qoe/hi', 15401)] : []),
   ],
