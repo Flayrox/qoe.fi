@@ -186,6 +186,48 @@ test.describe('Parcours public tenants — hermétique', () => {
     }
   });
 
+  test('🏷️ SEO & OpenGraph : balise canonique et métadonnées sociales complètes sur l’article', async ({
+    page,
+  }) => {
+    await page.goto(tenantArticlePath(MEDIA.subdomain, MEDIA_ARTICLE.slug), {
+      waitUntil: 'networkidle',
+    });
+
+    // 1. Balise canonique présente et pointant vers le slug
+    const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
+    expect(canonical, 'Balise canonical requise').toBeTruthy();
+    expect(canonical).toContain(MEDIA_ARTICLE.slug);
+
+    // 2. Balise OpenGraph titre
+    const ogTitle = await page.locator('meta[property="og:title"]').getAttribute('content');
+    expect(ogTitle).toBeTruthy();
+    expect(ogTitle).toContain(MEDIA_ARTICLE.title);
+
+    // 3. Balise OpenGraph site_name
+    const ogSiteName = await page.locator('meta[property="og:site_name"]').getAttribute('content');
+    expect(ogSiteName).toBe(MEDIA.name);
+  });
+
+  test('📱 ergonomie mobile : zéro débordement horizontal sur la home et l’article', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+
+    await page.goto(`/tenant/${PERSONAL.subdomain}`, { waitUntil: 'networkidle' });
+    const homeOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth + 1
+    );
+    expect(homeOverflow, 'La home tenant ne doit pas déborder horizontalement').toBe(true);
+
+    await page.goto(tenantArticlePath(MEDIA.subdomain, MEDIA_ARTICLE.slug), {
+      waitUntil: 'networkidle',
+    });
+    const articleOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth + 1
+    );
+    expect(articleOverflow, 'L’article tenant ne doit pas déborder horizontalement').toBe(true);
+  });
+
   test('un sous-domaine inconnu rend une 404 propre', async ({ page }) => {
     const response = await page.goto('/tenant/sous-domaine-inexistant', {
       waitUntil: 'networkidle',

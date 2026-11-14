@@ -12,7 +12,7 @@
 
 import { test, expect } from '@playwright/test';
 import { TestDb } from './lib/db';
-import { COOKIE_NAME, DATABASE_URL, JWT_SECRET, mintJwt } from './lib/env';
+import { COOKIE_NAME, DATABASE_URL, GO_API_URL, JWT_SECRET, mintJwt } from './lib/env';
 import { expectRedirect } from './lib/redirect';
 
 const STUDIO = process.env.PLAYWRIGHT_STUDIO_URL ?? 'http://localhost:15404';
@@ -21,16 +21,77 @@ const RUN_FULL_STACK = process.env.RUN_FULL_STACK === '1';
 const CREATOR_ID = '00000000-0000-4000-8000-000000000001';
 
 test.describe('Studio créateur', () => {
-  test('le périmètre créateur est verrouillé : toute route redirige vers /login', async ({
+  test('le périmètre créateur est verrouillé : toutes les routes sensibles redirigent vers /login', async ({
     request,
   }) => {
-    for (const path of ['/', '/articles', '/media', '/settings']) {
+    const protectedPaths = [
+      '/',
+      '/articles',
+      '/articles/new',
+      '/media',
+      '/settings',
+      '/analytics',
+      '/subscribers',
+      '/newsletter',
+      '/import',
+      '/account',
+    ];
+
+    for (const path of protectedPaths) {
       const status = await expectRedirect(request, `${STUDIO}${path}`);
-      expect(status, `${path} doit rediriger`).toBeGreaterThanOrEqual(300);
-      expect(status, `${path} doit rediriger (307)`).toBeLessThan(400);
+      expect(status, `${path} doit rediriger avec un code 3xx`).toBeGreaterThanOrEqual(300);
+      expect(status, `${path} doit rediriger (307/302)`).toBeLessThan(400);
+
       const res = await request.get(`${STUDIO}${path}`, { maxRedirects: 0 });
       const location = res.headers()['location'] ?? '';
       expect(location, `Location de ${path} = ${location}`).toContain('/login');
+
+      // Vérifie l'en-tête anti-cache pour protéger les données privées créateur
+      const cacheControl = res.headers()['cache-control'] ?? '';
+      const isAntiCache =
+        cacheControl.includes('private') ||
+        cacheControl.includes('no-store') ||
+        cacheControl.includes('no-cache');
+      expect(
+        isAntiCache,
+        `Cache-Control sur ${path} doit interdire la mise en cache publique (${cacheControl})`
+      ).toBe(true);
+    }
+  });
+
+  test('l’API Go créateur rejette les requêtes non authentifiées avec 401', async ({ request }) => {
+    const creatorEndpoints = [
+      '/v1/creator/articles',
+      '/v1/creator/recommendations',
+      '/v1/creator/subscribers',
+      '/v1/creator/analytics',
+    ];
+
+    for (const endpoint of creatorEndpoints) {
+      const res = await request.get(`${GO_API_URL}${endpoint}`);
+      expect(res.status(), `GET ${endpoint} sans auth doit renvoyer 401`).toBe(401);
+      const json = await res.json().catch(() => null);
+      expect(json, `GET ${endpoint} doit renvoyer un JSON d'erreur`).toBeTruthy();
+      expect(json?.code || json?.error || json?.message).toBeTruthy();
+    }
+  });
+
+  test('l’API Go créateur rejette les tokens falsifiés ou expirés', async ({ request }) => {
+    // 1. Token avec une fausse signature
+    const fakeToken =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.fake_signature_xyz';
+    const fakeRes = await request.get(`${GO_API_URL}/v1/creator/articles`, {
+      headers: { Authorization: `Bearer ${fakeToken}` },
+    });
+    expect(fakeRes.status(), 'Token invalide doit renvoyer 401').toBe(401);
+
+    // 2. Token signé mais expiré il y a 24h
+    if (JWT_SECRET) {
+      const expiredToken = mintJwt(CREATOR_ID, { exp: Math.floor(Date.now() / 1000) - 86400 });
+      const expiredRes = await request.get(`${GO_API_URL}/v1/creator/articles`, {
+        headers: { Authorization: `Bearer ${expiredToken}` },
+      });
+      expect(expiredRes.status(), 'Token expiré doit renvoyer 401').toBe(401);
     }
   });
 
