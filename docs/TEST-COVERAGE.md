@@ -106,8 +106,11 @@ un par un, pas seulement comptés.
 `e2e/lib/route-matrix.ts`) visitent **toutes** les pages découvertes de `apps/tenants`
 (16 patterns) et `apps/studio` (24 patterns), avec le même contrat : jamais 5xx, jamais
 l'error boundary, redirection toujours accompagnée d'un `Location`, inventaire jamais
-vide (garde `MIN_PAGES`). 42 cas, ramassés automatiquement par le job `e2e-apps`
-(`playwright.apps.config.ts`). Local : **42/42 verts**.
+vide (garde `MIN_PAGES`). 42 cas, exécutés par le job dédié **`e2e-apps-routes`**
+(`playwright.apps.config.ts`, `--grep "Matrice de routes"`). Local : **42/42 verts**.
+Le job fonctionnel `e2e-apps` les exclut (`--grep-invert`) : la matrice est un rendu de
+pages, pas un parcours métier, et 40 rendus de plus le poussaient vers sa borne de
+30 min.
 
 `apps/hi` reste à brancher : `playwright.apps.config.ts` ne démarre pas de serveur pour
 cette app (4 pages). Exemption assumée et tracée ici, pas sautée en silence.

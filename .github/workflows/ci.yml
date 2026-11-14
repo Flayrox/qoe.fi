@@ -526,8 +526,11 @@ jobs:
       # Les parcours authentifiés complets (RUN_FULL_STACK=1) restent locaux.
       # QOE_API_URL aligne e2e/lib/env.ts sur le port de l'API Go démarrée
       # par playwright.apps.config.ts.
+      # La matrice de routes (see job e2e-apps-routes) n'a rien à faire ici :
+      # elle rend 40 pages et pousserait ce job au-delà de sa borne de 30 min.
+      # Ici on ne garde que les parcours fonctionnels.
       - name: Run E2E (tenants + studio + admin gates)
-        run: pnpm exec playwright test --config playwright.apps.config.ts
+        run: pnpm exec playwright test --config playwright.apps.config.ts --grep-invert "Matrice de routes"
         env:
           CI: 'true'
           PLAYWRIGHT_GO_API_PORT: '8091'
@@ -541,6 +544,100 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-apps
+          path: playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # La matrice de routes des apps secondaires a son propre job : elle rend
+  # chaque page découverte de tenants (16) et studio (24) et n'a aucun récit
+  # fonctionnel en commun avec e2e-apps, qui était déjà proche de sa borne.
+  # Un job dédié garde le log nominatif par page et un budget indépendant.
+  e2e-apps-routes:
+    name: E2E Apps Routes (tenants + studio)
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: qoe
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d qoe"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - '6379:6379'
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile --fetch-timeout 600000
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
+
+      - name: Prepare Database (goose migrations)
+        working-directory: apps/api
+        run: go run ./cmd/migrate -dir sql/migrations up
+        env:
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe'
+
+      - name: Seed Database (demo content)
+        working-directory: apps/api
+        run: go run ./cmd/seed
+        env:
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe'
+
+      - name: Install Playwright Chromium
+        run: pnpm e2e:install
+
+      # Contrat par page (cf. e2e/lib/route-matrix.ts) : jamais 5xx, jamais
+      # l'error boundary, redirection toujours avec un Location, inventaire non
+      # vide. Le log nomme chaque page rendue (`[app] /chemin → statut`).
+      - name: Run E2E apps route matrix
+        run: pnpm exec playwright test --config playwright.apps.config.ts --project=tenants --project=studio --grep "Matrice de routes"
+        env:
+          CI: 'true'
+          PLAYWRIGHT_GO_API_PORT: '8091'
+          QOE_API_URL: 'http://localhost:8091'
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe'
+          NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321'
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key'
+
+      - name: Upload Playwright Report (apps routes)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-apps-routes
           path: playwright-report/
           retention-days: 7
           if-no-files-found: ignore
