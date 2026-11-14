@@ -60,7 +60,9 @@ export async function middleware(request: NextRequest) {
       ? `${proto}://${safeHost}${request.nextUrl.pathname}${request.nextUrl.search}`
       : `${getMonorepoUrl('studio')}${request.nextUrl.pathname}${request.nextUrl.search}`;
     const redirectTarget = `${loginBase}?redirect=${encodeURIComponent(currentTarget)}`;
-    return NextResponse.redirect(new URL(redirectTarget));
+    const redirectRes = NextResponse.redirect(new URL(redirectTarget));
+    redirectRes.headers.set('Cache-Control', 'private, no-store');
+    return redirectRes;
   }
 
   // 3. Liens profonds `?ws=<mediaId>` (notifications, emails, partage) :
