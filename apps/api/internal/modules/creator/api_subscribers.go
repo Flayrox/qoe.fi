@@ -378,6 +378,7 @@ func (h *Handler) apiPublisherMetadata(w http.ResponseWriter, r *http.Request) {
 	if siteOptions != nil {
 		payload["siteOptions"] = siteOptions
 	}
+	w.Header().Set("Cache-Control", "public, max-age=300, s-maxage=600, stale-while-revalidate=3600")
 	response.OK(w, payload)
 }
 

@@ -235,8 +235,9 @@ func (h *Handler) apiCategories(w http.ResponseWriter, r *http.Request) {
 		if err := rows.Scan(&it.ID, &it.Slug, &it.Name, &it.Description, &it.ParentID, &it.IsDefault, &it.ArticleCount); err != nil {
 			continue
 		}
-		items = append(items, it)
+	items = append(items, it)
 	}
+	w.Header().Set("Cache-Control", "public, max-age=300, s-maxage=600, stale-while-revalidate=3600")
 	response.OK(w, map[string]any{"categories": items})
 }
 
@@ -385,6 +386,12 @@ func (h *Handler) apiArticles(w http.ResponseWriter, r *http.Request) {
 		"hasMore":    page.HasMore,
 		"nextCursor": page.NextCursor,
 	}
+	switch q.Get("status") {
+	case "draft", "scheduled", "submitted", "all":
+		w.Header().Set("Cache-Control", "private, no-store")
+	default:
+		w.Header().Set("Cache-Control", "public, max-age=60, s-maxage=120, stale-while-revalidate=600")
+	}
 	response.OK(w, payload)
 }
 
@@ -470,6 +477,11 @@ func (h *Handler) apiArticleBySlug(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[creator] api article by slug: %v", err)
 		response.Internal(w)
 		return
+	}
+	if full.Published && full.Status == "PUBLISHED" {
+		w.Header().Set("Cache-Control", "public, max-age=60, s-maxage=120, stale-while-revalidate=600")
+	} else {
+		w.Header().Set("Cache-Control", "private, no-store")
 	}
 	response.OK(w, full)
 }
@@ -622,6 +634,7 @@ func (h *Handler) apiSearch(w http.ResponseWriter, r *http.Request) {
 		"hasMore":    page.HasMore,
 		"nextCursor": page.NextCursor,
 	}
+	w.Header().Set("Cache-Control", "private, no-store")
 	response.OK(w, payload)
 }
 
