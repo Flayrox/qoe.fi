@@ -942,17 +942,21 @@ func (s *Service) teamMembers(ctx context.Context, pub *PublisherDetail) ([]Team
 	}
 
 	if len(membersMap) == 0 {
-		return []TeamMemberItem{
-			{
-				ID:          pub.ID,
-				Name:        pub.Name,
-				Username:    pub.User.Username,
-				LogoURL:     pub.LogoURL,
-				Bio:         pub.Bio,
-				Role:        "Auteur",
-				IsCertified: pub.IsCertified,
-			},
-		}, nil
+		// Repli : une publication sans aucun auteur (pas d'utilisateur lié,
+		// pas d'article publié) reste rendable. Lire pub.User sans garde
+		// faisait paniquer la home tenant en 500 (nil pointer).
+		fallback := TeamMemberItem{
+			ID:          pub.ID,
+			Name:        pub.Name,
+			LogoURL:     pub.LogoURL,
+			Bio:         pub.Bio,
+			Role:        "Auteur",
+			IsCertified: pub.IsCertified,
+		}
+		if pub.User != nil {
+			fallback.Username = pub.User.Username
+		}
+		return []TeamMemberItem{fallback}, nil
 	}
 
 	out := make([]TeamMemberItem, 0, len(membersMap))

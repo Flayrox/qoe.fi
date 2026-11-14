@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"net/http"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -101,7 +102,12 @@ func Recovery(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rec := recover(); rec != nil {
-				logging.FromContext(r.Context()).Error("panic recovered", "panic", rec, "method", r.Method, "path", r.URL.Path)
+				// La pile est indispensable : sans elle, un 500 silencieux
+				// (nil pointer dans un handler) est indébogable en prod.
+				logging.FromContext(r.Context()).Error(
+					"panic recovered", "panic", rec, "method", r.Method, "path", r.URL.Path,
+					"stack", string(debug.Stack()),
+				)
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusInternalServerError)
 				_, _ = w.Write([]byte(`{"error":"Internal Server Error"}`))

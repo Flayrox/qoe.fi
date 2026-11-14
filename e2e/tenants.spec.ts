@@ -14,6 +14,7 @@
 import { test, expect } from '@playwright/test';
 import { TestDb } from './lib/db';
 import { DATABASE_URL, GO_API_URL } from './lib/env';
+import { tenantArticlePath } from './lib/tenant-paths';
 
 // ─── Fixtures déterministes (créées et nettoyées par le spec) ──────────
 const MEDIA = {
@@ -116,7 +117,7 @@ test.describe('Parcours public tenants — hermétique', () => {
     for (const path of [
       `/tenant/${PERSONAL.subdomain}`,
       `/tenant/${MEDIA.subdomain}`,
-      `/tenant/${MEDIA.subdomain}/article/${MEDIA_ARTICLE.slug}`,
+      tenantArticlePath(MEDIA.subdomain, MEDIA_ARTICLE.slug),
     ]) {
       await request.get(path, { timeout: 60_000 }).catch(() => {});
     }
@@ -147,7 +148,7 @@ test.describe('Parcours public tenants — hermétique', () => {
     await page.goto(`/tenant/${MEDIA.subdomain}`, { waitUntil: 'networkidle' });
     await expect(page.getByText(MEDIA.name).first()).toBeVisible({ timeout: 30_000 });
 
-    await page.goto(`/tenant/${MEDIA.subdomain}/article/${MEDIA_ARTICLE.slug}`, {
+    await page.goto(tenantArticlePath(MEDIA.subdomain, MEDIA_ARTICLE.slug), {
       waitUntil: 'networkidle',
     });
     await expect(page.getByText(MEDIA_ARTICLE.title).first()).toBeVisible({ timeout: 30_000 });
@@ -156,7 +157,7 @@ test.describe('Parcours public tenants — hermétique', () => {
   test('🔒 zéro-fuite : le passage réservé n’apparaît ni dans le HTML ni dans les métadonnées', async ({
     page,
   }) => {
-    await page.goto(`/tenant/${MEDIA.subdomain}/article/${MEDIA_ARTICLE.slug}`, {
+    await page.goto(tenantArticlePath(MEDIA.subdomain, MEDIA_ARTICLE.slug), {
       waitUntil: 'networkidle',
     });
     // Le teaser public reste servi.
