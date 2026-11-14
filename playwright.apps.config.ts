@@ -36,11 +36,13 @@ const appEnv = {
 // les deux apps avant de lancer la matrice.
 const APP_PROD = process.env.PLAYWRIGHT_APPS_PROD === '1';
 
-function appServer(pkg: string, port: number) {
+/**
+ * `prod: false` garde `next dev` pour une app qui n'est pas construite par le
+ * job (admin : la matrice ne le couvre pas, inutile de payer son build).
+ */
+function appServer(pkg: string, port: number, prod = APP_PROD) {
   return {
-    command: APP_PROD
-      ? `pnpm --filter ${pkg} exec next start -p ${port}`
-      : `pnpm --filter ${pkg} dev`,
+    command: prod ? `pnpm --filter ${pkg} exec next start -p ${port}` : `pnpm --filter ${pkg} dev`,
     port,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
@@ -85,7 +87,7 @@ export default defineConfig({
     // de studio/admin redirigent (auth) — le port suffit à attendre le boot.
     appServer('@qoe/tenants', 15403),
     appServer('@qoe/studio', 15404),
-    appServer('@qoe/admin', 15405),
+    appServer('@qoe/admin', 15405, false),
   ],
   projects: [
     {
