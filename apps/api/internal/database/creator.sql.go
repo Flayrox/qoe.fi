@@ -131,6 +131,8 @@ const getApiKeyByHash = `-- name: GetApiKeyByHash :one
 SELECT ak.id                                            AS api_key_id,
        ak."keyHash"                                     AS key_hash,
        ak.scopes                                        AS scopes,
+       ak.status                                        AS key_status,
+       ak."suspendedAt"                                 AS key_suspended_at,
        COALESCE(ak."userId"::text, '')::text            AS key_user_id,
        COALESCE(ak."publisherId"::text, '')::text    AS key_publisher_id,
        COALESCE(ak."createdByUserId"::text, '')::text  AS created_by_user_id,
@@ -141,13 +143,21 @@ SELECT ak.id                                            AS api_key_id,
        u."logoUrl"                                      AS user_logo_url,
        u."isCertified"                                  AS user_is_certified,
        u.role                                           AS user_role,
+       COALESCE(u."isSuspended", false)::boolean        AS user_is_suspended,
        u."apiAccessStatus"                              AS user_api_access_status,
        u."apiGrants"                                    AS user_api_grants,
        COALESCE(p.id::text, '')::text                   AS publisher_id,
        COALESCE(p.type::text, '')::text                 AS publisher_type,
        p."umamiWebsiteId"                               AS umami_website_id,
+       p."apiReadOnlyAt"                                AS publisher_read_only_at,
        COALESCE(md.id::text, '')::text                  AS media_id,
-       sc.value                                         AS platform_api_modules
+       sc.value                                         AS platform_api_modules,
+       EXISTS(
+         SELECT 1 FROM "RiskDecision" rd
+         WHERE rd."subjectId" = COALESCE(ak."userId"::text, ak."createdByUserId"::text)
+           AND rd.decision IN ('suspend', 'pause_sending')
+           AND (rd."expiresAt" IS NULL OR rd."expiresAt" > now())
+       )::boolean                                       AS has_active_risk_suspension
 FROM "ApiKey" ak
 LEFT JOIN "User" u ON u.id = ak."userId"
 LEFT JOIN "Publisher" p ON p.id = COALESCE(ak."publisherId", u."publisherId")
@@ -158,26 +168,31 @@ LIMIT 1
 `
 
 type GetApiKeyByHashRow struct {
-	ApiKeyID            string      `json:"api_key_id"`
-	KeyHash             string      `json:"key_hash"`
-	Scopes              []string    `json:"scopes"`
-	KeyUserID           string      `json:"key_user_id"`
-	KeyPublisherID      string      `json:"key_publisher_id"`
-	CreatedByUserID     string      `json:"created_by_user_id"`
-	UserID              string      `json:"user_id"`
-	UserEmail           pgtype.Text `json:"user_email"`
-	UserUsername        pgtype.Text `json:"user_username"`
-	UserName            pgtype.Text `json:"user_name"`
-	UserLogoUrl         pgtype.Text `json:"user_logo_url"`
-	UserIsCertified     pgtype.Bool `json:"user_is_certified"`
-	UserRole            pgtype.Text `json:"user_role"`
-	UserApiAccessStatus pgtype.Text `json:"user_api_access_status"`
-	UserApiGrants       []string    `json:"user_api_grants"`
-	PublisherID         string      `json:"publisher_id"`
-	PublisherType       string      `json:"publisher_type"`
-	UmamiWebsiteID      pgtype.Text `json:"umami_website_id"`
-	MediaID             string      `json:"media_id"`
-	PlatformApiModules  pgtype.Text `json:"platform_api_modules"`
+	ApiKeyID                string           `json:"api_key_id"`
+	KeyHash                 string           `json:"key_hash"`
+	Scopes                  []string         `json:"scopes"`
+	KeyStatus               string           `json:"key_status"`
+	KeySuspendedAt          pgtype.Timestamp `json:"key_suspended_at"`
+	KeyUserID               string           `json:"key_user_id"`
+	KeyPublisherID          string           `json:"key_publisher_id"`
+	CreatedByUserID         string           `json:"created_by_user_id"`
+	UserID                  string           `json:"user_id"`
+	UserEmail               pgtype.Text      `json:"user_email"`
+	UserUsername            pgtype.Text      `json:"user_username"`
+	UserName                pgtype.Text      `json:"user_name"`
+	UserLogoUrl             pgtype.Text      `json:"user_logo_url"`
+	UserIsCertified         pgtype.Bool      `json:"user_is_certified"`
+	UserRole                pgtype.Text      `json:"user_role"`
+	UserIsSuspended         bool             `json:"user_is_suspended"`
+	UserApiAccessStatus     pgtype.Text      `json:"user_api_access_status"`
+	UserApiGrants           []string         `json:"user_api_grants"`
+	PublisherID             string           `json:"publisher_id"`
+	PublisherType           string           `json:"publisher_type"`
+	UmamiWebsiteID          pgtype.Text      `json:"umami_website_id"`
+	PublisherReadOnlyAt     pgtype.Timestamp `json:"publisher_read_only_at"`
+	MediaID                 string           `json:"media_id"`
+	PlatformApiModules      pgtype.Text      `json:"platform_api_modules"`
+	HasActiveRiskSuspension bool             `json:"has_active_risk_suspension"`
 }
 
 // API Créateur (migration depuis Hono apps/api) : clés API, catégories, users, follows, bookmarks.
@@ -188,6 +203,8 @@ func (q *Queries) GetApiKeyByHash(ctx context.Context, keyhash string) (GetApiKe
 		&i.ApiKeyID,
 		&i.KeyHash,
 		&i.Scopes,
+		&i.KeyStatus,
+		&i.KeySuspendedAt,
 		&i.KeyUserID,
 		&i.KeyPublisherID,
 		&i.CreatedByUserID,
@@ -198,13 +215,16 @@ func (q *Queries) GetApiKeyByHash(ctx context.Context, keyhash string) (GetApiKe
 		&i.UserLogoUrl,
 		&i.UserIsCertified,
 		&i.UserRole,
+		&i.UserIsSuspended,
 		&i.UserApiAccessStatus,
 		&i.UserApiGrants,
 		&i.PublisherID,
 		&i.PublisherType,
 		&i.UmamiWebsiteID,
+		&i.PublisherReadOnlyAt,
 		&i.MediaID,
 		&i.PlatformApiModules,
+		&i.HasActiveRiskSuspension,
 	)
 	return i, err
 }

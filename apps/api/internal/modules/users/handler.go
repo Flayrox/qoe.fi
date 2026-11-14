@@ -44,6 +44,8 @@ func (h *Handler) Register(r chi.Router) {
 	r.Delete("/v1/me/sessions/{id}", h.revokeSession)
 	r.Post("/v1/me/sessions/revoke-others", h.revokeOtherSessions)
 	r.Post("/v1/me/sessions/revoke-all", h.revokeAllSessions)
+	r.Get("/v1/me/security-events", h.securityEvents)
+	r.Post("/v1/me/security-login-check", h.securityLoginCheck)
 	r.Patch("/v1/me/profile", h.updateProfile)
 	r.Get("/v1/me/media/{mediaId}", h.mediaPublisher)
 	r.Get("/v1/me/billing", h.billing)
@@ -263,6 +265,9 @@ func (h *Handler) mfaVerify(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		response.Error(w, http.StatusBadRequest, err.Error())
 		return
+	}
+	if strings.HasSuffix(path, "/verify") {
+		h.svc.RecordSecurityEvent(r.Context(), userID, "", "mfa_enrolled", "", "", nil, true)
 	}
 	response.OK(w, data)
 }
@@ -665,4 +670,41 @@ func (h *Handler) walletUnlock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]bool{"success": true})
+}
+
+// GET /v1/me/security-events — historique récent des événements de sécurité.
+func (h *Handler) securityEvents(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	events, err := h.svc.ListSecurityEvents(r.Context(), userID)
+	if err != nil {
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]any{"events": events})
+}
+
+// POST /v1/me/security-login-check — détecte un nouvel environnement de connexion.
+func (h *Handler) securityLoginCheck(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	rawIP := r.Header.Get("X-Forwarded-For")
+	if rawIP == "" {
+		rawIP = r.Header.Get("X-Real-Ip")
+	}
+	if rawIP == "" {
+		rawIP = r.RemoteAddr
+	}
+	isNew, err := h.svc.CheckLoginEnvironment(r.Context(), userID, rawIP, r.UserAgent())
+	if err != nil {
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]any{"newEnvironment": isNew})
 }

@@ -76,6 +76,21 @@ func isValidImageURL(u string) bool {
 	return strings.HasPrefix(u, "https://") || strings.HasPrefix(u, "http://") || (strings.HasPrefix(u, "/") && !strings.HasPrefix(u, "//"))
 }
 
+func resolveTrustActorID(ctx context.Context, userID, publisherID string) string {
+	if userID != "" {
+		return userID
+	}
+	if p, ok := middleware.GetPrincipal(ctx); ok {
+		if p.UserID != nil && *p.UserID != "" {
+			return *p.UserID
+		}
+		if p.CreatedByUserID != nil && *p.CreatedByUserID != "" {
+			return *p.CreatedByUserID
+		}
+	}
+	return publisherID
+}
+
 func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	publisherID, _ := middleware.PublisherID(r.Context())
@@ -123,10 +138,7 @@ func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 		}
 		in.SeoDescription = cleanDesc
 	}
-	actorID := userID
-	if actorID == "" {
-		actorID = publisherID
-	}
+	actorID := resolveTrustActorID(r.Context(), userID, publisherID)
 	prof := h.sec.EvaluateRequest(r.Context(), r, actorID)
 	if !h.sec.EnforceRateLimit(r.Context(), w, r, "articles-create", actorID, prof.Tier, secguard.QuotasArticlesCreate) {
 		return
@@ -398,10 +410,7 @@ func (h *Handler) apiArticleUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actorID := userID
-	if actorID == "" {
-		actorID = publisherID
-	}
+	actorID := resolveTrustActorID(r.Context(), userID, publisherID)
 	prof := h.sec.EvaluateRequest(r.Context(), r, actorID)
 	if !h.sec.EnforceRateLimit(r.Context(), w, r, "articles-edit", actorID, prof.Tier, secguard.QuotasArticlesEdit) {
 		return

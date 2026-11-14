@@ -24,6 +24,19 @@ export async function getAccountSecuritySessionsAction() {
   }>('/v1/me/sessions');
 }
 
+export type SecurityEventItem = {
+  id: string;
+  eventType: string;
+  ipSubnet?: string;
+  userAgent?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+};
+
+export async function getAccountSecurityEventsAction() {
+  return goFetch<{ events: SecurityEventItem[] }>('/v1/me/security-events');
+}
+
 export async function getAccountSecurityConsentAction() {
   return goFetch<{
     analytics: boolean;

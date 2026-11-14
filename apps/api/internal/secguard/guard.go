@@ -56,49 +56,57 @@ func (q TierQuotas) forTier(tier trust.Tier) QuotaWindow {
 // Tables de quotas alignées sur la politique anti-flood multi-couches.
 var (
 	QuotasThoughts = TierQuotas{
-		Low:       QuotaWindow{PerHour: 5},
-		Standard:  QuotaWindow{PerMin: 10, PerHour: 60},
-		Trusted:   QuotaWindow{PerMin: 20, PerHour: 150},
-		UseSubnet: true,
+		Restricted: QuotaWindow{PerDay: 1},
+		Low:        QuotaWindow{PerHour: 5},
+		Standard:   QuotaWindow{PerMin: 10, PerHour: 60},
+		Trusted:    QuotaWindow{PerMin: 20, PerHour: 150},
+		UseSubnet:  true,
 	}
 	QuotasArticlesCreate = TierQuotas{
-		Low:       QuotaWindow{PerDay: 2},
-		Standard:  QuotaWindow{PerMin: 5, PerHour: 30},
-		Trusted:   QuotaWindow{PerMin: 10, PerHour: 60},
-		UseSubnet: true,
+		Restricted: QuotaWindow{PerDay: 1},
+		Low:        QuotaWindow{PerDay: 2},
+		Standard:   QuotaWindow{PerMin: 5, PerHour: 30},
+		Trusted:    QuotaWindow{PerMin: 10, PerHour: 60},
+		UseSubnet:  true,
 	}
 	QuotasArticlesEdit = TierQuotas{
-		Low:      QuotaWindow{PerMin: 15},
-		Standard: QuotaWindow{PerMin: 30},
-		Trusted:  QuotaWindow{PerMin: 60},
+		Restricted: QuotaWindow{PerMin: 5},
+		Low:        QuotaWindow{PerMin: 15},
+		Standard:   QuotaWindow{PerMin: 30},
+		Trusted:    QuotaWindow{PerMin: 60},
 	}
 	QuotasComments = TierQuotas{
-		Low:       QuotaWindow{PerHour: 10},
-		Standard:  QuotaWindow{PerMin: 20, PerHour: 120},
-		Trusted:   QuotaWindow{PerMin: 30, PerHour: 250},
-		UseSubnet: true,
+		Restricted: QuotaWindow{PerDay: 2},
+		Low:        QuotaWindow{PerHour: 10},
+		Standard:   QuotaWindow{PerMin: 20, PerHour: 120},
+		Trusted:    QuotaWindow{PerMin: 30, PerHour: 250},
+		UseSubnet:  true,
 	}
 	QuotasDMs = TierQuotas{
-		Low:       QuotaWindow{PerMin: 10, PerHour: 60},
-		Standard:  QuotaWindow{PerMin: 20, PerHour: 200},
-		Trusted:   QuotaWindow{PerMin: 30, PerHour: 400},
-		UseSubnet: true,
+		Restricted: QuotaWindow{PerDay: 1},
+		Low:        QuotaWindow{PerMin: 10, PerHour: 60},
+		Standard:   QuotaWindow{PerMin: 20, PerHour: 200},
+		Trusted:    QuotaWindow{PerMin: 30, PerHour: 400},
+		UseSubnet:  true,
 	}
 	QuotasFollow = TierQuotas{
-		Low:       QuotaWindow{PerHour: 10},
-		Standard:  QuotaWindow{PerMin: 30, PerHour: 150},
-		Trusted:   QuotaWindow{PerMin: 60, PerHour: 300},
-		UseSubnet: true,
+		Restricted: QuotaWindow{PerDay: 2},
+		Low:        QuotaWindow{PerHour: 10},
+		Standard:   QuotaWindow{PerMin: 30, PerHour: 150},
+		Trusted:    QuotaWindow{PerMin: 60, PerHour: 300},
+		UseSubnet:  true,
 	}
 	QuotasEngagement = TierQuotas{
-		Low:      QuotaWindow{PerMin: 30},
-		Standard: QuotaWindow{PerMin: 60},
-		Trusted:  QuotaWindow{PerMin: 120},
+		Restricted: QuotaWindow{PerMin: 5},
+		Low:        QuotaWindow{PerMin: 30},
+		Standard:   QuotaWindow{PerMin: 60},
+		Trusted:    QuotaWindow{PerMin: 120},
 	}
 	QuotasReports = TierQuotas{
-		Low:      QuotaWindow{PerHour: 3},
-		Standard: QuotaWindow{PerHour: 10},
-		Trusted:  QuotaWindow{PerHour: 15},
+		Restricted: QuotaWindow{PerHour: 1},
+		Low:        QuotaWindow{PerHour: 3},
+		Standard:   QuotaWindow{PerHour: 10},
+		Trusted:    QuotaWindow{PerHour: 15},
 	}
 )
 

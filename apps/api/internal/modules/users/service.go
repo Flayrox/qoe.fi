@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -30,10 +31,14 @@ type Service struct {
 	gotrue   *goTrueClient
 	consent  SignupConsentRecorder
 	trustSvc *trust.Service
+	asynq    *asynq.Client
 }
 
 // SetTrustService branche le cache Trust pour invalidation temps réel.
 func (s *Service) SetTrustService(ts *trust.Service) { s.trustSvc = ts }
+
+// SetAsynqClient branche le client asynq pour l'envoi d'alertes de sécurité.
+func (s *Service) SetAsynqClient(c *asynq.Client) { s.asynq = c }
 
 type Identity struct {
 	Email string `json:"email"`
@@ -115,6 +120,9 @@ func (s *Service) nextFactorName(
 }
 func (s *Service) MFADelete(ctx context.Context, userID, authorization, path string) error {
 	_, err := s.gotrueRequest(ctx, userID, authorization, http.MethodDelete, path, nil)
+	if err == nil {
+		s.RecordSecurityEvent(ctx, userID, "", "mfa_removed", "", "", nil, true)
+	}
 	return err
 }
 func (s *Service) gotrueRequest(ctx context.Context, userID, authorization, method, path string, payload map[string]any) (map[string]any, error) {
@@ -156,6 +164,7 @@ func (s *Service) ChangeEmail(ctx context.Context, userID, currentPassword, newE
 	if err != nil {
 		return err
 	}
+	s.RecordSecurityEvent(ctx, userID, newEmail, "email_changed", "", "", map[string]any{"newEmail": newEmail}, true)
 	// Les abonnements NE SUIVENT PAS ici (fiche 01 §4) : basculer les envois
 	// vers une adresse non vérifiée exposerait les newsletters à une adresse
 	// que personne n'a prouvée. La migration passe par
@@ -263,7 +272,11 @@ func (s *Service) ChangePassword(ctx context.Context, userID, currentPassword, n
 	if len(newPassword) < 12 || len(newPassword) > 128 {
 		return errors.New("Le nouveau mot de passe doit contenir entre 12 et 128 caractères.")
 	}
-	return s.gotrue.updateUser(ctx, userID, map[string]any{"password": newPassword})
+	if err := s.gotrue.updateUser(ctx, userID, map[string]any{"password": newPassword}); err != nil {
+		return err
+	}
+	s.RecordSecurityEvent(ctx, userID, "", "password_changed", "", "", nil, true)
+	return nil
 }
 
 func NewService(pool *pgxpool.Pool) *Service {

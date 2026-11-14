@@ -69,15 +69,14 @@ export function MfaPanel() {
   }
 
   return (
-    <div className="rounded-xl border border-border/50 bg-card p-5 space-y-4">
+    <div id="security-mfa" className="rounded-xl border border-border/50 bg-card p-5 space-y-4">
       <div className="flex items-center gap-2">
         <ShieldCheck className="h-4 w-4 text-primary" />
         <h3 className="font-semibold">Authentification forte</h3>
       </div>
       <p className="text-sm text-muted-foreground">
-        Une application d’authentification (TOTP) ou une passkey est exigée avant les actions
-        sensibles : clés d’API, envoi de campagne, gestion des membres. Un code reçu par SMS ne
-        suffit pas.
+        Une application d’authentification (TOTP) est exigée avant les actions sensibles : clés
+        d’API, envoi de campagne, gestion des membres. Un code reçu par SMS ne suffit pas.
       </p>
 
       {loading ? (

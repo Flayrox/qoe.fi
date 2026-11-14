@@ -445,6 +445,7 @@ type Querier interface {
 	GroupUsersByCountry(ctx context.Context, dollar_1 []pgtype.UUID) ([]GroupUsersByCountryRow, error)
 	GroupUsersByGender(ctx context.Context, dollar_1 []pgtype.UUID) ([]GroupUsersByGenderRow, error)
 	GroupUsersByLanguage(ctx context.Context, dollar_1 []pgtype.UUID) ([]GroupUsersByLanguageRow, error)
+	HasRecentUserLoginEnv(ctx context.Context, arg HasRecentUserLoginEnvParams) (bool, error)
 	HideArticleByModerator(ctx context.Context, id string) error
 	HidePostByAuthor(ctx context.Context, arg HidePostByAuthorParams) (bool, error)
 	HidePostByModerator(ctx context.Context, id string) error
@@ -529,6 +530,8 @@ type Querier interface {
 	InsertPureRepost(ctx context.Context, arg InsertPureRepostParams) (string, error)
 	InsertReplyNotification(ctx context.Context, arg InsertReplyNotificationParams) error
 	InsertRepostNotification(ctx context.Context, arg InsertRepostNotificationParams) error
+	// Journal des événements de sécurité & Quarantaine API (migration 00090)
+	InsertSecurityEvent(ctx context.Context, arg InsertSecurityEventParams) (InsertSecurityEventRow, error)
 	InsertSocialLink(ctx context.Context, arg InsertSocialLinkParams) error
 	InsertWebhookDeliveryResult(ctx context.Context, arg InsertWebhookDeliveryResultParams) error
 	IsActiveMediaMember(ctx context.Context, arg IsActiveMediaMemberParams) (bool, error)
@@ -710,6 +713,7 @@ type Querier interface {
 	ListSystemConfigs(ctx context.Context) ([]SystemConfig, error)
 	ListUserDrafts(ctx context.Context, arg ListUserDraftsParams) ([]ListUserDraftsRow, error)
 	ListUserLegalAcceptances(ctx context.Context, userID pgtype.UUID) ([]ListUserLegalAcceptancesRow, error)
+	ListUserSecurityEvents(ctx context.Context, userid pgtype.UUID) ([]SecurityEvent, error)
 	ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]ListWebhookDeliveriesRow, error)
 	ListWebhooksByPublisher(ctx context.Context, publisherid string) ([]ListWebhooksByPublisherRow, error)
 	// Réclame UN brouillon arrivé à échéance, verrouillé jusqu'à la fin de la
@@ -732,6 +736,8 @@ type Querier interface {
 	PruneOldArticleSnapshots(ctx context.Context, arg PruneOldArticleSnapshotsParams) error
 	PublishArticleDraft(ctx context.Context, id string) (string, error)
 	PublishLegalDocumentVersion(ctx context.Context, id string) (LegalDocumentVersion, error)
+	QuarantineApiKey(ctx context.Context, arg QuarantineApiKeyParams) error
+	QuarantinePublisherAPI(ctx context.Context, arg QuarantinePublisherAPIParams) error
 	// Réactive un asset purgé/supprimé (nouvelle fenêtre de 3 jours).
 	ReactivateMediaAsset(ctx context.Context, id string) (MediaAsset, error)
 	RejectFollowRequest(ctx context.Context, id string) error
@@ -795,6 +801,8 @@ type Querier interface {
 	UnhideArticleByModerator(ctx context.Context, id string) error
 	UnhidePostByModerator(ctx context.Context, id string) error
 	UnpinPost(ctx context.Context, arg UnpinPostParams) (bool, error)
+	UnquarantineApiKey(ctx context.Context, id string) error
+	UnquarantinePublisherAPI(ctx context.Context, id string) error
 	UnsubscribeNewsletterSubscriber(ctx context.Context, arg UnsubscribeNewsletterSubscriberParams) error
 	UpdateAdminOAuthClientStatus(ctx context.Context, arg UpdateAdminOAuthClientStatusParams) (UpdateAdminOAuthClientStatusRow, error)
 	UpdateAdminUserApiAccess(ctx context.Context, arg UpdateAdminUserApiAccessParams) (UpdateAdminUserApiAccessRow, error)

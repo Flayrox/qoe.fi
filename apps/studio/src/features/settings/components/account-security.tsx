@@ -12,12 +12,14 @@ import {
   changeAccountSecurityPasswordAction,
   exportAccountSecurityDataAction,
   getAccountSecurityConsentAction,
+  getAccountSecurityEventsAction,
   getAccountSecurityIdentityAction,
   getAccountSecuritySessionsAction,
   requestAccountSecurityDeletionAction,
   revokeAllAccountSessionsAction,
   revokeOtherAccountSessionsAction,
   updateAccountConsentAction,
+  type SecurityEventItem,
 } from '../actions';
 import { MfaPanel } from './mfa-panel';
 
@@ -39,6 +41,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
   const [sessions, setSessions] = useState<
     Array<{ id: string; clientId: string; current: boolean }>
   >([]);
+  const [securityEvents, setSecurityEvents] = useState<SecurityEventItem[]>([]);
   const [consent, setConsent] = useState({
     analytics: false,
     personalization: false,
@@ -52,6 +55,9 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
       .catch(() => undefined);
     getAccountSecuritySessionsAction()
       .then((r) => setSessions(r.sessions))
+      .catch(() => undefined);
+    getAccountSecurityEventsAction()
+      .then((r) => setSecurityEvents(Array.isArray(r.events) ? r.events : []))
       .catch(() => undefined);
     getAccountSecurityConsentAction()
       .then(setConsent)
@@ -101,7 +107,10 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
         </p>
       </div>
 
-      <div className="rounded-xl border border-border/50 bg-card p-5 space-y-3">
+      <div
+        id="account-identity"
+        className="rounded-xl border border-border/50 bg-card p-5 space-y-3"
+      >
         <h3 className="font-semibold">Identité</h3>
         <div className="text-sm text-muted-foreground">
           <p>
@@ -121,7 +130,10 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
         </Button>
       </div>
 
-      <div className="rounded-xl border border-border/50 bg-card p-5 space-y-3">
+      <div
+        id="account-password"
+        className="rounded-xl border border-border/50 bg-card p-5 space-y-3"
+      >
         <div className="flex items-center gap-2">
           <ShieldAlert className="h-4 w-4 text-primary" />
           <h3 className="font-semibold">Authentification</h3>
@@ -240,9 +252,44 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
             Révoquer toutes les sessions OAuth
           </Button>
         </div>
+        <div
+          id="security-sessions"
+          className="pt-2 border-t border-border/40 text-xs text-muted-foreground"
+        >
+          Sessions actives détectées : {sessions.length}
+        </div>
       </div>
 
       <MfaPanel />
+
+      <div id="security-audit" className="rounded-xl border border-border/50 bg-card p-5 space-y-3">
+        <h3 className="font-semibold">Historique de sécurité</h3>
+        <p className="text-sm text-muted-foreground">
+          Journal des connexions depuis un nouvel environnement et des opérations sensibles (mot de
+          passe, email, 2FA, clés API, quarantaine).
+        </p>
+        {securityEvents.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucun événement enregistré récemment.</p>
+        ) : (
+          <ul className="divide-y divide-border/40 text-sm">
+            {securityEvents.slice(0, 15).map((ev) => (
+              <li key={ev.id} className="flex items-center justify-between gap-3 py-2">
+                <div className="min-w-0">
+                  <p className="font-medium truncate">{formatSecurityEventLabel(ev.eventType)}</p>
+                  {(ev.ipSubnet || ev.userAgent) && (
+                    <p className="text-xs text-muted-foreground truncate">
+                      {[ev.ipSubnet, ev.userAgent].filter(Boolean).join(' · ')}
+                    </p>
+                  )}
+                </div>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {new Date(ev.createdAt).toLocaleString('fr-FR')}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <div className="rounded-xl border border-border/50 bg-card p-5 space-y-3">
         <h3 className="font-semibold">Consentements</h3>
@@ -322,4 +369,21 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
       </div>
     </section>
   );
+}
+
+const SECURITY_EVENT_LABELS: Record<string, string> = {
+  login_new_device: 'Nouvelle connexion détectée',
+  password_changed: 'Mot de passe modifié',
+  email_changed: 'Changement d’adresse email demandé',
+  mfa_enrolled: 'Double authentification (TOTP) activée',
+  mfa_removed: 'Double authentification (TOTP) supprimée',
+  api_key_created: 'Clé API créée',
+  api_key_rotated: 'Clé API régénérée',
+  api_key_revoked: 'Clé API révoquée',
+  api_key_quarantined: 'Clé API placée en lecture seule',
+  publisher_api_quarantined: 'API de publication placée en lecture seule',
+};
+
+function formatSecurityEventLabel(eventType: string): string {
+  return SECURITY_EVENT_LABELS[eventType] ?? eventType;
 }

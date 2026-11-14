@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -26,6 +27,7 @@ import (
 	"github.com/qoefi/api/internal/flags"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/permissions"
+	"github.com/qoefi/api/internal/queue"
 	"github.com/qoefi/api/internal/shared/identifier"
 	"github.com/qoefi/api/internal/slug"
 	"github.com/qoefi/api/internal/trust"
@@ -52,11 +54,15 @@ type Service struct {
 	emailFrom     string
 
 	trustSvc *trust.Service
+	asynq    *asynq.Client
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
 	return &Service{pool: pool, q: db.New(pool)}
 }
+
+// SetAsynqClient branche le client asynq pour les alertes de sécurité.
+func (s *Service) SetAsynqClient(c *asynq.Client) { s.asynq = c }
 
 // SetFlags branche le service feature flags (journal d'audit admin).
 func (s *Service) SetFlags(f *flags.Service) {
@@ -712,6 +718,7 @@ func (s *Service) GenerateApiKey(ctx context.Context, userID, name string, scope
 	}
 	auditlog.Write(ctx, s.q, s.flags, userID, "api.key.created", "user", userID,
 		map[string]any{"name": name, "scopes": finalScopes})
+	s.recordApiKeySecurityEvent(ctx, userID, "", "api_key_created", map[string]any{"name": name, "scopes": finalScopes})
 	return apiKey, nil
 }
 
@@ -722,6 +729,7 @@ func (s *Service) RevokeApiKey(ctx context.Context, userID, id string) error {
 	}
 	auditlog.Write(ctx, s.q, s.flags, userID, "api.key.revoked", "user", userID,
 		map[string]any{"keyId": id})
+	s.recordApiKeySecurityEvent(ctx, userID, id, "api_key_revoked", map[string]any{"keyId": id})
 	return nil
 }
 
@@ -758,7 +766,31 @@ func (s *Service) RotateApiKey(ctx context.Context, userID, id string) (string, 
 	}
 	auditlog.Write(ctx, s.q, s.flags, userID, "api.key.rotated", "user", userID,
 		map[string]any{"keyId": id})
+	s.recordApiKeySecurityEvent(ctx, userID, id, "api_key_rotated", map[string]any{"keyId": id})
 	return apiKey, nil
+}
+
+func (s *Service) recordApiKeySecurityEvent(ctx context.Context, userID, keyID, eventType string, meta map[string]any) {
+	if s.pool == nil || userID == "" {
+		return
+	}
+	metaBytes, _ := json.Marshal(meta)
+	_, _ = db.New(s.pool).InsertSecurityEvent(ctx, db.InsertSecurityEventParams{
+		UserId:    toUUID(userID),
+		ApiKeyId:  pgtype.Text{String: keyID, Valid: keyID != ""},
+		EventType: eventType,
+		Metadata:  metaBytes,
+	})
+	var email string
+	_ = s.pool.QueryRow(ctx, `SELECT COALESCE(email, '') FROM "User" WHERE id = $1`, toUUID(userID)).Scan(&email)
+	if email != "" {
+		_ = queue.PublishSecurityAlertEmail(s.asynq, queue.SecurityAlertEmailPayload{
+			UserID:    userID,
+			Email:     email,
+			EventType: eventType,
+			Occurred:  time.Now().UTC().Format(time.RFC3339),
+		})
+	}
 }
 
 // ApiKeyDTO est une clé API listée (le hash n'est jamais exposé).

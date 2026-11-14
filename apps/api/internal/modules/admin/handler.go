@@ -95,9 +95,13 @@ var stepUpRoutes = map[string]authz.Level{
 	"PATCH /v1/admin/oauth/clients/{id}":               authz.Level2,
 	// Modération qui mesure un compte : un verdict humain confirmé ou levé, et
 	// un recours dont le prononcé peut lever la mesure.
-	"PATCH /v1/admin/abuse/decisions":                  authz.Level2,
-	"PATCH /v1/admin/abuse/appeals/{id}":               authz.Level2,
-	"POST /v1/admin/security/trust/{userId}/recompute": authz.Level2,
+	"PATCH /v1/admin/abuse/decisions":                    authz.Level2,
+	"PATCH /v1/admin/abuse/appeals/{id}":                 authz.Level2,
+	"POST /v1/admin/security/trust/{userId}/recompute":   authz.Level2,
+	"POST /v1/admin/api-keys/{id}/quarantine":            authz.Level2,
+	"DELETE /v1/admin/api-keys/{id}/quarantine":          authz.Level2,
+	"POST /v1/admin/publishers/{id}/api-quarantine":      authz.Level2,
+	"DELETE /v1/admin/publishers/{id}/api-quarantine":    authz.Level2,
 	// Valider la double validation d'un acte N3 est un acte lourd : on ne
 	// s'auto-valide pas, et une seconde personne doit prouver sa présence.
 	"POST /v1/admin/approvals/{id}/decide": authz.Level2,
@@ -172,6 +176,10 @@ func (h *Handler) routeTable() []adminRoute {
 		// Cockpit Sécurité & Trust (Lot 5).
 		{http.MethodGet, "/v1/admin/security/overview", adminauthz.AbuseRead, h.securityOverview},
 		{http.MethodPost, "/v1/admin/security/trust/{userId}/recompute", adminauthz.AbuseDecide, h.recomputeUserTrust},
+		{http.MethodPost, "/v1/admin/api-keys/{id}/quarantine", adminauthz.AbuseDecide, h.quarantineApiKey},
+		{http.MethodDelete, "/v1/admin/api-keys/{id}/quarantine", adminauthz.AbuseDecide, h.unquarantineApiKey},
+		{http.MethodPost, "/v1/admin/publishers/{id}/api-quarantine", adminauthz.AbuseDecide, h.quarantinePublisherAPI},
+		{http.MethodDelete, "/v1/admin/publishers/{id}/api-quarantine", adminauthz.AbuseDecide, h.unquarantinePublisherAPI},
 
 		// Registre d'incidents (attaques confirmées, dossier tenu par le staff).
 		{http.MethodGet, "/v1/admin/abuse/incidents", adminauthz.IncidentsRead, h.abuseIncidents},

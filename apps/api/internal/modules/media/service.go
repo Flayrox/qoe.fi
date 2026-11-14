@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -20,6 +21,7 @@ import (
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/flags"
 	"github.com/qoefi/api/internal/permissions"
+	"github.com/qoefi/api/internal/queue"
 )
 
 const (
@@ -42,6 +44,34 @@ type Service struct {
 	// flags est conservé pour le futur mode verbeux de l'audit ; la trace
 	// AdminAuditLog n'est plus conditionnée par admin-audit-log.
 	flags *flags.Service
+	asynq *asynq.Client
+}
+
+// SetAsynqClient branche le client asynq pour les alertes de sécurité.
+func (s *Service) SetAsynqClient(c *asynq.Client) { s.asynq = c }
+
+func (s *Service) recordApiKeySecurityEvent(ctx context.Context, userID, publisherID, keyID, eventType string, meta map[string]any) {
+	if s.pool == nil || userID == "" {
+		return
+	}
+	metaBytes, _ := json.Marshal(meta)
+	_, _ = db.New(s.pool).InsertSecurityEvent(ctx, db.InsertSecurityEventParams{
+		UserId:      toUUID(userID),
+		PublisherId: pgtype.Text{String: publisherID, Valid: publisherID != ""},
+		ApiKeyId:    pgtype.Text{String: keyID, Valid: keyID != ""},
+		EventType:   eventType,
+		Metadata:    metaBytes,
+	})
+	var email string
+	_ = s.pool.QueryRow(ctx, `SELECT COALESCE(email, '') FROM "User" WHERE id = $1`, toUUID(userID)).Scan(&email)
+	if email != "" {
+		_ = queue.PublishSecurityAlertEmail(s.asynq, queue.SecurityAlertEmailPayload{
+			UserID:    userID,
+			Email:     email,
+			EventType: eventType,
+			Occurred:  time.Now().UTC().Format(time.RFC3339),
+		})
+	}
 }
 
 func NewService(pool *pgxpool.Pool) *Service {

@@ -199,6 +199,7 @@ func (s *Service) CreateApiKey(ctx context.Context, userID, mediaID, name string
 	})
 	auditlog.Write(ctx, s.q, s.flags, userID, "media.api_key.created", "api_key", keyID,
 		map[string]any{"mediaId": mediaID, "name": name, "scopes": finalScopes})
+	s.recordApiKeySecurityEvent(ctx, userID, mediaWithPub.PublisherID, keyID, "api_key_created", map[string]any{"mediaId": mediaID, "name": name})
 
 	nowStr := time.Now().UTC().Format(time.RFC3339)
 	return &MediaApiKeyCreated{
@@ -288,6 +289,7 @@ func (s *Service) RotateApiKey(ctx context.Context, userID, mediaID, keyID strin
 	})
 	auditlog.Write(ctx, s.q, s.flags, userID, "media.api_key.rotated", "api_key", keyID,
 		map[string]any{"mediaId": mediaID})
+	s.recordApiKeySecurityEvent(ctx, userID, "", keyID, "api_key_rotated", map[string]any{"mediaId": mediaID})
 
 	res := &MediaApiKeyRotated{
 		MediaApiKeyItem: MediaApiKeyItem{
@@ -330,5 +332,6 @@ func (s *Service) RevokeApiKey(ctx context.Context, userID, mediaID, keyID strin
 	})
 	auditlog.Write(ctx, s.q, s.flags, userID, "media.api_key.revoked", "api_key", keyID,
 		map[string]any{"mediaId": mediaID})
+	s.recordApiKeySecurityEvent(ctx, userID, "", keyID, "api_key_revoked", map[string]any{"mediaId": mediaID})
 	return nil
 }
