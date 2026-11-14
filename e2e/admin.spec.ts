@@ -12,7 +12,7 @@
 
 import { test, expect } from '@playwright/test';
 import { TestDb } from './lib/db';
-import { COOKIE_NAME, DATABASE_URL, JWT_SECRET, mintJwt } from './lib/env';
+import { COOKIE_NAME, DATABASE_URL, GO_API_URL, JWT_SECRET, mintJwt } from './lib/env';
 import { expectRedirect } from './lib/redirect';
 
 const ADMIN = process.env.PLAYWRIGHT_ADMIN_URL ?? 'http://localhost:15405';
@@ -21,17 +21,82 @@ const RUN_FULL_STACK = process.env.RUN_FULL_STACK === '1';
 const ADMIN_ID = '00000000-0000-4000-8000-000000000002';
 
 test.describe('Console admin', () => {
-  test('le périmètre superadmin est verrouillé : /admin redirige vers /login', async ({
+  test('le périmètre superadmin est verrouillé : toutes les sections /admin/* redirigent vers /login', async ({
     request,
   }) => {
-    // En dev, la première visite de /admin compile la route et sa cible : le
-    // budget par défaut (60 s) tombait avant même la première assertion.
+    // En dev, la première visite de /admin compile la route et sa cible
     test.setTimeout(180_000);
-    const status = await expectRedirect(request, `${ADMIN}/admin`);
-    expect(status, 'doit rediriger (307)').toBe(307);
-    const res = await request.get(`${ADMIN}/admin`, { maxRedirects: 0 });
-    const location = res.headers()['location'] ?? '';
-    expect(location, `Location = ${location}`).toContain('/login');
+
+    const adminPaths = [
+      '/admin',
+      '/admin/users',
+      '/admin/publishers',
+      '/admin/articles',
+      '/admin/moderation',
+      '/admin/legal',
+      '/admin/finance',
+      '/admin/system',
+      '/admin/audit',
+    ];
+
+    for (const path of adminPaths) {
+      const status = await expectRedirect(request, `${ADMIN}${path}`);
+      expect(status, `${path} doit rediriger avec 307`).toBe(307);
+
+      const res = await request.get(`${ADMIN}${path}`, { maxRedirects: 0 });
+      const location = res.headers()['location'] ?? '';
+      expect(location, `Location de ${path} = ${location}`).toContain('/login');
+
+      // Vérifie l'en-tête anti-cache
+      const cacheControl = res.headers()['cache-control'] ?? '';
+      const isAntiCache =
+        cacheControl.includes('private') ||
+        cacheControl.includes('no-store') ||
+        cacheControl.includes('no-cache');
+      expect(
+        isAntiCache,
+        `Cache-Control sur ${path} doit interdire la mise en cache publique (${cacheControl})`
+      ).toBe(true);
+    }
+  });
+
+  test('l’API Go admin rejette strictement les requêtes sans authentification avec 401', async ({
+    request,
+  }) => {
+    const adminEndpoints = [
+      '/v1/admin/overview',
+      '/v1/admin/users',
+      '/v1/admin/publishers',
+      '/v1/admin/audit-logs',
+      '/v1/admin/legal/consents',
+      '/v1/admin/system/metrics',
+    ];
+
+    for (const endpoint of adminEndpoints) {
+      const res = await request.get(`${GO_API_URL}${endpoint}`);
+      expect(res.status(), `GET ${endpoint} sans auth doit être 401`).toBe(401);
+    }
+  });
+
+  test('l’API Go admin rejette les requêtes avec faux token ou privilèges insuffisants', async ({
+    request,
+  }) => {
+    // Faux token
+    const fakeToken =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.fake_signature_xyz';
+    const fakeRes = await request.get(`${GO_API_URL}/v1/admin/overview`, {
+      headers: { Authorization: `Bearer ${fakeToken}` },
+    });
+    expect(fakeRes.status(), 'Token invalide doit être 401').toBe(401);
+
+    // Utilisateur non superadmin
+    if (JWT_SECRET) {
+      const normalUserToken = mintJwt('00000000-0000-4000-8000-000000000099', { role: 'user' });
+      const nonAdminRes = await request.get(`${GO_API_URL}/v1/admin/overview`, {
+        headers: { Authorization: `Bearer ${normalUserToken}` },
+      });
+      expect([401, 403]).toContain(nonAdminRes.status());
+    }
   });
 
   test('un superadmin authentifié accède au dashboard', async ({ browser }) => {

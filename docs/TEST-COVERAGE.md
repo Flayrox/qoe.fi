@@ -50,7 +50,7 @@ unique ne sait pas résoudre. Commande : `pnpm test:coverage:front` (step CI
 | -------------- | ----------------- | ----------- | --------------- |
 | `packages/ui`  | 519 (82 fichiers) | **55,45 %** | 55 / 53 / 48    |
 | `apps/tenants` | 34 (10)           | **23,52 %** | 23 / 22 / 17    |
-| `apps/studio`  | 107 (23)          | **7,27 %**  | 6 / 6 / 7       |
+| `apps/studio`  | 151 (29)          | **9,31 %**  | 9 / 9 / 9       |
 | `apps/admin`   | 63 (10)           | **4,42 %**  | 4 / 4 / 3       |
 
 (seuil = lignes / statements / fonctions ; branches également gatées.) Avant cette
