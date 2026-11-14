@@ -30,8 +30,8 @@ import {
   addRecommendationAction,
   removeRecommendationAction,
   lookupPublisherByDomainAction,
-  type RecommendationItemDto,
 } from '@qoe/sdk/actions/recommendations';
+import type { RecommendationItemDto } from '@qoe/sdk/actions/recommendations';
 import type { CreatorProfile } from '../types';
 
 interface RecommendationsTabProps {
@@ -369,7 +369,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
                       />
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-muted text-foreground flex items-center justify-center font-bold text-sm shrink-0 border border-border/40">
-                        {rec.publisherName.slice(0, 1).toUpperCase()}
+                        {(rec.publisherName || '?').slice(0, 1).toUpperCase()}
                       </div>
                     )}
                     <div className="min-w-0">

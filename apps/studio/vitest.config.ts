@@ -25,9 +25,8 @@ export default defineConfig({
       NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co',
       NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key',
     },
-    // 📊 Mesuré le 2026-11-14 (docs/TEST-BUNKER-PLAN.md, étape A2) : 23 fichiers
-    // / 107 tests, 6,93 % lignes (offline uniquement). `vendor/` (code
-    // vendorisé) est exclu du périmètre, comme du run de tests. Ratchet.
+    // 📊 Mesuré le 2026-11-14 (docs/TEST-BUNKER-PLAN.md, étape B19) : 29 fichiers
+    // / 151 tests, 9,31 % lignes. `vendor/` et `src/app/dev` exclus. Ratchet.
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'lcov'],
@@ -40,8 +39,9 @@ export default defineConfig({
         'src/**/*.d.ts',
         'src/**/test-support/**',
         'src/**/vendor/**',
+        'src/app/dev/**',
       ],
-      thresholds: { lines: 6, statements: 6, functions: 7, branches: 7 },
+      thresholds: { lines: 9, statements: 9, functions: 9, branches: 9 },
     },
   },
 });

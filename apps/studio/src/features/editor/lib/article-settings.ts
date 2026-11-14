@@ -1,4 +1,4 @@
-import type { ArticleEditorPayload } from '@qoe/sdk/actions/articles';
+import type { ArticleAuthorBrief, ArticleEditorPayload } from '@qoe/sdk/actions/articles';
 import { ContentVisibility } from '@qoe/config';
 import { buildPublicExcerpt } from '@qoe/utils';
 import type { ArticleAttributionDraft } from '../components/ArticleAttributionEditor';
@@ -66,7 +66,17 @@ export interface ArticleSettingsSavePayload {
   attributions: ArticleAttributionDraft[];
 }
 
-type AttributionSource = Pick<ArticleEditorPayload, 'author' | 'coAuthors' | 'attributions'>;
+export type AttributionSource = {
+  author: ArticleAuthorBrief;
+  coAuthors?: ArticleAuthorBrief[] | null;
+  attributions?: Array<{
+    role: string;
+    order: number;
+    isVisible: boolean;
+    consentStatus?: string;
+    user: ArticleAuthorBrief;
+  }> | null;
+};
 
 export function buildAttributionDrafts(article: AttributionSource): ArticleAttributionDraft[] {
   const existing = (article.attributions ?? []).map((entry) => ({

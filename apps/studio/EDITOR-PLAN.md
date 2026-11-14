@@ -328,6 +328,22 @@ souveraine » :
   studio (capture), flottant à gauche et texte qui l’épouse ; les pages core
   et tenants utilisent la même feuille et le même conteneur.
 
+### Renforcement des tests unitaires & couverture Studio (2026-11-14)
+
+- **Élévation de couverture & ratchet** : passage du seuil de couverture global studio de 6/7% à **9%** (statements: 9%, branches: 9%, functions: 9%, lines: 9%), couverture atteinte **9,31%** (29 fichiers de tests, 151 tests passés).
+- **Suites de tests ajoutées** :
+  - `article-settings.test.ts` (16 tests) : validation du mapping brouillons/sauvegarde, assainissement des statuts par défaut, synchronisation d'attributions primaire et co-auteurs, détection des payloads sales (fingerprint dirty state).
+  - `ImageDetailsPanel.test.tsx` (7 tests) : champs alt/légende/crédit, mode image seule vs image de galerie, recadrage et validation au clavier (`Enter`).
+  - `AnnotationNotePanel.test.tsx` (6 tests) : édition de note d'auteur, affichage de citation, compteur de caractères, confirmation de suppression, raccourci `Mod+Enter`.
+  - `CoverUploader.test.tsx` (5 tests) : téléversement avec drag & drop, état de chargement, prévisualisation et retrait de couverture.
+  - `LinkEditorPanel.test.tsx` (6 tests) : édition de lien hypertexte, gestion des erreurs d'URL invalides et raccourcis.
+  - `recommendations.test.tsx` (4 tests) : recherche et maillage de publications partenaires, ajout et retrait avec confirmation.
+- **Robustesse du code éditeur** :
+  - Correction dans `recommendations.tsx` pour sécuriser l'accès au nom d'éditeur (`publisherName?.slice`).
+  - Déclaration explicite des sous-exports server actions manquants dans `@qoe/sdk/package.json`.
+  - Exclusion ciblée de `src/app/dev/**` dans la configuration de couverture pour éviter les artefacts de parsing Rolldown/V8.
+  - Typage strict validé (`tsc --noEmit` à 0 erreur sur tout le monorepo et `eslint` à 0 erreur).
+
 ---
 
 ## 📝 Instructions
