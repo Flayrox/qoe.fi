@@ -39,6 +39,24 @@ Deux fichiers ne sont pas instrumentables par `@vitest/coverage-v8` (erreur de p
 exclus du rapport) : `apps/core/src/components/messages/MessagesApp.tsx` et
 `apps/core/src/app/(reader)/library/LibraryClient.tsx`.
 
+### 2.b Périmètres front mesurés depuis le 2026-11-14
+
+Ces quatre suites se mesurent **chacune avec sa propre config** : `@/` pointe vers le
+`src` de chaque app (studio 150 fichiers, admin 111, tenants 29), ce qu'un run Vite
+unique ne sait pas résoudre. Commande : `pnpm test:coverage:front` (step CI
+« Coverage Gate (front apps) »). Seuils = mesure du jour arrondie vers le bas.
+
+| Périmètre        | Tests             | Lignes          | Seuil (ratchet) |
+| ---------------- | ----------------- | --------------- | --------------- |
+| `packages/ui`    | 519 (82 fichiers) | **55,45 %**     | 55 / 53 / 48    |
+| `apps/tenants`   | 34 (10)           | **23,52 %**     | 23 / 22 / 17    |
+| `apps/studio`    | 107 (23)          | **7,27 %**      | 6 / 6 / 7       |
+| `apps/admin`     | 63 (10)           | **4,42 %**      | 4 / 4 / 3       |
+
+(seuil = lignes / statements / fonctions ; branches également gatées.) Avant cette
+mesure, ces 723 tests ne comptaient dans aucun chiffre : la moitié du front était
+hors radar.
+
 ## 3. Baseline Go
 
 `cd apps/api && go test -cover ./...` : 82 packages mesurés, **moyenne 38,3 %** (non pondérée).
@@ -82,8 +100,17 @@ un par un, pas seulement comptés.
   HTTP (`maxRedirects: 0` → statut + en-tête `Location`), pas en ouvrant 39 navigateurs :
   le layout redirige avant tout rendu, et charger 39 fois la page de login faisait
   dépasser le timeout du job CI (step annulé à 20 min). Durée locale : ~22 s.
-- Pages restantes à brancher : `apps/studio` (24), `apps/tenants` (16), `apps/hi` (4) —
-  le même inventaire s'y applique (`discoverPages('studio')`, etc.).
+### 4.b Matrices des apps secondaires (2026-11-14)
+
+`e2e/tenants-routes.spec.ts` et `e2e/studio-routes.spec.ts` (helper partagé
+`e2e/lib/route-matrix.ts`) visitent **toutes** les pages découvertes de `apps/tenants`
+(16 patterns) et `apps/studio` (24 patterns), avec le même contrat : jamais 5xx, jamais
+l'error boundary, redirection toujours accompagnée d'un `Location`, inventaire jamais
+vide (garde `MIN_PAGES`). 42 cas, ramassés automatiquement par le job `e2e-apps`
+(`playwright.apps.config.ts`). Local : **42/42 verts**.
+
+`apps/hi` reste à brancher : `playwright.apps.config.ts` ne démarre pas de serveur pour
+cette app (4 pages). Exemption assumée et tracée ici, pas sautée en silence.
 
 ### Variables d'environnement du projet `routes`
 

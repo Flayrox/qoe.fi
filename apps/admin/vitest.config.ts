@@ -23,5 +23,22 @@ export default defineConfig({
     },
     include: ['src/**/*.test.{ts,tsx}'],
     exclude: ['**/.reference/**', '**/node_modules/**', '**/.next/**', '**/e2e/**'],
+    // 📊 Mesuré le 2026-11-14 (docs/TEST-BUNKER-PLAN.md, étape A2) : 10 fichiers
+    // / 63 tests, 4,42 % lignes. Baseline honnête : la console est surtout du
+    // rendu de page, mais ses `lib/` critiques doivent être vus. Ratchet.
+    coverage: {
+      provider: 'v8',
+      reporter: ['text-summary', 'lcov'],
+      reportsDirectory: path.resolve(__dirname, '../../coverage/admin'),
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/**/__tests__/**',
+        'src/**/*.stories.{ts,tsx}',
+        'src/**/*.d.ts',
+        'src/**/test-support/**',
+      ],
+      thresholds: { lines: 4, statements: 4, functions: 3, branches: 3 },
+    },
   },
 });

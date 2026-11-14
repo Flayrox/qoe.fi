@@ -85,6 +85,23 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+      # Les apps front ne peuvent pas être agrégées dans
+      # vitest.coverage.config.ts : chacune résout `@/` vers son propre src
+      # (studio 150 fichiers, admin 111, tenants 29). Chaque app se mesure donc
+      # avec sa config, et ses seuils sont un ratchet mesuré (2026-11-14, cf.
+      # docs/TEST-BUNKER-PLAN.md §3). Une baisse casse ce step.
+      - name: Coverage Gate (front apps : ui, studio, admin, tenants)
+        run: pnpm test:coverage:front
+
+      - name: Upload front coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-front
+          path: coverage/
+          retention-days: 7
+          if-no-files-found: ignore
+
       - name: Build Production Packages & Applications
         run: pnpm build
 

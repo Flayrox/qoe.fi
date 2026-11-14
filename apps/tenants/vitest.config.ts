@@ -24,5 +24,21 @@ export default defineConfig({
       NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co',
       NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key',
     },
+    // 📊 Mesuré le 2026-11-14 (docs/TEST-BUNKER-PLAN.md, étape A2) : 10 fichiers
+    // / 34 tests, 23,52 % lignes. Ratchet : le seuil ne baisse jamais.
+    coverage: {
+      provider: 'v8',
+      reporter: ['text-summary', 'lcov'],
+      reportsDirectory: path.resolve(__dirname, '../../coverage/tenants'),
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/**/__tests__/**',
+        'src/**/*.stories.{ts,tsx}',
+        'src/**/*.d.ts',
+        'src/**/test-support/**',
+      ],
+      thresholds: { lines: 23, statements: 22, functions: 17, branches: 24 },
+    },
   },
 });
