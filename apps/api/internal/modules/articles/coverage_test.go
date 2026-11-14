@@ -402,6 +402,16 @@ func TestService_Update_PublishedArticle_IsolatesDraft(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
+	// Le slug stocké porte le code court de résolution : on retient la valeur
+	// posée à la création pour vérifier que l'auto-save ne la remplace pas.
+	var publicSlug string
+	if err := poolTest.QueryRow(ctx, `SELECT slug FROM "Article" WHERE id=$1`, id).Scan(&publicSlug); err != nil {
+		t.Fatalf("select slug: %v", err)
+	}
+	if !strings.HasPrefix(publicSlug, "iso-draft-") {
+		t.Fatalf("slug initial = %q, attendu la base iso-draft suivie d'un code court", publicSlug)
+	}
+
 	// Auto-save d'un article publié : published=false + status PUBLISHED ne
 	// doit JAMAIS écraser le contenu/titre/slug publics, mais les métadonnées
 	// (catégorie, SEO, attributions) doivent rester persistées.
@@ -427,8 +437,8 @@ func TestService_Update_PublishedArticle_IsolatesDraft(t *testing.T) {
 	if !strings.Contains(draft, "contenu brouillon") {
 		t.Fatalf("draftContent = %q, attendu contenu brouillon", draft)
 	}
-	if title != "Version publique" || slug != "iso-draft" {
-		t.Fatalf("titre/slug publics modifiés: title=%q slug=%q", title, slug)
+	if title != "Version publique" || slug != publicSlug {
+		t.Fatalf("titre/slug publics modifiés: title=%q slug=%q (attendu %q)", title, slug, publicSlug)
 	}
 	if seoTitle != "SEO brouillon" {
 		t.Fatalf("seoTitle = %q, attendu métadonnées persistées", seoTitle)

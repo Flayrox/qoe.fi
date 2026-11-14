@@ -7,6 +7,27 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// articleContent est le corps de l'article de fixture. Un surlignage public
+// doit citer un passage qui existe réellement (anti-spoofing de citation) :
+// les tests citent donc ces phrases-là, une par paragraphe pour que chaque
+// passage reste trouvable sans ambiguïté.
+const articleContent = `<p>Article de test sur la lecture et ses usages.</p>
+<p>Passage génial sur la lecture</p>
+<p>Passage clé</p>
+<p>Passage public</p>
+<p>Passage commenté</p>
+<p>Passage à commenter</p>
+<p>Passage à upvoter</p>
+<p>Passage sauvegardé</p>
+<p>Passage privé</p>
+<p>Surlignage privé</p>
+<p>À annoter</p>
+<p>À supprimer</p>
+<p>51e autorisé pour tous</p>
+<p>Premier repère</p>
+<p>Deuxième repère</p>
+<p>Troisième repère</p>`
+
 // PostFixtures contient les IDs créés par SeedPosts pour les assertions.
 type PostFixtures struct {
 	AuthorID  string // auteur des pensées
@@ -29,7 +50,11 @@ func SeedPosts(ctx context.Context, pool *pgxpool.Pool) (*PostFixtures, error) {
 	if _, err := pool.Exec(ctx, `TRUNCATE TABLE
 		"Post", "Like", "Bookmark", "Notification", "Poll", "MediaAttachment",
 		"Article", "User", "Publisher", "_CoAuthors",
-		"Highlight", "AnnotationComment", "AnnotationUpvote"
+		"Highlight", "AnnotationComment", "AnnotationUpvote",
+		-- Les conversations ne sont pas rattachées par FK aux comptes : sans
+		-- ce TRUNCATE, un test qui compte les conversations voit celles des
+		-- tests précédents du même paquet.
+		"Message", "ConversationMember", "Conversation"
 		CASCADE`); err != nil {
 		return nil, fmt.Errorf("truncate: %w", err)
 	}
@@ -99,10 +124,10 @@ func SeedPosts(ctx context.Context, pool *pgxpool.Pool) (*PostFixtures, error) {
 		`INSERT INTO "Article" (id, title, slug, content, published, visibility,
 		                        "readingTime", status, "publisherId", "authorId",
 		                        "createdAt", "updatedAt")
-		 VALUES ('art_post_001', 'Article bookmarké', 'article-bookmark', '<p>Test</p>', true,
+		 VALUES ('art_post_001', 'Article bookmarké', 'article-bookmark', $3, true,
 		         'PUBLIC', 3, 'PUBLISHED', $1, $2, now(), now())
 		 RETURNING id`,
-		pubID, fx.AuthorID,
+		pubID, fx.AuthorID, articleContent,
 	).Scan(&fx.ArticleID); err != nil {
 		return nil, fmt.Errorf("article: %w", err)
 	}

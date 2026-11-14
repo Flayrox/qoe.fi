@@ -236,8 +236,13 @@ func TestRouter_FullCreatorFlow(t *testing.T) {
 	}
 	createdID, _ := body3["id"].(string)
 
-	// 4) Lecture publique du nouvel article.
-	w4, _ := doReq(t, r, "GET", "/v1/articles/via-routeur?publisherId="+fx.PublisherID, "", nil)
+	// 4) Lecture publique du nouvel article — par le slug renvoyé : le slug
+	// stocké porte le code court qui le rend résolvable.
+	createdSlug, _ := body3["slug"].(string)
+	if createdSlug == "" {
+		t.Fatalf("slug absent de la création : %s", w3.Body.String())
+	}
+	w4, _ := doReq(t, r, "GET", "/v1/articles/"+createdSlug+"?publisherId="+fx.PublisherID, "", nil)
 	if w4.Code != http.StatusOK {
 		t.Fatalf("lecture nouvel article = %d", w4.Code)
 	}

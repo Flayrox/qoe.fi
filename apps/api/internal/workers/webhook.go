@@ -21,9 +21,10 @@ import (
 
 // WebhookWorker dispatche les événements de domaine vers les webhooks HMAC-signés.
 type WebhookWorker struct {
-	pool       *pgxpool.Pool
-	q          *db.Queries
-	httpClient *http.Client
+	pool        *pgxpool.Pool
+	q           *db.Queries
+	httpClient  *http.Client
+	validateURL func(string) error
 }
 
 func NewWebhookWorker(pool *pgxpool.Pool) *WebhookWorker {
@@ -35,6 +36,23 @@ func (w *WebhookWorker) client() *http.Client {
 		return w.httpClient
 	}
 	return netguard.SafeHTTPClient(10 * time.Second)
+}
+
+// WithTestHTTPClient remplace le client ET le validateur d'URL. Réservé aux
+// tests : ils visent un serveur httptest sur loopback, que le garde-fou
+// anti-SSRF refuse par construction. En production le client et le validateur
+// restent indissociables (WithTestHTTPClient n'est jamais appelé).
+func (w *WebhookWorker) WithTestHTTPClient(client *http.Client, validate func(string) error) *WebhookWorker {
+	w.httpClient = client
+	w.validateURL = validate
+	return w
+}
+
+func (w *WebhookWorker) validate(rawURL string) error {
+	if w.validateURL != nil {
+		return w.validateURL(rawURL)
+	}
+	return netguard.ValidateExternalURL(rawURL)
 }
 
 // HandleProcesses l'événement et dispatche vers les webhooks abonnés.
@@ -76,7 +94,7 @@ func (w *WebhookWorker) dispatch(ctx context.Context, webhookID, url, secret, ev
 		return err
 	}
 
-	if err := netguard.ValidateExternalURL(url); err != nil {
+	if err := w.validate(url); err != nil {
 		return w.failDelivery(ctx, deliveryID, err)
 	}
 

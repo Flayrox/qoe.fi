@@ -18,6 +18,18 @@ import (
 	"github.com/qoefi/api/internal/middleware"
 )
 
+// assertSlugBase vérifie le contrat de slug : le base demandée à la création
+// est conservée telle quelle, suivie du code court qui permet de résoudre un
+// lien sans connaître le suffixe.
+func assertSlugBase(t *testing.T, got any, base, body string) {
+	t.Helper()
+	slugStr, _ := got.(string)
+	suffix, ok := strings.CutPrefix(slugStr, base+"-")
+	if !ok || len(suffix) < 4 {
+		t.Fatalf("slug = %q, attendu %q suivi d'un code court. body = %s", slugStr, base, body)
+	}
+}
+
 // testSecret est le secret HS256 utilisé pour signer les JWT de test.
 const testSecret = "test-secret-0123456789"
 
@@ -264,9 +276,9 @@ func TestHandler_Create_WithJWT(t *testing.T) {
 	if w.Code != http.StatusCreated {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
 	}
-	if body["slug"] != "via-http" {
-		t.Fatalf("body = %s", w.Body.String())
-	}
+	// Le slug final porte un code court de résolution (contrat des liens) :
+	// la valeur demandée est la base, pas le slug stocké.
+	assertSlugBase(t, body["slug"], "via-http", w.Body.String())
 }
 
 func TestHandler_Create_NoAuth(t *testing.T) {
@@ -373,7 +385,7 @@ func TestHandler_Create_ThenList_Integration(t *testing.T) {
 	token := testJWT(fx.AuthorID)
 
 	// Création.
-	w, _ := doJSON(t, r, "POST", "/v1/articles", token, map[string]any{
+	w, created := doJSON(t, r, "POST", "/v1/articles", token, map[string]any{
 		"publisherId": fx.PublisherID,
 		"title":         "Cycle complet",
 		"slug":          "cycle-complet",
@@ -385,6 +397,12 @@ func TestHandler_Create_ThenList_Integration(t *testing.T) {
 	if w.Code != http.StatusCreated {
 		t.Fatalf("create status = %d", w.Code)
 	}
+	// Le slug stocké porte le code court : on cherche CELUI RENVOYÉ, pas la
+	// base demandée.
+	createdSlug, _ := created["slug"].(string)
+	if createdSlug == "" {
+		t.Fatalf("slug absent de la réponse de création: %s", w.Body.String())
+	}
 
 	// La liste via clé API le voit (publié par défaut).
 	key := insertAPIKey(t, fx.AuthorID, []string{middleware.ScopeRead})
@@ -395,7 +413,7 @@ func TestHandler_Create_ThenList_Integration(t *testing.T) {
 	data, _ := body["data"].([]any)
 	found := false
 	for _, it := range data {
-		if m, ok := it.(map[string]any); ok && m["slug"] == "cycle-complet" {
+		if m, ok := it.(map[string]any); ok && m["slug"] == createdSlug {
 			found = true
 		}
 	}
