@@ -352,7 +352,10 @@ jobs:
     name: E2E Routes (core + console admin)
     needs: build-and-test
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Mesuré le 14/11 : ~6 min de mise en place (go build, migrations, boot des
+    # deux `next dev`) + ~4 min pour rendre les 107 pages. À 15 min, deux runs
+    # ont été annulés en pleine matrice, logs de test perdus.
+    timeout-minutes: 25
 
     services:
       postgres:
