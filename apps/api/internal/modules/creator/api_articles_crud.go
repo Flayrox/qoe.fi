@@ -17,8 +17,10 @@ import (
 	"github.com/qoefi/api/internal/modules/articles"
 	"github.com/qoefi/api/internal/queue"
 	"github.com/qoefi/api/internal/response"
+	"github.com/qoefi/api/internal/secguard"
 	"github.com/qoefi/api/internal/shortcode"
 	pkgslug "github.com/qoefi/api/internal/slug"
+	"github.com/qoefi/api/internal/trust"
 )
 
 // creatorOwnsArticle vérifie le lien de propriété : publication de la clé,
@@ -120,6 +122,19 @@ func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		in.SeoDescription = cleanDesc
+	}
+	actorID := userID
+	if actorID == "" {
+		actorID = publisherID
+	}
+	prof := h.sec.EvaluateRequest(r.Context(), r, actorID)
+	if !h.sec.EnforceRateLimit(r.Context(), w, r, "articles-create", actorID, prof.Tier, secguard.QuotasArticlesCreate) {
+		return
+	}
+	if !h.sec.EnforceContentWrite(r.Context(), w, actorID, "articles-create", "", prof, func(tier trust.Tier) error {
+		return antispam.ValidateArticle(in.Title, in.Content, tier)
+	}) {
+		return
 	}
 	if len(in.Tags) > 10 {
 		response.BadRequest(w, "trop de tags (max 10)")
@@ -380,6 +395,15 @@ func (h *Handler) apiArticleUpdate(w http.ResponseWriter, r *http.Request) {
 	var in apiArticleUpdateInput
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		response.BadRequest(w, "JSON invalide")
+		return
+	}
+
+	actorID := userID
+	if actorID == "" {
+		actorID = publisherID
+	}
+	prof := h.sec.EvaluateRequest(r.Context(), r, actorID)
+	if !h.sec.EnforceRateLimit(r.Context(), w, r, "articles-edit", actorID, prof.Tier, secguard.QuotasArticlesEdit) {
 		return
 	}
 

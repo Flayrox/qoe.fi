@@ -540,6 +540,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 			articlesHandler.RegisterProtected(apiWrite, authmw.RequireAPIScope)
 
 			creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite).
+			SetSecurityGuard(secGuard).
 				SetSecurityGuard(secGuard)
 			creatorHandler.WithMediaUpload(mediaStore, mediaAssetsSvc).WithMediaCDNBase(d.MediaCDNBaseURL)
 			creatorHandler.RegisterProtected(apiWrite, authmw.RequireAPIScope)
@@ -700,7 +701,8 @@ func newRouter(d RouterDeps) *chi.Mux {
 		apiKey.Use(authmw.APIKeyAuth(db.New(pool)))
 		// Quota dédié PAR CLÉ API (le limiteur global par IP reste en plus).
 		apiKey.Use(authmw.RateLimitAPIKey("apikey", rc, time.Minute, d.APIKeyRateLimit))
-		creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite)
+		creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite).
+			SetSecurityGuard(secGuard)
 		creatorHandler.WithMediaUpload(mediaStore, mediaAssetsSvc).WithMediaCDNBase(d.MediaCDNBaseURL)
 		creatorHandler.SetAsynqClient(asynqClient)
 		creatorHandler.SetPublicSubscribeRateLimit(rc, time.Minute, 10)
