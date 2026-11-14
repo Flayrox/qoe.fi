@@ -76,6 +76,15 @@ func (h *Handler) publicSubscribeLimiter(next http.HandlerFunc) http.Handler {
 	return middleware.RateLimit("creator-public-subscribe", h.subRC, h.subWindow, h.subMax, false)(next)
 }
 
+// apiBurstLimiter protège les opérations API coûteuses (upload média, ajout
+// d'abonnés avec envoi d'e-mail) contre l'épuisement de quota/stockage.
+func (h *Handler) apiBurstLimiter(bucket string, max int) func(http.Handler) http.Handler {
+	if h.subRC == nil {
+		return func(next http.Handler) http.Handler { return next }
+	}
+	return middleware.RateLimitAPIKey(bucket, h.subRC, time.Minute, max)
+}
+
 func NewHandler(pool *pgxpool.Pool, umamiCli *umami.Client, defaultWebsiteID string) *Handler {
 	return &Handler{pool: pool, q: db.New(pool), umami: umamiCli, defaultWeb: defaultWebsiteID}
 }
@@ -106,12 +115,12 @@ func (h *Handler) RegisterAPIKey(r chi.Router) {
 	// canonique inclus (même payload) — le front du créateur peint les marques
 	// avec son propre code, zéro re-fetch, zéro recherche.
 	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/articles/{slug}/annotations", h.apiArticleAnnotations)
-	// Upload d'images (couvertures, corps) — scope WRITE.
-	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Post("/v1/creator/media", h.apiMediaUpload)
+	// Upload d'images (couvertures, corps) — scope WRITE + quota dédié 30 req/min.
+	r.With(middleware.RequireAPIScope(middleware.ScopeWrite), h.apiBurstLimiter("apikey-media", 30)).Post("/v1/creator/media", h.apiMediaUpload)
 	// Abonnés et audience de la publication (scope READ pour listing/stats, WRITE pour ajout/suppression)
 	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/subscribers", h.apiSubscribersList)
 	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/subscribers/stats", h.apiSubscribersStats)
-	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Post("/v1/creator/subscribers", h.apiSubscriberCreate)
+	r.With(middleware.RequireAPIScope(middleware.ScopeWrite), h.apiBurstLimiter("apikey-subscribers", 30)).Post("/v1/creator/subscribers", h.apiSubscriberCreate)
 	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Delete("/v1/creator/subscribers/{idOrEmail}", h.apiSubscriberDelete)
 	// Métadonnées complètes de branding de la publication pour front headless
 	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/publisher", h.apiPublisherMetadata)
