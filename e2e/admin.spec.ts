@@ -24,6 +24,9 @@ test.describe('Console admin', () => {
   test('le périmètre superadmin est verrouillé : /admin redirige vers /login', async ({
     request,
   }) => {
+    // En dev, la première visite de /admin compile la route et sa cible : le
+    // budget par défaut (60 s) tombait avant même la première assertion.
+    test.setTimeout(180_000);
     const status = await expectRedirect(request, `${ADMIN}/admin`);
     expect(status, 'doit rediriger (307)').toBe(307);
     const res = await request.get(`${ADMIN}/admin`, { maxRedirects: 0 });

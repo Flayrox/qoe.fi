@@ -9,6 +9,12 @@
 
 import type { APIRequestContext } from '@playwright/test';
 
+// Budget d'une requête : la première visite d'une route peut compiler plusieurs
+// dizaines de secondes sur un runner CI chargé. Sans borne explicite, c'est le
+// timeout du test (60 s par défaut) qui tombe, avec un message trompeur
+// (« Target page, context or browser has been closed »).
+const REQUEST_TIMEOUT = 90_000;
+
 export async function expectRedirect(
   request: APIRequestContext,
   url: string,
@@ -17,8 +23,8 @@ export async function expectRedirect(
   let status = 0;
   for (let i = 0; i < attempts; i++) {
     // Warm-up : compile la route (et la page cible de la redirection).
-    await request.get(url).catch(() => {});
-    const res = await request.get(url, { maxRedirects: 0 });
+    await request.get(url, { timeout: REQUEST_TIMEOUT }).catch(() => {});
+    const res = await request.get(url, { maxRedirects: 0, timeout: REQUEST_TIMEOUT });
     status = res.status();
     if (status >= 300 && status < 400) return status;
     // 5xx transitoire de compilation : on attend que la route soit chaude.

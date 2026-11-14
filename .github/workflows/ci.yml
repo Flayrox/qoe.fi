@@ -352,7 +352,10 @@ jobs:
     name: E2E Routes (core + console admin)
     needs: build-and-test
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # La matrice rend ~69 pages sur deux `next dev` : chaque première visite
+    # compile sa route. À 15 min, un runner lent fait annuler le job en pleine
+    # matrice (log perdu). 25 min laissent la place à la compilation.
+    timeout-minutes: 25
 
     services:
       postgres:
@@ -620,6 +623,19 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm e2e:install
 
+      # La matrice visite les 42 pages : en `next dev`, chaque première visite
+      # compile sa route et l'ensemble dépassait les 20 min (job annulé deux
+      # fois). On sert donc un build réel (`PLAYWRIGHT_APPS_PROD=1`) : 16 s pour
+      # les 42 pages une fois les apps construites.
+      - name: Build apps for the route matrix
+        run: pnpm intl:compile && pnpm --filter @qoe/tenants build && pnpm --filter @qoe/studio build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          SKIP_ENV_VALIDATION: 'true'
+          QOE_API_URL: 'http://localhost:8091'
+          NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321'
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key'
+
       # Contrat par page (cf. e2e/lib/route-matrix.ts) : jamais 5xx, jamais
       # l'error boundary, redirection toujours avec un Location, inventaire non
       # vide. Le log nomme chaque page rendue (`[app] /chemin → statut`).
@@ -627,6 +643,7 @@ jobs:
         run: pnpm exec playwright test --config playwright.apps.config.ts --project=tenants --project=studio --grep "Matrice de routes"
         env:
           CI: 'true'
+          PLAYWRIGHT_APPS_PROD: '1'
           PLAYWRIGHT_GO_API_PORT: '8091'
           QOE_API_URL: 'http://localhost:8091'
           DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe'
