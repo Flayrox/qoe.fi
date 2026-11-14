@@ -78,19 +78,18 @@ jobs:
             context: .
             dockerfile: Dockerfile
             target: migrate
-          # api & worker partagent le MÊME image (apps/api/Dockerfile build
-          # qoe-server + qoe-worker + qoe-migrate en une passe) : deux tags.
-          # ⚠️ GitHub Actions résout `dockerfile` RELATIF AU WORKSPACE (pas au
-          # contexte comme compose) : ./apps/api/Dockerfile, sinon buildkit part
-          # avec le Dockerfile racine et casse sur les chemins du repo.
-          - service: api
+          # api & worker partagent la MÊME image (apps/api/Dockerfile build
+          # qoe-server + qoe-worker + qoe-migrate en une passe) : un seul build
+          # pousse les deux tags (`qoefi-api` et `qoefi-worker`).
+          - service: api-worker
             context: ./apps/api
             dockerfile: ./apps/api/Dockerfile
             target: ''
-          - service: worker
-            context: ./apps/api
-            dockerfile: ./apps/api/Dockerfile
-            target: ''
+            extra_tags: |
+              ghcr.io/flayrox/qoefi-api:latest
+              ghcr.io/flayrox/qoefi-api:${{ github.sha }}
+              ghcr.io/flayrox/qoefi-worker:latest
+              ghcr.io/flayrox/qoefi-worker:${{ github.sha }}
           # Serveur d'updates OTA expo-updates (Node pur, zéro dépendance).
           - service: updates
             context: ./docker/updates
@@ -139,9 +138,8 @@ jobs:
           file: ${{ matrix.dockerfile }}
           target: ${{ matrix.target }}
           push: true
-          tags: |
-            ${{ env.IMAGE_NS }}/qoefi-${{ matrix.service }}:latest
-            ${{ env.IMAGE_NS }}/qoefi-${{ matrix.service }}:${{ github.sha }}
+          tags: ${{ matrix.extra_tags || format('{0}/qoefi-{1}:latest{2}{0}/qoefi-{1}:{3}', env.IMAGE_NS, matrix.service, '
+', github.sha) }}
           # BuildKit cache partagé entre runs → seules les couches changées
           # sont reconstruites d'un déploiement à l'autre.
           cache-from: type=gha

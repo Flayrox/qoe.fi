@@ -36,8 +36,9 @@ const appEnv = {
 // répond en millisecondes. Activé par le job `e2e-apps-routes`, qui construit
 // les deux apps avant de lancer la matrice.
 const APP_PROD = process.env.PLAYWRIGHT_APPS_PROD === '1';
-const NEEDS_HI = APP_PROD || process.argv.some((a) => a.includes('hi'));
-const NEEDS_ADMIN = !APP_PROD || process.argv.some((a) => a.includes('admin'));
+const hasProjectArg = process.argv.some((a) => a.startsWith('--project'));
+const NEEDS_HI = !hasProjectArg || process.argv.some((a) => a.includes('hi'));
+const NEEDS_ADMIN = !hasProjectArg || process.argv.some((a) => a.includes('admin'));
 
 /**
  * `prod: false` garde `next dev` pour une app qui n'est pas construite par le
@@ -58,7 +59,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 2 : undefined,
   reporter: process.env.CI ? 'github' : 'html',
   timeout: 60_000,
   expect: {
@@ -90,7 +91,7 @@ export default defineConfig({
     // de studio/admin redirigent (auth) — le port suffit à attendre le boot.
     appServer('@qoe/tenants', 15403),
     appServer('@qoe/studio', 15404),
-    ...(NEEDS_ADMIN ? [appServer('@qoe/admin', 15405, false)] : []),
+    ...(NEEDS_ADMIN ? [appServer('@qoe/admin', 15405)] : []),
     ...(NEEDS_HI ? [appServer('@qoe/hi', 15401)] : []),
   ],
   projects: [
