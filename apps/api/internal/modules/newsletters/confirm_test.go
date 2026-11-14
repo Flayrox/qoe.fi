@@ -191,3 +191,32 @@ func TestSubscribe_PublicSignupStaysPending(t *testing.T) {
 		t.Fatal("un abonné public non confirmé ne doit pas recevoir de bulk")
 	}
 }
+
+// Un lien mort (token qui ne correspond à rien, ou email inconnu avec une
+// signature valide) ne peut plus rien confirmer : 409, jamais 500. C'est le
+// cas réel d'un abonné qui reclique un vieux lien — le pire moment pour lui
+// servir une erreur serveur.
+func TestHTTP_Confirm_LienMort(t *testing.T) {
+	ctx := context.Background()
+	seedNewsletterEnv(t, ctx)
+	const email = "lien-mort@test.dev"
+	seedPendingSubscriber(t, ctx, email, "tok-attendu")
+	r := newHTTPRouter(t, false)
+	sig := workers.SignConfirm(pubID, email)
+
+	// Token faux, signature valide.
+	w := nlReq(r, http.MethodPost,
+		"/v1/newsletters/confirm?pub="+pubID+"&email="+email+"&token=tok-perime&sig="+sig, "", "")
+	if w.Code != http.StatusConflict {
+		t.Fatalf("token faux = %d, attendu 409 (%.80s)", w.Code, w.Body.String())
+	}
+
+	// Email inconnu de la publication, signature valide pour cet email.
+	const inconnu = "jamais-inscrit@test.dev"
+	sigInconnu := workers.SignConfirm(pubID, inconnu)
+	w = nlReq(r, http.MethodPost,
+		"/v1/newsletters/confirm?pub="+pubID+"&email="+inconnu+"&token=n-importe&sig="+sigInconnu, "", "")
+	if w.Code != http.StatusConflict {
+		t.Fatalf("email inconnu = %d, attendu 409 (%.80s)", w.Code, w.Body.String())
+	}
+}
