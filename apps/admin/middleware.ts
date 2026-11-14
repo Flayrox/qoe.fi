@@ -60,7 +60,9 @@ export async function middleware(request: NextRequest) {
       ? `${proto}://${safeHost}${request.nextUrl.pathname}${request.nextUrl.search}`
       : `${getMonorepoUrl('admin')}${request.nextUrl.pathname}${request.nextUrl.search}`;
     const redirectTarget = `${loginBase}?redirect=${encodeURIComponent(currentTarget)}`;
-    return NextResponse.redirect(new URL(redirectTarget));
+    const redirectRes = NextResponse.redirect(new URL(redirectTarget));
+    redirectRes.headers.set('Cache-Control', 'private, no-store');
+    return redirectRes;
   }
 
   return supabaseResponse;

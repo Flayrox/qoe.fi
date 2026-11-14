@@ -68,10 +68,10 @@ test.describe('Console admin', () => {
       '/v1/admin/dashboard',
       '/v1/admin/security/overview',
       '/v1/admin/users',
-      '/v1/admin/publishers',
-      '/v1/admin/audit-logs',
-      '/v1/admin/legal/consents',
-      '/v1/admin/system/metrics',
+      '/v1/admin/audit-log',
+      '/v1/admin/health',
+      '/v1/admin/slo',
+      '/v1/admin/config',
     ];
 
     for (const endpoint of adminEndpoints) {
