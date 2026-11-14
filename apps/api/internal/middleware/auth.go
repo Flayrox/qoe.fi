@@ -119,7 +119,7 @@ func (a *Auth) CombinedAuth(q *db.Queries) func(http.Handler) http.Handler {
 							writeUnauthorized(w, "Clé API invalide")
 							return
 						}
-						next.ServeHTTP(w, r.WithContext(ctx))
+						RequireWritableAPIKey(next).ServeHTTP(w, r.WithContext(ctx))
 						return
 					}
 				}

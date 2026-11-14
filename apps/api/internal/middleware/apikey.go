@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	db "github.com/qoefi/api/internal/database"
 )
@@ -22,6 +23,8 @@ const (
 	APIKeyIDKey ctxKey = "apiKeyId"
 	// PrincipalKey porte le Principal typé résolu depuis la clé API.
 	PrincipalKey ctxKey = "principal"
+	// ReadOnlyCutoffKey porte le timestamp de début de quarantaine lecture seule.
+	ReadOnlyCutoffKey ctxKey = "readOnlyCutoff"
 )
 
 // Scopes des clés API (moindre privilège). Les valeurs par défaut d'une clé
@@ -99,6 +102,30 @@ func writeForbidden(w http.ResponseWriter, msg string) {
 	_, _ = w.Write([]byte(`{"error":"` + msg + `"}`))
 }
 
+// ReadOnlyCutoff retourne le timestamp de quarantaine lecture seule si la clé
+// ou la publication est gelée.
+func ReadOnlyCutoff(ctx context.Context) (time.Time, bool) {
+	t, ok := ctx.Value(ReadOnlyCutoffKey).(time.Time)
+	return t, ok && !t.IsZero()
+}
+
+// RequireWritableAPIKey bloque les mutations HTTP (POST/PUT/PATCH/DELETE)
+// lorsque la clé API ou sa publication est en quarantaine lecture seule.
+func RequireWritableAPIKey(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, ro := ReadOnlyCutoff(r.Context()); ro &&
+			r.Method != http.MethodGet &&
+			r.Method != http.MethodHead &&
+			r.Method != http.MethodOptions {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"error":"Clé API en mode lecture seule (quarantaine de sécurité)","code":"api_read_only_quarantine"}`))
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // PublisherID extrait l'id de publication (PERSONAL ou MEDIA) du contexte.
 func PublisherID(ctx context.Context) (string, bool) {
 	id, ok := ctx.Value(PublisherIDKey).(string)
@@ -162,6 +189,10 @@ func resolveAPIKeyRow(ctx context.Context, row db.GetApiKeyByHashRow) (context.C
 		return ctx, false
 	}
 
+	if row.KeyStatus == "REVOKED" || row.UserIsSuspended {
+		return ctx, false
+	}
+
 	// Si clé personnelle : refuser si l'accès a été explicitement révoqué.
 	if isPersonal {
 		if row.UserApiAccessStatus.Valid && row.UserApiAccessStatus.String == "revoked" {
@@ -172,6 +203,33 @@ func resolveAPIKeyRow(ctx context.Context, row db.GetApiKeyByHashRow) (context.C
 	// Si clé média : la publication média doit exister.
 	if isMedia && row.PublisherID == "" {
 		return ctx, false
+	}
+
+	// Calcul de la borne de quarantaine lecture seule (READ_ONLY) :
+	// - clé marquée READ_ONLY (suspendedAt)
+	// - publication marquée apiReadOnlyAt
+	// - RiskDecision active (pause_sending / suspend)
+	var cutoff time.Time
+	setCutoff := func(t time.Time) {
+		if cutoff.IsZero() || t.Before(cutoff) {
+			cutoff = t
+		}
+	}
+	if row.KeyStatus == "READ_ONLY" {
+		if row.KeySuspendedAt.Valid {
+			setCutoff(row.KeySuspendedAt.Time)
+		} else {
+			setCutoff(time.Now().UTC())
+		}
+	}
+	if row.PublisherReadOnlyAt.Valid {
+		setCutoff(row.PublisherReadOnlyAt.Time)
+	}
+	if row.HasActiveRiskSuspension {
+		setCutoff(time.Now().UTC())
+	}
+	if !cutoff.IsZero() {
+		ctx = context.WithValue(ctx, ReadOnlyCutoffKey, cutoff)
 	}
 
 	// Filtrage des scopes par la plateforme (SystemConfig API_ACCESS_MODULES).
@@ -258,7 +316,7 @@ func APIKeyAuth(q *db.Queries) func(http.Handler) http.Handler {
 				return
 			}
 
-			next.ServeHTTP(w, r.WithContext(ctx))
+			RequireWritableAPIKey(next).ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }

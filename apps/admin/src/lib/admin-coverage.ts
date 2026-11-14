@@ -57,6 +57,18 @@ export const ADMIN_ROUTE_COVERAGE: Record<string, AdminRouteCoverage> = {
   'GET /v1/admin/abuse/metrics': via('/admin/abuse'),
   'GET /v1/admin/security/overview': via('/admin/security'),
   'POST /v1/admin/security/trust/{userId}/recompute': via('/admin/security'),
+  'POST /v1/admin/api-keys/{id}/quarantine': apiOnly(
+    'Action d’urgence sécurité : mise en quarantaine lecture seule d’une clé API par l’équipe ops.'
+  ),
+  'DELETE /v1/admin/api-keys/{id}/quarantine': apiOnly(
+    'Action d’urgence sécurité : levée de quarantaine lecture seule d’une clé API par l’équipe ops.'
+  ),
+  'POST /v1/admin/publishers/{id}/api-quarantine': apiOnly(
+    'Action d’urgence sécurité : passage en lecture seule de l’API d’une publication par l’équipe ops.'
+  ),
+  'DELETE /v1/admin/publishers/{id}/api-quarantine': apiOnly(
+    'Action d’urgence sécurité : levée de quarantaine API d’une publication par l’équipe ops.'
+  ),
   'GET /v1/admin/abuse/incidents': via('/admin/incidents'),
   'POST /v1/admin/abuse/incidents': via('/admin/incidents'),
   'PATCH /v1/admin/abuse/incidents/{id}': via('/admin/incidents'),

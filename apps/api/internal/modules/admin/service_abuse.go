@@ -8,13 +8,18 @@ package admin
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/qoefi/api/internal/abuse"
+	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/flags"
+	"github.com/qoefi/api/internal/queue"
 	"github.com/qoefi/api/internal/subscriptions"
 	"github.com/qoefi/api/internal/support"
 )
@@ -452,4 +457,140 @@ func (s *Service) RecomputeUserTrust(ctx context.Context, actorID, targetUserID 
 		SubnetAccountCount: profile.SubnetUsers,
 		Reasons:            reasons,
 	}, nil
+}
+
+// QuarantineApiKey place une clé API en mode lecture seule (READ_ONLY), bloque
+// toute mutation future tout en conservant la lecture GET antérieure à la coupure,
+// journalise l'acte et notifie le propriétaire par email.
+func (s *Service) QuarantineApiKey(ctx context.Context, actorID, keyID, reason string) error {
+	keyID = strings.TrimSpace(keyID)
+	reason = strings.TrimSpace(reason)
+	if keyID == "" {
+		return errors.New("identifiant de clé API requis")
+	}
+	if s.pool == nil {
+		return nil
+	}
+	queries := db.New(s.pool)
+	if err := queries.QuarantineApiKey(ctx, db.QuarantineApiKeyParams{
+		ID:            keyID,
+		SuspendReason: pgtype.Text{String: reason, Valid: reason != ""},
+	}); err != nil {
+		return err
+	}
+	s.logAudit(ctx, actorID, "security.apikey.quarantine", "api_key", keyID, map[string]any{
+		"reason": reason,
+	})
+
+	var userID, email, pubID string
+	_ = s.pool.QueryRow(ctx, `
+		SELECT COALESCE(k."userId"::text, ''), COALESCE(u.email, ''), COALESCE(k."publisherId", '')
+		FROM "ApiKey" k
+		LEFT JOIN "User" u ON u.id = k."userId"
+		WHERE k.id = $1
+	`, keyID).Scan(&userID, &email, &pubID)
+	if userID != "" {
+		var uid pgtype.UUID
+		_ = uid.Scan(userID)
+		metaBytes, _ := json.Marshal(map[string]any{"reason": reason, "actorId": actorID})
+		_, _ = queries.InsertSecurityEvent(ctx, db.InsertSecurityEventParams{
+			UserId:      uid,
+			PublisherId: pgtype.Text{String: pubID, Valid: pubID != ""},
+			ApiKeyId:    pgtype.Text{String: keyID, Valid: true},
+			EventType:   "api_key_quarantined",
+			Metadata:    metaBytes,
+		})
+		_ = queue.PublishSecurityAlertEmail(s.asynq, queue.SecurityAlertEmailPayload{
+			UserID:    userID,
+			Email:     email,
+			EventType: "api_key_quarantined",
+			Reason:    reason,
+			Actor:     actorID,
+			Occurred:  time.Now().UTC().Format(time.RFC3339),
+		})
+	}
+	return nil
+}
+
+// UnquarantineApiKey lève la quarantaine lecture seule d'une clé API.
+func (s *Service) UnquarantineApiKey(ctx context.Context, actorID, keyID string) error {
+	keyID = strings.TrimSpace(keyID)
+	if keyID == "" {
+		return errors.New("identifiant de clé API requis")
+	}
+	if s.pool == nil {
+		return nil
+	}
+	if err := db.New(s.pool).UnquarantineApiKey(ctx, keyID); err != nil {
+		return err
+	}
+	s.logAudit(ctx, actorID, "security.apikey.unquarantine", "api_key", keyID, nil)
+	return nil
+}
+
+// QuarantinePublisherAPI place l'API d'une publication en mode lecture seule
+// (apiReadOnlyAt = NOW()) et notifie le propriétaire.
+func (s *Service) QuarantinePublisherAPI(ctx context.Context, actorID, publisherID, reason string) error {
+	publisherID = strings.TrimSpace(publisherID)
+	reason = strings.TrimSpace(reason)
+	if publisherID == "" {
+		return errors.New("identifiant de publication requis")
+	}
+	if s.pool == nil {
+		return nil
+	}
+	queries := db.New(s.pool)
+	if err := queries.QuarantinePublisherAPI(ctx, db.QuarantinePublisherAPIParams{
+		ID:                publisherID,
+		ApiReadOnlyReason: pgtype.Text{String: reason, Valid: reason != ""},
+	}); err != nil {
+		return err
+	}
+	s.logAudit(ctx, actorID, "security.publisher.quarantine", "publisher", publisherID, map[string]any{
+		"reason": reason,
+	})
+
+	var userID, email string
+	_ = s.pool.QueryRow(ctx, `
+		SELECT COALESCE(p."ownerId"::text, ''), COALESCE(u.email, '')
+		FROM "Publisher" p
+		LEFT JOIN "User" u ON u.id = p."ownerId"
+		WHERE p.id = $1
+	`, publisherID).Scan(&userID, &email)
+	if userID != "" {
+		var uid pgtype.UUID
+		_ = uid.Scan(userID)
+		metaBytes, _ := json.Marshal(map[string]any{"reason": reason, "actorId": actorID})
+		_, _ = queries.InsertSecurityEvent(ctx, db.InsertSecurityEventParams{
+			UserId:      uid,
+			PublisherId: pgtype.Text{String: publisherID, Valid: true},
+			EventType:   "publisher_api_quarantined",
+			Metadata:    metaBytes,
+		})
+		_ = queue.PublishSecurityAlertEmail(s.asynq, queue.SecurityAlertEmailPayload{
+			UserID:    userID,
+			Email:     email,
+			EventType: "publisher_api_quarantined",
+			Reason:    reason,
+			Actor:     actorID,
+			Occurred:  time.Now().UTC().Format(time.RFC3339),
+		})
+	}
+	return nil
+}
+
+// UnquarantinePublisherAPI rétablit l'écriture API d'une publication.
+func (s *Service) UnquarantinePublisherAPI(ctx context.Context, actorID, publisherID string) error {
+	publisherID = strings.TrimSpace(publisherID)
+	if publisherID == "" {
+		return errors.New("identifiant de publication requis")
+	}
+	if s.pool == nil {
+		return nil
+	}
+	if err := db.New(s.pool).UnquarantinePublisherAPI(ctx, publisherID); err != nil {
+		return err
+	}
+	s.logAudit(ctx, actorID, "security.publisher.unquarantine", "publisher", publisherID, nil)
+	return nil
 }

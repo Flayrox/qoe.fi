@@ -30,6 +30,10 @@ const (
 	// TaskStaffCampaign porte une tranche d'une campagne administrative
 	// (file `default` : volumes faibles supervisés, pas de quotas à séparer).
 	TaskStaffCampaign = "staff.campaign"
+	// TaskSecurityAlertEmail envoie une alerte de sécurité par email à un
+	// utilisateur (nouvelle connexion, changement de mot de passe/email/MFA,
+	// gestion de clé API, mise en quarantaine).
+	TaskSecurityAlertEmail = "security.alert_email"
 )
 
 // BulkImportPayload est le payload de TaskBulkImport (import bulk asynchrone).
@@ -138,4 +142,16 @@ type PostLikedPayload struct {
 	AuthorID      string `json:"authorId"`
 	PublisherID string `json:"publisherId"`
 	CreatedAt     string `json:"createdAt"`
+}
+
+// SecurityAlertEmailPayload est le payload de TaskSecurityAlertEmail.
+type SecurityAlertEmailPayload struct {
+	UserID    string `json:"userId"`
+	Email     string `json:"email"`
+	EventType string `json:"eventType"`
+	IPSubnet  string `json:"ipSubnet,omitempty"`
+	UserAgent string `json:"userAgent,omitempty"`
+	Reason    string `json:"reason,omitempty"`
+	Actor     string `json:"actor,omitempty"`
+	Occurred  string `json:"occurredAt"`
 }

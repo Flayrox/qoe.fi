@@ -4,6 +4,8 @@
 SELECT ak.id                                            AS api_key_id,
        ak."keyHash"                                     AS key_hash,
        ak.scopes                                        AS scopes,
+       ak.status                                        AS key_status,
+       ak."suspendedAt"                                 AS key_suspended_at,
        COALESCE(ak."userId"::text, '')::text            AS key_user_id,
        COALESCE(ak."publisherId"::text, '')::text    AS key_publisher_id,
        COALESCE(ak."createdByUserId"::text, '')::text  AS created_by_user_id,
@@ -14,13 +16,21 @@ SELECT ak.id                                            AS api_key_id,
        u."logoUrl"                                      AS user_logo_url,
        u."isCertified"                                  AS user_is_certified,
        u.role                                           AS user_role,
+       COALESCE(u."isSuspended", false)::boolean        AS user_is_suspended,
        u."apiAccessStatus"                              AS user_api_access_status,
        u."apiGrants"                                    AS user_api_grants,
        COALESCE(p.id::text, '')::text                   AS publisher_id,
        COALESCE(p.type::text, '')::text                 AS publisher_type,
        p."umamiWebsiteId"                               AS umami_website_id,
+       p."apiReadOnlyAt"                                AS publisher_read_only_at,
        COALESCE(md.id::text, '')::text                  AS media_id,
-       sc.value                                         AS platform_api_modules
+       sc.value                                         AS platform_api_modules,
+       EXISTS(
+         SELECT 1 FROM "RiskDecision" rd
+         WHERE rd."subjectId" = COALESCE(ak."userId"::text, ak."createdByUserId"::text)
+           AND rd.decision IN ('suspend', 'pause_sending')
+           AND (rd."expiresAt" IS NULL OR rd."expiresAt" > now())
+       )::boolean                                       AS has_active_risk_suspension
 FROM "ApiKey" ak
 LEFT JOIN "User" u ON u.id = ak."userId"
 LEFT JOIN "Publisher" p ON p.id = COALESCE(ak."publisherId", u."publisherId")

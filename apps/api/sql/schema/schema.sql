@@ -681,6 +681,8 @@ CREATE TABLE "Publisher" (
     "emailSettings" JSONB NOT NULL DEFAULT '{}'::jsonb,
     "siteOptions" JSONB NOT NULL DEFAULT '{}'::jsonb,
     "stripeAccountId" TEXT,
+    "apiReadOnlyAt" TIMESTAMP(3),
+    "apiReadOnlyReason" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -853,6 +855,9 @@ CREATE TABLE "ApiKey" (
     "keyPrefix" TEXT NOT NULL,
     "keyHash" TEXT NOT NULL,
     "scopes" TEXT[] DEFAULT ARRAY['READ', 'WRITE', 'ANALYTICS']::TEXT[],
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "suspendedAt" TIMESTAMP(3),
+    "suspendReason" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "lastUsedAt" TIMESTAMP(3),
     "userId" UUID,
@@ -864,6 +869,21 @@ CREATE TABLE "ApiKey" (
         ("userId" IS NOT NULL AND "publisherId" IS NULL) OR
         ("userId" IS NULL AND "publisherId" IS NOT NULL)
     )
+);
+
+-- CreateTable
+CREATE TABLE "SecurityEvent" (
+    "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+    "userId" UUID,
+    "publisherId" TEXT,
+    "apiKeyId" TEXT,
+    "eventType" TEXT NOT NULL,
+    "ipSubnet" TEXT,
+    "userAgent" TEXT,
+    "metadata" JSONB NOT NULL DEFAULT '{}'::jsonb,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SecurityEvent_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable

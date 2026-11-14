@@ -297,3 +297,63 @@ func (h *Handler) decideAbuseAppeal(w http.ResponseWriter, r *http.Request) {
 	}
 	response.OK(w, a)
 }
+
+// POST /v1/admin/api-keys/{id}/quarantine — passe une clé API en lecture seule.
+func (h *Handler) quarantineApiKey(w http.ResponseWriter, r *http.Request) {
+	actorID, ok := h.requireAuthenticated(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		Reason string `json:"reason"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&in)
+	if err := h.svc.QuarantineApiKey(r.Context(), actorID, chi.URLParam(r, "id"), in.Reason); err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"status": "READ_ONLY"})
+}
+
+// DELETE /v1/admin/api-keys/{id}/quarantine — lève la quarantaine d'une clé API.
+func (h *Handler) unquarantineApiKey(w http.ResponseWriter, r *http.Request) {
+	actorID, ok := h.requireAuthenticated(w, r)
+	if !ok {
+		return
+	}
+	if err := h.svc.UnquarantineApiKey(r.Context(), actorID, chi.URLParam(r, "id")); err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"status": "ACTIVE"})
+}
+
+// POST /v1/admin/publishers/{id}/api-quarantine — passe l'API d'une publication en lecture seule.
+func (h *Handler) quarantinePublisherAPI(w http.ResponseWriter, r *http.Request) {
+	actorID, ok := h.requireAuthenticated(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		Reason string `json:"reason"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&in)
+	if err := h.svc.QuarantinePublisherAPI(r.Context(), actorID, chi.URLParam(r, "id"), in.Reason); err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"status": "READ_ONLY"})
+}
+
+// DELETE /v1/admin/publishers/{id}/api-quarantine — lève la quarantaine API d'une publication.
+func (h *Handler) unquarantinePublisherAPI(w http.ResponseWriter, r *http.Request) {
+	actorID, ok := h.requireAuthenticated(w, r)
+	if !ok {
+		return
+	}
+	if err := h.svc.UnquarantinePublisherAPI(r.Context(), actorID, chi.URLParam(r, "id")); err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"status": "ACTIVE"})
+}

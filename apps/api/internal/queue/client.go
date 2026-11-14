@@ -353,3 +353,18 @@ func PublishSubscriberWelcome(c *asynq.Client, p SubscriberWelcomePayload) error
 	_, err = c.Enqueue(task, asynq.Queue("default"))
 	return err
 }
+
+// PublishSecurityAlertEmail enfile l'envoi d'une alerte de sécurité sur la
+// file `critical` (no-op si le client asynq est nil).
+func PublishSecurityAlertEmail(c *asynq.Client, p SecurityAlertEmailPayload) error {
+	if c == nil {
+		return nil
+	}
+	payload, err := json.Marshal(p)
+	if err != nil {
+		return err
+	}
+	task := asynq.NewTask(TaskSecurityAlertEmail, payload, asynq.MaxRetry(3), asynq.Timeout(30*time.Second))
+	_, err = c.Enqueue(task, asynq.Queue("critical"))
+	return err
+}

@@ -68,6 +68,7 @@ func main() {
 	adminSvc := admin.NewService(pool)
 	staffCampaignWorker := workers.NewStaffCampaignWorker(pool, adminSvc)
 	staffCampaignWorker.SetAsynqClient(asynqClient)
+	securityAlertWorker := workers.NewSecurityAlertWorker(pool)
 
 	mux := asynq.NewServeMux()
 	handlers := buildHandlers(workerDeps{
@@ -82,6 +83,7 @@ func main() {
 		reconfirm:     reconfirmWorker,
 		importSend:    importSendWorker,
 		staffCampaign: staffCampaignWorker,
+		securityAlert: securityAlertWorker,
 	})
 	for taskType, fn := range handlers {
 		mux.HandleFunc(taskType, fn)
@@ -148,6 +150,7 @@ func main() {
 	confirmWorker.SetEmailProvider(emailProvider, cfg.EmailFrom)
 	welcomeWorker.SetEmailProvider(emailProvider, cfg.EmailFrom)
 	importSendWorker.SetEmailProvider(emailProvider, cfg.EmailFrom)
+	securityAlertWorker.SetEmailProvider(emailProvider, cfg.EmailFrom)
 	if emailProvider != nil {
 		go workers.RunEmailDeliveryLoop(ctx, pool, emailProvider, cfg.EmailFrom, 30*time.Second, 50)
 		// 📣 Avis légaux : prévenir les personnes dont le consentement doit être
@@ -211,6 +214,7 @@ type workerDeps struct {
 	reconfirm     *workers.ImportReconfirmWorker
 	staffCampaign *workers.StaffCampaignWorker
 	importSend    *workers.ImportSendWorker
+	securityAlert *workers.SecurityAlertWorker
 }
 
 // buildHandlers exprime le mapping tâche asynq → handler worker sous forme de
@@ -247,5 +251,6 @@ func buildHandlers(d workerDeps) map[string]asynq.HandlerFunc {
 		queue.TaskSubscriberImportReconfirm: d.reconfirm.HandleImportReconfirmWave,
 		queue.TaskSubscriberImportSend:      d.importSend.HandleImportSendWave,
 		queue.TaskStaffCampaign:             d.staffCampaign.HandleStaffCampaign,
+		queue.TaskSecurityAlertEmail:        d.securityAlert.HandleSecurityAlert,
 	}
 }

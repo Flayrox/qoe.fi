@@ -460,6 +460,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 	settingsSvc := settings.NewService(pool)
 	settingsSvc.SetFlags(flagsSvc)
 	settingsSvc.SetTrustService(trustSvc)
+	settingsSvc.SetAsynqClient(asynqClient)
 	// Envoi d'email de test du panneau email : même fournisseur que les
 	// workers (SMTP/Resend). Nil → 503 explicite côté endpoint.
 	settingsSvc.SetEmailTestSender(d.EmailProvider, d.EmailFrom)
@@ -486,6 +487,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 	usersSvc := users.NewServiceWithGoTrue(pool, d.SupabaseAuthURL, d.SupabaseServiceRoleKey)
 	usersSvc.SetSignupConsentRecorder(legalSvc)
 	usersSvc.SetTrustService(trustSvc)
+	usersSvc.SetAsynqClient(asynqClient)
 	// Parcours connecté fiche 01 : l'abonnement sans ressaisie lit l'adresse
 	// vérifiée du compte via ce service (pas d'adresse déclarée crue).
 	newslettersSvc.SetEmailVerifier(usersSvc)
@@ -575,6 +577,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 		mediaSvc := media.NewService(pool)
 		mediaSvc.SetFlags(flagsSvc)
+		mediaSvc.SetAsynqClient(asynqClient)
 		mediaHandler := media.NewHandler(mediaSvc)
 		mediaHandler.Register(protected)
 

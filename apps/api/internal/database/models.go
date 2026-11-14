@@ -538,6 +538,9 @@ type ApiKey struct {
 	KeyPrefix       string           `json:"keyPrefix"`
 	KeyHash         string           `json:"keyHash"`
 	Scopes          []string         `json:"scopes"`
+	Status          string           `json:"status"`
+	SuspendedAt     pgtype.Timestamp `json:"suspendedAt"`
+	SuspendReason   pgtype.Text      `json:"suspendReason"`
 	CreatedAt       pgtype.Timestamp `json:"createdAt"`
 	LastUsedAt      pgtype.Timestamp `json:"lastUsedAt"`
 	UserId          pgtype.UUID      `json:"userId"`
@@ -572,6 +575,7 @@ type Article struct {
 	ID                     string            `json:"id"`
 	Title                  string            `json:"title"`
 	Slug                   string            `json:"slug"`
+	ShortCode              pgtype.Text       `json:"shortCode"`
 	Content                string            `json:"content"`
 	DraftContent           pgtype.Text       `json:"draftContent"`
 	ContentSha             pgtype.Text       `json:"contentSha"`
@@ -1512,6 +1516,8 @@ type Publisher struct {
 	EmailSettings          []byte           `json:"emailSettings"`
 	SiteOptions            []byte           `json:"siteOptions"`
 	StripeAccountId        pgtype.Text      `json:"stripeAccountId"`
+	ApiReadOnlyAt          pgtype.Timestamp `json:"apiReadOnlyAt"`
+	ApiReadOnlyReason      pgtype.Text      `json:"apiReadOnlyReason"`
 	CreatedAt              pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt              pgtype.Timestamp `json:"updatedAt"`
 }
@@ -1520,6 +1526,7 @@ type ReadingSession struct {
 	ID                 string           `json:"id"`
 	ArticleId          string           `json:"articleId"`
 	UserId             pgtype.UUID      `json:"userId"`
+	AnonHash           pgtype.Text      `json:"anonHash"`
 	Source             string           `json:"source"`
 	Status             string           `json:"status"`
 	ScrollDepth        int32            `json:"scrollDepth"`
@@ -1560,6 +1567,18 @@ type RiskDecision struct {
 	Note        pgtype.Text      `json:"note"`
 	ExpiresAt   pgtype.Timestamp `json:"expiresAt"`
 	AppealRef   pgtype.Text      `json:"appealRef"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+}
+
+type SecurityEvent struct {
+	ID          string           `json:"id"`
+	UserId      pgtype.UUID      `json:"userId"`
+	PublisherId pgtype.Text      `json:"publisherId"`
+	ApiKeyId    pgtype.Text      `json:"apiKeyId"`
+	EventType   string           `json:"eventType"`
+	IpSubnet    pgtype.Text      `json:"ipSubnet"`
+	UserAgent   pgtype.Text      `json:"userAgent"`
+	Metadata    []byte           `json:"metadata"`
 	CreatedAt   pgtype.Timestamp `json:"createdAt"`
 }
 

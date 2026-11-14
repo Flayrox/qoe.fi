@@ -279,18 +279,24 @@ func (h *Handler) apiArticles(w http.ResponseWriter, r *http.Request) {
 	case "false":
 		add(` AND a."isPremium" = false`)
 	}
-	// Status filter: draft, scheduled, submitted, published (default), all
-	switch q.Get("status") {
-	case "draft":
-		add(` AND a.status = 'DRAFT'`)
-	case "scheduled":
-		add(` AND a.status = 'SCHEDULED'`)
-	case "submitted":
-		add(` AND a.status = 'SUBMITTED'`)
-	case "all":
-		// no filter
-	default:
-		add(` AND a.published = true AND a.status = 'PUBLISHED'`)
+	// Mode quarantaine lecture seule : ne renvoyer que les articles publiés
+	// créés avant le déclenchement de la restriction (<= suspendedAt).
+	if cutoff, ro := middleware.ReadOnlyCutoff(r.Context()); ro {
+		add(` AND a.published = true AND a.status = 'PUBLISHED' AND a."createdAt" <= $?`, cutoff)
+	} else {
+		// Status filter: draft, scheduled, submitted, published (default), all
+		switch q.Get("status") {
+		case "draft":
+			add(` AND a.status = 'DRAFT'`)
+		case "scheduled":
+			add(` AND a.status = 'SCHEDULED'`)
+		case "submitted":
+			add(` AND a.status = 'SUBMITTED'`)
+		case "all":
+			// no filter
+		default:
+			add(` AND a.published = true AND a.status = 'PUBLISHED'`)
+		}
 	}
 	if term := q.Get("q"); term != "" {
 		add(` AND a.title ILIKE '%' || $? || '%'`, term)
@@ -410,6 +416,12 @@ func (h *Handler) loadCreatorArticleFull(
 	var draftContent sql.NullString
 	var tags []string
 	var catID, catSlug, catName sql.NullString
+	roCond := ""
+	qArgs := []any{publisherID, userID, userID, slug}
+	if cutoff, ro := middleware.ReadOnlyCutoff(ctx); ro {
+		roCond = ` AND a.published = true AND a.status = 'PUBLISHED' AND a."createdAt" <= $5`
+		qArgs = append(qArgs, cutoff)
+	}
 	err := h.pool.QueryRow(ctx, `
 		SELECT a.id::text, a.slug, a."shortCode", a.title, COALESCE(a.content,''), a."draftContent", a."imageUrl",
 		       a.status, a.published, a."readingTime", a."isPremium", a.visibility::text,
@@ -419,9 +431,9 @@ func (h *Handler) loadCreatorArticleFull(
 		       a."semanticTags", cat.id::text, cat.slug, cat.name
 		`+apiArticlesFrom+` AND (a.slug = $4
 		   OR EXISTS (SELECT 1 FROM "ArticleSlug" s WHERE s.slug = $4 AND s."articleId" = a.id)
-		   OR EXISTS (SELECT 1 FROM "ArticleSlugHistory" h WHERE h.slug = $4 AND h."articleId" = a.id))
+		   OR EXISTS (SELECT 1 FROM "ArticleSlugHistory" h WHERE h.slug = $4 AND h."articleId" = a.id))`+roCond+`
 		LIMIT 1`,
-		publisherID, userID, userID, slug).Scan(
+		qArgs...).Scan(
 		&full.ID, &full.Slug, &full.ShortCode, &full.Title, &full.ContentHTML, &draftContent, &full.CoverURL,
 		&full.Status, &full.Published, &full.ReadingTime, &full.IsPremium, &full.Visibility,
 		&full.AllowComments, &full.AllowPublicAnnotations, &full.AllowDownload,
@@ -553,6 +565,10 @@ func (h *Handler) apiSearch(w http.ResponseWriter, r *http.Request) {
 		// Accepte id OU slug pour la catégorie (technique = id, humain = slug)
 		where += ` AND (cat.slug = $` + strconv.Itoa(len(args)+1) + ` OR cat.id = $` + strconv.Itoa(len(args)+2) + `)`
 		args = append(args, category, category)
+	}
+	if cutoff, ro := middleware.ReadOnlyCutoff(r.Context()); ro {
+		where += ` AND a.published = true AND a.status = 'PUBLISHED' AND a."createdAt" <= $` + strconv.Itoa(len(args)+1)
+		args = append(args, cutoff)
 	}
 
 	// Total pour la pagination.
