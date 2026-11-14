@@ -46,6 +46,10 @@ func MustPool(tb testing.TB) *pgxpool.Pool {
 	tb.Helper()
 	p, err := Pool(context.Background())
 	if err != nil {
+		if os.Getenv("QOE_DB_TESTS_OPTIONAL") != "" {
+			tb.Skipf("postgres de test indisponible (QOE_DB_TESTS_OPTIONAL=1) : %v", err)
+			return nil
+		}
 		tb.Fatalf("postgres de test: %v", err)
 	}
 	return p
