@@ -46,12 +46,12 @@ Ces quatre suites se mesurent **chacune avec sa propre config** : `@/` pointe ve
 unique ne sait pas résoudre. Commande : `pnpm test:coverage:front` (step CI
 « Coverage Gate (front apps) »). Seuils = mesure du jour arrondie vers le bas.
 
-| Périmètre        | Tests             | Lignes          | Seuil (ratchet) |
-| ---------------- | ----------------- | --------------- | --------------- |
-| `packages/ui`    | 519 (82 fichiers) | **55,45 %**     | 55 / 53 / 48    |
-| `apps/tenants`   | 34 (10)           | **23,52 %**     | 23 / 22 / 17    |
-| `apps/studio`    | 107 (23)          | **7,27 %**      | 6 / 6 / 7       |
-| `apps/admin`     | 63 (10)           | **4,42 %**      | 4 / 4 / 3       |
+| Périmètre      | Tests             | Lignes      | Seuil (ratchet) |
+| -------------- | ----------------- | ----------- | --------------- |
+| `packages/ui`  | 519 (82 fichiers) | **55,45 %** | 55 / 53 / 48    |
+| `apps/tenants` | 34 (10)           | **23,52 %** | 23 / 22 / 17    |
+| `apps/studio`  | 107 (23)          | **7,27 %**  | 6 / 6 / 7       |
+| `apps/admin`   | 63 (10)           | **4,42 %**  | 4 / 4 / 3       |
 
 (seuil = lignes / statements / fonctions ; branches également gatées.) Avant cette
 mesure, ces 723 tests ne comptaient dans aucun chiffre : la moitié du front était
@@ -61,9 +61,9 @@ hors radar.
 
 `cd apps/api && go test -cover ./...` : 82 packages mesurés, **moyenne 38,3 %** (non pondérée).
 
-| Très couverts                                                                                                                         | À 0 %                                                                                                                                                       |
-| ------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `shared/identifier`, `modules/billing`, `eligibility`, `config` : 100 % · `cache` 95,8 % · `observability` 93,5 % · `antispam` 92,2 % | `flags`*, `modules/newsletters`, `modules/tracking`, `modules/appeals`, `modules/support`, `modules/collaborations`, `internal/database` (sqlc), `cmd/seed` |
+| Très couverts                                                                                                                                                                                           | À 0 %                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `shared/identifier`, `modules/billing`, `eligibility`, `config`, `identity` : 100 % · `modules/appeals` 98,8 % · `modules/support` 97,3 % · `cache` 95,8 % · `observability` 93,5 % · `antispam` 92,2 % | `modules/tracking`_, `modules/collaborations`_, `internal/database` (sqlc), `cmd/seed` |
 
 \* tests présents mais skippés sans Testcontainers.
 
@@ -100,26 +100,24 @@ un par un, pas seulement comptés.
   HTTP (`maxRedirects: 0` → statut + en-tête `Location`), pas en ouvrant 39 navigateurs :
   le layout redirige avant tout rendu, et charger 39 fois la page de login faisait
   dépasser le timeout du job CI (step annulé à 20 min). Durée locale : ~22 s.
+
 ### 4.b Matrices des apps secondaires (2026-11-14)
 
-`e2e/tenants-routes.spec.ts` et `e2e/studio-routes.spec.ts` (helper partagé
+`e2e/tenants-routes.spec.ts`, `e2e/studio-routes.spec.ts` et `e2e/hi-routes.spec.ts` (helper partagé
 `e2e/lib/route-matrix.ts`) visitent **toutes** les pages découvertes de `apps/tenants`
-(16 patterns) et `apps/studio` (24 patterns), avec le même contrat : jamais 5xx, jamais
+(16 patterns), `apps/studio` (24 patterns) et `apps/hi` (4 patterns), avec le même contrat : jamais 5xx, jamais
 l'error boundary, redirection toujours accompagnée d'un `Location`, inventaire jamais
-vide (garde `MIN_PAGES`). 42 cas, exécutés par le job dédié **`e2e-apps-routes`**
-(`playwright.apps.config.ts`, `--grep "Matrice de routes"`). Local : **42/42 verts** ;
-en CI (`75d01ba6`) : **42 passed en 16,5 s**.
+vide (garde `MIN_PAGES`). **47 cas** (avec gardes d'inventaire), exécutés par le job dédié **`e2e-apps-routes`**
+(`playwright.apps.config.ts`, `--project=tenants --project=studio --project=hi --grep "Matrice de routes"`), soit **5/5 apps Next couvertes** (core, admin, tenants, studio, hi). Local : 42/42 verts avant ajout de `hi`, 47 cas découverts après ;
+en CI (`75d01ba6`) : **42 passed en 16,5 s** (avant ajout de `hi`).
 Le job fonctionnel `e2e-apps` les exclut (`--grep-invert`) : la matrice est un rendu de
-pages, pas un parcours métier, et 40 rendus de plus le poussaient vers sa borne de
+pages, pas un parcours métier, et 40+ rendus de plus le poussaient vers sa borne de
 30 min.
 
-Le job construit tenants + studio puis lance la matrice avec `PLAYWRIGHT_APPS_PROD=1`
+Le job construit tenants + studio + hi puis lance la matrice avec `PLAYWRIGHT_APPS_PROD=1`
 (les `webServer` servent alors `next start` au lieu de `next dev`). Raison mesurée : en
-dev, chaque première visite compile sa route et les 42 pages dépassaient le budget
-(job annulé deux fois à 20 min) ; sur build, la matrice entière prend **16 s**.
-
-`apps/hi` reste à brancher : `playwright.apps.config.ts` ne démarre pas de serveur pour
-cette app (4 pages). Exemption assumée et tracée ici, pas sautée en silence.
+dev, chaque première visite compile sa route et les 42+ pages dépassaient le budget
+(job annulé deux fois à 20 min) ; sur build, la matrice entière prend **~16 s**.
 
 ### Variables d'environnement du projet `routes`
 
@@ -172,7 +170,7 @@ une route sans décision explicite.
 0. ~~**5 échecs du job `e2e`** (parcours de lecture)~~ — traités. Ce chemin a livré cinq
    vrais bugs applicatifs, tous corrigés : absence de Redis dans le job E2E ;
    `pushState` sur une URL absolue (port 15402) → `SecurityError` (`sameOriginPath`) ;
-   **`/article/[slug]` toujours en 404** : `permanentRedirect` était appelé *dans* le
+   **`/article/[slug]` toujours en 404** : `permanentRedirect` était appelé _dans_ le
    `try`, son exception de contrôle (NEXT_REDIRECT) était donc attrapée par le `catch`
    voisin → `notFound()` systématique, même pour un article publié ; et trois sélecteurs
    qui décrivaient un DOM inexistant (bouton « Lire l'article » d'un `ArticleRow` plus

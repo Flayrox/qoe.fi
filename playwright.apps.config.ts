@@ -17,6 +17,7 @@ const GO_API_URL = `http://localhost:${GO_API_PORT}`;
 const TENANTS_URL = process.env.PLAYWRIGHT_TENANTS_URL ?? 'http://localhost:15403';
 const STUDIO_URL = process.env.PLAYWRIGHT_STUDIO_URL ?? 'http://localhost:15404';
 const ADMIN_URL = process.env.PLAYWRIGHT_ADMIN_URL ?? 'http://localhost:15405';
+const HI_URL = process.env.PLAYWRIGHT_HI_URL ?? 'http://localhost:15401';
 
 // DSN sans paramètres réservés à Prisma (?schema=public).
 const goDatabaseUrl = (process.env.API_DATABASE_URL ?? process.env.DATABASE_URL ?? '').split(
@@ -35,6 +36,8 @@ const appEnv = {
 // répond en millisecondes. Activé par le job `e2e-apps-routes`, qui construit
 // les deux apps avant de lancer la matrice.
 const APP_PROD = process.env.PLAYWRIGHT_APPS_PROD === '1';
+const NEEDS_HI = APP_PROD || process.argv.some((a) => a.includes('hi'));
+const NEEDS_ADMIN = !APP_PROD || process.argv.some((a) => a.includes('admin'));
 
 /**
  * `prod: false` garde `next dev` pour une app qui n'est pas construite par le
@@ -87,7 +90,8 @@ export default defineConfig({
     // de studio/admin redirigent (auth) — le port suffit à attendre le boot.
     appServer('@qoe/tenants', 15403),
     appServer('@qoe/studio', 15404),
-    appServer('@qoe/admin', 15405, false),
+    ...(NEEDS_ADMIN ? [appServer('@qoe/admin', 15405, false)] : []),
+    ...(NEEDS_HI ? [appServer('@qoe/hi', 15401)] : []),
   ],
   projects: [
     {
@@ -106,6 +110,11 @@ export default defineConfig({
       // admin-legal.spec.ts has its own full-stack gate and legal-lifecycle setup;
       // keep it out of the plain admin smoke project.
       testMatch: [/admin\.spec\.ts/],
+    },
+    {
+      name: 'hi',
+      use: { ...devices['Desktop Chrome'], baseURL: HI_URL },
+      testMatch: [/hi-.*\.spec\.ts/],
     },
   ],
 });
