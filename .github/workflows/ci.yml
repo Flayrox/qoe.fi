@@ -3,21 +3,30 @@ name: CI Workflow
 on:
   push:
     branches: [main, master, dev]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.agents/**'
   pull_request:
     branches: [main, master, dev]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.agents/**'
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
 
 jobs:
-  build-and-test:
-    name: Build & Verify Monorepo
+  static-checks:
+    name: Static Checks & Guards
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # pnpm 11 exige Node >= 22.13 (node:sqlite) — Node 20 plantait au
-      # démarrage de pnpm (ERR_UNKNOWN_BUILTIN_MODULE). Le package.json
-      # déclare "node": ">=20", Node 22 est donc compatible.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -28,22 +37,12 @@ jobs:
         with:
           version: 11.21.0
 
-      # Pas de cache pnpm : l'install à froid prend ~18s et le service de cache
-      # GitHub est instable (runs parallèles → clés en conflit → échec CI).
-      # Le gain de vitesse ne vaut pas la fragilité ajoutée.
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile --fetch-timeout 600000
 
-      # Guard seed de thème : échoue si seed-script.tsx ré-importe next/script
-      # (composant client → warning React « script tag » sur router.refresh /
-      # login) OU si un rendu client loggue ce warning. Verrouille le correctif
-      # anti-FOUC sans regression possible dans le temps.
       - name: Guard seed-script (next/script + warning « script tag »)
         run: pnpm guard:seed-script
 
-      # Guard légal : consentement d'inscription/onboarding câblé partout,
-      # registre des traceurs complet (catégorie, finalité, durée, unicité),
-      # sentinelle publicitaire et mode exempté en place.
       - name: Guard legal-consent (consentement + registre des traceurs)
         run: pnpm guard:legal-consent
 
@@ -53,13 +52,29 @@ jobs:
       - name: Lint Workspace
         run: pnpm lint
 
-      # Ratchet de dette UI : `<button>` bruts, `<input>` bruts, overlays
-      # faits main, primitives réinventées, imports Base UI/HeroUI hors du
-      # package. Les plafonds vivent dans ui-budget.json et ne peuvent que
-      # descendre (une hausse exige --allow-increase). Objectif : empêcher
-      # la dette de remonter pendant la migration vers @qoe/ui.
       - name: Guard UI debt (ratchet)
         run: pnpm ui:audit
+
+  unit-and-coverage:
+    name: Unit Tests & TS Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile --fetch-timeout 600000
 
       - name: Run Unit & Integration Tests
         run: pnpm test
@@ -70,9 +85,6 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key'
           SKIP_ENV_VALIDATION: 'true'
 
-      # Gate de couverture TypeScript des packages critiques (api-client,
-      # auth, utils, flags) — seuils progressifs par package dans
-      # vitest.coverage.config.ts.
       - name: TypeScript Coverage Gate (packages critiques)
         run: pnpm test:coverage
 
@@ -85,11 +97,6 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      # Les apps front ne peuvent pas être agrégées dans
-      # vitest.coverage.config.ts : chacune résout `@/` vers son propre src
-      # (studio 150 fichiers, admin 111, tenants 29). Chaque app se mesure donc
-      # avec sa config, et ses seuils sont un ratchet mesuré (2026-11-14, cf.
-      # docs/TEST-BUNKER-PLAN.md §3). Une baisse casse ce step.
       - name: Coverage Gate (front apps — ui, studio, admin, tenants)
         run: pnpm test:coverage:front
 
@@ -101,6 +108,27 @@ jobs:
           path: coverage/
           retention-days: 7
           if-no-files-found: ignore
+
+  build-and-test:
+    name: Build Production Monorepo
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile --fetch-timeout 600000
 
       - name: Build Production Packages & Applications
         run: pnpm build
@@ -128,22 +156,31 @@ jobs:
         run: |
           go vet ./...
           go build ./...
-          go test -race -count=1 ./...
+          go test -race -count=1 -coverprofile=coverage.out -covermode=atomic ./...
         env:
           TESTCONTAINERS_RYUK_DISABLED: 'true'
 
-      # Gate de couverture des modules critiques (contrat créateurs + worker).
-      # Chaque package doit rester au-dessus de son seuil — une baisse de
-      # couverture due à une refactorisation DOIT s'accompagner de nouveaux
-      # tests, pas d'un seuil abaissé.
+      # Gate de couverture des modules critiques (contrat créateurs + worker) :
+      # calculé directement depuis coverage.out (zéro double exécution Testcontainers).
       - name: Coverage Gate (modules critiques)
         working-directory: apps/api
         run: |
           set -e
           check() {
             pkg="$1"; threshold="$2"
-            pct=$(go test -count=1 -cover ./"$pkg" 2>/dev/null \
-              | sed -n 's/.*coverage: \([0-9.]*\)% of statements.*/\1/p' | head -1)
+            pct=$(awk -v pkg="github.com/qoefi/api/$pkg/" '
+              index($0, pkg) == 1 {
+                rest = substr($0, length(pkg) + 1)
+                if (index(rest, "/") == 0) {
+                  split($0, f, /[ :]+/)
+                  st = f[length(f)-1]
+                  cnt = f[length(f)]
+                  tot += st
+                  if (cnt > 0) cov += st
+                }
+              }
+              END { if (tot > 0) printf "%.1f", cov * 100 / tot }
+            ' coverage.out)
             if [ -z "$pct" ]; then
               echo "✗ $pkg : couverture non mesurée"
               exit 1
@@ -324,7 +361,15 @@ jobs:
         env:
           DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe'
 
+      - name: Cache Playwright Chromium
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
       - name: Install Playwright Chromium
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         run: pnpm e2e:install
 
       # Les projets `routes` et `hydration` ont leur propre job (e2e-routes) :
@@ -426,7 +471,15 @@ jobs:
         env:
           DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe'
 
+      - name: Cache Playwright Chromium
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
       - name: Install Playwright Chromium
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         run: pnpm e2e:install
 
       # --project=routes : chaque page core/admin découverte sur le disque est
@@ -546,20 +599,31 @@ jobs:
         env:
           DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe'
 
+      - name: Cache Playwright Chromium
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
       - name: Install Playwright Chromium
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         run: pnpm e2e:install
 
-      # Gates auth studio/admin (redirection /login) : CI-safe sans session.
-      # Les parcours authentifiés complets (RUN_FULL_STACK=1) restent locaux.
-      # QOE_API_URL aligne e2e/lib/env.ts sur le port de l'API Go démarrée
-      # par playwright.apps.config.ts.
-      # La matrice de routes (see job e2e-apps-routes) n'a rien à faire ici :
-      # elle rend 40 pages et pousserait ce job au-delà de sa borne de 30 min.
-      # Ici on ne garde que les parcours fonctionnels.
+      - name: Build apps for E2E (next start)
+        run: pnpm intl:compile && pnpm --filter @qoe/tenants build && pnpm --filter @qoe/studio build && pnpm --filter @qoe/admin build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          SKIP_ENV_VALIDATION: 'true'
+          QOE_API_URL: 'http://localhost:8091'
+          NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321'
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key'
+
       - name: Run E2E (tenants + studio + admin gates)
-        run: pnpm exec playwright test --config playwright.apps.config.ts --grep-invert "Matrice de routes"
+        run: pnpm exec playwright test --config playwright.apps.config.ts --project=tenants --project=studio --project=admin --grep-invert "Matrice de routes"
         env:
           CI: 'true'
+          PLAYWRIGHT_APPS_PROD: '1'
           PLAYWRIGHT_GO_API_PORT: '8091'
           QOE_API_URL: 'http://localhost:8091'
           DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe'
@@ -644,7 +708,15 @@ jobs:
         env:
           DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe'
 
+      - name: Cache Playwright Chromium
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
       - name: Install Playwright Chromium
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         run: pnpm e2e:install
 
       # La matrice visite les 47 cas : en `next dev`, chaque première visite
