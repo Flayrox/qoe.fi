@@ -97,14 +97,39 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      - name: Coverage Gate (front apps — ui, studio, admin, tenants)
-        run: pnpm test:coverage:front
+  front-coverage:
+    name: Front Coverage (${{ matrix.pkg }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        pkg: [ui, studio, admin, tenants]
 
-      - name: Upload front coverage reports
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile --fetch-timeout 600000
+
+      - name: Coverage Gate (@qoe/${{ matrix.pkg }})
+        run: pnpm --filter @qoe/${{ matrix.pkg }} run test:coverage
+
+      - name: Upload front coverage report (${{ matrix.pkg }})
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-front
+          name: coverage-front-${{ matrix.pkg }}
           path: coverage/
           retention-days: 7
           if-no-files-found: ignore
@@ -130,13 +155,29 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile --fetch-timeout 600000
 
+      - name: Cache Turborepo & Next.js builds
+        uses: actions/cache@v4
+        with:
+          path: |
+            .turbo
+            apps/*/.next/cache
+          key: turbo-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            turbo-${{ runner.os }}-dev-${{ hashFiles('pnpm-lock.yaml') }}-
+            turbo-${{ runner.os }}-
+
       - name: Build Production Packages & Applications
         run: pnpm build
 
   api:
-    name: Go Backend (apps/api)
+    name: Go Backend (apps/api shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2]
 
     steps:
       - name: Checkout Repository
@@ -151,12 +192,18 @@ jobs:
       # Testcontainers (tests d'intégration DB) a besoin du daemon Docker :
       # disponible nativement sur les runners ubuntu. On force l'isolation
       # réseau pour éviter les conflits de réseau Docker entre jobs.
-      - name: Vet, Build & Test Go Backend
+      - name: Vet, Build & Test Go Backend (shard ${{ matrix.shard }})
         working-directory: apps/api
         run: |
-          go vet ./...
-          go build ./...
-          go test -race -count=1 -coverprofile=coverage.out -covermode=atomic ./...
+          if [ "${{ matrix.shard }}" = "0" ]; then
+            go vet ./...
+            go build ./...
+          fi
+          PKGS=$(go list ./... | sort | awk -v s="${{ matrix.shard }}" 'NR % 3 == s')
+          echo "Testing shard ${{ matrix.shard }}:"
+          echo "$PKGS"
+          echo "$PKGS" > shard_pkgs.txt
+          go test -race -count=1 -coverprofile=coverage.out -covermode=atomic $PKGS
         env:
           TESTCONTAINERS_RYUK_DISABLED: 'true'
 
@@ -168,6 +215,9 @@ jobs:
           set -e
           check() {
             pkg="$1"; threshold="$2"
+            if ! grep -qx "github.com/qoefi/api/$pkg" shard_pkgs.txt; then
+              return 0
+            fi
             pct=$(awk -v pkg="github.com/qoefi/api/$pkg/" '
               index($0, pkg) == 1 {
                 rest = substr($0, length(pkg) + 1)
@@ -246,9 +296,13 @@ jobs:
           TESTCONTAINERS_RYUK_DISABLED: 'true'
 
   api-shared-db:
-    name: Go Backend — base partagée (pnpm test:api)
+    name: Go Backend — base partagée (shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2]
 
     steps:
       - name: Checkout Repository
@@ -277,12 +331,13 @@ jobs:
       # go vet/build + go test -p 1 (packages sérialisés — les TRUNCATE des
       # fixtures ne peuvent pas s'exécuter en parallèle sur une base unique).
       # Complète le job `api` (Testcontainers, un conteneur par package).
-      - name: Test Go Backend (base partagée, -p 1)
-        run: pnpm test:api
+      - name: Test Go Backend (base partagée, shard ${{ matrix.shard }})
+        run: |
+          PKGS=$(cd apps/api && go list ./cmd/... ./internal/... | sort | awk -v s="${{ matrix.shard }}" 'NR % 3 == s')
+          pnpm test:api $PKGS
 
   e2e:
     name: E2E (Playwright)
-    needs: build-and-test
     runs-on: ubuntu-latest
     # 94 tests dont la matrice de routes (22 navigations core + 39 contrôles
     # de redirection admin) : la borne précédente de 20 min coupait le job en
@@ -406,7 +461,6 @@ jobs:
   # « matrice sautée ».
   e2e-routes:
     name: E2E Routes (core + console admin)
-    needs: build-and-test
     runs-on: ubuntu-latest
     # Bâti pour durer : install + builds (~4 min) + 107 pages en quelques
     # secondes. 20 min laissent de la marge sans masquer une vraie dérive.
@@ -530,7 +584,6 @@ jobs:
 
   e2e-apps:
     name: E2E Apps (${{ matrix.app }})
-    needs: build-and-test
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -647,7 +700,6 @@ jobs:
   # Un job dédié garde le log nominatif par page et un budget indépendant.
   e2e-apps-routes:
     name: E2E Apps Routes (tenants + studio + hi)
-    needs: build-and-test
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
