@@ -352,10 +352,7 @@ jobs:
     name: E2E Routes (core + console admin)
     needs: build-and-test
     runs-on: ubuntu-latest
-    # La matrice rend ~69 pages sur deux `next dev` : chaque première visite
-    # compile sa route. À 15 min, un runner lent fait annuler le job en pleine
-    # matrice (log perdu). 25 min laissent la place à la compilation.
-    timeout-minutes: 25
+    timeout-minutes: 15
 
     services:
       postgres:
