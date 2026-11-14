@@ -13,6 +13,7 @@
 import { test, expect } from '@playwright/test';
 import { TestDb } from './lib/db';
 import { DATABASE_URL } from './lib/env';
+import { tenantArticlePath } from './lib/tenant-paths';
 
 // ─── Fixtures déterministes (créées et nettoyées par le spec) ──────────
 const PAYWALL = {
@@ -74,7 +75,7 @@ test.describe('Parcours Paywall Tenant — Déverrouillage & Zero-Leak', () => {
     // Warm-up : en dev, Next compile les routes à la première requête — un
     // premier appel non suivi évite un 404 « route non encore compilée ».
     await request
-      .get(`/tenant/${PAYWALL.subdomain}/article/${ARTICLE.slug}`, { timeout: 60_000 })
+      .get(tenantArticlePath(PAYWALL.subdomain, ARTICLE.slug), { timeout: 60_000 })
       .catch(() => {});
   });
 
@@ -89,7 +90,7 @@ test.describe('Parcours Paywall Tenant — Déverrouillage & Zero-Leak', () => {
   test('affiche le teaser public mais coupe hermétiquement le contenu premium côté serveur', async ({
     page,
   }) => {
-    await page.goto(`/tenant/${PAYWALL.subdomain}/article/${ARTICLE.slug}`, {
+    await page.goto(tenantArticlePath(PAYWALL.subdomain, ARTICLE.slug), {
       waitUntil: 'networkidle',
     });
 
@@ -122,15 +123,15 @@ test.describe('Parcours Paywall Tenant — Déverrouillage & Zero-Leak', () => {
   test('présente la carte paywall triptyque conforme aux exigences design Apple', async ({
     page,
   }) => {
-    await page.goto(`/tenant/${PAYWALL.subdomain}/article/${ARTICLE.slug}`, {
+    await page.goto(tenantArticlePath(PAYWALL.subdomain, ARTICLE.slug), {
       waitUntil: 'networkidle',
     });
 
-    // Présence du composant paywall (verre dépoli sur les thèmes non-brutalist)
-    const paywallCard = page
-      .locator('.backdrop-blur-xl')
-      .filter({ hasText: 'Accéder à la suite' })
-      .first();
+    // Présence du composant paywall. On s'ancre sur la région accessible
+    // (`aria-labelledby="paywall-heading"`), pas sur une classe de style :
+    // le verre dépoli a changé de classes et faisait échouer le test alors
+    // que la carte était bien rendue.
+    const paywallCard = page.getByRole('region', { name: /Accéder à la suite/ }).first();
     await expect(paywallCard).toBeVisible({ timeout: 30_000 });
 
     // Triptyque de monétisation : déverrouillage à l'acte ET abonnement.

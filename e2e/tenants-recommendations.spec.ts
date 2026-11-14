@@ -104,9 +104,7 @@ test.describe('Parcours Cross-Recommandations Creator Network', () => {
     await expect(page.getByText(RECO_DESCRIPTION).first()).toBeVisible();
   });
 
-  test('déclenche la modale de recommandation après soumission réussie de la newsletter', async ({
-    page,
-  }) => {
+  test('la newsletter exige une confirmation email avant toute boucle virale', async ({ page }) => {
     await page.goto(`/tenant/${MAIN.subdomain}`, { waitUntil: 'networkidle' });
 
     // Saisir un email valide dans le formulaire de newsletter
@@ -119,25 +117,19 @@ test.describe('Parcours Cross-Recommandations Creator Network', () => {
     // recommandations expose elle aussi des boutons « S'abonner », un
     // `.first()` global cliquerait le mauvais bouton.
     const subscribeForm = page.locator('form').filter({ has: emailInput });
-    await subscribeForm.getByRole('button', { name: /s'abonner/i }).click();
+    // Apostrophe typographique côté UI (« S’abonner ») : matcher les deux
+    // formes, sinon on cherche un bouton qui n'existe pas.
+    await subscribeForm.getByRole('button', { name: /s['’]abonner/i }).click();
 
-    // Confirmation d'abonnement
-    await expect(page.getByText(/vous êtes sur la liste/i).first()).toBeVisible({
+    // 🛑 Double opt-in : l'abonnement n'est pas actif sans clic dans l'email.
+    await expect(page.getByText(/plus qu’une étape|plus qu'une étape/i).first()).toBeVisible({
       timeout: 15_000,
     });
+    await expect(page.getByText(/vérifiez votre boîte mail/i).first()).toBeVisible();
 
-    // 🤝 La boucle virale s'enclenche : la modale de recommandation s'ouvre
-    // automatiquement avec la publication partenaire pré-cochée.
-    const modalHeading = page.getByRole('heading', { name: /vous recommande également/i });
-    await expect(modalHeading).toBeVisible({ timeout: 15_000 });
-
-    // Abonnement groupé en 1 clic (la partenaire est pré-sélectionnée)
-    await page.getByRole('button', { name: /s'abonner à 1 publication/i }).click();
-    await expect(page.getByRole('button', { name: /abonné/i })).toBeVisible({
-      timeout: 15_000,
-    });
-
-    // La modale se referme proprement après le succès
-    await expect(modalHeading).toBeHidden({ timeout: 15_000 });
+    // 🤝 La boucle virale ne s'enclenche donc PAS maintenant : ouvrir la modale
+    // de recommandation ici reviendrait à considérer un abonné qui n'a pas
+    // confirmé (et à lui écrire). Elle reste fermée.
+    await expect(page.getByRole('heading', { name: /vous recommande également/i })).toBeHidden();
   });
 });

@@ -1,111 +1,122 @@
 // =====================================================================
-// ⚖️ E2E — Pages légales & consentement traceurs (apps/tenants)
+// ⚖️ E2E — Information légale côté publication (apps/tenants)
 // =====================================================================
-// Vérifie le contrat de conformité côté public :
-//   - les documents juridiques publiés sont listés et lisibles sur le
-//     domaine du créateur (art. 6 LCEN, art. 12 RGPD) ;
-//   - chaque document affiche sa version et son historique ;
-//   - aucun traceur non essentiel n'est chargé avant le choix, refuser
-//     est aussi simple qu'accepter, et le choix est conservé.
-// Le contenu est installé au démarrage de l'API (seed embarqué), donc ces
-// pages ne sont jamais vides — c'est justement ce que ce spec protège.
+// Depuis le refactor `3bf9d8f1` (« ne plus héberger de page légale dans les
+// tenants »), une publication n'a plus de route /legal : les documents sont
+// ceux de la plateforme et les liens pointent vers ses URLs absolues.
+//
+// Ce spec verrouille ce contrat, qui remplace les trois cas d'origine
+// (index, document, opposition) devenus impossibles — ils testaient des
+// pages qui n'existent plus :
+//   • aucune copie locale des pages légales (404, pas de page fantôme) ;
+//   • les mentions légales d'un article mènent à la plateforme (URL absolue),
+//     jamais à une copie hébergée par la publication ;
+//   • aucune bannière de consentement bloquante : la mesure d'audience est
+//     anonyme et sans cookie, donc dispensée de consentement préalable.
 // =====================================================================
 
 import { test, expect } from '@playwright/test';
 import { TestDb } from './lib/db';
 import { DATABASE_URL } from './lib/env';
+import { tenantArticlePath } from './lib/tenant-paths';
 
-test.describe('Pages légales & consentement (tenant)', () => {
+const DOMAIN = 'legal-e2e';
+const PUBLISHER = {
+  id: 'pub_e2e_legal',
+  subdomain: DOMAIN,
+  name: 'Le Dossier E2E',
+  authorId: '00000000-0000-4000-8000-00000000e2c1',
+  authorEmail: 'e2e-legal@qoe.test',
+  authorUsername: 'e2e_legal_author',
+} as const;
+
+const ARTICLE = {
+  id: 'art_e2e_legal_1',
+  slug: 'dossier-e2e-legal',
+  title: 'Dossier E2E : la transparence comme contrat',
+  content: '<p>Un article public, servi à un visiteur anonyme.</p>',
+} as const;
+
+test.describe('Information légale (publication)', () => {
   let db: TestDb;
-  const domain = 'admin';
 
   test.beforeAll(async ({ request }) => {
     expect(DATABASE_URL, 'DATABASE_URL requis (base seedée)').toBeTruthy();
     db = new TestDb(DATABASE_URL);
     await db.connect();
-    await db.ensureSubdomain(domain, 'pub_12345678123412341234123456789012');
+    await db.ensurePublisher({
+      id: PUBLISHER.id,
+      subdomain: PUBLISHER.subdomain,
+      name: PUBLISHER.name,
+      type: 'MEDIA',
+      authorId: PUBLISHER.authorId,
+      authorEmail: PUBLISHER.authorEmail,
+      authorUsername: PUBLISHER.authorUsername,
+    });
+    await db.ensureArticle({
+      id: ARTICLE.id,
+      publisherId: PUBLISHER.id,
+      authorId: PUBLISHER.authorId,
+      title: ARTICLE.title,
+      slug: ARTICLE.slug,
+      content: ARTICLE.content,
+      published: true,
+    });
 
-    // Warm-up : en dev, Next compile les routes à la première requête.
-    for (const path of [
-      `/tenant/${domain}/legal`,
-      `/tenant/${domain}/legal/conditions-generales-utilisation`,
-    ]) {
-      await request.get(path, { timeout: 60_000 }).catch(() => {});
-    }
+    // Warm-up : en dev, Next compile la route à la première requête.
+    await request.get(tenantArticlePath(DOMAIN, ARTICLE.slug), { timeout: 60_000 }).catch(() => {});
   });
 
   test.afterAll(async () => {
-    await db?.close();
+    if (!db) return;
+    await db.deleteArticle(ARTICLE.id).catch(() => {});
+    await db.deletePublisher(PUBLISHER.id).catch(() => {});
+    await db.close();
   });
 
-  test('l’index légal liste les documents publiés', async ({ page }) => {
-    const pageErrors: string[] = [];
-    page.on('pageerror', (err) => pageErrors.push(err.message));
-
-    await page.goto(`/tenant/${domain}/legal`, { waitUntil: 'networkidle' });
-
-    await expect(page.getByRole('heading', { level: 1, name: 'Informations légales' })).toBeVisible(
-      { timeout: 30_000 }
-    );
-    await expect(
-      page.getByRole('link', { name: /Conditions générales d'utilisation/ }).first()
-    ).toBeVisible();
-    await expect(
-      page.getByRole('link', { name: /Politique de confidentialité/ }).first()
-    ).toBeVisible();
-    expect(pageErrors).toEqual([]);
+  test('la publication n’héberge plus de copie locale des pages légales', async ({ request }) => {
+    // Le contrat n'est pas « la page est jolie », c'est « elle n'existe pas » :
+    // une copie locale divergerait des documents de la plateforme.
+    for (const path of [
+      `/tenant/${DOMAIN}/legal`,
+      `/tenant/${DOMAIN}/legal/conditions-generales-utilisation`,
+    ]) {
+      const res = await request.get(path, { maxRedirects: 0, timeout: 120_000 });
+      expect(res.status(), `${path} ne doit plus être servi par la publication`).toBe(404);
+    }
   });
 
-  test('un document rend sa version, son contenu et son historique', async ({ page }) => {
-    await page.goto(`/tenant/${domain}/legal/conditions-generales-utilisation`, {
-      waitUntil: 'networkidle',
-    });
+  test('les mentions légales d’un article renvoient vers la plateforme', async ({ page }) => {
+    await page.goto(tenantArticlePath(DOMAIN, ARTICLE.slug), { waitUntil: 'networkidle' });
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 });
 
-    await expect(
-      page.getByRole('heading', { level: 1, name: /Conditions générales d'utilisation/ })
-    ).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText(/Version 1\.0\.0/).first()).toBeVisible();
+    const hrefs = await page
+      .locator('a[href*="/legal/"]')
+      .evaluateAll((nodes) => nodes.map((n) => n.getAttribute('href') || ''));
 
-    // Le corps est bien rendu en HTML : aucun marqueur markdown ne subsiste.
-    const body = await page.content();
-    expect(body).not.toContain('## Objet');
+    expect(hrefs.length, 'aucun lien légal dans le pied d’article').toBeGreaterThan(0);
+    for (const href of hrefs) {
+      // URL absolue : la source de vérité est la plateforme, pas la publication.
+      expect(href, `lien légal non absolu : ${href}`).toMatch(/^https?:\/\//);
+      // Jamais une copie servie par l'app tenants.
+      expect(href, `lien légal local : ${href}`).not.toContain(`/tenant/${DOMAIN}`);
+      expect(href, `lien légal local : ${href}`).not.toMatch(/^\/legal\//);
+    }
   });
 
-  test('mesure d’audience exemptée : plus de bannière bloquante, opposition en un clic', async ({
+  test('aucune bannière de consentement bloquante sur une page de publication', async ({
     page,
     context,
   }) => {
     await context.clearCookies();
-    await page.goto(`/tenant/${domain}/legal`, { waitUntil: 'networkidle' });
+    await page.goto(tenantArticlePath(DOMAIN, ARTICLE.slug), { waitUntil: 'networkidle' });
 
-    // Plus de dialogue bloquant : la mesure d'audience est anonyme et sans
-    // cookie, donc dispensée de consentement. On informe, on ne barre pas.
+    // La mesure d'audience est anonyme et sans cookie : on informe, on ne
+    // barre pas. Aucun dialogue de consentement ne doit s'ouvrir tout seul.
     await expect(page.getByRole('dialog', { name: 'Préférences de cookies' })).toBeHidden();
 
-    const notice = page.getByRole('region', { name: 'Mesure d’audience sans cookie' });
-    await expect(notice).toBeVisible({ timeout: 20_000 });
-    // Rien n'est suspendu à un clic : la page est entièrement utilisable.
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-
-    // Le droit d'opposition reste exerçable en un clic, au même endroit.
-    await page.getByRole('button', { name: 'M’y opposer' }).click();
-    await expect(notice).toBeHidden();
-
-    // L'opposition est persistée pour le serveur (AnalyticsGate) ET pour le
-    // navigateur : les deux doivent s'accorder, sinon la promesse est fausse.
-    await expect
-      .poll(async () => (await context.cookies()).some((c) => c.name === 'qoe_cookie_consent'))
-      .toBe(true);
-    expect(await page.evaluate(() => window.localStorage.getItem('umami.disabled'))).toBe('true');
-    // Une opposition enregistrée côté serveur => le script n'est même plus servi.
-    await page.reload({ waitUntil: 'networkidle' });
-    expect(await page.locator('script[data-website-id]').count()).toBe(0);
-
-    // Le centre de préférences reste accessible à tout moment, et il explique
-    // la base de la dispense plutôt que de la laisser implicite.
-    await page.getByRole('button', { name: 'Gérer mes cookies' }).first().click();
-    const center = page.getByRole('dialog', { name: 'Préférences de traceurs' });
-    await expect(center).toBeVisible();
-    await expect(page.getByText('Dispensée de consentement').first()).toBeVisible();
+    // Rien n'est suspendu à un clic : le contenu de l'article est lisible.
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('Un article public, servi à un visiteur anonyme.')).toBeVisible();
   });
 });
