@@ -22,6 +22,7 @@ func NewHandler(svc *Service) *Handler {
 
 func (h *Handler) Register(r chi.Router) {
 	r.Route("/v1/analytics", func(r chi.Router) {
+		r.Use(middleware.RequireAPIScope(middleware.ScopeAnalytics))
 		r.Get("/financial", h.financial)
 		r.Get("/top-content", h.topContent)
 		r.Get("/audience", h.audience)
@@ -39,7 +40,11 @@ func (h *Handler) Register(r chi.Router) {
 }
 
 func publisherID(r *http.Request) string {
-	return r.URL.Query().Get("publisherId")
+	if id := r.URL.Query().Get("publisherId"); id != "" {
+		return id
+	}
+	id, _ := middleware.PublisherID(r.Context())
+	return id
 }
 
 func (h *Handler) financial(w http.ResponseWriter, r *http.Request) {

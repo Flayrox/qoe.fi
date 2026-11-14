@@ -1,6 +1,7 @@
 package creator
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"log"
@@ -286,7 +287,66 @@ func (h *Handler) apiPublisherMetadata(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.OK(w, map[string]any{
+	// Champs étendus (siteOptions, allowDownloadDefault)
+	var siteOptionsBytes []byte
+	var allowDownloadDefault bool
+	_ = h.pool.QueryRow(r.Context(),
+		`SELECT "siteOptions", COALESCE("allowDownloadDefault", false) FROM "Publisher" WHERE id = $1`, pubID).
+		Scan(&siteOptionsBytes, &allowDownloadDefault)
+	var siteOptions any
+	if len(siteOptionsBytes) > 0 {
+		_ = json.Unmarshal(siteOptionsBytes, &siteOptions)
+	}
+
+	// Navigation du site headless
+	type navItem struct {
+		ID         string  `json:"id"`
+		Label      string  `json:"label"`
+		URL        string  `json:"url"`
+		Order      int32   `json:"order"`
+		IsExternal bool    `json:"isExternal"`
+		ParentID   *string `json:"parentId"`
+	}
+	navs := []navItem{}
+	if navRows, nerr := h.pool.Query(r.Context(), `
+		SELECT id, label, url, "order", "isExternal", "parentId"
+		FROM "NavigationItem"
+		WHERE "publisherId" = $1 ORDER BY "order" ASC`, pubID); nerr == nil {
+		defer navRows.Close()
+		for navRows.Next() {
+			var n navItem
+			var pID sql.NullString
+			if err := navRows.Scan(&n.ID, &n.Label, &n.URL, &n.Order, &n.IsExternal, &pID); err == nil {
+				if pID.Valid {
+					n.ParentID = &pID.String
+				}
+				navs = append(navs, n)
+			}
+		}
+	}
+
+	// Réseaux sociaux de la publication
+	type socialItem struct {
+		ID       string `json:"id"`
+		Platform string `json:"platform"`
+		URL      string `json:"url"`
+		Order    int32  `json:"order"`
+	}
+	socials := []socialItem{}
+	if socRows, serr := h.pool.Query(r.Context(), `
+		SELECT id, platform, url, "order"
+		FROM "SocialLink"
+		WHERE "publisherId" = $1 ORDER BY "order" ASC`, pubID); serr == nil {
+		defer socRows.Close()
+		for socRows.Next() {
+			var sl socialItem
+			if err := socRows.Scan(&sl.ID, &sl.Platform, &sl.URL, &sl.Order); err == nil {
+				socials = append(socials, sl)
+			}
+		}
+	}
+
+	payload := map[string]any{
 		"id":                     meta.ID,
 		"type":                   meta.Type,
 		"name":                   meta.Name,
@@ -308,10 +368,17 @@ func (h *Handler) apiPublisherMetadata(w http.ResponseWriter, r *http.Request) {
 		"allowIndexing":          meta.AllowIndexing,
 		"allowPublicAnnotations": meta.AllowPublicAnnotations,
 		"allowComments":          meta.AllowComments,
+		"allowDownloadDefault":   allowDownloadDefault,
 		"isCertified":            meta.IsCertified,
+		"navigation":             navs,
+		"socialLinks":            socials,
 		"createdAt":              meta.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
 		"updatedAt":              meta.UpdatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
-	})
+	}
+	if siteOptions != nil {
+		payload["siteOptions"] = siteOptions
+	}
+	response.OK(w, payload)
 }
 
 // ─── GET /v1/publications/{slugOrId}/profile (Public with CORS) ───

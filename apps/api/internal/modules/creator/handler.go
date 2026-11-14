@@ -89,11 +89,11 @@ func (h *Handler) RegisterAPIKey(r chi.Router) {
 	r.With(middleware.RequireAPIScope(middleware.ScopeAnalytics)).Get("/v1/analytics/stats", h.analyticsStats)
 	// Contenu pour front personnalisé : profil, liste et détail d'articles
 	// (HTML), surlignages publics filtrables par article. Scope READ.
-	r.Get("/v1/creator/me", h.apiMe)
-	r.Get("/v1/creator/articles", h.apiArticles)
-	r.Get("/v1/creator/articles/{slug}", h.apiArticleBySlug)
-	r.Get("/v1/creator/categories", h.apiCategories)
-	r.Get("/v1/creator/search", h.apiSearch)
+	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/me", h.apiMe)
+	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/articles", h.apiArticles)
+	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/articles/{slug}", h.apiArticleBySlug)
+	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/categories", h.apiCategories)
+	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/search", h.apiSearch)
 	// Écriture CMS (scope WRITE) : créer / éditer / supprimer ses articles
 	// depuis des outils externes.
 	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Post("/v1/creator/articles", h.apiArticleCreate)

@@ -1152,7 +1152,7 @@ components:
       enum: [PUBLIC, MEMBERS_ONLY, PAID_SUBSCRIBERS, TIER_SPECIFIC]
     ArticleStatus:
       type: string
-      enum: [DRAFT, SCHEDULED, PUBLISHED]
+      enum: [DRAFT, SUBMITTED, SCHEDULED, PUBLISHED]
     ArticleItem:
       type: object
       description: Article dans les listes du contrat créateur (contenu tronqué)
@@ -1176,6 +1176,12 @@ components:
           type: string
         slug:
           type: string
+        shortCode:
+          type: string
+          nullable: true
+        imageUrl:
+          type: string
+          nullable: true
         contentHtml:
           type: string
           description: Contenu tronqué au paywall (zéro-fuite)

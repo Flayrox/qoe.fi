@@ -55,16 +55,30 @@ type apiCategoryRef struct {
 }
 
 type apiArticleSummary struct {
-	Category    *apiCategoryRef `json:"category,omitempty"`
-	ID          string          `json:"id"`
-	Slug        string          `json:"slug"`
-	Title       string          `json:"title"`
-	Excerpt     string          `json:"excerpt"`
-	CoverURL    *string         `json:"coverImageUrl"`
-	ReadingTime int32           `json:"readingTime"`
-	IsPremium   bool            `json:"isPremium"`
-	PublishedAt string          `json:"publishedAt"`
-	Authors     []apiAuthor     `json:"authors"`
+	Category               *apiCategoryRef `json:"category,omitempty"`
+	ID                     string          `json:"id"`
+	Slug                   string          `json:"slug"`
+	ShortCode              *string         `json:"shortCode,omitempty"`
+	Title                  string          `json:"title"`
+	Excerpt                string          `json:"excerpt"`
+	CoverURL               *string         `json:"coverImageUrl"`
+	ImageURL               *string         `json:"imageUrl"`
+	Status                 string          `json:"status"`
+	Published              bool            `json:"published"`
+	ReadingTime            int32           `json:"readingTime"`
+	IsPremium              bool            `json:"isPremium"`
+	Visibility             string          `json:"visibility"`
+	AllowComments          bool            `json:"allowComments"`
+	AllowPublicAnnotations bool            `json:"allowPublicAnnotations"`
+	AllowDownload          bool            `json:"allowDownload"`
+	SeoTitle               *string         `json:"seoTitle,omitempty"`
+	SeoDescription         *string         `json:"seoDescription,omitempty"`
+	CanonicalType          *string         `json:"canonicalType,omitempty"`
+	CanonicalURL           *string         `json:"canonicalUrl,omitempty"`
+	PublishedAt            string          `json:"publishedAt"`
+	UpdatedAt              string          `json:"updatedAt"`
+	ScheduledAt            *string         `json:"scheduledAt,omitempty"`
+	Authors                []apiAuthor     `json:"authors"`
 }
 
 type apiArticlesPage struct {
@@ -74,12 +88,11 @@ type apiArticlesPage struct {
 }
 
 type apiArticleFull struct {
-	Status    string `json:"status"` // DRAFT | PUBLISHED
-	Published bool   `json:"published"`
 	apiArticleSummary
-	ContentHTML     string `json:"contentHtml"`
-	ContentMarkdown string `json:"contentMarkdown"`
-	Tags            []any  `json:"tags"`
+	ContentHTML           string `json:"contentHtml"`
+	ContentMarkdown       string `json:"contentMarkdown"`
+	HasUnpublishedChanges bool   `json:"hasUnpublishedChanges"`
+	Tags                  []any  `json:"tags"`
 }
 
 // ─── GET /v1/creator/me ────────────────────────────────────────────────
@@ -137,7 +150,8 @@ const apiArticlesFrom = `
 	    a."publisherId" = $1
 	    OR ($2 <> '' AND a."authorId"::text = $2)
 	    OR ($3 <> '' AND a.id IN (SELECT "A" FROM "_CoAuthors" WHERE "B"::text = $3))
-	  )`
+	  )
+	  AND (a."isClaimed" = true OR a."isAuthorSovereignCopy" = false)`
 
 var apiArticlesSorts = map[string]string{
 	"published_desc": `a."createdAt" DESC`,
@@ -186,6 +200,8 @@ type apiCategoryItem struct {
 	Slug         string  `json:"slug"`
 	Name         string  `json:"name"`
 	Description  *string `json:"description,omitempty"`
+	ParentID     *string `json:"parentId"`
+	IsDefault    bool    `json:"isDefault"`
 	ArticleCount int     `json:"articleCount"`
 }
 
@@ -196,6 +212,7 @@ func (h *Handler) apiCategories(w http.ResponseWriter, r *http.Request) {
 	items := []apiCategoryItem{}
 	rows, err := h.pool.Query(r.Context(), `
 		SELECT c.id::text, c.slug, c.name, c.description,
+		       c."parentId"::text, c."isDefault",
 		       COUNT(a.id)::int AS article_count
 		FROM "Category" c
 		LEFT JOIN "Article" a
@@ -205,7 +222,7 @@ func (h *Handler) apiCategories(w http.ResponseWriter, r *http.Request) {
 		     SELECT DISTINCT a2."publisherId" FROM "Article" a2
 		     WHERE a2."authorId"::text = $2 AND a2.published = true
 		   )
-		GROUP BY c.id, c.slug, c.name, c.description
+		GROUP BY c.id, c.slug, c.name, c.description, c."parentId", c."isDefault"
 		ORDER BY c.name ASC`, publisherID, userID)
 	if err != nil {
 		log.Printf("[creator] api categories: %v", err)
@@ -215,7 +232,7 @@ func (h *Handler) apiCategories(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 	for rows.Next() {
 		var it apiCategoryItem
-		if err := rows.Scan(&it.ID, &it.Slug, &it.Name, &it.Description, &it.ArticleCount); err != nil {
+		if err := rows.Scan(&it.ID, &it.Slug, &it.Name, &it.Description, &it.ParentID, &it.IsDefault, &it.ArticleCount); err != nil {
 			continue
 		}
 		items = append(items, it)
@@ -261,10 +278,14 @@ func (h *Handler) apiArticles(w http.ResponseWriter, r *http.Request) {
 	case "false":
 		add(` AND a."isPremium" = false`)
 	}
-	// Status filter: draft, published (default), all
+	// Status filter: draft, scheduled, submitted, published (default), all
 	switch q.Get("status") {
 	case "draft":
 		add(` AND a.status = 'DRAFT'`)
+	case "scheduled":
+		add(` AND a.status = 'SCHEDULED'`)
+	case "submitted":
+		add(` AND a.status = 'SUBMITTED'`)
 	case "all":
 		// no filter
 	default:
@@ -289,8 +310,11 @@ func (h *Handler) apiArticles(w http.ResponseWriter, r *http.Request) {
 
 	page := apiArticlesPage{Items: []apiArticleSummary{}}
 	rows, err := h.pool.Query(r.Context(), `
-		SELECT a.id::text, a.slug, a.title, a.content, a."imageUrl",
-		       a."readingTime", a."isPremium", a."createdAt",
+		SELECT a.id::text, a.slug, a."shortCode", a.title, COALESCE(a.content,''), a."imageUrl",
+		       a.status, a.published, a."readingTime", a."isPremium", a.visibility::text,
+		       a."allowComments", a."allowPublicAnnotations", a."allowDownload",
+		       a."seoTitle", a."seoDescription", a."canonicalType", a."canonicalUrl",
+		       a."createdAt", a."updatedAt", a."scheduledAt",
 		       cat.id::text, cat.slug, cat.name
 		`+where+`
 		ORDER BY `+order+`
@@ -307,15 +331,26 @@ func (h *Handler) apiArticles(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var it apiArticleSummary
 		var content string
-		var publishedAt time.Time
+		var publishedAt, updatedAt time.Time
+		var scheduledAt sql.NullTime
 		var catID, catSlug, catName sql.NullString
-		if err := rows.Scan(&it.ID, &it.Slug, &it.Title, &content, &it.CoverURL,
-			&it.ReadingTime, &it.IsPremium, &publishedAt,
+		if err := rows.Scan(
+			&it.ID, &it.Slug, &it.ShortCode, &it.Title, &content, &it.CoverURL,
+			&it.Status, &it.Published, &it.ReadingTime, &it.IsPremium, &it.Visibility,
+			&it.AllowComments, &it.AllowPublicAnnotations, &it.AllowDownload,
+			&it.SeoTitle, &it.SeoDescription, &it.CanonicalType, &it.CanonicalURL,
+			&publishedAt, &updatedAt, &scheduledAt,
 			&catID, &catSlug, &catName); err != nil {
 			log.Printf("[creator] articles scan: %v", err)
 			continue
 		}
+		it.ImageURL = it.CoverURL
 		it.PublishedAt = publishedAt.Format("2006-01-02T15:04:05Z07:00")
+		it.UpdatedAt = updatedAt.Format("2006-01-02T15:04:05Z07:00")
+		if scheduledAt.Valid {
+			s := scheduledAt.Time.Format("2006-01-02T15:04:05Z07:00")
+			it.ScheduledAt = &s
+		}
 		it.Excerpt = stripHTMLTags(content, 180)
 		it.Authors = []apiAuthor{}
 		if catID.Valid {
@@ -363,25 +398,40 @@ func (h *Handler) loadCreatorArticleFull(
 ) (*apiArticleFull, error) {
 	var full apiArticleFull
 	full.Authors = []apiAuthor{}
-	var publishedAt time.Time
+	var publishedAt, updatedAt time.Time
+	var scheduledAt sql.NullTime
+	var draftContent sql.NullString
 	var tags []string
 	var catID, catSlug, catName sql.NullString
 	err := h.pool.QueryRow(ctx, `
-		SELECT a.id::text, a.slug, a.title, a.content, a."imageUrl",
-		       a."readingTime", a."isPremium", a."createdAt",
+		SELECT a.id::text, a.slug, a."shortCode", a.title, COALESCE(a.content,''), a."draftContent", a."imageUrl",
+		       a.status, a.published, a."readingTime", a."isPremium", a.visibility::text,
+		       a."allowComments", a."allowPublicAnnotations", a."allowDownload",
+		       a."seoTitle", a."seoDescription", a."canonicalType", a."canonicalUrl",
+		       a."createdAt", a."updatedAt", a."scheduledAt",
 		       a."semanticTags", cat.id::text, cat.slug, cat.name
 		`+apiArticlesFrom+` AND (a.slug = $4
 		   OR EXISTS (SELECT 1 FROM "ArticleSlug" s WHERE s.slug = $4 AND s."articleId" = a.id)
 		   OR EXISTS (SELECT 1 FROM "ArticleSlugHistory" h WHERE h.slug = $4 AND h."articleId" = a.id))
 		LIMIT 1`,
 		publisherID, userID, userID, slug).Scan(
-		&full.ID, &full.Slug, &full.Title, &full.ContentHTML, &full.CoverURL,
-		&full.ReadingTime, &full.IsPremium, &publishedAt, &tags,
+		&full.ID, &full.Slug, &full.ShortCode, &full.Title, &full.ContentHTML, &draftContent, &full.CoverURL,
+		&full.Status, &full.Published, &full.ReadingTime, &full.IsPremium, &full.Visibility,
+		&full.AllowComments, &full.AllowPublicAnnotations, &full.AllowDownload,
+		&full.SeoTitle, &full.SeoDescription, &full.CanonicalType, &full.CanonicalURL,
+		&publishedAt, &updatedAt, &scheduledAt, &tags,
 		&catID, &catSlug, &catName)
 	if err != nil {
 		return nil, err
 	}
+	full.ImageURL = full.CoverURL
+	full.HasUnpublishedChanges = draftContent.Valid && draftContent.String != ""
 	full.PublishedAt = publishedAt.Format("2006-01-02T15:04:05Z07:00")
+	full.UpdatedAt = updatedAt.Format("2006-01-02T15:04:05Z07:00")
+	if scheduledAt.Valid {
+		s := scheduledAt.Time.Format("2006-01-02T15:04:05Z07:00")
+		full.ScheduledAt = &s
+	}
 	if catID.Valid {
 		full.Category = &apiCategoryRef{ID: catID.String, Slug: catSlug.String, Name: catName.String}
 	}
@@ -504,8 +554,11 @@ func (h *Handler) apiSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := `
-		SELECT a.id::text, a.slug, a.title, a.content, a."imageUrl",
-		       a."readingTime", a."isPremium", a."createdAt",
+		SELECT a.id::text, a.slug, a."shortCode", a.title, COALESCE(a.content,''), a."imageUrl",
+		       a.status, a.published, a."readingTime", a."isPremium", a.visibility::text,
+		       a."allowComments", a."allowPublicAnnotations", a."allowDownload",
+		       a."seoTitle", a."seoDescription", a."canonicalType", a."canonicalUrl",
+		       a."createdAt", a."updatedAt", a."scheduledAt",
 		       cat.id::text, cat.slug, cat.name,
 		       (a.title ILIKE '%' || $4 || '%') AS title_hit
 		` + where + `
@@ -525,15 +578,26 @@ func (h *Handler) apiSearch(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var it apiArticleSummary
 		var content string
-		var createdAt time.Time
+		var createdAt, updatedAt time.Time
+		var scheduledAt sql.NullTime
 		var catID, catSlug, catName sql.NullString
 		var titleHit bool
-		if err := rows.Scan(&it.ID, &it.Slug, &it.Title, &content, &it.CoverURL,
-			&it.ReadingTime, &it.IsPremium, &createdAt,
+		if err := rows.Scan(
+			&it.ID, &it.Slug, &it.ShortCode, &it.Title, &content, &it.CoverURL,
+			&it.Status, &it.Published, &it.ReadingTime, &it.IsPremium, &it.Visibility,
+			&it.AllowComments, &it.AllowPublicAnnotations, &it.AllowDownload,
+			&it.SeoTitle, &it.SeoDescription, &it.CanonicalType, &it.CanonicalURL,
+			&createdAt, &updatedAt, &scheduledAt,
 			&catID, &catSlug, &catName, &titleHit); err != nil {
 			continue
 		}
+		it.ImageURL = it.CoverURL
 		it.PublishedAt = createdAt.Format("2006-01-02T15:04:05Z07:00")
+		it.UpdatedAt = updatedAt.Format("2006-01-02T15:04:05Z07:00")
+		if scheduledAt.Valid {
+			s := scheduledAt.Time.Format("2006-01-02T15:04:05Z07:00")
+			it.ScheduledAt = &s
+		}
 		it.Excerpt = stripHTMLTags(content, 180)
 		it.Authors = []apiAuthor{}
 		if catID.Valid {
