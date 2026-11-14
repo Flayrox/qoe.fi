@@ -407,7 +407,9 @@ func TestMyHighlights_Pagination(t *testing.T) {
 	svc := newTestService()
 	ctx := context.Background()
 
-	for _, txt := range []string{"un", "deux", "trois"} {
+	// Trois citations distinctes, toutes présentes dans l'article de fixture
+	// (une citation publique doit correspondre à un passage réel).
+	for _, txt := range []string{"Premier repère", "Deuxième repère", "Troisième repère"} {
 		if _, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, txt, nil, true, 0); err != nil {
 			t.Fatalf("Create %s: %v", txt, err)
 		}

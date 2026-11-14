@@ -128,13 +128,15 @@ func (f workerRoundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) 
 func newTestWebhookWorker(server *httptest.Server) *WebhookWorker {
 	w := NewWebhookWorker(poolTest)
 	target, _ := url.Parse(server.URL)
-	w.httpClient = &http.Client{Transport: workerRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	client := &http.Client{Transport: workerRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		clone := req.Clone(req.Context())
 		clone.URL.Scheme = target.Scheme
 		clone.URL.Host = target.Host
 		return server.Client().Transport.RoundTrip(clone)
 	})}
-	return w
+	// Le serveur httptest vit sur loopback, que le garde-fou anti-SSRF refuse :
+	// on neutralise le validateur UNIQUEMENT ici (cf. WithTestHTTPClient).
+	return w.WithTestHTTPClient(client, func(string) error { return nil })
 }
 
 func TestWebhookWorker_DefaultClientBlocksLoopback(t *testing.T) {

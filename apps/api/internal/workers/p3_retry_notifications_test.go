@@ -31,7 +31,7 @@ func TestWebhook_DispatchRetry_RecordsEachDelivery(t *testing.T) {
 	defer server.Close()
 
 	pubID, webhookID := seedWorker(t, server.URL)
-	worker := NewWebhookWorker(poolTest)
+	worker := newTestWebhookWorker(server)
 
 	// 1re tentative → FAILED, 1 delivery.
 	if err := worker.HandleProcesses(context.Background(), makeTask(t, pubID), "article.published"); err != nil {
@@ -82,7 +82,7 @@ func TestWebhook_TenantIsolation_LocalEventDoesNotDispatchForeignWebhooks(t *tes
 		t.Fatalf("publication B: %v", err)
 	}
 
-	worker := NewWebhookWorker(poolTest)
+	worker := newTestWebhookWorker(server)
 	if err := worker.HandleProcesses(context.Background(), makeTask(t, pubB), "article.published"); err != nil {
 		t.Fatalf("HandleProcesses (pub B): %v", err)
 	}
