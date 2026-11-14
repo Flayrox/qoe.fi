@@ -64,7 +64,7 @@ test.describe('Studio créateur', () => {
       '/v1/creator/articles',
       '/v1/creator/recommendations',
       '/v1/creator/subscribers',
-      '/v1/creator/analytics',
+      '/v1/analytics/stats',
     ];
 
     for (const endpoint of creatorEndpoints) {
