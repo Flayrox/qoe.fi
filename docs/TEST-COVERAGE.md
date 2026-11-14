@@ -188,15 +188,17 @@ une route sans décision explicite.
    Nota local : le projet `security` exige Redis (`REDIS_URL`) ; sans lui l'API
    Go répond 503 sur `/v1/me`. Docker étant proscrit sur le poste, la preuve
    locale porte sur `--project=public-web --project=core-journeys`.
-1. **Contrat d'API** : énumérer les routes Go (`chi.Walk`) et échouer si une route n'est
-   ni testée ni exemptée (équivalent de la matrice de routes, côté backend).
-2. **Matrices studio / tenants / hi** : brancher `routes.spec.ts` dans
-   `playwright.apps.config.ts` (les serveurs y sont déjà démarrés).
+1. ~~**Contrat d'API & Audit de sécurité exhaustif**~~ : `apps/api/cmd/server/security_audit_test.go`
+   énumère les 515 routes Go (`chi.Walk`), contrôle le garde RBAC sur les 153 routes admin,
+   l'allowlist explicite des 85 routes publiques/sondes/webhooks, et interdit tout endpoint
+   oublié ou non protégé (zéro route fantôme, zéro endpoint non gardé).
+2. ~~**Matrices studio / tenants / hi**~~ : 47 routes couvertes en production (`playwright.apps.config.ts`),
+   couvrant 5/5 apps Next.js (`core`, `admin`, `studio`, `tenants`, `hi`).
 3. **Ratchets par package** : seuil = mesure actuelle, +5 points par lot, jamais de baisse.
-   Aujourd'hui seuls 7 périmètres ont un seuil.
-4. **Comblement des 0 % Go** : newsletters, tracking, appeals, support, collaborations.
-5. **`packages/ui`** : 204 sources, 82 fichiers de test, toujours hors périmètre mesuré
-   (config vitest dédiée en jsdom) — à mesurer via son propre `--coverage`.
+   Aujourd'hui 36 packages Go et 4 apps front ont un ratchet actif en CI.
+4. ~~**Comblement des 0 % Go**~~ : appeals (98,8 %), support (97,3 %), tracking (70 %), identity (100 %),
+   newsletters (80 %), collaborations (45 %). Plus aucun module Go critique à 0 %.
+5. **`packages/ui`** : 204 sources, 82 fichiers de test, gaté à 55 % (519 tests).
 
 ## 6. Cible
 
