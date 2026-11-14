@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/qoefi/api/internal/adminauthz"
 	"github.com/qoefi/api/internal/response"
@@ -164,6 +165,13 @@ func (s *Service) SaveView(ctx context.Context, staffID, resource string, in Sav
 func (s *Service) DeleteSavedView(ctx context.Context, staffID, resource, id string, canManageAny bool) error {
 	resource = strings.TrimSpace(resource)
 	id = strings.TrimSpace(id)
+
+	// L'id vient de l'URL : un identifiant mal formé ne doit jamais devenir une
+	// erreur de cast Postgres (500). Il ne peut désigner aucune vue → 404, même
+	// réponse qu'une vue inexistante ou d'un collègue (zéro-fuite).
+	if _, err := uuid.Parse(id); err != nil {
+		return errViewNotFound
+	}
 
 	var name string
 	err := s.pool.QueryRow(ctx, `
