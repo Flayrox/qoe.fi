@@ -18,13 +18,14 @@ const REQUEST_TIMEOUT = 90_000;
 export async function expectRedirect(
   request: APIRequestContext,
   url: string,
-  attempts = 12
+  attempts = 12,
+  headers?: Record<string, string>
 ): Promise<number> {
   let status = 0;
   for (let i = 0; i < attempts; i++) {
     // Warm-up : compile la route (et la page cible de la redirection).
-    await request.get(url, { timeout: REQUEST_TIMEOUT }).catch(() => {});
-    const res = await request.get(url, { maxRedirects: 0, timeout: REQUEST_TIMEOUT });
+    await request.get(url, { timeout: REQUEST_TIMEOUT, headers }).catch(() => {});
+    const res = await request.get(url, { maxRedirects: 0, timeout: REQUEST_TIMEOUT, headers });
     status = res.status();
     if (status >= 300 && status < 400) return status;
     // 5xx transitoire de compilation : on attend que la route soit chaude.

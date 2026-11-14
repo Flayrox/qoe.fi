@@ -72,6 +72,7 @@ export async function generateTenantArticleMetadata(
     openGraph: {
       type: 'article',
       locale: isFr ? 'fr_FR' : 'en_US',
+      siteName,
       title,
       description,
       url: canonicalUrl,

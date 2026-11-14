@@ -529,12 +529,14 @@ jobs:
           if-no-files-found: ignore
 
   e2e-apps:
-    name: E2E Apps (tenants/studio/admin)
+    name: E2E Apps (${{ matrix.app }})
     needs: build-and-test
     runs-on: ubuntu-latest
-    # Même raison que le job e2e : la borne de 20 min coupait le step en
-    # pleine exécution (« cancelled »).
-    timeout-minutes: 30
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [tenants, studio, admin]
 
     # Les specs tenants/studio/admin interrogent la DB directement (fixtures)
     # et l'API Go (rendu). Même service Postgres que le job e2e principal.
@@ -610,8 +612,8 @@ jobs:
         if: steps.pw-cache.outputs.cache-hit != 'true'
         run: pnpm e2e:install
 
-      - name: Build apps for E2E (next start)
-        run: pnpm intl:compile && pnpm --filter @qoe/tenants build && pnpm --filter @qoe/studio build && pnpm --filter @qoe/admin build
+      - name: Build app for E2E (next start)
+        run: pnpm intl:compile && pnpm --filter @qoe/${{ matrix.app }} build
         env:
           NEXT_TELEMETRY_DISABLED: '1'
           SKIP_ENV_VALIDATION: 'true'
@@ -619,8 +621,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321'
           NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key'
 
-      - name: Run E2E (tenants + studio + admin gates)
-        run: pnpm exec playwright test --config playwright.apps.config.ts --project=tenants --project=studio --project=admin --grep-invert "Matrice de routes"
+      - name: Run E2E (${{ matrix.app }})
+        run: pnpm exec playwright test --config playwright.apps.config.ts --project=${{ matrix.app }} --grep-invert "Matrice de routes"
         env:
           CI: 'true'
           PLAYWRIGHT_APPS_PROD: '1'
@@ -630,11 +632,11 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321'
           NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key'
 
-      - name: Upload Playwright Report (apps)
+      - name: Upload Playwright Report (${{ matrix.app }})
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-apps
+          name: playwright-report-apps-${{ matrix.app }}
           path: playwright-report/
           retention-days: 7
           if-no-files-found: ignore
