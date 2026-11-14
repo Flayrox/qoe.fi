@@ -163,6 +163,7 @@ Critère de done B : le log nomme chaque page visitée, 0 skip, et le job
 | 2026-11-14 | **B9 — `E2E Apps` vert en CI** | Run `43558657539` sur `a262d168` : `Build & Verify Monorepo` ✅, `E2E (Playwright)` ✅, `E2E Apps Routes` ✅ (42 cas), **`E2E Apps` ✅** (plus aucun échec préexistant). `E2E Routes` reste rouge pour une raison d'infra : « The runner has received a shutdown signal » à ~6 min, après 64 tests verts sur 107 (4e occurrence de la journée). | `a262d168` |
 | 2026-11-14 | **B10 — `E2E Routes` : piste infra confirmée** | Relance du seul job (`gh run rerun --job`) : même scénario, **68 tests verts** (toute la matrice admin) puis shutdown du runner à ~6 min, sans erreur de test. Deux exécutions, même point d'arrêt. Prochain pas : soit un runner avec plus de mémoire, soit le mode build (`PLAYWRIGHT_ROUTES_PROD`), ce qui suppose de réécrire le contrat `/` de la console (en prod elle redirige direct vers le login, en dev `/` → `/admin`). | `a262d168` |
 | 2026-11-14 | **B11 — `E2E Routes` réparé (mémoire)** | Cause : trois `next dev` + API + Chromium saturaient la mémoire du runner → job tué à ~6 min, deux fois (68 tests verts). Correctif : builds core + admin puis `next start` (`PLAYWRIGHT_ROUTES_PROD=1`). Pour que le contrat ne dépende pas du mode, la console redirige désormais `/` → `/admin` **dans le middleware** (en prod, la branche auth renvoyait au login avec `?redirect=/`). Local : `routes` **107/107 en 1 min 30**, `hydration` **4/4 en 17 s**. | _(commit B11)_ |
+| 2026-11-14 | **B12 — chantier vert** | Run `43562697164` sur `c00dd82c` : `Build & Verify Monorepo` ✅, `E2E (Playwright)` ✅, `E2E Routes` ✅ (**111 passed en 1,2 min**, job 4 min), `E2E Apps` ✅, `E2E Apps Routes` ✅. Restent rouges, hors périmètre : `Go Backend`, `Go Backend — base partagée`, `Supply Chain`. | `c00dd82c` |
 | 2026-11-14 | Constat (hors matrice) | `E2E Apps` **échec préexistant** : 6 failed / 2 skipped / 7 passed sur `b8dfda31` (run `43522975160`), mêmes 6 échecs qu'en local (`tenants-legal` ×3, `tenants-paywall`, `tenants-recommendations`, `tenants.spec`). Aucun n'est dans la matrice : prochain chantier (fixtures tenants). | `b8dfda31` |
 
 ---
@@ -174,7 +175,7 @@ Critère de done B : le log nomme chaque page visitée, 0 skip, et le job
 - Matrice de routes sur **les 5 apps** (core, admin, studio, tenants, hi) avec
   garde d'inventaire, 0 skip.
 - Jobs CI web/e2e verts sur un commit poussé, avec URL et compteurs cités.
-  État au 14/11 sur `75d01ba6` : Build & Verify ✅, E2E (Playwright) ✅,
-  e2e-apps-routes ✅ (42 cas), e2e-apps ❌ = 6 échecs préexistants, e2e-routes
-  ❌ annulé (chantier suivant, cf. journal B7).
+  État au 14/11 sur `c00dd82c` (run `43562697164`) : Build & Verify ✅,
+  E2E (Playwright) ✅, e2e-routes ✅ (111 cas), e2e-apps ✅, e2e-apps-routes ✅
+  (42 cas). Aucun échec préexistant restant.
 - Aucun test supprimé, skippé ou affaibli pendant le chantier.
