@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/permissions"
 )
 
@@ -73,6 +74,12 @@ func NewService(pool *pgxpool.Pool, umamiDSN string) *Service {
 // permissions Go est l'unique source de vérité ; le studio lit la même
 // permission via @qoe/auth.
 func (s *Service) canAccess(ctx context.Context, userID, publisherID string) bool {
+	if p, ok := middleware.GetPrincipal(ctx); ok && p.Type == middleware.PrincipalTypePublisher {
+		return p.PublisherID != nil && *p.PublisherID == publisherID
+	}
+	if userID == "" {
+		return false
+	}
 	if personal, err := s.q.GetUserPersonalPublisher(ctx, userID); err == nil && personal.String == publisherID {
 		return true
 	}

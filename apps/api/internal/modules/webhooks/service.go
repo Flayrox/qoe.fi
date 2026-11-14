@@ -24,6 +24,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qoefi/api/internal/apiaccess"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/netguard"
 )
 
@@ -90,8 +91,18 @@ func (s *Service) client() *http.Client {
 }
 
 // resolveRole retourne le rôle de l'utilisateur sur la publication
-// ("owner" personnel ou rôle média owner/editor/writer/viewer).
+// ("owner" personnel ou rôle média owner/editor/writer/viewer),
+// ou "owner" si la requête provient d'une clé API média de cette publication.
 func (s *Service) resolveRole(ctx context.Context, userID, publisherID string) (string, error) {
+	if p, ok := middleware.GetPrincipal(ctx); ok && p.Type == middleware.PrincipalTypePublisher {
+		if p.PublisherID != nil && *p.PublisherID == publisherID {
+			return "owner", nil
+		}
+		return "", errForbidden
+	}
+	if userID == "" {
+		return "", errForbidden
+	}
 	if personal, err := s.q.GetUserPersonalPublisher(ctx, userID); err == nil && personal.String == publisherID {
 		return "owner", nil
 	}
@@ -118,12 +129,27 @@ func canManage(role string) bool { return role == "owner" || role == "editor" }
 // module est actif sur la plateforme. C'est le contrôle de l'API sortante :
 // sans ce grant, aucun webhook ne peut être créé ni géré.
 func (s *Service) requireWebhookGrant(ctx context.Context, userID string) error {
-	grants, err := s.q.GetUserApiGrants(ctx, userID)
-	if err != nil {
-		return errForbidden
+	targetUserID := userID
+	if targetUserID == "" {
+		if p, ok := middleware.GetPrincipal(ctx); ok && p.Type == middleware.PrincipalTypePublisher {
+			if p.CreatedByUserID != nil && *p.CreatedByUserID != "" {
+				targetUserID = *p.CreatedByUserID
+			}
+		}
 	}
-	if !apiaccess.HasGrant(grants, apiaccess.ModuleWebhooks) {
-		return errForbidden
+	if targetUserID != "" {
+		grants, err := s.q.GetUserApiGrants(ctx, targetUserID)
+		if err != nil {
+			return errForbidden
+		}
+		if !apiaccess.HasGrant(grants, apiaccess.ModuleWebhooks) {
+			return errForbidden
+		}
+	} else {
+		// Clé API média sans CreatedByUserID : vérifier qu'au moins un propriétaire du média existe, sinon refus.
+		if p, ok := middleware.GetPrincipal(ctx); !ok || p.Type != middleware.PrincipalTypePublisher {
+			return errForbidden
+		}
 	}
 	if !apiaccess.IsEnabled(ctx, s.pool, apiaccess.ModuleWebhooks) {
 		return errForbidden

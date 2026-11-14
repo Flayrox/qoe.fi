@@ -14,6 +14,7 @@ import (
 	"github.com/qoefi/api/internal/anchors"
 	"github.com/qoefi/api/internal/antispam"
 	"github.com/qoefi/api/internal/middleware"
+	"github.com/qoefi/api/internal/modules/articles"
 	"github.com/qoefi/api/internal/queue"
 	"github.com/qoefi/api/internal/response"
 	"github.com/qoefi/api/internal/shortcode"
@@ -36,14 +37,33 @@ func (h *Handler) creatorOwnsArticle(ctx context.Context, articleID, publisherID
 	return err == nil && n > 0
 }
 
-// POST /v1/creator/articles — crée un BROUILLON lié au créateur.
-// Réponse : la shape détail complète (contentHtml + contentMarkdown).
+// POST /v1/creator/articles — crée un BROUILLON (ou publie/programme si demandé) lié au créateur.
+// Réponse : 201 Created avec la shape détail complète (contentHtml + contentMarkdown).
 type apiArticleCreateInput struct {
-	Title      string   `json:"title"`
-	Content    string   `json:"content"` // HTML
-	CategoryID string   `json:"categoryId"`
-	Tags       []string `json:"tags"`
-	IsPremium  bool     `json:"isPremium"`
+	Title                  string   `json:"title"`
+	Slug                   string   `json:"slug"`
+	Content                string   `json:"content"`       // HTML ou Markdown selon contentFormat
+	ContentFormat          string   `json:"contentFormat"` // html (défaut) | markdown
+	CategoryID             string   `json:"categoryId"`
+	Tags                   []string `json:"tags"`
+	IsPremium              bool     `json:"isPremium"`
+	Visibility             string   `json:"visibility"`
+	ImageURL               string   `json:"imageUrl"`
+	SeoTitle               string   `json:"seoTitle"`
+	SeoDescription         string   `json:"seoDescription"`
+	AllowComments          *bool    `json:"allowComments"`
+	AllowPublicAnnotations *bool    `json:"allowPublicAnnotations"`
+	AllowDownload          *bool    `json:"allowDownload"`
+	Published              bool     `json:"published"`
+	ScheduledAt            *string  `json:"scheduledAt"`
+}
+
+func isValidVisibility(v string) bool {
+	switch v {
+	case "PUBLIC", "PAID_SUBSCRIBERS", "MEMBERS_ONLY", "TIER_SPECIFIC":
+		return true
+	}
+	return false
 }
 
 func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
@@ -53,6 +73,10 @@ func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 	var in apiArticleCreateInput
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	if !articles.IsValidContentFormat(in.ContentFormat) {
+		response.BadRequest(w, "contentFormat invalide (html | markdown)")
 		return
 	}
 	cleanTitle, err := antispam.SanitizeAndValidateText(in.Title, 1, 300, antispam.TextOptions{CheckXSS: true})
@@ -67,7 +91,7 @@ func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 			response.BadRequest(w, cerr.Error())
 			return
 		}
-		in.Content = cleanContent
+		in.Content = articles.NormalizeContent(cleanContent, in.ContentFormat)
 	}
 	if len(in.Tags) > 10 {
 		response.BadRequest(w, "trop de tags (max 10)")
@@ -99,8 +123,43 @@ func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	visibility := "PUBLIC"
-	if in.IsPremium {
+	if in.Visibility != "" {
+		if !isValidVisibility(in.Visibility) {
+			response.BadRequest(w, "visibility invalide")
+			return
+		}
+		visibility = in.Visibility
+	} else if in.IsPremium {
 		visibility = "PAID_SUBSCRIBERS"
+	}
+
+	allowComments := true
+	if in.AllowComments != nil {
+		allowComments = *in.AllowComments
+	}
+	allowAnnotations := true
+	if in.AllowPublicAnnotations != nil {
+		allowAnnotations = *in.AllowPublicAnnotations
+	}
+	allowDownload := false
+	if in.AllowDownload != nil {
+		allowDownload = *in.AllowDownload
+	}
+
+	var scheduledTime sql.NullTime
+	status := "DRAFT"
+	published := false
+	if in.ScheduledAt != nil && strings.TrimSpace(*in.ScheduledAt) != "" {
+		t, perr := time.Parse(time.RFC3339, strings.TrimSpace(*in.ScheduledAt))
+		if perr != nil {
+			response.BadRequest(w, "scheduledAt doit être au format ISO 8601 (RFC3339)")
+			return
+		}
+		scheduledTime = sql.NullTime{Time: t, Valid: true}
+		status = "SCHEDULED"
+	} else if in.Published && strings.TrimSpace(in.Content) != "" {
+		status = "PUBLISHED"
+		published = true
 	}
 
 	idPrefix := strings.ReplaceAll(slugify(in.Title), "-", "")
@@ -112,7 +171,13 @@ func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 	id := "api_" + idPrefix + "-" +
 		strconv.FormatInt(time.Now().UnixNano()%100000, 10)
 	shortCode := h.uniqueShortCode(r.Context())
+
 	baseSlug := slugify(in.Title)
+	if strings.TrimSpace(in.Slug) != "" {
+		if clean := slugify(in.Slug); clean != "" {
+			baseSlug = clean
+		}
+	}
 	if baseSlug == "" {
 		baseSlug = "article"
 	}
@@ -151,11 +216,17 @@ func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 		_, insertErr = h.pool.Exec(r.Context(), `
 		INSERT INTO "Article" (id, title, slug, "shortCode", content, published, visibility,
 		                       "readingTime", status, "isPremium", "semanticTags",
+		                       "imageUrl", "seoTitle", "seoDescription",
+		                       "allowComments", "allowPublicAnnotations", "allowDownload", "scheduledAt",
 		                       "categoryId", "publisherId", "authorId", "createdAt", "updatedAt")
-		VALUES ($1, $2, $3, $4, NULLIF($5,''), false, $6, $7, 'DRAFT', $8, $9,
-		        NULLIF($10,''), NULLIF($11,''), $12, now(), now())`,
-			id, in.Title, slug, shortCode, in.Content, visibility,
-			readingTimeFromHTML(in.Content), in.IsPremium, tags,
+		VALUES ($1, $2, $3, $4, NULLIF($5,''), $6, $7, $8, $9, $10, $11,
+		        NULLIF($12,''), NULLIF($13,''), NULLIF($14,''),
+		        $15, $16, $17, $18,
+		        NULLIF($19,''), NULLIF($20,''), $21, now(), now())`,
+			id, in.Title, slug, shortCode, in.Content, published, visibility,
+			readingTimeFromHTML(in.Content), status, in.IsPremium, tags,
+			strings.TrimSpace(in.ImageURL), strings.TrimSpace(in.SeoTitle), strings.TrimSpace(in.SeoDescription),
+			allowComments, allowAnnotations, allowDownload, scheduledTime,
 			in.CategoryID, publisherID, authorID)
 		if insertErr == nil || !shortcode.IsUniqueViolation(insertErr) {
 			break
@@ -172,40 +243,57 @@ func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if published {
+		anchors.ReanchorArticle(r.Context(), h.pool, id)
+		anchors.SyncOfficialMarks(r.Context(), h.pool, id)
+	}
 	if h.asynq != nil {
 		_ = queue.PublishSearchSync(h.asynq, queue.SearchSyncPayload{ArticleID: id, Action: "upsert"})
 	}
 
-	h.serveCreatorArticleByID(w, r, id)
+	h.serveCreatorArticleByID(w, r, id, http.StatusCreated)
 }
 
 // serveCreatorArticleByID rend la shape détail complète pour un id interne
 // (création/édition) : contenu HTML + markdown, catégorie, auteurs, statut.
-func (h *Handler) serveCreatorArticleByID(w http.ResponseWriter, r *http.Request, id string) {
+func (h *Handler) serveCreatorArticleByID(w http.ResponseWriter, r *http.Request, id string, statusCode int) {
 	var full apiArticleFull
 	full.Authors = []apiAuthor{}
-	var createdAt time.Time
+	var createdAt, updatedAt time.Time
+	var scheduledAt sql.NullTime
+	var draftContent sql.NullString
 	var catID, catSlug, catName sql.NullString
 	var tags []string
 
 	err := h.pool.QueryRow(r.Context(), `
-		SELECT a.id::text, a.slug, a.title, COALESCE(a.content,''), a."imageUrl",
-		       a."readingTime", a."isPremium", a."createdAt",
-		       a.status, a.published,
+		SELECT a.id::text, a.slug, a."shortCode", a.title, COALESCE(a.content,''), a."draftContent", a."imageUrl",
+		       a.status, a.published, a."readingTime", a."isPremium", a.visibility::text,
+		       a."allowComments", a."allowPublicAnnotations", a."allowDownload",
+		       a."seoTitle", a."seoDescription", a."canonicalType", a."canonicalUrl",
+		       a."createdAt", a."updatedAt", a."scheduledAt",
 		       a."semanticTags", cat.id::text, cat.slug, cat.name
 		FROM "Article" a
 		LEFT JOIN "Category" cat ON cat.id = a."categoryId"
 		WHERE a.id = $1`, id).Scan(
-		&full.ID, &full.Slug, &full.Title, &full.ContentHTML, &full.CoverURL,
-		&full.ReadingTime, &full.IsPremium, &createdAt,
-		&full.Status, &full.Published,
+		&full.ID, &full.Slug, &full.ShortCode, &full.Title, &full.ContentHTML, &draftContent, &full.CoverURL,
+		&full.Status, &full.Published, &full.ReadingTime, &full.IsPremium, &full.Visibility,
+		&full.AllowComments, &full.AllowPublicAnnotations, &full.AllowDownload,
+		&full.SeoTitle, &full.SeoDescription, &full.CanonicalType, &full.CanonicalURL,
+		&createdAt, &updatedAt, &scheduledAt,
 		&tags, &catID, &catSlug, &catName)
 	if err != nil {
 		log.Printf("[creator] article by id %s: %v", id, err)
 		response.Internal(w)
 		return
 	}
+	full.ImageURL = full.CoverURL
+	full.HasUnpublishedChanges = draftContent.Valid && draftContent.String != ""
 	full.PublishedAt = createdAt.Format("2006-01-02T15:04:05Z07:00")
+	full.UpdatedAt = updatedAt.Format("2006-01-02T15:04:05Z07:00")
+	if scheduledAt.Valid {
+		s := scheduledAt.Time.Format("2006-01-02T15:04:05Z07:00")
+		full.ScheduledAt = &s
+	}
 	full.ContentMarkdown = htmlToMarkdown(full.ContentHTML)
 	full.Excerpt = stripHTMLTags(full.ContentHTML, 180)
 	full.Tags = func() []any {
@@ -227,18 +315,27 @@ func (h *Handler) serveCreatorArticleByID(w http.ResponseWriter, r *http.Request
 		full.Authors = h.withEffectiveSlugs(r.Context(), full.ID, full.Authors, baseSlug)
 	}
 
-	response.OK(w, full)
+	response.JSON(w, statusCode, full)
 }
 
 // apiArticleUpdateInput : champs modifiables via PATCH (tous optionnels).
 type apiArticleUpdateInput struct {
-	Title      *string  `json:"title"`
-	Content    *string  `json:"content"` // HTML
-	CategoryID *string  `json:"categoryId"`
-	Tags       []string `json:"tags"`
-	IsPremium  *bool    `json:"isPremium"`
-	Publish    *bool    `json:"publish"` // true → PUBLISHED, false → DRAFT
-	RegenSlug  *bool    `json:"regenerateSlug"`
+	Title                  *string  `json:"title"`
+	Content                *string  `json:"content"`       // HTML ou Markdown selon contentFormat
+	ContentFormat          *string  `json:"contentFormat"` // html (défaut) | markdown
+	CategoryID             *string  `json:"categoryId"`
+	Tags                   []string `json:"tags"`
+	IsPremium              *bool    `json:"isPremium"`
+	Visibility             *string  `json:"visibility"`
+	ImageURL               *string  `json:"imageUrl"`
+	SeoTitle               *string  `json:"seoTitle"`
+	SeoDescription         *string  `json:"seoDescription"`
+	AllowComments          *bool    `json:"allowComments"`
+	AllowPublicAnnotations *bool    `json:"allowPublicAnnotations"`
+	AllowDownload          *bool    `json:"allowDownload"`
+	ScheduledAt            *string  `json:"scheduledAt"`
+	Publish                *bool    `json:"publish"` // true → PUBLISHED, false → DRAFT
+	RegenSlug              *bool    `json:"regenerateSlug"`
 }
 
 // PATCH /v1/creator/articles/{id} — met à jour un de SES articles.
@@ -305,11 +402,25 @@ func (h *Handler) apiArticleUpdate(w http.ResponseWriter, r *http.Request) {
 				`UPDATE "Article" SET slug = $2, "updatedAt" = now() WHERE id = $1`, id, newSlug)
 		}
 	}
-	// Contenu (+ temps de lecture recalculé).
+	// Contenu (+ temps de lecture recalculé, avec support markdown si contentFormat="markdown").
 	if in.Content != nil {
+		format := ""
+		if in.ContentFormat != nil {
+			if !articles.IsValidContentFormat(*in.ContentFormat) {
+				response.BadRequest(w, "contentFormat invalide (html | markdown)")
+				return
+			}
+			format = *in.ContentFormat
+		}
+		cleanContent, cerr := antispam.SanitizeAndValidateText(*in.Content, 0, 500_000, antispam.TextOptions{AllowNewlines: true, CheckXSS: true})
+		if cerr != nil {
+			response.BadRequest(w, cerr.Error())
+			return
+		}
+		normalized := articles.NormalizeContent(cleanContent, format)
 		if _, err := h.pool.Exec(r.Context(),
 			`UPDATE "Article" SET content = $2, "readingTime" = $3, "updatedAt" = now() WHERE id = $1`,
-			id, *in.Content, readingTimeFromHTML(*in.Content)); err != nil {
+			id, normalized, readingTimeFromHTML(normalized)); err != nil {
 			log.Printf("[creator] update content: %v", err)
 			response.Internal(w)
 			return
@@ -317,6 +428,101 @@ func (h *Handler) apiArticleUpdate(w http.ResponseWriter, r *http.Request) {
 		// Le contenu a changé → les offsets canoniques des surlignages peuvent
 		// être périmés : passe de ré-ancrage (jamais bloquante).
 		anchors.ReanchorArticle(r.Context(), h.pool, id)
+	}
+	// Image de couverture, SEO & paramètres de discussion/téléchargement.
+	if in.ImageURL != nil {
+		if _, err := h.pool.Exec(r.Context(),
+			`UPDATE "Article" SET "imageUrl" = NULLIF($2,''), "updatedAt" = now() WHERE id = $1`,
+			id, strings.TrimSpace(*in.ImageURL)); err != nil {
+			log.Printf("[creator] update imageUrl: %v", err)
+			response.Internal(w)
+			return
+		}
+	}
+	if in.SeoTitle != nil {
+		if _, err := h.pool.Exec(r.Context(),
+			`UPDATE "Article" SET "seoTitle" = NULLIF($2,''), "updatedAt" = now() WHERE id = $1`,
+			id, strings.TrimSpace(*in.SeoTitle)); err != nil {
+			log.Printf("[creator] update seoTitle: %v", err)
+			response.Internal(w)
+			return
+		}
+	}
+	if in.SeoDescription != nil {
+		if _, err := h.pool.Exec(r.Context(),
+			`UPDATE "Article" SET "seoDescription" = NULLIF($2,''), "updatedAt" = now() WHERE id = $1`,
+			id, strings.TrimSpace(*in.SeoDescription)); err != nil {
+			log.Printf("[creator] update seoDescription: %v", err)
+			response.Internal(w)
+			return
+		}
+	}
+	if in.AllowComments != nil {
+		if _, err := h.pool.Exec(r.Context(),
+			`UPDATE "Article" SET "allowComments" = $2, "updatedAt" = now() WHERE id = $1`,
+			id, *in.AllowComments); err != nil {
+			log.Printf("[creator] update allowComments: %v", err)
+			response.Internal(w)
+			return
+		}
+	}
+	if in.AllowPublicAnnotations != nil {
+		if _, err := h.pool.Exec(r.Context(),
+			`UPDATE "Article" SET "allowPublicAnnotations" = $2, "updatedAt" = now() WHERE id = $1`,
+			id, *in.AllowPublicAnnotations); err != nil {
+			log.Printf("[creator] update allowPublicAnnotations: %v", err)
+			response.Internal(w)
+			return
+		}
+	}
+	if in.AllowDownload != nil {
+		if _, err := h.pool.Exec(r.Context(),
+			`UPDATE "Article" SET "allowDownload" = $2, "updatedAt" = now() WHERE id = $1`,
+			id, *in.AllowDownload); err != nil {
+			log.Printf("[creator] update allowDownload: %v", err)
+			response.Internal(w)
+			return
+		}
+	}
+	// Visibilité explicite.
+	if in.Visibility != nil {
+		if !isValidVisibility(*in.Visibility) {
+			response.BadRequest(w, "visibility invalide")
+			return
+		}
+		isPrem := *in.Visibility == "PAID_SUBSCRIBERS" || *in.Visibility == "TIER_SPECIFIC"
+		if _, err := h.pool.Exec(r.Context(),
+			`UPDATE "Article" SET visibility = $2, "isPremium" = $3, "updatedAt" = now() WHERE id = $1 AND status <> 'PUBLISHED'`,
+			id, *in.Visibility, isPrem); err != nil {
+			log.Printf("[creator] update visibility: %v", err)
+			response.Internal(w)
+			return
+		}
+	}
+	// Programmation (scheduledAt).
+	if in.ScheduledAt != nil {
+		if strings.TrimSpace(*in.ScheduledAt) == "" {
+			if _, err := h.pool.Exec(r.Context(),
+				`UPDATE "Article" SET "scheduledAt" = NULL, "updatedAt" = now() WHERE id = $1 AND status = 'SCHEDULED'`,
+				id); err != nil {
+				log.Printf("[creator] clear scheduledAt: %v", err)
+				response.Internal(w)
+				return
+			}
+		} else {
+			t, perr := time.Parse(time.RFC3339, strings.TrimSpace(*in.ScheduledAt))
+			if perr != nil {
+				response.BadRequest(w, "scheduledAt doit être au format ISO 8601 (RFC3339)")
+				return
+			}
+			if _, err := h.pool.Exec(r.Context(),
+				`UPDATE "Article" SET "scheduledAt" = $2, status = 'SCHEDULED', published = false, "updatedAt" = now() WHERE id = $1`,
+				id, t); err != nil {
+				log.Printf("[creator] set scheduledAt: %v", err)
+				response.Internal(w)
+				return
+			}
+		}
 	}
 	// Catégorie (id ou slug ; vide = retirer).
 	if in.CategoryID != nil {
@@ -393,7 +599,7 @@ func (h *Handler) apiArticleUpdate(w http.ResponseWriter, r *http.Request) {
 		_ = queue.PublishSearchSync(h.asynq, queue.SearchSyncPayload{ArticleID: id, Action: "upsert"})
 	}
 
-	h.serveCreatorArticleByID(w, r, id)
+	h.serveCreatorArticleByID(w, r, id, http.StatusOK)
 }
 
 // DELETE /v1/creator/articles/{id} — supprime définitivement un de SES articles.
