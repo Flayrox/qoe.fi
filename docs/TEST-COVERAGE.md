@@ -107,7 +107,8 @@ un par un, pas seulement comptés.
 (16 patterns) et `apps/studio` (24 patterns), avec le même contrat : jamais 5xx, jamais
 l'error boundary, redirection toujours accompagnée d'un `Location`, inventaire jamais
 vide (garde `MIN_PAGES`). 42 cas, exécutés par le job dédié **`e2e-apps-routes`**
-(`playwright.apps.config.ts`, `--grep "Matrice de routes"`). Local : **42/42 verts**.
+(`playwright.apps.config.ts`, `--grep "Matrice de routes"`). Local : **42/42 verts** ;
+en CI (`75d01ba6`) : **42 passed en 16,5 s**.
 Le job fonctionnel `e2e-apps` les exclut (`--grep-invert`) : la matrice est un rendu de
 pages, pas un parcours métier, et 40 rendus de plus le poussaient vers sa borne de
 30 min.
