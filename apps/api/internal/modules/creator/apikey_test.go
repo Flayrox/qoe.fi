@@ -923,7 +923,7 @@ func TestCreatorAPI_CMSLifecycle(t *testing.T) {
 	}
 
 	// 4. La recherche plein-texte le trouve.
-	w = doKey(writeKey, http.MethodGet, "/v1/creator/search?q=budget%20validé", "")
+	w = doKey(readKey, http.MethodGet, "/v1/creator/search?q=budget%20validé", "")
 	if w.Code != http.StatusOK {
 		t.Fatalf("search = %d %s", w.Code, w.Body.String())
 	}
