@@ -3,8 +3,13 @@ package creator
 import (
 	"context"
 	"log"
+	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/qoefi/api/internal/middleware"
+	"github.com/qoefi/api/internal/response"
 )
 
 // =====================================================================
@@ -251,3 +256,47 @@ func (h *Handler) withEffectiveSlugs(
 	}
 	return authors
 }
+
+// apiHighlights — GET /v1/creator/highlights : surlignages publics des
+// lecteurs sur les articles liés au créateur (multi-auteurs inclus),
+// paginés. Réservé aux clés API (scope READ).
+func (h *Handler) apiHighlights(w http.ResponseWriter, r *http.Request) {
+	publisherID, _ := middleware.PublisherID(r.Context())
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" && publisherID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	limit, offset := parseLimitCursor(r)
+	officialOnly := r.URL.Query().Get("official") == "true"
+	page, err := h.apiHighlightsPage(
+		r.Context(),
+		publisherID,
+		userID,
+		r.URL.Query().Get("article"),
+		officialOnly,
+		limit,
+		offset,
+	)
+	if err != nil {
+		log.Printf("[creator] api highlights: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, page)
+}
+
+// apiHighlightComments — GET /v1/creator/highlights/{id}/comments :
+// discussion d'un surlignage, avec flag isAuthor sur les réponses
+// éditoriales de l'auteur de l'article.
+func (h *Handler) apiHighlightComments(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	comments, err := h.highlightComments(r.Context(), id)
+	if err != nil {
+		log.Printf("[creator] highlight comments: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]any{"comments": comments})
+}
+
