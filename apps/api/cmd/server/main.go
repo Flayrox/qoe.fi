@@ -218,6 +218,9 @@ type RouterDeps struct {
 	EmailProvider workers.EmailProvider
 	// EmailFrom est l'adresse d'expéditeur plateforme (cfg.EmailFrom).
 	EmailFrom string
+	// AdminRegistry (optionnel) : si fourni, reçoit toutes les routes montées
+	// sur la console admin pour inspection / audit de sécurité.
+	AdminRegistry *adminauthz.Registry
 }
 
 // newRouter assemble l'API complète (routes publiques + créateur + workers
@@ -624,7 +627,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 		// Les compteurs de l'enregistreur sont publiés par /admin/health : une
 		// perte de trace doit se voir, pas se deviner.
 		adminHandler.SetDecisionStats(adminDecisions)
-		adminConsole := adminauthz.NewConsole(protected, adminAuthzSvc, nil,
+		adminConsole := adminauthz.NewConsole(protected, adminAuthzSvc, d.AdminRegistry,
 			adminauthz.WithObserver(adminDecisions.Observe))
 
 		adminHandler.SetConsole(adminConsole)

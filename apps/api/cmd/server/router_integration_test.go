@@ -40,6 +40,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(code)
 }
+
 // requirePool skippe les tests DB quand Docker/testcontainers est absent.
 func requirePool(t *testing.T) {
 	t.Helper()
@@ -47,7 +48,6 @@ func requirePool(t *testing.T) {
 		t.Skip("DB indisponible (Docker/testcontainers requis)")
 	}
 }
-
 
 // testRouter assemble le routeur de PRODUCTION (newRouter) avec la vraie DB.
 func testRouter(t *testing.T) *chi.Mux {
@@ -223,7 +223,7 @@ func TestRouter_FullCreatorFlow(t *testing.T) {
 
 	// 3) Création d'un article via le routeur complet.
 	w3, body3 := doReq(t, r, "POST", "/v1/articles", token, map[string]any{
-		"publisherId": fx.PublisherID,
+		"publisherId":   fx.PublisherID,
 		"title":         "Via routeur",
 		"slug":          "via-routeur",
 		"content":       "Contenu complet via le routeur de prod",

@@ -18,10 +18,10 @@ import (
 )
 
 const (
-	defaultBodyLimitBytes  int64 = 256 << 10 // 256 Ko
-	richBodyLimitBytes     int64 = 2 << 20   // 2 Mo (articles, site-layout, imports, newsletters, support)
-	mediaBodyLimitBytes    int64 = 11 << 20  // 11 Mo (upload créateur 10 Mo + overhead multipart)
-	ebookBodyLimitBytes    int64 = 22 << 20  // 22 Mo (upload EPUB 20 Mo + overhead multipart)
+	defaultBodyLimitBytes int64 = 256 << 10 // 256 Ko
+	richBodyLimitBytes    int64 = 2 << 20   // 2 Mo (articles, site-layout, imports, newsletters, support)
+	mediaBodyLimitBytes   int64 = 11 << 20  // 11 Mo (upload créateur 10 Mo + overhead multipart)
+	ebookBodyLimitBytes   int64 = 22 << 20  // 22 Mo (upload EPUB 20 Mo + overhead multipart)
 )
 
 // corsAllowedOrigins retourne les origines CORS autorisées.

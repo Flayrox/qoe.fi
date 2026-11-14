@@ -80,7 +80,7 @@ func TestP1CreatorPublisherIsolation(t *testing.T) {
 	}
 
 	w, _ = doReq(t, r, http.MethodPost, "/v1/articles", otherToken, map[string]any{
-		"publisherId": fx.PublisherID,
+		"publisherId":   fx.PublisherID,
 		"title":         "Cross tenant",
 		"content":       "must be rejected",
 		"contentFormat": "markdown",
@@ -190,7 +190,7 @@ func TestP1ApiKeyScopesAndOwnershipContracts(t *testing.T) {
 		t.Fatalf("read-only key read = %d, body=%s", w.Code, w.Body.String())
 	}
 	w, _ = doReq(t, r, http.MethodPost, "/v1/articles", readOnly, map[string]any{
-		"publisherId": fx.PublisherID,
+		"publisherId":   fx.PublisherID,
 		"title":         "write denied",
 		"content":       "x",
 		"contentFormat": "markdown",
@@ -256,7 +256,7 @@ func TestP2NewsletterSubscriptionConcurrentIdempotence(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			w, _ := doReq(t, r, http.MethodPost, "/v1/home/subscribe", "", map[string]any{
-				"email":         "Concurrent@Test.dev",
+				"email":       "Concurrent@Test.dev",
 				"publisherId": pubID,
 			})
 			if w.Code != http.StatusOK {

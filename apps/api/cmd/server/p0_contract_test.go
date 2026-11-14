@@ -79,7 +79,7 @@ func TestP0PublicValidationContracts(t *testing.T) {
 		{"search semantic empty query", http.MethodGet, "/search/semantic", nil, http.StatusOK},
 		{"search thoughts empty query", http.MethodGet, "/search/thoughts", nil, http.StatusOK},
 		{"subscribe invalid email", http.MethodPost, "/v1/home/subscribe", map[string]any{
-			"email":         "invalid",
+			"email":       "invalid",
 			"publisherId": "missing",
 		}, http.StatusBadRequest},
 		{"subscribe invalid json", http.MethodPost, "/v1/home/subscribe", rawJSONBody("not-json"), http.StatusBadRequest},
