@@ -65,6 +65,9 @@ func TestCreatorAPI_CreateInputValidation(t *testing.T) {
 		{"invalid contentFormat", `{"title":"Hello","content":"world","contentFormat":"rtf"}`},
 		{"invalid visibility", `{"title":"Hello","content":"world","visibility":"SECRET"}`},
 		{"invalid scheduledAt", `{"title":"Hello","content":"world","scheduledAt":"not-a-date"}`},
+		{"xss imageUrl javascript", `{"title":"Hello","content":"world","imageUrl":"javascript:alert(1)"}`},
+		{"xss imageUrl protocol-relative", `{"title":"Hello","content":"world","imageUrl":"//evil.test/x.png"}`},
+		{"xss seoTitle", `{"title":"Hello","content":"world","seoTitle":"<script>alert(1)</script>"}`},
 	}
 
 	for _, tc := range cases {

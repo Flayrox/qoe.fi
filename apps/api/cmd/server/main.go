@@ -703,6 +703,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 		creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite)
 		creatorHandler.WithMediaUpload(mediaStore, mediaAssetsSvc).WithMediaCDNBase(d.MediaCDNBaseURL)
 		creatorHandler.SetAsynqClient(asynqClient)
+		creatorHandler.SetPublicSubscribeRateLimit(rc, time.Minute, 10)
 		creatorHandler.RegisterAPIKey(apiKey)
 	})
 

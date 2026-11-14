@@ -66,6 +66,14 @@ func isValidVisibility(v string) bool {
 	return false
 }
 
+func isValidImageURL(u string) bool {
+	u = strings.TrimSpace(u)
+	if u == "" {
+		return true
+	}
+	return strings.HasPrefix(u, "https://") || strings.HasPrefix(u, "http://") || (strings.HasPrefix(u, "/") && !strings.HasPrefix(u, "//"))
+}
+
 func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	publisherID, _ := middleware.PublisherID(r.Context())
@@ -92,6 +100,26 @@ func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		in.Content = articles.NormalizeContent(cleanContent, in.ContentFormat)
+	}
+	if !isValidImageURL(in.ImageURL) {
+		response.BadRequest(w, "imageUrl invalide (http://, https:// ou chemin relatif attendu)")
+		return
+	}
+	if in.SeoTitle != "" {
+		cleanSEO, serr := antispam.SanitizeAndValidateText(in.SeoTitle, 0, 200, antispam.TextOptions{CheckXSS: true})
+		if serr != nil {
+			response.BadRequest(w, serr.Error())
+			return
+		}
+		in.SeoTitle = cleanSEO
+	}
+	if in.SeoDescription != "" {
+		cleanDesc, derr := antispam.SanitizeAndValidateText(in.SeoDescription, 0, 500, antispam.TextOptions{CheckXSS: true})
+		if derr != nil {
+			response.BadRequest(w, derr.Error())
+			return
+		}
+		in.SeoDescription = cleanDesc
 	}
 	if len(in.Tags) > 10 {
 		response.BadRequest(w, "trop de tags (max 10)")
@@ -431,6 +459,10 @@ func (h *Handler) apiArticleUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	// Image de couverture, SEO & paramètres de discussion/téléchargement.
 	if in.ImageURL != nil {
+		if !isValidImageURL(*in.ImageURL) {
+			response.BadRequest(w, "imageUrl invalide (http://, https:// ou chemin relatif attendu)")
+			return
+		}
 		if _, err := h.pool.Exec(r.Context(),
 			`UPDATE "Article" SET "imageUrl" = NULLIF($2,''), "updatedAt" = now() WHERE id = $1`,
 			id, strings.TrimSpace(*in.ImageURL)); err != nil {
@@ -440,18 +472,28 @@ func (h *Handler) apiArticleUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if in.SeoTitle != nil {
+		cleanSEO, serr := antispam.SanitizeAndValidateText(*in.SeoTitle, 0, 200, antispam.TextOptions{CheckXSS: true})
+		if serr != nil {
+			response.BadRequest(w, serr.Error())
+			return
+		}
 		if _, err := h.pool.Exec(r.Context(),
 			`UPDATE "Article" SET "seoTitle" = NULLIF($2,''), "updatedAt" = now() WHERE id = $1`,
-			id, strings.TrimSpace(*in.SeoTitle)); err != nil {
+			id, strings.TrimSpace(cleanSEO)); err != nil {
 			log.Printf("[creator] update seoTitle: %v", err)
 			response.Internal(w)
 			return
 		}
 	}
 	if in.SeoDescription != nil {
+		cleanDesc, derr := antispam.SanitizeAndValidateText(*in.SeoDescription, 0, 500, antispam.TextOptions{CheckXSS: true})
+		if derr != nil {
+			response.BadRequest(w, derr.Error())
+			return
+		}
 		if _, err := h.pool.Exec(r.Context(),
 			`UPDATE "Article" SET "seoDescription" = NULLIF($2,''), "updatedAt" = now() WHERE id = $1`,
-			id, strings.TrimSpace(*in.SeoDescription)); err != nil {
+			id, strings.TrimSpace(cleanDesc)); err != nil {
 			log.Printf("[creator] update seoDescription: %v", err)
 			response.Internal(w)
 			return
