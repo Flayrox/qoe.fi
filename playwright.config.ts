@@ -8,6 +8,11 @@ const PORT = Number(process.env.PLAYWRIGHT_PORT) || 3010;
 const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL || `http://localhost:${PORT}`;
 const GO_API_PORT = Number(process.env.PLAYWRIGHT_GO_API_PORT) || 8090;
 const GO_API_URL = `http://localhost:${GO_API_PORT}`;
+// Mode « prod » de la matrice : sert le build (`next start`) au lieu de
+// `next dev`. Trois `next dev` + l'API + Chromium dépassaient la mémoire du
+// runner (job tué à ~6 min, deux fois) ; un build supprime les compilateurs.
+// Activé par le job `e2e-routes`, qui construit core et admin avant.
+const ROUTES_PROD = process.env.PLAYWRIGHT_ROUTES_PROD === '1';
 
 // DSN sans paramètres réservés à Prisma (?schema=public) : pgx les enverrait
 // comme startup parameters (refusés par Postgres).
@@ -72,7 +77,9 @@ export default defineConfig({
     {
       // `next dev` SANS -p : le flag du script dev (apps/core: "-p 15402")
       // écraserait PORT env et le readiness check attendrait le mauvais port.
-      command: 'pnpm --filter @qoe/core exec next dev',
+      command: ROUTES_PROD
+        ? 'pnpm --filter @qoe/core exec next start'
+        : 'pnpm --filter @qoe/core exec next dev',
       port: PORT,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
@@ -88,7 +95,9 @@ export default defineConfig({
       // 🛡️ Console admin (apps/admin) : requise par admin-legal.spec.ts
       // (RUN_FULL_STACK=1). Le middleware canonicalise localhost →
       // admin.lvh.me : la spec navigue directement sur admin.lvh.me:15405.
-      command: 'pnpm --filter @qoe/admin exec next dev',
+      command: ROUTES_PROD
+        ? 'pnpm --filter @qoe/admin exec next start'
+        : 'pnpm --filter @qoe/admin exec next dev',
       port: 15405,
       reuseExistingServer: !process.env.CI,
       timeout: 180_000,
