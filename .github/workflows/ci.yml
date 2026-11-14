@@ -194,6 +194,17 @@ jobs:
           check "internal/netguard" 75
           check "internal/pow" 80
           check "internal/observability" 85
+          # Recours, support, identité et briques transverses (2026-11) :
+          # élimination des 0 % et verrouillage des modules mesurés sans Docker.
+          check "internal/modules/appeals" 90
+          check "internal/modules/support" 90
+          check "internal/identity" 95
+          check "internal/canon" 80
+          check "internal/slug" 85
+          check "internal/umami" 85
+          check "internal/deeplink" 65
+          check "internal/modules/tracking" 55
+          check "internal/modules/collaborations" 55
         env:
           TESTCONTAINERS_RYUK_DISABLED: 'true'
 
@@ -565,11 +576,11 @@ jobs:
           if-no-files-found: ignore
 
   # La matrice de routes des apps secondaires a son propre job : elle rend
-  # chaque page découverte de tenants (16) et studio (24) et n'a aucun récit
-  # fonctionnel en commun avec e2e-apps, qui était déjà proche de sa borne.
+  # chaque page découverte de tenants (16), studio (24) et hi (4) et n'a aucun
+  # récit fonctionnel en commun avec e2e-apps, qui était déjà proche de sa borne.
   # Un job dédié garde le log nominatif par page et un budget indépendant.
   e2e-apps-routes:
-    name: E2E Apps Routes (tenants + studio)
+    name: E2E Apps Routes (tenants + studio + hi)
     needs: build-and-test
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -636,12 +647,12 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm e2e:install
 
-      # La matrice visite les 42 pages : en `next dev`, chaque première visite
+      # La matrice visite les 47 cas : en `next dev`, chaque première visite
       # compile sa route et l'ensemble dépassait les 20 min (job annulé deux
-      # fois). On sert donc un build réel (`PLAYWRIGHT_APPS_PROD=1`) : 16 s pour
-      # les 42 pages une fois les apps construites.
+      # fois). On sert donc un build réel (`PLAYWRIGHT_APPS_PROD=1`) : ~16 s pour
+      # les matrices une fois les apps construites.
       - name: Build apps for the route matrix
-        run: pnpm intl:compile && pnpm --filter @qoe/tenants build && pnpm --filter @qoe/studio build
+        run: pnpm intl:compile && pnpm --filter @qoe/tenants build && pnpm --filter @qoe/studio build && pnpm --filter @qoe/hi build
         env:
           NEXT_TELEMETRY_DISABLED: '1'
           SKIP_ENV_VALIDATION: 'true'
@@ -653,7 +664,7 @@ jobs:
       # l'error boundary, redirection toujours avec un Location, inventaire non
       # vide. Le log nomme chaque page rendue (`[app] /chemin → statut`).
       - name: Run E2E apps route matrix
-        run: pnpm exec playwright test --config playwright.apps.config.ts --project=tenants --project=studio --grep "Matrice de routes"
+        run: pnpm exec playwright test --config playwright.apps.config.ts --project=tenants --project=studio --project=hi --grep "Matrice de routes"
         env:
           CI: 'true'
           PLAYWRIGHT_APPS_PROD: '1'

@@ -15,12 +15,24 @@ import (
 
 // Service porte les opérations recours côté utilisateur.
 type Service struct {
-	pool     *pgxpool.Pool
+	pool     abuse.SignalDB
 	trustSvc *trust.Service
 }
 
 // NewService construit le service (pool concret : requêtes multi-lignes).
-func NewService(pool *pgxpool.Pool) *Service { return &Service{pool: pool} }
+// Si pool est nil, l'interface reste nil (évite le piège du typed-nil en Go).
+func NewService(pool *pgxpool.Pool) *Service {
+	var db abuse.SignalDB
+	if pool != nil {
+		db = pool
+	}
+	return &Service{pool: db}
+}
+
+// NewServiceWithDB construit le service sur une interface abuse.SignalDB.
+func NewServiceWithDB(db abuse.SignalDB) *Service {
+	return &Service{pool: db}
+}
 
 // SetTrustService branche le cache Trust pour invalidation temps réel.
 func (s *Service) SetTrustService(ts *trust.Service) { s.trustSvc = ts }

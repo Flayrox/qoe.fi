@@ -12,11 +12,23 @@ import (
 
 // Service porte les opérations support côté utilisateur.
 type Service struct {
-	pool *pgxpool.Pool
+	pool internalsupport.DB
 }
 
 // NewService construit le service.
-func NewService(pool *pgxpool.Pool) *Service { return &Service{pool: pool} }
+// Si pool est nil, l'interface reste nil (évite le piège du typed-nil en Go).
+func NewService(pool *pgxpool.Pool) *Service {
+	var db internalsupport.DB
+	if pool != nil {
+		db = pool
+	}
+	return &Service{pool: db}
+}
+
+// NewServiceWithDB construit le service sur une interface internalsupport.DB.
+func NewServiceWithDB(db internalsupport.DB) *Service {
+	return &Service{pool: db}
+}
 
 // OpenTicket ouvre un dossier (Y COMPRIS compte restreint). L'ouverture NE
 // CHANGE RIEN : seule une action staff explicite agit, par les chemins
