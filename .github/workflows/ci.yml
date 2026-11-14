@@ -352,10 +352,9 @@ jobs:
     name: E2E Routes (core + console admin)
     needs: build-and-test
     runs-on: ubuntu-latest
-    # Mesuré le 14/11 : ~6 min de mise en place (go build, migrations, boot des
-    # deux `next dev`) + ~4 min pour rendre les 107 pages. À 15 min, deux runs
-    # ont été annulés en pleine matrice, logs de test perdus.
-    timeout-minutes: 25
+    # Bâti pour durer : install + builds (~4 min) + 107 pages en quelques
+    # secondes. 20 min laissent de la marge sans masquer une vraie dérive.
+    timeout-minutes: 20
 
     services:
       postgres:
@@ -429,6 +428,19 @@ jobs:
       # un job vert ne prouvait pas QUELLES pages avaient été exécutées. Ici le
       # log nomme chaque cas (les 39 écrans admin, les 22 routes core, les
       # gardes) — un lecteur du run voit la couverture, pas seulement le total.
+      # Trois `next dev` (core, admin, API) + Chromium saturaient la mémoire du
+      # runner : le job était tué à ~6 min (« runner shutdown signal »), deux
+      # fois de suite, après 68 tests verts. On sert un build : plus aucun
+      # compilateur à la première visite (~35 s par app à construire).
+      - name: Build core + admin for the route matrix
+        run: pnpm intl:compile && pnpm --filter @qoe/core build && pnpm --filter @qoe/admin build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          SKIP_ENV_VALIDATION: 'true'
+          QOE_API_URL: 'http://localhost:8090'
+          NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321'
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key'
+
       - name: Run E2E (routes + hydratation)
         run: pnpm e2e --project=routes --project=hydration --reporter=list,html
         env:
@@ -437,6 +449,7 @@ jobs:
           # La console (webServer de playwright.config.ts, PORT 15405) est
           # interrogée via lvh.me → 127.0.0.1.
           PLAYWRIGHT_ADMIN_URL: 'http://admin.lvh.me:15405'
+          PLAYWRIGHT_ROUTES_PROD: '1'
           REDIS_URL: 'redis://localhost:6379'
           DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe'
           NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co'

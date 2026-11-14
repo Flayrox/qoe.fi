@@ -16,6 +16,17 @@ export async function middleware(request: NextRequest) {
     canonicalUrl.hostname = 'admin.lvh.me';
     return NextResponse.redirect(canonicalUrl);
   } // Forward language cookie as request header
+  // 2. Racine de la console : elle n'a pas de contenu, elle renvoie vers
+  // /admin (qui est gardé juste après). On le fait ICI, explicitement, pour
+  // que `dev` et un build de prod répondent la même chose : sans cette
+  // règle, la prod interceptait `/` dans la branche auth et renvoyait au
+  // login avec `?redirect=/`, c'est-à-dire nulle part.
+  if (request.nextUrl.pathname === '/') {
+    const consoleUrl = request.nextUrl.clone();
+    consoleUrl.pathname = '/admin';
+    return NextResponse.redirect(consoleUrl);
+  }
+
   const localeCookie = request.cookies.get('x-locale')?.value || 'fr';
   request.headers.set('x-locale', localeCookie);
   // Le layout serveur ne connaît pas le pathname : le middleware le transmet
