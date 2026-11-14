@@ -8,6 +8,7 @@
     "test": "turbo run test",
     "test:api": "bash scripts/test-api.sh",
     "test:coverage": "vitest run --config vitest.coverage.config.ts",
+    "test:coverage:front": "pnpm -r --filter @qoe/ui --filter @qoe/studio --filter @qoe/admin --filter @qoe/tenants run test:coverage",
     "test:ui": "turbo run test:ui",
     "build": "pnpm intl:compile && turbo run build",
     "dev": "node scripts/copy-env.js && pnpm intl:compile && turbo run dev --parallel",
