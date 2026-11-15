@@ -12,11 +12,11 @@
 #    - migrate  : one-shot goose up (schéma + migrations Go)
 #
 # 🎯 Usage (tag image = nom de service compose) :
-#    docker build --target tenants -t qoefi-tenants .
-#    docker build --target hi -t qoefi-hi .
-#    docker build --target core -t qoefi-core .
-#    docker build --target studio -t qoefi-studio .
-#    docker build --target admin -t qoefi-admin .
+#    docker build --target tenants --build-arg APP_NAME=tenants -t qoefi-tenants .
+#    docker build --target hi --build-arg APP_NAME=hi -t qoefi-hi .
+#    docker build --target core --build-arg APP_NAME=core -t qoefi-core .
+#    docker build --target studio --build-arg APP_NAME=studio -t qoefi-studio .
+#    docker build --target admin --build-arg APP_NAME=admin -t qoefi-admin .
 #
 # 📖 Stratégie : stages de base communs + stages spécifiques
 # =====================================================================
@@ -33,7 +33,9 @@ RUN corepack enable && corepack prepare pnpm@11.21.0 --activate
 # 🥈 STAGE BUILDER : installation et build unifiés avec cache pnpm & turbo
 # ─────────────────────────────────────────────────────────────────────
 FROM base AS builder
+ARG APP_NAME=""
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV TURBO_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
 # Copie tout le code source
@@ -55,17 +57,19 @@ RUN if [ -f .env.docker ]; then \
 # Compile Lingui catalogs (fr.po/en.po → fr.js/en.js) before building apps
 RUN pnpm lingui compile
 
-# Build chaque app via Turborepo. Le cache (montage /app/.turbo) + globalEnv/globalDependencies
-# (turbo.json) ne rebuildent que ce qui change : le --force (rebuild intégral à chaque déploiement,
-# ~15 min) a été retiré. L'injection des variables d'environnement est garantie par turbo.json
-# (globalEnv + ".env" dans globalDependencies) : changer une NEXT_PUBLIC_* invalide le hash ET le
-# cp .env.docker → .env (racine) ci-dessus. SKIP_ENV_VALIDATION permet au build CI (sans .env.docker
-# complet) de compiler sans la validation Zod — le runtime, lui, reçoit le vrai .env.docker via
-# env_file compose.
-# ⚠️ Sans --concurrency=1 : sur une machine < 4 Go de RAM, remettre --concurrency=2 — le build lourd
-# passe désormais par la CI (GitHub Actions), pas par le VPS (voir deploy-prod.sh → pull).
+# Build l'app ciblée (ou toutes si APP_NAME non spécifié) via Turborepo.
+# Le cache (montage /app/.turbo) + globalEnv/globalDependencies (turbo.json)
+# ne rebuildent que ce qui change. Cibler l'app spécifique via --filter=@qoe/${APP_NAME}...
+# évite de compiler inutilement les 5 apps Next.js dans chaque VM de build de la matrice CI.
 ENV SKIP_ENV_VALIDATION=true
-RUN --mount=type=cache,target=/app/.turbo NODE_OPTIONS="--max-old-space-size=2048" pnpm turbo build
+RUN --mount=type=cache,target=/app/.turbo NODE_OPTIONS="--max-old-space-size=2048" \
+    if [ -n "$APP_NAME" ]; then \
+      echo "=== [Turbo] Compilation ciblée pour @qoe/${APP_NAME} ===" && \
+      pnpm turbo build --filter="@qoe/${APP_NAME}..."; \
+    else \
+      echo "=== [Turbo] Compilation globale de toutes les apps ===" && \
+      pnpm turbo build; \
+    fi
 
 # 🔧 Répare les sorties standalone : le file tracing de Next ne copie jamais le
 # payload natif de @img/sharp-libvips-* (chargé par dlopen, pas require) → sharp
