@@ -74,11 +74,13 @@ worker, pas de nouvelle table, pas d’envoi automatique implicite.
 - [x] Route protégée `POST /v1/newsletters/digest`.
 - [x] Action studio `createDigestAction` + bouton « Créer un digest » qui ouvre
       le compositeur sur le brouillon généré.
-- [x] Tests : constructeur HTML pur (échappement + liens), handler (auth/JSON),
-      typecheck studio.
+- [x] Tests : helpers HTML purs (échappement, liens, extraits) + typecheck studio.
+- [ ] Tests dédiés du handler `POST /v1/newsletters/digest` (auth/JSON) et de
+      la création réelle du brouillon en DB — non exécutés localement (Docker
+      absent).
 
-_Note : le handler est couvert par le contrat de route protégée ; les tests
-DB complets (création réelle du brouillon) nécessitent Docker, absent en local._
+_À ce jour, seuls les helpers HTML sont testés : le handler digest n’a pas de
+test dédié._
 
 ### Critère de done
 
@@ -119,4 +121,4 @@ publication sans passer par une action serveur qui sérialise le ZIP.
 | Date | Lot | Résultat | Commit |
 | --- | --- | --- | --- |
 | 2026-11-15 | Plan créé | périmètres vérifiés dans le code | _(à venir)_ |
-| 2026-11-15 | Lots 1–3 | Go search + workers ciblés + digest **ok** ; sdk **163**, tenants **39**, studio **162** tests ; typechecks sdk/core/tenants/studio **0 erreur**. Tests DB newsletter/worker non exécutés (Docker absent). | _(ce commit)_ |
+| 2026-11-15 | Lots 1–3 | Go search + workers ciblés + helpers digest **ok** ; sdk **163**, tenants **39**, studio **162** tests ; typechecks sdk/core/tenants/studio **0 erreur**. Tests DB newsletter/worker et handler digest non exécutés (Docker absent). | _(ce commit)_ |
