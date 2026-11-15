@@ -5,7 +5,9 @@
 package billing
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -49,6 +51,48 @@ func (h *Handler) listTiers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]any{"tiers": tiers})
+}
+
+// validateTierPrices revérifie côté Stripe chaque tarif fourni avant de
+// l'enregistrer : montant, devise, cadence et activation doivent correspondre
+// à ce que la formule affiche. Sans Stripe configuré, un ID ne peut pas être
+// vérifié → refus (503), jamais un enregistrement à l'aveugle.
+func (h *Handler) validateTierPrices(ctx context.Context, in CreateTierInput) error {
+	monthly := strings.TrimSpace(in.StripePriceIDMonthly)
+	yearly := strings.TrimSpace(in.StripePriceIDYearly)
+	if monthly == "" && yearly == "" {
+		return nil
+	}
+	if h.stripe == nil || !h.stripe.Configured() {
+		return ErrNotConfigured
+	}
+
+	type check struct {
+		id       string
+		cents    int
+		interval string
+	}
+	checks := make([]check, 0, 2)
+	if monthly != "" {
+		checks = append(checks, check{monthly, in.MonthlyPriceCents, "month"})
+	}
+	if yearly != "" {
+		if in.YearlyPriceCents == nil || *in.YearlyPriceCents <= 0 {
+			return ErrInvalidTier
+		}
+		checks = append(checks, check{yearly, *in.YearlyPriceCents, "year"})
+	}
+
+	for _, c := range checks {
+		price, err := h.stripe.GetPrice(ctx, c.id)
+		if err != nil {
+			return fmt.Errorf("%w: %v", ErrPriceUnverified, err)
+		}
+		if err := ValidatePrice(price, TierPriceCheck{Cents: c.cents, Interval: c.interval}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // commissionPercent centralise le barème (une seule définition, testée).
@@ -140,10 +184,32 @@ func (h *Handler) checkout(w http.ResponseWriter, r *http.Request) {
 			response.Error(w, http.StatusServiceUnavailable, "tarif Stripe non configuré pour cette formule")
 			return
 		}
+		account := h.svc.PublisherStripeAccount(r.Context(), tier.PublisherID)
+		if account == "" {
+			// Sans compte Connect, Stripe n'a nulle part où transférer : les
+			// fonds resteraient sur la plateforme. On refuse la vente.
+			response.ErrorCode(w, http.StatusConflict, "CONNECT_REQUIRED",
+				"la publication doit connecter Stripe avant d'encaisser")
+			return
+		}
+		// Le tarif a pu être enregistré avant cette garde (ou modifié en base) :
+		// on revérifie au dernier moment que le débit correspond à l'affiché.
+		price, err := h.stripe.GetPrice(r.Context(), tier.StripePriceIDMonthly)
+		if err != nil {
+			log.Printf("[billing] checkout tarif illisible: %v", err)
+			response.Error(w, http.StatusServiceUnavailable, "paiement indisponible")
+			return
+		}
+		if err := ValidatePrice(price, TierPriceCheck{Cents: tier.MonthlyPriceCents, Interval: "month"}); err != nil {
+			log.Printf("[billing] checkout tarif incohérent tier=%s: %v", tier.ID, err)
+			response.ErrorCode(w, http.StatusConflict, "PRICE_MISMATCH",
+				"le tarif Stripe ne correspond pas au montant affiché")
+			return
+		}
 		params.PriceID = tier.StripePriceIDMonthly
 		params.CreatorID = tier.PublisherID
 		params.TierID = tier.ID
-		params.StripeAccount = h.svc.PublisherStripeAccount(r.Context(), tier.PublisherID)
+		params.StripeAccount = account
 		// Commission : 10 % par défaut, 5 % pour une publication Pro
 		// (source unique du droit : SubscriptionGrant).
 		params.FeePercent = commissionPercent(h.svc.IsPro(r.Context(), tier.PublisherID))
@@ -201,6 +267,33 @@ func (h *Handler) createTier(w http.ResponseWriter, r *http.Request) {
 
 	var in CreateTierInput
 	if !response.DecodeJSON(w, r, &in) {
+		return
+	}
+	// Propriété AVANT l'appel Stripe : un non-propriétaire ne doit pas pouvoir
+	// sonder des identifiants de tarifs via les messages d'erreur.
+	ok, err := h.svc.CanManagePublisher(r.Context(), userID, publisherID)
+	if err != nil {
+		response.Internal(w)
+		return
+	}
+	if !ok {
+		response.Forbidden(w, "publication non autorisée")
+		return
+	}
+	if err := h.validateTierPrices(r.Context(), in); err != nil {
+		switch {
+		case errors.Is(err, ErrNotConfigured):
+			response.Error(w, http.StatusServiceUnavailable,
+				"Stripe non configuré : impossible de vérifier le tarif")
+		case errors.Is(err, ErrInvalidTier):
+			response.BadRequest(w, "prix annuel requis pour un tarif annuel")
+		case errors.Is(err, ErrPriceUnverified):
+			response.BadRequest(w, "tarif Stripe introuvable ou inaccessible")
+		case errors.Is(err, ErrPriceMismatch):
+			response.BadRequest(w, "le tarif Stripe ne correspond pas au montant affiché")
+		default:
+			response.Internal(w)
+		}
 		return
 	}
 	tier, err := h.svc.CreateTier(r.Context(), userID, publisherID, in)

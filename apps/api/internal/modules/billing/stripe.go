@@ -17,6 +17,19 @@ import (
 	"time"
 )
 
+// Price : sous-ensemble de l'objet Price Stripe utile à la vérification des
+// formules (montant, devise, cadence, actif).
+type Price struct {
+	ID         string `json:"id"`
+	Active     bool   `json:"active"`
+	Currency   string `json:"currency"`
+	UnitAmount *int   `json:"unit_amount"`
+	Recurring  *struct {
+		Interval      string `json:"interval"`
+		IntervalCount int    `json:"interval_count"`
+	} `json:"recurring"`
+}
+
 // StripeClient appelle l'API Stripe. Zero valeur (ou clé vide) = non
 // configuré : les routes répondent 503 explicite, jamais un faux succès.
 type StripeClient struct {
@@ -87,10 +100,10 @@ func (c *StripeClient) CreateCheckoutSession(ctx context.Context, p CheckoutPara
 	// .completed) et sur l'abonnement (customer.subscription.*), sinon les
 	// événements ultérieurs perdent le lien vers la publication.
 	meta := map[string]string{
-		"userId":   p.UserID,
+		"userId":    p.UserID,
 		"creatorId": p.CreatorID,
-		"plan":     p.Plan,
-		"tierId":   p.TierID,
+		"plan":      p.Plan,
+		"tierId":    p.TierID,
 	}
 	for k, v := range meta {
 		if v == "" {
@@ -125,6 +138,23 @@ func (c *StripeClient) CreateCheckoutSession(ctx context.Context, p CheckoutPara
 	return out.URL, nil
 }
 
+// GetPrice relit un tarif. Sert à refuser un ID saisi par le créateur qui ne
+// correspond pas au montant affiché (aucune confiance dans l'entrée client).
+func (c *StripeClient) GetPrice(ctx context.Context, priceID string) (Price, error) {
+	if !c.Configured() {
+		return Price{}, ErrNotConfigured
+	}
+	priceID = strings.TrimSpace(priceID)
+	if priceID == "" {
+		return Price{}, fmt.Errorf("stripe: tarif manquant")
+	}
+	var out Price
+	if err := c.get(ctx, "/v1/prices/"+url.PathEscape(priceID), &out); err != nil {
+		return Price{}, err
+	}
+	return out, nil
+}
+
 // CreatePortalSession ouvre le portail de facturation d'un client existant.
 func (c *StripeClient) CreatePortalSession(ctx context.Context, customerID, returnURL string) (string, error) {
 	if !c.Configured() {
@@ -147,6 +177,28 @@ func (c *StripeClient) CreatePortalSession(ctx context.Context, customerID, retu
 		return "", fmt.Errorf("stripe: portail sans url")
 	}
 	return out.URL, nil
+}
+
+func (c *StripeClient) get(ctx context.Context, path string, out any) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.secretKey)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("stripe: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("stripe %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	if err := json.Unmarshal(body, out); err != nil {
+		return fmt.Errorf("stripe: réponse illisible: %w", err)
+	}
+	return nil
 }
 
 func (c *StripeClient) post(ctx context.Context, path string, form url.Values, out any) error {

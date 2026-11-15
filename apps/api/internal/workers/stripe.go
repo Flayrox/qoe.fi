@@ -230,8 +230,8 @@ func (s *StripeWorker) handleSubscriptionUpdated(ctx context.Context, data map[s
 			if subscriptionID != "" {
 				note = "stripe:" + subscriptionID
 			}
-			if _, err := subscriptions.GrantPlan(ctx, s.pool, subscriptions.SubjectUser, userID,
-				subscriptions.PlanPlus, now, &endsAt, "stripe", note, now); err != nil {
+			if _, err := subscriptions.ExtendPlanGrant(ctx, s.pool, subscriptions.SubjectUser, userID,
+				subscriptions.PlanPlus, endsAt, "stripe", note, now); err != nil {
 				return err
 			}
 		}

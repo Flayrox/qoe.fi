@@ -30,7 +30,7 @@ const (
 
 // Sujets (vocabulaire fermé, CHECK en base).
 const (
-	SubjectUser        = "user"
+	SubjectUser      = "user"
 	SubjectPublisher = "publisher"
 )
 
@@ -218,6 +218,60 @@ func GrantPlan(ctx context.Context, pool DB, subjectType, subjectID, plan string
 	g.CreatedAt = created.UTC().Format(time.RFC3339)
 	g.Effective = isEffective(starts, ends, now)
 	return g, nil
+}
+
+// ExtendPlanGrant octroie OU prolonge un droit déjà identifié par
+// (sujet, plan, grantedBy, note) — typiquement un abonnement Stripe
+// (`stripe:sub_...`). Un renouvellement met à jour la fin de la ligne
+// existante au lieu d'empiler une ligne par événement.
+//
+// Une ligne expirée n'est volontairement pas ressuscitée (une révocation
+// reste une révocation) : on repart sur un octroi neuf. La note est la clé
+// fonctionnelle : un abonnement = une ligne, quel que soit le nombre de
+// `subscription.updated`.
+func ExtendPlanGrant(ctx context.Context, pool DB, subjectType, subjectID, plan string, endsAt time.Time, grantedBy, note string, now time.Time) (Grant, error) {
+	if pool == nil {
+		return Grant{}, errors.New("base indisponible")
+	}
+	if !ValidSubject(subjectType) || !ValidPlan(plan) {
+		return Grant{}, fmt.Errorf("%w : sujet ou plan inconnu", ErrInvalidGrant)
+	}
+	if strings.TrimSpace(subjectID) == "" {
+		return Grant{}, fmt.Errorf("%w : sujet requis", ErrInvalidGrant)
+	}
+	endsAt = abuse.UtcMs(endsAt)
+	now = abuse.UtcMs(now)
+	if !endsAt.After(now) {
+		return Grant{}, fmt.Errorf("%w : fin future exigée", ErrInvalidGrant)
+	}
+	grantedBy = strings.TrimSpace(grantedBy)
+	note = strings.TrimSpace(note)
+
+	g, err := scanGrant(pool.QueryRow(ctx, `
+		UPDATE "SubscriptionGrant"
+		SET "endsAt" = CASE WHEN "endsAt" IS NULL THEN NULL
+		                    ELSE GREATEST("endsAt", $4::timestamp) END
+		WHERE "id" = (
+			SELECT "id" FROM "SubscriptionGrant"
+			WHERE "subjectType" = $1 AND "subjectId" = $2 AND "plan" = $3
+			  AND "grantedBy" = $5 AND "note" = $6
+			  AND "startsAt" <= $7::timestamp
+			  AND ("endsAt" IS NULL OR "endsAt" > $7::timestamp)
+			ORDER BY "createdAt" DESC
+			LIMIT 1
+		)
+		RETURNING `+grantColumns,
+		subjectType, strings.TrimSpace(subjectID), plan, endsAt,
+		grantedBy, note, now), now)
+	if err == nil {
+		return g, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return Grant{}, err
+	}
+	// Aucun octroi actif pour cette clé : premier paiement (ou reprise après
+	// expiration), on crée la ligne.
+	return GrantPlan(ctx, pool, subjectType, subjectID, plan, now, &endsAt, grantedBy, note, now)
 }
 
 // GetGrant relit un octroi (refus explicite si inexistant).

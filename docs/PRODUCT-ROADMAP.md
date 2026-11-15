@@ -207,11 +207,35 @@ relire — à construire **dans `modules/newsletters`**, pas ailleurs.
   mensuel ; à brancher avant ouverture large.
 - Relecture côte à côte (source / traduction) et publication différée.
 
+### 2026-11-16 — tarif Stripe vérifié + grants Plus dédupliqués
+
+- **Tarif vérifié avant enregistrement** : `validateTierPrices` relit chaque
+  `stripePriceId` via `GET /v1/prices/{id}` et exige montant **exact**
+  (`unit_amount` = prix affiché), devise `eur`, cadence `month`/`year` (pas
+  « tous les 3 mois »), tarif actif. Refus 503 si Stripe n'est pas configuré
+  (on n'enregistre jamais un ID non vérifiable), 400 si incohérent, 403 si
+  l'appelant ne gère pas la publication (vérifié avant l'appel Stripe).
+- **Défense au Checkout** : le tarif est revérifié au moment de créer la
+  session (409 `PRICE_MISMATCH`) — couvre les formules enregistrées avant la
+  garde ou modifiées en base.
+- **Connect obligatoire** : sans `Publisher.stripeAccountId`, le Checkout
+  publication répond 409 `CONNECT_REQUIRED` au lieu de garder les fonds sur
+  le compte plateforme.
+- **Grants Plus dédupliqués** : `subscriptions.ExtendPlanGrant` prolonge la
+  ligne existante identifiée par `(sujet, plan, grantedBy, note)` — un
+  abonnement Stripe = une ligne, quel que soit le nombre de
+  `subscription.updated`. Une ligne expirée n'est pas ressuscitée. Le worker
+  l'utilise pour Plus.
+- **Vérifications** : `go test ./internal/modules/billing
+  ./internal/subscriptions` vert ; SQL de prolongation exécuté contre la base
+  de dev dans une transaction annulée (2 événements → 1 ligne) ; migration
+  `00091` appliquée (`User.stripeCustomerId` présente) ; `go build ./...`.
+
 ## État au 2026-11-15
 
 | # | Chantier | État | Prochaine étape |
 | - | -------- | ---- | --------------- |
-| 1 | Encaissement | socle + commission Pro 5 % + portail (`User.stripeCustomerId`) livrés | appliquer la migration 00091, test mode Stripe de bout en bout |
+| 1 | Encaissement | socle + commission 5 % + portail + tarifs vérifiés livrés (migration 00091 appliquée) | parcours Stripe test-mode, onboarding Connect |
 | 2 | Digest | brouillon newsletter (agent newsletter) ; mon doublon retiré | cadence récurrente dans `modules/newsletters` |
 | 3 | Commentaires | core + modération Studio livrés | pagination, signalements |
 | 4 | Livres | compilation EPUB livrée | persistance + vente |
