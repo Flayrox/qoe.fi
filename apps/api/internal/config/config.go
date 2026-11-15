@@ -26,6 +26,14 @@ type Config struct {
 	InternalSecret string
 	// StripeWebhookSecret vérifie les signatures des webhooks Stripe.
 	StripeWebhookSecret string
+	// StripeSecretKey crée les sessions Checkout et le portail abonné.
+	// Absente → routes billing en 503 explicite (jamais de faux paiement).
+	StripeSecretKey string
+	// StripePlusPriceID est le tarif Stripe du bundle lecteur Qoefi Plus.
+	StripePlusPriceID string
+	// BillingReturnBaseURL est l'origine de retour après paiement (Stripe
+	// exige une URL absolue ; on ne la prend JAMAIS du client).
+	BillingReturnBaseURL string
 	// UmamiAPIURL / UmamiAPIKey pour le proxy /v1/analytics/stats (créateur).
 	UmamiAPIURL string
 	UmamiAPIKey string
@@ -116,6 +124,9 @@ func Load() *Config {
 		RedisURL:               envOr("REDIS_URL", "redis://localhost:6379"),
 		InternalSecret:         envOr("QOE_INTERNAL_SECRET", ""),
 		StripeWebhookSecret:    envOr("STRIPE_WEBHOOK_SECRET", ""),
+		StripeSecretKey:        envOr("STRIPE_SECRET_KEY", ""),
+		StripePlusPriceID:      envOr("STRIPE_PLUS_PRICE_ID", ""),
+		BillingReturnBaseURL:   envOr("BILLING_RETURN_BASE_URL", envOr("NEXT_PUBLIC_APP_URL", "http://localhost:3000")),
 		UmamiAPIURL:            envOr("UMAMI_API_URL", "https://api.umami.is/v1"),
 		UmamiAPIKey:            envOr("UMAMI_API_KEY", ""),
 		UmamiUser:              envOr("UMAMI_USERNAME", ""),

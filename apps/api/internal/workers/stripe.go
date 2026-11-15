@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/hibiken/asynq"
@@ -14,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/queue"
+	"github.com/qoefi/api/internal/subscriptions"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -48,6 +50,14 @@ func (s *StripeWorker) HandleStripeEvent(ctx context.Context, t *asynq.Task) err
 	}
 
 	switch p.EventType {
+	case "checkout.session.completed":
+		if err := s.handleCheckoutCompleted(ctx, p.Data); err != nil {
+			log.Printf("[stripe] checkout.session.completed ERREUR: %v", err)
+			return err
+		}
+		return nil
+	case "customer.subscription.updated":
+		return s.handleSubscriptionUpdated(ctx, p.Data)
 	case "invoice.payment_succeeded":
 		if err := s.handlePaymentSucceeded(ctx, p.Data); err != nil {
 			log.Printf("[stripe] payment_succeeded ERREUR: %v", err)
@@ -118,7 +128,104 @@ func (s *StripeWorker) creditOwner(ctx context.Context, publisherID string, amou
 	return nil
 }
 
+// stripeObject descend dans `data.object` (forme réelle des événements
+// Stripe). Les anciens payloads aplatis restent acceptés : on retombe sur
+// `data` lui-même quand `object` est absent.
+func stripeObject(data map[string]any) map[string]any {
+	if data == nil {
+		return map[string]any{}
+	}
+	if obj, ok := data["object"].(map[string]any); ok {
+		return obj
+	}
+	return data
+}
+
+// handleCheckoutCompleted active le droit acheté : abonnement à une
+// publication (Subscriber premium + ids Stripe) ou bundle lecteur Plus
+// (octroi `subscriptions`, source unique des droits).
+func (s *StripeWorker) handleCheckoutCompleted(ctx context.Context, data map[string]any) error {
+	obj := stripeObject(data)
+	metadata, _ := obj["metadata"].(map[string]any)
+	plan := stringVal(metadata["plan"])
+	customerID := stringVal(obj["customer"])
+	subscriptionID := stringVal(obj["subscription"])
+
+	switch plan {
+	case "plus":
+		userID := stringVal(metadata["userId"])
+		if userID == "" {
+			return nil
+		}
+		now := time.Now().UTC()
+		// Période payée : un mois (le renouvellement rejoue l'événement).
+		endsAt := now.AddDate(0, 1, 0)
+		note := "stripe"
+		if subscriptionID != "" {
+			note = "stripe:" + subscriptionID
+		}
+		_, err := subscriptions.GrantPlan(ctx, s.pool, subscriptions.SubjectUser, userID,
+			subscriptions.PlanPlus, now, &endsAt, "stripe", note, now)
+		return err
+
+	case "publication":
+		creatorRef := stringVal(metadata["creatorId"])
+		email := stringVal(obj["customer_email"])
+		if email == "" {
+			email = stringVal(metadata["subscriberEmail"])
+		}
+		if creatorRef == "" || email == "" {
+			return nil
+		}
+		publisherID, err := s.resolvePublisherID(ctx, creatorRef)
+		if err != nil {
+			return nil
+		}
+		amount := intVal(obj["amount_total"])
+		if _, err := s.q.UpsertSubscriberPayment(ctx, db.UpsertSubscriberPaymentParams{
+			Email: email, PublisherId: publisherID, LtvCents: int32(amount),
+		}); err != nil {
+			return fmt.Errorf("upsert subscriber: %w", err)
+		}
+		// Les ids Stripe ne sont pas des miroirs de droit (isPremium est
+		// déjà posé par l'upsert) : ils servent au portail et au prochain
+		// `customer.subscription.*`.
+		_, err = s.pool.Exec(ctx, `
+			UPDATE "Subscriber"
+			SET "stripeCustomerId" = NULLIF($3, ''),
+			    "stripeSubscriptionId" = NULLIF($4, ''),
+			    "tierId" = NULLIF($5, ''),
+			    "updatedAt" = now()
+			WHERE "publisherId" = $1 AND email = $2`,
+			publisherID, email, customerID, subscriptionID, stringVal(metadata["tierId"]))
+		return err
+	}
+	return nil
+}
+
+// handleSubscriptionUpdated aligne l'accès sur le statut Stripe (renouvelé,
+// impayé, annulé). Le lien se fait par l'id d'abonnement, pas par metadata :
+// les événements de cycle de vie n'ont pas toujours le contexte de la session.
+func (s *StripeWorker) handleSubscriptionUpdated(ctx context.Context, data map[string]any) error {
+	obj := stripeObject(data)
+	subscriptionID := stringVal(obj["id"])
+	if subscriptionID == "" {
+		return nil
+	}
+	status := strings.ToLower(stringVal(obj["status"]))
+	active := status == "active" || status == "trialing"
+	_, err := s.pool.Exec(ctx, `
+		UPDATE "Subscriber"
+		SET "isPremium" = $2,
+		    "isActive" = $2,
+		    status = CASE WHEN $2 THEN 'ACTIVE'::"SubscriptionStatus" ELSE 'CANCELED'::"SubscriptionStatus" END,
+		    "updatedAt" = now()
+		WHERE "stripeSubscriptionId" = $1`, subscriptionID, active)
+	return err
+}
+
 func (s *StripeWorker) handlePaymentSucceeded(ctx context.Context, data map[string]any) error {
+	data = stripeObject(data)
 	metadata, _ := data["metadata"].(map[string]any)
 	creatorRef, _ := metadata["creatorId"].(string)
 	email := stringVal(data["customer_email"])
@@ -150,6 +257,7 @@ func (s *StripeWorker) handlePaymentSucceeded(ctx context.Context, data map[stri
 }
 
 func (s *StripeWorker) handleSubscriptionDeleted(ctx context.Context, data map[string]any) error {
+	data = stripeObject(data)
 	metadata, _ := data["metadata"].(map[string]any)
 	creatorRef, _ := metadata["creatorId"].(string)
 	email, _ := metadata["subscriberEmail"].(string)
@@ -166,6 +274,7 @@ func (s *StripeWorker) handleSubscriptionDeleted(ctx context.Context, data map[s
 }
 
 func (s *StripeWorker) handlePaymentFailed(ctx context.Context, data map[string]any) error {
+	data = stripeObject(data)
 	metadata, _ := data["metadata"].(map[string]any)
 	creatorRef, _ := metadata["creatorId"].(string)
 	email := stringVal(data["customer_email"])

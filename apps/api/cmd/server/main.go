@@ -110,6 +110,9 @@ func run(ctx context.Context) error {
 		SupabaseAuthURL:        cfg.SupabaseAuthURL,
 		SupabaseServiceRoleKey: cfg.SupabaseServiceRoleKey,
 		StripeWebhookKey:       cfg.StripeWebhookSecret,
+		StripeSecretKey:        cfg.StripeSecretKey,
+		StripePlusPriceID:      cfg.StripePlusPriceID,
+		BillingReturnBaseURL:   cfg.BillingReturnBaseURL,
 		InternalSecret:         cfg.InternalSecret,
 		DevtoolsDevOnly:        cfg.DevtoolsDevOnly,
 		UmamiAPIURL:            cfg.UmamiAPIURL,
@@ -184,7 +187,11 @@ type RouterDeps struct {
 	SupabaseAuthURL        string
 	SupabaseServiceRoleKey string
 	StripeWebhookKey       string
-	InternalSecret         string
+	// Encaissement (Checkout/portail) : clé secrète, tarif Plus, origine de retour.
+	StripeSecretKey      string
+	StripePlusPriceID    string
+	BillingReturnBaseURL string
+	InternalSecret       string
 	// DevtoolsDevOnly active le panneau de dev par secret partagé (hors prod).
 	DevtoolsDevOnly  bool
 	UmamiAPIURL      string
@@ -340,6 +347,13 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 	// Webhooks Stripe (vérif signature + enqueue asynq).
 	billingHandler := billing.NewHandler(asynqClient, d.StripeWebhookKey)
+	// Encaissement : service de formules + client Stripe (clé absente → 503).
+	billingHandler.SetBilling(
+		billing.NewService(pool),
+		billing.NewStripeClient(d.StripeSecretKey, ""),
+		d.StripePlusPriceID,
+		d.BillingReturnBaseURL,
+	)
 	billingHandler.Register(r)
 
 	// Auth JWT Supabase (instance partagée : Middleware obligatoire + OptionalAuth).
@@ -650,6 +664,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 		placementsHandler.RegisterAdmin(protected)
 
 		newslettersHandler.Register(protected)
+
+		// Encaissement : Checkout, portail abonné, création de formules.
+		billingHandler.RegisterProtected(protected)
 
 		// Routes reader (/v1/me*, feed protégé, lecture) : auto-réparation
 		// centralisée de la ligne User absente (login de démo / reseed /

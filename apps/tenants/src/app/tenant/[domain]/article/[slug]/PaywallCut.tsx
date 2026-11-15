@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { Lock, Wallet, Loader2, AlertCircle, ArrowRight } from 'lucide-react';
 import {
   unlockArticleWithWalletAction as unlockArticleWithWallet,
   getCurrentUserWalletAction as getCurrentUser,
 } from '@qoe/sdk/actions/tenant';
+import { getCreatorTiersAction, startSubscriptionCheckoutAction, type BillingTier } from '@qoe/sdk';
 
 import { sanitizeHtml } from '@/lib/sanitize';
 import { t } from '@lingui/core/macro';
@@ -107,7 +107,11 @@ export function PaywallOverlay({
 }: PaywallOverlayProps) {
   const [user, setUser] = useState<WalletUser | null>(initialUser ?? null);
   const [unlocking, setUnlocking] = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Prix RÉEL de la première formule payable (le serveur reste la source :
+  // le composant n'invente ni montant ni devise).
+  const [tiers, setTiers] = useState<BillingTier[]>([]);
 
   useEffect(() => {
     // If explicitly known as anonymous, avoid making an unnecessary network call
@@ -121,6 +125,53 @@ export function PaywallOverlay({
         // ignore
       });
   }, [initialAuthenticated]);
+
+  useEffect(() => {
+    let mounted = true;
+    getCreatorTiersAction({ publisherId: creatorId })
+      .then((res) => {
+        if (mounted && res.ok) setTiers(res.data.tiers);
+      })
+      .catch(() => {
+        // Catalogue indisponible : on garde le prix indicatif local.
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [creatorId]);
+
+  // Première formule réellement payable (tarif Stripe présent).
+  const payableTier = tiers.find((tier) => tier.stripePriceIdMonthly);
+  const membershipCents = payableTier?.monthlyPriceCents ?? membershipPriceCents;
+
+  const handleSubscribe = async () => {
+    if (!user) {
+      window.location.href = `${mainAppUrl}/login?redirect=${encodeURIComponent(window.location.href)}`;
+      return;
+    }
+    if (!payableTier) {
+      setErrorMessage(t`L'abonnement en ligne n'est pas encore ouvert pour cette publication.`);
+      return;
+    }
+    setSubscribing(true);
+    setErrorMessage(null);
+    try {
+      const res = await startSubscriptionCheckoutAction({
+        plan: 'publication',
+        publisherId: creatorId,
+        tierId: payableTier.id,
+      });
+      if (res.ok) {
+        window.location.href = res.data.url;
+        return;
+      }
+      setErrorMessage(t`L'abonnement en ligne n'est pas encore ouvert pour cette publication.`);
+    } catch {
+      setErrorMessage(t`Erreur réseau. Impossible de contacter le serveur de paiement.`);
+    } finally {
+      setSubscribing(false);
+    }
+  };
 
   const handleUnlock = async () => {
     if (!user) {
@@ -276,10 +327,13 @@ export function PaywallOverlay({
               </div>
             </button>
 
-            {/* Abonnement */}
-            <Link
-              href="#subscribe"
-              className={`group flex flex-col justify-between rounded-xl p-4 transition-all focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${
+            {/* Abonnement — Checkout Stripe réel (ou message honnête) */}
+            <button
+              type="button"
+              onClick={handleSubscribe}
+              disabled={subscribing}
+              aria-busy={subscribing}
+              className={`group flex flex-col justify-between rounded-xl p-4 text-left transition-all focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none disabled:opacity-70 ${
                 isBrutalist
                   ? 'border-2 border-foreground hover:bg-muted'
                   : 'border border-border/70 bg-background hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md'
@@ -302,17 +356,23 @@ export function PaywallOverlay({
 
               <div className="mt-4 flex items-center justify-between border-t border-border/50 pt-3">
                 <span className="text-lg font-bold tabular-nums text-foreground">
-                  {formatEuro(membershipPriceCents)}
+                  {formatEuro(membershipCents)}
                   <span className="ml-0.5 text-xs font-normal text-muted-foreground">
                     {t`/mois`}
                   </span>
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full bg-foreground px-3 py-1.5 text-xs font-semibold text-background transition-opacity group-hover:opacity-90">
-                  {t`S'abonner`}
-                  <ArrowRight className="h-3.5 w-3.5" />
+                  {subscribing ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <>
+                      {t`S'abonner`}
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </>
+                  )}
                 </span>
               </div>
-            </Link>
+            </button>
           </div>
 
           <div className="mt-6 border-t border-border/50 pt-4 text-center text-xs text-muted-foreground">
