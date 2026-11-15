@@ -6,7 +6,11 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
+	"html"
 	"log"
+	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -26,6 +30,7 @@ var (
 	errNotDraft       = errors.New("seuls les brouillons ou les envois en échec peuvent être modifiés ou envoyés")
 	errConfirmInvalid = errors.New("lien de confirmation invalide ou déjà utilisé")
 	errProRequired    = errors.New("l'envoi d'un message direct sans article public est réservé aux publishers Pro")
+	errDigestEmpty    = errors.New("aucun article publié sur la période : impossible de générer un digest")
 )
 
 // Service porte les opérations newsletters (côté créateur).
@@ -78,7 +83,7 @@ func NewService(q newsletterQuerier, ac *asynq.Client) *Service {
 // Issue est une newsletter (brouillon, en cours ou envoyée).
 type Issue struct {
 	ID              string  `json:"id"`
-	PublisherID   string  `json:"publisherId"`
+	PublisherID     string  `json:"publisherId"`
 	Subject         string  `json:"subject"`
 	PreviewText     *string `json:"previewText"`
 	Html            string  `json:"html"`
@@ -94,9 +99,9 @@ type Issue struct {
 // CreateInput est le contenu rédigeable d'une newsletter.
 type CreateInput struct {
 	PublisherID string `json:"publisherId"`
-	Subject       string `json:"subject"`
-	PreviewText   string `json:"previewText"`
-	Html          string `json:"html"`
+	Subject     string `json:"subject"`
+	PreviewText string `json:"previewText"`
+	Html        string `json:"html"`
 }
 
 // resolvePublication vérifie que l'utilisateur gère la publication (perso ou
@@ -110,7 +115,7 @@ func (s *Service) resolvePublisher(ctx context.Context, userID, publisherID stri
 		return pubID, nil
 	}
 	owns, err := s.q.UserOwnsPublisher(ctx, db.UserOwnsPublisherParams{
-		ID:            userID,
+		ID:          userID,
 		PublisherId: pgtype.Text{String: publisherID, Valid: true},
 	})
 	if err != nil {
@@ -125,7 +130,7 @@ func (s *Service) resolvePublisher(ctx context.Context, userID, publisherID stri
 func fromModel(r db.NewsletterIssue) Issue {
 	issue := Issue{
 		ID:              r.ID,
-		PublisherID:   r.PublisherId,
+		PublisherID:     r.PublisherId,
 		Subject:         r.Subject,
 		Html:            r.Html,
 		Status:          r.Status,
@@ -207,9 +212,9 @@ func (s *Service) CreateDraft(ctx context.Context, userID string, in CreateInput
 	}
 	row, err := s.q.CreateNewsletterIssue(ctx, db.CreateNewsletterIssueParams{
 		PublisherId: pubID,
-		Subject:       in.Subject,
-		PreviewText:   preview,
-		Html:          in.Html,
+		Subject:     in.Subject,
+		PreviewText: preview,
+		Html:        in.Html,
 	})
 	if err != nil {
 		return nil, err
@@ -291,6 +296,133 @@ func (s *Service) Send(ctx context.Context, userID, issueID string) error {
 	return queue.PublishNewsletterSend(s.ac, queue.NewsletterSendPayload{IssueID: issueID})
 }
 
+// DigestInput est la demande de génération d'un digest.
+type DigestInput struct {
+	PublisherID string `json:"publisherId"`
+	Days        int    `json:"days"`
+	Limit       int    `json:"limit"`
+}
+
+// CreateDigestDraft génère un BROUILLON de newsletter à partir des articles
+// publiés récemment. Il ne déclenche aucun envoi : le créateur relit, modifie
+// puis utilise le flux d'envoi existant (garde PRO incluse).
+func (s *Service) CreateDigestDraft(ctx context.Context, userID string, in DigestInput) (*Issue, error) {
+	pubID, err := s.resolvePublisher(ctx, userID, in.PublisherID)
+	if err != nil {
+		return nil, err
+	}
+	days := in.Days
+	if days <= 0 {
+		days = 7
+	}
+	if days > 90 {
+		days = 90
+	}
+	limit := in.Limit
+	if limit <= 0 {
+		limit = 5
+	}
+	if limit > 20 {
+		limit = 20
+	}
+
+	rows, err := s.q.ListArticlesForDigest(ctx, db.ListArticlesForDigestParams{
+		PublisherId: pubID,
+		CreatedAt: pgtype.Timestamp{
+			Time:  time.Now().UTC().AddDate(0, 0, -days),
+			Valid: true,
+		},
+		Limit: int32(limit),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return nil, errDigestEmpty
+	}
+
+	publisherName := rows[0].PublisherName
+	// Le sujet est validé à 200 caractères : on borne le nom pour qu'un nom
+	// de publication très long ne fasse pas échouer la génération.
+	subjectName := publisherName
+	if runes := []rune(subjectName); len(runes) > 80 {
+		subjectName = string(runes[:80])
+	}
+	subject := fmt.Sprintf("Digest — %s — %s", subjectName, time.Now().Format("02/01/2006"))
+	preview := fmt.Sprintf("%d article%s récent%s de %s",
+		len(rows), plural(len(rows)), plural(len(rows)), publisherName)
+
+	return s.CreateDraft(ctx, userID, CreateInput{
+		PublisherID: pubID,
+		Subject:     subject,
+		PreviewText: preview,
+		Html:        buildDigestHTML(rows, publisherName),
+	})
+}
+
+func plural(n int) string {
+	if n > 1 {
+		return "s"
+	}
+	return ""
+}
+
+var digestTagRE = regexp.MustCompile(`(?s)<[^>]*>`)
+
+// digestExcerpt retire le HTML et borne l'extrait (runes, jamais au milieu
+// d'un caractère UTF-8).
+func digestExcerpt(content string) string {
+	text := html.UnescapeString(digestTagRE.ReplaceAllString(content, " "))
+	text = strings.Join(strings.Fields(text), " ")
+	runes := []rune(text)
+	if len(runes) > 220 {
+		return strings.TrimSpace(string(runes[:220])) + "…"
+	}
+	return text
+}
+
+// digestArticleURL construit l'URL publique canonique d'un article tenant :
+// /{categorie}/{slug}. Sans domaine, on retombe sur /p/{slug} comme le worker.
+func digestArticleURL(customDomain, subdomain pgtype.Text, categorySlug, slug string) string {
+	base := "https://qoe.fi/p"
+	if customDomain.Valid && customDomain.String != "" {
+		base = "https://" + customDomain.String
+	} else if subdomain.Valid && subdomain.String != "" {
+		base = "https://" + subdomain.String + ".qoe.fi"
+	}
+	if base == "https://qoe.fi/p" {
+		return base + "/" + url.PathEscape(slug)
+	}
+	return base + "/" + url.PathEscape(categorySlug) + "/" + url.PathEscape(slug)
+}
+
+// buildDigestHTML rend le corps éditable du digest. Tout le contenu éditorial
+// est échappé : les titres viennent de la base, pas d'un éditeur HTML.
+func buildDigestHTML(rows []db.ListArticlesForDigestRow, publisherName string) string {
+	var b strings.Builder
+	b.WriteString(`<h1>` + html.EscapeString(publisherName) + ` — les derniers articles</h1>`)
+	b.WriteString(`<p>Une sélection des publications récentes, à lire sur le site.</p>`)
+
+	for _, row := range rows {
+		link := digestArticleURL(row.CustomDomain, row.Subdomain, row.CategorySlug, row.Slug)
+		b.WriteString(`<h2><a href="` + html.EscapeString(link) + `">` +
+			html.EscapeString(row.Title) + `</a></h2>`)
+		if row.ImageUrl.Valid && row.ImageUrl.String != "" {
+			b.WriteString(`<p><a href="` + html.EscapeString(link) + `"><img src="` +
+				html.EscapeString(row.ImageUrl.String) + `" alt="" /></a></p>`)
+		}
+		if excerpt := digestExcerpt(row.Content); excerpt != "" {
+			b.WriteString(`<p>` + html.EscapeString(excerpt) + `</p>`)
+		}
+		b.WriteString(`<p><a href="` + html.EscapeString(link) + `">Lire l'article</a>`)
+		if row.ReadingTime > 0 {
+			b.WriteString(fmt.Sprintf(` · %d min`, row.ReadingTime))
+		}
+		b.WriteString(`</p>`)
+	}
+	return b.String()
+}
+
 // checkOwnership vérifie que l'issue appartient à une publication du créateur
 // et renvoie l'issue (le statut sert aux gardes anti-double-envoi).
 func (s *Service) checkOwnership(ctx context.Context, userID, issueID string) (db.NewsletterIssue, error) {
@@ -299,7 +431,7 @@ func (s *Service) checkOwnership(ctx context.Context, userID, issueID string) (d
 		return db.NewsletterIssue{}, errNotFound
 	}
 	owns, err := s.q.UserOwnsPublisher(ctx, db.UserOwnsPublisherParams{
-		ID:            userID,
+		ID:          userID,
 		PublisherId: pgtype.Text{String: issue.PublisherId, Valid: true},
 	})
 	if err != nil {
@@ -318,7 +450,7 @@ func (s *Service) Unsubscribe(ctx context.Context, publisherID, email string) er
 	}
 	return s.q.UnsubscribeNewsletterSubscriber(ctx, db.UnsubscribeNewsletterSubscriberParams{
 		PublisherId: publisherID,
-		Email:         email,
+		Email:       email,
 	})
 }
 
@@ -344,7 +476,7 @@ func NewConfirmationToken() (string, error) {
 // — le service ne dépend pas de workers (pas de cycle d'import).
 func (s *Service) ConfirmLocaleRaw(ctx context.Context, publisherID, email string) string {
 	locale, err := s.q.GetSubscriberLocale(ctx, db.GetSubscriberLocaleParams{
-		Email:         email,
+		Email:       email,
 		PublisherId: publisherID,
 	})
 	if err != nil {
@@ -359,7 +491,7 @@ func (s *Service) ConfirmSubscriber(ctx context.Context, publisherID, email, tok
 	}
 	_, err := s.q.ConfirmSubscriberByToken(ctx, db.ConfirmSubscriberByTokenParams{
 		Email:             email,
-		PublisherId:     publisherID,
+		PublisherId:       publisherID,
 		ConfirmationToken: pgtype.Text{String: token, Valid: true},
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -375,7 +507,7 @@ func (s *Service) ConfirmSubscriber(ctx context.Context, publisherID, email, tok
 	// ligne qu'on vient d'activer par ce même clic). Un compte ne récupère
 	// ainsi que les abonnements de SA propre adresse vérifiée d'inscription.
 	if err := s.q.AttachSubscriberToAccount(ctx, db.AttachSubscriberToAccountParams{
-		Email:         email,
+		Email:       email,
 		PublisherId: publisherID,
 	}); err != nil {
 		log.Printf("[newsletters] rattachement %s: %v", email, err)
@@ -384,7 +516,7 @@ func (s *Service) ConfirmSubscriber(ctx context.Context, publisherID, email, tok
 	// coupable par le créateur côté worker). Best-effort : une panne Redis
 	// n'invalide JAMAIS une confirmation.
 	if err := queue.PublishSubscriberWelcome(s.ac, queue.SubscriberWelcomePayload{
-		Email:         email,
+		Email:       email,
 		PublisherID: publisherID,
 	}); err != nil {
 		log.Printf("[newsletters] subscriber.welcome enqueue: %v", err)
@@ -452,9 +584,9 @@ func (s *Service) subscribePending(ctx context.Context, email, publisherID strin
 		return err
 	}
 	if err := s.q.SubscribePending(ctx, db.SubscribePendingParams{
-		Email:         email,
+		Email:       email,
 		PublisherID: publisherID,
-		Token:         token,
+		Token:       token,
 	}); err != nil {
 		return err
 	}
@@ -466,7 +598,7 @@ func (s *Service) subscribePending(ctx context.Context, email, publisherID strin
 		return nil
 	}
 	if err := queue.PublishSubscriberConfirm(s.ac, queue.SubscriberConfirmPayload{
-		Email:         email,
+		Email:       email,
 		PublisherID: publisherID,
 	}); err != nil {
 		log.Printf("[newsletters] subscriber.confirm enqueue: %v", err)
@@ -484,14 +616,14 @@ func (s *Service) subscribeActive(ctx context.Context, userID, email, publisherI
 		return err
 	}
 	if err := s.q.ActivateVerifiedSubscriber(ctx, db.ActivateVerifiedSubscriberParams{
-		Email:         email,
+		Email:       email,
 		PublisherID: publisherID,
-		UserID:        uid,
+		UserID:      uid,
 	}); err != nil {
 		return err
 	}
 	if err := queue.PublishSubscriberWelcome(s.ac, queue.SubscriberWelcomePayload{
-		Email:         email,
+		Email:       email,
 		PublisherID: publisherID,
 	}); err != nil {
 		log.Printf("[newsletters] subscriber.welcome enqueue: %v", err)

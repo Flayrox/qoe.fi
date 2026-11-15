@@ -9,9 +9,11 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"github.com/hibiken/asynq"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/meilisearch/meilisearch-go"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/testutil"
@@ -55,10 +57,10 @@ func TestNewsletter_HandleArticlePublished_ProcessesActiveSubscribers(t *testing
 
 	payload, _ := json.Marshal(map[string]any{
 		"publisherId": pubID,
-		"articleId":     "art_news",
-		"authorId":      "00000000-0000-0000-0000-000000000010",
-		"title":         "Lettre",
-		"visibility":    "PUBLIC",
+		"articleId":   "art_news",
+		"authorId":    "00000000-0000-0000-0000-000000000010",
+		"title":       "Lettre",
+		"visibility":  "PUBLIC",
 	})
 	if err := worker.HandleArticlePublished(context.Background(), asynq.NewTask("article.published", payload)); err != nil {
 		t.Fatalf("HandleArticlePublished: %v", err)
@@ -75,7 +77,7 @@ func TestNewsletter_HandleArticlePublished_NoSubscribers(t *testing.T) {
 
 	payload, _ := json.Marshal(map[string]any{
 		"publisherId": fx.PublisherID,
-		"articleId":     "art_1", "title": "x",
+		"articleId":   "art_1", "title": "x",
 	})
 	if err := worker.HandleArticlePublished(context.Background(), asynq.NewTask("article.published", payload)); err != nil {
 		t.Fatalf("HandleArticlePublished: %v", err)
@@ -521,6 +523,27 @@ func TestSearch_ReindexAll_BackfillsArticles(t *testing.T) {
 	}
 	if upserted != total {
 		t.Fatalf("upserted = %d, attendu %d (aucun pré-existant)", upserted, total)
+	}
+}
+
+// Le document indexé doit porter les métadonnées utiles à la recherche
+// tenant (image + temps de lecture), sinon l’UI retombe sur le bundle.
+func TestSearchDocMap_IncludesTenantMetadata(t *testing.T) {
+	doc := searchDocMap(
+		"art_1", "Titre", "<p>corps</p>", "titre", []string{"titre"},
+		"author_1", pgtype.Text{String: "cat_1", Valid: true}, "pub_1", true, false,
+		pgtype.Text{String: "https://cdn.test/cover.jpg", Valid: true}, 7,
+		pgtype.Text{}, pgtype.Text{},
+		time.UnixMilli(1000), time.UnixMilli(2000),
+	)
+	if doc["imageUrl"] != "https://cdn.test/cover.jpg" {
+		t.Fatalf("imageUrl = %v", doc["imageUrl"])
+	}
+	if doc["readingTime"] != int32(7) {
+		t.Fatalf("readingTime = %v", doc["readingTime"])
+	}
+	if doc["categoryId"] != "cat_1" {
+		t.Fatalf("categoryId = %v", doc["categoryId"])
 	}
 }
 

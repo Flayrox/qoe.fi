@@ -500,8 +500,14 @@ export class QoeApiClient {
   }
 
   // ─── Search ─────────────────────────────────────────────────
-  /** GET /search/articles — recherche publique (Meilisearch). */
-  public async searchArticles(query: string) {
+  /**
+   * GET /search/articles — recherche publique (Meilisearch).
+   * `limit` (max 50) et `cursor` (offset opaque) sont respectés par le Go.
+   */
+  public async searchArticles(query: string, params?: { limit?: number; cursor?: string }) {
+    const search = new URLSearchParams({ q: query });
+    if (params?.limit) search.set('limit', params.limit.toString());
+    if (params?.cursor) search.set('cursor', params.cursor);
     return this.request<{
       hits: Array<{
         id?: string;
@@ -512,7 +518,8 @@ export class QoeApiClient {
         [k: string]: unknown;
       }>;
       estimatedTotalHits: number;
-    }>(`/search/articles?q=${encodeURIComponent(query)}`);
+      nextCursor?: string | null;
+    }>(`/search/articles?${search.toString()}`);
   }
 
   // ─── Notifications ────────────────────────────────────────────

@@ -1,12 +1,17 @@
 'use client';
 
 // =====================================================================
-// TenantSearchClient.tsx — Recherche Instantanée & Réactive (Tenant)
+// TenantSearchClient.tsx — Recherche d'une publication (résultats serveur)
+// =====================================================================
+// Le filtrage est fait dans la page serveur (`filterTenantArticles`). Ce
+// composant ne fait que piloter `?q=` et `?category=` : le navigateur ne
+// reçoit plus l'intégralité des articles pour les filtrer localement.
 // =====================================================================
 
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
-import { Search, X, Clock, Calendar, ArrowRight, Sparkles } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Search, X, Clock, Calendar, ArrowRight, Sparkles, Loader2 } from 'lucide-react';
 import { Badge } from '@qoe/ui/badge';
 import { Button } from '@qoe/ui/button';
 import { Input, InputGroup } from '@qoe/ui/input';
@@ -28,6 +33,7 @@ export interface SearchArticleItem {
 
 export interface TenantSearchClientProps {
   initialQuery?: string;
+  initialCategory?: string;
   articles: SearchArticleItem[];
   categories: Array<{ id: string; name: string; slug: string }>;
   accentColor?: string | null;
@@ -35,36 +41,61 @@ export interface TenantSearchClientProps {
 
 export function TenantSearchClient({
   initialQuery = '',
+  initialCategory = 'all',
   articles = [],
   categories = [],
 }: TenantSearchClientProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [query, setQuery] = useState(initialQuery);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
+  const [isPending, startTransition] = useTransition();
+  const previousServerQuery = useRef(initialQuery);
 
-  const filteredResults = useMemo(() => {
-    const trimmed = query.trim().toLowerCase();
-    const words = trimmed.split(/\s+/).filter(Boolean);
+  // Les résultats viennent du serveur : on resynchronise l'état local quand
+  // une navigation (retour arrière, lien partagé) change les props. On ne
+  // remplace la requête que si l'utilisateur n'a pas continué à taper entre
+  // l'envoi et la réponse — sinon une réponse lente écraserait sa frappe.
+  useEffect(() => {
+    const previous = previousServerQuery.current;
+    previousServerQuery.current = initialQuery;
+    setQuery((current) => (current === previous ? initialQuery : current));
+  }, [initialQuery]);
+  useEffect(() => {
+    setSelectedCategory(initialCategory);
+  }, [initialCategory]);
 
-    return articles.filter((art) => {
-      // Filtre catégorie
-      if (selectedCategory !== 'all' && art.categorySlug !== selectedCategory) {
-        return false;
-      }
+  // Debounce : la frappe met à jour l'URL, le serveur refiltre et renvoie
+  // uniquement les articles retenus.
+  useEffect(() => {
+    const nextQuery = query.trim();
+    const nextCategory = selectedCategory || 'all';
+    if (nextQuery === initialQuery.trim() && nextCategory === initialCategory) {
+      return;
+    }
 
-      if (words.length === 0) return true;
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams();
+      if (nextQuery) params.set('q', nextQuery);
+      if (nextCategory !== 'all') params.set('category', nextCategory);
+      const target = params.toString() ? `${pathname}?${params.toString()}` : pathname;
 
-      const titleLower = (art.title || '').toLowerCase();
-      const excerptLower = (art.excerpt || '').toLowerCase();
-      const catLower = (art.categoryName || '').toLowerCase();
+      startTransition(() => {
+        router.replace(target, { scroll: false });
+      });
+    }, 300);
 
-      return words.every(
-        (word) =>
-          titleLower.includes(word) || excerptLower.includes(word) || catLower.includes(word)
-      );
-    });
-  }, [articles, query, selectedCategory]);
+    return () => clearTimeout(timer);
+  }, [query, selectedCategory, initialQuery, initialCategory, pathname, router]);
 
+  const results = articles;
   const hasSearch = query.trim().length > 0;
+  const hasFilters = hasSearch || selectedCategory !== 'all';
+
+  const reset = () => {
+    setQuery('');
+    setSelectedCategory('all');
+  };
 
   return (
     <div className="w-full max-w-3xl mx-auto py-4 sm:py-8">
@@ -85,6 +116,8 @@ export function TenantSearchClient({
               >
                 <X />
               </Button>
+            ) : isPending ? (
+              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin opacity-60" />
             ) : undefined
           }
           className="bg-card shadow-xs"
@@ -95,6 +128,7 @@ export function TenantSearchClient({
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Rechercher par titre, mot-clé, sujet..."
             autoFocus
+            aria-label="Rechercher dans la publication"
           />
         </InputGroup>
       </div>
@@ -128,19 +162,16 @@ export function TenantSearchClient({
 
       {/* Résumé du nombre de résultats */}
       <div className="flex items-center justify-between text-xs text-muted-foreground mb-4 px-1">
-        <span>
+        <span aria-live="polite">
           {hasSearch
-            ? `${filteredResults.length} résultat${filteredResults.length > 1 ? 's' : ''} trouvé${filteredResults.length > 1 ? 's' : ''}`
-            : `${filteredResults.length} publication${filteredResults.length > 1 ? 's' : ''} disponible${filteredResults.length > 1 ? 's' : ''}`}
+            ? `${results.length} résultat${results.length > 1 ? 's' : ''} trouvé${results.length > 1 ? 's' : ''}`
+            : `${results.length} publication${results.length > 1 ? 's' : ''} disponible${results.length > 1 ? 's' : ''}`}
         </span>
-        {hasSearch && (
+        {hasFilters && (
           <Button
             variant="ghost"
             size="xs"
-            onClick={() => {
-              setQuery('');
-              setSelectedCategory('all');
-            }}
+            onClick={reset}
             className="h-auto px-1 py-0 text-xs underline underline-offset-4"
           >
             Réinitialiser
@@ -149,9 +180,11 @@ export function TenantSearchClient({
       </div>
 
       {/* Liste des Résultats */}
-      {filteredResults.length > 0 ? (
-        <div className="space-y-3 sm:space-y-4">
-          {filteredResults.map((art) => (
+      {results.length > 0 ? (
+        <div
+          className={`space-y-3 sm:space-y-4 transition-opacity ${isPending ? 'opacity-60' : ''}`}
+        >
+          {results.map((art) => (
             <Link
               key={art.id}
               href={buildArticlePath(art)}
@@ -221,21 +254,13 @@ export function TenantSearchClient({
           <Sparkles className="w-8 h-8 text-muted-foreground/60 mx-auto mb-3" />
           <h4 className="text-base font-bold text-foreground mb-1">
             {hasSearch
-              ? `Aucun article ne correspond à « ${query} »`
+              ? `Aucun article ne correspond à « ${query.trim()} »`
               : 'Aucun article dans cette rubrique'}
           </h4>
           <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto mb-4">
             Essayez avec d&apos;autres mots-clés ou consultez l&apos;ensemble de nos publications.
           </p>
-          <Button
-            variant="solid"
-            tone="brand"
-            size="sm"
-            onClick={() => {
-              setQuery('');
-              setSelectedCategory('all');
-            }}
-          >
+          <Button variant="solid" tone="brand" size="sm" onClick={reset}>
             <span>Afficher tous les articles</span>
             <ArrowRight />
           </Button>

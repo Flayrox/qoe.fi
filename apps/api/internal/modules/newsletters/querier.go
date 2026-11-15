@@ -19,6 +19,7 @@ type newsletterQuerier interface {
 	GetNewsletterIssue(ctx context.Context, id string) (db.NewsletterIssue, error)
 	GetUserPublisherID(ctx context.Context, id string) (string, error)
 	ListNewsletterIssuesByPublisher(ctx context.Context, publicationid string) ([]db.NewsletterIssue, error)
+	ListArticlesForDigest(ctx context.Context, arg db.ListArticlesForDigestParams) ([]db.ListArticlesForDigestRow, error)
 	ResetFailedNewsletterDeliveries(ctx context.Context, issueid string) error
 	SetNewsletterIssueSending(ctx context.Context, id string) (string, error)
 	UnsubscribeNewsletterSubscriber(ctx context.Context, arg db.UnsubscribeNewsletterSubscriberParams) error

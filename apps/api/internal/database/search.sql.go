@@ -13,6 +13,7 @@ import (
 
 const getArticleForSearch = `-- name: GetArticleForSearch :one
 SELECT id, title, content, slug, "authorId", "categoryId", "publisherId", published, "isPremium",
+       "imageUrl", "readingTime",
        "seoTitle", "seoDescription", "createdAt", "updatedAt"
 FROM "Article"
 WHERE id = $1
@@ -28,6 +29,8 @@ type GetArticleForSearchRow struct {
 	PublisherId    string           `json:"publisherId"`
 	Published      bool             `json:"published"`
 	IsPremium      bool             `json:"isPremium"`
+	ImageUrl       pgtype.Text      `json:"imageUrl"`
+	ReadingTime    int32            `json:"readingTime"`
 	SeoTitle       pgtype.Text      `json:"seoTitle"`
 	SeoDescription pgtype.Text      `json:"seoDescription"`
 	CreatedAt      pgtype.Timestamp `json:"createdAt"`
@@ -47,6 +50,8 @@ func (q *Queries) GetArticleForSearch(ctx context.Context, id string) (GetArticl
 		&i.PublisherId,
 		&i.Published,
 		&i.IsPremium,
+		&i.ImageUrl,
+		&i.ReadingTime,
 		&i.SeoTitle,
 		&i.SeoDescription,
 		&i.CreatedAt,
@@ -95,8 +100,8 @@ WHERE p."isDraft" = false
   -- même s'il ne l'a pas bloqué lui-même.
   AND NOT EXISTS (
     SELECT 1 FROM "BlockedUser" bu
-    WHERE (bu."readerId" = $3 AND bu."creatorId" = p."authorId")
-       OR (bu."readerId" = p."authorId" AND bu."creatorId" = $3)
+    WHERE (bu."readerId" = $4 AND bu."creatorId" = p."authorId")
+       OR (bu."readerId" = p."authorId" AND bu."creatorId" = $4)
   )
   -- Compte privé / réservé aux abonnés : seuls le propriétaire et ses
   -- abonnés voient les pensées dans la recherche.
@@ -104,7 +109,7 @@ WHERE p."isDraft" = false
     COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
     OR EXISTS (
       SELECT 1 FROM "Follows" f
-      WHERE f."readerId" = $3 AND f."publisherId" = u."publisherId"
+      WHERE f."readerId" = $4 AND f."publisherId" = u."publisherId"
     )
   )
   AND (
@@ -112,13 +117,14 @@ WHERE p."isDraft" = false
     OR EXISTS (SELECT 1 FROM unnest(p.tags) AS tag WHERE tag ILIKE $1)
   )
 ORDER BY p."createdAt" DESC, p.id DESC
-LIMIT $2
+LIMIT $2 OFFSET $3
 `
 
 type SearchThoughtsParams struct {
 	Column1  pgtype.Text `json:"column_1"`
 	Limit    int32       `json:"limit"`
-	ViewerID pgtype.UUID `json:"viewer_id"`
+	Offset   int32       `json:"offset"`
+	ReaderId pgtype.UUID `json:"readerId"`
 }
 
 type SearchThoughtsRow struct {
@@ -138,7 +144,12 @@ type SearchThoughtsRow struct {
 }
 
 func (q *Queries) SearchThoughts(ctx context.Context, arg SearchThoughtsParams) ([]SearchThoughtsRow, error) {
-	rows, err := q.db.Query(ctx, searchThoughts, arg.Column1, arg.Limit, arg.ViewerID)
+	rows, err := q.db.Query(ctx, searchThoughts,
+		arg.Column1,
+		arg.Limit,
+		arg.Offset,
+		arg.ReaderId,
+	)
 	if err != nil {
 		return nil, err
 	}

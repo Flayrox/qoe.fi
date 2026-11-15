@@ -536,3 +536,22 @@ WHERE s.email = $1
   AND s."publisherId" = $2
   AND s."userId" IS NULL
   AND LOWER(u.email) = LOWER(s.email);
+
+-- name: ListArticlesForDigest :many
+-- Articles publiés récemment d'une publication, pour générer un digest
+-- éditable. La catégorie sert à construire l'URL canonique
+-- /{categorie}/{slug} du site tenant.
+SELECT a.id, a.title, a.slug, a.content, a."imageUrl", a."readingTime",
+       a."createdAt",
+       p.name AS publisher_name, p.subdomain, p."customDomain",
+       COALESCE(c.slug, 'uncategorized')::text AS category_slug
+FROM "Article" a
+JOIN "Publisher" p ON p.id = a."publisherId"
+LEFT JOIN "Category" c ON c.id = a."categoryId"
+WHERE a."publisherId" = $1
+  AND a.published = true
+  AND a.status = 'PUBLISHED'
+  AND a."isHiddenByModerator" = false
+  AND a."createdAt" >= $2
+ORDER BY a."createdAt" DESC
+LIMIT $3;

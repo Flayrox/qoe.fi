@@ -837,6 +837,78 @@ func (q *Queries) InsertNewsletterDeliveries(ctx context.Context, arg InsertNews
 	return err
 }
 
+const listArticlesForDigest = `-- name: ListArticlesForDigest :many
+SELECT a.id, a.title, a.slug, a.content, a."imageUrl", a."readingTime",
+       a."createdAt",
+       p.name AS publisher_name, p.subdomain, p."customDomain",
+       COALESCE(c.slug, 'uncategorized')::text AS category_slug
+FROM "Article" a
+JOIN "Publisher" p ON p.id = a."publisherId"
+LEFT JOIN "Category" c ON c.id = a."categoryId"
+WHERE a."publisherId" = $1
+  AND a.published = true
+  AND a.status = 'PUBLISHED'
+  AND a."isHiddenByModerator" = false
+  AND a."createdAt" >= $2
+ORDER BY a."createdAt" DESC
+LIMIT $3
+`
+
+type ListArticlesForDigestParams struct {
+	PublisherId string           `json:"publisherId"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+	Limit       int32            `json:"limit"`
+}
+
+type ListArticlesForDigestRow struct {
+	ID            string           `json:"id"`
+	Title         string           `json:"title"`
+	Slug          string           `json:"slug"`
+	Content       string           `json:"content"`
+	ImageUrl      pgtype.Text      `json:"imageUrl"`
+	ReadingTime   int32            `json:"readingTime"`
+	CreatedAt     pgtype.Timestamp `json:"createdAt"`
+	PublisherName string           `json:"publisher_name"`
+	Subdomain     pgtype.Text      `json:"subdomain"`
+	CustomDomain  pgtype.Text      `json:"customDomain"`
+	CategorySlug  string           `json:"category_slug"`
+}
+
+// Articles publiés récemment d'une publication, pour générer un digest
+// éditable. La catégorie sert à construire l'URL canonique
+// /{categorie}/{slug} du site tenant.
+func (q *Queries) ListArticlesForDigest(ctx context.Context, arg ListArticlesForDigestParams) ([]ListArticlesForDigestRow, error) {
+	rows, err := q.db.Query(ctx, listArticlesForDigest, arg.PublisherId, arg.CreatedAt, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListArticlesForDigestRow{}
+	for rows.Next() {
+		var i ListArticlesForDigestRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Slug,
+			&i.Content,
+			&i.ImageUrl,
+			&i.ReadingTime,
+			&i.CreatedAt,
+			&i.PublisherName,
+			&i.Subdomain,
+			&i.CustomDomain,
+			&i.CategorySlug,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listNewsletterDeliveriesByIssue = `-- name: ListNewsletterDeliveriesByIssue :many
 SELECT id, email, status, error
 FROM "NewsletterDelivery"

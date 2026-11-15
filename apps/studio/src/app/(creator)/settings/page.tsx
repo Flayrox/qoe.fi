@@ -11,6 +11,7 @@ import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import SettingsView from '@/features/settings/settings';
 import type { CreatorProfile } from '@/features/settings/types';
+import { Button } from '@qoe/ui/button';
 import { StudioPage, StudioSection } from '@/components/studio-page';
 import { FeatureConsents } from '@/features/settings/components/feature-consents';
 import { AccountLink } from './account-link';
@@ -177,6 +178,24 @@ export default async function CreatorSettingsPage() {
 
       <StudioSection title="Notifications de lancement">
         <FeatureConsents />
+      </StudioSection>
+
+      <StudioSection title="Données & confidentialité">
+        <div
+          id="data-export"
+          className="flex flex-col gap-4 rounded-xl border border-border/50 bg-card p-5 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="max-w-xl">
+            <h3 className="font-semibold">Exporter ma publication</h3>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              Archive ZIP complète : articles en Markdown et HTML, abonnés en CSV et manifest
+              d&apos;export. Aucune donnée n&apos;est conservée par le studio.
+            </p>
+          </div>
+          <Button asChild variant="outline" size="sm" className="w-fit shrink-0">
+            <a href="/api/export">Télécharger l&apos;archive ZIP</a>
+          </Button>
+        </div>
       </StudioSection>
 
       <StudioSection title="Compte">

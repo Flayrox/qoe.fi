@@ -128,18 +128,18 @@ func (c *httpEmbedClient) Embed(ctx context.Context, text string) ([]float32, er
 
 // SemanticHit est un article retourné par la recherche sémantique.
 type SemanticHit struct {
-	ID            string  `json:"id"`
-	Title         string  `json:"title"`
-	Slug          string  `json:"slug"`
-	IsPremium     bool    `json:"isPremium"`
-	ReadingTime   int     `json:"readingTime"`
-	CreatedAt     string  `json:"createdAt"`
+	ID          string  `json:"id"`
+	Title       string  `json:"title"`
+	Slug        string  `json:"slug"`
+	IsPremium   bool    `json:"isPremium"`
+	ReadingTime int     `json:"readingTime"`
+	CreatedAt   string  `json:"createdAt"`
 	PublisherID string  `json:"publisherId"`
-	AuthorID      string  `json:"authorId"`
-	AuthorName    *string `json:"authorName"`
-	AuthorLogo    *string `json:"authorLogo"`
+	AuthorID    string  `json:"authorId"`
+	AuthorName  *string `json:"authorName"`
+	AuthorLogo  *string `json:"authorLogo"`
 	Publisher   *string `json:"publisherName"`
-	Score         float64 `json:"score"`
+	Score       float64 `json:"score"`
 }
 
 // Search vectorise la requête et retourne les articles les plus proches.
@@ -206,18 +206,18 @@ func (s *SemanticService) Search(ctx context.Context, query string, limit int) (
 		v := r.PublisherName
 		pubName = &v
 		out = append(out, SemanticHit{
-			ID:            r.ID,
-			Title:         r.Title,
-			Slug:          r.Slug,
-			IsPremium:     r.IsPremium,
-			ReadingTime:   int(r.ReadingTime),
-			CreatedAt:     r.CreatedAt.Time.Format(time.RFC3339),
+			ID:          r.ID,
+			Title:       r.Title,
+			Slug:        r.Slug,
+			IsPremium:   r.IsPremium,
+			ReadingTime: int(r.ReadingTime),
+			CreatedAt:   r.CreatedAt.Time.Format(time.RFC3339),
 			PublisherID: r.PublisherId,
-			AuthorID:      uuidString(r.AuthorId),
-			AuthorName:    authorName,
-			AuthorLogo:    authorLogo,
+			AuthorID:    uuidString(r.AuthorId),
+			AuthorName:  authorName,
+			AuthorLogo:  authorLogo,
 			Publisher:   pubName,
-			Score:         r.Score,
+			Score:       r.Score,
 		})
 	}
 	return out, nil
@@ -249,17 +249,36 @@ func toUUID(id string) pgtype.UUID {
 	return uuid
 }
 
-func (s *SemanticService) SearchThoughts(ctx context.Context, query string, limit int, viewerID string) ([]ThoughtHit, error) {
+func (s *SemanticService) SearchThoughts(
+	ctx context.Context, query string, limit, offset int, viewerID string,
+) ([]ThoughtHit, bool, error) {
 	// Le `#` d'un hashtag est un marqueur d'intention : le terme nu matche le
 	// contenu comme les tags (parité searchThoughts TS).
 	query = strings.TrimPrefix(strings.TrimSpace(query), "#")
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 50 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	// Une ligne de plus que demandé : elle sert uniquement à savoir s'il reste
+	// une page, sans COUNT() supplémentaire.
 	rows, err := s.q.SearchThoughts(ctx, db.SearchThoughtsParams{
 		Column1:  pgtype.Text{String: query, Valid: true},
-		Limit:    int32(limit),
-		ViewerID: toUUID(viewerID),
+		Limit:    int32(limit + 1),
+		Offset:   int32(offset),
+		ReaderId: toUUID(viewerID),
 	})
 	if err != nil {
-		return nil, err
+		return nil, false, err
+	}
+	hasMore := len(rows) > limit
+	if hasMore {
+		rows = rows[:limit]
 	}
 	out := make([]ThoughtHit, 0, len(rows))
 	for _, r := range rows {
@@ -288,5 +307,5 @@ func (s *SemanticService) SearchThoughts(ctx context.Context, query string, limi
 		}
 		out = append(out, hit)
 	}
-	return out, nil
+	return out, hasMore, nil
 }
