@@ -51,6 +51,14 @@ func (h *Handler) listTiers(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, map[string]any{"tiers": tiers})
 }
 
+// commissionPercent centralise le barème (une seule définition, testée).
+func commissionPercent(isPro bool) int {
+	if isPro {
+		return 5
+	}
+	return 10
+}
+
 type checkoutInput struct {
 	// Plan : "plus" (bundle lecteur) ou "publication" (formule du créateur).
 	Plan        string `json:"plan"`
@@ -136,7 +144,9 @@ func (h *Handler) checkout(w http.ResponseWriter, r *http.Request) {
 		params.CreatorID = tier.PublisherID
 		params.TierID = tier.ID
 		params.StripeAccount = h.svc.PublisherStripeAccount(r.Context(), tier.PublisherID)
-		params.FeePercent = 10
+		// Commission : 10 % par défaut, 5 % pour une publication Pro
+		// (source unique du droit : SubscriptionGrant).
+		params.FeePercent = commissionPercent(h.svc.IsPro(r.Context(), tier.PublisherID))
 	default:
 		response.BadRequest(w, "plan inconnu")
 		return

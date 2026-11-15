@@ -1850,6 +1850,7 @@ type User struct {
 	Pronouns               pgtype.Text      `json:"pronouns"`
 	PhoneNumber            pgtype.Text      `json:"phoneNumber"`
 	PhoneVerifiedAt        pgtype.Timestamp `json:"phoneVerifiedAt"`
+	StripeCustomerId       pgtype.Text      `json:"stripeCustomerId"`
 	CreatedAt              pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt              pgtype.Timestamp `json:"updatedAt"`
 	Embedding              pgvector.Vector  `json:"embedding"`

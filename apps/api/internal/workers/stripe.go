@@ -92,23 +92,19 @@ func (s *StripeWorker) resolvePublisherID(ctx context.Context, creatorRef string
 func (s *StripeWorker) creditOwner(ctx context.Context, publisherID string, amountPaidCents int) error {
 	// Propriétaire : publication personnelle, sinon membre owner du média.
 	ownerID := ""
-	role := "FREE"
 	if owner, err := s.q.GetPersonalOwnerForCredit(ctx, pgtype.Text{String: publisherID, Valid: true}); err == nil {
 		ownerID = owner.OwnerID
-		role = owner.OwnerRole
 	} else if mediaOwner, err := s.q.GetMediaOwnerForCredit(ctx, publisherID); err == nil {
 		ownerID = mediaOwner.OwnerID
-		role = "creator"
 	} else {
 		return nil
 	}
 
-	plan := "FREE"
-	if role == "creator" {
-		plan = "PRO"
-	}
+	// Une SEULE définition du barème : le droit Pro (SubscriptionGrant), pas le
+	// rôle du compte — sinon la commission du wallet diverge de celle du
+	// Checkout (`commissionPercent`).
 	feePercent := 10
-	if plan == "PRO" {
+	if subscriptions.HasPro(ctx, s.pool, publisherID, time.Now()) {
 		feePercent = 5
 	}
 	fee := int64(amountPaidCents) * int64(feePercent) / 100
@@ -150,6 +146,9 @@ func (s *StripeWorker) handleCheckoutCompleted(ctx context.Context, data map[str
 	plan := stringVal(metadata["plan"])
 	customerID := stringVal(obj["customer"])
 	subscriptionID := stringVal(obj["subscription"])
+
+	// Lien stable User → client Stripe (portail abonné), quel que soit le plan.
+	s.rememberCustomer(ctx, metadata, customerID)
 
 	switch plan {
 	case "plus":
@@ -208,12 +207,35 @@ func (s *StripeWorker) handleCheckoutCompleted(ctx context.Context, data map[str
 // les événements de cycle de vie n'ont pas toujours le contexte de la session.
 func (s *StripeWorker) handleSubscriptionUpdated(ctx context.Context, data map[string]any) error {
 	obj := stripeObject(data)
+	metadata, _ := obj["metadata"].(map[string]any)
+	// Les renouvellements rafraîchissent aussi le lien client (metadata portée
+	// par l'abonnement depuis Checkout).
+	s.rememberCustomer(ctx, metadata, stringVal(obj["customer"]))
+
 	subscriptionID := stringVal(obj["id"])
 	if subscriptionID == "" {
 		return nil
 	}
 	status := strings.ToLower(stringVal(obj["status"]))
 	active := status == "active" || status == "trialing"
+
+	// Bundle Plus : chaque renouvellement (ou changement de période) étend le
+	// droit jusqu'à `current_period_end`. Sans ça, Plus expirait au bout d'un
+	// mois malgré le paiement.
+	if active && stringVal(metadata["plan"]) == "plus" {
+		if userID := stringVal(metadata["userId"]); userID != "" {
+			now := time.Now().UTC()
+			endsAt := periodEnd(obj, now)
+			note := "stripe"
+			if subscriptionID != "" {
+				note = "stripe:" + subscriptionID
+			}
+			if _, err := subscriptions.GrantPlan(ctx, s.pool, subscriptions.SubjectUser, userID,
+				subscriptions.PlanPlus, now, &endsAt, "stripe", note, now); err != nil {
+				return err
+			}
+		}
+	}
 	_, err := s.pool.Exec(ctx, `
 		UPDATE "Subscriber"
 		SET "isPremium" = $2,
@@ -291,6 +313,33 @@ func (s *StripeWorker) handlePaymentFailed(ctx context.Context, data map[string]
 	return s.q.SetSubscriberPremiumStatus(ctx, db.SetSubscriberPremiumStatusParams{
 		PublisherId: publisherID, Email: email, IsActive: false, Status: db.SubscriptionStatusPASTDUE,
 	})
+}
+
+// periodEnd lit `current_period_end` (secondes Unix). Absent/illisible :
+// un mois à partir de maintenant (jamais un droit sans fin par accident).
+func periodEnd(obj map[string]any, now time.Time) time.Time {
+	if ts := intVal(obj["current_period_end"]); ts > 0 {
+		return time.Unix(int64(ts), 0).UTC()
+	}
+	return now.AddDate(0, 1, 0)
+}
+
+// rememberCustomer écrit `User.stripeCustomerId`. Best-effort : si la
+// migration 00091 n'est pas encore appliquée, le droit a déjà été accordé et
+// on ne doit PAS faire échouer l'événement (asynq le rejouerait en boucle).
+func (s *StripeWorker) rememberCustomer(ctx context.Context, metadata map[string]any, customerID string) {
+	if customerID == "" {
+		return
+	}
+	userID := stringVal(metadata["userId"])
+	if userID == "" {
+		return
+	}
+	if _, err := s.pool.Exec(ctx, `
+		UPDATE "User" SET "stripeCustomerId" = $2, "updatedAt" = now()
+		WHERE id = $1::uuid`, userID, customerID); err != nil {
+		log.Printf("[stripe] lien client utilisateur non enregistré: %v", err)
+	}
 }
 
 func stringVal(v any) string {

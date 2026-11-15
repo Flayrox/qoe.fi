@@ -108,6 +108,24 @@ func TestCreateCheckoutSession_ErreurStripe(t *testing.T) {
 	}
 }
 
+func TestCommissionPercent(t *testing.T) {
+	if got := commissionPercent(true); got != 5 {
+		t.Fatalf("Pro = %d %%, attendu 5", got)
+	}
+	if got := commissionPercent(false); got != 10 {
+		t.Fatalf("gratuit = %d %%, attendu 10", got)
+	}
+}
+
+func TestSaveUserCustomer_NilPool(t *testing.T) {
+	if err := NewService(nil).SaveUserCustomer(context.Background(), "user-1", "cus_1"); err != nil {
+		t.Fatalf("SaveUserCustomer sans base = %v", err)
+	}
+	if NewService(nil).IsPro(context.Background(), "pub-1") {
+		t.Fatal("IsPro sans base doit être faux")
+	}
+}
+
 // TestService_NilPool : sans base, les lectures sont vides et jamais en panne.
 func TestService_NilPool(t *testing.T) {
 	svc := NewService(nil)

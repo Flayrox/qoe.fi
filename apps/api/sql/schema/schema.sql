@@ -88,6 +88,7 @@ CREATE TABLE "User" (
     "pronouns" TEXT,
     "phoneNumber" TEXT,
     "phoneVerifiedAt" TIMESTAMP(3),
+    "stripeCustomerId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "embedding" vector(512),
@@ -1345,6 +1346,9 @@ CREATE UNIQUE INDEX "User_publisherId_key" ON "User"("publisherId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_phoneNumber_key" ON "User"("phoneNumber") WHERE "phoneNumber" IS NOT NULL;
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_stripeCustomerId_key" ON "User"("stripeCustomerId") WHERE "stripeCustomerId" IS NOT NULL;
 
 -- CreateIndex
 CREATE INDEX "Recommendation_recommenderId_idx" ON "Recommendation"("recommenderId");
