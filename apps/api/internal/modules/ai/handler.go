@@ -43,6 +43,40 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Post("/v1/ai/explain", h.explain)
 	r.Get("/v1/ai/usage", h.usage)
 	r.Post("/v1/ai/translate", h.translate)
+	r.Post("/v1/ai/editor", h.editorAssist)
+}
+
+// POST /v1/ai/editor { task, text, context?, locale? } — aide ciblée à
+// l'écriture (titres ou méta description). Gate Plus et quota communs.
+func (h *Handler) editorAssist(w http.ResponseWriter, r *http.Request) {
+	uid, ok := h.userID(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		Task    string `json:"task"`
+		Text    string `json:"text"`
+		Context string `json:"context"`
+		Locale  string `json:"locale"`
+	}
+	if !response.DecodeJSON(w, r, &in) {
+		return
+	}
+	task := strings.ToLower(strings.TrimSpace(in.Task))
+	if task != "title" && task != "seo" {
+		response.BadRequest(w, "tâche IA invalide")
+		return
+	}
+	if n := utf8.RuneCountInString(strings.TrimSpace(in.Text)); n < 1 || n > 4000 {
+		response.BadRequest(w, "texte de 1 à 4000 caractères")
+		return
+	}
+	out, err := h.svc.EditorAssist(r.Context(), uid, task, in.Text, in.Context, in.Locale)
+	if err != nil {
+		h.mapErr(w, err)
+		return
+	}
+	response.OK(w, out)
 }
 
 // POST /v1/ai/translate { text, target } — aperçu de traduction (créateur).
