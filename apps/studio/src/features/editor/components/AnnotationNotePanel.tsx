@@ -1,6 +1,8 @@
 'use client';
 
-import { Highlighter, Pencil, Trash2, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ChevronDown, ChevronUp, Highlighter, Pencil, Trash2, X } from 'lucide-react';
+import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
 import { Button } from '@qoe/ui/button';
 import { PopoverPanel } from '@qoe/ui/popover-panel';
@@ -40,6 +42,11 @@ export function AnnotationNotePanel({
   canDelete,
 }: AnnotationNotePanelProps) {
   const MOD = useModKey();
+  const [quoteExpanded, setQuoteExpanded] = useState(false);
+  // Une nouvelle sélection ne doit jamais hériter du dépliage précédent.
+  useEffect(() => setQuoteExpanded(false), [quote]);
+  const canExpandQuote = quote.length > 140 || quote.split('\n').length > 3;
+
   return (
     <PopoverPanel
       open={open}
@@ -78,9 +85,31 @@ export function AnnotationNotePanel({
           </div>
 
           {quote && (
-            <p className="line-clamp-3 whitespace-pre-line font-sans text-xs leading-relaxed text-muted-foreground italic">
-              « {quote} »
-            </p>
+            <div className="space-y-1">
+              <p
+                className={cn(
+                  'whitespace-pre-line font-sans text-xs leading-relaxed text-muted-foreground italic',
+                  !quoteExpanded && 'line-clamp-3'
+                )}
+              >
+                « {quote} »
+              </p>
+              {canExpandQuote ? (
+                <button
+                  type="button"
+                  onClick={() => setQuoteExpanded((value) => !value)}
+                  aria-expanded={quoteExpanded}
+                  className="inline-flex items-center gap-1 rounded-md text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/60"
+                >
+                  {quoteExpanded ? (
+                    <ChevronUp className="size-3" />
+                  ) : (
+                    <ChevronDown className="size-3" />
+                  )}
+                  {quoteExpanded ? t`Replier la citation` : t`Déplier la citation`}
+                </button>
+              ) : null}
+            </div>
           )}
 
           <div>

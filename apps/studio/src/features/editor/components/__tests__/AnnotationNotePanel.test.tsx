@@ -143,6 +143,58 @@ describe('AnnotationNotePanel', () => {
     expect(onEditText).toHaveBeenCalledTimes(1);
   });
 
+  it('déplie une citation longue puis la replie', async () => {
+    const user = userEvent.setup();
+    const longQuote = 'Un passage très long. '.repeat(20);
+
+    render(
+      <AnnotationNotePanel
+        open={true}
+        position={{ top: 100, left: 100 }}
+        quote={longQuote}
+        note="Texte"
+        onChangeNote={vi.fn()}
+        onSave={vi.fn()}
+        onDelete={vi.fn()}
+        onClose={vi.fn()}
+        canDelete={false}
+      />
+    );
+
+    const quote = screen.getByText(new RegExp(longQuote.trim().slice(0, 24)));
+    expect(quote).toHaveClass('line-clamp-3');
+
+    const expand = screen.getByRole('button', { name: /Déplier la citation/i });
+    await user.click(expand);
+
+    expect(quote).not.toHaveClass('line-clamp-3');
+    expect(screen.getByRole('button', { name: /Replier la citation/i })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+
+    await user.click(screen.getByRole('button', { name: /Replier la citation/i }));
+    expect(quote).toHaveClass('line-clamp-3');
+  });
+
+  it('ne propose pas de dépliage pour une citation courte', () => {
+    render(
+      <AnnotationNotePanel
+        open={true}
+        position={{ top: 100, left: 100 }}
+        quote="Passage"
+        note="Texte"
+        onChangeNote={vi.fn()}
+        onSave={vi.fn()}
+        onDelete={vi.fn()}
+        onClose={vi.fn()}
+        canDelete={false}
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: /Déplier la citation/i })).toBeNull();
+  });
+
   it('calls onClose when clicking cancel or close button', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
