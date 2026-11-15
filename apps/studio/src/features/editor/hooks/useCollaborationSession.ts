@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import * as Y from 'yjs';
 import { createClient as createSupabaseClient } from '@qoe/supabase';
@@ -27,6 +27,8 @@ export function colorForUserId(userId: string): string {
   }
   return CURSOR_COLORS[hash % CURSOR_COLORS.length];
 }
+
+export type CollaborationStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
 
 interface UseCollaborationSessionOptions {
   enabled?: boolean;
@@ -105,6 +107,12 @@ export function useCollaborationSession({
 
   const [peerCount, setPeerCount] = useState(0);
   const [connected, setConnected] = useState(false);
+  const [status, setStatus] = useState<CollaborationStatus>(
+    collaborationProvider ? 'connecting' : 'idle'
+  );
+  const [synced, setSynced] = useState(false);
+  const [unsyncedChanges, setUnsyncedChanges] = useState(0);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   useEffect(() => {
     const provider = collaborationProvider;
@@ -119,18 +127,61 @@ export function useCollaborationSession({
       });
       setPeerCount(Math.max(0, editors - 1));
     };
-    const handleStatus = ({ status }: { status: 'connecting' | 'connected' | 'disconnected' }) => {
-      setConnected(status === 'connected');
-      if (status !== 'connected') setPeerCount(0);
+    const handleStatus = ({
+      status: next,
+    }: {
+      status: 'connecting' | 'connected' | 'disconnected';
+    }) => {
+      setConnected(next === 'connected');
+      setStatus(next);
+      if (next !== 'connected') setPeerCount(0);
+      if (next === 'connected') setLastError(null);
+    };
+    const handleSynced = ({ state }: { state: boolean }) => {
+      setSynced(state);
+      if (state) setUnsyncedChanges(0);
+    };
+    const handleUnsynced = ({ number }: { number: number }) => {
+      setUnsyncedChanges(Math.max(0, number));
+    };
+    const handleAuthFailed = ({ reason }: { reason: string }) => {
+      setStatus('error');
+      setConnected(false);
+      setSynced(false);
+      setLastError(reason || 'Authentification de la co-édition refusée');
+    };
+    const handleDisconnect = () => {
+      // Un échec d'authentification est plus précis qu'une simple coupure :
+      // ne l'écrase pas avec « hors ligne ».
+      setStatus((current) => (current === 'error' ? current : 'disconnected'));
+      setConnected(false);
+      setSynced(false);
+      setPeerCount(0);
     };
 
     provider.awareness?.on('change', handleAwareness);
     provider.on('status', handleStatus);
+    provider.on('synced', handleSynced);
+    provider.on('unsyncedChanges', handleUnsynced);
+    provider.on('authenticationFailed', handleAuthFailed);
+    provider.on('disconnect', handleDisconnect);
     handleAwareness();
     return () => {
       provider.awareness?.off('change', handleAwareness);
       provider.off('status', handleStatus);
+      provider.off('synced', handleSynced);
+      provider.off('unsyncedChanges', handleUnsynced);
+      provider.off('authenticationFailed', handleAuthFailed);
+      provider.off('disconnect', handleDisconnect);
     };
+  }, [collaborationProvider]);
+
+  const reconnect = useCallback(() => {
+    if (!collaborationProvider) return;
+    setLastError(null);
+    setStatus('connecting');
+    collaborationProvider.disconnect();
+    void collaborationProvider.connect();
   }, [collaborationProvider]);
 
   useEffect(() => () => collaborationProvider?.destroy(), [collaborationProvider]);
@@ -141,5 +192,10 @@ export function useCollaborationSession({
     collabUser,
     peerCount,
     connected,
+    status,
+    synced,
+    unsyncedChanges,
+    lastError,
+    reconnect,
   };
 }
