@@ -56,6 +56,7 @@ func (h *Handler) Register(r chi.Router) {
 	// les clés qui posent un Principal à la place).
 	r.Post("/v1/me/subscriptions", h.subscribeSelf)
 	r.Post("/v1/newsletters", h.create)
+	r.Post("/v1/newsletters/digest", h.createDigest)
 	r.Patch("/v1/newsletters/{id}", h.update)
 	r.Delete("/v1/newsletters/{id}", h.delete)
 
@@ -95,7 +96,7 @@ func (h *Handler) handleErr(w http.ResponseWriter, err error) {
 		response.ErrorCode(w, http.StatusForbidden, "pro_required", err.Error())
 	case errors.Is(err, errNotFound):
 		response.NotFound(w, "Newsletter introuvable.")
-	case errors.Is(err, errNotDraft):
+	case errors.Is(err, errNotDraft), errors.Is(err, errDigestEmpty):
 		response.BadRequest(w, err.Error())
 	case errors.Is(err, abuse.ErrSignupSuspended):
 		w.Header().Set("Retry-After", "300")
@@ -124,7 +125,7 @@ func (h *Handler) subscribeSelf(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in struct {
-		Email         string `json:"email"`
+		Email       string `json:"email"`
 		PublisherID string `json:"publisherId"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
@@ -165,6 +166,26 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	issue, err := h.svc.CreateDraft(r.Context(), uid, in)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, issue)
+}
+
+// POST /v1/newsletters/digest — génère un brouillon depuis les articles
+// récents. Aucun envoi : le créateur relit puis passe par /send.
+func (h *Handler) createDigest(w http.ResponseWriter, r *http.Request) {
+	uid, ok := h.userID(w, r)
+	if !ok {
+		return
+	}
+	var in DigestInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	issue, err := h.svc.CreateDigestDraft(r.Context(), uid, in)
 	if err != nil {
 		h.handleErr(w, err)
 		return

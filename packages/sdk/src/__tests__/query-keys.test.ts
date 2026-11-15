@@ -76,6 +76,16 @@ describe('query-keys — familles de cache TanStack', () => {
     expect(searchKeys.results('q')).toEqual(['search', 'results', 'q', 'all']);
     expect(searchKeys.results('q', 'articles')).toEqual(['search', 'results', 'q', 'articles']);
     expect(searchKeys.trending()).toEqual(['search', 'trending']);
+    expect(searchKeys.thoughts('q')).toEqual(['search', 'thoughts', 'q']);
+  });
+
+  it('searchKeys : les drapeaux skip changent la clé (pas de cache croisé)', () => {
+    const full = searchKeys.results('q');
+    expect(searchKeys.results('q', 'all', { skipThoughts: true })).not.toEqual(full);
+    expect(searchKeys.results('q', 'all', { skipArticles: true })).not.toEqual(full);
+    expect(searchKeys.results('q', 'all', { skipThoughts: true, skipArticles: true })).not.toEqual(
+      searchKeys.results('q', 'all', { skipThoughts: true })
+    );
   });
 
   it('pollKeys / threadgateKeys', () => {

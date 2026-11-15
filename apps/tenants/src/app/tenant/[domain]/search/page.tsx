@@ -1,14 +1,15 @@
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import type { Metadata } from 'next';
-import { fetchTenantPublisher } from '@/lib/tenant-data';
+import { fetchTenantPublisher, fetchTenantSearchArticles } from '@/lib/tenant-data';
 import { TenantPageShell } from '@/components/TenantPageShell';
 import { TenantSearchClient, type SearchArticleItem } from './TenantSearchClient';
+import { filterTenantArticles } from './filter';
 import { MinimalCraftShell, type TemplatePublisherContext } from '@qoe/ui/templates';
 
 interface PageProps {
   params: Promise<{ domain: string }>;
-  searchParams: Promise<{ q?: string; mode?: string }>;
+  searchParams: Promise<{ q?: string; category?: string; mode?: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -33,9 +34,10 @@ function plainText(html: string): string {
 
 export default async function TenantSearchPage({ params, searchParams }: PageProps) {
   const { domain } = await params;
-  const { q } = await searchParams;
+  const { q, category } = await searchParams;
   const decodedDomain = decodeURIComponent(domain);
   const query = (q || '').trim();
+  const selectedCategory = (category || 'all').trim() || 'all';
 
   const publisher = await fetchTenantPublisher(decodedDomain);
   if (!publisher) notFound();
@@ -43,20 +45,57 @@ export default async function TenantSearchPage({ params, searchParams }: PagePro
   const headersList = await headers();
   const host = headersList.get('x-forwarded-host') || headersList.get('host') || decodedDomain;
 
-  const categories = new Map((publisher.categories || []).map((c) => [c.id, c.name]));
+  const categories = new Map((publisher.categories || []).map((c) => [c.id, c]));
 
-  const searchArticles: SearchArticleItem[] = (publisher.articles || []).map((art) => ({
+  const allArticles: SearchArticleItem[] = (publisher.articles || []).map((art) => ({
     id: art.id,
     title: art.title,
     slug: art.slug,
     excerpt: plainText(art.content || '').slice(0, 180),
-    categoryName: art.category?.name || (art.categoryId && categories.get(art.categoryId)) || null,
+    categoryName:
+      art.category?.name || (art.categoryId && categories.get(art.categoryId)?.name) || null,
     categorySlug: art.category?.slug || null,
     readingTime: art.readingTime,
     publishedAt: art.createdAt,
     imageUrl: art.imageUrl || null,
     isPremium: art.isPremium,
   }));
+
+  // 🔎 Recherche côté serveur : avec une requête, Meilisearch (index enrichi
+  // image + temps de lecture) ; repli sur le bundle si l'API échoue. Sans
+  // requête, on garde le filtrage local (parcours par rubrique).
+  let searchArticles: SearchArticleItem[];
+  const selectedCategoryId =
+    selectedCategory === 'all'
+      ? undefined
+      : publisher.categories?.find((c) => c.slug === selectedCategory)?.id;
+  const categoryMissing = selectedCategory !== 'all' && !selectedCategoryId;
+  const hits =
+    query && !categoryMissing
+      ? await fetchTenantSearchArticles(publisher.id, query, selectedCategoryId)
+      : null;
+
+  if (hits) {
+    searchArticles = hits.map((hit) => {
+      const category = hit.categoryId ? categories.get(hit.categoryId) : undefined;
+      return {
+        id: hit.id,
+        title: hit.title,
+        slug: hit.slug,
+        excerpt: plainText(hit.content || '').slice(0, 180),
+        categoryName: category?.name ?? null,
+        categorySlug: category?.slug ?? null,
+        readingTime: hit.readingTime,
+        publishedAt: new Date(hit.createdAt).toISOString(),
+        imageUrl: hit.imageUrl ?? null,
+        isPremium: hit.isPremium,
+      };
+    });
+  } else {
+    searchArticles = categoryMissing
+      ? []
+      : filterTenantArticles(allArticles, query, selectedCategory);
+  }
 
   // Thème unique Minimal Craft.
   const isMinimal = true;
@@ -101,6 +140,7 @@ export default async function TenantSearchPage({ params, searchParams }: PagePro
         <div className="container mx-auto px-4 lg:px-8 max-w-3xl pt-2 sm:pt-4">
           <TenantSearchClient
             initialQuery={query}
+            initialCategory={selectedCategory}
             articles={searchArticles}
             categories={categoriesList}
             accentColor={publisher.accentColor}
@@ -115,6 +155,7 @@ export default async function TenantSearchPage({ params, searchParams }: PagePro
       <div className="max-w-3xl mx-auto">
         <TenantSearchClient
           initialQuery={query}
+          initialCategory={selectedCategory}
           articles={searchArticles}
           categories={categoriesList}
           accentColor={publisher.accentColor}

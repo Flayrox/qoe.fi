@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -25,6 +26,33 @@ const searchIndex = "articles"
 // les entrées adverses (payloads géants) avant tout appel au moteur
 // Meilisearch ou au SQL (ILIKE), indépendamment de leur disponibilité.
 const maxSearchQueryLength = 512
+
+// Bornes de pagination de la recherche d'articles. Le défaut reste 10 pour
+// ne pas changer le contrat historique ; le client peut demander jusqu'à 50.
+const (
+	defaultArticleSearchLimit = 10
+	maxArticleSearchLimit     = 50
+	defaultThoughtSearchLimit = 20
+	maxThoughtSearchLimit     = 50
+	// maxSearchCursor évite qu'un curseur absurde ne fasse parcourir un index
+	// entier à coups de requêtes unitaires.
+	maxSearchCursor = 100_000
+)
+
+// parseSearchCursor lit un curseur opaque (offset décimal). Vide = première
+// page. Un curseur invalide est refusé explicitement plutôt que ramené à 0,
+// sinon une faute de frappe renverrait silencieusement la première page.
+func parseSearchCursor(raw string) (int, bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 0, true
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n < 0 || n > maxSearchCursor {
+		return 0, false
+	}
+	return n, true
+}
 
 // Searcher est la surface minimale utilisée par la route (mockable en test).
 type Searcher interface {
@@ -91,7 +119,8 @@ func (h *Handler) ownsPublisher(ctx context.Context, userID, publisherID string)
 }
 
 // searchThoughts cherche les pensées publiques (contenu + tags, ILIKE).
-// Réponse : { thoughts: [...], nextCursor: null } — parité web.
+// Réponse : { thoughts: [...], nextCursor } — la pagination se fait par offset
+// opaque, comme les articles.
 func (h *Handler) searchThoughts(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	if query == "" {
@@ -105,16 +134,27 @@ func (h *Handler) searchThoughts(w http.ResponseWriter, r *http.Request) {
 	// Le `#` d'un hashtag est un marqueur d'intention : on cherche le terme nu
 	// (le tag comme le contenu), parité searchThoughts TS.
 	query = strings.TrimPrefix(strings.TrimSpace(query), "#")
-	limit := middleware.ClampLimit(r.URL.Query().Get("limit"), 20, 50)
+	limit := middleware.ClampLimit(
+		r.URL.Query().Get("limit"), defaultThoughtSearchLimit, maxThoughtSearchLimit,
+	)
+	offset, ok := parseSearchCursor(r.URL.Query().Get("cursor"))
+	if !ok {
+		response.Error(w, http.StatusBadRequest, "Curseur de recherche invalide")
+		return
+	}
 
 	userID, _ := middleware.UserID(r.Context())
-	items, err := h.semantic.SearchThoughts(r.Context(), query, limit, userID)
+	items, hasMore, err := h.semantic.SearchThoughts(r.Context(), query, limit, offset, userID)
 	if err != nil {
 		log.Printf("[search] thoughts: %v", err)
 		response.Internal(w)
 		return
 	}
-	response.OK(w, map[string]any{"thoughts": items, "nextCursor": nil})
+	var nextCursor any
+	if hasMore {
+		nextCursor = strconv.Itoa(offset + len(items))
+	}
+	response.OK(w, map[string]any{"thoughts": items, "nextCursor": nextCursor})
 }
 
 // searchArticles cherche dans l'index Meilisearch des articles (limit 10).
@@ -130,11 +170,29 @@ func (h *Handler) searchArticles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Filtre optionnel par publication (scope « mine » du Cmd+K studio).
+	limit := middleware.ClampLimit(
+		r.URL.Query().Get("limit"), defaultArticleSearchLimit, maxArticleSearchLimit,
+	)
+	offset, ok := parseSearchCursor(r.URL.Query().Get("cursor"))
+	if !ok {
+		response.Error(w, http.StatusBadRequest, "Curseur de recherche invalide")
+		return
+	}
+
+	// Filtres optionnels : publication (scope « mine » du Cmd+K studio) et
+	// catégorie (recherche tenant). Les deux se combinent en AND.
 	pubID := r.URL.Query().Get("publisherId")
-	req := &meilisearch.SearchRequest{Limit: 10}
+	catID := r.URL.Query().Get("categoryId")
+	req := &meilisearch.SearchRequest{Limit: int64(limit), Offset: int64(offset)}
+	filters := make([]string, 0, 2)
 	if pubID != "" {
-		req.Filter = "publisherId = '" + strings.ReplaceAll(pubID, "'", "''") + "'"
+		filters = append(filters, "publisherId = '"+escapeSearchFilterValue(pubID)+"'")
+	}
+	if catID != "" {
+		filters = append(filters, "categoryId = '"+escapeSearchFilterValue(catID)+"'")
+	}
+	if len(filters) > 0 {
+		req.Filter = strings.Join(filters, " AND ")
 	}
 
 	results, err := h.searcher.Search(query, req)
@@ -168,11 +226,17 @@ func (h *Handler) searchArticles(w http.ResponseWriter, r *http.Request) {
 		estimatedTotal = 0
 	}
 
+	// Curseur suivant : on se base sur les hits réellement consommés dans
+	// l'index (avant filtrage de visibilité), sinon une page filtrée ferait
+	// sauter des documents.
+	nextCursor := nextArticlesCursor(offset, before, estimatedTotal, limit)
+
 	// Sérialisation explicite : les hits meilisearch sont des maps de
 	// json.RawMessage, stables en sortie.
 	out, err := json.Marshal(map[string]any{
 		"hits":               hits,
 		"estimatedTotalHits": estimatedTotal,
+		"nextCursor":         nextCursor,
 	})
 	if err != nil {
 		response.Internal(w)
@@ -180,6 +244,27 @@ func (h *Handler) searchArticles(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write(out)
+}
+
+// escapeSearchFilterValue neutralise les quotes d'une valeur insérée dans un
+// filtre Meilisearch (les valeurs sont toujours entre quotes simples).
+func escapeSearchFilterValue(v string) string {
+	return strings.ReplaceAll(v, "'", "''")
+}
+
+// nextArticlesCursor calcule l'offset de la page suivante.
+//
+// `rawHits` est le nombre de hits consommés dans l'index AVANT filtrage : une
+// page dont tous les hits sont filtrés renvoie donc `offset + rawHits`, pas
+// `offset` (sinon « Charger plus » rejouerait indéfiniment la même page vide).
+// Si Meilisearch omet l'estimation totale, une page pleine laisse la
+// possibilité de continuer.
+func nextArticlesCursor(offset, rawHits int, estimatedTotal int64, limit int) any {
+	consumed := offset + rawHits
+	if int64(consumed) < estimatedTotal || (estimatedTotal == 0 && rawHits == limit) {
+		return strconv.Itoa(consumed)
+	}
+	return nil
 }
 
 // filterVisibleArticleHits retire les hits dont la publication n'est pas

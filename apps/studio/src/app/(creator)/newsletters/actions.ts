@@ -80,6 +80,20 @@ export async function createNewsletterAction(input: {
   }
 }
 
+export async function createDigestAction(days = 7) {
+  const { publisherId } = await getContext();
+  try {
+    const issue = await goFetch<NewsletterIssue>('/v1/newsletters/digest', {
+      method: 'POST',
+      body: { publisherId, days, limit: 5 },
+    });
+    revalidatePath('/newsletters');
+    return { success: true as const, issue };
+  } catch (err) {
+    return failure(err, 'Erreur serveur');
+  }
+}
+
 export async function updateNewsletterAction(
   id: string,
   input: { subject: string; previewText: string; html: string }

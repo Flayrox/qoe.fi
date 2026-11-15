@@ -24,6 +24,13 @@ import (
 
 const searchIndex = "articles"
 
+// searchFilterableAttributes est la liste complète des filtres Meilisearch.
+// Elle est réappliquée à chaque Setup : un index existant ne doit pas perdre
+// categoryId/authorId quand on réécrit les attributs filtrables.
+var searchFilterableAttributes = []string{
+	"authorId", "categoryId", "isPremium", "published", "publisherId",
+}
+
 // documentSyncer est la surface minimale de Meilisearch utilisée par le
 // worker (upsert/delete). Interface étroite → mockable en test.
 type documentSyncer interface {
@@ -57,7 +64,7 @@ func (s *SearchWorker) Setup(ctx context.Context) {
 
 	settings := map[string]any{
 		"searchableAttributes": []string{"title", "content", "seoTitle", "seoDescription", "slug", "slugs"},
-		"filterableAttributes": []string{"authorId", "categoryId", "isPremium", "published", "publisherId"},
+		"filterableAttributes": searchFilterableAttributes,
 		"sortableAttributes":   []string{"createdAt", "updatedAt"},
 		"typoTolerance": map[string]any{
 			"enabled":             true,
@@ -89,9 +96,9 @@ func (s *SearchWorker) ensureIndex(ctx context.Context, base string) {
 	resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK && info.PrimaryKey == "id" {
-		// Filterable attributes (best-effort) : nécessaire pour le scope « mine »
-		// du Cmd+K studio (publisherId = publication active).
-		s.doJSON(ctx, http.MethodPut, base+"/indexes/"+searchIndex+"/settings/filterable-attributes", []string{"publisherId"})
+		// Filterable attributes (best-effort) : scope « mine » du Cmd+K studio
+		// (publisherId) et filtre catégorie de la recherche tenant.
+		s.doJSON(ctx, http.MethodPut, base+"/indexes/"+searchIndex+"/settings/filterable-attributes", searchFilterableAttributes)
 		return
 	}
 	if resp.StatusCode == http.StatusOK {
@@ -101,7 +108,7 @@ func (s *SearchWorker) ensureIndex(ctx context.Context, base string) {
 	s.doJSON(ctx, http.MethodPost, base+"/indexes", map[string]any{
 		"uid": searchIndex, "primaryKey": "id",
 	})
-	s.doJSON(ctx, http.MethodPut, base+"/indexes/"+searchIndex+"/settings/filterable-attributes", []string{"publisherId"})
+	s.doJSON(ctx, http.MethodPut, base+"/indexes/"+searchIndex+"/settings/filterable-attributes", searchFilterableAttributes)
 }
 
 // doJSON envoie une requête HTTP JSON avec le Bearer key (best-effort).
@@ -234,7 +241,8 @@ func (s *SearchWorker) HandleSearchSync(ctx context.Context, t *asynq.Task) erro
 	doc := searchDocMap(article.ID, article.Title, article.Content, article.Slug,
 		appendVariantSlugs(article.Slug, variantSlugs),
 		uuidStr(article.AuthorId), article.CategoryId, article.PublisherId,
-		article.Published, article.IsPremium, article.SeoTitle, article.SeoDescription,
+		article.Published, article.IsPremium, article.ImageUrl, article.ReadingTime,
+		article.SeoTitle, article.SeoDescription,
 		article.CreatedAt.Time, article.UpdatedAt.Time)
 	if _, err := s.idx.AddDocuments([]any{doc}, nil); err != nil {
 		return err
@@ -244,7 +252,8 @@ func (s *SearchWorker) HandleSearchSync(ctx context.Context, t *asynq.Task) erro
 }
 
 // ReindexAll re-synchronise l'index Meilisearch avec TOUS les articles de la
-// base (backfill idempotent : seuls les documents manquants sont upsertés).
+// base. Les documents existants sont réécrits : c'est ce qui propage les
+// nouveaux champs (imageUrl, readingTime) sur un index déjà déployé.
 // Retourne (total en base, upsertés).
 func (s *SearchWorker) ReindexAll(ctx context.Context) (total, upserted int, err error) {
 	s.Setup(ctx)
@@ -253,34 +262,12 @@ func (s *SearchWorker) ReindexAll(ctx context.Context) (total, upserted int, err
 	key := envOr("MEILI_MASTER_KEY", "qoe_master_key_123")
 	idx := meilisearch.New(host, meilisearch.WithAPIKey(key)).Index(searchIndex)
 
-	// 1. IDs déjà présents dans l'index (pagination — limit max Meili = 1000).
-	existing := map[string]bool{}
-	for offset := 0; ; offset += 1000 {
-		var resp meilisearch.DocumentsResult
-		if err := idx.GetDocuments(&meilisearch.DocumentsQuery{
-			Fields: []string{"id"}, Limit: 1000, Offset: int64(offset),
-		}, &resp); err != nil {
-			return 0, 0, fmt.Errorf("get documents existants: %w", err)
-		}
-		for _, d := range resp.Results {
-			var id string
-			if raw, ok := d["id"]; ok {
-				_ = json.Unmarshal(raw, &id)
-			}
-			if id != "" {
-				existing[id] = true
-			}
-		}
-		if len(resp.Results) < 1000 {
-			break
-		}
-	}
-
-	// 2. Tous les articles (slug + variantes par auteur) en un seul passage.
+	// 1. Tous les articles (slug + variantes par auteur).
 	rows, err := s.pool.Query(ctx, `
 		SELECT a.id, a.title, a.content, a.slug,
 		       a."authorId"::text, a."categoryId", a."publisherId",
-		       a.published, a."isPremium", a."seoTitle", a."seoDescription",
+		       a.published, a."isPremium", a."imageUrl", a."readingTime",
+		       a."seoTitle", a."seoDescription",
 		       a."createdAt", a."updatedAt",
 		       COALESCE(array_agg(s.slug) FILTER (WHERE s.slug IS NOT NULL), ARRAY[]::text[]) AS variant_slugs
 		FROM "Article" a
@@ -298,9 +285,11 @@ func (s *SearchWorker) ReindexAll(ctx context.Context) (total, upserted int, err
 		Slug           string
 		AuthorID       string
 		CategoryID     pgtype.Text
-		PublisherID  string
+		PublisherID    string
 		Published      bool
 		IsPremium      bool
+		ImageURL       pgtype.Text
+		ReadingTime    int32
 		SeoTitle       pgtype.Text
 		SeoDescription pgtype.Text
 		CreatedAt      time.Time
@@ -312,23 +301,22 @@ func (s *SearchWorker) ReindexAll(ctx context.Context) (total, upserted int, err
 		var r row
 		if err := rows.Scan(&r.ID, &r.Title, &r.Content, &r.Slug, &r.AuthorID,
 			&r.CategoryID, &r.PublisherID, &r.Published, &r.IsPremium,
-			&r.SeoTitle, &r.SeoDescription, &r.CreatedAt, &r.UpdatedAt, &r.VariantSlugs); err != nil {
+			&r.ImageURL, &r.ReadingTime, &r.SeoTitle, &r.SeoDescription,
+			&r.CreatedAt, &r.UpdatedAt, &r.VariantSlugs); err != nil {
 			return 0, 0, fmt.Errorf("scan article: %w", err)
 		}
 		total++
-		if existing[r.ID] {
-			continue
-		}
 		slugs := appendVariantSlugs(r.Slug, r.VariantSlugs)
 		docs = append(docs, searchDocMap(r.ID, r.Title, r.Content, r.Slug, slugs,
 			r.AuthorID, r.CategoryID, r.PublisherID, r.Published, r.IsPremium,
-			r.SeoTitle, r.SeoDescription, r.CreatedAt, r.UpdatedAt))
+			r.ImageURL, r.ReadingTime, r.SeoTitle, r.SeoDescription,
+			r.CreatedAt, r.UpdatedAt))
 	}
 	if err := rows.Err(); err != nil {
 		return 0, 0, fmt.Errorf("lecture articles: %w", err)
 	}
 
-	// 3. Upsert par lots de 100 (idempotent) + attente de fin de tâche.
+	// 2. Upsert par lots de 100 (idempotent) + attente de fin de tâche.
 	const batchSize = 100
 	for i := 0; i < len(docs); i += batchSize {
 		end := min(i+batchSize, len(docs))
@@ -351,6 +339,7 @@ func (s *SearchWorker) ReindexAll(ctx context.Context) (total, upserted int, err
 func searchDocMap(id, title, content, slug string, slugs []string,
 	authorID string, categoryID pgtype.Text,
 	publisherID string, published, isPremium bool,
+	imageURL pgtype.Text, readingTime int32,
 	seoTitle, seoDescription pgtype.Text,
 	createdAt, updatedAt time.Time) map[string]any {
 	return map[string]any{
@@ -361,9 +350,11 @@ func searchDocMap(id, title, content, slug string, slugs []string,
 		"slugs":          slugs,
 		"authorId":       authorID,
 		"categoryId":     textOrNil(categoryID),
-		"publisherId":  publisherID,
+		"publisherId":    publisherID,
 		"published":      published,
 		"isPremium":      isPremium,
+		"imageUrl":       textOrNil(imageURL),
+		"readingTime":    readingTime,
 		"seoTitle":       textOrNil(seoTitle),
 		"seoDescription": textOrNil(seoDescription),
 		"createdAt":      createdAt.UnixMilli(),

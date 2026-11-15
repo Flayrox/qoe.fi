@@ -20,13 +20,18 @@ import (
 // ─── Fakes ───────────────────────────────────────────────────────────
 
 type fakeQuerier struct {
-	thoughts []db.SearchThoughtsRow
+	thoughts    []db.SearchThoughtsRow
 	thoughtsErr error
-	semantic []db.SearchSemanticArticlesRow
+	// thoughtsGot, s'il est fourni, capture les paramètres SQL réellement reçus.
+	thoughtsGot *db.SearchThoughtsParams
+	semantic    []db.SearchSemanticArticlesRow
 	semanticErr error
 }
 
-func (f fakeQuerier) SearchThoughts(_ context.Context, _ db.SearchThoughtsParams) ([]db.SearchThoughtsRow, error) {
+func (f fakeQuerier) SearchThoughts(_ context.Context, arg db.SearchThoughtsParams) ([]db.SearchThoughtsRow, error) {
+	if f.thoughtsGot != nil {
+		*f.thoughtsGot = arg
+	}
 	return f.thoughts, f.thoughtsErr
 }
 
@@ -46,9 +51,13 @@ func (f fakeEmbedder) Embed(_ context.Context, _ string) ([]float32, error) {
 // ─── searchThoughts ──────────────────────────────────────────────────
 
 func doThoughts(h *Handler, query string) *httptest.ResponseRecorder {
+	return doThoughtsQuery(h, "q="+query)
+}
+
+func doThoughtsQuery(h *Handler, rawQuery string) *httptest.ResponseRecorder {
 	r := chi.NewRouter()
 	h.RegisterPublic(r)
-	req := httptest.NewRequest(http.MethodGet, "/search/thoughts?q="+query, nil)
+	req := httptest.NewRequest(http.MethodGet, "/search/thoughts?"+rawQuery, nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	return w
@@ -75,19 +84,19 @@ func TestSearchThoughtsTooLong(t *testing.T) {
 
 func TestSearchThoughtsHits(t *testing.T) {
 	row := db.SearchThoughtsRow{
-		ID:          "post_1",
-		Content:     "Pensée foot",
-		Tags:        []string{"foot"},
-		ImageUrl:    pgtype.Text{String: "https://img/x.jpg", Valid: true},
-		CreatedAt:   pgtype.Timestamp{Time: time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC), Valid: true},
-		AuthorID:    "user_1",
-		AuthorName:  pgtype.Text{String: "Alice", Valid: true},
-		AuthorUsername: pgtype.Text{String: "alice", Valid: true},
-		AuthorLogo:  pgtype.Text{String: "https://img/logo.png", Valid: true},
+		ID:              "post_1",
+		Content:         "Pensée foot",
+		Tags:            []string{"foot"},
+		ImageUrl:        pgtype.Text{String: "https://img/x.jpg", Valid: true},
+		CreatedAt:       pgtype.Timestamp{Time: time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC), Valid: true},
+		AuthorID:        "user_1",
+		AuthorName:      pgtype.Text{String: "Alice", Valid: true},
+		AuthorUsername:  pgtype.Text{String: "alice", Valid: true},
+		AuthorLogo:      pgtype.Text{String: "https://img/logo.png", Valid: true},
 		AuthorCertified: true,
-		LikeCount:   12,
-		RepostCount: 3,
-		ReplyCount:  1,
+		LikeCount:       12,
+		RepostCount:     3,
+		ReplyCount:      1,
 	}
 	h := &Handler{semantic: &SemanticService{q: fakeQuerier{thoughts: []db.SearchThoughtsRow{row}}}}
 	w := doThoughts(h, "#foot")
@@ -109,6 +118,48 @@ func TestSearchThoughtsHits(t *testing.T) {
 	}
 	if th.ImageURL == nil || th.LikeCount != 12 {
 		t.Fatalf("image/likes = %v/%d", th.ImageURL, th.LikeCount)
+	}
+}
+
+// Pagination : le handler transmet l'offset, demande une ligne de plus et
+// renvoie un curseur calculé sur les éléments réellement servis.
+func TestSearchThoughtsHandlerPagination(t *testing.T) {
+	rows := []db.SearchThoughtsRow{
+		{ID: "post_1"},
+		{ID: "post_2"},
+		{ID: "post_3"},
+	}
+	var got db.SearchThoughtsParams
+	h := &Handler{semantic: &SemanticService{q: fakeQuerier{thoughts: rows, thoughtsGot: &got}}}
+
+	w := doThoughtsQuery(h, "q=foot&limit=2&cursor=4")
+	if w.Code != http.StatusOK {
+		t.Fatalf("code = %d, attendu 200", w.Code)
+	}
+	if got.Limit != 3 || got.Offset != 4 {
+		t.Fatalf("params limit/offset = %d/%d, attendu 3/4", got.Limit, got.Offset)
+	}
+
+	var out struct {
+		Thoughts   []ThoughtHit `json:"thoughts"`
+		NextCursor *string      `json:"nextCursor"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+		t.Fatalf("json invalide: %v", err)
+	}
+	if len(out.Thoughts) != 2 {
+		t.Fatalf("thoughts = %d, attendu 2", len(out.Thoughts))
+	}
+	if out.NextCursor == nil || *out.NextCursor != "6" {
+		t.Fatalf("nextCursor = %v, attendu 6", out.NextCursor)
+	}
+}
+
+func TestSearchThoughtsPaginationInvalidCursor(t *testing.T) {
+	h := &Handler{semantic: &SemanticService{}}
+	w := doThoughtsQuery(h, "q=foot&cursor=abc")
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("code = %d, attendu 400", w.Code)
 	}
 }
 
@@ -171,18 +222,18 @@ func TestSearchSemanticSuccess(t *testing.T) {
 	t.Setenv("EMBEDDING_DIMS", "")
 	vec := make([]float32, 512)
 	row := db.SearchSemanticArticlesRow{
-		ID:              "art_1",
-		Title:           "Climat",
-		Slug:            "climat",
-		IsPremium:       true,
-		ReadingTime:     4,
-		CreatedAt:       pgtype.Timestamp{Time: time.Now(), Valid: true},
+		ID:            "art_1",
+		Title:         "Climat",
+		Slug:          "climat",
+		IsPremium:     true,
+		ReadingTime:   4,
+		CreatedAt:     pgtype.Timestamp{Time: time.Now(), Valid: true},
 		PublisherId:   "pub_1",
-		AuthorId:        pgtype.UUID{Valid: true, Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}},
-		AuthorName:      pgtype.Text{String: "Alice", Valid: true},
-		AuthorLogo:      pgtype.Text{String: "https://img/logo.png", Valid: true},
+		AuthorId:      pgtype.UUID{Valid: true, Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}},
+		AuthorName:    pgtype.Text{String: "Alice", Valid: true},
+		AuthorLogo:    pgtype.Text{String: "https://img/logo.png", Valid: true},
 		PublisherName: "Le Monde",
-		Score:           0.87,
+		Score:         0.87,
 	}
 	h := &Handler{semantic: &SemanticService{
 		embedder: fakeEmbedder{vec: vec},
@@ -260,6 +311,24 @@ func TestSearchArticlesPublisherFilter(t *testing.T) {
 	}
 }
 
+func TestSearchArticlesCategoryFilterCombinesWithPublisher(t *testing.T) {
+	c := &captureSearcher{}
+	h := &Handler{searcher: c}
+	r := chi.NewRouter()
+	h.RegisterPublic(r)
+	req := httptest.NewRequest(http.MethodGet, "/search/articles?q=foot&publisherId=pub_1&categoryId=cat_1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("code = %d, attendu 200", w.Code)
+	}
+	want := "publisherId = 'pub_1' AND categoryId = 'cat_1'"
+	if c.lastReq == nil || c.lastReq.Filter != want {
+		t.Fatalf("filter = %v, attendu %q", c.lastReq, want)
+	}
+}
+
 // ─── meiliSearcher (vrai client, serveur HTTP factice) ───────────────
 
 func TestMeiliSearcherSearch(t *testing.T) {
@@ -302,13 +371,13 @@ func TestSemanticSearchFakePath(t *testing.T) {
 	t.Setenv("EMBEDDING_URL", "http://embed:8081")
 	t.Setenv("EMBEDDING_DIMS", "")
 	row := db.SearchSemanticArticlesRow{
-		ID:              "art_9",
-		Title:           "Gaming",
-		Slug:            "gaming",
-		CreatedAt:       pgtype.Timestamp{Time: time.Now(), Valid: true},
+		ID:            "art_9",
+		Title:         "Gaming",
+		Slug:          "gaming",
+		CreatedAt:     pgtype.Timestamp{Time: time.Now(), Valid: true},
 		PublisherId:   "pub_9",
 		PublisherName: "GamePub",
-		Score:           0.5,
+		Score:         0.5,
 	}
 	svc := &SemanticService{
 		embedder: fakeEmbedder{vec: make([]float32, 512)},

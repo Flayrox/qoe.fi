@@ -230,6 +230,50 @@ export async function fetchTenantPublisher(domain: string): Promise<TenantPublis
   }
 }
 
+/** Hit Meilisearch d'article (GET /search/articles). */
+export interface TenantSearchArticleHit {
+  id: string;
+  title: string;
+  slug: string;
+  content?: string;
+  imageUrl?: string | null;
+  readingTime?: number;
+  isPremium: boolean;
+  categoryId?: string | null;
+  publisherId?: string | null;
+  /** Millisecondes epoch (document Meilisearch). */
+  createdAt: number;
+}
+
+/**
+ * Recherche d'articles d'une publication via Meilisearch (Go).
+ * Retourne null si l'API est indisponible : l'appelant retombe alors sur le
+ * bundle `publisher.articles` pour ne jamais casser la page.
+ */
+export async function fetchTenantSearchArticles(
+  publisherId: string,
+  query: string,
+  categoryId?: string,
+  limit = 20
+): Promise<TenantSearchArticleHit[] | null> {
+  if (!query.trim()) return [];
+  const params = new URLSearchParams({
+    q: query,
+    limit: String(limit),
+    publisherId,
+  });
+  if (categoryId) params.set('categoryId', categoryId);
+  try {
+    const res = await goFetch<{ hits: TenantSearchArticleHit[] }>(
+      `/search/articles?${params.toString()}`
+    );
+    return res.hits ?? [];
+  } catch (err) {
+    console.warn('[tenant-data] fetchTenantSearchArticles:', err);
+    return null;
+  }
+}
+
 /**
  * Variante PUBLIQUE de fetchTenantPublication pour /sitemap.xml : fetch
  * direct sans goFetch (qui lit les cookies Supabase pour le Bearer —

@@ -561,6 +561,10 @@ type Querier interface {
 	ListArticleImportJobs(ctx context.Context, arg ListArticleImportJobsParams) ([]ListArticleImportJobsRow, error)
 	ListArticleSlugs(ctx context.Context, articleid string) ([]string, error)
 	ListArticleSnapshots(ctx context.Context, articleid string) ([]ListArticleSnapshotsRow, error)
+	// Articles publiés récemment d'une publication, pour générer un digest
+	// éditable. La catégorie sert à construire l'URL canonique
+	// /{categorie}/{slug} du site tenant.
+	ListArticlesForDigest(ctx context.Context, arg ListArticlesForDigestParams) ([]ListArticlesForDigestRow, error)
 	ListArticlesForSettings(ctx context.Context, publisherid string) ([]ListArticlesForSettingsRow, error)
 	ListArticlesWithCategory(ctx context.Context, arg ListArticlesWithCategoryParams) ([]ListArticlesWithCategoryRow, error)
 	// Articles attribués à un créateur : publication directe OU co-signés via ArticleAttribution ACCEPTED + visible.

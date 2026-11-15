@@ -72,8 +72,25 @@ export const notificationKeys = {
 
 export const searchKeys = {
   all: ['search'] as const,
-  results: (query: string, type?: string) =>
-    [...searchKeys.all, 'results', query, type || 'all'] as const,
+  results: (
+    query: string,
+    type?: string,
+    flags?: { skipThoughts?: boolean; skipArticles?: boolean }
+  ) =>
+    [
+      ...searchKeys.all,
+      'results',
+      query,
+      type || 'all',
+      ...(flags?.skipThoughts ? (['without-thoughts'] as const) : []),
+      ...(flags?.skipArticles ? (['without-articles'] as const) : []),
+    ] as const,
+  /** Pages d'articles (bouton « Charger plus »). */
+  articles: (query: string) => [...searchKeys.all, 'articles', query] as const,
+  /** Pages de pensées (bouton « Charger plus »). */
+  thoughts: (query: string) => [...searchKeys.all, 'thoughts', query] as const,
+  /** Résultats sémantiques (pgvector). */
+  semantic: (query: string) => [...searchKeys.all, 'semantic', query] as const,
   trending: () => [...searchKeys.all, 'trending'] as const,
 };
 

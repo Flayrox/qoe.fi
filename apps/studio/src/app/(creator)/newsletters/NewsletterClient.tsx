@@ -45,6 +45,7 @@ import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
 import { cn } from '@qoe/utils';
 import {
+  createDigestAction,
   createNewsletterAction,
   deleteNewsletterAction,
   listNewslettersAction,
@@ -210,6 +211,7 @@ export function NewsletterClient({
   const [composerPreviewText, setComposerPreviewText] = useState('');
   const [composerHtml, setComposerHtml] = useState('');
   const [isSubmittingCampaign, setIsSubmittingCampaign] = useState(false);
+  const [isCreatingDigest, setIsCreatingDigest] = useState(false);
   const [busyActionId, setBusyActionId] = useState<string | null>(null);
 
   // ─── Tri de l'historique ───
@@ -376,6 +378,21 @@ export function NewsletterClient({
     if (res.success) {
       toast.success(t`Envoi lancé. L'email part dans quelques minutes.`);
       await refreshIssues();
+    }
+  };
+
+  const handleCreateDigest = async () => {
+    setIsCreatingDigest(true);
+    try {
+      const res = await attemptWithStepUp(() => createDigestAction(7), {
+        fallback: t`Erreur lors de la génération du digest`,
+      });
+      if (!res.success) return;
+      toast.success(t`Digest généré : relisez-le avant l'envoi.`);
+      await refreshIssues();
+      handleOpenComposer(res.issue);
+    } finally {
+      setIsCreatingDigest(false);
     }
   };
 
@@ -863,16 +880,32 @@ export function NewsletterClient({
                   </p>
                 </div>
                 {!showComposer && (
-                  <Button
-                    variant="solid"
-                    tone="brand"
-                    size="sm"
-                    onClick={() => handleOpenComposer()}
-                    className="gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>{t`Nouveau message direct`}</span>
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCreateDigest}
+                      disabled={isCreatingDigest}
+                      className="gap-2"
+                    >
+                      {isCreatingDigest ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <FileText className="h-4 w-4" />
+                      )}
+                      <span>{t`Créer un digest`}</span>
+                    </Button>
+                    <Button
+                      variant="solid"
+                      tone="brand"
+                      size="sm"
+                      onClick={() => handleOpenComposer()}
+                      className="gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span>{t`Nouveau message direct`}</span>
+                    </Button>
+                  </div>
                 )}
               </div>
 

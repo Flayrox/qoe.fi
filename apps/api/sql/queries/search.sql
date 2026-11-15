@@ -1,5 +1,6 @@
 -- name: GetArticleForSearch :one
 SELECT id, title, content, slug, "authorId", "categoryId", "publisherId", published, "isPremium",
+       "imageUrl", "readingTime",
        "seoTitle", "seoDescription", "createdAt", "updatedAt"
 FROM "Article"
 WHERE id = $1;
@@ -23,8 +24,8 @@ WHERE p."isDraft" = false
   -- même s'il ne l'a pas bloqué lui-même.
   AND NOT EXISTS (
     SELECT 1 FROM "BlockedUser" bu
-    WHERE (bu."readerId" = @viewer_id AND bu."creatorId" = p."authorId")
-       OR (bu."readerId" = p."authorId" AND bu."creatorId" = @viewer_id)
+    WHERE (bu."readerId" = $4 AND bu."creatorId" = p."authorId")
+       OR (bu."readerId" = p."authorId" AND bu."creatorId" = $4)
   )
   -- Compte privé / réservé aux abonnés : seuls le propriétaire et ses
   -- abonnés voient les pensées dans la recherche.
@@ -32,7 +33,7 @@ WHERE p."isDraft" = false
     COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
     OR EXISTS (
       SELECT 1 FROM "Follows" f
-      WHERE f."readerId" = @viewer_id AND f."publisherId" = u."publisherId"
+      WHERE f."readerId" = $4 AND f."publisherId" = u."publisherId"
     )
   )
   AND (
@@ -40,4 +41,4 @@ WHERE p."isDraft" = false
     OR EXISTS (SELECT 1 FROM unnest(p.tags) AS tag WHERE tag ILIKE $1)
   )
 ORDER BY p."createdAt" DESC, p.id DESC
-LIMIT $2;
+LIMIT $2 OFFSET $3;
