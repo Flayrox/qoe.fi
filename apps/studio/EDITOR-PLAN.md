@@ -7,7 +7,7 @@
 > **Instructions utilisateur :** la section [« 📝 Instructions »](#-instructions)
 > est prioritaire sur le reste.
 
-Dernière mise à jour : 2026-11-15 · branche `dev` · dernier commit éditeur `6dc8a5e7`.
+Dernière mise à jour : 2026-11-15 · branche `dev` · dernier commit éditeur `5bc54ff2`.
 
 ---
 
@@ -62,13 +62,15 @@ pnpm --filter @qoe/ui exec vitest run src/annotations/__tests__/canonical-articl
 git diff --check
 ```
 
-Les tests éditeur comptent **18 fichiers / 103 tests** (mesure du 2026-11-15,
-commit `6dc8a5e7`). La lettrine a été contrôlée visuellement dans le CSS
+Les tests éditeur comptent **19 fichiers / 105 tests** (mesure du 2026-11-15,
+commit `5bc54ff2`). La lettrine a été contrôlée visuellement dans le CSS
 partagé (flottant à gauche, texte qui l’épouse, `text-indent: 0` avec alinéa) ;
-les gestes tactiles et les combinaisons clavier réelles restent à valider.
+les gestes tactiles réels restent à valider.
 
 Dernier lot vérifié : `tsc` 0 · `eslint` 0 · `vitest src/features/editor`
-103/103 · `canonical-article-body` 24/24 · `next build` OK.
+105/105 · `canonical-article-body` 24/24 · contrôle navigateur sur un banc
+`/dev` temporaire (supprimé après la vérification). Le build complet n’a pas
+été relancé après ces correctifs.
 
 ## 3. Audit d’ergonomie
 
@@ -219,9 +221,11 @@ git diff --check
 À ajouter au fil des lots :
 
 - test `Tab`/`Shift-Tab` dans une liste et un bloc de code ;
-- test d’édition d’une image de galerie ;
-- ~~test du repère alt manquant~~ (fait dans `alt-coverage.test.ts`) ;
-- vérification navigateur des gestes souris/tactile (à faire plus tard, comme convenu).
+- test de déplacement/suppression d’une image de galerie (le round-trip HTML
+  est couvert par `ImageGallery.test.ts`) ;
+- test du remplacement d’image (identité du nœud + conservation des champs) ;
+- vérification navigateur des gestes tactiles réels (le badge, le compteur,
+  le dialogue et le chemin clavier galerie ont été contrôlés le 15/11).
 
 ## 7. Protocole de reprise
 
@@ -363,7 +367,7 @@ souveraine » :
 
 ### Correctifs éditeur (2026-11-15)
 
-Lot `433ba30c` + verrouillage `6dc8a5e7` — clavier, médias et annotations.
+Lot `433ba30c` + verrouillage `6dc8a5e7` + revue `5bc54ff2` — clavier, médias et annotations.
 
 - **A4/A5** : `useModKey` partagé (barre d’outils, en-tête, statut, lien,
   annotation) et panneau `EditorShortcutsPanel` ouvert depuis la barre de
@@ -375,9 +379,10 @@ Lot `433ba30c` + verrouillage `6dc8a5e7` — clavier, médias et annotations.
   `ImageDetailsPanel`. La règle de document est partagée par les trois
   chemins (`lib/alt-coverage.ts`) et testée.
 - **B5** : bouton « Remplacer » ; compression + upload, puis
-  `updateAttributes` sur `src` seulement. La position du nœud est capturée à
-  l’ouverture du panneau pour ne pas modifier une autre image si la sélection
-  bouge.
+  `updateAttributes` sur `src` **et les champs affichés** (alt, légende,
+  crédit). La position et le `src` d’origine sont capturés à l’ouverture : si
+  le nœud a bougé ou changé, le remplacement est refusé plutôt que d’appliquer
+  le fichier à une autre image.
 - **C1** : plus de `title` figé dans le HTML enregistré ; l’éditeur pose un
   titre i18n au survol, adapté au pointeur. Le lecteur garde son libellé.
 - **C2** : action « Modifier le texte » dans la note d’auteur.
@@ -388,10 +393,39 @@ Lot `433ba30c` + verrouillage `6dc8a5e7` — clavier, médias et annotations.
 
 Vérifié : `pnpm --filter @qoe/studio typecheck` 0 · `eslint
 apps/studio/src/features/editor --max-warnings=0` 0 · `vitest
-src/features/editor` 103 tests / 18 fichiers · `canonical-article-body`
-24 tests · `next build` OK. Les gestes réels (souris, tactile, badge) n’ont
-pas été rejoués dans un navigateur : contrôle visuel encore à faire, comme
-convenu pour ce chantier.
+src/features/editor` 105 tests / 19 fichiers · `canonical-article-body`
+24 tests. Le badge, le compteur, le panneau et le dialogue de raccourcis ont
+été contrôlés dans un navigateur le 15/11 (voir ci-dessous) ; les gestes
+tactiles réels restent à valider.
+
+### Revue du 15/11 — galeries, remplacement et navigateur
+
+- **Galerie (critique)** : la relecture du HTML transformait chaque
+  `<div data-image-gallery>` en galerie vide (image sans `src`) suivie d’une
+  image dupliquée. `GalleryImage` parse désormais `src`/`alt` explicitement et
+  passe avant la règle `img[src]` d’`ArticleImage` (`priority: 60`) ;
+  `ArticleImage` exclut `[data-gallery-image]`. `ImageGallery.test.ts` couvre le
+  round-trip et l’ordre des images. Sans ce correctif, le compteur affichait
+  3 images sans alt au lieu de 2.
+- **Remplacement** : vérifie que le nœud capturé est toujours la même image
+  (type + `src`) avant d’appliquer le nouveau fichier ; conserve les champs
+  alt/légende/crédit en cours de saisie ; refuse proprement si l’image a bougé.
+- **Panneau** : `openImageDetails` borne le panneau sous la barre d’outils
+  sticky (0 px de chevauchement mesuré).
+- **Raccourcis** : `useAltKey` affiche `⌥` sur Apple et `Alt` ailleurs ;
+  `Alt + clic` rejoint la liste ; le tooltip « Barré » annonce `⇧S` (keymap
+  TipTap), plus `⇧X`.
+- **C2** : `handleEditAnnotatedText` réutilise `closeAnnotationPanel` au lieu
+  de dupliquer la fermeture.
+
+Contrôle navigateur (banc `/dev/editor-check` temporaire, supprimé depuis,
+1280×720) : badge visible sur l’image seule, clic → panneau avec champ alt
+focalisé ; compteur « 2 images sans alt » → première image + panneau ;
+dialogue de 13 raccourcis, 685 px de haut, entièrement visible, fermeture par
+`Échap` ; chemin clavier `↑` puis `Entrée` vérifié sur le DOM de l’éditeur
+(galerie sélectionnée, panneau alt-only). Aucun message d’erreur console.
+Restent : gestes tactiles réels, course crop/remplacement en co-édition, test
+du remplacement.
 
 ---
 
