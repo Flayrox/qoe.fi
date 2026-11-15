@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react';
 import { getMarkRange } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
+import { TableKit } from '@tiptap/extension-table';
 import { CharacterCount, Placeholder } from '@tiptap/extensions';
 import Collaboration from '@tiptap/extension-collaboration';
 import { CollaborationCaret } from '@tiptap/extension-collaboration-caret';
@@ -65,6 +66,7 @@ import { PublishReadinessDialog } from './PublishReadinessDialog';
 import { MediaAssetPickerDialog } from './MediaAssetPickerDialog';
 import { AiSuggestionDialog } from './AiSuggestionDialog';
 import { ReaderPreviewDialog } from './ReaderPreviewDialog';
+import { SourcesDialog } from './SourcesDialog';
 import { generateEditorAssistAction, type EditorAssistTask } from '../actions/ai-assist';
 import { ArticleDiffModal } from './ArticleDiffModal';
 import { ArticleHistoryModal } from './ArticleHistoryModal';
@@ -369,6 +371,7 @@ export function Editor({
   const [showPreflight, setShowPreflight] = useState(false);
   const [showBodyLibrary, setShowBodyLibrary] = useState(false);
   const [showReaderPreview, setShowReaderPreview] = useState(false);
+  const [showSources, setShowSources] = useState(false);
   const [aiDialog, setAiDialog] = useState<{
     task: EditorAssistTask;
     loading: boolean;
@@ -603,6 +606,7 @@ export function Editor({
       NavigableListItem,
       NavigableListKeymap,
       ParagraphFormatting,
+      TableKit.configure({ table: { resizable: false } }),
       PaywallDivider,
       AnnotationMark,
       ArticleImage.configure({
@@ -2449,6 +2453,20 @@ export function Editor({
               onPickImage={() => bodyImageInputRef.current?.click()}
               onPickGallery={() => galleryInputRef.current?.click()}
               onOpenMediaLibrary={() => setShowBodyLibrary(true)}
+              onInsertTable={() => {
+                // Un clic sur la barre conserve la sélection (mousedown
+                // preventDefault). Si elle porte sur une image ou une galerie,
+                // `insertTable` remplacerait ce nœud : on se place en fin de
+                // document pour toujours ajouter le tableau sans perte.
+                editor
+                  .chain()
+                  .focus()
+                  .setTextSelection(editor.state.doc.content.size)
+                  .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+                  .run();
+                setHasUnsavedChanges(true);
+              }}
+              onOpenSources={() => setShowSources(true)}
               onAnnotation={handleAnnotationButton}
               onLink={openLinkPopover}
               onImageDetails={openImageDetails}
@@ -2591,6 +2609,16 @@ export function Editor({
         onClose={() => setImageDetailsPosition(null)}
         onCrop={handleCropExistingImage}
         onReplace={() => replaceImageInputRef.current?.click()}
+      />
+
+      <SourcesDialog
+        open={showSources}
+        onClose={() => setShowSources(false)}
+        onInsert={(html) => {
+          if (!editor) return;
+          editor.chain().focus().insertContentAt(editor.state.doc.content.size, html).run();
+          setHasUnsavedChanges(true);
+        }}
       />
 
       {editor ? (
