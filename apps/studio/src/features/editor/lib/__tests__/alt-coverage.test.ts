@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Schema } from '@tiptap/pm/model';
-import { collectImagesWithoutAlt, missingAltPositions } from '../alt-coverage';
+import { collectImagesWithoutAlt, countMissingAlt, missingAltPositions } from '../alt-coverage';
 
 const schema = new Schema({
   nodes: {
@@ -50,5 +50,8 @@ describe('collectImagesWithoutAlt', () => {
       intro.nodeSize + missing.nodeSize + described.nodeSize + 2,
     ]);
     expect(missingAltPositions(doc)).toEqual(images.map(({ pos }) => pos));
+    // Le compteur memoise par document : deux lectures donnent le meme total.
+    expect(countMissingAlt(doc)).toBe(3);
+    expect(countMissingAlt(doc)).toBe(3);
   });
 });
