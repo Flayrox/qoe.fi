@@ -40,6 +40,24 @@ describe('ImageGallery', () => {
     });
   });
 
+  it('sérialise puis relit la galerie sans créer d’image hors galerie', () => {
+    const instance = create(
+      '<div data-image-gallery="true">' +
+        '<img data-gallery-image="true" src="https://cdn.qoe.fi/a.jpg" alt="A">' +
+        '<img data-gallery-image="true" src="https://cdn.qoe.fi/b.jpg" alt="B">' +
+        '</div>'
+    );
+
+    const html = instance.getHTML();
+    const reloaded = create(html);
+    const blocks = reloaded.getJSON().content ?? [];
+
+    expect(blocks.map((node) => node.type)).toEqual(['imageGallery']);
+    expect(
+      blocks[0].content?.map((node) => ('attrs' in node ? node.attrs?.src : undefined))
+    ).toEqual(['https://cdn.qoe.fi/a.jpg', 'https://cdn.qoe.fi/b.jpg']);
+  });
+
   it('conserve plusieurs images de galerie dans l’ordre', () => {
     const instance = create(
       '<div data-image-gallery="true">' +
