@@ -140,6 +140,18 @@ export const PLATFORM_SURFACES: readonly SurfaceDescriptor[] = [
     showInCmdK: true,
   },
   {
+    id: 'studio.export',
+    scope: 'studio',
+    path: routes.studio.exportData(),
+    iconName: 'FileText',
+    defaultLabel: 'Export',
+    section: 'system',
+    keywords: ['export', 'portabilite', 'archive', 'sauvegarde', 'markdown', 'csv'],
+    hotkey: 'g e',
+    showInSidebar: false,
+    showInCmdK: true,
+  },
+  {
     id: 'studio.community',
     scope: 'studio',
     path: routes.studio.community(),

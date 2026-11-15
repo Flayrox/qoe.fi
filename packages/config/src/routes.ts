@@ -20,6 +20,7 @@ const studioRoutes = {
   audience: () => '/audience',
   monetization: () => '/monetization',
   community: () => '/community',
+  exportData: () => '/export',
   newsletters: () => '/newsletters',
   settings: () => '/settings',
   developer: () => '/developer',
