@@ -140,6 +140,18 @@ export const PLATFORM_SURFACES: readonly SurfaceDescriptor[] = [
     showInCmdK: true,
   },
   {
+    id: 'studio.translate',
+    scope: 'studio',
+    path: routes.studio.translate(),
+    iconName: 'Compass',
+    defaultLabel: 'Traduction',
+    section: 'creation',
+    keywords: ['traduction', 'traduire', 'langue', 'anglais', 'international'],
+    hotkey: 'g t',
+    showInSidebar: false,
+    showInCmdK: true,
+  },
+  {
     id: 'studio.digest',
     scope: 'studio',
     path: routes.studio.digest(),

@@ -42,6 +42,43 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Post("/v1/ai/summarize", h.summarize)
 	r.Post("/v1/ai/explain", h.explain)
 	r.Get("/v1/ai/usage", h.usage)
+	r.Post("/v1/ai/translate", h.translate)
+}
+
+// POST /v1/ai/translate { text, target } — aperçu de traduction (créateur).
+// Plafond de 12 000 caractères : un article entier, jamais un roman.
+func (h *Handler) translate(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.userID(w, r); !ok {
+		return
+	}
+	var in struct {
+		Text   string `json:"text"`
+		Target string `json:"target"`
+	}
+	if !response.DecodeJSON(w, r, &in) {
+		return
+	}
+	target := NormalizeTarget(in.Target)
+	if target == "" {
+		response.BadRequest(w, "langue cible inconnue")
+		return
+	}
+	text := strings.TrimSpace(in.Text)
+	if text == "" {
+		response.BadRequest(w, "texte requis")
+		return
+	}
+	if utf8.RuneCountInString(text) > 12000 {
+		response.BadRequest(w, "texte trop long (12 000 caractères maximum)")
+		return
+	}
+
+	translated, err := h.svc.Translate(r.Context(), text, target)
+	if err != nil {
+		h.mapErr(w, err)
+		return
+	}
+	response.OK(w, map[string]string{"text": translated, "target": target})
 }
 
 func (h *Handler) mapErr(w http.ResponseWriter, err error) {
