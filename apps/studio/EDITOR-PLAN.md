@@ -168,9 +168,9 @@ Dernier lot vérifié : `tsc` 0 · `eslint` 0 · `vitest src/features/editor`
       `433ba30c`, `6dc8a5e7`).
 - [x] **B3.** Actions de couverture accessibles au tactile et au focus clavier
       (commit `fcf13e44`).
-- [ ] **B4.** Permettre un vrai alt de couverture ou une option « décorative ».
-      _Reporté : aucune colonne `coverAlt` n’existe ; ce lot demande une
-      migration et une route Go, hors du périmètre front de `433ba30c`._
+- [x] **B4.** Vrai alt de couverture et option « décorative » : colonnes
+      `coverAlt` / `coverDecorative` (migration `00092`), contrat Go, SDK,
+      Studio et rendu public avec repli sur le titre (commit `ba817987`).
 - [x] **B5.** « Remplacer » dans `ImageDetailsPanel` : le fichier est compressé
       et uploadé, seul `src` change ; alt, légende et crédit sont conservés,
       même si la sélection a bougé pendant l’upload (commit `433ba30c`).
@@ -190,11 +190,13 @@ Dernier lot vérifié : `tsc` 0 · `eslint` 0 · `vitest src/features/editor`
       et non plus via `matchMedia('(pointer: coarse)')` ; le snap de début de
       ligne reste actif à la souris sur un appareil hybride (commit
       `433ba30c`).
-- [ ] **C4.** Permettre de déplier une citation d’annotation longue.
+- [x] **C4.** Citation d’annotation longue dépliable/repliable, avec
+      `aria-expanded` et remise à zéro à chaque nouvelle sélection.
 
 ### Lot D — confort (priorité basse)
 
-- [ ] **D1.** Progression par fichier et annulation d’un upload de galerie.
+- [x] **D1.** Progression par fichier (`n/total` + nom) et annulation d’un
+      upload de galerie ; les fichiers déjà envoyés sont conservés et insérés.
 - [x] **D2.** `↑`/`↓` aux bords d’un bloc sélectionnent l’image voisine
       (`lib/image-navigation.ts`, testé) ; `Entrée` ouvre ses détails. Le
       badge et le compteur donnent le même accès (commit `433ba30c`).

@@ -27,6 +27,7 @@ import {
   ArrowRight,
   Trash2,
   Loader2,
+  X,
   Highlighter,
   Lock,
   Images,
@@ -119,6 +120,10 @@ export interface EditorToolbarProps {
   docked: boolean;
   isUploading: boolean;
   uploadCount: number;
+  /** Fichier en cours d'envoi et avancement dans le lot. */
+  uploadProgress?: { current: number; total: number; fileName: string } | null;
+  /** Interrompt le lot ; les fichiers déjà envoyés sont conservés. */
+  onCancelUpload?: () => void;
   onPickImage: () => void;
   onPickGallery: () => void;
   /** Ouvre la médiathèque pour insérer un asset existant. */
@@ -150,6 +155,8 @@ export function EditorToolbar({
   docked,
   isUploading,
   uploadCount,
+  uploadProgress = null,
+  onCancelUpload,
   onPickImage,
   onPickGallery,
   onOpenMediaLibrary,
@@ -433,6 +440,32 @@ export function EditorToolbar({
           <Separator />
 
           <div role="group" aria-label={t`Médias`} className="flex items-center gap-0.5">
+            {isUploading && uploadProgress ? (
+              <div
+                role="status"
+                aria-live="polite"
+                title={t`Envoi de ${uploadProgress.fileName}`}
+                className="mr-1 flex h-8 max-w-[190px] items-center gap-1.5 rounded-[10px] border border-border/60 bg-muted/40 pr-1 pl-2"
+              >
+                <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" />
+                <span className="shrink-0 text-[10px] font-medium tabular-nums text-foreground">
+                  {uploadProgress.current}/{uploadProgress.total}
+                </span>
+                <span className="min-w-0 truncate text-[10px] text-muted-foreground">
+                  {uploadProgress.fileName}
+                </span>
+                {onCancelUpload ? (
+                  <button
+                    type="button"
+                    onClick={onCancelUpload}
+                    aria-label={t`Annuler l'envoi`}
+                    className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/60"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
             <ToolbarButton
               onClick={onPickImage}
               icon={

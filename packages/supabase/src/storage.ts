@@ -97,13 +97,19 @@ export function toPublicImageUrl(publicUrl: string): string {
 export async function uploadImageToRoute(
   file: File,
   endpoint: string,
-  folder?: ImageFolder
+  folder?: ImageFolder,
+  /** Permet d'annuler un envoi en cours (galerie longue). */
+  options: { signal?: AbortSignal } = {}
 ): Promise<string> {
   const formData = new FormData();
   formData.append('file', file);
   if (folder) formData.append('folder', folder);
 
-  const res = await fetch(endpoint, { method: 'POST', body: formData });
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    body: formData,
+    signal: options.signal,
+  });
 
   // Une réponse non-JSON (502/504 d'un reverse proxy, page d'erreur HTML, image
   // docker non déployée…) provoquait un message générique impossible à

@@ -362,6 +362,13 @@ export function Editor({
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadCount, setUploadCount] = useState(0);
+  // Progression par fichier : le compteur global ne disait pas quel fichier
+  // bloquait une galerie lourde, ni combien restaient à envoyer.
+  const [uploadProgress, setUploadProgress] = useState<{
+    current: number;
+    total: number;
+    fileName: string;
+  } | null>(null);
   const [imageBatch, setImageBatch] = useState<EditorImageBatch | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -422,6 +429,7 @@ export function Editor({
   const lastSavedHashRef = useRef<string>('');
   const persistedIdRef = useRef<string | undefined>(collaborationRoomId);
 
+  const uploadAbortRef = useRef<AbortController | null>(null);
   const bodyImageInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const replaceImageInputRef = useRef<HTMLInputElement>(null);
@@ -778,52 +786,82 @@ export function Editor({
     },
   });
 
+  const insertUploadedImages = useCallback(
+    (urls: string[], mode: 'single' | 'gallery') => {
+      if (!editor || urls.length === 0) return;
+      if (mode === 'gallery' || urls.length > 1) {
+        editor
+          .chain()
+          .focus()
+          .insertContent({
+            type: 'imageGallery',
+            content: urls.map((url) => ({
+              type: 'galleryImage',
+              attrs: { src: url, alt: '' },
+            })),
+          })
+          .run();
+      } else {
+        editor.chain().focus().setImage({ src: urls[0] }).run();
+      }
+      setHasUnsavedChanges(true);
+    },
+    [editor]
+  );
+
+  const cancelUpload = useCallback(() => {
+    uploadAbortRef.current?.abort();
+  }, []);
+
   const uploadCroppedImages = useCallback(
     async (files: File[], mode: 'single' | 'gallery') => {
       if (!editor || files.length === 0) return;
+
+      const controller = new AbortController();
+      uploadAbortRef.current = controller;
+      const urls: string[] = [];
 
       try {
         setIsUploading(true);
         setUploadCount(files.length);
         setError(null);
+        setUploadProgress({ current: 0, total: files.length, fileName: files[0].name });
 
-        const urls: string[] = [];
-        for (const file of files) {
+        for (let index = 0; index < files.length; index += 1) {
+          if (controller.signal.aborted) break;
+          const file = files[index];
+          setUploadProgress({
+            current: index + 1,
+            total: files.length,
+            fileName: file.name,
+          });
           const url = await uploadImageToRoute(
             file,
             '/api/articles/upload',
-            IMAGE_FOLDERS.articles
+            IMAGE_FOLDERS.articles,
+            { signal: controller.signal }
           );
           urls.push(url);
           setUploadCount((count) => Math.max(0, count - 1));
         }
 
-        if (urls.length === 0) return;
-
-        if (mode === 'gallery' || urls.length > 1) {
-          editor
-            .chain()
-            .focus()
-            .insertContent({
-              type: 'imageGallery',
-              content: urls.map((url) => ({
-                type: 'galleryImage',
-                attrs: { src: url, alt: '' },
-              })),
-            })
-            .run();
-        } else {
-          editor.chain().focus().setImage({ src: urls[0] }).run();
-        }
-        setHasUnsavedChanges(true);
+        // Une annulation ne jette pas le travail déjà envoyé : les images
+        // terminées sont insérées, les suivantes sont simplement abandonnées.
+        insertUploadedImages(urls, mode);
       } catch (err: unknown) {
-        setError(getErrorMessage(err, t`Échec de l'upload de l'image.`));
+        if (controller.signal.aborted) {
+          insertUploadedImages(urls, mode);
+        } else {
+          setError(getErrorMessage(err, t`Échec de l'upload de l'image.`));
+        }
       } finally {
+        if (uploadAbortRef.current === controller) uploadAbortRef.current = null;
         setIsUploading(false);
         setUploadCount(0);
+        setUploadProgress(null);
       }
     },
-    [editor]
+    [editor, insertUploadedImages]
   );
 
   const handleImageBatchApply = useCallback(
@@ -2450,6 +2488,8 @@ export function Editor({
               docked={isDocked}
               isUploading={isUploading}
               uploadCount={uploadCount}
+              uploadProgress={uploadProgress}
+              onCancelUpload={cancelUpload}
               onPickImage={() => bodyImageInputRef.current?.click()}
               onPickGallery={() => galleryInputRef.current?.click()}
               onOpenMediaLibrary={() => setShowBodyLibrary(true)}
