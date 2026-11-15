@@ -140,6 +140,18 @@ export const PLATFORM_SURFACES: readonly SurfaceDescriptor[] = [
     showInCmdK: true,
   },
   {
+    id: 'studio.books',
+    scope: 'studio',
+    path: routes.studio.books(),
+    iconName: 'Bookmark',
+    defaultLabel: 'Livres',
+    section: 'creation',
+    keywords: ['livres', 'epub', 'ebook', 'recueil', 'compiler'],
+    hotkey: 'g b',
+    showInSidebar: true,
+    showInCmdK: true,
+  },
+  {
     id: 'studio.export',
     scope: 'studio',
     path: routes.studio.exportData(),

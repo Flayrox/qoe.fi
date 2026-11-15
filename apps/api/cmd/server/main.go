@@ -37,6 +37,7 @@ import (
 	"github.com/qoefi/api/internal/modules/conversations"
 	"github.com/qoefi/api/internal/modules/creator"
 	"github.com/qoefi/api/internal/modules/devtools"
+	booksmod "github.com/qoefi/api/internal/modules/books"
 	"github.com/qoefi/api/internal/modules/ebooks"
 	"github.com/qoefi/api/internal/modules/events"
 	exportsmod "github.com/qoefi/api/internal/modules/exports"
@@ -672,6 +673,10 @@ func newRouter(d RouterDeps) *chi.Mux {
 		// Portabilité : archive ZIP de la publication (articles + abonnés).
 		exportsHandler := exportsmod.NewHandler(exportsmod.NewService(pool))
 		exportsHandler.RegisterProtected(protected)
+
+		// Livres : compilation d'articles en EPUB (lecture seule, sans persistance).
+		booksHandler := booksmod.NewHandler(booksmod.NewService(pool))
+		booksHandler.RegisterProtected(protected)
 
 		// Routes reader (/v1/me*, feed protégé, lecture) : auto-réparation
 		// centralisée de la ligne User absente (login de démo / reseed /
