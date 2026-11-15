@@ -31,6 +31,19 @@ test.describe("Banc de non-régression de l'éditeur", () => {
     await page.keyboard.press('Escape');
     await expect(page.getByRole('heading', { name: "Raccourcis de l'éditeur" })).toBeHidden();
 
+    // Aperçu lecteur : le fixture monte le vrai corps, et le choix mobile ne
+    // doit pas perdre le contenu ni provoquer d'erreur de rendu.
+    await page.getByRole('button', { name: 'Aperçu lecteur' }).click();
+    await expect(page.getByRole('heading', { name: 'Aperçu lecteur' })).toBeVisible();
+    await expect(page.getByText("Banc de non-régression de l'éditeur").last()).toBeVisible();
+    await page.getByRole('button', { name: 'Mobile' }).click();
+    await expect(page.getByRole('button', { name: 'Mobile' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('heading', { name: 'Aperçu lecteur' })).toBeHidden();
+
     // Préflight : le fixture n'a que des avertissements (pas de titre vide ni
     // de contenu vide), et le décompte des images sans alt est repris.
     await page.getByRole('button', { name: 'Prêt à publier' }).click();

@@ -64,6 +64,7 @@ import { PublishModal, type PublishOptions } from './PublishModal';
 import { PublishReadinessDialog } from './PublishReadinessDialog';
 import { MediaAssetPickerDialog } from './MediaAssetPickerDialog';
 import { AiSuggestionDialog } from './AiSuggestionDialog';
+import { ReaderPreviewDialog } from './ReaderPreviewDialog';
 import { generateEditorAssistAction, type EditorAssistTask } from '../actions/ai-assist';
 import { ArticleDiffModal } from './ArticleDiffModal';
 import { ArticleHistoryModal } from './ArticleHistoryModal';
@@ -367,6 +368,7 @@ export function Editor({
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [showPreflight, setShowPreflight] = useState(false);
   const [showBodyLibrary, setShowBodyLibrary] = useState(false);
+  const [showReaderPreview, setShowReaderPreview] = useState(false);
   const [aiDialog, setAiDialog] = useState<{
     task: EditorAssistTask;
     loading: boolean;
@@ -2169,6 +2171,7 @@ export function Editor({
         onBack={onBack}
         onOpenAnalytics={() => setShowAnalyticsModal(true)}
         onOpenHistory={() => setShowHistoryModal(true)}
+        onOpenReaderPreview={() => setShowReaderPreview(true)}
         onToggleSettings={() =>
           setShowSettings((open) => {
             if (!open && !scheduleDraft && scheduledAt) {
@@ -2589,6 +2592,19 @@ export function Editor({
         onCrop={handleCropExistingImage}
         onReplace={() => replaceImageInputRef.current?.click()}
       />
+
+      {editor ? (
+        <ReaderPreviewDialog
+          open={showReaderPreview}
+          onClose={() => setShowReaderPreview(false)}
+          editor={editor}
+          title={title}
+          imageUrl={imageUrl}
+          coverAlt={coverAlt}
+          coverDecorative={coverDecorative}
+          isPremium={isPremium}
+        />
+      ) : null}
 
       <AiSuggestionDialog
         open={aiDialog !== null}

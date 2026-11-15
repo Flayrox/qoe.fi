@@ -15,6 +15,7 @@ import {
   History,
   Loader2,
   Lock,
+  MonitorSmartphone,
   RefreshCw,
   RotateCcw,
   Send,
@@ -56,6 +57,7 @@ export interface EditorHeaderProps {
   onBack?: () => void;
   onOpenAnalytics: () => void;
   onOpenHistory?: () => void;
+  onOpenReaderPreview: () => void;
   onToggleSettings: () => void;
   onOpenSchedule: () => void;
   onTogglePremium: () => void;
@@ -167,6 +169,7 @@ export function EditorHeader(props: EditorHeaderProps) {
     onBack,
     onOpenAnalytics,
     onOpenHistory,
+    onOpenReaderPreview,
     onToggleSettings,
     onOpenSchedule,
     onTogglePremium,
@@ -341,6 +344,17 @@ export function EditorHeader(props: EditorHeaderProps) {
           >
             <Settings />
             <span className="hidden md:inline">{t`Options`}</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            shape="icon"
+            onClick={onOpenReaderPreview}
+            aria-label={t`Aperçu lecteur`}
+            title={t`Aperçu lecteur (bureau, tablette, mobile)`}
+          >
+            <MonitorSmartphone />
           </Button>
 
           {previewHref ? (
