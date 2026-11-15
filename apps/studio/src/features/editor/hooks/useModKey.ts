@@ -20,3 +20,19 @@ export function useModKey(): string {
 
   return mod;
 }
+
+/**
+ * Touche Alt/Option affichée à côté de `useModKey`. Le raccourci réel reste
+ * `Alt` partout ; seul le symbole change sur Apple.
+ */
+export function useAltKey(): string {
+  const [alt, setAlt] = React.useState('Alt');
+
+  React.useEffect(() => {
+    if (typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)) {
+      setAlt('⌥');
+    }
+  }, []);
+
+  return alt;
+}
