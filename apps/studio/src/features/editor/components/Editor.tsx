@@ -486,6 +486,11 @@ export function Editor({
     collabUser,
     peerCount,
     connected: collaborationConnected,
+    status: collaborationStatus,
+    synced: collaborationSynced,
+    unsyncedChanges: collaborationUnsyncedChanges,
+    lastError: collaborationError,
+    reconnect: retryCollaboration,
   } = useCollaborationSession({
     enabled: collaborationEnabled,
     roomId: collaborationRoomId,
@@ -2160,6 +2165,11 @@ export function Editor({
         capabilities={capabilities}
         collaborationConnected={collaborationConnected}
         collaborationPeerCount={peerCount}
+        collaborationStatus={collaborationStatus}
+        collaborationSynced={collaborationSynced}
+        collaborationUnsyncedChanges={collaborationUnsyncedChanges}
+        collaborationError={collaborationError}
+        onRetryCollaboration={retryCollaboration}
         showCollaboration={Boolean(collaborationProvider)}
         isSaving={isSaving}
         autoSaveStatus={autoSaveStatus}

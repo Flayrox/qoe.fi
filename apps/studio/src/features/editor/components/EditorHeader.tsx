@@ -9,11 +9,13 @@ import {
   Check,
   CheckCircle2,
   Clock,
+  CloudOff,
   ExternalLink,
   GitCompare,
   History,
   Loader2,
   Lock,
+  RefreshCw,
   RotateCcw,
   Send,
   Settings,
@@ -26,6 +28,7 @@ import { Button, buttonClasses } from '@qoe/ui/button';
 import type { EditorCapabilities } from '@qoe/sdk/actions/articles';
 import type { AutoSaveStatus } from '@qoe/sdk';
 import { useModKey } from '../hooks/useModKey';
+import type { CollaborationStatus } from '../hooks/useCollaborationSession';
 
 export interface EditorHeaderProps {
   isNew: boolean;
@@ -37,6 +40,11 @@ export interface EditorHeaderProps {
   capabilities?: EditorCapabilities;
   collaborationConnected: boolean;
   collaborationPeerCount: number;
+  collaborationStatus: CollaborationStatus;
+  collaborationSynced: boolean;
+  collaborationUnsyncedChanges: number;
+  collaborationError: string | null;
+  onRetryCollaboration: () => void;
   showCollaboration: boolean;
   isSaving: boolean;
   autoSaveStatus: AutoSaveStatus;
@@ -149,6 +157,11 @@ export function EditorHeader(props: EditorHeaderProps) {
     capabilities,
     collaborationConnected,
     collaborationPeerCount,
+    collaborationStatus,
+    collaborationSynced,
+    collaborationUnsyncedChanges,
+    collaborationError,
+    onRetryCollaboration,
     showCollaboration,
     settingsOpen,
     onBack,
@@ -189,22 +202,52 @@ export function EditorHeader(props: EditorHeaderProps) {
                 {isNew ? t`Nouvel écrit` : t`Édition`}
               </h1>
               {showCollaboration ? (
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-medium',
-                    collaborationConnected
-                      ? 'bg-primary/10 text-primary'
-                      : 'bg-muted text-muted-foreground'
+                <>
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-medium',
+                      collaborationStatus === 'error'
+                        ? 'bg-destructive/10 text-destructive-text'
+                        : collaborationStatus === 'disconnected'
+                          ? 'bg-highlight/10 text-highlight'
+                          : collaborationConnected && collaborationSynced
+                            ? 'bg-primary/10 text-primary'
+                            : 'bg-muted text-muted-foreground'
+                    )}
+                    data-testid="collaboration-status"
+                    data-status={collaborationStatus}
+                  >
+                    <UsersRound className="size-3" />
+                    {collaborationStatus === 'error'
+                      ? t`Co-édition indisponible`
+                      : collaborationStatus === 'disconnected'
+                        ? t`Hors ligne`
+                        : !collaborationConnected || collaborationStatus === 'connecting'
+                          ? t`Connexion…`
+                          : !collaborationSynced
+                            ? t`Synchronisation…`
+                            : collaborationPeerCount > 0
+                              ? t`${collaborationPeerCount + 1} éditeurs`
+                              : t`Co-édition`}
+                  </span>
+                  {collaborationUnsyncedChanges > 0 ? (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-highlight/10 px-1.5 py-0.5 text-[10px] font-medium text-highlight">
+                      {t`${collaborationUnsyncedChanges} en attente`}
+                    </span>
+                  ) : null}
+                  {(collaborationStatus === 'disconnected' || collaborationStatus === 'error') && (
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      shape="icon"
+                      onClick={onRetryCollaboration}
+                      aria-label={t`Reconnecter la co-édition`}
+                      title={t`Reconnecter la co-édition`}
+                    >
+                      <RefreshCw className="size-3" />
+                    </Button>
                   )}
-                  data-testid="collaboration-status"
-                >
-                  <UsersRound className="size-3" />
-                  {collaborationConnected
-                    ? collaborationPeerCount > 0
-                      ? t`${collaborationPeerCount + 1} éditeurs`
-                      : t`Co-édition`
-                    : t`Reconnexion…`}
-                </span>
+                </>
               ) : null}
             </div>
 
@@ -361,6 +404,31 @@ export function EditorHeader(props: EditorHeaderProps) {
           )}
         </div>
       </div>
+
+      {showCollaboration &&
+      (collaborationStatus === 'disconnected' || collaborationStatus === 'error') ? (
+        <div
+          role="status"
+          className="flex flex-wrap items-start gap-2 rounded-control border border-highlight/25 bg-highlight/10 px-3 py-2 text-[11px] text-highlight"
+        >
+          <CloudOff className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold">
+              {collaborationStatus === 'error'
+                ? t`La co-édition est indisponible.`
+                : t`Connexion de co-édition interrompue.`}
+            </p>
+            <p className="mt-0.5 text-highlight/90">
+              {collaborationError ??
+                t`Vos modifications restent dans le document local et seront fusionnées à la reconnexion.`}
+            </p>
+          </div>
+          <Button variant="outline" size="xs" onClick={onRetryCollaboration}>
+            <RefreshCw className="size-3" />
+            {t`Réessayer`}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }
