@@ -62,6 +62,7 @@ import { LinkEditorPanel } from './LinkEditorPanel';
 import { ImageDetailsPanel, type ImageDetails } from './ImageDetailsPanel';
 import { PublishModal, type PublishOptions } from './PublishModal';
 import { PublishReadinessDialog } from './PublishReadinessDialog';
+import { MediaAssetPickerDialog } from './MediaAssetPickerDialog';
 import { ArticleDiffModal } from './ArticleDiffModal';
 import { ArticleHistoryModal } from './ArticleHistoryModal';
 import { RecoverArticleModal } from './RecoverArticleModal';
@@ -363,6 +364,7 @@ export function Editor({
   const [showSettings, setShowSettings] = useState(false);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [showPreflight, setShowPreflight] = useState(false);
+  const [showBodyLibrary, setShowBodyLibrary] = useState(false);
   const [publishWarnings, setPublishWarnings] = useState<string[]>([]);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -2365,6 +2367,10 @@ export function Editor({
                 }
               })();
             }}
+            onSelectImage={(url) => {
+              setImageUrl(url);
+              setHasUnsavedChanges(true);
+            }}
             onRemove={() => {
               setImageUrl(null);
               setHasUnsavedChanges(true);
@@ -2422,6 +2428,7 @@ export function Editor({
               uploadCount={uploadCount}
               onPickImage={() => bodyImageInputRef.current?.click()}
               onPickGallery={() => galleryInputRef.current?.click()}
+              onOpenMediaLibrary={() => setShowBodyLibrary(true)}
               onAnnotation={handleAnnotationButton}
               onLink={openLinkPopover}
               onImageDetails={openImageDetails}
@@ -2562,6 +2569,18 @@ export function Editor({
         onCrop={handleCropExistingImage}
         onReplace={() => replaceImageInputRef.current?.click()}
       />
+
+      {editor && (
+        <MediaAssetPickerDialog
+          open={showBodyLibrary}
+          onClose={() => setShowBodyLibrary(false)}
+          onSelect={(asset) => {
+            editor.chain().focus().setImage({ src: asset.url }).run();
+            setHasUnsavedChanges(true);
+          }}
+          title={t`Insérer une image de la médiathèque`}
+        />
+      )}
 
       {editor && (
         <PublishReadinessDialog

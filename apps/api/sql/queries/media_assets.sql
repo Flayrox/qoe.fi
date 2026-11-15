@@ -53,6 +53,20 @@ WHERE id = $1;
 SELECT COALESCE(SUM("sizeBytes"), 0)::bigint AS "totalBytes", COUNT(*)::bigint AS "assetCount"
 FROM "MediaAsset" WHERE "ownerId" = $1 AND status <> 'PURGED';
 
+-- name: ListMediaAssetsByOwner :many
+-- Bibliothèque personnelle : assets non purgés, du plus récent au plus ancien.
+-- Le filtre `q` porte sur l'URL (pas de nom de fichier en base) et reste
+-- volontairement simple : la médiathèque n'est pas un moteur de recherche.
+SELECT id, url, "mimeType", width, height, "sizeBytes", blurhash, status, "targetType", "createdAt"
+FROM "MediaAsset"
+WHERE "ownerId" = $1
+  AND status <> 'PURGED'
+  AND "mimeType" LIKE 'image/%'
+  AND (sqlc.arg(target_type)::text = '' OR "targetType"::text = sqlc.arg(target_type)::text)
+  AND (sqlc.arg(q)::text = '' OR url ILIKE '%' || sqlc.arg(q)::text || '%')
+ORDER BY "createdAt" DESC, id DESC
+LIMIT sqlc.arg(page_size) OFFSET sqlc.arg(page_offset);
+
 -- name: CountRecentUploads :one
 -- Nombre d'uploads d'un utilisateur depuis $2 (throttle anti-flood : borne
 -- le coût Sharp + modération + storage, multi-instance safe).
