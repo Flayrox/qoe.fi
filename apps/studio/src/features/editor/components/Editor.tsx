@@ -216,6 +216,8 @@ export interface EditorProps {
   initialHasUnpublishedChanges?: boolean;
   initialReviewFeedback?: ArticleReviewFeedback | null;
   initialImageUrl?: string | null;
+  initialCoverAlt?: string;
+  initialCoverDecorative?: boolean;
   initialPublished?: boolean;
   initialScheduledAt?: string | null;
   initialStatus?: string;
@@ -246,6 +248,8 @@ export interface EditorProps {
     title: string;
     content: string;
     imageUrl: string | null;
+    coverAlt?: string;
+    coverDecorative?: boolean;
     slug: string;
     published: boolean;
     scheduledAt?: string | null;
@@ -275,6 +279,8 @@ export function Editor({
   initialHasUnpublishedChanges = false,
   initialReviewFeedback = null,
   initialImageUrl = null,
+  initialCoverAlt = '',
+  initialCoverDecorative = false,
   initialPublished = false,
   initialStatus = 'DRAFT',
   initialScheduledAt = null,
@@ -314,6 +320,8 @@ export function Editor({
   const [title, setTitle] = useState(initialTitle);
   const [slug, setSlug] = useState(initialSlug);
   const [imageUrl, setImageUrl] = useState<string | null>(initialImageUrl);
+  const [coverAlt, setCoverAlt] = useState(initialCoverAlt);
+  const [coverDecorative, setCoverDecorative] = useState(initialCoverDecorative);
   const [published, setPublished] = useState(initialPublished);
   const [liveContent, setLiveContent] = useState<string | null>(initialLiveContent);
   const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState<boolean>(
@@ -504,6 +512,8 @@ export function Editor({
     seoTitle,
     seoDescription,
     imageUrl,
+    coverAlt,
+    coverDecorative,
     allowPublicAnnotations,
     allowComments,
     allowDownload,
@@ -520,6 +530,8 @@ export function Editor({
     seoTitle,
     seoDescription,
     imageUrl,
+    coverAlt,
+    coverDecorative,
     allowPublicAnnotations,
     allowComments,
     allowDownload,
@@ -1487,6 +1499,8 @@ export function Editor({
       seoTitle,
       seoDescription,
       imageUrl,
+      coverAlt,
+      coverDecorative,
       allowComments,
       allowPublicAnnotations,
       allowDownload,
@@ -1504,6 +1518,8 @@ export function Editor({
       seoTitle,
       seoDescription,
       imageUrl,
+      coverAlt,
+      coverDecorative,
       allowComments,
       allowPublicAnnotations,
       allowDownload,
@@ -1527,6 +1543,8 @@ export function Editor({
         seoTitle: initialSeoTitle,
         seoDescription: initialSeoDescription,
         imageUrl: initialImageUrl,
+        coverAlt: initialCoverAlt,
+        coverDecorative: initialCoverDecorative,
         allowComments: initialAllowComments,
         allowPublicAnnotations: initialAllowPublicAnnotations,
         allowDownload: initialAllowDownload,
@@ -1555,6 +1573,8 @@ export function Editor({
         title: payload.title,
         content: payload.content,
         imageUrl: s.imageUrl,
+        coverAlt: s.coverAlt,
+        coverDecorative: s.coverDecorative,
         slug: payload.slug || s.slug,
         // 🔒 L'auto-save ne publie jamais : le Go isole les modifications
         // dans draftContent dès que published=false, même si status=PUBLISHED.
@@ -1650,6 +1670,8 @@ export function Editor({
       title,
       content: editor?.getHTML() || '',
       imageUrl,
+      coverAlt,
+      coverDecorative,
       slug: buildSlug(),
       published: overrides.published,
       status: overrides.status,
@@ -1670,6 +1692,8 @@ export function Editor({
       title,
       editor,
       imageUrl,
+      coverAlt,
+      coverDecorative,
       buildSlug,
       isPremium,
       categoryId,
@@ -2294,6 +2318,17 @@ export function Editor({
           <CoverUploader
             imageUrl={imageUrl}
             title={title}
+            coverAlt={coverAlt}
+            coverDecorative={coverDecorative}
+            onCoverAltChange={(value) => {
+              setCoverAlt(value);
+              setHasUnsavedChanges(true);
+            }}
+            onCoverDecorativeChange={(value) => {
+              setCoverDecorative(value);
+              if (value) setCoverAlt('');
+              setHasUnsavedChanges(true);
+            }}
             isUploading={isUploading}
             onUpload={(file) => {
               void (async () => {

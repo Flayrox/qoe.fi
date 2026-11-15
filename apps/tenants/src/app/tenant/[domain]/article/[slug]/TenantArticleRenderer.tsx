@@ -466,7 +466,7 @@ export async function TenantArticleRenderer({
                   <div className="relative aspect-[16/9] sm:aspect-[2/1] rounded-2xl overflow-hidden border border-border/40 bg-muted/30 shadow-2xs">
                     <SafeImage
                       src={article.imageUrl}
-                      alt={article.title}
+                      alt={article.coverDecorative ? '' : article.coverAlt?.trim() || article.title}
                       fill
                       sizes="(max-width: 768px) 100vw, 680px"
                       priority

@@ -555,6 +555,8 @@ CREATE TABLE "Article" (
     "draftContent" TEXT,
     "contentSha" TEXT,
     "imageUrl" TEXT,
+    "coverAlt" TEXT NOT NULL DEFAULT '',
+    "coverDecorative" BOOLEAN NOT NULL DEFAULT false,
     "published" BOOLEAN NOT NULL DEFAULT false,
     "isPremium" BOOLEAN NOT NULL DEFAULT false,
     "visibility" "ContentVisibility" NOT NULL DEFAULT 'PUBLIC',

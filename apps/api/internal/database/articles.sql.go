@@ -114,8 +114,8 @@ const createArticle = `-- name: CreateArticle :one
 INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
                        "readingTime", "allowPublicAnnotations", "allowComments", "allowDownload", status,
                        "publisherId", "authorId", "categoryId", "tierId", "seoTitle", "seoDescription",
-                       "scheduledAt", "imageUrl", "showOnPersonalProfile", "updatedAt")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, now())
+                       "scheduledAt", "imageUrl", "coverAlt", "coverDecorative", "showOnPersonalProfile", "updatedAt")
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, now())
 RETURNING id
 `
 
@@ -139,6 +139,8 @@ type CreateArticleParams struct {
 	SeoDescription         pgtype.Text       `json:"seoDescription"`
 	ScheduledAt            pgtype.Timestamp  `json:"scheduledAt"`
 	ImageUrl               pgtype.Text       `json:"imageUrl"`
+	CoverAlt               string            `json:"coverAlt"`
+	CoverDecorative        bool              `json:"coverDecorative"`
 	ShowOnPersonalProfile  bool              `json:"showOnPersonalProfile"`
 }
 
@@ -163,6 +165,8 @@ func (q *Queries) CreateArticle(ctx context.Context, arg CreateArticleParams) (s
 		arg.SeoDescription,
 		arg.ScheduledAt,
 		arg.ImageUrl,
+		arg.CoverAlt,
+		arg.CoverDecorative,
 		arg.ShowOnPersonalProfile,
 	)
 	var id string
@@ -262,7 +266,7 @@ SELECT a.id, a.title, a.slug, a.content, a."draftContent", a.published, a."isPre
        a."readingTime", a."allowPublicAnnotations", a."allowComments", a."allowDownload", a."showOnPersonalProfile", a."scheduledAt",
        a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."isClaimed", a."canonicalUrl",
        a.status, a."publisherId", a."authorId", a."categoryId", a."tierId",
-       a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
+       a."seoTitle", a."seoDescription", a."coverAlt", a."coverDecorative", a."createdAt", a."updatedAt",
        a."emailStatus", a."emailSentAt", a."emailSentCount", a."emailResendCount",
        u.id::text     AS author_id,
        u.name         AS author_name,
@@ -306,6 +310,8 @@ type GetArticleByIDRow struct {
 	TierId                 pgtype.Text       `json:"tierId"`
 	SeoTitle               pgtype.Text       `json:"seoTitle"`
 	SeoDescription         pgtype.Text       `json:"seoDescription"`
+	CoverAlt               string            `json:"coverAlt"`
+	CoverDecorative        bool              `json:"coverDecorative"`
 	CreatedAt              pgtype.Timestamp  `json:"createdAt"`
 	UpdatedAt              pgtype.Timestamp  `json:"updatedAt"`
 	EmailStatus            string            `json:"emailStatus"`
@@ -353,6 +359,8 @@ func (q *Queries) GetArticleByID(ctx context.Context, id string) (GetArticleByID
 		&i.TierId,
 		&i.SeoTitle,
 		&i.SeoDescription,
+		&i.CoverAlt,
+		&i.CoverDecorative,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.EmailStatus,
@@ -379,6 +387,8 @@ SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibilit
        a.status, a."publisherId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
        a."imageUrl"   AS article_image,
+       a."coverAlt"   AS article_cover_alt,
+       a."coverDecorative" AS article_cover_decorative,
        u.id::text     AS author_id,
        u.name         AS author_name,
        u.username     AS author_username,
@@ -432,6 +442,8 @@ type GetArticleBySlugRow struct {
 	CreatedAt              pgtype.Timestamp  `json:"createdAt"`
 	UpdatedAt              pgtype.Timestamp  `json:"updatedAt"`
 	ArticleImage           pgtype.Text       `json:"article_image"`
+	ArticleCoverAlt        string            `json:"article_cover_alt"`
+	ArticleCoverDecorative bool              `json:"article_cover_decorative"`
 	AuthorID               string            `json:"author_id"`
 	AuthorName             pgtype.Text       `json:"author_name"`
 	AuthorUsername         pgtype.Text       `json:"author_username"`
@@ -478,6 +490,8 @@ func (q *Queries) GetArticleBySlug(ctx context.Context, arg GetArticleBySlugPara
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ArticleImage,
+		&i.ArticleCoverAlt,
+		&i.ArticleCoverDecorative,
 		&i.AuthorID,
 		&i.AuthorName,
 		&i.AuthorUsername,
@@ -512,6 +526,8 @@ SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibilit
        p."logoUrl"    AS publisher_logo,
        p."customDomain" AS publisher_custom_domain,
        a."imageUrl"   AS article_image,
+       a."coverAlt"   AS article_cover_alt,
+       a."coverDecorative" AS article_cover_decorative,
        c.id           AS category_id,
        c.name         AS category_name,
        c.slug         AS category_slug
@@ -567,6 +583,8 @@ type GetArticleBySlugAnyRow struct {
 	PublisherLogo          pgtype.Text       `json:"publisher_logo"`
 	PublisherCustomDomain  pgtype.Text       `json:"publisher_custom_domain"`
 	ArticleImage           pgtype.Text       `json:"article_image"`
+	ArticleCoverAlt        string            `json:"article_cover_alt"`
+	ArticleCoverDecorative bool              `json:"article_cover_decorative"`
 	CategoryID             pgtype.Text       `json:"category_id"`
 	CategoryName           pgtype.Text       `json:"category_name"`
 	CategorySlug           pgtype.Text       `json:"category_slug"`
@@ -616,6 +634,8 @@ func (q *Queries) GetArticleBySlugAny(ctx context.Context, slug string) (GetArti
 		&i.PublisherLogo,
 		&i.PublisherCustomDomain,
 		&i.ArticleImage,
+		&i.ArticleCoverAlt,
+		&i.ArticleCoverDecorative,
 		&i.CategoryID,
 		&i.CategoryName,
 		&i.CategorySlug,
@@ -2022,7 +2042,8 @@ const updateArticleFull = `-- name: UpdateArticleFull :one
 UPDATE "Article"
 SET title = $2, content = $3, slug = $4, published = $5, status = $6, "isPremium" = $7,
     "categoryId" = $8, "seoTitle" = $9, "seoDescription" = $10, "readingTime" = $11,
-    "scheduledAt" = $12, "imageUrl" = $13, "allowPublicAnnotations" = $14,
+    "scheduledAt" = $12, "imageUrl" = $13, "coverAlt" = $18, "coverDecorative" = $19,
+    "allowPublicAnnotations" = $14,
     "allowComments" = $15, "allowDownload" = $16, "showOnPersonalProfile" = $17, "updatedAt" = now()
 WHERE id = $1
 RETURNING id
@@ -2046,6 +2067,8 @@ type UpdateArticleFullParams struct {
 	AllowComments          bool             `json:"allowComments"`
 	AllowDownload          bool             `json:"allowDownload"`
 	ShowOnPersonalProfile  bool             `json:"showOnPersonalProfile"`
+	CoverAlt               string           `json:"coverAlt"`
+	CoverDecorative        bool             `json:"coverDecorative"`
 }
 
 func (q *Queries) UpdateArticleFull(ctx context.Context, arg UpdateArticleFullParams) (string, error) {
@@ -2067,6 +2090,8 @@ func (q *Queries) UpdateArticleFull(ctx context.Context, arg UpdateArticleFullPa
 		arg.AllowComments,
 		arg.AllowDownload,
 		arg.ShowOnPersonalProfile,
+		arg.CoverAlt,
+		arg.CoverDecorative,
 	)
 	var id string
 	err := row.Scan(&id)

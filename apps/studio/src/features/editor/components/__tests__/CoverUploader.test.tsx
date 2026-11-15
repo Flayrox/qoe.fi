@@ -65,6 +65,51 @@ describe('CoverUploader', () => {
     expect(onRemove).toHaveBeenCalledTimes(1);
   });
 
+  it('édite la description de couverture et la bascule décorative', async () => {
+    const user = userEvent.setup();
+    const onCoverAltChange = vi.fn();
+    const onCoverDecorativeChange = vi.fn();
+
+    const { rerender } = render(
+      <CoverUploader
+        imageUrl="https://cdn.qoe.fi/test-cover.webp"
+        title="Super Article"
+        coverAlt=""
+        coverDecorative={false}
+        onCoverAltChange={onCoverAltChange}
+        onCoverDecorativeChange={onCoverDecorativeChange}
+        isUploading={false}
+        onUpload={vi.fn()}
+        onRemove={vi.fn()}
+      />
+    );
+
+    const altInput = screen.getByLabelText(/Description de la couverture \(alt\)/i);
+    expect(altInput).toBeEnabled();
+    await user.type(altInput, 'Une façade au soleil');
+    expect(onCoverAltChange).toHaveBeenCalled();
+
+    await user.click(screen.getByLabelText(/Image purement décorative/i));
+    expect(onCoverDecorativeChange).toHaveBeenCalledWith(true);
+
+    rerender(
+      <CoverUploader
+        imageUrl="https://cdn.qoe.fi/test-cover.webp"
+        title="Super Article"
+        coverAlt="Une façade au soleil"
+        coverDecorative
+        onCoverAltChange={onCoverAltChange}
+        onCoverDecorativeChange={onCoverDecorativeChange}
+        isUploading={false}
+        onUpload={vi.fn()}
+        onRemove={vi.fn()}
+      />
+    );
+
+    expect(screen.getByLabelText(/Description de la couverture \(alt\)/i)).toBeDisabled();
+    expect(document.querySelector('img')).toHaveAttribute('alt', '');
+  });
+
   it('handles drag over, drag leave and drop', () => {
     render(
       <CoverUploader

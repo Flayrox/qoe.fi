@@ -216,12 +216,14 @@ type ArticleAttributionInput struct {
 }
 
 type createInput struct {
-	PublisherID          string                    `json:"publisherId"`
+	PublisherID            string                    `json:"publisherId"`
 	Title                  string                    `json:"title"`
 	Slug                   string                    `json:"slug"`
 	Content                string                    `json:"content"`
 	ContentFormat          string                    `json:"contentFormat"`
 	ImageURL               *string                   `json:"imageUrl"`
+	CoverAlt               string                    `json:"coverAlt"`
+	CoverDecorative        bool                      `json:"coverDecorative"`
 	IsPremium              bool                      `json:"isPremium"`
 	Visibility             string                    `json:"visibility"`
 	CategoryID             *string                   `json:"categoryId"`
@@ -303,6 +305,17 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, err.Error())
 		return
 	}
+	if in.CoverAlt != "" {
+		cleanAlt, aerr := antispam.SanitizeAndValidateText(in.CoverAlt, 0, 500, antispam.TextOptions{CheckXSS: true})
+		if aerr != nil {
+			response.BadRequest(w, aerr.Error())
+			return
+		}
+		in.CoverAlt = cleanAlt
+	}
+	if in.CoverDecorative {
+		in.CoverAlt = ""
+	}
 	if !IsValidContentFormat(in.ContentFormat) {
 		response.BadRequest(w, "contentFormat invalide (markdown|html)")
 		return
@@ -332,7 +345,8 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		ContentFormat: in.ContentFormat,
 		IsPremium:     in.IsPremium, Visibility: in.Visibility, CategoryID: in.CategoryID,
 		TierID: in.TierID, SeoTitle: in.SeoTitle, SeoDescription: in.SeoDescription,
-		ImageURL:               in.ImageURL,
+		ImageURL: in.ImageURL,
+		CoverAlt: in.CoverAlt, CoverDecorative: in.CoverDecorative,
 		AllowPublicAnnotations: in.AllowPublicAnnotations, AllowComments: in.AllowComments,
 		AllowDownload:         in.AllowDownload,
 		ShowOnPersonalProfile: in.ShowOnPersonalProfile,
@@ -464,6 +478,8 @@ type updateInput struct {
 	ContentFormat          string                    `json:"contentFormat"`
 	Slug                   string                    `json:"slug"`
 	ImageURL               *string                   `json:"imageUrl"`
+	CoverAlt               *string                   `json:"coverAlt"`
+	CoverDecorative        *bool                     `json:"coverDecorative"`
 	IsPremium              bool                      `json:"isPremium"`
 	CategoryID             *string                   `json:"categoryId"`
 	SeoTitle               *string                   `json:"seoTitle"`
@@ -475,7 +491,7 @@ type updateInput struct {
 	ShowOnPersonalProfile  *bool                     `json:"showOnPersonalProfile"`
 	Published              bool                      `json:"published"`
 	Status                 string                    `json:"status"`
-	ActivePublisherID    string                    `json:"activePublisherId"`
+	ActivePublisherID      string                    `json:"activePublisherId"`
 	ScheduledAt            string                    `json:"scheduledAt"`
 	Attributions           []ArticleAttributionInput `json:"attributions"`
 	SendEmail              *bool                     `json:"sendEmail"`
@@ -506,6 +522,14 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, err.Error())
 		return
 	}
+	if in.CoverAlt != nil && *in.CoverAlt != "" {
+		cleanAlt, aerr := antispam.SanitizeAndValidateText(*in.CoverAlt, 0, 500, antispam.TextOptions{CheckXSS: true})
+		if aerr != nil {
+			response.BadRequest(w, aerr.Error())
+			return
+		}
+		in.CoverAlt = &cleanAlt
+	}
 	prof := h.sec.EvaluateRequest(r.Context(), r, userID)
 	if !h.sec.EnforceRateLimit(r.Context(), w, r, "articles-edit", userID, prof.Tier, secguard.QuotasArticlesEdit) {
 		return
@@ -526,7 +550,8 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.svc.Update(r.Context(), id, userID, UpdateArticleInput{
 		Title: in.Title, Content: in.Content, ContentFormat: in.ContentFormat, Slug: in.Slug, IsPremium: in.IsPremium,
-		ImageURL: in.ImageURL, CategoryID: in.CategoryID, SeoTitle: in.SeoTitle, SeoDescription: in.SeoDescription,
+		ImageURL: in.ImageURL, CoverAlt: in.CoverAlt, CoverDecorative: in.CoverDecorative,
+		CategoryID: in.CategoryID, SeoTitle: in.SeoTitle, SeoDescription: in.SeoDescription,
 		AllowPublicAnnotations: in.AllowPublicAnnotations, AllowComments: in.AllowComments,
 		AllowDownload:         in.AllowDownload,
 		ShowOnPersonalProfile: in.ShowOnPersonalProfile,

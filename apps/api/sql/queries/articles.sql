@@ -142,7 +142,7 @@ SELECT a.id, a.title, a.slug, a.content, a."draftContent", a.published, a."isPre
        a."readingTime", a."allowPublicAnnotations", a."allowComments", a."allowDownload", a."showOnPersonalProfile", a."scheduledAt",
        a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."isClaimed", a."canonicalUrl",
        a.status, a."publisherId", a."authorId", a."categoryId", a."tierId",
-       a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
+       a."seoTitle", a."seoDescription", a."coverAlt", a."coverDecorative", a."createdAt", a."updatedAt",
        a."emailStatus", a."emailSentAt", a."emailSentCount", a."emailResendCount",
        u.id::text     AS author_id,
        u.name         AS author_name,
@@ -165,6 +165,8 @@ SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibilit
        a.status, a."publisherId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
        a."imageUrl"   AS article_image,
+       a."coverAlt"   AS article_cover_alt,
+       a."coverDecorative" AS article_cover_decorative,
        u.id::text     AS author_id,
        u.name         AS author_name,
        u.username     AS author_username,
@@ -204,6 +206,8 @@ SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibilit
        p."logoUrl"    AS publisher_logo,
        p."customDomain" AS publisher_custom_domain,
        a."imageUrl"   AS article_image,
+       a."coverAlt"   AS article_cover_alt,
+       a."coverDecorative" AS article_cover_decorative,
        c.id           AS category_id,
        c.name         AS category_name,
        c.slug         AS category_slug
@@ -315,8 +319,8 @@ SELECT id FROM "Article" WHERE "publisherId" = $1 AND slug = $2 LIMIT 1;
 INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
                        "readingTime", "allowPublicAnnotations", "allowComments", "allowDownload", status,
                        "publisherId", "authorId", "categoryId", "tierId", "seoTitle", "seoDescription",
-                       "scheduledAt", "imageUrl", "showOnPersonalProfile", "updatedAt")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, now())
+                       "scheduledAt", "imageUrl", "coverAlt", "coverDecorative", "showOnPersonalProfile", "updatedAt")
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, now())
 RETURNING id;
 
 -- name: UpdateArticleContent :one
@@ -330,7 +334,8 @@ RETURNING id;
 UPDATE "Article"
 SET title = $2, content = $3, slug = $4, published = $5, status = $6, "isPremium" = $7,
     "categoryId" = $8, "seoTitle" = $9, "seoDescription" = $10, "readingTime" = $11,
-    "scheduledAt" = $12, "imageUrl" = $13, "allowPublicAnnotations" = $14,
+    "scheduledAt" = $12, "imageUrl" = $13, "coverAlt" = $18, "coverDecorative" = $19,
+    "allowPublicAnnotations" = $14,
     "allowComments" = $15, "allowDownload" = $16, "showOnPersonalProfile" = $17, "updatedAt" = now()
 WHERE id = $1
 RETURNING id;

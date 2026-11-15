@@ -10,6 +10,8 @@ export interface AutosaveHashPayload {
   seoTitle?: string | null;
   seoDescription?: string | null;
   imageUrl?: string | null;
+  coverAlt?: string;
+  coverDecorative?: boolean;
   allowComments?: boolean;
   allowPublicAnnotations?: boolean;
   allowDownload?: boolean;
@@ -40,6 +42,8 @@ export function computePayloadHash(payload: AutosaveHashPayload): string {
     stitle: (payload.seoTitle || '').trim(),
     sdesc: (payload.seoDescription || '').trim(),
     img: payload.imageUrl || null,
+    calt: (payload.coverAlt || '').trim(),
+    cdec: Boolean(payload.coverDecorative),
     comm: Boolean(payload.allowComments),
     ann: Boolean(payload.allowPublicAnnotations),
     dl: Boolean(payload.allowDownload),

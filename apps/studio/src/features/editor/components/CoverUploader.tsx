@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { ImageIcon, Loader2, Trash2 } from 'lucide-react';
+import { ImageIcon, ImageOff, Loader2, Trash2 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
 import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
 import {
   ImageEditorDialog,
   type ImageEditorPreset,
@@ -14,6 +15,12 @@ import {
 export interface CoverUploaderProps {
   imageUrl: string | null;
   title: string;
+  /** Description alternative de la couverture (B4). */
+  coverAlt?: string;
+  /** Couverture décorative : le reader pose alt="" sans repli sur le titre. */
+  coverDecorative?: boolean;
+  onCoverAltChange?: (value: string) => void;
+  onCoverDecorativeChange?: (value: boolean) => void;
   isUploading: boolean;
   onUpload: (file: File) => void;
   onRemove: () => void;
@@ -22,6 +29,10 @@ export interface CoverUploaderProps {
 export function CoverUploader({
   imageUrl,
   title,
+  coverAlt = '',
+  coverDecorative = false,
+  onCoverAltChange,
+  onCoverDecorativeChange,
   isUploading,
   onUpload,
   onRemove,
@@ -107,7 +118,7 @@ export function CoverUploader({
           {/* eslint-disable-next-line @next/next/no-img-element -- URL utilisateur distante arbitraire, non déclarable dans next.config. */}
           <img
             src={imageUrl}
-            alt={title || t`Couverture de l'article`}
+            alt={coverDecorative ? '' : coverAlt.trim() || title || t`Couverture de l'article`}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.01]"
           />
 
@@ -170,6 +181,49 @@ export function CoverUploader({
           </Button>
         </div>
       )}
+
+      {imageUrl && onCoverAltChange && onCoverDecorativeChange ? (
+        <div className="space-y-2 rounded-xl border border-border/50 bg-muted/10 p-3">
+          <label htmlFor="cover-alt" className="block space-y-1">
+            <span className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+              {t`Description de la couverture (alt)`}
+            </span>
+            <Input
+              id="cover-alt"
+              type="text"
+              size="sm"
+              value={coverDecorative ? '' : coverAlt}
+              disabled={coverDecorative}
+              onChange={(event) => onCoverAltChange(event.target.value)}
+              placeholder={
+                coverDecorative
+                  ? t`Couverture décorative : aucune description nécessaire`
+                  : t`Décrivez la couverture pour les lecteurs d'écran`
+              }
+            />
+          </label>
+          {!coverDecorative && !coverAlt.trim() ? (
+            <p className="flex items-center gap-1 text-[10px] font-medium text-highlight">
+              <ImageOff className="size-3 shrink-0" aria-hidden="true" />
+              {t`Alt manquant : le titre sera utilisé comme repli.`}
+            </p>
+          ) : null}
+          <label className="flex cursor-pointer items-start gap-2 text-[11px] text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={coverDecorative}
+              onChange={(event) => onCoverDecorativeChange(event.target.checked)}
+              className="mt-0.5 size-3.5 rounded border-border accent-primary"
+            />
+            <span>
+              {t`Image purement décorative`}
+              <span className="block text-[10px] text-muted-foreground/70">
+                {t`Le reader ne l'annoncera pas aux lecteurs d'écran (alt vide).`}
+              </span>
+            </span>
+          </label>
+        </div>
+      ) : null}
 
       <ImageEditorDialog
         open={Boolean(pendingImage)}
