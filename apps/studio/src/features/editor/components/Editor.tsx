@@ -2128,6 +2128,16 @@ export function Editor({
     });
   }, [slug, subdomain, articlePath]);
 
+  const resolveInternalArticleUrl = useCallback(
+    (hit: { slug: string; categoryId: string | null }) => {
+      const path = `${resolveArticleCategoryPath(categories, hit.categoryId)}/${hit.slug}`;
+      if (!subdomain) return path;
+      const host = typeof window !== 'undefined' ? window.location.host : undefined;
+      return resolveAppUrl('tenant', host, { subdomain, path });
+    },
+    [categories, subdomain]
+  );
+
   const handleAnnotationButton = () => {
     if (!editor) return;
     if (editor.isActive('annotationMark')) {
@@ -2617,6 +2627,7 @@ export function Editor({
       />
 
       <LinkEditorPanel
+        resolveArticleUrl={resolveInternalArticleUrl}
         open={Boolean(linkPopover)}
         position={linkPopover}
         value={linkUrl}
