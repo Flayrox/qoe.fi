@@ -7,7 +7,7 @@
 > **Instructions utilisateur :** la section [« 📝 Instructions »](#-instructions)
 > est prioritaire sur le reste.
 
-Dernière mise à jour : 2026-11-11 · branche `main` · dernier commit éditeur `63cf082f`.
+Dernière mise à jour : 2026-11-15 · branche `dev` · dernier commit éditeur `6dc8a5e7`.
 
 ---
 
@@ -62,10 +62,13 @@ pnpm --filter @qoe/ui exec vitest run src/annotations/__tests__/canonical-articl
 git diff --check
 ```
 
-Les tests éditeur comptent **11 fichiers / 53 tests**. La lettrine a été
-contrôlée visuellement dans le CSS partagé (flottant à gauche, texte qui
-l’épouse, `text-indent: 0` avec alinéa) ; les gestes tactiles et les
-combinaisons clavier réelles restent à valider.
+Les tests éditeur comptent **18 fichiers / 103 tests** (mesure du 2026-11-15,
+commit `6dc8a5e7`). La lettrine a été contrôlée visuellement dans le CSS
+partagé (flottant à gauche, texte qui l’épouse, `text-indent: 0` avec alinéa) ;
+les gestes tactiles et les combinaisons clavier réelles restent à valider.
+
+Dernier lot vérifié : `tsc` 0 · `eslint` 0 · `vitest src/features/editor`
+103/103 · `canonical-article-body` 24/24 · `next build` OK.
 
 ## 3. Audit d’ergonomie
 
@@ -147,38 +150,52 @@ combinaisons clavier réelles restent à valider.
 - [x] **A3.** Motif ARIA toolbar : un seul arrêt de tabulation pour la barre,
       flèches, `Home`/`End`, focus visible conservé ; helper testé
       (`8495cb3d`).
-- [ ] **A4.** Centraliser l’affichage `⌘` / `Ctrl` pour l’enregistrement, le lien
-      et l’annotation, comme le fait déjà `useModKey` dans la barre d’outils.
-- [ ] **A5.** Ajouter une aide des raccourcis de l’éditeur (panneau `?` ou menu).
+- [x] **A4.** Affichage `⌘` / `Ctrl` centralisé dans `hooks/useModKey.ts` pour
+      l’enregistrement, le lien, l’annotation et la barre d’outils (commit
+      `433ba30c`).
+- [x] **A5.** Aide des raccourcis dans `EditorShortcutsPanel`, ouverte depuis la
+      barre de statut (commit `433ba30c`).
 
 ### Lot B — médias (priorité haute)
 
 - [x] **B1.** Images de galerie sélectionnables et éditables : alt,
       déplacement et retrait (commit `2412f4b4`).
-- [ ] **B2.** Afficher un repère « Alt manquant » sur chaque image concernée
-      dans l’éditeur, avec accès direct au panneau de détails.
+- [x] **B2.** Repère « Alt manquant » posé par la décoration `AltCoverage`
+      (cadre ambre, badge cliquable sur les images seules), compteur dans la
+      barre de statut et accès direct au panneau de détails (commits
+      `433ba30c`, `6dc8a5e7`).
 - [x] **B3.** Actions de couverture accessibles au tactile et au focus clavier
       (commit `fcf13e44`).
 - [ ] **B4.** Permettre un vrai alt de couverture ou une option « décorative ».
-- [ ] **B5.** Ajouter « Remplacer l’image » en conservant alt, légende et crédit.
+      _Reporté : aucune colonne `coverAlt` n’existe ; ce lot demande une
+      migration et une route Go, hors du périmètre front de `433ba30c`._
+- [x] **B5.** « Remplacer » dans `ImageDetailsPanel` : le fichier est compressé
+      et uploadé, seul `src` change ; alt, légende et crédit sont conservés,
+      même si la sélection a bougé pendant l’upload (commit `433ba30c`).
 
 ### Lot C — annotations et tactile (priorité moyenne)
 
 - [x] **C0.** Panneau d’annotation refondu : bandeau, citation et actions
       séparées (commit `0a84e005`).
-- [ ] **C1.** Traduire et adapter le `title` de la marque : tap sur tactile,
-      `Alt`/`Option` à la souris.
-- [ ] **C2.** Rendre explicite le retour à l’édition du texte annoté (action
-      dédiée ou appui long documenté).
-- [ ] **C3.** Détecter le type de pointeur par événement pour préserver le snap
-      de début de ligne à la souris sur les appareils hybrides.
+- [x] **C1.** Le `title` n’est plus écrit dans le HTML publié : l’éditeur le
+      pose au survol, dans la langue active et selon le pointeur (`Touchez…`
+      ou `Option/Alt+clic…`). Le lecteur garde son propre libellé (commit
+      `433ba30c`).
+- [x] **C2.** « Modifier le texte » dans `AnnotationNotePanel` : referme la
+      note, replace la sélection sur le passage et rend le focus à l’éditeur
+      (commit `433ba30c`).
+- [x] **C3.** Type de pointeur lu sur `pointerdown` (`mouse`, `touch`, `pen`)
+      et non plus via `matchMedia('(pointer: coarse)')` ; le snap de début de
+      ligne reste actif à la souris sur un appareil hybride (commit
+      `433ba30c`).
 - [ ] **C4.** Permettre de déplier une citation d’annotation longue.
 
 ### Lot D — confort (priorité basse)
 
 - [ ] **D1.** Progression par fichier et annulation d’un upload de galerie.
-- [ ] **D2.** Vérifier la sélection d’image au clavier et l’accès aux détails
-      sans souris.
+- [x] **D2.** `↑`/`↓` aux bords d’un bloc sélectionnent l’image voisine
+      (`lib/image-navigation.ts`, testé) ; `Entrée` ouvre ses détails. Le
+      badge et le compteur donnent le même accès (commit `433ba30c`).
 
 ## 5. Décisions ouvertes
 
@@ -203,7 +220,7 @@ git diff --check
 
 - test `Tab`/`Shift-Tab` dans une liste et un bloc de code ;
 - test d’édition d’une image de galerie ;
-- test du repère alt manquant ;
+- ~~test du repère alt manquant~~ (fait dans `alt-coverage.test.ts`) ;
 - vérification navigateur des gestes souris/tactile (à faire plus tard, comme convenu).
 
 ## 7. Protocole de reprise
@@ -343,6 +360,38 @@ souveraine » :
   - Déclaration explicite des sous-exports server actions manquants dans `@qoe/sdk/package.json`.
   - Exclusion ciblée de `src/app/dev/**` dans la configuration de couverture pour éviter les artefacts de parsing Rolldown/V8.
   - Typage strict validé (`tsc --noEmit` à 0 erreur sur tout le monorepo et `eslint` à 0 erreur).
+
+### Correctifs éditeur (2026-11-15)
+
+Lot `433ba30c` + verrouillage `6dc8a5e7` — clavier, médias et annotations.
+
+- **A4/A5** : `useModKey` partagé (barre d’outils, en-tête, statut, lien,
+  annotation) et panneau `EditorShortcutsPanel` ouvert depuis la barre de
+  statut. Les raccourcis affichés sont ceux réellement branchés.
+- **B2** : extension `AltCoverage` (décoration ProseMirror, aucun nœud ajouté
+  au document) : cadre ambre sur les images sans alt, badge « Alt manquant »
+  sur les images seules, compteur « N images sans alt » dans la barre de
+  statut. Un clic sur le badge ou le compteur sélectionne l’image et ouvre
+  `ImageDetailsPanel`. La règle de document est partagée par les trois
+  chemins (`lib/alt-coverage.ts`) et testée.
+- **B5** : bouton « Remplacer » ; compression + upload, puis
+  `updateAttributes` sur `src` seulement. La position du nœud est capturée à
+  l’ouverture du panneau pour ne pas modifier une autre image si la sélection
+  bouge.
+- **C1** : plus de `title` figé dans le HTML enregistré ; l’éditeur pose un
+  titre i18n au survol, adapté au pointeur. Le lecteur garde son libellé.
+- **C2** : action « Modifier le texte » dans la note d’auteur.
+- **C3** : type de pointeur par événement, avec repli sur la media query
+  seulement si aucun `pointerdown` n’a été observé.
+- **D2** : navigation clavier vers l’image voisine et ouverture des détails
+  par `Entrée`, couvertes par `image-navigation.test.ts`.
+
+Vérifié : `pnpm --filter @qoe/studio typecheck` 0 · `eslint
+apps/studio/src/features/editor --max-warnings=0` 0 · `vitest
+src/features/editor` 103 tests / 18 fichiers · `canonical-article-body`
+24 tests · `next build` OK. Les gestes réels (souris, tactile, badge) n’ont
+pas été rejoués dans un navigateur : contrôle visuel encore à faire, comme
+convenu pour ce chantier.
 
 ---
 
