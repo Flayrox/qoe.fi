@@ -27,6 +27,7 @@ export * from './actions/highlights';
 export * from './actions/ai';
 export * from './actions/ebooks';
 export * from './actions/entitlements';
+export * from './actions/billing';
 export * from './actions/appeals';
 export * from './actions/support';
 export * from './actions/recommendations';

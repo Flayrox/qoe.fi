@@ -23,6 +23,12 @@ import (
 type Handler struct {
 	client        *asynq.Client
 	webhookSecret string
+
+	// Billing : renseignés par SetBilling (nil = 503 explicite côté routes).
+	svc           *Service
+	stripe        *StripeClient
+	plusPriceID   string
+	returnBaseURL string
 }
 
 func NewHandler(client *asynq.Client, webhookSecret string) *Handler {
@@ -34,8 +40,11 @@ func NewHandler(client *asynq.Client, webhookSecret string) *Handler {
 // gestion monte aussi /v1/webhooks — deux sous-arbres sur le même chemin font
 // paniquer chi au démarrage (vérifié par le smoke test du routeur).
 func (h *Handler) Register(r chi.Router) {
-	r.Post("/v1/webhooks/stripe", h.stripe)
+	r.Post("/v1/webhooks/stripe", h.stripeWebhook)
 	r.Post("/v1/webhooks/supabase", h.supabase)
+	// Formules publiques : le paywall des sites créateurs les affiche sans
+	// session (même contrat public que le prix d'un article).
+	r.Get("/v1/billing/tiers", h.listTiers)
 }
 
 // verifySignature vérifie le header Stripe-Signature (t=…,v1=…) avec HMAC-SHA256
@@ -83,7 +92,7 @@ func hmacSHA256(secret string, payload []byte) string {
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
-func (h *Handler) stripe(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) stripeWebhook(w http.ResponseWriter, r *http.Request) {
 	rawBody, err := io.ReadAll(r.Body)
 	if err != nil {
 		response.BadRequest(w, "corps invalide")

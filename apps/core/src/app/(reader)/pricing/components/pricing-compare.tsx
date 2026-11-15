@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { routes } from '@qoe/config/routes';
 import { useFlag } from '@qoe/flags';
+import { PlusCheckoutButton } from './plus-checkout-button';
 
 type Level = 'free' | 'plus' | 'soon';
 
@@ -168,13 +169,7 @@ export function PricingCompare({ supportUrl }: { supportUrl: string }) {
 
           <div className="mt-6 pt-4 border-t border-border/40 space-y-2">
             {isCheckoutEnabled ? (
-              <button
-                type="button"
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground shadow-xs hover:opacity-90 transition-opacity cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                Souscrire à Qoefi Plus (3,99 €/mois)
-              </button>
+              <PlusCheckoutButton />
             ) : (
               <>
                 <a

@@ -49,3 +49,43 @@ plateforme peut vivre et concurrencer Substack/Medium.
 - Rien n'est encore modifié à cette étape.
 
 <!-- Les comptes rendus de chaque lot sont ajoutés ci-dessous, du plus ancien au plus récent. -->
+
+### 2026-11-15 — lot 1 : encaissement (socle livré)
+
+Ce qui est en place :
+
+- Client Stripe HTTP minimal (`modules/billing/stripe.go`) : session Checkout
+  en mode abonnement, portail de facturation, metadata dupliquée session +
+  abonnement, destination Connect et commission.
+- Routes Go : `GET /v1/billing/tiers` (public, pour le paywall),
+  `POST /v1/billing/checkout`, `POST /v1/billing/portal`,
+  `POST /v1/billing/tiers` (création réservée au gestionnaire de la publication).
+- Webhook : `checkout.session.completed` (abonnement publication **ou** bundle
+  Plus) et `customer.subscription.updated`. Correction au passage : les
+  handlers lisaient `data["metadata"]` alors que Stripe envoie
+  `data.object.metadata` — `stripeObject()` accepte les deux formes.
+- Plus = `SubscriptionGrant` (source unique des droits, un mois par paiement) ;
+  publication = `Subscriber` premium + `stripeCustomerId`/
+  `stripeSubscriptionId`/`tierId`. **Aucune migration.**
+- Studio : page `/monetization` (catalogue, création de formule, portail),
+  entrée sidebar + Cmd+K.
+- Core : le CTA « Souscrire à Qoefi Plus » appelle réellement Checkout ;
+  tenants : le CTA « Membre Premium » appelle Checkout et affiche le prix du
+  catalogue (plus de montant codé en dur).
+
+Configuration attendue : `STRIPE_SECRET_KEY`, `STRIPE_PLUS_PRICE_ID`,
+`BILLING_RETURN_BASE_URL` (défaut `NEXT_PUBLIC_APP_URL`). Sans clé, les routes
+répondent 503 explicite.
+
+Vérifications : `go build ./...`, `go test ./internal/modules/billing
+./internal/config`, `pnpm --filter {sdk,studio,core,tenants,config} typecheck`.
+
+À faire ensuite :
+
+- Test de bout en bout en mode test Stripe (checkout → webhook → droit visible).
+- Commission Pro à 5 % : le handler applique 10 % fixes, il doit lire `HasPro`.
+- Offre annuelle (le schéma porte `yearlyPriceCents`/`stripePriceIdYearly`).
+- Supprimer ou brancher `packages/sdk/src/hooks/useSubscriptionCheckout.ts`
+  (il vise des routes `/api/billing/*` qui n'existent pas).
+- Le portail ne retrouve le client que via un abonnement existant : prévoir un
+  vrai lien `User → stripeCustomerId` en phase 2.

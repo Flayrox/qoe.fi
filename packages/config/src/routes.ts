@@ -18,6 +18,7 @@ const studioRoutes = {
   },
   analytics: () => '/analytics',
   audience: () => '/audience',
+  monetization: () => '/monetization',
   newsletters: () => '/newsletters',
   settings: () => '/settings',
   developer: () => '/developer',
