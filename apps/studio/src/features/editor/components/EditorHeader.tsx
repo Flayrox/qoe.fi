@@ -25,6 +25,7 @@ import { t } from '@lingui/core/macro';
 import { Button, buttonClasses } from '@qoe/ui/button';
 import type { EditorCapabilities } from '@qoe/sdk/actions/articles';
 import type { AutoSaveStatus } from '@qoe/sdk';
+import { useModKey } from '../hooks/useModKey';
 
 export interface EditorHeaderProps {
   isNew: boolean;
@@ -86,6 +87,7 @@ function SaveState({
   | 'lastSaved'
   | 'onRetryAutoSave'
 >) {
+  const MOD = useModKey();
   if (isSaving || autoSaveStatus === 'saving') {
     return (
       <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -121,7 +123,7 @@ function SaveState({
   if (hasUnsavedChanges) {
     return (
       <span className="text-[11px] whitespace-nowrap text-muted-foreground">
-        {t`Modifications en cours… (⌘S)`}
+        {t`Modifications en cours… (${MOD}S)`}
       </span>
     );
   }

@@ -7,7 +7,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { CharacterCount, Placeholder } from '@tiptap/extensions';
 import Collaboration from '@tiptap/extension-collaboration';
 import { CollaborationCaret } from '@tiptap/extension-collaboration-caret';
-import { TextSelection, type Transaction } from '@tiptap/pm/state';
+import { NodeSelection, TextSelection, type Transaction } from '@tiptap/pm/state';
 import type { EditorView } from '@tiptap/pm/view';
 import type { MarkType, Node as ProseMirrorNode } from '@tiptap/pm/model';
 import {
@@ -37,6 +37,7 @@ import { AnnotationMark } from '../extensions/AnnotationMark';
 import { ParagraphFormatting } from '../extensions/ParagraphFormatting';
 import { NavigableListKeymap, NavigableListItem } from '../extensions/NavigableLists';
 import { ImageGallery, GalleryImage } from '../extensions/ImageGallery';
+import { AltCoverage, ALT_DETAILS_EVENT } from '../extensions/AltCoverage';
 import { useCollaborationSession } from '../hooks/useCollaborationSession';
 import { computePayloadHash } from '../lib/payload-hash';
 import {
@@ -47,6 +48,7 @@ import {
 import { currentTimeZoneLabel, toDateTimeLocalValue } from '../lib/datetime';
 import { normalizeLinkUrl } from '../lib/link';
 import { countImagesWithoutAlt } from '../lib/accessibility';
+import { adjacentImagePosition } from '../lib/image-navigation';
 import type { ArticleAttributionDraft } from './ArticleAttributionEditor';
 import { EditorHeader } from './EditorHeader';
 import { EditorStatusBar } from './EditorStatusBar';
@@ -62,6 +64,7 @@ import { ArticleDiffModal } from './ArticleDiffModal';
 import { ArticleHistoryModal } from './ArticleHistoryModal';
 import { RecoverArticleModal } from './RecoverArticleModal';
 import { PastedAnnotationsDialog, type DetectedBracketAnnotation } from './PastedAnnotationsDialog';
+import { EditorShortcutsPanel } from './EditorShortcutsPanel';
 
 const BRACKET_ANNOTATION_TEST_REGEX = /\{([^{}\n]+?)\}\s*\(([^()\n]+?)\)/;
 const BRACKET_ANNOTATION_GLOBAL_REGEX = /\{([^{}\n]+?)\}\s*\(([^()\n]+?)\)/g;
@@ -351,6 +354,7 @@ export function Editor({
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [publishWarnings, setPublishWarnings] = useState<string[]>([]);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const [showAuthorAnnotationModal, setShowAuthorAnnotationModal] = useState(false);
   const [linkPopover, setLinkPopover] = useState<{ top: number; left: number } | null>(null);
   const [linkUrl, setLinkUrl] = useState('');
@@ -365,6 +369,10 @@ export function Editor({
     credit: '',
   });
   const [imageDetailsTarget, setImageDetailsTarget] = useState<'image' | 'galleryImage'>('image');
+  // Position du nœud au moment où le panneau s'ouvre : une pièce jointe peut
+  // arriver après un clic ailleurs, et `updateAttributes` suivrait alors la
+  // nouvelle sélection au lieu de l'image d'origine.
+  const imageDetailsNodePosRef = useRef<number | null>(null);
   const [authorNoteInput, setAuthorNoteInput] = useState('');
   const [selectedQuoteForAnnotation, setSelectedQuoteForAnnotation] = useState('');
   const [annotationToast, setAnnotationToast] = useState<string | null>(null);
@@ -389,12 +397,16 @@ export function Editor({
 
   const bodyImageInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const replaceImageInputRef = useRef<HTMLInputElement>(null);
   const toolbarSentinelRef = useRef<HTMLDivElement>(null);
   const openAnnotationPopoverRef = useRef<(text?: string, existingNote?: string) => void>(() => {});
   const openLinkPopoverRef = useRef<() => void>(() => {});
   const openImageDetailsRef = useRef<() => void>(() => {});
   // Position du dernier mousedown : distingue un clic simple d'un glisser.
   const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
+  // Type du dernier pointeur réel (`mouse`, `touch`, `pen`). Une media query
+  // globale ne suffit pas : les appareils hybrides alternent les deux.
+  const lastPointerTypeRef = useRef<string | null>(null);
   // Sélection capturée à l'ouverture du panneau : le focus passe au textarea,
   // mais la note doit s'appliquer au passage d'origine, pas au curseur perdu.
   const annotationRangeRef = useRef<{ from: number; to: number } | null>(null);
@@ -567,6 +579,7 @@ export function Editor({
       }),
       ImageGallery,
       GalleryImage,
+      AltCoverage,
       ...(collaborationDoc
         ? [
             Collaboration.configure({ document: collaborationDoc, field: 'default' }),
@@ -590,6 +603,10 @@ export function Editor({
         class: 'qoe-editor article-prose max-w-none text-foreground font-sans',
       },
       handleDOMEvents: {
+        pointerdown: (_view, event) => {
+          lastPointerTypeRef.current = event.pointerType || null;
+          return false;
+        },
         mousedown: (_view, event) => {
           pointerDownRef.current = { x: event.clientX, y: event.clientY };
           return false;
@@ -614,10 +631,16 @@ export function Editor({
         // Sur un écran tactile, Alt+clic n'existe pas : un tap sur une
         // annotation ouvre directement sa note. On garde le snap de début de
         // ligne pour la souris, où il est réellement utile.
+        // Le type vient de l'événement (`pointerdown`), pas d'une media query
+        // globale : sur un appareil hybride, une souris doit conserver le snap
+        // de début de ligne même si l'écran est tactile.
+        const lastPointerType = lastPointerTypeRef.current;
         const coarsePointer =
-          typeof window !== 'undefined' &&
-          typeof window.matchMedia === 'function' &&
-          window.matchMedia('(pointer: coarse)').matches;
+          lastPointerType !== null
+            ? lastPointerType === 'touch' || lastPointerType === 'pen'
+            : typeof window !== 'undefined' &&
+              typeof window.matchMedia === 'function' &&
+              window.matchMedia('(pointer: coarse)').matches;
 
         if (!coarsePointer) {
           // Marge de manœuvre au début d'une ligne visuelle.
@@ -668,6 +691,52 @@ export function Editor({
         return false;
       },
       handleKeyDown: (view, event) => {
+        // ⬆️/⬇️ aux bords d'un bloc : sélectionner l'image voisine comme un
+        // nœud, pour ouvrir ses détails sans souris.
+        if (
+          (event.key === 'ArrowUp' || event.key === 'ArrowDown') &&
+          !event.shiftKey &&
+          !event.altKey &&
+          !event.metaKey &&
+          !event.ctrlKey
+        ) {
+          const { selection } = view.state;
+          if (selection.empty && !(selection instanceof NodeSelection)) {
+            const $pos = selection.$from;
+            const atStart = $pos.parentOffset === 0;
+            const atEnd = $pos.parentOffset === $pos.parent.content.size;
+            const direction = event.key === 'ArrowUp' ? 'before' : 'after';
+            if ((direction === 'before' && atStart) || (direction === 'after' && atEnd)) {
+              const imagePos = adjacentImagePosition($pos, direction);
+              if (imagePos !== null) {
+                event.preventDefault();
+                view.dispatch(
+                  view.state.tr.setSelection(NodeSelection.create(view.state.doc, imagePos))
+                );
+                return true;
+              }
+            }
+          }
+        }
+
+        // Entrée sur une image sélectionnée ouvre ses détails (alt, légende,
+        // crédit) sans passer par la barre d'outils.
+        if (
+          event.key === 'Enter' &&
+          !event.shiftKey &&
+          !event.altKey &&
+          !event.metaKey &&
+          !event.ctrlKey &&
+          view.state.selection instanceof NodeSelection
+        ) {
+          const { node } = view.state.selection;
+          if (node.type.name === 'image' || node.type.name === 'galleryImage') {
+            event.preventDefault();
+            openImageDetailsRef.current();
+            return true;
+          }
+        }
+
         if (
           (event.metaKey || event.ctrlKey) &&
           !event.shiftKey &&
@@ -1106,18 +1175,30 @@ export function Editor({
   // ─── Détails d'image (alt, légende, crédit) ────────────────────────────
   const openImageDetails = useCallback(() => {
     if (!editor) return;
-    const target: 'image' | 'galleryImage' | null = editor.isActive('galleryImage')
-      ? 'galleryImage'
-      : editor.isActive('image')
-        ? 'image'
-        : null;
+    // Une image sélectionnée au clavier ou par le badge est un `NodeSelection` :
+    // lire son type directement évite de dépendre de `isActive` sur une
+    // sélection non vide.
+    const selectedNode =
+      editor.state.selection instanceof NodeSelection ? editor.state.selection.node : null;
+    const selectedType = selectedNode?.type.name;
+    const target: 'image' | 'galleryImage' | null =
+      selectedType === 'galleryImage'
+        ? 'galleryImage'
+        : selectedType === 'image'
+          ? 'image'
+          : editor.isActive('galleryImage')
+            ? 'galleryImage'
+            : editor.isActive('image')
+              ? 'image'
+              : null;
     if (!target) {
       setAnnotationToast(t`Sélectionnez une image pour renseigner sa légende.`);
       setTimeout(() => setAnnotationToast(null), 3000);
       return;
     }
 
-    const attributes = editor.getAttributes(target);
+    const attributes = selectedNode?.attrs ?? editor.getAttributes(target);
+    imageDetailsNodePosRef.current = editor.state.selection.from;
     setImageDetailsTarget(target);
     setImageDetails({
       alt: (attributes.alt as string) || '',
@@ -1169,6 +1250,49 @@ export function Editor({
     }
   }, [editor, imageDetailsTarget]);
 
+  const handleReplaceImage = useCallback(
+    async (file: File) => {
+      if (!editor) return;
+      const target = imageDetailsTarget;
+      const pos = imageDetailsNodePosRef.current;
+
+      try {
+        setIsUploading(true);
+        setError(null);
+        const compressed = await compressImage(file);
+        const url = await uploadImageToRoute(
+          compressed,
+          '/api/articles/upload',
+          IMAGE_FOLDERS.articles
+        );
+
+        // On ne touche qu'à `src` : alt, légende et crédit restent intacts.
+        // La position capturée à l'ouverture évite de modifier une autre
+        // image si la sélection a bougé pendant l'upload.
+        const node = pos !== null ? editor.state.doc.nodeAt(pos) : null;
+        const chain = editor.chain().focus();
+        if (
+          node &&
+          pos !== null &&
+          (node.type.name === 'image' || node.type.name === 'galleryImage')
+        ) {
+          chain.setNodeSelection(pos).updateAttributes(target, { src: url }).run();
+        } else {
+          chain.updateAttributes(target, { src: url }).run();
+        }
+
+        setHasUnsavedChanges(true);
+        setImageDetailsPosition(null);
+        toast.success(t`Image remplacée`);
+      } catch (err: unknown) {
+        setError(getErrorMessage(err, t`Échec du remplacement de l'image.`));
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [editor, imageDetailsTarget]
+  );
+
   const saveImageDetails = useCallback(() => {
     if (!editor) return;
     const attributes =
@@ -1182,6 +1306,28 @@ export function Editor({
     editor.chain().focus().updateAttributes(imageDetailsTarget, attributes).run();
     setImageDetailsPosition(null);
   }, [editor, imageDetails, imageDetailsTarget]);
+
+  // B2 : la première image sans alt, pour le compteur de la barre de statut.
+  const handleFixAltMissing = useCallback(() => {
+    if (!editor) return;
+    const missingPositions: number[] = [];
+    editor.state.doc.descendants((node, pos) => {
+      if (missingPositions.length > 0) return false;
+      if (
+        (node.type.name === 'image' || node.type.name === 'galleryImage') &&
+        !String(node.attrs.alt ?? '').trim()
+      ) {
+        missingPositions.push(pos);
+        return false;
+      }
+      return true;
+    });
+
+    const targetPos = missingPositions[0];
+    if (targetPos === undefined) return;
+    editor.chain().focus().setNodeSelection(targetPos).run();
+    openImageDetails();
+  }, [editor, openImageDetails]);
 
   const closeAnnotationPanel = useCallback(() => {
     setShowAuthorAnnotationModal(false);
@@ -1228,6 +1374,25 @@ export function Editor({
     setAuthorNoteInput('');
     closeAnnotationPanel();
   };
+
+  // C2 : referme la note et replace la sélection sur le passage annoté, pour
+  // que le texte redevienne immédiatement modifiable au clavier.
+  const handleEditAnnotatedText = useCallback(() => {
+    if (!editor) return;
+    const range = annotationRangeRef.current;
+    setShowAuthorAnnotationModal(false);
+    setAuthorNoteInput('');
+    if (range) {
+      const { doc } = editor.state;
+      const from = Math.max(0, Math.min(range.from, doc.content.size));
+      const to = Math.max(from, Math.min(range.to, doc.content.size));
+      if (from < to) {
+        editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(doc, from, to)));
+      }
+    }
+    annotationRangeRef.current = null;
+    editor.view.focus();
+  }, [editor]);
 
   // ─── Chargement du document (local ou partagé) ─────────────────────────
   // Sans collaboration, le contenu initial est déjà dans l'éditeur. Avec
@@ -1803,6 +1968,42 @@ export function Editor({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // C1 : l'infobulle d'une annotation dépend du pointeur réel et de la locale
+  // active. Le HTML enregistré garde, lui, un titre neutre.
+  useEffect(() => {
+    if (!editor) return;
+    const dom = editor.view.dom;
+    const handlePointerOver = (event: PointerEvent) => {
+      const mark = (event.target as HTMLElement | null)?.closest<HTMLElement>(
+        'mark[data-annotation-note]'
+      );
+      if (!mark) return;
+      const note = mark.getAttribute('data-annotation-note') || '';
+      const hint =
+        event.pointerType === 'touch' || event.pointerType === 'pen'
+          ? t`Touchez pour ouvrir la note`
+          : t`Option/Alt+clic pour modifier`;
+      mark.title = note ? t`Annotation d'auteur : ${note} — ${hint}` : hint;
+    };
+    dom.addEventListener('pointerover', handlePointerOver);
+    return () => dom.removeEventListener('pointerover', handlePointerOver);
+  }, [editor]);
+
+  // B2 : le badge « Alt manquant » est une décoration, pas un nœud du document.
+  // Il demande l'ouverture du panneau de détails par un événement DOM.
+  useEffect(() => {
+    if (!editor) return;
+    const dom = editor.view.dom;
+    const handleAltDetails = (event: Event) => {
+      const detail = (event as CustomEvent<{ pos?: number }>).detail;
+      if (typeof detail?.pos !== 'number') return;
+      editor.chain().focus().setNodeSelection(detail.pos).run();
+      openImageDetailsRef.current();
+    };
+    dom.addEventListener(ALT_DETAILS_EVENT, handleAltDetails as EventListener);
+    return () => dom.removeEventListener(ALT_DETAILS_EVENT, handleAltDetails as EventListener);
+  }, [editor]);
+
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (hasUnsavedChanges) {
@@ -1842,6 +2043,7 @@ export function Editor({
 
   const handleEditorGutterPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!editor || !editor.view) return;
+    lastPointerTypeRef.current = event.pointerType || null;
     if (event.button !== 0 || event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) {
       return;
     }
@@ -2137,6 +2339,18 @@ export function Editor({
                 event.target.value = '';
               }}
             />
+            <input
+              ref={replaceImageInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              aria-label={t`Remplacer l'image`}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void handleReplaceImage(file);
+                event.target.value = '';
+              }}
+            />
 
             <EditorToolbar
               editor={editor}
@@ -2157,7 +2371,12 @@ export function Editor({
                 onLink={openLinkPopover}
                 onAnnotation={handleAnnotationButton}
               />
-              <EditorStatusBar editor={editor} onOpenAnnotation={handleAnnotationButton} />
+              <EditorStatusBar
+                editor={editor}
+                onOpenAnnotation={handleAnnotationButton}
+                onFixAltMissing={handleFixAltMissing}
+                onOpenShortcuts={() => setShowShortcuts(true)}
+              />
             </div>
           </div>
         </div>
@@ -2252,6 +2471,7 @@ export function Editor({
         onSave={handleSaveAnnotation}
         onDelete={handleDeleteAnnotation}
         onClose={closeAnnotationPanel}
+        onEditText={handleEditAnnotatedText}
         canDelete={Boolean(editor?.isActive('annotationMark'))}
       />
 
@@ -2276,7 +2496,10 @@ export function Editor({
         onSave={saveImageDetails}
         onClose={() => setImageDetailsPosition(null)}
         onCrop={handleCropExistingImage}
+        onReplace={() => replaceImageInputRef.current?.click()}
       />
+
+      <EditorShortcutsPanel open={showShortcuts} onClose={() => setShowShortcuts(false)} />
 
       <PublishModal
         isOpen={isPublishModalOpen}

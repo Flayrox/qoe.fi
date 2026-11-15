@@ -6,6 +6,7 @@ import { Button } from '@qoe/ui/button';
 import { FieldError } from '@qoe/ui/field-error';
 import { Input } from '@qoe/ui/input';
 import { PopoverPanel } from '@qoe/ui/popover-panel';
+import { useModKey } from '../hooks/useModKey';
 
 export interface LinkEditorPanelProps {
   open: boolean;
@@ -37,6 +38,7 @@ export function LinkEditorPanel({
   canRemove,
   error,
 }: LinkEditorPanelProps) {
+  const MOD = useModKey();
   return (
     <PopoverPanel open={open} onClose={onClose} label={t`Lien`} anchor={position}>
       <div className="flex items-center justify-between gap-2">
@@ -92,7 +94,7 @@ export function LinkEditorPanel({
             {t`Retirer`}
           </Button>
         ) : (
-          <span className="text-[10px] text-muted-foreground/70">{t`⌘K`}</span>
+          <span className="text-[10px] text-muted-foreground/70">{t`${MOD}K`}</span>
         )}
 
         <div className="flex items-center gap-2">

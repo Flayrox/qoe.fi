@@ -36,10 +36,12 @@ export const AnnotationMark = Mark.create<AnnotationMarkOptions>({
         parseHTML: (element) => element.getAttribute('data-annotation-note'),
         renderHTML: (attributes) => {
           if (!attributes.note) return {};
+          // Pas de `title` dans le HTML publié : le geste dépend du pointeur
+          // et le lecteur pose son propre libellé. L'éditeur ajoute le sien
+          // au survol, dans la langue active (C1).
           return {
             'data-annotation-note': attributes.note,
             'data-is-official': 'true',
-            title: `Annotation auteur : ${attributes.note} — Option/Alt+clic pour modifier`,
           };
         },
       },

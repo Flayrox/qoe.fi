@@ -1,9 +1,10 @@
 'use client';
 
-import { Highlighter, Trash2, X } from 'lucide-react';
+import { Highlighter, Pencil, Trash2, X } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import { Button } from '@qoe/ui/button';
 import { PopoverPanel } from '@qoe/ui/popover-panel';
+import { useModKey } from '../hooks/useModKey';
 
 export interface AnnotationNotePanelProps {
   open: boolean;
@@ -14,6 +15,8 @@ export interface AnnotationNotePanelProps {
   onSave: () => void;
   onDelete: () => void;
   onClose: () => void;
+  /** Referme le panneau et replace le curseur dans le passage annoté. */
+  onEditText?: () => void;
   canDelete: boolean;
 }
 
@@ -33,8 +36,10 @@ export function AnnotationNotePanel({
   onSave,
   onDelete,
   onClose,
+  onEditText,
   canDelete,
 }: AnnotationNotePanelProps) {
+  const MOD = useModKey();
   return (
     <PopoverPanel
       open={open}
@@ -95,23 +100,31 @@ export function AnnotationNotePanel({
               className="min-h-24 w-full resize-none rounded-xl border border-border/60 bg-background p-3 font-sans text-xs leading-relaxed text-foreground transition-all placeholder:text-muted-foreground/40 focus:border-highlight/60 focus:ring-1 focus:ring-highlight/30 focus:outline-none"
             />
             <div className="mt-1.5 flex items-center justify-between gap-3 text-[10px] text-muted-foreground/70">
-              <span>{t`⌘ + Entrée pour enregistrer`}</span>
+              <span>{t`${MOD} + Entrée pour enregistrer`}</span>
               <span className="tabular-nums">{note.length} car.</span>
             </div>
           </div>
 
           <div className="flex items-center justify-between gap-3 border-t border-border/30 pt-3">
             {canDelete ? (
-              <Button
-                size="xs"
-                variant="outline"
-                tone="danger"
-                onClick={onDelete}
-                aria-label={t`Supprimer l'annotation`}
-              >
-                <Trash2 />
-                {t`Supprimer`}
-              </Button>
+              <div className="flex items-center gap-1.5">
+                {onEditText ? (
+                  <Button size="xs" variant="ghost" onClick={onEditText}>
+                    <Pencil />
+                    {t`Modifier le texte`}
+                  </Button>
+                ) : null}
+                <Button
+                  size="xs"
+                  variant="outline"
+                  tone="danger"
+                  onClick={onDelete}
+                  aria-label={t`Supprimer l'annotation`}
+                >
+                  <Trash2 />
+                  {t`Supprimer`}
+                </Button>
+              </div>
             ) : (
               <span className="text-[10px] text-muted-foreground/60">
                 {t`Ajoutez une note pour ce passage`}
