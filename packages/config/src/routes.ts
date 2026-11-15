@@ -22,6 +22,7 @@ const studioRoutes = {
   community: () => '/community',
   exportData: () => '/export',
   books: () => '/books',
+  digest: () => '/digest',
   newsletters: () => '/newsletters',
   settings: () => '/settings',
   developer: () => '/developer',
