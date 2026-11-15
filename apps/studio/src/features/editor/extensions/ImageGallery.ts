@@ -31,13 +31,24 @@ export const GalleryImage = Node.create({
 
   addAttributes() {
     return {
-      src: { default: null },
-      alt: { default: '' },
+      src: {
+        default: null,
+        // Sans parseHTML explicite, l'image de galerie perdait son `src`
+        // quand le document était relu depuis son HTML.
+        parseHTML: (element) => element.getAttribute('src'),
+      },
+      alt: {
+        default: '',
+        parseHTML: (element) => element.getAttribute('alt') ?? '',
+      },
     };
   },
 
   parseHTML() {
-    return [{ tag: 'img[data-gallery-image]' }];
+    // Prioritaire sur `img[src]` d'ArticleImage : sinon ProseMirror crée une
+    // image seule à la place de l'enfant de galerie, puis duplique l'image
+    // après la galerie (et la galerie reste vide).
+    return [{ tag: 'img[data-gallery-image]', priority: 60 }];
   },
 
   renderHTML({ HTMLAttributes }) {

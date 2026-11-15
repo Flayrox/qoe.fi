@@ -293,7 +293,7 @@ export function EditorToolbar({
               onClick={() => editor.chain().focus().toggleStrike().run()}
               icon={<Strikethrough className="h-3.5 w-3.5 stroke-2" />}
               label={t`Barré`}
-              shortcut={`${MOD}⇧X`}
+              shortcut={`${MOD}⇧S`}
               disabled={!state.canFormat}
             />
             <ToolbarButton

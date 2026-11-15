@@ -374,6 +374,7 @@ export function Editor({
   // arriver après un clic ailleurs, et `updateAttributes` suivrait alors la
   // nouvelle sélection au lieu de l'image d'origine.
   const imageDetailsNodePosRef = useRef<number | null>(null);
+  const imageDetailsNodeSrcRef = useRef<string | null>(null);
   const [authorNoteInput, setAuthorNoteInput] = useState('');
   const [selectedQuoteForAnnotation, setSelectedQuoteForAnnotation] = useState('');
   const [annotationToast, setAnnotationToast] = useState<string | null>(null);
@@ -1200,6 +1201,7 @@ export function Editor({
 
     const attributes = selectedNode?.attrs ?? editor.getAttributes(target);
     imageDetailsNodePosRef.current = editor.state.selection.from;
+    imageDetailsNodeSrcRef.current = String(attributes.src ?? '');
     setImageDetailsTarget(target);
     setImageDetails({
       alt: (attributes.alt as string) || '',
@@ -1211,8 +1213,17 @@ export function Editor({
     const width = 380;
     const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
     const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 900;
+    // La barre d'outils est sticky : sans cette borne, le panneau s'ouvrait
+    // par-dessus ses boutons quand l'image était en haut de la fenêtre.
+    const toolbar =
+      typeof document !== 'undefined'
+        ? document.querySelector<HTMLElement>('[role="toolbar"]')
+        : null;
+    const maxTop = Math.max(16, viewportHeight - 420);
+    const anchorTop = Math.min(Math.max(16, lineCoords.top), maxTop);
+    const belowToolbar = (toolbar?.getBoundingClientRect().bottom ?? 0) + 8;
     setImageDetailsPosition({
-      top: Math.max(80, Math.min(lineCoords.top, viewportHeight - 420)),
+      top: belowToolbar <= maxTop ? Math.max(anchorTop, belowToolbar) : anchorTop,
       left: Math.max(16, Math.min(viewportWidth - width - 16, lineCoords.left)),
     });
   }, [editor]);
@@ -1256,6 +1267,7 @@ export function Editor({
       if (!editor) return;
       const target = imageDetailsTarget;
       const pos = imageDetailsNodePosRef.current;
+      const originalSrc = imageDetailsNodeSrcRef.current;
 
       try {
         setIsUploading(true);
@@ -1267,20 +1279,34 @@ export function Editor({
           IMAGE_FOLDERS.articles
         );
 
-        // On ne touche qu'à `src` : alt, légende et crédit restent intacts.
         // La position capturée à l'ouverture évite de modifier une autre
-        // image si la sélection a bougé pendant l'upload.
+        // image si la sélection a bougé pendant l'upload. On vérifie aussi que
+        // le nœud est toujours celui d'origine : dans un document partagé,
+        // une position peut glisser et désigner une autre image.
         const node = pos !== null ? editor.state.doc.nodeAt(pos) : null;
-        const chain = editor.chain().focus();
         if (
-          node &&
-          pos !== null &&
-          (node.type.name === 'image' || node.type.name === 'galleryImage')
+          pos === null ||
+          originalSrc === null ||
+          !node ||
+          node.type.name !== target ||
+          String(node.attrs.src ?? '') !== originalSrc
         ) {
-          chain.setNodeSelection(pos).updateAttributes(target, { src: url }).run();
-        } else {
-          chain.updateAttributes(target, { src: url }).run();
+          toast.error(t`L'image d'origine a changé. Rouvrez ses détails pour la remplacer.`);
+          return;
         }
+
+        // Le remplacement conserve les champs affichés : si l'auteur a corrigé
+        // l'alt juste avant de choisir le fichier, sa correction part avec.
+        const attributes =
+          target === 'image'
+            ? {
+                src: url,
+                alt: imageDetails.alt.trim(),
+                caption: imageDetails.caption.trim(),
+                credit: imageDetails.credit.trim(),
+              }
+            : { src: url, alt: imageDetails.alt.trim() };
+        editor.chain().focus().setNodeSelection(pos).updateAttributes(target, attributes).run();
 
         setHasUnsavedChanges(true);
         setImageDetailsPosition(null);
@@ -1291,7 +1317,7 @@ export function Editor({
         setIsUploading(false);
       }
     },
-    [editor, imageDetailsTarget]
+    [editor, imageDetails, imageDetailsTarget]
   );
 
   const saveImageDetails = useCallback(() => {
@@ -1368,7 +1394,7 @@ export function Editor({
   const handleEditAnnotatedText = useCallback(() => {
     if (!editor) return;
     const range = annotationRangeRef.current;
-    setShowAuthorAnnotationModal(false);
+    closeAnnotationPanel();
     setAuthorNoteInput('');
     if (range) {
       const { doc } = editor.state;
@@ -1378,9 +1404,8 @@ export function Editor({
         editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(doc, from, to)));
       }
     }
-    annotationRangeRef.current = null;
     editor.view.focus();
-  }, [editor]);
+  }, [editor, closeAnnotationPanel]);
 
   // ─── Chargement du document (local ou partagé) ─────────────────────────
   // Sans collaboration, le contenu initial est déjà dans l'éditeur. Avec

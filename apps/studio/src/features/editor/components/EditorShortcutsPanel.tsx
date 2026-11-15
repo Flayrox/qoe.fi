@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@qoe/ui/dialog';
-import { useModKey } from '../hooks/useModKey';
+import { useAltKey, useModKey } from '../hooks/useModKey';
 
 export interface EditorShortcutsPanelProps {
   open: boolean;
@@ -30,6 +30,7 @@ interface ShortcutGroup {
  */
 export function EditorShortcutsPanel({ open, onClose }: EditorShortcutsPanelProps) {
   const MOD = useModKey();
+  const ALT = useAltKey();
 
   const groups: ShortcutGroup[] = [
     {
@@ -38,6 +39,7 @@ export function EditorShortcutsPanel({ open, onClose }: EditorShortcutsPanelProp
         { keys: `${MOD}S`, label: t`Enregistrer` },
         { keys: `${MOD}K`, label: t`Ajouter ou modifier un lien` },
         { keys: `${MOD}⇧A`, label: t`Annoter le passage sélectionné` },
+        { keys: `${ALT} + clic`, label: t`Ouvrir une annotation` },
       ],
     },
     {
@@ -47,8 +49,8 @@ export function EditorShortcutsPanel({ open, onClose }: EditorShortcutsPanelProp
         { keys: `${MOD}I`, label: t`Italique` },
         { keys: `${MOD}U`, label: t`Souligné` },
         { keys: `${MOD}⇧B`, label: t`Citation` },
-        { keys: `${MOD}⌥A`, label: t`Alinéa de première ligne` },
-        { keys: `${MOD}⌥C`, label: t`Bloc de code` },
+        { keys: `${MOD}${ALT}A`, label: t`Alinéa de première ligne` },
+        { keys: `${MOD}${ALT}C`, label: t`Bloc de code` },
       ],
     },
     {

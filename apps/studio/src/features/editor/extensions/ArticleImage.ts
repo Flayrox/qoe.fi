@@ -60,7 +60,12 @@ export const ArticleImage = Image.extend({
   // feuille, son contenu (dont la légende) n'est pas ré-analysé comme du texte
   // du document — sinon la légende finissait en paragraphe après l'image.
   parseHTML() {
-    return [{ tag: 'figure[data-article-image]' }, { tag: 'img[src]' }];
+    return [
+      { tag: 'figure[data-article-image]' },
+      // Une image de galerie appartient à `GalleryImage` : la laisser ici
+      // dupliquait l'image hors de la galerie à la relecture du HTML.
+      { tag: 'img[src]:not([data-gallery-image])' },
+    ];
   },
 
   renderHTML({ HTMLAttributes }) {
