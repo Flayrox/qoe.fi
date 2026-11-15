@@ -105,3 +105,21 @@ Vérifications : `go build ./...`, `go test ./internal/modules/billing
 - Pagination des commentaires (le backend renvoie la liste complète).
 - Signalement d'un commentaire depuis le studio et depuis le core.
 - Badge « auteur » et lien vers le profil dans la discussion.
+- Badge « auteur » et lien vers le profil dans la discussion.
+
+### 2026-11-15 — lot 6 : portabilité / export (livré)
+
+- Nouveau module Go `internal/modules/exports` : `GET /v1/creator/export?publisherId=`
+  renvoie une archive ZIP en lecture seule (`articles/*.md` + `*.html`
+  d'origine, `subscribers.csv`, `manifest.json`). Aucune migration.
+- Convertisseur HTML → Markdown compact et testé (`markdown_test.go`).
+- Studio : route handler `/api/export` (session + workspace actif, relais
+  authentifié vers Go) et page `/export` (contenu de l'archive, download).
+- Vérifications : `go build ./...`, `go test ./internal/modules/exports`,
+  `pnpm --filter @qoe/studio typecheck`.
+
+À faire ensuite (lot 6) :
+
+- Inclure les médias (images uploadées) dans l'archive et les réécrire.
+- Export asynchrone + lien signé pour les grosses publications.
+- Journaliser l'export (audit admin) et prévenir pour les départs.

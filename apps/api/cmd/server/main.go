@@ -39,6 +39,7 @@ import (
 	"github.com/qoefi/api/internal/modules/devtools"
 	"github.com/qoefi/api/internal/modules/ebooks"
 	"github.com/qoefi/api/internal/modules/events"
+	exportsmod "github.com/qoefi/api/internal/modules/exports"
 	"github.com/qoefi/api/internal/modules/features"
 	"github.com/qoefi/api/internal/modules/feed"
 	"github.com/qoefi/api/internal/modules/highlights"
@@ -667,6 +668,10 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 		// Encaissement : Checkout, portail abonné, création de formules.
 		billingHandler.RegisterProtected(protected)
+
+		// Portabilité : archive ZIP de la publication (articles + abonnés).
+		exportsHandler := exportsmod.NewHandler(exportsmod.NewService(pool))
+		exportsHandler.RegisterProtected(protected)
 
 		// Routes reader (/v1/me*, feed protégé, lecture) : auto-réparation
 		// centralisée de la ligne User absente (login de démo / reseed /
