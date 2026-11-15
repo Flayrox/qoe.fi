@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getArticlesAction } from '@qoe/sdk/actions/articles';
+import { getArticlesHealthAction } from '@qoe/sdk/actions/articles';
 
 import { ContentHealthClient } from './content-health-client';
 import type { HealthArticleInput } from '@/features/content-health/lib/content-health';
@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 export default async function ContentHealthPage() {
-  const result = await getArticlesAction('all');
+  const result = await getArticlesHealthAction();
   const articles: HealthArticleInput[] = result.ok
     ? result.data.map((article) => ({
         id: article.id,

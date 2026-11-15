@@ -111,6 +111,7 @@ func (h *Handler) RegisterProtected(r chi.Router, requireScope func(string) func
 	r.With(requireScope(middleware.ScopeRead)).Get("/v1/articles/", h.list)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles", h.create)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/", h.create)
+	r.With(requireScope(middleware.ScopeRead)).Get("/v1/articles/health", h.health)
 	r.With(requireScope(middleware.ScopeRead)).Get("/v1/articles/by-id/{id}", h.getByID)
 	r.With(requireScope(middleware.ScopeRead)).Get("/v1/articles/capabilities", h.capabilities)
 	r.With(requireScope(middleware.ScopeWrite)).Patch("/v1/articles/bulk", h.bulkUpdate)
@@ -427,6 +428,27 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 		response.Forbidden(w, err.Error())
 		return
 	}
+	response.OK(w, articles)
+}
+
+// GET /v1/articles/health — diagnostic éditorial du créateur : la même liste
+// autorisée que /v1/articles, enrichie du corps et des métadonnées de
+// couverture/SEO. Réservé à la session (jamais au mode clé API publique).
+func (h *Handler) health(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	publisherID := r.URL.Query().Get("publisherId")
+	if publisherID == "" {
+		response.BadRequest(w, "publisherId requis")
+		return
+	}
+	workspaceType := r.URL.Query().Get("workspaceType")
+	articles, err := h.svc.ListHealth(r.Context(), userID, publisherID, workspaceType)
+	if err != nil {
+		response.Forbidden(w, err.Error())
+		return
+	}
+	// Diagnostic privé : jamais de cache partagé, même derrière un proxy.
+	w.Header().Set("Cache-Control", "private, no-store")
 	response.OK(w, articles)
 }
 

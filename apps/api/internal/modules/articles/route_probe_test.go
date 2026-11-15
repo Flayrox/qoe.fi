@@ -18,7 +18,7 @@ func doProbe(t *testing.T, r *chi.Mux, path string) (int, string) {
 
 // TestRoutePriority_StaticOverParam est un test de régression : la route
 // publique paramétrée GET /v1/articles/{slug} ne doit JAMAIS masquer les
-// routes statiques protégées /v1/articles/capabilities et /by-id/{id}.
+// routes statiques protégées /v1/articles/capabilities, /health et /by-id/{id}.
 // (Historique : RegisterProtected utilisait r.Route(\"/v1/articles\", …), un
 // sous-arbre monté à priorité inférieure → capabilities/by-id inaccessibles
 // en prod. Corrigé en enregistrant les routes en siblings directs.)
@@ -33,6 +33,9 @@ func TestRoutePriority_StaticOverParam(t *testing.T) {
 		w.WriteHeader(202)
 		_, _ = w.Write([]byte("static"))
 	})
+	r.Get("/v1/articles/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(204)
+	})
 	r.Get("/v1/articles/by-id/{id}", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(203)
 		_, _ = w.Write([]byte("byid"))
@@ -41,6 +44,10 @@ func TestRoutePriority_StaticOverParam(t *testing.T) {
 	code, body := doProbe(t, r, "/v1/articles/capabilities")
 	if code != 202 {
 		t.Fatalf("/capabilities → %d %q, attendu 202 (statique doit gagner)", code, body)
+	}
+	codeHealth, bodyHealth := doProbe(t, r, "/v1/articles/health")
+	if codeHealth != 204 {
+		t.Fatalf("/health → %d %q, attendu 204 (statique doit gagner)", codeHealth, bodyHealth)
 	}
 	code2, body2 := doProbe(t, r, "/v1/articles/by-id/xyz")
 	if code2 != 203 {
