@@ -39,6 +39,7 @@ import {
   updateActorShadow,
   withShadowMutation,
 } from '@qoe/sdk';
+import { ArticleComments } from './ArticleComments';
 import {
   toggleBookmarkArticleHomeAction,
   toggleFollowCreatorHomeAction,
@@ -1008,6 +1009,12 @@ function ArticleAnnotatorViewInner({
           dangerouslySetInnerHTML={{ __html: displayedContent }}
         />
       )}
+
+      {/* 💬 Discussion de l'article (même contrat Go que les sites tenants). */}
+      <ArticleComments
+        articleId={article.id}
+        currentUserId={user?.id || currentUserProfile?.id || null}
+      />
 
       {/* 💌 Inscription Newsletter (adaptée au tenant de l'artiste uniquement) */}
       {article.author?.id && (

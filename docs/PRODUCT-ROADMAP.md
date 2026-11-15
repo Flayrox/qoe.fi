@@ -48,8 +48,6 @@ plateforme peut vivre et concurrencer Substack/Medium.
   `apps/tenants` le consomme ; `apps/core` et le studio ignorent la fonction.
 - Rien n'est encore modifié à cette étape.
 
-<!-- Les comptes rendus de chaque lot sont ajoutés ci-dessous, du plus ancien au plus récent. -->
-
 ### 2026-11-15 — lot 1 : encaissement (socle livré)
 
 Ce qui est en place :
@@ -80,7 +78,7 @@ répondent 503 explicite.
 Vérifications : `go build ./...`, `go test ./internal/modules/billing
 ./internal/config`, `pnpm --filter {sdk,studio,core,tenants,config} typecheck`.
 
-À faire ensuite :
+À faire ensuite (lot 1) :
 
 - Test de bout en bout en mode test Stripe (checkout → webhook → droit visible).
 - Commission Pro à 5 % : le handler applique 10 % fixes, il doit lire `HasPro`.
@@ -89,3 +87,21 @@ Vérifications : `go build ./...`, `go test ./internal/modules/billing
   (il vise des routes `/api/billing/*` qui n'existent pas).
 - Le portail ne retrouve le client que via un abonnement existant : prévoir un
   vrai lien `User → stripeCustomerId` en phase 2.
+
+### 2026-11-15 — lot 3 : commentaires au cœur + modération (livré)
+
+- `apps/core/src/components/social/ArticleComments.tsx` : discussion sous
+  l'article du lecteur principal (liste, réponse sur un niveau, suppression de
+  ses propres commentaires), branchée sur les server actions existantes.
+  Montée dans `ArticleAnnotatorView`, donc visible dans l'overlay article.
+- Studio : page `/community` — liste des articles (avec `commentsCount`),
+  chargement de la discussion à la demande, suppression. Aucune route Go
+  nouvelle, aucune migration.
+- Entrées `studio.community` (sidebar + Cmd+K).
+- Vérifications : `pnpm --filter {studio,core,config} typecheck`.
+
+À faire ensuite (lot 3) :
+
+- Pagination des commentaires (le backend renvoie la liste complète).
+- Signalement d'un commentaire depuis le studio et depuis le core.
+- Badge « auteur » et lien vers le profil dans la discussion.

@@ -140,6 +140,18 @@ export const PLATFORM_SURFACES: readonly SurfaceDescriptor[] = [
     showInCmdK: true,
   },
   {
+    id: 'studio.community',
+    scope: 'studio',
+    path: routes.studio.community(),
+    iconName: 'Users',
+    defaultLabel: 'Communauté',
+    section: 'growth',
+    keywords: ['communaute', 'commentaires', 'discussion', 'moderation'],
+    hotkey: 'g c',
+    showInSidebar: true,
+    showInCmdK: true,
+  },
+  {
     id: 'studio.monetization',
     scope: 'studio',
     path: routes.studio.monetization(),
