@@ -91,7 +91,7 @@ export function MonetizationClient({
           <div>
             <h2 className="text-sm font-semibold text-foreground">{t`Formules`}</h2>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              {t`Ces formules apparaissent sur le paywall de votre publication. Chaque formule doit être reliée à un tarif Stripe pour être payable.`}
+              {t`Ces formules apparaissent sur le paywall de votre publication. Chaque formule doit être reliée à un tarif Stripe pour être payable ; ce tarif est vérifié et doit débiter exactement le montant affiché, en euros, chaque mois.`}
             </p>
           </div>
           <button
