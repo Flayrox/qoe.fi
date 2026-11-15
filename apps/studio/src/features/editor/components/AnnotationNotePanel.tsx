@@ -53,7 +53,7 @@ export function AnnotationNotePanel({
       onClose={onClose}
       label={t`Note d'auteur`}
       anchor={position}
-      className="w-[440px] overflow-hidden p-0"
+      className="w-[min(440px,calc(100vw-1.5rem))] overflow-hidden p-0"
     >
       <div>
         <div className="h-1 w-full bg-highlight" aria-hidden="true" />
@@ -99,7 +99,7 @@ export function AnnotationNotePanel({
                   type="button"
                   onClick={() => setQuoteExpanded((value) => !value)}
                   aria-expanded={quoteExpanded}
-                  className="inline-flex items-center gap-1 rounded-md text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/60"
+                  className="inline-flex min-h-6 items-center gap-1 rounded-md px-1 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/60"
                 >
                   {quoteExpanded ? (
                     <ChevronUp className="size-3" />

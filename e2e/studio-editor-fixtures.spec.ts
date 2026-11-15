@@ -65,4 +65,21 @@ test.describe("Banc de non-régression de l'éditeur", () => {
     await page.keyboard.press('Escape');
     await expect(page.getByRole('heading', { name: 'Avant de publier' })).toBeHidden();
   });
+
+  test('tient sur un écran étroit sans débordement horizontal', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/dev/editor-check');
+
+    await expect(page.getByRole('toolbar', { name: 'Mise en forme' })).toBeVisible();
+
+    const overflow = () =>
+      page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(await overflow()).toBeLessThanOrEqual(1);
+
+    // Le panneau d'image est un popover ancré : il doit lui aussi rester dans
+    // la largeur du téléphone, pas provoquer un scroll horizontal.
+    await page.locator('.qoe-image-alt-badge').click();
+    await expect(page.getByRole('heading', { name: "Détails de l'image" })).toBeVisible();
+    expect(await overflow()).toBeLessThanOrEqual(1);
+  });
 });

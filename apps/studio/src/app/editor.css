@@ -21,6 +21,16 @@
   cursor: text;
 }
 
+/* Cible tactile : 44 px sur un pointeur grossier, sans épaissir la barre à la
+   souris. Les boutons gardent leur taille visuelle (icône 14 px) ; seule la
+   zone cliquable grandit, ce qui évite les taps ratés sur téléphone. */
+@media (pointer: coarse) {
+  .qoe-editor-toolbar [data-toolbar-item] {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}
+
 /* Dans l'éditeur, le clic simple place le curseur et permet de sélectionner
    le passage à la souris. Option/Alt+clic ouvre la note d'auteur ; le bouton
    dédié reste disponible dans la barre et le menu de sélection. */
