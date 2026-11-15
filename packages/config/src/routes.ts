@@ -21,6 +21,7 @@ const studioRoutes = {
   monetization: () => '/monetization',
   community: () => '/community',
   exportData: () => '/export',
+  books: () => '/books',
   newsletters: () => '/newsletters',
   settings: () => '/settings',
   developer: () => '/developer',

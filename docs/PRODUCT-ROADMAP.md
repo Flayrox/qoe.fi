@@ -123,3 +123,25 @@ Vérifications : `go build ./...`, `go test ./internal/modules/billing
 - Inclure les médias (images uploadées) dans l'archive et les réécrire.
 - Export asynchrone + lien signé pour les grosses publications.
 - Journaliser l'export (audit admin) et prévenir pour les départs.
+
+### 2026-11-15 — lot 4 : livres / EPUB (premier lot livré)
+
+- Nouveau module Go `internal/modules/books` :
+  `POST /v1/creator/books/compile` reçoit `{title, author, articleIds}` et
+  renvoie un **EPUB 3** en mémoire (`mimetype` non compressé, `container.xml`,
+  `content.opf`, `nav.xhtml`, un XHTML par chapitre, CSS). Les balises void
+  sont refermées et les images sans `alt` corrigées pour rester valides.
+- Propriété vérifiée article par article (même règle que Stripe/export) ;
+  80 articles maximum ; ordre de sélection conservé.
+- Studio : page `/books` (sélection ordonnée, titre, auteur, download) et
+  route handler `/api/books/compile` qui relaie la session.
+- Vérifications : `go build ./...`, `go test ./internal/modules/books`,
+  `pnpm --filter @qoe/studio typecheck`.
+
+À faire ensuite (lot 4) :
+
+- Persistance du livre (`Publisher` propriétaire, chapitres, couverture) :
+  migration `00091+`, puis bibliothèque publique et lecture dans le core.
+- Vente du livre : réutiliser le Checkout du lot 1 (produit one-shot).
+- Inclure les images de l'éditeur dans l'archive et les réécrire.
+- Édition du sommaire (titres de chapitres distincts des titres d'articles).
