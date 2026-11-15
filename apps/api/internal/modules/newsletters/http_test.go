@@ -41,6 +41,23 @@ func nlReq(r http.Handler, method, path, userID, body string) *httptest.Response
 	return w
 }
 
+// Le digest ne doit jamais être généré sans authentification, ni tenter une
+// requête DB quand le corps JSON est invalide. Ces deux gardes se testent sans
+// base : elles s'arrêtent avant le service.
+func TestHTTP_NewsletterDigestValidation(t *testing.T) {
+	r := newHTTPRouter(t, false)
+
+	w := nlReq(r, http.MethodPost, "/v1/newsletters/digest", "", `{"publisherId":"pub_1"}`)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("digest sans auth = %d, attendu 401", w.Code)
+	}
+
+	w = nlReq(r, http.MethodPost, "/v1/newsletters/digest", ownerID, `{oops`)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("digest JSON invalide = %d, attendu 400", w.Code)
+	}
+}
+
 func TestHTTP_NewsletterAuthRequired(t *testing.T) {
 	ctx := context.Background()
 	seedNewsletterEnv(t, ctx)
