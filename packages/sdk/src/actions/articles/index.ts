@@ -170,6 +170,14 @@ export const getArticlesAction = safeAction<string | void, ArticleListPayload>(a
   );
 });
 
+/** 🩺 Diagnostic éditorial : liste autorisée + corps, couverture et SEO. */
+export const getArticlesHealthAction = safeAction<void, ArticleListPayload>(async () => {
+  const workspace = await getActiveWorkspaceContext();
+  return goFetch<ArticleListPayload>(
+    `/v1/articles/health?publisherId=${encodeURIComponent(workspace.publisherId)}&workspaceType=${workspace.type}`
+  );
+});
+
 export interface ArticleAuthorBrief {
   id: string;
   name: string | null;

@@ -599,6 +599,65 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 	return id, nil
 }
 
+// ListHealth complète la liste créateur avec les champs nécessaires au
+// diagnostic éditorial (corps, couverture, SEO). La liste standard reste
+// volontairement légère : elle ne doit pas transporter 100 corps d'articles
+// vers le dashboard.
+func (s *Service) ListHealth(ctx context.Context, userID, publisherID, workspaceType string) ([]ArticleResponse, error) {
+	out, err := s.List(ctx, userID, publisherID, workspaceType, 100, 0, "all")
+	if err != nil {
+		return nil, err
+	}
+	if s.pool == nil || len(out) == 0 {
+		return out, nil
+	}
+
+	ids := make([]string, len(out))
+	for i := range out {
+		ids[i] = out[i].ID
+	}
+	rows, err := s.pool.Query(ctx,
+		`SELECT id, content, "imageUrl", "seoTitle", "seoDescription", "coverAlt", "coverDecorative"
+		 FROM "Article" WHERE id = ANY($1::text[])`, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	type healthFields struct {
+		content         string
+		imageURL        pgtype.Text
+		seoTitle        pgtype.Text
+		seoDescription  pgtype.Text
+		coverAlt        string
+		coverDecorative bool
+	}
+	byID := make(map[string]healthFields, len(out))
+	for rows.Next() {
+		var id string
+		var f healthFields
+		if err := rows.Scan(&id, &f.content, &f.imageURL, &f.seoTitle, &f.seoDescription, &f.coverAlt, &f.coverDecorative); err != nil {
+			return nil, err
+		}
+		byID[id] = f
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	for i := range out {
+		if f, ok := byID[out[i].ID]; ok {
+			out[i].Content = f.content
+			out[i].ImageUrl = textPtr(f.imageURL)
+			out[i].SeoTitle = textPtr(f.seoTitle)
+			out[i].SeoDescription = textPtr(f.seoDescription)
+			out[i].CoverAlt = f.coverAlt
+			out[i].CoverDecorative = f.coverDecorative
+		}
+	}
+	return out, nil
+}
+
 // List liste les articles d'une publication (RBAC créateur requis, avec catégorie).
 // period: "7d" | "30d" | "90d" | "all" (défaut 30d) — filtre ReadingSession pour Vues.
 func (s *Service) List(ctx context.Context, userID, publisherID, workspaceType string, limit, offset int, period string) ([]ArticleResponse, error) {
