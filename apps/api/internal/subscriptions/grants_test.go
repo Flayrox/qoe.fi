@@ -291,3 +291,59 @@ func TestGrant_Cycle(t *testing.T) {
 	// Nettoyage (tag unique).
 	poolTest.Exec(ctx, `DELETE FROM "SubscriptionGrant" WHERE "subjectId" = $1`, sub)
 }
+
+// TestExtendPlanGrant_ProlongeSansDoublon : un renouvellement Stripe prolonge
+// la ligne de l'abonnement au lieu d'en empiler une par événement. Deux
+// abonnements distincts (notes distinctes) restent deux lignes.
+func TestExtendPlanGrant_ProlongeSansDoublon(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	subject := "test-extend-" + time.Now().UTC().Format("150405.000000")
+	t.Cleanup(func() {
+		_, _ = poolTest.Exec(context.Background(),
+			`DELETE FROM "SubscriptionGrant" WHERE "subjectId" = $1`, subject)
+	})
+
+	now := time.Now().UTC()
+	first := now.AddDate(0, 1, 0)
+	second := now.AddDate(0, 2, 0)
+	const note = "stripe:sub_test_extend"
+
+	if _, err := ExtendPlanGrant(ctx, poolTest, SubjectUser, subject, PlanPlus, first, "stripe", note, now); err != nil {
+		t.Fatalf("premier octroi: %v", err)
+	}
+	g, err := ExtendPlanGrant(ctx, poolTest, SubjectUser, subject, PlanPlus, second, "stripe", note, now)
+	if err != nil {
+		t.Fatalf("prolongation: %v", err)
+	}
+
+	var count int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "SubscriptionGrant" WHERE "subjectId" = $1 AND "note" = $2`,
+		subject, note).Scan(&count); err != nil {
+		t.Fatalf("comptage: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("lignes = %d, attendu 1 (prolongation, pas empilement)", count)
+	}
+	want := second.UTC().Truncate(time.Millisecond).Format(time.RFC3339)
+	if g.EndsAt == nil || *g.EndsAt != want {
+		t.Fatalf("fin = %v, attendu %s", g.EndsAt, want)
+	}
+	if !HasPlus(ctx, poolTest, subject, now) {
+		t.Fatal("le droit Plus devrait être effectif après prolongation")
+	}
+
+	// Autre abonnement : nouvelle ligne, l'ancienne n'est pas écrasée.
+	if _, err := ExtendPlanGrant(ctx, poolTest, SubjectUser, subject, PlanPlus, first, "stripe", "stripe:sub_autre", now); err != nil {
+		t.Fatalf("second abonnement: %v", err)
+	}
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "SubscriptionGrant" WHERE "subjectId" = $1`,
+		subject).Scan(&count); err != nil {
+		t.Fatalf("comptage final: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("lignes = %d, attendu 2 (un abonnement = une ligne)", count)
+	}
+}
