@@ -62,7 +62,8 @@ RUN pnpm lingui compile
 # ne rebuildent que ce qui change. Cibler l'app spécifique via --filter=@qoe/${APP_NAME}...
 # évite de compiler inutilement les 5 apps Next.js dans chaque VM de build de la matrice CI.
 ENV SKIP_ENV_VALIDATION=true
-RUN --mount=type=cache,target=/app/.turbo NODE_OPTIONS="--max-old-space-size=2048" \
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+RUN --mount=type=cache,target=/app/.turbo \
     if [ -n "$APP_NAME" ]; then \
       echo "=== [Turbo] Compilation ciblée pour @qoe/${APP_NAME} ===" && \
       pnpm turbo build --filter="@qoe/${APP_NAME}..."; \
