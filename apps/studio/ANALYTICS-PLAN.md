@@ -19,7 +19,13 @@ Permettre aux créateurs individuels, équipes éditoriales et médias multi-aut
    - Volume de publication vs volume de lecture.
    - Taux de complétion moyen et temps moyen par auteur.
    - Attribution des nouveaux abonnés (qui convertit le plus de lecteurs fidèles).
-5. **Support Multi-Tenant & Multi-Publications** :
+5. **Funnel de Profondeur & Décrochage (Reading Quality)** :
+   - Entonnoir de lecture par article : Clics ➔ 25% ➔ 50% ➔ 75% ➔ Complété ➔ Interaction (surlignage/note).
+   - Détection des points de drop-off dans les longs formats.
+6. **Matrice de Performance Format & Sujets (pgvector)** :
+   - Corrélation entre temps de lecture estimé et complétion réelle (Sweet Spot de longueur).
+   - Analyse des catégories sémantiques qui performent le mieux en engagement.
+7. **Support Multi-Tenant & Multi-Publications** :
    - Sélecteur de média / publication pour les studios gérant plusieurs tenants.
    - Comparaison cross-publications pour les éditeurs multi-médias.
 
