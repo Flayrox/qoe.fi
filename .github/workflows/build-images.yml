@@ -58,26 +58,32 @@ jobs:
             context: .
             dockerfile: Dockerfile
             target: tenants
+            build_args: APP_NAME=tenants
           - service: hi
             context: .
             dockerfile: Dockerfile
             target: hi
+            build_args: APP_NAME=hi
           - service: core
             context: .
             dockerfile: Dockerfile
             target: core
+            build_args: APP_NAME=core
           - service: studio
             context: .
             dockerfile: Dockerfile
             target: studio
+            build_args: APP_NAME=studio
           - service: admin
             context: .
             dockerfile: Dockerfile
             target: admin
+            build_args: APP_NAME=admin
           - service: migrate
             context: .
             dockerfile: Dockerfile
             target: migrate
+            build_args: ''
           # api & worker partagent le MÊME image (apps/api/Dockerfile build
           # qoe-server + qoe-worker + qoe-migrate en une passe) : deux tags.
           # ⚠️ GitHub Actions résout `dockerfile` RELATIF AU WORKSPACE (pas au
@@ -87,15 +93,18 @@ jobs:
             context: ./apps/api
             dockerfile: ./apps/api/Dockerfile
             target: ''
+            build_args: ''
           - service: worker
             context: ./apps/api
             dockerfile: ./apps/api/Dockerfile
             target: ''
+            build_args: ''
           # Serveur d'updates OTA expo-updates (Node pur, zéro dépendance).
           - service: updates
             context: ./docker/updates
             dockerfile: ./docker/updates/Dockerfile
             target: ''
+            build_args: ''
 
     steps:
       - name: Checkout
@@ -138,11 +147,12 @@ jobs:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           target: ${{ matrix.target }}
+          build-args: ${{ matrix.build_args }}
           push: true
           tags: |
             ${{ env.IMAGE_NS }}/qoefi-${{ matrix.service }}:latest
             ${{ env.IMAGE_NS }}/qoefi-${{ matrix.service }}:${{ github.sha }}
-          # BuildKit cache partagé entre runs → seules les couches changées
-          # sont reconstruites d'un déploiement à l'autre.
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # BuildKit cache isolé par service → les 9 jobs parallèles ne s'écrasent
+          # plus mutuellement leur cache dans GitHub Actions.
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
