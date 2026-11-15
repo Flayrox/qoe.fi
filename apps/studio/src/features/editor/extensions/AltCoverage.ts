@@ -20,7 +20,15 @@ const ALT_COVERAGE_KEY = new PluginKey('altCoverage');
  * un badge en flux casserait la mise en page, l'encadré ambre suffit et le
  * compteur de la barre de statut donne l'accès direct.
  */
+// Les décorations ne dépendent que du document (jamais de la sélection) :
+// les recalculer à chaque curseur déplacé reparcourait tout l'article pour
+// rien. Le cache est indexé par l'instance immuable du document.
+const decorationCache = new WeakMap<ProseMirrorNode, DecorationSet>();
+
 function buildDecorations(doc: ProseMirrorNode): DecorationSet {
+  const cached = decorationCache.get(doc);
+  if (cached) return cached;
+
   const decorations: Decoration[] = [];
 
   for (const { node, pos } of collectImagesWithoutAlt(doc)) {
@@ -66,7 +74,9 @@ function buildDecorations(doc: ProseMirrorNode): DecorationSet {
     );
   }
 
-  return DecorationSet.create(doc, decorations);
+  const set = DecorationSet.create(doc, decorations);
+  decorationCache.set(doc, set);
+  return set;
 }
 
 export const AltCoverage = Extension.create({

@@ -5,7 +5,7 @@ import { useEditorState, type Editor } from '@tiptap/react';
 import { Clock, Highlighter, ImageOff, Keyboard, ShieldCheck, Type } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import { useModKey } from '../hooks/useModKey';
-import { missingAltPositions } from '../lib/alt-coverage';
+import { countMissingAlt } from '../lib/alt-coverage';
 
 export interface EditorStatusBarProps {
   editor: Editor;
@@ -48,7 +48,7 @@ export function EditorStatusBar({
         words: counter?.words?.() ?? 0,
         characters: counter?.characters?.() ?? 0,
         annotation: current.isActive('annotationMark'),
-        altMissing: missingAltPositions(current.state.doc).length,
+        altMissing: countMissingAlt(current.state.doc),
       };
     },
   });

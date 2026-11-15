@@ -36,3 +36,17 @@ export function collectImagesWithoutAlt(doc: ProseMirrorNode): ImageAltNode[] {
 export function missingAltPositions(doc: ProseMirrorNode): number[] {
   return collectImagesWithoutAlt(doc).map(({ pos }) => pos);
 }
+
+// Le compteur de la barre de statut est relu à chaque transaction (y compris
+// un simple déplacement du curseur). Le document ProseMirror est immuable :
+// une même instance donne toujours le même compte, on peut donc le mémoriser
+// sans risquer de servir une valeur périmée.
+const missingAltCountCache = new WeakMap<ProseMirrorNode, number>();
+
+export function countMissingAlt(doc: ProseMirrorNode): number {
+  const cached = missingAltCountCache.get(doc);
+  if (cached !== undefined) return cached;
+  const count = collectImagesWithoutAlt(doc).length;
+  missingAltCountCache.set(doc, count);
+  return count;
+}

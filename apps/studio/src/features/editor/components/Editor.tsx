@@ -49,7 +49,7 @@ import { currentTimeZoneLabel, toDateTimeLocalValue } from '../lib/datetime';
 import { normalizeLinkUrl } from '../lib/link';
 import { countImagesWithoutAlt } from '../lib/accessibility';
 import { missingAltPositions } from '../lib/alt-coverage';
-import { adjacentImagePosition } from '../lib/image-navigation';
+import { handleEditorKeyDown } from '../lib/editor-keydown';
 import type { ArticleAttributionDraft } from './ArticleAttributionEditor';
 import { EditorHeader } from './EditorHeader';
 import { EditorStatusBar } from './EditorStatusBar';
@@ -721,73 +721,12 @@ export function Editor({
         }
         return false;
       },
-      handleKeyDown: (view, event) => {
-        // ⬆️/⬇️ aux bords d'un bloc : sélectionner l'image voisine comme un
-        // nœud, pour ouvrir ses détails sans souris.
-        if (
-          (event.key === 'ArrowUp' || event.key === 'ArrowDown') &&
-          !event.shiftKey &&
-          !event.altKey &&
-          !event.metaKey &&
-          !event.ctrlKey
-        ) {
-          const { selection } = view.state;
-          if (selection.empty && !(selection instanceof NodeSelection)) {
-            const $pos = selection.$from;
-            const atStart = $pos.parentOffset === 0;
-            const atEnd = $pos.parentOffset === $pos.parent.content.size;
-            const direction = event.key === 'ArrowUp' ? 'before' : 'after';
-            if ((direction === 'before' && atStart) || (direction === 'after' && atEnd)) {
-              const imagePos = adjacentImagePosition($pos, direction);
-              if (imagePos !== null) {
-                event.preventDefault();
-                view.dispatch(
-                  view.state.tr.setSelection(NodeSelection.create(view.state.doc, imagePos))
-                );
-                return true;
-              }
-            }
-          }
-        }
-
-        // Entrée sur une image sélectionnée ouvre ses détails (alt, légende,
-        // crédit) sans passer par la barre d'outils.
-        if (
-          event.key === 'Enter' &&
-          !event.shiftKey &&
-          !event.altKey &&
-          !event.metaKey &&
-          !event.ctrlKey &&
-          view.state.selection instanceof NodeSelection
-        ) {
-          const { node } = view.state.selection;
-          if (node.type.name === 'image' || node.type.name === 'galleryImage') {
-            event.preventDefault();
-            openImageDetailsRef.current();
-            return true;
-          }
-        }
-
-        if (
-          (event.metaKey || event.ctrlKey) &&
-          !event.shiftKey &&
-          event.key.toLowerCase() === 'k'
-        ) {
-          event.preventDefault();
-          openLinkPopoverRef.current();
-          return true;
-        }
-        if (
-          (event.metaKey || event.ctrlKey) &&
-          event.shiftKey &&
-          (event.key === 'a' || event.key === 'A')
-        ) {
-          event.preventDefault();
-          openAnnotationPopoverRef.current();
-          return true;
-        }
-        return false;
-      },
+      handleKeyDown: (view, event) =>
+        handleEditorKeyDown(view, event, {
+          openImageDetails: () => openImageDetailsRef.current(),
+          openLink: () => openLinkPopoverRef.current(),
+          openAnnotation: () => openAnnotationPopoverRef.current(),
+        }),
       handleDrop: (view, event) => {
         const files = Array.from(event.dataTransfer?.files ?? []);
         if (files.length > 0) {
