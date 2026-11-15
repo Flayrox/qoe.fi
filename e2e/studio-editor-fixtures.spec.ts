@@ -44,6 +44,18 @@ test.describe("Banc de non-régression de l'éditeur", () => {
     await page.keyboard.press('Escape');
     await expect(page.getByRole('heading', { name: 'Aperçu lecteur' })).toBeHidden();
 
+    // Tableaux et sources : deux blocs insérés par la barre d'outils, sans
+    // quitter l'éditeur ni perdre le corps existant.
+    await page.getByRole('button', { name: 'Insérer un tableau' }).click();
+    await expect(page.locator('.ProseMirror table')).toHaveCount(1);
+
+    await page.getByRole('button', { name: 'Insérer des notes et sources' }).click();
+    await expect(page.getByRole('heading', { name: 'Notes et sources' })).toBeVisible();
+    await page.getByLabel('Libellé de la source 1').fill('Rapport public');
+    await page.getByLabel('Adresse de la source 1').fill('https://exemple.fr/rapport');
+    await page.getByRole('button', { name: 'Insérer les sources' }).click();
+    await expect(page.getByRole('heading', { name: 'Sources' })).toBeVisible();
+
     // Préflight : le fixture n'a que des avertissements (pas de titre vide ni
     // de contenu vide), et le décompte des images sans alt est repris.
     await page.getByRole('button', { name: 'Prêt à publier' }).click();

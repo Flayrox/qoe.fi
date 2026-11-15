@@ -4,6 +4,7 @@ import React from 'react';
 import { useEditorState, type Editor } from '@tiptap/react';
 import {
   Bold,
+  BookMarked,
   Italic,
   Underline as UnderlineIcon,
   Strikethrough,
@@ -20,6 +21,8 @@ import {
   Eraser,
   ImageIcon,
   Library,
+  Plus,
+  Table2,
   ArrowLeft,
   ArrowRight,
   Trash2,
@@ -120,6 +123,10 @@ export interface EditorToolbarProps {
   onPickGallery: () => void;
   /** Ouvre la médiathèque pour insérer un asset existant. */
   onOpenMediaLibrary?: () => void;
+  /** Insère un tableau 3×3 avec en-tête. */
+  onInsertTable?: () => void;
+  /** Ouvre la saisie d'une section Sources. */
+  onOpenSources?: () => void;
   onAnnotation: () => void;
   onLink: () => void;
   onImageDetails: () => void;
@@ -146,6 +153,8 @@ export function EditorToolbar({
   onPickImage,
   onPickGallery,
   onOpenMediaLibrary,
+  onInsertTable,
+  onOpenSources,
   onAnnotation,
   onLink,
   onImageDetails,
@@ -181,6 +190,7 @@ export function EditorToolbar({
         annotation: current.isActive('annotationMark'),
         isImage: current.isActive('image'),
         isGalleryImage: current.isActive('galleryImage'),
+        isTable: current.isActive('table'),
         canMoveGalleryLeft: safeCan(() => current.can().moveGalleryImage('left')),
         canMoveGalleryRight: safeCan(() => current.can().moveGalleryImage('right')),
         canRemoveGalleryImage: safeCan(() => current.can().removeGalleryImage()),
@@ -453,6 +463,41 @@ export function EditorToolbar({
               label={t`Insérer une galerie`}
               disabled={isUploading}
             />
+            {onInsertTable ? (
+              <>
+                <ToolbarButton
+                  onClick={onInsertTable}
+                  icon={<Table2 className="h-3.5 w-3.5 stroke-2" />}
+                  label={t`Insérer un tableau`}
+                />
+                {state.isTable ? (
+                  <>
+                    <ToolbarButton
+                      onClick={() => editor.chain().focus().addRowAfter().run()}
+                      icon={<Plus className="h-3.5 w-3.5 stroke-2" />}
+                      label={t`Ajouter une ligne`}
+                    />
+                    <ToolbarButton
+                      onClick={() => editor.chain().focus().addColumnAfter().run()}
+                      icon={<Plus className="h-3.5 w-3.5 stroke-2" />}
+                      label={t`Ajouter une colonne`}
+                    />
+                    <ToolbarButton
+                      onClick={() => editor.chain().focus().deleteTable().run()}
+                      icon={<Trash2 className="h-3.5 w-3.5 stroke-2" />}
+                      label={t`Supprimer le tableau`}
+                    />
+                  </>
+                ) : null}
+              </>
+            ) : null}
+            {onOpenSources ? (
+              <ToolbarButton
+                onClick={onOpenSources}
+                icon={<BookMarked className="h-3.5 w-3.5 stroke-2" />}
+                label={t`Insérer des notes et sources`}
+              />
+            ) : null}
             <ToolbarButton
               onClick={onImageDetails}
               icon={<TextQuote className="h-3.5 w-3.5 stroke-2" />}
