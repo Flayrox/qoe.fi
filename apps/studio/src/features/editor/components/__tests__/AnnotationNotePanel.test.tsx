@@ -119,6 +119,30 @@ describe('AnnotationNotePanel', () => {
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
 
+  it('propose de revenir au texte annoté quand une annotation existe', async () => {
+    const user = userEvent.setup();
+    const onEditText = vi.fn();
+
+    render(
+      <AnnotationNotePanel
+        open={true}
+        position={{ top: 100, left: 100 }}
+        quote="Passage"
+        note="Texte"
+        onChangeNote={vi.fn()}
+        onSave={vi.fn()}
+        onDelete={vi.fn()}
+        onClose={vi.fn()}
+        onEditText={onEditText}
+        canDelete={true}
+      />
+    );
+
+    const editBtn = screen.getByRole('button', { name: /Modifier le texte/i });
+    await user.click(editBtn);
+    expect(onEditText).toHaveBeenCalledTimes(1);
+  });
+
   it('calls onClose when clicking cancel or close button', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();

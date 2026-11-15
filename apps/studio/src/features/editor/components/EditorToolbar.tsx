@@ -38,6 +38,7 @@ import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@qoe/ui/ui/tooltip';
 import { nextToolbarIndex } from '../lib/toolbar-navigation';
+import { useModKey } from '../hooks/useModKey';
 
 interface ToolbarButtonProps {
   /** État « allumé » : la mise en forme est active au curseur. */
@@ -119,19 +120,6 @@ export interface EditorToolbarProps {
   onAnnotation: () => void;
   onLink: () => void;
   onImageDetails: () => void;
-}
-
-/**
- * Touche de commande affichée dans les infobulles. Résolue après le montage
- * pour que le HTML serveur et le premier rendu client soient identiques
- * (sinon les `aria-label` divergent et React signale une erreur d'hydratation).
- */
-function useModKey(): string {
-  const [mod, setMod] = React.useState('Ctrl');
-  React.useEffect(() => {
-    if (/Mac|iPhone|iPad/.test(navigator.platform)) setMod('⌘');
-  }, []);
-  return mod;
 }
 
 /** `can()` lève une erreur si la commande n'existe pas (mode co-édition). */

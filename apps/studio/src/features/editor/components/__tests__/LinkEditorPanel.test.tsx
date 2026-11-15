@@ -20,7 +20,7 @@ describe('LinkEditorPanel', () => {
 
     const input = screen.getByRole('textbox');
     expect(input).toHaveValue('https://qoe.fi');
-    expect(screen.getByText(/⌘K/i)).toBeInTheDocument();
+    expect(screen.getByText(/CtrlK/i)).toBeInTheDocument();
   });
 
   it('displays field error and sets aria-describedby', () => {

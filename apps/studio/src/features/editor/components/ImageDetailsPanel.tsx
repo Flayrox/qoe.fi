@@ -1,6 +1,6 @@
 'use client';
 
-import { Crop, ImageIcon, X } from 'lucide-react';
+import { Crop, ImageIcon, ImageOff, RefreshCw, X } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import { Button } from '@qoe/ui/button';
 import { Input } from '@qoe/ui/input';
@@ -22,6 +22,8 @@ export interface ImageDetailsPanelProps {
   onSave: () => void;
   onClose: () => void;
   onCrop?: () => void;
+  /** Remplace le fichier en conservant alt, légende et crédit. */
+  onReplace?: () => void;
 }
 
 /**
@@ -40,6 +42,7 @@ export function ImageDetailsPanel({
   onSave,
   onClose,
   onCrop,
+  onReplace,
 }: ImageDetailsPanelProps) {
   const isGallery = kind === 'galleryImage';
   // Les libellés sont évalués au rendu : `t` ne peut pas être appelé au
@@ -112,19 +115,36 @@ export function ImageDetailsPanel({
               }}
               placeholder={field.placeholder}
             />
+            {field.key === 'alt' && !value.alt.trim() ? (
+              <span className="flex items-center gap-1 text-[10px] font-medium text-highlight">
+                <ImageOff className="size-3 shrink-0" aria-hidden="true" />
+                {t`Alt manquant : décrivez l'image pour les lecteurs d'écran.`}
+              </span>
+            ) : null}
           </label>
         ))}
       </div>
 
       <div className="flex items-center justify-between gap-2 border-t border-border/30 pt-2">
-        {onCrop ? (
-          <Button size="xs" variant="outline" onClick={onCrop} title={t`Recadrer cette image`}>
-            <Crop className="size-3.5" />
-            <span>{t`Recadrer`}</span>
-          </Button>
-        ) : (
-          <div />
-        )}
+        <div className="flex items-center gap-1.5">
+          {onCrop ? (
+            <Button size="xs" variant="outline" onClick={onCrop} title={t`Recadrer cette image`}>
+              <Crop className="size-3.5" />
+              <span>{t`Recadrer`}</span>
+            </Button>
+          ) : null}
+          {onReplace ? (
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={onReplace}
+              title={t`Remplacer le fichier en conservant la description, la légende et le crédit`}
+            >
+              <RefreshCw className="size-3.5" />
+              <span>{t`Remplacer`}</span>
+            </Button>
+          ) : null}
+        </div>
         <div className="flex items-center gap-2">
           <Button size="xs" variant="ghost" onClick={onClose}>
             {t`Annuler`}

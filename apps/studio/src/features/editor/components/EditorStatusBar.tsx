@@ -2,13 +2,18 @@
 
 import React from 'react';
 import { useEditorState, type Editor } from '@tiptap/react';
-import { Clock, Highlighter, Type } from 'lucide-react';
+import { Clock, Highlighter, ImageOff, Keyboard, Type } from 'lucide-react';
 import { t } from '@lingui/core/macro';
+import { useModKey } from '../hooks/useModKey';
 
 export interface EditorStatusBarProps {
   editor: Editor;
   /** Ouvre la note d'auteur quand le curseur est dans une annotation. */
   onOpenAnnotation?: () => void;
+  /** Ouvre le panneau de détails de la première image sans alt. */
+  onFixAltMissing?: () => void;
+  /** Ouvre l'aide des raccourcis. */
+  onOpenShortcuts?: () => void;
 }
 
 /** Même base de calcul que l'API (`saveArticleAction`) : 200 mots/minute. */
@@ -18,16 +23,40 @@ const WORDS_PER_MINUTE = 200;
  * Bandeau d'informations sous le corps d'article. Volontairement muet :
  * trois chiffres utiles au moment de publier, et rien d'autre.
  */
-export function EditorStatusBar({ editor, onOpenAnnotation }: EditorStatusBarProps) {
+export function EditorStatusBar({
+  editor,
+  onOpenAnnotation,
+  onFixAltMissing,
+  onOpenShortcuts,
+}: EditorStatusBarProps) {
+  const MOD = useModKey();
+
   const stats = useEditorState({
     editor,
     selector: ({ editor: current }) => {
       const counter = current.storage.characterCount as
         { words: () => number; characters: () => number } | undefined;
+
+      // B2 : le compteur est la seule vue d'ensemble des images sans alt.
+      // Il est recalculé avec la sélection, donc il suit immédiatement une
+      // correction dans le panneau de détails.
+      let altMissing = 0;
+      current.state.doc.descendants((node) => {
+        if (
+          (node.type.name === 'image' || node.type.name === 'galleryImage') &&
+          !String(node.attrs.alt ?? '').trim()
+        ) {
+          altMissing += 1;
+          return false;
+        }
+        return true;
+      });
+
       return {
         words: counter?.words?.() ?? 0,
         characters: counter?.characters?.() ?? 0,
         annotation: current.isActive('annotationMark'),
+        altMissing,
       };
     },
   });
@@ -58,15 +87,41 @@ export function EditorStatusBar({ editor, onOpenAnnotation }: EditorStatusBarPro
           // document et la sélection courante pouvait être perdue.
           onMouseDown={(event) => event.preventDefault()}
           onClick={onOpenAnnotation}
-          className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-primary/20 bg-primary/10 px-2 py-1 font-semibold text-primary transition-colors hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-primary/20 bg-primary/10 px-2 py-1 font-semibold text-primary transition-colors hover:bg-primary/15 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
         >
           <Highlighter className="h-3 w-3 shrink-0" aria-hidden="true" />
           {t`Modifier la note d'auteur`}
         </button>
       )}
-      <span className="ml-auto hidden sm:inline text-[11px] text-muted-foreground/60">
-        {t`Enregistrement auto · ⌘S pour forcer`}
-      </span>
+      {stats.altMissing > 0 && onFixAltMissing && (
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={onFixAltMissing}
+          title={t`Corriger la première image sans description`}
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-highlight/25 bg-highlight/10 px-2 py-1 font-semibold text-highlight transition-colors hover:bg-highlight/15 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+        >
+          <ImageOff className="h-3 w-3 shrink-0" aria-hidden="true" />
+          {stats.altMissing} {stats.altMissing === 1 ? t`image sans alt` : t`images sans alt`}
+        </button>
+      )}
+      <div className="ml-auto flex items-center gap-3">
+        {onOpenShortcuts && (
+          <button
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={onOpenShortcuts}
+            title={t`Afficher les raccourcis`}
+            className="inline-flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+          >
+            <Keyboard className="h-3 w-3" aria-hidden="true" />
+            {t`Raccourcis`}
+          </button>
+        )}
+        <span className="hidden text-[11px] text-muted-foreground/60 sm:inline">
+          {t`Enregistrement auto · ${MOD}S pour forcer`}
+        </span>
+      </div>
     </div>
   );
 }

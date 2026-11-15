@@ -129,6 +129,43 @@ describe('ImageDetailsPanel', () => {
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 
+  it('signale un alt manquant sans bloquer l’enregistrement', () => {
+    render(
+      <ImageDetailsPanel
+        open={true}
+        position={{ top: 100, left: 100 }}
+        value={{ alt: '', caption: '', credit: '' }}
+        onChange={vi.fn()}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(/Alt manquant/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Enregistrer/i })).toBeEnabled();
+  });
+
+  it('renders replace button and calls onReplace when provided', async () => {
+    const user = userEvent.setup();
+    const onReplace = vi.fn();
+
+    render(
+      <ImageDetailsPanel
+        open={true}
+        position={{ top: 100, left: 100 }}
+        value={initialValue}
+        onChange={vi.fn()}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+        onReplace={onReplace}
+      />
+    );
+
+    const replaceBtn = screen.getByRole('button', { name: /Remplacer/i });
+    await user.click(replaceBtn);
+    expect(onReplace).toHaveBeenCalledTimes(1);
+  });
+
   it('renders crop button and calls onCrop when provided', async () => {
     const user = userEvent.setup();
     const onCrop = vi.fn();
