@@ -211,7 +211,7 @@ relire — à construire **dans `modules/newsletters`**, pas ailleurs.
 
 | # | Chantier | État | Prochaine étape |
 | - | -------- | ---- | --------------- |
-| 1 | Encaissement | socle livré (Go + SDK + Studio + paywall) | test mode Stripe de bout en bout, commission Pro 5 % |
+| 1 | Encaissement | socle + commission Pro 5 % + portail (`User.stripeCustomerId`) livrés | appliquer la migration 00091, test mode Stripe de bout en bout |
 | 2 | Digest | brouillon newsletter (agent newsletter) ; mon doublon retiré | cadence récurrente dans `modules/newsletters` |
 | 3 | Commentaires | core + modération Studio livrés | pagination, signalements |
 | 4 | Livres | compilation EPUB livrée | persistance + vente |
