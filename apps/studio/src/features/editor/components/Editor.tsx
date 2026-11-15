@@ -61,6 +61,7 @@ import { AnnotationNotePanel } from './AnnotationNotePanel';
 import { LinkEditorPanel } from './LinkEditorPanel';
 import { ImageDetailsPanel, type ImageDetails } from './ImageDetailsPanel';
 import { PublishModal, type PublishOptions } from './PublishModal';
+import { PublishReadinessDialog } from './PublishReadinessDialog';
 import { ArticleDiffModal } from './ArticleDiffModal';
 import { ArticleHistoryModal } from './ArticleHistoryModal';
 import { RecoverArticleModal } from './RecoverArticleModal';
@@ -361,6 +362,7 @@ export function Editor({
 
   const [showSettings, setShowSettings] = useState(false);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
+  const [showPreflight, setShowPreflight] = useState(false);
   const [publishWarnings, setPublishWarnings] = useState<string[]>([]);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -1346,6 +1348,18 @@ export function Editor({
     setImageDetailsPosition(null);
   }, [editor, imageDetails, imageDetailsTarget]);
 
+  const handleFocusTitle = useCallback(() => {
+    document.getElementById('article-title')?.focus();
+  }, []);
+
+  const handleFocusContent = useCallback(() => {
+    editor?.chain().focus().run();
+  }, [editor]);
+
+  const handleFocusCoverAlt = useCallback(() => {
+    document.getElementById('cover-alt')?.focus();
+  }, []);
+
   // B2 : la première image sans alt, pour le compteur de la barre de statut.
   const handleFixAltMissing = useCallback(() => {
     if (!editor) return;
@@ -2289,6 +2303,7 @@ export function Editor({
           )}
           <div className="space-y-3">
             <input
+              id="article-title"
               type="text"
               value={title}
               readOnly={!initialCanEdit}
@@ -2424,6 +2439,7 @@ export function Editor({
                 onOpenAnnotation={handleAnnotationButton}
                 onFixAltMissing={handleFixAltMissing}
                 onOpenShortcuts={() => setShowShortcuts(true)}
+                onOpenPreflight={() => setShowPreflight(true)}
               />
             </div>
           </div>
@@ -2546,6 +2562,28 @@ export function Editor({
         onCrop={handleCropExistingImage}
         onReplace={() => replaceImageInputRef.current?.click()}
       />
+
+      {editor && (
+        <PublishReadinessDialog
+          open={showPreflight}
+          onClose={() => setShowPreflight(false)}
+          editor={editor}
+          title={title}
+          slug={slug}
+          imageUrl={imageUrl}
+          coverAlt={coverAlt}
+          coverDecorative={coverDecorative}
+          seoTitle={seoTitle}
+          seoDescription={seoDescription}
+          isPremium={isPremium}
+          published={published}
+          onFixAlt={handleFixAltMissing}
+          onFixCoverAlt={handleFocusCoverAlt}
+          onFocusTitle={handleFocusTitle}
+          onFocusContent={handleFocusContent}
+          onOpenSettings={() => setShowSettings(true)}
+        />
+      )}
 
       <EditorShortcutsPanel open={showShortcuts} onClose={() => setShowShortcuts(false)} />
 

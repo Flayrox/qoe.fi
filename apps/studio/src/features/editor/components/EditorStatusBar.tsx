@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useEditorState, type Editor } from '@tiptap/react';
-import { Clock, Highlighter, ImageOff, Keyboard, Type } from 'lucide-react';
+import { Clock, Highlighter, ImageOff, Keyboard, ShieldCheck, Type } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import { useModKey } from '../hooks/useModKey';
 import { missingAltPositions } from '../lib/alt-coverage';
@@ -15,6 +15,8 @@ export interface EditorStatusBarProps {
   onFixAltMissing?: () => void;
   /** Ouvre l'aide des raccourcis. */
   onOpenShortcuts?: () => void;
+  /** Ouvre le préflight de publication. */
+  onOpenPreflight?: () => void;
 }
 
 /** Même base de calcul que l'API (`saveArticleAction`) : 200 mots/minute. */
@@ -29,6 +31,7 @@ export function EditorStatusBar({
   onOpenAnnotation,
   onFixAltMissing,
   onOpenShortcuts,
+  onOpenPreflight,
 }: EditorStatusBarProps) {
   const MOD = useModKey();
 
@@ -95,6 +98,18 @@ export function EditorStatusBar({
         </button>
       )}
       <div className="ml-auto flex items-center gap-3">
+        {onOpenPreflight && (
+          <button
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={onOpenPreflight}
+            title={t`Vérifier l'article avant publication`}
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border/50 bg-background/60 px-2 py-1 font-semibold text-foreground transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+          >
+            <ShieldCheck className="h-3 w-3" aria-hidden="true" />
+            {t`Prêt à publier`}
+          </button>
+        )}
         {onOpenShortcuts && (
           <button
             type="button"

@@ -30,5 +30,14 @@ test.describe("Banc de non-régression de l'éditeur", () => {
     await expect(page.getByRole('heading', { name: "Raccourcis de l'éditeur" })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('heading', { name: "Raccourcis de l'éditeur" })).toBeHidden();
+
+    // Préflight : le fixture n'a que des avertissements (pas de titre vide ni
+    // de contenu vide), et le décompte des images sans alt est repris.
+    await page.getByRole('button', { name: 'Prêt à publier' }).click();
+    await expect(page.getByRole('heading', { name: 'Avant de publier' })).toBeVisible();
+    await expect(page.getByText('Prêt, avec')).toBeVisible();
+    await expect(page.getByText('2 images sans alt sur 3.')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('heading', { name: 'Avant de publier' })).toBeHidden();
   });
 });
