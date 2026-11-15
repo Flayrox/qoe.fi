@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { ImageIcon, ImageOff, Loader2, Trash2 } from 'lucide-react';
+import { ImageIcon, ImageOff, Images, Loader2, Trash2 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
 import { Button } from '@qoe/ui/button';
@@ -11,6 +11,7 @@ import {
   type ImageEditorPreset,
   type ImageEditorResult,
 } from '@qoe/ui/ui/ImageEditorDialog';
+import { MediaAssetPickerDialog } from './MediaAssetPickerDialog';
 
 export interface CoverUploaderProps {
   imageUrl: string | null;
@@ -23,6 +24,8 @@ export interface CoverUploaderProps {
   onCoverDecorativeChange?: (value: boolean) => void;
   isUploading: boolean;
   onUpload: (file: File) => void;
+  /** Choisit une image existante de la médiathèque (sans upload). */
+  onSelectImage?: (url: string) => void;
   onRemove: () => void;
 }
 
@@ -35,10 +38,12 @@ export function CoverUploader({
   onCoverDecorativeChange,
   isUploading,
   onUpload,
+  onSelectImage,
   onRemove,
 }: CoverUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
   const [pendingImage, setPendingImage] = useState<{ file: File; src: string } | null>(null);
 
   const coverPreset: ImageEditorPreset = {
@@ -140,6 +145,19 @@ export function CoverUploader({
               <ImageIcon className="w-3.5 h-3.5 text-primary" />
               <span>{t`Changer l'image`}</span>
             </Button>
+            {onSelectImage ? (
+              <Button
+                type="button"
+                variant="soft"
+                size="sm"
+                onClick={() => setShowLibrary(true)}
+                disabled={isUploading}
+                className="rounded-xl border border-border/40 bg-background/90 px-3.5 py-1.5 shadow-lg backdrop-blur-md"
+              >
+                <Images className="h-3.5 w-3.5 text-primary" />
+                <span>{t`Médiathèque`}</span>
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant="soft"
@@ -154,31 +172,45 @@ export function CoverUploader({
           </div>
         </div>
       ) : (
-        <div {...dropProps} className="inline-block">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => inputRef.current?.click()}
-            disabled={isUploading}
-            className={cn(
-              'h-auto rounded-xl border-dashed px-3.5 py-2 shadow-2xs',
-              isDragOver
-                ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/30'
-                : 'border-border/60 bg-muted/10 text-muted-foreground hover:border-primary/50 hover:bg-muted/30 hover:text-foreground'
-            )}
-          >
-            {isUploading ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
-            ) : (
-              <ImageIcon className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
-            )}
-            <span>
-              {isDragOver
-                ? t`Déposez votre image ici`
-                : t`+ Ajouter une image de couverture (ou glisser-déposer)`}
-            </span>
-          </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div {...dropProps} className="inline-block">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => inputRef.current?.click()}
+              disabled={isUploading}
+              className={cn(
+                'h-auto rounded-xl border-dashed px-3.5 py-2 shadow-2xs',
+                isDragOver
+                  ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/30'
+                  : 'border-border/60 bg-muted/10 text-muted-foreground hover:border-primary/50 hover:bg-muted/30 hover:text-foreground'
+              )}
+            >
+              {isUploading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+              ) : (
+                <ImageIcon className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+              )}
+              <span>
+                {isDragOver
+                  ? t`Déposez votre image ici`
+                  : t`+ Ajouter une image de couverture (ou glisser-déposer)`}
+              </span>
+            </Button>
+          </div>
+          {onSelectImage ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowLibrary(true)}
+              disabled={isUploading}
+            >
+              <Images className="h-3.5 w-3.5 text-primary" />
+              {t`Choisir dans la médiathèque`}
+            </Button>
+          ) : null}
         </div>
       )}
 
@@ -224,6 +256,13 @@ export function CoverUploader({
           </label>
         </div>
       ) : null}
+
+      <MediaAssetPickerDialog
+        open={showLibrary}
+        onClose={() => setShowLibrary(false)}
+        onSelect={(asset) => onSelectImage?.(asset.url)}
+        title={t`Choisir une couverture`}
+      />
 
       <ImageEditorDialog
         open={Boolean(pendingImage)}

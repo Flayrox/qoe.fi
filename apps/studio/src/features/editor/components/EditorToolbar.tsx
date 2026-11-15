@@ -19,6 +19,7 @@ import {
   Minus,
   Eraser,
   ImageIcon,
+  Library,
   ArrowLeft,
   ArrowRight,
   Trash2,
@@ -117,6 +118,8 @@ export interface EditorToolbarProps {
   uploadCount: number;
   onPickImage: () => void;
   onPickGallery: () => void;
+  /** Ouvre la médiathèque pour insérer un asset existant. */
+  onOpenMediaLibrary?: () => void;
   onAnnotation: () => void;
   onLink: () => void;
   onImageDetails: () => void;
@@ -142,6 +145,7 @@ export function EditorToolbar({
   uploadCount,
   onPickImage,
   onPickGallery,
+  onOpenMediaLibrary,
   onAnnotation,
   onLink,
   onImageDetails,
@@ -435,6 +439,14 @@ export function EditorToolbar({
               }
               disabled={isUploading}
             />
+            {onOpenMediaLibrary ? (
+              <ToolbarButton
+                onClick={onOpenMediaLibrary}
+                icon={<Library className="h-3.5 w-3.5 stroke-2" />}
+                label={t`Insérer depuis la médiathèque`}
+                disabled={isUploading}
+              />
+            ) : null}
             <ToolbarButton
               onClick={onPickGallery}
               icon={<Images className="h-3.5 w-3.5 stroke-2" />}

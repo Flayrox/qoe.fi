@@ -315,6 +315,103 @@ func normalizeAssetURLs(urls []string) []string {
 	return out
 }
 
+// ListOptions borne la lecture de la bibliothèque personnelle.
+type ListOptions struct {
+	TargetType string
+	Query      string
+	Limit      int32
+	Offset     int32
+}
+
+// AssetListItem est la vue allégée utilisée par le sélecteur d'images du
+// Studio : pas de chemins storage ni de scores de modération côté client.
+type AssetListItem struct {
+	ID         string  `json:"id"`
+	Url        string  `json:"url"`
+	MimeType   string  `json:"mimeType"`
+	Width      *int32  `json:"width,omitempty"`
+	Height     *int32  `json:"height,omitempty"`
+	SizeBytes  int32   `json:"sizeBytes"`
+	Blurhash   *string `json:"blurhash,omitempty"`
+	Status     string  `json:"status"`
+	TargetType string  `json:"targetType"`
+	CreatedAt  string  `json:"createdAt"`
+}
+
+const (
+	defaultListLimit = int32(24)
+	maxListLimit     = int32(60)
+	maxListQuery     = 100
+)
+
+// ListByOwner retourne les assets non purgés de l'utilisateur. Le propriétaire
+// vient toujours du JWT ; aucun ownerId client n'est accepté.
+func (s *Service) ListByOwner(ctx context.Context, ownerID string, opts ListOptions) ([]AssetListItem, error) {
+	if ownerID == "" {
+		return nil, errors.New("propriétaire requis")
+	}
+	if opts.Limit <= 0 {
+		opts.Limit = defaultListLimit
+	}
+	if opts.Limit > maxListLimit {
+		opts.Limit = maxListLimit
+	}
+	if opts.Offset < 0 {
+		opts.Offset = 0
+	}
+	if opts.TargetType != "" && !validTargetTypes[opts.TargetType] {
+		return nil, errors.New("targetType invalide")
+	}
+	q := strings.TrimSpace(opts.Query)
+	if len(q) > maxListQuery {
+		q = q[:maxListQuery]
+	}
+
+	rows, err := s.q.ListMediaAssetsByOwner(ctx, db.ListMediaAssetsByOwnerParams{
+		OwnerId:    ownerID,
+		TargetType: opts.TargetType,
+		Q:          q,
+		PageOffset: opts.Offset,
+		PageSize:   opts.Limit,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]AssetListItem, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, AssetListItem{
+			ID:         row.ID,
+			Url:        row.Url,
+			MimeType:   row.MimeType,
+			Width:      int4Value(row.Width),
+			Height:     int4Value(row.Height),
+			SizeBytes:  row.SizeBytes,
+			Blurhash:   textValue(row.Blurhash),
+			Status:     string(row.Status),
+			TargetType: string(row.TargetType),
+			CreatedAt:  row.CreatedAt.Time.Format(time.RFC3339),
+		})
+	}
+	return items, nil
+}
+
+func int4Value(v pgtype.Int4) *int32 {
+	if !v.Valid {
+		return nil
+	}
+	out := v.Int32
+	return &out
+}
+
+func textValue(v pgtype.Text) *string {
+	if !v.Valid {
+		return nil
+	}
+	out := v.String
+	return &out
+}
+
 // AssetDTO est la réponse publique d'un enregistrement : l'asset complet, pour
 // que le client puisse relire les métadonnées (url, blurhash, status…).
 type AssetDTO struct {

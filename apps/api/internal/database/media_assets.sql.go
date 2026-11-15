@@ -172,6 +172,79 @@ func (q *Queries) GetMediaAssetBySha256(ctx context.Context, sha256 string) (Med
 	return i, err
 }
 
+const listMediaAssetsByOwner = `-- name: ListMediaAssetsByOwner :many
+SELECT id, url, "mimeType", width, height, "sizeBytes", blurhash, status, "targetType", "createdAt"
+FROM "MediaAsset"
+WHERE "ownerId" = $1
+  AND status <> 'PURGED'
+  AND "mimeType" LIKE 'image/%'
+  AND ($2::text = '' OR "targetType"::text = $2::text)
+  AND ($3::text = '' OR url ILIKE '%' || $3::text || '%')
+ORDER BY "createdAt" DESC, id DESC
+LIMIT $5 OFFSET $4
+`
+
+type ListMediaAssetsByOwnerParams struct {
+	OwnerId    string `json:"ownerId"`
+	TargetType string `json:"target_type"`
+	Q          string `json:"q"`
+	PageOffset int32  `json:"page_offset"`
+	PageSize   int32  `json:"page_size"`
+}
+
+type ListMediaAssetsByOwnerRow struct {
+	ID         string               `json:"id"`
+	Url        string               `json:"url"`
+	MimeType   string               `json:"mimeType"`
+	Width      pgtype.Int4          `json:"width"`
+	Height     pgtype.Int4          `json:"height"`
+	SizeBytes  int32                `json:"sizeBytes"`
+	Blurhash   pgtype.Text          `json:"blurhash"`
+	Status     MediaAssetStatus     `json:"status"`
+	TargetType MediaAssetTargetType `json:"targetType"`
+	CreatedAt  pgtype.Timestamp     `json:"createdAt"`
+}
+
+// Bibliothèque personnelle : assets non purgés, du plus récent au plus ancien.
+// Le filtre `q` porte sur l'URL (pas de nom de fichier en base) et reste
+// volontairement simple : la médiathèque n'est pas un moteur de recherche.
+func (q *Queries) ListMediaAssetsByOwner(ctx context.Context, arg ListMediaAssetsByOwnerParams) ([]ListMediaAssetsByOwnerRow, error) {
+	rows, err := q.db.Query(ctx, listMediaAssetsByOwner,
+		arg.OwnerId,
+		arg.TargetType,
+		arg.Q,
+		arg.PageOffset,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMediaAssetsByOwnerRow{}
+	for rows.Next() {
+		var i ListMediaAssetsByOwnerRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Url,
+			&i.MimeType,
+			&i.Width,
+			&i.Height,
+			&i.SizeBytes,
+			&i.Blurhash,
+			&i.Status,
+			&i.TargetType,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPurgeableMediaAssets = `-- name: ListPurgeableMediaAssets :many
 SELECT id, url, "storagePath", bucket, status FROM "MediaAsset"
 WHERE status IN ('DRAFT_ORPHAN', 'SOFT_DELETED') AND "purgeDueAt" < now()
