@@ -17,6 +17,7 @@ import {
   RotateCcw,
   Search,
   SlidersHorizontal,
+  Sparkles,
   Trash2,
   UserRound,
 } from 'lucide-react';
@@ -75,6 +76,9 @@ export interface EditorSettingsDrawerProps {
   autoSeoDescription: string;
   onSeoTitleChange: (value: string) => void;
   onSeoDescriptionChange: (value: string) => void;
+  /** Génère une méta description avec l'IA (action ciblée, relue avant application). */
+  onGenerateSeo?: () => void;
+  seoAiLoading?: boolean;
   allowPublicAnnotations: boolean;
   allowComments: boolean;
   onTogglePublicAnnotations: (value: boolean) => void;
@@ -175,6 +179,8 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
     autoSeoDescription,
     onSeoTitleChange,
     onSeoDescriptionChange,
+    onGenerateSeo,
+    seoAiLoading = false,
     allowPublicAnnotations,
     allowComments,
     onTogglePublicAnnotations,
@@ -625,6 +631,22 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
                   onChange={(event) => onSeoDescriptionChange(event.target.value)}
                   placeholder={autoSeoDescription || t`Résumé de l'article.`}
                 />
+                {onGenerateSeo ? (
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={onGenerateSeo}
+                    disabled={seoAiLoading}
+                    className="mt-1 text-muted-foreground"
+                  >
+                    {seoAiLoading ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="size-3 text-primary" />
+                    )}
+                    {t`Générer avec l'IA`}
+                  </Button>
+                ) : null}
               </StudioField>
             </div>
           </section>

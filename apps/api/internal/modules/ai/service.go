@@ -273,6 +273,100 @@ func (s *Service) Explain(ctx context.Context, userID, text, locale string) (Exp
 	return Explanation{Explanation: strings.TrimSpace(out), Usage: usage}, nil
 }
 
+// EditorAssistResult est une aide d'écriture ciblée (titre ou méta SEO).
+type EditorAssistResult struct {
+	Task        string   `json:"task"`
+	Suggestions []string `json:"suggestions"`
+	Usage       Usage    `json:"usage"`
+}
+
+// EditorAssist propose des titres ou une description SEO à partir du texte
+// fourni par l'auteur. Aucune image : on n'invente pas un alt sans contenu
+// visuel. Le quota et le gate Plus sont les mêmes que les autres actions IA.
+func (s *Service) EditorAssist(ctx context.Context, userID, task, text, contextText, locale string) (EditorAssistResult, error) {
+	task = strings.ToLower(strings.TrimSpace(task))
+	if task != "title" && task != "seo" {
+		return EditorAssistResult{}, errors.New("tâche IA inconnue")
+	}
+
+	text = strings.TrimSpace(text)
+	if n := len([]rune(text)); n < 1 || n > 4000 {
+		return EditorAssistResult{}, errors.New("texte de 1 à 4000 caractères")
+	}
+	contextText = truncateRunes(strings.TrimSpace(contextText), 6000)
+
+	now := time.Now()
+	usage, err := s.checkGate(ctx, userID)
+	if err != nil {
+		return EditorAssistResult{}, err
+	}
+
+	lang := "fr"
+	if strings.HasPrefix(strings.ToLower(locale), "en") {
+		lang = "en"
+	}
+	system, user := editorAssistPrompt(lang, task, text, contextText)
+	out, err := s.ac.Generate(ctx, goai.Request{
+		System:    system,
+		User:      user,
+		MaxTokens: 350,
+	})
+	if err != nil {
+		abuse.RefundBudget(ctx, s.pool, "user_month", userID, ActionAIRequest, abuse.MonthlyWindow(now), 1)
+		usage.Remaining++
+		if usage.Remaining > usage.Limit {
+			usage.Remaining = usage.Limit
+		}
+		return EditorAssistResult{}, err
+	}
+
+	suggestions := []string{strings.TrimSpace(out)}
+	if task == "title" {
+		suggestions = splitTitleSuggestions(out)
+	}
+	return EditorAssistResult{Task: task, Suggestions: suggestions, Usage: usage}, nil
+}
+
+func splitTitleSuggestions(out string) []string {
+	out = strings.TrimSpace(out)
+	if out == "" {
+		return nil
+	}
+	suggestions := make([]string, 0, 5)
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		line = strings.TrimLeft(line, "-•*0123456789. )\t")
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if n := len([]rune(line)); n > 140 {
+			line = truncateRunes(line, 140)
+		}
+		suggestions = append(suggestions, line)
+		if len(suggestions) == 5 {
+			break
+		}
+	}
+	if len(suggestions) == 0 {
+		return []string{out}
+	}
+	return suggestions
+}
+
+func editorAssistPrompt(lang, task, text, contextText string) (system, user string) {
+	if lang == "en" {
+		if task == "title" {
+			return "Propose 5 factual, journalistic titles in English. One title per line, no numbering, no quotes, maximum 120 characters each.", "Current title: " + text + "\n\nExcerpt:\n" + contextText
+		}
+		return "Write one factual meta description in English, 150 to 160 characters, no quotes, no preamble.", "Title: " + text + "\n\nExcerpt:\n" + contextText
+	}
+	if task == "title" {
+		return "Propose 5 titres journalistiques factuels en français. Un titre par ligne, sans numérotation ni guillemets, 120 caractères maximum.", "Titre actuel : " + text + "\n\nExtrait :\n" + contextText
+	}
+	return "Rédige une seule méta description factuelle en français, de 150 à 160 caractères, sans guillemets ni préambule.", "Titre : " + text + "\n\nExtrait :\n" + contextText
+}
+
 func errNotFoundGeneric() error { return errors.New("article introuvable") }
 
 func summarizeSystem(lang string) string {

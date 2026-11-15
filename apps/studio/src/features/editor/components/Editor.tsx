@@ -21,7 +21,7 @@ import { toast } from '@qoe/ui/toast';
 import { resolveAppUrl } from '@qoe/config';
 import { useAutoSaveArticle, type AutoSavePayload } from '@qoe/sdk';
 import type { EditorCapabilities, ArticleReviewFeedback } from '@qoe/sdk/actions/articles';
-import { GitFork, MessageSquare, Send, ShieldCheck } from 'lucide-react';
+import { GitFork, Loader2, MessageSquare, Send, ShieldCheck, Sparkles } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import { ArticleInspectorDrawer } from '@/app/(creator)/analytics/components/ArticleInspectorModal';
 import { compressImage } from '@/lib/image-compressor';
@@ -63,6 +63,8 @@ import { ImageDetailsPanel, type ImageDetails } from './ImageDetailsPanel';
 import { PublishModal, type PublishOptions } from './PublishModal';
 import { PublishReadinessDialog } from './PublishReadinessDialog';
 import { MediaAssetPickerDialog } from './MediaAssetPickerDialog';
+import { AiSuggestionDialog } from './AiSuggestionDialog';
+import { generateEditorAssistAction, type EditorAssistTask } from '../actions/ai-assist';
 import { ArticleDiffModal } from './ArticleDiffModal';
 import { ArticleHistoryModal } from './ArticleHistoryModal';
 import { RecoverArticleModal } from './RecoverArticleModal';
@@ -365,6 +367,12 @@ export function Editor({
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [showPreflight, setShowPreflight] = useState(false);
   const [showBodyLibrary, setShowBodyLibrary] = useState(false);
+  const [aiDialog, setAiDialog] = useState<{
+    task: EditorAssistTask;
+    loading: boolean;
+    error: string | null;
+    suggestions: string[];
+  } | null>(null);
   const [publishWarnings, setPublishWarnings] = useState<string[]>([]);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -1355,6 +1363,37 @@ export function Editor({
     setImageDetailsPosition(null);
   }, [editor, imageDetails, imageDetailsTarget]);
 
+  const runEditorAssist = useCallback(
+    async (task: EditorAssistTask) => {
+      setAiDialog({ task, loading: true, error: null, suggestions: [] });
+      const result = await generateEditorAssistAction({
+        task,
+        text: title.trim() || t`Nouvel article`,
+        context: editor?.getText() ?? '',
+      });
+      setAiDialog(
+        result.ok
+          ? { task, loading: false, error: null, suggestions: result.suggestions }
+          : { task, loading: false, error: result.error, suggestions: [] }
+      );
+    },
+    [editor, title]
+  );
+
+  const applyAiSuggestion = useCallback(
+    (suggestion: string) => {
+      if (!aiDialog) return;
+      if (aiDialog.task === 'title') {
+        setTitle(suggestion);
+      } else {
+        setSeoDescription(suggestion.slice(0, 160));
+      }
+      setHasUnsavedChanges(true);
+      toast.success(t`Suggestion appliquée.`);
+    },
+    [aiDialog]
+  );
+
   const handleFocusTitle = useCallback(() => {
     document.getElementById('article-title')?.focus();
   }, []);
@@ -2325,6 +2364,25 @@ export function Editor({
               placeholder={t`Titre de votre article...`}
               className="w-full bg-transparent border-0 text-3xl md:text-4xl font-bold tracking-tight text-foreground focus:outline-none placeholder:text-muted-foreground/30 font-sans leading-tight"
             />
+            {initialCanEdit ? (
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => void runEditorAssist('title')}
+                  disabled={aiDialog?.loading}
+                  className="text-muted-foreground"
+                >
+                  {aiDialog?.loading && aiDialog.task === 'title' ? (
+                    <Loader2 className="size-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="size-3 text-primary" />
+                  )}
+                  {t`Proposer des titres`}
+                </Button>
+              </div>
+            ) : null}
 
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-sans flex-nowrap">
               <span className="text-muted-foreground/60 font-medium whitespace-nowrap shrink-0 select-none">
@@ -2510,6 +2568,8 @@ export function Editor({
           setSeoDescription(value);
           setHasUnsavedChanges(true);
         }}
+        onGenerateSeo={() => void runEditorAssist('seo')}
+        seoAiLoading={aiDialog?.task === 'seo' && aiDialog.loading}
         allowPublicAnnotations={allowPublicAnnotations}
         allowComments={allowComments}
         onTogglePublicAnnotations={(value) => {
@@ -2578,6 +2638,22 @@ export function Editor({
         onClose={() => setImageDetailsPosition(null)}
         onCrop={handleCropExistingImage}
         onReplace={() => replaceImageInputRef.current?.click()}
+      />
+
+      <AiSuggestionDialog
+        open={aiDialog !== null}
+        onClose={() => setAiDialog(null)}
+        title={aiDialog?.task === 'seo' ? t`Proposer une description SEO` : t`Proposer des titres`}
+        description={
+          aiDialog?.task === 'seo'
+            ? t`Une méta description factuelle, à relire avant de l'appliquer.`
+            : t`Cinq pistes à partir du titre et du début de l'article. Relisez avant de choisir.`
+        }
+        loading={aiDialog?.loading ?? false}
+        error={aiDialog?.error ?? null}
+        suggestions={aiDialog?.suggestions ?? []}
+        onApply={applyAiSuggestion}
+        onRetry={aiDialog ? () => void runEditorAssist(aiDialog.task) : undefined}
       />
 
       {editor && (
