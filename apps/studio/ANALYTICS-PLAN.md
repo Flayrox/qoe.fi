@@ -6,110 +6,120 @@ Dernière mise à jour : 2026-11-15 · branche `dev`
 
 ---
 
-## 1. Vision Métier & Spécifications Écosystème
+## 0. Audit de l'existant & Écarts identifiés (code vérifié)
 
-Le système d'analytics de Qoefi est conçu pour refléter la réalité **relationnelle, collaborative et typographique** de la plateforme :
+L'inspection du backend Go (`apps/api/internal/modules/analytics/`, `tracking/`), du schéma (`schema.sql`) et du Studio (`apps/studio/src/app/(creator)/analytics/`) révèle 5 écarts majeurs à corriger en priorité :
 
-### A. L'Interaction In-Situ le long de l'article (Heatmap Textuelle)
-Contrairement aux plateformes web classiques qui mesurent un bouton de like isolé en haut ou bas de page, Qoefi mesure la lecture vécue :
-1. **Point d'impact précis dans le texte** :
-   - À quel paragraphe / pourcentage de scroll le lecteur a-t-il cliqué sur **Like** ?
-   - À quel endroit précis l'article a-t-il été **Partagé** (partage de l'article ou d'une citation précise) ?
-   - Quels blocs de texte concentrent les **Surlignages** et **Annotations** ?
-2. **Détection du Climax Éditorial** :
-   - Identification du "paragraphe star" (celui qui déclenche le plus de réactions, de surlignages et de partages sociaux).
-   - Corrélation avec les points de décrochage (*Drop-off*) pour comprendre si une baisse d'attention précède ou suit une section dense.
-
----
-
-### B. Co-Auteurs & Attribution du Trafic Réseau
-Pour les articles rédigés en collaboration (auteur principal + co-auteurs enregistrés via `ArticleAttribution`) :
-1. **Origine du lectorat par co-auteur** :
-   - Quelle part de l'audience a été amenée par le réseau et les abonnés de l'Auteur A vs l'Auteur B ?
-   - Attribution via liens de partage, profils respectifs et notifications aux cercles d'abonnés de chaque co-auteur.
-2. **Impact partagé & Transparence** :
-   - Chaque co-auteur accède aux métriques de l'article partagé dans son propre Studio, sans rupture de confidentialité sur les données financières privées du co-auteur.
+1. **Mélange / fuite de métriques Umami globales dans le Studio (`actions.ts`)** :
+   - Quand un créateur/média n'a pas son propre `umamiWebsiteId`, le studio retombe sur `NEXT_PUBLIC_UMAMI_WEBSITE_ID` (global `qoe.fi`). Résultat : `pageviews` vient bien des `ReadingSession` Go du créateur, mais `visitors`, `visits`, `bounces`, `referrers`, `devices`, `countries`, `returning` et `hours` proviennent du site global.
+   - **Action** : Basculer 100 % des métriques créateur/média vers des requêtes scopées côté Go (ou tags/websites Umami strictement isolés) pour qu'aucun indicateur global ne pollue un dashboard personnel.
+2. **Perte d'historique > 90 jours (`ReadingSession` purgé)** :
+   - `tracking/service.go` signale que le worker purge `ReadingSession` après 90 jours. Par conséquent, le filtre `all` ("Tout l'historique") perd les vues plus anciennes.
+   - **Action** : Ajouter une table de rollup journalier permanent (`ArticleDailyStat` / `PublisherDailyStat` ventilée par auteur/tenant/source) calculée avant purge.
+3. **Données déjà collectées mais invisibles dans le Studio** :
+   - `FeedImpression` (`useFeedImpressionTracker`) est stocké mais jamais rapproché des lectures (`CTR du Feed`, `Découverte pgvector vs Abonnés`).
+   - `ReadingSession.status` (`BOUNCE`, `SKIM`, `READ_PARTIAL`, `READ_COMPLETE`) et `scrollDepth` sont stockés session par session, mais `ProductMetrics` calcule la qualité de lecture via un simple EMA `Article.completionRate` par article au lieu d'agréger les vraies sessions et la courbe de rétention (25 % ➔ 50 % ➔ 75 % ➔ 85 %+).
+   - `apps/mobile` ne remonte pas encore `/v1/tracking/reading-session` : les lectures iOS/Android sont aveugles.
+4. **Absence d'analytics Newsletter & Tunnel Paywall** :
+   - `NewsletterIssue`, `NewsletterDelivery` et `ArticleReleaseDelivery` ne suivent que `QUEUED/SENT/FAILED`. Aucun lien avec les clics newsletter ➔ lectures web, conversions abonnés, ni hits/conversions paywall.
+5. **Absence des stats Financières & Pensées dans l'UI Studio** :
+   - `Service.Financial()` (MRR, ARR, LTV, taux de conversion) et `GetRecentThoughtsForAnalytics()` existent en Go mais ne sont pas exposés dans le dashboard analytics pour relier **Contenu (Article ou Pensée) ➔ Profil ➔ Abonné payant/gratuit**.
 
 ---
 
-### C. La Passerelle Croisée d'Audience : Média ⇄ Auteur Personnel
-Un rédacteur qui publie au sein d'un média (ou d'une publication collective) bénéficie d'une relation à double sens mesurée :
-1. **Flux Média ➔ Auteur Personnel** :
-   - Nombre de lecteurs ayant cliqué sur le profil / avatar de l'auteur depuis l'article publié sur le média.
-   - Nouveaux abonnés personnels générés pour l'auteur grâce à sa publication dans le média.
-2. **Flux Auteur ➔ Média (Rétention & Découverte)** :
-   - Nombre de lecteurs amenés par l'auteur qui ont continué à naviguer sur le média (rebond interne vers d'autres articles du média).
-   - Taux d'abonnements au média déclenchés par l'article de cet auteur.
+## 1. Vision Métier & Piliers Différenciants (au-delà de Substack/Ghost/Medium)
+
+### A. Courbes Multi-Auteurs & Multi-Tenants (Pilotage d'équipe & média)
+- **Séries temporelles multi-séries (`TimeseriesMultiChart`)** :
+  - Mode **Superposé (multi-lignes)** : une courbe colorée par auteur/contributeur ou par tenant.
+  - Mode **Additionné / Empilé (stacked area)** : empilement des aires pour voir la courbe totale du média et la part de chaque personne.
+  - Mode **Part relative (100 % stacked)** : évolution de la répartition d'audience entre contributeurs.
+- **Manipulation dynamique** : pills d'auteurs cliquables (toggle on/off, double-clic = mode *Solo*, *Tout sélectionner / Moi uniquement*, ajouter/retirer à la volée).
+- **Sélecteur Multi-Tenants** : bascule d'un tenant à l'autre (`*.qoe.fi`, domaine custom) ou comparaison cross-publications.
+
+### B. Radiographie In-Situ du Texte (Où exactement dans l'article ?)
+*Qoefi stocke déjà `Highlight.canonicalStart`/`canonicalEnd`/`contentSha`. En ajoutant l'ancrage positionnel (`scrollDepth` / `paragraphIndex`) aux actions, l'article devient une carte interactive :*
+1. **À quel moment de l'article** les lecteurs cliquent sur **Like**, mettent en **Marque-page**, **Partagent** (citation ou article), ouvrent une **Annotation officielle** ou **Commentent**.
+2. **Courbe de Rétention & Vitesse le long du texte** : où les lecteurs décrochent (`Drop-off`), où ils survolent vite (`Skim` local), et quel est le **"paragraphe Climax"** qui déclenche le pic de surlignages et de partages.
+
+### C. Attribution Collaborative Co-Auteurs & Passerelle Croisée Média ⇄ Auteur
+1. **Attribution Co-Auteurs (`ArticleAttribution`)** :
+   - Sur un article co-signé, distinguer la part du lectorat drainée par le réseau / les partages de l'Auteur A vs Co-auteur B vs le média vs l'organique (`referrerUsername`, liens signés, followers respectifs).
+2. **Vases communicants Média ⇄ Profil Personnel (`isAuthorSovereignCopy`)** :
+   - **Flux Média ➔ Auteur** : quand j'écris pour un média, combien de lecteurs ont cliqué sur mon profil depuis cet article, combien se sont abonnés à mon espace personnel ?
+   - **Flux Auteur ➔ Média** : combien de lecteurs amenés par mon réseau ont ensuite lu d'autres articles du média ou se sont abonnés au média ?
+3. **Arbre de propagation & Provenance fine** :
+   - De quel tenant (`hostname`), profil référent (`referrerUsername`), repost cité (`Post.quotedArticleId`) ou newsletter provient chaque vague de lecture.
+
+### D. Funnel Complet, Timeline Causale & ADN "Sanctuaire de Lecture"
+1. **Funnel d'acquisition complet** :
+   - `Impressions Feed / Newsletter / Externe` ➔ `Clics` ➔ `Début de lecture (>25%)` ➔ `Deep Read` ➔ `Paywall / Abonnement gratuit ou payant`.
+   - **Attribution d'abonnement** (*First Touch* / *Last Touch*) par article, par auteur et par pensée (`Post`).
+2. **Marqueurs causaux sur la courbe temporelle** :
+   - Superposer automatiquement les évènements `ArticleEvent` (`PUBLISHED`, `LIVE_UPDATED`, envoi `NewsletterIssue`, repost majeur, boost co-auteur) sur la courbe des vues pour voir l'impact immédiat de chaque action.
+3. **Comfort & Accessibility Insights (spécifique Qoefi)** :
+   - Usage du **Mode Bionic (TDAH)**, ouverture des **annotations officielles de l'auteur**, taux de sauvegarde bibliothèque / export, web vs App Mobile Expo.
+4. **Découvrabilité Sémantique (`pgvector`)** :
+   - Identifier les formats/longueurs "Sweet Spot" (longueur vs taux de complétion réel) et les thématiques connexes qui engagent le plus les lecteurs du média.
+
+### E. Vues Contextuelles Adaptatives selon le Rôle
+- **Auteur Solo** : focus qualité de lecture, radiographie in-situ, funnel abonnés, sans surcharge multi-équipes.
+- **Co-Auteur** : répartition transparente des apports d'audience par collaborateur.
+- **Rédacteur dans un Média** : performance de ses écrits dans le média + retombées directes sur son profil/abonnés personnels.
+- **Propriétaire / Éditeur en chef Média** : pilotage multi-courbes de l'équipe, comparaison/cumul des auteurs, matrice d'attribution et vases communicants.
 
 ---
 
-### D. Multi-Tenants & Provenance Réseau
-Pour les écosystèmes multi-tenants (`*.qoe.fi`, domaines personnalisés, copies souveraines `isAuthorSovereignCopy`) :
-1. **Cartographie des Tenants sources** :
-   - De quel tenant / sous-domaine / publication proviennent les lecteurs ?
-   - Détection des articles partenaires ou cross-postings fédérés.
-2. **Analytics unifiées vs ventilées pour les studios multi-publications** :
-   - Sélecteur de tenant rapide permettant d'inspecter un sous-domaine spécifique ou d'agréger tous les tenants d'un même groupe média.
+## 2. Architecture Technique & Base de Données
+
+### A. Nouvelles tables / enrichissements SQL (`apps/api/sql/migrations`)
+1. **Rollup journalier permanent** (`ArticleDailyStat`) :
+   - Clé : `(day, articleId, source, hostname, authorAttributionUserId)` + compteurs (`views`, `uniqueReaders`, `deepReads`, `skims`, `bounces`, `totalDwellSeconds`, `authorProfileClicks`, `subscribesCount`).
+   - Alimenté par le worker avant la purge 90j de `ReadingSession` ➔ historique illimité ultra-rapide.
+2. **Signaux positionnels & passerelle (`ArticleInteractionPoint` ou colonnes sur `ContentFeedback`/`Share`/event léger)** :
+   - Stockage de `(articleId, eventType, scrollDepthPercent, paragraphIndex, sourceRefUserId)` pour Likes, Partages, Bookmarks, PaywallHits, ProfileClicksFromMedia.
+3. **Attribution Abonné & Conversion** :
+   - Sur `Subscriber` (ou `SubscriptionConversion`) : `attributedArticleId`, `attributedAuthorId`, `attributedChannel` (`article`, `thought`, `media_bridge`, `newsletter`, `profile`), `attributedFromPublisherId`.
+4. **Tracking Mobile** :
+   - Brancher `POST /v1/tracking/reading-session` (avec `source = 'mobile_app'`) depuis `apps/mobile`.
+
+### B. Endpoints Go (`apps/api/internal/modules/analytics/`)
+- `GET /v1/analytics/timeseries` : multi-séries ventilées par `groupBy=author|tenant|channel` (`views`, `deepReads`, `dwellMinutes`, `subscribers`).
+- `GET /v1/analytics/article/{id}/in-situ` : courbe de décrochage par tranche de 10 % + heatmap des likes/surlignages/partages/annotations par paragraphe + marqueurs `ArticleEvent`.
+- `GET /v1/analytics/article/{id}/collaboration` : apports co-auteurs + flux passerelle Média ⇄ Auteurs.
+- `GET /v1/analytics/funnel` : `FeedImpression` ➔ `ReadingSession` (tous statuts) ➔ `Paywall / Subscription` + conversion pensées & newsletters.
+- `GET /v1/analytics/media-bridge` : bilan global des transferts d'audience Média ⇄ Profils personnels des rédacteurs.
 
 ---
 
-### E. Vues Contextuelles Adaptatives
-Le Studio adapte automatiquement les tableaux de bord et contrôles en fonction du contexte de l'utilisateur :
-- **Mode Auteur Solo** : Interface épurée, focalisée sur la qualité de lecture, les surlignages et les abonnés sans encombrement multi-équipes.
-- **Mode Co-Auteur** : Affichage de la part d'audience respective, des contributions réseau et des retombées personnelles.
-- **Mode Contributeur de Média** : Vue sur l'impact de l'article dans le média + retombées d'audience sur son propre sanctuaire.
-- **Mode Rédacteur en Chef / Propriétaire Média** : Panorama d'équipe, comparaison de courbes (superposées, empilées/cumulées), matrice des contributeurs et vases communicants d'audience.
+## 3. Découpage des Lots d'Implémentation
+
+### Lot 1 — Fiabilisation & Fin des fuites de scope + Rollup permanent
+- [ ] Corriger l'isolation 100 % scopée des stats Studio (ne plus exposer les visiteurs/heures/pays globaux d'Umami quand `umamiWebsiteId` est partagé).
+- [ ] Créer la table de rollup permanent `ArticleDailyStat` + worker d'agrégation avant purge 90j.
+- [ ] Calculer `ReadingQuality` et la courbe de rétention depuis les vraies `ReadingSession` (non plus uniquement EMA).
+- [ ] Brancher le tracking lecture sur `apps/mobile`.
+
+### Lot 2 — Graphique Multi-Courbes & Pilotage Équipe/Tenants (`TimeseriesMultiChart`)
+- [ ] Endpoint Go `GET /v1/analytics/timeseries?groupBy=author|tenant`.
+- [ ] Composant SVG pur `TimeseriesMultiChart` : modes *Superposé*, *Empilé/Cumulé*, *% Relatif*, curseur unifié au hover.
+- [ ] Pills interactives d'auteurs/tenants (ajouter, retirer, isoler en *Solo*, *Moi uniquement*).
+- [ ] Sélecteur de tenant pour comptes multi-publications.
+
+### Lot 3 — Radiographie In-Situ, Marqueurs Causaux & Confort de Lecture
+- [ ] Capture de `paragraphIndex` / `scrollDepth` sur Likes, Bookmarks, Partages, PaywallHits + agrégation des `Highlight` existants (`canonicalStart`/`canonicalEnd`).
+- [ ] Vue "Radiographie de l'article" dans `ArticleAnalyticsPageClient.tsx` + marqueurs `ArticleEvent` (`PUBLISHED`, `LIVE_UPDATED`, `NewsletterIssue`) sur la courbe temporelle.
+- [ ] Indicateurs Comfort & Accessibility (Mode Bionic, annotations officielles).
+
+### Lot 4 — Co-Auteurs, Passerelle Média ⇄ Auteur & Funnel Abonnés/Newsletter
+- [ ] Tracking du passage Média ➔ Profil Auteur et Auteur ➔ Média + attribution de conversion `Subscriber`.
+- [ ] Raccordement de `FeedImpression` (CTR Feed + part Découverte pgvector) et des métriques Newsletter (clics ➔ lectures) + Pensées (`Post`).
+- [ ] Blocs UI dédiés adaptatifs selon le contexte (Solo, Co-auteur, Contributeur Média, Rédacteur en chef).
+- [ ] Tests unitaires Go (`analytics_test.go`), Vitest Studio et E2E Playwright.
 
 ---
 
-## 2. Architecture Technique
-
-### A. Backend (Go `apps/api`)
-- **Modèle d'évènements in-situ** :
-  - Enrichissement de `article_reading_session` et des évènements d'interaction avec le champ `paragraph_index` et `scroll_percentage`.
-  - Enregistrement du `referrer_type` (`AUTHOR_PROFILE`, `MEDIA_HOME`, `CO_AUTHOR_SHARE`, `EXTERNAL_TENANT`).
-- **Endpoints d'Analyse Relationnelle** :
-  - `GET /v1/creator/analytics/in-situ?article_id=...` : heatmap des interactions (likes, shares, highlights, drops) le long des paragraphes du texte.
-  - `GET /v1/creator/analytics/co-authors?article_id=...` : répartition des apports d'audience par co-auteur.
-  - `GET /v1/creator/analytics/media-bridge` : flux croisé (clics vers profil auteur vs clics vers le média).
-  - `GET /v1/creator/analytics/timeseries?group_by=author` : séries temporelles multi-auteurs (support modes lignes et stacked).
-
-### B. Frontend (`apps/studio` & `packages/analytics`)
-- **Visualiseur In-Situ (Article Engagement Map)** :
-  - Mini-carte verticale le long du texte ou vue par blocs indiquant les points chauds (climax, partages, surlignages).
-- **TimeseriesMultiChart (SVG natif)** :
-  - Modes Superposé (lignes) / Cumulé (stacked area) / Part relative (100%).
-  - Contrôles dynamiques (pills d'auteurs on/off/solo, sélecteur de période).
-- **Passerelle d'Audience (Sankey / Flux visuel)** :
-  - Visualisation simple du flux : Lecteurs Média ➔ Lecteurs Article ➔ Abonnés Média & Abonnés Profil Auteur.
-
----
-
-## 3. Découpage des Lots
-
-### Lot 1 — Capture In-Situ & Modèle Go
-- [ ] Enregistrement du `scroll_depth` et `paragraph_index` sur les likes, reposts, bookmarks et partages.
-- [ ] Tracking du passage Média ➔ Profil Auteur (`author_profile_click_from_media`).
-- [ ] Endpoints Go pour la heatmap in-situ et le flux média ⇄ auteur.
-
-### Lot 2 — Graphique Temporel Multi-Séries (`TimeseriesMultiChart`)
-- [ ] Moteur SVG multi-lignes et aires empilées avec couleurs distinctes et palette accessible.
-- [ ] Curseur unifié multi-auteurs au hover avec tooltip d'agrégation.
-- [ ] Système de pills interactifs d'auteurs (toggle, solo, select all).
-
-### Lot 3 — Heatmap In-Situ & Vues Collaboratives
-- [ ] Composant visuel d'inspection in-situ sur l'article (où sont les likes, partages et décrochages dans le texte).
-- [ ] Bloc Co-auteurs : ventilation de l'audience apportée par chaque collaborateur.
-- [ ] Bloc Passerelle Média ⇄ Auteur : mesure des conversions d'abonnés personnelles issues du média.
-
-### Lot 4 — Multi-Tenants & Rôles
-- [ ] Sélecteur de tenant pour les comptes multi-publications.
-- [ ] Vues adaptatives selon le profil (Solo, Contributeur, Co-auteur, Équipe).
-- [ ] Tests Playwright et conformité vie privée (zéro fingerprinting intrusif).
-
----
-
-## 4. Garde-fous & Principes Fondamentaux
-- **Respect de la vie privée** : Métriques agrégées, conformité stricte RGPD/CNIL, aucun profilage comportemental individuel des lecteurs.
-- **Légèreté & Performance** : Graphiques SVG purs sans bibliothèques tierces lourdes, requêtes SQL optimisées avec mise en cache Redis.
-- **Souveraineté de l'auteur** : Les données d'audience d'un co-auteur ou d'un créateur lui appartiennent et alimentent la copie souveraine de son article.
+## 4. Règles & Garde-fous
+- **Vie privée & RGPD** : Zéro fingerprinting individuel des lecteurs ; toutes les stats créateurs restent strictement agrégées (seuil d'anonymat quand pertinent) et sans cookies tiers.
+- **Go = Source de vérité** : Toute logique d'attribution, de permission (`canAccess` / `articleScopeSQL`) et de calcul de funnel vit côté Go.
+- **Légèreté UI** : Graphiques SVG natifs alignés sur le design system `@qoe/ui`, responsive mobile/desktop.
