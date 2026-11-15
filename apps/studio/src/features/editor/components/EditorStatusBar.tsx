@@ -5,6 +5,7 @@ import { useEditorState, type Editor } from '@tiptap/react';
 import { Clock, Highlighter, ImageOff, Keyboard, Type } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import { useModKey } from '../hooks/useModKey';
+import { missingAltPositions } from '../lib/alt-coverage';
 
 export interface EditorStatusBarProps {
   editor: Editor;
@@ -40,23 +41,11 @@ export function EditorStatusBar({
       // B2 : le compteur est la seule vue d'ensemble des images sans alt.
       // Il est recalculé avec la sélection, donc il suit immédiatement une
       // correction dans le panneau de détails.
-      let altMissing = 0;
-      current.state.doc.descendants((node) => {
-        if (
-          (node.type.name === 'image' || node.type.name === 'galleryImage') &&
-          !String(node.attrs.alt ?? '').trim()
-        ) {
-          altMissing += 1;
-          return false;
-        }
-        return true;
-      });
-
       return {
         words: counter?.words?.() ?? 0,
         characters: counter?.characters?.() ?? 0,
         annotation: current.isActive('annotationMark'),
-        altMissing,
+        altMissing: missingAltPositions(current.state.doc).length,
       };
     },
   });

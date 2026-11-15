@@ -48,6 +48,7 @@ import {
 import { currentTimeZoneLabel, toDateTimeLocalValue } from '../lib/datetime';
 import { normalizeLinkUrl } from '../lib/link';
 import { countImagesWithoutAlt } from '../lib/accessibility';
+import { missingAltPositions } from '../lib/alt-coverage';
 import { adjacentImagePosition } from '../lib/image-navigation';
 import type { ArticleAttributionDraft } from './ArticleAttributionEditor';
 import { EditorHeader } from './EditorHeader';
@@ -1310,20 +1311,7 @@ export function Editor({
   // B2 : la première image sans alt, pour le compteur de la barre de statut.
   const handleFixAltMissing = useCallback(() => {
     if (!editor) return;
-    const missingPositions: number[] = [];
-    editor.state.doc.descendants((node, pos) => {
-      if (missingPositions.length > 0) return false;
-      if (
-        (node.type.name === 'image' || node.type.name === 'galleryImage') &&
-        !String(node.attrs.alt ?? '').trim()
-      ) {
-        missingPositions.push(pos);
-        return false;
-      }
-      return true;
-    });
-
-    const targetPos = missingPositions[0];
+    const [targetPos] = missingAltPositions(editor.state.doc);
     if (targetPos === undefined) return;
     editor.chain().focus().setNodeSelection(targetPos).run();
     openImageDetails();

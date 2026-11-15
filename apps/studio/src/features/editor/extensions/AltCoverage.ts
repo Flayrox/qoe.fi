@@ -3,6 +3,7 @@ import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { t } from '@lingui/core/macro';
+import { collectImagesWithoutAlt } from '../lib/alt-coverage';
 
 /**
  * Événement DOM émis par le badge « Alt manquant ». Le badge est une
@@ -13,14 +14,6 @@ export const ALT_DETAILS_EVENT = 'qoe:image-alt-details';
 
 const ALT_COVERAGE_KEY = new PluginKey('altCoverage');
 
-function isImageNode(node: ProseMirrorNode): boolean {
-  return node.type.name === 'image' || node.type.name === 'galleryImage';
-}
-
-function hasMissingAlt(node: ProseMirrorNode): boolean {
-  return isImageNode(node) && !String(node.attrs.alt ?? '').trim();
-}
-
 /**
  * Marque les images sans description alternative et pose un badge cliquable
  * sur les images seules. Les images de galerie sont déjà dans une grille :
@@ -30,16 +23,14 @@ function hasMissingAlt(node: ProseMirrorNode): boolean {
 function buildDecorations(doc: ProseMirrorNode): DecorationSet {
   const decorations: Decoration[] = [];
 
-  doc.descendants((node, pos) => {
-    if (!hasMissingAlt(node)) return;
-
+  for (const { node, pos } of collectImagesWithoutAlt(doc)) {
     decorations.push(
       Decoration.node(pos, pos + node.nodeSize, {
         class: 'qoe-image-missing-alt',
       })
     );
 
-    if (node.type.name !== 'image') return;
+    if (node.type.name !== 'image') continue;
 
     decorations.push(
       Decoration.widget(
@@ -73,7 +64,7 @@ function buildDecorations(doc: ProseMirrorNode): DecorationSet {
         { side: 1 }
       )
     );
-  });
+  }
 
   return DecorationSet.create(doc, decorations);
 }
