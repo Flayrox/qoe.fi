@@ -114,7 +114,8 @@ Vérifications : `go build ./...`, `go test ./internal/modules/billing
   d'origine, `subscribers.csv`, `manifest.json`). Aucune migration.
 - Convertisseur HTML → Markdown compact et testé (`markdown_test.go`).
 - Studio : route handler `/api/export` (session + workspace actif, relais
-  authentifié vers Go) et page `/export` (contenu de l'archive, download).
+  authentifié vers Go), point d'entrée dans les réglages (« Données &
+  confidentialité »).
 - Vérifications : `go build ./...`, `go test ./internal/modules/exports`,
   `pnpm --filter @qoe/studio typecheck`.
 
@@ -146,27 +147,46 @@ Vérifications : `go build ./...`, `go test ./internal/modules/billing
 - Inclure les images de l'éditeur dans l'archive et les réécrire.
 - Édition du sommaire (titres de chapitres distincts des titres d'articles).
 
-### 2026-11-15 — lot 2 : digest newsletter (premier lot livré)
+### 2026-11-15 — lot 2 : digest — consolidation (doublon retiré)
 
-- Nouveau module Go `internal/modules/digest` :
-  - `GET/PUT /v1/creator/newsletter/digest` — configuration stockée dans
-    `Publisher.emailSettings->'digest'` (JSONB existant, **aucune migration**),
-    valeurs bornées (jour 1-7, heure 0-23, 1-12 articles, intro ≤ 500).
-  - `POST /v1/creator/newsletter/digest/preview` — sélection des derniers
-    articles publiés, extraits nettoyés, rendu HTML autonome (liens absolus
-    reconstruits depuis l'hôte). Aucun email n'est envoyé.
-- Studio : page `/digest` (activation, jour/heure, nombre d'articles, intro,
-  aperçu dans une iframe sandboxée), entrée sidebar + Cmd+K.
-- Vérifications : `go build ./...`, `go test ./internal/modules/digest`,
-  `pnpm --filter @qoe/studio typecheck`.
+Le digest avait été implémenté **deux fois** en parallèle :
 
-À faire ensuite (lot 2) :
+- l'autre agent (commit `70e8efa5`, `docs/PARALLEL-LOTS-PLAN.md` lot 2) :
+  `POST /v1/newsletters/digest` crée un **brouillon d'issue** depuis les
+  articles récents (`ListArticlesForDigest`), rendu par `buildDigestHTML`
+  (URL canonique, couverture, temps de lecture, extraits), bouton dans
+  l'onglet Newsletter du Studio ;
+- moi : `internal/modules/digest` + page `/digest` (configuration
+  hebdomadaire + aperçu), sans création d'issue.
 
-- Envoi planifié : tâche périodique asynq + réutilisation du worker
-  newsletter (budget, kill switch, suppressions) et journal des envois.
-- Désinscription fine par type d'email (le digest ne doit pas contourner les
-  préférences).
-- Personnalisation par segment (premium / inactifs) une fois le lot 1 stable.
+Décision : **on garde l'implémentation de l'agent newsletter** (elle réutilise
+le pipeline d'envoi, les gardes et l'éditeur existants) et mon doublon est
+**supprimé** (`internal/modules/digest`, page `/digest`, entrée de surface,
+route). Reste uniquement à sa charge le test du handler `POST
+/v1/newsletters/digest` (noté dans son plan).
+
+Ce qui manque encore pour un vrai digest récurrent : une cadence (tâche
+périodique asynq) qui appelle `CreateDigestDraft` puis laisse le créateur
+relire — à construire **dans `modules/newsletters`**, pas ailleurs.
+
+### 2026-11-15 — lot 1, fin : commission Pro, portail, ménage
+
+- **Commission Pro 5 %** : `billing.Service.IsPro` lit `subscriptions.HasPro`
+  (source unique des droits) et le handler applique `commissionPercent(isPro)`
+  — 5 % pour une publication Pro, 10 % sinon. Testé (`TestCommissionPercent`).
+- **Lien `User → stripeCustomerId`** : migration `00091_user_stripe_customer.sql`
+  (colonne nullable + index unique partiel), `models.go` et `schema.sql` mis à
+  jour. Le webhook Checkout et `customer.subscription.*` écrivent le lien
+  (`rememberCustomer`, best-effort : un échec ne fait pas rejouer l'événement) ;
+  `POST /v1/billing/portal` lit d'abord ce lien, puis replie sur l'email pour
+  les comptes antérieurs. **Cette migration doit être appliquée**
+  (`pnpm db:migrate`) avant un test de paiement réel.
+- **Hook mort supprimé** : `packages/sdk/src/hooks/useSubscriptionCheckout.ts`
+  et son export (il visait `/api/billing/*`, inexistant).
+- **Export** : ma page `/export` faisait doublon avec le bloc « Données &
+  confidentialité » ajouté par l'agent newsletter dans les réglages ; la page
+  et son entrée de surface sont retirées, `GET /v1/creator/export` et
+  `/api/export` restent (c'est ce que ce bloc utilise).
 
 ### 2026-11-15 — lot 5 : traduction (premier lot livré)
 
@@ -192,8 +212,8 @@ Vérifications : `go build ./...`, `go test ./internal/modules/billing
 | # | Chantier | État | Prochaine étape |
 | - | -------- | ---- | --------------- |
 | 1 | Encaissement | socle livré (Go + SDK + Studio + paywall) | test mode Stripe de bout en bout, commission Pro 5 % |
-| 2 | Digest | config + aperçu livrés | envoi planifié (worker) |
+| 2 | Digest | brouillon newsletter (agent newsletter) ; mon doublon retiré | cadence récurrente dans `modules/newsletters` |
 | 3 | Commentaires | core + modération Studio livrés | pagination, signalements |
 | 4 | Livres | compilation EPUB livrée | persistance + vente |
 | 5 | Traduction | aperçu IA livré | versions localisées + hreflang |
-| 6 | Portabilité | archive ZIP livrée | médias + export asynchrone |
+| 6 | Portabilité | archive ZIP + entrée réglages | médias + export asynchrone |

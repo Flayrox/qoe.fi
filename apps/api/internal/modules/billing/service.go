@@ -9,8 +9,10 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/subscriptions"
 )
 
 // Erreurs sentinelles (mappées en statuts HTTP par les handlers).
@@ -199,21 +201,53 @@ func (s *Service) PublisherStripeAccount(ctx context.Context, publisherID string
 	return account
 }
 
-// ReaderStripeCustomer retrouve le client Stripe d'un lecteur à partir de son
-// email (le plus récent abonnement connu). Vide = jamais passé par Checkout.
+// IsPro : la publication paie-t-elle la commission réduite ? Source unique
+// des droits : subscriptions.HasPro (octroi « publisher/pro » effectif).
+func (s *Service) IsPro(ctx context.Context, publisherID string) bool {
+	if s == nil || s.pool == nil || strings.TrimSpace(publisherID) == "" {
+		return false
+	}
+	return subscriptions.HasPro(ctx, s.pool, publisherID, time.Now())
+}
+
+// SaveUserCustomer mémorise le client Stripe du compte. C'est le lien stable
+// qui permet d'ouvrir le portail même quand l'abonnement porte sur une autre
+// publication (ou sur le bundle Plus).
+func (s *Service) SaveUserCustomer(ctx context.Context, userID, customerID string) error {
+	if s == nil || s.pool == nil || userID == "" || customerID == "" {
+		return nil
+	}
+	_, err := s.pool.Exec(ctx, `
+		UPDATE "User" SET "stripeCustomerId" = $2, "updatedAt" = now()
+		WHERE id = $1::uuid`, userID, customerID)
+	return err
+}
+
+// ReaderStripeCustomer retrouve le client Stripe d'un lecteur. Source
+// principale : `User.stripeCustomerId` (lien stable). Repli : le plus récent
+// abonnement connu à son email, pour les comptes créés avant la migration
+// 00091 (et si la colonne n'est pas encore appliquée). Vide = jamais payé.
 func (s *Service) ReaderStripeCustomer(ctx context.Context, userID string) string {
 	if s == nil || s.pool == nil || userID == "" {
 		return ""
 	}
-	var customer string
+
+	var direct string
+	if err := s.pool.QueryRow(ctx,
+		`SELECT COALESCE("stripeCustomerId", '') FROM "User" WHERE id = $1::uuid`, userID).
+		Scan(&direct); err == nil && direct != "" {
+		return direct
+	}
+
+	var legacy string
 	if err := s.pool.QueryRow(ctx, `
 		SELECT COALESCE(s."stripeCustomerId", '')
 		FROM "Subscriber" s
 		JOIN "User" u ON u."email" = s."email"
 		WHERE u.id = $1::uuid AND s."stripeCustomerId" IS NOT NULL
 		ORDER BY s."updatedAt" DESC
-		LIMIT 1`, userID).Scan(&customer); err != nil {
+		LIMIT 1`, userID).Scan(&legacy); err != nil {
 		return ""
 	}
-	return customer
+	return legacy
 }

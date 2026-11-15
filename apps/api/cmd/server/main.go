@@ -38,7 +38,6 @@ import (
 	"github.com/qoefi/api/internal/modules/creator"
 	"github.com/qoefi/api/internal/modules/devtools"
 	booksmod "github.com/qoefi/api/internal/modules/books"
-	digestmod "github.com/qoefi/api/internal/modules/digest"
 	"github.com/qoefi/api/internal/modules/ebooks"
 	"github.com/qoefi/api/internal/modules/events"
 	exportsmod "github.com/qoefi/api/internal/modules/exports"
@@ -679,9 +678,6 @@ func newRouter(d RouterDeps) *chi.Mux {
 		booksHandler := booksmod.NewHandler(booksmod.NewService(pool))
 		booksHandler.RegisterProtected(protected)
 
-		// Digest : récapitulatif email (config JSONB + aperçu, sans envoi).
-		digestHandler := digestmod.NewHandler(digestmod.NewService(pool))
-		digestHandler.RegisterProtected(protected)
 
 		// Routes reader (/v1/me*, feed protégé, lecture) : auto-réparation
 		// centralisée de la ligne User absente (login de démo / reseed /
