@@ -4,10 +4,11 @@
 
 Ce repo tient sa mémoire dans des plans vivants versionnés. **Lis-les avant de coder, mets-les à jour après.**
 
-| Fichier                      | Contenu                         |
-| ---------------------------- | ------------------------------- |
-| `apps/admin/ADMIN-PLAN.md`   | Plan vivant de la console admin |
-| `apps/studio/EDITOR-PLAN.md` | Plan vivant de l’éditeur studio |
+| Fichier                         | Contenu                                        |
+| ------------------------------- | ---------------------------------------------- |
+| `apps/admin/ADMIN-PLAN.md`      | Plan vivant de la console admin                |
+| `apps/studio/EDITOR-PLAN.md`    | Plan vivant de l’éditeur studio                |
+| `apps/studio/ANALYTICS-PLAN.md` | Plan vivant des analytics (multi-auteurs/médias) |
 
 ## Architecture en une page
 
