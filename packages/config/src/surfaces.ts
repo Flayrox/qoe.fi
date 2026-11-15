@@ -140,6 +140,18 @@ export const PLATFORM_SURFACES: readonly SurfaceDescriptor[] = [
     showInCmdK: true,
   },
   {
+    id: 'studio.digest',
+    scope: 'studio',
+    path: routes.studio.digest(),
+    iconName: 'Mail',
+    defaultLabel: 'Digest',
+    section: 'growth',
+    keywords: ['digest', 'recapitulatif', 'hebdomadaire', 'email', 'newsletter'],
+    hotkey: 'g d',
+    showInSidebar: true,
+    showInCmdK: true,
+  },
+  {
     id: 'studio.books',
     scope: 'studio',
     path: routes.studio.books(),
