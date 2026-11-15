@@ -258,7 +258,7 @@ export function EditorToolbar({
         onKeyDown={handleToolbarKeyDown}
         onFocus={handleToolbarFocus}
         className={cn(
-          'sticky top-14 z-20 transition-all duration-300 py-1.5 px-2',
+          'qoe-editor-toolbar sticky top-14 z-20 transition-all duration-300 py-1.5 px-2',
           docked
             ? 'bg-background/85 backdrop-blur-2xl border-x border-b border-border/80 dark:border-primary/25 rounded-2xl shadow-[0_16px_36px_-6px_rgba(0,0,0,0.18)]'
             : 'bg-card/60 backdrop-blur-md border border-border/40 rounded-2xl shadow-2xs'

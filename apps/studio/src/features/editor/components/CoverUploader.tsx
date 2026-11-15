@@ -173,7 +173,7 @@ export function CoverUploader({
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
-          <div {...dropProps} className="inline-block">
+          <div {...dropProps} className="inline-block max-w-full">
             <Button
               type="button"
               variant="outline"
@@ -181,18 +181,18 @@ export function CoverUploader({
               onClick={() => inputRef.current?.click()}
               disabled={isUploading}
               className={cn(
-                'h-auto rounded-xl border-dashed px-3.5 py-2 shadow-2xs',
+                'h-auto max-w-full rounded-xl border-dashed px-3.5 py-2 text-left whitespace-normal shadow-2xs',
                 isDragOver
                   ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/30'
                   : 'border-border/60 bg-muted/10 text-muted-foreground hover:border-primary/50 hover:bg-muted/30 hover:text-foreground'
               )}
             >
               {isUploading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin text-primary" />
               ) : (
-                <ImageIcon className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                <ImageIcon className="w-3.5 h-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
               )}
-              <span>
+              <span className="min-w-0">
                 {isDragOver
                   ? t`Déposez votre image ici`
                   : t`+ Ajouter une image de couverture (ou glisser-déposer)`}
