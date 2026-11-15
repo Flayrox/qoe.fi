@@ -23,6 +23,7 @@ const studioRoutes = {
   exportData: () => '/export',
   books: () => '/books',
   digest: () => '/digest',
+  translate: () => '/translate',
   newsletters: () => '/newsletters',
   settings: () => '/settings',
   developer: () => '/developer',

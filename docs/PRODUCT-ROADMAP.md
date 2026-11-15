@@ -145,3 +145,55 @@ Vérifications : `go build ./...`, `go test ./internal/modules/billing
 - Vente du livre : réutiliser le Checkout du lot 1 (produit one-shot).
 - Inclure les images de l'éditeur dans l'archive et les réécrire.
 - Édition du sommaire (titres de chapitres distincts des titres d'articles).
+
+### 2026-11-15 — lot 2 : digest newsletter (premier lot livré)
+
+- Nouveau module Go `internal/modules/digest` :
+  - `GET/PUT /v1/creator/newsletter/digest` — configuration stockée dans
+    `Publisher.emailSettings->'digest'` (JSONB existant, **aucune migration**),
+    valeurs bornées (jour 1-7, heure 0-23, 1-12 articles, intro ≤ 500).
+  - `POST /v1/creator/newsletter/digest/preview` — sélection des derniers
+    articles publiés, extraits nettoyés, rendu HTML autonome (liens absolus
+    reconstruits depuis l'hôte). Aucun email n'est envoyé.
+- Studio : page `/digest` (activation, jour/heure, nombre d'articles, intro,
+  aperçu dans une iframe sandboxée), entrée sidebar + Cmd+K.
+- Vérifications : `go build ./...`, `go test ./internal/modules/digest`,
+  `pnpm --filter @qoe/studio typecheck`.
+
+À faire ensuite (lot 2) :
+
+- Envoi planifié : tâche périodique asynq + réutilisation du worker
+  newsletter (budget, kill switch, suppressions) et journal des envois.
+- Désinscription fine par type d'email (le digest ne doit pas contourner les
+  préférences).
+- Personnalisation par segment (premium / inactifs) une fois le lot 1 stable.
+
+### 2026-11-15 — lot 5 : traduction (premier lot livré)
+
+- Go : `POST /v1/ai/translate` (module `ai`), langue cible dans un vocabulaire
+  fermé (fr/en/es/de/it/pt), texte ≤ 12 000 caractères, provider requis
+  (sinon 503 explicite). Prompt qui interdit les commentaires et conserve la
+  structure HTML.
+- Studio : page `/translate` — choisir un article, une langue, générer,
+  relire et copier. Cmd+K (pas de sidebar : usage ponctuel).
+- Vérifications : `go build ./...`, `go test ./internal/modules/ai`,
+  `pnpm --filter @qoe/studio typecheck`.
+
+À faire ensuite (lot 5) :
+
+- Persistance des versions (`ArticleTranslation` ou colonnes `locale`) :
+  migration `00091+`, puis sélecteur de langue côté core/tenants + `hreflang`.
+- Quota et coût : la route de traduction ne consomme pas encore le quota IA
+  mensuel ; à brancher avant ouverture large.
+- Relecture côte à côte (source / traduction) et publication différée.
+
+## État au 2026-11-15
+
+| # | Chantier | État | Prochaine étape |
+| - | -------- | ---- | --------------- |
+| 1 | Encaissement | socle livré (Go + SDK + Studio + paywall) | test mode Stripe de bout en bout, commission Pro 5 % |
+| 2 | Digest | config + aperçu livrés | envoi planifié (worker) |
+| 3 | Commentaires | core + modération Studio livrés | pagination, signalements |
+| 4 | Livres | compilation EPUB livrée | persistance + vente |
+| 5 | Traduction | aperçu IA livré | versions localisées + hreflang |
+| 6 | Portabilité | archive ZIP livrée | médias + export asynchrone |
