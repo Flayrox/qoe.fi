@@ -33,6 +33,8 @@ export interface AutoSavePayload {
   scheduledAt?: string | null;
   isPremium?: boolean;
   imageUrl?: string | null;
+  coverAlt?: string;
+  coverDecorative?: boolean;
   allowPublicAnnotations?: boolean;
   allowComments?: boolean;
   allowDownload?: boolean;

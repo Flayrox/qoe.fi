@@ -25,6 +25,8 @@ export interface ArticleSettingsDraft {
   title: string;
   content: string;
   imageUrl: string | null;
+  coverAlt?: string;
+  coverDecorative?: boolean;
   slug: string;
   published: boolean;
   status: string;
@@ -51,6 +53,8 @@ export interface ArticleSettingsSavePayload {
   title: string;
   content: string;
   imageUrl: string | null;
+  coverAlt?: string;
+  coverDecorative?: boolean;
   slug: string;
   published: boolean;
   status: string;
@@ -126,6 +130,8 @@ export function buildArticleSettingsDraft(article: ArticleEditorPayload): Articl
     title: article.title,
     content: article.content,
     imageUrl: article.imageUrl ?? null,
+    coverAlt: article.coverAlt ?? '',
+    coverDecorative: article.coverDecorative ?? false,
     slug: article.slug,
     published: article.published,
     status: article.status || (article.published ? 'PUBLISHED' : 'DRAFT'),
@@ -156,6 +162,8 @@ export function buildArticleSettingsSavePayload(
     title: draft.title,
     content: draft.content,
     imageUrl: draft.imageUrl,
+    coverAlt: draft.coverAlt ?? '',
+    coverDecorative: draft.coverDecorative ?? false,
     slug: draft.slug,
     published: draft.published,
     status: draft.status,
@@ -211,6 +219,8 @@ export function articleSettingsFingerprint(draft: ArticleSettingsDraft): string 
     title: draft.title,
     content: draft.content,
     imageUrl: draft.imageUrl,
+    coverAlt: draft.coverAlt ?? '',
+    coverDecorative: draft.coverDecorative ?? false,
     slug: draft.slug,
     published: draft.published,
     status: draft.status,

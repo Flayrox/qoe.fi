@@ -88,6 +88,10 @@ export interface Article {
   } | null;
   /** Image de couverture de l'article (null = repli sur celle de la publication). */
   imageUrl?: string | null;
+  /** Description alternative de la couverture (vide = repli historique sur le titre). */
+  coverAlt?: string;
+  /** Couverture purement décorative : le reader pose alt="". */
+  coverDecorative?: boolean;
   /** Titre SEO alternatif (fallback : title). */
   seoTitle?: string | null;
   /** Description SEO (fallback : teaser public zéro-fuite). */
@@ -417,6 +421,8 @@ export const saveArticleAction = safeAction<
     title: string;
     content: string;
     imageUrl?: string | null;
+    coverAlt?: string;
+    coverDecorative?: boolean;
     slug?: string;
     published?: boolean;
     status?: string;
@@ -443,6 +449,8 @@ export const saveArticleAction = safeAction<
     title,
     content,
     imageUrl = null,
+    coverAlt = '',
+    coverDecorative = false,
     slug,
     published = false,
     status,
@@ -485,6 +493,8 @@ export const saveArticleAction = safeAction<
         title,
         content,
         imageUrl,
+        coverAlt,
+        coverDecorative,
         slug: finalSlug,
         published,
         status,
@@ -514,6 +524,8 @@ export const saveArticleAction = safeAction<
       title,
       content,
       imageUrl,
+      coverAlt,
+      coverDecorative,
       slug: finalSlug,
       published,
       status,

@@ -19,6 +19,8 @@ interface GoArticle {
   content: string;
   imageUrl?: string | null;
   image_url?: string | null;
+  coverAlt?: string;
+  coverDecorative?: boolean;
   readingTime?: number;
   createdAt: string;
   isPremium?: boolean;
@@ -190,6 +192,8 @@ export default async function UserArticleDedicatedPage({
           slug: article.slug,
           content: article.content,
           imageUrl: article.imageUrl || article.image_url || null,
+          coverAlt: article.coverAlt ?? '',
+          coverDecorative: article.coverDecorative ?? false,
           readingTime: article.readingTime ?? 3,
           createdAt: article.createdAt,
           published: true,

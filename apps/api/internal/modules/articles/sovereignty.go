@@ -289,6 +289,8 @@ func (s *Service) RestoreSnapshot(ctx context.Context, articleID, snapshotID, us
 			ReadingTime:            int32(readingTime),
 			ScheduledAt:            row.ScheduledAt,
 			ImageUrl:               imageVal(s.fetchArticleImageUrl(ctx, articleID)),
+			CoverAlt:               row.CoverAlt,
+			CoverDecorative:        row.CoverDecorative,
 			AllowPublicAnnotations: row.AllowPublicAnnotations,
 			AllowComments:          row.AllowComments,
 			AllowDownload:          row.AllowDownload,

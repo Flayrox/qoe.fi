@@ -77,6 +77,8 @@ export interface ArticleAnnotatorViewProps {
     slug: string;
     content: string;
     imageUrl?: string | null;
+    coverAlt?: string;
+    coverDecorative?: boolean;
     readingTime?: number;
     createdAt: string | Date;
     isPremium?: boolean;
@@ -706,7 +708,7 @@ function ArticleAnnotatorViewInner({
           <div className="relative w-full h-[220px] sm:h-[340px] md:h-[400px] rounded-2xl overflow-hidden border border-border/30 bg-muted/30">
             <Image
               src={article.imageUrl}
-              alt={article.title || ''}
+              alt={article.coverDecorative ? '' : article.coverAlt?.trim() || article.title || ''}
               fill
               priority
               className="object-cover"

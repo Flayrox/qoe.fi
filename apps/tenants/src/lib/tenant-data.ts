@@ -144,6 +144,8 @@ export interface TenantArticle {
   accessGranted?: boolean;
   isTruncated?: boolean;
   imageUrl?: string | null;
+  coverAlt?: string;
+  coverDecorative?: boolean;
   readingTime: number;
   allowPublicAnnotations: boolean;
   allowComments: boolean;

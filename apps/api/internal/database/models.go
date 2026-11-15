@@ -580,6 +580,8 @@ type Article struct {
 	DraftContent           pgtype.Text       `json:"draftContent"`
 	ContentSha             pgtype.Text       `json:"contentSha"`
 	ImageUrl               pgtype.Text       `json:"imageUrl"`
+	CoverAlt               string            `json:"coverAlt"`
+	CoverDecorative        bool              `json:"coverDecorative"`
 	Published              bool              `json:"published"`
 	IsPremium              bool              `json:"isPremium"`
 	Visibility             ContentVisibility `json:"visibility"`

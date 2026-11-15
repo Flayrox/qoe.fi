@@ -33,6 +33,8 @@ interface ArticleData {
     isCertified: boolean;
   };
   imageUrl: string | null;
+  coverAlt?: string;
+  coverDecorative?: boolean;
   slug: string;
   published: boolean;
   status?: string;
@@ -100,6 +102,8 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
       title: string;
       content: string;
       imageUrl: string | null;
+      coverAlt?: string;
+      coverDecorative?: boolean;
       slug: string;
       published: boolean;
       status?: string;
@@ -193,6 +197,8 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
         initialHasUnpublishedChanges={article.hasUnpublishedChanges}
         initialReviewFeedback={article.reviewFeedback}
         initialImageUrl={article.imageUrl}
+        initialCoverAlt={article.coverAlt ?? ''}
+        initialCoverDecorative={article.coverDecorative ?? false}
         initialPublished={article.published}
         initialStatus={article.status}
         initialScheduledAt={article.scheduledAt ?? null}

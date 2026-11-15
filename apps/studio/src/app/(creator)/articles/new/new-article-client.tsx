@@ -32,6 +32,8 @@ export function NewArticleClient({ categories, capabilities, target }: NewArticl
       title: string;
       content: string;
       imageUrl: string | null;
+      coverAlt?: string;
+      coverDecorative?: boolean;
       slug: string;
       published: boolean;
       status?: string;

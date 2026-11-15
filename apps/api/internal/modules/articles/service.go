@@ -60,6 +60,8 @@ type ArticleResponse struct {
 	SeoTitle               *string                        `json:"seoTitle"`
 	SeoDescription         *string                        `json:"seoDescription"`
 	ImageUrl               *string                        `json:"imageUrl"`
+	CoverAlt               string                         `json:"coverAlt"`
+	CoverDecorative        bool                           `json:"coverDecorative"`
 	CreatedAt              string                         `json:"createdAt"`
 	UpdatedAt              string                         `json:"updatedAt"`
 	IsTruncated            bool                           `json:"isTruncated"`
@@ -128,6 +130,8 @@ type CreateArticleInput struct {
 	Content                string
 	ContentFormat          string
 	ImageURL               *string
+	CoverAlt               string
+	CoverDecorative        bool
 	IsPremium              bool
 	Visibility             string
 	CategoryID             *string
@@ -157,6 +161,8 @@ type UpdateArticleInput struct {
 	ContentFormat          string
 	Slug                   string
 	ImageURL               *string
+	CoverAlt               *string
+	CoverDecorative        *bool
 	IsPremium              bool
 	CategoryID             *string
 	SeoTitle               *string
@@ -336,6 +342,8 @@ func (s *Service) GetBySlugAny(ctx context.Context, slug string, viewerID string
 	// couverture, catégorie, certification et attributions — sinon le drawer
 	// lecteur affiche un article sans image ni signature.
 	resp.ImageUrl = textPtr(row.ArticleImage)
+	resp.CoverAlt = row.ArticleCoverAlt
+	resp.CoverDecorative = row.ArticleCoverDecorative
 	if row.CategoryID.Valid {
 		resp.Category = &CategoryInfo{ID: row.CategoryID.String, Name: row.CategoryName.String, Slug: row.CategorySlug.String}
 	}
@@ -542,6 +550,8 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 		SeoDescription:         textVal(in.SeoDescription),
 		ScheduledAt:            timestampPtr(in.ScheduledAt),
 		ImageUrl:               imageVal(in.ImageURL),
+		CoverAlt:               strings.TrimSpace(in.CoverAlt),
+		CoverDecorative:        in.CoverDecorative,
 		ShowOnPersonalProfile:  showOnPersonalProfile,
 	})
 	if err != nil {
@@ -986,6 +996,17 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 	if imageURL == nil {
 		imageURL = s.fetchArticleImageUrl(ctx, articleID)
 	}
+	coverAlt := row.CoverAlt
+	if in.CoverAlt != nil {
+		coverAlt = strings.TrimSpace(*in.CoverAlt)
+	}
+	coverDecorative := row.CoverDecorative
+	if in.CoverDecorative != nil {
+		coverDecorative = *in.CoverDecorative
+	}
+	if coverDecorative {
+		coverAlt = ""
+	}
 
 	contentToSave := NormalizeContent(in.Content, in.ContentFormat)
 	latestSnap, errSnap := s.q.GetLatestArticleSnapshotByArticle(ctx, articleID)
@@ -1035,8 +1056,9 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 			IsPremium: in.IsPremium, CategoryId: textVal(categoryID),
 			SeoTitle: textVal(in.SeoTitle), SeoDescription: textVal(in.SeoDescription),
 			ReadingTime: row.ReadingTime, ScheduledAt: scheduledAt,
-			ImageUrl: imageVal(imageURL), AllowPublicAnnotations: allowAnnotations,
-			AllowComments: allowComments, AllowDownload: allowDownload,
+			ImageUrl: imageVal(imageURL), CoverAlt: coverAlt, CoverDecorative: coverDecorative,
+			AllowPublicAnnotations: allowAnnotations,
+			AllowComments:          allowComments, AllowDownload: allowDownload,
 			ShowOnPersonalProfile: showOnPersonalProfile,
 		}); err != nil {
 			return err
@@ -1078,8 +1100,9 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 		IsPremium: in.IsPremium, CategoryId: textVal(categoryID),
 		SeoTitle: textVal(in.SeoTitle), SeoDescription: textVal(in.SeoDescription),
 		ReadingTime: int32(in.ReadingTime), ScheduledAt: scheduledAt,
-		ImageUrl: imageVal(imageURL), AllowPublicAnnotations: allowAnnotations,
-		AllowComments: allowComments, AllowDownload: allowDownload,
+		ImageUrl: imageVal(imageURL), CoverAlt: coverAlt, CoverDecorative: coverDecorative,
+		AllowPublicAnnotations: allowAnnotations,
+		AllowComments:          allowComments, AllowDownload: allowDownload,
 		ShowOnPersonalProfile: showOnPersonalProfile,
 	}); err != nil {
 		return err
@@ -1521,6 +1544,7 @@ func (s *Service) articleResponseFromIDRow(row db.GetArticleByIDRow) ArticleResp
 		PublisherID:      row.PublisherId,
 		AuthorID:         row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
+		CoverAlt: row.CoverAlt, CoverDecorative: row.CoverDecorative,
 		CreatedAt:     row.CreatedAt.Time.Format(time.RFC3339),
 		UpdatedAt:     row.UpdatedAt.Time.Format(time.RFC3339),
 		AccessGranted: true,
@@ -1548,7 +1572,7 @@ func articleFromSlugRow(row db.GetArticleBySlugRow, cut PaywallCutResult) Articl
 		PublisherID:           row.PublisherId,
 		AuthorID:              row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
-		ImageUrl:    textPtr(row.ArticleImage),
+		ImageUrl: textPtr(row.ArticleImage), CoverAlt: row.ArticleCoverAlt, CoverDecorative: row.ArticleCoverDecorative,
 		CreatedAt:   row.CreatedAt.Time.Format(time.RFC3339),
 		UpdatedAt:   row.UpdatedAt.Time.Format(time.RFC3339),
 		IsTruncated: cut.IsTruncated, AccessGranted: cut.AccessGranted, PaywallMeta: cut.PaywallMeta,
@@ -1581,6 +1605,7 @@ func articleFromRow(row db.GetArticleByIDRow, cut PaywallCutResult) ArticleRespo
 		PublisherID:           row.PublisherId,
 		AuthorID:              row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
+		CoverAlt: row.CoverAlt, CoverDecorative: row.CoverDecorative,
 		CreatedAt:   row.CreatedAt.Time.Format(time.RFC3339),
 		UpdatedAt:   row.UpdatedAt.Time.Format(time.RFC3339),
 		IsTruncated: cut.IsTruncated, AccessGranted: cut.AccessGranted, PaywallMeta: cut.PaywallMeta,
@@ -1793,6 +1818,3 @@ func (s *Service) TransferPublisher(ctx context.Context, userID, articleID strin
 
 	return s.GetByID(ctx, articleID, userID)
 }
-
-
-

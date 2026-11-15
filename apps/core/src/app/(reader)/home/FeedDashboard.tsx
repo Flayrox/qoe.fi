@@ -118,6 +118,8 @@ interface Article {
   slug: string;
   content: string;
   imageUrl?: string | null;
+  coverAlt?: string;
+  coverDecorative?: boolean;
   published: boolean;
   isPremium: boolean;
   accessGranted?: boolean;

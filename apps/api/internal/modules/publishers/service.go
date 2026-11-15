@@ -39,20 +39,20 @@ func NewService(pool *pgxpool.Pool) *Service {
 // ---------------------------------------------------------------------------
 
 type NavItem struct {
-	ID            string  `json:"id"`
-	Label         string  `json:"label"`
-	URL           string  `json:"url"`
-	Order         int32   `json:"order"`
-	IsExternal    bool    `json:"isExternal"`
+	ID          string  `json:"id"`
+	Label       string  `json:"label"`
+	URL         string  `json:"url"`
+	Order       int32   `json:"order"`
+	IsExternal  bool    `json:"isExternal"`
 	PublisherID string  `json:"publisherId"`
-	ParentID      *string `json:"parentId"`
+	ParentID    *string `json:"parentId"`
 }
 
 type SocialLinkItem struct {
-	ID            string `json:"id"`
-	Platform      string `json:"platform"`
-	URL           string `json:"url"`
-	Order         int32  `json:"order"`
+	ID          string `json:"id"`
+	Platform    string `json:"platform"`
+	URL         string `json:"url"`
+	Order       int32  `json:"order"`
 	PublisherID string `json:"publisherId"`
 }
 
@@ -75,18 +75,18 @@ type OriginPublisherInfo struct {
 }
 
 type ArticleSummary struct {
-	ID                string                 `json:"id"`
-	Title             string                 `json:"title"`
-	Slug              string                 `json:"slug"`
-	Content           string                 `json:"content"`
-	ImageURL          *string                `json:"imageUrl,omitempty"`
-	Published         bool                   `json:"published"`
-	IsPremium         bool                   `json:"isPremium"`
-	Visibility        string                 `json:"visibility"`
-	ReadingTime       int32                  `json:"readingTime"`
-	CreatedAt         string                 `json:"createdAt"`
-	CategoryID        *string                `json:"categoryId"`
-	Category          *CategoryItem          `json:"category,omitempty"`
+	ID              string               `json:"id"`
+	Title           string               `json:"title"`
+	Slug            string               `json:"slug"`
+	Content         string               `json:"content"`
+	ImageURL        *string              `json:"imageUrl,omitempty"`
+	Published       bool                 `json:"published"`
+	IsPremium       bool                 `json:"isPremium"`
+	Visibility      string               `json:"visibility"`
+	ReadingTime     int32                `json:"readingTime"`
+	CreatedAt       string               `json:"createdAt"`
+	CategoryID      *string              `json:"categoryId"`
+	Category        *CategoryItem        `json:"category,omitempty"`
 	OriginPublisher *OriginPublisherInfo `json:"originPublisher,omitempty"`
 	// Compteurs d'engagement réels (alimentent le tri par popularité côté home).
 	LikesCount    int `json:"likesCount"`
@@ -131,7 +131,7 @@ type PublisherDetail struct {
 	SocialLinks            []SocialLinkItem `json:"socialLinks"`
 	Categories             []CategoryItem   `json:"categories"`
 	Articles               []ArticleSummary `json:"articles,omitempty"`
-	User                   *PublisherUser `json:"user,omitempty"`
+	User                   *PublisherUser   `json:"user,omitempty"`
 	SiteOptions            any              `json:"siteOptions,omitempty"`
 	Team                   []TeamMemberItem `json:"team,omitempty"`
 }
@@ -149,7 +149,7 @@ type TeamMemberItem struct {
 
 // RecommendationItem est une publication recommandée par un créateur.
 type RecommendationItem struct {
-	ID                      string  `json:"id"`
+	ID                    string  `json:"id"`
 	PublisherID           string  `json:"publisherId"`
 	PublisherName         string  `json:"name"`
 	PublisherSlug         string  `json:"slug"`
@@ -157,7 +157,7 @@ type RecommendationItem struct {
 	PublisherCustomDomain *string `json:"customDomain"`
 	PublisherBio          *string `json:"bio"`
 	PublisherLogoURL      *string `json:"logoUrl"`
-	Description             *string `json:"description"`
+	Description           *string `json:"description"`
 }
 
 // AuthorInfo est l'auteur dénormalisé d'un article.
@@ -172,39 +172,41 @@ type AuthorInfo struct {
 }
 
 type ArticleDetail struct {
-	ID         string  `json:"id"`
-	Title      string  `json:"title"`
-	Slug       string  `json:"slug"`
-	Content    string  `json:"content"`
-	ImageURL   *string `json:"imageUrl"`
-	Published  bool    `json:"published"`
-	Status     string  `json:"status"`
-	IsPremium  bool    `json:"isPremium"`
-	Visibility string  `json:"visibility"`
+	ID              string  `json:"id"`
+	Title           string  `json:"title"`
+	Slug            string  `json:"slug"`
+	Content         string  `json:"content"`
+	ImageURL        *string `json:"imageUrl"`
+	CoverAlt        string  `json:"coverAlt"`
+	CoverDecorative bool    `json:"coverDecorative"`
+	Published       bool    `json:"published"`
+	Status          string  `json:"status"`
+	IsPremium       bool    `json:"isPremium"`
+	Visibility      string  `json:"visibility"`
 	// 🔒 Zéro-fuite : le contenu servi ici est DÉJÀ tronqué au paywall pour un
 	// lecteur non autorisé. `accessGranted` doit être lu par les clients pour
 	// ne PAS retronquer (le marqueur de coupure a disparu de la charge utile).
-	IsTruncated            bool          `json:"isTruncated"`
-	AccessGranted          bool          `json:"accessGranted"`
-	ReadingTime            int32         `json:"readingTime"`
-	AllowPublicAnnotations bool          `json:"allowPublicAnnotations"`
-	AllowComments          bool          `json:"allowComments"`
-	AllowDownload          bool          `json:"allowDownload"`
-	SeoTitle               *string       `json:"seoTitle"`
-	SeoDescription         *string       `json:"seoDescription"`
+	IsTruncated            bool                 `json:"isTruncated"`
+	AccessGranted          bool                 `json:"accessGranted"`
+	ReadingTime            int32                `json:"readingTime"`
+	AllowPublicAnnotations bool                 `json:"allowPublicAnnotations"`
+	AllowComments          bool                 `json:"allowComments"`
+	AllowDownload          bool                 `json:"allowDownload"`
+	SeoTitle               *string              `json:"seoTitle"`
+	SeoDescription         *string              `json:"seoDescription"`
 	CreatedAt              string               `json:"createdAt"`
 	OriginArticleID        *string              `json:"originArticleId,omitempty"`
 	CanonicalType          string               `json:"canonicalType,omitempty"`
 	CanonicalURL           *string              `json:"canonicalUrl,omitempty"`
 	OriginPublisher        *OriginPublisherInfo `json:"originPublisher,omitempty"`
 	AuthorID               string               `json:"authorId"`
-	Category               *CategoryItem `json:"category"`
-	Author                 *AuthorInfo   `json:"author"`
-	LikesCount             int           `json:"likesCount"`
-	CommentsCount          int           `json:"commentsCount"`
-	RepostsCount           int           `json:"repostsCount"`
-	IsLiked                bool          `json:"isLiked"`
-	IsReposted             bool          `json:"isReposted"`
+	Category               *CategoryItem        `json:"category"`
+	Author                 *AuthorInfo          `json:"author"`
+	LikesCount             int                  `json:"likesCount"`
+	CommentsCount          int                  `json:"commentsCount"`
+	RepostsCount           int                  `json:"repostsCount"`
+	IsLiked                bool                 `json:"isLiked"`
+	IsReposted             bool                 `json:"isReposted"`
 }
 
 type Entitlements struct {
@@ -215,13 +217,13 @@ type Entitlements struct {
 
 // ArticleBundle est la réponse complète de la page article tenant.
 type ArticleBundle struct {
-	Publisher             PublisherDetail `json:"publisher"`
-	Article                 ArticleDetail     `json:"article"`
-	Entitlements            Entitlements      `json:"entitlements"`
-	Bookmarked              bool              `json:"bookmarked"`
-	Followed                bool              `json:"followed"`
-	IsViaAttribution        bool              `json:"isViaAttribution"`
-	AttributionCategorySlug *string           `json:"attributionCategorySlug"`
+	Publisher               PublisherDetail `json:"publisher"`
+	Article                 ArticleDetail   `json:"article"`
+	Entitlements            Entitlements    `json:"entitlements"`
+	Bookmarked              bool            `json:"bookmarked"`
+	Followed                bool            `json:"followed"`
+	IsViaAttribution        bool            `json:"isViaAttribution"`
+	AttributionCategorySlug *string         `json:"attributionCategorySlug"`
 }
 
 // ---------------------------------------------------------------------------
@@ -632,7 +634,7 @@ func scanArticleDetail(row pgx.Row) (*ArticleDetail, error) {
 	err := row.Scan(&a.ID, &a.Title, &a.Slug, &a.Content, &a.Published, &a.Status,
 		&a.IsPremium, &a.Visibility, &a.ReadingTime, &a.AllowPublicAnnotations,
 		&a.AllowComments, &a.AllowDownload, &seoTitle, &seoDescription,
-		&createdAt, &a.AuthorID, &imageURL,
+		&createdAt, &a.AuthorID, &imageURL, &a.CoverAlt, &a.CoverDecorative,
 		&originArticleID, &canonicalType, &canonicalURL,
 		&catID, &catName, &catSlug, &catIsDefault, &catParentSlug,
 		&authorName, &authorUsername, &authorLogo, &publicationType, &publisherLogo)
@@ -665,6 +667,7 @@ const articleSelect = `
 	       a."isPremium", a.visibility, a."readingTime",
 	       a."allowPublicAnnotations", a."allowComments", a."allowDownload",
 	       a."seoTitle", a."seoDescription", a."createdAt", a."authorId", a."imageUrl",
+	       a."coverAlt", a."coverDecorative",
 	       a."originArticleId", a."canonicalType", a."canonicalUrl",
 	       c.id, c.name, c.slug, COALESCE(c."isDefault", false), cp.slug,
 	       au.name, au.username, au."logoUrl",
