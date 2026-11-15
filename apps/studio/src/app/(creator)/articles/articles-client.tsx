@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
+  Activity,
   ArrowRightLeft,
   BookOpen,
   Plus,
@@ -78,7 +79,7 @@ import { ArticleBulkTransferDialog } from './components/article-bulk-transfer-di
 import { ArticleListRow } from './components/article-list-row';
 import { ArticleSettingsSheet } from './components/article-settings-sheet';
 import { ArticleDiffModal } from '@/features/editor/components/ArticleDiffModal';
-import { ConfirmActionDialog, type ConfirmAction } from './components/confirm-action-dialog';
+import { ConfirmDialog, type ConfirmAction } from '@qoe/ui/confirm-dialog';
 import type {
   AccessFilter,
   ArticleWithCategory,
@@ -975,6 +976,15 @@ export function ArticlesClient({
         description={t`Gérez les écrits et les catégories de la publication.`}
         actions={
           <>
+            <a
+              href="/articles/health"
+              className={buttonClasses({ variant: 'outline', size: 'sm' })}
+              title={t`Diagnostic des articles publiés`}
+            >
+              <Activity />
+              <span>{t`Santé du contenu`}</span>
+            </a>
+
             {(() => {
               const targetAbout = articles.find((a) => isAboutArticle(a, aboutArticleId));
               return (
@@ -2158,7 +2168,7 @@ export function ArticlesClient({
         }}
       />
 
-      <ConfirmActionDialog action={confirmAction} onClose={() => setConfirmAction(null)} />
+      <ConfirmDialog action={confirmAction} onClose={() => setConfirmAction(null)} />
 
       {/* Article Inspector Drawer Modal — période synchronisée avec la liste, toutes les données envoyées */}
       {inspectingArticle && (
