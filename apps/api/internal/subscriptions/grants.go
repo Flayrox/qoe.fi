@@ -220,6 +220,57 @@ func GrantPlan(ctx context.Context, pool DB, subjectType, subjectID, plan string
 	return g, nil
 }
 
+// EnsurePlanGrant crée l'octroi s'il n'existe pas déjà pour cette clé
+// (sujet, plan, grantedBy, note), sinon renvoie l'existant INCHANGÉ. C'est
+// l'opération idempotente du premier paiement : Stripe peut rejouer
+// `checkout.session.completed` (retries jusqu'à 3 jours), la période payée ne
+// doit pas s'allonger à chaque rejeu.
+func EnsurePlanGrant(ctx context.Context, pool DB, subjectType, subjectID, plan string, startsAt, endsAt time.Time, grantedBy, note string, now time.Time) (Grant, error) {
+	if pool == nil {
+		return Grant{}, errors.New("base indisponible")
+	}
+	if !ValidSubject(subjectType) || !ValidPlan(plan) {
+		return Grant{}, fmt.Errorf("%w : sujet ou plan inconnu", ErrInvalidGrant)
+	}
+	if strings.TrimSpace(subjectID) == "" {
+		return Grant{}, fmt.Errorf("%w : sujet requis", ErrInvalidGrant)
+	}
+	grantedBy = strings.TrimSpace(grantedBy)
+	note = strings.TrimSpace(note)
+	startsAt = abuse.UtcMs(startsAt)
+	endsAt = abuse.UtcMs(endsAt)
+	now = abuse.UtcMs(now)
+	if !endsAt.After(startsAt) {
+		return Grant{}, fmt.Errorf("%w : fin après début exigée", ErrInvalidGrant)
+	}
+
+	g, err := scanGrant(pool.QueryRow(ctx, `
+		INSERT INTO "SubscriptionGrant" ("id", "subjectType", "subjectId", "plan", "startsAt", "endsAt", "grantedBy", "note", "createdAt")
+		SELECT gen_random_uuid()::text, $1, $2, $3, $4::timestamp, $5::timestamp, $6, $7, $8::timestamp
+		WHERE NOT EXISTS (
+			SELECT 1 FROM "SubscriptionGrant"
+			WHERE "subjectType" = $1 AND "subjectId" = $2 AND "plan" = $3
+			  AND "grantedBy" = $6 AND "note" = $7
+		)
+		RETURNING `+grantColumns,
+		subjectType, strings.TrimSpace(subjectID), plan, startsAt, endsAt,
+		grantedBy, note, now), now)
+	if err == nil {
+		return g, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return Grant{}, err
+	}
+	// Déjà octroyé : on renvoie la ligne existante, sans la modifier.
+	return scanGrant(pool.QueryRow(ctx, `
+		SELECT `+grantColumns+` FROM "SubscriptionGrant"
+		WHERE "subjectType" = $1 AND "subjectId" = $2 AND "plan" = $3
+		  AND "grantedBy" = $4 AND "note" = $5
+		ORDER BY "createdAt" DESC
+		LIMIT 1`,
+		subjectType, strings.TrimSpace(subjectID), plan, grantedBy, note), now)
+}
+
 // ExtendPlanGrant octroie OU prolonge un droit déjà identifié par
 // (sujet, plan, grantedBy, note) — typiquement un abonnement Stripe
 // (`stripe:sub_...`). Un renouvellement met à jour la fin de la ligne

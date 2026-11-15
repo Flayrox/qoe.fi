@@ -163,8 +163,10 @@ func (s *StripeWorker) handleCheckoutCompleted(ctx context.Context, data map[str
 		if subscriptionID != "" {
 			note = "stripe:" + subscriptionID
 		}
-		_, err := subscriptions.GrantPlan(ctx, s.pool, subscriptions.SubjectUser, userID,
-			subscriptions.PlanPlus, now, &endsAt, "stripe", note, now)
+		// Idempotent : Stripe rejoue les webhooks, la période payée ne doit
+		// pas s'allonger à chaque rejeu.
+		_, err := subscriptions.EnsurePlanGrant(ctx, s.pool, subscriptions.SubjectUser, userID,
+			subscriptions.PlanPlus, now, endsAt, "stripe", note, now)
 		return err
 
 	case "publication":

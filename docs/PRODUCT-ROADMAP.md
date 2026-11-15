@@ -224,12 +224,16 @@ relire — à construire **dans `modules/newsletters`**, pas ailleurs.
 - **Grants Plus dédupliqués** : `subscriptions.ExtendPlanGrant` prolonge la
   ligne existante identifiée par `(sujet, plan, grantedBy, note)` — un
   abonnement Stripe = une ligne, quel que soit le nombre de
-  `subscription.updated`. Une ligne expirée n'est pas ressuscitée. Le worker
-  l'utilise pour Plus.
+  `subscription.updated`. Une ligne expirée n'est pas ressuscitée.
+  `EnsurePlanGrant` rend le **premier** paiement idempotent (un rejeu de
+  `checkout.session.completed` n'allonge plus la période). Migration `00093`
+  ajoute l'index unique partiel `grantedBy = 'stripe'` : l'unicité tient
+  même sous concurrence ; les octrois manuels gardent leur historique.
 - **Vérifications** : `go test ./internal/modules/billing
-  ./internal/subscriptions` vert ; SQL de prolongation exécuté contre la base
-  de dev dans une transaction annulée (2 événements → 1 ligne) ; migration
-  `00091` appliquée (`User.stripeCustomerId` présente) ; `go build ./...`.
+  ./internal/subscriptions` vert ; séquence Checkout → rejeu → renouvellement
+  exécutée contre la base de dev dans une transaction annulée (toujours 1
+  ligne, fin non allongée par le rejeu) ; migrations `00091` (portail) et
+  `00093` (unicité) appliquées et vérifiées en base ; `go build ./...`.
 
 ## État au 2026-11-15
 

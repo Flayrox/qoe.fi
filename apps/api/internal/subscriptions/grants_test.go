@@ -347,3 +347,41 @@ func TestExtendPlanGrant_ProlongeSansDoublon(t *testing.T) {
 		t.Fatalf("lignes = %d, attendu 2 (un abonnement = une ligne)", count)
 	}
 }
+
+// TestEnsurePlanGrant_RejeuSansAllongement : rejouer le premier paiement
+// (Stripe retente les webhooks) ne crée pas de ligne et ne repousse pas la fin.
+func TestEnsurePlanGrant_RejeuSansAllongement(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	subject := "test-ensure-" + time.Now().UTC().Format("150405.000000")
+	const note = "stripe:sub_test_ensure"
+	t.Cleanup(func() {
+		_, _ = poolTest.Exec(context.Background(),
+			`DELETE FROM "SubscriptionGrant" WHERE "subjectId" = $1`, subject)
+	})
+
+	now := time.Now().UTC()
+	ends := now.AddDate(0, 1, 0)
+	if _, err := EnsurePlanGrant(ctx, poolTest, SubjectUser, subject, PlanPlus, now, ends, "stripe", note, now); err != nil {
+		t.Fatalf("premier octroi: %v", err)
+	}
+
+	replay := now.Add(48 * time.Hour)
+	g, err := EnsurePlanGrant(ctx, poolTest, SubjectUser, subject, PlanPlus, replay, replay.AddDate(0, 1, 0), "stripe", note, replay)
+	if err != nil {
+		t.Fatalf("rejeu: %v", err)
+	}
+
+	var count int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "SubscriptionGrant" WHERE "subjectId" = $1`, subject).Scan(&count); err != nil {
+		t.Fatalf("comptage: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("lignes = %d, attendu 1 après rejeu", count)
+	}
+	want := ends.UTC().Truncate(time.Millisecond).Format(time.RFC3339)
+	if g.EndsAt == nil || *g.EndsAt != want {
+		t.Fatalf("fin = %v, attendu %s (le rejeu ne doit pas allonger)", g.EndsAt, want)
+	}
+}
