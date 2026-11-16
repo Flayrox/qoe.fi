@@ -118,6 +118,34 @@ export const DISABLED =
 export const ICON_SLOT = '[&_svg]:size-3.5 [&_svg]:shrink-0';
 
 /**
+ * Échelle d'icônes — quatre pas, alignés sur les densités de contrôle.
+ *
+ * Une icône ne se dimensionne pas au hasard : `xs` (12 px) vit dans un
+ * badge, `sm` (14 px) dans un bouton, `md` (16 px) dans un en-tête, `lg`
+ * (20 px) dans un état vide. Passer une classe `size-*` à la main est le
+ * premier signe d'un jeu d'icônes qui se délite.
+ */
+export const ICON_SIZES = {
+  xs: 'size-3',
+  sm: 'size-3.5',
+  md: 'size-4',
+  lg: 'size-5',
+} as const;
+
+export type IconSize = keyof typeof ICON_SIZES;
+
+/**
+ * Épaisseur de trait unique. 1.5 est le réglage Lucide de la maison :
+ * lisible à 14 px, sans graisse à 20 px. `strong` est réservé aux états
+ * actifs, `hairline` aux icônes décoratives de grande taille.
+ */
+export const ICON_STROKE = {
+  hairline: 1.25,
+  regular: 1.5,
+  strong: 1.75,
+} as const;
+
+/**
  * Surface d'un composant : c'est ici que se joue la cohérence des fonds.
  * `rounded-panel` lit `--radius-card`, `border-border` lit `--border`.
  */

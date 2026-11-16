@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowUpRight, Search } from 'lucide-react';
+import { Button } from '@qoe/ui/button';
+import { ICON_NAMES, Icon } from '@qoe/ui/icons';
 import { ThemeToggle } from '@qoe/ui/ui/ThemeToggle';
 import { cn } from '@qoe/utils';
 import type { Catalog } from './catalog-types';
@@ -28,6 +29,9 @@ import { SocialCardsSpecimen } from './specimens/19-social-cards';
 import { AuthSpecimen } from './specimens/20-auth';
 import { ModalsSpecimen } from './specimens/21-modals';
 import { ImageEditorSpecimen } from './specimens/22-image-editor';
+import { IconsSpecimen } from './specimens/23-icons';
+import { StructureSpecimen } from './specimens/24-structure';
+import { FeedbackSpecimen } from './specimens/25-feedback';
 
 const SPECIMENS = [
   {
@@ -309,10 +313,66 @@ const SPECIMENS = [
       'Le modal est monté sur de vrais assets SVG locaux. Le bouton « Appliquer » ne fait aucun appel réseau : il produit un fichier et l’affiche dans le spécimen.',
     Component: ImageEditorSpecimen,
   },
+  {
+    id: '23-icons',
+    index: '23',
+    title: 'Icônes — le registre unique',
+    question:
+      'Des dizaines d’icônes importées au fil des écrans, deux dessins pour la même action, plusieurs épaisseurs de trait : peut-on nommer une intention une seule fois et la retrouver partout ?',
+    sources: [
+      'packages/ui/src/icons/registry.ts',
+      'packages/ui/src/icons/index.tsx',
+      'packages/ui/src/primitives/icon-button/icon-button.tsx',
+      'packages/ui/src/primitives/contract.ts',
+    ],
+    notes:
+      'Le filtre lit le registre local : aucune requête, aucune icône chargée à distance. Les clés affichées sont exactement celles qu’accepte `<Icon name>` — le type ne laisse passer aucune faute.',
+    Component: IconsSpecimen,
+  },
+  {
+    id: '24-structure',
+    index: '24',
+    title: 'Structure — en-têtes, fils, fiches, parcours, indicateurs',
+    question:
+      'Où suis-je, qu’est-ce que je regarde, où en est le parcours, combien : quatre questions auxquelles chaque écran répondait avec son propre balisage. Une seule famille peut-elle les porter sans aplatir la hiérarchie ?',
+    sources: [
+      'packages/ui/src/primitives/section-header/section-header.tsx',
+      'packages/ui/src/primitives/breadcrumbs/breadcrumbs.tsx',
+      'packages/ui/src/primitives/description-list/description-list.tsx',
+      'packages/ui/src/primitives/stepper/stepper.tsx',
+      'packages/ui/src/primitives/stat/stat.tsx',
+    ],
+    notes:
+      'Chaque pièce garde sa sémantique : `h2` pour une section, `nav` pour le fil, `dl` pour une fiche, `ol` pour le parcours. Le visuel suit, il ne décide pas.',
+    Component: StructureSpecimen,
+  },
+  {
+    id: '25-feedback',
+    index: '25',
+    title: 'États — vide, chargement, retour, historique, raccourcis',
+    question:
+      'Un produit se juge sur ce qu’il montre quand il n’a rien à montrer. Le vide, le chargement, l’erreur douce et l’historique tiennent-ils le même contrat que le contenu ?',
+    sources: [
+      'packages/ui/src/primitives/empty-state/empty-state.tsx',
+      'packages/ui/src/primitives/callout/callout.tsx',
+      'packages/ui/src/primitives/progress/progress.tsx',
+      'packages/ui/src/primitives/spinner/spinner.tsx',
+      'packages/ui/src/primitives/skeleton/skeleton.tsx',
+      'packages/ui/src/primitives/status-dot/status-dot.tsx',
+      'packages/ui/src/primitives/pagination/pagination.tsx',
+      'packages/ui/src/primitives/timeline/timeline.tsx',
+      'packages/ui/src/primitives/kbd/kbd.tsx',
+    ],
+    notes:
+      'Aucune donnée réelle : la pagination et les états sont locaux. Les squelettes et animations s’arrêtent si l’OS demande moins de mouvement.',
+    Component: FeedbackSpecimen,
+  },
 ];
 
 const TOKENS = [
   { token: '--background', label: 'Canvas' },
+  { token: '--radius-button', label: 'Rayon contrôle (4 px)' },
+  { token: '--radius-card', label: 'Rayon panneau (6 px)' },
   { token: '--card', label: 'Surface 1' },
   { token: '--muted', label: 'Surface 2' },
   { token: '--border', label: 'Séparateur' },
@@ -324,11 +384,13 @@ const TOKENS = [
 
 const RULES = [
   'Tokens uniquement : les surfaces passent par les variables du thème (background, card, muted, border), jamais par une couleur brute.',
-  'Un seul jeu de rayons : celui du thème (--radius-sm/md/lg/xl). Pas de valeurs ad hoc du type 20px.',
+  'Un seul jeu de rayons : --radius-sharp, --radius-button, --radius-card, --radius-plateau. Pas de valeurs ad hoc du type 20px.',
   'Séparateurs capillaires (border-border/40) ; les panneaux flottants portent une ombre et un anneau, pas une bordure pleine.',
   'Le survol change la surface (accent ou muted), jamais la couleur de marque.',
-  'Icônes Lucide en stroke 1.5, aucune icône décorative, aucun emoji dans l’interface.',
+  'Icônes par le registre @qoe/ui/icons : un nom par intention, trait 1.5, quatre tailles (xs 12, sm 14, md 16, lg 20). Aucun import Lucide direct dans une app.',
+  'Géométrie carrée par défaut : 0 à 8 px de rayon, lus dans les tokens. Le mode doux est un attribut (data-geometry="round"), jamais une classe locale.',
   'Une hauteur par rôle : h-7 compact, h-8 standard, h-9 confortable.',
+  'Chaque état existe : vide, chargement, erreur, succès. Un écran sans état vide paraît cassé le premier jour.',
 ];
 
 export function UiLab({ catalog }: { catalog: Catalog }) {
@@ -368,15 +430,16 @@ export function UiLab({ catalog }: { catalog: Catalog }) {
           </div>
           <div className="ml-auto flex items-center gap-1">
             <span className="hidden font-mono text-[10.5px] tabular-nums text-muted-foreground sm:block">
-              {SPECIMENS.length} spécimens · {catalog.total} composants inventoriés
+              {SPECIMENS.length} spécimens · {catalog.total} composants · {ICON_NAMES.length} icônes
             </span>
+            <GeometrySwitch />
             <ThemeToggle />
             <Link
               href="/"
               className="flex h-8 items-center gap-1 rounded-md px-2 text-[12.5px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               Studio
-              <ArrowUpRight className="size-3.5" strokeWidth={1.5} />
+              <Icon name="arrow-up-right" size="sm" />
             </Link>
           </div>
         </div>
@@ -460,22 +523,35 @@ export function UiLab({ catalog }: { catalog: Catalog }) {
               </div>
 
               <div className="grid grid-cols-2 gap-2 border-t border-border/40 pt-5 sm:grid-cols-4">
-                {TOKENS.map((item) => (
-                  <div key={item.token} className="min-w-0">
-                    <div
-                      className="h-9 w-full rounded-md border border-border/40"
-                      style={{ background: `var(${item.token})` }}
-                    />
-                    <p className="mt-1.5 truncate text-[11px] text-foreground">{item.label}</p>
-                    <p className="truncate font-mono text-[10px] text-muted-foreground">
-                      {item.token}
-                    </p>
-                  </div>
-                ))}
+                {TOKENS.map((item) =>
+                  item.token.startsWith('--radius') ? (
+                    <div key={item.token} className="min-w-0">
+                      <div
+                        className="h-9 w-full border border-border/40 bg-muted/40"
+                        style={{ borderRadius: `var(${item.token})` }}
+                      />
+                      <p className="mt-1.5 truncate text-[11px] text-foreground">{item.label}</p>
+                      <p className="truncate font-mono text-[10px] text-muted-foreground">
+                        {item.token}
+                      </p>
+                    </div>
+                  ) : (
+                    <div key={item.token} className="min-w-0">
+                      <div
+                        className="h-9 w-full rounded-md border border-border/40"
+                        style={{ background: `var(${item.token})` }}
+                      />
+                      <p className="mt-1.5 truncate text-[11px] text-foreground">{item.label}</p>
+                      <p className="truncate font-mono text-[10px] text-muted-foreground">
+                        {item.token}
+                      </p>
+                    </div>
+                  )
+                )}
               </div>
               <p className="text-[11px] text-muted-foreground">
                 Les pastilles lisent les variables CSS en direct : basculez le thème en haut à
-                droite, elles changent avec le thème actif.
+                droite ou la géométrie (Carré / Doux), elles changent avec le mode actif.
               </p>
             </div>
           </section>
@@ -513,7 +589,7 @@ export function UiLab({ catalog }: { catalog: Catalog }) {
                 </p>
               </div>
               <label className="flex h-8 w-full items-center gap-2 rounded-md border border-border/50 bg-card px-2 sm:w-64">
-                <Search className="size-3.5 text-muted-foreground" strokeWidth={1.5} />
+                <Icon name="search" size="sm" className="text-muted-foreground" />
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
@@ -625,6 +701,54 @@ function Signal({ value, label, detail }: { value: string; label: string; detail
       <p className="font-mono text-[15px] leading-none tabular-nums text-foreground">{value}</p>
       <p className="mt-1.5 text-[11.5px] text-foreground">{label}</p>
       <p className="text-[10.5px] text-muted-foreground">{detail}</p>
+    </div>
+  );
+}
+
+/**
+ * Bascule de géométrie du lab.
+ *
+ * La plateforme est carrée par défaut (aucun attribut). « Doux » pose
+ * `data-geometry="round"` sur `<html>` — les tokens de rayon remontent, tous
+ * les composants suivent, aucun fichier de composant ne change. L'attribut
+ * est retiré au démontage : une revue du lab ne doit pas laisser le site
+ * arrondi derrière elle.
+ */
+function GeometrySwitch() {
+  const [round, setRound] = useState(false);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (round) root.dataset.geometry = 'round';
+    else delete root.dataset.geometry;
+
+    return () => {
+      delete root.dataset.geometry;
+    };
+  }, [round]);
+
+  return (
+    <div
+      role="group"
+      aria-label="Géométrie des angles"
+      className="hidden items-center gap-0.5 rounded-control border border-border/50 p-0.5 sm:flex"
+    >
+      <Button
+        size="xs"
+        variant={round ? 'ghost' : 'soft'}
+        aria-pressed={!round}
+        onClick={() => setRound(false)}
+      >
+        Carré
+      </Button>
+      <Button
+        size="xs"
+        variant={round ? 'soft' : 'ghost'}
+        aria-pressed={round}
+        onClick={() => setRound(true)}
+      >
+        Doux
+      </Button>
     </div>
   );
 }

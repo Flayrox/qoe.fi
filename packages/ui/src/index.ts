@@ -11,6 +11,78 @@ export * from './tokens';
 // primitive Base UI (`./ui/button`) a été supprimée une fois ses trois
 // derniers consommateurs migrés (calendar, LoginFormBento, OnboardingFlow).
 export { Button, type ButtonProps } from './primitives/button/button';
+export { Icon, ICONS, ICON_NAMES, ICON_GROUPS, type IconName, type IconProps } from './icons';
+export { IconButton, type IconButtonProps } from './primitives/icon-button/icon-button';
+export {
+  Kbd,
+  KbdGroup,
+  type KbdProps,
+  type KbdSize,
+  type KbdGroupProps,
+} from './primitives/kbd/kbd';
+export {
+  EmptyState,
+  type EmptyStateProps,
+  type EmptyStateVariant,
+} from './primitives/empty-state/empty-state';
+export {
+  SectionHeader,
+  type SectionHeaderProps,
+  type SectionHeaderLevel,
+} from './primitives/section-header/section-header';
+export { Callout, type CalloutProps, type CalloutTone } from './primitives/callout/callout';
+export {
+  ConfirmDialog,
+  type ConfirmAction,
+  type ConfirmDialogProps,
+} from './primitives/confirm-dialog/confirm-dialog';
+export { Progress, type ProgressProps, type ProgressSize } from './primitives/progress/progress';
+export {
+  Stat,
+  type StatProps,
+  type StatDelta,
+  type StatDirection,
+  type StatIntent,
+} from './primitives/stat/stat';
+export {
+  Pagination,
+  paginationRange,
+  type PaginationProps,
+  type PaginationToken,
+} from './primitives/pagination/pagination';
+export {
+  Breadcrumbs,
+  type BreadcrumbsProps,
+  type BreadcrumbItem,
+} from './primitives/breadcrumbs/breadcrumbs';
+export {
+  DescriptionList,
+  DescriptionItem,
+  type DescriptionListProps,
+  type DescriptionListItem,
+  type DescriptionItemProps,
+  type DescriptionListLayout,
+} from './primitives/description-list/description-list';
+export {
+  Stepper,
+  type StepperProps,
+  type Step,
+  type StepStatus,
+} from './primitives/stepper/stepper';
+export { Spinner, type SpinnerProps, type SpinnerTone } from './primitives/spinner/spinner';
+export {
+  Skeleton,
+  SkeletonText,
+  type SkeletonProps,
+  type SkeletonShape,
+  type SkeletonTextProps,
+} from './primitives/skeleton/skeleton';
+export {
+  StatusDot,
+  type StatusDotProps,
+  type StatusTone,
+} from './primitives/status-dot/status-dot';
+export { Timeline, type TimelineProps, type TimelineEntry } from './primitives/timeline/timeline';
 export { PopoverPanel, type PopoverPanelProps } from './primitives/popover/popover-panel';
 export {
   Badge,
