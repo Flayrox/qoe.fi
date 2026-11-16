@@ -14,7 +14,7 @@ import {
 } from '@/lib/admin-aux-actions';
 import { AuthMethodsToggles } from './components/AuthMethodsToggles';
 import { ApiAccessModulesToggles } from './components/ApiAccessModulesToggles';
-import { ApiAccessControlCard } from './components/ApiAccessControlCard';
+import { ApiAccessControlPanel } from './components/ApiAccessControlPanel';
 import { FeatureFlagsToggles } from './components/FeatureFlagsToggles';
 import { RegistrationsControl } from './components/RegistrationsControl';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
@@ -165,7 +165,7 @@ export default async function AdminConfig() {
       <ApiAccessModulesToggles initialModules={apiAccessModules} />
 
       {/* Contrôle d'accès global — coupure générale + endpoints désactivés */}
-      <ApiAccessControlCard
+      <ApiAccessControlPanel
         initialDisabled={configs.find((c) => c.key === 'API_ACCESS_DISABLED')?.value === 'true'}
         initialEndpoints={parseDisabledEndpoints(
           configs.find((c) => c.key === 'API_DISABLED_ENDPOINTS')?.value
@@ -272,8 +272,10 @@ export default async function AdminConfig() {
             <TableColumn className="w-2/5">Description</TableColumn>
             <TableColumn className="text-right w-1/12">Actions</TableColumn>
           </TableHeader>
-          <TableBody items={configs} emptyState="No configuration defined.">
-            {(c) => (
+          {/* ⚠️ Rows mappées explicitement : un Server Component ne peut pas
+              passer une fonction enfant à un composant client (500 au rendu). */}
+          <TableBody emptyState="No configuration defined.">
+            {configs.map((c) => (
               <TableRow key={c.key} id={c.key} className="group">
                 <TableCell className="tabular-nums text-xs text-muted-foreground">
                   {c.key}
@@ -322,7 +324,7 @@ export default async function AdminConfig() {
                   </form>
                 </TableCell>
               </TableRow>
-            )}
+            ))}
           </TableBody>
         </Table>
       </div>

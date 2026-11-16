@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { routes } from '@qoe/config/routes';
 import { useFlag } from '@qoe/flags';
-import { PlusCheckoutButton } from './plus-checkout-button';
+import { PlusCheckoutCta } from './plus-checkout-button';
 
 type Level = 'free' | 'plus' | 'soon';
 
@@ -169,7 +169,7 @@ export function PricingCompare({ supportUrl }: { supportUrl: string }) {
 
           <div className="mt-6 pt-4 border-t border-border/40 space-y-2">
             {isCheckoutEnabled ? (
-              <PlusCheckoutButton />
+              <PlusCheckoutCta />
             ) : (
               <>
                 <a

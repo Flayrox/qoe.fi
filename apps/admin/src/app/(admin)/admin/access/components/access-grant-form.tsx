@@ -2,14 +2,15 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Plus, Search } from 'lucide-react';
 import { grantRoleAction } from '@/lib/admin-access-actions';
 import { useStaffAction } from '@/components/queue/useStaffAction';
+import { Button } from '@qoe/ui/button';
+import { Callout } from '@qoe/ui/callout';
+import { Icon } from '@qoe/ui/icons';
+import { Input } from '@qoe/ui/input';
+import { SectionHeader } from '@qoe/ui/section-header';
 import { Select } from '@qoe/ui/select';
 import type { AccessPersonSummary, AccessRoleRow } from '@/lib/admin-access-data';
-
-const inputCls =
-  'w-full text-xs px-3 py-2 rounded-xl border border-border bg-background outline-none';
 
 interface AccessGrantFormProps {
   /** Personnes trouvées par la recherche (`?person=`), déjà filtrées côté serveur. */
@@ -46,32 +47,34 @@ export function AccessGrantForm({ people, roles, canGrant }: AccessGrantFormProp
   };
 
   return (
-    <section className="bg-white border border-border rounded-lg p-6 shadow-sm space-y-4">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold">Attribuer un rôle</h2>
-          <p className="text-xs text-muted-foreground">
-            La personne doit déjà avoir un compte. L’attribution prend effet immédiatement et le
-            motif est conservé.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowForm((open) => !open)}
-          disabled={!canGrant}
-          data-testid="access-grant-toggle"
-          className="text-xs font-bold px-4 py-2 rounded-xl bg-[#EE4B2B] text-white cursor-pointer flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <Plus className="w-3 h-3" />
-          {showForm ? 'Fermer' : 'Nouvelle attribution'}
-        </button>
-      </header>
+    <section className="space-y-4 rounded-panel border border-border/60 bg-card p-5">
+      <SectionHeader
+        eyebrow="Accès"
+        title="Attribuer un rôle"
+        description="La personne doit déjà avoir un compte. L’attribution prend effet immédiatement et le motif est conservé."
+        actions={
+          <Button
+            variant={showForm ? 'outline' : 'solid'}
+            tone="brand"
+            size="sm"
+            onClick={() => setShowForm((open) => !open)}
+            disabled={!canGrant}
+            data-testid="access-grant-toggle"
+            aria-expanded={showForm}
+          >
+            <Icon name={showForm ? 'x' : 'plus'} />
+            {showForm ? 'Fermer' : 'Nouvelle attribution'}
+          </Button>
+        }
+      />
 
       {!canGrant && (
-        <p className="text-xs text-muted-foreground" data-testid="access-grant-readonly">
-          Vous pouvez lire les attributions, pas les modifier : la capacité{' '}
-          <span className="tabular-nums">admin.access.grant</span> est requise.
-        </p>
+        <Callout tone="info" live>
+          <span data-testid="access-grant-readonly">
+            Vous pouvez lire les attributions, pas les modifier : la capacité{' '}
+            <span className="font-mono tabular-nums">admin.access.grant</span> est requise.
+          </span>
+        </Callout>
       )}
 
       {canGrant && (
@@ -81,26 +84,26 @@ export function AccessGrantForm({ people, roles, canGrant }: AccessGrantFormProp
           className="flex gap-2"
           data-testid="access-person-search"
         >
-          <input
+          <Input
+            size="sm"
             name="person"
             defaultValue=""
             placeholder="Chercher une personne (email, pseudonyme, nom) — au moins 2 caractères"
-            className={inputCls}
+            aria-label="Chercher une personne"
+            className="flex-1"
             data-testid="access-person-search-input"
           />
-          <button
-            type="submit"
-            className="text-xs font-bold px-3 py-2 rounded-xl border border-border cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
-          >
-            <Search className="w-3 h-3" /> Chercher
-          </button>
+          <Button type="submit" variant="outline" size="sm" className="whitespace-nowrap">
+            <Icon name="search" />
+            Chercher
+          </Button>
         </form>
       )}
 
       {canGrant && people.length > 0 && showForm && (
-        <div className="space-y-3 border-t border-border pt-4" data-testid="access-grant-form">
+        <div className="space-y-3 border-t border-border/40 pt-4" data-testid="access-grant-form">
           <div className="grid gap-3 md:grid-cols-3">
-            <label className="text-[11px] text-muted-foreground space-y-1 block">
+            <label className="block space-y-1 text-[11px] text-muted-foreground">
               Personne
               <Select
                 label="Personne"
@@ -114,7 +117,7 @@ export function AccessGrantForm({ people, roles, canGrant }: AccessGrantFormProp
                 }))}
               />
             </label>
-            <label className="text-[11px] text-muted-foreground space-y-1 block">
+            <label className="block space-y-1 text-[11px] text-muted-foreground">
               Rôle
               <Select
                 label="Rôle"
@@ -128,43 +131,45 @@ export function AccessGrantForm({ people, roles, canGrant }: AccessGrantFormProp
                 }))}
               />
             </label>
-            <label className="text-[11px] text-muted-foreground space-y-1 block">
+            <label className="block space-y-1 text-[11px] text-muted-foreground">
               Échéance (vide = sans fin)
-              <input
+              <Input
+                size="sm"
                 type="date"
                 value={expiresAt}
                 onChange={(e) => setExpiresAt(e.target.value)}
-                className={inputCls}
+                aria-label="Échéance du rôle"
                 data-testid="access-grant-expires"
               />
             </label>
           </div>
+
           {selected?.legacySuperadmin && (
-            <p className="text-[11px] text-muted-foreground">
+            <Callout tone="neutral">
               {selected.email} est superadmin historique : il détient déjà toutes les capacités.
-            </p>
+            </Callout>
           )}
-          <input
+
+          <Input
+            size="sm"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Motif (obligatoire, au moins 5 caractères) — ex. « renfort modération octobre »"
-            className={inputCls}
+            aria-label="Motif de l’attribution"
             data-testid="access-grant-reason"
           />
-          <button
-            type="button"
-            onClick={submit}
-            disabled={loadingId !== null || !userId || !roleKey || reason.trim().length < 5}
+
+          <Button
+            variant="solid"
+            tone="brand"
+            size="sm"
+            loading={loadingId === 'grant'}
+            onClick={() => void submit()}
+            disabled={!userId || !roleKey || reason.trim().length < 5}
             data-testid="access-grant-submit"
-            className="text-xs font-bold px-4 py-2 rounded-xl bg-[#EE4B2B] text-white cursor-pointer flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {loadingId === 'grant' ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            ) : (
-              <Plus className="w-3 h-3" />
-            )}
             Attribuer
-          </button>
+          </Button>
         </div>
       )}
     </section>

@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronRight, Search } from 'lucide-react';
 import { SafeAvatar } from '@qoe/ui';
+import { Button } from '@qoe/ui/button';
+import { Icon } from '@qoe/ui/icons';
+import { Kbd } from '@qoe/ui/kbd';
 import { ADMIN_CAPABILITY_DOMAINS, ADMIN_DOMAIN_LABELS, navItemForPath } from '@/lib/admin-console';
 import { DENSITY } from '@/components/shell/tokens';
 
@@ -58,33 +60,35 @@ export function AdminHeader({ user, roles = [], environment = 'production' }: Ad
         </Link>
         {domain && (
           <>
-            <ChevronRight className="size-3 shrink-0 opacity-60" aria-hidden />
+            <Icon name="chevron-right" size="sm" className="shrink-0 opacity-60" aria-hidden />
             <span className="truncate">{ADMIN_DOMAIN_LABELS[domain]}</span>
           </>
         )}
         {navItem && (
           <>
-            <ChevronRight className="size-3 shrink-0 opacity-60" aria-hidden />
+            <Icon name="chevron-right" size="sm" className="shrink-0 opacity-60" aria-hidden />
             <span className="truncate font-medium text-foreground">{navItem.label}</span>
           </>
         )}
       </nav>
 
       <div className="flex shrink-0 items-center gap-2">
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="xs"
           onClick={openCommandPalette}
           aria-label="Ouvrir la palette de commandes"
           aria-haspopup="dialog"
           data-testid="admin-open-command-palette"
-          className="flex h-7 items-center gap-1.5 rounded-md border border-border px-2 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="h-7 gap-1.5 px-2 text-[11px] font-normal text-muted-foreground"
         >
-          <Search className="size-3.5" aria-hidden />
+          <Icon name="search" size="sm" aria-hidden />
           <span className="hidden sm:inline">Rechercher</span>
-          <kbd className="hidden rounded border border-border bg-muted px-1 tabular-nums text-[10px] sm:inline">
-            ⌘K
-          </kbd>
-        </button>
+          <span className="hidden sm:inline-flex">
+            <Kbd size="xs">⌘K</Kbd>
+          </span>
+        </Button>
 
         <span
           className={`rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${

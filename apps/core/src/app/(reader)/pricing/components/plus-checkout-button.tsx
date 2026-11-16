@@ -1,7 +1,7 @@
 'use client';
 
 // =====================================================================
-// 💳 PlusCheckoutButton — souscription Qoefi Plus (Stripe Checkout)
+// 💳 PlusCheckoutCta — souscription Qoefi Plus (Stripe Checkout)
 // =====================================================================
 // Le backend renvoie une URL Stripe ; si la clé n'est pas configurée il
 // répond 503 et on affiche un message honnête (jamais un bouton qui ne
@@ -11,11 +11,12 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Loader2, Sparkles } from 'lucide-react';
 import { startSubscriptionCheckoutAction } from '@qoe/sdk';
+import { Button } from '@qoe/ui/button';
+import { Icon } from '@qoe/ui/icons';
 import { t } from '@lingui/core/macro';
 
-export function PlusCheckoutButton() {
+export function PlusCheckoutCta() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsLogin, setNeedsLogin] = useState(false);
@@ -47,19 +48,17 @@ export function PlusCheckoutButton() {
 
   return (
     <div className="space-y-2">
-      <button
-        type="button"
-        onClick={start}
-        disabled={loading}
-        className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground shadow-xs hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-60"
+      <Button
+        variant="solid"
+        tone="brand"
+        size="sm"
+        block
+        loading={loading}
+        onClick={() => void start()}
       >
-        {loading ? (
-          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-        ) : (
-          <Sparkles className="w-3.5 h-3.5" />
-        )}
+        <Icon name="sparkles" />
         {t`Souscrire à Qoefi Plus (3,99 €/mois)`}
-      </button>
+      </Button>
       {needsLogin && (
         <p className="text-[11px] text-muted-foreground text-center">
           <Link href="/login?redirect=/pricing" className="font-semibold text-foreground underline">
