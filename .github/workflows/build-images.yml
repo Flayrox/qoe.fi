@@ -27,6 +27,9 @@ on:
     paths:
       - 'apps/**'
       - 'packages/**'
+      # Les catalogues Lingui sont compilés DANS l'image (`pnpm intl:compile`) :
+      # un correctif de traduction doit donc reconstruire les images.
+      - 'messages/**'
       - 'Dockerfile*'
       - '.dockerignore'
       - 'pnpm-lock.yaml'
