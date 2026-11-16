@@ -407,7 +407,7 @@ export function DataGrid<T extends { id: string }>({
       >
         <TableHeader>
           {selectable && <TableSelectAllCell />}
-          {visibleColumns.map((column) => (
+          {visibleColumns.map((column, index) => (
             <TableColumn
               key={column.id}
               id={column.id}
@@ -415,13 +415,23 @@ export function DataGrid<T extends { id: string }>({
               minWidth={column.minWidth}
               style={column.minWidth ? { minWidth: `${column.minWidth}px` } : undefined}
               allowsSorting={Boolean(column.sort)}
+              // react-aria exige UNE colonne d'en-tête de ligne, sinon la table
+              // refuse de se construire (toute la grille plantait) : la première
+              // colonne visible nomme la ligne.
+              isRowHeader={index === 0}
               className={column.align === 'right' ? 'text-right' : undefined}
             >
               {column.header}
             </TableColumn>
           ))}
           {rowMenu && (
-            <TableColumn id="__row-actions" width={32}>
+            <TableColumn
+              id="__row-actions"
+              width={32}
+              // Toutes les colonnes masquées : la colonne d'actions reste le
+              // seul en-tête de ligne disponible.
+              isRowHeader={visibleColumns.length === 0}
+            >
               <span className="sr-only">Actions</span>
             </TableColumn>
           )}

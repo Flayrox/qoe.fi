@@ -72,20 +72,20 @@ export default defineConfig({
       // Seuils progressifs par package, mesurés au moment de l'introduction
       // du gate (2026-08). Une baisse DOIT s'accompagner de nouveaux tests,
       // pas d'un seuil abaissé. Objectif final : 80% sur le code métier.
-      // Ratchets remontés le 2026-11-16 au niveau mesuré moins un point
-      // (mesures : sdk 48,94 · auth 42,80 · utils 79,52 · flags 74,07 ·
-      // moderation 89,78 · core/app 14,61 · core/components 13,51 · mobile
-      // 12,47). Une baisse doit s'accompagner de nouveaux tests, jamais d'un
-      // seuil abaissé.
+      // Ratchets remontés le 2026-11-16 au niveau mesuré moins un point, puis
+      // relevés après les tests sitemap/actions de compte (mesures : sdk 49,03 ·
+      // auth 42,80 · utils 79,52 · flags 74,07 · moderation 89,78 ·
+      // core/app 17,76 · core/components 13,51 · mobile 12,47). Une baisse doit
+      // s'accompagner de nouveaux tests, jamais d'un seuil abaissé.
       thresholds: {
-        'packages/sdk/**': { lines: 47, statements: 46, functions: 43, branches: 38 },
+        'packages/sdk/**': { lines: 48, statements: 46, functions: 43, branches: 38 },
         'packages/auth/**': { lines: 41, statements: 41, functions: 41, branches: 30 },
         'packages/utils/**': { lines: 78, statements: 76, functions: 78, branches: 68 },
         'packages/flags/**': { lines: 73, statements: 74, functions: 54, branches: 85 },
         'packages/moderation/**': { lines: 88, statements: 85, functions: 91, branches: 80 },
         // Zones front jusqu'ici sans plancher : posées au niveau mesuré moins
         // un point, pour qu'elles ne repartent pas à la baisse sur du code neuf.
-        'apps/core/src/app/**': { lines: 13, statements: 13, functions: 9, branches: 11 },
+        'apps/core/src/app/**': { lines: 16, statements: 16, functions: 13, branches: 13 },
         'apps/core/src/components/**': { lines: 12, statements: 11, functions: 7, branches: 7 },
         'apps/mobile/**': { lines: 11, statements: 12, functions: 7, branches: 10 },
         // Logic pure des apps front (core) et mobile — gate mesuré séparément

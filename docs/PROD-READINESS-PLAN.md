@@ -31,16 +31,16 @@
 
 ## 2. État vérifié au 2026-11-16
 
-| Élément | Valeur mesurée | Preuve |
-| --- | --- | --- |
-| Branche locale | `dev`, arbre **propre** | `git status --short --branch` |
-| `dev` ↔ `origin/dev` | 0 / 0 | `git rev-list --left-right --count` |
-| `main` ↔ `origin/main` | 0 / 0 (`origin/main` = `f031ab67`) | idem |
-| Images Docker | **succès** | run `43884256587` (6 min 45) |
-| CI du commit `f031ab67` | **échec** (2 causes réelles, section 3) | run `43884256529` |
-| VPS Netcup | joignable, 24 conteneurs `Up` | `ssh root@159.195.110.239 docker ps` |
-| Stack prod (avant) | déployée ~37 h plus tôt → **antérieure** à `f031ab67` | `docker ps` |
-| Stack prod (après, 16/11 16:35) | `e859e4e3` déployé, **13/13 smoke tests**, goose **93** | `bash scripts/deploy-prod.sh` |
+| Élément                         | Valeur mesurée                                          | Preuve                               |
+| ------------------------------- | ------------------------------------------------------- | ------------------------------------ |
+| Branche locale                  | `dev`, arbre **propre**                                 | `git status --short --branch`        |
+| `dev` ↔ `origin/dev`            | 0 / 0                                                   | `git rev-list --left-right --count`  |
+| `main` ↔ `origin/main`          | 0 / 0 (`origin/main` = `f031ab67`)                      | idem                                 |
+| Images Docker                   | **succès**                                              | run `43884256587` (6 min 45)         |
+| CI du commit `f031ab67`         | **échec** (2 causes réelles, section 3)                 | run `43884256529`                    |
+| VPS Netcup                      | joignable, 24 conteneurs `Up`                           | `ssh root@159.195.110.239 docker ps` |
+| Stack prod (avant)              | déployée ~37 h plus tôt → **antérieure** à `f031ab67`   | `docker ps`                          |
+| Stack prod (après, 16/11 16:35) | `e859e4e3` déployé, **13/13 smoke tests**, goose **93** | `bash scripts/deploy-prod.sh`        |
 
 Conséquence : les images du dernier commit existent sur GHCR, mais la prod tournait
 encore l'image précédente. Le déploiement n'était donc pas un simple redémarrage.
@@ -57,7 +57,7 @@ Deux échecs distincts sur `f031ab67`, tous deux côté tests :
    `feat(billing)`) sans mettre à jour le verrou d'ordre : 13 entrées attendues
    par le code, 10 déclarées par le test.
    → **Correctif** : le test verrouille désormais l'ordre réel (13 entrées), et la
-   liste du rôle *viewer* passe à 8 (livres + communauté visibles, monétisation
+   liste du rôle _viewer_ passe à 8 (livres + communauté visibles, monétisation
    masquée faute de `media:manage_billing`). Aucune assertion affaiblie : c'est un
    verrou d'inventaire qui redevient exact.
 2. **Go `TestExtendPlanGrant_ProlongeSansDoublon`** (`internal/subscriptions`).
@@ -80,7 +80,7 @@ Trois jobs étaient rouges avant cette reprise, sans rapport avec le commit :
    français) « Publication automatique programmée ». Correctif : le test suit le
    libellé réel, les assertions restent identiques.
 2. **Go — `TestStripe_PaymentSucceeded_CreditsOwnerWallet`** : le test attendait
-   5 % parce que le compte était *creator*. Le barème a changé (commit billing) :
+   5 % parce que le compte était _creator_. Le barème a changé (commit billing) :
    la commission suit désormais le **droit Pro** (`SubscriptionGrant`), pas le
    rôle. Correctif : le test vérifie les deux cas — 10 % sans octroi (1800), puis
    octroi Pro + second paiement → 5 % (1800 + 1900 = 3700).
@@ -100,7 +100,7 @@ Trois jobs étaient rouges avant cette reprise, sans rapport avec le commit :
    `AGENTS.md`. Il refusait `00090`–`00093` : `ALTER TABLE` sans `lock_timeout`
    et `CREATE INDEX` sans `CONCURRENTLY` sur des tables existantes. Correctif :
    `SET lock_timeout = '3s'` + `CREATE INDEX CONCURRENTLY` (+ `-- +goose NO
-   TRANSACTION`, style de `00089`), et **branchement du guard** dans le job
+TRANSACTION`, style de `00089`), et **branchement du guard** dans le job
    `Static Checks & Guards` pour qu'il ne puisse plus pourrir.
    Vérifié sur base neuve : 94 migrations rejouées, goose **93**, les deux index
    créés, `go test ./internal/subscriptions/` vert. En prod ces migrations sont
@@ -151,13 +151,13 @@ remettre les images précédentes (`qoefi-<service>:<sha>` est publié à chaque
 **Mesure du 2026-11-16** (poste, `pnpm test:coverage` puis
 `pnpm test:coverage:front`) — plus aucun fichier non instrumentable :
 
-| Périmètre | Lignes | Fichiers / tests | Ratchet lignes |
-| --- | --- | --- | --- |
-| `packages/ui` | 56,03 % | 83 / 545 | 55 % |
-| `apps/tenants` | 24,00 % | 11 / 39 | 23 % |
-| `apps/studio` | 11,18 % | 38 / 195 | 10 % |
-| `apps/admin` | 4,56 % | 11 / 66 | 4 % |
-| **Agrégé monorepo** | 24,42 % | 83 / 716 | — |
+| Périmètre           | Lignes  | Fichiers / tests | Ratchet lignes |
+| ------------------- | ------- | ---------------- | -------------- |
+| `packages/ui`       | 56,50 % | 84 / 554         | 55 %           |
+| `apps/tenants`      | 24,00 % | 11 / 39          | 23 %           |
+| `apps/studio`       | 13,95 % | 43 / 234         | 12 %           |
+| `apps/admin`        | 10,88 % | 14 / 88          | 9 %            |
+| **Agrégé monorepo** | 25,30 % | 83 / 716         | —              |
 
 Les ratchets sont des planchers, jamais à la baisse : une baisse doit
 s'accompagner de nouveaux tests, pas d'un seuil abaissé.
@@ -165,23 +165,27 @@ s'accompagner de nouveaux tests, pas d'un seuil abaissé.
 **Ratchets remontés le 16/11** au niveau mesuré moins un point, sur les quatre
 métriques (lignes, statements, fonctions, branches) :
 
-| Zone | Avant | Après |
-| --- | --- | --- |
-| `packages/sdk/**` | 23 / 22 | 47 / 46 / 43 / 38 |
-| `packages/auth/**` | 15 / 14 | 41 / 41 / 41 / 30 |
-| `packages/utils/**` | 44 / 41 | 78 / 76 / 78 / 68 |
-| `packages/flags/**` | 65 / 65 | 73 / 74 / 54 / 85 |
-| `packages/moderation/**` | 80 / 80 | 88 / 85 / 91 / 80 |
-| `apps/core/src/app/**` | _aucun_ | 13 / 13 / 9 / 11 |
-| `apps/core/src/components/**` | _aucun_ | 12 / 11 / 7 / 7 |
-| `apps/mobile/**` | _aucun_ | 11 / 12 / 7 / 10 |
-| `apps/studio` | 9 % partout | 10 % partout |
-| `packages/ui` | 55 / 53 / 48 / 48 | 55 / 53 / 48 / 49 |
-| `apps/admin` | 4 / 4 / 3 / 3 | 4 / 4 / 3 / 4 |
-| `apps/tenants` | 23 / 22 / 17 / 24 | 23 / 22 / 18 / 24 |
+| Zone                          | Avant             | Après             |
+| ----------------------------- | ----------------- | ----------------- |
+| `packages/sdk/**`             | 23 / 22           | 48 / 46 / 43 / 38 |
+| `packages/auth/**`            | 15 / 14           | 41 / 41 / 41 / 30 |
+| `packages/utils/**`           | 44 / 41           | 78 / 76 / 78 / 68 |
+| `packages/flags/**`           | 65 / 65           | 73 / 74 / 54 / 85 |
+| `packages/moderation/**`      | 80 / 80           | 88 / 85 / 91 / 80 |
+| `apps/core/src/app/**`        | _aucun_           | 16 / 16 / 13 / 13 |
+| `apps/core/src/components/**` | _aucun_           | 12 / 11 / 7 / 7   |
+| `apps/mobile/**`              | _aucun_           | 11 / 12 / 7 / 10  |
+| `apps/studio`                 | 9 % partout       | 12 % partout      |
+| `packages/ui`                 | 55 / 53 / 48 / 48 | 55 / 53 / 48 / 49 |
+| `apps/admin`                  | 4 / 4 / 3 / 3     | 9 / 9 / 6 / 8     |
+| `apps/tenants`                | 23 / 22 / 17 / 24 | 23 / 22 / 18 / 24 |
 
 Une marge d'environ un point est conservée sous la mesure : les seuils
 verrouillent les gains sans rendre la CI dépendante de variations d'arrondi.
+
+**Seuils relevés une seconde fois le 16/11** après les tests de cette passe
+(mesures : sdk 49,03 · core/app 17,76 · studio 13,95/13,73/13,51/13,92 ·
+admin 10,88/10,66/7,94/9,48). Chaque gate est au niveau mesuré moins un point.
 
 ### Fait le 16/11
 
@@ -204,18 +208,58 @@ verrouillent les gains sans rendre la CI dépendante de variations d'arrondi.
   ne remappe pas un fichier non couvert). Sous-chemins déclarés + 6 tests de
   rendu, exclusion supprimée.
 
+### Fait le 16/11 (seconde passe)
+
+- **Lecteur audio (`packages/ui/reader`)** : 9 tests sur le lecteur flottant
+  (pause/reprise, bordures de paragraphe, ±15 s, vitesse, scrubber, fermeture,
+  chrono). Trois défauts corrigés au passage : « pause » annulait l'utterance
+  (reprendre relisait le paragraphe depuis le début), le chrono cumulait les
+  articles, et changer la vitesse relançait le paragraphe à l'ancienne vitesse
+  (closure périmée → `rateRef`). Garde `MediaMetadata` pour les navigateurs qui
+  exposent `mediaSession` sans l'API de métadonnées.
+- **`apps/admin` — `DataGrid`** : **la grille partagée plantait au rendu**.
+  react-aria refuse une table sans colonne `isRowHeader` ; 13 écrans
+  (signalements, users, travail, support, abuse, approvals, imports, rétention,
+  sécurité, réglages, conformité, notifications, tableau de bord) affichaient
+  une erreur. La première colonne visible porte désormais l'en-tête de ligne.
+  6 tests verrouillent tri, colonnes masquées, état vide, clavier et menu.
+- **`apps/admin` — file de modération** : 4 tests (résolution + statut audité,
+  refus explicable sans mise à jour locale, suspension exigeant un motif).
+- **`apps/admin` — `admin-aux-actions`** : 12 tests de normalisation/validation
+  (hashtag, config en majuscules, allowlist, endpoints coupés, JSON frontend).
+  Corrigés : un titre de promo fait d'espaces passait la validation ; un refus
+  du garde (`403`) sortait en exception au lieu d'un `{ success: false, code }`
+  (aucun retour à l'écran) ; un JSON invalide levait hors du `try`.
+- **`apps/studio` — actions média** : 16 tests (session requise, conservation du
+  `code` de refus pour le step-up, requête d'audit, défauts, échappement).
+- **`apps/studio` — analytics** : 8 tests (sans site Umami, attribution des
+  vues, parts de trafic). Corrigé : les séries journalières avançaient en heure
+  locale, donc le jour courant disparaissait dès qu'une période traversait un
+  changement d'heure (désormais jours UTC, bornes incluses).
+- **`apps/studio` — réglages** : 6 tests MFA (facteur non vérifié, retrait
+  confirmé/annulé, échec explicite) et 5 tests d'aperçu SEO (replis, domaine
+  personnalisé, indexation coupée, carte de partage).
+- **`apps/studio` — comparatif d'offres** : 4 tests, dont le verrou « aucun
+  faux bouton d'achat » tant que Stripe n'est pas configuré.
+- **`apps/core`** : 10 tests sitemap (bornes de shards, URLs encodées, pages
+  légales vers la vitrine, échappement XML) et 15 tests d'actions de compte
+  (mot de passe, email, username, suppression, export). Corrigé : après mise à
+  jour du profil, le cache invalidait `/@nom` — une route inexistante — au lieu
+  de `/[username]`.
+- **`packages/utils`** : 10 tests `slugify`/`shortId`/`uuid` (accents, tirets,
+  repli sans `crypto.randomUUID`).
+
 ### Reste à faire
 
-- **`apps/admin`** : modération & signalements, octrois `SubscriptionGrant`
-  depuis la console, feature flags.
-- **`apps/studio`** : `pricing/**` (`OfferCompare`), compilation EPUB,
-  `features/settings/**`.
-- **`apps/core`** : lecteur audio (persistance entre navigations), flux de
-  lecture hors ligne / API indisponible.
+- **`apps/admin`** : octrois `SubscriptionGrant` depuis la console, écrans de
+  traduction/frontend (CMS volumineux, surtout du rendu).
+- **`apps/studio`** : compilation EPUB, éditeur d'article (`features/editor`,
+  ~1 000 lignes) et `StageEngineContext`.
+- **`apps/core`** : `ThoughtComposer` (669 lignes), `FeedDashboard`, lecteur
+  EPUB, bascule lecture hors ligne.
 - **Go `internal/modules/billing`** : signature HMAC **déjà couverte** (absente,
   falsifiée, timestamp décalé, sans secret, `v1` manquant). Restent le rejeu
-  (`checkout.session.completed` ×2 → **un seul** grant, garanti par l'index
-  00093) et `account.updated` (Connect) : les deux exigent la base, donc
+  (`checkout.session.completed` ×2 → **un seul** grant, garanti par l'index 00093) et `account.updated` (Connect) : les deux exigent la base, donc
   `scripts/test-api.sh`.
 - **`internal/workers`** : `bulk_import.go`, `collab_cleanup.go`, `embedding.go`,
   `import_reconfirm.go`, `import_send.go`, `staff_campaign.go` (base/Redis
@@ -226,9 +270,9 @@ verrouillent les gains sans rendre la CI dépendante de variations d'arrondi.
 Deux modes, tous deux **strictement locaux** — les tests ne lisent jamais
 `DATABASE_URL` (base de dev Hetzner), seulement `TEST_DATABASE_URL` :
 
-| Mode | Commande | Ce qui tourne |
-| --- | --- | --- |
-| Testcontainers (défaut) | `cd apps/api && go test ./...` | un conteneur Postgres jetable **par paquet**, détruit ensuite |
+| Mode                      | Commande                           | Ce qui tourne                                                          |
+| ------------------------- | ---------------------------------- | ---------------------------------------------------------------------- |
+| Testcontainers (défaut)   | `cd apps/api && go test ./...`     | un conteneur Postgres jetable **par paquet**, détruit ensuite          |
 | Base unique (plus rapide) | `bash scripts/test-api.sh [pkgs…]` | `docker-compose.test.yml` → `127.0.0.1:55432`, base `qoe_test`, `-p 1` |
 
 Garde-fou : `testutil.validateTestDatabaseURL` refuse toute URL dont la base ne
@@ -300,16 +344,17 @@ terminée).
 
 ## 8. Journal (append-only)
 
-| Date | Étape | Résultat mesuré | Commit |
-| --- | --- | --- | --- |
-| 2026-11-16 | Reprise, état des lieux | `dev` = `origin/dev` = `origin/main` = `f031ab67`, arbre propre ; images GHCR OK (run `43884256587`) ; CI rouge (run `43884256529`) ; VPS joignable, stack vieille de 37 h | — |
-| 2026-11-16 | Étape 1 — CI rouge corrigée | `@qoe/config` : ordre sidebar 13 entrées (viewer 8) ; Go : sujet UUID réaliste dans `TestExtendPlanGrant_ProlongeSansDoublon` | `e4a5ecc2` |
-| 2026-11-16 | Étape 1bis — échecs préexistants | studio : libellé « Publication automatique programmée » ; Go : barème 10 %/5 % selon le droit Pro ; `ReindexAll` sonde Meili ; banc `/dev/editor-check` ouvert au job E2E via `QOE_E2E_DEV_ROUTES=1` | `1c784bf2` |
-| 2026-11-16 | Étape 1ter — gate + banc | gate TS : `MessagesApp`/`LibraryClient` exclus de la mesure (PARSE_ERROR rolldown) ; gate Go `newsletters` : `CreateDigestDraft` couvert sans base (76,3 % → seuil 80 retrouvé) ; middleware studio : `/dev` ouvert au drapeau E2E | `52521ecb` |
-| 2026-11-16 | Étape 1quater — i18n | `pnpm intl:extract` + `intl:compile` : ~900 messages jamais extraits (dont les `aria-label` du dialogue Sources). Aucun seuil abaissé, aucune assertion supprimée | `be744d2e` |
-| 2026-11-16 | Tests manquants (feuille de route §5) | admin `/admin/imports/[id]` (3) ; studio `monetization-client` (7) + `api/export` (5) ; core `MessagesApp` (3) + `LibraryClient` (3) ; sous-chemins `@qoe/sdk/actions/{messages,highlights}` déclarés → exclusions de couverture supprimées ; mesure : ui 56,03 % · tenants 24,00 % · studio 11,18 % · admin 4,56 % · agrégé 24,42 % | _(ce commit)_ |
-| 2026-11-16 | Seuils de couverture remontés partout | sdk 23→47 · auth 15→41 · utils 44→78 · flags 65→73 · moderation 80→88 · studio 9→10 · admin branches 3→4 · tenants fonctions 17→18 · ui branches 48→49 ; nouveaux planchers core/app 13 % · core/components 12 % · mobile 11 % ; `pnpm test:coverage` et `test:coverage:front` verts | _(ce commit)_ |
-| 2026-11-16 | Docs temporaires supprimées | `TEST-COVERAGE.md`, `UI-PASS-2026-11-16.md` (chiffres et renvois rapatriés au §5) | _(ce commit)_ |
-| 2026-11-16 | Guard `arch:audit` réparé + branché | 00090–00093 alignées (lock_timeout, CONCURRENTLY, NO TRANSACTION) ; step ajouté à `Static Checks & Guards` ; replay complet sur base neuve (goose 93, index présents, tests verts) | _(ce commit)_ |
-| 2026-11-16 | Mesure Go locale | OrbStack + `qoefi-test-db` (127.0.0.1:55432) : subscriptions **84,7 %**, workers **62,1 %**, newsletters **82,8 %**, devtools **84,4 %**, exit 0. Aucune connexion à Hetzner (garde `_test`). | — |
-| 2026-11-16 | Étape 2 — CI verte + déploiement prod | Run `43895715146` : **tous les jobs verts** (8/8) sur `e859e4e3` ; images GHCR run `43895715138` OK. `deploy-prod.sh` : **13/13 smoke tests**, goose **93** (00091–00093 appliquées), backup dans `/root/migration/pre-20261116T163321Z/`, conteneurs recréés et *healthy* | `e859e4e3` |
+| Date       | Étape                                 | Résultat mesuré                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Commit        |
+| ---------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| 2026-11-16 | Reprise, état des lieux               | `dev` = `origin/dev` = `origin/main` = `f031ab67`, arbre propre ; images GHCR OK (run `43884256587`) ; CI rouge (run `43884256529`) ; VPS joignable, stack vieille de 37 h                                                                                                                                                                                                                                                                                                                                                                                                                                  | —             |
+| 2026-11-16 | Étape 1 — CI rouge corrigée           | `@qoe/config` : ordre sidebar 13 entrées (viewer 8) ; Go : sujet UUID réaliste dans `TestExtendPlanGrant_ProlongeSansDoublon`                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | `e4a5ecc2`    |
+| 2026-11-16 | Étape 1bis — échecs préexistants      | studio : libellé « Publication automatique programmée » ; Go : barème 10 %/5 % selon le droit Pro ; `ReindexAll` sonde Meili ; banc `/dev/editor-check` ouvert au job E2E via `QOE_E2E_DEV_ROUTES=1`                                                                                                                                                                                                                                                                                                                                                                                                        | `1c784bf2`    |
+| 2026-11-16 | Étape 1ter — gate + banc              | gate TS : `MessagesApp`/`LibraryClient` exclus de la mesure (PARSE_ERROR rolldown) ; gate Go `newsletters` : `CreateDigestDraft` couvert sans base (76,3 % → seuil 80 retrouvé) ; middleware studio : `/dev` ouvert au drapeau E2E                                                                                                                                                                                                                                                                                                                                                                          | `52521ecb`    |
+| 2026-11-16 | Étape 1quater — i18n                  | `pnpm intl:extract` + `intl:compile` : ~900 messages jamais extraits (dont les `aria-label` du dialogue Sources). Aucun seuil abaissé, aucune assertion supprimée                                                                                                                                                                                                                                                                                                                                                                                                                                           | `be744d2e`    |
+| 2026-11-16 | Tests manquants (feuille de route §5) | admin `/admin/imports/[id]` (3) ; studio `monetization-client` (7) + `api/export` (5) ; core `MessagesApp` (3) + `LibraryClient` (3) ; sous-chemins `@qoe/sdk/actions/{messages,highlights}` déclarés → exclusions de couverture supprimées ; mesure : ui 56,03 % · tenants 24,00 % · studio 11,18 % · admin 4,56 % · agrégé 24,42 %                                                                                                                                                                                                                                                                        | _(ce commit)_ |
+| 2026-11-16 | Seuils de couverture remontés partout | sdk 23→47 · auth 15→41 · utils 44→78 · flags 65→73 · moderation 80→88 · studio 9→10 · admin branches 3→4 · tenants fonctions 17→18 · ui branches 48→49 ; nouveaux planchers core/app 13 % · core/components 12 % · mobile 11 % ; `pnpm test:coverage` et `test:coverage:front` verts                                                                                                                                                                                                                                                                                                                        | _(ce commit)_ |
+| 2026-11-16 | Docs temporaires supprimées           | `TEST-COVERAGE.md`, `UI-PASS-2026-11-16.md` (chiffres et renvois rapatriés au §5)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | _(ce commit)_ |
+| 2026-11-16 | Guard `arch:audit` réparé + branché   | 00090–00093 alignées (lock_timeout, CONCURRENTLY, NO TRANSACTION) ; step ajouté à `Static Checks & Guards` ; replay complet sur base neuve (goose 93, index présents, tests verts)                                                                                                                                                                                                                                                                                                                                                                                                                          | _(ce commit)_ |
+| 2026-11-16 | Mesure Go locale                      | OrbStack + `qoefi-test-db` (127.0.0.1:55432) : subscriptions **84,7 %**, workers **62,1 %**, newsletters **82,8 %**, devtools **84,4 %**, exit 0. Aucune connexion à Hetzner (garde `_test`).                                                                                                                                                                                                                                                                                                                                                                                                               | —             |
+| 2026-11-16 | Tests + bugs (2ᵉ passe)               | 91 nouveaux tests : lecteur audio (9), grille admin (6), modération (4), actions auxiliaires (12), actions média (16), analytics (8), MFA (6), SEO (5), offres (4), sitemap (10), compte (15), slugify (10). Corrigés : `DataGrid` sans `isRowHeader` (13 écrans plantaient), pause audio qui relançait le paragraphe, chrono cumulé, vitesse périmée, `MediaMetadata` absent, séries analytics décalées (DST), `/@nom` invalidé, promo au titre vide, refus de garde en exception. Seuils relevés : sdk 48, core/app 16/16/13/13, studio 12, admin 9/9/6/8. `test:coverage` et `test:coverage:front` verts | _(ce commit)_ |
+| 2026-11-16 | Étape 2 — CI verte + déploiement prod | Run `43895715146` : **tous les jobs verts** (8/8) sur `e859e4e3` ; images GHCR run `43895715138` OK. `deploy-prod.sh` : **13/13 smoke tests**, goose **93** (00091–00093 appliquées), backup dans `/root/migration/pre-20261116T163321Z/`, conteneurs recréés et _healthy_                                                                                                                                                                                                                                                                                                                                  | `e859e4e3`    |

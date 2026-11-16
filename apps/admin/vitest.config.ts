@@ -23,7 +23,7 @@ export default defineConfig({
     },
     include: ['src/**/*.test.{ts,tsx}'],
     exclude: ['**/.reference/**', '**/node_modules/**', '**/.next/**', '**/e2e/**'],
-    // 📊 Mesuré le 2026-11-16 : 11 fichiers / 66 tests, 4,56 % lignes.
+    // 📊 Mesuré le 2026-11-16 : 14 fichiers / 88 tests, 10,88 % lignes.
     // Baseline honnête : la console est surtout du rendu de page, mais ses `lib/`
     // critiques doivent être vus. Ratchet (seuil plancher : 4 %).
     coverage: {
@@ -38,9 +38,9 @@ export default defineConfig({
         'src/**/*.d.ts',
         'src/**/test-support/**',
       ],
-      // Mesuré le 2026-11-16 : 4,56 % lignes · 4,53 % statements · 3,34 %
-      // fonctions · 4,36 % branches.
-      thresholds: { lines: 4, statements: 4, functions: 3, branches: 4 },
+      // Mesuré le 2026-11-16 : 10,88 % lignes · 10,66 % statements · 7,94 %
+      // fonctions · 9,48 % branches (grille, modération, actions auxiliaires).
+      thresholds: { lines: 9, statements: 9, functions: 6, branches: 8 },
     },
   },
 });

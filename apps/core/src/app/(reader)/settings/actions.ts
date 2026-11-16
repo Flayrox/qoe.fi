@@ -90,7 +90,10 @@ export async function updateAccountProfileAction(input: {
   await goFetch('/v1/me/profile', { method: 'PATCH', body: input });
 
   revalidatePath('/settings');
-  revalidatePath(`/@${username}`);
+  // Le profil public vit sous /[username] : `/@nom` n'existe pas et laissait
+  // la page de profil en cache avec l'ancien nom.
+  revalidatePath(`/${username}`);
+  revalidatePath('/[username]', 'page');
   return { success: true };
 }
 
