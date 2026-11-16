@@ -41,7 +41,9 @@ export default defineConfig({
         'src/**/vendor/**',
         'src/app/dev/**',
       ],
-      thresholds: { lines: 9, statements: 9, functions: 9, branches: 9 },
+      // Mesuré le 2026-11-16 : 11,18 % lignes · 11,11 % statements · 11,29 %
+      // fonctions · 11,59 % branches.
+      thresholds: { lines: 10, statements: 10, functions: 10, branches: 10 },
     },
   },
 });

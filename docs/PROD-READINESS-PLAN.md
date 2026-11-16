@@ -151,16 +151,37 @@ remettre les images précédentes (`qoefi-<service>:<sha>` est publié à chaque
 **Mesure du 2026-11-16** (poste, `pnpm test:coverage` puis
 `pnpm test:coverage:front`) — plus aucun fichier non instrumentable :
 
-| Périmètre | Lignes | Fichiers / tests | Ratchet CI |
+| Périmètre | Lignes | Fichiers / tests | Ratchet lignes |
 | --- | --- | --- | --- |
 | `packages/ui` | 56,03 % | 83 / 545 | 55 % |
 | `apps/tenants` | 24,00 % | 11 / 39 | 23 % |
-| `apps/studio` | 11,18 % | 38 / 195 | 9 % |
+| `apps/studio` | 11,18 % | 38 / 195 | 10 % |
 | `apps/admin` | 4,56 % | 11 / 66 | 4 % |
 | **Agrégé monorepo** | 24,42 % | 83 / 716 | — |
 
 Les ratchets sont des planchers, jamais à la baisse : une baisse doit
 s'accompagner de nouveaux tests, pas d'un seuil abaissé.
+
+**Ratchets remontés le 16/11** au niveau mesuré moins un point, sur les quatre
+métriques (lignes, statements, fonctions, branches) :
+
+| Zone | Avant | Après |
+| --- | --- | --- |
+| `packages/sdk/**` | 23 / 22 | 47 / 46 / 43 / 38 |
+| `packages/auth/**` | 15 / 14 | 41 / 41 / 41 / 30 |
+| `packages/utils/**` | 44 / 41 | 78 / 76 / 78 / 68 |
+| `packages/flags/**` | 65 / 65 | 73 / 74 / 54 / 85 |
+| `packages/moderation/**` | 80 / 80 | 88 / 85 / 91 / 80 |
+| `apps/core/src/app/**` | _aucun_ | 13 / 13 / 9 / 11 |
+| `apps/core/src/components/**` | _aucun_ | 12 / 11 / 7 / 7 |
+| `apps/mobile/**` | _aucun_ | 11 / 12 / 7 / 10 |
+| `apps/studio` | 9 % partout | 10 % partout |
+| `packages/ui` | 55 / 53 / 48 / 48 | 55 / 53 / 48 / 49 |
+| `apps/admin` | 4 / 4 / 3 / 3 | 4 / 4 / 3 / 4 |
+| `apps/tenants` | 23 / 22 / 17 / 24 | 23 / 22 / 18 / 24 |
+
+Une marge d'environ un point est conservée sous la mesure : les seuils
+verrouillent les gains sans rendre la CI dépendante de variations d'arrondi.
 
 ### Fait le 16/11
 
@@ -287,6 +308,7 @@ terminée).
 | 2026-11-16 | Étape 1ter — gate + banc | gate TS : `MessagesApp`/`LibraryClient` exclus de la mesure (PARSE_ERROR rolldown) ; gate Go `newsletters` : `CreateDigestDraft` couvert sans base (76,3 % → seuil 80 retrouvé) ; middleware studio : `/dev` ouvert au drapeau E2E | `52521ecb` |
 | 2026-11-16 | Étape 1quater — i18n | `pnpm intl:extract` + `intl:compile` : ~900 messages jamais extraits (dont les `aria-label` du dialogue Sources). Aucun seuil abaissé, aucune assertion supprimée | `be744d2e` |
 | 2026-11-16 | Tests manquants (feuille de route §5) | admin `/admin/imports/[id]` (3) ; studio `monetization-client` (7) + `api/export` (5) ; core `MessagesApp` (3) + `LibraryClient` (3) ; sous-chemins `@qoe/sdk/actions/{messages,highlights}` déclarés → exclusions de couverture supprimées ; mesure : ui 56,03 % · tenants 24,00 % · studio 11,18 % · admin 4,56 % · agrégé 24,42 % | _(ce commit)_ |
+| 2026-11-16 | Seuils de couverture remontés partout | sdk 23→47 · auth 15→41 · utils 44→78 · flags 65→73 · moderation 80→88 · studio 9→10 · admin branches 3→4 · tenants fonctions 17→18 · ui branches 48→49 ; nouveaux planchers core/app 13 % · core/components 12 % · mobile 11 % ; `pnpm test:coverage` et `test:coverage:front` verts | _(ce commit)_ |
 | 2026-11-16 | Docs temporaires supprimées | `TEST-COVERAGE.md`, `UI-PASS-2026-11-16.md` (chiffres et renvois rapatriés au §5) | _(ce commit)_ |
 | 2026-11-16 | Guard `arch:audit` réparé + branché | 00090–00093 alignées (lock_timeout, CONCURRENTLY, NO TRANSACTION) ; step ajouté à `Static Checks & Guards` ; replay complet sur base neuve (goose 93, index présents, tests verts) | _(ce commit)_ |
 | 2026-11-16 | Mesure Go locale | OrbStack + `qoefi-test-db` (127.0.0.1:55432) : subscriptions **84,7 %**, workers **62,1 %**, newsletters **82,8 %**, devtools **84,4 %**, exit 0. Aucune connexion à Hetzner (garde `_test`). | — |

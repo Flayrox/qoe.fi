@@ -38,7 +38,9 @@ export default defineConfig({
         'src/**/*.d.ts',
         'src/**/test-support/**',
       ],
-      thresholds: { lines: 4, statements: 4, functions: 3, branches: 3 },
+      // Mesuré le 2026-11-16 : 4,56 % lignes · 4,53 % statements · 3,34 %
+      // fonctions · 4,36 % branches.
+      thresholds: { lines: 4, statements: 4, functions: 3, branches: 4 },
     },
   },
 });
