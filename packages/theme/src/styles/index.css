@@ -152,6 +152,23 @@
 @utility rounded-tag {
   border-radius: var(--radius-chip);
 }
+/* Angle vif explicite : tableaux, images, cadres. 0 px assumé, pas un
+   oubli — c'est ce qui donne à la grille son caractère orthogonal. */
+@utility rounded-sharp {
+  border-radius: var(--radius-sharp);
+}
+
+/* Micro-libellé : le nom d'un groupe, d'un indicateur, d'une colonne.
+   Remplace les `text-[10.5px] uppercase tracking-wider` recopiés dans les
+   écrans. `type-` reste hors des groupes de tailwind-merge : la couleur
+   posée à côté n'écrase jamais la taille. */
+@utility type-label {
+  font-size: 10.5px;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 
 /* Typographie des contrôles : `type-control-md` remplace `text-[13px]`.
    Une seule échelle pour les boutons, champs, onglets et badges.

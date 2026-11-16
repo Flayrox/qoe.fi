@@ -88,6 +88,27 @@
 }
 
 /* ─────────────────────────────────────────────
+   GÉOMÉTRIE — le carré par défaut, le doux en opt-in
+
+   Les rayons de `tokens.css` sont volontairement serrés (2 à 8 px).
+   `<html data-geometry="round">` restaure l'ancienne échelle douce pour
+   les surfaces éditoriales qui ont besoin d'un angle plus tendre — blog
+   public, couverture, modale d'accueil. Aucun composant ne change : seule
+   la valeur des tokens bouge, donc `rounded-control` et `rounded-panel`
+   suivent.
+   ───────────────────────────────────────────── */
+[data-geometry='round'] {
+  --radius-base: 0.5rem;
+  --radius: 0.5rem;
+  --radius-plateau: 16px;
+  --radius-card: 12px;
+  --radius-element: 6px;
+  --radius-chip: 4px;
+  --radius-button: 8px;
+  --radius-icon: 6px;
+}
+
+/* ─────────────────────────────────────────────
    ACCENT BRAND — vermillon (OPT-IN)
 
    Le dashboard reste neutre par défaut. Un créateur peut activer
