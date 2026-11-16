@@ -39,10 +39,11 @@
 | Images Docker | **succès** | run `43884256587` (6 min 45) |
 | CI du commit `f031ab67` | **échec** (2 causes réelles, section 3) | run `43884256529` |
 | VPS Netcup | joignable, 24 conteneurs `Up` | `ssh root@159.195.110.239 docker ps` |
-| Stack prod | déployée il y a ~37 h → **antérieure** à `f031ab67` | `docker ps` |
+| Stack prod (avant) | déployée ~37 h plus tôt → **antérieure** à `f031ab67` | `docker ps` |
+| Stack prod (après, 16/11 16:35) | `e859e4e3` déployé, **13/13 smoke tests**, goose **93** | `bash scripts/deploy-prod.sh` |
 
-Conséquence : les images du dernier commit existent sur GHCR, mais la prod tourne
-encore l'image précédente. Le déploiement n'est donc pas un simple redémarrage.
+Conséquence : les images du dernier commit existent sur GHCR, mais la prod tournait
+encore l'image précédente. Le déploiement n'était donc pas un simple redémarrage.
 
 ---
 
@@ -249,4 +250,5 @@ référence externes, non de la documentation projet).
 | 2026-11-16 | Étape 1 — CI rouge corrigée | `@qoe/config` : ordre sidebar 13 entrées (viewer 8) ; Go : sujet UUID réaliste dans `TestExtendPlanGrant_ProlongeSansDoublon` | `e4a5ecc2` |
 | 2026-11-16 | Étape 1bis — échecs préexistants | studio : libellé « Publication automatique programmée » ; Go : barème 10 %/5 % selon le droit Pro ; `ReindexAll` sonde Meili ; banc `/dev/editor-check` ouvert au job E2E via `QOE_E2E_DEV_ROUTES=1` | `1c784bf2` |
 | 2026-11-16 | Étape 1ter — gate + banc | gate TS : `MessagesApp`/`LibraryClient` exclus de la mesure (PARSE_ERROR rolldown) ; gate Go `newsletters` : `CreateDigestDraft` couvert sans base (76,3 % → seuil 80 retrouvé) ; middleware studio : `/dev` ouvert au drapeau E2E | `52521ecb` |
-| 2026-11-16 | Étape 1quater — i18n | `pnpm intl:extract` + `intl:compile` : ~900 messages jamais extraits (dont les `aria-label` du dialogue Sources). Aucun seuil abaissé, aucune assertion supprimée | _(ce commit)_ |
+| 2026-11-16 | Étape 1quater — i18n | `pnpm intl:extract` + `intl:compile` : ~900 messages jamais extraits (dont les `aria-label` du dialogue Sources). Aucun seuil abaissé, aucune assertion supprimée | `be744d2e` |
+| 2026-11-16 | Étape 2 — CI verte + déploiement prod | Run `43895715146` : **tous les jobs verts** (8/8) sur `e859e4e3` ; images GHCR run `43895715138` OK. `deploy-prod.sh` : **13/13 smoke tests**, goose **93** (00091–00093 appliquées), backup dans `/root/migration/pre-20261116T163321Z/`, conteneurs recréés et *healthy* | `e859e4e3` |
