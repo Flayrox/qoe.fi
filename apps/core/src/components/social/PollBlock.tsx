@@ -2,9 +2,10 @@
 
 import React, { useState } from 'react';
 import { t } from '@lingui/core/macro';
-import { Check, Loader2 } from 'lucide-react';
 import { votePollAction } from '@qoe/sdk';
 import { cn } from '@qoe/utils';
+import { Button } from '@qoe/ui/button';
+import { Icon } from '@qoe/ui/icons';
 
 export interface PollOption {
   id: string;
@@ -158,7 +159,7 @@ export function PollBlock({ poll: initialPoll, onVoteSuccess, className }: PollB
                   </span>
                   {isSelected && (
                     <span className="flex items-center justify-center w-3.5 h-3.5 rounded-full bg-foreground text-background shrink-0">
-                      <Check className="w-2.5 h-2.5 stroke-[3]" />
+                      <Icon name="check" size="xs" strokeWidth={3} />
                     </span>
                   )}
                 </div>
@@ -171,22 +172,23 @@ export function PollBlock({ poll: initialPoll, onVoteSuccess, className }: PollB
           }
 
           return (
-            <button
+            <Button
               key={option.id}
+              variant="ghost"
               role="radio"
               aria-checked={false}
               aria-label={`Voter pour ${option.text}`}
               onClick={() => handleVote(option.id)}
               disabled={isVoting}
-              className="w-full text-left p-2.5 rounded-xl border border-border/40 bg-background/60 hover:bg-muted/30 hover:border-foreground/20 text-xs font-medium text-foreground transition-all duration-150 flex items-center justify-between group active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+              className="group h-auto w-full justify-between rounded-xl border border-border/40 bg-background/60 p-2.5 text-left text-xs font-medium text-foreground transition-all duration-150 hover:border-foreground/20 hover:bg-muted/30 active:scale-[0.99]"
             >
-              <span className="truncate pr-2 font-normal group-hover:font-medium transition-all">
+              <span className="truncate pr-2 font-normal transition-all group-hover:font-medium">
                 {option.text}
               </span>
               {isVoting && votingOptionId === option.id && (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground shrink-0" />
+                <Icon name="spinner" className="animate-spin text-muted-foreground" />
               )}
-            </button>
+            </Button>
           );
         })}
       </div>
