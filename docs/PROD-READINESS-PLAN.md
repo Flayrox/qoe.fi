@@ -96,7 +96,16 @@ Trois jobs étaient rouges avant cette reprise, sans rapport avec le commit :
    Correctif : la route s'ouvre hors dev uniquement si `QOE_E2E_DEV_ROUTES=1`,
    variable posée **au build** et **au rendu** (middleware + serveur Playwright),
    jamais dans l'image de prod.
-5. **Catalogues Lingui incomplets** : `Libellé de la source {0}` (et ~900 autres
+5. **`arch:audit` rouge et absent de la CI** — le guard est pourtant cité par
+   `AGENTS.md`. Il refusait `00090`–`00093` : `ALTER TABLE` sans `lock_timeout`
+   et `CREATE INDEX` sans `CONCURRENTLY` sur des tables existantes. Correctif :
+   `SET lock_timeout = '3s'` + `CREATE INDEX CONCURRENTLY` (+ `-- +goose NO
+   TRANSACTION`, style de `00089`), et **branchement du guard** dans le job
+   `Static Checks & Guards` pour qu'il ne puisse plus pourrir.
+   Vérifié sur base neuve : 94 migrations rejouées, goose **93**, les deux index
+   créés, `go test ./internal/subscriptions/` vert. En prod ces migrations sont
+   déjà appliquées (goose 93) : le changement de DDL y est inerte.
+6. **Catalogues Lingui incomplets** : `Libellé de la source {0}` (et ~900 autres
    messages récents) n'avaient jamais été extraits. En build de production la
    macro rend l'identifiant brut, donc les `aria-label` des champs de
    `SourcesDialog` devenaient « Libellé de la source {0} » — un vrai défaut
@@ -282,5 +291,6 @@ référence externes, non de la documentation projet).
 | 2026-11-16 | Étape 1bis — échecs préexistants | studio : libellé « Publication automatique programmée » ; Go : barème 10 %/5 % selon le droit Pro ; `ReindexAll` sonde Meili ; banc `/dev/editor-check` ouvert au job E2E via `QOE_E2E_DEV_ROUTES=1` | `1c784bf2` |
 | 2026-11-16 | Étape 1ter — gate + banc | gate TS : `MessagesApp`/`LibraryClient` exclus de la mesure (PARSE_ERROR rolldown) ; gate Go `newsletters` : `CreateDigestDraft` couvert sans base (76,3 % → seuil 80 retrouvé) ; middleware studio : `/dev` ouvert au drapeau E2E | `52521ecb` |
 | 2026-11-16 | Étape 1quater — i18n | `pnpm intl:extract` + `intl:compile` : ~900 messages jamais extraits (dont les `aria-label` du dialogue Sources). Aucun seuil abaissé, aucune assertion supprimée | `be744d2e` |
+| 2026-11-16 | Guard `arch:audit` réparé + branché | 00090–00093 alignées (lock_timeout, CONCURRENTLY, NO TRANSACTION) ; step ajouté à `Static Checks & Guards` ; replay complet sur base neuve (goose 93, index présents, tests verts) | _(ce commit)_ |
 | 2026-11-16 | Mesure Go locale | OrbStack + `qoefi-test-db` (127.0.0.1:55432) : subscriptions **84,7 %**, workers **62,1 %**, newsletters **82,8 %**, devtools **84,4 %**, exit 0. Aucune connexion à Hetzner (garde `_test`). | — |
 | 2026-11-16 | Étape 2 — CI verte + déploiement prod | Run `43895715146` : **tous les jobs verts** (8/8) sur `e859e4e3` ; images GHCR run `43895715138` OK. `deploy-prod.sh` : **13/13 smoke tests**, goose **93** (00091–00093 appliquées), backup dans `/root/migration/pre-20261116T163321Z/`, conteneurs recréés et *healthy* | `e859e4e3` |

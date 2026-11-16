@@ -9,11 +9,17 @@
 -- =====================================================================
 
 -- +goose Up
+-- "Article" est une table chaude : le DDL ne doit jamais attendre un verrou
+-- plus de quelques secondes (sinon toutes les lectures se mettent en file).
+SET lock_timeout = '3s';
+
 ALTER TABLE "Article"
     ADD COLUMN IF NOT EXISTS "coverAlt" TEXT NOT NULL DEFAULT '',
     ADD COLUMN IF NOT EXISTS "coverDecorative" BOOLEAN NOT NULL DEFAULT false;
 
 -- +goose Down
+SET lock_timeout = '3s';
+
 ALTER TABLE "Article"
     DROP COLUMN IF EXISTS "coverDecorative",
     DROP COLUMN IF EXISTS "coverAlt";

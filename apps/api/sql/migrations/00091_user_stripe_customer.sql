@@ -11,14 +11,21 @@
 -- rétroactive n'est inventée (les anciens comptes restent sur le repli email).
 -- =====================================================================
 
+-- +goose NO TRANSACTION
 -- +goose Up
+SET lock_timeout = '3s';
+
 ALTER TABLE "User"
     ADD COLUMN IF NOT EXISTS "stripeCustomerId" TEXT;
 
-CREATE UNIQUE INDEX IF NOT EXISTS "User_stripeCustomerId_key"
+-- CONCURRENTLY : "User" existe déjà en production, un index bloquant
+-- prendrait un verrou en écriture sur la table des comptes.
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS "User_stripeCustomerId_key"
     ON "User"("stripeCustomerId")
     WHERE "stripeCustomerId" IS NOT NULL;
 
 -- +goose Down
-DROP INDEX IF EXISTS "User_stripeCustomerId_key";
+SET lock_timeout = '3s';
+
+DROP INDEX CONCURRENTLY IF EXISTS "User_stripeCustomerId_key";
 ALTER TABLE "User" DROP COLUMN IF EXISTS "stripeCustomerId";
