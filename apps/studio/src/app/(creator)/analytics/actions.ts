@@ -198,6 +198,36 @@ export interface UmamiAdvancedInsights {
   hours: HourVisit[];
 }
 
+/**
+ * Série journalière continue, en jours UTC.
+ *
+ * `setDate(+1)` raisonne en heure locale : dès qu'une période traverse un
+ * changement d'heure, le dernier point glisse d'une heure et le jour courant
+ * disparaît du graphique. On avance donc en jours UTC, bornes incluses.
+ */
+function buildDailySeries(
+  startAt: number,
+  endAt: number,
+  countByDay: Map<string, number>
+): UmamiTimeseriesPoint[] {
+  const series: UmamiTimeseriesPoint[] = [];
+  const day = new Date(startAt);
+  day.setUTCHours(0, 0, 0, 0);
+  const lastDay = new Date(endAt);
+  lastDay.setUTCHours(0, 0, 0, 0);
+
+  for (
+    const cursor = new Date(day);
+    cursor.getTime() <= lastDay.getTime();
+    cursor.setUTCDate(cursor.getUTCDate() + 1)
+  ) {
+    const key = cursor.toISOString().slice(0, 10);
+    series.push({ x: cursor.toISOString(), y: countByDay.get(key) || 0 });
+  }
+
+  return series;
+}
+
 function emptyDemographics(): AudienceDemographics {
   return { declared: 0, gender: [], ageRange: [], countries: [], languages: [] };
 }
@@ -408,11 +438,7 @@ export async function getCreatorAnalyticsData(
     const perArticleViewsMap = new Map(Object.entries(goStats.perArticle || {}));
     const creatorTotalViews = goStats.totalViews || 0;
     const seriesByDayGo = new Map(goStats.dailySeries.map((r) => [r.day, r.count]));
-    const timeseries: UmamiTimeseriesPoint[] = [];
-    for (let d = new Date(startAt); d.getTime() <= now; d.setDate(d.getDate() + 1)) {
-      const key = d.toISOString().slice(0, 10);
-      timeseries.push({ x: new Date(d).toISOString(), y: seriesByDayGo.get(key) || 0 });
-    }
+    const timeseries = buildDailySeries(startAt, now, seriesByDayGo);
     const slugByIdGo = new Map(pubLite.articles.map((a) => [a.id, `/articles/${a.slug}`]));
     const attributedTopPages: UmamiPageMetric[] = Array.from(perArticleViewsMap.entries())
       .map(([articleId, y]) => ({ x: slugByIdGo.get(articleId) || articleId, y }))
@@ -605,17 +631,11 @@ async function buildArticleDetail(
   );
 
   const seriesByDay = new Map(stats.timeseries.map((r) => [r.day, r.count]));
-  const timeseries: UmamiTimeseriesPoint[] = [];
-  for (
-    let d = new Date(
-      seriesStartAt ?? now - (period === '24h' ? 24 * 3600 * 1000 : 30 * 24 * 3600 * 1000)
-    );
-    d.getTime() <= now;
-    d.setDate(d.getDate() + 1)
-  ) {
-    const key = d.toISOString().slice(0, 10);
-    timeseries.push({ x: new Date(d).toISOString(), y: seriesByDay.get(key) || 0 });
-  }
+  const timeseries = buildDailySeries(
+    seriesStartAt ?? now - (period === '24h' ? 24 * 3600 * 1000 : 30 * 24 * 3600 * 1000),
+    now,
+    seriesByDay
+  );
   const totalViews = isAll ? stats.totalViews : timeseries.reduce((acc, p) => acc + (p.y || 0), 0);
 
   // Sources pour cet article (hostname) — provenance fine côté Go.

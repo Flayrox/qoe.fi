@@ -25,7 +25,7 @@ export default defineConfig({
       NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co',
       NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key',
     },
-    // 📊 Mesuré le 2026-11-16 : 38 fichiers / 195 tests, 11,18 % lignes.
+    // 📊 Mesuré le 2026-11-16 : 43 fichiers / 234 tests, 13,95 % lignes.
     // `vendor/` et `src/app/dev` exclus. Ratchet (seuil plancher : 9 %).
     coverage: {
       provider: 'v8',
@@ -41,9 +41,10 @@ export default defineConfig({
         'src/**/vendor/**',
         'src/app/dev/**',
       ],
-      // Mesuré le 2026-11-16 : 11,18 % lignes · 11,11 % statements · 11,29 %
-      // fonctions · 11,59 % branches.
-      thresholds: { lines: 10, statements: 10, functions: 10, branches: 10 },
+      // Mesuré le 2026-11-16 : 13,95 % lignes · 13,73 % statements · 13,51 %
+      // fonctions · 13,92 % branches (actions média + analytics, MFA, SEO,
+      // comparatif d'offres).
+      thresholds: { lines: 12, statements: 12, functions: 12, branches: 12 },
     },
   },
 });

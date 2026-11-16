@@ -19,7 +19,20 @@ async function verifySuperadmin() {
     await goFetch('/v1/admin/dashboard');
   } catch (err) {
     const status = (err as { status?: number })?.status;
-    if (status === 403) throw new Error('Forbidden');
+    if (status === 403) {
+      // On normalise le message sans perdre l'enveloppe du garde : `code` et
+      // `level` servent à proposer la vérification qui débloque l'acte.
+      const denied = new Error('Forbidden') as Error & { status?: number } & Record<
+          string,
+          unknown
+        >;
+      const origin = err as { code?: unknown; level?: unknown; action?: unknown };
+      denied.status = 403;
+      if (typeof origin?.code === 'string') denied.code = origin.code;
+      if (typeof origin?.level === 'string') denied.level = origin.level;
+      if (typeof origin?.action === 'string') denied.action = origin.action;
+      throw denied;
+    }
     throw err;
   }
 }
@@ -31,8 +44,8 @@ function errorMessage(error: unknown, fallback: string) {
 // ── Widgets & tendances ──────────────────────────────────────────────────────
 
 export async function toggleFeaturedArticle(articleId: string) {
-  await verifySuperadmin();
   try {
+    await verifySuperadmin();
     await goFetch('/v1/admin/widgets/featured', {
       method: 'POST',
       body: { articleId, featured: true },
@@ -51,8 +64,8 @@ export async function toggleFeaturedArticle(articleId: string) {
 }
 
 export async function addTrend(hashtag: string, count: number) {
-  await verifySuperadmin();
   try {
+    await verifySuperadmin();
     let h = hashtag.trim();
     if (!h.startsWith('#')) h = '#' + h;
     if (h.length < 2) return { success: false as const, error: 'Hashtag invalide' };
@@ -72,8 +85,8 @@ export async function addTrend(hashtag: string, count: number) {
 }
 
 export async function deleteTrend(id: string) {
-  await verifySuperadmin();
   try {
+    await verifySuperadmin();
     await goFetch(`/v1/admin/widgets/trends/${encodeURIComponent(id)}`, { method: 'DELETE' });
     revalidatePath('/admin/widgets');
     revalidatePath('/home');
@@ -89,8 +102,8 @@ export async function deleteTrend(id: string) {
 }
 
 export async function updateTrendCount(id: string, count: number) {
-  await verifySuperadmin();
   try {
+    await verifySuperadmin();
     await goFetch(`/v1/admin/widgets/trends/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: { count },
@@ -117,9 +130,10 @@ export async function savePromo(
   isActive: boolean,
   imageUrl?: string | null
 ) {
-  await verifySuperadmin();
   try {
-    if (!title || !description)
+    await verifySuperadmin();
+    // Un titre fait d'espaces produisait une promo vide à l'écran.
+    if (!title?.trim() || !description?.trim())
       return { success: false as const, error: 'Titre et description requis' };
     await goFetch('/v1/admin/widgets/promos', {
       method: 'POST',
@@ -139,8 +153,8 @@ export async function savePromo(
 }
 
 export async function deletePromo(id: string) {
-  await verifySuperadmin();
   try {
+    await verifySuperadmin();
     await goFetch(`/v1/admin/widgets/promos/${encodeURIComponent(id)}`, { method: 'DELETE' });
     revalidatePath('/admin/widgets');
     revalidatePath('/home');
@@ -156,8 +170,8 @@ export async function deletePromo(id: string) {
 }
 
 export async function togglePromoActive(id: string, isActive: boolean) {
-  await verifySuperadmin();
   try {
+    await verifySuperadmin();
     await goFetch(`/v1/admin/widgets/promos/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: { isActive },
@@ -205,8 +219,8 @@ export async function setSystemConfigAction(input: {
   value: string;
   description?: string;
 }) {
-  await verifySuperadmin();
   try {
+    await verifySuperadmin();
     await upsertConfigsGo([
       {
         key: input.key.trim().toUpperCase(),
@@ -228,8 +242,8 @@ export async function setSystemConfigAction(input: {
 
 /** 🚪 Ouvre/ferme les inscriptions (ALLOW_NEW_REGISTRATIONS=false = privé). */
 export async function setRegistrationsOpenAction(open: boolean) {
-  await verifySuperadmin();
   try {
+    await verifySuperadmin();
     await upsertConfigsGo([
       {
         key: 'ALLOW_NEW_REGISTRATIONS',
@@ -251,8 +265,8 @@ export async function setRegistrationsOpenAction(open: boolean) {
 
 /** 📩 Invite un email à s'inscrire (accès privé, usage unique). */
 export async function addAllowlistAction(email: string, note?: string) {
-  await verifySuperadmin();
   try {
+    await verifySuperadmin();
     if (!email || !email.includes('@')) return { success: false as const, error: 'Email invalide' };
     await goFetch('/v1/admin/registrations/allowlist', {
       method: 'POST',
@@ -272,8 +286,8 @@ export async function addAllowlistAction(email: string, note?: string) {
 
 /** 📩 Retire une invitation (le compte déjà créé n'est jamais touché). */
 export async function deleteAllowlistAction(email: string) {
-  await verifySuperadmin();
   try {
+    await verifySuperadmin();
     await goFetch(`/v1/admin/registrations/allowlist/${encodeURIComponent(email)}`, {
       method: 'DELETE',
     });
@@ -293,8 +307,8 @@ export async function updateReservedIdentifiersAction(
   kind: 'username' | 'subdomain',
   values: string[]
 ) {
-  await verifySuperadmin();
   try {
+    await verifySuperadmin();
     await goFetch(`/v1/admin/reserved-identifiers/${kind}`, {
       method: 'PUT',
       body: { values },
@@ -312,8 +326,8 @@ export async function updateReservedIdentifiersAction(
 }
 
 export async function deleteSystemConfigAction(key: string) {
-  await verifySuperadmin();
   try {
+    await verifySuperadmin();
     await goFetch(`/v1/admin/config/${encodeURIComponent(key)}`, { method: 'DELETE' });
     revalidatePath('/', 'layout');
     return { success: true as const };
@@ -329,8 +343,8 @@ export async function deleteSystemConfigAction(key: string) {
 
 /** 🎛️ Sauvegarde les modules d'accès API accordables (SystemConfig API_ACCESS_MODULES, JSON). */
 export async function saveApiAccessModulesAction(enabled: string[]) {
-  await verifySuperadmin();
   try {
+    await verifySuperadmin();
     await goFetch('/v1/admin/api-access/modules', {
       method: 'PATCH',
       body: { enabled },
@@ -350,8 +364,8 @@ export async function saveApiAccessModulesAction(enabled: string[]) {
 
 /** 🛑 Coupure générale de l'API (SystemConfig API_ACCESS_DISABLED). */
 export async function setApiAccessDisabledAction(disabled: boolean) {
-  await verifySuperadmin();
   try {
+    await verifySuperadmin();
     await goFetch('/v1/admin/config', {
       method: 'PUT',
       body: {
@@ -375,8 +389,8 @@ export async function setApiAccessDisabledAction(disabled: boolean) {
 
 /** 🚧 Endpoints désactivés à l'échelle de la plateforme (SystemConfig API_DISABLED_ENDPOINTS, JSON). */
 export async function saveApiDisabledEndpointsAction(patterns: string[]) {
-  await verifySuperadmin();
   try {
+    await verifySuperadmin();
     const clean = patterns
       .map((p) => p.trim())
       .filter((p) => p.startsWith('/'))
@@ -409,8 +423,8 @@ export async function saveAuthMethodsAction(methods: {
   password: boolean;
   magicLink: boolean;
 }) {
-  await verifySuperadmin();
   try {
+    await verifySuperadmin();
     const value = JSON.stringify(methods);
     validateJson(value, 'AUTH_METHODS');
     await upsertConfigsGo([
@@ -436,19 +450,21 @@ export async function saveAuthMethodsAction(methods: {
 export async function saveMultipleFrontendConfigs(
   configs: Record<string, { value: string; description?: string }>
 ) {
-  await verifySuperadmin();
-
-  for (const [key, item] of Object.entries(configs)) {
-    if (
-      key.includes('hero_reader_items') ||
-      key.includes('creator_hub_tabs') ||
-      key.includes('footer_sections')
-    ) {
-      validateJson(item.value, key);
-    }
-  }
-
   try {
+    await verifySuperadmin();
+
+    // La validation est DANS le try : un JSON invalide doit revenir comme un
+    // échec d'action explicable, pas comme une promesse rejetée.
+    for (const [key, item] of Object.entries(configs)) {
+      if (
+        key.includes('hero_reader_items') ||
+        key.includes('creator_hub_tabs') ||
+        key.includes('footer_sections')
+      ) {
+        validateJson(item.value, key);
+      }
+    }
+
     await upsertConfigsGo(
       Object.entries(configs).map(([key, item]) => ({
         key,
@@ -472,8 +488,8 @@ export async function saveMultipleFrontendConfigs(
 // ── Notifications & livraisons ───────────────────────────────────────────────
 
 export async function retryNotificationDeliveryAction(deliveryId: string) {
-  await verifySuperadmin();
   try {
+    await verifySuperadmin();
     await goFetch(`/v1/admin/deliveries/${encodeURIComponent(deliveryId)}/retry`, {
       method: 'POST',
     });
@@ -491,8 +507,8 @@ export async function retryNotificationDeliveryAction(deliveryId: string) {
 
 /** 📮 Relance toutes les livraisons en échec de l'outbox (optionnellement filtrées par canal). */
 export async function retryAllFailedDeliveriesAction(reason?: string, channel?: string) {
-  await assertCapability('admin.deliveries.retry');
   try {
+    await assertCapability('admin.deliveries.retry');
     const data = await goFetch<{ success: boolean; retriedCount: number }>(
       '/v1/admin/outbox/retry-all',
       {
@@ -517,8 +533,8 @@ export async function retryAllFailedDeliveriesAction(reason?: string, channel?: 
 
 /** 🔓 Débloque les messages de l'outbox restés coincés en PROCESSING. */
 export async function unlockStuckDeliveriesAction(reason?: string) {
-  await assertCapability('admin.deliveries.retry');
   try {
+    await assertCapability('admin.deliveries.retry');
     const data = await goFetch<{ success: boolean; unlockedCount: number }>(
       '/v1/admin/outbox/unlock-stuck',
       {
@@ -656,8 +672,8 @@ export interface AdminPlacementPayload {
 }
 
 export async function listPlacementsAdminAction(): Promise<AdminPlacementPayload[]> {
-  await verifySuperadmin();
   try {
+    await verifySuperadmin();
     const res = await goFetch<{ placements: AdminPlacementPayload[] }>('/v1/admin/placements');
     return res.placements || [];
   } catch (err) {
@@ -667,8 +683,8 @@ export async function listPlacementsAdminAction(): Promise<AdminPlacementPayload
 }
 
 export async function createPlacementAdminAction(data: AdminPlacementPayload) {
-  await verifySuperadmin();
   try {
+    await verifySuperadmin();
     const created = await goFetch<AdminPlacementPayload>('/v1/admin/placements', {
       method: 'POST',
       body: data,
@@ -687,8 +703,8 @@ export async function createPlacementAdminAction(data: AdminPlacementPayload) {
 }
 
 export async function updatePlacementAdminAction(id: string, data: Partial<AdminPlacementPayload>) {
-  await verifySuperadmin();
   try {
+    await verifySuperadmin();
     const updated = await goFetch<AdminPlacementPayload>(
       `/v1/admin/placements/${encodeURIComponent(id)}`,
       {
@@ -710,8 +726,8 @@ export async function updatePlacementAdminAction(id: string, data: Partial<Admin
 }
 
 export async function deletePlacementAdminAction(id: string) {
-  await verifySuperadmin();
   try {
+    await verifySuperadmin();
     await goFetch(`/v1/admin/placements/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     });

@@ -80,6 +80,13 @@ export function TextToSpeechProvider({
   });
 
   const isSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
+  // La vitesse court avec l'utterance : le `onend` d'un paragraphe est capturé
+  // au moment du `speak`, donc relire `preferences.ttsSpeed` depuis la closure
+  // rejouerait l'ancienne vitesse après un changement en cours de lecture.
+  const rateRef = useRef(preferences.ttsSpeed);
+  useEffect(() => {
+    rateRef.current = preferences.ttsSpeed;
+  }, [preferences.ttsSpeed]);
   const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const isManuallyScrollingRef = useRef(false);
@@ -256,14 +263,24 @@ export function TextToSpeechProvider({
     return () => window.removeEventListener('scroll', handleScroll);
   }, [isPlaying, currentParagraphIndex, userScrolledAway, getActiveParagraphElement]);
 
+  // Annulation robuste : Chrome ignore `cancel()` lancé pendant une pause et
+  // laisse l'utterance en file — elle reprendrait donc plus tard, par-dessus
+  // une lecture déjà relancée. On reprend brièvement avant d'annuler.
+  const cancelSpeech = useCallback(() => {
+    if (!isSupported) return;
+    if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+    window.speechSynthesis.cancel();
+  }, [isSupported]);
+
   // Arrêt complet
   const stopPlayback = useCallback(() => {
-    if (isSupported) {
-      window.speechSynthesis.cancel();
-    }
+    cancelSpeech();
     setIsPlaying(false);
     setIsPaused(false);
     setCurrentParagraphIndex(null);
+    // Le chrono appartient à une session d'écoute : une nouvelle écoute
+    // repart de zéro, elle ne cumule pas les articles précédents.
+    setElapsedSeconds(0);
     if (timerRef.current) clearInterval(timerRef.current);
     if (typeof document !== 'undefined') {
       const container = document.querySelector(metadata.contentSelector || '#article-content');
@@ -274,7 +291,7 @@ export function TextToSpeechProvider({
         });
       }
     }
-  }, [isSupported, metadata.contentSelector]);
+  }, [cancelSpeech, metadata.contentSelector]);
 
   const closePlayer = useCallback(() => {
     stopPlayback();
@@ -288,7 +305,7 @@ export function TextToSpeechProvider({
         toast.error(t`La synthèse vocale n'est pas supportée sur ce navigateur.`);
         return;
       }
-      window.speechSynthesis.cancel();
+      cancelSpeech();
 
       if (index >= textList.length) {
         stopPlayback();
@@ -301,7 +318,7 @@ export function TextToSpeechProvider({
 
       const text = textList[index];
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = preferences.ttsSpeed;
+      utterance.rate = rateRef.current;
 
       // Voix naturelle adaptée
       const voices = window.speechSynthesis.getVoices();
@@ -337,7 +354,7 @@ export function TextToSpeechProvider({
       currentUtteranceRef.current = utterance;
       window.speechSynthesis.speak(utterance);
     },
-    [isSupported, preferences.ttsSpeed, stopPlayback]
+    [isSupported, cancelSpeech, stopPlayback]
   );
 
   // Démarrer ou sauter à un paragraphe
@@ -363,6 +380,7 @@ export function TextToSpeechProvider({
       setParagraphs(activeTexts);
       setIsOpen(true);
       setUserScrolledAway(false);
+      setElapsedSeconds(0);
 
       const targetIdx =
         options?.startParagraphIndex !== undefined
@@ -377,9 +395,15 @@ export function TextToSpeechProvider({
   const togglePlayPause = useCallback(() => {
     if (!isSupported) return;
     if (isPlaying) {
-      window.speechSynthesis.cancel();
+      // Vraie pause : `cancel()` jetait l'utterance, et « reprendre » relisait
+      // le paragraphe depuis son début au lieu de continuer.
+      window.speechSynthesis.pause();
       setIsPlaying(false);
       setIsPaused(true);
+    } else if (isPaused && currentParagraphIndex !== null) {
+      window.speechSynthesis.resume();
+      setIsPlaying(true);
+      setIsPaused(false);
     } else {
       let currentTexts = paragraphs;
       if (currentTexts.length === 0) {
@@ -395,6 +419,7 @@ export function TextToSpeechProvider({
   }, [
     isSupported,
     isPlaying,
+    isPaused,
     paragraphs,
     extractAndIndexParagraphs,
     currentParagraphIndex,
@@ -442,6 +467,9 @@ export function TextToSpeechProvider({
 
   const setSpeed = useCallback(
     (rate: number) => {
+      // La ref est mise à jour avant la relecture : sans cela, le paragraphe
+      // relancé repartait à l'ancienne vitesse jusqu'au paragraphe suivant.
+      rateRef.current = rate;
       update({ ttsSpeed: rate });
       if (isPlaying && currentParagraphIndex !== null && paragraphs.length > 0) {
         speakParagraph(currentParagraphIndex, paragraphs);
@@ -483,14 +511,19 @@ export function TextToSpeechProvider({
     if (typeof window === 'undefined' || !('mediaSession' in navigator)) return;
 
     if (isOpen && metadata.title) {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: metadata.title,
-        artist: metadata.authorName || 'Qoefi',
-        album: 'Qoe Audio Reader',
-        artwork: metadata.coverUrl
-          ? [{ src: metadata.coverUrl, sizes: '512x512', type: 'image/jpeg' }]
-          : [{ src: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' }],
-      });
+      // `MediaMetadata` manque sur certains navigateurs qui exposent pourtant
+      // `mediaSession` : sans ce garde, ouvrir le lecteur y lèverait une
+      // exception avant même d'enregistrer les actions.
+      if (typeof MediaMetadata !== 'undefined') {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: metadata.title,
+          artist: metadata.authorName || 'Qoefi',
+          album: 'Qoe Audio Reader',
+          artwork: metadata.coverUrl
+            ? [{ src: metadata.coverUrl, sizes: '512x512', type: 'image/jpeg' }]
+            : [{ src: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' }],
+        });
+      }
 
       navigator.mediaSession.setActionHandler('play', () => togglePlayPause());
       navigator.mediaSession.setActionHandler('pause', () => togglePlayPause());
