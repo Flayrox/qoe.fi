@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qoefi/api/internal/abuse"
 	"github.com/qoefi/api/internal/testutil"
@@ -298,7 +299,11 @@ func TestGrant_Cycle(t *testing.T) {
 func TestExtendPlanGrant_ProlongeSansDoublon(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
-	subject := "test-extend-" + time.Now().UTC().Format("150405.000000")
+	// HasPlus joint la table "User" en castant l'identifiant en uuid : le
+	// sujet doit donc être un vrai uuid, comme tous les identifiants
+	// utilisateur en production (un id libre fait échouer la requête, que
+	// HasPlus convertit en « pas de droit »).
+	subject := uuid.NewString()
 	t.Cleanup(func() {
 		_, _ = poolTest.Exec(context.Background(),
 			`DELETE FROM "SubscriptionGrant" WHERE "subjectId" = $1`, subject)
