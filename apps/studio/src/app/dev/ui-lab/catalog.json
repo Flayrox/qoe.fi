@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-11-16T00:06:26.725Z",
+  "generatedAt": "2026-11-16T00:17:26.904Z",
   "total": 454,
   "signals": {
     "primitivesNeverImported": 5,
     "primitivesTotal": 28,
-    "rawButtons": 307,
-    "rawButtonFiles": 77,
+    "rawButtons": 301,
+    "rawButtonFiles": 75,
     "nativeSelectFiles": 0,
     "rawInputFiles": 35,
     "handRolledOverlays": 3
@@ -69,7 +69,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 205,
           "source": "primitives",
-          "usages": 109
+          "usages": 111
         },
         {
           "name": "callout",
@@ -858,7 +858,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 205,
           "source": "ui",
-          "usages": 109
+          "usages": 111
         },
         {
           "name": "callout",
@@ -2393,7 +2393,7 @@
         {
           "name": "mfa-panel",
           "path": "apps/studio/src/features/settings/components/mfa-panel.tsx",
-          "lines": 181,
+          "lines": 182,
           "source": "studio",
           "usages": null
         },
@@ -2868,7 +2868,7 @@
         {
           "name": "HiddenReplyNotice",
           "path": "apps/core/src/components/social/HiddenReplyNotice.tsx",
-          "lines": 109,
+          "lines": 111,
           "source": "core",
           "usages": null
         },

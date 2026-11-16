@@ -9,6 +9,7 @@
 // montrer que ce qui est activé.
 
 import { useState } from 'react';
+import { Button } from '@qoe/ui/button';
 import { saveAuthMethodsAction } from '@/lib/admin-aux-actions';
 import { attemptWithStepUp, readMessage } from '@/lib/authz-feedback';
 import { cn } from '@qoe/utils';
@@ -78,33 +79,28 @@ export function AuthMethodsToggles({ initialValue }: { initialValue?: string }) 
             : coupez-le ici tant qu'il n'est pas opérationnel.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          className="rounded-lg bg-secondary px-3 py-1.5 text-sm font-medium hover:bg-border disabled:opacity-50"
-        >
+        <Button variant="soft" size="sm" onClick={handleSave} disabled={saving}>
           {saving ? 'Sauvegarde…' : 'Enregistrer'}
-        </button>
+        </Button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {METHODS.map((m) => {
           const enabled = methods[m.key];
           return (
-            <button
+            <Button
               key={m.key}
-              type="button"
+              variant="outline"
               aria-pressed={enabled}
               onClick={() => {
                 setMethods((prev) => ({ ...prev, [m.key]: !prev[m.key] }));
                 setMessage(null);
               }}
               className={cn(
-                'flex flex-col items-start gap-1 rounded-xl border p-4 text-left transition-colors cursor-pointer',
+                'h-auto flex-col items-start justify-start gap-1 whitespace-normal rounded-xl p-4 text-left',
                 enabled
-                  ? 'border-primary/40 bg-primary/5'
-                  : 'border-border bg-transparent opacity-60 hover:opacity-100'
+                  ? 'border-primary/40 bg-primary/5 hover:bg-primary/10'
+                  : 'border-border bg-transparent opacity-60 hover:bg-transparent hover:opacity-100'
               )}
             >
               <span className="flex w-full items-center justify-between gap-2">
@@ -119,7 +115,7 @@ export function AuthMethodsToggles({ initialValue }: { initialValue?: string }) 
                 </span>
               </span>
               <span className="text-xs text-muted-foreground">{m.hint}</span>
-            </button>
+            </Button>
           );
         })}
       </div>

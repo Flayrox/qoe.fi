@@ -18,7 +18,8 @@
 // =====================================================================
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Check, Loader2, ShieldCheck, Trash2 } from 'lucide-react';
+import { Button } from '@qoe/ui/button';
+import { Icon } from '@qoe/ui/icons';
 import { toast } from '@qoe/ui/toast';
 import { TotpEnrollment } from '@/features/security/totp-enrollment';
 import {
@@ -71,7 +72,7 @@ export function MfaPanel() {
   return (
     <div id="security-mfa" className="rounded-xl border border-border/50 bg-card p-5 space-y-4">
       <div className="flex items-center gap-2">
-        <ShieldCheck className="h-4 w-4 text-primary" />
+        <Icon name="shield-check" size="md" className="text-primary" />
         <h3 className="font-semibold">Authentification forte</h3>
       </div>
       <p className="text-sm text-muted-foreground">
@@ -81,7 +82,7 @@ export function MfaPanel() {
 
       {loading ? (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Lecture de vos facteurs…
+          <Icon name="spinner" size="md" className="animate-spin" /> Lecture de vos facteurs…
         </p>
       ) : (
         <div className="space-y-2">
@@ -91,17 +92,17 @@ export function MfaPanel() {
               className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2 text-sm"
             >
               <span className="flex items-center gap-2 truncate">
-                <Check className="h-4 w-4 text-success-text" />
+                <Icon name="circle-check" size="md" className="text-success-text" />
                 {factor.friendly_name || 'Facteur'} · {factor.factor_type ?? 'totp'}
               </span>
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                size="sm"
                 disabled={busy}
                 onClick={() => removeFactor(factor.id, factor.friendly_name || 'facteur')}
-                className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs disabled:opacity-50"
               >
-                <Trash2 className="h-3.5 w-3.5" /> Retirer
-              </button>
+                <Icon name="trash" /> Retirer
+              </Button>
             </div>
           ))}
 
@@ -111,29 +112,29 @@ export function MfaPanel() {
               className="flex flex-col gap-2 rounded-lg border border-warning/40 bg-warning/5 px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
             >
               <span className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                <Icon name="triangle-alert" size="md" className="mt-0.5 text-warning" />
                 <span>
                   « {factor.friendly_name || 'Facteur'} » a été créé mais jamais vérifié : il ne
                   débloque aucune action.
                 </span>
               </span>
               <span className="flex shrink-0 gap-2">
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="sm"
                   disabled={busy}
                   onClick={() => setEnrolling(factor.id)}
-                  className="rounded-lg border px-2.5 py-1.5 text-xs disabled:opacity-50"
                 >
                   Saisir un code
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   disabled={busy}
                   onClick={() => removeFactor(factor.id, factor.friendly_name || 'facteur')}
-                  className="rounded-lg border px-2.5 py-1.5 text-xs disabled:opacity-50"
                 >
                   Supprimer
-                </button>
+                </Button>
               </span>
             </div>
           ))}
@@ -147,14 +148,9 @@ export function MfaPanel() {
       )}
 
       {enrolling === null && (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => setEnrolling('')}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-        >
+        <Button variant="solid" tone="brand" disabled={busy} onClick={() => setEnrolling('')}>
           {verified.length > 0 ? 'Ajouter un autre facteur' : 'Activer l’authentification forte'}
-        </button>
+        </Button>
       )}
 
       {enrolling !== null && (
