@@ -738,6 +738,18 @@ export function ThoughtComposer({
   const isOverLimit = currentLength > CHAR_LIMIT;
   const charsRemaining = CHAR_LIMIT - currentLength;
 
+  // Même règle que `handlePostSubmit` : un nœud du fil suffit, et le nœud actif
+  // n'est pas encore recopié dans `threadNodes` (il vit dans les buffers).
+  // Sans ça, ajouter un nœud vide activait « Tout publier » alors qu'un clic
+  // ne publiait rien du tout.
+  const isPublishable =
+    postText.trim().length > 0 ||
+    images.length > 0 ||
+    threadNodes.some(
+      (node, index) =>
+        index !== activeNodeIndex && (node.text.trim().length > 0 || node.images.length > 0)
+    );
+
   const addPreparedImages = (files: File[], replaceId?: string) => {
     if (files.length === 0) return;
 
@@ -2145,7 +2157,7 @@ export function ThoughtComposer({
                           strokeWidth="2"
                           strokeDasharray={2 * Math.PI * 6}
                           strokeDashoffset={
-                            2 * Math.PI * 6 - (postText.length / CHAR_LIMIT) * (2 * Math.PI * 6)
+                            2 * Math.PI * 6 - (currentLength / CHAR_LIMIT) * (2 * Math.PI * 6)
                           }
                           strokeLinecap="round"
                           fill="transparent"
@@ -2208,11 +2220,7 @@ export function ThoughtComposer({
                   {/* PRIMARY ACTION SUBMIT BUTTON */}
                   <button
                     type="submit"
-                    disabled={
-                      (!postText.trim() && images.length === 0 && threadNodes.length <= 1) ||
-                      isSubmitting ||
-                      isOverLimit
-                    }
+                    disabled={!isPublishable || isSubmitting || isOverLimit}
                     className="bg-primary text-primary-foreground hover:opacity-95 disabled:bg-muted disabled:text-muted-foreground transition-all duration-150 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer outline-none shadow-sm shrink-0 active:scale-[0.98]"
                   >
                     {isSubmitting ? (

@@ -27,6 +27,23 @@ import {
   restoreSiteLayoutVersionAction,
 } from '@/app/(creator)/settings/design/actions';
 
+/**
+ * Identifiant unique pour les blocs et nœuds créés côté client.
+ *
+ * `Date.now()` seul ne suffit pas : deux créations dans la même milliseconde
+ * (double-clic, duplication en rafale) produisaient le MÊME id, donc deux
+ * blocs clés pareil dans React — sélection, édition et suppression visaient
+ * alors le mauvais bloc.
+ */
+function uniqueId(prefix: string): string {
+  return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/** Vrai si une mutation a réellement changé au moins un bloc. */
+function blocksChanged(prev: TemplateBlock[], next: TemplateBlock[]): boolean {
+  return next.length !== prev.length || next.some((block, index) => block !== prev[index]);
+}
+
 export enum StageEditorMode {
   DESIGN = 'design',
   PAN = 'pan',
@@ -340,7 +357,9 @@ export function StageEngineProvider({
       const nextBlocks = layout.blocks.map((b) =>
         b.id === id ? { ...b, props: { ...(b.props as Record<string, unknown>), ...newProps } } : b
       );
-      if (nextBlocks === layout.blocks) return;
+      // Bloc inconnu (ou patch sans effet) : aucune entrée d'historique, aucun
+      // passage en « non enregistré » — sinon un clic à côté salit le brouillon.
+      if (!blocksChanged(layout.blocks, nextBlocks)) return;
       setPast((prev) => [...prev.slice(-49), layout]);
       setFuture([]);
       setLayout({ ...layout, blocks: nextBlocks });
@@ -395,6 +414,7 @@ export function StageEngineProvider({
         }
         return b;
       });
+      if (!blocksChanged(layout.blocks, nextBlocks)) return;
       setPast((prev) => [...prev.slice(-49), layout]);
       setFuture([]);
       setLayout({ ...layout, blocks: nextBlocks });
@@ -454,7 +474,7 @@ export function StageEngineProvider({
 
   const addNode = useCallback(
     (blockId: string, slotKey: string | null, kind: TemplateNode['kind']) => {
-      const oid = `oid_${Date.now().toString(36)}${Math.random().toString(36).substring(2, 6)}`;
+      const oid = uniqueId('oid');
       const node: TemplateNode = {
         oid,
         kind,
@@ -507,6 +527,7 @@ export function StageEngineProvider({
         }
         return b;
       });
+      if (!blocksChanged(layout.blocks, nextBlocks)) return;
       setPast((prev) => [...prev.slice(-49), layout]);
       setFuture([]);
       setLayout({ ...layout, blocks: nextBlocks });
@@ -563,6 +584,7 @@ export function StageEngineProvider({
         }
         return b;
       });
+      if (!blocksChanged(layout.blocks, nextBlocks)) return;
       setPast((prev) => [...prev.slice(-49), layout]);
       setFuture([]);
       setLayout({ ...layout, blocks: nextBlocks });
@@ -573,7 +595,7 @@ export function StageEngineProvider({
 
   const addBlock = useCallback(
     (type: string, label: string) => {
-      const newId = `block_${type}_${Date.now()}`;
+      const newId = uniqueId(`block_${type}`);
       const newBlock: TemplateBlock = {
         id: newId,
         type: type as TemplateBlock['type'],
@@ -600,7 +622,7 @@ export function StageEngineProvider({
       const idx = layout.blocks.findIndex((b) => b.id === id);
       if (idx === -1) return;
       const original = layout.blocks[idx];
-      const dupId = `${original.type}_${Date.now()}`;
+      const dupId = uniqueId(original.type);
       const duplicate: TemplateBlock = {
         ...original,
         id: dupId,
@@ -651,6 +673,7 @@ export function StageEngineProvider({
 
   const toggleVisibility = useCallback(
     (id: string) => {
+      if (!layout.blocks.some((b) => b.id === id)) return;
       setPast((prev) => [...prev.slice(-49), layout]);
       setFuture([]);
       setLayout({
@@ -664,6 +687,7 @@ export function StageEngineProvider({
 
   const toggleLock = useCallback(
     (id: string) => {
+      if (!layout.blocks.some((b) => b.id === id)) return;
       setPast((prev) => [...prev.slice(-49), layout]);
       setFuture([]);
       setLayout({
@@ -714,7 +738,7 @@ export function StageEngineProvider({
         ...prev.home,
         archetype: target.archetype,
         tokens: { ...target.tokens },
-        blocks: target.blocks.map((b) => ({ ...b, id: `${b.id}_${Date.now()}` })),
+        blocks: target.blocks.map((b) => ({ ...b, id: uniqueId(b.id) })),
       },
     }));
     setSelectedBlockId(null);
@@ -732,6 +756,7 @@ export function StageEngineProvider({
 
   const toggleHiddenAt = useCallback(
     (id: string, device: 'mobile' | 'tablet') => {
+      if (!layout.blocks.some((b) => b.id === id)) return;
       setPast((prev) => [...prev.slice(-49), layout]);
       setFuture([]);
       setLayout({
@@ -757,7 +782,7 @@ export function StageEngineProvider({
       const build = (tokens: LayoutConfig['tokens']): LayoutConfig => ({
         ...variant.config,
         tokens: { ...tokens },
-        blocks: variant.config.blocks.map((b) => ({ ...b, id: `${b.id}_${Date.now()}` })),
+        blocks: variant.config.blocks.map((b) => ({ ...b, id: uniqueId(b.id) })),
       });
       const target = { ...targetRef.current, page: 'article' as const };
       targetRef.current = target;
@@ -865,6 +890,9 @@ export function StageEngineProvider({
       setHasUnsavedChanges(false);
     } catch (err) {
       console.error('Erreur sauvegarde Stage :', err);
+      // Une exception réseau ne doit pas laisser l'éditeur muet : sans message,
+      // l'utilisateur croit avoir enregistré.
+      setSaveError(err instanceof Error ? err.message : 'Enregistrement impossible');
     } finally {
       setIsSaving(false);
     }
@@ -886,6 +914,7 @@ export function StageEngineProvider({
       await loadSnapshots();
     } catch (err) {
       console.error('Erreur publication Stage :', err);
+      setSaveError(err instanceof Error ? err.message : 'Publication impossible');
     } finally {
       setIsPublishing(false);
     }
