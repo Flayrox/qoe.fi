@@ -9,8 +9,8 @@
 // Markdown) sont couverts par `library-helpers`, déjà testé.
 // =====================================================================
 
-import { describe, expect, it, vi, afterEach } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 import { LibraryClient } from '../LibraryClient';
 
@@ -33,11 +33,6 @@ vi.mock('@lingui/core/macro', () => ({
     return String(strings || '');
   },
 }));
-
-// `apps/core` n'active pas le cleanup automatique de Testing Library : sans
-// ça, le DOM des tests précédents s'accumule et les `getByRole` deviennent
-// ambigus dès que la suite complète tourne.
-afterEach(cleanup);
 
 describe('LibraryClient', () => {
   it('affiche un état vide explicite pour les signets', () => {
