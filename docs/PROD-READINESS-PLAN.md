@@ -146,65 +146,59 @@ remettre les images précédentes (`qoefi-<service>:<sha>` est publié à chaque
 
 ---
 
-## 5. Feuille de route tests (à implémenter plus tard)
+## 5. Feuille de route tests
 
-Chiffres de référence : `docs/TEST-COVERAGE.md` (mesure du **14/11**). Attention,
-ce fichier est partiellement périmé : il annonce `apps/core/src/app` à 0 %, alors
-que **14 fichiers de test** y existent déjà (`find apps/core/src/app -name
-"*.test.*"`). À re-mesurer avant de s'y fier.
+**Mesure du 2026-11-16** (poste, `pnpm test:coverage` puis
+`pnpm test:coverage:front`) — plus aucun fichier non instrumentable :
 
-Seuils actuels (ratchets CI, jamais à la baisse) : `packages/ui` 55 %, `tenants`
-23 %, `studio` 9 %, `admin` 4 %.
+| Périmètre | Lignes | Fichiers / tests | Ratchet CI |
+| --- | --- | --- | --- |
+| `packages/ui` | 56,03 % | 83 / 545 | 55 % |
+| `apps/tenants` | 24,00 % | 11 / 39 | 23 % |
+| `apps/studio` | 11,18 % | 38 / 195 | 9 % |
+| `apps/admin` | 4,56 % | 11 / 66 | 4 % |
+| **Agrégé monorepo** | 24,42 % | 83 / 716 | — |
 
-### 🔴 Priorité 1 — `apps/admin` (39 pages, 10 fichiers de test)
+Les ratchets sont des planchers, jamais à la baisse : une baisse doit
+s'accompagner de nouveaux tests, pas d'un seuil abaissé.
 
-Dossiers à couvrir en priorité, tous sans test aujourd'hui :
+### Fait le 16/11
 
-- **RBAC / capacités** : `lib/admin-screen-guards.test.ts` existe, mais aucune
-  preuve que chaque écran appelle `requireCapability` (39 pages). Test de
-  registre : pour chaque route admin, capacité requise déclarée + refus 403 quand
-  elle manque (le pendant front du `security_audit_test.go` Go).
-- **Modération & signalements** : files de signalements, masquage, suspension —
-  actions serveur et transitions d'état.
-- **Octrois d'abonnement** (`SubscriptionGrant`) : création, prolongation,
-  révocation depuis la console, avec les mêmes invariants que le Go.
-- **Imports d'abonnés** (`/admin/imports/[id]`) : le 500 historique (params
-  asynchrones) mérite un test de non-régression.
-- **Feature flags** : panneaux d'activation et audit des changements.
+- **`apps/admin` — `/admin/imports/[id]`** : test de non-régression des `params`
+  asynchrones (id résolu, garde avant lecture, 404 si le lot est inconnu).
+- **`apps/admin` — RBAC** : `lib/__tests__/admin-screen-guards.test.ts`
+  vérifiait **déjà** que les 39 pages appellent `requireCapability` avant tout
+  chargement de données. La ligne « aucune preuve » de la version précédente de
+  ce document était fausse ; rien à ajouter.
+- **`apps/studio` — `monetization-client.tsx`** : 7 tests (portail indisponible,
+  `NO_CUSTOMER`, prix nul, nom vide, euros→centimes, erreur backend, formule non
+  payable).
+- **`apps/studio` — `api/export/route.ts`** : 5 tests (401 sans session, 503 sans
+  `QOE_API_URL`, relais du statut amont, `Content-Disposition` + `no-store`, nom
+  de fichier de repli).
+- **`apps/core` — `MessagesApp.tsx` / `LibraryClient.tsx`** : sortis de
+  l'exclusion de couverture. La cause n'était pas le parseur : les deux modules
+  importaient `@qoe/sdk/actions/{messages,highlights}`, deux sous-chemins absents
+  des `exports` du paquet SDK, donc jamais chargeables dans un test (et rolldown
+  ne remappe pas un fichier non couvert). Sous-chemins déclarés + 6 tests de
+  rendu, exclusion supprimée.
 
-### 🟠 Priorité 2 — `apps/studio` (hors éditeur, ~9 %)
+### Reste à faire
 
-L'éditeur a déjà son banc (24 fichiers). Ce qui reste nu :
-
-- `app/(creator)/monetization/monetization-client.tsx` : création de formule
-  (`createCreatorTierAction`), portail (`openBillingPortalAction`) et surtout les
-  **chemins d'erreur** (aucun client Stripe → message, pas d'écran blanc).
-- `app/(creator)/pricing/**` : `OfferCompare` (contenu data-driven, pas de faux CTA).
-- Export / portabilité : `apps/studio/src/app/api/export/route.ts`
-  (`Content-Disposition`, `no-store`, relais d'erreur).
-- Compilation EPUB (`feat(books)`) : génération et cas d'erreur.
-- `features/settings/**` : arbre de réglages (seul `settingsTree.test.ts` existe).
-
-### 🟡 Priorité 3 — `apps/core` (routes publiques)
-
-14 fichiers de test existent, mais la couverture réelle n'est pas mesurée par
-route. Cibles utiles :
-
-- `app/(reader)/library/LibraryClient.tsx` : **exclu du rapport de couverture**
-  (erreur de parse `@vitest/coverage-v8`, cf. `docs/TEST-COVERAGE.md`) — à
-  corriger avant d'écrire des tests, sinon ils resteront invisibles.
-- Lecteur audio : persistance entre navigations.
-- Flux de lecture : comportement hors ligne / API indisponible (fallback).
-- `MessagesApp.tsx` : même exclusion d'instrumentation que `LibraryClient`.
-
-### 🔵 Priorité 4 — Go facturation & webhooks (`internal/modules/billing`)
-
-- Signature HMAC Stripe : rejet d'un webhook sans `Stripe-Signature` ou avec une
-  signature falsifiée (401/400, jamais 200).
-- Rejeu d'événements : `customer.subscription.deleted`, `invoice.payment_failed`,
-  `checkout.session.completed` ×2 → **un seul** grant (l'index 00093 le garantit
-  en base, il faut le prouver).
-- `account.updated` (Connect) : passage `charges_enabled` et conséquences.
+- **`apps/admin`** : modération & signalements, octrois `SubscriptionGrant`
+  depuis la console, feature flags.
+- **`apps/studio`** : `pricing/**` (`OfferCompare`), compilation EPUB,
+  `features/settings/**`.
+- **`apps/core`** : lecteur audio (persistance entre navigations), flux de
+  lecture hors ligne / API indisponible.
+- **Go `internal/modules/billing`** : signature HMAC **déjà couverte** (absente,
+  falsifiée, timestamp décalé, sans secret, `v1` manquant). Restent le rejeu
+  (`checkout.session.completed` ×2 → **un seul** grant, garanti par l'index
+  00093) et `account.updated` (Connect) : les deux exigent la base, donc
+  `scripts/test-api.sh`.
+- **`internal/workers`** : `bulk_import.go`, `collab_cleanup.go`, `embedding.go`,
+  `import_reconfirm.go`, `import_send.go`, `staff_campaign.go` (base/Redis
+  requis).
 
 ### Lancer les suites Go en local (Docker requis, jamais Hetzner)
 
@@ -273,12 +267,13 @@ Supprimé (artefacts de runs d'agents, aucune valeur de mémoire) :
 Conservé volontairement : `.agents/rules/engineering-excellence.md` (règles de
 code encore valables), `.agents/skills/**` (skills de l'outillage), les plans
 vivants cités par `AGENTS.md` (`ADMIN-PLAN`, `EDITOR-PLAN`, `ANALYTICS-PLAN`),
-`docs/TEST-COVERAGE.md`, `docs/TEST-BUNKER-PLAN.md`, `.reference/**` (dépôts de
-référence externes, non de la documentation projet).
+`docs/TEST-BUNKER-PLAN.md`, `.reference/**` (dépôts de référence externes, non de
+la documentation projet).
 
-À re-mesurer / réécrire plus tard : `docs/TEST-COVERAGE.md` (chiffres du 14/11,
-`apps/core/src/app` annoncé à 0 % alors que 14 tests existent),
-`docs/UI-PASS-2026-11-16.md` (état d'une passe déjà terminée).
+Supprimés le 16/11 (documents temporaires, chiffres périmés) :
+`docs/TEST-COVERAGE.md` (mesure du 13/11, méthode et chiffres désormais dans le
+§5 ci-dessus) et `docs/UI-PASS-2026-11-16.md` (compte rendu d'une passe
+terminée).
 
 ---
 
@@ -291,6 +286,8 @@ référence externes, non de la documentation projet).
 | 2026-11-16 | Étape 1bis — échecs préexistants | studio : libellé « Publication automatique programmée » ; Go : barème 10 %/5 % selon le droit Pro ; `ReindexAll` sonde Meili ; banc `/dev/editor-check` ouvert au job E2E via `QOE_E2E_DEV_ROUTES=1` | `1c784bf2` |
 | 2026-11-16 | Étape 1ter — gate + banc | gate TS : `MessagesApp`/`LibraryClient` exclus de la mesure (PARSE_ERROR rolldown) ; gate Go `newsletters` : `CreateDigestDraft` couvert sans base (76,3 % → seuil 80 retrouvé) ; middleware studio : `/dev` ouvert au drapeau E2E | `52521ecb` |
 | 2026-11-16 | Étape 1quater — i18n | `pnpm intl:extract` + `intl:compile` : ~900 messages jamais extraits (dont les `aria-label` du dialogue Sources). Aucun seuil abaissé, aucune assertion supprimée | `be744d2e` |
+| 2026-11-16 | Tests manquants (feuille de route §5) | admin `/admin/imports/[id]` (3) ; studio `monetization-client` (7) + `api/export` (5) ; core `MessagesApp` (3) + `LibraryClient` (3) ; sous-chemins `@qoe/sdk/actions/{messages,highlights}` déclarés → exclusions de couverture supprimées ; mesure : ui 56,03 % · tenants 24,00 % · studio 11,18 % · admin 4,56 % · agrégé 24,42 % | _(ce commit)_ |
+| 2026-11-16 | Docs temporaires supprimées | `TEST-COVERAGE.md`, `UI-PASS-2026-11-16.md` (chiffres et renvois rapatriés au §5) | _(ce commit)_ |
 | 2026-11-16 | Guard `arch:audit` réparé + branché | 00090–00093 alignées (lock_timeout, CONCURRENTLY, NO TRANSACTION) ; step ajouté à `Static Checks & Guards` ; replay complet sur base neuve (goose 93, index présents, tests verts) | _(ce commit)_ |
 | 2026-11-16 | Mesure Go locale | OrbStack + `qoefi-test-db` (127.0.0.1:55432) : subscriptions **84,7 %**, workers **62,1 %**, newsletters **82,8 %**, devtools **84,4 %**, exit 0. Aucune connexion à Hetzner (garde `_test`). | — |
 | 2026-11-16 | Étape 2 — CI verte + déploiement prod | Run `43895715146` : **tous les jobs verts** (8/8) sur `e859e4e3` ; images GHCR run `43895715138` OK. `deploy-prod.sh` : **13/13 smoke tests**, goose **93** (00091–00093 appliquées), backup dans `/root/migration/pre-20261116T163321Z/`, conteneurs recréés et *healthy* | `e859e4e3` |

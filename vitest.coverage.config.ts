@@ -62,13 +62,12 @@ export default defineConfig({
         '**/*.d.ts',
         '**/vendor/**',
         '**/*.stories.{ts,tsx}',
-        // ⚠️ Deux fichiers ne sont pas instrumentables : le parseur rolldown
-        // échoue sur leurs imports `import { ..., type X }` (PARSE_ERROR, qui
-        // fait tomber tout le gate depuis vitest 4). Ils étaient déjà absents
-        // du rapport ; on les exclut explicitement pour que le gate mesure le
-        // reste au lieu de planter. Dette tracée dans docs/PROD-READINESS-PLAN.md §5.
-        '**/MessagesApp.tsx',
-        '**/LibraryClient.tsx',
+        // ℹ️ `MessagesApp.tsx` et `LibraryClient.tsx` étaient exclus : rolldown
+        // ne sait pas remapper un fichier *non couvert* contenant des imports
+        // `type`, et leur import `@qoe/sdk/actions/{messages,highlights}` n'était
+        // pas déclaré dans les `exports` du SDK (donc impossible à charger dans
+        // un test). Sous-chemins déclarés + tests de rendu ajoutés : les deux
+        // fichiers sont désormais instrumentés, plus d'exclusion.
       ],
       // Seuils progressifs par package, mesurés au moment de l'introduction
       // du gate (2026-08). Une baisse DOIT s'accompagner de nouveaux tests,

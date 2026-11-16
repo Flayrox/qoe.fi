@@ -34,7 +34,7 @@ Dernière mise à jour : 2026-11-14 · commit de référence : `df389884`
 | ----------------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
 | Job `E2E (Playwright)`        | **25 passed / 0 failed / 0 skipped**                                                                 | run `43529918284` sur `df389884`                                |
 | Job `E2E Routes` (core+admin) | 69 tests, vert sur les commits précédents                                                            | runs `43494477019`, `43500804885`, `43514596938`, `43516799852` |
-| Couverture TS agrégée         | **24,15 % lignes** (après inclusion des `.tsx`, contre 40,58 % avant — même code, périmètre honnête) | `docs/TEST-COVERAGE.md` §2                                      |
+| Couverture TS agrégée         | **24,15 % lignes** (après inclusion des `.tsx`, contre 40,58 % avant — même code, périmètre honnête) | `docs/PROD-READINESS-PLAN.md` §5                                      |
 | Couverture Go                 | 82 packages mesurés, **moyenne 38,3 %** (non pondérée)                                               | idem §2                                                         |
 | Périmètres TS **non mesurés** | `apps/studio` (24 fichiers de test), `apps/admin` (10), `apps/tenants` (10), `packages/ui` (82)      | `find` du 2026-11-14                                            |
 | Pages hors matrice de routes  | studio 24, tenants 16, hi 4                                                                          | `discoverPages()`                                               |
@@ -86,7 +86,7 @@ app/package, au niveau mesuré, qui casse le job en cas de baisse.
 - **A3** — CI : un step « Coverage (front apps) » qui lance les 4 mesures et
   upload les rapports (`coverage/<pkg>`), sans casser le budget du job (chaque
   suite est petite : 82/24/10/10 fichiers).
-- **A4** — Reporter les chiffres dans `docs/TEST-COVERAGE.md` §2 et ici
+- **A4** — Reporter les chiffres dans `docs/PROD-READINESS-PLAN.md` §5 et ici
   (Journal), avec la date et le commit.
 
 Critère de done A : les 4 commandes passent, les seuils sont dans les configs,
