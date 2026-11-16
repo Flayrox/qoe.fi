@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-11-16T00:17:26.904Z",
+  "generatedAt": "2026-11-16T00:21:31.306Z",
   "total": 454,
   "signals": {
     "primitivesNeverImported": 5,
     "primitivesTotal": 28,
-    "rawButtons": 301,
-    "rawButtonFiles": 75,
+    "rawButtons": 300,
+    "rawButtonFiles": 74,
     "nativeSelectFiles": 0,
     "rawInputFiles": 35,
     "handRolledOverlays": 3
@@ -69,7 +69,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 205,
           "source": "primitives",
-          "usages": 111
+          "usages": 112
         },
         {
           "name": "callout",
@@ -858,7 +858,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 205,
           "source": "ui",
-          "usages": 111
+          "usages": 112
         },
         {
           "name": "callout",
@@ -2393,7 +2393,7 @@
         {
           "name": "mfa-panel",
           "path": "apps/studio/src/features/settings/components/mfa-panel.tsx",
-          "lines": 182,
+          "lines": 177,
           "source": "studio",
           "usages": null
         },
@@ -2882,7 +2882,7 @@
         {
           "name": "PollBlock",
           "path": "apps/core/src/components/social/PollBlock.tsx",
-          "lines": 206,
+          "lines": 208,
           "source": "core",
           "usages": null
         },
