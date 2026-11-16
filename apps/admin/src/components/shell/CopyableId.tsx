@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { Check, Copy } from 'lucide-react';
+import { Icon } from '@qoe/ui/icons';
+import { IconButton } from '@qoe/ui/icon-button';
 import { cn } from '@qoe/utils';
 import { DENSITY } from './tokens';
 
@@ -50,19 +51,17 @@ export function CopyableId({
   return (
     <span className={cn('inline-flex items-center gap-1', DENSITY.id, className)}>
       <span title={id}>{short}</span>
-      <button
-        type="button"
-        onClick={copy}
-        aria-label={copied ? 'Identifiant copié' : label}
+      <IconButton
+        label={copied ? 'Identifiant copié' : label}
         title={copied ? 'Copié' : label}
-        className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        size="xs"
+        variant="ghost"
+        tooltip={false}
+        onClick={copy}
+        className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
       >
-        {copied ? (
-          <Check className="size-3" aria-hidden />
-        ) : (
-          <Copy className="size-3" aria-hidden />
-        )}
-      </button>
+        <Icon name={copied ? 'check' : 'copy'} size="xs" />
+      </IconButton>
     </span>
   );
 }
