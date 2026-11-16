@@ -18,7 +18,7 @@ import { computeAutoSeoDescription } from '@/features/editor/lib/article-setting
 import { currentTimeZoneLabel } from '@/features/editor/lib/datetime';
 
 import type { CategoryWithCount } from './article-list-types';
-import type { ConfirmAction } from './confirm-action-dialog';
+import type { ConfirmAction } from '@qoe/ui/confirm-dialog';
 
 function SettingsOverlay({
   onClose,

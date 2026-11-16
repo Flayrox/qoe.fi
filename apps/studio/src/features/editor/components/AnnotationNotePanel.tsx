@@ -95,11 +95,13 @@ export function AnnotationNotePanel({
                 « {quote} »
               </p>
               {canExpandQuote ? (
-                <button
+                <Button
                   type="button"
+                  size="xs"
+                  variant="ghost"
                   onClick={() => setQuoteExpanded((value) => !value)}
                   aria-expanded={quoteExpanded}
-                  className="inline-flex min-h-6 items-center gap-1 rounded-md px-1 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/60"
+                  className="min-h-6 gap-1 px-1 text-[10px] font-medium text-muted-foreground"
                 >
                   {quoteExpanded ? (
                     <ChevronUp className="size-3" />
@@ -107,7 +109,7 @@ export function AnnotationNotePanel({
                     <ChevronDown className="size-3" />
                   )}
                   {quoteExpanded ? t`Replier la citation` : t`Déplier la citation`}
-                </button>
+                </Button>
               ) : null}
             </div>
           )}

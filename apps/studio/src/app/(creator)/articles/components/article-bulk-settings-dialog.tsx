@@ -19,7 +19,7 @@ import { bulkUpdateArticlesAction, type BulkUpdateArticlesInput } from '@qoe/sdk
 import { StudioRow, StudioRowList } from '@/components/studio-page';
 
 import type { CategoryWithCount } from './article-list-types';
-import type { ConfirmAction } from './confirm-action-dialog';
+import type { ConfirmAction } from '@qoe/ui/confirm-dialog';
 
 type TriState = 'keep' | 'on' | 'off';
 

@@ -16,6 +16,9 @@ import type {
 } from '@qoe/ui/templates';
 import { TemplateRenderer } from '@qoe/ui/templates';
 import { DEMO_ARTICLES } from '@qoe/ui/templates';
+import { Button } from '@qoe/ui/button';
+import { Icon } from '@qoe/ui/icons';
+import { Kbd } from '@qoe/ui/kbd';
 import type { StageDevice, StageMode, StageCanvasTransform } from '../types';
 import { DEVICE_DIMENSIONS } from '../types';
 import {
@@ -35,7 +38,6 @@ import {
   DragSelectRect,
   HoverRect,
   MeasurementOverlay,
-  RecenterButton,
   SelectedRect,
   SnapOverlay,
 } from './overlay/StageOverlays';
@@ -528,7 +530,18 @@ export function StageCanvas({
       </div>
 
       {drag && <DragSelectRect start={drag.start} end={drag.end} />}
-      {artboardOutOfView && !drag && <RecenterButton onRecenter={persistent.resetZoom} />}
+      {artboardOutOfView && !drag && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={persistent.resetZoom}
+          className="absolute bottom-6 left-1/2 z-40 -translate-x-1/2 bg-background/95 shadow-sm backdrop-blur-md"
+        >
+          <Icon name="maximize" size="sm" />
+          Recentrer le canvas
+          <Kbd size="xs">⇧0</Kbd>
+        </Button>
+      )}
     </div>
   );
 }

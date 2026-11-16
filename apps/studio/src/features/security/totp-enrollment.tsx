@@ -22,7 +22,11 @@
 // =====================================================================
 
 import { useCallback, useEffect, useState } from 'react';
-import { Copy, Loader2 } from 'lucide-react';
+import { Button } from '@qoe/ui/button';
+import { Callout } from '@qoe/ui/callout';
+import { Icon } from '@qoe/ui/icons';
+import { Input } from '@qoe/ui/input';
+import { Spinner } from '@qoe/ui/spinner';
 import { toast } from '@qoe/ui/toast';
 import { createClient } from '@/lib/supabase/client';
 import { enrollAccountSecurityMfaAction } from '@/features/settings/actions';
@@ -116,7 +120,8 @@ export function TotpEnrollment({ factorId, onVerified, onCancel, intro }: Props)
   if (phase === 'loading') {
     return (
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Préparation du facteur…
+        <Spinner size="sm" label="Préparation du facteur" />
+        Préparation du facteur…
       </p>
     );
   }
@@ -124,23 +129,18 @@ export function TotpEnrollment({ factorId, onVerified, onCancel, intro }: Props)
   if (phase === 'error') {
     return (
       <div className="space-y-3">
-        <p className="text-xs leading-relaxed text-destructive-text">{errorMessage}</p>
+        <Callout tone="danger" live>
+          {errorMessage}
+        </Callout>
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => void start()}
-            className="rounded-lg border px-3 py-2 text-sm"
-          >
+          <Button variant="outline" size="sm" onClick={() => void start()}>
+            <Icon name="refresh" />
             Réessayer
-          </button>
+          </Button>
           {onCancel && (
-            <button
-              type="button"
-              onClick={onCancel}
-              className="rounded-lg border px-3 py-2 text-sm"
-            >
+            <Button variant="ghost" size="sm" onClick={onCancel}>
               Fermer
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -165,31 +165,36 @@ export function TotpEnrollment({ factorId, onVerified, onCancel, intro }: Props)
       )}
 
       {secret && (
-        <div className="flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-3 py-2">
+        <div className="flex items-center justify-between gap-2 rounded-control bg-muted/40 px-3 py-2">
           <code className="truncate font-mono text-xs">{secret}</code>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="xs"
             onClick={() => copy(secret, 'Secret')}
-            className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-1 text-xs text-muted-foreground hover:text-foreground"
+            className="shrink-0"
           >
-            <Copy className="h-3.5 w-3.5" /> Copier
-          </button>
+            <Icon name="copy" size="sm" />
+            Copier
+          </Button>
         </div>
       )}
 
       {uri && (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="xs"
           onClick={() => copy(uri, 'Lien otpauth')}
-          className="text-xs text-primary hover:underline"
+          className="justify-start px-0 text-primary hover:bg-transparent hover:underline"
         >
           Copier le lien otpauth://
-        </button>
+        </Button>
       )}
 
       <label className="block space-y-1.5">
         <span className="text-sm font-medium">Code à 6 chiffres</span>
-        <input
+        <Input
           autoFocus
           value={code}
           onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))}
@@ -197,26 +202,32 @@ export function TotpEnrollment({ factorId, onVerified, onCancel, intro }: Props)
           autoComplete="one-time-code"
           maxLength={6}
           placeholder="123456"
-          className="w-full max-w-[10rem] rounded-lg border bg-background px-3 py-2 text-center text-lg font-semibold tracking-[0.3em]"
+          aria-label="Code à 6 chiffres"
+          className="max-w-40 text-center text-lg font-semibold tracking-[0.3em]"
         />
       </label>
 
       {errorMessage && (
-        <p className="text-xs leading-relaxed text-destructive-text">{errorMessage}</p>
+        <Callout tone="danger" live>
+          {errorMessage}
+        </Callout>
       )}
 
       <div className="flex items-center gap-2">
-        <button
+        <Button
           type="submit"
-          disabled={busy || code.length < 6}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+          variant="solid"
+          tone="brand"
+          size="sm"
+          loading={busy}
+          disabled={code.length < 6}
         >
-          {busy && <Loader2 className="h-4 w-4 animate-spin" />} Vérifier
-        </button>
+          Vérifier
+        </Button>
         {onCancel && (
-          <button type="button" onClick={onCancel} className="rounded-lg border px-3 py-2 text-sm">
+          <Button type="button" variant="outline" size="sm" onClick={onCancel}>
             Annuler
-          </button>
+          </Button>
         )}
       </div>
     </form>

@@ -1,31 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import {
-  ArrowRightLeft,
-  BarChart3,
-  BookOpen,
-  Building2,
-  CalendarClock,
-  CheckCircle2,
-  Clock,
-  Edit3,
-  Eye,
-  GitCompare,
-  GitFork,
-  Heart,
-  Lock,
-  MessageSquare,
-  MoreHorizontal,
-  Pin,
-  Repeat2,
-  ShieldCheck,
-  Trash2,
-  UserRound,
-  XCircle,
-} from 'lucide-react';
 import { cn } from '@qoe/utils';
+import { Badge } from '@qoe/ui/badge';
 import { Button } from '@qoe/ui/button';
+import { Checkbox } from '@qoe/ui/checkbox';
+import { Icon } from '@qoe/ui/icons';
+import { IconButton } from '@qoe/ui/icon-button';
+import { StatusDot } from '@qoe/ui/status-dot';
 import { toast } from '@qoe/ui/toast';
 import { bulkUpdateArticlesAction } from '@qoe/sdk/actions/articles';
 import { t } from '@lingui/core/macro';
@@ -44,6 +26,11 @@ function formatScheduleDate(value: string | Date | null | undefined): string | n
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+/** Ferme le menu `<details>` ouvert par le clic sur une action. */
+function closeMenu(event: React.MouseEvent<HTMLElement>) {
+  (event.currentTarget.closest('details') as HTMLDetailsElement | null)?.removeAttribute('open');
 }
 
 export function ArticleListRow({
@@ -109,6 +96,11 @@ export function ArticleListRow({
     );
   };
 
+  const menuItemClass =
+    'w-full justify-start gap-2 rounded-lg px-2.5 py-2 text-xs font-normal text-foreground';
+
+  const diffLabel = t`Comparer les versions (Diff)` as string;
+
   return (
     <div
       className={cn(
@@ -117,17 +109,14 @@ export function ArticleListRow({
         selected && 'bg-primary/5'
       )}
     >
-      <input
-        type="checkbox"
-        checked={selected}
-        onChange={(event) => {
-          event.stopPropagation();
-          onToggleSelect(article.id);
-        }}
-        onClick={(event) => event.stopPropagation()}
-        className="h-3.5 w-3.5 shrink-0 rounded border-border/40 text-primary focus:ring-primary"
-        aria-label={t`Sélectionner ${article.title}`}
-      />
+      <span className="shrink-0" onClick={(event) => event.stopPropagation()}>
+        <Checkbox
+          size="sm"
+          isSelected={selected}
+          onChange={() => onToggleSelect(article.id)}
+          aria-label={t`Sélectionner ${article.title}`}
+        />
+      </span>
 
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-2">
@@ -140,67 +129,69 @@ export function ArticleListRow({
           {columns.status &&
             (article.status === 'SCHEDULED' ? (
               // Un article programmé n'est PAS un brouillon : il partira seul.
-              <span
-                className="inline-flex shrink-0 items-center gap-1 rounded border border-success/25 bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold text-success-text"
-                title={t`Publisher automatique programmée`}
+              <Badge
+                variant="soft"
+                tone="success"
+                size="sm"
+                className="shrink-0 gap-1 text-[10px]"
+                title={t`Publication automatique programmée`}
               >
-                <CalendarClock className="h-2.5 w-2.5" />
+                <Icon name="calendar-clock" size="xs" />
                 {t`Programmé`}
                 {scheduledLabel && (
                   <span className="font-normal opacity-80">· {scheduledLabel}</span>
                 )}
-              </span>
+              </Badge>
             ) : article.status === 'SUBMITTED' ? (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded border border-highlight/20 bg-highlight/10 px-1.5 py-0.5 text-[10px] font-semibold text-highlight">
-                <Clock className="h-2.5 w-2.5" />
+              <Badge variant="soft" tone="brand" size="sm" className="shrink-0 gap-1 text-[10px]">
+                <Icon name="clock" size="xs" />
                 {article.published ? t`En revue (modifications)` : t`En revue`}
-              </span>
+              </Badge>
             ) : (
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span
-                  className={cn(
-                    'shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold',
-                    article.published
-                      ? 'bg-primary/10 text-primary'
-                      : 'bg-muted text-muted-foreground'
-                  )}
-                >
-                  {article.published ? t`Publié` : t`Brouillon`}
-                </span>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <StatusDot
+                  tone={article.published ? 'success' : 'neutral'}
+                  label={article.published ? t`Publié` : t`Brouillon`}
+                />
                 {article.published && article.hasUnpublishedChanges && (
-                  <span
-                    className="inline-flex shrink-0 items-center gap-1 rounded border border-highlight/30 bg-highlight/10 px-1.5 py-0.5 text-[10px] font-medium text-highlight"
+                  <Badge
+                    variant="soft"
+                    tone="brand"
+                    size="sm"
+                    className="shrink-0 gap-1 text-[10px]"
                     title={t`Brouillon avec des modifications non publiées`}
                   >
-                    <GitCompare className="h-2.5 w-2.5" />
+                    <Icon name="git-compare" size="xs" />
                     {t`Modifications en attente`}
-                  </span>
+                  </Badge>
                 )}
               </div>
             ))}
           {columns.premium && article.isPremium && (
-            <Lock className="h-3 w-3 shrink-0 text-highlight" />
+            <Icon name="lock" size="xs" className="shrink-0 text-highlight" />
           )}
           {article.publisher?.type === 'MEDIA' && (
             <span
-              className="inline-flex shrink-0 items-center gap-1 rounded border border-border/50 bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+              className="inline-flex shrink-0 items-center gap-1 rounded-control border border-border/50 bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
               title={article.publisher.name}
             >
-              <Building2 className="h-2.5 w-2.5 text-primary" />
+              <Icon name="building" size="xs" className="text-primary" />
               <span className="max-w-28 truncate">{article.publisher.name}</span>
             </span>
           )}
           {article.isAuthorSovereignCopy && article.originPublisher && (
             <span
-              className="inline-flex shrink-0 items-center gap-1 rounded border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary"
+              className="inline-flex shrink-0 items-center gap-1 rounded-control border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary"
               title={t`Exemplaire personnel issu de ${article.originPublisher.name}`}
             >
-              <ShieldCheck className="h-2.5 w-2.5" />
-              <span className="max-w-36 truncate">{t`Version personnelle · ${article.originPublisher.name}`}</span>
+              <Icon name="shield-check" size="xs" />
+              <span className="max-w-36 truncate">
+                {t`Version personnelle · ${article.originPublisher.name}`}
+              </span>
             </span>
           )}
           {article.canEdit === false && (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded border border-muted bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-control border border-muted bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
               {t`Lecture seule`}
             </span>
           )}
@@ -208,10 +199,10 @@ export function ArticleListRow({
             <a
               href={`/articles/${article.sovereignCopyId}`}
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex shrink-0 items-center gap-1 rounded border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20"
+              className="inline-flex shrink-0 items-center gap-1 rounded-control border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20"
               title={t`Ouvrir votre exemplaire personnel de cet essai`}
             >
-              <GitFork className="h-2.5 w-2.5" />
+              <Icon name="git-fork" size="xs" />
               <span>{t`Ma version`}</span>
             </a>
           ) : article.publisher?.type === 'MEDIA' ? (
@@ -227,11 +218,11 @@ export function ArticleListRow({
               className="h-5 gap-1 border-highlight/30 bg-highlight/10 px-1.5 text-[10px] font-medium text-highlight hover:bg-highlight/20"
               title={t`Créer ou importer un exemplaire personnel éditable.`}
             >
-              <GitFork className="h-2.5 w-2.5" />
+              <Icon name="git-fork" size="xs" />
               <span>{t`Récupérer ma version`}</span>
             </Button>
           ) : null}
-          {pinned && <Pin className="h-3 w-3 shrink-0 text-primary" />}
+          {pinned && <Icon name="pin" size="xs" className="shrink-0 text-primary" />}
         </div>
 
         <div className="mt-0.5 flex items-center gap-2 font-sans text-[11px] text-muted-foreground">
@@ -256,25 +247,25 @@ export function ArticleListRow({
           )}
           <span className="flex shrink-0 items-center gap-1 tabular-nums">
             <span className="text-border">·</span>
-            <Heart className="h-3 w-3" />
+            <Icon name="heart" size="xs" />
             {article.likesCount ?? 0}
           </span>
           <span className="flex shrink-0 items-center gap-1 tabular-nums">
             <span className="text-border">·</span>
-            <Repeat2 className="h-3 w-3" />
+            <Icon name="repeat" size="xs" />
             {article.repostsCount ?? 0}
           </span>
           {columns.views && (
             <span className="flex shrink-0 items-center gap-1 tabular-nums">
               <span className="text-border">·</span>
-              <Eye className="h-3 w-3" />
+              <Icon name="eye" size="xs" />
               {article.views ?? 0}
             </span>
           )}
           {columns.comments && (
             <span className="flex shrink-0 items-center gap-1 tabular-nums">
               <span className="text-border">·</span>
-              <MessageSquare className="h-3 w-3" />
+              <Icon name="message-square" size="xs" />
               {article.commentsCount ?? interactionsCount}
             </span>
           )}
@@ -282,24 +273,20 @@ export function ArticleListRow({
         </div>
       </div>
 
-      <Button
-        variant="ghost"
+      <IconButton
+        label={t`Voir les analyses`}
         size="xs"
-        shape="icon"
         onClick={(event) => {
           event.stopPropagation();
           onOpenAnalytics(article);
         }}
         className="text-muted-foreground opacity-60 group-hover:opacity-100 hover:opacity-100 focus:opacity-100"
-        title={t`Voir les analyses`}
-        aria-label={t`Voir les analyses`}
       >
-        <BarChart3 />
-      </Button>
-      <Button
-        variant="ghost"
+        <Icon name="chart-column" />
+      </IconButton>
+      <IconButton
+        label={pinned ? t`Retirer de la une` : t`Épingler à la une`}
         size="xs"
-        shape="icon"
         onClick={(event) => {
           event.stopPropagation();
           onTogglePin(article);
@@ -309,78 +296,68 @@ export function ArticleListRow({
             ? 'text-primary'
             : 'text-muted-foreground opacity-60 group-hover:opacity-100 hover:opacity-100 focus:opacity-100'
         )}
-        title={pinned ? t`Retirer de la une` : t`Épingler à la une`}
-        aria-label={pinned ? t`Retirer de la une` : t`Épingler à la une`}
       >
-        <Pin />
-      </Button>
+        <Icon name="pin" />
+      </IconButton>
       {(article.hasUnpublishedChanges || article.status === 'SUBMITTED') && onOpenDiff ? (
-        <Button
-          variant="ghost"
+        <IconButton
+          label={diffLabel}
           size="xs"
-          shape="icon"
           onClick={(event) => {
             event.stopPropagation();
             onOpenDiff(article);
           }}
           className="text-highlight opacity-80 hover:opacity-100 group-hover:opacity-100 focus:opacity-100"
-          title={t`Comparer les versions (Diff)`}
-          aria-label={t`Comparer les versions`}
         >
-          <GitCompare />
-        </Button>
+          <Icon name="git-compare" />
+        </IconButton>
       ) : null}
-      <Button
-        variant="ghost"
+      <IconButton
+        label={t`Paramètres de l'article`}
         size="xs"
-        shape="icon"
         onClick={(event) => {
           event.stopPropagation();
           onOpenSettings(article.id);
         }}
         className="text-muted-foreground opacity-60 group-hover:opacity-100 hover:opacity-100 focus:opacity-100"
-        title={t`Paramètres de l'article`}
-        aria-label={t`Paramètres de l'article`}
       >
-        <Edit3 />
-      </Button>
+        <Icon name="pen-line" />
+      </IconButton>
 
       <details className="relative">
         <summary
           className="list-none cursor-pointer rounded p-1.5 text-muted-foreground transition-colors hover:text-foreground"
           title={t`Plus d'actions`}
         >
-          <MoreHorizontal className="h-4 w-4" />
+          <Icon name="more-horizontal" />
         </summary>
-        <div className="absolute right-0 top-full z-40 mt-1 w-52 rounded-xl border border-border/40 bg-card p-1 shadow-xl">
+        <div className="absolute right-0 top-full z-40 mt-1 w-52 rounded-panel border border-border/40 bg-card p-1 shadow-xl">
           {(article.hasUnpublishedChanges || article.status === 'SUBMITTED') && onOpenDiff && (
-            <button
+            <Button
+              variant="ghost"
+              size="xs"
               onClick={(event) => {
                 event.stopPropagation();
-                (
-                  event.currentTarget.closest('details') as HTMLDetailsElement | null
-                )?.removeAttribute('open');
+                closeMenu(event);
                 onOpenDiff(article);
               }}
-              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-foreground transition-colors hover:bg-muted/60"
+              className={menuItemClass}
             >
-              <GitCompare className="h-3.5 w-3.5 text-highlight" />
-              {t`Comparer les versions (Diff)`}
-            </button>
+              <Icon name="git-compare" size="sm" className="text-highlight" />
+              {diffLabel}
+            </Button>
           )}
           <Button
             variant="ghost"
             size="xs"
             onClick={(event) => {
               event.stopPropagation();
-              (
-                event.currentTarget.closest('details') as HTMLDetailsElement | null
-              )?.removeAttribute('open');
+              closeMenu(event);
               onOpenSettings(article.id);
             }}
-            className="w-full justify-start gap-2 rounded-lg px-2.5 py-2 text-xs text-foreground"
+            className={menuItemClass}
           >
-            <ArrowRightLeft className="h-3.5 w-3.5 text-primary" />
+            <Icon name="arrow-left-right" size="sm" className="text-primary" />
             <span>{t`Transférer de publication…`}</span>
           </Button>
           {canEditPersonalProfile && (
@@ -389,14 +366,12 @@ export function ArticleListRow({
               size="xs"
               onClick={(event) => {
                 event.stopPropagation();
-                (
-                  event.currentTarget.closest('details') as HTMLDetailsElement | null
-                )?.removeAttribute('open');
+                closeMenu(event);
                 void handleTogglePersonalProfile();
               }}
-              className="w-full justify-start gap-2 rounded-lg px-2.5 py-2 text-xs text-foreground"
+              className={menuItemClass}
             >
-              <UserRound className="h-3.5 w-3.5 text-primary" />
+              <Icon name="user" size="sm" className="text-primary" />
               <span>
                 {showOnPersonal
                   ? t`Masquer du profil personnel`
@@ -404,47 +379,47 @@ export function ArticleListRow({
               </span>
             </Button>
           )}
-          <button
+          <Button
+            variant="ghost"
+            size="xs"
             onClick={(event) => {
               event.stopPropagation();
-              (
-                event.currentTarget.closest('details') as HTMLDetailsElement | null
-              )?.removeAttribute('open');
+              closeMenu(event);
               onToggleAbout(article.id);
             }}
-            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-foreground transition-colors hover:bg-muted/60"
+            className={menuItemClass}
           >
-            <BookOpen className="h-3.5 w-3.5" />
+            <Icon name="book-open" size="sm" />
             {about ? t`Retirer de la page À propos` : t`Définir comme page À propos`}
-          </button>
+          </Button>
           {canReview && article.status === 'SUBMITTED' && (
             <>
-              <button
+              <Button
+                variant="ghost"
+                size="xs"
                 onClick={(event) => {
                   event.stopPropagation();
-                  (
-                    event.currentTarget.closest('details') as HTMLDetailsElement | null
-                  )?.removeAttribute('open');
+                  closeMenu(event);
                   onReview(article, true);
                 }}
-                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-success-text transition-colors hover:bg-success/10"
+                className={cn(menuItemClass, 'text-success-text hover:bg-success/10')}
               >
-                <CheckCircle2 className="h-3.5 w-3.5" />
+                <Icon name="circle-check" size="sm" />
                 {t`Approuver et publier`}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                size="xs"
                 onClick={(event) => {
                   event.stopPropagation();
-                  (
-                    event.currentTarget.closest('details') as HTMLDetailsElement | null
-                  )?.removeAttribute('open');
+                  closeMenu(event);
                   onReview(article, false);
                 }}
-                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-destructive-text transition-colors hover:bg-destructive/10"
+                className={cn(menuItemClass, 'text-destructive-text hover:bg-destructive/10')}
               >
-                <XCircle className="h-3.5 w-3.5" />
+                <Icon name="circle-x" size="sm" />
                 {t`Rejeter`}
-              </button>
+              </Button>
             </>
           )}
           {(article.publisher?.type === 'MEDIA' || article.originPublisher) &&
@@ -454,18 +429,16 @@ export function ArticleListRow({
                 size="xs"
                 onClick={(event) => {
                   event.stopPropagation();
-                  (
-                    event.currentTarget.closest('details') as HTMLDetailsElement | null
-                  )?.removeAttribute('open');
+                  closeMenu(event);
                   if (article.sovereignCopyId) {
                     window.location.href = `/articles/${article.sovereignCopyId}`;
                   } else {
                     setRecoverModalOpen(true);
                   }
                 }}
-                className="w-full justify-start gap-2 rounded-lg px-2.5 py-2 text-xs text-foreground"
+                className={menuItemClass}
               >
-                <GitFork className="h-3.5 w-3.5 text-primary" />
+                <Icon name="git-fork" size="sm" className="text-primary" />
                 <span>
                   {article.sovereignCopyId
                     ? t`Ouvrir ma version personnelle`
@@ -473,19 +446,19 @@ export function ArticleListRow({
                 </span>
               </Button>
             )}
-          <button
+          <Button
+            variant="ghost"
+            size="xs"
             onClick={(event) => {
               event.stopPropagation();
-              (
-                event.currentTarget.closest('details') as HTMLDetailsElement | null
-              )?.removeAttribute('open');
+              closeMenu(event);
               onDelete(article);
             }}
-            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-destructive-text transition-colors hover:bg-destructive/10"
+            className={cn(menuItemClass, 'text-destructive-text hover:bg-destructive/10')}
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <Icon name="trash" size="sm" />
             {t`Supprimer`}
-          </button>
+          </Button>
         </div>
       </details>
 
