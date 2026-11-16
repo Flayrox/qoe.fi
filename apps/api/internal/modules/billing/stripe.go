@@ -179,6 +179,71 @@ func (c *StripeClient) CreatePortalSession(ctx context.Context, customerID, retu
 	return out.URL, nil
 }
 
+// CreateConnectAccount provisionne un compte Express Stripe Connect pour une
+// publication (la destination des paiements d'abonnement).
+func (c *StripeClient) CreateConnectAccount(ctx context.Context, email, publisherID string) (string, error) {
+	if !c.Configured() {
+		return "", ErrNotConfigured
+	}
+	publisherID = strings.TrimSpace(publisherID)
+	if publisherID == "" {
+		return "", fmt.Errorf("stripe: publication manquante")
+	}
+	form := url.Values{}
+	form.Set("type", "express")
+	form.Set("country", "FR")
+	if email = strings.TrimSpace(email); email != "" {
+		form.Set("email", email)
+	}
+	form.Set("capabilities[card_payments][requested]", "true")
+	form.Set("capabilities[transfers][requested]", "true")
+	form.Set("metadata[publisherId]", publisherID)
+
+	var out struct {
+		ID string `json:"id"`
+	}
+	if err := c.post(ctx, "/v1/accounts", form, &out); err != nil {
+		return "", err
+	}
+	if out.ID == "" {
+		return "", fmt.Errorf("stripe: compte connect sans id")
+	}
+	return out.ID, nil
+}
+
+// CreateAccountLink génère le lien Stripe Connect hébergé permettant au
+// créateur de finaliser son onboarding bancaire et KYC.
+func (c *StripeClient) CreateAccountLink(ctx context.Context, accountID, refreshURL, returnURL string) (string, error) {
+	if !c.Configured() {
+		return "", ErrNotConfigured
+	}
+	accountID = strings.TrimSpace(accountID)
+	refreshURL = strings.TrimSpace(refreshURL)
+	returnURL = strings.TrimSpace(returnURL)
+	if accountID == "" {
+		return "", fmt.Errorf("stripe: compte connect manquant")
+	}
+	if refreshURL == "" || returnURL == "" {
+		return "", fmt.Errorf("stripe: urls de retour manquantes")
+	}
+	form := url.Values{}
+	form.Set("account", accountID)
+	form.Set("type", "account_onboarding")
+	form.Set("refresh_url", refreshURL)
+	form.Set("return_url", returnURL)
+
+	var out struct {
+		URL string `json:"url"`
+	}
+	if err := c.post(ctx, "/v1/account_links", form, &out); err != nil {
+		return "", err
+	}
+	if out.URL == "" {
+		return "", fmt.Errorf("stripe: lien d'onboarding sans url")
+	}
+	return out.URL, nil
+}
+
 func (c *StripeClient) get(ctx context.Context, path string, out any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {

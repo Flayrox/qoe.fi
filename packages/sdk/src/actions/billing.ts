@@ -54,6 +54,8 @@ export interface StartCheckoutInput {
   plan: 'plus' | 'publication';
   publisherId?: string;
   tierId?: string;
+  /** Cadence de facturation (« month » par défaut côté Go). */
+  interval?: 'month' | 'year';
 }
 
 /** Ouvre une session Stripe Checkout et renvoie l'URL de redirection. */
@@ -63,6 +65,17 @@ export const startSubscriptionCheckoutAction = safeAction<StartCheckoutInput, { 
       method: 'POST',
       body: input,
     })
+);
+
+/** Ouvre le parcours d'onboarding Stripe Connect pour une publication. */
+export const startStripeConnectAction = safeAction<
+  { publisherId: string },
+  { url: string; stripeAccountId: string }
+>(async ({ publisherId }) =>
+  goFetch<{ url: string; stripeAccountId: string }>(
+    `/v1/billing/connect?publisherId=${encodeURIComponent(publisherId)}`,
+    { method: 'POST', body: {} }
+  )
 );
 
 /** Portail de facturation (changer de carte, résilier). */

@@ -2982,6 +2982,33 @@ CREATE INDEX "FollowRequest_requester_status_idx" ON "FollowRequest"("requesterI
 ALTER TABLE "FollowRequest" ADD CONSTRAINT "FollowRequest_requesterId_fkey" FOREIGN KEY ("requesterId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "FollowRequest" ADD CONSTRAINT "FollowRequest_publisherId_fkey" FOREIGN KEY ("publisherId") REFERENCES "Publisher"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- CreateTable
+CREATE TABLE "SubscriptionGrant" (
+    "id"          TEXT NOT NULL,
+    "subjectType" TEXT NOT NULL,
+    "subjectId"   TEXT NOT NULL,
+    "plan"        TEXT NOT NULL,
+    "startsAt"    TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "endsAt"      TIMESTAMP(3),
+    "grantedBy"   TEXT NOT NULL,
+    "note"        TEXT NOT NULL DEFAULT '',
+    "createdAt"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SubscriptionGrant_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "SubscriptionGrant_subject_check" CHECK ("subjectType" IN ('user', 'publisher')),
+    CONSTRAINT "SubscriptionGrant_plan_check" CHECK ("plan" IN ('pro', 'plus')),
+    CONSTRAINT "SubscriptionGrant_dates_check" CHECK ("endsAt" IS NULL OR "endsAt" > "startsAt")
+);
+
+-- CreateIndex
+CREATE INDEX "SubscriptionGrant_effective_idx"
+    ON "SubscriptionGrant"("subjectType", "subjectId", "plan", "startsAt", "endsAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SubscriptionGrant_stripe_subscription_key"
+    ON "SubscriptionGrant" ("subjectType", "subjectId", "plan", "note")
+    WHERE "grantedBy" = 'stripe';
+
 
 -- Functions: visibility and mute predicates
 CREATE OR REPLACE FUNCTION is_blocked_bidirectional(user_a UUID, user_b UUID)

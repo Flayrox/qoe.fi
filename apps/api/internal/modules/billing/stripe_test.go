@@ -2,10 +2,14 @@ package billing
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/qoefi/api/internal/middleware"
 )
 
 // TestCreateCheckoutSession_FormEtMetadata vérifie le contrat Stripe réel :
@@ -138,5 +142,195 @@ func TestService_NilPool(t *testing.T) {
 	}
 	if svc.ReaderStripeCustomer(context.Background(), "user-1") != "" {
 		t.Fatal("ReaderStripeCustomer sans base devrait être vide")
+	}
+	if err := svc.SavePublisherStripeAccount(context.Background(), "pub-1", "acct_1"); err != nil {
+		t.Fatalf("SavePublisherStripeAccount sans base = %v", err)
+	}
+}
+
+func TestCreateConnectAccount(t *testing.T) {
+	var gotPath, gotAuth, gotForm string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotAuth = r.Header.Get("Authorization")
+		_ = r.ParseForm()
+		gotForm = r.PostForm.Encode()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"acct_test_123"}`))
+	}))
+	defer srv.Close()
+
+	c := NewStripeClient("sk_test_123", srv.URL)
+	id, err := c.CreateConnectAccount(context.Background(), "createur@test.dev", "pub-42")
+	if err != nil {
+		t.Fatalf("CreateConnectAccount: %v", err)
+	}
+	if id != "acct_test_123" {
+		t.Fatalf("id = %q", id)
+	}
+	if gotPath != "/v1/accounts" || gotAuth != "Bearer sk_test_123" {
+		t.Fatalf("requête = %s auth=%q", gotPath, gotAuth)
+	}
+	for _, want := range []string{
+		"type=express",
+		"country=FR",
+		"email=createur%40test.dev",
+		"capabilities%5Bcard_payments%5D%5Brequested%5D=true",
+		"capabilities%5Btransfers%5D%5Brequested%5D=true",
+		"metadata%5BpublisherId%5D=pub-42",
+	} {
+		if !strings.Contains(gotForm, want) {
+			t.Fatalf("formulaire sans %q : %s", want, gotForm)
+		}
+	}
+
+	unconfigured := NewStripeClient("", "")
+	if _, err := unconfigured.CreateConnectAccount(context.Background(), "", "pub-42"); !errors.Is(err, ErrNotConfigured) {
+		t.Fatalf("non configuré = %v, attendu ErrNotConfigured", err)
+	}
+}
+
+func TestCreateAccountLink(t *testing.T) {
+	var gotPath, gotAuth, gotForm string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotAuth = r.Header.Get("Authorization")
+		_ = r.ParseForm()
+		gotForm = r.PostForm.Encode()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"url":"https://connect.stripe.test/setup/s/1"}`))
+	}))
+	defer srv.Close()
+
+	c := NewStripeClient("sk_test_123", srv.URL)
+	link, err := c.CreateAccountLink(
+		context.Background(),
+		"acct_test_123",
+		"https://studio.qoe.test/monetization?connect=refresh",
+		"https://studio.qoe.test/monetization?connect=return",
+	)
+	if err != nil {
+		t.Fatalf("CreateAccountLink: %v", err)
+	}
+	if link != "https://connect.stripe.test/setup/s/1" {
+		t.Fatalf("url = %q", link)
+	}
+	if gotPath != "/v1/account_links" || gotAuth != "Bearer sk_test_123" {
+		t.Fatalf("requête = %s auth=%q", gotPath, gotAuth)
+	}
+	for _, want := range []string{
+		"account=acct_test_123",
+		"type=account_onboarding",
+		"refresh_url=https%3A%2F%2Fstudio.qoe.test%2Fmonetization%3Fconnect%3Drefresh",
+		"return_url=https%3A%2F%2Fstudio.qoe.test%2Fmonetization%3Fconnect%3Dreturn",
+	} {
+		if !strings.Contains(gotForm, want) {
+			t.Fatalf("formulaire sans %q : %s", want, gotForm)
+		}
+	}
+
+	unconfigured := NewStripeClient("", "")
+	if _, err := unconfigured.CreateAccountLink(context.Background(), "acct_1", "https://a", "https://b"); !errors.Is(err, ErrNotConfigured) {
+		t.Fatalf("non configuré = %v, attendu ErrNotConfigured", err)
+	}
+}
+
+func TestAnnualCheckout_SelectionEtSession(t *testing.T) {
+	if got, ok := normalizeCheckoutInterval(""); !ok || got != "month" {
+		t.Fatalf("défaut = %q, %v", got, ok)
+	}
+	if got, ok := normalizeCheckoutInterval(" year "); !ok || got != "year" {
+		t.Fatalf("year = %q, %v", got, ok)
+	}
+	if _, ok := normalizeCheckoutInterval("week"); ok {
+		t.Fatal("cadence week devrait être refusée")
+	}
+
+	yearlyCents := 5000
+	tiers := []Tier{
+		{
+			ID:                   "t-monthly-only",
+			PublisherID:          "pub-1",
+			MonthlyPriceCents:    500,
+			StripePriceIDMonthly: "price_m1",
+		},
+		{
+			ID:                   "t-yearly",
+			PublisherID:          "pub-1",
+			MonthlyPriceCents:    700,
+			YearlyPriceCents:     &yearlyCents,
+			StripePriceIDMonthly: "price_m2",
+			StripePriceIDYearly:  "price_y2",
+		},
+	}
+
+	selected, priceID, cents, ok := selectPublicationTier(tiers, "year")
+	if !ok || selected.ID != "t-yearly" || priceID != "price_y2" || cents != 5000 {
+		t.Fatalf("sélection annuelle = %+v price=%q cents=%d ok=%v", selected, priceID, cents, ok)
+	}
+
+	if err := ValidatePrice(stripePrice(priceID, cents, "eur", "year", true), TierPriceCheck{Cents: cents, Interval: "year"}); err != nil {
+		t.Fatalf("validation tarif annuel = %v", err)
+	}
+
+	var gotPrice string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseForm()
+		gotPrice = r.PostForm.Get("line_items[0][price]")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"cs_year_1","url":"https://checkout.stripe.test/year"}`))
+	}))
+	defer srv.Close()
+
+	c := NewStripeClient("sk_test_123", srv.URL)
+	url, err := c.CreateCheckoutSession(context.Background(), CheckoutParams{
+		PriceID:       priceID,
+		UserID:        "user-1",
+		CreatorID:     "pub-1",
+		Plan:          "publication",
+		TierID:        selected.ID,
+		StripeAccount: "acct_1",
+		FeePercent:    5,
+		SuccessURL:    "https://qoe.test/billing?checkout=success",
+		CancelURL:     "https://qoe.test/billing?checkout=cancel",
+	})
+	if err != nil {
+		t.Fatalf("CreateCheckoutSession annuel: %v", err)
+	}
+	if url != "https://checkout.stripe.test/year" || gotPrice != "price_y2" {
+		t.Fatalf("url=%q price=%q", url, gotPrice)
+	}
+}
+
+func TestConnectOnboarding_Validation(t *testing.T) {
+	r := chi.NewRouter()
+	h := NewHandler(nil, "")
+	h.RegisterProtected(r)
+
+	// Sans utilisateur authentifié → 401.
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/billing/connect?publisherId=pub-1", nil)
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("sans auth = %d, attendu 401", w.Code)
+	}
+
+	// Sans publisherId → 400.
+	w = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/v1/billing/connect", nil)
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, "user-1"))
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("sans publisherId = %d, attendu 400", w.Code)
+	}
+
+	// Cadence invalide au checkout → 400.
+	w = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/v1/billing/checkout", strings.NewReader(`{"plan":"publication","publisherId":"pub-1","interval":"week"}`))
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, "user-1"))
+	h.stripe = NewStripeClient("sk_test_123", "https://stripe.invalid")
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("cadence invalide = %d, attendu 400 (body=%s)", w.Code, w.Body.String())
 	}
 }
