@@ -1,6 +1,54 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+/** Recadrage et médiathèque : doubles légers, aucun canvas ni réseau. */
+vi.mock('@qoe/ui/ui/ImageEditorDialog', () => ({
+  ImageEditorDialog: ({
+    open,
+    src,
+    onOpenChange,
+    onApply,
+  }: {
+    open: boolean;
+    src: string | null;
+    onOpenChange: (open: boolean) => void;
+    onApply: (result: { file: File }) => void;
+  }) =>
+    open ? (
+      <div data-testid="crop-dialog" data-src={src ?? ''}>
+        <button
+          type="button"
+          onClick={() =>
+            onApply({ file: new File(['cropped'], 'cover.webp', { type: 'image/webp' }) })
+          }
+        >
+          Appliquer le cadrage
+        </button>
+        <button type="button" onClick={() => onOpenChange(false)}>
+          Annuler le cadrage
+        </button>
+      </div>
+    ) : null,
+}));
+
+vi.mock('../MediaAssetPickerDialog', () => ({
+  MediaAssetPickerDialog: ({
+    open,
+    onSelect,
+  }: {
+    open: boolean;
+    onSelect: (asset: { id: string; url: string }) => void;
+  }) =>
+    open ? (
+      <button
+        type="button"
+        onClick={() => onSelect({ id: 'asset-1', url: 'https://cdn.qoe.fi/asset.webp' })}
+      >
+        Choisir cet asset
+      </button>
+    ) : null,
+}));
+
 import { CoverUploader } from '../CoverUploader';
 
 describe('CoverUploader', () => {
@@ -149,5 +197,146 @@ describe('CoverUploader', () => {
 
     fireEvent.change(input, { target: { files: [file] } });
     expect(createObjectURLSpy).toHaveBeenCalled();
+  });
+
+  it('ouvre le recadrage sur le fichier choisi puis envoie l’image recadrée', () => {
+    const onUpload = vi.fn();
+    render(
+      <CoverUploader
+        imageUrl={null}
+        title="Article"
+        isUploading={false}
+        onUpload={onUpload}
+        onRemove={vi.fn()}
+      />
+    );
+
+    const input = screen.getByLabelText(/Choisir la couverture de l'article/i);
+    fireEvent.change(input, {
+      target: { files: [new File(['dummy'], 'cover.png', { type: 'image/png' })] },
+    });
+
+    expect(createObjectURLSpy).toHaveBeenCalled();
+    expect(screen.getByTestId('crop-dialog').getAttribute('data-src')).toBe('blob:mock-url');
+
+    fireEvent.click(screen.getByRole('button', { name: /Appliquer le cadrage/ }));
+
+    expect(onUpload).toHaveBeenCalledTimes(1);
+    expect(onUpload.mock.calls[0][0]).toBeInstanceOf(File);
+    expect(screen.queryByTestId('crop-dialog')).toBeNull();
+  });
+
+  it('n’envoie rien si le recadrage est annulé et libère le blob', () => {
+    const onUpload = vi.fn();
+    render(
+      <CoverUploader
+        imageUrl={null}
+        title="Article"
+        isUploading={false}
+        onUpload={onUpload}
+        onRemove={vi.fn()}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText(/Choisir la couverture de l'article/i), {
+      target: { files: [new File(['dummy'], 'cover.png', { type: 'image/png' })] },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Annuler le cadrage/ }));
+
+    expect(onUpload).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('crop-dialog')).toBeNull();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
+  });
+
+  it('choisit une couverture existante dans la médiathèque', () => {
+    const onSelectImage = vi.fn();
+    render(
+      <CoverUploader
+        imageUrl={null}
+        title="Article"
+        isUploading={false}
+        onUpload={vi.fn()}
+        onSelectImage={onSelectImage}
+        onRemove={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Choisir dans la médiathèque/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Choisir cet asset/ }));
+
+    expect(onSelectImage).toHaveBeenCalledWith('https://cdn.qoe.fi/asset.webp');
+  });
+
+  it('signale l’alt manquant puis le masque une fois la description saisie', () => {
+    const onCoverAltChange = vi.fn();
+    const { rerender } = render(
+      <CoverUploader
+        imageUrl="https://cdn.qoe.fi/cover.webp"
+        title="Article"
+        coverAlt=""
+        onCoverAltChange={onCoverAltChange}
+        onCoverDecorativeChange={vi.fn()}
+        isUploading={false}
+        onUpload={vi.fn()}
+        onRemove={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(/Alt manquant/)).toBeDefined();
+
+    rerender(
+      <CoverUploader
+        imageUrl="https://cdn.qoe.fi/cover.webp"
+        title="Article"
+        coverAlt="Une place vide au petit matin"
+        onCoverAltChange={onCoverAltChange}
+        onCoverDecorativeChange={vi.fn()}
+        isUploading={false}
+        onUpload={vi.fn()}
+        onRemove={vi.fn()}
+      />
+    );
+    expect(screen.queryByText(/Alt manquant/)).toBeNull();
+    expect(document.querySelector('img')).toHaveAttribute('alt', 'Une place vide au petit matin');
+  });
+
+  it('bloque les actions de couverture pendant un envoi', () => {
+    render(
+      <CoverUploader
+        imageUrl="https://cdn.qoe.fi/cover.webp"
+        title="Article"
+        isUploading
+        onUpload={vi.fn()}
+        onSelectImage={vi.fn()}
+        onRemove={vi.fn()}
+      />
+    );
+
+    expect(
+      (screen.getByRole('button', { name: /Changer l'image/ }) as HTMLButtonElement).disabled
+    ).toBe(true);
+    expect(
+      (screen.getByRole('button', { name: /Médiathèque/ }) as HTMLButtonElement).disabled
+    ).toBe(true);
+  });
+
+  it('accepte une image déposée sur la couverture existante', () => {
+    render(
+      <CoverUploader
+        imageUrl="https://cdn.qoe.fi/cover.webp"
+        title="Article"
+        isUploading={false}
+        onUpload={vi.fn()}
+        onRemove={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByTestId('crop-dialog')).toBeNull();
+
+    fireEvent.drop(screen.getByRole('img').parentElement as HTMLElement, {
+      dataTransfer: { files: [new File(['dummy'], 'drop.png', { type: 'image/png' })] },
+    });
+
+    expect(screen.getByTestId('crop-dialog')).toBeDefined();
   });
 });
