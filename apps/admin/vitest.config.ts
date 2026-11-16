@@ -16,6 +16,10 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    // Même plancher que core/studio/tenants : les rendus jsdom (file de
+    // modération) dépassent 5 s sur un runner CI partagé — jamais en local.
+    // Aucune assertion n'est assouplie, seule la limite de temps change.
+    testTimeout: 20_000,
     setupFiles: ['./vitest.setup.ts'],
     env: {
       NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co',
