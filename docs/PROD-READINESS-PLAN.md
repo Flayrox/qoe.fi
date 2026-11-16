@@ -197,6 +197,25 @@ route. Cibles utiles :
   en base, il faut le prouver).
 - `account.updated` (Connect) : passage `charges_enabled` et conséquences.
 
+### Lancer les suites Go en local (Docker requis, jamais Hetzner)
+
+Deux modes, tous deux **strictement locaux** — les tests ne lisent jamais
+`DATABASE_URL` (base de dev Hetzner), seulement `TEST_DATABASE_URL` :
+
+| Mode | Commande | Ce qui tourne |
+| --- | --- | --- |
+| Testcontainers (défaut) | `cd apps/api && go test ./...` | un conteneur Postgres jetable **par paquet**, détruit ensuite |
+| Base unique (plus rapide) | `bash scripts/test-api.sh [pkgs…]` | `docker-compose.test.yml` → `127.0.0.1:55432`, base `qoe_test`, `-p 1` |
+
+Garde-fou : `testutil.validateTestDatabaseURL` refuse toute URL dont la base ne
+finit pas par `_test` (« la base dev est protegee »). Indispensable : les
+fixtures font des `TRUNCATE` massifs. L'app Go ne tourne pas dans Docker — seul
+Postgres est conteneurisé.
+
+Prérequis poste : daemon Docker actif (OrbStack installé mais arrêté au 16/11 :
+`orb start`). Sans lui, les suites DB **skippent** silencieusement et la
+couverture Go locale est fausse (ex. `newsletters` 13,6 % au lieu de 76 %+).
+
 ### ⚪ Priorité 5 — Workers asynchrones (`internal/workers`)
 
 Sans test dédié aujourd'hui : `bulk_import.go`, `collab_cleanup.go`,
