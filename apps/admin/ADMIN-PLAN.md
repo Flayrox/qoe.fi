@@ -261,8 +261,8 @@ Le lot UI du fil `UI.md` est adopté dans la console : header
 (`Button`/`Icon`/`Kbd`), files incidents, support, accès, panneau de contrôle
 API, et toggles de méthodes de connexion. Aucun `requireCapability` ni garde
 retiré ; le correctif du 500 de `/admin/config` (`TableBody` itéré) est inclus.
-Commits : `1bf30bef`, `526ac8c5`. Vérifié : typecheck admin 0, 63/63 tests
-admin, ESLint 0, ratchet UI à 301 boutons natifs / 75 fichiers.
+Commits : `1bf30bef`, `526ac8c5`, `34936b14`. Vérifié : typecheck admin 0,
+63/63 tests admin, ESLint 0, ratchet UI à 297 boutons natifs / 71 fichiers.
 
 ---
 
