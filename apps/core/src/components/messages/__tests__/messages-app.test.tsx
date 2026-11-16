@@ -8,8 +8,8 @@
 // rend le fichier mesurable — sinon il disparaissait silencieusement du rapport.
 // =====================================================================
 
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
 
 import { getConversationsAction } from '@qoe/sdk/actions/messages';
 import { searchUsersAction } from '@qoe/sdk/actions/feed';
@@ -28,11 +28,6 @@ vi.mock('@qoe/ui', () => ({ SafeAvatar: () => null }));
 
 const listConversations = vi.mocked(getConversationsAction);
 const searchUsers = vi.mocked(searchUsersAction);
-
-// `apps/core` n'active pas le cleanup automatique de Testing Library : sans
-// ça, le DOM des tests précédents s'accumule et les `getByRole` deviennent
-// ambigus dès que la suite complète tourne.
-afterEach(cleanup);
 
 describe('MessagesApp', () => {
   beforeEach(() => {
