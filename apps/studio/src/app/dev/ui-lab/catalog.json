@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-11-16T00:21:31.306Z",
+  "generatedAt": "2026-11-16T00:22:44.497Z",
   "total": 454,
   "signals": {
     "primitivesNeverImported": 5,
     "primitivesTotal": 28,
-    "rawButtons": 300,
-    "rawButtonFiles": 74,
+    "rawButtons": 297,
+    "rawButtonFiles": 71,
     "nativeSelectFiles": 0,
     "rawInputFiles": 35,
     "handRolledOverlays": 3
@@ -195,7 +195,7 @@
           "path": "packages/ui/src/primitives/icon-button/icon-button.tsx",
           "lines": 56,
           "source": "primitives",
-          "usages": 2
+          "usages": 5
         },
         {
           "name": "input",
@@ -984,7 +984,7 @@
           "path": "packages/ui/src/primitives/icon-button/icon-button.tsx",
           "lines": 56,
           "source": "ui",
-          "usages": 2
+          "usages": 5
         },
         {
           "name": "input",
@@ -3097,7 +3097,7 @@
         {
           "name": "CopyableId",
           "path": "apps/admin/src/components/shell/CopyableId.tsx",
-          "lines": 69,
+          "lines": 68,
           "source": "admin",
           "usages": null
         },

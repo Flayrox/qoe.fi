@@ -10,7 +10,8 @@
 // =====================================================================
 
 import React from 'react';
-import { ArrowUpRight, Inbox } from 'lucide-react';
+import { Icon } from '@qoe/ui/icons';
+import { IconButton } from '@qoe/ui/icon-button';
 import {
   DEFAULT_FEATURE_LOCALE,
   UpcomingBadge,
@@ -55,7 +56,7 @@ export function FeatureInterestBlock({
 
       {signals.length === 0 ? (
         <div className="flex items-center gap-2.5 rounded-lg border border-dashed border-border/50 px-3.5 py-3 text-xs text-muted-foreground">
-          <Inbox className="w-4 h-4 shrink-0 opacity-60" aria-hidden="true" />
+          <Icon name="archive" className="shrink-0 opacity-60" />
           <span>
             {t(
               'Aucune fonctionnalité à venir consultée pour le moment.',
@@ -88,14 +89,16 @@ export function FeatureInterestBlock({
                     {count(signal.notifies, t('demande', 'request'), t('demandes', 'requests'))}
                   </span>
                   {knownKey ? (
-                    <button
-                      type="button"
+                    <IconButton
+                      label={t('Revoir l’annonce', 'Review the announcement')}
+                      size="xs"
+                      variant="ghost"
+                      tooltip={false}
                       onClick={() => announcement.open(knownKey)}
-                      aria-label={t('Revoir l’annonce', 'Review the announcement')}
-                      className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                      className="text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
-                      <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
-                    </button>
+                      <Icon name="arrow-up-right" />
+                    </IconButton>
                   ) : null}
                 </div>
               </li>

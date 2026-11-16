@@ -3,7 +3,8 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X } from 'lucide-react';
+import { Icon } from '@qoe/ui/icons';
+import { IconButton } from '@qoe/ui/icon-button';
 import { cn } from '@qoe/utils';
 import { navByDomain, normalizeCapabilities, type AdminCapability } from '@/lib/admin-console';
 import { DENSITY } from '@/components/shell/tokens';
@@ -57,20 +58,18 @@ export function AdminSidebar({ identity, queueCounts = {} }: AdminSidebarProps) 
             console
           </span>
         </Link>
-        <button
-          type="button"
+        <IconButton
+          label={mobileOpen ? 'Fermer la navigation' : 'Ouvrir la navigation'}
+          size="xs"
+          variant="ghost"
+          tooltip={false}
           onClick={() => setMobileOpen((open) => !open)}
           aria-expanded={mobileOpen}
           aria-controls="admin-navigation"
-          aria-label={mobileOpen ? 'Fermer la navigation' : 'Ouvrir la navigation'}
-          className="rounded p-1 text-muted-foreground hover:bg-background hover:text-foreground md:hidden"
+          className="text-muted-foreground hover:bg-background hover:text-foreground md:hidden"
         >
-          {mobileOpen ? (
-            <X className="size-4" aria-hidden />
-          ) : (
-            <Menu className="size-4" aria-hidden />
-          )}
-        </button>
+          <Icon name={mobileOpen ? 'x' : 'menu'} />
+        </IconButton>
       </div>
 
       <div
