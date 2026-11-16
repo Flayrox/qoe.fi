@@ -201,8 +201,16 @@ export function ArticleHistoryModal({
       if (cancelled) return;
       if (eventsRes.ok) setEvents(eventsRes.data);
       if (snapshotsRes.ok) setSnapshots(snapshotsRes.data);
-      if (!eventsRes.ok && !snapshotsRes.ok) {
-        setError(eventsRes.error?.message || t`Impossible de charger l'historique.`);
+      // Un seul des deux flux peut échouer : sans message, l'onglet concerné
+      // restait blanc (ni liste, ni « vide », ni erreur) et l'auteur croyait
+      // qu'il n'y avait aucun historique.
+      if (!eventsRes.ok || !snapshotsRes.ok) {
+        const message = !eventsRes.ok
+          ? eventsRes.error?.message
+          : !snapshotsRes.ok
+            ? snapshotsRes.error?.message
+            : undefined;
+        setError(message || t`Impossible de charger l'historique.`);
       }
     });
 

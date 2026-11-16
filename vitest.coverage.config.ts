@@ -73,10 +73,11 @@ export default defineConfig({
       // du gate (2026-08). Une baisse DOIT s'accompagner de nouveaux tests,
       // pas d'un seuil abaissé. Objectif final : 80% sur le code métier.
       // Ratchets remontés le 2026-11-16 au niveau mesuré moins un point, puis
-      // relevés après les tests sitemap/actions de compte (mesures : sdk 49,03 ·
-      // auth 42,80 · utils 79,52 · flags 74,07 · moderation 89,78 ·
-      // core/app 17,76 · core/components 13,51 · mobile 12,47). Une baisse doit
-      // s'accompagner de nouveaux tests, jamais d'un seuil abaissé.
+      // relevés après les tests sitemap/actions de compte et le composeur de
+      // pensées (mesures : sdk 49,03 · auth 42,80 · utils 82,17 · flags 74,07 ·
+      // moderation 89,78 · core/app 25,04 · core/components 13,51 ·
+      // mobile 12,47). Une baisse doit s'accompagner de nouveaux tests, jamais
+      // d'un seuil abaissé.
       thresholds: {
         'packages/sdk/**': { lines: 48, statements: 46, functions: 43, branches: 38 },
         'packages/auth/**': { lines: 41, statements: 41, functions: 41, branches: 30 },
@@ -85,7 +86,7 @@ export default defineConfig({
         'packages/moderation/**': { lines: 88, statements: 85, functions: 91, branches: 80 },
         // Zones front jusqu'ici sans plancher : posées au niveau mesuré moins
         // un point, pour qu'elles ne repartent pas à la baisse sur du code neuf.
-        'apps/core/src/app/**': { lines: 16, statements: 16, functions: 13, branches: 13 },
+        'apps/core/src/app/**': { lines: 24, statements: 23, functions: 17, branches: 19 },
         'apps/core/src/components/**': { lines: 12, statements: 11, functions: 7, branches: 7 },
         'apps/mobile/**': { lines: 11, statements: 12, functions: 7, branches: 10 },
         // Logic pure des apps front (core) et mobile — gate mesuré séparément
