@@ -70,6 +70,31 @@ Deux échecs distincts sur `f031ab67`, tous deux côté tests :
 Vérification : `pnpm --filter @qoe/config test` (local) et le job Go en CI (la
 suite exige Testcontainers, donc Docker → CI uniquement).
 
+### 3.b Échecs préexistants révélés ensuite (masqués par le premier rouge)
+
+Trois jobs étaient rouges avant cette reprise, sans rapport avec le commit :
+
+1. **`@qoe/studio` — `article-list-row.test.tsx`** : le test cherchait le titre
+   « Publisher automatique programmée » alors que la pastille affiche (en bon
+   français) « Publication automatique programmée ». Correctif : le test suit le
+   libellé réel, les assertions restent identiques.
+2. **Go — `TestStripe_PaymentSucceeded_CreditsOwnerWallet`** : le test attendait
+   5 % parce que le compte était *creator*. Le barème a changé (commit billing) :
+   la commission suit désormais le **droit Pro** (`SubscriptionGrant`), pas le
+   rôle. Correctif : le test vérifie les deux cas — 10 % sans octroi (1800), puis
+   octroi Pro + second paiement → 5 % (1800 + 1900 = 3700).
+3. **Go — `TestDevtoolsHandler_Reindex_NoMeili`** : le test ne passait que si un
+   autre paquet avait laissé des articles en base partagée ; base vide, la boucle
+   d'upsert n'était jamais atteinte et le reindex répondait 200 sans Meili.
+   Correctif côté **code** (pas côté test) : `ReindexAll` sonde désormais
+   `GET /health` et échoue explicitement si Meili est injoignable — un reindex ne
+   doit pas « réussir » sur un index absent.
+4. **`E2E Apps (studio)`** : `e2e/studio-editor-fixtures.spec.ts` vise
+   `/dev/editor-check`, que `page.tsx` renvoyait en `notFound()` quand
+   `NODE_ENV === 'production'`… or le job sert un **build** (`next start`).
+   Correctif : la route s'ouvre hors dev uniquement si `QOE_E2E_DEV_ROUTES=1`,
+   variable posée **au build** dans le job E2E et jamais dans l'image de prod.
+
 ---
 
 ## 4. Étape 2 — Déploiement production Netcup
@@ -214,4 +239,5 @@ référence externes, non de la documentation projet).
 | Date | Étape | Résultat mesuré | Commit |
 | --- | --- | --- | --- |
 | 2026-11-16 | Reprise, état des lieux | `dev` = `origin/dev` = `origin/main` = `f031ab67`, arbre propre ; images GHCR OK (run `43884256587`) ; CI rouge (run `43884256529`) ; VPS joignable, stack vieille de 37 h | — |
-| 2026-11-16 | Étape 1 — CI rouge corrigée | `@qoe/config` : ordre sidebar 13 entrées (viewer 8) ; Go : sujet UUID réaliste dans `TestExtendPlanGrant_ProlongeSansDoublon` | _(ce commit)_ |
+| 2026-11-16 | Étape 1 — CI rouge corrigée | `@qoe/config` : ordre sidebar 13 entrées (viewer 8) ; Go : sujet UUID réaliste dans `TestExtendPlanGrant_ProlongeSansDoublon` | `e4a5ecc2` |
+| 2026-11-16 | Étape 1bis — 4 échecs préexistants | studio : libellé « Publication automatique programmée » ; Go : barème 10 %/5 % selon le droit Pro ; `ReindexAll` sonde Meili ; banc `/dev/editor-check` ouvert au build E2E via `QOE_E2E_DEV_ROUTES=1` | _(ce commit)_ |

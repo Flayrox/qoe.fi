@@ -251,14 +251,37 @@ func (s *SearchWorker) HandleSearchSync(ctx context.Context, t *asynq.Task) erro
 	return nil
 }
 
+// ping vérifie que Meilisearch répond. Seule l'absence de réponse est une
+// erreur : un index manquant ou un statut 4xx reste traité par Setup, qui
+// recrée l'index et pousse les réglages.
+func (s *SearchWorker) ping(ctx context.Context, host string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		strings.TrimSuffix(host, "/")+"/health", nil)
+	if err != nil {
+		return fmt.Errorf("meilisearch: %w", err)
+	}
+	resp, err := (&http.Client{Timeout: 5 * time.Second}).Do(req)
+	if err != nil {
+		return fmt.Errorf("meilisearch injoignable: %w", err)
+	}
+	defer resp.Body.Close()
+	return nil
+}
+
 // ReindexAll re-synchronise l'index Meilisearch avec TOUS les articles de la
 // base. Les documents existants sont réécrits : c'est ce qui propage les
 // nouveaux champs (imageUrl, readingTime) sur un index déjà déployé.
 // Retourne (total en base, upsertés).
 func (s *SearchWorker) ReindexAll(ctx context.Context) (total, upserted int, err error) {
+	host := envOr("MEILISEARCH_HOST", "http://localhost:7700")
+	// Meilisearch injoignable = échec explicite, MÊME sur une base vide : sans
+	// ce contrôle, un reindex « réussissait » avec 0 document alors que l'index
+	// n'existe pas (constaté en CI, cf. TestDevtoolsHandler_Reindex_NoMeili).
+	if err := s.ping(ctx, host); err != nil {
+		return 0, 0, err
+	}
 	s.Setup(ctx)
 
-	host := envOr("MEILISEARCH_HOST", "http://localhost:7700")
 	key := envOr("MEILI_MASTER_KEY", "qoe_master_key_123")
 	idx := meilisearch.New(host, meilisearch.WithAPIKey(key)).Index(searchIndex)
 
