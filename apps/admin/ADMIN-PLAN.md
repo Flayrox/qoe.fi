@@ -255,6 +255,15 @@ grep -rn "<table" apps/admin/src --include=*.tsx | wc -l
 - Vues sauvegardées : local d'abord, base ensuite (une table `admin_saved_views`
   par personne et par ressource).
 
+## 9. Adoption UI (2026-11-16)
+
+Le lot UI du fil `UI.md` est adopté dans la console : header
+(`Button`/`Icon`/`Kbd`), files incidents, support, accès, panneau de contrôle
+API, et toggles de méthodes de connexion. Aucun `requireCapability` ni garde
+retiré ; le correctif du 500 de `/admin/config` (`TableBody` itéré) est inclus.
+Commits : `1bf30bef`, `526ac8c5`. Vérifié : typecheck admin 0, 63/63 tests
+admin, ESLint 0, ratchet UI à 301 boutons natifs / 75 fichiers.
+
 ---
 
 ## 📝 Instructions
