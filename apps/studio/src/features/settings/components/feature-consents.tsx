@@ -8,6 +8,7 @@
 // =====================================================================
 
 import { getFeature, localize } from '@qoe/ui';
+import { Button } from '@qoe/ui/button';
 import { getFeatureCatalogAction, unsubscribeFeatureAction } from '@/features/upcoming/actions';
 
 export async function FeatureConsents() {
@@ -35,12 +36,14 @@ export async function FeatureConsents() {
               >
                 <span className="text-sm font-medium text-foreground">{label}</span>
                 <form action={unsubscribeFeatureAction.bind(null, feature.key)}>
-                  <button
+                  <Button
                     type="submit"
-                    className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-3 text-xs font-semibold text-muted-foreground"
                   >
                     Ne plus me prévenir
-                  </button>
+                  </Button>
                 </form>
               </li>
             );

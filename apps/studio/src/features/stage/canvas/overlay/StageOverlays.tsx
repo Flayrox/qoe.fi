@@ -1,14 +1,13 @@
 // =====================================================================
 // StageOverlays — overlay canvas
 // Ref brute : vendor/onlook/_components/canvas/overlay/elements/rect/*,
-// measurement.tsx, snap-guidelines.tsx, drag-select.tsx, recenter button.
+// measurement.tsx, snap-guidelines.tsx, drag-select.tsx.
 // Souverain : DOM direct [data-block-id], pas de penpal/iframe.
 // =====================================================================
 
 'use client';
 
 import React from 'react';
-import { Crosshair } from 'lucide-react';
 import type { StageRect } from '../../engine/models';
 
 export function HoverRect({ rect }: { rect: StageRect }) {
@@ -186,19 +185,5 @@ export function DragSelectRect({
       className="pointer-events-none absolute z-50 rounded-[1px] border border-primary bg-primary/10"
       style={{ left: x, top: y, width: w, height: h }}
     />
-  );
-}
-
-export function RecenterButton({ onRecenter }: { onRecenter: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onRecenter}
-      className="absolute bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-border bg-background/95 px-3.5 py-1.5 text-xs font-medium shadow-sm backdrop-blur-md transition-colors hover:bg-muted"
-    >
-      <Crosshair className="h-3.5 w-3.5 text-muted-foreground" />
-      <span>Recentrer le canvas</span>
-      <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px]">⇧0</kbd>
-    </button>
   );
 }

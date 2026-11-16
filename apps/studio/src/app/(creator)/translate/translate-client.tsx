@@ -5,8 +5,11 @@
 // =====================================================================
 
 import { useState, useTransition } from 'react';
-import { Copy, Loader2 } from 'lucide-react';
 import { t } from '@lingui/core/macro';
+import { Button } from '@qoe/ui/button';
+import { Callout } from '@qoe/ui/callout';
+import { Icon } from '@qoe/ui/icons';
+import { Select } from '@qoe/ui/select';
 
 import { translateArticleAction } from './actions';
 
@@ -68,57 +71,44 @@ export function TranslateClient({ articles }: { articles: TranslatableArticle[] 
     <div className="space-y-5">
       <section className="rounded-2xl border border-border/60 bg-card p-5">
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_160px_auto] sm:items-end">
-          <label className="text-xs font-medium text-foreground">
-            {t`Article`}
-            <select
-              value={selectedId}
-              onChange={(event) => {
-                setSelectedId(event.target.value);
-                setResult(null);
-              }}
-              className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
-            >
-              {articles.map((article) => (
-                <option key={article.id} value={article.id}>
-                  {article.title}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label={t`Article`}
+            size="sm"
+            value={selectedId}
+            onValueChange={(value) => {
+              setSelectedId(value);
+              setResult(null);
+            }}
+            options={articles.map((article) => ({ id: article.id, label: article.title }))}
+          />
 
-          <label className="text-xs font-medium text-foreground">
-            {t`Langue cible`}
-            <select
-              value={target}
-              onChange={(event) => setTarget(event.target.value)}
-              className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
-            >
-              {LANGUAGES.map((language) => (
-                <option key={language.code} value={language.code}>
-                  {language.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label={t`Langue cible`}
+            size="sm"
+            value={target}
+            onValueChange={setTarget}
+            options={LANGUAGES.map((language) => ({
+              id: language.code,
+              label: language.label,
+            }))}
+          />
 
-          <button
-            type="button"
+          <Button
+            variant="solid"
+            tone="neutral"
+            size="sm"
+            loading={isPending}
+            disabled={!selected}
             onClick={run}
-            disabled={isPending || !selected}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-foreground px-4 py-2 text-xs font-bold text-background transition-opacity hover:opacity-90 disabled:opacity-60"
           >
-            {isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             {isPending ? t`Traduction…` : t`Traduire`}
-          </button>
+          </Button>
         </div>
 
         {error && (
-          <p
-            role="alert"
-            className="mt-4 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive-text"
-          >
+          <Callout tone="danger" live className="mt-4">
             {error}
-          </p>
+          </Callout>
         )}
       </section>
 
@@ -126,14 +116,10 @@ export function TranslateClient({ articles }: { articles: TranslatableArticle[] 
         <section className="rounded-2xl border border-border/60 bg-card p-5">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-foreground">{t`Traduction`}</h2>
-            <button
-              type="button"
-              onClick={() => void copy()}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <Copy className="h-3 w-3" />
+            <Button variant="outline" size="xs" onClick={() => void copy()}>
+              <Icon name={copied ? 'check' : 'copy'} size="sm" />
               {copied ? t`Copié` : t`Copier`}
-            </button>
+            </Button>
           </div>
           <div className="mt-3 whitespace-pre-wrap rounded-xl bg-muted/40 p-4 text-sm leading-relaxed text-foreground">
             {result}
