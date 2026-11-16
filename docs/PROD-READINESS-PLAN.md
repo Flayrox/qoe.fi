@@ -155,7 +155,7 @@ remettre les images précédentes (`qoefi-<service>:<sha>` est publié à chaque
 | --------------------- | ------- | ---------------- | -------------- |
 | `packages/ui`         | 56,50 % | 84 / 554         | 55 %           |
 | `apps/tenants`        | 24,00 % | 11 / 39          | 23 %           |
-| `apps/studio`         | 27,91 % | 59 / 477         | 26 %           |
+| `apps/studio`         | 32,11 % | 61 / 537         | 31 %           |
 | `apps/admin`          | 10,88 % | 14 / 88          | 9 %            |
 | **Agrégé TypeScript** | 27,39 % | 87 / 761         | —              |
 
@@ -175,7 +175,7 @@ métriques (lignes, statements, fonctions, branches) :
 | `apps/core/src/app/**`        | _aucun_           | 24 / 23 / 17 / 19 |
 | `apps/core/src/components/**` | _aucun_           | 12 / 11 / 7 / 7   |
 | `apps/mobile/**`              | _aucun_           | 11 / 12 / 7 / 10  |
-| `apps/studio`                 | 9 % partout       | 26 / 26 / 25 / 25 |
+| `apps/studio`                 | 9 % partout       | 31 / 30 / 29 / 29 |
 | `packages/ui`                 | 55 / 53 / 48 / 48 | 55 / 53 / 48 / 49 |
 | `apps/admin`                  | 4 / 4 / 3 / 3     | 9 / 9 / 6 / 8     |
 | `apps/tenants`                | 23 / 22 / 17 / 24 | 23 / 22 / 18 / 24 |
@@ -206,6 +206,11 @@ inchangé) : en-tête d'éditeur, couverture, suggestions IA, annotations collé
 **Seuils relevés une sixième fois le 16/11** après la passe « actions groupées
 sur les articles » (mesures : studio 27,91/27,82/26,15/26,66 ; core/app
 inchangé) : dialogues de paramètres groupés et de transfert vers une publication.
+
+**Seuils relevés une septième fois le 16/11** après la passe « studio Média »
+(mesures : studio 32,11/31,85/30,79/30,51 ; core/app inchangé) : logique pure du
+studio Média extraite et testée, plus un parcours complet du composant
+(membres, permissions, invitations, journal d'audit, création, réglages).
 
 ### Fait le 16/11 (passe éditeur)
 
@@ -374,6 +379,36 @@ inchangé) : dialogues de paramètres groupés et de transfert vers une publicat
   deux distinguent désormais l'action (réussie) du rafraîchissement (échoué) :
   message dédié « … la liste n'a pas pu être rafraîchie », succès conservé.
 
+### Fait le 16/11 (studio Média)
+
+- **`media-studio-logic`** (27 tests) : logique pure extraite de
+  `MediaStudioClient` pour être testable sans DOM — traduction du journal
+  d'audit (création du Média, réglages avec champs traduits ou nom technique,
+  actions éditoriales avec titre, programmation datée ou illisible, approbation
+  et refus avec commentaire, transferts entrants/sortants, mouvements d'équipe,
+  liens d'invitation, clés API, action inconnue), statut d'un lien (révoqué >
+  expiré > épuisé > actif), permissions effectives (défauts du rôle,
+  overrides explicites, rôle inconnu) et bascule d'une permission.
+- **`MediaStudioClient`** (33 tests) : chargement et échec de chargement avec
+  motif serveur, formulaire de création quand aucun Média n'existe (validation
+  nom/permalien, création qui pose le cookie d'espace et redirige, échec qui ne
+  redirige pas), identité de la publication (domaine, rôle, compteurs, bio),
+  bascule vers un autre Média et bouton « Ouvrir cet espace » (cookie + push),
+  membres triés par rang de rôle et propriétaire sans action, changement de
+  rôle avec rechargement, retrait avec confirmation (annulée puis acceptée),
+  bascule de permission envoyant la liste complète, rédacteur qui ne gère pas
+  l'équipe, onglets Clés API/Activité masqués sans droits, liens d'invitation
+  (statuts actif/expiré/épuisé/révoqué, génération avec rôle + durée +
+  utilisations, copie confirmée, presse-papiers indisponible, révocation),
+  recherche de créateur debouncée puis invitation, journal d'audit (entrées
+  décrites, acteur supprimé, pagination, filtre par catégorie, états vides
+  différenciés, erreur de chargement, recherche debouncée) et réglages du Média
+  (enregistrement du payload).
+- **Défaut corrigé** : après un clic sur « Copier », le bouton restait sur
+  « Copier » — la collection du tableau react-aria est mémoïsée sur l'identité
+  d'`items`, donc la ligne ne voyait jamais le nouvel état. L'état de copie
+  fait désormais partie des items ; la confirmation « Copié » s'affiche.
+
 ### Reste à faire
 
 - **`apps/admin`** : octrois `SubscriptionGrant` depuis la console, écrans de
@@ -493,3 +528,4 @@ terminée).
 | 2026-11-16 | Tests + bugs (zone éditeur restée hors périmètre) | 96 tests : `EditorSettingsDrawer` (19), `EditorToolbar` (16), `SelectionToolbar` (9), `RecoverArticleModal` (10), `ReaderPreviewDialog` (10), `ArticleDiffModal` (13), `useCollaborationSession` (14, transport et auth simulés), `PublishModal` (+3). Corrigés : approbation/retouche/abandon dans le diff et publication qui rejetaient une promesse non gérée (aucun message, modale apparemment figée) — `catch` + `toast.error`, modal maintenue ouverte et bouton réactivé. Seuils studio 20/20/17/16 → 25/24/23/22 (mesure 26,01/25,85/24,04/23,45). `test:coverage`, `test:coverage:front`, `typecheck`, `lint` verts.                                                                                                                                                                      | _(ce commit)_ |
 | 2026-11-16 | Tests + bug (en-tête et dialogues d'éditeur)      | 56 tests : `EditorHeader` (23), `PastedAnnotationsDialog` (12), `AiSuggestionDialog` (9), `CoverUploader` (+6, recadrage et médiathèque simulés). Corrigé : une date de programmation illisible affichait « Programmé · » suivi de rien — repli sur « Programmé ». Seuils studio 25/24/23/22 → 25/25/23/24 (mesure 26,61/26,43/24,82/25,29).                                                                                                                                                                                                                                                                                                                                                                                                                                                        | _(ce commit)_ |
 | 2026-11-16 | Tests + bug (actions groupées sur les articles)   | 37 tests : `ArticleBulkSettingsDialog` (19), `ArticleBulkTransferDialog` (16, progression pilotée par promesses différées). Corrigé : un rafraîchissement de liste raté après une action réussie passait pour un échec de la modification groupée/du transfert et laissait une promesse rejetée non gérée ; l'action et le rafraîchissement sont désormais distingués. Seuils studio 25/25/23/24 → 26/26/25/25 (mesure 27,91/27,82/26,15/26,66).                                                                                                                                                                                                                                                                                                                                                    | _(ce commit)_ |
+| 2026-11-16 | Tests + bug (studio Média)                        | 60 tests : `media-studio-logic` (27, logique pure extraite de `MediaStudioClient`) et `MediaStudioClient` (33). Corrigé : le bouton « Copier » d'un lien d'invitation restait bloqué sur « Copier » — la collection du tableau react-aria, mémoïsée sur l'identité d'`items`, ne voyait pas l'état de copie ; il fait désormais partie des items. Seuils studio 26/26/25/25 → 31/30/29/29 (mesure 32,11/31,85/30,79/30,51).                                                                                                                                                                                                                                                                                                                                                                         | _(ce commit)_ |
