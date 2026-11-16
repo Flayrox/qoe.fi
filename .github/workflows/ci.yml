@@ -668,6 +668,10 @@ jobs:
       - name: Build app for E2E (next start)
         run: pnpm intl:compile && pnpm --filter @qoe/${{ matrix.app }} build
         env:
+          # Le banc /dev/editor-check de studio n'existe qu'en dev : le spec
+          # e2e/studio-editor-fixtures.spec.ts tourne sur ce build de
+          # production, on l'autorise donc explicitement ici (jamais en prod).
+          QOE_E2E_DEV_ROUTES: '1'
           NEXT_TELEMETRY_DISABLED: '1'
           SKIP_ENV_VALIDATION: 'true'
           QOE_API_URL: 'http://localhost:8091'

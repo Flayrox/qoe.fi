@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/meilisearch/meilisearch-go"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/subscriptions"
 	"github.com/qoefi/api/internal/testutil"
 	"github.com/qoefi/api/internal/vectorfeed"
 )
@@ -145,15 +146,42 @@ func TestStripe_PaymentSucceeded_CreditsOwnerWallet(t *testing.T) {
 		t.Fatalf("HandleStripeEvent: %v", err)
 	}
 
-	// Owner role = creator → plan PRO → frais 5% → crédit 19,00 € (1900 cents).
+	// Barème unique : c'est le droit Pro (SubscriptionGrant) qui fixe la
+	// commission, plus le rôle du compte. Sans octroi Pro → 10 % → 18,00 €.
 	var balance int32
 	if err := poolTest.QueryRow(context.Background(),
 		`SELECT "walletBalanceCents" FROM "User" WHERE id = $1`, ownerID,
 	).Scan(&balance); err != nil {
 		t.Fatalf("wallet: %v", err)
 	}
-	if balance != 1900 {
-		t.Fatalf("wallet = %d, attendu 1900 (2000 - 5%%)", balance)
+	if balance != 1800 {
+		t.Fatalf("wallet = %d, attendu 1800 (2000 - 10%%)", balance)
+	}
+
+	// Avec le droit Pro accordé à la publication, la commission passe à 5 %.
+	now := time.Now().UTC()
+	if _, err := subscriptions.GrantPlan(context.Background(), poolTest,
+		subscriptions.SubjectPublisher, pubID, subscriptions.PlanPro, now, nil,
+		"staff", "test barème", now); err != nil {
+		t.Fatalf("octroi Pro: %v", err)
+	}
+	if err := worker.HandleStripeEvent(context.Background(), stripeTask(t, "evt_2", "invoice.payment_succeeded", map[string]any{
+		"metadata": map[string]any{
+			"creatorId":       pubID,
+			"subscriberEmail": "reader@test.dev",
+		},
+		"customer_email": "reader@test.dev",
+		"amount_paid":    float64(2000),
+	})); err != nil {
+		t.Fatalf("HandleStripeEvent (Pro): %v", err)
+	}
+	if err := poolTest.QueryRow(context.Background(),
+		`SELECT "walletBalanceCents" FROM "User" WHERE id = $1`, ownerID,
+	).Scan(&balance); err != nil {
+		t.Fatalf("wallet (Pro): %v", err)
+	}
+	if balance != 3700 {
+		t.Fatalf("wallet = %d, attendu 3700 (1800 + 2000 - 5%%)", balance)
 	}
 
 	// L'abonné est premium (isActive + isPremium + LTV).
