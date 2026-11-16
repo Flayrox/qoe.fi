@@ -93,7 +93,14 @@ Trois jobs étaient rouges avant cette reprise, sans rapport avec le commit :
    `/dev/editor-check`, que `page.tsx` renvoyait en `notFound()` quand
    `NODE_ENV === 'production'`… or le job sert un **build** (`next start`).
    Correctif : la route s'ouvre hors dev uniquement si `QOE_E2E_DEV_ROUTES=1`,
-   variable posée **au build** dans le job E2E et jamais dans l'image de prod.
+   variable posée **au build** et **au rendu** (middleware + serveur Playwright),
+   jamais dans l'image de prod.
+5. **Catalogues Lingui incomplets** : `Libellé de la source {0}` (et ~900 autres
+   messages récents) n'avaient jamais été extraits. En build de production la
+   macro rend l'identifiant brut, donc les `aria-label` des champs de
+   `SourcesDialog` devenaient « Libellé de la source {0} » — un vrai défaut
+   d'accessibilité, pas seulement un test capricieux. Correctif :
+   `pnpm intl:extract` + `pnpm intl:compile` (`messages/*.po|js`).
 
 ---
 
@@ -240,4 +247,6 @@ référence externes, non de la documentation projet).
 | --- | --- | --- | --- |
 | 2026-11-16 | Reprise, état des lieux | `dev` = `origin/dev` = `origin/main` = `f031ab67`, arbre propre ; images GHCR OK (run `43884256587`) ; CI rouge (run `43884256529`) ; VPS joignable, stack vieille de 37 h | — |
 | 2026-11-16 | Étape 1 — CI rouge corrigée | `@qoe/config` : ordre sidebar 13 entrées (viewer 8) ; Go : sujet UUID réaliste dans `TestExtendPlanGrant_ProlongeSansDoublon` | `e4a5ecc2` |
-| 2026-11-16 | Étape 1bis — 4 échecs préexistants | studio : libellé « Publication automatique programmée » ; Go : barème 10 %/5 % selon le droit Pro ; `ReindexAll` sonde Meili ; banc `/dev/editor-check` ouvert au build E2E via `QOE_E2E_DEV_ROUTES=1` | _(ce commit)_ |
+| 2026-11-16 | Étape 1bis — échecs préexistants | studio : libellé « Publication automatique programmée » ; Go : barème 10 %/5 % selon le droit Pro ; `ReindexAll` sonde Meili ; banc `/dev/editor-check` ouvert au job E2E via `QOE_E2E_DEV_ROUTES=1` | `1c784bf2` |
+| 2026-11-16 | Étape 1ter — gate + banc | gate TS : `MessagesApp`/`LibraryClient` exclus de la mesure (PARSE_ERROR rolldown) ; gate Go `newsletters` : `CreateDigestDraft` couvert sans base (76,3 % → seuil 80 retrouvé) ; middleware studio : `/dev` ouvert au drapeau E2E | `52521ecb` |
+| 2026-11-16 | Étape 1quater — i18n | `pnpm intl:extract` + `intl:compile` : ~900 messages jamais extraits (dont les `aria-label` du dialogue Sources). Aucun seuil abaissé, aucune assertion supprimée | _(ce commit)_ |
