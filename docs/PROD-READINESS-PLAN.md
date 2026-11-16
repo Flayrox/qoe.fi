@@ -155,7 +155,7 @@ remettre les images précédentes (`qoefi-<service>:<sha>` est publié à chaque
 | --------------------- | ------- | ---------------- | -------------- |
 | `packages/ui`         | 56,50 % | 84 / 554         | 55 %           |
 | `apps/tenants`        | 24,00 % | 11 / 39          | 23 %           |
-| `apps/studio`         | 26,01 % | 54 / 392         | 25 %           |
+| `apps/studio`         | 26,61 % | 57 / 442         | 25 %           |
 | `apps/admin`          | 10,88 % | 14 / 88          | 9 %            |
 | **Agrégé TypeScript** | 27,39 % | 87 / 761         | —              |
 
@@ -175,7 +175,7 @@ métriques (lignes, statements, fonctions, branches) :
 | `apps/core/src/app/**`        | _aucun_           | 24 / 23 / 17 / 19 |
 | `apps/core/src/components/**` | _aucun_           | 12 / 11 / 7 / 7   |
 | `apps/mobile/**`              | _aucun_           | 11 / 12 / 7 / 10  |
-| `apps/studio`                 | 9 % partout       | 25 / 24 / 23 / 22 |
+| `apps/studio`                 | 9 % partout       | 25 / 25 / 23 / 24 |
 | `packages/ui`                 | 55 / 53 / 48 / 48 | 55 / 53 / 48 / 49 |
 | `apps/admin`                  | 4 / 4 / 3 / 3     | 9 / 9 / 6 / 8     |
 | `apps/tenants`                | 23 / 22 / 17 / 24 | 23 / 22 / 18 / 24 |
@@ -198,6 +198,10 @@ laissée hors périmètre » (mesures : studio 26,01/25,85/24,04/23,45 ; core/ap
 inchangé). La progression vient du tiroir de paramètres, de la barre d'outils,
 du menu de sélection, de l'aperçu lecteur, de la comparaison de versions, de la
 récupération d'article et de la session de co-édition (transport simulé).
+
+**Seuils relevés une cinquième fois le 16/11** après la passe « en-tête et
+dialogues d'éditeur » (mesures : studio 26,61/26,43/24,82/25,29 ; core/app
+inchangé) : en-tête d'éditeur, couverture, suggestions IA, annotations collées.
 
 ### Fait le 16/11 (passe éditeur)
 
@@ -318,6 +322,28 @@ récupération d'article et de la session de co-édition (transport simulé).
   jeton rafraîchi ou de repli, identité et couleur stables, destruction au
   démontage.
 
+### Fait le 16/11 (en-tête et dialogues d'éditeur)
+
+- **`EditorHeader`** (23 tests) : titre nouvel écrit/édition, retour
+  conditionnel, statut (en ligne / en revue / programmé daté / brouillon),
+  états de sauvegarde (en cours, erreur + réessai, enregistré, modifications,
+  horodatage), barre d'actions, lien public conditionnel, bouton primaire selon
+  rôle (`Publier`, `Mettre à jour`, `Version en ligne`, `Soumettre`, masqué en
+  relecture), bouton « Comparer » conditionnel, états de co-édition, compteur de
+  changements non synchronisés, bannière d'indisponibilité et reconnexion.
+- **`CoverUploader`** (6 tests ajoutés, 12 au total) : recadrage ouvert sur le
+  blob local puis envoi du fichier recadré, annulation qui libère le blob,
+  sélection dans la médiathèque, alt manquant puis résolu, actions bloquées
+  pendant un envoi, dépôt d'un fichier sur une couverture existante.
+- **`AiSuggestionDialog`** (9 tests) : fermé, attente, erreur avec et sans
+  réessai, aucune suggestion, liste numérotée, application + fermeture, fermeture
+  sans application.
+- **`PastedAnnotationsDialog`** (12 tests) : fermé/sans annotation, progression,
+  contexte et passage, note préremplie puis éditée, repli sur la note d'origine,
+  nettoyage des espaces, validation Cmd/Ctrl+Entrée, refus, actions de masse
+  selon le reste, note commune, réinitialisation au changement d'annotation,
+  fermeture valant refus global.
+
 ### Reste à faire
 
 - **`apps/admin`** : octrois `SubscriptionGrant` depuis la console, écrans de
@@ -435,3 +461,4 @@ terminée).
 | 2026-11-16 | Tests + bugs (passe éditeur)                      | 82 nouveaux tests : `StageEngineContext` (27), `ThoughtComposer` (10), `useArticleSettings` (15), `ArticleHistoryModal` (10), `EditorStatusBar` (10), `schedule-draft` (10). Corrigés : ids de blocs dupliqués dans la même milliseconde (sélection/suppression visaient le mauvais bloc), mutations sans cible qui salissaient le brouillon et empilaient l'historique, échec d'enregistrement/publication silencieux (aucun message), « Tout publier » actif sur un fil vide (clic sans effet), onglet Versions blanc quand seul l'API des versions échoue, anneau de caractères calculé sur la longueur brute au lieu de la longueur pondérée. Seuils relevés : studio 12 → 20/20/17/16, core/app 16/16/13/13 → 24/23/17/19. `test:coverage`, `test:coverage:front`, `typecheck` et `lint` verts | _(ce commit)_ |
 | 2026-11-16 | Flake CI du rendu de fil                          | `thought-thread-nested-hidden-parent` dépassait 5 s de timeout sur le runner partagé (jamais en local) : `apps/core` et `vitest.coverage.config.ts` passent au plancher de 20 s déjà utilisé par studio/tenants. Assertions inchangées.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | _(ce commit)_ |
 | 2026-11-16 | Tests + bugs (zone éditeur restée hors périmètre) | 96 tests : `EditorSettingsDrawer` (19), `EditorToolbar` (16), `SelectionToolbar` (9), `RecoverArticleModal` (10), `ReaderPreviewDialog` (10), `ArticleDiffModal` (13), `useCollaborationSession` (14, transport et auth simulés), `PublishModal` (+3). Corrigés : approbation/retouche/abandon dans le diff et publication qui rejetaient une promesse non gérée (aucun message, modale apparemment figée) — `catch` + `toast.error`, modal maintenue ouverte et bouton réactivé. Seuils studio 20/20/17/16 → 25/24/23/22 (mesure 26,01/25,85/24,04/23,45). `test:coverage`, `test:coverage:front`, `typecheck`, `lint` verts.                                                                                                                                                                      | _(ce commit)_ |
+| 2026-11-16 | Tests + bug (en-tête et dialogues d'éditeur)      | 56 tests : `EditorHeader` (23), `PastedAnnotationsDialog` (12), `AiSuggestionDialog` (9), `CoverUploader` (+6, recadrage et médiathèque simulés). Corrigé : une date de programmation illisible affichait « Programmé · » suivi de rien — repli sur « Programmé ». Seuils studio 25/24/23/22 → 25/25/23/24 (mesure 26,61/26,43/24,82/25,29).                                                                                                                                                                                                                                                                                                                                                                                                                                                        | _(ce commit)_ |

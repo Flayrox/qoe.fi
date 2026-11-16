@@ -180,6 +180,8 @@ export function EditorHeader(props: EditorHeaderProps) {
   } = props;
 
   const isSubmitter = Boolean(capabilities?.isMedia && !capabilities?.canPublish);
+  // Une date illisible ne doit pas produire « Programmé · » suivi de rien.
+  const scheduleLabel = scheduledAt ? formatScheduleDate(scheduledAt) : '';
 
   return (
     <div className="@container flex flex-col gap-3 border-b border-border/40 pb-5">
@@ -277,8 +279,8 @@ export function EditorHeader(props: EditorHeaderProps) {
                   : status === 'SUBMITTED'
                     ? t`En revue`
                     : status === 'SCHEDULED' || scheduledAt
-                      ? scheduledAt
-                        ? t`Programmé · ${formatScheduleDate(scheduledAt)}`
+                      ? scheduleLabel
+                        ? t`Programmé · ${scheduleLabel}`
                         : t`Programmé`
                       : t`Brouillon`}
               </span>
