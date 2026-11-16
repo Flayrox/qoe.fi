@@ -23,9 +23,9 @@ export default defineConfig({
     },
     include: ['src/**/*.test.{ts,tsx}'],
     exclude: ['**/.reference/**', '**/node_modules/**', '**/.next/**', '**/e2e/**'],
-    // 📊 Mesuré le 2026-11-14 (docs/TEST-BUNKER-PLAN.md, étape A2) : 10 fichiers
-    // / 63 tests, 4,42 % lignes. Baseline honnête : la console est surtout du
-    // rendu de page, mais ses `lib/` critiques doivent être vus. Ratchet.
+    // 📊 Mesuré le 2026-11-16 : 11 fichiers / 66 tests, 4,56 % lignes.
+    // Baseline honnête : la console est surtout du rendu de page, mais ses `lib/`
+    // critiques doivent être vus. Ratchet (seuil plancher : 4 %).
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'lcov'],

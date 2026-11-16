@@ -439,7 +439,7 @@ jobs:
       # `oauth-consent` est exclu : ses 2 cas exigent un Supabase local
       # (GoTrue sur 127.0.0.1:54321) que ce job ne monte pas — ils étaient donc
       # sautés à chaque run, et un job vert qui saute des cas ne prouve rien.
-      # Le parcours est couvert en local (cf. docs/TEST-COVERAGE.md).
+      # Le parcours est couvert en local (cf. docs/PROD-READINESS-PLAN.md §5).
       # `--reporter=list` : le log doit nommer chaque cas exécuté.
       - name: Run E2E (public + journeys + security + standalone contracts)
         run: pnpm e2e --project=public-web --project=core-journeys --project=security --project=standalone-contracts --reporter=list
