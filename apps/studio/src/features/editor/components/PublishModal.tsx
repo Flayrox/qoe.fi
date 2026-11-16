@@ -161,6 +161,10 @@ export function PublishModal({
       }
       await onConfirm(opts);
       onClose();
+    } catch (err) {
+      // Un refus serveur laissait sinon une promesse rejetée non gérée :
+      // aucune explication, et la modale semblait avoir publié.
+      toast.error(err instanceof Error ? err.message : t`Publication impossible.`);
     } finally {
       setIsSubmitting(false);
     }
