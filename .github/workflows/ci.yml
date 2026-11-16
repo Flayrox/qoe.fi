@@ -682,6 +682,7 @@ jobs:
         run: pnpm exec playwright test --config playwright.apps.config.ts --project=${{ matrix.app }} --grep-invert "Matrice de routes"
         env:
           CI: 'true'
+          QOE_E2E_DEV_ROUTES: '1'
           PLAYWRIGHT_APPS_PROD: '1'
           PLAYWRIGHT_GO_API_PORT: '8091'
           QOE_API_URL: 'http://localhost:8091'

@@ -28,6 +28,9 @@ const appEnv = {
   NEXT_TELEMETRY_DISABLED: '1',
   SKIP_ENV_VALIDATION: 'true',
   QOE_API_URL: GO_API_URL,
+  // Le banc /dev/editor-check de studio est un rendu dynamique : il lit ce
+  // drapeau AU RENDU, donc le serveur `next start` doit le recevoir aussi.
+  ...(process.env.QOE_E2E_DEV_ROUTES ? { QOE_E2E_DEV_ROUTES: process.env.QOE_E2E_DEV_ROUTES } : {}),
 };
 
 // Mode « prod » : sert le build (`next start`) au lieu de `next dev`. En dev,
