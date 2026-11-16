@@ -95,12 +95,10 @@
   --neural-amber: oklch(0.75 0.12 75);
   --neural-blue: oklch(0.65 0.14 240);
 
-  /* Rayon de base — la plateforme est carrée par défaut.
-     4 px et non 8 : l'échelle Tailwind (sm → 4xl) dérive de cette valeur,
-     donc tout `rounded-lg` hérité devient un angle presque droit sans
-     qu'on touche aux écrans. L'arrondi doux reste disponible en opt-in via
-     `<html data-geometry="round">`. */
-  --radius-base: 4px;
+  /* Radii de base — l'échelle douce d'origine (8 px) par défaut ;
+     la géométrie carrée serrée reste disponible en opt-in via
+     `<html data-geometry="sharp">`. */
+  --radius-base: 0.5rem;
 }
 
 /* ─────────────────────────────────────────────
@@ -223,25 +221,19 @@
     0 32px 64px rgba(0, 0, 0, 0.04);
   --shadow-sidebar: 2px 0 24px rgba(0, 0, 0, 0.03);
 
-  /* Radii — la doctrine « hyper carré ».
-
-     Une seule échelle, volontairement serrée : 0 px pour ce qui doit être
-     franchement orthogonal, 2 px pour les étiquettes, 4 px pour les
-     contrôles, 6 px pour les panneaux, 8 px pour les grandes surfaces.
-     Aucun niveau ne dépasse 8 px : au-delà, un contrôle devient une pilule
-     et la grille perd sa lecture.
-
-     `--radius-sharp` est l'angle vif explicite (tableaux, images, cadres).
-     Le mode doux se réactive en entier avec `<html data-geometry="round">`
-     (voir themes.css), sans qu'aucun composant ne change. */
+  /* Radii — échelle unique, pas de saut brutal entre les niveaux :
+     4 px pour les étiquettes, 8 px pour les boutons, 12 px pour les
+     panneaux, 16 px pour les grandes surfaces (`--radius-sharp` à 0 px pour
+     les tableaux, images et cadres orthogonaux). Le mode carré serré reste
+     disponible en opt-in via `<html data-geometry="sharp">` (themes.css). */
   --radius: var(--radius-base);
   --radius-sharp: 0px;
-  --radius-plateau: 8px;
-  --radius-card: 6px;
-  --radius-element: 4px;
-  --radius-chip: 2px;
-  --radius-button: 4px;
-  --radius-icon: 4px;
+  --radius-plateau: 16px;
+  --radius-card: 12px;
+  --radius-element: 6px;
+  --radius-chip: 4px;
+  --radius-button: 8px;
+  --radius-icon: 6px;
 
   /* Échelle de densité — hauteurs de contrôle (bouton, champ, sélecteur).
      Une seule source : changer une valeur ici change TOUS les composants

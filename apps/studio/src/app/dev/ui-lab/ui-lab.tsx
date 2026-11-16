@@ -371,8 +371,8 @@ const SPECIMENS = [
 
 const TOKENS = [
   { token: '--background', label: 'Canvas' },
-  { token: '--radius-button', label: 'Rayon contrôle (4 px)' },
-  { token: '--radius-card', label: 'Rayon panneau (6 px)' },
+  { token: '--radius-button', label: 'Rayon contrôle (8 px)' },
+  { token: '--radius-card', label: 'Rayon panneau (12 px)' },
   { token: '--card', label: 'Surface 1' },
   { token: '--muted', label: 'Surface 2' },
   { token: '--border', label: 'Séparateur' },
@@ -388,7 +388,7 @@ const RULES = [
   'Séparateurs capillaires (border-border/40) ; les panneaux flottants portent une ombre et un anneau, pas une bordure pleine.',
   'Le survol change la surface (accent ou muted), jamais la couleur de marque.',
   'Icônes par le registre @qoe/ui/icons : un nom par intention, trait 1.5, quatre tailles (xs 12, sm 14, md 16, lg 20). Aucun import Lucide direct dans une app.',
-  'Géométrie carrée par défaut : 0 à 8 px de rayon, lus dans les tokens. Le mode doux est un attribut (data-geometry="round"), jamais une classe locale.',
+  'Géométrie douce par défaut : 4 à 16 px de rayon, lus dans les tokens. Le mode carré serré est un attribut (data-geometry="sharp"), jamais une classe locale.',
   'Une hauteur par rôle : h-7 compact, h-8 standard, h-9 confortable.',
   'Chaque état existe : vide, chargement, erreur, succès. Un écran sans état vide paraît cassé le premier jour.',
 ];
@@ -708,24 +708,24 @@ function Signal({ value, label, detail }: { value: string; label: string; detail
 /**
  * Bascule de géométrie du lab.
  *
- * La plateforme est carrée par défaut (aucun attribut). « Doux » pose
- * `data-geometry="round"` sur `<html>` — les tokens de rayon remontent, tous
- * les composants suivent, aucun fichier de composant ne change. L'attribut
- * est retiré au démontage : une revue du lab ne doit pas laisser le site
- * arrondi derrière elle.
+ * La plateforme garde l'échelle douce par défaut (aucun attribut). « Carré »
+ * pose `data-geometry="sharp"` sur `<html>` — les tokens de rayon se
+ * resserrent, tous les composants suivent, aucun fichier de composant ne
+ * change. L'attribut est retiré au démontage : une revue du lab ne doit pas
+ * laisser le site carré derrière elle.
  */
 function GeometrySwitch() {
-  const [round, setRound] = useState(false);
+  const [sharp, setSharp] = useState(false);
 
   useEffect(() => {
     const root = document.documentElement;
-    if (round) root.dataset.geometry = 'round';
+    if (sharp) root.dataset.geometry = 'sharp';
     else delete root.dataset.geometry;
 
     return () => {
       delete root.dataset.geometry;
     };
-  }, [round]);
+  }, [sharp]);
 
   return (
     <div
@@ -735,19 +735,19 @@ function GeometrySwitch() {
     >
       <Button
         size="xs"
-        variant={round ? 'ghost' : 'soft'}
-        aria-pressed={!round}
-        onClick={() => setRound(false)}
+        variant={sharp ? 'ghost' : 'soft'}
+        aria-pressed={!sharp}
+        onClick={() => setSharp(false)}
       >
-        Carré
+        Doux
       </Button>
       <Button
         size="xs"
-        variant={round ? 'soft' : 'ghost'}
-        aria-pressed={round}
-        onClick={() => setRound(true)}
+        variant={sharp ? 'soft' : 'ghost'}
+        aria-pressed={sharp}
+        onClick={() => setSharp(true)}
       >
-        Doux
+        Carré
       </Button>
     </div>
   );
