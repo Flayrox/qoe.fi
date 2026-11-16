@@ -33,9 +33,13 @@ export async function middleware(request: NextRequest) {
   // 1bis. UI Lab de développement (packages/ui + patterns) : accessible sans
   // session en local, sinon la page de revue serait derrière le login créateur.
   // La route elle-même renvoie 404 en production.
+  // Le job E2E sert un build de production (`PLAYWRIGHT_APPS_PROD=1`) : sans ce
+  // drapeau, le middleware renvoyait /dev/editor-check vers le login et le banc
+  // n'était jamais rendu. La page elle-même reste un 404 hors dev.
   const isDev = process.env.NODE_ENV !== 'production';
+  const devRoutesAllowed = isDev || process.env.QOE_E2E_DEV_ROUTES === '1';
   if (
-    isDev &&
+    devRoutesAllowed &&
     (request.nextUrl.pathname === '/dev' || request.nextUrl.pathname.startsWith('/dev/'))
   ) {
     return supabaseResponse;
