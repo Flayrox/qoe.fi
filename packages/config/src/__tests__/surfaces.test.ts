@@ -81,6 +81,9 @@ describe('getSidebarSurfaces', () => {
       'studio.media',
       'studio.newsletters',
       'studio.audience',
+      'studio.books',
+      'studio.community',
+      'studio.monetization',
       'studio.analytics',
       'studio.developer',
       'studio.settings',
@@ -124,6 +127,8 @@ describe('getSidebarSurfaces', () => {
       'studio.articles',
       'studio.notifications',
       'studio.media',
+      'studio.books',
+      'studio.community',
       'studio.settings',
       'studio.pricing',
     ]);
