@@ -55,6 +55,12 @@ jobs:
       - name: Guard UI debt (ratchet)
         run: pnpm ui:audit
 
+      # Le guard était documenté dans AGENTS.md mais absent de la CI : il était
+      # rouge sans que personne ne le voie (3 migrations sans CONCURRENTLY /
+      # lock_timeout). Branché ici pour qu'il ne puisse plus pourrir.
+      - name: Guard architecture (ratchet + DDL des migrations)
+        run: pnpm arch:audit
+
   unit-and-coverage:
     name: Unit Tests & TS Coverage
     runs-on: ubuntu-latest

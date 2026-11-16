@@ -11,6 +11,11 @@
 -- =====================================================================
 
 -- +goose Up
+-- Les tables visées existent en production : borné pour ne jamais faire la
+-- queue derrière un verrou long. (Les index de cette migration portent sur
+-- "SecurityEvent", créée juste en dessous — CONCURRENTLY est inutile.)
+SET lock_timeout = '3s';
+
 ALTER TABLE "ApiKey"
     ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'ACTIVE',
     ADD COLUMN IF NOT EXISTS "suspendedAt" TIMESTAMP(3),
@@ -52,6 +57,8 @@ CREATE INDEX IF NOT EXISTS "SecurityEvent_publisherId_createdAt_idx"
     ON "SecurityEvent" ("publisherId", "createdAt" DESC);
 
 -- +goose Down
+SET lock_timeout = '3s';
+
 DROP TABLE IF EXISTS "SecurityEvent";
 
 ALTER TABLE "Publisher"

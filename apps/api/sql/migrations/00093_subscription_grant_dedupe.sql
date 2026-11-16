@@ -12,10 +12,17 @@
 -- (staff, presse…) gardent leur historique multiple.
 -- =====================================================================
 
+-- +goose NO TRANSACTION
 -- +goose Up
-CREATE UNIQUE INDEX IF NOT EXISTS "SubscriptionGrant_stripe_subscription_key"
+SET lock_timeout = '3s';
+
+-- CONCURRENTLY : la table des octrois est lue à chaque contrôle de droit
+-- (HasEntitlement / HasPlus), un index bloquant figerait ces lectures.
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS "SubscriptionGrant_stripe_subscription_key"
     ON "SubscriptionGrant" ("subjectType", "subjectId", "plan", "note")
     WHERE "grantedBy" = 'stripe';
 
 -- +goose Down
-DROP INDEX IF EXISTS "SubscriptionGrant_stripe_subscription_key";
+SET lock_timeout = '3s';
+
+DROP INDEX CONCURRENTLY IF EXISTS "SubscriptionGrant_stripe_subscription_key";
