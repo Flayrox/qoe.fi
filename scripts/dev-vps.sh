@@ -34,6 +34,9 @@ pnpm intl:compile >/dev/null 2>&1 || true
 ok "Environnement & traductions prêts"
 
 # 2b. API Go & Worker (launchd)
+echo "→ Compilation de l'API Go & Worker…"
+mkdir -p "$HOME/.qoefi/bin"
+(cd apps/api && go build -o "$HOME/.qoefi/bin/qoe-server" ./cmd/server && go build -o "$HOME/.qoefi/bin/qoe-worker" ./cmd/worker)
 for label in com.qoefi.api-server com.qoefi.api-worker; do
   if ! launchctl print "gui/$(id -u)/$label" >/dev/null 2>&1; then
     launchctl bootstrap "gui/$(id -u)" "scripts/launchd/$label.plist" 2>/dev/null || true
