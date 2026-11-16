@@ -30,6 +30,7 @@ export interface SkeletonProps extends HTMLAttributes<HTMLDivElement> {
 export function Skeleton({ shape = 'line', className, ...props }: SkeletonProps) {
   return (
     <div
+      {...props}
       aria-hidden
       className={cn(
         'animate-pulse bg-muted motion-reduce:animate-none',
@@ -37,7 +38,6 @@ export function Skeleton({ shape = 'line', className, ...props }: SkeletonProps)
         shape === 'line' ? 'h-3 w-full' : 'size-full',
         className
       )}
-      {...props}
     />
   );
 }

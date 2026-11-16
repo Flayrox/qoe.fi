@@ -1,14 +1,19 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+import { Icon } from '../../icons';
 import { Breadcrumbs } from '../breadcrumbs/breadcrumbs';
 import { Callout } from '../callout/callout';
+import { ConfirmDialog } from '../confirm-dialog/confirm-dialog';
 import { DescriptionList } from '../description-list/description-list';
 import { EmptyState } from '../empty-state/empty-state';
+import { IconButton } from '../icon-button/icon-button';
 import { KbdGroup } from '../kbd/kbd';
 import { Pagination, paginationRange } from '../pagination/pagination';
 import { Progress } from '../progress/progress';
+import { SectionHeader } from '../section-header/section-header';
+import { Skeleton } from '../skeleton/skeleton';
 import { Spinner } from '../spinner/spinner';
 import { Stat } from '../stat/stat';
 import { StatusDot } from '../status-dot/status-dot';
@@ -178,6 +183,86 @@ describe('Progress', () => {
     const bar = screen.getByRole('progressbar', { name: 'Préparation' });
     expect(bar.getAttribute('aria-valuenow')).toBeNull();
     expect(bar.getAttribute('aria-valuetext')).toBe('En cours');
+  });
+
+  it('garde un nom accessible même sans libellé fourni', () => {
+    render(<Progress value={40} />);
+
+    expect(screen.getByRole('progressbar', { name: 'Progression' })).toBeTruthy();
+  });
+});
+
+describe('ConfirmDialog', () => {
+  it('nomme l’alerte, exécute l’action puis ferme', async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn().mockResolvedValue(undefined);
+    const onClose = vi.fn();
+
+    render(
+      <ConfirmDialog
+        action={{
+          title: 'Publier l’article ?',
+          description: 'Il sera visible par tous.',
+          confirmLabel: 'Publier',
+          onConfirm,
+        }}
+        onClose={onClose}
+      />
+    );
+
+    expect(await screen.findByRole('alertdialog', { name: 'Publier l’article ?' })).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Publier' }));
+
+    await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe('Icon', () => {
+  it('est décoratif sans libellé et nommé avec un libellé', () => {
+    const { container, rerender } = render(<Icon name="trash" />);
+    expect(container.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+
+    rerender(<Icon name="trash" label="Supprimer" />);
+    expect(screen.getByRole('img', { name: 'Supprimer' })).toBeTruthy();
+  });
+});
+
+describe('IconButton', () => {
+  it('porte toujours le nom accessible sur le bouton', () => {
+    render(
+      <IconButton label="Fermer">
+        <Icon name="x" />
+      </IconButton>
+    );
+
+    expect(screen.getByRole('button', { name: 'Fermer' })).toBeTruthy();
+  });
+});
+
+describe('SectionHeader', () => {
+  it('respecte le niveau de titre demandé et garde les actions hors du titre', () => {
+    render(
+      <SectionHeader
+        level="h1"
+        eyebrow="Studio"
+        title="Articles"
+        meta="12"
+        actions={<button type="button">Nouveau</button>}
+      />
+    );
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Articles' })).toBeTruthy();
+    expect(screen.getByText('12')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Nouveau' })).toBeTruthy();
+  });
+});
+
+describe('Skeleton', () => {
+  it('reste décoratif même si l’appelant passe aria-hidden=false', () => {
+    const { container } = render(<Skeleton aria-hidden={false} />);
+
+    expect(container.firstElementChild?.getAttribute('aria-hidden')).toBe('true');
   });
 });
 
