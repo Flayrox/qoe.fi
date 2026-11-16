@@ -91,6 +91,9 @@ msgstr "« Une mémoire sans oubli est une prison. »"
 msgid "(TDAH)"
 msgstr "(TDAH)"
 
+msgid "(Texte vide)"
+msgstr "(Texte vide)"
+
 #. placeholder {0}: creator.subscribers
 msgid "{0} abonnés"
 msgstr "{0} abonnés"
@@ -128,6 +131,11 @@ msgstr "{0} min"
 msgid "{0} mots"
 msgstr "{0} mots"
 
+#. placeholder {0}: result.errors
+#. placeholder {1}: result.errors === 1 ? '' : 's'
+msgid "{0} point{1} à corriger"
+msgstr "{0} point{1} à corriger"
+
 #. placeholder {0}: followedCreators.length
 msgid "{0} suivi(s)"
 msgstr "{0} suivi(s)"
@@ -142,6 +150,9 @@ msgstr "{0}j"
 
 msgid "{authorName} vous recommande également :"
 msgstr "{authorName} vous recommande également :"
+
+msgid "{collaborationUnsyncedChanges} en attente"
+msgstr "{collaborationUnsyncedChanges} en attente"
 
 msgid "{converted} annotations officielles créées."
 msgstr "{converted} annotations officielles créées."
@@ -170,8 +181,21 @@ msgstr "{hours}h restante{0}"
 msgid "{mins} min restante{0}"
 msgstr "{mins} min restante{0}"
 
+msgid "{MOD} + Entrée pour enregistrer"
+msgstr "{MOD} + Entrée pour enregistrer"
+
+msgid "{MOD}K"
+msgstr "{MOD}K"
+
 msgid "{newConverted} annotations officielles créées."
 msgstr "{newConverted} annotations officielles créées."
+
+#. placeholder {0}: paidWords === 1 ? '' : 's'
+msgid "{paidWords} mot{0} après la limite Premium."
+msgstr "{paidWords} mot{0} après la limite Premium."
+
+msgid "{readingMinutes} min de lecture"
+msgstr "{readingMinutes} min de lecture"
 
 #~ msgid "{readingTimeMinutes} min de lecture"
 #~ msgstr "{readingTimeMinutes} min de lecture"
@@ -224,11 +248,11 @@ msgstr "+ Ajouter une image de couverture (ou glisser-déposer)"
 msgid "<p>Chers abonnés, voici les dernières nouvelles…</p>"
 msgstr "<p>Chers abonnés, voici les dernières nouvelles…</p>"
 
-msgid "⌘ + Entrée pour enregistrer"
-msgstr "⌘ + Entrée pour enregistrer"
+#~ msgid "⌘ + Entrée pour enregistrer"
+#~ msgstr "⌘ + Entrée pour enregistrer"
 
-msgid "⌘K"
-msgstr "⌘K"
+#~ msgid "⌘K"
+#~ msgstr "⌘K"
 
 msgid "● En direct"
 msgstr "● En direct"
@@ -435,6 +459,9 @@ msgstr "a soumis un article pour revue dans le Média"
 msgid "à tout moment pour afficher cette aide."
 msgstr "à tout moment pour afficher cette aide."
 
+msgid "À vérifier"
+msgstr "À vérifier"
+
 msgid "Abandonner le brouillon"
 msgstr "Abandonner le brouillon"
 
@@ -452,6 +479,10 @@ msgstr "Abonné"
 
 msgid "Abonné !"
 msgstr "Abonné !"
+
+#. placeholder {0}: author!.name
+msgid "Abonné à {0}"
+msgstr "Abonné à {0}"
 
 msgid "Abonné retiré."
 msgstr "Abonné retiré."
@@ -554,6 +585,9 @@ msgstr "Accès"
 msgid "Accès & Monétisation"
 msgstr "Accès & Monétisation"
 
+msgid "Accès aux archives et aux articles réservés."
+msgstr "Accès aux archives et aux articles réservés."
+
 #~ msgid "Accès aux fils de commentaires VIP"
 #~ msgstr "Accès aux fils de commentaires VIP"
 
@@ -636,11 +670,18 @@ msgstr "Activité des Médias"
 msgid "Actuel"
 msgstr "Actuel"
 
+msgid "Actuelle"
+msgstr "Actuelle"
+
 msgid "Actuelle :"
 msgstr "Actuelle :"
 
 msgid "Administrateur"
 msgstr "Administrateur"
+
+#. placeholder {0}: index + 1
+msgid "Adresse de la source {0}"
+msgstr "Adresse de la source {0}"
 
 #~ msgid "Adresse de réponse"
 #~ msgstr "Adresse de réponse"
@@ -691,6 +732,9 @@ msgstr "Affichée en bas de chaque page du site."
 msgid "Affichée sous le titre dans les résultats de recherche et les partages."
 msgstr "Affichée sous le titre dans les résultats de recherche et les partages."
 
+msgid "Afficher"
+msgstr "Afficher"
+
 msgid "Afficher aussi sur mon profil et mon blog personnel"
 msgstr "Afficher aussi sur mon profil et mon blog personnel"
 
@@ -703,6 +747,9 @@ msgstr "Afficher la description (Alt-Text)"
 msgid "Afficher la grille"
 msgstr "Afficher la grille"
 
+msgid "Afficher la suite (aperçu auteur)"
+msgstr "Afficher la suite (aperçu auteur)"
+
 msgid "Afficher les annotations"
 msgstr "Afficher les annotations"
 
@@ -711,6 +758,9 @@ msgstr "Afficher les articles aussi sur le profil et le blog personnel de leur a
 
 msgid "Afficher les contenus sensibles"
 msgstr "Afficher les contenus sensibles"
+
+msgid "Afficher les raccourcis"
+msgstr "Afficher les raccourcis"
 
 msgid "Afficher sur le profil personnel"
 msgstr "Afficher sur le profil personnel"
@@ -739,6 +789,9 @@ msgstr "Aimé par "
 msgid "Aimer"
 msgstr "Aimer"
 
+msgid "Ajoute une section « Sources » en fin d'article. Les libellés et les adresses restent modifiables dans le corps."
+msgstr "Ajoute une section « Sources » en fin d'article. Les libellés et les adresses restent modifiables dans le corps."
+
 msgid "Ajouter"
 msgstr "Ajouter"
 
@@ -748,11 +801,17 @@ msgstr "Ajouter aux signets"
 #~ msgid "Ajouter le thème"
 #~ msgstr "Ajouter le thème"
 
+msgid "Ajouter ou modifier un lien"
+msgstr "Ajouter ou modifier un lien"
+
 msgid "Ajouter un bloc de lecture"
 msgstr "Ajouter un bloc de lecture"
 
 msgid "Ajouter un centre d'intérêt (ex: Technologie, Économie...)"
 msgstr "Ajouter un centre d'intérêt (ex: Technologie, Économie...)"
+
+msgid "Ajouter un commentaire…"
+msgstr "Ajouter un commentaire…"
 
 msgid "Ajouter un facteur TOTP"
 msgstr "Ajouter un facteur TOTP"
@@ -778,11 +837,20 @@ msgstr "Ajouter une autre pensée à ce fil de discussion"
 msgid "Ajouter une autre pensée à ce fil..."
 msgstr "Ajouter une autre pensée à ce fil..."
 
+msgid "Ajouter une colonne"
+msgstr "Ajouter une colonne"
+
+msgid "Ajouter une description alternative"
+msgstr "Ajouter une description alternative"
+
 msgid "Ajouter une fonctionnalité"
 msgstr "Ajouter une fonctionnalité"
 
 msgid "Ajouter une image"
 msgstr "Ajouter une image"
+
+msgid "Ajouter une ligne"
+msgstr "Ajouter une ligne"
 
 msgid "Ajouter une note"
 msgstr "Ajouter une note"
@@ -802,6 +870,9 @@ msgstr "Ajouter une note ou annotation publique"
 msgid "Ajouter une note ou réflexion"
 msgstr "Ajouter une note ou réflexion"
 
+msgid "Ajouter une source"
+msgstr "Ajouter une source"
+
 msgid "Ajouter une sous-catégorie"
 msgstr "Ajouter une sous-catégorie"
 
@@ -810,6 +881,9 @@ msgstr "Ajouter une sous-catégorie directement"
 
 msgid "Ajouter vos propres mots ou sujets masqués"
 msgstr "Ajouter vos propres mots ou sujets masqués"
+
+msgid "Ajoutez au moins une source avec une adresse valide."
+msgstr "Ajoutez au moins une source avec une adresse valide."
 
 msgid "Ajoutez une note pour ce passage"
 msgstr "Ajoutez une note pour ce passage"
@@ -853,6 +927,15 @@ msgstr "Alinéa de première ligne"
 #~ msgid "Alinéa de première ligne (Tab)"
 #~ msgstr "Alinéa de première ligne (Tab)"
 
+msgid "Alt manquant"
+msgstr "Alt manquant"
+
+msgid "Alt manquant : décrivez l'image pour les lecteurs d'écran."
+msgstr "Alt manquant : décrivez l'image pour les lecteurs d'écran."
+
+msgid "Alt manquant : le titre sera utilisé comme repli."
+msgstr "Alt manquant : le titre sera utilisé comme repli."
+
 msgid "Améliore la lisibilité des éléments d’interface."
 msgstr "Améliore la lisibilité des éléments d’interface."
 
@@ -891,6 +974,9 @@ msgstr "Annotation"
 
 msgid "Annotation {currentIndex} sur {totalCount}"
 msgstr "Annotation {currentIndex} sur {totalCount}"
+
+msgid "Annotation d'auteur : {note} — {hint}"
+msgstr "Annotation d'auteur : {note} — {hint}"
 
 msgid "Annotation de {name}"
 msgstr "Annotation de {name}"
@@ -956,8 +1042,14 @@ msgstr "Annoter"
 msgid "Annoter la sélection"
 msgstr "Annoter la sélection"
 
+msgid "Annoter le passage sélectionné"
+msgstr "Annoter le passage sélectionné"
+
 msgid "Annuler"
 msgstr "Annuler"
+
+msgid "Annuler l'envoi"
+msgstr "Annuler l'envoi"
 
 msgid "Annuler la programmation"
 msgstr "Annuler la programmation"
@@ -1004,8 +1096,17 @@ msgstr "Aperçu du recadrage"
 #~ msgid "Aperçu du résultat Google"
 #~ msgstr "Aperçu du résultat Google"
 
+msgid "Aperçu du texte"
+msgstr "Aperçu du texte"
+
 msgid "Aperçu final"
 msgstr "Aperçu final"
+
+msgid "Aperçu lecteur"
+msgstr "Aperçu lecteur"
+
+msgid "Aperçu lecteur (bureau, tablette, mobile)"
+msgstr "Aperçu lecteur (bureau, tablette, mobile)"
 
 #~ msgid "Aperçu média qoe.fi"
 #~ msgstr "Aperçu média qoe.fi"
@@ -1067,6 +1168,9 @@ msgstr "Arborescence"
 #~ msgid "Arborescence des catégories"
 #~ msgstr "Arborescence des catégories"
 
+msgid "Archive média en lecture seule"
+msgstr "Archive média en lecture seule"
+
 msgid "Ardoise"
 msgstr "Ardoise"
 
@@ -1124,6 +1228,9 @@ msgstr "Article Paywall Premium"
 msgid "Article Premium"
 msgstr "Article Premium"
 
+msgid "Article Premium : vérifiez que l’extrait gratuit donne envie de s’abonner."
+msgstr "Article Premium : vérifiez que l’extrait gratuit donne envie de s’abonner."
+
 msgid "Article programmé"
 msgstr "Article programmé"
 
@@ -1154,7 +1261,7 @@ msgstr "Article sur Qoe"
 msgid "article transféré"
 msgstr "article transféré"
 
-#. placeholder {0}: res.data.publication?.name || ws.name
+#. placeholder {0}: res.data.publisher?.name || ws.name
 msgid "Article transféré vers {0}."
 msgstr "Article transféré vers {0}."
 
@@ -1172,6 +1279,9 @@ msgstr "Articles"
 
 msgid "Articles & Brouillons"
 msgstr "Articles & Brouillons"
+
+msgid "Articles à reprendre"
+msgstr "Articles à reprendre"
 
 msgid "articles mis à jour"
 msgstr "articles mis à jour"
@@ -1197,8 +1307,20 @@ msgstr "Au-delà du simple mur de texte"
 msgid "Aucun abonné pour l'instant"
 msgstr "Aucun abonné pour l'instant"
 
+msgid "Aucun abonnement Stripe sur ce compte pour l’instant."
+msgstr "Aucun abonnement Stripe sur ce compte pour l’instant."
+
 msgid "Aucun algorithme caché. Vous contrôlez chaque octet de votre expérience de lecture."
 msgstr "Aucun algorithme caché. Vous contrôlez chaque octet de votre expérience de lecture."
+
+msgid "Aucun article à traduire pour l’instant."
+msgstr "Aucun article à traduire pour l’instant."
+
+msgid "Aucun article pour l’instant : la discussion apparaîtra ici dès la première publication."
+msgstr "Aucun article pour l’instant : la discussion apparaîtra ici dès la première publication."
+
+msgid "Aucun article publié"
+msgstr "Aucun article publié"
 
 msgid "Aucun article publié pour l'instant."
 msgstr "Aucun article publié pour l'instant."
@@ -1212,6 +1334,12 @@ msgstr "Aucun article publié."
 msgid "Aucun article trouvé"
 msgstr "Aucun article trouvé"
 
+msgid "Aucun article trouvé."
+msgstr "Aucun article trouvé."
+
+msgid "Aucun asset ne correspond à cette recherche."
+msgstr "Aucun asset ne correspond à cette recherche."
+
 msgid "Aucun brouillon ancien, aucune couverture manquante."
 msgstr "Aucun brouillon ancien, aucune couverture manquante."
 
@@ -1221,8 +1349,14 @@ msgstr "Aucun brouillon."
 msgid "Aucun centre d'intérêt défini."
 msgstr "Aucun centre d'intérêt défini."
 
+msgid "Aucun commentaire pour l’instant. Ouvrez la discussion."
+msgstr "Aucun commentaire pour l’instant. Ouvrez la discussion."
+
 msgid "Aucun commentaire pour le moment. Soyez le premier à réagir !"
 msgstr "Aucun commentaire pour le moment. Soyez le premier à réagir !"
+
+msgid "Aucun commentaire sur cet article."
+msgstr "Aucun commentaire sur cet article."
 
 msgid "Aucun contenu programmé."
 msgstr "Aucun contenu programmé."
@@ -1245,8 +1379,11 @@ msgstr "Aucun envoi"
 msgid "Aucun envoi."
 msgstr "Aucun envoi."
 
-msgid "Aucun événement pour l'instant. La chronologie se remplit dès la première publication."
-msgstr "Aucun événement pour l'instant. La chronologie se remplit dès la première publication."
+msgid "Aucun événement pour l'instant."
+msgstr "Aucun événement pour l'instant."
+
+#~ msgid "Aucun événement pour l'instant. La chronologie se remplit dès la première publication."
+#~ msgstr "Aucun événement pour l'instant. La chronologie se remplit dès la première publication."
 
 msgid "Aucun mot masqué pour le moment."
 msgstr "Aucun mot masqué pour le moment."
@@ -1320,6 +1457,12 @@ msgstr "Aucune demande en attente."
 msgid "Aucune différence textuelle détectée."
 msgstr "Aucune différence textuelle détectée."
 
+msgid "Aucune formule pour l’instant."
+msgstr "Aucune formule pour l’instant."
+
+msgid "Aucune image"
+msgstr "Aucune image"
+
 msgid "Aucune notification de type \"{filter}\" trouvée."
 msgstr "Aucune notification de type \"{filter}\" trouvée."
 
@@ -1331,6 +1474,9 @@ msgstr "Aucune notification pour le moment"
 
 msgid "Aucune publication ne peut recevoir ces articles."
 msgstr "Aucune publication ne peut recevoir ces articles."
+
+msgid "Aucune version textuelle enregistrée pour l'instant."
+msgstr "Aucune version textuelle enregistrée pour l'instant."
 
 msgid "Audience"
 msgstr "Audience"
@@ -1346,6 +1492,9 @@ msgstr "Aujourd'hui, l'abondance est le problème. Nous ne manquons pas d'inform
 
 msgid "Auteur"
 msgstr "Auteur"
+
+msgid "Auteur (optionnel)"
+msgstr "Auteur (optionnel)"
 
 msgid "Auteur certifié"
 msgstr "Auteur certifié"
@@ -1395,6 +1544,18 @@ msgstr "Autre raison"
 msgid "Avancer de 15 secondes"
 msgstr "Avancer de 15 secondes"
 
+msgid "Avant de publier"
+msgstr "Avant de publier"
+
+msgid "Avant fin de collaboration"
+msgstr "Avant fin de collaboration"
+
+msgid "Avant restauration"
+msgstr "Avant restauration"
+
+msgid "Avant révocation"
+msgstr "Avant révocation"
+
 msgid "avec"
 msgstr "avec"
 
@@ -1431,8 +1592,11 @@ msgstr "Bienvenue"
 #~ msgid "Bienvenue chez (nom)"
 #~ msgstr "Bienvenue chez (nom)"
 
-msgid "Bienvenue chez {publicationName}"
-msgstr "Bienvenue chez {publicationName}"
+#~ msgid "Bienvenue chez {publicationName}"
+#~ msgstr "Bienvenue chez {publicationName}"
+
+msgid "Bienvenue chez {publisherName}"
+msgstr "Bienvenue chez {publisherName}"
 
 msgid "Bienvenue chez vous."
 msgstr "Bienvenue chez vous."
@@ -1644,6 +1808,9 @@ msgstr "Ces concepts défilent horizontalement en arrière-plan de la section."
 #~ msgid "Ces déclarations ne dispensent pas de la revue : le staff confronte vos éléments aux contrôles techniques."
 #~ msgstr "Ces déclarations ne dispensent pas de la revue : le staff confronte vos éléments aux contrôles techniques."
 
+msgid "Ces formules apparaissent sur le paywall de votre publication. Chaque formule doit être reliée à un tarif Stripe pour être payable ; ce tarif est vérifié et doit débiter exactement le montant affiché, en euros, chaque mois."
+msgstr "Ces formules apparaissent sur le paywall de votre publication. Chaque formule doit être reliée à un tarif Stripe pour être payable ; ce tarif est vérifié et doit débiter exactement le montant affiché, en euros, chaque mois."
+
 msgid "Ces médias vous attendent : l'acceptation active votre rôle (une vérification renforcée peut être demandée)."
 msgstr "Ces médias vous attendent : l'acceptation active votre rôle (une vérification renforcée peut être demandée)."
 
@@ -1677,6 +1844,18 @@ msgstr "Cet écrit n'existe pas"
 msgid "Cet email n'est pas invité pour le moment."
 msgstr "Cet email n'est pas invité pour le moment."
 
+msgid "Cet essai a été écrit pour {publisherName}. Vous pouvez créer un exemplaire personnel éditable en toute indépendance."
+msgstr "Cet essai a été écrit pour {publisherName}. Vous pouvez créer un exemplaire personnel éditable en toute indépendance."
+
+msgid "Cet essai souverain provient d'un média. « Web uniquement » est pré-sélectionné par défaut pour éviter un doublon newsletter."
+msgstr "Cet essai souverain provient d'un média. « Web uniquement » est pré-sélectionné par défaut pour éviter un doublon newsletter."
+
+msgid "Cet essai souverain provient de « {originPublisherName} ». « Web uniquement » est pré-sélectionné par défaut afin d'éviter un doublon newsletter aux lecteurs qui suivent le média."
+msgstr "Cet essai souverain provient de « {originPublisherName} ». « Web uniquement » est pré-sélectionné par défaut afin d'éviter un doublon newsletter aux lecteurs qui suivent le média."
+
+msgid "Cet exemplaire appartient à une publication en lecture seule. Vous pouvez importer et éditer votre version personnelle en toute indépendance."
+msgstr "Cet exemplaire appartient à une publication en lecture seule. Vous pouvez importer et éditer votre version personnelle en toute indépendance."
+
 msgid "Cette action est irréversible. La pensée et ses interactions seront définitivement retirées de la plateforme."
 msgstr "Cette action est irréversible. La pensée et ses interactions seront définitivement retirées de la plateforme."
 
@@ -1707,6 +1886,9 @@ msgstr "Cette semaine"
 msgid "Champs invalides"
 msgstr "Champs invalides"
 
+msgid "Changement de rédacteur"
+msgstr "Changement de rédacteur"
+
 msgid "Changements enregistrés et cache régénéré instantanément !"
 msgstr "Changements enregistrés et cache régénéré instantanément !"
 
@@ -1725,11 +1907,20 @@ msgstr "Changer la vitesse de lecture"
 msgid "Changer le mot de passe"
 msgstr "Changer le mot de passe"
 
-msgid "Chaque étape de la vie publique de cet écrit."
-msgstr "Chaque étape de la vie publique de cet écrit."
+msgid "chapitre(s) sélectionné(s)"
+msgstr "chapitre(s) sélectionné(s)"
+
+msgid "Chapitres"
+msgstr "Chapitres"
+
+#~ msgid "Chaque étape de la vie publique de cet écrit."
+#~ msgstr "Chaque étape de la vie publique de cet écrit."
 
 msgid "Chaque publication suivie finance directement son auteur dans un écosystème respectueux de la vie privée."
 msgstr "Chaque publication suivie finance directement son auteur dans un écosystème respectueux de la vie privée."
+
+msgid "Chargement de la médiathèque…"
+msgstr "Chargement de la médiathèque…"
 
 msgid "Chargement de vos notifications..."
 msgstr "Chargement de vos notifications..."
@@ -1742,6 +1933,9 @@ msgstr "Chargement de vos réglages…"
 
 msgid "Chargement des clés API..."
 msgstr "Chargement des clés API..."
+
+msgid "Chargement des commentaires…"
+msgstr "Chargement des commentaires…"
 
 msgid "Chargement des données de l'article…"
 msgstr "Chargement des données de l'article…"
@@ -1770,11 +1964,20 @@ msgstr "Chargement…"
 msgid "Charger plus"
 msgstr "Charger plus"
 
+msgid "Choisir dans la médiathèque"
+msgstr "Choisir dans la médiathèque"
+
 msgid "Choisir de lire lentement est un acte politique. C'est refuser l'économie de l'attention telle qu'elle est organisée."
 msgstr "Choisir de lire lentement est un acte politique. C'est refuser l'économie de l'attention telle qu'elle est organisée."
 
 msgid "Choisir la couverture de l'article"
 msgstr "Choisir la couverture de l'article"
+
+msgid "Choisir une couverture"
+msgstr "Choisir une couverture"
+
+msgid "Choisir une version spécifique dans l'historique…"
+msgstr "Choisir une version spécifique dans l'historique…"
 
 msgid "Choisissez au moins un paramètre à modifier."
 msgstr "Choisissez au moins un paramètre à modifier."
@@ -1809,14 +2012,23 @@ msgstr "Choisissez une date : l'article sera publié automatiquement à ce momen
 msgid "Choisissez une date de programmation."
 msgstr "Choisissez une date de programmation."
 
+msgid "Choisissez une image déjà envoyée sur votre compte. Elle sera reprise sans nouvel upload."
+msgstr "Choisissez une image déjà envoyée sur votre compte. Elle sera reprise sans nouvel upload."
+
 msgid "Choisissez vos univers de prédilection"
 msgstr "Choisissez vos univers de prédilection"
+
+msgid "Choix de la version"
+msgstr "Choix de la version"
 
 msgid "Chroniqueuse sur la décroissance attentionnelle et l'auto-suffisance technologique."
 msgstr "Chroniqueuse sur la décroissance attentionnelle et l'auto-suffisance technologique."
 
 msgid "Cinq Formats de Récits"
 msgstr "Cinq Formats de Récits"
+
+msgid "Cinq pistes à partir du titre et du début de l'article. Relisez avant de choisir."
+msgstr "Cinq pistes à partir du titre et du début de l'article. Relisez avant de choisir."
 
 msgid "Citation"
 msgstr "Citation"
@@ -1926,6 +2138,9 @@ msgstr "Co-édition"
 #~ msgid "Co-édition en direct"
 #~ msgstr "Co-édition en direct"
 
+msgid "Co-édition indisponible"
+msgstr "Co-édition indisponible"
+
 msgid "Code en ligne"
 msgstr "Code en ligne"
 
@@ -1983,11 +2198,17 @@ msgstr "Comparer avec la version publiée"
 #~ msgid "Comparer le brouillon actuel avec la version publiée en ligne"
 #~ msgstr "Comparer le brouillon actuel avec la version publiée en ligne"
 
-msgid "Comparer les versions"
-msgstr "Comparer les versions"
+#~ msgid "Comparer les versions"
+#~ msgstr "Comparer les versions"
 
 msgid "Comparer les versions (Diff)"
 msgstr "Comparer les versions (Diff)"
+
+msgid "Compilation impossible pour le moment."
+msgstr "Compilation impossible pour le moment."
+
+msgid "Compilation…"
+msgstr "Compilation…"
 
 #~ msgid "Complétez les déclarations de provenance ci-dessus"
 #~ msgstr "Complétez les déclarations de provenance ci-dessus"
@@ -2052,8 +2273,11 @@ msgstr "Confirmer le mot de passe"
 #~ msgid "Confirmez votre abonnement — (nom)"
 #~ msgstr "Confirmez votre abonnement — (nom)"
 
-msgid "Confirmez votre abonnement — {publicationName}"
-msgstr "Confirmez votre abonnement — {publicationName}"
+#~ msgid "Confirmez votre abonnement — {publicationName}"
+#~ msgstr "Confirmez votre abonnement — {publicationName}"
+
+msgid "Confirmez votre abonnement — {publisherName}"
+msgstr "Confirmez votre abonnement — {publisherName}"
 
 msgid "Confort"
 msgstr "Confort"
@@ -2070,6 +2294,9 @@ msgstr "Connecté en tant que "
 msgid "Connectée avec"
 msgstr "Connectée avec"
 
+msgid "Connectez-vous"
+msgstr "Connectez-vous"
+
 msgid "Connectez-vous pour aimer ce post et soutenir cet auteur"
 msgstr "Connectez-vous pour aimer ce post et soutenir cet auteur"
 
@@ -2079,11 +2306,20 @@ msgstr "Connectez-vous pour gérer et supprimer vos propres publications"
 msgid "Connectez-vous pour laisser un commentaire..."
 msgstr "Connectez-vous pour laisser un commentaire..."
 
+msgid "Connectez-vous pour participer à la discussion."
+msgstr "Connectez-vous pour participer à la discussion."
+
 msgid "Connectez-vous pour surligner ou annoter."
 msgstr "Connectez-vous pour surligner ou annoter."
 
 msgid "Connexion"
 msgstr "Connexion"
+
+msgid "Connexion de co-édition interrompue."
+msgstr "Connexion de co-édition interrompue."
+
+msgid "Connexion…"
+msgstr "Connexion…"
 
 #~ msgid "Consulter les statistiques"
 #~ msgstr "Consulter les statistiques"
@@ -2188,6 +2424,12 @@ msgstr "Copiez cette clé secrète dès maintenant. Pour des raisons de sécurit
 msgid "Corps de l'email de bienvenue"
 msgstr "Corps de l'email de bienvenue"
 
+msgid "Corriger"
+msgstr "Corriger"
+
+msgid "Corriger la première image sans description"
+msgstr "Corriger la première image sans description"
+
 msgid "Côte à côte"
 msgstr "Côte à côte"
 
@@ -2212,6 +2454,12 @@ msgstr "Couverture"
 msgid "Couverture de l'article"
 msgstr "Couverture de l'article"
 
+msgid "Couverture décorative : aucune description nécessaire"
+msgstr "Couverture décorative : aucune description nécessaire"
+
+msgid "Couverture, alt, SEO, catégorie et liens au vert."
+msgstr "Couverture, alt, SEO, catégorie et liens au vert."
+
 #~ msgid "Couvertures, brouillons, publication : rien à signaler. Le prochain levier, c'est le partage — un article lu dans les 48 h de sa sortie performe bien mieux."
 #~ msgstr "Couvertures, brouillons, publication : rien à signaler. Le prochain levier, c'est le partage — un article lu dans les 48 h de sa sortie performe bien mieux."
 
@@ -2230,11 +2478,20 @@ msgstr "Création"
 msgid "Création et publication de contenus au nom du média"
 msgstr "Création et publication de contenus au nom du média"
 
+msgid "Création impossible."
+msgstr "Création impossible."
+
+msgid "Création initiale"
+msgstr "Création initiale"
+
 #~ msgid "Création, modification et publication de contenus"
 #~ msgstr "Création, modification et publication de contenus"
 
 #~ msgid "Création..."
 #~ msgstr "Création..."
+
+msgid "Création…"
+msgstr "Création…"
 
 #~ msgid "Creator"
 #~ msgstr "Creator"
@@ -2248,6 +2505,9 @@ msgstr "Créée par"
 msgid "Créer"
 msgstr "Créer"
 
+msgid "Créer la formule"
+msgstr "Créer la formule"
+
 msgid "Créer le brouillon"
 msgstr "Créer le brouillon"
 
@@ -2257,6 +2517,9 @@ msgstr "Créer le brouillon"
 msgid "Créer mon média"
 msgstr "Créer mon média"
 
+msgid "Créer ou importer un exemplaire personnel éditable."
+msgstr "Créer ou importer un exemplaire personnel éditable."
+
 msgid "Créer un compte"
 msgstr "Créer un compte"
 
@@ -2265,6 +2528,9 @@ msgstr "Créer un compte"
 
 msgid "Créer un compte sur qoefi"
 msgstr "Créer un compte sur qoefi"
+
+msgid "Créer un digest"
+msgstr "Créer un digest"
 
 msgid "Créer un média"
 msgstr "Créer un média"
@@ -2286,6 +2552,12 @@ msgstr "Créer votre première catégorie"
 
 #~ msgid "Créez des clés distinctes pour chacun de vos environnements ou applications afin d'appliquer le principe de moindre privilège."
 #~ msgstr "Créez des clés distinctes pour chacun de vos environnements ou applications afin d'appliquer le principe de moindre privilège."
+
+msgid "Créez le prix dans Stripe, puis collez son identifiant : sans lui, la formule reste affichée mais non payable."
+msgstr "Créez le prix dans Stripe, puis collez son identifiant : sans lui, la formule reste affichée mais non payable."
+
+msgid "Créez un exemplaire personnel éditable pour continuer à travailler en toute indépendance."
+msgstr "Créez un exemplaire personnel éditable pour continuer à travailler en toute indépendance."
 
 #. placeholder {0}: activeWorkspace?.name
 #~ msgid "Créez une clé d'API dédiée au média « {0} » pour vos scripts et intégrations externes."
@@ -2378,6 +2650,9 @@ msgstr "Découvrir l'offre Premium →"
 msgid "Décrivez l'image pour les lecteurs d'écran"
 msgstr "Décrivez l'image pour les lecteurs d'écran"
 
+msgid "Décrivez la couverture pour les lecteurs d'écran"
+msgstr "Décrivez la couverture pour les lecteurs d'écran"
+
 msgid "Décrivez la ligne éditoriale du média..."
 msgstr "Décrivez la ligne éditoriale du média..."
 
@@ -2457,6 +2732,9 @@ msgstr "Demandes d'abonnement"
 #~ msgid "Demandez à qoefi ou cherchez... (⌘K)"
 #~ msgstr "Demandez à qoefi ou cherchez... (⌘K)"
 
+msgid "Démasquer"
+msgstr "Démasquer"
+
 msgid "Densité"
 msgstr "Densité"
 
@@ -2492,6 +2770,9 @@ msgstr "Déplacer vers..."
 
 msgid "Déplacer vers... (1 clic)"
 msgstr "Déplacer vers... (1 clic)"
+
+msgid "Déplier la citation"
+msgstr "Déplier la citation"
 
 #. placeholder {0}: root.name
 msgid "Déposer ici pour ajouter en sous-catégorie de \"{0}\""
@@ -2549,8 +2830,14 @@ msgstr "Dernière activité"
 #~ msgid "Dernière publication phare"
 #~ msgstr "Dernière publication phare"
 
+msgid "Dernière version publiée / collective"
+msgstr "Dernière version publiée / collective"
+
 #~ msgid "Dernières publications"
 #~ msgstr "Dernières publications"
+
+msgid "Derniers contrôles de forme. Vous pouvez publier malgré les avertissements ; les erreurs doivent être corrigées."
+msgstr "Derniers contrôles de forme. Vous pouvez publier malgré les avertissements ; les erreurs doivent être corrigées."
 
 msgid "Des écrits qui résonnent."
 msgstr "Des écrits qui résonnent."
@@ -2570,6 +2857,9 @@ msgstr "Description"
 msgid "Description (alt)"
 msgstr "Description (alt)"
 
+msgid "Description (optionnel)"
+msgstr "Description (optionnel)"
+
 #. placeholder {0}: activeLang.toUpperCase()
 msgid "Description / Paragraphe ({0})"
 msgstr "Description / Paragraphe ({0})"
@@ -2582,6 +2872,9 @@ msgstr "Description / Paragraphe ({0})"
 
 msgid "Description de l’image"
 msgstr "Description de l’image"
+
+msgid "Description de la couverture (alt)"
+msgstr "Description de la couverture (alt)"
 
 msgid "Description générée depuis le début de l'article."
 msgstr "Description générée depuis le début de l'article."
@@ -2637,8 +2930,14 @@ msgstr "Développeurs, intégrateurs"
 msgid "Dézoomer (-)"
 msgstr "Dézoomer (-)"
 
+msgid "Diagnostic des articles publiés"
+msgstr "Diagnostic des articles publiés"
+
 #~ msgid "Diff"
 #~ msgstr "Diff"
+
+msgid "Différences par rapport à la version en ligne :"
+msgstr "Différences par rapport à la version en ligne :"
 
 #~ msgid "Diffusion"
 #~ msgstr "Diffusion"
@@ -2648,6 +2947,9 @@ msgstr "Diffusion & Distribution"
 
 msgid "Diffusion sur"
 msgstr "Diffusion sur"
+
+msgid "Digest généré : relisez-le avant l'envoi."
+msgstr "Digest généré : relisez-le avant l'envoi."
 
 msgid "Dimension"
 msgstr "Dimension"
@@ -2682,12 +2984,18 @@ msgstr "Données & confidentialité"
 msgid "Données & sécurité"
 msgstr "Données & sécurité"
 
+msgid "Donnez un titre à votre livre."
+msgstr "Donnez un titre à votre livre."
+
 #. placeholder {0}: importStats.duplicates
 #~ msgid "Doublons dans le fichier : {0}"
 #~ msgstr "Doublons dans le fichier : {0}"
 
 msgid "Du temps bien dépensé."
 msgstr "Du temps bien dépensé."
+
+msgid "Dupliquer dans mon espace personnel"
+msgstr "Dupliquer dans mon espace personnel"
 
 msgid "Durée"
 msgstr "Durée"
@@ -2704,8 +3012,8 @@ msgstr "Durée de validité"
 msgid "Durée du vote"
 msgstr "Durée du vote"
 
-msgid "Durée moyenne"
-msgstr "Durée moyenne"
+#~ msgid "Durée moyenne"
+#~ msgstr "Durée moyenne"
 
 msgid "Dyslexia Friendly"
 msgstr "Dyslexia Friendly"
@@ -2754,6 +3062,9 @@ msgstr "Échec de l'enregistrement."
 
 msgid "Échec de l'envoi du test."
 msgstr "Échec de l'envoi du test."
+
+msgid "Échec de l'importation"
+msgstr "Échec de l'importation"
 
 #~ msgid "Échec de l'invitation."
 #~ msgstr "Échec de l'invitation."
@@ -2806,6 +3117,9 @@ msgstr "Échec de la promotion."
 msgid "Échec de la publication."
 msgstr "Échec de la publication."
 
+msgid "Échec de la restauration"
+msgstr "Échec de la restauration"
+
 msgid "Échec de la révocation du lien."
 msgstr "Échec de la révocation du lien."
 
@@ -2829,6 +3143,9 @@ msgstr "Échec du déplacement de la catégorie."
 
 msgid "Échec du détachement de la catégorie."
 msgstr "Échec du détachement de la catégorie."
+
+msgid "Échec du remplacement de l'image."
+msgstr "Échec du remplacement de l'image."
 
 msgid "Échec du retrait du membre."
 msgstr "Échec du retrait du membre."
@@ -2890,6 +3207,9 @@ msgstr "écrits publiés"
 msgid "Écrits sélectionnés"
 msgstr "Écrits sélectionnés"
 
+msgid "Écriture"
+msgstr "Écriture"
+
 msgid "Écrivez DELETE"
 msgstr "Écrivez DELETE"
 
@@ -2913,6 +3233,9 @@ msgstr "Éditer l’image"
 
 msgid "Éditer le profil"
 msgstr "Éditer le profil"
+
+msgid "Éditer le profil média"
+msgstr "Éditer le profil média"
 
 msgid "Éditer ses écrits"
 msgstr "Éditer ses écrits"
@@ -3034,8 +3357,11 @@ msgstr "Enregistré !"
 msgid "Enregistré à {0}"
 msgstr "Enregistré à {0}"
 
-msgid "Enregistrement auto · ⌘S pour forcer"
-msgstr "Enregistrement auto · ⌘S pour forcer"
+msgid "Enregistrement auto · {MOD}S pour forcer"
+msgstr "Enregistrement auto · {MOD}S pour forcer"
+
+#~ msgid "Enregistrement auto · ⌘S pour forcer"
+#~ msgstr "Enregistrement auto · ⌘S pour forcer"
 
 msgid "Enregistrement..."
 msgstr "Enregistrement..."
@@ -3085,6 +3411,10 @@ msgstr "Enregistrez des articles en cours de lecture pour les retrouver ici."
 msgid "Envoi antérieur validé."
 msgstr "Envoi antérieur validé."
 
+#. placeholder {0}: uploadProgress.fileName
+msgid "Envoi de {0}"
+msgstr "Envoi de {0}"
+
 msgid "Envoi en cours ({uploadCount})"
 msgstr "Envoi en cours ({uploadCount})"
 
@@ -3099,6 +3429,9 @@ msgstr "Envoi impossible"
 
 msgid "Envoi lancé. L'email part dans quelques minutes."
 msgstr "Envoi lancé. L'email part dans quelques minutes."
+
+msgid "Envoi..."
+msgstr "Envoi..."
 
 msgid "Envois"
 msgstr "Envois"
@@ -3220,6 +3553,9 @@ msgstr "Erreur lors de la création de la clé API"
 
 #~ msgid "Erreur lors de la génération de la clé."
 #~ msgstr "Erreur lors de la génération de la clé."
+
+msgid "Erreur lors de la génération du digest"
+msgstr "Erreur lors de la génération du digest"
 
 #~ msgid "Erreur lors de la mise à jour du J'aime"
 #~ msgstr "Erreur lors de la mise à jour du J'aime"
@@ -3351,6 +3687,9 @@ msgstr "Étroit"
 #~ msgid "Étroite"
 #~ msgstr "Étroite"
 
+msgid "ex: iel, elle/iel, il"
+msgstr "ex: iel, elle/iel, il"
+
 msgid "ex: iel, il/lui, elle, they/them"
 msgstr "ex: iel, il/lui, elle, they/them"
 
@@ -3398,6 +3737,13 @@ msgstr "Ex: Zapier Sync, Application Mobile, Bot Discord..."
 
 #~ msgid "Ex. Tous droits réservés. Merci de votre lecture."
 #~ msgstr "Ex. Tous droits réservés. Merci de votre lecture."
+
+msgid "Exemplaire importé avec succès dans votre espace personnel."
+msgstr "Exemplaire importé avec succès dans votre espace personnel."
+
+#. placeholder {0}: article.originPublisher.name
+msgid "Exemplaire personnel issu de {0}"
+msgstr "Exemplaire personnel issu de {0}"
 
 msgid "Expéditeur"
 msgstr "Expéditeur"
@@ -3513,6 +3859,9 @@ msgstr "Fermer sans enregistrer"
 msgid "Fermer sans enregistrer ?"
 msgstr "Fermer sans enregistrer ?"
 
+msgid "Fermer un panneau"
+msgstr "Fermer un panneau"
+
 #~ msgid "Fichier constitué à la main"
 #~ msgstr "Fichier constitué à la main"
 
@@ -3533,6 +3882,9 @@ msgstr "Filtrer les notes..."
 
 msgid "Filtrer les signets..."
 msgstr "Filtrer les signets..."
+
+msgid "Filtrer par point à corriger"
+msgstr "Filtrer par point à corriger"
 
 msgid "Filtrer par statut"
 msgstr "Filtrer par statut"
@@ -3561,6 +3913,12 @@ msgstr "Format"
 #~ msgid "Formats supportés : Substack subscribers.csv, Beehiiv exports, Ghost CSV"
 #~ msgstr "Formats supportés : Substack subscribers.csv, Beehiiv exports, Ghost CSV"
 
+msgid "Formule créée."
+msgstr "Formule créée."
+
+msgid "Formules"
+msgstr "Formules"
+
 msgid "Fournisseurs connectés"
 msgstr "Fournisseurs connectés"
 
@@ -3575,6 +3933,9 @@ msgstr "Gardez cette clé confidentielle dans vos variables d'environnement serv
 
 msgid "Général"
 msgstr "Général"
+
+msgid "Générer avec l'IA"
+msgstr "Générer avec l'IA"
 
 msgid "Générer la clé"
 msgstr "Générer la clé"
@@ -3705,6 +4066,9 @@ msgstr "Heure"
 msgid "Historique"
 msgstr "Historique"
 
+msgid "Historique de l'écrit"
+msgstr "Historique de l'écrit"
+
 msgid "Historique de publication"
 msgstr "Historique de publication"
 
@@ -3720,8 +4084,14 @@ msgstr "Historique des envois"
 msgid "Homme"
 msgstr "Homme"
 
+msgid "Hors ligne"
+msgstr "Hors ligne"
+
 msgid "https://exemple.com ou /rubrique/article"
 msgstr "https://exemple.com ou /rubrique/article"
+
+msgid "https://exemple.fr/source"
+msgstr "https://exemple.fr/source"
 
 msgid "I. L'anxiété du flux"
 msgstr "I. L'anxiété du flux"
@@ -3794,14 +4164,29 @@ msgstr "Image"
 msgid "Image précédente (Flèche gauche)"
 msgstr "Image précédente (Flèche gauche)"
 
+msgid "Image purement décorative"
+msgstr "Image purement décorative"
+
 msgid "Image recadrée avec succès."
 msgstr "Image recadrée avec succès."
+
+msgid "Image remplacée"
+msgstr "Image remplacée"
+
+msgid "image sans alt"
+msgstr "image sans alt"
 
 msgid "Image source"
 msgstr "Image source"
 
 msgid "Image suivante (Flèche droite)"
 msgstr "Image suivante (Flèche droite)"
+
+msgid "Images et navigation"
+msgstr "Images et navigation"
+
+msgid "images sans alt"
+msgstr "images sans alt"
 
 msgid "Imbriquer l'élément"
 msgstr "Imbriquer l'élément"
@@ -3818,8 +4203,17 @@ msgstr "Import d'archives (RSS, JSON, CSV)"
 #~ msgid "Importation des articles & publications"
 #~ msgstr "Importation des articles & publications"
 
+msgid "Importation…"
+msgstr "Importation…"
+
 msgid "Importer"
 msgstr "Importer"
+
+msgid "Importer dans mes brouillons"
+msgstr "Importer dans mes brouillons"
+
+msgid "Importer dans mon espace personnel"
+msgstr "Importer dans mon espace personnel"
 
 #~ msgid "Importer vos abonnés (Substack, Beehiiv, Ghost)"
 #~ msgstr "Importer vos abonnés (Substack, Beehiiv, Ghost)"
@@ -3863,6 +4257,9 @@ msgstr "Impossible de charger l'historique."
 msgid "Impossible de charger les clés API"
 msgstr "Impossible de charger les clés API"
 
+msgid "Impossible de charger les commentaires."
+msgstr "Impossible de charger les commentaires."
+
 msgid "Impossible de charger les liens d'invitation."
 msgstr "Impossible de charger les liens d'invitation."
 
@@ -3877,6 +4274,9 @@ msgstr "Impossible de charger les paramètres de l'article."
 
 msgid "Impossible de charger les versions de l'article."
 msgstr "Impossible de charger les versions de l'article."
+
+msgid "Impossible de charger les versions."
+msgstr "Impossible de charger les versions."
 
 msgid "Impossible de charger vos contrôles sociaux."
 msgstr "Impossible de charger vos contrôles sociaux."
@@ -3971,6 +4371,12 @@ msgstr "Infrastructure européenne souveraine & Option auto-hébergée"
 msgid "Inscriptions sur invitation — vérifiez votre email"
 msgstr "Inscriptions sur invitation — vérifiez votre email"
 
+msgid "Insérer depuis la médiathèque"
+msgstr "Insérer depuis la médiathèque"
+
+msgid "Insérer des notes et sources"
+msgstr "Insérer des notes et sources"
+
 msgid "Insérer image"
 msgstr "Insérer image"
 
@@ -3980,6 +4386,12 @@ msgstr "Insérer la limite Paywall"
 #~ msgid "Insérer la limite Paywall (Contenu Premium)"
 #~ msgstr "Insérer la limite Paywall (Contenu Premium)"
 
+msgid "Insérer les sources"
+msgstr "Insérer les sources"
+
+msgid "Insérer un tableau"
+msgstr "Insérer un tableau"
+
 msgid "Insérer une galerie"
 msgstr "Insérer une galerie"
 
@@ -3988,6 +4400,9 @@ msgstr "Insérer une image"
 
 #~ msgid "Insérer une Image"
 #~ msgstr "Insérer une Image"
+
+msgid "Insérer une image de la médiathèque"
+msgstr "Insérer une image de la médiathèque"
 
 #~ msgid "Inspecter les statistiques réelles de cet article"
 #~ msgstr "Inspecter les statistiques réelles de cet article"
@@ -4074,6 +4489,9 @@ msgstr "Je n'aime plus"
 msgid "Je te recommande la lecture de cet article :"
 msgstr "Je te recommande la lecture de cet article :"
 
+msgid "Journal d'activité"
+msgstr "Journal d'activité"
+
 msgid "Journalisme de terrain"
 msgstr "Journalisme de terrain"
 
@@ -4085,6 +4503,9 @@ msgstr "Journalistes, essayistes, collectifs"
 
 msgid "Julien Roche · Technologie · 5 min"
 msgstr "Julien Roche · Technologie · 5 min"
+
+msgid "L'abonnement en ligne n'est pas encore ouvert pour cette publication."
+msgstr "L'abonnement en ligne n'est pas encore ouvert pour cette publication."
 
 msgid "L'ancien secret est désormais révoqué. Copiez cette nouvelle clé secrète dès maintenant : elle ne sera plus jamais réaffichée."
 msgstr "L'ancien secret est désormais révoqué. Copiez cette nouvelle clé secrète dès maintenant : elle ne sera plus jamais réaffichée."
@@ -4122,6 +4543,9 @@ msgstr "L'article redevient un brouillon simple."
 msgid "L'article sera publié automatiquement à la date choisie."
 msgstr "L'article sera publié automatiquement à la date choisie."
 
+msgid "L'assistant réfléchit…"
+msgstr "L'assistant réfléchit…"
+
 msgid "L'Auteur"
 msgstr "L'Auteur"
 
@@ -4152,6 +4576,9 @@ msgstr "L'hébergement de nos médias indépendants ne peut plus reposer sur les
 msgid "L'historique apparaîtra une fois l'article enregistré une première fois."
 msgstr "L'historique apparaîtra une fois l'article enregistré une première fois."
 
+msgid "L'image d'origine a changé. Rouvrez ses détails pour la remplacer."
+msgstr "L'image d'origine a changé. Rouvrez ses détails pour la remplacer."
+
 msgid "L’image ne doit pas dépasser 10 Mo."
 msgstr "L’image ne doit pas dépasser 10 Mo."
 
@@ -4160,6 +4587,9 @@ msgstr "L'impératif de la sobriété attentionnelle"
 
 msgid "L'infrastructure de l'esprit"
 msgstr "L'infrastructure de l'esprit"
+
+msgid "L’ordre de sélection fait l’ordre du livre."
+msgstr "L’ordre de sélection fait l’ordre du livre."
 
 msgid "L'upload de l'image a échoué."
 msgstr "L'upload de l'image a échoué."
@@ -4172,6 +4602,9 @@ msgstr "La citation imbriquée est un aperçu : seul le premier maillon ouvre la
 
 msgid "La citation n’a pas pu être publiée."
 msgstr "La citation n’a pas pu être publiée."
+
+msgid "La co-édition est indisponible."
+msgstr "La co-édition est indisponible."
 
 msgid "La date de programmation doit être dans le futur."
 msgstr "La date de programmation doit être dans le futur."
@@ -4194,11 +4627,17 @@ msgstr "la publication sélectionnée"
 msgid "La question n'est pas : comment consommer davantage de contenu de qualité ? La question est : comment me donner les conditions pour qu'un seul texte m'affecte vraiment ?"
 msgstr "La question n'est pas : comment consommer davantage de contenu de qualité ? La question est : comment me donner les conditions pour qu'un seul texte m'affecte vraiment ?"
 
+msgid "La santé du contenu analyse uniquement les articles publiés. Publiez un premier écrit pour voir apparaître le diagnostic."
+msgstr "La santé du contenu analyse uniquement les articles publiés. Publiez un premier écrit pour voir apparaître le diagnostic."
+
 msgid "La souveraineté cloud en chiffres"
 msgstr "La souveraineté cloud en chiffres"
 
 #~ msgid "La suite de cette publication est exclusivement réservée aux abonnés de "
 #~ msgstr "La suite de cette publication est exclusivement réservée aux abonnés de "
+
+msgid "La suite est réservée aux abonnés"
+msgstr "La suite est réservée aux abonnés"
 
 msgid "La synthèse vocale n'est pas initialisée."
 msgstr "La synthèse vocale n'est pas initialisée."
@@ -4221,6 +4660,9 @@ msgstr "Laissez vide ou retirez le lien existant"
 
 msgid "Lance automatiquement les vidéos et contenus animés."
 msgstr "Lance automatiquement les vidéos et contenus animés."
+
+msgid "Langue cible"
+msgstr "Langue cible"
 
 msgid "Langue d'aperçu"
 msgstr "Langue d'aperçu"
@@ -4297,14 +4739,23 @@ msgstr "Le lien d'abonnement figure en bas de chaque article."
 msgid "Le lien que vous avez suivi est incorrect ou l'écrit a été retiré par "
 msgstr "Le lien que vous avez suivi est incorrect ou l'écrit a été retiré par "
 
+msgid "Le livre"
+msgstr "Le livre"
+
 msgid "Le nom de la clé est requis."
 msgstr "Le nom de la clé est requis."
 
 msgid "Le numérique militant"
 msgstr "Le numérique militant"
 
+msgid "Le paiement par carte n’est pas encore ouvert. Écrivez-nous pour un accès anticipé."
+msgstr "Le paiement par carte n’est pas encore ouvert. Écrivez-nous pour un accès anticipé."
+
 msgid "Le planificateur a publié l'article à l'heure prévue."
 msgstr "Le planificateur a publié l'article à l'heure prévue."
+
+msgid "Le reader ne l'annoncera pas aux lecteurs d'écran (alt vide)."
+msgstr "Le reader ne l'annoncera pas aux lecteurs d'écran (alt vide)."
 
 msgid "Le silence comme infrastructure"
 msgstr "Le silence comme infrastructure"
@@ -4369,6 +4820,9 @@ msgstr "Lecture en cours"
 msgid "Lecture monastique (Sanctuaire silencieux sans distraction)"
 msgstr "Lecture monastique (Sanctuaire silencieux sans distraction)"
 
+msgid "Lecture seule"
+msgstr "Lecture seule"
+
 msgid "Légende"
 msgstr "Légende"
 
@@ -4402,17 +4856,26 @@ msgstr "Les articles seront immédiatement visibles publiquement."
 msgid "Les autres membres peuvent vous mentionner dans une pensée."
 msgstr "Les autres membres peuvent vous mentionner dans une pensée."
 
+msgid "Les brouillons ne sont pas notés : ils restent votre espace de travail."
+msgstr "Les brouillons ne sont pas notés : ils restent votre espace de travail."
+
 msgid "Les commentaires ont été désactivés par l'auteur sur cet écrit."
 msgstr "Les commentaires ont été désactivés par l'auteur sur cet écrit."
 
 msgid "Les comptes privés doivent approuver chaque nouvelle demande avant de partager leur contenu."
 msgstr "Les comptes privés doivent approuver chaque nouvelle demande avant de partager leur contenu."
 
+msgid "Les défauts sont cumulés par article ; ouvrez un écrit pour le corriger en contexte."
+msgstr "Les défauts sont cumulés par article ; ouvrez un écrit pour le corriger en contexte."
+
 msgid "Les emails partent de l'infrastructure qoe.fi."
 msgstr "Les emails partent de l'infrastructure qoe.fi."
 
 msgid "Les fournisseurs liés ne donnent jamais accès à vos tokens."
 msgstr "Les fournisseurs liés ne donnent jamais accès à vos tokens."
+
+msgid "Les gestes qui font gagner du temps, sans quitter le clavier."
+msgstr "Les gestes qui font gagner du temps, sans quitter le clavier."
 
 msgid "Les grandes œuvres ont toutes été écrites dans des conditions que nous qualifierions d'ennuyeuses. Pas de notifications. Pas de flux. Pas de stories."
 msgstr "Les grandes œuvres ont toutes été écrites dans des conditions que nous qualifierions d'ennuyeuses. Pas de notifications. Pas de flux. Pas de stories."
@@ -4459,6 +4922,13 @@ msgstr "Les requêtes signées avec ces clés ne sont pas rattachées à votre c
 msgid "Lettrine (grande initiale)"
 msgstr "Lettrine (grande initiale)"
 
+msgid "Libellé (ex. Rapport annuel)"
+msgstr "Libellé (ex. Rapport annuel)"
+
+#. placeholder {0}: index + 1
+msgid "Libellé de la source {0}"
+msgstr "Libellé de la source {0}"
+
 msgid "Libellé du lien"
 msgstr "Libellé du lien"
 
@@ -4480,6 +4950,9 @@ msgstr "Lien d'invitation généré."
 msgid "Lien d'invitation révoqué."
 msgstr "Lien d'invitation révoqué."
 
+msgid "Lien de contact / Support"
+msgstr "Lien de contact / Support"
+
 msgid "Lien externe"
 msgstr "Lien externe"
 
@@ -4495,6 +4968,9 @@ msgstr "Lien magique envoyé"
 msgid "Lien optionnel"
 msgstr "Lien optionnel"
 
+msgid "Lien vers un de mes articles"
+msgstr "Lien vers un de mes articles"
+
 msgid "Liens d'invitation"
 msgstr "Liens d'invitation"
 
@@ -4503,6 +4979,9 @@ msgstr "Liens externes du menu"
 
 msgid "Lier Google"
 msgstr "Lier Google"
+
+msgid "Ligne éditoriale / Slogan"
+msgstr "Ligne éditoriale / Slogan"
 
 msgid "Liker / Déliker la pensée active"
 msgstr "Liker / Déliker la pensée active"
@@ -4561,6 +5040,9 @@ msgstr "Logo d'en-tête"
 #~ msgid "Logo des emails"
 #~ msgstr "Logo des emails"
 
+msgid "Logo du média"
+msgstr "Logo du média"
+
 msgid "Logo et signature"
 msgstr "Logo et signature"
 
@@ -4575,6 +5057,9 @@ msgstr "Lu par 14,000 abonnés"
 
 msgid "Lundi 9 h"
 msgstr "Lundi 9 h"
+
+msgid "Ma version"
+msgstr "Ma version"
 
 msgid "Marc Dutronc"
 msgstr "Marc Dutronc"
@@ -4596,6 +5081,9 @@ msgstr "Masquer"
 
 msgid "Masquer cette réponse"
 msgstr "Masquer cette réponse"
+
+msgid "Masquer cette réponse pour tous les lecteurs"
+msgstr "Masquer cette réponse pour tous les lecteurs"
 
 msgid "Masquer du profil personnel"
 msgstr "Masquer du profil personnel"
@@ -4638,6 +5126,9 @@ msgstr "Médias"
 
 msgid "Médias & CMS"
 msgstr "Médias & CMS"
+
+msgid "Médiathèque"
+msgstr "Médiathèque"
 
 msgid "Meilleur engagement"
 msgstr "Meilleur engagement"
@@ -4688,8 +5179,11 @@ msgstr "Menu compte"
 #~ msgid "Merci ! Vérifiez votre boîte mail pour confirmer votre abonnement."
 #~ msgstr "Merci ! Vérifiez votre boîte mail pour confirmer votre abonnement."
 
-msgid "Merci de lire {publicationName}. Retrouvez nos archives sur le site."
-msgstr "Merci de lire {publicationName}. Retrouvez nos archives sur le site."
+#~ msgid "Merci de lire {publicationName}. Retrouvez nos archives sur le site."
+#~ msgstr "Merci de lire {publicationName}. Retrouvez nos archives sur le site."
+
+msgid "Merci de lire {publisherName}. Retrouvez nos archives sur le site."
+msgstr "Merci de lire {publisherName}. Retrouvez nos archives sur le site."
 
 msgid "Merci. Votre signalement a été transmis à la modération."
 msgstr "Merci. Votre signalement a été transmis à la modération."
@@ -4805,8 +5299,11 @@ msgstr "Modifications annulées."
 msgid "Modifications en attente"
 msgstr "Modifications en attente"
 
-msgid "Modifications en cours… (⌘S)"
-msgstr "Modifications en cours… (⌘S)"
+msgid "Modifications en cours… ({MOD}S)"
+msgstr "Modifications en cours… ({MOD}S)"
+
+#~ msgid "Modifications en cours… (⌘S)"
+#~ msgstr "Modifications en cours… (⌘S)"
 
 msgid "Modifications non enregistrées"
 msgstr "Modifications non enregistrées"
@@ -4828,6 +5325,9 @@ msgstr "Modifié il y a {diffDays}j"
 
 msgid "Modifié il y a {diffHours}h"
 msgstr "Modifié il y a {diffHours}h"
+
+msgid "modifié le"
+msgstr "modifié le"
 
 msgid "Modifié le"
 msgstr "Modifié le"
@@ -4861,6 +5361,9 @@ msgstr "Modifier le lien"
 
 msgid "Modifier le message direct"
 msgstr "Modifier le message direct"
+
+msgid "Modifier le texte"
+msgstr "Modifier le texte"
 
 msgid "Modifier les paramètres"
 msgstr "Modifier les paramètres"
@@ -4922,6 +5425,9 @@ msgstr "Mots philosophiques d'arrière-plan (Séparés par des virgules)"
 msgid "mots supprimés"
 msgstr "mots supprimés"
 
+msgid "Moyenne par article"
+msgstr "Moyenne par article"
+
 msgid "Multi-auteurs et rôles éditoriaux"
 msgstr "Multi-auteurs et rôles éditoriaux"
 
@@ -4976,6 +5482,9 @@ msgstr "Niveau de titre"
 msgid "Noir"
 msgstr "Noir"
 
+msgid "Nom"
+msgstr "Nom"
+
 msgid "Nom & Préfixe"
 msgstr "Nom & Préfixe"
 
@@ -5026,6 +5535,9 @@ msgstr "Nom de la publication"
 
 msgid "Nom de la sous-catégorie... (Entrée)"
 msgstr "Nom de la sous-catégorie... (Entrée)"
+
+msgid "Nom de votre publication"
+msgstr "Nom de votre publication"
 
 msgid "Nom du média"
 msgstr "Nom du média"
@@ -5081,6 +5593,9 @@ msgstr "Note privée : {0}"
 msgid "Note publique : {0}"
 msgstr "Note publique : {0}"
 
+msgid "Notes et sources"
+msgstr "Notes et sources"
+
 msgid "Notifications"
 msgstr "Notifications"
 
@@ -5111,6 +5626,9 @@ msgstr "Nouveau mot de passe"
 msgid "Nouvel abonné"
 msgstr "Nouvel abonné"
 
+msgid "Nouvel article"
+msgstr "Nouvel article"
+
 msgid "Nouvel écrit"
 msgstr "Nouvel écrit"
 
@@ -5134,6 +5652,9 @@ msgstr "Nouvelle clé API"
 
 #~ msgid "Nouvelle clé d'API Média générée avec succès !"
 #~ msgstr "Nouvelle clé d'API Média générée avec succès !"
+
+msgid "Nouvelle formule"
+msgstr "Nouvelle formule"
 
 #~ msgid "Nouvelle parution"
 #~ msgstr "Nouvelle parution"
@@ -5214,6 +5735,9 @@ msgstr "ont retiré votre attribution de cet article"
 #~ msgid "OpenDyslexic"
 #~ msgstr "OpenDyslexic"
 
+msgid "Option/Alt+clic pour modifier"
+msgstr "Option/Alt+clic pour modifier"
+
 msgid "Options"
 msgstr "Options"
 
@@ -5222,6 +5746,9 @@ msgstr "Options d'inscription"
 
 #~ msgid "Options de l'article"
 #~ msgstr "Options de l'article"
+
+msgid "Options de suivi des auteurs"
+msgstr "Options de suivi des auteurs"
 
 #. placeholder {0}: sortDirection === 'desc' ? t`Décroissant` : t`Croissant`
 msgid "Ordre : {0}"
@@ -5272,14 +5799,32 @@ msgstr "Ouvrir le menu"
 msgid "Ouvrir le thread complet de la pensée"
 msgstr "Ouvrir le thread complet de la pensée"
 
+msgid "Ouvrir les détails de l'image"
+msgstr "Ouvrir les détails de l'image"
+
+msgid "Ouvrir les détails de l'image sélectionnée"
+msgstr "Ouvrir les détails de l'image sélectionnée"
+
+msgid "Ouvrir les options"
+msgstr "Ouvrir les options"
+
 msgid "Ouvrir les paramètres de publication"
 msgstr "Ouvrir les paramètres de publication"
+
+msgid "Ouvrir ma version personnelle"
+msgstr "Ouvrir ma version personnelle"
 
 msgid "Ouvrir ou fermer l'espace de débat."
 msgstr "Ouvrir ou fermer l'espace de débat."
 
 #~ msgid "Ouvrir sur le site du créateur"
 #~ msgstr "Ouvrir sur le site du créateur"
+
+msgid "Ouvrir une annotation"
+msgstr "Ouvrir une annotation"
+
+msgid "Ouvrir votre exemplaire personnel de cet essai"
+msgstr "Ouvrir votre exemplaire personnel de cet essai"
 
 msgid "Page À propos"
 msgstr "Page À propos"
@@ -5295,6 +5840,9 @@ msgstr "Pages vues sur la période"
 
 #~ msgid "Paiement 100% sécurisé via Stripe • Annulation possible à tout moment"
 #~ msgstr "Paiement 100% sécurisé via Stripe • Annulation possible à tout moment"
+
+msgid "Paiement momentanément indisponible."
+msgstr "Paiement momentanément indisponible."
 
 msgid "Papier"
 msgstr "Papier"
@@ -5351,6 +5899,9 @@ msgstr "Parcourir les annotations de l’article"
 
 msgid "Paris, France"
 msgstr "Paris, France"
+
+msgid "Part des articles publiés sans aucun point à corriger."
+msgstr "Part des articles publiés sans aucun point à corriger."
 
 msgid "Partage direct dans le fil"
 msgstr "Partage direct dans le fil"
@@ -5409,6 +5960,9 @@ msgstr "Pas de scroll toxique. Pas d'algorithme marchand. Juste du fond, du temp
 msgid "Pas de scroll toxique. Pas d'algorithme marchand..."
 msgstr "Pas de scroll toxique. Pas d'algorithme marchand..."
 
+msgid "Pas de suggestion pour ce texte."
+msgstr "Pas de suggestion pour ce texte."
+
 msgid "Pas encore de compte ? S'inscrire"
 msgstr "Pas encore de compte ? S'inscrire"
 
@@ -5441,6 +5995,9 @@ msgstr "Passer en Mode Sombre"
 
 #~ msgid "Passer en Mode Sombre (Neural Expressive)"
 #~ msgstr "Passer en Mode Sombre (Neural Expressive)"
+
+msgid "Payable"
+msgstr "Payable"
 
 msgid "Payant"
 msgstr "Payant"
@@ -5616,6 +6173,9 @@ msgstr "Plus d'options de lecture"
 msgid "Plus qu'une étape !"
 msgstr "Plus qu'une étape !"
 
+msgid "Plus récent"
+msgstr "Plus récent"
+
 msgid "Plus repartagés"
 msgstr "Plus repartagés"
 
@@ -5636,6 +6196,12 @@ msgstr "Police du média"
 
 msgid "Politique"
 msgstr "Politique"
+
+msgid "Portail de facturation"
+msgstr "Portail de facturation"
+
+msgid "Portail indisponible pour le moment."
+msgstr "Portail indisponible pour le moment."
 
 #~ msgid "Portefeuille"
 #~ msgstr "Portefeuille"
@@ -5661,6 +6227,9 @@ msgstr "pour recevoir les prochains écrits dans votre boîte mail."
 #~ msgid "pour recevoir les prochains écrits directement dans votre boîte mail."
 #~ msgstr "pour recevoir les prochains écrits directement dans votre boîte mail."
 
+msgid "pour soutenir la plateforme."
+msgstr "pour soutenir la plateforme."
+
 msgid "Pour vous"
 msgstr "Pour vous"
 
@@ -5673,8 +6242,11 @@ msgstr "Pourquoi ce passage compte pour vous…"
 msgid "Pourquoi qoefi redéfinit l'édition indépendante"
 msgstr "Pourquoi qoefi redéfinit l'édition indépendante"
 
-msgid "Pourquoi souhaitez-vous signaler cette publication ?"
-msgstr "Pourquoi souhaitez-vous signaler cette publication ?"
+#~ msgid "Pourquoi souhaitez-vous signaler cette publication ?"
+#~ msgstr "Pourquoi souhaitez-vous signaler cette publication ?"
+
+msgid "Pourquoi souhaitez-vous signaler cette publisher ?"
+msgstr "Pourquoi souhaitez-vous signaler cette publisher ?"
 
 #~ msgid "Poursuivez votre lecture de « {articleTitle} »"
 #~ msgstr "Poursuivez votre lecture de « {articleTitle} »"
@@ -5721,14 +6293,29 @@ msgstr "Préparation…"
 msgid "Près de 0% (Soutien direct via Wallet, frais de réseau uniquement)"
 msgstr "Près de 0% (Soutien direct via Wallet, frais de réseau uniquement)"
 
+msgid "Présentez la mission et le positionnement du média..."
+msgstr "Présentez la mission et le positionnement du média..."
+
+#. placeholder {0}: myAuthoredSnapshot.wordCount
+msgid "Préserve votre texte exact tel que vous l'aviez laissé ({0} mots), sans modifications éditoriales tierces."
+msgstr "Préserve votre texte exact tel que vous l'aviez laissé ({0} mots), sans modifications éditoriales tierces."
+
 msgid "Préservez votre attention (Filtre Zen)"
 msgstr "Préservez votre attention (Filtre Zen)"
+
+msgid "Prêt à publier"
+msgstr "Prêt à publier"
 
 #~ msgid "Prêt à publier ?"
 #~ msgstr "Prêt à publier ?"
 
 msgid "Prêt pour la publication"
 msgstr "Prêt pour la publication"
+
+#. placeholder {0}: result.warnings
+#. placeholder {1}: result.warnings === 1 ? '' : 's'
+msgid "Prêt, avec {0} avertissement{1}"
+msgstr "Prêt, avec {0} avertissement{1}"
 
 msgid "Prise en charge des graphiques interactifs"
 msgstr "Prise en charge des graphiques interactifs"
@@ -5738,6 +6325,9 @@ msgstr "Privé"
 
 msgid "Privée"
 msgstr "Privée"
+
+msgid "Prix mensuel (€)"
+msgstr "Prix mensuel (€)"
 
 msgid "PRO"
 msgstr "PRO"
@@ -5797,6 +6387,18 @@ msgstr "Programmés et brouillons"
 msgid "Promouvoir en catégorie principale"
 msgstr "Promouvoir en catégorie principale"
 
+msgid "Pronoms (optionnel)"
+msgstr "Pronoms (optionnel)"
+
+msgid "Proposer cette révision au média"
+msgstr "Proposer cette révision au média"
+
+msgid "Proposer des titres"
+msgstr "Proposer des titres"
+
+msgid "Proposer une description SEO"
+msgstr "Proposer une description SEO"
+
 msgid "Propriétaire"
 msgstr "Propriétaire"
 
@@ -5818,57 +6420,63 @@ msgstr "Proust écrivait dans une chambre capitonnée. Kafka après minuit. Witt
 msgid "Public"
 msgstr "Public"
 
-msgid "Publication"
-msgstr "Publication"
+#~ msgid "Publication"
+#~ msgstr "Publication"
 
-msgid "Publication & Diffusion"
-msgstr "Publication & Diffusion"
+#~ msgid "Publication & Diffusion"
+#~ msgstr "Publication & Diffusion"
 
-msgid "Publication automatique à cette heure ({timeZoneLabel})."
-msgstr "Publication automatique à cette heure ({timeZoneLabel})."
+#~ msgid "Publication automatique à cette heure ({timeZoneLabel})."
+#~ msgstr "Publication automatique à cette heure ({timeZoneLabel})."
 
 msgid "Publication automatique programmée"
 msgstr "Publication automatique programmée"
 
 #. placeholder {0}: Math.round(hours / 24)
-msgid "Publication dans {0} j."
-msgstr "Publication dans {0} j."
+#~ msgid "Publication dans {0} j."
+#~ msgstr "Publication dans {0} j."
 
-msgid "Publication dans {diffMinutes} min."
-msgstr "Publication dans {diffMinutes} min."
+#~ msgid "Publication dans {diffMinutes} min."
+#~ msgstr "Publication dans {diffMinutes} min."
 
-msgid "Publication dans {hours} h."
-msgstr "Publication dans {hours} h."
+#~ msgid "Publication dans {hours} h."
+#~ msgstr "Publication dans {hours} h."
 
-msgid "Publication en cours..."
-msgstr "Publication en cours..."
+#~ msgid "Publication en cours..."
+#~ msgstr "Publication en cours..."
 
-msgid "Publication programmée"
-msgstr "Publication programmée"
+msgid "Publication impossible."
+msgstr "Publication impossible."
 
-msgid "Publication reportée"
-msgstr "Publication reportée"
+#~ msgid "Publication programmée"
+#~ msgstr "Publication programmée"
 
-msgid "Publications & médias"
-msgstr "Publications & médias"
+#~ msgid "Publication reportée"
+#~ msgstr "Publication reportée"
 
-msgid "Publications phares"
-msgstr "Publications phares"
+#~ msgid "Publications & médias"
+#~ msgstr "Publications & médias"
 
-msgid "Publications récentes"
-msgstr "Publications récentes"
+#~ msgid "Publications phares"
+#~ msgstr "Publications phares"
 
-msgid "Publications recommandées"
-msgstr "Publications recommandées"
+#~ msgid "Publications récentes"
+#~ msgstr "Publications récentes"
 
-msgid "Publications recommandées pour vous"
-msgstr "Publications recommandées pour vous"
+#~ msgid "Publications recommandées"
+#~ msgstr "Publications recommandées"
+
+#~ msgid "Publications recommandées pour vous"
+#~ msgstr "Publications recommandées pour vous"
 
 msgid "publics"
 msgstr "publics"
 
 msgid "Publié"
 msgstr "Publié"
+
+msgid "Publié à l'origine dans"
+msgstr "Publié à l'origine dans"
 
 msgid "Publié automatiquement"
 msgstr "Publié automatiquement"
@@ -5915,6 +6523,9 @@ msgstr "Publier une pensée"
 msgid "Publiés"
 msgstr "Publiés"
 
+msgid "Publiez d’abord un article : il deviendra un chapitre."
+msgstr "Publiez d’abord un article : il deviendra un chapitre."
+
 #~ msgid "Publiez le lien de votre publication dans votre premier article : c'est là que le lecteur décide de s'abonner."
 #~ msgstr "Publiez le lien de votre publication dans votre premier article : c'est là que le lecteur décide de s'abonner."
 
@@ -5923,6 +6534,52 @@ msgstr "Publiés"
 
 msgid "Publique"
 msgstr "Publique"
+
+msgid "Publisher"
+msgstr "Publisher"
+
+msgid "Publisher & Diffusion"
+msgstr "Publisher & Diffusion"
+
+msgid "Publisher automatique à cette heure ({timeZoneLabel})."
+msgstr "Publisher automatique à cette heure ({timeZoneLabel})."
+
+#. placeholder {0}: Math.round(hours / 24)
+msgid "Publisher dans {0} j."
+msgstr "Publisher dans {0} j."
+
+msgid "Publisher dans {diffMinutes} min."
+msgstr "Publisher dans {diffMinutes} min."
+
+msgid "Publisher dans {hours} h."
+msgstr "Publisher dans {hours} h."
+
+msgid "Publisher en cours..."
+msgstr "Publisher en cours..."
+
+msgid "Publisher parue"
+msgstr "Publisher parue"
+
+msgid "Publisher programmée"
+msgstr "Publisher programmée"
+
+msgid "Publisher reportée"
+msgstr "Publisher reportée"
+
+msgid "Publishers & médias"
+msgstr "Publishers & médias"
+
+msgid "Publishers phares"
+msgstr "Publishers phares"
+
+msgid "Publishers récentes"
+msgstr "Publishers récentes"
+
+msgid "Publishers recommandées"
+msgstr "Publishers recommandées"
+
+msgid "Publishers recommandées pour vous"
+msgstr "Publishers recommandées pour vous"
 
 #~ msgid "qoe.fi — Lecture"
 #~ msgstr "qoe.fi — Lecture"
@@ -5978,14 +6635,17 @@ msgstr "Qui peut répondre"
 msgid "Quotidien engagé"
 msgstr "Quotidien engagé"
 
-#~ msgid "Raccourcis"
-#~ msgstr "Raccourcis"
+msgid "Raccourcis"
+msgstr "Raccourcis"
 
 msgid "Raccourcis clavier"
 msgstr "Raccourcis clavier"
 
 #~ msgid "Raccourcis Clavier"
 #~ msgstr "Raccourcis Clavier"
+
+msgid "Raccourcis de l'éditeur"
+msgstr "Raccourcis de l'éditeur"
 
 msgid "Raccourcis de la console"
 msgstr "Raccourcis de la console"
@@ -6001,6 +6661,12 @@ msgstr "Réactiver @{handle}"
 
 msgid "Réagir à cette annotation..."
 msgstr "Réagir à cette annotation..."
+
+msgid "Recadrer"
+msgstr "Recadrer"
+
+msgid "Recadrer cette image"
+msgstr "Recadrer cette image"
 
 msgid "Recadrer l’image"
 msgstr "Recadrer l’image"
@@ -6029,17 +6695,32 @@ msgstr "Recevoir un lien magique"
 #~ msgid "Recherche"
 #~ msgstr "Recherche"
 
+msgid "Recherche des versions disponibles…"
+msgstr "Recherche des versions disponibles…"
+
 msgid "Recherche en cours..."
 msgstr "Recherche en cours..."
 
+msgid "Recherche…"
+msgstr "Recherche…"
+
 #~ msgid "Rechercher"
 #~ msgstr "Rechercher"
+
+msgid "Rechercher dans la médiathèque"
+msgstr "Rechercher dans la médiathèque"
 
 msgid "Rechercher dans le journal"
 msgstr "Rechercher dans le journal"
 
 msgid "Rechercher des écrits, réglages, actions..."
 msgstr "Rechercher des écrits, réglages, actions..."
+
+msgid "Rechercher par adresse d'image…"
+msgstr "Rechercher par adresse d'image…"
+
+msgid "Rechercher un article à lier"
+msgstr "Rechercher un article à lier"
 
 msgid "Rechercher un créateur (nom ou @username)"
 msgstr "Rechercher un créateur (nom ou @username)"
@@ -6055,6 +6736,9 @@ msgstr "Rechercher un écrit par titre ou slug…"
 
 msgid "Rechercher un membre, une action…"
 msgstr "Rechercher un membre, une action…"
+
+msgid "Rechercher un titre…"
+msgstr "Rechercher un titre…"
 
 msgid "Rechercher une citation..."
 msgstr "Rechercher une citation..."
@@ -6074,11 +6758,20 @@ msgstr "Recommandations"
 msgid "Recommandations éditoriales"
 msgstr "Recommandations éditoriales"
 
-msgid "Reconnexion…"
-msgstr "Reconnexion…"
+msgid "Reconnecter la co-édition"
+msgstr "Reconnecter la co-édition"
+
+#~ msgid "Reconnexion…"
+#~ msgstr "Reconnexion…"
+
+msgid "Recueil 2026"
+msgstr "Recueil 2026"
 
 msgid "Reculer de 15 secondes"
 msgstr "Reculer de 15 secondes"
+
+msgid "Récupérer ma version"
+msgstr "Récupérer ma version"
 
 msgid "Rédacteur"
 msgstr "Rédacteur"
@@ -6233,6 +6926,12 @@ msgstr "Rejoindre qoefi"
 msgid "Remplacer"
 msgstr "Remplacer"
 
+msgid "Remplacer l'image"
+msgstr "Remplacer l'image"
+
+msgid "Remplacer le fichier en conservant la description, la légende et le crédit"
+msgstr "Remplacer le fichier en conservant la description, la légende et le crédit"
+
 #~ msgid "Rendre privée"
 #~ msgstr "Rendre privée"
 
@@ -6254,6 +6953,9 @@ msgstr "Renvoie une version mise à jour précédée de [Mise à jour]. Limité 
 msgid "Renvoyer"
 msgstr "Renvoyer"
 
+msgid "Repart de l'état actuel de l'article chez le média, intégrant toutes les relectures et corrections collectives."
+msgstr "Repart de l'état actuel de l'article chez le média, intégrant toutes les relectures et corrections collectives."
+
 msgid "Repartage annulé."
 msgstr "Repartage annulé."
 
@@ -6269,6 +6971,12 @@ msgstr "Repartager ou citer l'article"
 msgid "Repartages / Reposts"
 msgstr "Repartages / Reposts"
 
+msgid "Repérez ce qui affaiblit vos articles publiés, puis corrigez au bon endroit."
+msgstr "Repérez ce qui affaiblit vos articles publiés, puis corrigez au bon endroit."
+
+msgid "Replier la citation"
+msgstr "Replier la citation"
+
 msgid "Répondre"
 msgstr "Répondre"
 
@@ -6278,6 +6986,9 @@ msgstr "Répondre à {0}..."
 
 msgid "Répondre à la pensée active"
 msgstr "Répondre à la pensée active"
+
+msgid "réponse"
+msgstr "réponse"
 
 msgid "Réponse à un compte bloqué"
 msgstr "Réponse à un compte bloqué"
@@ -6350,6 +7061,9 @@ msgstr "Republier sur mon profil"
 msgid "Réseaux sociaux"
 msgstr "Réseaux sociaux"
 
+msgid "Réseaux sociaux & Profils"
+msgstr "Réseaux sociaux & Profils"
+
 msgid "Réservé au forfait PRO. Le nom de la publication est utilisé."
 msgstr "Réservé au forfait PRO. Le nom de la publication est utilisé."
 
@@ -6370,6 +7084,12 @@ msgstr "Respecte votre préférence pour une interface plus stable."
 
 msgid "restant"
 msgstr "restant"
+
+msgid "Restauration…"
+msgstr "Restauration…"
+
+msgid "Restaurer"
+msgstr "Restaurer"
 
 msgid "Restaurer le modèle"
 msgstr "Restaurer le modèle"
@@ -6481,6 +7201,9 @@ msgstr "Revenir à mon compte Qoefi ({connectedEmail})"
 msgid "Revenu mensuel"
 msgstr "Revenu mensuel"
 
+msgid "Révision soumise au comité éditorial du média pour relecture."
+msgstr "Révision soumise au comité éditorial du média pour relecture."
+
 msgid "Révoqué"
 msgstr "Révoqué"
 
@@ -6498,6 +7221,9 @@ msgstr "Révoquer le lien"
 
 #~ msgid "Revue collective dédiée aux enjeux de la transition numérique..."
 #~ msgstr "Revue collective dédiée aux enjeux de la transition numérique..."
+
+msgid "Rien à corriger sur ce critère"
+msgstr "Rien à corriger sur ce critère"
 
 msgid "Rien à signaler"
 msgstr "Rien à signaler"
@@ -6600,11 +7326,17 @@ msgstr "Sandbox de test gratuit"
 msgid "Sans"
 msgstr "Sans"
 
+msgid "Sans défaut"
+msgstr "Sans défaut"
+
 #~ msgid "Sans Épuré"
 #~ msgstr "Sans Épuré"
 
 msgid "Sans titre"
 msgstr "Sans titre"
+
+msgid "Santé du contenu"
+msgstr "Santé du contenu"
 
 msgid "Saut de ligne"
 msgstr "Saut de ligne"
@@ -6626,6 +7358,9 @@ msgstr "Sauver"
 
 msgid "Scannez ce QR code avec votre application d’authentification."
 msgstr "Scannez ce QR code avec votre application d’authentification."
+
+msgid "Score de santé"
+msgstr "Score de santé"
 
 msgid "SDK TypeScript open-source"
 msgstr "SDK TypeScript open-source"
@@ -6697,8 +7432,14 @@ msgstr "sélectionné(s)"
 msgid "Sélectionner {0}"
 msgstr "Sélectionner {0}"
 
+msgid "Sélectionner une image voisine"
+msgstr "Sélectionner une image voisine"
+
 msgid "Sélectionnez au moins 2 univers pour débuter."
 msgstr "Sélectionnez au moins 2 univers pour débuter."
+
+msgid "Sélectionnez au moins un article."
+msgstr "Sélectionnez au moins un article."
 
 msgid "Sélectionnez au moins une permission."
 msgstr "Sélectionnez au moins une permission."
@@ -6781,6 +7522,9 @@ msgstr "Si cette option est désactivée, les moteurs de recherche ne référenc
 msgid "Si cette option est désactivée, les moteurs de recherche ne référencent pas le site."
 msgstr "Si cette option est désactivée, les moteurs de recherche ne référencent pas le site."
 
+msgid "Siège / Rédaction"
+msgstr "Siège / Rédaction"
+
 msgid "Signalement envoyé"
 msgstr "Signalement envoyé"
 
@@ -6801,6 +7545,9 @@ msgstr "Signet retiré"
 
 msgid "Signets"
 msgstr "Signets"
+
+msgid "Site web personnel / Portfolio"
+msgstr "Site web personnel / Portfolio"
 
 msgid "SLA 99.9% — hébergement Hetzner (Allemagne)"
 msgstr "SLA 99.9% — hébergement Hetzner (Allemagne)"
@@ -6858,6 +7605,9 @@ msgstr "Soumettre les modifications"
 msgid "Soumis à relecture"
 msgstr "Soumis à relecture"
 
+msgid "Soumission à relecture"
+msgstr "Soumission à relecture"
+
 msgid "Source"
 msgstr "Source"
 
@@ -6878,6 +7628,9 @@ msgstr "Sous-domaine qoefi"
 
 msgid "Souscription..."
 msgstr "Souscription..."
+
+msgid "Souscrire à Qoefi Plus (3,99 €/mois)"
+msgstr "Souscrire à Qoefi Plus (3,99 €/mois)"
 
 #~ msgid "Soutenez l'indépendance de "
 #~ msgstr "Soutenez l'indépendance de "
@@ -6936,6 +7689,9 @@ msgstr "Substack"
 msgid "Substack:"
 msgstr "Substack:"
 
+msgid "Suggestion appliquée."
+msgstr "Suggestion appliquée."
+
 msgid "Suggestions de filtres anti-bruit"
 msgstr "Suggestions de filtres anti-bruit"
 
@@ -6944,6 +7700,10 @@ msgstr "Suivre"
 
 msgid "Suivre {creatorName}"
 msgstr "Suivre {creatorName}"
+
+#. placeholder {0}: author!.name
+msgid "Suivre également {0}"
+msgstr "Suivre également {0}"
 
 msgid "Suivre la lecture"
 msgstr "Suivre la lecture"
@@ -6974,6 +7734,9 @@ msgstr "Suppression en attente"
 
 msgid "Suppression impossible"
 msgstr "Suppression impossible"
+
+msgid "Suppression impossible."
+msgstr "Suppression impossible."
 
 msgid "suppression(s) ont échoué"
 msgstr "suppression(s) ont échoué"
@@ -7027,8 +7790,15 @@ msgstr "Supprimer l'annotation"
 msgid "Supprimer la catégorie"
 msgstr "Supprimer la catégorie"
 
+#. placeholder {0}: index + 1
+msgid "Supprimer la source {0}"
+msgstr "Supprimer la source {0}"
+
 msgid "Supprimer le compte"
 msgstr "Supprimer le compte"
+
+msgid "Supprimer le tableau"
+msgstr "Supprimer le tableau"
 
 msgid "Supprimer mon compte"
 msgstr "Supprimer mon compte"
@@ -7038,6 +7808,12 @@ msgstr "Supprimer une vue"
 
 msgid "Supprimer une vue sauvegardée"
 msgstr "Supprimer une vue sauvegardée"
+
+#. placeholder {0}: report.publishedCount
+#. placeholder {1}: report.publishedCount === 1 ? '' : 's'
+#. placeholder {2}: report.publishedCount === 1 ? '' : 's'
+msgid "sur {0} article{1} publié{2}."
+msgstr "sur {0} article{1} publié{2}."
 
 msgid "Surlignage"
 msgstr "Surlignage"
@@ -7083,15 +7859,24 @@ msgstr "Surtitre Eyebrow ({0})"
 msgid "Synchronisation bidirectionnelle avec vos bases existantes. Importez vos archives, continuez à publier où vous êtes, diffusez ici en temps réel. Votre audience grandit — nos serveurs absorbent."
 msgstr "Synchronisation bidirectionnelle avec vos bases existantes. Importez vos archives, continuez à publier où vous êtes, diffusez ici en temps réel. Votre audience grandit — nos serveurs absorbent."
 
+msgid "Synchronisation…"
+msgstr "Synchronisation…"
+
 msgid "Système"
 msgstr "Système"
 
 msgid "Tableau de bord"
 msgstr "Tableau de bord"
 
+msgid "Tablette"
+msgstr "Tablette"
+
 #. placeholder {0}: activeLang.toUpperCase()
 msgid "Tagline / Surtitre ({0})"
 msgstr "Tagline / Surtitre ({0})"
+
+msgid "Taille d'aperçu"
+msgstr "Taille d'aperçu"
 
 #~ msgid "Taille de police"
 #~ msgstr "Taille de police"
@@ -7114,6 +7899,12 @@ msgstr "Tant que la date n'est pas passée, vous pouvez la déplacer autant de f
 msgid "Tapez CONFIRMER pour autoriser ce second envoi :"
 msgstr "Tapez CONFIRMER pour autoriser ce second envoi :"
 
+msgid "Tarif Stripe manquant"
+msgstr "Tarif Stripe manquant"
+
+msgid "Tarif Stripe mensuel (price_…)"
+msgstr "Tarif Stripe mensuel (price_…)"
+
 msgid "Technologie"
 msgstr "Technologie"
 
@@ -7128,6 +7919,9 @@ msgstr "Téléchargement hors-ligne"
 
 msgid "Téléchargement refusé"
 msgstr "Téléchargement refusé"
+
+msgid "Télécharger l’EPUB"
+msgstr "Télécharger l’EPUB"
 
 msgid "Télécharger l'image"
 msgstr "Télécharger l'image"
@@ -7260,6 +8054,9 @@ msgstr "Titre SEO"
 #~ msgid "Ton nom est requis pour créer ton espace."
 #~ msgstr "Ton nom est requis pour créer ton espace."
 
+msgid "Touchez pour ouvrir la note"
+msgstr "Touchez pour ouvrir la note"
+
 msgid "Tous"
 msgstr "Tous"
 
@@ -7277,6 +8074,9 @@ msgstr "Tous les profils pris en charge sont renseignés."
 
 #~ msgid "Tous les thèmes"
 #~ msgstr "Tous les thèmes"
+
+msgid "Tous vos articles publiés sont au vert"
+msgstr "Tous vos articles publiés sont au vert"
 
 msgid "Tout"
 msgstr "Tout"
@@ -7316,6 +8116,18 @@ msgstr "Toutes les lectures de cet article, tous canaux confondus."
 
 msgid "Toutes les vues"
 msgstr "Toutes les vues"
+
+msgid "Traduction"
+msgstr "Traduction"
+
+msgid "Traduction générée par IA : relisez-la avant publication. Les versions localisées publiées arrivent au prochain lot."
+msgstr "Traduction générée par IA : relisez-la avant publication. Les versions localisées publiées arrivent au prochain lot."
+
+msgid "Traduction…"
+msgstr "Traduction…"
+
+msgid "Traduire"
+msgstr "Traduire"
 
 #~ msgid "Traitement et importation en cours..."
 #~ msgstr "Traitement et importation en cours..."
@@ -7378,6 +8190,9 @@ msgstr "Type de compte"
 #~ msgid "U"
 #~ msgstr "U"
 
+msgid "Un aperçu du corps et de la couverture. La page publique ajoute les annotations et l'identité du tenant."
+msgstr "Un aperçu du corps et de la couverture. La page publique ajoute les annotations et l'identité du tenant."
+
 msgid "Un article sans image de couverture"
 msgstr "Un article sans image de couverture"
 
@@ -7410,6 +8225,9 @@ msgstr "Un email à vos abonnés, sans article."
 
 msgid "un lecteur"
 msgstr "un lecteur"
+
+msgid "Un nom et un prix mensuel positif sont requis."
+msgstr "Un nom et un prix mensuel positif sont requis."
 
 msgid "un nouvel article"
 msgstr "un nouvel article"
@@ -7495,6 +8313,9 @@ msgstr "Une limite Paywall est déjà placée"
 msgid "Une majuscule"
 msgstr "Une majuscule"
 
+msgid "Une méta description factuelle, à relire avant de l'appliquer."
+msgstr "Une méta description factuelle, à relire avant de l'appliquer."
+
 msgid "Une minuscule"
 msgstr "Une minuscule"
 
@@ -7552,6 +8373,10 @@ msgstr "Utilisations max"
 msgid "Utiliser cette image"
 msgstr "Utiliser cette image"
 
+#. placeholder {0}: index + 1
+msgid "Utiliser l'image {0}"
+msgstr "Utiliser l'image {0}"
+
 #~ msgid "Utiliser mon compte Qoe.fi"
 #~ msgstr "Utiliser mon compte Qoe.fi"
 
@@ -7585,6 +8410,9 @@ msgstr "Vérifié"
 msgid "Vérifier"
 msgstr "Vérifier"
 
+msgid "Vérifier l'article avant publication"
+msgstr "Vérifier l'article avant publication"
+
 #~ msgid "Vérifiez le rendu dans votre messagerie avant d'envoyer."
 #~ msgstr "Vérifiez le rendu dans votre messagerie avant d'envoyer."
 
@@ -7606,11 +8434,30 @@ msgstr "Version en ligne mise à jour"
 msgid "Version en ligne vs Brouillon"
 msgstr "Version en ligne vs Brouillon"
 
+msgid "Version personnelle"
+msgstr "Version personnelle"
+
+#. placeholder {0}: article.originPublisher.name
+msgid "Version personnelle · {0}"
+msgstr "Version personnelle · {0}"
+
+msgid "Version personnelle • Écrit pour « {initialOriginPublisherName} »"
+msgstr "Version personnelle • Écrit pour « {initialOriginPublisherName} »"
+
 msgid "Version publiée (en ligne)"
 msgstr "Version publiée (en ligne)"
 
+msgid "Version restaurée avec succès."
+msgstr "Version restaurée avec succès."
+
 msgid "Version Vocale Synthétisée"
 msgstr "Version Vocale Synthétisée"
+
+msgid "Versions du texte"
+msgstr "Versions du texte"
+
+msgid "Versions du texte enregistrées et jalons éditoriaux."
+msgstr "Versions du texte enregistrées et jalons éditoriaux."
 
 #~ msgid "Veuillez donner un nom à la clé d'API."
 #~ msgstr "Veuillez donner un nom à la clé d'API."
@@ -7711,6 +8558,12 @@ msgstr "Voir tout"
 msgid "Vos lectures sauvegardées, citations et réflexions personnelles."
 msgstr "Vos lectures sauvegardées, citations et réflexions personnelles."
 
+msgid "Vos modifications restent dans le document local et seront fusionnées à la reconnexion."
+msgstr "Vos modifications restent dans le document local et seront fusionnées à la reconnexion."
+
+msgid "Vos prochains uploads apparaîtront ici."
+msgstr "Vos prochains uploads apparaîtront ici."
+
 msgid "Vos pronoms"
 msgstr "Vos pronoms"
 
@@ -7747,6 +8600,9 @@ msgstr "Votre demande d’abonnement est en attente. Vous verrez les pensées et
 msgid "Votre demande sera traitée par l’équipe. Cette action est irréversible après validation."
 msgstr "Votre demande sera traitée par l’équipe. Cette action est irréversible après validation."
 
+msgid "Votre dernière version rédigée"
+msgstr "Votre dernière version rédigée"
+
 #~ msgid "Votre espace n'a encore aucun article public : c'est la première brique d'audience, et la seule qui fasse fonctionner les recommandations."
 #~ msgstr "Votre espace n'a encore aucun article public : c'est la première brique d'audience, et la seule qui fasse fonctionner les recommandations."
 
@@ -7770,6 +8626,9 @@ msgstr "Votre nom"
 
 msgid "Votre nom d'utilisateur unique, visible publiquement."
 msgstr "Votre nom d'utilisateur unique, visible publiquement."
+
+msgid "Votre nom de publication"
+msgstr "Votre nom de publication"
 
 msgid "Votre nom est requis pour créer votre espace."
 msgstr "Votre nom est requis pour créer votre espace."
@@ -7795,6 +8654,9 @@ msgstr "Votre réflexion, synthèse ou mémo sur ce passage..."
 
 msgid "Votre réponse"
 msgstr "Votre réponse"
+
+msgid "Votre réponse…"
+msgstr "Votre réponse…"
 
 msgid "Votre sélection calibre l'embedding sémantique de votre sanctuaire sans publicité ni profilage commercial."
 msgstr "Votre sélection calibre l'embedding sémantique de votre sanctuaire sans publicité ni profilage commercial."
