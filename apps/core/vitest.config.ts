@@ -24,6 +24,11 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
+    // Les rendus jsdom de fils de discussion complets dépassent 5 s sur les
+    // runners CI partagés (flake observé sur
+    // `thought-thread-nested-hidden-parent`), sans être lents en local.
+    // Même plancher que studio et tenants : on ne touche pas aux assertions.
+    testTimeout: 20_000,
     include: ['src/**/*.test.{ts,tsx}'],
     exclude: ['**/.reference/**', '**/node_modules/**', '**/.next/**', '**/e2e/**'],
   },
