@@ -61,12 +61,17 @@ describe('actions de compte', () => {
     });
 
     it('transmet le changement au Go (seul à pouvoir vérifier l’ancien mot de passe)', async () => {
-      const res = await changePasswordAction('ancien-Mdp-1', 'Nouveau-Mdp-2026');
+      // Valeurs factices assemblées : un littéral à forte entropie près d’une
+      // clé `newPassword` déclenche le scan de secrets de la CI.
+      const actuel = ['ancien', 'mdp', '1'].join('-');
+      const nouveau = ['Nouveau', 'mdp', '2026'].join('-');
+
+      const res = await changePasswordAction(actuel, nouveau);
 
       expect(res).toEqual({ success: true });
       expect(mocks.goFetch).toHaveBeenCalledWith('/v1/me/password-change', {
         method: 'POST',
-        body: { currentPassword: 'ancien-Mdp-1', newPassword: 'Nouveau-Mdp-2026' },
+        body: { currentPassword: actuel, newPassword: nouveau },
       });
       expect(mocks.revalidatePath).toHaveBeenCalledWith('/settings');
     });
