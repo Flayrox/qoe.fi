@@ -46,7 +46,7 @@
     "@qoe/config": "workspace:*",
     "@qoe/supabase": "workspace:*",
     "@qoe/utils": "workspace:*",
-    "@tanstack/react-query": "^5.62.7"
+    "@tanstack/react-query": "^5.107.1"
   },
   "peerDependencies": {
     "react": "^19"

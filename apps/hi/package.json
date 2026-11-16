@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@lingui/core": "6.6.0",
+    "@lingui/core": "6.12.0",
     "@qoe/analytics": "workspace:*",
     "@qoe/config": "workspace:*",
     "@qoe/devtools": "workspace:*",
@@ -25,10 +25,10 @@
     "@qoe/utils": "workspace:*",
     "@sentry/nextjs": "10.65.0",
     "framer-motion": "^12.39.0",
-    "lucide-react": "^1.16.0",
-    "next": "16.2.6",
-    "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "lucide-react": "^1.72.0",
+    "next": "16.4.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   },
   "devDependencies": {
     "@qoe/tsconfig": "workspace:*",
