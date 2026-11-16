@@ -201,6 +201,17 @@ func (s *Service) PublisherStripeAccount(ctx context.Context, publisherID string
 	return account
 }
 
+// SavePublisherStripeAccount rattache un compte Stripe Connect à la publication.
+func (s *Service) SavePublisherStripeAccount(ctx context.Context, publisherID, accountID string) error {
+	if s == nil || s.pool == nil || strings.TrimSpace(publisherID) == "" || strings.TrimSpace(accountID) == "" {
+		return nil
+	}
+	_, err := s.pool.Exec(ctx, `
+		UPDATE "Publisher" SET "stripeAccountId" = $2, "updatedAt" = now()
+		WHERE id = $1`, strings.TrimSpace(publisherID), strings.TrimSpace(accountID))
+	return err
+}
+
 // IsPro : la publication paie-t-elle la commission réduite ? Source unique
 // des droits : subscriptions.HasPro (octroi « publisher/pro » effectif).
 func (s *Service) IsPro(ctx context.Context, publisherID string) bool {

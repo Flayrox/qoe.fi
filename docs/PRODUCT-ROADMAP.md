@@ -235,11 +235,17 @@ relire — à construire **dans `modules/newsletters`**, pas ailleurs.
   ligne, fin non allongée par le rejeu) ; migrations `00091` (portail) et
   `00093` (unicité) appliquées et vérifiées en base ; `go build ./...`.
 
-## État au 2026-11-15
+### 2026-11-16 — Connect onboarding + tarif annuel au Checkout
+
+- **Onboarding Stripe Connect** : `POST /v1/billing/connect` (`CreateConnectAccount` Express FR + `CreateAccountLink`), persistance de `Publisher.stripeAccountId` via `SavePublisherStripeAccount`, et action SDK `startStripeConnectAction`.
+- **Tarif annuel au Checkout** : `checkout` accepte `interval: "month" | "year"` (défaut `"month"`), sélectionne le tarif annuel (`StripePriceIDYearly` / `YearlyPriceCents`) et valide la cadence auprès de Stripe avant création de session (`StartCheckoutInput.interval` côté SDK).
+- **Schéma `schema.sql`** : table `SubscriptionGrant` et index `SubscriptionGrant_stripe_subscription_key` (migration `00093`) synchronisés avec `sqlc generate`.
+
+## État au 2026-11-16
 
 | # | Chantier | État | Prochaine étape |
 | - | -------- | ---- | --------------- |
-| 1 | Encaissement | socle + commission 5 % + portail + tarifs vérifiés livrés (migration 00091 appliquée) | parcours Stripe test-mode, onboarding Connect |
+| 1 | Encaissement | socle + commission 5 % + portail + tarifs vérifiés + annuel + route Connect livrés (migrations 00091/00093 appliquées) | UI bouton Connect + test Stripe mode test |
 | 2 | Digest | brouillon newsletter (agent newsletter) ; mon doublon retiré | cadence récurrente dans `modules/newsletters` |
 | 3 | Commentaires | core + modération Studio livrés | pagination, signalements |
 | 4 | Livres | compilation EPUB livrée | persistance + vente |

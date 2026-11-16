@@ -1746,6 +1746,18 @@ type SubscriberImportRow struct {
 	UpdatedAt    pgtype.Timestamp `json:"updatedAt"`
 }
 
+type SubscriptionGrant struct {
+	ID          string           `json:"id"`
+	SubjectType string           `json:"subjectType"`
+	SubjectId   string           `json:"subjectId"`
+	Plan        string           `json:"plan"`
+	StartsAt    pgtype.Timestamp `json:"startsAt"`
+	EndsAt      pgtype.Timestamp `json:"endsAt"`
+	GrantedBy   string           `json:"grantedBy"`
+	Note        string           `json:"note"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+}
+
 type SupportArticle struct {
 	ID        string           `json:"id"`
 	Slug      string           `json:"slug"`

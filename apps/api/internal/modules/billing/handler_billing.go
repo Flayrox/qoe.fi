@@ -6,8 +6,10 @@ package billing
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -31,11 +33,12 @@ func (h *Handler) SetBilling(svc *Service, stripe *StripeClient, plusPriceID, re
 }
 
 // RegisterProtected monte les routes authentifiées (groupe déjà protégé par
-// CombinedAuth) : Checkout, portail et création de formule.
+// CombinedAuth) : Checkout, portail, création de formule et onboarding Connect.
 func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Post("/v1/billing/checkout", h.checkout)
 	r.Post("/v1/billing/portal", h.portal)
 	r.Post("/v1/billing/tiers", h.createTier)
+	r.Post("/v1/billing/connect", h.connectOnboarding)
 }
 
 // GET /v1/billing/tiers?publisherId=… — public (affiché sur le paywall).
@@ -103,11 +106,50 @@ func commissionPercent(isPro bool) int {
 	return 10
 }
 
+// normalizeCheckoutInterval valide la cadence demandée ("month" par défaut).
+func normalizeCheckoutInterval(raw string) (string, bool) {
+	v := strings.TrimSpace(raw)
+	if v == "" {
+		return "month", true
+	}
+	if v == "month" || v == "year" {
+		return v, true
+	}
+	return "", false
+}
+
+// tierPriceForInterval retourne le Stripe Price ID et le montant attendu pour la
+// cadence demandée ("month" ou "year").
+func tierPriceForInterval(t Tier, interval string) (priceID string, cents int, ok bool) {
+	if interval == "year" {
+		if strings.TrimSpace(t.StripePriceIDYearly) == "" || t.YearlyPriceCents == nil || *t.YearlyPriceCents <= 0 {
+			return "", 0, false
+		}
+		return t.StripePriceIDYearly, *t.YearlyPriceCents, true
+	}
+	if strings.TrimSpace(t.StripePriceIDMonthly) == "" || t.MonthlyPriceCents <= 0 {
+		return "", 0, false
+	}
+	return t.StripePriceIDMonthly, t.MonthlyPriceCents, true
+}
+
+// selectPublicationTier choisit la première formule payable pour la cadence.
+func selectPublicationTier(tiers []Tier, interval string) (Tier, string, int, bool) {
+	for _, candidate := range tiers {
+		if priceID, cents, ok := tierPriceForInterval(candidate, interval); ok {
+			return candidate, priceID, cents, true
+		}
+	}
+	return Tier{}, "", 0, false
+}
+
 type checkoutInput struct {
 	// Plan : "plus" (bundle lecteur) ou "publication" (formule du créateur).
 	Plan        string `json:"plan"`
 	PublisherID string `json:"publisherId"`
 	TierID      string `json:"tierId"`
+	// Interval : "month" (défaut) ou "year".
+	Interval string `json:"interval"`
 }
 
 // POST /v1/billing/checkout — crée une session d'abonnement.
@@ -146,6 +188,11 @@ func (h *Handler) checkout(w http.ResponseWriter, r *http.Request) {
 		}
 		params.PriceID = h.plusPriceID
 	case "publication":
+		interval, ok := normalizeCheckoutInterval(in.Interval)
+		if !ok {
+			response.BadRequest(w, "cadence invalide")
+			return
+		}
 		// Sans tierId, on prend la formule payable la moins chère : c'est le
 		// CTA « Membre Premium » du paywall, qui n'a pas à connaître le
 		// catalogue. Aucune formule payable → 503, jamais un prix inventé.
@@ -156,18 +203,12 @@ func (h *Handler) checkout(w http.ResponseWriter, r *http.Request) {
 				response.Internal(w)
 				return
 			}
-			found := false
-			for _, candidate := range tiers {
-				if candidate.StripePriceIDMonthly != "" {
-					tier = candidate
-					found = true
-					break
-				}
-			}
+			selected, _, _, found := selectPublicationTier(tiers, interval)
 			if !found {
 				response.Error(w, http.StatusServiceUnavailable, "aucune formule payable pour cette publication")
 				return
 			}
+			tier = selected
 		} else {
 			loaded, err := h.svc.GetTier(r.Context(), in.TierID)
 			if err != nil {
@@ -180,7 +221,8 @@ func (h *Handler) checkout(w http.ResponseWriter, r *http.Request) {
 			response.Forbidden(w, "formule d'une autre publication")
 			return
 		}
-		if tier.StripePriceIDMonthly == "" {
+		priceID, expectedCents, ok := tierPriceForInterval(tier, interval)
+		if !ok {
 			response.Error(w, http.StatusServiceUnavailable, "tarif Stripe non configuré pour cette formule")
 			return
 		}
@@ -194,19 +236,19 @@ func (h *Handler) checkout(w http.ResponseWriter, r *http.Request) {
 		}
 		// Le tarif a pu être enregistré avant cette garde (ou modifié en base) :
 		// on revérifie au dernier moment que le débit correspond à l'affiché.
-		price, err := h.stripe.GetPrice(r.Context(), tier.StripePriceIDMonthly)
+		price, err := h.stripe.GetPrice(r.Context(), priceID)
 		if err != nil {
 			log.Printf("[billing] checkout tarif illisible: %v", err)
 			response.Error(w, http.StatusServiceUnavailable, "paiement indisponible")
 			return
 		}
-		if err := ValidatePrice(price, TierPriceCheck{Cents: tier.MonthlyPriceCents, Interval: "month"}); err != nil {
+		if err := ValidatePrice(price, TierPriceCheck{Cents: expectedCents, Interval: interval}); err != nil {
 			log.Printf("[billing] checkout tarif incohérent tier=%s: %v", tier.ID, err)
 			response.ErrorCode(w, http.StatusConflict, "PRICE_MISMATCH",
 				"le tarif Stripe ne correspond pas au montant affiché")
 			return
 		}
-		params.PriceID = tier.StripePriceIDMonthly
+		params.PriceID = priceID
 		params.CreatorID = tier.PublisherID
 		params.TierID = tier.ID
 		params.StripeAccount = account
@@ -309,4 +351,79 @@ func (h *Handler) createTier(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.Created(w, tier)
+}
+
+// POST /v1/billing/connect — démarre ou reprend l'onboarding Stripe Connect.
+func (h *Handler) connectOnboarding(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+
+	publisherID := strings.TrimSpace(r.URL.Query().Get("publisherId"))
+	if publisherID == "" && r.Body != nil {
+		var body struct {
+			PublisherID string `json:"publisherId"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&body); err != nil && !errors.Is(err, io.EOF) {
+			response.BadRequest(w, "JSON invalide")
+			return
+		}
+		publisherID = strings.TrimSpace(body.PublisherID)
+	}
+	if publisherID == "" {
+		response.BadRequest(w, "publisherId requis")
+		return
+	}
+
+	ok, err := h.svc.CanManagePublisher(r.Context(), userID, publisherID)
+	if err != nil {
+		response.Internal(w)
+		return
+	}
+	if !ok {
+		response.Forbidden(w, "publication non autorisée")
+		return
+	}
+	if h.stripe == nil || !h.stripe.Configured() {
+		response.Error(w, http.StatusServiceUnavailable, "paiement non configuré")
+		return
+	}
+
+	accountID := h.svc.PublisherStripeAccount(r.Context(), publisherID)
+	if accountID == "" {
+		email, _ := h.svc.UserEmail(r.Context(), userID)
+		accountID, err = h.stripe.CreateConnectAccount(r.Context(), email, publisherID)
+		if err != nil {
+			log.Printf("[billing] connect account: %v", err)
+			response.Error(w, http.StatusServiceUnavailable, "onboarding indisponible")
+			return
+		}
+		if err := h.svc.SavePublisherStripeAccount(r.Context(), publisherID, accountID); err != nil {
+			log.Printf("[billing] save connect account: %v", err)
+			response.Internal(w)
+			return
+		}
+	}
+
+	base := strings.TrimSuffix(strings.TrimSpace(h.returnBaseURL), "/")
+	if base == "" {
+		base = "http://localhost:3000"
+	}
+	url, err := h.stripe.CreateAccountLink(
+		r.Context(),
+		accountID,
+		base+"/monetization?connect=refresh",
+		base+"/monetization?connect=return",
+	)
+	if err != nil {
+		log.Printf("[billing] connect link: %v", err)
+		response.Error(w, http.StatusServiceUnavailable, "onboarding indisponible")
+		return
+	}
+	response.OK(w, map[string]string{
+		"url":             url,
+		"stripeAccountId": accountID,
+	})
 }
