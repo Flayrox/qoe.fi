@@ -142,6 +142,9 @@ var publicRouteAllowlist = map[string]string{
 
 	// ─── Statut d'inscription du compte ─────────────────────────────────────
 	"GET /v1/auth/registration-status": "Vérification statut d'inscription utilisateur",
+
+	// ─── Facturation & Paywall public ────────────────────────────────────────
+	"GET /v1/billing/tiers": "Formules d'abonnement payantes affichées sur le paywall lecteur",
 }
 
 // TestSecurityAudit_ExhaustiveRouteAudit garantit l'étanchéité absolue de l'API Go :
