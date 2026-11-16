@@ -34,6 +34,9 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    // Même plancher que les configs d'apps : les rendus jsdom lourds du core
+    // dépassent 5 s sur un runner CI partagé.
+    testTimeout: 20_000,
     setupFiles: [path.resolve(__dirname, 'apps/core/vitest.setup.ts')],
     include: [
       'packages/sdk/src/**/*.test.{ts,tsx}',
