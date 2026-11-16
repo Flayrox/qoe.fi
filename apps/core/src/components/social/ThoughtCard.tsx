@@ -12,9 +12,9 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { useThoughtOverlay } from '@/components/thought-overlay/context';
 import { pinPostAction as pinPost, unpinPostAction as unpinPost } from '@qoe/sdk/actions/feed';
-import { PollCard } from './PollCard';
+import { PollBlock } from './PollBlock';
 import { ThreadgateBadge, type ReplyRestrictionType } from './ThreadgateBadge';
-import { HiddenReplyCard } from './HiddenReplyCard';
+import { HiddenReplyNotice } from './HiddenReplyNotice';
 
 export type { ThoughtData, ThoughtVariant } from '@qoe/ui';
 
@@ -149,7 +149,7 @@ export function ThoughtCard({
     }
   };
 
-  const pollSlot = shadowedPost.poll ? <PollCard poll={shadowedPost.poll} /> : null;
+  const pollSlot = shadowedPost.poll ? <PollBlock poll={shadowedPost.poll} /> : null;
   const threadgateBadge =
     shadowedPost.replyRestriction && shadowedPost.replyRestriction !== 'everyone' ? (
       <ThreadgateBadge restriction={shadowedPost.replyRestriction as ReplyRestrictionType} />
@@ -184,13 +184,13 @@ export function ThoughtCard({
   return (
     <>
       {isHidden ? (
-        <HiddenReplyCard
+        <HiddenReplyNotice
           replyId={shadowedPost.id}
           isHiddenByAuthor={true}
           isParentAuthor={isParentAuthor}
         >
           {cardElement}
-        </HiddenReplyCard>
+        </HiddenReplyNotice>
       ) : (
         cardElement
       )}

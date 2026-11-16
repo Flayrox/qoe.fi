@@ -1,23 +1,31 @@
 'use client';
 
 import React, { useState } from 'react';
-import { EyeOff, Eye, ShieldAlert, Loader2 } from 'lucide-react';
 import { hideReplyAction } from '@qoe/sdk';
+import { Button } from '@qoe/ui/button';
+import { Icon } from '@qoe/ui/icons';
+import { IconButton } from '@qoe/ui/icon-button';
+import { Spinner } from '@qoe/ui/spinner';
 import { t } from '@lingui/core/macro';
 
-export interface HiddenReplyCardProps {
+export interface HiddenReplyNoticeProps {
   replyId: string;
   isHiddenByAuthor: boolean;
   isParentAuthor?: boolean;
   children: React.ReactNode;
 }
 
-export function HiddenReplyCard({
+/**
+ * Notice de réponse masquée : ce n'est pas une primitive `Card`, mais un état
+ * de modération posé dans le fil (d'où le nom, qui ne revendique pas d'être
+ * un composant de base).
+ */
+export function HiddenReplyNotice({
   replyId,
   isHiddenByAuthor: initialHidden,
   isParentAuthor = false,
   children,
-}: HiddenReplyCardProps) {
+}: HiddenReplyNoticeProps) {
   const [isHidden, setIsHidden] = useState(initialHidden);
   const [showContentAnyway, setShowContentAnyway] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
@@ -46,63 +54,56 @@ export function HiddenReplyCard({
       <div className="relative group">
         {children}
         {isParentAuthor && (
-          <button
+          <IconButton
+            label={t`Masquer cette réponse pour tous les lecteurs`}
+            size="xs"
             onClick={handleToggleHide}
             disabled={isToggling}
-            title="Masquer cette réponse pour tous les lecteurs"
-            className="opacity-0 group-hover:opacity-100 transition-opacity absolute top-2 right-2 p-1.5 rounded-full bg-muted/80 hover:bg-destructive/10 hover:text-destructive-text text-muted-foreground text-xs font-medium flex items-center gap-1"
+            className="absolute top-2 right-2 rounded-full bg-muted/80 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive-text focus:opacity-100"
           >
-            {isToggling ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            ) : (
-              <EyeOff className="w-3 h-3" />
-            )}
-          </button>
+            {isToggling ? <Spinner size="xs" /> : <Icon name="eye-off" />}
+          </IconButton>
         )}
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-card/40 backdrop-blur-md p-4 space-y-3 font-sans my-2">
+    <div className="my-2 space-y-3 rounded-panel border border-border/60 bg-card/40 p-4 font-sans backdrop-blur-md">
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <div className="flex items-center gap-2 font-semibold">
-          <ShieldAlert className="w-4 h-4 text-highlight shrink-0" />
+          <Icon name="shield" size="sm" className="shrink-0 text-highlight" />
           <span>{t`Réponse masquée par l'auteur original`}</span>
         </div>
 
         <div className="flex items-center gap-2">
-          <button
+          <Button
+            variant="ghost"
+            size="xs"
             onClick={() => setShowContentAnyway(!showContentAnyway)}
-            className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+            className="text-primary"
           >
-            {showContentAnyway ? (
-              <>
-                <EyeOff className="w-3 h-3" />
-                <span>Masquer</span>
-              </>
-            ) : (
-              <>
-                <Eye className="w-3 h-3" />
-                <span>Afficher</span>
-              </>
-            )}
-          </button>
+            <Icon name={showContentAnyway ? 'eye-off' : 'eye'} size="sm" />
+            {showContentAnyway ? t`Masquer` : t`Afficher`}
+          </Button>
 
           {isParentAuthor && (
-            <button
+            <Button
+              variant="ghost"
+              size="xs"
               onClick={handleToggleHide}
               disabled={isToggling}
-              className="text-xs font-semibold text-muted-foreground hover:text-foreground underline flex items-center gap-1 ml-2"
+              className="ml-2 text-muted-foreground underline"
             >
-              {isToggling ? <Loader2 className="w-3 h-3 animate-spin" /> : <span>Démasquer</span>}
-            </button>
+              {isToggling ? <Spinner size="xs" /> : null}
+              {t`Démasquer`}
+            </Button>
           )}
         </div>
       </div>
 
       {showContentAnyway && (
-        <div className="pt-2 border-t border-border/40 opacity-80">{children}</div>
+        <div className="border-t border-border/40 pt-2 opacity-80">{children}</div>
       )}
     </div>
   );

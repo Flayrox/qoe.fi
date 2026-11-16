@@ -24,13 +24,13 @@ export interface PollData {
   options: PollOption[];
 }
 
-export interface PollCardProps {
+export interface PollBlockProps {
   poll: PollData;
   onVoteSuccess?: (updatedPoll: PollData) => void;
   className?: string;
 }
 
-export function PollCard({ poll: initialPoll, onVoteSuccess, className }: PollCardProps) {
+export function PollBlock({ poll: initialPoll, onVoteSuccess, className }: PollBlockProps) {
   const [poll, setPoll] = useState<PollData>(initialPoll);
   const [isVoting, setIsVoting] = useState(false);
   const [votingOptionId, setVotingOptionId] = useState<string | null>(null);
