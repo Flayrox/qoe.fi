@@ -1,6 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+const toastMock = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }));
+vi.mock('@qoe/ui/toast', () => ({ toast: toastMock }));
+
 import { PublishModal } from '../PublishModal';
 
 vi.mock('@lingui/core/macro', () => ({
@@ -137,6 +140,33 @@ describe('PublishModal', () => {
       emailSubject: 'Objet personnalisé spécial',
       emailPreviewText: 'Aperçu exclusif',
     });
+  });
+
+  it('reste ouverte et explique un refus de publication', async () => {
+    const onConfirm = vi.fn().mockRejectedValue(new Error('Offre expirée'));
+    render(<PublishModal {...baseProps} onConfirm={onConfirm} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: /Publier & Envoyer maintenant/i }));
+
+    await vi.waitFor(() => expect(toastMock.error).toHaveBeenCalledWith('Offre expirée'));
+    expect(baseProps.onClose).not.toHaveBeenCalled();
+    // Le bouton redevient disponible pour réessayer.
+    await vi.waitFor(() =>
+      expect(
+        (screen.getByRole('button', { name: /Publier & Envoyer maintenant/i }) as HTMLButtonElement)
+          .disabled
+      ).toBe(false)
+    );
+  });
+
+  it('referme sans publier quand on choisit de continuer d’éditer', () => {
+    render(<PublishModal {...baseProps} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Continuer d'éditer/ }));
+
+    expect(baseProps.onConfirm).not.toHaveBeenCalled();
+    expect(baseProps.onClose).toHaveBeenCalled();
   });
 
   it('pré-sélectionne Web uniquement par défaut pour un essai souverain issu d’un média (anti-doublon newsletter)', async () => {

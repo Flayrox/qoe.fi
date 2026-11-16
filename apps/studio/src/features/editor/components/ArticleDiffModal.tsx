@@ -16,6 +16,7 @@ import { diffWords, type Change } from 'diff';
 import { t } from '@lingui/core/macro';
 import { Badge } from '@qoe/ui/badge';
 import { Button } from '@qoe/ui/button';
+import { toast } from '@qoe/ui/toast';
 import {
   Dialog,
   DialogBody,
@@ -104,12 +105,17 @@ export function ArticleDiffModal({
 
   const hasTitleChanged = Boolean(draftTitle && draftTitle !== articleTitle);
 
+  // Les actions sont lancées depuis un `onClick` : sans `catch`, un refus
+  // serveur produisait une promesse rejetée non gérée (aucun message, modale
+  // figée) au lieu de laisser réessayer.
   const handleApprove = async () => {
     if (!onApprove) return;
     setIsActionPending(true);
     try {
       await onApprove();
       onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t`Approbation impossible.`);
     } finally {
       setIsActionPending(false);
     }
@@ -123,6 +129,8 @@ export function ArticleDiffModal({
       setRejectMode(false);
       setRejectComment('');
       onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t`Demande de retouches impossible.`);
     } finally {
       setIsActionPending(false);
     }
@@ -141,6 +149,8 @@ export function ArticleDiffModal({
     try {
       await onDiscardDraft();
       onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t`Abandon impossible.`);
     } finally {
       setIsActionPending(false);
     }
