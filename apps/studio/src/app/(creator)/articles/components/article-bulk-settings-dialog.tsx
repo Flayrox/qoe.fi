@@ -149,7 +149,14 @@ export function ArticleBulkSettingsDialog({
         );
       }
       onOpenChange(false);
-      await onApplied();
+      // Le rafraîchissement de la liste est distinct de la modification :
+      // s'il échoue, les articles sont bien à jour et il ne faut pas
+      // annoncer un échec de l'opération.
+      try {
+        await onApplied();
+      } catch {
+        toast.error(t`Les articles ont été modifiés, mais la liste n'a pas pu être rafraîchie.`);
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t`Échec de la modification groupée.`);
     } finally {
