@@ -429,6 +429,14 @@ dialogue de 13 raccourcis, 685 px de haut, entièrement visible, fermeture par
 Restent : gestes tactiles réels, course crop/remplacement en co-édition, test
 du remplacement.
 
+## Adoption UI (2026-11-16)
+
+Les écrans articles (liste, réglages, dialogue de confirmation partagé),
+traduction, sécurité TOTP, stage et réglages (consentements, MFA) utilisent
+`@qoe/ui` ; `AnnotationNotePanel` n’a plus de bouton natif. Aucun changement de
+règle métier ni de payload. Commits : `ccd08ccf`, `526ac8c5`. Vérifié :
+typecheck studio 0, 126/126 tests éditeur+santé, 2/2 Playwright, ESLint 0.
+
 ---
 
 ## 📝 Instructions
