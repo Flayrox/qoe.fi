@@ -155,7 +155,7 @@ remettre les images précédentes (`qoefi-<service>:<sha>` est publié à chaque
 | --------------------- | ------- | ---------------- | -------------- |
 | `packages/ui`         | 56,50 % | 84 / 554         | 55 %           |
 | `apps/tenants`        | 24,00 % | 11 / 39          | 23 %           |
-| `apps/studio`         | 26,61 % | 57 / 442         | 25 %           |
+| `apps/studio`         | 27,91 % | 59 / 477         | 26 %           |
 | `apps/admin`          | 10,88 % | 14 / 88          | 9 %            |
 | **Agrégé TypeScript** | 27,39 % | 87 / 761         | —              |
 
@@ -175,7 +175,7 @@ métriques (lignes, statements, fonctions, branches) :
 | `apps/core/src/app/**`        | _aucun_           | 24 / 23 / 17 / 19 |
 | `apps/core/src/components/**` | _aucun_           | 12 / 11 / 7 / 7   |
 | `apps/mobile/**`              | _aucun_           | 11 / 12 / 7 / 10  |
-| `apps/studio`                 | 9 % partout       | 25 / 25 / 23 / 24 |
+| `apps/studio`                 | 9 % partout       | 26 / 26 / 25 / 25 |
 | `packages/ui`                 | 55 / 53 / 48 / 48 | 55 / 53 / 48 / 49 |
 | `apps/admin`                  | 4 / 4 / 3 / 3     | 9 / 9 / 6 / 8     |
 | `apps/tenants`                | 23 / 22 / 17 / 24 | 23 / 22 / 18 / 24 |
@@ -202,6 +202,10 @@ récupération d'article et de la session de co-édition (transport simulé).
 **Seuils relevés une cinquième fois le 16/11** après la passe « en-tête et
 dialogues d'éditeur » (mesures : studio 26,61/26,43/24,82/25,29 ; core/app
 inchangé) : en-tête d'éditeur, couverture, suggestions IA, annotations collées.
+
+**Seuils relevés une sixième fois le 16/11** après la passe « actions groupées
+sur les articles » (mesures : studio 27,91/27,82/26,15/26,66 ; core/app
+inchangé) : dialogues de paramètres groupés et de transfert vers une publication.
 
 ### Fait le 16/11 (passe éditeur)
 
@@ -344,6 +348,32 @@ inchangé) : en-tête d'éditeur, couverture, suggestions IA, annotations collé
   selon le reste, note commune, réinitialisation au changement d'annotation,
   fermeture valant refus global.
 
+### Fait le 16/11 (actions groupées sur les articles)
+
+- **`ArticleBulkSettingsDialog`** (19 tests) : formulaire vierge par défaut,
+  garde « choisissez au moins un paramètre » sans appel serveur, catégories
+  hiérarchisées (parent, `↳` enfant, repli sur le slug), mappage tri-état →
+  booléens sur les cinq réglages, `Non catégorisé` → `categoryId: null`,
+  publication/dépublication jamais appliquées sans confirmation (libellé,
+  description, caractère destructif), confirmation qui exécute le payload,
+  avertissements contextuels, succès au pluriel et au singulier, échecs
+  partiels comptés, refus serveur et panne réseau qui laissent le dialogue
+  ouvert et le bouton réactivable, blocage total pendant l'envoi, sélection
+  vide ignorée, brouillon réinitialisé à la réouverture.
+- **`ArticleBulkTransferDialog`** (16 tests) : chargement, erreur serveur et
+  rejet réseau, destinations filtrées par rôle d'écriture (le profil personnel
+  reste toujours disponible), bouton inactif sans destination, libellé portant
+  la destination choisie, transfert article par article avec le bon payload,
+  progression `0/N` → `1/N`, succès au singulier, échecs partiels (réponse
+  négative et exception) sans masquer les réussites, aucun succès annoncé si
+  tout échoue, fermeture et clics bloqués pendant le transfert, destination
+  oubliée et liste rechargée à la réouverture.
+- **Défaut corrigé** : quand le rafraîchissement de liste échouait après une
+  action réussie, le dialogue de paramètres affichait « Échec de la modification
+  groupée » et celui de transfert laissait une promesse rejetée non gérée. Les
+  deux distinguent désormais l'action (réussie) du rafraîchissement (échoué) :
+  message dédié « … la liste n'a pas pu être rafraîchie », succès conservé.
+
 ### Reste à faire
 
 - **`apps/admin`** : octrois `SubscriptionGrant` depuis la console, écrans de
@@ -462,3 +492,4 @@ terminée).
 | 2026-11-16 | Flake CI du rendu de fil                          | `thought-thread-nested-hidden-parent` dépassait 5 s de timeout sur le runner partagé (jamais en local) : `apps/core` et `vitest.coverage.config.ts` passent au plancher de 20 s déjà utilisé par studio/tenants. Assertions inchangées.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | _(ce commit)_ |
 | 2026-11-16 | Tests + bugs (zone éditeur restée hors périmètre) | 96 tests : `EditorSettingsDrawer` (19), `EditorToolbar` (16), `SelectionToolbar` (9), `RecoverArticleModal` (10), `ReaderPreviewDialog` (10), `ArticleDiffModal` (13), `useCollaborationSession` (14, transport et auth simulés), `PublishModal` (+3). Corrigés : approbation/retouche/abandon dans le diff et publication qui rejetaient une promesse non gérée (aucun message, modale apparemment figée) — `catch` + `toast.error`, modal maintenue ouverte et bouton réactivé. Seuils studio 20/20/17/16 → 25/24/23/22 (mesure 26,01/25,85/24,04/23,45). `test:coverage`, `test:coverage:front`, `typecheck`, `lint` verts.                                                                                                                                                                      | _(ce commit)_ |
 | 2026-11-16 | Tests + bug (en-tête et dialogues d'éditeur)      | 56 tests : `EditorHeader` (23), `PastedAnnotationsDialog` (12), `AiSuggestionDialog` (9), `CoverUploader` (+6, recadrage et médiathèque simulés). Corrigé : une date de programmation illisible affichait « Programmé · » suivi de rien — repli sur « Programmé ». Seuils studio 25/24/23/22 → 25/25/23/24 (mesure 26,61/26,43/24,82/25,29).                                                                                                                                                                                                                                                                                                                                                                                                                                                        | _(ce commit)_ |
+| 2026-11-16 | Tests + bug (actions groupées sur les articles)   | 37 tests : `ArticleBulkSettingsDialog` (19), `ArticleBulkTransferDialog` (16, progression pilotée par promesses différées). Corrigé : un rafraîchissement de liste raté après une action réussie passait pour un échec de la modification groupée/du transfert et laissait une promesse rejetée non gérée ; l'action et le rafraîchissement sont désormais distingués. Seuils studio 25/25/23/24 → 26/26/25/25 (mesure 27,91/27,82/26,15/26,66).                                                                                                                                                                                                                                                                                                                                                    | _(ce commit)_ |

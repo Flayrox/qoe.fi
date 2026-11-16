@@ -111,7 +111,14 @@ export function ArticleBulkTransferDialog({
       );
     }
     onOpenChange(false);
-    await onApplied();
+    // Le rafraîchissement de la liste est distinct des transferts : s'il
+    // échoue, les articles ont bien changé de publication et il ne faut ni
+    // annoncer un échec, ni laisser une promesse rejetée non gérée.
+    try {
+      await onApplied();
+    } catch {
+      toast.error(t`Les transferts sont terminés, mais la liste n'a pas pu être rafraîchie.`);
+    }
   };
 
   return (
