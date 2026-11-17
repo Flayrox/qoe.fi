@@ -5,6 +5,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@qoe/supabase/middleware';
 import { getMonorepoUrl } from '@qoe/config';
+import { workspaceCookie } from './src/lib/workspace-cookie';
+import { safeLocale } from './src/lib/locale-header';
 
 export async function middleware(request: NextRequest) {
   const host = request.headers.get('host') || '';
@@ -19,7 +21,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // Forward language cookie as request header
-  const localeCookie = request.cookies.get('x-locale')?.value || 'fr';
+  // Liste blanche : une valeur de cookie arbitraire ne doit pas atterrir
+  // telle quelle dans un en-tête.
+  const localeCookie = safeLocale(request.cookies.get('x-locale')?.value);
   request.headers.set('x-locale', localeCookie);
 
   const { supabaseResponse, user } = await updateSession(request);
@@ -78,11 +82,12 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.searchParams.delete('ws');
     const redirect = NextResponse.redirect(url);
-    redirect.cookies.set(
-      'qoe_active_workspace',
-      encodeURIComponent(JSON.stringify({ type: 'MEDIA', id: ws })),
-      { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax' }
+    // `secure` suit l'environnement : jamais de cookie d'espace en clair en prod.
+    const cookie = workspaceCookie(
+      { type: 'MEDIA', id: ws },
+      process.env.NODE_ENV === 'production'
     );
+    redirect.cookies.set(cookie.name, cookie.value, cookie.options);
     redirect.headers.set('x-locale', localeCookie);
     return redirect;
   }
