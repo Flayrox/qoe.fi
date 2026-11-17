@@ -16,6 +16,7 @@ import {
 import { Button } from '@qoe/ui/button';
 import { cn } from '@qoe/utils';
 import { countWordsInHtml } from '../lib/preflight';
+import { sanitizePreviewHtml } from '@/lib/sanitize-preview-html';
 
 export type PreviewDevice = 'desktop' | 'tablet' | 'mobile';
 
@@ -143,12 +144,16 @@ export function ReaderPreviewDialog({
             <div
               className="article-prose mt-5 max-w-none text-foreground/90 antialiased"
               dangerouslySetInnerHTML={{
-                __html:
+                // Le corps peut contenir du HTML collé : on applique la même
+                // liste blanche que le lecteur avant de l'injecter dans la
+                // session authentifiée du studio.
+                __html: sanitizePreviewHtml(
                   isPremium && after && !showPaidContent
                     ? before
                     : isPremium && after && showPaidContent
                       ? `${before}${after}`
-                      : html,
+                      : html
+                ),
               }}
             />
 

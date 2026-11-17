@@ -21,7 +21,7 @@
 // (son secret n'est plus disponible : on peut seulement saisir un code).
 // =====================================================================
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@qoe/ui/button';
 import { Callout } from '@qoe/ui/callout';
 import { Icon } from '@qoe/ui/icons';
@@ -30,6 +30,7 @@ import { Spinner } from '@qoe/ui/spinner';
 import { toast } from '@qoe/ui/toast';
 import { createClient } from '@/lib/supabase/client';
 import { enrollAccountSecurityMfaAction } from '@/features/settings/actions';
+import { sanitizeInlineSvg } from '@/lib/sanitize-inline-svg';
 
 type Phase = 'loading' | 'input' | 'error';
 
@@ -53,6 +54,9 @@ export function TotpEnrollment({ factorId, onVerified, onCancel, intro }: Props)
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Un SVG contenant du code n'est jamais affiché : le secret et le lien
+  // otpauth:// restent disponibles en repli.
+  const safeQrCode = useMemo(() => sanitizeInlineSvg(qrCode), [qrCode]);
 
   const start = useCallback(async () => {
     setPhase('loading');
@@ -151,11 +155,12 @@ export function TotpEnrollment({ factorId, onVerified, onCancel, intro }: Props)
     <form onSubmit={submit} className="space-y-3">
       {intro && <p className="text-xs leading-relaxed text-muted-foreground">{intro}</p>}
 
-      {qrCode ? (
+      {safeQrCode ? (
         <div
           className="mx-auto w-44 [&_svg]:h-full [&_svg]:w-full"
-          // GoTrue renvoie un SVG prêt à afficher : on ne le reconstruit pas.
-          dangerouslySetInnerHTML={{ __html: qrCode }}
+          // GoTrue renvoie un SVG prêt à afficher : on ne le reconstruit pas,
+          // mais on refuse tout contenu actif (script, gestionnaire inline).
+          dangerouslySetInnerHTML={{ __html: safeQrCode }}
         />
       ) : (
         <p className="text-xs leading-relaxed text-muted-foreground">

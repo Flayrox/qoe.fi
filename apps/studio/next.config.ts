@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 import { linguiMacroSwcPlugin } from '@lingui/swc-plugin/options';
 import { withSentryConfig } from '@sentry/nextjs';
+import { studioSecurityHeaders } from './src/lib/security-headers';
 
 /**
  * ⚙️ apps/studio — Config Next.js pour le dashboard créateur (studio.qoe.fi)
@@ -66,20 +67,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/:path*',
-        headers: [
-          {
-            key: 'Supports-Loading-Mode',
-            value: 'credentialed-prerender',
-          },
-          { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
-          {
-            key: 'Content-Security-Policy-Report-Only',
-            value:
-              "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; img-src 'self' data: blob: https:; font-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https: wss:;",
-          },
-        ],
+        headers: studioSecurityHeaders(),
       },
     ];
   },

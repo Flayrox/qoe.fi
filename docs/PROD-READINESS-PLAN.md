@@ -155,7 +155,7 @@ remettre les images précédentes (`qoefi-<service>:<sha>` est publié à chaque
 | --------------------- | ------- | ---------------- | -------------- |
 | `packages/ui`         | 56,50 % | 84 / 554         | 55 %           |
 | `apps/tenants`        | 24,00 % | 11 / 39          | 23 %           |
-| `apps/studio`         | 32,11 % | 61 / 537         | 31 %           |
+| `apps/studio`         | 32,85 % | 63 / 571         | 31 %           |
 | `apps/admin`          | 10,88 % | 14 / 88          | 9 %            |
 | **Agrégé TypeScript** | 27,39 % | 87 / 761         | —              |
 
@@ -175,7 +175,7 @@ métriques (lignes, statements, fonctions, branches) :
 | `apps/core/src/app/**`        | _aucun_           | 24 / 23 / 17 / 19 |
 | `apps/core/src/components/**` | _aucun_           | 12 / 11 / 7 / 7   |
 | `apps/mobile/**`              | _aucun_           | 11 / 12 / 7 / 10  |
-| `apps/studio`                 | 9 % partout       | 31 / 30 / 29 / 29 |
+| `apps/studio`                 | 9 % partout       | 31 / 31 / 30 / 30 |
 | `packages/ui`                 | 55 / 53 / 48 / 48 | 55 / 53 / 48 / 49 |
 | `apps/admin`                  | 4 / 4 / 3 / 3     | 9 / 9 / 6 / 8     |
 | `apps/tenants`                | 23 / 22 / 17 / 24 | 23 / 22 / 18 / 24 |
@@ -409,6 +409,27 @@ studio Média extraite et testée, plus un parcours complet du composant
   d'`items`, donc la ligne ne voyait jamais le nouvel état. L'état de copie
   fait désormais partie des items ; la confirmation « Copié » s'affiche.
 
+### Fait le 16/11 (durcissement sécurité du studio)
+
+Voir le plan vivant dédié : [`docs/SECURITY-PLAN.md`](./SECURITY-PLAN.md) (modèle
+de menace, inventaire des contrôles, passes d'audit et tâches restantes).
+
+- **Aperçu lecteur** : le HTML de l'article est assaini (liste blanche
+  DOMPurify, `data-type` du paywall conservé) avant d'être injecté dans la
+  session authentifiée du studio ; scripts, iframes, formulaires, gestionnaires
+  inline et URL `javascript:` sont retirés.
+- **QR TOTP** : `sanitizeInlineSvg` refuse tout fragment contenant un script,
+  un gestionnaire inline, `foreignObject`, une ressource distante ou une entité
+  XML ; le secret et le lien `otpauth://` restent disponibles en repli.
+- **Cookie d'espace actif** : `workspaceCookie()` centralise Path/Max-Age/
+  SameSite et pose `Secure` en production ; le middleware s'en sert pour les
+  liens profonds `?ws=`.
+- **En-têtes de sécurité** : `studioSecurityHeaders()` (nosniff, X-Frame-Options,
+  COOP `same-origin-allow-popups`, XPCDP, CSP toujours en `Report-Only`) est
+  consommé par `next.config.ts` et couvert par des tests.
+- **Locale** : `safeLocale()` n'autorise que les langues supportées avant de
+  recopier `x-locale` dans un en-tête.
+
 ### Reste à faire
 
 - **`apps/admin`** : octrois `SubscriptionGrant` depuis la console, écrans de
@@ -530,3 +551,4 @@ terminée).
 | 2026-11-16 | Tests + bug (actions groupées sur les articles)   | 37 tests : `ArticleBulkSettingsDialog` (19), `ArticleBulkTransferDialog` (16, progression pilotée par promesses différées). Corrigé : un rafraîchissement de liste raté après une action réussie passait pour un échec de la modification groupée/du transfert et laissait une promesse rejetée non gérée ; l'action et le rafraîchissement sont désormais distingués. Seuils studio 25/25/23/24 → 26/26/25/25 (mesure 27,91/27,82/26,15/26,66).                                                                                                                                                                                                                                                                                                                                                    | _(ce commit)_ |
 | 2026-11-16 | Tests + bug (studio Média)                        | 60 tests : `media-studio-logic` (27, logique pure extraite de `MediaStudioClient`) et `MediaStudioClient` (33). Corrigé : le bouton « Copier » d'un lien d'invitation restait bloqué sur « Copier » — la collection du tableau react-aria, mémoïsée sur l'identité d'`items`, ne voyait pas l'état de copie ; il fait désormais partie des items. Seuils studio 26/26/25/25 → 31/30/29/29 (mesure 32,11/31,85/30,79/30,51).                                                                                                                                                                                                                                                                                                                                                                         | _(ce commit)_ |
 | 2026-11-16 | Flake CI du rendu admin                           | `moderation-queue.test.tsx` (« résout un signalement… ») a dépassé 5 s sur le runner `main` du commit `26ea3b93` alors que le run `dev` du même commit était vert : `apps/admin` passe au plancher de 20 s déjà utilisé par core/studio/tenants. Assertions inchangées.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | _(ce commit)_ |
+| 2026-11-16 | Durcissement sécurité (studio) + plan dédié       | 34 tests : `security-hardening` (24 : en-têtes, cookie d'espace `Secure`, locale, HTML d'aperçu, SVG inline) et `totp-enrollment` (10). Corrigés : HTML d'aperçu injecté sans assainissement, QR TOTP injecté brut, cookie d'espace sans `Secure` en prod, en-têtes app incomplets, `x-locale` recopié sans liste blanche. Nouveau `docs/SECURITY-PLAN.md` (3 passes, 20 findings, 12 tâches, 9 restantes). Seuils studio 31/30/29/29 → 31/31/30/30 (mesure 32,85/32,60/31,26/31,02).                                                                                                                                                                                                                                                                                                               | _(ce commit)_ |
