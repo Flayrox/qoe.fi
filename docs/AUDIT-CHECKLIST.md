@@ -59,7 +59,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L02** | `packages/schemas/src/**`                                                                                    | 8 fichiers                  | **durci le 2026-11-18** |
 | **L03** | `packages/flags/src/**`                                                                                      | 8 fichiers                  | **durci le 2026-11-18** |
 | **L04** | `packages/auth/src/**`                                                                                       | 11 fichiers                 | **durci le 2026-11-18** |
-| L05     | `packages/supabase/src/**`                                                                                   | 13 fichiers                 | à auditer               |
+| **L05** | `packages/supabase/src/**`                                                                                 | 13 fichiers                 | **durci le 2026-11-18** |
 | L06     | `packages/sdk/src/**` (actions, client, embed, hooks)                                                        | 78 fichiers                 | à auditer               |
 | L07a    | `packages/ui/src/primitives/**`, `ui/**`, `tokens.ts`                                                        | 310 fichiers (global)       | à auditer               |
 | L07b    | `packages/ui/src/{reader,annotations,cards}/**`                                                              | idem                        | à auditer               |
@@ -97,7 +97,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L36     | `e2e/**`, `playwright*.config.ts`, `e2e/lib/**`                                                              | 65 fichiers                 | à auditer               |
 | L37     | `docs/**`, `AGENTS.md`, racine (`tsconfig`, `eslint`, `turbo`, `vitest`), `supabase/`, `patches/`, `.husky/` | transverse                  | à auditer               |
 
-**Prochain lot à traiter : L05 — `packages/supabase`.** Ordre retenu : du plus
+**Prochain lot à traiter : L06 — `packages/sdk`.** Ordre retenu : du plus
 partagé au plus spécifique, parce qu'un correctif dans un package bas remonte
 dans toutes les apps.
 
@@ -469,3 +469,68 @@ lieu d'un comportement par défaut.
 | R26 | Unifier l'envoi d'e-mails : le SMTP direct depuis Next contourne la file asynq (rate-limit, budgets, journal d'envoi)                  | moyenne  | Deux chemins d'envoi, deux comportements en cas d'incident.                                               |
 | R27 | Garde CI de parité pour `MEDIA_ROLE_PERMISSIONS` (TS) ↔ `internal/permissions` (Go)                                                    | moyenne  | Même classe de divergence que les flags (F28) : la matrice est écrite deux fois.                          |
 | R28 | Découper les sujets RFC 2047 (ligne > 75 caractères)                                                                                   | faible   | Un sujet long accentué peut être replié/mangé par certains relais.                                        |
+
+---
+
+## L05 — `@qoe/supabase` — durci le 2026-11-18
+
+**Périmètre.** `packages/supabase/src/**` : `storage.ts`, `media-engine.ts`,
+`cookie-config.ts`, `client.ts`, `server.ts`, `middleware.ts`, `sso.ts`,
+`broadcast.ts`, `index.ts` + 4 fichiers de tests.
+**Consommateurs.** `apps/{core,studio,admin,tenants,hi}` (uploads, session,
+middleware), `packages/auth`, `packages/sdk`.
+**Infra.** Le package ne connaît **aucun** domaine propriétaire : il reçoit
+`NEXT_PUBLIC_SUPABASE_URL` (cloud **ou** Supabase auto-hébergé) et l'origine
+média `NEXT_PUBLIC_MEDIA_CDN_URL` (Caddy self-hosted, Bunny, R2, imgproxy…).
+**Tests.** 42 tests verts, dont 13 dans `src/__tests__/hardening.test.ts` et 3
+de modération fail-closed.
+
+### Entrées auditées
+
+| #   | Emplacement                          | Standard attendu                                                                 | Verdict            |
+| --- | ------------------------------------ | -------------------------------------------------------------------------------- | ------------------ |
+| M01 | `storage.ts` → `resolveMediaCdnBase` | Origine média **configurable**, défaut déterministe, lue à l'appel                 | **ajouté** (F39)   |
+| M02 | `storage.ts` → `toPublicImageUrl`    | Rewrite d'origine idempotent (ancien CDN reconnu), chemin préservé                 | **corrigé** (F39)  |
+| M03 | `storage.ts` → `uploadImage`         | Aucun chemin d'upload direct au storage (contourne la modération)                 | **supprimé** (F40) |
+| M04 | `storage.ts` → `buildImagePath`, `sanitize*` | Folder en allowlist, owner/extension assainis, pas de traversal            | conforme           |
+| M05 | `cookie-config.ts` → `getCookieDomain` | Correspondance bornée par un point ; jamais d'IP ni d'hôte simple               | **corrigé** (F41)  |
+| M06 | `client.ts`, `server.ts` → env       | Erreur explicite si URL/clé manquantes (self-hosted ou cloud)                     | **corrigé** (F45)  |
+| M07 | `server.ts` → domaine de cookie      | `x-forwarded-host` prioritaire (bind address derrière Caddy)                       | **corrigé** (F41)  |
+| M08 | `middleware.ts` → canonicalisation   | `localhost → lvh.me` **dev uniquement** (sonde de prod non cassée)                | **corrigé** (F42)  |
+| M09 | `middleware.ts` → purge stale cookies | Purge double cible (domaine + host-only), pas de boucle                           | conforme           |
+| M10 | `sso.ts` → `signJWT`/`verifyJWT`     | Secret non vide obligatoire ; `exp` numérique obligatoire                          | **corrigé** (F43)  |
+| M11 | `broadcast.ts` → messages            | Événements d'auth en allowlist, message validé avant usage                         | **corrigé** (F44)  |
+| M12 | `media-engine.ts` → `moderateImageBuffer` | Indisponibilité du filtre → **refus** (fail-closed), opt-in permissif        | **corrigé** (F45)  |
+| M13 | `media-engine.ts` → `processAndSecureImage` | Magic bytes, anti-bomb, strip EXIF, WebP, hash CAS                         | conforme           |
+| M14 | `index.ts`                           | `media-engine` hors barrel (sharp natif), server/middleware en sous-chemins        | conforme           |
+
+### Findings et correctifs
+
+| #   | Défaut                                                                                                                                                                          | Sévérité | Correctif                                                                                                       | Fichiers |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------- | -------- |
+| F39 | `IMAGES_CDN = 'https://cdn.qoe.fi'` était figé dans le code : migrer vers Bunny/R2/imgproxy imposait de modifier et redéployer toutes les apps ; et une URL déjà réécrite subissait un second rewrite | moyenne  | `resolveMediaCdnBase()` lit `NEXT_PUBLIC_MEDIA_CDN_URL` (défaut inchangé), rewrite idempotent, tests de surcharge/défaut/idempotence | `storage.ts` |
+| F40 | `uploadImage()` écrivait **directement** dans le bucket Supabase (hors `/api/upload`), donc sans magic bytes, sans modération, sans ré-encodage — et n'était utilisé nulle part | moyenne  | Fonction supprimée : un seul chemin d'upload subsiste (`uploadImageToRoute` → route serveur)                       | `storage.ts` |
+| F41 | `getCookieDomain` utilisait `endsWith('qoe.fi')` (donc `evilqoe.fi` → `.qoe.fi`), posait un `Domain=` sur des IP ou des hôtes simples (cookie rejeté → session perdue) et ne préférait pas `x-forwarded-host` | haute    | Correspondance bornée (`host === d` ou `.d`), `isIpLiteral`, hôte sans point → `undefined`, `x-forwarded-host` prioritaire | `cookie-config.ts`, `server.ts`, `middleware.ts` |
+| F42 | Le middleware redirigeait `localhost`/`127.0.0.1` vers `lvh.me` **même en production** : une sonde de santé sur `http://localhost:3000` recevait un 307 vers un domaine non résolu | moyenne  | Canonicalisation limitée à `NODE_ENV !== 'production'`                                                          | `middleware.ts` |
+| F43 | `verifyJWT` acceptait un jeton **sans `exp`** (valide éternellement) et un **secret vide** (HMAC avec clé vide = forgeable) ; le secret manquant était masqué en `null` (confondu avec « jeton invalide ») | moyenne  | `assertSecret` hors du `try`, `exp` numérique obligatoire                                                        | `sso.ts` |
+| F44 | Le canal `BroadcastChannel` déclenchait la logique d'auth sur n'importe quel message posté par un script de la page | faible   | `isAuthBroadcastMessage` : événement en allowlist + timestamp numérique                                           | `broadcast.ts` |
+| F45 | La modération image était **fail-open** : clé absente en production, HTTP 5xx ou exception → `safe: true`, donc image publiée sans filtre. Et un env Supabase manquant donnait une erreur opaque | haute    | Mode `enforce` par défaut (`MEDIA_MODERATION_MODE=permissive` en opt-in), refus explicite avec message ; erreurs d'env explicites pour URL/clé | `media-engine.ts`, `client.ts`, `server.ts` |
+
+### Preuves exécutées
+
+```bash
+cd packages/supabase && pnpm exec vitest run     # 4 fichiers / 42 tests — EXIT=0
+cd packages/supabase && pnpm exec tsc --noEmit   # EXIT=0
+cd packages/supabase && pnpm exec eslint .       # EXIT=0
+pnpm typecheck                                   # 25 successful, 25 total
+```
+
+### Reste à faire (lot L05)
+
+| #   | Tâche                                                                                                                                 | Sévérité | Motif                                                                                                     |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------- |
+| R29 | Vérifier en production `OPENAI_API_KEY` **et** le mode de modération avant déploiement                                               | haute    | Sans clé, les uploads sont désormais refusés (fail-closed) : c'est voulu, mais il faut le vérifier au déploiement. |
+| R30 | Factoriser le CDN mobile (`apps/mobile/src/lib/upload.ts` duplique `IMAGES_CDN` et l'upload direct)                                    | moyenne  | Même règle de portabilité que F39, plus le contournement du pipeline (R22).                                |
+| R31 | Ajouter `import 'server-only'` dans `server.ts`/`middleware.ts`                                                                       | faible   | Empêche un import client accidentel (aujourd'hui seule la doc l'interdit).                                |
+| R32 | Migrer les URLs absolues stockées en base vers chemin + origine configurable                                                          | moyenne  | Une URL absolue fige le CDN dans les données (règle « portabilité d'infra »).                             |
+| R33 | Vérifier les appelants de `verifyJWT` qui produiraient un jeton sans `exp`                                                            | faible   | Tous passent par `signJWT` (qui pose `exp`) ; à confirmer côté Go si un jeton y est émis.                   |
