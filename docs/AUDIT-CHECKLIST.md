@@ -811,3 +811,52 @@ node scripts/guard-article-links.mjs               # aucun lien obsolète
 | R46 | `NotificationItem` : le repli `article` doit venir du serveur (`url`)                                          | moyenne  | La cible est ambiguë (notification lue dans le core **ou** le studio) ; allowlisté dans le garde en attendant. |
 | R47 | Le core n'accepte pas `/{code}` (code court nu), contrairement aux tenants                                     | faible   | Produit : ajouter une route `/[code]` numérique au core ou assumer `/l/{code}` partout.     |
 | R48 | Généraliser `shortCode` à toutes les surfaces (cartes, e-mails) comme lien de partage stable                    | faible   | Le champ existe désormais côté Go ; les cartes n'ont pas encore la donnée.                  |
+
+---
+
+## Annexe — tracking d'e-mails : décision produit (R49)
+
+**Verdict.** Oui, c'est pertinent — mais **plus tard**, en lot dédié, et
+« click-first » : le clic est une intention réelle, l'ouverture n'est qu'un
+signal estimé (Apple Mail Privacy Protection précharge les images et gonfle les
+ouvertures de 30 à 50 % ; Gmail proxifie aussi les pixels). On ne construit
+jamais une décision (facturation, classement d'auteur) sur l'ouverture.
+
+**« Non contournable » = non forgeable, pas inévitable.** On ne peut pas rendre
+un pixel inévitable (bloqueurs, texte brut, MPP, sécurité d'entreprise), et il
+ne faut pas essayer : ce serait du fingerprinting. Ce qui doit être
+infalsifiable :
+
+1. **Jeton opaque signé** (HMAC-SHA256 côté serveur, comparaison à temps
+   constant) : `recipientId × campaignId × linkId × nonce`, usage unique par
+   événement, expiration. Personne ne peut gonfler les statistiques d'un autre.
+2. **Redirection à destination stockée en base**, jamais de `?url=` (sinon
+   open redirect + attribution falsifiable).
+3. **Vérité côté domaine** : clic → lecture authentifiée → abonnement. Ces
+   événements-là sont déjà à nous ; l'e-mail ne fournit qu'une *attribution*
+   (fenêtre 7 jours) à ces conversions, pas la conversion elle-même.
+4. **Idempotence** : contrainte unique `(recipientId, type, linkId)` + file
+   asynq pour l'ingestion ; agrégats journaliers en rollup (l'edge répond 302
+   sans attendre la base).
+5. **Classement des robots** : `GoogleImageProxy`/MPP → événement
+   `open_proxy` séparé ; scanners de liens (Microsoft Safe Links, Barracuda) →
+   `suspected_prefetch`, jamais comptés comme humains.
+
+**Interdits.** Pixel tiers (Meta/Google), e-mail de sécurité transactionnel
+traqué (alerte de connexion, confirmation), IP brute conservée, redirection
+ouverte, identifiant lisible dans l'URL.
+
+**Phasage.**
+
+| Phase | Contenu                                                            | Pourquoi maintenant / plus tard                          |
+| ----- | ------------------------------------------------------------------ | -------------------------------------------------------- |
+| 0     | Événements serveur déjà disponibles : `sent`, `delivered`, `bounce`, `complaint` (`ArticleReleaseDelivery`, suppression, webhooks HMAC) + attribution des lectures | Zéro nouvelle surface, utile immédiatement               |
+| 1     | Clics : jeton opaque, `GET /v1/email/click/{token}` → 302, table d'événements, rollup, dashboard studio par article | Le vrai KPI, faible coût, pas de risque délivrabilité     |
+| 2     | Ouvertures marquées « estimées » + classification proxy/bot + opt-out par destinataire (le lien continue de fonctionner, sans enregistrement) | Après phase 1, avec base légale et rétention écrites      |
+| 3     | Attribution revenu (fenêtre 7 j), cohortes, A/B d'objet                      | Nécessite des volumes et un modèle d'attribution stable    |
+
+**Base légale / rétention.** Intérêt légitime pour des statistiques agrégées ;
+suivi individuel = information claire + opt-out ; événements bruts 90 jours,
+agrégats conservés ; pas de profilage hors plateforme.
+
+Statut : `bloqué (produit)` — à planifier après l'audit, pas pendant.
