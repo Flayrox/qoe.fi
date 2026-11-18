@@ -143,6 +143,7 @@ SELECT a.id, a.title, a.slug, a.content, a."draftContent", a.published, a."isPre
        a."originArticleId", a."canonicalType", a."isAuthorSovereignCopy", a."isClaimed", a."canonicalUrl",
        a.status, a."publisherId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."coverAlt", a."coverDecorative", a."createdAt", a."updatedAt",
+       a."shortCode"  AS article_short_code,
        a."emailStatus", a."emailSentAt", a."emailSentCount", a."emailResendCount",
        u.id::text     AS author_id,
        u.name         AS author_name,
@@ -152,10 +153,15 @@ SELECT a.id, a.title, a.slug, a.content, a."draftContent", a.published, a."isPre
        p.slug         AS publisher_slug,
        p.subdomain    AS publisher_subdomain,
        p.type         AS publisher_type,
-       p."logoUrl"    AS publisher_logo
+       p."logoUrl"    AS publisher_logo,
+       c.name         AS category_name,
+       c.slug         AS category_slug,
+       cp.slug        AS category_parent_slug
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
 JOIN "Publisher" p ON p.id = a."publisherId"
+LEFT JOIN "Category" c ON c.id = a."categoryId"
+LEFT JOIN "Category" cp ON cp.id = c."parentId"
 WHERE a.id = $1;
 
 -- name: GetArticleBySlug :one
@@ -167,6 +173,7 @@ SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibilit
        a."imageUrl"   AS article_image,
        a."coverAlt"   AS article_cover_alt,
        a."coverDecorative" AS article_cover_decorative,
+       a."shortCode"  AS article_short_code,
        u.id::text     AS author_id,
        u.name         AS author_name,
        u.username     AS author_username,
@@ -179,11 +186,13 @@ SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibilit
        p."customDomain" AS publisher_custom_domain,
        c.id           AS category_id,
        c.name         AS category_name,
-       c.slug         AS category_slug
+       c.slug         AS category_slug,
+       cp.slug        AS category_parent_slug
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
 JOIN "Publisher" p ON p.id = a."publisherId"
 LEFT JOIN "Category" c ON c.id = a."categoryId"
+LEFT JOIN "Category" cp ON cp.id = c."parentId"
 WHERE a.slug = $1 AND a."publisherId" = $2;
 
 -- name: GetArticleBySlugAny :one
@@ -208,13 +217,16 @@ SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibilit
        a."imageUrl"   AS article_image,
        a."coverAlt"   AS article_cover_alt,
        a."coverDecorative" AS article_cover_decorative,
+       a."shortCode"  AS article_short_code,
        c.id           AS category_id,
        c.name         AS category_name,
-       c.slug         AS category_slug
+       c.slug         AS category_slug,
+       cp.slug        AS category_parent_slug
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
 JOIN "Publisher" p ON p.id = a."publisherId"
 LEFT JOIN "Category" c ON c.id = a."categoryId"
+LEFT JOIN "Category" cp ON cp.id = c."parentId"
 WHERE (a.slug = $1
        OR EXISTS (SELECT 1 FROM "ArticleSlug" s
                   WHERE s.slug = $1 AND s."articleId" = a.id)

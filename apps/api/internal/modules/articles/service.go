@@ -35,9 +35,13 @@ var (
 
 // ArticleResponse est la forme API d'un article (contenu éventuellement tronqué).
 type ArticleResponse struct {
-	ID                     string                         `json:"id"`
-	Title                  string                         `json:"title"`
-	Slug                   string                         `json:"slug"`
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	Slug  string `json:"slug"`
+	// ShortCode est le code court numérique (lien /l/{code} ou /{code} côté
+	// tenant). Il permet au front de partager un lien stable même si le slug
+	// change, sans deviner la hiérarchie de catégories.
+	ShortCode              *string                        `json:"shortCode,omitempty"`
 	Content                string                         `json:"content"`
 	LiveContent            *string                        `json:"liveContent,omitempty"`
 	DraftContent           *string                        `json:"draftContent,omitempty"`
@@ -96,6 +100,9 @@ type CategoryInfo struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 	Slug string `json:"slug"`
+	// ParentSlug permet de reconstituer le chemin hiérarchique
+	// /{parent}/{categorie}/{article} sans requête supplémentaire.
+	ParentSlug *string `json:"parentSlug,omitempty"`
 }
 
 // AuthorInfo est l'auteur dénormalisé.
@@ -318,7 +325,7 @@ func (s *Service) GetBySlugAny(ctx context.Context, slug string, viewerID string
 	pubType := identity.FromPublisherType(string(row.PublisherType))
 	authorLogo := textPtr(row.AuthorLogo)
 	resp := ArticleResponse{
-		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: cut.Content,
+		ID: row.ID, Title: row.Title, Slug: row.Slug, ShortCode: textPtr(row.ArticleShortCode), Content: cut.Content,
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
 		ReadingTime: int(row.ReadingTime), Status: row.Status, PublisherID: row.PublisherId,
 		AllowPublicAnnotations: row.AllowPublicAnnotations, AllowComments: row.AllowComments,
@@ -345,7 +352,7 @@ func (s *Service) GetBySlugAny(ctx context.Context, slug string, viewerID string
 	resp.CoverAlt = row.ArticleCoverAlt
 	resp.CoverDecorative = row.ArticleCoverDecorative
 	if row.CategoryID.Valid {
-		resp.Category = &CategoryInfo{ID: row.CategoryID.String, Name: row.CategoryName.String, Slug: row.CategorySlug.String}
+		resp.Category = &CategoryInfo{ID: row.CategoryID.String, Name: row.CategoryName.String, Slug: row.CategorySlug.String, ParentSlug: textPtr(row.CategoryParentSlug)}
 	}
 	if cert := s.fetchUserIsCertified(ctx, row.AuthorID); cert != nil {
 		resp.Author.IsCertified = *cert
@@ -1618,7 +1625,7 @@ func articleFromSlugRow(row db.GetArticleBySlugRow, cut PaywallCutResult) Articl
 	pubType := identity.FromPublisherType(string(row.PublisherType))
 	authorLogo := textPtr(row.AuthorLogo)
 	resp := ArticleResponse{
-		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: cut.Content,
+		ID: row.ID, Title: row.Title, Slug: row.Slug, ShortCode: textPtr(row.ArticleShortCode), Content: cut.Content,
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
 		ReadingTime: int(row.ReadingTime), Status: row.Status, ScheduledAt: tsPtr(row.ScheduledAt),
 		AllowPublicAnnotations: row.AllowPublicAnnotations, AllowComments: row.AllowComments,
@@ -1641,7 +1648,7 @@ func articleFromSlugRow(row db.GetArticleBySlugRow, cut PaywallCutResult) Articl
 		Attributions: []AttributionInfo{},
 	}
 	if row.CategoryID.Valid {
-		resp.Category = &CategoryInfo{ID: row.CategoryID.String, Name: row.CategoryName.String, Slug: row.CategorySlug.String}
+		resp.Category = &CategoryInfo{ID: row.CategoryID.String, Name: row.CategoryName.String, Slug: row.CategorySlug.String, ParentSlug: textPtr(row.CategoryParentSlug)}
 	}
 	return resp
 }
@@ -1650,7 +1657,7 @@ func articleFromRow(row db.GetArticleByIDRow, cut PaywallCutResult) ArticleRespo
 	pubType := identity.FromPublisherType(string(row.PublisherType))
 	authorLogo := textPtr(row.AuthorLogo)
 	resp := ArticleResponse{
-		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: cut.Content,
+		ID: row.ID, Title: row.Title, Slug: row.Slug, ShortCode: textPtr(row.ArticleShortCode), Content: cut.Content,
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
 		ReadingTime: int(row.ReadingTime), Status: row.Status, ScheduledAt: tsPtr(row.ScheduledAt),
 		AllowDownload: row.AllowDownload, AllowPublicAnnotations: row.AllowPublicAnnotations,
@@ -1670,6 +1677,11 @@ func articleFromRow(row db.GetArticleByIDRow, cut PaywallCutResult) ArticleRespo
 		IsTruncated: cut.IsTruncated, AccessGranted: cut.AccessGranted, PaywallMeta: cut.PaywallMeta,
 		Author:    AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: authorLogo, Type: pubType},
 		Publisher: &PublisherInfo{ID: row.PublisherId, Name: row.PublisherName, Slug: row.PublisherSlug, Subdomain: textPtr(row.PublisherSubdomain), Type: pubType},
+	}
+	// Lecture éditeur : la catégorie (et son parent) sert à composer le lien
+	// canonique du tenant, y compris pour les sous-rubriques.
+	if row.CategoryId.Valid {
+		resp.Category = &CategoryInfo{ID: row.CategoryId.String, Name: row.CategoryName.String, Slug: row.CategorySlug.String, ParentSlug: textPtr(row.CategoryParentSlug)}
 	}
 	return resp
 }
