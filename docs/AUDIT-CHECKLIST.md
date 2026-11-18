@@ -65,7 +65,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L06c** | `packages/sdk/src/actions/{feed,articles,tenant,search,dashboard}` + `lib/shareUrl.ts`                      | 5 fichiers / 2 700 lignes   | **durci le 2026-11-18** |
 | **L06d** | `packages/sdk/src/actions/**` restants (admin, legal, billing, highlights, ebooks, appeals, support, workspace…) | 38 fichiers | **durci le 2026-11-18** |
 | L07a     | `packages/ui/src/primitives/**`, `ui/**`, `tokens.ts`                                                                       | 310 fichiers (global)       | **durci le 2026-11-18** |
-| L07b    | `packages/ui/src/{reader,annotations,cards}/**`                                                              | idem                        | à auditer               |
+| L07b    | `packages/ui/src/{reader,annotations,cards}/**`                                                              | 31 fichiers src             | **durci le 2026-11-18** |
 | L07c    | `packages/ui/src/{auth,forms,providers}/**`                                                                  | idem                        | à auditer               |
 | L07d    | `packages/ui/src/{security,seo,legal}/**`                                                                    | idem                        | à auditer               |
 | L07e    | `packages/ui/src/{notifications,onboarding,profile,social,cmdk,templates,sidebar.tsx}`                       | idem                        | à auditer               |
@@ -876,6 +876,92 @@ nommé), puis verts après restauration.
 | R56 | Deux jeux de composants pour le même besoin : `ui/select` (React Aria composé) **et** `primitives/select`, `ui/calendar` (react-day-picker) **et** `primitives/date`. Les deux sont sains et testés ; le coût est la divergence de style et deux chemins d'accessibilité à maintenir. | dette | Choix produit (les écrans existants utilisent l'un ou l'autre) — fusionner demande une décision de design, pas une correction de bug. |
 | R58 | ~~`ui/hover-card` : contenu portailé hors ordre de tabulation~~ — **close par F117** : ce n'était pas un arbitrage produit mais un défaut technique (le focus entrait par le déclencheur et mourait dans le portail). Traversée au clavier complète, vérifiée par 4 tests. | — | Clos. |
 | R57 | ~~`BentoPlateau` : `BentoItem` cliquable sans clavier~~ — **close par F118** : l'affordance `onClick`/`cursor-pointer` n'était utilisée par aucun appelant, elle est supprimée plutôt que rendue focusable à vide (pas d'arrêt de tabulation mort). | — | Clos. |
+| R59 | `AnnotationFilterPill` : quand `allowPublicAnnotations` est faux, l'option « Toutes » disparaît alors que `filterMode` vaut `all` par défaut — le rail n'affiche aucune option cochée tout en continuant de filtrer en mode `all` (officielles + les siennes). Deux issues possibles : garder une option « Tout » même sans annotations publiques, ou normaliser `all` → `official` quand la contrainte tombe. | faible | Décision produit / design system (le mode `all` reste fonctionnel, l'affichage seul est ambigu) — voir L07b. |
+| R60 | `reader/useBionicReading` : le mode bionique écrit `innerHTML` dans un conteneur possédé par React et met l'original en cache dans `data-original-html`. Un corps re-rendu après activation (annotation ajoutée, document canonique rechargé) rend donc l'ancien HTML à la désactivation. Le correctif propre est un bionic **déclaratif** au rendu des blocs, pas une mutation DOM. | moyenne | Chantier de design du lecteur (aucun écran n'active aujourd'hui le bionic sur un corps canonique, mais le chemin est armé) — voir L07b. |
+
+---
+
+## L07b — `@qoe/ui` reader, annotations, cards — durci le 2026-11-18
+
+**Périmètre.** Les **34 fichiers sources** du lot — `src/reader/**` (12),
+`src/annotations/**` (21) et `src/cards/index.ts` (1) — lus en entier, plus
+leurs 28 fichiers de test (dont `annotations.test.ts` et
+`paper-theme.test.ts`, posés à la racine de leur dossier plutôt que dans
+`__tests__/`). Appelants
+réels inspectés, pas seulement les composants : `apps/core`
+(`ArticleAnnotatorView`, `ArticleReaderDrawer`, `DockedReaderToolbar`,
+`EbookReader`, `ProfileView`, `FeedDashboard`, `ArticleOverlayProvider`,
+`ReaderToolbarContext`, la page `[username]/a/[slug]`), `apps/tenants`
+(`TenantReaderShell`, `TenantArticleHighlighter`, `TenantArticleRenderer`,
+`ReaderActions`, `tenant-data`, `tenant-article-route`) et `apps/studio`
+(`ui-lab/specimens/{17-annotation-flow,19-social-cards,03-segmented}`,
+`fixtures/annotation-document`).
+
+`src/cards/index.ts` est un **barrel pur** (`ArticleCard`,
+`QuotedArticleCard`, `ThoughtCard`) : les trois composants visés vivent dans
+`src/ArticleCard.tsx` et `src/social/**`, déjà audités (L07a pour le premier,
+L07e pour les deux autres). Aucun défaut propre au barrel ; ses trois
+exports sont bien consommés (`ProfileView`, `FeedDashboard`, lab) et
+`QuotedArticleCard` sert aussi de couche d'aperçu au tiroir d'annotation
+(`AnnotationCitationHeading`) — l'aperçu du tiroir est donc bien celui du
+feed, pas une seconde mise en scène.
+
+| #    | Défaut                                                                                                                                                                                                                                                                                                                                       | Sévérité | Statut                                                                                                                                                                                                                                                                                                                                                                             |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F119 | `reader/bionic` : `formatBionicWord` traitait une **entité HTML comme un mot**. `&nbsp;` devenait `<b>&n</b>bsp;` — l'entité n'était plus interprétée et l'article affichait « a&n bsp;b » au lieu d'une espace insécable. Guillemets français (`&laquo;`, `&raquo;`), esperluette (`&amp;`) et espaces insécables sont exactement ce qu'on rencontre dans nos articles : la lecture bionique corrompait le texte publié. | moyenne  | corrigé — les entités sont isolées (`HTML_ENTITY_SOURCE`) et rendues intactes, seuls les fragments de texte qui les entourent sont mis en gras ; 1 test (`ne coupe jamais une entité HTML`) : **échoue avant** (« expected '&<b>nb</b>sp;' to be '&nbsp;' »), vert après                                                                                                                  |
+| F120 | `reader/ReadingProgressBar` : la barre ne cherchait son conteneur qu'**au montage**. Or le corps de l'article est monté après le shell (il vient d'une requête) : la barre s'accrochait à la fenêtre et restait à 0 % pendant qu'on faisait défiler le corps — et n'affichait rien de juste au premier rendu, puisqu'elle ne mesurait qu'au **premier** défilement.                                                                        | moyenne  | corrigé — écoute en phase de **capture** (un défilement d'élément ne bouillonne pas) et conteneur **résolu à chaque événement**, plus une mesure immédiate au montage ; 3 tests (`reading-progress-bar` : mesure au montage, conteneur monté après la barre, repli fenêtre) : **2 échouaient** (« expected '0%' to be '50%' »), verts après                                           |
+| F121 | `reader/FloatingAudioPlayer` : la piste de progression était une `<div>` avec un `onClick` — **aucun accès clavier** (pas de `tabIndex`, pas de rôle, pas de flèches) et aucune position annoncée. Un lecteur d'écran n'apprenait pas qu'un réglage existait ; au clavier, on ne pouvait pas se déplacer dans l'article autrement qu'avec les boutons de paragraphe (qui vont d'un paragraphe à l'autre, pas au milieu).                                     | moyenne  | corrigé — `role="slider"` + `aria-valuemin/max/now/valuetext`, `tabIndex=0`, flèches (±1), Début/Fin, anneau de focus, bornage dans `seekTo` (le clic passe par la même fonction) ; 1 test (`expose la piste comme un curseur réglable au clavier`) : **échec prouvé** en restaurant la source par `git stash` (role absent), vert après |
+| F122 | `annotations/TextHighlighter` : le mode de filtre est persisté dans `localStorage`, mais la whitelist de relecture était `['all','official','none']` — **`mine` manquait**. Un lecteur qui choisissait « Mes annotations » retrouvait « Toutes » à chaque rechargement, sans rien demander, et le rail affichait alors une option cochée qui n'était plus son choix.                                                                                                     | basse    | corrigé — `PERSISTED_FILTER_MODES` typé, liste unique des quatre modes ; 3 tests (`restaure le mode « mes annotations » enregistré`, `« aucune »`, `ignore une valeur inconnue`) : le premier **échouait** (`aria-checked` à `false` sur « mes annotations »), verts après                                                                                                            |
+| F123 | `annotations/AnnotationSideDrawer` : le vote « Utile » était appliqué avant la réponse serveur — c'est voulu — mais **jamais annulé**. Un refus (session expirée, annotation supprimée entre-temps) laissait la puce allumée et le compteur gonflé, et le parent recevait ce faux état par `onUpdateAnnotation` : le vote inexistant survivait au passage d'annotation suivant. Une exception réseau faisait de même.                                                      | moyenne  | corrigé — état d'avant capturé, `restore()` sur refus explicite **et** sur exception (le mode sans callback reste optimiste : personne ne peut infirmer) ; 2 tests (`revient au compteur d’avant quand la réponse est un refus` — **échouait** « expected '5 Utile' to contain '4' » — et `quand l’appel lève`), verts après                                                                 |
+| F124 | `annotations/TextSelectionPopover` : **Échap ne fermait pas le formulaire de note.** `clearSelection()` sort aussitôt quand `isLocked` est vrai, c'est-à-dire exactement quand le formulaire est ouvert ; le bouton de fermeture annonce pourtant « Fermer (Échap) ». Le raccourci affiché mentait et il ne restait que la souris pour abandonner une saisie.                                                                                                          | moyenne  | corrigé — `dismiss()` inconditionnel, prop `onEscape` (le parent referme sa saisie, sinon l'état resterait « formulaire ouvert » sur une barre démontée) ; 1 test (`Échap pendant la saisie d’une note`) : **échouait** (formulaire toujours monté), vert après                                                                                                                     |
+
+**Preuve rouge → vert.** Les six correctifs ont été écrits **après** leurs
+tests. Premier passage des cinq fichiers neufs/étendus, sources inchangées :
+**7 tests en échec** sur 15 (`bionic` ×1, `reading-progress-bar` ×2,
+`annotation-filter-persistence` ×1, `annotation-upvote-rollback` ×2,
+`selection-escape` ×1), les 8 autres verts étant trois gardes de
+non-régression (repli fenêtre de la barre, valeur de stockage inconnue,
+vote optimiste) qui devaient rester vertes avant comme après. Le septième
+correctif (F121) a été prouvé séparément : `git stash push` sur
+`FloatingAudioPlayer.tsx` → `× expose la piste comme un curseur réglable au
+clavier` (1 échec), `git stash pop` → vert.
+
+**Preuves (arbre propre, après commits) :**
+
+| Commande | Résultat |
+| -------- | -------- |
+| `pnpm --filter @qoe/ui test` | **646 tests / 102 fichiers verts** (635/98 avant le lot : **+11 tests, +4 fichiers**) |
+| `pnpm typecheck` | 25/25 tâches |
+| `pnpm --filter @qoe/ui lint` | 0 erreur, 0 avertissement |
+| les 9 gardes CI (`guard:media-origin`, `audit:guard`, `ui:audit`, `arch:audit`, `guard:article-links`, `guard:dangerous-html`, `guard:flags-parity`, `guard:legal-consent`, `guard:seed-script`) | tous verts |
+
+**Observations trouvées, volontairement non corrigées.**
+
+- `AnnotationFilterPill` : quand `allowPublicAnnotations` est faux, l'option
+  « Toutes » disparaît mais reste l'état initial possible (`filterMode`
+  défaut `all`) — le rail n'affiche alors **aucune** option cochée, alors que
+  le mode `all` reste fonctionnel (officielles + les siennes). Corriger
+  demande de choisir : afficher « Tout » même sans publiques, ou normaliser
+  le mode sur `official`. Voir **R59**.
+- `reader/useBionicReading` écrit `innerHTML` dans un conteneur que React
+  possède (`#article-content`) et met l'original en cache dans un attribut
+  `data-original-html`. Si le corps change après activation (annotation
+  ajoutée, document re-rendu), le cache est périmé et la restauration rend
+  l'ancien HTML. Aucun écran n'active aujourd'hui le bionic sur un corps
+  canonique, mais le chemin est armé. Rendre le bionic **déclaratif** (au
+  rendu des blocs) est un chantier de design, pas un correctif ponctuel.
+  Voir **R60**.
+- `reader/ReadingRuler` suit `mousemove` uniquement : c'est une aide de
+  lecture au pointeur, elle ne prétend rien d'autre (aucune affordance
+  clavier n'est peinte) — pas un défaut, noté comme limite assumée.
+
+**Dettes.** Aucune dette R ne visait spécifiquement `reader`,
+`annotations` ou `cards` (R52 parle d'invalidation de cache côté serveur,
+R46 de notifications). **R54** (baselines visuelles), **R56** (doublons
+`select`/`date`) et **R01** (`checkContentAccess` fail-open) restent
+**ouvertes** : elles attendent une décision utilisateur (environnement de
+référence, design system, comportement produit) et ne se ferment pas dans un
+lot d'audit.
 
 ---
 
