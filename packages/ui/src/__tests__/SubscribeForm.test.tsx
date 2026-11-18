@@ -175,4 +175,38 @@ describe('SubscribeForm', () => {
     expect(screen.getByPlaceholderText(/Votre adresse email/i)).toBeDefined();
     expect(screen.getByText(/Revenir à mon compte Qoefi/i)).toBeDefined();
   });
+
+  // ⚠️ Pendant l'envoi, le bouton ne contenait plus que le spinner : son nom
+  // accessible disparaissait, et rien n'annonçait l'attente (`aria-busy`
+  // absent). Un lecteur d'écran lisait un bouton sans nom, muet.
+  it('garde le bouton d’envoi nommé et occupé pendant la requête (F128)', async () => {
+    mocks.subscribeToNewsletterAction.mockReturnValue(new Promise(() => {}));
+    render(<SubscribeForm publisherId="pub_test_1" />);
+
+    const user = userEvent.setup();
+    await user.type(screen.getByPlaceholderText(/Votre adresse email/i), 'lecteur@test.fr');
+    await user.click(screen.getByRole('button', { name: /S'abonner/i }));
+
+    const sending = await screen.findByRole('button', { name: /S'abonner/i });
+    expect(sending.getAttribute('aria-busy')).toBe('true');
+    expect((sending as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  // ⚠️ Le refus du serveur s'affichait sans `role="alert"` : la personne qui
+  // utilise un lecteur d'écran n'apprenait jamais que son inscription avait
+  // échoué — le message apparaissait hors de son parcours de lecture.
+  it('annonce le refus du serveur comme une alerte (F128)', async () => {
+    mocks.subscribeToNewsletterAction.mockResolvedValue({
+      ok: false,
+      error: { message: 'Adresse email non autorisée' },
+    });
+    render(<SubscribeForm publisherId="pub_test_1" />);
+
+    const user = userEvent.setup();
+    await user.type(screen.getByPlaceholderText(/Votre adresse email/i), 'rejected@error.com');
+    await user.click(screen.getByRole('button', { name: /S'abonner/i }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('Adresse email non autorisée');
+  });
 });

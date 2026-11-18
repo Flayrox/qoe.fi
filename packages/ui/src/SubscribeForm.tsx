@@ -213,6 +213,7 @@ export function SubscribeForm({
             <button
               type="button"
               disabled={disabled || status === 'loading'}
+              aria-busy={status === 'loading'}
               onClick={() => void executeSubscribe(connectedEmail!)}
               className={`flex-1 min-w-0 font-semibold font-[family:inherit] transition-colors flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 ${
                 size === 'compact' ? 'h-10 px-3.5 text-xs' : 'h-13 px-5 text-base'
@@ -224,8 +225,13 @@ export function SubscribeForm({
               style={accentColor ? { backgroundColor: accentColor } : undefined}
               title={t`S'abonner immédiatement avec ${connectedEmail || ''}`}
             >
+              {/* Le spinner ne remplace jamais le nom accessible : sans ce
+                  texte, le bouton devenait « bouton, vide » pendant l'envoi. */}
               {status === 'loading' ? (
-                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin shrink-0" aria-hidden />
+                  <span className="sr-only">{t`S'abonner avec ${connectedEmail || ''}`}</span>
+                </>
               ) : (
                 <>
                   <Mail className="w-3.5 h-3.5 shrink-0 opacity-85" />
@@ -346,6 +352,7 @@ export function SubscribeForm({
                 name="email"
                 required
                 disabled={disabled || status === 'loading'}
+                aria-busy={status === 'loading'}
                 placeholder={placeholder || t`Votre adresse email`}
                 className={`flex-1 text-foreground placeholder:text-muted-foreground/60 outline-none font-[family:inherit] transition-all ${
                   size === 'compact'
@@ -358,6 +365,7 @@ export function SubscribeForm({
               <button
                 type="submit"
                 disabled={disabled || status === 'loading'}
+                aria-busy={status === 'loading'}
                 className={`font-semibold font-[family:inherit] transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0 ${
                   size === 'compact'
                     ? 'h-10 px-4 text-sm rounded-lg shadow-2xs whitespace-nowrap'
@@ -372,7 +380,10 @@ export function SubscribeForm({
                 style={accentColor ? { backgroundColor: accentColor } : undefined}
               >
                 {status === 'loading' ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" aria-hidden />
+                    <span className="sr-only">{buttonText || t`S'abonner`}</span>
+                  </>
                 ) : (
                   buttonText || t`S'abonner`
                 )}
@@ -439,7 +450,11 @@ export function SubscribeForm({
       {helperText && <p className="mt-2 text-[12px] text-muted-foreground/70">{helperText}</p>}
 
       {status === 'error' && (
-        <p className="mt-3 text-sm text-destructive-text text-center">{message}</p>
+        // `role="alert"` : le refus du serveur apparaît hors du parcours de
+        // lecture — sans annonce, un lecteur d'écran ne l'entend jamais.
+        <p role="alert" className="mt-3 text-sm text-destructive-text text-center">
+          {message}
+        </p>
       )}
     </div>
   );
