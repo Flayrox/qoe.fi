@@ -20,6 +20,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/qoefi/api/internal/adminauthz"
+	"github.com/qoefi/api/internal/antispam"
 	"github.com/qoefi/api/internal/cache"
 	"github.com/qoefi/api/internal/config"
 	"github.com/qoefi/api/internal/database"
@@ -33,11 +34,11 @@ import (
 	"github.com/qoefi/api/internal/modules/appeals"
 	"github.com/qoefi/api/internal/modules/articles"
 	"github.com/qoefi/api/internal/modules/billing"
+	booksmod "github.com/qoefi/api/internal/modules/books"
 	"github.com/qoefi/api/internal/modules/collaborations"
 	"github.com/qoefi/api/internal/modules/conversations"
 	"github.com/qoefi/api/internal/modules/creator"
 	"github.com/qoefi/api/internal/modules/devtools"
-	booksmod "github.com/qoefi/api/internal/modules/books"
 	"github.com/qoefi/api/internal/modules/ebooks"
 	"github.com/qoefi/api/internal/modules/events"
 	exportsmod "github.com/qoefi/api/internal/modules/exports"
@@ -433,7 +434,11 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 	// Feed & Posts : lecture publique (auth optionnelle : threads, trending, posts, profil, engagement).
 	feedHandler := feed.NewHandler(feed.NewService(pool, rc))
-	postsHandler := posts.NewHandler(posts.NewService(pool, rc, asynqClient)).SetSecurityGuard(secGuard)
+	postsHandler := posts.NewHandler(posts.NewService(pool, rc, asynqClient)).
+		SetSecurityGuard(secGuard).
+		// Images des pensées : uniquement CDN/stockage de la plateforme (donc
+		// passées par /api/upload : modération + ré-encodage).
+		SetMediaPolicy(antispam.NewMediaPolicy(d.MediaCDNBaseURL, d.SupabaseURL))
 	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
 		feedHandler.RegisterPublic(pub)
 		postsHandler.RegisterPublic(pub)
@@ -558,7 +563,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 			articlesHandler.RegisterProtected(apiWrite, authmw.RequireAPIScope)
 
 			creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite).
-			SetSecurityGuard(secGuard).
+				SetSecurityGuard(secGuard).
 				SetSecurityGuard(secGuard)
 			creatorHandler.WithMediaUpload(mediaStore, mediaAssetsSvc).WithMediaCDNBase(d.MediaCDNBaseURL)
 			creatorHandler.RegisterProtected(apiWrite, authmw.RequireAPIScope)
@@ -677,7 +682,6 @@ func newRouter(d RouterDeps) *chi.Mux {
 		// Livres : compilation d'articles en EPUB (lecture seule, sans persistance).
 		booksHandler := booksmod.NewHandler(booksmod.NewService(pool))
 		booksHandler.RegisterProtected(protected)
-
 
 		// Routes reader (/v1/me*, feed protégé, lecture) : auto-réparation
 		// centralisée de la ligne User absente (login de démo / reseed /

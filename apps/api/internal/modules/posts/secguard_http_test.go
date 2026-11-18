@@ -74,7 +74,9 @@ func newSecguardPostsRouter(t *testing.T, userID string, maxBodyBytes int64) *ch
 	svc := &Service{
 		q: &secguardTestQuerier{Queries: db.New(nil), authorID: userID},
 	}
-	h := NewHandler(svc).SetSecurityGuard(secguard.New(nil, rc))
+	h := NewHandler(svc).
+		SetSecurityGuard(secguard.New(nil, rc)).
+		SetMediaPolicy(antispam.NewMediaPolicy("https://cdn.qoe.fi", "https://abc.supabase.co"))
 
 	r := chi.NewRouter()
 	if maxBodyBytes > 0 {
@@ -128,6 +130,43 @@ func TestSecGuard_PostsUnsafeURL(t *testing.T) {
 	}
 	if code := decodeErrCode(t, rr); code != antispam.CodeUnsafeURL {
 		t.Fatalf("code = %q, attendu %q", code, antispam.CodeUnsafeURL)
+	}
+}
+
+// Une image hors des origines média (donc jamais passée par /api/upload :
+// magic bytes, modération, ré-encodage) est refusée avant tout accès DB.
+func TestSecGuard_PostsExternalImageRejected(t *testing.T) {
+	r := newSecguardPostsRouter(t, "00000000-0000-0000-0000-000000000104", 0)
+	rr := doSecJSON(t, r, http.MethodPost, "/v1/posts", `{"content":"hello","imageUrl":"https://evil.test/nsfw.jpg"}`)
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("code = %d, attendu 400 (body=%s)", rr.Code, rr.Body.String())
+	}
+	if code := decodeErrCode(t, rr); code != antispam.CodeUnscreenedMedia {
+		t.Fatalf("code = %q, attendu %q", code, antispam.CodeUnscreenedMedia)
+	}
+}
+
+func TestSecGuard_PostsExternalAttachmentRejected(t *testing.T) {
+	r := newSecguardPostsRouter(t, "00000000-0000-0000-0000-000000000105", 0)
+	rr := doSecJSON(t, r, http.MethodPost, "/v1/posts",
+		`{"content":"hello","attachments":[{"url":"https://evil.test/a.jpg","type":"IMAGE"}]}`)
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("code = %d, attendu 400 (body=%s)", rr.Code, rr.Body.String())
+	}
+	if code := decodeErrCode(t, rr); code != antispam.CodeUnscreenedMedia {
+		t.Fatalf("code = %q, attendu %q", code, antispam.CodeUnscreenedMedia)
+	}
+}
+
+func TestSecGuard_PostsJsonListWithExternalImageRejected(t *testing.T) {
+	r := newSecguardPostsRouter(t, "00000000-0000-0000-0000-000000000106", 0)
+	rr := doSecJSON(t, r, http.MethodPost, "/v1/posts",
+		`{"content":"hello","imageUrl":"[\"https://cdn.qoe.fi/ok.webp\",\"https://evil.test/b.png\"]"}`)
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("code = %d, attendu 400 (body=%s)", rr.Code, rr.Body.String())
+	}
+	if code := decodeErrCode(t, rr); code != antispam.CodeUnscreenedMedia {
+		t.Fatalf("code = %q, attendu %q", code, antispam.CodeUnscreenedMedia)
 	}
 }
 

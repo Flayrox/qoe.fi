@@ -18,6 +18,9 @@ import (
 type Handler struct {
 	svc *Service
 	sec *secguard.Guard
+	// media borne les URLs d'images persistées : seules celles du pipeline
+	// média de la plateforme (modération + ré-encodage) passent.
+	media antispam.MediaPolicy
 }
 
 func NewHandler(svc *Service) *Handler {
@@ -27,6 +30,14 @@ func NewHandler(svc *Service) *Handler {
 // SetSecurityGuard attache le garde anti-spam et rate-limit temps réel (nil-safe).
 func (h *Handler) SetSecurityGuard(g *secguard.Guard) *Handler {
 	h.sec = g
+	return h
+}
+
+// SetMediaPolicy déclare les origines média autorisées pour les images des
+// pensées (CDN + stockage Supabase). Sans appel, seuls les chemins relatifs
+// sont acceptés (fail-closed).
+func (h *Handler) SetMediaPolicy(p antispam.MediaPolicy) *Handler {
+	h.media = p
 	return h
 }
 
@@ -129,7 +140,9 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		}
 		in.Content = cleanContent
 		if in.ImageURL != nil {
-			if err := antispam.ValidateSafeURL(*in.ImageURL); err != nil {
+			// Une image doit venir de /api/upload : hors de nos origines, elle
+			// n'a jamais traversé la modération ni le ré-encodage.
+			if err := h.media.Validate(*in.ImageURL); err != nil {
 				return err
 			}
 		}
@@ -137,7 +150,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 			return errors.New("Trop de pièces jointes (maximum 10).")
 		}
 		for i := range in.Attachments {
-			if err := antispam.ValidateSafeURL(in.Attachments[i].URL); err != nil {
+			if err := h.media.Validate(in.Attachments[i].URL); err != nil {
 				return err
 			}
 			cleanAlt, err := antispam.SanitizeAndValidateText(in.Attachments[i].AltText, 0, 500, antispam.TextOptions{

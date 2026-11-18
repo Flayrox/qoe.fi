@@ -81,8 +81,8 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L25     | `apps/collab-server/src/**`                                                                                  | 15 fichiers                 | à auditer               |
 | L26     | `apps/mobile/src/**` + `modules/`                                                                            | 220 fichiers                | à auditer               |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go                          | à auditer               |
-| L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go                          | à auditer               |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go                          | à auditer               |
+| L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go                          | en cours (garde média)  |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go                          | en cours (garde média)  |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -360,3 +360,39 @@ registre.
 | R19 | Aligner la fraîcheur du cache : 60 s côté Next vs 30 s côté Go                                                    | faible   | Une bascule d'urgence peut rester 60 s en ligne côté rendu web. À trancher avec L30 (workers).            |
 | R20 | Dériver `PROTECTIVE_FLAGS` du registre Go (marqueur « kill switch ») au lieu d'une liste manuelle                  | moyenne  | Deux listes à maintenir : le garde CI vérifie les clés, pas la sémantique de protection.                  |
 | R21 | Vérifier dans L20–L23 qu'aucune décision d'autorisation ne repose sur un flag lu côté client                       | haute    | Un flag client est un affichage, jamais un contrôle d'accès : à prouver app par app.                      |
+
+---
+
+## Correctif immédiat — garde média des URLs d'images (L28/L29) — 2026-11-18
+
+**Contexte.** Vérification demandée : « toute image doit passer par le module de
+sécurité image ». Les uploads web (`/api/upload` de `core`, `studio`,
+`tenants`, `admin`) passent bien par `uploadAndProcessMedia` (magic bytes,
+modération `omni-moderation-latest`, anti-bomb, stripping EXIF, ré-encodage
+WebP, hash CAS). Mais l'**écriture en base** acceptait encore des URLs distantes
+non contrôlées.
+
+| #   | Défaut                                                                                                                                                                                                                                  | Sévérité | Correctif                                                                                                                                              |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| F29 | `POST /v1/posts` acceptait n'importe quelle URL `http(s)` pour `imageUrl` (y compris le tableau JSON multi-images) et pour `attachments[].url` : seule `ValidateSafeURL` (schéma/SSRF) s'appliquait. Un client pouvait donc publier une image NSFW, un pixel de pistage ou un fichier polyglotte **sans jamais traverser** le module de sécurité image | haute    | `antispam.MediaPolicy` (`internal/antispam/media.go`) : hôtes CDN/Supabase uniquement, chemins relatifs acceptés, fail-closed sans origine configurée ; câblée dans `newRouter` via `posts.Handler.SetMediaPolicy` | 
+| F30 | `apps/mobile/src/lib/upload.ts` téléverse avatars et bannières **directement** dans le bucket Supabase, sans magic bytes, sans modération, sans ré-encodage : le pipeline est contourné par le client mobile                              | moyenne  | **ouvert** — tâche R22 (nécessite un endpoint d'ingestion ou un proxy serveur)                                                                          |
+| F31 | Couvertures d'articles via l'API créateur (`isValidImageURL` dans `creator/api_articles_crud.go`) et images du corps HTML d'article : hôtes externes acceptés, donc images non screenées                                                       | moyenne  | **ouvert** — tâches R23/R24 (décision produit : imports RSS/EPUB vs origine plateforme obligatoire)                                                     |
+
+### Preuves exécutées
+
+```bash
+cd apps/api && go test ./internal/antispam/ -run 'TestMediaPolicy|TestNewMediaPolicy' -count=1
+# → ok (11 cas : URL CDN/Supabase, tableau JSON, hôte trompeur, identifiants, fail-closed)
+cd apps/api && go test ./internal/modules/posts/ -run 'TestSecGuard' -count=1
+# → ok (image externe, pièce jointe externe, tableau JSON mixte → 400 UNSCREENED_MEDIA)
+cd apps/api && go build ./... && go vet ./internal/antispam/ ./internal/modules/posts/ ./cmd/server/
+# → EXIT=0
+```
+
+### Reste à faire (garde média)
+
+| #   | Tâche                                                                                                                                                    | Sévérité | Motif                                                                                                     |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------- |
+| R22 | Faire passer les uploads mobiles (avatar/bannière) par le pipeline de sécurité (endpoint d'ingestion + modération)                                        | moyenne  | Aujourd'hui le mobile écrit directement dans le bucket : aucune modération, aucune normalisation.          |
+| R23 | Trancher le contrat des couvertures d'articles de l'API créateur : origine plateforme obligatoire, ou ingestion modérée côté serveur                      | moyenne  | Les clients API et les imports peuvent légitimement fournir une URL externe ; il faut choisir et documenter. |
+| R24 | Images externes dans le HTML d'article (imports) : ré-héberger à l'ingestion ou les neutraliser au rendu                                                  | moyenne  | Le corps HTML est stocké tel quel : une image distante y échappe à toute modération et peut pister.        |

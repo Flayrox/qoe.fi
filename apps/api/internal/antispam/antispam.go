@@ -47,6 +47,9 @@ const (
 	CodeWriteCooldown    = "WRITE_COOLDOWN"
 	CodeUnsafeURL        = "UNSAFE_URL"
 	CodeUnsafeHTML       = "UNSAFE_HTML"
+	// CodeUnscreenedMedia : URL d'image hors pipeline média (pas de magic
+	// bytes, pas de modération, pas de ré-encodage). Voir MediaPolicy.
+	CodeUnscreenedMedia = "UNSCREENED_MEDIA"
 )
 
 const (
@@ -488,10 +491,12 @@ func NewGuard(rc *redis.Client) *Guard {
 	return &Guard{rc: rc}
 }
 
-func freezeKey(userID string) string        { return "sec:freeze:" + userID }
-func freezeHistKey(userID string) string    { return "sec:freeze_hist:" + userID }
-func strikeKey(userID string) string        { return "sec:strikes:" + userID }
-func dupKey(scope, userID, sha string) string { return fmt.Sprintf("sec:dup:%s:%s:%s", scope, userID, sha) }
+func freezeKey(userID string) string     { return "sec:freeze:" + userID }
+func freezeHistKey(userID string) string { return "sec:freeze_hist:" + userID }
+func strikeKey(userID string) string     { return "sec:strikes:" + userID }
+func dupKey(scope, userID, sha string) string {
+	return fmt.Sprintf("sec:dup:%s:%s:%s", scope, userID, sha)
+}
 func userSimHashKey(scope, userID string) string {
 	return fmt.Sprintf("sec:sh:user:%s:%s", scope, userID)
 }
