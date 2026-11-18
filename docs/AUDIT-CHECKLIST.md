@@ -66,7 +66,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L06d** | `packages/sdk/src/actions/**` restants (admin, legal, billing, highlights, ebooks, appeals, support, workspace…) | 38 fichiers | **durci le 2026-11-18** |
 | L07a     | `packages/ui/src/primitives/**`, `ui/**`, `tokens.ts`                                                                       | 310 fichiers (global)       | **durci le 2026-11-18** |
 | L07b    | `packages/ui/src/{reader,annotations,cards}/**`                                                              | 31 fichiers src             | **durci le 2026-11-18** |
-| L07c    | `packages/ui/src/{auth,forms,providers}/**`                                                                  | idem                        | à auditer               |
+| L07c    | `packages/ui/src/{auth,forms,providers}/**`                                                                  | 4 fichiers src (et 3 composants via barrel) | **durci le 2026-11-18** |
 | L07d    | `packages/ui/src/{security,seo,legal}/**`                                                                    | idem                        | à auditer               |
 | L07e    | `packages/ui/src/{notifications,onboarding,profile,social,cmdk,templates,sidebar.tsx}`                       | idem                        | à auditer               |
 | L08     | `packages/theme/src/**`                                                                                      | 19 fichiers                 | à auditer               |
@@ -878,6 +878,8 @@ nommé), puis verts après restauration.
 | R57 | ~~`BentoPlateau` : `BentoItem` cliquable sans clavier~~ — **close par F118** : l'affordance `onClick`/`cursor-pointer` n'était utilisée par aucun appelant, elle est supprimée plutôt que rendue focusable à vide (pas d'arrêt de tabulation mort). | — | Clos. |
 | R59 | `AnnotationFilterPill` : quand `allowPublicAnnotations` est faux, l'option « Toutes » disparaît alors que `filterMode` vaut `all` par défaut — le rail n'affiche aucune option cochée tout en continuant de filtrer en mode `all` (officielles + les siennes). Deux issues possibles : garder une option « Tout » même sans annotations publiques, ou normaliser `all` → `official` quand la contrainte tombe. | faible | Décision produit / design system (le mode `all` reste fonctionnel, l'affichage seul est ambigu) — voir L07b. |
 | R60 | `reader/useBionicReading` : le mode bionique écrit `innerHTML` dans un conteneur possédé par React et met l'original en cache dans `data-original-html`. Un corps re-rendu après activation (annotation ajoutée, document canonique rechargé) rend donc l'ancien HTML à la désactivation. Le correctif propre est un bionic **déclaratif** au rendu des blocs, pas une mutation DOM. | moyenne | Chantier de design du lecteur (aucun écran n'active aujourd'hui le bionic sur un corps canonique, mais le chemin est armé) — voir L07b. |
+| R61 | `nextUrl` de bout en bout : `AuthModalContext` le calcule (`?auth=…&next=…`, URL courante), `GlobalAuthModalProvider` le transmet, `LoginModal` l'accepte… et ne l'utilise jamais. Après connexion, `router.refresh()` garde la page courante. `setMode` n'a aucun consommateur, et `?auth=login` n'est jamais retiré de l'URL (recharger rouvre la modale). | moyenne | Décision produit (revenir à l'URL d'origine après connexion, ou rester sur place ; nettoyer le paramètre au passage) — voir L07c. |
+| R62 | `LocaleProvider` n'est monté que par `apps/studio` : `core` et `tenants` laissent react-aria prendre la locale du navigateur côté client et `en-US` côté serveur — exactement le désaccord d'hydratation que le provider existe pour empêcher (segments de date, calendrier, tri). | moyenne | Décision d'app (quelle source de locale : cookie, en-tête, route localisée) puis montage dans les deux layouts — voir L07c. |
 
 ---
 
@@ -962,6 +964,82 @@ R46 de notifications). **R54** (baselines visuelles), **R56** (doublons
 **ouvertes** : elles attendent une décision utilisateur (environnement de
 référence, design system, comportement produit) et ne se ferment pas dans un
 lot d'audit.
+
+---
+
+## L07c — `@qoe/ui` auth, forms, providers — durci le 2026-11-18
+
+**Périmètre.** Les 4 fichiers du lot lus en entier — `auth/AuthModalContext.tsx`
+(141 l.), `auth/GlobalAuthModalProvider.tsx` (33 l.), `forms/index.ts` (barrel)
+et `providers/locale.tsx` (28 l.) — **plus les composants que le barrel rend
+publics** : `SubscribeForm` (446 l.), `RecommendationModal` (221 l.), et le
+contrat qu'ils traversent (`LoginModal` 97 l., `LoginFormBento` pour
+`initialMode`/`nextUrl`). Tests existants relus pour connaître les gardes en
+place : `RecommendationModal.test.tsx`, `SubscribeForm.test.tsx`,
+`auth-surfaces.test.tsx`, `login-form-bento.test.tsx`,
+`ArticleCardShadowMutations.test.tsx`, `ui-component-stress.test.tsx`.
+
+**Appelants réels inspectés.** `apps/core` (`app/layout.tsx` monte
+`GlobalAuthModalProvider`, `FeedDashboard`, `ThoughtOverlayProvider`,
+`ArticleAnnotatorView` consomment `useAuthModal`/`useRequireAuth`),
+`apps/tenants` (`app/layout.tsx` — le seul autre montage du provider —,
+`ReaderActions`, `ArticleCommentsSection`), `apps/studio` (`app/layout.tsx`
+monte `LocaleProvider`, specimen `19-social-cards`, entrées `ui-lab`), et
+les templates du paquet (`MinimalCraftShell`, `ArticleEngagementBar`) qui
+lisent `AuthModalContext` directement.
+
+`forms/index.ts` est un **barrel pur** (`SubscribeForm`,
+`RecommendationModal`) : `@qoe/ui/forms` n'a aujourd'hui **aucun
+consommateur** — les apps les importent par le barrel racine `@qoe/ui`. Le
+sous-chemin reste utile aux fronts tiers ; noté en observation, pas en
+défaut. `providers/locale.tsx` est sain (une seule responsabilité : donner
+à react-aria la locale du serveur, jamais une découverte ambiante) ; son
+absence dans `core` et `tenants` est une décision d'app → **R62**.
+
+| #    | Défaut                                                                                                                                                                                                                                                                                                                                            | Sévérité | Statut                                                                                                                                                                                                                                                                                                                                                                                       |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F125 | `RecommendationModal` n'était **pas une boîte de dialogue** : deux `<div>` en `fixed inset-0`, sans `role="dialog"`, sans `aria-modal`, sans titre associé, sans Échap, sans piège du focus ni restitution. Un lecteur d'écran continuait à parcourir le blog derrière le voile ; au clavier, la fenêtre était infranchissable alors qu'elle demande une décision (s'abonner aux recommandations ou passer). | haute    | corrigé — migré sur `Dialog`/`DialogContent`/`DialogTitle` (react-aria, même primitive que `LoginModal`) : rôle, nom, focus confiné, Échap, voile cliquable, restitution du focus ; 2 tests (dialogue nommé + `aria-modal`, fermeture à Échap) : **échouaient** (« Unable to find an accessible element with the role \"dialog\" », puis « expected \"vi.fn()\" to be called at least once ») |
+| F126 | `RecommendationModal` : chaque publication était une `<div onClick>` avec `cursor-pointer` et un badge rond **décoratif** — aucune case à cocher pour l'assistance technique, aucun moyen de (dé)sélectionner sans souris, alors que le libellé du bouton dépend de cette sélection (« S'abonner aux 2 publications »).                                                                                                    | moyenne  | corrigé — `role="checkbox"` + `aria-checked` + `tabIndex=0` + Espace/Entrée, nom accessible (« S'abonner à … ») et description liée, badge marqué `aria-hidden`, anneau de focus ; test `expose chaque publication comme une case à cocher manipulable au clavier` : **échouait** (« Unable to find an accessible element with the role \"checkbox\" »)                                      |
+| F127 | `RecommendationModal` : la sélection était initialisée **une seule fois** depuis les props. Le formulaire d'abonnement garde ce composant monté : un second abonné confirmait donc l'**ancienne** liste — des identifiants qui n'étaient même plus affichés — et le bouton annonçait « 2 publications » pour une seule recommandation.                    | haute    | corrigé — resynchronisation sur une signature stable des ids (`useEffect` sur `recommendationIds`) ; test `repart de la nouvelle liste quand les recommandations changent` : **échouait** (bouton « S'abonner à 1 publication » introuvable, sélection périmée), vert après                                                                                                                  |
+| F128 | `SubscribeForm` : pendant l'envoi, les boutons ne contenaient plus qu'un spinner — **le nom accessible disparaissait** (« bouton, vide ») et `aria-busy` manquait, donc rien n'annonçait l'attente ; le refus du serveur s'affichait sans `role="alert"`, donc un lecteur d'écran n'apprenait jamais que l'inscription avait échoué.                     | moyenne  | corrigé — libellé conservé en `sr-only` sous le spinner, `aria-busy` sur les trois boutons d'envoi, message d'erreur en `role="alert"` ; 2 tests (`garde le bouton d’envoi nommé et occupé`, `annonce le refus du serveur comme une alerte`) : **échouaient** (« Unable to find role \"button\" and name `/S'abonner/i` », « Unable to find role \"alert\" »)                             |
+| F129 | `GlobalAuthModalProvider` s'importait **lui-même via `@qoe/ui`** (`AuthModalProvider`, `LoginModal`, `useAuthModal`), donc via le barrel qui est en train de le charger : cycle ESM `index.ts` → provider → `index.ts`. Il tient tant que personne ne lit les liaisons à l'initialisation, et casse (`Cannot access … before initialization`) dès qu'un bundler réordonne. | moyenne  | corrigé — imports relatifs (`./AuthModalContext`, `../LoginModal`) ; 2 tests de garde (`importe ses voisins directement, jamais via le barrel`, `aucun module du paquet ne s’importe lui-même`) : **échouaient** (le motif `from '@qoe/ui'` est trouvé, la liste des fautifs contient 1 entrée), verts après |
+
+**Preuve rouge → vert.** Les tests ont été écrits avant les correctifs :
+premier passage sur les trois fichiers → **8 tests en échec sur 8**
+(`RecommendationModal` : dialogue, Échap, cases à cocher, sélection périmée ;
+`SubscribeForm` : bouton nommé pendant l'envoi, alerte ;
+garde d'import : deux cas), puis `3 passed (3)` après correctif, sans
+aucune retouche des tests.
+
+**Preuves (arbre propre, après commits) :**
+
+| Commande | Résultat |
+| -------- | -------- |
+| `pnpm --filter @qoe/ui test` | **654 tests / 103 fichiers verts** (646/102 avant le lot : **+8 tests, +1 fichier**) |
+| `pnpm typecheck` | 25/25 tâches |
+| `pnpm --filter @qoe/ui lint` | 0 erreur, 0 avertissement |
+| les 9 gardes CI (`guard:media-origin`, `audit:guard`, `ui:audit`, `arch:audit`, `guard:article-links`, `guard:dangerous-html`, `guard:flags-parity`, `guard:legal-consent`, `guard:seed-script`) | tous verts |
+
+**Observations trouvées, volontairement non corrigées.**
+
+- `LoginModalProps.nextUrl` est un **contrat mort** : `LoginModal` le reçoit,
+  `GlobalAuthModalProvider` le transmet, `AuthModalContext` le calcule depuis
+  `?next=`, et personne ne l'utilise — après connexion la modale se ferme et
+  `router.refresh()` garde la page courante. Le réparer demande de trancher le
+  comportement (revenir à l'URL d'origine ou rester sur place). Voir **R61**.
+- `AuthModalContext.setMode` n'a aucun consommateur (le mode passe par
+  `openAuthModal`), et le paramètre `?auth=login` n'est jamais retiré de l'URL :
+  un rechargement rouvre la modale. Même décision produit (R61).
+- `providers/locale.tsx` n'est monté que par `apps/studio` ; `core` et
+  `tenants` laissent react-aria deviner la locale. Voir **R62**.
+- `@qoe/ui/forms` n'a aucun consommateur (imports par le barrel racine) :
+  sous-chemin conservé pour les fronts tiers, à supprimer seulement si cette
+  surface n'est pas vendue.
+
+**Dettes.** Aucune dette R ne visait `auth`, `forms` ou `providers`.
+**R54** (baselines visuelles), **R56** (doublons `select`/`date`) et **R01**
+(`checkContentAccess` fail-open) restent **ouvertes** : décision utilisateur
+(environnement de référence, design system, comportement produit).
 
 ---
 
