@@ -14,6 +14,10 @@
 #
 # Usage : bash scripts/test-api.sh [args go test...]
 #   TEST_DATABASE_URL peut être surchargé (doit finir par _test).
+#   QOE_TEST_DB_RESET=1 repart d'un schéma public vide à chaque package :
+#   indispensable quand la base de test persiste entre deux runs, car
+#   plusieurs packages insèrent des ids fixes sans nettoyer (le 2e run
+#   échouait en 23505/23503 alors que le code était vert).
 # =====================================================================
 set -euo pipefail
 

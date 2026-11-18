@@ -81,6 +81,9 @@ func startDatabase(ctx context.Context) (*pgxpool.Pool, error) {
 		if err := validateTestDatabaseURL(url); err != nil {
 			return nil, err
 		}
+		if err := resetSchemaIfRequested(url); err != nil {
+			return nil, err
+		}
 		if err := applyMigrations(url); err != nil {
 			return nil, err
 		}
@@ -137,6 +140,27 @@ func validateTestDatabaseURL(rawURL string) error {
 	}
 	if !strings.HasSuffix(database, "_test") {
 		return fmt.Errorf("TEST_DATABASE_URL refusee: la base %q ne finit pas par _test; la base dev est protegee", database)
+	}
+	return nil
+}
+
+// resetSchemaIfRequested repart d'un schéma public vide quand
+// QOE_TEST_DB_RESET=1. Sur une base de test persistante (mode
+// TEST_DATABASE_URL, `pnpm test:api`), plusieurs packages insèrent des ids
+// fixes sans nettoyer : sans reset, le deuxième run échoue en 23505/23503
+// alors que le code est sain. La barrière `_test` garantit qu'on ne vise
+// jamais la base de dev. Coût : une passe de migrations par package.
+func resetSchemaIfRequested(url string) error {
+	if strings.TrimSpace(os.Getenv("QOE_TEST_DB_RESET")) == "" {
+		return nil
+	}
+	db, err := sql.Open("pgx", url)
+	if err != nil {
+		return fmt.Errorf("ouverture base de test: %w", err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;`); err != nil {
+		return fmt.Errorf("reset schema: %w", err)
 	}
 	return nil
 }

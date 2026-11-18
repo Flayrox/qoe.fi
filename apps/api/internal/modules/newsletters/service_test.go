@@ -46,7 +46,11 @@ const (
 func seedNewsletterEnv(t *testing.T, ctx context.Context) {
 	requirePool(t)
 	t.Helper()
-	if _, err := poolTest.Exec(ctx, `TRUNCATE "NewsletterIssue", "NewsletterDelivery", "Subscriber", "User", "Publisher" CASCADE`); err != nil {
+	// ⚠️ SubscriptionGrant compte : TestNewsletterSend_ProRequired en insère un
+	// pour prouver l'envoi Pro. Sans ce TRUNCATE, l'octroi survit à la fin du
+	// test et la garde PRO ne s'applique plus au run suivant (le test ne passait
+	// qu'une fois par base — visible en mode base partagée, `-p 1`).
+	if _, err := poolTest.Exec(ctx, `TRUNCATE "NewsletterIssue", "NewsletterDelivery", "Subscriber", "SubscriptionGrant", "User", "Publisher" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx, `INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt") VALUES ($1, 'PERSONAL', 'Pub Test', 'pub-test', now(), now())`, pubID); err != nil {
