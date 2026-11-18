@@ -51,7 +51,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | Lot     | Périmètre (chemins réels)                                                                                    | Volume                      | Statut                  |
 | ------- | ------------------------------------------------------------------------------------------------------------ | --------------------------- | ----------------------- |
 | **L01** | `packages/utils/src/**`                                                                                      | 29 fichiers src, 50 exports | **durci le 2026-11-18** |
-| L02     | `packages/schemas/src/**`                                                                                    | 7 fichiers                  | à auditer               |
+| **L02** | `packages/schemas/src/**`                                                                                    | 8 fichiers                  | **durci le 2026-11-18** |
 | L03     | `packages/flags/src/**`                                                                                      | 8 fichiers                  | à auditer               |
 | L04     | `packages/auth/src/**`                                                                                       | 11 fichiers                 | à auditer               |
 | L05     | `packages/supabase/src/**`                                                                                   | 13 fichiers                 | à auditer               |
@@ -92,7 +92,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L36     | `e2e/**`, `playwright*.config.ts`, `e2e/lib/**`                                                              | 65 fichiers                 | à auditer               |
 | L37     | `docs/**`, `AGENTS.md`, racine (`tsconfig`, `eslint`, `turbo`, `vitest`), `supabase/`, `patches/`, `.husky/` | transverse                  | à auditer               |
 
-**Prochain lot à traiter : L02 — `packages/schemas`.** Ordre retenu : du plus
+**Prochain lot à traiter : L03 — `packages/flags`.** Ordre retenu : du plus
 partagé au plus spécifique, parce qu'un correctif dans un package bas remonte
 dans toutes les apps.
 
@@ -191,3 +191,85 @@ Deux tests existants ont été corrigés parce qu'ils **verrouillaient le défau
 | R10 | Rechercher en base les slugs contenant des ligatures perdues (`cur` pour « Cœur ») et, si présents, renommer + redirection 301                               | moyenne  | Le correctif ne réécrit pas les slugs existants (ce serait casser des URLs indexées).                                                                          |
 | R11 | Vérifier que `uuid()` (qui lève désormais sans `crypto`) n'est appelé dans aucun contexte sans WebCrypto                                                     | faible   | Node 22, edge et navigateurs en ont ; la vérification est un grep + test de démarrage.                                                                         |
 | R12 | Ajouter `maskEmail` au garde anti-PII des journaux quand il sera écrit (L34)                                                                                 | faible   | Suite logique de F8 : masquer à l'affichage ne suffit pas si la valeur brute est journalisée ailleurs.                                                         |
+
+---
+
+## L02 — `@qoe/schemas` — durci le 2026-11-18
+
+**Périmètre.** `packages/schemas/src/**` (5 modules, `index.ts`, 2 fichiers de
+tests). **Consommateurs.** `packages/config` (ré-export public), `packages/utils`
+(`validation.ts`), `packages/sdk` (actions feed), `apps/core`
+(`ModerationReportModal`).
+**Contrat serveur.** `apps/api/internal/shared/identifier/identifier.go`
+(`ValidUsername`, `NormalizeUsername`, `reserved`) et les handlers Go
+(`time.Parse(time.RFC3339)` pour `scheduledAt`, `pgtype.Timestamp`).
+**Tests.** 33 tests verts, dont 22 dans `src/__tests__/hardening.test.ts`.
+
+### Entrées auditées
+
+| #   | Emplacement                                              | Standard attendu                                                                                | Verdict          |
+| --- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ---------------- |
+| S01 | `common.ts` → `emailSchema`                              | Normalisation + borne RFC 5321 (254)                                                            | **corrigé** (F21) |
+| S02 | `common.ts` → `slugSchema`                               | Même borne que `slugify` (96), trim avant regex                                                 | **corrigé** (F21) |
+| S03 | `common.ts` → `uuidSchema`                               | Casse normalisée ; une seule forme acceptée                                                     | **corrigé** (F21) |
+| S04 | `common.ts` → `usernameSchema`                           | Règle **identique** à `identifier.ValidUsername` (Go)                                           | **corrigé** (F15) |
+| S05 | `common.ts` → `normalizeUsername`                        | Trim, minuscules, `@` retiré — parité avec Go                                                   | **ajouté** (F15)  |
+| S06 | `common.ts` → `idSchema`                                 | Identifiant opaque borné (64) et charset restreint                                              | **ajouté** (F18)  |
+| S07 | `common.ts` → `singleLineText`, `multiLineText`          | Refus C0/DEL/bidi ; `\n` et `\t` seulement en multi-lignes                                      | **ajouté** (F17)  |
+| S08 | `common.ts` → `centsSchema`                              | Entier **sûr** (pas seulement entier)                                                           | **corrigé** (F21) |
+| S09 | `thought.ts` → `createThoughtSchema.imageUrl`            | `http(s)` ou chemin racine, jamais `javascript:`/`data:`/`//host` ; tableau JSON validé entrée par entrée | **corrigé** (F13) |
+| S10 | `thought.ts` → `createThoughtSchema.scheduledAt`         | RFC 3339 **avec fuseau** : ce que `time.Parse` accepte                                          | **corrigé** (F14) |
+| S11 | `thought.ts` → `createThoughtSchema.content`             | Défaut `''` : une pensée média/citation n'exige pas de texte                                    | **corrigé** (F19) |
+| S12 | `thought.ts` → `tags`                                    | Charset borné, dédoublonnage insensible à la casse                                              | **corrigé** (F20) |
+| S13 | `thought.ts` → `parentId`, `repostId`                    | `idSchema`, pas une chaîne libre                                                                | **corrigé** (F18) |
+| S14 | `thought.ts` → `triggerWarning`                          | Mono-ligne, sans caractère de contrôle                                                          | **corrigé** (F17) |
+| S15 | `thought.ts` → `replyToPostSchema`                       | `postId` borné, contenu multi-lignes contrôlé                                                   | **corrigé** (F18) |
+| S16 | `profile.ts` → `updateProfileSchema.username`            | **Un seul** schéma username dans tout le dépôt                                                  | **corrigé** (F16) |
+| S17 | `profile.ts` → `httpUrlSchema`                           | `http(s)` seulement, sans espace/antislash, **sans identifiants embarqués**                     | **corrigé** (F16) |
+| S18 | `profile.ts` → `name`, `heroText`                        | Mono-ligne contrôlé / multi-lignes contrôlé                                                     | **corrigé** (F17) |
+| S19 | `moderation.ts` → `createReportSchema`                   | `targetId` borné, détails vides ramenés à `undefined`                                          | **corrigé** (F18) |
+| S20 | `article.ts` → `articleTitleSchema`                      | Mono-ligne, sans caractère de contrôle                                                          | **corrigé** (F17) |
+| S21 | `index.ts`, `package.json`                               | Exports cohérents avec les sous-chemins déclarés                                                | conforme         |
+
+### Findings et correctifs
+
+| #   | Défaut                                                                                                                                                                                              | Sévérité | Correctif                                                                                                                       | Fichiers      |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| F13 | `imageUrl` n'était **pas validé du tout** : `javascript:`, `data:`, `//evil.com` et un tableau JSON d'objets passaient. Or cette valeur est rendue directement dans `<img src>` (web, mobile, citations) | haute    | `isImagePayload` : URL unique ou tableau JSON (≤ 8) dont **chaque** entrée doit être `http(s)` ou un chemin racine sans `//`/`\\` | `thought.ts`  |
+| F14 | `scheduledAt` était une chaîne libre : une date sans fuseau ou illisible partait jusqu'à Go et revenait en 400 après un aller-retour réseau                                    | moyenne  | `z.string().datetime({ offset: true })` — exactement la grammaire de `time.Parse(time.RFC3339)`                                 | `thought.ts`  |
+| F15 | `usernameSchema` divergeait de la source de vérité Go : 3-30 caractères, tiret et majuscules autorisés, pas de `@`, pas de `trim`. Un handle accepté côté TS était refusé côté serveur (et inversement) | moyenne  | `normalizeUsername` + regex `^[a-z0-9]+(?:[._][a-z0-9]+)*$`, 3-24 caractères, comme `identifier.ValidUsername`                  | `common.ts`   |
+| F16 | Deux règles de username coexistaient (30 dans `common`, 40 dans `profile`) et `httpUrlSchema` acceptait `https://user:pass@host`                                                                    | moyenne  | `updateProfileSchema.username = usernameSchema` ; identifiants embarqués et espaces/antislash refusés dans les URLs de profil   | `profile.ts`  |
+| F17 | `name`, `heroText`, `articleTitle`, `content`, `triggerWarning` acceptaient NUL, CR/LF et marques bidi (U+202E) : forgeage de ligne de journal et spoofing de nom affiché                          | moyenne  | `singleLineText` / `multiLineText` (C0, DEL, U+2028/2029, U+202A-202E, U+2066-2069)                                              | `common.ts`, tous les modules |
+| F18 | `parentId`, `repostId`, `postId`, `targetId` étaient des chaînes libres (charset et longueur non bornés) qui partent dans des requêtes SQL                                                         | moyenne  | `idSchema` : 1-64 caractères `[A-Za-z0-9_-]`                                                                                    | `common.ts`, `thought.ts`, `moderation.ts` |
+| F19 | `content` était requis même pour une pensée média, une citation ou une réponse : les clients devaient envoyer `content: ''`                                                                        | faible   | `.default('')`, la règle « contenu OU image OU citation OU parent » restant inchangée                                          | `thought.ts`  |
+| F20 | Les tags n'étaient ni dédoublonnés ni restreints (`<b>` accepté) et arrivent dans le HTML, la recherche et les URLs de tag                                                                          | faible   | `tagSchema` (`#?` + lettres/chiffres/`_`/`-`) + dédoublonnage insensible à la casse                                            | `thought.ts`  |
+| F21 | Bornes manquantes sur les primitifs : email sans longueur max, slug à 100 alors que `slugify` s'arrête à 96, UUID non normalisé, centimes non « safe »                                            | faible   | `MAX_EMAIL_LENGTH`, `MAX_SLUG_LENGTH = 96`, `uuidSchema` lowercase, `centsSchema.safe()`                                        | `common.ts`   |
+
+### Preuves exécutées
+
+```bash
+# 1. Premier passage : rouge (chaînage ZodEffects invalide, puis 1 attente fausse)
+cd packages/schemas && pnpm exec vitest run            # → 2 suites en échec / 1 test en échec — EXIT=1
+
+# 2. Vert avec couverture (seuils 90/85/90/90)
+cd packages/schemas && pnpm exec vitest run --coverage
+# → Test Files 2 passed / Tests 33 passed — EXIT=0 ; 96,38 % statements, 96,15 % branches
+
+# 3. Types et lint du package, puis du monorepo entier (les consommateurs compilent)
+cd packages/schemas && pnpm exec tsc --noEmit          # EXIT=0
+cd packages/schemas && pnpm exec eslint .              # EXIT=0
+pnpm typecheck                                         # 25 successful, 25 total
+```
+
+Un test existant a été corrigé parce qu'il **verrouillait la divergence** :
+`schemas.test.ts` attendait `bob-dev` valide (tiret) alors que Go le refuse.
+
+### Reste à faire (lot L02)
+
+| #   | Tâche                                                                                                                                        | Sévérité | Motif                                                                                                                |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------- |
+| R13 | Vérifier en base les handles existants qui contiennent des majuscules (`SELECT username FROM "User" WHERE username <> lower(username)`)      | moyenne  | `usernameSchema` normalise en minuscules comme Go : sans cet état des lieux, un profil ancien pourrait changer de handle au premier enregistrement. |
+| R14 | Miroir TS de `identifier.reserved` (admin, api, qoe, studio…)                                                                                | moyenne  | Un handle réservé passe encore la validation cliente et n'échoue qu'en Go. Le miroir doit être généré depuis la liste Go, pas recopié à la main. |
+| R15 | Aligner `MAX_IMAGES_PER_POST` (8) sur la vraie limite du compositeur (4 par nœud aujourd'hui)                                                | faible   | Une borne plus large que l'UI est sûre, mais l'écart doit être assumé ou supprimé.                                   |
+| R16 | Passer `@qoe/schemas` à Zod 4 (`z.email()`, `z.uuid()`, perfs)                                                                               | faible   | Migration transverse aux 4 packages qui importent `zod` : à traiter avec L37 pour ne pas fragmenter.              |
+| R17 | Faire consommer `updateProfileSchema` par `EditProfileModal` (aujourd'hui il appelle l'action sans passer par le schéma)                      | faible   | Le schéma est correct mais pas branché : la validation n'a lieu qu'au test.                                         |

@@ -3,19 +3,21 @@
 // =====================================================================
 
 import { z } from 'zod';
+import { idSchema, multiLineText } from './common';
 
 /**
  * 🚨 Schéma de création d'un signalement de modération.
  */
 export const createReportSchema = z.object({
-  targetId: z.string().min(1, "L'ID de la cible est requis"),
+  // L'identifiant part dans une requête SQL : charset borné, 64 caractères max.
+  targetId: idSchema,
   targetType: z.enum(['thought', 'article', 'user', 'comment']).default('thought'),
   reason: z.enum(['spam', 'harassment', 'hate_speech', 'misleading', 'other']).default('spam'),
-  details: z
-    .string()
-    .trim()
-    .max(500, 'Les détails ne peuvent pas dépasser 500 caractères.')
-    .optional(),
+  details: multiLineText('Les détails', 500)
+    .nullable()
+    .optional()
+    // Une chaîne vide n'est pas un détail : on la ramène à `undefined`.
+    .transform((value) => (value && value.length > 0 ? value : undefined)),
 });
 
 export type CreateReportInput = z.infer<typeof createReportSchema>;

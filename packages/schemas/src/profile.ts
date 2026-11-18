@@ -3,51 +3,43 @@
 // =====================================================================
 
 import { z } from 'zod';
+import { multiLineText, singleLineText, usernameSchema } from './common';
 
-const httpUrlSchema = (invalidMessage: string) =>
-  z
+const MAX_URL_LENGTH = 2000;
+
+/**
+ * 🔗 URL d'image de profil : `http(s)` uniquement, sans espace ni antislash
+ * (les navigateurs les réinterprètent), et **sans identifiants embarqués**
+ * (`https://user:pass@host` fuiterait un secret dans le HTML public).
+ */
+function httpUrlSchema(label: string) {
+  return z
     .string()
     .trim()
-    .max(2000, "L'URL ne peut pas dépasser 2000 caractères.")
-    .url(invalidMessage)
-    .refine(
-      (val) => {
-        try {
-          const parsed = new URL(val);
-          return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-        } catch {
-          return false;
-        }
-      },
-      { message: 'Seules les URLs http:// ou https:// sont autorisées.' }
-    );
+    .max(MAX_URL_LENGTH, "L'URL ne peut pas dépasser 2000 caractères.")
+    .url(`URL ${label} invalide.`)
+    .refine((value) => !/[\s\\]/.test(value), 'URL invalide (espace ou antislash interdit).')
+    .refine((value) => {
+      try {
+        const parsed = new URL(value);
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+        return !parsed.username && !parsed.password;
+      } catch {
+        return false;
+      }
+    }, 'Seules les URLs http:// ou https:// sans identifiants sont autorisées.');
+}
 
 /**
  * 👤 Schéma de mise à jour du profil utilisateur.
  */
 export const updateProfileSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(2, 'Le nom doit comporter au moins 2 caractères.')
-    .max(120, 'Le nom ne peut pas dépasser 120 caractères.'),
-  username: z
-    .string()
-    .trim()
-    .min(3, "Le nom d'utilisateur doit comporter au moins 3 caractères.")
-    .max(40, "Le nom d'utilisateur ne peut pas dépasser 40 caractères.")
-    .regex(
-      /^[a-zA-Z0-9_-]+$/,
-      "Le nom d'utilisateur ne peut contenir que des lettres, chiffres, tirets et underscores."
-    ),
-  heroText: z
-    .string()
-    .trim()
-    .max(1000, 'La bio ne peut pas dépasser 1000 caractères.')
-    .nullable()
-    .optional(),
-  logoUrl: httpUrlSchema('URL de logo invalide.').nullable().optional(),
-  headerImageUrl: httpUrlSchema("URL d'en-tête invalide.").nullable().optional(),
+  name: singleLineText('Le nom', 120, 2),
+  // Même schéma que partout ailleurs : une seule règle, alignée sur Go.
+  username: usernameSchema,
+  heroText: multiLineText('La bio', 1000).nullable().optional(),
+  logoUrl: httpUrlSchema('du logo').nullable().optional(),
+  headerImageUrl: httpUrlSchema("d'en-tête").nullable().optional(),
 });
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

@@ -2,13 +2,9 @@
 // 📰 article.ts — Schémas d'articles et de métadonnées éditoriales
 // =====================================================================
 
-import { z } from 'zod';
+import { singleLineText } from './common';
 
 /**
- * 📰 Titre d'article (3-200 caractères).
+ * 📰 Titre d'article (3-200 caractères, mono-ligne, sans caractère de contrôle).
  */
-export const articleTitleSchema = z
-  .string()
-  .trim()
-  .min(3, 'Le titre doit comporter au moins 3 caractères')
-  .max(200, 'Le titre ne peut pas dépasser 200 caractères');
+export const articleTitleSchema = singleLineText('Le titre', 200, 3);

@@ -33,9 +33,12 @@ describe('@qoe/schemas - common', () => {
 
   it('validates usernames', () => {
     expect(usernameSchema.parse('alice_99')).toBe('alice_99');
-    expect(usernameSchema.parse('bob-dev')).toBe('bob-dev');
+    expect(usernameSchema.parse('bob.dev')).toBe('bob.dev');
+    // Le tiret est refusé par `identifier.ValidUsername` (Go) : le test
+    // verrouillait une divergence avec la source de vérité serveur.
+    expect(() => usernameSchema.parse('bob-dev')).toThrow();
     expect(() => usernameSchema.parse('ab')).toThrow(); // < 3 chars
-    expect(() => usernameSchema.parse('a'.repeat(31))).toThrow(); // > 30 chars
+    expect(() => usernameSchema.parse('a'.repeat(25))).toThrow(); // > 24 chars
     expect(() => usernameSchema.parse('user@invalid')).toThrow(); // invalid chars
   });
 
