@@ -38,6 +38,20 @@ export interface NormalizedArticleAttribution {
 }
 
 /**
+ * Base des ordres implicites. `Number.MAX_SAFE_INTEGER + index` dépassait la
+ * plage des entiers sûrs : deux entrées sans ordre explicite pouvaient recevoir
+ * le MÊME ordre (précision perdue au-delà de 2^53), donc un ordre de signature
+ * non déterministe. Une base réaliste reste stable et sûre.
+ */
+const IMPLICIT_ORDER_BASE = 1_000_000;
+
+/** Ordre explicite conservé seulement s'il est un entier sûr. */
+function resolveOrder(order: number | undefined, fallbackIndex: number): number {
+  if (typeof order === 'number' && Number.isSafeInteger(order)) return order;
+  return IMPLICIT_ORDER_BASE + fallbackIndex;
+}
+
+/**
  * Makes an article byline deterministic while preserving explicit editorial choices.
  * The primary author is always first and visible; duplicate users collapse to one entry.
  */
@@ -56,8 +70,7 @@ export function normalizeArticleAttributions(
         {
           userId: entry.userId,
           role: entry.userId === primaryAuthorId ? 'PRIMARY_AUTHOR' : entry.role || 'CO_AUTHOR',
-          order:
-            entry.userId === primaryAuthorId ? 0 : (entry.order ?? Number.MAX_SAFE_INTEGER + index),
+          order: entry.userId === primaryAuthorId ? 0 : resolveOrder(entry.order, index),
           isVisible: entry.userId === primaryAuthorId || entry.isVisible !== false,
           consentStatus:
             entry.userId === primaryAuthorId ? 'ACCEPTED' : entry.consentStatus || 'PENDING',

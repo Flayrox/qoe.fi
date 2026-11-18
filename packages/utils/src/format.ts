@@ -49,6 +49,10 @@ export function formatReadingTime(minutes: number): string {
  */
 export function formatRelativeDate(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
+  // Une date invalide produisait « il y a NaN ans » dans l'interface : on
+  // préfère ne rien afficher, l'appelant décide du repli.
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) return '';
+
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
   const diffSec = Math.floor(diffMs / 1000);
@@ -63,23 +67,41 @@ export function formatRelativeDate(date: Date | string): string {
   if (diffDay < 7) return `il y a ${diffDay} j`;
   if (diffDay < 30) return `il y a ${Math.floor(diffDay / 7)} sem`;
   if (diffDay < 365) return `il y a ${Math.floor(diffDay / 30)} mois`;
-  return `il y a ${Math.floor(diffDay / 365)} an${Math.floor(diffDay / 365) > 1 ? 's' : ''}`;
+  const years = Math.floor(diffDay / 365);
+  return `il y a ${years} an${years > 1 ? 's' : ''}`;
 }
 
 /**
  * 📝 Tronque un texte à N caractères en ajoutant "…".
+ *
+ * La coupe se fait en POINTS DE CODE, pas en unités UTF-16 : `substring`
+ * coupait au milieu d'une paire de substitution et affichait un caractère
+ * cassé (« \uD83D… ») sur les textes contenant des emojis.
  */
 export function truncate(text: string, maxLength: number = 200): string {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength).trimEnd() + '…';
+  if (!text) return '';
+  const limit = Number.isFinite(maxLength) ? Math.max(0, Math.floor(maxLength)) : 200;
+  const characters = Array.from(text);
+  if (characters.length <= limit) return text;
+  if (limit === 0) return '…';
+  return characters.slice(0, limit).join('').trimEnd() + '…';
 }
 
 /**
  * 📧 Masque partiellement un email : j***@gmail.com
+ *
+ * Une valeur qui n'est pas un email plausible est entièrement masquée :
+ * renvoyer l'entrée telle quelle affichait une donnée personnelle brute dans
+ * les écrans d'administration (journaux, exports) au lieu d'un masque.
  */
 export function maskEmail(email: string): string {
-  const [local, domain] = email.split('@');
-  if (!local || !domain) return email;
-  const maskedLocal = local[0] + '***';
-  return `${maskedLocal}@${domain}`;
+  const value = (email ?? '').trim();
+  const at = value.indexOf('@');
+  if (at <= 0 || at !== value.lastIndexOf('@')) return '***';
+
+  const local = value.slice(0, at);
+  const domain = value.slice(at + 1);
+  if (!domain.includes('.') || /\s/.test(value)) return '***';
+
+  return `${local[0]}***@${domain}`;
 }

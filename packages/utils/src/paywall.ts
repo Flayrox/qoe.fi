@@ -21,6 +21,21 @@ export interface PaywallCutResult {
   paywallMeta: PaywallMeta | null;
 }
 
+/**
+ * Taille en octets UTF-8, sans dépendre de `Buffer`.
+ *
+ * Ce module est importé par des composants clients : `Buffer` n'existe pas
+ * dans le navigateur, et l'appeler y levait « Buffer is not defined » à la
+ * première mesure. `TextEncoder` est disponible partout (Node, edge, navigateur).
+ */
+const encoder = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null;
+
+function utf8ByteLength(value: string): number {
+  if (!value) return 0;
+  if (encoder) return encoder.encode(value).length;
+  return unescape(encodeURIComponent(value)).length;
+}
+
 // Markers for paywall breaks across various editor outputs (Ghost, Lexical, TipTap, HTML comments)
 const PAYWALL_MARKERS = [
   '<!--members-only-->',
@@ -74,7 +89,7 @@ export function sliceContentAtPaywall(
   visibility: ContentVisibility = ContentVisibility.PUBLIC,
   requiredTierId?: string | null
 ): PaywallCutResult {
-  const totalLengthBytes = Buffer.byteLength(rawContent || '', 'utf-8');
+  const totalLengthBytes = utf8ByteLength(rawContent || '');
   const accessGranted = checkContentAccess(visibility, entitlements, requiredTierId);
 
   // If access is granted, return full content
@@ -124,7 +139,7 @@ export function sliceContentAtPaywall(
     }
   }
 
-  const previewLengthBytes = Buffer.byteLength(previewContent, 'utf-8');
+  const previewLengthBytes = utf8ByteLength(previewContent);
 
   return {
     content: previewContent,

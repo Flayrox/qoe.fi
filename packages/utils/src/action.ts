@@ -22,11 +22,30 @@ export function actionErr<T = never>(
 }
 
 /**
+ * 🧯 Erreur typée d'une Server Action en échec.
+ *
+ * `unwrapAction` levait un `Error` nu : le `code` structuré (`FORBIDDEN`,
+ * `RATE_LIMITED`, `STALE_ACTION`…) était perdu, donc les appelants ne
+ * pouvaient plus distinguer un refus d'autorisation d'une panne réseau — ni
+ * choisir entre un message d'erreur et un rechargement. Le `code` reste
+ * désormais attaché à l'erreur levée, et le message public est inchangé.
+ */
+export class ActionResultError extends Error {
+  readonly code: string;
+
+  constructor(error: { code: string; message: string }) {
+    super(error.message);
+    this.name = 'ActionResultError';
+    this.code = error.code;
+  }
+}
+
+/**
  * 📦 Extrait les données d'un ActionResult ou lève une erreur explicite.
  */
 export function unwrapAction<T>(result: ActionResult<T>): T {
   if (!result.ok) {
-    throw new Error(result.error.message);
+    throw new ActionResultError(result.error);
   }
   return result.data;
 }

@@ -10,7 +10,7 @@ export default defineConfig({
       NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co',
       NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key',
     },
-    // 📊 Mesuré le 2026-11-14 (docs/TEST-BUNKER-PLAN.md, étape A1) : 82
+    // 📊 Mesuré le 2026-11-14 (mesure du 2026-11-14, étape A1) : 82
     // fichiers / 519 tests, 55,4 % lignes. Ce package n'était mesuré nulle
     // part : ses 82 fichiers de test ne comptaient dans aucun chiffre.
     // Seuils = mesure du jour arrondie vers le bas (ratchet : jamais baissés).

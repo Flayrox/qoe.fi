@@ -7,6 +7,28 @@
 
 export const DEFAULT_CATEGORY_SLUG = 'uncategorized';
 
+/** Longueur maximale d'un segment d'URL (alignée sur `slugify`). */
+const MAX_SEGMENT_LENGTH = 96;
+
+/**
+ * 🔒 Nettoie un segment de chemin.
+ *
+ * Ces valeurs viennent de la base (slugs créés à la main, imports, anciens
+ * contenus). Un slug contenant `/`, `\` ou une suite `..` produisait un lien
+ * qui sort de la hiérarchie prévue — au mieux une 404, au pire un chemin
+ * construit par un tiers. On retire les séparateurs et on compresse les
+ * points, sans jamais ré-encoder (les slugs déjà encodés resteraient lisibles).
+ */
+function safeSegment(value: string | null | undefined): string {
+  const raw = (value ?? '').trim();
+  if (!raw) return '';
+  return raw
+    .replace(/[\u0000-\u001f\u007f\\/]+/g, '')
+    .replace(/\.{2,}/g, '.')
+    .replace(/^\.+|\.+$/g, '')
+    .slice(0, MAX_SEGMENT_LENGTH);
+}
+
 export interface CategoryUrlNode {
   id?: string;
   slug?: string | null;
@@ -19,19 +41,21 @@ export function resolveCategoryPath(
   category: CategoryUrlNode | null | undefined,
   allCategories: readonly CategoryUrlNode[] = []
 ): string {
-  if (!category?.slug) return DEFAULT_CATEGORY_SLUG;
+  const slug = safeSegment(category?.slug);
+  if (!slug) return DEFAULT_CATEGORY_SLUG;
 
-  const directParent = category.parentSlug?.trim();
-  if (directParent) return `${directParent}/${category.slug}`;
+  const directParent = safeSegment(category?.parentSlug);
+  if (directParent) return `${directParent}/${slug}`;
 
-  if (category.parentId) {
+  if (category?.parentId) {
     const parent = allCategories.find(
       (item) => item.id === category.parentId || item.slug === category.parentId
     );
-    if (parent?.slug) return `${parent.slug}/${category.slug}`;
+    const parentSlug = safeSegment(parent?.slug);
+    if (parentSlug) return `${parentSlug}/${slug}`;
   }
 
-  return category.slug;
+  return slug;
 }
 
 /** Chemin public d'une catégorie (ex: « /tech/ia »). */
@@ -48,5 +72,6 @@ export function buildArticlePath(
   allCategories: readonly CategoryUrlNode[] = []
 ): string {
   const categoryPath = resolveCategoryPath(article.category, allCategories);
-  return `/${categoryPath}/${article.slug}`;
+  const slug = safeSegment(article.slug);
+  return slug ? `/${categoryPath}/${slug}` : `/${categoryPath}`;
 }

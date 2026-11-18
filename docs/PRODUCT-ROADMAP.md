@@ -151,7 +151,7 @@ Vérifications : `go build ./...`, `go test ./internal/modules/billing
 
 Le digest avait été implémenté **deux fois** en parallèle :
 
-- l'autre agent (commit `70e8efa5`, `docs/PARALLEL-LOTS-PLAN.md` lot 2) :
+- l'autre agent (commit `70e8efa5`, lot 2) :
   `POST /v1/newsletters/digest` crée un **brouillon d'issue** depuis les
   articles récents (`ListArticlesForDigest`), rendu par `buildDigestHTML`
   (URL canonique, couverture, temps de lecture, extraits), bouton dans

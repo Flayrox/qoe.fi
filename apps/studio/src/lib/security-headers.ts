@@ -7,7 +7,7 @@
 //
 // La CSP reste en `Report-Only` : Next injecte des scripts inline et le
 // runtime de dev a besoin d'`unsafe-eval`. On l'observe avant de la rendre
-// bloquante — voir docs/SECURITY-PLAN.md.
+// bloquante — voir docs/AUDIT-CHECKLIST.md (lots UI et apps).
 // =====================================================================
 
 export interface SecurityHeader {

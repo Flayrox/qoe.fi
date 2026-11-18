@@ -24,7 +24,7 @@ export default defineConfig({
       NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co',
       NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key',
     },
-    // 📊 Mesuré le 2026-11-14 (docs/TEST-BUNKER-PLAN.md, étape A2) : 10 fichiers
+    // 📊 Mesuré le 2026-11-14 (mesure du 2026-11-14, étape A2) : 10 fichiers
     // / 34 tests, 23,52 % lignes. Ratchet : le seuil ne baisse jamais.
     coverage: {
       provider: 'v8',

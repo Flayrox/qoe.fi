@@ -4,11 +4,19 @@
 
 Ce repo tient sa mémoire dans des plans vivants versionnés. **Lis-les avant de coder, mets-les à jour après.**
 
-| Fichier                         | Contenu                                        |
-| ------------------------------- | ---------------------------------------------- |
-| `apps/admin/ADMIN-PLAN.md`      | Plan vivant de la console admin                |
-| `apps/studio/EDITOR-PLAN.md`    | Plan vivant de l’éditeur studio                |
-| `apps/studio/ANALYTICS-PLAN.md` | Plan vivant des analytics (multi-auteurs/médias) |
+| Fichier                         | Contenu                                                                |
+| ------------------------------- | ---------------------------------------------------------------------- |
+| `apps/admin/ADMIN-PLAN.md`      | Plan vivant de la console admin                                        |
+| `apps/studio/EDITOR-PLAN.md`    | Plan vivant de l’éditeur studio                                        |
+| `apps/studio/ANALYTICS-PLAN.md` | Plan vivant des analytics (multi-auteurs/médias)                       |
+| `docs/AUDIT-CHECKLIST.md`       | Checklist d'audit : un lot par package, une ligne par fichier/fonction |
+
+## Rythme imposé — un commit par lot d'audit
+
+- **Un lot = un commit.** Chaque lot de `docs/AUDIT-CHECKLIST.md` se termine par un commit dédié (`audit(<lot>): …`) qui contient le code, les tests et la mise à jour de la checklist. Rien d'un lot clos ne reste en travail non commité.
+- **Aller au plus profond à chaque passage.** Pour chaque fichier et chaque fonction exportée : lire les appelants réels, les colonnes SQL et les validations Go en doublon, pas seulement le code du package. Si une primitive native, une API plus récente ou un garde CI remplace proprement l'existant, on remplace dans le même lot.
+- **Aucun bug laissé ouvert.** Un défaut constaté se corrige dans le lot, même s'il déborde du périmètre initial (test rouge d'abord, correctif, preuve). Une correction qui exige une décision produit passe `bloqué` avec la question écrite — jamais « plus tard » implicite.
+- **Preuve avant verdict.** Une ligne `durci` sans commande verte (test, typecheck, lint) recollée dans la checklist n'a pas sa place : on écrit la commande et son résultat.
 
 ## Architecture en une page
 

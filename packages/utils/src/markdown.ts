@@ -26,12 +26,36 @@ export function escapeHtml(input: string): string {
   return input.replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch] as string);
 }
 
+/**
+ * 🔒 Échappe une valeur destinée à un attribut HTML.
+ *
+ * Contrairement à `escapeHtml`, l'esperluette n'est PAS ré-échappée : le texte
+ * qui entre ici a déjà traversé `escapeHtml` en amont, donc les entités `&amp;`
+ * et `&quot;` sont déjà en place et un second passage produirait `&amp;amp;`.
+ * Ce qui reste à neutraliser, ce sont les guillemets bruts — la seule chose
+ * capable de sortir d'un attribut — au cas où un futur appelant oublierait
+ * d'échapper son texte avant l'appel.
+ */
+function escapeAttr(input: string): string {
+  return input.replace(/["'<>]/g, (ch) => HTML_ESCAPES[ch] as string);
+}
+
 /** 🔗 Autorise uniquement les schémas et cibles sûrs (anti-`javascript:`). */
 function safeUrl(raw: string): string {
   const url = raw.trim();
   if (url === '') return '';
+
+  // Caractères de contrôle et barre oblique inversée : jamais légitimes dans
+  // une URL, et `\` permet à certains parseurs de relire `/[\]evil.com` ou
+  // `\\evil.com` comme une URL externe.
+  if (/[\u0000-\u001f\u007f\\]/.test(url)) return '';
+
   if (/^(https?:|mailto:|tel:)/i.test(url)) return url;
-  if (/^[/#]/.test(url)) return url;
+
+  // `//host` est une URL « relative au protocole » : le navigateur la résout
+  // vers un hôte EXTERNE. Un chemin interne commence par un seul `/`.
+  if (/^\/(?!\/)/.test(url)) return url;
+  if (url.startsWith('#')) return url;
   if (/^[\w.-]+@[\w.-]+\.\w+$/.test(url)) return `mailto:${url}`;
   return '';
 }
@@ -54,7 +78,7 @@ function inline(text: string): string {
     (_match, alt: string, url: string, title?: string) => {
       const src = safeUrl(url);
       if (!src) return alt;
-      return `<img src="${src}" alt="${alt}"${title ? ` title="${title}"` : ''} loading="lazy" />`;
+      return `<img src="${escapeAttr(src)}" alt="${escapeAttr(alt)}"${title ? ` title="${escapeAttr(title)}"` : ''} loading="lazy" />`;
     }
   );
 
@@ -64,7 +88,7 @@ function inline(text: string): string {
       const href = safeUrl(url);
       if (!href) return label;
       const external = /^https?:/i.test(href) ? ' target="_blank" rel="noopener noreferrer"' : '';
-      return `<a href="${href}"${title ? ` title="${title}"` : ''}${external}>${label}</a>`;
+      return `<a href="${escapeAttr(href)}"${title ? ` title="${escapeAttr(title)}"` : ''}${external}>${label}</a>`;
     }
   );
 

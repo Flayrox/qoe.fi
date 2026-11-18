@@ -411,7 +411,9 @@ studio Média extraite et testée, plus un parcours complet du composant
 
 ### Fait le 17/11 (passe 4 — autorisation prouvée + injections fermées)
 
-Détail complet dans [`docs/SECURITY-PLAN.md`](./SECURITY-PLAN.md) §6.
+Le suivi fichier par fichier vit désormais dans
+[`docs/AUDIT-CHECKLIST.md`](./AUDIT-CHECKLIST.md) (lot `@qoe/utils` : premier
+lot audité et corrigé).
 
 - **T4 — autorisation Go prouvée** : `media_matrix_test.go` (rôle × permission,
   statuts, overrides, édition par auteur), `action_matrix_test.go` (toutes les
@@ -437,8 +439,8 @@ Détail complet dans [`docs/SECURITY-PLAN.md`](./SECURITY-PLAN.md) §6.
 
 ### Fait le 16/11 (durcissement sécurité du studio)
 
-Voir le plan vivant dédié : [`docs/SECURITY-PLAN.md`](./SECURITY-PLAN.md) (modèle
-de menace, inventaire des contrôles, passes d'audit et tâches restantes).
+Le suivi est repris par [`docs/AUDIT-CHECKLIST.md`](./AUDIT-CHECKLIST.md) : un
+lot par package, une ligne par fichier ou fonction, avec verdict et preuve.
 
 - **Aperçu lecteur** : le HTML de l'article est assaini (liste blanche
   DOMPurify, `data-type` du paywall conservé) avant d'être injecté dans la
@@ -544,8 +546,7 @@ Supprimé (artefacts de runs d'agents, aucune valeur de mémoire) :
 Conservé volontairement : `.agents/rules/engineering-excellence.md` (règles de
 code encore valables), `.agents/skills/**` (skills de l'outillage), les plans
 vivants cités par `AGENTS.md` (`ADMIN-PLAN`, `EDITOR-PLAN`, `ANALYTICS-PLAN`),
-`docs/TEST-BUNKER-PLAN.md`, `.reference/**` (dépôts de référence externes, non de
-la documentation projet).
+`.reference/**` (dépôts de référence externes, non de la documentation projet).
 
 Supprimés le 16/11 (documents temporaires, chiffres périmés) :
 `docs/TEST-COVERAGE.md` (mesure du 13/11, méthode et chiffres désormais dans le
@@ -578,4 +579,4 @@ terminée).
 | 2026-11-16 | Tests + bug (studio Média)                          | 60 tests : `media-studio-logic` (27, logique pure extraite de `MediaStudioClient`) et `MediaStudioClient` (33). Corrigé : le bouton « Copier » d'un lien d'invitation restait bloqué sur « Copier » — la collection du tableau react-aria, mémoïsée sur l'identité d'`items`, ne voyait pas l'état de copie ; il fait désormais partie des items. Seuils studio 26/26/25/25 → 31/30/29/29 (mesure 32,11/31,85/30,79/30,51).                                                                                                                                                                                                                                                                                                                                                                         | _(ce commit)_ |
 | 2026-11-16 | Flake CI du rendu admin                             | `moderation-queue.test.tsx` (« résout un signalement… ») a dépassé 5 s sur le runner `main` du commit `26ea3b93` alors que le run `dev` du même commit était vert : `apps/admin` passe au plancher de 20 s déjà utilisé par core/studio/tenants. Assertions inchangées.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | _(ce commit)_ |
 | 2026-11-17 | Passe 4 — autorisation prouvée + injections fermées | Go : 4 fichiers de table (permissions, authz, middleware, adminauthz), 128 + 11 échecs observés en mutation ; TS : 25 tests d'assainissement partagé, 10 tests d'origine de server actions ; gardes `guard:dangerous-html` et `audit:guard` en CI ; `dompurify` 3.4.13→3.4.18 ; `pnpm test:coverage` 88 fichiers / 27,49 % lignes, `test:coverage:front` studio 63 fichiers / 32,76 % lignes (seuils tenus), typecheck 25/25, lint 25/25                                                                                                                                                                                                                                                                                                                                                            | _(ce commit)_ |
-| 2026-11-16 | Durcissement sécurité (studio) + plan dédié         | 34 tests : `security-hardening` (24 : en-têtes, cookie d'espace `Secure`, locale, HTML d'aperçu, SVG inline) et `totp-enrollment` (10). Corrigés : HTML d'aperçu injecté sans assainissement, QR TOTP injecté brut, cookie d'espace sans `Secure` en prod, en-têtes app incomplets, `x-locale` recopié sans liste blanche. Nouveau `docs/SECURITY-PLAN.md` (3 passes, 20 findings, 12 tâches, 9 restantes). Seuils studio 31/30/29/29 → 31/31/30/30 (mesure 32,85/32,60/31,26/31,02).                                                                                                                                                                                                                                                                                                               | _(ce commit)_ |
+| 2026-11-16 | Durcissement sécurité (studio) + plan dédié         | 34 tests : `security-hardening` (24 : en-têtes, cookie d'espace `Secure`, locale, HTML d'aperçu, SVG inline) et `totp-enrollment` (10). Corrigés : HTML d'aperçu injecté sans assainissement, QR TOTP injecté brut, cookie d'espace sans `Secure` en prod, en-têtes app incomplets, `x-locale` recopié sans liste blanche. Plan sécurité alors créé (document supprimé le 18/11 ; suivi repris par `docs/AUDIT-CHECKLIST.md`). Seuils studio 31/30/29/29 → 31/31/30/30 (mesure 32,85/32,60/31,26/31,02).                                                                                                                                                                                                                                                                                                               | _(ce commit)_ |

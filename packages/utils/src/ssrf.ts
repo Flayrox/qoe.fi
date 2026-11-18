@@ -67,39 +67,126 @@ export function isPrivateOrReservedIPv4(ip: string): boolean {
 }
 
 /**
- * Vérifie si une adresse IPv6 est loopback, link-local, unique local ou IPv4-mapped privé.
+ * Développe une adresse IPv6 en 8 groupes de 16 bits.
+ *
+ * Les comparaisons par `startsWith` sur la forme écrite sont un piège : la
+ * MÊME adresse a plusieurs écritures légales (`::ffff:127.0.0.1`,
+ * `::ffff:7f00:1`, `0:0:0:0:0:ffff:7f00:1`). Seule la forme canonique en
+ * groupes permet de conclure. Retourne `null` si l'adresse est illisible.
+ */
+function expandIPv6(input: string): number[] | null {
+  let value = input
+    .trim()
+    .toLowerCase()
+    .replace(/^\[|\]$/g, '');
+
+  // Zone d'interface (fe80::1%eth0) : elle ne change pas l'adresse.
+  const zone = value.indexOf('%');
+  if (zone !== -1) value = value.slice(0, zone);
+  if (!value.includes(':')) return null;
+
+  // IPv4 embarquée en fin d'adresse (`::ffff:127.0.0.1`).
+  let embeddedV4: number[] = [];
+  const v4Match = /(\d{1,3}(?:\.\d{1,3}){3})$/.exec(value);
+  if (v4Match) {
+    const octets = v4Match[1]!.split('.').map(Number);
+    if (octets.length !== 4 || octets.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) {
+      return null;
+    }
+    embeddedV4 = [(octets[0]! << 8) | octets[1]!, (octets[2]! << 8) | octets[3]!];
+    value = value.slice(0, v4Match.index).replace(/:+$/, '');
+    if (value === '') value = '::';
+  }
+
+  const halves = value.split('::');
+  if (halves.length > 2) return null;
+
+  const parseGroups = (chunk: string | undefined): number[] | null => {
+    if (!chunk) return [];
+    const groups: number[] = [];
+    for (const group of chunk.split(':')) {
+      if (!/^[0-9a-f]{1,4}$/.test(group)) return null;
+      groups.push(Number.parseInt(group, 16));
+    }
+    return groups;
+  };
+
+  const head = parseGroups(halves[0]);
+  const tail = parseGroups(halves[1]);
+  if (!head || !tail) return null;
+
+  if (halves.length === 2) {
+    const missing = 8 - (head.length + tail.length + embeddedV4.length);
+    if (missing < 0) return null;
+    return [...head, ...new Array<number>(missing).fill(0), ...tail, ...embeddedV4];
+  }
+
+  const groups = [...head, ...tail, ...embeddedV4];
+  return groups.length === 8 ? groups : null;
+}
+
+/** Recompose l'IPv4 portée par deux groupes IPv6. */
+function ipv4FromGroups(high: number, low: number): string {
+  return `${high >> 8}.${high & 0xff}.${low >> 8}.${low & 0xff}`;
+}
+
+/**
+ * Vérifie si une adresse IPv6 est loopback, link-local, unique local,
+ * multicast, ou porte une IPv4 privée (mapped, translated, NAT64, 6to4).
+ *
+ * Une adresse illisible est considérée comme dangereuse (fail closed).
  */
 export function isPrivateOrReservedIPv6(ip: string): boolean {
-  const normalized = ip.toLowerCase().trim();
+  const groups = expandIPv6(ip);
+  if (!groups) return true;
 
-  // Loopback ::1
-  if (normalized === '::1' || normalized === '0:0:0:0:0:0:0:1') return true;
+  const [g0, g1, g2, g3, g4, g5, g6, g7] = groups as [
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+  ];
 
-  // Unspecified ::
-  if (normalized === '::' || normalized === '0:0:0:0:0:0:0:0') return true;
+  const firstSixZero = g0 === 0 && g1 === 0 && g2 === 0 && g3 === 0 && g4 === 0 && g5 === 0;
 
-  // Link-local fe80::/10
+  // Unspecified (::) et loopback (::1).
+  if (firstSixZero && g6 === 0 && (g7 === 0 || g7 === 1)) return true;
+
+  // IPv4-compatible / IPv4-mapped (::a.b.c.d et ::ffff:a.b.c.d).
   if (
-    normalized.startsWith('fe8') ||
-    normalized.startsWith('fe9') ||
-    normalized.startsWith('fea') ||
-    normalized.startsWith('feb')
+    (firstSixZero || (g0 === 0 && g1 === 0 && g2 === 0 && g3 === 0 && g4 === 0 && g5 === 0xffff)) &&
+    (g6 !== 0 || g7 !== 0)
   ) {
-    return true;
+    return isPrivateOrReservedIPv4(ipv4FromGroups(g6, g7));
   }
 
-  // Unique local fc00::/7 (fc00:: et fd00::)
-  if (normalized.startsWith('fc') || normalized.startsWith('fd')) {
-    return true;
+  // IPv4-translated (::ffff:0:a.b.c.d).
+  if (g0 === 0 && g1 === 0 && g2 === 0 && g3 === 0 && g4 === 0xffff && g5 === 0) {
+    return isPrivateOrReservedIPv4(ipv4FromGroups(g6, g7));
   }
 
-  // IPv4-mapped IPv6 (::ffff:127.0.0.1 ou ::ffff:7f00:1)
-  if (normalized.startsWith('::ffff:')) {
-    const v4Part = normalized.replace('::ffff:', '');
-    if (v4Part.includes('.')) {
-      return isPrivateOrReservedIPv4(v4Part);
-    }
+  // NAT64 well-known prefix (64:ff9b::/96).
+  if (g0 === 0x64 && g1 === 0xff9b && g2 === 0 && g3 === 0 && g4 === 0 && g5 === 0) {
+    return isPrivateOrReservedIPv4(ipv4FromGroups(g6, g7));
   }
+
+  // 6to4 (2002::/16) : l'IPv4 est portée par les groupes 1 et 2.
+  if (g0 === 0x2002) {
+    return isPrivateOrReservedIPv4(ipv4FromGroups(g1, g2));
+  }
+
+  // Link-local fe80::/10.
+  if ((g0 & 0xffc0) === 0xfe80) return true;
+
+  // Unique local fc00::/7.
+  if ((g0 & 0xfe00) === 0xfc00) return true;
+
+  // Multicast ff00::/8.
+  if ((g0 & 0xff00) === 0xff00) return true;
 
   return false;
 }

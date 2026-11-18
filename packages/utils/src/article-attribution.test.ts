@@ -46,7 +46,9 @@ describe('article attributions', () => {
       {
         userId: 'translator',
         role: 'TRANSLATOR',
-        order: Number.MAX_SAFE_INTEGER + 3,
+        // Base d'ordre implicite : assez haute pour passer après tout ordre
+        // éditorial réel, assez basse pour rester un entier sûr.
+        order: 1_000_003,
         isVisible: true,
         consentStatus: 'PENDING',
         categoryId: null,

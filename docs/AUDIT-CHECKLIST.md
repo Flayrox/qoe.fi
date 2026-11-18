@@ -1,0 +1,193 @@
+# Checklist d'audit — un lot par package
+
+> **Rôle de ce fichier.** Ce n'est pas un plan thématique : c'est la liste de
+> contrôle du code, découpée en **lots** (un lot = un package partagé, une app,
+> ou un sous-ensemble logique de `apps/api`). Dans chaque lot, l'audit descend
+> au **fichier / à la fonction exportée**. Chaque ligne porte un verdict et une
+> preuve ; ce qui n'est pas au niveau attendu est corrigé, testé, ou remplacé
+> par une solution plus moderne.
+>
+> Un lot se traite de bout en bout avant de passer au suivant. Le fichier est
+> mis à jour dans le même changement que le code : une ligne « durci » sans
+> preuve de commande n'a pas sa place ici.
+
+## Rythme imposé
+
+- **Un lot = un commit.** Le lot se termine par un commit dédié (`audit(<lot>): …`)
+  qui embarque le code, les tests et la mise à jour de ce fichier. Un lot clos ne
+  laisse rien en travail non commité.
+- **Profondeur maximale.** On ne lit pas seulement le package : on lit ses
+  appelants, ses colonnes SQL et les validations Go qui doublonnent, puis on
+  remplace ce qui peut l'être par une primitive native, une API plus récente ou
+  un garde CI.
+- **Aucun bug laissé ouvert.** Un défaut constaté est corrigé dans le lot, même
+  hors du périmètre initial (test rouge d'abord, correctif, preuve recollée ici).
+  Si la correction exige une décision produit, la ligne passe `bloqué` avec la
+  question écrite.
+
+## Méthode (grille appliquée à chaque entrée)
+
+| Axe                  | Question posée                                                                                                            |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| 1. Surface d'attaque | Quelles entrées viennent de l'extérieur (HTTP, HTML, markdown, URL, env) ? Sont-elles validées avant usage ?              |
+| 2. Autorisation      | L'entrée protégée l'est-elle au bon niveau, par la bonne capacité ? En Go, la règle vit côté serveur, jamais côté client. |
+| 3. Données           | Requêtes paramétrées, portée par utilisateur/tenant, PII, secrets, ce qui finit dans un journal.                          |
+| 4. Erreurs           | Un échec est-il explicite ? Fuit-il un détail interne, ou pire, avale-t-il l'erreur ?                                     |
+| 5. Tests             | Ce qui est prouvé, ce qui ne l'est pas. Le test manquant est écrit **avant** le correctif (rouge observé), puis conservé. |
+| 6. Garde             | Existe-t-il un garde CI qui empêche la régression ? Sinon, en ajouter un.                                                 |
+| 7. Doc               | La ligne du lot est mise à jour : finding, correctif, preuve, reste à faire.                                              |
+
+**Conventions d'identifiants.** `L<n>` = lot. `U<n>` = entrée du lot `@qoe/utils`.
+Les tâches restantes sont numérotées **en continu** (`R01`, `R02`, …) sur tout
+le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
+
+**Statuts.** `à auditer` · `en cours` · `durci le AAAA-MM-JJ` · `bloqué`
+(`bloqué` = décision produit ou contrainte externe, jamais « pas eu le temps »).
+
+---
+
+## 0. Index des lots
+
+| Lot     | Périmètre (chemins réels)                                                                                    | Volume                      | Statut                  |
+| ------- | ------------------------------------------------------------------------------------------------------------ | --------------------------- | ----------------------- |
+| **L01** | `packages/utils/src/**`                                                                                      | 29 fichiers src, 50 exports | **durci le 2026-11-18** |
+| L02     | `packages/schemas/src/**`                                                                                    | 7 fichiers                  | à auditer               |
+| L03     | `packages/flags/src/**`                                                                                      | 8 fichiers                  | à auditer               |
+| L04     | `packages/auth/src/**`                                                                                       | 11 fichiers                 | à auditer               |
+| L05     | `packages/supabase/src/**`                                                                                   | 13 fichiers                 | à auditer               |
+| L06     | `packages/sdk/src/**` (actions, client, embed, hooks)                                                        | 78 fichiers                 | à auditer               |
+| L07a    | `packages/ui/src/primitives/**`, `ui/**`, `tokens.ts`                                                        | 310 fichiers (global)       | à auditer               |
+| L07b    | `packages/ui/src/{reader,annotations,cards}/**`                                                              | idem                        | à auditer               |
+| L07c    | `packages/ui/src/{auth,forms,providers}/**`                                                                  | idem                        | à auditer               |
+| L07d    | `packages/ui/src/{security,seo,legal}/**`                                                                    | idem                        | à auditer               |
+| L07e    | `packages/ui/src/{notifications,onboarding,profile,social,cmdk,templates,sidebar.tsx}`                       | idem                        | à auditer               |
+| L08     | `packages/theme/src/**`                                                                                      | 19 fichiers                 | à auditer               |
+| L09     | `packages/brand/src/**`                                                                                      | 10 fichiers                 | à auditer               |
+| L10     | `packages/content/src/**`                                                                                    | 25 fichiers                 | à auditer               |
+| L11     | `packages/config/src/**`                                                                                     | 17 fichiers                 | à auditer               |
+| L12     | `packages/formatters/src/**`                                                                                 | 5 fichiers                  | à auditer               |
+| L13     | `packages/i18n/src/**` + `messages/`                                                                         | 9 fichiers                  | à auditer               |
+| L14     | `packages/moderation/src/**`                                                                                 | 16 fichiers                 | à auditer               |
+| L15     | `packages/analytics/src/**`                                                                                  | 12 fichiers                 | à auditer               |
+| L16     | `packages/observability/src/**`                                                                              | 7 fichiers                  | à auditer               |
+| L17     | `packages/devtools/src/**`                                                                                   | 2 fichiers                  | à auditer               |
+| L18     | `packages/social/src/**`                                                                                     | 6 fichiers                  | à auditer               |
+| L19     | `packages/tsconfig/**`                                                                                       | 0 fichier src               | à auditer               |
+| L20     | `apps/core/src/**`                                                                                           | 211 fichiers                | à auditer               |
+| L21     | `apps/studio/src/**`                                                                                         | 509 fichiers                | à auditer               |
+| L22     | `apps/admin/src/**`                                                                                          | 178 fichiers                | à auditer               |
+| L23     | `apps/tenants/src/**`                                                                                        | 85 fichiers                 | à auditer               |
+| L24     | `apps/hi/src/**`                                                                                             | 40 fichiers                 | à auditer               |
+| L25     | `apps/collab-server/src/**`                                                                                  | 15 fichiers                 | à auditer               |
+| L26     | `apps/mobile/src/**` + `modules/`                                                                            | 220 fichiers                | à auditer               |
+| L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go                          | à auditer               |
+| L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go                          | à auditer               |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go                          | à auditer               |
+| L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
+| L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
+| L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
+| L33     | `.github/workflows/**`                                                                                       | 2 workflows                 | à auditer               |
+| L34     | `scripts/**`                                                                                                 | 48 fichiers                 | à auditer               |
+| L35     | `Dockerfile`, `docker-compose*.yml`, `docker/**`, `infra/monitoring/**`, `Caddyfile.dev`                     | infra                       | à auditer               |
+| L36     | `e2e/**`, `playwright*.config.ts`, `e2e/lib/**`                                                              | 65 fichiers                 | à auditer               |
+| L37     | `docs/**`, `AGENTS.md`, racine (`tsconfig`, `eslint`, `turbo`, `vitest`), `supabase/`, `patches/`, `.husky/` | transverse                  | à auditer               |
+
+**Prochain lot à traiter : L02 — `packages/schemas`.** Ordre retenu : du plus
+partagé au plus spécifique, parce qu'un correctif dans un package bas remonte
+dans toutes les apps.
+
+---
+
+## L01 — `@qoe/utils` — durci le 2026-11-18
+
+**Périmètre.** `packages/utils/src/**` (16 modules, 14 fichiers de tests).
+**Consommateurs.** `apps/{core,studio,admin,tenants,hi}`, `packages/{ui,sdk,auth}` —
+c'est la couche la plus partagée du dépôt.
+**Tests.** 150 tests verts (`pnpm exec vitest run`), dont 26 nouveaux dans
+`src/__tests__/hardening.test.ts`.
+
+### Entrées auditées
+
+| #   | Emplacement                                                                       | Standard attendu                                                                                                             | Verdict                                                 |
+| --- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| U01 | `ssrf.ts` → `validateSafeExternalUrl`, `isPrivateOrReservedIPv4`                  | Refus des schémas non web, des ports non standards, des IP privées, et de toute écriture équivalente d'une même adresse IPv6 | **corrigé** (F3)                                        |
+| U02 | `ssrf.ts` → `isPrivateOrReservedIPv6`                                             | Comparaison sur la forme canonique, pas sur la chaîne écrite                                                                 | **corrigé** (F3)                                        |
+| U03 | `redirect.ts` → `getSafeRedirectUrl`                                              | Allowlist d'hôtes, refus `//host` et `\`, **et** aucun caractère de contrôle (injection d'en-tête)                           | **corrigé** (F4)                                        |
+| U04 | `markdown.ts` → `escapeHtml`                                                      | `& < > " '` échappés                                                                                                         | conforme                                                |
+| U05 | `markdown.ts` → `safeUrl` (interne)                                               | Refus `javascript:`, `data:`, **et** `//evil.com`                                                                            | **corrigé** (F1)                                        |
+| U06 | `markdown.ts` → `inline` (images, liens)                                          | Valeur d'attribut neutralisée même si l'appelant n'échappe pas                                                               | **corrigé** (F2)                                        |
+| U07 | `markdown.ts` → `markdownToHtml`                                                  | Aucun HTML brut, blocs fermés, tableaux, listes, code                                                                        | conforme (tests d'attaque conservés)                    |
+| U08 | `markdown.ts` → `markdownHeadings`                                                | Ancre identique à celle du rendu, ignores dans les fences                                                                    | conforme                                                |
+| U09 | `slugify.ts` → `slugify`                                                          | Translittération complète (ligatures, ß, ø, ł), longueur bornée                                                              | **corrigé** (F5)                                        |
+| U10 | `slugify.ts` → `shortId`                                                          | Aléa cryptographique, rejet du biais modulo, longueur bornée                                                                 | **corrigé** (F6)                                        |
+| U11 | `slugify.ts` → `uuid`                                                             | v4 sur `crypto`, aucun repli `Math.random()`                                                                                 | **corrigé** (F7)                                        |
+| U12 | `format.ts` → `formatCurrency`, `formatNumber`                                    | `Intl` côté plateforme                                                                                                       | conforme — repli sur entrée non finie non tranché (R02) |
+| U13 | `format.ts` → `formatDuration`, `formatReadingTime`                               | Sortie stable, pas de division flottante surprenante                                                                         | conforme                                                |
+| U14 | `format.ts` → `formatRelativeDate`                                                | Date invalide → pas de sortie absurde                                                                                        | **corrigé** (F8)                                        |
+| U15 | `format.ts` → `truncate`                                                          | Coupe sur des points de code, pas des unités UTF-16                                                                          | **corrigé** (F8)                                        |
+| U16 | `format.ts` → `maskEmail`                                                         | Aucune PII brute pour une entrée malformée                                                                                   | **corrigé** (F8)                                        |
+| U17 | `paywall.ts` → `sliceContentAtPaywall`                                            | Fonctionne hors Node (edge, navigateur)                                                                                      | **corrigé** (F9)                                        |
+| U18 | `paywall.ts` → `checkContentAccess`                                               | Décision d'accès fail-closed                                                                                                 | **à trancher** (R01)                                    |
+| U19 | `paywall.ts` → `buildPublicDescription`, `buildPublicExcerpt`                     | Jamais de contenu verrouillé dans les métadonnées                                                                            | conforme (`paywall-leak-guard`, 10 tests)               |
+| U20 | `article-attribution.ts` → `normalizeArticleAttributions`                         | Ordres entiers sûrs et distincts                                                                                             | **corrigé** (F10)                                       |
+| U21 | `article-attribution.ts` → `visibleArticleAttributions`                           | Consentement `ACCEPTED` requis                                                                                               | conforme                                                |
+| U22 | `article-url.ts` → `resolveCategoryPath`, `buildCategoryPath`, `buildArticlePath` | Un segment d'URL ne peut pas sortir de la hiérarchie                                                                         | **corrigé** (F11)                                       |
+| U23 | `action.ts` → `actionOk`, `actionErr`, `unwrapAction`, `isStaleServerActionError` | Le code structuré survit à l'erreur levée                                                                                    | **corrigé** (F12)                                       |
+| U24 | `server-action-origin.ts` → `isCrossOriginServerAction`                           | Refus strict, `Origin` illisible refusée, pas de repli permissif                                                             | conforme (10 tests)                                     |
+| U25 | `cookie-consent.ts` → registre, catégories, mode                                  | Le registre décrit ce que le code dépose réellement                                                                          | conforme (`guard:legal-consent`)                        |
+| U26 | `legal-consent.ts`, `legal-placeholders.ts`, `cn.ts`, `validation.ts`, `index.ts` | Pur, sans effet de bord, exports cohérents                                                                                   | conforme, sauf export manquant (R09)                    |
+
+### Findings et correctifs
+
+| #   | Défaut                                                                                                                                                                                        | Sévérité                        | Correctif                                                                                                                           | Fichiers                 |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| F1  | `safeUrl` acceptait `//evil.com` (URL relative au protocole) : un lien markdown « sûr » produisait une sortie vers un hôte externe                                                            | haute                           | `//` refusé, `\` et caractères de contrôle refusés, `#` ancré explicitement                                                         | `markdown.ts`            |
+| F2  | Les valeurs d'attribut (`href`, `src`, `alt`, `title`) étaient interpolées sans échappement propre ; la sûreté dépendait de l'ordre des appels (`escapeHtml` en amont)                        | moyenne (défense en profondeur) | `escapeAttr` (guillemets, `<`, `>` ; l'esperluette déjà entitée est préservée)                                                      | `markdown.ts`            |
+| F3  | `isPrivateOrReservedIPv6` comparait des préfixes de chaîne : `::ffff:7f00:1` (127.0.0.1), `0:0:0:0:0:ffff:7f00:1`, `::ffff:a00:1` (10.0.0.1) et NAT64 `64:ff9b::/96` passaient pour publiques | haute                           | expansion en 8 groupes (`expandIPv6`) puis décision sur les groupes ; illisible → dangereux ; 6to4 et NAT64 couverts                | `ssrf.ts`                |
+| F4  | Un CRLF (brut ou `%0d%0a`) dans un chemin relatif était renvoyé tel quel → injection d'en-tête `Location` en aval                                                                             | moyenne                         | refus de tout caractère de contrôle, **avant** `trim()`                                                                             | `redirect.ts`            |
+| F5  | `slugify` supprimait les lettres non décomposables : « Cœur » → `cur`, « Straße » → `strae` ; aucune borne de longueur                                                                        | moyenne                         | table de translittération (œ, æ, ß, ø, ł, đ, ð, þ, ı, ħ, ŋ, ŧ, ĸ, ĳ, ŀ, ƒ) + `MAX_SLUG_LENGTH = 96` avec coupe sur frontière de mot | `slugify.ts`             |
+| F6  | `shortId` tirait dans `Math.random()` (prédictible) et acceptait `0` ou `10 000` en bouclant                                                                                                  | haute                           | `crypto.getRandomValues` + rejet des octets ≥ 248 (pas de biais modulo) + `RangeError` hors [1, 64]                                 | `slugify.ts`             |
+| F7  | `uuid()` retombait sur `Math.random()` en prétendant être un v4 « crypto-secure »                                                                                                             | moyenne                         | `randomUUID` sinon v4 construit sur `getRandomValues` ; sinon **throw**                                                             | `slugify.ts`             |
+| F8  | `formatRelativeDate('date invalide')` → « il y a NaN ans » ; `truncate` coupait une paire de substitution (emoji cassé) ; `maskEmail` renvoyait l'e-mail brut si malformé                     | moyenne                         | date invalide → `''` ; coupe par points de code ; masque `***` hors email plausible                                                 | `format.ts`              |
+| F9  | `Buffer.byteLength` dans `paywall.ts` : `Buffer` n'existe pas dans le navigateur alors que le module est importé par des composants clients                                                   | moyenne                         | `TextEncoder`, repli `encodeURIComponent`                                                                                           | `paywall.ts`             |
+| F10 | Les ordres implicites valaient `Number.MAX_SAFE_INTEGER + index` : au-delà de 2^53 la précision est perdue, deux contributeurs pouvaient recevoir le même ordre                               | moyenne                         | base `1_000_000 + index`, ordre explicite conservé seulement s'il est un entier sûr                                                 | `article-attribution.ts` |
+| F11 | Un slug contenant `/`, `\` ou `..` construisait un chemin hors hiérarchie                                                                                                                     | moyenne                         | `safeSegment` (séparateurs retirés, points compressés, 96 caractères) appliqué à chaque segment                                     | `article-url.ts`         |
+| F12 | `unwrapAction` levait un `Error` nu : le `code` (`FORBIDDEN`, `RATE_LIMITED`…) était perdu par les appelants                                                                                  | faible                          | `ActionResultError` typée, `code` attaché, message inchangé                                                                         | `action.ts`              |
+
+### Preuves exécutées
+
+```bash
+# 1. Rouge observé avant correctif (tests écrits d'abord)
+cd packages/utils && pnpm exec vitest run src/__tests__/hardening.test.ts
+# → 21 failed | 5 passed (26) — EXIT=1
+
+# 2. Vert après correctif, sur tout le package
+cd packages/utils && pnpm exec vitest run
+# → Test Files 14 passed (14) / Tests 150 passed (150) — EXIT=0
+
+# 3. Types et lint du package, puis du monorepo (les consommateurs compilent)
+cd packages/utils && pnpm exec tsc --noEmit          # EXIT=0
+cd packages/utils && pnpm exec eslint .              # EXIT=0
+pnpm typecheck                                       # 25 successful, 25 total
+```
+
+Deux tests existants ont été corrigés parce qu'ils **verrouillaient le défaut** :
+`article-attribution.test.ts` attendait `Number.MAX_SAFE_INTEGER + 3`, et
+`slugify.test.ts` attendait un repli de `uuid()` sur `Math.random()`.
+
+### Reste à faire (lot L01)
+
+| #   | Tâche                                                                                                                                                        | Sévérité | Motif                                                                                                                                                          |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R01 | Trancher `checkContentAccess` en `TIER_SPECIFIC` **sans** `requiredTierId` : aujourd'hui tout abonné payant passe (fail-open)                                | moyenne  | Changement de comportement produit : soit on masque (fail-closed), soit on corrige la donnée manquante. Décision requise, pas une improvisation.               |
+| R02 | Repli explicite pour `formatCurrency`/`formatNumber` sur entrée non finie (`NaN`, `Infinity` affichent `NaN`)                                                | faible   | À trancher avec le design system (`—` ou `0 €`) pour rester cohérent sur toutes les surfaces.                                                                  |
+| R03 | Étendre `escapeHtml` à `/` et `` ` `` si un usage en attribut non quoté apparaît                                                                             | faible   | Aucun usage non quoté aujourd'hui (vérifié) ; l'étendre changerait les sorties de test existantes sans gain immédiat.                                          |
+| R04 | Retirer `lvh.me`, `localhost` et `127.0.0.1` de l'allowlist de `getSafeRedirectUrl` en production                                                            | moyenne  | Ces hôtes servent au développement ; les laisser en prod autorise une redirection interne inutile. Nécessite une injection de configuration par environnement. |
+| R05 | Vérifier les appelants qui font un `fetch` **après** `validateSafeExternalUrl` : la résolution DNS peut changer entre la validation et la connexion (TOCTOU) | haute    | La règle est correcte, la propriété ne l'est pas encore : il faut épingler l'IP résolue au moment du fetch.                                                    |
+| R06 | Auditer les usages de `shortId` : 62^8 ≈ 2,2 × 10^14 convient à une référence lisible, pas à un secret                                                       | moyenne  | Si un code d'invitation ou un jeton l'utilise, passer à 128 bits (`uuid`).                                                                                     |
+| R07 | Vérifier le repli de `sliceContentAtPaywall` (500 caractères) : la coupe peut tomber au milieu d'un tag                                                      | faible   | Le contenu reste tronqué (pas de fuite), mais le HTML peut être malformé.                                                                                      |
+| R08 | Couvrir les blocs de code non fermés et les listes imbriquées de `markdownToHtml`                                                                            | faible   | Comportement non testé ; le contenu légal actuel n'en contient pas.                                                                                            |
+| R09 | Trancher l'export de `legal-consent` : sous-chemin `@qoe/utils/legal-consent` déclaré, absent de `index.ts`                                                  | faible   | Incohérence d'API : soit il est public via l'index, soit le sous-chemin est la seule porte et c'est documenté.                                                 |
+| R10 | Rechercher en base les slugs contenant des ligatures perdues (`cur` pour « Cœur ») et, si présents, renommer + redirection 301                               | moyenne  | Le correctif ne réécrit pas les slugs existants (ce serait casser des URLs indexées).                                                                          |
+| R11 | Vérifier que `uuid()` (qui lève désormais sans `crypto`) n'est appelé dans aucun contexte sans WebCrypto                                                     | faible   | Node 22, edge et navigateurs en ont ; la vérification est un grep + test de démarrage.                                                                         |
+| R12 | Ajouter `maskEmail` au garde anti-PII des journaux quand il sera écrit (L34)                                                                                 | faible   | Suite logique de F8 : masquer à l'affichage ne suffit pas si la valeur brute est journalisée ailleurs.                                                         |

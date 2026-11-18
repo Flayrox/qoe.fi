@@ -5,6 +5,13 @@
 const DEFAULT_ALLOWED_DOMAINS = ['lvh.me', 'qoe.test', 'qoe.fi', 'localhost', '127.0.0.1'];
 
 /**
+ * Caractères de contrôle bruts ou encodés : un `CRLF` dans un chemin recopié
+ * dans un en-tête `Location` permet une injection d'en-tête (cookie ou
+ * redirection ajoutés par un proxy).
+ */
+const CONTROL_CHARS = /[\u0000-\u001f\u007f]|%(?:0[0-9a-f]|1[0-9a-f]|7f)/i;
+
+/**
  * Validates and sanitizes a target redirect URL to prevent Open Redirect vulnerabilities.
  * Returns a safe relative or absolute URL string belonging strictly to allowed domains.
  */
@@ -14,6 +21,9 @@ export function getSafeRedirectUrl(
   customAllowedDomains?: string[]
 ): string {
   if (!targetUrl) return fallbackPath;
+  // Contrôle AVANT `trim()` : un caractère de contrôle n'a aucune raison
+  // d'être dans une cible de redirection, même en tête ou en queue.
+  if (CONTROL_CHARS.test(targetUrl)) return fallbackPath;
   const trimmed = targetUrl.trim();
   if (!trimmed) return fallbackPath;
 

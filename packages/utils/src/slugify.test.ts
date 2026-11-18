@@ -62,12 +62,23 @@ describe('uuid', () => {
     expect(uuid()).toBe('a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d');
   });
 
-  it('retombe sur un UUID v4 conforme quand l’API manque', () => {
-    vi.stubGlobal('crypto', {});
+  it('construit un UUID v4 depuis getRandomValues quand randomUUID manque', () => {
+    vi.stubGlobal('crypto', {
+      getRandomValues: (array: Uint8Array) => {
+        for (let i = 0; i < array.length; i++) array[i] = (i * 31) % 256;
+        return array;
+      },
+    });
 
     const value = uuid();
 
     expect(value).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
-    expect(uuid()).not.toBe(value);
+  });
+
+  it('refuse de fabriquer un identifiant sans source cryptographique', () => {
+    // Un repli sur Math.random() donnerait une fausse garantie : mieux vaut
+    // échouer bruyamment que produire des identifiants prévisibles.
+    vi.stubGlobal('crypto', undefined);
+    expect(() => uuid()).toThrow();
   });
 });
