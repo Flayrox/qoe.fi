@@ -17,6 +17,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { feedKeys } from '../query-keys';
 import { isUnauthorizedError, notifyUnauthorized } from '../utils/authError';
+import { nextCount, patchFeedEntities, restoreFeeds, snapshotFeeds } from '../lib/optimisticFeed';
 
 export interface ToggleLikeVariables {
   thoughtId: string;
@@ -49,63 +50,19 @@ export function createOptimisticLikeMutationOptions(
       await queryClient.cancelQueries({ queryKey: feedKeys.all });
 
       // Snapshot all existing query data for rollback
-      const previousQueries = queryClient.getQueriesData({ queryKey: feedKeys.all });
+      const previousQueries = snapshotFeeds(queryClient);
 
       // Multi-cache predicate update across timeline, thread view, user posts
-      queryClient.setQueriesData({ queryKey: feedKeys.all }, (oldData: unknown) => {
-        if (!oldData || typeof oldData !== 'object') return oldData;
-
-        const dataObj = oldData as Record<string, unknown>;
-
-        // Handle Infinite Queries data structure (.pages array)
-        if (Array.isArray(dataObj.pages)) {
-          return {
-            ...dataObj,
-            pages: dataObj.pages.map((page: unknown) => {
-              if (!page || typeof page !== 'object') return page;
-              const pageObj = page as Record<string, unknown>;
-              if (!Array.isArray(pageObj.data)) return page;
-
-              return {
-                ...pageObj,
-                data: pageObj.data.map((post: unknown) => {
-                  if (!post || typeof post !== 'object') return post;
-                  const p = post as Record<string, unknown>;
-                  if (p.id === thoughtId) {
-                    const currentCount = typeof p.likeCount === 'number' ? p.likeCount : 0;
-                    return {
-                      ...p,
-                      liked: !isLikedCurrent,
-                      isLiked: !isLikedCurrent,
-                      likeCount: isLikedCurrent ? Math.max(0, currentCount - 1) : currentCount + 1,
-                    };
-                  }
-                  return post;
-                }),
-              };
-            }),
-          };
-        }
-
-        // Handle Flat Array structure
-        if (Array.isArray(oldData)) {
-          return oldData.map((post: unknown) => {
-            if (!post || typeof post !== 'object') return post;
-            const p = post as Record<string, unknown>;
-            if (p.id === thoughtId) {
-              const currentCount = typeof p.likeCount === 'number' ? p.likeCount : 0;
-              return {
-                ...p,
-                liked: !isLikedCurrent,
-                isLiked: !isLikedCurrent,
-                likeCount: isLikedCurrent ? Math.max(0, currentCount - 1) : currentCount + 1,
-              };
-            }
-            return post;
-          });
-        }
-
-        return oldData;
+      patchFeedEntities(queryClient, thoughtId, (post) => {
+        const delta = isLikedCurrent ? -1 : 1;
+        const liked = !isLikedCurrent;
+        return {
+          ...post,
+          liked,
+          isLiked: liked,
+          likeCount: nextCount(post, ['likeCount', 'likesCount'], delta),
+          likesCount: nextCount(post, ['likesCount', 'likeCount'], delta),
+        };
       });
 
       return { previousQueries };
@@ -117,11 +74,7 @@ export function createOptimisticLikeMutationOptions(
       context?: { previousQueries?: Array<[readonly unknown[], unknown]> }
     ) => {
       // Rollback all query snapshots on failure
-      if (context?.previousQueries) {
-        context.previousQueries.forEach(([key, data]) => {
-          queryClient.setQueryData(key, data);
-        });
-      }
+      restoreFeeds(queryClient, context?.previousQueries);
       if (isUnauthorizedError(err)) {
         notifyUnauthorized(err);
       }

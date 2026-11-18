@@ -25,17 +25,14 @@ import {
   getNotificationPreferencesAction,
   updateNotificationPreferencesAction,
 } from '../actions/notifications';
+import { unwrapActionResult } from '../lib/actionResult';
 
 export function useNotificationsQuery(filter: NotificationFilter = 'all') {
   return useQuery({
     queryKey: notificationKeys.list(filter),
-    queryFn: async () => {
-      const res = await getNotificationsAction({ filter });
-      if (res.ok) {
-        return res.data.notifications;
-      }
-      return [];
-    },
+    queryFn: async () =>
+      unwrapActionResult(await getNotificationsAction({ filter }), 'Notifications indisponibles')
+        .notifications,
     staleTime: 1000 * 30, // 30s
   });
 }
@@ -45,11 +42,10 @@ export function useNotificationsInfiniteQuery(filter: NotificationFilter = 'all'
     queryKey: notificationKeys.list(filter),
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
-      const res = await getNotificationsAction({ filter, limit, cursor: pageParam });
-      if (res.ok) {
-        return res.data;
-      }
-      return { notifications: [], nextCursor: null };
+      return unwrapActionResult(
+        await getNotificationsAction({ filter, limit, cursor: pageParam }),
+        'Notifications indisponibles'
+      );
     },
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     staleTime: 1000 * 30,
@@ -59,13 +55,8 @@ export function useNotificationsInfiniteQuery(filter: NotificationFilter = 'all'
 export function useUnreadNotificationCountQuery() {
   return useQuery({
     queryKey: notificationKeys.unreadCount(),
-    queryFn: async () => {
-      const res = await getUnreadNotificationCountAction();
-      if (res.ok) {
-        return res.data.count;
-      }
-      return 0;
-    },
+    queryFn: async () =>
+      unwrapActionResult(await getUnreadNotificationCountAction(), 'Compteur indisponible').count,
     refetchInterval: 1000 * 30, // Poll every 30s as fallback if Realtime disconnects
     staleTime: 1000 * 10,
   });
@@ -75,13 +66,11 @@ export function useMarkNotificationsAsReadMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (notificationIds?: string[]) => {
-      const res = await markNotificationsAsReadAction({ notificationIds });
-      if (res.ok) {
-        return res.data;
-      }
-      return { success: false };
-    },
+    mutationFn: async (notificationIds?: string[]) =>
+      unwrapActionResult(
+        await markNotificationsAsReadAction({ notificationIds }),
+        'Marquage impossible'
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: notificationKeys.all });
     },
@@ -91,13 +80,9 @@ export function useMarkNotificationsAsReadMutation() {
 export function useNotificationPreferencesQuery() {
   return useQuery({
     queryKey: notificationKeys.preferences(),
-    queryFn: async () => {
-      const res = await getNotificationPreferencesAction();
-      if (res.ok) {
-        return res.data.preferences;
-      }
-      return null;
-    },
+    queryFn: async () =>
+      unwrapActionResult(await getNotificationPreferencesAction(), 'Préférences indisponibles')
+        .preferences,
   });
 }
 
@@ -105,13 +90,11 @@ export function useUpdateNotificationPreferencesMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: Parameters<typeof updateNotificationPreferencesAction>[0]) => {
-      const res = await updateNotificationPreferencesAction(input);
-      if (res.ok) {
-        return res.data.preferences;
-      }
-      return null;
-    },
+    mutationFn: async (input: Parameters<typeof updateNotificationPreferencesAction>[0]) =>
+      unwrapActionResult(
+        await updateNotificationPreferencesAction(input),
+        'Enregistrement impossible'
+      ).preferences,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: notificationKeys.preferences() });
     },

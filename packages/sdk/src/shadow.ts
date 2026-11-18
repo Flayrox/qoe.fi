@@ -13,6 +13,10 @@ import { useEffect, useState, useMemo } from 'react';
  * `isDeleted`) : les compteurs sont *dérivés* à la lecture à partir du delta
  * entre l'état serveur (`post.liked`) et le shadow. C'est idempotent et il n'y a
  * plus de compteurs désynchronisés.
+ *
+ * 🧩 Trois entités (pensée, article, acteur) partagent la même fabrique
+ * `createShadowStore` : une seule implémentation de la carte + des écouteurs,
+ * donc un seul endroit à corriger pour les trois.
  */
 
 export const POST_TOMBSTONE = Symbol('PostTombstone');
@@ -26,34 +30,74 @@ export interface PostShadow {
   [key: string]: unknown;
 }
 
-const shadows = new Map<string, PostShadow>();
-const listeners = new Map<string, Set<() => void>>();
+interface KeyedShadowStore<T extends object> {
+  update: (key: string, patch: Partial<T>) => void;
+  get: (key: string) => T | undefined;
+  subscribe: (key: string, fn: () => void) => () => void;
+  /** Vide la carte et réveille les abonnés (changement de compte, tests). */
+  clear: () => void;
+}
 
-function subscribe(key: string, fn: () => void) {
-  let set = listeners.get(key);
-  if (!set) {
-    set = new Set();
-    listeners.set(key, set);
-  }
-  set.add(fn);
-  return () => {
-    set.delete(fn);
-    if (set.size === 0) listeners.delete(key);
+/**
+ * Carte d'états optimistes + un EventEmitter par clé.
+ *
+ * `normalize` borne la clé (rejette une clé vide, normalise un handle) : sans
+ * cela, un identifiant manquant écrirait sous `""` et notifierait tous les
+ * abonnés de la clé vide.
+ */
+function createShadowStore<T extends object>(
+  normalize: (key: string) => string | null = (key) => (key ? key : null)
+): KeyedShadowStore<T> {
+  const values = new Map<string, T>();
+  const listeners = new Map<string, Set<() => void>>();
+
+  const notify = (key: string) => {
+    const set = listeners.get(key);
+    if (set) set.forEach((fn) => fn());
+  };
+
+  return {
+    update(key, patch) {
+      const clean = normalize(key);
+      if (!clean) return;
+      values.set(clean, { ...values.get(clean), ...patch } as T);
+      notify(clean);
+    },
+    get(key) {
+      const clean = normalize(key);
+      return clean ? values.get(clean) : undefined;
+    },
+    subscribe(key, fn) {
+      const clean = normalize(key);
+      if (!clean) return () => {};
+      let set = listeners.get(clean);
+      if (!set) {
+        set = new Set();
+        listeners.set(clean, set);
+      }
+      set.add(fn);
+      return () => {
+        set.delete(fn);
+        if (set.size === 0) listeners.delete(clean);
+      };
+    },
+    clear() {
+      values.clear();
+      const sets = Array.from(listeners.values());
+      listeners.clear();
+      for (const set of sets) set.forEach((fn) => fn());
+    },
   };
 }
 
-function notify(key: string) {
-  const set = listeners.get(key);
-  if (set) set.forEach((fn) => fn());
-}
+const postShadows = createShadowStore<PostShadow>();
 
 /**
  * 🔄 Met à jour ou fusionne l'état réactif d'une pensée puis notifie uniquement
  * les abonnés de cette pensée (EventEmitter par post, comme Bluesky).
  */
 export function updatePostShadow(postId: string, patch: Partial<PostShadow>) {
-  shadows.set(postId, { ...shadows.get(postId), ...patch });
-  notify(postId);
+  postShadows.update(postId, patch);
 }
 
 /**
@@ -61,7 +105,7 @@ export function updatePostShadow(postId: string, patch: Partial<PostShadow>) {
  * À utiliser avec précaution — préférer `usePostShadow`.
  */
 export function getPostShadow(postId: string): PostShadow | undefined {
-  return shadows.get(postId);
+  return postShadows.get(postId);
 }
 
 /**
@@ -72,13 +116,13 @@ export function getPostShadow(postId: string): PostShadow | undefined {
 export function usePostShadow<T extends { id?: string }>(post: T): T {
   const postId = post?.id;
   const [shadow, setShadow] = useState<PostShadow | undefined>(() =>
-    postId ? shadows.get(postId) : undefined
+    postId ? postShadows.get(postId) : undefined
   );
 
   useEffect(() => {
     if (!postId) return;
-    setShadow(shadows.get(postId));
-    return subscribe(postId, () => setShadow(shadows.get(postId)));
+    setShadow(postShadows.get(postId));
+    return postShadows.subscribe(postId, () => setShadow(postShadows.get(postId)));
   }, [postId]);
 
   return useMemo(() => {
@@ -147,35 +191,13 @@ export interface ArticleShadow {
   bookmarked?: boolean;
 }
 
-const articleShadows = new Map<string, ArticleShadow>();
-const articleListeners = new Map<string, Set<() => void>>();
-
-function subscribeArticle(id: string, fn: () => void) {
-  let set = articleListeners.get(id);
-  if (!set) {
-    set = new Set();
-    articleListeners.set(id, set);
-  }
-  set.add(fn);
-  return () => {
-    set.delete(fn);
-    if (set.size === 0) articleListeners.delete(id);
-  };
-}
-
-function notifyArticle(id: string) {
-  const set = articleListeners.get(id);
-  if (set) set.forEach((fn) => fn());
-}
+const articleShadows = createShadowStore<ArticleShadow>();
 
 export function updateArticleShadow(id: string, patch: Partial<ArticleShadow>): void {
-  if (!id) return;
-  articleShadows.set(id, { ...articleShadows.get(id), ...patch });
-  notifyArticle(id);
+  articleShadows.update(id, patch);
 }
 
 export function getArticleShadow(id: string): ArticleShadow | undefined {
-  if (!id) return undefined;
   return articleShadows.get(id);
 }
 
@@ -197,7 +219,7 @@ export function useArticleShadow<
   useEffect(() => {
     if (!articleId) return;
     setShadow(articleShadows.get(articleId));
-    return subscribeArticle(articleId, () => setShadow(articleShadows.get(articleId)));
+    return articleShadows.subscribe(articleId, () => setShadow(articleShadows.get(articleId)));
   }, [articleId]);
 
   return useMemo(() => {
@@ -269,41 +291,20 @@ export interface ActorShadow {
   muted?: boolean;
 }
 
-const actorShadows = new Map<string, ActorShadow>();
-const actorListeners = new Map<string, Set<() => void>>();
-
 function cleanActorKey(idOrHandle: string): string {
   return idOrHandle.trim().toLowerCase().replace(/^@/, '');
 }
 
-function subscribeActor(key: string, fn: () => void) {
-  let set = actorListeners.get(key);
-  if (!set) {
-    set = new Set();
-    actorListeners.set(key, set);
-  }
-  set.add(fn);
-  return () => {
-    set.delete(fn);
-    if (set.size === 0) actorListeners.delete(key);
-  };
-}
-
-function notifyActor(key: string) {
-  const set = actorListeners.get(key);
-  if (set) set.forEach((fn) => fn());
-}
+const actorShadows = createShadowStore<ActorShadow>((key) =>
+  key && key.trim() ? cleanActorKey(key) : null
+);
 
 export function updateActorShadow(idOrHandle: string, patch: Partial<ActorShadow>): void {
-  if (!idOrHandle) return;
-  const key = cleanActorKey(idOrHandle);
-  actorShadows.set(key, { ...actorShadows.get(key), ...patch });
-  notifyActor(key);
+  actorShadows.update(idOrHandle, patch);
 }
 
 export function getActorShadow(idOrHandle: string): ActorShadow | undefined {
-  if (!idOrHandle) return undefined;
-  return actorShadows.get(cleanActorKey(idOrHandle));
+  return actorShadows.get(idOrHandle);
 }
 
 export function useActorShadow(
@@ -348,7 +349,7 @@ export function useActorShadow<T extends ShadowableActor>(
     };
 
     resolve();
-    const unsubs = keys.map((k) => subscribeActor(k, resolve));
+    const unsubs = keys.map((k) => actorShadows.subscribe(k, resolve));
     return () => unsubs.forEach((u) => u());
   }, [idKey, usernameKey]);
 
@@ -411,6 +412,19 @@ function mergeActorShadow<T extends ShadowableActor>(actor: T, shadow: ActorShad
   }
 
   return result as T;
+}
+
+/**
+ * 🧹 Vide les trois stores d'optimisme et réveille les composants montés.
+ *
+ * À appeler au **changement de compte** (connexion, déconnexion, changement
+ * d'utilisateur dans le même onglet) : sinon un état « aimé / masqué / bloqué »
+ * du compte précédent reste affiché sur les cartes du suivant.
+ */
+export function clearAllShadows(): void {
+  postShadows.clear();
+  articleShadows.clear();
+  actorShadows.clear();
 }
 
 // =====================================================================

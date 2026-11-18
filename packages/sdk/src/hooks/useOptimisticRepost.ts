@@ -12,6 +12,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { feedKeys } from '../query-keys';
 import { isUnauthorizedError, notifyUnauthorized } from '../utils/authError';
+import { nextCount, patchFeedEntities, restoreFeeds, snapshotFeeds } from '../lib/optimisticFeed';
 
 export interface ToggleRepostVariables {
   thoughtId: string;
@@ -45,61 +46,18 @@ export function createOptimisticRepostMutationOptions(
 
     onMutate: async ({ thoughtId, isRepostedCurrent }: ToggleRepostVariables) => {
       await queryClient.cancelQueries({ queryKey: feedKeys.all });
-      const previousQueries = queryClient.getQueriesData({ queryKey: feedKeys.all });
+      const previousQueries = snapshotFeeds(queryClient);
 
-      queryClient.setQueriesData({ queryKey: feedKeys.all }, (oldData: unknown) => {
-        if (!oldData || typeof oldData !== 'object') return oldData;
-        const dataObj = oldData as Record<string, unknown>;
-
-        if (Array.isArray(dataObj.pages)) {
-          return {
-            ...dataObj,
-            pages: dataObj.pages.map((page: unknown) => {
-              if (!page || typeof page !== 'object') return page;
-              const pageObj = page as Record<string, unknown>;
-              if (!Array.isArray(pageObj.data)) return page;
-
-              return {
-                ...pageObj,
-                data: pageObj.data.map((post: unknown) => {
-                  if (!post || typeof post !== 'object') return post;
-                  const p = post as Record<string, unknown>;
-                  if (p.id === thoughtId) {
-                    const currentCount = typeof p.repostCount === 'number' ? p.repostCount : 0;
-                    return {
-                      ...p,
-                      reposted: !isRepostedCurrent,
-                      isReposted: !isRepostedCurrent,
-                      repostCount: isRepostedCurrent
-                        ? Math.max(0, currentCount - 1)
-                        : currentCount + 1,
-                    };
-                  }
-                  return post;
-                }),
-              };
-            }),
-          };
-        }
-
-        if (Array.isArray(oldData)) {
-          return oldData.map((post: unknown) => {
-            if (!post || typeof post !== 'object') return post;
-            const p = post as Record<string, unknown>;
-            if (p.id === thoughtId) {
-              const currentCount = typeof p.repostCount === 'number' ? p.repostCount : 0;
-              return {
-                ...p,
-                reposted: !isRepostedCurrent,
-                isReposted: !isRepostedCurrent,
-                repostCount: isRepostedCurrent ? Math.max(0, currentCount - 1) : currentCount + 1,
-              };
-            }
-            return post;
-          });
-        }
-
-        return oldData;
+      patchFeedEntities(queryClient, thoughtId, (post) => {
+        const delta = isRepostedCurrent ? -1 : 1;
+        const reposted = !isRepostedCurrent;
+        return {
+          ...post,
+          reposted,
+          isReposted: reposted,
+          repostCount: nextCount(post, ['repostCount', 'repostsCount'], delta),
+          repostsCount: nextCount(post, ['repostsCount', 'repostCount'], delta),
+        };
       });
 
       return { previousQueries };
@@ -110,11 +68,7 @@ export function createOptimisticRepostMutationOptions(
       _variables: ToggleRepostVariables,
       context?: { previousQueries?: Array<[readonly unknown[], unknown]> }
     ) => {
-      if (context?.previousQueries) {
-        context.previousQueries.forEach(([key, data]) => {
-          queryClient.setQueryData(key, data);
-        });
-      }
+      restoreFeeds(queryClient, context?.previousQueries);
       if (isUnauthorizedError(err)) {
         notifyUnauthorized(err);
       }

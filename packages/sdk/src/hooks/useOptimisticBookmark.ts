@@ -11,6 +11,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { feedKeys } from '../query-keys';
 import { isUnauthorizedError, notifyUnauthorized } from '../utils/authError';
+import { patchFeedEntities, restoreFeeds, snapshotFeeds } from '../lib/optimisticFeed';
 
 export interface ToggleBookmarkVariables {
   articleId: string;
@@ -44,55 +45,11 @@ export function createOptimisticBookmarkMutationOptions(
 
     onMutate: async ({ articleId, isBookmarkedCurrent }: ToggleBookmarkVariables) => {
       await queryClient.cancelQueries({ queryKey: feedKeys.all });
-      const previousQueries = queryClient.getQueriesData({ queryKey: feedKeys.all });
+      const previousQueries = snapshotFeeds(queryClient);
 
-      queryClient.setQueriesData({ queryKey: feedKeys.all }, (oldData: unknown) => {
-        if (!oldData || typeof oldData !== 'object') return oldData;
-        const dataObj = oldData as Record<string, unknown>;
-
-        if (Array.isArray(dataObj.pages)) {
-          return {
-            ...dataObj,
-            pages: dataObj.pages.map((page: unknown) => {
-              if (!page || typeof page !== 'object') return page;
-              const pageObj = page as Record<string, unknown>;
-              if (!Array.isArray(pageObj.data)) return page;
-
-              return {
-                ...pageObj,
-                data: pageObj.data.map((article: unknown) => {
-                  if (!article || typeof article !== 'object') return article;
-                  const a = article as Record<string, unknown>;
-                  if (a.id === articleId) {
-                    return {
-                      ...a,
-                      isBookmarked: !isBookmarkedCurrent,
-                      bookmarked: !isBookmarkedCurrent,
-                    };
-                  }
-                  return article;
-                }),
-              };
-            }),
-          };
-        }
-
-        if (Array.isArray(oldData)) {
-          return oldData.map((article: unknown) => {
-            if (!article || typeof article !== 'object') return article;
-            const a = article as Record<string, unknown>;
-            if (a.id === articleId) {
-              return {
-                ...a,
-                isBookmarked: !isBookmarkedCurrent,
-                bookmarked: !isBookmarkedCurrent,
-              };
-            }
-            return article;
-          });
-        }
-
-        return oldData;
+      patchFeedEntities(queryClient, articleId, (article) => {
+        const bookmarked = !isBookmarkedCurrent;
+        return { ...article, isBookmarked: bookmarked, bookmarked };
       });
 
       return { previousQueries };
@@ -103,11 +60,7 @@ export function createOptimisticBookmarkMutationOptions(
       _variables: ToggleBookmarkVariables,
       context?: { previousQueries?: Array<[readonly unknown[], unknown]> }
     ) => {
-      if (context?.previousQueries) {
-        context.previousQueries.forEach(([key, data]) => {
-          queryClient.setQueryData(key, data);
-        });
-      }
+      restoreFeeds(queryClient, context?.previousQueries);
       if (isUnauthorizedError(err)) {
         notifyUnauthorized(err);
       }

@@ -67,6 +67,10 @@ function payloadSignature(payload: AutoSavePayload): string {
     sch: payload.scheduledAt ?? null,
     prem: payload.isPremium ?? null,
     img: payload.imageUrl ?? null,
+    // Texte alternatif et décorativité font partie du contenu publié : les
+    // omettre laissait une modification d'accessibilité sans sauvegarde.
+    imgAlt: payload.coverAlt ?? '',
+    imgDec: payload.coverDecorative ?? null,
     cat: payload.categoryId ?? null,
     stitle: payload.seoTitle ?? null,
     sdesc: payload.seoDescription ?? null,

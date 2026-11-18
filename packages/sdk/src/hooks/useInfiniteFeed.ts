@@ -84,12 +84,30 @@ export function useInfiniteFeed<T = ThoughtData>({
     return allItems.length;
   }, [data, filterFn]);
 
-  // Boucle d'Auto-Pagination : si le quota de confort n'est pas rempli et qu'il y a plus de pages, charger la suite
+  // Boucle d'Auto-Pagination : si le quota de confort n'est pas rempli et qu'il
+  // y a plus de pages, charger la suite.
+  // ⚠️ Deux gardes :
+  //  - une page reçue mais entièrement filtrée (`filterFn`) ne doit pas
+  //    déclencher une boucle sans fin si le serveur annonce `hasMore` ;
+  //  - `fetchNextPage` doit être attrapée, sinon un refus réseau produit une
+  //    « unhandled rejection » qui casse le rendu en développement.
+  const lastPageSize = data?.pages?.[data.pages.length - 1]?.data?.length ?? 0;
   useEffect(() => {
-    if (enabled && hasNextPage && !isFetching && visibleCount < minVisibleQuota) {
-      fetchNextPage();
-    }
-  }, [enabled, hasNextPage, isFetching, visibleCount, minVisibleQuota, fetchNextPage]);
+    if (!enabled || !hasNextPage || isFetching) return;
+    if (visibleCount >= minVisibleQuota) return;
+    if (lastPageSize === 0) return;
+    void fetchNextPage().catch(() => {
+      // L'erreur est déjà exposée par React Query (`isError`/`error`).
+    });
+  }, [
+    enabled,
+    hasNextPage,
+    isFetching,
+    visibleCount,
+    minVisibleQuota,
+    lastPageSize,
+    fetchNextPage,
+  ]);
 
   return queryResult;
 }

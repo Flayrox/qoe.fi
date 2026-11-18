@@ -56,7 +56,11 @@ export function useToggleMutationQueue<TServerState>({
         queue.activeTask = nextTask;
         queue.queuedTask = null;
         if (prevTask?.isOn === nextTask.isOn) {
-          prevTask.reject(AbortError());
+          // Deux demandes consécutives identiques : rien à envoyer. On confirme
+          // l'état courant à l'appelant — l'ancien code rejetait la tâche déjà
+          // terminée et laissait la nouvelle promesse pendante pour toujours.
+          queue.activeTask = null;
+          nextTask.resolve(confirmedState);
           continue;
         }
         try {

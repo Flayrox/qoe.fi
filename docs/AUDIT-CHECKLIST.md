@@ -61,7 +61,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L04** | `packages/auth/src/**`                                                                                       | 11 fichiers                 | **durci le 2026-11-18** |
 | **L05** | `packages/supabase/src/**`                                                                                 | 13 fichiers                 | **durci le 2026-11-18** |
 | **L06a** | `packages/sdk/src/{client,index,mobile,query-keys,embed}`, `actions/utils/{go-client,safe-action,authz}`, `utils/authError` | 15 fichiers           | **durci le 2026-11-18** |
-| L06b    | `packages/sdk/src/{shadow,entity-actions}.ts` + `hooks/**`                                                   | 20 fichiers                 | à auditer               |
+| **L06b** | `packages/sdk/src/{shadow,entity-actions}.ts` + `hooks/**` + `lib/**`                                         | 24 fichiers                 | **durci le 2026-11-18** |
 | L06c    | `packages/sdk/src/actions/**/index.ts` (feed, articles, admin, search, tenant…)                              | 43 fichiers                 | à auditer               |
 | L07a    | `packages/ui/src/primitives/**`, `ui/**`, `tokens.ts`                                                        | 310 fichiers (global)       | à auditer               |
 | L07b    | `packages/ui/src/{reader,annotations,cards}/**`                                                              | idem                        | à auditer               |
@@ -99,12 +99,12 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L36     | `e2e/**`, `playwright*.config.ts`, `e2e/lib/**`                                                              | 65 fichiers                 | à auditer               |
 | L37     | `docs/**`, `AGENTS.md`, racine (`tsconfig`, `eslint`, `turbo`, `vitest`), `supabase/`, `patches/`, `.husky/` | transverse                  | à auditer               |
 
-**Prochain lot à traiter : L06b — `packages/sdk` (store optimiste + hooks).**
+**Prochain lot à traiter : L06c — `packages/sdk/src/actions/**`.**
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
-en L06a, le store optimiste `shadow`/`entity-actions` + hooks en L06b, les
-actions serveur par domaine en L06c. Ordre retenu : du plus partagé au plus
-spécifique, parce qu'un correctif dans un package bas remonte dans toutes les
-apps.
+en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
+les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions serveur par
+domaine restent en L06c. Ordre retenu : du plus partagé au plus spécifique,
+parce qu'un correctif dans un package bas remonte dans toutes les apps.
 
 **Nettoyage 2026-11-18.** Retrait de `bullmq` et `ioredis` de
 `apps/studio/package.json` (aucun import, 246 paquets retirés du lockfile) et
@@ -609,3 +609,69 @@ cd packages/sdk && pnpm exec eslint .       # EXIT=0
 | R38 | Auditer `shadow.ts` / `entity-actions.ts` et les hooks d'optimisme                                                 | —        | Lot L06b.                                                                                     |
 | R39 | Auditer les actions serveur par domaine (contrat Go, autorisation, validation)                                     | —        | Lot L06c.                                                                                     |
 | R40 | `packages/devtools/src/go-client.ts` reproduit F46 et F47 (URL figée à l'import, aucun timeout)                   | faible   | Même défaut, package différent : à corriger dans le lot L17.                                   |
+
+---
+
+## L06b — `@qoe/sdk` store optimiste, hooks et `lib` — durci le 2026-11-18
+
+**Périmètre.** `src/shadow.ts`, `src/entity-actions.ts`, `src/hooks/**`,
+`src/lib/{useToggleMutationQueue,optimisticFeed,actionResult}.ts`.
+**Consommateurs.** `apps/core`, `apps/studio`, `apps/admin`, `apps/mobile`
+(shadow store via `@qoe/sdk/mobile`).
+**Tests.** 198 tests verts pour le package (dont 12 ajoutés :
+`shadowStore`, `optimisticCache`, `queryHooks`, `autoSaveSignature`).
+
+### Entrées auditées
+
+| #    | Emplacement                                   | Standard attendu                                                     | Verdict           |
+| ---- | --------------------------------------------- | -------------------------------------------------------------------- | ----------------- |
+| K21  | `shadow.ts` → `createShadowStore`             | Une fabrique (carte + EventEmitter par clé) pour les trois entités    | **ajouté** (F54)  |
+| K22  | `shadow.ts` → `updatePostShadow`              | Clé vide rejetée (pas d'entrée `""`, pas de notification globale)     | **corrigé** (F54) |
+| K23  | `shadow.ts` → `clearAllShadows`               | Purge des trois stores au changement de compte, abonnés réveillés     | **ajouté** (F55)  |
+| K24  | `shadow.ts` → `withShadowMutation`            | Verrou anti double-clic, rollback, verrou libéré en `finally`         | conforme          |
+| K25  | `entity-actions.ts` → `resolveEntityActions`  | Fonction pure, auth filtrée, registre déclaratif                      | conforme          |
+| K26  | `entity-actions.ts` → `executeDefaultEntityMutation` | Refus serveur → rollback (via `withShadowMutation`)            | conforme          |
+| K27  | `hooks/useOptimisticLike`                     | Les deux alias de compteur restent alignés                            | **corrigé** (F56) |
+| K28  | `hooks/useOptimisticRepost`                   | Idem (`repostCount` / `repostsCount`)                                 | **corrigé** (F56) |
+| K29  | `hooks/useOptimisticBookmark`                 | Idem (`isBookmarked` / `bookmarked`)                                  | **corrigé** (F56) |
+| K30  | `lib/optimisticFeed.ts`                       | Parcours unique infinite/flat, snapshot et restauration exacts        | **ajouté** (F56)  |
+| K31  | `hooks/useDeletePostMutation`                 | Un refus serveur ne masque jamais la pensée                           | **corrigé** (F57) |
+| K32  | `lib/useToggleMutationQueue`                  | Deux toggles identiques consécutifs ne laissent pas de promesse pendante | **corrigé** (F58) |
+| K33  | `hooks/useNotifications`                      | Refus → état d'erreur, pas une liste vide                             | **corrigé** (F59) |
+| K34  | `hooks/useConversations`                      | Idem                                                                    | **corrigé** (F59) |
+| K35  | `lib/actionResult.ts`                         | Déballage `ActionResult` : succès → données, refus → `Error`          | **ajouté** (F59)  |
+| K36  | `hooks/useInfiniteFeed`                       | Auto-pagination sans boucle infinie ni rejet non géré                 | **corrigé** (F61) |
+| K37  | `hooks/useAutoSaveArticle`                    | Empreinte couvrant tout le payload publié                             | **corrigé** (F60) |
+| K38  | `hooks/useOptimisticFollow`                   | Snapshot/rollback des deux familles                                   | conforme (R42)    |
+| K39  | `hooks/useSearch`                             | Erreurs propagées, curseurs opaques, pas de retry sur 503 sémantique  | conforme          |
+| K40  | `hooks/useSubscriptionStatus`, `useRecommendations` | Échec HTTP → repli sûr (refus d'accès / liste vide)            | conforme (R43)    |
+
+### Findings et correctifs
+
+| #   | Défaut                                                                                                                                  | Sévérité | Correctif                                                                                                       | Fichiers |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------- | -------- |
+| F54 | Trois stores d'optimisme copiaient la même mécanique (carte + écouteurs) ; `updatePostShadow('')` créait une entrée `""` qui notifiait tous ses abonnés | faible | Fabrique `createShadowStore(normalize)` unique, clé vide rejetée | `shadow.ts` |
+| F55 | Aucun moyen de vider l'état optimiste : après déconnexion/reconnexion dans le même onglet, les « aimés / masqués / bloqués » du compte précédent restaient affichés | moyenne | `clearAllShadows()` purge les trois cartes et réveille les composants montés (testé via le hook) | `shadow.ts` |
+| F56 | Like et repost ne mettaient à jour qu'un alias de compteur (`likeCount`, `repostCount`) alors que des surfaces lisent `likesCount`/`repostsCount` : deux compteurs contradictoires sur la même carte | moyenne | Primitives partagées `patchFeedEntities` + `nextCount` qui écrivent **les deux** alias et ne descendent jamais sous zéro | `hooks/useOptimistic*.ts`, `lib/optimisticFeed.ts` |
+| F57 | `deletePostAction` est une `safeAction` : elle **résout** `{ok:false}` en cas de refus, donc `onSuccess` marquait la pensée supprimée alors qu'elle était toujours en ligne | haute | `mutationFn` lève sur `!res.ok`, le tombstone n'est posé qu'après succès | `hooks/useDeletePostMutation.ts` |
+| F58 | File de toggles : deux demandes identiques consécutives rejetaient la tâche **déjà terminée** puis `continue` sans résoudre la nouvelle → promesse pendante à vie et `activeTask` incohérent | moyenne | Résout la tâche avec l'état confirmé et remet `activeTask` à `null` | `lib/useToggleMutationQueue.ts` |
+| F59 | Notifications, compteur non-lu et conversations transformaient un refus (401/403/500) en `[]` ou `0` : l'UI affichait « rien à voir » au lieu d'une erreur, et une session expirée passait inaperçue | moyenne | `unwrapActionResult` lève une `Error` explicite → `isError`/`error` React Query | `lib/actionResult.ts`, `hooks/useNotifications.ts`, `hooks/useConversations.ts` |
+| F60 | L'empreinte d'auto-save ignorait `coverAlt` et `coverDecorative` : modifier seulement l'accessibilité de la couverture ne déclenchait aucune sauvegarde | moyenne | Les deux champs entrent dans la signature | `hooks/useAutoSaveArticle.ts` |
+| F61 | Auto-pagination : `fetchNextPage()` lancé sans `catch` (rejet non géré) et sans condition de progrès — une page entièrement filtrée avec `hasMore` bouclait indéfiniment | moyenne | Garde sur la taille de la dernière page + `.catch()` explicite | `hooks/useInfiniteFeed.ts` |
+
+### Preuves exécutées
+
+```bash
+cd packages/sdk && pnpm exec vitest run     # 28 fichiers / 198 tests — EXIT=0
+cd packages/sdk && pnpm exec tsc --noEmit   # EXIT=0
+cd packages/sdk && pnpm exec eslint .       # EXIT=0
+```
+
+### Reste à faire (lot L06b)
+
+| #   | Tâche                                                                                                    | Sévérité | Motif                                                                                          |
+| --- | -------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------- |
+| R41 | Brancher `subscribeToAuthBroadcast` (aucun consommateur aujourd'hui) et appeler `clearAllShadows()` sur `SIGNED_IN`/`SIGNED_OUT` | moyenne | La purge existe mais n'est encore déclenchée par personne : la synchronisation multi-onglets est morte. |
+| R42 | `useOptimisticFollow` ne patche que les caches plats (`u.id === creatorId`)                                | faible   | Un profil imbriqué (`{ profile: … }`) n'est pas mis à jour ; élargir le prédicat.                |
+| R43 | `useSubscriptionStatus` transporte l'e-mail en paramètre d'URL et `useRecommendations` avale les erreurs HTTP | faible | PII dans les journaux d'accès ; et un 500 doit être visible côté UI.                             |
+| R44 | Auditer les actions serveur par domaine (`actions/**/index.ts`)                                           | —        | Lot L06c.                                                                                        |
