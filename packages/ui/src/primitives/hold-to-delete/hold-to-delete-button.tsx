@@ -130,6 +130,10 @@ export const HoldToDeleteButton = forwardRef<HTMLButtonElement, HoldToDeleteButt
         onPointerCancel={cancel}
         onKeyDown={handleKeyDown}
         onKeyUp={handleKeyUp}
+        // ⌨️ Perdre le focus annule : sans ça, tenir Espace puis passer à
+        // autre chose (Tab, changement de fenêtre) supprimait pendant qu'on
+        // ne regardait plus le bouton.
+        onBlur={cancel}
         onContextMenu={(event) => event.preventDefault()}
         className={cn(
           'relative flex h-control-lg touch-none items-center justify-center overflow-hidden rounded-control',

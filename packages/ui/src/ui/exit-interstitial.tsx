@@ -146,8 +146,15 @@ export function useExitInterstitial() {
   const ctx = useContext(ExitInterstitialContext);
   if (!ctx) {
     return {
+      // Hors provider, on ouvre directement — mais jamais une URL que
+      // `parseExternalUrl` refuse (`javascript:`, `data:`, `blob:`). Sinon un
+      // appelant pouvait exécuter un schéma arbitraire sans passer par le
+      // dialogue de sortie.
       openExitWarning: (url: string) => {
-        if (typeof window !== 'undefined') window.open(url, '_blank', 'noopener,noreferrer');
+        if (typeof window === 'undefined') return;
+        const parsed = parseExternalUrl(url);
+        if (!parsed.isValid) return;
+        window.open(parsed.displayUrl, '_blank', 'noopener,noreferrer');
       },
       closeExitWarning: () => {},
     };
@@ -225,6 +232,11 @@ export function ExternalLinkInterceptor({
   const handleClickCapture = (e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement | null;
     if (!target) return;
+
+    // Clic modifié (Cmd/Ctrl/Shift/Alt) ou clic du milieu : le navigateur doit
+    // ouvrir un onglet, pas un dialogue. L'interception ne concerne que le
+    // clic gauche simple.
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
 
     const anchor = target.closest('a');
     if (!anchor) return;

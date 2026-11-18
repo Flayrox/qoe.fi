@@ -91,6 +91,22 @@ describe('SafeAvatar — repli', () => {
     expect(document.querySelector('[data-slot="hover-card-trigger"]')).not.toBeNull();
   });
 
+  it('réaffiche l’image quand la source change après une erreur', () => {
+    const { rerender } = render(
+      <SafeAvatar name="Lien cassé" username="casse" src="/avatars/morte.svg" type="PERSONAL" />
+    );
+    fireEvent.error(document.querySelector('img')!);
+    expect(document.querySelector('img')).toBeNull();
+
+    // Même instance réutilisée (liste virtualisée) avec une URL valide :
+    // l'erreur de l'ancienne URL ne doit pas condamner la nouvelle.
+    rerender(
+      <SafeAvatar name="Lien cassé" username="casse" src="/avatars/vivante.png" type="PERSONAL" />
+    );
+
+    expect(document.querySelector('img')?.getAttribute('src')).toContain('vivante.png');
+  });
+
   it('bascule sur le repli quand l’image casse', () => {
     render(
       <SafeAvatar name="Lien cassé" username="casse" src="/avatars/introuvable.svg" type="MEDIA" />

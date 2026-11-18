@@ -61,6 +61,11 @@ jobs:
       - name: Guard article links
         run: pnpm guard:article-links
 
+      # Origine des médias : la liste des hôtes d'images est pilotée par
+      # `NEXT_PUBLIC_MEDIA_CDN_URL` (une seule source, cf. AGENTS.md).
+      - name: Guard media origin
+        run: pnpm guard:media-origin
+
       # Passe 4 (T10) : cliquet sur les vulnérabilités high/critical connues.
       - name: Guard dependencies (pnpm audit, cliquet)
         run: pnpm audit:guard

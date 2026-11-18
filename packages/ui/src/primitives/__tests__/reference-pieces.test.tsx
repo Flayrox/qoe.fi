@@ -86,6 +86,28 @@ describe('HoldToDeleteButton', () => {
     expect(button.getAttribute('aria-label')).toBe('Supprimé');
   });
 
+  it('annule quand le focus quitte le bouton pendant le maintien', () => {
+    vi.useFakeTimers();
+    const onHoldComplete = vi.fn();
+    render(<HoldToDeleteButton label="Supprimer" onHoldComplete={onHoldComplete} />);
+
+    const button = screen.getByRole('button', { name: /Supprimer/ });
+    button.focus();
+    // ⌨️ Espace maintenu, puis on part ailleurs (Tab, autre fenêtre) :
+    // l'action ne doit pas se déclencher pendant qu'on ne regarde plus.
+    fireEvent.keyDown(button, { key: ' ' });
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    fireEvent.blur(button);
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    expect(onHoldComplete).not.toHaveBeenCalled();
+    expect(button.getAttribute('data-state')).toBe('idle');
+  });
+
   it('annule si on relâche avant la fin', () => {
     vi.useFakeTimers();
     const onHoldComplete = vi.fn();

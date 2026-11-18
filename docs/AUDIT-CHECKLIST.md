@@ -64,7 +64,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L06b** | `packages/sdk/src/{shadow,entity-actions}.ts` + `hooks/**` + `lib/**`                                         | 24 fichiers                 | **durci le 2026-11-18** |
 | **L06c** | `packages/sdk/src/actions/{feed,articles,tenant,search,dashboard}` + `lib/shareUrl.ts`                      | 5 fichiers / 2 700 lignes   | **durci le 2026-11-18** |
 | **L06d** | `packages/sdk/src/actions/**` restants (admin, legal, billing, highlights, ebooks, appeals, support, workspace…) | 38 fichiers | **durci le 2026-11-18** |
-| L07a    | `packages/ui/src/primitives/**`, `ui/**`, `tokens.ts`                                                        | 310 fichiers (global)       | à auditer               |
+| L07a    | `packages/ui/src/primitives/**`, `ui/**`, `tokens.ts`                                                        | 310 fichiers (global)       | en cours (1er passage)  |
 | L07b    | `packages/ui/src/{reader,annotations,cards}/**`                                                              | idem                        | à auditer               |
 | L07c    | `packages/ui/src/{auth,forms,providers}/**`                                                                  | idem                        | à auditer               |
 | L07d    | `packages/ui/src/{security,seo,legal}/**`                                                                    | idem                        | à auditer               |
@@ -783,6 +783,37 @@ tests (`notificationsActions.test.ts`) verrouillent le filtre, la borne de
 | R52 | Invalidation par tag (`article:{id}`, `post:{id}`) au lieu de chemins legacy : les mutations de surlignage/annotation/réponse masquée ne rafraîchissent aujourd'hui rien côté serveur (F79, F82). | moyenne | Demande un `unstable_cache`/`cacheTag` dans les pages core et tenants ; à faire d'un bloc pour éviter les invalidations globales. |
 | R54 | `playwright.visual.config.ts` : 21/26 cas échouent en `toHaveScreenshot` sur macOS (1–2 % de pixels, hauteurs 1 px différentes) alors qu'aucune primitive n'a changé — les baselines ont été générées ailleurs (rendu de police différent). Rejouer/regénérer les baselines **dans l'environnement de référence** (CI Linux, même image que le job), sinon la suite reste un faux rouge permanent. | moyenne | Bloqué sur choix d'environnement de référence — ne pas mettre à jour les snapshots depuis macOS. |
 | R53 | `playwright.config.ts` accepte n'importe quel `DATABASE_URL` : quand la base n'est pas joignable depuis le poste (cas du VPS derrière un pare-feu), les parcours échouent en `ETIMEDOUT` après 2 min au lieu d'un échec immédiat et lisible. Ajouter un préflight (connexion + message « tunnel SSH requis »). | basse | Gagne du temps à chaque campagne ; découvert en lançant l'E2E sans tunnel actif. |
+
+---
+
+## L07a — `@qoe/ui` primitives & composants partagés — premier passage 2026-11-18
+
+**Périmètre de ce passage.** Axe 8 (portabilité d'infra) et axe 5 (résilience
+du rendu) sur `image-utils.ts`, `SafeImage`, `SafeAvatar`, `ui/**` et les
+`next.config.ts` des cinq apps. Le reste des primitives est listé en R55.
+
+| #   | Défaut | Sévérité | Statut |
+| --- | ------ | -------- | ------ |
+| F96 | **L'origine des médias était recopiée à la main** : les cinq `next.config.ts` listaient `cdn.qoe.fi` / `**.supabase.co`, et `canOptimizeImageSrc()` la recopiait une sixième fois. Conséquence mesurable : basculer `NEXT_PUBLIC_MEDIA_CDN_URL` vers Bunny/Cloudflare/imgproxy ne changeait **rien** au rendu — toutes les images restaient `unoptimized`, en silence, et le motif manquait dans Next (règle « CDN interchangeable » d'`AGENTS.md`). | haute | corrigé — une seule source : `mediaImageHosts`, `matchesImageHost`, `isOptimizableImageHost`, `mediaRemotePatterns` dans `@qoe/supabase/storage`, consommées par `@qoe/ui` **et** les cinq configs ; garde CI `guard:media-origin` |
+| F97 | `canOptimizeImageSrc` déclarait optimisables des schémas que Next ne sait pas lire : une URL `blob:` (aperçu local d'un upload via `ImageUploader`) ou `file:` partait à l'optimiseur et l'image ne s'affichait pas du tout. Le test `!^https?://` renvoyait `true` pour **tout** le reste. | moyenne | corrigé — schéma explicite (`blob:`, `file:`, `ftp:` refusés), chemins relatifs seuls optimisés sans configuration |
+| F99 | `useExitInterstitial()` hors provider ouvrait `window.open(url)` **sans validation** : un `javascript:` ou un `data:` passait tel quel (le dialogue, lui, validait via `parseExternalUrl`). Et `ExternalLinkInterceptor` consommait aussi les clics modifiés : Cmd/Ctrl-clic (ouvrir dans un onglet) affichait un dialogue à la place. | moyenne | corrigé — repli validé par `parseExternalUrl`, clics modifiés rendus au navigateur |
+| F100 | `HoldToDeleteButton` : un maintien clavier (Espace) qui perdait le focus (Tab, changement de fenêtre) continuait son compte à rebours et supprimait pendant qu'on ne regardait plus. `onBlur` annule désormais, comme le relâchement. | moyenne | corrigé — test `annule quand le focus quitte le bouton` |
+| F98 | `SafeImage` : le repli était conditionné à `fallbackSrc && !hasError` **dans la branche `hasError`** — donc jamais affiché après une erreur ; seul le cas « pas de source » l'utilisait. Une vignette morte affichait l'icône alors qu'un `fallbackSrc` était fourni. Ajout : deux échecs distincts (`primary`, `fallback`) puis icône, et remise à zéro de l'erreur quand `src`/`fallbackSrc` change (le feed réutilise les mêmes instances de carte, une image morte condamnait toutes les suivantes dans `SafeImage` **et** `SafeAvatar`). | moyenne | corrigé — `safe-image.test.tsx` (3 cas) + 1 cas dans `safe-avatar.test.tsx` |
+
+**Preuves** :
+
+| Commande | Résultat |
+| -------- | -------- |
+| `pnpm --filter @qoe/supabase test` | 49 tests verts (dont 7 nouveaux sur les hôtes d'images : défaut, surcharge Bunny, motif `**.domaine` non-sosie, hôte étranger, HTTP local seulement, patterns sans doublon) |
+| `pnpm --filter @qoe/ui test` | **596 tests / 88 fichiers verts** (dont `image-utils.test.ts`, `safe-image.test.tsx`, `exit-interstitial-behaviour.test.tsx`) |
+| `pnpm typecheck` | 25/25 tâches |
+| `pnpm --filter @qoe/ui lint` · `@qoe/supabase lint` | 0 erreur |
+| `pnpm guard:media-origin` | vert |
+| Config Next chargée avec `NEXT_PUBLIC_MEDIA_CDN_URL=https://qoe.b-cdn.net` | `remotePatterns` contient `qoe.b-cdn.net` **et** `storage.qoe.internal` (preuve que la variable suffit) |
+
+| #   | Tâche | Sévérité | Motif |
+| --- | ----- | -------- | ----- |
+| R55 | Finir L07a : `primitives/**` et `ui/**` restants (confirm-dialog, hold-to-delete, save-button, copy-button, pagination, table/sort, combobox, date/calendar, exit-interstitial, ImageEditorDialog, color-picker, feature-*, time-picker, dropdown-menu, hover-card, select, toast, sidebar). | — | Premier passage volontairement limité à deux axes transverses ; le reste demande un passage par fichier. |
 
 ---
 

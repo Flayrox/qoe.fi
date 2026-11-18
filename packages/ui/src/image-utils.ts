@@ -1,23 +1,20 @@
 import type { ImageProps } from 'next/image';
 
-/**
- * Hôtes autorisés par les `remotePatterns` des apps core/tenants/studio.
- * Les autres URLs distantes restent `unoptimized` pour ne pas faire planter
- * `next/image` sur un hôte non déclaré.
- */
-const OPTIMIZABLE_HOSTS = [
-  /(^|\.)supabase\.co$/i,
-  /^auth\.qoe\.fi$/i,
-  /^lh3\.googleusercontent\.com$/i,
-  /^avatars\.githubusercontent\.com$/i,
-  /^res\.cloudinary\.com$/i,
-  /^cdn\.qoe\.fi$/i,
-  /(^|\.)r2\.dev$/i,
-  /^127\.0\.0\.1$/,
-  /^localhost$/i,
-  /^host\.docker\.internal$/i,
-];
+import { isOptimizableImageHost } from '@qoe/supabase/storage';
 
+/**
+ * Décide si `next/image` peut optimiser cette source.
+ *
+ * 📌 La liste des hôtes n'est PAS ici : elle vient de `@qoe/supabase/storage`
+ * (`mediaImageHosts`), qui lit l'origine média configurée
+ * (`NEXT_PUBLIC_MEDIA_CDN_URL`) et l'origine Supabase. Avant, ce fichier
+ * recopiait `cdn.qoe.fi` / `**.supabase.co` : un basculement de CDN laissait
+ * donc toutes les images en `unoptimized`, sans erreur visible.
+ *
+ * ⚠️ Une URL `blob:` (aperçu local d'un upload) n'est jamais optimisable :
+ * Next ne sait pas résoudre ce schéma et l'optimiseur répond 400. Idem pour
+ * les autres schémas (`file:`, `data:`).
+ */
 export function canOptimizeImageSrc(src: ImageProps['src'] | null | undefined): boolean {
   if (src == null) return false;
   // Les imports statiques Next (`StaticImageData`) sont optimisables.
@@ -26,14 +23,13 @@ export function canOptimizeImageSrc(src: ImageProps['src'] | null | undefined): 
   const value = src.trim();
   if (!value || value.startsWith('data:')) return false;
   if (value.endsWith('.svg') || value.includes('.svg?')) return false;
-  if (!/^https?:\/\//i.test(value)) return true;
+
+  // Chemin relatif/absolu de l'app : Next l'optimise sans configuration.
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(value)) return true;
 
   try {
     const { protocol, hostname } = new URL(value);
-    const isLocal = ['127.0.0.1', 'localhost', 'host.docker.internal'].includes(hostname);
-    // Les `remotePatterns` de prod sont en HTTPS ; les hôtes locaux sont en HTTP.
-    if (protocol !== 'https:' && !(protocol === 'http:' && isLocal)) return false;
-    return OPTIMIZABLE_HOSTS.some((pattern) => pattern.test(hostname));
+    return isOptimizableImageHost(hostname, protocol);
   } catch {
     return false;
   }

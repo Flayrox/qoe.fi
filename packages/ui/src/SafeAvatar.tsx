@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { cn } from '@qoe/utils';
 import { getAvatarTheme } from '@qoe/theme';
@@ -81,6 +81,13 @@ export function SafeAvatar({
 
   // Nettoyage de l'URL source
   const cleanSrc = src && typeof src === 'string' && src.trim().length > 0 ? src.trim() : null;
+
+  // ⚠️ L'erreur appartient à UNE URL, pas au composant : sans cette remise à
+  // zéro, un avatar réutilisé (liste virtualisée, changement de profil dans
+  // la même carte) restait en silhouette après une seule image morte.
+  useEffect(() => {
+    setHasError(false);
+  }, [cleanSrc]);
 
   if (!cleanSrc || hasError) {
     return (

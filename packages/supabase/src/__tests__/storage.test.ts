@@ -9,8 +9,14 @@ import {
   sanitizePathSegment,
   toPublicImageUrl,
   resolveMediaCdnBase,
+  mediaImageHosts,
+  matchesImageHost,
+  isOptimizableImageHost,
+  mediaRemotePatterns,
   DEFAULT_IMAGES_CDN,
   IMAGE_FOLDERS,
+  LOCAL_IMAGE_HOSTS,
+  STATIC_IMAGE_HOSTS,
 } from '../storage';
 
 function fakeFile(name: string): File {
@@ -113,5 +119,80 @@ describe('toPublicImageUrl', () => {
     vi.stubEnv('NEXT_PUBLIC_MEDIA_CDN_URL', 'https://qoe.b-cdn.net');
     const already = 'https://cdn.qoe.fi/storage/v1/object/public/articles-media/a.webp';
     expect(toPublicImageUrl(already)).toBe(already);
+  });
+});
+
+// =====================================================================
+// 🖼️ Hôtes d'images — la liste qui pilote `next/image` ET l'UI
+// =====================================================================
+// 📖 Avant ce lot, cinq `next.config.ts` recopiaient `cdn.qoe.fi` et
+//    `canOptimizeImageSrc()` aussi : changer `NEXT_PUBLIC_MEDIA_CDN_URL`
+//    laissait donc toutes les images en `unoptimized`, sans erreur.
+describe('hôtes d’images optimisables', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('sans configuration : les hôtes historiques et locaux restent acceptés', () => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', '');
+    vi.stubEnv('NEXT_PUBLIC_MEDIA_CDN_URL', '');
+    const hosts = mediaImageHosts();
+    expect(hosts).toEqual(expect.arrayContaining([...LOCAL_IMAGE_HOSTS]));
+    expect(hosts).toEqual(expect.arrayContaining([...STATIC_IMAGE_HOSTS]));
+    // Le défaut déterministe reste dans la liste.
+    expect(hosts).toContain('cdn.qoe.fi');
+  });
+
+  it('suit le CDN configuré (Bunny) et l’origine Supabase', () => {
+    vi.stubEnv('NEXT_PUBLIC_MEDIA_CDN_URL', 'https://qoe.b-cdn.net/');
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://storage.qoe.internal');
+    const hosts = mediaImageHosts();
+    expect(hosts).toContain('qoe.b-cdn.net');
+    expect(hosts).toContain('storage.qoe.internal');
+  });
+
+  it('reconnaît les motifs `**.domaine` sans accepter un domaine sosie', () => {
+    expect(matchesImageHost('abc.supabase.co', ['**.supabase.co'])).toBe(true);
+    expect(matchesImageHost('supabase.co', ['**.supabase.co'])).toBe(true);
+    // `evil-supabase.co` ne doit pas passer pour un sous-domaine.
+    expect(matchesImageHost('evil-supabase.co', ['**.supabase.co'])).toBe(false);
+    expect(matchesImageHost('supabase.co.evil.com', ['**.supabase.co'])).toBe(false);
+  });
+
+  it('refuse un hôte étranger, même en HTTPS', () => {
+    vi.stubEnv('NEXT_PUBLIC_MEDIA_CDN_URL', 'https://qoe.b-cdn.net');
+    expect(isOptimizableImageHost('evil.example', 'https:')).toBe(false);
+    expect(isOptimizableImageHost('qoe.b-cdn.net', 'https:')).toBe(true);
+  });
+
+  it('n’accepte le HTTP que pour un hôte local', () => {
+    vi.stubEnv('NEXT_PUBLIC_MEDIA_CDN_URL', 'http://qoe.b-cdn.net');
+    expect(isOptimizableImageHost('127.0.0.1', 'http:')).toBe(true);
+    // Un CDN configuré en clair ne doit pas être servi en HTTP.
+    expect(isOptimizableImageHost('qoe.b-cdn.net', 'http:')).toBe(false);
+    // Un schéma exotique n'est jamais optimisable.
+    expect(isOptimizableImageHost('127.0.0.1', 'file:')).toBe(false);
+  });
+
+  it('mediaRemotePatterns : locaux en HTTP, configurés en HTTPS, sans doublon', () => {
+    vi.stubEnv('NEXT_PUBLIC_MEDIA_CDN_URL', 'https://qoe.b-cdn.net/');
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://storage.qoe.internal/');
+    const patterns = mediaRemotePatterns();
+    expect(patterns).toEqual(
+      expect.arrayContaining([
+        { protocol: 'http', hostname: '127.0.0.1' },
+        { protocol: 'https', hostname: 'qoe.b-cdn.net' },
+        { protocol: 'https', hostname: 'storage.qoe.internal' },
+        { protocol: 'https', hostname: '**.supabase.co' },
+      ])
+    );
+    const keys = patterns.map((p) => `${p.protocol}://${p.hostname}`);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('une origine locale configurée reste en HTTP dans les patterns', () => {
+    vi.stubEnv('NEXT_PUBLIC_MEDIA_CDN_URL', 'http://localhost:54321');
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', '');
+    const keys = mediaRemotePatterns().map((p) => `${p.protocol}://${p.hostname}`);
+    expect(keys).toContain('http://localhost');
+    expect(keys).not.toContain('https://localhost');
   });
 });

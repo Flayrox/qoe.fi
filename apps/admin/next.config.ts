@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 import { linguiMacroSwcPlugin } from '@lingui/swc-plugin/options';
 import { withSentryConfig } from '@sentry/nextjs';
+import { mediaRemotePatterns } from '@qoe/supabase/storage';
 
 /**
  * ⚙️ apps/admin — Config Next.js pour le panel superadmin (admin.qoe.fi)
@@ -37,17 +38,10 @@ const nextConfig: NextConfig = {
   ],
   images: {
     dangerouslyAllowLocalIP: process.env.NODE_ENV !== 'production', // 🧪 Allow 127.0.0.1:54321 (Supabase local) — SSRF guard Next 16
-    remotePatterns: [
-      // 🧪 Local Supabase Storage (DB de test)
-      { protocol: 'http', hostname: '127.0.0.1' },
-      { protocol: 'http', hostname: 'localhost' },
-      { protocol: 'http', hostname: 'host.docker.internal' },
-      // 🚀 Prod
-      { protocol: 'https', hostname: '**.supabase.co' },
-      { protocol: 'https', hostname: 'auth.qoe.fi' },
-      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
-      { protocol: 'https', hostname: 'cdn.qoe.fi' },
-    ],
+    // 🖼️ Hôtes dérivés de l'environnement (`NEXT_PUBLIC_MEDIA_CDN_URL`,
+    // `NEXT_PUBLIC_SUPABASE_URL`) + tiers connus : changer de CDN ne demande
+    // plus de toucher à ce fichier (voir `@qoe/supabase/storage`).
+    remotePatterns: mediaRemotePatterns(),
   },
   async headers() {
     return [

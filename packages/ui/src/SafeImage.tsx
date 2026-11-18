@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Image, { type ImageProps } from 'next/image';
 import { ImageIcon } from 'lucide-react';
 import { cn } from '@qoe/utils';
@@ -14,8 +14,17 @@ export interface SafeImageProps extends Omit<ImageProps, 'onError'> {
 
 /**
  * 🛡️ SafeImage — Image résiliente universelle
+ *
  * - Empêche tout crash 500 au runtime Next.js
- * - Supporte le basculement transparent sur fallback ou placeholder sans CLS
+ * - Bascule sur `fallbackSrc` quand l'image principale échoue, puis sur une
+ *   icône quand le repli échoue aussi (deux échecs distincts, pas une boucle)
+ * - L'erreur est liée à UNE source : un changement de `src`/`fallbackSrc`
+ *   remet la chaîne à zéro (le feed réutilise les mêmes instances de carte)
+ *
+ * ⚠️ Historique : le repli était conditionné à `!hasError`, donc il ne
+ *    s'affichait **jamais** après une erreur — seul le cas « pas de source »
+ *    l'utilisait. Une vignette d'article morte laissait donc l'icône alors
+ *    qu'un `fallbackSrc` était fourni.
  */
 export function SafeImage({
   src,
@@ -27,12 +36,18 @@ export function SafeImage({
   unoptimized,
   ...rest
 }: SafeImageProps) {
-  const [hasError, setHasError] = useState(false);
+  const [failed, setFailed] = useState({ primary: false, fallback: false });
+
+  // L'erreur appartient à une source précise : nouvelle source, nouvelle chance.
+  useEffect(() => {
+    setFailed({ primary: false, fallback: false });
+  }, [src, fallbackSrc]);
 
   const shouldUnoptimize = unoptimized ?? !canOptimizeImageSrc(src);
+  const isPlaceholder = (hasSource: boolean, failedFor: boolean) => !hasSource || failedFor;
 
-  if (hasError || !src) {
-    if (fallbackSrc && !hasError) {
+  if (isPlaceholder(Boolean(src), failed.primary)) {
+    if (fallbackSrc && !failed.fallback) {
       const fallbackUnoptimized = unoptimized ?? !canOptimizeImageSrc(fallbackSrc);
 
       return (
@@ -42,7 +57,7 @@ export function SafeImage({
           alt={alt}
           className={className}
           unoptimized={fallbackUnoptimized}
-          onError={() => setHasError(true)}
+          onError={() => setFailed((previous) => ({ ...previous, fallback: true }))}
         />
       );
     }
@@ -59,7 +74,7 @@ export function SafeImage({
           height: rest.height,
         }}
       >
-        {showIconOnError && <ImageIcon className="w-5 h-5 opacity-40" />}
+        {showIconOnError && <ImageIcon className="w-5 h-5 opacity-40" aria-hidden />}
       </div>
     );
   }
@@ -71,7 +86,7 @@ export function SafeImage({
       alt={alt}
       className={className}
       unoptimized={shouldUnoptimize}
-      onError={() => setHasError(true)}
+      onError={() => setFailed((previous) => ({ ...previous, primary: true }))}
     />
   );
 }

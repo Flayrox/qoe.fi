@@ -96,9 +96,140 @@ export function buildImagePath(file: File, options: UploadImageOptions = {}): st
  * changement d'hôte au déploiement soient pris en compte. Une valeur vide ou
  * blanche retombe sur le défaut historique.
  */
-export function resolveMediaCdnBase(): string {
-  const configured = (process.env[MEDIA_CDN_ENV] || '').trim();
+export function resolveMediaCdnBase(env: NodeJS.ProcessEnv = process.env): string {
+  const configured = (env[MEDIA_CDN_ENV] || '').trim();
   return (configured || DEFAULT_IMAGES_CDN).replace(/\/+$/, '');
+}
+
+// =====================================================================
+// 🖼️ Hôtes d'images — une seule liste pour `next/image` ET pour l'UI
+// =====================================================================
+// 📖 Deux endroits décidaient si une image distante est optimisable : les
+//    `remotePatterns` de chaque `next.config.ts` (recopiés à la main dans
+//    cinq apps) et `canOptimizeImageSrc()` côté `@qoe/ui`. Les deux listes
+//    étaient figées sur `cdn.qoe.fi` : basculer `NEXT_PUBLIC_MEDIA_CDN_URL`
+//    vers Bunny/Cloudflare ne changeait donc RIEN au rendu (l'image restait
+//    `unoptimized`, en silence) et le pattern manquait dans Next.
+//
+// 🎯 Une seule source, pilotée par l'environnement : l'origine média
+//    configurée et l'origine Supabase sont ajoutées aux hôtes reconnus ; les
+//    hôtes historiques restent acceptés pour que les URLs déjà en base
+//    continuent d'être servies après un basculement.
+// =====================================================================
+
+/** Hôtes d'images reconnus sans configuration (tiers + historique média). */
+export const STATIC_IMAGE_HOSTS = [
+  '**.supabase.co',
+  'auth.qoe.fi',
+  'lh3.googleusercontent.com',
+  'avatars.githubusercontent.com',
+  'res.cloudinary.com',
+  // CDN historique : les URLs déjà stockées en base restent optimisables
+  // même après un basculement d'origine (idempotence du rewrite).
+  'cdn.qoe.fi',
+  '**.r2.dev',
+] as const;
+
+/** Hôtes locaux (Supabase Storage de dev), servis en HTTP. */
+export const LOCAL_IMAGE_HOSTS = ['127.0.0.1', 'localhost', 'host.docker.internal'] as const;
+
+/** Forme structurelle de `images.remotePatterns` (sans dépendre de `next`). */
+export interface MediaRemotePattern {
+  protocol: 'http' | 'https';
+  hostname: string;
+}
+
+/** Hôte d'une URL absolue, ou `''` si l'URL est absente/illisible. */
+function imageHostname(value?: string | null): string {
+  const raw = (value || '').trim();
+  if (!raw) return '';
+  try {
+    return new URL(raw).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Motifs d'hôtes acceptés pour une image distante : locaux + tiers connus +
+ * origine média configurée + origine Supabase configurée.
+ */
+export function mediaImageHosts(env: NodeJS.ProcessEnv = process.env): string[] {
+  const hosts = new Set<string>([...LOCAL_IMAGE_HOSTS, ...STATIC_IMAGE_HOSTS]);
+  const cdn = imageHostname(resolveMediaCdnBase(env));
+  if (cdn) hosts.add(cdn);
+  const supabase = imageHostname(env.NEXT_PUBLIC_SUPABASE_URL);
+  if (supabase) hosts.add(supabase);
+  return [...hosts];
+}
+
+/**
+ * Vrai si `hostname` correspond à un motif (`**.domaine` = domaine + sous-
+ * domaines), insensible à la casse.
+ */
+export function matchesImageHost(
+  hostname: string,
+  patterns: readonly string[] = mediaImageHosts()
+): boolean {
+  const host = hostname.trim().toLowerCase();
+  if (!host) return false;
+  return patterns.some((pattern) => {
+    const candidate = pattern.trim().toLowerCase();
+    if (!candidate) return false;
+    if (candidate.startsWith('**.')) {
+      const base = candidate.slice(3);
+      return host === base || host.endsWith(`.${base}`);
+    }
+    return host === candidate;
+  });
+}
+
+/**
+ * Décide si une image distante peut passer par l'optimiseur Next.
+ *
+ * Les hôtes locaux sont acceptés en HTTP (dev), tout le reste exige HTTPS :
+ * un CDN configuré en `http://` ne doit pas se retrouver servi en clair.
+ */
+export function isOptimizableImageHost(
+  hostname: string,
+  protocol: string,
+  env: NodeJS.ProcessEnv = process.env
+): boolean {
+  const hosts = mediaImageHosts(env);
+  if (!matchesImageHost(hostname, hosts)) return false;
+  if (protocol === 'https:') return true;
+  if (protocol !== 'http:') return false;
+  return LOCAL_IMAGE_HOSTS.some((local) => local === hostname.trim().toLowerCase());
+}
+
+/**
+ * `images.remotePatterns` de Next, dérivés de l'environnement.
+ *
+ * Les cinq apps importaient cette liste recopiée à la main ; elles appellent
+ * désormais cette fonction, donc changer de CDN ne demande plus de toucher au
+ * code (règle « CDN interchangeable » d'`AGENTS.md`).
+ */
+export function mediaRemotePatterns(env: NodeJS.ProcessEnv = process.env): MediaRemotePattern[] {
+  const patterns = new Map<string, MediaRemotePattern>();
+  const add = (protocol: 'http' | 'https', hostname: string) => {
+    const key = `${protocol}://${hostname.toLowerCase()}`;
+    if (!patterns.has(key)) patterns.set(key, { protocol, hostname });
+  };
+
+  for (const host of LOCAL_IMAGE_HOSTS) add('http', host);
+  for (const host of STATIC_IMAGE_HOSTS) add('https', host);
+
+  const configured = [
+    imageHostname(resolveMediaCdnBase(env)),
+    imageHostname(env.NEXT_PUBLIC_SUPABASE_URL),
+  ];
+  for (const host of configured) {
+    if (!host) continue;
+    // Une origine locale configurée reste servie en HTTP, comme les hôtes ci-dessus.
+    add(LOCAL_IMAGE_HOSTS.some((local) => local === host) ? 'http' : 'https', host);
+  }
+
+  return [...patterns.values()];
 }
 
 /**

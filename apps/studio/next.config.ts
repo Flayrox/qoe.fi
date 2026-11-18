@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 import { linguiMacroSwcPlugin } from '@lingui/swc-plugin/options';
 import { withSentryConfig } from '@sentry/nextjs';
+import { mediaRemotePatterns } from '@qoe/supabase/storage';
 import { studioSecurityHeaders } from './src/lib/security-headers';
 
 /**
@@ -43,20 +44,10 @@ const nextConfig: NextConfig = {
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 86400,
-    remotePatterns: [
-      // 🧪 Local Supabase Storage (DB de test)
-      { protocol: 'http', hostname: '127.0.0.1' },
-      { protocol: 'http', hostname: 'localhost' },
-      { protocol: 'http', hostname: 'host.docker.internal' },
-      // 🚀 Prod + externes
-      { protocol: 'https', hostname: '**.supabase.co' },
-      { protocol: 'https', hostname: 'auth.qoe.fi' },
-      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
-      { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
-      { protocol: 'https', hostname: 'res.cloudinary.com' },
-      { protocol: 'https', hostname: 'cdn.qoe.fi' },
-      { protocol: 'https', hostname: '**.r2.dev' },
-    ],
+    // 🖼️ Hôtes dérivés de l'environnement (`NEXT_PUBLIC_MEDIA_CDN_URL`,
+    // `NEXT_PUBLIC_SUPABASE_URL`) + tiers connus : changer de CDN ne demande
+    // plus de toucher à ce fichier (voir `@qoe/supabase/storage`).
+    remotePatterns: mediaRemotePatterns(),
   },
   // Slugs EN (l'app démarre en FR mais les routes sont anglaises) :
   // /offre → /pricing (301 — bookmarks et liens en vol préservés).
