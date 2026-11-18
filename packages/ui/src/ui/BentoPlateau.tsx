@@ -28,8 +28,6 @@ interface BentoItemProps {
   active: boolean;
   flexBasisActive?: string;
   flexBasisInactive?: string;
-  onMouseEnter?: () => void;
-  onClick?: () => void;
   className?: string;
   innerClassName?: string;
 }
@@ -40,26 +38,25 @@ export function BentoItem({
   active,
   flexBasisActive = '72%',
   flexBasisInactive = '28%',
-  onMouseEnter,
-  onClick,
   className,
   innerClassName,
 }: BentoItemProps) {
   return (
+    // ⚠️ Aucune affordance de clic ici : l'item n'est pas un contrôle.
+    // Il portait `onClick` + `cursor-pointer` sans rôle, sans focus et sans
+    // activation clavier — promesse de clic que seul un mulot pouvait tenir,
+    // et qu'aucun appelant n'utilisait (BentoPlateau n'est qu'une mise en
+    // page). Un vrai besoin interactif se compose dans le contenu, avec un
+    // vrai `<button>`.
     <motion.div
       layout
-      onMouseEnter={onMouseEnter}
-      onClick={onClick}
       transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
       style={{
         flexBasis: active ? flexBasisActive : flexBasisInactive,
         flexShrink: 0,
         flexGrow: active ? 0 : 1,
       }}
-      className={cn(
-        'relative rounded-[28px] overflow-hidden cursor-pointer min-h-[280px] md:min-h-0',
-        className
-      )}
+      className={cn('relative rounded-[28px] overflow-hidden min-h-[280px] md:min-h-0', className)}
     >
       {/* Active State (White background) — in-flow pour donner une hauteur
           intrinsèque à l'item (sinon, en flex-col sous `md`, le flex-basis
