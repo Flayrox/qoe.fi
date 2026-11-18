@@ -14,6 +14,9 @@ export * from './hooks/useRecommendations';
 export * from './hooks/useAutoSaveArticle';
 export * from './hooks/useNotifications';
 export * from './actions/notifications';
+// Le type du filtre vit dans un module pur : un `'use server'` ne peut pas
+// le ré-exporter sans casser le manifeste des Server Actions (arch:audit).
+export type { NotificationFilter } from './actions/utils/notification-filter';
 export * from './hooks/useConversations';
 export * from './actions/messages';
 export { unfurlUrlAction, removeFollowerAction } from './actions/feed';

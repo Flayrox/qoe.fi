@@ -18,9 +18,11 @@ import { MAX_READ_IDS, normalizeNotificationFilter } from '../utils/notification
 import type { NotificationFilter } from '../utils/notification-filter';
 
 // ⚠️ `'use server'` n'autorise que des exports async : les constantes et le
-// validateur synchrone vivent dans `../utils/notification-filter`. Seul le
-// type (effacé à la compilation) peut être re-exporté ici.
-export type { NotificationFilter } from '../utils/notification-filter';
+// validateur synchrone vivent dans `../utils/notification-filter`.
+//
+// ⚠️ Même un `export type { … }` est interdit ici : Turbopack casse le
+// manifeste des Server Actions dessus (garde `arch:audit`). Les appelants
+// importent le type directement depuis `../utils/notification-filter`.
 
 export type GroupedNotificationType =
   | 'LIKE'

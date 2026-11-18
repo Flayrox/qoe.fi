@@ -17,7 +17,7 @@
 
 import { useQuery, useMutation, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { notificationKeys } from '../query-keys';
-import type { NotificationFilter } from '../actions/notifications';
+import type { NotificationFilter } from '../actions/utils/notification-filter';
 import {
   getNotificationsAction,
   getUnreadNotificationCountAction,
