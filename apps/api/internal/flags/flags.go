@@ -27,8 +27,8 @@ const (
 	LandingPricingSection = "landing-pricing-section"
 	// AdminAuditLog ne conditionne plus l'écriture de la trace : les mutations
 	// sont toujours auditées. Il ne pilote que le mode verbeux.
-	AdminAuditLog         = "admin-audit-log"
-	WorkersNewsletter     = "workers-newsletter-dispatch"
+	AdminAuditLog     = "admin-audit-log"
+	WorkersNewsletter = "workers-newsletter-dispatch"
 	// AuthzEnforce bascule le garde d'autorisation (internal/authz) du mode
 	// observation au mode refus. Défaut : observation — le refus ne s'active
 	// qu'une fois la MFA forte disponible et les comptes existants accompagnés.
@@ -66,6 +66,10 @@ const (
 	ReaderOfflinePack = "reader-offline-pack"
 	// ReaderEbooksUpload pilote l'import d'EPUB personnels.
 	ReaderEbooksUpload = "reader-ebooks-upload"
+	// StudioStageEditor pilote l'atelier visuel de design (Stage). Défaut
+	// false : masqué en production, l'activation reste côté console admin.
+	// Parité stricte avec @qoe/flags — vérifiée par `pnpm guard:flags-parity`.
+	StudioStageEditor = "studio-stage-editor"
 )
 
 // defaults est le registre des défauts (miroir exact de @qoe/flags) : utilisé
@@ -87,6 +91,7 @@ var defaults = map[string]bool{
 	ReaderTTSPlayback:           true,
 	ReaderOfflinePack:           true,
 	ReaderEbooksUpload:          true,
+	StudioStageEditor:           false,
 }
 
 // Known dit si une clé appartient au registre fermé. Les écritures admin

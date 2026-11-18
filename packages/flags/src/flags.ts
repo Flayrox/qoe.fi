@@ -3,18 +3,18 @@
 // =====================================================================
 // 📖 Source unique des feature flags du monorepo. Chaque clé déclare sa
 //    VALEUR PAR DÉFAUT : c'est le fallback utilisé quand le flag est
-//    éteint, non configuré dans GrowthBook, ou quand GrowthBook est
-//    injoignable (dégradation gracieuse — jamais de crash).
+//    éteint, non configuré dans la table `feature_flags`, ou quand la DB
+//    est injoignable (dégradation gracieuse — jamais de crash).
 //
 // 🎯 Pour ajouter un flag :
 //    1. Ajoute une entrée ici (clé kebab-case + défaut)
-//    2. Crée le flag dans l'UI GrowthBook (Features → New Feature)
-//       avec la même clé et la même valeur par défaut
+//    2. Crée le flag côté admin (même clé, même défaut) et son miroir Go
+//       dans `apps/api/internal/flags/flags.go`
 //    3. Utilise-le côté client :  useFlag('ma-feature')
 //       ou côté serveur :         isFlagOn('ma-feature', attrs)
 // =====================================================================
 
-export const FLAGS = {
+const FLAG_DEFINITIONS = {
   // 📰 Feed — carousel "Recommandations" de la home (démo feature flag)
   'feed-recommendations': true,
   // 🌐 Web — bandeau newsletter en bas du site public
@@ -64,11 +64,57 @@ export const FLAGS = {
   'studio-stage-editor': false,
 } as const satisfies Record<string, boolean>;
 
-export type FlagKey = keyof typeof FLAGS;
+export type FlagKey = keyof typeof FLAG_DEFINITIONS;
+
+/**
+ * Registre gelé : une écriture accidentelle ne peut pas modifier les défauts
+ * pour tout le processus (l'objet est partagé par tous les rendus/workers).
+ */
+export const FLAGS: Readonly<Record<FlagKey, boolean>> = Object.freeze({
+  ...FLAG_DEFINITIONS,
+});
+
+/**
+ * 🛑 Flags de protection : jamais court-circuités par le bypass admin.
+ *
+ * Le bypass (`attributes.role === 'admin'` → `true`) n'a de sens que pour une
+ * fonctionnalité en déploiement. Appliqué à un coupe-feu, il produisait
+ * l'inverse de l'effet voulu : un admin évaluant `workers-email-kill` obtenait
+ * `true` = tous les e-mails arrêtés, et `workers-newsletter-dispatch`
+ * contournait un envoi volontairement coupé.
+ */
+export const PROTECTIVE_FLAGS = [
+  'workers-email-kill',
+  'abuse.signup-kill',
+  'support.public-kill',
+  'workers-newsletter-dispatch',
+  'authz-enforce',
+] as const satisfies readonly FlagKey[];
+
+const PROTECTIVE_FLAG_SET: ReadonlySet<string> = new Set(PROTECTIVE_FLAGS);
+
+/**
+ * Vrai si la clé appartient au registre fermé. Utilise `hasOwnProperty` :
+ * `'constructor' in FLAGS` (ou `'toString'`) vaut `true` et laissait une clé
+ * héritée du prototype entrer dans la carte des flags.
+ */
+export function hasFlag(key: unknown): key is FlagKey {
+  return typeof key === 'string' && Object.prototype.hasOwnProperty.call(FLAGS, key);
+}
+
+/**
+ * Vrai si le flag ne doit jamais être activé par le bypass admin.
+ */
+export function isProtectiveFlag(key: string): boolean {
+  return PROTECTIVE_FLAG_SET.has(key);
+}
 
 /**
  * Retourne la valeur par défaut d'un flag (le fallback si éteint/indispo).
+ *
+ * Clé inconnue → `false` (fail-closed). L'ancien contrat renvoyait
+ * `undefined`, qui se propageait ensuite comme un faux « je ne sais pas ».
  */
-export function defaultFor<K extends FlagKey>(key: K): (typeof FLAGS)[K] {
-  return FLAGS[key];
+export function defaultFor(key: FlagKey): boolean {
+  return hasFlag(key) ? FLAGS[key] : false;
 }

@@ -20,10 +20,3 @@ export { useFlag, useFlags };
 export function useFlagIsOn(key: FlagKey): boolean {
   return useFlag(key);
 }
-
-/**
- * Stub de compatibilité no-op
- */
-export function useGrowthBook() {
-  return null;
-}

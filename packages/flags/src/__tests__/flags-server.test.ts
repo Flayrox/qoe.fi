@@ -96,8 +96,12 @@ describe('@qoe/flags/server — evaluateFeature payload objet (GrowthBook-style)
   });
 
   it('retombe sur le défaut pour une valeur non booléenne', () => {
+    // Ce test verrouillait l'ancien `Boolean(val)` : une chaîne 'string-value'
+    // allumait le flag. Le contrat est désormais le défaut du registre.
     const payload = { 'landing-pricing-section': 'string-value' };
-    expect(evaluateFeature(payload, 'landing-pricing-section')).toBe(true);
+    expect(evaluateFeature(payload, 'landing-pricing-section')).toBe(
+      defaultFor('landing-pricing-section')
+    );
   });
 
   it('continue à activer les flags pour un admin', () => {

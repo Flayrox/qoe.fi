@@ -48,6 +48,7 @@
     "guard:seed-script": "bash scripts/guard-seed-script.sh",
     "guard:legal-consent": "bash scripts/guard-legal-consent.sh",
     "guard:dangerous-html": "node scripts/guard-dangerous-html.mjs",
+    "guard:flags-parity": "node scripts/guard-flags-parity.mjs",
     "audit:guard": "node scripts/audit-guard.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

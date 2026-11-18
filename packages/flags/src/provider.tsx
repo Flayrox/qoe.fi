@@ -9,9 +9,28 @@
 'use client';
 
 import React, { createContext, useContext, useMemo, type ReactNode } from 'react';
-import { FLAGS, defaultFor, type FlagKey } from './flags';
+import { FLAGS, defaultFor, hasFlag, type FlagKey } from './flags';
 
-const FlagsContext = createContext<Record<string, boolean>>(FLAGS);
+type FlagMap = Readonly<Record<FlagKey, boolean>>;
+
+const FlagsContext = createContext<FlagMap>(FLAGS);
+
+/**
+ * Fusionne les flags SSR avec le registre : seules les clés connues et les
+ * vraies valeurs booléennes sont retenues (une valeur `undefined`, un nombre
+ * ou une clé inconnue ne doivent pas écraser un défaut).
+ */
+function mergeFlags(flags?: Partial<Record<FlagKey, boolean>> | null): FlagMap {
+  const merged: Record<FlagKey, boolean> = { ...FLAGS };
+  if (flags) {
+    for (const [key, value] of Object.entries(flags)) {
+      if (hasFlag(key) && typeof value === 'boolean') {
+        merged[key] = value;
+      }
+    }
+  }
+  return Object.freeze(merged);
+}
 
 export function FlagsProvider({
   flags,
@@ -20,11 +39,9 @@ export function FlagsProvider({
   flags?: Partial<Record<FlagKey, boolean>> | null;
   children: ReactNode;
 }) {
-  const merged = useMemo(() => {
-    return { ...FLAGS, ...flags };
-  }, [flags]);
+  const value = useMemo(() => mergeFlags(flags), [flags]);
 
-  return <FlagsContext.Provider value={merged}>{children}</FlagsContext.Provider>;
+  return <FlagsContext.Provider value={value}>{children}</FlagsContext.Provider>;
 }
 
 /**
@@ -37,13 +54,13 @@ export const GrowthBookProvider = FlagsProvider;
  */
 export function useFlag(key: FlagKey): boolean {
   const context = useContext(FlagsContext);
-  return context[key] ?? defaultFor(key);
+  const value = context[key];
+  return typeof value === 'boolean' ? value : defaultFor(key);
 }
 
 /**
- * Hook client pour lire l'état de tous les flags
+ * Hook client pour lire l'état de tous les flags (objet gelé, partagé).
  */
-export function useFlags(): Record<FlagKey, boolean> {
-  const context = useContext(FlagsContext);
-  return context as Record<FlagKey, boolean>;
+export function useFlags(): FlagMap {
+  return useContext(FlagsContext);
 }

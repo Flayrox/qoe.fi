@@ -52,7 +52,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | ------- | ------------------------------------------------------------------------------------------------------------ | --------------------------- | ----------------------- |
 | **L01** | `packages/utils/src/**`                                                                                      | 29 fichiers src, 50 exports | **durci le 2026-11-18** |
 | **L02** | `packages/schemas/src/**`                                                                                    | 8 fichiers                  | **durci le 2026-11-18** |
-| L03     | `packages/flags/src/**`                                                                                      | 8 fichiers                  | à auditer               |
+| **L03** | `packages/flags/src/**`                                                                                      | 8 fichiers                  | **durci le 2026-11-18** |
 | L04     | `packages/auth/src/**`                                                                                       | 11 fichiers                 | à auditer               |
 | L05     | `packages/supabase/src/**`                                                                                   | 13 fichiers                 | à auditer               |
 | L06     | `packages/sdk/src/**` (actions, client, embed, hooks)                                                        | 78 fichiers                 | à auditer               |
@@ -92,9 +92,15 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L36     | `e2e/**`, `playwright*.config.ts`, `e2e/lib/**`                                                              | 65 fichiers                 | à auditer               |
 | L37     | `docs/**`, `AGENTS.md`, racine (`tsconfig`, `eslint`, `turbo`, `vitest`), `supabase/`, `patches/`, `.husky/` | transverse                  | à auditer               |
 
-**Prochain lot à traiter : L03 — `packages/flags`.** Ordre retenu : du plus
+**Prochain lot à traiter : L04 — `packages/auth`.** Ordre retenu : du plus
 partagé au plus spécifique, parce qu'un correctif dans un package bas remonte
 dans toutes les apps.
+
+**Nettoyage 2026-11-18.** Retrait de `bullmq` et `ioredis` de
+`apps/studio/package.json` (aucun import, 246 paquets retirés du lockfile) et
+des commentaires « optimisations BullMQ » de `docker/redis/redis.conf` et
+`packages/observability/src/sentry.ts` : le backend est Go + asynq, il ne reste
+aucun client BullMQ dans le dépôt.
 
 ---
 
@@ -273,3 +279,84 @@ Un test existant a été corrigé parce qu'il **verrouillait la divergence** :
 | R15 | Aligner `MAX_IMAGES_PER_POST` (8) sur la vraie limite du compositeur (4 par nœud aujourd'hui)                                                | faible   | Une borne plus large que l'UI est sûre, mais l'écart doit être assumé ou supprimé.                                   |
 | R16 | Passer `@qoe/schemas` à Zod 4 (`z.email()`, `z.uuid()`, perfs)                                                                               | faible   | Migration transverse aux 4 packages qui importent `zod` : à traiter avec L37 pour ne pas fragmenter.              |
 | R17 | Faire consommer `updateProfileSchema` par `EditProfileModal` (aujourd'hui il appelle l'action sans passer par le schéma)                      | faible   | Le schéma est correct mais pas branché : la validation n'a lieu qu'au test.                                         |
+
+---
+
+## L03 — `@qoe/flags` — durci le 2026-11-18
+
+**Périmètre.** `packages/flags/src/**` : `flags.ts` (registre), `server.ts`
+(évaluation SSR/workers), `provider.tsx` (contexte client), `gate.tsx`
+(`FeatureGate`), `hooks.ts`, `index.ts` + 2 fichiers de tests.
+**Consommateurs.** `apps/{core,studio,admin,tenants}` (`useFlag`, `FeatureGate`),
+`packages/observability`, et le miroir serveur `apps/api/internal/flags` (Go).
+**Contrat serveur.** `apps/api/internal/flags/flags.go` : registre fermé
+(`Known`), mêmes clés, mêmes défauts. La parité est désormais **vérifiée en CI**
+par `pnpm guard:flags-parity` (TS ↔ Go, clé par clé et défaut par défaut).
+**Tests.** 33 tests verts, dont 16 dans `src/__tests__/hardening.test.ts`
+(couverture 100 % statements / 97,72 % branches).
+
+### Entrées auditées
+
+| #   | Emplacement                          | Standard attendu                                                             | Verdict            |
+| --- | ------------------------------------ | ---------------------------------------------------------------------------- | ------------------ |
+| G01 | `flags.ts` → `FLAGS`                 | Registre **gelé** à l'exécution (objet partagé par tous les rendus/workers)   | **corrigé** (F26)  |
+| G02 | `flags.ts` → `defaultFor`            | Clé inconnue → `false` (fail-closed), jamais `undefined`                      | **corrigé** (F23)  |
+| G03 | `flags.ts` → `hasFlag`               | `hasOwnProperty`, pas `in` (les clés du prototype existent)                  | **ajouté** (F24)   |
+| G04 | `flags.ts` → `PROTECTIVE_FLAGS`      | Les coupe-feux ne sont jamais court-circuités par le bypass admin             | **ajouté** (F22)   |
+| G05 | `server.ts` → `loadFlags`            | Cache TTL 60 s, DB absente/down → défauts, aucune exception                   | conforme           |
+| G06 | `server.ts` → `loadFlags` (lignes)   | Registre fermé + booléen strict (`'false'` ≠ `true`)                          | **corrigé** (F24, F25) |
+| G07 | `server.ts` → `evaluateFeature`      | Seuls booléens et `{ defaultValue: boolean }` sont interprétés                | **corrigé** (F25)  |
+| G08 | `server.ts` → `evaluateFeature`      | Une clé hors registre n'est jamais évaluée, même présente dans le payload     | **corrigé** (F24)  |
+| G09 | `server.ts` → `isFlagOn`             | Bypass admin sans accès DB, **sauf** coupe-feux (lecture réelle)              | **corrigé** (F22)  |
+| G10 | `server.ts` → `createFlagsContext`   | `getAll()` renvoie une copie : pas de mutation du cache                       | **corrigé** (F26)  |
+| G11 | `provider.tsx` → `FlagsProvider`     | Fusion filtrée (clés connues, valeurs booléennes seulement) puis gelée        | **corrigé** (F26)  |
+| G12 | `provider.tsx` → `useFlag`, `useFlags` | Fallback sur le défaut si valeur absente/non booléenne                     | **corrigé** (F26)  |
+| G13 | `gate.tsx` → `FeatureGate`           | Rendu conditionnel sans état dérivé, `fallback` explicite                     | conforme           |
+| G14 | `hooks.ts`, `index.ts`               | Plus d'API morte (`useGrowthBook` renvoyait `null`, reset dupliqué)           | **corrigé** (F27)  |
+| G15 | `apps/api/internal/flags/flags.go`   | Même registre que TS, garde CI de parité                                      | **corrigé** (F28)  |
+
+### Findings et correctifs
+
+| #   | Défaut                                                                                                                                                                                    | Sévérité | Correctif                                                                                                              | Fichiers |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------- | -------- |
+| F22 | Le bypass admin (`attributes.role === 'admin'` → `true`) s'appliquait à **tous** les flags : un admin évaluant `workers-email-kill` obtenait `true` (tous les e-mails stoppés) et `workers-newsletter-dispatch` contournait un envoi volontairement coupé | haute    | `PROTECTIVE_FLAGS` + `isProtectiveFlag` : le bypass est ignoré pour les coupe-feux, qui sont lus réellement en base     | `flags.ts`, `server.ts` |
+| F23 | `defaultFor` d'une clé inconnue renvoyait `undefined` : un flag mal orthographié n'était ni allumé ni éteint (faux « je ne sais pas » qui se propage)                                      | moyenne  | Registre fermé : clé inconnue → `false`                                                                                | `flags.ts` |
+| F24 | `row.key in FLAGS` laissait entrer les clés héritées du prototype (`toString`, `constructor`, `__proto__`) dans la carte des flags, et `key in payload` évaluait de même une propriété héritée | moyenne  | `hasFlag` (`hasOwnProperty`) côté registre et côté payload ; une clé hors registre retourne `false` sans évaluation      | `flags.ts`, `server.ts` |
+| F25 | `Boolean(val)` interprétait toute valeur : `'false'`, `'0'`, `1` activaient un flag pourtant coupé (côté payload **et** côté colonne `is_enabled`)                                        | moyenne  | Booléen strict : seuls `true`/`false` (ou `{ defaultValue: boolean }`) sont retenus, sinon défaut du registre          | `server.ts` |
+| F26 | Le cache (`loadFlags`) et le registre (`FLAGS`) étaient mutables : un appelant pouvait corrompre l'état partagé de tous les rendus suivants ; le provider acceptait des clés inconnues et des valeurs `undefined` | faible   | Objets gelés (`Object.freeze`), copie défensive dans `createFlagsContext.getAll`, fusion filtrée dans le provider       | `flags.ts`, `server.ts`, `provider.tsx` |
+| F27 | API morte : `useGrowthBook()` exporté renvoyait `null`, `__resetGrowthBookCache` dupliquait `__resetFlagsCache`                                                                            | faible   | Suppression des deux (aucun appelant dans le dépôt)                                                                     | `hooks.ts`, `index.ts`, `server.ts` |
+| F28 | Le registre Go n'exposait pas `studio-stage-editor` (17 clés TS pour 16 Go) : le flag était invisible de l'API et de la console admin                                                     | moyenne  | Constante + défaut Go, et garde CI `guard:flags-parity` (test rouge observé avant le correctif)                         | `flags.go`, `scripts/guard-flags-parity.mjs`, `ci.yml` |
+
+### Preuves exécutées
+
+```bash
+# 1. Rouge d'abord : parité TS ↔ Go (studio-stage-editor absent côté Go)
+node scripts/guard-flags-parity.mjs                     # EXIT=1
+
+# 2. Paquet : tests + couverture, types, lint
+cd packages/flags && pnpm exec vitest run --coverage
+# → 3 fichiers / 33 tests passés, EXIT=0 ; 100 % statements, 97,72 % branches
+cd packages/flags && pnpm exec tsc --noEmit             # EXIT=0
+cd packages/flags && pnpm exec eslint .                 # EXIT=0
+
+# 3. Monorepo : les 25 projets consommateurs compilent
+pnpm typecheck                                          # 25 successful, 25 total
+
+# 4. Parité et compilation Go
+node scripts/guard-flags-parity.mjs                     # 17 flags alignés — EXIT=0
+cd apps/api && gofmt -l internal/flags/ && go vet ./internal/flags/ && go build ./internal/flags/  # EXIT=0
+```
+
+Un test existant verrouillait un défaut : `flags-server.test.ts` attendait
+`true` pour une chaîne (`'string-value'`) sur un flag dont le défaut est
+`false` — il validait donc `Boolean(val)`. Il asserte désormais le défaut du
+registre.
+
+### Reste à faire (lot L03)
+
+| #   | Tâche                                                                                                             | Sévérité | Motif                                                                                                     |
+| --- | ----------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------- |
+| R18 | Supprimer les alias de compatibilité (`useFlagIsOn`, `GrowthBookProvider`, `getGrowthBookPayload`)                | faible   | Aucun appelant : ils entretiennent une fausse filiation GrowthBook abandonnée.                            |
+| R19 | Aligner la fraîcheur du cache : 60 s côté Next vs 30 s côté Go                                                    | faible   | Une bascule d'urgence peut rester 60 s en ligne côté rendu web. À trancher avec L30 (workers).            |
+| R20 | Dériver `PROTECTIVE_FLAGS` du registre Go (marqueur « kill switch ») au lieu d'une liste manuelle                  | moyenne  | Deux listes à maintenir : le garde CI vérifie les clés, pas la sémantique de protection.                  |
+| R21 | Vérifier dans L20–L23 qu'aucune décision d'autorisation ne repose sur un flag lu côté client                       | haute    | Un flag client est un affichage, jamais un contrôle d'accès : à prouver app par app.                      |

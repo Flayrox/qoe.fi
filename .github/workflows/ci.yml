@@ -50,6 +50,11 @@ jobs:
       - name: Guard dangerous HTML (sanitize obligatoire)
         run: pnpm guard:dangerous-html
 
+      # Registre des feature flags : TS (@qoe/flags) et Go (internal/flags)
+      # doivent exposer exactement les mêmes clés et les mêmes défauts.
+      - name: Guard flags parity (TS ↔ Go)
+        run: pnpm guard:flags-parity
+
       # Passe 4 (T10) : cliquet sur les vulnérabilités high/critical connues.
       - name: Guard dependencies (pnpm audit, cliquet)
         run: pnpm audit:guard

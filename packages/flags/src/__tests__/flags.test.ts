@@ -21,8 +21,10 @@ describe('registre des flags', () => {
     }
   });
 
-  it("le défaut d'une clé inconnue est sécurisé", () => {
-    expect(defaultFor('inexistant' as FlagKey)).toBeUndefined();
+  it("le défaut d'une clé inconnue est sécurisé (fail-closed)", () => {
+    // L'ancien contrat renvoyait `undefined` : un flag mal orthographié
+    // n'était ni allumé ni éteint. Le registre fermé répond désormais false.
+    expect(defaultFor('inexistant' as FlagKey)).toBe(false);
   });
 });
 
