@@ -6,6 +6,8 @@
 // =====================================================================
 package permissions
 
+import "sort"
+
 // MediaMember est le contexte minimal pour les vérifications de permission.
 type MediaMember struct {
 	Role        string   `json:"role"`
@@ -72,39 +74,47 @@ func EffectivePermissions(m *MediaMember) []string {
 	if m == nil || (m.Status != "" && m.Status != "active") {
 		return []string{}
 	}
-	out := make([]string, 0, len(allMediaPermissions))
+	// `seen` est l'unique source de vérité : un retrait doit disparaître de la
+	// sortie, y compris s'il portait sur une permission du rôle. Construire la
+	// sortie depuis une liste séparée ré-ajoutait les permissions retirées.
 	seen := make(map[string]bool, len(allMediaPermissions))
-	add := func(p string) {
-		if !seen[p] {
-			seen[p] = true
-			out = append(out, p)
+	set := func(p string, on bool) {
+		if p == "" {
+			return
 		}
+		if on {
+			seen[p] = true
+			return
+		}
+		delete(seen, p)
 	}
 	for _, p := range rolePermissions[m.Role] {
-		add(p)
+		set(p, true)
 	}
+	// Overrides explicites, appliqués dans l'ordre : le dernier gagne.
 	for _, o := range m.Permissions {
 		if len(o) > 0 && o[0] == '-' {
-			delete(seen, o[1:])
+			set(o[1:], false)
 			continue
 		}
-		if len(o) > 0 && o != "" {
-			add(o)
-		}
+		set(o, true)
 	}
-	// Conserve l'ordre déterministe de l'allowlist, puis les overrides inconnus.
-	ordered := make([]string, 0, len(out))
+	// Ordre déterministe : allowlist d'abord, puis les overrides inconnus
+	// (triés) pour que l'affichage ne dépende pas de l'itération d'une map.
+	ordered := make([]string, 0, len(seen))
 	for _, p := range allMediaPermissions {
 		if seen[p] {
 			ordered = append(ordered, p)
 		}
 	}
-	for _, p := range out {
-		if !contains(ordered, p) {
-			ordered = append(ordered, p)
+	extra := make([]string, 0, len(seen))
+	for p := range seen {
+		if !contains(allMediaPermissions, p) {
+			extra = append(extra, p)
 		}
 	}
-	return ordered
+	sort.Strings(extra)
+	return append(ordered, extra...)
 }
 
 func contains(list []string, value string) bool {
@@ -117,8 +127,15 @@ func contains(list []string, value string) bool {
 }
 
 // CanMedia vérifie si un membre d'un média possède une permission.
+//
+// La décision est calculée par EffectivePermissions : une seule sémantique
+// d'overrides pour l'application et pour l'interface. Auparavant CanMedia
+// retenait le **premier** override rencontré alors qu'EffectivePermissions
+// appliquait le dernier : `["-x", "x"]` autorisait côté interface et refusait
+// côté garde. Une divergence entre l'affichage des droits et leur exercice est
+// une source de contournement (on croit avoir le droit, ou l'inverse).
 func CanMedia(m *MediaMember, permission string) bool {
-	if m == nil {
+	if m == nil || permission == "" {
 		return false
 	}
 	// Seul un membre actif exerce des droits (fiche 05 §6) : une invitation en
@@ -128,23 +145,7 @@ func CanMedia(m *MediaMember, permission string) bool {
 	if m.Status != "" && m.Status != "active" {
 		return false
 	}
-
-	base := rolePermissions[m.Role]
-	// Overrides explicites : "perm" accorde, "-perm" retire.
-	for _, o := range m.Permissions {
-		if o == permission {
-			return true
-		}
-		if o == "-"+permission {
-			return false
-		}
-	}
-	for _, b := range base {
-		if b == permission {
-			return true
-		}
-	}
-	return false
+	return contains(EffectivePermissions(m), permission)
 }
 
 // CanEditMediaArticle vérifie si un membre peut éditer un article donné du média.
@@ -162,8 +163,16 @@ func CanEditMediaArticle(m *MediaMember, articleAuthorID, memberUserID string) b
 }
 
 // IsMediaAdmin vérifie si le membre est owner ou a un rôle ≥ editor.
+//
+// Un membre non actif ne l'est jamais : renvoyer « admin » pour une invitation
+// en attente ou un compte suspendu ferait de ce helper un piège pour le
+// prochain appelant. Il n'est aujourd'hui utilisé que par les tests, ce qui
+// est précisément la raison de le rendre sûr avant qu'il ne serve.
 func IsMediaAdmin(m *MediaMember) bool {
 	if m == nil {
+		return false
+	}
+	if m.Status != "" && m.Status != "active" {
 		return false
 	}
 	return roleOrder[m.Role] >= roleOrder["editor"]

@@ -15,3 +15,4 @@ export * from './ssrf';
 export * from './markdown';
 export * from './cookie-consent';
 export * from './legal-placeholders';
+export * from './server-action-origin';

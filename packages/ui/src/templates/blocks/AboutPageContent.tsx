@@ -18,6 +18,7 @@ import { Link as LinkIcon, Check, Loader2, Mail, MessageSquare, Maximize2 } from
 import { cn } from '@qoe/utils';
 import { PeopleSection } from './PeopleSection';
 import { SafeImage } from '../../SafeImage';
+import { sanitizeArticleHtml } from '../../security/article-html';
 import { subscribeToNewsletterAction } from '@qoe/sdk/actions/tenant';
 import type { TemplatePublisherContext, TemplateTeamMember } from '../schema';
 
@@ -154,7 +155,7 @@ export function AboutPageContent({
         <div
           data-testid="about-article-body"
           className="prose prose-neutral dark:prose-invert max-w-none text-[15px] sm:text-base leading-relaxed space-y-4"
-          dangerouslySetInnerHTML={{ __html: articleContent }}
+          dangerouslySetInnerHTML={{ __html: sanitizeArticleHtml(articleContent) }}
         />
       ) : (
         <div className="prose prose-neutral dark:prose-invert max-w-none text-[15px] sm:text-base leading-relaxed space-y-4">

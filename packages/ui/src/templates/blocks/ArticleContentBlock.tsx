@@ -1,7 +1,6 @@
 // ArticleContentBlock.tsx — Contenu de l'article (scope article)
 
 import React from 'react';
-import DOMPurify from 'isomorphic-dompurify';
 import type {
   ArticleContentBlockProps,
   TemplateArticleItem,
@@ -13,6 +12,7 @@ import { NodeRenderer } from './NodeRenderer';
 import { SafeAvatar } from '../../SafeAvatar';
 import { SafeImage } from '../../SafeImage';
 import { ArticleEngagementBar } from './ArticleEngagementBar';
+import { sanitizeArticleHtml } from '../../security/article-html';
 
 interface ArticleContentBlockComponentProps {
   id: string;
@@ -27,59 +27,6 @@ interface ArticleContentBlockComponentProps {
   slots?: Record<string, import('../schema').TemplateNode[]>;
   nodes?: import('../schema').TemplateNode[];
   hiddenAt?: ('mobile' | 'tablet')[];
-}
-
-function sanitizeArticleHtml(html: string): string {
-  if (!html) return '';
-  return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: [
-      'p',
-      'br',
-      'b',
-      'i',
-      'u',
-      's',
-      'del',
-      'em',
-      'strong',
-      'a',
-      'h1',
-      'h2',
-      'h3',
-      'h4',
-      'h5',
-      'h6',
-      'ul',
-      'ol',
-      'li',
-      'blockquote',
-      'code',
-      'pre',
-      'img',
-      'figure',
-      'figcaption',
-      'hr',
-      'div',
-      'span',
-      'mark',
-    ],
-    ALLOWED_ATTR: [
-      'href',
-      'target',
-      'rel',
-      'src',
-      'alt',
-      'title',
-      'class',
-      'id',
-      'loading',
-      'data-indent',
-      'data-drop-cap',
-      'data-annotation-note',
-      'data-is-official',
-    ],
-    FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form', 'input'],
-  });
 }
 
 export function ArticleContentBlock({

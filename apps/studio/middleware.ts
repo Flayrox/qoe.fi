@@ -5,10 +5,17 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@qoe/supabase/middleware';
 import { getMonorepoUrl } from '@qoe/config';
+import { isCrossOriginServerAction } from '@qoe/utils';
 import { workspaceCookie } from './src/lib/workspace-cookie';
 import { safeLocale } from './src/lib/locale-header';
 
 export async function middleware(request: NextRequest) {
+  // 0. Server actions du studio : refus d'une origine tierce avant toute
+  //    lecture de session.
+  if (isCrossOriginServerAction(request)) {
+    return new NextResponse(null, { status: 403 });
+  }
+
   const host = request.headers.get('host') || '';
   const hostname = host.split(':')[0];
 

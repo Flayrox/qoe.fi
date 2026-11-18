@@ -23,6 +23,8 @@ import {
   type CanonicalDocument,
   type SpotlightRange,
 } from '@qoe/ui/annotations';
+import { sanitizeArticleHtml } from '@qoe/ui/security';
+
 import { getCanonicalDocumentAction } from '@/lib/canonical-document';
 import {
   getArticleHighlightsAction,
@@ -533,9 +535,13 @@ function ArticleAnnotatorViewInner({
   const { preferences } = useReadingPreferences();
   const typographyClasses = getReaderTypographyClasses(preferences);
 
+  // Le corps passe par la liste blanche partagée, quel que soit le chemin
+  // (HTML brut, lecture bionique). Le mode canonique n'utilise pas ce HTML :
+  // il est rendu par CanonicalArticleBody.
   const displayedContent = React.useMemo(() => {
     if (!article.content) return '';
-    return preferences.bionicReading ? formatBionicHtml(article.content) : article.content;
+    const html = preferences.bionicReading ? formatBionicHtml(article.content) : article.content;
+    return sanitizeArticleHtml(html);
   }, [article.content, preferences.bionicReading]);
 
   const publisher = article.publisher;

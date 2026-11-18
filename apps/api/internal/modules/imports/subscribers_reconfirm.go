@@ -115,8 +115,8 @@ func newReconfirmToken() (token, hash string, err error) {
 func (s *Service) StartReconfirmWave(ctx context.Context, staffID, batchID string, waveSize int) (ReconfirmWaveDTO, error) {
 	var (
 		status, publisherID, decisionID string
-		fileVersion                       int
-		fileFingerprint                   string
+		fileVersion                     int
+		fileFingerprint                 string
 	)
 	err := s.pool.QueryRow(ctx, `
 		SELECT "status", "publisherId", "fileVersion", "fileFingerprint"
@@ -679,7 +679,7 @@ func (s *Service) sendReconfirmOne(ctx context.Context, tx pgx.Tx, waveID, publi
 		return reconfirmSent
 	}
 	if err := queue.PublishSubscriberConfirm(s.asynq, queue.SubscriberConfirmPayload{
-		Email:         c.email,
+		Email:       c.email,
 		PublisherID: publisherID,
 	}); err != nil {
 		log.Printf("[imports] vague %s envoi %s: %v", waveID, c.email, err)
@@ -710,7 +710,10 @@ func (s *Service) expireReconfirmRequest(ctx context.Context, tx pgx.Tx, waveID,
 		SET "confirmationToken" = NULL, "updatedAt" = now()
 		WHERE "publisherId" = $1 AND "email" = $2
 		  AND "confirmedAt" IS NULL AND "confirmationToken" IS NOT NULL`, publisherID, c.email); err != nil {
-		log.Printf("[imports] vague %s purge token %s: %v", waveID, c.email, err)
+		// Jamais l'adresse e-mail dans les logs : elle identifie un abonné et
+		// se retrouve dans tous les journaux agrégés. L'identifiant de demande
+		// suffit à retrouver la ligne (passe 4, T15).
+		log.Printf("[imports] vague %s : purge du jeton de confirmation impossible (demande %s): %v", waveID, c.id, err)
 	}
 	return reconfirmExpired
 }
