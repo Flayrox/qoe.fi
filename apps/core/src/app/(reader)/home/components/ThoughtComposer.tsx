@@ -2245,11 +2245,8 @@ export function ThoughtComposer({
         </AnimatePresence>
       </form>
 
-      <Sheet open={isDraftsOpen} onOpenChange={setIsDraftsOpen}>
-        <SheetContent
-          side="right"
-          className="w-full sm:max-w-md p-0 flex flex-col h-full bg-[var(--surface-0)] border-l border-[var(--border-default)] z-[60]"
-        >
+      <Sheet open={isDraftsOpen} onOpenChange={setIsDraftsOpen} side="right">
+        <SheetContent className="w-full sm:max-w-md p-0 flex flex-col h-full bg-[var(--surface-0)] border-l border-[var(--border-default)] z-[60]">
           <SheetHeader className="p-6 border-b border-[var(--border-subtle)]">
             <SheetTitle className="text-base font-bold text-[var(--text-primary)]">
               Mes Brouillons

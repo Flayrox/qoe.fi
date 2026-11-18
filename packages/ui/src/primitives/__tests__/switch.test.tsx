@@ -36,6 +36,19 @@ describe('Switch', () => {
     expect(onChange).toHaveBeenCalledWith(false);
   });
 
+  it('expose la description séparément du nom accessible', () => {
+    render(<Switch description="Un courriel à chaque nouvel abonné">Notifications</Switch>);
+
+    const switchEl = screen.getByRole('switch', { name: 'Notifications' });
+    const describedBy = switchEl.getAttribute('aria-describedby');
+
+    // Sans cette séparation, le nom devenait « Notifications Un courriel… ».
+    expect(describedBy).toBeTruthy();
+    expect(document.getElementById(describedBy as string)?.textContent).toContain(
+      'chaque nouvel abonné'
+    );
+  });
+
   it('respecte l’état désactivé', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

@@ -17,12 +17,18 @@ export interface SheetProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   defaultOpen?: boolean;
+  /**
+   * Côté d'ouverture. Il se déclare ici, à la racine : c'est `Drawer` qui
+   * porte le contexte lu par le panneau. Un `side` posé sur `SheetContent`
+   * n'aurait aucun effet.
+   */
+  side?: DrawerSide;
   children: React.ReactNode;
 }
 
-export function Sheet({ open, onOpenChange, defaultOpen, children }: SheetProps) {
+export function Sheet({ open, onOpenChange, defaultOpen, side = 'right', children }: SheetProps) {
   return (
-    <Drawer isOpen={open} onOpenChange={onOpenChange} defaultOpen={defaultOpen}>
+    <Drawer isOpen={open} onOpenChange={onOpenChange} defaultOpen={defaultOpen} side={side}>
       {children}
     </Drawer>
   );
@@ -35,14 +41,20 @@ export const SheetTitle = DrawerTitle;
 export const SheetDescription = DrawerDescription;
 export type { DrawerSide };
 
+/**
+ * Panneau du sheet.
+ *
+ * ⚠️ Les props `side` et `showCloseButton` figuraient dans le type sans être
+ * lues : un appelant pouvait demander `side="left"` et obtenir un panneau à
+ * droite, sans erreur. Le côté se règle sur `<Sheet side>` (il doit atteindre
+ * le contexte du `Drawer`), et la croix fait partie de l'en-tête.
+ */
 export function SheetContent({
   children,
   className,
 }: {
   children: React.ReactNode;
-  side?: 'top' | 'right' | 'bottom' | 'left';
   className?: string;
-  showCloseButton?: boolean;
 }) {
   return <DrawerContent className={className}>{children}</DrawerContent>;
 }

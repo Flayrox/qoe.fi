@@ -1,7 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import { Switch as AriaSwitch, type SwitchProps as AriaSwitchProps } from 'react-aria-components';
+import { useId } from 'react';
+import {
+  Switch as AriaSwitch,
+  Text,
+  type SwitchProps as AriaSwitchProps,
+} from 'react-aria-components';
 import { cn } from '@qoe/utils';
 
 export interface SwitchProps extends Omit<AriaSwitchProps, 'children' | 'className'> {
@@ -44,10 +49,17 @@ export function Switch({
 }: SwitchProps) {
   const { size: thumbSize, translate } = THUMB_SIZES[size];
   const title = label ?? children;
+  const descriptionId = useId();
 
   return (
     <AriaSwitch
       isDisabled={isDisabled}
+      // ⚠️ Le libellé ET la description vivent dans le `<label>` que rend
+      // react-aria : sans `aria-label`, le nom accessible devenait
+      // « Notifications Un courriel à chaque nouvel abonné ». On fige le nom
+      // sur le titre et on expose la description par `aria-describedby`.
+      aria-label={description && typeof title === 'string' ? title : undefined}
+      aria-describedby={description ? descriptionId : undefined}
       className={({ isDisabled: disabled }) =>
         cn(
           'group flex items-start justify-between gap-4 select-none outline-hidden cursor-pointer',
@@ -65,9 +77,17 @@ export function Switch({
                 <span className="text-xs font-semibold text-foreground leading-tight">{title}</span>
               )}
               {description && (
-                <span className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">
+                // ⚠️ Un `<span>` ici finissait DANS le nom accessible : le
+                // switch s'annonçait « Notifications Recevez un courriel à
+                // chaque nouvel abonné ». `Text slot="description"` la sort
+                // du nom et la pose en description (`aria-describedby`).
+                <Text
+                  slot="description"
+                  id={descriptionId}
+                  className="text-[11px] text-muted-foreground leading-relaxed mt-0.5"
+                >
                   {description}
-                </span>
+                </Text>
               )}
             </div>
           )}

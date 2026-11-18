@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { List as ListIcon, LayoutGrid as GridIcon } from 'lucide-react';
 
 import { Tab, TabList, TabPanel, Tabs } from '../tabs/tabs';
 import { Tag, TagGroup, TagList } from '../tag-group/tag-group';
@@ -44,6 +45,29 @@ describe('Tabs (@qoe/ui/tabs)', () => {
     expect(onValueChange).toHaveBeenCalledWith('medias');
     expect(secondTab.getAttribute('aria-selected')).toBe('true');
     expect(screen.getByText('Liste des médias')).toBeTruthy();
+  });
+
+  it('nomme un onglet en icône seule, sans faux role="tooltip"', () => {
+    render(
+      <Tabs defaultValue="liste">
+        <TabList aria-label="Vues">
+          <Tab id="liste" icon={ListIcon} iconOnly>
+            Liste
+          </Tab>
+          <Tab id="grille" icon={GridIcon} iconOnly tooltip="Grille">
+            Grille
+          </Tab>
+        </TabList>
+      </Tabs>
+    );
+
+    // Le libellé quitte le rendu visuel mais reste le nom accessible.
+    expect(screen.getByRole('tab', { name: 'Liste' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Grille' })).toBeTruthy();
+
+    // L'infobulle visuelle n'est rattachée à aucun `aria-describedby` :
+    // lui donner `role="tooltip"` promettait une relation qui n'existe pas.
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
   });
 
   it('utilise un trait sobre border-foreground (jamais primaire) en variante underline', () => {

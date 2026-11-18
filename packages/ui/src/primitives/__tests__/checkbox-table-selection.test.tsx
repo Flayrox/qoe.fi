@@ -18,6 +18,21 @@ const ROWS = [
   { id: '2', title: 'Ce que la lenteur change' },
 ];
 
+describe('Checkbox — nom et description', () => {
+  it('garde le libellé comme nom et annonce la description à part', () => {
+    render(<Checkbox label="Recevoir un résumé" description="Un courriel chaque vendredi" />);
+
+    const box = screen.getByRole('checkbox', { name: 'Recevoir un résumé' });
+    const describedBy = box.getAttribute('aria-describedby');
+
+    // Sans ce découpage, le nom devenait « Recevoir un résumé Un courriel… ».
+    expect(describedBy).toBeTruthy();
+    expect(document.getElementById(describedBy as string)?.textContent).toContain(
+      'chaque vendredi'
+    );
+  });
+});
+
 function SelectionTable({
   selectionMode = 'multiple',
   selectedKeys,

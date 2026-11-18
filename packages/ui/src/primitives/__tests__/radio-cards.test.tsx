@@ -45,6 +45,36 @@ describe('RadioGroup & RadioCard', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it('nomme le groupe depuis `label` et annonce sa description', () => {
+    // ⚠️ Avec `label`, le nom accessible était VIDE : le libellé était un
+    // `<span>` posé à côté du `role="radiogroup"`, pas un `<Label>`.
+    render(
+      <RadioGroup label="Format de publication" description="Choisissez le rendu final">
+        <Radio value="pdf">PDF</Radio>
+        <Radio value="epub">EPUB</Radio>
+      </RadioGroup>
+    );
+
+    const group = screen.getByRole('radiogroup', { name: 'Format de publication' });
+    const describedBy = group.getAttribute('aria-describedby');
+    expect(describedBy).toBeTruthy();
+    expect(document.getElementById(describedBy as string)?.textContent).toContain(
+      'Choisissez le rendu final'
+    );
+  });
+
+  it('marque le groupe invalide et annonce le message d’erreur', () => {
+    render(
+      <RadioGroup label="Format" errorMessage="Choisissez un format">
+        <Radio value="pdf">PDF</Radio>
+      </RadioGroup>
+    );
+
+    const group = screen.getByRole('radiogroup', { name: 'Format' });
+    expect(group.getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByText('Choisissez un format')).toBeTruthy();
+  });
+
   it('affiche et sélectionne un radio bouton classique', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

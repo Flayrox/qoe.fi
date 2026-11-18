@@ -187,35 +187,43 @@ export function CraftSidebarDrawer({
       });
 
       setHeadings(extracted);
-      // Par défaut, première section active si aucune détectée
-      if (extracted.length > 0 && !activeHeadingId) {
-        setActiveHeadingId(extracted[0].id);
+      // Par défaut, première section active — sans lire la valeur capturée
+      // par la fermeture : `activeHeadingId` n'est pas une dépendance de cet
+      // effet, et le lire ici figeait un état périmé.
+      if (extracted.length > 0) {
+        setActiveHeadingId((current) => current ?? extracted[0].id);
       }
     };
 
     scanHeadings();
     const timer = setTimeout(scanHeadings, 300);
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            setActiveHeadingId(entry.target.id);
-            break;
-          }
-        }
-      },
-      { rootMargin: '-15% 0px -65% 0px' }
-    );
+    // ⚠️ `IntersectionObserver` n'existe pas partout (SSR, jsdom, vieux
+    // navigateurs) : le constructeur lancé sans garde faisait tomber le
+    // composant entier au lieu de laisser simplement le sommaire statique.
+    const observer =
+      typeof IntersectionObserver === 'undefined'
+        ? null
+        : new IntersectionObserver(
+            (entries) => {
+              for (const entry of entries) {
+                if (entry.isIntersecting) {
+                  setActiveHeadingId(entry.target.id);
+                  break;
+                }
+              }
+            },
+            { rootMargin: '-15% 0px -65% 0px' }
+          );
 
     const elementsToObserve = document.querySelectorAll(
       '#article-content h2, article h2, section[id]'
     );
-    elementsToObserve.forEach((el) => observer.observe(el));
+    if (observer) elementsToObserve.forEach((el) => observer.observe(el));
 
     return () => {
       clearTimeout(timer);
-      observer.disconnect();
+      observer?.disconnect();
     };
   }, [activeId]);
 
@@ -244,7 +252,12 @@ export function CraftSidebarDrawer({
 
   return (
     <aside
-      tabIndex={0}
+      // ⚠️ Fermé, le sommaire restait dans l'ordre de tabulation : on
+      // atteignait au clavier une dizaine de liens invisibles avant le
+      // contenu de l'article. `inert` retire le sous-arbre du focus ET des
+      // interactions ; `aria-hidden` seul ne fait que taire l'annonce.
+      inert={!isOpen || undefined}
+      tabIndex={isOpen ? 0 : -1}
       aria-hidden={!isOpen}
       data-open={isOpen ? 'true' : 'false'}
       className={cn(
@@ -342,16 +355,19 @@ export function CraftSidebarDrawer({
                       </span>
                     </a>
                   ) : (
-                    <div
+                    // ⚠️ Sans `href`, le chapitre était un `<div tabIndex={0}>` :
+                    // focalisable mais muet — Entrée et Espace ne faisaient
+                    // rien. Un vrai bouton rend l'action atteignable.
+                    <button
+                      type="button"
                       onMouseEnter={() => setHoveredItemId(item.id)}
                       onMouseLeave={() => setHoveredItemId(null)}
                       onClick={() => onSelectItem?.(item)}
-                      className="platform_link relative flex items-center gap-[10px] group cursor-pointer h-6"
+                      className="platform_link relative flex items-center gap-[10px] group cursor-pointer h-6 text-left"
                       data-variant="secondary"
                       data-disabled="false"
                       data-active={isChapterActive ? 'true' : 'false'}
                       data-interactive="true"
-                      tabIndex={0}
                     >
                       <PlatformTick
                         width={18}
@@ -369,7 +385,7 @@ export function CraftSidebarDrawer({
                       >
                         {item.label}
                       </span>
-                    </div>
+                    </button>
                   )}
 
                   {/* Sous-titres H2 de l'article actif (ex: 'Interactive examples' en orange) */}

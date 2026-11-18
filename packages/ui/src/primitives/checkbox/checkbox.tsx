@@ -1,11 +1,12 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { Check } from 'lucide-react';
 
 import { cn } from '@qoe/utils';
 import {
   Checkbox as AriaCheckbox,
+  Text,
   type CheckboxProps as AriaCheckboxProps,
 } from 'react-aria-components';
 
@@ -140,9 +141,19 @@ export function Checkbox({
   className,
   ...props
 }: CheckboxProps) {
+  const descriptionId = useId();
+  const hasLabel = label !== undefined && label !== null;
+
   return (
     <AriaCheckbox
       {...props}
+      // Même défaut que sur `Switch` : libellé et description sont dans le
+      // `<label>`, donc la description entrait dans le nom accessible. Le nom
+      // reste le libellé ; la description est annoncée à part.
+      aria-label={
+        props['aria-label'] ?? (hasLabel && typeof label === 'string' ? label : undefined)
+      }
+      aria-describedby={description ? (props['aria-describedby'] ?? descriptionId) : undefined}
       isInvalid={invalid}
       className={({ isDisabled }) =>
         cn(
@@ -220,14 +231,19 @@ export function Checkbox({
                 </span>
               )}
               {description && (
-                <span
+                // Même défaut que sur `Switch` : une description rendue en
+                // `<span>` grossit le nom accessible au lieu d'être annoncée
+                // comme description du champ.
+                <Text
+                  slot="description"
+                  id={descriptionId}
                   className={cn(
                     'type-control-xs text-muted-foreground',
                     isDisabled && 'opacity-45'
                   )}
                 >
                   {description}
-                </span>
+                </Text>
               )}
             </span>
           )}

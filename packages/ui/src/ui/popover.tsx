@@ -65,7 +65,6 @@ export function PopoverTrigger({ children, render, className, ...props }: Popove
 export interface PopoverContentProps {
   className?: string;
   align?: 'start' | 'center' | 'end';
-  alignOffset?: number;
   side?: 'top' | 'right' | 'bottom' | 'left';
   sideOffset?: number;
   children: React.ReactNode;
@@ -154,22 +153,35 @@ export function PopoverDescription({ className, ...props }: React.ComponentProps
   );
 }
 
+/**
+ * Fermeture interne d'un popover.
+ *
+ * ⚠️ C'était un `<span onClick>` : invisible au clavier (pas de rôle, pas de
+ * focus, pas d'activation par Entrée/Espace). C'est maintenant un vrai
+ * bouton, avec `slot="close"` pour que react-aria ferme aussi le dialogue
+ * et rende le focus au déclencheur.
+ */
 export function PopoverClose({
   children,
   onClick,
+  className,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
+  className?: string;
 }) {
   const { onOpenChange } = React.useContext(PopoverContext);
   return (
-    <span
-      onClick={() => {
+    <AriaButton
+      slot="close"
+      type="button"
+      className={className}
+      onPress={() => {
         onClick?.();
         onOpenChange?.(false);
       }}
     >
       {children}
-    </span>
+    </AriaButton>
   );
 }

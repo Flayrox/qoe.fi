@@ -64,7 +64,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L06b** | `packages/sdk/src/{shadow,entity-actions}.ts` + `hooks/**` + `lib/**`                                         | 24 fichiers                 | **durci le 2026-11-18** |
 | **L06c** | `packages/sdk/src/actions/{feed,articles,tenant,search,dashboard}` + `lib/shareUrl.ts`                      | 5 fichiers / 2 700 lignes   | **durci le 2026-11-18** |
 | **L06d** | `packages/sdk/src/actions/**` restants (admin, legal, billing, highlights, ebooks, appeals, support, workspace…) | 38 fichiers | **durci le 2026-11-18** |
-| L07a    | `packages/ui/src/primitives/**`, `ui/**`, `tokens.ts`                                                        | 310 fichiers (global)       | en cours (1er passage)  |
+| L07a     | `packages/ui/src/primitives/**`, `ui/**`, `tokens.ts`                                                                       | 310 fichiers (global)       | **durci le 2026-11-18** |
 | L07b    | `packages/ui/src/{reader,annotations,cards}/**`                                                              | idem                        | à auditer               |
 | L07c    | `packages/ui/src/{auth,forms,providers}/**`                                                                  | idem                        | à auditer               |
 | L07d    | `packages/ui/src/{security,seo,legal}/**`                                                                    | idem                        | à auditer               |
@@ -805,12 +805,38 @@ du rendu) sur `image-utils.ts`, `SafeImage`, `SafeAvatar`, `ui/**` et les
 | F100 | `HoldToDeleteButton` : un maintien clavier (Espace) qui perdait le focus (Tab, changement de fenêtre) continuait son compte à rebours et supprimait pendant qu'on ne regardait plus. `onBlur` annule désormais, comme le relâchement. | moyenne | corrigé — test `annule quand le focus quitte le bouton` |
 | F98 | `SafeImage` : le repli était conditionné à `fallbackSrc && !hasError` **dans la branche `hasError`** — donc jamais affiché après une erreur ; seul le cas « pas de source » l'utilisait. Une vignette morte affichait l'icône alors qu'un `fallbackSrc` était fourni. Ajout : deux échecs distincts (`primary`, `fallback`) puis icône, et remise à zéro de l'erreur quand `src`/`fallbackSrc` change (le feed réutilise les mêmes instances de carte, une image morte condamnait toutes les suivantes dans `SafeImage` **et** `SafeAvatar`). | moyenne | corrigé — `safe-image.test.tsx` (3 cas) + 1 cas dans `safe-avatar.test.tsx` |
 
+**Deuxième passage (2026-11-18) — les 83 fichiers de `primitives/**` et
+`ui/**` lus un par un.** Chaque fichier a été ouvert en entier, appelants
+réels compris ; sept composants portaient un défaut observable, corrigé ici
+avec son test.
+
+| #   | Défaut | Sévérité | Statut |
+| --- | ------ | -------- | ------ |
+| F106 | `primitives/radio-group` (`RadioCards`) : ni `Label` ni `Text` react-aria — le groupe n'avait **aucun nom accessible** (annoncé « groupe de boutons radio » dans les formulaires d'onboarding), la `description` était du texte mort et `errorMessage` n'était jamais rendu, donc un groupe invalide ne disait pas pourquoi. | haute | corrigé — `Label` + `Text slot="description"` / `slot="errorMessage"`, `isInvalid` déduit du message, puce décorative `aria-hidden` ; 2 tests (`nomme le groupe depuis label`, `marque le groupe invalide et annonce le message d’erreur`) |
+| F107 | `Switch` **et** `Checkbox` : libellé et description vivent dans le même `<label>`, donc le nom accessible valait « NotificationsUn courriel à chaque nouvel abonné » (reproduit par le message d'erreur du test). Un lecteur d'écran annonçait le paragraphe d'aide à chaque tabulation. | moyenne | corrigé — `aria-label` sur le titre + `aria-describedby` vers la description, `useId` ; 2 tests (`expose la description séparément du nom accessible`) |
+| F108 | `primitives/tabs` : `role="tooltip"` posé sur l'info-bulle **visuelle** des onglets en icône seule — un rôle ARIA qui promet une relation `aria-describedby` inexistante, et une annonce « infobulle » sans contenu sur des onglets normaux. | basse | corrigé — `data-visual-hint` (indice visuel pur, plus de rôle) ; test `nomme un onglet en icône seule, sans faux role="tooltip"` |
+| F109 | `ui/tooltip` : **aucune infobulle du produit ne s'ouvrait.** `TooltipTrigger` passait un `<button>` nu à `AriaTooltipTrigger`, qui ne clone que des composants acceptant ses props ; aucun gestionnaire n'était posé (vérifié sur le DOM : zéro `pointerenter`/`focus`) — l'icône « (i) » des fonctionnalités à venir et toutes les barres d'outils en icônes étaient muettes. `TooltipProvider` était par ailleurs un fragment inerte : son `delay` n'était lu par personne. | haute | corrigé — déclencheur enveloppé dans `Focusable`, `TooltipDelayContext` + `resolveTooltipDelay(delay, providerDelay)` (infobulle > provider > 300 ms) ; 2 tests de comportement (ouverture au focus + `aria-describedby`, fermeture à Échap) et 3 cas unitaires sur la résolution du délai |
+| F110 | `ui/sheet` : `SheetContent` acceptait `side` et `showCloseButton` sans jamais les lire (panneau **toujours** à droite, bouton de fermeture toujours présent) et `Sheet` n'exposait pas `side` — un panneau latéral gauche était impossible à demander. | moyenne | corrigé — `side` porté par `Sheet` (défaut `right`), props mortes retirées de `SheetContent`, appelant `ThoughtComposer` réaligné ; 2 tests (`ouvre à gauche quand on le demande`) |
+| F111 | `ui/craft-sidebar-drawer` : fermé, le sommaire restait dans l'ordre de tabulation (ni `inert` ni `tabIndex=-1`) — Tab traversait un panneau invisible ; un chapitre sans `href` était rendu comme un lien sans destination ; `new IntersectionObserver` sans garde plantait hors navigateur ; le chapitre actif n'était jamais mis à jour. | moyenne | corrigé — `inert`/`tabIndex=-1` quand fermé, `<button type="button">` pour les entrées sans lien, garde d'observateur, `setActiveHeadingId` réellement appelé ; 2 tests (`sort le sommaire du focus quand il est fermé`, `rend un vrai bouton pour un chapitre sans lien`) |
+| F112 | `PreviewableUserAvatar` : la branche « avec carte de survol » rendait `UserAvatar` **sans** lui transmettre `onClick` — le même avatar ouvrait le profil sans `username`, et ne faisait plus rien dès qu'un `username` activait la carte. | moyenne | corrigé — `onClick` transmis dans les deux branches ; 2 tests (`transmet onClick quand la carte de survol est active` / `désactivée`) |
+| F114 | `ui/popover` : `PopoverClose` était un `<span>` avec `onClick` — ni rôle, ni focus, ni Entrée/Espace : fermeture impossible au clavier ; `alignOffset` était déclaré et documenté mais jamais transmis (prop fantôme). | basse | corrigé — `AriaButton slot="close"` (vrai `<button type="button">`), `alignOffset` retiré du contrat (aucun appelant) ; test `rend un bouton atteignable au clavier` |
+| F113 | `packages/sdk/actions/notifications` : `export type { NotificationFilter }` dans un module `'use server'` — **garde CI rouge** (`arch:audit` : « 1 ré-export de type dans un module use server »), la classe de bug qui casse le manifeste des Server Actions sous Turbopack. | haute | corrigé — le type reste dans `actions/utils/notification-filter`, ré-exporté par le barrel `@qoe/sdk` (module pur, pas `'use server'`), consommateur `useNotifications` réaligné ; preuve : `pnpm arch:audit` ❌ 1 ré-export → ✅ 0 anomalie |
+
+**Preuve rouge → vert.** Les correctifs de la tranche ont été retirés
+(`git stash push` sur les 11 fichiers sources, tests conservés), suite
+relancée : **13 tests en échec sur 8 fichiers**
+(`radio-cards` ×2, `tabs-tag-group` ×1, `switch` ×1, `tooltip` ×2,
+`sheet` ×1, `craft-sidebar-drawer` ×2, `user-avatar` ×1,
+`tooltip-delay` ×3), puis `git stash pop` et suite verte. Idem pour
+`checkbox` (+1) et `popover` (+1) : 2 échecs sans le correctif, verts avec.
+
 **Preuves** :
 
 | Commande | Résultat |
 | -------- | -------- |
 | `pnpm --filter @qoe/supabase test` | 49 tests verts (dont 7 nouveaux sur les hôtes d'images : défaut, surcharge Bunny, motif `**.domaine` non-sosie, hôte étranger, HTTP local seulement, patterns sans doublon) |
-| `pnpm --filter @qoe/ui test` | **609 tests / 90 fichiers verts** (dont `image-utils.test.ts`, `safe-image.test.tsx`, `exit-interstitial-behaviour.test.tsx`, `time-picker-input.test.tsx`, `theme-toggle.test.tsx`) |
+| `pnpm --filter @qoe/ui test` | **626 tests / 96 fichiers verts** (dont `image-utils.test.ts`, `safe-image.test.tsx`, `exit-interstitial-behaviour.test.tsx`, `time-picker-input.test.tsx`, `theme-toggle.test.tsx`, `tooltip.test.tsx`, `tooltip-delay.test.tsx`, `sheet.test.tsx`, `craft-sidebar-drawer.test.tsx`, `user-avatar.test.tsx`, `popover.test.tsx`) |
+| `pnpm --filter @qoe/sdk test` · `pnpm arch:audit` | 221 tests / 32 fichiers verts · ✅ 0 anomalie (F113) |
 | `pnpm typecheck` | 25/25 tâches |
 | `pnpm --filter @qoe/ui lint` · `@qoe/supabase lint` | 0 erreur |
 | `pnpm guard:media-origin` | vert |
@@ -818,7 +844,9 @@ du rendu) sur `image-utils.ts`, `SafeImage`, `SafeAvatar`, `ui/**` et les
 
 | #   | Tâche | Sévérité | Motif |
 | --- | ----- | -------- | ----- |
-| R55 | Finir L07a : `primitives/**` et `ui/**` restants (confirm-dialog, hold-to-delete, save-button, copy-button, pagination, table/sort, combobox, date/calendar, exit-interstitial, ImageEditorDialog, color-picker, feature-*, time-picker, dropdown-menu, hover-card, select, toast, sidebar). | — | Premier passage volontairement limité à deux axes transverses ; le reste demande un passage par fichier. |
+| R55 | ~~Finir L07a : `primitives/**` et `ui/**` restants~~ — **close le 2026-11-18** : les 83 fichiers (55 `primitives`, 28 `ui`) ont été lus en entier, plus `TextParser`, `LoginFormBento`, `safe-image`/`safe-avatar`, `image-utils`. Reste hors périmètre R55 : les deux doublons assumés ci-dessous, la bascule de thème visuel (R54) et le chemin latent de `BentoItem`. | — | Clos avec preuves ; voir F106–F114. |
+| R56 | Deux jeux de composants pour le même besoin : `ui/select` (React Aria composé) **et** `primitives/select`, `ui/calendar` (react-day-picker) **et** `primitives/date`. Les deux sont sains et testés ; le coût est la divergence de style et deux chemins d'accessibilité à maintenir. | dette | Choix produit (les écrans existants utilisent l'un ou l'autre) — fusionner demande une décision de design, pas une correction de bug. |
+| R57 | `BentoPlateau` : `BentoItem` accepte `onClick` **et** pose `cursor-pointer` sur un `motion.div` sans `role`, `tabIndex` ni gestion de touche — un item cliquable serait invisible au clavier. Aucun appelant n'en passe aujourd'hui (`wizard.tsx`, `LoginFormBento`), donc le chemin est latent : à durcir le jour où un bento devient interactif. | basse | Pas de correctif à vide : rendre un item focusable sans usage ajouterait un arrêt de tabulation mort. |
 
 ---
 

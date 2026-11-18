@@ -222,8 +222,12 @@ export function Tab({
         </span>
       )}
       {isIconOnly && labelText && (
+        // ⚠️ Pas de `role="tooltip"` : l'infobulle est `aria-hidden` et
+        // n'est liée à aucun `aria-describedby`. Un rôle sans association
+        // n'aide personne et fait croire à un vrai tooltip ; ici c'est une
+        // décoration visuelle, le nom accessible est déjà sur l'onglet.
         <span
-          role="tooltip"
+          data-visual-hint
           aria-hidden
           className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 hidden group-hover/tab:flex group-focus-visible/tab:flex whitespace-nowrap rounded-control bg-foreground px-2 py-1 type-control-xs font-medium text-background shadow-md transition duration-150"
         >

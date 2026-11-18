@@ -2,8 +2,10 @@
 
 import * as React from 'react';
 import {
+  Label,
   RadioGroup as AriaRadioGroup,
   Radio as AriaRadio,
+  Text,
   type RadioGroupProps as AriaRadioGroupProps,
   type RadioProps as AriaRadioProps,
   type RadioGroupRenderProps,
@@ -43,17 +45,30 @@ export function RadioGroup({
   children,
   ...props
 }: RadioGroupProps) {
+  // ⚠️ Le libellé était un `<span>` : le `role="radiogroup"` n'avait donc
+  // AUCUN nom accessible quand l'appelant utilisait `label` (au lieu de
+  // `aria-label`). Un lecteur d'écran annonçait « groupe » et rien de plus —
+  // c'est-à-dire pas la question à laquelle les options répondent.
+  // `Label` de react-aria donne le nom, `Text slot="description"` la
+  // description, et `errorMessage` devient le message d'erreur annoncé.
   return (
-    <AriaRadioGroup className={cn('flex flex-col gap-2', className)} {...props}>
+    <AriaRadioGroup
+      {...props}
+      isInvalid={errorMessage ? true : props.isInvalid}
+      className={cn('flex flex-col gap-2', className)}
+    >
       {(renderProps) => (
         <>
           {label && (
-            <span className="text-sm font-medium text-foreground select-none">{label}</span>
+            <Label className="text-sm font-medium text-foreground select-none">{label}</Label>
           )}
           {description && (
-            <span className="text-xs text-muted-foreground leading-relaxed select-none">
+            <Text
+              slot="description"
+              className="text-xs text-muted-foreground leading-relaxed select-none"
+            >
               {description}
-            </span>
+            </Text>
           )}
 
           <RadioCardVariantContext.Provider value={variant}>
@@ -61,7 +76,9 @@ export function RadioGroup({
           </RadioCardVariantContext.Provider>
 
           {errorMessage && (
-            <span className="text-xs text-destructive select-none">{errorMessage}</span>
+            <Text slot="errorMessage" className="text-xs text-destructive select-none">
+              {errorMessage}
+            </Text>
           )}
         </>
       )}
@@ -184,6 +201,7 @@ export function Radio({ description, className, children, ...props }: RadioProps
       {({ isSelected, isFocusVisible }) => (
         <>
           <div
+            aria-hidden
             className={cn(
               'mt-0.5 size-4 rounded-full border border-foreground/30 flex items-center justify-center transition-colors',
               isSelected && 'border-primary bg-primary text-primary-foreground',
