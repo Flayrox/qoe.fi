@@ -3,7 +3,7 @@
 // =====================================================================
 // 📖 Initialisation Sentry centralisée pour toutes les surfaces :
 //    - initSentryServer : Next.js (server + edge) — apps/*/instrumentation.ts
-//    - initSentryNode    : Node pur (Hono API, workers BullMQ)
+//    - initSentryNode    : Node pur (route handlers Next.js, scripts)
 //    - initSentryClient  : Next.js client — apps/*/sentry.client.config.ts
 //    - sentryDsn         : résolution du DSN depuis l'environnement
 //
@@ -38,7 +38,7 @@ export function initSentryServer(dsn = sentryDsn()) {
 }
 
 /**
- * Initialise Sentry pour un serveur Node pur (Hono API, workers).
+ * Initialise Sentry pour un serveur Node pur (route handlers, scripts).
  */
 export function initSentryNode(dsn = sentryDsn()) {
   if (!dsn) return;
