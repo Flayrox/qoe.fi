@@ -110,16 +110,15 @@ describe('getActiveWorkspace & getActivePublisherId', () => {
     expect(pubId).toBe('pub_media_1');
   });
 
-  it('resolves the real personal publication (never the userId) when no media cookie', async () => {
+  it('fait confiance à la publication personnelle renvoyée par Go (un seul appel)', async () => {
     mockCookies.mockResolvedValue({ get: () => undefined });
     mockGoFetch.mockResolvedValueOnce({
       type: 'PERSONAL',
-      publisherId: 'usr_1',
+      publisherId: 'pub_personal_1',
       name: 'Ada',
       slug: 'ada',
       logoUrl: null,
     });
-    mockGoFetch.mockResolvedValueOnce({ publisherId: 'pub_personal_1' });
 
     const ws = await getActiveWorkspace('usr_1');
     expect(ws).toEqual({
@@ -130,6 +129,24 @@ describe('getActiveWorkspace & getActivePublisherId', () => {
       logoUrl: null,
       permissions: [],
     });
+    // Go est la seule autorité : pas de second appel, pas de publisherId deviné.
+    expect(mockGoFetch).toHaveBeenCalledTimes(1);
+    expect(mockGoFetch).toHaveBeenCalledWith('/v1/workspaces/active');
+  });
+
+  it('demande la publication personnelle à Go quand le contexte ne la fournit pas', async () => {
+    mockCookies.mockResolvedValue({ get: () => undefined });
+    mockGoFetch.mockResolvedValueOnce({
+      type: 'PERSONAL',
+      publisherId: '',
+      name: 'Ada',
+      slug: 'ada',
+      logoUrl: null,
+    });
+    mockGoFetch.mockResolvedValueOnce({ publisherId: 'pub_personal_1' });
+
+    const ws = await getActiveWorkspace('usr_1');
+    expect(ws.publisherId).toBe('pub_personal_1');
     expect(mockGoFetch).toHaveBeenNthCalledWith(2, '/v1/me/publisher');
   });
 
@@ -140,17 +157,18 @@ describe('getActiveWorkspace & getActivePublisherId', () => {
     });
     mockGoFetch.mockResolvedValueOnce({
       type: 'PERSONAL',
-      publisherId: 'usr_1',
+      publisherId: 'pub_personal_1',
       name: 'Ada',
       slug: 'ada',
       logoUrl: null,
     });
-    mockGoFetch.mockResolvedValueOnce({ publisherId: 'pub_personal_1' });
 
     const ws = await getActiveWorkspace('usr_1');
     expect(ws.type).toBe('PERSONAL');
     expect(ws.publisherId).toBe('pub_personal_1');
     expect(ws.fallbackFromMediaId).toBe('med_gone');
+    expect(mockGoFetch).toHaveBeenCalledTimes(1);
+    expect(mockGoFetch).toHaveBeenCalledWith('/v1/workspaces/active?mediaId=med_gone');
   });
 
   it('propagates Go failures instead of inventing a publication id', async () => {
