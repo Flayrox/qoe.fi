@@ -165,3 +165,73 @@ describe('🛡️ Media Engine — Modération Multimodale (Mocking Safety Filte
     expect(mod.isNsfw).toBe(false);
   });
 });
+
+describe('🛡️ Media Engine — modération fail-closed', () => {
+  const withEnv = async (
+    env: Record<string, string | undefined>,
+    run: () => Promise<void>
+  ): Promise<void> => {
+    const previous = Object.fromEntries(Object.keys(env).map((k) => [k, process.env[k]]));
+    for (const [key, value] of Object.entries(env)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    try {
+      await run();
+    } finally {
+      for (const [key, value] of Object.entries(previous)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+  };
+
+  it("refuse l'image quand le filtre est en erreur en mode enforce", async () => {
+    await withEnv(
+      { OPENAI_API_KEY: 'sk-test', MEDIA_MODERATION_MODE: undefined, NODE_ENV: 'production' },
+      async () => {
+        const original = globalThis.fetch;
+        globalThis.fetch = (async () => new Response('boom', { status: 500 })) as typeof fetch;
+        try {
+          const mod = await moderateImageBuffer(Buffer.from([0xff, 0xd8, 0xff]), 'image/jpeg');
+          expect(mod.safe).toBe(false);
+          expect(mod.reason).toMatch(/indisponible/);
+        } finally {
+          globalThis.fetch = original;
+        }
+      }
+    );
+  });
+
+  it('accepte en mode permissif explicite (instance sans filtre)', async () => {
+    await withEnv(
+      {
+        OPENAI_API_KEY: 'sk-test',
+        MEDIA_MODERATION_MODE: 'permissive',
+        NODE_ENV: 'production',
+      },
+      async () => {
+        const original = globalThis.fetch;
+        globalThis.fetch = (async () => {
+          throw new Error('network down');
+        }) as typeof fetch;
+        try {
+          const mod = await moderateImageBuffer(Buffer.from([0xff, 0xd8, 0xff]), 'image/jpeg');
+          expect(mod.safe).toBe(true);
+        } finally {
+          globalThis.fetch = original;
+        }
+      }
+    );
+  });
+
+  it('refuse en production sans clé (aucune image non vérifiée)', async () => {
+    await withEnv(
+      { OPENAI_API_KEY: undefined, MEDIA_MODERATION_MODE: undefined, NODE_ENV: 'production' },
+      async () => {
+        const mod = await moderateImageBuffer(Buffer.from([0xff, 0xd8, 0xff]), 'image/jpeg');
+        expect(mod.safe).toBe(false);
+      }
+    );
+  });
+});

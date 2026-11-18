@@ -126,6 +126,37 @@ export interface ModerationResult {
   scores?: Record<string, number | boolean>;
 }
 
+/** Mode de modération image. */
+export type ImageModerationMode = 'enforce' | 'permissive';
+
+/**
+ * 🚦 Mode de modération : `enforce` par défaut.
+ *
+ * En `enforce`, une image dont la vérification n'a pas pu être faite (clé
+ * absente en production, API en erreur, timeout) est **refusée**. Le mode
+ * `permissive` (`MEDIA_MODERATION_MODE=permissive`) n'existe que pour le dev
+ * ou une instance qui assume explicitement l'absence de filtre.
+ */
+export function imageModerationMode(): ImageModerationMode {
+  const raw = (process.env.MEDIA_MODERATION_MODE || '').trim().toLowerCase();
+  return raw === 'permissive' || raw === 'off' || raw === 'log' ? 'permissive' : 'enforce';
+}
+
+/** Refus (ou passage explicite en mode permissif) quand le filtre est indisponible. */
+function moderationUnavailable(reason: string): ModerationResult {
+  if (imageModerationMode() === 'permissive') {
+    console.warn(`⚠️ Modération image indisponible (${reason}) — mode permissif, image acceptée`);
+    return { safe: true, isNsfw: false, isSensitive: false };
+  }
+  console.error(`❌ Modération image indisponible (${reason}) — image refusée (fail-closed)`);
+  return {
+    safe: false,
+    isNsfw: false,
+    isSensitive: true,
+    reason: 'Modération d’image indisponible : téléversement refusé, réessayez plus tard.',
+  };
+}
+
 /**
  * 🛡️ Modération multimodale universelle de l'image (OpenAI Omni-Moderation).
  */
@@ -135,9 +166,13 @@ export async function moderateImageBuffer(
 ): Promise<ModerationResult> {
   const apiKey = process.env.OPENAI_API_KEY;
 
-  // En local/dev sans clé, autoriser avec log
+  // Clé absente ou factice : jamais en production (fail-closed), toléré en
+  // dev/test pour ne pas bloquer un poste sans clé.
   if (!apiKey || apiKey === 'sk-mock' || apiKey.startsWith('sk-...')) {
-    return { safe: true, isNsfw: false, isSensitive: false };
+    if (process.env.NODE_ENV !== 'production') {
+      return { safe: true, isNsfw: false, isSensitive: false };
+    }
+    return moderationUnavailable('OPENAI_API_KEY absente');
   }
 
   try {
@@ -162,8 +197,7 @@ export async function moderateImageBuffer(
     });
 
     if (!response.ok) {
-      console.warn('⚠️ Erreur OpenAI Moderation API:', response.status);
-      return { safe: true, isNsfw: false, isSensitive: false };
+      return moderationUnavailable(`OpenAI HTTP ${response.status}`);
     }
 
     const data = await response.json();
@@ -192,8 +226,7 @@ export async function moderateImageBuffer(
 
     return { safe: true, isNsfw: false, isSensitive: false, scores: result?.category_scores };
   } catch (error) {
-    console.error('Erreur lors de la modération image:', error);
-    return { safe: true, isNsfw: false, isSensitive: false };
+    return moderationUnavailable(error instanceof Error ? error.message : 'erreur inconnue');
   }
 }
 
