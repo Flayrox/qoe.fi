@@ -13,9 +13,37 @@ export function getBionicSplitIndex(wordLength: number): number {
 }
 
 /**
+ * Une entité HTML (`&nbsp;`, `&amp;`, `&#8230;`) n'est PAS un mot.
+ *
+ * ⚠️ Traitée comme un mot, elle était coupée en `<b>&n</b>bsp;` : le
+ * navigateur n'interprétait plus l'entité et affichait « a&n bsp;b » à la
+ * place d'un espace insécable. Sur un texte accentué et typographié, ce
+ * n'était pas un détail : guillemets français et espaces insécables sont
+ * précisément les entités qu'on rencontre dans nos articles.
+ */
+const HTML_ENTITY_SOURCE = '&(?:[a-zA-Z][a-zA-Z0-9]{1,31}|#\\d{1,7}|#x[0-9a-fA-F]{1,6});';
+const HTML_ENTITY = new RegExp(HTML_ENTITY_SOURCE);
+const HTML_ENTITY_SPLIT = new RegExp(`(${HTML_ENTITY_SOURCE})`);
+
+/**
  * Transforms a single plain word into Bionic Reading HTML
  */
 export function formatBionicWord(token: string): string {
+  if (!token) return '';
+
+  // Les entités restent intactes ; seuls les fragments de texte qui les
+  // entourent sont mis en gras.
+  if (HTML_ENTITY.test(token)) {
+    return token
+      .split(HTML_ENTITY_SPLIT)
+      .map((part) =>
+        part.startsWith('&') && part.endsWith(';') && HTML_ENTITY.test(part)
+          ? part
+          : formatBionicWord(part)
+      )
+      .join('');
+  }
+
   // Extract leading punctuation (e.g. quotes, parentheses, brackets)
   const leadingMatch = token.match(/^[^a-zA-Z0-9À-ÿ]+/);
   const leading = leadingMatch ? leadingMatch[0] : '';

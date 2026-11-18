@@ -37,4 +37,16 @@ describe('Bionic Reading', () => {
     expect(output).toContain('<strong><b>b</b>el');
     expect(output).toContain('</strong>');
   });
+
+  // ⚠️ Une entité HTML n'est pas un mot : `&nbsp;` coupé en `<b>&n</b>bsp;`
+  // s'affiche littéralement « a&n bsp;b » — l'espace insécable disparaît et
+  // le texte publié devient faux à l'écran.
+  it('ne coupe jamais une entité HTML', () => {
+    expect(formatBionicWord('&nbsp;')).toBe('&nbsp;');
+    expect(formatBionicText('a&nbsp;b')).toBe('<b>a</b>&nbsp;<b>b</b>');
+    expect(formatBionicHtml('<p>&laquo;&nbsp;Bonjour&nbsp;&raquo;</p>')).toBe(
+      '<p>&laquo;&nbsp;<b>Bon</b>jour&nbsp;&raquo;</p>'
+    );
+    expect(formatBionicHtml('<p>Tom &amp; Jerry</p>')).toContain('<b>T</b>om &amp; <b>Je</b>rry');
+  });
 });
