@@ -757,15 +757,31 @@ session), puis le contenu (highlights, ebooks, workspace), puis le reste.
 | F82 | `threadgates` : `revalidatePath('/post')` — route inexistante (le fil est `/post/[id]`), même classe que F79. Appel retiré, R52 étendue aux fils. | basse    | corrigé |
 | F83 | `notifications` : `filter` était interpolé brut dans la query string (`filter: 'all&limit=9999'` réécrivait la requête). Validé contre la liste du Go puis encodé ; `limit` borné par `normalizePage`. | moyenne  | corrigé |
 | F84 | `markNotificationsAsReadAction` poussait un tableau d'ids arbitraire (taille et doublons non bornés) dans un `UPDATE … = ANY(...)`. Déduplication + plafond 500. | basse    | corrigé |
+| F85 | `apps/studio` : `workspace-cookie.test.ts` attendait encore l'ancien flux à deux appels (`/v1/workspaces/active` puis `/v1/me/publisher`) et un `publisherId: 'usr_1'` de test ⇒ **test rouge sur `dev`**. Réaligné sur le contrat actuel (un appel, confiance au Go, repli seulement si `publisherId` vide), + cas `fallbackFromMediaId`. | moyenne  | corrigé |
+| F86 | `'use server'` ne peut exporter que des fonctions **async**. Les helpers purs ajoutés à `actions/notifications` (constantes + `normalizeNotificationFilter`) passaient `tsc`, `eslint` et `vitest`, mais cassaient la compilation de `apps/core` (`Export … doesn't exist in target module`). Déplacés dans `actions/utils/notification-filter.ts` ; seul le type est re-exporté. | haute    | corrigé — **règle** : tout nouvel export d'un module `'use server'` se prouve par un build (ou l'E2E), jamais par le seul typecheck |
+| F87 | Suite Go : sur une base de test **persistante** (`TEST_DATABASE_URL`), le deuxième run échoue en 23505/23503 alors que le code est sain (packages à ids fixes, `SubscriptionGrant` non truncaté). `QOE_TEST_DB_RESET=1` recrée le schéma public avant migrations ; `seedNewsletterEnv` tronque `SubscriptionGrant`. | moyenne  | corrigé — preuve : `search` + `newsletters` deux fois de suite sur la même base ⇒ ok / ok |
 
 Cinq tests (`adminActions.test.ts`) verrouillent l'ordre « Go d'abord » (aucun
-ban si le Go refuse), la compensation et la remontée d'erreur d'unban.
+ban si le Go refuse), la compensation et la remontée d'erreur d'unban ; quatre
+tests (`notificationsActions.test.ts`) verrouillent le filtre, la borne de
+`limit` et le plafond d'ids lus.
+
+**Preuves exécutées le 2026-11-18** (Mac → VPS Hetzner de dev, tunnel SSH
+`15409`/`6379`, base `qoe_test`) :
+
+| Commande | Résultat |
+| -------- | -------- |
+| `pnpm exec vitest run` (SDK) | 221 tests / 32 fichiers, vert |
+| `pnpm test` (workspace, turbo) | 22/22 tâches, exit 0 après F85 |
+| `go test -p 1 -count=1 ./cmd/... ./internal/...` | suite complète sur base **vierge** : voir journal ci-dessous |
+| `pnpm exec playwright test --project=public-web --project=core-journeys` | **15/15 verts, exit 0** (9 min, `--workers=2`) — nécessite les tunnels SSH `15409` (DB) **et** `DATABASE_URL` exporté (les specs lisent la base directement), + `6379` (Redis, sinon 5 tentatives de connexion par requête) |
 
 | #   | Tâche                                                                                                       | Sévérité | Motif |
 | --- | ----------------------------------------------------------------------------------------------------------- | -------- | ----- |
 | R50 | `legal` : `fetchLegalDocumentsToAccept` renvoie `[]` en cas de panne ⇒ l'inscription passe sans cases à cocher (fail-open sur le consentement). Trancher : bloquer l'inscription (fail-closed) ou accepter puis re-demander au portail, avec trace. | produit  | Décision juridique/produit, pas technique : le comportement actuel est un choix assumé mais non écrit. |
 | R51 | `actions/ai`, `ebooks`, `workspace` : vérifier le contrat Go (quotas, taille, types MIME) avant d'écrire des gardes TS redondantes. | —        | Suite du lot L06d. |
 | R52 | Invalidation par tag (`article:{id}`, `post:{id}`) au lieu de chemins legacy : les mutations de surlignage/annotation/réponse masquée ne rafraîchissent aujourd'hui rien côté serveur (F79, F82). | moyenne | Demande un `unstable_cache`/`cacheTag` dans les pages core et tenants ; à faire d'un bloc pour éviter les invalidations globales. |
+| R53 | `playwright.config.ts` accepte n'importe quel `DATABASE_URL` : quand la base n'est pas joignable depuis le poste (cas du VPS derrière un pare-feu), les parcours échouent en `ETIMEDOUT` après 2 min au lieu d'un échec immédiat et lisible. Ajouter un préflight (connexion + message « tunnel SSH requis »). | basse | Gagne du temps à chaque campagne ; découvert en lançant l'E2E sans tunnel actif. |
 
 ---
 
