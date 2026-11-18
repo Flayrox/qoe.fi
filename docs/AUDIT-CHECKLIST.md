@@ -753,6 +753,8 @@ session), puis le contenu (highlights, ebooks, workspace), puis le reste.
 | F78 | `createHighlightAction` déclarait `isOfficial` dans son entrée sans jamais l'envoyer : paramètre fantôme qui laissait croire qu'un lecteur pouvait publier une annotation « officielle ». Retiré du contrat (l'officialité est décidée par le Go). | moyenne  | corrigé |
 | F79 | `revalidatePath('/article')` ×6 : aucune route de ce nom (tenant `/{cat}/{slug}`, core `/{owner}/a/{slug}`) ⇒ invalidation fantôme. Appels retirés, remplacés par le suivi R52 (tags). | moyenne  | corrigé |
 | F80 | `workspace` : le garde `!publisherId.startsWith('usr_')` testait un préfixe qui n'existe nulle part (les identifiants sont des UUID) — il laissait donc passer un `publisherId = userId` si le Go régressait. S'appuie désormais sur le contrat explicite du Go (`""` quand la publication n'existe pas), verrouillé par un test d'intégration Go. | moyenne  | corrigé |
+| F81 | `appeals` et `support` construisaient `?limit=${limit}` sans borne : `limit=100000` transformait une page en export, `limit=NaN` produisait un 400 opaque. Util partagé `utils/pagination.ts` (`normalizePage` : 1…100, offset ≥ 0, rejet NaN/Infinity), 6 tests. | moyenne  | corrigé |
+| F82 | `threadgates` : `revalidatePath('/post')` — route inexistante (le fil est `/post/[id]`), même classe que F79. Appel retiré, R52 étendue aux fils. | basse    | corrigé |
 
 Cinq tests (`adminActions.test.ts`) verrouillent l'ordre « Go d'abord » (aucun
 ban si le Go refuse), la compensation et la remontée d'erreur d'unban.
@@ -761,7 +763,7 @@ ban si le Go refuse), la compensation et la remontée d'erreur d'unban.
 | --- | ----------------------------------------------------------------------------------------------------------- | -------- | ----- |
 | R50 | `legal` : `fetchLegalDocumentsToAccept` renvoie `[]` en cas de panne ⇒ l'inscription passe sans cases à cocher (fail-open sur le consentement). Trancher : bloquer l'inscription (fail-closed) ou accepter puis re-demander au portail, avec trace. | produit  | Décision juridique/produit, pas technique : le comportement actuel est un choix assumé mais non écrit. |
 | R51 | `actions/ai`, `ebooks`, `workspace` : vérifier le contrat Go (quotas, taille, types MIME) avant d'écrire des gardes TS redondantes. | —        | Suite du lot L06d. |
-| R52 | Invalidation des pages article par tag (`article:{id}`) au lieu de chemins legacy : les mutations de surlignage/annotation ne rafraîchissent aujourd'hui rien côté serveur. | moyenne | Demande un `unstable_cache`/`cacheTag` dans les pages core et tenants ; à faire d'un bloc pour éviter les invalidations globales. |
+| R52 | Invalidation par tag (`article:{id}`, `post:{id}`) au lieu de chemins legacy : les mutations de surlignage/annotation/réponse masquée ne rafraîchissent aujourd'hui rien côté serveur (F79, F82). | moyenne | Demande un `unstable_cache`/`cacheTag` dans les pages core et tenants ; à faire d'un bloc pour éviter les invalidations globales. |
 
 ---
 

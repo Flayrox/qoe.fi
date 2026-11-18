@@ -9,7 +9,6 @@
 //    (/v1/posts threadgate via apps/api/internal/modules/posts).
 // =====================================================================
 
-import { revalidatePath } from 'next/cache';
 import { safeAction } from '../utils/safe-action';
 import { goFetch } from '../utils/go-client';
 
@@ -29,11 +28,12 @@ export const canUserReplyAction = safeAction<{ thoughtId: string }, CanReplyResu
 export const hideReplyAction = safeAction<{ replyId: string }, { isHiddenByAuthor: boolean }>(
   async (input) => {
     // Go-only : seul l'auteur de la pensée parente peut masquer (403 sinon).
-    const result = await goFetch<{ isHiddenByAuthor: boolean }>(
+    // Pas de `revalidatePath('/post')` : cette route n'existe pas (le fil vit
+    // sur `/post/[id]`) et l'invalidation ne touchait donc rien — cf. R52 pour
+    // une invalidation par tag, seule façon correcte de cibler un fil.
+    return goFetch<{ isHiddenByAuthor: boolean }>(
       `/v1/posts/${encodeURIComponent(input.replyId)}/hide`,
       { method: 'POST' }
     );
-    revalidatePath('/post');
-    return result;
   }
 );

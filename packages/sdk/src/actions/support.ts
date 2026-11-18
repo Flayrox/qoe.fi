@@ -9,6 +9,7 @@
 // =====================================================================
 
 import { goFetch } from './utils/go-client';
+import { pageQuery } from './utils/pagination';
 import { safeAction } from './utils/safe-action';
 import type { SupportKind, SupportStatus } from '../abuse-codes.generated';
 
@@ -39,8 +40,9 @@ export const listMySupportTicketsAction = safeAction<
   { limit?: number; offset?: number },
   { items: SupportTicketDTO[]; total: number }
 >(async ({ limit, offset } = {}) => {
-  const qs = `?limit=${limit ?? 20}&offset=${offset ?? 0}`;
-  return goFetch<{ items: SupportTicketDTO[]; total: number }>(`/v1/support/tickets${qs}`);
+  return goFetch<{ items: SupportTicketDTO[]; total: number }>(
+    `/v1/support/tickets${pageQuery({ limit, offset })}`
+  );
 });
 
 /** Un de mes dossiers, avec ses messages. */
