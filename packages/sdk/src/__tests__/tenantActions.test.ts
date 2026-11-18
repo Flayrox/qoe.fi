@@ -226,6 +226,8 @@ describe('🔗 quotePassageToFeedAction', () => {
         id: 'art_1',
         title: 'Titre',
         slug: 'slug-1',
+        shortCode: '928488',
+        category: { slug: 'ia', parentSlug: 'tech' },
         publisher: { subdomain: 'media', customDomain: null, name: 'Média' },
       })
       .mockResolvedValueOnce({ id: 'post_1' });
@@ -239,6 +241,8 @@ describe('🔗 quotePassageToFeedAction', () => {
     expect(typeof body).toBe('object');
     expect(body.quotedArticleId).toBe('art_1');
     expect(body.quotedExcerpt).toBe('Passage cité');
-    expect(String(body.content)).toContain('https://media.qoe.fi/article/slug-1');
+    // Chemin canonique du tenant, sous-catégorie comprise — pas l'ancienne
+    // forme `/article/{slug}` ni `https://{domaine propre}.qoe.fi`.
+    expect(String(body.content)).toContain('https://media.qoe.fi/tech/ia/slug-1');
   });
 });

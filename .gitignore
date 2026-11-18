@@ -184,3 +184,6 @@ apps/api/server
 .preview/
 
 docs-*.cjs
+
+# SMTP de dev (scripts/dev-smtp.mjs)
+.mail-outbox/

@@ -99,6 +99,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L35     | `Dockerfile`, `docker-compose*.yml`, `docker/**`, `infra/monitoring/**`, `Caddyfile.dev`                     | infra                       | à auditer               |
 | L36     | `e2e/**`, `playwright*.config.ts`, `e2e/lib/**`                                                              | 65 fichiers                 | à auditer               |
 | L37     | `docs/**`, `AGENTS.md`, racine (`tsconfig`, `eslint`, `turbo`, `vitest`), `supabase/`, `patches/`, `.husky/` | transverse                  | à auditer               |
+| **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 
 **Prochain lot à traiter : L06d — actions SDK restantes (admin, legal, billing…).**
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
@@ -732,3 +733,81 @@ pnpm typecheck                              # 25 successful, 25 total
 | #   | Tâche                                                                                          | Sévérité | Motif                                                                                       |
 | --- | ------------------------------------------------------------------------------------------------ | -------- | ------------------------------------------------------------------------------------------- |
 | R45 | Auditer les 38 actions restantes (admin, legal, billing, highlights, ebooks, appeals, support, workspace, entitlements, ai) | —        | Lot L06d : mêmes axes (encodage, autorisation, contrat Go) sur les domaines à moindre trafic. |
+
+---
+
+## L38 — URLs d'article (core ↔ tenants) + SMTP de dev — durci le 2026-11-18
+
+**Contexte.** Trois formes d'URL coexistent et **ne sont pas interchangeables** :
+c'est la source d'anomalies la plus coûteuse du dépôt (liens qui marchent en
+dev grâce à une redirection, puis cassent sur un domaine propre).
+
+| Contexte                  | Forme canonique                                   | Formes secondaires                              |
+| ------------------------- | ------------------------------------------------- | ----------------------------------------------- |
+| Tenant (domaine/sous-dom.) | `/{categorie}/{sous-categorie?}/{slug}`           | `/{code}` (928488), `/l/{code}`, `/author/{u}`  |
+| Tenant (anciennes URLs)    | `/article/{slug}`, `/articles/{slug}` → **308**   | —                                               |
+| Tenant (index)             | `/{categorie}`, `/{parent}/{enfant}`              | `/sitemap`, `/search`, `/about`, `/team`        |
+| Core (qoe.fi)              | `/{proprietaire}/a/{slug}`                        | `/l/{code}`, `/{username}/thought/{id}`         |
+
+`/{code}` n'existe **que** côté tenant : le core ne résout un code court que via
+`/l/{code}` (tâche R47).
+
+**Périmètre.** `apps/api/sql/queries/articles.sql` (+ sqlc), `apps/api/internal/
+modules/articles/{service,shortcode}.go`, `packages/config/src/routes.ts`,
+`packages/sdk/src/lib/shareUrl.ts`, `packages/ui/src/{social/LinkPreview,
+seo/JsonLd}.tsx`, `apps/core/src/components/social/ArticleAnnotatorView.tsx`,
+`scripts/guard-article-links.mjs`, `scripts/dev-smtp.mjs`.
+
+### Findings et correctifs
+
+| #   | Défaut                                                                                                                                       | Sévérité | Correctif                                                                                                              | Fichiers |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------- | -------- |
+| F65 | Le Go ne renvoyait ni `shortCode` ni `category.parentSlug` sur la lecture d'article : impossible de composer le chemin d'une sous-rubrique (`/tech/ia/slug`), d'où les replis `/article/{slug}` | moyenne | `GetArticleBySlug`, `GetArticleBySlugAny`, `GetArticleByID` joignent la catégorie parente et exposent `shortCode` ; `CategoryInfo.parentSlug` + `ArticleResponse.shortCode` (sqlc régénéré) | `articles.sql`, `service.go` |
+| F66 | `resolveArticleShareUrl` générait `/{slug}` sous `/article/` et ignorait la catégorie — forme obsolète, 404 sur sous-rubrique | haute | Délègue à `buildArticlePath()` (`@qoe/utils`) : `/{parent}/{categorie}/{slug}`, `uncategorized` par défaut, option `preferShortCode` → `/l/{code}` | `sdk/lib/shareUrl.ts`, `sdk/actions/tenant` |
+| F67 | `LinkPreview` figeait `https://${subdomain}.qoe.fi/article/${slug}` : domaine propriétaire en dur, chemin obsolète, aucun domaine propre | moyenne | `getArticleUrl(..., { preferTenant: true, absolute: true })` | `ui/social/LinkPreview.tsx` |
+| F68 | CTA paywall (`ArticleAnnotatorView`) : `https://{sub}.qoe.fi/article/{slug}` ou chemin core **inexistant** `/{publisher}/{slug}` | haute | `getArticleUrl(article, { preferTenant: true, absolute: true })` | `apps/core/.../ArticleAnnotatorView.tsx` |
+| F69 | `buildArticleSchema` retombait sur `/article/{slug}` : JSON-LD déclarait une URL 404 dans le core | moyenne | Repli `/{owner}/a/{slug}` (owner = auteur, sinon `qoefi`) | `ui/seo/JsonLd.tsx` |
+| F70 | `routes.tenant.article` encodait la sous-catégorie entière (`tech%2Fia`) → 404 | moyenne | `encodeSegments` : chaque segment encodé, `/` conservé ; ajout de `routes.tenant.category` | `config/routes.ts` |
+| F71 | Aucun garde n'empêchait de régénérer l'ancienne forme ; l'anomalie revenait à chaque lot | moyenne | `guard:article-links` (CI) : interdit `/article/${…}` généré et les hôtes `qoe.fi` en dur, allowlist = redirections legacy documentées + R46 | `scripts/guard-article-links.mjs`, `package.json`, `ci.yml` |
+
+### Tests ajoutés (table de vérité verrouillée)
+
+- `packages/config/src/__tests__/article-route-shapes.test.ts` (8) : tenant
+  avec sous-catégorie, domaine propre, encodage par segment, core `/{owner}/a/`,
+  liens courts `/l/{code}`.
+- `packages/sdk/src/__tests__/shareUrl.test.ts` (9) : jamais `/article/`,
+  `uncategorized` par défaut, option code court.
+- `packages/ui/src/seo/__tests__/JsonLd.test.tsx` : JSON-LD canonique core.
+- `packages/sdk/src/__tests__/tenantActions.test.ts` : citation = chemin tenant
+  `https://media.qoe.fi/tech/ia/slug-1`.
+
+### SMTP local (sans Docker)
+
+`scripts/dev-smtp.mjs` + `pnpm mail:dev` : puits SMTP autonome (aucune
+dépendance), écoute sur `127.0.0.1:1025`, écrit chaque message en `.eml` dans
+`.mail-outbox/` (gitignoré). Vérifié de bout en bout avec un client SMTP réel
+(dot-unstuffing `.` → `..` compris). Côté mailer :
+
+```bash
+EMAIL_PROVIDER=smtp SMTP_HOST=127.0.0.1 SMTP_PORT=1025 pnpm dev
+# SMTP_USER vide → aucune AUTH, donc aucun TLS requis
+```
+
+### Preuves exécutées
+
+```bash
+cd apps/api && sqlc generate && go build ./... && go vet ./internal/modules/articles/  # EXIT=0
+cd packages/sdk && pnpm exec vitest run            # 29 fichiers / 207 tests
+cd packages/config && pnpm exec vitest run         # 6 fichiers / 76 tests
+cd packages/ui && pnpm exec vitest run src/seo src/social   # 49 tests
+pnpm typecheck                                     # 25 successful, 25 total
+node scripts/guard-article-links.mjs               # aucun lien obsolète
+```
+
+### Reste à faire (lot L38)
+
+| #   | Tâche                                                                                                        | Sévérité | Motif                                                                                     |
+| --- | ------------------------------------------------------------------------------------------------------------ | -------- | ----------------------------------------------------------------------------------------- |
+| R46 | `NotificationItem` : le repli `article` doit venir du serveur (`url`)                                          | moyenne  | La cible est ambiguë (notification lue dans le core **ou** le studio) ; allowlisté dans le garde en attendant. |
+| R47 | Le core n'accepte pas `/{code}` (code court nu), contrairement aux tenants                                     | faible   | Produit : ajouter une route `/[code]` numérique au core ou assumer `/l/{code}` partout.     |
+| R48 | Généraliser `shortCode` à toutes les surfaces (cartes, e-mails) comme lien de partage stable                    | faible   | Le champ existe désormais côté Go ; les cartes n'ont pas encore la donnée.                  |

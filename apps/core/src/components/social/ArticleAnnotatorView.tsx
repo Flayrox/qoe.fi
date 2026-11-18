@@ -67,6 +67,7 @@ import {
   formatBionicHtml,
 } from '@qoe/ui/reader';
 import { cn } from '@qoe/utils';
+import { getArticleUrl } from '@qoe/config';
 import { t } from '@lingui/core/macro';
 import { useFlag } from '@qoe/flags';
 import { Button } from '@qoe/ui/button';
@@ -1085,11 +1086,7 @@ function ArticleAnnotatorViewInner({
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <a
-              href={
-                article.author.subdomain
-                  ? `https://${article.author.subdomain}.qoe.fi/article/${article.slug}`
-                  : `/${encodeURIComponent(article.publisher?.slug || article.author.username || 'article')}/${encodeURIComponent(article.slug)}`
-              }
+              href={getArticleUrl(article, { preferTenant: true, absolute: true })}
               target="_blank"
               rel="noopener noreferrer"
               className="w-full sm:w-auto px-6 py-3 rounded-xl bg-highlight text-black font-bold text-xs sm:text-sm hover:bg-highlight/90 transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"

@@ -49,6 +49,8 @@
     "guard:legal-consent": "bash scripts/guard-legal-consent.sh",
     "guard:dangerous-html": "node scripts/guard-dangerous-html.mjs",
     "guard:flags-parity": "node scripts/guard-flags-parity.mjs",
+    "guard:article-links": "node scripts/guard-article-links.mjs",
+    "mail:dev": "node scripts/dev-smtp.mjs",
     "audit:guard": "node scripts/audit-guard.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

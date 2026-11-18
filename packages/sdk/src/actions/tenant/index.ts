@@ -176,6 +176,8 @@ export const quotePassageToFeedAction = safeAction<QuotePassageInput, QuotePassa
       id: string;
       title: string;
       slug: string;
+      shortCode?: string | null;
+      category?: { slug?: string | null; parentSlug?: string | null } | null;
       publisher: {
         subdomain: string | null;
         customDomain: string | null;
@@ -184,10 +186,14 @@ export const quotePassageToFeedAction = safeAction<QuotePassageInput, QuotePassa
     }>(`/v1/articles/by-id/${encodeURIComponent(articleId)}`);
     if (!article) throw new Error('ARTICLE_NOT_FOUND');
 
-    // Origine réelle de la publication : le domaine personnalisé était
-    // auparavant suffixé de `.qoe.fi` (`https://exemple.com.qoe.fi`), donc
-    // lien mort pour tous les créateurs à domaine propre.
-    const articleUrl = resolveArticleShareUrl(article.publisher, article.slug);
+    // Origine réelle + chemin canonique du tenant : `/{categorie}/{sous-categorie?}/{slug}`.
+    // L'ancienne forme `/article/{slug}` (et `https://{customDomain}.qoe.fi`)
+    // produisait un lien redirigé, ou carrément mort sur un domaine propre.
+    const articleUrl = resolveArticleShareUrl(article.publisher, {
+      slug: article.slug,
+      shortCode: article.shortCode,
+      category: article.category,
+    });
 
     const quoteContent = commentary
       ? `« ${text} »\n\n${commentary}\n\n${articleUrl}`

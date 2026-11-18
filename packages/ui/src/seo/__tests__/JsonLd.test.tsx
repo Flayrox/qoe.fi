@@ -47,7 +47,9 @@ describe('🛡️ SEO JsonLd Component & Builders', () => {
     expect(schema['@context']).toBe('https://schema.org');
     expect(schema['@type']).toBe('Article');
     expect(schema.headline).toBe('Mon Super Article');
-    expect(schema.mainEntityOfPage['@id']).toBe('https://qoe.fi/article/mon-super-article');
+    // Chemin canonique du lecteur : `/{proprietaire}/a/{slug}` (et non
+    // l'ancienne forme `/article/{slug}`, qui n'existe plus dans le core).
+    expect(schema.mainEntityOfPage['@id']).toBe('https://qoe.fi/alex/a/mon-super-article');
     expect(schema.author.name).toBe('Alexandre');
     expect(schema.author.url).toBe('https://qoe.fi/alex');
     expect(schema.image).toEqual(['https://cdn.qoe.fi/cover.jpg']);

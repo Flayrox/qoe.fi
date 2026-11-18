@@ -55,6 +55,12 @@ jobs:
       - name: Guard flags parity (TS ↔ Go)
         run: pnpm guard:flags-parity
 
+      # Liens d'article : les formes obsolètes (`/article/{slug}`) et les hôtes
+      # codés en dur doivent passer par les résolveurs canoniques
+      # (`buildArticlePath`, `getArticleUrl`, `resolveArticleShareUrl`).
+      - name: Guard article links
+        run: pnpm guard:article-links
+
       # Passe 4 (T10) : cliquet sur les vulnérabilités high/critical connues.
       - name: Guard dependencies (pnpm audit, cliquet)
         run: pnpm audit:guard

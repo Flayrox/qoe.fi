@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, ArrowUpRight } from 'lucide-react';
 import { cn } from '@qoe/utils';
+import { getArticleUrl } from '@qoe/config';
 import { QuotedArticleCard, type QuotedArticleData } from './QuotedArticleCard';
 import { QuotedThoughtCard, type QuotedThoughtData } from './QuotedThoughtCard';
 import { SafeImage } from '../SafeImage';
@@ -129,9 +130,17 @@ export function LinkPreview({
           if (onNavigate) {
             onNavigate({ type: 'article', id: art.id, slug: art.slug });
           } else {
-            const url = art.author?.subdomain
-              ? `https://${art.author.subdomain}.qoe.fi/article/${art.slug}`
-              : `/article/${art.slug}`;
+            // Même résolution que les cartes : domaine propre, sous-domaine et
+            // sous-catégorie compris (`/{parent}/{cat}/{slug}`). L'ancien code
+            // figeait `qoe.fi` et l'ancienne forme `/article/{slug}`.
+            const url = getArticleUrl(
+              {
+                slug: art.slug,
+                author: art.author ?? null,
+                publisher: art.publisher ?? null,
+              },
+              { preferTenant: true, absolute: true }
+            );
             window.open(url, '_blank');
           }
         }}

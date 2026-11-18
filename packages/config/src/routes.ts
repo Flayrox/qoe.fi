@@ -9,6 +9,20 @@
 import { getMonorepoUrl } from './constants';
 import { getMainAppUrl, isMainAppHost } from './domain-hub';
 
+/**
+ * Encode chaque segment d'un chemin structuré.
+ *
+ * Une sous-catégorie s'exprime `parent/enfant` : encoder la chaîne entière
+ * donnerait `parent%2Fenfant`, donc une 404. Les `/` restent des séparateurs.
+ */
+function encodeSegments(path: string): string {
+  return path
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+}
+
 const studioRoutes = {
   home: () => '/',
   articles: {
@@ -151,12 +165,20 @@ export const routes = {
   /** 🌐 Multi-Tenant Creator Sites (`apps/tenants`) */
   tenant: {
     home: (subdomain: string, host?: string) => `${getMonorepoUrl('tenant', host, subdomain)}/`,
+    /**
+     * Chemin canonique d'un article tenant.
+     * `categorySlug` peut porter une sous-catégorie (`tech/ia`) : chaque segment
+     * est encodé séparément. Sans catégorie connue, on retombe sur l'ancienne
+     * forme `/article/{slug}`, qui redirige en 308 vers le canonique.
+     */
     article: (subdomain: string, slug: string, host?: string, categorySlug?: string | null) =>
       categorySlug
-        ? `${getMonorepoUrl('tenant', host, subdomain)}/${encodeURIComponent(categorySlug)}/${encodeURIComponent(slug)}`
+        ? `${getMonorepoUrl('tenant', host, subdomain)}/${encodeSegments(categorySlug)}/${encodeURIComponent(slug)}`
         : `${getMonorepoUrl('tenant', host, subdomain)}/article/${encodeURIComponent(slug)}`,
     articleLegacy: (subdomain: string, slug: string, host?: string) =>
       `${getMonorepoUrl('tenant', host, subdomain)}/article/${encodeURIComponent(slug)}`,
+    category: (subdomain: string, categorySlug: string, host?: string) =>
+      `${getMonorepoUrl('tenant', host, subdomain)}/${encodeSegments(categorySlug)}`,
     shortArticle: (subdomain: string, shortCode: string, host?: string) =>
       `${getMonorepoUrl('tenant', host, subdomain)}/l/${encodeURIComponent(shortCode)}`,
   },
@@ -187,6 +209,8 @@ export interface ArticleResolvable {
   category?: {
     slug?: string | null;
     name?: string | null;
+    /** Catégorie parente : chemin `/{parent}/{categorie}/{article}`. */
+    parentSlug?: string | null;
   } | null;
   authorUsername?: string | null;
   owner?: string | null;
@@ -241,8 +265,16 @@ function getClientHost(): string | undefined {
 
 function buildCustomDomainArticlePath(slug: string, categorySlug?: string | null): string {
   return categorySlug
-    ? `/${encodeURIComponent(categorySlug)}/${encodeURIComponent(slug)}`
+    ? `/${encodeSegments(categorySlug)}/${encodeURIComponent(slug)}`
     : `/article/${encodeURIComponent(slug)}`;
+}
+
+/** Chemin de catégorie `parent/enfant` (sans encodage), ou null si inconnu. */
+function articleCategoryPath(article: ArticleResolvable): string | null {
+  const slug = article.category?.slug?.trim();
+  if (!slug) return null;
+  const parent = article.category?.parentSlug?.trim();
+  return parent ? `${parent}/${slug}` : slug;
 }
 
 /**
@@ -261,15 +293,16 @@ export function getArticleUrl(
 ): string {
   if (options?.preferTenant) {
     const customDomain = article.publisher?.customDomain || article.author?.customDomain;
+    const categoryPath = articleCategoryPath(article);
     if (customDomain) {
-      return `https://${customDomain}${buildCustomDomainArticlePath(article.slug, article.category?.slug)}`;
+      return `https://${customDomain}${buildCustomDomainArticlePath(article.slug, categoryPath)}`;
     }
     if (article.publisher?.subdomain) {
       return routes.tenant.article(
         article.publisher.subdomain,
         article.slug,
         options?.host,
-        article.category?.slug
+        categoryPath
       );
     }
     if (article.author?.subdomain) {
@@ -277,7 +310,7 @@ export function getArticleUrl(
         article.author.subdomain,
         article.slug,
         options?.host,
-        article.category?.slug
+        categoryPath
       );
     }
   }

@@ -34,7 +34,7 @@ export interface ArticleSchemaInput {
   authorLogo?: string | null;
   coverImage?: string | null;
   baseUrl: string;
-  /** Chemin canonique de l'article (ex. /tech/slug). */
+  /** Chemin canonique de l'article (ex. /tech/slug ou /alice/a/slug). */
   path?: string;
 }
 
@@ -42,9 +42,13 @@ export interface ArticleSchemaInput {
  * Construit un schéma Schema.org conforme de type 'Article' ou 'NewsArticle'.
  */
 export function buildArticleSchema(input: ArticleSchemaInput) {
+  // Repli : chemin canonique du lecteur (`/{proprietaire}/a/{slug}`).
+  // `/article/{slug}` n'existe plus dans le core (seulement, en legacy, sur
+  // les tenants) : un JSON-LD pointant dessus déclarait une URL 404.
+  const owner = (input.authorUsername || 'qoefi').replace(/^@/, '');
   const url = input.path
     ? `${input.baseUrl.replace(/\/$/, '')}${input.path}`
-    : `${input.baseUrl.replace(/\/$/, '')}/article/${encodeURIComponent(input.slug)}`;
+    : `${input.baseUrl.replace(/\/$/, '')}/${encodeURIComponent(owner)}/a/${encodeURIComponent(input.slug)}`;
   const authorUrl = input.authorUsername
     ? `${input.baseUrl.replace(/\/$/, '')}/${encodeURIComponent(input.authorUsername)}`
     : input.baseUrl;
@@ -81,7 +85,7 @@ export interface PersonSchemaInput {
   bio?: string | null;
   logoUrl?: string | null;
   baseUrl: string;
-  /** Chemin canonique de l'article (ex. /tech/slug). */
+  /** Chemin canonique de l'article (ex. /tech/slug ou /alice/a/slug). */
   path?: string;
 }
 

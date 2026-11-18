@@ -58,6 +58,11 @@ d'environnement. Règle appliquée à chaque lot (axe 8 de la checklist).
 - `pnpm dev:vps` démarre la stack locale (Next.js + API Go via launchd + Caddy) branchée sur cette base distante (`DATABASE_URL` → `116.203.158.47:15409`).
 - Domaines locaux : `qoe.test` (core), `studio.qoe.test`, `admin.qoe.test`, `*.qoe.test` (tenants), API sur `api.qoe.test:15407`.
 - Les données de test vivent dans cette base partagée : vérifier leur existence avant d’insérer.
+- **E-mails en local** : `pnpm mail:dev` lance un puits SMTP autonome (sans
+  dépendance) sur `127.0.0.1:1025` qui écrit chaque message en `.eml` dans
+  `.mail-outbox/` (gitignoré). Pointer le mailer dessus :
+  `EMAIL_PROVIDER=smtp SMTP_HOST=127.0.0.1 SMTP_PORT=1025` (SMTP_USER vide →
+  aucune AUTH, donc aucun TLS requis).
 
 ## Commandes utiles
 
@@ -69,7 +74,9 @@ pnpm test                # vitest
 pnpm test:api            # Go + Postgres partagé (docker)
 pnpm e2e                 # Playwright
 pnpm db:migrate          # goose up (apps/api)
-pnpm ui:audit            # ratchet de dette UI
+pnpm ui:audit             # ratchet de dette UI
+pnpm guard:article-links  # interdit les liens d'article obsolètes (`/article/{slug}`)
+pnpm mail:dev             # puits SMTP local (`.mail-outbox/*.eml`)
 pnpm ui:catalog          # régénère le catalogue du UI lab
 ```
 

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { resolveArticleShareUrl, resolvePublisherOrigin } from '../lib/shareUrl';
 
-// L06c : le partage d'article composait `https://{hôte}.qoe.fi`, ce qui donnait
-// `https://exemple.com.qoe.fi` pour un domaine personnalisé, et figeait le
-// domaine racine dans le code.
+// L06c : le partage d'article composait `https://{hôte}.qoe.fi/article/{slug}`,
+// ce qui donnait `https://exemple.com.qoe.fi` pour un domaine personnalisé,
+// ignorait la hiérarchie de catégories et figeait le domaine racine.
 
 describe('resolvePublisherOrigin', () => {
   it('sert un domaine personnalisé tel quel', () => {
@@ -28,15 +28,46 @@ describe('resolvePublisherOrigin', () => {
 });
 
 describe('resolveArticleShareUrl', () => {
-  it('encode le slug et suit l’origine de la publication', () => {
+  it('suit le chemin canonique du tenant, sous-catégorie comprise', () => {
     expect(
-      resolveArticleShareUrl({ subdomain: 'media', customDomain: 'exemple.com' }, 'un slug/étrange')
-    ).toBe('https://exemple.com/article/un%20slug%2F%C3%A9trange');
+      resolveArticleShareUrl(
+        { subdomain: 'media', customDomain: 'exemple.com' },
+        { slug: 'mon-article', category: { slug: 'ia', parentSlug: 'tech' } }
+      )
+    ).toBe('https://exemple.com/tech/ia/mon-article');
+  });
+
+  it('inclut la catégorie racine et « uncategorized » par défaut', () => {
+    expect(
+      resolveArticleShareUrl({ subdomain: 'media' }, { slug: 'x', category: { slug: 'tech' } })
+    ).toBe('https://media.qoe.fi/tech/x');
+    expect(resolveArticleShareUrl({ subdomain: 'media' }, { slug: 'x' })).toBe(
+      'https://media.qoe.fi/uncategorized/x'
+    );
+  });
+
+  it('ne génère jamais l’ancienne forme /article/{slug}', () => {
+    const url = resolveArticleShareUrl({ subdomain: 'media' }, { slug: 'x' });
+    expect(url).not.toContain('/article/');
+  });
+
+  it('peut renvoyer le lien court stable /l/{code}', () => {
+    expect(
+      resolveArticleShareUrl(
+        { subdomain: 'media' },
+        { slug: 'mon-article-928488', shortCode: '928488' },
+        { preferShortCode: true }
+      )
+    ).toBe('https://media.qoe.fi/l/928488');
   });
 
   it('accepte une racine surchargée', () => {
-    expect(resolveArticleShareUrl({ subdomain: 'media' }, 'intro', 'blogs.test')).toBe(
-      'https://media.blogs.test/article/intro'
-    );
+    expect(
+      resolveArticleShareUrl(
+        { subdomain: 'media' },
+        { slug: 'intro' },
+        { rootDomain: 'blogs.test' }
+      )
+    ).toBe('https://media.blogs.test/uncategorized/intro');
   });
 });
