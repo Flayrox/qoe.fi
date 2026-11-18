@@ -24,6 +24,7 @@ import {
 } from '@qoe/sdk';
 import { TextToSpeechProvider, useTextToSpeech } from '@qoe/ui/reader';
 import { toast } from '@qoe/ui/toast';
+import { sanitizeArticleHtml } from '@qoe/ui/security';
 import { Select } from '@qoe/ui/select';
 import { useFeatureAnnouncement } from '@qoe/ui';
 import { cn } from '@qoe/utils';
@@ -249,6 +250,11 @@ function EbookReaderInner({
   }, [tts?.currentParagraphIndex, tts?.isPlaying]);
 
   const chapter = chapters[index];
+  // Le HTML du chapitre vient d'un EPUB importé : il traverse la même liste
+  // blanche que le corps d'article avant d'être injecté. Un chapitre piégé
+  // (script, iframe, ressource distante) est neutralisé, pas exécuté dans la
+  // session du lecteur.
+  const chapterHtml = useMemo(() => sanitizeArticleHtml(chapter?.html), [chapter?.html]);
   const chapterNotes = notes.filter((n) => n.chapterIndex === index);
   const featureAnnouncement = useFeatureAnnouncement();
   const listen = () => {
@@ -490,12 +496,13 @@ function EbookReaderInner({
         />
       )}
 
-      {/* ─── Chapitre : HTML strict du parseur (sûr par construction).
-            Le conteneur porte l'id que lit la synthèse vocale. ─── */}
+      {/* ─── Chapitre : HTML assaini par liste blanche (sanitizeArticleHtml),
+            quel que soit le parseur en amont. Le conteneur porte l'id que lit
+            la synthèse vocale. ─── */}
       <div id={CHAPTER_SELECTOR.slice(1)} ref={articleRef} onMouseUp={captureSelection}>
         <article
           className="prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed text-foreground/90 antialiased"
-          dangerouslySetInnerHTML={{ __html: chapter.html }}
+          dangerouslySetInnerHTML={{ __html: chapterHtml }}
         />
       </div>
 

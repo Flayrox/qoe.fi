@@ -31,7 +31,7 @@
 // laisserait la session en `aal1`, donc toujours refusée.
 // =====================================================================
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Copy, Loader2, ShieldCheck } from 'lucide-react';
 import { Button } from '@qoe/ui/button';
 import {
@@ -42,6 +42,7 @@ import {
   DialogTitle,
 } from '@qoe/ui/dialog';
 import { Input } from '@qoe/ui/input';
+import { sanitizeInlineSvg } from '@qoe/ui/security';
 import { toast } from '@qoe/ui/toast';
 import { createClient } from '@/lib/supabase/client';
 
@@ -308,6 +309,9 @@ function TotpEnrollment({
   const [phase, setPhase] = useState<'loading' | 'input' | 'error'>('loading');
   const [factorId, setFactorId] = useState<string | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
+  // Le SVG du QR vient du fournisseur d'authentification : on ne l'injecte
+  // qu'après validation (même garde que le studio).
+  const safeQrCode = useMemo(() => sanitizeInlineSvg(qrCode), [qrCode]);
   const [secret, setSecret] = useState<string | null>(null);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -402,16 +406,18 @@ function TotpEnrollment({
         Scannez ce QR code, puis saisissez le code affiché : l’action sera relancée automatiquement.
       </p>
 
-      {qrCode ? (
+      {safeQrCode ? (
         <div
           className="mx-auto w-40 [&_svg]:h-full [&_svg]:w-full"
-          // GoTrue renvoie un SVG prêt à afficher : on ne le reconstruit pas.
-          dangerouslySetInnerHTML={{ __html: qrCode }}
+          // GoTrue renvoie un SVG prêt à afficher : on ne le reconstruit pas,
+          // mais on refuse en bloc un fragment qui contiendrait du script, un
+          // gestionnaire inline ou une ressource distante (sanitizeInlineSvg).
+          dangerouslySetInnerHTML={{ __html: safeQrCode }}
         />
       ) : (
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Ajoutez le compte à la main dans votre application d’authentification, avec le secret
-          ci-dessous.
+          Le QR code n’a pas pu être affiché en toute sécurité. Ajoutez le compte à la main dans
+          votre application d’authentification, avec le secret ci-dessous.
         </p>
       )}
 

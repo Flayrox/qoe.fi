@@ -11,6 +11,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { findLegalPlaceholders, markdownToHtml } from '@qoe/utils';
+import { sanitizeArticleHtml } from '@qoe/ui/security';
 import { getLegalDocumentUrl } from '@qoe/config/legal';
 import { Badge } from '@qoe/ui/badge';
 import { Button } from '@qoe/ui/button';
@@ -1120,7 +1121,10 @@ function VersionEditorModal({
   onSave,
 }: VersionEditorModalProps) {
   const isEdit = Boolean(draft.id);
-  const previewHtml = useMemo(() => markdownToHtml(draft.body), [draft.body]);
+  // L'aperçu rend un document juridique rédigé dans la console : même liste
+  // blanche que le public, pour que l'aperçu ne montre jamais plus que ce que
+  // la page publique acceptera d'afficher.
+  const previewHtml = useMemo(() => sanitizeArticleHtml(markdownToHtml(draft.body)), [draft.body]);
 
   return (
     <Dialog

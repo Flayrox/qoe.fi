@@ -61,6 +61,13 @@ overrides:
   react: 19.2.3
   react-dom: 19.2.3
   babel-plugin-macros: 3.1.0
+  # Passe 4 (T10) : dompurify 3.4.13 portait un avis CRITIQUE (contournement de
+  # SAFE_FOR_TEMPLATES), corrigé en 3.4.17. C'est la brique d'assainissement de
+  # toutes les surfaces HTML : on ne peut pas la laisser en retard.
+  dompurify: ^3.4.17
+  # shell-quote 1.10.0 (transitif de react-native/react-devtools) : injection
+  # de commande via un terminateur de ligne, corrigée en 1.11.0.
+  shell-quote: ^1.11.0
 
 patchedDependencies:
   '@bsky.app/react-native-uitextview': patches/@bsky.app__react-native-uitextview.patch

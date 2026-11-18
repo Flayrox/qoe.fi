@@ -4,9 +4,15 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@qoe/supabase/middleware';
-import { getSafeRedirectUrl } from '@qoe/utils';
+import { getSafeRedirectUrl, isCrossOriginServerAction } from '@qoe/utils';
 
 export async function middleware(request: NextRequest) {
+  // 0. Server actions : refus explicite d'une origine tierce avant toute
+  //    lecture de session (voir packages/utils/server-action-origin).
+  if (isCrossOriginServerAction(request)) {
+    return new NextResponse(null, { status: 403 });
+  }
+
   const host = request.headers.get('host') || '';
   const hostname = host.split(':')[0];
   const url = request.nextUrl.clone();

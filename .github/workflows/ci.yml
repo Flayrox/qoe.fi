@@ -46,6 +46,14 @@ jobs:
       - name: Guard legal-consent (consentement + registre des traceurs)
         run: pnpm guard:legal-consent
 
+      # Passe 4 : plus aucune injection de HTML brut sans assainisseur.
+      - name: Guard dangerous HTML (sanitize obligatoire)
+        run: pnpm guard:dangerous-html
+
+      # Passe 4 (T10) : cliquet sur les vulnérabilités high/critical connues.
+      - name: Guard dependencies (pnpm audit, cliquet)
+        run: pnpm audit:guard
+
       - name: Typecheck Monorepo
         run: pnpm typecheck
 
