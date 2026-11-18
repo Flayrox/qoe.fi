@@ -1,20 +1,30 @@
 // =====================================================================
 // 🗄️ Storage — Upload & URLs d'images Supabase Storage (self-hosted)
 // =====================================================================
-// Centralise l'upload d'images et la réécriture d'URL publique vers le
-// CDN (https://cdn.qoe.fi). Utilisé par les routes d'upload des apps.
+// Centralise l'upload d'images et la réécriture d'URL publique vers le CDN.
+// Utilisé par les routes d'upload des apps.
+//
+// 🔌 Portabilité (règle « self-hosted d'abord, CDN interchangeable ») :
+//   Supabase Storage et le CDN sont désignés par des variables d'environnement
+//   (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_MEDIA_CDN_URL`). Le défaut
+//   `https://cdn.qoe.fi` n'est qu'un fallback : basculer sur Bunny, Cloudflare
+//   ou imgproxy doit se faire sans toucher au code.
 //
 // Le client est passé en paramètre (browser ou server) pour rester
 // agnostique ; le bucket est unique (`articles-media`).
 // =====================================================================
 
-import type { SupabaseClient } from '@supabase/supabase-js';
-
 /** Bucket unique de stockage des images publiques. */
 export const IMAGES_BUCKET = 'articles-media';
 
-/** CDN public pour les images (rewrite de l'URL Supabase). */
-export const IMAGES_CDN = 'https://cdn.qoe.fi';
+/** Variable d'environnement qui désigne l'origine publique des médias. */
+export const MEDIA_CDN_ENV = 'NEXT_PUBLIC_MEDIA_CDN_URL';
+
+/** Fallback historique (self-hosted Caddy → CDN qoe.fi). */
+export const DEFAULT_IMAGES_CDN = 'https://cdn.qoe.fi';
+
+/** @deprecated Utiliser `resolveMediaCdnBase()` : l'origine est configurable. */
+export const IMAGES_CDN = DEFAULT_IMAGES_CDN;
 
 /** Dossiers par type de média. */
 export const IMAGE_FOLDERS = {
@@ -80,12 +90,28 @@ export function buildImagePath(file: File, options: UploadImageOptions = {}): st
 }
 
 /**
- * Réécrit l'URL publique Supabase vers le CDN public.
+ * 🧭 Origine publique des médias (CDN ou bucket direct).
+ *
+ * Lue à l'appel (et non à l'import) pour que les tests, les scripts et un
+ * changement d'hôte au déploiement soient pris en compte. Une valeur vide ou
+ * blanche retombe sur le défaut historique.
+ */
+export function resolveMediaCdnBase(): string {
+  const configured = (process.env[MEDIA_CDN_ENV] || '').trim();
+  return (configured || DEFAULT_IMAGES_CDN).replace(/\/+$/, '');
+}
+
+/**
+ * Réécrit l'URL publique Supabase vers l'origine média configurée.
+ *
+ * Idempotent : une URL déjà réécrite (ancien CDN ou CDN courant) est rendue
+ * telle quelle, sinon un basculement de CDN casserait les URLs déjà en base.
  */
 export function toPublicImageUrl(publicUrl: string): string {
+  if (!publicUrl) return publicUrl;
   const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/+$/, '');
   if (supabaseUrl && publicUrl.startsWith(supabaseUrl)) {
-    return publicUrl.replace(supabaseUrl, IMAGES_CDN);
+    return publicUrl.replace(supabaseUrl, resolveMediaCdnBase());
   }
   return publicUrl;
 }
@@ -130,28 +156,4 @@ export async function uploadImageToRoute(
     );
   }
   return data.url;
-}
-
-/**
- * Upload une image vers le bucket public et retourne l'URL publique CDN.
- */
-export async function uploadImage(
-  supabase: SupabaseClient,
-  file: File,
-  options: UploadImageOptions = {}
-): Promise<string> {
-  const filePath = buildImagePath(file, options);
-
-  const { error } = await supabase.storage.from(IMAGES_BUCKET).upload(filePath, file, {
-    cacheControl: '3600',
-    upsert: false,
-    contentType: file.type,
-  });
-
-  if (error) {
-    throw new Error(`Upload failed: ${error.message}`);
-  }
-
-  const { data } = supabase.storage.from(IMAGES_BUCKET).getPublicUrl(filePath);
-  return toPublicImageUrl(data.publicUrl);
 }

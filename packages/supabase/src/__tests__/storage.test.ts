@@ -8,6 +8,8 @@ import {
   sanitizeExtension,
   sanitizePathSegment,
   toPublicImageUrl,
+  resolveMediaCdnBase,
+  DEFAULT_IMAGES_CDN,
   IMAGE_FOLDERS,
 } from '../storage';
 
@@ -85,5 +87,31 @@ describe('toPublicImageUrl', () => {
     expect(toPublicImageUrl(url)).toBe(url);
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://xxx.supabase.co');
     expect(toPublicImageUrl(url)).toBe(url);
+  });
+
+  it('suit le CDN configuré (Bunny, R2, imgproxy…) sans changer le chemin', () => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://storage.qoe.internal');
+    vi.stubEnv('NEXT_PUBLIC_MEDIA_CDN_URL', 'https://qoe.b-cdn.net/');
+
+    expect(resolveMediaCdnBase()).toBe('https://qoe.b-cdn.net');
+    expect(
+      toPublicImageUrl(
+        'https://storage.qoe.internal/storage/v1/object/public/articles-media/a.webp'
+      )
+    ).toBe('https://qoe.b-cdn.net/storage/v1/object/public/articles-media/a.webp');
+  });
+
+  it('retombe sur le défaut quand la variable est absente ou vide', () => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://storage.qoe.internal');
+    expect(resolveMediaCdnBase()).toBe(DEFAULT_IMAGES_CDN);
+    vi.stubEnv('NEXT_PUBLIC_MEDIA_CDN_URL', '   ');
+    expect(resolveMediaCdnBase()).toBe(DEFAULT_IMAGES_CDN);
+  });
+
+  it('est idempotent : une URL déjà servie par un CDN reste intacte', () => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://storage.qoe.internal');
+    vi.stubEnv('NEXT_PUBLIC_MEDIA_CDN_URL', 'https://qoe.b-cdn.net');
+    const already = 'https://cdn.qoe.fi/storage/v1/object/public/articles-media/a.webp';
+    expect(toPublicImageUrl(already)).toBe(already);
   });
 });
