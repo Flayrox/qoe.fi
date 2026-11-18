@@ -140,7 +140,12 @@ export const searchAllAction = safeAction<
   async (rawInput) => {
     const query = rawInput?.query || '';
     const type = rawInput?.type || 'all';
-    const limit = rawInput?.limit || 20;
+    // Borne le paramètre transmis au Go : une valeur venue du client pouvait
+    // sortir de la fenêtre annoncée (> 50) ou être `NaN`.
+    const requestedLimit = Number(rawInput?.limit ?? 20);
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(Math.trunc(requestedLimit), 1), 50)
+      : 20;
     const scope = rawInput?.scope || 'all';
     const q = encodeURIComponent(query);
 
@@ -225,7 +230,12 @@ export const searchThoughtsPageAction = safeAction<
     if (!query.trim()) {
       return { thoughts: [], nextCursor: null };
     }
-    const limit = rawInput?.limit || 20;
+    // Borne le paramètre transmis au Go : une valeur venue du client pouvait
+    // sortir de la fenêtre annoncée (> 50) ou être `NaN`.
+    const requestedLimit = Number(rawInput?.limit ?? 20);
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(Math.trunc(requestedLimit), 1), 50)
+      : 20;
     const params = new URLSearchParams({ q: query, limit: String(limit) });
     if (rawInput?.cursor) params.set('cursor', rawInput.cursor);
 

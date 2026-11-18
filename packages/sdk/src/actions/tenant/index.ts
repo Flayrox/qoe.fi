@@ -13,6 +13,7 @@
 
 import { safeAction } from '../utils/safe-action';
 import { goFetch } from '../utils/go-client';
+import { resolveArticleShareUrl } from '../../lib/shareUrl';
 import type { HighlightDTO, AnnotationCommentDTO } from '../highlights';
 
 export const subscribeToNewsletterAction = safeAction<
@@ -183,10 +184,10 @@ export const quotePassageToFeedAction = safeAction<QuotePassageInput, QuotePassa
     }>(`/v1/articles/by-id/${encodeURIComponent(articleId)}`);
     if (!article) throw new Error('ARTICLE_NOT_FOUND');
 
-    const subdomain = article.publisher?.subdomain || article.publisher?.customDomain;
-    const articleUrl = subdomain
-      ? `https://${subdomain}.qoe.fi/article/${article.slug}`
-      : `https://qoe.fi/article/${article.slug}`;
+    // Origine réelle de la publication : le domaine personnalisé était
+    // auparavant suffixé de `.qoe.fi` (`https://exemple.com.qoe.fi`), donc
+    // lien mort pour tous les créateurs à domaine propre.
+    const articleUrl = resolveArticleShareUrl(article.publisher, article.slug);
 
     const quoteContent = commentary
       ? `« ${text} »\n\n${commentary}\n\n${articleUrl}`

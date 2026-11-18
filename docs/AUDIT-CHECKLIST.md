@@ -62,7 +62,8 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L05** | `packages/supabase/src/**`                                                                                 | 13 fichiers                 | **durci le 2026-11-18** |
 | **L06a** | `packages/sdk/src/{client,index,mobile,query-keys,embed}`, `actions/utils/{go-client,safe-action,authz}`, `utils/authError` | 15 fichiers           | **durci le 2026-11-18** |
 | **L06b** | `packages/sdk/src/{shadow,entity-actions}.ts` + `hooks/**` + `lib/**`                                         | 24 fichiers                 | **durci le 2026-11-18** |
-| L06c    | `packages/sdk/src/actions/**/index.ts` (feed, articles, admin, search, tenant…)                              | 43 fichiers                 | à auditer               |
+| **L06c** | `packages/sdk/src/actions/{feed,articles,tenant,search,dashboard}` + `lib/shareUrl.ts`                      | 5 fichiers / 2 700 lignes   | **durci le 2026-11-18** |
+| L06d    | `packages/sdk/src/actions/**` restants (admin, legal, billing, highlights, ebooks, appeals, support, workspace…) | 38 fichiers            | à auditer               |
 | L07a    | `packages/ui/src/primitives/**`, `ui/**`, `tokens.ts`                                                        | 310 fichiers (global)       | à auditer               |
 | L07b    | `packages/ui/src/{reader,annotations,cards}/**`                                                              | idem                        | à auditer               |
 | L07c    | `packages/ui/src/{auth,forms,providers}/**`                                                                  | idem                        | à auditer               |
@@ -99,12 +100,14 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L36     | `e2e/**`, `playwright*.config.ts`, `e2e/lib/**`                                                              | 65 fichiers                 | à auditer               |
 | L37     | `docs/**`, `AGENTS.md`, racine (`tsconfig`, `eslint`, `turbo`, `vitest`), `supabase/`, `patches/`, `.husky/` | transverse                  | à auditer               |
 
-**Prochain lot à traiter : L06c — `packages/sdk/src/actions/**`.**
+**Prochain lot à traiter : L06d — actions SDK restantes (admin, legal, billing…).**
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
-les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions serveur par
-domaine restent en L06c. Ordre retenu : du plus partagé au plus spécifique,
-parce qu'un correctif dans un package bas remonte dans toutes les apps.
+les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
+trafic (feed, articles, tenant, recherche, dashboard) en L06c (`durci le
+2026-11-18`), les 38 actions restantes en L06d. Ordre retenu : du plus partagé
+au plus spécifique, parce qu'un correctif dans un package bas remonte dans
+toutes les apps.
 
 **Nettoyage 2026-11-18.** Retrait de `bullmq` et `ioredis` de
 `apps/studio/package.json` (aucun import, 246 paquets retirés du lockfile) et
@@ -675,3 +678,57 @@ cd packages/sdk && pnpm exec eslint .       # EXIT=0
 | R42 | `useOptimisticFollow` ne patche que les caches plats (`u.id === creatorId`)                                | faible   | Un profil imbriqué (`{ profile: … }`) n'est pas mis à jour ; élargir le prédicat.                |
 | R43 | `useSubscriptionStatus` transporte l'e-mail en paramètre d'URL et `useRecommendations` avale les erreurs HTTP | faible | PII dans les journaux d'accès ; et un 500 doit être visible côté UI.                             |
 | R44 | Auditer les actions serveur par domaine (`actions/**/index.ts`)                                           | —        | Lot L06c.                                                                                        |
+
+---
+
+## L06c — `@qoe/sdk` actions à fort trafic — durci le 2026-11-18
+
+**Périmètre.** `actions/feed/index.ts` (1 087 l.), `actions/articles/index.ts`
+(970 l.), `actions/tenant/index.ts` (290 l.), `actions/search/index.ts`
+(316 l.), `actions/dashboard/index.ts` (189 l.) + `lib/shareUrl.ts`.
+**Méthode.** Passe systémique sur la classe de défaut dominante de ces fichiers
+(composition d'URL vers le Go), puis relecture des actions publiques
+(`requireAuth: false`) et des chemins d'autorisation.
+**Tests.** 204 tests verts pour le package (dont 6 ajoutés : `shareUrl`).
+
+### Entrées auditées
+
+| #    | Emplacement                                   | Standard attendu                                                    | Verdict           |
+| ---- | --------------------------------------------- | ------------------------------------------------------------------- | ----------------- |
+| K41  | `feed` → `toggleLike/Repost/Pin/Delete/Reply/Thread` | Paramètre de chemin encodé (`encodeURIComponent`)             | **corrigé** (F63) |
+| K42  | `feed` → `toggleBookmarkArticleHomeAction`    | Idem                                                                | **corrigé** (F63) |
+| K43  | `feed` → `removeFollowerAction`               | Déjà encodé                                                         | conforme          |
+| K44  | `feed` → actions publiques (`requireAuth: false`) | Aucune mutation exposée sans session                            | conforme          |
+| K45  | `articles` → `delete/review/discard`          | `id` encodé (le paramètre `activePublisherId` l'était déjà)          | **corrigé** (F63) |
+| K46  | `articles` → catégories (create/update/move/delete) | `id` encodé                                                   | **corrigé** (F63) |
+| K47  | `articles` → commentaires (post/delete/list)  | `articleId`/`commentId` encodés                                     | **corrigé** (F63) |
+| K48  | `articles` → `searchArticleAuthorsAction`     | `URLSearchParams` (encodage natif)                                  | conforme          |
+| K49  | `tenant` → `quotePassageToFeedAction`         | URL de partage = origine réelle de la publication, sans domaine en dur | **corrigé** (F62) |
+| K50  | `tenant` → newsletter / follow / wallet       | Validation locale puis Go, aucune confiance au client sur l'état     | conforme          |
+| K51  | `search` → `searchAllAction`                  | `q` encodé une seule fois, `limit` borné                             | **corrigé** (F64) |
+| K52  | `search` → pages thoughts/articles/users      | Curseurs opaques relayés, pas de re-calcul                           | conforme          |
+| K53  | `dashboard` → clés API (revoke/rotate)        | `id` encodé                                                          | **corrigé** (F63) |
+| K54  | `lib/shareUrl.ts`                             | Sous-domaine vs domaine propre vs racine configurable                | **ajouté** (F62)  |
+
+### Findings et correctifs
+
+| #   | Défaut                                                                                                                                  | Sévérité | Correctif                                                                                                     | Fichiers |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------- | -------- |
+| F62 | La citation d'un article composait `https://{customDomain}.qoe.fi/article/{slug}` : **lien mort** pour tout créateur à domaine propre, et `qoe.fi` était figé dans le code | haute | `resolveArticleShareUrl` : domaine propre servi tel quel, sous-domaine qualifié non doublé, racine via `NEXT_PUBLIC_TENANT_DOMAIN`, slug encodé, 6 tests | `lib/shareUrl.ts`, `actions/tenant/index.ts` |
+| F63 | Sept actions composaient un chemin Go avec un identifiant **non encodé** (`/v1/posts/${postId}/like`, `/v1/articles/${id}`, `/v1/categories/${id}`, `/v1/articles/comments/${commentId}`, `/v1/settings/api-keys/${id}`) : un `?` ou `/` dans l'identifiant détournait la requête et ses paramètres | moyenne | `encodeURIComponent` sur chaque segment (feed, articles, catégories, commentaires, clés API) | `actions/{feed,articles,dashboard}` |
+| F64 | `actions/search` transmettait `limit` brut (`NaN`, négatif ou 100 000) au backend | faible | Entier borné à `1…50`, défaut 20 sur valeur non numérique | `actions/search/index.ts` |
+
+### Preuves exécutées
+
+```bash
+cd packages/sdk && pnpm exec vitest run     # 29 fichiers / 204 tests — EXIT=0
+cd packages/sdk && pnpm exec tsc --noEmit   # EXIT=0
+cd packages/sdk && pnpm exec eslint .       # EXIT=0
+pnpm typecheck                              # 25 successful, 25 total
+```
+
+### Reste à faire (lot L06c)
+
+| #   | Tâche                                                                                          | Sévérité | Motif                                                                                       |
+| --- | ------------------------------------------------------------------------------------------------ | -------- | ------------------------------------------------------------------------------------------- |
+| R45 | Auditer les 38 actions restantes (admin, legal, billing, highlights, ebooks, appeals, support, workspace, entitlements, ai) | —        | Lot L06d : mêmes axes (encodage, autorisation, contrat Go) sur les domaines à moindre trafic. |

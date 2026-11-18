@@ -644,9 +644,12 @@ export const searchArticleContributorsAction = safeAction<
 
 export const deleteArticleAction = safeAction<string, { success: boolean }>(async (id) => {
   const activePublisherId = await getActivePublisherId();
-  await goFetch(`/v1/articles/${id}?activePublisherId=${encodeURIComponent(activePublisherId)}`, {
-    method: 'DELETE',
-  });
+  await goFetch(
+    `/v1/articles/${encodeURIComponent(id)}?activePublisherId=${encodeURIComponent(activePublisherId)}`,
+    {
+      method: 'DELETE',
+    }
+  );
   revalidatePath('/articles');
   return { success: true };
 });
@@ -659,7 +662,7 @@ export const reviewArticleAction = safeAction<
   { id: string; approve: boolean; comment?: string },
   Article
 >(async (data) => {
-  const res = await goFetch<Article>(`/v1/articles/${data.id}/review`, {
+  const res = await goFetch<Article>(`/v1/articles/${encodeURIComponent(data.id)}/review`, {
     method: 'POST',
     body: { approve: data.approve, comment: data.comment || '' },
   });
@@ -671,7 +674,7 @@ export const reviewArticleAction = safeAction<
  * 🗑️ Abandonne le brouillon en cours pour revenir à la version publiée en ligne.
  */
 export const discardArticleDraftAction = safeAction<{ id: string }, Article>(async ({ id }) => {
-  const res = await goFetch<Article>(`/v1/articles/${id}/discard-draft`, {
+  const res = await goFetch<Article>(`/v1/articles/${encodeURIComponent(id)}/discard-draft`, {
     method: 'POST',
   });
   revalidatePath('/articles');
@@ -765,7 +768,7 @@ export const saveCategoryAction = safeAction<
   if (!name.trim()) throw new Error('Le nom de la catégorie est requis.');
 
   if (id) {
-    const res = await goFetch<Category>(`/v1/categories/${id}`, {
+    const res = await goFetch<Category>(`/v1/categories/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: { name, slug, description, parentId },
     });
@@ -784,7 +787,7 @@ export const saveCategoryAction = safeAction<
 export const moveCategoryAction = safeAction<{ id: string; parentId: string | null }, Category>(
   async (data) => {
     const { id, parentId } = data;
-    const res = await goFetch<Category>(`/v1/categories/${id}`, {
+    const res = await goFetch<Category>(`/v1/categories/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: { parentId },
     });
@@ -794,7 +797,7 @@ export const moveCategoryAction = safeAction<{ id: string; parentId: string | nu
 );
 
 export const deleteCategoryAction = safeAction<string, { success: boolean }>(async (id) => {
-  await goFetch(`/v1/categories/${id}`, { method: 'DELETE' });
+  await goFetch(`/v1/categories/${encodeURIComponent(id)}`, { method: 'DELETE' });
   revalidatePath('/articles');
   return { success: true };
 });
@@ -814,7 +817,7 @@ export const postArticleCommentAction = safeAction<
 >(async (data) => {
   const { articleId, content, parentId } = data;
   // 🔗 Proxy Go : création + notification COMMENT déléguées au backend Go.
-  return goFetch<ArticleCommentPayload>(`/v1/articles/${articleId}/comments`, {
+  return goFetch<ArticleCommentPayload>(`/v1/articles/${encodeURIComponent(articleId)}/comments`, {
     method: 'POST',
     body: { content, parentId: parentId || null },
   });
@@ -822,7 +825,7 @@ export const postArticleCommentAction = safeAction<
 
 export const deleteArticleCommentAction = safeAction<string, { success: boolean }>(
   async (commentId) => {
-    await goFetch<{ success: boolean }>(`/v1/articles/comments/${commentId}`, {
+    await goFetch<{ success: boolean }>(`/v1/articles/comments/${encodeURIComponent(commentId)}`, {
       method: 'DELETE',
     });
     return { success: true };
@@ -831,7 +834,9 @@ export const deleteArticleCommentAction = safeAction<string, { success: boolean 
 
 export const getArticleCommentsAction = safeAction<string, ArticleCommentPayload[]>(
   async (articleId) => {
-    return goFetch<ArticleCommentPayload[]>(`/v1/articles/${articleId}/comments`);
+    return goFetch<ArticleCommentPayload[]>(
+      `/v1/articles/${encodeURIComponent(articleId)}/comments`
+    );
   },
   { requireAuth: false }
 );

@@ -157,7 +157,7 @@ export const generateApiKeyAction = safeAction<GenerateApiKeyInput, { apiKey: st
 );
 
 export const revokeApiKeyAction = safeAction<string, { success: boolean }>(async (id) => {
-  await goFetch(`/v1/settings/api-keys/${id}`, { method: 'DELETE' });
+  await goFetch(`/v1/settings/api-keys/${encodeURIComponent(id)}`, { method: 'DELETE' });
   revalidatePath('/developer');
   return { success: true };
 });
@@ -165,9 +165,12 @@ export const revokeApiKeyAction = safeAction<string, { success: boolean }>(async
 // Rotation de clé : même id, nouveau secret (l'ancienne clé est
 // immédiatement invalide). Le nouveau secret n'est affiché qu'une fois.
 export const rotateApiKeyAction = safeAction<string, { apiKey: string }>(async (id) => {
-  const res = await goFetch<{ apiKey: string }>(`/v1/settings/api-keys/${id}/rotate`, {
-    method: 'POST',
-  });
+  const res = await goFetch<{ apiKey: string }>(
+    `/v1/settings/api-keys/${encodeURIComponent(id)}/rotate`,
+    {
+      method: 'POST',
+    }
+  );
   revalidatePath('/developer');
   return res;
 });

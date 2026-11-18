@@ -199,7 +199,7 @@ export const removeFollowerAction = safeAction<{ targetUserId: string }, { remov
 export const toggleBookmarkArticleHomeAction = safeAction<string, { bookmarked: boolean }>(
   async (articleId) => {
     // ✅ Go-only : DB + invalidation cache
-    return goFetch<{ bookmarked: boolean }>(`/v1/posts/${articleId}/bookmark`, {
+    return goFetch<{ bookmarked: boolean }>(`/v1/posts/${encodeURIComponent(articleId)}/bookmark`, {
       method: 'POST',
     });
   }
@@ -288,7 +288,7 @@ export const createThoughtThreadAction = safeAction<
 
 export const toggleLikePostAction = safeAction<string, { liked: boolean }>(async (postId) => {
   // ✅ Go-only : logique (DB + notification LIKE) déléguée au backend Go.
-  return goFetch<{ liked: boolean }>(`/v1/posts/${postId}/like`, {
+  return goFetch<{ liked: boolean }>(`/v1/posts/${encodeURIComponent(postId)}/like`, {
     method: 'POST',
   });
 });
@@ -298,10 +298,13 @@ export const replyToPostAction = safeAction<{ postId: string; content: string },
     const { postId, content } = replyToPostSchema.parse(rawInput);
 
     // ✅ Go-only : threadgate + notifications MENTION/REPLY + invalidation cache.
-    const replyRaw = await goFetch<RawPostPayload>(`/v1/posts/${postId}/reply`, {
-      method: 'POST',
-      body: { content },
-    });
+    const replyRaw = await goFetch<RawPostPayload>(
+      `/v1/posts/${encodeURIComponent(postId)}/reply`,
+      {
+        method: 'POST',
+        body: { content },
+      }
+    );
     const reply = mapFeedPostToThreadThought(replyRaw);
     return { reply: reply as Reply };
   }
@@ -310,7 +313,9 @@ export const replyToPostAction = safeAction<{ postId: string; content: string },
 export const getPostThreadAction = safeAction<string, { post: ThreadPost }>(
   async (postId) => {
     // ✅ Go-only : thread (racine + réponses + chaîne parent/repost).
-    const res = await goFetch<{ post: RawPostPayload }>(`/v1/posts/${postId}/thread`);
+    const res = await goFetch<{ post: RawPostPayload }>(
+      `/v1/posts/${encodeURIComponent(postId)}/thread`
+    );
     const mapped = mapGoThreadToWebThread(res.post);
     return { post: mapped as ThreadPost };
   },
@@ -389,15 +394,18 @@ export const toggleRepostPostAction = safeAction<
   { reposted: boolean; canonicalId: string; post?: RepostResult['post'] }
 >(async (postId) => {
   // ✅ Go-only : logique + notification REPOST déléguées au backend Go.
-  const body = await goFetch<{ reposted: boolean }>(`/v1/posts/${postId}/repost`, {
-    method: 'POST',
-  });
+  const body = await goFetch<{ reposted: boolean }>(
+    `/v1/posts/${encodeURIComponent(postId)}/repost`,
+    {
+      method: 'POST',
+    }
+  );
   return { reposted: body.reposted, canonicalId: postId };
 });
 
 export const deletePostAction = safeAction<string, { success: boolean }>(async (postId) => {
   // ✅ Go-only : logique + notifications déléguées au backend Go.
-  await goFetch(`/v1/posts/${postId}`, { method: 'DELETE' });
+  await goFetch(`/v1/posts/${encodeURIComponent(postId)}`, { method: 'DELETE' });
   return { success: true };
 });
 
@@ -410,7 +418,7 @@ export const getUserDraftsAction = safeAction<void, { drafts: Draft[] }>(async (
 export const pinPostAction = safeAction<string, { success: boolean; pinned?: boolean }>(
   async (postId) => {
     // ✅ Go-only : DB + invalidation cache
-    const res = await goFetch<{ pinned: boolean }>(`/v1/posts/${postId}/pin`, {
+    const res = await goFetch<{ pinned: boolean }>(`/v1/posts/${encodeURIComponent(postId)}/pin`, {
       method: 'POST',
     });
     return { success: true, pinned: res.pinned };
@@ -420,7 +428,7 @@ export const pinPostAction = safeAction<string, { success: boolean; pinned?: boo
 export const unpinPostAction = safeAction<string, { success: boolean; pinned?: boolean }>(
   async (postId) => {
     // ✅ Go-only : DB + invalidation cache
-    const res = await goFetch<{ pinned: boolean }>(`/v1/posts/${postId}/pin`, {
+    const res = await goFetch<{ pinned: boolean }>(`/v1/posts/${encodeURIComponent(postId)}/pin`, {
       method: 'POST',
     });
     return { success: true, pinned: res.pinned };
