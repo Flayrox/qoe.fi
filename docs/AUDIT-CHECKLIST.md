@@ -781,7 +781,41 @@ tests (`notificationsActions.test.ts`) verrouillent le filtre, la borne de
 | R50 | `legal` : `fetchLegalDocumentsToAccept` renvoie `[]` en cas de panne ⇒ l'inscription passe sans cases à cocher (fail-open sur le consentement). Trancher : bloquer l'inscription (fail-closed) ou accepter puis re-demander au portail, avec trace. | produit  | Décision juridique/produit, pas technique : le comportement actuel est un choix assumé mais non écrit. |
 | R51 | `actions/ai`, `ebooks`, `workspace` : vérifier le contrat Go (quotas, taille, types MIME) avant d'écrire des gardes TS redondantes. | —        | Suite du lot L06d. |
 | R52 | Invalidation par tag (`article:{id}`, `post:{id}`) au lieu de chemins legacy : les mutations de surlignage/annotation/réponse masquée ne rafraîchissent aujourd'hui rien côté serveur (F79, F82). | moyenne | Demande un `unstable_cache`/`cacheTag` dans les pages core et tenants ; à faire d'un bloc pour éviter les invalidations globales. |
+| R54 | `playwright.visual.config.ts` : 21/26 cas échouent en `toHaveScreenshot` sur macOS (1–2 % de pixels, hauteurs 1 px différentes) alors qu'aucune primitive n'a changé — les baselines ont été générées ailleurs (rendu de police différent). Rejouer/regénérer les baselines **dans l'environnement de référence** (CI Linux, même image que le job), sinon la suite reste un faux rouge permanent. | moyenne | Bloqué sur choix d'environnement de référence — ne pas mettre à jour les snapshots depuis macOS. |
 | R53 | `playwright.config.ts` accepte n'importe quel `DATABASE_URL` : quand la base n'est pas joignable depuis le poste (cas du VPS derrière un pare-feu), les parcours échouent en `ETIMEDOUT` après 2 min au lieu d'un échec immédiat et lisible. Ajouter un préflight (connexion + message « tunnel SSH requis »). | basse | Gagne du temps à chaque campagne ; découvert en lançant l'E2E sans tunnel actif. |
+
+---
+
+## Campagne E2E complète — 2026-11-18
+
+Toutes les suites ont été réellement exécutées (Go base vierge, vitest, SDK,
+lint, gardes CI, SMTP local, puis **chaque projet Playwright** : `public-web`,
+`core-journeys`, `security`, `like-privacy`, `oauth-consent`, `chromium`,
+`tenants`, `admin`, `studio`, `admin-legal`, parcours `RUN_FULL_STACK=1`
+compris). Défauts trouvés en chemin :
+
+| #   | Défaut | Sévérité | Statut |
+| --- | ------ | -------- | ------ |
+| F88 | `like-privacy` pilotait le menu sans passer par le vrai widget React Aria et sans fermer le portail de consentement légal : le clic n'arrivait jamais au bouton (faux test). Réécrit sur les rôles réels + fermeture du portail. | moyenne | corrigé — `--project=like-privacy` vert |
+| F89 | `api-access-control` : deux tests `fullyParallel` appelaient `/v1/home/config` en concurrence (assertion 404/200 instable) → `test.describe.configure({ mode: 'serial' })`. | moyenne | corrigé |
+| F90 | `studio.spec.ts` / `admin.spec.ts` listaient des routes inexistantes (`/subscribers`, `/newsletter`, `/account`, `/admin/publishers`, `/admin/articles`, `/admin/moderation`, `/admin/finance`) ⇒ 404 au lieu de 307. Listes réalignées sur les dossiers réels. | moyenne | corrigé |
+| F91 | `oauth-consent` sautait tout le fichier quand `/auth/v1/health` renvoyait 401 (Kong exige une `apikey`). Garde remplacé par `health.status < 500`. | moyenne | corrigé — 2 cas verts |
+| F92 | `playwright.apps.config.ts` sondait `localhost:8090` : sur macOS `localhost` résout d'abord en `::1`, l'API Go (IPv4) était déclarée absente ⇒ attente infinie du webServer. Loopback explicite `127.0.0.1`. | haute | corrigé |
+| F93 | Le même fichier relançait `next dev` alors que le serveur tournait : la sonde HTTP suivait le 307 de studio/admin vers le core et concluait « pas prêt » (`EADDRINUSE` ensuite). Readiness TCP + nettoyage du verrou `.next/dev/lock` (Next 16 refuse un second `next dev` du même dossier, et le verrou survit à un arrêt brutal). | haute | corrigé |
+| F94 | `public-feed-capture`, `connected-feed-capture`, `newsletter-rfc8058` : ancienne forme d'URL (`a[href*="/article/"]`) et publication inexistante (`Subscriber.publicationId` → `Publisher`, 23503). Chemin canonique `/{propriétaire}/a/{slug}`, `Publisher` créé, `window.confirm` accepté (« Voir moins » d'une carte article demande confirmation ; Playwright refuse les dialogues par défaut, donc aucun POST ne partait), portail de consentement fermé, titre de réglages réel. | haute | corrigé — `--project=chromium` **20/20 verts** |
+| F95 | `admin-legal` ignorait les deux gardes : publication juridique = acte **N3** (preuve forte récente **AAL2**) et **double validation** par une seconde personne. Ajout de `upgradeSessionToAal2()` (enrôlement TOTP + challenge + verify, TOTP sans dépendance) et du quorum réel (`request-publish` puis `approvals/{id}/decide`, le Go attend `approved`). Page publique visée sur `apps/hi` (`/legal/:slug` ≠ core, qui répond 308 vers `:15401`). | haute | corrigé — `--project=admin-legal` **2/2 verts** |
+
+**Preuves** (Mac → VPS de dev, tunnels `15409`/`54321`/`6379`) :
+
+| Commande | Résultat |
+| -------- | -------- |
+| `go test -p 1 -count=1 ./cmd/... ./internal/...` (base vierge) | **82 packages ok, exit 0** |
+| `pnpm test` · SDK `vitest` · `pnpm lint` | 22/22 · 221 tests · 25/25 |
+| `playwright --project=chromium` (7 fichiers) | **20/20 verts** |
+| `playwright --project=studio --project=admin` (`RUN_FULL_STACK=1`) | verrou **et** dashboard authentifié verts |
+| `playwright --project=admin-legal` (`RUN_FULL_STACK=1`) | **2/2 verts** (AAL2 + quorum) |
+| `playwright --project=oauth-consent` | **2/2 verts** |
+| `pnpm mail:dev` + `email_smtp_sink_test.go` (`SMTP_SINK=1`) | PASS (`.eml` écrit, sujet RFC 2047 décodé) |
 
 ---
 
