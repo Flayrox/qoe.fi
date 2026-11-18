@@ -48,6 +48,15 @@ import { t } from '@lingui/core/macro';
 export type { AnnotationFilterMode };
 
 /**
+ * Modes de filtre acceptés depuis `localStorage`.
+ *
+ * ⚠️ La whitelist de relecture omettait `mine` : un lecteur qui avait choisi
+ * « Mes annotations » retrouvait « Toutes » à chaque rechargement. Une liste
+ * typée unique, plutôt qu'une liste recopiée à côté du type.
+ */
+const PERSISTED_FILTER_MODES: readonly AnnotationFilterMode[] = ['all', 'official', 'mine', 'none'];
+
+/**
  * Une action de la barre de sélection.
  *
  * 🎯 Icône seule, nom accessible et infobulle : six actions en clair
@@ -275,7 +284,7 @@ export function TextHighlighter({
       const savedMode = localStorage.getItem(
         'qoe_annotation_filter_mode'
       ) as AnnotationFilterMode | null;
-      if (savedMode && ['all', 'official', 'none'].includes(savedMode)) {
+      if (savedMode && PERSISTED_FILTER_MODES.includes(savedMode)) {
         setInternalFilterMode(savedMode);
         onFilterModeChange?.(savedMode);
       }
