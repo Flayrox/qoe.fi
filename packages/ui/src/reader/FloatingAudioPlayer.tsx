@@ -51,6 +51,45 @@ export function FloatingAudioPlayer() {
   const currentIdx = currentParagraphIndex !== null ? currentParagraphIndex : 0;
   const totalParas = Math.max(1, paragraphs.length);
 
+  /**
+   * Piste de progression = vrai CURSEUR, pas une surface cliquable.
+   *
+   * ⚠️ La piste était une `<div>` avec un `onClick` : au clavier, on ne
+   * pouvait pas se déplacer dans l'article du tout, et un lecteur d'écran
+   * n'apprenait ni qu'un réglage existait, ni où l'on en était. Les rôles
+   * ARIA ci-dessous exposent la position, et les flèches / Début / Fin la
+   * changent — comme n'importe quel curseur natif.
+   */
+  const seekTo = (index: number) => {
+    const target = Math.max(0, Math.min(totalParas - 1, index));
+    if (target !== currentIdx) jumpToParagraph(target);
+  };
+
+  const handleScrubberKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    let target: number;
+    switch (event.key) {
+      case 'ArrowLeft':
+      case 'ArrowDown':
+        target = currentIdx - 1;
+        break;
+      case 'ArrowRight':
+      case 'ArrowUp':
+        target = currentIdx + 1;
+        break;
+      case 'Home':
+        target = 0;
+        break;
+      case 'End':
+        target = totalParas - 1;
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    seekTo(target);
+  };
+
   return (
     <aside
       aria-label={t`Lecteur audio`}
@@ -173,16 +212,23 @@ export function FloatingAudioPlayer() {
           {formatTime(elapsedSeconds)}
         </span>
 
-        {/* Scrubber Track */}
+        {/* Scrubber Track — curseur clavier (voir `handleScrubberKeyDown`) */}
         <div
+          role="slider"
+          tabIndex={0}
+          aria-label={t`Naviguer dans l'article`}
+          aria-valuemin={1}
+          aria-valuemax={totalParas}
+          aria-valuenow={currentIdx + 1}
+          aria-valuetext={t`Paragraphe ${currentIdx + 1} sur ${totalParas}`}
+          onKeyDown={handleScrubberKeyDown}
           onClick={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
             const clickX = e.clientX - rect.left;
             const ratio = Math.max(0, Math.min(1, clickX / rect.width));
-            const targetIndex = Math.round(ratio * (totalParas - 1));
-            jumpToParagraph(targetIndex);
+            seekTo(Math.round(ratio * (totalParas - 1)));
           }}
-          className="relative flex-1 h-2 rounded-full bg-muted/60 hover:bg-muted/90 transition-colors cursor-pointer group flex items-center"
+          className="relative flex-1 h-2 rounded-full bg-muted/60 hover:bg-muted/90 transition-colors cursor-pointer group flex items-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           title={t`Naviguer dans l'article`}
         >
           {/* Filled Track */}

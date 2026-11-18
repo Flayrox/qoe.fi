@@ -214,4 +214,30 @@ describe('FloatingAudioPlayer', () => {
 
     expect(screen.getByText('0:00')).toBeDefined();
   });
+
+  // ⚠️ La piste de progression était une `<div>` cliquable : ni rôle, ni
+  // position annoncée, ni déplacement au clavier. Un lecteur d'écran
+  // n'apprenait pas qu'un réglage existait, et au clavier on ne pouvait pas
+  // se déplacer dans l'article autrement qu'avec les boutons de paragraphe.
+  it('expose la piste comme un curseur réglable au clavier', () => {
+    renderPlayer();
+    startListening();
+
+    const slider = () => screen.getByRole('slider', { name: /Naviguer dans l'article/i });
+    expect(slider().getAttribute('aria-valuemin')).toBe('1');
+    expect(slider().getAttribute('aria-valuemax')).toBe('2');
+    expect(slider().getAttribute('aria-valuenow')).toBe('1');
+    expect(slider().getAttribute('aria-valuetext')).toBe('Paragraphe 1 sur 2');
+
+    fireEvent.keyDown(slider(), { key: 'ArrowRight' });
+    expect(screen.getByText(/Paragraphe 2 \/ 2/)).toBeDefined();
+    expect(slider().getAttribute('aria-valuenow')).toBe('2');
+
+    // Début et Fin ne sortent pas de l'article.
+    fireEvent.keyDown(slider(), { key: 'End' });
+    expect(slider().getAttribute('aria-valuenow')).toBe('2');
+    fireEvent.keyDown(slider(), { key: 'Home' });
+    expect(screen.getByText(/Paragraphe 1 \/ 2/)).toBeDefined();
+    expect(slider().getAttribute('aria-valuenow')).toBe('1');
+  });
 });
