@@ -827,6 +827,8 @@ avec son test.
 
 | F117 | `ui/hover-card` : le contenu est portailé dans `document.body`, donc **après la page entière** dans l'ordre du document. Tab depuis le déclencheur partait sur le voisin suivant (le focus quittait la carte, qui se refermait) : le bouton « Suivre » de `ProfileHoverCard` n'était atteignable qu'à la souris, alors que le déclencheur est focusable. Aucun Échap, et sortir par le bas ne refermait pas. | haute | corrigé — Tab entre dans le premier élément du contenu, Maj+Tab revient au déclencheur (carte ouverte), Échap referme en rendant le focus, la sortie par le bas referme ; survol différé et fermeture annulable inchangés. Test `hover-card.test.tsx` (4 cas) : **4 échecs avant** correctif, verts après, et les 11 cas de `profile-hover-card.test.tsx` restent verts |
 
+| F118 | `ui/BentoPlateau` : `BentoItem` portait `onClick` **et** `cursor-pointer` sur un `motion.div` sans rôle, sans `tabIndex` ni activation Entrée/Espace — une affordance de clic que seul un pointeur pouvait honorer. **Aucun appelant ne passait `onClick`** (`wizard.tsx`, `LoginFormBento`) : la promesse était purement décorative. | moyenne | corrigé — affordance retirée (plus de `onClick`/`onMouseEnter`, plus de `cursor-pointer`) : l'item reste une mise en page, l'interaction se compose dans le contenu avec un vrai `<button>`. Test `bento-plateau.test.tsx` (3 cas) : `n’affiche pas de curseur de clic sans action` **échoue avant** (« expected 'relative rounded-[28px] overflow-hidden cursor-pointer…' not to contain 'cursor-pointer' »), vert après ; aucun arrêt de tabulation mort et rendu des deux états verrouillés |
+
 **Troisième passage (2026-11-18) — statut nominatif du périmètre R55.**
 Chaque ligne = fichier lu en entier, appelants réels inspectés, test de
 régression exécuté (les fichiers de test cités sont nommés).
@@ -861,7 +863,7 @@ nommé), puis verts après restauration.
 | Commande | Résultat |
 | -------- | -------- |
 | `pnpm --filter @qoe/supabase test` | 49 tests verts (dont 7 nouveaux sur les hôtes d'images : défaut, surcharge Bunny, motif `**.domaine` non-sosie, hôte étranger, HTTP local seulement, patterns sans doublon) |
-| `pnpm --filter @qoe/ui test` | **632 tests / 97 fichiers verts** (dont `image-utils.test.ts`, `safe-image.test.tsx`, `exit-interstitial-behaviour.test.tsx`, `time-picker-input.test.tsx`, `theme-toggle.test.tsx`, `tooltip.test.tsx`, `tooltip-delay.test.tsx`, `sheet.test.tsx`, `craft-sidebar-drawer.test.tsx`, `user-avatar.test.tsx`, `popover.test.tsx`) |
+| `pnpm --filter @qoe/ui test` | **635 tests / 98 fichiers verts** (dont `image-utils.test.ts`, `safe-image.test.tsx`, `exit-interstitial-behaviour.test.tsx`, `time-picker-input.test.tsx`, `theme-toggle.test.tsx`, `tooltip.test.tsx`, `tooltip-delay.test.tsx`, `sheet.test.tsx`, `craft-sidebar-drawer.test.tsx`, `user-avatar.test.tsx`, `popover.test.tsx`) |
 | `pnpm --filter @qoe/sdk test` · `pnpm arch:audit` | 221 tests / 32 fichiers verts · ✅ 0 anomalie (F113) |
 | `pnpm typecheck` | 25/25 tâches |
 | `pnpm --filter @qoe/ui lint` · `@qoe/supabase lint` | 0 erreur |
@@ -870,10 +872,10 @@ nommé), puis verts après restauration.
 
 | #   | Tâche | Sévérité | Motif |
 | --- | ----- | -------- | ----- |
-| R55 | ~~Finir L07a : `primitives/**` et `ui/**` restants~~ — **close le 2026-11-18** : les 83 fichiers (55 `primitives`, 28 `ui`) ont été lus en entier, plus `TextParser`, `LoginFormBento`, `safe-image`/`safe-avatar`, `image-utils`. Reste hors périmètre R55, listé ci-dessous : les doublons assumés (R56), le chemin latent de `BentoItem` (R57) et les baselines visuelles (R54). | — | Clos avec preuves ; voir F106–F117. |
+| R55 | ~~Finir L07a : `primitives/**` et `ui/**` restants~~ — **close le 2026-11-18** : les 83 fichiers (55 `primitives`, 28 `ui`) ont été lus en entier, plus `TextParser`, `LoginFormBento`, `safe-image`/`safe-avatar`, `image-utils`. Reste hors périmètre R55, listé ci-dessous : les doublons assumés (R56) et les baselines visuelles (R54). | — | Clos avec preuves ; voir F106–F118. |
 | R56 | Deux jeux de composants pour le même besoin : `ui/select` (React Aria composé) **et** `primitives/select`, `ui/calendar` (react-day-picker) **et** `primitives/date`. Les deux sont sains et testés ; le coût est la divergence de style et deux chemins d'accessibilité à maintenir. | dette | Choix produit (les écrans existants utilisent l'un ou l'autre) — fusionner demande une décision de design, pas une correction de bug. |
 | R58 | ~~`ui/hover-card` : contenu portailé hors ordre de tabulation~~ — **close par F117** : ce n'était pas un arbitrage produit mais un défaut technique (le focus entrait par le déclencheur et mourait dans le portail). Traversée au clavier complète, vérifiée par 4 tests. | — | Clos. |
-| R57 | `BentoPlateau` : `BentoItem` accepte `onClick` **et** pose `cursor-pointer` sur un `motion.div` sans `role`, `tabIndex` ni gestion de touche — un item cliquable serait invisible au clavier. Aucun appelant n'en passe aujourd'hui (`wizard.tsx`, `LoginFormBento`), donc le chemin est latent : à durcir le jour où un bento devient interactif. | basse | Pas de correctif à vide : rendre un item focusable sans usage ajouterait un arrêt de tabulation mort. |
+| R57 | ~~`BentoPlateau` : `BentoItem` cliquable sans clavier~~ — **close par F118** : l'affordance `onClick`/`cursor-pointer` n'était utilisée par aucun appelant, elle est supprimée plutôt que rendue focusable à vide (pas d'arrêt de tabulation mort). | — | Clos. |
 
 ---
 
