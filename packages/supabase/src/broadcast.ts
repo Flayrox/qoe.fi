@@ -14,6 +14,22 @@ export interface AuthBroadcastMessage {
 
 const CHANNEL_NAME = 'qoe_auth_broadcast_channel';
 
+const AUTH_EVENTS: readonly AuthChangeEvent[] = ['SIGNED_IN', 'SIGNED_OUT', 'TOKEN_REFRESHED'];
+
+/**
+ * Valide un message reçu : n'importe quel script de la page peut poster sur le
+ * canal, un événement inconnu ne doit pas déclencher de logique d'auth.
+ */
+export function isAuthBroadcastMessage(value: unknown): value is AuthBroadcastMessage {
+  if (!value || typeof value !== 'object') return false;
+  const message = value as Partial<AuthBroadcastMessage>;
+  return (
+    typeof message.event === 'string' &&
+    (AUTH_EVENTS as readonly string[]).includes(message.event) &&
+    typeof message.timestamp === 'number'
+  );
+}
+
 export function sendAuthBroadcast(event: AuthChangeEvent, userId?: string) {
   if (typeof window === 'undefined' || !('BroadcastChannel' in window)) return;
   try {
@@ -39,8 +55,8 @@ export function subscribeToAuthBroadcast(
 
   try {
     const channel = new BroadcastChannel(CHANNEL_NAME);
-    const handler = (event: MessageEvent<AuthBroadcastMessage>) => {
-      if (event.data && event.data.event) {
+    const handler = (event: MessageEvent<unknown>) => {
+      if (isAuthBroadcastMessage(event.data)) {
         onAuthChange(event.data);
       }
     };

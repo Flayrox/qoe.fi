@@ -19,41 +19,46 @@ export async function createClient() {
   let hostname: string | undefined = undefined;
   try {
     const headersList = await headers();
-    const hostHeader = headersList.get('host');
-    if (hostHeader) {
-      hostname = hostHeader.split(':')[0];
+    // Derrière Caddy, `host` peut être l'adresse de bind du container :
+    // x-forwarded-host porte le vrai domaine public (même piège que requireUser).
+    const rawHost =
+      headersList.get('x-forwarded-host')?.split(',')[0]?.trim() || headersList.get('host');
+    if (rawHost) {
+      hostname = rawHost.split(':')[0];
     }
   } catch {
     // headers() might throw in some static generation contexts
   }
 
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Appelé depuis un Server Component : OK car le middleware
-            // rafraîchit la session avant chaque render.
-          }
-        },
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anonKey) {
+    throw new Error(
+      '@qoe/supabase: NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY requis (self-hosted ou cloud)'
+    );
+  }
+
+  return createServerClient(url, anonKey, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
       },
-      cookieOptions: {
-        domain: getCookieDomain(hostname),
-        path: '/',
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+        } catch {
+          // Appelé depuis un Server Component : OK car le middleware
+          // rafraîchit la session avant chaque render.
+        }
       },
-    }
-  );
+    },
+    cookieOptions: {
+      domain: getCookieDomain(hostname),
+      path: '/',
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+    },
+  });
 }
 
 /**
@@ -61,11 +66,12 @@ export async function createClient() {
  * ⚠️ NE JAMAIS exposer côté client. Uniquement server-side.
  */
 export function createServiceClient() {
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: { getAll: () => [], setAll: () => {} },
-    }
-  );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) {
+    throw new Error('@qoe/supabase: SUPABASE_SERVICE_ROLE_KEY + URL requis (serveur uniquement)');
+  }
+  return createServerClient(url, serviceKey, {
+    cookies: { getAll: () => [], setAll: () => {} },
+  });
 }

@@ -11,6 +11,16 @@
 
 const encoder = new TextEncoder();
 
+/**
+ * Un secret vide rendrait les JWT forgeables par n'importe qui : on refuse
+ * explicitement plutôt que de signer avec une clé vide (HMAC l'accepte).
+ */
+function assertSecret(secret: string): void {
+  if (!secret || secret.trim() === '') {
+    throw new Error('SSO: secret JWT manquant');
+  }
+}
+
 function arrayBufferToBase64Url(buffer: ArrayBuffer | Uint8Array): string {
   const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
   let binary = '';
@@ -38,6 +48,7 @@ export async function signJWT(
   secret: string,
   expiresInSeconds: number = 30
 ): Promise<string> {
+  assertSecret(secret);
   const header = { alg: 'HS256', typ: 'JWT' };
   const exp = Math.floor(Date.now() / 1000) + expiresInSeconds;
   const fullPayload = { ...payload, exp };
@@ -68,6 +79,11 @@ export async function verifyJWT(
   token: string,
   secret: string
 ): Promise<Record<string, unknown> | null> {
+  // Hors du try : un secret manquant est une erreur de configuration, pas un
+  // jeton invalide — la masquer en `null` ferait passer une app mal configurée
+  // pour une simple session expirée.
+  assertSecret(secret);
+
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
@@ -96,8 +112,10 @@ export async function verifyJWT(
     const payload = JSON.parse(
       new TextDecoder().decode(base64UrlToArrayBuffer(encodedPayload))
     ) as Record<string, unknown>;
+    // Un JWT sans `exp` numérique serait valable éternellement : refus.
+    if (typeof payload.exp !== 'number') return null;
     const now = Math.floor(Date.now() / 1000);
-    if (typeof payload.exp === 'number' && now > payload.exp) {
+    if (now > payload.exp) {
       return null;
     }
 

@@ -21,11 +21,15 @@ import { getCookieDomain } from './cookie-config';
  * pour éviter toute boucle de redirection.
  */
 export async function updateSession(request: NextRequest) {
-  const hostHeader = request.headers.get('host');
+  const forwardedHost = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
+  const hostHeader = forwardedHost || request.headers.get('host');
   const hostname = hostHeader ? hostHeader.split(':')[0] : undefined;
 
-  // 1. Étape 0 : Canonicalisation immédiate de localhost -> lvh.me en dev local
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+  // 1. Étape 0 : Canonicalisation localhost -> lvh.me, UNIQUEMENT en dev.
+  //    En production, un health check sur http://localhost:3000 recevait un 307
+  //    vers un domaine que le conteneur ne résout pas (sonde en échec).
+  const isDev = process.env.NODE_ENV !== 'production';
+  if (isDev && (hostname === 'localhost' || hostname === '127.0.0.1')) {
     const canonicalUrl = request.nextUrl.clone();
     canonicalUrl.hostname = 'lvh.me';
     return {
