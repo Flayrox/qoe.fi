@@ -1136,6 +1136,9 @@ export function TextHighlighter({
         // Le tiroir ouvert est une autre surface : la barre de sélection ne
         // doit pas rester posée sur l'article derrière le voile.
         isDismissed={Boolean(selectedAnnotationForDrawer)}
+        onEscape={() => {
+          if (showNoteInput || savedSuccess) clearForm();
+        }}
       >
         {({ text: selectedText, range, placement, clearSelection }) => {
           return (

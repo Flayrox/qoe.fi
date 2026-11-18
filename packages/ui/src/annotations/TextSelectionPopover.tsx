@@ -23,6 +23,7 @@ export function TextSelectionPopover({
   minSelectionLength = 1,
   isLocked = false,
   isDismissed = false,
+  onEscape,
   onSelectionChange,
   children,
   className,
@@ -68,13 +69,21 @@ export function TextSelectionPopover({
     whileElementsMounted: autoUpdate,
   });
 
-  const clearSelection = useCallback(() => {
-    if (isLocked) return;
+  /**
+   * Fermeture inconditionnelle : l'état de la barre ne dépend d'aucun verrou.
+   * C'est ce qu'Échap doit faire — un `isLocked` ne gèle que l'OUVERTURE.
+   */
+  const dismiss = useCallback(() => {
     setVirtualElement(null);
     setSelectedText('');
     setSelectionRange(null);
     onSelectionChange?.(null);
-  }, [isLocked, onSelectionChange]);
+  }, [onSelectionChange]);
+
+  const clearSelection = useCallback(() => {
+    if (isLocked) return;
+    dismiss();
+  }, [isLocked, dismiss]);
 
   // ⚠️ `isLocked` n'était lu QUE pour ignorer de nouvelles sélections : la
   // barre déjà ouverte restait affichée. Ouvrir le tiroir laissait donc la
@@ -247,7 +256,13 @@ export function TextSelectionPopover({
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape') {
       event.stopPropagation();
-      clearSelection();
+      // ⚠️ `clearSelection` sortait immédiatement quand `isLocked` était vrai
+      // — c'est-à-dire exactement quand le formulaire de note était ouvert.
+      // Le bouton de fermeture annonce « Fermer (Échap) » : le raccourci
+      // mentait. Échap referme toujours, et le parent en est prévenu pour
+      // abandonner sa saisie.
+      onEscape?.();
+      dismiss();
       // Rendre le focus au document plutôt qu'au néant : sans ça, le focus
       // reste sur un élément qui vient d'être démonté.
       (document.activeElement as HTMLElement | null)?.blur();

@@ -227,6 +227,14 @@ export interface TextSelectionPopoverProps {
   isLocked?: boolean;
   /** Referme la barre au profit d'une autre surface (tiroir ouvert). */
   isDismissed?: boolean;
+  /**
+   * Signal d'Échap. La barre se referme TOUJOURS, même quand `isLocked` la
+   * gèle (formulaire de note ouvert) : `isLocked` empêche l'ouverture d'une
+   * nouvelle sélection, pas la sortie de la saisie en cours. Le parent y
+   * referme sa propre saisie, sinon l'état reste « formulaire ouvert » sur
+   * une barre qui n'existe plus.
+   */
+  onEscape?: () => void;
   onSelectionChange?: (selection: SelectionState | null) => void;
   children: (selection: SelectionState) => React.ReactNode;
   className?: string;
