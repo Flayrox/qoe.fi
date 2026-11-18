@@ -13,8 +13,28 @@
 
 import { safeAction } from '../utils/safe-action';
 import { goFetch } from '../utils/go-client';
+import { normalizePage } from '../utils/pagination';
 
 export type NotificationFilter = 'all' | 'mentions' | 'replies' | 'likes' | 'collaborations';
+
+/** Filtres réellement acceptés par le Go (`typeFilter` dans notifications/service.go). */
+export const NOTIFICATION_FILTERS: readonly NotificationFilter[] = [
+  'all',
+  'mentions',
+  'replies',
+  'likes',
+  'collaborations',
+];
+
+/** Une valeur hors liste retombe sur « all » : elle ne part jamais dans l'URL. */
+export function normalizeNotificationFilter(filter?: string): NotificationFilter {
+  return NOTIFICATION_FILTERS.includes(filter as NotificationFilter)
+    ? (filter as NotificationFilter)
+    : 'all';
+}
+
+/** Garde-fou de corps : 500 identifiants suffisent à vider un badge. */
+export const MAX_READ_IDS = 500;
 
 export type GroupedNotificationType =
   | 'LIKE'
@@ -108,15 +128,17 @@ export const getNotificationsAction = safeAction<
   { filter?: NotificationFilter; limit?: number; cursor?: string },
   { notifications: GroupedNotification[]; nextCursor: string | null }
 >(async (rawInput) => {
-  const filter = rawInput?.filter || 'all';
-  const limit = rawInput?.limit || 30;
+  // ⚠️ `filter` était interpolé brut : `filter: 'all&limit=…'` réécrivait la
+  // requête. Il est désormais validé contre la liste du Go puis encodé.
+  const filter = normalizeNotificationFilter(rawInput?.filter);
+  const { limit } = normalizePage({ limit: rawInput?.limit ?? 30 });
   const cursor = rawInput?.cursor;
 
   const res = await goFetch<{
     notifications?: GroupedNotification[];
     nextCursor?: string | null;
   }>(
-    `/v1/notifications?filter=${filter}&limit=${limit}&cursor=${encodeURIComponent(cursor ?? '')}`
+    `/v1/notifications?filter=${encodeURIComponent(filter)}&limit=${limit}&cursor=${encodeURIComponent(cursor ?? '')}`
   );
   return {
     notifications: (res?.notifications ?? []).filter(Boolean),
@@ -132,9 +154,14 @@ export const markNotificationsAsReadAction = safeAction<
   { notificationIds?: string[] } | undefined,
   { success: boolean }
 >(async (rawInput) => {
+  // Déduplication + borne : un client ne doit pas pouvoir pousser un tableau
+  // arbitrairement gros dans un UPDATE ... WHERE id = ANY(...).
+  const notificationIds = Array.from(new Set(rawInput?.notificationIds ?? []))
+    .filter((id): id is string => typeof id === 'string' && id.length > 0)
+    .slice(0, MAX_READ_IDS);
   return goFetch<{ success: boolean }>('/v1/notifications/read', {
     method: 'POST',
-    body: { notificationIds: rawInput?.notificationIds ?? [] },
+    body: { notificationIds },
   });
 });
 

@@ -63,7 +63,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L06a** | `packages/sdk/src/{client,index,mobile,query-keys,embed}`, `actions/utils/{go-client,safe-action,authz}`, `utils/authError` | 15 fichiers           | **durci le 2026-11-18** |
 | **L06b** | `packages/sdk/src/{shadow,entity-actions}.ts` + `hooks/**` + `lib/**`                                         | 24 fichiers                 | **durci le 2026-11-18** |
 | **L06c** | `packages/sdk/src/actions/{feed,articles,tenant,search,dashboard}` + `lib/shareUrl.ts`                      | 5 fichiers / 2 700 lignes   | **durci le 2026-11-18** |
-| L06d    | `packages/sdk/src/actions/**` restants (admin, legal, billing, highlights, ebooks, appeals, support, workspace…) | 38 fichiers            | en cours (5 domaines)   |
+| **L06d** | `packages/sdk/src/actions/**` restants (admin, legal, billing, highlights, ebooks, appeals, support, workspace…) | 38 fichiers | **durci le 2026-11-18** |
 | L07a    | `packages/ui/src/primitives/**`, `ui/**`, `tokens.ts`                                                        | 310 fichiers (global)       | à auditer               |
 | L07b    | `packages/ui/src/{reader,annotations,cards}/**`                                                              | idem                        | à auditer               |
 | L07c    | `packages/ui/src/{auth,forms,providers}/**`                                                                  | idem                        | à auditer               |
@@ -102,7 +102,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L06d — actions SDK restantes (admin, legal, billing…).**
+**Prochain lot à traiter : L07a — `packages/ui` (primitives et composants partagés).**
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -755,6 +755,8 @@ session), puis le contenu (highlights, ebooks, workspace), puis le reste.
 | F80 | `workspace` : le garde `!publisherId.startsWith('usr_')` testait un préfixe qui n'existe nulle part (les identifiants sont des UUID) — il laissait donc passer un `publisherId = userId` si le Go régressait. S'appuie désormais sur le contrat explicite du Go (`""` quand la publication n'existe pas), verrouillé par un test d'intégration Go. | moyenne  | corrigé |
 | F81 | `appeals` et `support` construisaient `?limit=${limit}` sans borne : `limit=100000` transformait une page en export, `limit=NaN` produisait un 400 opaque. Util partagé `utils/pagination.ts` (`normalizePage` : 1…100, offset ≥ 0, rejet NaN/Infinity), 6 tests. | moyenne  | corrigé |
 | F82 | `threadgates` : `revalidatePath('/post')` — route inexistante (le fil est `/post/[id]`), même classe que F79. Appel retiré, R52 étendue aux fils. | basse    | corrigé |
+| F83 | `notifications` : `filter` était interpolé brut dans la query string (`filter: 'all&limit=9999'` réécrivait la requête). Validé contre la liste du Go puis encodé ; `limit` borné par `normalizePage`. | moyenne  | corrigé |
+| F84 | `markNotificationsAsReadAction` poussait un tableau d'ids arbitraire (taille et doublons non bornés) dans un `UPDATE … = ANY(...)`. Déduplication + plafond 500. | basse    | corrigé |
 
 Cinq tests (`adminActions.test.ts`) verrouillent l'ordre « Go d'abord » (aucun
 ban si le Go refuse), la compensation et la remontée d'erreur d'unban.
