@@ -23,6 +23,13 @@ const ENDPOINTS_KEY = 'API_DISABLED_ENDPOINTS';
 // Le middleware cache la config ~5 s : on laisse la marge via expect.poll.
 const APPLY_TIMEOUT_MS = 20_000;
 
+// ⚠️ SÉRIE obligatoire : les deux tests écrivent des bascules GLOBALES
+// (`API_ACCESS_DISABLED`, `API_DISABLED_ENDPOINTS`) et vérifient ensuite que
+// `/v1/home/config` répond 200. En `fullyParallel` (défaut du projet), le test
+// « endpoints désactivés » coupait `/v1/home/config` pendant que l'autre en
+// attendait 200 → 404 aléatoire, alors que les deux corrections sont saines.
+test.describe.configure({ mode: 'serial' });
+
 test.describe('Contrôle d’accès global (API Go)', () => {
   let db: TestDb;
 

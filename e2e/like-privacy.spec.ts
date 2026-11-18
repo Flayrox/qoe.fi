@@ -6,7 +6,7 @@
 // retire l'identité des listes publiques sans retirer le like ni le compteur.
 // =====================================================================
 
-import { test, expect, type BrowserContext } from '@playwright/test';
+import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
 import {
@@ -21,6 +21,22 @@ const email = `e2e.like-privacy.${Date.now()}@qoe.fi`;
 const password = 'e2e-like-privacy-123!';
 
 const serviceRoleKey = SUPABASE_SERVICE_ROLE_KEY;
+
+/**
+ * Un compte fraîchement créé reçoit le portail de consentement légal
+ * (`role=dialog` « Mise à jour des conditions ») qui recouvre la page en
+ * z-70 : tout `click()` tourne alors jusqu'au timeout, sans que l'UI testée
+ * soit en cause. « Plus tard » est l'échappement prévu par le composant
+ * (`LegalConsentGate`) pour la session ; on le prend.
+ */
+async function dismissLegalGate(page: Page) {
+  const gate = page.getByRole('dialog', { name: 'Mise à jour des conditions' });
+  await gate.waitFor({ state: 'visible', timeout: 2000 }).catch(() => undefined);
+  if (await gate.isVisible().catch(() => false)) {
+    await page.getByRole('button', { name: 'Plus tard' }).click();
+    await expect(gate).toBeHidden();
+  }
+}
 
 test.describe('Confidentialité des likes (Core)', () => {
   test.describe.configure({ mode: 'serial' });
@@ -161,17 +177,24 @@ test.describe('Confidentialité des likes (Core)', () => {
     await expect(page.getByRole('heading', { name: 'Confidentialité' })).toBeVisible({
       timeout: 30_000,
     });
+    await dismissLegalGate(page);
 
-    const likeVisibility = page.getByLabel('Visibilité de mes likes');
-    await expect(likeVisibility).toHaveValue('PUBLIC');
-    await likeVisibility.selectOption('PRIVATE');
-    await expect(likeVisibility).toHaveValue('PRIVATE');
+    // ⚠️ Le réglage n'est plus un `<select>` natif : `SelectRow` rend le
+    // composant React Aria de `@qoe/ui` (bouton + listbox). `toHaveValue` /
+    // `selectOption` ne trouvaient donc rien, alors que le contrôle existe et
+    // fonctionne. On pilote le vrai widget.
+    const likeVisibility = page.getByRole('button', { name: /Visibilité de mes likes/ });
+    await expect(likeVisibility).toHaveText(/Publique/);
+    await likeVisibility.click();
+    await page.getByRole('option', { name: 'Privée' }).click();
+    await expect(likeVisibility).toHaveText(/Privée/);
     await expect(page.getByText('Réglage enregistré.')).toBeVisible({ timeout: 15_000 });
 
     // 2. Le like est créé par le vrai bouton de la vraie page pensée.
     await page.goto(`/${targetAuthorUsername}/thought/${targetPostId}`, {
       waitUntil: 'networkidle',
     });
+    await dismissLegalGate(page);
     const likeButton = page.locator('button[aria-label="J\'aime"]').first();
     await expect(likeButton).toBeVisible({ timeout: 30_000 });
     await likeButton.click();
