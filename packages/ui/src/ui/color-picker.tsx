@@ -118,6 +118,57 @@ function rgbToHsv(r: number, g: number, b: number): { h: number; s: number; v: n
   return { h, s, v };
 }
 
+export interface HsvColor {
+  h: number;
+  s: number;
+  v: number;
+}
+
+function clampPercent(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function normalizeHue(value: number): number {
+  return ((Math.round(value) % 360) + 360) % 360;
+}
+
+/**
+ * ⌨️ Déplacement au clavier d'une couleur HSV.
+ *
+ * ⚠️ La surface S/V et le curseur de teinte n'étaient que des `div` avec des
+ * handlers `pointer…` : au clavier, impossible de choisir une couleur, seul
+ * le champ hexadécimal restait accessible. Ce calcul est pur pour être
+ * testable sans DOM (et pour documenter les bornes : la saturation et la
+ * luminosité restent dans 0–100, la teinte boucle sur 360°).
+ *
+ * Retourne `null` quand la touche n'est pas un déplacement.
+ */
+export function adjustHsvFromKey(
+  hsv: HsvColor,
+  key: string,
+  options: { shift?: boolean; axis?: 'sv' | 'hue' } = {}
+): HsvColor | null {
+  const { shift = false, axis = 'sv' } = options;
+  const step = shift ? 10 : 1;
+
+  if (axis === 'hue') {
+    if (key === 'ArrowRight' || key === 'ArrowUp') return { ...hsv, h: normalizeHue(hsv.h + step) };
+    if (key === 'ArrowLeft' || key === 'ArrowDown')
+      return { ...hsv, h: normalizeHue(hsv.h - step) };
+    if (key === 'Home') return { ...hsv, h: 0 };
+    if (key === 'End') return { ...hsv, h: 359 };
+    return null;
+  }
+
+  if (key === 'ArrowLeft') return { ...hsv, s: clampPercent(hsv.s - step) };
+  if (key === 'ArrowRight') return { ...hsv, s: clampPercent(hsv.s + step) };
+  if (key === 'ArrowUp') return { ...hsv, v: clampPercent(hsv.v + step) };
+  if (key === 'ArrowDown') return { ...hsv, v: clampPercent(hsv.v - step) };
+  if (key === 'Home') return { ...hsv, s: 0 };
+  if (key === 'End') return { ...hsv, s: 100 };
+  return null;
+}
+
 function rgbToHex(r: number, g: number, b: number): string {
   const toHex = (n: number) =>
     Math.max(0, Math.min(255, Math.round(n)))
@@ -147,7 +198,7 @@ export function ColorPicker({
     ? rgbToHsv(initialRgb.r, initialRgb.g, initialRgb.b)
     : { h: 0, s: 0, v: 100 };
 
-  const [hsv, setHsv] = useState(initialHsv);
+  const [hsv, setHsv] = useState<HsvColor>(initialHsv);
   const [hexInput, setHexInput] = useState(displayHex ? displayHex.replace(/^#/, '') : '');
 
   // Synchronise lorsque `value` externe change
@@ -188,7 +239,7 @@ export function ColorPicker({
 
   // Mise à jour de couleur à partir du HSV
   const updateFromHsv = useCallback(
-    (newHsv: { h: number; s: number; v: number }) => {
+    (newHsv: HsvColor) => {
       setHsv(newHsv);
       const rgb = hsvToRgb(newHsv.h, newHsv.s, newHsv.v);
       const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
@@ -273,6 +324,14 @@ export function ColorPicker({
     }
   };
 
+  // ⌨️ Même geste, au clavier : flèches (± 1, ± 10 avec Maj), Début/Fin.
+  const handleAxisKeyDown = (axis: 'sv' | 'hue') => (event: React.KeyboardEvent) => {
+    const next = adjustHsvFromKey(hsv, event.key, { shift: event.shiftKey, axis });
+    if (!next) return;
+    event.preventDefault();
+    updateFromHsv(next);
+  };
+
   // Saisie textuelle HEX directe
   const handleHexInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.replace(/[^0-9a-fA-F]/g, '').slice(0, 6);
@@ -331,7 +390,16 @@ export function ColorPicker({
             onPointerDown={onSvPointerDown}
             onPointerMove={onSvPointerMove}
             onPointerUp={onSvPointerUp}
-            className="relative w-full h-28 rounded-lg cursor-crosshair overflow-hidden touch-none select-none border border-border/40 shadow-inner"
+            role="slider"
+            tabIndex={0}
+            aria-label="Saturation et luminosité"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={hsv.v}
+            aria-valuetext={`Saturation ${hsv.s} %, luminosité ${hsv.v} %`}
+            aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Home End"
+            onKeyDown={handleAxisKeyDown('sv')}
+            className="relative w-full h-28 rounded-lg cursor-crosshair overflow-hidden touch-none select-none border border-border/40 shadow-inner focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/70"
             style={{
               backgroundColor: `hsl(${hsv.h}, 100%, 50%)`,
             }}
@@ -368,7 +436,16 @@ export function ColorPicker({
             onPointerDown={onHuePointerDown}
             onPointerMove={onHuePointerMove}
             onPointerUp={onHuePointerUp}
-            className="relative w-full h-3 rounded-full cursor-pointer touch-none select-none border border-border/40"
+            role="slider"
+            tabIndex={0}
+            aria-label="Teinte"
+            aria-valuemin={0}
+            aria-valuemax={359}
+            aria-valuenow={hsv.h}
+            aria-valuetext={`${hsv.h}°`}
+            aria-keyshortcuts="ArrowLeft ArrowRight Home End"
+            onKeyDown={handleAxisKeyDown('hue')}
+            className="relative w-full h-3 rounded-full cursor-pointer touch-none select-none border border-border/40 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/70"
             style={{
               background:
                 'linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%)',

@@ -37,7 +37,11 @@ import { FIELD_SIZES, type Size } from '../contract';
 const DEFAULT_COLOR = '#000000';
 
 function toHex(value: string | null | undefined) {
-  return value ?? DEFAULT_COLOR;
+  // ⚠️ Une chaîne vide n'est pas « pas de couleur » : c'est ce que rend un
+  // état de formulaire initialisé à `''`. La passer à react-aria lève sur un
+  // analyse impossible (« Invalid color ») et fait tomber l'écran entier.
+  // Vide ou blanc = couleur absente = valeur par défaut.
+  return value && value.trim().length > 0 ? value : DEFAULT_COLOR;
 }
 
 export interface ColorSwatchProps {

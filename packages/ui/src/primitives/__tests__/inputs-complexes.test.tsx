@@ -127,6 +127,15 @@ describe('ColorField', () => {
     );
   });
 
+  it('survit à une valeur vide (état de formulaire initial)', () => {
+    // ⚠️ `''` est ce que rend un formulaire non rempli. Passé tel quel à
+    // react-aria, l'analyse de couleur échoue et l'écran tombe.
+    render(<ColorField label="Couleur" value="" />);
+    expect((screen.getByRole('textbox', { name: 'Couleur' }) as HTMLInputElement).value).toBe(
+      '#000000'
+    );
+  });
+
   it('signale une valeur invalide', () => {
     render(<ColorField label="Couleur" value="#c2410c" invalid />);
     expect(screen.getByRole('textbox', { name: 'Couleur' }).getAttribute('aria-invalid')).toBe(
