@@ -773,7 +773,7 @@ tests (`notificationsActions.test.ts`) verrouillent le filtre, la borne de
 | -------- | -------- |
 | `pnpm exec vitest run` (SDK) | 221 tests / 32 fichiers, vert |
 | `pnpm test` (workspace, turbo) | 22/22 tâches, exit 0 après F85 |
-| `go test -p 1 -count=1 ./cmd/... ./internal/...` | suite complète sur base **vierge** : voir journal ci-dessous |
+| `go test -p 1 -count=1 ./cmd/... ./internal/...` | suite complète sur base **vierge** (`qoe_test_full_test`, tunnel `15409`) : **82 packages ok, 0 échec, exit 0** (~35 min, packages sérialisés) |
 | `pnpm exec playwright test --project=public-web --project=core-journeys` | **15/15 verts, exit 0** (9 min, `--workers=2`) — nécessite les tunnels SSH `15409` (DB) **et** `DATABASE_URL` exporté (les specs lisent la base directement), + `6379` (Redis, sinon 5 tentatives de connexion par requête) |
 
 | #   | Tâche                                                                                                       | Sévérité | Motif |
