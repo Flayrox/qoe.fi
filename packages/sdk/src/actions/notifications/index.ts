@@ -14,27 +14,13 @@
 import { safeAction } from '../utils/safe-action';
 import { goFetch } from '../utils/go-client';
 import { normalizePage } from '../utils/pagination';
+import { MAX_READ_IDS, normalizeNotificationFilter } from '../utils/notification-filter';
+import type { NotificationFilter } from '../utils/notification-filter';
 
-export type NotificationFilter = 'all' | 'mentions' | 'replies' | 'likes' | 'collaborations';
-
-/** Filtres réellement acceptés par le Go (`typeFilter` dans notifications/service.go). */
-export const NOTIFICATION_FILTERS: readonly NotificationFilter[] = [
-  'all',
-  'mentions',
-  'replies',
-  'likes',
-  'collaborations',
-];
-
-/** Une valeur hors liste retombe sur « all » : elle ne part jamais dans l'URL. */
-export function normalizeNotificationFilter(filter?: string): NotificationFilter {
-  return NOTIFICATION_FILTERS.includes(filter as NotificationFilter)
-    ? (filter as NotificationFilter)
-    : 'all';
-}
-
-/** Garde-fou de corps : 500 identifiants suffisent à vider un badge. */
-export const MAX_READ_IDS = 500;
+// ⚠️ `'use server'` n'autorise que des exports async : les constantes et le
+// validateur synchrone vivent dans `../utils/notification-filter`. Seul le
+// type (effacé à la compilation) peut être re-exporté ici.
+export type { NotificationFilter } from '../utils/notification-filter';
 
 export type GroupedNotificationType =
   | 'LIKE'

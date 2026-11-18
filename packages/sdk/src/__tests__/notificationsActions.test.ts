@@ -14,12 +14,8 @@ vi.mock('@qoe/supabase/server', () => ({
   }),
 }));
 
-import {
-  MAX_READ_IDS,
-  getNotificationsAction,
-  markNotificationsAsReadAction,
-  normalizeNotificationFilter,
-} from '../actions/notifications';
+import { getNotificationsAction, markNotificationsAsReadAction } from '../actions/notifications';
+import { MAX_READ_IDS, normalizeNotificationFilter } from '../actions/utils/notification-filter';
 
 function lastUrl(): string {
   return String(goFetch.mock.calls.at(-1)?.[0]);
