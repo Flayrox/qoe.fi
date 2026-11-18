@@ -75,19 +75,45 @@ const TimePickerInput = React.forwardRef<HTMLInputElement, TimePickerInputProps>
       return !flag ? '0' + key : calculatedValue.slice(1, 2) + key;
     };
 
+    /**
+     * ⌨️ On n'intercepte QUE ce qu'on sait traiter.
+     *
+     * ⚠️ Le `preventDefault()` était posé pour toutes les touches sauf Tab.
+     * Conséquence en production (composeur de pensées) : impossible de copier
+     * l'heure (⌘/Ctrl+C), de coller, de sélectionner tout, ou de valider le
+     * popover avec Entrée tant que le focus était dans le champ — et Retour
+     * arrière ne faisait rien. Un champ de saisie ne prend pas le clavier en
+     * otage ; il prend les flèches et les chiffres, puis rend la main.
+     */
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Tab') return;
-      e.preventDefault();
-      if (e.key === 'ArrowRight') onRightFocus?.();
-      if (e.key === 'ArrowLeft') onLeftFocus?.();
-      if (['ArrowUp', 'ArrowDown'].includes(e.key)) {
+      // Raccourcis système et navigateur : ⌘/Ctrl/Alt + touche.
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        onRightFocus?.();
+        return;
+      }
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        onLeftFocus?.();
+        return;
+      }
+
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
         const step = e.key === 'ArrowUp' ? 1 : -1;
         const newValue = getArrowByType(calculatedValue, step, picker);
         if (flag) setFlag(false);
         const tempDate = new Date(date);
         setDate(setDateByType(tempDate, newValue, picker, period));
+        return;
       }
-      if (e.key >= '0' && e.key <= '9') {
+
+      if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
         if (picker === '12hours') setPrevIntKey(e.key);
 
         const newValue = calculateNewValue(e.key);
@@ -95,7 +121,10 @@ const TimePickerInput = React.forwardRef<HTMLInputElement, TimePickerInputProps>
         setFlag((prev) => !prev);
         const tempDate = new Date(date);
         setDate(setDateByType(tempDate, newValue, picker, period));
+        return;
       }
+
+      // Entrée, Retour arrière, Échap, Début/Fin, suppression… : au navigateur.
     };
 
     return (

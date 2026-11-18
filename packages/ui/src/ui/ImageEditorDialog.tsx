@@ -373,6 +373,11 @@ export function ImageEditorDialog({
   };
 
   const handleStageKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    // ⌘/Ctrl/Alt + touche appartient au navigateur : sans cette garde, ⌘R
+    // (recharger) et ⌘0 (zoom système) étaient avalés quand le stage avait
+    // le focus — « R » et « 0 » étant nos propres raccourcis.
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+
     const step = event.shiftKey ? 24 : 8;
     const key = event.key.toLowerCase();
 
