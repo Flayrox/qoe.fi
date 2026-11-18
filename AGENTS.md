@@ -14,9 +14,36 @@ Ce repo tient sa mémoire dans des plans vivants versionnés. **Lis-les avant de
 ## Rythme imposé — un commit par lot d'audit
 
 - **Un lot = un commit.** Chaque lot de `docs/AUDIT-CHECKLIST.md` se termine par un commit dédié (`audit(<lot>): …`) qui contient le code, les tests et la mise à jour de la checklist. Rien d'un lot clos ne reste en travail non commité.
+- **Un changement = un commit.** Tout changement cohérent et vert est commité immédiatement, même transverse, même petit, même s'il ne clôt pas un lot (`fix(...)`, `chore(...)`, `docs(...)`). Un lot peut donc produire plusieurs commits ; on ne laisse jamais une correction vérifiée en travail non commité.
 - **Aller au plus profond à chaque passage.** Pour chaque fichier et chaque fonction exportée : lire les appelants réels, les colonnes SQL et les validations Go en doublon, pas seulement le code du package. Si une primitive native, une API plus récente ou un garde CI remplace proprement l'existant, on remplace dans le même lot.
 - **Aucun bug laissé ouvert.** Un défaut constaté se corrige dans le lot, même s'il déborde du périmètre initial (test rouge d'abord, correctif, preuve). Une correction qui exige une décision produit passe `bloqué` avec la question écrite — jamais « plus tard » implicite.
 - **Preuve avant verdict.** Une ligne `durci` sans commande verte (test, typecheck, lint) recollée dans la checklist n'a pas sa place : on écrit la commande et son résultat.
+
+## Portabilité d'infra — self-hosted d'abord, CDN interchangeable
+
+Le scale ne doit jamais demander de toucher au code : il change une variable
+d'environnement. Règle appliquée à chaque lot (axe 8 de la checklist).
+
+- **Supabase = self-hosted par défaut.** On ne code jamais un domaine
+  propriétaire (`xxx.supabase.co`, `cdn.qoe.fi`) dans la logique : le client
+  Supabase reçoit `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_URL`, qui pointent
+  aussi bien vers le cloud que vers notre instance auto-hébergée.
+- **Une seule source pour l'origine des médias.** Toute URL publique d'image
+  passe par une fonction de résolution (`resolveMediaCdnBase()`), pilotée par
+  une variable d'environnement, avec un défaut déterministe. Aucune
+  concaténation d'hôte à la main, aucun `https://cdn…` littéral dans un
+  composant.
+- **Prêt pour Bunny / Cloudflare / R2 / imgproxy.** Le rewrite d'URL est un
+  remplacement d'origine (Supabase → CDN), pas une reconstruction de chemin :
+  changer de CDN = changer la variable. Les URLs déjà servies par un ancien CDN
+  restent reconnues (idempotence + hôtes historiques), sinon les images en base
+  cassent au basculement.
+- **Rien d'absolu quand un chemin suffit.** Préférer stocker la clé/le chemin
+  storage et l'origine configurable ; une URL absolue en base est une dette de
+  migration (à documenter si inévitable).
+- **Une preuve par règle.** Chaque résolution d'origine a un test unitaire qui
+  prouve : défaut sans variable, surcharge par variable, idempotence, et refus
+  d'un hôte étranger.
 
 ## Architecture en une page
 

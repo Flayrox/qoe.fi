@@ -16,6 +16,10 @@
 - **Un lot = un commit.** Le lot se termine par un commit dédié (`audit(<lot>): …`)
   qui embarque le code, les tests et la mise à jour de ce fichier. Un lot clos ne
   laisse rien en travail non commité.
+- **Un changement = un commit.** Tout correctif cohérent et vert est commité
+  immédiatement, même transverse et même s'il ne clôt pas le lot en cours
+  (`fix(...)`, `chore(...)`, `docs(...)`). Le rythme est : on corrige, on
+  vérifie, on commit ; on n'empile pas des corrections vérifiées dans l'ombre.
 - **Profondeur maximale.** On ne lit pas seulement le package : on lit ses
   appelants, ses colonnes SQL et les validations Go qui doublonnent, puis on
   remplace ce qui peut l'être par une primitive native, une API plus récente ou
@@ -36,6 +40,7 @@
 | 5. Tests             | Ce qui est prouvé, ce qui ne l'est pas. Le test manquant est écrit **avant** le correctif (rouge observé), puis conservé. |
 | 6. Garde             | Existe-t-il un garde CI qui empêche la régression ? Sinon, en ajouter un.                                                 |
 | 7. Doc               | La ligne du lot est mise à jour : finding, correctif, preuve, reste à faire.                                              |
+| 8. Portabilité/scale | Aucun hôte (Supabase, CDN, stockage) codé en dur : tout passe par une variable d'environnement, avec défaut déterministe, idempotence et test du rewrite. Voir « Portabilité d'infra » dans `AGENTS.md`. |
 
 **Conventions d'identifiants.** `L<n>` = lot. `U<n>` = entrée du lot `@qoe/utils`.
 Les tâches restantes sont numérotées **en continu** (`R01`, `R02`, …) sur tout
