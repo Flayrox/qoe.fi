@@ -3,9 +3,11 @@
 // =====================================================================
 // 🛡️ actions/admin — Server Actions de la console superadmin
 // =====================================================================
-// Toutes les actions vérifient `verifySuperadmin()` (rôle DB ==
-// 'superadmin') avant d'agir. Utilise le client Supabase admin (service
-// role key) pour les opérations d'auth (ban/unban).
+// 🔒 Autorisation : elle est **entièrement** portée par l'API Go (rôle
+// superadmin + capacités, `apps/api/internal/adminauthz`). Aucune de ces
+// actions ne décide d'un droit côté TypeScript : elles relaient la session.
+// Seules les opérations qui touchent Supabase Auth (ban/unban) utilisent le
+// client service-role, APRÈS le passage par le Go.
 // ⚠️ Fichier serveur, app admin uniquement — jamais exposé au mobile.
 // =====================================================================
 
@@ -14,17 +16,28 @@ import { revalidatePath } from 'next/cache';
 import { goFetch } from '../utils/go-client';
 import { safeAction } from '../utils/safe-action';
 
+/** Durée de bannissement Auth d'un compte suspendu (100 ans = « jusqu'à levée »). */
+const SUSPENSION_BAN_DURATION = '876000h';
+
+/**
+ * Client service-role, construit à l'appel.
+ * Un env manquant doit produire une erreur explicite plutôt qu'un `undefined`
+ * silencieux dans le constructeur Supabase (et jamais une clé cliente).
+ */
 function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    }
-  );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!url || !serviceRoleKey) {
+    throw new Error(
+      'Console admin : NEXT_PUBLIC_SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY sont requis pour les opérations Auth.'
+    );
+  }
+  return createClient(url, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
 }
 
 export const setSystemConfigAction = safeAction<
@@ -51,22 +64,38 @@ export const suspendUserAction = safeAction<
   { userId: string; reason: string },
   { success: boolean }
 >(async ({ userId, reason }) => {
-  // Le backend Go vérifie le rôle superadmin (403 sinon).
+  // 1) Le Go fait foi ET porte l'autorisation : rien n'est banni avant son 200.
   await goFetch(`/v1/admin/users/${encodeURIComponent(userId)}`, {
     method: 'PATCH',
     body: { isSuspended: true, suspendReason: reason },
   });
 
+  // 2) Bannissement Auth (défense en profondeur : coupe les sessions ouvertes).
   const adminClient = getAdminClient();
   const { error } = await adminClient.auth.admin.updateUserById(userId, {
-    ban_duration: '876000h',
+    ban_duration: SUSPENSION_BAN_DURATION,
   });
 
   if (error) {
-    throw new Error('User suspended in DB, but failed to ban in Auth.');
+    // Compensation : un compte banni sans suspension en base (ou l'inverse)
+    // est un état que personne ne sait interpréter ensuite.
+    try {
+      await goFetch(`/v1/admin/users/${encodeURIComponent(userId)}`, {
+        method: 'PATCH',
+        body: { isSuspended: false, suspendReason: null },
+      });
+    } catch (compensateError) {
+      console.error('[admin] suspension : compensation impossible', compensateError);
+      throw new Error(
+        'Suspension partielle : le bannissement Auth a échoué et la base n’a pas pu être rétablie. Vérifiez le compte manuellement.'
+      );
+    }
+    throw new Error(
+      `Suspension annulée : bannissement Auth impossible (${error.message}). La base a été rétablie.`
+    );
   }
 
-  revalidatePath('/admin/creators');
+  revalidatePath('/admin/users');
   return { success: true };
 });
 
@@ -77,12 +106,19 @@ export const unsuspendUserAction = safeAction<string, { success: boolean }>(asyn
     body: { isSuspended: false, suspendReason: null },
   });
 
+  // Lever le ban est la seule opération qui compte : une erreur ignorée
+  // laissait l'utilisateur « rétabli » en base mais incapable de se connecter.
   const adminClient = getAdminClient();
-  await adminClient.auth.admin.updateUserById(userId, {
+  const { error } = await adminClient.auth.admin.updateUserById(userId, {
     ban_duration: 'none',
   });
+  if (error) {
+    throw new Error(
+      `Compte rétabli en base, mais le bannissement Auth subsiste (${error.message}). Relancez l’action : elle est idempotente.`
+    );
+  }
 
-  revalidatePath('/admin/creators');
+  revalidatePath('/admin/users');
   return { success: true };
 });
 
@@ -95,7 +131,7 @@ export const toggleUserCertificationAction = safeAction<
     method: 'PATCH',
     body: { isCertified },
   });
-  revalidatePath('/admin/creators');
+  revalidatePath('/admin/users');
   return { success: true };
 });
 
@@ -108,7 +144,7 @@ export const toggleUserShadowbanAction = safeAction<
     method: 'PATCH',
     body: { isShadowbanned },
   });
-  revalidatePath('/admin/creators');
+  revalidatePath('/admin/users');
   return { success: true };
 });
 

@@ -63,7 +63,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L06a** | `packages/sdk/src/{client,index,mobile,query-keys,embed}`, `actions/utils/{go-client,safe-action,authz}`, `utils/authError` | 15 fichiers           | **durci le 2026-11-18** |
 | **L06b** | `packages/sdk/src/{shadow,entity-actions}.ts` + `hooks/**` + `lib/**`                                         | 24 fichiers                 | **durci le 2026-11-18** |
 | **L06c** | `packages/sdk/src/actions/{feed,articles,tenant,search,dashboard}` + `lib/shareUrl.ts`                      | 5 fichiers / 2 700 lignes   | **durci le 2026-11-18** |
-| L06d    | `packages/sdk/src/actions/**` restants (admin, legal, billing, highlights, ebooks, appeals, support, workspace…) | 38 fichiers            | à auditer               |
+| L06d    | `packages/sdk/src/actions/**` restants (admin, legal, billing, highlights, ebooks, appeals, support, workspace…) | 38 fichiers            | en cours (5 domaines)   |
 | L07a    | `packages/ui/src/primitives/**`, `ui/**`, `tokens.ts`                                                        | 310 fichiers (global)       | à auditer               |
 | L07b    | `packages/ui/src/{reader,annotations,cards}/**`                                                              | idem                        | à auditer               |
 | L07c    | `packages/ui/src/{auth,forms,providers}/**`                                                                  | idem                        | à auditer               |
@@ -100,6 +100,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L36     | `e2e/**`, `playwright*.config.ts`, `e2e/lib/**`                                                              | 65 fichiers                 | à auditer               |
 | L37     | `docs/**`, `AGENTS.md`, racine (`tsconfig`, `eslint`, `turbo`, `vitest`), `supabase/`, `patches/`, `.husky/` | transverse                  | à auditer               |
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
+| L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
 **Prochain lot à traiter : L06d — actions SDK restantes (admin, legal, billing…).**
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
@@ -733,6 +734,30 @@ pnpm typecheck                              # 25 successful, 25 total
 | #   | Tâche                                                                                          | Sévérité | Motif                                                                                       |
 | --- | ------------------------------------------------------------------------------------------------ | -------- | ------------------------------------------------------------------------------------------- |
 | R45 | Auditer les 38 actions restantes (admin, legal, billing, highlights, ebooks, appeals, support, workspace, entitlements, ai) | —        | Lot L06d : mêmes axes (encodage, autorisation, contrat Go) sur les domaines à moindre trafic. |
+
+---
+
+### L06d — actions restantes (premier passage 2026-11-18)
+
+Ordre : d'abord les domaines où une erreur coûte cher (argent, droits,
+session), puis le contenu (highlights, ebooks, workspace), puis le reste.
+
+| #   | Trouvaille                                                                                                                                  | Sévérité | Statut |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------ |
+| F72 | `actions/admin` : l'en-tête affirmait « toutes les actions vérifient `verifySuperadmin()` » — aucune vérification TS n'existe, l'autorisation est portée par le Go. Un lecteur pouvait croire qu'un garde existait et en ajouter un second, divergent. | doc     | corrigé (en-tête dit la vérité, renvoie à `adminauthz`) |
+| F73 | `suspendUserAction` : ban Auth en échec ⇒ base suspendue, message anglais, aucun retour arrière. Compensation ajoutée (PATCH `isSuspended:false`) + message qui décrit l'état réel. | haute   | corrigé |
+| F74 | `unsuspendUserAction` ignorait l'erreur de `updateUserById` ⇒ compte « rétabli » en base mais incapable de se connecter (ban Auth toujours actif), en silence. Erreur levée, action documentée idempotente. | haute   | corrigé |
+| F75 | `revalidatePath('/admin/creators')` ×3 : cette route n'existe pas (la console expose `/admin/users`) ⇒ cache admin jamais invalidé après suspend/certif/shadowban. | moyenne  | corrigé |
+| F76 | `logoutAction` ignorait l'erreur de `signOut()` ⇒ « déconnecté » affiché avec un cookie de session toujours valide. | haute   | corrigé |
+| F77 | `getAdminClient()` passait `undefined` au constructeur Supabase quand l'env manquait ⇒ erreur opaque. Erreur explicite nommant les deux variables. | basse    | corrigé |
+
+Cinq tests (`adminActions.test.ts`) verrouillent l'ordre « Go d'abord » (aucun
+ban si le Go refuse), la compensation et la remontée d'erreur d'unban.
+
+| #   | Tâche                                                                                                       | Sévérité | Motif |
+| --- | ----------------------------------------------------------------------------------------------------------- | -------- | ----- |
+| R50 | `legal` : `fetchLegalDocumentsToAccept` renvoie `[]` en cas de panne ⇒ l'inscription passe sans cases à cocher (fail-open sur le consentement). Trancher : bloquer l'inscription (fail-closed) ou accepter puis re-demander au portail, avec trace. | produit  | Décision juridique/produit, pas technique : le comportement actuel est un choix assumé mais non écrit. |
+| R51 | `actions/ai`, `ebooks`, `workspace` : vérifier le contrat Go (quotas, taille, types MIME) avant d'écrire des gardes TS redondantes. | —        | Suite du lot L06d. |
 
 ---
 

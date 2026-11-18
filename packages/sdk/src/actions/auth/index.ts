@@ -55,6 +55,12 @@ export async function getCurrentUserAction() {
 
 export async function logoutAction() {
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  const { error } = await supabase.auth.signOut();
+  // Un `signOut` qui échoue laissait le cookie en place tout en annonçant un
+  // succès : l'utilisateur croyait être déconnecté et la session restait
+  // valide. On remonte l'échec pour que l'interface propose de réessayer.
+  if (error) {
+    throw new Error(`Déconnexion impossible : ${error.message}`);
+  }
   return { success: true };
 }
