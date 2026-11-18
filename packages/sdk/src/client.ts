@@ -46,6 +46,31 @@ import type {
 export interface QoeApiClientConfig {
   baseUrl?: string;
   getAuthToken?: () => string | Promise<string | null> | null;
+  /** Délai d'une requête (ms). Défaut : `DEFAULT_REQUEST_TIMEOUT_MS`. */
+  timeoutMs?: number;
+}
+
+/** Délai par défaut d'un appel API (ms) : un écran mobile ne doit pas pendre. */
+export const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
+
+/**
+ * Résout l'origine de l'API, dans l'ordre : config explicite, env publique
+ * (web : NEXT_PUBLIC_API_URL, mobile : EXPO_PUBLIC_API_URL), origine du
+ * navigateur, puis boucle locale Go.
+ *
+ * Aucun domaine propriétaire en dur : le même paquet sert qoe.fi, un
+ * auto-hébergement et un futur CDN/edge.
+ */
+export function resolveApiBaseUrl(configured?: string): string {
+  const fromEnv =
+    process.env.NEXT_PUBLIC_API_URL?.trim() || process.env.EXPO_PUBLIC_API_URL?.trim() || '';
+  const candidate = configured?.trim() || fromEnv;
+  if (candidate) return candidate.replace(/\/+$/, '');
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin.replace(/\/+$/, '');
+  }
+  // Port par défaut du backend Go (apps/api/internal/config) : 8090.
+  return 'http://localhost:8090';
 }
 
 export type ApiResult<T> =
@@ -127,12 +152,15 @@ function parseRequestId(headers?: Headers): string | undefined {
 export class QoeApiClient {
   private baseUrl: string;
   private getAuthToken?: () => string | Promise<string | null> | null;
+  private timeoutMs: number;
 
   constructor(config?: QoeApiClientConfig) {
-    this.baseUrl =
-      config?.baseUrl ||
-      (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8080');
+    this.baseUrl = resolveApiBaseUrl(config?.baseUrl);
     this.getAuthToken = config?.getAuthToken;
+    this.timeoutMs =
+      typeof config?.timeoutMs === 'number' && config.timeoutMs > 0
+        ? config.timeoutMs
+        : DEFAULT_REQUEST_TIMEOUT_MS;
   }
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<ApiResult<T>> {
@@ -167,10 +195,12 @@ export class QoeApiClient {
           }
         }
 
-        const url = `${this.baseUrl.replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`;
+        const url = `${this.baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
         const response = await fetch(url, {
           ...options,
           headers,
+          // Un signal explicite (annulation d'écran) prime sur le délai.
+          signal: options.signal ?? AbortSignal.timeout(this.timeoutMs),
         });
 
         const json = await response.json().catch(() => ({}));

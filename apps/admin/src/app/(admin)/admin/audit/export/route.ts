@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@qoe/supabase/server';
-import { GO_API_URL } from '@qoe/sdk/actions/utils/go-client';
+import { goApiUrl, goTimeoutMs } from '@qoe/sdk/actions/utils/go-client';
 import { getAdminIdentity, hasCapability } from '@/lib/admin-identity';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +21,10 @@ export async function GET(request: NextRequest) {
   if (!hasCapability(identity, 'admin.audit.read')) {
     return new NextResponse('Refusé : la capacité admin.audit.read est requise.', { status: 403 });
   }
-  if (!GO_API_URL) {
+  // Lue à l'appel (et non capturée à l'import) : une bascule d'environnement
+  // ne doit pas laisser une origine périmée dans le processus.
+  const apiUrl = goApiUrl();
+  if (!apiUrl) {
     return new NextResponse('API Go non configurée.', { status: 503 });
   }
 
@@ -32,9 +35,10 @@ export async function GET(request: NextRequest) {
 
   const params = new URLSearchParams(request.nextUrl.searchParams);
   params.set('format', 'csv');
-  const response = await fetch(`${GO_API_URL}/v1/admin/audit-log?${params.toString()}`, {
+  const response = await fetch(`${apiUrl}/v1/admin/audit-log?${params.toString()}`, {
     headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
     cache: 'no-store',
+    signal: AbortSignal.timeout(goTimeoutMs()),
   });
   if (!response.ok) {
     const body = await response.text().catch(() => '');

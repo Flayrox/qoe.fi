@@ -60,7 +60,9 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L03** | `packages/flags/src/**`                                                                                      | 8 fichiers                  | **durci le 2026-11-18** |
 | **L04** | `packages/auth/src/**`                                                                                       | 11 fichiers                 | **durci le 2026-11-18** |
 | **L05** | `packages/supabase/src/**`                                                                                 | 13 fichiers                 | **durci le 2026-11-18** |
-| L06     | `packages/sdk/src/**` (actions, client, embed, hooks)                                                        | 78 fichiers                 | à auditer               |
+| **L06a** | `packages/sdk/src/{client,index,mobile,query-keys,embed}`, `actions/utils/{go-client,safe-action,authz}`, `utils/authError` | 15 fichiers           | **durci le 2026-11-18** |
+| L06b    | `packages/sdk/src/{shadow,entity-actions}.ts` + `hooks/**`                                                   | 20 fichiers                 | à auditer               |
+| L06c    | `packages/sdk/src/actions/**/index.ts` (feed, articles, admin, search, tenant…)                              | 43 fichiers                 | à auditer               |
 | L07a    | `packages/ui/src/primitives/**`, `ui/**`, `tokens.ts`                                                        | 310 fichiers (global)       | à auditer               |
 | L07b    | `packages/ui/src/{reader,annotations,cards}/**`                                                              | idem                        | à auditer               |
 | L07c    | `packages/ui/src/{auth,forms,providers}/**`                                                                  | idem                        | à auditer               |
@@ -97,9 +99,12 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L36     | `e2e/**`, `playwright*.config.ts`, `e2e/lib/**`                                                              | 65 fichiers                 | à auditer               |
 | L37     | `docs/**`, `AGENTS.md`, racine (`tsconfig`, `eslint`, `turbo`, `vitest`), `supabase/`, `patches/`, `.husky/` | transverse                  | à auditer               |
 
-**Prochain lot à traiter : L06 — `packages/sdk`.** Ordre retenu : du plus
-partagé au plus spécifique, parce qu'un correctif dans un package bas remonte
-dans toutes les apps.
+**Prochain lot à traiter : L06b — `packages/sdk` (store optimiste + hooks).**
+Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
+en L06a, le store optimiste `shadow`/`entity-actions` + hooks en L06b, les
+actions serveur par domaine en L06c. Ordre retenu : du plus partagé au plus
+spécifique, parce qu'un correctif dans un package bas remonte dans toutes les
+apps.
 
 **Nettoyage 2026-11-18.** Retrait de `bullmq` et `ioredis` de
 `apps/studio/package.json` (aucun import, 246 paquets retirés du lockfile) et
@@ -534,3 +539,73 @@ pnpm typecheck                                   # 25 successful, 25 total
 | R31 | Ajouter `import 'server-only'` dans `server.ts`/`middleware.ts`                                                                       | faible   | Empêche un import client accidentel (aujourd'hui seule la doc l'interdit).                                |
 | R32 | Migrer les URLs absolues stockées en base vers chemin + origine configurable                                                          | moyenne  | Une URL absolue fige le CDN dans les données (règle « portabilité d'infra »).                             |
 | R33 | Vérifier les appelants de `verifyJWT` qui produiraient un jeton sans `exp`                                                            | faible   | Tous passent par `signJWT` (qui pose `exp`) ; à confirmer côté Go si un jeton y est émis.                   |
+
+---
+
+## L06a — `@qoe/sdk` noyau partagé — durci le 2026-11-18
+
+**Périmètre.** `packages/sdk/src/client.ts`, `index.ts`, `mobile.ts`,
+`query-keys.ts`, `embed/{embed,browser,index}.ts`,
+`actions/utils/{go-client,safe-action,authz}.ts`, `utils/authError.ts`.
+**Consommateurs.** Toutes les apps (`core`, `studio`, `admin`, `tenants`, `hi`),
+`apps/mobile`, les sites tiers (embed).
+**Tests.** 181 tests verts pour le package (dont 18 ajoutés :
+`__tests__/hardening.test.ts` et `__tests__/embedBrowser.test.ts`).
+
+### Entrées auditées
+
+| #    | Emplacement                                 | Standard attendu                                                       | Verdict           |
+| ---- | ------------------------------------------- | ---------------------------------------------------------------------- | ----------------- |
+| K01  | `go-client.ts` → `goApiUrl`, `isGoEnabled`  | Origine Go **lue à l'appel**, sans slash final, `null` si absente       | **corrigé** (F46) |
+| K02  | `go-client.ts` → `goRequest`                | Un seul chemin réseau (JSON, multipart, binaire, texte)                | **ajouté** (F53)  |
+| K03  | `go-client.ts` → `goTimeoutMs`              | Délai borné (10 s par défaut, `QOE_API_TIMEOUT_MS`), jamais infini     | **ajouté** (F47)  |
+| K04  | `go-client.ts` → `goFetch`                  | Statut + `code`/`action`/`level` du garde transportés, `no-store`       | conforme          |
+| K05  | `go-client.ts` → `goFetchUpload`            | Pas de `Content-Type` manuel (boundary), mêmes garanties               | conforme          |
+| K06  | `go-client.ts` → `goFetchBinary`, `goFetchRaw` | Statut relayé, aucun parse destructeur sur pièce signée              | conforme          |
+| K07  | `go-client.ts` → `fetchMeWithSync`          | 404 → sync → relecture, autres erreurs propageées                      | conforme          |
+| K08  | `safe-action.ts` → `safeAction`             | Auth requise par défaut, `code` propagé, 404 non journalisé            | conforme (R34)    |
+| K09  | `authz.ts` → `AUTHZ_CODES`, `isStepUpCode`, `authzGuidance` | Registre fermé aligné sur le Go, messages actionnables | conforme          |
+| K10  | `authz.ts` → `authzSecurityHref`            | Lien croisé sans domaine en dur                                        | conforme (R35)    |
+| K11  | `client.ts` → `resolveApiBaseUrl`           | Config → env web/mobile → origine navigateur → 8090, aucun hôte figé   | **ajouté** (F48)  |
+| K12  | `client.ts` → `request`                     | Retry GET/HEAD uniquement, `Retry-After`/`X-Request-Id` exposés        | conforme          |
+| K13  | `client.ts` → `request` (délai)             | Timeout par défaut, signal appelant prioritaire                        | **corrigé** (F49) |
+| K14  | `client.ts` → contrat d'URL                 | 60+ routes vérifiées par `client-urls.test.ts`                          | conforme          |
+| K15  | `utils/authError.ts` → `isUnauthorizedError`| Pas de faux positif sur un identifiant contenant « 401 »               | **corrigé** (F50) |
+| K16  | `embed/embed.ts` → validation               | `apiBase` http(s) borné, e-mail RFC-borné, slug assaini, URL de retour validée | conforme  |
+| K17  | `embed/embed.ts` → `parsePopupResult`       | Seules `{ok:true}` / `{cancelled:true}` nues acceptées                  | conforme          |
+| K18  | `embed/browser.ts` → `openQoeSubscribePopup`| Origine **et** fenêtre émettrices vérifiées, fermeture = annulation    | **corrigé** (F51) |
+| K19  | `embed/browser.ts` → `subscribeEmail`       | Délai borné, message serveur jamais brut                               | **corrigé** (F52) |
+| K20  | `index.ts` / `mobile.ts`                    | Barrel sans doublon ; mobile = surface sans dépendance serveur          | **corrigé** (F53) |
+
+### Findings et correctifs
+
+| #   | Défaut                                                                                                                                  | Sévérité | Correctif                                                                                                                  | Fichiers |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------- | -------- |
+| F46 | `GO_API_URL` était capturé à l'import : une variable posée après le chargement du module (tests, script, SSR réutilisé, bascule de déploiement) était ignorée | moyenne | `goApiUrl()` lit `QOE_API_URL` à chaque appel, normalise le slash final ; `isGoEnabled()` en dérive | `go-client.ts`, `apps/admin/src/app/(admin)/admin/audit/export/route.ts` |
+| F47 | Les cinq appels Go étaient sans timeout : un backend muet laissait une Server Action pendante jusqu'au timeout de la plateforme | haute | `goRequest` pose `AbortSignal.timeout(goTimeoutMs())` (10 s, surcharge `QOE_API_TIMEOUT_MS`) | `go-client.ts` |
+| F48 | `QoeApiClient` visait `http://localhost:8080` par défaut alors que le backend Go écoute **8090**, et n'offrait aucun repli d'environnement pour le mobile | moyenne | `resolveApiBaseUrl` : config → `NEXT_PUBLIC_API_URL` / `EXPO_PUBLIC_API_URL` → origine navigateur → `localhost:8090` | `client.ts` |
+| F49 | Aucune requête du client universel n'était bornée dans le temps | moyenne | `DEFAULT_REQUEST_TIMEOUT_MS` (15 s), `timeoutMs` configurable, `options.signal` prioritaire | `client.ts` |
+| F50 | `isUnauthorizedError` testait `msg.includes('401')` : un message parlant de l'article 401 ou d'un compteur 401 déclenchait la déconnexion globale | moyenne | Seuls `status === 401`, `UNAUTHORIZED`, `Non autorisé`, `Unauthorized`, `HTTP 401` comptent | `utils/authError.ts` |
+| F51 | La popup d'abonnement vérifiait l'origine du message mais pas `event.source` : n'importe quel cadre de la même origine pouvait clore l'abonnement à la place de la popup | haute | `event.source === popup` exigé en plus de l'origine | `embed/browser.ts` |
+| F52 | `subscribeEmail` n'avait aucun délai : un backend muet bloquait le site tiers indéfiniment | faible | `AbortSignal.timeout(15_000)` par défaut, signal appelant prioritaire | `embed/browser.ts` |
+| F53 | Quatre wrappers `fetch` dupliquaient URL/jeton/cache, et `index.ts` ré-exportait `shadow` deux fois (nommé + wildcard) | faible | `goRequest()` unique ; barrel nettoyé | `go-client.ts`, `index.ts` |
+
+### Preuves exécutées
+
+```bash
+cd packages/sdk && pnpm exec vitest run     # 24 fichiers / 181 tests — EXIT=0
+cd packages/sdk && pnpm exec tsc --noEmit   # EXIT=0
+cd packages/sdk && pnpm exec eslint .       # EXIT=0
+```
+
+### Reste à faire (lot L06a)
+
+| #   | Tâche                                                                                                             | Sévérité | Motif                                                                                         |
+| --- | ----------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------- |
+| R34 | `safeAction` avec `requireAuth: false` passe `user!` (possiblement `null`) typé `User` aux actions publiques       | moyenne  | Un accès `user.id` planterait à l'exécution ; à typer `User \| null` action par action.        |
+| R35 | `authzSecurityHref` retombe sur `https://qoe.fi/settings`                                                | faible   | Sur un autre domaine (studio/admin, auto-hébergement) le lien croisé doit venir de la config d'app. |
+| R36 | `getAccessToken` utilise `getSession()` et non `getUser()`                                                        | faible   | Le jeton est vérifié par le Go, mais une session révoquée peut être rejouée jusqu'à expiration. |
+| R37 | `fetchMeWithSync` existe en double (`@qoe/auth` et `@qoe/sdk`)                                                    | faible   | Deux implémentations à maintenir ; à factoriser côté auth (sans import statique de `next/headers`). |
+| R38 | Auditer `shadow.ts` / `entity-actions.ts` et les hooks d'optimisme                                                 | —        | Lot L06b.                                                                                     |
+| R39 | Auditer les actions serveur par domaine (contrat Go, autorisation, validation)                                     | —        | Lot L06c.                                                                                     |
+| R40 | `packages/devtools/src/go-client.ts` reproduit F46 et F47 (URL figée à l'import, aucun timeout)                   | faible   | Même défaut, package différent : à corriger dans le lot L17.                                   |

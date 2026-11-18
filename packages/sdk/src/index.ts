@@ -37,5 +37,4 @@ export * from './spotlight';
 export * from './entity-actions';
 export * from './utils/authError';
 
-export { withShadowMutation, type ShadowMutationOptions } from './shadow';
 export * from './shadow';

@@ -5,15 +5,35 @@
  * leur contrat TS (ActionResult<T>, auth cookie) mais délèguent la logique
  * au backend Go via HTTP. Activé uniquement si QOE_API_URL est défini.
  *
+ * 🧩 Un seul chemin réseau (`goRequest`) derrière quatre formes de réponse :
+ *    JSON, multipart, binaire, texte brut. Toute évolution (timeout, en-têtes,
+ *    traçage) se fait à un seul endroit.
+ *
  * ⚠️ Module serveur (importé uniquement par des server actions) — il n'est
  * PAS déclaré 'use server' car il exporte des constantes.
  * =====================================================================
  */
 
-export const GO_API_URL: string | null = process.env.QOE_API_URL ?? null;
+/** Délai par défaut d'un appel Go (ms) : une Server Action ne doit pas pendre. */
+export const DEFAULT_GO_TIMEOUT_MS = 10_000;
+
+/**
+ * Origine de l'API Go, lue **à l'appel** : une variable posée après le
+ * chargement du module (tests, scripts, SSR réutilisé) doit compter.
+ */
+export function goApiUrl(): string | null {
+  const raw = process.env.QOE_API_URL?.trim();
+  return raw ? raw.replace(/\/+$/, '') : null;
+}
 
 export function isGoEnabled(): boolean {
-  return Boolean(GO_API_URL);
+  return goApiUrl() !== null;
+}
+
+/** Délai configurable (`QOE_API_TIMEOUT_MS`), borné à une valeur exploitable. */
+export function goTimeoutMs(): number {
+  const raw = Number.parseInt(process.env.QOE_API_TIMEOUT_MS ?? '', 10);
+  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_GO_TIMEOUT_MS;
 }
 
 async function getAccessToken(): Promise<string> {
@@ -31,6 +51,53 @@ async function getAccessToken(): Promise<string> {
   return session?.access_token ?? '';
 }
 
+interface GoRequestInit {
+  method?: string;
+  body?: unknown;
+  /** Corps déjà encodé (FormData) : ne pas le sérialiser en JSON. */
+  rawBody?: BodyInit;
+  /** `false` pour un envoi multipart (fetch doit générer le boundary). */
+  json?: boolean;
+  accept?: string;
+}
+
+/**
+ * Exécute la requête HTTP et rend la `Response` brute.
+ * Lève si l'API Go n'est pas configurée (erreur de déploiement explicite).
+ */
+async function goRequest(path: string, init: GoRequestInit = {}): Promise<Response> {
+  const apiUrl = goApiUrl();
+  if (!apiUrl) {
+    throw new Error('QOE_API_URL non configuré');
+  }
+
+  const token = await getAccessToken();
+  const headers: Record<string, string> = {};
+  if (init.json !== false) {
+    headers['Content-Type'] = 'application/json';
+  }
+  if (init.accept) {
+    headers.Accept = init.accept;
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  return fetch(`${apiUrl}${path}`, {
+    method: init.method ?? 'GET',
+    headers,
+    body:
+      init.rawBody !== undefined
+        ? init.rawBody
+        : init.body !== undefined
+          ? JSON.stringify(init.body)
+          : undefined,
+    // Donnée personnelle : jamais de cache (ni Next, ni le runtime).
+    cache: 'no-store',
+    signal: AbortSignal.timeout(goTimeoutMs()),
+  });
+}
+
 /**
  * Appelle le backend Go avec le Bearer token Supabase de la session courante.
  * Lève une erreur si la réponse n'est pas 2xx.
@@ -42,25 +109,7 @@ export async function goFetch<T = Record<string, unknown>>(
   path: string,
   init?: { method?: string; body?: unknown }
 ): Promise<T> {
-  const apiUrl = GO_API_URL ?? process.env.QOE_API_URL;
-  if (!apiUrl) {
-    throw new Error('QOE_API_URL non configuré');
-  }
-
-  const token = await getAccessToken();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  const res = await fetch(`${apiUrl}${path}`, {
-    method: init?.method ?? 'GET',
-    headers,
-    body: init?.body ? JSON.stringify(init.body) : undefined,
-    cache: 'no-store',
-  });
+  const res = await goRequest(path, init);
 
   const body = (await res.json().catch(() => ({}))) as T & {
     error?: string;
@@ -120,21 +169,7 @@ export async function goFetchUpload<T = Record<string, unknown>>(
   path: string,
   form: FormData
 ): Promise<T> {
-  if (!GO_API_URL) {
-    throw new Error('QOE_API_URL non configuré');
-  }
-  const token = await getAccessToken();
-  const headers: Record<string, string> = {};
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  const res = await fetch(`${GO_API_URL}${path}`, {
-    method: 'POST',
-    headers,
-    body: form,
-    cache: 'no-store',
-  });
+  const res = await goRequest(path, { method: 'POST', rawBody: form, json: false });
 
   const body = (await res.json().catch(() => ({}))) as T & { error?: string; code?: string };
   if (!res.ok) {
@@ -160,16 +195,7 @@ export async function goFetchBinary(path: string): Promise<{
   contentType: string;
   bytes: ArrayBuffer;
 }> {
-  if (!GO_API_URL) {
-    throw new Error('QOE_API_URL non configuré');
-  }
-  const token = await getAccessToken();
-  const headers: Record<string, string> = {};
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  const res = await fetch(`${GO_API_URL}${path}`, { headers, cache: 'no-store' });
+  const res = await goRequest(path);
   return {
     status: res.status,
     ok: res.ok,
@@ -184,8 +210,8 @@ export async function goFetchBinary(path: string): Promise<{
  *
  * Indispensable pour les pièces signées : la signature porte sur les octets
  * exacts du document, donc re-sérialiser le JSON ou échapper les caractères
- * invaliderait la preuve. L'appelant relaie le statut et les en-têtes tels
- * quels.
+ * invalides invaliderait la preuve. L'appelant relaie le statut et les
+ * en-têtes tels quels.
  */
 export async function goFetchRaw(
   path: string,
@@ -197,23 +223,10 @@ export async function goFetchRaw(
   contentType: string;
   contentDisposition: string;
 }> {
-  if (!GO_API_URL) {
-    throw new Error('QOE_API_URL non configuré');
-  }
-  const token = await getAccessToken();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    Accept: init?.accept ?? 'application/json',
-  };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  const res = await fetch(`${GO_API_URL}${path}`, {
-    method: init?.method ?? 'GET',
-    headers,
-    body: init?.body ? JSON.stringify(init.body) : undefined,
-    cache: 'no-store',
+  const res = await goRequest(path, {
+    method: init?.method,
+    body: init?.body,
+    accept: init?.accept ?? 'application/json',
   });
 
   return {

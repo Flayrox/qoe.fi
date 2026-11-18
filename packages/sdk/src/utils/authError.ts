@@ -12,10 +12,13 @@ export function isUnauthorizedError(error: unknown): boolean {
   const status = e.status || e.statusCode;
   return (
     status === 401 ||
+    // `msg.includes('401')` classait comme « non autorisé » tout message
+    // contenant ces chiffres (id d'article 401, compteur…) : on ne garde que
+    // les codes/messages d'authentification explicites.
     msg.includes('UNAUTHORIZED') ||
     msg.includes('Non autorisé') ||
     msg.includes('Unauthorized') ||
-    msg.includes('401')
+    msg.includes('HTTP 401')
   );
 }
 

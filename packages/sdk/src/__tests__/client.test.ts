@@ -40,12 +40,23 @@ describe('QoeApiClient — transport HTTP universel', () => {
     mockFetch.mockReset();
   });
 
-  it('baseUrl par défaut : localhost:8080 hors navigateur', () => {
-    const client = new QoeApiClient();
-    // On vérifie via l'URL réellement appelée.
-    mockFetch.mockResolvedValueOnce(okResponse({ data: [] }));
-    void client.getFeed();
-    expect(mockFetch.mock.calls[0][0]).toBe('http://localhost:8080/v1/feed');
+  it('baseUrl par défaut : localhost:8090 hors navigateur (port du backend Go)', () => {
+    const savedUrl = process.env.NEXT_PUBLIC_API_URL;
+    const savedExpoUrl = process.env.EXPO_PUBLIC_API_URL;
+    delete process.env.NEXT_PUBLIC_API_URL;
+    delete process.env.EXPO_PUBLIC_API_URL;
+    try {
+      const client = new QoeApiClient();
+      // On vérifie via l'URL réellement appelée.
+      mockFetch.mockResolvedValueOnce(okResponse({ data: [] }));
+      void client.getFeed();
+      expect(mockFetch.mock.calls[0][0]).toBe('http://localhost:8090/v1/feed');
+    } finally {
+      if (savedUrl === undefined) delete process.env.NEXT_PUBLIC_API_URL;
+      else process.env.NEXT_PUBLIC_API_URL = savedUrl;
+      if (savedExpoUrl === undefined) delete process.env.EXPO_PUBLIC_API_URL;
+      else process.env.EXPO_PUBLIC_API_URL = savedExpoUrl;
+    }
   });
 
   it('normalise un baseUrl avec slash final et un path sans slash initial', async () => {

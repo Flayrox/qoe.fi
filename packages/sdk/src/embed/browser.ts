@@ -46,7 +46,9 @@ export async function subscribeEmail(input: {
       method: req.method,
       headers: req.headers,
       body: req.body,
-      signal: input.signal,
+      // Délai borné : un site tiers ne doit pas rester bloqué sur un backend
+      // muet. Un signal fourni par l'appelant (annulation utilisateur) prime.
+      signal: input.signal ?? AbortSignal.timeout(15_000),
     });
   } catch (err) {
     throw new Error(
@@ -120,7 +122,11 @@ export function openQoeSubscribePopup(options: QoeSubscribePopupOptions): Promis
       resolve(outcome);
     };
     const onMessage = (event: MessageEvent) => {
+      // Double preuve : l'origine ET la fenêtre émettrice. Sans ce second
+      // contrôle, n'importe quel cadre de la même origine (publicité, widget
+      // tiers) pourrait clore l'abonnement à la place de la popup.
       if (!isTrustedPopupOrigin(event.origin, options.appBase)) return;
+      if (event.source !== popup) return;
       const parsed = parsePopupResult(event.data);
       if (parsed) finish({ result: parsed });
     };
