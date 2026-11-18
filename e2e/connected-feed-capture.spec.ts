@@ -161,14 +161,29 @@ test.describe('Capture du feed (connecté)', () => {
     // 1. Le feed a rendu des cartes.
     await expect(page.locator('article').first()).toBeVisible({ timeout: 30_000 });
 
+    // Le compte E2E a un profil neuf : le portail de consentement légal
+    // s'ouvre par-dessus le feed et intercepte tous les clics (le clic sur
+    // « Options » expirait sans jamais partir). « Plus tard » est
+    // l'échappement prévu par le composant.
+    const later = page.getByRole('button', { name: 'Plus tard' });
+    if (await later.isVisible().catch(() => false)) {
+      await later.click();
+    }
+
     // 2. Une pensée (carte avec menu « Options ») existe et le menu s'ouvre —
     //    il n'apparaît que si dbUser est résolu (onHidePost câblé).
     const thought = page.locator('article:has(button[title="Options"])').first();
     await expect(thought).toBeVisible({ timeout: 30_000 });
-    await thought.locator('button[title="Options"]').click();
+    await thought.getByRole('button', { name: "Plus d'options" }).click();
 
     const showLess = page.getByText('Voir moins de contenu comme ça').first();
     await expect(showLess).toBeVisible({ timeout: 10_000 });
+    // Une carte *article* demande confirmation (`window.confirm`) avant de
+    // poster ; Playwright refuse les dialogues par défaut, donc le clic ne
+    // partait jamais (aucun POST vers `/api/feed/show-less`). Une carte
+    // *pensée* n'affiche pas de dialogue : accepter est neutre dans les deux
+    // cas et évite de dépendre du type de la première carte du feed.
+    page.on('dialog', (dialog) => dialog.accept());
     await showLess.click();
 
     // 3. L'appel part (POST /api/feed/show-less → Go) et est accepté (200).
@@ -200,13 +215,17 @@ test.describe('Capture du feed (connecté)', () => {
 
     // Un article public seedé, pour une lecture déterministe (le feed est
     // stochastique — on ne dépend pas de sa composition).
-    const { rows } = await db!.query<{ slug: string }>(
-      `SELECT slug FROM "Article"
-       WHERE status = 'PUBLISHED' AND published = true AND visibility = 'PUBLIC'
-       ORDER BY "createdAt" DESC LIMIT 1`
+    const { rows } = await db!.query<{ slug: string; username: string | null }>(
+      `SELECT a.slug, u.username FROM "Article" a
+       LEFT JOIN "User" u ON u.id = a."authorId"
+       WHERE a.status = 'PUBLISHED' AND a.published = true AND a.visibility = 'PUBLIC'
+       ORDER BY a."createdAt" DESC LIMIT 1`
     );
     const slug = rows[0]?.slug;
+    const owner = rows[0]?.username ?? 'qoefi';
     expect(slug, 'un article public seedé est requis').toBeTruthy();
+    // Forme canonique côté core : `/{propriétaire}/a/{slug}` (F65–F71).
+    const canonicalPath = `/${owner}/a/${slug}`;
 
     // 1. Lecteur neuf → historique vide (état initial).
     await page.goto('/history', { waitUntil: 'networkidle' });
@@ -216,7 +235,7 @@ test.describe('Capture du feed (connecté)', () => {
 
     // 2. Lire un article au navigateur (page autonome) → la session de
     //    lecture part au démontage (sendBeacon → Go, 200) et écrit en base.
-    await page.goto(`/article/${slug}`, { waitUntil: 'networkidle' });
+    await page.goto(canonicalPath, { waitUntil: 'networkidle' });
     await expect(page.locator('#article-content')).toBeVisible({ timeout: 20_000 });
 
     // Quitter la page article → unmount → sendBeacon de la session de lecture.
@@ -238,7 +257,7 @@ test.describe('Capture du feed (connecté)', () => {
     //    on recharge pour reprendre l'état après l'écriture, l'état vide a
     //    disparu et le lien de l'article lu est présent.
     await page.reload({ waitUntil: 'networkidle' });
-    await expect(page.locator(`a[href*="/article/${slug}"]`).first()).toBeVisible({
+    await expect(page.locator(`a[href*="${slug}"]`).first()).toBeVisible({
       timeout: 30_000,
     });
     await expect(page.getByText('Aucune lecture ces 14 derniers jours.')).toHaveCount(0);
@@ -252,7 +271,18 @@ test.describe('Capture du feed (connecté)', () => {
     // /v1/me/account-deletion-request). Si l'un échoue, elle redirige vers
     // /login — l'assertion ci-dessous prouve que le bundle Go répond.
     await page.goto('/settings', { waitUntil: 'networkidle' });
-    await expect(page.getByText('Profil public').first()).toBeVisible({ timeout: 30_000 });
+    // Le compte E2E est neuf : la modale « Mise à jour des conditions »
+    // recouvre les réglages (les sections ne sont pas rendues derrière elle).
+    // « Plus tard » est l'échappement prévu par le composant.
+    const laterConsent = page.getByRole('button', { name: 'Plus tard' });
+    if (await laterConsent.isVisible().catch(() => false)) {
+      await laterConsent.click();
+    }
+    // Le titre « Profil public » n'existe plus dans les réglages (renommé
+    // « Identifiant », cf. sections réelles : Compte, Notifications,
+    // Confidentialité, Apparence & lecture…). L'assertion doit viser un texte
+    // réellement rendu, sinon elle échoue même quand l'API répond.
+    await expect(page.getByText('Identifiant').first()).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText('Apparence & lecture').first()).toBeVisible({ timeout: 10_000 });
   });
 });

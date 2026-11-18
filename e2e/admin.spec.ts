@@ -27,16 +27,25 @@ test.describe('Console admin', () => {
     // En dev, la première visite de /admin compile la route et sa cible
     test.setTimeout(180_000);
 
+    // ⚠️ Liste alignée sur les dossiers réels de `apps/admin/src/app/(admin)/admin`.
+    // `/admin/publishers`, `/admin/articles`, `/admin/moderation` et
+    // `/admin/finance` n'existent pas : ils renvoyaient 404 et faisaient échouer
+    // le test alors que le verrou superadmin marchait sur les sections réelles.
     const adminPaths = [
       '/admin',
-      '/admin/users',
-      '/admin/publishers',
-      '/admin/articles',
-      '/admin/moderation',
-      '/admin/legal',
-      '/admin/finance',
-      '/admin/system',
+      '/admin/abuse',
+      '/admin/approvals',
       '/admin/audit',
+      '/admin/config',
+      '/admin/imports',
+      '/admin/incidents',
+      '/admin/legal',
+      '/admin/reports',
+      '/admin/security',
+      '/admin/subscriptions',
+      '/admin/support',
+      '/admin/system',
+      '/admin/users',
     ];
 
     const adminHeaders = { Host: 'admin.lvh.me:15405' };
@@ -121,7 +130,9 @@ test.describe('Console admin', () => {
           refresh_token: 'refresh-' + ADMIN_ID,
           user: { id: ADMIN_ID, email: 'admin.e2e@qoe.fi' },
         }),
-        domain: 'localhost',
+        // Le cookie doit appartenir à l'hôte réellement visité : en stack
+        // complète c'est `admin.qoe.test`, pas `localhost`.
+        domain: new URL(ADMIN).hostname,
         path: '/',
         httpOnly: true,
         secure: false,

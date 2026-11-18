@@ -24,17 +24,28 @@ test.describe('Studio créateur', () => {
   test('le périmètre créateur est verrouillé : toutes les routes sensibles redirigent vers /login', async ({
     request,
   }) => {
+    // ⚠️ Liste alignée sur les dossiers réels de `apps/studio/src/app/(creator)`.
+    // Trois chemins n'existent plus (`/subscribers`, `/newsletter`, `/account`) :
+    // ils renvoyaient 404 et faisaient échouer le test alors que le verrou
+    // d'authentification fonctionnait sur les routes réelles (`/audience`,
+    // `/newsletters`). Un 404 ne fuit rien, mais il ne prouve rien non plus.
     const protectedPaths = [
       '/',
+      '/advanced',
+      '/analytics',
       '/articles',
       '/articles/new',
-      '/media',
-      '/settings',
-      '/analytics',
-      '/subscribers',
-      '/newsletter',
+      '/audience',
+      '/books',
+      '/community',
+      '/developer',
       '/import',
-      '/account',
+      '/media',
+      '/monetization',
+      '/newsletters',
+      '/notifications',
+      '/settings',
+      '/translate',
     ];
 
     const studioHeaders = { Host: 'studio.lvh.me:15404' };
@@ -127,7 +138,9 @@ test.describe('Studio créateur', () => {
           refresh_token: 'refresh-' + CREATOR_ID,
           user: { id: CREATOR_ID, email: 'studio.e2e@qoe.fi' },
         }),
-        domain: 'localhost',
+        // Le cookie doit appartenir à l'hôte réellement visité : en stack
+        // complète c'est `studio.qoe.test`, pas `localhost`.
+        domain: new URL(STUDIO).hostname,
         path: '/',
         httpOnly: true,
         secure: false,

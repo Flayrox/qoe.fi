@@ -10,7 +10,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const GO_API_PORT = Number(process.env.PLAYWRIGHT_GO_API_PORT) || 8090;
-const GO_API_URL = `http://localhost:${GO_API_PORT}`;
+// ⚠️ `127.0.0.1`, pas `localhost` : sur macOS `localhost` résout d'abord en
+// `::1` et le health-check échouait en `ECONNREFUSED ::1:8090` alors que l'API
+// Go écoutait en IPv4 (attente infinie du webServer, run annulé).
+const GO_API_URL = `http://127.0.0.1:${GO_API_PORT}`;
 // Les apps hardcodent leurs ports dev (next dev -p 15403/15404/15405 — le
 // flag CLI prime sur la variable PORT) : Playwright doit attendre CES ports,
 // pas des ports libres arbitraires.
@@ -48,10 +51,25 @@ const NEEDS_ADMIN = !hasProjectArg || process.argv.some((a) => a.includes('admin
 /**
  * `prod: false` garde `next dev` pour une app qui n'est pas construite par le
  * job (admin : la matrice ne le couvre pas, inutile de payer son build).
+ *
+ * ⚠️ Readiness HTTP (`url`), pas `port` : le port s'ouvre avant que Next ne
+ * serve — Playwright naviguait alors dans le vide et la spec échouait en
+ * `ERR_CONNECTION_REFUSED` alors que le serveur démarrait correctement.
+ * Next accepte aussi les 3xx (studio/admin redirigent vers /login), donc le
+ * health-check passe même sur une route protégée.
  */
 function appServer(pkg: string, port: number, prod = APP_PROD) {
+  // `rm -f .next/dev/lock` : Next 16 refuse un second `next dev` dans le même
+  // dossier, et le verrou survit à l'arrêt brutal du serveur par Playwright.
+  // Sans ce nettoyage, la run suivante n'imprime rien et expire en
+  // « Timed out waiting 120000ms from config.webServer ».
+  const launch = prod ? `next start -p ${port} -H 127.0.0.1` : `next dev -p ${port} -H 127.0.0.1`;
   return {
-    command: prod ? `pnpm --filter ${pkg} exec next start -p ${port}` : `pnpm --filter ${pkg} dev`,
+    command: `pnpm --filter ${pkg} exec sh -c 'rm -f .next/dev/lock && exec ${launch}'`,
+    // Readiness TCP, pas HTTP : les racines de studio/admin répondent 307 vers
+    // le core (`lvh.me:3010`), et le health-check HTTP **suit** la redirection
+    // → `ECONNREFUSED` sur le core → « disponible = false » → Playwright
+    // relance une instance alors que le port écoute déjà (`EADDRINUSE`).
     port,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

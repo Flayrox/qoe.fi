@@ -157,3 +157,96 @@ export async function createRealSession(
   }
   return { access_token: body.access_token, refresh_token: body.refresh_token, gotrueUserId };
 }
+
+/**
+ * 🔐 Décode un secret TOTP base32 (RFC 4648) sans dépendance externe.
+ */
+function base32Decode(secret: string): Buffer {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const out: number[] = [];
+  let bits = 0;
+  let value = 0;
+  for (const ch of secret.replace(/=+$/, '').toUpperCase()) {
+    const idx = alphabet.indexOf(ch);
+    if (idx === -1) continue;
+    value = (value << 5) | idx;
+    bits += 5;
+    if (bits >= 8) {
+      out.push((value >>> (bits - 8)) & 0xff);
+      bits -= 8;
+    }
+  }
+  return Buffer.from(out);
+}
+
+/** Code TOTP à 6 chiffres (HMAC-SHA1, pas de 30 s), pour les parcours AAL2. */
+export function totpCode(secret: string, at: number = Date.now()): string {
+  const counter = Math.floor(at / 1000 / 30);
+  const buf = Buffer.alloc(8);
+  buf.writeUInt32BE(Math.floor(counter / 2 ** 32), 0);
+  buf.writeUInt32BE(counter >>> 0, 4);
+  const hmac = crypto.createHmac('sha1', base32Decode(secret)).update(buf).digest();
+  const offset = hmac[hmac.length - 1] & 0x0f;
+  const code =
+    ((hmac[offset] & 0x7f) << 24) |
+    (hmac[offset + 1] << 16) |
+    (hmac[offset + 2] << 8) |
+    hmac[offset + 3];
+  return String(code % 1_000_000).padStart(6, '0');
+}
+
+/**
+ * 🛡️ Élève une session AAL1 en AAL2 (facteur TOTP), exigé par les actions
+ * administratives sensibles (publication juridique, etc.).
+ *
+ * GoTrue : POST /factors (enrôlement) → POST /factors/{id}/challenge →
+ * POST /factors/{id}/verify (code TOTP) → nouvelle paire de jetons `aal2`.
+ */
+export async function upgradeSessionToAal2(session: {
+  access_token: string;
+  refresh_token: string;
+}): Promise<{ access_token: string; refresh_token: string }> {
+  const auth = {
+    'Content-Type': 'application/json',
+    apikey: SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${session.access_token}`,
+  };
+
+  const enroll = await fetch(`${SUPABASE_URL}/auth/v1/factors`, {
+    method: 'POST',
+    headers: auth,
+    body: JSON.stringify({ factor_type: 'totp', friendly_name: 'e2e-step-up' }),
+  });
+  const factor = (await enroll.json().catch(() => ({}))) as {
+    id?: string;
+    totp?: { secret?: string };
+    msg?: string;
+  };
+  if (!enroll.ok || !factor.id || !factor.totp?.secret) {
+    throw new Error(`GoTrue facteur ${enroll.status}: ${JSON.stringify(factor)}`);
+  }
+
+  const challenge = await fetch(`${SUPABASE_URL}/auth/v1/factors/${factor.id}/challenge`, {
+    method: 'POST',
+    headers: auth,
+    body: '{}',
+  });
+  const challengeBody = (await challenge.json().catch(() => ({}))) as { id?: string };
+  if (!challenge.ok || !challengeBody.id) {
+    throw new Error(`GoTrue challenge ${challenge.status}: ${JSON.stringify(challengeBody)}`);
+  }
+
+  const verify = await fetch(`${SUPABASE_URL}/auth/v1/factors/${factor.id}/verify`, {
+    method: 'POST',
+    headers: auth,
+    body: JSON.stringify({ challenge_id: challengeBody.id, code: totpCode(factor.totp.secret) }),
+  });
+  const verified = (await verify.json().catch(() => ({}))) as {
+    access_token?: string;
+    refresh_token?: string;
+  };
+  if (!verify.ok || !verified.access_token || !verified.refresh_token) {
+    throw new Error(`GoTrue verify ${verify.status}: ${JSON.stringify(verified)}`);
+  }
+  return { access_token: verified.access_token, refresh_token: verified.refresh_token };
+}

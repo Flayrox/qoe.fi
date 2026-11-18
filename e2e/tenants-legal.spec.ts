@@ -38,6 +38,12 @@ const ARTICLE = {
 } as const;
 
 test.describe('Information légale (publication)', () => {
+  // Le `beforeAll` sème deux entités puis préchauffe la route tenant : en dev,
+  // la première compilation Turbopack de `/[domain]/...` dépasse à elle seule
+  // le budget par défaut de 60 s, ce qui faisait échouer le hook avant même le
+  // premier test. Le délai couvre l'ensemble (hooks compris).
+  test.describe.configure({ timeout: 180_000 });
+
   let db: TestDb;
 
   test.beforeAll(async ({ request }) => {

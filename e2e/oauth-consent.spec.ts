@@ -40,8 +40,12 @@ test.describe('Consentement OAuth (page réelle)', () => {
     // Supabase local requis (sessions réelles) : skip propre en CI où
     // seul Postgres existe.
     try {
+      // ⚠️ `health.ok` seul sous-estimait la disponibilité : derrière l'enveloppe
+      // Supabase (Kong), `/auth/v1/health` répond 401 sans `apikey` alors que
+      // GoTrue est parfaitement en ligne → tout le projet était sauté en silence.
+      // On considère le service joignable dès qu'il répond autre chose qu'un 5xx.
       const health = await fetch('http://127.0.0.1:54321/auth/v1/health');
-      supabaseUp = health.ok;
+      supabaseUp = health.status < 500;
     } catch {
       supabaseUp = false;
     }

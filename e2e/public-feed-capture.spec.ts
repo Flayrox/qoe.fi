@@ -67,7 +67,9 @@ test.describe('Capture du feed (public)', () => {
 
     // 3. Lecture : ouvrir le premier article du feed, puis fermer → la
     //    session de lecture (sendBeacon au démontage) doit partir et être 200.
-    const articleLink = page.locator('a[href*="/article/"]').first();
+    //    Forme canonique côté core : `/{propriétaire}/a/{slug}` —
+    //    `/{slug}` sous `/article/` est l'ancienne forme (F65–F71, 308/404).
+    const articleLink = page.locator('a[href*="/a/"]').first();
     await articleLink.click();
     await expect(page.locator('#article-content')).toBeVisible({ timeout: 20_000 });
 

@@ -17,10 +17,21 @@
 import { test, expect } from '@playwright/test';
 import { Client } from 'pg';
 import { TestDb } from './lib/db';
-import { COOKIE_NAME, DATABASE_URL, createRealSession } from './lib/env';
+import {
+  COOKIE_NAME,
+  DATABASE_URL,
+  GO_API_URL,
+  createRealSession,
+  upgradeSessionToAal2,
+} from './lib/env';
 import { expectRedirect } from './lib/redirect';
 
 const ADMIN = process.env.PLAYWRIGHT_ADMIN_URL ?? 'http://admin.lvh.me:15405';
+// Page publique `/legal/:slug` : elle vit sur la vitrine `apps/hi` (le core
+// répond 308 vers `:15401`), pas sur le core. `127.0.0.1`, pas `localhost` :
+// sur macOS `localhost` résout d'abord en `::1` et un dev server lié à
+// l'IPv4 refuse la connexion.
+const PUBLIC_SITE = process.env.PLAYWRIGHT_HI_URL ?? 'http://127.0.0.1:15401';
 const RUN_FULL_STACK = process.env.RUN_FULL_STACK === '1';
 
 const SLUG = `e2e-legal-${Date.now()}`;
@@ -59,6 +70,11 @@ test.describe('Console admin — contenu juridique', () => {
     const password = 'e2e-legal-password-1';
     const session = await createRealSession(email, password);
     const userId = session.gotrueUserId;
+    // La publication d'un document légal est une action sensible : la console
+    // exige une authentification **forte récente** (AAL2). Une session AAL1
+    // ouvre la modale « Vérification requise » et n'écrit rien — le parcours
+    // doit donc élever la session (enrôlement TOTP) avant de publier.
+    const aal2 = await upgradeSessionToAal2(session);
 
     const db = new TestDb(DATABASE_URL);
     await db.connect();
@@ -72,8 +88,8 @@ test.describe('Console admin — contenu juridique', () => {
       {
         name: COOKIE_NAME,
         value: JSON.stringify({
-          access_token: session.access_token,
-          refresh_token: session.refresh_token,
+          access_token: aal2.access_token,
+          refresh_token: aal2.refresh_token,
           expires_at: Math.floor(Date.now() / 1000) + 3600,
           user: { id: userId, email, aud: 'authenticated', role: 'authenticated' },
         }),
@@ -124,16 +140,67 @@ test.describe('Console admin — contenu juridique', () => {
     // Le badge de la liste latérale signale le document incomplet.
     await expect(page.locator('span', { hasText: 'à compléter' }).first()).toBeVisible();
 
-    // ── 3. Publication (double confirmation acceptée) ────────────────────
+    // ── 3. Double validation N3 (quorum) ────────────────────────────────
+    // Publier un texte opposable exige l'approbation d'une SECONDE personne
+    // autorisée, liée à CETTE version (adminauthz.WithApproval). La console
+    // porte la demande, mais le quorum se donne côté API : la fixture crée un
+    // second superadmin et joue les deux gestes avant de cliquer « Publier ».
+    // Sans lui, le Go refuse la publication (l'UI affichait « Erreur de
+    // publication » et la version restait en BROUILLON).
+    const versionRows = await db.query<{ id: string }>(
+      `SELECT v.id FROM legal_document_version v
+       JOIN legal_document d ON d.id = v.document_id
+       WHERE d.slug = $1 ORDER BY v.created_at DESC LIMIT 1`,
+      [SLUG]
+    );
+    const versionId = versionRows[0]?.id;
+    expect(versionId, 'la version brouillon doit exister en base').toBeTruthy();
+
+    const approverEmail = `legal-approver-${Date.now()}@qoe.fi`;
+    const approver = await createRealSession(approverEmail, password);
+    await db.ensureUser(approver.gotrueUserId, approverEmail, 'superadmin');
+    const approverAal2 = await upgradeSessionToAal2(approver);
+
+    const approvalRes = await fetch(
+      `${GO_API_URL}/v1/admin/legal/versions/${versionId}/request-publish`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${aal2.access_token}`,
+        },
+        body: JSON.stringify({ reason: 'Parcours E2E : double validation N3' }),
+      }
+    );
+    expect(approvalRes.status, `demande de validation = ${approvalRes.status}`).toBeLessThan(300);
+    const approval = (await approvalRes.json()) as { id?: string };
+    expect(approval.id, 'la demande de validation doit renvoyer un id').toBeTruthy();
+
+    const decideRes = await fetch(`${GO_API_URL}/v1/admin/approvals/${approval.id}/decide`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${approverAal2.access_token}`,
+      },
+      // Le Go attend « approved » / « rejected » (pas « approve ») : toute
+      // autre valeur tombe en 400 « Décision invalide ».
+      body: JSON.stringify({ decision: 'approved' }),
+    });
+    expect(
+      decideRes.status,
+      `validation par le second superadmin = ${decideRes.status}`
+    ).toBeLessThan(300);
+
+    // ── 4. Publication (double confirmation acceptée) ───────────────────
     const draftRow = page.locator('li', { hasText: 'Brouillon' }).first();
     await draftRow.getByRole('button', { name: 'Publier', exact: true }).click();
     await expect(page.locator('li', { hasText: 'Publiée' }).first()).toBeVisible({
       timeout: 30_000,
     });
 
-    // ── 4. La page publique sert le contenu publié ───────────────────────
+    // ── 5. La page publique sert le contenu publié ───────────────────────
     // Le titre apparaît deux fois (en-tête + h1 du markdown) : viser le premier.
-    await page.goto(`/legal/${SLUG}`, { timeout: 60_000 });
+    await page.goto(`${PUBLIC_SITE}/legal/${SLUG}`, { timeout: 60_000 });
     await expect(page.getByRole('heading', { name: TITLE }).first()).toBeVisible({
       timeout: 60_000,
     });
@@ -141,9 +208,11 @@ test.describe('Console admin — contenu juridique', () => {
 
     await browserContext.close();
 
-    // ── 5. Nettoyage : la base de test reste identique ───────────────────
+    // ── 6. Nettoyage : la base de test reste identique ───────────────────
     await db.query(`DELETE FROM legal_document WHERE slug = $1`, [SLUG]);
-    await db.query(`DELETE FROM "User" WHERE id = $1`, [userId]);
+    await db.query(`DELETE FROM "User" WHERE id = ANY($1::uuid[])`, [
+      [userId, approver.gotrueUserId],
+    ]);
     await db.close();
     // Le compte GoTrue est retiré au mieux (best-effort, non bloquant).
     try {

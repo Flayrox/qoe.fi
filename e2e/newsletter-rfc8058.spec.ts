@@ -27,6 +27,16 @@ test.describe('RFC 8058 Newsletter Unsubscribe & HMAC Security', () => {
     db = new TestDb(DATABASE_URL);
     await db.connect();
 
+    // La publication doit exister : `Subscriber.publicationId` est une FK vers
+    // `Publisher`. Sans elle, la fixture échouait en 23503 (`Subscriber_
+    // publicationId_fkey`) et les 5 cas du fichier tombaient en bloc.
+    await db.query(
+      `INSERT INTO "Publisher" (id, type, name, slug, "createdAt", "updatedAt")
+       VALUES ($1, 'PERSONAL', 'E2E RFC 8058', 'e2e-rfc8058', now(), now())
+       ON CONFLICT (id) DO NOTHING`,
+      [pubID]
+    );
+
     // Insérer un abonné actif pour tester la désinscription réelle
     await db.query(
       `INSERT INTO "Subscriber" ("id", "publisherId", "email", "receiveArticles", "createdAt", "updatedAt")
