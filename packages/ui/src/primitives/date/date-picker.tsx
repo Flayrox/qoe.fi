@@ -85,7 +85,13 @@ export function DateField<T extends DateValue>({
   ...props
 }: DateFieldPrimitiveProps<T>) {
   return (
-    <AriaDateField {...props} className={cn('flex flex-col gap-1.5', className)}>
+    <AriaDateField
+      {...props}
+      // ⚠️ Un libellé masqué doit rester le nom accessible : sans `aria-label`,
+      // le `sr-only` n'est relié à rien et le champ est annoncé « groupe ».
+      aria-label={hideLabel ? label : undefined}
+      className={cn('flex flex-col gap-1.5', className)}
+    >
       {!hideLabel && <Label className="type-control-sm font-medium text-foreground">{label}</Label>}
       <FieldFrame>
         {hideLabel && <span className="sr-only">{label}</span>}
@@ -109,7 +115,11 @@ export function TimeField<T extends TimeValue>({
   ...props
 }: TimeFieldPrimitiveProps<T>) {
   return (
-    <AriaTimeField {...props} className={cn('flex flex-col gap-1.5', className)}>
+    <AriaTimeField
+      {...props}
+      aria-label={hideLabel ? label : undefined}
+      className={cn('flex flex-col gap-1.5', className)}
+    >
       {!hideLabel && <Label className="type-control-sm font-medium text-foreground">{label}</Label>}
       <FieldFrame>
         {hideLabel && <span className="sr-only">{label}</span>}
@@ -138,7 +148,11 @@ export function DatePicker<T extends DateValue>({
   ...props
 }: DatePickerPrimitiveProps<T>) {
   return (
-    <AriaDatePicker {...props} className={cn('flex flex-col gap-1.5', className)}>
+    <AriaDatePicker
+      {...props}
+      aria-label={hideLabel ? label : undefined}
+      className={cn('flex flex-col gap-1.5', className)}
+    >
       {!hideLabel && <Label className="type-control-sm font-medium text-foreground">{label}</Label>}
       <FieldFrame>
         {hideLabel && <span className="sr-only">{label}</span>}
@@ -180,7 +194,11 @@ export function DateRangePicker<T extends DateValue>({
   ...props
 }: DateRangePickerPrimitiveProps<T>) {
   return (
-    <AriaDateRangePicker {...props} className={cn('flex flex-col gap-1.5', className)}>
+    <AriaDateRangePicker
+      {...props}
+      aria-label={hideLabel ? label : undefined}
+      className={cn('flex flex-col gap-1.5', className)}
+    >
       {!hideLabel && <Label className="type-control-sm font-medium text-foreground">{label}</Label>}
       <FieldFrame className="gap-1.5">
         {hideLabel && <span className="sr-only">{label}</span>}

@@ -822,6 +822,27 @@ avec son test.
 | F114 | `ui/popover` : `PopoverClose` était un `<span>` avec `onClick` — ni rôle, ni focus, ni Entrée/Espace : fermeture impossible au clavier ; `alignOffset` était déclaré et documenté mais jamais transmis (prop fantôme). | basse | corrigé — `AriaButton slot="close"` (vrai `<button type="button">`), `alignOffset` retiré du contrat (aucun appelant) ; test `rend un bouton atteignable au clavier` |
 | F113 | `packages/sdk/actions/notifications` : `export type { NotificationFilter }` dans un module `'use server'` — **garde CI rouge** (`arch:audit` : « 1 ré-export de type dans un module use server »), la classe de bug qui casse le manifeste des Server Actions sous Turbopack. | haute | corrigé — le type reste dans `actions/utils/notification-filter`, ré-exporté par le barrel `@qoe/sdk` (module pur, pas `'use server'`), consommateur `useNotifications` réaligné ; preuve : `pnpm arch:audit` ❌ 1 ré-export → ✅ 0 anomalie |
 
+| F115 | `primitives/date` : les quatre champs (`DateField`, `TimeField`, `DatePicker`, `DateRangePicker`) acceptent `hideLabel`, qui rendait un `<span class="sr-only">` **que rien ne référençait** — le contrôle perdait son nom accessible dès que le libellé était masqué (annoncé « groupe », sans plus). Ces champs servent dans l'éditeur (planification d'article) et les tableaux du Studio. | moyenne | corrigé — `aria-label` posé quand `hideLabel` ; test `garde un nom accessible quand le libellé est masqué` (échoue avant : « Unable to find an accessible element with the role \"group\" and name \"Date de publication\" ») |
+| F116 | `primitives/timeline` : `<time>` était rendu même sans `dateTime`, avec un contenu (« 14 nov. 18:42 », « hier ») qui n'est pas une date machine — balisage invalide, et des lecteurs d'écran tentent d'en parser le texte. | basse | corrigé — `<time dateTime>` seulement quand la valeur machine existe, sinon `<span>` de même style ; test `n’utilise pas <time> quand aucune valeur machine n’est fournie` |
+
+**Troisième passage (2026-11-18) — statut nominatif du périmètre R55.**
+Chaque ligne = fichier lu en entier, appelants réels inspectés, test de
+régression exécuté (les fichiers de test cités sont nommés).
+
+| Composant | Fichiers audités | Statut |
+| --------- | ---------------- | ------ |
+| combobox / autocomplete | `primitives/combobox/{combobox,autocomplete}.tsx` | sain — un seul filtre (NFD, accents ignorés) avec `defaultFilter={() => true}`, `allowsEmptyCollection`, valeur libre rendue en chaîne, croix en `<button>` nu (ne vole pas le rôle de déclencheur) ; 6 cas dans `inputs-complexes.test.tsx` |
+| date / calendar | `primitives/date/{calendar,date-picker}.tsx` | **corrigé (F115)** — grille en `<table>` + `display:grid`, navigation clavier react-aria, cellules hors bornes barrées, bouton calendrier nommé ; nom accessible rétabli quand `hideLabel` ; 9 cas dans `dates.test.tsx` |
+| pagination | `primitives/pagination/pagination.tsx` | sain — `paginationRange` pur (pas d'ellipse inutile, bornage), `aria-current="page"`, libellés « Page n », flèches désactivées aux extrémités ; 6 cas dans `contract-pieces.test.tsx` |
+| toast | `primitives/toast/toast.tsx`, `ui/toast.tsx` | sain — région live `aria-label="Notifications"`, file bornée à 4, fermeture au clavier, action qui referme ; adaptateur `toast.*` = un seul endroit à changer ; 4 cas dans `overlays.test.tsx` |
+| feature-* | `ui/{feature-catalog,feature-teaser,feature-interstitial}.tsx` | sain — catalogue typé FR/EN (aucune copie partielle ne compile), badge `<button>` ou libellé (jamais un bouton mort hors provider), contenu verrouillé `inert`, une seule vue par ouverture ; 11 cas dans `feature-announcement.test.tsx` |
+| drawer | `primitives/drawer/drawer.tsx` | sain — `ModalOverlay` + `Modal` (piège de focus, Échap, restitution du focus), `aria-label` de secours, quatre largeurs seulement ; 3 cas dans `overlays.test.tsx` |
+| sheet | `ui/sheet.tsx` | **corrigé (F110)** — `side` réellement porté par `Sheet` ; 2 cas dans `sheet.test.tsx` |
+| hover-card | `ui/hover-card.tsx` | sain pour son contrat (survol différé, focus immédiat, fermeture annulable, timers nettoyés, position bornée aux bords) ; **limite connue R58** : contenu portailé hors ordre de tabulation |
+| sidebar | `ui/craft-sidebar-drawer.tsx` | **corrigé (F111)** — `inert` fermé, `<button>` pour les chapitres sans lien, garde d'observateur ; 2 cas dans `craft-sidebar-drawer.test.tsx` |
+| stepper | `primitives/stepper/stepper.tsx` | sain — `<ol>`, `aria-current="step"`, marques `aria-hidden`, état jamais porté par la seule couleur, `status` surchargeable ; 1 cas dans `contract-pieces.test.tsx` |
+| timeline | `primitives/timeline/timeline.tsx` | **corrigé (F116)** — `<time datetime>` seulement quand la valeur machine existe ; 2 cas dans `contract-pieces.test.tsx` |
+
 **Preuve rouge → vert.** Les correctifs de la tranche ont été retirés
 (`git stash push` sur les 11 fichiers sources, tests conservés), suite
 relancée : **13 tests en échec sur 8 fichiers**
@@ -829,13 +850,16 @@ relancée : **13 tests en échec sur 8 fichiers**
 `sheet` ×1, `craft-sidebar-drawer` ×2, `user-avatar` ×1,
 `tooltip-delay` ×3), puis `git stash pop` et suite verte. Idem pour
 `checkbox` (+1) et `popover` (+1) : 2 échecs sans le correctif, verts avec.
+Même méthode pour F115/F116 : `dates` et `contract-pieces` retirés du
+correctif donnent 2 échecs (`<time>` présent sans `datetime` ; aucun groupe
+nommé), puis verts après restauration.
 
 **Preuves** :
 
 | Commande | Résultat |
 | -------- | -------- |
 | `pnpm --filter @qoe/supabase test` | 49 tests verts (dont 7 nouveaux sur les hôtes d'images : défaut, surcharge Bunny, motif `**.domaine` non-sosie, hôte étranger, HTTP local seulement, patterns sans doublon) |
-| `pnpm --filter @qoe/ui test` | **626 tests / 96 fichiers verts** (dont `image-utils.test.ts`, `safe-image.test.tsx`, `exit-interstitial-behaviour.test.tsx`, `time-picker-input.test.tsx`, `theme-toggle.test.tsx`, `tooltip.test.tsx`, `tooltip-delay.test.tsx`, `sheet.test.tsx`, `craft-sidebar-drawer.test.tsx`, `user-avatar.test.tsx`, `popover.test.tsx`) |
+| `pnpm --filter @qoe/ui test` | **628 tests / 96 fichiers verts** (dont `image-utils.test.ts`, `safe-image.test.tsx`, `exit-interstitial-behaviour.test.tsx`, `time-picker-input.test.tsx`, `theme-toggle.test.tsx`, `tooltip.test.tsx`, `tooltip-delay.test.tsx`, `sheet.test.tsx`, `craft-sidebar-drawer.test.tsx`, `user-avatar.test.tsx`, `popover.test.tsx`) |
 | `pnpm --filter @qoe/sdk test` · `pnpm arch:audit` | 221 tests / 32 fichiers verts · ✅ 0 anomalie (F113) |
 | `pnpm typecheck` | 25/25 tâches |
 | `pnpm --filter @qoe/ui lint` · `@qoe/supabase lint` | 0 erreur |
@@ -844,8 +868,9 @@ relancée : **13 tests en échec sur 8 fichiers**
 
 | #   | Tâche | Sévérité | Motif |
 | --- | ----- | -------- | ----- |
-| R55 | ~~Finir L07a : `primitives/**` et `ui/**` restants~~ — **close le 2026-11-18** : les 83 fichiers (55 `primitives`, 28 `ui`) ont été lus en entier, plus `TextParser`, `LoginFormBento`, `safe-image`/`safe-avatar`, `image-utils`. Reste hors périmètre R55 : les deux doublons assumés ci-dessous, la bascule de thème visuel (R54) et le chemin latent de `BentoItem`. | — | Clos avec preuves ; voir F106–F114. |
+| R55 | ~~Finir L07a : `primitives/**` et `ui/**` restants~~ — **close le 2026-11-18** : les 83 fichiers (55 `primitives`, 28 `ui`) ont été lus en entier, plus `TextParser`, `LoginFormBento`, `safe-image`/`safe-avatar`, `image-utils`. Reste hors périmètre R55, listé ci-dessous : les doublons assumés (R56), le chemin latent de `BentoItem` (R57), l'accès clavier à la carte de survol (R58) et les baselines visuelles (R54). | — | Clos avec preuves ; voir F106–F116. |
 | R56 | Deux jeux de composants pour le même besoin : `ui/select` (React Aria composé) **et** `primitives/select`, `ui/calendar` (react-day-picker) **et** `primitives/date`. Les deux sont sains et testés ; le coût est la divergence de style et deux chemins d'accessibilité à maintenir. | dette | Choix produit (les écrans existants utilisent l'un ou l'autre) — fusionner demande une décision de design, pas une correction de bug. |
+| R58 | `ui/hover-card` : le contenu est portailé dans `document.body` et le focus reste sur le déclencheur ; Tab depuis celui-ci referme la carte, donc le bouton « Suivre » qu'elle contient n'est pas atteignable au clavier (le même geste existe sur la page de profil). Rendre la carte atteignable demande de choisir la sémantique (panneau focusable, ou carte purement informative + action ailleurs) : décision produit, pas rustine. | moyenne | Limite documentée, non maquillée en correctif. |
 | R57 | `BentoPlateau` : `BentoItem` accepte `onClick` **et** pose `cursor-pointer` sur un `motion.div` sans `role`, `tabIndex` ni gestion de touche — un item cliquable serait invisible au clavier. Aucun appelant n'en passe aujourd'hui (`wizard.tsx`, `LoginFormBento`), donc le chemin est latent : à durcir le jour où un bento devient interactif. | basse | Pas de correctif à vide : rendre un item focusable sans usage ajouterait un arrêt de tabulation mort. |
 
 ---

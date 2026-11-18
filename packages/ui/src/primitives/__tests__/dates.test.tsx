@@ -164,6 +164,24 @@ describe('DatePicker', () => {
   });
 });
 
+describe('Champs de date sans libellé visible', () => {
+  // ⚠️ `hideLabel` rendait un texte `sr-only` que rien ne référençait : le
+  // champ perdait son nom accessible alors même qu'il en a un.
+  it('garde un nom accessible quand le libellé est masqué', () => {
+    render(
+      <>
+        <DateField label="Date de publication" hideLabel defaultValue={march2026} />
+        <TimeField label="Heure d’envoi" hideLabel />
+      </>
+    );
+
+    // react-aria imbrique deux groupes (champ + segments) qui héritent du
+    // nom : le contrôle reste annoncé, c'est ce qui compte ici.
+    expect(screen.getAllByRole('group', { name: 'Date de publication' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('group', { name: 'Heure d’envoi' }).length).toBeGreaterThan(0);
+  });
+});
+
 describe('TimeField', () => {
   it('accepte une heure typée', async () => {
     const user = userEvent.setup();

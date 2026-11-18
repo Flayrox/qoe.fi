@@ -166,6 +166,16 @@ describe('Timeline', () => {
     expect(time?.textContent).toBe('14 nov. 18:42');
     expect(time?.getAttribute('dateTime')).toBe('2026-11-14T18:42:00Z');
   });
+
+  // ⚠️ `<time>` sans `datetime` exige un contenu qui soit une date machine :
+  // « 14 nov. 18:42 » n'en est pas une. Le balisage est alors invalide et
+  // certains lecteurs d'écran tentent d'en parser le texte.
+  it('n’utilise pas <time> quand aucune valeur machine n’est fournie', () => {
+    const { container } = render(<Timeline entries={[{ title: 'Publication', time: 'hier' }]} />);
+
+    expect(container.querySelector('time')).toBeNull();
+    expect(container.textContent).toContain('hier');
+  });
 });
 
 describe('Progress', () => {

@@ -82,14 +82,22 @@ export function Timeline({ entries, dense = false, className }: TimelineProps) {
                 <p className="text-[12px] leading-snug font-medium text-foreground">
                   {entry.title}
                 </p>
-                {entry.time && (
-                  <time
-                    dateTime={entry.dateTime}
-                    className="font-mono text-[10px] tabular-nums text-muted-foreground"
-                  >
-                    {entry.time}
-                  </time>
-                )}
+                {entry.time &&
+                  // ⚠️ `<time>` sans `datetime` n'est valide que si son contenu
+                  // EST une date machine. « 14 nov. 18:42 » n'en est pas une :
+                  // sans valeur machine, on rend un simple `span`.
+                  (entry.dateTime ? (
+                    <time
+                      dateTime={entry.dateTime}
+                      className="font-mono text-[10px] tabular-nums text-muted-foreground"
+                    >
+                      {entry.time}
+                    </time>
+                  ) : (
+                    <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
+                      {entry.time}
+                    </span>
+                  ))}
               </div>
               {entry.description && (
                 <div className="mt-0.5 text-[11.5px] leading-relaxed text-muted-foreground">
