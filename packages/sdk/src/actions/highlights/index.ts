@@ -9,9 +9,14 @@
 //    (apps/api/internal/modules/highlights).
 // =====================================================================
 
-import { revalidatePath } from 'next/cache';
 import { safeAction } from '../utils/safe-action';
 import { goFetch } from '../utils/go-client';
+// 🧭 Invalidation : les pages article vivent sur `/{catégorie}/{slug}` (tenant)
+// et sur `/{propriétaire}/a/{slug}` (core), jamais sur `/article`. L'ancien
+// `revalidatePath('/article')` ne correspondait à aucune route et ne
+// rafraîchissait donc rien. Le remplacement propre est une invalidation par
+// tag (`article:{id}`), suivie dans R52 ; en attendant, ces vues sont rendues
+// par lecteur et se rafraîchissent à la navigation.
 
 /** 🖍️ Surlignage (shape Go /v1/articles/{id}/highlights). */
 export interface HighlightDTO {
@@ -71,7 +76,6 @@ export const createHighlightAction = safeAction<
     text: string;
     note?: string | null;
     isPublic?: boolean;
-    isOfficial?: boolean;
     /** Occurrence du passage cité (0-based) si le texte se répète. */
     quoteOrdinal?: number;
   },
@@ -89,7 +93,6 @@ export const createHighlightAction = safeAction<
       },
     }
   );
-  revalidatePath('/article');
   return { highlight: result };
 });
 
@@ -101,7 +104,6 @@ export const toggleHighlightPrivacyAction = safeAction<
     `/v1/highlights/${encodeURIComponent(input.highlightId)}`,
     { method: 'PATCH', body: { isPublic: input.isPublic } }
   );
-  revalidatePath('/article');
   return { highlight: result };
 });
 
@@ -113,7 +115,6 @@ export const updateHighlightNoteAction = safeAction<
     `/v1/highlights/${encodeURIComponent(input.highlightId)}`,
     { method: 'PATCH', body: { note: input.note } }
   );
-  revalidatePath('/article');
   return { highlight: result };
 });
 
@@ -125,7 +126,6 @@ export const upvoteHighlightAction = safeAction<
     `/v1/highlights/${encodeURIComponent(input.highlightId)}/upvote`,
     { method: 'POST' }
   );
-  revalidatePath('/article');
   return { upvotesCount: res.upvotesCount ?? 0, hasUpvoted: res.upvoted ?? false };
 });
 
@@ -137,7 +137,6 @@ export const createAnnotationCommentAction = safeAction<
     `/v1/highlights/${encodeURIComponent(input.highlightId)}/comments`,
     { method: 'POST', body: { content: input.content } }
   );
-  revalidatePath('/article');
   return { comment: result };
 });
 
@@ -146,7 +145,6 @@ export const deleteHighlightAction = safeAction<{ highlightId: string }, { succe
     await goFetch(`/v1/highlights/${encodeURIComponent(input.highlightId)}`, {
       method: 'DELETE',
     });
-    revalidatePath('/article');
     return { success: true };
   }
 );

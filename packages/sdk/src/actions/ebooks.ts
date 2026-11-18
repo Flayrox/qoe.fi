@@ -75,7 +75,9 @@ export const getEbookOfflinePackAction = safeAction<
   return goFetch<{ version: number; generatedAt: string; book: EbookDetail }>(
     `/v1/me/ebooks/${encodeURIComponent(id)}/offline-pack`
   );
-}); /** Supprimer un livre (le brut n'a jamais été stocké — rien d'autre à purger). */
+});
+
+/** Supprimer un livre (le brut n'a jamais été stocké — rien d'autre à purger). */
 export const deleteEbookAction = safeAction<{ id: string }, { deleted: boolean }>(
   async ({ id }) => {
     return goFetch<{ deleted: boolean }>(`/v1/me/ebooks/${encodeURIComponent(id)}`, {

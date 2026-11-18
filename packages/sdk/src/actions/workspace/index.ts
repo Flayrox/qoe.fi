@@ -74,9 +74,13 @@ export async function getActiveWorkspaceContext(): Promise<ActiveWorkspaceContex
     };
   }
 
-  // PERSONAL : si ws.publisherId est déjà renseigné (et n'est pas un identifiant
-  // utilisateur résiduel), retourner directement sans second appel à /v1/me/publisher.
-  if (ws.publisherId && ws.publisherId !== '' && !ws.publisherId.startsWith('usr_')) {
+  // PERSONAL : le Go garantit qu'un publisherId renvoyé ici est une vraie
+  // publication personnelle (il renvoie "" quand elle n'existe pas encore et
+  // ne fabrique jamais publisherId = userId, cf. workspaces/service.go). Un
+  // test d'intégration Go verrouille ce contrat : on ne devine pas la forme
+  // d'un identifiant côté TypeScript (l'ancien test `usr_` ne correspondait à
+  // aucun identifiant réel et laissait donc passer n'importe quoi).
+  if (ws.publisherId) {
     return {
       type: 'PERSONAL',
       publisherId: ws.publisherId,
