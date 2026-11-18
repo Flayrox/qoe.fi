@@ -448,6 +448,22 @@ export function AnnotationSideDrawer({
       return;
     }
 
+    // Le geste répond tout de suite, mais l'état d'avant est gardé : un
+    // refus doit pouvoir se défaire. Sans ce retour arrière, un vote refusé
+    // (session expirée, annotation supprimée, limite atteinte) laissait la
+    // puce allumée et le compteur gonflé — et le parent recevait ce faux
+    // état par `onUpdateAnnotation`.
+    const previous = { upvotes, hasUpvoted };
+    const restore = (state: { upvotes: number; hasUpvoted: boolean }) => {
+      setUpvotes(state.upvotes);
+      setHasUpvoted(state.hasUpvoted);
+      patchActiveAnnotation({
+        ...activeAnnotation,
+        upvotesCount: state.upvotes,
+        hasUpvoted: state.hasUpvoted,
+      });
+    };
+
     const nextState = !hasUpvoted;
     const nextCount = nextState ? upvotes + 1 : Math.max(0, upvotes - 1);
     setHasUpvoted(nextState);
@@ -460,6 +476,12 @@ export function AnnotationSideDrawer({
 
     try {
       const res = callbacks?.onUpvote ? await callbacks.onUpvote(activeAnnotation.id) : null;
+      // Pas de callback : mode local (aperçu, lab). On garde l'optimisme,
+      // il n'y a personne pour infirmer.
+      if (res && !res.ok) {
+        restore(previous);
+        return;
+      }
       if (res?.ok && res.data?.upvotesCount !== undefined) {
         const confirmed = {
           ...activeAnnotation,
@@ -472,6 +494,7 @@ export function AnnotationSideDrawer({
       }
     } catch (e) {
       console.error(e);
+      restore(previous);
     }
   };
 
