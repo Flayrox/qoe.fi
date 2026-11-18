@@ -30,19 +30,53 @@ export interface GdprArchiveData {
 }
 
 /**
+ * 🧼 Échappe une valeur interpolée dans le HTML de l'e-mail.
+ *
+ * Un nom de profil, un agent utilisateur ou une IP sont des données
+ * client : sans échappement, `<a href="https://evil">` dans le nom du compte
+ * s'exécute dans la boîte mail du destinataire (hameçonnage crédible puisque
+ * l'e-mail vient bien de qoe.fi).
+ */
+export function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * 🔗 N'accepte un lien de bouton que s'il est `http(s)`. `javascript:` ou
+ * `data:` dans un `href` d'e-mail est un vecteur direct.
+ */
+export function safeHref(raw: string): string | null {
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Base HTML email layout with Apple / Silicon Valley design standards
  */
 function buildEmailTemplate(
   title: string,
+  /** HTML déjà construit par l'appelant : il doit avoir échappé ses données. */
   bodyContent: string,
   actionButton?: { label: string; url: string }
 ) {
+  const safeTitle = escapeHtml(title);
+  const actionHref = actionButton ? safeHref(actionButton.url) : null;
   return `<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title}</title>
+  <title>${safeTitle}</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -146,17 +180,17 @@ function buildEmailTemplate(
       qoe<span class="brand-accent">.fi</span>
     </div>
     
-    <div class="email-title">${title}</div>
+    <div class="email-title">${safeTitle}</div>
     
     <div class="email-body">
       ${bodyContent}
     </div>
 
     ${
-      actionButton
+      actionButton && actionHref
         ? `
     <div class="button-container">
-      <a href="${actionButton.url}" class="cta-button" target="_blank">${actionButton.label}</a>
+      <a href="${escapeHtml(actionHref)}" class="cta-button" target="_blank" rel="noopener noreferrer">${escapeHtml(actionButton.label)}</a>
     </div>
     `
         : ''
@@ -250,31 +284,32 @@ export async function sendTransactionalEmail(data: { to: string; subject: string
 }
 
 /**
- * Send New Login Security Alert
+ * Construit le HTML de l'alerte de connexion (données client échappées).
+ * Exporté pour être testable sans passer par un fournisseur d'e-mail.
  */
-export async function sendSecurityLoginAlert(data: SecurityLoginAlertData) {
+export function renderSecurityLoginAlert(data: SecurityLoginAlertData): string {
   const formattedTime =
     data.timestamp || new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' });
   const device = data.deviceInfo || 'Navigateur Web';
   const ip = data.ipAddress || 'Non spécifiée';
 
-  const html = buildEmailTemplate(
+  return buildEmailTemplate(
     'Alerte de Sécurité : Nouvelle Connexion Détectée',
-    `<p>Bonjour ${data.userName || 'Utilisateur'},</p>
+    `<p>Bonjour ${escapeHtml(data.userName || 'Utilisateur')},</p>
      <p>Une nouvelle connexion à votre compte <strong>qoe.fi</strong> vient d'être enregistrée depuis un nouvel appareil.</p>
      
      <div class="details-box">
        <div class="details-row">
          <span class="details-label">Date & Heure :</span>
-         <span class="details-value">${formattedTime}</span>
+         <span class="details-value">${escapeHtml(formattedTime)}</span>
        </div>
        <div class="details-row">
          <span class="details-label">Appareil :</span>
-         <span class="details-value">${device}</span>
+         <span class="details-value">${escapeHtml(device)}</span>
        </div>
        <div class="details-row">
          <span class="details-label">Adresse IP :</span>
-         <span class="details-value">${ip}</span>
+         <span class="details-value">${escapeHtml(ip)}</span>
        </div>
      </div>
      
@@ -285,11 +320,16 @@ export async function sendSecurityLoginAlert(data: SecurityLoginAlertData) {
       url: 'https://qoe.fi/settings',
     }
   );
+}
 
+/**
+ * Send New Login Security Alert
+ */
+export async function sendSecurityLoginAlert(data: SecurityLoginAlertData) {
   return sendTransactionalEmail({
     to: data.toEmail,
     subject: '🔐 Alerte de Sécurité — Nouvelle connexion à votre compte qoe.fi',
-    html,
+    html: renderSecurityLoginAlert(data),
   });
 }
 
@@ -302,8 +342,8 @@ export async function sendSecurityPasswordChangedAlert(data: SecurityPasswordCha
 
   const html = buildEmailTemplate(
     'Confirmation : Votre mot de passe a été modifié',
-    `<p>Bonjour ${data.userName || 'Utilisateur'},</p>
-     <p>Le mot de passe associé à votre compte <strong>qoe.fi</strong> (${data.toEmail}) a été modifié avec succès le <strong>${formattedTime}</strong>.</p>
+    `<p>Bonjour ${escapeHtml(data.userName || 'Utilisateur')},</p>
+     <p>Le mot de passe associé à votre compte <strong>qoe.fi</strong> (${escapeHtml(data.toEmail)}) a été modifié avec succès le <strong>${escapeHtml(formattedTime)}</strong>.</p>
      
      <p>Si vous êtes à l'origine de ce changement, vous pouvez ignorer ce message.</p>
      <p><strong>Si vous n'avez pas demandé cette modification</strong>, contactez immédiatement notre équipe de support technique pour verrouiller l'accès à votre compte.</p>`,
@@ -328,7 +368,7 @@ export async function sendGdprArchiveReadyEmail(data: GdprArchiveData) {
 
   const html = buildEmailTemplate(
     'Votre Archive de Données RGPD est Prête',
-    `<p>Bonjour ${data.userName || 'Utilisateur'},</p>
+    `<p>Bonjour ${escapeHtml(data.userName || 'Utilisateur')},</p>
      <p>Conformément à l'Article 20 du Règlement Général sur la Protection des Données (RGPD), votre archive complète de données personnelles est prête au téléchargement.</p>
      
      <p>L'archive contient vos informations de profil, l'historique de vos abonnements, vos bookmarks et vos transactions au format JSON portable.</p>

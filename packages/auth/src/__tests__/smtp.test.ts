@@ -103,6 +103,8 @@ describe('sendEmailViaSMTP', () => {
           user: 'user',
           pass: 'pass',
           from: 'qoe.fi Security <security@qoe.fi>',
+          // Relais de test en clair : l'AUTH sans TLS est un opt-in explicite.
+          allowInsecureAuth: true,
         },
         { to: 'reader@example.com', subject: 'Alerte de Sécurité 🔐', html: '<p>Bonjour</p>' }
       );
@@ -122,12 +124,65 @@ describe('sendEmailViaSMTP', () => {
     try {
       await expect(
         sendEmailViaSMTP(
-          { host: '127.0.0.1', port: smtp.port, user: 'u', pass: 'p', from: 'a@qoe.fi' },
+          {
+            host: '127.0.0.1',
+            port: smtp.port,
+            user: 'u',
+            pass: 'p',
+            from: 'a@qoe.fi',
+            allowInsecureAuth: true,
+          },
           { to: 'b@example.com', subject: 'Test', html: '<p>x</p>' }
         )
       ).rejects.toBeInstanceOf(SMTPError);
     } finally {
       smtp.close();
     }
+  });
+
+  it("refuse l'AUTH en clair quand le relais n'offre pas STARTTLS", async () => {
+    const smtp = await startFakeSMTP();
+    try {
+      await expect(
+        sendEmailViaSMTP(
+          {
+            host: '127.0.0.1',
+            port: smtp.port,
+            user: 'user',
+            pass: 'secret',
+            from: 'security@qoe.fi',
+          },
+          { to: 'reader@example.com', subject: 'Test', html: '<p>x</p>' }
+        )
+      ).rejects.toThrow(/refusée sans TLS/);
+    } finally {
+      smtp.close();
+    }
+  });
+
+  it('rejette un destinataire porteur de CRLF (injection de commande)', async () => {
+    await expect(
+      sendEmailViaSMTP(
+        { host: '127.0.0.1', port: 1, from: 'security@qoe.fi', allowInsecureAuth: true },
+        {
+          to: 'victim@example.com>\r\nRCPT TO:<attacker@evil.test',
+          subject: 'Test',
+          html: '<p>x</p>',
+        }
+      )
+    ).rejects.toThrow(/destinataire contient un saut de ligne/);
+  });
+
+  it('rejette un sujet porteur de CRLF (injection d’en-tête)', async () => {
+    await expect(
+      sendEmailViaSMTP(
+        { host: '127.0.0.1', port: 1, from: 'security@qoe.fi', allowInsecureAuth: true },
+        {
+          to: 'reader@example.com',
+          subject: 'Bonjour\r\nBcc: attacker@evil.test',
+          html: '<p>x</p>',
+        }
+      )
+    ).rejects.toThrow(/sujet contient un saut de ligne/);
   });
 });

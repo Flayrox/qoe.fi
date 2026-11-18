@@ -12,8 +12,10 @@ import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { ROLES, type Role, getMonorepoUrl } from '@qoe/config';
-import { can, type Action } from './permissions';
-import { fetchMeWithSync } from './go-client';
+import { hasRoleLevel } from './roles';
+import { isSafeRedirectTarget } from './redirect';
+import { can, PermissionError, type Action } from './permissions';
+import { fetchMeWithSync, isGoEnabled } from './go-client';
 
 /**
  * 👤 Utilisateur DB (parité ReaderProfile Go — GET /v1/me).
@@ -56,11 +58,18 @@ export const getCurrentUser = cache(async (): Promise<DbUser | null> => {
   const authUser = await getAuthUser();
   if (!authUser) return null;
 
+  if (!isGoEnabled()) return null;
+
   try {
     return await fetchMeWithSync<DbUser>();
-  } catch {
-    // Utilisateur Supabase sans ligne DB (ex. tout juste inscrit) → null.
-    return null;
+  } catch (err: unknown) {
+    // Pas (encore) de profil : compte tout juste inscrit, session révoquée.
+    const status = (err as { status?: number })?.status;
+    if (status === 401 || status === 403 || status === 404) return null;
+    // Panne de l'API (5xx, timeout, réseau) : on ne déconnecte pas
+    // l'utilisateur, on remonte l'erreur — un incident ne doit pas ressembler
+    // à « session expirée » et boucler sur /login.
+    throw err;
   }
 });
 
@@ -94,18 +103,24 @@ export async function requireUser(): Promise<DbUser> {
       // Construire l'URL de la page courante via referer ou x-invoke-path
       const referer = headersList.get('referer');
       const invokedPath = headersList.get('x-invoke-path');
+      // Sans hôte fiable (accès direct au container), on retombe sur une URL
+      // canonique plutôt qu'une adresse de bind inatteignable.
+      const base = host
+        ? `${proto}://${host}`
+        : process.env.NODE_ENV === 'production'
+          ? getMonorepoUrl('feed')
+          : 'http://localhost:3000';
+      // `x-invoke-path` est un en-tête client : on n'accepte qu'un chemin
+      // absolu interne (jamais `//hôte`).
+      const safePath =
+        invokedPath && invokedPath.startsWith('/') && !invokedPath.startsWith('//')
+          ? invokedPath
+          : null;
       let currentUrl: string;
-      if (referer && /^https?:\/\//.test(referer)) {
+      if (referer && isSafeRedirectTarget(referer, base)) {
         currentUrl = referer;
       } else {
-        // Sans hôte fiable (accès direct au container), on retombe sur une
-        // URL canonique plutôt qu'une adresse de bind inatteignable.
-        const base = host
-          ? `${proto}://${host}`
-          : process.env.NODE_ENV === 'production'
-            ? getMonorepoUrl('feed')
-            : 'http://localhost:3000';
-        currentUrl = invokedPath ? `${base}${invokedPath}` : `${base}/`;
+        currentUrl = safePath ? `${base}${safePath}` : `${base}/`;
       }
 
       const feedBase = getMonorepoUrl('feed', host);
@@ -129,7 +144,7 @@ export async function requirePermission(action: Action): Promise<DbUser> {
   const user = await getCurrentUser();
   if (!user) throw new Error('Unauthorized');
   if (!can(user.role as Role, action)) {
-    throw new Error(`Forbidden: requires "${action}"`);
+    throw new PermissionError(`Forbidden: requires "${action}"`);
   }
   return user;
 }
@@ -140,8 +155,9 @@ export async function requirePermission(action: Action): Promise<DbUser> {
 export async function requireRole(role: Role): Promise<DbUser> {
   const user = await getCurrentUser();
   if (!user) throw new Error('Unauthorized');
-  if (user.role !== ROLES.SUPERADMIN && user.role !== role) {
-    throw new Error(`Forbidden: requires role "${role}"`);
+  // Hiérarchie : un superadmin satisfait n'importe quel rôle requis.
+  if (!hasRoleLevel(user.role as Role, role)) {
+    throw new PermissionError(`Forbidden: requires role "${role}"`);
   }
   return user;
 }

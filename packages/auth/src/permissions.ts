@@ -10,7 +10,7 @@
 // =====================================================================
 
 import { ROLES, type Role } from '@qoe/config';
-import { isCreator, isSuperadmin } from './roles';
+import { hasRoleLevel, isCreator, isSuperadmin } from './roles';
 
 /**
  * 🎬 Actions possibles dans l'app.
@@ -99,10 +99,11 @@ export function can(userRole: Role | null, action: Action): boolean {
   const required = PERMISSIONS[action];
   if (!required) return false;
 
-  if (userRole === ROLES.SUPERADMIN) return true; // superadmin = tout
-  if (userRole === ROLES.CREATOR && required === ROLES.CREATOR) return true;
-  if (userRole === ROLES.USER && required === ROLES.USER) return true;
-  return false;
+  // Hiérarchie : un rôle hérite des permissions des rôles inférieurs. L'ancien
+  // test d'égalité stricte privait un creator des actions `USER` (poster,
+  // lire, consulter sa facturation) alors que `hasRoleLevel` est la règle
+  // documentée du dépôt.
+  return hasRoleLevel(userRole, required);
 }
 
 /**

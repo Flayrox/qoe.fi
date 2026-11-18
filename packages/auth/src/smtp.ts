@@ -17,6 +17,11 @@ export interface SMTPOptions {
   pass?: string;
   /** true = TLS implicite (port 465) ; false = STARTTLS si proposé (587/25). */
   secure?: boolean;
+  /**
+   * Autorise AUTH sans TLS (relais de test uniquement). Défaut false : sans
+   * STARTTLS, envoyer le mot de passe en clair est un downgrade silencieux.
+   */
+  allowInsecureAuth?: boolean;
   from: string;
 }
 
@@ -47,6 +52,30 @@ function extractAddress(addr: string): string {
   return m ? m[1] : addr;
 }
 
+/**
+ * Refuse CR/LF/NUL : sans ce garde, un en-tête (sujet, adresse) peut injecter
+ * des lignes SMTP supplémentaires (Bcc:, ou une commande DATA complète).
+ */
+function assertNoControl(value: string, label: string): void {
+  if (/[\r\n\u0000]/.test(value)) {
+    throw new SMTPError(`smtp: ${label} contient un saut de ligne interdit`);
+  }
+}
+
+/**
+ * Valide l'adresse d'enveloppe (MAIL FROM / RCPT TO) : jamais de nom
+ * d'affichage, d'espace, de chevron ou de point-virgule, qui casseraient la
+ * commande SMTP.
+ */
+function envelopeAddress(raw: string, label: string): string {
+  assertNoControl(raw, label);
+  const address = extractAddress(raw).trim();
+  if (!/^[^\s<>@",;:]+@[^\s<>@",;:]+$/.test(address)) {
+    throw new SMTPError(`smtp: ${label} invalide (adresse e-mail attendue)`);
+  }
+  return address;
+}
+
 function encodeAddressHeader(addr: string): string {
   const open = addr.indexOf('<');
   if (open <= 0) return addr;
@@ -59,6 +88,11 @@ function encodeAddressHeader(addr: string): string {
 export async function sendEmailViaSMTP(opts: SMTPOptions, msg: SMTPMessage): Promise<void> {
   const port = opts.port || 587;
   const host = opts.host;
+  // Validation avant toute connexion : une adresse ou un sujet porteur de
+  // CR/LF ne doit jamais atteindre le dialogue SMTP.
+  const fromAddress = envelopeAddress(opts.from, 'expéditeur');
+  const toAddress = envelopeAddress(msg.to, 'destinataire');
+  assertNoControl(msg.subject, 'sujet');
   let sock: net.Socket | tls.TLSSocket = opts.secure
     ? tls.connect({ host, port, servername: host })
     : net.connect({ host, port });
@@ -66,6 +100,8 @@ export async function sendEmailViaSMTP(opts: SMTPOptions, msg: SMTPMessage): Pro
   sock.setTimeout(20_000);
 
   let buffer = '';
+  // TLS actif (implicite ou après STARTTLS) : condition d'un AUTH sûr.
+  let tlsActive = opts.secure === true;
   let replyLines: string[] = []; // lignes de la dernière réponse (multi-lignes incluse)
   let intermediate: string[] = [];
   const waiters: Array<{ resolve: (line: string) => void; reject: (err: Error) => void }> = [];
@@ -98,8 +134,14 @@ export async function sendEmailViaSMTP(opts: SMTPOptions, msg: SMTPMessage): Pro
     if (waiter) waiter.reject(err);
     sock.destroy();
   };
-  sock.on('error', (err) => fail(new SMTPError(`smtp: erreur réseau: ${err.message}`)));
-  sock.on('timeout', () => fail(new SMTPError('smtp: timeout')));
+  // Après STARTTLS, le socket est remplacé : sans ce rebranchement, une erreur
+  // sur le socket chiffré devenait un événement 'error' non géré (crash du
+  // process) et le listener restait sur le socket d'origine.
+  const wire = (s: net.Socket | tls.TLSSocket) => {
+    s.on('error', (err) => fail(new SMTPError(`smtp: erreur réseau: ${err.message}`)));
+    s.on('timeout', () => fail(new SMTPError('smtp: timeout')));
+  };
+  wire(sock);
 
   const readReply = (): Promise<string> =>
     new Promise((resolve, reject) => {
@@ -146,16 +188,23 @@ export async function sendEmailViaSMTP(opts: SMTPOptions, msg: SMTPMessage): Pro
         upgraded.once('error', (err) => reject(new SMTPError(`smtp: starttls: ${err.message}`)));
       });
       sock = upgraded;
+      tlsActive = true;
       buffer = '';
       intermediate = [];
       replyLines = [];
       attachData(sock);
+      wire(sock);
       await ehlo();
       replyLines = [];
     }
 
     // Authentification : AUTH LOGIN (universel), repli AUTH PLAIN.
     if (opts.user) {
+      if (!tlsActive && !opts.allowInsecureAuth) {
+        throw new SMTPError(
+          'smtp: authentification refusée sans TLS (STARTTLS indisponible) — allowInsecureAuth pour un relais de test'
+        );
+      }
       try {
         await send('AUTH LOGIN', [334]);
         await send(Buffer.from(opts.user, 'utf8').toString('base64'), [334]);
@@ -172,8 +221,8 @@ export async function sendEmailViaSMTP(opts: SMTPOptions, msg: SMTPMessage): Pro
       }
     }
 
-    await send(`MAIL FROM:<${extractAddress(opts.from)}>`, [250]);
-    await send(`RCPT TO:<${extractAddress(msg.to)}>`, [250]);
+    await send(`MAIL FROM:<${fromAddress}>`, [250]);
+    await send(`RCPT TO:<${toAddress}>`, [250]);
     await send('DATA', [354]);
 
     const body =

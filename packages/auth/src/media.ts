@@ -110,9 +110,10 @@ export function canMedia(
   const base = MEDIA_ROLE_PERMISSIONS[role] ?? [];
   const overrides = member.permissions ?? [];
 
-  // Overrides explicites : "perm" accorde, "-perm" retire
-  if (overrides.includes(permission)) return true;
+  // Overrides explicites : "perm" accorde, "-perm" retire. Le refus doit
+  // primer : si les deux sont présents, l'ancien ordre accordait le droit.
   if (overrides.includes(`-${permission}`)) return false;
+  if (overrides.includes(permission)) return true;
 
   return base.includes(permission);
 }

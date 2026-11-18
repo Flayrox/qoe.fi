@@ -53,7 +53,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L01** | `packages/utils/src/**`                                                                                      | 29 fichiers src, 50 exports | **durci le 2026-11-18** |
 | **L02** | `packages/schemas/src/**`                                                                                    | 8 fichiers                  | **durci le 2026-11-18** |
 | **L03** | `packages/flags/src/**`                                                                                      | 8 fichiers                  | **durci le 2026-11-18** |
-| L04     | `packages/auth/src/**`                                                                                       | 11 fichiers                 | à auditer               |
+| **L04** | `packages/auth/src/**`                                                                                       | 11 fichiers                 | **durci le 2026-11-18** |
 | L05     | `packages/supabase/src/**`                                                                                   | 13 fichiers                 | à auditer               |
 | L06     | `packages/sdk/src/**` (actions, client, embed, hooks)                                                        | 78 fichiers                 | à auditer               |
 | L07a    | `packages/ui/src/primitives/**`, `ui/**`, `tokens.ts`                                                        | 310 fichiers (global)       | à auditer               |
@@ -92,7 +92,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L36     | `e2e/**`, `playwright*.config.ts`, `e2e/lib/**`                                                              | 65 fichiers                 | à auditer               |
 | L37     | `docs/**`, `AGENTS.md`, racine (`tsconfig`, `eslint`, `turbo`, `vitest`), `supabase/`, `patches/`, `.husky/` | transverse                  | à auditer               |
 
-**Prochain lot à traiter : L04 — `packages/auth`.** Ordre retenu : du plus
+**Prochain lot à traiter : L05 — `packages/supabase`.** Ordre retenu : du plus
 partagé au plus spécifique, parce qu'un correctif dans un package bas remonte
 dans toutes les apps.
 
@@ -396,3 +396,71 @@ cd apps/api && go build ./... && go vet ./internal/antispam/ ./internal/modules/
 | R22 | Faire passer les uploads mobiles (avatar/bannière) par le pipeline de sécurité (endpoint d'ingestion + modération)                                        | moyenne  | Aujourd'hui le mobile écrit directement dans le bucket : aucune modération, aucune normalisation.          |
 | R23 | Trancher le contrat des couvertures d'articles de l'API créateur : origine plateforme obligatoire, ou ingestion modérée côté serveur                      | moyenne  | Les clients API et les imports peuvent légitimement fournir une URL externe ; il faut choisir et documenter. |
 | R24 | Images externes dans le HTML d'article (imports) : ré-héberger à l'ingestion ou les neutraliser au rendu                                                  | moyenne  | Le corps HTML est stocké tel quel : une image distante y échappe à toute modération et peut pister.        |
+
+---
+
+## L04 — `@qoe/auth` — durci le 2026-11-18
+
+**Périmètre.** `packages/auth/src/**` : `roles.ts`, `permissions.ts`, `media.ts`,
+`current-user.ts`, `go-client.ts`, `mailer.ts`, `smtp.ts`, `redirect.ts`, `index.ts`
++ 4 fichiers de tests.
+**Consommateurs.** `apps/{core,studio,admin,tenants,hi}`, `packages/sdk`
+(Server Actions), `packages/ui` (garde d'affichage).
+**Contrat serveur.** Go est la source de vérité (`CombinedAuth`, capacités
+admin, `internal/permissions` média) : ce package ne fait que refléter la
+hiérarchie pour l'UI et les Server Actions.
+**Tests.** 26 tests verts, dont 10 dans `src/__tests__/hardening.test.ts`.
+
+### Entrées auditées
+
+| #   | Emplacement                        | Standard attendu                                                                | Verdict            |
+| --- | ---------------------------------- | ------------------------------------------------------------------------------- | ------------------ |
+| A01 | `roles.ts` → `hasRoleLevel`        | Hiérarchie stricte `superadmin > creator > user`                                | conforme           |
+| A02 | `permissions.ts` → `can`           | Hérite des rôles inférieurs (un creator peut poster/lire)                       | **corrigé** (F36)  |
+| A03 | `permissions.ts` → `require`       | Erreur typée `PermissionError`, jamais un booléen ignoré                        | conforme           |
+| A04 | `permissions.ts` → `canEditArticle`, `canManageTenant` | Propriété vérifiée côté serveur, superadmin inclus                | conforme           |
+| A05 | `media.ts` → `canMedia`            | Statut actif obligatoire ; **refus** d'override prioritaire sur l'accord         | **corrigé** (F37)  |
+| A06 | `media.ts` → `isMediaAdmin`        | Rôle inconnu → jamais admin                                                     | conforme (défensif) |
+| A07 | `current-user.ts` → `getCurrentUser` | 401/403/404 → `null` ; 5xx/timeout → erreur remontée (pas de fausse déconnexion) | **corrigé** (F38)  |
+| A08 | `current-user.ts` → `requireUser`  | `?redirect=` limité à l'origine courante ; `x-invoke-path` validé               | **corrigé** (F38)  |
+| A09 | `current-user.ts` → `requireRole`  | Hiérarchie (superadmin satisfait tout rôle) ; erreur typée                      | **corrigé** (F36)  |
+| A10 | `go-client.ts` → `goFetch`         | `QOE_API_URL` lue à l'appel, timeout borné, `no-store`                          | **corrigé** (F38)  |
+| A11 | `mailer.ts` → templates            | Toute donnée client échappée ; lien de bouton `http(s)` seulement                | **corrigé** (F35)  |
+| A12 | `smtp.ts` → enveloppe & en-têtes   | Pas de CR/LF dans adresses/sujet (injection SMTP)                               | **corrigé** (F32)  |
+| A13 | `smtp.ts` → AUTH                   | Jamais de mot de passe sans TLS (STARTTLS ou implicite)                         | **corrigé** (F33)  |
+| A14 | `smtp.ts` → STARTTLS               | Erreurs/timeout rebranchés sur le socket chiffré                                | **corrigé** (F34)  |
+| A15 | `redirect.ts` → `isSafeRedirectTarget` | Même origine obligatoire, module pur testable                               | **ajouté** (F38)   |
+
+### Findings et correctifs
+
+| #   | Défaut                                                                                                                                                                          | Sévérité | Correctif                                                                                                       | Fichiers |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------- | -------- |
+| F32 | `smtp.ts` interpolait `msg.to`, `opts.from` et `msg.subject` sans contrôle : un `\r\n` dans une adresse terminait la commande `RCPT TO` et permettait d'injecter des lignes SMTP (`Bcc:`, `DATA`) | haute    | `envelopeAddress` (adresse nue validée) + `assertNoControl` sur l'enveloppe et le sujet, **avant** toute connexion | `smtp.ts` |
+| F33 | AUTH LOGIN était tenté même quand le relais n'offrait pas STARTTLS : mot de passe en clair si le relais l'accepte (downgrade silencieux)                                        | haute    | Suivi de `tlsActive` ; AUTH refusé sans TLS sauf `allowInsecureAuth` explicite (relais de test)                  | `smtp.ts` |
+| F34 | Après STARTTLS, le socket était remplacé sans rebrancher `error`/`timeout` : une erreur sur le socket chiffré devenait un événement `error` non géré (crash du process) et le timeout était perdu | moyenne  | `wire(socket)` réappliqué après l'upgrade                                                                        | `smtp.ts` |
+| F35 | Les e-mails de sécurité interpolaient le nom, l'appareil, l'IP et l'adresse **bruts** dans le HTML, et le `href` du bouton n'était pas validé : injection HTML dans la boîte mail, `javascript:` possible | moyenne  | `escapeHtml` sur chaque donnée client, `safeHref` (`http`/`https` seulement), `rel="noopener noreferrer"`        | `mailer.ts` |
+| F36 | `can()` comparait les rôles par égalité stricte : un `creator` n'avait pas `post:create`, `post:read`, `article:read` ni `billing:read:own` — la hiérarchie documentée n'était pas appliquée | moyenne  | `can()` et `requireRole()` passent par `hasRoleLevel`                                                            | `permissions.ts`, `current-user.ts` |
+| F37 | Un override média `-perm` était ignoré si `perm` figurait aussi dans la liste : le refus ne primait pas                                                                    | faible   | Le refus est testé en premier                                                                                    | `media.ts` |
+| F38 | Trois défauts d'intégration : `QOE_API_URL` figée à l'import (impossible à changer en test/script), `fetch` sans timeout ni `no-store`, `getCurrentUser` avalait les 5xx (déconnexion en boucle pendant une panne), et `?redirect=` acceptait n'importe quel `Referer` (redirection ouverte) | moyenne  | Lecture de l'env à l'appel + `AbortSignal.timeout(10 s)` + `cache: 'no-store'` ; remontée des erreurs non-auth ; `isSafeRedirectTarget` + chemin d'invocation validé | `go-client.ts`, `current-user.ts`, `redirect.ts` |
+
+### Preuves exécutées
+
+```bash
+cd packages/auth && pnpm exec vitest run --coverage   # 4 fichiers / 26 tests — EXIT=0
+cd packages/auth && pnpm exec tsc --noEmit            # EXIT=0
+cd packages/auth && pnpm exec eslint .                # EXIT=0
+pnpm typecheck                                        # 25 successful, 25 total
+```
+
+Un test existant supposait un relais SMTP en clair avec AUTH : il déclare
+désormais `allowInsecureAuth: true` — l'absence de TLS est un choix explicite au
+lieu d'un comportement par défaut.
+
+### Reste à faire (lot L04)
+
+| #   | Tâche                                                                                                                                  | Sévérité | Motif                                                                                                     |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------- |
+| R25 | Vérifier si `sendTransactionalEmail` doit respecter le coupe-feu `workers-email-kill` (aujourd'hui : non)                              | haute    | Les e-mails de sécurité partent hors file Go : pendant un arrêt d'urgence, ils continuent.                |
+| R26 | Unifier l'envoi d'e-mails : le SMTP direct depuis Next contourne la file asynq (rate-limit, budgets, journal d'envoi)                  | moyenne  | Deux chemins d'envoi, deux comportements en cas d'incident.                                               |
+| R27 | Garde CI de parité pour `MEDIA_ROLE_PERMISSIONS` (TS) ↔ `internal/permissions` (Go)                                                    | moyenne  | Même classe de divergence que les flags (F28) : la matrice est écrite deux fois.                          |
+| R28 | Découper les sujets RFC 2047 (ligne > 75 caractères)                                                                                   | faible   | Un sujet long accentué peut être replié/mangé par certains relais.                                        |
