@@ -11,13 +11,12 @@ export function ReadingProgressBar({ containerId, className = '' }: ReadingProgr
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    function handleScroll() {
+    function measure() {
       if (containerId) {
         const container = document.getElementById(containerId);
         if (container) {
-          const { scrollTop, scrollHeight, clientHeight } = container;
-          const maxScroll = scrollHeight - clientHeight;
-          const pct = maxScroll > 0 ? (scrollTop / maxScroll) * 100 : 0;
+          const maxScroll = container.scrollHeight - container.clientHeight;
+          const pct = maxScroll > 0 ? (container.scrollTop / maxScroll) * 100 : 0;
           setProgress(Math.min(100, Math.max(0, pct)));
           return;
         }
@@ -25,23 +24,28 @@ export function ReadingProgressBar({ containerId, className = '' }: ReadingProgr
 
       // Default to window scroll
       const scrollTop = window.scrollY || document.documentElement.scrollTop;
-      const scrollHeight = document.documentElement.scrollHeight;
-      const clientHeight = window.innerHeight;
-      const maxScroll = scrollHeight - clientHeight;
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
       const pct = maxScroll > 0 ? (scrollTop / maxScroll) * 100 : 0;
       setProgress(Math.min(100, Math.max(0, pct)));
     }
 
-    if (containerId) {
-      const container = document.getElementById(containerId);
-      if (container) {
-        container.addEventListener('scroll', handleScroll, { passive: true });
-        return () => container.removeEventListener('scroll', handleScroll);
-      }
-    }
+    // ⚠️ Mesure immédiate : la barre ne se remplissait qu'au PREMIER
+    // défilement. Arriver au milieu d'un article (retour depuis un lien,
+    // rechargement, ancre) affichait donc 0 % tant qu'on n'avait pas touché
+    // la molette.
+    measure();
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    // ⚠️ Écoute en phase de CAPTURE, et conteneur résolu à chaque
+    // événement : le corps de l'article est presque toujours monté APRÈS le
+    // shell (il vient d'une requête), et un défilement d'élément ne
+    // bouillonne pas. S'accrocher une fois pour toutes au conteneur présent
+    // au montage laissait la barre collée à la fenêtre — donc à 0 %.
+    document.addEventListener('scroll', measure, { capture: true, passive: true });
+    window.addEventListener('scroll', measure, { passive: true });
+    return () => {
+      document.removeEventListener('scroll', measure, { capture: true });
+      window.removeEventListener('scroll', measure);
+    };
   }, [containerId]);
 
   return (
