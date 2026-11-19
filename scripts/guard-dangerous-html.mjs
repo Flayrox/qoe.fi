@@ -41,7 +41,10 @@ const EXEMPTIONS = new Map([
   ['packages/ui/src/seo/JsonLd.tsx', 'JSON.stringify d’un objet typé, jamais de HTML utilisateur'],
   ['packages/theme/src/ThemeStyle.tsx', 'CSS généré depuis un thème validé, pas du HTML'],
   ['packages/theme/src/seed-script.tsx', 'constante compilée du paquet, aucune entrée utilisateur'],
-  ['packages/ui/src/sidebar.tsx', 'JSON.stringify des speculation rules, pas du HTML'],
+  [
+    'packages/ui/src/sidebar.tsx',
+    'speculation rules : JSON.stringify échappé en unicode (<, >, &), aucune entrée utilisateur',
+  ],
   [
     'apps/hi/src/app/legal/',
     'markdownToHtml échappe le HTML source (test packages/utils markdown : neutralise le HTML brut)',

@@ -34,7 +34,9 @@ const ALLOWLIST = new Set([
   'apps/tenants/src/app/tenant/[domain]/articles/[slug]/page.tsx',
   'apps/tenants/src/app/tenant/[domain]/[categorySlug]/[slug]/page.tsx',
   // Sa cible « article » reste ambiguë (notification lue dans le core ou le
-  // studio) : le serveur doit fournir `url`. Suivi : tâche R47 de la checklist.
+  // studio) : le serveur fournit `url`, et son repli suit la même forme
+  // historique que `deeplink.Notification` côté Go. Suivi : tâche R63.
+  // Le Go lui-même n'est pas scanné — c'est le vrai point de sortie.
   'packages/ui/src/notifications/NotificationItem.tsx',
 ]);
 

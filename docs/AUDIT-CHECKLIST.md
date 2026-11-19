@@ -68,7 +68,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L07b    | `packages/ui/src/{reader,annotations,cards}/**`                                                              | 31 fichiers src             | **durci le 2026-11-18** |
 | L07c    | `packages/ui/src/{auth,forms,providers}/**`                                                                  | 4 fichiers src (et 3 composants via barrel) | **durci le 2026-11-18** |
 | L07d    | `packages/ui/src/{security,seo,legal}/**`                                                                    | 13 fichiers src             | **durci le 2026-11-19** |
-| L07e    | `packages/ui/src/{notifications,onboarding,profile,social,cmdk,templates,sidebar.tsx}`                       | idem                        | à auditer               |
+| L07e    | `packages/ui/src/{notifications,onboarding,profile,social,cmdk,templates,sidebar.tsx}`                       | 86 fichiers (src + tests)   | **durci le 2026-11-19** |
 | L08     | `packages/theme/src/**`                                                                                      | 19 fichiers                 | à auditer               |
 | L09     | `packages/brand/src/**`                                                                                      | 10 fichiers                 | à auditer               |
 | L10     | `packages/content/src/**`                                                                                    | 25 fichiers                 | à auditer               |
@@ -879,6 +879,8 @@ nommé), puis verts après restauration.
 | R59 | `AnnotationFilterPill` : quand `allowPublicAnnotations` est faux, l'option « Toutes » disparaît alors que `filterMode` vaut `all` par défaut — le rail n'affiche aucune option cochée tout en continuant de filtrer en mode `all` (officielles + les siennes). Deux issues possibles : garder une option « Tout » même sans annotations publiques, ou normaliser `all` → `official` quand la contrainte tombe. | faible | Décision produit / design system (le mode `all` reste fonctionnel, l'affichage seul est ambigu) — voir L07b. |
 | R60 | `reader/useBionicReading` : le mode bionique écrit `innerHTML` dans un conteneur possédé par React et met l'original en cache dans `data-original-html`. Un corps re-rendu après activation (annotation ajoutée, document canonique rechargé) rend donc l'ancien HTML à la désactivation. Le correctif propre est un bionic **déclaratif** au rendu des blocs, pas une mutation DOM. | moyenne | Chantier de design du lecteur (aucun écran n'active aujourd'hui le bionic sur un corps canonique, mais le chemin est armé) — voir L07b. |
 | R61 | `nextUrl` de bout en bout : `AuthModalContext` le calcule (`?auth=…&next=…`, URL courante), `GlobalAuthModalProvider` le transmet, `LoginModal` l'accepte… et ne l'utilise jamais. Après connexion, `router.refresh()` garde la page courante. `setMode` n'a aucun consommateur, et `?auth=login` n'est jamais retiré de l'URL (recharger rouvre la modale). | moyenne | Décision produit (revenir à l'URL d'origine après connexion, ou rester sur place ; nettoyer le paramètre au passage) — voir L07c. |
+| R63 | `deeplink.Notification` (Go) émet **`/article/{slug}`** — l'ancienne forme : 308 côté tenants, **404 côté core** — pour `LIKE`/`REPOST`/`COMMENT` sur article et pour le fan-out `MEDIA_ARTICLE_PUBLISHED`. `deeplink.Target` ne porte ni le propriétaire ni la catégorie, donc la canonique (`/{owner}/a/{slug}` ou `/{cat}/{slug}`) n'est pas constructible en l'état. Le garde `guard:article-links` ne scanne pas le Go : ce chemin lui échappe. | moyenne | Décision serveur : ajouter `OwnerUsername` (ou `CategorySlug`) au `Target` et construire la canonique, ou assumer que le client ne reçoit que des `url` déjà canoniques. Voir L07e. |
+| R64 | `social/MediaLightbox` et `social/ZoomableLightbox` restent des `fixed inset-0` sans `role="dialog"`/focus confiné (Échap et flèches sont câblés à la main, correctement). Leur migration sur `Dialog` demande de composer avec le pan/zoom et les gestes tactiles — arbitrage design, pas correction mécanique. | moyenne | Décision design (le comportement clavier existe déjà ; c'est la modalité ARIA et le piège du focus qui manquent). Voir L07e. |
 | R62 | `LocaleProvider` n'est monté que par `apps/studio` : `core` et `tenants` laissent react-aria prendre la locale du navigateur côté client et `en-US` côté serveur — exactement le désaccord d'hydratation que le provider existe pour empêcher (segments de date, calendrier, tri). | moyenne | Décision d'app (quelle source de locale : cookie, en-tête, route localisée) puis montage dans les deux layouts — voir L07c. |
 
 ---
@@ -1114,6 +1116,80 @@ existants.
 **R54** (baselines visuelles), **R56** (doublons `select`/`date`) et **R01**
 (`checkContentAccess` fail-open) restent **ouvertes** : décision utilisateur
 (environnement de référence, design system, comportement produit).
+
+---
+
+## L07e — `@qoe/ui` notifications, onboarding, profile, social, cmdk, templates, sidebar — durci le 2026-11-19
+
+**Périmètre.** Les **86 fichiers** du lot (sources et tests). Lus intégralement :
+`notifications/**` (6 sources, dont `NotificationItem` 476 l. et
+`NotificationList` 178 l.), `cmdk/**` (3), `onboarding/OnboardingModal`,
+`profile/index.ts`, `sidebar.tsx` (881 l.), et dans `social/` :
+`LinkPreview`, `QuotedArticleCard`, `ReportModal`, `ConfirmDeleteModal`,
+`RepostPopover`, `ShareMenu`, `MediaLightbox`, `ZoomableLightbox`,
+`ProfileHoverCard`, `EntityActionMenu`, `ThoughtCard` (contracts),
+`ThoughtActions`, `ThoughtBody`, `ThoughtHeader`, `KnownLikers`,
+`HiddenParentNotice`. Les **27 sources de `templates/`** (`parser`, `schema`,
+`navigation`, `defaults`, `TemplateRenderer`, les 18 blocs, l'archétype
+minimal, le registre) ont été parcourues par lecture structurelle et recherche
+ciblée sur les puits dangereux (`dangerouslySetInnerHTML`, `innerHTML`,
+`href={`, `target="_blank"`, `window.open`) : aucune autre injection,
+échappement ni forme d'URL obsolète n'y subsiste — `ArticleContentBlock` et
+`AboutPageContent` passent déjà par `sanitizeArticleHtml`, et tous les liens
+externes portent `rel="noopener noreferrer"`.
+
+**Appelants vérifiés.** `apps/core` (`layout.tsx` — bandeau d'annonce —,
+`InAppPlacement`, `FeedDashboard` qui monte `OnboardingModal`,
+`NotificationsCenter`), `apps/studio` (`GlobalCommandMenu` qui monte
+`CmdKDialog`, `(creator)/notifications`), `apps/tenants` (`layout.tsx` monte
+`OnboardingModal`), `apps/admin` (`BroadcastAnnouncementConsole`).
+
+| #    | Défaut                                                                                                                                                                                                                                                                                                                                                                                        | Sévérité | Statut                                                                                                                                                                                                                                                                                                                                                                        |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F134 | `NotificationItem` : le dernier repli de lien produisait `/@${pseudo}` — le core sert `/{pseudo}` et n'a aucune route `/@…` : 404. La branche « article » (`/article/{slug}`) reste, elle, bloquée par le contrat serveur → **R63**.                                                                                                                                                                    | moyenne  | corrigé — repli `/@{pseudo}` remplacé par `/{pseudo}` encodé, comme les autres branches ; test `pointe vers le profil canonique du core` : **échouait** (`'/@camilleroux'` reçu), vert après                                                                                             |
+| F135 | `CmdKDialog` : palette de commandes montée en `fixed inset-0` maison — **aucun `role="dialog"`, aucun `aria-modal`, aucun piège ni restitution du focus**, fond cliquable muet, Échap recâblé à la main et `document.body.style.overflow` écrasé sans restauration. C'est l'interface clavier du produit.                                                                                    | haute    | corrigé — `Dialog`/`DialogContent` (react-aria) nommés « Menu de commandes » ; verrou de défilement et Échap fournis par `ModalOverlay` ; test `est une vraie boîte de dialogue, focus compris` : **échouait** (`Unable to find role="dialog" and name "Menu de commandes"`), vert après |
+| F136 | `OnboardingModal` : portail maison (`createPortal` + `AnimatePresence`) sans `role`, sans `aria-modal`, sans piège du focus — un écran qui bloque tout le produit laissait tabuler dans la page derrière. Échap était impossible, même en mode facultatif.                                                                                                                                  | haute    | corrigé — `Dialog isDismissable={dismissible}` : focus confiné, arrière-plan `aria-hidden`, Échap ferme seulement si l'écran est facultatif ; 2 tests (`concentre le focus…`, `se ferme à Échap quand il est facultatif`) : **échouaient** tous deux sur `role="dialog"`, verts après  |
+| F137 | `NotificationList` : les cinq filtres étaient des `<button>` nus — ni `role="tab"`, ni `aria-selected`, ni `tablist`, ni panneau relié : un lecteur d'écran annonçait cinq boutons sans dire lequel filtre la liste. Le bouton « Tout marquer comme lu » perdait son nom accessible sous `sm` (seul `title` restait).                                                                       | moyenne  | corrigé — `role="tablist"` + `role="tab"` + `aria-selected` + `aria-controls`, panneau `role="tabpanel"` relié à l'onglet actif, `aria-busy` pendant le chargement, `aria-label` sur le bouton d'action ; 2 tests : **échouaient** (`Unable to find … role "tablist"`), verts après |
+| F138 | `InvertedCurveBanner` : la **lecture** de `localStorage` n'était pas protégée alors que l'écriture l'était. En navigation privée (Safari), `getItem` lève une `SecurityError` dans l'effet et casse le rendu de l'écran qui héberge l'annonce.                                                                                                                                                  | moyenne  | corrigé — lecture sous `try/catch` (l'annonce reste affichée si le stockage est refusé) ; test `affiche l'annonce quand localStorage lève à la lecture` : **échouait** (`expected [Function] to not throw … SecurityError`), vert après                                                                        |
+| F139 | `QuotedArticleCard` : la carte était un `<div onClick>` — ni rôle, ni arrêt de tabulation, donc **impossible à ouvrir sans souris** — et l'ouverture appelait `window.open(url, '_blank')` **sans `noopener`** : la page ouverte pouvait réécrire l'onglet qoe.fi. `LinkPreview` avait la même omission d'argument.                                                                                                                                              | moyenne  | corrigé — la carte est une vraie ancre (`href`, clic milieu, menu contextuel, `rel="noopener noreferrer"`), `window.open` passe `'noopener,noreferrer'` ici et dans `LinkPreview` ; test `est un lien nommé, accessible au clavier…` : **échouait** (`Unable to find … role "link"`), vert après |
+| F140 | `sidebar.tsx` : les règles de prérendu étaient injectées via `JSON.stringify` dans un `<script>` **sans échappement** — `JSON.stringify` laisse passer `<`, `>` et `&` : une URL contenant `</script>` ferme l'élément et le reste est interprété comme du HTML. Le garde `guard:dangerous-html` exemptait le fichier en affirmant « pas du HTML ».                                     | faible   | corrigé — `<`, `>`, `&` échappés en séquences unicode (comme le JSON-LD), le contenu reste du JSON strictement valide ; test `n'échappe pas la sortie de <script>…` : **échouait** (`expected '{"prerender":…' not to contain '</script>'`), vert après |
+
+**Preuve rouge → vert.** Les neuf tests ont été écrits avant les correctifs.
+Premier passage → **9 échecs sur 9** : 8 dans les quatre nouveaux fichiers
+(3 notifications, 1 stockage, 3 modalité, 1 carte), puis le neuvième (sidebar)
+capturé en remettant le fichier d'origine (`git stash`) — **échouait** de la
+même façon —, tous verts après correctif sans retoucher un cas existant.
+
+**Preuves (arbre propre, après commits) :**
+
+| Commande | Résultat |
+| -------- | -------- |
+| `pnpm --filter @qoe/ui test` | **677 tests / 109 fichiers verts** (668/104 avant le lot : **+9 tests, +5 fichiers**) |
+| `pnpm typecheck` | 25/25 tâches |
+| `pnpm --filter @qoe/ui lint` | 0 erreur, 0 avertissement |
+| les 9 gardes CI (`guard:media-origin`, `audit:guard`, `ui:audit`, `arch:audit`, `guard:article-links`, `guard:dangerous-html`, `guard:flags-parity`, `guard:legal-consent`, `guard:seed-script`) | tous verts |
+
+**Observations trouvées, volontairement non corrigées.**
+
+- `ShareMenu` fabrique `{mainAppUrl}/a/{id}` quand aucun `authorHandle` n'est
+  fourni : même famille que R63 (le core n'a pas de route `/a/{slug}`), mais
+  aucun appelant ne l'atteint aujourd'hui.
+- `InvertedCurveBanner` porte des couleurs en dur (`#130F26`, `#A78BFA`…) au
+  lieu des tokens, et ses libellés (`Nouveau`, `Découvrir`, `Fermer l'annonce`)
+  ne passent pas par l'i18n ; `CmdKDialog` garde son pied de palette
+  (`Sélectionner avec`, `Naviguer avec…`) en français littéral. C'est un
+  arbitrage design/i18n (le bandeau est une signature visuelle), pas un bug.
+- `useRealtimeNotificationSync` replanifie une reconnexion toutes les secondes
+  tant qu'un consommateur est monté ; c'est voulu (résilience RT) mais il n'y a
+  ni backoff ni plafond.
+- `NotificationItem` continue d'exempter `guard:article-links` pour la branche
+  `/article/{slug}` : la raison est désormais **R63** et non plus une tâche
+  d'URL courte.
+
+**Dettes.** **R54** (baselines visuelles), **R56** (doublons `select`/`date`) et
+**R01** (`checkContentAccess` fail-open) restent **ouvertes** (décision
+utilisateur). Nouvelles dettes de ce lot : **R63** (deeplink Go → article) et
+**R64** (lightboxes non modales).
 
 ---
 
