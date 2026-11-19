@@ -202,6 +202,13 @@ export function QuotedArticleCard({
       )}`
     : '';
 
+  const baseUrl = getArticleUrl(article, { preferTenant: true });
+  const targetUrl = quoteParams ? `${baseUrl}${quoteParams}` : baseUrl;
+
+  // F139 — la carte était un `<div onClick>` : aucun rôle, aucun arrêt de
+  // tabulation, donc impossible à ouvrir sans souris. C'est maintenant une
+  // vraie ancre (href, clic milieu, menu contextuel), et la fenêtre d'origine
+  // est protégée quand l'ouverture passe par `window.open`.
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -209,18 +216,19 @@ export function QuotedArticleCard({
       // Le drawer extrait le quoteContext de l'article pour le spotlight.
       onOpenArticle(article);
     } else {
-      const baseUrl = getArticleUrl(article, { preferTenant: true });
-      const targetUrl = quoteParams ? `${baseUrl}${quoteParams}` : baseUrl;
-      window.open(targetUrl, '_blank');
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
     }
   };
 
   return (
-    <div
+    <a
+      href={targetUrl}
+      target="_blank"
+      rel="noopener noreferrer"
       onClick={handleClick}
       data-quoted-annotation={citation ? citation.id : undefined}
       className={cn(
-        'group/quote relative border border-border/30 bg-muted/20 transition-all duration-200 cursor-pointer space-y-3 font-sans select-none hover:border-border/60 hover:bg-muted/35',
+        'group/quote relative block border border-border/30 bg-muted/20 transition-all duration-200 cursor-pointer space-y-3 font-sans select-none hover:border-border/60 hover:bg-muted/35',
         compact ? 'my-1 rounded-lg p-3' : 'my-2.5 rounded-xl p-4',
         className
       )}
@@ -316,6 +324,6 @@ export function QuotedArticleCard({
           <ArrowUpRight className="w-3.5 h-3.5" />
         </div>
       </div>
-    </div>
+    </a>
   );
 }

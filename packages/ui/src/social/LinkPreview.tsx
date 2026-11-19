@@ -141,7 +141,7 @@ export function LinkPreview({
               },
               { preferTenant: true, absolute: true }
             );
-            window.open(url, '_blank');
+            window.open(url, '_blank', 'noopener,noreferrer');
           }
         }}
         className={className}
