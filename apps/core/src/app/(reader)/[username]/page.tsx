@@ -99,8 +99,14 @@ export default async function UserProfilePage({
   } = await supabase.auth.getUser();
 
   const resolved = await resolveProfileAction(rawUsername);
-  if (!resolved.ok || !resolved.data) {
-    notFound();
+  if (!resolved.ok) {
+    // `safeAction` réserve `NOT_FOUND` au vrai 404 du backend : une panne Go ne
+    // doit pas se déguiser en « profil introuvable » (ni en 404 pour les moteurs).
+    if (resolved.error?.code === 'NOT_FOUND') notFound();
+    throw new Error(resolved.error?.message || 'Profil indisponible pour le moment.');
+  }
+  if (!resolved.data) {
+    throw new Error('Profil indisponible pour le moment.');
   }
 
   const {

@@ -58,11 +58,17 @@ export function FollowList({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const requestSeq = useRef(0);
+  // L'attente en vol vit dans une ref : garder un `reset` derrière un état
+  // `loading` laissait le nouvel onglet vide pour toujours quand on basculait
+  // pendant le premier chargement (la page suivante était simplement ignorée).
+  const loadingRef = useRef(false);
 
-  // Charge une page. `reset` repart de zéro (nouvel onglet).
+  // Charge une page. `reset` repart de zéro (nouvel onglet) et n'est jamais
+  // bloqué : seule la pagination attend la fin de la page précédente.
   const load = useCallback(
     async (reset: boolean) => {
-      if (loading) return;
+      if (!reset && loadingRef.current) return;
+      loadingRef.current = true;
       setLoading(true);
       setError(null);
       const seq = ++requestSeq.current;
@@ -77,13 +83,22 @@ export function FollowList({
         setCursor(data.nextCursor ? Number(data.nextCursor) : null);
         setHasMore(data.hasMore);
       } catch {
-        setError('Impossible de charger la liste.');
+        if (seq === requestSeq.current) setError('Impossible de charger la liste.');
       } finally {
-        setLoading(false);
+        // Une requête périmée ne doit pas éteindre l'indicateur de la plus récente.
+        if (seq === requestSeq.current) {
+          loadingRef.current = false;
+          setLoading(false);
+        }
       }
     },
-    [handle, tab, cursor, loading]
+    [handle, tab, cursor]
   );
+
+  // La ref évite de dépendre de l'identité de `load` (qui change avec le cursor)
+  // tout en chargeant toujours la version du rendu courant.
+  const loadRef = useRef(load);
+  loadRef.current = load;
 
   // Change d'onglet → réinitialise et recharge la première page.
   useEffect(() => {
@@ -92,7 +107,7 @@ export function FollowList({
     setHasMore(false);
     setError(null);
     requestSeq.current += 1;
-    void load(true);
+    void loadRef.current(true);
   }, [tab]);
 
   const handleFollow = async (actor: FollowActor) => {

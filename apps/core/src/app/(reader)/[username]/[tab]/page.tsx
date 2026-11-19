@@ -156,8 +156,13 @@ export default async function UserProfileTabPage({
     } = await supabase.auth.getUser();
 
     const resolved = await resolveProfileAction(rawUsername);
-    if (!resolved.ok || !resolved.data) {
-      notFound();
+    if (!resolved.ok) {
+      // Même contrat que `/:username` : seul un NOT_FOUND Go vaut un 404.
+      if (resolved.error?.code === 'NOT_FOUND') notFound();
+      throw new Error(resolved.error?.message || 'Profil indisponible pour le moment.');
+    }
+    if (!resolved.data) {
+      throw new Error('Profil indisponible pour le moment.');
     }
 
     const {

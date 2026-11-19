@@ -342,8 +342,12 @@ export function ProfileView({
   const mediaThoughts = enrichedPosts.filter((p) => !!p.imageUrl);
   const pinnedThoughts = rootThoughts.filter((p) => p.isPinned);
   const regularThoughts = rootThoughts.filter((p) => !p.isPinned);
+  // Une publication vit sur l'origine résolue par le repo (dev, préprod,
+  // domaine racine interchangeable) : jamais un domaine de production en dur.
   const siteUrl =
-    user.website || user.customDomain || (user.subdomain ? `${user.subdomain}.qoe.fi` : null);
+    user.website ||
+    user.customDomain ||
+    (user.subdomain ? routes.tenant.home(user.subdomain) : null);
 
   const formattedJoinedDate = new Date(user.createdAt).toLocaleDateString('fr-FR', {
     month: 'long',

@@ -89,8 +89,8 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b2b | `(reader)/home/components/ThoughtComposer.tsx` + son test                                                   | 2 fichiers · 2 748 l.       | **durci le 2026-11-19** |
 | L20b2b2c | `(reader)/home/components/thread/**`                                                                       | 13 fichiers · 1 743 l.      | **durci le 2026-11-19** |
 | L20b2b3 | `app/(reader)/library/**`                                                                                    | 18 fichiers · 3 689 l.      | **clos** : L20b2b31 (racine, 5 f.) **durci le 2026-11-19** + L20b2b32 (`ebooks/**`, 13 f.) **durci le 2026-11-19** |
-| L20b2b4 | `app/(reader)/[username]/**`                                                                                 | 9 fichiers · 2 184 l.       | à auditer               |
-| L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | à auditer               |
+| L20b2b4 | `app/(reader)/[username]/**`                                                                                 | 9 fichiers · 2 184 l.       | **durci le 2026-11-19** |
+| L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | à auditer — **prochain lot** |
 | L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | à auditer               |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
 | L21     | `apps/studio/src/**`                                                                                         | 509 fichiers                | à auditer               |
@@ -113,10 +113,10 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L20b2b4 — `apps/core/src/app/(reader)/[username]/**`**
-(9 fichiers · 2 184 l., mesuré ; L20b2b3 clos — bibliothèque entière, 18 fichiers ·
-3 778 l. après correctifs ; ordre restant : L20b2b4 profils, L20b2b5 réglages,
-L20c composants, L20d hooks/features).
+**Prochain lot à traiter : L20b2b5 — `apps/core/src/app/(reader)/settings/**`**
+(7 fichiers · 2 159 l., mesuré ; L20b2b4 clos — profils, 9 fichiers ·
+2 220 l. après correctifs ; ordre restant : L20b2b5 réglages, L20c composants,
+L20d hooks/features).
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -897,6 +897,9 @@ nommé), puis verts après restauration.
 | R74 | `canonicalEmail` est calculé par `@qoe/moderation` et écrit dans les métadonnées Supabase (`options.data`) au signup, mais **aucun code ne le lit** : ni le sync Go, ni la base (aucun index unique). L'anti-multi-comptes annoncé par le module ne s'exerce donc pas au-delà du jour de l'inscription, et la suppression systématique du tag `+` (tous fournisseurs, pas seulement Gmail) n'a aucune conséquence observable. | moyenne | Arbitrage backend : colonne `canonicalEmail` + index unique dans une migration goose, puis refus de doublon côté Go (`/v1/auth/sync`), en décidant si l'on garde Gmail uniquement pour les points. Voir L14. |
 | R94 | `/api/articles/[slug]` (core) n'a **aucun appelant** dans le repo : la page article lit côté serveur. Route morte dont le contrat HTTP vient d'être corrigé (cache privé, L20b1) mais qui reste à supprimer ou à réutiliser explicitement. | faible | Arbitrage : supprimer la route (et son test) ou la brancher sur le préchargement client ; décision produit sur le préchargement d'article. Voir L20b1. |
 | R93 | `packages/analytics` envoie la session de lecture par `navigator.sendBeacon(endpointUrl, payload)` avec un **corps texte** (Content-Type `text/plain`) : le handler lit `req.json()`, qui fonctionne par chance (pas de validation de type de contenu côté Next). Aucun rejet observé, mais le contrat média n'est pas explicite. | faible | Arbitrage : créer un `Blob` typé `application/json` à l'envoi, ou valider/ignorer explicitement le Content-Type côté route. Voir L20b1. |
+| R119 | Duplications dans le périmètre profil : `STATIC_ASSET_REGEX` et `RESERVED_USERNAMES` recopiés à l'identique dans `/:username` et `/:username/:tab`, dépliage `{ data } \| T` du Go répété quatre fois, et `[tab]/generateMetadata` refait un `goFetch` du profil que la page refait juste après (deux appels Go par requête). | faible | Extraire un module `profile-routing` (constantes + `unwrapGoData`) et dédupliquer la résolution : à faire avec des tests de non-régression sur les redirections. Voir L20b2b4. |
+| R118 | `ProfileView.handleTabChange` pousse l'URL par `window.history.pushState` et resynchronise l'onglet par un listener `popstate` au lieu de `router.push` : le router d'App Router n'est pas averti (pathname obsolète, pas de re-render de segment) même si le comportement visible reste correct. | faible | Passer par `router.push(routes.feed.profile(handle, tab), { scroll: false })` et supprimer le listener manuel, avec un test de navigation douce. Voir L20b2b4. |
+| R117 | `ProfileView.handleDeletePost` attend `deletePost` (mutation react-query) sans `try/catch` : un rejet produit une promesse non gérée sans aucun message pour l'utilisateur. | faible | Envelopper dans `try/catch` avec toast et retour `false`, comme `ThoughtThreadRoot` ; le rouge demande de rejouer la modale de confirmation de `ThoughtCard`. Voir L20b2b4. |
 | R116 | Ouvrir un livre avec `?chapter=` (lien depuis « mes notes ») déclenche immédiatement une sauvegarde de progression : la position de lecture mémorisée du livre est écrasée par le chapitre consulté. | faible | Décider du comportement (le parcours d'une note est-il une progression ?) et, si non, ne pas remplacer `progressChapter` quand `initialChapter` est fourni. Voir L20b2b32. |
 | R115 | `EbooksClient` rend la barre de progression avec `width: ${book.progressPct}%` **sans** `clampPct`, alors que `describeEbookProgress` borne à 0-100 : une valeur serveur aberrante déborderait de la vignette. | faible | Passer par `clampPct(book.progressPct)` (helper déjà testé) et couvrir la borne. Voir L20b2b32. |
 | R114 | `EbooksClient.onDelete` enveloppe un callback `async` dans `startTransition` : `pendingDelete` ne reflète aucun travail réel (même famille que R110), donc le bouton « Confirmer » n'a aucun état d'attente. | faible | Sortir l'`await` de la transition ou exposer un état `pendingDeleteId` explicite. Voir L20b2b32. |
@@ -1461,6 +1464,86 @@ existante modifiée, aucune doublure touchée.
 **Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65**, **R66**
 restent **ouvertes**. Nouvelle dette : **R67** (surfaces `continuous`,
 `highlighter`, `paywall`, `excerpt` sans consommateur TS).
+
+---
+
+## L20b2b4 — `apps/core/src/app/(reader)/[username]/**` — durci le 2026-11-19
+
+**Périmètre lu en entier.** Les **9 fichiers** : `page.tsx` (141 l.), `[tab]/page.tsx`
+(191 l.), `a/[slug]/page.tsx` (243 l.), `thought/[id]/page.tsx` (103 l.),
+`components/ProfileView.tsx` (885 l.), `components/FollowList.tsx` (292 l.) et les 3 suites
+(80 / 81 / 168 l.). Imports : `resolveProfileAction` + `getPostThreadAction` (server actions),
+`goFetch` en RSC (`a/[slug]`, `[tab]` metadata), `createClient` Supabase, `useRouter` de
+`next/navigation`, `withShadowMutation`/`updateActorShadow`/`useDeletePostMutation`,
+`@qoe/ui` (`CertifiedBadge`, `Dialog`, `ShareMenu`, `HiddenParentNotice`, `ArticleCard`,
+`Tabs`, `Button`, `JsonLd`). Consommateurs : les 4 pages sont des routes ; `ProfileView` est
+importé par `page.tsx` et `[tab]/page.tsx` ; `FollowList` uniquement par `ProfileView` (modale
+abonnés) → **chaque export a un appelant**. `params`/`searchParams` sont bien asynchrones
+(conventions Next installées respectées) ; aucun `fetch` brut ; `ArticleCard`/`ThoughtCard`.
+
+**Constats d'architecture.** Le follow n'a **pas** de bug de double-envoi :
+`withShadowMutation` verrouille par `lockKey` (`inFlightLocks`, lu dans
+`packages/sdk/src/shadow.ts`) et annule avec rollback. Le contrat d'erreur est lui aussi
+explicite : `safeAction` renvoie `error.code === 'NOT_FOUND'` **uniquement** pour un 404 Go
+(commentaire du fichier : « l'appelant décide via `error.code === 'NOT_FOUND'`
+(ex. notFound()) »). Les pages ne le respectaient pas → F255.
+
+| #    | Défaut                                                                                                                                                                                                                                                                                                                       | Sévérité | Statut |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------ |
+| F255 | Les **trois** pages profil (`/:username`, `/:username/:tab`, `/:username/thought/:id`) appelaient `notFound()` sur **n'importe quel** échec d'action : une panne Go devenait « Profil introuvable » avec un **404** (faux négatif pour l'utilisateur, page désindexée pour les moteurs) et le message d'erreur réel disparaissait. | haute    | corrigé — `NOT_FOUND` seul vaut `notFound()`, sinon on relève l'erreur (500 honnête) ; rouge : `AssertionError: expected [Function] to throw error including 'Go API 503' but got 'NEXT_HTTP_ERROR_FALLBACK;404'` (×3) |
+| F256 | `FollowList.load` gardait un `reset` derrière l'état `loading` **et** invalidait la requête en vol (`requestSeq`) : basculer d'onglet pendant le premier chargement laissait la liste des abonnés **définitivement vide** — le nouvel onglet n'était jamais demandé. | moyenne  | corrigé — attente en `loadingRef` (seule la pagination patiente), un `reset` n'est jamais bloqué, et une requête périmée n'éteint plus l'indicateur de la requête courante ; rouge : `AssertionError: expected "vi.fn()" to be called 2 times, but got 1 times` |
+| F257 | `ProfileView` fabriquait le site d'une publication en dur (`${subdomain}.qoe.fi`) : en dev, préprod ou e2e, un profil de média renvoyait vers la **production**. Écart avec l'axe portabilité du repo (« on ne code jamais un domaine propriétaire dans la logique »). | faible   | corrigé — `routes.tenant.home(subdomain)` (origine résolue : port de dev, `qoe.test`, domaine racine) ; rouge : `AssertionError: expected 'https://lesdocs.qoe.fi' to be 'http://lesdocs.localhost:15403/'` |
+
+**Candidats examinés puis ABANDONNÉS** :
+
+- **Double-envoi de « Suivre »** : `lockKey` + `inFlightLocks` dans `withShadowMutation` → la
+  seconde requête n'est pas envoyée, rollback compris. Pas un défaut (lu dans le code réel).
+- **Tripwire 404 → notFound** : couvert par un quatrième test qui **passe** avant et après
+  (`NOT_FOUND` reste un 404) — garde anti-surcorrection de F255.
+- **`handleDeletePost` sans `try/catch`** : le seul chemin est la modale de confirmation de
+  `ThoughtCard` (mutation react-query) ; un rejet produirait une promesse non gérée sans message —
+  pas de rouge bon marché sans rejouer toute la carte → **R117**.
+- **`handleTabChange` par `window.history.pushState` + listener `popstate`** au lieu de
+  `router.push` : l'état observé reste correct (back/forward resynchronise l'onglet), mais le
+  router d'App Router n'est pas averti → **R118** (écart de convention, pas de rouge).
+- **Duplications** : `STATIC_ASSET_REGEX` + `RESERVED_USERNAMES` recopiés dans 2 pages, et le
+  dépliage `{ data } | T` du Go répété 4× ; `[tab]/generateMetadata` refait en plus le `goFetch`
+  du profil déjà fait par la page → **R119**.
+- **`notFound(); return;`** inatteignable dans `a/[slug]`, et `console.error` du chemin serveur
+  (pattern déjà utilisé par `safe-action.ts`) : pas des défauts.
+- **`post as never as OptimisticThought`** (page pensée) : double-cast déjà couvert par la dette
+  de typage **R101**, pas de nouveau numéro.
+- **`fetchArticleBySlug` qui relaie une panne Go** (500 assumé sur la page article) : choix
+  défendable (le contenu demandé n'existe pas localement) → non retenu.
+
+**Preuve rouge → vert.** Deux suites écrites **avant** correctifs :
+`__tests__/profile-availability.test.ts` (**3 échecs / 4**, le 4e étant le tripwire 404) et
+`components/__tests__/profile-hardening.test.tsx` (**2 échecs / 2**). Après correctifs : **6/6**,
+et les 3 suites existantes du périmètre restent vertes **sans modification**.
+
+**Preuves mesurées :**
+
+| Commande | Avant | Après |
+| -------- | ----- | ----- |
+| `pnpm --filter @qoe/core test` | 41 fichiers · **295 tests** | 43 fichiers · **301 tests** |
+| `pnpm --filter @qoe/core lint` | 0 erreur (9 warnings) | **0 erreur** (9 warnings) |
+| `pnpm lint` / `pnpm typecheck` / `pnpm test` | 25/25 · 25/25 · 24/24 | **25/25 · 25/25 · 24/24** |
+| `pnpm typecheck:root` | ✔ | **✔** |
+| gardes CI (10, dont `arch:audit`, `ui:audit`, `media-origin`) | vertes | **vertes** |
+| `pnpm test:coverage` (R91) | `branches 78.18% < 85%` | **identique (78.18 %)**, seul rouge, préexistant |
+| lignes du périmètre | 2 184 | **2 220** (+36 : `page` 141→147, `[tab]/page` 191→196, `FollowList` 292→307, `ProfileView` 885→889, `thought/[id]/page` 103→109) + 214 l. de tests |
+
+**Non vérifié.** Aucun navigateur ni `next build` ; `notFound()`/`redirect()` reproduits par des
+mocks (l'exception de contrôle Next est simulée, pas produite par le vrai runtime) ; aucune
+requête Go/Supabase réelle : `resolveProfileAction`, `getPostThreadAction` et
+`getFollowListAction` sont mockées, donc le mapping réel `safeAction` → `error.code` n'est
+prouvé que par lecture du code ; navigation réelle (`pushState`, `popstate`, retour arrière)
+non exercée ; modale d'abonnés rendue hors `Dialog` (contenu uniquement) ; `withShadowMutation`
+remplacé par un stub dans le test de course ; `pnpm test:api`, `pnpm e2e` non lancés ;
+montage React complet du profil (cartes, overlays, framer-motion) non vérifié.
+
+**Dettes.** **R01**, **R54**, **R56**, **R63** à **R74**, **R78** à **R116** restent
+ouvertes ; nouvelles : **R117** à **R119**.
 
 ---
 

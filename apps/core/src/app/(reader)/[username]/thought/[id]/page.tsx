@@ -67,8 +67,14 @@ export default async function ThoughtPage({ params }: ThoughtPageProps) {
     user ? getRequestDbUser(user.id) : null,
   ]);
 
-  const post = threadRes.ok ? threadRes.data?.post : null;
+  if (!threadRes.ok) {
+    // Un `NOT_FOUND` Go est un vrai 404 ; une panne est une panne (500), pas
+    // une pensée « introuvable ».
+    if (threadRes.error?.code === 'NOT_FOUND') notFound();
+    throw new Error(threadRes.error?.message || 'Pensée indisponible pour le moment.');
+  }
 
+  const post = threadRes.data?.post;
   if (!post) {
     notFound();
   }
