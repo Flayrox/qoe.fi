@@ -3,8 +3,47 @@
 // =====================================================================
 
 export const URL_REGEX = /(https?:\/\/[^\s]+)/gi;
-export const MENTION_REGEX = /(^|\s)(@[a-zA-Z0-9_.-]+)/g;
-export const TAG_REGEX = /(^|\s)(#[a-zA-Z0-9_à-ÿ-]+)/g;
+// Frontière = "pas un caractère de handle" : une mention collée à `(` ou `«`
+// doit être reconnue comme dans `Merci (@alice)`, alors qu'un `@` précédé d'un
+// caractère de handle (`alice@qoe.fi`) reste une adresse e-mail.
+//
+// ⚠️ Parité stricte avec `apps/api/internal/antispam/antispam.go` :
+// `(?:^|[^a-zA-Z0-9._%+-])@([a-zA-Z0-9_][a-zA-Z0-9_.-]{0,39})`. Sans la règle
+// du premier caractère, `@.alice` produisait un profil `.alice` (404) alors
+// que Go ne notifie personne ; sans la borne de 40, la longueur divergeait.
+export const MENTION_REGEX = /(^|[^a-zA-Z0-9_.%+@-])(@[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,39})/g;
+// Même logique pour les hashtags : `(#tech)` et `«#tech»` sont des tags, un
+// fragment d'URL (`/tag#tech`) n'en est pas un.
+export const TAG_REGEX = /(^|[^a-zA-Z0-9_à-ÿ-])(#[a-zA-Z0-9_à-ÿ-]+)/g;
+
+/** Ponctuation qui termine une phrase et ne fait jamais partie d'un lien. */
+const URL_TRAILING_PUNCTUATION = /[.,;:!?…"'’«»”\]]/;
+
+/**
+ * Longueur utile d'une URL : coupe la ponctuation finale et les parenthèses
+ * non équilibrées (`(voir https://qoe.fi/a)`), sans casser les URLs qui en
+ * contiennent légitimement (`…/Qoe_(marque)`).
+ */
+function trimmedUrlLength(url: string): number {
+  let end = url.length;
+  while (end > 0) {
+    const last = url[end - 1];
+    if (URL_TRAILING_PUNCTUATION.test(last)) {
+      end -= 1;
+      continue;
+    }
+    if (last === ')') {
+      const opens = (url.slice(0, end).match(/\(/g) ?? []).length;
+      const closes = (url.slice(0, end).match(/\)/g) ?? []).length;
+      if (closes > opens) {
+        end -= 1;
+        continue;
+      }
+    }
+    break;
+  }
+  return end;
+}
 
 export type TextSegment =
   | { kind: 'text'; value: string }
@@ -25,32 +64,41 @@ export function segmentText(text: string): TextSegment[] {
   const urlRegex = new RegExp(URL_REGEX.source, URL_REGEX.flags);
   let m: RegExpExecArray | null;
   while ((m = urlRegex.exec(text)) !== null) {
+    const end = trimmedUrlLength(m[0]);
+    const url = m[0].slice(0, end);
+    // "https://" seul : rien à ouvrir, on laisse le texte tel quel.
+    if (url.length <= 'https://'.length) continue;
     matches.push({
       start: m.index,
-      end: m.index + m[0].length,
-      seg: { kind: 'link', value: m[0], url: m[0] },
+      end: m.index + end,
+      seg: { kind: 'link', value: url, url },
     });
   }
 
-  // Mentions
+  // Mentions — un handle ne finit ni par `.` ni par `-` : `@alice.` en fin de
+  // phrase donnait un profil `alice.` (404), le point restant dans le texte.
   const mentionRegex = new RegExp(MENTION_REGEX.source, MENTION_REGEX.flags);
   while ((m = mentionRegex.exec(text)) !== null) {
-    const handle = m[2].slice(1);
+    const raw = m[2].replace(/[.-]+$/, '');
+    if (raw.length < 2) continue;
+    const start = m.index + m[1].length;
     matches.push({
-      start: m.index + m[1].length,
-      end: m.index + m[0].length,
-      seg: { kind: 'mention', value: m[2], handle },
+      start,
+      end: start + raw.length,
+      seg: { kind: 'mention', value: raw, handle: raw.slice(1) },
     });
   }
 
-  // Hashtags
+  // Hashtags — même règle pour le tiret final (`#tech-`).
   const tagRegex = new RegExp(TAG_REGEX.source, TAG_REGEX.flags);
   while ((m = tagRegex.exec(text)) !== null) {
-    const tag = m[2].slice(1);
+    const raw = m[2].replace(/-+$/, '');
+    if (raw.length < 2) continue;
+    const start = m.index + m[1].length;
     matches.push({
-      start: m.index + m[1].length,
-      end: m.index + m[0].length,
-      seg: { kind: 'tag', value: m[2], tag },
+      start,
+      end: start + raw.length,
+      seg: { kind: 'tag', value: raw, tag: raw.slice(1) },
     });
   }
 

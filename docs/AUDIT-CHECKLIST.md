@@ -79,7 +79,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L15     | `packages/analytics/src/**`                                                                                  | 8 fichiers src + 6 suites   | **durci le 2026-11-19** |
 | L16     | `packages/observability/src/**`                                                                              | 7 fichiers src + 3 suites   | **durci le 2026-11-19** |
 | L17     | `packages/devtools/src/**`                                                                                   | 2 fichiers src + 1 suite    | **durci le 2026-11-19** |
-| L18     | `packages/social/src/**`                                                                                     | 6 fichiers                  | à auditer               |
+| L18     | `packages/social/src/**`                                                                                     | 5 sources + 2 suites        | **durci le 2026-11-19** |
 | L19     | `packages/tsconfig/**`                                                                                       | 0 fichier src               | à auditer               |
 | L20     | `apps/core/src/**`                                                                                           | 211 fichiers                | à auditer               |
 | L21     | `apps/studio/src/**`                                                                                         | 509 fichiers                | à auditer               |
@@ -102,7 +102,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L18 — `packages/social`.**
+**Prochain lot à traiter : L19 — `packages/tsconfig`.**
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -881,6 +881,9 @@ nommé), puis verts après restauration.
 | R61 | `nextUrl` de bout en bout : `AuthModalContext` le calcule (`?auth=…&next=…`, URL courante), `GlobalAuthModalProvider` le transmet, `LoginModal` l'accepte… et ne l'utilise jamais. Après connexion, `router.refresh()` garde la page courante. `setMode` n'a aucun consommateur, et `?auth=login` n'est jamais retiré de l'URL (recharger rouvre la modale). | moyenne | Décision produit (revenir à l'URL d'origine après connexion, ou rester sur place ; nettoyer le paramètre au passage) — voir L07c. |
 | R63 | `deeplink.Notification` (Go) émet **`/article/{slug}`** — l'ancienne forme : 308 côté tenants, **404 côté core** — pour `LIKE`/`REPOST`/`COMMENT` sur article et pour le fan-out `MEDIA_ARTICLE_PUBLISHED`. `deeplink.Target` ne porte ni le propriétaire ni la catégorie, donc la canonique (`/{owner}/a/{slug}` ou `/{cat}/{slug}`) n'est pas constructible en l'état. Le garde `guard:article-links` ne scanne pas le Go : ce chemin lui échappe. | moyenne | Décision serveur : ajouter `OwnerUsername` (ou `CategorySlug`) au `Target` et construire la canonique, ou assumer que le client ne reçoit que des `url` déjà canoniques. Voir L07e. |
 | R74 | `canonicalEmail` est calculé par `@qoe/moderation` et écrit dans les métadonnées Supabase (`options.data`) au signup, mais **aucun code ne le lit** : ni le sync Go, ni la base (aucun index unique). L'anti-multi-comptes annoncé par le module ne s'exerce donc pas au-delà du jour de l'inscription, et la suppression systématique du tag `+` (tous fournisseurs, pas seulement Gmail) n'a aucune conséquence observable. | moyenne | Arbitrage backend : colonne `canonicalEmail` + index unique dans une migration goose, puis refus de doublon côté Go (`/v1/auth/sync`), en décidant si l'on garde Gmail uniquement pour les points. Voir L14. |
+| R85 | Divergence des règles de mention entre les trois implémentations : `@qoe/social` (parité antispam, 40 car.) , `apps/api/internal/antispam` (`@` précédé de `[^a-zA-Z0-9._%+-]`) et `apps/api/internal/modules/posts/notifications.go` (`@([a-zA-Z0-9_]+)` — ni point ni tiret). Un handle `@jean.dupont` est donc lié dans l'UI, indexé par l'antispam, mais **ne notifie jamais** son destinataire. | moyenne | Arbitrage : extraire la règle unique (Go) et faire consommer la même liste de handles par la notification et par le rendu ; nécessite une décision sur les handles à point. Voir L18. |
+| R84 | `apps/mobile` duplique `normalizeThought`/`isNormalized`/`resolveDisplay` (`apps/mobile/src/components/thought/normalize.ts`, avec un `as any`) au lieu d'utiliser `@qoe/social` : deux normalisations à maintenir, dont une non typée. | faible | Arbitrage : faire pointer mobile sur `@qoe/social` (types `FeedPost` locaux) et supprimer le cast. Voir L18. |
+| R83 | `apps/core/src/lib/feed-types.ts` redéclare `FeedPoll`/`FormattedPoll` au lieu de les importer de `@qoe/social`, et garde les champs legacy `_count`/`votes` que Go n'envoie plus. Aligné (champs optionnels) mais toujours dupliqué. | faible | Arbitrage : remplacer les interfaces locales par `import type { RawPoll, FormattedPoll } from '@qoe/social'` une fois les derniers snapshots `_count` purgés. Voir L18. |
 | R82 | `@qoe/devtools` garde des dépendances **inutilisées** (`next`, `react`, `@types/react` — aucun `.tsx`, aucun import React) et charge `dotenv/config` **à l'exécution dans un module `'use server'`** consommé par Next 16, qui charge déjà les `.env` lui-même : dépendance morte qui alourdit le bundle serveur et impose un `import 'crypto'` Node (le global `crypto.randomUUID()` suffit). | faible | Arbitrage : supprimer `dotenv` + les 3 devDeps et passer à `globalThis.crypto.randomUUID()` ; nécessite un `pnpm install` (lockfile) et une vérif du panneau dans les 5 apps. Voir L17. |
 | R81 | Le `DevtoolsPanel` **n'est pas gardé par `NODE_ENV` dans 4 apps sur 5** : `apps/{core,studio,admin,tenants}` le montent inconditionnellement (seul `apps/hi` teste `NODE_ENV === 'development'`). Les server actions `@qoe/devtools` sont donc appelables depuis un déploiement de production ; seule la couche Go (403 superadmin, bypass secret désactivé hors dev) les protège. | moyenne | Arbitrage : aligner les 4 layouts sur `process.env.NODE_ENV === 'development'` (ou une variable `QOE_DEVTOOLS_*` explicite si le panneau doit rester dispo en preview) — hors périmètre `packages/devtools`, relevé ici. Voir L17. |
 | R80 | `withCache` de `@qoe/observability/server` ne peut pas **cacher une valeur `null`** : `cacheGet` rend `null` aussi bien pour « absent » que pour « null stocké », donc le *negative caching* (article inexistant, résultat vide) est impossible et la requête repart en base à chaque appel. `withCache` absorbe aussi la latence : `maxRetriesPerRequest: null` sans `commandTimeout`, les commandes s'empilent indéfiniment si Redis tombe. | moyenne | Arbitrage : changer `cacheGet` en `{ hit, value }` (touche tous les appelants) ou coder l'absence par un sentinelle ; et borner `commandTimeout`/`maxRetriesPerRequest`. Voir L16. |
@@ -1413,6 +1416,81 @@ existante modifiée, aucune doublure touchée.
 **Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65**, **R66**
 restent **ouvertes**. Nouvelle dette : **R67** (surfaces `continuous`,
 `highlighter`, `paywall`, `excerpt` sans consommateur TS).
+
+---
+
+## L18 — `@qoe/social` facets, sondages, threads, normalisation — durci le 2026-11-19
+
+**Périmètre.** Les **5 sources** lues en entier (`index`, `facets`, `polls`,
+`threads`, `normalize`) + `package.json`, `tsconfig.json`, `vitest.config.ts` et
+la suite existante (15 tests). **Consommateurs réels** :
+`apps/mobile/src/components/thought/rich-text.tsx` (`segmentText` → liens,
+mentions, tags cliquables), `apps/core/src/lib/feed-types.ts` +
+`apps/core/src/lib/vector-feed.ts:287` (`formatPollData` sur chaque sondage du
+fil), `apps/core/src/components/social/PollBlock.tsx` (affiche `percentage`),
+`apps/mobile/src/components/thought/normalize.ts` (`resolveDisplay`), et **côté
+Go** : `apps/api/internal/modules/posts/{dto,assembly}.go` (`posts.Poll`,
+« miroir de formatPollData TS »), `apps/api/internal/antispam/antispam.go`
+(règle de mention), `apps/api/internal/modules/posts/notifications.go`.
+
+**Dettes R75/R76/R77 et R78/R79/R80/R81/R82 : hors périmètre** (`analytics`,
+`observability`, `devtools`) — aucun point de contact. Elles restent ouvertes.
+
+| #    | Défaut                                                                                                                                                                                                                                    | Sévérité | Statut                                                                                                                                                                                                                                  |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F208 | La **ponctuation finale restait collée au token** : `Voir https://qoe.fi/test.` produisait un lien `https://qoe.fi/test.` (404 au tap dans l'app mobile), `(voir https://qoe.fi/a)` un lien finissant par `)`, `@alice.` un profil `alice.` et `#tech-` un tag `tech-`. | moyenne  | corrigé — coupe de la ponctuation finale, parenthèses fermantes non équilibrées retirées, `[.-]` retiré en fin de handle/tag ; tests : **échouaient** (`expected [ …(2) ] to deeply equal [ …(3) ]` avec `"url": "https://qoe.fi/test."`, `expected [ 'https://qoe.fi/a)' ] to deeply equal [ 'https://qoe.fi/a' ]`, `expected [ 'alice.', 'bob' ] to deeply equal [ 'alice', 'bob' ]`), verts après |
+| F209 | Les frontières de tokens exigeaient un **espace** : `(#tech)`, `(@alice)`, `«@bob»` n'étaient ni liés ni extraits (donc jamais indexés), et `@.alice` produisait un handle `@.alice` que l'antispam Go refuse. | moyenne  | corrigé — frontière « pas un caractère de handle » + parité stricte avec `antispam.go` (premier caractère alnum/`_`, 40 caractères max, e-mail `a@b` toujours exclu) ; test : **échouait** (`expected [ '.alice' ] to deeply equal []`), vert après |
+| F210 | `formatPollData` **remettait à zéro un sondage déjà formaté par Go** : le DTO `posts.Poll` envoie `voteCount`/`percentage`/`totalVotes`/`userVotedOptionId` (aucun `_count`), or la fonction ne lisait que `_count.votes` → `totalVotes: 0`, tous les pourcentages à 0 % et `userVotedOptionId: null` sur **chaque sondage du fil core**, alors que Go avait calculé les bons scores. | haute    | corrigé — la fonction conserve les valeurs serveur quand elles existent (shape Go) et recalcule pour la shape Prisma historique ; test : **échouait** (`AssertionError: expected +0 to be 4`), vert après. `FeedPoll` (core) réaligné sur le DTO Go. |
+| F211 | Le plancher de couverture était **11 points sous la couverture réelle** (85/80/85/85 mesuré 96,75/87,87/100/99,3) : une régression de la moitié du paquet passait la CI. | faible   | corrigé — seuils recalibrés à 95/86/99/98 et `include` explicite ; preuve : 97,45/89,47/100/100 avec les nouveaux seuils |
+
+**Candidats examinés puis ABANDONNÉS** (pas de rouge) :
+
+- **Pile de récursion** de `buildThreadTree`/`flattenThread`/`countThreadDescendants` :
+  un fil de 20 000 niveaux ferait déborder la pile, mais aucun chemin de
+  production ne construit un `parentId` cyclique ou aussi profond (colonne
+  immuable, profondeur bornée par la création) → non démontrable.
+- **`createdAt` de repli** = `new Date().toISOString()` : un post sans date
+  affiche « maintenant » indéfiniment, mais tous les producteurs (Go, Prisma)
+  fournissent la date → aucun rouge sans inventer une donnée irréaliste.
+- **Arrondi des pourcentages** (3 options → 33/33/33) : convention d'affichage
+  assumée par `PollBlock`, pas un défaut.
+- **`buildThreadTree`** n'est appelé par aucune app (mobile construit son fil
+  autrement) : code mort côté produit, mais fonction correcte et testée → pas
+  de correctif, signalé en observation.
+
+**Preuve rouge → vert.** Suite écrite avant correctifs
+(`src/__tests__/facets-hardening.test.ts`) : **6 échecs / 9 tests** au premier
+passage (F208, F209), puis **1 de plus** une fois le test de parité de handle
+ajouté, et **1** sur les sondages (F210) — messages cités ci-dessus. Aucune assertion existante modifiée : les 15
+tests historiques restent verts tels quels (dont `#tech!` → tag + `!`, et la
+détection d'e-mail `alice@qoe.fi`). Aucune doublure : le paquet est pur (aucun
+I/O, aucune horloge implicite hors `nowInput`).
+
+**Preuves (arbre propre, après commit) :**
+
+| Commande | Avant | Après |
+| -------- | ----- | ----- |
+| `pnpm --filter @qoe/social test` | 15 tests / 1 fichier | **27 tests / 2 fichiers verts** |
+| `pnpm --filter @qoe/social test:coverage` | 96,75 % st. · 87,87 % br. · 100 % fn. · 99,3 % lignes (plancher 85/80/85/85) | **97,45 % · 89,47 % · 100 % · 100 %** (plancher 95/86/99/98) |
+| `pnpm --filter @qoe/social lint` / `typecheck` | 0 / 0 | **0 / 0** |
+| `pnpm test` (monorepo) | — | **24/24 tâches, 0 échec** |
+| `pnpm typecheck` | 25/25 | **25/25 tâches** |
+| les 9 gardes CI | vertes | **vertes** |
+
+**Observations trouvées, volontairement non corrigées.**
+
+- `buildThreadTree`/`flattenThread`/`findThreadAncestors`/`countThreadDescendants`
+  n'ont **aucun appelant** dans les apps (seulement leurs tests) : le fil mobile
+  reconstruit sa structure. Code mort à arbitrer (suppression ou adoption).
+- Trois règles de mention coexistent (→ **R85**), deux normalisations aussi
+  (→ **R84**), deux `FeedPoll` (→ **R83**).
+- Aucune API dépréciée rencontrée : pas de dépendance runtime, `RegExp`/`Date`
+  stdlib uniquement.
+
+**Dettes.** **R01**, **R54**, **R56**, **R63** à **R68**, **R71** à **R74**,
+**R78** à **R82** restent **ouvertes**. Nouvelles dettes : **R83** (`FeedPoll`
+dupliqué), **R84** (normalisation mobile dupliquée), **R85** (règles de mention
+divergentes).
 
 ---
 

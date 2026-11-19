@@ -28,14 +28,22 @@ export interface FeedPublisher {
   isCertified: boolean;
 }
 
+// Shape réelle de GET /v1/feed/* : `posts.Poll` (déjà formaté par Go). Les
+// champs `_count`/`votes` ne sont plus envoyés — `formatPollData` les tolère
+// encore pour les anciens snapshots, mais les compteurs viennent du serveur.
 export interface FeedPoll {
   id: string;
   thoughtId: string;
   expiresAt: Date | string;
+  isExpired?: boolean;
+  totalVotes?: number;
+  userVotedOptionId?: string | null;
   options?: Array<{
     id: string;
     text: string;
     order: number;
+    voteCount?: number;
+    percentage?: number;
     _count?: { votes: number };
   }>;
   votes?: Array<{ optionId: string; userId: string }>;
