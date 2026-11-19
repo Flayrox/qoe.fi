@@ -380,7 +380,8 @@ export function NotificationItem({
                 : notification.publisher
                   ? `/${notification.publisher.slug || notification.publisher.id}`
                   : firstSender?.username
-                    ? `/@${firstSender.username}`
+                    ? // F134 — le core sert `/{pseudo}` : `/@pseudo` n'existe pas.
+                      `/${encodeURIComponent(firstSender.username.replace(/^@/, ''))}`
                     : '#');
 
   return (

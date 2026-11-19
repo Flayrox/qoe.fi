@@ -93,10 +93,23 @@ export function NotificationList({ onFollowRequestDecision }: NotificationListPr
     <div className="w-full">
       {/* Barre d'onglets & Actions */}
       <div className="sticky top-0 z-10 flex items-center justify-between px-4 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="flex gap-1 overflow-x-auto no-scrollbar">
+        {/* F137 — un filtre est un onglet : `role="tab"` + `aria-selected`
+            disent à l'assistance technique lequel est actif, ce que cinq
+            boutons muets ne pouvaient pas faire. */}
+        <div
+          role="tablist"
+          aria-label={t`Filtrer les notifications`}
+          aria-busy={isLoading}
+          className="flex gap-1 overflow-x-auto no-scrollbar"
+        >
           {TABS.map((tab) => (
             <button
               key={tab.id}
+              type="button"
+              role="tab"
+              id={`notification-tab-${tab.id}`}
+              aria-selected={filter === tab.id}
+              aria-controls="notification-panel"
               onClick={() => setFilter(tab.id)}
               className={cn(
                 'px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap',
@@ -110,10 +123,14 @@ export function NotificationList({ onFollowRequestDecision }: NotificationListPr
           ))}
         </div>
 
+        {/* Le libellé visible disparaît sous `sm` : le nom accessible doit
+            rester disponible, un `title` ne suffit pas au clavier/AT. */}
         <button
+          type="button"
           onClick={handleMarkAllRead}
           disabled={isMarkingRead}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors shrink-0 cursor-pointer"
+          aria-label={t`Tout marquer comme lu`}
           title={t`Tout marquer comme lu`}
         >
           <CheckCheck className="size-3.5 text-primary" strokeWidth={1.5} />
@@ -121,40 +138,43 @@ export function NotificationList({ onFollowRequestDecision }: NotificationListPr
         </button>
       </div>
 
-      {/* État de chargement */}
-      {isLoading ? (
-        <div className="flex flex-col items-center justify-center p-12 text-muted-foreground">
-          <Loader2 className="size-6 animate-spin mb-2 text-primary" />
-          <p className="text-sm">{t`Chargement de vos notifications...`}</p>
-        </div>
-      ) : notifications.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-16 text-center text-muted-foreground">
-          <div className="p-4 bg-muted/50 rounded-full mb-3">
-            <BellOff className="size-8 text-muted-foreground/60" strokeWidth={1.5} />
+      {/* Panneau de résultats — relié à l'onglet actif. */}
+      <div role="tabpanel" id="notification-panel" aria-labelledby={`notification-tab-${filter}`}>
+        {/* État de chargement */}
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center p-12 text-muted-foreground">
+            <Loader2 className="size-6 animate-spin mb-2 text-primary" />
+            <p className="text-sm">{t`Chargement de vos notifications...`}</p>
           </div>
-          <h3 className="font-semibold text-foreground text-base mb-1">
-            {t`Aucune notification pour le moment`}
-          </h3>
-          <p className="text-sm max-w-xs text-muted-foreground">
-            {filter === 'all'
-              ? t`Lorsque d'autres membres aimeront vos pensées, vous répondront ou s'abonneront, les alertes apparaîtront ici.`
-              : t`Aucune notification de type "${filter}" trouvée.`}
-          </p>
-        </div>
-      ) : (
-        <div className="divide-y divide-border">
-          {notifications.map((notif) => (
-            <NotificationItem
-              key={notif.id}
-              notification={notif}
-              onMarkRead={handleMarkOneRead}
-              onFollowRequestDecision={
-                onFollowRequestDecision ? handleFollowRequestDecision : undefined
-              }
-            />
-          ))}
-        </div>
-      )}
+        ) : notifications.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-16 text-center text-muted-foreground">
+            <div className="p-4 bg-muted/50 rounded-full mb-3">
+              <BellOff className="size-8 text-muted-foreground/60" strokeWidth={1.5} />
+            </div>
+            <h3 className="font-semibold text-foreground text-base mb-1">
+              {t`Aucune notification pour le moment`}
+            </h3>
+            <p className="text-sm max-w-xs text-muted-foreground">
+              {filter === 'all'
+                ? t`Lorsque d'autres membres aimeront vos pensées, vous répondront ou s'abonneront, les alertes apparaîtront ici.`
+                : t`Aucune notification de type "${filter}" trouvée.`}
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-border">
+            {notifications.map((notif) => (
+              <NotificationItem
+                key={notif.id}
+                notification={notif}
+                onMarkRead={handleMarkOneRead}
+                onFollowRequestDecision={
+                  onFollowRequestDecision ? handleFollowRequestDecision : undefined
+                }
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Charger plus (pagination) */}
       {hasNextPage && (

@@ -106,11 +106,16 @@ export function InvertedCurveBanner({
   const storageKey = id ? `qoe_dismissed_announcement_${id}` : null;
 
   useEffect(() => {
-    if (storageKey && typeof window !== 'undefined') {
-      const dismissed = localStorage.getItem(storageKey);
-      if (dismissed === 'true') {
+    if (!storageKey || typeof window === 'undefined') return;
+    // F138 — l'écriture était protégée, pas la lecture : en navigation privée
+    // Safari lève une SecurityError et l'annonce cassait tout l'écran.
+    try {
+      if (window.localStorage.getItem(storageKey) === 'true') {
         setIsVisible(false);
       }
+    } catch {
+      // Stockage refusé : l'annonce reste affichée, rien d'autre ne dépend de
+      // la persistance.
     }
   }, [storageKey]);
 
