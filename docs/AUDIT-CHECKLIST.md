@@ -71,7 +71,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L07e    | `packages/ui/src/{notifications,onboarding,profile,social,cmdk,templates,sidebar.tsx}`                       | 86 fichiers (src + tests)   | **durci le 2026-11-19** |
 | L08     | `packages/theme/src/**`                                                                                      | 19 fichiers                 | **durci le 2026-11-19** |
 | L09     | `packages/brand/src/**`                                                                                      | 10 fichiers                 | **durci le 2026-11-19** |
-| L10     | `packages/content/src/**`                                                                                    | 25 fichiers                 | à auditer               |
+| L10     | `packages/content/src/**`                                                                                    | 25 fichiers                 | **durci le 2026-11-19** |
 | L11     | `packages/config/src/**`                                                                                     | 17 fichiers                 | à auditer               |
 | L12     | `packages/formatters/src/**`                                                                                 | 5 fichiers                  | à auditer               |
 | L13     | `packages/i18n/src/**` + `messages/`                                                                         | 9 fichiers                  | à auditer               |
@@ -102,7 +102,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L10 — `packages/content`.**
+**Prochain lot à traiter : L11 — `packages/config`.**
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -880,6 +880,7 @@ nommé), puis verts après restauration.
 | R60 | `reader/useBionicReading` : le mode bionique écrit `innerHTML` dans un conteneur possédé par React et met l'original en cache dans `data-original-html`. Un corps re-rendu après activation (annotation ajoutée, document canonique rechargé) rend donc l'ancien HTML à la désactivation. Le correctif propre est un bionic **déclaratif** au rendu des blocs, pas une mutation DOM. | moyenne | Chantier de design du lecteur (aucun écran n'active aujourd'hui le bionic sur un corps canonique, mais le chemin est armé) — voir L07b. |
 | R61 | `nextUrl` de bout en bout : `AuthModalContext` le calcule (`?auth=…&next=…`, URL courante), `GlobalAuthModalProvider` le transmet, `LoginModal` l'accepte… et ne l'utilise jamais. Après connexion, `router.refresh()` garde la page courante. `setMode` n'a aucun consommateur, et `?auth=login` n'est jamais retiré de l'URL (recharger rouvre la modale). | moyenne | Décision produit (revenir à l'URL d'origine après connexion, ou rester sur place ; nettoyer le paramètre au passage) — voir L07c. |
 | R63 | `deeplink.Notification` (Go) émet **`/article/{slug}`** — l'ancienne forme : 308 côté tenants, **404 côté core** — pour `LIKE`/`REPOST`/`COMMENT` sur article et pour le fan-out `MEDIA_ARTICLE_PUBLISHED`. `deeplink.Target` ne porte ni le propriétaire ni la catégorie, donc la canonique (`/{owner}/a/{slug}` ou `/{cat}/{slug}`) n'est pas constructible en l'état. Le garde `guard:article-links` ne scanne pas le Go : ce chemin lui échappe. | moyenne | Décision serveur : ajouter `OwnerUsername` (ou `CategorySlug`) au `Target` et construire la canonique, ou assumer que le client ne reçoit que des `url` déjà canoniques. Voir L07e. |
+| R67 | `@qoe/content` exporte quatre surfaces entières — `continuous` (projection, attestation, layout), `highlighter` (découpage de marques), `paywall` (métriques, teaser sémantique) et `excerpt` — **sans aucun consommateur TypeScript** : le seul import du dépôt est `apps/mobile/src/lib/highlight-queue-core.ts`, qui ne prend que `canonical`. Soit le web/HTML réimplémente ces calculs ailleurs (Go, rendu serveur), soit elles sont mortes — et rien ne détecte la dérive entre les deux. | faible | Décision produit : brancher les lecteurs (web + natif) sur ce moteur et supprimer les doublons, ou retirer les surfaces inutilisées. Voir L10. |
 | R66 | `DEFAULT_AVATARS`/`getDefaultAvatar`/`isDefaultAvatarUrl` (`avatars.ts`) et `STUDIO_ENTITIES` (`studio.ts`) n'ont **aucun consommateur TypeScript** dans le dépôt : les avatars sont aussi semés côté Go et les métriques du studio sont recodées dans les pages analytics. Deux sources de vérité pour la même liste, donc dérive silencieuse possible. | faible | Décision produit : brancher le web/mobile sur ce registre (ou sur une source unique exposée par le SDK), ou le retirer. Voir L09. |
 | R65 | Le registre `THEMES`/`ACCENTS` (`registry.ts`) exporte `id`, `label`, `dataTheme`, `dataAccent` sans **aucun consommateur** dans le dépôt : le mode sombre se pose par la classe `.dark` (next-themes) et l'accent par `[data-accent='vermillion']`, jamais par `data-theme`. La promesse d'un attribut DOM déclaratif n'est donc pas tenue. | faible | Décision produit/API : soit câbler `data-theme`/`data-accent` dans les feuilles et les shells, soit réduire le registre aux helpers réellement utilisés (`resolveForcedTheme`, `resolveAccentFromColor`). Voir L08. |
 | R64 | `social/MediaLightbox` et `social/ZoomableLightbox` restent des `fixed inset-0` sans `role="dialog"`/focus confiné (Échap et flèches sont câblés à la main, correctement). Leur migration sur `Dialog` demande de composer avec le pan/zoom et les gestes tactiles — arbitrage design, pas correction mécanique. | moyenne | Décision design (le comportement clavier existe déjà ; c'est la modalité ARIA et le piège du focus qui manquent). Voir L07e. |
@@ -1328,6 +1329,75 @@ le repli natif — **ajout d'un export au mock, aucune assertion modifiée**
 **Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65** restent
 **ouvertes** (décisions utilisateur/produit/serveur). Nouvelle dette : **R66**
 (registres `DEFAULT_AVATARS`/`STUDIO_ENTITIES` sans consommateur TS).
+
+---
+
+## L10 — `@qoe/content` canonique, projection continue, surlignage, paywall — durci le 2026-11-19
+
+**Périmètre.** Les **16 sources + 6 suites** du paquet lues en entier
+(`canonical/{types,anchors,unicode}`, `continuous/{types,projection,attributed}`,
+`highlighter/{types,slicer,segment-window}`, `excerpt/{clean-excerpt,html-entities}`,
+`paywall/{metrics,semantic-cut}`, les barrels et `vitest.config.ts`).
+**Consommateur réel unique** : `apps/mobile/src/lib/highlight-queue-core.ts`
+(importe `computeLocalAnchors`, `makeLocalId`, `normalizeCanonical`), avec sa
+suite de 13 tests. **Contrat serveur relu** : `apps/api/internal/canon/canon.go`
+(`Normalize` via `unicode.IsSpace` + `strings.TrimSpace`, `Find` + replis
+tolérants) et `canon_test.go`.
+
+| #    | Défaut                                                                                                                                                                                                                                                                                                    | Sévérité | Statut                                                                                                                                                                                                                                                                                            |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F150 | `normalizeCanonical` prétendait être le « miroir fidèle » de `canon.Normalize` mais utilisait `\s` de JavaScript : il **ignorait U+0085 (NEL)** — blanc pour `unicode.IsSpace` — et **traitait U+FEFF (BOM) comme un blanc**, que Go conserve. Un passage collé depuis un terminal (NEL) ou un fichier (BOM) était donc ancré à un autre offset que côté serveur, alors que ces ancres servent à rendre le surlignage optimiste. | moyenne  | corrigé — classe `GO_SPACE` calquée sur `unicode.IsSpace` (et elle seule), trim final limité au séparateur ASCII (pas de `trim()` qui mangerait le BOM) ; 3 tests : **échouaient** (`expected 'a\u0085b' to be 'a b'`, `expected 'a b' to be 'a\ufeffb'`), verts après |
+| F151 | `cleanArticleExcerpt` tronquait avec `text.slice(0, maxLength)`, donc en **unités UTF-16** : une coupe au milieu d'un emoji laissait un demi-surrogate dans l'extrait, chaîne illégale une fois stockée en base et sérialisée en JSON.                                                                      | moyenne  | corrigé — coupe reculée d'une unité si elle tombe sur une high surrogate ; test `ne coupe jamais une paire de substitution` : **échouait** (`expected '😀😀😀😀😀�…' not to match /[\uD800-\uDBFF](?![\uDC00-\uDFFF])…/`), vert après                                                                  |
+| F152 | `decodeHtmlEntities` passait tout point de code `0 ≤ n ≤ 0x10FFFF` à `String.fromCodePoint` : `&#0;` injectait un **NUL** et `&#xD800;` un **surrogate isolé** dans le résumé.                                                                                                                              | faible   | corrigé — `decodeCodePoint` refuse 0, les demi-paires et les valeurs hors plan (l'entité reste littérale, comme pour une entité inconnue) ; 2 tests : **échouaient** (`expected 'a\u0000b' to be 'a&#0;b'`, `expected '� et �' not to match …`), verts après                                                                                                                                    |
+| F153 | `calculateReadingTimeMinutes` documentait `cjkCpm` (350 caractères/min) mais **l'ignorait** : chaque idéogramme était compté comme un mot latin à 200 wpm, soit près du double du temps annoncé (700 idéogrammes → 4 min au lieu de 2).                                                                      | moyenne  | corrigé — portions latine et CJK calculées séparément (`latinWords/wpm + cjkChars/cjkCpm`), minimum 1 min conservé ; 2 tests : **échouaient** (`expected 4 to be 2`, `expected 3 to be 2`), verts après                                                                                                                                    |
+| F154 | Le document canonique déclare `style: 'strike'` (et l'alias HTML `s`), mais `NativeInlineStyle` ne les connaissait pas : `projection.ts` les laissait passer par un cast `as NativeInlineStyle` et `PaintSpan` n'avait aucun drapeau — le barré **disparaissait** au rendu, et un style inconnu traversait le type. | moyenne  | corrigé — `strike` ajouté à l'union native, `PaintSpan.strike` peint comme les autres styles, alias `s` → `strike`, styles inconnus écartés par une liste blanche (plus de cast) ; 3 tests : **échouaient** (`expected false to be true`, `expected [ 's' ] to deeply equal [ 'strike' ]`, `expected [ { startCp: +0, endCp: 2, …(2) } ] to deeply equal []`), verts après |
+
+**Preuve rouge → vert.** Tests écrits avant correctifs. F150–F153 : premier
+passage → **7 échecs sur 53**. F154 : les trois tests ont été écrits après la
+lecture du code mais **avant** le correctif, et l'échec a été capturé en
+remettant les fichiers d'origine (`git stash -- src/continuous`) :
+3 échecs sur 3, puis `7 fichiers / 56 tests verts`. Aucune assertion
+existante modifiée, aucune doublure touchée.
+
+**Preuves (arbre propre, après commits) :**
+
+| Commande | Résultat |
+| -------- | -------- |
+| `pnpm --filter @qoe/content test` | **56 tests / 7 fichiers verts** (46/6 avant : **+10 tests, +1 fichier**) |
+| `pnpm --filter @qoe/content test:coverage` | vert — **94,95 % stmts / 85,01 % branches / 100 % fonct. / 98,29 % lignes** (seuils 85/80/85/85 ; 84,39 % de branches avant) |
+| `apps/mobile` — `src/lib/highlight-queue-core.test.ts` (consommateur direct) | **13 tests verts** |
+| `pnpm --filter @qoe/ui test` | **677 tests / 109 fichiers verts** (inchangé) |
+| `pnpm typecheck` | 25/25 tâches |
+| `pnpm --filter @qoe/content lint` | 0 erreur, 0 avertissement |
+| les 9 gardes CI | tous verts |
+
+**Observations trouvées, volontairement non corrigées.**
+
+- `computeLocalAnchors` ne porte **pas** les replis tolérants de
+  `canon.Document.Find` (ellipses de bord retirées, préfixes de mots de plus en
+  plus courts) : un passage remanié n'a pas d'aperçu optimiste avant la
+  synchro. Le serveur reste autoritaire et le commentaire du consommateur
+  l'assume — porter `findCandidates` serait une fonctionnalité, pas un
+  correctif.
+- `CanonicalInlineSpan.style` est typé `'bold' | … | string` : l'union est
+  absorbée par `string`, donc une faute de frappe côté serveur compile. Un
+  `(string & {})` garderait l'autocomplétion sans changement de comportement —
+  aucun test ne peut prouver l'écart, laissé en observation.
+- `buildArticleText` émet un `\n` avant ET après chaque `img`/`hr` : un
+  document qui commence par une image produit un texte d'affichage qui commence
+  par un saut de ligne (paragraphe vide en tête). Aucun consommateur actuel du
+  flux continu, donc pas d'arbitrage de rendu à trancher ici.
+- `DEFAULT_MARK_ARGB` est un `Record<string, number>` indexé ailleurs par le
+  type de marque : aucune clé héritée n'est atteignable aujourd'hui (les
+  valeurs viennent du type `NativeMark`, pas d'une saisie), mais le motif
+  `Record<string, …>` reste exposé (même famille que F146).
+- `createSemanticTeaser` compte et conserve le contenu de `<script>`/`<style>`
+  s'il en trouve (les articles sont du HTML sanitisé côté serveur, aucun
+  `<script>` ne peut y entrer) : pas de correctif sans entrée hostile réelle.
+
+**Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65**, **R66**
+restent **ouvertes**. Nouvelle dette : **R67** (surfaces `continuous`,
+`highlighter`, `paywall`, `excerpt` sans consommateur TS).
 
 ---
 

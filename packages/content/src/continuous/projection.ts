@@ -19,6 +19,31 @@ import type {
 
 export const ATTACHMENT_CHAR = '\uFFFC'; // Object replacement character
 
+/** Styles inline connus du modèle natif (F154). */
+const NATIVE_INLINE_STYLES = new Set<NativeInlineStyle>([
+  'bold',
+  'italic',
+  'underline',
+  'strike',
+  'code',
+  'link',
+  'bullet',
+  'number',
+]);
+
+/**
+ * Traduit un style du document canonique en style natif, ou null.
+ * `s` (HTML) est l'alias de `strike` ; un style inconnu est ignoré plutôt que
+ * propagé par un cast (F154).
+ */
+function normalizeInlineStyle(style: string): NativeInlineStyle | null {
+  if (style === 's') return 'strike';
+  for (const known of NATIVE_INLINE_STYLES) {
+    if (known === style) return known;
+  }
+  return null;
+}
+
 function codePointsOf(text: string): string[] {
   const out: string[] = [];
   for (let i = 0; i < text.length;) {
@@ -141,13 +166,15 @@ export function buildArticleText(doc: CanonicalDocument): ArticleTextModel {
       const inline = inlineByItem(itemIdx);
       for (const sp of inline ?? []) {
         if (typeof sp.start !== 'number' || typeof sp.end !== 'number') continue;
+        const style = normalizeInlineStyle(sp.style);
+        if (!style) continue;
         const s = Math.max(0, sp.start);
         const e = Math.min(cpLength(seg.text), sp.end);
         if (e <= s) continue;
         runs.push({
           startCp: textStartCp + s,
           endCp: textStartCp + e,
-          style: (sp.style as NativeInlineStyle) ?? 'bold',
+          style,
           href: sp.href,
         });
       }

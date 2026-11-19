@@ -22,6 +22,8 @@ export interface PaintSpan {
   bold: boolean;
   italic: boolean;
   underline: boolean;
+  /** F154 — barré, déclaré par le canonique (`strike`/`s`). */
+  strike: boolean;
   mono: boolean;
   link: boolean;
   bg: number | null;
@@ -48,13 +50,14 @@ export const DEFAULT_MARK_ARGB: Record<string, number> = {
  */
 export function buildPaintSpans(model: ArticleTextModel, marks: ColoredMark[] = []): PaintSpan[] {
   const n = cpLength(model.text);
-  type Attr = Pick<PaintSpan, 'bold' | 'italic' | 'underline' | 'mono' | 'link'> & {
+  type Attr = Pick<PaintSpan, 'bold' | 'italic' | 'underline' | 'strike' | 'mono' | 'link'> & {
     bg: number | null;
   };
   const attrs: Attr[] = Array.from({ length: n }, () => ({
     bold: false,
     italic: false,
     underline: false,
+    strike: false,
     mono: false,
     link: false,
     bg: null,
@@ -62,7 +65,7 @@ export function buildPaintSpans(model: ArticleTextModel, marks: ColoredMark[] = 
 
   const paintAttr = (
     style: NativeInlineStyle,
-    attr: 'bold' | 'italic' | 'underline' | 'mono' | 'link'
+    attr: 'bold' | 'italic' | 'underline' | 'strike' | 'mono' | 'link'
   ) => {
     for (const r of model.runs) {
       if (r.style !== style) continue;
@@ -75,6 +78,7 @@ export function buildPaintSpans(model: ArticleTextModel, marks: ColoredMark[] = 
   paintAttr('bold', 'bold');
   paintAttr('italic', 'italic');
   paintAttr('underline', 'underline');
+  paintAttr('strike', 'strike');
   paintAttr('code', 'mono');
   paintAttr('link', 'link');
 
@@ -88,6 +92,7 @@ export function buildPaintSpans(model: ArticleTextModel, marks: ColoredMark[] = 
     a.bold === b.bold &&
     a.italic === b.italic &&
     a.underline === b.underline &&
+    a.strike === b.strike &&
     a.mono === b.mono &&
     a.link === b.link &&
     a.bg === b.bg;
@@ -103,6 +108,7 @@ export function buildPaintSpans(model: ArticleTextModel, marks: ColoredMark[] = 
       bold: a.bold,
       italic: a.italic,
       underline: a.underline,
+      strike: a.strike,
       mono: a.mono,
       link: a.link,
       bg: a.bg,

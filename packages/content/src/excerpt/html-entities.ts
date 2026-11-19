@@ -25,6 +25,21 @@ const NAMED_ENTITIES: Record<string, string> = {
 };
 
 /**
+ * Décode un point de code numérique, ou null s'il est inexploitable.
+ *
+ * F152 — `&#0;` produisait un NUL (chaîne tronquée côté JSON/Postgres) et
+ * `&#xD800;` un demi-surrogate, donc une chaîne UTF-16 illégale. Ces deux
+ * formes ne sont pas des caractères : on laisse l'entité telle quelle, comme
+ * pour les entités inconnues (l'appelant nettoie ce qui reste).
+ */
+function decodeCodePoint(code: number): string | null {
+  if (!Number.isFinite(code)) return null;
+  if (code <= 0 || code > 0x10ffff) return null;
+  if (code >= 0xd800 && code <= 0xdfff) return null;
+  return String.fromCodePoint(code);
+}
+
+/**
  * Décode les entités HTML nommées et numériques sans nécessiter de DOM.
  */
 export function decodeHtmlEntities(input: string): string {
@@ -36,13 +51,11 @@ export function decodeHtmlEntities(input: string): string {
     }
     // Numérique hexadécimal &#x1F680;
     if (entity.startsWith('#x') || entity.startsWith('#X')) {
-      const code = parseInt(entity.slice(2), 16);
-      return !isNaN(code) && code >= 0 && code <= 0x10ffff ? String.fromCodePoint(code) : match;
+      return decodeCodePoint(parseInt(entity.slice(2), 16)) ?? match;
     }
     // Numérique décimal &#128640;
     if (entity.startsWith('#')) {
-      const code = parseInt(entity.slice(1), 10);
-      return !isNaN(code) && code >= 0 && code <= 0x10ffff ? String.fromCodePoint(code) : match;
+      return decodeCodePoint(parseInt(entity.slice(1), 10)) ?? match;
     }
     return match;
   });

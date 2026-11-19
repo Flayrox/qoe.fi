@@ -5,21 +5,25 @@
 /**
  * Compte les mots d'un texte, avec support des scripts sans espaces (CJK).
  */
-export function countWords(text: string): number {
-  if (!text || !text.trim()) return 0;
+const CJK_CHAR = /[\u4e00-\u9fa5\u3040-\u30ff\uac00-\ud7af]/g;
 
-  // 1. Détection et décompte des caractères CJK (Chinois, Japonais, Coréen)
-  const cjkMatches = text.match(/[\u4e00-\u9fa5\u3040-\u30ff\uac00-\ud7af]/g);
-  const cjkCount = cjkMatches ? cjkMatches.length : 0;
+/** Caractères CJK (Chinois, Japonais, Coréen) d'un texte. */
+function countCjkChars(text: string): number {
+  return text.match(CJK_CHAR)?.length ?? 0;
+}
 
-  // 2. Nettoyage des CJK et décompte des mots alphabétiques / latins
-  const nonCjkText = text.replace(/[\u4e00-\u9fa5\u3040-\u30ff\uac00-\ud7af]/g, ' ');
-  const latinWords = nonCjkText
+/** Mots « alphabétiques » : tout ce qui n'est pas CJK. */
+function countLatinWords(text: string): number {
+  return text
+    .replace(CJK_CHAR, ' ')
     .trim()
     .split(/\s+/)
-    .filter((w) => w.length > 0);
+    .filter((w) => w.length > 0).length;
+}
 
-  return latinWords.length + cjkCount;
+export function countWords(text: string): number {
+  if (!text || !text.trim()) return 0;
+  return countLatinWords(text) + countCjkChars(text);
 }
 
 export interface ReadingMetricsOptions {
@@ -34,10 +38,14 @@ export interface ReadingMetricsOptions {
  * Retourne un minimum de 1 minute si le texte contient au moins un mot.
  */
 export function calculateReadingTimeMinutes(text: string, options?: ReadingMetricsOptions): number {
-  const words = countWords(text);
-  if (words === 0) return 0;
+  if (!text || !text.trim()) return 0;
 
+  // F153 — `cjkCpm` était documenté mais ignoré : chaque idéogramme était
+  // compté comme un mot latin à 200 wpm, soit près du double du temps annoncé
+  // par le produit pour un texte chinois ou japonais.
   const wpm = options?.wpm ?? 200;
-  const minutes = Math.ceil(words / wpm);
-  return Math.max(1, minutes);
+  const cjkCpm = options?.cjkCpm ?? 350;
+  const minutes = countLatinWords(text) / wpm + countCjkChars(text) / cjkCpm;
+  if (minutes <= 0) return 0;
+  return Math.max(1, Math.ceil(minutes));
 }

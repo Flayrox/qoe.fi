@@ -1,7 +1,9 @@
 import type { CanonicalBlockKind, CanonicalDocument } from '../canonical/types';
 
+// F154 — `strike` manquait : le document canonique le déclare (`strike`/`s`),
+// `projection.ts` le laissait passer par un cast et aucun rendu ne le peignait.
 export type NativeInlineStyle =
-  'bold' | 'italic' | 'underline' | 'code' | 'link' | 'bullet' | 'number';
+  'bold' | 'italic' | 'underline' | 'strike' | 'code' | 'link' | 'bullet' | 'number';
 
 export interface NativeInlineRun {
   /** [startCp, endCp) — offsets en CODE POINTS du texte d'affichage. */

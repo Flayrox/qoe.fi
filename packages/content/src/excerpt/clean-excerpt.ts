@@ -29,7 +29,11 @@ export function cleanArticleExcerpt(rawHtml: string | null | undefined, maxLengt
   }
 
   // 5. Tronquage propre : cherche le dernier espace avant la limite
-  const truncated = text.slice(0, maxLength);
+  // F151 — `maxLength` compte des unités UTF-16 : une coupe au milieu d'un
+  // emoji laissait une demi-paire de substitution dans l'extrait (stockée en
+  // base, elle casse le JSON et l'encodage UTF-8).
+  const raw = text.slice(0, Math.max(0, maxLength));
+  const truncated = /[\uD800-\uDBFF]$/.test(raw) ? raw.slice(0, -1) : raw;
   const lastSpace = truncated.lastIndexOf(' ');
 
   if (lastSpace > maxLength * 0.7) {

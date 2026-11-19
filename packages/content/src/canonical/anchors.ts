@@ -10,15 +10,25 @@ export function makeLocalId(): string {
 }
 
 /**
+ * Blancs reconnus par `unicode.IsSpace` (Go) — et **eux seuls**.
+ *
+ * F150 — `\s` de JavaScript n'est pas le même ensemble : il ignore U+0085
+ * (NEL) et inclut U+FEFF (BOM). Un passage collé depuis un fichier (BOM) ou un
+ * terminal (NEL) n'était donc pas normalisé comme côté serveur, et les ancres
+ * calculées localement tombaient à côté de celles que Go recalcule.
+ */
+const GO_SPACE = /^[\t\n\v\f\r \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]$/;
+
+/**
  * Normalise un texte comme le serveur (`canon.Normalize`) :
- * les séquences d'espaces blancs (espaces, tabs, sauts de ligne, NBSP…)
- * deviennent un espace unique, bordures trimées.
+ * les séquences de blancs Unicode deviennent un espace unique, bordures trimées.
+ * Le BOM n'est pas un blanc pour Go : il est conservé.
  */
 export function normalizeCanonical(s: string): string {
   let out = '';
   let prevSpace = true; // → trim des blancs de tête
   for (const ch of s) {
-    if (/\s/.test(ch)) {
+    if (GO_SPACE.test(ch)) {
       if (prevSpace) continue;
       prevSpace = true;
       out += ' ';
@@ -27,7 +37,9 @@ export function normalizeCanonical(s: string): string {
       out += ch;
     }
   }
-  return out.trim();
+  // Seul le séparateur ASCII est produit ci-dessus : pas de `trim()`, qui
+  // retirerait aussi un BOM de bord et divergerait de `strings.TrimSpace`.
+  return out.endsWith(' ') ? out.slice(0, -1) : out;
 }
 
 /**
