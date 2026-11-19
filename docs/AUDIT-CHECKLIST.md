@@ -87,7 +87,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b1 | `(reader)` hors `{home,library,[username],settings}`                                                          | 25 fichiers · 2 170 l.      | **durci le 2026-11-19** |
 | L20b2b2a | `(reader)/home` : page, loading, dashboard, cartes de slice                                             | 10 fichiers · 2 016 l.      | **durci le 2026-11-19** |
 | L20b2b2b | `(reader)/home/components/ThoughtComposer.tsx` + son test                                                   | 2 fichiers · 2 748 l.       | **durci le 2026-11-19** |
-| L20b2b2c | `(reader)/home/components/thread/**`                                                                       | 13 fichiers · 1 743 l.      | à auditer               |
+| L20b2b2c | `(reader)/home/components/thread/**`                                                                       | 13 fichiers · 1 743 l.      | **durci le 2026-11-19** |
 | L20b2b3 | `app/(reader)/library/**`                                                                                    | 18 fichiers · 3 689 l.      | à auditer               |
 | L20b2b4 | `app/(reader)/[username]/**`                                                                                 | 9 fichiers · 2 184 l.       | à auditer               |
 | L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | à auditer               |
@@ -113,10 +113,9 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L20b2b2c — `(reader)/home/components/thread/**`**
-(13 fichiers · 1 743 l. ; L20b2b2b clos ; ordre restant : L20b2b2c fils de
-discussion, L20b2b3 bibliothèque, L20b2b4 profils, L20b2b5 réglages, L20c
-composants, L20d hooks/features).
+**Prochain lot à traiter : L20b2b3 — `apps/core/src/app/(reader)/library/**`**
+(18 fichiers · 3 689 l. ; L20b2b2c clos ; ordre restant : L20b2b3 bibliothèque,
+L20b2b4 profils, L20b2b5 réglages, L20c composants, L20d hooks/features).
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -897,6 +896,9 @@ nommé), puis verts après restauration.
 | R74 | `canonicalEmail` est calculé par `@qoe/moderation` et écrit dans les métadonnées Supabase (`options.data`) au signup, mais **aucun code ne le lit** : ni le sync Go, ni la base (aucun index unique). L'anti-multi-comptes annoncé par le module ne s'exerce donc pas au-delà du jour de l'inscription, et la suppression systématique du tag `+` (tous fournisseurs, pas seulement Gmail) n'a aucune conséquence observable. | moyenne | Arbitrage backend : colonne `canonicalEmail` + index unique dans une migration goose, puis refus de doublon côté Go (`/v1/auth/sync`), en décidant si l'on garde Gmail uniquement pour les points. Voir L14. |
 | R94 | `/api/articles/[slug]` (core) n'a **aucun appelant** dans le repo : la page article lit côté serveur. Route morte dont le contrat HTTP vient d'être corrigé (cache privé, L20b1) mais qui reste à supprimer ou à réutiliser explicitement. | faible | Arbitrage : supprimer la route (et son test) ou la brancher sur le préchargement client ; décision produit sur le préchargement d'article. Voir L20b1. |
 | R93 | `packages/analytics` envoie la session de lecture par `navigator.sendBeacon(endpointUrl, payload)` avec un **corps texte** (Content-Type `text/plain`) : le handler lit `req.json()`, qui fonctionne par chance (pas de validation de type de contenu côté Next). Aucun rejet observé, mais le contrat média n'est pas explicite. | faible | Arbitrage : créer un `Blob` typé `application/json` à l'envoi, ou valider/ignorer explicitement le Content-Type côté route. Voir L20b1. |
+| R109 | `ThoughtThreadRoot` prend ses snapshots d'annulation par `JSON.parse(JSON.stringify(post))` (like, repost, suppression) : les `Date` deviennent des chaînes, et le coût est proportionnel à l'arbre complet à chaque interaction. | faible | Remplacer par une copie structurelle ciblée (les branches modifiées) ou un snapshot par identifiant. Voir L20b2b2c. |
+| R108 | `ThoughtThreadItem` initialise `isHidden` et `showAllChildren` depuis les props sans se resynchroniser : si le fil est rechargé (masquage levé côté serveur), l'état local garde l'ancien. | faible | Dériver du prop avec un `key` d'identité serveur ou aligner dans un effet quand `reply.isHiddenByAuthor` change, avec un test de rechargement. Voir L20b2b2c. |
+| R107 | `ThoughtThreadFocus.handlePinToggle` **mute l'objet du contexte** (`post.isPinned = true/false`) au lieu de passer par un `setPost` : aucun re-rendu n'est déclenché et l'état partagé est modifié hors React (il apparaît « juste » au prochain rendu provoqué par autre chose). | moyenne | Exposer un `setPinned` dans le contexte (comme `toggleLike`), puis un test jsdom qui vérifie le re-rendu de l'épingle. Voir L20b2b2c. |
 | R106 | `ThoughtComposer` lance six `setTimeout` (remise de `isSwitchingRef`, repositionnement du curseur après insertion d'une mention) **sans nettoyage au démontage** : `setState` possible après disparition du composant. | faible | Retourner un cleanup ou utiliser un timer ref annulé dans un `useEffect` de démontage, puis un test jsdom d'unmount. Voir L20b2b2b. |
 | R105 | À chaque frappe, `ThoughtComposer` fait un `localStorage.setItem` **synchrone** et recrée `EMOJI_MAP`, `createEmptyNode`, `checkMentionTrigger`, `calculateCharacters` (donc re-filtre les suggestions à chaque rendu) : coût visible sur mobile bas de gamme. | faible | Debounce d'écriture du brouillon, `useMemo`/hoisting des constantes, mesures avant/après. Voir L20b2b2b. |
 | R104 | `ThoughtComposer.tsx` reste **un composant de 2 470 lignes** couvrant fil multi-nœuds, typeahead `@/#/:`, sondages, planification, avertissements, brouillons et recadrage : deux helpers (`composer-upload`, `composer-drafts`) en sont sortis, mais l'état et les handlers restent mêlés. | moyenne | Découper en hooks (`useThreadNodes`, `useTypeahead`, `useComposerMedia`) avec les tests existants comme filet, hors audit. Voir L20b2b2b. |
@@ -1451,6 +1453,75 @@ existante modifiée, aucune doublure touchée.
 **Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65**, **R66**
 restent **ouvertes**. Nouvelle dette : **R67** (surfaces `continuous`,
 `highlighter`, `paywall`, `excerpt` sans consommateur TS).
+
+---
+
+## L20b2b2c — `apps/core/src/app/(reader)/home/components/thread/**` — durci le 2026-11-19
+
+**Périmètre.** Les **13 fichiers** (10 composants + 3 suites) lus en entier :
+`ThoughtThreadRoot` (473 l.), `ThoughtThreadFocus`, `ThoughtThreadComposer`,
+`ThoughtThreadItem`, `ThoughtThreadList`, `ThoughtThreadParentContext`,
+`ThoughtThreadContext`, `ThoughtThreadLightbox`, `ThoughtThreadTombstone`,
+`index.tsx`, et les trois suites existantes. Consommateurs vérifiés :
+`index.tsx` est importé par `ThoughtThreadView` (page permalien
+`[username]/thought/[id]` et `ThoughtOverlayProvider`) ; chaque sous-composant est
+consommé via l'objet `ThoughtThread.*` ; **`submitReply`/`sendingReply` n'avaient
+aucun consommateur** (voir F244). Aucun `fetch` brut : uniquement des server
+actions `@qoe/sdk/actions/feed`.
+
+| #    | Défaut                                                                                                                                                                                                                                                                                                    | Sévérité | Statut                                                                                                                                                         |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F242 | Suppression d'une **pensée racine sans réponse** : `handleDeleteThought` fermait la vue (`onClose`/navigation) et annonçait le succès **avant** l'appel serveur, sans rollback ni message en cas de refus. L'utilisateur perdait le fil alors qu'il existait toujours, et le refus n'était jamais annoncé. | haute    | corrigé — `deletePost` d'abord, `onClose`/navigation et `toast.success` seulement après succès, `toast.error` sinon ; rouge : `AssertionError: expected true to be false` (`deleteThought` renvoyait `true` sur un refus serveur) |
+| F243 | `loadThread` sans `try/finally` : un `getPostThreadAction` qui **rejette** laissait `loading` à `true` et le squelette tourner indéfiniment, avec un rejet non géré. Même trou dans la navigation interne (`handleOpenPost`, `.then()` sans `.catch()`). | moyenne  | corrigé — `try/catch/finally` (état vide + `setLoading(false)`), et navigation en `.then/.catch/.finally` ; rouge : `TestingLibraryElementError: Unable to find an element with the text: Soyez le premier à exprimer une réponse.` (après 1 s de squelette) |
+| F244 | `submitReply` + `sendingReply` traversaient tout le contexte (interface, valeur, handler de 93 l.) **sans un seul consommateur** : une seconde voie de publication, doublon du compositeur, maintenue et testable par personne. | faible   | corrigé — handler et champs retirés (`-78 l.` sur `ThoughtThreadRoot`, `-2` sur le contexte) ; preuve : `grep -rn "submitReply\|sendingReply"` → plus que les définitions supprimées, 0 appelant |
+
+**Candidats examinés puis ABANDONNÉS** :
+
+- **Like optimiste annoncé avec l'ancien état** : hypothèse de race entre `setPost(updater)`
+  et `onInteractionUpdate(...)` — **test vert** (`onInteractionUpdate` reçoit déjà
+  `{liked:true, likesCount:6}` : React calcule l'état d'avancement en eager). Pas un défaut.
+- **`ThoughtThreadFocus` mute `post.isPinned` en place** (`post.isPinned = false`) sans
+  `setPost` : défaut réel (pas de re-rendu, état du contexte modifié hors React) mais
+  aucun rouge sans instrumenter `ThoughtCardContainer` → **R107**.
+- **`ThoughtThreadItem` initialise `isHidden`/`showAllChildren` depuis les props** sans
+  resynchroniser à un rechargement du fil : pas de scénario rouge reproductible
+  aujourd'hui → **R108**.
+- **Snapshots par `JSON.parse(JSON.stringify(post))`** (like, repost, delete) : perte des
+  `Date` et coût sur un arbre profond, sans conséquence observable mesurée → **R109**.
+- **`ThoughtThreadComposer` : `(newPost as never as OptimisticThought)`** : double-cast
+  déjà couvert par la dette de typage **R101** (même famille), pas de nouveau numéro.
+- **`ThoughtThreadLightbox` (img natif + eslint-disable)** : `next/image` inutile pour un
+  aperçu `object-contain` plein écran, choix documenté → pas de défaut.
+
+**Preuve rouge → vert.** Suite `__tests__/thought-thread-root-hardening.test.tsx` écrite
+**avant** correctifs : **2 échecs / 3** (messages cités ; le troisième test — like
+optimiste — est resté vert, d'où son abandon). Après correctifs : **3/3**, et les trois
+suites existantes du dossier restent vertes sans modification.
+
+**Preuves (mesurées) :**
+
+| Commande | Avant | Après |
+| -------- | ----- | ----- |
+| `pnpm --filter @qoe/core test` | 38 fichiers · **282 tests** | 39 fichiers · **285 tests** |
+| `pnpm --filter @qoe/core lint` | 0 erreur (10 warnings) | **0 erreur** (10 warnings préexistants) |
+| `pnpm lint` / `pnpm typecheck` / `pnpm test` | 25/25 · 25/25 · 24/24 | **25/25 · 25/25 · 24/24** |
+| `pnpm typecheck:root` | ✔ | **✔** |
+| gardes CI (10, dont `arch:audit`, `ui:audit`) | vertes | **vertes** |
+| `pnpm test:coverage` (R91) | `branches 78.18% < 85%` | **identique (78.18 %)**, seul rouge, préexistant |
+| lignes du périmètre | 1 743 | **1 663** (`git diff --stat` : +65 / −145, `ThoughtThreadRoot` 473 → **395**) |
+
+**Non vérifié.** Aucun navigateur ; montage jsdom partiel (Focus, List, ParentContext,
+Root et le contexte), **aucun WebSocket ni temps réel** (le fil n'en utilise pas ici :
+`useRealtimeFeedBuffer` vit dans `FeedDashboard`). Non exercés : menu de repost réel,
+suppression via l'interface (le test appelle le handler par sonde de contexte),
+`updatePostShadow`, `toggleHideReplyAction`/`toggleBlockUserAction`, lightbox (Dialog),
+masonry/animation framer-motion, page permalien complète. Server actions toutes mockées :
+aucun appel Go ni Supabase réel. `pnpm test:api`, `pnpm e2e`, `next build` non lancés.
+**R91** re-mesuré à l'identique.
+
+**Dettes.** **R01**, **R54**, **R56**, **R63** à **R74**, **R78** à **R106** restent
+ouvertes ; nouvelles : **R107** (mutation `post.isPinned`), **R108** (état local dérivé
+des props non resynchronisé), **R109** (snapshots `JSON.stringify`).
 
 ---
 

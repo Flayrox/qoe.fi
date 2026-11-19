@@ -7,7 +7,6 @@ import { updatePostShadow } from '@qoe/sdk';
 import {
   getPostThreadAction as getPostThread,
   toggleLikePostAction as toggleLikePost,
-  replyToPostAction as replyToPost,
   deletePostAction as deletePost,
   toggleRepostPostAction as toggleRepostPost,
 } from '@qoe/sdk/actions/feed';
@@ -55,7 +54,6 @@ export function ThoughtThreadRoot({
   const thoughtOverlay = useThoughtOverlay();
   const [post, setPost] = useState<OptimisticThought | null>(initialPost);
   const [loading, setLoading] = useState(!initialPost);
-  const [sendingReply, setSendingReply] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   // Load thread on mount or when postId changes
@@ -68,38 +66,45 @@ export function ThoughtThreadRoot({
 
     async function loadThread() {
       setLoading(true);
-      const res = await getPostThread(postId);
-      if (res.ok && res.data?.post) {
-        const postData = res.data.post;
-        const userHasLiked =
-          typeof postData.liked === 'boolean'
-            ? postData.liked
-            : postData.likes?.some((l: { userId: string }) => l.userId === currentUserId);
-        setPost({
-          ...postData,
-          liked: userHasLiked,
-          likesCount:
-            typeof postData.likesCount === 'number'
-              ? postData.likesCount
-              : postData.likes?.length || 0,
-        });
+      // Une panne réseau ne doit pas laisser le squelette tourner à l'infini :
+      // on retombe sur l'état vide, et `finally` éteint le chargement.
+      try {
+        const res = await getPostThread(postId);
+        if (res.ok && res.data?.post) {
+          const postData = res.data.post;
+          const userHasLiked =
+            typeof postData.liked === 'boolean'
+              ? postData.liked
+              : postData.likes?.some((l: { userId: string }) => l.userId === currentUserId);
+          setPost({
+            ...postData,
+            liked: userHasLiked,
+            likesCount:
+              typeof postData.likesCount === 'number'
+                ? postData.likesCount
+                : postData.likes?.length || 0,
+          });
 
-        // 🎯 Synchroniser l'URL si elle utilisait le fallback générique /auteur/thought/:id
-        const realHandle = postData.author?.username || postData.author?.id;
-        if (realHandle && typeof window !== 'undefined') {
-          const currentPath = window.location.pathname;
-          if (
-            currentPath.includes('/auteur/thought/') ||
-            currentPath.includes('/author/thought/')
-          ) {
-            const newUrl = routes.feed.thought(realHandle, postData.id);
-            window.history.replaceState(window.history.state, '', newUrl);
+          // 🎯 Synchroniser l'URL si elle utilisait le fallback générique /auteur/thought/:id
+          const realHandle = postData.author?.username || postData.author?.id;
+          if (realHandle && typeof window !== 'undefined') {
+            const currentPath = window.location.pathname;
+            if (
+              currentPath.includes('/auteur/thought/') ||
+              currentPath.includes('/author/thought/')
+            ) {
+              const newUrl = routes.feed.thought(realHandle, postData.id);
+              window.history.replaceState(window.history.state, '', newUrl);
+            }
           }
+        } else {
+          setPost(null);
         }
-      } else {
+      } catch {
         setPost(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
 
     loadThread();
@@ -145,21 +150,27 @@ export function ThoughtThreadRoot({
       window.history.pushState({ postId: targetPostId }, '', newUrl);
 
       setLoading(true);
-      getPostThread(targetPostId).then((res) => {
-        if (res.ok && res.data?.post) {
-          const p = res.data.post;
-          const userHasLiked =
-            typeof p.liked === 'boolean'
-              ? p.liked
-              : p.likes?.some((l: { userId: string }) => l.userId === currentUserId);
-          setPost({
-            ...p,
-            liked: userHasLiked,
-            likesCount: typeof p.likesCount === 'number' ? p.likesCount : p.likes?.length || 0,
-          });
-        }
-        setLoading(false);
-      });
+      // Même contrat que le chargement initial : échec → état vide, jamais un
+      // squelette sans fin (le `catch` évite aussi une rejet non gérée).
+      getPostThread(targetPostId)
+        .then((res) => {
+          if (res.ok && res.data?.post) {
+            const p = res.data.post;
+            const userHasLiked =
+              typeof p.liked === 'boolean'
+                ? p.liked
+                : p.likes?.some((l: { userId: string }) => l.userId === currentUserId);
+            setPost({
+              ...p,
+              liked: userHasLiked,
+              likesCount: typeof p.likesCount === 'number' ? p.likesCount : p.likes?.length || 0,
+            });
+          } else {
+            setPost(null);
+          }
+        })
+        .catch(() => setPost(null))
+        .finally(() => setLoading(false));
     },
     [post, currentUserId, standalone, thoughtOverlay]
   );
@@ -273,99 +284,6 @@ export function ThoughtThreadRoot({
     [currentUserId, onLoginRequired]
   );
 
-  // 0ms Optimistic Reply Handler
-  const handleSubmitReply = useCallback(
-    async (parentId: string, content: string): Promise<boolean> => {
-      if (!currentUserId) {
-        if (onLoginRequired) onLoginRequired();
-        return false;
-      }
-
-      if (!content.trim()) return false;
-
-      setSendingReply(true);
-
-      // Temp Optimistic Reply Node
-      const tempReplyId = 'temp-' + Date.now();
-      const optimisticReply: OptimisticThought = {
-        id: tempReplyId,
-        content,
-        createdAt: new Date().toISOString(),
-        isOptimistic: true,
-        likesCount: 0,
-        repliesCount: 0,
-        liked: false,
-        author: dbUser
-          ? {
-              id: dbUser.id || currentUserId || 'unknown',
-              name: dbUser.name || null,
-              username: dbUser.username || null,
-              subdomain: null,
-              logoUrl: dbUser.logoUrl || null,
-              isCertified: false,
-            }
-          : {
-              id: currentUserId || 'unknown',
-              name: null,
-              username: null,
-              subdomain: null,
-              logoUrl: null,
-              isCertified: false,
-            },
-      };
-
-      const previousPost = post ? JSON.parse(JSON.stringify(post)) : null;
-
-      // Recursive append helper
-      const appendReply = (item: OptimisticThought): OptimisticThought => {
-        if (item.id === parentId) {
-          return {
-            ...item,
-            repliesCount: (item.repliesCount || 0) + 1,
-            replies: [optimisticReply, ...(item.replies || [])],
-          };
-        }
-        return {
-          ...item,
-          replies: item.replies ? item.replies.map(appendReply) : [],
-        };
-      };
-
-      if (post) setPost(appendReply(post));
-
-      trackEvent('thought_reply_submit', { parentId });
-      const res = await replyToPost({ postId: parentId, content });
-      setSendingReply(false);
-
-      if (res.ok && res.data?.reply) {
-        toast.success(t`Réponse publiée.`);
-
-        // Replace optimistic temp node with server response
-        const serverReply: OptimisticThought = res.data.reply;
-        const replaceTempNode = (item: OptimisticThought): OptimisticThought => {
-          return {
-            ...item,
-            replies: (item.replies || []).map((r) =>
-              r.id === tempReplyId ? serverReply : replaceTempNode(r)
-            ),
-          };
-        };
-
-        if (post) setPost((prev) => (prev ? replaceTempNode(prev) : null));
-        if (onInteractionUpdate) {
-          onInteractionUpdate(parentId, { repliesCount: (post?.repliesCount || 0) + 1 });
-        }
-        return true;
-      } else {
-        // Rollback on failure
-        if (previousPost) setPost(previousPost);
-        toast.error(t`Erreur lors de la publication de la réponse.`);
-        return false;
-      }
-    },
-    [currentUserId, dbUser, post, onInteractionUpdate, onLoginRequired]
-  );
-
   // Insert a server reply directly into the thread tree (no API call)
   const handleInsertReply = useCallback((parentId: string, reply: OptimisticThought) => {
     setPost((prevPost) => {
@@ -421,12 +339,18 @@ export function ThoughtThreadRoot({
       if (post) {
         const updated = applyTombstoneOrRemove(post);
         if (!updated && post.id === targetId) {
-          // Main post deleted and had no replies -> close view
+          // Pensée racine sans réponse : on ne quitte la vue qu'après le succès
+          // serveur — sinon l'utilisateur perd le fil alors qu'il existe
+          // toujours (et le refus n'est jamais annoncé).
+          const res = await deletePost(targetId);
+          if (!res.ok) {
+            toast.error(res.error?.message || 'Erreur lors de la suppression.');
+            return false;
+          }
+          updatePostShadow(targetId, { isDeleted: true });
           toast.success(t`Pensée supprimée.`);
           if (onClose) onClose();
           else window.location.href = routes.feed.home();
-          await deletePost(targetId);
-          updatePostShadow(targetId, { isDeleted: true });
           return true;
         }
         setPost(updated);
@@ -454,12 +378,10 @@ export function ThoughtThreadRoot({
     dbUser,
     post,
     loading,
-    sendingReply,
     lightboxImage,
     setLightboxImage,
     toggleLike: handleToggleLike,
     repostThought: handleRepostThought,
-    submitReply: handleSubmitReply,
     insertReply: handleInsertReply,
     deleteThought: handleDeleteThought,
     onClose,

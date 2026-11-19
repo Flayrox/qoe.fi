@@ -28,14 +28,12 @@ export interface ThoughtThreadContextValue {
   dbUser?: DbUser | null;
   post: OptimisticThought | null;
   loading: boolean;
-  sendingReply: boolean;
   lightboxImage: string | null;
   setLightboxImage: (url: string | null) => void;
 
   // Optimistic Mutation Handlers
   toggleLike: (targetId: string) => Promise<void>;
   repostThought: (targetId: string) => Promise<void>;
-  submitReply: (parentId: string, content: string) => Promise<boolean>;
   insertReply: (parentId: string, reply: OptimisticThought) => void;
   deleteThought: (targetId: string) => Promise<boolean>;
 
