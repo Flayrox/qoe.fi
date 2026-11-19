@@ -133,24 +133,14 @@ interface MentionSuggestion {
   char?: string;
 }
 
-const getImages = (url: string | null | undefined): string[] => {
-  if (!url) return [];
-  if (url.startsWith('[')) {
-    try {
-      return JSON.parse(url);
-    } catch {
-      return [url];
-    }
-  }
-  return [url];
-};
-
 import { QuotedThoughtCard } from '@/components/social/QuotedThoughtCard';
 import { QuotedArticleCard, type QuotedArticleData } from '@qoe/ui/social';
 import type { ThoughtData } from '@/components/social/ThoughtCard';
 import type { FeedArticleDTO } from '@/lib/feed-types';
 import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
 import { CertifiedBadge } from '@qoe/ui/ui/CertifiedBadge';
+import { parseImageUrls, uploadComposerImages } from './composer-upload';
+import { LOCAL_THREAD_DRAFT_KEY, parseStoredThreadNodes } from './composer-drafts';
 
 interface ThoughtComposerProps {
   dbUser: DbUser | null;
@@ -369,7 +359,7 @@ export function ThoughtComposer({
           pollDurationHours,
         };
       }
-      localStorage.setItem('qoe_multi_thought_drafts', JSON.stringify(finalNodes));
+      localStorage.setItem(LOCAL_THREAD_DRAFT_KEY, JSON.stringify(finalNodes));
     }, 1000);
 
     return () => clearTimeout(timer);
@@ -512,36 +502,35 @@ export function ThoughtComposer({
 
   // 6. Charger un brouillon local de fil entier
   const handleLoadLocalThreadDraft = () => {
-    try {
-      const raw = localStorage.getItem('qoe_multi_thought_drafts');
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed) || parsed.length === 0) return;
-
-      setThreadNodes(parsed);
-
-      const node0 = parsed[0];
-      isSwitchingRef.current = true;
-      setPostText(node0.text);
-      setImages(node0.images);
-      setIsTriggerWarning(node0.isTriggerWarning);
-      setTriggerWarning(node0.triggerWarning);
-      setShowPollEditor(node0.showPollEditor);
-      setPollOptions(node0.pollOptions);
-      setPollDurationHours(node0.pollDurationHours);
-
-      setActiveNodeIndex(0);
-      setIsComposerExpanded(true);
-      setIsDraftsOpen(false);
-
-      setTimeout(() => {
-        isSwitchingRef.current = false;
-      }, 50);
-
-      toast.success(t`Fil de discussion restauré avec succès !`);
-    } catch {
-      toast.error('Impossible de restaurer le fil.');
+    // Lecture défensive : une entrée d'une version antérieure ne doit pas
+    // casser le rendu (voir composer-drafts.ts).
+    const parsed = parseStoredThreadNodes(localStorage.getItem(LOCAL_THREAD_DRAFT_KEY));
+    if (!parsed) {
+      toast.error(t`Impossible de restaurer le fil.`);
+      return;
     }
+
+    setThreadNodes(parsed);
+
+    const node0 = parsed[0];
+    isSwitchingRef.current = true;
+    setPostText(node0.text);
+    setImages(node0.images);
+    setIsTriggerWarning(node0.isTriggerWarning);
+    setTriggerWarning(node0.triggerWarning);
+    setShowPollEditor(node0.showPollEditor);
+    setPollOptions(node0.pollOptions);
+    setPollDurationHours(node0.pollDurationHours);
+
+    setActiveNodeIndex(0);
+    setIsComposerExpanded(true);
+    setIsDraftsOpen(false);
+
+    setTimeout(() => {
+      isSwitchingRef.current = false;
+    }, 50);
+
+    toast.success(t`Fil de discussion restauré avec succès !`);
   };
 
   // Universal Typeahead State (@mentions, #hashtags, :emojis:)
@@ -873,7 +862,7 @@ export function ThoughtComposer({
   const handleLoadDraft = (draft: ThoughtDraft) => {
     setPostText(draft.content || '');
 
-    const imageUrls = getImages(draft.imageUrl);
+    const imageUrls = parseImageUrls(draft.imageUrl);
     const composerImages = imageUrls.map((url) => ({
       id: generateUUID(),
       url,
@@ -940,31 +929,6 @@ export function ThoughtComposer({
       loadDrafts();
     }
   }, [isDraftsOpen]);
-
-  const uploadComposerImages = async (composerImages: ComposerImage[]): Promise<string[]> => {
-    const uploadedUrls: string[] = [];
-    for (const img of composerImages) {
-      if (!img.file) {
-        uploadedUrls.push(img.url);
-        continue;
-      }
-      const formData = new FormData();
-      formData.append('file', img.file);
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-      if (!res.ok) {
-        throw new Error("Erreur lors de l'envoi d'une image au serveur.");
-      }
-      const data = await res.json();
-      if (!data.url) {
-        throw new Error(t`L'upload de l'image a échoué.`);
-      }
-      uploadedUrls.push(data.url);
-    }
-    return uploadedUrls;
-  };
 
   const handlePostSubmit = async (e: React.FormEvent, forceDraft?: boolean) => {
     e.preventDefault();
@@ -1164,7 +1128,7 @@ export function ThoughtComposer({
       setOverflowStyle('hidden');
 
       // Nettoyage des brouillons en cache local
-      localStorage.removeItem('qoe_multi_thought_drafts');
+      localStorage.removeItem(LOCAL_THREAD_DRAFT_KEY);
       localStorage.removeItem('qoe_thought_draft');
       localStorage.removeItem('qoe_micro_post_draft');
 
@@ -2258,7 +2222,7 @@ export function ThoughtComposer({
 
           <div className="flex-1 overflow-y-auto p-6 space-y-4 font-sans">
             {/* Brouillons de fil locaux (Brique 3) */}
-            {typeof window !== 'undefined' && localStorage.getItem('qoe_multi_thought_drafts') && (
+            {typeof window !== 'undefined' && localStorage.getItem(LOCAL_THREAD_DRAFT_KEY) && (
               <div className="border border-primary/25 bg-primary/5 rounded-[var(--radius-card)] p-4 space-y-2.5 flex flex-col justify-between mb-4">
                 <div className="space-y-1.5">
                   <span className="text-[9px] uppercase tracking-wider text-primary font-bold block">
@@ -2268,7 +2232,7 @@ export function ThoughtComposer({
                     {(() => {
                       try {
                         const parsed = JSON.parse(
-                          localStorage.getItem('qoe_multi_thought_drafts') || '[]'
+                          localStorage.getItem(LOCAL_THREAD_DRAFT_KEY) || '[]'
                         );
                         return (
                           parsed
@@ -2286,7 +2250,7 @@ export function ThoughtComposer({
                   <button
                     type="button"
                     onClick={() => {
-                      localStorage.removeItem('qoe_multi_thought_drafts');
+                      localStorage.removeItem(LOCAL_THREAD_DRAFT_KEY);
                       toast.success(t`Brouillon local supprimé.`);
                       setThreadNodes([
                         {

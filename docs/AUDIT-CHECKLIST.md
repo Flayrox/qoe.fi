@@ -86,7 +86,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2a  | `app/{auth,login,oauth,subscribe-with-qoefi,actions}` + `layout/page/not-found`                              | 16 fichiers · 1 608 l.      | **durci le 2026-11-19** |
 | L20b2b1 | `(reader)` hors `{home,library,[username],settings}`                                                          | 25 fichiers · 2 170 l.      | **durci le 2026-11-19** |
 | L20b2b2a | `(reader)/home` : page, loading, dashboard, cartes de slice                                             | 10 fichiers · 2 016 l.      | **durci le 2026-11-19** |
-| L20b2b2b | `(reader)/home/components/ThoughtComposer.tsx` + son test                                                  | 2 fichiers · 2 748 l.       | à auditer               |
+| L20b2b2b | `(reader)/home/components/ThoughtComposer.tsx` + son test                                                   | 2 fichiers · 2 748 l.       | **durci le 2026-11-19** |
 | L20b2b2c | `(reader)/home/components/thread/**`                                                                       | 13 fichiers · 1 743 l.      | à auditer               |
 | L20b2b3 | `app/(reader)/library/**`                                                                                    | 18 fichiers · 3 689 l.      | à auditer               |
 | L20b2b4 | `app/(reader)/[username]/**`                                                                                 | 9 fichiers · 2 184 l.       | à auditer               |
@@ -113,10 +113,10 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L20b2b2b — `(reader)/home/components/ThoughtComposer.tsx`**
-(2 fichiers · 2 748 l. ; L20b2b2a clos ; ordre restant : L20b2b2b compositeur,
-L20b2b2c fils de discussion, L20b2b3 bibliothèque, L20b2b4 profils, L20b2b5
-réglages, L20c composants, L20d hooks/features).
+**Prochain lot à traiter : L20b2b2c — `(reader)/home/components/thread/**`**
+(13 fichiers · 1 743 l. ; L20b2b2b clos ; ordre restant : L20b2b2c fils de
+discussion, L20b2b3 bibliothèque, L20b2b4 profils, L20b2b5 réglages, L20c
+composants, L20d hooks/features).
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -897,6 +897,9 @@ nommé), puis verts après restauration.
 | R74 | `canonicalEmail` est calculé par `@qoe/moderation` et écrit dans les métadonnées Supabase (`options.data`) au signup, mais **aucun code ne le lit** : ni le sync Go, ni la base (aucun index unique). L'anti-multi-comptes annoncé par le module ne s'exerce donc pas au-delà du jour de l'inscription, et la suppression systématique du tag `+` (tous fournisseurs, pas seulement Gmail) n'a aucune conséquence observable. | moyenne | Arbitrage backend : colonne `canonicalEmail` + index unique dans une migration goose, puis refus de doublon côté Go (`/v1/auth/sync`), en décidant si l'on garde Gmail uniquement pour les points. Voir L14. |
 | R94 | `/api/articles/[slug]` (core) n'a **aucun appelant** dans le repo : la page article lit côté serveur. Route morte dont le contrat HTTP vient d'être corrigé (cache privé, L20b1) mais qui reste à supprimer ou à réutiliser explicitement. | faible | Arbitrage : supprimer la route (et son test) ou la brancher sur le préchargement client ; décision produit sur le préchargement d'article. Voir L20b1. |
 | R93 | `packages/analytics` envoie la session de lecture par `navigator.sendBeacon(endpointUrl, payload)` avec un **corps texte** (Content-Type `text/plain`) : le handler lit `req.json()`, qui fonctionne par chance (pas de validation de type de contenu côté Next). Aucun rejet observé, mais le contrat média n'est pas explicite. | faible | Arbitrage : créer un `Blob` typé `application/json` à l'envoi, ou valider/ignorer explicitement le Content-Type côté route. Voir L20b1. |
+| R106 | `ThoughtComposer` lance six `setTimeout` (remise de `isSwitchingRef`, repositionnement du curseur après insertion d'une mention) **sans nettoyage au démontage** : `setState` possible après disparition du composant. | faible | Retourner un cleanup ou utiliser un timer ref annulé dans un `useEffect` de démontage, puis un test jsdom d'unmount. Voir L20b2b2b. |
+| R105 | À chaque frappe, `ThoughtComposer` fait un `localStorage.setItem` **synchrone** et recrée `EMOJI_MAP`, `createEmptyNode`, `checkMentionTrigger`, `calculateCharacters` (donc re-filtre les suggestions à chaque rendu) : coût visible sur mobile bas de gamme. | faible | Debounce d'écriture du brouillon, `useMemo`/hoisting des constantes, mesures avant/après. Voir L20b2b2b. |
+| R104 | `ThoughtComposer.tsx` reste **un composant de 2 470 lignes** couvrant fil multi-nœuds, typeahead `@/#/:`, sondages, planification, avertissements, brouillons et recadrage : deux helpers (`composer-upload`, `composer-drafts`) en sont sortis, mais l'état et les handlers restent mêlés. | moyenne | Découper en hooks (`useThreadNodes`, `useTypeahead`, `useComposerMedia`) avec les tests existants comme filet, hors audit. Voir L20b2b2b. |
 | R103 | `FeedDashboard` monte un `useEffect` de listeners dont les handlers referment `overlay` (surcouche article) et `thoughtOverlay` **absents des dépendances** (`[dbUser]`) : après un changement de provider, `reset-feed-view` et `open-composer` peuvent agir sur une instance périmée. | moyenne | Inclure les deux objets dans les dépendances après avoir vérifié leur stabilité (mémoïsation du provider), avec un test jsdom de montage. Voir L20b2b2a. |
 | R102 | Côté client, `fetchNextFeedPage` (`/api/feed/personalized`) et `handleHideArticle` (`/api/feed/show-less`) appellent `fetch` **sans timeout** et journalisent en `console.error` ; une réponse lente bloque la pagination sans retour visuel. | faible | Ajouter un `AbortSignal.timeout` + un état d'erreur affiché (toast déjà présent pour `show-less`), et router la journalisation vers l'observabilité. Voir L20b2b2a. |
 | R101 | `FeedDashboard` traverse le typage avec **trois double-casts** `as never as` (`sliceData`, `article` vers `ArticleCard`, `art` vers `Article`) : `FeedSliceItem` et `FeedSlice` divergent, et tout champ ajouté d'un côté passe silencieusement. | moyenne | Réconcilier `FeedSliceItem`/`FeedSlice` (mapper unique côté `lib/vector-feed`), puis supprimer les casts ; le ratchet `arch:audit` ne compte que `as unknown as`. Voir L20b2b2a. |
@@ -1448,6 +1451,76 @@ existante modifiée, aucune doublure touchée.
 **Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65**, **R66**
 restent **ouvertes**. Nouvelle dette : **R67** (surfaces `continuous`,
 `highlighter`, `paywall`, `excerpt` sans consommateur TS).
+
+---
+
+## L20b2b2b — `apps/core/src/app/(reader)/home/components/ThoughtComposer.tsx` — durci le 2026-11-19
+
+**Périmètre.** `ThoughtComposer.tsx` (**2 504 l.**) et son test (`ThoughtComposer.test.tsx`,
+244 l.), lues en entier ; consommateurs vérifiés (`ComposerModal`, `ThoughtReplyModal`,
+`FeedDashboard`). Imports réels : `react` (hooks), `framer-motion`, `next/image`,
+`@qoe/ui/{ui/popover,ui/calendar,ui/time-picker-input,toast,ui/ImageEditorDialog,select,ui/sheet}`,
+et server actions dynamiques de `@qoe/sdk/actions/feed` (Imports différés volontaires :
+le composant client ne charge pas les actions au rendu initial). Aucun `fetch` vers Go :
+seul `fetch('/api/upload')` (route Next mème origine).
+
+| #    | Défaut                                                                                                                                                                                                                                                                                                        | Sévérité | Statut                                                                                                                                                                                                                          |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| F239 | **Restauration d'un brouillon de fil `localStorage` non validée** : `JSON.parse` + `Array.isArray` de surface seulement, puis `setThreadNodes(parsed)` et `setImages(node0.images)`. Une entrée d'une version antérieure (ou abîmée) avec `images: "oops"` faisait planter **tout le compositeur** (`images.map` sur une chaîne) : écran blanc, saisie perdue. | haute    | corrigé — `composer-drafts.ts` valide chaque nœud (formes, images, options de sondage), refuse le fil entier si la forme est inexploitable et l'annonce ; rouge : `TypeError: images.map is not a function`                                                       |
+| F240 | **`imageUrl` de brouillon serveur non filtré** : `getImages()` faisait `JSON.parse` sans vérifier les éléments, typait `any` en `string[]` et laissait passer des objets → une carte image `src="[object Object]"` dans l'éditeur, prête à être publiée.                                                                                                | moyenne  | corrigé — `parseImageUrls()` (composer-upload.ts) ne garde que les chaînes non vides, retombe sur l'URL brute sinon ; rouge : `AssertionError: expected null to be 'https://cdn.test/a.jpg'` (une entrée non textuelle devenait une seconde image)             |
+| F241 | **Upload d'image non typé et sans borne** : `const data = await res.json()` (any implicite) puis `data.url` → une réponse sans corps levait `TypeError: Cannot read properties of null (reading 'url')` au milieu de la publication ; aucun `AbortSignal`, donc un réseau figé bloquait le fil indéfiniment. | moyenne  | corrigé — module `composer-upload.ts` extrait (testable sans l'éditeur d'image) : payload validé (`{ url: string }` sinon message métier) + `AbortSignal.timeout(60_000)` ; rouges : `expected [Function] to throw error including 'L'upload de l'image a échoué.' but got 'Cannot read properties of null…'` et `expected undefined to be an instance of AbortSignal` |
+
+**Candidats examinés puis ABANDONNÉS** :
+
+- **Double envoi** : `handlePostSubmit` vérifie `isSubmitting` en entrée et désactive le
+  bouton ; aucune reproduction d'un double POST en RTL (le second clic voit déjà l'état
+  `true`) → pas de défaut.
+- **`thoughtsPayload = []`** : tableau à typage évolutif (TS l'infère des `push`), pas un
+  `any[]` → pas de défaut.
+- **`handleDeleteDraft`/`loadDrafts` définis après usage** : fermetures appelées plus tard,
+  aucune TDZ à l'exécution → pas de défaut.
+- **`localStorage.setItem` à chaque frappe**, `EMOJI_MAP`/`createEmptyNode`/`calculateCharacters`
+  recréés à chaque rendu : hygiène de performance réelle mais non rougissable sans
+  profilage → **R105**.
+- **Cinq `setTimeout(…, 50)` (remise de `isSwitchingRef`) et un `setTimeout(…, 10)` sans
+  nettoyage** : `setState` après démontage possible, sans conséquence observable → **R106**.
+- **Composant de 2 470 lignes** (fil, typeahead `@/#/:` , sondages, planification,
+  avertissements, brouillons, recadrage) : découpage en hooks à faire, hors audit → **R104**.
+- **`confirm()` natif** dans `removeThreadNode` : demande de confirmation standard, déjà
+  couverte par un test du fil → pas de défaut.
+
+**Preuve rouge → vert.** Deux suites écrites **avant** correctifs :
+`composer-upload.test.ts` (**2 échecs / 3**, messages cités) et
+`ThoughtComposer-hardening.test.tsx` (**1 échec / 2** d'abord — `TypeError: images.map is
+not a function` — puis 2/2 après le premier correctif). Extraction de l'upload en module
+**sans changement de logique** avant de mesurer F241, pour sortir le chemin du composant
+de 2 500 lignes. Aucune assertion existante modifiée (`ThoughtComposer.test.tsx` intact),
+aucun test supprimé, aucun `any` ajouté.
+
+**Preuves (mesurées) :**
+
+| Commande | Avant | Après |
+| -------- | ----- | ----- |
+| `pnpm --filter @qoe/core test` | 36 fichiers · **277 tests** | 38 fichiers · **282 tests** |
+| `pnpm --filter @qoe/core lint` | 0 erreur (10 warnings) | **0 erreur** (10 warnings préexistants) |
+| `pnpm lint` / `pnpm typecheck` / `pnpm test` | 25/25 · 25/25 · 24/24 | **25/25 · 25/25 · 24/24** |
+| `pnpm typecheck:root` | ✔ | **✔** |
+| gardes CI (10, dont `arch:audit`, `ui:audit`) | vertes | **vertes** |
+| `pnpm test:coverage` (R91) | `branches 78.18% < 85%` | **identique (78.18 %)**, seul rouge, préexistant |
+| lignes | `ThoughtComposer.tsx` 2 504 | **2 470** (−34), `composer-upload.ts` 66, `composer-drafts.ts` 93 |
+
+**Non vérifié.** Rendu jsdom seulement pour deux chemins (ouverture de la feuille de
+brouillons, restauration, chargement) ; **aucun navigateur**. Non exercés : éditeur
+d'image (`ImageEditorDialog`), recadrage, alt-text, sondages, planification, typeahead
+réseau (`searchUsersAction`), publication multi-nœuds, publication réelle (action mockée),
+`next/image`, animations framer-motion. Le test F240 était rouge avec une assertion de rôle
+(`img`) puis l'assertion finale interroge les `src` HTTP du DOM — même défaut, assertion
+plus précise. Aucun appel à Go ni à Supabase. `pnpm test:api`, `pnpm e2e`,
+`next build` non lancés. **R91** re-mesuré à l'identique.
+
+**Dettes.** **R01**, **R54**, **R56**, **R63** à **R74**, **R78** à **R103** restent
+ouvertes ; nouvelles : **R104** (composant de 2 470 l. à découper), **R105** (écritures
+`localStorage` par frappe, calculs par rendu), **R106** (`setTimeout` non nettoyés).
 
 ---
 
