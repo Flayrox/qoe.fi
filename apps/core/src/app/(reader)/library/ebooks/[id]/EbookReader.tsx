@@ -126,14 +126,20 @@ function EbookReaderInner({
   const articleRef = useRef<HTMLDivElement>(null);
   const paragraphRef = useRef(paragraph);
   paragraphRef.current = paragraph;
-  const mountedRef = useRef(false);
+  const previousChapterRef = useRef(index);
   const tts = useTextToSpeech();
   // Le livre est-il déjà emporté ? Résolu de manière asynchrone (IndexedDB + fallback).
   useEffect(() => {
     let mounted = true;
-    hasOfflinePackAsync(book.id).then((isSaved) => {
-      if (mounted) setOffline(isSaved);
-    });
+    hasOfflinePackAsync(book.id)
+      .then((isSaved) => {
+        if (mounted) setOffline(isSaved);
+      })
+      // IndexedDB peut refuser l'accès (navigation privée, quota) : l'absence de
+      // pack est l'état par défaut, pas une raison de rejeter dans le vide.
+      .catch(() => {
+        if (mounted) setOffline(false);
+      });
     return () => {
       mounted = false;
     };
@@ -231,11 +237,12 @@ function EbookReaderInner({
   // Changer de chapitre arrête l'écoute : le moteur TTS lit le chapitre
   // affiché, pas la suite d'un autre (un livre ne se lit pas tout seul).
   // Au premier rendu on ne fait RIEN : c'est là qu'on restaure la position.
+  // Comparaison avec le chapitre PRÉCÉDENT, pas avec un drapeau de montage :
+  // les effets rejoués (StrictMode, Fast Refresh) ne doivent pas remettre le
+  // lecteur en haut ni écraser la reprise au paragraphe.
   useEffect(() => {
-    if (!mountedRef.current) {
-      mountedRef.current = true;
-      return;
-    }
+    if (previousChapterRef.current === index) return;
+    previousChapterRef.current = index;
     tts?.stopPlayback();
     setParagraph(0);
     window.scrollTo({ top: 0 });
@@ -275,27 +282,38 @@ function EbookReaderInner({
       return;
     }
     if (offline) {
-      await removeOfflinePackAsync(book.id);
-      setOffline(false);
-      toast.success('Livre retiré du hors-ligne.');
+      try {
+        await removeOfflinePackAsync(book.id);
+        setOffline(false);
+        toast.success('Livre retiré du hors-ligne.');
+      } catch {
+        toast.error('Retrait du hors-ligne impossible pour le moment.');
+      }
       return;
     }
+    // `busy` est rendu dans un `finally` : une panne Go ou un quota IndexedDB
+    // plein ne doit pas laisser le bouton d'emport désactivé à vie.
     setBusy(true);
-    const res = await getEbookOfflinePackAction({ id: book.id });
-    setBusy(false);
-    if (!res.ok) {
-      toast.error(res.error.message || 'Emport impossible pour le moment.');
-      return;
+    try {
+      const res = await getEbookOfflinePackAction({ id: book.id });
+      if (!res.ok) {
+        toast.error(res.error.message || 'Emport impossible pour le moment.');
+        return;
+      }
+      const saved = await saveOfflinePackAsync(book.id, {
+        version: res.data.version,
+        kind: 'ebook',
+        payload: res.data.book,
+      });
+      setOffline(saved);
+      toast[saved ? 'success' : 'error'](
+        saved ? 'Livre emporté (lisible sans réseau).' : 'Stockage plein : livre non emporté.'
+      );
+    } catch {
+      toast.error('Emport impossible pour le moment.');
+    } finally {
+      setBusy(false);
     }
-    const saved = await saveOfflinePackAsync(book.id, {
-      version: res.data.version,
-      kind: 'ebook',
-      payload: res.data.book,
-    });
-    setOffline(saved);
-    toast[saved ? 'success' : 'error'](
-      saved ? 'Livre emporté (lisible sans réseau).' : 'Stockage plein : livre non emporté.'
-    );
   };
 
   // Sélection de texte → on propose de la garder (jamais d'action imposée :

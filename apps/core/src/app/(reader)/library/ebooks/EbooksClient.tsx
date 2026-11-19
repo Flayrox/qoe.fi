@@ -62,7 +62,13 @@ export function EbooksClient({ initialEbooks, plus }: EbooksClientProps) {
     try {
       const form = new FormData();
       form.set('file', file);
-      const res = await fetch('/api/ebooks/upload', { method: 'POST', body: form });
+      // Un EPUB peut peser 20 Mo : sans borne de temps, un réseau qui ne répond
+      // plus laisse le bouton « Import en cours… » à vie.
+      const res = await fetch('/api/ebooks/upload', {
+        method: 'POST',
+        body: form,
+        signal: AbortSignal.timeout(120_000),
+      });
       const body = (await res.json().catch(() => ({}))) as EbookSummary & {
         error?: string;
         code?: string;
@@ -73,8 +79,12 @@ export function EbooksClient({ initialEbooks, plus }: EbooksClientProps) {
       }
       setBooks((prev) => [body, ...prev]);
       toast.success(`« ${body.title} » importé (${body.chapterCount} chapitres)`);
-    } catch {
-      setError(describeEbookError(null, null));
+    } catch (err) {
+      setError(
+        (err as { name?: string })?.name === 'TimeoutError'
+          ? 'Import interrompu : le serveur ne répond pas (2 min).'
+          : describeEbookError(null, null)
+      );
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';
@@ -83,14 +93,20 @@ export function EbooksClient({ initialEbooks, plus }: EbooksClientProps) {
 
   const onDelete = (id: string) => {
     startDelete(async () => {
-      const res = await deleteEbookAction({ id });
-      if (!res.ok) {
-        toast.error(describeEbookError(res.error.code ?? null, res.error.message));
-        return;
+      try {
+        const res = await deleteEbookAction({ id });
+        if (!res.ok) {
+          toast.error(describeEbookError(res.error.code ?? null, res.error.message));
+          return;
+        }
+        setBooks((prev) => prev.filter((b) => b.id !== id));
+        setConfirmId(null);
+        toast.success('Livre supprimé.');
+      } catch {
+        // Sans ce filet, un rejet d'action disparaît : l'utilisateur croit avoir
+        // supprimé un livre qui est toujours là.
+        toast.error('Suppression impossible pour le moment.');
       }
-      setBooks((prev) => prev.filter((b) => b.id !== id));
-      setConfirmId(null);
-      toast.success('Livre supprimé.');
     });
   };
 

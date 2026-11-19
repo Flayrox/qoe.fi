@@ -61,8 +61,12 @@ export function AllNotesClient({
     const link = document.createElement('a');
     link.href = url;
     link.download = `qoe-notes-livres-${new Date().toISOString().slice(0, 10)}.md`;
+    // Lien réellement dans le document (Firefox ignore un nœud détaché) et
+    // révocation différée : révoquer dans le même tick annule le téléchargement.
+    document.body.appendChild(link);
     link.click();
-    URL.revokeObjectURL(url);
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
     toast.success('Notes exportées en Markdown (.md)');
   };
 

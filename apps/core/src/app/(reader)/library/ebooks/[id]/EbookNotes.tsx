@@ -73,45 +73,61 @@ export function EbookNotes({
       return;
     }
     setSaving(true);
-    const res = await addEbookNoteAction({
-      ebookId,
-      chapter: chapterIndex,
-      chapterTitle,
-      excerpt,
-      note: text,
-    });
-    setSaving(false);
-    if (!res.ok) {
-      toast.error(describeEbookError(res.error.code ?? null, res.error.message));
-      return;
+    try {
+      const res = await addEbookNoteAction({
+        ebookId,
+        chapter: chapterIndex,
+        chapterTitle,
+        excerpt,
+        note: text,
+      });
+      if (!res.ok) {
+        toast.error(describeEbookError(res.error.code ?? null, res.error.message));
+        return;
+      }
+      onAdd(res.data);
+      setExcerpt('');
+      setText('');
+      toast.success('Note ajoutée à ce chapitre.');
+    } catch {
+      // Une panne réseau ne doit pas laisser le bouton d'envoi verrouillé.
+      toast.error('Note non enregistrée : réessayez.');
+    } finally {
+      setSaving(false);
     }
-    onAdd(res.data);
-    setExcerpt('');
-    setText('');
-    toast.success('Note ajoutée à ce chapitre.');
   };
 
   const saveEdit = async (id: string) => {
     setPendingId(id);
-    const res = await updateEbookNoteAction({ ebookId, noteId: id, note: editText });
-    setPendingId(null);
-    if (!res.ok) {
-      toast.error(describeEbookError(res.error.code ?? null, res.error.message));
-      return;
+    try {
+      const res = await updateEbookNoteAction({ ebookId, noteId: id, note: editText });
+      if (!res.ok) {
+        toast.error(describeEbookError(res.error.code ?? null, res.error.message));
+        return;
+      }
+      onUpdate(res.data);
+      setEditingId(null);
+    } catch {
+      toast.error('Modification non enregistrée : réessayez.');
+    } finally {
+      setPendingId(null);
     }
-    onUpdate(res.data);
-    setEditingId(null);
   };
 
   const remove = async (id: string) => {
     setPendingId(id);
-    const res = await deleteEbookNoteAction({ ebookId, noteId: id });
-    setPendingId(null);
-    if (!res.ok) {
-      toast.error(describeEbookError(res.error.code ?? null, res.error.message));
-      return;
+    try {
+      const res = await deleteEbookNoteAction({ ebookId, noteId: id });
+      if (!res.ok) {
+        toast.error(describeEbookError(res.error.code ?? null, res.error.message));
+        return;
+      }
+      onDelete(id);
+    } catch {
+      toast.error('Suppression impossible pour le moment.');
+    } finally {
+      setPendingId(null);
     }
-    onDelete(id);
   };
 
   return (

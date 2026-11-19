@@ -88,7 +88,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b2a | `(reader)/home` : page, loading, dashboard, cartes de slice                                             | 10 fichiers · 2 016 l.      | **durci le 2026-11-19** |
 | L20b2b2b | `(reader)/home/components/ThoughtComposer.tsx` + son test                                                   | 2 fichiers · 2 748 l.       | **durci le 2026-11-19** |
 | L20b2b2c | `(reader)/home/components/thread/**`                                                                       | 13 fichiers · 1 743 l.      | **durci le 2026-11-19** |
-| L20b2b3 | `app/(reader)/library/**`                                                                                    | 18 fichiers · 3 689 l.      | **scindé** : L20b2b31 (racine, 5 f. · 1 665 l.) **durci le 2026-11-19** + L20b2b32 (`ebooks/**`, 13 f. · 2 024 l.) à auditer |
+| L20b2b3 | `app/(reader)/library/**`                                                                                    | 18 fichiers · 3 689 l.      | **clos** : L20b2b31 (racine, 5 f.) **durci le 2026-11-19** + L20b2b32 (`ebooks/**`, 13 f.) **durci le 2026-11-19** |
 | L20b2b4 | `app/(reader)/[username]/**`                                                                                 | 9 fichiers · 2 184 l.       | à auditer               |
 | L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | à auditer               |
 | L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | à auditer               |
@@ -113,10 +113,10 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L20b2b32 — `apps/core/src/app/(reader)/library/ebooks/**`**
-(13 fichiers · 2 024 l. ; L20b2b31 clos — racine de la bibliothèque, 5 fichiers ·
-1 700 l. après correctifs ; ordre restant : L20b2b32 liseuse/EPUB, L20b2b4 profils,
-L20b2b5 réglages, L20c composants, L20d hooks/features).
+**Prochain lot à traiter : L20b2b4 — `apps/core/src/app/(reader)/[username]/**`**
+(9 fichiers · 2 184 l., mesuré ; L20b2b3 clos — bibliothèque entière, 18 fichiers ·
+3 778 l. après correctifs ; ordre restant : L20b2b4 profils, L20b2b5 réglages,
+L20c composants, L20d hooks/features).
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -897,6 +897,9 @@ nommé), puis verts après restauration.
 | R74 | `canonicalEmail` est calculé par `@qoe/moderation` et écrit dans les métadonnées Supabase (`options.data`) au signup, mais **aucun code ne le lit** : ni le sync Go, ni la base (aucun index unique). L'anti-multi-comptes annoncé par le module ne s'exerce donc pas au-delà du jour de l'inscription, et la suppression systématique du tag `+` (tous fournisseurs, pas seulement Gmail) n'a aucune conséquence observable. | moyenne | Arbitrage backend : colonne `canonicalEmail` + index unique dans une migration goose, puis refus de doublon côté Go (`/v1/auth/sync`), en décidant si l'on garde Gmail uniquement pour les points. Voir L14. |
 | R94 | `/api/articles/[slug]` (core) n'a **aucun appelant** dans le repo : la page article lit côté serveur. Route morte dont le contrat HTTP vient d'être corrigé (cache privé, L20b1) mais qui reste à supprimer ou à réutiliser explicitement. | faible | Arbitrage : supprimer la route (et son test) ou la brancher sur le préchargement client ; décision produit sur le préchargement d'article. Voir L20b1. |
 | R93 | `packages/analytics` envoie la session de lecture par `navigator.sendBeacon(endpointUrl, payload)` avec un **corps texte** (Content-Type `text/plain`) : le handler lit `req.json()`, qui fonctionne par chance (pas de validation de type de contenu côté Next). Aucun rejet observé, mais le contrat média n'est pas explicite. | faible | Arbitrage : créer un `Blob` typé `application/json` à l'envoi, ou valider/ignorer explicitement le Content-Type côté route. Voir L20b1. |
+| R116 | Ouvrir un livre avec `?chapter=` (lien depuis « mes notes ») déclenche immédiatement une sauvegarde de progression : la position de lecture mémorisée du livre est écrasée par le chapitre consulté. | faible | Décider du comportement (le parcours d'une note est-il une progression ?) et, si non, ne pas remplacer `progressChapter` quand `initialChapter` est fourni. Voir L20b2b32. |
+| R115 | `EbooksClient` rend la barre de progression avec `width: ${book.progressPct}%` **sans** `clampPct`, alors que `describeEbookProgress` borne à 0-100 : une valeur serveur aberrante déborderait de la vignette. | faible | Passer par `clampPct(book.progressPct)` (helper déjà testé) et couvrir la borne. Voir L20b2b32. |
+| R114 | `EbooksClient.onDelete` enveloppe un callback `async` dans `startTransition` : `pendingDelete` ne reflète aucun travail réel (même famille que R110), donc le bouton « Confirmer » n'a aucun état d'attente. | faible | Sortir l'`await` de la transition ou exposer un état `pendingDeleteId` explicite. Voir L20b2b32. |
 | R113 | `LibraryClient.handleDeleteHighlight` et `handleSaveNote` annulent par `setHighlights(previous)`, l'instantané complet pris avant la mutation : deux mutations rapprochées peuvent se restaurer mutuellement. | faible | Réinsérer/restaurer par identifiant (comme F246 pour les signets), avec un test de deux suppressions enchaînées. Voir L20b2b31. |
 | R112 | `formatQuoteForClipboard` préfixe `https://qoe.fi` quand `getArticleUrl` rend un chemin relatif : une citation copiée depuis un domaine tenant ou un environnement de préprod pointe vers la production. | faible | Utiliser l'origine canonique (env `NEXT_PUBLIC_APP_URL`/helper dédié) et réécrire l'assertion qui encode le littéral. Voir L20b2b31. |
 | R111 | `LibraryClient.handleCopyHighlight` programme `setTimeout(() => setCopiedId(null), 2000)` sans cleanup : `setState` possible après démontage, et le timer survit à la navigation. | faible | Timer en `useRef` annulé dans un `useEffect` de démontage ou `useEffect` dérivé de `copiedId`, avec un test d'unmount. Voir L20b2b31. |
@@ -1458,6 +1461,87 @@ existante modifiée, aucune doublure touchée.
 **Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65**, **R66**
 restent **ouvertes**. Nouvelle dette : **R67** (surfaces `continuous`,
 `highlighter`, `paywall`, `excerpt` sans consommateur TS).
+
+---
+
+## L20b2b32 — `apps/core/src/app/(reader)/library/ebooks/**` — durci le 2026-11-19
+
+**Périmètre lu en entier.** Les **13 fichiers** (5 sources, 5 pages/RSC, 3 suites) :
+`EbooksClient.tsx` (275 l.), `[id]/EbookReader.tsx` (589 l.), `[id]/EbookNotes.tsx` (268 l.),
+`notes/AllNotesClient.tsx` (165 l.), `ebooks-helpers.ts` (104 l.), `ebook-search.ts` (126 l.),
+`notes/notes-markdown.ts` (73 l.), les 3 `page.tsx` (63 / 29 / 28 l.) et les 3 suites
+(95 / 121 / 88 l.). Imports : `goFetch` **uniquement en RSC** (aucun `fetch` brut côté serveur),
+un seul `fetch('/api/ebooks/upload')` côté client (route handler multipart), server actions
+`@qoe/sdk` (`setEbookProgressAction`, `*EbookNoteAction`, `deleteEbookAction`,
+`getEbookOfflinePackAction`), `@/lib/offline-store` (IndexedDB), `@qoe/ui` (`SafeImage`,
+`TextToSpeechProvider`, `Select`, `useFeatureAnnouncement`, `sanitizeArticleHtml`, `toast`).
+Consommateurs vérifiés : les 3 pages sont des routes (`/library/ebooks`,
+`/library/ebooks/[id]`, `/library/ebooks/notes`), `EbooksClient`/`EbookReader`/`EbookNotes`/
+`AllNotesClient` ne sont importés que par leur page, les helpers par leurs composants **et**
+leurs suites — **chaque export a un appelant**.
+
+**Constats d'architecture (vérifiés, pas supposés).** Il n'y a **pas d'epub.js** : le Go extrait
+et assainit les chapitres à l'import, la liseuse rend du HTML déjà en liste blanche. Donc
+**aucun cycle de vie de rendition, aucun `destroy()`** à corriger. La recherche de livre et la
+recherche de notes sont **locales et synchrones** (`useMemo` sur des données déjà chargées) :
+aucune réponse hors ordre possible. Aucun `useEffect` de fetch : tous les chargements sont RSC.
+La liseuse est une route par livre (nouveau montage à chaque livre) : pas d'état résiduel.
+
+| #    | Défaut                                                                                                                                                                                                                                                                     | Sévérité | Statut |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------ |
+| F249 | `EbookNotes` : `save`, `saveEdit` et `remove` attendaient l'action **sans `try/finally`** — un rejet laissait `saving`/`pendingId` collés (boutons « Ajouter la note » / « Enregistrer » / « Supprimer » définitivement désactivés) et produisait une promesse non gérée. | moyenne  | corrigé — `try/catch/finally`, message d'échec explicite ; rouge : `AssertionError: expected true to be false` + `Unhandled Rejection` dans le run |
+| F250 | Liseuse : `takeOffline` appelait `getEbookOfflinePackAction` sans filet — un rejet Go laissait `busy` à `true` (bouton d'emport désactivé pour toute la session) ; et `hasOfflinePackAsync(book.id).then(...)` n'avait pas de `.catch` (IndexedDB refusé en navigation privée = rejet dans le vide). | moyenne  | corrigé — `try/catch/finally` avec `setBusy(false)` garanti, `.catch` sur la détection du pack, retrait hors-ligne protégé ; rouge : `expected true to be false` + `Unhandled Rejection` |
+| F251 | `AllNotesClient.exportMarkdown` : `link.click()` puis `URL.revokeObjectURL(url)` **dans le même tick**, lien jamais inséré dans le document — le même défaut que F248 (autre fichier), toujours en place. | moyenne  | corrigé — lien monté dans `body`, retiré, révocation différée (30 s) ; rouge : `AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times` |
+| F252 | `EbooksClient` : l'import d'un EPUB (jusqu'à 20 Mo) partait en `fetch` **sans `signal`** — un réseau muet laissait « Import en cours… » à vie, sans annulation ni message. Écart avec la convention posée en L20b2b (`composer-upload`, `AbortSignal.timeout`). | moyenne  | corrigé — `AbortSignal.timeout(120_000)` + message dédié pour `TimeoutError` ; rouge : `AssertionError: expected undefined to be defined` |
+| F253 | `EbookReader` : garde « premier rendu » par `mountedRef` — non idempotente, la double invocation d'effets (StrictMode, Fast Refresh) exécutait `stopPlayback()` + `setParagraph(0)` + `window.scrollTo(0)` **au montage** et détruisait la reprise au paragraphe mémorisé. | faible   | corrigé — comparaison avec le chapitre précédent (`previousChapterRef`), l'effet devient idempotent ; rouge : `AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times` |
+| F254 | `EbooksClient.onDelete` : un rejet de `deleteEbookAction` disparaissait (aucun toast, aucun message) — l'utilisateur croyait avoir supprimé un livre qui est toujours là. | moyenne  | corrigé — `try/catch` + toast d'échec ; rouge : `AssertionError: expected "vi.fn()" to be called at least once` + `Unhandled Rejection` |
+
+**Candidats examinés puis ABANDONNÉS** :
+
+- **`epub.js` / rendition / `destroy()` / double-init StrictMode de la rendition** : bibliothèque
+  **absente** du repo (`grep epubjs` : rien), chapitres rendus depuis du HTML déjà extrait → pas
+  de défaut à corriger (le seul double-init réel était F253).
+- **Recherche ou notes hors ordre** : filtrage local synchrone sur données déjà chargées → pas de
+  course possible, pas de rouge.
+- **Course sauvegarde ↔ `pagehide`** : `flush` annule le timer et lit les refs vivantes ; `pagehide`
+  n'est pas simulable fidèlement en jsdom, aucun rouge reproductible → non retenu.
+- **`startTransition(async () => …)` dans `onDelete`** : `pendingDelete` ne reflète aucun travail
+  (même famille que R110) → **R114**.
+- **Barre de progression de `EbooksClient`** : `width: ${book.progressPct}%` sans `clampPct` alors
+  que `describeEbookProgress` borne — dépend d'une réponse Go > 100, non reproductible avec le
+  typage réel (`progressPct` déjà borné en SQL) → **R115**.
+- **`?chapter=` écrase la progression mémorisée** (ouvrir une note déplace la position de
+  lecture) : comportement peut-être voulu — décision produit → **R116**.
+- **`ebook-search` / `notes-markdown` / `ebooks-helpers`** : 3 suites (29 cas) déjà vertes, aucun
+  écart trouvé ; `htmlToPlainText` décode les entités dans le bon ordre (`&amp;` en dernier).
+
+**Preuve rouge → vert.** `__tests__/ebooks-hardening.test.tsx` écrit **avant** correctifs :
+**6 échecs / 6** (messages cités, avec deux `Unhandled Rejection`). Après correctifs : **6/6**, et
+les 3 suites existantes du dossier restent vertes **sans modification**.
+
+**Preuves mesurées :**
+
+| Commande | Avant | Après |
+| -------- | ----- | ----- |
+| `pnpm --filter @qoe/core test` | 40 fichiers · **289 tests** | 41 fichiers · **295 tests** |
+| `pnpm --filter @qoe/core lint` | 0 erreur (9 warnings) | **0 erreur** (9 warnings) |
+| `pnpm lint` / `pnpm typecheck` / `pnpm test` | 25/25 · 25/25 · 24/24 | **25/25 · 25/25 · 24/24** |
+| `pnpm typecheck:root` | ✔ | **✔** |
+| gardes CI (10, dont `arch:audit`, `ui:audit`, `media-origin`) | vertes | **vertes** |
+| `pnpm test:coverage` (R91) | `branches 78.18% < 85%` | **identique (78.18 %)**, seul rouge, préexistant |
+| lignes du périmètre | 2 024 | **2 078** (+54 : `EbooksClient` 275→291, `EbookReader` 589→607, `EbookNotes` 268→284, `AllNotesClient` 165→169) |
+
+**Non vérifié.** Aucun navigateur ; **aucune rendition EPUB** (epub.js n'existe pas ici) ;
+IndexedDB et stockage hors-ligne **mockés** (`@/lib/offline-store`), donc non prouvé sur un vrai
+navigateur en navigation privée ; `pagehide`/déchargement non déclenchés ; téléchargements et
+presse-papier non exécutés (seul l'ordre clic/révocation est asserté) ; `AbortSignal.timeout`
+jamais déclenché (seule la présence du signal est vérifiée) ; StrictMode est un comportement de
+développement — le correctif rend l'effet idempotent sans effet observable en production ;
+server actions, `goFetch`, Supabase et Go **entièrement mockés** ; `pnpm test:api`, `pnpm e2e`,
+`next build` non lancés ; TTS (`@qoe/ui/reader`) et `sanitizeArticleHtml` simulés.
+
+**Dettes.** **R01**, **R54**, **R56**, **R63** à **R74**, **R78** à **R113** restent
+ouvertes ; nouvelles : **R114** à **R116**.
 
 ---
 
