@@ -6,6 +6,7 @@ import { Button } from '@qoe/ui/button';
 import { Icon } from '@qoe/ui/icons';
 import { IconButton } from '@qoe/ui/icon-button';
 import { Spinner } from '@qoe/ui/spinner';
+import { toast } from '@qoe/ui/toast';
 import { t } from '@lingui/core/macro';
 
 export interface HiddenReplyNoticeProps {
@@ -41,9 +42,16 @@ export function HiddenReplyNotice({
       const res = await hideReplyAction({ replyId });
       if (res.ok) {
         setIsHidden(res.data.isHiddenByAuthor);
+      } else {
+        // Rien ne change à l'écran : sans message, l'auteur croit avoir masqué.
+        toast.error(
+          typeof res.error === 'string'
+            ? res.error
+            : res.error?.message || t`Impossible de modifier la visibilité de cette réponse.`
+        );
       }
-    } catch (err) {
-      console.error('Error toggling reply visibility:', err);
+    } catch {
+      toast.error(t`Erreur réseau : la visibilité de la réponse n'a pas changé.`);
     } finally {
       setIsToggling(false);
     }

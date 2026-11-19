@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import type { AnnotationFilterMode } from '@qoe/ui/annotations';
 
 export interface ReaderToolbarContextType {
@@ -41,6 +41,14 @@ export function ReaderToolbarProvider({
   const [allowPublic, setAllowPublicAnnotations] = useState(allowPublicAnnotations);
   const authorToolbarRef = useRef<HTMLDivElement | null>(null);
   const customToggleBookmarkRef = useRef<(() => void | Promise<void>) | null>(null);
+  const copiedTimerRef = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (copiedTimerRef.current !== null) window.clearTimeout(copiedTimerRef.current);
+    },
+    []
+  );
 
   const registerToggleBookmark = (handler: () => void | Promise<void>) => {
     customToggleBookmarkRef.current = handler;
@@ -58,11 +66,25 @@ export function ReaderToolbarProvider({
   const handleShare = () => {
     if (onShare) {
       onShare();
-    } else if (typeof window !== 'undefined') {
-      navigator.clipboard.writeText(window.location.href);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      return;
     }
+    if (typeof window === 'undefined' || !navigator.clipboard?.writeText) return;
+
+    // Presse-papier refusé (permission, contexte non sécurisé) : on n'annonce
+    // pas « Copié » et la promesse reste gérée (pas d'unhandled rejection).
+    void navigator.clipboard
+      .writeText(window.location.href)
+      .then(() => {
+        setCopied(true);
+        if (copiedTimerRef.current !== null) window.clearTimeout(copiedTimerRef.current);
+        copiedTimerRef.current = window.setTimeout(() => {
+          copiedTimerRef.current = null;
+          setCopied(false);
+        }, 2000);
+      })
+      .catch(() => {
+        setCopied(false);
+      });
   };
 
   return (

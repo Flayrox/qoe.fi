@@ -36,6 +36,24 @@ export function ModerationReportModal({
   const [details, setDetails] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const closeTimerRef = React.useRef<number | null>(null);
+
+  // La modale est réutilisée pour d'autres contenus (une instance par carte) :
+  // sans remise à zéro, le motif et les détails du signalement précédent
+  // partaient chez la modération avec le mauvais contenu.
+  React.useEffect(() => {
+    if (!isOpen) return;
+    setReason('spam');
+    setDetails('');
+    setSubmitted(false);
+  }, [isOpen]);
+
+  React.useEffect(
+    () => () => {
+      if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+    },
+    []
+  );
 
   const reportReasons = [
     { id: 'spam', label: t`Spam ou publicité indésirable` },
@@ -53,6 +71,7 @@ export function ModerationReportModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     setSubmitting(true);
 
     const payload = { targetId, targetType, reason, details };
@@ -64,22 +83,30 @@ export function ModerationReportModal({
       return;
     }
 
-    const res = await reportTargetAction(parsed.data);
-    setSubmitting(false);
+    try {
+      const res = await reportTargetAction(parsed.data);
 
-    if (res.ok) {
-      setSubmitted(true);
-      toast.success(t`Merci. Votre signalement a été transmis à la modération.`);
-      setTimeout(() => {
-        setSubmitted(false);
-        onClose();
-      }, 1500);
-    } else {
-      const errorMessage =
-        typeof res.error === 'string'
-          ? res.error
-          : res.error?.message || t`Erreur lors de l'envoi du signalement.`;
-      toast.error(errorMessage);
+      if (res.ok) {
+        setSubmitted(true);
+        toast.success(t`Merci. Votre signalement a été transmis à la modération.`);
+        closeTimerRef.current = window.setTimeout(() => {
+          closeTimerRef.current = null;
+          setSubmitted(false);
+          onClose();
+        }, 1500);
+      } else {
+        const errorMessage =
+          typeof res.error === 'string'
+            ? res.error
+            : res.error?.message || t`Erreur lors de l'envoi du signalement.`;
+        toast.error(errorMessage);
+      }
+    } catch {
+      // Panne réseau/Serveur Action : le bouton doit redevenir actif et
+      // l'utilisateur savoir que rien n'a été transmis.
+      toast.error(t`Erreur réseau : le signalement n'a pas pu être envoyé.`);
+    } finally {
+      setSubmitting(false);
     }
   };
 

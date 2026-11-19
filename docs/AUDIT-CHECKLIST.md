@@ -91,7 +91,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b3 | `app/(reader)/library/**`                                                                                    | 18 fichiers · 3 689 l.      | **clos** : L20b2b31 (racine, 5 f.) **durci le 2026-11-19** + L20b2b32 (`ebooks/**`, 13 f.) **durci le 2026-11-19** |
 | L20b2b4 | `app/(reader)/[username]/**`                                                                                 | 9 fichiers · 2 184 l.       | **durci le 2026-11-19** |
 | L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | **durci le 2026-11-19** |
-| L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | à auditer — **prochain lot** (découpage mesuré à l'ouverture) |
+| L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; prochain = L20c2 |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
 | L21     | `apps/studio/src/**`                                                                                         | 509 fichiers                | à auditer               |
 | L22     | `apps/admin/src/**`                                                                                          | 178 fichiers                | à auditer               |
@@ -113,10 +113,11 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L20c — `apps/core/src/components/**`**
-(44 fichiers · 7 041 l., mesuré : trop gros pour un tour, à découper en sous-lots
-`L20c1…` dès l'ouverture, comme L20b2b3 ; L20b2b5 clos — réglages, 7 fichiers ·
-2 215 l. après correctifs ; ordre restant : L20c composants, L20d hooks/features).
+**Prochain lot à traiter : L20c2 — `components/profile/**` + `components/article-overlay/**`**
+(5 fichiers · 1 206 l., mesuré : `EditProfileModal` 426 l. + `profile-edit-actions` 51 l. +
+`ArticleOverlayProvider` 465 l. + `overlay-state` 125 l. + son test 139 l. ; L20c ouvert le
+2026-11-19 avec un découpage mesuré en 8 sous-lots, L20c1 clos — cartes de pensée et
+surcouche, 11 fichiers · 1 223 l. avant correctifs ; ordre et chiffres dans la fiche L20c).
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -897,6 +898,11 @@ nommé), puis verts après restauration.
 | R74 | `canonicalEmail` est calculé par `@qoe/moderation` et écrit dans les métadonnées Supabase (`options.data`) au signup, mais **aucun code ne le lit** : ni le sync Go, ni la base (aucun index unique). L'anti-multi-comptes annoncé par le module ne s'exerce donc pas au-delà du jour de l'inscription, et la suppression systématique du tag `+` (tous fournisseurs, pas seulement Gmail) n'a aucune conséquence observable. | moyenne | Arbitrage backend : colonne `canonicalEmail` + index unique dans une migration goose, puis refus de doublon côté Go (`/v1/auth/sync`), en décidant si l'on garde Gmail uniquement pour les points. Voir L14. |
 | R94 | `/api/articles/[slug]` (core) n'a **aucun appelant** dans le repo : la page article lit côté serveur. Route morte dont le contrat HTTP vient d'être corrigé (cache privé, L20b1) mais qui reste à supprimer ou à réutiliser explicitement. | faible | Arbitrage : supprimer la route (et son test) ou la brancher sur le préchargement client ; décision produit sur le préchargement d'article. Voir L20b1. |
 | R93 | `packages/analytics` envoie la session de lecture par `navigator.sendBeacon(endpointUrl, payload)` avec un **corps texte** (Content-Type `text/plain`) : le handler lit `req.json()`, qui fonctionne par chance (pas de validation de type de contenu côté Next). Aucun rejet observé, mais le contrat média n'est pas explicite. | faible | Arbitrage : créer un `Blob` typé `application/json` à l'envoi, ou valider/ignorer explicitement le Content-Type côté route. Voir L20b1. |
+| R127 | `ThoughtOverlayProvider.teardown` programme `window.setTimeout(…, 320)` sans conserver l'identifiant : le `setActivePostId(null)` différé peut s'exécuter après démontage du provider (et le `pushedRef` armé n'est pas défait si le provider démonte surcouche ouverte). | faible | Garder le timer dans une `ref`, l'annuler au démontage, et défaire l'entrée d'historique si elle est encore la nôtre. Voir L20c1. |
+| R126 | `ReaderToolbarProvider.toggleBookmark` appelle le handler enregistré par `registerToggleBookmark` sans l'attendre ni attraper son rejet : un handler `async` en échec remonte en promesse non gérée (même famille que F265). Aucune observable propre sans le handler réel d'`ArticleAnnotatorView` (L20c3). | faible | Envelopper l'appel dans `void Promise.resolve(handler()).catch(...)` avec un retour utilisateur. Voir L20c1. |
+| R125 | `ThoughtOverlayProvider` : la surcouche est un panneau modal de fait (voile, `body` verrouillé, `Échap`) mais n'expose ni `role="dialog"`/`aria-modal`, ni piège de focus : au clavier on peut tabuler dans la page derrière et perdre le fil. | moyenne | Ajouter le rôle, l'`aria-modal`, le piège de focus et le `aria-label` du panneau, avec un test de tabulation. Voir L20c1. |
+| R124 | `PollBlock` : `role="radiogroup"` + `role="radio"` sur des boutons sans navigation par flèches ni tabindex mobile, et `aria-checked` figé à `false` pendant le vote — le motif ARIA annoncé n'est pas tenu (les boutons restent utilisables au clic). | faible | Implémenter le contrat radio (flèches, roving tabindex, `aria-checked` réel) ou assumer des boutons simples et retirer les rôles. Décision produit/a11y. Voir L20c1. |
+| R123 | `ThoughtCard` : `handlePinToggle` n'a ni garde anti double-envoi ni état optimiste, et un `res.ok === false` (épinglage refusé côté Go) ne produit **aucun** message — le bouton semble sans effet. Même famille que F264 (retour d'échec), mais non prouvée ce tour : le rendu complet de `ThoughtCard` exige de mocker `@qoe/ui` + `usePostShadow` + Supabase. | faible | Extraire la logique épinglage (garde + toast d'échec + shadow optimiste) et l'instrumenter. Voir L20c1. |
 | R122 | Les huit mutations de `SettingsPageClient` enveloppent un callback `async` dans `startTransition` : `isPending` ne couvre pas l'attente réelle, donc le bouton « Enregistrer » se réactive avant la fin du serveur (même famille que R110 et R114). | faible | Sortir l'`await` de la transition ou exposer un état `pending` par identifiant d'action. Voir L20b2b5. |
 | R121 | `SettingsPageClient` charge les contrôles sociaux (bloqués, masqués, demandes d'abonnement) dans un `useEffect` sans `AbortController`, sans garde de séquence ni cleanup : `setState` possible après démontage, et deux bascules rapides de section peuvent s'écraser. | faible | Ajouter un flag `cancelled`/`AbortController` et une garde de séquence, comme `FollowList` (L20b2b4). Voir L20b2b5. |
 | R120 | `showMessage` programme `window.setTimeout(() => setMessage(null), 3500)` sans conserver l'identifiant : deux messages à quelques secondes d'intervalle se coupent mutuellement (le premier timer éteint le second). | faible | Garder le timer dans une `ref`, l'annuler avant d'en poser un autre, et nettoyer au démontage. Voir L20b2b5. |
@@ -1467,6 +1473,123 @@ existante modifiée, aucune doublure touchée.
 **Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65**, **R66**
 restent **ouvertes**. Nouvelle dette : **R67** (surfaces `continuous`,
 `highlighter`, `paywall`, `excerpt` sans consommateur TS).
+
+---
+
+## L20c — `apps/core/src/components/**` — ouvert le 2026-11-19 (découpage mesuré)
+
+**Périmètre mesuré à l'ouverture.** `git ls-files apps/core/src/components` → **44 fichiers /
+7 041 l.** (avant correctifs) : `AnalyticsGate` 28, `StaleServerActionBanner` 63,
+`article-overlay/**` 3/729, `banners/DynamicBannerSlot` 72, `dossiers/DossierThread` 81,
+`feed/**` 2/133, `layout/**` 5/407, `messages/**` 2/556, `notifications/NotificationSettingsForm`
+161, `overlay/position` 70, `placements/InAppPlacement` 179, `profile/**` 2/477,
+`providers/**` 2/108, `social/**` 19/2 968, `thought-overlay/**` 2/287.
+
+Trop gros pour un tour : le lot est scindé en **8 sous-lots** dont la somme est vérifiée
+(11+5+1+6+5+2+3+11 = **44 fichiers** ; 1 223+1 206+1 102+938+847+556+421+748 = **7 041 l.**).
+
+| Sous-lot | Périmètre exact | Mesure | Ordre et justification |
+| -------- | --------------- | ------ | ---------------------- |
+| **L20c1** | `social/{ThoughtCard, ThoughtCardContainer, ThoughtCardSkeleton, QuotedThoughtCard, ThreadgateBadge, PollBlock, HiddenReplyNotice, ModerationReportModal, ReaderToolbarContext}` + `thought-overlay/**` (2) | 11 f. · 1 223 l. | **clos dans ce tour**. Cœur social le plus interactif (vote, masquage, signalement, partage, surcouche modale) et le plus consommé (`home`, `[username]`, recherche, composer) : le traiter d'abord fixe les conventions de retour d'échec que les widgets suivants réutilisent. |
+| L20c2 | `profile/**` (`EditProfileModal` 426, `profile-edit-actions` 51) + `article-overlay/**` (`ArticleOverlayProvider` 465, `overlay-state` 125, son test 139) | 5 f. · 1 206 l. | **prochain**. Deux surcouches/formulaires à état d'URL et mutation serveur ; la surcouche d'article est le miroir de celle de pensée, on la relit juste après. |
+| L20c3 | `social/ArticleAnnotatorView.tsx` | 1 f. · 1 102 l. | **Risque nommé** : plus gros fichier du périmètre (sélection, popovers, toolbar partagée, mutations). Isolé seul pour que sa régression ne se mélange pas à celle d'un widget. |
+| L20c4 | `social/{ArticleReaderDrawer, ArticleComments, ArticleSummary, SimilarArticlesSection, DockedReaderToolbar, TrendingWidget}` | 6 f. · 938 l. | Chaîne de lecture d'article (tiroir, commentaires, résumé, similaires, toolbar ancrée), testée après l'annotateur dont elle dépend. |
+| L20c5 | `social/{SearchFeed, search-results.ts, search-results.test.ts}` + `feed/{VirtualizedFeedList, RealtimeFeedPill}` | 5 f. · 847 l. | Flux et recherche (virtualisation + temps réel), après les cartes qu'ils rendent. |
+| L20c6 | `messages/MessagesApp.tsx` + `messages/__tests__/messages-app.test.tsx` | 2 f. · 556 l. | Application de messagerie autonome, sans dépendance aux sous-lots précédents. |
+| L20c7 | `notifications/NotificationSettingsForm` + `dossiers/DossierThread` + `placements/InAppPlacement` | 3 f. · 421 l. | Petits widgets métier restants, dont le placement in-app qui alimente `DynamicBannerSlot` (L20c8). |
+| L20c8 | **Socle partagé** : `layout/**` (5), `providers/**` (2), `overlay/position.ts`, `StaleServerActionBanner`, `AnalyticsGate`, `banners/DynamicBannerSlot` | 11 f. · 748 l. | **Rayon d'action maximal, audité en dernier** : `MainContentWrapper`, `ReaderPageLayout`, `AppSidebar`, `ReaderNavOverlay`, `QueryProvider` et `ReadingPreferencesProvider` sont montés par **toutes** les pages `(reader)`. Corriger le socle après les feuilles évite de re-valider chaque correctif contre des consommateurs encore inconnus ; l'auditer en premier aurait obligé à rejouer le lot entier à chaque feuille corrigée. |
+
+**Ordre retenu.** Feuilles interactives d'abord (L20c1→L20c7, du plus consommé au plus
+périphérique), **socle transverse en dernier** (L20c8) pour la raison mesurée ci-dessus :
+sa surface de régression est l'ensemble des pages lecteur, pas un écran.
+
+---
+
+## L20c1 — cartes de pensée et surcouche du fil — durci le 2026-11-19
+
+**Périmètre lu en entier.** Les **11 fichiers** : `social/ThoughtCard.tsx` (214 l.),
+`social/PollBlock.tsx` (207 l.), `social/ModerationReportModal.tsx` (153 l.),
+`social/HiddenReplyNotice.tsx` (110 l.), `social/ReaderToolbarContext.tsx` (94 l.),
+`social/ThoughtCardContainer.tsx` (67 l.), `social/ThreadgateBadge.tsx` (60 l.),
+`social/ThoughtCardSkeleton.tsx` (30 l.), `social/QuotedThoughtCard.tsx` (1 l.),
+`thought-overlay/ThoughtOverlayProvider.tsx` (258 l.), `thought-overlay/context.ts` (29 l.).
+Imports réels : `useRouter` de `next/navigation`, `createClient` (`@/lib/supabase/client`) —
+**aucun `fetch` brut hors la route locale `/api/feed/show-less`**, actions `@qoe/sdk`
+(`usePostShadow`, `usePostLikeMutationQueue`, `usePostRepostMutationQueue`, `votePollAction`,
+`hideReplyAction`, `pinPostAction`/`unpinPostAction`, `reportTargetAction`, `unfurlUrlAction`),
+`@qoe/ui` (`ThoughtCard`, `ConfirmDeleteModal`, `Button`, `Icon`, `IconButton`, `Spinner`,
+`Dialog*`, `Textarea`, `RadioGroup`/`RadioCard`), `framer-motion`, `@lingui/core/macro`.
+Consommateurs vérifiés par grep : `ThoughtCard`/`ThoughtCardContainer` montés par `home`,
+`[username]`, recherche et le fil ; `QuotedThoughtCard` par `ThoughtComposer` et
+`packages/ui/LinkPreview` ; `useReaderToolbar` par `ArticleAnnotatorView`,
+`DockedReaderToolbar`, `ArticleReaderDrawer` (L20c3/L20c4) ; `useThoughtOverlay` par le fil,
+la recherche et les pages de pensée. **Aucun export mort.**
+
+| #    | Défaut | Sévérité | Statut |
+| ---- | ------ | -------- | ------ |
+| F262 | `ModerationReportModal.handleSubmit` : `await reportTargetAction(...)` puis `setSubmitting(false)` **hors `finally`** — un rejet (réseau, Server Action indisponible) laissait le bouton « Signaler » désactivé jusqu'au rechargement, sans message, avec promesse non gérée (même famille que F260/F261). | moyenne | corrigé — `try/catch/finally`, garde anti double-envoi (`if (submitting) return`) et message d'échec explicite ; rouge : `AssertionError: expected true to be false` (`disabled` toujours vrai) + `Unhandled Rejection` |
+| F263 | `ModerationReportModal` : motif, détails et `submitted` n'étaient **jamais réinitialisés** — la modale étant une instance par carte et réutilisée pour un autre contenu, le texte du signalement précédent repartait chez la modération avec le nouveau contenu (et l'écran « Signalement envoyé » restait affiché à la réouverture). Le `setTimeout(1500)` n'était pas annulé au démontage. | moyenne | corrigé — remise à zéro à l'ouverture (`useEffect([isOpen])`) et timer conservé dans une `ref`, annulé au démontage ; rouge : `AssertionError: expected 'détails du post 1' to be ''` |
+| F264 | `HiddenReplyNotice` : `hideReplyAction` en échec (`res.ok === false`) ou en rejet ne produisait **aucun** retour utilisateur, alors que rien ne change à l'écran — l'auteur croyait avoir masqué la réponse. | moyenne | corrigé — `toast.error` avec le message de l'action (ou un message réseau), `finally` déjà en place ; rouge : `AssertionError: expected "vi.fn()" to be called at least once` |
+| F265 | `ReaderToolbarContext.handleShare` : `navigator.clipboard.writeText(...)` **flottant** — presse-papier refusé (permission, contexte non sécurisé) = promesse non gérée **et** « Copié » affiché alors que rien n'avait été copié ; le timer de 2 s n'était pas nettoyé. | moyenne | corrigé — `.then/.catch` (aucune annonce en cas d'échec), garde `navigator.clipboard?.writeText`, timer dans une `ref` annulé avant repose et au démontage ; rouge : `AssertionError: expected 'true' to be 'false'` + `Unhandled Rejection` |
+
+**Candidats examinés puis ABANDONNÉS** (aucun n'a pu être mis en rouge sans fabriquer le défaut) :
+
+- **`ThoughtCard.handlePinToggle`** : ni garde anti double-envoi, ni état optimiste, ni message quand
+  `res.ok === false` — défaut réel de la famille F264, mais le prouver exige le rendu complet de
+  `ThoughtCard` (`@qoe/ui` + `usePostShadow` + Supabase + `next/navigation`) → **R123**.
+- **`ThoughtOverlayProvider`** : panneau modal de fait sans `role="dialog"`/`aria-modal`, sans piège
+  de focus (le clavier sort dans la page derrière) → **R125** ; timer de `teardown` non annulé au
+  démontage → **R127**. Aucun rouge sans test de tabulation qui vérifierait une fonctionnalité
+  absente (ajout, pas correctif).
+- **`PollBlock`** : `role="radiogroup"`/`radio` sans navigation par flèches ni roving tabindex,
+  `aria-checked` figé à `false` — contrat ARIA non tenu, mais le corriger est une décision
+  produit/a11y (implémenter le motif radio ou retirer les rôles) → **R124**. Le reste est sain :
+  garde `showResults || isVoting`, rollback du vote optimiste, pourcentages recalculés sur le total,
+  `setInterval` nettoyé.
+- **`ReaderToolbarContext.toggleBookmark`** : l'appel au handler enregistré n'est ni attendu ni
+  attrapé → **R126** (pas d'observable propre sans le handler réel d'`ArticleAnnotatorView`).
+- **Badges non lus** (`AppSidebar` + `ReaderNavOverlay` montent tous deux
+  `useUnreadNotificationCount`) : hypothèse d'un double abonnement Realtime **infirmée** par lecture —
+  `useRealtimeNotificationSync` tient un canal **module-level** unique avec un `Set` de listeners et
+  un garde anti-course (commentaire + code lus dans `packages/ui/src/notifications`).
+- **`QueryProvider` sans `HydrationBoundary`** : vérifié — **aucun** `dehydrate`/`prefetchQuery`
+  dans `apps/core/src`, donc aucune donnée serveur préchargée n'est jetée ; le provider ne fait que
+  poser des defaults (`staleTime`, `refetchOnWindowFocus: false`).
+- **`ThoughtCard.handleShowLessClick`** : `fetch('/api/feed/show-less')` sans timeout — la route
+  existe (`app/api/feed/show-less/route.ts`) et le POST est minuscule ; pas de rouge construit.
+- **`QuotedThoughtCard`** : simple ré-export de `@qoe/ui`, consommé par `ThoughtComposer` et
+  `LinkPreview` — rien à corriger, rien de mort.
+
+**Preuve rouge → vert.** Une suite écrite **avant** correctifs,
+`social/__tests__/thought-cards-hardening.test.tsx` : **3 échecs / 3** au premier passage
+(`expected true to be false`, `expected 'détails du post 1' to be ''`, `expected 'true' to be
+'false'` + deux `Unhandled Rejection`), puis **1 échec / 4** pour F264
+(`expected "vi.fn()" to be called at least once`), enfin **4/4** après correctifs.
+
+**Preuves mesurées :**
+
+| Commande | Avant | Après |
+| -------- | ----- | ----- |
+| `pnpm --filter @qoe/core test` | 46 fichiers · 307 tests | **47 fichiers · 311 tests** |
+| `pnpm --filter @qoe/core lint` | 0 erreur (9 warnings) | **0 erreur** (9 warnings) |
+| `pnpm lint` / `pnpm typecheck` / `pnpm test` | 25/25 · 25/25 · 24/24 | **25/25 · 25/25 · 24/24** (575 tests studio + 311 core) |
+| `pnpm typecheck:root` | ✔ | **✔** |
+| gardes CI (10 : `guard:tsconfig`, `guard:media-origin`, `audit:guard`, `ui:audit`, `arch:audit`, `guard:article-links`, `guard:dangerous-html`, `guard:flags-parity`, `guard:legal-consent`, `guard:seed-script`) | vertes | **vertes** |
+| `pnpm test:coverage` (R91) | `branches 78.18% < 85%` (`packages/flags/**`) | **identique (78.18 %)**, seul rouge, préexistant |
+| lignes du sous-lot | 1 223 | **1 280** (+57 : `ModerationReportModal` 153→180, `HiddenReplyNotice` 110→118, `ReaderToolbarContext` 94→116) + 1 nouvelle suite |
+
+**Non vérifié.** Aucun navigateur ni `next build` ; les Server Actions (`reportTargetAction`,
+`hideReplyAction`) sont **mockées**, donc ni le contrat `safeAction` réel ni un Go à 503 ne sont
+exercés ; presse-papier `stubGlobal`é (aucun accès réel à `navigator.clipboard`) ;
+`ThoughtCard`, `ThoughtCardContainer`, `PollBlock` (rendu complet), `ThoughtOverlayProvider`
+(portail, `framer-motion`, `popstate`, restauration de position) et l'UI de `@qoe/ui`
+(`Dialog`, `RadioGroup`, `IconButton`) sont remplacés par des doubles ou non montés ;
+`pnpm test:api`, `pnpm e2e` non lancés.
+
+**Dettes.** **R01**, **R54**, **R56**, **R63** à **R74**, **R78** à **R122** restent
+ouvertes ; nouvelles : **R123** (épinglage sans garde ni retour d'échec), **R124** (contrat
+radio du sondage), **R125** (surcouche sans rôle ni piège de focus), **R126** (`toggleBookmark`
+sans gestion de rejet), **R127** (timer de `teardown` non annulé).
 
 ---
 
