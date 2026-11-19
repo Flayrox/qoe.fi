@@ -36,10 +36,12 @@
 /* ─── @theme : expose les fonts + neural colors à Tailwind v4 ─── */
 @theme {
   /* Typography — Project-wide font stack (Apple-esque) */
-  /* F144 — `--font-sans` n'était défini nulle part : `@theme inline` se
-     contentait de `--font-sans: var(--font-sans)`, donc l'utilitaire
-     `font-sans` et `editor.css` recevaient une valeur invalide et la pile
-     ci-dessous n'était jamais appliquée. */
+  /* F144 — `--font-sans` et `--font-heading` n'étaient définis nulle part
+     dans le paquet : `@theme inline` se contentait d'auto-références, donc
+     `font-sans`/`editor.css` dépendaient implicitement de la variable posée
+     par `next/font` (`Geist`) et `font-heading` ne pointait vers aucune pile
+     du produit. Ces déclarations vivent dans la couche `theme` : la classe
+     `next/font` des apps, non layerée, reste prioritaire. */
   --font-sans:
     -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI', Roboto,
     Helvetica, Arial, sans-serif;

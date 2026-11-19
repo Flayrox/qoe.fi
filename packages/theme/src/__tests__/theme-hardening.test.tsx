@@ -78,10 +78,12 @@ describe('🎨 overrides de thème créateur', () => {
 
 describe('🔤 police par défaut', () => {
   it('n’expose jamais un token qui se référence lui-même', () => {
-    // F144 — `@theme inline` déclarait `--font-sans: var(--font-sans)` sans
-    // qu'aucun bloc ne définisse `--font-sans` : l'utilitaire `font-sans` et
-    // `editor.css` recevaient une valeur invalide, donc la pile déclarée
-    // (`--font-body`) n'était jamais appliquée.
+    // F144 — `@theme inline` redéclarait `--font-sans`, `--font-heading`,
+    // `--font-outfit`, `--font-space-grotesk` et `--font-serif` en
+    // auto-référence : aucun bloc ne définissait `--font-sans` ni
+    // `--font-heading`, donc `font-heading` ne pointait vers aucune pile du
+    // paquet et `font-sans` dépendait implicitement de la variable posée par
+    // `next/font` dans chaque app.
     // Les commentaires citent l'ancien motif : on analyse le CSS effectif.
     const css = readSource('src/styles/index.css').replace(/\/\*[\s\S]*?\*\//g, '');
 
