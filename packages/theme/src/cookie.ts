@@ -16,18 +16,28 @@ const PARENT_DOMAIN = 'qoe.fi';
  * Retourne ".qoe.fi" sur n'importe quel sous-domaine qoe.fi,
  * et null sur localhost (cookie host-only, partagé entre ports).
  */
-export function getThemeCookieDomain(): string | null {
-  if (typeof window === 'undefined') return null;
-  const hostname = window.location.hostname;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') return null;
-  if (hostname.endsWith(PARENT_DOMAIN)) return `.${PARENT_DOMAIN}`;
+export function getThemeCookieDomain(hostname?: string): string | null {
+  // F143 — `endsWith('qoe.fi')` acceptait `evilqoe.fi` et écrivait alors le
+  // cookie avec `Domain=.qoe.fi` depuis un hôte qui n'appartient pas au site.
+  const host = hostname ?? (typeof window === 'undefined' ? null : window.location.hostname);
+  if (!host) return null;
+  if (host === 'localhost' || host === '127.0.0.1') return null;
+  if (host === PARENT_DOMAIN || host.endsWith(`.${PARENT_DOMAIN}`)) return `.${PARENT_DOMAIN}`;
   return null;
 }
 
 export function readThemeCookie(): string | null {
   if (typeof document === 'undefined') return null;
   const match = document.cookie.match(new RegExp(`(?:^|; )${THEME_COOKIE}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : null;
+  const raw = match?.[1];
+  if (!raw) return null;
+  // F141 — `decodeURIComponent` lève une URIError sur `%E0%A4%A`. Un cookie
+  // abîmé ne doit pas casser le provider : on le traite comme absent.
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
 }
 
 export function writeThemeCookie(theme: string) {
