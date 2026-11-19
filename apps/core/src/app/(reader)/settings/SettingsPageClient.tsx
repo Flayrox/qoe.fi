@@ -322,8 +322,13 @@ export default function AccountSettingsPage({
         const link = document.createElement('a');
         link.href = url;
         link.download = `qoe-fi-export-${new Date().toISOString().slice(0, 10)}.json`;
+        // Lien monté dans le document (Firefox ignore un nœud détaché) et
+        // révocation différée : dans le même tick, Safari/Firefox annulent
+        // le téléchargement.
+        document.body.appendChild(link);
         link.click();
-        URL.revokeObjectURL(url);
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
         showMessage(t`Export téléchargé.`);
       } catch (error) {
         showMessage(error instanceof Error ? error.message : t`Export impossible.`);

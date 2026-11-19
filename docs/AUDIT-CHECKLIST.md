@@ -90,8 +90,8 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b2c | `(reader)/home/components/thread/**`                                                                       | 13 fichiers · 1 743 l.      | **durci le 2026-11-19** |
 | L20b2b3 | `app/(reader)/library/**`                                                                                    | 18 fichiers · 3 689 l.      | **clos** : L20b2b31 (racine, 5 f.) **durci le 2026-11-19** + L20b2b32 (`ebooks/**`, 13 f.) **durci le 2026-11-19** |
 | L20b2b4 | `app/(reader)/[username]/**`                                                                                 | 9 fichiers · 2 184 l.       | **durci le 2026-11-19** |
-| L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | à auditer — **prochain lot** |
-| L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | à auditer               |
+| L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | **durci le 2026-11-19** |
+| L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | à auditer — **prochain lot** (découpage mesuré à l'ouverture) |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
 | L21     | `apps/studio/src/**`                                                                                         | 509 fichiers                | à auditer               |
 | L22     | `apps/admin/src/**`                                                                                          | 178 fichiers                | à auditer               |
@@ -113,10 +113,10 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L20b2b5 — `apps/core/src/app/(reader)/settings/**`**
-(7 fichiers · 2 159 l., mesuré ; L20b2b4 clos — profils, 9 fichiers ·
-2 220 l. après correctifs ; ordre restant : L20b2b5 réglages, L20c composants,
-L20d hooks/features).
+**Prochain lot à traiter : L20c — `apps/core/src/components/**`**
+(44 fichiers · 7 041 l., mesuré : trop gros pour un tour, à découper en sous-lots
+`L20c1…` dès l'ouverture, comme L20b2b3 ; L20b2b5 clos — réglages, 7 fichiers ·
+2 215 l. après correctifs ; ordre restant : L20c composants, L20d hooks/features).
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -897,6 +897,9 @@ nommé), puis verts après restauration.
 | R74 | `canonicalEmail` est calculé par `@qoe/moderation` et écrit dans les métadonnées Supabase (`options.data`) au signup, mais **aucun code ne le lit** : ni le sync Go, ni la base (aucun index unique). L'anti-multi-comptes annoncé par le module ne s'exerce donc pas au-delà du jour de l'inscription, et la suppression systématique du tag `+` (tous fournisseurs, pas seulement Gmail) n'a aucune conséquence observable. | moyenne | Arbitrage backend : colonne `canonicalEmail` + index unique dans une migration goose, puis refus de doublon côté Go (`/v1/auth/sync`), en décidant si l'on garde Gmail uniquement pour les points. Voir L14. |
 | R94 | `/api/articles/[slug]` (core) n'a **aucun appelant** dans le repo : la page article lit côté serveur. Route morte dont le contrat HTTP vient d'être corrigé (cache privé, L20b1) mais qui reste à supprimer ou à réutiliser explicitement. | faible | Arbitrage : supprimer la route (et son test) ou la brancher sur le préchargement client ; décision produit sur le préchargement d'article. Voir L20b1. |
 | R93 | `packages/analytics` envoie la session de lecture par `navigator.sendBeacon(endpointUrl, payload)` avec un **corps texte** (Content-Type `text/plain`) : le handler lit `req.json()`, qui fonctionne par chance (pas de validation de type de contenu côté Next). Aucun rejet observé, mais le contrat média n'est pas explicite. | faible | Arbitrage : créer un `Blob` typé `application/json` à l'envoi, ou valider/ignorer explicitement le Content-Type côté route. Voir L20b1. |
+| R122 | Les huit mutations de `SettingsPageClient` enveloppent un callback `async` dans `startTransition` : `isPending` ne couvre pas l'attente réelle, donc le bouton « Enregistrer » se réactive avant la fin du serveur (même famille que R110 et R114). | faible | Sortir l'`await` de la transition ou exposer un état `pending` par identifiant d'action. Voir L20b2b5. |
+| R121 | `SettingsPageClient` charge les contrôles sociaux (bloqués, masqués, demandes d'abonnement) dans un `useEffect` sans `AbortController`, sans garde de séquence ni cleanup : `setState` possible après démontage, et deux bascules rapides de section peuvent s'écraser. | faible | Ajouter un flag `cancelled`/`AbortController` et une garde de séquence, comme `FollowList` (L20b2b4). Voir L20b2b5. |
+| R120 | `showMessage` programme `window.setTimeout(() => setMessage(null), 3500)` sans conserver l'identifiant : deux messages à quelques secondes d'intervalle se coupent mutuellement (le premier timer éteint le second). | faible | Garder le timer dans une `ref`, l'annuler avant d'en poser un autre, et nettoyer au démontage. Voir L20b2b5. |
 | R119 | Duplications dans le périmètre profil : `STATIC_ASSET_REGEX` et `RESERVED_USERNAMES` recopiés à l'identique dans `/:username` et `/:username/:tab`, dépliage `{ data } \| T` du Go répété quatre fois, et `[tab]/generateMetadata` refait un `goFetch` du profil que la page refait juste après (deux appels Go par requête). | faible | Extraire un module `profile-routing` (constantes + `unwrapGoData`) et dédupliquer la résolution : à faire avec des tests de non-régression sur les redirections. Voir L20b2b4. |
 | R118 | `ProfileView.handleTabChange` pousse l'URL par `window.history.pushState` et resynchronise l'onglet par un listener `popstate` au lieu de `router.push` : le router d'App Router n'est pas averti (pathname obsolète, pas de re-render de segment) même si le comportement visible reste correct. | faible | Passer par `router.push(routes.feed.profile(handle, tab), { scroll: false })` et supprimer le listener manuel, avec un test de navigation douce. Voir L20b2b4. |
 | R117 | `ProfileView.handleDeletePost` attend `deletePost` (mutation react-query) sans `try/catch` : un rejet produit une promesse non gérée sans aucun message pour l'utilisateur. | faible | Envelopper dans `try/catch` avec toast et retour `false`, comme `ThoughtThreadRoot` ; le rouge demande de rejouer la modale de confirmation de `ThoughtCard`. Voir L20b2b4. |
@@ -1464,6 +1467,89 @@ existante modifiée, aucune doublure touchée.
 **Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65**, **R66**
 restent **ouvertes**. Nouvelle dette : **R67** (surfaces `continuous`,
 `highlighter`, `paywall`, `excerpt` sans consommateur TS).
+
+---
+
+## L20b2b5 — `apps/core/src/app/(reader)/settings/**` — durci le 2026-11-19
+
+**Périmètre lu en entier.** Les **7 fichiers** : `SettingsPageClient.tsx` (1 304 l.),
+`SecuritySettings.tsx` (296 l.), `actions.ts` (293 l.), `__tests__/actions.test.ts` (221 l.),
+`[section]/page.tsx` (14 l.), `notifications/page.tsx` (13 l.), `page.tsx` (18 l.).
+Imports : `goFetch` + `fetchMeProfile` en **server actions** (aucun `fetch` brut), `createClient`
+(`@qoe/supabase/server` pour les actions, `@qoe/supabase/client` pour MFA), `revalidatePath`,
+`useRouter`/`usePathname` de `next/navigation`, `next-themes`, `@qoe/i18n`, `@qoe/ui`
+(`Button`, `Input`, `Select`, `Switch`, `Badge`, `TagGroup`, `buttonClasses`),
+`NotificationSettingsForm`, `useReadingPreferences`. Consommateurs : `page.tsx` est la route
+`/settings`, réutilisée par `[section]` et `notifications` ; `SettingsPageClient` et
+`SecuritySettings` ne sont montés que par elle ; les 17 exports d'`actions.ts` sont tous
+consommés (client ou `actions.test.ts`) — **aucun export mort**.
+
+**Constats mesurés avant de conclure.** Le `fontScale` du DTO est **un pourcentage** (Go
+`FontScale int32`, défaut `100`, test d'intégration Go à `125`) : les options `90/100/110/125`
+et l'aperçu `fontSize: ${n}%` de l'écran sont donc **corrects** — l'hypothèse d'un mélange
+multiplicateur/pourcentage est abandonnée après lecture de `apps/api` et de
+`ReadingPreferencesProvider` (défaut 100, `body.font-size: ${fontScale}%`).
+
+| #    | Défaut                                                                                                                                                                                                                                                                                    | Sévérité | Statut |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------ |
+| F258 | Page `/settings` : `try { getAccountSettingsAction() } catch { redirect('/login') }` transformait **toute** panne en déconnexion — un Go à 503 renvoyait au login un utilisateur dont la session était valide, en perdant le message d'erreur. Contrat `401 vs panne` de L20b2b4 non respecté. | haute    | corrigé — session vérifiée par `auth.getUser()`, seul un `status === 401` redirige, le reste remonte (500) ; rouge : `AssertionError: expected [Function] to throw error including 'Go API 503' but got 'NEXT_REDIRECT;replace;/login'` |
+| F259 | Export de données (`exportData`) : `link.click()` puis `URL.revokeObjectURL(url)` **dans le même tick**, lien jamais attaché au document — **troisième occurrence** du défaut corrigé en L20b2b31 puis L20b2b32. | moyenne  | corrigé — lien monté dans `body`, retiré, révocation différée (30 s) ; rouge : `AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times` |
+| F260 | `SecuritySettings` : `beginEnrollment`, `verifyEnrollment`, `removeFactor`, `linkProvider`, `globalSignOut` posaient `busy = true`, attendaient Supabase, puis `busy = false` **hors `finally`** — un rejet laissait tous les boutons de l'écran désactivés jusqu'au rechargement, avec promesse non gérée. | moyenne  | corrigé — `try/catch/finally` sur les cinq actions (+ `copySecret` qui rejetait sans message si le presse-papier est refusé) ; rouge : `AssertionError: expected true to be false` + `Unhandled Rejection` |
+| F261 | `SecuritySettings.load` : `setLoading(false)` hors `finally` — une panne de `listFactors`/`getUserIdentities` laissait l'écran sur « Chargement… » indéfiniment, sans message. | moyenne  | corrigé — `try/catch/finally` + message d'erreur ; rouge : `AssertionError: expected <p …(1)></p> to be null` (« Chargement… » toujours là) + `Unhandled Rejection` |
+
+**Candidats examinés puis ABANDONNÉS** :
+
+- **`fontScale` multiplicateur vs pourcentage** : hypothèse séduisante, **infirmée** par le Go
+  (`FontScale int32`, défaut 100, `125` dans l'integration test) et par
+  `ReadingPreferencesProvider` (`body.font-size: ${fontScale}%`) — l'écran est cohérent.
+- **`showMessage`** : `window.setTimeout(…, 3500)` sans cleanup, deux messages rapprochés se
+  coupent mutuellement (le premier timer efface le second) — timers + transitions asynchrones,
+  pas de rouge fiable ici → **R120**.
+- **Chargement des contrôles sociaux** (`useEffect([activeSection])`) : ni `AbortController` ni
+  garde de séquence, `setState` possible après démontage — donnees identiques par section, pas
+  de conséquence observable construite → **R121**.
+- **`startTransition(async () => …)`** sur les 8 mutations (`patchSettings`, mots masqués,
+  demandes d'abonnement, blocage, export, suppression…) : `isPending` ne couvre pas le travail
+  attendu (même famille que R110/R114) → **R122**.
+- **`changeUsername` : branche `if (!res.success)` morte** (`changeUsernameAction` renvoie
+  toujours `{ success: true, username }` ou lève) et cast `(res as { error?: string })` — code
+  mort sans effet observable, pas de rouge ; pas de « correction de style ».
+- **`getAccountSettingsAction` sans tolrance par endpoint** (un endpoint Go en panne = écran
+  en erreur) : pour des réglages privés, échouer franchement vaut mieux qu'afficher des valeurs
+  par défaut trompeuses — choix consigné, pas un défaut.
+- **`<a href="/support">` / `/appeals`** au lieu de `next/link` : style, aucun rouge.
+- **`createClient()` au niveau module de `SecuritySettings`** : singleton navigateur recommandé
+  par Supabase, pas un défaut.
+
+**Preuve rouge → vert.** Trois suites écrites **avant** correctifs :
+`__tests__/settings-page-availability.test.ts` (**1 échec / 3**, les deux autres étant les
+sentinelles 401/sans session), `__tests__/security-settings.test.tsx` (**2 échecs / 2**) et
+`__tests__/settings-export.test.tsx` (**1 échec / 1**). Après correctifs : **6/6**, et
+`actions.test.ts` reste vert **sans modification**.
+
+**Preuves mesurées :**
+
+| Commande | Avant | Après |
+| -------- | ----- | ----- |
+| `pnpm --filter @qoe/core test` | 43 fichiers · **301 tests** | 46 fichiers · **307 tests** |
+| `pnpm --filter @qoe/core lint` | 0 erreur (9 warnings) | **0 erreur** (9 warnings) |
+| `pnpm lint` / `pnpm typecheck` / `pnpm test` | 25/25 · 25/25 · 24/24 | **25/25 · 25/25 · 24/24** |
+| `pnpm typecheck:root` | ✔ | **✔** |
+| gardes CI (10, dont `arch:audit`, `ui:audit`, `media-origin`) | vertes | **vertes** |
+| `pnpm test:coverage` (R91) | `branches 78.18% < 85%` | **identique (78.18 %)**, seul rouge, préexistant |
+| lignes du périmètre | 2 159 | **2 215** (+56 : `SecuritySettings` 296→332, `SettingsPageClient` 1 304→1 309, `page` 18→33) + 238 l. de tests |
+
+**Non vérifié.** Aucun navigateur ni `next build` ; Supabase (`mfa.listFactors/enroll/
+challenge/verify/unenroll`, `linkIdentity`, `signOut`, presse-papier) **entièrement mocké** —
+aucun parcours TOTP réel, et `redirect()`/`notFound()` sont des exceptions simulées ;
+`getAccountSettingsAction` mockée, donc le `status` réel d'une panne Go n'est prouvé que par
+lecture de `goFetch`; téléchargement de l'export non exécuté (seul l'ordre clic/révocation est
+asserté) ; formulaire de notifications (`NotificationSettingsForm`) hors périmètre et mocké ;
+`pnpm test:api`, `pnpm e2e` non lancés ; montage React complet (sidebar, navigation par
+sections, `next-themes`) non vérifié.
+
+**Dettes.** **R01**, **R54**, **R56**, **R63** à **R74**, **R78** à **R119** restent
+ouvertes ; nouvelles : **R120** à **R122**.
 
 ---
 

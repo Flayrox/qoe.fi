@@ -29,13 +29,19 @@ export default function SecuritySettings() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const [{ data: mfa, error: mfaError }, { data: identityData, error: identityError }] =
-      await Promise.all([supabase.auth.mfa.listFactors(), supabase.auth.getUserIdentities()]);
-    if (mfaError) setError(mfaError.message);
-    if (identityError) setError(identityError.message);
-    setFactors((mfa?.all ?? []) as Factor[]);
-    setIdentities((identityData?.identities ?? []) as Identity[]);
-    setLoading(false);
+    try {
+      const [{ data: mfa, error: mfaError }, { data: identityData, error: identityError }] =
+        await Promise.all([supabase.auth.mfa.listFactors(), supabase.auth.getUserIdentities()]);
+      if (mfaError) setError(mfaError.message);
+      if (identityError) setError(identityError.message);
+      setFactors((mfa?.all ?? []) as Factor[]);
+      setIdentities((identityData?.identities ?? []) as Identity[]);
+    } catch (err) {
+      // Une panne réseau ne doit pas laisser l'écran sur « Chargement… ».
+      setError(err instanceof Error ? err.message : t`Impossible de charger vos facteurs.`);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -45,17 +51,23 @@ export default function SecuritySettings() {
   const beginEnrollment = async () => {
     setBusy(true);
     setError(null);
-    const { data, error: enrollError } = await supabase.auth.mfa.enroll({
-      factorType: 'totp',
-      friendlyName: 'qoefi',
-    });
-    setBusy(false);
-    if (enrollError) {
-      setError(enrollError.message);
-      return;
-    }
-    if (data?.id && data.totp?.qr_code && data.totp.secret) {
-      setEnrollment({ id: data.id, qr: data.totp.qr_code, secret: data.totp.secret });
+    try {
+      const { data, error: enrollError } = await supabase.auth.mfa.enroll({
+        factorType: 'totp',
+        friendlyName: 'qoefi',
+      });
+      if (enrollError) {
+        setError(enrollError.message);
+        return;
+      }
+      if (data?.id && data.totp?.qr_code && data.totp.secret) {
+        setEnrollment({ id: data.id, qr: data.totp.qr_code, secret: data.totp.secret });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t`Enrôlement impossible pour le moment.`);
+    } finally {
+      // Un rejet ne doit pas coller `busy` : tout l'écran resterait désactivé.
+      setBusy(false);
     }
   };
 
@@ -63,71 +75,95 @@ export default function SecuritySettings() {
     if (!enrollment || !/^\d{6}$/.test(code)) return;
     setBusy(true);
     setError(null);
-    const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
-      factorId: enrollment.id,
-    });
-    if (challengeError || !challenge?.id) {
+    try {
+      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId: enrollment.id,
+      });
+      if (challengeError || !challenge?.id) {
+        setError(challengeError?.message ?? t`Impossible de démarrer la vérification.`);
+        return;
+      }
+      const { error: verifyError } = await supabase.auth.mfa.verify({
+        factorId: enrollment.id,
+        challengeId: challenge.id,
+        code,
+      });
+      if (verifyError) {
+        setError(verifyError.message);
+        return;
+      }
+      setEnrollment(null);
+      setCode('');
+      setMessage(t`Authentification à deux facteurs activée.`);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t`Vérification impossible pour le moment.`);
+    } finally {
       setBusy(false);
-      setError(challengeError?.message ?? t`Impossible de démarrer la vérification.`);
-      return;
     }
-    const { error: verifyError } = await supabase.auth.mfa.verify({
-      factorId: enrollment.id,
-      challengeId: challenge.id,
-      code,
-    });
-    setBusy(false);
-    if (verifyError) {
-      setError(verifyError.message);
-      return;
-    }
-    setEnrollment(null);
-    setCode('');
-    setMessage(t`Authentification à deux facteurs activée.`);
-    await load();
   };
 
   const removeFactor = async (factorId: string) => {
     if (!window.confirm(t`Supprimer ce facteur d’authentification ?`)) return;
     setBusy(true);
     setError(null);
-    const { error: removeError } = await supabase.auth.mfa.unenroll({ factorId });
-    setBusy(false);
-    if (removeError) {
-      setError(removeError.message);
-      return;
+    try {
+      const { error: removeError } = await supabase.auth.mfa.unenroll({ factorId });
+      if (removeError) {
+        setError(removeError.message);
+        return;
+      }
+      setMessage(t`Facteur supprimé.`);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t`Suppression impossible pour le moment.`);
+    } finally {
+      setBusy(false);
     }
-    setMessage(t`Facteur supprimé.`);
-    await load();
   };
 
   const linkProvider = async (provider: string) => {
     setBusy(true);
     setError(null);
-    const { data, error: linkError } = await supabase.auth.linkIdentity({
-      provider: provider as 'google' | 'apple',
-    });
-    setBusy(false);
-    if (linkError) setError(linkError.message);
-    else if (data?.url) window.location.assign(data.url);
+    try {
+      const { data, error: linkError } = await supabase.auth.linkIdentity({
+        provider: provider as 'google' | 'apple',
+      });
+      if (linkError) setError(linkError.message);
+      else if (data?.url) window.location.assign(data.url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t`Liaison impossible pour le moment.`);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const globalSignOut = async () => {
     if (!window.confirm(t`Déconnecter toutes les sessions Supabase ?`)) return;
     setBusy(true);
     setError(null);
-    const { error: signOutError } = await supabase.auth.signOut({ scope: 'global' });
-    setBusy(false);
-    if (signOutError) setError(signOutError.message);
-    else window.location.assign('/login');
+    try {
+      const { error: signOutError } = await supabase.auth.signOut({ scope: 'global' });
+      if (signOutError) setError(signOutError.message);
+      else window.location.assign('/login');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t`Déconnexion impossible pour le moment.`);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const verified = factors.filter((factor) => factor.status === 'verified');
   const copySecret = async () => {
     if (!enrollment) return;
-    await navigator.clipboard.writeText(enrollment.secret);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(enrollment.secret);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Presse-papier refusé (contexte non sécurisé) : le secret reste affiché.
+      setError(t`Copie impossible : sélectionnez le secret à la main.`);
+    }
   };
   return (
     <section className="space-y-5">
