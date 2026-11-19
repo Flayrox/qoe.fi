@@ -505,6 +505,10 @@ function SidebarAppSwitch({
         <script
           type="speculationrules"
           dangerouslySetInnerHTML={{
+            // F140 — `JSON.stringify` laisse passer `<` et `&` : une URL qui
+            // contient `</script>` fermait l'élément et injectait du HTML. On
+            // échappe en séquences unicode, comme pour le JSON-LD ; le contenu
+            // reste du JSON strictement valide.
             __html: JSON.stringify({
               prerender: [
                 {
@@ -513,7 +517,10 @@ function SidebarAppSwitch({
                   eagerness: 'moderate',
                 },
               ],
-            }),
+            })
+              .replace(/</g, '\\u003c')
+              .replace(/>/g, '\\u003e')
+              .replace(/&/g, '\\u0026'),
           }}
         />
       )}
