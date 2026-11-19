@@ -91,7 +91,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b3 | `app/(reader)/library/**`                                                                                    | 18 fichiers · 3 689 l.      | **clos** : L20b2b31 (racine, 5 f.) **durci le 2026-11-19** + L20b2b32 (`ebooks/**`, 13 f.) **durci le 2026-11-19** |
 | L20b2b4 | `app/(reader)/[username]/**`                                                                                 | 9 fichiers · 2 184 l.       | **durci le 2026-11-19** |
 | L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | **durci le 2026-11-19** |
-| L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; prochain = L20c2 |
+| L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; prochain = L20c3 |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
 | L21     | `apps/studio/src/**`                                                                                         | 509 fichiers                | à auditer               |
 | L22     | `apps/admin/src/**`                                                                                          | 178 fichiers                | à auditer               |
@@ -113,11 +113,12 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L20c2 — `components/profile/**` + `components/article-overlay/**`**
-(5 fichiers · 1 206 l., mesuré : `EditProfileModal` 426 l. + `profile-edit-actions` 51 l. +
-`ArticleOverlayProvider` 465 l. + `overlay-state` 125 l. + son test 139 l. ; L20c ouvert le
-2026-11-19 avec un découpage mesuré en 8 sous-lots, L20c1 clos — cartes de pensée et
-surcouche, 11 fichiers · 1 223 l. avant correctifs ; ordre et chiffres dans la fiche L20c).
+**Prochain lot à traiter : L20c3 — `components/social/ArticleAnnotatorView.tsx`**
+(1 fichier · 1 102 l., mesuré : le plus gros fichier du périmètre, annotateur d'article —
+sélection, popovers, toolbar partagée, mutations ; **risque nommé**, isolé seul pour que sa
+régression ne se mélange pas à celle d'un widget ; L20c ouvert le 2026-11-19 avec un découpage
+mesuré en 8 sous-lots, L20c1 (cartes de pensée, 11 f. · 1 223 l.) et L20c2 (profil +
+surcouche d'article, 5 f. · 1 206 l.) clos ; ordre et chiffres dans la fiche L20c).
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -898,6 +899,9 @@ nommé), puis verts après restauration.
 | R74 | `canonicalEmail` est calculé par `@qoe/moderation` et écrit dans les métadonnées Supabase (`options.data`) au signup, mais **aucun code ne le lit** : ni le sync Go, ni la base (aucun index unique). L'anti-multi-comptes annoncé par le module ne s'exerce donc pas au-delà du jour de l'inscription, et la suppression systématique du tag `+` (tous fournisseurs, pas seulement Gmail) n'a aucune conséquence observable. | moyenne | Arbitrage backend : colonne `canonicalEmail` + index unique dans une migration goose, puis refus de doublon côté Go (`/v1/auth/sync`), en décidant si l'on garde Gmail uniquement pour les points. Voir L14. |
 | R94 | `/api/articles/[slug]` (core) n'a **aucun appelant** dans le repo : la page article lit côté serveur. Route morte dont le contrat HTTP vient d'être corrigé (cache privé, L20b1) mais qui reste à supprimer ou à réutiliser explicitement. | faible | Arbitrage : supprimer la route (et son test) ou la brancher sur le préchargement client ; décision produit sur le préchargement d'article. Voir L20b1. |
 | R93 | `packages/analytics` envoie la session de lecture par `navigator.sendBeacon(endpointUrl, payload)` avec un **corps texte** (Content-Type `text/plain`) : le handler lit `req.json()`, qui fonctionne par chance (pas de validation de type de contenu côté Next). Aucun rejet observé, mais le contrat média n'est pas explicite. | faible | Arbitrage : créer un `Blob` typé `application/json` à l'envoi, ou valider/ignorer explicitement le Content-Type côté route. Voir L20b1. |
+| R130 | `EditProfileModal.updateMediaProfile` fabrique lui-même l'utilisateur « mis à jour » à partir des champs locaux au lieu de lire la réponse de `PATCH /v1/media/{id}/settings` : une normalisation serveur (nom rogné, `location` refusée) n'apparaît pas, et `onProfileUpdated` propage des valeurs optimistes. Le `catch` du même fichier journalise `console.error(err)` côté client en production. | faible | Lire la publication renvoyée par l'action (ou revalider) et remplacer le `console.error` par le seul toast. Voir L20c2. |
+| R129 | La mécanique de surcouche est écrite **deux fois** : `HISTORY_KEY`, `pushedRef`, `baseRef`, `teardown` (timer 320 ms), capture/restauration de focus et `popstate` existent à l'identique dans `ThoughtOverlayProvider` et `ArticleOverlayProvider`. Les deux ont déjà divergé (le second annule son timer de teardown, le premier non — R127). | moyenne | Extraire un `useOverlayHistory`/`useOverlayReturn` partagé et y brancher les deux surcouches. Voir L20c2. |
+| R128 | `ArticleOverlayProvider.fetchArticleThread` appelle `/api/articles/{slug}` par un `fetch` **sans `AbortSignal` ni timeout** : une requête suspendue (réseau mobile, Go lent) ne rejette jamais, donc la coquille reste en squelette indéfiniment — alors que le `catch` du même bloc promet un état d'erreur propre. | moyenne | Poser `AbortSignal.timeout(10_000)` (et/ou un timer de garde) puis laisser le `catch` existant afficher l'erreur. Non prouvé ce tour : exige de monter le provider (portail, drawer 259 l.) hors de la portée d'un rouge fiable. Voir L20c2. |
 | R127 | `ThoughtOverlayProvider.teardown` programme `window.setTimeout(…, 320)` sans conserver l'identifiant : le `setActivePostId(null)` différé peut s'exécuter après démontage du provider (et le `pushedRef` armé n'est pas défait si le provider démonte surcouche ouverte). | faible | Garder le timer dans une `ref`, l'annuler au démontage, et défaire l'entrée d'historique si elle est encore la nôtre. Voir L20c1. |
 | R126 | `ReaderToolbarProvider.toggleBookmark` appelle le handler enregistré par `registerToggleBookmark` sans l'attendre ni attraper son rejet : un handler `async` en échec remonte en promesse non gérée (même famille que F265). Aucune observable propre sans le handler réel d'`ArticleAnnotatorView` (L20c3). | faible | Envelopper l'appel dans `void Promise.resolve(handler()).catch(...)` avec un retour utilisateur. Voir L20c1. |
 | R125 | `ThoughtOverlayProvider` : la surcouche est un panneau modal de fait (voile, `body` verrouillé, `Échap`) mais n'expose ni `role="dialog"`/`aria-modal`, ni piège de focus : au clavier on peut tabuler dans la page derrière et perdre le fil. | moyenne | Ajouter le rôle, l'`aria-modal`, le piège de focus et le `aria-label` du panneau, avec un test de tabulation. Voir L20c1. |
@@ -1491,8 +1495,8 @@ Trop gros pour un tour : le lot est scindé en **8 sous-lots** dont la somme est
 | Sous-lot | Périmètre exact | Mesure | Ordre et justification |
 | -------- | --------------- | ------ | ---------------------- |
 | **L20c1** | `social/{ThoughtCard, ThoughtCardContainer, ThoughtCardSkeleton, QuotedThoughtCard, ThreadgateBadge, PollBlock, HiddenReplyNotice, ModerationReportModal, ReaderToolbarContext}` + `thought-overlay/**` (2) | 11 f. · 1 223 l. | **clos dans ce tour**. Cœur social le plus interactif (vote, masquage, signalement, partage, surcouche modale) et le plus consommé (`home`, `[username]`, recherche, composer) : le traiter d'abord fixe les conventions de retour d'échec que les widgets suivants réutilisent. |
-| L20c2 | `profile/**` (`EditProfileModal` 426, `profile-edit-actions` 51) + `article-overlay/**` (`ArticleOverlayProvider` 465, `overlay-state` 125, son test 139) | 5 f. · 1 206 l. | **prochain**. Deux surcouches/formulaires à état d'URL et mutation serveur ; la surcouche d'article est le miroir de celle de pensée, on la relit juste après. |
-| L20c3 | `social/ArticleAnnotatorView.tsx` | 1 f. · 1 102 l. | **Risque nommé** : plus gros fichier du périmètre (sélection, popovers, toolbar partagée, mutations). Isolé seul pour que sa régression ne se mélange pas à celle d'un widget. |
+| **L20c2** | `profile/**` (`EditProfileModal` 426, `profile-edit-actions` 51) + `article-overlay/**` (`ArticleOverlayProvider` 465, `overlay-state` 125, son test 139) | 5 f. · 1 206 l. | **clos dans ce tour** (1 263 l. après correctifs). Deux surcouches/formulaires à état d'URL et mutation serveur ; la surcouche d'article est le miroir de celle de pensée, relue juste après. |
+| L20c3 | `social/ArticleAnnotatorView.tsx` | 1 f. · 1 102 l. | **prochain** · **Risque nommé** : plus gros fichier du périmètre (sélection, popovers, toolbar partagée, mutations). Isolé seul pour que sa régression ne se mélange pas à celle d'un widget. |
 | L20c4 | `social/{ArticleReaderDrawer, ArticleComments, ArticleSummary, SimilarArticlesSection, DockedReaderToolbar, TrendingWidget}` | 6 f. · 938 l. | Chaîne de lecture d'article (tiroir, commentaires, résumé, similaires, toolbar ancrée), testée après l'annotateur dont elle dépend. |
 | L20c5 | `social/{SearchFeed, search-results.ts, search-results.test.ts}` + `feed/{VirtualizedFeedList, RealtimeFeedPill}` | 5 f. · 847 l. | Flux et recherche (virtualisation + temps réel), après les cartes qu'ils rendent. |
 | L20c6 | `messages/MessagesApp.tsx` + `messages/__tests__/messages-app.test.tsx` | 2 f. · 556 l. | Application de messagerie autonome, sans dépendance aux sous-lots précédents. |
@@ -1502,6 +1506,93 @@ Trop gros pour un tour : le lot est scindé en **8 sous-lots** dont la somme est
 **Ordre retenu.** Feuilles interactives d'abord (L20c1→L20c7, du plus consommé au plus
 périphérique), **socle transverse en dernier** (L20c8) pour la raison mesurée ci-dessus :
 sa surface de régression est l'ensemble des pages lecteur, pas un écran.
+
+---
+
+## L20c2 — profil éditable et surcouche d'article — durci le 2026-11-19
+
+**Périmètre re-mesuré** (`git ls-files apps/core/src/components/{profile,article-overlay}`) :
+**5 fichiers · 1 206 l.** — `profile/EditProfileModal.tsx` (426 l.),
+`profile/profile-edit-actions.ts` (51 l.), `article-overlay/ArticleOverlayProvider.tsx` (465 l.),
+`article-overlay/overlay-state.ts` (125 l.), `article-overlay/overlay-state.test.ts` (139 l. —
+seule suite préexistante du sous-lot). Découpage inchangé, sous-lot ni anormalement gros ni
+élargi : **aucun re-découpage**.
+
+**Imports réels.** `updateProfileAction` (`@qoe/sdk/actions/feed`), `goFetch`
+(`@qoe/sdk/actions/utils/go-client`) + `revalidatePath` dans le fichier `'use server'` —
+**aucun `fetch` brut dans les actions** ; `getArticleThreadAction` (repli serveur) ;
+`fetch('/api/articles/{slug}')` **côté navigateur** dans le provider (voir R128) ;
+`@qoe/ui` (`Button`, `Dialog*`, `Input`, `Textarea`, `ImageUploader`, `toast`),
+`@qoe/supabase/storage` (`uploadImageToRoute`, `IMAGE_FOLDERS`), `@qoe/config/routes`
+(`getArticleUrl`, `sameOriginPath`), `@/components/overlay/position`, `framer-motion` indirect.
+**Consommateurs vérifiés par grep** : `EditProfileModal` ← `[username]/components/ProfileView.tsx`
+(l.863, **sans `key`**) ; `profile-edit-actions` ← `EditProfileModal` seul ;
+`article-overlay/*` ← le layout `(reader)` et ~15 appelants de `useArticleOverlay()`
+(feed, profil, recherche, historique, bibliothèque) ; tous les exports d'`overlay-state`
+sont consommés (provider + suite) — **aucun export mort**.
+
+| #    | Défaut | Sévérité | Statut |
+| ---- | ------ | -------- | ------ |
+| F266 | `resolveMediaIdByPublisher` : `catch { return null }` traitait **toute** panne comme « cette publication n'est pas un média » — un Go à 503 ou un blip réseau repliait l'écriture sur `updatePersonalProfile`, c'est-à-dire sur `/v1/me/profile` **depuis une page média** : l'incident du 19/09 par l'autre bout (nom/username du compte écrasés), cette fois silencieusement. Contrat 401/404/panne de L20b2b4 non respecté. | haute | corrigé — seul `404`/`403` rend `null`, toute autre erreur remonte et l'appelant (`handleSave`) affiche un toast sans rien écrire ; rouges : `AssertionError: promise resolved "null" instead of rejecting` (503) et (panne réseau sans statut) |
+| F267 | `EditProfileModal` initialisait ses 9 champs une seule fois (`useState(user.x)`) sans resynchronisation quand `user`/`publisherId` change : `ProfileView` reste monté d'un profil à l'autre et passe le modal **sans `key`**, donc ouvrir l'édition sur le profil B réaffichait les valeurs du profil A — et les enregistrait sur B. | haute | corrigé — effet de resynchronisation à l'ouverture et au changement de cible (`[isOpen, user.id]`, dernières valeurs lues par `ref` pour ne pas dépendre de l'identité de l'objet) ; rouge : `TestingLibraryElementError: Unable to find an element with the display value: Bob.` |
+| F268 | `EditProfileModal` : les 6 `<label>` du formulaire n'avaient ni `htmlFor` ni `id` sur le contrôle, et le titre de section était un `<label>` sans contrôle — **aucun champ n'avait de nom accessible** (lecteur d'écran : « zone de texte »). | moyenne | corrigé — `htmlFor`/`id` appariés (`edit-profile-name…`), étiquettes des 5 réseaux sociaux associées, titre de section en `<p>` ; rouge : `TestingLibraryElementError: Unable to find a label with the text of: Nom complet` |
+
+**Candidats examinés puis ABANDONNÉS** :
+
+- **Bouton « Annuler » sans `type`** (dans un `<form>`) : hypothèse séduisante d'un « Annuler » qui soumet — **infirmée** par
+  lecture : `packages/ui/src/primitives/button/button.tsx` force `type="button"` par défaut
+  (l. 144-146 et `type={type}` l. 192). Aucun rouge possible, pas de correctif.
+- **Focus de la surcouche** : l'effet cible `[data-testid="article-drawer"]`, bien présent dans
+  `ArticleReaderDrawer.tsx` l. 149 — pas de focus perdu, rien à corriger.
+- **`fetchArticleThread`** : `fetch` sans `AbortSignal`/timeout → squelette potentiellement
+  infini (contredit le `catch` du même bloc) → **R128** (prouvable seulement en montant le
+  provider, hors d'un rouge fiable ce tour).
+- **Duplication de la mécanique de surcouche** entre `ThoughtOverlayProvider` et
+  `ArticleOverlayProvider` (historique, `pushedRef`, base, focus, timer 320 ms) → **R129**.
+- **`updateMediaProfile`** fabrique la réponse « utilisateur mis à jour » au lieu de lire le Go,
+  et son `catch` fait `console.error` côté client → **R130**.
+- **`decodeURIComponent` du dernier segment d'URL** dans la délégation de clic : correct ici
+  (le `href` DOM est encodé) — l'incident F231 concernait les `params` Next **déjà décodés** ; pas
+  de doublon fabriqué.
+- **R94 (fiche L20b1) est infirmée par la lecture** : `/api/articles/[slug]` **a** un appelant —
+  `fetchArticleThread` l'interroge en premier recours (l. 44) et la Server Action n'est que le
+  repli. La route n'est donc pas morte ; R94 reste ouverte pour la seule question « route ou
+  préchargement client », sans réécrire L20b1.
+- **`overlay-state.ts` + sa suite** : logique pure saine (TTL 60 s, coquille valide sans auteur,
+  URL toujours de même origine, discriminant d'historique distinct de celui des pensées). Aucun
+  rouge construit, aucun correctif cosmétique.
+
+**Preuve rouge → vert.** Deux suites écrites **avant** correctifs :
+`profile/__tests__/profile-edit-actions.test.ts` (**2 échecs / 5** — les trois sentinelles
+200/404/403 passaient) et `profile/__tests__/edit-profile-modal.test.tsx`
+(**2 échecs / 2** : `Unable to find a label with the text of: Nom complet`, `Unable to find an
+element with the display value: Bob.`). Après correctifs : **7/7**, `overlay-state.test.ts`
+reste vert **sans modification**.
+
+**Preuves mesurées :**
+
+| Commande | Avant | Après |
+| -------- | ----- | ----- |
+| `pnpm --filter @qoe/core test` | 47 fichiers · 311 tests | **49 fichiers · 318 tests** |
+| `pnpm --filter @qoe/core lint` | 0 erreur (9 warnings) | **0 erreur (9 warnings)** |
+| `pnpm lint` / `pnpm typecheck` / `pnpm test` | 25/25 · 25/25 · 24/24 | **25/25 · 25/25 · 24/24** (677 ui + 575 studio + 318 core) |
+| `pnpm typecheck:root` | ✔ | **✔** |
+| gardes CI (10, dont `arch:audit`, `ui:audit`, `media-origin`) | vertes | **vertes** |
+| `pnpm test:coverage` (R91) | `branches 78.18% < 85%` | **identique (78.18 %)**, seul rouge, préexistant |
+| lignes du sous-lot | 1 206 | **1 263** (+57 : `EditProfileModal` 426→477, `profile-edit-actions` 51→57) + 2 nouvelles suites |
+
+**Non vérifié.** Aucun navigateur ni `next build` ; `goFetch` **mocké** (les statuts réels d'un Go
+en panne ne sont pas exercés, seule la discrimination 404/403/autre est prouvée) ;
+`updateProfileAction` et `updateMediaProfileAction` mockées ; `ProfileView` non monté, donc la
+navigation réelle de profil A à profil B (le scénario de F267) est reproduite par `rerender`, pas
+par le router ; `ImageUploader`, `Dialog`, `Input`, `Button` remplacés par des doubles (aucun
+envoi d'image, aucun portail) ; `ArticleOverlayProvider` **non monté** (popstate, focus réel,
+verrou de scroll, restauration de position, préchargement au survol) ; `pnpm test:api` et
+`pnpm e2e` non lancés.
+
+**Dettes.** **R01**, **R54**, **R56**, **R63** à **R74**, **R78** à **R127** restent
+ouvertes ; nouvelles : **R128** (`fetch` d'article sans timeout), **R129** (mécanique de
+surcouche dupliquée), **R130** (réponse média fabriquée + `console.error` client).
 
 ---
 

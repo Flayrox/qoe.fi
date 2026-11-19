@@ -183,6 +183,29 @@ export function EditProfileModal({
   });
   const [saving, setSaving] = useState(false);
 
+  // Le modal vit dans `ProfileView`, qui reste monté quand on passe d'un profil
+  // à un autre : sans resynchronisation, le formulaire rouvrait sur les valeurs
+  // du profil précédent et les renvoyait à l'enregistrement.
+  const userRef = React.useRef(user);
+  userRef.current = user;
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const u = userRef.current;
+    setName(u.name || '');
+    setHeroText(u.heroText || '');
+    setLocationText(u.onboardingText || '');
+    setPronouns(u.pronouns || '');
+    setWebsite(u.website || '');
+    setSupportUrl(u.supportUrl || '');
+    setLogoUrl(u.logoUrl);
+    setHeaderImageUrl(u.headerImageUrl || null);
+    const map: Record<string, string> = {};
+    for (const s of u.socialLinks ?? []) {
+      if (s.platform && s.url) map[s.platform] = s.url;
+    }
+    setSocialUrls(map);
+  }, [isOpen, user.id]);
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -291,10 +314,14 @@ export function EditProfileModal({
 
             {/* Name Input */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">
+              <label
+                htmlFor="edit-profile-name"
+                className="text-xs font-semibold text-muted-foreground"
+              >
                 {isMedia ? t`Nom du média` : t`Nom complet`}
               </label>
               <Input
+                id="edit-profile-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -306,10 +333,14 @@ export function EditProfileModal({
             {/* Pronouns (only for personal) */}
             {!isMedia && (
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">
+                <label
+                  htmlFor="edit-profile-pronouns"
+                  className="text-xs font-semibold text-muted-foreground"
+                >
                   {t`Pronoms (optionnel)`}
                 </label>
                 <Input
+                  id="edit-profile-pronouns"
                   type="text"
                   value={pronouns}
                   maxLength={24}
@@ -321,10 +352,14 @@ export function EditProfileModal({
 
             {/* Bio Input */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">
+              <label
+                htmlFor="edit-profile-bio"
+                className="text-xs font-semibold text-muted-foreground"
+              >
                 {isMedia ? t`Ligne éditoriale / Slogan` : t`Bio / Présentation`}
               </label>
               <Textarea
+                id="edit-profile-bio"
                 value={heroText}
                 onChange={(e) => setHeroText(e.target.value)}
                 placeholder={
@@ -338,10 +373,14 @@ export function EditProfileModal({
 
             {/* Location Input */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">
+              <label
+                htmlFor="edit-profile-location"
+                className="text-xs font-semibold text-muted-foreground"
+              >
                 {isMedia ? t`Siège / Rédaction` : t`Localisation / Ville`}
               </label>
               <Input
+                id="edit-profile-location"
                 type="text"
                 value={locationText}
                 maxLength={40}
@@ -353,10 +392,14 @@ export function EditProfileModal({
             {/* Website / Support Link */}
             {isMedia ? (
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">
+                <label
+                  htmlFor="edit-profile-support"
+                  className="text-xs font-semibold text-muted-foreground"
+                >
                   {t`Lien de contact / Support`}
                 </label>
                 <Input
+                  id="edit-profile-support"
                   type="url"
                   value={supportUrl}
                   onChange={(e) => setSupportUrl(e.target.value)}
@@ -365,10 +408,14 @@ export function EditProfileModal({
               </div>
             ) : (
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">
+                <label
+                  htmlFor="edit-profile-website"
+                  className="text-xs font-semibold text-muted-foreground"
+                >
                   {t`Site web personnel / Portfolio`}
                 </label>
                 <Input
+                  id="edit-profile-website"
                   type="url"
                   value={website}
                   onChange={(e) => setWebsite(e.target.value)}
@@ -379,16 +426,20 @@ export function EditProfileModal({
 
             {/* Social Networks Section */}
             <div className="space-y-2 pt-2 border-t border-border/40">
-              <label className="text-xs font-semibold text-muted-foreground">
+              <p className="text-xs font-semibold text-muted-foreground">
                 {t`Réseaux sociaux & Profils`}
-              </label>
+              </p>
               <div className="space-y-2">
                 {SOCIAL_NETWORKS.map((net) => (
                   <div key={net.id} className="flex items-center gap-2">
-                    <span className="w-24 shrink-0 text-xs font-medium text-foreground/80">
+                    <label
+                      htmlFor={`edit-profile-social-${net.id}`}
+                      className="w-24 shrink-0 text-xs font-medium text-foreground/80"
+                    >
                       {net.label}
-                    </span>
+                    </label>
                     <Input
+                      id={`edit-profile-social-${net.id}`}
                       type="url"
                       size="sm"
                       value={socialUrls[net.id] || ''}

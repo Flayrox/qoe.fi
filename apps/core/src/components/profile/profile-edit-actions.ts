@@ -25,8 +25,14 @@ export async function resolveMediaIdByPublisher(publisherId: string): Promise<st
       `/v1/media/by-publication/${encodeURIComponent(publisherId)}`
     );
     return res.mediaId || null;
-  } catch {
-    return null; // pas un média (ou pas membre) → profil personnel
+  } catch (err) {
+    // ⚠️ Seul un refus explicite signifie « pas un média » (ou « pas membre »).
+    // Une panne Go (503, réseau) lue comme telle replierait l'écriture sur le
+    // profil PERSONNEL depuis une page média — c'est exactement l'incident du
+    // 19/09 par l'autre bout. Une panne remonte : l'appelant n'écrit rien.
+    const status = (err as { status?: number } | null)?.status;
+    if (status === 404 || status === 403) return null;
+    throw err;
   }
 }
 
