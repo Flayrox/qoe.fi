@@ -36,6 +36,16 @@
 /* ─── @theme : expose les fonts + neural colors à Tailwind v4 ─── */
 @theme {
   /* Typography — Project-wide font stack (Apple-esque) */
+  /* F144 — `--font-sans` n'était défini nulle part : `@theme inline` se
+     contentait de `--font-sans: var(--font-sans)`, donc l'utilitaire
+     `font-sans` et `editor.css` recevaient une valeur invalide et la pile
+     ci-dessous n'était jamais appliquée. */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI', Roboto,
+    Helvetica, Arial, sans-serif;
+  --font-heading:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI', Roboto,
+    Helvetica, Arial, sans-serif;
   --font-display:
     -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI', Roboto,
     Helvetica, Arial, sans-serif;
@@ -60,11 +70,9 @@
 
 /* ─── Bridge shadcn/ui ↔ Tailwind : mappe --color-* vers nos tokens ─── */
 @theme inline {
-  --font-heading: var(--font-sans);
-  --font-sans: var(--font-sans);
-  --font-outfit: var(--font-outfit);
-  --font-space-grotesk: var(--font-space-grotesk);
-  --font-serif: var(--font-serif);
+  /* ⚠️ Les familles ne sont pas redéclarées ici : `@theme` les enregistre
+     déjà, et une clé qui se référence elle-même (`--font-sans: var(--font-sans)`)
+     produit une valeur invalide quand la variable n'existe pas ailleurs. */
 
   --color-brand: var(--accent-brand);
   --color-brand-foreground: var(--accent-brand-fg);
