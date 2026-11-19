@@ -18,5 +18,5 @@ export {
   formatPostDetailDate,
   formatTransactionDate,
   timeAgo,
-  MONTHS_FR,
+  DEFAULT_TIME_ZONE,
 } from './dates';

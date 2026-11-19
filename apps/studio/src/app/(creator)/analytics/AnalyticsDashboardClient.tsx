@@ -6,6 +6,9 @@ import { Eye, Users, Activity, Clock, Info } from 'lucide-react';
 import { ToggleButton, ToggleGroup } from '@qoe/ui/toggle';
 import { StudioHeader } from '@/components/studio-page';
 import type { FeatureLocale } from '@qoe/ui';
+// R70 — une seule implémentation de `formatDuration` (celle de `@qoe/utils`) :
+// la copie locale affichait « 61m 40s » au-delà d'une heure.
+import { formatDuration } from '@qoe/utils';
 import { getCreatorAnalyticsData, AnalyticsResponseData, TimePeriod } from './actions';
 import { TimeseriesChart } from './components/TimeseriesChart';
 import { TopPagesBlock } from './components/TopPagesBlock';
@@ -51,12 +54,6 @@ export function AnalyticsDashboardClient({
 
   const avgDurationSeconds = visits > 0 ? Math.round(totaltime / visits) : 0;
   const avgDwellSeconds = data.avgDwellSeconds ?? 0;
-  const formatDuration = (sec: number) => {
-    if (sec < 60) return `${sec}s`;
-    const mins = Math.floor(sec / 60);
-    const remainingSec = sec % 60;
-    return `${mins}m ${remainingSec}s`;
-  };
 
   const bounceRate = visits > 0 ? Math.round((bounces / visits) * 100) : 0;
 

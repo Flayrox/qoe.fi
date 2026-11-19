@@ -880,8 +880,8 @@ nommé), puis verts après restauration.
 | R60 | `reader/useBionicReading` : le mode bionique écrit `innerHTML` dans un conteneur possédé par React et met l'original en cache dans `data-original-html`. Un corps re-rendu après activation (annotation ajoutée, document canonique rechargé) rend donc l'ancien HTML à la désactivation. Le correctif propre est un bionic **déclaratif** au rendu des blocs, pas une mutation DOM. | moyenne | Chantier de design du lecteur (aucun écran n'active aujourd'hui le bionic sur un corps canonique, mais le chemin est armé) — voir L07b. |
 | R61 | `nextUrl` de bout en bout : `AuthModalContext` le calcule (`?auth=…&next=…`, URL courante), `GlobalAuthModalProvider` le transmet, `LoginModal` l'accepte… et ne l'utilise jamais. Après connexion, `router.refresh()` garde la page courante. `setMode` n'a aucun consommateur, et `?auth=login` n'est jamais retiré de l'URL (recharger rouvre la modale). | moyenne | Décision produit (revenir à l'URL d'origine après connexion, ou rester sur place ; nettoyer le paramètre au passage) — voir L07c. |
 | R63 | `deeplink.Notification` (Go) émet **`/article/{slug}`** — l'ancienne forme : 308 côté tenants, **404 côté core** — pour `LIKE`/`REPOST`/`COMMENT` sur article et pour le fan-out `MEDIA_ARTICLE_PUBLISHED`. `deeplink.Target` ne porte ni le propriétaire ni la catégorie, donc la canonique (`/{owner}/a/{slug}` ou `/{cat}/{slug}`) n'est pas constructible en l'état. Le garde `guard:article-links` ne scanne pas le Go : ce chemin lui échappe. | moyenne | Décision serveur : ajouter `OwnerUsername` (ou `CategorySlug`) au `Target` et construire la canonique, ou assumer que le client ne reçoit que des `url` déjà canoniques. Voir L07e. |
-| R70 | `formatDuration` est réimplémenté **deux fois** dans les apps (`apps/studio/src/app/(creator)/analytics/AnalyticsDashboardClient.tsx:54` et `apps/admin/src/app/(admin)/admin/notifications/OutboxObservabilityConsole.tsx:60`) alors que `@qoe/utils` exporte déjà `formatDuration` : trois découpages qui divergent sur l'arrondi et les unités. | faible | Décision de wording produit (« 2 min 30 s » vs « 2m30 ») avant de brancher les deux écrans sur le helper partagé. Constaté en lisant les consommateurs de L12. |
-| R69 | `MONTHS_FR` est exporté par le barrel `@qoe/formatters` **sans aucun consommateur** dans le dépôt (seul usage interne à `dates.ts`). | faible | Soit le brancher pour un format de date personnalisé côté web, soit le retirer de `index.ts` et garder la constante interne. Voir L12. |
+| R70 | `formatDuration` était réimplémenté **deux fois** dans les apps (`apps/studio/src/app/(creator)/analytics/AnalyticsDashboardClient.tsx:54` et `apps/admin/src/app/(admin)/admin/notifications/OutboxObservabilityConsole.tsx:60`) alors que `@qoe/utils` exporte déjà `formatDuration` : trois découpages divergents sur l'arrondi et les unités. | faible | **corrigée le 2026-11-19** — les deux copies sont supprimées, les écrans consomment `@qoe/utils` (studio : « 61m 40s » → « 1 h 1 min » ; admin : « 1 min » → « 1 min 30 s »). Garde de déduplication ajouté : 2 fautifs avant, 0 après. |
+| R69 | `MONTHS_FR` était exporté par le barrel `@qoe/formatters` **sans aucun consommateur** dans le dépôt (seul usage interne à `dates.ts`). | faible | **corrigée le 2026-11-19** — export retiré (constante interne) ; `DEFAULT_TIME_ZONE` exposé à la place. Aucun des 7 apps / 15 packages n'importait `MONTHS_FR`. |
 | R68 | `packages/config/src/features.ts` exporte `FEATURE_FLAGS`, `isFeatureEnabled` et `getCreatorFeatureToggles` **sans aucun consommateur** dans le dépôt : le registre de flags réellement utilisé est `@qoe/flags` (+ parité Go), et `env.ts` valide des variables `FEATURE_*` que ce module seul lirait. Deux vocabulaires de flags coexistent, donc une activation peut sembler câblée sans effet. | faible | Décision produit : supprimer `features.ts` (et les `FEATURE_*` du schéma d'env) ou brancher `@qoe/flags` sur ces variables. Voir L11. |
 | R67 | `@qoe/content` exporte quatre surfaces entières — `continuous` (projection, attestation, layout), `highlighter` (découpage de marques), `paywall` (métriques, teaser sémantique) et `excerpt` — **sans aucun consommateur TypeScript** : le seul import du dépôt est `apps/mobile/src/lib/highlight-queue-core.ts`, qui ne prend que `canonical`. Soit le web/HTML réimplémente ces calculs ailleurs (Go, rendu serveur), soit elles sont mortes — et rien ne détecte la dérive entre les deux. | faible | Décision produit : brancher les lecteurs (web + natif) sur ce moteur et supprimer les doublons, ou retirer les surfaces inutilisées. Voir L10. |
 | R66 | `DEFAULT_AVATARS`/`getDefaultAvatar`/`isDefaultAvatarUrl` (`avatars.ts`) et `STUDIO_ENTITIES` (`studio.ts`) n'ont **aucun consommateur TypeScript** dans le dépôt : les avatars sont aussi semés côté Go et les métriques du studio sont recodées dans les pages analytics. Deux sources de vérité pour la même liste, donc dérive silencieuse possible. | faible | Décision produit : brancher le web/mobile sur ce registre (ou sur une source unique exposée par le SDK), ou le retirer. Voir L09. |
@@ -1466,8 +1466,20 @@ ce que la normalisation du repli préserve. Aucune doublure modifiée.
   ne change pas la chaîne produite (vérifié par les tests existants).
 
 **Dettes.** **R01**, **R54**, **R56**, **R63** à **R68** restent **ouvertes**.
-Nouvelles dettes : **R69** (`MONTHS_FR` exporté sans consommateur) et **R70**
-(`formatDuration` réimplémenté dans deux apps alors que `@qoe/utils` l'exporte).
+**R69** et **R70**, ouvertes à la clôture du lot, ont été **fermées dans la
+foulée** (même journée, commit dédié) :
+
+- **R69** — `MONTHS_FR` n'est plus exporté (constante interne de `dates.ts`) ;
+  le barrel expose à la place `DEFAULT_TIME_ZONE`. Vérifié par recherche
+  exhaustive : aucun import de `MONTHS_FR` dans les 7 apps ni les 15 packages.
+- **R70** — `formatDuration` n'existe plus qu'une fois (`@qoe/utils`). Le studio
+  est branché dessus (il affichait **« 61m 40s »** pour 3700 s, sans unité
+  horaire, et des flottants non arrondis pour `avgDwellSeconds`), l'admin garde
+  son libellé « vide » via un adaptateur `formatQueuedFor` (sa copie perdait les
+  secondes : **« 90 s » → « 1 min »**). Un **garde de déduplication** échoue si
+  une définition locale réapparaît (`packages/utils/src/__tests__/format-duration-dedupe.test.ts`) :
+  il trouvait **2 fautifs** avant correction (`expected [ …(2) ] to deeply equal []`),
+  il en trouve **0** après.
 
 ---
 

@@ -6,7 +6,9 @@ const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
-export const MONTHS_FR = [
+// R69 — constante interne : aucun consommateur hors du paquet, elle ne sort
+// donc plus par le barrel (`MONTHS_FR` n'était importé nulle part).
+const MONTHS_FR = [
   'janv.',
   'févr.',
   'mars',

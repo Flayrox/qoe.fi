@@ -24,6 +24,9 @@ import {
 } from 'lucide-react';
 import { Badge } from '@qoe/ui/badge';
 import { Button } from '@qoe/ui/button';
+// R70 — une seule implémentation de `formatDuration` (celle de `@qoe/utils`) :
+// la copie locale perdait les secondes (« 90 s » → « 1 min »).
+import { formatDuration } from '@qoe/utils';
 import type { OutboxHealthMetrics } from '@/lib/admin-data';
 import {
   retryAllFailedDeliveriesAction,
@@ -57,13 +60,9 @@ function statusBadge(status: string) {
   }
 }
 
-function formatDuration(seconds: number): string {
-  if (seconds <= 0) return 'vide';
-  if (seconds < 60) return `${seconds} s`;
-  const mins = Math.floor(seconds / 60);
-  if (mins < 60) return `${mins} min`;
-  const hours = Math.floor(mins / 60);
-  return `${hours} h ${mins % 60} min`;
+/** Attente la plus ancienne : « vide » plutôt que « 0 s » quand rien n'attend. */
+function formatQueuedFor(seconds: number): string {
+  return seconds <= 0 ? 'vide' : formatDuration(seconds);
 }
 
 export function OutboxObservabilityConsole({ metrics }: OutboxObservabilityConsoleProps) {
@@ -209,7 +208,7 @@ export function OutboxObservabilityConsole({ metrics }: OutboxObservabilityConso
           </div>
           <div className="text-[11px] text-muted-foreground">
             {metrics.queuedTotal > 0
-              ? `Le plus ancien : ${formatDuration(metrics.oldestQueuedSeconds)}`
+              ? `Le plus ancien : ${formatQueuedFor(metrics.oldestQueuedSeconds)}`
               : 'File entièrement dépilée'}
           </div>
         </div>
