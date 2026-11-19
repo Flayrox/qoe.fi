@@ -83,7 +83,8 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L19     | `packages/tsconfig/**`                                                                                       | 4 presets + racine + garde  | **durci le 2026-11-19** |
 | L20a    | `apps/core/src/lib/**`                                                                                       | 24 fichiers · 3 242 l.      | **durci le 2026-11-19** |
 | L20b1   | `app/{api,robots.ts,sitemap*,l}`                                                                             | 16 fichiers · 802 l.        | **durci le 2026-11-19** |
-| L20b2   | `app/{(reader),auth,login,oauth,subscribe-with-qoefi,actions}` + `layout/page/not-found`                     | 99 fichiers · 18 490 l.     | à auditer               |
+| L20b2a  | `app/{auth,login,oauth,subscribe-with-qoefi,actions}` + `layout/page/not-found`                              | 16 fichiers · 1 608 l.      | **durci le 2026-11-19** |
+| L20b2b  | `app/(reader)/**`                                                                                            | 84 fichiers · 16 709 l.     | à auditer               |
 | L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | à auditer               |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
 | L21     | `apps/studio/src/**`                                                                                         | 509 fichiers                | à auditer               |
@@ -106,9 +107,9 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L20b2 — `apps/core/src/app/(reader)/**` + `auth/login/oauth`**
-(L20b1 clos ; ordre restant : L20b2 arbre lecteur, L20c composants, L20d
-hooks/features).
+**Prochain lot à traiter : L20b2b — `apps/core/src/app/(reader)/**`** (84 fichiers ·
+16 709 l. ; L20b2a clos ; ordre restant : L20b2b arbre lecteur, L20c composants,
+L20d hooks/features).
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -889,6 +890,10 @@ nommé), puis verts après restauration.
 | R74 | `canonicalEmail` est calculé par `@qoe/moderation` et écrit dans les métadonnées Supabase (`options.data`) au signup, mais **aucun code ne le lit** : ni le sync Go, ni la base (aucun index unique). L'anti-multi-comptes annoncé par le module ne s'exerce donc pas au-delà du jour de l'inscription, et la suppression systématique du tag `+` (tous fournisseurs, pas seulement Gmail) n'a aucune conséquence observable. | moyenne | Arbitrage backend : colonne `canonicalEmail` + index unique dans une migration goose, puis refus de doublon côté Go (`/v1/auth/sync`), en décidant si l'on garde Gmail uniquement pour les points. Voir L14. |
 | R94 | `/api/articles/[slug]` (core) n'a **aucun appelant** dans le repo : la page article lit côté serveur. Route morte dont le contrat HTTP vient d'être corrigé (cache privé, L20b1) mais qui reste à supprimer ou à réutiliser explicitement. | faible | Arbitrage : supprimer la route (et son test) ou la brancher sur le préchargement client ; décision produit sur le préchargement d'article. Voir L20b1. |
 | R93 | `packages/analytics` envoie la session de lecture par `navigator.sendBeacon(endpointUrl, payload)` avec un **corps texte** (Content-Type `text/plain`) : le handler lit `req.json()`, qui fonctionne par chance (pas de validation de type de contenu côté Next). Aucun rejet observé, mais le contrat média n'est pas explicite. | faible | Arbitrage : créer un `Blob` typé `application/json` à l'envoi, ou valider/ignorer explicitement le Content-Type côté route. Voir L20b1. |
+| R98 | `auth/sso/sync` place les jetons **Supabase `access_token` _et_ `refresh_token`** dans le JWT SSO remis à l'origine de retour (`return_to`, validée par `getSafeRedirectUrl`). Le JWT vit 60 s, mais le refresh token qu'il contient vit bien plus longtemps : toute origine acceptée peut rejouer la session utilisateur aupr+s de Supabase. | haute | Arbitrage d'architecture : émettre un code d'échange à usage unique consommé par le backend de l'RP au lieu d'embarquer les jetons. Voir L20b2a. |
+| R97 | `layout.tsx` pose `suppressHydrationWarning` sur `<html>` **et** `<body>` : la vraie cause d'un écart d'hydratation resterait invisible (le thème est déjà couvert par `ThemeSeedScript`). | faible | Arbitrage : restreindre l'attribut au nœud réellement divergent (thème/`lang`) après avoir mesuré un mismatch en condition réelle. Voir L20b2a. |
+| R96 | Les server actions de `apps/core/src/app` journalisent en `console.error` alors que le monorepo expose `@qoe/observability` (`logger`) : ni corrélation ni niveau structuré. Aucune convention écrite sur lequel utiliser. | faible | Arbitrage : écrire la règle (logger en prod, `console` en script/buil) puis migrer route par route. Voir L20b2a. |
+| R95 | Le `RootLayout` enchaîne **séquentiellement** trois appels Go par requête (`/v1/settings/preferences`, puis `/v1/placements?slot=global.notch`, puis `/v1/home/announcement`) : chaque timeout de 10 s s'ajoute au précédent avant le premier octet de page. `preferences` et `placements` sont indépendants. | moyenne | Non corrigé faute de rouge mesurable : le layout est un composant serveur et le dépôt n'a **aucune** infra de test React (R75) ; extraire l'orchestration pour la tester serait un refactor non prouvé. Voir L20b2a. |
 | R92 | Trois routes de `apps/core/src/app/api` restent en **échec silencieux** : `/api/analytics/feed-impression` répond `200 {success:false}` quand Go échoue (choix de beacon, non documenté) et `/api/feed/show-less` relaie `err.message` brut au client. Après L20b1, `reading-session` et `upload` sont honnêtes, mais la convention commune n'est pas écrite. | faible | Arbitrage : écrire la convention dans la fiche d'architecture des routes (beacon = 200 assumé, actions = statut Go relayé, jamais de message interne en 5xx) puis aligner les deux routes restantes. Voir L20b1. |
 | R91 | Le job CI **`unit-and-coverage` est rouge** : `ERROR: Coverage for branches (78.18%) does not meet "packages/flags/**" threshold (85%)`. Cause mesurée : `gate.tsx` (20 % st., **0 % br.**), `provider.tsx` (18,75 % st., **0 % br.**), `hooks.ts` (50 % st.) ne sont couverts par aucun test React — c'est la conséquence directe de **R75** (aucune infra de test React). Reproductible **avant** L20a (même erreur avec le lot `git stash`), donc préexistant. | moyenne | Arbitrage : monter R75 (infra de rendu partagée) puis tester `gate.tsx`/`provider.tsx`, ou abaisser le seuil branches de `packages/flags/**` en le documentant — à trancher hors `apps/core`. Voir L20a. |
 | R90 | `apps/core/src/lib/plus-status.ts` garde `cached`/`inflight` au **niveau module**, sans aucune invalidation : une déconnexion/reconnexion dans le même onglet conserve le statut Plus du compte précédent jusqu'au rechargement complet. | moyenne | Arbitrage : invalider depuis le flux d'auth (événement `SIGNED_OUT`) ou exposer un TTL ; impact réel dépend du mode de déconnexion (reload complet aujourd'hui). Voir L20a. |
@@ -1431,6 +1436,96 @@ existante modifiée, aucune doublure touchée.
 **Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65**, **R66**
 restent **ouvertes**. Nouvelle dette : **R67** (surfaces `continuous`,
 `highlighter`, `paywall`, `excerpt` sans consommateur TS).
+
+---
+
+## L20b2a — `apps/core/src/app` entrées : callback, login, OAuth, layout — durci le 2026-11-19
+
+**Découpage L20b2 (mesuré).** L20b (99 fichiers / 18 490 l.) est scindé :
+**L20b2a `{auth,login,oauth,subscribe-with-qoefi,actions}` + `layout/page/not-found`**
+= **16 fichiers / 1 608 l.** (**clos ici**) et **L20b2b `(reader)/**`** =
+**84 fichiers / 16 709 l.** (à auditer).
+
+**Périmètre lu en entier** : `auth/callback/route.ts` (85), `auth/sso/sync/route.ts`
+(56), `login/actions.ts` (125), `login/page.tsx` (45), `login/login-form.tsx` (21),
+`login/__tests__/actions.test.ts` (184), `oauth/authorize/actions.ts` (118),
+`oauth/authorize/consent-client.tsx` (252), `oauth/authorize/page.tsx` (70),
+`subscribe-with-qoefi/{actions,page,subscribe-client}` (62+86+169),
+`actions/placements.ts` (59), `layout.tsx` (255), `page.tsx` (7),
+`not-found.tsx` (14). Dépendances réelles vérifiées dans `node_modules` :
+`next` 15 (App Router : `params`/`searchParams` **Promise**, `redirect` de
+`next/navigation`), `goFetch` (`packages/sdk/src/actions/utils/go-client.ts`:
+timeout 10 s, `cache:'no-store'`, `goApiUrl()` normalisant les `/` finaux).
+
+| #    | Défaut                                                                                                                                                                                                                                                                        | Sévérité | Statut                                                                                                                                                                                                                                                                                                                    |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F227 | `auth/callback` parlait au Go par un **`fetch` brut** : hors du chemin réseau unique, donc **sans timeout**, `QOE_API_URL` non normalisée (`QOE_API_URL=https://api.test/` produisait `//v1/me/sync`) et sans `cache:'no-store'` ; un Go figé pendait le retour de connexion. En prime `await await supabase.auth.getSession()` et un `try/catch` autour de `res.json()`. | moyenne  | corrigé — `goFetch('/v1/me/sync', { method:'POST' })` + `catch` distinguant le `403` (message Go conservé, `signOut`, retour `/login?error=`) des autres pannes (on laisse l'auto-réparation créer la ligne). Rouges : `AssertionError: expected "vi.fn()" to be called with arguments: [ '/v1/me/sync', { method: 'POST' } ]` puis `TypeError: fetch failed / getaddrinfo ENOTFOUND api.test` (l'appel réseau partait réellement, hors client). |
+| F228 | `login()` appelait **`fetchMeProfile()` sans protection** : une panne Go transformait une connexion Supabase valide en erreur 500. Le profil n'est pourtant qu'une **heuristique d'onboarding** (0 suivi + 0 mot masqué), pas une condition d'accès. | moyenne  | corrigé — `fetchMeProfile().catch(() => null)` + garde `profile &&` ; rouge : `expected [Function] to throw error including 'REDIRECT:/home' but got 'Go API 503'`                                                                                                                                                    |
+| F229 | `signup()` pré-contrôlait les inscriptions par un **`fetch` brut sans timeout** (formulaire pendu si Go ne répond pas) et, quand le pré-contrôle n'aboutissait pas, laissait passer une inscription fermée : aucune valeur n'était lu. | moyenne  | corrigé — `goFetch` + `.catch(() => null)` (même `fail-open` assumé, mais borné) ; rouges : `expected "vi.fn()" to be called with arguments: [ StringContaining{…} ]` et `expected [Function] to throw error matching /REDIRECT:\/login\?error=/login\?error= but got 'REDIRECT:/onboarding'`                                                          |
+
+**F230 — correctif tenté puis REVERTÉ (contrainte framework).**
+`oauth/authorize/actions.ts` exposait `oauthAuthorizeParamsToQuery` en `async`
+alors qu'elle ne fait aucune I/O : rouge obtenu (`AssertionError: expected
+'object' to be 'string'`). Le passage en fonction synchrone casse **`pnpm
+arch:audit`** : `🚨 1 export(s) synchrone(s) détecté(s) dans un module 'use
+server' !` — Next.js impose que **toute** export d'un fichier `'use server'`
+soit `async`. Correctif annulé, contrainte documentée en commentaire dans le
+fichier, test retiré. Ce n'est pas un défaut.
+
+**Candidats examinés puis ABANDONNÉS** :
+
+- **`getPublicBase()` fait confiance à `x-forwarded-host`/`x-forwarded-proto`** :
+  nécessaire derrière Caddy (qui réécrit `Host`), aucun rouge reproductible sans
+  proxy réel → pas de correctif, frontière de confiance documentée en commentaire.
+- **`consent-client` fait `window.location.assign(res.redirect)`** avec l'URL
+  fournie par Go : le backend est l'autorité OAuth et valide `redirect_uri`
+  contre le client enregistré ; re-valider côté front rejetterait des URI de RP
+  légitimes.
+- **`subscribe-with-qoefi.cleanReturnUrl` accepte toute URL http(s)** : la valeur
+  ne sert qu'à un `<a href>` et à l'origine d'un `postMessage`, jamais à une
+  redirection serveur — comportement conforme à la fiche 02 §7.
+- **`RootLayout` : trois appels Go séquentiels** (vrai waterfall, jusqu'à 30 s de
+  timeouts cumulés) : aucun rouge possible sans infra de rendu React (R75),
+  consigné en **R95**.
+- **`console.error` dans les actions** : dette de convention → **R96**.
+- **`suppressHydrationWarning` sur `<html>` + `<body>`** : masque la cause réelle
+  d'un mismatch → **R97**.
+- **`auth/sso/sync` embarque le `refresh_token` Supabase dans le JWT SSO** :
+  défaut d'architecture réel mais correctif hors lot (échange de code) → **R98**.
+
+**Preuve rouge → vert.** Suite `app/__tests__/entry-surfaces-hardening.test.ts`
+écrite **avant** correctifs : **7 échecs / 7** (dont 1 pour F230), puis **6/6**
+verts après correctifs et retrait du test F230. Aucune assertion existante
+modifiée (`login/__tests__/actions.test.ts` intact), aucun test supprimé, aucun
+`any` ajouté.
+
+**Preuves (mesurées) :**
+
+| Commande | Avant | Après |
+| -------- | ----- | ----- |
+| `pnpm --filter @qoe/core test` | 33 fichiers · **263 tests** | 34 fichiers · **269 tests** |
+| `pnpm --filter @qoe/core lint` | 0 erreur (10 warnings) | **0 erreur** (10 warnings préexistants) |
+| `pnpm lint` / `pnpm typecheck` / `pnpm test` | 25/25 · 25/25 · 24/24 | **25/25 · 25/25 · 24/24** |
+| `pnpm typecheck:root` | ✔ | **✔** |
+| `pnpm arch:audit` | 0 fonction non-async | **0** (a détecté puis validé le revert F230) |
+| gardes CI (10) | vertes | **vertes** |
+| `pnpm test:coverage` (R91) | `branches 78.18% < 85%` | **identique (78.18 %)**, seul rouge, préexistant |
+
+**Non vérifié.** Aucun navigateur ni routeur Next réel : les route handlers sont
+appelés directement (`new Request`) et les pages ne sont pas rendues — donc ni
+le flux OAuth complet (autorisation → code → jetons), ni `postMessage`, ni le
+rendu du consentement, ni l'hydratation ne sont exercés. `window.location.assign`
+(consentement) n'est pas testé. Aucun appel au vrai Supabase ni au vrai Go :
+`createClient`, `goFetch` et `fetchMeProfile` sont mockés, donc l'échange de code
+d'authorization et le statut réel de `/v1/auth/registration-status` ne sont pas
+observés. `auth/sso/sync` n'est pas testé (signature JWT réelle non exercée).
+`pnpm test:api`, `pnpm e2e` et `next build` non lancés. **R91** re-mesuré à
+l'identique : `packages/flags/**` branches 78,18 % < 85 %, cause R75.
+
+**Dettes.** **R01**, **R54**, **R56**, **R63** à **R74**, **R78** à **R94**
+restent ouvertes ; nouvelles : **R95** (waterfall du layout), **R96** (`console`
+vs logger), **R97** (`suppressHydrationWarning`), **R98** (refresh token dans le
+JWT SSO).
 
 ---
 

@@ -4,6 +4,7 @@ import { createClient } from '@qoe/supabase/server';
 import { redirect } from 'next/navigation';
 import { getSafeRedirectUrl } from '@qoe/utils';
 import { getCurrentUserAction, logoutAction } from '@qoe/sdk/actions/auth';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { validateRegistrationEmail, validateUsername } from '@qoe/moderation';
 import { fetchMeProfile } from '@/lib/me';
 
@@ -34,8 +35,15 @@ export async function login(formData: FormData) {
   // Go (backend-of-record, requis en Phase 3) : GET /v1/me (profil + compteurs).
   // Un nouveau lecteur sans suivi ni mot masqué est dirigé vers l'onboarding.
   // fetchMeProfile auto-répare un 404 (ligne User absente — login dev de démo).
-  const profile = await fetchMeProfile();
-  if (profile.role === 'user' && profile.followsCount === 0 && profile.mutedWordsCount === 0) {
+  // Le profil n'est qu'une heuristique d'onboarding : une panne Go ne doit pas
+  // transformer une connexion valide en erreur 500.
+  const profile = await fetchMeProfile().catch(() => null);
+  if (
+    profile &&
+    profile.role === 'user' &&
+    profile.followsCount === 0 &&
+    profile.mutedWordsCount === 0
+  ) {
     redirect('/onboarding');
   }
 
@@ -70,25 +78,17 @@ export async function signup(formData: FormData) {
   // supabase.auth.signUp : sans ça, un email refusé créerait quand même un
   // compte Auth orphelin (sans ligne User). Le serveur re-vérifie au sync.
   const normalizedEmail = emailValidation.normalizedEmail || email.trim();
-  try {
-    const goApi = process.env.QOE_API_URL;
-    if (goApi) {
-      const res = await fetch(
-        `${goApi}/v1/auth/registration-status?email=${encodeURIComponent(normalizedEmail)}`,
-        { cache: 'no-store' }
-      );
-      if (res.ok) {
-        const status = (await res.json()) as { open?: boolean; allowed?: boolean };
-        if (!status.open && !status.allowed) {
-          redirect(
-            `/login?error=${encodeURIComponent('Inscriptions sur invitation : cet email n’est pas invité.')}`
-          );
-        }
-      }
-    }
-  } catch {
-    // API injoignable : on laisse passer, le sync tranchera (fail-open
-    // côté inscription, fail-closed côté création — aucun compte fantôme).
+  // Via `goFetch` : URL normalisée, `no-store`, timeout borné (un `fetch` brut
+  // laissait le formulaire pendre si Go ne répondait pas).
+  // API injoignable → `null` : on laisse passer, le sync tranchera (fail-open
+  // côté inscription, fail-closed côté création — aucun compte fantôme).
+  const status = await goFetch<{ open?: boolean; allowed?: boolean }>(
+    `/v1/auth/registration-status?email=${encodeURIComponent(normalizedEmail)}`
+  ).catch(() => null);
+  if (status && !status.open && !status.allowed) {
+    redirect(
+      `/login?error=${encodeURIComponent('Inscriptions sur invitation : cet email n’est pas invité.')}`
+    );
   }
 
   const supabase = await createClient();

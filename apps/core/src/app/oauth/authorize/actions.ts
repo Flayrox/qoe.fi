@@ -74,6 +74,8 @@ function toQueryString(params: OAuthAuthorizeParams): string {
   return q.toString();
 }
 
+// `async` n'est pas décoratif : toutes les exports d'un fichier 'use server'
+// doivent être async (contrainte Next.js, vérifiée par `pnpm arch:audit`).
 export async function oauthAuthorizeParamsToQuery(params: OAuthAuthorizeParams): Promise<string> {
   return toQueryString(params);
 }

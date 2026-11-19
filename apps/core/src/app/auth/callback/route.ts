@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@qoe/supabase/server';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 
 function sanitizeNextPath(target: string | null): string {
   if (!target) return '/home';
@@ -46,34 +47,31 @@ export async function GET(request: Request) {
       } = await supabase.auth.getUser();
       if (user) {
         // Go-only : la ligne User est créée/mise à jour depuis le JWT par
-        // POST /v1/me/sync (parité syncUserFromAuth Prisma).
-        const goApi = process.env.QOE_API_URL;
-        if (goApi) {
-          const res = await fetch(`${goApi}/v1/me/sync`, {
+        // POST /v1/me/sync (parité syncUserFromAuth Prisma). Passer par
+        // `goFetch` garde un seul chemin réseau : `QOE_API_URL` normalisée à
+        // l'appel, `cache: 'no-store'`, timeout borné — un `fetch` brut ici
+        // pouvait pendre indéfiniment sur le callback d'authentification.
+        try {
+          const result = await goFetch<{ needsOnboarding?: boolean }>('/v1/me/sync', {
             method: 'POST',
-            headers: {
-              Authorization: `Bearer ${(await await supabase.auth.getSession()).data.session?.access_token ?? ''}`,
-            },
           });
-          if (res.ok) {
-            const result = (await res.json()) as { needsOnboarding?: boolean };
-            if (result.needsOnboarding) {
-              next = '/onboarding';
-            }
-          } else if (res.status === 403) {
+          if (result.needsOnboarding) {
+            next = '/onboarding';
+          }
+        } catch (syncError) {
+          if ((syncError as { status?: number }).status === 403) {
             // 🚪 Inscriptions fermées / email non invité : pas de ligne User.
             // On coupe la session Auth (sinon compte orphelin + boucle
             // auto-réparation) et on renvoie vers /login avec un message clair.
             await supabase.auth.signOut();
-            let msg = 'Inscriptions fermées pour le moment. Demandez une invitation.';
-            try {
-              const body = (await res.json()) as { error?: string };
-              if (body.error) msg = body.error;
-            } catch {
-              // Corps illisible : message par défaut.
-            }
+            const msg =
+              (syncError instanceof Error && syncError.message) ||
+              'Inscriptions fermées pour le moment. Demandez une invitation.';
             return NextResponse.redirect(`${base}/login?error=${encodeURIComponent(msg)}`);
           }
+          // Autre panne (5xx, timeout, API absente) : la ligne User sera créée
+          // par l'auto-réparation du prochain GET /v1/me — ne pas bloquer la
+          // connexion.
         }
       }
 
