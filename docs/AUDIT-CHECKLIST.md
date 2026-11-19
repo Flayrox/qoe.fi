@@ -78,7 +78,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L14     | `packages/moderation/src/**`                                                                                 | 16 fichiers src + 2 suites  | **durci le 2026-11-19** |
 | L15     | `packages/analytics/src/**`                                                                                  | 8 fichiers src + 6 suites   | **durci le 2026-11-19** |
 | L16     | `packages/observability/src/**`                                                                              | 7 fichiers src + 3 suites   | **durci le 2026-11-19** |
-| L17     | `packages/devtools/src/**`                                                                                   | 2 fichiers                  | à auditer               |
+| L17     | `packages/devtools/src/**`                                                                                   | 2 fichiers src + 1 suite    | **durci le 2026-11-19** |
 | L18     | `packages/social/src/**`                                                                                     | 6 fichiers                  | à auditer               |
 | L19     | `packages/tsconfig/**`                                                                                       | 0 fichier src               | à auditer               |
 | L20     | `apps/core/src/**`                                                                                           | 211 fichiers                | à auditer               |
@@ -102,7 +102,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L17 — `packages/devtools`.**
+**Prochain lot à traiter : L18 — `packages/social`.**
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -881,6 +881,8 @@ nommé), puis verts après restauration.
 | R61 | `nextUrl` de bout en bout : `AuthModalContext` le calcule (`?auth=…&next=…`, URL courante), `GlobalAuthModalProvider` le transmet, `LoginModal` l'accepte… et ne l'utilise jamais. Après connexion, `router.refresh()` garde la page courante. `setMode` n'a aucun consommateur, et `?auth=login` n'est jamais retiré de l'URL (recharger rouvre la modale). | moyenne | Décision produit (revenir à l'URL d'origine après connexion, ou rester sur place ; nettoyer le paramètre au passage) — voir L07c. |
 | R63 | `deeplink.Notification` (Go) émet **`/article/{slug}`** — l'ancienne forme : 308 côté tenants, **404 côté core** — pour `LIKE`/`REPOST`/`COMMENT` sur article et pour le fan-out `MEDIA_ARTICLE_PUBLISHED`. `deeplink.Target` ne porte ni le propriétaire ni la catégorie, donc la canonique (`/{owner}/a/{slug}` ou `/{cat}/{slug}`) n'est pas constructible en l'état. Le garde `guard:article-links` ne scanne pas le Go : ce chemin lui échappe. | moyenne | Décision serveur : ajouter `OwnerUsername` (ou `CategorySlug`) au `Target` et construire la canonique, ou assumer que le client ne reçoit que des `url` déjà canoniques. Voir L07e. |
 | R74 | `canonicalEmail` est calculé par `@qoe/moderation` et écrit dans les métadonnées Supabase (`options.data`) au signup, mais **aucun code ne le lit** : ni le sync Go, ni la base (aucun index unique). L'anti-multi-comptes annoncé par le module ne s'exerce donc pas au-delà du jour de l'inscription, et la suppression systématique du tag `+` (tous fournisseurs, pas seulement Gmail) n'a aucune conséquence observable. | moyenne | Arbitrage backend : colonne `canonicalEmail` + index unique dans une migration goose, puis refus de doublon côté Go (`/v1/auth/sync`), en décidant si l'on garde Gmail uniquement pour les points. Voir L14. |
+| R82 | `@qoe/devtools` garde des dépendances **inutilisées** (`next`, `react`, `@types/react` — aucun `.tsx`, aucun import React) et charge `dotenv/config` **à l'exécution dans un module `'use server'`** consommé par Next 16, qui charge déjà les `.env` lui-même : dépendance morte qui alourdit le bundle serveur et impose un `import 'crypto'` Node (le global `crypto.randomUUID()` suffit). | faible | Arbitrage : supprimer `dotenv` + les 3 devDeps et passer à `globalThis.crypto.randomUUID()` ; nécessite un `pnpm install` (lockfile) et une vérif du panneau dans les 5 apps. Voir L17. |
+| R81 | Le `DevtoolsPanel` **n'est pas gardé par `NODE_ENV` dans 4 apps sur 5** : `apps/{core,studio,admin,tenants}` le montent inconditionnellement (seul `apps/hi` teste `NODE_ENV === 'development'`). Les server actions `@qoe/devtools` sont donc appelables depuis un déploiement de production ; seule la couche Go (403 superadmin, bypass secret désactivé hors dev) les protège. | moyenne | Arbitrage : aligner les 4 layouts sur `process.env.NODE_ENV === 'development'` (ou une variable `QOE_DEVTOOLS_*` explicite si le panneau doit rester dispo en preview) — hors périmètre `packages/devtools`, relevé ici. Voir L17. |
 | R80 | `withCache` de `@qoe/observability/server` ne peut pas **cacher une valeur `null`** : `cacheGet` rend `null` aussi bien pour « absent » que pour « null stocké », donc le *negative caching* (article inexistant, résultat vide) est impossible et la requête repart en base à chaque appel. `withCache` absorbe aussi la latence : `maxRetriesPerRequest: null` sans `commandTimeout`, les commandes s'empilent indéfiniment si Redis tombe. | moyenne | Arbitrage : changer `cacheGet` en `{ hit, value }` (touche tous les appelants) ou coder l'absence par un sentinelle ; et borner `commandTimeout`/`maxRetriesPerRequest`. Voir L16. |
 | R79 | Le logger se déclare « PII-safe » mais n'applique **aucune rédaction** : `logger.info('login', { email })` écrit l'adresse en clair dans les logs. | moyenne | Décision produit : liste de clés sensibles à masquer (`email`, `ip`, `token`, …) ou règle de non-log côté appelants. Voir L16. |
 | R78 | Les `initSentry*` initialisent **en asynchrone** (`void import().then()`), sans `.catch` : `instrumentation.register()` rend la main avant que Sentry soit prêt (les erreurs de chargement de modules échappent à la capture) et un échec d'import laisse une *unhandled rejection*. | moyenne | Arbitrage : rendre `initSentryServer` awaitable et l'`await` dans les 7 `instrumentation.ts` (changement de contrat), + `.catch` défensif. Voir L16. |
@@ -1411,6 +1413,84 @@ existante modifiée, aucune doublure touchée.
 **Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65**, **R66**
 restent **ouvertes**. Nouvelle dette : **R67** (surfaces `continuous`,
 `highlighter`, `paywall`, `excerpt` sans consommateur TS).
+
+---
+
+## L17 — `@qoe/devtools` panneau de dev, client Go, Auth admin — durci le 2026-11-19
+
+**Périmètre.** Les **2 sources** lues en entier (`index.ts` = 17 server actions,
+`go-client.ts`) + `package.json` + `tsconfig.json`. **Consommateurs vérifiés par
+import** : les 5 `layout.tsx` de `apps/{core,studio,admin,tenants,hi}`
+(`DevtoolsPanel actions={…}`), `packages/ui/src/devtools/DevtoolsPanel.tsx`
+(contrat `DevtoolsActions`), `apps/studio/src/features/devtools/actions.ts`
+(doublon `getDevtoolsData` via `@qoe/sdk`), et **côté Go** le module consommé
+`apps/api/internal/modules/devtools/{handler,auth,service}.go` — routes, forme
+JSON des erreurs (`response.ErrorBody{Error}`), `DevOnlyAuth` et les sentinelles
+de réponse. `pnpm-lock.yaml`/turbo confirment que `test` est bien branché sur la
+CI (tâche `test` du monorepo).
+
+**Dettes R75/R76/R77 et R78/R79/R80 : hors périmètre.** Elles portent sur
+`packages/analytics` (tests React, format `?ref`, défaut `api.umami.is`) et
+`packages/observability` (init Sentry asynchrone, rédaction PII, `withCache`).
+Aucune n'a de point de contact avec `packages/devtools` ; elles restent ouvertes.
+
+| #    | Défaut                                                                                                                                                                                                                                    | Sévérité | Statut                                                                                                                                                                                                                                                                       |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F202 | `export const GO_API_URL = process.env.QOE_API_URL` **figé au chargement du module** : un `QOE_API_URL` défini ensuite (entrypoint Docker, script, test) était ignoré et le panneau affirmait « QOE_API_URL non configuré » avec une API parfaitement joignable. | moyenne  | corrigé — `goApiUrl()` relit l'environnement à chaque appel ; test : **échouait** (`AssertionError: expected false to be true` sur `isGoEnabled()` après avoir défini la variable), vert après                                                                              |
+| F203 | `goFetch` n'avait **aucun timeout** : une API Go figée (pod qui ne répond pas, réseau qui pend) bloquait la server action indéfiniment, et le panneau restait sur « chargement ». | moyenne  | corrigé — `signal: AbortSignal.timeout(15_000)` (budget d'un aller-retour devtools) ; test : **échouait** (`AssertionError: expected undefined to be an instance of AbortSignal`), vert après                                                                              |
+| F204 | En **production**, `getInternalSecret()` retombait sur `SUPABASE_SERVICE_ROLE_KEY` et l'envoyait en header `x-qoe-internal-secret` à chaque appel devtools — alors que le backend Go n'honore ce bypass qu'en mode dev (`DevOnlyAuth`) : la clé service role (accès total à la base) traversait le réseau pour rien, et partait vers un hôte arbitraire si `QOE_API_URL` était mal configuré. | haute    | corrigé — plus aucun secret interne hors `NODE_ENV=production`, le JWT reste la seule authentification ; test : **échouait** (`AssertionError: expected 'service-role-secret' to be undefined`), vert après                                                                  |
+| F205 | La recherche du compte Supabase Auth utilisait `admin.listUsers()` **sans pagination** (50 comptes par défaut) : avec la base de démo (500+ comptes), l'impersonation échouait pour tous ceux qui ne sont pas dans la première page, et `createMockUserAction` croyait le compte inexistant puis tentait un `createUser` qui échoue (« A user with this email already exists »). | moyenne  | corrigé — `findAuthUserByEmail()` parcourt les pages (1000/page, 20 pages max, casse ignorée) et sert les deux actions ; test : **échouait** (`AssertionError: expected false to be true`), vert après                                                                        |
+| F206 | Le script `test` valait `vitest run --passWithNoTests` : **une suite absente ou un chemin mal orthographié laissait la CI verte** (exit 0, « No test files found »). | faible   | corrigé — flag retiré ; preuve : `vitest run --passWithNoTests src/__tests__/absent.test.ts` → `filter: …` `exit=0` avant, échec après                                                                                                                                    |
+| F207 | Le paquet n'avait **ni `test:coverage`, ni plancher** : 0 test mesuré (45,09 % de couverture une fois la suite écrite, sur des sources jamais vérifiées). | faible   | corrigé — `test:coverage` + `vitest.config.ts` (plancher 89/58/94/91) ; preuve : seuils passés à 90,84/59,7/95,45/92,46                                                                                                                                                    |
+
+**Candidats examinés puis ABANDONNÉS** (pas de rouge) :
+
+- **`import 'dotenv/config'` dans un module `'use server'`** et devDeps
+  `next`/`react`/`@types/react` inutilisées : dette réelle mais aucun test ne
+  peut la démontrer sans changer le mode de chargement des variables → **R82**.
+- **UUID aléatoire de repli** quand Supabase Auth échoue : c'est un choix
+  assumé (créer la ligne DB quand même, avec `authWarning`), désormais
+  **verrouillé par un test** plutôt que changé.
+- **Hard-code `victor@qoe.fi` → `victorhugo@qoe.fi`** dans l'impersonation :
+  contournement historique, aucun comportement erroné démontrable.
+- **`(message) || 'défaut'`** dans les `catch` : le repli est mort (un message
+  d'erreur est toujours *truthy*) mais purement cosmétique.
+- **Erreur Go en corps non-JSON** : déjà gérée (`res.json().catch(() => ({}))`)
+  et couverte par le test du message + statut.
+
+**Preuve rouge → vert.** Suite écrite avant correctifs
+(`src/__tests__/devtools-hardening.test.ts`) : premier passage **3 échecs / 4**
+avec les messages cités (F202, F203, F204), puis F205 ajouté en modelant le
+comportement réel de Supabase Auth (pagination 50, `createUser` refusé sur un
+email existant, `signInWithPassword` refusé tant que le mot de passe de démo
+n'est pas réinitialisé) → `expected false to be true`. Tous les correctifs
+appliqués, les 15 tests passent. Doublures strictement externes :
+`@qoe/supabase/server` (Auth admin + service client) et `fetch`. Aucune
+assertion existante modifiée (le paquet n'en avait aucune).
+
+**Preuves (arbre propre, après commit) :**
+
+| Commande | Avant | Après |
+| -------- | ----- | ----- |
+| `pnpm --filter @qoe/devtools test` | **aucune suite** (`--passWithNoTests` masquait l'absence) | **15 tests / 1 fichier verts** |
+| `pnpm --filter @qoe/devtools test:coverage` | script absent ; 45,09 % st. · 29,1 % br. · 40,9 % fn. · 44,52 % lignes | **90,84 % · 59,7 % · 95,45 % · 92,46 %** (plancher 89/58/94/91) |
+| `pnpm --filter @qoe/devtools lint` / `typecheck` | 0 / 0 | **0 / 0** |
+| `pnpm test` (monorepo) | — | **24/24 tâches, 0 échec** |
+| `pnpm typecheck` | 25/25 | **25/25 tâches** |
+| les 9 gardes CI | vertes | **vertes** |
+
+**Observations trouvées, volontairement non corrigées.**
+
+- `apps/studio/src/features/devtools/actions.ts` duplique `getDevtoolsData`
+  (`@qoe/sdk/actions/utils/go-client`) : deux clients Go pour le même module.
+- `dotenv` + `crypto` Node dans un paquet `'use server'` (→ **R82**).
+- Le panneau est monté sans garde dans 4 apps (→ **R81**).
+- Aucune API dépréciée rencontrée : `crypto.randomUUID`, `AbortSignal.timeout`,
+  `dotenv@16` et `@supabase/supabase-js@2` sont les formes courantes.
+
+**Dettes.** **R01**, **R54**, **R56**, **R63** à **R68**, **R71** à **R74**,
+**R78** à **R80** restent **ouvertes**. Nouvelles dettes : **R81** (panneau non
+gardé en production), **R82** (deps mortes + `dotenv` runtime).
 
 ---
 

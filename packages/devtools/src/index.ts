@@ -40,6 +40,38 @@ interface GoDevtoolsData {
   users: DevtoolsUser[];
 }
 
+type ServiceClient = ReturnType<typeof createServiceClient>;
+
+// Supabase Auth admin ne sait pas chercher un compte par email : il ne reste
+// que `listUsers`, paginé (50 comptes par défaut). La base de démo en contient
+// 500+, donc s'arrêter à la première page rendait l'impersonation (et la
+// détection d'un compte déjà existant) fausses pour la majorité des comptes.
+const AUTH_PAGE_SIZE = 1000;
+const AUTH_MAX_PAGES = 20;
+
+/** Parcourt les pages Auth jusqu'à trouver l'email (comparaison insensible à la casse). */
+async function findAuthUserByEmail(
+  supabase: ServiceClient,
+  email: string
+): Promise<{ id: string } | null> {
+  const wanted = email.trim().toLowerCase();
+  for (let page = 1; page <= AUTH_MAX_PAGES; page++) {
+    const { data, error } = await supabase.auth.admin.listUsers({
+      page,
+      perPage: AUTH_PAGE_SIZE,
+    });
+    if (error) {
+      throw new Error(`Supabase Auth list error: ${error.message}`);
+    }
+    const users = data?.users ?? [];
+    const found = users.find((u) => (u.email ?? '').toLowerCase() === wanted);
+    if (found) return { id: found.id };
+    // Dernière page : inutile d'en demander une de plus.
+    if (users.length < AUTH_PAGE_SIZE) return null;
+  }
+  return null;
+}
+
 /** Parité EmbeddingDiagnosticRow Go (qualité de personnalisation d'un compte). */
 export interface EmbeddingDiagnosticRow {
   id: string;
@@ -159,16 +191,11 @@ export async function createMockUserAction({
 
     // Si l'utilisateur existait déjà, on essaie de le retrouver dans Supabase Auth pour avoir son ID
     if (!userId) {
-      const { data: listData, error: listError } = await supabase.auth.admin.listUsers();
-      if (listError) throw new Error(`Supabase Auth list error: ${listError.message}`);
-      const existingAuthUser = listData.users.find(
-        (u: { email?: string | null }) => u.email === email
-      );
-      if (existingAuthUser) {
-        userId = existingAuthUser.id;
-      } else {
+      const existingAuthUser = await findAuthUserByEmail(supabase, email);
+      if (!existingAuthUser) {
         throw new Error('Could not create or find Supabase Auth user');
       }
+      userId = existingAuthUser.id;
     }
   } catch (error) {
     console.warn(
@@ -467,8 +494,7 @@ export async function impersonateLoginAction(email: string) {
       // le réinitialiser/créer via le service client admin
       try {
         const adminSupabase = createServiceClient();
-        const { data: listData } = await adminSupabase.auth.admin.listUsers();
-        const authUser = listData?.users?.find((u) => u.email === targetEmail);
+        const authUser = await findAuthUserByEmail(adminSupabase, targetEmail);
 
         if (authUser) {
           await adminSupabase.auth.admin.updateUserById(authUser.id, {
