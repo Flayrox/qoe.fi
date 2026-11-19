@@ -71,6 +71,23 @@ describe('🛡️ SEO JsonLd Component & Builders', () => {
     expect(schema.mainEntity.url).toBe('https://qoe.fi/claire');
   });
 
+  it('normalise le nom d’utilisateur du profil, même préfixé par @', () => {
+    // F131 — le schéma Article retirait déjà le `@` ; celui du profil non, et
+    // l'URL déclarée devenait `…/%40claire`, une canonique inexistante.
+    const schema = buildPersonSchema({ username: '@claire', baseUrl: 'https://qoe.fi/' });
+    expect(schema.mainEntity.url).toBe('https://qoe.fi/claire');
+    expect(schema.mainEntity.name).toBe('@claire');
+  });
+
+  it('respecte le chemin canonique fourni pour un profil', () => {
+    const schema = buildPersonSchema({
+      username: 'claire',
+      baseUrl: 'https://blog.test',
+      path: '/auteurs/claire',
+    });
+    expect(schema.mainEntity.url).toBe('https://blog.test/auteurs/claire');
+  });
+
   it('génère un schéma WebSite conforme', () => {
     const schema = buildWebSiteSchema({
       name: 'qoefi',

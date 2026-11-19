@@ -39,7 +39,8 @@ export interface ArticleSchemaInput {
 }
 
 /**
- * Construit un schéma Schema.org conforme de type 'Article' ou 'NewsArticle'.
+ * Construit un schéma Schema.org de type 'Article' (le type annoncé par la
+ * page ; `NewsArticle` n'est pas distingué côté produit).
  */
 export function buildArticleSchema(input: ArticleSchemaInput) {
   // Repli : chemin canonique du lecteur (`/{proprietaire}/a/{slug}`).
@@ -85,7 +86,7 @@ export interface PersonSchemaInput {
   bio?: string | null;
   logoUrl?: string | null;
   baseUrl: string;
-  /** Chemin canonique de l'article (ex. /tech/slug ou /alice/a/slug). */
+  /** Chemin canonique du profil, si l'app en sert un qui n'est pas `/{pseudo}`. */
   path?: string;
 }
 
@@ -93,8 +94,11 @@ export interface PersonSchemaInput {
  * Construit un schéma Schema.org conforme de type 'ProfilePage' + 'Person'.
  */
 export function buildPersonSchema(input: PersonSchemaInput) {
-  const username = input.username || 'creator';
-  const url = `${input.baseUrl.replace(/\/$/, '')}/${encodeURIComponent(username)}`;
+  // `@pseudo` est une écriture d'affichage, pas un segment d'URL : sans ce
+  // retrait, la canonique déclarée devenait `…/%40claire`, une page 404.
+  const username = (input.username || 'creator').replace(/^@/, '');
+  const baseUrl = input.baseUrl.replace(/\/$/, '');
+  const url = input.path ? `${baseUrl}${input.path}` : `${baseUrl}/${encodeURIComponent(username)}`;
 
   return {
     '@context': 'https://schema.org',
