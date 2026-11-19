@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { t } from '@lingui/core/macro';
 import { Command } from 'cmdk';
 import { Search } from 'lucide-react';
+
+import { Dialog, DialogContent } from '../primitives/dialog/dialog';
 
 interface CmdKDialogProps {
   open: boolean;
@@ -11,42 +13,29 @@ interface CmdKDialogProps {
   children: React.ReactNode;
 }
 
+/**
+ * ⌘K — palette de commandes.
+ *
+ * 🔁 F135 — c'était un `<div class="fixed inset-0">` : ni `role="dialog"`, ni
+ *    `aria-modal`, ni piège du focus, ni restitution ; Échap et le verrou de
+ *    défilement étaient refaits à la main (`document.body.style.overflow`
+ *    écrasé sans restauration). La palette est pourtant l'interface clavier du
+ *    produit : elle repose sur `Dialog`/`DialogContent` (react-aria), comme
+ *    toutes les autres surfaces modales.
+ */
 export function CmdKDialog({ open, onOpenChange, children }: CmdKDialogProps) {
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && open) {
-        e.preventDefault();
-        onOpenChange(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, onOpenChange]);
-
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'auto';
-    }
-    return () => {
-      document.body.style.overflow = 'auto';
-    };
-  }, [open]);
-
-  if (!open) return null;
+  const label = t`Menu de commandes`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 select-none font-sans">
-      {/* Backdrop */}
-      <div
-        onClick={() => onOpenChange(false)}
-        className="fixed inset-0 bg-background/60 backdrop-blur-sm transition-opacity duration-200"
-      />
-
-      <div className="relative z-50 flex flex-col w-full max-w-lg overflow-hidden rounded-xl border border-border bg-popover/95 text-popover-foreground backdrop-blur-xl shadow-2xl animate-in fade-in-0 slide-in-from-bottom-1 duration-150">
+    <Dialog isOpen={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        aria-label={label}
+        size="lg"
+        showCloseButton={false}
+        className="w-full gap-0 overflow-hidden p-0 sm:max-w-lg sm:p-0"
+      >
         <Command
-          label="Command Menu"
+          label={label}
           className="flex h-auto w-full flex-col overflow-hidden bg-transparent"
           shouldFilter={true}
         >
@@ -62,8 +51,8 @@ export function CmdKDialog({ open, onOpenChange, children }: CmdKDialogProps) {
             <span>Naviguer avec la souris ou clavier</span>
           </div>
         </Command>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -87,6 +76,7 @@ export function CmdKInput({ value, onValueChange, placeholder, onEscape }: CmdKI
       />
       {onEscape && (
         <button
+          type="button"
           onClick={onEscape}
           className="text-[10px] font-sans font-medium border border-border/50 rounded px-1.5 py-0.5 text-muted-foreground bg-muted/60 hover:bg-muted transition-colors cursor-pointer shrink-0"
         >
@@ -101,7 +91,8 @@ export function CmdKList({
   children,
   emptyText,
 }: {
-  children: React.ReactNode;
+  /** Facultatif : une palette peut n'afficher que son état vide. */
+  children?: React.ReactNode;
   emptyText?: string;
 }) {
   return (
