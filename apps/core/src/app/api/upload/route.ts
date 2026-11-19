@@ -83,8 +83,17 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Erreur interne lors de l'upload";
-    console.error('❌ Erreur Upload Core:', message);
-    return NextResponse.json({ error: message }, { status: 400 });
+    const status = Number((error as { status?: number })?.status ?? 0);
+    console.error('❌ Erreur Upload Core:', error instanceof Error ? error.message : error);
+    // Refus métier du Go (400/413/415…) : relayé tel quel, avec son message.
+    if (status >= 400 && status < 500) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'Requête invalide' },
+        { status }
+      );
+    }
+    // Panne serveur (Sharp, stockage, Go indisponible) : 500 et message
+    // générique — le détail interne ne sort pas dans la réponse HTTP.
+    return NextResponse.json({ error: "Erreur interne lors de l'upload" }, { status: 500 });
   }
 }

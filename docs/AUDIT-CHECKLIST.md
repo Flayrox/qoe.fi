@@ -82,7 +82,8 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L18     | `packages/social/src/**`                                                                                     | 5 sources + 2 suites        | **durci le 2026-11-19** |
 | L19     | `packages/tsconfig/**`                                                                                       | 4 presets + racine + garde  | **durci le 2026-11-19** |
 | L20a    | `apps/core/src/lib/**`                                                                                       | 24 fichiers · 3 242 l.      | **durci le 2026-11-19** |
-| L20b    | `apps/core/src/app/**`                                                                                       | 115 fichiers · 19 292 l.    | à auditer               |
+| L20b1   | `app/{api,robots.ts,sitemap*,l}`                                                                             | 16 fichiers · 802 l.        | **durci le 2026-11-19** |
+| L20b2   | `app/{(reader),auth,login,oauth,subscribe-with-qoefi,actions}` + `layout/page/not-found`                     | 99 fichiers · 18 490 l.     | à auditer               |
 | L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | à auditer               |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
 | L21     | `apps/studio/src/**`                                                                                         | 509 fichiers                | à auditer               |
@@ -105,8 +106,9 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L20b — `apps/core/src/app/**`** (L20a clos ; ordre :
-L20b routes/layouts, L20c composants, L20d hooks/features).
+**Prochain lot à traiter : L20b2 — `apps/core/src/app/(reader)/**` + `auth/login/oauth`**
+(L20b1 clos ; ordre restant : L20b2 arbre lecteur, L20c composants, L20d
+hooks/features).
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -885,6 +887,9 @@ nommé), puis verts après restauration.
 | R61 | `nextUrl` de bout en bout : `AuthModalContext` le calcule (`?auth=…&next=…`, URL courante), `GlobalAuthModalProvider` le transmet, `LoginModal` l'accepte… et ne l'utilise jamais. Après connexion, `router.refresh()` garde la page courante. `setMode` n'a aucun consommateur, et `?auth=login` n'est jamais retiré de l'URL (recharger rouvre la modale). | moyenne | Décision produit (revenir à l'URL d'origine après connexion, ou rester sur place ; nettoyer le paramètre au passage) — voir L07c. |
 | R63 | `deeplink.Notification` (Go) émet **`/article/{slug}`** — l'ancienne forme : 308 côté tenants, **404 côté core** — pour `LIKE`/`REPOST`/`COMMENT` sur article et pour le fan-out `MEDIA_ARTICLE_PUBLISHED`. `deeplink.Target` ne porte ni le propriétaire ni la catégorie, donc la canonique (`/{owner}/a/{slug}` ou `/{cat}/{slug}`) n'est pas constructible en l'état. Le garde `guard:article-links` ne scanne pas le Go : ce chemin lui échappe. | moyenne | Décision serveur : ajouter `OwnerUsername` (ou `CategorySlug`) au `Target` et construire la canonique, ou assumer que le client ne reçoit que des `url` déjà canoniques. Voir L07e. |
 | R74 | `canonicalEmail` est calculé par `@qoe/moderation` et écrit dans les métadonnées Supabase (`options.data`) au signup, mais **aucun code ne le lit** : ni le sync Go, ni la base (aucun index unique). L'anti-multi-comptes annoncé par le module ne s'exerce donc pas au-delà du jour de l'inscription, et la suppression systématique du tag `+` (tous fournisseurs, pas seulement Gmail) n'a aucune conséquence observable. | moyenne | Arbitrage backend : colonne `canonicalEmail` + index unique dans une migration goose, puis refus de doublon côté Go (`/v1/auth/sync`), en décidant si l'on garde Gmail uniquement pour les points. Voir L14. |
+| R94 | `/api/articles/[slug]` (core) n'a **aucun appelant** dans le repo : la page article lit côté serveur. Route morte dont le contrat HTTP vient d'être corrigé (cache privé, L20b1) mais qui reste à supprimer ou à réutiliser explicitement. | faible | Arbitrage : supprimer la route (et son test) ou la brancher sur le préchargement client ; décision produit sur le préchargement d'article. Voir L20b1. |
+| R93 | `packages/analytics` envoie la session de lecture par `navigator.sendBeacon(endpointUrl, payload)` avec un **corps texte** (Content-Type `text/plain`) : le handler lit `req.json()`, qui fonctionne par chance (pas de validation de type de contenu côté Next). Aucun rejet observé, mais le contrat média n'est pas explicite. | faible | Arbitrage : créer un `Blob` typé `application/json` à l'envoi, ou valider/ignorer explicitement le Content-Type côté route. Voir L20b1. |
+| R92 | Trois routes de `apps/core/src/app/api` restent en **échec silencieux** : `/api/analytics/feed-impression` répond `200 {success:false}` quand Go échoue (choix de beacon, non documenté) et `/api/feed/show-less` relaie `err.message` brut au client. Après L20b1, `reading-session` et `upload` sont honnêtes, mais la convention commune n'est pas écrite. | faible | Arbitrage : écrire la convention dans la fiche d'architecture des routes (beacon = 200 assumé, actions = statut Go relayé, jamais de message interne en 5xx) puis aligner les deux routes restantes. Voir L20b1. |
 | R91 | Le job CI **`unit-and-coverage` est rouge** : `ERROR: Coverage for branches (78.18%) does not meet "packages/flags/**" threshold (85%)`. Cause mesurée : `gate.tsx` (20 % st., **0 % br.**), `provider.tsx` (18,75 % st., **0 % br.**), `hooks.ts` (50 % st.) ne sont couverts par aucun test React — c'est la conséquence directe de **R75** (aucune infra de test React). Reproductible **avant** L20a (même erreur avec le lot `git stash`), donc préexistant. | moyenne | Arbitrage : monter R75 (infra de rendu partagée) puis tester `gate.tsx`/`provider.tsx`, ou abaisser le seuil branches de `packages/flags/**` en le documentant — à trancher hors `apps/core`. Voir L20a. |
 | R90 | `apps/core/src/lib/plus-status.ts` garde `cached`/`inflight` au **niveau module**, sans aucune invalidation : une déconnexion/reconnexion dans le même onglet conserve le statut Plus du compte précédent jusqu'au rechargement complet. | moyenne | Arbitrage : invalider depuis le flux d'auth (événement `SIGNED_OUT`) ou exposer un TTL ; impact réel dépend du mode de déconnexion (reload complet aujourd'hui). Voir L20a. |
 | R89 | `apps/core/src/lib/supabase/{client,server}.ts` dupliquent `createClient` de `@qoe/supabase/{client,server}` — et le même app utilise les deux (`home-feed-data.ts` importe le paquet, `cached-queries.ts` la copie locale). | faible | Arbitrage : supprimer la copie locale et importer le paquet (vérifier que les options de cookies sont identiques avant bascule). Voir L20a. |
@@ -1426,6 +1431,86 @@ existante modifiée, aucune doublure touchée.
 **Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65**, **R66**
 restent **ouvertes**. Nouvelle dette : **R67** (surfaces `continuous`,
 `highlighter`, `paywall`, `excerpt` sans consommateur TS).
+
+---
+
+## L20b1 — `apps/core/src/app` routes, handlers, sitemaps, liens courts — durci le 2026-11-19
+
+**Découpage L20b (mesuré).** `app/**` = **115 fichiers / 19 292 lignes** :
+**L20b1 `{api,robots.ts,sitemap*,l}`** (16 fichiers, 802 l., **clos ici**) et
+**L20b2 `{(reader),auth,login,oauth,subscribe-with-qoefi,actions}` + `layout/page/not-found`**
+(99 fichiers, 18 490 l.). Ordre consigné dans l'index.
+
+**Périmètre L20b1.** Les **16 fichiers lus en entier** : 9 route handlers
+(`api/**`), `robots.ts`, `sitemap-lib.ts`, `sitemap/route.ts`,
+`sitemaps/[name]/route.ts`, `l/[code]/page.tsx` + la suite existante
+`sitemap-lib.test.ts` (173 l.). Dépendances réellement importées vérifiées :
+`@qoe/sdk/actions/utils/go-client` (`goFetch`, `goFetchBinary`, `goFetchUpload`),
+`@qoe/supabase/server`, `@qoe/supabase/media-engine`, `@qoe/config`,
+`@/lib/vector-feed`. Consommateurs cherchés par import :
+`packages/analytics/src/useArticleReadingTracker.ts` (`sendBeacon` →
+`/api/analytics/reading-session`), le scroll du flux
+(`/api/feed/personalized`), le suivi d'impressions et l'upload média ;
+**`/api/articles/[slug]` n'a aucun appelant** (→ **R94**).
+
+| #    | Défaut                                                                                                                                                                                                                                    | Sévérité | Statut                                                                                                                                                                                                                                                                          |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F220 | `/api/analytics/reading-session` répondait **`200 {success:true, updatedCompletionRate:0.5}` quand Go échouait** : le client croyait la lecture enregistrée, et une valeur inventée remplaçait l'EMA réelle. | moyenne  | corrigé — `502 {success:false}`, aucune valeur fabriquée ; rouge : `AssertionError: expected 200 to be 502` ; le client (`sendBeacon`) ignore la réponse — aucun impact UX.                                                                                                  |
+| F221 | `/api/upload` répondait **400 pour toute erreur** : panne Sharp, stockage ou Go indisponible devenait « fichier invalide », et le message interne (`sharp: decoder interne`) partait au navigateur. | moyenne  | corrigé — refus métier Go 4xx relayé tel quel, panne serveur → `500` + message générique ; rouge : `AssertionError: expected 400 to be 500`                                                                                                                                    |
+| F222 | `/api/reading-history?days=abc` envoyait **`days=NaN`** à Go (`Math.min(30, Math.max(1, NaN))`), au lieu de retomber sur la fenêtre par défaut. | faible   | corrigé — `Number.isFinite` sinon 14 ; rouge : `expected "vi.fn()" to be called with arguments: [ '/v1/me/reading-history?days=14' ]`                                                                                                                                       |
+| F223 | `sitemap-lib` figeait **`QOE_API_URL` au chargement du module** : un `QOE_API_URL` défini par l'entrypoint était ignoré (même classe que F198/F202). | moyenne  | corrigé — `goApiUrl()` relit l'environnement à chaque appel ; rouge : `AssertionError: expected false to be true` (l'URL de fetch restait `localhost:8090`)                                                                                                                |
+| F224 | Les appels de sitemap n'avaient **aucun timeout** : une API figée bloquait la génération de `/sitemap` et des shards (route et build). | moyenne  | corrigé — `AbortSignal.timeout(10_000)` ; rouge : `AssertionError: expected undefined to be an instance of AbortSignal`                                                                                                                                                       |
+| F225 | `/l/[code]` appelait **`decodeURIComponent` sur un paramètre déjà décodé par Next** : un code contenant `%` levait `URIError: URI malformed` → 500 sur un lien court valide. | faible   | corrigé — paramètre utilisé tel quel ; rouge : `expected [Function] to throw error including 'REDIRECT' but got 'URI malformed'`                                                                                                                                            |
+| F226 | `/api/articles/[slug]` renvoyait **`Cache-Control: public, max-age=15`** sur un corps qui dépend de la session (`accessGranted`, `isTruncated`, paywall) : un cache partagé pouvait servir l'article complet d'un abonné à un visiteur anonyme. | haute    | corrigé — `private, max-age=15, stale-while-revalidate=60` ; rouge : `expected 'public, max-age=15, stale-while-reval…' to contain 'private'` ; route sans appelant → **R94**                                                                                               |
+
+**Candidats examinés puis ABANDONNÉS** (pas de rouge, ou contrat volontaire) :
+
+- **`/api/analytics/feed-impression` répond 200 `{success:false}`** en cas
+  d'échec : c'est un beacon (`sendBeacon`, fire-and-forget) — un 5xx
+  déclencherait des reprises inutiles. Contrat non écrit → **R92**.
+- **`/api/feed/show-less` relaie `err.message`** : message issu du module Go
+  (déjà filtré), aucun rouge sans inventer une fuite interne → **R92**.
+- **`sitemap-lib` : `catch` autour de `fetchPublic`** dans
+  `articleShardCount`/`thoughtShardCount` — mort (`fetchPublic` ne jette jamais),
+  purement cosmétique.
+- **`esc()` n'échappe pas les guillemets** : les valeurs sont insérées en
+  nœuds texte XML, jamais en attributs → pas de défaut.
+- **`renderIndex` utilise `now` comme `lastmod`** : choix SEO assumé et sans
+  impact vérifiable.
+- **`/api/feed/personalized` valide déjà** `limit`/`offset` bornés (1-50) — rien
+  à corriger, sert de modèle à F222.
+
+**Preuve rouge → vert.** Suite écrite **avant** correctifs
+(`app/__tests__/routes-hardening.test.ts`) : **6 échecs / 6** au premier passage
+(messages cités), puis **1 échec** de plus pour F226 → 7 tests verts après
+correctifs. Aucune assertion existante modifiée (`sitemap-lib.test.ts` intact),
+aucun test supprimé, aucun `any` ajouté.
+
+**Preuves (arbre propre, après commit) :**
+
+| Commande | Avant | Après |
+| -------- | ----- | ----- |
+| `pnpm --filter @qoe/core test` | 32 fichiers · **256 tests** | 33 fichiers · **263 tests** |
+| `pnpm --filter @qoe/core lint` | 0 erreur (10 warnings) | **0 erreur** (10 warnings préexistants) |
+| `pnpm lint` / `pnpm typecheck` / `pnpm test` | — | **25/25 · 25/25 · 24/24 tâches** |
+| `pnpm typecheck:root` | ✔ | **✔** |
+| gardes CI (10) | vertes | **vertes** |
+| `pnpm test:coverage` (R91) | `branches 78.18% < 85%` (`packages/flags/**`) | **identique, re-mesuré** : seul rouge, préexistant |
+
+**Non vérifié.** Aucun navigateur : les handlers sont appelés directement avec
+`NextRequest` (node), donc ni le routage Next réel, ni `sendBeacon`, ni les
+`Set-Cookie` ne sont exercés. `/api/upload` est testé avec un `File` factice et
+un pipeline média **doublé** : ni Sharp, ni modération, ni stockage ne tournent.
+Les sitemaps ne sont pas validés contre un vrai XML parser ni contre Google ;
+seule la forme produite est verrouillée par la suite existante. Aucun appel au
+vrai Go : `goFetch` est toujours mocké. `pnpm test:api` et `pnpm e2e` non lancés.
+**R91** reste rouge (mesuré à l'identique après le lot) : `packages/flags/**`
+branches 78,18 % < 85 %, cause R75, hors périmètre.
+
+**Dettes.** **R01**, **R54**, **R56**, **R63** à **R68**, **R71** à **R74**,
+**R78** à **R90** restent **ouvertes**. Nouvelles dettes : **R92** (convention
+d'échec des routes non écrite), **R93** (`sendBeacon` en `text/plain`),
+**R94** (route `/api/articles/[slug]` sans appelant).
 
 ---
 

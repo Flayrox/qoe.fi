@@ -57,9 +57,11 @@ export async function POST(req: NextRequest) {
       );
       return NextResponse.json({ success: true, updatedCompletionRate: res.updatedCompletionRate });
     } catch (e) {
-      // Fallback dev si Go indisponible : garde l'ancien comportement Prisma (non bloquant)
-      console.warn('[readingSession] Go fallback', e);
-      return NextResponse.json({ success: true, updatedCompletionRate: 0.5 });
+      // Go est la seule source de la session de lecture : en cas de panne on
+      // répond un échec explicite. Renvoyer `success: true` avec 0,5 inventé
+      // faisait croire au client que la lecture avait été enregistrée.
+      console.warn('[readingSession] Go indisponible', e);
+      return NextResponse.json({ success: false }, { status: 502 });
     }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Internal Server Error';

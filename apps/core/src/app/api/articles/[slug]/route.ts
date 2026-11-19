@@ -49,7 +49,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ slu
       },
       {
         headers: {
-          'Cache-Control': 'public, max-age=15, stale-while-revalidate=60',
+          // Le corps dépend de la session (accessGranted, troncature paywall) :
+          // `public` laissait un cache partagé servir l'article complet d'un
+          // abonné à un visiteur anonyme. Un cache privé garde le même confort.
+          'Cache-Control': 'private, max-age=15, stale-while-revalidate=60',
         },
       }
     );

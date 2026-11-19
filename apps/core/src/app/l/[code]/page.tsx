@@ -20,10 +20,11 @@ export default async function CoreShortArticlePage({
 }: {
   params: Promise<{ code: string }>;
 }) {
+  // Next décode déjà le segment de route : un second `decodeURIComponent`
+  // levait `URIError: URI malformed` (500) dès qu'un code contenait un `%`.
   const { code } = await params;
-  const decodedCode = decodeURIComponent(code);
 
-  const article = await fetchArticleByShortCode(decodedCode);
+  const article = await fetchArticleByShortCode(code);
   if (!article) {
     notFound();
   }

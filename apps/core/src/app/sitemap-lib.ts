@@ -13,10 +13,12 @@
 // refusés par Next. Google accepte n'importe quelle URL de sitemap.)
 //
 // Public, sans session : fetch direct SANS goFetch (cookies() interdit).
-// Public, sans session : fetch direct SANS goFetch (cookies() interdit).
 // =====================================================================
 
 export const SITEMAP_REVALIDATE = 3600; // Cache d'une heure
+
+/** Budget d'un appel : un sitemap ne doit jamais pendre la génération. */
+const SITEMAP_FETCH_TIMEOUT_MS = 10_000;
 
 // Taille d'un shard (limite protocole : 50 000 URLs / 50 Mo ; 1000 garde
 // chaque shard léger et régénérable vite).
@@ -27,7 +29,11 @@ export const MAX_SHARDS = 1000;
 
 import { getLandingAppUrl } from '@qoe/config';
 
-const GO_API_URL = (process.env.QOE_API_URL || 'http://localhost:8090').replace(/\/$/, '');
+// Lu à l'appel : `process.env` figé au chargement du module ignorait un
+// QOE_API_URL défini par l'entrypoint (même classe que L16/L17).
+function goApiUrl(): string {
+  return (process.env.QOE_API_URL || 'http://localhost:8090').replace(/\/$/, '');
+}
 
 export function siteBaseUrl(): string {
   return (process.env.NEXT_PUBLIC_APP_URL || 'https://qoe.fi').replace(/\/$/, '');
@@ -37,7 +43,10 @@ async function fetchPublic<T>(path: string): Promise<T | null> {
   try {
     // next.revalidate (pas no-store) : le prerender de build reste possible
     // (API injoignable au build → null gracieux), puis régénération horaire.
-    const res = await fetch(`${GO_API_URL}${path}`, { next: { revalidate: SITEMAP_REVALIDATE } });
+    const res = await fetch(`${goApiUrl()}${path}`, {
+      next: { revalidate: SITEMAP_REVALIDATE },
+      signal: AbortSignal.timeout(SITEMAP_FETCH_TIMEOUT_MS),
+    });
     if (!res.ok) return null;
     return (await res.json()) as T;
   } catch (err) {
