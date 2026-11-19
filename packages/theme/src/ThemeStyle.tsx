@@ -12,7 +12,7 @@
 
 import * as React from 'react';
 import type { CreatorTheme } from './types';
-import { buildBackgroundVariables, isColorDark } from './colors';
+import { buildBackgroundVariables, isColorDark, parseHexColor } from './colors';
 
 interface ThemeStyleProps {
   /** Données de branding créateur (depuis la DB). */
@@ -21,9 +21,17 @@ interface ThemeStyleProps {
   scope?: string;
 }
 
+/** Clé de registre de police : un identifiant CSS, jamais une déclaration. */
+const FONT_KEY = /^[a-z][a-z0-9-]{0,31}$/i;
+
 /**
  * Construit le dict des overrides de tokens pour un créateur.
  * Exporté pour permettre tests / preview / admin.
+ *
+ * ⚠️ Ces valeurs partent dans une feuille de style rendue en SSR : aucun
+ * champ n'est concaténé sans validation. F142 — l'accent libre sortait tel
+ * quel et `#fff;</style><script>…` refermait la balise ; la famille de police
+ * permettait la même évasion.
  */
 export function buildCreatorVars(creator: CreatorTheme): Record<string, string> {
   const vars: Record<string, string> = {};
@@ -33,19 +41,21 @@ export function buildCreatorVars(creator: CreatorTheme): Record<string, string> 
     Object.assign(vars, bgVars);
   }
 
-  if (creator.accentColor) {
-    vars['--primary'] = creator.accentColor;
-    vars['--primary-foreground'] = isColorDark(creator.accentColor) ? '#ffffff' : '#09090b';
-    vars['--ring'] = creator.accentColor;
-    vars['--sidebar-primary'] = creator.accentColor;
-    vars['--sidebar-ring'] = creator.accentColor;
-    vars['--accent-brand'] = creator.accentColor;
-    vars['--tenant-accent'] = creator.accentColor;
+  const accentColor = creator.accentColor?.trim();
+  if (accentColor && parseHexColor(accentColor)) {
+    vars['--primary'] = accentColor;
+    vars['--primary-foreground'] = isColorDark(accentColor) ? '#ffffff' : '#09090b';
+    vars['--ring'] = accentColor;
+    vars['--sidebar-primary'] = accentColor;
+    vars['--sidebar-ring'] = accentColor;
+    vars['--accent-brand'] = accentColor;
+    vars['--tenant-accent'] = accentColor;
   }
 
-  if (creator.fontFamily) {
+  const fontFamily = creator.fontFamily?.trim();
+  if (fontFamily && FONT_KEY.test(fontFamily)) {
     // Mappe la clé famille vers la variable CSS --font-<key> exposée par @theme.
-    vars['--font-active'] = `var(--font-${creator.fontFamily})`;
+    vars['--font-active'] = `var(--font-${fontFamily})`;
   }
 
   return vars;
