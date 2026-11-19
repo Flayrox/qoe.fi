@@ -67,7 +67,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L07a     | `packages/ui/src/primitives/**`, `ui/**`, `tokens.ts`                                                                       | 310 fichiers (global)       | **durci le 2026-11-18** |
 | L07b    | `packages/ui/src/{reader,annotations,cards}/**`                                                              | 31 fichiers src             | **durci le 2026-11-18** |
 | L07c    | `packages/ui/src/{auth,forms,providers}/**`                                                                  | 4 fichiers src (et 3 composants via barrel) | **durci le 2026-11-18** |
-| L07d    | `packages/ui/src/{security,seo,legal}/**`                                                                    | idem                        | à auditer               |
+| L07d    | `packages/ui/src/{security,seo,legal}/**`                                                                    | 13 fichiers src             | **durci le 2026-11-19** |
 | L07e    | `packages/ui/src/{notifications,onboarding,profile,social,cmdk,templates,sidebar.tsx}`                       | idem                        | à auditer               |
 | L08     | `packages/theme/src/**`                                                                                      | 19 fichiers                 | à auditer               |
 | L09     | `packages/brand/src/**`                                                                                      | 10 fichiers                 | à auditer               |
@@ -1037,6 +1037,80 @@ aucune retouche des tests.
   surface n'est pas vendue.
 
 **Dettes.** Aucune dette R ne visait `auth`, `forms` ou `providers`.
+**R54** (baselines visuelles), **R56** (doublons `select`/`date`) et **R01**
+(`checkContentAccess` fail-open) restent **ouvertes** : décision utilisateur
+(environnement de référence, design system, comportement produit).
+
+---
+
+## L07d — `@qoe/ui` security, seo, legal — durci le 2026-11-19
+
+**Périmètre.** Les **13 fichiers** du lot lus en entier — `security/`
+(`index.ts`, `pow-worker.ts`, `article-html.ts`, `inline-svg.ts` et leurs deux
+suites), `seo/JsonLd.tsx` et `legal/` (`CookieConsentBanner` 515 l.,
+`AnalyticsNotice`, `LegalConsentGate`, `CookiePreferencesButton`,
+`cookie-consent-storage`) — **plus les appelants réels** : `apps/core`
+(`layout.tsx`, `ArticleAnnotatorView`, `EbookReader`, pages `[username]` et
+`a/[slug]`), `apps/tenants` (`layout.tsx`, `TenantPageRenderer`,
+`TenantArticleRenderer`, `LegalFooterLinks`), `apps/studio` (`layout.tsx`,
+`(creator)/layout.tsx` monte `LegalConsentGate`, `totp-enrollment`,
+`sanitize-preview-html`), `apps/admin` (`step-up.tsx` — QR TOTP —,
+`LegalCMS`), `apps/hi` (pages légales) et les templates du paquet
+(`ArticleContentBlock`, `AboutPageContent`).
+
+**Contrats amont relus.** `@qoe/utils/cookie-consent` (`defaultChoice`,
+`normalizeConsent` strict sur `true`, registre des traceurs) et les deux gardes
+qui encadrent ce lot : `scripts/guard-dangerous-html.mjs` (le JSON-LD y est
+une exemption motivée) et `scripts/guard-legal-consent.sh` (câblage du
+consentement, sentinelles de catégorie et mode exempté).
+
+| #    | Défaut                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Sévérité | Statut                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F130 | `sanitizeInlineSvg` était une **liste noire** de neuf expressions régulières. Huit formes d'attaque réelles la traversaient : gestionnaire collé à la balise (`<svg/onload=…>`, `<rect/onmouseover=…>`), schéma `javascript:` écrit en entité décimale ou hexadécimale (`&#106;avascript:`, `&#x6a;avascript:`), en entité nommée (`&colon;`) ou coupé par un blanc (`java\nscript:`), gestionnaire reposé après coup par SMIL (`<set attributeName="onmouseover">`), et lien actif (`<a href="https://…">`) dans un QR. Ce filtre est la **seule** barrière avant l'injection du QR fournisseur dans une page admin/studio authentifiée. | haute    | corrigé — inversion de la charge : **liste blanche** d'éléments (géométrie, texte, dégradés, `clipPath`/`mask`) et d'attributs de présentation, références de caractères décodées avant contrôle (`&#…;`, `&colon;`…), `url()` admis seulement vers une ancre locale, aucun élément actif ni animation SMIL ; 8 tests ajoutés à la suite d'attaques : **échouaient** (`expected '<svg/onload=…' to be null`, etc.), verts après sans retouche des cas existants |
+| F131 | `buildPersonSchema` fabriquait la canonique du profil à partir du pseudo brut : `username: '@claire'` donnait `https://qoe.fi/%40claire`, une URL qui n'existe pas — alors que `buildArticleSchema` retirait déjà ce `@`. Son `path` optionnel, documenté « chemin canonique de l'article » (copier-coller), était **ignoré**.                                                                                                                                                                        | moyenne  | corrigé — `@` retiré comme pour l'article, `path` honoré quand il est fourni (`{baseUrl}{path}`), docstring réalignée ; 2 tests (`normalise le nom d'utilisateur…`, `respecte le chemin canonique…`) : **échouaient** (`'https://qoe.fi/%40claire'`, `'https://blog.test/claire'`), verts après                                                                                                                                    |
+| F132 | `LegalConsentGate` masquait le portail sur toute route dont le chemin **contient** `/legal` (`pathname.includes('/legal')`) : `/legality-report`, `/legal-notice` ou `/paralegal` passaient pour des pages légales, et la nouvelle version des conditions n'y était jamais demandée.                                                                                                                                                                                                           | moyenne  | corrigé — comparaison de **segments** (`/(?:^|\/)legal(?:\/|$)/i`) ; 2 tests (`s'affiche sur une route qui contient « legal » sans être une page légale`, `laisse lire les pages légales elles-mêmes`) : le premier **échouait** (`Unable to find … role "dialog"`), le second garantit la non-régression                                                                                                                              |
+| F133 | Deux surfaces bloquantes déclaraient `role="dialog" aria-modal="true"` **sans modalité** : `LegalConsentGate` (conditions à accepter) et `CookiePreferencesCenter` (choix des traceurs). Le focus restait dans la page — un utilisateur clavier devait traverser tout l'écran avant d'atteindre « J'accepte », un lecteur d'écran poursuivait sa lecture derrière le voile — et Échap ne fermait pas le centre de préférences.                                                                   | haute    | corrigé — les deux surfaces reposent sur `Dialog`/`DialogContent`/`DialogTitle` (react-aria, comme `LoginModal`, `RecommendationModal`) : focus confiné et restitué, arrière-plan `aria-hidden`/`inert`, Échap ferme le centre et reste neutralisé sur le portail (acceptation requise) ; 3 tests : focus hors du portail et arrière-plan parcourable **échouaient**, puis Échap sans effet sur le centre échouait aussi |
+
+**Preuve rouge → vert.** Les tests ont été écrits avant les correctifs.
+Premier passage sur les trois fichiers concernés → **13 échecs sur 45**
+(8 assainisseur SVG, 2 JSON-LD, 3 portails et centre de préférences), puis
+`5 fichiers / 63 tests verts` après correctif, sans aucune retouche des cas
+existants.
+
+**Preuves (arbre propre, après commits) :**
+
+| Commande | Résultat |
+| -------- | -------- |
+| `pnpm --filter @qoe/ui test` | **668 tests / 104 fichiers verts** (654/103 avant le lot : **+14 tests, +1 fichier**) |
+| `pnpm typecheck` | 25/25 tâches |
+| `pnpm --filter @qoe/ui lint` | 0 erreur, 0 avertissement |
+| `apps/studio` — `security-hardening.test.ts` + `totp-enrollment.test.tsx` (re-export de `@qoe/ui/security`) | 24 + 10 tests verts |
+| les 9 gardes CI (`guard:media-origin`, `audit:guard`, `ui:audit`, `arch:audit`, `guard:article-links`, `guard:dangerous-html`, `guard:flags-parity`, `guard:legal-consent`, `guard:seed-script`) | tous verts |
+
+**Observations trouvées, volontairement non corrigées.**
+
+- `AnalyticsNotice` et `CookieConsentBanner` arment un `setTimeout` de 3,6 s
+  pour effacer le toast sans le nettoyer au démontage : la référence survit
+  quelques secondes après la fermeture de l'écran. Aucun test observable ne
+  peut le prouver (React 19 n'avertit plus), donc observation — pas de
+  correctif à l'aveugle.
+- La liste blanche de `sanitizeInlineSvg` est plus étroite que l'ancienne liste
+  noire : un fournisseur qui glisserait `<image>`, `<style>` ou un `<a>` dans
+  son QR retombe désormais sur la **saisie manuelle du secret**, repli déjà
+  présent dans studio/admin. C'est le comportement voulu (on préfère ne pas
+  afficher le QR que l'afficher dangereusement).
+- `writeConsent` écrit `normalizeConsent(choice) ?? choice` : un choix dont la
+  version est périmée serait enregistré brut. Les lecteurs re-normalisent et
+  le rejettent, donc aucun effet observable — mais le repli surcharge la
+  lecture plutôt que de refuser.
+- `safeJsonLdReplacer(undefined)` lève (`JSON.stringify(undefined)` vaut
+  `undefined`, puis `.replace` échoue) : inatteignable avec les builders typés
+  qui alimentent `JsonLd`.
+- `solvePowChallenge` ne compare pas `expiresAt` à l'heure courante : c'est le
+  serveur Go qui arbitre l'expiration, un contrôle client donnerait une fausse
+  garantie.
+
+**Dettes.** Aucune dette R ne visait `security`, `seo` ou `legal`.
 **R54** (baselines visuelles), **R56** (doublons `select`/`date`) et **R01**
 (`checkContentAccess` fail-open) restent **ouvertes** : décision utilisateur
 (environnement de référence, design system, comportement produit).
