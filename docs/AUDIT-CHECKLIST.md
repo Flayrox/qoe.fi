@@ -91,7 +91,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b3 | `app/(reader)/library/**`                                                                                    | 18 fichiers · 3 689 l.      | **clos** : L20b2b31 (racine, 5 f.) **durci le 2026-11-19** + L20b2b32 (`ebooks/**`, 13 f.) **durci le 2026-11-19** |
 | L20b2b4 | `app/(reader)/[username]/**`                                                                                 | 9 fichiers · 2 184 l.       | **durci le 2026-11-19** |
 | L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | **durci le 2026-11-19** |
-| L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; prochain = L20c3 |
+| L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; prochain = L20c3 |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
 | L21     | `apps/studio/src/**`                                                                                         | 509 fichiers                | à auditer               |
 | L22     | `apps/admin/src/**`                                                                                          | 178 fichiers                | à auditer               |
@@ -901,7 +901,7 @@ nommé), puis verts après restauration.
 | R93 | `packages/analytics` envoie la session de lecture par `navigator.sendBeacon(endpointUrl, payload)` avec un **corps texte** (Content-Type `text/plain`) : le handler lit `req.json()`, qui fonctionne par chance (pas de validation de type de contenu côté Next). Aucun rejet observé, mais le contrat média n'est pas explicite. | faible | Arbitrage : créer un `Blob` typé `application/json` à l'envoi, ou valider/ignorer explicitement le Content-Type côté route. Voir L20b1. |
 | R130 | `EditProfileModal.updateMediaProfile` fabrique lui-même l'utilisateur « mis à jour » à partir des champs locaux au lieu de lire la réponse de `PATCH /v1/media/{id}/settings` : une normalisation serveur (nom rogné, `location` refusée) n'apparaît pas, et `onProfileUpdated` propage des valeurs optimistes. Le `catch` du même fichier journalise `console.error(err)` côté client en production. | faible | Lire la publication renvoyée par l'action (ou revalider) et remplacer le `console.error` par le seul toast. Voir L20c2. |
 | R129 | La mécanique de surcouche est écrite **deux fois** : `HISTORY_KEY`, `pushedRef`, `baseRef`, `teardown` (timer 320 ms), capture/restauration de focus et `popstate` existent à l'identique dans `ThoughtOverlayProvider` et `ArticleOverlayProvider`. Les deux ont déjà divergé (le second annule son timer de teardown, le premier non — R127). | moyenne | Extraire un `useOverlayHistory`/`useOverlayReturn` partagé et y brancher les deux surcouches. Voir L20c2. |
-| R128 | `ArticleOverlayProvider.fetchArticleThread` appelle `/api/articles/{slug}` par un `fetch` **sans `AbortSignal` ni timeout** : une requête suspendue (réseau mobile, Go lent) ne rejette jamais, donc la coquille reste en squelette indéfiniment — alors que le `catch` du même bloc promet un état d'erreur propre. | moyenne | Poser `AbortSignal.timeout(10_000)` (et/ou un timer de garde) puis laisser le `catch` existant afficher l'erreur. Non prouvé ce tour : exige de monter le provider (portail, drawer 259 l.) hors de la portée d'un rouge fiable. Voir L20c2. |
+| R128 | ~~`ArticleOverlayProvider.fetchArticleThread` appelle `/api/articles/{slug}` par un `fetch` sans `AbortSignal` ni timeout~~ — **close par F271/F272** : `withArticleTimeout` borne chaque requête à 10 s, un `AbortController` par requête annule la précédente et le démontage, et l'état d'erreur est rendu (message de délai dédié). Voir L20c2b. | — | Close, prouvée par une suite d'intégration montant le provider et le drawer réels (timeout, démontage, popstate, focus, verrou de scroll, préchargement). |
 | R127 | `ThoughtOverlayProvider.teardown` programme `window.setTimeout(…, 320)` sans conserver l'identifiant : le `setActivePostId(null)` différé peut s'exécuter après démontage du provider (et le `pushedRef` armé n'est pas défait si le provider démonte surcouche ouverte). | faible | Garder le timer dans une `ref`, l'annuler au démontage, et défaire l'entrée d'historique si elle est encore la nôtre. Voir L20c1. |
 | R126 | `ReaderToolbarProvider.toggleBookmark` appelle le handler enregistré par `registerToggleBookmark` sans l'attendre ni attraper son rejet : un handler `async` en échec remonte en promesse non gérée (même famille que F265). Aucune observable propre sans le handler réel d'`ArticleAnnotatorView` (L20c3). | faible | Envelopper l'appel dans `void Promise.resolve(handler()).catch(...)` avec un retour utilisateur. Voir L20c1. |
 | R125 | `ThoughtOverlayProvider` : la surcouche est un panneau modal de fait (voile, `body` verrouillé, `Échap`) mais n'expose ni `role="dialog"`/`aria-modal`, ni piège de focus : au clavier on peut tabuler dans la page derrière et perdre le fil. | moyenne | Ajouter le rôle, l'`aria-modal`, le piège de focus et le `aria-label` du panneau, avec un test de tabulation. Voir L20c1. |
@@ -1506,6 +1506,68 @@ Trop gros pour un tour : le lot est scindé en **8 sous-lots** dont la somme est
 **Ordre retenu.** Feuilles interactives d'abord (L20c1→L20c7, du plus consommé au plus
 périphérique), **socle transverse en dernier** (L20c8) pour la raison mesurée ci-dessus :
 sa surface de régression est l'ensemble des pages lecteur, pas un écran.
+
+---
+
+## L20c2b — chemin de lecture d'article : borne réseau et provider monté — durci le 2026-11-19
+
+**Périmètre re-mesuré avant de toucher** (`git ls-files` + `wc -l`) : le trajet d'ouverture d'un
+article = `article-overlay/ArticleOverlayProvider.tsx` (**465 l.**, seul porteur de
+`fetchArticleThread`), `overlay-state.ts` (125 l.) + sa suite (139 l.), le consommateur réel
+`social/ArticleReaderDrawer.tsx` (259 l., `fetch('/api/articles/{slug}')` non — il reçoit l'article
+par props), la route `app/api/articles/[slug]/route.ts` (appelée par le provider, contrairement
+à ce qu'affirmait R94) et `overlay/position.ts` (70 l.). **Aucun élargissement** : 1 fichier
+modifié, 1 suite ajoutée.
+
+| #    | Défaut | Sévérité | Statut |
+| ---- | ------ | -------- | ------ |
+| F271 | `fetchArticleThread` : `fetch('/api/articles/{slug}')` **sans `AbortSignal` ni borne de temps** — une requête qui ni ne se résout ni ne rejette (réseau mobile, Go lent) laissait la promesse pendante pour toujours, donc le drawer restait sur un **squelette infini**, en contradiction directe avec le `catch` qui promet un état d'erreur. Le prefetch avait le même défaut : son entrée `prefetchingRef` n'était jamais relâchée si la requête pendait. | haute | corrigé — `withArticleTimeout` (course avec un rejet `article-timeout` à 10 s, qui annule aussi la requête) autour de chaque appel, `AbortController` par requête (la nouvelle annule l'ancienne), signal passé au `fetch`, **pas** de repli Server Action sur abandon, et message de délai dédié (`Le chargement a pris trop de temps…`) rendu par l'état `isError` ; rouge : `AssertionError: expected 'false' to be 'true'` (`data-error` toujours faux après 10 s) |
+| F272 | `ArticleOverlayProvider` ne nettoyait **rien** au démontage : la requête d'article en cours et le timer de sortie différée (320 ms) survivaient au provider — écriture dans un arbre démonté et requête réseau qui continue pour rien. | moyenne | corrigé — effet de démontage qui `abort()` la requête courante et annule le timer ; rouge : `AssertionError: expected undefined to be an instance of AbortSignal` (aucun signal n'était même passé au `fetch`) puis `signal.aborted === true` après `unmount()` |
+
+**Ce que la montée réelle du provider a établi (3 tests verts, aucun défaut trouvé).**
+`ArticleOverlayProvider` + `ArticleReaderDrawer` réels (seuls l'annotateur L20c3, `ProgressiveBlur`,
+`TextToSpeechProvider` et la toolbar ancrée sont doublés) : **ouverture** → `body.style.overflow`
+vaut `hidden` et `document.activeElement` est bien `[data-testid="article-drawer"]` ; **`popstate`**
+→ la surcouche se referme (`isOpen` false), le verrou retombe (`overflow: ''`) et le focus revient
+au **déclencheur** (bouton focalisé avant le clic) ; **verrou de scroll** posé par le drawer
+réel ; **préchargement** → un `pointerover` sur `a[data-article-link][data-article-slug]` déclenche
+après 120 ms un `fetch('/api/articles/{slug}', { headers: { Accept: 'application/json' } })`.
+Ces quatre comportements étaient écrits depuis L20c2 mais **jamais exercés** ; ils tiennent.
+
+**Abandons motivés.** **R129** (mécanique de surcouche écrite deux fois : historique, `pushedRef`,
+base, focus, timer) et **R130** (réponse média fabriquée + `console.error` client) ne sont **pas**
+rendues triviales par ce correctif : fermer R129 demande d'extraire un hook partagé et de le
+rebrancher sur les deux providers, sans rouge préalable possible sur la duplication elle-même —
+elles restent nommées, inchangées. Rien d'autre n'a été touché : la restauration de position
+(`position.ts`) et la logique pure d'`overlay-state` restent telles quelles.
+
+**Preuve rouge → vert.** Suite `article-overlay/__tests__/article-overlay-provider.test.tsx`
+écrite **avant** correctif : **2 échecs / 5** (`expected 'false' to be 'true'` sur le timeout,
+`expected undefined to be an instance of AbortSignal` sur le démontage), puis **5/5** après
+correctif ; `overlay-state.test.ts` (12 tests) reste vert **sans modification**.
+
+**Preuves mesurées :**
+
+| Commande | Avant | Après |
+| -------- | ----- | ----- |
+| `pnpm --filter @qoe/core test` | 49 fichiers · 318 tests | **50 fichiers · 323 tests** |
+| `pnpm --filter @qoe/core lint` | 0 erreur (9 warnings) | **0 erreur (9 warnings)** — les 2 warnings apparus sur les paramètres du mock ont été supprimés, pas désactivés |
+| `pnpm lint` / `pnpm typecheck` / `pnpm test` | 25/25 · 25/25 · 24/24 | **25/25 · 25/25 · 24/24** |
+| `pnpm typecheck:root` | ✔ | **✔** |
+| gardes CI (10, dont `arch:audit`, `ui:audit`, `media-origin`) | vertes | **vertes** |
+| `pnpm test:coverage` (R91) | `branches 78.18% < 85%` | **identique (78.18 %)**, seul rouge, préexistant |
+| lignes | `ArticleOverlayProvider` 465 | **533** (+68) + 1 suite d'intégration (213 l.) |
+
+**Non vérifié.** Aucun navigateur ni `next build` : les animations `framer-motion`, le portail du
+drawer et le scroll réel ne sont pas observés (jsdom) ; le test prouve la **course de timeout**
+et l'abandon demandé par le provider, pas le fait qu'un navigateur honore effectivement
+l'`AbortSignal` sur le réseau ; `ArticleAnnotatorView` (L20c3) est doublé, donc ni les annotations
+ni le rendu du corps ne sont exercés ; la route `/api/articles/[slug]` et Go ne sont pas
+sollicités (le `fetch` est stubbé, aucune panne Go réelle) ; `pnpm test:api`, `pnpm e2e` non
+lancés ; rien n'a été vérifié sur mobile (`apps/mobile` a son propre lecteur).
+
+**Dettes.** **R01**, **R54**, **R56**, **R63** à **R74**, **R78** à **R127**, **R129**, **R130**
+restent ouvertes ; **R128 est close**. Aucune dette nouvelle.
 
 ---
 

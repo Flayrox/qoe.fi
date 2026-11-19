@@ -26,10 +26,11 @@
 import React from 'react';
 import { getArticleThreadAction as getArticleThread } from '@qoe/sdk/actions/feed';
 
-async function fetchArticleThread(slug: string) {
+async function fetchArticleThread(slug: string, signal?: AbortSignal) {
   try {
     const res = await fetch(`/api/articles/${encodeURIComponent(slug)}`, {
       headers: { Accept: 'application/json' },
+      signal,
     });
     if (res.status === 404) {
       return { ok: false as const, error: 'article-introuvable' };
@@ -40,8 +41,11 @@ async function fetchArticleThread(slug: string) {
         return json;
       }
     }
-  } catch {
-    // Si la route API locale échoue, on tente la server action
+  } catch (err) {
+    // Abandon explicite (timeout, démontage, requête remplacée) : on ne
+    // relance pas la Server Action, qui attendrait tout autant.
+    if (signal?.aborted) throw err;
+    // Sinon la route API locale a échoué : on tente la server action.
   }
   return getArticleThread(slug);
 }
@@ -83,6 +87,35 @@ export interface ArticleOverlayApi {
   closeArticle: () => void;
   isOpen: boolean;
   activeSlug: string | null;
+}
+
+/**
+ * Au-delà de ce délai, le chargement d'article est considéré comme perdu :
+ * sans lui, une requête suspendue (réseau mobile, Go lent) ne rejette jamais
+ * et la coquille du drawer restait en squelette indéfiniment.
+ */
+const ARTICLE_THREAD_TIMEOUT_MS = 10_000;
+
+const ARTICLE_TIMEOUT_MESSAGE = 'article-timeout';
+
+/**
+ * Borne une tâche réseau : sans cela, une requête qui ne se résout ni ne
+ * rejette (fetch suspendu) laisserait la promesse pendante pour toujours, même
+ * si l'`AbortSignal` est levé. `onTimeout` sert à annuler la requête pour de bon.
+ */
+async function withArticleTimeout<T>(task: Promise<T>, onTimeout: () => void): Promise<T> {
+  let timeoutId: number | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = window.setTimeout(() => {
+      onTimeout();
+      reject(new Error(ARTICLE_TIMEOUT_MESSAGE));
+    }, ARTICLE_THREAD_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([task, timeout]);
+  } finally {
+    if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+  }
 }
 
 const ArticleOverlayContext = React.createContext<ArticleOverlayApi | null>(null);
@@ -143,6 +176,7 @@ export function ArticleOverlayProvider({
   // réécrire l'URL de base, pas remonter dans l'historique de l'app.
   const pushedRef = React.useRef(false);
   const requestRef = React.useRef(0);
+  const requestAbortRef = React.useRef<AbortController | null>(null);
   const focusRef = React.useRef<HTMLElement | null>(null);
   const prefetchingRef = React.useRef<Set<string>>(new Set());
   const teardownTimerRef = React.useRef<number | null>(null);
@@ -155,7 +189,10 @@ export function ArticleOverlayProvider({
   const prefetchArticle = React.useCallback((slug: string) => {
     if (!slug || readCachedArticle(slug) || prefetchingRef.current.has(slug)) return;
     prefetchingRef.current.add(slug);
-    void fetchArticleThread(slug)
+    // Le prefetch est un bonus, mais il ne doit pas rester suspendu pour
+    // toujours : même borne de temps que l'ouverture.
+    const controller = new AbortController();
+    void withArticleTimeout(fetchArticleThread(slug, controller.signal), () => controller.abort())
       .then((res) => {
         if (res.ok && res.data?.article) {
           rememberArticle(slug, toOverlayArticle(res.data.article));
@@ -166,6 +203,20 @@ export function ArticleOverlayProvider({
       })
       .finally(() => prefetchingRef.current.delete(slug));
   }, []);
+
+  // Démontage : on coupe la requête en cours (aucune écriture dans un arbre
+  // démonté) et le timer de sortie différée.
+  React.useEffect(
+    () => () => {
+      requestAbortRef.current?.abort();
+      requestAbortRef.current = null;
+      if (teardownTimerRef.current) {
+        window.clearTimeout(teardownTimerRef.current);
+        teardownTimerRef.current = null;
+      }
+    },
+    []
+  );
 
   const teardown = React.useCallback(() => {
     if (!openRef.current) return;
@@ -246,7 +297,13 @@ export function ArticleOverlayProvider({
       );
 
       const token = ++requestRef.current;
-      void fetchArticleThread(slug)
+      // Une seule requête d'article à la fois : la nouvelle annule l'ancienne,
+      // et un délai borne l'attente (R128).
+      requestAbortRef.current?.abort();
+      const controller = new AbortController();
+      requestAbortRef.current = controller;
+
+      void withArticleTimeout(fetchArticleThread(slug, controller.signal), () => controller.abort())
         .then((res) => {
           if (token !== requestRef.current) return;
           if (res.ok && res.data?.article) {
@@ -274,6 +331,9 @@ export function ArticleOverlayProvider({
         .catch((err: unknown) => {
           if (token !== requestRef.current) return;
           const msg = err instanceof Error ? err.message : String(err);
+          const timedOut = msg === ARTICLE_TIMEOUT_MESSAGE;
+          // Démontage ou requête remplacée : plus personne n'attend ce résultat.
+          if (controller.signal.aborted && !timedOut) return;
 
           // Si l'action a changé après un déploiement ou erreur de chunk client
           if (
@@ -285,16 +345,17 @@ export function ArticleOverlayProvider({
             return;
           }
 
-          // Panne ou article introuvable : on affiche un état propre dans le drawer
-          // au lieu de le laisser bloqué indéfiniment en skeleton de chargement.
+          // Panne, délai dépassé ou article introuvable : on affiche un état propre
+          // dans le drawer au lieu de le laisser bloqué en squelette de chargement.
           setArticle((prev) => ({
             ...(prev ?? buildPlaceholder(input)),
             isLoading: false,
             isError: true,
-            errorMessage:
-              msg === 'article-introuvable' || msg.toLowerCase().includes('introuvable')
+            errorMessage: timedOut
+              ? 'Le chargement a pris trop de temps. Vérifiez votre connexion et réessayez.'
+              : msg === 'article-introuvable' || msg.toLowerCase().includes('introuvable')
                 ? "Cet article n'est plus accessible ou est en cours de modification."
-                : "Impossible de charger l'article. Veuillez vérifier votre connexion.",
+                : "Impossible de charger l'article. Vérifiez votre connexion puis réessayez.",
           }));
         });
     },
