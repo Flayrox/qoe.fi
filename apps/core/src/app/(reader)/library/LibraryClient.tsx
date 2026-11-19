@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import { motion, AnimatePresence } from 'framer-motion';
-import { trackServerEvent } from '@qoe/analytics';
+import { trackEvent } from '@qoe/analytics';
 import { routes, getArticleUrl } from '@qoe/config/routes';
 import { UserAvatar } from '@qoe/ui/ui/UserAvatar';
 import { Badge } from '@qoe/ui/badge';
@@ -115,7 +115,7 @@ export function LibraryClient({
   initialBookmarks,
   initialHighlights,
   initialTab = 'bookmarks',
-  highlightQuota: _highlightQuota,
+  highlightQuota,
 }: LibraryClientProps) {
   const [activeTab, setActiveTab] = useState<LibraryTab>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
@@ -171,13 +171,27 @@ export function LibraryClient({
 
   // ── Actions Signets ──────────────────────────────────────────────
   const handleRemoveBookmark = (bookmark: LibraryBookmark) => {
-    const previous = [...bookmarks];
-    setBookmarks((prev) => prev.filter((b) => b.id !== bookmark.id));
+    // L'annulation réinsère **ce** signet à sa place d'origine : restaurer la
+    // liste entière de l'époque ressusciterait les retraits faits depuis.
+    const order = new Map(bookmarks.map((b, index) => [b.id, index]));
+    const restoreBookmark = () => {
+      setBookmarks((prev) => {
+        if (prev.some((b) => b.id === bookmark.id)) return prev;
+        const target = order.get(bookmark.id) ?? Number.MAX_SAFE_INTEGER;
+        const next = [...prev];
+        const at = next.findIndex((b) => (order.get(b.id) ?? Number.MAX_SAFE_INTEGER) > target);
+        next.splice(at === -1 ? next.length : at, 0, bookmark);
+        return next;
+      });
+    };
+    const dropBookmark = () => setBookmarks((prev) => prev.filter((b) => b.id !== bookmark.id));
+
+    dropBookmark();
 
     startTransition(async () => {
       const res = await toggleBookmarkArticleHomeAction(bookmark.article.id);
       if (!res.ok) {
-        setBookmarks(previous);
+        restoreBookmark();
         toast.error(t`Impossible de retirer le signet`);
         return;
       }
@@ -185,8 +199,20 @@ export function LibraryClient({
         action: {
           label: t`Annuler`,
           onClick: () => {
-            setBookmarks(previous);
-            toggleBookmarkArticleHomeAction(bookmark.article.id);
+            restoreBookmark();
+            void toggleBookmarkArticleHomeAction(bookmark.article.id)
+              .then((undoRes) => {
+                // Le serveur refuse de re-sauvegarder : on ne laisse pas la carte
+                // revenir comme si l'annulation avait réussi.
+                if (!undoRes.ok) {
+                  dropBookmark();
+                  toast.error(t`Impossible de restaurer le signet`);
+                }
+              })
+              .catch(() => {
+                dropBookmark();
+                toast.error(t`Impossible de restaurer le signet`);
+              });
           },
         },
       });
@@ -268,8 +294,13 @@ export function LibraryClient({
     const link = document.createElement('a');
     link.href = url;
     link.download = `qoe-surlignages-${new Date().toISOString().slice(0, 10)}.md`;
+    // Le lien doit être dans le document (Firefox ignore un clic sur un nœud
+    // détaché) et l'URL du blob ne peut être révoquée qu'une fois le
+    // téléchargement lancé, sinon Safari et Firefox l'annulent.
+    document.body.appendChild(link);
     link.click();
-    URL.revokeObjectURL(url);
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
     toast.success(t`Bibliothèque exportée en Markdown (.md)`);
   };
 
@@ -374,7 +405,11 @@ export function LibraryClient({
                 {highlights.length}
               </span>
               <span className="text-xs text-muted-foreground font-medium">
-                {t`citations retenues`}
+                {highlightQuota
+                  ? highlightQuota.plus
+                    ? t`illimités (Plus)`
+                    : `${highlightQuota.count} / ${highlightQuota.limit}`
+                  : t`citations retenues`}
               </span>
             </div>
           </div>
@@ -600,7 +635,7 @@ export function LibraryClient({
                             b.article.author?.username || b.article.author?.subdomain || undefined
                           }
                           onClick={() =>
-                            trackServerEvent('library_article_click', {
+                            trackEvent('library_article_click', {
                               articleId: b.article.id,
                               slug: b.article.slug,
                             })
@@ -642,7 +677,7 @@ export function LibraryClient({
                             b.article.author?.username || b.article.author?.subdomain || undefined
                           }
                           onClick={() =>
-                            trackServerEvent('library_article_read', {
+                            trackEvent('library_article_read', {
                               articleId: b.article.id,
                               slug: b.article.slug,
                             })

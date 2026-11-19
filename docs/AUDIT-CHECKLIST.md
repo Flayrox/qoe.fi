@@ -88,7 +88,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b2a | `(reader)/home` : page, loading, dashboard, cartes de slice                                             | 10 fichiers · 2 016 l.      | **durci le 2026-11-19** |
 | L20b2b2b | `(reader)/home/components/ThoughtComposer.tsx` + son test                                                   | 2 fichiers · 2 748 l.       | **durci le 2026-11-19** |
 | L20b2b2c | `(reader)/home/components/thread/**`                                                                       | 13 fichiers · 1 743 l.      | **durci le 2026-11-19** |
-| L20b2b3 | `app/(reader)/library/**`                                                                                    | 18 fichiers · 3 689 l.      | à auditer               |
+| L20b2b3 | `app/(reader)/library/**`                                                                                    | 18 fichiers · 3 689 l.      | **scindé** : L20b2b31 (racine, 5 f. · 1 665 l.) **durci le 2026-11-19** + L20b2b32 (`ebooks/**`, 13 f. · 2 024 l.) à auditer |
 | L20b2b4 | `app/(reader)/[username]/**`                                                                                 | 9 fichiers · 2 184 l.       | à auditer               |
 | L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | à auditer               |
 | L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | à auditer               |
@@ -113,9 +113,10 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L20b2b3 — `apps/core/src/app/(reader)/library/**`**
-(18 fichiers · 3 689 l. ; L20b2b2c clos ; ordre restant : L20b2b3 bibliothèque,
-L20b2b4 profils, L20b2b5 réglages, L20c composants, L20d hooks/features).
+**Prochain lot à traiter : L20b2b32 — `apps/core/src/app/(reader)/library/ebooks/**`**
+(13 fichiers · 2 024 l. ; L20b2b31 clos — racine de la bibliothèque, 5 fichiers ·
+1 700 l. après correctifs ; ordre restant : L20b2b32 liseuse/EPUB, L20b2b4 profils,
+L20b2b5 réglages, L20c composants, L20d hooks/features).
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -896,6 +897,10 @@ nommé), puis verts après restauration.
 | R74 | `canonicalEmail` est calculé par `@qoe/moderation` et écrit dans les métadonnées Supabase (`options.data`) au signup, mais **aucun code ne le lit** : ni le sync Go, ni la base (aucun index unique). L'anti-multi-comptes annoncé par le module ne s'exerce donc pas au-delà du jour de l'inscription, et la suppression systématique du tag `+` (tous fournisseurs, pas seulement Gmail) n'a aucune conséquence observable. | moyenne | Arbitrage backend : colonne `canonicalEmail` + index unique dans une migration goose, puis refus de doublon côté Go (`/v1/auth/sync`), en décidant si l'on garde Gmail uniquement pour les points. Voir L14. |
 | R94 | `/api/articles/[slug]` (core) n'a **aucun appelant** dans le repo : la page article lit côté serveur. Route morte dont le contrat HTTP vient d'être corrigé (cache privé, L20b1) mais qui reste à supprimer ou à réutiliser explicitement. | faible | Arbitrage : supprimer la route (et son test) ou la brancher sur le préchargement client ; décision produit sur le préchargement d'article. Voir L20b1. |
 | R93 | `packages/analytics` envoie la session de lecture par `navigator.sendBeacon(endpointUrl, payload)` avec un **corps texte** (Content-Type `text/plain`) : le handler lit `req.json()`, qui fonctionne par chance (pas de validation de type de contenu côté Next). Aucun rejet observé, mais le contrat média n'est pas explicite. | faible | Arbitrage : créer un `Blob` typé `application/json` à l'envoi, ou valider/ignorer explicitement le Content-Type côté route. Voir L20b1. |
+| R113 | `LibraryClient.handleDeleteHighlight` et `handleSaveNote` annulent par `setHighlights(previous)`, l'instantané complet pris avant la mutation : deux mutations rapprochées peuvent se restaurer mutuellement. | faible | Réinsérer/restaurer par identifiant (comme F246 pour les signets), avec un test de deux suppressions enchaînées. Voir L20b2b31. |
+| R112 | `formatQuoteForClipboard` préfixe `https://qoe.fi` quand `getArticleUrl` rend un chemin relatif : une citation copiée depuis un domaine tenant ou un environnement de préprod pointe vers la production. | faible | Utiliser l'origine canonique (env `NEXT_PUBLIC_APP_URL`/helper dédié) et réécrire l'assertion qui encode le littéral. Voir L20b2b31. |
+| R111 | `LibraryClient.handleCopyHighlight` programme `setTimeout(() => setCopiedId(null), 2000)` sans cleanup : `setState` possible après démontage, et le timer survit à la navigation. | faible | Timer en `useRef` annulé dans un `useEffect` de démontage ou `useEffect` dérivé de `copiedId`, avec un test d'unmount. Voir L20b2b31. |
+| R110 | Les trois mutations de `LibraryClient` enveloppent un callback **`async`** dans `startTransition` : React ne suit pas le travail après `await` et `isPending` est jeté (`[, startTransition]`) — l'utilisateur n'a aucun état « en cours » et l'API est utilisée à contre-emploi. | faible | Soit un `useTransition` réellement exploité avec un callback synchrone et l'`await` hors transition, soit un état `pending` explicite par identifiant muté. Voir L20b2b31. |
 | R109 | `ThoughtThreadRoot` prend ses snapshots d'annulation par `JSON.parse(JSON.stringify(post))` (like, repost, suppression) : les `Date` deviennent des chaînes, et le coût est proportionnel à l'arbre complet à chaque interaction. | faible | Remplacer par une copie structurelle ciblée (les branches modifiées) ou un snapshot par identifiant. Voir L20b2b2c. |
 | R108 | `ThoughtThreadItem` initialise `isHidden` et `showAllChildren` depuis les props sans se resynchroniser : si le fil est rechargé (masquage levé côté serveur), l'état local garde l'ancien. | faible | Dériver du prop avec un `key` d'identité serveur ou aligner dans un effet quand `reply.isHiddenByAuthor` change, avec un test de rechargement. Voir L20b2b2c. |
 | R107 | `ThoughtThreadFocus.handlePinToggle` **mute l'objet du contexte** (`post.isPinned = true/false`) au lieu de passer par un `setPost` : aucun re-rendu n'est déclenché et l'état partagé est modifié hors React (il apparaît « juste » au prochain rendu provoqué par autre chose). | moyenne | Exposer un `setPinned` dans le contexte (comme `toggleLike`), puis un test jsdom qui vérifie le re-rendu de l'épingle. Voir L20b2b2c. |
@@ -1453,6 +1458,94 @@ existante modifiée, aucune doublure touchée.
 **Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65**, **R66**
 restent **ouvertes**. Nouvelle dette : **R67** (surfaces `continuous`,
 `highlighter`, `paywall`, `excerpt` sans consommateur TS).
+
+---
+
+## L20b2b31 — racine de `apps/core/src/app/(reader)/library/**` — durci le 2026-11-19
+
+**Découpage mesuré de L20b2b3.** L20b2b3 (18 fichiers · 3 689 l.) porte deux
+unités fonctionnelles distinctes, séparées par un vrai contrat :
+
+| Sous-lot    | Périmètre                                                                                     | Taille mesurée        | Statut |
+| ----------- | --------------------------------------------------------------------------------------------- | --------------------- | ------ |
+| **L20b2b31** | `library/{page,LibraryClient,library-helpers}.tsx|ts` + 2 suites                                  | **5 f. · 1 665 l.**   | **durci (ce lot)** |
+| L20b2b32    | `library/ebooks/**` (liseuse EPUB, notes, recherche, helpers + 3 suites)                       | 13 f. · 2 024 l.      | à auditer |
+
+La racine est close ici : aucune dépendance de `LibraryClient` sur `ebooks/**`
+hormis un lien `routes.feed.ebooks()`.
+
+**Périmètre lu en entier.** `page.tsx` (RSC, 122 l.), `LibraryClient.tsx`
+(980 l.), `library-helpers.ts` (161 l.), `__tests__/library-client.test.tsx` (83 l.),
+`library.test.ts` (319 l.). Imports réellement présents : `goFetch`
+(`@qoe/sdk/actions/utils/go-client`, jamais de `fetch` brut), `createClient`
+(`@qoe/supabase/server`), server actions `@qoe/sdk/actions/feed` et
+`@qoe/sdk/actions/highlights`, API client `@qoe/ui` (`Button`, `Input`,
+`Textarea`, `Tabs`, `TagGroup`, `Badge`, `UserAvatar`, `toast`), `@qoe/analytics`,
+`@qoe/config/routes`, framer-motion, lucide-react. Consommateurs vérifiés :
+`LibraryPage` est la route `/library` (onglet `?tab=`), `LibraryClient` n'est
+importé que par elle, `library-helpers` est consommé par le client et par
+`library.test.ts` — **chaque export a au moins un appelant**. Aucune pagination
+ni infinite-scroll ici (100 signets / 100 surlignages bornés côté serveur) : pas
+de course de filtre à corriger, les trois listes dérivent d'un `useMemo` sur
+l'état local.
+
+| #    | Défaut                                                                                                                                                                                                                                                                                                            | Sévérité | Statut |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------ |
+| F245 | `LibraryClient` (`'use client'`) appelait **`trackServerEvent`** dans deux `onClick` : cette fonction `async` ne fait qu'un `console.log` **serveur**. Depuis un navigateur, `library_article_click` et `library_article_read` n'étaient donc **jamais collectés** et chaque clic écrivait un payload d'analytics dans la console de l'utilisateur en production. | haute    | corrigé — `trackEvent` (client, `window.umami` protégé) ; rouge : `AssertionError: expected "vi.fn()" to be called with arguments: [ 'library_article_click', …(1) ]` |
+| F246 | Annuler un retrait de signet faisait `setBookmarks(previous)` avec l'instantané **complet** de la liste au moment du retrait : un signet retiré **après** celui qu'on annule ressuscitait. L'appel d'annulation était en plus une promesse flottante sans `catch` ni contrôle de `res.ok`. | moyenne  | corrigé — réinsertion ciblée à la position d'origine + annulation contrôlée (rollback et toast d'erreur si le serveur refuse) ; rouge : `AssertionError: expected 2 to be 1` |
+| F247 | `page.tsx` fetchait `/v1/me/highlights/count` (quota X/50, Plus = illimité) puis le passait en prop… que le client jetait (`highlightQuota: _highlightQuota`) : le compteur et l'upsell décrits dans le commentaire du serveur (« jamais de surprise au 51e surlignage ») n'existaient pas, pour un aller-retour Go à chaque visite. | moyenne  | corrigé — prop lue et rendue (`42 / 50`, `illimités (Plus)`) ; rouge : `TestingLibraryElementError: Unable to find an element with the text: 42 / 50.` |
+| F248 | Export Markdown : `link.click()` suivi **immédiatement** de `URL.revokeObjectURL(url)`, et le lien n'était jamais inséré dans le document. Firefox ignore le clic d'un nœud détaché, et Safari/Firefox annulent un téléchargement dont le blob est révoqué avant démarrage. | moyenne  | corrigé — lien ajouté au `body` puis retiré, révocation différée (30 s) ; rouge : `AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times` |
+
+**Candidats examinés puis ABANDONNÉS** :
+
+- **`startTransition(async () => …)` autour des trois mutations** : `isPending` est jeté
+  (`[, startTransition]`) et React ne suit pas le travail après `await`, donc aucun effet
+  observable — pas de rouge possible sans inventer un état de pending → **R110**.
+- **`setTimeout(() => setCopiedId(null), 2000)` sans cleanup** (copie de citation) : même
+  famille que R106, `setState` après démontage sans conséquence mesurable en jsdom → **R111**.
+- **`https://qoe.fi` en dur dans `formatQuoteForClipboard`** : une citation exportée depuis
+  un domaine tenant ou un environnement de préprod pointe vers la production. Le corriger
+  demande de choisir l'origine canonique **et** de réécrire l'assertion existante qui encode
+  aujourd'hui ce littéral (`expect(formatted).toContain('https://qoe.fi/…')`) : hors du rouge
+  prouvable ici → **R112**.
+- **`handleDeleteHighlight` / `handleSaveNote` restaurent `previous` en rollback** : même
+  classe que F246, mais aucun scénario rouge construit (une seule mutation à la fois en
+  pratique) → **R113**.
+- **`href="#"` quand l'auteur n'a pas de `username`** : clic sans effet ni navigation, pas de
+  défaut utilisateur démontrable en jsdom → non retenu.
+- **`catch {}` de la copie presse-papier** : `toast.error` explicite → pas un avalement.
+- **`resolveLibraryTab` / filtres / helpers** : déjà couverts par `library.test.ts` (19 cas),
+  aucun écart trouvé ; les `if (!Array.isArray(...))` sont de la défense en profondeur, pas du
+  code mort (appelés avec des props serveur non typées à l'exécution).
+
+**Preuve rouge → vert.** `__tests__/library-client-hardening.test.tsx` écrit **avant**
+correctifs : **4 échecs / 4** (messages cités ci-dessus). Après correctifs : **4/4**, et les
+deux suites existantes (`library-client.test.tsx`, `library.test.ts`) restent vertes **sans
+modification** — le rendu du quota est conditionnel, donc l'état sans prop est inchangé.
+
+**Preuves mesurées :**
+
+| Commande | Avant | Après |
+| -------- | ----- | ----- |
+| `pnpm --filter @qoe/core test` | 39 fichiers · **285 tests** | 40 fichiers · **289 tests** |
+| `pnpm --filter @qoe/core lint` | 0 erreur (10 warnings) | **0 erreur** (**9 warnings** : l'import serveur retiré en supprime un) |
+| `pnpm lint` / `pnpm typecheck` / `pnpm test` | 25/25 · 25/25 · 24/24 | **25/25 · 25/25 · 24/24** |
+| `pnpm typecheck:root` | ✔ | **✔** |
+| gardes CI (10, dont `arch:audit`, `ui:audit`) | vertes | **vertes** |
+| `pnpm test:coverage` (R91) | `branches 78.18% < 85%` | **identique (78.18 %)**, seul rouge, préexistant |
+| `LibraryClient.tsx` | 980 l. | **1 015 l.** (+35, dont 57 l. de test ailleurs) |
+
+**Non vérifié.** Aucun navigateur ni `next build` ; `window.umami` simulé (aucun dashboard
+Umami réel consulté, donc **non prouvé de bout en bout** que l'event arrive côté Umami) ;
+presse-papier et téléchargement non exécutés (seul l'ordre révocation/clic est asserté) ;
+`AnimatePresence` garde les cartes sortantes dans le DOM jsdom (les assertions portent sur le
+compteur KPI, pas sur la disparition des cartes) ; animations framer-motion non exercées ;
+server actions, `goFetch` et Supabase entièrement mockés — **aucun appel Go réel**, donc le
+format exact du quota (`count`/`limit`/`plus`) est celui du typage, pas d'une réponse observée ;
+`pnpm test:api`, `pnpm e2e` non lancés ; montage React réel en RSC non testé.
+
+**Dettes.** **R01**, **R54**, **R56**, **R63** à **R74**, **R78** à **R109** restent
+ouvertes ; nouvelles : **R110** à **R113**.
 
 ---
 
