@@ -93,6 +93,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | **durci le 2026-11-19** |
 | L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; prochain = L20c3 |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
+| L20e    | **Validation bout en bout** : `pnpm build` (6 apps), `pnpm test:api` (Go + Postgres), `pnpm e2e` (Playwright)  | —                           | mesuré le 2026-11-20 : **build ✅**, `test:api` **bloqué** (Docker absent), e2e **partiel** (seed absent) — voir fiche L20e |
 | L21     | `apps/studio/src/**`                                                                                         | 509 fichiers                | à auditer               |
 | L22     | `apps/admin/src/**`                                                                                          | 178 fichiers                | à auditer               |
 | L23     | `apps/tenants/src/**`                                                                                        | 85 fichiers                 | à auditer               |
@@ -1506,6 +1507,36 @@ Trop gros pour un tour : le lot est scindé en **8 sous-lots** dont la somme est
 **Ordre retenu.** Feuilles interactives d'abord (L20c1→L20c7, du plus consommé au plus
 périphérique), **socle transverse en dernier** (L20c8) pour la raison mesurée ci-dessus :
 sa surface de régression est l'ensemble des pages lecteur, pas un écran.
+
+---
+
+## L20e — validation bout en bout (build prod, Go, e2e) — mesuré le 2026-11-20
+
+**Ce que la repo définit réellement** (lu avant de lancer quoi que ce soit) :
+`package.json` → `"build": "pnpm intl:compile && turbo run build"`, `"test:api": "bash
+scripts/test-api.sh"`, `"e2e": "playwright test"` ; `.github/workflows/ci.yml` exécute
+`pnpm build` (job `build-and-test`), `pnpm test:api $PKGS` (job `api-shared-db`, avec
+`docker-compose.test.yml` + `go test -p 1`) et `pnpm e2e --project=public-web
+--project=core-journeys --project=security --project=standalone-contracts` (job `e2e`, avec
+services Postgres `pgvector/pgvector:pg16` + Redis, `goose` puis `go run ./cmd/seed`).
+`scripts/test-api.sh` démarre la base de test sur `127.0.0.1:55432` via `docker compose -f
+docker-compose.test.yml` ; `playwright.config.ts` démarre trois `webServer` (API Go `go run
+./cmd/server` après `go run ./cmd/migrate up`, `next dev` core :3010, `next dev` admin :15405).
+
+| Commande | Résultat mesuré | Détail |
+| -------- | --------------- | ------ |
+| `pnpm build` | **✅ `Tasks: 6 successful, 6 total`, 4 m 30 s** | Les 6 tâches (`@qoe/{core,studio,admin,tenants,hi}` + packages) construites par Turbopack/Next 16.2.6 ; premier build prod vérifié du dépôt. Seuls messages : 4× `DEPRECATION WARNING` de `@sentry/nextjs` (`disableLogger`, amont, hors code du repo). |
+| `pnpm test:api` | **❌ bloqué (environnement)** | `scripts/test-api.sh` échoue en 3 tentatives sur `unable to get image 'pgvector/pgvector:pg16': failed to connect to the docker API at unix:///Users/ephe/.orbstack/run/docker.sock` puis `✗ Base de test injoignable sur 127.0.0.1:55432`. Mesuré : daemon Docker **arrêté** (socket absent), **aucun serveur Postgres local** (`initdb`/`postgres`/`pg_ctl` absents du PATH et de Homebrew, seul `libpq` est installé), et `AGENTS.md` interdit `docker compose` sur ce poste. Aucune base de test ne peut donc être créée sans installer un service ou écrire sur l'infra partagée. |
+| `pnpm test:api` (partie prouvable) | **✅** | Mêmes étapes non-DB du script, lancées à la main : `go vet ./...` (exit 0), `go build ./...` (exit 0), `go test -count=1 ./internal/{slug,canon,flags,pow,netguard}/...` → 5 paquets `ok`. Le reste des paquets dépend de Testcontainers/Postgres et n'est pas exécutable ici. |
+| `pnpm e2e --list` | **✅ 242 tests / 29 fichiers** | Harnais Playwright résolu, Chromium présent (`chromium-1234` dans `~/Library/Caches/ms-playwright`). |
+| `pnpm e2e --project=standalone-contracts` | **✅ 4/4 passés** (10,9 s) | Vrais serveurs : `goose: no migrations to run. current version: 93`, API Go sur 8090, `next dev` sur 3010 (les `redis: connection pool: failed to dial` sont tolérés par config). Contrats UI (modale de publication studio) rendus dans Chromium réel. |
+| `pnpm e2e --project=public-web --project=core-journeys` | **9 passés / 6 échoués, 2 m 12 s** | Les 6 échecs sont des **préconditions de données**, pas des bugs : `Error: au moins un article premium seedé` et `Error: au moins un média certifié seedé` (requêtes `SELECT … WHERE "isPremium" = true` et `p.type = 'MEDIA'` vides), une page **404** pour `/article/souverainete-medias-independants` (slug **codé en dur** dans `e2e/core-journeys.spec.ts:17`, présent uniquement après `go run ./cmd/seed`), et 2 `page.goto: Test timeout of 60000ms exceeded` sur les parcours `public-reading-completion` (première compilation `next dev` + pages dépendantes du même seed). |
+
+**Blocage nommé, non contourné.** Le seed CI (`go run ./cmd/seed`) n'a **pas** été lancé : la seule base configurée est l'instance partagée du VPS Hetzner (`DATABASE_URL` → `116.203.158.47:15409`, cf. `AGENTS.md`), et écrire des données de démonstration dans une base partagée est une action réservée à l'utilisateur. Aucune couverture n'a été fabriquée à la place : `test-results/` et les rapports HTML sont des artefacts générés (gitignorés), et rien n'a été `skip`é.
+
+**Aucun changement de code n'a été nécessaire** : ni le build, ni le harnais e2e, ni les paquets Go sans base n'ont révélé de défaut. Cette fiche consigne donc une mesure, pas un correctif — **aucune dette nouvelle**.
+
+**Non vérifié.** `pnpm test:api` complet (tous les paquets Go, dont ceux adossés à Postgres/Testcontainers et les gates de couverture du job `api`) ; les projets e2e `public-web`/`core-journeys` en entier (6 cas dépendants du seed), `security`, `hydratation`, `routes`, `e2e-apps` et `e2e-apps-routes` (tous deux adossés à Postgres + Redis + seed) ; `next start` sur un build prod (le harnais a tourné en `next dev`) ; aucune vérification visuelle des pages réelles au-delà des 4 contrats `setContent`.
 
 ---
 
