@@ -81,7 +81,10 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L17     | `packages/devtools/src/**`                                                                                   | 2 fichiers src + 1 suite    | **durci le 2026-11-19** |
 | L18     | `packages/social/src/**`                                                                                     | 5 sources + 2 suites        | **durci le 2026-11-19** |
 | L19     | `packages/tsconfig/**`                                                                                       | 4 presets + racine + garde  | **durci le 2026-11-19** |
-| L20     | `apps/core/src/**`                                                                                           | 211 fichiers                | à auditer               |
+| L20a    | `apps/core/src/lib/**`                                                                                       | 24 fichiers · 3 242 l.      | **durci le 2026-11-19** |
+| L20b    | `apps/core/src/app/**`                                                                                       | 115 fichiers · 19 292 l.    | à auditer               |
+| L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | à auditer               |
+| L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
 | L21     | `apps/studio/src/**`                                                                                         | 509 fichiers                | à auditer               |
 | L22     | `apps/admin/src/**`                                                                                          | 178 fichiers                | à auditer               |
 | L23     | `apps/tenants/src/**`                                                                                        | 85 fichiers                 | à auditer               |
@@ -102,7 +105,8 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L20 — `apps/core/src/**`.**
+**Prochain lot à traiter : L20b — `apps/core/src/app/**`** (L20a clos ; ordre :
+L20b routes/layouts, L20c composants, L20d hooks/features).
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -881,6 +885,10 @@ nommé), puis verts après restauration.
 | R61 | `nextUrl` de bout en bout : `AuthModalContext` le calcule (`?auth=…&next=…`, URL courante), `GlobalAuthModalProvider` le transmet, `LoginModal` l'accepte… et ne l'utilise jamais. Après connexion, `router.refresh()` garde la page courante. `setMode` n'a aucun consommateur, et `?auth=login` n'est jamais retiré de l'URL (recharger rouvre la modale). | moyenne | Décision produit (revenir à l'URL d'origine après connexion, ou rester sur place ; nettoyer le paramètre au passage) — voir L07c. |
 | R63 | `deeplink.Notification` (Go) émet **`/article/{slug}`** — l'ancienne forme : 308 côté tenants, **404 côté core** — pour `LIKE`/`REPOST`/`COMMENT` sur article et pour le fan-out `MEDIA_ARTICLE_PUBLISHED`. `deeplink.Target` ne porte ni le propriétaire ni la catégorie, donc la canonique (`/{owner}/a/{slug}` ou `/{cat}/{slug}`) n'est pas constructible en l'état. Le garde `guard:article-links` ne scanne pas le Go : ce chemin lui échappe. | moyenne | Décision serveur : ajouter `OwnerUsername` (ou `CategorySlug`) au `Target` et construire la canonique, ou assumer que le client ne reçoit que des `url` déjà canoniques. Voir L07e. |
 | R74 | `canonicalEmail` est calculé par `@qoe/moderation` et écrit dans les métadonnées Supabase (`options.data`) au signup, mais **aucun code ne le lit** : ni le sync Go, ni la base (aucun index unique). L'anti-multi-comptes annoncé par le module ne s'exerce donc pas au-delà du jour de l'inscription, et la suppression systématique du tag `+` (tous fournisseurs, pas seulement Gmail) n'a aucune conséquence observable. | moyenne | Arbitrage backend : colonne `canonicalEmail` + index unique dans une migration goose, puis refus de doublon côté Go (`/v1/auth/sync`), en décidant si l'on garde Gmail uniquement pour les points. Voir L14. |
+| R91 | Le job CI **`unit-and-coverage` est rouge** : `ERROR: Coverage for branches (78.18%) does not meet "packages/flags/**" threshold (85%)`. Cause mesurée : `gate.tsx` (20 % st., **0 % br.**), `provider.tsx` (18,75 % st., **0 % br.**), `hooks.ts` (50 % st.) ne sont couverts par aucun test React — c'est la conséquence directe de **R75** (aucune infra de test React). Reproductible **avant** L20a (même erreur avec le lot `git stash`), donc préexistant. | moyenne | Arbitrage : monter R75 (infra de rendu partagée) puis tester `gate.tsx`/`provider.tsx`, ou abaisser le seuil branches de `packages/flags/**` en le documentant — à trancher hors `apps/core`. Voir L20a. |
+| R90 | `apps/core/src/lib/plus-status.ts` garde `cached`/`inflight` au **niveau module**, sans aucune invalidation : une déconnexion/reconnexion dans le même onglet conserve le statut Plus du compte précédent jusqu'au rechargement complet. | moyenne | Arbitrage : invalider depuis le flux d'auth (événement `SIGNED_OUT`) ou exposer un TTL ; impact réel dépend du mode de déconnexion (reload complet aujourd'hui). Voir L20a. |
+| R89 | `apps/core/src/lib/supabase/{client,server}.ts` dupliquent `createClient` de `@qoe/supabase/{client,server}` — et le même app utilise les deux (`home-feed-data.ts` importe le paquet, `cached-queries.ts` la copie locale). | faible | Arbitrage : supprimer la copie locale et importer le paquet (vérifier que les options de cookies sont identiques avant bascule). Voir L20a. |
+| R88 | Surface morte côté production dans `apps/core/src/lib` : `getCachedTrends`, `hasOfflinePack`, `purgeOfflinePacks` ne sont appelés que par leurs tests (la prod utilise `fetchSemanticTrends` et les variantes `*Async`). Non supprimés : leur retrait exigerait de supprimer des tests (interdit). | faible | Arbitrage : décider si le magasin hors-ligne expose une API publique (alors la documenter) ou retirer les fonctions mortes avec leurs tests dans un lot dédié. Voir L20a. |
 | R87 | `vitest.config.ts` (racine) garde un alias `@` → `./src` qui n'existe pas, et un bloc `exclude` redondant avec les configs de paquets. Inoffensif aujourd'hui (aucun test racine n'importe `@/…`) mais c'est le même mensonge de config que F213. | faible | Arbitrage : supprimer l'alias ou le faire pointer vers `apps/core/src` comme `vitest.coverage.config.ts` ; à décider quand les configs racine bougeront. Voir L19. |
 | R86 | `noUncheckedIndexedAccess` reste **absent** de tous les presets. Coût mesuré à l'activation : 3 erreurs (`packages/social`), 4 (`packages/config`), 0 (`packages/observability`) — activable paquet par paquet mais pas dans `base.json` sans un chantier transverse. | moyenne | Arbitrage : activer dans `base.json` et corriger l'ensemble du monorepo dans un lot dédié (ou l'activer d'abord sur les paquets qui sont déjà à 0). Voir L19. |
 | R85 | Divergence des règles de mention entre les trois implémentations : `@qoe/social` (parité antispam, 40 car.) , `apps/api/internal/antispam` (`@` précédé de `[^a-zA-Z0-9._%+-]`) et `apps/api/internal/modules/posts/notifications.go` (`@([a-zA-Z0-9_]+)` — ni point ni tiret). Un handle `@jean.dupont` est donc lié dans l'UI, indexé par l'antispam, mais **ne notifie jamais** son destinataire. | moyenne | Arbitrage : extraire la règle unique (Go) et faire consommer la même liste de handles par la notification et par le rendu ; nécessite une décision sur les handles à point. Voir L18. |
@@ -1418,6 +1426,83 @@ existante modifiée, aucune doublure touchée.
 **Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65**, **R66**
 restent **ouvertes**. Nouvelle dette : **R67** (surfaces `continuous`,
 `highlighter`, `paywall`, `excerpt` sans consommateur TS).
+
+---
+
+## L20a — `apps/core/src/lib` flux vectoriel, cache moteur, hors-ligne — durci le 2026-11-19
+
+**Découpage (mesuré).** `apps/core/src/**` fait **187 fichiers / 29 774 lignes** :
+non auditable sérieusement en un tour. Le lot est découpé et consigné dans
+l'index : **L20a `lib/**`** (24 fichiers, 3 242 l., **clos ici**), **L20b
+`app/**`** (115 fichiers, 19 292 l.), **L20c `components/**`** (44 fichiers,
+7 041 l.), **L20d `{hooks,features}` + `instrumentation.ts`** (4 fichiers,
+301 l.).
+
+**Périmètre L20a.** Les **12 sources** lues en entier (`analytics`,
+`cached-queries`, `canonical-document`, `feed-types`, `home-feed-data`, `me`,
+`offline-store`, `plus-status`, `supabase/{client,server}`, `use-plus`, `utils`,
+`vector-feed`) + les **12 suites** existantes (255 tests). Consommateurs réels
+vérifiés par import : `app/(reader)/…/page.tsx`, `api/feed/personalized`,
+`components/…`, `@qoe/social` (`formatPollData`), `@qoe/sdk` (`goFetch`), et côté
+Go `posts/{dto,assembly}.go` pour la shape du sondage.
+
+| #    | Défaut                                                                                                                                                                                                                                   | Sévérité | Statut                                                                                                                                                                                                                                                                    |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F218 | Une **promesse rejetée restait 60 s dans le cache moteur** (`feedEngineCache.set(key, { data: promise })`) : un seul blip réseau du moteur Go vidait le flux « Pour vous » de tous les rendus suivants, sans nouvel essai, alors que la panne était déjà passée. | haute    | corrigé — l'entrée est retirée dès le rejet (`promise.catch` + contrôle d'identité de l'entrée) : l'appel suivant retente le moteur ; rouge : `AssertionError: expected 1 to be 2` (2ᵉ appel sans retry), vert après                                                                 |
+| F219 | `publicationProfileSelect` était **exporté et jamais consommé** (aucun import dans `apps` ni `packages`, aucun test) : 9 lignes de sélection morte dans le module du flux. | faible   | corrigé — export supprimé ; rouge : `grep -rn "\bpublicationProfileSelect\b"` → **1 occurrence** (la définition seule) ; `tsc --noEmit` et les 256 tests restent verts après suppression |
+
+**Candidats examinés puis ABANDONNÉS** (rouge impossible sans casser une assertion existante, ou défaut non reproductible) :
+
+- **`nextOffset = offset + items.length`** (au lieu de `offset + pageItems.length`)
+  : avec un id non hydraté, la page suivante peut re-servir des items déjà
+  affichés. Le comportement est **verrouillé par une assertion existante**
+  (`vector-feed.test.ts:731` attend `nextOffset === 2` pour 3 items moteur dont
+  1 inconnu) : le corriger exigerait de modifier cette assertion → interdit.
+- **`reposted` calculé par heuristique** (`some(r => !r.content.trim())` sur
+  `post.reposts`) : dépend de la filtration côté Go ; une assertion existante
+  (`vector-feed.test.ts:287`) fixe la sémantique → hors lot.
+- **`toISO` sur date invalide** (`new Date('x').toISOString()` → `RangeError`) :
+  aucun producteur réel n'envoie de date non parsable (Go sert du RFC3339) →
+  défaut non reproductible sans inventer la donnée.
+- **`getCachedTrends`, `hasOfflinePack`, `purgeOfflinePacks`** : morts en
+  production mais testés ; leur retrait exigerait de supprimer des tests →
+  **R88**.
+- **`analytics.ts`** : `console.log` uniquement en `development`, `console.warn`
+  sur PostHog en échec — conforme, verrouillé par test.
+- **`use-plus.ts`** : `void fetchPlusStatus().then(...)` avec garde `alive` — pas
+  de promesse flottante dangereuse (le module ne rejette jamais).
+- **Duplication Supabase** (`lib/supabase/*` vs `@qoe/supabase/*`) → **R89** ;
+  **cache Plus jamais invalidé** → **R90**.
+
+**Preuve rouge → vert.** Suite ajoutée **avant** correctif (dernier `describe` de
+`vector-feed.test.ts`) : `× une erreur transitoire du moteur ne condamne pas la
+page pendant 60 s` → `AssertionError: expected 1 to be 2`. Aucune assertion
+existante modifiée, aucun test supprimé, aucun `any` introduit.
+
+**Preuves (arbre propre, après commit) :**
+
+| Commande | Avant | Après |
+| -------- | ----- | ----- |
+| `pnpm --filter @qoe/core test` | 32 fichiers · **255 tests** | 32 fichiers · **256 tests** |
+| `vector-feed.ts` (couverture, run agrégé racine) | 40 tests sur le fichier | 41 tests · **100 / 85,23 / 100 / 100** |
+| `pnpm --filter @qoe/core lint` | 0 erreur (10 warnings) | **0 erreur** (10 warnings préexistants) |
+| `pnpm lint` / `pnpm typecheck` / `pnpm test` | — | **25/25 · 25/25 · 24/24 tâches** |
+| `pnpm typecheck:root` | ✔ | **✔** |
+| gardes CI (10) | vertes | **vertes** |
+
+**Non vérifié / rouge préexistant constaté.** `pnpm test:coverage` (job CI
+`unit-and-coverage`) **échoue** : `ERROR: Coverage for branches (78.18%) does not
+meet "packages/flags/**" threshold (85%)`. Reproductible avec le lot retiré
+(`git stash` → même erreur), donc **antérieur à L20a** ; cause mesurée :
+`gate.tsx` 0 % de branches, `provider.tsx` 0 %, `hooks.ts` 50 % — conséquence de
+**R75** (aucune infra de test React). Consigné en **R91**, hors périmètre `lib`.
+Aucun navigateur ni rendu React exécuté ; `offline-store` testé sur un faux
+`Storage` (aucun `localStorage`/IndexedDB réel).
+
+**Dettes.** **R01**, **R54**, **R56**, **R63** à **R68**, **R71** à **R74**,
+**R78** à **R87** restent **ouvertes**. Nouvelles dettes : **R88** (surface morte
+testée), **R89** (client Supabase dupliqué), **R90** (cache Plus non invalidé),
+**R91** (job de couverture rouge sur `packages/flags`).
 
 ---
 

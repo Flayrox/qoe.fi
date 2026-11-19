@@ -818,3 +818,26 @@ describe('buildVectorFeedPage', () => {
     expect(engineCalls).toBe(502);
   });
 });
+
+describe('buildVectorFeedPage — résilience du cache moteur (L20a)', () => {
+  it('une erreur transitoire du moteur ne condamne pas la page pendant 60 s', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let engineTries = 0;
+    goFetchMock.mockImplementation(async (path: string) => {
+      if (path.startsWith('/v1/feed/personalized')) {
+        engineTries += 1;
+        // Premier appel : blip réseau. Les suivants répondent normalement.
+        if (engineTries === 1) throw new Error('blip réseau');
+        return { items: [{ itemType: 'ARTICLE', id: 'a1' }], hasMore: false };
+      }
+      return { articles: [article({ id: 'a1' })], thoughts: [] };
+    });
+
+    const first = await buildVectorFeedPage({ userId: 'retry-u', limit: 3, offset: 0 });
+    expect(first.items).toHaveLength(0);
+
+    const second = await buildVectorFeedPage({ userId: 'retry-u', limit: 3, offset: 0 });
+    expect(engineTries).toBe(2);
+    expect(second.items).toHaveLength(1);
+  });
+});

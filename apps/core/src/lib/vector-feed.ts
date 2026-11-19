@@ -19,18 +19,6 @@ import {
   type FormattedPoll,
 } from '@/lib/feed-types';
 
-export const publicationProfileSelect = {
-  id: true,
-  type: true,
-  name: true,
-  slug: true,
-  subdomain: true,
-  customDomain: true,
-  logoUrl: true,
-  heroText: true,
-  isCertified: true,
-} as const;
-
 // Article complet du feed (parité avec le JSON Go — GET /v1/feed/hydrate).
 export type ArticleWithDetails = FeedArticle;
 
@@ -480,7 +468,16 @@ function getCachedEnginePage(
   if (hit && hit.expires > Date.now()) return hit.data;
 
   const promise = getEnginePage(userId, limit, offset);
-  feedEngineCache.set(key, { expires: Date.now() + FEED_CACHE_TTL_MS, data: promise });
+  const entry = { expires: Date.now() + FEED_CACHE_TTL_MS, data: promise };
+  feedEngineCache.set(key, entry);
+
+  // ⚠️ Une promesse REJETÉE restait en cache 60 s : un seul blip réseau du
+  // moteur vidait le flux « Pour vous » de tous les rendus suivants, sans
+  // nouvel essai. On retire l'entrée dès le rejet pour que l'appel suivant
+  // retente (le repli feed vide, lui, ne change pas).
+  promise.catch(() => {
+    if (feedEngineCache.get(key) === entry) feedEngineCache.delete(key);
+  });
 
   // Éviction LRU simple : on supprime l'entrée la plus ancienne si trop plein
   if (feedEngineCache.size > FEED_CACHE_MAX_ENTRIES) {
