@@ -27,6 +27,46 @@ export interface UmamiTimeseriesPoint {
 let cachedToken: string | null = null;
 let cachedAt = 0;
 
+/** Délai maximal accordé à l'API Umami (login compris) : un Umami qui ne
+ * répond pas ne doit pas retenir le rendu du dashboard. */
+export const UMAMI_TIMEOUT_MS = 5_000;
+
+/** Invalide le token caché s'il s'agit bien de celui qui vient d'échouer. */
+function invalidateToken(stale: string | null): void {
+  if (stale !== null && cachedToken === stale) {
+    cachedToken = null;
+    cachedAt = 0;
+  }
+}
+
+/**
+ * GET authentifié vers l'API Umami, avec un rejeu unique sur 401 : un token
+ * révoqué/expiré laissait sinon tout le dashboard vide pendant 4 h.
+ * Renvoie `null` quand aucune authentification n'est configurée.
+ */
+async function fetchWithToken(url: string): Promise<Response | null> {
+  const token = await getUmamiToken();
+  if (!token) {
+    return null;
+  }
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(UMAMI_TIMEOUT_MS),
+  });
+  if (res.status !== 401) {
+    return res;
+  }
+  invalidateToken(token);
+  const fresh = await getUmamiToken();
+  if (!fresh || fresh === token) {
+    return res;
+  }
+  return fetch(url, {
+    headers: { Authorization: `Bearer ${fresh}` },
+    signal: AbortSignal.timeout(UMAMI_TIMEOUT_MS),
+  });
+}
+
 function getApiUrl(): string {
   const url = process.env.UMAMI_API_URL || 'https://api.umami.is/v1';
   return url.replace(/\/+$/, '');
@@ -49,6 +89,7 @@ async function getUmamiToken(): Promise<string | null> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: user, password: pass }),
+      signal: AbortSignal.timeout(UMAMI_TIMEOUT_MS),
     });
     if (!res.ok) {
       console.error(`Umami login failed (${res.status})`);
@@ -87,9 +128,8 @@ export async function fetchUmamiWebsiteStats(
   endAt: number
 ): Promise<UmamiStats | null> {
   const apiUrl = getApiUrl();
-  const token = await getUmamiToken();
 
-  if (!websiteId || !token) {
+  if (!websiteId) {
     return {
       pageviews: 0,
       visitors: 0,
@@ -100,14 +140,14 @@ export async function fetchUmamiWebsiteStats(
   }
 
   try {
-    const res = await fetch(
-      `${apiUrl}/websites/${websiteId}/stats?startAt=${startAt}&endAt=${endAt}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
+    const res = await fetchWithToken(
+      `${apiUrl}/websites/${websiteId}/stats?startAt=${startAt}&endAt=${endAt}`
     );
+
+    if (!res) {
+      // Aucune authentification configurée : zéro plutôt qu'une erreur.
+      return { pageviews: 0, visitors: 0, visits: 0, bounces: 0, totaltime: 0 };
+    }
 
     if (!res.ok) {
       console.warn(`Umami stats ${res.status} for ${websiteId}`);
@@ -131,9 +171,8 @@ export async function fetchUmamiPageviewsSeries(
   url?: string
 ): Promise<UmamiTimeseriesPoint[]> {
   const apiUrl = getApiUrl();
-  const token = await getUmamiToken();
 
-  if (!websiteId || !token) {
+  if (!websiteId) {
     return [];
   }
 
@@ -143,19 +182,23 @@ export async function fetchUmamiPageviewsSeries(
       endpoint += `&url=${encodeURIComponent(url)}`;
     }
 
-    const res = await fetch(endpoint, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const res = await fetchWithToken(endpoint);
+
+    if (!res) {
+      return [];
+    }
 
     if (!res.ok) {
       console.warn(`Umami pageviews ${res.status} for ${websiteId}`);
       return [];
     }
-    const data = (await res.json()) as { pageviews?: unknown[] } | unknown[];
-    const rows = Array.isArray(data) ? data : data?.pageviews;
-    return (rows || []) as UmamiTimeseriesPoint[];
+    const data: unknown = await res.json();
+    const rows = Array.isArray(data)
+      ? data
+      : Array.isArray((data as { pageviews?: unknown })?.pageviews)
+        ? (data as { pageviews: unknown[] }).pageviews
+        : [];
+    return rows as UmamiTimeseriesPoint[];
   } catch (error) {
     console.error('Failed to fetch Umami pageviews series:', error);
     return [];
@@ -199,9 +242,8 @@ export async function fetchUmamiMetrics(
   url?: string
 ): Promise<UmamiPageMetric[]> {
   const apiUrl = getApiUrl();
-  const token = await getUmamiToken();
 
-  if (!websiteId || !token) {
+  if (!websiteId) {
     return [];
   }
 
@@ -211,17 +253,20 @@ export async function fetchUmamiMetrics(
       endpoint += `&url=${encodeURIComponent(url)}`;
     }
 
-    const res = await fetch(endpoint, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const res = await fetchWithToken(endpoint);
+
+    if (!res) {
+      return [];
+    }
 
     if (!res.ok) {
       console.warn(`Umami metrics ${type} ${res.status} for ${websiteId}`);
       return [];
     }
-    return (await res.json()) as UmamiPageMetric[];
+    // Une réponse inattendue ({error: …}, quota, proxy) ne doit jamais
+    // remonter telle quelle : le dashboard appellerait `.map` sur un objet.
+    const data: unknown = await res.json();
+    return Array.isArray(data) ? (data as UmamiPageMetric[]) : [];
   } catch (error) {
     console.error(`Failed to fetch Umami metrics for type ${type}:`, error);
     return [];

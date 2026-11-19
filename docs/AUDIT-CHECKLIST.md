@@ -76,7 +76,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L12     | `packages/formatters/src/**`                                                                                 | 5 fichiers                  | **durci le 2026-11-19** |
 | L13     | `packages/i18n/src/**` + `messages/`                                                                         | 12 fichiers                 | **durci le 2026-11-19** |
 | L14     | `packages/moderation/src/**`                                                                                 | 16 fichiers src + 2 suites  | **durci le 2026-11-19** |
-| L15     | `packages/analytics/src/**`                                                                                  | 12 fichiers                 | à auditer               |
+| L15     | `packages/analytics/src/**`                                                                                  | 8 fichiers src + 6 suites   | **durci le 2026-11-19** |
 | L16     | `packages/observability/src/**`                                                                              | 7 fichiers                  | à auditer               |
 | L17     | `packages/devtools/src/**`                                                                                   | 2 fichiers                  | à auditer               |
 | L18     | `packages/social/src/**`                                                                                     | 6 fichiers                  | à auditer               |
@@ -102,7 +102,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L15 — `packages/analytics`.**
+**Prochain lot à traiter : L16 — `packages/observability`.**
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -881,6 +881,9 @@ nommé), puis verts après restauration.
 | R61 | `nextUrl` de bout en bout : `AuthModalContext` le calcule (`?auth=…&next=…`, URL courante), `GlobalAuthModalProvider` le transmet, `LoginModal` l'accepte… et ne l'utilise jamais. Après connexion, `router.refresh()` garde la page courante. `setMode` n'a aucun consommateur, et `?auth=login` n'est jamais retiré de l'URL (recharger rouvre la modale). | moyenne | Décision produit (revenir à l'URL d'origine après connexion, ou rester sur place ; nettoyer le paramètre au passage) — voir L07c. |
 | R63 | `deeplink.Notification` (Go) émet **`/article/{slug}`** — l'ancienne forme : 308 côté tenants, **404 côté core** — pour `LIKE`/`REPOST`/`COMMENT` sur article et pour le fan-out `MEDIA_ARTICLE_PUBLISHED`. `deeplink.Target` ne porte ni le propriétaire ni la catégorie, donc la canonique (`/{owner}/a/{slug}` ou `/{cat}/{slug}`) n'est pas constructible en l'état. Le garde `guard:article-links` ne scanne pas le Go : ce chemin lui échappe. | moyenne | Décision serveur : ajouter `OwnerUsername` (ou `CategorySlug`) au `Target` et construire la canonique, ou assumer que le client ne reçoit que des `url` déjà canoniques. Voir L07e. |
 | R74 | `canonicalEmail` est calculé par `@qoe/moderation` et écrit dans les métadonnées Supabase (`options.data`) au signup, mais **aucun code ne le lit** : ni le sync Go, ni la base (aucun index unique). L'anti-multi-comptes annoncé par le module ne s'exerce donc pas au-delà du jour de l'inscription, et la suppression systématique du tag `+` (tous fournisseurs, pas seulement Gmail) n'a aucune conséquence observable. | moyenne | Arbitrage backend : colonne `canonicalEmail` + index unique dans une migration goose, puis refus de doublon côté Go (`/v1/auth/sync`), en décidant si l'on garde Gmail uniquement pour les points. Voir L14. |
+| R77 | `getApiUrl()` de `@qoe/analytics/server` retombe sur `https://api.umami.is/v1` — un domaine **cloud propriétaire** en dur — quand `UMAMI_API_URL` est absent : en self-hosted mal configuré, c'est notre token Umami qui part vers le cloud d'un tiers (règle « self-hosted d'abord, aucun domaine propriétaire dans la logique »). | moyenne | Décider du défaut : rendre une valeur vide (dashboard sans données, aucune fuite) ou exiger la variable au démarrage. Changement de comportement observable → décision produit avant correctif. Voir L15. |
+| R76 | `resolveReadingProvenance` accepte **n'importe quel** `?ref=<valeur>` comme username de référent (`?ref=newsletter` → `referrerUsername: 'newsletter'`), d'où des attributions de provenance erronées en base. Le contrat documenté (`?ref=simone`) rend la valeur légitime indiscernable d'un token de campagne. | faible | Décision produit : liste blanche de tokens, ou format `profile:`/`@` obligatoire (casse les liens `?ref=simone` existants). Voir L15. |
+| R75 | `packages/analytics` n'a **aucune infrastructure de test React** (ni `jsdom`, ni `@testing-library/react` en devDependencies) : `client.tsx` (chargement du script, `trackEvent`, opt-out `umami.disabled`), les deux hooks et le câblage beacon ne sont couverts par **aucune** suite. Le défaut constaté dans `useTrackEvent` (dépendance à l'identité de `data` ⇒ event re-tiré à chaque rendu) n'est donc pas prouvable rouge. | moyenne | Arbitrage : ajouter jsdom + testing-library aux devDependencies du paquet (impact lockfile) puis poser un plancher sur ces fichiers, ou extraire la logique des hooks en modules purs testables. Voir L15. |
 | R73 | `OpenAiModerator` est **fail-open** : sans `OPENAI_API_KEY`, avec une clé `sk-mock`/`sk-...`, en cas d'erreur HTTP, de timeout ou de réseau, le contenu est déclaré sain (`safe: true`). C'est un choix produit documenté, mais en production une clé manquante désactive silencieusement toute modération IA. | moyenne | Décision produit : conserver le fail-open avec **alerte** (métrique `moderation.fallback`) ou basculer les médias/CSAM en fail-closed avec file d'attente. Voir L14. |
 | R72 | `translate`/`compileMessage` de `@qoe/i18n` avalent silencieusement toute erreur de syntaxe ICU (repli sur le message par défaut) : une clé cassée en production ne laisse aucune trace, alors qu'un avertissement hors production suffirait à la voir en CI. | faible | Décider du volume de bruit accepté en CI avant d'ajouter le `console.warn` conditionné à `NODE_ENV !== 'production'`. Voir L13. |
 | R71 | Les macros Lingui (`t\`…\``) des Server Components lisent le singleton activé par `initI18n` dans chaque layout : deux requêtes SSR concurrentes en `fr` et `en` peuvent encore s'entrelacer entre l'activation et le rendu des enfants (la voie `translateKey`/`getTranslate` est isolée depuis L13). | moyenne | Arbitrage d'architecture : passer ces macros en composants clients `useLingui()`, ou stocker l'instance par requête (`AsyncLocalStorage`). Voir L13. |
@@ -1405,6 +1408,87 @@ existante modifiée, aucune doublure touchée.
 **Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65**, **R66**
 restent **ouvertes**. Nouvelle dette : **R67** (surfaces `continuous`,
 `highlighter`, `paywall`, `excerpt` sans consommateur TS).
+
+---
+
+## L15 — `@qoe/analytics` referrers, Umami, lecture — durci le 2026-11-19
+
+**Périmètre.** Les **8 sources + 5 suites** lues en entier (`index`, `client.tsx`,
+`events`, `referrers`, `server`, `useArticleReadingTracker`,
+`useFeedImpressionTracker`, `creator-analytics-aggregations.test`), + `package.json`,
+`tsconfig.json`, `vitest.config.ts` et la config de couverture racine.
+**Consommateurs réels vérifiés par import** : `apps/core` (`lib/analytics.ts`,
+`AnalyticsGate`, `FeedDashboard`, `LibraryClient`, `ArticleAnnotatorView`),
+`apps/tenants` (`AnalyticsGate`, `TenantArticleReadingTracker`), `apps/studio`
+(`analytics/actions.ts` + blocs `TopPagesBlock`/`ReferrersBlock`/`DevicesAndGeoBlock`/
+`TimeseriesChart`), `apps/admin` (layout), `apps/hi`. **Contrat serveur relu** :
+`apps/core/src/app/api/analytics/{reading-session,feed-impression}/route.ts` et
+`apps/tenants/.../reading-session/route.ts` (validation du statut/source, clamp
+du scroll, fallback d'hôte) — le payload du hook correspond exactement à ce que
+ces routes attendent (`hostname`, `referrerUsername`, `status`, `scrollDepth`).
+
+| #    | Défaut                                                                                                                                                                                                                                              | Sévérité | Statut                                                                                                                                                                                                                                     |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F188 | `getReferrerLabel` classait sur l'**URL entière** : `https://example.com/t.co/article` devenait « X / Twitter » et `https://myblog.com/google-analytics-guide` devenait « Google Search » — les blocs Sources/Referrers du studio affichaient donc de fausses catégories. | moyenne  | corrigé — extraction de l'hôte (`new URL(...)`, domaine nu accepté) et motifs appliqués **à l'hôte seul** ; test : **échouait** (`expected 'Réseaux Sociaux' to be 'Web Referrer'` et `expected 'Recherche' to be 'Web Referrer'`), vert après |
+| F189 | Aucun appel à l'API Umami n'était borné : login self-hosted, stats, timeseries et metrics utilisaient `fetch` **sans signal**. Un Umami qui ne répond pas retenait le rendu du dashboard (`apps/studio/analytics`) indéfiniment. | moyenne  | corrigé — `AbortSignal.timeout(UMAMI_TIMEOUT_MS = 5 000)` sur les 4 appels ; test : **échouait** (`expected undefined to be an instance of AbortSignal`), vert après |
+| F190 | Un token Umami **révoqué/expiré** (401) n'invalidait pas le cache : le dashboard restait vide jusqu'à l'expiration des 4 h, sans nouvelle tentative de login. | moyenne  | corrigé — `fetchWithToken` : sur 401, invalidation du token de ce token précis puis **un** rejeu avec un token neuf ; test : **échouait** (`expected 1 to be 2` — un seul login, zéro donnée), vert après |
+| F191 | Les réponses Umami étaient converties par simple `as UmamiPageMetric[]` : `{error: 'quota exceeded'}` traversait le typage et remontait jusqu'au studio, qui appelle `.map` dessus. | moyenne  | corrigé — validation `Array.isArray` (metrics et timeseries, y compris la forme `{pageviews: [...]}`) ; test : **échouait** (`expected { error: 'quota exceeded' } to deeply equal []`), vert après |
+| F192 | **Les suites ne testaient pas le paquet** : `reading-tracker-logic.test.ts` et `creator-analytics-aggregations.test.ts` **recopiaient** la logique dans le fichier de test, si bien que `useArticleReadingTracker.ts`, `client.tsx` et les hooks n'étaient chargés par aucune suite (couverture 74,15 % avec ces fichiers à 0 %, invisibles du rapport). La logique était de plus **dupliquée** dans le hook (tick temps réel + rapport final) et classait `studio.qoe.fi`/`api.qoe.fi`/`studio.qoe.test` comme **publications de créateur**. | moyenne  | corrigé — extraction de `src/reading.ts` (`classifyReadingStatus`, `resolveReadingSource`, `resolveReadingProvenanceFrom`, `tenantHostname` avec liste des sous-domaines produit + apex), consommée par le hook et exportée par le barrel ; 7 tests sur les fonctions réelles. Test : **échouait** (`Cannot find module '/src/reading'` — aucune fonction publique n'existait) |
+| F193 | Le paquet n'avait **ni `test:coverage`, ni plancher de couverture** : aucun gate ne mesurait `packages/analytics`, absent aussi de la config de couverture racine. | faible   | corrigé — `test:coverage` + `vitest.config.ts` (plancher 93/90/100/92) ; preuve : les seuils passent à 93,97/91,42/100/93,78 |
+
+**Candidats examinés puis ABANDONNÉS** (pas de rouge = pas de correctif) :
+
+- **`useTrackEvent` dépend de l'identité de `data`** : l'effet re-tire l'event à
+  chaque rendu dès que l'appelant passe un littéral. Défaut réel à la lecture,
+  mais **aucun rouge possible** ici : le paquet n'a ni `jsdom` ni
+  `@testing-library/react` (ajout de dépendances = décision + lockfile). Consigné
+  en **R75**, non corrigé à l'aveugle.
+- **`?ref=<valeur libre>` accepté comme username** : contrat documenté ambigu
+  (`?ref=simone` est légitime), donc pas de correctif sans décision produit →
+  **R76**.
+- **Zéros plutôt que `null` quand aucune auth n'est configurée** : comportement
+  verrouillé par le test existant (`retourne des zéros quand aucune auth n'est
+  configurée`) — conservé tel quel.
+
+**Preuve rouge → vert.** Suite écrite avant correctifs (`analytics-hardening.test.ts`) :
+premier passage **9 échecs / 10** (`Tests 9 failed | 1 passed`), messages cités
+ci-dessus. Les 5 suites historiques (27 tests) sont restées vertes **sans aucune
+modification d'assertion** — y compris les deux suites qui testent des copies,
+laissées intactes comme documentation de la spec. Doublures ajoutées : `fetch`
+global uniquement.
+
+**Preuves (arbre propre, après commit) :**
+
+| Commande | Avant | Après |
+| -------- | ----- | ----- |
+| `pnpm --filter @qoe/analytics test` | 27 tests / 5 fichiers | **44 tests / 6 fichiers verts** |
+| `pnpm --filter @qoe/analytics test:coverage` | 74,15 % st. · 75,86 % br. · 66,66 % fn. · 72,61 % lignes — **aucun seuil**, `client.tsx`/hooks/`reading` invisibles | **93,97 % · 91,42 % · 100 % · 93,78 %** (plancher 93/90/100/92) |
+| `pnpm --filter @qoe/analytics lint` / `typecheck` | 0 / 0 | **0 / 0** |
+| `pnpm --filter @qoe/studio test` (consommateur direct) | 575 / 64 | **575 / 64 verts** |
+| `pnpm --filter @qoe/core test` (consommateur direct) | 255 / 32 | **255 / 32 verts** |
+| `pnpm --filter @qoe/tenants test` (consommateur direct) | 39 | **39 verts** |
+| `pnpm test` (monorepo complet, turbo) | — | **24/24 tâches, 0 échec** |
+| `pnpm typecheck` | 25/25 | **25/25 tâches** |
+| les 9 gardes CI | vertes | **vertes** |
+
+**Observations trouvées, volontairement non corrigées.**
+
+- `fetchUmamiWebsiteStats` rend des **zéros** (et non `null`) sans
+  authentification : le studio ne peut pas distinguer « Umami non configuré »
+  de « zéro vue ». Comportement verrouillé par un test existant.
+- `limit` est transmis brut à Umami (aucune borne) : l'appelant est le studio
+  (`limit` constant), aucune entrée utilisateur.
+- `EVENTS`/`EventProps` : le type `EventProps` ne couvre que 6 des 29 events du
+  catalogue. Il n'est consommé nulle part aujourd'hui ; le compléter demanderait
+  de typer chaque propriété métier.
+- Le buffer d'impressions (`useFeedImpressionTracker`) est module-level et son
+  minuteur de flush n'est jamais annulé : voulu (le lot doit survivre au
+  démontage des cartes).
+
+**Dettes.** **R01**, **R54**, **R56**, **R63** à **R68**, **R71** à **R74**
+restent **ouvertes**. Nouvelles dettes : **R75** (aucune infra de test React),
+**R76** (`?ref` libre interprété comme username), **R77** (défaut cloud
+`api.umami.is` quand `UMAMI_API_URL` manque).
 
 ---
 

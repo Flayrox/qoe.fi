@@ -30,6 +30,14 @@ export {
   type UseArticleReadingTrackerProps,
 } from './useArticleReadingTracker';
 export { useFeedImpressionTracker, type FeedImpressionItem } from './useFeedImpressionTracker';
+export {
+  classifyReadingStatus,
+  resolveReadingProvenanceFrom,
+  resolveReadingSource,
+  tenantHostname,
+  type ReadingLocation,
+  type ReadingProvenance,
+} from './reading';
 // NOTE : creator-analytics est server-only (requiert la base via SQL direct).
 // Exposé via `@qoe/analytics/queries` pour ne pas faire fuiter Prisma/Redis
 // dans les bundles navigateur des composants client.

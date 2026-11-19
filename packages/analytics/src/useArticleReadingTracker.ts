@@ -13,9 +13,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { trackEvent } from './client';
 import { EVENTS } from './events';
+import {
+  classifyReadingStatus,
+  resolveReadingProvenanceFrom,
+  resolveReadingSource,
+  type ReadingSource,
+  type ReadingStatus,
+} from './reading';
 
-export type ReadingSource = 'feed' | 'subdomain' | 'public_profile' | 'direct';
-export type ReadingStatus = 'BOUNCE' | 'SKIM' | 'READ_PARTIAL' | 'READ_COMPLETE';
+export type { ReadingSource, ReadingStatus };
 
 export interface UseArticleReadingTrackerProps {
   articleId: string;
@@ -39,43 +45,21 @@ export interface ReadingTrackerState {
  * - hostname: "victor.qoe.fi" si lu depuis le tenant d'un créateur (sinon null)
  * - referrerUsername: "simone" si ?ref=profile:simone ou /@simone (profil public)
  */
+/**
+ * 🧭 Résout la provenance fine depuis la page courante.
+ * Délègue à `resolveReadingProvenanceFrom` (logique pure, testée).
+ */
 export function resolveReadingProvenance(): {
   hostname: string | null;
   referrerUsername: string | null;
 } {
   if (typeof window === 'undefined') return { hostname: null, referrerUsername: null };
 
-  const params = new URLSearchParams(window.location.search);
-  const refParam = params.get('ref') || params.get('source') || '';
-
-  let referrerUsername: string | null = null;
-  // Formats acceptés : ?ref=profile:simone, ?ref=simone, ?source=@simone
-  if (refParam.startsWith('profile:') || refParam.startsWith('@')) {
-    referrerUsername = refParam.replace(/^(profile:|@)/, '') || null;
-  } else if (!['feed', 'profile', 'author', 'direct'].includes(refParam) && refParam.length > 0) {
-    referrerUsername = refParam;
-  }
-  // Profil public /username dans l'URL
-  const profileMatch = window.location.pathname.match(/^\/@([a-z0-9-]+)/i);
-  if (!referrerUsername && profileMatch) {
-    referrerUsername = profileMatch[1];
-  }
-
-  const hostname = window.location.hostname;
-  const isTenant =
-    (hostname.endsWith('.qoe.fi') &&
-      !hostname.startsWith('core.') &&
-      !hostname.startsWith('www.') &&
-      !hostname.startsWith('dashboard.') &&
-      !hostname.startsWith('admin.')) ||
-    // Dev local : lvh.me / qoe.test avec sous-domaine
-    ((hostname.endsWith('.lvh.me') || hostname.endsWith('.qoe.test')) &&
-      !hostname.startsWith('www.'));
-
-  return {
-    hostname: isTenant ? hostname : null,
-    referrerUsername,
-  };
+  return resolveReadingProvenanceFrom({
+    pathname: window.location.pathname,
+    hostname: window.location.hostname,
+    search: window.location.search,
+  });
 }
 
 export function useArticleReadingTracker({
@@ -111,30 +95,12 @@ export function useArticleReadingTracker({
 
     provenanceRef.current = resolveReadingProvenance();
 
-    if (initialSource) {
-      sourceRef.current = initialSource;
-      return;
-    }
-
-    const params = new URLSearchParams(window.location.search);
-    const refParam = params.get('ref') || params.get('source');
-
-    if (refParam === 'feed' || window.location.pathname.startsWith('/home')) {
-      sourceRef.current = 'feed';
-    } else if (refParam === 'profile' || refParam === 'author') {
-      sourceRef.current = 'public_profile';
-    } else {
-      const hostname = window.location.hostname;
-      const isSubdomain =
-        hostname.includes('.qoe.fi') &&
-        !hostname.startsWith('core.') &&
-        !hostname.startsWith('www.');
-      if (isSubdomain) {
-        sourceRef.current = 'subdomain';
-      } else {
-        sourceRef.current = 'direct';
-      }
-    }
+    sourceRef.current = resolveReadingSource({
+      initialSource,
+      pathname: window.location.pathname,
+      hostname: window.location.hostname,
+      search: window.location.search,
+    });
   }, [initialSource]);
 
   // 2. Gestion du Dwell Time actif (Chronomètre intelligent)
@@ -178,21 +144,12 @@ export function useArticleReadingTracker({
       dwellSecondsRef.current += 1;
       setDwellSeconds(dwellSecondsRef.current);
 
-      // Évaluer le statut en temps réel
-      const expectedSeconds = readingTimeMinutes * 60;
-      const minReadingTime = expectedSeconds * 0.35; // 35% du temps estimé
-      const scroll = maxScrollRef.current;
-
-      let currentStatus: ReadingStatus = 'BOUNCE';
-      if (dwellSecondsRef.current < 10 && scroll < 25) {
-        currentStatus = 'BOUNCE';
-      } else if (scroll >= 80 && dwellSecondsRef.current < minReadingTime) {
-        currentStatus = 'SKIM'; // Survol rapide
-      } else if (scroll >= 85 && dwellSecondsRef.current >= minReadingTime) {
-        currentStatus = 'READ_COMPLETE'; // Vraie lecture complète certifiée
-      } else if (scroll >= 25) {
-        currentStatus = 'READ_PARTIAL';
-      }
+      // Évaluer le statut en temps réel (même règle que le rapport final)
+      const currentStatus = classifyReadingStatus(
+        dwellSecondsRef.current,
+        maxScrollRef.current,
+        readingTimeMinutes
+      );
 
       setStatus(currentStatus);
 
@@ -278,19 +235,7 @@ export function useArticleReadingTracker({
 
       reportedRef.current = true;
 
-      const expectedSeconds = readingTimeMinutes * 60;
-      const minReadingTime = expectedSeconds * 0.35;
-
-      let finalStatus: ReadingStatus = 'BOUNCE';
-      if (finalDwell < 10 && finalScroll < 25) {
-        finalStatus = 'BOUNCE';
-      } else if (finalScroll >= 80 && finalDwell < minReadingTime) {
-        finalStatus = 'SKIM';
-      } else if (finalScroll >= 85 && finalDwell >= minReadingTime) {
-        finalStatus = 'READ_COMPLETE';
-      } else if (finalScroll >= 25) {
-        finalStatus = 'READ_PARTIAL';
-      }
+      const finalStatus = classifyReadingStatus(finalDwell, finalScroll, readingTimeMinutes);
 
       // 1. Umami Event
       trackEvent(EVENTS.ARTICLE_READING_SESSION, {
