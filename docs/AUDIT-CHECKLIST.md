@@ -69,7 +69,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L07c    | `packages/ui/src/{auth,forms,providers}/**`                                                                  | 4 fichiers src (et 3 composants via barrel) | **durci le 2026-11-18** |
 | L07d    | `packages/ui/src/{security,seo,legal}/**`                                                                    | 13 fichiers src             | **durci le 2026-11-19** |
 | L07e    | `packages/ui/src/{notifications,onboarding,profile,social,cmdk,templates,sidebar.tsx}`                       | 86 fichiers (src + tests)   | **durci le 2026-11-19** |
-| L08     | `packages/theme/src/**`                                                                                      | 19 fichiers                 | à auditer               |
+| L08     | `packages/theme/src/**`                                                                                      | 19 fichiers                 | **durci le 2026-11-19** |
 | L09     | `packages/brand/src/**`                                                                                      | 10 fichiers                 | à auditer               |
 | L10     | `packages/content/src/**`                                                                                    | 25 fichiers                 | à auditer               |
 | L11     | `packages/config/src/**`                                                                                     | 17 fichiers                 | à auditer               |
@@ -880,6 +880,7 @@ nommé), puis verts après restauration.
 | R60 | `reader/useBionicReading` : le mode bionique écrit `innerHTML` dans un conteneur possédé par React et met l'original en cache dans `data-original-html`. Un corps re-rendu après activation (annotation ajoutée, document canonique rechargé) rend donc l'ancien HTML à la désactivation. Le correctif propre est un bionic **déclaratif** au rendu des blocs, pas une mutation DOM. | moyenne | Chantier de design du lecteur (aucun écran n'active aujourd'hui le bionic sur un corps canonique, mais le chemin est armé) — voir L07b. |
 | R61 | `nextUrl` de bout en bout : `AuthModalContext` le calcule (`?auth=…&next=…`, URL courante), `GlobalAuthModalProvider` le transmet, `LoginModal` l'accepte… et ne l'utilise jamais. Après connexion, `router.refresh()` garde la page courante. `setMode` n'a aucun consommateur, et `?auth=login` n'est jamais retiré de l'URL (recharger rouvre la modale). | moyenne | Décision produit (revenir à l'URL d'origine après connexion, ou rester sur place ; nettoyer le paramètre au passage) — voir L07c. |
 | R63 | `deeplink.Notification` (Go) émet **`/article/{slug}`** — l'ancienne forme : 308 côté tenants, **404 côté core** — pour `LIKE`/`REPOST`/`COMMENT` sur article et pour le fan-out `MEDIA_ARTICLE_PUBLISHED`. `deeplink.Target` ne porte ni le propriétaire ni la catégorie, donc la canonique (`/{owner}/a/{slug}` ou `/{cat}/{slug}`) n'est pas constructible en l'état. Le garde `guard:article-links` ne scanne pas le Go : ce chemin lui échappe. | moyenne | Décision serveur : ajouter `OwnerUsername` (ou `CategorySlug`) au `Target` et construire la canonique, ou assumer que le client ne reçoit que des `url` déjà canoniques. Voir L07e. |
+| R65 | Le registre `THEMES`/`ACCENTS` (`registry.ts`) exporte `id`, `label`, `dataTheme`, `dataAccent` sans **aucun consommateur** dans le dépôt : le mode sombre se pose par la classe `.dark` (next-themes) et l'accent par `[data-accent='vermillion']`, jamais par `data-theme`. La promesse d'un attribut DOM déclaratif n'est donc pas tenue. | faible | Décision produit/API : soit câbler `data-theme`/`data-accent` dans les feuilles et les shells, soit réduire le registre aux helpers réellement utilisés (`resolveForcedTheme`, `resolveAccentFromColor`). Voir L08. |
 | R64 | `social/MediaLightbox` et `social/ZoomableLightbox` restent des `fixed inset-0` sans `role="dialog"`/focus confiné (Échap et flèches sont câblés à la main, correctement). Leur migration sur `Dialog` demande de composer avec le pan/zoom et les gestes tactiles — arbitrage design, pas correction mécanique. | moyenne | Décision design (le comportement clavier existe déjà ; c'est la modalité ARIA et le piège du focus qui manquent). Voir L07e. |
 | R62 | `LocaleProvider` n'est monté que par `apps/studio` : `core` et `tenants` laissent react-aria prendre la locale du navigateur côté client et `en-US` côté serveur — exactement le désaccord d'hydratation que le provider existe pour empêcher (segments de date, calendrier, tri). | moyenne | Décision d'app (quelle source de locale : cookie, en-tête, route localisée) puis montage dans les deux layouts — voir L07c. |
 
@@ -1190,6 +1191,81 @@ même façon —, tous verts après correctif sans retoucher un cas existant.
 **R01** (`checkContentAccess` fail-open) restent **ouvertes** (décision
 utilisateur). Nouvelles dettes de ce lot : **R63** (deeplink Go → article) et
 **R64** (lightboxes non modales).
+
+---
+
+## L08 — `@qoe/theme` tokens, providers, cookies, styles — durci le 2026-11-19
+
+**Périmètre.** Les **19 fichiers** du paquet lus en entier : `index.ts`,
+`types.ts`, `tokens.ts`, `registry.ts`, `cookie.ts`, `colors.ts` (391 l.),
+`ThemeProvider.tsx`, `ThemeStyle.tsx`, `seed-script.tsx`, `native.ts`,
+`avatar-themes.ts`, `cover-themes.ts` (265 l.), `__tests__/colors.test.ts`, et
+les six feuilles `styles/` (`tokens.css`, `themes.css`, `index.css`,
+`base.css`, `marks.css`, `article.css` 390 l.). **Appelants réels vérifiés** :
+`packages/ui/src/templates/TemplateRenderer.tsx` (applique
+`buildCreatorVars` en `style` React), `apps/tenants` (`TenantPageRenderer`,
+`TenantPageShell`, `TenantArticleRenderer` montent `<ThemeStyle scope=":root">`),
+`apps/studio/src/app/editor.css` (consomme `var(--font-sans)`),
+`apps/core`/`apps/studio` (montage de `ThemeProvider` + `ThemeSeedScript`).
+
+**Contrats amont relus.** `next-themes` (`theme`/`resolvedTheme`/`setTheme`),
+le cookie partagé `qoe_theme` (+ `THEME_COOKIE_POLL_MS`) écrit sur le domaine
+parent, `parseHexColor`/`isColorDark` de `colors.ts`, et le garde
+`scripts/guard-dangerous-html.mjs` qui exempte `<style>` de `ThemeStyle` en
+lui prêtant une « valeur validée » — ce lot rend cette exemption vraie.
+
+| #    | Défaut                                                                                                                                                                                                                                                                                                                                                                                            | Sévérité | Statut                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F141 | `readThemeCookie` appelait `decodeURIComponent(match[1])` **hors try/catch**. Un cookie abîmé (`qoe_theme=%E0%A4%A`, ancienne app, extension) levait une `URIError` dans l'effet de `CookieReader`, donc au montage de `ThemeProvider` : toute l'app casse pour un cookie.                                                                                                                        | moyenne  | corrigé — décodage sous `try/catch`, valeur illisible traitée comme absente (le thème local reste appliqué) ; test `survit à une valeur mal encodée…` : **échouait** (`expected [Function] to not throw … 'URIError: URI malformed' was thrown`), vert après                                                                                                                                    |
+| F142 | `buildCreatorVars` interpolait `accentColor` et `fontFamily` bruts dans `--primary`/`var(--font-${fontFamily})`, valeurs rendues en SSR dans un `<style dangerouslySetInnerHTML>`. `accentColor: '#fff;</style><script>alert(1)</script>'` **fermait la balise** : injection HTML exécutable sur les pages tenant/studio à partir d'un champ créateur. Le garde `guard:dangerous-html` exemptait ce puits en affirmant « thème validé » — faux. | haute    | corrigé — **liste blanche** : l'accent doit passer `parseHexColor` (HEX 3/4/6/8, casse conservée) sinon ignoré, la police doit être un identifiant de registre (`/^[a-z][a-z0-9-]{0,31}$/i`) ; 3 tests : accent refusé, police refusée et absence de `<script>` dans le rendu : **échouaient** (`expected '#fff;</style><script>alert(1)</script>' to be undefined`, `expected 'var(--font-serif); } html{display:non…' to be undefined`, `expected '<style>:root { --primary: #fff;</styl…' not to contain '<script'`), verts après |
+| F143 | `getThemeCookieDomain` testait `hostname.endsWith('qoe.fi')` : `evilqoe.fi` (ou `notqoe.fi`) satisfaisait le suffixe et la page étrangère écrivait le cookie de thème avec `Domain=.qoe.fi`.                                                                                                                                                                                                         | moyenne  | corrigé — égalité stricte ou suffixe **précédé du point** (`host === 'qoe.fi' \|\| host.endsWith('.qoe.fi')`), hôte injectable pour le test ; test `ne revendique le domaine parent que pour qoe.fi…` : **échouait** (`expected null to be '.qoe.fi'`), vert après                                                                                                                              |
+| F144 | `@theme inline` déclarait `--font-sans: var(--font-sans)` et `--font-heading: var(--font-sans)` **sans qu'aucun bloc ne définisse `--font-sans`** : l'utilitaire Tailwind `font-sans` et `apps/studio/src/app/editor.css` recevaient une valeur invalide, la pile réelle du produit (`--font-body`) n'était jamais appliquée.                                                                         | moyenne  | corrigé — `--font-sans` et `--font-heading` déclarés dans `@theme` avec la pile produit, auto-références retirées d'`@theme inline` ; test `n'expose jamais un token qui se référence lui-même` : **échouait** (`expected [ Array(4) ] to deeply equal []`), vert après                                                                                                                          |
+| F145 | `packages/theme/package.json` n'avait **aucun script `test`** : `turbo run test` (et donc la CI) ne lançait jamais `colors.test.ts` — 10 tests existaient mais aucun pipeline ne les exécutait, et les tests de ce lot seraient nés dans le même angle mort.                                                                                                                                        | moyenne  | corrigé — script `"test": "vitest run"` (même convention que `@qoe/utils`) ; test `déclare un script test…` : **échouait** (`expected undefined to be 'vitest run'`), vert après ; `pnpm --filter @qoe/theme test` passe de « Missing script » à vert                                                                                 |
+
+**Preuve rouge → vert.** Les tests ont été écrits avant les correctifs, dans
+un nouveau fichier `src/__tests__/theme-hardening.test.tsx`. Premier passage
+sur le paquet → **7 échecs sur 18** (F141, F143, les trois cas F142, F144,
+F145), messages exacts ci-dessus ; après correctif, **18 tests / 2 fichiers
+verts**, sans retoucher `colors.test.ts` ni aucun cas existant.
+
+**Preuves (arbre propre, après commits) :**
+
+| Commande | Résultat |
+| -------- | -------- |
+| `pnpm --filter @qoe/theme test` | **18 tests / 2 fichiers verts** (10/1 avant le lot : **+8 tests, +1 fichier**) |
+| `pnpm --filter @qoe/ui test` | **677 tests / 109 fichiers verts** (inchangé : ce lot ne touche aucun composant UI) |
+| `pnpm typecheck` | 25/25 tâches |
+| `pnpm --filter @qoe/theme lint` | 0 erreur, 0 avertissement |
+| `pnpm --filter @qoe/ui lint` | 0 erreur, 0 avertissement |
+| les 9 gardes CI (`guard:media-origin`, `audit:guard`, `ui:audit`, `arch:audit`, `guard:article-links`, `guard:dangerous-html`, `guard:flags-parity`, `guard:legal-consent`, `guard:seed-script`) | tous verts |
+
+**Observations trouvées, volontairement non corrigées.**
+
+- `THEMES` et `ACCENTS` (avec `dataTheme`, `dataAccent`) n'ont **aucun
+  consommateur** dans le dépôt et aucun sélecteur `[data-theme=…]` n'existe
+  dans les feuilles : le mode sombre passe par la classe `.dark` et l'accent par
+  `[data-accent='vermillion']`. La surface est morte mais publique → **R65**
+  (décision produit/API), pas un bug de rendu.
+- `PARENT_DOMAIN = 'qoe.fi'` reste en dur : c'est le domaine du produit, mais un
+  fork doit éditer le paquet (même famille que les observations de
+  portabilité de L07). Ce lot ne le rend pas configurable (pas de variable
+  d'environnement côté client, le cookie est écrit dans le navigateur).
+- Le patch `console` en développement de `ThemeProvider` utilise `as any` +
+  `eslint-disable` : préexistant, le rendre type-safe demande de réécrire la
+  signature de `console.error` (surcharges variadiques), hors correctif minimal.
+- `CookieReader` interroge le cookie toutes les `THEME_COOKIE_POLL_MS` en plus
+  des événements `focus`/`visibilitychange` : coût volontaire (sous-domaines),
+  aucun repaint tant que la valeur ne change.
+- `ThemeSeedScript` **avait déjà** son `localStorage.setItem` sous `try/catch`
+  et ne réagit qu'à `light`/`dark` : aucune action, contrairement à la lecture
+  non gardée de F138.
+- `resolveAccentFromColor` reconnaît `#ee4b2b`, qui est bien la valeur de
+  `--vermillion-500` (`tokens.css`) : pas d'incohérence de token ici.
+
+**Dettes.** **R54** (baselines visuelles), **R56** (doublons `select`/`date`) et
+**R01** (`checkContentAccess` fail-open) restent **ouvertes** (décision
+utilisateur) ; **R63** (deeplink Go) et **R64** (lightboxes) inchangées.
+Nouvelle dette : **R65** (registre de thèmes non câblé, décision produit).
 
 ---
 
