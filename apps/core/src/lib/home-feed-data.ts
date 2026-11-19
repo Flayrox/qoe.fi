@@ -153,17 +153,38 @@ export function homeDataFromGo(h: HomeFeedResult, userId?: string): HomeData {
   };
 }
 
-async function fetchOnboardingData(): Promise<OnboardingDataDTO> {
-  return goFetch<OnboardingDataDTO>('/v1/home/onboarding');
+// ⚠️ Panne Go tolérée → contenu dégradé, jamais un 500 : la home et la page
+// article qui réutilisent ce chargeur restent consultables (même réflexe que
+// les pages lecteur de L20b2b1).
+async function fetchOnboardingData(): Promise<OnboardingDataDTO | null> {
+  return goFetch<OnboardingDataDTO>('/v1/home/onboarding').catch(() => null);
 }
 
 async function fetchSuggestedCreators(): Promise<SuggestedCreatorDTO[]> {
-  return goFetch<SuggestedCreatorDTO[]>('/v1/home/suggested-creators?limit=4');
+  return goFetch<SuggestedCreatorDTO[]>('/v1/home/suggested-creators?limit=4').catch(() => []);
 }
 
 async function fetchSemanticTrends(): Promise<SemanticTrendingTopicDTO[]> {
-  return goFetch<SemanticTrendingTopicDTO[]>('/v1/home/semantic-trends?limit=5');
+  return goFetch<SemanticTrendingTopicDTO[]>('/v1/home/semantic-trends?limit=5').catch(() => []);
 }
+
+/**
+ * Forme vide du bundle `GET /v1/home/feed` : le foyer s'affiche sans contenu
+ * plutôt que de renvoyer une erreur quand le backend est indisponible.
+ */
+const EMPTY_HOME_FEED: HomeFeedResult = {
+  followedCreators: [],
+  followedUserIds: [],
+  following: { articles: [], thoughts: [] },
+  discover: { articles: [], thoughts: [] },
+  recommended: { articles: [], thoughts: [] },
+  bookmarks: [],
+  highlightsCount: 0,
+  activityData: [],
+  mutedWords: [],
+  featuredArticle: null,
+  followingHidden: [],
+};
 
 export type FeedDashboardBaseProps = ComponentProps<typeof FeedDashboard>;
 
@@ -184,8 +205,8 @@ export async function loadHomeFeedData() {
   );
 
   // Étape 2 : bundle Go de la home (backend-of-record, requis en Phase 3).
-  const bundle = await goFetch<HomeFeedResult>('/v1/home/feed');
-  const home = homeDataFromGo(bundle, user?.id);
+  const bundle = await goFetch<HomeFeedResult>('/v1/home/feed').catch(() => null);
+  const home = homeDataFromGo(bundle ?? EMPTY_HOME_FEED, user?.id);
 
   // Moteur vectoriel Two-Tower pour l'onglet « Pour vous » (Go).
   const vectorFeedPagePromise = buildVectorFeedPage({
@@ -236,8 +257,8 @@ export async function loadHomeFeedData() {
       isActive: p.isActive,
     })),
     needsOnboarding,
-    onboardingCategories: onboardingData.categories,
-    onboardingSuggestedCreators: onboardingData.suggestedCreators,
+    onboardingCategories: onboardingData?.categories ?? [],
+    onboardingSuggestedCreators: onboardingData?.suggestedCreators ?? [],
     activityData: home.activityData,
     followingHidden: home.followingHidden,
   };

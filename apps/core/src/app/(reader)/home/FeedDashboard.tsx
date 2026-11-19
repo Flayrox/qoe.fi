@@ -36,7 +36,7 @@ import {
   useArticleOverlay,
   type OpenArticleInput,
 } from '@/components/article-overlay/ArticleOverlayProvider';
-import { type SemanticTrendingTopic, type SuggestedCreator } from './components/FeedSidebarWidgets';
+import { type SemanticTrendingTopic, type SuggestedCreator } from './components/feed-sidebar-types';
 import { t } from '@lingui/core/macro';
 import { trackEvent } from '@/lib/analytics';
 import { routes } from '@qoe/config/routes';
