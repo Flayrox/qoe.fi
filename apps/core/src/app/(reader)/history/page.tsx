@@ -41,9 +41,14 @@ export default async function ReadingHistoryPage() {
   const DAYS = 14;
   // Go (backend-of-record, requis en Phase 3) : GET /v1/me/reading-history
   // (la dédup par articleId est déjà faite côté Go — filet conservé ici).
-  const res = await goFetch<{ sessions: HistorySession[] }>(`/v1/me/reading-history?days=${DAYS}`);
+  // Un historique indisponible n'est pas une erreur de page : on affiche
+  // l'état vide plutôt qu'un 500.
+  const res = await goFetch<{ sessions: HistorySession[] }>(
+    `/v1/me/reading-history?days=${DAYS}`
+  ).catch(() => null);
+  const sessions = Array.isArray(res?.sessions) ? res.sessions : [];
   const seen = new Set<string>();
-  const unique = res.sessions.filter((s) => {
+  const unique = sessions.filter((s) => {
     if (seen.has(s.article.id)) return false;
     seen.add(s.article.id);
     return true;

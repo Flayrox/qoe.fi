@@ -41,17 +41,22 @@ export default async function OnboardingPage() {
 
   // Go (backend-of-record, requis en Phase 3) : GET /v1/me.
   // fetchMeProfile auto-répare un 404 (ligne User absente) avant d'entrer
-  // dans l'onboarding.
-  const profile = await fetchMeProfile();
-  if (profile.hasCompletedOnboarding) {
+  // dans l'onboarding. Une panne du profil ne doit pas fermer le parcours :
+  // Go reste juge au moment de l'enregistrement.
+  const profile = await fetchMeProfile().catch(() => null);
+  if (profile?.hasCompletedOnboarding) {
     redirect('/');
   }
 
   // Go : GET /v1/home/onboarding (catégories statiques + créateurs certifiés).
-  const { categories, suggestedCreators } = await goFetch<{
+  // Suggestions indisponibles → listes vides : le parcours reste utilisable,
+  // l'alternative serait un écran bloqué pour un contenu d'agrément.
+  const onboarding = await goFetch<{
     categories: OnboardingCategory[];
     suggestedCreators: OnboardingCreator[];
-  }>('/v1/home/onboarding');
+  }>('/v1/home/onboarding').catch(() => null);
+  const categories = onboarding?.categories ?? [];
+  const suggestedCreators = onboarding?.suggestedCreators ?? [];
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center bg-background px-4 py-12">

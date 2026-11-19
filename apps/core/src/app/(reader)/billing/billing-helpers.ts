@@ -44,6 +44,22 @@ export function filterBillingTransactions(
 }
 
 /**
+ * Normalise une réponse partielle ou absente de GET /v1/me/billing : le client
+ * ne lit jamais un champ manquant (pas de `walletTransactions.map` sur
+ * `undefined` après une panne Go).
+ */
+export function normalizeBillingData(billing?: Partial<BillingData> | null): BillingData {
+  return {
+    walletBalanceCents:
+      typeof billing?.walletBalanceCents === 'number' ? billing.walletBalanceCents : 0,
+    walletTransactions: Array.isArray(billing?.walletTransactions)
+      ? billing.walletTransactions
+      : [],
+    subscriptions: Array.isArray(billing?.subscriptions) ? billing.subscriptions : [],
+  };
+}
+
+/**
  * Calcule les indicateurs clés de performance (KPIs) pour le portefeuille.
  */
 export function calculateBillingKPIs(billing?: Partial<BillingData> | null): {

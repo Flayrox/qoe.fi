@@ -37,9 +37,12 @@ export default async function MainLayout({ children }: { children: React.ReactNo
 
   // Consentements légaux manquants (une nouvelle version d'un document
   // « à accepter » redéclenche la demande). Vide pour un visiteur anonyme.
+  // Le gate est une politesse, pas une condition de rendu : si le service
+  // légal est indisponible, toutes les pages lecteur ne doivent pas tomber.
   let pendingConsents: ConsentItem[] = [];
   if (user) {
-    pendingConsents = (await fetchPendingAcceptances(locale)).map((item) => ({
+    const items = await fetchPendingAcceptances(locale).catch(() => []);
+    pendingConsents = items.map((item) => ({
       slug: item.slug,
       title: item.title,
       version: item.version,

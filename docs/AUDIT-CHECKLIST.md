@@ -84,7 +84,11 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20a    | `apps/core/src/lib/**`                                                                                       | 24 fichiers · 3 242 l.      | **durci le 2026-11-19** |
 | L20b1   | `app/{api,robots.ts,sitemap*,l}`                                                                             | 16 fichiers · 802 l.        | **durci le 2026-11-19** |
 | L20b2a  | `app/{auth,login,oauth,subscribe-with-qoefi,actions}` + `layout/page/not-found`                              | 16 fichiers · 1 608 l.      | **durci le 2026-11-19** |
-| L20b2b  | `app/(reader)/**`                                                                                            | 84 fichiers · 16 709 l.     | à auditer               |
+| L20b2b1 | `(reader)` hors `{home,library,[username],settings}`                                                          | 25 fichiers · 2 170 l.      | **durci le 2026-11-19** |
+| L20b2b2 | `app/(reader)/home/**`                                                                                       | 25 fichiers · 6 507 l.      | à auditer               |
+| L20b2b3 | `app/(reader)/library/**`                                                                                    | 18 fichiers · 3 689 l.      | à auditer               |
+| L20b2b4 | `app/(reader)/[username]/**`                                                                                 | 9 fichiers · 2 184 l.       | à auditer               |
+| L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | à auditer               |
 | L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | à auditer               |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
 | L21     | `apps/studio/src/**`                                                                                         | 509 fichiers                | à auditer               |
@@ -107,9 +111,10 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L20b2b — `apps/core/src/app/(reader)/**`** (84 fichiers ·
-16 709 l. ; L20b2a clos ; ordre restant : L20b2b arbre lecteur, L20c composants,
-L20d hooks/features).
+**Prochain lot à traiter : L20b2b2 — `apps/core/src/app/(reader)/home/**`**
+(25 fichiers · 6 507 l. ; L20b2b1 clos ; ordre restant : L20b2b2 foyer, L20b2b3
+bibliothèque, L20b2b4 profils, L20b2b5 réglages, L20c composants, L20d
+hooks/features).
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -890,6 +895,8 @@ nommé), puis verts après restauration.
 | R74 | `canonicalEmail` est calculé par `@qoe/moderation` et écrit dans les métadonnées Supabase (`options.data`) au signup, mais **aucun code ne le lit** : ni le sync Go, ni la base (aucun index unique). L'anti-multi-comptes annoncé par le module ne s'exerce donc pas au-delà du jour de l'inscription, et la suppression systématique du tag `+` (tous fournisseurs, pas seulement Gmail) n'a aucune conséquence observable. | moyenne | Arbitrage backend : colonne `canonicalEmail` + index unique dans une migration goose, puis refus de doublon côté Go (`/v1/auth/sync`), en décidant si l'on garde Gmail uniquement pour les points. Voir L14. |
 | R94 | `/api/articles/[slug]` (core) n'a **aucun appelant** dans le repo : la page article lit côté serveur. Route morte dont le contrat HTTP vient d'être corrigé (cache privé, L20b1) mais qui reste à supprimer ou à réutiliser explicitement. | faible | Arbitrage : supprimer la route (et son test) ou la brancher sur le préchargement client ; décision produit sur le préchargement d'article. Voir L20b1. |
 | R93 | `packages/analytics` envoie la session de lecture par `navigator.sendBeacon(endpointUrl, payload)` avec un **corps texte** (Content-Type `text/plain`) : le handler lit `req.json()`, qui fonctionne par chance (pas de validation de type de contenu côté Next). Aucun rejet observé, mais le contrat média n'est pas explicite. | faible | Arbitrage : créer un `Blob` typé `application/json` à l'envoi, ou valider/ignorer explicitement le Content-Type côté route. Voir L20b1. |
+| R100 | L'accès aux pages privées du lecteur est traité de trois façons selon la page : `redirect('/login')` (`billing`, `onboarding`), message « Connectez-vous… » (`messages`, `history`, `appeals`, `support`), et aucune garde (le layout ne redirige plus, pour éviter la boucle 307 documentée). Un compte sans onboarding peut donc naviguer sans jamais le terminer. | moyenne | Arbitrage produit : écrire la règle (redirection avec retour vs écran d'invitation) et la centraliser, puis rétablir la garde onboarding dans le layout avec une exception explicite sur `/onboarding`. Voir L20b2b1. |
+| R99 | `(reader)/appeals/components/appeals-app.tsx` et `(reader)/support/components/support-app.tsx` dupliquent la même mécanique de dossier (`refreshList`, `openDetail`, `submitMessage`, `STATUS_LABEL`, `loading`) : ~40 lignes copiées, deux endroits à corriger pour un seul bug de fil. | faible | Extraction d'un `useDossierThread`/`DossierList` partagé, à faire avec un test de comportement (aucun rouge aujourd'hui : les deux écrans fonctionnent). Voir L20b2b1. |
 | R98 | `auth/sso/sync` place les jetons **Supabase `access_token` _et_ `refresh_token`** dans le JWT SSO remis à l'origine de retour (`return_to`, validée par `getSafeRedirectUrl`). Le JWT vit 60 s, mais le refresh token qu'il contient vit bien plus longtemps : toute origine acceptée peut rejouer la session utilisateur aupr+s de Supabase. | haute | Arbitrage d'architecture : émettre un code d'échange à usage unique consommé par le backend de l'RP au lieu d'embarquer les jetons. Voir L20b2a. |
 | R97 | `layout.tsx` pose `suppressHydrationWarning` sur `<html>` **et** `<body>` : la vraie cause d'un écart d'hydratation resterait invisible (le thème est déjà couvert par `ThemeSeedScript`). | faible | Arbitrage : restreindre l'attribut au nœud réellement divergent (thème/`lang`) après avoir mesuré un mismatch en condition réelle. Voir L20b2a. |
 | R96 | Les server actions de `apps/core/src/app` journalisent en `console.error` alors que le monorepo expose `@qoe/observability` (`logger`) : ni corrélation ni niveau structuré. Aucune convention écrite sur lequel utiliser. | faible | Arbitrage : écrire la règle (logger en prod, `console` en script/buil) puis migrer route par route. Voir L20b2a. |
@@ -1436,6 +1443,79 @@ existante modifiée, aucune doublure touchée.
 **Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65**, **R66**
 restent **ouvertes**. Nouvelle dette : **R67** (surfaces `continuous`,
 `highlighter`, `paywall`, `excerpt` sans consommateur TS).
+
+---
+
+## L20b2b1 — `apps/core/src/app/(reader)` pages hors foyer — durci le 2026-11-19
+
+**Découpage L20b2b (mesuré).** `(reader)/**` = 84 fichiers / 16 709 l. :
+**L20b2b1** = `{layout,not-found,[...not_found],appeals,billing,exit,highlights,history,messages,notifications,onboarding,pricing,search,support,thought}`
+= **25 fichiers / 2 170 l.** (**clos ici**) ; puis **L20b2b2 `home/**`** (25 / 6 507),
+**L20b2b3 `library/**`** (18 / 3 689), **L20b2b4 `[username]/**`** (9 / 2 184),
+**L20b2b5 `settings/**`** (7 / 2 159).
+
+**Périmètre lu en entier** : les 25 fichiers ci-dessus (dont `billing.test.ts`
+159 l. et `thought/[...slug]/__tests__/page.test.ts` 88 l.). Dépendances
+vérifiées : `goFetch` (timeout 10 s, `no-store`, URL normalisée),
+`fetchMeProfile` (`@/lib/me`), `fetchPendingAcceptances` (`@qoe/sdk/actions/legal`),
+`listMyAppealsAction`/`listMySupportTicketsAction` (ActionResult, déjà sûrs).
+
+| #    | Défaut                                                                                                                                                                                                                                                                     | Sévérité | Statut                                                                                                                                                                              |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F231 | `/thought/[...slug]` appelait **`decodeURIComponent` sur des segments déjà décodés par Next** (régression exacte de F225) : un identifiant contenant `%` levait `URIError: URI malformed` → 500 sur un lien de notification.                                                                          | moyenne  | corrigé — segments utilisés tels quels (seul `@` reste retiré) ; rouge : `AssertionError: expected [Function] to throw error including 'REDIRECT:/camille/thought/abc%def' but got 'URI malformed'` |
+| F232 | `/history` : `goFetch('/v1/me/reading-history')` **sans protection** puis `res.sessions.filter` — une panne Go (ou une réponse partielle) faisait tomber la page entière au lieu d'afficher l'historique vide.                                                                  | moyenne  | corrigé — `.catch(() => null)` + `Array.isArray(res?.sessions)` ; rouge : `AssertionError: promise rejected "Error: Go API 503" instead of resolving` (test « affiche l'état vide quand l'historique Go est indisponible ») |
+| F233 | `/billing` : `goFetch('/v1/me/billing')` sans protection, et `BillingClient` lisait `walletTransactions`/`subscriptions` en supposant la réponse complète : panne Go = 500 sur le portefeuille.                                                                                  | moyenne  | corrigé — `catch(() => null)` + `normalizeBillingData()` (nouvelle fonction pure dans `billing-helpers`) ; rouge : `promise rejected "Error: Go API 503" instead of resolving` (test « rend un portefeuille vide plutôt qu’une erreur 500 ») |
+| F234 | `/onboarding` : `fetchMeProfile()` **et** `goFetch('/v1/home/onboarding')` sans protection → parcours inaccessible quand Go hoquette, alors que le profil n'est qu'une heuristique et les suggestions un contenu d'agrément.                                                 | moyenne  | corrigé — profil `.catch(() => null)`, suggestions `.catch(() => null)` + listes vides ; rouges : `promise rejected "Error: Go API 503" instead of resolving` (les deux tests du bloc onboarding) |
+| F235 | `(reader)/layout.tsx` : `fetchPendingAcceptances()` sans protection — **toutes** les pages lecteur tombaient en 500 si le service légal était indisponible, alors que `LegalConsentGate` est une politesse.                                                                      | moyenne  | corrigé — `.catch(() => [])` ; rouge : `promise rejected "Error: Go API 503" instead of resolving` (test « rend la coquille même si les consentements légaux sont indisponibles ») |
+
+**Candidats examinés puis ABANDONNÉS** :
+
+- **`messages/page.tsx` rend « Connectez-vous… » au lieu de rediriger** alors que
+  `billing`/`onboarding` redirigent : incohérence d'UX réelle mais choix
+  défendable (pas de perte du contexte de la page), aucun rouge comportemental
+  → **R100**.
+- **`support-app.tsx` déclare `const helpCenterUrl` entre deux blocs d'imports** :
+  légal en TS (les imports sont hissés), lint vert → cosmétique, pas de défaut.
+- **Duplication `appeals-app.tsx` / `support-app.tsx`** (`refreshList`,
+  `openDetail`, `submitMessage`, `STATUS_LABEL` ≈ 40 l.) : extraction possible
+  mais aucun rouge (les deux composants fonctionnent) → **R99**.
+- **`pricing/components/plus-checkout-button.tsx`** : `res.data.url` après `res.ok`
+  est garanti par l'union discriminée du SDK (vérifié) → pas de défaut.
+- **`[...not_found]` + `not-found.tsx` doublons du root** : nécessaires au groupe
+  de routes et au root, `notFound()` est la voie Next 15 → pas de défaut.
+- **`highlights/page.tsx` (redirect pur), `exit`, `search`, `notifications`,
+  `pricing/page.tsx`** : aucun appel réseau faillible, conventions Next 15
+  respectées (`searchParams` Promise, `metadata`, `redirect`) → rien à corriger.
+
+**Preuve rouge → vert.** Suite `(reader)/__tests__/pages-hardening.test.ts`
+écrite **avant** correctifs : **6 échecs / 6**, puis **6/6** verts. Les pages sont
+appelées comme fonctions serveur (pas de rendu React), `@qoe/ui` et les
+composants de coquille étant remplacés par des doubles.
+
+**Preuves (mesurées) :**
+
+| Commande | Avant | Après |
+| -------- | ----- | ----- |
+| `pnpm --filter @qoe/core test` | 34 fichiers · **269 tests** | 35 fichiers · **275 tests** |
+| `pnpm --filter @qoe/core lint` | 0 erreur (10 warnings) | **0 erreur** (10 warnings préexistants) |
+| `pnpm lint` / `pnpm typecheck` / `pnpm test` | 25/25 · 25/25 · 24/24 | **25/25 · 25/25 · 24/24** |
+| `pnpm typecheck:root` | ✔ | **✔** |
+| gardes CI (10, dont `arch:audit`) | vertes | **vertes** |
+| `pnpm test:coverage` (R91) | `branches 78.18% < 85%` | **identique (78.18 %)**, seul rouge, préexistant |
+
+**Non vérifié.** Aucun rendu React ni navigateur : les composants serveur sont
+appelés directement, donc le HTML, les états de chargement, les erreurs de
+frontière et l'hydratation ne sont pas exercés ; les composants clients
+(`BillingClient`, `AppealsApp`, `SupportApp`, `NotificationsCenter`,
+`PlusCheckoutCta`) sont importés mais jamais rendus. Aucun appel au vrai Go ni à
+Supabase (`goFetch`, `fetchMeProfile`, `createClient` mockés). `normalizeBillingData`
+n'est couvert qu'indirectement par la page facturation, pas par un test unitaire
+dédié. `pnpm test:api`, `pnpm e2e` et `next build` non lancés. **R91** re-mesuré à
+l'identique.
+
+**Dettes.** **R01**, **R54**, **R56**, **R63** à **R74**, **R78** à **R98**
+restent ouvertes ; nouvelles : **R99** (duplication dossiers recours/support),
+**R100** (garde d'accès aux pages privées incohérente).
 
 ---
 
