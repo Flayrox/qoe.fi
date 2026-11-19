@@ -140,6 +140,18 @@ describe('sanitizeInlineSvg — attaques', () => {
     ['style inline', '<svg><style>body{display:none}</style></svg>'],
     ['doctype', '<!DOCTYPE svg><svg></svg>'],
     ['iframe', '<svg><iframe src="https://evil.test"></iframe></svg>'],
+    // F130 — formes d'attaque que la liste noire par expressions régulières
+    // laissait passer : un gestionnaire collé au nom de balise, un schéma
+    // `javascript:` déguisé en entité ou coupé par un blanc, et le SMIL qui
+    // pose un gestionnaire après coup.
+    ['gestionnaire collé', '<svg/onload="alert(1)"></svg>'],
+    ['gestionnaire après une barre oblique', '<svg><rect/onmouseover="alert(1)"/></svg>'],
+    ['entité décimale', '<svg><a href="&#106;avascript:alert(1)"><rect/></a></svg>'],
+    ['entité hexadécimale', '<svg><a href="&#x6a;avascript:alert(1)"><rect/></a></svg>'],
+    ['entité nommée', '<svg><a href="javascript&colon;alert(1)"><rect/></a></svg>'],
+    ['schéma coupé par un blanc', '<svg><a href="java\nscript:alert(1)"><rect/></a></svg>'],
+    ['élément SMIL', '<svg><set attributeName="onmouseover" to="alert(1)"/></svg>'],
+    ['lien actif', '<svg><a href="https://evil.test"><rect/></a></svg>'],
   ];
 
   it.each(attacks)('refuse le SVG contenant un %s', (_label, payload) => {
