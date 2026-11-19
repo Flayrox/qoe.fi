@@ -74,7 +74,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L10     | `packages/content/src/**`                                                                                    | 25 fichiers                 | **durci le 2026-11-19** |
 | L11     | `packages/config/src/**`                                                                                     | 17 fichiers                 | **durci le 2026-11-19** |
 | L12     | `packages/formatters/src/**`                                                                                 | 5 fichiers                  | **durci le 2026-11-19** |
-| L13     | `packages/i18n/src/**` + `messages/`                                                                         | 9 fichiers                  | à auditer               |
+| L13     | `packages/i18n/src/**` + `messages/`                                                                         | 12 fichiers                 | **durci le 2026-11-19** |
 | L14     | `packages/moderation/src/**`                                                                                 | 16 fichiers                 | à auditer               |
 | L15     | `packages/analytics/src/**`                                                                                  | 12 fichiers                 | à auditer               |
 | L16     | `packages/observability/src/**`                                                                              | 7 fichiers                  | à auditer               |
@@ -102,7 +102,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L13 — `packages/i18n`.**
+**Prochain lot à traiter : L14 — `packages/moderation`.**
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -880,6 +880,8 @@ nommé), puis verts après restauration.
 | R60 | `reader/useBionicReading` : le mode bionique écrit `innerHTML` dans un conteneur possédé par React et met l'original en cache dans `data-original-html`. Un corps re-rendu après activation (annotation ajoutée, document canonique rechargé) rend donc l'ancien HTML à la désactivation. Le correctif propre est un bionic **déclaratif** au rendu des blocs, pas une mutation DOM. | moyenne | Chantier de design du lecteur (aucun écran n'active aujourd'hui le bionic sur un corps canonique, mais le chemin est armé) — voir L07b. |
 | R61 | `nextUrl` de bout en bout : `AuthModalContext` le calcule (`?auth=…&next=…`, URL courante), `GlobalAuthModalProvider` le transmet, `LoginModal` l'accepte… et ne l'utilise jamais. Après connexion, `router.refresh()` garde la page courante. `setMode` n'a aucun consommateur, et `?auth=login` n'est jamais retiré de l'URL (recharger rouvre la modale). | moyenne | Décision produit (revenir à l'URL d'origine après connexion, ou rester sur place ; nettoyer le paramètre au passage) — voir L07c. |
 | R63 | `deeplink.Notification` (Go) émet **`/article/{slug}`** — l'ancienne forme : 308 côté tenants, **404 côté core** — pour `LIKE`/`REPOST`/`COMMENT` sur article et pour le fan-out `MEDIA_ARTICLE_PUBLISHED`. `deeplink.Target` ne porte ni le propriétaire ni la catégorie, donc la canonique (`/{owner}/a/{slug}` ou `/{cat}/{slug}`) n'est pas constructible en l'état. Le garde `guard:article-links` ne scanne pas le Go : ce chemin lui échappe. | moyenne | Décision serveur : ajouter `OwnerUsername` (ou `CategorySlug`) au `Target` et construire la canonique, ou assumer que le client ne reçoit que des `url` déjà canoniques. Voir L07e. |
+| R72 | `translate`/`compileMessage` de `@qoe/i18n` avalent silencieusement toute erreur de syntaxe ICU (repli sur le message par défaut) : une clé cassée en production ne laisse aucune trace, alors qu'un avertissement hors production suffirait à la voir en CI. | faible | Décider du volume de bruit accepté en CI avant d'ajouter le `console.warn` conditionné à `NODE_ENV !== 'production'`. Voir L13. |
+| R71 | Les macros Lingui (`t\`…\``) des Server Components lisent le singleton activé par `initI18n` dans chaque layout : deux requêtes SSR concurrentes en `fr` et `en` peuvent encore s'entrelacer entre l'activation et le rendu des enfants (la voie `translateKey`/`getTranslate` est isolée depuis L13). | moyenne | Arbitrage d'architecture : passer ces macros en composants clients `useLingui()`, ou stocker l'instance par requête (`AsyncLocalStorage`). Voir L13. |
 | R70 | `formatDuration` était réimplémenté **deux fois** dans les apps (`apps/studio/src/app/(creator)/analytics/AnalyticsDashboardClient.tsx:54` et `apps/admin/src/app/(admin)/admin/notifications/OutboxObservabilityConsole.tsx:60`) alors que `@qoe/utils` exporte déjà `formatDuration` : trois découpages divergents sur l'arrondi et les unités. | faible | **corrigée le 2026-11-19** — les deux copies sont supprimées, les écrans consomment `@qoe/utils` (studio : « 61m 40s » → « 1 h 1 min » ; admin : « 1 min » → « 1 min 30 s »). Garde de déduplication ajouté : 2 fautifs avant, 0 après. |
 | R69 | `MONTHS_FR` était exporté par le barrel `@qoe/formatters` **sans aucun consommateur** dans le dépôt (seul usage interne à `dates.ts`). | faible | **corrigée le 2026-11-19** — export retiré (constante interne) ; `DEFAULT_TIME_ZONE` exposé à la place. Aucun des 7 apps / 15 packages n'importait `MONTHS_FR`. |
 | R68 | `packages/config/src/features.ts` exporte `FEATURE_FLAGS`, `isFeatureEnabled` et `getCreatorFeatureToggles` **sans aucun consommateur** dans le dépôt : le registre de flags réellement utilisé est `@qoe/flags` (+ parité Go), et `env.ts` valide des variables `FEATURE_*` que ce module seul lirait. Deux vocabulaires de flags coexistent, donc une activation peut sembler câblée sans effet. | faible | Décision produit : supprimer `features.ts` (et les `FEATURE_*` du schéma d'env) ou brancher `@qoe/flags` sur ces variables. Voir L11. |
@@ -1401,6 +1403,88 @@ existante modifiée, aucune doublure touchée.
 **Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65**, **R66**
 restent **ouvertes**. Nouvelle dette : **R67** (surfaces `continuous`,
 `highlighter`, `paywall`, `excerpt` sans consommateur TS).
+
+---
+
+## L13 — `@qoe/i18n` catalogues, overrides, locale SSR, cookie — durci le 2026-11-19
+
+**Périmètre.** Les **6 sources + 2 suites** lues en entier (`core`, `catalogs`,
+`locales`, `server`, `provider`, `index`, `catalog.d.ts`, `core.test`,
+`catalogs.test`) + `package.json`, `tsconfig.json` et les catalogues
+`messages/{fr,en}.{json,js,po}`. **Consommateurs réels vérifiés par import** :
+7 apps sur les 6 sous-chemins — `@qoe/i18n/server` (core, tenants, admin, studio,
+hi : layouts, pages légales, footers, routes), `@qoe/i18n/provider` (les 4
+layouts web), `@qoe/i18n/core` + `/catalogs` (`apps/mobile/src/context/language-provider.tsx`,
+`apps/mobile/src/lib/i18n.ts`), `@qoe/i18n/locales`
+(`apps/studio/src/lib/locale-header.ts`), barrel (`apps/core` settings,
+`apps/hi` landing, `apps/admin` FrontendCMS).
+
+| #    | Défaut                                                                                                                                                                                                                                             | Sévérité | Statut                                                                                                                                                                                                                                                            |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F169 | Les overrides de traduction **imbriqués** (`{"common":{"save":"Perso"}}`, format du legacy `fr.json`) n'étaient jamais appliqués : `translateKey` les injectait tels quels dans un map **plat**, donc la clé `common.save` continuait de rendre le catalogue et un objet se retrouvait au milieu des chaînes. | haute    | corrigé — résolution par chemin (`findOverride` accepte plat **et** imbriqué, aplati aussi dans `getStaticTranslations`) ; test : **échouait** (`expected 'Enregistrer' to be 'Perso'`), vert après                                                                  |
+| F170 | `translateKey` appelait `setActiveLanguage`, c.-à-d. `i18n.load` + `i18n.activate` sur le **singleton** de `@lingui/core` : une requête SSR en `en` laissait l'instance globale en `en` pour les requêtes suivantes (fuite de locale entre requêtes concurrentes, macros `t\`…\`` comprises). | haute    | corrigé — instance `setupI18n` **par locale** (cache `localeInstances`), `translateKey` ne touche plus au singleton ; test : **échouait** (`expected 'en' to be 'fr'`), vert après                                                                                |
+| F171 | Chaque traduction serveur rechargeait tout le catalogue (40–130 Ko) et réactivait l'instance : 50 appels = 50 `i18n.load`.                                                                                                                                  | moyenne  | corrigé — instance mémoïsée par locale ; test : **échouait** (`expected "load" to be called +0 times, but got 50 times`), vert après                                                                                                                            |
+| F172 | Un payload d'overrides `null` faisait lever `TypeError` sur `overrides[lang]` — **500** sur toutes les pages traduites dès que `TRANSLATIONS_OVERRIDE` valait `"null"`.                                                                               | moyenne  | corrigé — `isRecord` + paramètre `Record<string, unknown> \| null` toléré ; test : **échouait** (TypeError), vert après                                                                                                                                         |
+| F173 | `JSON.parse(config['TRANSLATIONS_OVERRIDE'])` était utilisé **sans validation** : `null`, `[1,2]` ou `"texte"` traversaient le typage `Record<string, unknown>`.                                                                                       | moyenne  | corrigé — `parseOverridesPayload` (objet non-tableau uniquement) ; test : **échouait** (`expected null to deeply equal {}`), vert après                                                                                                                          |
+| F174 | Le `fetch` des overrides n'avait **ni timeout ni signal** : une API Go qui ne répond pas retenait le rendu SSR indéfiniment (aucun délai par défaut côté `fetch`).                                                                                      | moyenne  | corrigé — `AbortSignal.timeout(OVERRIDES_TIMEOUT_MS = 2 500 ms)` ; test : **échouait** (`expected undefined to be an instance of AbortSignal`), vert après                                                                                                     |
+| F175 | La fusion catalogue compilé + legacy était recopiée **trois fois** (`catalogs.ts`, `server.ts`, `provider.tsx`) : deux ordres de fusion à maintenir, et le module RN-safe n'était pas la référence.                                                       | faible   | corrigé — `CATALOGS`/`getCatalog` source unique, serveur et provider la consomment ; test : **échouait** (`expected [ 'provider.tsx', 'server.ts' ] to deeply equal []`), vert après                                                                              |
+| F176 | Côté client, `getStaticTranslations` mergait les overrides imbriqués dans un map plat : l'override était ignoré **et** un objet remplaçait une chaîne (`typeof messages.common === 'object'`).                                                          | moyenne  | corrigé — `flattenMessages(localeOverrides)` avant merge ; test : **échouait** (`expected 'Enregistrer' to be 'Perso'`), vert après                                                                                                                             |
+| F177 | Hors `I18nClientProvider`, `useTranslate` (repli) ignorait le 3ᵉ argument : `t('k', 'Bonjour {name}', { name })` affichait littéralement **« Bonjour {name} »**.                                                                                       | moyenne  | corrigé — `fallbackTranslate` (interpolation `{param}`, paramètre objet accepté) ; test : **échouait** (export absent), vert après                                                                                                                              |
+| F178 | `changeLanguage` écrivait `document.cookie = \`x-locale=${lang};path=/;max-age=…\`` **sans valider ni encoder** : `"fr; x-locale=en"` injectait un second cookie, et le cookie partait sans `SameSite` ni `Secure`.                                  | haute    | corrigé — `buildLocaleCookie` (langue ∈ `ALL_LANGUAGES`, `encodeURIComponent`, `SameSite=Lax`, `Secure` en https) ; test : **échouait** (chaîne sans attributs de sécurité), vert après                                                                           |
+| F179 | La détection de domaine faisait `hostname.endsWith('qoe.fi')` : `evilqoe.fi` obtenait `domain=.qoe.fi`, tandis que `qoe.fi` (apex) n'en obtenait **aucun** (même classe que F156).                                                                    | faible   | corrigé — comparaison par labels (`hostname === domaine \|\| endsWith('.' + domaine)`) ; 2 assertions : **échouaient** (`expected '…;S…' to be '…;d…'`), vertes après                                                                                        |
+| F180 | Le paquet n'avait **aucun script `test`** : ses 7 tests n'étaient lancés ni par `turbo run test`, ni par `pnpm verify` — et `server.ts`, `catalogs.ts`, `provider.tsx` n'étaient **chargés par aucune suite** (seul `core.ts` apparaissait en couverture). | moyenne  | corrigé — scripts `test` + `test:coverage` et plancher de couverture (`vitest.config.ts`) ; preuve : `pnpm --filter @qoe/i18n test` = 30 tests / 4 fichiers, seuils 94/79/100/94 respectés |
+
+**Preuve rouge → vert.** Suite écrite avant correctifs (`i18n-hardening.test.ts`,
+14 tests) puis rejouée contre les sources d'origine : **11 échecs / 14**, messages
+cités ci-dessus — dont `expected "load" to be called +0 times, but got 50 times`
+et `expected [ 'provider.tsx', 'server.ts' ] to deeply equal []`. Aucune assertion
+existante modifiée (`core.test.ts`, `catalogs.test.ts` verts tels quels), aucune
+doublure contournée : `next/cache` et `next/headers` sont remplacés par des
+doublures minimales pour exécuter la logique réelle.
+
+**Preuves (arbre propre, après commit) :**
+
+| Commande | Avant | Après |
+| -------- | ----- | ----- |
+| `pnpm --filter @qoe/i18n test` | **aucun script** (7 tests / 2 fichiers, jamais exécutés par la CI) | **30 tests / 4 fichiers verts** |
+| `pnpm --filter @qoe/i18n test:coverage` | 90,9 % st. · 72,41 % br. · 100 % fn. · 90,9 % lignes — **sur `core.ts` seul** (`server`, `catalogs`, `provider` jamais chargés) | **95,23 % · 80,35 % · 100 % · 95,23 %** sur 5 modules (seuils 94/79/100/94) |
+| `pnpm --filter @qoe/i18n lint` / `typecheck` | 0 / 0 | **0 / 0** |
+| `pnpm --filter @qoe/core test` | 255 / 32 | **255 / 32 verts** |
+| `pnpm --filter @qoe/admin test` | 88 | **88 verts** |
+| `pnpm --filter @qoe/studio test` | 575 / 64 | **575 / 64 verts** |
+| `pnpm --filter @qoe/tenants test` | 39 | **39 verts** |
+| `pnpm --filter @qoe/mobile test` | 176 / 15 | **176 / 15 verts** |
+| `pnpm typecheck` | 25/25 | **25/25 tâches** |
+| les 9 gardes CI | vertes | **vertes** |
+
+**Observations trouvées, volontairement non corrigées.**
+
+- `initI18n` **doit** activer le singleton : c'est le seul moyen pour que les
+  macros `t\`…\`` des Server Components rendent dans la bonne langue. La locale
+  reste donc globale pour ce chemin ; seule la voie `translateKey`/`getTranslate`
+  est isolée. Voir R71.
+- `translate` avale silencieusement toute erreur de compilation ICU
+  (`catch { return defVal || key }`) : le repli est voulu (une traduction ne doit
+  pas casser une page), mais l'erreur n'est pas tracée. Voir R72.
+- `catalog.d.ts` déclare `module '*.js'` : le wildcard couvre aussi d'éventuels
+  imports `.js` locaux du paquet. Aucun aujourd'hui.
+- `getLanguage` garde des `catch {}` muets autour de `cookies()`/`headers()` :
+  hors contexte de requête (build, script), le repli `fr` est le comportement
+  attendu ; journaliser bruiterait chaque build.
+
+**Dettes.** **R01**, **R54**, **R56**, **R63** à **R68** restent **ouvertes**.
+Nouvelles dettes :
+
+- **R71** — Les **macros** Lingui (`t\`…\``) compilées dans les Server Components
+  lisent le singleton activé par `initI18n` dans chaque layout : deux requêtes
+  concurrentes en `fr` et `en` peuvent encore s'entrelacer entre l'activation et
+  le rendu des enfants. Le correctif propre demande soit de passer les macros en
+  composants clients `useLingui()`, soit un stockage par requête
+  (`AsyncLocalStorage`) — arbitrage d'architecture à valider.
+- **R72** — `translate`/`compileMessage` masquent les erreurs de syntaxe ICU
+  (repli silencieux). Utile en prod, aveuglant en développement : un avertissement
+  conditionné à `NODE_ENV !== 'production'` serait le bon compromis, mais il
+  faut d'abord décider de son volume en CI.
 
 ---
 

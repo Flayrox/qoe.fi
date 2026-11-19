@@ -1,33 +1,116 @@
 // =====================================================================
 // 🖥️ server.ts — Server Translation Helpers with DB Overrides
 // =====================================================================
+// ⚠️ Aucun helper de ce module n'active la locale sur le singleton Lingui.
+// `@lingui/core` expose UNE instance globale : l'activer depuis une requête
+// (translateKey/initI18n) fuyait la locale d'une requête à l'autre pendant
+// le SSR concurrent. On travaille donc sur une instance par locale, mise en
+// cache, et les overrides DB sont appliqués à la résolution — ils ne
+// modifient jamais le catalogue partagé.
+// =====================================================================
 
-import { ALL_LANGUAGES, DEFAULT_LANGUAGE, type Language } from './locales';
-import frTranslations from '../../../messages/fr.json';
-import enTranslations from '../../../messages/en.json';
-import frCatalog from '../../../messages/fr.js';
-import enCatalog from '../../../messages/en.js';
+import { setupI18n, type I18n } from '@lingui/core';
 import { unstable_cache } from 'next/cache';
+import { CATALOGS } from './catalogs';
+import { DEFAULT_LANGUAGE, type Language } from './locales';
 import {
-  getI18n,
-  setActiveLanguage,
   flattenMessages,
-  createTranslator,
+  setActiveLanguage,
+  translate,
   type I18nParams,
+  type MessageMap,
 } from './core';
 
-// Compiled catalogs (macro IDs) merged with the legacy key-based JSON so both
-// migrated and legacy call sites resolve during the transition.
-const catalogs: Record<string, Record<string, string>> = {
-  fr: { ...flattenMessages(frTranslations as Record<string, unknown>), ...frCatalog.messages },
-  en: { ...flattenMessages(enTranslations as Record<string, unknown>), ...enCatalog.messages },
-};
+/** Délai maximal accordé à l'API Go pour fournir les overrides. */
+export const OVERRIDES_TIMEOUT_MS = 2_500;
+
+/** Préfixe d'ID réservé : un override ne peut pas collisionner avec le catalogue. */
+const OVERRIDE_ID_PREFIX = '\u0000qoe:override:';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** Catalogue statique d'une locale, avec repli sur la locale par défaut. */
+function catalogFor(lang: string): MessageMap {
+  return CATALOGS[lang] ?? CATALOGS[DEFAULT_LANGUAGE];
+}
+
+const localeInstances = new Map<string, I18n>();
+
+/**
+ * Instance Lingui dédiée à une locale (créée une fois, réutilisée).
+ * Isolée du singleton : aucune requête ne peut changer la locale d'une autre.
+ */
+function getLocaleInstance(lang: string): I18n {
+  const existing = localeInstances.get(lang);
+  if (existing) {
+    return existing;
+  }
+  const instance = setupI18n({ locale: lang, messages: { [lang]: catalogFor(lang) } });
+  localeInstances.set(lang, instance);
+  return instance;
+}
+
+/**
+ * Cherche un override pour `key`, au format plat (`"common.save"`) comme au
+ * format imbriqué legacy (`{ common: { save } }`). Le plus spécifique gagne.
+ */
+export function findOverride(source: unknown, key: string): string | undefined {
+  if (!isRecord(source)) {
+    return undefined;
+  }
+  const flat = source[key];
+  if (typeof flat === 'string') {
+    return flat;
+  }
+  let node: unknown = source;
+  for (const part of key.split('.')) {
+    if (!isRecord(node)) {
+      return undefined;
+    }
+    node = node[part];
+  }
+  return typeof node === 'string' ? node : undefined;
+}
+
+/**
+ * Compile un message arbitraire (override) avec l'ICU de Lingui. L'ID est
+ * préfixé pour être absent du catalogue : c'est le message fourni qui rend.
+ */
+function compileMessage(i18n: I18n, key: string, message: string, params?: I18nParams): string {
+  try {
+    return i18n._({
+      id: `${OVERRIDE_ID_PREFIX}${key}`,
+      message,
+      ...(params ? { values: params as Record<string, unknown> } : {}),
+    });
+  } catch {
+    return message;
+  }
+}
+
+/**
+ * Valide le payload `TRANSLATIONS_OVERRIDE` (JSON stocké en SystemConfig).
+ * Tout ce qui n'est pas un objet JSON exploitable donne un objet vide.
+ */
+export function parseOverridesPayload(raw: string | undefined): Record<string, unknown> {
+  if (!raw) {
+    return {};
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return isRecord(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
 
 // Next.js cache for translation overrides (cleared when Tag "i18n-overrides" is revalidated)
 // Chargés depuis le serveur Go (GET /v1/home/config — public, sans session) :
 // la clé SystemConfig "TRANSLATIONS_OVERRIDE" y est renvoyée telle quelle.
 export const getCachedOverrides = unstable_cache(
-  async () => {
+  async (): Promise<Record<string, unknown>> => {
     // Pendant `next build` (prerender), l'API Go n'est pas joignable depuis le
     // contexte de build Docker (QOE_API_URL pointe vers le service `api` qui
     // n'existe pas à ce moment) : on skip le fetch — les overrides se
@@ -36,83 +119,55 @@ export const getCachedOverrides = unstable_cache(
     if (process.env.NEXT_PHASE === 'phase-production-build') {
       return {};
     }
+    const apiUrl = process.env.QOE_API_URL;
+    if (!apiUrl) {
+      return {};
+    }
     try {
-      const apiUrl = process.env.QOE_API_URL;
-      if (!apiUrl) {
-        return {};
-      }
-      const res = await fetch(`${apiUrl}/v1/home/config`);
+      // `AbortSignal.timeout` : une API qui ne répond pas ne doit pas retenir
+      // le rendu SSR indéfiniment.
+      const res = await fetch(`${apiUrl}/v1/home/config`, {
+        signal: AbortSignal.timeout(OVERRIDES_TIMEOUT_MS),
+      });
       if (!res.ok) {
         return {};
       }
-      const config = (await res.json()) as Record<string, string>;
-      const raw = config['TRANSLATIONS_OVERRIDE'];
-      if (raw) {
-        return JSON.parse(raw);
+      const config: unknown = await res.json();
+      if (!isRecord(config)) {
+        return {};
       }
+      const raw = config['TRANSLATIONS_OVERRIDE'];
+      return parseOverridesPayload(typeof raw === 'string' ? raw : undefined);
     } catch (e) {
       console.error('Failed to load i18n overrides from Go API:', e);
+      return {};
     }
-    return {};
   },
   ['i18n-overrides'],
   { tags: ['i18n-overrides'] }
 );
 
+/**
+ * Traduit une clé côté serveur.
+ * Priorité : override DB de la locale > catalogue > message par défaut.
+ */
 export function translateKey(
   lang: string,
   key: string,
   defaultValue?: string,
   params?: I18nParams,
-  overrides: Record<string, unknown> = {}
+  overrides?: Record<string, unknown> | null
 ): string {
-  // Check db overrides first
-  const langOverrides: Record<string, unknown> = (overrides[lang] as Record<string, unknown>) || {};
-  const overrideParts = key.split('.');
-  let overrideVal: unknown = langOverrides;
-  for (const part of overrideParts) {
-    if (overrideVal === undefined || overrideVal === null) break;
-    if (typeof overrideVal !== 'object') {
-      overrideVal = undefined;
-      break;
-    }
-    overrideVal = (overrideVal as Record<string, unknown>)[part];
+  const locale = CATALOGS[lang] ? lang : DEFAULT_LANGUAGE;
+  const i18n = getLocaleInstance(locale);
+
+  const localeOverrides = isRecord(overrides) ? overrides[locale] : undefined;
+  const overridden = findOverride(localeOverrides, key);
+  if (overridden !== undefined) {
+    return compileMessage(i18n, key, overridden, params);
   }
 
-  const overridden = typeof overrideVal === 'string' ? overrideVal : undefined;
-
-  // Load the catalogue (compiled macros + legacy keys + overrides)
-  const i18n = getI18n();
-  const staticMessages: Record<string, string> = {
-    ...(catalogs[lang] || catalogs[DEFAULT_LANGUAGE]),
-  };
-  if (langOverrides && Object.keys(langOverrides).length > 0) {
-    deepMerge(staticMessages, langOverrides);
-  }
-  setActiveLanguage(lang, staticMessages);
-
-  const t = createTranslator(i18n);
-  return t(key, overridden || defaultValue, params);
-}
-
-/**
- * Deep merge of override objects into the base translation map.
- */
-function deepMerge(base: Record<string, unknown>, override: Record<string, unknown>) {
-  for (const [k, v] of Object.entries(override)) {
-    if (
-      v &&
-      typeof v === 'object' &&
-      !Array.isArray(v) &&
-      base[k] &&
-      typeof base[k] === 'object' &&
-      !Array.isArray(base[k])
-    ) {
-      deepMerge(base[k] as Record<string, unknown>, v as Record<string, unknown>);
-    } else {
-      base[k] = v;
-    }
-  }
+  return translate(i18n, key, defaultValue, params);
 }
 
 /**
@@ -126,7 +181,7 @@ export async function getLanguage(): Promise<Language> {
   try {
     const cookieStore = await cookies();
     const cookieLang = cookieStore.get('x-locale')?.value;
-    if (cookieLang && (ALL_LANGUAGES as string[]).includes(cookieLang)) {
+    if (cookieLang && CATALOGS[cookieLang]) {
       return cookieLang as Language;
     }
   } catch {}
@@ -135,7 +190,7 @@ export async function getLanguage(): Promise<Language> {
   try {
     const headerList = await headers();
     const headerLang = headerList.get('x-locale');
-    if (headerLang && (ALL_LANGUAGES as string[]).includes(headerLang)) {
+    if (headerLang && CATALOGS[headerLang]) {
       return headerLang as Language;
     }
   } catch {}
@@ -162,16 +217,16 @@ export async function getTranslate() {
 export async function getStaticTranslations(lang?: Language) {
   const activeLang = lang || (await getLanguage());
   const overrides = await getCachedOverrides();
-  const mergedTranslations: Record<string, unknown> = {
-    ...(catalogs[activeLang] || catalogs[DEFAULT_LANGUAGE]),
-  };
-  const langOverrides: Record<string, unknown> =
-    (overrides[activeLang] as Record<string, unknown>) || {};
-  if (Object.keys(langOverrides).length > 0) {
-    deepMerge(mergedTranslations, langOverrides);
+  const messages: MessageMap = { ...catalogFor(activeLang) };
+  const localeOverrides = isRecord(overrides) ? overrides[activeLang] : undefined;
+  if (isRecord(localeOverrides)) {
+    // Aplatissement : un override imbriqué legacy doit atterrir sur la clé
+    // plate du catalogue, sinon il est ignoré (et injecte un objet au milieu
+    // d'un map de chaînes).
+    Object.assign(messages, flattenMessages(localeOverrides));
   }
   return {
-    loadTranslations: async () => mergedTranslations,
+    loadTranslations: async () => messages,
   };
 }
 
@@ -179,9 +234,10 @@ export async function getStaticTranslations(lang?: Language) {
  * 🌍 Active la locale sur l'instance i18n globale (requis pour les macros
  * `t\`...\`` appelées dans les Server Components pendant le rendu SSR).
  * À appeler dans chaque Root Layout (serveur) avant de rendre les enfants.
+ * ⚠️ `translateKey` n'emprunte PAS ce chemin : il ne touche jamais au singleton.
  */
 export async function initI18n(lang?: Language) {
   const activeLang = lang || (await getLanguage());
-  setActiveLanguage(activeLang, catalogs[activeLang] || catalogs[DEFAULT_LANGUAGE]);
+  setActiveLanguage(activeLang, catalogFor(activeLang));
   return activeLang;
 }

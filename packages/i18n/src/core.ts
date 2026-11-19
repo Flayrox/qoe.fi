@@ -97,6 +97,28 @@ export function translate(
 }
 
 /**
+ * Repli sans catalogues ni provider (hooks montés hors `I18nClientProvider`).
+ * Interpole les `{params}` simples : sans ça, un `t('k', 'Bonjour {name}', { name })`
+ * hors provider affichait littéralement « Bonjour {name} ».
+ */
+export function fallbackTranslate(
+  key: string,
+  defaultValue?: string | I18nParams,
+  params?: I18nParams
+): string {
+  const defVal = typeof defaultValue === 'string' ? defaultValue : undefined;
+  const values = typeof defaultValue === 'object' && defaultValue !== null ? defaultValue : params;
+  const text = defVal || key;
+  if (!values) {
+    return text;
+  }
+  return text.replace(/\{(\w+)\}/g, (match: string, name: string) => {
+    const value = values[name];
+    return value === undefined ? match : String(value);
+  });
+}
+
+/**
  * Helper `t` lié à une instance i18n.
  */
 export function createTranslator(i18n: I18n) {
