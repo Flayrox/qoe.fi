@@ -111,8 +111,16 @@ export function validateUsername(rawUsername: string): ValidateUsernameResult {
 
   const lower = trimmed.toLowerCase();
 
-  // 4. Vérification des noms réservés
-  if (RESERVED_USERNAMES.has(lower)) {
+  // 4. Décodage homoglyphes + leetspeak : les variantes servent AUSSI à la
+  //    détection des réservations (« adm1n », « 5upport » usurpaient un nom
+  //    de l'équipe tout en passant le format ASCII).
+  const normalized = normalizeHomoglyphs(lower);
+  const leetDecoded = decodeLeetspeak(lower);
+  const strippedDecoded = leetDecoded.replace(/[^a-z0-9]/g, '');
+  const variants = [lower, normalized, leetDecoded, strippedDecoded];
+
+  // 5. Vérification des noms réservés (sur chaque variante décodée)
+  if (variants.some((variant) => RESERVED_USERNAMES.has(variant))) {
     return {
       valid: false,
       error: "Ce nom d'utilisateur est réservé par la plateforme.",
@@ -120,18 +128,9 @@ export function validateUsername(rawUsername: string): ValidateUsernameResult {
     };
   }
 
-  // 5. Décodage homoglyphes + leetspeak pour la recherche de motifs interdits
-  const normalized = normalizeHomoglyphs(lower);
-  const leetDecoded = decodeLeetspeak(lower);
-  const strippedDecoded = leetDecoded.replace(/[^a-z0-9]/g, '');
-
+  // 6. Recherche des motifs interdits
   for (const pattern of PROHIBITED_HATE_PATTERNS) {
-    if (
-      pattern.test(lower) ||
-      pattern.test(normalized) ||
-      pattern.test(leetDecoded) ||
-      pattern.test(strippedDecoded)
-    ) {
+    if (variants.some((variant) => pattern.test(variant))) {
       return {
         valid: false,
         error: "Ce nom d'utilisateur ne respecte pas les règles de la communauté.",

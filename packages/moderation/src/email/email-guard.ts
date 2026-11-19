@@ -8,8 +8,19 @@
 
 import { DISPOSABLE_EMAIL_DOMAINS } from './disposable-domains';
 
-const EMAIL_REGEX =
-  /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+// 📮 Format « dot-atom » (RFC 5322 §3.4.1) : la partie locale est une suite
+// d'atomes séparés par UN point — ni point en tête/queue, ni point doublé.
+// L'ancienne classe `[a-zA-Z0-9.!#...]` acceptait `.a@x`, `a.@x` et `a..b@x`
+// (refusés plus tard par Supabase, avec un message incompréhensible).
+const ATEXT = "[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]";
+const EMAIL_REGEX = new RegExp(
+  `^${ATEXT}+(?:\\.${ATEXT}+)*@` +
+    '(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\\.)+' +
+    '[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$'
+);
+
+/** Longueur maximale de la partie locale (RFC 5321 §4.5.3.1.1). */
+export const MAX_EMAIL_LOCAL_PART_LENGTH = 64;
 
 export interface NormalizedEmailResult {
   raw: string;
@@ -128,6 +139,11 @@ export function validateRegistrationEmail(email: string): ValidateEmailResult {
 
   if (!EMAIL_REGEX.test(trimmed)) {
     return { valid: false, error: "Format d'adresse email invalide." };
+  }
+
+  const localPartLength = trimmed.slice(0, trimmed.lastIndexOf('@')).length;
+  if (localPartLength > MAX_EMAIL_LOCAL_PART_LENGTH) {
+    return { valid: false, error: "La partie locale de l'adresse email est trop longue." };
   }
 
   const { isDisposable, canonical, normalized } = normalizeEmail(trimmed);

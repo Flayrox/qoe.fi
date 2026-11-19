@@ -84,9 +84,10 @@ export class OpenAiModerator implements IModerationProvider {
     }
 
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
-
+      // `AbortSignal.timeout` remplace le couple AbortController + setTimeout :
+      // aucune horloge JS ne survit à l'appel (l'ancien `clearTimeout` n'était
+      // atteint qu'après une promesse résolue, donc un rejet réseau laissait un
+      // minuteur actif jusqu'à 4 s).
       const response = await fetch('https://api.openai.com/v1/moderations', {
         method: 'POST',
         headers: {
@@ -97,10 +98,8 @@ export class OpenAiModerator implements IModerationProvider {
           model: 'omni-moderation-latest',
           input: formattedInputs,
         }),
-        signal: controller.signal,
+        signal: AbortSignal.timeout(this.timeoutMs),
       });
-
-      clearTimeout(timeoutId);
 
       if (!response.ok) {
         console.warn('⚠️ Erreur OpenAI Moderation HTTP:', response.status);

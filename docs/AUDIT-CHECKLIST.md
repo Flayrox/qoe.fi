@@ -75,7 +75,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L11     | `packages/config/src/**`                                                                                     | 17 fichiers                 | **durci le 2026-11-19** |
 | L12     | `packages/formatters/src/**`                                                                                 | 5 fichiers                  | **durci le 2026-11-19** |
 | L13     | `packages/i18n/src/**` + `messages/`                                                                         | 12 fichiers                 | **durci le 2026-11-19** |
-| L14     | `packages/moderation/src/**`                                                                                 | 16 fichiers                 | à auditer               |
+| L14     | `packages/moderation/src/**`                                                                                 | 16 fichiers src + 2 suites  | **durci le 2026-11-19** |
 | L15     | `packages/analytics/src/**`                                                                                  | 12 fichiers                 | à auditer               |
 | L16     | `packages/observability/src/**`                                                                              | 7 fichiers                  | à auditer               |
 | L17     | `packages/devtools/src/**`                                                                                   | 2 fichiers                  | à auditer               |
@@ -102,7 +102,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L14 — `packages/moderation`.**
+**Prochain lot à traiter : L15 — `packages/analytics`.**
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -880,6 +880,8 @@ nommé), puis verts après restauration.
 | R60 | `reader/useBionicReading` : le mode bionique écrit `innerHTML` dans un conteneur possédé par React et met l'original en cache dans `data-original-html`. Un corps re-rendu après activation (annotation ajoutée, document canonique rechargé) rend donc l'ancien HTML à la désactivation. Le correctif propre est un bionic **déclaratif** au rendu des blocs, pas une mutation DOM. | moyenne | Chantier de design du lecteur (aucun écran n'active aujourd'hui le bionic sur un corps canonique, mais le chemin est armé) — voir L07b. |
 | R61 | `nextUrl` de bout en bout : `AuthModalContext` le calcule (`?auth=…&next=…`, URL courante), `GlobalAuthModalProvider` le transmet, `LoginModal` l'accepte… et ne l'utilise jamais. Après connexion, `router.refresh()` garde la page courante. `setMode` n'a aucun consommateur, et `?auth=login` n'est jamais retiré de l'URL (recharger rouvre la modale). | moyenne | Décision produit (revenir à l'URL d'origine après connexion, ou rester sur place ; nettoyer le paramètre au passage) — voir L07c. |
 | R63 | `deeplink.Notification` (Go) émet **`/article/{slug}`** — l'ancienne forme : 308 côté tenants, **404 côté core** — pour `LIKE`/`REPOST`/`COMMENT` sur article et pour le fan-out `MEDIA_ARTICLE_PUBLISHED`. `deeplink.Target` ne porte ni le propriétaire ni la catégorie, donc la canonique (`/{owner}/a/{slug}` ou `/{cat}/{slug}`) n'est pas constructible en l'état. Le garde `guard:article-links` ne scanne pas le Go : ce chemin lui échappe. | moyenne | Décision serveur : ajouter `OwnerUsername` (ou `CategorySlug`) au `Target` et construire la canonique, ou assumer que le client ne reçoit que des `url` déjà canoniques. Voir L07e. |
+| R74 | `canonicalEmail` est calculé par `@qoe/moderation` et écrit dans les métadonnées Supabase (`options.data`) au signup, mais **aucun code ne le lit** : ni le sync Go, ni la base (aucun index unique). L'anti-multi-comptes annoncé par le module ne s'exerce donc pas au-delà du jour de l'inscription, et la suppression systématique du tag `+` (tous fournisseurs, pas seulement Gmail) n'a aucune conséquence observable. | moyenne | Arbitrage backend : colonne `canonicalEmail` + index unique dans une migration goose, puis refus de doublon côté Go (`/v1/auth/sync`), en décidant si l'on garde Gmail uniquement pour les points. Voir L14. |
+| R73 | `OpenAiModerator` est **fail-open** : sans `OPENAI_API_KEY`, avec une clé `sk-mock`/`sk-...`, en cas d'erreur HTTP, de timeout ou de réseau, le contenu est déclaré sain (`safe: true`). C'est un choix produit documenté, mais en production une clé manquante désactive silencieusement toute modération IA. | moyenne | Décision produit : conserver le fail-open avec **alerte** (métrique `moderation.fallback`) ou basculer les médias/CSAM en fail-closed avec file d'attente. Voir L14. |
 | R72 | `translate`/`compileMessage` de `@qoe/i18n` avalent silencieusement toute erreur de syntaxe ICU (repli sur le message par défaut) : une clé cassée en production ne laisse aucune trace, alors qu'un avertissement hors production suffirait à la voir en CI. | faible | Décider du volume de bruit accepté en CI avant d'ajouter le `console.warn` conditionné à `NODE_ENV !== 'production'`. Voir L13. |
 | R71 | Les macros Lingui (`t\`…\``) des Server Components lisent le singleton activé par `initI18n` dans chaque layout : deux requêtes SSR concurrentes en `fr` et `en` peuvent encore s'entrelacer entre l'activation et le rendu des enfants (la voie `translateKey`/`getTranslate` est isolée depuis L13). | moyenne | Arbitrage d'architecture : passer ces macros en composants clients `useLingui()`, ou stocker l'instance par requête (`AsyncLocalStorage`). Voir L13. |
 | R70 | `formatDuration` était réimplémenté **deux fois** dans les apps (`apps/studio/src/app/(creator)/analytics/AnalyticsDashboardClient.tsx:54` et `apps/admin/src/app/(admin)/admin/notifications/OutboxObservabilityConsole.tsx:60`) alors que `@qoe/utils` exporte déjà `formatDuration` : trois découpages divergents sur l'arrondi et les unités. | faible | **corrigée le 2026-11-19** — les deux copies sont supprimées, les écrans consomment `@qoe/utils` (studio : « 61m 40s » → « 1 h 1 min » ; admin : « 1 min » → « 1 min 30 s »). Garde de déduplication ajouté : 2 fautifs avant, 0 après. |
@@ -1403,6 +1405,89 @@ existante modifiée, aucune doublure touchée.
 **Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65**, **R66**
 restent **ouvertes**. Nouvelle dette : **R67** (surfaces `continuous`,
 `highlighter`, `paywall`, `excerpt` sans consommateur TS).
+
+---
+
+## L14 — `@qoe/moderation` identité, emails, texte, images, IA — durci le 2026-11-19
+
+**Périmètre.** Les **16 sources + 2 suites** lues en entier (`index`, `email/{index,email-guard,disposable-domains}`,
+`identity/{index,username-guard,homoglyphs}`, `text/{index,fast-path,chunker}`,
+`image/{index,magic-bytes}`, `ai/{index,types,openai-omni}`) + `package.json`,
+`tsconfig.json` et la configuration de couverture racine. **Consommateur réel
+unique vérifié** : `apps/core/src/app/login/actions.ts` (`validateRegistrationEmail`,
+`validateUsername` dans `signup`), à travers `apps/core/next.config.ts`
+(`transpilePackages`) et `apps/core/package.json`. Recherche exhaustive : aucun
+autre import de `@qoe/moderation` dans les 7 apps, les autres packages ni dans
+`apps/api` (Go) — le paquet n'est appelé qu'à l'inscription. **Côté Go relu** :
+`internal/antispam`, `internal/modules/media`, `internal/shared/identifier` —
+aucune validation de pseudo/email équivalente côté serveur (la règle vit donc
+uniquement ici), et `canonicalEmail` n'y est jamais lu.
+
+| #    | Défaut                                                                                                                                                                                                                                                       | Sévérité | Statut                                                                                                                                                                                                                                              |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F181 | Les noms **réservés** n'étaient comparés qu'au pseudo brut : `adm1n`, `m0derator` ou `5upport` (leetspeak, ASCII valide) passaient la validation et permettaient l'**usurpation** d'un compte de l'équipe, alors que les motifs haineux, eux, étaient testés sur les variantes décodées. | haute    | corrigé — les quatre variantes (brut, homoglyphes, leetspeak, leetspeak sans symboles) sont testées contre `RESERVED_USERNAMES` **et** contre les motifs interdits ; test : **échouait** (`« adm1n » devrait être refusé: expected true to be false`), vert après |
+| F182 | `chunkText` avec `chunkSize` invalide (`0`, négatif, `NaN`) ne produisait **aucun chunk pour un texte non vide** : le contenu disparaissait silencieusement de la modération (et la boucle parcourait le texte caractère par caractère). | moyenne  | corrigé — `normalizeOptions` : taille non finie ou `< 20` → défaut 4 000 ; test : **échouait** (`expected [] to have a length of 1 but got +0`), vert après                                                                                       |
+| F183 | Avec `overlap > chunkSize`, le curseur ne reculait que d'**un caractère** par itération : 2 000 caractères produisaient **1 901 chunks** quasi identiques (coût IA multiplié par ~1 900). | moyenne  | corrigé — chevauchement borné à la moitié du chunk, progression garantie ; test : **échouait** (`expected 1901 to be less than 200`), vert après                                                                                          |
+| F184 | La regex email acceptait un point en tête, en queue ou doublé dans la partie locale (`.a@qoe.fi`, `a.@qoe.fi`, `a..b@qoe.fi`) : `validateRegistrationEmail` répondait **valide**, puis Supabase refusait avec un message incompréhensible pour l'utilisateur. | moyenne  | corrigé — partie locale en `dot-atom` (RFC 5322 §3.4.1) ; test : **échouait** (`« .a@qoe.fi » devrait être rejeté: expected true to be false`), vert après                                                                              |
+| F185 | Aucune borne sur la partie locale (RFC 5321 : 64 caractères) : `'a'.repeat(65) + '@qoe.fi'` était déclaré valide.                                                                                                                                            | faible   | corrigé — `MAX_EMAIL_LOCAL_PART_LENGTH = 64` avec message dédié ; test : **échouait** (`expected true to be false`), vert après                                                                                                            |
+| F186 | Le minuteur d'abandon de `OpenAiModerator` était un `setTimeout` nettoyé **seulement après une réponse reçue** : un rejet réseau laissait une horloge active jusqu'à 4 s (`expected 1 to be +0`), et l'API `AbortController` + `setTimeout` est remplacée depuis Node 18 par `AbortSignal.timeout`. | moyenne  | corrigé — `signal: AbortSignal.timeout(this.timeoutMs)`, plus aucune horloge JS ; test : **échouait** (`expected 1 to be +0`), vert après                                                                                              |
+| F187 | Le paquet n'avait **ni `test:coverage`, ni plancher de couverture local** : la seule gate était agrégée à la racine, donc un `pnpm --filter @qoe/moderation test` ne mesurait rien.                                                                     | faible   | corrigé — `test:coverage` + `vitest.config.ts` (plancher 90/80/100/92) ; preuve : `pnpm --filter @qoe/moderation test:coverage` passe les seuils                                                                                    |
+
+**Candidats examinés puis ABANDONNÉS** (pas de rouge = pas un défaut) :
+
+- **Homoglyphes cyrilliques sur un nom réservé** (`mоderator`, `аdmin`, `qое`) :
+  le pseudo est refusé, mais par le **format ASCII** (`reason: 'format'`), pas
+  par la liste de réservation — `expected 'format' to be 'reserved'`. Aucun
+  compte ne peut donc être créé : conservé en garde de non-régression, pas
+  présenté comme une faille.
+- **Fuite de minuteur sur réponse HTTP en erreur** : le `clearTimeout` était déjà
+  atteint avant le test de `response.ok` — le test a passé du premier coup
+  (`1 passed`), donc seul le chemin de rejet réseau constituait le défaut F186.
+
+**Preuve rouge → vert.** Suite écrite avant correctifs (`moderation-hardening.test.ts`),
+rejouée contre les sources d'origine : **7 échecs / 8** (`Tests 7 failed | 1 passed`),
+messages cités ci-dessus. Les 2 suites historiques (`moderation.test.ts`, 24 tests)
+sont restées vertes **sans aucune modification d'assertion** ; les seules doublures
+ajoutées portent sur des frontières externes (`fetch` global, horloges `vi.useFakeTimers`).
+
+**Preuves (arbre propre, après commit) :**
+
+| Commande | Avant | Après |
+| -------- | ----- | ----- |
+| `pnpm --filter @qoe/moderation test` | 24 tests / 1 fichier | **38 tests / 2 fichiers verts** |
+| `pnpm --filter @qoe/moderation test:coverage` | 86,43 % st. · 81,05 % br. · 92,3 % fn. · 89,78 % lignes — **aucun seuil** | **95,75 % · 89,39 % · 100 % · 98,48 %** (plancher 90/80/100/92) |
+| `pnpm --filter @qoe/moderation lint` / `typecheck` | 0 / 0 | **0 / 0** |
+| `pnpm --filter @qoe/core test` (consommateur direct) | 255 / 32 | **255 / 32 verts** |
+| `pnpm test` (monorepo complet, turbo) | — | **24/24 tâches, 0 échec** |
+| `pnpm typecheck` | 25/25 | **25/25 tâches** |
+| les 9 gardes CI | vertes | **vertes** |
+
+**Observations trouvées, volontairement non corrigées.**
+
+- `RESERVED_USERNAMES` contient `'a'`, **inatteignable** (longueur minimale 3).
+  Entrée morte sans effet : la retirer ne change aucun comportement, la garder
+  documente l'intention.
+- `normalizeEmail` supprime le tag `+` pour **tous** les fournisseurs alors que
+  le commentaire dit « pour les fournisseurs majeurs » : sans consommateur du
+  `canonicalEmail` (R74), aucun effet observable aujourd'hui.
+- `detectMagicBytes` exige **12 octets** minimum même pour un JPEG (3 suffisent) :
+  un fichier réel fait toujours plus, et le plancher évite les faux positifs sur
+  un buffer tronqué. Comportement verrouillé par les tests existants.
+- `fastPathScan` est volontairement **strict et court** (4 motifs) : il ne
+  remplace pas le modérateur IA, il coupe les menaces explicites avant l'écriture.
+
+**Dettes.** **R01**, **R54**, **R56**, **R63** à **R68**, **R71**, **R72** restent
+**ouvertes**. Nouvelles dettes :
+
+- **R73** — `OpenAiModerator` est **fail-open** (pas de clé, clé mock, erreur
+  HTTP, timeout réseau → `safe: true`). Choisi pour ne pas bloquer la publication
+  quand l'API tombe, mais une clé absente en production désactive la modération
+  **sans aucune trace**. Arbitrage attendu : alerte/métrique de repli, ou
+  fail-closed avec file d'attente pour les médias.
+- **R74** — `canonicalEmail` n'est **lu par personne** (ni Go, ni la base) :
+  l'anti-multi-comptes n'existe pas au-delà de l'inscription. Arbitrage backend :
+  colonne + index unique en migration goose, refus de doublon dans
+  `/v1/auth/sync`, et décision sur les points Gmail (spécifiques à Gmail).
 
 ---
 
