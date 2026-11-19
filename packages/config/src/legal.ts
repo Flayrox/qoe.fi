@@ -52,16 +52,23 @@ export const LEGAL_REVERSE_SLUG_MAP: Record<string, string> = {
   'engagement-accessibilite': 'accessibility',
 };
 
+/** Lecture d'une table uniquement sur ses clés propres (pas d'héritage). */
+function ownLookup(table: Record<string, string>, key: string): string | null {
+  return Object.hasOwn(table, key) ? table[key] : null;
+}
+
 /** Convertit n'importe quel slug (alias anglais ou legacy français) vers le slug DB canonique */
 export function resolveLegalDbSlug(slug: string): string {
   const clean = slug.toLowerCase().trim();
-  return (LEGAL_SLUG_MAP as Record<string, string>)[clean] || clean;
+  // F157 — `map[clean] || clean` renvoyait `Object.prototype.constructor` pour
+  // `/legal/constructor` : un slug d'URL arbitraire devenait une fonction.
+  return ownLookup(LEGAL_SLUG_MAP as Record<string, string>, clean) ?? clean;
 }
 
 /** Convertit un slug DB vers le slug public anglais épuré */
 export function toPublicLegalSlug(slug: string): string {
   const clean = slug.toLowerCase().trim();
-  return LEGAL_REVERSE_SLUG_MAP[clean] || clean;
+  return ownLookup(LEGAL_REVERSE_SLUG_MAP, clean) ?? clean;
 }
 
 /**

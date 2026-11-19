@@ -4,23 +4,65 @@
 
 import { getMainAppUrl as resolveMainUrl } from './domain-hub';
 
+/**
+ * Sous-domaines refusés comme identifiant de publication.
+ *
+ * **Parité avec le serveur** : `apps/api/internal/shared/identifier/identifier.go`
+ * (`var reserved`, 41 entrées) + les hôtes propres au produit (`hi`, `core`,
+ * `tenants`, `collab`, `assets`, plus les alias legacy `landing`/`feed`).
+ *
+ * F160 — cette liste n'en portait que 16 : `parseTenantHost('media.qoe.fi')`
+ * classait un hôte du produit en site tenant, alors que le serveur refusait
+ * déjà ce nom à la création. Toute entrée ajoutée côté Go doit être ajoutée ici.
+ */
 export const RESERVED_SUBDOMAINS = [
   'admin',
   'api',
-  'dashboard', // legacy (pré-renommage) — réservé pour les anciens liens
-  'feed', // legacy
-  'landing', // legacy
-  'start', // legacy
-  'hi',
-  'core',
-  'tenants',
-  'studio',
-  'www',
   'app',
-  'auth',
-  'static',
   'assets',
+  'auth',
+  'billing',
+  'blog',
   'cdn',
+  'collab',
+  'core',
+  'dashboard', // legacy (pré-renommage) — réservé pour les anciens liens
+  'dev',
+  'developer',
+  'developers',
+  'docs',
+  'download',
+  'email',
+  'feed', // legacy
+  'files',
+  'help',
+  'hi',
+  'home',
+  'landing', // legacy
+  'login',
+  'mail',
+  'main',
+  'media',
+  'metrics',
+  'onboarding',
+  'payments',
+  'portal',
+  'qoe',
+  'root',
+  'search',
+  'settings',
+  'staging',
+  'start', // legacy
+  'static',
+  'status',
+  'store',
+  'studio',
+  'support',
+  'system',
+  'tenants',
+  'uploads',
+  'web',
+  'www',
 ] as const;
 
 /**
@@ -69,6 +111,9 @@ export const SYSTEM_DOMAINS = [
   'localhost',
   'qoe.test',
   'lvh.me',
+  // F155 — l'apex manquait : `parseTenantHost('qoe.fi')` le classait en domaine
+  // personnalisé, donc en site tenant nommé « qoe.fi » (proxy et sitemap faux).
+  'qoe.fi',
   'qoefi',
   'www.qoe.fi',
   'hi.qoe.fi',
@@ -144,8 +189,15 @@ export function getMainAppUrl(hostname: string, port = 15402): string {
 export function getAuthCookieDomain(hostname: string): string | undefined {
   const hostWithoutPort = hostname.split(':')[0].toLowerCase();
 
-  if (hostWithoutPort.endsWith('lvh.me')) return '.lvh.me';
-  if (hostWithoutPort.endsWith('qoe.test')) return '.qoe.test';
-  if (hostWithoutPort.endsWith('qoefi')) return '.qoe.fi';
+  // F156 — les suffixes étaient testés sans point de séparation et sans l'apex :
+  // `evilqoefi` revendiquait `.qoe.fi`, alors que `qoe.fi` et `studio.qoe.fi`
+  // n'obtenaient aucun domaine, donc aucun SSO sur les sous-domaines.
+  const isUnder = (parent: string) =>
+    hostWithoutPort === parent || hostWithoutPort.endsWith(`.${parent}`);
+
+  if (isUnder('lvh.me')) return '.lvh.me';
+  if (isUnder('qoe.test')) return '.qoe.test';
+  // `qoefi` est l'alias de dev à label unique (résolution locale sans point).
+  if (isUnder('qoe.fi') || isUnder('qoefi')) return '.qoe.fi';
   return undefined;
 }

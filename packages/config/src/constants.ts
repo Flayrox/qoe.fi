@@ -2,6 +2,14 @@
 // 🔢 CONSTANTES MÉTIER — Partagées par toutes les apps/packages
 // =====================================================================
 
+import { resolveAppUrl, type AppService } from './domain-hub';
+
+/**
+ * Documentation API : site statique hors monorepo, servi en production.
+ * Aucune app `docs` ici, donc pas de résolution par hôte.
+ */
+const DOCS_URL = 'https://docs.qoe.fi';
+
 /**
  * 👥 Rôles utilisateurs.
  * Hiérarchie : superadmin > creator > user
@@ -107,78 +115,34 @@ export const LIMITS = {
 export type MonorepoApp =
   'feed' | 'dashboard' | 'studio' | 'admin' | 'landing' | 'api' | 'tenant' | 'docs';
 
+/** Application du monorepo → service du Domain Hub (source unique des origines). */
+const MONOREPO_SERVICES = {
+  feed: 'app',
+  dashboard: 'studio',
+  studio: 'studio',
+  admin: 'admin',
+  landing: 'landing',
+  api: 'api',
+  tenant: 'tenant',
+} as const satisfies Record<Exclude<MonorepoApp, 'docs'>, AppService>;
+
 export function getMonorepoUrl(
   app: MonorepoApp,
   hostname?: string,
   tenantSubdomain?: string
 ): string {
-  // Auto-détection côté navigateur si l'hôte n'est pas passé explicitement
-  let host = hostname;
-  const globalWithWindow = globalThis as { window?: { location: { host: string } } };
-  if (!host && typeof globalThis !== 'undefined' && globalWithWindow.window?.location) {
-    host = globalWithWindow.window.location.host;
+  // F158 — cette fonction recopiait la table des ports, des sous-domaines de
+  // production et la détection d'environnement de `domain-hub`, et en avait
+  // déjà divergé : la vitrine était servie sur `start.<domaine>` (aucune route)
+  // alors que `apps/hi` répond à la racine de son port. Une seule résolution
+  // désormais : `resolveAppUrl`.
+  if (app === 'docs') return DOCS_URL;
+
+  if (app === 'tenant') {
+    return resolveAppUrl('tenant', hostname, { subdomain: tenantSubdomain || 'demo' });
   }
 
-  // 1. Mode Production
-  if (process.env.NODE_ENV === 'production') {
-    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'qoe.fi';
-    switch (app) {
-      case 'feed':
-        return `https://${rootDomain}`;
-      case 'studio':
-      case 'dashboard':
-        return `https://studio.${rootDomain}`;
-      case 'admin':
-        return `https://admin.${rootDomain}`;
-      case 'landing':
-        return `https://hi.${rootDomain}`;
-      case 'api':
-        return `https://api.${rootDomain}`;
-      case 'docs':
-        return `https://docs.${rootDomain}`;
-      case 'tenant':
-        return `https://${tenantSubdomain || 'demo'}.${rootDomain}`;
-    }
-  }
-
-  // 2. Mode Développement (Détection dynamique lvh.me vs qoe.test vs localhost)
-  let devBase = 'lvh.me';
-  if (host) {
-    if (host.includes('qoe.test')) {
-      devBase = 'qoe.test';
-    } else if (host.includes('lvh.me')) {
-      devBase = 'lvh.me';
-    } else if (host.includes('localhost')) {
-      devBase = 'lvh.me'; // lvh.me pointe toujours sur 127.0.0.1 pour la résolution des sous-domaines
-    }
-  }
-
-  const isCaddy = host && !host.includes(':');
-  const feedPort = isCaddy ? '' : ':15402';
-  const dashboardPort = isCaddy ? '' : ':15404';
-  const adminPort = isCaddy ? '' : ':15405';
-  const landingPort = isCaddy ? '' : ':15401';
-  // Backend Go (apps/api) — api.qoe.fi en prod, :15407 en dev direct (isole 1540x).
-  const apiPort = isCaddy ? '' : ':15407';
-  const tenantPort = isCaddy ? '' : ':15403';
-
-  switch (app) {
-    case 'feed':
-      return `http://${devBase}${feedPort}`;
-    case 'studio':
-    case 'dashboard':
-      return `http://studio.${devBase}${dashboardPort}`;
-    case 'admin':
-      return `http://admin.${devBase}${adminPort}`;
-    case 'landing':
-      return `http://start.${devBase}${landingPort}`;
-    case 'api':
-      return `http://api.${devBase}${apiPort}`;
-    case 'docs':
-      return 'https://docs.qoe.fi';
-    case 'tenant':
-      return `http://${tenantSubdomain || 'climat'}.${devBase}${tenantPort}`;
-  }
+  return resolveAppUrl(MONOREPO_SERVICES[app], hostname);
 }
 
 export const URLS = {

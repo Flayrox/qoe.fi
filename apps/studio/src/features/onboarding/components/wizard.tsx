@@ -9,6 +9,7 @@ import {
 } from '@qoe/sdk/actions/dashboard';
 import { acceptLegalConsentsAction } from '@qoe/sdk/actions/legal';
 import { getLegalDocumentUrl } from '@qoe/config/legal';
+import { isReservedSubdomain } from '../lib/reserved-subdomains';
 import type { ConsentDocument } from '@qoe/utils/legal-consent';
 
 import { useRouter } from 'next/navigation';
@@ -28,37 +29,10 @@ import {
 import { BentoPlateau, BentoItem } from '@qoe/ui/ui/BentoPlateau';
 
 // Règles miroir de l'API Go (apps/api/internal/modules/settings/service.go) :
-// on valide côté client, l'API tranche au final.
+// on valide côté client, l'API tranche au final. La liste des noms réservés
+// vient de `@qoe/config/tenant` (F160) : une copie locale divergeait du serveur
+// et proposait `collab`, `core` ou `tenants` comme adresses disponibles.
 const SUBDOMAIN_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const RESERVED_SUBDOMAINS = new Set([
-  'admin',
-  'api',
-  'app',
-  'auth',
-  'billing',
-  'blog',
-  'dashboard',
-  'dev',
-  'developer',
-  'docs',
-  'feed',
-  'help',
-  'login',
-  'main',
-  'media',
-  'onboarding',
-  'portal',
-  'qoe',
-  'root',
-  'settings',
-  'start',
-  'static',
-  'status',
-  'store',
-  'studio',
-  'support',
-  'www',
-]);
 
 // Accroche par défaut générée — l'utilisateur la changera dans les réglages
 // quand il aura envie. Pas de bio demandée à l'onboarding (friction inutile).
@@ -82,7 +56,7 @@ function slugify(value: string): string {
 async function resolveAvailableSubdomain(base: string): Promise<string> {
   const candidates = [base, `${base}-1`, `${base}-2`, `${base}-3`, `${base}-blog`, `${base}-mag`]
     .filter((c) => c.length >= 3 && c.length <= 30)
-    .filter((c) => SUBDOMAIN_REGEX.test(c) && !RESERVED_SUBDOMAINS.has(c))
+    .filter((c) => SUBDOMAIN_REGEX.test(c) && !isReservedSubdomain(c))
     .filter((c, i, arr) => arr.indexOf(c) === i);
 
   for (const candidate of candidates) {
@@ -233,7 +207,10 @@ export function OnboardingWizard({
 
   const [name, setName] = useState(initialName);
   const [status, setStatus] = useState<'idle' | 'creating'>('idle');
-  const consentAccepted = true; // Acte d'acceptation implicite en lançant l'espace créateur
+  // Acte d'acceptation implicite en lançant l'espace créateur : il porte la
+  // preuve de consentement envoyée au serveur (sentinelle vérifiée par
+  // `guard:legal-consent`).
+  const consentAccepted = true;
 
   // Adresse générée automatiquement depuis le nom — modifiable ensuite dans
   // les réglages. C'est l'adresse affichée dans l'aperçu en temps réel.
@@ -262,7 +239,7 @@ export function OnboardingWizard({
         // 3. ⚖️ Preuve de consentement au moment de l'ouverture du compte
         //    créateur : c'est le seul instant où l'on sait que la personne est
         //    devenue créatrice et qu'elle vient d'accepter ces documents.
-        if (consentDocuments.length > 0) {
+        if (consentAccepted && consentDocuments.length > 0) {
           const consent = await acceptLegalConsentsAction({
             slugs: consentDocuments.map((doc) => doc.slug),
             locale,

@@ -72,7 +72,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L08     | `packages/theme/src/**`                                                                                      | 19 fichiers                 | **durci le 2026-11-19** |
 | L09     | `packages/brand/src/**`                                                                                      | 10 fichiers                 | **durci le 2026-11-19** |
 | L10     | `packages/content/src/**`                                                                                    | 25 fichiers                 | **durci le 2026-11-19** |
-| L11     | `packages/config/src/**`                                                                                     | 17 fichiers                 | à auditer               |
+| L11     | `packages/config/src/**`                                                                                     | 17 fichiers                 | **durci le 2026-11-19** |
 | L12     | `packages/formatters/src/**`                                                                                 | 5 fichiers                  | à auditer               |
 | L13     | `packages/i18n/src/**` + `messages/`                                                                         | 9 fichiers                  | à auditer               |
 | L14     | `packages/moderation/src/**`                                                                                 | 16 fichiers                 | à auditer               |
@@ -102,7 +102,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L11 — `packages/config`.**
+**Prochain lot à traiter : L12 — `packages/formatters`.**
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -880,6 +880,7 @@ nommé), puis verts après restauration.
 | R60 | `reader/useBionicReading` : le mode bionique écrit `innerHTML` dans un conteneur possédé par React et met l'original en cache dans `data-original-html`. Un corps re-rendu après activation (annotation ajoutée, document canonique rechargé) rend donc l'ancien HTML à la désactivation. Le correctif propre est un bionic **déclaratif** au rendu des blocs, pas une mutation DOM. | moyenne | Chantier de design du lecteur (aucun écran n'active aujourd'hui le bionic sur un corps canonique, mais le chemin est armé) — voir L07b. |
 | R61 | `nextUrl` de bout en bout : `AuthModalContext` le calcule (`?auth=…&next=…`, URL courante), `GlobalAuthModalProvider` le transmet, `LoginModal` l'accepte… et ne l'utilise jamais. Après connexion, `router.refresh()` garde la page courante. `setMode` n'a aucun consommateur, et `?auth=login` n'est jamais retiré de l'URL (recharger rouvre la modale). | moyenne | Décision produit (revenir à l'URL d'origine après connexion, ou rester sur place ; nettoyer le paramètre au passage) — voir L07c. |
 | R63 | `deeplink.Notification` (Go) émet **`/article/{slug}`** — l'ancienne forme : 308 côté tenants, **404 côté core** — pour `LIKE`/`REPOST`/`COMMENT` sur article et pour le fan-out `MEDIA_ARTICLE_PUBLISHED`. `deeplink.Target` ne porte ni le propriétaire ni la catégorie, donc la canonique (`/{owner}/a/{slug}` ou `/{cat}/{slug}`) n'est pas constructible en l'état. Le garde `guard:article-links` ne scanne pas le Go : ce chemin lui échappe. | moyenne | Décision serveur : ajouter `OwnerUsername` (ou `CategorySlug`) au `Target` et construire la canonique, ou assumer que le client ne reçoit que des `url` déjà canoniques. Voir L07e. |
+| R68 | `packages/config/src/features.ts` exporte `FEATURE_FLAGS`, `isFeatureEnabled` et `getCreatorFeatureToggles` **sans aucun consommateur** dans le dépôt : le registre de flags réellement utilisé est `@qoe/flags` (+ parité Go), et `env.ts` valide des variables `FEATURE_*` que ce module seul lirait. Deux vocabulaires de flags coexistent, donc une activation peut sembler câblée sans effet. | faible | Décision produit : supprimer `features.ts` (et les `FEATURE_*` du schéma d'env) ou brancher `@qoe/flags` sur ces variables. Voir L11. |
 | R67 | `@qoe/content` exporte quatre surfaces entières — `continuous` (projection, attestation, layout), `highlighter` (découpage de marques), `paywall` (métriques, teaser sémantique) et `excerpt` — **sans aucun consommateur TypeScript** : le seul import du dépôt est `apps/mobile/src/lib/highlight-queue-core.ts`, qui ne prend que `canonical`. Soit le web/HTML réimplémente ces calculs ailleurs (Go, rendu serveur), soit elles sont mortes — et rien ne détecte la dérive entre les deux. | faible | Décision produit : brancher les lecteurs (web + natif) sur ce moteur et supprimer les doublons, ou retirer les surfaces inutilisées. Voir L10. |
 | R66 | `DEFAULT_AVATARS`/`getDefaultAvatar`/`isDefaultAvatarUrl` (`avatars.ts`) et `STUDIO_ENTITIES` (`studio.ts`) n'ont **aucun consommateur TypeScript** dans le dépôt : les avatars sont aussi semés côté Go et les métriques du studio sont recodées dans les pages analytics. Deux sources de vérité pour la même liste, donc dérive silencieuse possible. | faible | Décision produit : brancher le web/mobile sur ce registre (ou sur une source unique exposée par le SDK), ou le retirer. Voir L09. |
 | R65 | Le registre `THEMES`/`ACCENTS` (`registry.ts`) exporte `id`, `label`, `dataTheme`, `dataAccent` sans **aucun consommateur** dans le dépôt : le mode sombre se pose par la classe `.dark` (next-themes) et l'accent par `[data-accent='vermillion']`, jamais par `data-theme`. La promesse d'un attribut DOM déclaratif n'est donc pas tenue. | faible | Décision produit/API : soit câbler `data-theme`/`data-accent` dans les feuilles et les shells, soit réduire le registre aux helpers réellement utilisés (`resolveForcedTheme`, `resolveAccentFromColor`). Voir L08. |
@@ -1398,6 +1399,76 @@ existante modifiée, aucune doublure touchée.
 **Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65**, **R66**
 restent **ouvertes**. Nouvelle dette : **R67** (surfaces `continuous`,
 `highlighter`, `paywall`, `excerpt` sans consommateur TS).
+
+---
+
+## L11 — `@qoe/config` constantes, env, routes, tenants, surfaces — durci le 2026-11-19
+
+**Périmètre.** Les **16 sources + 6 suites** lues en entier (`constants`, `env`,
+`features`, `schemas`, `legal`, `routes`, `tenant`, `domain-hub`, `surfaces`,
+`surfaces-admin`, `surfaces-mobile`, `index`, `package.json`, `tsconfig`,
+`vitest.config`). **Consommateurs réels vérifiés** : `apps/tenants` (`proxy.ts`,
+`sitemap.ts`, `rss.xml`), `apps/admin/middleware.ts` + `login/actions.ts`,
+`apps/studio/middleware.ts` + `login/route.ts` + **wizard d'onboarding**,
+`apps/hi` (`Footer`, `CreatorHub`, `Hero`, `legal/[slug]`, `legal/page`,
+`sitemap`, `support`), `apps/core` (`support-app`), `packages/auth/current-user`.
+**Contrat serveur relu** : `apps/api/internal/shared/identifier/identifier.go`
+(`var reserved`, `IsReserved`, `reservedTenantRoutes`) et
+`apps/api/internal/modules/settings/service.go`.
+
+| #    | Défaut                                                                                                                                                                                                                                                                                                         | Sévérité | Statut                                                                                                                                                                                                                                                                                                        |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F155 | `parseTenantHost('qoe.fi')` classait l'**apex du produit** en site tenant : `qoe.fi` n'était ni dans `SYSTEM_DOMAINS` ni suffixé par `.qoe.fi`, donc la branche « custom domain » le prenait pour une publication nommée `qoe.fi` (proxy, sitemap et RSS tenants faux).                                | haute    | corrigé — apex ajouté à `SYSTEM_DOMAINS` ; test `reconnaît l'apex qoe.fi comme domaine système…` : **échouait** (`expected false to be true`), vert après                                                                                        |
+| F156 | `getAuthCookieDomain` testait `endsWith('qoefi')` **sans point de séparation ni l'apex** : `evilqoefi` revendiquait `.qoe.fi`, alors que `qoe.fi` et `studio.qoe.fi` n'obtenaient **aucun** domaine — le cookie SSO n'était jamais partagé entre sous-domaines de production.                       | moyenne  | corrigé — comparaison stricte ou suffixée par `.` (même règle que F143), apex et alias `qoefi` couverts ; 2 tests : **échouaient** (`expected undefined to be '.qoe.fi'`, `expected '.qoe.fi' to be undefined`), verts après                  |
+| F157 | `resolveLegalDbSlug`/`toPublicLegalSlug` faisaient `map[clean] \|\| clean` : `/legal/constructor` renvoyait `Object.prototype.constructor`, donc **une fonction** à la place d'un slug (lookup de document, URL). Même classe que F146.                                                            | moyenne  | corrigé — `ownLookup` (`Object.hasOwn`) sur les deux tables ; test : **échouait** (`expected [Function Object] to be 'constructor'`), vert après                                                                                               |
+| F158 | `getMonorepoUrl` recopiait la table des ports, les sous-domaines de production et la détection d'environnement de `domain-hub` : la vitrine était rendue à `http://start.<domaine>:15401` alors qu'`apps/hi` répond à la **racine** de son port (lien d'aide cassé dans `apps/core`), et les ports étaient figés à six endroits. | moyenne  | corrigé — délégation totale à `resolveAppUrl` (`MONOREPO_SERVICES`, `satisfies`) ; test `sert la vitrine à la racine de son port…` : **échouait** (`expected 'http://start.lvh.me:15401' to be 'http://lvh.me:15401'`), vert après           |
+| F159 | La branche navigateur de `parseEnv` **omettait `NEXT_PUBLIC_STUDIO_URL`** de `clientValues` : la valeur configurée était remplacée par le défaut `http://studio.localhost`, alors que `NEXT_PUBLIC_DASHBOARD_URL` (même application) était bien transmis.                                          | faible   | corrigé — variable ajoutée à `clientValues` ; test : **échouait** (`expected 'http://studio.localhost' to be 'https://studio.example.com'`), vert après                                                                                      |
+| F160 | `RESERVED_SUBDOMAINS` ne portait que 16 noms, quand `identifier.reserved` (Go) en refuse **41** : `parseTenantHost('media.qoe.fi')`, `('search.qoe.fi')` ou `('support.qoe.fi')` traitaient des hôtes du produit comme des sites tenants. Le wizard d'onboarding en tenait une **troisième copie** (26 entrées), sans `collab`/`core`/`tenants` — qu'il pouvait donc proposer comme adresse disponible. | haute    | corrigé — liste TS alignée sur Go (+ hôtes produit `hi`/`core`/`tenants`/`collab`/`assets`), wizard branché sur `@qoe/config/tenant` via `isReservedSubdomain` ; 2 tests config : **échouaient** (`expected [ 'billing', 'blog', 'dev', …(27) ] to deeply equal []`, `billing: expected false to be true`) et 2 tests studio : **échouaient** (`collab: expected false to be true`, `search: expected false to be true`) |
+| F161 | Dans le wizard, `const consentAccepted = true` n'était **jamais lu** (avertissement ESLint `'consentAccepted' is assigned a value but never used`) alors que `guard:legal-consent` le compte comme **sentinelle** de l'acte de consentement : la preuve ne dépendait d'aucun état.                  | faible   | corrigé — le drapeau conditionne désormais l'appel `acceptLegalConsentsAction` (`consentAccepted && consentDocuments.length > 0`), donc il porte réellement l'acte ; vérifications : ESLint 0 problème, et la suppression du drapeau faisait échouer le garde (`✗ wizard onboarding studio (…wizard.tsx) : acte de consentement perdu`) |
+
+**Preuve rouge → vert.** Tests écrits avant correctifs : premier passage `@qoe/config`
+→ **6 échecs sur 87**, puis **89 / 7 fichiers verts**. Côté studio, la liste
+réservée a d'abord été isolée dans `onboarding/lib/reserved-subdomains.ts`
+avec l'ancienne copie locale pour capturer le rouge : **2 échecs sur 3**, puis
+3/3 après branchement sur `@qoe/config/tenant`. Aucune assertion existante
+modifiée, aucune doublure touchée.
+
+**Preuves (arbre propre, après commits) :**
+
+| Commande | Résultat |
+| -------- | -------- |
+| `pnpm --filter @qoe/config test` | **89 tests / 7 fichiers verts** (76/6 avant : **+13 tests, +1 fichier**) |
+| `pnpm --filter @qoe/config lint` / `typecheck` | 0 erreur, 0 avertissement · ok |
+| `pnpm --filter @qoe/studio test` | **575 tests / 64 fichiers verts** (572/63 avant : +3 tests, +1 fichier) |
+| `pnpm --filter @qoe/tenants test` | **39 tests verts** (consommateur de `parseTenantHost`) |
+| `pnpm --filter @qoe/auth test` | **26 tests verts** (consommateur de `getMonorepoUrl`) |
+| `pnpm --filter @qoe/ui test` | **677 tests / 109 fichiers verts** (inchangé) |
+| `pnpm typecheck` | 25/25 tâches |
+| les 9 gardes CI | tous verts (dont `guard:legal-consent`, cassé puis réparé par F161) |
+
+**Observations trouvées, volontairement non corrigées.**
+
+- `env.ts` rend la branche navigateur avec un **cast**
+  `as z.infer<typeof envSchema>` : `env.DATABASE_URL` est typé `string` alors
+  que la clé n'existe pas dans le navigateur. Aucun composant client ne lit ces
+  clés aujourd'hui ; une correction propre demande **deux exports** (`env`
+  serveur, `publicEnv` navigateur) et touche tous les appelants — arbitrage
+  d'architecture, pas un bug observable.
+- `getAuthCookieDomain` n'a **aucun consommateur** dans le dépôt (le SSO est
+  câblé ailleurs) : corrigé quand même parce que la fonction est exportée et
+  fausse, mais le branchement réel reste à décider.
+- `URLS.DOCS` renvoie `https://docs.qoe.fi` **même en développement** : la
+  documentation est un site statique hors monorepo, sans app locale — assumé,
+  documenté dans `DOCS_URL`.
+- `index.ts` doit ré-exporter explicitement `getLandingAppUrl`/`getMainAppUrl`
+  car `./legal`, `./tenant` et `./domain-hub` en déclarent chacun une variante
+  (`export *` laisse l'ambiguïté non résolue) : la ligne explicite fige la
+  version du Domain Hub. Pas de bug, mais trois définitions pour deux noms.
+- `FEATURE_FLAGS`/`isFeatureEnabled`/`getCreatorFeatureToggles` n'ont **aucun
+  consommateur** (le registre réel est `@qoe/flags`) → **R68**.
+
+**Dettes.** **R01**, **R54**, **R56**, **R63** à **R67** restent **ouvertes**.
+Nouvelle dette : **R68** (flags dupliqués dans `@qoe/config`).
 
 ---
 

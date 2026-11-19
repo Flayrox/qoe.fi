@@ -131,6 +131,10 @@ export function parseEnv() {
       NEXT_PUBLIC_LANDING_URL: cleanEnvValue(process.env.NEXT_PUBLIC_LANDING_URL),
       NEXT_PUBLIC_API_URL: cleanEnvValue(process.env.NEXT_PUBLIC_API_URL),
       NEXT_PUBLIC_ADMIN_URL: cleanEnvValue(process.env.NEXT_PUBLIC_ADMIN_URL),
+      // F159 — oubliée ici alors qu'elle est au schéma serveur et que
+      // `NEXT_PUBLIC_DASHBOARD_URL` (même application) était transmise : le
+      // navigateur retombait sur le défaut `http://studio.localhost`.
+      NEXT_PUBLIC_STUDIO_URL: cleanEnvValue(process.env.NEXT_PUBLIC_STUDIO_URL),
       NEXT_PUBLIC_DASHBOARD_URL: cleanEnvValue(process.env.NEXT_PUBLIC_DASHBOARD_URL),
       NEXT_PUBLIC_UMAMI_WEBSITE_ID: cleanEnvValue(process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID),
       NEXT_PUBLIC_UMAMI_SCRIPT_URL: cleanEnvValue(process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL),
