@@ -144,3 +144,18 @@ export const BRAND_SOCIAL_ICONS: Record<string, SvgGeometry> = {
     path: 'M6.18 15.64a2.18 2.18 0 0 1 2.18 2.18C8.36 19 7.38 20 6.18 20C5 20 4 19 4 17.82a2.18 2.18 0 0 1 2.18-2.18M4 4.44A15.56 15.56 0 0 1 19.56 20h-2.83A12.73 12.73 0 0 0 4 7.27V4.44m0 5.66a9.9 9.9 0 0 1 9.9 9.9h-2.83A7.07 7.07 0 0 0 4 12.93v-2.83Z',
   },
 };
+
+/**
+ * Résout une icône sociale, en refusant les clés héritées du prototype.
+ *
+ * F146 — `BRAND_SOCIAL_ICONS['constructor']` renvoyait
+ * `Object.prototype.constructor` (truthy) : `SocialIcon` quittait son repli et
+ * rendait un `<svg>` sans `viewBox` ni `path`, donc une icône vide. La clé
+ * vient d'un lien social saisi par l'utilisateur : elle ne doit jamais
+ * atteindre le prototype.
+ */
+export function getSocialIcon(platform: string): SvgGeometry | null {
+  const key = platform.toLowerCase().trim();
+  if (!Object.hasOwn(BRAND_SOCIAL_ICONS, key)) return null;
+  return BRAND_SOCIAL_ICONS[key] ?? null;
+}

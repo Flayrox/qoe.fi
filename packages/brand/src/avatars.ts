@@ -103,8 +103,10 @@ export const DEFAULT_AVATARS: readonly DefaultAvatar[] = [
  * Récupère un avatar par son identifiant (1 à 10).
  */
 export function getDefaultAvatar(idOrIndex: number | string): DefaultAvatar {
-  const numericId = typeof idOrIndex === 'string' ? parseInt(idOrIndex, 10) : idOrIndex;
-  const normalizedIndex = isNaN(numericId) ? 1 : Math.max(1, Math.min(10, numericId));
+  const numericId = typeof idOrIndex === 'string' ? parseInt(idOrIndex, 10) : Math.trunc(idOrIndex);
+  // F149 — sans troncature, `DEFAULT_AVATARS[3.7 - 1]` valait `undefined` et
+  // l'appel renvoyait silencieusement l'avatar 1 au lieu du troisième.
+  const normalizedIndex = Number.isFinite(numericId) ? Math.max(1, Math.min(10, numericId)) : 1;
   return DEFAULT_AVATARS[normalizedIndex - 1] || DEFAULT_AVATARS[0];
 }
 

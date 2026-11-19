@@ -70,7 +70,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L07d    | `packages/ui/src/{security,seo,legal}/**`                                                                    | 13 fichiers src             | **durci le 2026-11-19** |
 | L07e    | `packages/ui/src/{notifications,onboarding,profile,social,cmdk,templates,sidebar.tsx}`                       | 86 fichiers (src + tests)   | **durci le 2026-11-19** |
 | L08     | `packages/theme/src/**`                                                                                      | 19 fichiers                 | **durci le 2026-11-19** |
-| L09     | `packages/brand/src/**`                                                                                      | 10 fichiers                 | à auditer               |
+| L09     | `packages/brand/src/**`                                                                                      | 10 fichiers                 | **durci le 2026-11-19** |
 | L10     | `packages/content/src/**`                                                                                    | 25 fichiers                 | à auditer               |
 | L11     | `packages/config/src/**`                                                                                     | 17 fichiers                 | à auditer               |
 | L12     | `packages/formatters/src/**`                                                                                 | 5 fichiers                  | à auditer               |
@@ -102,7 +102,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L07a — `packages/ui` (primitives et composants partagés).**
+**Prochain lot à traiter : L10 — `packages/content`.**
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -880,6 +880,7 @@ nommé), puis verts après restauration.
 | R60 | `reader/useBionicReading` : le mode bionique écrit `innerHTML` dans un conteneur possédé par React et met l'original en cache dans `data-original-html`. Un corps re-rendu après activation (annotation ajoutée, document canonique rechargé) rend donc l'ancien HTML à la désactivation. Le correctif propre est un bionic **déclaratif** au rendu des blocs, pas une mutation DOM. | moyenne | Chantier de design du lecteur (aucun écran n'active aujourd'hui le bionic sur un corps canonique, mais le chemin est armé) — voir L07b. |
 | R61 | `nextUrl` de bout en bout : `AuthModalContext` le calcule (`?auth=…&next=…`, URL courante), `GlobalAuthModalProvider` le transmet, `LoginModal` l'accepte… et ne l'utilise jamais. Après connexion, `router.refresh()` garde la page courante. `setMode` n'a aucun consommateur, et `?auth=login` n'est jamais retiré de l'URL (recharger rouvre la modale). | moyenne | Décision produit (revenir à l'URL d'origine après connexion, ou rester sur place ; nettoyer le paramètre au passage) — voir L07c. |
 | R63 | `deeplink.Notification` (Go) émet **`/article/{slug}`** — l'ancienne forme : 308 côté tenants, **404 côté core** — pour `LIKE`/`REPOST`/`COMMENT` sur article et pour le fan-out `MEDIA_ARTICLE_PUBLISHED`. `deeplink.Target` ne porte ni le propriétaire ni la catégorie, donc la canonique (`/{owner}/a/{slug}` ou `/{cat}/{slug}`) n'est pas constructible en l'état. Le garde `guard:article-links` ne scanne pas le Go : ce chemin lui échappe. | moyenne | Décision serveur : ajouter `OwnerUsername` (ou `CategorySlug`) au `Target` et construire la canonique, ou assumer que le client ne reçoit que des `url` déjà canoniques. Voir L07e. |
+| R66 | `DEFAULT_AVATARS`/`getDefaultAvatar`/`isDefaultAvatarUrl` (`avatars.ts`) et `STUDIO_ENTITIES` (`studio.ts`) n'ont **aucun consommateur TypeScript** dans le dépôt : les avatars sont aussi semés côté Go et les métriques du studio sont recodées dans les pages analytics. Deux sources de vérité pour la même liste, donc dérive silencieuse possible. | faible | Décision produit : brancher le web/mobile sur ce registre (ou sur une source unique exposée par le SDK), ou le retirer. Voir L09. |
 | R65 | Le registre `THEMES`/`ACCENTS` (`registry.ts`) exporte `id`, `label`, `dataTheme`, `dataAccent` sans **aucun consommateur** dans le dépôt : le mode sombre se pose par la classe `.dark` (next-themes) et l'accent par `[data-accent='vermillion']`, jamais par `data-theme`. La promesse d'un attribut DOM déclaratif n'est donc pas tenue. | faible | Décision produit/API : soit câbler `data-theme`/`data-accent` dans les feuilles et les shells, soit réduire le registre aux helpers réellement utilisés (`resolveForcedTheme`, `resolveAccentFromColor`). Voir L08. |
 | R64 | `social/MediaLightbox` et `social/ZoomableLightbox` restent des `fixed inset-0` sans `role="dialog"`/focus confiné (Échap et flèches sont câblés à la main, correctement). Leur migration sur `Dialog` demande de composer avec le pan/zoom et les gestes tactiles — arbitrage design, pas correction mécanique. | moyenne | Décision design (le comportement clavier existe déjà ; c'est la modalité ARIA et le piège du focus qui manquent). Voir L07e. |
 | R62 | `LocaleProvider` n'est monté que par `apps/studio` : `core` et `tenants` laissent react-aria prendre la locale du navigateur côté client et `en-US` côté serveur — exactement le désaccord d'hydratation que le provider existe pour empêcher (segments de date, calendrier, tri). | moyenne | Décision d'app (quelle source de locale : cookie, en-tête, route localisée) puis montage dans les deux layouts — voir L07c. |
@@ -1267,6 +1268,66 @@ verts**, sans retoucher `colors.test.ts` ni aucun cas existant.
 **R01** (`checkContentAccess` fail-open) restent **ouvertes** (décision
 utilisateur) ; **R63** (deeplink Go) et **R64** (lightboxes) inchangées.
 Nouvelle dette : **R65** (registre de thèmes non câblé, décision produit).
+
+---
+
+## L09 — `@qoe/brand` tracés, avatars, studio, cibles web & native — durci le 2026-11-19
+
+**Périmètre.** Les **10 fichiers** du paquet lus en entier : `paths.ts` (logos,
+badges, silhouettes, 12 icônes sociales), `avatars.ts`, `studio.ts`,
+`index.tsx` (cible web), `native.tsx` (cible React Native) et les cinq suites.
+**Consommateurs réels vérifiés** : `packages/ui/src/{Logo,SocialIcon,SafeAvatar,
+NotFoundView,sidebar}.tsx` et `packages/ui/src/ui/CertifiedBadge.tsx` (re-export
++ i18n), `apps/mobile/src/components/header/QoeLogo.tsx` (passe `height`, `width`
+et `color`) et `apps/mobile/src/components/ui/badge.tsx`.
+
+| #    | Défaut                                                                                                                                                                                                                                                                                       | Sévérité | Statut                                                                                                                                                                                                                                                                                                    |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F146 | `SocialIcon` (web **et** natif) indexait `BRAND_SOCIAL_ICONS[platform]` : une clé héritée (`constructor`, `toString`, `__proto__`, `hasOwnProperty`) renvoyait une fonction truthy, le composant quittait son repli et rendait un `<svg>` **sans `viewBox` ni `path`** (icône vide). La clé vient d'un lien social saisi par l'utilisateur. | moyenne  | corrigé — helper `getSocialIcon()` dans `paths.ts` avec `Object.hasOwn`, utilisé par les deux cibles ; les quatre clés héritées retombent sur le globe ; test `rend le fallback web pour une clé du prototype…` : **échouait** (`constructor: expected '<svg fill="currentColor" …' to contain '<line'`), vert après |
+| F147 | Cible native : les ratios étaient **recopiés à la main** (`1.624`, `2.585`) au lieu de `BRAND_LOGOS.*.aspectRatio` (exporté, jamais consommé), et `width` seul laissait la hauteur à `size` — `<LogoWordmark width={120} />` rendait 120 × 28, un logo écrasé. `apps/mobile/QoeLogo` expose précisément cette prop `width`.                                                              | moyenne  | corrigé — hauteur déduite de la largeur (et inversement) à partir de `aspectRatio` ; test `déduit la hauteur d'une largeur imposée` : **échouait** (`height="62"` attendu, 28 reçu), et `déduit la largeur du viewBox du wordmark` : **échouait** (`width="1416"` attendu, 1417 reçu au ratio 2,585) |
+| F148 | Cible native : le repli de `SocialIcon` ne dessinait **qu'un cercle nu**, là où le web rend le globe complet (cercle + méridien + ligne) : une plateforme inconnue devenait une pastille vide sur mobile.                                                                                                                                                  | moyenne  | corrigé — mêmes primitives que le web (`Circle`, `Line`, `Path`, bouts arrondis) ; test `rend le fallback natif complet` : **échouait** (`expected '<div data-native-view…' to contain '<circle'`), vert après                                                                                            |
+| F149 | `getDefaultAvatar(3.7)` calculait `DEFAULT_AVATARS[2.7]` → `undefined` → repli silencieux sur l'**avatar 1** au lieu du troisième ; un identifiant fractionnaire (moyenne d'analytics, import) changeait l'avatar affiché.                                                                                                                                    | faible   | corrigé — troncature (`Math.trunc`) avant la borne 1–10 ; test `tronque un identifiant fractionnaire…` : **échouait** (`expected 1 to be 3`), vert après                                                                                                                                                 |
+
+**Preuve rouge → vert.** Les cinq tests ont été écrits avant les correctifs.
+Premier passage → **5 échecs sur 37**, puis `6 fichiers / 37 tests verts`.
+Un seul test existant a bougé : la doublure `react-native-svg` de
+`native-components.test.tsx` ne connaissait pas `Line`, désormais utilisée par
+le repli natif — **ajout d'un export au mock, aucune assertion modifiée**
+(échec vu : `No "Line" export is defined on the "react-native-svg" mock`).
+
+**Preuves (arbre propre, après commits) :**
+
+| Commande | Résultat |
+| -------- | -------- |
+| `pnpm --filter @qoe/brand test` | **37 tests / 6 fichiers verts** (32/5 avant : **+5 tests, +1 fichier**) |
+| `pnpm --filter @qoe/ui test` | **677 tests / 109 fichiers verts** (inchangé) |
+| `pnpm typecheck` | 25/25 tâches |
+| `pnpm --filter @qoe/brand lint` | 0 erreur, 0 avertissement |
+| `pnpm --filter @qoe/ui lint` | 0 erreur, 0 avertissement |
+| les 9 gardes CI | tous verts |
+
+**Observations trouvées, volontairement non corrigées.**
+
+- `BRAND_BADGES.media` n'a pas de `strokeWidth` : les deux rendus recopient
+  `1.2` alors que `certified` déclare le sien (1,5). Aucun écart visuel
+  observable, et déplacer la valeur dans le registre ne changerait pas le
+  rendu — laissé tel quel plutôt que de créer un va-et-vient sans preuve.
+- Couleurs de repli en dur côté natif (`#71717A` pour les silhouettes,
+  `#000000` pour le wordmark) : React Native n'a pas de variables CSS, la
+  teinte vient des props ; le wordmark noir reste invisible en thème sombre si
+  l'appelant ne passe pas `color` — arbitrage design, aucun appelant concerné
+  aujourd'hui (`QoeLogo` transmet `color`).
+- `DEFAULT_AVATARS` (palette `#4f46e5`…`#f97316`) duplique la palette du design
+  system au lieu de la consommer : `@qoe/brand` n'a aucune dépendance, et les
+  avatars sont aussi servis par le seed Go.
+- `twitter` reste un alias de `x` (même tracé) : voulu pour les anciens liens.
+- `isDefaultAvatarUrl` n'accepte qu'un chemin nu (pas de `?v=`, pas d'URL
+  absolue) : aucun consommateur ne l'appelle, donc pas d'arbitrage à trancher
+  aujourd'hui — voir **R66**.
+
+**Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65** restent
+**ouvertes** (décisions utilisateur/produit/serveur). Nouvelle dette : **R66**
+(registres `DEFAULT_AVATARS`/`STUDIO_ENTITIES` sans consommateur TS).
 
 ---
 

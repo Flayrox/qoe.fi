@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import React from 'react';
-import { BRAND_LOGOS, BRAND_BADGES, BRAND_AVATAR_FALLBACKS, BRAND_SOCIAL_ICONS } from './paths';
+import { BRAND_LOGOS, BRAND_BADGES, BRAND_AVATAR_FALLBACKS, getSocialIcon } from './paths';
 
 export * from './paths';
 export * from './avatars';
@@ -221,8 +221,7 @@ export function SocialIcon({
   fillColor = 'currentColor',
   ...props
 }: SocialIconProps) {
-  const key = platform.toLowerCase().trim();
-  const icon = BRAND_SOCIAL_ICONS[key];
+  const icon = getSocialIcon(platform);
 
   if (!icon) {
     // Fallback générique si plateforme non répertoriée

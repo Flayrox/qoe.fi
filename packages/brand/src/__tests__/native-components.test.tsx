@@ -33,6 +33,9 @@ vi.mock('react-native-svg', () => ({
   Path: (props: MockProps) => <path {...(props as React.SVGProps<SVGPathElement>)} />,
   Circle: (props: MockProps) => <circle {...(props as React.SVGProps<SVGCircleElement>)} />,
   Rect: (props: MockProps) => <rect {...(props as React.SVGProps<SVGRectElement>)} />,
+  // Ajouté pour le fallback de `SocialIcon` (F148), qui dessine désormais le
+  // globe complet côté natif comme côté web. Aucune assertion n'est modifiée.
+  Line: (props: MockProps) => <line {...(props as React.SVGProps<SVGLineElement>)} />,
 }));
 
 import {

@@ -6,8 +6,8 @@
 
 import React from 'react';
 import { View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
-import Svg, { Path, Circle, Rect } from 'react-native-svg';
-import { BRAND_LOGOS, BRAND_BADGES, BRAND_AVATAR_FALLBACKS, BRAND_SOCIAL_ICONS } from './paths';
+import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
+import { BRAND_LOGOS, BRAND_BADGES, BRAND_AVATAR_FALLBACKS, getSocialIcon } from './paths';
 
 export * from './paths';
 export * from './avatars';
@@ -37,9 +37,11 @@ export interface NativeSocialIconProps {
  * 🏷️ LogoSymbol (Native) — Glyphe « Q » officiel.
  */
 export function LogoSymbol({ size = 28, width, height, color, style }: NativeBrandProps) {
-  const { viewBox, path, defaultColor } = BRAND_LOGOS.symbol;
-  const resolvedHeight = height ?? size;
-  const resolvedWidth = width ?? Math.round(resolvedHeight * 1.624);
+  const { viewBox, path, defaultColor, aspectRatio } = BRAND_LOGOS.symbol;
+  // F147 — le ratio était recopié à la main (1,624 / 2,585) : il dérivait du
+  // viewBox, et `width` seul laissait la hauteur à `size` (glyphe écrasé).
+  const resolvedHeight = height ?? (width ? Math.round(width / aspectRatio) : size);
+  const resolvedWidth = width ?? Math.round(resolvedHeight * aspectRatio);
   const fillColor = color || defaultColor;
 
   return (
@@ -64,9 +66,9 @@ export function LogoWordmark({
   color = '#000000',
   style,
 }: NativeBrandProps) {
-  const { viewBox, path } = BRAND_LOGOS.wordmark;
-  const resolvedHeight = height ?? size;
-  const resolvedWidth = width ?? Math.round(resolvedHeight * 2.585);
+  const { viewBox, path, aspectRatio } = BRAND_LOGOS.wordmark;
+  const resolvedHeight = height ?? (width ? Math.round(width / aspectRatio) : size);
+  const resolvedWidth = width ?? Math.round(resolvedHeight * aspectRatio);
 
   return (
     <View style={[styles.center, style]}>
@@ -178,10 +180,12 @@ export function SocialIcon({
   color = '#000000',
   style,
 }: NativeSocialIconProps) {
-  const key = platform.toLowerCase().trim();
-  const icon = BRAND_SOCIAL_ICONS[key];
+  const icon = getSocialIcon(platform);
 
   if (!icon) {
+    // F148 — le fallback natif ne dessinait qu'un cercle nu, là où le web
+    // affiche le globe complet : une plateforme inconnue devenait une pastille
+    // vide sur mobile. Mêmes primitives que `SocialIcon` web.
     return (
       <View style={[styles.center, style]}>
         <Svg
@@ -191,8 +195,12 @@ export function SocialIcon({
           fill="none"
           stroke={color}
           strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
         >
           <Circle cx="12" cy="12" r="10" />
+          <Line x1="2" y1="12" x2="22" y2="12" />
+          <Path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
         </Svg>
       </View>
     );
