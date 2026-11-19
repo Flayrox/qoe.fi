@@ -7,18 +7,23 @@
 //    - initSentryClient  : Next.js client — apps/*/sentry.client.config.ts
 //    - sentryDsn         : résolution du DSN depuis l'environnement
 //
-// 🎯 Le DSN n'est JAMAIS commité en dur : lu depuis SENTRY_DSN (env).
+// 🎯 Le DSN n'est JAMAIS commité en dur : lu depuis l'environnement.
+//    - serveur/edge : `SENTRY_DSN`
+//    - navigateur   : `NEXT_PUBLIC_SENTRY_DSN` — Next.js n'inline QUE les
+//      variables `NEXT_PUBLIC_*` dans les bundles client ; sans elle,
+//      `initSentryClient()` ne pouvait jamais s'initialiser en production.
 //    Sans DSN (dev local), toutes les init deviennent des no-op silencieux.
+//
+// ⚠️ Le DSN est lu À L'EXÉCUTION, pas au chargement du module : un `.env`
+//    chargé après l'import (scripts, tests, workers) était ignoré.
 // =====================================================================
 
-const ENV_DSN = process.env.SENTRY_DSN;
-
 export function sentryDsn(): string | undefined {
-  return ENV_DSN;
+  return process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN;
 }
 
 export function sentryEnabled(): boolean {
-  return Boolean(ENV_DSN);
+  return Boolean(sentryDsn());
 }
 
 /**
@@ -53,6 +58,7 @@ export function initSentryNode(dsn = sentryDsn()) {
 
 /**
  * Initialise Sentry côté client Next.js (replays inclus).
+ * Le DSN vient de `NEXT_PUBLIC_SENTRY_DSN` (seule variable exposée au navigateur).
  */
 export function initSentryClient(dsn = sentryDsn()) {
   if (!dsn) return;

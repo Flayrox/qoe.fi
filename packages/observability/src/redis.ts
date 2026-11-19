@@ -110,11 +110,19 @@ export async function cacheDel(...keys: string[]): Promise<void> {
  * Ex : invalidateNamespace('feed:trending:') supprime toutes les variantes.
  */
 export async function cacheInvalidateNamespace(prefix: string): Promise<void> {
+  // Un préfixe vide (ou blanc) donne le motif `*` : SCAN listerait TOUTES les
+  // clés du Redis partagé puis les supprimerait. On refuse explicitement.
+  const safePrefix = (prefix || '').trim();
+  if (!safePrefix) {
+    logger.warn('cacheInvalidateNamespace ignoré : préfixe vide');
+    return;
+  }
+
   const c = await loadRedis();
   if (!c) return;
   try {
     const keys: string[] = [];
-    const stream = c.scanStream({ match: `${prefix}*`, count: 100 });
+    const stream = c.scanStream({ match: `${safePrefix}*`, count: 100 });
     for await (const batch of stream) {
       keys.push(...batch);
     }

@@ -77,7 +77,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L13     | `packages/i18n/src/**` + `messages/`                                                                         | 12 fichiers                 | **durci le 2026-11-19** |
 | L14     | `packages/moderation/src/**`                                                                                 | 16 fichiers src + 2 suites  | **durci le 2026-11-19** |
 | L15     | `packages/analytics/src/**`                                                                                  | 8 fichiers src + 6 suites   | **durci le 2026-11-19** |
-| L16     | `packages/observability/src/**`                                                                              | 7 fichiers                  | à auditer               |
+| L16     | `packages/observability/src/**`                                                                              | 7 fichiers src + 3 suites   | **durci le 2026-11-19** |
 | L17     | `packages/devtools/src/**`                                                                                   | 2 fichiers                  | à auditer               |
 | L18     | `packages/social/src/**`                                                                                     | 6 fichiers                  | à auditer               |
 | L19     | `packages/tsconfig/**`                                                                                       | 0 fichier src               | à auditer               |
@@ -102,7 +102,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L16 — `packages/observability`.**
+**Prochain lot à traiter : L17 — `packages/devtools`.**
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -881,6 +881,9 @@ nommé), puis verts après restauration.
 | R61 | `nextUrl` de bout en bout : `AuthModalContext` le calcule (`?auth=…&next=…`, URL courante), `GlobalAuthModalProvider` le transmet, `LoginModal` l'accepte… et ne l'utilise jamais. Après connexion, `router.refresh()` garde la page courante. `setMode` n'a aucun consommateur, et `?auth=login` n'est jamais retiré de l'URL (recharger rouvre la modale). | moyenne | Décision produit (revenir à l'URL d'origine après connexion, ou rester sur place ; nettoyer le paramètre au passage) — voir L07c. |
 | R63 | `deeplink.Notification` (Go) émet **`/article/{slug}`** — l'ancienne forme : 308 côté tenants, **404 côté core** — pour `LIKE`/`REPOST`/`COMMENT` sur article et pour le fan-out `MEDIA_ARTICLE_PUBLISHED`. `deeplink.Target` ne porte ni le propriétaire ni la catégorie, donc la canonique (`/{owner}/a/{slug}` ou `/{cat}/{slug}`) n'est pas constructible en l'état. Le garde `guard:article-links` ne scanne pas le Go : ce chemin lui échappe. | moyenne | Décision serveur : ajouter `OwnerUsername` (ou `CategorySlug`) au `Target` et construire la canonique, ou assumer que le client ne reçoit que des `url` déjà canoniques. Voir L07e. |
 | R74 | `canonicalEmail` est calculé par `@qoe/moderation` et écrit dans les métadonnées Supabase (`options.data`) au signup, mais **aucun code ne le lit** : ni le sync Go, ni la base (aucun index unique). L'anti-multi-comptes annoncé par le module ne s'exerce donc pas au-delà du jour de l'inscription, et la suppression systématique du tag `+` (tous fournisseurs, pas seulement Gmail) n'a aucune conséquence observable. | moyenne | Arbitrage backend : colonne `canonicalEmail` + index unique dans une migration goose, puis refus de doublon côté Go (`/v1/auth/sync`), en décidant si l'on garde Gmail uniquement pour les points. Voir L14. |
+| R80 | `withCache` de `@qoe/observability/server` ne peut pas **cacher une valeur `null`** : `cacheGet` rend `null` aussi bien pour « absent » que pour « null stocké », donc le *negative caching* (article inexistant, résultat vide) est impossible et la requête repart en base à chaque appel. `withCache` absorbe aussi la latence : `maxRetriesPerRequest: null` sans `commandTimeout`, les commandes s'empilent indéfiniment si Redis tombe. | moyenne | Arbitrage : changer `cacheGet` en `{ hit, value }` (touche tous les appelants) ou coder l'absence par un sentinelle ; et borner `commandTimeout`/`maxRetriesPerRequest`. Voir L16. |
+| R79 | Le logger se déclare « PII-safe » mais n'applique **aucune rédaction** : `logger.info('login', { email })` écrit l'adresse en clair dans les logs. | moyenne | Décision produit : liste de clés sensibles à masquer (`email`, `ip`, `token`, …) ou règle de non-log côté appelants. Voir L16. |
+| R78 | Les `initSentry*` initialisent **en asynchrone** (`void import().then()`), sans `.catch` : `instrumentation.register()` rend la main avant que Sentry soit prêt (les erreurs de chargement de modules échappent à la capture) et un échec d'import laisse une *unhandled rejection*. | moyenne | Arbitrage : rendre `initSentryServer` awaitable et l'`await` dans les 7 `instrumentation.ts` (changement de contrat), + `.catch` défensif. Voir L16. |
 | R77 | `getApiUrl()` de `@qoe/analytics/server` retombe sur `https://api.umami.is/v1` — un domaine **cloud propriétaire** en dur — quand `UMAMI_API_URL` est absent : en self-hosted mal configuré, c'est notre token Umami qui part vers le cloud d'un tiers (règle « self-hosted d'abord, aucun domaine propriétaire dans la logique »). | moyenne | Décider du défaut : rendre une valeur vide (dashboard sans données, aucune fuite) ou exiger la variable au démarrage. Changement de comportement observable → décision produit avant correctif. Voir L15. |
 | R76 | `resolveReadingProvenance` accepte **n'importe quel** `?ref=<valeur>` comme username de référent (`?ref=newsletter` → `referrerUsername: 'newsletter'`), d'où des attributions de provenance erronées en base. Le contrat documenté (`?ref=simone`) rend la valeur légitime indiscernable d'un token de campagne. | faible | Décision produit : liste blanche de tokens, ou format `profile:`/`@` obligatoire (casse les liens `?ref=simone` existants). Voir L15. |
 | R75 | `packages/analytics` n'a **aucune infrastructure de test React** (ni `jsdom`, ni `@testing-library/react` en devDependencies) : `client.tsx` (chargement du script, `trackEvent`, opt-out `umami.disabled`), les deux hooks et le câblage beacon ne sont couverts par **aucune** suite. Le défaut constaté dans `useTrackEvent` (dépendance à l'identité de `data` ⇒ event re-tiré à chaque rendu) n'est donc pas prouvable rouge. | moyenne | Arbitrage : ajouter jsdom + testing-library aux devDependencies du paquet (impact lockfile) puis poser un plancher sur ces fichiers, ou extraire la logique des hooks en modules purs testables. Voir L15. |
@@ -1408,6 +1411,85 @@ existante modifiée, aucune doublure touchée.
 **Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65**, **R66**
 restent **ouvertes**. Nouvelle dette : **R67** (surfaces `continuous`,
 `highlighter`, `paywall`, `excerpt` sans consommateur TS).
+
+---
+
+## L16 — `@qoe/observability` logger, Sentry, cache Redis — durci le 2026-11-19
+
+**Périmètre.** Les **5 sources + 2 suites** lues en entier (`index`, `logger`,
+`sentry`, `redis`, `server`, `logger.test`, `redis.test`) + `package.json`,
+`tsconfig.json`. **Consommateurs réels vérifiés par import** : les 5 apps web —
+`apps/{core,studio,admin,tenants,hi}/src/instrumentation.ts` (`initSentryServer`),
+`sentry.edge.config.ts` (serveur/edge), `sentry.client.config.ts`
+(`initSentryClient`), `apps/studio/sentry.server.config.ts`, `next.config.ts`
+(`transpilePackages`) et `package.json`. `@qoe/observability/server` (Redis) est
+consommé côté API/workers ; le miroir Go `apps/api/internal/cache/cache.go`
+documente la même sémantique (`withCache` / invalidation par namespace).
+**Aucune dette R75/R76/R77 ne tombe dans ce périmètre** : elles concernent
+`packages/analytics` (infra de test React, format `?ref`, défaut `api.umami.is`).
+
+| #    | Défaut                                                                                                                                                                                                                                           | Sévérité | Statut                                                                                                                                                                                                                              |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F194 | Un contexte **cyclique** faisait lever `JSON.stringify` : `logger.error('…', { circular })` propageait un `TypeError` à l'appelant — le logger cassait la requête qu'il devait seulement décrire, et le log était perdu. | haute    | corrigé — replacer avec `WeakSet` (`[Circular]`) + filet de sécurité ; test : **échouait** (`expected [Function] to not throw an error but 'TypeError: Converting circular struct…' was thrown`), vert après |
+| F195 | Un captureur Sentry qui lève faisait échouer `logger.error(…, { capture: true })` **avant** l'écriture console : plus de log local et une exception dans le chemin d'erreur. | moyenne  | corrigé — capture entourée d'un `try/catch` qui journalise `sentry.capture_failed` ; test : **échouait** (`'Error: Sentry indisponible' was thrown`), vert après |
+| F196 | Un **BigInt** dans le contexte faisait lever la sérialisation (compteurs `pgx`/`count`) — même classe que F194. | moyenne  | corrigé — replacer : `bigint` → chaîne ; test : **échouait** (`'TypeError: Do not know how to seriali…' was thrown`), vert après |
+| F197 | Une `Error` placée dans le contexte était sérialisée en `{}` (comportement de `JSON.stringify`) : le message et la stack de la cause disparaissaient du log. | moyenne  | corrigé — `Error` → `{ name, message, stack }` ; test : **échouait** (`expected undefined to be 'DB connection refused'`), vert après |
+| F198 | `const ENV_DSN = process.env.SENTRY_DSN` était lu **au chargement du module** : un DSN défini ensuite (scripts, workers, `.env` chargé après import) était ignoré, donc Sentry restait muet. | moyenne  | corrigé — `sentryDsn()` lit à l'exécution, `sentryEnabled()` en dérive ; test : **échouait** (`expected undefined to be 'https://server@o1.ingest.sentry.io/1'`), vert après |
+| F199 | **Sentry navigateur ne pouvait jamais s'initialiser en production** : `initSentryClient()` ne lisait que `SENTRY_DSN`, variable que Next.js n'inline pas dans les bundles client (seules les `NEXT_PUBLIC_*` le sont). | haute    | corrigé — repli sur `NEXT_PUBLIC_SENTRY_DSN` + variable documentée dans `.env.docker.example` ; test : **échouait** (`expected undefined to be 'https://public@o2.ingest.sentry.io/2'`), vert après |
+| F200 | `cacheInvalidateNamespace('')` construisait le motif `*` : un préfixe vide (ou blanc) lançait un `SCAN` sur **tout le Redis partagé** puis supprimait toutes les clés. | haute    | corrigé — préfixe vide/blanc refusé avec un `warn` ; test : **échouait** (`expected "vi.fn()" to not be called at all, but actually been called 2 times`), vert après |
+| F201 | Le paquet n'avait **ni `test:coverage`, ni plancher** : ses 9 tests ne mesuraient rien (34 % mesurés après coup sur les sources d'origine). | faible   | corrigé — `test:coverage` + `vitest.config.ts` (plancher 90/86/82/92) ; preuve : seuils passés à 91,26/87,5/83,87/93,4 |
+
+**Candidats examinés puis ABANDONNÉS** (pas de rouge) :
+
+- **Verbosité dev** : `info`/`debug` sont muets hors production — comportement
+  **verrouillé** par le test existant (`est silencieux pour info en dev/test`),
+  donc non modifié.
+- **`maxRetriesPerRequest: null` sans `commandTimeout`** : une commande peut
+  s'empiler indéfiniment si Redis tombe ; non prouvable sans Redis réel et
+  l'option est un choix ioredis documenté → **R80**.
+- **`withCache` et la valeur `null`** : `cacheGet` rend `null` pour « absent » et
+  pour « null stocké » ; changer le contrat touche tous les appelants → **R80**.
+- **`initSentry*` asynchrone sans `.catch`** : `.then()` sans gestion d'échec
+  laisse une *unhandled rejection*, mais provoquer l'échec de l'import d'un SDK
+  demanderait de truquer le résolveur de modules (doublure qui contourne le
+  comportement réel) → **R78**.
+
+**Preuve rouge → vert.** Suite écrite avant correctifs
+(`observability-hardening.test.ts`) : premier passage **7 échecs / 9**, messages
+cités ci-dessus. Les 2 suites historiques (9 tests) sont restées vertes **sans
+modification d'assertion**. Une correction de configuration a été nécessaire et
+est documentée : `restoreMocks: true` (défaut repris de la config racine) rendait
+inopérants les espions `console` posés au niveau module par `logger.test.ts` —
+l'option a été retirée du `vitest.config.ts` du paquet plutôt que de toucher aux
+suites. Doublures ajoutées : `ioredis` (constructeur), `@sentry/nextjs` et
+`@sentry/node` (`init`) — frontières externes uniquement.
+
+**Preuves (arbre propre, après commit) :**
+
+| Commande | Avant | Après |
+| -------- | ----- | ----- |
+| `pnpm --filter @qoe/observability test` | 9 tests / 2 fichiers | **25 tests / 3 fichiers verts** |
+| `pnpm --filter @qoe/observability test:coverage` | 34,11 % st. · 35,18 % br. · 36,66 % fn. · 35,61 % lignes — **aucun seuil** | **91,26 % · 87,5 % · 83,87 % · 93,4 %** (plancher 90/86/82/92) |
+| `pnpm --filter @qoe/observability lint` / `typecheck` | 0 / 0 | **0 / 0** |
+| `pnpm test` (monorepo complet, turbo) | — | **24/24 tâches, 0 échec** |
+| `pnpm typecheck` | 25/25 | **25/25 tâches** |
+| les 9 gardes CI | vertes | **vertes** |
+
+**Observations trouvées, volontairement non corrigées.**
+
+- `src/index.ts` contient le **même bloc d'en-tête deux fois** (copier-coller) :
+  purement décoratif, aucun impact d'exécution.
+- `logger` n'expose pas de niveau configurable (`LOG_LEVEL`) : le niveau est
+  figé par `NODE_ENV`.
+- `dist/tsconfig.tsbuildinfo` est présent dans le paquet (artefact de build),
+  comme dans les autres packages — hors périmètre.
+- Aucune dépendance dépréciée rencontrée : `ioredis` v5 et `@sentry/*` v10 sont
+  les majeures courantes ; aucune migration gratuite effectuée.
+
+**Dettes.** **R01**, **R54**, **R56**, **R63** à **R68**, **R71** à **R74**
+restent **ouvertes**. Nouvelles dettes : **R78** (init Sentry asynchrone non
+attendue), **R79** (aucune rédaction PII), **R80** (`withCache`/null et
+`maxRetriesPerRequest`).
 
 ---
 
