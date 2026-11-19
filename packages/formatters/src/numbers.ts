@@ -13,7 +13,9 @@ export interface FormatCountOptions {
  * Supporte le français ('k', 'M', 'Md') et l'anglais ('k', 'M', 'B').
  */
 export function formatCount(num: number, options: FormatCountOptions = {}): string {
-  if (typeof num !== 'number' || Number.isNaN(num)) {
+  // `Number.isFinite` et pas `Number.isNaN` : `Infinity` sortait en
+  // « Infinity Md » puis « -Infinity Md ».
+  if (typeof num !== 'number' || !Number.isFinite(num)) {
     return '0';
   }
 
@@ -64,15 +66,17 @@ export function formatPercentage(
   if (
     typeof value !== 'number' ||
     typeof total !== 'number' ||
-    Number.isNaN(value) ||
-    Number.isNaN(total) ||
+    !Number.isFinite(value) ||
+    !Number.isFinite(total) ||
     total <= 0
   ) {
     return 0;
   }
 
   const { decimals = 0 } = options;
+  // `10 ** NaN` propageait `NaN` ; une précision négative tronquait à zéro.
+  const precision = Number.isFinite(decimals) ? Math.min(Math.max(0, Math.trunc(decimals)), 6) : 0;
   const ratio = (value / total) * 100;
-  const factor = 10 ** decimals;
+  const factor = 10 ** precision;
   return Math.round(ratio * factor) / factor;
 }

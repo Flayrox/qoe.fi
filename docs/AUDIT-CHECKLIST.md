@@ -73,7 +73,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L09     | `packages/brand/src/**`                                                                                      | 10 fichiers                 | **durci le 2026-11-19** |
 | L10     | `packages/content/src/**`                                                                                    | 25 fichiers                 | **durci le 2026-11-19** |
 | L11     | `packages/config/src/**`                                                                                     | 17 fichiers                 | **durci le 2026-11-19** |
-| L12     | `packages/formatters/src/**`                                                                                 | 5 fichiers                  | à auditer               |
+| L12     | `packages/formatters/src/**`                                                                                 | 5 fichiers                  | **durci le 2026-11-19** |
 | L13     | `packages/i18n/src/**` + `messages/`                                                                         | 9 fichiers                  | à auditer               |
 | L14     | `packages/moderation/src/**`                                                                                 | 16 fichiers                 | à auditer               |
 | L15     | `packages/analytics/src/**`                                                                                  | 12 fichiers                 | à auditer               |
@@ -102,7 +102,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L12 — `packages/formatters`.**
+**Prochain lot à traiter : L13 — `packages/i18n`.**
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -880,6 +880,8 @@ nommé), puis verts après restauration.
 | R60 | `reader/useBionicReading` : le mode bionique écrit `innerHTML` dans un conteneur possédé par React et met l'original en cache dans `data-original-html`. Un corps re-rendu après activation (annotation ajoutée, document canonique rechargé) rend donc l'ancien HTML à la désactivation. Le correctif propre est un bionic **déclaratif** au rendu des blocs, pas une mutation DOM. | moyenne | Chantier de design du lecteur (aucun écran n'active aujourd'hui le bionic sur un corps canonique, mais le chemin est armé) — voir L07b. |
 | R61 | `nextUrl` de bout en bout : `AuthModalContext` le calcule (`?auth=…&next=…`, URL courante), `GlobalAuthModalProvider` le transmet, `LoginModal` l'accepte… et ne l'utilise jamais. Après connexion, `router.refresh()` garde la page courante. `setMode` n'a aucun consommateur, et `?auth=login` n'est jamais retiré de l'URL (recharger rouvre la modale). | moyenne | Décision produit (revenir à l'URL d'origine après connexion, ou rester sur place ; nettoyer le paramètre au passage) — voir L07c. |
 | R63 | `deeplink.Notification` (Go) émet **`/article/{slug}`** — l'ancienne forme : 308 côté tenants, **404 côté core** — pour `LIKE`/`REPOST`/`COMMENT` sur article et pour le fan-out `MEDIA_ARTICLE_PUBLISHED`. `deeplink.Target` ne porte ni le propriétaire ni la catégorie, donc la canonique (`/{owner}/a/{slug}` ou `/{cat}/{slug}`) n'est pas constructible en l'état. Le garde `guard:article-links` ne scanne pas le Go : ce chemin lui échappe. | moyenne | Décision serveur : ajouter `OwnerUsername` (ou `CategorySlug`) au `Target` et construire la canonique, ou assumer que le client ne reçoit que des `url` déjà canoniques. Voir L07e. |
+| R70 | `formatDuration` est réimplémenté **deux fois** dans les apps (`apps/studio/src/app/(creator)/analytics/AnalyticsDashboardClient.tsx:54` et `apps/admin/src/app/(admin)/admin/notifications/OutboxObservabilityConsole.tsx:60`) alors que `@qoe/utils` exporte déjà `formatDuration` : trois découpages qui divergent sur l'arrondi et les unités. | faible | Décision de wording produit (« 2 min 30 s » vs « 2m30 ») avant de brancher les deux écrans sur le helper partagé. Constaté en lisant les consommateurs de L12. |
+| R69 | `MONTHS_FR` est exporté par le barrel `@qoe/formatters` **sans aucun consommateur** dans le dépôt (seul usage interne à `dates.ts`). | faible | Soit le brancher pour un format de date personnalisé côté web, soit le retirer de `index.ts` et garder la constante interne. Voir L12. |
 | R68 | `packages/config/src/features.ts` exporte `FEATURE_FLAGS`, `isFeatureEnabled` et `getCreatorFeatureToggles` **sans aucun consommateur** dans le dépôt : le registre de flags réellement utilisé est `@qoe/flags` (+ parité Go), et `env.ts` valide des variables `FEATURE_*` que ce module seul lirait. Deux vocabulaires de flags coexistent, donc une activation peut sembler câblée sans effet. | faible | Décision produit : supprimer `features.ts` (et les `FEATURE_*` du schéma d'env) ou brancher `@qoe/flags` sur ces variables. Voir L11. |
 | R67 | `@qoe/content` exporte quatre surfaces entières — `continuous` (projection, attestation, layout), `highlighter` (découpage de marques), `paywall` (métriques, teaser sémantique) et `excerpt` — **sans aucun consommateur TypeScript** : le seul import du dépôt est `apps/mobile/src/lib/highlight-queue-core.ts`, qui ne prend que `canonical`. Soit le web/HTML réimplémente ces calculs ailleurs (Go, rendu serveur), soit elles sont mortes — et rien ne détecte la dérive entre les deux. | faible | Décision produit : brancher les lecteurs (web + natif) sur ce moteur et supprimer les doublons, ou retirer les surfaces inutilisées. Voir L10. |
 | R66 | `DEFAULT_AVATARS`/`getDefaultAvatar`/`isDefaultAvatarUrl` (`avatars.ts`) et `STUDIO_ENTITIES` (`studio.ts`) n'ont **aucun consommateur TypeScript** dans le dépôt : les avatars sont aussi semés côté Go et les métriques du studio sont recodées dans les pages analytics. Deux sources de vérité pour la même liste, donc dérive silencieuse possible. | faible | Décision produit : brancher le web/mobile sur ce registre (ou sur une source unique exposée par le SDK), ou le retirer. Voir L09. |
@@ -1399,6 +1401,73 @@ existante modifiée, aucune doublure touchée.
 **Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65**, **R66**
 restent **ouvertes**. Nouvelle dette : **R67** (surfaces `continuous`,
 `highlighter`, `paywall`, `excerpt` sans consommateur TS).
+
+---
+
+## L12 — `@qoe/formatters` devises, nombres, dates — durci le 2026-11-19
+
+**Périmètre.** Les **4 sources + 1 suite** lues en entier (`index`, `currency`,
+`numbers`, `dates`, `formatters.test`) + `package.json`, `tsconfig.json`,
+`vitest.config.ts`. **Consommateurs réels vérifiés par import** :
+`packages/utils/src/format.ts` (seul import du barrel), `apps/mobile/src/lib/format.ts`
+(re-export → `time-elapsed.tsx`, `thought-actions.tsx`,
+`thread-anchor-card.tsx`), `apps/core/src/app/(reader)/billing/billing-helpers.ts`
+(→ `BillingClient.tsx`, composant `'use client'` prérendu). Aucun import de
+`@qoe/formatters` dans `apps/tenants`, `apps/admin`, `apps/studio`, `apps/hi`,
+`packages/ui`, `packages/content`, `packages/auth`, `packages/sdk` ni dans les
+scripts de seed (vérifié par recherche exhaustive).
+
+| #    | Défaut                                                                                                                                                                                                                                                                                                              | Sévérité | Statut                                                                                                                                                                                                                                                        |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F162 | `Infinity` traversait `typeof num === 'number'` et `Number.isNaN` : `formatCount(Infinity)` rendait **« Infinity Md »**, `formatBalanceCents(Infinity)` **« Infinity »**, `formatTransactionAmount(Infinity)` **« +Infinity € »**, `formatPercentage(Infinity, 100)` **`Infinity`** et `formatCurrency(Infinity)` **« ∞ € »**. | haute    | corrigé — `Number.isFinite` dans les quatre formateurs, même repli que `NaN` ; test : **échouait** (`expected 'Infinity Md' to be '0'`), vert après                                                                                          |
+| F163 | Le repli d'entrée invalide de `formatCurrency` était **codé en dur en français** : `formatCurrency(NaN, { locale: 'en-US', currency: 'USD' })` rendait `0,00 USD` là où le chemin valide rend `$100.00` — deux formats dans la même fonction.                                                                  | moyenne  | corrigé — le `0` passe par le même formateur mémoïsé que les montants valides, avec espaces insécables normalisés pour garder la chaîne de repli stable ; test : **échouait** (`expected '0,00 USD' to be '$0.00'`), vert après |
+| F164 | Des options incohérentes faisaient lever `Intl` et le `catch` rendait une chaîne brute, **sans devise ni groupement** : `formatCurrency(1.2, { minimumFractionDigits: 3, maximumFractionDigits: 2 })` donnait `1.200 €` (mauvais séparateur) ; un code devise vide laissait `25.50 ` avec un espace orphelin ; `minimumFractionDigits: NaN` donnait `toFixed(NaN)` → `25`. | moyenne  | corrigé — `max` borné à `max(min, …)`, décimales normalisées (entier 0–20) et repli sans espace final ; 2 tests : **échouaient** (`expected '1.200 €' to contain '1,200 €'`, `expected '25.50 ' to be '25.50'`), verts après |
+| F165 | `formatTransactionDate` suivait le **fuseau ambiant** (`toLocaleDateString`) : pour l'instant `2026-08-17T22:30:00Z`, le serveur en UTC rend `17 août 2026, 22:30` et le navigateur parisien `18 août 2026, 00:30` — mismatch d'hydratation React dans `BillingClient` (`'use client'`, prérendu côté serveur). | haute    | corrigé — `timeZone` explicite, `Europe/Paris` par défaut, `DEFAULT_TIME_ZONE` exporté ; test : **échouait sous `TZ=America/New_York`** (`expected '17 août 2026, 18:30' to contain '18 août 2026'`) et sous `TZ=UTC` pour le fuseau explicite (`expected '18 août 2026, 00:30' to contain '17 août 2026'`), vert après |
+| F166 | Une date **civile seule** (`'2026-08-17'`) était lue par `new Date()` comme minuit **UTC** : à Paris elle s'affichait `17 août 2026 à 02:00` au lieu de `00:00`, et à New York `16 août 2026` — un jour de décalage.                                                                                  | moyenne  | corrigé — `parseDate` construit les dates seules à minuit **local**, avec rejet des dates impossibles (`2026-02-31` n'est plus « corrigée » en 3 mars) ; test : **échouait** (`expected '17 août 2026 à 02:00' to be '17 août 2026 à 00:00'`), vert après |
+| F167 | `Intl.NumberFormat` était reconstruit **à chaque appel** de `formatCurrency`, et `toLocaleDateString` construisait un `Intl.DateTimeFormat` par appel de `formatTransactionDate` — alors que ces helpers tournent à chaque rendu de liste (portefeuille, transactions).                        | faible   | corrigé — cache mémoïsé borné (64 formateurs devise, 32 date/heure) ; tests : **échouaient** (`expected 3 to be 1`, `expected +0 to be 1`), verts après                                                                          |
+| F168 | `formatPercentage` propageait une précision invalide : `10 ** NaN` rendait **`NaN`** (affiché tel quel dans l'UI) et une précision négative tronquait le résultat à zéro.                                                                                                                                        | faible   | corrigé — précision normale (entier 0–6, sinon 0) ; test : **échouait** (`expected NaN to be 33`), vert après                                                                                                                  |
+
+**Preuve rouge → vert.** Les tests ont été écrits avant correctifs puis rejoués
+contre les sources d'origine (`git stash` des trois modules) : **9 échecs sur 10**,
+messages cités ci-dessus, plus les deux échecs dépendants du fuseau
+(`TZ=UTC`, `TZ=America/New_York`). Aucune assertion existante modifiée : le test
+historique `formatCurrency(NaN)` attend toujours `0,00 €` avec espace simple,
+ce que la normalisation du repli préserve. Aucune doublure modifiée.
+
+**Preuves (arbre propre, après commit) :**
+
+| Commande | Avant | Après |
+| -------- | ----- | ----- |
+| `pnpm --filter @qoe/formatters test` | 10 tests / 1 fichier | **23 tests / 2 fichiers verts** |
+| `pnpm --filter @qoe/formatters test:coverage` | 98,88 % st. · 90,58 % br. · 100 % fn. · 98,76 % lignes | **97,82 % · 89,91 % · 100 % · 99,17 %** (seuils 90/85/90/90 respectés) |
+| `pnpm --filter @qoe/formatters lint` / `typecheck` | 0 problème | **0 problème / 0 erreur** |
+| `pnpm --filter @qoe/utils test` (consommateur direct) | 150 tests / 14 fichiers | **150 / 14 verts** |
+| `pnpm --filter @qoe/mobile test` (consommateur direct) | 176 tests / 15 fichiers | **176 / 15 verts** |
+| `pnpm --filter @qoe/core test` (consommateur direct) | 255 tests / 32 fichiers | **255 / 32 verts** |
+| `pnpm typecheck` | 25/25 | **25/25 tâches** |
+| les 9 gardes CI | vertes | **vertes** |
+
+**Observations trouvées, volontairement non corrigées.**
+
+- `formatTransactionAmount` code `€` en dur et expose `euros` : le module s'annonce
+  « universel », mais tous les appelants sont le portefeuille EUR (`apps/core`).
+  Paramétrer la devise demanderait de toucher le contrat `FormattedTransactionAmount`
+  pour un besoin qui n'existe pas.
+- `niceDate('invalid-date')` **renvoie l'entrée telle quelle** (comportement verrouillé
+  par un test existant) tandis que `niceDate(new Date(NaN))` renvoie `''` : deux replis
+  pour la même erreur. Changer le contrat exige une décision produit sur l'affichage
+  d'une date corrompue.
+- `MONTHS_FR[date.getMonth()] ?? ''` : le `?? ''` est **inatteignable** (`getMonth()`
+  est borné à 0–11). Code mort inoffensif laissé tel quel pour ne pas modifier les
+  assertions.
+- `formatCount` utilise l'espace simple U+0020, pas l'espace fine insécable des
+  conventions typographiques françaises : choix visuel assumé par les tests.
+- `toLocaleDateString` **est** `Intl.DateTimeFormat` : le passage au formateur mémoïsé
+  ne change pas la chaîne produite (vérifié par les tests existants).
+
+**Dettes.** **R01**, **R54**, **R56**, **R63** à **R68** restent **ouvertes**.
+Nouvelles dettes : **R69** (`MONTHS_FR` exporté sans consommateur) et **R70**
+(`formatDuration` réimplémenté dans deux apps alors que `@qoe/utils` l'exporte).
 
 ---
 

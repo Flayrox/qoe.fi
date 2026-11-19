@@ -21,7 +21,25 @@ export const MONTHS_FR = [
   'déc.',
 ] as const;
 
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
 function parseDate(input: string | Date): Date | null {
+  if (typeof input === 'string') {
+    // « 2026-08-17 » est une date civile, pas un instant : `new Date()` la
+    // lisait comme minuit UTC et l'affichait le 16 à New York. On la construit
+    // à minuit **local**, seul sens stable quel que soit le fuseau.
+    const match = DATE_ONLY.exec(input.trim());
+    if (match) {
+      const [, year, month, day] = match;
+      const value = new Date(Number(year), Number(month) - 1, Number(day));
+      const exact =
+        value.getFullYear() === Number(year) &&
+        value.getMonth() === Number(month) - 1 &&
+        value.getDate() === Number(day);
+      return exact ? value : null;
+    }
+  }
+
   const d = typeof input === 'string' ? new Date(input) : input;
   if (!d || Number.isNaN(d.getTime())) {
     return null;
@@ -96,22 +114,53 @@ export function timeAgo(iso: string | Date, now: number = Date.now()): string {
   return niceDateShort(date);
 }
 
-/**
- * Formate une date de transaction au format français (jour, mois court, heure).
- */
-export function formatTransactionDate(dateInput: string | Date, locale: string = 'fr-FR'): string {
-  const date = parseDate(dateInput);
-  if (!date) return '';
+/** Fuseau de référence des dates de facturation (produit français). */
+export const DEFAULT_TIME_ZONE = 'Europe/Paris';
+
+const DATE_TIME_FORMAT_LIMIT = 32;
+const dateTimeFormats = new Map<string, Intl.DateTimeFormat>();
+
+/** Formateur date+heure mémoïsé (locale × fuseau). */
+function getDateTimeFormatter(locale: string, timeZone: string): Intl.DateTimeFormat | null {
+  const key = `${locale}|${timeZone}`;
+  const cached = dateTimeFormats.get(key);
+  if (cached) return cached;
 
   try {
-    return date.toLocaleDateString(locale, {
+    const formatter = new Intl.DateTimeFormat(locale, {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone,
     });
+    if (dateTimeFormats.size >= DATE_TIME_FORMAT_LIMIT) dateTimeFormats.clear();
+    dateTimeFormats.set(key, formatter);
+    return formatter;
   } catch {
-    return niceDate(date);
+    return null;
   }
+}
+
+/**
+ * Formate une date de transaction au format français (jour, mois court, heure).
+ *
+ * `timeZone` est **explicite** et vaut `Europe/Paris` par défaut : suivre le
+ * fuseau ambiant faisait diverger le rendu serveur (UTC) du rendu client
+ * (Paris) — « 17 août 2026, 22:30 » contre « 18 août 2026, 00:30 » — donc un
+ * mismatch d'hydratation React dès qu'un composant client était prérendu.
+ */
+export function formatTransactionDate(
+  dateInput: string | Date,
+  locale: string = 'fr-FR',
+  timeZone: string = DEFAULT_TIME_ZONE
+): string {
+  const date = parseDate(dateInput);
+  if (!date) return '';
+
+  const formatter = getDateTimeFormatter(locale, timeZone);
+  if (!formatter) return niceDate(date);
+
+  return formatter.format(date);
 }
