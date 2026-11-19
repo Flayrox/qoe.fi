@@ -1,5 +1,5 @@
 {
-  "extends": "../tsconfig/react-library.json",
+  "extends": "@qoe/tsconfig/react-library.json",
   "compilerOptions": {
     "baseUrl": ".",
     "rootDir": "./src",

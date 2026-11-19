@@ -80,7 +80,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L16     | `packages/observability/src/**`                                                                              | 7 fichiers src + 3 suites   | **durci le 2026-11-19** |
 | L17     | `packages/devtools/src/**`                                                                                   | 2 fichiers src + 1 suite    | **durci le 2026-11-19** |
 | L18     | `packages/social/src/**`                                                                                     | 5 sources + 2 suites        | **durci le 2026-11-19** |
-| L19     | `packages/tsconfig/**`                                                                                       | 0 fichier src               | à auditer               |
+| L19     | `packages/tsconfig/**`                                                                                       | 4 presets + racine + garde  | **durci le 2026-11-19** |
 | L20     | `apps/core/src/**`                                                                                           | 211 fichiers                | à auditer               |
 | L21     | `apps/studio/src/**`                                                                                         | 509 fichiers                | à auditer               |
 | L22     | `apps/admin/src/**`                                                                                          | 178 fichiers                | à auditer               |
@@ -102,7 +102,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L19 — `packages/tsconfig`.**
+**Prochain lot à traiter : L20 — `apps/core/src/**`.**
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -881,6 +881,8 @@ nommé), puis verts après restauration.
 | R61 | `nextUrl` de bout en bout : `AuthModalContext` le calcule (`?auth=…&next=…`, URL courante), `GlobalAuthModalProvider` le transmet, `LoginModal` l'accepte… et ne l'utilise jamais. Après connexion, `router.refresh()` garde la page courante. `setMode` n'a aucun consommateur, et `?auth=login` n'est jamais retiré de l'URL (recharger rouvre la modale). | moyenne | Décision produit (revenir à l'URL d'origine après connexion, ou rester sur place ; nettoyer le paramètre au passage) — voir L07c. |
 | R63 | `deeplink.Notification` (Go) émet **`/article/{slug}`** — l'ancienne forme : 308 côté tenants, **404 côté core** — pour `LIKE`/`REPOST`/`COMMENT` sur article et pour le fan-out `MEDIA_ARTICLE_PUBLISHED`. `deeplink.Target` ne porte ni le propriétaire ni la catégorie, donc la canonique (`/{owner}/a/{slug}` ou `/{cat}/{slug}`) n'est pas constructible en l'état. Le garde `guard:article-links` ne scanne pas le Go : ce chemin lui échappe. | moyenne | Décision serveur : ajouter `OwnerUsername` (ou `CategorySlug`) au `Target` et construire la canonique, ou assumer que le client ne reçoit que des `url` déjà canoniques. Voir L07e. |
 | R74 | `canonicalEmail` est calculé par `@qoe/moderation` et écrit dans les métadonnées Supabase (`options.data`) au signup, mais **aucun code ne le lit** : ni le sync Go, ni la base (aucun index unique). L'anti-multi-comptes annoncé par le module ne s'exerce donc pas au-delà du jour de l'inscription, et la suppression systématique du tag `+` (tous fournisseurs, pas seulement Gmail) n'a aucune conséquence observable. | moyenne | Arbitrage backend : colonne `canonicalEmail` + index unique dans une migration goose, puis refus de doublon côté Go (`/v1/auth/sync`), en décidant si l'on garde Gmail uniquement pour les points. Voir L14. |
+| R87 | `vitest.config.ts` (racine) garde un alias `@` → `./src` qui n'existe pas, et un bloc `exclude` redondant avec les configs de paquets. Inoffensif aujourd'hui (aucun test racine n'importe `@/…`) mais c'est le même mensonge de config que F213. | faible | Arbitrage : supprimer l'alias ou le faire pointer vers `apps/core/src` comme `vitest.coverage.config.ts` ; à décider quand les configs racine bougeront. Voir L19. |
+| R86 | `noUncheckedIndexedAccess` reste **absent** de tous les presets. Coût mesuré à l'activation : 3 erreurs (`packages/social`), 4 (`packages/config`), 0 (`packages/observability`) — activable paquet par paquet mais pas dans `base.json` sans un chantier transverse. | moyenne | Arbitrage : activer dans `base.json` et corriger l'ensemble du monorepo dans un lot dédié (ou l'activer d'abord sur les paquets qui sont déjà à 0). Voir L19. |
 | R85 | Divergence des règles de mention entre les trois implémentations : `@qoe/social` (parité antispam, 40 car.) , `apps/api/internal/antispam` (`@` précédé de `[^a-zA-Z0-9._%+-]`) et `apps/api/internal/modules/posts/notifications.go` (`@([a-zA-Z0-9_]+)` — ni point ni tiret). Un handle `@jean.dupont` est donc lié dans l'UI, indexé par l'antispam, mais **ne notifie jamais** son destinataire. | moyenne | Arbitrage : extraire la règle unique (Go) et faire consommer la même liste de handles par la notification et par le rendu ; nécessite une décision sur les handles à point. Voir L18. |
 | R84 | `apps/mobile` duplique `normalizeThought`/`isNormalized`/`resolveDisplay` (`apps/mobile/src/components/thought/normalize.ts`, avec un `as any`) au lieu d'utiliser `@qoe/social` : deux normalisations à maintenir, dont une non typée. | faible | Arbitrage : faire pointer mobile sur `@qoe/social` (types `FeedPost` locaux) et supprimer le cast. Voir L18. |
 | R83 | `apps/core/src/lib/feed-types.ts` redéclare `FeedPoll`/`FormattedPoll` au lieu de les importer de `@qoe/social`, et garde les champs legacy `_count`/`votes` que Go n'envoie plus. Aligné (champs optionnels) mais toujours dupliqué. | faible | Arbitrage : remplacer les interfaces locales par `import type { RawPoll, FormattedPoll } from '@qoe/social'` une fois les derniers snapshots `_count` purgés. Voir L18. |
@@ -1416,6 +1418,82 @@ existante modifiée, aucune doublure touchée.
 **Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65**, **R66**
 restent **ouvertes**. Nouvelle dette : **R67** (surfaces `continuous`,
 `highlighter`, `paywall`, `excerpt` sans consommateur TS).
+
+---
+
+## L19 — `@qoe/tsconfig` presets partagés, configs racine, garde CI — durci le 2026-11-19
+
+**Périmètre.** Les **4 presets** lus en entier (`base`, `nextjs`, `node`,
+`react-library`) + `package.json` + le `tsconfig.json` de la **racine** ; puis les
+**23 configs consommatrices** (`5 apps` + `18 packages`), `apps/mobile`
+(`expo/tsconfig.base`) et `apps/collab-server` (config manuscrite) incluses.
+Vérifié aussi : `turbo.json` (tâche `typecheck`), `.github/workflows/ci.yml`,
+`vitest.config.ts`, `vitest.coverage.config.ts`, `vitest.workspace.ts`,
+version TS réelle (**5.9.3**) et Vitest (**4.1.10**).
+
+**Dettes R75→R82 : hors périmètre** (`analytics`, `observability`, `devtools`) ;
+**R83/R84/R85** (`social`, mobile, Go) non plus. Elles restent ouvertes.
+
+| #    | Défaut                                                                                                                                                                                                                                    | Sévérité | Statut                                                                                                                                                                                                                                                                  |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F212 | `apps/collab-server` utilisait **`moduleResolution: "node"`**, l'alias historique `node10` que TypeScript 6 supprime — config manuscrite, jamais alignée sur les presets. | moyenne  | corrigé — `module: NodeNext` + `moduleResolution: NodeNext` (émit CJS conservé, paquet sans `"type": "module"`) ; rouge : `apps/collab-server/tsconfig.json : moduleResolution: "node" est la résolution legacy node10, dépréciée` ; `tsc --noEmit` et `pnpm build` verts après |
+| F213 | `packages/ui` mappait **`@qoe/sdk` vers `../api-client/src/*`**, un paquet qui n'existe pas (le SDK vit dans `packages/sdk`) : l'alias ne matchait jamais, et les imports retombaient silencieusement sur `node_modules` — la config mentait sur l'intention. | haute    | corrigé — `../sdk/src/…` ; rouge : `paths["@qoe/sdk"] → ../api-client/src/index.ts introuvable (packages/api-client/src/index.ts)` ; preuve d'effet : `tsc --traceResolution` résout désormais `@qoe/sdk → packages/sdk/src/index.ts`                                                                        |
+| F214 | `packages/theme` déclarait `@qoe/tsconfig` en dépendance mais étendait **`../tsconfig/react-library.json`** à la main : deux façons de faire la même chose, donc deux endroits à mettre à jour. | faible   | corrigé — `extends: "@qoe/tsconfig/react-library.json"` ; rouge : `packages/theme/tsconfig.json : étend ../tsconfig/react-library.json au lieu du preset @qoe/tsconfig/* dont il dépend` ; `tsc --noEmit` vert après                                                  |
+| F215 | Le `tsconfig.json` **de la racine** était une copie manuelle des presets avec des options mortes : `target: ES2017` (sous la cible du repo), plugin `next`, et surtout **`paths: {"@/*": ["./src/*"]}`** alors qu'il n'existe aucun `src` à la racine. | moyenne  | corrigé — étend `@qoe/tsconfig/base.json` (dépendance racine ajoutée), `include: ["*.ts", "*.mts"]`, alias mort supprimé ; rouge : `tsconfig.json : paths["@/*"] → ./src/* introuvable (src)`                                                                                    |
+| F216 | `vitest.workspace.ts` importait **`defineWorkspace`**, export **supprimé par Vitest 4** (le fichier de workspace a été remplacé par `test.projects`) : fichier mort qui aurait planté s'il était chargé. | moyenne  | corrigé — fichier supprimé (aucune référence : `turbo run test` et `test:coverage` ne le lisent pas) ; rouge : `vitest.workspace.ts(1,10): error TS2305: Module '"vitest/config"' has no exported member 'defineWorkspace'.` ; vérifié à l'exécution : `'defineWorkspace' in vitest/config === false` |
+| F217 | Aucune vérification ne couvrait ces dérives : les configs racine n'étaient **typecheckées par rien** (`pnpm typecheck` = turbo, donc paquets seulement) et un `paths` mort ne produit aucune erreur (`tsc` retombe sur `node_modules`). | moyenne  | corrigé — `scripts/guard-tsconfig.mjs` (4 règles : cible `paths` existante, preset non contourné, pas de résolution legacy, paquet typé sans tsconfig) + `pnpm guard:tsconfig` + `pnpm typecheck:root`, tous deux branchés dans `ci.yml` ; rouge : les 4 problèmes listés ci-dessus, puis vert                              |
+
+**Candidats examinés puis ABANDONNÉS** (pas de rouge) :
+
+- **`skipLibCheck: true`** : retiré, il produit des erreurs dans des `.d.ts` tiers
+  (`@types/d3-array(857,38): error TS2304: Cannot find name 'ImageData'`,
+  `@types/react-dom: ReferrerPolicy/RequestDestination`) parce que pnpm hisse des
+  types DOM dans des paquets sans DOM. L'option est donc **justifiée** ici et
+  reste — documenté au lieu d'être « corrigé » à l'aveugle.
+- **`noUncheckedIndexedAccess` absent** : coût mesuré 3 erreurs (`social`),
+  4 (`config`), 0 (`observability`) — activable paquet par paquet mais pas dans
+  `base.json` sans chantier transverse → **R86**.
+- **`allowSyntheticDefaultImports`** redondant avec `esModuleInterop` : aucun
+  changement de comportement, retrait cosmétique écarté.
+- **`incremental: true`** écrit un `*.tsbuildinfo` par paquet : vérifié, tous
+  ignorés par git (`*.tsbuildinfo` dans `.gitignore`), aucun artefact suivi.
+- **`node.json` redéclare `module`/`moduleResolution`** déjà dans `base.json` :
+  redondance inoffensive, retirée du périmètre pour ne pas toucher 17 paquets
+  sans preuve.
+
+**Preuve rouge → vert.** Le garde a d'abord été écrit puis exécuté **avant** tout
+correctif : 4 problèmes (`F212`, `F213` ×2, `F214`), cités ci-dessus. `F215` et
+`F216` ont été révélés en branchant `pnpm typecheck:root` sur le nouveau
+`tsconfig.json` de racine (avant : ce fichier n'était jamais vérifié). Aucun test
+n'a été modifié ni supprimé (`packages/*` inchangés fonctionnellement) ; aucune
+doublure ajoutée.
+
+**Preuves (arbre propre, après commit) :**
+
+| Commande | Avant | Après |
+| -------- | ----- | ----- |
+| `pnpm guard:tsconfig` (nouveau) | **4 problèmes** (alias mort ×2, preset contourné, résolution legacy) | **✔ 0 problème** |
+| `pnpm typecheck:root` (nouveau) | **`vitest.workspace.ts(1,10): error TS2305`** (API Vitest 4 supprimée) | **✔ 0 erreur** |
+| `pnpm lint` | 25/25, 0 erreur | **25/25, 0 erreur** (15 warnings préexistants) |
+| `pnpm typecheck` | 25/25 | **25/25** |
+| `pnpm test` | 24/24 | **24/24 tâches** |
+| gardes CI | **9** | **10** (+ `guard:tsconfig`) |
+
+**Observations trouvées, volontairement non corrigées.**
+
+- `vitest.config.ts` racine garde un alias `@` → `./src` inexistant (→ **R87**).
+- `next-env.d.ts` et `next.config.ts` existent à la racine sans être suivis par
+  git : résidus d'un `next` lancé à la racine, hors périmètre.
+- `packages/tsconfig` n'a pas de `tsconfig.json` propre (configs pures) : c'est
+  désormais `guard:tsconfig` qui garantit leur validité syntaxique et leurs
+  cibles.
+- Aucune option **dépréciée par TS 5.9** rencontrée dans les presets
+  (`preserveValueImports`, `importsNotUsedAsValues`, `suppressImplicitAnyIndexErrors`
+  absents) ; `moduleResolution: "node"` était la seule relique, corrigée.
+
+**Dettes.** **R01**, **R54**, **R56**, **R63** à **R68**, **R71** à **R74**,
+**R78** à **R85** restent **ouvertes**. Nouvelles dettes : **R86**
+(`noUncheckedIndexedAccess`), **R87** (alias racine de `vitest.config.ts`).
 
 ---
 

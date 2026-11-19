@@ -66,12 +66,23 @@ jobs:
       - name: Guard media origin
         run: pnpm guard:media-origin
 
+      # tsconfig : chaque `paths` pointe vers un fichier réel, chaque paquet qui
+      # dépend du preset l'étend, aucune résolution legacy `node10`.
+      - name: Guard tsconfig (alias morts, presets contournés, résolution legacy)
+        run: pnpm guard:tsconfig
+
       # Passe 4 (T10) : cliquet sur les vulnérabilités high/critical connues.
       - name: Guard dependencies (pnpm audit, cliquet)
         run: pnpm audit:guard
 
       - name: Typecheck Monorepo
         run: pnpm typecheck
+
+      # Le typecheck turbo ne voit pas les configs de la racine (vitest,
+      # playwright, lingui) : c'est ce contrôle qui a révélé `defineWorkspace`,
+      # API supprimée par Vitest 4.
+      - name: Typecheck root configs
+        run: pnpm typecheck:root
 
       - name: Lint Workspace
         run: pnpm lint
