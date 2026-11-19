@@ -15,6 +15,11 @@
 //     serveur par AnalyticsGate) ;
 //   - le choix est modifiable à tout moment et retirable aussi facilement ;
 //   - un choix = une preuve serveur, y compris pour un visiteur anonyme.
+//
+// 🔁 F133 — le centre était un `<div role="dialog" aria-modal="true">` posé à
+//    la main : ni piège du focus, ni fermeture à Échap, ni arrière-plan inerte,
+//    donc une fausse modalité. Il repose désormais sur `Dialog` (react-aria),
+//    partagé avec les autres surfaces bloquantes.
 // =====================================================================
 
 import { useEffect, useState, useTransition } from 'react';
@@ -44,6 +49,7 @@ import {
   writeConsent,
 } from './cookie-consent-storage';
 import { AnalyticsNotice } from './AnalyticsNotice';
+import { Dialog, DialogContent, DialogTitle } from '../primitives/dialog/dialog';
 
 const COPY = {
   fr: {
@@ -342,174 +348,187 @@ export function CookiePreferencesCenter({
   const [expanded, setExpanded] = useState<CookieCategory | null>('analytics');
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={copy.centerTitle}
-      className="fixed inset-0 z-[80] flex items-end justify-center bg-black/45 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+    <Dialog
+      isOpen
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
     >
-      <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl border border-border bg-card shadow-2xl sm:rounded-3xl">
-        <div className="flex items-start gap-3 border-b border-border px-5 py-4">
-          <span className="mt-0.5 rounded-lg bg-primary/10 p-2 text-primary">
-            <ShieldCheck className="h-4 w-4" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-semibold text-foreground">{copy.centerTitle}</h2>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              {exempt ? copy.exemptIntro : copy.centerIntro}
+      <DialogContent
+        size="xl"
+        showCloseButton={false}
+        overlayClassName="z-[80]"
+        className="max-h-[92vh] gap-0 overflow-hidden p-0 sm:p-0"
+      >
+        <div className="flex max-h-[92vh] w-full flex-col">
+          <div className="flex items-start gap-3 border-b border-border px-5 py-4">
+            <span className="mt-0.5 rounded-lg bg-primary/10 p-2 text-primary">
+              <ShieldCheck className="h-4 w-4" aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="text-sm font-semibold text-foreground">
+                {copy.centerTitle}
+              </DialogTitle>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                {exempt ? copy.exemptIntro : copy.centerIntro}
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              aria-label={copy.close}
+              className="rounded-lg p-1 text-muted-foreground hover:bg-muted"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-5 py-4">
+            {COOKIE_CATEGORIES.map((category) => {
+              const trackers = trackersByCategory(category.key);
+              const isOpen = expanded === category.key;
+              return (
+                <section
+                  key={category.key}
+                  className="overflow-hidden rounded-2xl border border-border"
+                >
+                  <div className="flex items-start gap-3 px-3 py-3">
+                    <label className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center">
+                      {category.locked ? (
+                        <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                      ) : (
+                        <input
+                          type="checkbox"
+                          checked={
+                            category.key === 'necessary' ? true : Boolean(choice[category.key])
+                          }
+                          onChange={(event) => onToggle(category.key, event.target.checked)}
+                          className="h-4 w-4"
+                          aria-label={localized(category.label, locale)}
+                        />
+                      )}
+                    </label>
+                    <div className="min-w-0 flex-1">
+                      <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
+                        {localized(category.label, locale)}
+                        {category.locked && (
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                            {copy.alwaysOn}
+                          </span>
+                        )}
+                        {!category.locked && !category.consentRequired && (
+                          <span className="rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-success-text">
+                            {copy.exemptBadge}
+                          </span>
+                        )}
+                      </p>
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                        {localized(category.description, locale)}
+                      </p>
+                      {showTrackers && trackers.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setExpanded(isOpen ? null : category.key)}
+                          aria-expanded={isOpen}
+                          className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-primary underline"
+                        >
+                          {copy.trackers} ({trackers.length})
+                          <ChevronDown
+                            className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                          />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {showTrackers && isOpen && (
+                    <ul className="space-y-2 border-t border-border bg-muted/30 px-3 py-3">
+                      {trackers.length === 0 && (
+                        <li className="text-[11px] text-muted-foreground">{copy.noTrackers}</li>
+                      )}
+                      {trackers.map((tracker) => (
+                        <li
+                          key={tracker.name}
+                          className="rounded-xl border border-border bg-card px-3 py-2"
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <code className="text-[11px] font-semibold text-foreground">
+                              {tracker.name}
+                            </code>
+                            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                              {tracker.firstParty ? copy.firstParty : copy.thirdParty}
+                            </span>
+                            {tracker.href && (
+                              <Link
+                                href={tracker.href}
+                                className="text-[10px] font-semibold text-primary underline"
+                              >
+                                {copy.provider}
+                              </Link>
+                            )}
+                          </div>
+                          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                            <span className="font-medium text-foreground/80">
+                              {copy.provider} :
+                            </span>{' '}
+                            {tracker.provider}
+                          </p>
+                          <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                            <span className="font-medium text-foreground/80">{copy.purpose} :</span>{' '}
+                            {localized(tracker.purpose, locale)}
+                          </p>
+                          <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                            <span className="font-medium text-foreground/80">
+                              {copy.retention} :
+                            </span>{' '}
+                            {localized(tracker.retention, locale)}
+                          </p>
+                          {tracker.exemption && (
+                            <p className="mt-1 rounded-lg bg-success/10 px-2 py-1 text-[11px] leading-relaxed text-foreground/80">
+                              <span className="font-medium">{copy.exemptBadge} :</span>{' '}
+                              {localized(tracker.exemption, locale)}
+                            </p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              );
+            })}
+
+            <p className="pt-1 text-[11px] leading-relaxed text-muted-foreground">
+              <Link
+                href={getLegalDocumentUrl(COOKIE_POLICY_SLUG)}
+                className="font-semibold text-primary underline"
+              >
+                {copy.policy}
+              </Link>
+              {policyVersion ? ` (version ${policyVersion})` : ''} · {copy.savedHint}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            aria-label={copy.close}
-            className="rounded-lg p-1 text-muted-foreground hover:bg-muted"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
 
-        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-5 py-4">
-          {COOKIE_CATEGORIES.map((category) => {
-            const trackers = trackersByCategory(category.key);
-            const isOpen = expanded === category.key;
-            return (
-              <section
-                key={category.key}
-                className="overflow-hidden rounded-2xl border border-border"
-              >
-                <div className="flex items-start gap-3 px-3 py-3">
-                  <label className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center">
-                    {category.locked ? (
-                      <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-                    ) : (
-                      <input
-                        type="checkbox"
-                        checked={
-                          category.key === 'necessary' ? true : Boolean(choice[category.key])
-                        }
-                        onChange={(event) => onToggle(category.key, event.target.checked)}
-                        className="h-4 w-4"
-                        aria-label={localized(category.label, locale)}
-                      />
-                    )}
-                  </label>
-                  <div className="min-w-0 flex-1">
-                    <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
-                      {localized(category.label, locale)}
-                      {category.locked && (
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                          {copy.alwaysOn}
-                        </span>
-                      )}
-                      {!category.locked && !category.consentRequired && (
-                        <span className="rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-success-text">
-                          {copy.exemptBadge}
-                        </span>
-                      )}
-                    </p>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      {localized(category.description, locale)}
-                    </p>
-                    {showTrackers && trackers.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setExpanded(isOpen ? null : category.key)}
-                        aria-expanded={isOpen}
-                        className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-primary underline"
-                      >
-                        {copy.trackers} ({trackers.length})
-                        <ChevronDown
-                          className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-                        />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {showTrackers && isOpen && (
-                  <ul className="space-y-2 border-t border-border bg-muted/30 px-3 py-3">
-                    {trackers.length === 0 && (
-                      <li className="text-[11px] text-muted-foreground">{copy.noTrackers}</li>
-                    )}
-                    {trackers.map((tracker) => (
-                      <li
-                        key={tracker.name}
-                        className="rounded-xl border border-border bg-card px-3 py-2"
-                      >
-                        <div className="flex flex-wrap items-center gap-2">
-                          <code className="text-[11px] font-semibold text-foreground">
-                            {tracker.name}
-                          </code>
-                          <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                            {tracker.firstParty ? copy.firstParty : copy.thirdParty}
-                          </span>
-                          {tracker.href && (
-                            <Link
-                              href={tracker.href}
-                              className="text-[10px] font-semibold text-primary underline"
-                            >
-                              {copy.provider}
-                            </Link>
-                          )}
-                        </div>
-                        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                          <span className="font-medium text-foreground/80">{copy.provider} :</span>{' '}
-                          {tracker.provider}
-                        </p>
-                        <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-                          <span className="font-medium text-foreground/80">{copy.purpose} :</span>{' '}
-                          {localized(tracker.purpose, locale)}
-                        </p>
-                        <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-                          <span className="font-medium text-foreground/80">{copy.retention} :</span>{' '}
-                          {localized(tracker.retention, locale)}
-                        </p>
-                        {tracker.exemption && (
-                          <p className="mt-1 rounded-lg bg-success/10 px-2 py-1 text-[11px] leading-relaxed text-foreground/80">
-                            <span className="font-medium">{copy.exemptBadge} :</span>{' '}
-                            {localized(tracker.exemption, locale)}
-                          </p>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            );
-          })}
-
-          <p className="pt-1 text-[11px] leading-relaxed text-muted-foreground">
-            <Link
-              href={getLegalDocumentUrl(COOKIE_POLICY_SLUG)}
-              className="font-semibold text-primary underline"
+          <div className="flex flex-wrap items-center gap-2 border-t border-border px-5 py-4">
+            <button
+              onClick={onSave}
+              className="rounded-xl bg-foreground px-4 py-2 text-sm font-semibold text-background transition-opacity hover:opacity-90"
             >
-              {copy.policy}
-            </Link>
-            {policyVersion ? ` (version ${policyVersion})` : ''} · {copy.savedHint}
-          </p>
+              {copy.save}
+            </button>
+            <button
+              onClick={onAcceptAll}
+              className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+            >
+              {copy.acceptAll}
+            </button>
+            <button
+              onClick={onRejectAll}
+              className="rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground underline hover:text-foreground"
+            >
+              {copy.rejectAll}
+            </button>
+          </div>
         </div>
-
-        <div className="flex flex-wrap items-center gap-2 border-t border-border px-5 py-4">
-          <button
-            onClick={onSave}
-            className="rounded-xl bg-foreground px-4 py-2 text-sm font-semibold text-background transition-opacity hover:opacity-90"
-          >
-            {copy.save}
-          </button>
-          <button
-            onClick={onAcceptAll}
-            className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
-          >
-            {copy.acceptAll}
-          </button>
-          <button
-            onClick={onRejectAll}
-            className="rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground underline hover:text-foreground"
-          >
-            {copy.rejectAll}
-          </button>
-        </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
