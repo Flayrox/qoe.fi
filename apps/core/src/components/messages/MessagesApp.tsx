@@ -78,19 +78,29 @@ export function MessagesApp() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchedUser[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const selected = conversations.find((c) => c.id === selectedId) ?? null;
   const markReadInFlight = useRef(false);
+  // Jeton de requête : la réponse d'une conversation qu'on vient de quitter ne
+  // doit jamais peindre le fil de celle qu'on regarde (même course que F274).
+  const requestToken = useRef(0);
 
   // ─── Liste des conversations (chargement + polling) ─────────────────
   const refreshConversations = useCallback(async (silent = true) => {
     const res = await getConversationsAction();
-    if (!res.ok) return;
+    if (!res.ok) {
+      // Sans cela, un premier chargement en échec laissait le spinner pour
+      // toujours : l'état d'erreur n'existait pas.
+      setLoadingList(false);
+      if (!silent) setError('Impossible de charger vos conversations.');
+      return;
+    }
     setConversations(res.data);
     setLoadingList(false);
-    if (!silent && res.data.length === 0) setError(null);
+    if (!silent) setError(null);
   }, []);
 
   useEffect(() => {
@@ -101,11 +111,19 @@ export function MessagesApp() {
 
   // ─── Messages du fil sélectionné ────────────────────────────────────
   const openConversation = useCallback(async (conversation: Conversation) => {
+    const token = ++requestToken.current;
     setSelectedId(conversation.id);
     setError(null);
     setLoadingMessages(true);
     const res = await getConversationMessagesAction({ conversationId: conversation.id });
-    if (res.ok) setMessages(res.data.messages);
+    // Réponse périmée : une autre conversation a été ouverte entre-temps.
+    if (token !== requestToken.current) return;
+    if (res.ok) {
+      setMessages(res.data.messages);
+    } else {
+      setMessages([]);
+      setError('Impossible de charger cette conversation.');
+    }
     setLoadingMessages(false);
     // Marquer lu à l'ouverture (le polling ci-dessous rappelle si besoin).
     void markConversationReadAction(conversation.id);
@@ -202,15 +220,30 @@ export function MessagesApp() {
   useEffect(() => {
     if (!composing || searchQuery.trim().length < 2) {
       setSearchResults([]);
+      setSearchError(null);
       return;
     }
     let cancelled = false;
     setSearching(true);
+    setSearchError(null);
     const t = setTimeout(() => {
-      void searchUsersAction(searchQuery.trim()).then((res) => {
-        if (!cancelled && res.ok) setSearchResults(res.data.users.slice(0, 8));
-        if (!cancelled) setSearching(false);
-      });
+      void searchUsersAction(searchQuery.trim())
+        .then((res) => {
+          if (cancelled) return;
+          if (res.ok) {
+            setSearchResults(res.data.users.slice(0, 8));
+            return;
+          }
+          // Un échec n'est pas « aucun résultat » : on le dit à côté du champ.
+          setSearchResults([]);
+          setSearchError('Recherche de membres impossible pour le moment.');
+        })
+        .catch(() => {
+          if (!cancelled) setSearchError('Recherche de membres impossible pour le moment.');
+        })
+        .finally(() => {
+          if (!cancelled) setSearching(false);
+        });
     }, 250);
     return () => {
       cancelled = true;
@@ -237,9 +270,20 @@ export function MessagesApp() {
     [openConversation]
   );
 
+  // La largeur était lue pendant le rendu : sans écouteur, un redimensionnement
+  // (rotation, fenêtre réduite) ne rafraîchissait rien, et le serveur calculait
+  // une valeur différente du client. L'état démarre à `false` des deux côtés,
+  // puis suit `resize`.
+  const [isNarrow, setIsNarrow] = useState(false);
+  useEffect(() => {
+    const update = () => setIsNarrow(window.innerWidth < 768);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
   // ─── Rendu ───────────────────────────────────────────────────────────
-  const isMobileViewingThread =
-    Boolean(selected) && typeof window !== 'undefined' && window.innerWidth < 768;
+  const isMobileViewingThread = Boolean(selected) && isNarrow;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
@@ -260,7 +304,10 @@ export function MessagesApp() {
       </div>
 
       {error && (
-        <div className="mb-3 text-sm text-destructive-text bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">
+        <div
+          role="alert"
+          className="mb-3 text-sm text-destructive-text bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2"
+        >
           {error}
         </div>
       )}
@@ -316,9 +363,17 @@ export function MessagesApp() {
                       </div>
                     </button>
                   ))}
-                {!searching && searchQuery.trim().length >= 2 && searchResults.length === 0 && (
-                  <p className="text-xs text-muted-foreground px-2 py-1.5">Aucun résultat.</p>
+                {!searching && searchError && (
+                  <p role="alert" className="text-xs text-destructive-text px-2 py-1.5">
+                    {searchError}
+                  </p>
                 )}
+                {!searching &&
+                  !searchError &&
+                  searchQuery.trim().length >= 2 &&
+                  searchResults.length === 0 && (
+                    <p className="text-xs text-muted-foreground px-2 py-1.5">Aucun résultat.</p>
+                  )}
               </div>
             </div>
           )}
