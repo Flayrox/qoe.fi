@@ -1534,7 +1534,17 @@ docker-compose.test.yml` ; `playwright.config.ts` démarre trois `webServer` (AP
 
 **Blocage nommé, non contourné.** Le seed CI (`go run ./cmd/seed`) n'a **pas** été lancé : la seule base configurée est l'instance partagée du VPS Hetzner (`DATABASE_URL` → `116.203.158.47:15409`, cf. `AGENTS.md`), et écrire des données de démonstration dans une base partagée est une action réservée à l'utilisateur. Aucune couverture n'a été fabriquée à la place : `test-results/` et les rapports HTML sont des artefacts générés (gitignorés), et rien n'a été `skip`é.
 
-**Aucun changement de code n'a été nécessaire** : ni le build, ni le harnais e2e, ni les paquets Go sans base n'ont révélé de défaut. Cette fiche consigne donc une mesure, pas un correctif — **aucune dette nouvelle**.
+**Un seul changement de code, imposé par le build lui-même.** Le premier `pnpm build` émettait 4 fois (une par app)
+`[@sentry/nextjs] DEPRECATION WARNING: disableLogger is deprecated and will be removed in a future version. Use
+webpack.treeshake.removeDebugLogging instead. (Not supported with Turbopack.)` — les cinq `next.config.ts`
+(`core:100`, `admin:70`, `hi:85`, `studio:81`, `tenants:82`) passaient encore `disableLogger: true`, option
+**obsolète** et **sans effet** sous Turbopack (Next 16 compile en Turbopack, mesuré dans le log). Les cinq clés ont
+été retirées : `pnpm --filter @qoe/core build` repasse vert (**0 avertissement de dépréciation**, 25,5 s) et le
+build monorepo complet repasse **6/6 tâches**. Aucun comportement ne change (l'option était déjà ignorée) ; c'est
+une **option obsolète retirée**, pas une refonte.
+
+**Aucune dette nouvelle** : ni le build, ni le harnais e2e, ni les paquets Go sans base n'ont révélé de bug de
+code ; le seul correctif est la suppression d'une option dépréciée.
 
 **Non vérifié.** `pnpm test:api` complet (tous les paquets Go, dont ceux adossés à Postgres/Testcontainers et les gates de couverture du job `api`) ; les projets e2e `public-web`/`core-journeys` en entier (6 cas dépendants du seed), `security`, `hydratation`, `routes`, `e2e-apps` et `e2e-apps-routes` (tous deux adossés à Postgres + Redis + seed) ; `next start` sur un build prod (le harnais a tourné en `next dev`) ; aucune vérification visuelle des pages réelles au-delà des 4 contrats `setContent`.
 
