@@ -113,6 +113,11 @@ test.describe('Parcours Cross-Recommandations Creator Network', () => {
   test('la newsletter exige une confirmation email avant toute boucle virale', async ({ page }) => {
     // Même cause que le cas précédent : prefetch RSC perpétuel en accès chemin.
     await page.goto(`/tenant/${MAIN.subdomain}`, { waitUntil: 'domcontentloaded' });
+    // ⚠️ `domcontentloaded` ne garantit pas l'exécution des bundles : cliquer
+    // « S'abonner » avant l'hydratation ne déclenchait aucun POST (1 flaky
+    // mesuré sur 2 runs). `load` attend les scripts, donc l'hydratation du
+    // formulaire — aucune assertion n'est touchée.
+    await page.waitForLoadState('load');
 
     // Saisir un email valide dans le formulaire de newsletter
     const emailInput = page.getByPlaceholder(/votre adresse email/i).first();

@@ -139,6 +139,18 @@ test.describe('Parcours public tenants — hermétique', () => {
     const pageErrors: string[] = [];
     page.on('pageerror', (err) => pageErrors.push(err.message));
 
+    // 🔒 Aucune requête sortante depuis une page tenant locale : l'analytics
+    // d'un build local passe par le proxy first-party `/_q/m.js`, jamais par
+    // l'infra partagée. Régression mesurée avant correctif :
+    // `http://116.203.158.47:15411/script.js` + `/api/send` étaient chargés.
+    const outgoingRequests: string[] = [];
+    page.on('request', (req) => {
+      const url = req.url();
+      if (!/^https?:/i.test(url)) return;
+      if (/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(url)) return;
+      outgoingRequests.push(url);
+    });
+
     // ⚠️ `domcontentloaded`, pas `networkidle` : la home rend des liens
     // d'article `/{catégorie}/{slug}` (forme correcte en hébergement par
     // sous-domaine). Servie en accès par chemin (`/tenant/{domaine}`), cette
@@ -150,6 +162,10 @@ test.describe('Parcours public tenants — hermétique', () => {
     await page.goto(`/tenant/${PERSONAL.subdomain}`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByText(PERSONAL.name).first()).toBeVisible({ timeout: 30_000 });
     expect(pageErrors).toEqual([]);
+    expect(
+      outgoingRequests,
+      'une page tenant locale ne doit émettre aucune requête vers un hôte distant'
+    ).toEqual([]);
   });
 
   test('un tenant média rend son nom et son article', async ({ page }) => {

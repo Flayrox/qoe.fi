@@ -93,6 +93,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | **durci le 2026-11-19** |
 | L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; prochain = L20c3 |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
+| L20h    | **Analytics local : aucun build dev/test/e2e ne peut viser l'infra partagée** | `packages/analytics/src/{client.tsx,script-url.ts,__tests__/script-url.test.ts}`, `e2e/tenants*.spec.ts` | mesuré le 2026-11-20 : avant **2 requêtes** vers `116.203.158.47`, après **0** ; tenants e2e **13/13** — voir fiche L20h (dans L20g) |
 | L20g    | **E2E apps (tenants/studio/admin) + matrice de routes + `public-feed-capture`** | `e2e/*.spec.ts`, `playwright.config.ts`, `.github/workflows/ci.yml` | mesuré le 2026-11-20 : `e2e-apps` **25/25**, `e2e-apps-routes` **53/53**, `api-access-control` **2/2 (projet isolé)**, `public-web` **12/12** — voir fiche L20g |
 | L20f    | **Validation locale bout en bout** : daemon Docker, `test:api`, `e2e` sur base jetable seedée | —                           | mesuré le 2026-11-20 : daemon **démarré** (OrbStack 29.4.0), `test:api` **✅ 82 paquets**, e2e **18/19 + 128/128** — voir fiche L20f |
 | L20e    | **Validation bout en bout** : `pnpm build` (6 apps), `pnpm test:api` (Go + Postgres), `pnpm e2e` (Playwright)  | —                           | mesuré le 2026-11-20 : **build ✅**, `test:api` **bloqué** (Docker absent), e2e **partiel** (seed absent) — voir fiche L20e |
@@ -1574,11 +1575,40 @@ le catch de `(reader)/[username]/[tab]/page.tsx` retombe sur `notFound()` (404).
 l'API, isolée) ») qui l'exécute seul, avant la campagne principale. Vert : `api-access-control` **2/2**, puis les
 6 projets **133/133** (144/145 au premier passage, seul `public-feed-capture` rouge — rouge 3, corrigé ensuite).
 
-**Constat d'environnement (non commité).** Le `.env` local pointe `NEXT_PUBLIC_UMAMI_SCRIPT_URL` vers
-`http://116.203.158.47:15411` : les pages tenant chargées par e2e appelaient donc l'analytics du **VPS partagé**
-(`/script.js` puis `/api/send`, vus dans une sonde réseau). Les builds e2e sont faits avec cette variable vide, ce qui
-fait tomber `AnalyticsScript` sur le proxy first-party `/_q/m.js` (`packages/analytics/src/client.tsx:43`) — aucun
-appel sortant. À corriger côté poste (`.env` non versionné) : viser `http://localhost:15411` (conteneur de dev).
+**Analytics local — correctif à la source (L20h).** Le constat précédent décrivait le symptôme mais concluait à tort
+à une correction « côté poste ». Cause exacte : `packages/analytics/src/client.tsx:43` lisait
+`process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL` **brut** — aucune règle n'empêchait un build local d'injecter une URL
+**distante**, et le schéma `umamiScriptUrlSchema` (`packages/config/src/env.ts:20-30`) n'imposait qu'une *forme*
+(une IP absolue en `http://` passait). Vérifié : `git grep 116.203.158.47` ne renvoie, hors `docs/`, que `AGENTS.md` et
+`scripts/dev-vps.sh` (base de données, pas analytics) → **aucun fichier suivi par git ne pointait l'analytics**
+partagée ; le trou était dans le code. Correctif : nouveau `packages/analytics/src/script-url.ts` (pur, testé par
+`__tests__/script-url.test.ts`, 9 cas) appelé par `AnalyticsScript`. Règle unique : chemin first-party conservé ;
+URL absolue vers la **boucle locale** conservée (`http://localhost:15411`, conteneur de dev) ; URL absolue
+**distante ignorée** quand `NEXT_PUBLIC_APP_URL` désigne une origine locale → repli `/_q/m.js` ; honorée en
+production. Décision prise sur des variables **inlinées au build** → SSR et client identiques (zéro écart
+d'hydratation).
+
+Mesure sur `/tenant/media-clair` en `next start`, sonde réseau Playwright temporaire (supprimée) :
+
+| Mesure | requêtes | distantes | vers `116.203.158.47` | script analytics chargé |
+| ------ | -------- | --------- | --------------------- | ----------------------- |
+| **Avant** (code L20g, `.env` en VPS) | 29 | 2 | **2** (`/script.js`, `/api/send`) | `http://116.203.158.47:15411/script.js` |
+| **Après** (correctif, `.env` **toujours** en VPS) | 28 | **0** | **0** | `http://127.0.0.1:15403/_q/m.js` |
+
+Le second run garde volontairement la valeur distante dans le `.env` : c'est donc bien le **code** qui protège, pas
+la config. Garde de non-régression : le cas e2e existant `tenants.spec.ts` « la home d’un tenant personnel se résout
+et rend sa publication » collecte les requêtes sortantes et exige `[]` (aucun hôte distant) — vert en 303 ms. Côté
+poste, `.env` et les 7 `apps/*/.env` (non suivis) ont été réécrits vers `http://localhost:15411` (0 occurrence
+restante). Reste hors périmètre, constaté : le `.env` local pointe aussi `NEXT_PUBLIC_SUPABASE_URL` vers
+`116.203.158.47:54321` — les chargements de page n’émettent aucune requête vers cette origine (mesuré), mais les
+parcours d’authentification locaux, eux, viseraient le Supabase partagé.
+
+**Deux flakes de la suite tenants corrigés au passage.** `tenants-legal.spec.ts` n’était pas en `mode: 'serial'` :
+ses 3 cas s’exécutaient dans 2 workers qui rejouaient le `beforeAll` en parallèle →
+`duplicate key value violates unique constraint "User_email_key"` (1 flaky mesuré). Et le cas newsletter de
+`tenants-recommendations.spec.ts` cliquait « S’abonner » après `domcontentloaded`, donc **avant l’hydratation**
+(aucun POST, 1 flaky sur 2 runs) : `waitForLoadState('load')` ajouté, 3 runs verts d’affilée puis 13/13 sur le
+projet complet, sans aucun « flaky » dans le rapport.
 
 **Dette de rejouabilité (documentée, sans changement de code).** Premier `test:api` du lot sur la base de test
 **persistante** : `TESTAPI_EXIT=1`, `internal/modules/imports` en échec —

@@ -17,6 +17,8 @@
 import Script from 'next/script';
 import { useEffect } from 'react';
 
+import { resolveAnalyticsScriptUrl } from './script-url';
+
 declare global {
   interface Window {
     umami?: {
@@ -40,7 +42,14 @@ interface AnalyticsScriptProps {
  */
 export function AnalyticsScript({ websiteId, exempt = true }: AnalyticsScriptProps) {
   const targetId = websiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
-  const scriptUrl = process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL || '/_q/m.js';
+  // ⚠️ La valeur passe par `resolveAnalyticsScriptUrl` : un build local ne
+  // charge jamais un script distant, même si un `.env` de poste pointe
+  // l'infra partagée (cf. `script-url.ts`). Décision prise sur des variables
+  // inlinées au build → identique en SSR et en client.
+  const scriptUrl = resolveAnalyticsScriptUrl(
+    process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL,
+    process.env.NEXT_PUBLIC_APP_URL
+  );
 
   if (!targetId) return null;
 

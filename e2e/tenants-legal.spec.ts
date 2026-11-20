@@ -42,7 +42,12 @@ test.describe('Information légale (publication)', () => {
   // la première compilation Turbopack de `/[domain]/...` dépasse à elle seule
   // le budget par défaut de 60 s, ce qui faisait échouer le hook avant même le
   // premier test. Le délai couvre l'ensemble (hooks compris).
-  test.describe.configure({ timeout: 180_000 });
+  // ⚠️ Série obligatoire : le `beforeAll` sème une Publication + son auteur.
+  // En `fullyParallel`, ses 3 cas s'exécutent dans 2 workers qui rejouent le hook
+  // en parallèle → `duplicate key value violates unique constraint
+  // "User_email_key"` (mesuré : 1 flaky au premier run L21a, masqué par le
+  // retry). Même contrat que `tenants-paywall` et `tenants-recommendations`.
+  test.describe.configure({ mode: 'serial', timeout: 180_000 });
 
   let db: TestDb;
 
