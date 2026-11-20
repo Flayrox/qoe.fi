@@ -2,11 +2,7 @@
 // types.ts — Types de Qoefi Stage
 // =====================================================================
 
-import type {
-  LayoutConfig,
-  TemplatePublisherContext,
-  TemplateArticleItem,
-} from '@qoe/ui/templates';
+import type { TemplatePublisherContext, TemplateArticleItem } from '@qoe/ui/templates';
 import type { SidebarProps } from '@qoe/ui/sidebar';
 
 export type StageDevice = 'desktop' | 'tablet' | 'mobile';
