@@ -9,6 +9,7 @@
 // =====================================================================
 
 import { createClient } from '@supabase/supabase-js';
+import { resolveSupabaseUrl } from '@qoe/supabase/url';
 import { revalidatePath } from 'next/cache';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { assertCapability } from '@/lib/admin-identity';
@@ -16,7 +17,7 @@ import { authzTrailers } from '@/lib/action-result';
 
 function getAdminClient() {
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    resolveSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_APP_URL),
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     {
       auth: {

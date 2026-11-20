@@ -12,6 +12,7 @@
 // =====================================================================
 
 import { createClient } from '@supabase/supabase-js';
+import { resolveSupabaseUrl } from '@qoe/supabase/url';
 import { revalidatePath } from 'next/cache';
 import { goFetch } from '../utils/go-client';
 import { safeAction } from '../utils/safe-action';
@@ -25,7 +26,10 @@ const SUSPENSION_BAN_DURATION = '876000h';
  * silencieux dans le constructeur Supabase (et jamais une clé cliente).
  */
 function getAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const url = resolveSupabaseUrl(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_APP_URL
+  );
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!url || !serviceRoleKey) {
     throw new Error(

@@ -93,6 +93,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | **durci le 2026-11-19** |
 | L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; prochain = L20c3 |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
+| L20i    | **Supabase local : aucune page servie en local ne peut viser le Supabase partagé** | `packages/supabase/src/{url.ts,client.ts,server.ts,middleware.ts,storage.ts}`, 7 lecteurs d'app/SDK, `__tests__/url.test.ts` | mesuré le 2026-11-20 : avant **1 requête** `POST /auth/v1/otp` vers `116.203.158.47:54321`, après **0** (→ `127.0.0.1:54321`) ; supabase **57 tests**, tenants e2e **13/13**, build prod **exit 0** |
 | L20h    | **Analytics local : aucun build dev/test/e2e ne peut viser l'infra partagée** | `packages/analytics/src/{client.tsx,script-url.ts,__tests__/script-url.test.ts}`, `e2e/tenants*.spec.ts` | mesuré le 2026-11-20 : avant **2 requêtes** vers `116.203.158.47`, après **0** ; tenants e2e **13/13** — voir fiche L20h (dans L20g) |
 | L20g    | **E2E apps (tenants/studio/admin) + matrice de routes + `public-feed-capture`** | `e2e/*.spec.ts`, `playwright.config.ts`, `.github/workflows/ci.yml` | mesuré le 2026-11-20 : `e2e-apps` **25/25**, `e2e-apps-routes` **53/53**, `api-access-control` **2/2 (projet isolé)**, `public-web` **12/12** — voir fiche L20g |
 | L20f    | **Validation locale bout en bout** : daemon Docker, `test:api`, `e2e` sur base jetable seedée | —                           | mesuré le 2026-11-20 : daemon **démarré** (OrbStack 29.4.0), `test:api` **✅ 82 paquets**, e2e **18/19 + 128/128** — voir fiche L20f |
@@ -1599,9 +1600,73 @@ Le second run garde volontairement la valeur distante dans le `.env` : c'est don
 la config. Garde de non-régression : le cas e2e existant `tenants.spec.ts` « la home d’un tenant personnel se résout
 et rend sa publication » collecte les requêtes sortantes et exige `[]` (aucun hôte distant) — vert en 303 ms. Côté
 poste, `.env` et les 7 `apps/*/.env` (non suivis) ont été réécrits vers `http://localhost:15411` (0 occurrence
-restante). Reste hors périmètre, constaté : le `.env` local pointe aussi `NEXT_PUBLIC_SUPABASE_URL` vers
-`116.203.158.47:54321` — les chargements de page n’émettent aucune requête vers cette origine (mesuré), mais les
-parcours d’authentification locaux, eux, viseraient le Supabase partagé.
+restante). Le `.env` local pointait aussi `NEXT_PUBLIC_SUPABASE_URL` vers `116.203.158.47:54321` : constaté ici,
+traité au lot **L20i** (ci-dessous) qui rend cette fuite structurellement impossible côté page.
+
+**Supabase local — même garde, à la source (L20i).** Cause lue dans le code : quatorze lectures **brutes** de
+`process.env.NEXT_PUBLIC_SUPABASE_URL` — `packages/supabase/src/client.ts:19`, `server.ts:27` et `:74`,
+`middleware.ts:61`, `storage.ts:161/224/243`, `apps/{core,admin,studio}/src/lib/supabase/{client,server}.ts` (6
+fichiers), `apps/admin/src/lib/admin-actions.ts:19`, `packages/sdk/src/actions/admin/index.ts:28`. Aucune ne passait
+par une règle : `packages/config/src/env.ts` ne validait qu’une **forme** (`z.string().url()`), qu’une IP publique
+satisfait, et aucun test ne couvrait le choix d’origine. Un `.env` de poste visant le VPS faisait donc inliner cette
+origine dans les bundles navigateur servis en local.
+
+Mesure avant, `/login` de `apps/core` en dev, `.env` **non modifié** (Playwright, sonde temporaire supprimée) :
+
+```
+PROBE_TOTAL_REQUESTS 58
+PROBE_SUPABASE_REQUESTS 1
+SUPABASE http://116.203.158.47:54321/auth/v1/otp?redirect_to=http%3A%2F%2F127.0.0.1%3A3090%2Fauth%2Fcallback…
+PROBE_VPS_REQUESTS 1
+```
+
+Correctif : nouveau `packages/supabase/src/url.ts` — `resolveSupabaseUrl(rawUrl, appUrl)`, exporté en
+`@qoe/supabase/url`, `LOCAL_SUPABASE_URL = http://127.0.0.1:54321` — branché sur les quatorze lectures. Règles :
+boucle locale conservée ; origine **distante** sur un build dont `NEXT_PUBLIC_APP_URL` est local → stack local ;
+distante sur build de production → honorée ; valeur absente, non-URL ou ambiguë (`//hôte`) → repli local, jamais
+propagée. Le module reste **autonome** (aucun import de workspace) parce que `storage.ts` l’importe depuis
+`next.config.ts` : le transpileur de config de Next 16 réécrit les imports de workspace imbriqués en chemins
+erronés — tenté réellement, `Error: Cannot find module '../../packages/config/src/local-host'`.
+
+Mesure après, même page, **même `.env` toujours pointé sur le VPS** :
+
+```
+PROBE_SUPABASE_REQUESTS 1
+SUPABASE http://127.0.0.1:54321/auth/v1/otp?redirect_to=http%3A%2F%2F127.0.0.1%3A3090%2Fauth%2Fcallback…
+PROBE_VPS_REQUESTS 0
+```
+
+C’est donc bien le code qui protège, pas la configuration. Garde de non-régression dans un runner existant
+(`packages/supabase`, vitest) : `src/__tests__/url.test.ts` — 8 cas de résolution (dont l’IP du VPS, `lvh.me`,
+`qoe.test`, non-URL) **plus** une garde structurelle qui parcourt `apps/` et `packages/` et échoue sur toute lecture
+brute non passée à `resolveSupabaseUrl`. Garde vérifiée dans les deux sens : régression introduite à la main dans
+`apps/core/src/lib/supabase/client.ts` → `1 failed | 56 passed` avec
+`+ "apps/core/src/lib/supabase/client.ts"` ; fichier restauré → `57 passed`.
+
+Poste remis en cohérence (fichiers **non suivis**, donc le correctif tient sans eux) : `.env` + les 8 `apps/*/.env`
+ont `NEXT_PUBLIC_SUPABASE_URL`/`SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_URL` = `http://127.0.0.1:54321` et les clés
+publiées par `supabase start` (publishable/secret locales), soit **0 occurrence** restante de
+`116.203.158.47:54321`. Conséquence assumée et documentée : un poste qui garde les valeurs du VPS verrait de toute
+façon le résolveur basculer sur le stack local, avec des clés qui ne correspondent plus — l’auth locale passe
+désormais par `supabase start` (GoTrue `:54321`), plus par le VPS.
+
+**`oauth-consent` — tentative réelle, deux blocages cités (non résolu).** Le projet e2e n’était jamais exécuté ;
+avec GoTrue local monté (`supabase start`, `SUPABASE_CONFIG` corrigé : `auth.sessions.timebox = "30d"` refusé par
+CLI 3.1.0 → `720h`), deux échecs distincts, tous deux du harnais et non du correctif :
+
+1. `page.goto(\`${CORE}/login\`, { waitUntil: 'networkidle' })` ne se stabilise jamais sur un serveur de dev
+   (`TimeoutError`, capture `test-results/oauth-consent-…-retry2`) — **corrigé** : `domcontentloaded` +
+   `waitForLoadState('load')`, aucune assertion touchée.
+2. Après ce correctif, le `webServer` de `playwright.config.ts` meurt au démarrage :
+   `Error: Failed to open database / Caused by: 0: Loading persistence directory failed / 1: invalid digit found
+   in string { code: 'GenericFailure' }` → `Process from config.webServer was not able to start. Exit code: 1`.
+   Reste donc **non vérifié** : le parcours de consentement complet n’a pas été rejoué vert.
+
+Non vérifié / hors périmètre, dit franchement : `apps/api/internal/config/config.go:119-120` dérive
+`SUPABASE_AUTH_URL`/`SUPABASE_URL` de la même variable sans garde — c’est du serveur à serveur, jamais déclenché
+par une page, et le garder exige des clés (anon/JWT) locales cohérentes avec GoTrue local : lot dédié. Le
+`webServer` Playwright ci-dessus échoue encore (état de persistance), donc `oauth-consent` et les specs qui en
+dépendent restent à rejouer.
 
 **Deux flakes de la suite tenants corrigés au passage.** `tenants-legal.spec.ts` n’était pas en `mode: 'serial'` :
 ses 3 cas s’exécutaient dans 2 workers qui rejouaient le `beforeAll` en parallèle →

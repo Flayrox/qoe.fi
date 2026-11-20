@@ -289,8 +289,8 @@ max_frequency = "5s"
 # Configure logged in session timeouts.
 [auth.sessions]
 # Production baseline: require periodic reauthentication and expire idle sessions.
-timebox = "30d"
-inactivity_timeout = "30d"
+timebox = "720h"
+inactivity_timeout = "720h"
 
 # This hook runs before a new user is created and allows developers to reject the request based on the incoming user object.
 # [auth.hook.before_user_created]

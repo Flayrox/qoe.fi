@@ -11,6 +11,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getCookieDomain } from './cookie-config';
+import { resolveSupabaseUrl } from './url';
 
 /**
  * 🔄 Met à jour la session Supabase pour la requête en cours.
@@ -58,7 +59,7 @@ export async function updateSession(request: NextRequest) {
   const cookieDomain = getCookieDomain(hostname);
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    resolveSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_APP_URL),
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {

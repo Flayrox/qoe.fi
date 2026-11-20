@@ -22,6 +22,10 @@
       "types": "./src/middleware.ts",
       "default": "./src/middleware.ts"
     },
+    "./url": {
+      "types": "./src/url.ts",
+      "default": "./src/url.ts"
+    },
     "./storage": {
       "types": "./src/storage.ts",
       "default": "./src/storage.ts"

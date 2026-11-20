@@ -9,6 +9,7 @@
 
 import { createBrowserClient } from '@supabase/ssr';
 import { getCookieDomain } from './cookie-config';
+import { resolveSupabaseUrl } from './url';
 
 /**
  * 🌐 Client Supabase pour le navigateur.
@@ -16,9 +17,13 @@ import { getCookieDomain } from './cookie-config';
  */
 export function createClient() {
   // Accès statique : Next n'inline que `process.env.NEXT_PUBLIC_*` littéral.
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  // `resolveSupabaseUrl` empêche un build local d'inliner l'API de production.
+  const url = resolveSupabaseUrl(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_APP_URL
+  );
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) {
+  if (!anonKey) {
     throw new Error(
       '@qoe/supabase: NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY requis (self-hosted ou cloud)'
     );

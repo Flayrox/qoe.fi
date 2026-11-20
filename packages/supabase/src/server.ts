@@ -8,6 +8,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies, headers } from 'next/headers';
 import { getCookieDomain } from './cookie-config';
+import { resolveSupabaseUrl } from './url';
 
 /**
  * 🖥️ Client Supabase pour le serveur.
@@ -30,9 +31,14 @@ export async function createClient() {
     // headers() might throw in some static generation contexts
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  // Même règle que côté navigateur : un build local ne s'authentifie jamais
+  // contre le Supabase de production (cf. `./url.ts`).
+  const url = resolveSupabaseUrl(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_APP_URL
+  );
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) {
+  if (!anonKey) {
     throw new Error(
       '@qoe/supabase: NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY requis (self-hosted ou cloud)'
     );
@@ -66,9 +72,12 @@ export async function createClient() {
  * ⚠️ NE JAMAIS exposer côté client. Uniquement server-side.
  */
 export function createServiceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = resolveSupabaseUrl(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_APP_URL
+  );
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) {
+  if (!serviceKey) {
     throw new Error('@qoe/supabase: SUPABASE_SERVICE_ROLE_KEY + URL requis (serveur uniquement)');
   }
   return createServerClient(url, serviceKey, {

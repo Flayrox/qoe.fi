@@ -120,7 +120,11 @@ test.describe('Consentement OAuth (page réelle)', () => {
   }
 
   async function login(page: import('@playwright/test').Page): Promise<void> {
-    await page.goto(`${CORE}/login`, { waitUntil: 'networkidle' });
+    // `networkidle` ne se stabilise jamais sur un serveur de dev (HMR, prefetch
+    // RSC) : le cas expirait avant même la première assertion. `load` garantit
+    // l'exécution des bundles, donc l'hydratation du formulaire.
+    await page.goto(`${CORE}/login`, { waitUntil: 'domcontentloaded' });
+    await page.waitForLoadState('load');
     // Bascule du mode lien magique vers mot de passe (attendre l'hydratation).
     const toggle = page.getByRole('button', { name: 'Se connecter par mot de passe' });
     await expect(toggle).toBeVisible({ timeout: 30_000 });

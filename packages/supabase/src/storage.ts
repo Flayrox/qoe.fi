@@ -14,6 +14,8 @@
 // agnostique ; le bucket est unique (`articles-media`).
 // =====================================================================
 
+import { resolveSupabaseUrl } from './url';
+
 /** Bucket unique de stockage des images publiques. */
 export const IMAGES_BUCKET = 'articles-media';
 
@@ -158,7 +160,11 @@ export function mediaImageHosts(env: NodeJS.ProcessEnv = process.env): string[] 
   const hosts = new Set<string>([...LOCAL_IMAGE_HOSTS, ...STATIC_IMAGE_HOSTS]);
   const cdn = imageHostname(resolveMediaCdnBase(env));
   if (cdn) hosts.add(cdn);
-  const supabase = imageHostname(env.NEXT_PUBLIC_SUPABASE_URL);
+  // Résolue comme les clients : un build local n'autorise pas l'hôte Supabase
+  // de production dans `images.remotePatterns`.
+  const supabase = imageHostname(
+    resolveSupabaseUrl(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_APP_URL)
+  );
   if (supabase) hosts.add(supabase);
   return [...hosts];
 }
@@ -221,7 +227,7 @@ export function mediaRemotePatterns(env: NodeJS.ProcessEnv = process.env): Media
 
   const configured = [
     imageHostname(resolveMediaCdnBase(env)),
-    imageHostname(env.NEXT_PUBLIC_SUPABASE_URL),
+    imageHostname(resolveSupabaseUrl(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_APP_URL)),
   ];
   for (const host of configured) {
     if (!host) continue;
@@ -240,7 +246,10 @@ export function mediaRemotePatterns(env: NodeJS.ProcessEnv = process.env): Media
  */
 export function toPublicImageUrl(publicUrl: string): string {
   if (!publicUrl) return publicUrl;
-  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/+$/, '');
+  const supabaseUrl = resolveSupabaseUrl(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_APP_URL
+  ).replace(/\/+$/, '');
   if (supabaseUrl && publicUrl.startsWith(supabaseUrl)) {
     return publicUrl.replace(supabaseUrl, resolveMediaCdnBase());
   }
