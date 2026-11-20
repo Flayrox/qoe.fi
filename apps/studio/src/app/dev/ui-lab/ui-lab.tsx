@@ -588,11 +588,20 @@ export function UiLab({ catalog }: { catalog: Catalog }) {
                   réellement chaque module partagé.
                 </p>
               </div>
-              <label className="flex h-8 w-full items-center gap-2 rounded-md border border-border/50 bg-card px-2 sm:w-64">
+              {/* Pas de `<label>` englobant : il aurait nommé le champ par
+                  son contenu (« esc ») dès qu'une recherche est tapée. Le
+                  champ porte son propre nom, et la touche annoncée par le
+                  bouton de droite fait vraiment ce qu'il promet. */}
+              <div className="flex h-8 w-full items-center gap-2 rounded-md border border-border/50 bg-card px-2 sm:w-64">
                 <Icon name="search" size="sm" className="text-muted-foreground" />
                 <input
+                  type="search"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') setQuery('');
+                  }}
+                  aria-label="Filtrer l’inventaire par nom ou chemin"
                   placeholder="Filtrer par nom ou chemin…"
                   className="min-w-0 flex-1 bg-transparent text-[12.5px] text-foreground placeholder:text-muted-foreground focus:outline-none"
                 />
@@ -600,12 +609,13 @@ export function UiLab({ catalog }: { catalog: Catalog }) {
                   <button
                     type="button"
                     onClick={() => setQuery('')}
+                    aria-label="Effacer la recherche"
                     className="font-mono text-[10.5px] text-muted-foreground hover:text-foreground"
                   >
                     esc
                   </button>
                 )}
-              </label>
+              </div>
             </div>
 
             <p className="mt-3 font-mono text-[10.5px] tabular-nums text-muted-foreground">
