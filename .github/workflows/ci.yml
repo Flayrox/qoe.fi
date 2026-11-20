@@ -476,6 +476,21 @@ jobs:
       # sautés à chaque run, et un job vert qui saute des cas ne prouve rien.
       # Le parcours est couvert en local (cf. docs/PROD-READINESS-PLAN.md §5).
       # `--reporter=list` : le log doit nommer chaque cas exécuté.
+      # La coupure globale de l'API bascule des clés `SystemConfig` que le
+      # middleware applique à TOUS les appels `/v1/*` : lancée dans le même
+      # passage que les autres projets, elle faisait échouer leurs cas en 503
+      # (401 attendu) et en 404 (`/article/<slug>`). Étape séparée, donc
+      # exécution seule, avant la campagne principale.
+      - name: Run E2E (coupure globale de l'API, isolée)
+        run: pnpm e2e --project=api-access-control --reporter=list
+        env:
+          CI: 'true'
+          PLAYWRIGHT_TEST_BASE_URL: 'http://localhost:3010'
+          REDIS_URL: 'redis://localhost:6379'
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe'
+          NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co'
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key'
+
       - name: Run E2E (public + journeys + security + standalone contracts)
         run: pnpm e2e --project=public-web --project=core-journeys --project=security --project=standalone-contracts --reporter=list
         env:

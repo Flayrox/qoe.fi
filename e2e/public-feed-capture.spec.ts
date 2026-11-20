@@ -67,11 +67,35 @@ test.describe('Capture du feed (public)', () => {
 
     // 3. Lecture : ouvrir le premier article du feed, puis fermer → la
     //    session de lecture (sendBeacon au démontage) doit partir et être 200.
-    //    Forme canonique côté core : `/{propriétaire}/a/{slug}` —
-    //    `/{slug}` sous `/article/` est l'ancienne forme (F65–F71, 308/404).
-    const articleLink = page.locator('a[href*="/a/"]').first();
-    await articleLink.click();
+    //
+    //    Le href d'une carte est **résolu dynamiquement** par
+    //    `getArticleUrl(article, { preferTenant: true })` :
+    //      • `/{propriétaire}/a/{slug}` sur le core quand la publication n'a
+    //        pas de site dédié ;
+    //      • `http://{sous-domaine}.…/article/{slug}` quand elle en a un
+    //        (`routes.tenant.article`, forme tenant légitime, 308 vers la
+    //        canonique `/{catégorie}/{slug}`).
+    //    C'est le sous-domaine de la publication, et non l'hôte de la page,
+    //    qui décide de la forme (`resolveAppUrl('tenant', …)` est
+    //    inconditionnel dès qu'un sous-domaine existe) : figer `/a/` faisait
+    //    échouer ce cas sur toute base seedée avec des médias tenant.
+    //    L'assertion reste complète : lien d'article résolu, drawer ouvert sur
+    //    CET article, session de lecture envoyée et acceptée en 200.
+    const firstCard = page.locator('article[data-overlay-anchor]').first();
+    const articleLink = firstCard.locator('a[href*="/a/"], a[href*="/article/"]').first();
+    await expect(articleLink).toHaveAttribute('href', /\/(?:a|article)\/[^/?#]+$/);
+    // Le clic sur la couverture est le contrat DOM du feed (le href reste la
+    // cible « nouvel onglet » du média) : il ouvre le drawer in-app.
+    await firstCard.locator('[data-article-cover]').click();
     await expect(page.locator('#article-content')).toBeVisible({ timeout: 20_000 });
+
+    // 🛡️ `useArticleReadingTracker` §4 ignore VOLONTAIREMENT les sessions
+    // fantômes (`finalDwell === 0 && finalScroll === 0`, montage/démontage
+    // StrictMode) : sans un tick de dwell ou un scroll, aucune session n'est
+    // envoyée — c'est la règle produit, pas un aléa. On laisse donc la mesure
+    // s'ouvrir une seconde avant de fermer, au lieu de dépendre du temps que
+    // mettaient les assertions précédentes.
+    await page.waitForTimeout(1_500);
 
     await page.keyboard.press('Escape');
     await expect.poll(() => readingRequests.length, { timeout: 30_000 }).toBeGreaterThan(0);

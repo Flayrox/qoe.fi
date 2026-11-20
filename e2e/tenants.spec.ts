@@ -139,13 +139,23 @@ test.describe('Parcours public tenants — hermétique', () => {
     const pageErrors: string[] = [];
     page.on('pageerror', (err) => pageErrors.push(err.message));
 
-    await page.goto(`/tenant/${PERSONAL.subdomain}`, { waitUntil: 'networkidle' });
+    // ⚠️ `domcontentloaded`, pas `networkidle` : la home rend des liens
+    // d'article `/{catégorie}/{slug}` (forme correcte en hébergement par
+    // sous-domaine). Servie en accès par chemin (`/tenant/{domaine}`), cette
+    // route n'existe pas et le prefetch RSC de Next reste **en vol** : mesuré
+    // par sonde, `PROBE_PENDING fetch /uncategorized/<slug>?_rsc=…` après 20 s,
+    // `document.readyState = complete`, contenu déjà rendu 5 fois → seul
+    // `networkidle` ne se stabilisait jamais. Les assertions de contenu
+    // ci-dessous restent la vérification réelle.
+    await page.goto(`/tenant/${PERSONAL.subdomain}`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByText(PERSONAL.name).first()).toBeVisible({ timeout: 30_000 });
     expect(pageErrors).toEqual([]);
   });
 
   test('un tenant média rend son nom et son article', async ({ page }) => {
-    await page.goto(`/tenant/${MEDIA.subdomain}`, { waitUntil: 'networkidle' });
+    // Même cause mesurée que la home personnelle : prefetch RSC perpétuel des
+    // liens d'article en accès par chemin → `networkidle` ne se stabilise pas.
+    await page.goto(`/tenant/${MEDIA.subdomain}`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByText(MEDIA.name).first()).toBeVisible({ timeout: 30_000 });
 
     await page.goto(tenantArticlePath(MEDIA.subdomain, MEDIA_ARTICLE.slug), {
@@ -213,7 +223,9 @@ test.describe('Parcours public tenants — hermétique', () => {
   }) => {
     await page.setViewportSize({ width: 375, height: 667 });
 
-    await page.goto(`/tenant/${PERSONAL.subdomain}`, { waitUntil: 'networkidle' });
+    // Même raison qu'au cas « la home d’un tenant personnel » : le prefetch RSC
+    // vers `/{catégorie}/{slug}` reste en vol en accès par chemin.
+    await page.goto(`/tenant/${PERSONAL.subdomain}`, { waitUntil: 'domcontentloaded' });
     const homeOverflow = await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth + 1
     );

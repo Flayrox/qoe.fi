@@ -129,11 +129,24 @@ export default defineConfig({
       testMatch: /core-journeys\.spec\.ts/,
     },
     {
-      // Campagne de sécurité au niveau HTTP (API Go + apps web) + contrôle
-      // d'accès global (kill switch API / endpoints désactivés) + RFC 8058.
+      // Campagne de sécurité au niveau HTTP (API Go + apps web) + RFC 8058.
       name: 'security',
       use: { ...devices['Desktop Chrome'] },
-      testMatch: /(security|api-access-control|newsletter)\.spec\.ts/,
+      testMatch: /(security|newsletter)\.spec\.ts/,
+    },
+    {
+      // 🚦 Coupure globale de l'API (kill switch + endpoints désactivés).
+      // Les bascules sont GLOBALES (`SystemConfig`) et le middleware les
+      // applique à TOUS les appels `/v1/*` de la fenêtre : les faire tourner
+      // en parallèle du projet `security` produisait des 503 chez lui
+      // (mesuré : `security.spec.ts:38` 401 → 503) et des 404 en cascade
+      // (`/article/<slug>` 308 → 404, `goFetch` ayant reçu 503). Le cache
+      // interne (~5 s) prolonge la fenêtre au-delà du `afterAll`. Projet
+      // isolé, lancé SEUL (étape dédiée du job `e2e`) : plus aucun cas
+      // concurrent ne subit la coupure.
+      name: 'api-access-control',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /api-access-control\.spec\.ts/,
     },
     {
       // Vraie page de consentement OAuth (apps/core) : rendu + autorisation

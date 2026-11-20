@@ -93,6 +93,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | **durci le 2026-11-19** |
 | L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; prochain = L20c3 |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
+| L20g    | **E2E apps (tenants/studio/admin) + matrice de routes + `public-feed-capture`** | `e2e/*.spec.ts`, `playwright.config.ts`, `.github/workflows/ci.yml` | mesuré le 2026-11-20 : `e2e-apps` **25/25**, `e2e-apps-routes` **53/53**, `api-access-control` **2/2 (projet isolé)**, `public-web` **12/12** — voir fiche L20g |
 | L20f    | **Validation locale bout en bout** : daemon Docker, `test:api`, `e2e` sur base jetable seedée | —                           | mesuré le 2026-11-20 : daemon **démarré** (OrbStack 29.4.0), `test:api` **✅ 82 paquets**, e2e **18/19 + 128/128** — voir fiche L20f |
 | L20e    | **Validation bout en bout** : `pnpm build` (6 apps), `pnpm test:api` (Go + Postgres), `pnpm e2e` (Playwright)  | —                           | mesuré le 2026-11-20 : **build ✅**, `test:api` **bloqué** (Docker absent), e2e **partiel** (seed absent) — voir fiche L20e |
 | L21     | `apps/studio/src/**`                                                                                         | 509 fichiers                | à auditer               |
@@ -1511,6 +1512,93 @@ sa surface de régression est l'ensemble des pages lecteur, pas un écran.
 
 ---
 
+## L20g — e2e apps + matrice de routes + capture du feed — mesuré le 2026-11-20
+
+**Infra locale jetable** : `qoefi-g-db` (`pgvector/pgvector:pg16`, `127.0.0.1:55435`) et `qoefi-g-redis`
+(`redis:7-alpine`, `127.0.0.1:6381`) ; `go run ./cmd/migrate -dir sql/migrations up` → **93**, `go run ./cmd/seed` →
+`Seed réussi`. Aucun run n'a ciblé `116.203.158.47` (exports `DATABASE_URL`/`API_DATABASE_URL`/`REDIS_URL`
+prioritaires sur les `.env`). Apps construites en mode CI (`PLAYWRIGHT_APPS_PROD=1`, `QOE_E2E_DEV_ROUTES=1`,
+API `:8091`).
+
+| Projet | Résultat |
+| ------ | -------- |
+| `e2e-apps` — tenants | **✅ 13/13** |
+| `e2e-apps` — studio | **✅ 9/9** |
+| `e2e-apps` — admin | **✅ 3/3** |
+| `e2e-apps-routes` (tenants + studio + hi) | **✅ 53/53** (8,0 s) |
+| `public-web` (dont `public-feed-capture`) | **✅ 12/12** |
+| 5 autres projets (`core-journeys`, `standalone-contracts`, `security`, `hydration`, `routes`) | **✅ 133/133** |
+| `api-access-control` (nouveau projet isolé) | **✅ 2/2** |
+| `pnpm test:api` | **✅ `TESTAPI3_EXIT=0`, 82 paquets, 0 `FAIL`** — avec `QOE_TEST_DB_RESET=1` |
+
+**Rouge 1 — `tenants-recommendations.spec.ts:95` et `tenants.spec.ts:142`, `page.goto … networkidle`,
+`Test timeout of 60000ms`.** Cause mesurée par une sonde Playwright temporaire (supprimée après mesure) sur la home
+d'un tenant : `document.readyState = complete`, contenu déjà rendu (`getByText(name)` = 5 occurrences), **mais**
+`PROBE_PENDING fetch http://localhost:15403/uncategorized/carnet-probe?_rsc=…` restait en vol après 20 s. La home
+tenant rend des liens `/{catégorie}/{slug}` (forme correcte en hébergement par sous-domaine) ; en accès par chemin
+(`/tenant/{domaine}`) cette route n'existe pas et Next garde le prefetch RSC ouvert → `networkidle` ne se stabilise
+jamais. Correctif : `waitUntil: 'domcontentloaded'` sur les 5 navigations de home concernées
+(`tenants.spec.ts` ×3 dont mobile, `tenants-recommendations.spec.ts` ×2), **assertions de contenu inchangées** (nom,
+article, section « recommandées », newsletter, absence de débordement). Vert : tenants **13/13**.
+
+**Rouge 2 — `public-feed-capture.spec.ts:21`, `waiting for locator('a[href*="/a/"]')`, timeout 120 s.** Deux
+mesures comparées sur la même base, seul le paramètre « hôtes tenant » variant :
+
+| Mesure | Configuration | Résultat |
+| ------ | ------------- | -------- |
+| A (L20f et ce lot) | `Publisher.subdomain` renseignés (`media-clair`, `admin`) | **rouge** : aucun `a[href*="/a/"]` — le snapshot montre `http://media-clair.localhost:15403/article/{slug}` |
+| B | `UPDATE "Publisher" SET subdomain = NULL` | **✅ vert en 26,1 s** |
+
+L'hypothèse L20f (« le `.env` local a des hôtes tenant, le job CI non ») est donc **réfutée** : la forme du lien est
+décidée par le **sous-domaine de la publication**, pas par la config d'hôte de l'environnement — `ArticleCard` appelle
+`getArticleUrl(article, { preferTenant: true })` (`packages/ui/src/ArticleCard.tsx:518`) et `resolveAppUrl('tenant', …)`
+(`packages/config/src/domain-hub.ts:186-192`) renvoie un hôte tenant **inconditionnellement** dès qu'un sous-domaine
+existe. Correctif : le spec **résout le lien dynamiquement** (sélecteur `a[href*="/a/"], a[href*="/article/"]`) en
+conservant une assertion de complétude `toHaveAttribute('href', /\/(?:a|article)\/[^/?#]+$/)`, puis ouvre le drawer
+par le contrat DOM `[data-article-cover]` (comme `public-reading.spec.ts`). Vert dans les deux configurations :
+**12,6 s** (A) et **11,9 s** (B).
+
+**Rouge 3 — le même spec, plus loin : `expect.poll(readingRequests.length)` reçoit 0 (`44,5 s`).**
+`useArticleReadingTracker` §4 (`packages/analytics/src/useArticleReadingTracker.ts:216-222`) **ignore volontairement**
+les sessions fantômes (`finalDwell === 0 && finalScroll === 0`) : fermer le drawer dans la première seconde
+n'envoie aucune session — c'est la règle produit. Correctif : un tick de dwell (1,5 s) avant `Escape`, documenté
+comme condition de mesure et non comme budget. Vert : `public-web` **12/12**.
+
+**Rouge 4 — `security.spec.ts:38` (`401` attendu, reçu `503`) et `:53` (`404` attendu, `503`), plus
+`public-article-canonical.spec.ts:51` (`308` attendu, `404`).** Une seule cause : `api-access-control.spec.ts` bascule
+des clés **globales** `SystemConfig` (`API_ACCESS_DISABLED`, `API_DISABLED_ENDPOINTS`) que le middleware applique à
+tous les appels `/v1/*` ; le fichier le documentait déjà (« les tests d'autres projets … peuvent être sensibles à la
+fenêtre de coupure »). Le cache interne (~5 s) prolonge la fenêtre au-delà de son `afterAll` → `goFetch` reçoit 503,
+le catch de `(reader)/[username]/[tab]/page.tsx` retombe sur `notFound()` (404). Correctif : projet dédié
+`api-access-control` (retiré du `testMatch` de `security`) et **étape CI séparée** (« Run E2E (coupure globale de
+l'API, isolée) ») qui l'exécute seul, avant la campagne principale. Vert : `api-access-control` **2/2**, puis les
+6 projets **133/133** (144/145 au premier passage, seul `public-feed-capture` rouge — rouge 3, corrigé ensuite).
+
+**Constat d'environnement (non commité).** Le `.env` local pointe `NEXT_PUBLIC_UMAMI_SCRIPT_URL` vers
+`http://116.203.158.47:15411` : les pages tenant chargées par e2e appelaient donc l'analytics du **VPS partagé**
+(`/script.js` puis `/api/send`, vus dans une sonde réseau). Les builds e2e sont faits avec cette variable vide, ce qui
+fait tomber `AnalyticsScript` sur le proxy first-party `/_q/m.js` (`packages/analytics/src/client.tsx:43`) — aucun
+appel sortant. À corriger côté poste (`.env` non versionné) : viser `http://localhost:15411` (conteneur de dev).
+
+**Dette de rejouabilité (documentée, sans changement de code).** Premier `test:api` du lot sur la base de test
+**persistante** : `TESTAPI_EXIT=1`, `internal/modules/imports` en échec —
+`subscribers_reconfirm_test.go:104: ligne rc1@test.dev: ERROR: duplicate key value violates unique constraint
+"SubscriberImportRow_batch_email_key" (SQLSTATE 23505)` sur 9 tests. Les fixtures insèrent des identifiants fixes et
+les décisions d'import sont **immuables** (trigger `P0001`), donc rien ne se remet à zéro ; un essai de nettoyage
+partiel a été réverté plutôt que laissé à moitié fait. C'est exactement la condition que documente l'en-tête de
+`scripts/test-api.sh` (« `QOE_TEST_DB_RESET=1` … indispensable quand la base de test persiste entre deux runs »).
+Vert obtenu avec ce drapeau (`82 paquets`, `0 FAIL`), identique à la CI qui part d'un service Postgres neuf.
+
+**Démontage.** Conteneurs `qoefi-g-db` / `qoefi-g-redis` supprimés, base de test arrêtée par
+`docker compose -f docker-compose.test.yml down` (volume conservé), aucun serveur `next start` ni API Go laissé en
+écoute ; le poste retrouve ses trois conteneurs de dev (`qoefi-dev-db`, `qoefi-meilisearch`, `qoefi-dev-redis`).
+
+**Reste non vérifié.** `oauth-consent` (GoTrue local `127.0.0.1:54321` absent, exclu en CI pour la même raison) ; le
+projet `hi` de `e2e-apps` (la CI ne le lance pas — ses 4 pages sont couvertes par la matrice de routes) ; validation
+visuelle des pages ; `next start` pour core/admin (webServer en `next dev` hors apps secondaires).
+
+---
+
 ## L20f — validation locale bout en bout : Docker, Go, e2e seedé — mesuré le 2026-11-20
 
 **Re-mesuré avant de toucher.** OrbStack est **installé** (`/Applications/OrbStack.app`, `orb` et `orbctl` dans
@@ -1563,12 +1651,9 @@ renseigne, l'environnement CI du job `e2e` non). Ce n'est **pas** un bug de code
 (`qoefi-dev-db`, `qoefi-meilisearch`, `qoefi-dev-redis`) tournent — plus le daemon OrbStack, démarré par ce lot.
 **Aucun changement de code n'a été nécessaire** : ni `test:api`, ni les 146 cas e2e verts n'ont révélé de défaut.
 
-**Non vérifié.** `e2e-apps` (tenants/studio/admin) et `e2e-apps-routes` : ils exigent un build de production par app
-(`PLAYWRIGHT_APPS_PROD=1`, `pnpm --filter @qoe/<app> build`) plus une API Go sur `:8091`, soit ~15 min de plus que le
-budget de ce tour — le harnais core/admin est prouvé à 128/128 mais ces cinq projets restent non exécutés ;
-`oauth-consent` (GoTrue local `127.0.0.1:54321` absent, exclu en CI pour la même raison) ; `public-feed-capture`
-(voir ci-dessus) ; validation visuelle des pages ; `next start` sur build de production pour core/admin (les
-webServer ont tourné en `next dev`).
+**Non vérifié à ce lot (levé en L20g).** `e2e-apps` (tenants/studio/admin), `e2e-apps-routes` et
+`public-feed-capture` ont depuis été exécutés et corrigés — voir fiche L20g. Restent non vérifiés : `oauth-consent`
+(GoTrue local absent) et la validation visuelle des pages.
 
 ---
 

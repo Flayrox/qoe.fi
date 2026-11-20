@@ -92,7 +92,13 @@ test.describe('Parcours Cross-Recommandations Creator Network', () => {
   test('affiche la section des publications recommandées sur la page d’accueil du tenant', async ({
     page,
   }) => {
-    await page.goto(`/tenant/${MAIN.subdomain}`, { waitUntil: 'networkidle' });
+    // ⚠️ `domcontentloaded`, pas `networkidle` : en accès par chemin, le
+    // prefetch RSC des liens `/{catégorie}/{slug}` de la home reste en vol
+    // (route inexistante hors sous-domaine) — mesuré par sonde : `document.
+    // readyState = complete`, contenu rendu, un seul fetch `_rsc` perpétuel.
+    // `networkidle` ne se stabilisait donc jamais ; les assertions de contenu
+    // ci-dessous restent la vérification.
+    await page.goto(`/tenant/${MAIN.subdomain}`, { waitUntil: 'domcontentloaded' });
 
     // La section des recommandations doit être visible. Le libellé exact est
     // « Les lectures recommandées par {auteur} » (ou « Publications
@@ -105,7 +111,8 @@ test.describe('Parcours Cross-Recommandations Creator Network', () => {
   });
 
   test('la newsletter exige une confirmation email avant toute boucle virale', async ({ page }) => {
-    await page.goto(`/tenant/${MAIN.subdomain}`, { waitUntil: 'networkidle' });
+    // Même cause que le cas précédent : prefetch RSC perpétuel en accès chemin.
+    await page.goto(`/tenant/${MAIN.subdomain}`, { waitUntil: 'domcontentloaded' });
 
     // Saisir un email valide dans le formulaire de newsletter
     const emailInput = page.getByPlaceholder(/votre adresse email/i).first();
