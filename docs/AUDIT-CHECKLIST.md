@@ -103,7 +103,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20g    | **E2E apps (tenants/studio/admin) + matrice de routes + `public-feed-capture`** | `e2e/*.spec.ts`, `playwright.config.ts`, `.github/workflows/ci.yml` | mesuré le 2026-11-20 : `e2e-apps` **25/25**, `e2e-apps-routes` **53/53**, `api-access-control` **2/2 (projet isolé)**, `public-web` **12/12** — voir fiche L20g |
 | L20f    | **Validation locale bout en bout** : daemon Docker, `test:api`, `e2e` sur base jetable seedée | —                           | mesuré le 2026-11-20 : daemon **démarré** (OrbStack 29.4.0), `test:api` **✅ 82 paquets**, e2e **18/19 + 128/128** — voir fiche L20f |
 | L20e    | **Validation bout en bout** : `pnpm build` (6 apps), `pnpm test:api` (Go + Postgres), `pnpm e2e` (Playwright)  | —                           | mesuré le 2026-11-20 : **build ✅**, `test:api` **bloqué** (Docker absent), e2e **partiel** (seed absent) — voir fiche L20e |
-| L21     | `apps/studio/src/**`                                                                                         | **412 fichiers · 72 285 l.** (mesuré) | **ouvert le 2026-11-20**, découpé en **8 sous-lots** (L21a→L21h) ; **L21a** (socle : layout, not-found, components, lib, instrumentation) **durci le 2026-11-20** ; **R137 ouverte** ; **L21b partiel le 2026-11-20** (frontière vendor/maison mesurée, 2 défauts corrigés, **R138 ouverte**) ; prochain = L21b (suite : contexte, panneaux, editor-bar, engine) |
+| L21     | `apps/studio/src/**`                                                                                         | **412 fichiers · 72 285 l.** (mesuré) | **ouvert le 2026-11-20**, découpé en **8 sous-lots** (L21a→L21h) ; **L21a** (socle : layout, not-found, components, lib, instrumentation) **durci le 2026-11-20** ; **R137 ouverte** ; **L21b clos le 2026-11-20** (frontière vendor/maison mesurée, **7 défauts corrigés** sur deux passages, tiroir modal accessible, **R138 ouverte** — seule dette restante du sous-lot) ; prochain = **L21c** (`features/editor`) |
 | L22     | `apps/admin/src/**`                                                                                          | 178 fichiers                | à auditer               |
 | L23     | `apps/tenants/src/**`                                                                                        | 85 fichiers                 | à auditer               |
 | L24     | `apps/hi/src/**`                                                                                             | 40 fichiers                 | à auditer               |
@@ -123,9 +123,9 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L21b (suite) — `features/stage`** : le contexte (1 048 l.), les deux panneaux
-(919 + 825 l.), l'editor-bar (873 l.) et l'engine (501 l.) restent à lire ; la frontière vendor/maison et le
-canvas sont faits (voir la section L21). L21 ouvert le 2026-11-20 par sa mesure et son découpage. L20c ouvert le 2026-11-19 avec un découpage mesuré en 8 sous-lots, L20c1
+**Prochain lot à traiter : L21c — `features/editor`** (49 f. · 12 005 l., dont `Editor.tsx` 2 807 l.) : le
+fichier le plus long du dépôt. L21b (`features/stage`) est clos le 2026-11-20 après deux passages — il ne
+reste que **R138** (aucune traduction dans le stage), qui se traite d'un seul tour. L20c ouvert le 2026-11-19 avec un découpage mesuré en 8 sous-lots, L20c1
 (cartes de pensée, 11 f. · 1 223 l.), L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.),
 L20c3 (annotateur d'article, 1 f. · 1 153 l., **R126** et **R133** closes), L20c4 (chaîne de lecture
 d'article, 6 f. · **988 l.** à la livraison — le « 992 » écrit ici datait d'avant le passage de prettier,
@@ -917,6 +917,7 @@ nommé), puis verts après restauration.
 | R133 | Les libellés visibles de `ArticleAnnotatorView` échappaient à `t` : `{article.readingTime \|\| 5} min de lecture` (deux occurrences) et les trois textes du paywall — figés en français dans l'interface `en`. En les traduisant, le catalogue s'est révélé **périmé** : 44 chaînes déjà passées par `t` (`ThemeToggle`, `NotificationList`, `OnboardingModal`, `SimilarArticlesSection`, `TrendingWidget`) n'avaient aucune entrée, donc n'étaient pas traduisibles malgré leur `t`. | faible | Close le 2026-11-20 : 4 libellés passés par `t`, `lingui extract` (+48 `msgid`, dont les 4) et `lingui compile` dans le même commit ; 4 garanties (valeur lue, bornes 1/0, paywall, garde de source interdisant le retour d'un libellé en dur) rouges→vertes, 7/7 dans le fichier. Voir fiche L20c3. |
 | R134 | `ListArticleComments` (`apps/api/sql/queries/comments.sql:36`) n'a **ni `LIMIT` ni curseur** et rend `ORDER BY c."createdAt" ASC` en entier ; le handler (`apps/api/internal/modules/articles/handler.go:1156`) ne lit aucun paramètre de page et répond `response.OK(w, comments)` — la liste complète. Trois surfaces la consomment : le tiroir de lecture (`ArticleComments.tsx:57`), la console studio (`community-client.tsx:37`) et `apps/tenants` (`article/[slug]/actions.ts:143`). Un article à quelques milliers de commentaires donne donc une réponse et un rendu non bornés. | moyenne | **bloqué** — la fermeture à la racine exige : (1) un `LIMIT`/curseur dans la requête sqlc (donc `sqlc generate`), (2) un paramètre `limit`/`cursor` dans le handler **et un changement de forme de réponse** (`{items, nextCursor}` au lieu du tableau), (3) l'adaptation des trois surfaces, (4) une preuve sur base réelle — or AGENTS.md interdit Docker en local et la base partagée ne sert pas aux essais. Question produit à trancher : plafond par défaut, clé de curseur (`(createdAt, id)` ?), et réponse paginée ou plafond dur avec « charger plus ». Aucun correctif partiel n'a été posé : tronquer côté front sans pagination serait un bug pire que l'absence de pagination. Preuve : `comments.sql:36-57` (pas de `LIMIT`), `handler.go:1156-1166` (aucun paramètre), `comments.go:91-95` (article + viewer seulement). |
 | R138 | **Qoefi Stage n'a aucune traduction** : `grep -rc lingui apps/studio/src/features/stage` (hors vendor) → **0**. Le code maison du sous-lot porte **63 littéraux d'attributs** (`title=`, `aria-label=`, `placeholder=`) et **13 textes JSX accentués** en français dur — barre supérieure (Design/Aperçu/Enregistrer/Brouillon · Publier), dock inférieur (Sélection/Pan/Ajouter + 6 `title` de raccourcis), tiroir (Fermer le menu), canvas (Recentrer le canvas), libellés de périphériques (`Tablette`). | moyenne | **ouverte** — passible d'être fermée fichier par fichier, mais le stage est un écran unique de 5 232 l. dont les libellés sont très liés (raccourcis dans les `title`) : la conversion doit se faire dans un seul tour pour ne pas laisser un écran mi-traduit, comme R135 pour `MessagesApp`. Preuve : `grep -c lingui` = 0 sur les 26 fichiers maison, comptage des littéraux ci-dessus (mesure du 2026-11-20). Voir L21b. |
+| R139 | **L'historique du Stage est par frappe** : `StageEngineContext.updateBlockProps`/`updateNode` empilent un snapshot par appel et les curseurs de style (`useQoefiStyle.patch`) un par pixel de glissade — ⌘Z annule lettre par lettre, et une seule glissade remplit les 50 entrées. | moyenne | **ouverte** — défaut d'ergonomie d'undo, pas de perte de données : exige des transactions (ouvrir au `focus`/`pointerdown`, committer au `blur`/`pointerup`), donc une fonction, pas un correctif ponctuel. Mesure : `grep -c "setPast" context/StageEngineContext.tsx` = 12 sites d'écriture d'historique, aucun groupement. Voir L21b (second passage). |
 | R137 | Les métadonnées du studio restent figées en français : `src/app/layout.tsx` (`title: 'qoefi Studio — Creator Dashboard'`, description anglaise) et `src/app/not-found.tsx` (`'Page introuvable — Studio qoefi'`) sont des exports statiques `metadata`, donc non traduits quand la locale est `en`. | faible | **ouverte** — la sortie propre est `generateMetadata` + une traduction serveur ; `@qoe/i18n/server` expose `translateKey`/`translate`, mais l'`initI18n()` de requête et les overrides DB doivent être branchés dans le même tour pour toutes les apps (core, studio, admin, tenants), sinon on fixe le studio en laissant les autres derrière. Travail transversal à planifier, pas un correctif de deux lignes ; aucun correctif partiel posé. Preuve : `apps/studio/src/app/layout.tsx:52-64`, `apps/studio/src/app/not-found.tsx:3-9`, et `grep -rn "generateMetadata" apps/studio/src` → 0. Voir L21a. |
 | R136 | Le placement in-app du lecteur est **inatteignable** : `InAppPlacement` ne tire son contenu que de la prop `initialPlacement`, et son unique appelant (`banners/DynamicBannerSlot`) rend `<InAppPlacement slot fallback className />` — sans jamais passer de placement. Toute la branche « placement » (carte, `notch_banner`, acquittement serveur) est donc morte dans le lecteur : seul le repli « Qoefi Plus » s'affiche, quel que soit le placement programmé en base. | moyenne | **bloqué** — brancher la résolution exige une décision produit : qui résout le placement pour un slot (loader serveur par page ? action `getPlacementForSlot` ? cache runtime ?), quelle audience (`targetAudience`) et quelle priorité entre placements concurrents. Aucun correctif partiel n'a été posé : afficher un placement inventé côté client serait pire que le repli actuel. Preuve : `DynamicBannerSlot.tsx:80` (appel sans `initialPlacement`), `InAppPlacement.tsx:104` (`if (!placement …) return fallback`), test de caractérisation « sans `initialPlacement`, ne rend que le repli ». Voir L20c7. |
 | R135 | `MessagesApp` n'a **aucun libellé traduit** (`grep -c lingui` → 0) : titre, description, boutons, `hier`, `Vous : `, `Utilisateur`, `Conversation vide`, `Recherche…`, « Aucun résultat. », les états vides, et les trois messages d'erreur ajoutés en L20c6. L'interface anglaise affiche donc tout ce panneau en français. | faible | **close le 2026-11-20** — les **23 libellés distincts** du fichier passent par `t` (dont `hier`, `Utilisateur`, `Conversation vide`, `Vous : {0}` interpolé et les 5 messages d'erreur) ; `intl:extract` ajoute **18 `msgid`** (5 étaient déjà extraits ailleurs : `Messages`, `Recherche…`, `Retour`, `Envoyer`, `Envoi impossible`) et `intl:compile` passe. Un effet de bord réel a été trouvé en chemin : `const t = setInterval(...)` / `const t = setTimeout(...)` **masquaient** le `t` de Lingui dans trois effets, ce qui rendait l'erreur de recherche inatteignable (voir fiche L20c6). 8 garanties jsdom + garde de source (« aucun littéral français en dur ») rouges→vertes. |
@@ -1511,7 +1512,7 @@ traité d'un tour, donc il est découpé ici, avec des mesures par groupe.
 | Sous-lot | Périmètre exact | Mesure | Ordre et justification |
 | -------- | --------------- | ------ | ---------------------- |
 | **L21a** | `src/app/layout.tsx` 149, `src/app/not-found.tsx` 14, `src/components/**` 3/242, `src/lib/**` 11/432, `src/instrumentation.ts` 12, `src/test-support/**` 1/5 | **18 f. · 854 l.** | **durci le 2026-11-20**. Le socle : monté par *toutes* les routes studio (providers, en-têtes de sécurité, i18n, cookies d'espace, sanitizers). Deux défauts y vivaient encore (F303, F304). |
-| L21b | `features/stage/**` (context, left/right panels, canvas, engine, `vendor/onlook`) | 189 f. · 24 664 l. — **vendor 163 f. · 19 432 l. (79 %) / maison 26 f. · 5 232 l.** | **partiel au 2026-11-20** · frontière vendor/maison écrite et mesurée (0 import runtime depuis le vendor, garde posée), canvas + raccourcis audités : 2 défauts corrigés (F305 raccourcis destructifs en aperçu, F306 poignée est qui rétrécissait), **R138 ouverte** (stage sans aucune traduction). Reste : contexte 1 048 l., left-panel 919 l., right-panel 825 l., editor-bar 873 l., engine 501 l. |
+| L21b | `features/stage/**` (context, left/right panels, canvas, engine, `vendor/onlook`) | 189 f. · 24 664 l. — **vendor 163 f. · 19 432 l. (79 %) / maison 26 f. · 5 232 l.** | **clos le 2026-11-20** (2 passages) · frontière vendor/maison mesurée et figée par une garde (0 import runtime), **7 défauts corrigés** (F305–F312 : raccourcis destructifs en aperçu, poignée est inversée, clear StrictMode, scope périmé après restauration, zoom à contresens, libellé de scope faux, tiroir sans sémantique de dialogue) + managers mobx morts supprimés. Seule dette restante : **R138** (stage sans aucune traduction). |
 | L21c | `features/editor/**` (dont `Editor.tsx` 2 807 l., extensions, hooks, lib) | 49 f. · 12 005 l. | Éditeur d'article : le fichier le plus long du dépôt. Audité seul, après le stage qui partage ses primitives. |
 | L21d | `src/app/dev/**` (UI Lab, specimens, catalogue) | 32 f. · 7 591 l. | Outillage de développement : 404 hors dev, aucun impact utilisateur — audité après les surfaces produit. |
 | L21e | `features/settings/**` (tabs 7/2 632, components 7/1 259, `navigation.tsx` 796) | 20 f. · 5 622 l. | Réglages du studio : beaucoup de formulaires et de mutations, conventions déjà posées par L21a. |
@@ -1598,6 +1599,86 @@ handler : le défaut reste prouvé sur le code réellement exécuté, sans jsdom
 **Dette ouverte** : **R138** — Qoefi Stage n'a **aucun** `t` (0 occurrence) ; 63 littéraux d'attributs et 13
 textes JSX accentués en français dur. Conversion à faire d'un seul tour pour ne pas laisser un écran
 mi-traduit (précédent R135).
+
+#### Second passage — les six zones maison restantes — 2026-11-20
+
+Fichiers lus en entier, avec leurs appelants (`app/(creator)/settings/design/page.tsx`, `StageClient`,
+`StageCanvas`, l'inspecteur, les hooks de style) : `context/StageEngineContext` (1 048 l.),
+`left-panel/LeftPanelFull` (919 l.), `right-panel/RightPanel` (825 l.), `editor-bar/**` (873 l. : barre
+contextuelle, `useQoefiStyle`, `inputs`, `dropdowns`, `text-controls`), `engine/**` (501 l.),
+`canvas/overlay/StageOverlays` (189 l.), plus `SidebarDrawer` et `types`. Scans : `dangerouslySetInnerHTML` 0,
+`any` 0, `console.log` 0, `setInterval` 0, 5 `setTimeout` (tous nettoyés), 6 `addEventListener` (tous retirés),
+`lingui` 0.
+
+| #    | Emplacement                                  | Défaut mesuré | Correctif |
+| ---- | -------------------------------------------- | ------------- | --------- |
+| F307 | `engine/index.tsx` (provider mobx)            | le cleanup programmait `engine.clear()` à t+0 **sans annuler le timer** : sous StrictMode, le timer du premier démontage s'exécutait après le remontage et effaçait sélection, rects et historique du moteur vivant, au démarrage de l'éditeur. | timer conservé dans une `ref`, annulé au montage suivant ; clear toujours différé pour le démontage réel. |
+| F308 | `context/StageEngineContext` (`applyScopesPayload`) | la restauration d'une version remplaçait tous les scopes **sans recaler la cible** : une rubrique ouverte n'existait plus, `setLayout` sortait sans écrire, et **chaque modification était silencieusement perdue**. | la cible (`targetRef` + `stagePage` + `articleCategory`) repasse sur l'accueil, comme le payload. |
+| F309 | `left-panel/LeftPanelFull`                     | le panneau des calques écrivait « Page · Accueil » en dur, y compris sur la page article/rubrique, quand le canvas annonçait « Article · essais » : un état, deux libellés, dont un faux. | libellé unique dérivé de `scope-label.ts`, consommé par le panneau **et** le canvas. |
+| F310 | `context/StageEngineContext` (zoom)            | le chrome bornait le zoom à 0,2–2,5 quand le canvas borne à 0,1–3 : à 10 %, « zoom arrière » **zoomait dedans** (0,1 → 0,2). | `setScale` applique `clampStageZoom` à la source ; `resetZoom` et l'état initial utilisent `STAGE_DEFAULT_SCALE`/`_POSITION` au lieu de littéraux. |
+| F311 | `engine/{canvas,history,overlay-managers,selection-utils}.ts` | quatre managers mobx du portage n'avaient **aucun consommateur** (`editor.canvas`, `.history`, `.overlay`, `.snap` = 0 appel) : deux historiques, deux propriétaires du zoom, dont un mort. `StageFrameData` (type jamais référencé) et le wrapper `selection-utils` étaient aussi morts. | managers supprimés (`StageEditorEngine` n'expose plus que `frames` et `state`), `clampTransform` du canvas réutilise `clampStageZoom`/`clampStagePosition`. |
+| F312 | `sidebar-drawer/SidebarDrawer`                  | tiroir plein écran **sans sémantique de dialogue** : ni `role="dialog"`, ni `aria-modal`, ni nom accessible, ni transfert/restauration de focus, ni piège de tabulation ; bouton de fermeture réduit à un `title`. | dialogue modal nommé, focus au bouton de fermeture puis restitué au déclencheur, tabulation piégée dans les deux sens, backdrop `aria-hidden`. |
+
+Rouges cités (avant correctif, un seul passage de suite) :
+
+```
+ × nomme la page article sans rubrique            AssertionError: expected 'Accueil' to be 'Article'
+ × nomme la page article avec sa rubrique         AssertionError: expected 'Accueil' to be 'Article · essais'
+ × préfixe le titre du panneau avec le scope réel AssertionError: expected 'Page · Accueil' to be 'Page · Article · essais'
+ × remet le scope sur l’accueil quand une version remplace tous les scopes  AssertionError: expected 'article' to be 'home'
+ × ne zoome jamais à contresens quand la vue est déjà à la borne            AssertionError: expected 0.2 to be 0.1
+ × garde le moteur du montage vivant après le double montage StrictMode     AssertionError: expected [] to deeply equal [ 'bloc-1' ]
+   Tests  6 failed | 38 passed (44)                        L21B2_RED_EXIT=1
+```
+
+```
+ × n’expose que les managers réellement consommés
+   AssertionError: expected [ 'canvas', 'frames', 'history', …(3) ] to deeply equal [ 'frames', 'state' ]
+   Tests  1 failed | 3 passed (4)                          F311_RED_EXIT=1
+```
+
+```
+ × expose un dialogue modal nommé
+   TestingLibraryElementError: Unable to find an accessible element with the role "dialog" and name "Navigation Studio"
+ × donne un nom accessible au bouton de fermeture et y place le focus
+   TestingLibraryElementError: … role "button" and name "Fermer le menu"
+ × rend le focus à l’élément déclencheur à la fermeture
+   AssertionError: expected <button></button> not to be <button></button>
+ × piège la tabulation dans le tiroir
+   TestingLibraryElementError: Unable to find an accessible element with the role "link"
+   Tests  4 failed | 1 passed (5)                          F312_RED_EXIT=1
+```
+
+**Contre-preuve (aucune garde fantôme)** : les correctifs F307/F308/F309/F310 remis à l'état d'origine
+(`git checkout` des deux sources + libellé remis en dur) font retomber **7 tests** (`Tests 7 failed`) sur la
+même suite, puis `Tests 44 passed (44)` une fois restaurés. F311 et F312 ont chacun leur rouge ci-dessus sur
+la version d'origine. Total du sous-lot après correctifs : `Tests 51 passed (51)` sur `src/features/stage`.
+
+**Non-défauts vérifiés (non corrigés, avec la preuve)**
+
+- **Une entrée d'historique par frappe/curseur** : `updateBlockProps` empile un snapshot par appel. C'est un
+  défaut d'ergonomie d'undo, pas une perte de données ; le corriger demande des transactions
+  (`startTransaction`/`commitTransaction` autour d'un `pointerdown`/`pointerup`), c'est-à-dire une fonction,
+  pas un correctif — **R139** ouverte plus bas avec la mesure plutôt qu'un demi-correctif.
+- **`opacity` en 0–100** : le slider du panneau envoie 0–100, et `packages/ui/src/templates/style.ts:103`
+  divise par 100 (`Math.min(100, Math.max(0, style.opacity)) / 100`) — cohérent de bout en bout, testé par
+  `site-layouts.test.ts` (`opacity: 50` → `0.5`).
+- **`selectedPath`** écrit jamais lu (`grep selectedPath` hors contexte = 0) : état mort sans effet ; il
+  disparaîtrait avec une refonte de la sélection de nœuds (R139), pas d'impact observable.
+- **`getBlockName`** contient un `case 'article-content'` en double (branche inatteignable, même valeur de
+  retour) : redondance sans effet, laissée telle quelle pour ne pas mêler un nettoyage cosmétique à un lot de
+  correctifs.
+- **`vendor/` dans `src/`**, **`IntersectionObserver` requis**, **`p-0.2` inerte**, **re-souscription du hook
+  de raccourcis** : voir le premier passage ci-dessus.
+- **`'use client'`** : présent sur les 17 fichiers maison qui en ont besoin (providers, composants à état,
+  hooks de style) ; `types.ts`, `constants.ts`, `resize-math.ts`, `scope-label.ts`, `models.ts` et les
+  managers sont des modules purs sans directive — vérifié fichier par fichier.
+
+**Dette ouverte (nouvelle)** : **R139** — l'historique du Stage est **par frappe** : `updateBlockProps`,
+`updateNode` et les curseurs de style (`useQoefiStyle.patch`) empilent un snapshot par événement, donc ⌘Z
+annule lettre par lettre et une glissade de curseur remplit les 50 entrées. Le moteur portait des
+transactions mais elles sont mortes avec les managers inutilisés (F311). Correctif à faire d'un tour :
+ouvrir une transaction au `focus`/`pointerdown` d'un champ et la committer au `blur`/`pointerup`.
 
 ### L21a — socle studio : `cn` dupliqué, replis du refus d'autorisation — durci le 2026-11-20
 
