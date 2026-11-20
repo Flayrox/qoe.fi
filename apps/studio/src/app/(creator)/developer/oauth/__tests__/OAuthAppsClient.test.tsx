@@ -57,8 +57,26 @@ vi.mock('../actions', () => ({
 
 import { createOAuthClientAction } from '../actions';
 import { OAuthAppsClient } from '../OAuthAppsClient';
+import type { OAuthClientDTO } from '../actions';
 
 const createClient = vi.mocked(createOAuthClientAction);
+
+function oauthClient(id: string, name: string): OAuthClientDTO {
+  return {
+    id,
+    name,
+    clientId: `client_${id}`,
+    clientType: 'CONFIDENTIAL',
+    status: 'APPROVED',
+    redirectUris: ['https://monapp.com/callback'],
+    scopes: ['openid'],
+    description: null,
+    homepageUrl: null,
+    logoUrl: null,
+    secretRotatedAt: null,
+    createdAt: '2026-11-01T08:00:00Z',
+  } as never;
+}
 
 function renderClient() {
   return render(
@@ -92,6 +110,27 @@ describe('OAuthAppsClient — formulaire de création', () => {
     fireEvent.click(submit);
 
     await waitFor(() => expect(submit).not.toBeDisabled());
+  });
+
+  it('ne coche que la valeur réellement copiée', async () => {
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+      configurable: true,
+    });
+
+    render(
+      <OAuthAppsClient
+        access={{ status: 'approved', grants: [] } as never}
+        clients={[oauthClient('a', 'App A'), oauthClient('b', 'App B')]}
+        workspace={{ type: 'PERSONAL', name: 'Studio' }}
+      />
+    );
+
+    const [first, second] = screen.getAllByLabelText('Copier le Client ID');
+    fireEvent.click(first);
+
+    await waitFor(() => expect(first.querySelector('svg.text-success-text')).not.toBeNull());
+    expect(second.querySelector('svg.text-success-text')).toBeNull();
   });
 
   it('nomme les champs du formulaire pour les technologies d’assistance', () => {

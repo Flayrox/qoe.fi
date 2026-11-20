@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { t } from '@lingui/core/macro';
 import { useRouter } from 'next/navigation';
 import {
@@ -94,7 +94,17 @@ export function OAuthAppsClient({
 
   // Secret reveal
   const [revealed, setRevealed] = useState<{ clientId: string; clientSecret: string } | null>(null);
-  const [copied, setCopied] = useState(false);
+  // La valeur copiée, pas un booléen : sinon copier le Client ID d'une
+  // application affichait la coche sur toutes les autres (et sur le secret).
+  const [copied, setCopied] = useState<string | null>(null);
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (copiedTimer.current) clearTimeout(copiedTimer.current);
+    },
+    []
+  );
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const redirectUris = redirectUrisText
@@ -107,9 +117,10 @@ export function OAuthAppsClient({
       navigator.clipboard
         .writeText(text)
         .then(() => {
-          setCopied(true);
+          setCopied(text);
           toast.success(t`Copié dans le presse-papiers.`);
-          setTimeout(() => setCopied(false), 2000);
+          if (copiedTimer.current) clearTimeout(copiedTimer.current);
+          copiedTimer.current = setTimeout(() => setCopied(null), 2000);
         })
         .catch(() => toast.error('Copie impossible.'));
     }
@@ -459,7 +470,11 @@ export function OAuthAppsClient({
                         title="Copier le Client ID"
                         aria-label="Copier le Client ID"
                       >
-                        {copied ? <Check className="text-success-text" /> : <Copy />}
+                        {copied === client.clientId ? (
+                          <Check className="text-success-text" />
+                        ) : (
+                          <Copy />
+                        )}
                       </Button>
                     </div>
 
@@ -529,7 +544,7 @@ export function OAuthAppsClient({
         onOpenChange={(open) => {
           if (!open) {
             setRevealed(null);
-            setCopied(false);
+            setCopied(null);
           }
         }}
       >
@@ -571,7 +586,7 @@ export function OAuthAppsClient({
                     onClick={() => copy(revealed.clientSecret)}
                     aria-label="Copier le Client Secret"
                   >
-                    {copied ? <Check /> : <Copy />}
+                    {copied === revealed.clientSecret ? <Check /> : <Copy />}
                   </Button>
                 </div>
               </div>
@@ -594,7 +609,7 @@ export function OAuthAppsClient({
               block
               onClick={() => {
                 setRevealed(null);
-                setCopied(false);
+                setCopied(null);
               }}
             >
               J&apos;ai sauvegardé mon secret
