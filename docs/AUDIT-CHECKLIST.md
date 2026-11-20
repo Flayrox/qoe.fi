@@ -103,7 +103,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20g    | **E2E apps (tenants/studio/admin) + matrice de routes + `public-feed-capture`** | `e2e/*.spec.ts`, `playwright.config.ts`, `.github/workflows/ci.yml` | mesuré le 2026-11-20 : `e2e-apps` **25/25**, `e2e-apps-routes` **53/53**, `api-access-control` **2/2 (projet isolé)**, `public-web` **12/12** — voir fiche L20g |
 | L20f    | **Validation locale bout en bout** : daemon Docker, `test:api`, `e2e` sur base jetable seedée | —                           | mesuré le 2026-11-20 : daemon **démarré** (OrbStack 29.4.0), `test:api` **✅ 82 paquets**, e2e **18/19 + 128/128** — voir fiche L20f |
 | L20e    | **Validation bout en bout** : `pnpm build` (6 apps), `pnpm test:api` (Go + Postgres), `pnpm e2e` (Playwright)  | —                           | mesuré le 2026-11-20 : **build ✅**, `test:api` **bloqué** (Docker absent), e2e **partiel** (seed absent) — voir fiche L20e |
-| L21     | `apps/studio/src/**`                                                                                         | **412 fichiers · 72 285 l.** (mesuré) | **ouvert le 2026-11-20**, découpé en **8 sous-lots** (L21a→L21h) ; **L21a** (socle : layout, not-found, components, lib, instrumentation) **durci le 2026-11-20** ; **R137 ouverte** ; **L21b clos le 2026-11-20** (frontière vendor/maison mesurée, **7 défauts corrigés** sur deux passages, tiroir modal accessible, **R138 ouverte** — seule dette restante du sous-lot) ; prochain = **L21c** (`features/editor`) |
+| L21     | `apps/studio/src/**`                                                                                         | **412 fichiers · 72 285 l.** (mesuré) | **ouvert le 2026-11-20**, découpé en **8 sous-lots** (L21a→L21h) ; **L21a** (socle : layout, not-found, components, lib, instrumentation) **durci le 2026-11-20** ; **R137 ouverte** ; **L21b clos le 2026-11-20** (frontière vendor/maison mesurée, **7 défauts corrigés** sur deux passages, tiroir modal accessible, **R138 ouverte** — seule dette restante du sous-lot) ; **L21c clos le 2026-11-20** (lecture intégrale des 49 fichiers de production et de leurs appelants, **6 défauts corrigés** F313–F318, **R140** et **R141** ouvertes) ; prochain = **L21d** (`src/app/dev/**`) |
 | L22     | `apps/admin/src/**`                                                                                          | 178 fichiers                | à auditer               |
 | L23     | `apps/tenants/src/**`                                                                                        | 85 fichiers                 | à auditer               |
 | L24     | `apps/hi/src/**`                                                                                             | 40 fichiers                 | à auditer               |
@@ -123,9 +123,11 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L21c — `features/editor`** (49 f. · 12 005 l., dont `Editor.tsx` 2 807 l.) : le
-fichier le plus long du dépôt. L21b (`features/stage`) est clos le 2026-11-20 après deux passages — il ne
-reste que **R138** (aucune traduction dans le stage), qui se traite d'un seul tour. L20c ouvert le 2026-11-19 avec un découpage mesuré en 8 sous-lots, L20c1
+**Prochain lot à traiter : L21d — `src/app/dev/**`** (32 f. · 7 591 l. : UI Lab, specimens, catalogue) :
+outillage de développement rendu 404 hors dev, aucun impact utilisateur, donc audité après les surfaces
+produit. L21c (`features/editor`, 49 f. · 12 005 l.) est **clos le 2026-11-20** — lecture intégrale
+(`Editor.tsx` 2 807 l. compris) et **six défauts corrigés** (F313–F318) ; restent **R140** (traductions
+manquantes de l'éditeur) et **R141** (minuteurs d'infobulle d'annotation), plus **R138** du stage. L20c ouvert le 2026-11-19 avec un découpage mesuré en 8 sous-lots, L20c1
 (cartes de pensée, 11 f. · 1 223 l.), L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.),
 L20c3 (annotateur d'article, 1 f. · 1 153 l., **R126** et **R133** closes), L20c4 (chaîne de lecture
 d'article, 6 f. · **988 l.** à la livraison — le « 992 » écrit ici datait d'avant le passage de prettier,
@@ -918,6 +920,8 @@ nommé), puis verts après restauration.
 | R134 | `ListArticleComments` (`apps/api/sql/queries/comments.sql:36`) n'a **ni `LIMIT` ni curseur** et rend `ORDER BY c."createdAt" ASC` en entier ; le handler (`apps/api/internal/modules/articles/handler.go:1156`) ne lit aucun paramètre de page et répond `response.OK(w, comments)` — la liste complète. Trois surfaces la consomment : le tiroir de lecture (`ArticleComments.tsx:57`), la console studio (`community-client.tsx:37`) et `apps/tenants` (`article/[slug]/actions.ts:143`). Un article à quelques milliers de commentaires donne donc une réponse et un rendu non bornés. | moyenne | **bloqué** — la fermeture à la racine exige : (1) un `LIMIT`/curseur dans la requête sqlc (donc `sqlc generate`), (2) un paramètre `limit`/`cursor` dans le handler **et un changement de forme de réponse** (`{items, nextCursor}` au lieu du tableau), (3) l'adaptation des trois surfaces, (4) une preuve sur base réelle — or AGENTS.md interdit Docker en local et la base partagée ne sert pas aux essais. Question produit à trancher : plafond par défaut, clé de curseur (`(createdAt, id)` ?), et réponse paginée ou plafond dur avec « charger plus ». Aucun correctif partiel n'a été posé : tronquer côté front sans pagination serait un bug pire que l'absence de pagination. Preuve : `comments.sql:36-57` (pas de `LIMIT`), `handler.go:1156-1166` (aucun paramètre), `comments.go:91-95` (article + viewer seulement). |
 | R138 | **Qoefi Stage n'a aucune traduction** : `grep -rc lingui apps/studio/src/features/stage` (hors vendor) → **0**. Le code maison du sous-lot porte **63 littéraux d'attributs** (`title=`, `aria-label=`, `placeholder=`) et **13 textes JSX accentués** en français dur — barre supérieure (Design/Aperçu/Enregistrer/Brouillon · Publier), dock inférieur (Sélection/Pan/Ajouter + 6 `title` de raccourcis), tiroir (Fermer le menu), canvas (Recentrer le canvas), libellés de périphériques (`Tablette`). | moyenne | **ouverte** — passible d'être fermée fichier par fichier, mais le stage est un écran unique de 5 232 l. dont les libellés sont très liés (raccourcis dans les `title`) : la conversion doit se faire dans un seul tour pour ne pas laisser un écran mi-traduit, comme R135 pour `MessagesApp`. Preuve : `grep -c lingui` = 0 sur les 26 fichiers maison, comptage des littéraux ci-dessus (mesure du 2026-11-20). Voir L21b. |
 | R139 | **L'historique du Stage est par frappe** : `StageEngineContext.updateBlockProps`/`updateNode` empilent un snapshot par appel et les curseurs de style (`useQoefiStyle.patch`) un par pixel de glissade — ⌘Z annule lettre par lettre, et une seule glissade remplit les 50 entrées. | moyenne | **ouverte** — défaut d'ergonomie d'undo, pas de perte de données : exige des transactions (ouvrir au `focus`/`pointerdown`, committer au `blur`/`pointerup`), donc une fonction, pas un correctif ponctuel. Mesure : `grep -c "setPast" context/StageEngineContext.tsx` = 12 sites d'écriture d'historique, aucun groupement. Voir L21b (second passage). |
+| R140 | **L'éditeur d'article est traduit à moitié** : le sous-lot L21c a trouvé des libellés français hors `t` dans cinq modules. Mesure du 2026-11-20 : `lib/preflight.ts` → **0** `t` (12 `label`/`detail` en dur, dont `'Le titre est requis avant de publier.'` l. 88), `extensions/PaywallDividerComponent.tsx` → **0** `t` (`« Réservé aux abonnés »` l. 21, `« Tout ce qui suit reste masqué pour les lecteurs non abonnés. »` l. 29), `components/CollaborationInviteLinks.tsx` → **0** `t` (44 libellés : rôles, durées, « Lien de collaboration », « Générer le lien d’invitation », `Permanent`), `components/ArticleAttributionEditor.tsx` → **0** `t` (rôles éditoriaux, états de consentement, « Attribution éditoriale »), `components/Editor.tsx:1812` → alerte d'alt en dur (`« N image(s) sans description alternative (alt)… »`). Le reste de l'éditeur est traduit (`MediaAssetPickerDialog` 12 `t`, `PublishModal`, `ArticleHistoryModal`, `ArticleDiffModal`…). | moyenne | **ouverte** — conversion à faire **d'un seul tour** par écran pour ne pas laisser une surface mi-traduite (précédent R135/R138) ; elle change les catalogues (`intl:extract` produit de nouveaux `msgid`), donc elle se traite dans un lot dédié, pas dans un lot de correctifs. Voir L21c. |
+| R141 | **L'infobulle d'annotation fuit ses minuteurs** : `Editor.tsx:921` et `Editor.tsx:1210` lancent chacun `setTimeout(() => setAnnotationToast(null), 3000)` sans conserver l'identifiant. Deux messages rapprochés (« Sélectionnez d'abord un passage », puis la note créée) partagent la même variable : le premier minuteur efface le second message au bout d'une seconde au lieu de trois, et un démontage dans la fenêtre laisse deux timers vivants. | faible | **ouverte** — le correctif propre est un petit hook `useTransientMessage` (une seule référence de timer, annulée au démontage et à chaque nouveau message) ; il n'a pas été posé dans L21c faute de rouge reproductible sans monter `Editor.tsx` entier (2 807 l., Tiptap + collaboration), ce qui aurait été une extraction déguisée en correctif. Voir L21c. |
 | R137 | Les métadonnées du studio restent figées en français : `src/app/layout.tsx` (`title: 'qoefi Studio — Creator Dashboard'`, description anglaise) et `src/app/not-found.tsx` (`'Page introuvable — Studio qoefi'`) sont des exports statiques `metadata`, donc non traduits quand la locale est `en`. | faible | **ouverte** — la sortie propre est `generateMetadata` + une traduction serveur ; `@qoe/i18n/server` expose `translateKey`/`translate`, mais l'`initI18n()` de requête et les overrides DB doivent être branchés dans le même tour pour toutes les apps (core, studio, admin, tenants), sinon on fixe le studio en laissant les autres derrière. Travail transversal à planifier, pas un correctif de deux lignes ; aucun correctif partiel posé. Preuve : `apps/studio/src/app/layout.tsx:52-64`, `apps/studio/src/app/not-found.tsx:3-9`, et `grep -rn "generateMetadata" apps/studio/src` → 0. Voir L21a. |
 | R136 | Le placement in-app du lecteur est **inatteignable** : `InAppPlacement` ne tire son contenu que de la prop `initialPlacement`, et son unique appelant (`banners/DynamicBannerSlot`) rend `<InAppPlacement slot fallback className />` — sans jamais passer de placement. Toute la branche « placement » (carte, `notch_banner`, acquittement serveur) est donc morte dans le lecteur : seul le repli « Qoefi Plus » s'affiche, quel que soit le placement programmé en base. | moyenne | **bloqué** — brancher la résolution exige une décision produit : qui résout le placement pour un slot (loader serveur par page ? action `getPlacementForSlot` ? cache runtime ?), quelle audience (`targetAudience`) et quelle priorité entre placements concurrents. Aucun correctif partiel n'a été posé : afficher un placement inventé côté client serait pire que le repli actuel. Preuve : `DynamicBannerSlot.tsx:80` (appel sans `initialPlacement`), `InAppPlacement.tsx:104` (`if (!placement …) return fallback`), test de caractérisation « sans `initialPlacement`, ne rend que le repli ». Voir L20c7. |
 | R135 | `MessagesApp` n'a **aucun libellé traduit** (`grep -c lingui` → 0) : titre, description, boutons, `hier`, `Vous : `, `Utilisateur`, `Conversation vide`, `Recherche…`, « Aucun résultat. », les états vides, et les trois messages d'erreur ajoutés en L20c6. L'interface anglaise affiche donc tout ce panneau en français. | faible | **close le 2026-11-20** — les **23 libellés distincts** du fichier passent par `t` (dont `hier`, `Utilisateur`, `Conversation vide`, `Vous : {0}` interpolé et les 5 messages d'erreur) ; `intl:extract` ajoute **18 `msgid`** (5 étaient déjà extraits ailleurs : `Messages`, `Recherche…`, `Retour`, `Envoyer`, `Envoi impossible`) et `intl:compile` passe. Un effet de bord réel a été trouvé en chemin : `const t = setInterval(...)` / `const t = setTimeout(...)` **masquaient** le `t` de Lingui dans trois effets, ce qui rendait l'erreur de recherche inatteignable (voir fiche L20c6). 8 garanties jsdom + garde de source (« aucun littéral français en dur ») rouges→vertes. |
@@ -1513,8 +1517,8 @@ traité d'un tour, donc il est découpé ici, avec des mesures par groupe.
 | -------- | --------------- | ------ | ---------------------- |
 | **L21a** | `src/app/layout.tsx` 149, `src/app/not-found.tsx` 14, `src/components/**` 3/242, `src/lib/**` 11/432, `src/instrumentation.ts` 12, `src/test-support/**` 1/5 | **18 f. · 854 l.** | **durci le 2026-11-20**. Le socle : monté par *toutes* les routes studio (providers, en-têtes de sécurité, i18n, cookies d'espace, sanitizers). Deux défauts y vivaient encore (F303, F304). |
 | L21b | `features/stage/**` (context, left/right panels, canvas, engine, `vendor/onlook`) | 189 f. · 24 664 l. — **vendor 163 f. · 19 432 l. (79 %) / maison 26 f. · 5 232 l.** | **clos le 2026-11-20** (2 passages) · frontière vendor/maison mesurée et figée par une garde (0 import runtime), **7 défauts corrigés** (F305–F312 : raccourcis destructifs en aperçu, poignée est inversée, clear StrictMode, scope périmé après restauration, zoom à contresens, libellé de scope faux, tiroir sans sémantique de dialogue) + managers mobx morts supprimés. Seule dette restante : **R138** (stage sans aucune traduction). |
-| L21c | `features/editor/**` (dont `Editor.tsx` 2 807 l., extensions, hooks, lib) | 49 f. · 12 005 l. | Éditeur d'article : le fichier le plus long du dépôt. Audité seul, après le stage qui partage ses primitives. |
-| L21d | `src/app/dev/**` (UI Lab, specimens, catalogue) | 32 f. · 7 591 l. | Outillage de développement : 404 hors dev, aucun impact utilisateur — audité après les surfaces produit. |
+| L21c | `features/editor/**` (dont `Editor.tsx` 2 807 l., extensions, hooks, lib) | 49 f. · 12 005 l. | **clos le 2026-11-20** · lecture intégrale (production + appelants) et **6 défauts corrigés** (F313 transport de co-édition jeté sous StrictMode, F314 réponses périmées de la médiathèque, F315/F318 copies annoncées sans avoir eu lieu, F316/F317 actions serveur sans capture qui figeaient deux modales). Dettes : **R140** (i18n partielle de l'éditeur), **R141** (minuteurs d'infobulle). |
+| L21d | `src/app/dev/**` (UI Lab, specimens, catalogue) | 32 f. · 7 591 l. | **prochain** — outillage de développement : 404 hors dev, aucun impact utilisateur, audité après les surfaces produit. |
 | L21e | `features/settings/**` (tabs 7/2 632, components 7/1 259, `navigation.tsx` 796) | 20 f. · 5 622 l. | Réglages du studio : beaucoup de formulaires et de mutations, conventions déjà posées par L21a. |
 | L21f | `app/(creator)/**` hors `articles`, `media`, `newsletters`, `analytics` (34 f.) + routes annexes | 34 f. · 4 979 l. | Écrans secondaires du créateur (dashboard, audience, import, monetization, pricing, settings, stage…). |
 | L21g | `app/(creator)/{articles,media,newsletters,analytics}` | 39 f. · 12 593 l. | Les quatre gros clients (`articles-client` 2 206, `MediaStudioClient` 1 669, `NewsletterClient` 1 214, `analytics/actions.ts` 729) : audités ensemble parce qu'ils partagent les mêmes conventions d'action et de toast. |
@@ -1523,6 +1527,112 @@ traité d'un tour, donc il est découpé ici, avec des mesures par groupe.
 **Somme vérifiée.** 18 + 189 + 49 + 32 + 20 + 34 + 39 + 27 = **408 fichiers** attribués. Le `find` en
 compte **412** : les 4 fichiers restants vivent dans des sous-dossiers de `src/app` non listés ci-dessus et
 seront rattachés à L21h à son ouverture (mesure refaite à ce moment-là, pas d'estimation ici).
+
+### L21c — éditeur d'article : co-édition, médiathèque, copies et actions — clos le 2026-11-20
+
+**Périmètre lu, intégralement.** 49 fichiers / **12 005 l.** de production, plus 35 fichiers de tests.
+`Editor.tsx` en entier (2 807 l., les deux moitiés), `lib/**` (12 modules : `editor-keydown`, `preflight`,
+`article-settings`, `schedule-draft`, `payload-hash`, `link`, `datetime`, `accessibility`, `alt-coverage`,
+`image-navigation`, `sources`, `toolbar-navigation`), `hooks/**` (`useArticleSettings` 366 l.,
+`useCollaborationSession` 201 l., `useModKey`), `actions/**` (`ai-assist`, `media-assets`), `extensions/**`
+(8 fichiers) et **les 20 composants** : `EditorHeader`, `EditorToolbar`, `EditorStatusBar`,
+`SelectionToolbar`, `CoverUploader` 282, `ArticleAttributionEditor` 367, `CollaborationInviteLinks` 307,
+`ArticleDiffModal` 424, `ArticleHistoryModal` 439, `RecoverArticleModal` 437, `PublishModal` 599,
+`EditorSettingsDrawer` 728, `MediaAssetPickerDialog`, `PublishReadinessDialog`, `ReaderPreviewDialog`,
+`SourcesDialog`, `AiSuggestionDialog`, `EditorShortcutsPanel`, `ArticleScheduleSection`,
+`PastedAnnotationsDialog`, `AnnotationNotePanel`, `LinkEditorPanel`, `ImageDetailsPanel`.
+
+**Appelants et consommateurs lus** : `app/(creator)/articles/articles-client.tsx`,
+`article-list-row.tsx`, `article-settings-sheet.tsx`, `articles/new/new-article-client.tsx`,
+`articles/[id]/edit-article-client.tsx`, `app/dev/editor-check/EditorCheckClient.tsx`,
+`features/content-health/lib/content-health.ts`.
+
+**Défauts prouvés et corrigés**
+
+| #    | Emplacement                                   | Défaut mesuré                                                                                                                                                                                                                                                                   | Correctif                                                                                       |
+| ---- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| F313 | `hooks/useCollaborationSession.ts:66-73`      | `new Y.Doc()` et `new HocuspocusProvider(...)` étaient construits dans deux `useMemo`, donc **pendant le rendu**, et le nettoyage ne détruisait que l'instance retenue : sous StrictMode le provider jeté gardait socket, awareness et abonnements (mesure : 3 constructions, 2 `destroy`). | document + provider créés dans un `useEffect` dont le nettoyage fait `provider.destroy()` **et** `doc.destroy()` ; statut remis à `connecting` par transport neuf. |
+| F314 | `components/MediaAssetPickerDialog.tsx:61-79` | `load()` sans numéro de séquence : deux recherches rapprochées (`debounce` 250 ms) laissaient la réponse la plus lente écraser la plus récente — la liste affichée était celle d'une requête déjà remplacée.                                                                        | compteur `requestSeqRef` : une réponse dont le numéro n'est plus courant ne touche ni la liste, ni l'erreur, ni `loading`. |
+| F315 | `components/CollaborationInviteLinks.tsx:131` | `navigator.clipboard.writeText(...)` sans `await` : en cas de refus (permission, contexte non sécurisé) le bouton affichait « Copié. », la promesse rejetée n'était pas gérée, et l'auteur collait un contenu obsolète.                                                              | copie attendue, `copyError` rendu en `role="alert"`, minuteur de retour visuel stocké puis annulé au démontage. |
+| F316 | `components/ArticleHistoryModal.tsx:225`      | `restoreArticleSnapshotAction` appelée sans `try` : une exception laissait `restoringId` posé — modale figée sur « Restauration… », **tous** les boutons désactivés, aucun message, rejet non géré.                                                                               | `try/catch/finally` : message d'erreur, `restoringId` toujours remis à `null`.                    |
+| F317 | `components/RecoverArticleModal.tsx:169`      | même classe : `forkArticleToPersonalAction` sans capture ⇒ bouton bloqué sur « Importation… », ni exemplaire ni explication, rejet non géré.                                                                                                                                       | `try/catch/finally`, `setSubmitting(false)` garanti, message d'erreur affiché.                    |
+| F318 | `components/EditorSettingsDrawer.tsx:525`     | même classe de copie que F315 dans le tiroir : l'URL publique d'article était copiée sans attendre le presse-papiers, avec « Copié ! » systématique et un `setTimeout` de 2 s jamais annulé.                                                                                     | `handleCopySlug` attend la copie, affiche `role="alert"` en cas d'échec, minuteur stocké et annulé au démontage. |
+
+Rouges conservés (avant correctif) :
+
+```
+$ pnpm vitest run src/features/editor/hooks/__tests__/useCollaborationSession.test.tsx \
+    src/features/editor/components/__tests__/MediaAssetPickerDialog.test.tsx \
+    src/features/editor/components/__tests__/CollaborationInviteLinks.test.tsx
+ × ne laisse aucun transport orphelin quand le rendu est rejoué (StrictMode)
+   AssertionError: expected [ FakeProvider{ …(8) } ] to have a length of +0 but got 1
+ × ignore la réponse d’une recherche périmée arrivée en retard
+   Error: expect(element).not.toBeInTheDocument()
+   expected document not to contain element, found <span …>1200×800 · 2 Ko</span> instead
+ × n’annonce pas une copie réussie quand le presse-papiers refuse
+   TestingLibraryElementError: Unable to find role="alert"
+  Tests  3 failed | 19 passed (22)                          L21C_RED_EXIT=1
+```
+
+```
+$ pnpm vitest run src/features/editor/components/__tests__/ArticleHistoryModal.test.tsx \
+    src/features/editor/components/__tests__/RecoverArticleModal.test.tsx
+ × rétablit l’état du bouton quand la restauration lève une exception
+   AssertionError: expected "vi.fn()" to be called with arguments: [ 'Réseau coupé' ]
+ × débloque l’import quand l’action serveur lève une exception
+   AssertionError: expected "vi.fn()" to be called with arguments: [ 'Import refusé' ]
+ ⎯⎯ Unhandled Rejection ⎯⎯  (×2)
+  Tests  2 failed | 20 passed (22)                          L21C2_RED_EXIT=1
+```
+
+```
+$ pnpm vitest run src/features/editor/components/__tests__/EditorSettingsDrawer.test.tsx
+ × n’annonce pas une copie réussie quand le presse-papiers refuse
+   TestingLibraryElementError: Unable to find role="alert"
+  Tests  1 failed | 19 passed (20)                          F318_RED_EXIT=1
+```
+
+**Contre-preuve (aucune garde fantôme).** Les sources remises seules à leur état d'origine (`git stash` des
+fichiers corrigés, tests conservés) font retomber exactement ces tests : `3 failed | 19 passed` pour
+F313/F314/F315, `2 failed | 20 passed` **avec les deux `Unhandled Rejection`** pour F316/F317, `1 failed |
+19 passed` pour F318 ; correctifs restaurés, les trois suites repassent à `22 passed`, `22 passed` et
+`20 passed`.
+
+**Un seul test existant ajusté (et pourquoi).** `EditorSettingsDrawer.test.tsx` affirmait `« Copié ! »` de
+façon **synchrone** juste après le clic : c'était l'assertion du comportement défectueux (retour visuel
+optimiste). Elle attend désormais le tour suivant (`await waitFor`) — l'assertion est plus stricte, pas
+assouplie, puisqu'elle vérifie le même libellé après la copie réellement effectuée.
+
+**Non-défauts examinés, avec la preuve**
+
+- **`EditorToolbar` : roving tabindex impératif** (`useEffect` sans deps qui pose `tabIndex=0` sur un item) :
+  pas de défaut — React ne réécrit pas un attribut dont la prop n'a pas changé entre deux rendus, et l'effet
+  sort immédiatement dès qu'un item porte déjà `0` (`if (items.some(i => i.tabIndex === 0)) return`).
+- **`ArticleAttributionEditor` recherche de contributeurs** : la course est déjà couverte (`let cancelled`
+  remis à `true` par le nettoyage avant chaque nouvelle frappe) — même garantie que F314 mais correcte ici.
+- **`LinkEditorPanel`** : même motif `cancelled`, correct ; c'est ce qui a servi de référence pour F314.
+- **`useModKey` / `useAltKey`** (`hooks/useModKey.ts:16` et `:32`) : `navigator.platform` est déprécié mais
+  reste le seul test universel de plateforme (`navigator.userAgentData` n'existe ni sur Safari ni sur
+  Firefox) ; le remplacer demanderait un shim multi-source, c'est-à-dire une techno plus fragile que
+  l'API actuelle. Duplication assumée : deux hooks de 40 l., fusionner n'apporterait rien de mesurable.
+- **`PublishReadinessDialog.runAction`** : `requestAnimationFrame(action)` non annulé — l'action ne fait que
+  déplacer le focus dans l'éditeur parent, qui reste monté ; aucune fuite ni écriture d'état.
+- **`Editor.tsx` : `settle()` du chargement collaboratif** : `contentReadyRef` sert de verrou pour que le
+  repli à 4 s ne puisse pas doubler le chargement ; les deux chemins (`synced`, `fallback`) partagent le
+  même `settled`, et le nettoyage retire l'écouteur + annule le timer — vérifié ligne à ligne.
+- **`Editor.tsx` : `initialHash` monté sans deps** : commenté et cohérent avec la navigation Next (la page
+  remonte le composant par article) ; le hash est ensuite tenu par `lastSavedHashRef`, pas par un effet.
+- **`ReaderPreviewDialog` : `dangerouslySetInnerHTML`** gardé par `sanitizePreviewHtml`
+  (`@/lib/sanitize-preview-html`) — la seule occurrence de la zone, et elle est couverte par
+  `guard:dangerous-html` (EXIT=0).
+- **`PaywallDividerComponent`** : le nœud est rendu par l'extension, sans `t` disponible dans ce contexte de
+  sérialisation HTML ⇒ R140, pas un correctif local.
+
+**Dettes ouvertes**
+
+- **R140** — traductions manquantes de l'éditeur (chiffres et fichiers dans le registre).
+- **R141** — les deux `setTimeout(() => setAnnotationToast(null), 3000)` de `Editor.tsx` ne sont ni annulés
+  au démontage ni exclusifs entre eux.
 
 ### L21b — frontière vendor/maison, canvas et raccourcis — partiel au 2026-11-20
 
