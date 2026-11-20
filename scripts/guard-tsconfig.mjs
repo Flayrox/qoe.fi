@@ -30,6 +30,18 @@ const WORKSPACES = ['apps', 'packages'];
 const SKIP_DIRS = new Set(['node_modules', '.next', 'dist', 'coverage', '.turbo', '.expo']);
 const TSCONFIG = /^tsconfig.*\.json$/;
 
+// Dossiers générés : jamais une source, donc jamais dans un `include`.
+const GENERATED_DIRS = [
+  '.next',
+  '.expo',
+  'dist',
+  'build',
+  '.turbo',
+  'coverage',
+  'out',
+  'storybook-static',
+];
+
 /** Liste récursive des `tsconfig*.json` d'un workspace (hors dossiers générés). */
 function collectConfigs(dir, out = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -64,6 +76,32 @@ function checkConfig(configPath) {
       `${label} : \`moduleResolution: "${resolution}"\` est la résolution ` +
         'legacy node10, dépréciée — utiliser `NodeNext` ou `Bundler`'
     );
+  }
+
+  // E. le programme typé part des sources, jamais du dossier entier.
+  //    `include: ["**/*.ts"]` avale tout ce qui traîne à la racine du
+  //    workspace — dont les dossiers générés. Un `exclude` posé dans l'app ne
+  //    rattrape rien : TypeScript **remplace** l'`exclude` hérité au lieu de
+  //    le fusionner, donc le `.next` du preset disparaît dès qu'une app
+  //    déclare le sien. Une copie d'artefact (macOS duplique `routes.d.ts` en
+  //    `routes.d 2.ts`, un `.ts` et non un `.d.ts`) entrait alors dans le
+  //    programme et cassait `pnpm typecheck` (TS6200/TS2300) — mesuré sur
+  //    `apps/{core,studio,hi,tenants}`.
+  for (const pattern of Array.isArray(config.include) ? config.include : []) {
+    const value = String(pattern);
+    const firstSegment = value.split('/')[0];
+    if (value.startsWith('**/')) {
+      errors.push(
+        `${label} : \`include\` balaie tout le workspace (\`${value}\`) — ` +
+          'nommer les sources (`src/**`, `*.ts`) pour qu’un artefact généré ne puisse jamais entrer dans le programme'
+      );
+    }
+    if (GENERATED_DIRS.includes(firstSegment)) {
+      errors.push(
+        `${label} : \`include\` pointe dans un dossier généré (\`${value}\`) — ` +
+          'les types générés entrent par la référence explicite du fichier d’environnement (`next-env.d.ts`/`expo-env.d.ts`), pas par un glob'
+      );
+    }
   }
 
   for (const [alias, targets] of Object.entries(config.compilerOptions?.paths ?? {})) {
@@ -126,7 +164,9 @@ if (errors.length > 0) {
   for (const error of errors) console.error(`  • ${error}`);
   console.error(
     `\n${errors.length} problème(s). Un alias qui ne résout pas est un mensonge de config : ` +
-      'le typecheck passe par node_modules et personne ne remarque que le chemin est mort.'
+      'le typecheck passe par node_modules et personne ne remarque que le chemin est mort. ' +
+      'Et un `include` qui balaie le workspace fait entrer les artefacts générés dans le programme : ' +
+      'le typecheck tombe pour un fichier que personne n’a écrit.'
   );
   process.exit(1);
 }

@@ -910,7 +910,7 @@ nommé), puis verts après restauration.
 | R74 | `canonicalEmail` est calculé par `@qoe/moderation` et écrit dans les métadonnées Supabase (`options.data`) au signup, mais **aucun code ne le lit** : ni le sync Go, ni la base (aucun index unique). L'anti-multi-comptes annoncé par le module ne s'exerce donc pas au-delà du jour de l'inscription, et la suppression systématique du tag `+` (tous fournisseurs, pas seulement Gmail) n'a aucune conséquence observable. | moyenne | Arbitrage backend : colonne `canonicalEmail` + index unique dans une migration goose, puis refus de doublon côté Go (`/v1/auth/sync`), en décidant si l'on garde Gmail uniquement pour les points. Voir L14. |
 | R94 | `/api/articles/[slug]` (core) n'a **aucun appelant** dans le repo : la page article lit côté serveur. Route morte dont le contrat HTTP vient d'être corrigé (cache privé, L20b1) mais qui reste à supprimer ou à réutiliser explicitement. | faible | Arbitrage : supprimer la route (et son test) ou la brancher sur le préchargement client ; décision produit sur le préchargement d'article. Voir L20b1. |
 | R93 | `packages/analytics` envoie la session de lecture par `navigator.sendBeacon(endpointUrl, payload)` avec un **corps texte** (Content-Type `text/plain`) : le handler lit `req.json()`, qui fonctionne par chance (pas de validation de type de contenu côté Next). Aucun rejet observé, mais le contrat média n'est pas explicite. | faible | Arbitrage : créer un `Blob` typé `application/json` à l'envoi, ou valider/ignorer explicitement le Content-Type côté route. Voir L20b1. |
-| R131 | Les `tsconfig.json` des apps (`apps/{core,admin,hi,studio,tenants}`) remplacent l'`exclude` du preset par `["node_modules"]` tout en gardant `include: ["**/*.ts"]` : `packages/tsconfig/base.json:21` exclut bien `.next`/`dist`/`build`/`.turbo`, mais un `exclude` enfant ne fusionne pas avec celui qu'il hérite. Une copie d'artefact (`.next/**/* 2.ts`, mesurée en L20n sur `apps/hi`) casse donc `pnpm typecheck` (`TS6200`/`TS2300`) alors qu'elle vit dans un dossier généré. | faible | Étendre l'`exclude` de chaque app sans perdre `.next/types/**/*.ts` (ou déplacer l'inclusion des routes typées dans un `tsconfig.build.json`), puis l'ajouter au garde `guard:tsconfig`. Voir L20c3 / L19. |
+| R131 | ~~Les `tsconfig.json` des apps remplacent l'`exclude` du preset par `["node_modules"]` en gardant `include: ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts"]` : TypeScript **remplace** l'`exclude` hérité au lieu de le fusionner, donc une copie d'artefact entrait dans le programme et cassait `pnpm typecheck` (`TS6200`/`TS2300`)~~ — **close le 2026-11-20**. Cause mesurée : macOS duplique `routes.d.ts` en `routes.d 2.ts`, un `.ts` et non un `.d.ts`, donc plus un fichier de déclaration ; `apps/hi` et `apps/tenants` étaient rouges dans l'arbre (`.next/types/cache-life.d 3.ts(3,1): error TS6200 …`, `routes.d 3.ts(55,8): error TS2300: Duplicate identifier 'LayoutProps'`). | — | Close : les **6** apps nomment leurs sources (`next-env.d.ts`/`expo-env.d.ts`, `*.ts`, `src/**`, + `modules/**` pour mobile) — aucun glob racine, aucun glob dans un dossier généré — et la règle **E** de `guard:tsconfig` refuse désormais ce motif (falsifiée : `3 problème(s)` / `GUARD_FALSIF_EXIT=1`). Types de routes conservés par l'`import "./.next/types/routes.d.ts"` de `next-env.d.ts`. Preuve : copies plantées dans `core` **et** `studio` (+ `hi`/`tenants`) → `TC_core_EXIT=2`/`TC_studio_EXIT=2` avant, **`EXIT=0` sur les 6 apps avec 10 copies en place** après, puis `pnpm typecheck` **25 successful, 25 total / 0 error TS**. Voir fiche L19. |
 | R130 | `EditProfileModal.updateMediaProfile` fabrique lui-même l'utilisateur « mis à jour » à partir des champs locaux au lieu de lire la réponse de `PATCH /v1/media/{id}/settings` : une normalisation serveur (nom rogné, `location` refusée) n'apparaît pas, et `onProfileUpdated` propage des valeurs optimistes. Le `catch` du même fichier journalise `console.error(err)` côté client en production. | faible | Lire la publication renvoyée par l'action (ou revalider) et remplacer le `console.error` par le seul toast. Voir L20c2. |
 | R129 | La mécanique de surcouche est écrite **deux fois** : `HISTORY_KEY`, `pushedRef`, `baseRef`, `teardown` (timer 320 ms), capture/restauration de focus et `popstate` existent à l'identique dans `ThoughtOverlayProvider` et `ArticleOverlayProvider`. Les deux ont déjà divergé (le second annule son timer de teardown, le premier non — R127). | moyenne | Extraire un `useOverlayHistory`/`useOverlayReturn` partagé et y brancher les deux surcouches. Voir L20c2. |
 | R128 | ~~`ArticleOverlayProvider.fetchArticleThread` appelle `/api/articles/{slug}` par un `fetch` sans `AbortSignal` ni timeout~~ — **close par F271/F272** : `withArticleTimeout` borne chaque requête à 10 s, un `AbortController` par requête annule la précédente et le démontage, et l'état d'erreur est rendu (message de délai dédié). Voir L20c2b. | — | Close, prouvée par une suite d'intégration montant le provider et le drawer réels (timeout, démontage, popstate, focus, verrou de scroll, préchargement). |
@@ -2213,8 +2213,8 @@ $ les 9 gardes CI (seed-script, legal-consent, dangerous-html, flags-parity,
 **Dette nouvelle — R131.** Les `tsconfig.json` des apps remplacent l'`exclude` du preset (qui, lui, exclut
 `.next`/`dist`/`build`/`.turbo`) tout en gardant `include: ["**/*.ts"]` : une copie d'artefact
 (`.next/**/* 2.ts`, observée en L20n sur `apps/hi`, `TS6200`/`TS2300`) fait échouer `pnpm typecheck` alors
-qu'elle vit dans un dossier généré. Correctif volontairement non appliqué ici : il touche les cinq apps et le
-preset partagé (L19), hors du périmètre d'un composant.
+qu'elle vit dans un dossier généré. Correctif volontairement non appliqué dans ce commit : il touche les six apps et
+le preset partagé (L19), hors du périmètre d'un composant — **il est appliqué le même jour**, voir fiche L19.
 
 **Reste non vérifié.** Validation visuelle du rendu (aucune capture) ; le partage dans un vrai navigateur
 (presse-papier réel, contexte non sécurisé) ; les chaînes encore hors `t` de ce fichier
@@ -3404,6 +3404,31 @@ doublure ajoutée.
 (`noUncheckedIndexedAccess`), **R87** (alias racine de `vitest.config.ts`).
 
 ---
+
+**R131 — l'`include` des apps avalait les artefacts générés (close le 2026-11-20).** La règle du preset
+(`packages/tsconfig/base.json` exclut `.next`/`dist`/`build`/`.turbo`) ne survivait pas aux apps : TypeScript
+**remplace** l'`exclude` hérité dès qu'un `tsconfig` enfant en déclare un, et les six configs déclaraient
+`exclude: ["node_modules"]` en gardant `include: ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts"]`. Une copie
+d'artefact — macOS duplique `routes.d.ts` en `routes.d 2.ts`, un `.ts` et non un `.d.ts`, donc plus un fichier de
+déclaration — entrait dans le programme : `apps/hi` et `apps/tenants` étaient **rouges dans l'arbre**
+(`.next/types/cache-life.d 3.ts(3,1): error TS6200 …`, `.next/types/routes.d 3.ts(55,8): error TS2300:
+Duplicate identifier 'LayoutProps'.`).
+
+Correctif à la racine, sans dupliquer une liste d'exclusions dans cinq configs : le programme part des **sources**
+(`next-env.d.ts`, `*.ts`, `*.mts`, `src/**/*.ts`, `src/**/*.tsx` ; `expo-env.d.ts` + `modules/**` pour mobile). Tout
+dossier généré est exclu **par construction**, pas seulement `.next`. Les types de routes ne sont pas perdus :
+`next-env.d.ts` fait `import "./.next/types/routes.d.ts"`, une référence explicite de fichier et jamais un glob —
+une copie ne peut donc pas entrer par là non plus. `guard:tsconfig` gagne la règle **E** (aucun `include` ne balaie
+le workspace, aucun ne pointe dans un dossier généré) et elle est **falsifiée** : réintroduire `**/*.ts` dans
+`apps/core` fait sortir `3 problème(s)` / `GUARD_FALSIF_EXIT=1` ; restauré → `GUARD_EXIT=0`.
+
+Preuve de la classe entière : copies plantées dans `core` et `studio` (en plus de celles qui traînaient dans
+`hi`/`tenants`) → `TC_core_EXIT=2`, `TC_studio_EXIT=2`, `TC_hi_EXIT=2`, `TC_tenants_EXIT=2` **avant** ;
+`EXIT=0` sur les **six** apps avec les **dix** copies en place **après** ; puis `pnpm typecheck`
+**`25 successful, 25 total` / `0 error TS`** ; copies supprimées (`RESTANT=0`) et `git status` propre. Aucun script
+du dépôt ne fabrique ces copies (aucun `ditto`/`rsync`/`cp -R` sur un dossier de build) : l'origine est le système
+de fichiers (duplication Finder/iCloud d'un fichier dans un dossier généré), d'où un correctif structurel plutôt
+qu'un nettoyage — un nettoyage n'aurait fait disparaître que le symptôme du jour.
 
 ## L18 — `@qoe/social` facets, sondages, threads, normalisation — durci le 2026-11-19
 
