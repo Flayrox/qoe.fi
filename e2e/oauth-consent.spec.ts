@@ -29,6 +29,13 @@ function sha256hex(input: string): string {
 }
 
 test.describe('Consentement OAuth (page réelle)', () => {
+  // ⚠️ `serial` : le `beforeAll` crée un compte GoTrue **commun** aux deux cas
+  // (`consent.e2e@qoe.fi`). En parallèle, deux workers rejouaient le signup
+  // en même temps et GoTrue répondait 500 (`duplicate key value violates
+  // unique constraint "users_email_partial_key"`, SQLSTATE 23505) au lieu de
+  // 422 — 2 runs rouges mesurés. Sérialisé, un seul signup, deux cas verts.
+  test.describe.configure({ mode: 'serial' });
+
   let code_verifier: string;
   let code_challenge: string;
 

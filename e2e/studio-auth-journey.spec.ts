@@ -15,9 +15,12 @@
 //      publication — 0 requête vers l'infra partagée `116.203.158.47`, et le
 //      seul Supabase appelé est la boucle locale.
 //
-// Gate `RUN_FULL_STACK=1` : même convention que « un créateur authentifié
-// accède à son dashboard » — le job CI `e2e-apps` n'a ni GoTrue ni core, donc
-// ce parcours est réservé au banc full-stack local/CI dédié.
+// ⚠️ Aucun `test.skip` ici, volontairement : une preuve réseau qui peut
+// s'ignorer sans bruit ne prouve rien. Hors du chemin orchestré
+// (`pnpm e2e:studio-auth` → `scripts/e2e-studio-auth.mjs`, seul endroit qui
+// monte Postgres/Redis/GoTrue jetables + core), ce test **échoue** en citant
+// la commande et les variables manquantes. Les projets e2e par défaut ne le
+// collectent pas du tout (`testIgnore` dans `playwright.apps.config.ts`).
 // =====================================================================
 
 import { test, expect } from '@playwright/test';
@@ -38,10 +41,16 @@ test.describe('Studio authentifié — parcours réel', () => {
     context,
     page,
   }) => {
-    test.skip(
-      !RUN_FULL_STACK,
-      'Parcours complet : nécessite RUN_FULL_STACK=1 + core + Supabase local'
-    );
+    if (!RUN_FULL_STACK) {
+      throw new Error(
+        [
+          'Parcours studio authentifié : infrastructure absente (RUN_FULL_STACK≠1).',
+          '  Requis : Postgres + Redis + GoTrue jetables, core sur lvh.me:15402.',
+          '  Commande unique : `pnpm e2e:studio-auth` (scripts/e2e-studio-auth.mjs).',
+          '  Ce test ne se saute jamais silencieusement : une fuite réseau doit être rouge.',
+        ].join('\n')
+      );
+    }
     expect(DATABASE_URL, 'DATABASE_URL requis pour la fixture créateur').toBeTruthy();
 
     const stamp = Date.now();

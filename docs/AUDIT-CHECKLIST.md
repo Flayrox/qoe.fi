@@ -93,7 +93,8 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | **durci le 2026-11-19** |
 | L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; prochain = L20c3 |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
-| L20l    | **Studio authentifié : login réel, éditeur, publication — 0 requête vers le Supabase partagé** | `e2e/studio-auth-journey.spec.ts` (nouveau), `playwright.apps.config.ts` (core + résolveur), `e2e/lib/supabase-network-guard.ts` (échecs journalisés) | env volontairement en VPS : **1 passed (23.3s)** puis **1 passed (25.7s)** ; capture `205 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token?grant_type=password` ; apps **83 passed / 3 skipped**, oauth-consent **2 passed** |
+| L20m     | **La preuve réseau du studio authentifié ne peut plus être `skipped` en silence** | `scripts/e2e-studio-auth.mjs` (nouveau), `package.json`, `e2e/studio-auth-journey.spec.ts`, `playwright.apps.config.ts`, `.github/workflows/ci.yml` | `pnpm e2e:studio-auth` depuis un état propre : **1 passed (1.4m)** puis, `.env` pointé sur le VPS, **1 passed (45.5s)** — capture `209 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token` ; absence d'infra → `✖ … scripts/e2e-studio-auth.mjs:103`, exit 1 ; apps **83 passed / 2 skipped** |
+| L20l     | **Studio authentifié : login réel, éditeur, publication — 0 requête vers le Supabase partagé** | `e2e/studio-auth-journey.spec.ts` (nouveau), `playwright.apps.config.ts` (core + résolveur), `e2e/lib/supabase-network-guard.ts` (échecs journalisés) | env volontairement en VPS : **1 passed (23.3s)** puis **1 passed (25.7s)** ; capture `205 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token?grant_type=password` ; apps **83 passed / 3 skipped**, oauth-consent **2 passed** |
 | L20k    | **Surfaces studio/admin/hi + matrice de routes : 0 requête vers le Supabase partagé** | `e2e/lib/supabase-network-guard.ts` (nouveau), `e2e/lib/route-matrix.ts`, `e2e/{studio,admin}.spec.ts` | env volontairement en VPS : APPS **14 passed**, MATRICE **56 passed**, TENANTS **13**, OAUTH **2** ; captures `0 Supabase` par app ; login mesuré sur `http://127.0.0.1:54321` |
 | L20j    | **Supabase serveur à serveur gardé + stack e2e réparée (cache Turbopack, dérivation Go)** | `apps/api/internal/config/{config.go,supabase_origin.go,config_test.go}`, 5 `next.config.ts`, `playwright.config.ts`, `e2e/lib/env.ts` | 2026-11-20 : garde Go rouge→vert citée, `oauth-consent` **2/2**, tenants **13/13**, disque **15→41 GiB**, toutes gardes CI vertes |
 | L20i    | **Supabase local : aucune page servie en local ne peut viser le Supabase partagé** | `packages/supabase/src/{url.ts,client.ts,server.ts,middleware.ts,storage.ts}`, 7 lecteurs d'app/SDK, `__tests__/url.test.ts` | mesuré le 2026-11-20 : avant **1 requête** `POST /auth/v1/otp` vers `116.203.158.47:54321`, après **0** (→ `127.0.0.1:54321`) ; supabase **57 tests**, tenants e2e **13/13**, build prod **exit 0** |
@@ -1855,8 +1856,71 @@ Le seul appel Supabase de tout le parcours (login → studio → éditeur → pu
 Non-régression du lot : `pnpm lint` 0 · `pnpm typecheck` 0 · `pnpm test` 0 (`@qoe/studio` 575 tests, `@qoe/ui` 677
 tests) · `pnpm typecheck:root` 0 · les 10 gardes CI 0 · `playwright --config playwright.apps.config.ts`
 (tenants + studio + admin + hi + matrice) **83 passed / 3 skipped**, exit 0 · `--project=oauth-consent`
-**2 passed (31.4s)**. Les 3 `skipped` sont les portes `RUN_FULL_STACK`/`admin-legal` existantes, dont le nouveau
-parcours.
+**2 passed (31.4s)**. Les 3 `skipped` comptaient les portes `RUN_FULL_STACK`/`admin-legal` existantes — dont le
+parcours authentifié, qui **ne peut plus être sauté en silence** depuis le lot **L20m** (ci-dessous) : il n'est plus
+collecté hors de son chemin orchestré, et y échoue explicitement s'il est lancé sans infra.
+
+**Une preuve réseau qui peut s’ignorer ne prouve rien (L20m).** Le parcours L20l portait
+`test.skip(!RUN_FULL_STACK, …)` (`e2e/studio-auth-journey.spec.ts:41`) : dans le job CI `e2e-apps` comme dans tout run
+par défaut il comptait un `skipped` **silencieux** — une fuite vers `116.203.158.47` sur le login, l’éditeur ou la
+publication serait passée verte. Trois changements, un seul chemin :
+
+1. **`scripts/e2e-studio-auth.mjs`** (+ `pnpm e2e:studio-auth`) monte lui-même Postgres 55439, Redis 6385 et GoTrue
+   54321, applique goose + seed sur la base jetable, lit les clés réelles via `supabase status -o env`, lance
+   `playwright --project=studio --grep "parcours réel"`, et démonte en `finally`. Chaque prérequis manquant lève une
+   `FatalError` qui cite sa ligne : docker (`:103`), port occupé (`:110`), Go (`:118`), CLI Supabase (`:78`).
+2. **Plus de `test.skip`** : lancé hors du chemin orchestré, le test **échoue** en citant `pnpm e2e:studio-auth`
+   (`e2e/studio-auth-journey.spec.ts:45`). Et `playwright.apps.config.ts` ajoute `testIgnore` sur ce spec quand
+   `RUN_FULL_STACK≠1`, donc les runs par défaut ne le collectent pas du tout — le total passe de **3** à **2**
+   `skipped`, sans qu’aucun test ne soit affaibli.
+3. **CI** : nouveau job `e2e-studio-auth` (`.github/workflows/ci.yml`) qui exécute exactement `pnpm e2e:studio-auth`
+   — même chemin qu’en local, même démontage.
+
+Deux rouges réels corrigés en chemin : (a) le garde comparait un booléen à la chaîne `'1'`
+(`RUN_FULL_STACK !== '1'`), donc il levait **toujours** — le premier run du script l’a montré (`Error: Parcours studio
+authentifié : infrastructure absente … spec.ts:45`) ; corrigé en `!RUN_FULL_STACK`. (b) `fail()` appelait
+`process.exit` **dans** le `try`, ce qui court-circuitait le `finally` : conteneurs laissés vivants et run suivant en
+`✖ port 55439 déjà occupé → scripts/e2e-studio-auth.mjs:110` ; corrigé par une `FatalError` levée, démontage bavard
+s’il échoue.
+
+Cas d’absence prouvé par exécution réelle :
+
+```
+$ DOCKER_HOST=unix:///tmp/absent-docker.sock pnpm e2e:studio-auth
+✖ Docker est requis (Postgres/Redis/GoTrue jetables) et `docker info` échoue : … connect: no such file or directory.
+  → scripts/e2e-studio-auth.mjs:103
+EXIT_A=1
+```
+
+Deux runs réels depuis un état propre (aucun conteneur `qoefi-m-*`, ports 55439/6385/54321 libres) :
+
+```
+$ pnpm e2e:studio-auth
+▶ Parcours studio authentifié (Supabase déclaré : http://127.0.0.1:54321)
+[studio authentifié] réseau : 209 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token?grant_type=password
+  ✓  1 [studio] › e2e/studio-auth-journey.spec.ts:40:7 › Studio authentifié — parcours réel (57.0s)
+  1 passed (1.4m)
+✅ Parcours studio authentifié vert, pile jetable démontée.
+
+$ NEXT_PUBLIC_SUPABASE_URL=http://116.203.158.47:54321 pnpm e2e:studio-auth
+▶ Parcours studio authentifié (Supabase déclaré : http://116.203.158.47:54321)
+[studio authentifié] réseau : 209 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token?grant_type=password
+  1 passed (45.5s)
+```
+
+Même avec le `.env` pointé sur le VPS, le seul appel Supabase du parcours reste `127.0.0.1:54321` : **0 requête vers
+`116.203.158.47`**.
+
+**Flake réel trouvé en rejouant `oauth-consent` (corrigé au passage).** Deux runs rouges d’affilée sur base **fraîche** :
+`Error: GoTrue signup 500`, avec côté GoTrue
+`duplicate key value violates unique constraint "users_email_partial_key" (SQLSTATE 23505)` sur `POST /signup`. Cause
+lue dans le code : `e2e/oauth-consent.spec.ts` créait `consent.e2e@qoe.fi` dans un `beforeAll`, rejoué par **chaque
+worker** — deux workers signaient le même email en même temps, GoTrue répondant 500 au lieu de 422 (seul code
+toléré par le spec). Correctif à la source : `test.describe.configure({ mode: 'serial' })` (même remède que
+`tenants-legal` au L20k) → **2 passed (50.7s)** puis **2 passed (49.2s)**, deux runs consécutifs. Non-régression : `pnpm lint` 0 · `pnpm typecheck` 0 · `pnpm test` 0 · `pnpm typecheck:root` 0 ·
+les 10 gardes CI 0 · `playwright --config playwright.apps.config.ts` **83 passed / 2 skipped**, exit 0 ·
+`--project=oauth-consent` **2 passed**. Les 2 `skipped` restants sont `studio.spec.ts` (dashboard) et
+`admin-legal.spec.ts`, portes `RUN_FULL_STACK` préexistantes, hors du périmètre de ce lot.
 
 **Dette de rejouabilité (documentée, sans changement de code).** Premier `test:api` du lot sur la base de test
 **persistante** : `TESTAPI_EXIT=1`, `internal/modules/imports` en échec —

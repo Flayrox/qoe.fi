@@ -638,6 +638,64 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+  # Preuve réseau du studio AUTHENTIFIÉ (lot L20m). Un seul chemin :
+  # `pnpm e2e:studio-auth` (scripts/e2e-studio-auth.mjs), qui monte lui-même
+  # Postgres/Redis/GoTrue jetables, lance `e2e/studio-auth-journey.spec.ts`
+  # puis démonte tout. Sans cette commande, le spec échoue explicitement —
+  # il n'est jamais `skipped` en silence.
+  e2e-studio-auth:
+    name: E2E Studio authentifié (réseau)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile --fetch-timeout 600000
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
+
+      - name: Cache Playwright Chromium
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright Chromium
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: pnpm e2e:install
+
+      - name: Parcours studio authentifié (pile jetable incluse)
+        run: pnpm e2e:studio-auth
+        env:
+          CI: 'true'
+
+      - name: Upload Playwright Report (studio-auth)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-studio-auth
+          path: playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
+
   e2e-apps:
     name: E2E Apps (${{ matrix.app }})
     runs-on: ubuntu-latest

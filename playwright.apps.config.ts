@@ -162,6 +162,10 @@ export default defineConfig({
       name: 'studio',
       use: { ...devices['Desktop Chrome'], baseURL: STUDIO_URL },
       testMatch: [/studio\.spec\.ts/, /studio-.*\.spec\.ts/],
+      // Le parcours authentifié exige Postgres/Redis/GoTrue + core : hors de
+      // `RUN_FULL_STACK=1` il n'est pas collecté du tout (pas de `skipped`
+      // silencieux), et c'est `pnpm e2e:studio-auth` qui le lance.
+      testIgnore: RUN_FULL_STACK ? [] : [/studio-auth-journey\.spec\.ts/],
     },
     {
       name: 'admin',
