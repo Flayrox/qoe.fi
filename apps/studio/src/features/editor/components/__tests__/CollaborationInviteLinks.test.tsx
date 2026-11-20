@@ -91,6 +91,20 @@ describe('CollaborationInviteLinks', () => {
     await waitFor(() => expect(screen.queryByText(/active-token/)).not.toBeInTheDocument());
   });
 
+  it('n’annonce pas une copie réussie quand le presse-papiers refuse', async () => {
+    listMock.mockResolvedValue({ ok: true, data: { links: [activeLink] } });
+    writeText.mockRejectedValueOnce(new Error('permission refusée'));
+    render(<Harness />);
+
+    await screen.findByText(/active-token/);
+    fireEvent.click(screen.getByRole('button', { name: 'Copier le lien' }));
+
+    // L'échec doit être visible : annoncer « copié » sans rien avoir copié
+    // laisse l'auteur coller un contenu obsolète ailleurs.
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/copie impossible/i));
+    expect(writeText).toHaveBeenCalledTimes(1);
+  });
+
   it('crée un lien, affiche son URL et permet de la copier', async () => {
     render(<Harness />);
 

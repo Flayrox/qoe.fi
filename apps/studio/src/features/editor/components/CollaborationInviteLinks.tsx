@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, Clock, Copy, Link2, Loader2, Trash2, Users } from 'lucide-react';
 import {
   createCollaborationInviteLinkAction,
@@ -79,6 +79,8 @@ export function CollaborationInviteLinks({
   const [linkExpiresIn, setLinkExpiresIn] = useState(24);
   const [linkMaxUses, setLinkMaxUses] = useState(1);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState<string | null>(null);
+  const copiedTimerRef = useRef<number | null>(null);
   const [latestCreatedUrl, setLatestCreatedUrl] = useState<string | null>(null);
 
   const fetchLinks = useCallback(async () => {
@@ -96,6 +98,13 @@ export function CollaborationInviteLinks({
   useEffect(() => {
     if (open) fetchLinks();
   }, [open, fetchLinks]);
+
+  useEffect(
+    () => () => {
+      if (copiedTimerRef.current !== null) window.clearTimeout(copiedTimerRef.current);
+    },
+    []
+  );
 
   const handleOpenChange = (nextOpen: boolean) => {
     onOpenChange(nextOpen);
@@ -127,10 +136,23 @@ export function CollaborationInviteLinks({
     }
   };
 
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
+  const copyToClipboard = async (text: string, id: string) => {
+    try {
+      // `writeText` échoue sans contexte sécurisé ou sans permission : annoncer
+      // « Copié. » sans attendre la promesse laissait l'auteur coller autre chose.
+      await navigator.clipboard.writeText(text);
+    } catch {
+      setCopiedId(null);
+      setCopyError('Copie impossible. Sélectionnez le lien et copiez-le manuellement.');
+      return;
+    }
+    setCopyError(null);
     setCopiedId(id);
-    window.setTimeout(() => setCopiedId(null), 2000);
+    if (copiedTimerRef.current !== null) window.clearTimeout(copiedTimerRef.current);
+    copiedTimerRef.current = window.setTimeout(() => {
+      copiedTimerRef.current = null;
+      setCopiedId(null);
+    }, 2000);
   };
 
   return (
@@ -148,6 +170,14 @@ export function CollaborationInviteLinks({
         </DialogHeader>
 
         <DialogBody className="space-y-5 pr-1">
+          {copyError && (
+            <p
+              role="alert"
+              className="rounded-control border border-destructive/30 bg-destructive/10 p-2.5 text-[11px] text-destructive-text"
+            >
+              {copyError}
+            </p>
+          )}
           <section className="space-y-3 border-t border-border/40 pt-4">
             <h3 className="text-xs font-bold tracking-wider text-foreground uppercase">
               Créer un nouveau lien
