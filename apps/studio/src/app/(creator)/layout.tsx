@@ -6,6 +6,7 @@ import { FeatureAnnouncements } from '@/features/upcoming/provider';
 import { requireUser } from '@qoe/auth/current-user';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import { getLanguage } from '@qoe/i18n/server';
+import { URLS } from '@qoe/config';
 import { fetchPendingAcceptances } from '@qoe/sdk/actions/legal';
 import { LegalConsentGate, type ConsentItem } from '@qoe/ui';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
@@ -37,12 +38,25 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // pages légales publiques, on renvoie vers le site lecteur (pages indexées,
   // avec historique des versions).
   const locale = await getLanguage();
-  const pendingConsents: ConsentItem[] = (await fetchPendingAcceptances(locale)).map((item) => ({
-    slug: item.slug,
-    title: item.title,
-    version: item.version,
-  }));
-  const legalHrefBase = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://qoe.fi'}/legal`;
+  // L'API légale est un enrichissement, pas une condition d'accès : sa panne
+  // ne doit pas mettre tout le studio en erreur (les autres appels dégradent
+  // déjà proprement). Une porte sans consentement en attente est honnête ;
+  // les consentements seront redemandés au prochain chargement réussi.
+  const pendingConsents: ConsentItem[] = await fetchPendingAcceptances(locale)
+    .then((items) =>
+      items.map((item) => ({
+        slug: item.slug,
+        title: item.title,
+        version: item.version,
+      }))
+    )
+    .catch((err) => {
+      console.warn('[dashboard] consentements légaux indisponibles:', err);
+      return [] as ConsentItem[];
+    });
+  // Origine unique du dépôt : `process.env.NEXT_PUBLIC_APP_URL` n'est pas
+  // lue par le studio et figeait `https://qoe.fi` partout.
+  const legalHrefBase = `${URLS.APP}/legal`;
 
   // 🛡️ Le Cmd+K suit les permissions du workspace actif, comme la sidebar :
   // un viewer média ne se voit pas proposer « Rédiger un article ».
