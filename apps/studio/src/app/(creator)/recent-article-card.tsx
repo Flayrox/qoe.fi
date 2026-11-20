@@ -62,17 +62,24 @@ export function RecentArticleTile({
 
   const togglePublisher = async () => {
     setPending('publisher');
-    const res = await bulkUpdateArticlesAction({
-      ids: [article.id],
-      published: !article.published,
-    });
-    setPending(null);
-    if (!res.ok || res.data.failed.includes(article.id)) {
-      toast.error(!res.ok ? res.error.message : t`Action impossible`);
-      return;
+    try {
+      const res = await bulkUpdateArticlesAction({
+        ids: [article.id],
+        published: !article.published,
+      });
+      if (!res.ok || res.data.failed.includes(article.id)) {
+        toast.error(!res.ok ? res.error.message : t`Action impossible`);
+        return;
+      }
+      toast.success(article.published ? t`Article dépublié.` : t`Article publié.`);
+      router.refresh();
+    } catch (error) {
+      // Sans ce garde, `pending` resterait posé : spinner éternel et menu
+      // verrouillé pour cette carte.
+      toast.error(error instanceof Error ? error.message : t`Action impossible`);
+    } finally {
+      setPending(null);
     }
-    toast.success(article.published ? t`Article dépublié.` : t`Article publié.`);
-    router.refresh();
   };
 
   const handleDelete = async () => {
@@ -81,14 +88,19 @@ export function RecentArticleTile({
     );
     if (!confirmed) return;
     setPending('delete');
-    const res = await deleteArticleAction(article.id);
-    setPending(null);
-    if (!res.ok) {
-      toast.error(res.error.message);
-      return;
+    try {
+      const res = await deleteArticleAction(article.id);
+      if (!res.ok) {
+        toast.error(res.error.message);
+        return;
+      }
+      toast.success(t`Article supprimé.`);
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t`Action impossible`);
+    } finally {
+      setPending(null);
     }
-    toast.success(t`Article supprimé.`);
-    router.refresh();
   };
 
   return (

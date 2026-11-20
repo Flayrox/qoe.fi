@@ -116,9 +116,13 @@ export function OAuthAppsClient({
   };
 
   const refresh = async () => {
-    const res = await listOAuthClientsAction(workspace?.publisherId);
-    if (res.success) setClients(res.clients);
-    router.refresh();
+    try {
+      const res = await listOAuthClientsAction(workspace?.publisherId);
+      if (res.success) setClients(res.clients);
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t`Rechargement impossible.`);
+    }
   };
 
   const toggleScope = (scope: string) => {
@@ -138,42 +142,54 @@ export function OAuthAppsClient({
       return;
     }
     setCreating(true);
-    const res = await createOAuthClientAction({
-      name: name.trim(),
-      description: description.trim(),
-      homepageUrl: homepageUrl.trim(),
-      logoUrl: logoUrl.trim(),
-      redirectUris,
-      scopes: selectedScopes,
-      clientType,
-    });
-    setCreating(false);
-    if (res.success) {
-      toast.success(t`Application créée !`);
-      setName('');
-      setDescription('');
-      setHomepageUrl('');
-      setLogoUrl('');
-      setRedirectUrisText('');
-      setShowCreate(false);
-      await refresh();
-      if (res.clientSecret) {
-        setRevealed({ clientId: res.clientId, clientSecret: res.clientSecret });
+    try {
+      const res = await createOAuthClientAction({
+        name: name.trim(),
+        description: description.trim(),
+        homepageUrl: homepageUrl.trim(),
+        logoUrl: logoUrl.trim(),
+        redirectUris,
+        scopes: selectedScopes,
+        clientType,
+      });
+      if (res.success) {
+        toast.success(t`Application créée !`);
+        setName('');
+        setDescription('');
+        setHomepageUrl('');
+        setLogoUrl('');
+        setRedirectUrisText('');
+        setShowCreate(false);
+        await refresh();
+        if (res.clientSecret) {
+          setRevealed({ clientId: res.clientId, clientSecret: res.clientSecret });
+        }
+      } else {
+        toast.error(res.error || t`Échec de la création.`);
       }
-    } else {
-      toast.error(res.error || t`Échec de la création.`);
+    } catch (error) {
+      // Sans ce garde, `creating` resterait posé : bouton désactivé et spinner
+      // éternel après une simple panne réseau.
+      toast.error(error instanceof Error ? error.message : t`Échec de la création.`);
+    } finally {
+      setCreating(false);
     }
   };
 
   const handleRotate = async (client: OAuthClientDTO) => {
     setBusyId(client.id);
-    const res = await rotateOAuthClientSecretAction(client.id);
-    setBusyId(null);
-    if (res.success) {
-      setRevealed({ clientId: client.clientId, clientSecret: res.clientSecret });
-      await refresh();
-    } else {
-      toast.error(res.error || 'Rotation impossible.');
+    try {
+      const res = await rotateOAuthClientSecretAction(client.id);
+      if (res.success) {
+        setRevealed({ clientId: client.clientId, clientSecret: res.clientSecret });
+        await refresh();
+      } else {
+        toast.error(res.error || 'Rotation impossible.');
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Rotation impossible.');
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -186,13 +202,18 @@ export function OAuthAppsClient({
       return;
     }
     setBusyId(client.id);
-    const res = await deleteOAuthClientAction(client.id);
-    setBusyId(null);
-    if (res.success) {
-      setClients((prev) => prev.filter((c) => c.id !== client.id));
-      toast.success(t`Application supprimée.`);
-    } else {
-      toast.error(res.error || 'Suppression impossible.');
+    try {
+      const res = await deleteOAuthClientAction(client.id);
+      if (res.success) {
+        setClients((prev) => prev.filter((c) => c.id !== client.id));
+        toast.success(t`Application supprimée.`);
+      } else {
+        toast.error(res.error || 'Suppression impossible.');
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Suppression impossible.');
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -234,20 +255,28 @@ export function OAuthAppsClient({
 
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-foreground">
+              <label
+                htmlFor="oauth-app-name"
+                className="block text-xs font-semibold text-foreground"
+              >
                 Nom de l&apos;application <span className="text-primary">*</span>
               </label>
               <Input
+                id="oauth-app-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ex : Mon portefolio Next.js"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-foreground">
+              <label
+                htmlFor="oauth-app-homepage"
+                className="block text-xs font-semibold text-foreground"
+              >
                 URL d&apos;accueil (affichée sur l&apos;écran de consentement)
               </label>
               <Input
+                id="oauth-app-homepage"
                 value={homepageUrl}
                 onChange={(e) => setHomepageUrl(e.target.value)}
                 placeholder="https://monapp.com"
@@ -257,10 +286,14 @@ export function OAuthAppsClient({
 
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-foreground">
+              <label
+                htmlFor="oauth-app-description"
+                className="block text-xs font-semibold text-foreground"
+              >
                 Description (facultatif)
               </label>
               <Input
+                id="oauth-app-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder={t`À quoi sert votre application ?`}
@@ -284,10 +317,14 @@ export function OAuthAppsClient({
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-foreground">
+            <label
+              htmlFor="oauth-app-redirect-uris"
+              className="block text-xs font-semibold text-foreground"
+            >
               URL de redirection (une par ligne) <span className="text-primary">*</span>
             </label>
             <Textarea
+              id="oauth-app-redirect-uris"
               value={redirectUrisText}
               onChange={(e) => setRedirectUrisText(e.target.value)}
               rows={3}
