@@ -55,7 +55,10 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   // Une redirection ici quand on est déjà sur /onboarding provoquait une boucle 307 infinie.
 
   const userEmail = dbUser?.email || user?.email || '';
-  const userName = dbUser?.name || dbUser?.username || 'Lecteur';
+  // Pas de repli en dur ici : `AppSidebar` et `ReaderNavOverlay` portent déjà
+  // un défaut traduit (`t`Lecteur``). Passer la chaîne littérale depuis le
+  // serveur écrasait ce libellé et figeait le repli en français.
+  const userName = dbUser?.name || dbUser?.username || undefined;
   const userAvatar = dbUser?.logoUrl || null;
 
   return (

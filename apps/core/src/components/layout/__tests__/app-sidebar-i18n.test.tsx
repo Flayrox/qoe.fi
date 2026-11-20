@@ -76,3 +76,13 @@ describe('AppSidebar — navigation traduite', () => {
     expect(source).not.toContain('title: surface.defaultLabel');
   });
 });
+
+describe('(reader)/layout — repli du nom d’utilisateur', () => {
+  it('laisse les composants du socle appliquer leur libellé traduit', () => {
+    // Le layout passait `'Lecteur'` en dur : la valeur écrasait le défaut
+    // `t`Lecteur`` d'AppSidebar et de ReaderNavOverlay, donc le repli restait
+    // français quoi qu'il arrive.
+    const source = readFileSync(resolve(process.cwd(), 'src/app/(reader)/layout.tsx'), 'utf-8');
+    expect(source).not.toMatch(/['"]Lecteur['"]/);
+  });
+});
