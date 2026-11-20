@@ -70,7 +70,7 @@ export function TranslateClient({ articles }: { articles: TranslatableArticle[] 
       // Presse-papiers refusé (permission, contexte non sécurisé) : le dire
       // plutôt que laisser une promesse rejetée sans retour visuel.
       setCopied(false);
-      setError(t`Copie dans le presse-papiers impossible.`);
+      setError(t`Erreur lors de la copie`);
       return;
     }
     setError(null);

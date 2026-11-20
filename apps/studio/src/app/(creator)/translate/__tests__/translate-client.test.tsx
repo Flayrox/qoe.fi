@@ -82,7 +82,7 @@ describe('TranslateClient — copie', () => {
     fireEvent.click(screen.getByText('Copier'));
 
     const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toBe('Copie dans le presse-papiers impossible.');
+    expect(alert.textContent).toBe('Erreur lors de la copie');
     expect(screen.getByText('Copier')).toBeDefined();
   });
 });

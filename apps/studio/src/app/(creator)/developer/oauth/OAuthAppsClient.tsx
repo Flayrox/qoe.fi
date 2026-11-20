@@ -132,7 +132,7 @@ export function OAuthAppsClient({
       if (res.success) setClients(res.clients);
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : t`Rechargement impossible.`);
+      toast.error(error instanceof Error ? error.message : t`Réessayez dans un instant.`);
     }
   };
 

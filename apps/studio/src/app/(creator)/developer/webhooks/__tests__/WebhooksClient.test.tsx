@@ -109,7 +109,7 @@ describe('WebhooksClient — secret HMAC', () => {
     fireEvent.click(await screen.findByLabelText('Copier le secret'));
 
     await screen.findByLabelText('Copier le secret');
-    expect(errorToast).toHaveBeenCalledWith('Copie impossible.');
+    expect(errorToast).toHaveBeenCalledWith('Erreur lors de la copie');
   });
 });
 

@@ -167,7 +167,7 @@ export function WebhooksClient({
       .then(() => toast.success(t`Secret copié.`))
       // Un presse-papiers refusé laissait sinon une promesse non gérée, et le
       // secret — montré une seule fois — semblait copié.
-      .catch(() => toast.error(t`Copie impossible.`));
+      .catch(() => toast.error(t`Erreur lors de la copie`));
   };
 
   const openDeliveries = async (webhook: WebhookWithDeliveries) => {
