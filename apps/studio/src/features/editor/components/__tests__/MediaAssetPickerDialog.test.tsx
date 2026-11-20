@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MediaAssetPickerDialog } from '../MediaAssetPickerDialog';
 
 vi.mock('../../actions/media-assets', () => ({
@@ -43,6 +43,40 @@ describe('MediaAssetPickerDialog', () => {
     fireEvent.click(choice);
     expect(onSelect).toHaveBeenCalledWith(asset);
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('ignore la réponse d’une recherche périmée arrivée en retard', async () => {
+    const oldAsset = { ...asset, id: 'asset-old', sizeBytes: 2048 };
+    const chatAsset = { ...asset, id: 'asset-chat', sizeBytes: 5 * 1024 * 1024 };
+    const pendings: Array<(value: unknown) => void> = [];
+    vi.mocked(listMediaAssetsAction).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          pendings.push(resolve as (value: unknown) => void);
+        }) as never
+    );
+
+    render(<MediaAssetPickerDialog open onClose={() => undefined} onSelect={() => undefined} />);
+    // Première requête : la liste complète, à l'ouverture.
+    await waitFor(() => expect(pendings).toHaveLength(1));
+
+    fireEvent.change(screen.getByLabelText('Rechercher dans la médiathèque'), {
+      target: { value: 'chat' },
+    });
+    await waitFor(() => expect(pendings).toHaveLength(2), { timeout: 2000 });
+
+    // La recherche « chat » répond d'abord : ses résultats s'affichent.
+    await act(async () => {
+      pendings[1]({ ok: true, items: [chatAsset], nextOffset: 1, hasMore: false });
+    });
+    expect(await screen.findByText(/5 Mo/)).toBeInTheDocument();
+
+    // Puis la requête initiale répond en retard : elle ne doit rien écraser.
+    await act(async () => {
+      pendings[0]({ ok: true, items: [oldAsset], nextOffset: 1, hasMore: false });
+    });
+    expect(screen.queryByText(/2 Ko/)).not.toBeInTheDocument();
+    expect(screen.getByText(/5 Mo/)).toBeInTheDocument();
   });
 
   it('affiche une erreur sans casser le dialogue', async () => {

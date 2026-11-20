@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ImageIcon, Loader2, Search } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import {
@@ -58,8 +58,15 @@ export function MediaAssetPickerDialog({
     return () => window.clearTimeout(timer);
   }, [query]);
 
+  // Une frappe rapide lance plusieurs requêtes : sans numéro de séquence, la
+  // réponse la plus lente écrase la plus récente et l'auteur voit la liste
+  // d'une recherche qu'il a déjà remplacée.
+  const requestSeqRef = useRef(0);
+
   const load = useCallback(
     async (offset: number, append: boolean) => {
+      const requestId = requestSeqRef.current + 1;
+      requestSeqRef.current = requestId;
       setLoading(true);
       setError(null);
       const result = await listMediaAssetsAction({
@@ -68,6 +75,7 @@ export function MediaAssetPickerDialog({
         offset,
         limit: 24,
       });
+      if (requestId !== requestSeqRef.current) return;
       setLoading(false);
       if (!result.ok) {
         setError(result.error);
