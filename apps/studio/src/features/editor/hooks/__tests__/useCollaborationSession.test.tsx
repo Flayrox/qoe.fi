@@ -8,6 +8,7 @@
 // =====================================================================
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { StrictMode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 
 vi.hoisted(() => {
@@ -321,6 +322,23 @@ describe('useCollaborationSession', () => {
     // Plus aucun handler actif : un événement tardif ne met plus à jour d'état.
     expect(instance.handlers.get('status')?.size ?? 0).toBe(0);
     expect(instance.handlers.get('authenticationFailed')?.size ?? 0).toBe(0);
+  });
+
+  it('ne laisse aucun transport orphelin quand le rendu est rejoué (StrictMode)', () => {
+    // StrictMode rejoue la phase de rendu : toute ressource construite pendant
+    // le rendu est créée deux fois et seule la seconde est retenue. Un provider
+    // jeté sans `destroy()` garde sa socket, son awareness et ses abonnements.
+    const { unmount } = renderHook(() => useCollaborationSession({ roomId: 'art-1' }), {
+      wrapper: StrictMode,
+    });
+
+    expect(transport.instances.length).toBeGreaterThan(0);
+    unmount();
+
+    const orphans = transport.instances.filter(
+      (instance) => instance.destroy.mock.calls.length === 0
+    );
+    expect(orphans).toHaveLength(0);
   });
 
   it('dérive toujours la même couleur pour un utilisateur donné', () => {

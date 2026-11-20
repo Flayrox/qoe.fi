@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import * as Y from 'yjs';
 import { createClient as createSupabaseClient } from '@qoe/supabase';
@@ -62,24 +62,41 @@ export function useCollaborationSession({
   enabled = true,
   roomId,
 }: UseCollaborationSessionOptions) {
-  const collaborationDoc = useMemo(
-    () => (enabled && roomId && COLLAB_URL && typeof window !== 'undefined' ? new Y.Doc() : null),
-    [enabled, roomId]
-  );
+  // Le document et le transport sont des ressources à cycle de vie, pas des
+  // valeurs dérivées : ils naissent dans un effet pour que chaque instance
+  // jetée (rendu rejoué par StrictMode, changement de room) soit détruite par
+  // le nettoyage. Construits dans un `useMemo`, le rendu rejoué laissait une
+  // socket, un awareness et des abonnements vivants pour toujours.
+  const [session, setSession] = useState<{
+    doc: Y.Doc;
+    provider: HocuspocusProvider;
+  } | null>(null);
 
-  const collaborationProvider = useMemo(
-    () =>
-      collaborationDoc && roomId && COLLAB_URL
-        ? new HocuspocusProvider({
-            url: COLLAB_URL,
-            name: `article:${roomId}`,
-            document: collaborationDoc,
-            // JWT Supabase de la session courante — validé côté serveur.
-            token: () => getAccessToken(),
-          })
-        : null,
-    [collaborationDoc, roomId]
-  );
+  useEffect(() => {
+    if (!enabled || !roomId || !COLLAB_URL || typeof window === 'undefined') {
+      setSession(null);
+      return;
+    }
+
+    const doc = new Y.Doc();
+    const provider = new HocuspocusProvider({
+      url: COLLAB_URL,
+      name: `article:${roomId}`,
+      document: doc,
+      // JWT Supabase de la session courante — validé côté serveur.
+      token: () => getAccessToken(),
+    });
+    setSession({ doc, provider });
+
+    return () => {
+      setSession(null);
+      provider.destroy();
+      doc.destroy();
+    };
+  }, [enabled, roomId]);
+
+  const collaborationDoc = session?.doc ?? null;
+  const collaborationProvider = session?.provider ?? null;
 
   const [collabUser, setCollabUser] = useState<{ name: string; color: string } | null>(null);
   useEffect(() => {
@@ -107,16 +124,27 @@ export function useCollaborationSession({
 
   const [peerCount, setPeerCount] = useState(0);
   const [connected, setConnected] = useState(false);
-  const [status, setStatus] = useState<CollaborationStatus>(
-    collaborationProvider ? 'connecting' : 'idle'
-  );
+  const [status, setStatus] = useState<CollaborationStatus>('idle');
   const [synced, setSynced] = useState(false);
   const [unsyncedChanges, setUnsyncedChanges] = useState(0);
   const [lastError, setLastError] = useState<string | null>(null);
 
   useEffect(() => {
     const provider = collaborationProvider;
-    if (!provider) return;
+    if (!provider) {
+      setStatus('idle');
+      setConnected(false);
+      setSynced(false);
+      setPeerCount(0);
+      return;
+    }
+
+    // Transport neuf : on repart d'un état de connexion explicite.
+    setStatus('connecting');
+    setConnected(false);
+    setSynced(false);
+    setUnsyncedChanges(0);
+    setLastError(null);
 
     const handleAwareness = () => {
       const states = provider.awareness?.getStates() ?? new Map();
@@ -183,8 +211,6 @@ export function useCollaborationSession({
     collaborationProvider.disconnect();
     void collaborationProvider.connect();
   }, [collaborationProvider]);
-
-  useEffect(() => () => collaborationProvider?.destroy(), [collaborationProvider]);
 
   return {
     collaborationDoc,
