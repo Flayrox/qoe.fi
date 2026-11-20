@@ -88,3 +88,33 @@ export function getCookieDomain(hostname?: string) {
 
   return `.${activeHost}`;
 }
+
+/**
+ * Drapeau `Secure` des cookies de session : suit le **schéma de l'origine
+ * publique** (`NEXT_PUBLIC_APP_URL`), jamais `NODE_ENV` seul.
+ *
+ * 📖 Pourquoi : un build de production (`next start`, `NODE_ENV=production`)
+ *    servi en **clair** — la preuve e2e locale sur `http://lvh.me:15402`, ou un
+ *    déploiement intranet http — faisait poser `Secure` sur `http://`. Le
+ *    navigateur **jette** alors le cookie sans aucune erreur : le login
+ *    réussit (200 sur `/auth/v1/token`), puis chaque app renvoie /login en
+ *    boucle (mesuré au L20n, cookie absent de `context.cookies()`).
+ *    `NODE_ENV` dit comment le code a été compilé, pas comment la requête
+ *    arrive : le schéma de l'origine publique, lui, dit la vérité du
+ *    transport (https → `Secure` conservé en production).
+ *
+ * ⚠️ Appeler avec `process.env.NEXT_PUBLIC_APP_URL` **littéralement** au site
+ *    d'appel : Next n'inline que les accès statiques.
+ */
+export function getCookieSecure(appUrl?: string): boolean {
+  if (appUrl) {
+    try {
+      return new URL(appUrl).protocol === 'https:';
+    } catch {
+      // Origine illisible : on retombe sur l'environnement ci-dessous.
+    }
+  }
+  // Aucune origine déclarée : on ne retire jamais `Secure` à une production
+  // qui n'a pas dit sur quel schéma elle sert.
+  return process.env.NODE_ENV === 'production';
+}

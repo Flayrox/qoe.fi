@@ -105,10 +105,15 @@ test.describe('Studio authentifié — parcours réel', () => {
       // aussi « Se connecter » (violation du mode strict sinon).
       await page.getByRole('button', { name: 'Se connecter', exact: true }).click();
 
-      // Le login mot de passe de supabase-js doit produire une session réelle.
-      await page.waitForURL(new RegExp(`^${STUDIO.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/`), {
-        timeout: 45_000,
-      });
+      // Le login doit d'abord produire une session réelle : on l'exige AVANT
+      // d'attendre la redirection, sinon un cookie non partagé entre
+      // `lvh.me` (core) et `studio.lvh.me` se lit comme un simple timeout.
+      await expect
+        .poll(async () => (await context.cookies()).some((cookie) => cookie.name === COOKIE_NAME), {
+          message: `cookie de session ${COOKIE_NAME} attendu après login`,
+          timeout: 20_000,
+        })
+        .toBe(true);
       const cookies = await context.cookies();
       expect(
         cookies.some((cookie) => cookie.name === COOKIE_NAME && cookie.value.length > 20),
@@ -116,6 +121,12 @@ test.describe('Studio authentifié — parcours réel', () => {
           .map((cookie) => cookie.name)
           .join(', ')})`
       ).toBe(true);
+
+      // Puis la redirection vers le studio (le cookie doit être partagé entre
+      // l’origine du core et le sous-domaine studio).
+      await page.waitForURL(new RegExp(`^${STUDIO.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/`), {
+        timeout: 45_000,
+      });
 
       // 4. Surface authentifiée : le studio se rend pour ce créateur.
       const sidebar = page.locator('aside, nav').first();

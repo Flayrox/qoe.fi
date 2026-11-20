@@ -8,7 +8,7 @@
 'use client';
 
 import { createBrowserClient } from '@supabase/ssr';
-import { getCookieDomain } from './cookie-config';
+import { getCookieDomain, getCookieSecure } from './cookie-config';
 import { resolveSupabaseUrl } from './url';
 
 /**
@@ -33,7 +33,7 @@ export function createClient() {
       domain: getCookieDomain(),
       path: '/',
       sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: getCookieSecure(process.env.NEXT_PUBLIC_APP_URL),
     },
   });
 }

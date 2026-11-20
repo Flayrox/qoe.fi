@@ -10,7 +10,7 @@
 
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { getCookieDomain } from './cookie-config';
+import { getCookieDomain, getCookieSecure } from './cookie-config';
 import { resolveSupabaseUrl } from './url';
 
 /**
@@ -83,7 +83,7 @@ export async function updateSession(request: NextRequest) {
         domain: cookieDomain,
         path: '/',
         sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
+        secure: getCookieSecure(process.env.NEXT_PUBLIC_APP_URL),
       },
     }
   );
