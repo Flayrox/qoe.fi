@@ -42,6 +42,7 @@ import {
   SnapOverlay,
 } from './overlay/StageOverlays';
 import { useStageHotkeys } from './useStageHotkeys';
+import { applyResize, type StyleBox } from './resize-math';
 import { DevicePill } from './DevicePill';
 import { StageEditorMode } from '../engine/models';
 
@@ -105,7 +106,7 @@ export function StageCanvas({
     dir: string;
     startX: number;
     startY: number;
-    orig: Record<string, number>;
+    orig: StyleBox;
   } | null>(null);
 
   const deviceWidth = DEVICE_DIMENSIONS[device].width;
@@ -381,16 +382,9 @@ export function StageCanvas({
         if (!r) return;
         const dy = (ev.clientY - r.startY) / transform.scale;
         const dx = (ev.clientX - r.startX) / transform.scale;
-        const next: Record<string, number> = { ...r.orig };
-        if (r.dir.includes('n')) next.pt = Math.max(0, Math.min(240, r.orig.pt + dy));
-        if (r.dir.includes('s')) next.pb = Math.max(0, Math.min(240, r.orig.pb + dy));
-        if (r.dir.includes('e') || r.dir.includes('w')) {
-          const delta = r.dir.includes('e') ? -dx : -dx;
-          const base = r.orig.maxWidth || deviceWidth;
-          next.maxWidth = Math.max(320, Math.min(deviceWidth, base + delta));
-          if (next.maxWidth >= deviceWidth - 2) next.maxWidth = 0; // 0 = plein large
-        }
-        persistent.updateBlockProps(r.id, { styleBox: next });
+        persistent.updateBlockProps(r.id, {
+          styleBox: applyResize(r.dir, r.orig, { dx, dy }, deviceWidth),
+        });
       };
       const onUp = () => {
         resizeRef.current = null;
