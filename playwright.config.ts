@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 import path from 'node:path';
+import { resolveSupabaseUrl } from '@qoe/supabase/url';
 import { loadEnv } from './e2e/lib/env';
 
 const localApiEnv = loadEnv(path.join(process.cwd(), 'apps/api/.env'));
@@ -23,12 +24,16 @@ const goDatabaseUrl = (
   localApiEnv.DATABASE_URL ??
   ''
 ).split('?')[0];
-const supabaseAuthUrl =
+// Même règle d'origine que l'application et l'API Go : l'API Go lancée par
+// Playwright reçoit une origine locale, jamais le Supabase d'un `.env` de poste.
+const supabaseAuthUrl = resolveSupabaseUrl(
   process.env.SUPABASE_AUTH_URL ??
-  localApiEnv.SUPABASE_AUTH_URL ??
-  process.env.NEXT_PUBLIC_SUPABASE_URL ??
-  localApiEnv.NEXT_PUBLIC_SUPABASE_URL ??
-  '';
+    localApiEnv.SUPABASE_AUTH_URL ??
+    process.env.NEXT_PUBLIC_SUPABASE_URL ??
+    localApiEnv.NEXT_PUBLIC_SUPABASE_URL ??
+    '',
+  process.env.NEXT_PUBLIC_APP_URL
+);
 const supabaseJwtSecret =
   process.env.SUPABASE_JWT_SECRET ??
   localApiEnv.SUPABASE_JWT_SECRET ??

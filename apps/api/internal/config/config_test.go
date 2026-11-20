@@ -10,6 +10,7 @@ func clearEnv(t *testing.T) {
 	t.Helper()
 	for _, k := range []string{
 		"API_PORT", "API_DATABASE_URL", "DATABASE_URL", "SUPABASE_AUTH_URL",
+		"SUPABASE_URL", "NEXT_PUBLIC_APP_URL",
 		"NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_JWT_SECRET", "SUPABASE_SECRET_KEY",
 		"REDIS_URL", "QOE_INTERNAL_SECRET", "SUPABASE_SERVICE_ROLE_KEY",
 		"STRIPE_WEBHOOK_SECRET", "UMAMI_API_URL", "UMAMI_API_KEY",
@@ -111,6 +112,9 @@ func TestLoad_FallbackAliases(t *testing.T) {
 	clearEnv(t)
 	// API_DATABASE_URL absent → repli sur DATABASE_URL.
 	t.Setenv("DATABASE_URL", "postgres://fallback")
+	// Origine applicative de production : c'est la seule configuration où une
+	// origine Supabase distante est légitime (cf. resolveSupabaseOrigin).
+	t.Setenv("NEXT_PUBLIC_APP_URL", "https://qoe.fi")
 	// SUPABASE_AUTH_URL absent → repli NEXT_PUBLIC_SUPABASE_URL.
 	t.Setenv("NEXT_PUBLIC_SUPABASE_URL", "https://supabase.local")
 	c := Load()
@@ -174,5 +178,84 @@ func TestPoolSize(t *testing.T) {
 	t.Setenv(envKey, "")
 	if got := c.PoolSize(); got != 20 {
 		t.Errorf("PoolSize vide = %d, attendu 20 (défaut)", got)
+	}
+}
+
+// TestLoad_SupabaseOriginGuardOnLocalBuild verrouille la règle du lot L20j :
+// un process dont l'origine applicative est locale (dev, e2e) ne doit jamais
+// conserver une origine Supabase publique distante — c'est ce qui faisait
+// valider les JWT et servir le storage depuis le VPS partagé
+// (`116.203.158.47:54321`) pendant les parcours locaux.
+func TestLoad_SupabaseOriginGuardOnLocalBuild(t *testing.T) {
+	clearEnv(t)
+	t.Setenv("NEXT_PUBLIC_APP_URL", "http://localhost:15402")
+	t.Setenv("NEXT_PUBLIC_SUPABASE_URL", "http://116.203.158.47:54321")
+	t.Setenv("SUPABASE_URL", "http://116.203.158.47:54321")
+
+	c := Load()
+	if c.SupabaseAuthURL != "http://127.0.0.1:54321" {
+		t.Errorf("SupabaseAuthURL = %q, attendu le stack local sur une origine applicative locale", c.SupabaseAuthURL)
+	}
+	if c.SupabaseURL != "http://127.0.0.1:54321" {
+		t.Errorf("SupabaseURL = %q, attendu le stack local sur une origine applicative locale", c.SupabaseURL)
+	}
+}
+
+// TestResolveSupabaseOrigin couvre la règle d'origine dans les deux sens :
+// repli local sur un process de poste, valeur conservée en production.
+func TestResolveSupabaseOrigin(t *testing.T) {
+	const vps = "http://116.203.158.47:54321"
+	localTargets := []string{
+		"http://localhost:15402",
+		"http://127.0.0.1:8091",
+		"http://qoe.test:3000",
+		"http://media-clair.qoe.test",
+		"http://core.lvh.me:3010",
+	}
+	for _, app := range localTargets {
+		if got := resolveSupabaseOrigin(vps, app); got != SupabaseLocalURL {
+			t.Errorf("resolveSupabaseOrigin(%q, %q) = %q, attendu %q", vps, app, got, SupabaseLocalURL)
+		}
+		if got := resolveSupabaseOrigin("https://supabase.qoe.fi", app); got != SupabaseLocalURL {
+			t.Errorf("origine nommée distante sur cible locale = %q, attendu %q", got, SupabaseLocalURL)
+		}
+	}
+
+	// Production : la valeur fournie est honorée, y compris vers le VPS.
+	for _, prod := range []string{"https://qoe.fi", "https://admin.qoe.fi", "https://media-clair.qoe.fi"} {
+		if got := resolveSupabaseOrigin(vps, prod); got != vps {
+			t.Errorf("resolveSupabaseOrigin(%q, %q) = %q, attendu la valeur fournie", vps, prod, got)
+		}
+	}
+
+	// Une origine locale reste locale, même sur un process de production.
+	if got := resolveSupabaseOrigin("http://127.0.0.1:54321", "https://qoe.fi"); got != "http://127.0.0.1:54321" {
+		t.Errorf("origine locale sur process de production = %q", got)
+	}
+
+	// Valeurs absentes, relatives ou ambiguës : repli local, jamais propagées.
+	for _, raw := range []string{"", "   ", "supabase", "//116.203.158.47:54321", "ftp://116.203.158.47"} {
+		if got := resolveSupabaseOrigin(raw, "http://localhost:3000"); got != SupabaseLocalURL {
+			t.Errorf("resolveSupabaseOrigin(%q) = %q, attendu repli local", raw, got)
+		}
+		if got := resolveSupabaseOrigin(raw, "https://qoe.fi"); got != SupabaseLocalURL {
+			t.Errorf("valeur non-URL %q en production = %q, attendu repli local", raw, got)
+		}
+	}
+}
+
+// TestLoad_SupabaseOriginProductionKeepsValue vérifie que la garde n'écrase
+// pas la configuration de production.
+func TestLoad_SupabaseOriginProductionKeepsValue(t *testing.T) {
+	clearEnv(t)
+	t.Setenv("NEXT_PUBLIC_APP_URL", "https://qoe.fi")
+	t.Setenv("SUPABASE_AUTH_URL", "https://auth.qoe.fi")
+	t.Setenv("SUPABASE_URL", "https://storage.qoe.fi")
+	c := Load()
+	if c.SupabaseAuthURL != "https://auth.qoe.fi" {
+		t.Errorf("SupabaseAuthURL = %q", c.SupabaseAuthURL)
+	}
+	if c.SupabaseURL != "https://storage.qoe.fi" {
+		t.Errorf("SupabaseURL = %q", c.SupabaseURL)
 	}
 }

@@ -93,6 +93,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | **durci le 2026-11-19** |
 | L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; prochain = L20c3 |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
+| L20j    | **Supabase serveur à serveur gardé + stack e2e réparée (cache Turbopack, dérivation Go)** | `apps/api/internal/config/{config.go,supabase_origin.go,config_test.go}`, 5 `next.config.ts`, `playwright.config.ts`, `e2e/lib/env.ts` | 2026-11-20 : garde Go rouge→vert citée, `oauth-consent` **2/2**, tenants **13/13**, disque **15→41 GiB**, toutes gardes CI vertes |
 | L20i    | **Supabase local : aucune page servie en local ne peut viser le Supabase partagé** | `packages/supabase/src/{url.ts,client.ts,server.ts,middleware.ts,storage.ts}`, 7 lecteurs d'app/SDK, `__tests__/url.test.ts` | mesuré le 2026-11-20 : avant **1 requête** `POST /auth/v1/otp` vers `116.203.158.47:54321`, après **0** (→ `127.0.0.1:54321`) ; supabase **57 tests**, tenants e2e **13/13**, build prod **exit 0** |
 | L20h    | **Analytics local : aucun build dev/test/e2e ne peut viser l'infra partagée** | `packages/analytics/src/{client.tsx,script-url.ts,__tests__/script-url.test.ts}`, `e2e/tenants*.spec.ts` | mesuré le 2026-11-20 : avant **2 requêtes** vers `116.203.158.47`, après **0** ; tenants e2e **13/13** — voir fiche L20h (dans L20g) |
 | L20g    | **E2E apps (tenants/studio/admin) + matrice de routes + `public-feed-capture`** | `e2e/*.spec.ts`, `playwright.config.ts`, `.github/workflows/ci.yml` | mesuré le 2026-11-20 : `e2e-apps` **25/25**, `e2e-apps-routes` **53/53**, `api-access-control` **2/2 (projet isolé)**, `public-web` **12/12** — voir fiche L20g |
@@ -1662,11 +1663,98 @@ CLI 3.1.0 → `720h`), deux échecs distincts, tous deux du harnais et non du co
    in string { code: 'GenericFailure' }` → `Process from config.webServer was not able to start. Exit code: 1`.
    Reste donc **non vérifié** : le parcours de consentement complet n’a pas été rejoué vert.
 
-Non vérifié / hors périmètre, dit franchement : `apps/api/internal/config/config.go:119-120` dérive
-`SUPABASE_AUTH_URL`/`SUPABASE_URL` de la même variable sans garde — c’est du serveur à serveur, jamais déclenché
-par une page, et le garder exige des clés (anon/JWT) locales cohérentes avec GoTrue local : lot dédié. Le
-`webServer` Playwright ci-dessus échoue encore (état de persistance), donc `oauth-consent` et les specs qui en
-dépendent restent à rejouer.
+Les deux points restés ouverts ici — la dérivation Go de `SUPABASE_URL`/`SUPABASE_AUTH_URL` et le `webServer`
+Playwright — sont traités au lot suivant, **L20j** (ci-dessous) : `oauth-consent` s’exécute désormais réellement.
+
+**Supabase en serveur à serveur + stack e2e réparée (L20j).** Deux trous restants, chacun réparé à la source.
+
+**1) Dérivation Go sans garde d’origine.** `apps/api/internal/config/config.go:119-120` :
+
+```go
+SupabaseAuthURL: envOr("SUPABASE_AUTH_URL", envOr("NEXT_PUBLIC_SUPABASE_URL", "")),
+SupabaseURL:     envOr("SUPABASE_URL", envOr("NEXT_PUBLIC_SUPABASE_URL", "")),
+```
+
+Aucune règle : un `.env` de poste visant `http://116.203.158.47:54321` faisait valider les JWT (JWKS RS256 via
+`authmw.NewAuth(d.JWTSecret, d.SupabaseAuthURL)`), appeler GoTrue (`/auth/v1/user`, admin users) et servir le
+storage depuis le VPS — sans qu’aucune page n’intervienne. Rouge cité **avant** correctif :
+
+```
+--- FAIL: TestLoad_SupabaseOriginGuardOnLocalBuild (0.00s)
+    config_test.go:193: SupabaseAuthURL = "http://116.203.158.47:54321", attendu le stack local sur une origine applicative locale
+    config_test.go:196: SupabaseURL = "http://116.203.158.47:54321", attendu le stack local sur une origine applicative locale
+FAIL	github.com/qoefi/api/internal/config	0.506s
+```
+
+Correctif : `apps/api/internal/config/supabase_origin.go` — `resolveSupabaseOrigin(raw, appOrigin)`,
+`SupabaseLocalURL = http://127.0.0.1:54321`, `AppOrigin()` (défaut `http://localhost:3000`, même défaut que
+`BILLING_RETURN_BASE_URL`) — branché dans `Load()`. Mêmes règles que le résolveur TS : boucle locale/dev conservée,
+distante repliée sur le local quand l’origine applicative est locale, honorée en production, non-URL repliée.
+`TestLoad_FallbackAliases` fixe maintenant une origine applicative de production : il continue de vérifier l’alias
+`SUPABASE_AUTH_URL` → `NEXT_PUBLIC_SUPABASE_URL`, sans quoi il testerait l’ancien comportement non gardé.
+Contrôle dans les deux sens, cité :
+
+```
+=== garde neutralisée ===
+--- FAIL: TestLoad_SupabaseOriginGuardOnLocalBuild …
+--- FAIL: TestResolveSupabaseOrigin (0.00s)
+    resolveSupabaseOrigin("http://116.203.158.47:54321", "http://localhost:15402") = "http://116.203.158.47:54321", attendu "http://127.0.0.1:54321"
+=== garde restaurée ===
+ok  	github.com/qoefi/api/internal/config	0.334s
+```
+
+**2) `webServer` Playwright mort au démarrage.** `DEBUG=pw:webserver` a montré que le process fautif est **core**,
+avec l’erreur de Turbopack :
+
+```
+[WebServer] ▲ Next.js 16.2.6 (Turbopack)
+[WebServer] Creating turbopack project { dir: '.../apps/core', testMode: true }
+[WebServer] [Error: Failed to open database
+[WebServer] Caused by:
+[WebServer]     0: Loading persistence directory failed
+[WebServer]     1: invalid digit found in string] { code: 'GenericFailure' }
+```
+
+Cause racine : le cache persistant Turbopack en dev (`.next/dev/cache/turbopack`, RocksDB `.sst`) — **19 Go**
+mesurés pour `apps/core` (3–5 Go par autre app, disque à 99 % avec 15 GiB libres), empoisonné par des `next dev`
+interrompus. Next 16 n’élague pas ce cache (issue vercel/next.js#94915) et un cache corrompu fait échouer le boot
+(#96093, #93251) : `invalid digit found in string` est la lecture du manifeste corrompu. Correctif :
+`experimental.turbopackFileSystemCacheForDev: false` dans les cinq `next.config.ts` (le cache de **build**
+`turbopackFileSystemCacheForBuild` reste actif, il ne bloque pas le démarrage), plus purge des caches empoisonnés.
+Mesure : **15 GiB → 41 GiB** de disque libre, `apps/core/.next` **20 Go → 609 Mo**.
+
+**3) Règle unique côté harnais.** `e2e/lib/env.ts` (`SUPABASE_URL`, donc le nom de cookie et les fixtures GoTrue) et
+`playwright.config.ts` (`supabaseAuthUrl` transmis à l’API Go) passent désormais par `@qoe/supabase/url`
+(`resolveSupabaseUrl`) : un `.env` de poste ne peut plus faire créer de session réelle sur la production depuis les
+fixtures.
+
+**4) Mesures et exécutions réelles** — `.env`/env **volontairement** en VPS
+(`NEXT_PUBLIC_SUPABASE_URL=http://116.203.158.47:54321`) avec `NEXT_PUBLIC_APP_URL` local, sur la stack locale
+jetable (Postgres 55438, Redis 6384, GoTrue `supabase start` :54321) :
+
+```
+# navigateur, /login de core
+PROBE_SUPABASE_REQUESTS 1
+SUPABASE http://127.0.0.1:54321/auth/v1/otp?redirect_to=http%3A%2F%2F127.0.0.1%3A3010%2Fauth%2Fcallback…
+PROBE_VPS_REQUESTS 0
+
+# serveur : GoTrue LOCAL pendant le parcours de consentement
+{"path":"/token","method":"POST","status":200,"referer":"http://lvh.me:3010","actor_username":"consent.e2e@qoe.fi"}
+{"path":"/user","method":"GET","status":200,…}
+{"path":"/.well-known/jwks.json","method":"GET","status":200,…}
+```
+
+L’API Go, à qui Playwright passait `SUPABASE_AUTH_URL=http://116.203.158.47:54321`, a donc bien résolu le stack
+local : le parcours complet (login réel → consentement → autorisation → code échangé) est **vert**. Exécutions :
+`oauth-consent` **2 passed (33.7s)** ; `tenants` **13 passed (1.2m)** (sa spec exige `outgoingRequests == []`) ;
+`pnpm lint` **0**, `pnpm typecheck` **25/25**, `pnpm test` **0** (`@qoe/ui` 677 tests), `typecheck:root` **0**,
+10 gardes CI **0**, `go build ./...` **0**, `go test ./internal/config` **ok**, build prod `@qoe/tenants` **exit 0**.
+Au passage, `pnpm typecheck` échouait sur des **artefacts générés dupliqués** (`apps/{core,hi}/.next/types/… 2.ts`,
+6 fichiers) : purgés, 25/25.
+
+Reste non vérifié, honnêtement : le cache de **build** Turbopack (`turbopackFileSystemCacheForBuild`) reste actif —
+sa croissance n’a été mesurée que sur une build ; les autres projets e2e (studio, admin, hi, routes) n’ont pas été
+rejoués dans ce lot.
 
 **Deux flakes de la suite tenants corrigés au passage.** `tenants-legal.spec.ts` n’était pas en `mode: 'serial'` :
 ses 3 cas s’exécutaient dans 2 workers qui rejouaient le `beforeAll` en parallèle →

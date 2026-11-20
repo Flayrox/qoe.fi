@@ -8,6 +8,8 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
+import { resolveSupabaseUrl } from '@qoe/supabase/url';
+
 export function loadEnv(file: string): Record<string, string> {
   const out: Record<string, string> = {};
   let raw = '';
@@ -44,10 +46,15 @@ export const GO_API_URL = process.env.QOE_API_URL ?? 'http://localhost:8090';
 /** Secret HMAC GoTrue utilisé par l'API Go (SUPABASE_JWT_SECRET). */
 export const JWT_SECRET = resolve('SUPABASE_JWT_SECRET', resolve('SUPABASE_SECRET_KEY', ''));
 
-/** URL Supabase (résolution du nom de cookie sb-<host>-auth-token). */
-export const SUPABASE_URL = resolve(
-  'NEXT_PUBLIC_SUPABASE_URL',
-  resolve('SUPABASE_AUTH_URL', 'http://127.0.0.1:54321')
+/**
+ * URL Supabase des fixtures (résolution du nom de cookie sb-<host>-auth-token).
+ * ⚠️ Passe par la même règle que l'application (`@qoe/supabase/url`) : un `.env`
+ * de poste qui vise le VPS ne doit pas faire créer de sessions réelles sur la
+ * production pendant un run local — sinon les fixtures contournent la garde.
+ */
+export const SUPABASE_URL = resolveSupabaseUrl(
+  resolve('NEXT_PUBLIC_SUPABASE_URL', resolve('SUPABASE_AUTH_URL', 'http://127.0.0.1:54321')),
+  process.env.NEXT_PUBLIC_APP_URL
 );
 
 /** Nom du cookie de session supabase-js (sb-<hostname-label>-auth-token). */

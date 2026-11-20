@@ -109,6 +109,9 @@ type Config struct {
 }
 
 func Load() *Config {
+	// Origine applicative du process : décide si une origine Supabase distante
+	// est légitime (production) ou doit être repliée sur le stack local.
+	appOrigin := AppOrigin()
 	return &Config{
 		// Port dédié à l'API Go (API_PORT), indépendant du PORT des apps web.
 		// Évite la collision avec le Next.js web (3000) et avec « Soneph » (8080).
@@ -116,8 +119,8 @@ func Load() *Config {
 		// API_DATABASE_URL : DSN sans paramètres réservés à Prisma (ex: ?schema=public)
 		// que pgx enverrait comme startup parameters (refusés par Postgres).
 		DatabaseURL:            envOr("API_DATABASE_URL", envOr("DATABASE_URL", "")),
-		SupabaseAuthURL:        envOr("SUPABASE_AUTH_URL", envOr("NEXT_PUBLIC_SUPABASE_URL", "")),
-		SupabaseURL:            envOr("SUPABASE_URL", envOr("NEXT_PUBLIC_SUPABASE_URL", "")),
+		SupabaseAuthURL:        resolveSupabaseOrigin(envOr("SUPABASE_AUTH_URL", envOr("NEXT_PUBLIC_SUPABASE_URL", "")), appOrigin),
+		SupabaseURL:            resolveSupabaseOrigin(envOr("SUPABASE_URL", envOr("NEXT_PUBLIC_SUPABASE_URL", "")), appOrigin),
 		SupabaseServiceRoleKey: envOr("SUPABASE_SERVICE_ROLE_KEY", ""),
 		APIKeyRateLimit:        envInt("API_KEY_RATE_LIMIT", 600),
 		JWTSecret:              envOr("SUPABASE_JWT_SECRET", envOr("SUPABASE_SECRET_KEY", "")),

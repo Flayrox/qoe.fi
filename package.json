@@ -124,10 +124,11 @@
   },
   "devDependencies": {
     "@lingui/cli": "^6.6.0",
-    "@qoe/tsconfig": "workspace:*",
     "@lingui/format-po": "6.6.0",
     "@lingui/swc-plugin": "^6.6.0",
     "@playwright/test": "^1.62.1",
+    "@qoe/supabase": "workspace:*",
+    "@qoe/tsconfig": "workspace:*",
     "@types/node": "^20.19.43",
     "@vitest/coverage-v8": "^4.1.7",
     "eslint": "^9",

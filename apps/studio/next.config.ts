@@ -13,6 +13,13 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   experimental: {
     swcPlugins: [linguiMacroSwcPlugin()],
+    // 🧹 Sans ce garde-fou, Turbopack met son graphe en cache dans
+    // `.next/dev/cache/turbopack` (RocksDB) : 19 Go mesurés pour core, sans
+    // élagage, et un cache empoisonné par un `next dev` interrompu faisait
+    // échouer le démarrage suivant (`Loading persistence directory failed` /
+    // `invalid digit found in string`) — donc toute la stack e2e. Le cache de
+    // build (`turbopackFileSystemCacheForBuild`) reste actif.
+    turbopackFileSystemCacheForDev: false,
   },
   allowedDevOrigins: [
     'localhost',

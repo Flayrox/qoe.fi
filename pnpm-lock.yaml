@@ -30,6 +30,9 @@ importers:
       '@playwright/test':
         specifier: ^1.62.1
         version: 1.62.1
+      '@qoe/supabase':
+        specifier: workspace:*
+        version: link:packages/supabase
       '@qoe/tsconfig':
         specifier: workspace:*
         version: link:packages/tsconfig
