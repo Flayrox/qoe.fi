@@ -316,7 +316,10 @@ export function CompositionSpecimen() {
             aria-label="Alignement du texte"
             selectionMode="single"
             selectedKeys={alignment}
-            onSelectionChange={(keys) => setAlignment(keys as Set<string>)}
+            onSelectionChange={(keys) => {
+              // Les ids sont des chaînes : on convertit `Key` sans mentir au type.
+              setAlignment(new Set(Array.from(keys, String)));
+            }}
           >
             <ToggleButton id="left" aria-label="Aligner à gauche">
               <AlignLeft />

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { CalendarDate, type DateValue } from '@internationalized/date';
+import type { RangeValue } from 'react-aria-components';
 import { Calendar } from '@qoe/ui/calendar';
 import { DateField, DatePicker, DateRangePicker, TimeField } from '@qoe/ui/date-picker';
 import { DefectList, Variant } from '../specimen-frame';
@@ -10,7 +11,7 @@ const march2026 = new CalendarDate(2026, 3, 12);
 
 export function DatesSpecimen() {
   const [day, setDay] = useState<DateValue | null>(march2026);
-  const [range, setRange] = useState<{ start: DateValue; end: DateValue } | null>({
+  const [range, setRange] = useState<RangeValue<DateValue> | null>({
     start: new CalendarDate(2026, 3, 2),
     end: new CalendarDate(2026, 3, 9),
   });
@@ -59,11 +60,7 @@ export function DatesSpecimen() {
             defaultValue={march2026}
             minValue={new CalendarDate(2026, 1, 1)}
           />
-          <DateRangePicker
-            label="Période des statistiques"
-            value={range as never}
-            onChange={(next) => setRange(next as never)}
-          />
+          <DateRangePicker label="Période des statistiques" value={range} onChange={setRange} />
           <TimeField label="Heure d’envoi" />
         </div>
 
