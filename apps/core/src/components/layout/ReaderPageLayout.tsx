@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { t } from '@lingui/core/macro';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@qoe/utils';
@@ -47,8 +48,7 @@ export function ReaderPageLayout({
               )}
 
               <p className="text-sm sm:text-base text-foreground/80 font-medium leading-relaxed max-w-xl">
-                Plateforme de lecture, d&apos;écriture et d&apos;échanges créateurs. Le flux
-                glissant ci-dessous réunit articles longs et micro-posts en une expérience unifiée.
+                {t`Plateforme de lecture, d'écriture et d'échanges créateurs. Le flux glissant ci-dessous réunit articles longs et micro-posts en une expérience unifiée.`}
               </p>
 
               {headerWidgets && <div className="w-full pt-2">{headerWidgets}</div>}
