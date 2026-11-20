@@ -1425,6 +1425,9 @@ msgstr "Aucun événement pour l'instant."
 #~ msgid "Aucun événement pour l'instant. La chronologie se remplit dès la première publication."
 #~ msgstr "Aucun événement pour l'instant. La chronologie se remplit dès la première publication."
 
+msgid "Aucun message pour l'instant. Dites bonjour 👋"
+msgstr "Aucun message pour l'instant. Dites bonjour 👋"
+
 msgid "Aucun mot masqué pour le moment."
 msgstr "Aucun mot masqué pour le moment."
 
@@ -1433,6 +1436,9 @@ msgstr "Aucun résultat trouvé pour"
 
 msgid "Aucun résultat trouvé."
 msgstr "Aucun résultat trouvé."
+
+msgid "Aucun résultat."
+msgstr "Aucun résultat."
 
 msgid "Aucun signet ne correspond à votre recherche « {searchQuery} »."
 msgstr "Aucun signet ne correspond à votre recherche « {searchQuery} »."
@@ -1490,6 +1496,9 @@ msgstr "Aucune citation trouvée"
 
 msgid "Aucune clé API active pour ce média."
 msgstr "Aucune clé API active pour ce média."
+
+msgid "Aucune conversation."
+msgstr "Aucune conversation."
 
 msgid "Aucune demande en attente."
 msgstr "Aucune demande en attente."
@@ -2025,6 +2034,9 @@ msgstr "Charger plus d'articles"
 msgid "Charger plus de pensées"
 msgstr "Charger plus de pensées"
 
+msgid "Chercher un membre…"
+msgstr "Chercher un membre…"
+
 msgid "Choisir dans la médiathèque"
 msgstr "Choisir dans la médiathèque"
 
@@ -2448,6 +2460,12 @@ msgstr "Contrôles sociaux"
 
 msgid "Contrôlez qui a le droit de vous inviter comme co-auteur sur un article."
 msgstr "Contrôlez qui a le droit de vous inviter comme co-auteur sur un article."
+
+msgid "Conversation impossible à créer"
+msgstr "Conversation impossible à créer"
+
+msgid "Conversation vide"
+msgstr "Conversation vide"
 
 msgid "Cookies"
 msgstr "Cookies"
@@ -3262,6 +3280,9 @@ msgstr "Écrire un article"
 msgid "Écrire un message"
 msgstr "Écrire un message"
 
+msgid "Écrire un message…"
+msgstr "Écrire un message…"
+
 msgid "Écrire, c'est d'abord creuser..."
 msgstr "Écrire, c'est d'abord creuser..."
 
@@ -3575,6 +3596,9 @@ msgstr "Envoyer via Chat"
 
 msgid "Envoyez directement vos travaux à vos abonnés par e-mail en un clic via notre infrastructure intégrée. Les e-mails reprennent fidèlement votre style, votre logo, et vos couleurs d'accentuation, sans publicité additionnelle."
 msgstr "Envoyez directement vos travaux à vos abonnés par e-mail en un clic via notre infrastructure intégrée. Les e-mails reprennent fidèlement votre style, votre logo, et vos couleurs d'accentuation, sans publicité additionnelle."
+
+msgid "Envoyez votre premier message à un membre de la communauté."
+msgstr "Envoyez votre premier message à un membre de la communauté."
 
 msgid "Épinglé"
 msgstr "Épinglé"
@@ -4157,6 +4181,9 @@ msgstr "Hetzner, en Allemagne. Scaleway, en France. OVH, à Roubaix. Des datacen
 msgid "Heure"
 msgstr "Heure"
 
+msgid "hier"
+msgstr "hier"
+
 #~ msgid "Histoire Premium"
 #~ msgstr "Histoire Premium"
 
@@ -4354,6 +4381,9 @@ msgstr "Impossible de changer l’email."
 msgid "Impossible de changer le mot de passe."
 msgstr "Impossible de changer le mot de passe."
 
+msgid "Impossible de charger cette conversation."
+msgstr "Impossible de charger cette conversation."
+
 msgid "Impossible de charger l'historique."
 msgstr "Impossible de charger l'historique."
 
@@ -4386,6 +4416,9 @@ msgstr "Impossible de charger les versions."
 
 msgid "Impossible de charger vos contrôles sociaux."
 msgstr "Impossible de charger vos contrôles sociaux."
+
+msgid "Impossible de charger vos conversations."
+msgstr "Impossible de charger vos conversations."
 
 msgid "Impossible de charger vos facteurs."
 msgstr "Impossible de charger vos facteurs."
@@ -5765,6 +5798,9 @@ msgstr "Nous soutenir"
 msgid "Nouveau brouillon"
 msgstr "Nouveau brouillon"
 
+msgid "Nouveau message"
+msgstr "Nouveau message"
+
 msgid "Nouveau message direct"
 msgstr "Nouveau message direct"
 
@@ -6878,6 +6914,9 @@ msgstr "Recevoir un lien magique"
 #~ msgid "Recherche"
 #~ msgstr "Recherche"
 
+msgid "Recherche de membres impossible pour le moment."
+msgstr "Recherche de membres impossible pour le moment."
+
 msgid "Recherche des versions disponibles…"
 msgstr "Recherche des versions disponibles…"
 
@@ -7664,6 +7703,9 @@ msgstr "Sélectionnez d'abord un passage de texte à annoter."
 
 msgid "Sélectionnez une catégorie pour la modifier ici, sans quitter la page."
 msgstr "Sélectionnez une catégorie pour la modifier ici, sans quitter la page."
+
+msgid "Sélectionnez une conversation — ou lancez-en une nouvelle avec le bouton ci-dessus."
+msgstr "Sélectionnez une conversation — ou lancez-en une nouvelle avec le bouton ci-dessus."
 
 msgid "Sélectionnez une image pour renseigner sa légende."
 msgstr "Sélectionnez une image pour renseigner sa légende."
@@ -8583,8 +8625,8 @@ msgstr "URL du profil {platformLabel}"
 msgid "Utile"
 msgstr "Utile"
 
-#~ msgid "Utilisateur"
-#~ msgstr "Utilisateur"
+msgid "Utilisateur"
+msgstr "Utilisateur"
 
 msgid "Utilisateur bloqué."
 msgstr "Utilisateur bloqué."
@@ -8798,8 +8840,14 @@ msgstr "Voir moins de contenu comme ça ?"
 msgid "Voir tout"
 msgstr "Voir tout"
 
+msgid "Vos conversations privées et échanges directs."
+msgstr "Vos conversations privées et échanges directs."
+
 msgid "Vos lectures sauvegardées, citations et réflexions personnelles."
 msgstr "Vos lectures sauvegardées, citations et réflexions personnelles."
+
+msgid "Vos messages privés"
+msgstr "Vos messages privés"
 
 msgid "Vos modifications restent dans le document local et seront fusionnées à la reconnexion."
 msgstr "Vos modifications restent dans le document local et seront fusionnées à la reconnexion."
@@ -8921,6 +8969,10 @@ msgstr "Voulez-vous vraiment supprimer ce commentaire ?"
 
 msgid "Voulez-vous vraiment supprimer cette pensée et son contenu ?"
 msgstr "Voulez-vous vraiment supprimer cette pensée et son contenu ?"
+
+#. placeholder {0}: c.lastMessage.content
+msgid "Vous : {0}"
+msgstr "Vous : {0}"
 
 msgid "vous a envoyé une demande d'abonnement"
 msgstr "vous a envoyé une demande d'abonnement"

@@ -20,6 +20,7 @@ import {
 import { searchUsersAction } from '@qoe/sdk/actions/feed';
 import type { Conversation, DirectMessage } from '@qoe/sdk';
 import { SafeAvatar } from '@qoe/ui';
+import { t } from '@lingui/core/macro';
 
 type SearchedUser = {
   id: string;
@@ -33,7 +34,7 @@ const POLL_CONVERSATIONS_MS = 6000;
 const POLL_MESSAGES_MS = 4000;
 
 function displayName(c: Conversation): string {
-  return c.participant.name || c.participant.username || 'Utilisateur';
+  return c.participant.name || c.participant.username || t`Utilisateur`;
 }
 
 function handle(c: Conversation): string {
@@ -48,7 +49,7 @@ function formatTime(iso: string): string {
   if (sameDay) return time;
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
-  if (d.toDateString() === yesterday.toDateString()) return 'hier';
+  if (d.toDateString() === yesterday.toDateString()) return t`hier`;
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }
 
@@ -95,7 +96,7 @@ export function MessagesApp() {
       // Sans cela, un premier chargement en échec laissait le spinner pour
       // toujours : l'état d'erreur n'existait pas.
       setLoadingList(false);
-      if (!silent) setError('Impossible de charger vos conversations.');
+      if (!silent) setError(t`Impossible de charger vos conversations.`);
       return;
     }
     setConversations(res.data);
@@ -105,8 +106,8 @@ export function MessagesApp() {
 
   useEffect(() => {
     void refreshConversations(false);
-    const t = setInterval(() => void refreshConversations(true), POLL_CONVERSATIONS_MS);
-    return () => clearInterval(t);
+    const pollTimer = setInterval(() => void refreshConversations(true), POLL_CONVERSATIONS_MS);
+    return () => clearInterval(pollTimer);
   }, [refreshConversations]);
 
   // ─── Messages du fil sélectionné ────────────────────────────────────
@@ -122,7 +123,7 @@ export function MessagesApp() {
       setMessages(res.data.messages);
     } else {
       setMessages([]);
-      setError('Impossible de charger cette conversation.');
+      setError(t`Impossible de charger cette conversation.`);
     }
     setLoadingMessages(false);
     // Marquer lu à l'ouverture (le polling ci-dessous rappelle si besoin).
@@ -167,10 +168,10 @@ export function MessagesApp() {
       if (hasNew) markReadIfNeeded();
     };
     void tick();
-    const t = setInterval(() => void tick(), POLL_MESSAGES_MS);
+    const pollTimer = setInterval(() => void tick(), POLL_MESSAGES_MS);
     return () => {
       cancelled = true;
-      clearInterval(t);
+      clearInterval(pollTimer);
     };
     // `messages`/`conversations` sont volontairement exclus : le tick lit
     // l'état à jour via les mises à jour fonctionnelles de setMessages.
@@ -206,7 +207,7 @@ export function MessagesApp() {
       // Rollback : retire le message optimiste.
       setMessages((prev) => prev.filter((m) => m.id !== temp.id));
       setDraft(content);
-      setError(res.error?.message || 'Envoi impossible');
+      setError(res.error?.message || t`Envoi impossible`);
     } else {
       // Remplace l'optimiste par le message confirmé (le poll suivant le fait
       // aussi ; ici on corrige tout de suite l'ordre/les ids).
@@ -226,7 +227,7 @@ export function MessagesApp() {
     let cancelled = false;
     setSearching(true);
     setSearchError(null);
-    const t = setTimeout(() => {
+    const debounce = setTimeout(() => {
       void searchUsersAction(searchQuery.trim())
         .then((res) => {
           if (cancelled) return;
@@ -236,10 +237,10 @@ export function MessagesApp() {
           }
           // Un échec n'est pas « aucun résultat » : on le dit à côté du champ.
           setSearchResults([]);
-          setSearchError('Recherche de membres impossible pour le moment.');
+          setSearchError(t`Recherche de membres impossible pour le moment.`);
         })
         .catch(() => {
-          if (!cancelled) setSearchError('Recherche de membres impossible pour le moment.');
+          if (!cancelled) setSearchError(t`Recherche de membres impossible pour le moment.`);
         })
         .finally(() => {
           if (!cancelled) setSearching(false);
@@ -247,7 +248,7 @@ export function MessagesApp() {
     }, 250);
     return () => {
       cancelled = true;
-      clearTimeout(t);
+      clearTimeout(debounce);
     };
   }, [composing, searchQuery]);
 
@@ -255,7 +256,7 @@ export function MessagesApp() {
     async (user: SearchedUser) => {
       const res = await createConversationAction(user.id);
       if (!res.ok) {
-        setError(res.error?.message || 'Conversation impossible à créer');
+        setError(res.error?.message || t`Conversation impossible à créer`);
         return;
       }
       setComposing(false);
@@ -289,9 +290,9 @@ export function MessagesApp() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
       <div className="flex items-center justify-between pb-4 mb-6 border-b border-border/40">
         <div>
-          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">Messages</h1>
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">{t`Messages`}</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Vos conversations privées et échanges directs.
+            {t`Vos conversations privées et échanges directs.`}
           </p>
         </div>
         <button
@@ -299,7 +300,7 @@ export function MessagesApp() {
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/15 rounded-xl px-3.5 py-2 transition-colors cursor-pointer"
         >
           <PenLine className="w-3.5 h-3.5" />
-          Nouveau message
+          {t`Nouveau message`}
         </button>
       </div>
 
@@ -328,14 +329,14 @@ export function MessagesApp() {
                   onKeyDown={(e) => {
                     if (e.key === 'Escape') setComposing(false);
                   }}
-                  placeholder="Chercher un membre…"
+                  placeholder={t`Chercher un membre…`}
                   className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                 />
               </div>
               <div className="space-y-1 max-h-56 overflow-y-auto">
                 {searching && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground px-2 py-1.5">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Recherche…
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> {t`Recherche…`}
                   </div>
                 )}
                 {!searching &&
@@ -355,7 +356,7 @@ export function MessagesApp() {
                       />
                       <div className="min-w-0">
                         <p className="text-sm font-semibold truncate">
-                          {u.name || u.username || 'Utilisateur'}
+                          {u.name || u.username || t`Utilisateur`}
                         </p>
                         {u.username && (
                           <p className="text-xs text-muted-foreground truncate">@{u.username}</p>
@@ -372,7 +373,7 @@ export function MessagesApp() {
                   !searchError &&
                   searchQuery.trim().length >= 2 &&
                   searchResults.length === 0 && (
-                    <p className="text-xs text-muted-foreground px-2 py-1.5">Aucun résultat.</p>
+                    <p className="text-xs text-muted-foreground px-2 py-1.5">{t`Aucun résultat.`}</p>
                   )}
               </div>
             </div>
@@ -387,9 +388,9 @@ export function MessagesApp() {
             {!loadingList && conversations.length === 0 && !composing && (
               <div className="px-6 py-12 text-center text-sm text-muted-foreground space-y-2">
                 <MessageCircle className="w-8 h-8 mx-auto opacity-50" />
-                <p>Aucune conversation.</p>
+                <p>{t`Aucune conversation.`}</p>
                 <p className="text-xs">
-                  Envoyez votre premier message à un membre de la communauté.
+                  {t`Envoyez votre premier message à un membre de la communauté.`}
                 </p>
               </div>
             )}
@@ -418,8 +419,8 @@ export function MessagesApp() {
                         {c.lastMessage
                           ? c.lastMessage.senderId === c.participant.id
                             ? c.lastMessage.content
-                            : `Vous : ${c.lastMessage.content}`
-                          : handle(c) || 'Conversation vide'}
+                            : t`Vous : ${c.lastMessage.content}`
+                          : handle(c) || t`Conversation vide`}
                       </p>
                       {c.unreadCount > 0 && (
                         <span className="shrink-0 min-w-5 h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
@@ -441,9 +442,9 @@ export function MessagesApp() {
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
                 <MessageCircle className="w-8 h-8 text-primary/60" />
               </div>
-              <p className="text-sm font-medium text-foreground/70">Vos messages privés</p>
+              <p className="text-sm font-medium text-foreground/70">{t`Vos messages privés`}</p>
               <p className="text-xs text-center max-w-xs">
-                Sélectionnez une conversation — ou lancez-en une nouvelle avec le bouton ci-dessus.
+                {t`Sélectionnez une conversation — ou lancez-en une nouvelle avec le bouton ci-dessus.`}
               </p>
             </div>
           ) : (
@@ -452,7 +453,7 @@ export function MessagesApp() {
                 <button
                   onClick={() => setSelectedId(null)}
                   className="md:hidden p-1.5 -ml-1.5 rounded-lg hover:bg-muted/60"
-                  aria-label="Retour"
+                  aria-label={t`Retour`}
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </button>
@@ -473,7 +474,7 @@ export function MessagesApp() {
                 )}
                 {!loadingMessages && messages.length === 0 && (
                   <p className="text-center text-xs text-muted-foreground py-10">
-                    Aucun message pour l'instant. Dites bonjour 👋
+                    {t`Aucun message pour l'instant. Dites bonjour 👋`}
                   </p>
                 )}
                 {messages.map((m) => {
@@ -524,14 +525,14 @@ export function MessagesApp() {
                     }
                   }}
                   rows={Math.min(4, Math.max(1, draft.split('\n').length))}
-                  placeholder="Écrire un message…"
+                  placeholder={t`Écrire un message…`}
                   className="flex-1 resize-none rounded-xl border border-border/70 bg-background px-3 py-2 text-sm outline-none focus:border-primary/60 min-h-[42px] max-h-32"
                 />
                 <button
                   type="submit"
                   disabled={!draft.trim() || sending}
                   className="shrink-0 w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-40 hover:opacity-90 transition-opacity"
-                  aria-label="Envoyer"
+                  aria-label={t`Envoyer`}
                 >
                   {sending ? (
                     <Loader2 className="w-4 h-4 animate-spin" />

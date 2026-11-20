@@ -1425,6 +1425,9 @@ msgstr ""
 #~ msgid "Aucun événement pour l'instant. La chronologie se remplit dès la première publication."
 #~ msgstr ""
 
+msgid "Aucun message pour l'instant. Dites bonjour 👋"
+msgstr ""
+
 msgid "Aucun mot masqué pour le moment."
 msgstr "No muted words yet."
 
@@ -1433,6 +1436,9 @@ msgstr ""
 
 msgid "Aucun résultat trouvé."
 msgstr "No results found."
+
+msgid "Aucun résultat."
+msgstr ""
 
 msgid "Aucun signet ne correspond à votre recherche « {searchQuery} »."
 msgstr "No bookmarks match your search \"{searchQuery}\"."
@@ -1489,6 +1495,9 @@ msgid "Aucune citation trouvée"
 msgstr "No quotes found"
 
 msgid "Aucune clé API active pour ce média."
+msgstr ""
+
+msgid "Aucune conversation."
 msgstr ""
 
 msgid "Aucune demande en attente."
@@ -2025,6 +2034,9 @@ msgstr ""
 msgid "Charger plus de pensées"
 msgstr ""
 
+msgid "Chercher un membre…"
+msgstr ""
+
 msgid "Choisir dans la médiathèque"
 msgstr ""
 
@@ -2447,6 +2459,12 @@ msgid "Contrôles sociaux"
 msgstr "Social controls"
 
 msgid "Contrôlez qui a le droit de vous inviter comme co-auteur sur un article."
+msgstr ""
+
+msgid "Conversation impossible à créer"
+msgstr ""
+
+msgid "Conversation vide"
 msgstr ""
 
 msgid "Cookies"
@@ -3262,6 +3280,9 @@ msgstr ""
 msgid "Écrire un message"
 msgstr ""
 
+msgid "Écrire un message…"
+msgstr ""
+
 msgid "Écrire, c'est d'abord creuser..."
 msgstr "Writing is first about digging..."
 
@@ -3574,6 +3595,9 @@ msgstr "Send via Chat"
 #~ msgstr "Send your work directly to your subscribers by email in one click via our integrated Brevo API. The emails faithfully reflect your style, your logo, and your accent colors, with no additional advertising."
 
 msgid "Envoyez directement vos travaux à vos abonnés par e-mail en un clic via notre infrastructure intégrée. Les e-mails reprennent fidèlement votre style, votre logo, et vos couleurs d'accentuation, sans publicité additionnelle."
+msgstr ""
+
+msgid "Envoyez votre premier message à un membre de la communauté."
 msgstr ""
 
 msgid "Épinglé"
@@ -4157,6 +4181,9 @@ msgstr "Hetzner, in Germany. Scaleway, in France. OVH, in Roubaix. Datacenters w
 msgid "Heure"
 msgstr ""
 
+msgid "hier"
+msgstr ""
+
 #~ msgid "Histoire Premium"
 #~ msgstr "Premium Story"
 
@@ -4354,6 +4381,9 @@ msgstr ""
 msgid "Impossible de changer le mot de passe."
 msgstr "Unable to change the password."
 
+msgid "Impossible de charger cette conversation."
+msgstr ""
+
 msgid "Impossible de charger l'historique."
 msgstr ""
 
@@ -4386,6 +4416,9 @@ msgstr ""
 
 msgid "Impossible de charger vos contrôles sociaux."
 msgstr "Unable to load your social controls."
+
+msgid "Impossible de charger vos conversations."
+msgstr ""
 
 msgid "Impossible de charger vos facteurs."
 msgstr ""
@@ -5765,6 +5798,9 @@ msgstr "Support us"
 msgid "Nouveau brouillon"
 msgstr "New draft"
 
+msgid "Nouveau message"
+msgstr ""
+
 msgid "Nouveau message direct"
 msgstr ""
 
@@ -6878,6 +6914,9 @@ msgstr "Receive a magic link"
 #~ msgid "Recherche"
 #~ msgstr "Search"
 
+msgid "Recherche de membres impossible pour le moment."
+msgstr ""
+
 msgid "Recherche des versions disponibles…"
 msgstr ""
 
@@ -7663,6 +7702,9 @@ msgid "Sélectionnez d'abord un passage de texte à annoter."
 msgstr "First select a passage of text to annotate."
 
 msgid "Sélectionnez une catégorie pour la modifier ici, sans quitter la page."
+msgstr ""
+
+msgid "Sélectionnez une conversation — ou lancez-en une nouvelle avec le bouton ci-dessus."
 msgstr ""
 
 msgid "Sélectionnez une image pour renseigner sa légende."
@@ -8583,8 +8625,8 @@ msgstr ""
 msgid "Utile"
 msgstr "Helpful"
 
-#~ msgid "Utilisateur"
-#~ msgstr "User"
+msgid "Utilisateur"
+msgstr "User"
 
 msgid "Utilisateur bloqué."
 msgstr "User blocked."
@@ -8798,8 +8840,14 @@ msgstr "See less content like this?"
 msgid "Voir tout"
 msgstr "See all"
 
+msgid "Vos conversations privées et échanges directs."
+msgstr ""
+
 msgid "Vos lectures sauvegardées, citations et réflexions personnelles."
 msgstr "Your saved reads, quotes, and personal thoughts."
+
+msgid "Vos messages privés"
+msgstr ""
 
 msgid "Vos modifications restent dans le document local et seront fusionnées à la reconnexion."
 msgstr ""
@@ -8921,6 +8969,10 @@ msgstr "Do you really want to delete this comment?"
 
 msgid "Voulez-vous vraiment supprimer cette pensée et son contenu ?"
 msgstr "Do you really want to delete this thought and its content?"
+
+#. placeholder {0}: c.lastMessage.content
+msgid "Vous : {0}"
+msgstr ""
 
 msgid "vous a envoyé une demande d'abonnement"
 msgstr ""
