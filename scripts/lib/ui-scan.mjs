@@ -13,7 +13,7 @@
 // =====================================================================
 
 import { readdirSync, statSync, existsSync, readFileSync } from 'node:fs';
-import { join, relative, basename, extname, dirname } from 'node:path';
+import { join, relative, basename, extname, dirname, resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -167,6 +167,31 @@ export const appSources = APP_DIRS.flatMap((dir) => walk(join(ROOT, dir)))
   })
   .filter((source) => !source.path.includes('/src/app/dev/'));
 
+/**
+ * Sources des templates partagés (`packages/ui/src/templates/**`).
+ *
+ * Elles sont livrées aux lecteurs via `@qoe/ui/templates` (apps/tenants,
+ * apps/studio) : une primitive importée par un template est donc utilisée en
+ * production, même si aucune app ne l'importe directement. Sans ces sources,
+ * `CraftSidebarDrawer` était compté « jamais importé » alors qu'il compose
+ * `MinimalCraftShell`, monté par `TenantPageShell`.
+ */
+const templateSources = walk(join(ROOT, 'packages/ui/src/templates')).map((file) => {
+  const code = read(file);
+  return { path: relative(ROOT, file), code, imports: importsOf(code) };
+});
+
+/** Résout un import relatif (`'../../../ui/button'`) vers un fichier du dépôt. */
+function resolveRelativeSpec(spec, fromFile) {
+  if (!spec.startsWith('.')) return null;
+  const base = resolvePath(ROOT, dirname(fromFile), spec);
+  for (const suffix of CANDIDATE_SUFFIXES) {
+    const candidate = base + suffix;
+    if (existsSync(candidate)) return relative(ROOT, candidate);
+  }
+  return null;
+}
+
 /** Toutes les sources du repo (apps + packages), pour les fuites de moteur. */
 export function repoSources() {
   return [...walk(join(ROOT, 'apps')), ...walk(join(ROOT, 'packages'))].map((file) => {
@@ -184,9 +209,9 @@ export function countUsages(moduleFile) {
   const rel = relative(ROOT, moduleFile);
   const names = exportedNames(moduleFile);
 
-  return appSources.filter((source) =>
+  return [...appSources, ...templateSources].filter((source) =>
     source.imports.some(({ spec, names: imported }) => {
-      const target = resolveSpec(spec);
+      const target = resolveSpec(spec) ?? resolveRelativeSpec(spec, source.path);
       // Import ciblé (`@qoe/ui/input`, `@qoe/ui/ui/input`) : c'est le fichier
       // réellement chargé qui marque l'usage.
       if (target && target !== BARREL) return target === rel;
