@@ -103,7 +103,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20g    | **E2E apps (tenants/studio/admin) + matrice de routes + `public-feed-capture`** | `e2e/*.spec.ts`, `playwright.config.ts`, `.github/workflows/ci.yml` | mesuré le 2026-11-20 : `e2e-apps` **25/25**, `e2e-apps-routes` **53/53**, `api-access-control` **2/2 (projet isolé)**, `public-web` **12/12** — voir fiche L20g |
 | L20f    | **Validation locale bout en bout** : daemon Docker, `test:api`, `e2e` sur base jetable seedée | —                           | mesuré le 2026-11-20 : daemon **démarré** (OrbStack 29.4.0), `test:api` **✅ 82 paquets**, e2e **18/19 + 128/128** — voir fiche L20f |
 | L20e    | **Validation bout en bout** : `pnpm build` (6 apps), `pnpm test:api` (Go + Postgres), `pnpm e2e` (Playwright)  | —                           | mesuré le 2026-11-20 : **build ✅**, `test:api` **bloqué** (Docker absent), e2e **partiel** (seed absent) — voir fiche L20e |
-| L21     | `apps/studio/src/**`                                                                                         | **412 fichiers · 72 285 l.** (mesuré) | **ouvert le 2026-11-20**, découpé en **8 sous-lots** (L21a→L21h) ; **L21a** (socle : layout, not-found, components, lib, instrumentation) **durci le 2026-11-20** ; **R137 ouverte** ; **L21b clos le 2026-11-20** (frontière vendor/maison mesurée, **7 défauts corrigés** sur deux passages, tiroir modal accessible, **R138 ouverte** — seule dette restante du sous-lot) ; **L21c clos le 2026-11-20** (lecture intégrale des 49 fichiers de production et de leurs appelants, **6 défauts corrigés** F313–F318, **R140** et **R141** ouvertes) ; **L21d clos le 2026-11-20** (32 fichiers lus intégralement + gardes de routage, **2 défauts corrigés** F319–F320, deux échappatoires de type retirées, **R142** ouverte) ; prochain = **L21e** (`features/settings/**`) |
+| L21     | `apps/studio/src/**`                                                                                         | **412 fichiers · 72 285 l.** (mesuré) | **ouvert le 2026-11-20**, découpé en **8 sous-lots** (L21a→L21h) ; **L21a** (socle : layout, not-found, components, lib, instrumentation) **durci le 2026-11-20** ; **R137 ouverte** ; **L21b clos le 2026-11-20** (frontière vendor/maison mesurée, **7 défauts corrigés** sur deux passages, tiroir modal accessible, **R138 ouverte** — seule dette restante du sous-lot) ; **L21c clos le 2026-11-20** (lecture intégrale des 49 fichiers de production et de leurs appelants, **6 défauts corrigés** F313–F318, **R140** et **R141** ouvertes) ; **L21d clos le 2026-11-20** (32 fichiers lus intégralement + gardes de routage, **2 défauts corrigés** F319–F320, deux échappatoires de type retirées, **R142** ouverte) ; **L21e clos le 2026-11-20** (20 fichiers lus intégralement + page serveur et réutilisations, **8 défauts corrigés** F321–F328 dont 380 l. de code mort supprimées, **R143/R144/R145** ouvertes) ; prochain = **L21f** (`app/(creator)/**` hors articles/media/newsletters/analytics) |
 | L22     | `apps/admin/src/**`                                                                                          | 178 fichiers                | à auditer               |
 | L23     | `apps/tenants/src/**`                                                                                        | 85 fichiers                 | à auditer               |
 | L24     | `apps/hi/src/**`                                                                                             | 40 fichiers                 | à auditer               |
@@ -123,8 +123,15 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L21e — `features/settings/**`** (20 f. · 5 622 l. : onglets de réglages,
-formulaires et mutations d'espace). L21d (`src/app/dev/**`, 32 f. · 7 591 l.) est **clos le 2026-11-20** —
+**Prochain lot à traiter : L21f — `app/(creator)/**` hors `articles`, `media`, `newsletters`, `analytics`**
+(34 f. · 4 979 l. : dashboard, audience, import, monetization, pricing, settings, stage…). L21e
+(`features/settings/**`, 20 f. · 5 622 l. à l'ouverture) est **clos le 2026-11-20** — lecture intégrale des
+onglets, composants, actions et de la page serveur qui les monte, **8 défauts corrigés** (F321 écouteur
+`hashchange` jamais détaché + minuteurs orphelins, F322 « Voir le site » qui pointait vers la publication
+`climat`, F323 ⌘S qui enregistrait un sous-domaine annoncé comme pris, F324 invitation de collaboration figée
+après une exception, F325 « Email rédactionnel » éditable et jamais persisté, F326 libellé de note non relié,
+F327 origine écrite à la main dans `AccountLink`, F328 380 l. de composants morts), et **R143** (i18n),
+**R144** (enregistrement non transactionnel), **R145** (liaisons mortes) ouvertes. L21d (`src/app/dev/**`, 32 f. · 7 591 l.) est **clos le 2026-11-20** —
 lecture intégrale des 32 fichiers et de leurs gardes (middleware, `vitest.config`, `playwright*.config`,
 `.github/workflows/ci.yml`) et **deux défauts corrigés** (F319 : `QOE_E2E_DEV_ROUTES` ignoré par `/dev` et
 `/dev/ui-lab` alors que le banc de l'éditeur l'honorait ; F320 : filtre de l'inventaire nommé « esc » et
@@ -925,6 +932,9 @@ nommé), puis verts après restauration.
 | R138 | **Qoefi Stage n'a aucune traduction** : `grep -rc lingui apps/studio/src/features/stage` (hors vendor) → **0**. Le code maison du sous-lot porte **63 littéraux d'attributs** (`title=`, `aria-label=`, `placeholder=`) et **13 textes JSX accentués** en français dur — barre supérieure (Design/Aperçu/Enregistrer/Brouillon · Publier), dock inférieur (Sélection/Pan/Ajouter + 6 `title` de raccourcis), tiroir (Fermer le menu), canvas (Recentrer le canvas), libellés de périphériques (`Tablette`). | moyenne | **ouverte** — passible d'être fermée fichier par fichier, mais le stage est un écran unique de 5 232 l. dont les libellés sont très liés (raccourcis dans les `title`) : la conversion doit se faire dans un seul tour pour ne pas laisser un écran mi-traduit, comme R135 pour `MessagesApp`. Preuve : `grep -c lingui` = 0 sur les 26 fichiers maison, comptage des littéraux ci-dessus (mesure du 2026-11-20). Voir L21b. |
 | R139 | **L'historique du Stage est par frappe** : `StageEngineContext.updateBlockProps`/`updateNode` empilent un snapshot par appel et les curseurs de style (`useQoefiStyle.patch`) un par pixel de glissade — ⌘Z annule lettre par lettre, et une seule glissade remplit les 50 entrées. | moyenne | **ouverte** — défaut d'ergonomie d'undo, pas de perte de données : exige des transactions (ouvrir au `focus`/`pointerdown`, committer au `blur`/`pointerup`), donc une fonction, pas un correctif ponctuel. Mesure : `grep -c "setPast" context/StageEngineContext.tsx` = 12 sites d'écriture d'historique, aucun groupement. Voir L21b (second passage). |
 | R140 | **L'éditeur d'article est traduit à moitié** : le sous-lot L21c a trouvé des libellés français hors `t` dans cinq modules. Mesure du 2026-11-20 : `lib/preflight.ts` → **0** `t` (12 `label`/`detail` en dur, dont `'Le titre est requis avant de publier.'` l. 88), `extensions/PaywallDividerComponent.tsx` → **0** `t` (`« Réservé aux abonnés »` l. 21, `« Tout ce qui suit reste masqué pour les lecteurs non abonnés. »` l. 29), `components/CollaborationInviteLinks.tsx` → **0** `t` (44 libellés : rôles, durées, « Lien de collaboration », « Générer le lien d’invitation », `Permanent`), `components/ArticleAttributionEditor.tsx` → **0** `t` (rôles éditoriaux, états de consentement, « Attribution éditoriale »), `components/Editor.tsx:1812` → alerte d'alt en dur (`« N image(s) sans description alternative (alt)… »`). Le reste de l'éditeur est traduit (`MediaAssetPickerDialog` 12 `t`, `PublishModal`, `ArticleHistoryModal`, `ArticleDiffModal`…). | moyenne | **ouverte** — conversion à faire **d'un seul tour** par écran pour ne pas laisser une surface mi-traduite (précédent R135/R138) ; elle change les catalogues (`intl:extract` produit de nouveaux `msgid`), donc elle se traite dans un lot dédié, pas dans un lot de correctifs. Voir L21c. |
+| R143 | **`features/settings` n'a pas de régime de traduction** : 4 fichiers sur 18 portent du `t` (`config/settingsTree.ts` 31, `settings.tsx` 14, `tabs/seo.tsx` 11, `tabs/recommendations.tsx` 9) ; les 14 autres affichent du français dur — `tabs/general.tsx:109` (« Nom du site », « Slogan », « Police », « Couleur d’accent »), `tabs/domain.tsx:35` (« Adresse », « Sous-domaine qoefi »), `tabs/import.tsx:85`, `tabs/collaboration.tsx:103`, `components/account-security.tsx:103` (« Compte & sécurité »), `components/MediaProfilePreviewEditor.tsx`. | moyenne | **ouverte** — la conversion doit se faire d'un seul tour par écran (précédent R135/R138/R140/R142), et elle change les catalogues : lot dédié, pas un lot de correctifs. Mesure du 2026-11-20. Voir L21e. |
+| R144 | **L'enregistrement des réglages n'est pas transactionnel** : `settings.tsx` `handleSaveAll` enchaîne `updateCreatorProfileAction`, `updateSubdomainAction`, `saveNavigationLinksAction`, `saveSocialLinksAction` ; un échec au 2ᵉ appel laisse le 1ᵉ enregistré mais affiche une erreur globale et n'appelle pas `setOriginal`, donc l'écran rejoue la séquence complète. | moyenne | **ouverte** — la sortie propre est un `PATCH /v1/settings/publisher` unique et idempotent côté Go (source de vérité), pas un enchaînement mieux ordonné côté client. Mesure : `grep -c "Action({" settings.tsx` = 4 appels dans un seul `try`. Voir L21e. |
+| R145 | **Liaisons mortes et identifiants fragiles dans les réglages** : `tabs/import.tsx:200` porte `htmlFor="import-source"` alors que le `Select` n'a pas cet `id` (association morte) ; `tabs/navigation.tsx:176,199` fabriquent l'id d'un nouveau lien avec `Date.now()` (deux ajouts dans la même milliseconde partagent la clé et la même entrée `navOrder`). | faible | **ouverte** — chaque point demande un test qui observe le DOM final (nom accessible du `Select`, unicité de deux liens ajoutés) ; corrigé à l'aveugle, on remplacerait un défaut invisible par un autre. Mesure du 2026-11-20. Voir L21e. |
 | R142 | **`src/app/dev` n'a pas de régime de traduction** : `19-social-cards.tsx:674` est la **seule** chaîne sous `t` de la zone, alors que les 31 autres fichiers portent du français dur (`grep -rl "from '@lingui/core/macro'" src/app/dev` → **1** fichier ; `grep -rn "t\`" src/app/dev` → 1 occurrence). Un `msgid` de catalogue pour une page qui n'est jamais livrée, et 7 591 l. non traduites à côté. | faible | **ouverte** — la décision est un régime, pas un correctif : soit `src/app/dev` sort du catalogue (retirer la seule chaîne `t`), soit la zone se traduit entièrement (25 spécimens, changement de `msgid` sur toutes les locales). Les deux touchent les catalogues, donc un lot dédié ; aucun demi-fix posé. Mesure du 2026-11-20. Voir L21d. |
 | R141 | **L'infobulle d'annotation fuit ses minuteurs** : `Editor.tsx:921` et `Editor.tsx:1210` lancent chacun `setTimeout(() => setAnnotationToast(null), 3000)` sans conserver l'identifiant. Deux messages rapprochés (« Sélectionnez d'abord un passage », puis la note créée) partagent la même variable : le premier minuteur efface le second message au bout d'une seconde au lieu de trois, et un démontage dans la fenêtre laisse deux timers vivants. | faible | **ouverte** — le correctif propre est un petit hook `useTransientMessage` (une seule référence de timer, annulée au démontage et à chaque nouveau message) ; il n'a pas été posé dans L21c faute de rouge reproductible sans monter `Editor.tsx` entier (2 807 l., Tiptap + collaboration), ce qui aurait été une extraction déguisée en correctif. Voir L21c. |
 | R137 | Les métadonnées du studio restent figées en français : `src/app/layout.tsx` (`title: 'qoefi Studio — Creator Dashboard'`, description anglaise) et `src/app/not-found.tsx` (`'Page introuvable — Studio qoefi'`) sont des exports statiques `metadata`, donc non traduits quand la locale est `en`. | faible | **ouverte** — la sortie propre est `generateMetadata` + une traduction serveur ; `@qoe/i18n/server` expose `translateKey`/`translate`, mais l'`initI18n()` de requête et les overrides DB doivent être branchés dans le même tour pour toutes les apps (core, studio, admin, tenants), sinon on fixe le studio en laissant les autres derrière. Travail transversal à planifier, pas un correctif de deux lignes ; aucun correctif partiel posé. Preuve : `apps/studio/src/app/layout.tsx:52-64`, `apps/studio/src/app/not-found.tsx:3-9`, et `grep -rn "generateMetadata" apps/studio/src` → 0. Voir L21a. |
@@ -1524,14 +1534,119 @@ traité d'un tour, donc il est découpé ici, avec des mesures par groupe.
 | L21b | `features/stage/**` (context, left/right panels, canvas, engine, `vendor/onlook`) | 189 f. · 24 664 l. — **vendor 163 f. · 19 432 l. (79 %) / maison 26 f. · 5 232 l.** | **clos le 2026-11-20** (2 passages) · frontière vendor/maison mesurée et figée par une garde (0 import runtime), **7 défauts corrigés** (F305–F312 : raccourcis destructifs en aperçu, poignée est inversée, clear StrictMode, scope périmé après restauration, zoom à contresens, libellé de scope faux, tiroir sans sémantique de dialogue) + managers mobx morts supprimés. Seule dette restante : **R138** (stage sans aucune traduction). |
 | L21c | `features/editor/**` (dont `Editor.tsx` 2 807 l., extensions, hooks, lib) | 49 f. · 12 005 l. | **clos le 2026-11-20** · lecture intégrale (production + appelants) et **6 défauts corrigés** (F313 transport de co-édition jeté sous StrictMode, F314 réponses périmées de la médiathèque, F315/F318 copies annoncées sans avoir eu lieu, F316/F317 actions serveur sans capture qui figeaient deux modales). Dettes : **R140** (i18n partielle de l'éditeur), **R141** (minuteurs d'infobulle). |
 | L21d | `src/app/dev/**` (UI Lab, specimens, catalogue) | 32 f. · 7 591 l. | **clos le 2026-11-20** · lecture intégrale (les 32 fichiers, dont `19-social-cards` 681 l. et `18-sidebar` 341 l.) et **2 défauts corrigés** (F319 garde d'existence des routes `/dev`, F320 filtre de l'inventaire nommé « esc » et Échap inopérant) + deux `as never`/`as Set<string>` supprimés. Dette : **R142** (fixtures et libellés des pages de dev). |
-| L21e | `features/settings/**` (tabs 7/2 632, components 7/1 259, `navigation.tsx` 796) | 20 f. · 5 622 l. | **prochain** — réglages du studio : beaucoup de formulaires et de mutations, conventions déjà posées par L21a. |
-| L21f | `app/(creator)/**` hors `articles`, `media`, `newsletters`, `analytics` (34 f.) + routes annexes | 34 f. · 4 979 l. | Écrans secondaires du créateur (dashboard, audience, import, monetization, pricing, settings, stage…). |
+| L21e | `features/settings/**` (tabs 7/2 632, components 7/1 259, `navigation.tsx` 796) | 20 f. · 5 622 l. (17 f. · **5 307 l.** après F328) | **clos le 2026-11-20** · lecture intégrale des 20 fichiers + page serveur, réutilisations (`totp-enrollment`, `newsletters`) et `@qoe/config` ; **8 défauts corrigés** (F321–F328) et 380 l. de code mort supprimées. Dettes : **R143** (i18n partielle), **R144** (sauvegarde non transactionnelle), **R145** (liaisons mortes, ids `Date.now()`). |
+| L21f | `app/(creator)/**` hors `articles`, `media`, `newsletters`, `analytics` (34 f.) + routes annexes | 34 f. · 4 979 l. | **prochain** — écrans secondaires du créateur (dashboard, audience, import, monetization, pricing, settings, stage…). |
 | L21g | `app/(creator)/{articles,media,newsletters,analytics}` | 39 f. · 12 593 l. | Les quatre gros clients (`articles-client` 2 206, `MediaStudioClient` 1 669, `NewsletterClient` 1 214, `analytics/actions.ts` 729) : audités ensemble parce qu'ils partagent les mêmes conventions d'action et de toast. |
 | L21h | `features/{security,onboarding,upcoming,dashboard,developer,devtools}` (24 f. · 3 481 l.) + routes `login`/`onboarding` (3 f. · 105 l.) | 27 f. · 3 586 l. | Le reste : sécurité (step-up), onboarding, devtools. Ferme le lot. |
 
 **Somme vérifiée.** 18 + 189 + 49 + 32 + 20 + 34 + 39 + 27 = **408 fichiers** attribués. Le `find` en
 compte **412** : les 4 fichiers restants vivent dans des sous-dossiers de `src/app` non listés ci-dessus et
 seront rattachés à L21h à son ouverture (mesure refaite à ce moment-là, pas d'estimation ici).
+
+### L21e — réglages du studio : écouteurs, lien de site et écritures perdues — clos le 2026-11-20
+
+**Périmètre lu, intégralement.** 20 fichiers / **5 622 l.** mesurées à l'ouverture (17 fichiers / **5 307 l.**
+après suppression de 380 l. de code mort, plus 7 fichiers de tests / 781 l.) : `settings.tsx` (628 l.),
+`actions.ts` (200), `collaboration-actions.ts` (75), `types.ts` (166), `config/settingsTree.ts` (306), les
+**7 onglets** (`navigation` 796, `general` 449, `recommendations` 435, `import` 404, `collaboration` 240, `seo`
+187, `domain` 121), `preview.tsx` (356) et les **9 composants** (`MediaProfilePreviewEditor` 478,
+`account-security` 389, `mfa-panel` 176, `seo-preview` 137, `feature-consents` 55, les deux passerelles
+`publisher-settings`/`publisher-live-preview`) — chaque fichier lu en entier, jamais par fenêtre.
+
+**Appelants et consommateurs lus** : `app/(creator)/settings/page.tsx` (Server Component, `getActiveWorkspace`,
+contrat Go `GET /v1/settings/publisher`), `app/(creator)/settings/account-link.tsx`,
+`features/security/totp-enrollment.tsx` (réutilise `enrollAccountSecurityMfaAction`),
+`app/(creator)/newsletters/{page,NewsletterClient}.tsx` (réutilisent `get/updateEmailSettingsAction`),
+`features/upcoming/actions` (`FeatureConsents`), `lib/active-workspace`, `@qoe/config` (`URLS`,
+`resolveAppUrl`, `isReservedTenantRoute`), `@qoe/sdk/actions/dashboard` et `@qoe/sdk/actions/recommendations`.
+
+**Défauts prouvés et corrigés**
+
+| #    | Emplacement                                   | Défaut mesuré                                                                                                                                                                                                                                                             | Correctif                                                                                                     |
+| ---- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| F321 | `settings.tsx:74-79`                          | `window.addEventListener('hashchange', () => handleHashChange())` était retiré par **une autre** fonction anonyme : le listener ne quittait jamais la fenêtre, sur un écran qui se démonte à chaque navigation. Les deux `setTimeout` du défilement d'ancre n'étaient pas annulés non plus (classe `classList.remove` sur un nœud détaché après démontage). | référence nommée `handleNativeHashChange` + registre `hashTimersRef` vidé au nettoyage **et** entre deux sauts d'ancre. |
+| F322 | `settings.tsx:171-176` et `:410`            | « Voir le site » construisait son URL avec `current.subdomain \|\| 'climat'` : un espace sans sous-domaine renvoyait vers **la publication `climat`**, et `customDomain` était ignoré alors que l'onglet Domaine l'affiche.                                        | `customDomain` d'abord, puis `resolveAppUrl('tenant', …, { subdomain })` ; sans aucun des deux, bouton **désactivé** avec l'explication, jamais une fausse cible. |
+| F323 | `settings.tsx:312-325`                        | Le raccourci ⌘S gardait une fermeture figée sur `subdomainCheck` (`deps [hasChanges, isSaving, current]`) : la vérification de sous-domaine arrivant après la dernière frappe n'était jamais lue. L'écran affichait « Déjà pris. » et ⌘S enregistrait quand même (mesuré : `updateSubdomainAction` appelé, aucun message d'échec). | `saveHandlerRef` rafraîchie à chaque rendu ; le listener est posé **une fois** (`deps []`) et relit l'état courant. |
+| F324 | `tabs/collaboration.tsx:61-80`                 | `handleRespond` et `loadRequests` appelaient leurs actions sans capture : un rejet laissait `respondingId` posé (ligne bloquée sur son indicateur, aucune explication) ou `loading` vrai pour toujours — même classe que F316/F317 de l'éditeur.                            | `try/catch/finally` des deux côtés, message d'erreur affiché, `setRespondingId(null)` et `setLoading(false)` garantis. |
+| F325 | `components/MediaProfilePreviewEditor.tsx:118` | « Email rédactionnel » écrivait `email` dans l'état local, alors que `handleSaveAll` n'envoie **jamais** ce champ : la personne modifiait l'adresse du compte, lisait « Paramètres enregistrés » et perdait sa saisie.                                                   | champ déclaré `readOnly` (il s'affiche désactivé) avec l'indication de l'endroit où l'adresse se change réellement. |
+| F326 | `tabs/recommendations.tsx:268`                | Le `<label>` de la note n'avait ni `htmlFor` ni contrôle associé : le champ n'avait aucun nom accessible (le placeholder n'en tient pas lieu).                                                                                                                             | `htmlFor="recommendation-note"` + `id` sur le champ.                                                          |
+| F327 | `app/(creator)/settings/account-link.tsx:16`  | « Gérer mon compte » pointait vers `https://qoe.fi/settings` **en dur** : en développement (`qoe.test`) et sur toute instance auto-hébergée, il renvoyait vers la production, alors que `URLS.CONSOLE` existait et est déjà utilisé par `account-security.tsx:127`. | `href={`${URLS.CONSOLE}/settings`}` (mesuré en test : `http://lvh.me:15402/settings`).                              |
+| F328 | `features/settings/preview.tsx` (356 l.) + 2 passerelles | Aucun consommateur : `Preview`/`PublisherLivePreview`, `publisher-settings.tsx`, `publisher-live-preview.tsx` et l'alias `PublisherSettings` ne sont importés nulle part dans `apps/` ni `packages/` (`grep -rn` → 0 hors de la zone).                                                         | suppression des 380 l. mortes ; l'onglet « Identité & Design » est la seule surface d'édition.                  |
+
+Rouges conservés (avant correctif) :
+
+```
+$ pnpm vitest run src/features/settings
+ × retire chaque écouteur window qu’elle a posé, avec la même référence
+   AssertionError: écouteur « hashchange » jamais retiré: expected false to be true
+ × n’invente pas une publication quand aucun domaine n’est configuré
+   AssertionError: expected <a …(4)><span></span> (to be null)
+ × préfère le domaine personnalisé au sous-domaine
+   Expected the element to have attribute: href="http://lvh.me:15402/journal"
+ × refuse ⌘S quand la vérification annoncée dit que le sous-domaine est pris
+   AssertionError: expected "vi.fn()" to be called at least once
+ × explique l’échec d’une réponse et rend la ligne à nouveau actionnable
+   TestingLibraryElementError: Unable to find an element with the text: /Preuve forte requise/
+ × n’affiche pas un chargement éternel quand la lecture des invitations échoue
+   TestingLibraryElementError: Unable to find an element with the text: /Réseau coupé/
+ × n’écrit pas dans l’état un email que l’enregistrement ne persiste pas
+   AssertionError: expected 'autre@qoefi.media' to be 'equipe@qoefi.media'
+ × annonce que l’adresse se change dans les réglages du compte
+   AssertionError: expected <button …> not to be disabled
+ × nomme le champ de note pour un lecteur d’écran
+   TestingLibraryElementError: Found a label with the text of: /Note ou mot de recommandation/i,
+   however no form control was found associated to that label.
+  Tests  9 failed | 17 passed (26)                        L21E_RED_EXIT=1
+```
+
+```
+$ pnpm vitest run "src/app/(creator)/settings/__tests__/account-link.test.tsx"
+ × suit l’origine configurée pour la console
+   Expected the element to have attribute: href="http://lvh.me:15402/settings"
+   Received:                              href="https://qoe.fi/settings"
+  Tests  1 failed (1)                                      F327_RED_EXIT=1
+```
+
+**Contre-preuve (aucune garde fantôme).** Les cinq sources corrigées remises seules à leur état d'origine
+(`git stash push -- <5 fichiers suivis>`, tests conservés) font retomber **exactement les neuf mêmes tests** :
+`Test Files 4 failed | 3 passed (7)`, `Tests 9 failed | 17 passed (26)` ; restaurées, les sept suites
+repassent à `26 passed`, puis `27 passed` avec le test d'`AccountLink`. Le retrait de F328 est prouvé par
+`grep -rn "PublisherLivePreview\|PublisherSettings" apps packages` → 0 occurrence hors du dossier supprimé,
+`pnpm tsc --noEmit` → 0 et `pnpm build` → OK.
+
+**Non-défauts examinés, avec la preuve**
+
+- **`tabs/recommendations.tsx` — course de réponses périmées** (classe F314) : **pas** un défaut ici. Le bouton
+  « Trouver » est `disabled={isSearching || !domainInput.trim()}` : pendant une recherche, aucune seconde requête
+  ne peut partir, une réponse ne peut donc pas écraser une plus récente.
+- **`components/account-security.tsx:56-70`** : les quatre chargements de l'effet de montage capturent chacun
+  leur rejet (`.catch(() => undefined)`) — aucun rejet non géré, aucun état inventé ; `exportData` révoque son
+  `objectURL` après `anchor.click()`, qui démarre le téléchargement de façon synchrone.
+- **`components/mfa-panel.tsx:44-52`** : quand le fournisseur d'identité est injoignable, `refresh` remet
+  `factors` à `[]` au lieu de garder un état périmé — cohérent avec la mention « Aucun facteur enregistré ».
+- **`components/seo-preview.tsx:44`** : le repli `'publisher'` n'alimente qu'un aperçu, jamais une URL publiée.
+- **`tabs/import.tsx:147-186`** : le dépôt de fichier refuse avant lecture quand les déclarations de provenance
+  sont incomplètes, et `finally` remet l'input à zéro — la validation annoncée est bien celle appliquée.
+- **`config/settingsTree.ts`** : `flattenSettingsTree` couvert par `settingsTree.test.ts` (chemins non doublés)
+  — aucun chemin mort détecté sur les 12 feuilles.
+- **`any`/`@ts-ignore`/`dangerouslySetInnerHTML`/`setInterval` dans la zone** : 0 occurrence ; les seuls
+  `console.error` (`collaboration-actions.ts:40,69`, `MediaProfilePreviewEditor.tsx:151,163`) sont des journaux
+  serveur/d'échec d'upload, acceptés par la convention du repo.
+
+**Dettes ouvertes**
+
+- **R143** — régime de traduction incohérent : 4 fichiers sur 18 portent du `t` (`settingsTree` 31, `settings` 14,
+  `seo` 11, `recommendations` 9), les autres affichent du français dur (`general.tsx:109` « Nom du site »,
+  `domain.tsx:35` « Adresse », `import.tsx:85`, `collaboration.tsx:103`, `account-security.tsx:103`
+  « Compte & sécurité »). Conversion à faire d'un seul tour, comme R140/R142.
+- **R144** — `handleSaveAll` enchaîne quatre actions indépendantes (profil, sous-domaine, navigation, réseaux)
+  sans transaction : si la deuxième échoue après la première, l'écran annonce une erreur alors qu'une partie est
+  enregistrée, et `setOriginal` n'est pas appelé. La sortie propre est un lot Go (`PATCH /v1/settings/publisher`
+  unique et idempotent), pas un correctif local.
+- **R145** — liaisons mortes et identifiants fragiles : `import.tsx:200` (`htmlFor="import-source"` sur un
+  `Select` qui ne porte pas cet `id`), et `navigation.tsx:176,199` où l'id d'un lien ajouté vient de
+  `Date.now()` (deux ajouts dans la même milliseconde partagent la clé). Les deux demandent un test qui observe
+  le DOM final, pas un correctif à l'aveugle.
 
 ### L21d — routes de développement : garde d'existence et filtre du UI lab — clos le 2026-11-20
 
