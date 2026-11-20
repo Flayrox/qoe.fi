@@ -1566,7 +1566,9 @@ AssertionError: expected 320 to be +0
   Tests  3 failed | 2 passed (5)                            RESIZE_RED_EXIT=1
 ```
 
-Vert : `Tests 7 passed (7)` sur `src/features/stage/__tests__` (dont la garde vendor/maison).
+Vert : `Tests 9 passed (9)` sur `src/features/stage/__tests__` (2 raccourcis, 5 géométrie de
+redimensionnement, 2 frontière vendor/maison) ; suite studio complète `Test Files 69 passed (69)` /
+`Tests 588 passed (588)`.
 
 **Méthode : un test DOM abandonné, cité.** La première garantie de F306 pilotait le vrai composant
 (`click` sur la poignée puis `mousemove` sur `window`) ; elle a fait **sortir le worker vitest**
