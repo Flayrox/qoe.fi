@@ -1633,6 +1633,15 @@ repassent à `26 passed`, puis `27 passed` avec le test d'`AccountLink`. Le retr
   `console.error` (`collaboration-actions.ts:40,69`, `MediaProfilePreviewEditor.tsx:151,163`) sont des journaux
   serveur/d'échec d'upload, acceptés par la convention du repo.
 
+**Mesure corrigée (effet du retrait de F328).** `ui:audit` compte les primitives importées par les **apps** :
+la suppression du seul consommateur applicatif de `CraftSidebarDrawer` a fait passer cette primitive pour
+« jamais importée » (6 > plafond 5), alors qu'elle compose `MinimalCraftShell`, monté par `TenantPageShell`
+(`apps/tenants/src/components/TenantPageShell.tsx:6`) et `TenantArticleRenderer`. `scripts/lib/ui-scan.mjs`
+compte désormais aussi les sources de `packages/ui/src/templates/**` et résout leurs imports relatifs : le
+verdict redevient **5** (inchangé, les 5 autres n'ont aucun consommateur applicatif ni template),
+`pnpm ui:audit` → **EXIT=0**, et les quatre métriques réellement en baisse (boutons/inputs natifs, −2 chacun
+sur deux métriques) sont figées dans `ui-budget.json`.
+
 **Dettes ouvertes**
 
 - **R143** — régime de traduction incohérent : 4 fichiers sur 18 portent du `t` (`settingsTree` 31, `settings` 14,
