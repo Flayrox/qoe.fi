@@ -1,6 +1,7 @@
 'use client';
 
 import { buttonClasses } from '@qoe/ui/button';
+import { URLS } from '@qoe/config';
 
 /**
  * Lien vers les paramètres du compte personnel.
@@ -10,10 +11,16 @@ import { buttonClasses } from '@qoe/ui/button';
  * casse la frontière RSC. `Button asChild` ne convient pas non plus ici, car
  * l'ancre passée depuis le serveur arrive sous forme de tableau et
  * `Children.only` la refuse.
+ *
+ * L'origine vient de `URLS.CONSOLE` : un hôte écrit à la main envoyait le
+ * studio de développement (ou toute instance auto-hébergée) vers `qoe.fi`.
  */
 export function AccountLink() {
   return (
-    <a href="https://qoe.fi/settings" className={buttonClasses({ variant: 'outline', size: 'sm' })}>
+    <a
+      href={`${URLS.CONSOLE}/settings`}
+      className={buttonClasses({ variant: 'outline', size: 'sm' })}
+    >
       Gérer mon compte
     </a>
   );
