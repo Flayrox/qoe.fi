@@ -93,6 +93,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | **durci le 2026-11-19** |
 | L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; prochain = L20c3 |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
+| L20k    | **Surfaces studio/admin/hi + matrice de routes : 0 requête vers le Supabase partagé** | `e2e/lib/supabase-network-guard.ts` (nouveau), `e2e/lib/route-matrix.ts`, `e2e/{studio,admin}.spec.ts` | env volontairement en VPS : APPS **14 passed**, MATRICE **56 passed**, TENANTS **13**, OAUTH **2** ; captures `0 Supabase` par app ; login mesuré sur `http://127.0.0.1:54321` |
 | L20j    | **Supabase serveur à serveur gardé + stack e2e réparée (cache Turbopack, dérivation Go)** | `apps/api/internal/config/{config.go,supabase_origin.go,config_test.go}`, 5 `next.config.ts`, `playwright.config.ts`, `e2e/lib/env.ts` | 2026-11-20 : garde Go rouge→vert citée, `oauth-consent` **2/2**, tenants **13/13**, disque **15→41 GiB**, toutes gardes CI vertes |
 | L20i    | **Supabase local : aucune page servie en local ne peut viser le Supabase partagé** | `packages/supabase/src/{url.ts,client.ts,server.ts,middleware.ts,storage.ts}`, 7 lecteurs d'app/SDK, `__tests__/url.test.ts` | mesuré le 2026-11-20 : avant **1 requête** `POST /auth/v1/otp` vers `116.203.158.47:54321`, après **0** (→ `127.0.0.1:54321`) ; supabase **57 tests**, tenants e2e **13/13**, build prod **exit 0** |
 | L20h    | **Analytics local : aucun build dev/test/e2e ne peut viser l'infra partagée** | `packages/analytics/src/{client.tsx,script-url.ts,__tests__/script-url.test.ts}`, `e2e/tenants*.spec.ts` | mesuré le 2026-11-20 : avant **2 requêtes** vers `116.203.158.47`, après **0** ; tenants e2e **13/13** — voir fiche L20h (dans L20g) |
@@ -1752,9 +1753,56 @@ local : le parcours complet (login réel → consentement → autorisation → c
 Au passage, `pnpm typecheck` échouait sur des **artefacts générés dupliqués** (`apps/{core,hi}/.next/types/… 2.ts`,
 6 fichiers) : purgés, 25/25.
 
-Reste non vérifié, honnêtement : le cache de **build** Turbopack (`turbopackFileSystemCacheForBuild`) reste actif —
-sa croissance n’a été mesurée que sur une build ; les autres projets e2e (studio, admin, hi, routes) n’ont pas été
-rejoués dans ce lot.
+Surfaces restantes (studio, admin, hi, matrice de routes) : rejouées au lot **L20k** (ci-dessous). Reste non
+vérifié : le cache de **build** Turbopack (`turbopackFileSystemCacheForBuild`) reste actif — sa croissance n’a été
+mesurée que sur une build.
+
+**Toutes les surfaces restantes prouvées (L20k).** Garde réseau réutilisable, une seule implémentation :
+`e2e/lib/supabase-network-guard.ts` — `watchOutgoing` (capture toutes les requêtes), `openAppRoot` (ouvre la racine
+en tolérant l’arrêt sur redirection d’auth), `assertSupabaseTraffic` (journalise l’origine vue puis refuse toute
+requête vers `116.203.158.47`, **tous ports**, et tout `:54321` hors boucle locale). Branchée dans
+`e2e/lib/route-matrix.ts` (matrices tenants/studio/hi) et dans une spec par app protégée (`studio.spec.ts`,
+`admin.spec.ts`, qui exigent en plus la redirection d’auth). Aucune garde dupliquée par app.
+
+Échec rencontré **avant** correctif, cité : `55 passed`, `1 failed` —
+`Matrice de routes — studio › aucune requête vers le Supabase de l'infra partagée`. Cause lue dans le code :
+`route-matrix.ts` faisait `page.goto('/')` sans tolérer la redirection ; la racine studio redirige vers
+`http://lvh.me:3010/login`, que le job `e2e-apps` ne lance pas → `page.goto: net::ERR_CONNECTION_REFUSED`. Correctif
+à la source : `openAppRoot` centralise ce cas (journalise l’interruption, conserve les requêtes capturées) et les
+spécifications studio/admin conservent l’assertion explicite `watch.urls.some(url => url.includes('/login'))`.
+
+Runs réels, `.env`/env **volontairement** en VPS (`NEXT_PUBLIC_SUPABASE_URL=http://116.203.158.47:54321`,
+`NEXT_PUBLIC_APP_URL=http://localhost:15402`), builds prod des 4 apps (exit 0), infra jetable (Postgres 55439,
+Redis 6385, GoTrue `supabase start` :54321) :
+
+```
+APPS (studio+admin+hi)      14 passed (17.6s)
+[studio] réseau : 3 requête(s), 0 Supabase (aucun appel Supabase)
+[admin]  réseau : 3 requête(s), 0 Supabase (aucun appel Supabase)
+
+MATRICE (tenants+studio+hi) 56 passed (9.6s)
+[tenants matrice] réseau : 21 requête(s), 0 Supabase (aucun appel Supabase)
+[studio matrice]  réseau : 3 requête(s), 0 Supabase (aucun appel Supabase)
+[hi matrice]      réseau : 21 requête(s), 0 Supabase (aucun appel Supabase)
+
+TENANTS (complet)           13 passed (10.2s)
+OAUTH-CONSENT                2 passed (29.8s)
+```
+
+Aucune requête vers `116.203.158.47` dans ces runs (les assertions le vérifient, tous ports confondus). L’URL
+Supabase effectivement utilisée — mesurée là où un client Supabase est réellement instancié, le formulaire de login
+partagé, avec le même env VPS :
+
+```
+[core-login] PROBE_SUPABASE_REQUESTS 1
+[core-login] SUPABASE http://127.0.0.1:54321/auth/v1/otp?redirect_to=http%3A%2F%2F127.0.0.1%3A3010%2Fauth%2Fcallback…
+[core-login] PROBE_VPS_REQUESTS 0
+```
+
+⚠️ Piège de lecture consigné : la chaîne `http://116.203.158.47:54321` reste présente dans les bundles
+(`next` inline l’argument `process.env.NEXT_PUBLIC_SUPABASE_URL` avant l’appel au résolveur, et `grep` la trouve
+encore dans `.next/static`) — **ce n’est pas une fuite** : c’est la valeur *avant* résolution. Seule la sonde réseau
+fait foi (même conclusion qu’au L20h pour l’analytics).
 
 **Deux flakes de la suite tenants corrigés au passage.** `tenants-legal.spec.ts` n’était pas en `mode: 'serial'` :
 ses 3 cas s’exécutaient dans 2 workers qui rejouaient le `beforeAll` en parallèle →

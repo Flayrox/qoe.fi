@@ -14,6 +14,7 @@ import { test, expect } from '@playwright/test';
 import { TestDb } from './lib/db';
 import { COOKIE_NAME, DATABASE_URL, GO_API_URL, JWT_SECRET, mintJwt } from './lib/env';
 import { expectRedirect } from './lib/redirect';
+import { assertSupabaseTraffic, openAppRoot } from './lib/supabase-network-guard';
 
 const STUDIO = process.env.PLAYWRIGHT_STUDIO_URL ?? 'http://localhost:15404';
 const RUN_FULL_STACK = process.env.RUN_FULL_STACK === '1';
@@ -153,5 +154,28 @@ test.describe('Studio créateur', () => {
     // La barre latérale du studio se rend.
     await expect(page.locator('aside, nav').first()).toBeVisible({ timeout: 30_000 });
     await context.close();
+  });
+});
+
+// =====================================================================
+// 🔒 Réseau — aucune page studio ne joint le Supabase de l'infra partagée
+// =====================================================================
+// Le studio est protégé : sa racine redirige vers le login du core, dont le
+// formulaire instancie le client Supabase navigateur. On observe donc la page
+// réelle (redirection comprise) et on refuse tout appel vers
+// `116.203.158.47` ou tout Supabase hors boucle locale — même si le `.env` du
+// poste pointe le VPS, seule la règle de `@qoe/supabase/url` protège.
+test.describe('Studio — réseau Supabase', () => {
+  test("aucune requête vers le Supabase de l'infra partagée", async ({ page }) => {
+    // Toute la surface studio redirige vers le login du core : dans le job
+    // `e2e-apps` le core n'est pas lancé, donc la navigation s'arrête sur la
+    // redirection. On garde la preuve qui compte ici — les requêtes émises —
+    // et on exige explicitement que la redirection d'auth ait eu lieu.
+    const watch = await openAppRoot(page, 'studio');
+    expect(
+      watch.urls.some((url) => url.includes('/login')),
+      `le studio doit rediriger vers le login (URLs vues : ${watch.urls.join(', ')})`
+    ).toBe(true);
+    assertSupabaseTraffic('studio', watch);
   });
 });

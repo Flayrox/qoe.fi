@@ -14,6 +14,7 @@ import { test, expect } from '@playwright/test';
 import { TestDb } from './lib/db';
 import { COOKIE_NAME, DATABASE_URL, GO_API_URL, JWT_SECRET, mintJwt } from './lib/env';
 import { expectRedirect } from './lib/redirect';
+import { assertSupabaseTraffic, openAppRoot } from './lib/supabase-network-guard';
 
 const ADMIN = process.env.PLAYWRIGHT_ADMIN_URL ?? 'http://localhost:15405';
 const RUN_FULL_STACK = process.env.RUN_FULL_STACK === '1';
@@ -145,5 +146,25 @@ test.describe('Console admin', () => {
     // La console admin (header/sidebar superadmin) se rend.
     await expect(page.locator('header, aside, nav').first()).toBeVisible({ timeout: 30_000 });
     await context.close();
+  });
+});
+
+// =====================================================================
+// 🔒 Réseau — aucune page admin ne joint le Supabase de l'infra partagée
+// =====================================================================
+// Même contrat que le studio : la console redirige un visiteur anonyme vers le
+// login du core (client Supabase navigateur). Toute requête vers
+// `116.203.158.47`, ou tout Supabase hors boucle locale, fait échouer le test.
+test.describe('Admin — réseau Supabase', () => {
+  test("aucune requête vers le Supabase de l'infra partagée", async ({ page }) => {
+    // Même contrat que le studio : la console redirige vers le login du core,
+    // qui n'est pas lancé par le job `e2e-apps`. On prouve la redirection
+    // d'auth puis l'absence de trafic vers l'infra partagée.
+    const watch = await openAppRoot(page, 'admin', '/admin');
+    expect(
+      watch.urls.some((url) => url.includes('/login')),
+      `la console doit rediriger vers le login (URLs vues : ${watch.urls.join(', ')})`
+    ).toBe(true);
+    assertSupabaseTraffic('admin', watch);
   });
 });

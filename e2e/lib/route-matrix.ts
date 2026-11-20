@@ -20,6 +20,7 @@
 import { test, expect } from '@playwright/test';
 import { discoverPages, type AppName } from './route-inventory';
 import { CRASH_TEXT } from './hydration';
+import { assertSupabaseTraffic, openAppRoot } from './supabase-network-guard';
 
 /** Minimum attendu par app : si la découverte casse, la matrice devient vide. */
 const MIN_PAGES: Record<AppName, number> = {
@@ -44,6 +45,15 @@ export function registerRouteMatrix(app: AppName): void {
         pages.length,
         `Aucune page découverte pour ${app} : la matrice ne testerait rien.`
       ).toBeGreaterThanOrEqual(MIN_PAGES[app]);
+    });
+
+    // 🔒 Preuve réseau : la matrice est le seul endroit qui rend TOUTES les
+    // surfaces de l'app. On y vérifie qu'aucune requête ne part vers l'infra
+    // partagée, même si un `.env` de poste pointe le VPS.
+    test("aucune requête vers le Supabase de l'infra partagée", async ({ page }) => {
+      const watch = await openAppRoot(page, `${app} matrice`);
+      await page.waitForTimeout(1_500);
+      assertSupabaseTraffic(`${app} matrice`, watch);
     });
 
     for (const pattern of pages) {
