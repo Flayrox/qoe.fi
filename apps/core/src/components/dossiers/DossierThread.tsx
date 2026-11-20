@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { t } from '@lingui/core/macro';
 import { Send } from 'lucide-react';
 
 // Fil de discussion d'un dossier (lot 2b) : partagé par les recours
@@ -32,7 +33,7 @@ export function DossierThread({
   viewerId,
   canWrite,
   closedHint,
-  placeholder = 'Écrire au dossier…',
+  placeholder = t`Écrire au dossier…`,
   sending,
   onSend,
 }: DossierThreadProps) {
@@ -49,7 +50,8 @@ export function DossierThread({
         >
           <p className="whitespace-pre-wrap">{m.body}</p>
           <p className="text-[10px] text-muted-foreground mt-1">
-            {m.authorId === viewerId ? 'Vous' : 'Staff'} · {new Date(m.createdAt).toLocaleString()}
+            {m.authorId === viewerId ? t`Vous` : t`Staff`} ·{' '}
+            {new Date(m.createdAt).toLocaleString()}
           </p>
         </div>
       ))}
@@ -62,6 +64,7 @@ export function DossierThread({
             className="flex-1 text-xs px-3 py-2 rounded-xl border border-border outline-none"
           />
           <button
+            aria-label={t`Envoyer`}
             disabled={sending || body.trim().length < 1}
             onClick={() =>
               void onSend(body.trim()).then((ok) => {
