@@ -13,18 +13,10 @@ export type StageDevice = 'desktop' | 'tablet' | 'mobile';
 
 export type StageMode = 'design' | 'preview';
 
-export type StageLeftTab = 'layers' | 'blocks' | 'theme';
-
 export interface StageCanvasTransform {
   x: number;
   y: number;
   scale: number;
-}
-
-export interface StageHistoryState {
-  past: LayoutConfig[];
-  present: LayoutConfig;
-  future: LayoutConfig[];
 }
 
 export interface StageClientProps {
