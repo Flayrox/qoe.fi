@@ -32,6 +32,7 @@ import {
   hasResultsForTab,
   mergeArticlePages,
   mergeThoughtPages,
+  toIsoOrUndefined,
   type SearchTab,
 } from './search-results';
 
@@ -133,7 +134,11 @@ export function SearchFeed({ initialQuery = '' }: { initialQuery?: string }) {
   const showNoResults =
     !hasResultsForTab(activeTab, counts) &&
     !(activeTab === 'articles' && infiniteArticles.hasNextPage) &&
-    !(activeTab === 'thoughts' && infiniteThoughts.hasNextPage);
+    !(activeTab === 'thoughts' && infiniteThoughts.hasNextPage) &&
+    // L'onglet « tous » montre la première page de chaque entité : si l'une
+    // annonce un curseur, le serveur en a d'autres derrière (le bouton
+    // « Parcourir tous les articles » dit déjà le contraire de « aucun résultat »).
+    !(activeTab === 'all' && Boolean(base.data?.nextCursor || base.data?.articlesNextCursor));
 
   const openArticle = (art: OpenedArticle) => {
     if (!art.slug) return;
@@ -143,7 +148,7 @@ export function SearchFeed({ initialQuery = '' }: { initialQuery?: string }) {
       slug: art.slug,
       content: art.content ?? null,
       isPremium: art.isPremium,
-      createdAt: art.createdAt === undefined ? undefined : new Date(art.createdAt).toISOString(),
+      createdAt: toIsoOrUndefined(art.createdAt),
       author: art.authorId ? { id: art.authorId } : undefined,
     };
     if (articleOverlay) {

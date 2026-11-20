@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { SearchArticleHit, SearchThoughtData } from '@qoe/sdk';
-import { hasResultsForTab, mergeArticlePages, mergeThoughtPages } from './search-results';
+import {
+  hasResultsForTab,
+  mergeArticlePages,
+  mergeThoughtPages,
+  toIsoOrUndefined,
+} from './search-results';
 
 function article(id: string, slug = id): SearchArticleHit {
   return {
@@ -16,6 +21,26 @@ function article(id: string, slug = id): SearchArticleHit {
     updatedAt: 0,
   };
 }
+
+describe('toIsoOrUndefined', () => {
+  it('rend l’ISO d’une date lisible (chaîne ou secondes epoch)', () => {
+    expect(toIsoOrUndefined('2026-01-02T03:04:05.000Z')).toBe('2026-01-02T03:04:05.000Z');
+    expect(toIsoOrUndefined(0)).toBe('1970-01-01T00:00:00.000Z');
+  });
+
+  it('rend `undefined` sur une valeur illisible, sans jeter', () => {
+    // `new Date('pas-une-date').toISOString()` jetait une RangeError dans le
+    // handler de clic : l'article ne s'ouvrait plus du tout.
+    expect(toIsoOrUndefined('pas-une-date')).toBeUndefined();
+    expect(toIsoOrUndefined(Number.NaN)).toBeUndefined();
+  });
+
+  it('traite `null`, `undefined` et la chaîne vide comme absents', () => {
+    expect(toIsoOrUndefined(null)).toBeUndefined();
+    expect(toIsoOrUndefined(undefined)).toBeUndefined();
+    expect(toIsoOrUndefined('')).toBeUndefined();
+  });
+});
 
 describe('mergeArticlePages', () => {
   it('fusionne les pages dans l’ordre et déduplique par id', () => {

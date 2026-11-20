@@ -91,7 +91,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b3 | `app/(reader)/library/**`                                                                                    | 18 fichiers · 3 689 l.      | **clos** : L20b2b31 (racine, 5 f.) **durci le 2026-11-19** + L20b2b32 (`ebooks/**`, 13 f.) **durci le 2026-11-19** |
 | L20b2b4 | `app/(reader)/[username]/**`                                                                                 | 9 fichiers · 2 184 l.       | **durci le 2026-11-19** |
 | L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | **durci le 2026-11-19** |
-| L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; L20c3 (annotateur d'article, 1 f. · 1 153 l., **R126** et **R133** closes) **durci le 2026-11-20** ; L20c4 (chaîne de lecture d'article, 6 f. · 988 l. à la livraison, 963 l. après extraction de la signature) **durci le 2026-11-20**, **R132 close** ; prochain = L20c5 |
+| L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; L20c3 (annotateur d'article, 1 f. · 1 153 l., **R126** et **R133** closes) **durci le 2026-11-20** ; L20c4 (chaîne de lecture d'article, 6 f. · 988 l. à la livraison, 963 l. après extraction de la signature) **durci le 2026-11-20**, **R132 close** ; L20c5 (flux et recherche, 5 f. · 847 l.) **durci le 2026-11-20** ; prochain = L20c6 |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
 | L20n     | **Studio authentifié : la preuve porte sur des builds de production (`next start`), et le cookie `Secure` suit l’origine** | `playwright.apps.config.ts` (`appServer` paramétré — **aucun** `next dev` bespoke restant, admin compris), `scripts/e2e-studio-auth.mjs` (builds studio+admin+core + `PLAYWRIGHT_APPS_PROD`), `packages/supabase/src/{cookie-config,client,server,middleware}.ts` (`getCookieSecure`), `e2e/studio-auth-journey.spec.ts` (session exigée **avant** la redirection) | 3 runs prod depuis un état propre : **1 passed (9.2s)** `184 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token?grant_type=password`, puis **1 passed (9.2s)** (`189`), puis `.env` en VPS **1 passed (9.2s)** (`184`, **0 requête** vers `116.203.158.47`) ; absence d’infra → `✖ … scripts/e2e-studio-auth.mjs:103`, exit 1 ; apps **83 passed / 2 skipped** (admin en prod), oauth-consent **2 passed** |
 | L20m     | **La preuve réseau du studio authentifié ne peut plus être `skipped` en silence** | `scripts/e2e-studio-auth.mjs` (nouveau), `package.json`, `e2e/studio-auth-journey.spec.ts`, `playwright.apps.config.ts`, `.github/workflows/ci.yml` | `pnpm e2e:studio-auth` depuis un état propre : **1 passed (1.4m)** puis, `.env` pointé sur le VPS, **1 passed (45.5s)** — capture `209 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token` ; absence d'infra → `✖ … scripts/e2e-studio-auth.mjs:103`, exit 1 ; apps **83 passed / 2 skipped** |
@@ -123,14 +123,14 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L20c5 — flux et recherche**
-(`social/{SearchFeed, search-results.ts, search-results.test.ts}` + `feed/{VirtualizedFeedList,
-RealtimeFeedPill}` · 5 fichiers · 847 l., mesuré : virtualisation + temps réel, traités après les
-cartes qu'ils rendent ; L20c ouvert le 2026-11-19 avec un découpage mesuré en 8 sous-lots, L20c1
+**Prochain lot à traiter : L20c6 — messagerie**
+(`messages/MessagesApp.tsx` + `messages/__tests__/messages-app.test.tsx` · 2 fichiers · 556 l.,
+mesuré ; L20c ouvert le 2026-11-19 avec un découpage mesuré en 8 sous-lots, L20c1
 (cartes de pensée, 11 f. · 1 223 l.), L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.),
-L20c3 (annotateur d'article, 1 f. · 1 153 l., **R126** et **R133** closes) et L20c4 (chaîne de lecture
+L20c3 (annotateur d'article, 1 f. · 1 153 l., **R126** et **R133** closes), L20c4 (chaîne de lecture
 d'article, 6 f. · **988 l.** à la livraison — le « 992 » écrit ici datait d'avant le passage de prettier,
-mesure refaite dans la fiche L20c4 —) clos ; ordre et chiffres dans la fiche L20c).
+mesure refaite dans la fiche L20c4 —) et L20c5 (flux et recherche, 5 f. · **847 l.**) clos ; ordre et
+chiffres dans la fiche L20c).
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -1513,7 +1513,7 @@ Trop gros pour un tour : le lot est scindé en **8 sous-lots** dont la somme est
 | **L20c2** | `profile/**` (`EditProfileModal` 426, `profile-edit-actions` 51) + `article-overlay/**` (`ArticleOverlayProvider` 465, `overlay-state` 125, son test 139) | 5 f. · 1 206 l. | **clos dans ce tour** (1 263 l. après correctifs). Deux surcouches/formulaires à état d'URL et mutation serveur ; la surcouche d'article est le miroir de celle de pensée, relue juste après. |
 | L20c3 | `social/ArticleAnnotatorView.tsx` (+ `ReaderToolbarContext` pour R126) | 1 f. · 1 153 l. | **durci le 2026-11-20** · **Risque nommé** tenu : plus gros fichier du périmètre (sélection, popovers, toolbar partagée, mutations), audité seul. Quatre findings (F273 date illisible qui cassait le rendu, F274 surlignages croisés, F275/F276 échecs muets), **R126 close**, 4 garanties jsdom rouges→vertes ; **R133 close** le même jour (temps de lecture et paywall passés par `t`, catalogue rattrapé : +48 `msgid`), 4 garanties de plus (7/7). |
 | L20c4 | `social/{ArticleReaderDrawer, ArticleComments, ArticleSummary, SimilarArticlesSection, DockedReaderToolbar, TrendingWidget}` + `social/article-byline.ts` | 6 f. · 988 l. (963 l. après extraction) + module 165 l. | **durci le 2026-11-20** · Chaîne de lecture d'article (tiroir, commentaires, résumé, similaires, toolbar ancrée) : 8 findings (F277→F284 — courses inter-articles, orphelins comptés, verrou Plus contourné sur mobile, défilement/dialog du tiroir, chaînes hors `t`, signature média/auteur unifiée), 7 garanties jsdom + 7 garanties byline rouges→vertes, **R132 close**. |
-| L20c5 | `social/{SearchFeed, search-results.ts, search-results.test.ts}` + `feed/{VirtualizedFeedList, RealtimeFeedPill}` | 5 f. · 847 l. | Flux et recherche (virtualisation + temps réel), après les cartes qu'ils rendent. |
+| L20c5 | `social/{SearchFeed, search-results.ts, search-results.test.ts}` + `feed/{VirtualizedFeedList, RealtimeFeedPill}` | 5 f. · 847 l. (919 l. après correctifs) | **durci le 2026-11-20** · Flux et recherche : 5 findings (F285 date illisible au clic, F286 état vide contredisant la pagination, F287 compteur temps réel jamais annoncé + `AnimatePresence` mort, F288 `scrollMargin` figé à 0, F289 `IntersectionObserver` sans garde), 4 garanties jsdom + 5 garanties unitaires rouges→vertes, garde de source sur la conversion de date. |
 | L20c6 | `messages/MessagesApp.tsx` + `messages/__tests__/messages-app.test.tsx` | 2 f. · 556 l. | Application de messagerie autonome, sans dépendance aux sous-lots précédents. |
 | L20c7 | `notifications/NotificationSettingsForm` + `dossiers/DossierThread` + `placements/InAppPlacement` | 3 f. · 421 l. | Petits widgets métier restants, dont le placement in-app qui alimente `DynamicBannerSlot` (L20c8). |
 | L20c8 | **Socle partagé** : `layout/**` (5), `providers/**` (2), `overlay/position.ts`, `StaleServerActionBanner`, `AnalyticsGate`, `banners/DynamicBannerSlot` | 11 f. · 748 l. | **Rayon d'action maximal, audité en dernier** : `MainContentWrapper`, `ReaderPageLayout`, `AppSidebar`, `ReaderNavOverlay`, `QueryProvider` et `ReadingPreferencesProvider` sont montés par **toutes** les pages `(reader)`. Corriger le socle après les feuilles évite de re-valider chaque correctif contre des consommateurs encore inconnus ; l'auditer en premier aurait obligé à rejouer le lot entier à chaque feuille corrigée. |
@@ -2148,6 +2148,70 @@ une **option obsolète retirée**, pas une refonte.
 code ; le seul correctif est la suppression d'une option dépréciée.
 
 **Non vérifié.** `pnpm test:api` complet (tous les paquets Go, dont ceux adossés à Postgres/Testcontainers et les gates de couverture du job `api`) ; les projets e2e `public-web`/`core-journeys` en entier (6 cas dépendants du seed), `security`, `hydratation`, `routes`, `e2e-apps` et `e2e-apps-routes` (tous deux adossés à Postgres + Redis + seed) ; `next start` sur un build prod (le harnais a tourné en `next dev`) ; aucune vérification visuelle des pages réelles au-delà des 4 contrats `setContent`.
+
+---
+
+## L20c5 — flux et recherche : date illisible, état vide contradictoire, liste virtualisée — durci le 2026-11-20
+
+**Périmètre re-mesuré avant de toucher** (`git ls-files` + `wc -l`) : 5 fichiers, **847 l.**
+(`social/SearchFeed.tsx` 534, `social/search-results.ts` 89, `social/search-results.test.ts` 91,
+`feed/VirtualizedFeedList.tsx` 98, `feed/RealtimeFeedPill.tsx` 35). Aucun élargissement : les 5 fichiers
+du sous-lot, plus deux suites nouvelles (316 l.). Après correctifs : **919 l.** (539 + 106 + 116 + 121 + 37).
+
+| # | Défaut | Sévérité | Statut |
+| --- | ------ | -------- | ------ |
+| **F285** | `SearchFeed.openArticle` convertissait la date d'un résultat en `new Date(art.createdAt).toISOString()` : une valeur illisible lève une `RangeError` **dans le handler de clic**, donc l'article ne s'ouvre pas du tout (même classe que F273, restée dans ce fichier). | haute | corrigé — `toIsoOrUndefined` (pur, dans `search-results.ts`) rend `undefined` sur valeur illisible ; rouge : `AssertionError: expected "vi.fn()" to be called 1 times, but got 0 times` |
+| **F286** | `showNoResults` ignorait les curseurs de l'onglet « tous » : une première page vide **avec** `articlesNextCursor` affichait « Aucun résultat trouvé » juste au-dessus du bouton « Parcourir tous les articles ». | moyenne | corrigé — garde sur `nextCursor`/`articlesNextCursor` ; rouge : `AssertionError: expected <div …(1)>…(1)</div> to be null` |
+| **F287** | `RealtimeFeedPill` : le compteur n'était dans aucune région `aria-live` (aucune annonce), et son `AnimatePresence` était **mort** — le composant retourne `null` avant lui, donc la sortie ne pouvait jamais s'animer. | moyenne | corrigé — `role="status"` + `aria-live="polite"` sur le compteur, enveloppe morte retirée (l'entrée reste animée) ; rouge : `TestingLibraryElementError: Unable to find an accessible element with the role "status"` |
+| **F288** | `VirtualizedFeedList` : `scrollMargin: parentRef.current?.offsetTop ?? 0` était lu **pendant le rendu**, quand le ref vaut `null`, et n'était jamais re-mesuré — le virtualizer plaçait les lignes comme si la liste commençait en haut de la fenêtre. | moyenne | corrigé — mesure en `useLayoutEffect` isomorphe + état, re-mesure au redimensionnement et au changement du nombre de lignes ; rouge : `expect(capturedMargins).toContain(120)` échouait (seul `0` atteignait le virtualizer) |
+| **F289** | `VirtualizedFeedList` : `new IntersectionObserver(...)` sans garde → `ReferenceError` au montage dans tout environnement qui n'en dispose pas, ce qui faisait tomber **tout le fil** au lieu de dégrader la pagination automatique. | moyenne | corrigé — garde `typeof IntersectionObserver === 'undefined'` (dégradation : pas de chargement auto, liste lisible) ; rouge : `AssertionError: expected [Function] to not throw an error but 'ReferenceError: IntersectionObserver …' was thrown` |
+
+**Preuves exécutées.** Suites écrites **avant** les correctifs :
+
+```
+$ pnpm vitest run …/search-feed-hardening.test.tsx
+ × ouvre l’article sans jeter quand `createdAt` est illisible
+ × interdit la réapparition de la conversion directe (garde de source)
+ × ne dit pas « aucun résultat » quand un curseur promet d’autres pages
+ × annonce le nombre de nouvelles pensées dans une région `status`
+ × accorde au singulier et ne rend rien à zéro
+AssertionError: expected "vi.fn()" to be called 1 times, but got 0 times
+TestingLibraryElementError: Unable to find an accessible element with the role "status"
+  Tests  5 failed | 3 passed (8)                                     L20C5_RED_EXIT=1
+
+$ pnpm vitest run …/virtualized-feed-list.test.tsx
+ × monte sans `IntersectionObserver` au lieu de jeter
+ × re-mesure le `scrollMargin` après le montage
+AssertionError: expected [Function] to not throw an error but 'ReferenceError: IntersectionObserver …' was thrown
+  Tests  2 failed | 1 passed (3)                                      VFL_RED_EXIT=1
+```
+
+Verts après :
+
+```
+ ✓ search-results.test.ts (11 tests) · virtualized-feed-list.test.tsx (3 tests)
+ ✓ search-feed-hardening.test.tsx (8 tests)
+  Tests  22 passed (22)                                               L20C5_EXIT=0
+  Test Files  56 passed (56) · Tests  359 passed (359)         CORE_TEST_EXIT=0
+```
+
+**Deux rouges intermédiaires, non maquillés.** (1) Ma première version du test de montée asserait une ligne
+rendue alors que le mock du virtualizer renvoie `getVirtualItems: () => []` :
+`Unable to find an element with the text: a` — faute de harnais, corrigée en asserant la sentinelle.
+(2) `eslint` a refusé mes `require('node:fs')` (`A require() style import is forbidden`) : passés en imports
+statiques, retour à **0 erreur**.
+
+**Garantie anti-réapparition.** Une garde de source exige `toIsoOrUndefined` dans `SearchFeed.tsx` et
+interdit `new Date(art.createdAt)` : la conversion directe qui jette ne peut pas revenir sans faire échouer
+la suite. `toIsoOrUndefined` est couvert par 3 tests unitaires (date lisible en chaîne et en secondes, valeur
+illisible, valeur absente) : la table `mergeArticlePages`/`hasResultsForTab` garde ainsi ses 8 tests d'origine
+plus ces 3.
+
+**Reste non vérifié.** Rendu visuel (aucune capture) ; comportement réel du `IntersectionObserver` et du
+virtualizer dans un navigateur (le harnais mocke `@tanstack/react-virtual` et ne mesure aucune géométrie —
+la correction de `scrollMargin` est prouvée par la valeur transmise au virtualizer, pas par un rendu) ;
+défilement infini réel sur appareil ; les libellés de `SearchFeed` et du compteur restent hors `t`
+(≈ 25 chaînes, dont le pluriel « nouvelle pensée / nouvelles pensées ») — dette i18n écrite, non traitée ici.
 
 ---
 

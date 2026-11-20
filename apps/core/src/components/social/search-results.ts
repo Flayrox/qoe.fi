@@ -15,6 +15,23 @@ export interface ArticleSearchPage {
 }
 
 /**
+ * Convertit une date de résultat en ISO **sans jamais jeter**.
+ *
+ * Meilisearch rend `createdAt` en secondes (nombre) ou en chaîne ; une valeur
+ * illisible faisait jeter `new Date(value).toISOString()` (`RangeError: Invalid
+ * time value`) dans le handler de clic, donc l'article ne s'ouvrait plus du
+ * tout. On préfère omettre la date : l'ouverture reste possible.
+ */
+export function toIsoOrUndefined(value: string | number | null | undefined): string | undefined {
+  if (value === null || value === undefined || value === '') return undefined;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+
+  return date.toISOString();
+}
+
+/**
  * Fusionne les pages du `useInfiniteQuery` en une liste stable.
  *
  * Meilisearch peut renvoyer le même document sur deux pages si l'index
