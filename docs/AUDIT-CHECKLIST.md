@@ -91,7 +91,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b3 | `app/(reader)/library/**`                                                                                    | 18 fichiers · 3 689 l.      | **clos** : L20b2b31 (racine, 5 f.) **durci le 2026-11-19** + L20b2b32 (`ebooks/**`, 13 f.) **durci le 2026-11-19** |
 | L20b2b4 | `app/(reader)/[username]/**`                                                                                 | 9 fichiers · 2 184 l.       | **durci le 2026-11-19** |
 | L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | **durci le 2026-11-19** |
-| L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; L20c3 (annotateur d'article, 1 f. · 1 153 l., **R126** et **R133** closes) **durci le 2026-11-20** ; L20c4 (chaîne de lecture d'article, 6 f. · 988 l. à la livraison, 963 l. après extraction de la signature) **durci le 2026-11-20**, **R132 close** ; L20c5 (flux et recherche, 5 f. · 847 l.) **durci le 2026-11-20**, dette i18n du lot **close** le même jour (28 `msgid`) ; L20c6 (messagerie, 2 f. · 556 l.) **durci le 2026-11-20**, **R135 close** ; prochain = L20c7 |
+| L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; L20c3 (annotateur d'article, 1 f. · 1 153 l., **R126** et **R133** closes) **durci le 2026-11-20** ; L20c4 (chaîne de lecture d'article, 6 f. · 988 l. à la livraison, 963 l. après extraction de la signature) **durci le 2026-11-20**, **R132 close** ; L20c5 (flux et recherche, 5 f. · 847 l.) **durci le 2026-11-20**, dette i18n du lot **close** le même jour (28 `msgid`) ; L20c6 (messagerie, 2 f. · **945 l.** après R135 : 550 + 395) **durci le 2026-11-20**, **R135 close** ; L20c7 (widgets métier, 3 f. · 421 l. à la mesure, 450 l. + 359 l. de tests à la livraison) **durci le 2026-11-20**, **R136 ouverte** ; prochain = L20c8 |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
 | L20n     | **Studio authentifié : la preuve porte sur des builds de production (`next start`), et le cookie `Secure` suit l’origine** | `playwright.apps.config.ts` (`appServer` paramétré — **aucun** `next dev` bespoke restant, admin compris), `scripts/e2e-studio-auth.mjs` (builds studio+admin+core + `PLAYWRIGHT_APPS_PROD`), `packages/supabase/src/{cookie-config,client,server,middleware}.ts` (`getCookieSecure`), `e2e/studio-auth-journey.spec.ts` (session exigée **avant** la redirection) | 3 runs prod depuis un état propre : **1 passed (9.2s)** `184 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token?grant_type=password`, puis **1 passed (9.2s)** (`189`), puis `.env` en VPS **1 passed (9.2s)** (`184`, **0 requête** vers `116.203.158.47`) ; absence d’infra → `✖ … scripts/e2e-studio-auth.mjs:103`, exit 1 ; apps **83 passed / 2 skipped** (admin en prod), oauth-consent **2 passed** |
 | L20m     | **La preuve réseau du studio authentifié ne peut plus être `skipped` en silence** | `scripts/e2e-studio-auth.mjs` (nouveau), `package.json`, `e2e/studio-auth-journey.spec.ts`, `playwright.apps.config.ts`, `.github/workflows/ci.yml` | `pnpm e2e:studio-auth` depuis un état propre : **1 passed (1.4m)** puis, `.env` pointé sur le VPS, **1 passed (45.5s)** — capture `209 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token` ; absence d'infra → `✖ … scripts/e2e-studio-auth.mjs:103`, exit 1 ; apps **83 passed / 2 skipped** |
@@ -123,14 +123,15 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L20c7 — widgets métier**
-(`notifications/NotificationSettingsForm` + `dossiers/DossierThread` + `placements/InAppPlacement` ·
-3 fichiers · 421 l., mesuré ; L20c ouvert le 2026-11-19 avec un découpage mesuré en 8 sous-lots, L20c1
+**Prochain lot à traiter : L20c8 — socle partagé**
+(`layout/**`, `providers/**`, `overlay/position.ts`, `StaleServerActionBanner`, `AnalyticsGate`,
+`banners/DynamicBannerSlot` · 11 fichiers · 748 l., mesuré ; L20c ouvert le 2026-11-19 avec un découpage mesuré en 8 sous-lots, L20c1
 (cartes de pensée, 11 f. · 1 223 l.), L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.),
 L20c3 (annotateur d'article, 1 f. · 1 153 l., **R126** et **R133** closes), L20c4 (chaîne de lecture
 d'article, 6 f. · **988 l.** à la livraison — le « 992 » écrit ici datait d'avant le passage de prettier,
 mesure refaite dans la fiche L20c4 —) L20c5 (flux et recherche, 5 f. · **847 l.**) et L20c6 (messagerie, 2 f. · **556 l.**, **R135
-close**) clos ; ordre et chiffres dans la fiche L20c).
+close**) et L20c7 (widgets métier, 3 f. · **450 l.** + 359 l. de tests, **R136 ouverte**)
+clos ; ordre et chiffres dans la fiche L20c).
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -914,6 +915,7 @@ nommé), puis verts après restauration.
 | R132 | ~~La résolution média/auteur était écrite **trois fois** (`ArticleReaderDrawer`, `ArticleReaderDrawerContent`, `ArticleAnnotatorView`) et les copies avaient divergé : le tiroir comparait `author.name` au nom du média, l'annotateur `author.journalist.name`~~ — **close le 2026-11-20**. Conséquence mesurée : pour un média dont le compte porte son nom mais dont le journaliste signe, le tiroir affichait « Alice Martin » là où l'article signait « Le Monde · par Alice Martin » (`AssertionError: expected 'Alice Martin' to be 'Le Monde · par Alice Martin'`). | — | Close : `social/article-byline.ts` (163 l.) porte **la** règle (`resolveArticleByline`), le tiroir et l'annotateur la consomment, les trois copies sont supprimées (tiroir 276→**251 l.**, annotateur 1 153→**1 106 l.**). Une garantie de source interdit la réapparition d'une seconde implémentation (heuristique `trim().toLowerCase()` et libellé `· par` bannis des composants). 6 garanties unitaires (média+journaliste, personnel, média seul, auteur seul, divergence, source unique) + 1 garantie d'intégration du tiroir, rouges avant. Voir fiche L20c4. |
 | R133 | Les libellés visibles de `ArticleAnnotatorView` échappaient à `t` : `{article.readingTime \|\| 5} min de lecture` (deux occurrences) et les trois textes du paywall — figés en français dans l'interface `en`. En les traduisant, le catalogue s'est révélé **périmé** : 44 chaînes déjà passées par `t` (`ThemeToggle`, `NotificationList`, `OnboardingModal`, `SimilarArticlesSection`, `TrendingWidget`) n'avaient aucune entrée, donc n'étaient pas traduisibles malgré leur `t`. | faible | Close le 2026-11-20 : 4 libellés passés par `t`, `lingui extract` (+48 `msgid`, dont les 4) et `lingui compile` dans le même commit ; 4 garanties (valeur lue, bornes 1/0, paywall, garde de source interdisant le retour d'un libellé en dur) rouges→vertes, 7/7 dans le fichier. Voir fiche L20c3. |
 | R134 | `ListArticleComments` (`apps/api/sql/queries/comments.sql:36`) n'a **ni `LIMIT` ni curseur** et rend `ORDER BY c."createdAt" ASC` en entier ; le handler (`apps/api/internal/modules/articles/handler.go:1156`) ne lit aucun paramètre de page et répond `response.OK(w, comments)` — la liste complète. Trois surfaces la consomment : le tiroir de lecture (`ArticleComments.tsx:57`), la console studio (`community-client.tsx:37`) et `apps/tenants` (`article/[slug]/actions.ts:143`). Un article à quelques milliers de commentaires donne donc une réponse et un rendu non bornés. | moyenne | **bloqué** — la fermeture à la racine exige : (1) un `LIMIT`/curseur dans la requête sqlc (donc `sqlc generate`), (2) un paramètre `limit`/`cursor` dans le handler **et un changement de forme de réponse** (`{items, nextCursor}` au lieu du tableau), (3) l'adaptation des trois surfaces, (4) une preuve sur base réelle — or AGENTS.md interdit Docker en local et la base partagée ne sert pas aux essais. Question produit à trancher : plafond par défaut, clé de curseur (`(createdAt, id)` ?), et réponse paginée ou plafond dur avec « charger plus ». Aucun correctif partiel n'a été posé : tronquer côté front sans pagination serait un bug pire que l'absence de pagination. Preuve : `comments.sql:36-57` (pas de `LIMIT`), `handler.go:1156-1166` (aucun paramètre), `comments.go:91-95` (article + viewer seulement). |
+| R136 | Le placement in-app du lecteur est **inatteignable** : `InAppPlacement` ne tire son contenu que de la prop `initialPlacement`, et son unique appelant (`banners/DynamicBannerSlot`) rend `<InAppPlacement slot fallback className />` — sans jamais passer de placement. Toute la branche « placement » (carte, `notch_banner`, acquittement serveur) est donc morte dans le lecteur : seul le repli « Qoefi Plus » s'affiche, quel que soit le placement programmé en base. | moyenne | **bloqué** — brancher la résolution exige une décision produit : qui résout le placement pour un slot (loader serveur par page ? action `getPlacementForSlot` ? cache runtime ?), quelle audience (`targetAudience`) et quelle priorité entre placements concurrents. Aucun correctif partiel n'a été posé : afficher un placement inventé côté client serait pire que le repli actuel. Preuve : `DynamicBannerSlot.tsx:80` (appel sans `initialPlacement`), `InAppPlacement.tsx:104` (`if (!placement …) return fallback`), test de caractérisation « sans `initialPlacement`, ne rend que le repli ». Voir L20c7. |
 | R135 | `MessagesApp` n'a **aucun libellé traduit** (`grep -c lingui` → 0) : titre, description, boutons, `hier`, `Vous : `, `Utilisateur`, `Conversation vide`, `Recherche…`, « Aucun résultat. », les états vides, et les trois messages d'erreur ajoutés en L20c6. L'interface anglaise affiche donc tout ce panneau en français. | faible | **close le 2026-11-20** — les **23 libellés distincts** du fichier passent par `t` (dont `hier`, `Utilisateur`, `Conversation vide`, `Vous : {0}` interpolé et les 5 messages d'erreur) ; `intl:extract` ajoute **18 `msgid`** (5 étaient déjà extraits ailleurs : `Messages`, `Recherche…`, `Retour`, `Envoyer`, `Envoi impossible`) et `intl:compile` passe. Un effet de bord réel a été trouvé en chemin : `const t = setInterval(...)` / `const t = setTimeout(...)` **masquaient** le `t` de Lingui dans trois effets, ce qui rendait l'erreur de recherche inatteignable (voir fiche L20c6). 8 garanties jsdom + garde de source (« aucun littéral français en dur ») rouges→vertes. |
 | R131 | ~~Les `tsconfig.json` des apps remplacent l'`exclude` du preset par `["node_modules"]` en gardant `include: ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts"]` : TypeScript **remplace** l'`exclude` hérité au lieu de le fusionner, donc une copie d'artefact entrait dans le programme et cassait `pnpm typecheck` (`TS6200`/`TS2300`)~~ — **close le 2026-11-20**. Cause mesurée : macOS duplique `routes.d.ts` en `routes.d 2.ts`, un `.ts` et non un `.d.ts`, donc plus un fichier de déclaration ; `apps/hi` et `apps/tenants` étaient rouges dans l'arbre (`.next/types/cache-life.d 3.ts(3,1): error TS6200 …`, `routes.d 3.ts(55,8): error TS2300: Duplicate identifier 'LayoutProps'`). | — | Close : les **6** apps nomment leurs sources (`next-env.d.ts`/`expo-env.d.ts`, `*.ts`, `src/**`, + `modules/**` pour mobile) — aucun glob racine, aucun glob dans un dossier généré — et la règle **E** de `guard:tsconfig` refuse désormais ce motif (falsifiée : `3 problème(s)` / `GUARD_FALSIF_EXIT=1`). Types de routes conservés par l'`import "./.next/types/routes.d.ts"` de `next-env.d.ts`. Preuve : copies plantées dans `core` **et** `studio` (+ `hi`/`tenants`) → `TC_core_EXIT=2`/`TC_studio_EXIT=2` avant, **`EXIT=0` sur les 6 apps avec 10 copies en place** après, puis `pnpm typecheck` **25 successful, 25 total / 0 error TS**. Voir fiche L19. |
 | R130 | `EditProfileModal.updateMediaProfile` fabrique lui-même l'utilisateur « mis à jour » à partir des champs locaux au lieu de lire la réponse de `PATCH /v1/media/{id}/settings` : une normalisation serveur (nom rogné, `location` refusée) n'apparaît pas, et `onProfileUpdated` propage des valeurs optimistes. Le `catch` du même fichier journalise `console.error(err)` côté client en production. | faible | Lire la publication renvoyée par l'action (ou revalider) et remplacer le `console.error` par le seul toast. Voir L20c2. |
@@ -1516,8 +1518,8 @@ Trop gros pour un tour : le lot est scindé en **8 sous-lots** dont la somme est
 | L20c3 | `social/ArticleAnnotatorView.tsx` (+ `ReaderToolbarContext` pour R126) | 1 f. · 1 153 l. | **durci le 2026-11-20** · **Risque nommé** tenu : plus gros fichier du périmètre (sélection, popovers, toolbar partagée, mutations), audité seul. Quatre findings (F273 date illisible qui cassait le rendu, F274 surlignages croisés, F275/F276 échecs muets), **R126 close**, 4 garanties jsdom rouges→vertes ; **R133 close** le même jour (temps de lecture et paywall passés par `t`, catalogue rattrapé : +48 `msgid`), 4 garanties de plus (7/7). |
 | L20c4 | `social/{ArticleReaderDrawer, ArticleComments, ArticleSummary, SimilarArticlesSection, DockedReaderToolbar, TrendingWidget}` + `social/article-byline.ts` | 6 f. · 988 l. (963 l. après extraction) + module 165 l. | **durci le 2026-11-20** · Chaîne de lecture d'article (tiroir, commentaires, résumé, similaires, toolbar ancrée) : 8 findings (F277→F284 — courses inter-articles, orphelins comptés, verrou Plus contourné sur mobile, défilement/dialog du tiroir, chaînes hors `t`, signature média/auteur unifiée), 7 garanties jsdom + 7 garanties byline rouges→vertes, **R132 close**. |
 | L20c5 | `social/{SearchFeed, search-results.ts, search-results.test.ts}` + `feed/{VirtualizedFeedList, RealtimeFeedPill}` | 5 f. · 847 l. (919 l. après correctifs) | **durci le 2026-11-20** · Flux et recherche : 5 findings (F285 date illisible au clic, F286 état vide contredisant la pagination, F287 compteur temps réel jamais annoncé + `AnimatePresence` mort, F288 `scrollMargin` figé à 0, F289 `IntersectionObserver` sans garde), 4 garanties jsdom + 5 garanties unitaires rouges→vertes, garde de source sur la conversion de date. puis **dette i18n close** le même jour : 26 chaînes passées par `t`, `plural` pour le compteur, 28 `msgid` extraits, 7 garanties de plus. |
-| L20c6 | `messages/MessagesApp.tsx` + `messages/__tests__/messages-app.test.tsx` | 2 f. · 556 l. (617 l. après correctifs) | **durci le 2026-11-20** · Application de messagerie autonome : 4 findings (F290 spinner infini sur échec de liste, F291 course inter-conversations, F292 recherche muette et contradictoire, F293 largeur lue au rendu), bannière `role="alert"`, 5 garanties jsdom rouges→vertes (les 3 tests d'origine restent verts), garde de source (`requestToken`, échec de liste non silencieux) ; **R135 close** le même jour (23 libellés par `t`, 18 `msgid`, 8 garanties de plus). |
-| L20c7 | `notifications/NotificationSettingsForm` + `dossiers/DossierThread` + `placements/InAppPlacement` | 3 f. · 421 l. | Petits widgets métier restants, dont le placement in-app qui alimente `DynamicBannerSlot` (L20c8). |
+| L20c6 | `messages/MessagesApp.tsx` + `messages/__tests__/messages-app.test.tsx` | 2 f. · 556 l. à la livraison, **945 l.** après R135 (550 + 395) | **durci le 2026-11-20** · Application de messagerie autonome : 4 findings (F290 spinner infini sur échec de liste, F291 course inter-conversations, F292 recherche muette et contradictoire, F293 largeur lue au rendu), bannière `role="alert"`, 5 garanties jsdom rouges→vertes (les 3 tests d'origine restent verts), garde de source (`requestToken`, échec de liste non silencieux) ; **R135 close** le même jour (23 libellés par `t`, 18 `msgid`, 8 garanties de plus). |
+| L20c7 | `notifications/NotificationSettingsForm` + `dossiers/DossierThread` + `placements/InAppPlacement` | 3 f. · 421 l. (450 l. après correctifs, + 359 l. de tests) | **durci le 2026-11-20** · 3 défauts prouvés et corrigés : bouton d'envoi du fil de dossier sans nom accessible, `localStorage.getItem` non gardé dans `InAppPlacement` (un stockage refusé faisait tomber le slot), échec d'enregistrement des préférences totalement muet. Deux libellés de plus passés par `t` (`Vous`/`Staff`/placeholder, `Fermer cette notification`), 6 `msgid`. **R136 ouverte** (placement in-app inatteignable : décision produit). |
 | L20c8 | **Socle partagé** : `layout/**` (5), `providers/**` (2), `overlay/position.ts`, `StaleServerActionBanner`, `AnalyticsGate`, `banners/DynamicBannerSlot` | 11 f. · 748 l. | **Rayon d'action maximal, audité en dernier** : `MainContentWrapper`, `ReaderPageLayout`, `AppSidebar`, `ReaderNavOverlay`, `QueryProvider` et `ReadingPreferencesProvider` sont montés par **toutes** les pages `(reader)`. Corriger le socle après les feuilles évite de re-valider chaque correctif contre des consommateurs encore inconnus ; l'auditer en premier aurait obligé à rejouer le lot entier à chaque feuille corrigée. |
 
 **Ordre retenu.** Feuilles interactives d'abord (L20c1→L20c7, du plus consommé au plus
@@ -2152,6 +2154,82 @@ code ; le seul correctif est la suppression d'une option dépréciée.
 **Non vérifié.** `pnpm test:api` complet (tous les paquets Go, dont ceux adossés à Postgres/Testcontainers et les gates de couverture du job `api`) ; les projets e2e `public-web`/`core-journeys` en entier (6 cas dépendants du seed), `security`, `hydratation`, `routes`, `e2e-apps` et `e2e-apps-routes` (tous deux adossés à Postgres + Redis + seed) ; `next start` sur un build prod (le harnais a tourné en `next dev`) ; aucune vérification visuelle des pages réelles au-delà des 4 contrats `setContent`.
 
 ---
+
+## L20c7 — widgets métier : bouton sans nom, stockage refusé, échec muet — durci le 2026-11-20
+
+**Périmètre.** `notifications/NotificationSettingsForm.tsx` (161 l.), `dossiers/DossierThread.tsx` (81 l.),
+`placements/InAppPlacement.tsx` (179 l.) — **421 l.** mesurés, **450 l.** après correctifs, plus trois
+fichiers de tests neufs (**359 l.**).
+**Consommateurs réels.** `DossierThread` est partagé par `(reader)/appeals` et `(reader)/support` ;
+`NotificationSettingsForm` par `(reader)/settings` ; `InAppPlacement` par `banners/DynamicBannerSlot`
+(lui-même monté par les pages `(reader)`). Chaque appelant a été lu, pas seulement le composant.
+
+### Défauts prouvés et corrigés
+
+| #    | Emplacement                                        | Défaut mesuré                                                                                                                                                                            | Correctif                                                       |
+| ---- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| F294 | `DossierThread.tsx:63`                             | bouton d'envoi rendu avec une icône `Send` seule : ni texte, ni `aria-label` — nom accessible vide, alors que c'est l'action principale du fil.                                           | `aria-label={t\`Envoyer\`}`.                                      |
+| F295 | `InAppPlacement.tsx:76`                            | `localStorage.getItem` appelé **hors** du `try/catch` qui protège déjà `setItem` : en navigation privée ou stockage bloqué, l'effet jette et fait tomber tout le slot au lieu de garder le bandeau. | lecture du stockage gardée, avec repli « placement affiché ».    |
+| F296 | `NotificationSettingsForm.tsx:66`                  | `mutate` appelé sans `onError` alors que le hook **jette** (`unwrapActionResult(…, 'Enregistrement impossible')`) : un refus du serveur ne produisait aucun message et le switch revenait en silence. | `onError` → alerte `role="alert"` traduite, réarmée à chaque bascule. |
+
+Deux libellés échappaient au catalogue (même famille que R135) : `Vous`, `Staff` et le placeholder par défaut
+de `DossierThread` (aucun import de `t` dans le fichier), et `aria-label="Fermer cette notification"` dans
+`InAppPlacement`. `intl:extract` + `intl:compile` ajoutent **6 `msgid`** (`Vous`, `Staff`,
+`Écrire au dossier…`, `Fermer cette notification`, `Préférence non enregistrée :`, `Enregistrement impossible`) ;
+`Envoyer` existait déjà et est réutilisé.
+
+### Rouge conservé, puis vert
+
+```
+$ pnpm vitest run src/components/dossiers src/components/notifications src/components/placements
+ × nomme le bouton d’envoi pour les technologies d’assistance
+ × passe « Vous », « Staff » et le placeholder par `t`
+ × garde de source : aucun libellé français en dur, `t` importé
+ × passe le libellé de fermeture par `t`
+ × n’écrit aucun aria-label français en dur
+ × affiche l’échec au lieu de laisser le switch revenir en silence
+ × exige un chemin d’erreur explicite sur la mutation
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/Envoyer/`
+AssertionError: expected [] to include 'Vous'
+AssertionError: expected '\'use client\';\n\nimport React, { us…' to contain 'from \'@lingui/core/macro\''
+TestingLibraryElementError: Unable to find role="alert"
+AssertionError: expected '…' to match /onError/
+  Tests  10 failed | 1 passed (11)                            L20C7_RED_EXIT=1
+```
+
+Après les deux premiers correctifs, un rouge **isolé** est resté sur `InAppPlacement` — c'est celui qui a
+prouvé F295 :
+
+```
+ × rend le bandeau même si `getItem` jette (navigation privée)
+TypeError: Cannot read properties of undefined (reading 'getItem')
+  Tests  1 failed | 4 passed (5)
+```
+
+Vert final :
+
+```
+  Tests  12 passed (12)                                        L20C7_EXIT=0
+$ pnpm exec tsc --noEmit                                      TSC_EXIT=0
+$ pnpm lint            →  ✖ 9 problems (0 errors, 9 warnings)  LINT_EXIT=0
+```
+
+### Non-défauts documentés (pas de correctif cosmétique)
+
+- **Le bandeau déjà acquitté apparaît une frame avant de disparaître.** Le stockage local ne peut pas être lu
+  au rendu serveur : initialiser l'état depuis `localStorage` produirait une erreur d'hydratation. L'effet
+  après montage est la forme correcte en React ; on documente le compromis au lieu de le « corriger ».
+- **`onSend` rejetée.** Le contrat du composant est `(body) => Promise<boolean>` et les deux appelants
+  attrapent leurs propres échecs (`appeals-app` via `finally`, `support-app` idem) : ajouter un `.catch`
+  silencieux dans le composant masquerait l'erreur du parent. Rien à corriger ici.
+- **`placement.type.toUpperCase()`** affiche l'énumération (`PROMO`) dans le badge : c'est le libellé de
+  donnée du placement, pas une chaîne d'interface à traduire.
+
+### Dette ouverte
+
+**R136** — `InAppPlacement` n'est jamais alimenté (aucun appelant ne passe `initialPlacement`) : la branche
+placement est morte dans le lecteur. La fermeture demande une décision produit (résolution par slot, audience,
+priorité), pas un correctif de code ; laissée ouverte avec sa raison, sans contournement.
 
 ## L20c6 — messagerie : spinner infini, course inter-conversations, recherche muette — durci le 2026-11-20
 
