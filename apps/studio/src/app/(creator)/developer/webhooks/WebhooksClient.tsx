@@ -86,56 +86,78 @@ export function WebhooksClient({
       return;
     }
     setCreating(true);
-    const res = await createWebhookAction({ name, url, events: selectedEvents });
-    setCreating(false);
-    if (res.success) {
-      toast.success(t`Webhook créé ! Copiez le secret maintenant.`);
-      setRevealedSecret(res.secret);
-      setName('');
-      setUrl('');
-      // Garder le formulaire ouvert tant que le secret est affiché : il est
-      // indispensable pour configurer le endpoint et n'est montré qu'une fois.
-      const list = await listWebhooksAction();
-      if (list.success) setWebhooks(list.webhooks);
-      router.refresh();
-    } else {
-      toast.error(res.error || t`Échec de la création.`);
+    try {
+      const res = await createWebhookAction({ name, url, events: selectedEvents });
+      if (res.success) {
+        toast.success(t`Webhook créé ! Copiez le secret maintenant.`);
+        setRevealedSecret(res.secret);
+        setName('');
+        setUrl('');
+        // Garder le formulaire ouvert tant que le secret est affiché : il est
+        // indispensable pour configurer le endpoint et n'est montré qu'une fois.
+        const list = await listWebhooksAction();
+        if (list.success) setWebhooks(list.webhooks);
+        router.refresh();
+      } else {
+        toast.error(res.error || t`Échec de la création.`);
+      }
+    } catch (error) {
+      // Sans ce garde, `creating` resterait posé et le bouton resterait
+      // désactivé sur un spinner éternel.
+      toast.error(error instanceof Error ? error.message : t`Échec de la création.`);
+    } finally {
+      setCreating(false);
     }
   };
 
   const handleToggle = async (id: string) => {
     setBusyId(id);
-    const res = await toggleWebhookAction(id);
-    setBusyId(null);
-    if (res.success) {
-      const list = await listWebhooksAction();
-      if (list.success) setWebhooks(list.webhooks);
-    } else {
-      toast.error(res.error || 'Erreur');
+    try {
+      const res = await toggleWebhookAction(id);
+      if (res.success) {
+        const list = await listWebhooksAction();
+        if (list.success) setWebhooks(list.webhooks);
+      } else {
+        toast.error(res.error || 'Erreur');
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erreur');
+    } finally {
+      setBusyId(null);
     }
   };
 
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Supprimer le webhook "${name}" ?`)) return;
     setBusyId(id);
-    const res = await deleteWebhookAction(id);
-    setBusyId(null);
-    if (res.success) {
-      setWebhooks((prev) => prev.filter((w) => w.id !== id));
-      toast.success(t`Webhook supprimé.`);
-    } else {
-      toast.error(res.error || 'Erreur');
+    try {
+      const res = await deleteWebhookAction(id);
+      if (res.success) {
+        setWebhooks((prev) => prev.filter((w) => w.id !== id));
+        toast.success(t`Webhook supprimé.`);
+      } else {
+        toast.error(res.error || 'Erreur');
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erreur');
+    } finally {
+      setBusyId(null);
     }
   };
 
   const handleTest = async (id: string) => {
     setBusyId(id);
-    const res = await testWebhookAction(id);
-    setBusyId(null);
-    if (res.success) {
-      toast.success(`Événement de test envoyé — HTTP ${res.status}`);
-    } else {
-      toast.error(res.error || t`Test échoué`);
+    try {
+      const res = await testWebhookAction(id);
+      if (res.success) {
+        toast.success(`Événement de test envoyé — HTTP ${res.status}`);
+      } else {
+        toast.error(res.error || t`Test échoué`);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t`Test échoué`);
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -152,12 +174,17 @@ export function WebhooksClient({
     setDetailWebhook(webhook);
     setDeliveries(null);
     setLoadingDeliveries(true);
-    const res = await listWebhookDeliveriesAction(webhook.id);
-    setLoadingDeliveries(false);
-    if (res.success) {
-      setDeliveries(res.deliveries);
-    } else {
-      toast.error(res.error || 'Impossible de charger les logs.');
+    try {
+      const res = await listWebhookDeliveriesAction(webhook.id);
+      if (res.success) {
+        setDeliveries(res.deliveries);
+      } else {
+        toast.error(res.error || 'Impossible de charger les logs.');
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Impossible de charger les logs.');
+    } finally {
+      setLoadingDeliveries(false);
     }
   };
 
