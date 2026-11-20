@@ -26,6 +26,7 @@ import {
   listSiteLayoutVersionsAction,
   restoreSiteLayoutVersionAction,
 } from '@/app/(creator)/settings/design/actions';
+import { STAGE_DEFAULT_POSITION, STAGE_DEFAULT_SCALE, clampStageZoom } from '../engine/constants';
 
 /**
  * Identifiant unique pour les blocs et nœuds créés côté client.
@@ -217,8 +218,16 @@ export function StageEngineProvider({
   >('layers');
   const [leftPanelLocked, setLeftPanelLocked] = useState(true);
 
-  const [scale, setScale] = useState(0.95);
-  const [position, setPosition] = useState({ x: 60, y: 20 });
+  const [scale, setScaleState] = useState(STAGE_DEFAULT_SCALE);
+  const [position, setPosition] = useState<{ x: number; y: number }>({
+    ...STAGE_DEFAULT_POSITION,
+  });
+  // Le zoom est borné à la source : le canvas (molette) et les boutons du
+  // chrome partagent désormais les mêmes bornes, sinon « zoom arrière » à 10 %
+  // remontait à 20 % (le zoom inversait son sens à la borne).
+  const setScale = useCallback<StageEngineContextType['setScale']>((next) => {
+    setScaleState((prev) => clampStageZoom(typeof next === 'function' ? next(prev) : next));
+  }, []);
 
   // Layout actif : accueil, article, ou override de rubrique.
   // L'historique est volontairement réinitialisé au changement de cible.
@@ -828,6 +837,13 @@ export function StageEngineProvider({
   const applyScopesPayload = useCallback((payload: string) => {
     try {
       const parsed = parseSiteLayouts(payload);
+      // Le payload remplace *tous* les scopes : une rubrique ouverte avant la
+      // restauration n'existe peut-être plus. Sans ce recalage, l'éditeur
+      // restait braqué sur « Article · <rubrique> » et `setLayout` sortait sans
+      // rien écrire (override absent) : chaque modification était perdue.
+      targetRef.current = { page: 'home', category: null };
+      setStagePageState('home');
+      setArticleCategoryState(null);
       setScoped({ home: parsed.home, article: parsed.article });
       setOverrides(parsed.articleByCategory);
       setSelectedBlockId(null);
@@ -861,15 +877,15 @@ export function StageEngineProvider({
 
   // ── Zoom Actions ──
   const zoomIn = useCallback(() => {
-    setScale((s) => Math.min(s + 0.15, 2.5));
-  }, []);
+    setScale((s) => s + 0.15);
+  }, [setScale]);
   const zoomOut = useCallback(() => {
-    setScale((s) => Math.max(s - 0.15, 0.2));
-  }, []);
+    setScale((s) => s - 0.15);
+  }, [setScale]);
 
   const resetZoom = useCallback(() => {
-    setScale(0.95);
-    setPosition({ x: 60, y: 20 });
+    setScaleState(STAGE_DEFAULT_SCALE);
+    setPosition({ ...STAGE_DEFAULT_POSITION });
   }, []);
 
   // ── Sauvegarde (brouillon) puis publication ──

@@ -571,15 +571,58 @@ describe('StageEngineContext', () => {
   it('borne le zoom et remet la vue à zéro', () => {
     mount();
 
+    // Bornes partagées avec le canvas (`clampStageZoom`) : 0,1 → 3.
     for (let i = 0; i < 20; i += 1) run(() => engine.zoomIn());
-    expect(engine.scale).toBe(2.5);
+    expect(engine.scale).toBe(3);
 
     for (let i = 0; i < 40; i += 1) run(() => engine.zoomOut());
-    expect(engine.scale).toBe(0.2);
+    expect(engine.scale).toBe(0.1);
 
     run(() => engine.resetZoom());
     expect(engine.scale).toBe(0.95);
     expect(engine.position).toEqual({ x: 60, y: 20 });
+  });
+
+  it('remet le scope sur l’accueil quand une version remplace tous les scopes', async () => {
+    mount({ initialArticleLayout: layout([block('art-1', 'article-content')]) });
+    run(() => engine.setArticleCategory('tech'));
+    expect(engine.articleCategory).toBe('tech');
+
+    // La version restaurée ne connaît aucune rubrique : le scope « tech »
+    // n'existe plus côté données.
+    actions.getSiteLayoutDraftAction.mockResolvedValueOnce({
+      success: true,
+      layout: JSON.stringify({
+        home: layout([block('restored')]),
+        article: layout([block('art-2', 'article-content')]),
+        articleByCategory: {},
+      }),
+    });
+    await act(async () => {
+      await engine.restoreSnapshot('v1');
+    });
+
+    // Sans ce recalage, l'éditeur restait « Article · tech » alors que la
+    // rubrique n'existait plus : chaque modification était silencieusement
+    // perdue (setLayout ne trouvait pas l'override et sortait sans rien écrire).
+    expect(engine.stagePage).toBe('home');
+    expect(engine.articleCategory).toBeNull();
+
+    run(() => engine.updateBlockProps('restored', { style: 'typographic-minimal' }));
+    expect(engine.layout.blocks[0].props).toMatchObject({ style: 'typographic-minimal' });
+  });
+
+  it('ne zoome jamais à contresens quand la vue est déjà à la borne', () => {
+    mount();
+
+    run(() => engine.setScale(0.1));
+    run(() => engine.zoomOut());
+    expect(engine.scale).toBe(0.1);
+    expect(engine.position).toEqual({ x: 60, y: 20 });
+
+    run(() => engine.setScale(3));
+    run(() => engine.zoomIn());
+    expect(engine.scale).toBe(3);
   });
 
   it('garde les réglages d’interface indépendants du layout', () => {
