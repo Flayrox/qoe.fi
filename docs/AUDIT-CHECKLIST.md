@@ -93,6 +93,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | **durci le 2026-11-19** |
 | L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; prochain = L20c3 |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
+| L20f    | **Validation locale bout en bout** : daemon Docker, `test:api`, `e2e` sur base jetable seedée | —                           | mesuré le 2026-11-20 : daemon **démarré** (OrbStack 29.4.0), `test:api` **✅ 82 paquets**, e2e **18/19 + 128/128** — voir fiche L20f |
 | L20e    | **Validation bout en bout** : `pnpm build` (6 apps), `pnpm test:api` (Go + Postgres), `pnpm e2e` (Playwright)  | —                           | mesuré le 2026-11-20 : **build ✅**, `test:api` **bloqué** (Docker absent), e2e **partiel** (seed absent) — voir fiche L20e |
 | L21     | `apps/studio/src/**`                                                                                         | 509 fichiers                | à auditer               |
 | L22     | `apps/admin/src/**`                                                                                          | 178 fichiers                | à auditer               |
@@ -1510,6 +1511,67 @@ sa surface de régression est l'ensemble des pages lecteur, pas un écran.
 
 ---
 
+## L20f — validation locale bout en bout : Docker, Go, e2e seedé — mesuré le 2026-11-20
+
+**Re-mesuré avant de toucher.** OrbStack est **installé** (`/Applications/OrbStack.app`, `orb` et `orbctl` dans
+`/usr/local/bin`, contexte Docker `orbstack *` → `unix:///Users/ephe/.orbstack/run/docker.sock`), mais aucun processus
+ne tournait : L20e avait conclu « daemon absent » sur la seule absence du socket. `orbctl start` répond
+`start VM: timed out waiting for VM to start` puis, 8 s plus tard, `docker info` rend
+**`29.4.0 / OrbStack`** — le daemon est opérationnel (le message de VM est un avertissement de premier démarrage,
+pas un échec).
+
+| Commande | Résultat mesuré |
+| -------- | --------------- |
+| `pnpm test:api` | **✅ `TESTAPI_EXIT=0`**, **82 paquets `ok`**, aucun `FAIL` |
+| `pnpm e2e --project=public-web --project=core-journeys --project=standalone-contracts` (base locale seedée) | **18 passés / 1 échoué** (2,1 min) |
+| `pnpm e2e --project=security --project=hydration --project=routes` (base locale seedée) | **✅ 128/128 passés** (1,6 min) |
+
+**1) `test:api` de bout en bout.** `scripts/test-api.sh` a démarré `qoefi-test-db` (`pgvector/pgvector:pg16`,
+`127.0.0.1:55432`) via `docker-compose.test.yml`, puis `go vet ./...`, `go build ./...` et
+`go test -p 1 -count=1 ./cmd/... ./internal/...` : **82 paquets verts**, `internal/workers` 39,3 s, aucun paquet en
+erreur. Précision factuelle : le job CI `api-shared-db` n'a **aucun gate de couverture** (les gates par paquet
+appartiennent au job `api`, qui tourne sous Testcontainers) ; `test:api` n'en contient donc pas, et rien n'a été
+abaissé.
+
+**2) e2e sur base locale jetable, jamais l'instance partagée.** Conteneurs ad hoc : `qoefi-e2e-db`
+(`pgvector/pgvector:pg16`, `127.0.0.1:55434`) et `qoefi-e2e-redis` (`redis:7-alpine`, `127.0.0.1:6380`). Migrations
+`go run ./cmd/migrate -dir sql/migrations up` → `goose: successfully migrated database to version: 93`, puis
+`go run ./cmd/seed` → `Seed réussi pour les données dynamiques`. Toute la suite a tourné avec
+`DATABASE_URL`/`API_DATABASE_URL` = `postgresql://qoe:qoe@127.0.0.1:55434/qoe` et `REDIS_URL` = `redis://127.0.0.1:6380`
+; **`116.203.158.47` n'a jamais été ciblé** (le `DATABASE_URL` du `.env` est écrasé par l'export).
+
+**Les 6 échecs de L20e disparaissent** avec le seed : `un article public seedé se lit de bout en bout` ✅ (5,4 s),
+`un article premium se lit sur la page autonome` ✅ (5,7 s), `affiche l'indicateur premium` ✅, `affiche le contenu
+d'un média certifié` ✅, et les deux `page.goto: Test timeout of 60000ms` de `public-reading-completion` ✅ (20 s au
+premier hit). Le seed produit bien les slugs codés en dur (`souverainete-medias-independants`,
+`essai-premium-souverainete`) et les préconditions interrogées en SQL (1 article premium publié, 1 article de média
+publié) : **aucun test n'a été modifié ni affaibli**, la cause était l'absence de seed.
+
+**3) L'échec restant, analysé et non maquillé.** `e2e/public-feed-capture.spec.ts:21`
+(`Test timeout of 120000ms exceeded` / `waiting for locator('a[href*="/a/"]')`) : le snapshot de la page montre que
+les cartes du feed anonyme pointent vers `http://media-clair.localhost:15403/article/{slug}` et
+`http://admin.localhost:15403/article/{slug}` — c'est-à-dire l'URL **tenant** produite par
+`getArticleUrl(..., { preferTenant: true })` (`packages/config/src/routes.ts:294-315`) dont la forme
+`/article/{slug}` est **légitime** côté tenant (`routes.tenant.article`, `routes.ts:167-183`, 308 vers la canonique
+`/{catégorie}/{slug}`). Le spec attend un lien **in-app** `/{owner}/a/{slug}`, qui n'existe que pour une publication
+sans sous-domaine : la précondition dépend de la configuration d'hôtes tenant de l'environnement (le `.env` local la
+renseigne, l'environnement CI du job `e2e` non). Ce n'est **pas** un bug de code ; l'assertion n'a été ni retirée, ni
+élargie, ni `skip`ée — le cas reste rouge et documenté.
+
+**Démontage.** `docker rm -f qoefi-e2e-db qoefi-e2e-redis` puis `docker compose -f docker-compose.test.yml down`
+(volume `qoefi-test-postgres-data` conservé). État final du poste : seuls les conteneurs préexistants
+(`qoefi-dev-db`, `qoefi-meilisearch`, `qoefi-dev-redis`) tournent — plus le daemon OrbStack, démarré par ce lot.
+**Aucun changement de code n'a été nécessaire** : ni `test:api`, ni les 146 cas e2e verts n'ont révélé de défaut.
+
+**Non vérifié.** `e2e-apps` (tenants/studio/admin) et `e2e-apps-routes` : ils exigent un build de production par app
+(`PLAYWRIGHT_APPS_PROD=1`, `pnpm --filter @qoe/<app> build`) plus une API Go sur `:8091`, soit ~15 min de plus que le
+budget de ce tour — le harnais core/admin est prouvé à 128/128 mais ces cinq projets restent non exécutés ;
+`oauth-consent` (GoTrue local `127.0.0.1:54321` absent, exclu en CI pour la même raison) ; `public-feed-capture`
+(voir ci-dessus) ; validation visuelle des pages ; `next start` sur build de production pour core/admin (les
+webServer ont tourné en `next dev`).
+
+---
+
 ## L20e — validation bout en bout (build prod, Go, e2e) — mesuré le 2026-11-20
 
 **Ce que la repo définit réellement** (lu avant de lancer quoi que ce soit) :
@@ -1532,7 +1594,7 @@ docker-compose.test.yml` ; `playwright.config.ts` démarre trois `webServer` (AP
 | `pnpm e2e --project=standalone-contracts` | **✅ 4/4 passés** (10,9 s) | Vrais serveurs : `goose: no migrations to run. current version: 93`, API Go sur 8090, `next dev` sur 3010 (les `redis: connection pool: failed to dial` sont tolérés par config). Contrats UI (modale de publication studio) rendus dans Chromium réel. |
 | `pnpm e2e --project=public-web --project=core-journeys` | **9 passés / 6 échoués, 2 m 12 s** | Les 6 échecs sont des **préconditions de données**, pas des bugs : `Error: au moins un article premium seedé` et `Error: au moins un média certifié seedé` (requêtes `SELECT … WHERE "isPremium" = true` et `p.type = 'MEDIA'` vides), une page **404** pour `/article/souverainete-medias-independants` (slug **codé en dur** dans `e2e/core-journeys.spec.ts:17`, présent uniquement après `go run ./cmd/seed`), et 2 `page.goto: Test timeout of 60000ms exceeded` sur les parcours `public-reading-completion` (première compilation `next dev` + pages dépendantes du même seed). |
 
-**Blocage nommé, non contourné.** Le seed CI (`go run ./cmd/seed`) n'a **pas** été lancé : la seule base configurée est l'instance partagée du VPS Hetzner (`DATABASE_URL` → `116.203.158.47:15409`, cf. `AGENTS.md`), et écrire des données de démonstration dans une base partagée est une action réservée à l'utilisateur. Aucune couverture n'a été fabriquée à la place : `test-results/` et les rapports HTML sont des artefacts générés (gitignorés), et rien n'a été `skip`é.
+**Blocage nommé, non contourné (levé en L20f).** Le seed CI (`go run ./cmd/seed`) n'avait **pas** été lancé faute de base locale : il l'a été en L20f sur une base jetable (voir fiche L20f). Les six échecs de cette mesure étaient bien des préconditions de données, pas des bugs — la preuve est apportée en L20f : 18/19 → et le 19ᵉ s'explique par un lien tenant, pas par un défaut.
 
 **Un seul changement de code, imposé par le build lui-même.** Le premier `pnpm build` émettait 4 fois (une par app)
 `[@sentry/nextjs] DEPRECATION WARNING: disableLogger is deprecated and will be removed in a future version. Use
