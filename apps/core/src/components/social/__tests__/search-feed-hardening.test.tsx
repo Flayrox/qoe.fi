@@ -28,11 +28,20 @@ const { hooks, openArticle } = vi.hoisted(() => ({
   openArticle: vi.fn(),
 }));
 
+const { tCalls } = vi.hoisted(() => ({ tCalls: [] as string[] }));
+
 vi.mock('@lingui/core/macro', () => ({
-  t: (strings: TemplateStringsArray | string, ...values: unknown[]) =>
-    Array.isArray(strings)
+  t: (strings: TemplateStringsArray | string, ...values: unknown[]) => {
+    const message = Array.isArray(strings)
       ? strings.reduce((res, str, i) => res + str + (values[i] ?? ''), '')
-      : String(strings),
+      : String(strings);
+    tCalls.push(message);
+    return message;
+  },
+  // Le macro `plural` est transformé à la compilation ; le harnais reproduit la
+  // seule chose qui compte pour l'assertion : la forme choisie et le nombre.
+  plural: (count: number, forms: Record<string, string>) =>
+    String(count === 1 ? forms.one : forms.other).replace('#', String(count)),
 }));
 
 vi.mock('@qoe/sdk', () => ({
@@ -99,6 +108,7 @@ function baseData(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   cleanup();
+  tCalls.length = 0;
   openArticle.mockClear();
   hooks.search = baseData();
   hooks.articles = {
@@ -215,5 +225,101 @@ describe('RealtimeFeedPill — annonce du compteur', () => {
 
     fireEvent.click(screen.getByRole('button'));
     expect(onFlush).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('SearchFeed — i18n : aucun libellé ne contourne `t`', () => {
+  it('passe les onglets et leurs compteurs par `t`', () => {
+    hooks.search = baseData({
+      users: [{ id: 'u1', name: 'Alice' }],
+      thoughts: [{ id: 't1' }],
+      articles: [{ id: 'a1', title: 'Titre', slug: 's', content: '' }],
+    });
+
+    render(<SearchFeed initialQuery="mot" />);
+
+    expect(tCalls).toContain('Tous les résultats');
+    expect(tCalls).toContain('Profils (1)');
+    expect(tCalls).toContain('Pensées (1)');
+    expect(tCalls).toContain('Articles (1)');
+  });
+
+  it('borne le compteur d’articles quand un curseur reste (`1+`)', () => {
+    hooks.search = baseData({
+      articles: [{ id: 'a1', title: 'Titre', slug: 's', content: '' }],
+      articlesNextCursor: 'curseur',
+    });
+
+    render(<SearchFeed initialQuery="mot" />);
+
+    expect(tCalls).toContain('Articles (1+)');
+  });
+
+  it('passe le placeholder, la description et les deux erreurs par `t`', () => {
+    render(<SearchFeed initialQuery="mot" />);
+    expect(tCalls).toContain('Rechercher une pensée, un profil ou une thématique...');
+
+    cleanup();
+    tCalls.length = 0;
+    hooks.search = { data: undefined, isLoading: false, isError: true };
+    render(<SearchFeed initialQuery="mot" />);
+    expect(tCalls).toContain('Une erreur est survenue lors de la recherche.');
+  });
+
+  it('passe l’état vide interpolé par `t`', () => {
+    render(<SearchFeed initialQuery="zzz" />);
+
+    expect(tCalls).toContain('Aucun résultat trouvé pour');
+    expect(screen.getByText('"zzz"')).toBeTruthy();
+  });
+
+  it('passe les deux boutons de pagination par `t`', () => {
+    hooks.search = baseData({ articlesNextCursor: 'curseur', nextCursor: 'curseur-pensees' });
+
+    render(<SearchFeed initialQuery="mot" />);
+
+    expect(tCalls).toContain('Parcourir tous les articles');
+    expect(tCalls).toContain('Parcourir toutes les pensées');
+  });
+
+  it('interdit la réapparition d’un libellé en dur (garde de source)', () => {
+    const labels = [
+      'Tous les résultats',
+      'Charger plus d’articles'.replace('’', "'"),
+      'Parcourir tous les articles',
+      'Aucun résultat trouvé pour',
+      'Une erreur est survenue lors de la recherche.',
+      'Rechercher une pensée, un profil ou une thématique',
+      'nouvelle pensée',
+    ];
+    for (const file of ['SearchFeed.tsx', '../feed/RealtimeFeedPill.tsx']) {
+      const source = readFileSync(resolve(process.cwd(), 'src/components/social', file), 'utf8');
+      const offenders = source.split('\n').filter((line) => {
+        const trimmed = line.trim();
+        // Un commentaire peut citer un libellé sans le rendre.
+        if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) {
+          return false;
+        }
+        // Une branche de pluriel ICU appartient au macro `t` qui l'englobe.
+        if (/^(zero|one|two|few|many|other):/.test(trimmed)) {
+          return false;
+        }
+        return labels.some((label) => line.includes(label)) && !line.includes('t`');
+      });
+      expect(offenders, file).toEqual([]);
+    }
+  });
+});
+
+describe('RealtimeFeedPill — i18n du pluriel', () => {
+  it('choisit la forme au singulier pour 1 et au pluriel au-delà', () => {
+    render(<RealtimeFeedPill unreadCount={1} onFlush={vi.fn()} />);
+    expect(tCalls).toContain('1 nouvelle pensée');
+
+    cleanup();
+    tCalls.length = 0;
+
+    render(<RealtimeFeedPill unreadCount={3} onFlush={vi.fn()} />);
+    expect(tCalls).toContain('3 nouvelles pensées');
   });
 });

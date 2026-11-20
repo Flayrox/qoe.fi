@@ -91,7 +91,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b3 | `app/(reader)/library/**`                                                                                    | 18 fichiers · 3 689 l.      | **clos** : L20b2b31 (racine, 5 f.) **durci le 2026-11-19** + L20b2b32 (`ebooks/**`, 13 f.) **durci le 2026-11-19** |
 | L20b2b4 | `app/(reader)/[username]/**`                                                                                 | 9 fichiers · 2 184 l.       | **durci le 2026-11-19** |
 | L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | **durci le 2026-11-19** |
-| L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; L20c3 (annotateur d'article, 1 f. · 1 153 l., **R126** et **R133** closes) **durci le 2026-11-20** ; L20c4 (chaîne de lecture d'article, 6 f. · 988 l. à la livraison, 963 l. après extraction de la signature) **durci le 2026-11-20**, **R132 close** ; L20c5 (flux et recherche, 5 f. · 847 l.) **durci le 2026-11-20** ; prochain = L20c6 |
+| L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; L20c3 (annotateur d'article, 1 f. · 1 153 l., **R126** et **R133** closes) **durci le 2026-11-20** ; L20c4 (chaîne de lecture d'article, 6 f. · 988 l. à la livraison, 963 l. après extraction de la signature) **durci le 2026-11-20**, **R132 close** ; L20c5 (flux et recherche, 5 f. · 847 l.) **durci le 2026-11-20**, dette i18n du lot **close** le même jour (28 `msgid`) ; prochain = L20c6 |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
 | L20n     | **Studio authentifié : la preuve porte sur des builds de production (`next start`), et le cookie `Secure` suit l’origine** | `playwright.apps.config.ts` (`appServer` paramétré — **aucun** `next dev` bespoke restant, admin compris), `scripts/e2e-studio-auth.mjs` (builds studio+admin+core + `PLAYWRIGHT_APPS_PROD`), `packages/supabase/src/{cookie-config,client,server,middleware}.ts` (`getCookieSecure`), `e2e/studio-auth-journey.spec.ts` (session exigée **avant** la redirection) | 3 runs prod depuis un état propre : **1 passed (9.2s)** `184 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token?grant_type=password`, puis **1 passed (9.2s)** (`189`), puis `.env` en VPS **1 passed (9.2s)** (`184`, **0 requête** vers `116.203.158.47`) ; absence d’infra → `✖ … scripts/e2e-studio-auth.mjs:103`, exit 1 ; apps **83 passed / 2 skipped** (admin en prod), oauth-consent **2 passed** |
 | L20m     | **La preuve réseau du studio authentifié ne peut plus être `skipped` en silence** | `scripts/e2e-studio-auth.mjs` (nouveau), `package.json`, `e2e/studio-auth-journey.spec.ts`, `playwright.apps.config.ts`, `.github/workflows/ci.yml` | `pnpm e2e:studio-auth` depuis un état propre : **1 passed (1.4m)** puis, `.env` pointé sur le VPS, **1 passed (45.5s)** — capture `209 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token` ; absence d'infra → `✖ … scripts/e2e-studio-auth.mjs:103`, exit 1 ; apps **83 passed / 2 skipped** |
@@ -1514,7 +1514,7 @@ Trop gros pour un tour : le lot est scindé en **8 sous-lots** dont la somme est
 | **L20c2** | `profile/**` (`EditProfileModal` 426, `profile-edit-actions` 51) + `article-overlay/**` (`ArticleOverlayProvider` 465, `overlay-state` 125, son test 139) | 5 f. · 1 206 l. | **clos dans ce tour** (1 263 l. après correctifs). Deux surcouches/formulaires à état d'URL et mutation serveur ; la surcouche d'article est le miroir de celle de pensée, relue juste après. |
 | L20c3 | `social/ArticleAnnotatorView.tsx` (+ `ReaderToolbarContext` pour R126) | 1 f. · 1 153 l. | **durci le 2026-11-20** · **Risque nommé** tenu : plus gros fichier du périmètre (sélection, popovers, toolbar partagée, mutations), audité seul. Quatre findings (F273 date illisible qui cassait le rendu, F274 surlignages croisés, F275/F276 échecs muets), **R126 close**, 4 garanties jsdom rouges→vertes ; **R133 close** le même jour (temps de lecture et paywall passés par `t`, catalogue rattrapé : +48 `msgid`), 4 garanties de plus (7/7). |
 | L20c4 | `social/{ArticleReaderDrawer, ArticleComments, ArticleSummary, SimilarArticlesSection, DockedReaderToolbar, TrendingWidget}` + `social/article-byline.ts` | 6 f. · 988 l. (963 l. après extraction) + module 165 l. | **durci le 2026-11-20** · Chaîne de lecture d'article (tiroir, commentaires, résumé, similaires, toolbar ancrée) : 8 findings (F277→F284 — courses inter-articles, orphelins comptés, verrou Plus contourné sur mobile, défilement/dialog du tiroir, chaînes hors `t`, signature média/auteur unifiée), 7 garanties jsdom + 7 garanties byline rouges→vertes, **R132 close**. |
-| L20c5 | `social/{SearchFeed, search-results.ts, search-results.test.ts}` + `feed/{VirtualizedFeedList, RealtimeFeedPill}` | 5 f. · 847 l. (919 l. après correctifs) | **durci le 2026-11-20** · Flux et recherche : 5 findings (F285 date illisible au clic, F286 état vide contredisant la pagination, F287 compteur temps réel jamais annoncé + `AnimatePresence` mort, F288 `scrollMargin` figé à 0, F289 `IntersectionObserver` sans garde), 4 garanties jsdom + 5 garanties unitaires rouges→vertes, garde de source sur la conversion de date. |
+| L20c5 | `social/{SearchFeed, search-results.ts, search-results.test.ts}` + `feed/{VirtualizedFeedList, RealtimeFeedPill}` | 5 f. · 847 l. (919 l. après correctifs) | **durci le 2026-11-20** · Flux et recherche : 5 findings (F285 date illisible au clic, F286 état vide contredisant la pagination, F287 compteur temps réel jamais annoncé + `AnimatePresence` mort, F288 `scrollMargin` figé à 0, F289 `IntersectionObserver` sans garde), 4 garanties jsdom + 5 garanties unitaires rouges→vertes, garde de source sur la conversion de date. puis **dette i18n close** le même jour : 26 chaînes passées par `t`, `plural` pour le compteur, 28 `msgid` extraits, 7 garanties de plus. |
 | L20c6 | `messages/MessagesApp.tsx` + `messages/__tests__/messages-app.test.tsx` | 2 f. · 556 l. | Application de messagerie autonome, sans dépendance aux sous-lots précédents. |
 | L20c7 | `notifications/NotificationSettingsForm` + `dossiers/DossierThread` + `placements/InAppPlacement` | 3 f. · 421 l. | Petits widgets métier restants, dont le placement in-app qui alimente `DynamicBannerSlot` (L20c8). |
 | L20c8 | **Socle partagé** : `layout/**` (5), `providers/**` (2), `overlay/position.ts`, `StaleServerActionBanner`, `AnalyticsGate`, `banners/DynamicBannerSlot` | 11 f. · 748 l. | **Rayon d'action maximal, audité en dernier** : `MainContentWrapper`, `ReaderPageLayout`, `AppSidebar`, `ReaderNavOverlay`, `QueryProvider` et `ReadingPreferencesProvider` sont montés par **toutes** les pages `(reader)`. Corriger le socle après les feuilles évite de re-valider chaque correctif contre des consommateurs encore inconnus ; l'auditer en premier aurait obligé à rejouer le lot entier à chaque feuille corrigée. |
@@ -2212,8 +2212,56 @@ plus ces 3.
 **Reste non vérifié.** Rendu visuel (aucune capture) ; comportement réel du `IntersectionObserver` et du
 virtualizer dans un navigateur (le harnais mocke `@tanstack/react-virtual` et ne mesure aucune géométrie —
 la correction de `scrollMargin` est prouvée par la valeur transmise au virtualizer, pas par un rendu) ;
-défilement infini réel sur appareil ; les libellés de `SearchFeed` et du compteur restent hors `t`
-(≈ 25 chaînes, dont le pluriel « nouvelle pensée / nouvelles pensées ») — dette i18n écrite, non traitée ici.
+défilement infini réel sur appareil. Les libellés de `SearchFeed` et du compteur ne sont plus une dette :
+ils sont clos le même jour (ci-dessous).
+
+### Dette i18n du lot — close le 2026-11-20
+
+Les libellés de la page Recherche et du compteur temps réel restaient hors `t` : placeholder, cinq onglets
+et leurs compteurs, prompt d'accueil et sa description, les deux messages d'erreur, les trois intitulés de
+section, les quatre boutons de pagination, la méta sémantique (`N min`, ` · Premium`), les deux états vides
+et le pluriel « nouvelle pensée / nouvelles pensées » — **26 chaînes, 28 `msgid`** une fois `Sémantique` et
+`Sémantique (n)` séparés.
+
+Rouge conservé (mock `t` instrumenté qui enregistre chaque chaîne rendue ; `plural` du harnais reproduit la
+forme ICU choisie) :
+
+```
+× passe les onglets et leurs compteurs par `t`
+× borne le compteur d’articles quand un curseur reste (`1+`)
+× passe le placeholder, la description et les deux erreurs par `t`
+× passe l’état vide interpolé par `t`
+× passe les deux boutons de pagination par `t`
+× interdit la réapparition d’un libellé en dur (garde de source)
+× choisit la forme au singulier pour 1 et au pluriel au-delà
+AssertionError: expected [] to include 'Tous les résultats'
+AssertionError: expected [] to include 'Articles (1+)'
+AssertionError: SearchFeed.tsx: expected [ …(7) ] to deeply equal []
+  Tests  7 failed | 8 passed (15)                          I18N_L20C5_RED_EXIT=1
+```
+
+Verts après :
+
+```
+  Tests  15 passed (15)                                    I18N_L20C5_EXIT=0
+$ pnpm intl:extract                                     EXTRACT_EXIT=0
+$ pnpm intl:compile                                     COMPILE_EXIT=0
+$ grep -n "nouvelle pensée" messages/fr.po
+224:msgid "{unreadCount, plural, one {# nouvelle pensée} other {# nouvelles pensées}}"
+```
+
+Le macro `plural` (de `@lingui/core/macro`, déjà dépendance — premier usage du dépôt) se compile donc bien
+en ICU, et `@qoe/core build` le confirme. 28 `msgid` ajoutés aux deux catalogues ; côté `en`, ils sont
+extraits sans traduction, comme les 1400 autres entrées vides du fichier — dette de traduction préexistante,
+mesurée, non aggravée ici.
+
+**Deux rouges intermédiaires, non maquillés** : ma première garde de source flaguait (1) un de mes propres
+commentaires citant « Parcourir tous les articles » et (2) la branche `one:` du pluriel ICU, écrite sur sa
+propre ligne. Les deux exclusions sont désormais explicites dans le test (commentaires et branches
+`zero|one|two|few|many|other:`) : la garde ne signale que du texte rendu.
+
+**Non vérifié** : l'anglais réel (aucune traduction fournie, cf. ci-dessus) ; le rendu visuel des onglets
+avec des compteurs longs.
 
 ---
 

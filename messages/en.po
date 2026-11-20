@@ -13,6 +13,9 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+msgid " · Premium"
+msgstr ""
+
 #~ msgid " exporté depuis votre ancienne plateforme. Le fichier part en revue : aucun email n'est envoyé, aucune adresse n'est rattachée à votre site web et aucun contact n'est créé tant que le staff n'a pas statué."
 #~ msgstr ""
 
@@ -216,6 +219,9 @@ msgstr ""
 #~ msgstr "{readingTimeMinutes} min read"
 
 msgid "{totalConverted} annotations officielles créées."
+msgstr ""
+
+msgid "{unreadCount, plural, one {# nouvelle pensée} other {# nouvelles pensées}}"
 msgstr ""
 
 msgid "{upvotes} Utile"
@@ -1301,6 +1307,13 @@ msgstr "articles"
 msgid "Articles"
 msgstr "Articles"
 
+#. placeholder {0}: articles.length
+msgid "Articles ({0})"
+msgstr ""
+
+msgid "Articles ({articleCountLabel})"
+msgstr ""
+
 msgid "Articles & Brouillons"
 msgstr "Articles & Drafts"
 
@@ -1341,6 +1354,9 @@ msgid "Aucun article à traduire pour l’instant."
 msgstr ""
 
 msgid "Aucun article pour l’instant : la discussion apparaîtra ici dès la première publication."
+msgstr ""
+
+msgid "Aucun article proche par le sens pour"
 msgstr ""
 
 msgid "Aucun article publié"
@@ -1411,6 +1427,9 @@ msgstr ""
 
 msgid "Aucun mot masqué pour le moment."
 msgstr "No muted words yet."
+
+msgid "Aucun résultat trouvé pour"
+msgstr ""
 
 msgid "Aucun résultat trouvé."
 msgstr "No results found."
@@ -1516,6 +1535,9 @@ msgstr "Audio Readings"
 
 msgid "Aujourd'hui, l'abondance est le problème. Nous ne manquons pas d'informations — nous manquons de distance."
 msgstr "Today, abundance is the problem. We don't lack information — we lack distance."
+
+msgid "auteur"
+msgstr ""
 
 msgid "Auteur"
 msgstr "Author"
@@ -1997,6 +2019,12 @@ msgstr "Loading…"
 msgid "Charger plus"
 msgstr "Load more"
 
+msgid "Charger plus d'articles"
+msgstr ""
+
+msgid "Charger plus de pensées"
+msgstr ""
+
 msgid "Choisir dans la médiathèque"
 msgstr ""
 
@@ -2104,6 +2132,12 @@ msgstr "Light"
 
 msgid "Clara Lambert · Essai · 8 min"
 msgstr "Clara Lambert · Essay · 8 min"
+
+msgid "Classement par similarité de sens"
+msgstr ""
+
+msgid "Classement par similarité de sens, indépendamment des mots exacts."
+msgstr ""
 
 msgid "Clé API générée avec succès"
 msgstr ""
@@ -2673,6 +2707,9 @@ msgstr ""
 
 msgid "Découverte"
 msgstr "Discovery"
+
+msgid "Découvrez des conversations sur qoefi"
+msgstr ""
 
 #~ msgid "Découvrez le texte complet de cette nouvelle publication rédigée par l'auteur..."
 #~ msgstr ""
@@ -3299,6 +3336,9 @@ msgstr "Editing"
 
 #~ msgid "Édition newsletter complète par e-mail"
 #~ msgstr "Full email newsletter publishing"
+
+msgid "Effacer"
+msgstr ""
 
 msgid "Effacer la mise en forme"
 msgstr ""
@@ -5012,6 +5052,9 @@ msgstr ""
 msgid "Les requêtes signées avec ces clés ne sont pas rattachées à votre compte personnel mais au média lui-même. Vous pouvez attribuer des rôles délégués aux membres pour administrer ces accès."
 msgstr ""
 
+msgid "Les résultats de cette page sont tous filtrés — continuez pour trouver des articles."
+msgstr ""
+
 msgid "Les transferts sont terminés, mais la liste n'a pas pu être rafraîchie."
 msgstr ""
 
@@ -5868,6 +5911,9 @@ msgstr "Or"
 msgid "ou avec votre adresse email"
 msgstr ""
 
+msgid "ou un identifiant d'auteur."
+msgstr ""
+
 msgid "Oui"
 msgstr ""
 
@@ -6006,6 +6052,12 @@ msgstr "Settings saved."
 
 msgid "Parcourir les annotations de l’article"
 msgstr "Browse the article’s annotations"
+
+msgid "Parcourir tous les articles"
+msgstr ""
+
+msgid "Parcourir toutes les pensées"
+msgstr ""
 
 msgid "Paris, France"
 msgstr "Paris, France"
@@ -6150,6 +6202,13 @@ msgstr "Thought on Qoe"
 
 msgid "Pensées"
 msgstr "Thoughts"
+
+#. placeholder {0}: thoughts.length
+msgid "Pensées ({0})"
+msgstr ""
+
+msgid "Pensées ({thoughtCountLabel})"
+msgstr ""
 
 msgid "pensées consignées"
 msgstr "recorded thoughts"
@@ -6442,6 +6501,10 @@ msgstr ""
 msgid "PRO"
 msgstr ""
 
+#. placeholder {0}: semanticItems.length
+msgid "Proches par le sens ({0})"
+msgstr ""
+
 msgid "Profil"
 msgstr ""
 
@@ -6453,6 +6516,10 @@ msgstr ""
 
 msgid "Profil public"
 msgstr "Public profile"
+
+#. placeholder {0}: users.length
+msgid "Profils ({0})"
+msgstr ""
 
 msgid "Profils créateurs"
 msgstr ""
@@ -6817,6 +6884,9 @@ msgstr ""
 msgid "Recherche en cours..."
 msgstr "Searching..."
 
+msgid "Recherche sémantique indisponible pour le moment. La recherche par mots-clés reste accessible."
+msgstr ""
+
 msgid "Recherche…"
 msgstr ""
 
@@ -6858,6 +6928,9 @@ msgstr ""
 
 msgid "Rechercher une citation..."
 msgstr "Search a quote..."
+
+msgid "Rechercher une pensée, un profil ou une thématique..."
+msgstr ""
 
 msgid "Rechercher..."
 msgstr "Search..."
@@ -7447,6 +7520,9 @@ msgstr ""
 msgid "Saisissez le texte..."
 msgstr "Enter the text..."
 
+msgid "Saisissez un mot-clé, un hashtag comme"
+msgstr ""
+
 msgid "Saisissez votre mot de passe actuel pour confirmer."
 msgstr ""
 
@@ -7597,6 +7673,13 @@ msgstr ""
 
 #~ msgid "Selon vos lectures"
 #~ msgstr "Based on your reading"
+
+msgid "Sémantique"
+msgstr ""
+
+#. placeholder {0}: semanticItems.length
+msgid "Sémantique ({0})"
+msgstr ""
 
 #~ msgid "SEO & Pied de page"
 #~ msgstr "SEO & Footer"
@@ -8217,6 +8300,9 @@ msgstr ""
 msgid "Tous les profils pris en charge sont renseignés."
 msgstr ""
 
+msgid "Tous les résultats"
+msgstr ""
+
 #~ msgid "Tous les thèmes"
 #~ msgstr "All themes"
 
@@ -8427,6 +8513,9 @@ msgstr "An error occurred while creating your space."
 
 #~ msgid "Une erreur est survenue lors de la création du thème."
 #~ msgstr "An error occurred while creating the topic."
+
+msgid "Une erreur est survenue lors de la recherche."
+msgstr ""
 
 msgid "Une erreur est survenue lors de la sauvegarde."
 msgstr "An error occurred while saving."
