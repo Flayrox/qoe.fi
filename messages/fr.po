@@ -3274,6 +3274,9 @@ msgstr "Écouter l'article"
 msgid "Écrire"
 msgstr "Écrire"
 
+msgid "Écrire au dossier…"
+msgstr "Écrire au dossier…"
+
 msgid "Écrire un article"
 msgstr "Écrire un article"
 
@@ -3468,6 +3471,9 @@ msgstr "Enregistrement auto · {MOD}S pour forcer"
 
 #~ msgid "Enregistrement auto · ⌘S pour forcer"
 #~ msgstr "Enregistrement auto · ⌘S pour forcer"
+
+msgid "Enregistrement impossible"
+msgstr "Enregistrement impossible"
 
 msgid "Enregistrement..."
 msgstr "Enregistrement..."
@@ -3955,6 +3961,9 @@ msgstr "Fermer"
 
 msgid "Fermer (Échap)"
 msgstr "Fermer (Échap)"
+
+msgid "Fermer cette notification"
+msgstr "Fermer cette notification"
 
 msgid "Fermer l’annotation"
 msgstr "Fermer l’annotation"
@@ -6465,6 +6474,9 @@ msgstr "Précisions (optionnel)"
 msgid "Préfère ne pas dire"
 msgstr "Préfère ne pas dire"
 
+msgid "Préférence non enregistrée :"
+msgstr "Préférence non enregistrée :"
+
 #~ msgid "Préférences"
 #~ msgstr "Préférences"
 
@@ -7914,6 +7926,9 @@ msgstr "Spam ou publicité indésirable"
 msgid "Spam ou publicité non sollicitée"
 msgstr "Spam ou publicité non sollicitée"
 
+msgid "Staff"
+msgstr "Staff"
+
 msgid "Standard"
 msgstr "Standard"
 
@@ -8969,6 +8984,9 @@ msgstr "Voulez-vous vraiment supprimer ce commentaire ?"
 
 msgid "Voulez-vous vraiment supprimer cette pensée et son contenu ?"
 msgstr "Voulez-vous vraiment supprimer cette pensée et son contenu ?"
+
+msgid "Vous"
+msgstr "Vous"
 
 #. placeholder {0}: c.lastMessage.content
 msgid "Vous : {0}"
