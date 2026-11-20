@@ -29,6 +29,13 @@ export function useStageHotkeys(h: HotkeyHandlers) {
         (target?.isContentEditable ?? false);
       if (e.key === 'Alt') h.setShowMeasurement(true);
       if (typing) return;
+      // En aperçu, l'inspecteur et les poignées sont masqués : laisser Suppr,
+      // ⌘D ou ⌘Z actifs supprimait/dupliquait/annulait dans le brouillon sans
+      // aucun retour visuel. Seul Échap reste utile (retour au Design).
+      if (h.editorMode === StageEditorMode.PREVIEW) {
+        if (e.key === 'Escape') h.setEditorMode(StageEditorMode.DESIGN);
+        return;
+      }
       if (e.code === 'Space' && !e.repeat) {
         e.preventDefault();
         h.setSpacePan(true);
