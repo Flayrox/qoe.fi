@@ -4,7 +4,7 @@
 // 🌍 TranslateClient — choisir un article, traduire, relire, copier
 // =====================================================================
 
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { t } from '@lingui/core/macro';
 import { Button } from '@qoe/ui/button';
 import { Callout } from '@qoe/ui/callout';
@@ -35,6 +35,16 @@ export function TranslateClient({ articles }: { articles: TranslatableArticle[] 
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [isPending, startTransition] = useTransition();
+  // Un seul minuteur d'indicateur à la fois : sans annulation, la deuxième
+  // copie perdait son « Copié » au terme du délai de la première.
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (copiedTimer.current) clearTimeout(copiedTimer.current);
+    },
+    []
+  );
 
   const selected = articles.find((article) => article.id === selectedId);
 
@@ -54,9 +64,19 @@ export function TranslateClient({ articles }: { articles: TranslatableArticle[] 
 
   const copy = async () => {
     if (!result) return;
-    await navigator.clipboard.writeText(result);
+    try {
+      await navigator.clipboard.writeText(result);
+    } catch {
+      // Presse-papiers refusé (permission, contexte non sécurisé) : le dire
+      // plutôt que laisser une promesse rejetée sans retour visuel.
+      setCopied(false);
+      setError(t`Copie dans le presse-papiers impossible.`);
+      return;
+    }
+    setError(null);
     setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    if (copiedTimer.current) clearTimeout(copiedTimer.current);
+    copiedTimer.current = setTimeout(() => setCopied(false), 1500);
   };
 
   if (articles.length === 0) {

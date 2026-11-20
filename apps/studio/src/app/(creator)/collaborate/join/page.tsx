@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useTransition } from 'react';
+import React, { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   FileText,
@@ -30,6 +30,16 @@ export default function CollaborateJoinPage() {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [joinSuccess, setJoinSuccess] = useState(false);
+  // La redirection différée doit être annulée si la page est quittée avant
+  // l'échéance, sinon un départ volontaire devient une navigation forcée.
+  const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (redirectTimer.current) clearTimeout(redirectTimer.current);
+    },
+    []
+  );
 
   useEffect(() => {
     if (!token) {
@@ -73,7 +83,7 @@ export default function CollaborateJoinPage() {
         const res = await joinCollaborationByLinkAction(token);
         if (res.ok && res.data?.success) {
           setJoinSuccess(true);
-          setTimeout(() => {
+          redirectTimer.current = setTimeout(() => {
             router.push(`/articles/${res.data.articleId}`);
           }, 1000);
         } else {
