@@ -93,6 +93,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | **durci le 2026-11-19** |
 | L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; prochain = L20c3 |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
+| L20l    | **Studio authentifié : login réel, éditeur, publication — 0 requête vers le Supabase partagé** | `e2e/studio-auth-journey.spec.ts` (nouveau), `playwright.apps.config.ts` (core + résolveur), `e2e/lib/supabase-network-guard.ts` (échecs journalisés) | env volontairement en VPS : **1 passed (23.3s)** puis **1 passed (25.7s)** ; capture `205 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token?grant_type=password` ; apps **83 passed / 3 skipped**, oauth-consent **2 passed** |
 | L20k    | **Surfaces studio/admin/hi + matrice de routes : 0 requête vers le Supabase partagé** | `e2e/lib/supabase-network-guard.ts` (nouveau), `e2e/lib/route-matrix.ts`, `e2e/{studio,admin}.spec.ts` | env volontairement en VPS : APPS **14 passed**, MATRICE **56 passed**, TENANTS **13**, OAUTH **2** ; captures `0 Supabase` par app ; login mesuré sur `http://127.0.0.1:54321` |
 | L20j    | **Supabase serveur à serveur gardé + stack e2e réparée (cache Turbopack, dérivation Go)** | `apps/api/internal/config/{config.go,supabase_origin.go,config_test.go}`, 5 `next.config.ts`, `playwright.config.ts`, `e2e/lib/env.ts` | 2026-11-20 : garde Go rouge→vert citée, `oauth-consent` **2/2**, tenants **13/13**, disque **15→41 GiB**, toutes gardes CI vertes |
 | L20i    | **Supabase local : aucune page servie en local ne peut viser le Supabase partagé** | `packages/supabase/src/{url.ts,client.ts,server.ts,middleware.ts,storage.ts}`, 7 lecteurs d'app/SDK, `__tests__/url.test.ts` | mesuré le 2026-11-20 : avant **1 requête** `POST /auth/v1/otp` vers `116.203.158.47:54321`, après **0** (→ `127.0.0.1:54321`) ; supabase **57 tests**, tenants e2e **13/13**, build prod **exit 0** |
@@ -1753,7 +1754,8 @@ local : le parcours complet (login réel → consentement → autorisation → c
 Au passage, `pnpm typecheck` échouait sur des **artefacts générés dupliqués** (`apps/{core,hi}/.next/types/… 2.ts`,
 6 fichiers) : purgés, 25/25.
 
-Surfaces restantes (studio, admin, hi, matrice de routes) : rejouées au lot **L20k** (ci-dessous). Reste non
+Surfaces restantes (studio, admin, hi, matrice de routes) : rejouées au lot **L20k** (ci-dessous). Surfaces
+**authentifiées** de studio (login, éditeur, publication) : prouvées au lot **L20l** (ci-dessous). Reste non
 vérifié : le cache de **build** Turbopack (`turbopackFileSystemCacheForBuild`) reste actif — sa croissance n’a été
 mesurée que sur une build.
 
@@ -1810,6 +1812,51 @@ ses 3 cas s’exécutaient dans 2 workers qui rejouaient le `beforeAll` en paral
 `tenants-recommendations.spec.ts` cliquait « S’abonner » après `domcontentloaded`, donc **avant l’hydratation**
 (aucun POST, 1 flaky sur 2 runs) : `waitForLoadState('load')` ajouté, 3 runs verts d’affilée puis 13/13 sur le
 projet complet, sans aucun « flaky » dans le rapport.
+
+**Studio authentifié : login réel, édition, publication (L20l).** Le L20k ne prouvait que l’état *déconnecté* (toute
+la surface studio redirige vers `/login`). `e2e/studio-auth-journey.spec.ts` couvre l’inverse et garde la même
+capture réseau du premier au dernier clic :
+
+1. compte créé par un **vrai chemin GoTrue** — `createRealSession` (`e2e/lib/env.ts`) : `signup` + confirmation Admin
+   API + `token?grant_type=password` ; aucun mock d’auth ;
+2. **login réel dans le formulaire** du core (mode mot de passe de `LoginFormBento`), pas d’injection de cookie ;
+3. `User` + `Publisher` fixture portant l’UUID GoTrue, modale légale acceptée (5 documents), éditeur ouvert sur
+   `/articles/new`, titre + corps saisis dans le vrai ProseMirror ;
+4. publication par la modale de diffusion (`Web uniquement` → `Publier sur le web`), vérifiée **en base**
+   (`published = true`, `authorId = <uuid GoTrue>`), puis nettoyage.
+
+Rouges réels rencontrés et corrigés à la source, dans l’ordre :
+
+| Rouge cité | Cause fichier:ligne | Correctif |
+| ---------- | ------------------- | --------- |
+| `strict mode violation: getByRole('button', { name: 'Se connecter' }) resolved to 2 elements` | le basculeur « Se connecter par lien magique » contient la même chaîne (`packages/ui/src/LoginFormBento.tsx:826`) | `exact: true` sur le bouton de soumission |
+| `duplicate key value violates unique constraint "User_publisherId_key"` puis `User_publicationId_fkey` | `e2e/lib/db.ts` `ensureUser` ne libérait que l’email ; le trigger `trg_cleanup_user_personal_publisher` (`apps/api/sql/migrations/00081_rename_publication_to_publisher.sql:200`) **supprime la publication PERSONAL** quand son user disparaît | éviction des restes (`email` **ou** `publisherId`) **avant** `ensurePublisher`, commentée avec le trigger |
+| `page.waitForURL: net::ERR_CONNECTION_REFUSED` + `[réseau] échec http://lvh.me:15402/login?redirect=…` | le core tournait sur `:3010` alors que la pile est canonique sur `lvh.me:15402` (`apps/studio/middleware.ts:26` réécrit `localhost` → `studio.lvh.me`, cookie posé sur `.lvh.me`) | webServer core de `playwright.apps.config.ts` sur `lvh.me:15402`, hôtes `studio.lvh.me:15404` / `lvh.me:15402` dans la spec |
+| `getByRole('button', { name: "J'accepte et je continue" })` jamais trouvé | apostrophe typographique `’` (`packages/ui/src/legal/LegalConsentGate.tsx:47`) | sélecteur aligné sur `J’accepte…` |
+| `article « … » attendu en base` → `0` alors que la ligne existe 200 ms plus tard | lecture base immédiate après un server action asynchrone ; la modale se rouvre sous un autre libellé (`Diffusion & Distribution`), donc `toBeHidden` sur son ancien nom passait trop tôt | `expect(page.getByRole('dialog')).toHaveCount(0)` puis `expect.poll` sur la ligne publiée |
+
+Trou de configuration corrigé dans le même lot : `playwright.apps.config.ts` transmettait `SUPABASE_AUTH_URL`
+**brut** à l’API Go lancée par Playwright — un `.env` de poste l’aurait fait viser le VPS. Il passe désormais par
+`resolveSupabaseUrl` (`@qoe/supabase/url`), comme `playwright.config.ts`. Et `watchOutgoing` journalise les
+`requestfailed` : sans cela, l’`ECONNREFUSED` ci-dessus ne disait pas *quelle* URL avait été refusée.
+
+Run réel, env **volontairement** en VPS (`NEXT_PUBLIC_SUPABASE_URL=http://116.203.158.47:54321`), infra jetable
+(Postgres 55439 `pgvector/pgvector:pg16`, Redis 6385, GoTrue `supabase start` :54321, goose **93**, `cmd/seed` OK) :
+
+```
+[studio authentifié] réseau : 205 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token?grant_type=password
+  ✓  1 [studio] › e2e/studio-auth-journey.spec.ts:37:7 › Studio authentifié — parcours réel (4.5s)
+  1 passed (23.3s)          # rejoué : 1 passed (25.7s)
+```
+
+Le seul appel Supabase de tout le parcours (login → studio → éditeur → publication) va à `127.0.0.1:54321` :
+**0 requête vers `116.203.158.47`**, y compris quand le `.env` du poste pointe ce VPS.
+
+Non-régression du lot : `pnpm lint` 0 · `pnpm typecheck` 0 · `pnpm test` 0 (`@qoe/studio` 575 tests, `@qoe/ui` 677
+tests) · `pnpm typecheck:root` 0 · les 10 gardes CI 0 · `playwright --config playwright.apps.config.ts`
+(tenants + studio + admin + hi + matrice) **83 passed / 3 skipped**, exit 0 · `--project=oauth-consent`
+**2 passed (31.4s)**. Les 3 `skipped` sont les portes `RUN_FULL_STACK`/`admin-legal` existantes, dont le nouveau
+parcours.
 
 **Dette de rejouabilité (documentée, sans changement de code).** Premier `test:api` du lot sur la base de test
 **persistante** : `TESTAPI_EXIT=1`, `internal/modules/imports` en échec —

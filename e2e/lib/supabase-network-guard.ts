@@ -41,6 +41,11 @@ export interface OutgoingWatch {
 export function watchOutgoing(page: Page): OutgoingWatch {
   const urls: string[] = [];
   page.on('request', (req) => urls.push(req.url()));
+  // Les échecs réseau sont journalisés : sans eux, un `ECONNREFUSED` en cours
+  // de parcours ne dit pas **quelle** URL a été refusée.
+  page.on('requestfailed', (req) =>
+    console.log(`[réseau] échec ${req.url()} → ${req.failure()?.errorText ?? 'inconnu'}`)
+  );
   const supabaseUrls = () => urls.filter((url) => url.includes(':54321'));
 
   return {

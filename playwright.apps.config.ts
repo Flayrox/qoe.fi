@@ -8,6 +8,7 @@
 // =====================================================================
 
 import { defineConfig, devices } from '@playwright/test';
+import { resolveSupabaseUrl } from '@qoe/supabase/url';
 
 const GO_API_PORT = Number(process.env.PLAYWRIGHT_GO_API_PORT) || 8090;
 // ⚠️ `127.0.0.1`, pas `localhost` : sur macOS `localhost` résout d'abord en
@@ -26,6 +27,14 @@ const HI_URL = process.env.PLAYWRIGHT_HI_URL ?? 'http://localhost:15401';
 const goDatabaseUrl = (process.env.API_DATABASE_URL ?? process.env.DATABASE_URL ?? '').split(
   '?'
 )[0];
+
+// Même règle d'origine que l'application (`@qoe/supabase/url`) : l'API Go
+// lancée ici ne doit jamais recevoir le Supabase d'un `.env` de poste. Un
+// `SUPABASE_AUTH_URL` passé brut pointait le VPS partagé.
+const supabaseAuthUrl = resolveSupabaseUrl(
+  process.env.SUPABASE_AUTH_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+  process.env.NEXT_PUBLIC_APP_URL
+);
 
 const appEnv = {
   NEXT_TELEMETRY_DISABLED: '1',
@@ -47,6 +56,18 @@ const NEEDS_TENANTS = !hasProjectArg || process.argv.some((a) => a.includes('ten
 const NEEDS_STUDIO = !hasProjectArg || process.argv.some((a) => a.includes('studio'));
 const NEEDS_HI = !hasProjectArg || process.argv.some((a) => a.includes('hi'));
 const NEEDS_ADMIN = !hasProjectArg || process.argv.some((a) => a.includes('admin'));
+
+// Parcours authentifié complet (`RUN_FULL_STACK=1`) : le formulaire de login vit
+// dans le core (seule surface qui instancie le client Supabase navigateur).
+// Sans core, studio redirige vers `lvh.me:3010` et le login réel est impossible.
+// ⚠️ Hôte et port canoniques : `apps/studio/middleware.ts` réécrit
+// `localhost:15404` → `studio.lvh.me:15404`, et les apps redirigent vers le
+// core sur `lvh.me:15402`. Un core sur un autre port rend le parcours
+// impossible (`ERR_CONNECTION_REFUSED` sur `lvh.me:15402`) ; le cookie de
+// session, lui, est posé sur `.lvh.me` et suit donc les sous-domaines.
+const RUN_FULL_STACK = process.env.RUN_FULL_STACK === '1';
+const CORE_URL = process.env.PLAYWRIGHT_CORE_URL ?? 'http://lvh.me:15402';
+const CORE_PORT = Number(new URL(CORE_URL).port) || 15402;
 
 /**
  * `prod: false` garde `next dev` pour une app qui n'est pas construite par le
@@ -105,7 +126,7 @@ export default defineConfig({
         API_PORT: String(GO_API_PORT),
         API_DATABASE_URL: goDatabaseUrl,
         DATABASE_URL: goDatabaseUrl,
-        SUPABASE_AUTH_URL: process.env.SUPABASE_AUTH_URL ?? '',
+        SUPABASE_AUTH_URL: supabaseAuthUrl,
         SUPABASE_JWT_SECRET: process.env.SUPABASE_JWT_SECRET ?? 'e2e-router-secret',
         REDIS_URL: process.env.REDIS_URL ?? '',
       },
@@ -116,6 +137,20 @@ export default defineConfig({
     ...(NEEDS_STUDIO ? [appServer('@qoe/studio', 15404)] : []),
     ...(NEEDS_ADMIN ? [appServer('@qoe/admin', 15405)] : []),
     ...(NEEDS_HI ? [appServer('@qoe/hi', 15401)] : []),
+    // Core en dev pour le parcours authentifié : une seule app le rend, et la
+    // compilation à la demande ne concerne que la page de login.
+    ...(RUN_FULL_STACK
+      ? [
+          {
+            command: `pnpm --filter @qoe/core exec sh -c 'rm -f .next/dev/lock && exec next dev -p ${CORE_PORT} -H 127.0.0.1'`,
+            // Readiness HTTP sur `/login` : 200 sans session, page stable.
+            url: `${CORE_URL}/login`,
+            reuseExistingServer: !process.env.CI,
+            timeout: 180_000,
+            env: { ...appEnv, HOSTNAME: '127.0.0.1' },
+          },
+        ]
+      : []),
   ],
   projects: [
     {
