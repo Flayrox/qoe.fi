@@ -74,6 +74,7 @@ import { t } from '@lingui/core/macro';
 import { useFlag } from '@qoe/flags';
 import { Button } from '@qoe/ui/button';
 import { useReaderToolbar } from './ReaderToolbarContext';
+import { resolveArticleByline } from './article-byline';
 
 export interface ArticleAnnotatorViewProps {
   article: {
@@ -588,75 +589,27 @@ function ArticleAnnotatorViewInner({
     return sanitizeArticleHtml(html);
   }, [article.content, preferences.bionicReading]);
 
-  const publisher = article.publisher;
-  // Attribution de l'article : Média vs Auteur
-  // Un article est un article de Média si :
-  // 1. article.publisher?.type === 'MEDIA'
-  // 2. article.author?.type === 'MEDIA'
-  // 3. article.publisher?.name existe et diffère du nom du rédacteur
-  const isMedia =
-    publisher?.type === 'MEDIA' ||
-    article.author?.type === 'MEDIA' ||
-    Boolean(
-      publisher?.name &&
-      publisher.name.trim().toLowerCase() !==
-        (article.author?.journalist?.name || article.author?.name || '').trim().toLowerCase()
-    );
-
-  // Émetteur principal pour un média :
-  const mediaName =
-    publisher?.name || (article.author?.type === 'MEDIA' ? article.author.name : null) || 'Média';
-  const mediaHandle =
-    publisher?.subdomain ||
-    publisher?.slug ||
-    (article.author?.type === 'MEDIA'
-      ? article.author.username || article.author.subdomain
-      : null) ||
-    '';
-  const mediaLogo =
-    publisher?.logoUrl ||
-    (article.author?.type === 'MEDIA' ? article.author.logoUrl : null) ||
-    null;
-  const mediaCertified = Boolean(
-    publisher?.isCertified || (article.author?.type === 'MEDIA' && article.author.isCertified)
-  );
-
-  // Journaliste / Rédacteur individuel :
-  const writerObj =
-    article.author?.journalist || (article.author?.type !== 'MEDIA' ? article.author : null);
-  const writerId =
-    writerObj?.id ||
-    (article.author?.name && article.author.name !== mediaName ? article.author.id : null) ||
-    '';
-  const writerName =
-    writerObj?.name ||
-    (article.author?.name && article.author.name !== mediaName ? article.author.name : null) ||
-    'Auteur';
-  const writerHandle =
-    writerObj?.username ||
-    (article.author?.username && article.author.username !== mediaHandle
-      ? article.author.username
-      : null) ||
-    '';
-  const writerAvatar =
-    writerObj?.logoUrl ||
-    (article.author?.logoUrl !== mediaLogo ? article.author?.logoUrl : null) ||
-    null;
-  const writerCertified = Boolean(
-    writerObj?.isCertified ??
-    (article.author?.name && article.author.name !== mediaName ? article.author.isCertified : false)
-  );
-
-  // Émetteur pour un article personnel (hors média) :
-  const personalAuthorName = article.author?.name || article.author?.username || 'Auteur';
-  const personalAuthorHandle = article.author?.username || article.author?.subdomain || '';
-  const personalAuthorAvatar = article.author?.logoUrl || null;
-  const personalAuthorCertified = Boolean(article.author?.isCertified);
-
-  const authorName = isMedia ? mediaName : personalAuthorName;
-  const authorHandle = isMedia ? mediaHandle : personalAuthorHandle;
-
-  const targetFollowId = isMedia ? publisher?.id || article.author?.id : article.author?.id;
+  // ✍️ Signature de l'article (média vs auteur) : résolution partagée avec le
+  // tiroir de lecture — une seule règle, donc un seul endroit à corriger (R132).
+  const {
+    isMedia,
+    mediaName,
+    mediaHandle,
+    mediaLogo,
+    mediaCertified,
+    writerId,
+    writerName,
+    writerHandle,
+    writerAvatar,
+    writerCertified,
+    personalAuthorName,
+    personalAuthorHandle,
+    personalAuthorAvatar,
+    personalAuthorCertified,
+    authorName,
+    authorHandle,
+    targetFollowId,
+  } = React.useMemo(() => resolveArticleByline(article), [article]);
 
   // 📅 La primitive partagée rend `null` sur une entrée illisible, là où
   // `Date#toISOString()` jetait un `RangeError` pendant le rendu et cassait
@@ -775,7 +728,7 @@ function ArticleAnnotatorViewInner({
                 {/* ── Cas Média : Grand logo du Média en squircle ── */}
                 <ProfileHoverCard
                   user={{
-                    id: publisher?.id || '',
+                    id: article.publisher?.id || '',
                     name: mediaName,
                     username: mediaHandle,
                     logoUrl: mediaLogo,
@@ -801,7 +754,7 @@ function ArticleAnnotatorViewInner({
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <ProfileHoverCard
                       user={{
-                        id: publisher?.id || '',
+                        id: article.publisher?.id || '',
                         name: mediaName,
                         username: mediaHandle,
                         logoUrl: mediaLogo,

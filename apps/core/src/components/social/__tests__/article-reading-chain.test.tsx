@@ -26,6 +26,7 @@ const {
   mockFlag,
   mockPlus,
   ttsProps,
+  ttsMetadata,
 } = vi.hoisted(() => ({
   mockComments: vi.fn(),
   mockDeleteComment: vi.fn(),
@@ -34,6 +35,7 @@ const {
   mockFlag: vi.fn(() => true),
   mockPlus: vi.fn((): boolean | null => false),
   ttsProps: [] as Record<string, unknown>[],
+  ttsMetadata: [] as Record<string, unknown>[],
 }));
 
 function deferred<T>() {
@@ -79,7 +81,16 @@ vi.mock('@qoe/ui/reader', () => ({
     ttsProps.push(props);
     return <span data-testid="tts" />;
   },
-  TextToSpeechProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  TextToSpeechProvider: ({
+    children,
+    initialMetadata,
+  }: {
+    children: React.ReactNode;
+    initialMetadata?: Record<string, unknown>;
+  }) => {
+    if (initialMetadata) ttsMetadata.push(initialMetadata);
+    return <>{children}</>;
+  },
   ReadingSettingsSheet: () => null,
 }));
 
@@ -183,6 +194,7 @@ const similarFixture = (id: string) => ({
 
 beforeEach(() => {
   ttsProps.length = 0;
+  ttsMetadata.length = 0;
   mockComments.mockReset();
   mockDeleteComment.mockReset();
   mockSummarize.mockReset();
@@ -311,6 +323,27 @@ describe('ArticleReaderDrawer', () => {
 
     rerender(<ArticleReaderDrawer isOpen={false} article={ARTICLE} onClose={() => {}} />);
     expect(document.body.style.overflow).toBe('scroll');
+  });
+
+  it('signe un média par son journaliste, même quand le compte média porte son nom (R132)', () => {
+    render(
+      <ArticleReaderDrawer
+        isOpen
+        article={{
+          ...ARTICLE,
+          publisher: { id: 'pub-2', name: 'Le Monde', slug: 'le-monde' },
+          author: {
+            id: 'auth-4',
+            name: 'Le Monde',
+            username: 'lemonde',
+            journalist: { id: 'j-2', name: 'Alice Martin', username: 'alice', logoUrl: null },
+          },
+        }}
+        onClose={() => {}}
+      />
+    );
+
+    expect(ttsMetadata[0]?.authorName).toBe('Le Monde · par Alice Martin');
   });
 
   it('expose une boîte de dialogue nommée', () => {

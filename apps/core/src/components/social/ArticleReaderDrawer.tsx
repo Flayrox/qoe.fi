@@ -8,6 +8,7 @@ import { getArticleUrl } from '@qoe/config/routes';
 import { cn } from '@qoe/utils';
 
 import { ReaderToolbarProvider, useReaderToolbar } from './ReaderToolbarContext';
+import { resolveArticleByline } from './article-byline';
 import { DockedReaderToolbar } from './DockedReaderToolbar';
 import { TextToSpeechProvider } from '@qoe/ui/reader';
 import { ProgressiveBlur } from '@qoe/ui';
@@ -27,21 +28,9 @@ export interface ArticleReaderDrawerProps {
 export function ArticleReaderDrawer(props: ArticleReaderDrawerProps) {
   if (!props.isOpen && !props.article) return null;
 
-  const isMedia =
-    props.article?.publisher?.type === 'MEDIA' ||
-    props.article?.author?.type === 'MEDIA' ||
-    Boolean(
-      props.article?.publisher?.name &&
-      props.article.publisher.name.trim().toLowerCase() !==
-        (props.article.author?.name || '').trim().toLowerCase()
-    );
-  const mediaName = props.article?.publisher?.name;
-  const writerName = props.article?.author?.journalist?.name || props.article?.author?.name;
-  const authorSubtitle = isMedia
-    ? mediaName && writerName && mediaName !== writerName
-      ? `${mediaName} · par ${writerName}`
-      : mediaName || writerName || ''
-    : writerName || props.article?.author?.username || props.article?.publisher?.slug || '';
+  // ✍️ Une seule résolution de signature, partagée avec l'annotateur (R132) :
+  // le libellé média/journaliste ne se compose plus ici.
+  const { subtitle: authorSubtitle } = resolveArticleByline(props.article ?? {});
 
   return (
     <ReaderToolbarProvider allowPublicAnnotations={props.article?.allowPublicAnnotations ?? true}>
@@ -138,21 +127,7 @@ function ArticleReaderDrawerContent({
   if (!article) return null;
 
   const externalUrl = getArticleUrl(article, { preferTenant: true });
-  const isMedia =
-    article.publisher?.type === 'MEDIA' ||
-    article.author?.type === 'MEDIA' ||
-    Boolean(
-      article.publisher?.name &&
-      article.publisher.name.trim().toLowerCase() !==
-        (article.author?.name || '').trim().toLowerCase()
-    );
-  const mediaName = article.publisher?.name;
-  const writerName = article.author?.journalist?.name || article.author?.name;
-  const authorName = isMedia
-    ? mediaName && writerName && mediaName !== writerName
-      ? `${mediaName} · par ${writerName}`
-      : mediaName || writerName || ''
-    : writerName || article.author?.username || article.publisher?.slug || '';
+  const { subtitle: authorName } = resolveArticleByline(article);
 
   return (
     <AnimatePresence>

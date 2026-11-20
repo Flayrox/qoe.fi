@@ -91,7 +91,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b3 | `app/(reader)/library/**`                                                                                    | 18 fichiers · 3 689 l.      | **clos** : L20b2b31 (racine, 5 f.) **durci le 2026-11-19** + L20b2b32 (`ebooks/**`, 13 f.) **durci le 2026-11-19** |
 | L20b2b4 | `app/(reader)/[username]/**`                                                                                 | 9 fichiers · 2 184 l.       | **durci le 2026-11-19** |
 | L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | **durci le 2026-11-19** |
-| L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; L20c3 (annotateur d'article, 1 f. · 1 153 l., **R126 close**) **durci le 2026-11-20** ; L20c4 (chaîne de lecture d'article, 6 f. · 992 l.) **durci le 2026-11-20** ; prochain = L20c5 |
+| L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; L20c3 (annotateur d'article, 1 f. · 1 153 l., **R126 close**) **durci le 2026-11-20** ; L20c4 (chaîne de lecture d'article, 6 f. · 988 l. à la livraison, 963 l. après extraction de la signature) **durci le 2026-11-20**, **R132 close** ; prochain = L20c5 |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
 | L20n     | **Studio authentifié : la preuve porte sur des builds de production (`next start`), et le cookie `Secure` suit l’origine** | `playwright.apps.config.ts` (`appServer` paramétré — **aucun** `next dev` bespoke restant, admin compris), `scripts/e2e-studio-auth.mjs` (builds studio+admin+core + `PLAYWRIGHT_APPS_PROD`), `packages/supabase/src/{cookie-config,client,server,middleware}.ts` (`getCookieSecure`), `e2e/studio-auth-journey.spec.ts` (session exigée **avant** la redirection) | 3 runs prod depuis un état propre : **1 passed (9.2s)** `184 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token?grant_type=password`, puis **1 passed (9.2s)** (`189`), puis `.env` en VPS **1 passed (9.2s)** (`184`, **0 requête** vers `116.203.158.47`) ; absence d’infra → `✖ … scripts/e2e-studio-auth.mjs:103`, exit 1 ; apps **83 passed / 2 skipped** (admin en prod), oauth-consent **2 passed** |
 | L20m     | **La preuve réseau du studio authentifié ne peut plus être `skipped` en silence** | `scripts/e2e-studio-auth.mjs` (nouveau), `package.json`, `e2e/studio-auth-journey.spec.ts`, `playwright.apps.config.ts`, `.github/workflows/ci.yml` | `pnpm e2e:studio-auth` depuis un état propre : **1 passed (1.4m)** puis, `.env` pointé sur le VPS, **1 passed (45.5s)** — capture `209 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token` ; absence d'infra → `✖ … scripts/e2e-studio-auth.mjs:103`, exit 1 ; apps **83 passed / 2 skipped** |
@@ -910,7 +910,7 @@ nommé), puis verts après restauration.
 | R74 | `canonicalEmail` est calculé par `@qoe/moderation` et écrit dans les métadonnées Supabase (`options.data`) au signup, mais **aucun code ne le lit** : ni le sync Go, ni la base (aucun index unique). L'anti-multi-comptes annoncé par le module ne s'exerce donc pas au-delà du jour de l'inscription, et la suppression systématique du tag `+` (tous fournisseurs, pas seulement Gmail) n'a aucune conséquence observable. | moyenne | Arbitrage backend : colonne `canonicalEmail` + index unique dans une migration goose, puis refus de doublon côté Go (`/v1/auth/sync`), en décidant si l'on garde Gmail uniquement pour les points. Voir L14. |
 | R94 | `/api/articles/[slug]` (core) n'a **aucun appelant** dans le repo : la page article lit côté serveur. Route morte dont le contrat HTTP vient d'être corrigé (cache privé, L20b1) mais qui reste à supprimer ou à réutiliser explicitement. | faible | Arbitrage : supprimer la route (et son test) ou la brancher sur le préchargement client ; décision produit sur le préchargement d'article. Voir L20b1. |
 | R93 | `packages/analytics` envoie la session de lecture par `navigator.sendBeacon(endpointUrl, payload)` avec un **corps texte** (Content-Type `text/plain`) : le handler lit `req.json()`, qui fonctionne par chance (pas de validation de type de contenu côté Next). Aucun rejet observé, mais le contrat média n'est pas explicite. | faible | Arbitrage : créer un `Blob` typé `application/json` à l'envoi, ou valider/ignorer explicitement le Content-Type côté route. Voir L20b1. |
-| R132 | La résolution média/auteur de `ArticleReaderDrawer` est écrite **deux fois** (`ArticleReaderDrawer` puis `ArticleReaderDrawerContent`, ~20 l. identiques) et a déjà divergé de `ArticleAnnotatorView` : le tiroir compare `author.name` au nom du média, l'annotateur compare `author.journalist.name`. Pour un article média dont le journaliste porte le nom du média, le sous-titre du tiroir et l'en-tête de l'article ne disent donc pas la même chose. | faible | Extraire un `resolveArticleByline(article)` partagé (média + journaliste, média seul, personnel) et couvrir les trois formes d'un test unitaire, en gardant le rendu actuel à l'identique. Voir L20c4. |
+| R132 | ~~La résolution média/auteur était écrite **trois fois** (`ArticleReaderDrawer`, `ArticleReaderDrawerContent`, `ArticleAnnotatorView`) et les copies avaient divergé : le tiroir comparait `author.name` au nom du média, l'annotateur `author.journalist.name`~~ — **close le 2026-11-20**. Conséquence mesurée : pour un média dont le compte porte son nom mais dont le journaliste signe, le tiroir affichait « Alice Martin » là où l'article signait « Le Monde · par Alice Martin » (`AssertionError: expected 'Alice Martin' to be 'Le Monde · par Alice Martin'`). | — | Close : `social/article-byline.ts` (165 l.) porte **la** règle (`resolveArticleByline`), le tiroir et l'annotateur la consomment, les trois copies sont supprimées (tiroir 276→**251 l.**, annotateur 1 153→**1 106 l.**). Une garantie de source interdit la réapparition d'une seconde implémentation (heuristique `trim().toLowerCase()` et libellé `· par` bannis des composants). 6 garanties unitaires (média+journaliste, personnel, média seul, auteur seul, divergence, source unique) + 1 garantie d'intégration du tiroir, rouges avant. Voir fiche L20c4. |
 | R131 | ~~Les `tsconfig.json` des apps remplacent l'`exclude` du preset par `["node_modules"]` en gardant `include: ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts"]` : TypeScript **remplace** l'`exclude` hérité au lieu de le fusionner, donc une copie d'artefact entrait dans le programme et cassait `pnpm typecheck` (`TS6200`/`TS2300`)~~ — **close le 2026-11-20**. Cause mesurée : macOS duplique `routes.d.ts` en `routes.d 2.ts`, un `.ts` et non un `.d.ts`, donc plus un fichier de déclaration ; `apps/hi` et `apps/tenants` étaient rouges dans l'arbre (`.next/types/cache-life.d 3.ts(3,1): error TS6200 …`, `routes.d 3.ts(55,8): error TS2300: Duplicate identifier 'LayoutProps'`). | — | Close : les **6** apps nomment leurs sources (`next-env.d.ts`/`expo-env.d.ts`, `*.ts`, `src/**`, + `modules/**` pour mobile) — aucun glob racine, aucun glob dans un dossier généré — et la règle **E** de `guard:tsconfig` refuse désormais ce motif (falsifiée : `3 problème(s)` / `GUARD_FALSIF_EXIT=1`). Types de routes conservés par l'`import "./.next/types/routes.d.ts"` de `next-env.d.ts`. Preuve : copies plantées dans `core` **et** `studio` (+ `hi`/`tenants`) → `TC_core_EXIT=2`/`TC_studio_EXIT=2` avant, **`EXIT=0` sur les 6 apps avec 10 copies en place** après, puis `pnpm typecheck` **25 successful, 25 total / 0 error TS**. Voir fiche L19. |
 | R130 | `EditProfileModal.updateMediaProfile` fabrique lui-même l'utilisateur « mis à jour » à partir des champs locaux au lieu de lire la réponse de `PATCH /v1/media/{id}/settings` : une normalisation serveur (nom rogné, `location` refusée) n'apparaît pas, et `onProfileUpdated` propage des valeurs optimistes. Le `catch` du même fichier journalise `console.error(err)` côté client en production. | faible | Lire la publication renvoyée par l'action (ou revalider) et remplacer le `console.error` par le seul toast. Voir L20c2. |
 | R129 | La mécanique de surcouche est écrite **deux fois** : `HISTORY_KEY`, `pushedRef`, `baseRef`, `teardown` (timer 320 ms), capture/restauration de focus et `popstate` existent à l'identique dans `ThoughtOverlayProvider` et `ArticleOverlayProvider`. Les deux ont déjà divergé (le second annule son timer de teardown, le premier non — R127). | moyenne | Extraire un `useOverlayHistory`/`useOverlayReturn` partagé et y brancher les deux surcouches. Voir L20c2. |
@@ -1510,7 +1510,7 @@ Trop gros pour un tour : le lot est scindé en **8 sous-lots** dont la somme est
 | **L20c1** | `social/{ThoughtCard, ThoughtCardContainer, ThoughtCardSkeleton, QuotedThoughtCard, ThreadgateBadge, PollBlock, HiddenReplyNotice, ModerationReportModal, ReaderToolbarContext}` + `thought-overlay/**` (2) | 11 f. · 1 223 l. | **clos dans ce tour**. Cœur social le plus interactif (vote, masquage, signalement, partage, surcouche modale) et le plus consommé (`home`, `[username]`, recherche, composer) : le traiter d'abord fixe les conventions de retour d'échec que les widgets suivants réutilisent. |
 | **L20c2** | `profile/**` (`EditProfileModal` 426, `profile-edit-actions` 51) + `article-overlay/**` (`ArticleOverlayProvider` 465, `overlay-state` 125, son test 139) | 5 f. · 1 206 l. | **clos dans ce tour** (1 263 l. après correctifs). Deux surcouches/formulaires à état d'URL et mutation serveur ; la surcouche d'article est le miroir de celle de pensée, relue juste après. |
 | L20c3 | `social/ArticleAnnotatorView.tsx` (+ `ReaderToolbarContext` pour R126) | 1 f. · 1 153 l. | **durci le 2026-11-20** · **Risque nommé** tenu : plus gros fichier du périmètre (sélection, popovers, toolbar partagée, mutations), audité seul. Quatre findings (F273 date illisible qui cassait le rendu, F274 surlignages croisés, F275/F276 échecs muets), **R126 close**, 4 garanties jsdom rouges→vertes. |
-| L20c4 | `social/{ArticleReaderDrawer, ArticleComments, ArticleSummary, SimilarArticlesSection, DockedReaderToolbar, TrendingWidget}` | 6 f. · 992 l. | **durci le 2026-11-20** · Chaîne de lecture d'article (tiroir, commentaires, résumé, similaires, toolbar ancrée) : 7 findings (F277→F283 — courses inter-articles, orphelins comptés, verrou Plus contourné sur mobile, défilement/dialog du tiroir, chaînes hors `t`), 7 garanties jsdom rouges→vertes, R132 ouverte. |
+| L20c4 | `social/{ArticleReaderDrawer, ArticleComments, ArticleSummary, SimilarArticlesSection, DockedReaderToolbar, TrendingWidget}` + `social/article-byline.ts` | 6 f. · 988 l. (963 l. après extraction) + module 165 l. | **durci le 2026-11-20** · Chaîne de lecture d'article (tiroir, commentaires, résumé, similaires, toolbar ancrée) : 8 findings (F277→F284 — courses inter-articles, orphelins comptés, verrou Plus contourné sur mobile, défilement/dialog du tiroir, chaînes hors `t`, signature média/auteur unifiée), 7 garanties jsdom + 7 garanties byline rouges→vertes, **R132 close**. |
 | L20c5 | `social/{SearchFeed, search-results.ts, search-results.test.ts}` + `feed/{VirtualizedFeedList, RealtimeFeedPill}` | 5 f. · 847 l. | Flux et recherche (virtualisation + temps réel), après les cartes qu'ils rendent. |
 | L20c6 | `messages/MessagesApp.tsx` + `messages/__tests__/messages-app.test.tsx` | 2 f. · 556 l. | Application de messagerie autonome, sans dépendance aux sous-lots précédents. |
 | L20c7 | `notifications/NotificationSettingsForm` + `dossiers/DossierThread` + `placements/InAppPlacement` | 3 f. · 421 l. | Petits widgets métier restants, dont le placement in-app qui alimente `DynamicBannerSlot` (L20c8). |
@@ -2153,8 +2153,13 @@ code ; le seul correctif est la suppression d'une option dépréciée.
 
 **Périmètre mesuré.** Six fichiers de `apps/core/src/components/social` : `ArticleReaderDrawer` (259 l.),
 `ArticleComments` (270), `ArticleSummary` (107), `SimilarArticlesSection` (100), `DockedReaderToolbar` (139),
-`TrendingWidget` (63) = **938 l.** avant correctifs, **992 l.** après (+54), plus une suite nouvelle de
-**324 l. / 7 garanties**.
+`TrendingWidget` (63) = **938 l.** avant correctifs, plus une suite nouvelle de **324 l. / 7 garanties**.
+
+**Écart de mesure assumé.** J'ai d'abord écrit « 992 l. après (+54) » : ce total a été mesuré **avant** le
+passage de prettier déclenché par le hook de commit, qui a condensé 4 lignes. La valeur vérifiable est celle
+de l'arbre commité : `git show 2e8f5f5e:…` → **988 l.** (`ArticleReaderDrawer` 276, `ArticleComments` 282,
+`ArticleSummary` 119, `SimilarArticlesSection` 105, `DockedReaderToolbar` 142, `TrendingWidget` 64). Après la
+fermeture de R132 : **963 l.**
 
 **Ce qui a été lu avant de toucher.** Les six composants, leurs appelants réels (`ArticleAnnotatorView`,
 `ArticleOverlayProvider` pour le tiroir, `home`/`[username]` pour `TrendingWidget`) et les contrats qu'ils
@@ -2171,6 +2176,8 @@ consomment : `getArticleCommentsAction` / `deleteArticleCommentAction` / `getSim
 | **F281** | `DockedReaderToolbar` rend deux `TextToSpeechPlayer` (desktop / mobile) : seul le desktop recevait `locked`/`onLockedClick`. Sur mobile, un lecteur gratuit ouvrait donc la lecture audio **sans** l'upsell Plus — la même gate, appliquée à une seule branche. | Les deux branches passent `locked={locked}` et `onLockedClick={upsell}`. |
 | **F282** | `ArticleReaderDrawer` rendait `document.body.style.overflow = ''` en se fermant au lieu de sa valeur d'avant : fermer le tiroir relâchait la page alors qu'une autre surcouche (fil, lecteur) la tenait encore verrouillée. Le panneau n'avait par ailleurs ni `role="dialog"`/`aria-modal`/nom accessible, ni prise de focus (famille R125). | Valeur précédente capturée et rendue au démontage ; `role="dialog"`, `aria-modal="true"`, `aria-label={article.title}`, `tabIndex={-1}`, focus au panneau à l'ouverture et restitution du focus à la fermeture. |
 | **F283** | Chaînes en dur hors `t` dans trois fichiers du lot : `TrendingWidget` (« Tendances actuelles », états vide/erreur, « publication(s) »), `SimilarArticlesSection` (« À lire aussi », « recommandé par IA », « min »), `ArticleSummary` (six messages `AI_*`, libellés, en-tête). | Passées par `t` ; les messages renvoyés par le serveur restent tels quels (ils viennent de Go). |
+
+| **F284** | (R132) la signature média/auteur vivait à **trois** endroits et les copies avaient divergé : le tiroir comparait `author.name` au nom du média, l'annotateur `author.journalist.name` — un média dont le compte porte son nom mais dont le journaliste signe affichait « Alice Martin » côté tiroir et « Le Monde · par Alice Martin » côté article. | Une résolution unique (`social/article-byline.ts`), les trois copies supprimées, et une garantie de source qui interdit la réapparition d'une seconde implémentation. |
 
 **Preuves exécutées.** Suite écrite **avant** les correctifs — rouge observé, avec une précision honnête : le
 7ᵉ cas passait pour la mauvaise raison (il comparait « (2) », qui disparaissait parce que la racine partait),
@@ -2206,11 +2213,36 @@ $ les 9 gardes CI                        → EXIT=0 chacune
 $ pnpm typecheck (racine)                → 25 successful, 25 total · 0 error TS (TYPECHECK_ALL_EXIT=0)
 ```
 
-**Dettes.** **R132** (nouvelle, faible) : la résolution média/auteur du tiroir est écrite **deux fois**
-(`ArticleReaderDrawer` puis `ArticleReaderDrawerContent`) et a déjà divergé de `ArticleAnnotatorView`
-(le drawer compare `author.name`, l'annotateur `author.journalist.name`). Extraction d'un
-`resolveArticleByline` partagé, avec test des trois formes (média + journaliste, média seul, personnel) et
-rendu inchangé.
+**R132 — fermée le 2026-11-20 (même jour).** La résolution média/auteur vivait à **trois** endroits
+(`ArticleReaderDrawer`, `ArticleReaderDrawerContent`, `ArticleAnnotatorView`) et deux avaient divergé. Elle vit
+maintenant dans `social/article-byline.ts` (165 l., `resolveArticleByline`), consommée par le tiroir **et** par
+l'annotateur ; les trois copies sont supprimées, et aucun des deux composants ne contient plus l'heuristique
+(`trim().toLowerCase()`) ni le libellé `· par` — une garantie de source le vérifie, donc une seconde
+implémentation ne peut pas revenir sans faire échouer `vitest`. Rouges conservés :
+
+```
+$ pnpm vitest run src/components/social/__tests__/article-byline.test.ts
+Error: Cannot find module '../article-byline' imported from …/article-byline.test.ts
+  Tests  no tests                                                           BYLINE_RED_EXIT=1
+
+$ pnpm vitest run …/article-reading-chain.test.tsx -t "journaliste"
+AssertionError: expected 'Alice Martin' to be 'Le Monde · par Alice Martin'
+  Tests  1 failed | 7 skipped (8)                                          DRAWER_RED_EXIT=1
+```
+
+Verts après :
+
+```
+ ✓ article-byline.test.ts (6 tests) 3ms
+ ✓ article-annotator-hardening.test.tsx (3 tests) 97ms
+ ✓ article-reading-chain.test.tsx (8 tests) 125ms
+  Tests  17 passed (17)                                                    TARGETED_EXIT=0
+```
+
+Effet mesuré : `ArticleReaderDrawer` 276 → **251 l.**, `ArticleAnnotatorView` 1 153 → **1 106 l.**, plus
+`article-byline.ts` (165 l.) et `__tests__/article-byline.test.ts` (128 l.). Précision : le premier `tsc`
+post-extraction a rendu **2 erreurs** (`TS2304: Cannot find name 'publisher'` — deux lectures JSX utilisaient
+encore le raccourci supprimé), corrigées en `article.publisher?.id`, puis `CORE_TC_EXIT=0`.
 
 **Reste non vérifié.** Rendu visuel (aucune capture) ; le tiroir dans un vrai navigateur (animation
 `framer-motion`, piège de focus complet, `Échap` sous un popover ouvert) ; la pagination des commentaires
