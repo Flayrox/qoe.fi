@@ -4,7 +4,7 @@
 // 💬 CommunityClient — choisir un article, lire et supprimer
 // =====================================================================
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, MessageSquare, Trash2 } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import {
@@ -30,11 +30,17 @@ export function CommunityClient({ articles }: { articles: CommunityArticle[] }) 
     Object.fromEntries(articles.map((article) => [article.id, article.commentsCount]))
   );
 
+  // Seule la dernière demande compte : la réponse tardive d'un article
+  // quitté entre-temps ne doit pas écraser la discussion affichée.
+  const latestRequest = useRef(0);
+
   const load = useCallback(async (articleId: string) => {
+    const requestId = ++latestRequest.current;
     setLoading(true);
     setError(null);
     try {
       const res = await getArticleCommentsAction(articleId);
+      if (requestId !== latestRequest.current) return;
       if (res.ok) {
         setComments(res.data);
         setCounts((current) => ({ ...current, [articleId]: res.data.length }));
@@ -42,9 +48,10 @@ export function CommunityClient({ articles }: { articles: CommunityArticle[] }) 
         setError(t`Impossible de charger les commentaires.`);
       }
     } catch {
+      if (requestId !== latestRequest.current) return;
       setError(t`Impossible de charger les commentaires.`);
     } finally {
-      setLoading(false);
+      if (requestId === latestRequest.current) setLoading(false);
     }
   }, []);
 
