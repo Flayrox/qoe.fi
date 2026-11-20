@@ -56,7 +56,11 @@ export function ReaderToolbarProvider({
 
   const toggleBookmark = () => {
     if (customToggleBookmarkRef.current) {
-      customToggleBookmarkRef.current();
+      // Le handler enregistré est souvent `async` (mutation serveur) : sans ce
+      // `.catch`, son rejet devenait une promesse non gérée, donc muette (R126).
+      void Promise.resolve(customToggleBookmarkRef.current()).catch((err) => {
+        console.error('[ReaderToolbarContext] Échec de la bascule de signet :', err);
+      });
     } else {
       setBookmarked((prev) => !prev);
       onToggleBookmark?.();

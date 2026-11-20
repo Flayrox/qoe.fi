@@ -67,6 +67,8 @@ import {
   formatBionicHtml,
 } from '@qoe/ui/reader';
 import { cn } from '@qoe/utils';
+import { niceDateShort } from '@qoe/formatters';
+import { toast } from '@qoe/ui/toast';
 import { getArticleUrl } from '@qoe/config';
 import { t } from '@lingui/core/macro';
 import { useFlag } from '@qoe/flags';
@@ -257,7 +259,9 @@ function ArticleAnnotatorViewInner({
     if (!canFetchDocument || !hasValidId) return;
     let cancelled = false;
     (async () => {
-      const doc = await getCanonicalDocumentAction(article.id);
+      // Un échec de transport retombe sur le moteur hérité (`null`), jamais
+      // sur un rejet non géré ni sur un squelette qui ne se résout pas.
+      const doc = await getCanonicalDocumentAction(article.id).catch(() => null);
       if (!cancelled) setClientDocument(doc);
     })();
     return () => {
@@ -275,28 +279,45 @@ function ArticleAnnotatorViewInner({
   // Fetch current user auth state
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      if (data?.user) {
-        setUser(data.user);
-      }
-    });
+    let alive = true;
+    void supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        if (alive && data?.user) {
+          setUser(data.user);
+        }
+      })
+      // Session illisible (hors ligne, jeton expiré) : l'article reste lisible
+      // en anonyme, et aucun rejet ne remonte.
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  // Fetch article highlights
+  // Fetch article highlights — une réponse qui arrive après un changement
+  // d'article est ignorée : sans cette garde, les surlignages de l'article
+  // précédent se peignaient sur le nouveau et une sélection héritait d'un
+  // identifiant de surlignage qui ne lui appartenait pas.
   useEffect(() => {
     const hasValidId = Boolean(article.id && article.id !== article.slug && !article.isLoading);
     if (!hasValidId) return;
+    let cancelled = false;
+    setHighlightsList([]);
     async function loadHighlights() {
       try {
         const res = await getArticleHighlightsAction({ articleId: article.id });
-        if (res.ok && res.data?.highlights) {
+        if (!cancelled && res.ok && res.data?.highlights) {
           setHighlightsList(res.data.highlights);
         }
       } catch (err) {
-        console.error('Error loading highlights:', err);
+        if (!cancelled) console.error('Error loading highlights:', err);
       }
     }
-    loadHighlights();
+    void loadHighlights();
+    return () => {
+      cancelled = true;
+    };
   }, [article.id, article.slug, article.isLoading]);
 
   // Standardized Annotation Action Callbacks bound to API client actions
@@ -446,6 +467,9 @@ function ArticleAnnotatorViewInner({
         toolbar?.setBookmarked(previousBookmarked);
         updateArticleShadow(article.id, { bookmarked: previousBookmarked });
       },
+      // F264 : un refus serveur rend l'état précédent **et** le dit, au lieu
+      // de laisser le bouton sans effet visible.
+      onError: () => toast.error(t`Le signet n'a pas pu être enregistré. Réessaie.`),
       mutation: async () => {
         const res = await toggleBookmarkArticleHomeAction(article.id);
         if (!res.ok) {
@@ -488,6 +512,7 @@ function ArticleAnnotatorViewInner({
         updateActorShadow(authorId, { followed: previousFollowed });
         if (authorUsername) updateActorShadow(authorUsername, { followed: previousFollowed });
       },
+      onError: () => toast.error(t`Le suivi n'a pas pu être enregistré. Réessaie.`),
       mutation: async () => {
         const res = await toggleFollowCreatorHomeAction(authorId);
         if (!res.ok) {
@@ -497,17 +522,35 @@ function ArticleAnnotatorViewInner({
     });
   }, [user, activeFollowed, authorId, authorUsername, openAuthModal]);
 
+  // Repli sans provider : même contrat que `ReaderToolbarProvider.handleShare`
+  // — « Copié » n'est annoncé que si l'écriture a réussi, le minuteur est
+  // annulable, et un presse-papier refusé ne laisse pas de promesse en l'air.
+  const copiedTimerRef = React.useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (copiedTimerRef.current !== null) window.clearTimeout(copiedTimerRef.current);
+    },
+    []
+  );
+
   const handleShare = React.useCallback(async () => {
     if (toolbar?.handleShare) {
       toolbar.handleShare();
-    } else {
-      try {
-        await navigator.clipboard.writeText(window.location.href);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } catch {
-        // ignore
-      }
+      return;
+    }
+    if (typeof window === 'undefined' || !navigator.clipboard?.writeText) return;
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      if (copiedTimerRef.current !== null) window.clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = window.setTimeout(() => {
+        copiedTimerRef.current = null;
+        setCopied(false);
+      }, 2000);
+    } catch {
+      // Presse-papier refusé (permission, contexte non sécurisé) : on n'annonce
+      // pas « Copié » et la promesse reste gérée.
+      setCopied(false);
     }
   }, [toolbar]);
 
@@ -615,13 +658,13 @@ function ArticleAnnotatorViewInner({
 
   const targetFollowId = isMedia ? publisher?.id || article.author?.id : article.author?.id;
 
-  const dateObj = new Date(article.createdAt || Date.now());
-  const dateFormatted = dateObj.toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-  const dateIso = dateObj.toISOString();
+  // 📅 La primitive partagée rend `null` sur une entrée illisible, là où
+  // `Date#toISOString()` jetait un `RangeError` pendant le rendu et cassait
+  // tout l'article : une date douteuse ne prive plus le lecteur du texte.
+  const dateObj = article.createdAt ? new Date(article.createdAt) : new Date();
+  const hasValidDate = !Number.isNaN(dateObj.getTime());
+  const dateFormatted = hasValidDate ? niceDateShort(dateObj) : null;
+  const dateIso = hasValidDate ? dateObj.toISOString() : null;
 
   if (article.isError) {
     return (
@@ -829,8 +872,12 @@ function ArticleAnnotatorViewInner({
                       </>
                     )}
                     <span>{article.readingTime || 5} min de lecture</span>
-                    <span>·</span>
-                    <time dateTime={dateIso}>{dateFormatted}</time>
+                    {dateFormatted && (
+                      <>
+                        <span>·</span>
+                        <time dateTime={dateIso ?? undefined}>{dateFormatted}</time>
+                      </>
+                    )}
                   </div>
                 </div>
               </>
@@ -900,8 +947,12 @@ function ArticleAnnotatorViewInner({
                       </>
                     )}
                     <span>{article.readingTime || 5} min de lecture</span>
-                    <span>·</span>
-                    <time dateTime={dateIso}>{dateFormatted}</time>
+                    {dateFormatted && (
+                      <>
+                        <span>·</span>
+                        <time dateTime={dateIso ?? undefined}>{dateFormatted}</time>
+                      </>
+                    )}
                   </div>
                 </div>
               </>

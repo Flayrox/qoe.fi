@@ -91,7 +91,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b3 | `app/(reader)/library/**`                                                                                    | 18 fichiers · 3 689 l.      | **clos** : L20b2b31 (racine, 5 f.) **durci le 2026-11-19** + L20b2b32 (`ebooks/**`, 13 f.) **durci le 2026-11-19** |
 | L20b2b4 | `app/(reader)/[username]/**`                                                                                 | 9 fichiers · 2 184 l.       | **durci le 2026-11-19** |
 | L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | **durci le 2026-11-19** |
-| L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; prochain = L20c3 |
+| L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; L20c3 (annotateur d'article, 1 f. · 1 153 l., **R126 close**) **durci le 2026-11-20** ; prochain = L20c4 |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
 | L20n     | **Studio authentifié : la preuve porte sur des builds de production (`next start`), et le cookie `Secure` suit l’origine** | `playwright.apps.config.ts` (`appServer` paramétré — **aucun** `next dev` bespoke restant, admin compris), `scripts/e2e-studio-auth.mjs` (builds studio+admin+core + `PLAYWRIGHT_APPS_PROD`), `packages/supabase/src/{cookie-config,client,server,middleware}.ts` (`getCookieSecure`), `e2e/studio-auth-journey.spec.ts` (session exigée **avant** la redirection) | 3 runs prod depuis un état propre : **1 passed (9.2s)** `184 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token?grant_type=password`, puis **1 passed (9.2s)** (`189`), puis `.env` en VPS **1 passed (9.2s)** (`184`, **0 requête** vers `116.203.158.47`) ; absence d’infra → `✖ … scripts/e2e-studio-auth.mjs:103`, exit 1 ; apps **83 passed / 2 skipped** (admin en prod), oauth-consent **2 passed** |
 | L20m     | **La preuve réseau du studio authentifié ne peut plus être `skipped` en silence** | `scripts/e2e-studio-auth.mjs` (nouveau), `package.json`, `e2e/studio-auth-journey.spec.ts`, `playwright.apps.config.ts`, `.github/workflows/ci.yml` | `pnpm e2e:studio-auth` depuis un état propre : **1 passed (1.4m)** puis, `.env` pointé sur le VPS, **1 passed (45.5s)** — capture `209 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token` ; absence d'infra → `✖ … scripts/e2e-studio-auth.mjs:103`, exit 1 ; apps **83 passed / 2 skipped** |
@@ -123,12 +123,13 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L20c3 — `components/social/ArticleAnnotatorView.tsx`**
-(1 fichier · 1 102 l., mesuré : le plus gros fichier du périmètre, annotateur d'article —
-sélection, popovers, toolbar partagée, mutations ; **risque nommé**, isolé seul pour que sa
-régression ne se mélange pas à celle d'un widget ; L20c ouvert le 2026-11-19 avec un découpage
-mesuré en 8 sous-lots, L20c1 (cartes de pensée, 11 f. · 1 223 l.) et L20c2 (profil +
-surcouche d'article, 5 f. · 1 206 l.) clos ; ordre et chiffres dans la fiche L20c).
+**Prochain lot à traiter : L20c4 — chaîne de lecture d'article**
+(`social/{ArticleReaderDrawer, ArticleComments, ArticleSummary, SimilarArticlesSection,
+DockedReaderToolbar, TrendingWidget}` · 6 fichiers · 938 l., mesuré : tiroir, commentaires,
+résumé, similaires, toolbar ancrée ; testée **après** l'annotateur dont elle dépend ; L20c
+ouvert le 2026-11-19 avec un découpage mesuré en 8 sous-lots, L20c1 (cartes de pensée,
+11 f. · 1 223 l.), L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) et L20c3 (annotateur
+d'article, 1 f. · 1 153 l.) clos ; ordre et chiffres dans la fiche L20c).
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -909,11 +910,12 @@ nommé), puis verts après restauration.
 | R74 | `canonicalEmail` est calculé par `@qoe/moderation` et écrit dans les métadonnées Supabase (`options.data`) au signup, mais **aucun code ne le lit** : ni le sync Go, ni la base (aucun index unique). L'anti-multi-comptes annoncé par le module ne s'exerce donc pas au-delà du jour de l'inscription, et la suppression systématique du tag `+` (tous fournisseurs, pas seulement Gmail) n'a aucune conséquence observable. | moyenne | Arbitrage backend : colonne `canonicalEmail` + index unique dans une migration goose, puis refus de doublon côté Go (`/v1/auth/sync`), en décidant si l'on garde Gmail uniquement pour les points. Voir L14. |
 | R94 | `/api/articles/[slug]` (core) n'a **aucun appelant** dans le repo : la page article lit côté serveur. Route morte dont le contrat HTTP vient d'être corrigé (cache privé, L20b1) mais qui reste à supprimer ou à réutiliser explicitement. | faible | Arbitrage : supprimer la route (et son test) ou la brancher sur le préchargement client ; décision produit sur le préchargement d'article. Voir L20b1. |
 | R93 | `packages/analytics` envoie la session de lecture par `navigator.sendBeacon(endpointUrl, payload)` avec un **corps texte** (Content-Type `text/plain`) : le handler lit `req.json()`, qui fonctionne par chance (pas de validation de type de contenu côté Next). Aucun rejet observé, mais le contrat média n'est pas explicite. | faible | Arbitrage : créer un `Blob` typé `application/json` à l'envoi, ou valider/ignorer explicitement le Content-Type côté route. Voir L20b1. |
+| R131 | Les `tsconfig.json` des apps (`apps/{core,admin,hi,studio,tenants}`) remplacent l'`exclude` du preset par `["node_modules"]` tout en gardant `include: ["**/*.ts"]` : `packages/tsconfig/base.json:21` exclut bien `.next`/`dist`/`build`/`.turbo`, mais un `exclude` enfant ne fusionne pas avec celui qu'il hérite. Une copie d'artefact (`.next/**/* 2.ts`, mesurée en L20n sur `apps/hi`) casse donc `pnpm typecheck` (`TS6200`/`TS2300`) alors qu'elle vit dans un dossier généré. | faible | Étendre l'`exclude` de chaque app sans perdre `.next/types/**/*.ts` (ou déplacer l'inclusion des routes typées dans un `tsconfig.build.json`), puis l'ajouter au garde `guard:tsconfig`. Voir L20c3 / L19. |
 | R130 | `EditProfileModal.updateMediaProfile` fabrique lui-même l'utilisateur « mis à jour » à partir des champs locaux au lieu de lire la réponse de `PATCH /v1/media/{id}/settings` : une normalisation serveur (nom rogné, `location` refusée) n'apparaît pas, et `onProfileUpdated` propage des valeurs optimistes. Le `catch` du même fichier journalise `console.error(err)` côté client en production. | faible | Lire la publication renvoyée par l'action (ou revalider) et remplacer le `console.error` par le seul toast. Voir L20c2. |
 | R129 | La mécanique de surcouche est écrite **deux fois** : `HISTORY_KEY`, `pushedRef`, `baseRef`, `teardown` (timer 320 ms), capture/restauration de focus et `popstate` existent à l'identique dans `ThoughtOverlayProvider` et `ArticleOverlayProvider`. Les deux ont déjà divergé (le second annule son timer de teardown, le premier non — R127). | moyenne | Extraire un `useOverlayHistory`/`useOverlayReturn` partagé et y brancher les deux surcouches. Voir L20c2. |
 | R128 | ~~`ArticleOverlayProvider.fetchArticleThread` appelle `/api/articles/{slug}` par un `fetch` sans `AbortSignal` ni timeout~~ — **close par F271/F272** : `withArticleTimeout` borne chaque requête à 10 s, un `AbortController` par requête annule la précédente et le démontage, et l'état d'erreur est rendu (message de délai dédié). Voir L20c2b. | — | Close, prouvée par une suite d'intégration montant le provider et le drawer réels (timeout, démontage, popstate, focus, verrou de scroll, préchargement). |
 | R127 | `ThoughtOverlayProvider.teardown` programme `window.setTimeout(…, 320)` sans conserver l'identifiant : le `setActivePostId(null)` différé peut s'exécuter après démontage du provider (et le `pushedRef` armé n'est pas défait si le provider démonte surcouche ouverte). | faible | Garder le timer dans une `ref`, l'annuler au démontage, et défaire l'entrée d'historique si elle est encore la nôtre. Voir L20c1. |
-| R126 | `ReaderToolbarProvider.toggleBookmark` appelle le handler enregistré par `registerToggleBookmark` sans l'attendre ni attraper son rejet : un handler `async` en échec remonte en promesse non gérée (même famille que F265). Aucune observable propre sans le handler réel d'`ArticleAnnotatorView` (L20c3). | faible | Envelopper l'appel dans `void Promise.resolve(handler()).catch(...)` avec un retour utilisateur. Voir L20c1. |
+| R126 | ~~`ReaderToolbarProvider.toggleBookmark` appelle le handler enregistré par `registerToggleBookmark` sans l'attendre ni attraper son rejet : un handler `async` en échec remonte en promesse non gérée~~ — **close par L20c3** : l'appel est enveloppé dans `void Promise.resolve(handler()).catch(...)` qui rapporte l'échec, et le handler réel (`ArticleAnnotatorView`) remonte en plus un `toast.error` (F275). | — | Close, prouvée par `reader-toolbar-context.test.tsx` : rejet non géré observé (`expected [ Error: signet refusé ] to have a length of +0 but got 1`), puis vert. |
 | R125 | `ThoughtOverlayProvider` : la surcouche est un panneau modal de fait (voile, `body` verrouillé, `Échap`) mais n'expose ni `role="dialog"`/`aria-modal`, ni piège de focus : au clavier on peut tabuler dans la page derrière et perdre le fil. | moyenne | Ajouter le rôle, l'`aria-modal`, le piège de focus et le `aria-label` du panneau, avec un test de tabulation. Voir L20c1. |
 | R124 | `PollBlock` : `role="radiogroup"` + `role="radio"` sur des boutons sans navigation par flèches ni tabindex mobile, et `aria-checked` figé à `false` pendant le vote — le motif ARIA annoncé n'est pas tenu (les boutons restent utilisables au clic). | faible | Implémenter le contrat radio (flèches, roving tabindex, `aria-checked` réel) ou assumer des boutons simples et retirer les rôles. Décision produit/a11y. Voir L20c1. |
 | R123 | `ThoughtCard` : `handlePinToggle` n'a ni garde anti double-envoi ni état optimiste, et un `res.ok === false` (épinglage refusé côté Go) ne produit **aucun** message — le bouton semble sans effet. Même famille que F264 (retour d'échec), mais non prouvée ce tour : le rendu complet de `ThoughtCard` exige de mocker `@qoe/ui` + `usePostShadow` + Supabase. | faible | Extraire la logique épinglage (garde + toast d'échec + shadow optimiste) et l'instrumenter. Voir L20c1. |
@@ -1506,7 +1508,7 @@ Trop gros pour un tour : le lot est scindé en **8 sous-lots** dont la somme est
 | -------- | --------------- | ------ | ---------------------- |
 | **L20c1** | `social/{ThoughtCard, ThoughtCardContainer, ThoughtCardSkeleton, QuotedThoughtCard, ThreadgateBadge, PollBlock, HiddenReplyNotice, ModerationReportModal, ReaderToolbarContext}` + `thought-overlay/**` (2) | 11 f. · 1 223 l. | **clos dans ce tour**. Cœur social le plus interactif (vote, masquage, signalement, partage, surcouche modale) et le plus consommé (`home`, `[username]`, recherche, composer) : le traiter d'abord fixe les conventions de retour d'échec que les widgets suivants réutilisent. |
 | **L20c2** | `profile/**` (`EditProfileModal` 426, `profile-edit-actions` 51) + `article-overlay/**` (`ArticleOverlayProvider` 465, `overlay-state` 125, son test 139) | 5 f. · 1 206 l. | **clos dans ce tour** (1 263 l. après correctifs). Deux surcouches/formulaires à état d'URL et mutation serveur ; la surcouche d'article est le miroir de celle de pensée, relue juste après. |
-| L20c3 | `social/ArticleAnnotatorView.tsx` | 1 f. · 1 102 l. | **prochain** · **Risque nommé** : plus gros fichier du périmètre (sélection, popovers, toolbar partagée, mutations). Isolé seul pour que sa régression ne se mélange pas à celle d'un widget. |
+| L20c3 | `social/ArticleAnnotatorView.tsx` (+ `ReaderToolbarContext` pour R126) | 1 f. · 1 153 l. | **durci le 2026-11-20** · **Risque nommé** tenu : plus gros fichier du périmètre (sélection, popovers, toolbar partagée, mutations), audité seul. Quatre findings (F273 date illisible qui cassait le rendu, F274 surlignages croisés, F275/F276 échecs muets), **R126 close**, 4 garanties jsdom rouges→vertes. |
 | L20c4 | `social/{ArticleReaderDrawer, ArticleComments, ArticleSummary, SimilarArticlesSection, DockedReaderToolbar, TrendingWidget}` | 6 f. · 938 l. | Chaîne de lecture d'article (tiroir, commentaires, résumé, similaires, toolbar ancrée), testée après l'annotateur dont elle dépend. |
 | L20c5 | `social/{SearchFeed, search-results.ts, search-results.test.ts}` + `feed/{VirtualizedFeedList, RealtimeFeedPill}` | 5 f. · 847 l. | Flux et recherche (virtualisation + temps réel), après les cartes qu'ils rendent. |
 | L20c6 | `messages/MessagesApp.tsx` + `messages/__tests__/messages-app.test.tsx` | 2 f. · 556 l. | Application de messagerie autonome, sans dépendance aux sous-lots précédents. |
@@ -2143,6 +2145,81 @@ une **option obsolète retirée**, pas une refonte.
 code ; le seul correctif est la suppression d'une option dépréciée.
 
 **Non vérifié.** `pnpm test:api` complet (tous les paquets Go, dont ceux adossés à Postgres/Testcontainers et les gates de couverture du job `api`) ; les projets e2e `public-web`/`core-journeys` en entier (6 cas dépendants du seed), `security`, `hydratation`, `routes`, `e2e-apps` et `e2e-apps-routes` (tous deux adossés à Postgres + Redis + seed) ; `next start` sur un build prod (le harnais a tourné en `next dev`) ; aucune vérification visuelle des pages réelles au-delà des 4 contrats `setContent`.
+
+---
+
+## L20c3 — annotateur d'article : date illisible, surlignages d'un autre article, échecs muets — durci le 2026-11-20
+
+**Périmètre mesuré.** `apps/core/src/components/social/ArticleAnnotatorView.tsx` : **1 102 l.** avant
+correctifs, **1 153 l.** après (+51), plus `ReaderToolbarContext.tsx` (120 l., pour R126) et deux suites
+nouvelles (247 l. + 59 l.). Le fichier est le plus gros du périmètre L20c : en-tête média/personnel, moteur
+de sélection, toolbar partagée, signet/suivi optimistes, paywall, newsletter, recommandations.
+
+**Ce qui a été lu avant de toucher.** Les trois effets de chargement (session Supabase, surlignages, document
+canonique), les deux mutations optimistes (signet, suivi), le partage, la résolution média/auteur, le
+formatage de date, puis leurs dépendances réelles : `ArticleReaderDrawer` (prop `canonicalDocument`),
+`ArticleOverlayProvider` (R128), `ReaderToolbarProvider` (R126), `packages/formatters` (`niceDateShort`),
+`packages/sdk/src/shadow.ts` (`withShadowMutation`).
+
+| # | Finding (cause lue) | Correctif |
+| --- | ------------------ | --------- |
+| **F273** | `const dateObj = new Date(article.createdAt || Date.now())` puis `dateObj.toISOString()` (`ArticleAnnotatorView.tsx:624`) : une date illisible (`''`, `'0000-00-00'`, chaîne Go tronquée) fait jeter un `RangeError: Invalid time value` **pendant le rendu** — l'article entier disparaît, paywall compris. Le fichier réimplémentait au passage le formatage long (`toLocaleDateString('fr-FR', …)`) que `@qoe/formatters` expose déjà. | Rendu par la primitive partagée : `hasValidDate = !Number.isNaN(dateObj.getTime())`, `niceDateShort(dateObj)` (même sortie « 17 août 2026 »), et `<time>` n'est rendu que si la date est valide (`dateTime={dateIso ?? undefined}`). |
+| **F274** | L'effet de chargement des surlignages n'avait ni garde `cancelled` ni remise à zéro : une réponse arrivée après un changement d'article appliquait la liste du précédent (`setHighlightsList`), qui se peignait sur le nouveau — une sélection pouvait alors hériter d'un identifiant de surlignage étranger. Même famille que R121. | `let cancelled = false` + cleanup `cancelled = true`, liste remise à zéro au démarrage de l'effet, `void loadHighlights()` (promesse gérée). |
+| **F275** | Un `res.ok === false` sur le signet ou le suivi ne produisait **rien** de visible : `withShadowMutation` annulait l'optimiste et journalisait en `console` (`packages/sdk/src/shadow.ts:482`), donc le bouton semblait sans effet (F264, R123). | `onError` passé aux deux mutations → `toast.error` ; l'état précédent est rendu par le `rollback` déjà en place. |
+| **F276** | Trois rejets restaient muets : `supabase.auth.getUser()` sans `.catch` (hors ligne, jeton expiré → promesse non gérée) et sans garde de démontage ; `getCanonicalDocumentAction(...)` sans `.catch` (l'échec de transport perdait le repli explicite sur le moteur hérité) ; le repli presse-papier du partage faisait `catch {}` et programmait `setTimeout(() => setCopied(false), 2000)` **sans conserver l'identifiant**. | `.then(...).catch()` + drapeau `alive` sur la session (l'article reste lisible en anonyme) ; `.catch(() => null)` sur le document (repli hérité conservé) ; le repli de partage reprend le contrat déjà écrit de `ReaderToolbarProvider.handleShare` — « Copié » seulement si l'écriture a réussi, minuteur en `ref` annulé au démontage. |
+| **R126** | Le provider appelait le handler enregistré sans l'attendre ni attraper son rejet (trouvé en L20c1, sans observable : le handler réel vit ici). | **Close** : `void Promise.resolve(handler()).catch(...)` rapporte l'échec, prouvé par une suite propre (ci-dessous). |
+
+**Preuves exécutées.** Tests écrits **avant** les correctifs, rouge observé sur le code d'origine :
+
+```
+$ pnpm vitest run src/components/social/__tests__/article-annotator-hardening.test.tsx
+ × affiche un article dont la date est illisible, sans jeter
+RangeError: Invalid time value
+ × n'applique jamais les surlignages d'un article au suivant
+ × rend son état précédent et le dit quand le signet est refusé
+  Tests  3 failed (3)                                         VITEST_EXIT=1
+
+$ pnpm vitest run src/components/social/__tests__/reader-toolbar-context.test.tsx
+AssertionError: expected [ Error: signet refusé ] to have a length of +0 but got 1
+  Tests  1 failed (1)                                         VITEST_EXIT=1
+```
+
+Après correctifs :
+
+```
+$ pnpm vitest run src/components/social/__tests__/article-annotator-hardening.test.tsx \
+    src/components/social/__tests__/reader-toolbar-context.test.tsx
+ ✓ article-annotator-hardening.test.tsx (3 tests) 97ms
+ ✓ reader-toolbar-context.test.tsx (1 test) 73ms
+  Test Files  2 passed (2)                                    VITEST_EXIT=0
+```
+
+Non-régression mesurée :
+
+```
+$ cd apps/core && pnpm vitest run
+  Test Files  52 passed (52) · Tests  327 passed (327)         TEST_EXIT=0
+$ cd apps/core && pnpm typecheck
+$ tsc --noEmit                                                TC_EXIT=0
+$ cd apps/core && pnpm lint
+✖ 10 problems (0 errors, 10 warnings)                         LINT_EXIT=0   # avertissements préexistants
+$ pnpm intl:compile                                           INTL_EXIT=0
+$ pnpm --filter @qoe/core build
+ƒ Proxy (Middleware) …                                        BUILD_EXIT=0
+$ les 9 gardes CI (seed-script, legal-consent, dangerous-html, flags-parity,
+  article-links, media-origin, tsconfig, ui:audit, arch:audit) EXIT=0 chacune
+```
+
+**Dette nouvelle — R131.** Les `tsconfig.json` des apps remplacent l'`exclude` du preset (qui, lui, exclut
+`.next`/`dist`/`build`/`.turbo`) tout en gardant `include: ["**/*.ts"]` : une copie d'artefact
+(`.next/**/* 2.ts`, observée en L20n sur `apps/hi`, `TS6200`/`TS2300`) fait échouer `pnpm typecheck` alors
+qu'elle vit dans un dossier généré. Correctif volontairement non appliqué ici : il touche les cinq apps et le
+preset partagé (L19), hors du périmètre d'un composant.
+
+**Reste non vérifié.** Validation visuelle du rendu (aucune capture) ; le partage dans un vrai navigateur
+(presse-papier réel, contexte non sécurisé) ; les chaînes encore hors `t` de ce fichier
+(`{article.readingTime} min de lecture`, texte du paywall) — les rendre traduisibles demande un
+`lingui extract` global, donc un changement de catalogues hors de ce lot.
 
 ---
 
