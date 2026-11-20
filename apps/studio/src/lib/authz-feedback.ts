@@ -14,6 +14,7 @@
 // compte, où s'enregistre et se vérifie le TOTP ou la passkey).
 // =====================================================================
 
+import { t } from '@lingui/core/macro';
 import { toast } from '@qoe/ui/toast';
 import {
   authzCodeOf,
@@ -49,13 +50,13 @@ export function notifyActionFailure(failure: unknown, fallback: string): void {
 
   if (isStepUpCode(code)) {
     const guidance = authzGuidance(code);
-    toast.error(guidance?.title ?? 'Vérification renforcée requise', {
+    toast.error(guidance?.title ?? t`Vérification renforcée requise`, {
       description:
-        guidance?.description ?? 'Une vérification renforcée est nécessaire pour cette action.',
+        guidance?.description ?? t`Une vérification renforcée est nécessaire pour cette action.`,
       // 12 s : le temps de lire et de cliquer sur l'action proposée.
       duration: 12000,
       action: {
-        label: 'Vérifier un facteur',
+        label: t`Vérifier un facteur`,
         onClick: () => {
           window.open(authzSecurityHref(), '_blank', 'noopener,noreferrer');
         },

@@ -8655,6 +8655,9 @@ msgstr ""
 msgid "Une taille de texte confortable réduit la fatigue et prolonge l’attention portée à chaque idée."
 msgstr "A comfortable text size reduces fatigue and prolongs attention to each idea."
 
+msgid "Une vérification renforcée est nécessaire pour cette action."
+msgstr ""
+
 #~ msgid "Unique pour toutes les langues. Texte d'aperçu = phrase visible dans la boîte de réception."
 #~ msgstr ""
 
@@ -8728,6 +8731,9 @@ msgstr ""
 msgid "Vérification impossible, réessayez."
 msgstr ""
 
+msgid "Vérification renforcée requise"
+msgstr ""
+
 msgid "Vérification…"
 msgstr ""
 
@@ -8738,6 +8744,9 @@ msgid "Vérifier"
 msgstr "Verify"
 
 msgid "Vérifier l'article avant publication"
+msgstr ""
+
+msgid "Vérifier un facteur"
 msgstr ""
 
 #~ msgid "Vérifiez le rendu dans votre messagerie avant d'envoyer."

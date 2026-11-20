@@ -8655,6 +8655,9 @@ msgstr "Une syntaxe d'annotation {Texte}(Note) a été détectée dans le conten
 msgid "Une taille de texte confortable réduit la fatigue et prolonge l’attention portée à chaque idée."
 msgstr "Une taille de texte confortable réduit la fatigue et prolonge l’attention portée à chaque idée."
 
+msgid "Une vérification renforcée est nécessaire pour cette action."
+msgstr "Une vérification renforcée est nécessaire pour cette action."
+
 #~ msgid "Unique pour toutes les langues. Texte d'aperçu = phrase visible dans la boîte de réception."
 #~ msgstr "Unique pour toutes les langues. Texte d'aperçu = phrase visible dans la boîte de réception."
 
@@ -8728,6 +8731,9 @@ msgstr "Vérification impossible pour le moment."
 msgid "Vérification impossible, réessayez."
 msgstr "Vérification impossible, réessayez."
 
+msgid "Vérification renforcée requise"
+msgstr "Vérification renforcée requise"
+
 msgid "Vérification…"
 msgstr "Vérification…"
 
@@ -8739,6 +8745,9 @@ msgstr "Vérifier"
 
 msgid "Vérifier l'article avant publication"
 msgstr "Vérifier l'article avant publication"
+
+msgid "Vérifier un facteur"
+msgstr "Vérifier un facteur"
 
 #~ msgid "Vérifiez le rendu dans votre messagerie avant d'envoyer."
 #~ msgstr "Vérifiez le rendu dans votre messagerie avant d'envoyer."
