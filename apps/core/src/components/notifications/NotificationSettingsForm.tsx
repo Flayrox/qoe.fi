@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { t } from '@lingui/core/macro';
 import {
   useNotificationPreferencesQuery,
@@ -20,6 +21,10 @@ import {
 export function NotificationSettingsForm() {
   const { data: prefs, isLoading } = useNotificationPreferencesQuery();
   const updateMutation = useUpdateNotificationPreferencesMutation();
+  // Le hook jette sur échec (`unwrapActionResult`) : sans ce relais, un refus
+  // du serveur était totalement muet — le switch revenait simplement à l'état
+  // serveur, comme si le clic n'avait pas eu lieu.
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -31,7 +36,14 @@ export function NotificationSettingsForm() {
   }
 
   const handleToggle = (key: PreferenceKey, value: boolean) => {
-    updateMutation.mutate({ [key]: value });
+    setSaveError(null);
+    updateMutation.mutate(
+      { [key]: value },
+      {
+        onError: (e) =>
+          setSaveError(e instanceof Error && e.message ? e.message : t`Enregistrement impossible`),
+      }
+    );
   };
 
   const sections = [
@@ -113,6 +125,12 @@ export function NotificationSettingsForm() {
           {t`Personnalisez la façon dont vous souhaitez être informé des activités sur votre réseau.`}
         </p>
       </div>
+
+      {saveError && (
+        <p role="alert" className="text-xs font-semibold text-destructive-text">
+          {t`Préférence non enregistrée :`} {saveError}
+        </p>
+      )}
 
       <div className="space-y-6">
         {sections.map((section) => {
