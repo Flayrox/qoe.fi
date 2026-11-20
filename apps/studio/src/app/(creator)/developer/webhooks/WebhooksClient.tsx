@@ -140,7 +140,12 @@ export function WebhooksClient({
   };
 
   const copySecret = (secret: string) => {
-    navigator.clipboard?.writeText(secret).then(() => toast.success(t`Secret copié.`));
+    navigator.clipboard
+      ?.writeText(secret)
+      .then(() => toast.success(t`Secret copié.`))
+      // Un presse-papiers refusé laissait sinon une promesse non gérée, et le
+      // secret — montré une seule fois — semblait copié.
+      .catch(() => toast.error(t`Copie impossible.`));
   };
 
   const openDeliveries = async (webhook: WebhookWithDeliveries) => {
