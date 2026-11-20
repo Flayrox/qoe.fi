@@ -72,6 +72,7 @@ function ArticleReaderDrawerContent({
   const [scrollProgress, setScrollProgress] = React.useState(0);
   const [isScrolled, setIsScrolled] = React.useState(false);
 
+  const panelRef = React.useRef<HTMLDivElement>(null);
   const toolbar = useReaderToolbar();
   const setIsDocked = toolbar?.setIsDocked;
   const authorToolbarRef = toolbar?.authorToolbarRef;
@@ -97,20 +98,31 @@ function ArticleReaderDrawerContent({
     }
   };
 
-  // Lock body scroll when drawer is open
+  // Verrou de défilement du document : on rend la valeur d'AVANT, jamais `''`.
+  // Le forcer à vide relâchait la page alors qu'une autre surcouche (fil,
+  // lecteur d'article) la tenait encore verrouillée.
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-      setScrollProgress(0);
-      setIsScrolled(false);
-      setIsDocked?.(false);
-    } else {
-      document.body.style.overflow = '';
-    }
+    if (!isOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    setScrollProgress(0);
+    setIsScrolled(false);
+    setIsDocked?.(false);
     return () => {
-      document.body.style.overflow = '';
+      document.body.style.overflow = previousOverflow;
     };
   }, [isOpen, setIsDocked]);
+
+  // Le panneau prend le focus à l'ouverture et le rend à la fermeture : au
+  // clavier, on ne reste pas à tabuler derrière le tiroir.
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    panelRef.current?.focus();
+    return () => {
+      previousFocus?.focus?.();
+    };
+  }, [isOpen]);
 
   // ESC key listener
   useEffect(() => {
@@ -157,11 +169,16 @@ function ArticleReaderDrawerContent({
 
           {/* Reader Panel aligned with sidebar */}
           <motion.div
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={article.title}
+            tabIndex={-1}
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-            className="relative z-10 w-full h-full flex flex-col bg-background text-foreground border border-border/40 rounded-t-3xl md:rounded-[18px] shadow-2xl overflow-hidden font-sans"
+            className="relative z-10 w-full h-full flex flex-col bg-background text-foreground border border-border/40 rounded-t-3xl md:rounded-[18px] shadow-2xl overflow-hidden font-sans outline-none"
           >
             {/* 1. Zenithal Progressive Blur & Theme Gradient Fade */}
             <ProgressiveBlur direction="top" className="h-32 z-20" />

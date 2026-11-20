@@ -6,6 +6,7 @@ import { Sparkles, Clock } from 'lucide-react';
 import { getSimilarArticlesAction } from '@qoe/sdk/actions/articles';
 import type { SimilarArticle } from '@qoe/sdk';
 import { getArticleUrl } from '@qoe/config/routes';
+import { t } from '@lingui/core/macro';
 
 interface SimilarArticlesSectionProps {
   articleId: string;
@@ -22,6 +23,9 @@ export function SimilarArticlesSection({ articleId }: SimilarArticlesSectionProp
 
   useEffect(() => {
     let cancelled = false;
+    // Les recommandations valent pour UN article : les garder pendant le
+    // chargement du suivant affichait les suggestions du précédent.
+    setItems([]);
     setLoading(true);
     getSimilarArticlesAction({ articleId })
       .then((res) => {
@@ -43,9 +47,10 @@ export function SimilarArticlesSection({ articleId }: SimilarArticlesSectionProp
   return (
     <section className="mt-10 pt-8 border-t border-border/40" aria-label="À lire aussi">
       <h2 className="flex items-center gap-2 text-sm font-bold text-foreground mb-4">
-        <Sparkles className="w-4 h-4 text-highlight" />À lire aussi
+        <Sparkles className="w-4 h-4 text-highlight" />
+        {t`À lire aussi`}
         <span className="text-[10px] font-medium text-muted-foreground normal-case">
-          recommandé par IA
+          {t`recommandé par IA`}
         </span>
       </h2>
       <div className="space-y-3">
@@ -87,7 +92,7 @@ export function SimilarArticlesSection({ articleId }: SimilarArticlesSectionProp
                   <span>•</span>
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
-                    {item.readingTime} min
+                    {t`${item.readingTime} min`}
                   </span>
                 </div>
               </article>

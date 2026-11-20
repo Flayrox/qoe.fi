@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Sparkles, Loader2 } from 'lucide-react';
+import { t } from '@lingui/core/macro';
 import { summarizeArticleAction } from '@qoe/sdk';
 import { useFlag } from '@qoe/flags';
 import { Button } from '@qoe/ui/button';
@@ -25,6 +26,15 @@ export function ArticleSummary({ articleId }: { articleId: string }) {
   const [usage, setUsage] = useState<{ remaining: number; limit: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Un résumé appartient à SON article : changer d'article remet l'état à zéro,
+  // sinon le tiroir affichait encore le résumé de l'article précédent.
+  useEffect(() => {
+    setOpen(false);
+    setSummary(null);
+    setUsage(null);
+    setError(null);
+  }, [articleId]);
+
   const run = async () => {
     if (loading) return;
     if (summary) {
@@ -42,21 +52,23 @@ export function ArticleSummary({ articleId }: { articleId: string }) {
       } else {
         const code = (res.error as { code?: string } | undefined)?.code;
         if (code === 'AI_PLUS_REQUIRED') {
-          setError('Résumé IA réservé aux abonnés Plus (bientôt).');
+          setError(t`Résumé IA réservé aux abonnés Plus (bientôt).`);
         } else if (code === 'AI_QUOTA_EXCEEDED') {
-          setError('Quota IA du mois épuisé — il revient le mois prochain.');
+          setError(t`Quota IA du mois épuisé — il revient le mois prochain.`);
         } else if (code === 'AI_DISABLED') {
-          setError("L'assistant IA de lecture est momentanément désactivé.");
+          setError(t`L'assistant IA de lecture est momentanément désactivé.`);
         } else if (code === 'AI_UNAVAILABLE') {
-          setError('IA momentanément indisponible — réessayez plus tard.');
+          setError(t`IA momentanément indisponible — réessayez plus tard.`);
         } else if (code === 'AI_BUSY') {
-          setError('Trop de demandes en ce moment — réessayez dans quelques minutes.');
+          setError(t`Trop de demandes en ce moment — réessayez dans quelques minutes.`);
         } else {
-          setError(typeof res.error === 'string' ? res.error : 'Résumé impossible pour le moment.');
+          setError(
+            typeof res.error === 'string' ? res.error : t`Résumé impossible pour le moment.`
+          );
         }
       }
     } catch {
-      setError('Résumé impossible pour le moment.');
+      setError(t`Résumé impossible pour le moment.`);
     } finally {
       setLoading(false);
     }
@@ -84,11 +96,11 @@ export function ArticleSummary({ articleId }: { articleId: string }) {
           <Sparkles className="text-primary" />
         )}
         <span>
-          {summary ? (open ? 'Masquer le résumé' : 'Voir le résumé') : 'Résumer cet article'}
+          {summary ? (open ? t`Masquer le résumé` : t`Voir le résumé`) : t`Résumer cet article`}
         </span>
         {usage && (
           <span className="type-control-xs font-normal text-muted-foreground">
-            ({usage.remaining}/{usage.limit} ce mois-ci)
+            ({t`${usage.remaining}/${usage.limit} ce mois-ci`})
           </span>
         )}
       </Button>
@@ -96,7 +108,7 @@ export function ArticleSummary({ articleId }: { articleId: string }) {
         <div className="mt-2 space-y-1.5">
           <p className="text-[10px] font-bold uppercase tracking-wider text-primary flex items-center gap-1">
             <Sparkles className="w-3 h-3" />
-            Résumé IA — lire l&apos;article ci-dessous
+            {t`Résumé IA — lire l'article ci-dessous`}
           </p>
           <p className="text-xs leading-relaxed whitespace-pre-wrap">{summary}</p>
         </div>

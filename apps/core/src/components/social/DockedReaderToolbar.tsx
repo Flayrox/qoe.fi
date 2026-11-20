@@ -79,11 +79,14 @@ export function DockedReaderToolbar({ articleTitle, className = '' }: DockedRead
 
       {/* 📱 MOBILE (< md) : TTS direct + Menu 3 petits points Popover */}
       <div className="flex md:hidden items-center gap-1">
-        {/* TTS direct compact */}
+        {/* TTS direct compact — même verrou Plus que la version desktop :
+            sans `locked`, le mobile ouvrait la lecture audio sans upsell. */}
         {isTtsEnabled && (
           <TextToSpeechPlayer
             articleTitle={articleTitle}
             articleContentSelector="#article-content"
+            locked={locked}
+            onLockedClick={upsell}
           />
         )}
 

@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { TrendingUp, Hash, Loader2 } from 'lucide-react';
+import { t } from '@lingui/core/macro';
 import { useTrendingQuery } from '@qoe/sdk';
 
 export function TrendingWidget() {
@@ -12,7 +13,7 @@ export function TrendingWidget() {
     <div className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur-md p-4 space-y-3 font-sans shadow-xs">
       <div className="flex items-center gap-2 text-sm font-bold text-foreground pb-1 border-b border-border/40">
         <TrendingUp className="w-4 h-4 text-primary shrink-0" />
-        <span>Tendances actuelles</span>
+        <span>{t`Tendances actuelles`}</span>
       </div>
 
       {isLoading && (
@@ -23,13 +24,13 @@ export function TrendingWidget() {
 
       {isError && (
         <p className="text-xs text-muted-foreground py-2 text-center">
-          Impossible de charger les tendances.
+          {t`Impossible de charger les tendances.`}
         </p>
       )}
 
       {!isLoading && (!trends || trends.length === 0) && (
         <p className="text-xs text-muted-foreground py-2 text-center">
-          Aucune tendance pour le moment.
+          {t`Aucune tendance pour le moment.`}
         </p>
       )}
 
@@ -50,7 +51,7 @@ export function TrendingWidget() {
                     #{item.hashtag}
                   </p>
                   <p className="text-[11px] text-muted-foreground">
-                    {item.count} publication{item.count > 1 ? 's' : ''}
+                    {t`${item.count} publication${item.count > 1 ? 's' : ''}`}
                   </p>
                 </div>
               </div>

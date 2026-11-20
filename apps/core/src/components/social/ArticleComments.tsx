@@ -9,7 +9,7 @@
 // réservée à l'auteur du commentaire (le serveur tranche aussi).
 // =====================================================================
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Loader2, MessageSquare, Send, Trash2 } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import { SafeAvatar } from '@qoe/ui';
@@ -44,26 +44,34 @@ export function ArticleComments({ articleId, currentUserId = null }: ArticleComm
   const [replyContent, setReplyContent] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await getArticleCommentsAction(articleId);
-      if (res.ok) {
-        setComments(res.data);
-        setError(null);
-      } else {
-        setError(t`Impossible de charger les commentaires.`);
-      }
-    } catch {
-      setError(t`Impossible de charger les commentaires.`);
-    } finally {
-      setLoading(false);
-    }
-  }, [articleId]);
-
+  // La discussion appartient à SON article : changer d'article efface la liste
+  // et une réponse qui arrive en retard est ignorée, sinon les commentaires du
+  // précédent se peignaient sous le suivant (même course que F274).
   useEffect(() => {
-    void load();
-  }, [load]);
+    let cancelled = false;
+    setComments([]);
+    setLoading(true);
+    setError(null);
+    void (async () => {
+      try {
+        const res = await getArticleCommentsAction(articleId);
+        if (cancelled) return;
+        if (res.ok) {
+          setComments(res.data);
+          setError(null);
+        } else {
+          setError(t`Impossible de charger les commentaires.`);
+        }
+      } catch {
+        if (!cancelled) setError(t`Impossible de charger les commentaires.`);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [articleId]);
 
   const roots = useMemo(() => comments.filter((comment) => !comment.parentId), [comments]);
   const repliesByParent = useMemo(() => {
@@ -110,7 +118,11 @@ export function ArticleComments({ articleId, currentUserId = null }: ArticleComm
         setError(res.error.message);
         return;
       }
-      setComments((current) => current.filter((comment) => comment.id !== commentId));
+      // Supprimer une racine supprime ses réponses : sans elles, des réponses
+      // orphelines restaient comptées dans l'en-tête sans jamais être rendues.
+      setComments((current) =>
+        current.filter((comment) => comment.id !== commentId && comment.parentId !== commentId)
+      );
     } catch {
       setError(t`Suppression impossible.`);
     }
