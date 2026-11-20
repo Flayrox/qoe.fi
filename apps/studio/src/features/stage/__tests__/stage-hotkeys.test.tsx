@@ -13,17 +13,21 @@ import { cleanup, render } from '@testing-library/react';
 import { StageEditorMode } from '../engine/models';
 import { useStageHotkeys } from '../canvas/useStageHotkeys';
 
-function Probe({ mode, handlers }: { mode: StageEditorMode; handlers: Record<string, unknown> }) {
+type Handlers = Parameters<typeof useStageHotkeys>[0];
+
+function Probe({ mode, handlers }: { mode: StageEditorMode; handlers: Partial<Handlers> }) {
   useStageHotkeys({
     editorMode: mode,
     setEditorMode: () => {},
     undo: () => {},
     redo: () => {},
     resetZoom: () => {},
+    duplicateSelected: () => {},
+    deleteSelected: () => {},
     setSpacePan: () => {},
     setShowMeasurement: () => {},
     ...handlers,
-  } as Parameters<typeof useStageHotkeys>[0]);
+  });
   return null;
 }
 
