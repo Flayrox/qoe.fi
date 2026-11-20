@@ -6,6 +6,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@qoe/supabase/middleware';
 import { getMonorepoUrl } from '@qoe/config';
 import { isCrossOriginServerAction } from '@qoe/utils';
+import { devRoutesEnabled } from './src/lib/dev-routes';
 import { workspaceCookie } from './src/lib/workspace-cookie';
 import { safeLocale } from './src/lib/locale-header';
 
@@ -46,11 +47,11 @@ export async function middleware(request: NextRequest) {
   // La route elle-même renvoie 404 en production.
   // Le job E2E sert un build de production (`PLAYWRIGHT_APPS_PROD=1`) : sans ce
   // drapeau, le middleware renvoyait /dev/editor-check vers le login et le banc
-  // n'était jamais rendu. La page elle-même reste un 404 hors dev.
-  const isDev = process.env.NODE_ENV !== 'production';
-  const devRoutesAllowed = isDev || process.env.QOE_E2E_DEV_ROUTES === '1';
+  // n'était jamais rendu. La décision d'existence des pages `/dev` est prise
+  // par `devRoutesEnabled()`, la même règle que les trois pages : le middleware
+  // ne fait que laisser passer quand elles existent.
   if (
-    devRoutesAllowed &&
+    devRoutesEnabled() &&
     (request.nextUrl.pathname === '/dev' || request.nextUrl.pathname.startsWith('/dev/'))
   ) {
     return supabaseResponse;
