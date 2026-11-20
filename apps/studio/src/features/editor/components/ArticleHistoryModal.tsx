@@ -222,14 +222,21 @@ export function ArticleHistoryModal({
   const handleRestore = async (snapshotId: string) => {
     if (!articleId) return;
     setRestoringId(snapshotId);
-    const res = await restoreArticleSnapshotAction({ articleId, snapshotId });
-    setRestoringId(null);
-    if (res.ok) {
-      toast.success(t`Version restaurée avec succès.`);
-      onRestored?.();
-      onClose();
-    } else {
-      toast.error(res.error?.message || t`Échec de la restauration`);
+    try {
+      const res = await restoreArticleSnapshotAction({ articleId, snapshotId });
+      if (res.ok) {
+        toast.success(t`Version restaurée avec succès.`);
+        onRestored?.();
+        onClose();
+      } else {
+        toast.error(res.error?.message || t`Échec de la restauration`);
+      }
+    } catch (err) {
+      // Une exception (réseau, action serveur) laissait la modale sur
+      // « Restauration… » et tous les boutons désactivés, sans message.
+      toast.error(err instanceof Error ? err.message : t`Échec de la restauration`);
+    } finally {
+      setRestoringId(null);
     }
   };
 

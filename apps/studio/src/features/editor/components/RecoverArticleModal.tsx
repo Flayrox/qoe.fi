@@ -166,18 +166,25 @@ export function RecoverArticle({
           ? selectedSnapshotId
           : undefined;
 
-    const res = await forkArticleToPersonalAction({
-      articleId,
-      snapshotId: snapIdToPass,
-    });
-    setSubmitting(false);
+    try {
+      const res = await forkArticleToPersonalAction({
+        articleId,
+        snapshotId: snapIdToPass,
+      });
 
-    if (res.ok) {
-      toast.success(t`Exemplaire importé avec succès dans votre espace personnel.`);
-      onClose();
-      window.location.href = `/articles/${res.data.id}`;
-    } else {
-      toast.error(res.error?.message || t`Échec de l'importation`);
+      if (res.ok) {
+        toast.success(t`Exemplaire importé avec succès dans votre espace personnel.`);
+        onClose();
+        window.location.href = `/articles/${res.data.id}`;
+      } else {
+        toast.error(res.error?.message || t`Échec de l'importation`);
+      }
+    } catch (err) {
+      // Sans capture, une exception laissait le bouton sur « Importation… »
+      // sans exemplaire créé ni explication.
+      toast.error(err instanceof Error ? err.message : t`Échec de l'importation`);
+    } finally {
+      setSubmitting(false);
     }
   };
 

@@ -151,6 +151,24 @@ describe('ArticleHistoryModal', () => {
     expect(onRestored).not.toHaveBeenCalled();
   });
 
+  it('rétablit l’état du bouton quand la restauration lève une exception', async () => {
+    articleActions.restoreArticleSnapshotAction.mockRejectedValueOnce(new Error('Réseau coupé'));
+    const { onClose, onRestored } = renderModal();
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: /Restaurer/ })).toHaveLength(2)
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Restaurer/ })[0]);
+
+    // Une exception réseau doit laisser un message et rendre les boutons :
+    // sinon la modale reste bloquée sur « Restauration… » pour toujours.
+    await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith('Réseau coupé'));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onRestored).not.toHaveBeenCalled();
+    const buttons = screen.getAllByRole('button', { name: /Restaurer/ }) as HTMLButtonElement[];
+    expect(buttons[0].disabled).toBe(false);
+  });
+
   it('masque la restauration quand l’utilisateur ne peut pas éditer', async () => {
     renderModal({ canEdit: false });
 

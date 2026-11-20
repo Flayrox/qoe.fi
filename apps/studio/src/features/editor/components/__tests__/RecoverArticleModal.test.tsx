@@ -98,6 +98,22 @@ describe('RecoverArticleModal', () => {
     });
   });
 
+  it('débloque l’import quand l’action serveur lève une exception', async () => {
+    articleActions.forkArticleToPersonalAction.mockRejectedValueOnce(new Error('Import refusé'));
+    renderModal();
+    await waitFor(() => expect(screen.getByText('Votre dernière version rédigée')).toBeDefined());
+
+    fireEvent.click(screen.getByRole('button', { name: /Importer dans mes brouillons/ }));
+
+    // Sans capture de l'exception, le bouton restait sur « Importation… » et
+    // l'auteur n'avait ni exemplaire ni explication.
+    await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith('Import refusé'));
+    const button = screen.getByRole('button', {
+      name: /Importer dans mes brouillons/,
+    }) as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+  });
+
   it('ne rend rien quand la modale est fermée', () => {
     renderModal({ open: false });
     expect(screen.queryByText('Importer dans mon espace personnel')).toBeNull();
