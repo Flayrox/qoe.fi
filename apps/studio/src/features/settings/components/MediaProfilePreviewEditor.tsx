@@ -53,6 +53,12 @@ export interface MediaMetadataField {
   icon: React.ComponentType<{ className?: string }>;
   getValue: (p: CreatorProfile) => string;
   setValue: (val: string, setCurrent: React.Dispatch<React.SetStateAction<CreatorProfile>>) => void;
+  /**
+   * Champ que `handleSaveAll` ne persiste pas : il s'affiche, il ne s'édite
+   * pas. Un champ éditable non enregistrable est une saisie perdue.
+   */
+  readOnly?: boolean;
+  readOnlyHint?: string;
 }
 
 export const MEDIA_METADATA_CONFIG: MediaMetadataField[] = [
@@ -83,7 +89,13 @@ export const MEDIA_METADATA_CONFIG: MediaMetadataField[] = [
     placeholder: 'redaction@mon-media.fr',
     icon: Mail,
     getValue: (p) => p.email || '',
-    setValue: (val, setCurrent) => setCurrent((prev) => ({ ...prev, email: val })),
+    setValue: () => {
+      // L'adresse du compte ne se change pas ici : elle passe par la
+      // vérification du fournisseur d'identité (Compte & sécurité).
+    },
+    readOnly: true,
+    readOnlyHint:
+      'Adresse du compte : elle se modifie dans les réglages du compte (Compte & sécurité).',
   },
   {
     id: 'customDomain',
@@ -377,7 +389,20 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
 
                 return (
                   <div key={field.id} className="relative">
-                    {!isEditing ? (
+                    {field.readOnly ? (
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        disabled
+                        title={field.readOnlyHint}
+                        className="max-w-full"
+                      >
+                        <IconComponent className="text-primary" aria-hidden />
+                        <span className="max-w-[200px] truncate">
+                          {value || `+ ${field.label}`}
+                        </span>
+                      </Button>
+                    ) : !isEditing ? (
                       <Button
                         variant={value ? 'soft' : 'outline'}
                         size="xs"
