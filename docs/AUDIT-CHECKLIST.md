@@ -93,6 +93,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | **durci le 2026-11-19** |
 | L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; prochain = L20c3 |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
+| L20n     | **Studio authentifié : la preuve porte sur des builds de production (`next start`), et le cookie `Secure` suit l’origine** | `playwright.apps.config.ts` (`appServer` paramétré — **aucun** `next dev` bespoke restant, admin compris), `scripts/e2e-studio-auth.mjs` (builds studio+admin+core + `PLAYWRIGHT_APPS_PROD`), `packages/supabase/src/{cookie-config,client,server,middleware}.ts` (`getCookieSecure`), `e2e/studio-auth-journey.spec.ts` (session exigée **avant** la redirection) | 3 runs prod depuis un état propre : **1 passed (9.2s)** `184 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token?grant_type=password`, puis **1 passed (9.2s)** (`189`), puis `.env` en VPS **1 passed (9.2s)** (`184`, **0 requête** vers `116.203.158.47`) ; absence d’infra → `✖ … scripts/e2e-studio-auth.mjs:103`, exit 1 ; apps **83 passed / 2 skipped** (admin en prod), oauth-consent **2 passed** |
 | L20m     | **La preuve réseau du studio authentifié ne peut plus être `skipped` en silence** | `scripts/e2e-studio-auth.mjs` (nouveau), `package.json`, `e2e/studio-auth-journey.spec.ts`, `playwright.apps.config.ts`, `.github/workflows/ci.yml` | `pnpm e2e:studio-auth` depuis un état propre : **1 passed (1.4m)** puis, `.env` pointé sur le VPS, **1 passed (45.5s)** — capture `209 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token` ; absence d'infra → `✖ … scripts/e2e-studio-auth.mjs:103`, exit 1 ; apps **83 passed / 2 skipped** |
 | L20l     | **Studio authentifié : login réel, éditeur, publication — 0 requête vers le Supabase partagé** | `e2e/studio-auth-journey.spec.ts` (nouveau), `playwright.apps.config.ts` (core + résolveur), `e2e/lib/supabase-network-guard.ts` (échecs journalisés) | env volontairement en VPS : **1 passed (23.3s)** puis **1 passed (25.7s)** ; capture `205 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token?grant_type=password` ; apps **83 passed / 3 skipped**, oauth-consent **2 passed** |
 | L20k    | **Surfaces studio/admin/hi + matrice de routes : 0 requête vers le Supabase partagé** | `e2e/lib/supabase-network-guard.ts` (nouveau), `e2e/lib/route-matrix.ts`, `e2e/{studio,admin}.spec.ts` | env volontairement en VPS : APPS **14 passed**, MATRICE **56 passed**, TENANTS **13**, OAUTH **2** ; captures `0 Supabase` par app ; login mesuré sur `http://127.0.0.1:54321` |
@@ -1938,6 +1939,112 @@ Vert obtenu avec ce drapeau (`82 paquets`, `0 FAIL`), identique à la CI qui par
 **Reste non vérifié.** `oauth-consent` (GoTrue local `127.0.0.1:54321` absent, exclu en CI pour la même raison) ; le
 projet `hi` de `e2e-apps` (la CI ne le lance pas — ses 4 pages sont couvertes par la matrice de routes) ; validation
 visuelle des pages ; `next start` pour core/admin (webServer en `next dev` hors apps secondaires).
+
+**La preuve porte sur les artefacts servis, pas sur un `next dev` (L20n).** Le chemin L20m lançait
+`playwright --project=studio`, mais `playwright.apps.config.ts` démarrait **chaque** app en `next dev` : la capture
+réseau du studio authentifié observait des serveurs de développement, alors que les jobs `e2e-apps` du repo prouvent,
+eux, des **builds de production** (`PLAYWRIGHT_APPS_PROD=1` + `next start`). Deux changements, aucun mécanisme
+nouveau :
+
+1. **`playwright.apps.config.ts`** — `appServer(pkg, port, { prod, url, timeout })` : le core est monté par la même
+   fabrique que les autres apps (`appServer('@qoe/core', CORE_PORT, { url: `${CORE_URL}/login`, timeout: 180_000 })`)
+   au lieu d’un `next dev` codé en dur. `PLAYWRIGHT_APPS_PROD=1` reste l’unique bascule de régime.
+2. **`scripts/e2e-studio-auth.mjs`** — le script produit les builds (`pnpm intl:compile && pnpm --filter @qoe/<app>
+   build`, la commande exacte du job `e2e-apps`), les sert, et pose `PLAYWRIGHT_APPS_PROD: '1'`.
+
+⚠️ **Traçabilité — cette phrase du L20m est périmée.** Le « Reste non vérifié » de la fiche **L20m** (juste
+au-dessus) annonce encore `next start` pour core **et** admin. Elle est laissée **intacte** — on n’édite pas la fiche
+d’un autre lot pour solder un reste — mais elle ne décrit plus l’état du dépôt : depuis **L20n**, core *et* admin
+passent par `appServer()` en mode prod, exactement comme studio (voir la preuve par falsification ci-dessous).
+
+**Plus aucune app hors du régime prod (même lot).** La dernière exception était `admin` : le commentaire de
+`appServer()` (`playwright.apps.config.ts:73`) annonçait encore « `prod: false` garde `next dev` pour admin », alors que
+la fabrique ne connaît que deux modes et que la matrice CI `e2e-apps` (`app: [tenants, studio, admin]`) construit déjà
+admin en prod (`ci.yml:783`, `PLAYWRIGHT_APPS_PROD: '1'`, `ci.yml:800`). Corrigé : commentaire aligné sur le code,
+admin construit par le script (`['@qoe/studio', '@qoe/admin', '@qoe/core']`), et **aucun** `next dev` bespoke dans le
+fichier — `grep -n "next dev" playwright.apps.config.ts` ne rend plus qu’un ternaire, à l’intérieur d’`appServer()`
+(`:95`), et cinq appels `appServer(` (`:146`–`:155`) sans variante. Preuve par falsification : admin sans build
+(`rm -rf apps/admin/.next`) →
+
+```
+[WebServer] Error: Could not find a production build in the '.next' directory. Try building your app with 'next build' …
+  Error: apiRequestContext.get: connect ECONNREFUSED ::1:15405
+  2 failed / 1 skipped / 2 passed        ADMIN_NOBUILD_EXIT=1
+$ pnpm --filter @qoe/admin build        ADMIN_BUILD_EXIT=0
+  1 skipped / 4 passed (12.2s)           ADMIN_EXIT=0
+```
+
+… donc `admin` n’est servi **que** par `next start` : plus de repli `next dev` silencieux.
+
+**Écart réel dev→prod trouvé par ce changement, corrigé à la source.** Premier run en prod : rouge, et pas pour une
+raison de harnais — `TimeoutError: page.waitForURL … Timeout 45000ms exceeded`, avec
+`navigated to "http://lvh.me:15402/login?redirect=http%3A%2F%2Fstudio.lvh.me%3A15404%2F"` : le login réussissait, puis
+le studio renvoyait `/login`. Sonde Playwright sur le core **de production** (compte GoTrue réel) :
+`AUTH 200 POST http://127.0.0.1:54321/auth/v1/token?grant_type=password` puis `COOKIES qoe_theme@lvh.me` — **aucun
+cookie de session**. Cause lue dans le code : `secure: process.env.NODE_ENV === 'production'`
+(`packages/supabase/src/client.ts:36`, `server.ts:65`, `middleware.ts:86`) — un build de production servi en `http://`
+faisait poser `Secure`, que le navigateur **jette silencieusement** : session perdue dès qu’on change de sous-domaine,
+sans aucune erreur. Correctif : `getCookieSecure()` (`packages/supabase/src/cookie-config.ts`) fait suivre le drapeau au
+**schéma de l’origine publique** (`NEXT_PUBLIC_APP_URL`) — `http://` → `false`, `https://` → `true` (production
+TLS inchangée), repli sur `NODE_ENV` si aucune origine n’est déclarée ; les trois sites l’utilisent, aucun ne duplique
+la règle. `getCookieDomain()` lisait déjà `NEXT_PUBLIC_APP_URL` ainsi : même fichier, même règle. Test unitaire ajouté
+(`packages/supabase/src/__tests__/cookie-config.test.ts`, **5 tests**). Le spec gagne en plus une assertion qui
+manquait — le cookie de session est exigé **avant** `waitForURL`, pour qu’un cookie non partagé se lise comme tel et
+non comme un simple timeout (aucune assertion retirée ni élargie).
+
+```
+$ pnpm e2e:studio-auth
+▶ Builds de production (studio + admin + core)
+▶ Parcours studio authentifié (Supabase déclaré : http://127.0.0.1:54321)
+[studio authentifié] réseau : 184 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token?grant_type=password
+  1 passed (9.2s)
+✅ Parcours studio authentifié vert, pile jetable démontée.        # rejoué depuis un état propre : 1 passed (9.2s), 189 requête(s)
+
+$ NEXT_PUBLIC_SUPABASE_URL=http://116.203.158.47:54321 pnpm e2e:studio-auth
+▶ Parcours studio authentifié (Supabase déclaré : http://116.203.158.47:54321)
+[studio authentifié] réseau : 184 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token?grant_type=password
+  1 passed (9.2s)
+```
+
+Même avec le `.env` pointé sur le VPS, le seul appel Supabase du parcours reste `127.0.0.1:54321` : **0 requête vers
+`116.203.158.47`**. Absence d’infra, toujours explicite :
+
+```
+$ DOCKER_HOST=unix:///tmp/absent-docker.sock pnpm e2e:studio-auth
+✖ Docker est requis (Postgres/Redis/GoTrue jetables) et `docker info` échoue : … connect: no such file or directory.
+  → scripts/e2e-studio-auth.mjs:103
+EXIT=1
+
+$ (port 54321 occupé) pnpm e2e:studio-auth
+✖ port 54321 déjà occupé : libère-le (le parcours monte sa propre pile jetable) puis relance `pnpm e2e:studio-auth`.
+  → scripts/e2e-studio-auth.mjs:110
+EXIT=1
+```
+
+**Un skip silencieux est impossible (re-mesuré).** Le spec ne peut pas s’absenter sans que le chemin nominal échoue :
+hors orchestration il n’est pas collecté (le compteur de la suite par défaut le prouve : **83 passed / 2 skipped**,
+`grep -c studio-auth-journey` = 0), et la commande exacte de l’orchestrateur, jouée sans `RUN_FULL_STACK`, ne collecte
+**rien** et sort donc en échec au lieu de rendre un vert creux :
+
+```
+$ env -u RUN_FULL_STACK … playwright test --config playwright.apps.config.ts --project=studio --grep "parcours réel"
+Error: No tests found
+COLLECT2_EXIT=1
+```
+
+**CI** : aucun changement de workflow nécessaire — le job `e2e-studio-auth` (`.github/workflows/ci.yml`) exécute déjà
+`pnpm e2e:studio-auth`, donc le chemin corrigé ; vérifié par parsing YAML (`run_steps` = `[… "pnpm e2e:studio-auth"]`,
+`INVOKE=true`).
+
+**Non-régression du lot** : `pnpm lint` 0 · `pnpm typecheck` 0 · `pnpm test` 0 (`@qoe/studio` 575, `@qoe/ui` 677,
+`@qoe/core` 323) · `pnpm typecheck:root` 0 · les 10 gardes CI 0 (`seed-script`, `legal-consent`, `dangerous-html`,
+`flags-parity`, `article-links`, `media-origin`, `tsconfig`, `audit`, `ui:audit`, `arch:audit`) ·
+`playwright --config playwright.apps.config.ts` (tenants + studio + **admin** + hi + matrice) **83 passed / 2 skipped**,
+exit 0, toutes apps servies depuis un build de production (les deux `skipped` restants sont `studio.spec.ts` dashboard
+et `admin-legal.spec.ts`, portes préexistantes) ; le spec authentifié reste **non collecté** hors orchestration :
+`grep -c studio-auth-journey` = 0 · `--project=oauth-consent` **2 passed (31.0s)**.
+Premier `pnpm typecheck` rouge pour une raison d’artefacts : des copies `.next/**/* 2.ts` laissées par les builds
+(`apps/hi` : `TS6200`/`TS2300` sur `cache-life.d 2.ts`) — supprimées, typecheck vert, aucun fichier suivi touché.
 
 ---
 

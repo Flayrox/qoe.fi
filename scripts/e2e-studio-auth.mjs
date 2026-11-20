@@ -29,6 +29,16 @@ const REDIS_CONTAINER = 'qoefi-m-redis';
 const DB_URL = `postgresql://qoe:qoe@127.0.0.1:${DB_PORT}/qoe`;
 
 /**
+ * Origine canonique du core : sert AUSSI au build (`NEXT_PUBLIC_APP_URL`).
+ *
+ * ⚠️ Lu au runtime **et** inliné au build : sans elle dans l'environnement de
+ * build, `getCookieDomain()` (`packages/supabase/src/cookie-config.ts`) ne
+ * pose qu'un cookie hôte-only sur `lvh.me`, que `studio.lvh.me` ne reçoit pas
+ * — le studio renvoie alors vers `/login?redirect=…` en boucle.
+ */
+const APP_ORIGIN = 'http://lvh.me:15402';
+
+/**
  * Échoue franchement, en citant la ligne du présent script.
  *
  * ⚠️ On **lève** au lieu d'appeler `process.exit` : un `exit` à l'intérieur du
@@ -104,7 +114,7 @@ async function main() {
         'Démarre le daemon puis relance `pnpm e2e:studio-auth`.'
     );
   }
-  for (const port of [DB_PORT, REDIS_PORT, AUTH_PORT]) {
+  for (const port of [DB_PORT, REDIS_PORT, AUTH_PORT, 15402, 15404]) {
     if (!(await portIsFree(port))) {
       fail(
         110,
@@ -213,6 +223,33 @@ async function main() {
     //    qui permet de prouver qu'un `.env` pointé sur le VPS ne fuit pas.
     const externalSupabase =
       process.env.NEXT_PUBLIC_SUPABASE_URL ?? `http://127.0.0.1:${AUTH_PORT}`;
+
+    // 5a. Builds de PRODUCTION, comme le job `e2e-apps` (même commande
+    //     `pnpm intl:compile && pnpm --filter @qoe/<app> build`) : la preuve
+    //     réseau doit porter sur les artefacts réellement servis, pas sur un
+    //     `next dev` compilé à la demande. `PLAYWRIGHT_APPS_PROD=1` reste
+    //     l'unique bascule de régime (`playwright.apps.config.ts`), et
+    //     `admin` n'a pas de `next dev` de secours : il est construit ici comme
+    //     les deux autres apps servies par cette config (matrice CI e2e-apps).
+    console.log('▶ Builds de production (studio + admin + core)');
+    const buildEnv = {
+      ...process.env,
+      SKIP_ENV_VALIDATION: 'true',
+      NEXT_TELEMETRY_DISABLED: '1',
+      QOE_API_URL: 'http://localhost:8091',
+      NEXT_PUBLIC_APP_URL: APP_ORIGIN,
+      NEXT_PUBLIC_SUPABASE_URL: externalSupabase,
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: anonKey,
+    };
+    if (run('pnpm', ['intl:compile'], { env: buildEnv }) !== 0) {
+      fail(215, '`pnpm intl:compile` a échoué (catalogue de traduction requis par le build).');
+    }
+    for (const app of ['@qoe/studio', '@qoe/admin', '@qoe/core']) {
+      if (run('pnpm', ['--filter', app, 'build'], { env: buildEnv }) !== 0) {
+        fail(220, `le build de production de ${app} a échoué.`);
+      }
+    }
+
     console.log(`▶ Parcours studio authentifié (Supabase déclaré : ${externalSupabase})`);
     const playwrightStatus = run(
       'pnpm',
@@ -231,12 +268,15 @@ async function main() {
         env: {
           ...process.env,
           RUN_FULL_STACK: '1',
+          // Même bascule que le job `e2e-apps` : `next start` sur les builds
+          // qui viennent d'être produits.
+          PLAYWRIGHT_APPS_PROD: '1',
           PLAYWRIGHT_GO_API_PORT: '8091',
           QOE_API_URL: 'http://localhost:8091',
           DATABASE_URL: DB_URL,
           API_DATABASE_URL: DB_URL,
           REDIS_URL: `redis://127.0.0.1:${REDIS_PORT}`,
-          NEXT_PUBLIC_APP_URL: 'http://lvh.me:15402',
+          NEXT_PUBLIC_APP_URL: APP_ORIGIN,
           NEXT_PUBLIC_SUPABASE_URL: externalSupabase,
           SUPABASE_AUTH_URL: externalSupabase,
           NEXT_PUBLIC_SUPABASE_ANON_KEY: anonKey,

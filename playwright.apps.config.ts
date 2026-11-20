@@ -70,8 +70,11 @@ const CORE_URL = process.env.PLAYWRIGHT_CORE_URL ?? 'http://lvh.me:15402';
 const CORE_PORT = Number(new URL(CORE_URL).port) || 15402;
 
 /**
- * `prod: false` garde `next dev` pour une app qui n'est pas construite par le
- * job (admin : la matrice ne le couvre pas, inutile de payer son build).
+ * Toutes les apps passent par ici : aucune n'a de commande `next dev` à elle,
+ * donc `PLAYWRIGHT_APPS_PROD=1` reste l'unique bascule de régime (le job CI
+ * `e2e-apps` le pose pour tenants, studio **et** admin). Le build de chaque app
+ * est produit par la même commande que dans ce job :
+ * `pnpm intl:compile && pnpm --filter @qoe/<app> build`.
  *
  * ⚠️ Readiness HTTP (`url`), pas `port` : le port s'ouvre avant que Next ne
  * serve — Playwright naviguait alors dans le vide et la spec échouait en
@@ -79,7 +82,12 @@ const CORE_PORT = Number(new URL(CORE_URL).port) || 15402;
  * Next accepte aussi les 3xx (studio/admin redirigent vers /login), donc le
  * health-check passe même sur une route protégée.
  */
-function appServer(pkg: string, port: number, prod = APP_PROD) {
+function appServer(
+  pkg: string,
+  port: number,
+  options: { prod?: boolean; url?: string; timeout?: number } = {}
+) {
+  const prod = options.prod ?? APP_PROD;
   // `rm -f .next/dev/lock` : Next 16 refuse un second `next dev` dans le même
   // dossier, et le verrou survit à l'arrêt brutal du serveur par Playwright.
   // Sans ce nettoyage, la run suivante n'imprime rien et expire en
@@ -87,13 +95,15 @@ function appServer(pkg: string, port: number, prod = APP_PROD) {
   const launch = prod ? `next start -p ${port} -H 127.0.0.1` : `next dev -p ${port} -H 127.0.0.1`;
   return {
     command: `pnpm --filter ${pkg} exec sh -c 'rm -f .next/dev/lock && exec ${launch}'`,
-    // Readiness TCP, pas HTTP : les racines de studio/admin répondent 307 vers
-    // le core (`lvh.me:3010`), et le health-check HTTP **suit** la redirection
-    // → `ECONNREFUSED` sur le core → « disponible = false » → Playwright
-    // relance une instance alors que le port écoute déjà (`EADDRINUSE`).
-    port,
+    // Readiness TCP par défaut, pas HTTP : les racines de studio/admin
+    // répondent 307 vers le core (`lvh.me:3010`), et le health-check HTTP
+    // **suit** la redirection → `ECONNREFUSED` sur le core → « disponible =
+    // false » → Playwright relance une instance alors que le port écoute déjà
+    // (`EADDRINUSE`). Une app qui expose une page publique stable (core
+    // `/login`) peut demander `url` pour attendre un vrai rendu.
+    ...(options.url ? { url: options.url } : { port }),
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: options.timeout ?? 120_000,
     env: { ...appEnv, HOSTNAME: '127.0.0.1' },
   };
 }
@@ -137,19 +147,12 @@ export default defineConfig({
     ...(NEEDS_STUDIO ? [appServer('@qoe/studio', 15404)] : []),
     ...(NEEDS_ADMIN ? [appServer('@qoe/admin', 15405)] : []),
     ...(NEEDS_HI ? [appServer('@qoe/hi', 15401)] : []),
-    // Core en dev pour le parcours authentifié : une seule app le rend, et la
-    // compilation à la demande ne concerne que la page de login.
+    // Core du parcours authentifié : même fabrique que les autres apps, donc
+    // même régime de preuve (`PLAYWRIGHT_APPS_PROD=1` → `next start`). Le
+    // portage en dur sur `next dev` faisait tourner la preuve réseau du studio
+    // sur des artefacts différents de ceux servis ailleurs.
     ...(RUN_FULL_STACK
-      ? [
-          {
-            command: `pnpm --filter @qoe/core exec sh -c 'rm -f .next/dev/lock && exec next dev -p ${CORE_PORT} -H 127.0.0.1'`,
-            // Readiness HTTP sur `/login` : 200 sans session, page stable.
-            url: `${CORE_URL}/login`,
-            reuseExistingServer: !process.env.CI,
-            timeout: 180_000,
-            env: { ...appEnv, HOSTNAME: '127.0.0.1' },
-          },
-        ]
+      ? [appServer('@qoe/core', CORE_PORT, { url: `${CORE_URL}/login`, timeout: 180_000 })]
       : []),
   ],
   projects: [
