@@ -10,6 +10,7 @@
 // =====================================================================
 
 import React, { useState, useEffect } from 'react';
+import { t } from '@lingui/core/macro';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Info, AlertTriangle, AlertCircle, X, ArrowRight, Crown } from 'lucide-react';
@@ -70,11 +71,18 @@ export function InAppPlacement({
     placement?.type === 'promo' && placement?.ctaUrl?.includes('/pricing') && !isPlusBannerAllowed;
 
   useEffect(() => {
-    if (placement?.id && typeof window !== 'undefined') {
+    if (!placement?.id || typeof window === 'undefined') return;
+    // `getItem` jette quand le stockage est refusé (navigation privée, cookies
+    // bloqués) : sans ce garde, l'effet faisait tomber tout le slot au lieu de
+    // simplement garder le bandeau. `setItem` était déjà protégé, pas lui.
+    try {
       const storageKey = `qoe_placement_dismissed_${placement.id}`;
       if (localStorage.getItem(storageKey) === 'true') {
         setIsDismissed(true);
       }
+    } catch {
+      // Stockage indisponible : on affiche le placement, l'acquittement
+      // serveur reste possible au clic.
     }
   }, [placement?.id]);
 
@@ -137,7 +145,7 @@ export function InAppPlacement({
               type="button"
               onClick={handleDismiss}
               className="absolute top-3 right-3 p-1 rounded-full text-muted-foreground/60 hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer"
-              aria-label="Fermer cette notification"
+              aria-label={t`Fermer cette notification`}
             >
               <X className="w-4 h-4" />
             </button>
