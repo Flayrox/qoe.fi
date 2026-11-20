@@ -51,12 +51,17 @@ export function CollaborationTab() {
 
   const loadRequests = async () => {
     setLoading(true);
-    const res = await getCollaborationRequestsAction();
-    setLoading(false);
-    if (res.success) {
-      setRequests({ received: res.received || [], sent: res.sent || [] });
-    } else {
-      setMessage(res.error || 'Impossible de charger les invitations.');
+    try {
+      const res = await getCollaborationRequestsAction();
+      if (res.success) {
+        setRequests({ received: res.received || [], sent: res.sent || [] });
+      } else {
+        setMessage(res.error || 'Impossible de charger les invitations.');
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Impossible de charger les invitations.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -66,17 +71,26 @@ export function CollaborationTab() {
 
   const handleRespond = async (requestId: string, accept: boolean) => {
     setRespondingId(requestId);
-    const res = await respondToCollaborationRequestAction(
-      requestId,
-      accept,
-      profileVisibility[requestId] ?? true
-    );
-    setRespondingId(null);
-    if (res.success) {
-      setMessage(accept ? 'Invitation acceptée.' : 'Invitation refusée.');
-      await loadRequests();
-    } else {
-      setMessage(res.error || "La réponse n'a pas pu être enregistrée.");
+    try {
+      const res = await respondToCollaborationRequestAction(
+        requestId,
+        accept,
+        profileVisibility[requestId] ?? true
+      );
+      if (res.success) {
+        setMessage(accept ? 'Invitation acceptée.' : 'Invitation refusée.');
+        await loadRequests();
+      } else {
+        setMessage(res.error || "La réponse n'a pas pu être enregistrée.");
+      }
+    } catch (error) {
+      // Sans capture, une exception laissait `respondingId` posé : la ligne
+      // restait sur son indicateur et rien n'était expliqué.
+      setMessage(
+        error instanceof Error ? error.message : "La réponse n'a pas pu être enregistrée."
+      );
+    } finally {
+      setRespondingId(null);
     }
   };
 
