@@ -103,7 +103,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20g    | **E2E apps (tenants/studio/admin) + matrice de routes + `public-feed-capture`** | `e2e/*.spec.ts`, `playwright.config.ts`, `.github/workflows/ci.yml` | mesuré le 2026-11-20 : `e2e-apps` **25/25**, `e2e-apps-routes` **53/53**, `api-access-control` **2/2 (projet isolé)**, `public-web` **12/12** — voir fiche L20g |
 | L20f    | **Validation locale bout en bout** : daemon Docker, `test:api`, `e2e` sur base jetable seedée | —                           | mesuré le 2026-11-20 : daemon **démarré** (OrbStack 29.4.0), `test:api` **✅ 82 paquets**, e2e **18/19 + 128/128** — voir fiche L20f |
 | L20e    | **Validation bout en bout** : `pnpm build` (6 apps), `pnpm test:api` (Go + Postgres), `pnpm e2e` (Playwright)  | —                           | mesuré le 2026-11-20 : **build ✅**, `test:api` **bloqué** (Docker absent), e2e **partiel** (seed absent) — voir fiche L20e |
-| L21     | `apps/studio/src/**`                                                                                         | 509 fichiers                | à auditer               |
+| L21     | `apps/studio/src/**`                                                                                         | **412 fichiers · 72 285 l.** (mesuré) | **ouvert le 2026-11-20**, découpé en **8 sous-lots** (L21a→L21h) ; **L21a** (socle : layout, not-found, components, lib, instrumentation) **durci le 2026-11-20** ; **R137 ouverte** ; prochain = L21b (stage) |
 | L22     | `apps/admin/src/**`                                                                                          | 178 fichiers                | à auditer               |
 | L23     | `apps/tenants/src/**`                                                                                        | 85 fichiers                 | à auditer               |
 | L24     | `apps/hi/src/**`                                                                                             | 40 fichiers                 | à auditer               |
@@ -123,9 +123,9 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L21 — `apps/studio/src/**`**
-(509 fichiers, non découpé : la mesure et le découpage en sous-lots sont le premier travail du lot ;
-L20c ouvert le 2026-11-19 avec un découpage mesuré en 8 sous-lots, L20c1
+**Prochain lot à traiter : L21b — `features/stage`** (le plus gros sous-lot mesuré de L21 : 189 f. ·
+24 664 l., dont le code vendorisé `vendor/onlook`) ; L21 ouvert le 2026-11-20 par sa mesure et son
+découpage (voir la section L21). L20c ouvert le 2026-11-19 avec un découpage mesuré en 8 sous-lots, L20c1
 (cartes de pensée, 11 f. · 1 223 l.), L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.),
 L20c3 (annotateur d'article, 1 f. · 1 153 l., **R126** et **R133** closes), L20c4 (chaîne de lecture
 d'article, 6 f. · **988 l.** à la livraison — le « 992 » écrit ici datait d'avant le passage de prettier,
@@ -916,6 +916,7 @@ nommé), puis verts après restauration.
 | R132 | ~~La résolution média/auteur était écrite **trois fois** (`ArticleReaderDrawer`, `ArticleReaderDrawerContent`, `ArticleAnnotatorView`) et les copies avaient divergé : le tiroir comparait `author.name` au nom du média, l'annotateur `author.journalist.name`~~ — **close le 2026-11-20**. Conséquence mesurée : pour un média dont le compte porte son nom mais dont le journaliste signe, le tiroir affichait « Alice Martin » là où l'article signait « Le Monde · par Alice Martin » (`AssertionError: expected 'Alice Martin' to be 'Le Monde · par Alice Martin'`). | — | Close : `social/article-byline.ts` (163 l.) porte **la** règle (`resolveArticleByline`), le tiroir et l'annotateur la consomment, les trois copies sont supprimées (tiroir 276→**251 l.**, annotateur 1 153→**1 106 l.**). Une garantie de source interdit la réapparition d'une seconde implémentation (heuristique `trim().toLowerCase()` et libellé `· par` bannis des composants). 6 garanties unitaires (média+journaliste, personnel, média seul, auteur seul, divergence, source unique) + 1 garantie d'intégration du tiroir, rouges avant. Voir fiche L20c4. |
 | R133 | Les libellés visibles de `ArticleAnnotatorView` échappaient à `t` : `{article.readingTime \|\| 5} min de lecture` (deux occurrences) et les trois textes du paywall — figés en français dans l'interface `en`. En les traduisant, le catalogue s'est révélé **périmé** : 44 chaînes déjà passées par `t` (`ThemeToggle`, `NotificationList`, `OnboardingModal`, `SimilarArticlesSection`, `TrendingWidget`) n'avaient aucune entrée, donc n'étaient pas traduisibles malgré leur `t`. | faible | Close le 2026-11-20 : 4 libellés passés par `t`, `lingui extract` (+48 `msgid`, dont les 4) et `lingui compile` dans le même commit ; 4 garanties (valeur lue, bornes 1/0, paywall, garde de source interdisant le retour d'un libellé en dur) rouges→vertes, 7/7 dans le fichier. Voir fiche L20c3. |
 | R134 | `ListArticleComments` (`apps/api/sql/queries/comments.sql:36`) n'a **ni `LIMIT` ni curseur** et rend `ORDER BY c."createdAt" ASC` en entier ; le handler (`apps/api/internal/modules/articles/handler.go:1156`) ne lit aucun paramètre de page et répond `response.OK(w, comments)` — la liste complète. Trois surfaces la consomment : le tiroir de lecture (`ArticleComments.tsx:57`), la console studio (`community-client.tsx:37`) et `apps/tenants` (`article/[slug]/actions.ts:143`). Un article à quelques milliers de commentaires donne donc une réponse et un rendu non bornés. | moyenne | **bloqué** — la fermeture à la racine exige : (1) un `LIMIT`/curseur dans la requête sqlc (donc `sqlc generate`), (2) un paramètre `limit`/`cursor` dans le handler **et un changement de forme de réponse** (`{items, nextCursor}` au lieu du tableau), (3) l'adaptation des trois surfaces, (4) une preuve sur base réelle — or AGENTS.md interdit Docker en local et la base partagée ne sert pas aux essais. Question produit à trancher : plafond par défaut, clé de curseur (`(createdAt, id)` ?), et réponse paginée ou plafond dur avec « charger plus ». Aucun correctif partiel n'a été posé : tronquer côté front sans pagination serait un bug pire que l'absence de pagination. Preuve : `comments.sql:36-57` (pas de `LIMIT`), `handler.go:1156-1166` (aucun paramètre), `comments.go:91-95` (article + viewer seulement). |
+| R137 | Les métadonnées du studio restent figées en français : `src/app/layout.tsx` (`title: 'qoefi Studio — Creator Dashboard'`, description anglaise) et `src/app/not-found.tsx` (`'Page introuvable — Studio qoefi'`) sont des exports statiques `metadata`, donc non traduits quand la locale est `en`. | faible | **ouverte** — la sortie propre est `generateMetadata` + une traduction serveur ; `@qoe/i18n/server` expose `translateKey`/`translate`, mais l'`initI18n()` de requête et les overrides DB doivent être branchés dans le même tour pour toutes les apps (core, studio, admin, tenants), sinon on fixe le studio en laissant les autres derrière. Travail transversal à planifier, pas un correctif de deux lignes ; aucun correctif partiel posé. Preuve : `apps/studio/src/app/layout.tsx:52-64`, `apps/studio/src/app/not-found.tsx:3-9`, et `grep -rn "generateMetadata" apps/studio/src` → 0. Voir L21a. |
 | R136 | Le placement in-app du lecteur est **inatteignable** : `InAppPlacement` ne tire son contenu que de la prop `initialPlacement`, et son unique appelant (`banners/DynamicBannerSlot`) rend `<InAppPlacement slot fallback className />` — sans jamais passer de placement. Toute la branche « placement » (carte, `notch_banner`, acquittement serveur) est donc morte dans le lecteur : seul le repli « Qoefi Plus » s'affiche, quel que soit le placement programmé en base. | moyenne | **bloqué** — brancher la résolution exige une décision produit : qui résout le placement pour un slot (loader serveur par page ? action `getPlacementForSlot` ? cache runtime ?), quelle audience (`targetAudience`) et quelle priorité entre placements concurrents. Aucun correctif partiel n'a été posé : afficher un placement inventé côté client serait pire que le repli actuel. Preuve : `DynamicBannerSlot.tsx:80` (appel sans `initialPlacement`), `InAppPlacement.tsx:104` (`if (!placement …) return fallback`), test de caractérisation « sans `initialPlacement`, ne rend que le repli ». Voir L20c7. |
 | R135 | `MessagesApp` n'a **aucun libellé traduit** (`grep -c lingui` → 0) : titre, description, boutons, `hier`, `Vous : `, `Utilisateur`, `Conversation vide`, `Recherche…`, « Aucun résultat. », les états vides, et les trois messages d'erreur ajoutés en L20c6. L'interface anglaise affiche donc tout ce panneau en français. | faible | **close le 2026-11-20** — les **23 libellés distincts** du fichier passent par `t` (dont `hier`, `Utilisateur`, `Conversation vide`, `Vous : {0}` interpolé et les 5 messages d'erreur) ; `intl:extract` ajoute **18 `msgid`** (5 étaient déjà extraits ailleurs : `Messages`, `Recherche…`, `Retour`, `Envoyer`, `Envoi impossible`) et `intl:compile` passe. Un effet de bord réel a été trouvé en chemin : `const t = setInterval(...)` / `const t = setTimeout(...)` **masquaient** le `t` de Lingui dans trois effets, ce qui rendait l'erreur de recherche inatteignable (voir fiche L20c6). 8 garanties jsdom + garde de source (« aucun littéral français en dur ») rouges→vertes. |
 | R131 | ~~Les `tsconfig.json` des apps remplacent l'`exclude` du preset par `["node_modules"]` en gardant `include: ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts"]` : TypeScript **remplace** l'`exclude` hérité au lieu de le fusionner, donc une copie d'artefact entrait dans le programme et cassait `pnpm typecheck` (`TS6200`/`TS2300`)~~ — **close le 2026-11-20**. Cause mesurée : macOS duplique `routes.d.ts` en `routes.d 2.ts`, un `.ts` et non un `.d.ts`, donc plus un fichier de déclaration ; `apps/hi` et `apps/tenants` étaient rouges dans l'arbre (`.next/types/cache-life.d 3.ts(3,1): error TS6200 …`, `routes.d 3.ts(55,8): error TS2300: Duplicate identifier 'LayoutProps'`). | — | Close : les **6** apps nomment leurs sources (`next-env.d.ts`/`expo-env.d.ts`, `*.ts`, `src/**`, + `modules/**` pour mobile) — aucun glob racine, aucun glob dans un dossier généré — et la règle **E** de `guard:tsconfig` refuse désormais ce motif (falsifiée : `3 problème(s)` / `GUARD_FALSIF_EXIT=1`). Types de routes conservés par l'`import "./.next/types/routes.d.ts"` de `next-env.d.ts`. Preuve : copies plantées dans `core` **et** `studio` (+ `hi`/`tenants`) → `TC_core_EXIT=2`/`TC_studio_EXIT=2` avant, **`EXIT=0` sur les 6 apps avec 10 copies en place** après, puis `pnpm typecheck` **25 successful, 25 total / 0 error TS**. Voir fiche L19. |
@@ -1497,6 +1498,92 @@ existante modifiée, aucune doublure touchée.
 **Dettes.** **R01**, **R54**, **R56**, **R63**, **R64**, **R65**, **R66**
 restent **ouvertes**. Nouvelle dette : **R67** (surfaces `continuous`,
 `highlighter`, `paywall`, `excerpt` sans consommateur TS).
+
+---
+
+## L21 — `apps/studio/src/**` — ouvert le 2026-11-20 (découpage mesuré)
+
+**Périmètre mesuré à l'ouverture.** `find apps/studio/src -name '*.ts*'` (hors tests) → **412 fichiers /
+72 285 l.**, plus **65 fichiers de tests**. C'est le plus gros lot restant du dépôt : il ne peut pas être
+traité d'un tour, donc il est découpé ici, avec des mesures par groupe.
+
+| Sous-lot | Périmètre exact | Mesure | Ordre et justification |
+| -------- | --------------- | ------ | ---------------------- |
+| **L21a** | `src/app/layout.tsx` 149, `src/app/not-found.tsx` 14, `src/components/**` 3/242, `src/lib/**` 11/432, `src/instrumentation.ts` 12, `src/test-support/**` 1/5 | **18 f. · 854 l.** | **durci le 2026-11-20**. Le socle : monté par *toutes* les routes studio (providers, en-têtes de sécurité, i18n, cookies d'espace, sanitizers). Deux défauts y vivaient encore (F303, F304). |
+| L21b | `features/stage/**` (context, left/right panels, canvas, engine, `vendor/onlook`) | 189 f. · 24 664 l. | **prochain**. Le plus gros et le plus risqué : une partie est du code vendorisé (onlook) qu'on ne peut pas corriger comme le nôtre — le premier travail du sous-lot est de séparer le vendor du code maison. |
+| L21c | `features/editor/**` (dont `Editor.tsx` 2 807 l., extensions, hooks, lib) | 49 f. · 12 005 l. | Éditeur d'article : le fichier le plus long du dépôt. Audité seul, après le stage qui partage ses primitives. |
+| L21d | `src/app/dev/**` (UI Lab, specimens, catalogue) | 32 f. · 7 591 l. | Outillage de développement : 404 hors dev, aucun impact utilisateur — audité après les surfaces produit. |
+| L21e | `features/settings/**` (tabs 7/2 632, components 7/1 259, `navigation.tsx` 796) | 20 f. · 5 622 l. | Réglages du studio : beaucoup de formulaires et de mutations, conventions déjà posées par L21a. |
+| L21f | `app/(creator)/**` hors `articles`, `media`, `newsletters`, `analytics` (34 f.) + routes annexes | 34 f. · 4 979 l. | Écrans secondaires du créateur (dashboard, audience, import, monetization, pricing, settings, stage…). |
+| L21g | `app/(creator)/{articles,media,newsletters,analytics}` | 39 f. · 12 593 l. | Les quatre gros clients (`articles-client` 2 206, `MediaStudioClient` 1 669, `NewsletterClient` 1 214, `analytics/actions.ts` 729) : audités ensemble parce qu'ils partagent les mêmes conventions d'action et de toast. |
+| L21h | `features/{security,onboarding,upcoming,dashboard,developer,devtools}` (24 f. · 3 481 l.) + routes `login`/`onboarding` (3 f. · 105 l.) | 27 f. · 3 586 l. | Le reste : sécurité (step-up), onboarding, devtools. Ferme le lot. |
+
+**Somme vérifiée.** 18 + 189 + 49 + 32 + 20 + 34 + 39 + 27 = **408 fichiers** attribués. Le `find` en
+compte **412** : les 4 fichiers restants vivent dans des sous-dossiers de `src/app` non listés ci-dessus et
+seront rattachés à L21h à son ouverture (mesure refaite à ce moment-là, pas d'estimation ici).
+
+### L21a — socle studio : `cn` dupliqué, replis du refus d'autorisation — durci le 2026-11-20
+
+**Périmètre.** Les 18 fichiers ci-dessus, **854 l.** (mesuré après correctifs), plus 2 fichiers de tests
+neufs. Appelants réels lus : `middleware.ts` (consomme `safeLocale` et `workspaceCookie`), `next.config.ts`
+(consomme `studioSecurityHeaders`), `app/(creator)/**` (consomme `getActiveWorkspace`, 69 références),
+`MediaApiKeysTab`/`NewsletterClient` (consomment `notifyActionFailure`/`attemptWithStepUp`),
+`Editor.tsx` (consomme `compressImage`).
+
+| #    | Emplacement                | Défaut mesuré                                                                                                                                                    | Correctif                                  |
+| ---- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| F303 | `src/lib/utils.ts`         | second `cn` (`clsx` + `twMerge`) alors que `@qoe/utils` l'exporte et que 36 fichiers du studio l'importent de là ; **aucun** import de `@/lib/utils`.              | fichier supprimé, `cn` unique.             |
+| F304 | `src/lib/authz-feedback.ts` | les trois replis du refus d'autorisation (titre, explication, « Vérifier un facteur ») étaient des littéraux français sans `t` : toast français en interface `en`. | `t` sur les trois, 3 `msgid` extraits.      |
+
+Rouge conservé :
+
+```
+$ pnpm vitest run src/lib/__tests__/single-cn.test.ts src/lib/__tests__/authz-feedback-i18n.test.ts
+ × affiche les libellés du catalogue, pas des littéraux français
+ × ne garde pas un second `cn` local
+AssertionError: expected 'Vérification renforcée requise' to be 'STRONG_VERIFICATION_REQUIRED'
+AssertionError: expected true to be false
+  Tests  2 failed | 1 passed (3)                             L21A_RED_EXIT=1
+```
+
+**Ce rouge a changé la forme de la preuve.** La garantie par catalogue ne peut pas fonctionner dans
+`apps/studio` : la config vitest charge le plugin `lingui()` **sans `lingui.config`**, donc le macro n'est pas
+transformé à l'exécution — mesuré avec une sonde, `t\`Allo\`` rend `Allo` alors que le catalogue
+`{ Allo: 'HELLO_MARKER' }` est actif et que `i18n.locale === 'en-test'`. La garantie retenue prouve donc les
+deux maillons réellement observables : le libellé est sous `t` dans la source **et** son `msgid` est dans
+`messages/fr.po` (rouge avant extraction, `expected 'msgid ""…' to contain 'msgid "Vérification renforcée
+requise"'`, vert après).
+
+Vert :
+
+```
+$ pnpm vitest run src/lib/__tests__          Tests  39 passed (39)
+$ pnpm vitest run            (studio)        Test Files 66 passed · Tests 579 passed
+$ pnpm exec tsc --noEmit                     STUDIO_TSC_EXIT=0
+$ pnpm lint          → ✖ 5 problems (0 errors, 5 warnings)
+$ pnpm intl:extract / intl:compile           EXTRACT_EXIT=0 · COMPILE_EXIT=0 · 3 msgid
+```
+
+### Non-défauts documentés
+
+- **`AnalyticsGate` du studio** coupe le script en développement (`NODE_ENV === 'development'`) pour ne pas
+  envoyer de trafic local à l'Umami de production : comportement voulu, aucun défaut.
+- **CSP en `Report-Only`** avec `unsafe-inline`/`unsafe-eval` : documenté dans le fichier (Next injecte des
+  scripts inline), et c'est bien ce que la garantie existante vérifie. Rendre la CSP bloquante demande un
+  travail nonce/CSP par route — dette explicite, pas un oubli.
+- **`active-workspace.getActiveWorkspace`** ignore `userId` (`void userId`) : la clé de `cache()` est le
+  `userId`, la résolution elle-même lit le cookie côté Go. Pas un bug — le commentaire du fichier l'explique.
+- **`studioSecurityHeaders`, `safeLocale`, `workspaceCookie`** ne sont référencés que par des tests *dans*
+  `src`, mais sont bien branchés par `next.config.ts` et `middleware.ts` (hors `src`) : vérifié, aucune
+  protection fantôme.
+- **`isWebpSupported()`** crée un canvas par appel : négligeable (une fois par upload) et nécessaire — la
+  détection dépend du navigateur, pas d'un cache fiable.
+
+### Dette ouverte
+
+**R137** — métadonnées du studio figées en français (`metadata` statique, donc non traduites quand la locale
+est `en`). La sortie propre est `generateMetadata` + traduction serveur, à faire pour **toutes** les apps
+d'interface dans le même tour ; laissée ouverte avec sa raison, sans correctif partiel.
 
 ---
 
