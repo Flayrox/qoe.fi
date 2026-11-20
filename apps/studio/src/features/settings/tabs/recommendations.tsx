@@ -285,10 +285,14 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
               )}
 
               <div className="space-y-1.5 pt-1">
-                <label className="text-xs font-medium text-foreground block">
+                <label
+                  htmlFor="recommendation-note"
+                  className="text-xs font-medium text-foreground block"
+                >
                   Note ou mot de recommandation (optionnel)
                 </label>
                 <Input
+                  id="recommendation-note"
                   type="text"
                   size="sm"
                   value={noteInput}

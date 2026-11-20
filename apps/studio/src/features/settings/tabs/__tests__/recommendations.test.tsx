@@ -141,6 +141,31 @@ describe('RecommendationsTab', () => {
     });
   });
 
+  it('nomme le champ de note pour un lecteur d’écran', async () => {
+    const user = userEvent.setup();
+    vi.mocked(getRecommendationsAction).mockResolvedValue({ ok: true, data: [] });
+    vi.mocked(lookupPublisherByDomainAction).mockResolvedValueOnce({
+      ok: true,
+      data: {
+        id: 'pub-found',
+        name: 'Partenaire Média',
+        slug: 'partenaire-media',
+        subdomain: 'partenaire',
+        logoUrl: null,
+        bio: null,
+      },
+    });
+
+    render(<RecommendationsTab current={mockCurrent} setCurrent={vi.fn()} />);
+
+    const input = await screen.findByPlaceholderText(/Domaine ou nom/i);
+    await user.type(input, 'partenaire');
+    await user.click(screen.getByRole('button', { name: /^Trouver/i }));
+
+    // Le libellé affiché au-dessus du champ doit être relié au champ.
+    expect(await screen.findByLabelText(/Note ou mot de recommandation/i)).toBeInTheDocument();
+  });
+
   it('handles removal confirmation', async () => {
     const user = userEvent.setup();
     vi.mocked(getRecommendationsAction).mockResolvedValue({
