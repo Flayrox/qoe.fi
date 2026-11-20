@@ -22,14 +22,12 @@ import { Kbd } from '@qoe/ui/kbd';
 import type { StageDevice, StageMode, StageCanvasTransform } from '../types';
 import { DEVICE_DIMENSIONS } from '../types';
 import {
-  STAGE_MAX_X,
-  STAGE_MAX_Y,
-  STAGE_MIN_X,
-  STAGE_MIN_Y,
   STAGE_MIN_ZOOM,
   STAGE_MAX_ZOOM,
   STAGE_PAN_SENSITIVITY,
   STAGE_ZOOM_SENSITIVITY,
+  clampStagePosition,
+  clampStageZoom,
 } from '../engine/constants';
 import { useStageEditorEngine } from '../engine';
 import { useStageEngine } from '../context/StageEngineContext';
@@ -61,13 +59,10 @@ interface StageCanvasProps {
   onDeleteBlock: (id: string) => void;
 }
 
+// Même géométrie que `clampStagePosition` : une seule règle de bornage.
 function clampTransform(t: StageCanvasTransform): StageCanvasTransform {
-  const scale = Math.min(Math.max(t.scale, STAGE_MIN_ZOOM), STAGE_MAX_ZOOM);
-  return {
-    scale,
-    x: Math.min(Math.max(t.x, STAGE_MIN_X * scale), STAGE_MAX_X * scale),
-    y: Math.min(Math.max(t.y, STAGE_MIN_Y * scale), STAGE_MAX_Y * scale),
-  };
+  const scale = clampStageZoom(t.scale);
+  return { scale, ...clampStagePosition({ x: t.x, y: t.y }, scale) };
 }
 
 export function StageCanvas({

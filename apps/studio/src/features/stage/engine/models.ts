@@ -16,9 +16,3 @@ export interface StageRect {
   width: number;
   height: number;
 }
-
-export interface StageFrameData {
-  id: string;
-  position: { x: number; y: number };
-  dimension: { width: number; height: number };
-}
