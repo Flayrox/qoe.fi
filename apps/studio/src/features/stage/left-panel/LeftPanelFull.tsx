@@ -37,6 +37,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Select } from '@qoe/ui/select';
 import { useStageEngine, StageEditorMode } from '../context/StageEngineContext';
 import { ARTICLE_VARIANTS, type BlockType, type TemplateBlock } from '@qoe/ui/templates';
+import { stageScopeTitle } from '../scope-label';
 
 const BLOCK_CATALOG: {
   type: BlockType;
@@ -156,7 +157,10 @@ function LayersTab() {
         className="flex w-full items-center gap-1 px-2 py-1 text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase"
       >
         {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-        <span>Page · Accueil ({engine.layout.blocks.length})</span>
+        <span>
+          {stageScopeTitle(engine.stagePage, engine.articleCategory)} ({engine.layout.blocks.length}
+          )
+        </span>
       </button>
       {!collapsed && (
         <div className="space-y-0.5">
