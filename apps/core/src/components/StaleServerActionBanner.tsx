@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { t } from '@lingui/core/macro';
 import { isStaleServerActionError } from '@qoe/utils';
 import { Button } from '@qoe/ui/button';
 
@@ -46,9 +47,9 @@ export function StaleServerActionBanner() {
       role="alert"
       className="fixed bottom-4 left-1/2 z-[60] w-[min(92vw,28rem)] -translate-x-1/2 rounded-2xl border border-border bg-background p-4 shadow-xl"
     >
-      <p className="text-sm font-semibold">Une nouvelle version est disponible</p>
+      <p className="text-sm font-semibold">{t`Une nouvelle version est disponible`}</p>
       <p className="mt-1 text-sm text-muted-foreground">
-        Cette page utilise encore l’ancienne version. Rechargez pour continuer sans erreur.
+        {t`Cette page utilise encore l'ancienne version. Rechargez pour continuer sans erreur.`}
       </p>
       <Button
         variant="solid"
@@ -56,7 +57,7 @@ export function StaleServerActionBanner() {
         className="mt-3"
         onClick={() => window.location.reload()}
       >
-        Recharger
+        {t`Recharger`}
       </Button>
     </div>
   );
