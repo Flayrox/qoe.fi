@@ -523,8 +523,8 @@ msgstr "Subscription"
 msgid "Abonnement confirmé !"
 msgstr ""
 
-#~ msgid "Abonnement Plus"
-#~ msgstr "Plus Subscription"
+msgid "Abonnement Plus"
+msgstr "Plus Subscription"
 
 msgid "Abonnement retiré."
 msgstr "Subscription removed."
@@ -642,8 +642,8 @@ msgstr ""
 msgid "Accroche / Titre"
 msgstr "Hook / Title"
 
-#~ msgid "Accueil"
-#~ msgstr "Home"
+msgid "Accueil"
+msgstr "Home"
 
 #~ msgid "Accueil Studio"
 #~ msgstr "Studio Home"
@@ -953,6 +953,9 @@ msgstr ""
 
 #~ msgid "Alinéa de première ligne (Tab)"
 #~ msgstr ""
+
+msgid "Aller au contenu principal"
+msgstr ""
 
 msgid "Alt manquant"
 msgstr ""
@@ -1941,6 +1944,9 @@ msgstr ""
 #~ msgid "Cette liste ne contient aucune adresse achetée ou louée."
 #~ msgstr ""
 
+msgid "Cette page utilise encore l'ancienne version. Rechargez pour continuer sans erreur."
+msgstr ""
+
 msgid "Cette pensée a été supprimée par son auteur."
 msgstr "This thought was deleted by its author."
 
@@ -2741,6 +2747,9 @@ msgstr "Discover articles"
 msgid "Découvrir l'offre Premium →"
 msgstr ""
 
+msgid "Découvrir les offres"
+msgstr ""
+
 msgid "Décrivez l'image pour les lecteurs d'écran"
 msgstr ""
 
@@ -3260,6 +3269,9 @@ msgstr "Circular Economy"
 #~ msgstr "Audio listening reserved for Plus subscribers (coming soon)."
 
 msgid "Écoute réservée aux abonnés Plus"
+msgstr ""
+
+msgid "Écoute vocale TTS, packs hors-ligne, assistant IA de lecture, thèmes confort et bibliothèque EPUB illimitée."
 msgstr ""
 
 msgid "Écouter"
@@ -5212,6 +5224,9 @@ msgstr ""
 msgid "Listes"
 msgstr ""
 
+msgid "Livres"
+msgstr ""
+
 msgid "Localisation / Ville"
 msgstr "Location / City"
 
@@ -5883,6 +5898,9 @@ msgstr "Official"
 #~ msgid "Officielles"
 #~ msgstr "Official"
 
+msgid "Offre découverte"
+msgstr ""
+
 #~ msgid "Offre Pro"
 #~ msgstr ""
 
@@ -6360,6 +6378,9 @@ msgstr "Sitemap"
 #~ msgid "Plateforme d'origine"
 #~ msgstr ""
 
+msgid "Plateforme de lecture, d'écriture et d'échanges créateurs. Le flux glissant ci-dessous réunit articles longs et micro-posts en une expérience unifiée."
+msgstr ""
+
 msgid "Plein écran"
 msgstr "Fullscreen"
 
@@ -6417,8 +6438,8 @@ msgstr ""
 msgid "Portail indisponible pour le moment."
 msgstr ""
 
-#~ msgid "Portefeuille"
-#~ msgstr "Wallet"
+msgid "Portefeuille"
+msgstr "Wallet"
 
 msgid "Poster votre réponse"
 msgstr "Post your reply"
@@ -6836,6 +6857,9 @@ msgstr ""
 msgid "qoefi est en ligne ! Rejoignez-nous."
 msgstr ""
 
+msgid "Qoefi Plus pour lecteurs"
+msgstr ""
+
 msgid "QR code TOTP"
 msgstr "TOTP QR code"
 
@@ -6923,8 +6947,11 @@ msgstr ""
 msgid "Recevoir un lien magique"
 msgstr "Receive a magic link"
 
-#~ msgid "Recherche"
-#~ msgstr "Search"
+msgid "Recharger"
+msgstr ""
+
+msgid "Recherche"
+msgstr "Search"
 
 msgid "Recherche de membres impossible pour le moment."
 msgstr ""
@@ -8614,6 +8641,9 @@ msgid "Une minuscule"
 msgstr ""
 
 msgid "Une nouvelle version a été déployée. La page va se recharger pour synchroniser vos réglages."
+msgstr ""
+
+msgid "Une nouvelle version est disponible"
 msgstr ""
 
 msgid "Une seule version pour toutes les langues."

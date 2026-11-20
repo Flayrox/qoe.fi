@@ -523,8 +523,8 @@ msgstr "Abonnement"
 msgid "Abonnement confirmé !"
 msgstr "Abonnement confirmé !"
 
-#~ msgid "Abonnement Plus"
-#~ msgstr "Abonnement Plus"
+msgid "Abonnement Plus"
+msgstr "Abonnement Plus"
 
 msgid "Abonnement retiré."
 msgstr "Abonnement retiré."
@@ -642,8 +642,8 @@ msgstr "Accessible librement. Contenu distribué intégralement aux abonnés."
 msgid "Accroche / Titre"
 msgstr "Accroche / Titre"
 
-#~ msgid "Accueil"
-#~ msgstr "Accueil"
+msgid "Accueil"
+msgstr "Accueil"
 
 #~ msgid "Accueil Studio"
 #~ msgstr "Accueil Studio"
@@ -953,6 +953,9 @@ msgstr "Alinéa de première ligne"
 
 #~ msgid "Alinéa de première ligne (Tab)"
 #~ msgstr "Alinéa de première ligne (Tab)"
+
+msgid "Aller au contenu principal"
+msgstr "Aller au contenu principal"
 
 msgid "Alt manquant"
 msgstr "Alt manquant"
@@ -1941,6 +1944,9 @@ msgstr "Cette catégorie possède déjà des sous-catégories et doit rester une
 #~ msgid "Cette liste ne contient aucune adresse achetée ou louée."
 #~ msgstr "Cette liste ne contient aucune adresse achetée ou louée."
 
+msgid "Cette page utilise encore l'ancienne version. Rechargez pour continuer sans erreur."
+msgstr "Cette page utilise encore l'ancienne version. Rechargez pour continuer sans erreur."
+
 msgid "Cette pensée a été supprimée par son auteur."
 msgstr "Cette pensée a été supprimée par son auteur."
 
@@ -2741,6 +2747,9 @@ msgstr "Découvrir des articles"
 msgid "Découvrir l'offre Premium →"
 msgstr "Découvrir l'offre Premium →"
 
+msgid "Découvrir les offres"
+msgstr "Découvrir les offres"
+
 msgid "Décrivez l'image pour les lecteurs d'écran"
 msgstr "Décrivez l'image pour les lecteurs d'écran"
 
@@ -3261,6 +3270,9 @@ msgstr "Économie Circulaire"
 
 msgid "Écoute réservée aux abonnés Plus"
 msgstr "Écoute réservée aux abonnés Plus"
+
+msgid "Écoute vocale TTS, packs hors-ligne, assistant IA de lecture, thèmes confort et bibliothèque EPUB illimitée."
+msgstr "Écoute vocale TTS, packs hors-ligne, assistant IA de lecture, thèmes confort et bibliothèque EPUB illimitée."
 
 msgid "Écouter"
 msgstr "Écouter"
@@ -5212,6 +5224,9 @@ msgstr "Liste numérotée"
 msgid "Listes"
 msgstr "Listes"
 
+msgid "Livres"
+msgstr "Livres"
+
 msgid "Localisation / Ville"
 msgstr "Localisation / Ville"
 
@@ -5883,6 +5898,9 @@ msgstr "Officielle"
 #~ msgid "Officielles"
 #~ msgstr "Officielles"
 
+msgid "Offre découverte"
+msgstr "Offre découverte"
+
 #~ msgid "Offre Pro"
 #~ msgstr "Offre Pro"
 
@@ -6360,6 +6378,9 @@ msgstr "Plan du site"
 #~ msgid "Plateforme d'origine"
 #~ msgstr "Plateforme d'origine"
 
+msgid "Plateforme de lecture, d'écriture et d'échanges créateurs. Le flux glissant ci-dessous réunit articles longs et micro-posts en une expérience unifiée."
+msgstr "Plateforme de lecture, d'écriture et d'échanges créateurs. Le flux glissant ci-dessous réunit articles longs et micro-posts en une expérience unifiée."
+
 msgid "Plein écran"
 msgstr "Plein écran"
 
@@ -6417,8 +6438,8 @@ msgstr "Portail de facturation"
 msgid "Portail indisponible pour le moment."
 msgstr "Portail indisponible pour le moment."
 
-#~ msgid "Portefeuille"
-#~ msgstr "Portefeuille"
+msgid "Portefeuille"
+msgstr "Portefeuille"
 
 msgid "Poster votre réponse"
 msgstr "Poster votre réponse"
@@ -6836,6 +6857,9 @@ msgstr "qoefi est conçu pour les créateurs qui refusent le compromis de la cen
 msgid "qoefi est en ligne ! Rejoignez-nous."
 msgstr "qoefi est en ligne ! Rejoignez-nous."
 
+msgid "Qoefi Plus pour lecteurs"
+msgstr "Qoefi Plus pour lecteurs"
+
 msgid "QR code TOTP"
 msgstr "QR code TOTP"
 
@@ -6923,8 +6947,11 @@ msgstr "Recevez les prochaines parutions directement dans votre boîte mail."
 msgid "Recevoir un lien magique"
 msgstr "Recevoir un lien magique"
 
-#~ msgid "Recherche"
-#~ msgstr "Recherche"
+msgid "Recharger"
+msgstr "Recharger"
+
+msgid "Recherche"
+msgstr "Recherche"
 
 msgid "Recherche de membres impossible pour le moment."
 msgstr "Recherche de membres impossible pour le moment."
@@ -8615,6 +8642,9 @@ msgstr "Une minuscule"
 
 msgid "Une nouvelle version a été déployée. La page va se recharger pour synchroniser vos réglages."
 msgstr "Une nouvelle version a été déployée. La page va se recharger pour synchroniser vos réglages."
+
+msgid "Une nouvelle version est disponible"
+msgstr "Une nouvelle version est disponible"
 
 msgid "Une seule version pour toutes les langues."
 msgstr "Une seule version pour toutes les langues."
