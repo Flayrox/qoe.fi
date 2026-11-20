@@ -143,6 +143,23 @@ describe('EditorSettingsDrawer', () => {
     articleActions.bulkUpdateArticlesAction.mockResolvedValue({ ok: true, data: { failed: [] } });
   });
 
+  it('n’annonce pas une copie réussie quand le presse-papiers refuse', async () => {
+    const writeText = vi.fn().mockRejectedValueOnce(new Error('permission refusée'));
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      writable: true,
+      value: { writeText },
+    });
+    renderDrawer();
+
+    fireEvent.click(screen.getByRole('button', { name: /Copier le lien/ }));
+
+    // Même exigence que la modale d'invitation : un échec de copie doit être
+    // visible, pas masqué par un « Copié ! » mensonger.
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/copie impossible/i));
+    expect(writeText).toHaveBeenCalledTimes(1);
+  });
+
   it('ne rend rien quand le tiroir est fermé', () => {
     renderDrawer({ open: false });
     expect(screen.queryByText("Paramètres de l'article")).toBeNull();
@@ -296,7 +313,9 @@ describe('EditorSettingsDrawer', () => {
     fireEvent.click(screen.getByRole('button', { name: /Copier le lien/ }));
 
     expect(writeText).toHaveBeenCalledWith('https://ada.qoe.fi/ville/mon-article');
-    expect(screen.getByText('Copié !')).toBeDefined();
+    // La copie attend désormais la promesse du presse-papiers : le retour
+    // visuel arrive au tour suivant, pas de façon optimiste.
+    await waitFor(() => expect(screen.getByText('Copié !')).toBeDefined());
   });
 
   it('montre l’aperçu SEO et révèle les champs avancés', () => {

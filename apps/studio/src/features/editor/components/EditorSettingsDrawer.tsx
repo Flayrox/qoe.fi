@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRightLeft,
   Building2,
@@ -206,6 +206,34 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
   } = props;
 
   const [slugCopied, setSlugCopied] = useState(false);
+  const [slugCopyError, setSlugCopyError] = useState<string | null>(null);
+  const slugCopyTimerRef = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (slugCopyTimerRef.current !== null) window.clearTimeout(slugCopyTimerRef.current);
+    },
+    []
+  );
+
+  // `writeText` peut échouer (permission, contexte non sécurisé) : sans
+  // attendre sa promesse, le bouton affichait « Copié ! » sans rien avoir copié.
+  const handleCopySlug = async (fullUrl: string) => {
+    try {
+      await navigator.clipboard.writeText(fullUrl);
+    } catch {
+      setSlugCopied(false);
+      setSlugCopyError('Copie impossible. Sélectionnez l’adresse et copiez-la manuellement.');
+      return;
+    }
+    setSlugCopyError(null);
+    setSlugCopied(true);
+    if (slugCopyTimerRef.current !== null) window.clearTimeout(slugCopyTimerRef.current);
+    slugCopyTimerRef.current = window.setTimeout(() => {
+      slugCopyTimerRef.current = null;
+      setSlugCopied(false);
+    }, 2000);
+  };
   const [seoAdvancedOpen, setSeoAdvancedOpen] = useState(Boolean(seoTitle || seoDescription));
   const [internalWorkspaces, setInternalWorkspaces] = useState<ArticleWorkspaceOption[]>([]);
   const [internalPub, setInternalPub] = useState<{
@@ -522,9 +550,7 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
                 size="xs"
                 onClick={() => {
                   const fullUrl = `https://${subdomain ? `${subdomain}.qoe.fi` : 'qoe.fi'}${articlePath}/${slug || ''}`;
-                  navigator.clipboard.writeText(fullUrl);
-                  setSlugCopied(true);
-                  setTimeout(() => setSlugCopied(false), 2000);
+                  void handleCopySlug(fullUrl);
                 }}
                 className="h-auto px-1.5 py-0.5 text-[11px]"
               >
@@ -556,6 +582,14 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
                 placeholder="mon-titre-article"
               />
             </InputGroup>
+            {slugCopyError && (
+              <p
+                role="alert"
+                className="rounded-control border border-destructive/30 bg-destructive/10 p-2.5 text-[11px] text-destructive-text"
+              >
+                {slugCopyError}
+              </p>
+            )}
           </section>
 
           {canPublish && (
