@@ -91,7 +91,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b3 | `app/(reader)/library/**`                                                                                    | 18 fichiers · 3 689 l.      | **clos** : L20b2b31 (racine, 5 f.) **durci le 2026-11-19** + L20b2b32 (`ebooks/**`, 13 f.) **durci le 2026-11-19** |
 | L20b2b4 | `app/(reader)/[username]/**`                                                                                 | 9 fichiers · 2 184 l.       | **durci le 2026-11-19** |
 | L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | **durci le 2026-11-19** |
-| L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; L20c3 (annotateur d'article, 1 f. · 1 153 l., **R126** et **R133** closes) **durci le 2026-11-20** ; L20c4 (chaîne de lecture d'article, 6 f. · 988 l. à la livraison, 963 l. après extraction de la signature) **durci le 2026-11-20**, **R132 close** ; L20c5 (flux et recherche, 5 f. · 847 l.) **durci le 2026-11-20**, dette i18n du lot **close** le même jour (28 `msgid`) ; L20c6 (messagerie, 2 f. · **945 l.** après R135 : 550 + 395) **durci le 2026-11-20**, **R135 close** ; L20c7 (widgets métier, 3 f. · 421 l. à la mesure, 450 l. + 359 l. de tests à la livraison) **durci le 2026-11-20**, **R136 ouverte** ; prochain = L20c8 |
+| L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; L20c3 (annotateur d'article, 1 f. · 1 153 l., **R126** et **R133** closes) **durci le 2026-11-20** ; L20c4 (chaîne de lecture d'article, 6 f. · 988 l. à la livraison, 963 l. après extraction de la signature) **durci le 2026-11-20**, **R132 close** ; L20c5 (flux et recherche, 5 f. · 847 l.) **durci le 2026-11-20**, dette i18n du lot **close** le même jour (28 `msgid`) ; L20c6 (messagerie, 2 f. · **945 l.** après R135 : 550 + 395) **durci le 2026-11-20**, **R135 close** ; L20c7 (widgets métier, 3 f. · 421 l. à la mesure, 450 l. + 359 l. de tests à la livraison) **durci le 2026-11-20**, **R136 ouverte** ; L20c8 (socle partagé du lecteur, 10 f. · 650 l. à la mesure, **803 l.** + 315 l. de tests à la livraison) **durci le 2026-11-20** ; L20c **clos** côté lecteur ; prochain = **L21** (studio) |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
 | L20n     | **Studio authentifié : la preuve porte sur des builds de production (`next start`), et le cookie `Secure` suit l’origine** | `playwright.apps.config.ts` (`appServer` paramétré — **aucun** `next dev` bespoke restant, admin compris), `scripts/e2e-studio-auth.mjs` (builds studio+admin+core + `PLAYWRIGHT_APPS_PROD`), `packages/supabase/src/{cookie-config,client,server,middleware}.ts` (`getCookieSecure`), `e2e/studio-auth-journey.spec.ts` (session exigée **avant** la redirection) | 3 runs prod depuis un état propre : **1 passed (9.2s)** `184 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token?grant_type=password`, puis **1 passed (9.2s)** (`189`), puis `.env` en VPS **1 passed (9.2s)** (`184`, **0 requête** vers `116.203.158.47`) ; absence d’infra → `✖ … scripts/e2e-studio-auth.mjs:103`, exit 1 ; apps **83 passed / 2 skipped** (admin en prod), oauth-consent **2 passed** |
 | L20m     | **La preuve réseau du studio authentifié ne peut plus être `skipped` en silence** | `scripts/e2e-studio-auth.mjs` (nouveau), `package.json`, `e2e/studio-auth-journey.spec.ts`, `playwright.apps.config.ts`, `.github/workflows/ci.yml` | `pnpm e2e:studio-auth` depuis un état propre : **1 passed (1.4m)** puis, `.env` pointé sur le VPS, **1 passed (45.5s)** — capture `209 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token` ; absence d'infra → `✖ … scripts/e2e-studio-auth.mjs:103`, exit 1 ; apps **83 passed / 2 skipped** |
@@ -123,15 +123,16 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L20c8 — socle partagé**
-(`layout/**`, `providers/**`, `overlay/position.ts`, `StaleServerActionBanner`, `AnalyticsGate`,
-`banners/DynamicBannerSlot` · 11 fichiers · 748 l., mesuré ; L20c ouvert le 2026-11-19 avec un découpage mesuré en 8 sous-lots, L20c1
+**Prochain lot à traiter : L21 — `apps/studio/src/**`**
+(509 fichiers, non découpé : la mesure et le découpage en sous-lots sont le premier travail du lot ;
+L20c ouvert le 2026-11-19 avec un découpage mesuré en 8 sous-lots, L20c1
 (cartes de pensée, 11 f. · 1 223 l.), L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.),
 L20c3 (annotateur d'article, 1 f. · 1 153 l., **R126** et **R133** closes), L20c4 (chaîne de lecture
 d'article, 6 f. · **988 l.** à la livraison — le « 992 » écrit ici datait d'avant le passage de prettier,
 mesure refaite dans la fiche L20c4 —) L20c5 (flux et recherche, 5 f. · **847 l.**) et L20c6 (messagerie, 2 f. · **556 l.**, **R135
-close**) et L20c7 (widgets métier, 3 f. · **450 l.** + 359 l. de tests, **R136 ouverte**)
-clos ; ordre et chiffres dans la fiche L20c).
+close**), L20c7 (widgets métier, 3 f. · **450 l.** + 359 l. de tests, **R136 ouverte**) et
+L20c8 (socle partagé, 10 f. · **803 l.** + 315 l. de tests) clos ; ordre et chiffres dans la
+fiche L20c).
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -1520,7 +1521,7 @@ Trop gros pour un tour : le lot est scindé en **8 sous-lots** dont la somme est
 | L20c5 | `social/{SearchFeed, search-results.ts, search-results.test.ts}` + `feed/{VirtualizedFeedList, RealtimeFeedPill}` | 5 f. · 847 l. (919 l. après correctifs) | **durci le 2026-11-20** · Flux et recherche : 5 findings (F285 date illisible au clic, F286 état vide contredisant la pagination, F287 compteur temps réel jamais annoncé + `AnimatePresence` mort, F288 `scrollMargin` figé à 0, F289 `IntersectionObserver` sans garde), 4 garanties jsdom + 5 garanties unitaires rouges→vertes, garde de source sur la conversion de date. puis **dette i18n close** le même jour : 26 chaînes passées par `t`, `plural` pour le compteur, 28 `msgid` extraits, 7 garanties de plus. |
 | L20c6 | `messages/MessagesApp.tsx` + `messages/__tests__/messages-app.test.tsx` | 2 f. · 556 l. à la livraison, **945 l.** après R135 (550 + 395) | **durci le 2026-11-20** · Application de messagerie autonome : 4 findings (F290 spinner infini sur échec de liste, F291 course inter-conversations, F292 recherche muette et contradictoire, F293 largeur lue au rendu), bannière `role="alert"`, 5 garanties jsdom rouges→vertes (les 3 tests d'origine restent verts), garde de source (`requestToken`, échec de liste non silencieux) ; **R135 close** le même jour (23 libellés par `t`, 18 `msgid`, 8 garanties de plus). |
 | L20c7 | `notifications/NotificationSettingsForm` + `dossiers/DossierThread` + `placements/InAppPlacement` | 3 f. · 421 l. (450 l. après correctifs, + 359 l. de tests) | **durci le 2026-11-20** · 3 défauts prouvés et corrigés : bouton d'envoi du fil de dossier sans nom accessible, `localStorage.getItem` non gardé dans `InAppPlacement` (un stockage refusé faisait tomber le slot), échec d'enregistrement des préférences totalement muet. Deux libellés de plus passés par `t` (`Vous`/`Staff`/placeholder, `Fermer cette notification`), 6 `msgid`. **R136 ouverte** (placement in-app inatteignable : décision produit). |
-| L20c8 | **Socle partagé** : `layout/**` (5), `providers/**` (2), `overlay/position.ts`, `StaleServerActionBanner`, `AnalyticsGate`, `banners/DynamicBannerSlot` | 11 f. · 748 l. | **Rayon d'action maximal, audité en dernier** : `MainContentWrapper`, `ReaderPageLayout`, `AppSidebar`, `ReaderNavOverlay`, `QueryProvider` et `ReadingPreferencesProvider` sont montés par **toutes** les pages `(reader)`. Corriger le socle après les feuilles évite de re-valider chaque correctif contre des consommateurs encore inconnus ; l'auditer en premier aurait obligé à rejouer le lot entier à chaque feuille corrigée. |
+| L20c8 | **Socle partagé** : `layout/**` (5), `providers/**` (2), `overlay/position.ts`, `StaleServerActionBanner`, `AnalyticsGate`, `banners/DynamicBannerSlot` | 10 f. · 650 l. à la mesure (803 l. après correctifs, + 315 l. de tests) | **durci le 2026-11-20** · 6 défauts prouvés et corrigés sur le socle monté par **toutes** les pages lecteur : manifeste, bannière de build périmé, repli « Qoefi Plus », libellés de navigation du manifeste, repli du nom écrasé par le layout, **absence de lien d'évitement** (WCAG 2.4.1). 14 `msgid`. Aucune dette bloquée nouvelle. — **Rayon d'action maximal, audité en dernier** : `MainContentWrapper`, `ReaderPageLayout`, `AppSidebar`, `ReaderNavOverlay`, `QueryProvider` et `ReadingPreferencesProvider` sont montés par **toutes** les pages `(reader)`. Corriger le socle après les feuilles évite de re-valider chaque correctif contre des consommateurs encore inconnus ; l'auditer en premier aurait obligé à rejouer le lot entier à chaque feuille corrigée. |
 
 **Ordre retenu.** Feuilles interactives d'abord (L20c1→L20c7, du plus consommé au plus
 périphérique), **socle transverse en dernier** (L20c8) pour la raison mesurée ci-dessus :
@@ -2154,6 +2155,111 @@ code ; le seul correctif est la suppression d'une option dépréciée.
 **Non vérifié.** `pnpm test:api` complet (tous les paquets Go, dont ceux adossés à Postgres/Testcontainers et les gates de couverture du job `api`) ; les projets e2e `public-web`/`core-journeys` en entier (6 cas dépendants du seed), `security`, `hydratation`, `routes`, `e2e-apps` et `e2e-apps-routes` (tous deux adossés à Postgres + Redis + seed) ; `next start` sur un build prod (le harnais a tourné en `next dev`) ; aucune vérification visuelle des pages réelles au-delà des 4 contrats `setContent`.
 
 ---
+
+## L20c8 — socle partagé du lecteur : français en dur, repli écrasé, pas de lien d'évitement — durci le 2026-11-20
+
+**Périmètre.** Les 10 fichiers du socle montés par `app/(reader)/layout.tsx` :
+`layout/MainContentWrapper` (12 l.), `layout/ReaderPageLayout` (66 l.), `layout/AppSidebar` (99 l.),
+`layout/ReaderNavOverlay` (132 l.), `providers/QueryProvider` (21 l.),
+`providers/ReadingPreferencesProvider` (87 l.), `overlay/position.ts` (70 l.),
+`StaleServerActionBanner` (63 l.), `AnalyticsGate` (28 l.), `banners/DynamicBannerSlot` (72 l.) —
+**650 l.** mesurés, **803 l.** après correctifs, plus **315 l.** de tests neufs (5 fichiers).
+
+**Pourquoi en dernier.** Ce socle est monté par *toutes* les pages `(reader)` : `MainContentWrapper`,
+`ReaderPageLayout`, `AppSidebar`, `ReaderNavOverlay` et `ReadingPreferencesProvider` entourent chaque page,
+chaque tiroir et chaque surcouche. Une régression ici est une régression partout — l'auditer après les
+feuilles évite de rejouer les correctifs contre des consommateurs encore inconnus.
+
+### Cartographie (ce que chaque fichier fait réellement)
+
+| Fichier                   | Rôle                                                                                                                                                                 |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MainContentWrapper`      | conteneur de page : `<main>` + marges de la sidebar fixe (`md:pl-[256px]`, `pt-14` mobile). **Aucun lien d'évitement** — corrigé ici.                               |
+| `ReaderPageLayout`        | en-tête « titre géant » des pages de lecture : titre, **manifeste** affiché sous le titre, widgets d'en-tête, feuille glissante du contenu.                        |
+| `AppSidebar`              | navigation desktop depuis le manifeste de surfaces (`getSidebarSurfaces('reader')`), profils, badges non-lus, CTA « Publier une pensée », bascule Studio.            |
+| `ReaderNavOverlay`        | en-tête mobile (`md:hidden`) : hamburger, marque, raccourcis notifications/messages/profil, badges.                                                                    |
+| `QueryProvider`           | `QueryClient` unique (`staleTime` 2 min, `gcTime` 10 min, pas de refetch sur focus).                                                                                  |
+| `ReadingPreferencesProvider` | applique au DOM les préférences serveur (`reduceMotion`, `highContrast`, `autoplayMedia`, `fontScale`) et les met à jour sans rechargement.                        |
+| `overlay/position.ts`     | capture/restauration de la position de la page sous une surcouche, par **ancre** (`data-overlay-anchor`), pas par pixel.                                              |
+| `StaleServerActionBanner`  | écoute `error`/`unhandledrejection` : si le JS en cache appelle une Server Action d'un autre build, propose le rechargement.                                          |
+| `AnalyticsGate`           | composant **serveur** : ne sert le script d'audience que si le mode/consentement l'autorise (le refus explicite le coupe au rendu, pas seulement en JS).               |
+| `DynamicBannerSlot`       | slot d'in-app messaging : lit le flag `reader-plus-banner`, délègue à `InAppPlacement`, repli « Qoefi Plus » (toujours pris aujourd'hui, voir R136).                   |
+
+### Défauts prouvés et corrigés
+
+| #    | Emplacement                    | Défaut mesuré                                                                                                                                                                        | Correctif                                                            |
+| ---- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| F297 | `ReaderPageLayout.tsx:48`      | manifeste de la plateforme en français dur, affiché **sous le titre géant de chaque page lecteur**.                                                                                  | `t` sur la phrase entière.                                            |
+| F298 | `StaleServerActionBanner.tsx`  | trois textes français en dur (titre, explication, bouton « Recharger ») dans une bannière servie à tous les visiteurs d'un build périmé.                                              | `t` sur les trois.                                                    |
+| F299 | `DynamicBannerSlot.tsx`        | quatre textes français en dur dans le repli « Qoefi Plus » (titre, badge, description, CTA).                                                                                          | `t` sur les quatre.                                                   |
+| F300 | `AppSidebar.tsx:64`            | `title: surface.defaultLabel` passé brut, alors que `packages/config/src/surfaces.ts` documente « Libellé par défaut (français), traduit par la surface consommatrice » : 10 entrées de navigation figées en français. | table `readerSurfaceLabel(id)` par identifiant de surface, repli sur `defaultLabel`. |
+| F301 | `MainContentWrapper.tsx`       | **aucun lien d'évitement** (aucun `skip-link` dans `apps/core`) et `<main>` sans `id` : au clavier, retraverser 9 entrées de sidebar + l'en-tête mobile à chaque page (WCAG 2.4.1).     | lien « Aller au contenu principal » (`sr-only`, visible au focus) → `<main id="contenu-principal" tabindex="-1">`. |
+| F302 | `app/(reader)/layout.tsx:57`   | `userName = … \|\| 'Lecteur'` en dur **écrasait** le défaut déjà traduit (`t\`Lecteur\``) d'`AppSidebar` et de `ReaderNavOverlay`.                                                      | le layout passe `undefined`, le socle applique son libellé traduit.    |
+
+`intl:extract` + `intl:compile` (exit 0) ajoutent **14 `msgid`** : les 5 entrées de navigation jusque-là
+non extraites (`Accueil`, `Recherche`, `Livres`, `Portefeuille`, `Abonnement Plus` — `Notifications`,
+`Messages`, `Bibliothèque`, `Réglages`, `Surlignages` existaient déjà), le manifeste, les 3 textes de la
+bannière de build périmé, les 4 du repli « Qoefi Plus » et le lien d'évitement. Entrées `en` toujours
+vides : dette mesurée, pas aggravée.
+
+### Rouge conservé, puis vert
+
+Rouge initial, les cinq garanties écrites avant tout correctif :
+
+```
+$ pnpm vitest run src/components/layout/__tests__
+ × traduit les libellés du manifeste au lieu de les rendre bruts
+ × garde de source : le libellé du manifeste n’est plus passé brut
+ × passe le titre, le texte et le bouton par `t`
+ × garde de source : aucune phrase française en dur
+ × passe le titre, le badge, la description et le CTA par `t`
+ × garde de source : plus aucun libellé en dur
+ × passe le texte du manifeste par `t`
+ × garde de source : plus aucun manifeste en dur
+ × offre un lien vers le contenu et cible un `<main>` focalisable
+ × garde de source : le lien reste le premier élément focusable
+  Tests  10 failed (10)                                    RED_EXIT=1
+```
+
+Rouge isolé de F302 (écrit après les cinq autres, avant son correctif) :
+
+```
+ × laisse les composants du socle appliquer leur libellé traduit
+AssertionError: expected 'import React from \'react\';\nimport …' not to match /['"]Lecteur['"]/
+  Tests  1 failed | 2 passed (3)                            F6_RED_EXIT=1
+```
+
+Vert, fichier par fichier : `2 passed (2)` (manifeste), `2 passed (2)` (bannière), `2 passed (2)` (repli
+`Qoefi Plus`), `13 passed (13)` puis `14 passed (14)` (`src/components/layout`, `AppSidebar.test.tsx`
+compris), `2 passed (2)` (lien d'évitement).
+
+### Non-défauts documentés (pas de correctif cosmétique)
+
+- **`ReaderNavOverlay` reconstruit `/${username}` à la main** au lieu d'appeler `routes.feed.profile()`,
+  qui encode le segment. Aucune URL invalide n'est atteignable : les pseudos sont validés côté Go sur un
+  jeu restreint. Dette de cohérence, pas un bug prouvé — non corrigée pour ne pas élargir le lot.
+- **`ReaderNavOverlay` déclare `userEmail`, `userRole`, `onLogout` et ne les utilise pas** (le layout les
+  passe). La déconnexion reste accessible : la sidebar est le même tiroir derrière le hamburger, y compris
+  sur mobile. API morte, pas une perte de fonction.
+- **`overlay/position.ts`** choisit l'ancre par sonde (`rect.bottom > 96`) : une ancre déjà défilée
+  au-dessus du viewport est retenue. Comportement voulu (on rend la place du contenu lu), aucun défaut
+  observable identifié — aucune garantie de comportement ne peut le distinguer d'une régression.
+- **`ReadingPreferencesProvider` applique `fontScale` sans borne locale** : le serveur valide déjà
+  `90 | 100 | 110 | 125` (`apps/api/internal/modules/settings/service.go:1039-1053`), donc un `0` ou un
+  négatif ne peut pas arriver par l'API. Un clamp défensif serait du code mort.
+- **`behavior: 'instant'`** dans `position.ts` n'est pas une API dépréciée : `ScrollBehavior` inclut
+  `'instant'` dans `lib.dom`. Aucune API obsolète introduite ni conservée dans le périmètre.
+- **`AnalyticsGate`** est un composant serveur : il lit `cookies()` et coupe le script au rendu, donc le
+  visiteur opposé ne télécharge rien. Aucun défaut.
+- **`dangerouslySetInnerHTML`** : zéro occurrence dans les 10 fichiers (garde de source).
+- **`window`/`localStorage`** : aucun accès au rendu dans le socle — `AppSidebar` et `ReaderNavOverlay`
+  n'utilisent `window` que dans un gestionnaire de clic ; `InAppPlacement` (hors lot) a été gardé en L20c7.
+
+### Dettes ouvertes après ce lot
+
+Inchangées et toujours bloquées, avec leur raison : **R134** (pagination des commentaires : contrat de
+réponse + `sqlc generate` + preuve sur base réelle + plafond/clé de curseur à trancher) et **R136**
+(résolution des placements in-app : aucun appelant ne passe `initialPlacement`, décision produit).
 
 ## L20c7 — widgets métier : bouton sans nom, stockage refusé, échec muet — durci le 2026-11-20
 
