@@ -34,8 +34,6 @@ import { StudioField, StudioRow, StudioRowList, StudioSection } from '@/componen
 interface GeneralTabProps {
   current: CreatorProfile;
   setCurrent: React.Dispatch<React.SetStateAction<CreatorProfile>>;
-  consoleSettingsUrl?: string;
-  publicBlogUrl?: string;
 }
 
 const DISPLAY_OPTIONS = [

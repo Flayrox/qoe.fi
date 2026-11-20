@@ -7,7 +7,7 @@
 // Découpé en modules ciblés : tabs/{general, emails, seo, domain, navigation}
 // =====================================================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { t } from '@lingui/core/macro';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDebounce } from 'use-debounce';
@@ -15,7 +15,7 @@ import { toast } from '@qoe/ui/toast';
 import { Badge } from '@qoe/ui/badge';
 import { Button, buttonClasses } from '@qoe/ui/button';
 import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
-import { URLS, resolveAppUrl } from '@qoe/config';
+import { resolveAppUrl } from '@qoe/config';
 import {
   ExternalLink,
   Check,
@@ -62,10 +62,16 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
   const isMediaWorkspace = initialCreator.isMedia ?? false;
   const [activeTab, setActiveTab] = useState<TabType>('general');
   const [isSaving, setIsSaving] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+  /** Minuteurs du défilement d'ancre : annulés au démontage comme entre deux sauts. */
+  const hashTimersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
 
   // Ecoute des events depuis le CmdK / hash URL
   useEffect(() => {
+    const clearHashTimers = () => {
+      for (const timer of hashTimersRef.current) clearTimeout(timer);
+      hashTimersRef.current = [];
+    };
+
     const handleHashChange = (hashToUse?: string) => {
       const hash = hashToUse || window.location.hash;
       if (!hash) return;
@@ -89,32 +95,35 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
         if (tab) setActiveTab(tab);
       }
 
-      setTimeout(() => {
+      clearHashTimers();
+      const scrollTimer = setTimeout(() => {
         const el = document.getElementById(hash.substring(1));
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          el.classList.add('bg-muted/50', 'transition-colors', 'duration-500');
-          setTimeout(() => el.classList.remove('bg-muted/50'), 2000);
-        }
+        if (!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('bg-muted/50', 'transition-colors', 'duration-500');
+        const fadeTimer = setTimeout(() => el.classList.remove('bg-muted/50'), 2000);
+        hashTimersRef.current.push(fadeTimer);
       }, 300);
+      hashTimersRef.current.push(scrollTimer);
     };
 
     const handleCustomNavigate = (e: Event) => {
       handleHashChange('#' + (e as CustomEvent<{ hash: string }>).detail.hash);
     };
 
-    window.addEventListener('hashchange', () => handleHashChange());
+    // ⚠️ La référence du listener doit être la même au retrait : une fonction
+    // anonyme créée au démontage ne détache rien.
+    const handleNativeHashChange = () => handleHashChange();
+
+    window.addEventListener('hashchange', handleNativeHashChange);
     window.addEventListener('cmdKNavigate', handleCustomNavigate);
     handleHashChange();
 
     return () => {
-      window.removeEventListener('hashchange', () => handleHashChange());
+      clearHashTimers();
+      window.removeEventListener('hashchange', handleNativeHashChange);
       window.removeEventListener('cmdKNavigate', handleCustomNavigate);
     };
-  }, []);
-
-  useEffect(() => {
-    setIsMounted(true);
   }, []);
 
   // Validation du sous-domaine
@@ -170,14 +179,18 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
 
   const [publicBlogUrl, setPublicBlogUrl] = useState<string>('');
 
+  // « Voir le site » ne doit jamais inventer une publication : sans sous-domaine
+  // ni domaine personnalisé, il n'y a rien à ouvrir.
   useEffect(() => {
-    setIsMounted(true);
     const host = typeof window !== 'undefined' ? window.location.host : undefined;
-    const activeSub = current.subdomain || 'climat';
-    setPublicBlogUrl(resolveAppUrl('tenant', host, { subdomain: activeSub }));
-  }, [current.subdomain]);
-
-  const consoleSettingsUrl = isMounted ? `${URLS.CONSOLE}/settings` : '#';
+    const customDomain = current.customDomain?.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    if (customDomain) {
+      setPublicBlogUrl(`https://${customDomain}`);
+      return;
+    }
+    const subdomain = current.subdomain?.trim();
+    setPublicBlogUrl(subdomain ? resolveAppUrl('tenant', host, { subdomain }) : '');
+  }, [current.subdomain, current.customDomain]);
 
   // ── ⚙️ MUTATION HANDLERS ──
   const handleDiscardChanges = () => {
@@ -310,19 +323,26 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
     }
   };
 
-  // Keyboard shortcut: ⌘S
+  // Keyboard shortcut: ⌘S. Le raccourci relit la dernière version du
+  // gestionnaire à chaque frappe : une fermeture figée sur une vérification
+  // de sous-domaine encore en vol laisserait passer une valeur invalide.
+  const saveHandlerRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    saveHandlerRef.current = () => {
+      if (hasChanges && !isSaving) void handleSaveAll();
+    };
+  });
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
-        if (hasChanges && !isSaving) {
-          handleSaveAll();
-        }
+        saveHandlerRef.current();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hasChanges, isSaving, current]);
+  }, []);
 
   // Helpers Navigation
   const removeNavigationLink = (idx: number) => {
@@ -406,16 +426,28 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
           </div>
 
           <div className="flex items-center gap-2.5">
-            <a
-              href={publicBlogUrl || '#'}
-              target="_blank"
-              rel="noopener noreferrer"
-              suppressHydrationWarning
-              className={buttonClasses({ variant: 'outline', size: 'sm' })}
-            >
-              <span>Voir le site</span>
-              <ExternalLink />
-            </a>
+            {publicBlogUrl ? (
+              <a
+                href={publicBlogUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                suppressHydrationWarning
+                className={buttonClasses({ variant: 'outline', size: 'sm' })}
+              >
+                <span>Voir le site</span>
+                <ExternalLink />
+              </a>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled
+                title="Choisissez d’abord un sous-domaine ou un domaine personnalisé."
+              >
+                <span>Voir le site</span>
+                <ExternalLink />
+              </Button>
+            )}
 
             <Button
               variant="solid"
@@ -472,12 +504,7 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
             >
-              <GeneralTab
-                current={current}
-                setCurrent={setCurrent}
-                consoleSettingsUrl={consoleSettingsUrl}
-                publicBlogUrl={publicBlogUrl}
-              />
+              <GeneralTab current={current} setCurrent={setCurrent} />
             </motion.div>
           )}
 
@@ -623,6 +650,3 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
     </div>
   );
 }
-
-// Compat export
-export { SettingsView as PublisherSettings };
