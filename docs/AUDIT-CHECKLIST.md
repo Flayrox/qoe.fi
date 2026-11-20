@@ -91,7 +91,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20b2b3 | `app/(reader)/library/**`                                                                                    | 18 fichiers · 3 689 l.      | **clos** : L20b2b31 (racine, 5 f.) **durci le 2026-11-19** + L20b2b32 (`ebooks/**`, 13 f.) **durci le 2026-11-19** |
 | L20b2b4 | `app/(reader)/[username]/**`                                                                                 | 9 fichiers · 2 184 l.       | **durci le 2026-11-19** |
 | L20b2b5 | `app/(reader)/settings/**`                                                                                   | 7 fichiers · 2 159 l.       | **durci le 2026-11-19** |
-| L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; L20c3 (annotateur d'article, 1 f. · 1 153 l., **R126 close**) **durci le 2026-11-20** ; L20c4 (chaîne de lecture d'article, 6 f. · 988 l. à la livraison, 963 l. après extraction de la signature) **durci le 2026-11-20**, **R132 close** ; prochain = L20c5 |
+| L20c    | `apps/core/src/components/**`                                                                                | 44 fichiers · 7 041 l.      | **ouvert** : 8 sous-lots mesurés (L20c1→L20c8) ; L20c1 (cartes de pensée + surcouche, 11 f. · 1 223 l.) **durci le 2026-11-19** ; L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.) **durci le 2026-11-19** ; L20c2b (chemin de lecture d'article : provider monté, **R128 close**) **durci le 2026-11-19** ; L20c3 (annotateur d'article, 1 f. · 1 153 l., **R126** et **R133** closes) **durci le 2026-11-20** ; L20c4 (chaîne de lecture d'article, 6 f. · 988 l. à la livraison, 963 l. après extraction de la signature) **durci le 2026-11-20**, **R132 close** ; prochain = L20c5 |
 | L20d    | `apps/core/src/{hooks,features}` + `instrumentation.ts`                                                       | 4 fichiers · 301 l.         | à auditer               |
 | L20n     | **Studio authentifié : la preuve porte sur des builds de production (`next start`), et le cookie `Secure` suit l’origine** | `playwright.apps.config.ts` (`appServer` paramétré — **aucun** `next dev` bespoke restant, admin compris), `scripts/e2e-studio-auth.mjs` (builds studio+admin+core + `PLAYWRIGHT_APPS_PROD`), `packages/supabase/src/{cookie-config,client,server,middleware}.ts` (`getCookieSecure`), `e2e/studio-auth-journey.spec.ts` (session exigée **avant** la redirection) | 3 runs prod depuis un état propre : **1 passed (9.2s)** `184 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token?grant_type=password`, puis **1 passed (9.2s)** (`189`), puis `.env` en VPS **1 passed (9.2s)** (`184`, **0 requête** vers `116.203.158.47`) ; absence d’infra → `✖ … scripts/e2e-studio-auth.mjs:103`, exit 1 ; apps **83 passed / 2 skipped** (admin en prod), oauth-consent **2 passed** |
 | L20m     | **La preuve réseau du studio authentifié ne peut plus être `skipped` en silence** | `scripts/e2e-studio-auth.mjs` (nouveau), `package.json`, `e2e/studio-auth-journey.spec.ts`, `playwright.apps.config.ts`, `.github/workflows/ci.yml` | `pnpm e2e:studio-auth` depuis un état propre : **1 passed (1.4m)** puis, `.env` pointé sur le VPS, **1 passed (45.5s)** — capture `209 requête(s), 1 Supabase → http://127.0.0.1:54321/auth/v1/token` ; absence d'infra → `✖ … scripts/e2e-studio-auth.mjs:103`, exit 1 ; apps **83 passed / 2 skipped** |
@@ -128,8 +128,9 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 RealtimeFeedPill}` · 5 fichiers · 847 l., mesuré : virtualisation + temps réel, traités après les
 cartes qu'ils rendent ; L20c ouvert le 2026-11-19 avec un découpage mesuré en 8 sous-lots, L20c1
 (cartes de pensée, 11 f. · 1 223 l.), L20c2 (profil + surcouche d'article, 5 f. · 1 206 l.),
-L20c3 (annotateur d'article, 1 f. · 1 153 l.) et L20c4 (chaîne de lecture d'article, 6 f. · 992 l.)
-clos ; ordre et chiffres dans la fiche L20c).
+L20c3 (annotateur d'article, 1 f. · 1 153 l., **R126** et **R133** closes) et L20c4 (chaîne de lecture
+d'article, 6 f. · **988 l.** à la livraison — le « 992 » écrit ici datait d'avant le passage de prettier,
+mesure refaite dans la fiche L20c4 —) clos ; ordre et chiffres dans la fiche L20c).
 Le lot L06 a été scindé : le noyau partagé (transport, embed, barrel) est clos
 en L06a (`durci le 2026-11-18`), le store optimiste `shadow`/`entity-actions`,
 les hooks et `lib/**` en L06b (`durci le 2026-11-18`), les actions à plus fort
@@ -911,6 +912,7 @@ nommé), puis verts après restauration.
 | R94 | `/api/articles/[slug]` (core) n'a **aucun appelant** dans le repo : la page article lit côté serveur. Route morte dont le contrat HTTP vient d'être corrigé (cache privé, L20b1) mais qui reste à supprimer ou à réutiliser explicitement. | faible | Arbitrage : supprimer la route (et son test) ou la brancher sur le préchargement client ; décision produit sur le préchargement d'article. Voir L20b1. |
 | R93 | `packages/analytics` envoie la session de lecture par `navigator.sendBeacon(endpointUrl, payload)` avec un **corps texte** (Content-Type `text/plain`) : le handler lit `req.json()`, qui fonctionne par chance (pas de validation de type de contenu côté Next). Aucun rejet observé, mais le contrat média n'est pas explicite. | faible | Arbitrage : créer un `Blob` typé `application/json` à l'envoi, ou valider/ignorer explicitement le Content-Type côté route. Voir L20b1. |
 | R132 | ~~La résolution média/auteur était écrite **trois fois** (`ArticleReaderDrawer`, `ArticleReaderDrawerContent`, `ArticleAnnotatorView`) et les copies avaient divergé : le tiroir comparait `author.name` au nom du média, l'annotateur `author.journalist.name`~~ — **close le 2026-11-20**. Conséquence mesurée : pour un média dont le compte porte son nom mais dont le journaliste signe, le tiroir affichait « Alice Martin » là où l'article signait « Le Monde · par Alice Martin » (`AssertionError: expected 'Alice Martin' to be 'Le Monde · par Alice Martin'`). | — | Close : `social/article-byline.ts` (163 l.) porte **la** règle (`resolveArticleByline`), le tiroir et l'annotateur la consomment, les trois copies sont supprimées (tiroir 276→**251 l.**, annotateur 1 153→**1 106 l.**). Une garantie de source interdit la réapparition d'une seconde implémentation (heuristique `trim().toLowerCase()` et libellé `· par` bannis des composants). 6 garanties unitaires (média+journaliste, personnel, média seul, auteur seul, divergence, source unique) + 1 garantie d'intégration du tiroir, rouges avant. Voir fiche L20c4. |
+| R133 | Les libellés visibles de `ArticleAnnotatorView` échappaient à `t` : `{article.readingTime \|\| 5} min de lecture` (deux occurrences) et les trois textes du paywall — figés en français dans l'interface `en`. En les traduisant, le catalogue s'est révélé **périmé** : 44 chaînes déjà passées par `t` (`ThemeToggle`, `NotificationList`, `OnboardingModal`, `SimilarArticlesSection`, `TrendingWidget`) n'avaient aucune entrée, donc n'étaient pas traduisibles malgré leur `t`. | faible | Close le 2026-11-20 : 4 libellés passés par `t`, `lingui extract` (+48 `msgid`, dont les 4) et `lingui compile` dans le même commit ; 4 garanties (valeur lue, bornes 1/0, paywall, garde de source interdisant le retour d'un libellé en dur) rouges→vertes, 7/7 dans le fichier. Voir fiche L20c3. |
 | R131 | ~~Les `tsconfig.json` des apps remplacent l'`exclude` du preset par `["node_modules"]` en gardant `include: ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts"]` : TypeScript **remplace** l'`exclude` hérité au lieu de le fusionner, donc une copie d'artefact entrait dans le programme et cassait `pnpm typecheck` (`TS6200`/`TS2300`)~~ — **close le 2026-11-20**. Cause mesurée : macOS duplique `routes.d.ts` en `routes.d 2.ts`, un `.ts` et non un `.d.ts`, donc plus un fichier de déclaration ; `apps/hi` et `apps/tenants` étaient rouges dans l'arbre (`.next/types/cache-life.d 3.ts(3,1): error TS6200 …`, `routes.d 3.ts(55,8): error TS2300: Duplicate identifier 'LayoutProps'`). | — | Close : les **6** apps nomment leurs sources (`next-env.d.ts`/`expo-env.d.ts`, `*.ts`, `src/**`, + `modules/**` pour mobile) — aucun glob racine, aucun glob dans un dossier généré — et la règle **E** de `guard:tsconfig` refuse désormais ce motif (falsifiée : `3 problème(s)` / `GUARD_FALSIF_EXIT=1`). Types de routes conservés par l'`import "./.next/types/routes.d.ts"` de `next-env.d.ts`. Preuve : copies plantées dans `core` **et** `studio` (+ `hi`/`tenants`) → `TC_core_EXIT=2`/`TC_studio_EXIT=2` avant, **`EXIT=0` sur les 6 apps avec 10 copies en place** après, puis `pnpm typecheck` **25 successful, 25 total / 0 error TS**. Voir fiche L19. |
 | R130 | `EditProfileModal.updateMediaProfile` fabrique lui-même l'utilisateur « mis à jour » à partir des champs locaux au lieu de lire la réponse de `PATCH /v1/media/{id}/settings` : une normalisation serveur (nom rogné, `location` refusée) n'apparaît pas, et `onProfileUpdated` propage des valeurs optimistes. Le `catch` du même fichier journalise `console.error(err)` côté client en production. | faible | Lire la publication renvoyée par l'action (ou revalider) et remplacer le `console.error` par le seul toast. Voir L20c2. |
 | R129 | La mécanique de surcouche est écrite **deux fois** : `HISTORY_KEY`, `pushedRef`, `baseRef`, `teardown` (timer 320 ms), capture/restauration de focus et `popstate` existent à l'identique dans `ThoughtOverlayProvider` et `ArticleOverlayProvider`. Les deux ont déjà divergé (le second annule son timer de teardown, le premier non — R127). | moyenne | Extraire un `useOverlayHistory`/`useOverlayReturn` partagé et y brancher les deux surcouches. Voir L20c2. |
@@ -1509,7 +1511,7 @@ Trop gros pour un tour : le lot est scindé en **8 sous-lots** dont la somme est
 | -------- | --------------- | ------ | ---------------------- |
 | **L20c1** | `social/{ThoughtCard, ThoughtCardContainer, ThoughtCardSkeleton, QuotedThoughtCard, ThreadgateBadge, PollBlock, HiddenReplyNotice, ModerationReportModal, ReaderToolbarContext}` + `thought-overlay/**` (2) | 11 f. · 1 223 l. | **clos dans ce tour**. Cœur social le plus interactif (vote, masquage, signalement, partage, surcouche modale) et le plus consommé (`home`, `[username]`, recherche, composer) : le traiter d'abord fixe les conventions de retour d'échec que les widgets suivants réutilisent. |
 | **L20c2** | `profile/**` (`EditProfileModal` 426, `profile-edit-actions` 51) + `article-overlay/**` (`ArticleOverlayProvider` 465, `overlay-state` 125, son test 139) | 5 f. · 1 206 l. | **clos dans ce tour** (1 263 l. après correctifs). Deux surcouches/formulaires à état d'URL et mutation serveur ; la surcouche d'article est le miroir de celle de pensée, relue juste après. |
-| L20c3 | `social/ArticleAnnotatorView.tsx` (+ `ReaderToolbarContext` pour R126) | 1 f. · 1 153 l. | **durci le 2026-11-20** · **Risque nommé** tenu : plus gros fichier du périmètre (sélection, popovers, toolbar partagée, mutations), audité seul. Quatre findings (F273 date illisible qui cassait le rendu, F274 surlignages croisés, F275/F276 échecs muets), **R126 close**, 4 garanties jsdom rouges→vertes. |
+| L20c3 | `social/ArticleAnnotatorView.tsx` (+ `ReaderToolbarContext` pour R126) | 1 f. · 1 153 l. | **durci le 2026-11-20** · **Risque nommé** tenu : plus gros fichier du périmètre (sélection, popovers, toolbar partagée, mutations), audité seul. Quatre findings (F273 date illisible qui cassait le rendu, F274 surlignages croisés, F275/F276 échecs muets), **R126 close**, 4 garanties jsdom rouges→vertes ; **R133 close** le même jour (temps de lecture et paywall passés par `t`, catalogue rattrapé : +48 `msgid`), 4 garanties de plus (7/7). |
 | L20c4 | `social/{ArticleReaderDrawer, ArticleComments, ArticleSummary, SimilarArticlesSection, DockedReaderToolbar, TrendingWidget}` + `social/article-byline.ts` | 6 f. · 988 l. (963 l. après extraction) + module 165 l. | **durci le 2026-11-20** · Chaîne de lecture d'article (tiroir, commentaires, résumé, similaires, toolbar ancrée) : 8 findings (F277→F284 — courses inter-articles, orphelins comptés, verrou Plus contourné sur mobile, défilement/dialog du tiroir, chaînes hors `t`, signature média/auteur unifiée), 7 garanties jsdom + 7 garanties byline rouges→vertes, **R132 close**. |
 | L20c5 | `social/{SearchFeed, search-results.ts, search-results.test.ts}` + `feed/{VirtualizedFeedList, RealtimeFeedPill}` | 5 f. · 847 l. | Flux et recherche (virtualisation + temps réel), après les cartes qu'ils rendent. |
 | L20c6 | `messages/MessagesApp.tsx` + `messages/__tests__/messages-app.test.tsx` | 2 f. · 556 l. | Application de messagerie autonome, sans dépendance aux sous-lots précédents. |
@@ -2321,9 +2323,61 @@ qu'elle vit dans un dossier généré. Correctif volontairement non appliqué da
 le preset partagé (L19), hors du périmètre d'un composant — **il est appliqué le même jour**, voir fiche L19.
 
 **Reste non vérifié.** Validation visuelle du rendu (aucune capture) ; le partage dans un vrai navigateur
-(presse-papier réel, contexte non sécurisé) ; les chaînes encore hors `t` de ce fichier
-(`{article.readingTime} min de lecture`, texte du paywall) — les rendre traduisibles demande un
-`lingui extract` global, donc un changement de catalogues hors de ce lot.
+(presse-papier réel, contexte non sécurisé). Les chaînes hors `t` de ce fichier ne sont plus une dette :
+elles sont closes le même jour en **R133** (ci-dessous).
+
+### R133 — temps de lecture et paywall traduisibles, catalogue rattrapé — close le 2026-11-20
+
+La fiche laissait quatre libellés visibles hors `t` : le temps de lecture (`{article.readingTime || 5} min de
+lecture`, **deux** occurrences — en-tête desktop et en-tête mobile) et les trois textes du paywall (titre,
+phrase d'introduction, bouton). Ces chaînes étaient invisibles pour les traducteurs, donc figées en français
+dans l'interface anglaise.
+
+En les passant par `t` **puis** en lançant l'extraction, un second défaut est apparu : le catalogue était
+périmé. `lingui extract` ajoute **48 `msgid`**, dont mes 4 ; les 44 autres sont des chaînes déjà écrites via
+`t` dans des passes antérieures (`ThemeToggle` : `t\`Basculer le thème\``, `NotificationList` : `t\`Filtrer les
+notifications\``, `OnboardingModal` : `t\`Bienvenue sur qoefi\``, plus « À lire aussi » et « Aucune tendance
+pour le moment » écrits en L20c4) que **le catalogue ne connaissait pas**. Elles n'étaient donc pas
+traduisibles non plus : `t` sans entrée de catalogue ne traduit rien, et l'extraction est la moitié du contrat
+qu'aucune garde ne vérifiait.
+
+Garanties écrites avant (mock `t` instrumenté : chaque chaîne rendue par `t` est enregistrée, donc un libellé
+en dur est détectable) :
+
+```
+$ pnpm vitest run …/article-annotator-hardening.test.tsx
+ ✓ affiche un article dont la date est illisible, sans jeter 73ms
+ ✓ n'applique jamais les surlignages d'un article au suivant 10ms
+ ✓ rend son état précédent et le dit quand le signet est refusé 8ms
+ × passe le temps de lecture par `t` (valeur lue) 4ms
+ × passe le temps de lecture par `t` (borne : 1 et repli à 5) 5ms
+ × passe les libellés du paywall par `t` 4ms
+ × interdit la réapparition d’un libellé en dur (garde de source) 1ms
+AssertionError: expected [ 'Mettre en signet', …(15) ] to include '3 min de lecture'
+AssertionError: expected [ 'Mettre en signet', …(15) ] to include '1 min de lecture'
+AssertionError: expected [ 'Mettre en signet', …(15) ] to include 'Écrit réservé aux membres Premium'
+  Tests  4 failed | 3 passed (7)                                    I18N_RED_EXIT=1
+```
+
+Rouge intermédiaire non maquillé : la garde de source a d'abord jeté `TypeError: The URL must be of scheme
+file` — en jsdom, `import.meta.url` est une URL `http://` et non `file://` ; harnais corrigé en repartant de
+`process.cwd()`, le produit n'était pas en cause.
+
+Verts après :
+
+```
+ ✓ ArticleAnnotatorView (7 tests) 123ms                                I18N_EXIT=0
+$ pnpm intl:extract                                               EXTRACT_EXIT=0
+$ pnpm intl:compile                                               COMPILE_EXIT=0
+$ grep -c "min de lecture|Écrit réservé …" messages/fr.po → 18 (dont msgid "{0} min de lecture")
+  Test Files  54 passed (54) · Tests  345 passed (345)             CORE_TEST_EXIT=0
+```
+
+La borne est couverte : `readingTime: 3` → « 3 min de lecture », `1` → « 1 min de lecture », `0` (ou absent)
+→ repli à « 5 min de lecture » ; « min » étant invariable, il n'y a pas de forme plurielle à couvrir. La
+garde de source refuse toute ligne portant un de ces quatre libellés sans `t\`` : une réécriture en dur fait
+échouer la suite. Le nom de l'auteur reste rendu dans son `<strong>` (mise en avant inchangée) ; seule la
+phrase d'introduction est traduite, le point final reste un texte JSX.
 
 ---
 

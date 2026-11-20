@@ -10,21 +10,29 @@
 //    course que R121, côté annotateur).
 // 3. Un signet refusé par le serveur remonte un message et rend l'état
 //    précédent (F264 : un échec ne doit jamais être muet).
+// 4. Aucun libellé visible ne contourne `t` (temps de lecture, paywall) : une
+//    chaîne en dur est invisible pour les traducteurs et sort du contrat i18n.
 // L'annotateur est réel ; le moteur de surlignage, les server actions, le
 // magasin de shadow et les widgets voisins sont doublés — leur comportement
 // est prouvé par leurs propres lots.
 // =====================================================================
 
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-const { mockGetHighlights, mockToggleBookmark, mockToast, highlighter } = vi.hoisted(() => ({
-  mockGetHighlights: vi.fn(),
-  mockToggleBookmark: vi.fn(),
-  mockToast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
-  highlighter: { current: null as Record<string, unknown> | null },
-}));
+const { mockGetHighlights, mockToggleBookmark, mockToast, highlighter, tCalls } = vi.hoisted(
+  () => ({
+    mockGetHighlights: vi.fn(),
+    mockToggleBookmark: vi.fn(),
+    mockToast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+    highlighter: { current: null as Record<string, unknown> | null },
+    /** Chaque chaîne rendue par `t` — sert de preuve qu'un libellé est traduit. */
+    tCalls: [] as string[],
+  })
+);
 
 /** Promesse dont on choisit le moment de résolution. */
 function deferred<T>() {
@@ -163,10 +171,13 @@ vi.mock('lucide-react', () => {
 });
 
 vi.mock('@lingui/core/macro', () => ({
-  t: (strings: TemplateStringsArray | string, ...values: unknown[]) =>
-    Array.isArray(strings)
+  t: (strings: TemplateStringsArray | string, ...values: unknown[]) => {
+    const message = Array.isArray(strings)
       ? strings.reduce((res, str, i) => res + str + (values[i] ?? ''), '')
-      : String(strings),
+      : String(strings);
+    tCalls.push(message);
+    return message;
+  },
 }));
 
 import { ArticleAnnotatorView } from '../ArticleAnnotatorView';
@@ -185,6 +196,7 @@ const PRIVATE_B = { id: 'h-b', isPublic: false, isOfficial: false };
 
 beforeEach(() => {
   highlighter.current = null;
+  tCalls.length = 0;
   mockGetHighlights.mockReset();
   mockGetHighlights.mockResolvedValue({ ok: true, data: { highlights: [] } });
   mockToggleBookmark.mockReset();
@@ -243,5 +255,63 @@ describe('ArticleAnnotatorView — durcissement', () => {
 
     await waitFor(() => expect(mockToast.error).toHaveBeenCalled());
     expect(screen.getByTitle('Mettre en signet')).toBeTruthy();
+  });
+});
+
+describe('ArticleAnnotatorView — i18n', () => {
+  it('passe le temps de lecture par `t` (valeur lue)', async () => {
+    render(<ArticleAnnotatorView article={{ ...ARTICLE, readingTime: 3 }} />);
+    await act(async () => {});
+
+    expect(tCalls).toContain('3 min de lecture');
+    expect(screen.getByText('3 min de lecture')).toBeTruthy();
+  });
+
+  it('passe le temps de lecture par `t` (borne : 1 et repli à 5)', async () => {
+    render(<ArticleAnnotatorView article={{ ...ARTICLE, readingTime: 1 }} />);
+    await act(async () => {});
+    expect(tCalls).toContain('1 min de lecture');
+
+    cleanup();
+    tCalls.length = 0;
+
+    render(<ArticleAnnotatorView article={{ ...ARTICLE, readingTime: 0 }} />);
+    await act(async () => {});
+    // « min » est invariable : pas de forme plurielle, seul le repli compte.
+    expect(tCalls).toContain('5 min de lecture');
+  });
+
+  it('passe les libellés du paywall par `t`', async () => {
+    render(
+      <ArticleAnnotatorView article={{ ...ARTICLE, isPremium: true, accessGranted: false }} />
+    );
+    await act(async () => {});
+
+    expect(tCalls).toContain('Écrit réservé aux membres Premium');
+    expect(tCalls).toContain(
+      'La suite de cette publication est exclusivement réservée aux abonnés de'
+    );
+    expect(tCalls).toContain("S'abonner pour débloquer");
+    // La mise en avant du nom reste rendue dans le `<strong>`.
+    expect(screen.getByText('Camille', { selector: 'strong' })).toBeTruthy();
+  });
+
+  it('interdit la réapparition d’un libellé en dur (garde de source)', () => {
+    // jsdom transforme les modules en URL `http://`, `import.meta.url` n'est donc
+    // pas un `file://` : on repart de la racine du paquet (`apps/core`).
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/components/social/ArticleAnnotatorView.tsx'),
+      'utf8'
+    );
+    const labels = [
+      'min de lecture',
+      'Écrit réservé aux membres Premium',
+      "S'abonner pour débloquer",
+      'La suite de cette publication est exclusivement réservée aux abonnés de',
+    ];
+    const offenders = source
+      .split('\n')
+      .filter((line) => labels.some((label) => line.includes(label)) && !line.includes('t`'));
+    expect(offenders).toEqual([]);
   });
 });

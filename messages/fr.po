@@ -99,8 +99,8 @@ msgid "{0} abonnés"
 msgstr "{0} abonnés"
 
 #. placeholder {0}: sparkData[hoveredIndex]
-msgid "{0} actions"
-msgstr "{0} actions"
+#~ msgid "{0} actions"
+#~ msgstr "{0} actions"
 
 #. placeholder {0}: stats.additions
 #. placeholder {1}: stats.deletions
@@ -123,9 +123,14 @@ msgstr "{0} éditeurs"
 #~ msgid "{0} éditeurs en direct"
 #~ msgstr "{0} éditeurs en direct"
 
+#. placeholder {0}: item.readingTime
 #. placeholder {0}: latestPublishedArticle.readingTime || 1
 msgid "{0} min"
 msgstr "{0} min"
+
+#. placeholder {0}: article.readingTime || 5
+msgid "{0} min de lecture"
+msgstr "{0} min de lecture"
 
 #. placeholder {0}: typedBody.split(' ').filter(Boolean).length.toString()
 msgid "{0} mots"
@@ -136,9 +141,19 @@ msgstr "{0} mots"
 msgid "{0} point{1} à corriger"
 msgstr "{0} point{1} à corriger"
 
+#. placeholder {0}: item.count
+#. placeholder {1}: item.count > 1 ? 's' : ''
+msgid "{0} publication{1}"
+msgstr "{0} publication{1}"
+
 #. placeholder {0}: followedCreators.length
 msgid "{0} suivi(s)"
 msgstr "{0} suivi(s)"
+
+#. placeholder {0}: usage.remaining
+#. placeholder {1}: usage.limit
+msgid "{0}/{1} ce mois-ci"
+msgstr "{0}/{1} ce mois-ci"
 
 #. placeholder {0}: Math.floor(diffInMinutes / 60)
 msgid "{0}h"
@@ -413,6 +428,9 @@ msgstr "À la carte"
 msgid "À lire absolument"
 msgstr "À lire absolument"
 
+msgid "À lire aussi"
+msgstr "À lire aussi"
+
 msgid "À propos"
 msgstr "À propos"
 
@@ -461,6 +479,9 @@ msgstr "à tout moment pour afficher cette aide."
 
 msgid "À vérifier"
 msgstr "À vérifier"
+
+msgid "Abandon impossible."
+msgstr "Abandon impossible."
 
 msgid "Abandonner le brouillon"
 msgstr "Abandonner le brouillon"
@@ -661,8 +682,8 @@ msgstr "Activer la barre de recherche"
 msgid "Activité"
 msgstr "Activité"
 
-msgid "Activité de lecture"
-msgstr "Activité de lecture"
+#~ msgid "Activité de lecture"
+#~ msgstr "Activité de lecture"
 
 msgid "Activité des Médias"
 msgstr "Activité des Médias"
@@ -1147,6 +1168,9 @@ msgstr "Appliquer"
 msgid "Approbation"
 msgstr "Approbation"
 
+msgid "Approbation impossible."
+msgstr "Approbation impossible."
+
 msgid "Approuvé"
 msgstr "Approuvé"
 
@@ -1475,6 +1499,9 @@ msgstr "Aucune notification pour le moment"
 msgid "Aucune publication ne peut recevoir ces articles."
 msgstr "Aucune publication ne peut recevoir ces articles."
 
+msgid "Aucune tendance pour le moment."
+msgstr "Aucune tendance pour le moment."
+
 msgid "Aucune version textuelle enregistrée pour l'instant."
 msgstr "Aucune version textuelle enregistrée pour l'instant."
 
@@ -1574,6 +1601,9 @@ msgstr "Bannissez les distractions. Lisez avec calme, concentration et profondeu
 msgid "Barré"
 msgstr "Barré"
 
+msgid "Basculer le thème"
+msgstr "Basculer le thème"
+
 msgid "Besoin d'aide ?"
 msgstr "Besoin d'aide ?"
 
@@ -1614,6 +1644,9 @@ msgstr "Bienvenue chez vous."
 
 msgid "Bienvenue dans mon espace d'écriture."
 msgstr "Bienvenue dans mon espace d'écriture."
+
+msgid "Bienvenue sur qoefi"
+msgstr "Bienvenue sur qoefi"
 
 #. placeholder {0}: user.name || t`Créateur`
 msgid "Bienvenue, {0}."
@@ -1880,8 +1913,8 @@ msgstr "Cette catégorie possède déjà des sous-catégories et doit rester une
 msgid "Cette pensée a été supprimée par son auteur."
 msgstr "Cette pensée a été supprimée par son auteur."
 
-msgid "Cette semaine"
-msgstr "Cette semaine"
+#~ msgid "Cette semaine"
+#~ msgstr "Cette semaine"
 
 msgid "Champs invalides"
 msgstr "Champs invalides"
@@ -2394,6 +2427,9 @@ msgstr "Copié !"
 msgid "Copié dans le presse-papiers."
 msgstr "Copié dans le presse-papiers."
 
+msgid "Copie impossible : sélectionnez le secret à la main."
+msgstr "Copie impossible : sélectionnez le secret à la main."
+
 msgid "Copier"
 msgstr "Copier"
 
@@ -2629,6 +2665,9 @@ msgstr "Déconnecter tous les appareils"
 msgid "Déconnecter toutes les sessions Supabase ?"
 msgstr "Déconnecter toutes les sessions Supabase ?"
 
+msgid "Déconnexion impossible pour le moment."
+msgstr "Déconnexion impossible pour le moment."
+
 msgid "Découpage Zero-Leak côté serveur : teaser + CTA vers l'offre payante."
 msgstr "Découpage Zero-Leak côté serveur : teaser + CTA vers l'offre payante."
 
@@ -2698,6 +2737,9 @@ msgstr "Demandé"
 
 msgid "Demande acceptée."
 msgstr "Demande acceptée."
+
+msgid "Demande de retouches impossible."
+msgstr "Demande de retouches impossible."
 
 msgid "Demande de retouches transmise à l'auteur."
 msgstr "Demande de retouches transmise à l'auteur."
@@ -3195,6 +3237,9 @@ msgstr "Écrit créé"
 msgid "Écrit Privé • Brouillon en cours"
 msgstr "Écrit Privé • Brouillon en cours"
 
+msgid "Écrit réservé aux membres Premium"
+msgstr "Écrit réservé aux membres Premium"
+
 msgid "Écrits"
 msgstr "Écrits"
 
@@ -3393,8 +3438,8 @@ msgstr "Enregistrer la vue actuelle…"
 #~ msgid "Enregistrer les réglages email"
 #~ msgstr "Enregistrer les réglages email"
 
-msgid "Enregistrés"
-msgstr "Enregistrés"
+#~ msgid "Enregistrés"
+#~ msgstr "Enregistrés"
 
 msgid "Enregistrez cet écrit dans votre sanctuaire de lecture"
 msgstr "Enregistrez cet écrit dans votre sanctuaire de lecture"
@@ -3407,6 +3452,9 @@ msgstr "Enregistrez des articles en cliquant sur l'icône de signet pour les con
 
 msgid "Enregistrez des articles en cours de lecture pour les retrouver ici."
 msgstr "Enregistrez des articles en cours de lecture pour les retrouver ici."
+
+msgid "Enrôlement impossible pour le moment."
+msgstr "Enrôlement impossible pour le moment."
 
 msgid "Envoi antérieur validé."
 msgstr "Envoi antérieur validé."
@@ -3566,8 +3614,8 @@ msgstr "Erreur lors de la mise à jour."
 msgid "Erreur lors de la modification de l'état épinglé."
 msgstr "Erreur lors de la modification de l'état épinglé."
 
-msgid "Erreur lors de la publication de la réponse."
-msgstr "Erreur lors de la publication de la réponse."
+#~ msgid "Erreur lors de la publication de la réponse."
+#~ msgstr "Erreur lors de la publication de la réponse."
 
 msgid "Erreur lors de la récupération des brouillons."
 msgstr "Erreur lors de la récupération des brouillons."
@@ -3601,6 +3649,12 @@ msgstr "Erreur lors de la suppression de la pensée."
 
 msgid "Erreur lors du retrait de l'abonné."
 msgstr "Erreur lors du retrait de l'abonné."
+
+msgid "Erreur réseau : la visibilité de la réponse n'a pas changé."
+msgstr "Erreur réseau : la visibilité de la réponse n'a pas changé."
+
+msgid "Erreur réseau : le signalement n'a pas pu être envoyé."
+msgstr "Erreur réseau : le signalement n'a pas pu être envoyé."
 
 msgid "Erreur réseau lors de la suppression."
 msgstr "Erreur réseau lors de la suppression."
@@ -3880,6 +3934,9 @@ msgstr "Fil de discussion restauré avec succès !"
 msgid "Filtrer les notes..."
 msgstr "Filtrer les notes..."
 
+msgid "Filtrer les notifications"
+msgstr "Filtrer les notifications"
+
 msgid "Filtrer les signets..."
 msgstr "Filtrer les signets..."
 
@@ -4096,6 +4153,9 @@ msgstr "https://exemple.fr/source"
 msgid "I. L'anxiété du flux"
 msgstr "I. L'anxiété du flux"
 
+msgid "IA momentanément indisponible — réessayez plus tard."
+msgstr "IA momentanément indisponible — réessayez plus tard."
+
 msgid "IDE FORMATS"
 msgstr "IDE FORMATS"
 
@@ -4151,6 +4211,9 @@ msgstr "Il y a des architectures invisibles. Non pas des bâtiments, mais des es
 
 msgid "Illimité"
 msgstr "Illimité"
+
+msgid "illimités (Plus)"
+msgstr "illimités (Plus)"
 
 #~ msgid "Ils écrivent sur qoe.fi"
 #~ msgstr "Ils écrivent sur qoe.fi"
@@ -4272,6 +4335,9 @@ msgstr "Impossible de charger les paramètres de l'article."
 #~ msgid "Impossible de charger les réglages email."
 #~ msgstr "Impossible de charger les réglages email."
 
+msgid "Impossible de charger les tendances."
+msgstr "Impossible de charger les tendances."
+
 msgid "Impossible de charger les versions de l'article."
 msgstr "Impossible de charger les versions de l'article."
 
@@ -4280,6 +4346,9 @@ msgstr "Impossible de charger les versions."
 
 msgid "Impossible de charger vos contrôles sociaux."
 msgstr "Impossible de charger vos contrôles sociaux."
+
+msgid "Impossible de charger vos facteurs."
+msgstr "Impossible de charger vos facteurs."
 
 msgid "Impossible de charger vos publications. Réessayez dans un instant."
 msgstr "Impossible de charger vos publications. Réessayez dans un instant."
@@ -4311,6 +4380,9 @@ msgstr "Impossible de modifier l'épinglage."
 msgid "Impossible de modifier la page À propos."
 msgstr "Impossible de modifier la page À propos."
 
+msgid "Impossible de modifier la visibilité de cette réponse."
+msgstr "Impossible de modifier la visibilité de cette réponse."
+
 msgid "Impossible de modifier le blocage."
 msgstr "Impossible de modifier le blocage."
 
@@ -4328,6 +4400,12 @@ msgstr "Impossible de publier le fil (données de publication manquantes)."
 
 msgid "Impossible de repartager la pensée."
 msgstr "Impossible de repartager la pensée."
+
+msgid "Impossible de restaurer le fil."
+msgstr "Impossible de restaurer le fil."
+
+msgid "Impossible de restaurer le signet"
+msgstr "Impossible de restaurer le signet"
 
 msgid "Impossible de retirer ce mot."
 msgstr "Impossible de retirer ce mot."
@@ -4543,6 +4621,9 @@ msgstr "L'article redevient un brouillon simple."
 msgid "L'article sera publié automatiquement à la date choisie."
 msgstr "L'article sera publié automatiquement à la date choisie."
 
+msgid "L'assistant IA de lecture est momentanément désactivé."
+msgstr "L'assistant IA de lecture est momentanément désactivé."
+
 msgid "L'assistant réfléchit…"
 msgstr "L'assistant réfléchit…"
 
@@ -4591,8 +4672,8 @@ msgstr "L'infrastructure de l'esprit"
 msgid "L’ordre de sélection fait l’ordre du livre."
 msgstr "L’ordre de sélection fait l’ordre du livre."
 
-msgid "L'upload de l'image a échoué."
-msgstr "L'upload de l'image a échoué."
+#~ msgid "L'upload de l'image a échoué."
+#~ msgstr "L'upload de l'image a échoué."
 
 msgid "La chaîne de citations continue."
 msgstr "La chaîne de citations continue."
@@ -4632,6 +4713,9 @@ msgstr "La santé du contenu analyse uniquement les articles publiés. Publiez u
 
 msgid "La souveraineté cloud en chiffres"
 msgstr "La souveraineté cloud en chiffres"
+
+msgid "La suite de cette publication est exclusivement réservée aux abonnés de"
+msgstr "La suite de cette publication est exclusivement réservée aux abonnés de"
 
 #~ msgid "La suite de cette publication est exclusivement réservée aux abonnés de "
 #~ msgstr "La suite de cette publication est exclusivement réservée aux abonnés de "
@@ -4757,6 +4841,9 @@ msgstr "Le planificateur a publié l'article à l'heure prévue."
 msgid "Le reader ne l'annoncera pas aux lecteurs d'écran (alt vide)."
 msgstr "Le reader ne l'annoncera pas aux lecteurs d'écran (alt vide)."
 
+msgid "Le signet n'a pas pu être enregistré. Réessaie."
+msgstr "Le signet n'a pas pu être enregistré. Réessaie."
+
 msgid "Le silence comme infrastructure"
 msgstr "Le silence comme infrastructure"
 
@@ -4771,6 +4858,9 @@ msgstr "Le slug « {slug} » est réservé par une page du site."
 
 msgid "Le sous-domaine ne peut pas être vide."
 msgstr "Le sous-domaine ne peut pas être vide."
+
+msgid "Le suivi n'a pas pu être enregistré. Réessaie."
+msgstr "Le suivi n'a pas pu être enregistré. Réessaie."
 
 msgid "Le temps long de la lecture attentive."
 msgstr "Le temps long de la lecture attentive."
@@ -4837,6 +4927,9 @@ msgstr "Les annotations publiques sont désactivées par l'auteur"
 
 msgid "Les annotations publiques sont désactivées par l'auteur."
 msgstr "Les annotations publiques sont désactivées par l'auteur."
+
+msgid "Les articles ont été modifiés, mais la liste n'a pas pu être rafraîchie."
+msgstr "Les articles ont été modifiés, mais la liste n'a pas pu être rafraîchie."
 
 msgid "Les articles sélectionnés seront immédiatement retirés du site public et repasseront en brouillon."
 msgstr "Les articles sélectionnés seront immédiatement retirés du site public et repasseront en brouillon."
@@ -4919,8 +5012,14 @@ msgstr "Les réponses arrivent dans cette boîte."
 msgid "Les requêtes signées avec ces clés ne sont pas rattachées à votre compte personnel mais au média lui-même. Vous pouvez attribuer des rôles délégués aux membres pour administrer ces accès."
 msgstr "Les requêtes signées avec ces clés ne sont pas rattachées à votre compte personnel mais au média lui-même. Vous pouvez attribuer des rôles délégués aux membres pour administrer ces accès."
 
+msgid "Les transferts sont terminés, mais la liste n'a pas pu être rafraîchie."
+msgstr "Les transferts sont terminés, mais la liste n'a pas pu être rafraîchie."
+
 msgid "Lettrine (grande initiale)"
 msgstr "Lettrine (grande initiale)"
+
+msgid "Liaison impossible pour le moment."
+msgstr "Liaison impossible pour le moment."
 
 msgid "Libellé (ex. Rapport annuel)"
 msgstr "Libellé (ex. Rapport annuel)"
@@ -5097,6 +5196,9 @@ msgstr "Masquer la configuration avancée"
 msgid "Masquer la version texte"
 msgstr "Masquer la version texte"
 
+msgid "Masquer le résumé"
+msgstr "Masquer le résumé"
+
 msgid "Masquer les annotations"
 msgstr "Masquer les annotations"
 
@@ -5172,6 +5274,9 @@ msgstr "Menu & liens"
 
 msgid "Menu compte"
 msgstr "Menu compte"
+
+msgid "Menu de commandes"
+msgstr "Menu de commandes"
 
 #~ msgid "Menu de navigation principal"
 #~ msgstr "Menu de navigation principal"
@@ -5860,6 +5965,7 @@ msgid "Par"
 msgstr "Par"
 
 #. placeholder {0}: pub.authorName
+#. placeholder {0}: rec.authorName
 msgid "par {0}"
 msgstr "par {0}"
 
@@ -5872,6 +5978,10 @@ msgstr "Par défaut"
 
 msgid "Paragraphe"
 msgstr "Paragraphe"
+
+#. placeholder {0}: currentIdx + 1
+msgid "Paragraphe {0} sur {totalParas}"
+msgstr "Paragraphe {0} sur {totalParas}"
 
 msgid "Paragraphe précédent"
 msgstr "Paragraphe précédent"
@@ -6149,8 +6259,8 @@ msgstr "Plan du site"
 msgid "Plein écran"
 msgstr "Plein écran"
 
-msgid "Plumes recommandées"
-msgstr "Plumes recommandées"
+#~ msgid "Plumes recommandées"
+#~ msgstr "Plumes recommandées"
 
 msgid "Plus : Nuit chaude & Papier"
 msgstr "Plus : Nuit chaude & Papier"
@@ -6360,8 +6470,11 @@ msgid "Programmé"
 msgstr "Programmé"
 
 #. placeholder {0}: formatScheduleDate(scheduledAt)
-msgid "Programmé · {0}"
-msgstr "Programmé · {0}"
+#~ msgid "Programmé · {0}"
+#~ msgstr "Programmé · {0}"
+
+msgid "Programmé · {scheduleLabel}"
+msgstr "Programmé · {scheduleLabel}"
 
 msgid "Programmée"
 msgstr "Programmée"
@@ -6632,6 +6745,9 @@ msgstr "Qui peut m'inviter à collaborer"
 msgid "Qui peut répondre"
 msgstr "Qui peut répondre"
 
+msgid "Quota IA du mois épuisé — il revient le mois prochain."
+msgstr "Quota IA du mois épuisé — il revient le mois prochain."
+
 msgid "Quotidien engagé"
 msgstr "Quotidien engagé"
 
@@ -6757,6 +6873,9 @@ msgstr "Recommandations"
 
 msgid "Recommandations éditoriales"
 msgstr "Recommandations éditoriales"
+
+msgid "recommandé par IA"
+msgstr "recommandé par IA"
 
 msgid "Reconnecter la co-édition"
 msgstr "Reconnecter la co-édition"
@@ -7008,8 +7127,8 @@ msgstr "Réponse masquée par l'auteur original"
 msgid "Réponse masquée."
 msgstr "Réponse masquée."
 
-msgid "Réponse publiée."
-msgstr "Réponse publiée."
+#~ msgid "Réponse publiée."
+#~ msgstr "Réponse publiée."
 
 msgid "Réponses"
 msgstr "Réponses"
@@ -7103,6 +7222,18 @@ msgstr "Restez informé des prochains écrits"
 msgid "Résumé de l'article."
 msgstr "Résumé de l'article."
 
+msgid "Résumé IA — lire l'article ci-dessous"
+msgstr "Résumé IA — lire l'article ci-dessous"
+
+msgid "Résumé IA réservé aux abonnés Plus (bientôt)."
+msgstr "Résumé IA réservé aux abonnés Plus (bientôt)."
+
+msgid "Résumé impossible pour le moment."
+msgstr "Résumé impossible pour le moment."
+
+msgid "Résumer cet article"
+msgstr "Résumer cet article"
+
 msgid "Rétablir"
 msgstr "Rétablir"
 
@@ -7124,8 +7255,8 @@ msgstr "Retirer cet abonné"
 msgid "Retirer cet article de la une ?"
 msgstr "Retirer cet article de la une ?"
 
-msgid "Retirer de la bibliothèque"
-msgstr "Retirer de la bibliothèque"
+#~ msgid "Retirer de la bibliothèque"
+#~ msgstr "Retirer de la bibliothèque"
 
 msgid "Retirer de la page À propos"
 msgstr "Retirer de la page À propos"
@@ -7261,6 +7392,7 @@ msgstr "S'abonner"
 #~ msgstr "S'abonner ({formattedPrice}/mois)"
 
 #. placeholder {0}: emailModalPub.name
+#. placeholder {0}: rec.name
 msgid "S'abonner à {0}"
 msgstr "S'abonner à {0}"
 
@@ -7280,6 +7412,10 @@ msgstr "S'abonner aux {0} publications"
 msgid "S'abonner avec"
 msgstr "S'abonner avec"
 
+#. placeholder {0}: connectedEmail || ''
+msgid "S'abonner avec {0}"
+msgstr "S'abonner avec {0}"
+
 msgid "S'abonner avec une autre adresse"
 msgstr "S'abonner avec une autre adresse"
 
@@ -7292,6 +7428,9 @@ msgstr "S'abonner en 1 clic avec Qoefi"
 #. placeholder {0}: connectedEmail || ''
 msgid "S'abonner immédiatement avec {0}"
 msgstr "S'abonner immédiatement avec {0}"
+
+msgid "S'abonner pour débloquer"
+msgstr "S'abonner pour débloquer"
 
 msgid "s'est abonné à votre profil"
 msgstr "s'est abonné à votre profil"
@@ -7453,11 +7592,11 @@ msgstr "Sélectionnez une catégorie pour la modifier ici, sans quitter la page.
 msgid "Sélectionnez une image pour renseigner sa légende."
 msgstr "Sélectionnez une image pour renseigner sa légende."
 
-msgid "Sélections de la plateforme"
-msgstr "Sélections de la plateforme"
+#~ msgid "Sélections de la plateforme"
+#~ msgstr "Sélections de la plateforme"
 
-msgid "Selon vos lectures"
-msgstr "Selon vos lectures"
+#~ msgid "Selon vos lectures"
+#~ msgstr "Selon vos lectures"
 
 #~ msgid "SEO & Pied de page"
 #~ msgstr "SEO & Pied de page"
@@ -7723,8 +7862,8 @@ msgstr "Sujet et contenu de l'email requis."
 msgid "Sujets d'exploration"
 msgstr "Sujets d'exploration"
 
-msgid "Sujets émergents"
-msgstr "Sujets émergents"
+#~ msgid "Sujets émergents"
+#~ msgstr "Sujets émergents"
 
 msgid "Super administrateur"
 msgstr "Super administrateur"
@@ -7734,6 +7873,9 @@ msgstr "Suppression en attente"
 
 msgid "Suppression impossible"
 msgstr "Suppression impossible"
+
+msgid "Suppression impossible pour le moment."
+msgstr "Suppression impossible pour le moment."
 
 msgid "Suppression impossible."
 msgstr "Suppression impossible."
@@ -7934,6 +8076,9 @@ msgstr "Téléchargez vos pensées, articles, signets, surlignages et préféren
 
 msgid "Temps de lecture"
 msgstr "Temps de lecture"
+
+msgid "Tendances actuelles"
+msgstr "Tendances actuelles"
 
 msgid "Test échoué"
 msgstr "Test échoué"
@@ -8175,6 +8320,9 @@ msgstr "Trier par"
 #~ msgid "Trier par : Récents"
 #~ msgstr "Trier par : Récents"
 
+msgid "Trop de demandes en ce moment — réessayez dans quelques minutes."
+msgstr "Trop de demandes en ce moment — réessayez dans quelques minutes."
+
 msgid "Tu verras moins de contenu comme ça."
 msgstr "Tu verras moins de contenu comme ça."
 
@@ -8398,6 +8546,9 @@ msgstr "v1.0.2 prêt"
 msgid "Vérification envoyée : confirmez votre nouvelle adresse depuis votre boîte mail."
 msgstr "Vérification envoyée : confirmez votre nouvelle adresse depuis votre boîte mail."
 
+msgid "Vérification impossible pour le moment."
+msgstr "Vérification impossible pour le moment."
+
 msgid "Vérification impossible, réessayez."
 msgstr "Vérification impossible, réessayez."
 
@@ -8521,6 +8672,9 @@ msgstr "Voir la version texte"
 
 msgid "Voir le profil"
 msgstr "Voir le profil"
+
+msgid "Voir le résumé"
+msgstr "Voir le résumé"
 
 msgid "Voir les analyses"
 msgstr "Voir les analyses"
@@ -8661,8 +8815,8 @@ msgstr "Votre réponse…"
 msgid "Votre sélection calibre l'embedding sémantique de votre sanctuaire sans publicité ni profilage commercial."
 msgstr "Votre sélection calibre l'embedding sémantique de votre sanctuaire sans publicité ni profilage commercial."
 
-msgid "Votre semaine"
-msgstr "Votre semaine"
+#~ msgid "Votre semaine"
+#~ msgstr "Votre semaine"
 
 msgid "Votre tranche d'âge"
 msgstr "Votre tranche d'âge"

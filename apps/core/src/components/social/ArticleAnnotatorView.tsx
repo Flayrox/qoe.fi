@@ -824,7 +824,7 @@ function ArticleAnnotatorViewInner({
                         <span>·</span>
                       </>
                     )}
-                    <span>{article.readingTime || 5} min de lecture</span>
+                    <span>{t`${article.readingTime || 5} min de lecture`}</span>
                     {dateFormatted && (
                       <>
                         <span>·</span>
@@ -899,7 +899,7 @@ function ArticleAnnotatorViewInner({
                         <span>·</span>
                       </>
                     )}
-                    <span>{article.readingTime || 5} min de lecture</span>
+                    <span>{t`${article.readingTime || 5} min de lecture`}</span>
                     {dateFormatted && (
                       <>
                         <span>·</span>
@@ -1079,10 +1079,10 @@ function ArticleAnnotatorViewInner({
             <Lock className="w-6 h-6" />
           </div>
           <h3 className="text-xl font-bold text-foreground tracking-tight">
-            Écrit réservé aux membres Premium
+            {t`Écrit réservé aux membres Premium`}
           </h3>
           <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-            La suite de cette publication est exclusivement réservée aux abonnés de{' '}
+            {t`La suite de cette publication est exclusivement réservée aux abonnés de`}{' '}
             <strong className="text-foreground">
               {article.author.name || article.author.username}
             </strong>
@@ -1096,7 +1096,7 @@ function ArticleAnnotatorViewInner({
               className="w-full sm:w-auto px-6 py-3 rounded-xl bg-highlight text-black font-bold text-xs sm:text-sm hover:bg-highlight/90 transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
             >
               <Lock className="w-4 h-4" />
-              S'abonner pour débloquer
+              {t`S'abonner pour débloquer`}
             </a>
           </div>
         </div>
