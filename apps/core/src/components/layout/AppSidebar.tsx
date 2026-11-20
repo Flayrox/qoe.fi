@@ -11,6 +11,37 @@ import { routes } from '@qoe/config/routes';
 import { t } from '@lingui/core/macro';
 import { useMemo } from 'react';
 
+// 🌐 Le manifeste porte un libellé français par défaut et documente que « la
+// surface consommatrice » le traduit. Sans cette table, la navigation restait
+// française dans l'interface `en` ; les `msgid` doivent être des littéraux,
+// donc la correspondance se fait par identifiant de surface.
+function readerSurfaceLabel(id: string, fallback: string): string {
+  switch (id) {
+    case 'reader.home':
+      return t`Accueil`;
+    case 'reader.search':
+      return t`Recherche`;
+    case 'reader.notifications':
+      return t`Notifications`;
+    case 'reader.messages':
+      return t`Messages`;
+    case 'reader.bookmarks':
+      return t`Bibliothèque`;
+    case 'reader.highlights':
+      return t`Surlignages`;
+    case 'reader.ebooks':
+      return t`Livres`;
+    case 'reader.billing':
+      return t`Portefeuille`;
+    case 'reader.pricing':
+      return t`Abonnement Plus`;
+    case 'reader.settings':
+      return t`Réglages`;
+    default:
+      return fallback;
+  }
+}
+
 interface AppSidebarProps {
   userId?: string | null;
   userName?: string;
@@ -54,7 +85,7 @@ export function AppSidebar({
     const surfaces = getSidebarSurfaces('reader');
     const items = surfaces.flatMap((surface) => {
       const item = {
-        title: surface.defaultLabel,
+        title: readerSurfaceLabel(surface.id, surface.defaultLabel),
         url: surface.path,
         iconName: surface.iconName,
         badge:
