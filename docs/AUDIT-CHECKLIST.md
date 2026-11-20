@@ -2156,7 +2156,8 @@ code ; le seul correctif est la suppression d'une option dépréciée.
 **Périmètre re-mesuré avant de toucher** (`git ls-files` + `wc -l`) : 5 fichiers, **847 l.**
 (`social/SearchFeed.tsx` 534, `social/search-results.ts` 89, `social/search-results.test.ts` 91,
 `feed/VirtualizedFeedList.tsx` 98, `feed/RealtimeFeedPill.tsx` 35). Aucun élargissement : les 5 fichiers
-du sous-lot, plus deux suites nouvelles (316 l.). Après correctifs : **919 l.** (539 + 106 + 116 + 121 + 37).
+du sous-lot, plus deux suites nouvelles (**314 l.** : 219 + 95, mesuré sur l'arbre commité). Après correctifs :
+**919 l.** (539 + 106 + 116 + 121 + 37).
 
 | # | Défaut | Sévérité | Statut |
 | --- | ------ | -------- | ------ |
