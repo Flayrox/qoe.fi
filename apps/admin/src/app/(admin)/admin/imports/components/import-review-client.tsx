@@ -31,7 +31,20 @@ import {
   startReconfirmWaveAction,
   startSendWaveAction,
 } from '@qoe/sdk/actions/admin';
+import type { DecideImportInput } from '@qoe/sdk/actions/admin';
 import type { ImportReview } from '@/lib/admin-data';
+
+// Décisions que le formulaire propose — la liste est le type du SDK, pas une
+// copie libre : une décision ajoutée côté serveur apparaît ici ou ne compile pas.
+const DECISIONS = [
+  { value: 'needs_info', label: 'Complément demandé (aucun envoi)' },
+  { value: 'rejected', label: 'Refusé (aucun envoi)' },
+  { value: 'approved_reconfirm', label: 'Accepté avec reconfirmation' },
+  { value: 'approved_direct', label: 'Accepté pour envoi encadré' },
+  { value: 'suspended', label: 'Suspendu' },
+  { value: 'resumed', label: 'Reprise' },
+  { value: 'cancelled', label: 'Annulé' },
+] as const satisfies readonly { value: DecideImportInput['decision']; label: string }[];
 import { attemptWithStepUp, notifyActionFailure, readMessage } from '@/lib/authz-feedback';
 
 const DECISION_LABELS: Record<string, string> = {
@@ -79,7 +92,7 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
   // Formulaire de décision : version + empreinte pré-remplies depuis le lot
   // courant — le staff les change explicitement s'il statue sur une version
   // qui n'est plus la courante (le backend refuse les versions périmées).
-  const [decision, setDecision] = useState('needs_info');
+  const [decision, setDecision] = useState<DecideImportInput['decision']>('needs_info');
   const [internalReason, setInternalReason] = useState('');
   const [publicReason, setPublicReason] = useState('');
   const [fileVersion, setFileVersion] = useState(String(initial.batch.fileVersion ?? 1));
@@ -124,7 +137,7 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
       if (maxWave.trim()) limits.maxWave = Number(maxWave);
       return decideImportAction({
         batchId: batch.id,
-        decision: decision as 'needs_info',
+        decision,
         internalReason: internalReason || undefined,
         publicReason: publicReason || undefined,
         fileVersion: Number(fileVersion) || 0,
@@ -261,16 +274,11 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
                 label="Décision"
                 hideLabel
                 value={decision}
-                onValueChange={setDecision}
-                options={[
-                  { id: 'needs_info', label: 'Complément demandé (aucun envoi)' },
-                  { id: 'rejected', label: 'Refusé (aucun envoi)' },
-                  { id: 'approved_reconfirm', label: 'Accepté avec reconfirmation' },
-                  { id: 'approved_direct', label: 'Accepté pour envoi encadré' },
-                  { id: 'suspended', label: 'Suspendu' },
-                  { id: 'resumed', label: 'Reprise' },
-                  { id: 'cancelled', label: 'Annulé' },
-                ]}
+                onValueChange={(value) => {
+                  const match = DECISIONS.find((item) => item.value === value);
+                  if (match) setDecision(match.value);
+                }}
+                options={DECISIONS.map((item) => ({ id: item.value, label: item.label }))}
               />
             </label>
             <label className="space-y-1 text-xs">
