@@ -108,7 +108,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L23     | `apps/tenants/src/**`                                                                                        | **54 f. prod · 6 106 l.** + 11 f. de tests · 1 149 l. (remesuré) | **clos le 2026-11-21** — 2 défauts F398–F399 (refus muets, fuites API), 5 suites ajoutées, R167/R168 ouvertes |
 | L24     | `apps/hi/src/**`                                                                                             | **30 f. prod · 4 387 l.** + 6 f. de tests (remesuré) | **clos le 2026-11-21** — 5 défauts F400–F404 (tests jamais exécutés, assainisseur contournable, pied de page EN, config console non validée, formulaire muet), R169–R172 ouvertes |
 | L25     | `apps/collab-server/src/**`                                                                                  | **7 f. prod · 1 036 l.** + 6 f. de tests (remesuré) | **clos le 2026-11-21** — 4 défauts F405–F408 (auth non-objet, clé anon en prod, schéma sans migration, erreur de schéma avalée), R173/R174 ouvertes |
-| L26     | `apps/mobile/src/**` + `modules/`                                                                            | **166 f. prod · 26 245 l.** + 15 f. de tests (remesuré) | **L26a traité le 2026-11-21** — 52 f. lus intégralement, 4 défauts F409–F412 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord dans le rendu), R175/R176 ouvertes ; **L26b** = ≈ 111 f. restants |
+| L26     | `apps/mobile/src/**` + `modules/`                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go                          | à auditer               |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go                          | en cours (garde média)  |
 | L29     | `apps/api/internal/modules/**`                                                                               | Go                          | en cours (garde média)  |
@@ -124,8 +124,9 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
 **En cours : L26 — `apps/mobile/src/**` + `apps/mobile/modules/**`** (périmètre remesuré : 181 fichiers →
-166 f. de production · 26 245 l. + 15 f. de tests · 2 196 l.). **L26a traité le 2026-11-21** : 52 f. de production
-lus intégralement (≈ 7 865 l.), **4 défauts** F409–F412, R175/R176 ouvertes ; **L26b** = les ≈ 111 fichiers restants.
+166 f. de production · 26 245 l. + 15 f. de tests · 2 196 l. ; **168 f. · 26 420 l.** après les modules ajoutés par
+L26). **L26a + L26b traités le 2026-11-21** : **68 f. lus intégralement (12 313 l.)**, **7 défauts** F409–F415,
+R175–R179 ouvertes ; **100 f. · 14 107 l. restent à lire** → **L26 non clos**.
 **L27 remesuré à l'ouverture (non commencé)** : `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,
 apiaccess,secguard}` → **62 fichiers Go** = **29 de production · 5 373 l.** + **33 de tests · 7 261 l.**
 **L25 est clos le 2026-11-21** : `apps/collab-server/src/**`, 7 f. de production · 1 036 l. (chiffre de L24 confirmé),
@@ -2046,13 +2047,14 @@ palette étendue à onze racines. **L22 est clos** (L22a→L22f : **45 défauts*
 `src/ArticleTextView.tsx` 89, `src/index.ts` 9). **Production = 166 fichiers · 26 245 lignes**, chiffre de la ligne
 de périmètre **confirmé** (aucune correction).
 
-**Couverture réelle de ce passage — à dire sans la maquiller :** **52 fichiers de production lus intégralement
-(≈ 7 865 l., 30 %)** + 2 fichiers de tests, sur les axes à risque (session/jetons, client API, racine/navigation,
-file de surlignages, feed temps réel, écrans auth/réglages/compte, moteur de texte natif iOS **et** Android, module
-Kotlin, messagerie, contexte de scroll, thème, i18n). Le reste (**≈ 111 f. · ≈ 18 380 l.**) est **non lu ligne à
-ligne** — il a seulement été balayé par greps ciblés (minuteurs, listeners, `SafeAreaView` déprécié, `console.*`,
-`any`, `catch` vides, jetons dans les logs). **L26 n'est donc pas clos** : ce passage est la tranche **L26a**, le
-reste devient **L26b**. Aucune preuve de non-défaut n'est revendiquée sur les fichiers non lus.
+**Couverture réelle — deux passages, à dire sans la maquiller.** **68 fichiers de production lus intégralement
+(12 313 l. sur 26 420, 47 %)** — tranche L26a : 52 f. (socle session/API/natif/feed) ; tranche L26b : 16 f.
+(`action-sheet`, `lightbox`, `privacy`, `settings-ui`, `search-screen`, `normalize`, `thought-actions`, `post-menu`,
+`profile-menu`, `thread-follow-button`, `highlight-row-actions`, `external-embed`, `selection-popover`,
+`glass-composer`, `compose-screen`, `thread-reply-composer`). **100 fichiers · 14 107 l. restent non lus**
+(dont `LiquidTabBar` 1 244, `html-blocks` 674, `sidebar` 617, `profile-screen` 602, `thread-screen` 452,
+`highlight-actions-popover` 545, et 94 autres) : **L26 n'est donc PAS clos** — cette fiche documente ce qui a été
+prouvé, pas la totalité du périmètre. Aucune preuve de non-défaut n'est revendiquée sur les fichiers non lus.
 
 | # | Défaut | Rouge mesuré | Correctif |
 | - | ------ | ------------ | --------- |
@@ -2060,6 +2062,9 @@ reste devient **L26b**. Aucune preuve de non-défaut n'est revendiquée sur les 
 | **F410** | *Suppression de compte qui ment.* `removeStoredAccount` renvoyait `[]` dans son `catch` : après un échec d'écriture, `signOut()` croyait être le dernier compte (aucune bascule de secours) alors que le stockage contenait encore les autres. | même suite : `AssertionError: expected [] to deeply equal [ 'usr_1', 'usr_2' ]`. | La liste réellement stockée est renvoyée en cas d'échec (`return accounts`), l'erreur restant journalisée. |
 | **F411** | *La pill « X nouvelles pensées » perdait les pensées.* `flush()` vidait le buffer sans rien insérer : `displayedRows = unread + rows`, donc au tap les pensées annoncées **disparaissaient** (le feed paginé en cache ne les contenait pas encore) au lieu d'être insérées en tête comme l'annonçait le commentaire. | `feed-pill.test.ts` : suite **non résoluble** avant extraction (`FAIL src/features/feed/feed-pill.test.ts`), puis 4 assertions sur le noyau. **Limite assumée : pas de harnais React/RN dans ce lot — le câblage du hook et de l'écran n'est pas couvert par un test, seul le noyau pur l'est.** | Noyau pur `features/feed/feed-pill.ts` (`feedSliceId`, `pickNewSlices`, `mergeAdoptedSlices`, plafond 40) ; `flush()` **retourne** les tranches vidées ; l'écran les **adopte** (état local fusionné en tête, dédupliqué, vidé au changement d'onglet). |
 | **F412** | *Effet de bord dans le rendu.* `article-screen` lançait `getBookmarks({limit:100})` dans une IIFE **du corps du rendu** : chaque rendu rejouait la requête et la réponse pouvait arriver après démontage. | **Non mesurable ici** (aucun harnais React) — défaut établi par lecture ; correctif vérifié par `tsc` seulement. | Vérification déplacée dans un `useEffect` gardé par `cancelled`, déclenché par `articleId` ; l'état mort `bookmarkLoaded` supprimé. |
+| **F413** | *Libellés d'interface en dur (i18n).* `action-sheet` (`accessibilityLabel="Fermer"`, bouton « Annuler »), `lightbox` (`accessibilityLabel="Fermer"`), `post-menu` et `profile-menu` (`onStub('Masquer')` → message français composé autour d'un fragment figé) : un utilisateur anglophone gardait ces textes en français, y compris dans le lecteur d'écran. | `i18n-labels.wiring.test.ts` (balaie `src/**`, même approche que `sidebar.wiring.test.ts`) : `AssertionError: expected [ …(2) ] to deeply equal []` + `[ …(2) ]` sur `onStub`. | `t('common.close' | 'common.cancel')`, `onStub(t('post.hide' | 'profile.mute', …))` ; garde wiring ajoutée. Commit `4bc107f2`. |
+| **F414** | *Carte de lien : ponctuation avalée.* `extractFirstUrl` renvoyait `https://qoe.fi/a.` (point de phrase inclus) → carte affichant l'hôte `qoe.fi.` et navigateur ouvrant une URL inexistante ; parenthèses de prose idem. | `link-extract.test.ts` sur l'implémentation d'origine : **`AssertionError: expected 'https://qoe.fi/a.' to be 'https://qoe.fi/a'`**. | Logique extraite du composant RN vers `lib/link-extract.ts` (pur, testé) : ponctuation finale retirée, parenthèse appartenant à l'URL conservée (`X_(film)`), `https://` seul → `null`. Commit `5bba711e`. |
+| **F415** | *Composer : bouton d'envoi sans nom accessible.* Les deux rendus du `GlassComposer` (slot et normal) n'avaient aucun `accessibilityLabel` sur l'envoi ; le repli d'erreur était en dur ; `thread-reply-composer` passait `avatarAccessibilityLabel="Menu"`. | garde i18n étendue à tout préfixe `*AccessibilityLabel` : **`AssertionError: expected [ Array(1) ] to deeply equal []`** (1 f.), puis `190 passed`. | `accessibilityLabel={t('compose.post','Publier')}` sur les deux envois, repli via `t('common.error_generic')`, `avatarAccessibilityLabel={t('common.menu','Menu')}`. Commit `6a245074`. |
 
 **Contre-preuve mesurée.** Sources restaurées (`git checkout --` sur les 4 fichiers suivis + `feed-pill.ts` mis de
 côté) : **`2 failed | 176 passed (178)`** + suite `feed-pill` non résoluble → après réapplication :
@@ -2076,6 +2081,15 @@ côté) : **`2 failed | 176 passed (178)`** + suite `feed-pill` non résoluble �
    n'est corrigé à l'aveugle.
 3. **Palette de marques en dur.** `attributed.ts` `MARK_ARGB` (4 couleurs ARGB) ne suit pas le thème : parité de
    peinture iOS/Android oui, thème non. Changement de contrat natif (ARGB par prop) → dette, pas dans ce lot.
+4. **R177 — filtres de recherche sans effet.** `search-screen` affiche quatre filtres (Tout/Articles/Créateurs/
+   Pensées) mais n'interroge que `searchArticles` : les trois autres changent le chip actif sans changer les
+   résultats. Corriger = brancher deux nouveaux endpoints (produit) → dette, pas un demi-correctif.
+5. **R178 — deux boutons du composer ne font rien.** Les boutons « + » et « @ » du `GlassComposer` (deux rendus)
+   n'émettent qu'un haptique : contrôles morts, sans nom accessible. Les retirer ou les brancher est un choix
+   produit → dette nommée, pas de suppression unilatérale.
+6. **R179 — `as any` sur le client de pensée.** `thought-actions` lit `bookmarked`/`bookmarkCount` via
+   `(shadow as any)` : le contrat du store de shadow SDK n'est pas typé côté mobile → cast masquant, à corriger
+   dans `@qoe/sdk` (hors périmètre mobile).
 
 **Non concluant (dit explicitement).** Le module Kotlin (`ArticleTextView.kt` 417 l., non exécuté : pas de
 simulateur/émulateur, pas de test natif) : la lecture ne montre ni conversion de type douteuse (props typées par
@@ -2092,14 +2106,15 @@ sans session rend `LoginScreen` (le `Stack` n'est pas monté) ; `getApiBaseUrl` 
 `sanitizePathSegment`, réécriture CDN) et `html-blocks-core.ts` (ordinal canonique `CountBefore`, refus des ancres à
 sha périmé) sont couverts par leurs suites.
 
-**Batterie de clôture (rejouée, mesures exactes).** mobile **16 f. / 182 tests** (avant : 15 f. / 178) ; tenants
+**Batterie de clôture (rejouée, mesures exactes).** mobile **18 f. / 190 tests** (avant L26 : 15 f. / 178) ; tenants
 **16 f. / 48** ; admin **48 f. / 153** ; `pnpm typecheck` **exit 0** (25/25) ; `pnpm mobile:typecheck` **exit 0** ;
 `pnpm lint` **25/25** ; `ui:audit` « Aucun dépassement » ; `arch:audit` ✅ ; `audit:guard` ✅ (58 avis connus) ;
 7 `guard:*` ✅ (`seed-script`, `legal-consent`, `dangerous-html`, `flags-parity`, `article-links`, `media-origin`,
 `tsconfig`). Arbre propre, **aucun push**, R167 et les plafonds intacts.
 
-**Prochain lot : L26b** — le reste de `apps/mobile/src/**` (≈ 111 f. · ≈ 18 380 l. lus ligne à ligne), sans le
-module natif déjà traité.
+**L26 n'est pas clos** : 68 f. sur 168 lus intégralement. **Prochain lot : L26b** — les **100 fichiers · 14 107 l.**
+restants de `apps/mobile/src/**`, à commencer par les cinq plus gros non lus (`LiquidTabBar` 1 244, `html-blocks` 674,
+`sidebar` 617, `profile-screen` 602, `highlight-actions-popover` 545).
 
 ## L23 — `apps/tenants/src/**` — clos le 2026-11-21
 
