@@ -729,10 +729,24 @@ func (s *Service) List(ctx context.Context, userID, publisherID, workspaceType s
 			ids[i] = a.ID
 		}
 		cutoff := periodCutoff(period)
-		views, uniques := s.fetchViewsBatch(ctx, ids, cutoff)
-		comments := s.fetchCommentsBatch(ctx, ids)
-		likes := s.fetchLikesBatch(ctx, ids)
-		reposts := s.fetchRepostsBatch(ctx, ids)
+		// Agrégats : une panne remonte (jamais des compteurs à 0 qui feraient
+		// croire à un article sans lecteur).
+		views, uniques, err := s.fetchViewsBatch(ctx, ids, cutoff)
+		if err != nil {
+			return nil, err
+		}
+		comments, err := s.fetchCommentsBatch(ctx, ids)
+		if err != nil {
+			return nil, err
+		}
+		likes, err := s.fetchLikesBatch(ctx, ids)
+		if err != nil {
+			return nil, err
+		}
+		reposts, err := s.fetchRepostsBatch(ctx, ids)
+		if err != nil {
+			return nil, err
+		}
 		scheduled := s.fetchScheduledBatch(ctx, ids)
 		memberCache := make(map[string]memberContext)
 		memberErrCache := make(map[string]bool)
