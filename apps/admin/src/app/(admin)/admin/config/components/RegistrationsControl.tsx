@@ -77,10 +77,24 @@ export function RegistrationsControl({
 
   const handleDelete = (target: string) => {
     if (!confirm(`Retirer l'invitation de ${target} ?`)) return;
+    const removedAt = entries.findIndex((e) => e.email === target);
+    const removed = removedAt >= 0 ? entries[removedAt] : null;
     setEntries((prev) => prev.filter((e) => e.email !== target));
     startTransition(async () => {
       const res = await attemptWithStepUp(() => deleteAllowlistAction(target));
-      if (!res.success) setErrorMsg(readMessage(res) ?? 'Erreur de suppression');
+      if (!res.success) {
+        // Un refus laisse l'invitation valide côté serveur : la remettre à sa
+        // place, sinon l'écran affirme un retrait qui n'a pas eu lieu.
+        if (removed) {
+          setEntries((prev) => {
+            if (prev.some((e) => e.email === target)) return prev;
+            const next = [...prev];
+            next.splice(Math.min(removedAt, next.length), 0, removed);
+            return next;
+          });
+        }
+        setErrorMsg(readMessage(res) ?? 'Erreur de suppression');
+      }
     });
   };
 
