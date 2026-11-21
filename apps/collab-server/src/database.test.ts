@@ -68,4 +68,30 @@ describe('PostgresDatabase (initialisation et erreurs pool)', () => {
     await findPromise;
     expect(order).toEqual(['schema-start', 'schema-done', 'find']);
   });
+
+  it('remonte l’échec d’initialisation du schéma au lieu de le masquer', async () => {
+    // Un échec de DDL (droits manquants, base en lecture seule) était avalé :
+    // la requête suivante échouait alors sur « relation does not exist »,
+    // qui ne dit rien de la vraie cause.
+    const mockPool = {
+      on: vi.fn(),
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('CREATE TABLE IF NOT EXISTS collab_documents')) {
+          throw new Error('permission denied for schema public');
+        }
+        return { rows: [] };
+      }),
+      end: vi.fn(async () => {}),
+    } as unknown as Pool;
+
+    const db = new (
+      PostgresDatabase as unknown as new (
+        connectionString: string,
+        poolSize?: number,
+        pool?: Pool
+      ) => PostgresDatabase
+    )('postgresql://unused', 5, mockPool);
+
+    await expect(db.findDocument('article:1')).rejects.toThrow(/permission denied/);
+  });
 });

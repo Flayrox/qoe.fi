@@ -33,6 +33,8 @@ export class PostgresDatabase implements CollabDatabase {
   /** Pool pg exposé pour les autres services (ex: RBAC publication). */
   readonly pool: Pool;
   private readonly ready: Promise<void>;
+  /** Échec de garantie du schéma, rejoué à la première requête. */
+  private schemaError: Error | null = null;
 
   constructor(connectionString: string, poolSize = 5, injectedPool?: Pool) {
     this.pool = injectedPool ?? new Pool({ connectionString, max: poolSize });
@@ -41,17 +43,30 @@ export class PostgresDatabase implements CollabDatabase {
       console.error('[collab-server] Erreur client Postgres idle :', error);
     });
     // Le CREATE TABLE IF NOT EXISTS est idempotent et attendu avant toute requête.
+    // L'échec est mémorisé puis rejoué à la première requête : sans cela, la
+    // requête suivante échouait sur « relation does not exist », qui ne dit
+    // rien de la vraie cause (droits, base en lecture seule, migration absente).
     this.ready = this.pool
       .query(SCHEMA_SQL)
       .then(() => undefined)
       .catch((error: unknown) => {
         console.error('[collab-server] Impossible de garantir la table collab_documents :', error);
+        const reason = error instanceof Error ? error.message : String(error);
+        this.schemaError = new Error(
+          `[collab-server] Table collab_documents indisponible (${reason}).`
+        );
       });
+  }
+
+  /** Attend l'initialisation et remonte son échec s'il y en a eu un. */
+  private async waitReady(): Promise<void> {
+    await this.ready;
+    if (this.schemaError) throw this.schemaError;
   }
 
   /** Charge l'état Yjs persisté d'un document, ou undefined s'il n'existe pas. */
   async findDocument(documentName: string): Promise<Uint8Array | null | undefined> {
-    await this.ready;
+    await this.waitReady();
     const result = await this.pool.query(
       'SELECT state FROM collab_documents WHERE document_name = $1',
       [documentName]
@@ -63,7 +78,7 @@ export class PostgresDatabase implements CollabDatabase {
 
   /** Persiste l'état initial d'un document (création). */
   async storeDocument(documentName: string, state: Uint8Array): Promise<void> {
-    await this.ready;
+    await this.waitReady();
     await this.pool.query(
       `INSERT INTO collab_documents (document_name, state, updated_at)
        VALUES ($1, $2, now())
@@ -79,7 +94,7 @@ export class PostgresDatabase implements CollabDatabase {
 
   /** Supprime un document (ex: article supprimé). */
   async deleteDocument(documentName: string): Promise<void> {
-    await this.ready;
+    await this.waitReady();
     await this.pool.query('DELETE FROM collab_documents WHERE document_name = $1', [documentName]);
   }
 
