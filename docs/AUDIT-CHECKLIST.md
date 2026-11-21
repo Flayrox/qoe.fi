@@ -108,7 +108,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L23     | `apps/tenants/src/**`                                                                                        | **54 f. prod · 6 106 l.** + 11 f. de tests · 1 149 l. (remesuré) | **clos le 2026-11-21** — 2 défauts F398–F399 (refus muets, fuites API), 5 suites ajoutées, R167/R168 ouvertes |
 | L24     | `apps/hi/src/**`                                                                                             | **30 f. prod · 4 387 l.** + 6 f. de tests (remesuré) | **clos le 2026-11-21** — 5 défauts F400–F404 (tests jamais exécutés, assainisseur contournable, pied de page EN, config console non validée, formulaire muet), R169–R172 ouvertes |
 | L25     | `apps/collab-server/src/**`                                                                                  | **7 f. prod · 1 036 l.** + 6 f. de tests (remesuré) | **clos le 2026-11-21** — 4 défauts F405–F408 (auth non-objet, clé anon en prod, schéma sans migration, erreur de schéma avalée), R173/R174 ouvertes |
-| L26     | `apps/mobile/src/**` + `modules/`                                                                            | **166 f. prod · 26 245 l.** + 15 f. de tests (remesuré) | à auditer (prochain)   |
+| L26     | `apps/mobile/src/**` + `modules/`                                                                            | **166 f. prod · 26 245 l.** + 15 f. de tests (remesuré) | **L26a traité le 2026-11-21** — 52 f. lus intégralement, 4 défauts F409–F412 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord dans le rendu), R175/R176 ouvertes ; **L26b** = ≈ 111 f. restants |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go                          | à auditer               |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go                          | en cours (garde média)  |
 | L29     | `apps/api/internal/modules/**`                                                                               | Go                          | en cours (garde média)  |
@@ -123,8 +123,11 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L26 — `apps/mobile/src/**` + `apps/mobile/modules/**`** (périmètre remesuré :
-166 f. de production · 26 245 l. + 15 f. de tests · 2 196 l.).
+**En cours : L26 — `apps/mobile/src/**` + `apps/mobile/modules/**`** (périmètre remesuré : 181 fichiers →
+166 f. de production · 26 245 l. + 15 f. de tests · 2 196 l.). **L26a traité le 2026-11-21** : 52 f. de production
+lus intégralement (≈ 7 865 l.), **4 défauts** F409–F412, R175/R176 ouvertes ; **L26b** = les ≈ 111 fichiers restants.
+**L27 remesuré à l'ouverture (non commencé)** : `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,
+apiaccess,secguard}` → **62 fichiers Go** = **29 de production · 5 373 l.** + **33 de tests · 7 261 l.**
 **L25 est clos le 2026-11-21** : `apps/collab-server/src/**`, 7 f. de production · 1 036 l. (chiffre de L24 confirmé),
 **4 défauts** F405–F408, R173/R174 ouvertes. Handshake WS, matrice de permissions et accès DB vérifiés contre le
 contrat Go réel (rien de supposé).
@@ -2033,6 +2036,70 @@ le canal natif reste). **R164** : `grants-manager` recharge la page entière apr
 **L22f est clos.** Huit défauts corrigés (F390–F397), huit suites ajoutées là où il n'y en avait aucune, garde de
 palette étendue à onze racines. **L22 est clos** (L22a→L22f : **45 défauts** F353–F397).
 **Prochain lot : L23** — `apps/tenants/src/**` (publications multi-tenant), périmètre à remesurer à l'ouverture.
+
+## L26a — `apps/mobile/src/**` + `apps/mobile/modules/**` (socle session/API/natif/feed) — 2026-11-21
+
+**Périmètre remesuré à l'ouverture.** `git ls-files 'apps/mobile/src/**'` **et** `'apps/mobile/modules/**'` →
+**181 fichiers** = **158 TS/TSX de production · 25 631 l.** + **15 fichiers de tests · 2 196 l.** +
+**8 fichiers de modules · 614 l.** (dont **3 natifs** : `ArticleTextView.kt` 417, `ArticleTextViewModule.kt` 67,
+`expo-module.config.json` 6 ; plus `build.gradle` 15, `AndroidManifest.xml` 2, `package.json` 9,
+`src/ArticleTextView.tsx` 89, `src/index.ts` 9). **Production = 166 fichiers · 26 245 lignes**, chiffre de la ligne
+de périmètre **confirmé** (aucune correction).
+
+**Couverture réelle de ce passage — à dire sans la maquiller :** **52 fichiers de production lus intégralement
+(≈ 7 865 l., 30 %)** + 2 fichiers de tests, sur les axes à risque (session/jetons, client API, racine/navigation,
+file de surlignages, feed temps réel, écrans auth/réglages/compte, moteur de texte natif iOS **et** Android, module
+Kotlin, messagerie, contexte de scroll, thème, i18n). Le reste (**≈ 111 f. · ≈ 18 380 l.**) est **non lu ligne à
+ligne** — il a seulement été balayé par greps ciblés (minuteurs, listeners, `SafeAreaView` déprécié, `console.*`,
+`any`, `catch` vides, jetons dans les logs). **L26 n'est donc pas clos** : ce passage est la tranche **L26a**, le
+reste devient **L26b**. Aucune preuve de non-défaut n'est revendiquée sur les fichiers non lus.
+
+| # | Défaut | Rouge mesuré | Correctif |
+| - | ------ | ------------ | --------- |
+| **F409** | *Comptes sauvegardés non validés.* `getSavedAccounts` renvoyait `JSON.parse` tel quel (`parsed as StoredAccount[]`) : une entrée `null` ou sans `refreshToken` (écriture partielle, version antérieure) remontait dans la liste et `switchAccount` la rejouait dans `setSession({access_token: undefined, refresh_token: undefined})`. | `accounts-manager.test.ts` → **`2 failed \| 176 passed (178)`** ; `expected [ null, { id: 'usr_sans_tokens', … }, … ] to deeply equal [ 'usr_ok' ]`. | `isStoredAccount` (id non vide + `refreshToken` non vide + `accessToken` string) et `parsed.filter(...)` ; les entrées inexploitables sont ignorées, la liste reste utilisable. |
+| **F410** | *Suppression de compte qui ment.* `removeStoredAccount` renvoyait `[]` dans son `catch` : après un échec d'écriture, `signOut()` croyait être le dernier compte (aucune bascule de secours) alors que le stockage contenait encore les autres. | même suite : `AssertionError: expected [] to deeply equal [ 'usr_1', 'usr_2' ]`. | La liste réellement stockée est renvoyée en cas d'échec (`return accounts`), l'erreur restant journalisée. |
+| **F411** | *La pill « X nouvelles pensées » perdait les pensées.* `flush()` vidait le buffer sans rien insérer : `displayedRows = unread + rows`, donc au tap les pensées annoncées **disparaissaient** (le feed paginé en cache ne les contenait pas encore) au lieu d'être insérées en tête comme l'annonçait le commentaire. | `feed-pill.test.ts` : suite **non résoluble** avant extraction (`FAIL src/features/feed/feed-pill.test.ts`), puis 4 assertions sur le noyau. **Limite assumée : pas de harnais React/RN dans ce lot — le câblage du hook et de l'écran n'est pas couvert par un test, seul le noyau pur l'est.** | Noyau pur `features/feed/feed-pill.ts` (`feedSliceId`, `pickNewSlices`, `mergeAdoptedSlices`, plafond 40) ; `flush()` **retourne** les tranches vidées ; l'écran les **adopte** (état local fusionné en tête, dédupliqué, vidé au changement d'onglet). |
+| **F412** | *Effet de bord dans le rendu.* `article-screen` lançait `getBookmarks({limit:100})` dans une IIFE **du corps du rendu** : chaque rendu rejouait la requête et la réponse pouvait arriver après démontage. | **Non mesurable ici** (aucun harnais React) — défaut établi par lecture ; correctif vérifié par `tsc` seulement. | Vérification déplacée dans un `useEffect` gardé par `cancelled`, déclenché par `articleId` ; l'état mort `bookmarkLoaded` supprimé. |
+
+**Contre-preuve mesurée.** Sources restaurées (`git checkout --` sur les 4 fichiers suivis + `feed-pill.ts` mis de
+côté) : **`2 failed | 176 passed (178)`** + suite `feed-pill` non résoluble → après réapplication :
+**`16 passed (16)` / `182 passed (182)`**. Commits `3e61a026` (F409+F410), `6deaf770` (F411), `69a74a4e` (F412).
+
+**Mesuré mais NON corrigé (dette, avec raison).**
+1. **R175 — jetons en clair.** La session Supabase (`lib/supabase.ts`, `storage: AsyncStorage`) et, surtout,
+   `accounts-manager` (**access + refresh tokens de TOUS les comptes**) sont persistés en **AsyncStorage** :
+   sandbox applicatif, mais non chiffré (lisible sur appareil rooté / sauvegarde). Le correctif est
+   `expo-secure-store` + `supabase.storage` sur SecureStore : **dépendance native absente du projet**, migration
+   non vérifiable sans build natif (aucun simulateur ici) → dette, pas un demi-correctif.
+2. **R176 — polling sans garde de cycle de vie.** `use-realtime-feed-pill` (20 s) et `conversation-screen` (4 s)
+   continuent d'interroger l'API écran en arrière-plan (aucun `AppState`). Mesure impossible sans device ; rien
+   n'est corrigé à l'aveugle.
+3. **Palette de marques en dur.** `attributed.ts` `MARK_ARGB` (4 couleurs ARGB) ne suit pas le thème : parité de
+   peinture iOS/Android oui, thème non. Changement de contrat natif (ARGB par prop) → dette, pas dans ce lot.
+
+**Non concluant (dit explicitement).** Le module Kotlin (`ArticleTextView.kt` 417 l., non exécuté : pas de
+simulateur/émulateur, pas de test natif) : la lecture ne montre ni conversion de type douteuse (props typées par
+`expo-modules-core` : `String`, `List<Map<String, Any>>`, `Int`, `Float`) ni exception traversant `OnViewDidUpdateProps`,
+mais **rien n'est prouvé ici**. Idem pour `NativeArticleBody.ios.tsx` (UITextView tiers) : logique JS lue, rendu non
+observé. Aucun fichier `.swift` : le module Expo est **Android-only** (`platforms: ["android"]`), iOS passant par
+`@bsky.app/react-native-uitextview` — cohérent avec l'absence de Swift.
+
+**Non-défauts prouvés (lecture + tests existants).** Le handshake de session ne fuit pas de jeton dans les logs
+(aucun `console.*` de jeton sur 166 fichiers) ; `_layout.tsx` ne rend **aucun** écran protégé avant hydratation
+(`if (isLoading) return null`, splash natif masqué par `AnimatedSplashOverlay`) ; le deep-link vers un écran protégé
+sans session rend `LoginScreen` (le `Stack` n'est pas monté) ; `getApiBaseUrl` (fallback Metro/10.0.2.2, rewrite
+`localhost`) reste couvert par `lib/__tests__/api.test.ts` (9 assertions) ; `upload.ts` (12 Mo, extension allowlist,
+`sanitizePathSegment`, réécriture CDN) et `html-blocks-core.ts` (ordinal canonique `CountBefore`, refus des ancres à
+sha périmé) sont couverts par leurs suites.
+
+**Batterie de clôture (rejouée, mesures exactes).** mobile **16 f. / 182 tests** (avant : 15 f. / 178) ; tenants
+**16 f. / 48** ; admin **48 f. / 153** ; `pnpm typecheck` **exit 0** (25/25) ; `pnpm mobile:typecheck` **exit 0** ;
+`pnpm lint` **25/25** ; `ui:audit` « Aucun dépassement » ; `arch:audit` ✅ ; `audit:guard` ✅ (58 avis connus) ;
+7 `guard:*` ✅ (`seed-script`, `legal-consent`, `dangerous-html`, `flags-parity`, `article-links`, `media-origin`,
+`tsconfig`). Arbre propre, **aucun push**, R167 et les plafonds intacts.
+
+**Prochain lot : L26b** — le reste de `apps/mobile/src/**` (≈ 111 f. · ≈ 18 380 l. lus ligne à ligne), sans le
+module natif déjà traité.
 
 ## L23 — `apps/tenants/src/**` — clos le 2026-11-21
 
