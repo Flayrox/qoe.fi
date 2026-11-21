@@ -104,5 +104,14 @@ export function validateProductionConfig(
   if (!config.supabaseUrl) {
     errors.push('[collab-server] SUPABASE_URL obligatoire en production.');
   }
+  // Sans clé anon, `auth.ts` envoie le JWT du client en `apikey` : Supabase le
+  // refuse, et le serveur refuse alors **toutes** les connexions en annonçant
+  // « token invalide » — panne silencieuse au démarrage.
+  if (!config.supabaseAnonKey) {
+    errors.push(
+      '[collab-server] SUPABASE_ANON_KEY obligatoire en production ' +
+        "(sans elle, l'introspection est refusée et aucune connexion n'aboutit)."
+    );
+  }
   return errors;
 }

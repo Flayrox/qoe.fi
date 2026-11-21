@@ -105,13 +105,40 @@ describe('loadConfig et validateProductionConfig', () => {
     expect(validate!(cfg, 'development')).toEqual([]);
 
     const prodErrors = validate!(cfg, 'production');
-    expect(prodErrors.length).toBe(2);
+    // Trois exigences en production : base, URL d'introspection, clé anon.
+    expect(prodErrors).toHaveLength(3);
+    expect(prodErrors.join('\n')).toContain('DATABASE_URL');
+    expect(prodErrors.join('\n')).toContain('SUPABASE_URL');
+    expect(prodErrors.join('\n')).toContain('SUPABASE_ANON_KEY');
 
     expect(
       validate!(
-        { ...cfg, databaseUrl: 'postgresql://db', supabaseUrl: 'https://supa.local' },
+        {
+          ...cfg,
+          databaseUrl: 'postgresql://db',
+          supabaseUrl: 'https://supa.local',
+          supabaseAnonKey: 'anon-key',
+        },
         'production'
       )
     ).toEqual([]);
+  });
+
+  it('validateProductionConfig exige la clé anon (sinon toute connexion est refusée)', () => {
+    // Sans clé anon, l'introspection part avec le JWT du client en `apikey`,
+    // que Supabase refuse : le serveur démarre et refuse **toutes** les
+    // connexions avec un message trompeur (« token invalide »).
+    const cfg = configModule.loadConfig();
+    const errors = configModule.validateProductionConfig(
+      {
+        ...cfg,
+        databaseUrl: 'postgresql://db',
+        supabaseUrl: 'https://supa.local',
+        supabaseAnonKey: '',
+      },
+      'production'
+    );
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('SUPABASE_ANON_KEY');
   });
 });
