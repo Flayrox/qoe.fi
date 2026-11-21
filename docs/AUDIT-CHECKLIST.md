@@ -2040,7 +2040,39 @@ le canal natif reste). **R164** : `grants-manager` recharge la page entière apr
 palette étendue à onze racines. **L22 est clos** (L22a→L22f : **45 défauts** F353–F397).
 **Prochain lot : L23** — `apps/tenants/src/**` (publications multi-tenant), périmètre à remesurer à l'ouverture.
 
-## L26a — `apps/mobile/src/**` + `apps/mobile/modules/**` (socle session/API/natif/feed) — 2026-11-21
+## L27 — gardes Go `middleware` / `authz` / `adminauthz` / `secguard` — **ouvert le 2026-11-21, non clos**
+
+**Périmètre remesuré à l'ouverture** : `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`
+→ **62 fichiers Go** = **29 de production · 5 373 l.** + **33 de tests · 7 261 l.**
+
+**Lecture du tour : 6 / 29 fichiers de production · 1 863 / 5 373 lignes** (`middleware/auth.go` 310,
+`middleware/apikey.go` 354, `middleware/authzguard.go` 231, `middleware/ratelimit.go` 373,
+`authz/evaluate.go` 172, `secguard/guard.go` 423), chacun lu jusqu'à sa dernière ligne puis vérifié
+contre `wc -l`. **23 fichiers · 3 510 l. restent à lire** → **L27 non clos**.
+
+| # | Défaut | Rouge mesuré (cité) | Correctif |
+|---|---|---|---|
+| **F418** | *Clé API sans scope effectif authentifiée.* `resolveAPIKeyRow` filtrait les scopes par `API_ACCESS_MODULES` mais acceptait une clé dont la plateforme avait coupé **tous** les scopes : contexte authentifié, zéro permission, donc passage sur toutes les routes sans `RequireAPIScope`. Violation du moindre privilège documenté dans le fichier. | `go test ./internal/middleware/ -run TestResolveAPIKeyRow` : `apikey_scopes_test.go:27: clé avec tous les scopes désactivés acceptée : elle obtient un accès non scopé` (`--- FAIL`) | Refus explicite si `len(row.Scopes) > 0 && len(effectiveScopes) == 0` ; le silence en base (aucun scope déclaré) reste inchangé. Commit `6e2dc735`. |
+| **F419** | *Garde `secguard` non nil-safe malgré sa promesse.* Le type déclare « toutes ses méthodes sont nil-safe » ; deux chemins paniquaient : garde nil + `validate` nil (`validate(trust.TierStandard)`), et garde `rc` posé sans `spam` (`IsWriteFrozen` / `ApplyStrike` sur nil, montage partiel en test). | `go test ./internal/secguard/` : `--- FAIL: TestNilGuard_EnforceContentWriteSansValidate` + `panic: runtime error: invalid memory address or nil pointer dereference` | Garde nil avec `validate == nil` laisse passer ; `spam` testé avant `IsWriteFrozen` et `ApplyStrike` ; `gofmt` du fichier touché. Commit `0ff45102`. |
+
+**Batterie du tour.** `go vet ./internal/...` 0 · `go build ./...` 0 · `go test` des 7 paquets :
+`middleware`, `secguard`, `authz`, `identity`, `apiaccess`, `permissions` **ok** ; `adminauthz` **FAIL** uniquement sur
+ses tests à base réelle — `PostgreSQL de test indisponible : … rootless Docker not found` (**non concluant ici**,
+Docker absent du poste par choix d'environnement, pas une régression). Côté TS/workspace : mobile **20 f. / 195**,
+tenants **16 f. / 48**, admin **48 f. / 153**, `typecheck` 0, `mobile:typecheck` 0, `lint` 0, `ui:audit` 0,
+`arch:audit` 0, `audit:guard` 0, 7 `guard:*` 0.
+
+**Dettes du lot (ouvertes)** : `R180` — `RateLimitDual` / `RateLimit` restent en **fail-open** quand Redis
+erreur (comportement documenté et voulu, mais non chiffré : aucun test d'intégration Redis ici) ;
+`R181` — `ClientIP` fait confiance à `X-Forwarded-For` sans validation de la valeur (dépend du proxy de
+confiance, non vérifiable dans ce périmètre) ; `R182` — `middleware/auth.go` : JWKS rechargé sous mutex avec
+un `http.Client` par appel, pas de backoff en cas d'échec (chaque requête retente pendant une panne JWKS).
+
+**Reste à lire** : `middleware/{apikey_db,auth_extra,jwks,autorepair,accesscontrol,idempotency,authzresolver,ecdsa,rsa,middleware}.go`,
+`authz/{actions,session,level,method}.go`, `adminauthz/*.go` (8 fichiers), `permissions/media.go`, `apiaccess/apiaccess.go`,
+`identity/identity.go`.
+
+## L26a — `apps/mobile/src/**` + `apps/mobile/modules/**` (socle session/API/natif/feed) — 2026-11-21 — **⏸ mis en pause, reporté en fin de campagne**
 
 **Périmètre remesuré à l'ouverture.** `git ls-files 'apps/mobile/src/**'` **et** `'apps/mobile/modules/**'` →
 **181 fichiers** = **158 TS/TSX de production · 25 631 l.** + **15 fichiers de tests · 2 196 l.** +
