@@ -126,10 +126,18 @@ export function StepUpGate() {
         setFactors(state);
         setPhase(state.totp.length > 0 ? 'input' : 'no-factor');
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (cancelled) return;
         setFactors({ totp: [], hasUnverified: false });
         setPhase('no-factor');
+        // Une lecture en échec n'est pas « aucun facteur » : sans ce message,
+        // l'écran affirmerait que le compte n'a rien d'enrôlé, et enverrait la
+        // personne vers un enrôlement qui échouera pour la même raison.
+        setErrorMessage(
+          error instanceof Error && error.message
+            ? `Facteurs illisibles : ${error.message}`
+            : 'Facteurs illisibles : le fournisseur d’identité n’a pas répondu.'
+        );
       });
     return () => {
       cancelled = true;
@@ -221,6 +229,15 @@ export function StepUpGate() {
             {factors.hasUnverified && (
               <p className="text-xs leading-relaxed text-muted-foreground">
                 Un facteur existe mais n’a jamais été vérifié : enrôlez-en un nouveau.
+              </p>
+            )}
+            {errorMessage && (
+              <p
+                role="alert"
+                className="text-xs leading-relaxed text-destructive-text"
+                data-testid="step-up-factors-error"
+              >
+                {errorMessage}
               </p>
             )}
             <div className="flex flex-wrap items-center gap-2 pt-1">
