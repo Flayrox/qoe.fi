@@ -20,13 +20,14 @@ import { Input } from '@qoe/ui/input';
 import { Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from '@qoe/ui/table';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 import { denialGroups, getAuthzDecisions, modeSplit } from '@/lib/admin-audit-data';
+import { parseOnlyDenied } from '@/lib/admin-decisions-filter';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
 import { QueueEmpty } from '@/components/queue/QueueEmpty';
 
 export const dynamic = 'force-dynamic';
 
 interface DecisionsPageProps {
-  searchParams: Promise<{ capability?: string; denied?: string; window?: string }>;
+  searchParams: Promise<{ capability?: string; denied?: string | string[]; window?: string }>;
 }
 
 export default async function AdminAccessDecisionsPage({ searchParams }: DecisionsPageProps) {
@@ -35,7 +36,7 @@ export default async function AdminAccessDecisionsPage({ searchParams }: Decisio
   requireCapability(identity, 'admin.audit.read');
 
   const windowHours = Number.parseInt(params.window ?? '168', 10) || 168;
-  const onlyDenied = params.denied !== '0';
+  const onlyDenied = parseOnlyDenied(params.denied);
   const view = await getAuthzDecisions({
     capability: params.capability ?? '',
     denied: onlyDenied,
@@ -99,15 +100,17 @@ export default async function AdminAccessDecisionsPage({ searchParams }: Decisio
           />
         </label>
         <label className="flex items-center gap-2 text-[11px] text-muted-foreground mb-1 cursor-pointer">
+          {/* Une case ne s'envoie que cochée : c'est donc l'état « tout
+              afficher » qu'elle transporte. */}
           <input
             type="checkbox"
             name="denied"
-            value="1"
-            defaultChecked={onlyDenied}
+            value="all"
+            defaultChecked={!onlyDenied}
             className="rounded border-border"
           />
-          Refus uniquement
-        </label>
+          Toutes les décisions (accords compris)
+        </label>{' '}
         <Button type="submit" variant="solid" tone="brand" size="sm" data-testid="decisions-apply">
           Appliquer
         </Button>
