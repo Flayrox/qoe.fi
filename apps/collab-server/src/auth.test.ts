@@ -65,6 +65,44 @@ describe('createSupabaseVerifier', () => {
     await createSupabaseVerifier('https://x.supabase.co', fetchImpl).verify('mon-token');
     expect(fetchImpl).toHaveBeenCalledWith('https://x.supabase.co/auth/v1/user', {
       headers: { Authorization: 'Bearer mon-token', apikey: 'mon-token' },
+      signal: expect.any(AbortSignal),
     });
+  });
+
+  it('accepte le format réel GoTrue /auth/v1/user (id sans sub) et user_metadata.full_name', async () => {
+    const verify = createSupabaseVerifier(
+      'https://x.supabase.co',
+      mockFetch(200, {
+        id: 'uuid-gotrue',
+        email: 'a@b.co',
+        user_metadata: { full_name: 'Bob' },
+      })
+    ).verify;
+    await expect(verify('token-gotrue')).resolves.toEqual({
+      id: 'uuid-gotrue',
+      name: 'Bob',
+      email: 'a@b.co',
+    });
+  });
+
+  it('passe un AbortSignal (timeout) à fetch lors de l’introspection', async () => {
+    const fetchImpl = mockFetch(200, { id: 'uuid-1', email: 'e@f.co' });
+    await createSupabaseVerifier('https://x.supabase.co', 'anon-key', fetchImpl).verify(
+      'mon-token'
+    );
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://x.supabase.co/auth/v1/user',
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+      })
+    );
+  });
+
+  it('retourne null proprement si fetch lève une erreur réseau ou un timeout', async () => {
+    const failingFetch = vi.fn(async () => {
+      throw new Error('ETIMEDOUT');
+    });
+    const verify = createSupabaseVerifier('https://x.supabase.co', 'anon-key', failingFetch).verify;
+    await expect(verify('mon-token')).resolves.toBeNull();
   });
 });

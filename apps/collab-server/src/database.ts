@@ -31,17 +31,26 @@ const SCHEMA_SQL = `
 export class PostgresDatabase implements CollabDatabase {
   /** Pool pg exposé pour les autres services (ex: RBAC publication). */
   readonly pool: Pool;
+  private readonly ready: Promise<void>;
 
-  constructor(connectionString: string, poolSize = 5) {
-    this.pool = new Pool({ connectionString, max: poolSize });
-    // Le CREATE TABLE IF NOT EXISTS est idempotent et sans risque.
-    this.pool.query(SCHEMA_SQL).catch((error: unknown) => {
-      console.error('[collab-server] Impossible de garantir la table collab_documents :', error);
+  constructor(connectionString: string, poolSize = 5, injectedPool?: Pool) {
+    this.pool = injectedPool ?? new Pool({ connectionString, max: poolSize });
+    // Évite un crash Node non rattrapé lorsqu'une connexion idle du pool coupe.
+    this.pool.on('error', (error: unknown) => {
+      console.error('[collab-server] Erreur client Postgres idle :', error);
     });
+    // Le CREATE TABLE IF NOT EXISTS est idempotent et attendu avant toute requête.
+    this.ready = this.pool
+      .query(SCHEMA_SQL)
+      .then(() => undefined)
+      .catch((error: unknown) => {
+        console.error('[collab-server] Impossible de garantir la table collab_documents :', error);
+      });
   }
 
   /** Charge l'état Yjs persisté d'un document, ou undefined s'il n'existe pas. */
   async findDocument(documentName: string): Promise<Uint8Array | null | undefined> {
+    await this.ready;
     const result = await this.pool.query(
       'SELECT state FROM collab_documents WHERE document_name = $1',
       [documentName]
@@ -53,6 +62,7 @@ export class PostgresDatabase implements CollabDatabase {
 
   /** Persiste l'état initial d'un document (création). */
   async storeDocument(documentName: string, state: Uint8Array): Promise<void> {
+    await this.ready;
     await this.pool.query(
       `INSERT INTO collab_documents (document_name, state, updated_at)
        VALUES ($1, $2, now())
@@ -68,6 +78,7 @@ export class PostgresDatabase implements CollabDatabase {
 
   /** Supprime un document (ex: article supprimé). */
   async deleteDocument(documentName: string): Promise<void> {
+    await this.ready;
     await this.pool.query('DELETE FROM collab_documents WHERE document_name = $1', [documentName]);
   }
 

@@ -15,7 +15,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { loadConfig } from './config';
+import { loadConfig, validateProductionConfig } from './config';
 import { PostgresDatabase, MemoryDatabase, type CollabDatabase } from './database';
 import { createSupabaseVerifier } from './auth';
 import { createPublisherAccessChecker } from './permissions';
@@ -60,9 +60,15 @@ loadEnvFiles();
 
 const config = loadConfig();
 
-// Sans URL Supabase, TOUS les tokens sont refusés (l'introspection n'a pas de
-// cible) : le symptôme apparaît côté client comme « token invalide ». On le
-// dit une fois, clairement, au démarrage.
+const prodErrors = validateProductionConfig(config);
+if (prodErrors.length > 0) {
+  for (const message of prodErrors) {
+    console.error(message);
+  }
+  process.exit(1);
+}
+
+// Sans URL Supabase (dev uniquement), tous les tokens seront refusés : on avertit clairement.
 if (!config.supabaseUrl) {
   console.error(
     '[collab-server] SUPABASE_URL absente : aucune connexion ne pourra être authentifiée.'
@@ -102,6 +108,7 @@ const server = createCollabServer({
   maxDocumentBytes: config.maxDocumentBytes,
   canEditDocument,
   guard,
+  trustProxy: config.trustProxy,
 });
 
 server
@@ -118,7 +125,10 @@ server
   });
 
 // ─── Shutdown propre (SIGTERM / SIGINT) ───────────────────────────────
+let shuttingDown = false;
 async function shutdown(signal: string) {
+  if (shuttingDown) return;
+  shuttingDown = true;
   console.log(`[collab-server] ${signal} reçu, arrêt…`);
   try {
     await server.destroy();

@@ -21,6 +21,8 @@ export interface TokenVerifier {
   verify(token: string): Promise<CollabUser | null>;
 }
 
+const DEFAULT_INTROSPECTION_TIMEOUT_MS = 5_000;
+
 /**
  * Vérifie un JWT Supabase via introspection HTTP.
  * `fetch` est injectable pour les tests.
@@ -28,7 +30,8 @@ export interface TokenVerifier {
 export function createSupabaseVerifier(
   supabaseUrl: string,
   supabaseAnonKeyOrFetch: string | typeof fetch = '',
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  timeoutMs = DEFAULT_INTROSPECTION_TIMEOUT_MS
 ): TokenVerifier {
   // Compat : ancien appel createSupabaseVerifier(url, fetchMock) → 2e arg est fetch
   let supabaseAnonKey = '';
@@ -38,11 +41,9 @@ export function createSupabaseVerifier(
   } else {
     supabaseAnonKey = supabaseAnonKeyOrFetch as string;
   }
+
   return {
     async verify(token: string): Promise<CollabUser | null> {
-      // Diagnostic explicite : « token invalide » couvrait trois causes très
-      // différentes (jeton absent, mauvaise URL, jeton expiré) et rendait le
-      // dépannage impossible depuis les logs.
       if (!token) {
         console.warn('[collab-server] Jeton absent : le client n’a envoyé aucun JWT.');
         return null;
@@ -52,12 +53,19 @@ export function createSupabaseVerifier(
         return null;
       }
 
-      const response = await fetchFn(`${supabaseUrl.replace(/\/$/, '')}/auth/v1/user`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          apikey: supabaseAnonKey || token,
-        },
-      });
+      let response: Response;
+      try {
+        response = await fetchFn(`${supabaseUrl.replace(/\/$/, '')}/auth/v1/user`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            apikey: supabaseAnonKey || token,
+          },
+          signal: AbortSignal.timeout(timeoutMs),
+        });
+      } catch (error: unknown) {
+        console.warn('[collab-server] Introspection Supabase indisponible ou expirée :', error);
+        return null;
+      }
 
       if (!response.ok) {
         console.warn(
@@ -74,7 +82,11 @@ export function createSupabaseVerifier(
         return null;
       }
 
-      const id = typeof payload.sub === 'string' ? payload.sub : '';
+      // GoTrue `/auth/v1/user` renvoie `id` ; on conserve `sub` en repli pour compatibilité JWT.
+      const id =
+        (typeof payload.id === 'string' && payload.id) ||
+        (typeof payload.sub === 'string' && payload.sub) ||
+        '';
       if (!id) return null;
 
       const meta = (payload.user_metadata ?? {}) as Record<string, unknown>;

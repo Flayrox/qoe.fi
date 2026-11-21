@@ -113,4 +113,45 @@ describe('CollabGuard', () => {
       expect(guard.checkMessage('sock-burst', 64).allowed).toBe(true);
     });
   });
+
+  describe('bornage mémoire des IPs suivies et isIPAtConnectionLimit', () => {
+    it('borne authFailures à maxTrackedIPs en purgeant d’abord les entrées expirées', () => {
+      let nowMs = 1_000_000;
+      const guard = new CollabGuard({
+        maxTrackedIPs: 5,
+        authFailureWindowMs: 60_000,
+        now: () => nowMs,
+      } as never);
+
+      // 5 IPs au temps t=0
+      for (let i = 0; i < 5; i++) {
+        guard.recordAuthFailure(`192.0.2.${i}`);
+      }
+      // Avance au-delà de la fenêtre → ces 5 entrées sont expirées.
+      nowMs += 61_000;
+
+      // Ajout de 15 nouvelles IPs : la taille suivie doit rester <= 5.
+      for (let i = 0; i < 15; i++) {
+        guard.recordAuthFailure(`198.51.100.${i}`);
+      }
+
+      const trackedCount = (
+        guard as unknown as { getTrackedAuthFailureIPCount?: () => number }
+      ).getTrackedAuthFailureIPCount?.();
+      expect(trackedCount).toBeDefined();
+      expect(trackedCount!).toBeLessThanOrEqual(5);
+    });
+
+    it('isIPAtConnectionLimit signale la saturation par IP avant auth', () => {
+      const guard = new CollabGuard({ maxConnsPerUser: 10, maxConnsPerIP: 2 });
+      const checkFn = (guard as unknown as { isIPAtConnectionLimit?: (ip: string) => boolean })
+        .isIPAtConnectionLimit;
+      expect(checkFn).toBeTypeOf('function');
+      expect(checkFn!.call(guard, '10.0.0.1')).toBe(false);
+      guard.acquireConnection('u1', '10.0.0.1');
+      expect(checkFn!.call(guard, '10.0.0.1')).toBe(false);
+      guard.acquireConnection('u2', '10.0.0.1');
+      expect(checkFn!.call(guard, '10.0.0.1')).toBe(true);
+    });
+  });
 });

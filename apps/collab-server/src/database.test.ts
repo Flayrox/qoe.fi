@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { MemoryDatabase } from './database';
+import { describe, it, expect, vi } from 'vitest';
+import type { Pool } from 'pg';
+import { MemoryDatabase, PostgresDatabase } from './database';
 
 describe('MemoryDatabase (fallback sans Postgres)', () => {
   it('retourne undefined pour un document inconnu', async () => {
@@ -24,5 +25,47 @@ describe('MemoryDatabase (fallback sans Postgres)', () => {
     await db.storeDocument('article:abc', new Uint8Array([1]));
     await db.deleteDocument('article:abc');
     await expect(db.findDocument('article:abc')).resolves.toBeUndefined();
+  });
+});
+
+describe('PostgresDatabase (initialisation et erreurs pool)', () => {
+  it('attache un écouteur error sur le pool et attend SCHEMA_SQL avant les requêtes', async () => {
+    const order: string[] = [];
+    let resolveSchema!: () => void;
+    const schemaPending = new Promise<void>((resolve) => {
+      resolveSchema = resolve;
+    });
+
+    const mockPool = {
+      on: vi.fn(),
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('CREATE TABLE IF NOT EXISTS collab_documents')) {
+          order.push('schema-start');
+          await schemaPending;
+          order.push('schema-done');
+          return { rows: [] };
+        }
+        order.push('find');
+        return { rows: [] };
+      }),
+      end: vi.fn(async () => {}),
+    } as unknown as Pool;
+
+    const PostgresCtor = PostgresDatabase as unknown as new (
+      connectionString: string,
+      poolSize?: number,
+      pool?: Pool
+    ) => PostgresDatabase;
+    const db = new PostgresCtor('postgresql://unused', 5, mockPool);
+
+    expect(mockPool.on).toHaveBeenCalledWith('error', expect.any(Function));
+
+    const findPromise = db.findDocument('article:1');
+    await new Promise((r) => setTimeout(r, 20));
+    expect(order).toEqual(['schema-start']);
+
+    resolveSchema();
+    await findPromise;
+    expect(order).toEqual(['schema-start', 'schema-done', 'find']);
   });
 });

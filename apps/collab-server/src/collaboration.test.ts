@@ -13,6 +13,7 @@ import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import { createCollabServer, type CollabServer } from './server';
 import { MemoryDatabase } from './database';
+import { CollabGuard } from './guard';
 import type { TokenVerifier } from './auth';
 
 const alwaysOk: TokenVerifier = {
@@ -140,5 +141,103 @@ describe('Collaboration Hocuspocus (bout en bout)', () => {
 
     provider.destroy();
     await badServer.destroy();
+  });
+
+  it('bloque un intrus sur un document déjà chargé en mémoire (RBAC par connexion)', async () => {
+    const rbacServer = createCollabServer({
+      database: new MemoryDatabase(),
+      verifier: {
+        verify: async (token) => {
+          if (token === 'token-a') return { id: 'author-a', name: 'Alice' };
+          if (token === 'token-b') return { id: 'intruder-b', name: 'Intrus' };
+          return null;
+        },
+      },
+      canEditDocument: async (userId) => userId === 'author-a',
+      maxDocumentBytes: 1024 * 1024,
+      name: 'test-collab-rbac',
+    });
+    const rbacPort = PORT + 2;
+    await rbacServer.listen(rbacPort);
+
+    const docA = new Y.Doc();
+    const docB = new Y.Doc();
+    const providerA = new HocuspocusProvider({
+      url: `ws://127.0.0.1:${rbacPort}`,
+      name: 'article:prive',
+      document: docA,
+      token: 'token-a',
+    });
+    let providerB: HocuspocusProvider | undefined;
+
+    try {
+      await waitFor(() => (providerA.isSynced ? true : undefined));
+      docA.getText('body').insert(0, 'Secret éditorial');
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      providerB = new HocuspocusProvider({
+        url: `ws://127.0.0.1:${rbacPort}`,
+        name: 'article:prive',
+        document: docB,
+        token: 'token-b',
+      });
+      await new Promise((resolve) => setTimeout(resolve, 400));
+
+      expect(docB.getText('body').toString()).toBe('');
+
+      docB.getText('body').insert(0, 'PIRATÉ');
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      expect(docA.getText('body').toString()).toBe('Secret éditorial');
+    } finally {
+      providerA.destroy();
+      providerB?.destroy();
+      await rbacServer.destroy();
+    }
+  });
+
+  it('ne fuite pas de slot CollabGuard quand canEditDocument refuse l’accès', async () => {
+    const guard = new CollabGuard({ maxConnsPerUser: 1, maxConnsPerIP: 10 });
+    const guardServer = createCollabServer({
+      database: new MemoryDatabase(),
+      verifier: {
+        verify: async () => ({ id: 'user-limited', name: 'Limité' }),
+      },
+      canEditDocument: async (_userId, docName) => docName === 'article:autorise',
+      guard,
+      maxDocumentBytes: 1024 * 1024,
+      name: 'test-collab-guard-slot',
+    });
+    const guardPort = PORT + 3;
+    await guardServer.listen(guardPort);
+
+    const docDenied = new Y.Doc();
+    const providerDenied = new HocuspocusProvider({
+      url: `ws://127.0.0.1:${guardPort}`,
+      name: 'article:interdit',
+      document: docDenied,
+      token: 'token-limited',
+    });
+    let providerOk: HocuspocusProvider | undefined;
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      expect(providerDenied.isSynced).toBe(false);
+
+      const docOk = new Y.Doc();
+      providerOk = new HocuspocusProvider({
+        url: `ws://127.0.0.1:${guardPort}`,
+        name: 'article:autorise',
+        document: docOk,
+        token: 'token-limited',
+      });
+
+      await waitFor(() => (providerOk?.isSynced ? true : undefined));
+      expect(providerOk.isSynced).toBe(true);
+    } finally {
+      providerDenied.destroy();
+      providerOk?.destroy();
+      await guardServer.destroy();
+    }
   });
 });

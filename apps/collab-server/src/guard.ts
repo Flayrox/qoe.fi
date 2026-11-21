@@ -23,6 +23,8 @@ export interface CollabGuardOptions {
   maxAuthFailuresPerIP?: number;
   /** Durée de la fenêtre / cooldown d'échecs d'auth en ms (défaut : 60 000 ms). */
   authFailureWindowMs?: number;
+  /** Plafond d'IPs suivies dans authFailures pour borner la mémoire (défaut : 10 000). */
+  maxTrackedIPs?: number;
   /** Horloge injectable pour les tests unitaires (défaut : Date.now). */
   now?: () => number;
 }
@@ -45,6 +47,7 @@ export class CollabGuard {
   private readonly windowMs: number;
   private readonly maxAuthFailuresPerIP: number;
   private readonly authFailureWindowMs: number;
+  private readonly maxTrackedIPs: number;
   private readonly now: () => number;
 
   private readonly userConns = new Map<string, number>();
@@ -60,7 +63,18 @@ export class CollabGuard {
     this.windowMs = options.windowMs ?? 10_000;
     this.maxAuthFailuresPerIP = options.maxAuthFailuresPerIP ?? 10;
     this.authFailureWindowMs = options.authFailureWindowMs ?? 60_000;
+    this.maxTrackedIPs = options.maxTrackedIPs ?? 10_000;
     this.now = options.now ?? Date.now;
+  }
+
+  /** Indique si l'IP a déjà atteint le plafond de connexions simultanées. */
+  isIPAtConnectionLimit(ip: string): boolean {
+    return (this.ipConns.get(ip) ?? 0) >= this.maxConnsPerIP;
+  }
+
+  /** Nombre d'IPs actuellement suivies dans le registre anti-brute-force. */
+  getTrackedAuthFailureIPCount(): number {
+    return this.authFailures.size;
   }
 
   /**
@@ -110,6 +124,24 @@ export class CollabGuard {
   recordAuthFailure(ip: string): void {
     const ts = this.now();
     const cutoff = ts - this.authFailureWindowMs;
+
+    if (!this.authFailures.has(ip) && this.authFailures.size >= this.maxTrackedIPs) {
+      for (const [trackedIp, timestamps] of this.authFailures) {
+        const active = timestamps.filter((t) => t > cutoff);
+        if (active.length === 0) {
+          this.authFailures.delete(trackedIp);
+        } else if (active.length !== timestamps.length) {
+          this.authFailures.set(trackedIp, active);
+        }
+      }
+      if (this.authFailures.size >= this.maxTrackedIPs) {
+        const oldestKey = this.authFailures.keys().next().value;
+        if (oldestKey !== undefined) {
+          this.authFailures.delete(oldestKey);
+        }
+      }
+    }
+
     const recent = (this.authFailures.get(ip) ?? []).filter((t) => t > cutoff);
     recent.push(ts);
     this.authFailures.set(ip, recent);
