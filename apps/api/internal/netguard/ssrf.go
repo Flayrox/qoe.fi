@@ -47,6 +47,7 @@ var (
 		"2001::/32",      // Teredo
 		"2001:2::/48",    // Benchmarking IPv6
 		"2001:db8::/32",  // Documentation IPv6
+		"2002::/16",      // 6to4 : embarque une IPv4 (2002:7f00:1:: = 127.0.0.1)
 		"fc00::/7",       // Unique Local IPv6 (RFC 4193)
 		"fe80::/10",      // Link-local IPv6
 		"fec0::/10",      // Site-local déprécié

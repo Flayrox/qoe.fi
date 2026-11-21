@@ -58,7 +58,10 @@ func GenerateChallenge(secret string, maxNumber int, ttl time.Duration) (Challen
 	if secret == "" {
 		return Challenge{}, ErrEmptySecret
 	}
-	if maxNumber < 0 || ttl <= 0 {
+	// maxNumber = 0 ne demande aucun travail (la cible aléatoire est toujours
+	// 0, donc le défi est « résolu » d'avance) : un PoW décoratif vaut pire
+	// qu'aucun PoW, on refuse explicitement au lieu de l'accepter en silence.
+	if maxNumber < 1 || ttl <= 0 {
 		return Challenge{}, ErrInvalidParams
 	}
 

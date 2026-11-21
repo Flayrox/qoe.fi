@@ -161,6 +161,7 @@ func ConfirmAllowed(ctx context.Context, pool BudgetDB, email, publisherID strin
 		return true
 	}
 	window := DailyWindow(now)
+	var consumed [][2]string
 	for _, scope := range ConfirmBudgetScopes(email, publisherID) {
 		cap := ConfirmCapPerPublisher
 		if scope[0] == "email_publication" {
@@ -173,8 +174,15 @@ func ConfirmAllowed(ctx context.Context, pool BudgetDB, email, publisherID strin
 		}
 		if !ok {
 			log.Printf("[abuse] plafond confirmations atteint (%s)", scope[0])
+			// Aucun e-mail ne partira : les budgets déjà consommés par cette
+			// tentative sont remboursés, sinon un lecteur légitime brûle ses
+			// 3 demandes du jour pour des envois qui n'ont jamais eu lieu.
+			for _, done := range consumed {
+				RefundBudget(ctx, pool, done[0], done[1], ActionConfirmRequest, window, 1)
+			}
 			return false
 		}
+		consumed = append(consumed, scope)
 	}
 	return true
 }
