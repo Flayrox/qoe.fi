@@ -104,7 +104,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20f    | **Validation locale bout en bout** : daemon Docker, `test:api`, `e2e` sur base jetable seedée | —                           | mesuré le 2026-11-20 : daemon **démarré** (OrbStack 29.4.0), `test:api` **✅ 82 paquets**, e2e **18/19 + 128/128** — voir fiche L20f |
 | L20e    | **Validation bout en bout** : `pnpm build` (6 apps), `pnpm test:api` (Go + Postgres), `pnpm e2e` (Playwright)  | —                           | mesuré le 2026-11-20 : **build ✅**, `test:api` **bloqué** (Docker absent), e2e **partiel** (seed absent) — voir fiche L20e |
 | L21     | `apps/studio/src/**`                                                                                         | **412 fichiers · 72 285 l.** (mesuré) | **ouvert le 2026-11-20**, découpé en **8 sous-lots** (L21a→L21h) ; **L21a** (socle : layout, not-found, components, lib, instrumentation) **durci le 2026-11-20** ; **R137 ouverte** ; **L21b clos le 2026-11-20** (frontière vendor/maison mesurée, **7 défauts corrigés** sur deux passages, tiroir modal accessible, **R138 ouverte** — seule dette restante du sous-lot) ; **L21c clos le 2026-11-20** (lecture intégrale des 49 fichiers de production et de leurs appelants, **6 défauts corrigés** F313–F318, **R140** et **R141** ouvertes) ; **L21d clos le 2026-11-20** (32 fichiers lus intégralement + gardes de routage, **2 défauts corrigés** F319–F320, deux échappatoires de type retirées, **R142** ouverte) ; **L21e clos le 2026-11-20** (20 fichiers lus intégralement + page serveur et réutilisations, **8 défauts corrigés** F321–F328 dont 380 l. de code mort supprimées, **R143/R144/R145** ouvertes) ; **L21f clos le 2026-11-20** (34 fichiers lus intégralement, **11 défauts corrigés** F329–F339, **R146/R147/R148** ouvertes) ; **L21g clos le 2026-11-21** (les 39 fichiers de production lus intégralement, **6 défauts corrigés** F340–F345, **R149/R150** ouvertes) ; **L21h clos le 2026-11-21** (30 fichiers lus intégralement, dont les 3 routes `api/**` rattachées, **7 défauts corrigés** F346–F352, **R151/R152/R153** ouvertes) ; **L21 clos** ; prochain = **L22** (`apps/admin/src/**`) |
-| L22     | `apps/admin/src/**`                                                                                          | 178 fichiers                | à auditer               |
+| L22     | `apps/admin/src/**`                                                                                          | **149 f. prod · 31 079 l.** (mesuré) | **ouvert le 2026-11-21**, découpé en **6 sous-lots** (L22a→L22f) ; prochain = **L22a** (`coquille, navigation et retours d'autorisation`, 33 f. · 4 611 l.) |
 | L23     | `apps/tenants/src/**`                                                                                        | 85 fichiers                 | à auditer               |
 | L24     | `apps/hi/src/**`                                                                                             | 40 fichiers                 | à auditer               |
 | L25     | `apps/collab-server/src/**`                                                                                  | 15 fichiers                 | à auditer               |
@@ -1562,6 +1562,31 @@ restent **ouvertes**. Nouvelle dette : **R67** (surfaces `continuous`,
 `highlighter`, `paywall`, `excerpt` sans consommateur TS).
 
 ---
+
+## L22 — `apps/admin/src/**` — ouvert le 2026-11-21 (découpage mesuré)
+
+**Périmètre mesuré à l'ouverture.** `find apps/admin/src -type f \( -name '*.ts' -o -name '*.tsx' \) ! -name
+'*.test.*'` → **149 fichiers de production · 31 079 l.**, plus **14 fichiers de tests** (l'index annonçait
+« 178 fichiers » : ce chiffre venait d'un `find` incluant tests et assets, la mesure de production fait foi).
+Aucun fichier n'est laissé hors sous-lot — la somme des six lignes ci-dessous fait exactement 149 f.
+
+| Sous-lot | Périmètre exact | Mesure | Ordre et justification |
+| -------- | --------------- | ------ | ---------------------- |
+| **L22a** | `src/app/{layout,page}.tsx`, `(admin)/admin/{layout,page}.tsx`, `(admin)/admin/components/**` 6, `components/{shell 8,queue 4,layout 1,admin 1}`, `instrumentation.ts`, `lib/supabase/**` 2, `lib/{admin-console,admin-actions-index,admin-resources,authz-feedback,utils,action-result}` | **33 f. · 4 611 l.** | **en cours**. La coquille que monte **chaque** écran : layout gardien, sidebar, header, palette ⌘K, grille dense, outils de vue, retour des refus d'autorisation. Un défaut ici touche les 35 écrans d'un coup. |
+| L22b | `src/lib/**` restant — `admin-data` 1 149, `admin-aux-actions` 745, `admin-settings-catalog` 404, `admin-resources` exclu (L22a), `admin-legal-actions` 308, `admin-access-data` 179, `admin-compliance-actions` 176, `admin-actions` 135, `admin-sandbox-actions` 127, `admin-triage-actions` 120, `admin-infra-data` 117, `admin-security-data` 109, `admin-access-actions` 106, `admin-audit-data` 100, `admin-identity` 99, `admin-approval-types` 44, `admin-approval-data` 32, `admin-feature-actions` 23, `admin-infra-actions` 76, `admin-views-actions` 69, `admin-coverage` 251, `admin-campaign-types` 77, `admin-audit-types` 85, `admin-security-actions` 45, `admin-approval-actions` 85 | **24 f. · 4 661 l.** | Deuxième : la couche d'accès aux données et les wrappers de mutation consommés par tous les écrans (règle Go-source-de-vérité, codes d'autorisation transportés). Se lit après la coquille qui les appelle. |
+| L22c | `(admin)/admin/access/**` 8 · 1 399, `security/**` 2 · 363, `sandbox/**` 2 · 323, `components/security/**` 1 · 476 | **13 f. · 2 561 l.** | Troisième : accès staff, step-up, bac à sable — les surfaces qui **élèvent** les droits. Audit après les retours d'autorisation (L22a) qui les déclenchent. |
+| L22d | `reports` 2 · 723, `appeals` 2 · 576, `abuse` 2 · 518, `approvals` 2 · 581, `support` 4 · 939, `work` 2 · 561, `incidents` 2 · 370, `users` 5 · 706, `notifications` 5 · 1 450 | **26 f. · 6 424 l.** | Quatrième : les files de décision (triage, modération, recours, doubles validations). Toutes reposent sur `DataGrid` et `useStaffAction` de L22a. |
+| L22e | `config` 6 · 1 278, `features` 1 · 120, `frontend` 2 · 1 616, `translations` 2 · 757, `imports` 3 · 689, `campaigns` 2 · 334, `oauth` 2 · 274, `api` 2 · 625, `widgets` 2 · 603, `settings` 2 · 417 | **24 f. · 6 713 l.** | Cinquième : contenu et publication (CMS, traductions, drapeaux, campagnes, imports). |
+| L22f | `compliance` 7 · 1 554, `legal` 2 · 1 487, `retention` 2 · 554, `audit` 4 · 569, `subscriptions` 4 · 469, `storage` 1 · 135, `system` 1 · 86, `health` 2 · 391, `forbidden` 1 · 40, `src/features/editor/**` 3 · 725, `src/app/api/**` 1 · 84, `src/app/login/**` 1 · 15 | **29 f. · 6 109 l.** | Sixième : conformité, données et dernier reste (DSAR, rétention, exports signés, santé, éditeur embarqué, route d'upload). Ferme le lot. |
+
+**Somme vérifiée.** 33 + 24 + 13 + 26 + 24 + 29 = **149 fichiers** et 4 611 + 4 661 + 2 561 + 6 424 + 6 713
++ 6 109 = **31 079 lignes** — exactement la mesure d'ouverture, aucun fichier orphelin.
+
+**Ce que L22a doit prouver en premier.** La coquille est le seul endroit où un défaut a 35 écrans de
+portée : état actif de la navigation (une entrée `/admin` ne doit pas rester active partout), redirection
+de connexion (aucun hôte ni port écrit à la main — axe portabilité), et copies/menus qui ne doivent pas
+laisser filer un rejet. Les correctifs arrivent avec leurs rouges ; ce qui exige une décision de produit
+(interactions natives, métadonnées) part en dette numérotée.
 
 ## L21 — `apps/studio/src/**` — ouvert le 2026-11-20 (découpage mesuré)
 
