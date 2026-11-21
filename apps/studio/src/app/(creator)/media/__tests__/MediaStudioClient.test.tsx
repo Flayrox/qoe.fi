@@ -520,6 +520,40 @@ describe('MediaStudioClient — invitations', () => {
     );
   });
 
+  it('ne coupe pas la coche d’une copie plus récente', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mediaActions.listMediaInviteLinksAction.mockResolvedValue({
+      success: true,
+      links: [link({ id: 'l-1', token: 'one' }), link({ id: 'l-2', token: 'two' })],
+    });
+    renderStudio();
+    await openInvites();
+
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /Copier/ })).toHaveLength(2));
+    fireEvent.click(screen.getAllByRole('button', { name: /Copier/ })[0]);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(screen.getByText('Copié')).toBeDefined());
+
+    // Seconde copie 1,5 s plus tard : le minuteur de la première ne doit pas
+    // éteindre la confirmation de la seconde.
+    await act(async () => {
+      vi.advanceTimersByTime(1500);
+      await Promise.resolve();
+    });
+    fireEvent.click(screen.getAllByRole('button', { name: /Copier/ })[0]);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(600);
+      await Promise.resolve();
+    });
+    expect(screen.getByText('Copié')).toBeDefined();
+  });
+
   it('révoque un lien et retire sa ligne', async () => {
     mediaActions.listMediaInviteLinksAction.mockResolvedValue({
       success: true,

@@ -257,6 +257,16 @@ export function MediaStudioClient({
   const [linkMaxUses, setLinkMaxUses] = useState(1);
   const [creatingLink, setCreatingLink] = useState(false);
   const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
+  /** Minuteur de la coche : chaque copie annule le précédent, sinon la coche
+   * d'un lien tout juste copié s'éteint avec le minuteur d'un autre. */
+  const copyLinkTimer = React.useRef<number | null>(null);
+
+  React.useEffect(
+    () => () => {
+      if (copyLinkTimer.current) window.clearTimeout(copyLinkTimer.current);
+    },
+    []
+  );
 
   const canManageMembers = myRole === MEDIA_ROLES.OWNER || myRole === MEDIA_ROLES.EDITOR;
 
@@ -437,14 +447,17 @@ export function MediaStudioClient({
     `${window.location.origin}/media/join?token=${link.token}`;
 
   const copyInviteLink = async (link: MediaInviteLinkDTO) => {
+    if (copyLinkTimer.current) window.clearTimeout(copyLinkTimer.current);
     try {
       await navigator.clipboard.writeText(inviteLinkUrl(link));
-      setCopiedLinkId(link.id);
-      window.setTimeout(() => setCopiedLinkId(null), 2000);
-      toast.success(t`Lien copié dans le presse-papiers.`);
     } catch {
+      setCopiedLinkId(null);
       toast.error(t`Impossible de copier le lien.`);
+      return;
     }
+    setCopiedLinkId(link.id);
+    copyLinkTimer.current = window.setTimeout(() => setCopiedLinkId(null), 2000);
+    toast.success(t`Lien copié dans le presse-papiers.`);
   };
 
   const [memberSort, setMemberSort] = useState<SortDescriptorLike>({
