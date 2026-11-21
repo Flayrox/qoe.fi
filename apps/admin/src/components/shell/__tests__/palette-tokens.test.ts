@@ -8,7 +8,8 @@
 // impossible sans toucher au code (axe 8 : la marque est une variable).
 //
 // Ce test lit les sources des lots déjà audités (L22a pour la coquille, L22c
-// pour les surfaces d'accès, de sécurité et de bac à sable) — pas de rendu, pas
+// pour les surfaces d'accès, de sécurité et de bac à sable, L22d pour les files
+// de décision) — pas de rendu, pas
 // de faux positif de classe générée — et interdit les littéraux de couleur.
 // Aucune exception : la marque se règle dans les tokens de thème, jamais dans un
 // composant. Les lots suivants étendent `ROOTS` au fur et à mesure.
@@ -28,6 +29,15 @@ const ROOTS = [
   join(SRC, 'app/(admin)/admin/access'),
   join(SRC, 'app/(admin)/admin/security'),
   join(SRC, 'app/(admin)/admin/sandbox'),
+  join(SRC, 'app/(admin)/admin/reports'),
+  join(SRC, 'app/(admin)/admin/appeals'),
+  join(SRC, 'app/(admin)/admin/abuse'),
+  join(SRC, 'app/(admin)/admin/approvals'),
+  join(SRC, 'app/(admin)/admin/support'),
+  join(SRC, 'app/(admin)/admin/work'),
+  join(SRC, 'app/(admin)/admin/incidents'),
+  join(SRC, 'app/(admin)/admin/users'),
+  join(SRC, 'app/(admin)/admin/notifications'),
 ];
 const HEX = /#[0-9a-fA-F]{3,8}\b/;
 const RAW_PALETTE = /\b(?:bg|text|border)-(?:white|black)\b/;
@@ -54,7 +64,7 @@ describe('console admin — palette de couleurs', () => {
     screen: relative(SRC, path).replaceAll('\\', '/'),
   }));
 
-  it('couvre la coquille et les surfaces d’accès', () => {
+  it('couvre la coquille, les surfaces d’accès et les files de décision', () => {
     expect(sources.length).toBeGreaterThanOrEqual(10);
   });
 

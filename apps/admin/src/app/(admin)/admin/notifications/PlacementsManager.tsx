@@ -187,7 +187,7 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
                   value={customSlot}
                   onChange={(e) => setCustomSlot(e.target.value)}
                   placeholder="ex: reader.modal.welcome"
-                  className="w-full rounded-xl border border-border bg-white px-3 py-2 text-xs"
+                  className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs"
                 />
               </div>
             )}
@@ -259,7 +259,7 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
                 type="number"
                 value={priority}
                 onChange={(e) => setPriority(Number(e.target.value))}
-                className="w-full rounded-xl border border-border bg-white px-3 py-2 text-xs"
+                className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs"
               />
             </div>
           </div>
@@ -271,7 +271,7 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full rounded-xl border border-border bg-white px-3 py-2 text-xs"
+                className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs"
               />
             </div>
 
@@ -283,7 +283,7 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
                 rows={2}
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                className="w-full rounded-xl border border-border bg-white px-3 py-2 text-xs"
+                className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs"
               />
             </div>
 
@@ -295,7 +295,7 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
                 type="text"
                 value={ctaLabel}
                 onChange={(e) => setCtaLabel(e.target.value)}
-                className="w-full rounded-xl border border-border bg-white px-3 py-2 text-xs"
+                className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs"
               />
             </div>
 
@@ -307,7 +307,7 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
                 type="text"
                 value={ctaUrl}
                 onChange={(e) => setCtaUrl(e.target.value)}
-                className="w-full rounded-xl border border-border bg-white px-3 py-2 text-xs"
+                className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs"
               />
             </div>
           </div>
@@ -354,7 +354,7 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
               >
                 <div className="space-y-1.5 max-w-xl">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="tabular-nums text-xs font-bold text-foreground bg-white px-2 py-0.5 rounded-md border border-border shadow-2xs">
+                    <span className="tabular-nums text-xs font-bold text-foreground bg-card px-2 py-0.5 rounded-md border border-border shadow-2xs">
                       {p.slot}
                     </span>
                     <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">

@@ -271,7 +271,7 @@ export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
           <span className="inline-flex items-center gap-1 text-muted-foreground">
             {entry.assignedName}
             {entry.assignedToMe && (
-              <span className="rounded-full border border-[#EE4B2B]/30 bg-[#EE4B2B]/5 px-1 text-[10px] text-[#B5371C]">
+              <span className="rounded-full border border-primary/30 bg-primary/5 px-1 text-[10px] text-primary">
                 moi
               </span>
             )}
