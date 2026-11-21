@@ -3,6 +3,7 @@ package articles
 import (
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 // Une visibilité inconnue (valeur d'enum future, casse fautive, donnée
@@ -38,5 +39,26 @@ func TestSliceContentAtPaywall_UnknownVisibilityTruncates(t *testing.T) {
 	}
 	if strings.Contains(res.Content, "SECRET") {
 		t.Fatalf("contenu payant servi en clair : %q", res.Content)
+	}
+}
+
+// Le repli « 500 premiers octets » ne doit pas couper un caractère UTF-8 en
+// deux (sinon le JSON de réponse contient des U+FFFD et le teaser est corrompu).
+func TestSliceContentAtPaywall_UTF8Boundary(t *testing.T) {
+	// 200 « € » (3 octets) = 600 octets, aucun </p> : repli à 500 octets, qui
+	// tombe au milieu du 167e caractère.
+	raw := strings.Repeat("€", 200)
+	res := SliceContentAtPaywall(raw, UserEntitlements{}, VisPaidSubscribers, nil)
+	if !utf8.ValidString(res.Content) {
+		t.Fatalf("teaser UTF-8 invalide (%d octets)", len(res.Content))
+	}
+	if len(res.Content) > 500 {
+		t.Fatalf("teaser trop long : %d octets", len(res.Content))
+	}
+	if res.PaywallMeta == nil || res.PaywallMeta.PreviewLengthBytes != len(res.Content) {
+		t.Fatalf("PreviewLengthBytes désaligné : %+v", res.PaywallMeta)
+	}
+	if strings.ContainsRune(res.Content, utf8.RuneError) && !strings.ContainsRune(raw, utf8.RuneError) {
+		t.Fatal("caractère de remplacement introduit par la coupure")
 	}
 }

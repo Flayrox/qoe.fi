@@ -1,7 +1,10 @@
 // Package articles — module articles + troncature paywall (zero-leak).
 package articles
 
-import "strings"
+import (
+	"strings"
+	"unicode/utf8"
+)
 
 // Visibilités (miroir de l'enum ContentVisibility).
 const (
@@ -108,11 +111,7 @@ func SliceContentAtPaywall(rawContent string, e UserEntitlements, visibility str
 			preview = strings.TrimSpace(rawContent[:closings[0]+4])
 			teaserCount = 1
 		} else {
-			cut := len(rawContent)
-			if cut > 500 {
-				cut = 500
-			}
-			preview = strings.TrimSpace(rawContent[:cut])
+			preview = strings.TrimSpace(rawContent[:cutUTF8(rawContent, 500)])
 			teaserCount = 1
 		}
 	}
@@ -129,6 +128,21 @@ func SliceContentAtPaywall(rawContent string, e UserEntitlements, visibility str
 			PreviewLengthBytes:    len(preview),
 		},
 	}
+}
+
+// cutUTF8 borne s à max octets sans jamais couper un caractère multi-octets
+// (le teaser reste de l'UTF-8 valide, jamais de U+FFFD injecté).
+func cutUTF8(s string, max int) int {
+	if max < 0 {
+		return 0
+	}
+	if len(s) <= max {
+		return len(s)
+	}
+	for max > 0 && !utf8.RuneStart(s[max]) {
+		max--
+	}
+	return max
 }
 
 // paragraphIndexes retourne les positions des fermetures </p>.
