@@ -31,6 +31,7 @@ import { normalizeThought, type NormalizedThought } from '@/components/thought/n
 import { ThreadAnchorCard } from '@/features/thread/thread-anchor-card';
 import { ThreadPost, OUTER_SPACE } from '@/features/thread/thread-post';
 import { ThreadReplyComposer } from '@/features/thread/thread-reply-composer';
+import { repliesMoreLabel } from '@/features/thread/replies-more-label';
 import { Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
@@ -340,10 +341,11 @@ function ReplyTree({
           onPress={() => onToggleBranch(parentId)}
           style={[styles.showMoreReplies, { borderTopColor: theme.border }]}
           hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={repliesMoreLabel(hiddenCount, t)}
         >
           <ThemedText type="small" style={{ color: theme.primary }}>
-            {t('thread.show_more_replies', 'Afficher')} {hiddenCount}{' '}
-            {t('thread.other_replies', 'autres réponses')}
+            {repliesMoreLabel(hiddenCount, t)}
           </ThemedText>
         </Pressable>
       ) : null}
