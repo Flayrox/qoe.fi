@@ -3,6 +3,7 @@ import { createClient } from '@qoe/supabase/server';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
+import { adminHomeUrl, adminLoginUrl } from '@/lib/admin-app-urls';
 import { navItemForPath } from '@/lib/admin-console';
 import { getAdminWorkQueue } from '@/lib/admin-data';
 import { AdminSidebar } from './components/AdminSidebar';
@@ -28,13 +29,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     host.includes('qoe.test') ||
     host.includes('lvh.me') ||
     process.env.NODE_ENV === 'development';
-  const mainDomain = host.includes('qoe.test') ? 'qoe.test' : 'lvh.me';
 
   if (!authUser) {
-    const loginUrl = isLocal
-      ? `http://${mainDomain}:3010/login?redirect=${encodeURIComponent(`http://${host}/admin`)}`
-      : `https://qoe.fi/login?redirect=${encodeURIComponent(`https://${host}/admin`)}`;
-    redirect(loginUrl);
+    redirect(adminLoginUrl(host));
   }
 
   // L'accès réel vient du serveur (`GET /v1/admin/me`) : rôles attribués et
@@ -44,8 +41,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   if (!identity) {
     // Session Supabase sans accès lisible côté Go (promotion absente, service
     // indisponible) : refus, pas de fuite. Le chemin de sortie est explicite.
-    const homeUrl = isLocal ? `http://${mainDomain}:3010/home` : 'https://qoe.fi/home';
-    redirect(homeUrl);
+    redirect(adminHomeUrl(host));
   }
 
   const user = {
