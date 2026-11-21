@@ -114,11 +114,14 @@ const getDefaultSections = (locale: string): FooterSection[] => {
 export const Footer = async ({ config, locale }: FooterProps) => {
   // Resolve locale if not passed
   const resolvedLocale = locale || (await getLanguage());
+  const isEn = resolvedLocale === 'en';
 
   // Get copyright from config or use default
   const copyrightText =
     config?.['footer_copyright'] ||
-    t`© ${new Date().getFullYear()} QOEFI. Conçu pour les esprits curieux de l'économie créative européenne.`;
+    (isEn
+      ? t`© ${new Date().getFullYear()} QOEFI. Built for the curious minds of Europe's creative economy.`
+      : t`© ${new Date().getFullYear()} QOEFI. Conçu pour les esprits curieux de l'économie créative européenne.`);
 
   // Get sections based on active language
   const customSectionsJson =
@@ -180,7 +183,8 @@ export const Footer = async ({ config, locale }: FooterProps) => {
       {/* Sub-footer bar */}
       <div className="max-w-6xl mx-auto px-6 pb-12 pt-8 mt-4 border-t border-border/20 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
         <p className="text-xs text-muted-foreground">
-          © {new Date().getFullYear()} QOEFI. Tous droits réservés.
+          © {new Date().getFullYear()} QOEFI.
+          {isEn ? ' All rights reserved.' : ' Tous droits réservés.'}
         </p>
         <div className="flex items-center gap-3 text-xs">
           <Link
