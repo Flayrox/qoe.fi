@@ -8,8 +8,8 @@
 // impossible sans toucher au code (axe 8 : la marque est une variable).
 //
 // Ce test lit les sources de L22a — pas de rendu, pas de faux positif de
-// classe générée — et interdit les littéraux de couleur. `tokens.ts` est
-// exclu nommément : c'est le seul fichier qui a le droit de nommer la marque.
+// classe générée — et interdit les littéraux de couleur. Aucune exception :
+// la marque se règle dans les tokens de thème, jamais dans un composant.
 // =====================================================================
 
 import { readdirSync, readFileSync } from 'node:fs';
@@ -23,9 +23,16 @@ const ROOTS = [
   join(SRC, 'components/queue'),
   join(SRC, 'app/(admin)/admin/components'),
 ];
-const ALLOWED = new Set(['components/shell/tokens.ts']);
 const HEX = /#[0-9a-fA-F]{3,8}\b/;
 const RAW_PALETTE = /\b(?:bg|text|border)-(?:white|black)\b/;
+
+/** Code seul : un commentaire qui cite une couleur n'en peint aucune. */
+function code(path: string): string {
+  return readFileSync(path, 'utf8')
+    .split('\n')
+    .filter((line) => !line.trim().startsWith('//') && !line.trim().startsWith('*'))
+    .join('\n');
+}
 
 function files(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -36,9 +43,10 @@ function files(directory: string): string[] {
 }
 
 describe('coquille admin — palette de couleurs', () => {
-  const sources = ROOTS.flatMap(files)
-    .map((path) => ({ path, screen: relative(SRC, path).replaceAll('\\', '/') }))
-    .filter((file) => !ALLOWED.has(file.screen));
+  const sources = ROOTS.flatMap(files).map((path) => ({
+    path,
+    screen: relative(SRC, path).replaceAll('\\', '/'),
+  }));
 
   it('couvre la coquille', () => {
     expect(sources.length).toBeGreaterThanOrEqual(10);
@@ -46,7 +54,7 @@ describe('coquille admin — palette de couleurs', () => {
 
   it('n’écrit aucune couleur hexadécimale dans un composant', () => {
     const offenders = sources
-      .filter((file) => HEX.test(readFileSync(file.path, 'utf8')))
+      .filter((file) => HEX.test(code(file.path)))
       .map((file) => file.screen);
 
     expect(offenders).toEqual([]);
@@ -54,7 +62,7 @@ describe('coquille admin — palette de couleurs', () => {
 
   it('n’utilise ni bg-white ni text-black', () => {
     const offenders = sources
-      .filter((file) => RAW_PALETTE.test(readFileSync(file.path, 'utf8')))
+      .filter((file) => RAW_PALETTE.test(code(file.path)))
       .map((file) => file.screen);
 
     expect(offenders).toEqual([]);

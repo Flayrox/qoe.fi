@@ -34,13 +34,6 @@ export const DENSITY = {
   id: 'text-[11px] tabular-nums text-muted-foreground',
 } as const;
 
-/**
- * Un seul ton d'accent. Il sert aux ACTIONS (bouton primaire, lien d'action,
- * indicateur actif), jamais aux titres ni aux surtitres.
- */
-export const ACCENT = {
-  text: 'text-[#EE4B2B]',
-  solid: 'bg-[#EE4B2B] text-white hover:bg-[#d8411f]',
-  ring: 'focus-visible:ring-[#EE4B2B]/40',
-  indicator: 'bg-[#EE4B2B]',
-} as const;
+// L'ancien `ACCENT` (hex `#EE4B2B` en dur) n'avait aucun importeur : l'accent
+// vient des tokens de thème (`highlight`, `ring`, `primary`), qui suivent la
+// marque et le mode sombre sans qu'on touche à un composant.
