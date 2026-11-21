@@ -278,14 +278,16 @@ export function useGridView(resource: string, initialSort: SortDescriptorLike) {
       if (!view?.id) return;
       const viewId = view.id;
       void (async () => {
+        // L'action ne lève pas : elle rend `false` quand la base n'a pas
+        // supprimé. Les deux issues doivent ramener la vue dans la barre,
+        // sinon l'interface annonce une suppression qui n'a pas eu lieu.
+        let deleted = false;
         try {
-          await deleteSavedViewAction(resource, viewId);
+          deleted = await deleteSavedViewAction(resource, viewId);
         } catch {
-          // Suppression refusée (réseau, droit) : la vue revient dans la barre.
-          // Sans elle, l'interface annoncerait une suppression que la base n'a
-          // pas faite — et la vue réapparaîtrait au rechargement suivant.
-          persist(views);
+          deleted = false;
         }
+        if (!deleted) persist(views);
       })();
     },
     [views, resource, storageKey]

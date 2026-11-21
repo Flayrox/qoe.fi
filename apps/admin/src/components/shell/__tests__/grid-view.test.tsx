@@ -74,8 +74,26 @@ describe('useGridView — suppression d’une vue partagée', () => {
     await waitFor(() => expect(result.current.views).toHaveLength(1));
   });
 
+  it('remet la vue quand le serveur refuse sans lever d’erreur', async () => {
+    // `deleteSavedViewAction` ne lève pas : elle rend `false`. Ignorer ce booléen
+    // revenait à annoncer une suppression que la base n'a pas faite.
+    deleteSavedViewAction.mockResolvedValue(false);
+    const { result } = renderHook(() =>
+      useGridView('admin.work', { column: 'sla', direction: 'ascending' })
+    );
+
+    await waitFor(() => expect(result.current.views).toHaveLength(1));
+
+    await act(async () => {
+      result.current.removeView('SLA dépassés');
+    });
+
+    await waitFor(() => expect(result.current.views).toHaveLength(1));
+  });
+
   it('retire la vue quand le serveur accepte', async () => {
-    deleteSavedViewAction.mockResolvedValue(undefined);
+    // Contrat de `deleteSavedViewAction` : `true` = la base a supprimé.
+    deleteSavedViewAction.mockResolvedValue(true);
     const { result } = renderHook(() =>
       useGridView('admin.work', { column: 'sla', direction: 'ascending' })
     );
