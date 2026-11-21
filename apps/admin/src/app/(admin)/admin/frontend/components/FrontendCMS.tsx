@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { saveMultipleFrontendConfigs } from '@/lib/admin-aux-actions';
 import { readMessage } from '@/lib/authz-feedback';
-import { ALL_LANGUAGES, type Language } from '@qoe/i18n';
+import { ALL_LANGUAGES, DEFAULT_LANGUAGE, type Language } from '@qoe/i18n';
 import { t } from '@lingui/core/macro';
 import { Select } from '@qoe/ui/select';
 
@@ -919,7 +919,10 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
   // Navigation Tabs
   const [activeTab, setActiveTab] = useState<TabKey>('banner');
   // Language toggles for each tab's localized fields
-  const [activeLang, setActiveLang] = useState<Language>(ALL_LANGUAGES[0] || 'fr');
+  // La langue d'édition par défaut est celle du produit, pas la première de la
+  // liste : `ALL_LANGUAGES[0]` vaut « en », le CMS s'ouvrait donc sur les champs
+  // anglais d'une console française.
+  const [activeLang, setActiveLang] = useState<Language>(DEFAULT_LANGUAGE);
 
   // State values
   const [formValues, setFormValues] = useState<Record<string, string>>(initialConfigs);
