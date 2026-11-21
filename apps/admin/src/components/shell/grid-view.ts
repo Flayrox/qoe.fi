@@ -275,9 +275,18 @@ export function useGridView(resource: string, initialSort: SortDescriptorLike) {
     (name: string) => {
       const view = views.find((candidate) => candidate.name === name);
       persist(views.filter((candidate) => candidate.name !== name));
-      if (view?.id) {
-        void deleteSavedViewAction(resource, view.id);
-      }
+      if (!view?.id) return;
+      const viewId = view.id;
+      void (async () => {
+        try {
+          await deleteSavedViewAction(resource, viewId);
+        } catch {
+          // Suppression refusée (réseau, droit) : la vue revient dans la barre.
+          // Sans elle, l'interface annoncerait une suppression que la base n'a
+          // pas faite — et la vue réapparaîtrait au rechargement suivant.
+          persist(views);
+        }
+      })();
     },
     [views, resource, storageKey]
   );
