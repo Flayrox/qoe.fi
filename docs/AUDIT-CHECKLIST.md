@@ -104,7 +104,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20f    | **Validation locale bout en bout** : daemon Docker, `test:api`, `e2e` sur base jetable seedée | —                           | mesuré le 2026-11-20 : daemon **démarré** (OrbStack 29.4.0), `test:api` **✅ 82 paquets**, e2e **18/19 + 128/128** — voir fiche L20f |
 | L20e    | **Validation bout en bout** : `pnpm build` (6 apps), `pnpm test:api` (Go + Postgres), `pnpm e2e` (Playwright)  | —                           | mesuré le 2026-11-20 : **build ✅**, `test:api` **bloqué** (Docker absent), e2e **partiel** (seed absent) — voir fiche L20e |
 | L21     | `apps/studio/src/**`                                                                                         | **412 fichiers · 72 285 l.** (mesuré) | **ouvert le 2026-11-20**, découpé en **8 sous-lots** (L21a→L21h) ; **L21a** (socle : layout, not-found, components, lib, instrumentation) **durci le 2026-11-20** ; **R137 ouverte** ; **L21b clos le 2026-11-20** (frontière vendor/maison mesurée, **7 défauts corrigés** sur deux passages, tiroir modal accessible, **R138 ouverte** — seule dette restante du sous-lot) ; **L21c clos le 2026-11-20** (lecture intégrale des 49 fichiers de production et de leurs appelants, **6 défauts corrigés** F313–F318, **R140** et **R141** ouvertes) ; **L21d clos le 2026-11-20** (32 fichiers lus intégralement + gardes de routage, **2 défauts corrigés** F319–F320, deux échappatoires de type retirées, **R142** ouverte) ; **L21e clos le 2026-11-20** (20 fichiers lus intégralement + page serveur et réutilisations, **8 défauts corrigés** F321–F328 dont 380 l. de code mort supprimées, **R143/R144/R145** ouvertes) ; **L21f clos le 2026-11-20** (34 fichiers lus intégralement, **11 défauts corrigés** F329–F339, **R146/R147/R148** ouvertes) ; **L21g clos le 2026-11-21** (les 39 fichiers de production lus intégralement, **6 défauts corrigés** F340–F345, **R149/R150** ouvertes) ; **L21h clos le 2026-11-21** (30 fichiers lus intégralement, dont les 3 routes `api/**` rattachées, **7 défauts corrigés** F346–F352, **R151/R152/R153** ouvertes) ; **L21 clos** ; prochain = **L22** (`apps/admin/src/**`) |
-| L22     | `apps/admin/src/**`                                                                                          | **149 f. prod · 31 079 l.** (mesuré) | **ouvert le 2026-11-21**, découpé en **6 sous-lots** (L22a→L22f) ; **L22a clos le 2026-11-21** (deux passages : coquille, navigation, retours d'autorisation, grille et palette lues intégralement, **10 défauts corrigés** F353–F362, 2 fichiers + 2 exports morts supprimés, **R154–R159** ouvertes dont une décision produit) ; **L22b clos le 2026-11-21** (couche de données et wrappers de mutation, 24 f. · 4 661 l. remesurés : **7 défauts** F363–F369, **R160/R161** ouvertes, R157–R159 mises à jour) ; **L22c clos le 2026-11-21** (surfaces qui élèvent les droits, 13 f. · 2 567 l. remesurés : **5 défauts** F370–F374, garde de palette étendue, **R162** ouverte) ; **L22d clos le 2026-11-21** (files de décision, 26 f. · 6 445 l. remesurés : **6 défauts** F375–F380, garde de palette étendue aux 9 répertoires, **R163/R164** ouvertes) ; prochain = **L22e** (contenu et publication, 24 f. · 6 713 l.) |
+| L22     | `apps/admin/src/**`                                                                                          | **149 f. prod · 31 079 l.** (mesuré) | **ouvert le 2026-11-21**, découpé en **6 sous-lots** (L22a→L22f) ; **L22a clos le 2026-11-21** (deux passages : coquille, navigation, retours d'autorisation, grille et palette lues intégralement, **10 défauts corrigés** F353–F362, 2 fichiers + 2 exports morts supprimés, **R154–R159** ouvertes dont une décision produit) ; **L22b clos le 2026-11-21** (couche de données et wrappers de mutation, 24 f. · 4 661 l. remesurés : **7 défauts** F363–F369, **R160/R161** ouvertes, R157–R159 mises à jour) ; **L22c clos le 2026-11-21** (surfaces qui élèvent les droits, 13 f. · 2 567 l. remesurés : **5 défauts** F370–F374, garde de palette étendue, **R162** ouverte) ; **L22d clos le 2026-11-21** (files de décision, 26 f. · 6 445 l. remesurés : **6 défauts** F375–F380, garde de palette étendue aux 9 répertoires, **R163/R164** ouvertes) ; **L22e clos le 2026-11-21** (contenu et publication, 24 f. · 6 714 l. remesurés : **9 défauts** F381–F389, garde de palette étendue aux 10 répertoires, **R165/R166** ouvertes, R161/R163/R164 enrichies) ; prochain = **L22f** (conformité, données et dernier reste, 29 f. · 6 109 l.) |
 | L23     | `apps/tenants/src/**`                                                                                        | 85 fichiers                 | à auditer               |
 | L24     | `apps/hi/src/**`                                                                                             | 40 fichiers                 | à auditer               |
 | L25     | `apps/collab-server/src/**`                                                                                  | 15 fichiers                 | à auditer               |
@@ -123,9 +123,10 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L22e — `apps/admin/src/app/(admin)/admin/{config,features,frontend,translations,imports,campaigns,oauth,api,widgets,settings}/**`**
-(24 f. · 6 713 l. : contenu et publication — CMS, traductions, drapeaux, campagnes, imports). L22a→L22d sont clos
-(28 défauts F353–F380, 11 dettes R154–R164).
+**Prochain lot à traiter : L22f — `apps/admin/src/app/(admin)/admin/{compliance,legal,retention,audit,subscriptions,storage,system,health,forbidden}/**`,
+`src/features/editor/**`, `src/app/api/**`, `src/app/login/**`** (29 f. · 6 109 l. : conformité, données et dernier reste —
+DSAR, rétention, exports signés, santé, éditeur embarqué, route d'upload). L22a→L22e sont clos (37 défauts F353–F389,
+13 dettes R154–R166).
 L21h (`features/{security,onboarding,upcoming,dashboard,developer,devtools}`, **24 f. · 3 481 l.**, + routes
 `login`/`onboarding` **3 f. · 105 l.** + les **3 routes `api/**`** rattachées à l'ouverture, **30 f. · 3 783 l.** au
 total) est **clos le 2026-11-21** — lecture intégrale des 30 fichiers de production, des 4 suites existantes de
@@ -1578,7 +1579,7 @@ Aucun fichier n'est laissé hors sous-lot — la somme des six lignes ci-dessous
 | **L22b** | `src/lib/**` restant — `admin-data` 1 149, `admin-aux-actions` 745, `admin-settings-catalog` 404, `admin-resources` exclu (L22a), `admin-legal-actions` 308, `admin-access-data` 179, `admin-compliance-actions` 176, `admin-actions` 135, `admin-sandbox-actions` 127, `admin-triage-actions` 120, `admin-infra-data` 117, `admin-security-data` 109, `admin-access-actions` 106, `admin-audit-data` 100, `admin-identity` 99, `admin-approval-types` 44, `admin-approval-data` 32, `admin-feature-actions` 23, `admin-infra-actions` 76, `admin-views-actions` 69, `admin-coverage` 251, `admin-campaign-types` 77, `admin-audit-types` 85, `admin-security-actions` 45, `admin-approval-actions` 85 | **24 f. · 4 661 l.** | **clos le 2026-11-21**. Couche d'accès aux données et wrappers de mutation : **7 défauts** F363–F369 (santé inventée, mode d'autorisation deviné, bannissement à moitié fait, booléen de suppression ignoré, garde juridique hors contrat, champs d'échec fantômes, fallback Prisma fantôme). Dettes R160/R161. |
 | **L22c** | `(admin)/admin/access/**` 8 · 1 405, `security/**` 2 · 363, `sandbox/**` 2 · 323, `components/security/**` 1 · 476 | **13 f. · 2 567 l.** (remesuré à l'ouverture) | **clos le 2026-11-21**. Accès staff, step-up, bac à sable — les surfaces qui **élèvent** les droits : **5 défauts** F370–F374 (couleur de marque en dur, filtre des décisions inopérant, rôle attribué à la mauvaise personne, panne déguisée en « aucun facteur », cockpit figé). Garde de palette étendue, dette R162. |
 | **L22d** | `reports` 2 · 724, `appeals` 2 · 577, `abuse` 2 · 519, `approvals` 2 · 582, `support` 4 · 940, `work` 2 · 562, `incidents` 2 · 370, `users` 5 · 707, `notifications` 5 · 1 464 | **26 f. · 6 445 l.** (remesuré à l'ouverture, tests exclus) | **clos le 2026-11-21**. Les files de décision (triage, modération, recours, doubles validations, support, incidents, comptes, outbox) : **6 défauts** F375–F380 (files figées, relance annoncée à tort, mesure d'incident au mauvais dossier, détail silencieux, gestes muets, couleurs en dur). Garde de palette étendue, dettes R163/R164. |
-| L22e | `config` 6 · 1 278, `features` 1 · 120, `frontend` 2 · 1 616, `translations` 2 · 757, `imports` 3 · 689, `campaigns` 2 · 334, `oauth` 2 · 274, `api` 2 · 625, `widgets` 2 · 603, `settings` 2 · 417 | **24 f. · 6 713 l.** | Cinquième : contenu et publication (CMS, traductions, drapeaux, campagnes, imports). |
+| **L22e** | `config` 6 · 1 278, `features` 1 · 120, `frontend` 2 · 1 616, `translations` 2 · 757, `imports` 3 · 689, `campaigns` 2 · 334, `oauth` 2 · 274, `api` 2 · 625, `widgets` 2 · 603, `settings` 2 · 418 | **24 f. · 6 714 l.** (remesuré à l'ouverture, tests exclus) | **clos le 2026-11-21**. Contenu et publication (CMS landing, traductions, drapeaux, campagnes, imports, widgets) : **9 défauts** F381–F389 (denylist corrompue, refus muets, panne déguisée en 404, thème, langue d'édition, assertion de type). Garde de palette étendue, dettes R165/R166. |
 | L22f | `compliance` 7 · 1 554, `legal` 2 · 1 487, `retention` 2 · 554, `audit` 4 · 569, `subscriptions` 4 · 469, `storage` 1 · 135, `system` 1 · 86, `health` 2 · 391, `forbidden` 1 · 40, `src/features/editor/**` 3 · 725, `src/app/api/**` 1 · 84, `src/app/login/**` 1 · 15 | **29 f. · 6 109 l.** | Sixième : conformité, données et dernier reste (DSAR, rétention, exports signés, santé, éditeur embarqué, route d'upload). Ferme le lot. |
 
 **Somme vérifiée.** 33 + 24 + 13 + 26 + 24 + 29 = **149 fichiers** et 4 611 + 4 661 + 2 561 + 6 424 + 6 713
@@ -1898,8 +1899,78 @@ de `Error: Réseau coupé` / `Error: Session expirée` ; **F376** → `'Livraiso
 
 **L22d est clos.** Six défauts corrigés (F375–F380), une prop morte de moins par file, garde de palette étendue aux
 neuf répertoires, R157/R158 consommées en partie, R160/R161 enrichies **sans être tranchées**, R159 tenue ouverte,
-R163/R164 ouvertes. **Prochain sous-lot : L22e** (contenu et publication — `config`, `features`, `frontend`,
-`translations`, `imports`, `campaigns`, `oauth`, `api`, `widgets`, `settings`, 24 f. · 6 713 l.).
+R163/R164 ouvertes.
+
+### L22e — contenu et publication : neuf défauts mesurés — clos le 2026-11-21
+
+**Périmètre remesuré à l'ouverture.** `git ls-files` sur `app/(admin)/admin/{config,features,frontend,
+translations,imports,campaigns,oauth,api,widgets,settings}/**` → **25 fichiers**, dont **1 test** (`imports/[id]/
+__tests__/page.test.tsx`, 73 l.) → **24 fichiers de production · 6 714 lignes** (le plan annonçait 6 713).
+Par répertoire : `config` 6 · 1 278, `features` 1 · 120, `frontend` 2 · 1 616, `translations` 2 · 757, `imports`
+3 · 689, `campaigns` 2 · 334, `oauth` 2 · 274, `api` 2 · 625, `widgets` 2 · 603, `settings` 2 · 418. Les 24 ont été
+lus **intégralement** (dont `FrontendCMS` en deux fenêtres), deux passages.
+
+| # | Défaut | Rouge mesuré | Correctif |
+| - | ------ | ------------ | --------- |
+| **F381** | *Identifiants protégés.* `split(/[\\n,\r ]+/)` et `join('\\n')` : le séparateur était la **suite de caractères** `\` + `n`, pas un retour à la ligne. La liste s'affichait sur une seule ligne ; à l'enregistrement, tout le texte devenait **un** identifiant — « admin » se réduisait même à « admi », le `n` étant avalé comme séparateur. La denylist des pseudos et sous-domaines perdait tout effet. | 5 tests, `expected [ 'admi', 'api\\nwww' ] to deeply equal [ 'admin', 'api', 'www' ]`. | Conversions extraites dans `lib/reserved-identifiers.ts`, séparateur réel (`\n`, virgule, tabulation, espace), aller-retour fidèle. |
+| **F382** | *CMS landing.* `if (res.success)` sans `else` : un refus (capacité, JSON refusé par l'action, garde) retombait dans le vide — bouton revenu à son état normal, aucun message, l'admin croyait la section enregistrée. | `frontend-cms.test.tsx` : `Unable to find an element with the text: /Capacité admin\.config\.write requise/`. | Le motif du refus s'affiche sous le formulaire (`readMessage`). |
+| **F383** | *Dossier d'import.* `catch { notFound() }` transformait **toute** erreur de lecture en 404 : un 503 du backend ou un réseau coupé annonçaient « ce lot n'existe pas » alors que le lot existait. | `page.test.tsx` : `expected Error: NEXT_NOT_FOUND to be Error: Go API 503 { status: 503 }`. | Seul un vrai `status === 404` redirige ; le reste remonte tel quel. |
+| **F384** | *Thème.* Cinq fichiers portaient la marque en dur (`bg-[#EE4B2B]`, `text-[#EE4B2B]`, `focus:ring-[#EE4B2B]`, `border-[#EE4B2B]/40`) et quatre peignaient des surfaces en `bg-white` : en thème sombre, champs et cartes viraient au blanc. | `palette-tokens.test.ts` avec `ROOTS` étendu aux 10 répertoires : 2 tests tombent, 5 fichiers listés de chaque côté. | Tokens (`bg-primary`, `text-primary-foreground`, `bg-card`, `focus:ring-primary`), garde étendue, aucune exception. |
+| **F385** | *Inscriptions.* Retirer une invitation effaçait la ligne avant l'appel et ne la restaurait jamais : sur refus, le message d'erreur s'affichait sous une liste **sans** l'adresse, alors que l'invitation restait valide côté serveur. | `registrations-control.test.tsx` : `Unable to find an element with the text: ancien@qoe.fi`. | La ligne est remise à sa place (index d'origine) avec le motif du refus. |
+| **F386** | *Décision d'import.* `decision as 'needs_info'` ramenait les **sept** décisions du SDK à une seule et taisait le type réel : retirer l'assertion faisait échouer la compilation. | `tsc` : `TS2322: Type 'string' is not assignable to type '"needs_info" \| …'`. | L'état porte l'union `DecideImportInput['decision']`, la liste des choix en dérive (`satisfies`), la sélection ne retient qu'une valeur de l'union. |
+| **F387** | *Widgets.* Supprimer une tendance/un encart ou basculer un encart remettait l'effet en cas de refus **sans un mot** : la ligne réapparaissait sans motif, l'état affiché laissait croire à un bug d'affichage. | `widgets-cms.test.tsx` : `Unable to find an element with the text: /Tendance introuvable/`. | Un bandeau `role="alert"` au-dessus des onglets dit le motif. |
+| **F388** | *Langue d'édition.* `ALL_LANGUAGES[0]` vaut **`en`** : le CMS landing s'ouvrait sur les champs anglais d'une console française — un admin qui éditait « le titre » changeait la version anglaise. | `frontend-language.test.tsx` : `Unable to find an element with the display value: Une infrastructure pour ceux qui pensent.`. | `DEFAULT_LANGUAGE` (`fr`), la langue du produit. |
+| **F389** | *Onglets créateurs.* Dès que la valeur en base ne décodait pas exactement **trois** onglets, le constructeur rendait `null` : zone vide, sans message et sans le bouton « Restaurer le modèle » — seule issue, la base de données. | `frontend-creator-tabs.test.tsx` : `Unable to find an accessible element with the role "button" and name "Créateurs"`. | Le modèle s'affiche **et** repart au formulaire (même contrat que le cas JSON illisible). |
+
+**Contre-preuves mesurées.** Sources remises à `HEAD`, tests neufs conservés : **F381** → `expected [ 'admi', 'api\\nwww' ]` ;
+**F382** → texte du refus introuvable ; **F383** → `NEXT_NOT_FOUND` au lieu de l'erreur 503 ; **F384** → les deux
+assertions de palette retombent sur 5 fichiers chacune ; **F385** → l'adresse a disparu de la liste ; **F386** →
+retirer l'assertion casse `tsc` ; **F387** → motif introuvable ; **F388** → champ français introuvable ; **F389** →
+bouton « Créateurs » introuvable. Après restauration : suites vertes, `tsc --noEmit` = 0. Un chore séparé retire
+une branche morte (`typeof overrides === 'string'`, toujours fausse) de l'enregistrement des traductions.
+
+**Non-défauts prouvés (aucun correctif).**
+
+- **Repli de modèle non propagé dans `ReaderSimulationBuilder` / `FooterColumnsBuilder`** : un JSON illisible affiche
+  le modèle mais ne l'écrit pas ; tant que l'admin n'édite rien, « Enregistrer » réécrit **la valeur stockée
+  inchangée** — aucune corruption possible, et aucune écriture silencieuse au chargement.
+- **Garde de page = garde d'action** sur les dix répertoires : `requireCapability(...read)` à l'entrée, et chaque
+  action rejoue `verifySuperadmin`/`assertCapability` côté serveur ; un écran devenu lecture seule ne peut pas
+  écrire.
+- **`features/page.tsx` : formulaire natif à server action** (`updateFeatureAction`) — si la capacité a été retirée
+  en cours de session, l'action lève et Next affiche une erreur serveur : c'est bruyant, pas silencieux, et
+  l'écriture n'a pas lieu. La forme « bandeau de refus » demanderait de passer la page à un formulaire client
+  (décision d'écran, voir R165).
+- **`api-requests-client` / `oauth-apps-client`** : filtres par statut exhaustifs sur les cinq/valeurs produites par
+  le backend, actions proposées seulement pour les transitions légitimes, `try/catch/finally` + `attemptWithStepUp`
+  partout — aucun bouton ne reste figé, aucun refus n'est avalé.
+- **`settings`** : le catalogue est statique et la capacité manquante passe la ligne en lecture sans l'effacer —
+  l'écran ne peut pas promettre un droit qu'il n'a pas.
+
+**Dettes mises à jour.**
+
+- **R161** (non tranchée) : deux consommateurs de plus — `translations/page.tsx` (`catch { console.error }` : des
+  surcharges illisibles sont ignorées en silence, l'écran affiche les textes par défaut **et un enregistrement
+  écraserait les surcharges existantes**) et `frontend/page.tsx` (`?? ''` sur chaque clé : une config absente et une
+  config vide sont indiscernables).
+- **R163** (non tranchée) : le périmètre ajoute `confirm()` dans `RegistrationsControl`, `WidgetsCMS`, `TranslationCMS`
+  et quatre `alert()` dans `WidgetsCMS`/`TranslationCMS` — mêmes dialogues natifs que le `window.prompt` de
+  `users-grid`, sans multiligne ni trace visuelle.
+- **R164** (non tranchée) : `WidgetsCMS` recharge la page entière (`window.location.reload()`) après ajout d'une
+  tendance et d'un encart — troisième et quatrième consommateurs, avec la même perte d'état local.
+- **R165** — *nouvelle* : les formulaires natifs de `/admin/config` (`handleAddConfig`, `handleUpdateConfig`,
+  `handleUpdateReserved`, `handleDeleteConfig`) ignorent le retour de la server action : un refus réaffiche l'état
+  antérieur, sans motif. Le corriger suppose de choisir un canal d'erreur pour un `<form action>` (bandeau via
+  redirection ou passage en formulaire client). Décision d'écran.
+- **R166** — *nouvelle* : statuts non exhaustifs sur deux surfaces — `oauth-apps-client` affiche « En attente »
+  (`?? STATUS_META.PENDING`) pour tout statut inconnu, `api-requests-client` n'affiche alors **aucune** pastille tout
+  en proposant « Activer l'accès ». Le jeu de valeurs est fermé côté Go, mais rien dans l'écran ne le vérifie.
+
+**L22e est clos.** Neuf défauts corrigés (F381–F389), un chore de code mort, garde de palette étendue aux dix
+répertoires, R161/R163/R164 enrichies **sans être tranchées**, R159/R160 toujours ouvertes, R165/R166 enregistrées.
+**Prochain sous-lot : L22f** (conformité, données et dernier reste — `compliance`, `legal`, `retention`, `audit`,
+`subscriptions`, `storage`, `system`, `health`, `forbidden`, `src/features/editor`, `src/app/api`, `src/app/login`,
+29 f. · 6 109 l.).
 
 ## L21 — `apps/studio/src/**` — ouvert le 2026-11-20 (découpage mesuré)
 
