@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { t } from '@lingui/core/macro';
+import { toast } from '@qoe/ui/toast';
 import { subscribeToNewsletterAction } from '@qoe/sdk/actions/tenant';
 import { Check, Loader2 } from 'lucide-react';
 import Link from 'next/link';
@@ -29,6 +30,14 @@ export function RecommendedSection({ authorName, recommendations }: RecommendedS
   const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
   const [emailModalPub, setEmailModalPub] = useState<RecommendationItem | null>(null);
   const [emailInput, setEmailInput] = useState('');
+  // L'hôte n'est connu qu'après hydratation : le lire pendant le rendu
+  // donnait `#` côté serveur et une URL absolue côté client (arbres
+  // différents → erreur d'hydratation, lien mort pour les crawlers).
+  const [currentHost, setCurrentHost] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    setCurrentHost(window.location.host);
+  }, []);
 
   if (!recommendations || recommendations.length === 0) return null;
 
@@ -47,7 +56,13 @@ export function RecommendedSection({ authorName, recommendations }: RecommendedS
         setSubscribedMap((prev) => ({ ...prev, [pubId]: true }));
         setEmailModalPub(null);
         setEmailInput('');
+      } else {
+        // Refus (adresse invalide, cadence, publication fermée) : sans ce
+        // message la modale restait ouverte sans la moindre explication.
+        toast.error(res.error?.message ?? t`Abonnement impossible`);
       }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t`Abonnement impossible`);
     } finally {
       setLoadingMap((prev) => ({ ...prev, [pubId]: false }));
     }
@@ -76,8 +91,7 @@ export function RecommendedSection({ authorName, recommendations }: RecommendedS
               if (pub.customDomain)
                 return `https://${pub.customDomain.replace(/^https?:\/\//, '')}`;
               if (!pub.subdomain) return '#';
-              const host = typeof window !== 'undefined' ? window.location.host : undefined;
-              return resolveAppUrl('tenant', host, {
+              return resolveAppUrl('tenant', currentHost, {
                 subdomain: pub.subdomain,
                 customDomain: pub.customDomain,
               });

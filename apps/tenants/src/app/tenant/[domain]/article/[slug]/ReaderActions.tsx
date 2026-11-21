@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from '@qoe/ui/ui/dropdown-menu';
 import { ReadingSettingsSheet, TextToSpeechPlayer } from '@qoe/ui/reader';
+import { toast } from '@qoe/ui/toast';
 import { t } from '@lingui/core/macro';
 
 interface ReaderActionsProps {
@@ -86,9 +87,12 @@ export function ReaderActions({
       const res = await toggleBookmarkArticleAction(articleId);
       if (res.ok) {
         setBookmarked(!!res.data.bookmarked);
+      } else {
+        toast.error(res.error?.message ?? t`Sauvegarde refusée`);
       }
     } catch (e) {
       console.error(e);
+      toast.error(e instanceof Error ? e.message : t`Sauvegarde refusée`);
     } finally {
       setLoadingBookmark(false);
     }
@@ -104,9 +108,12 @@ export function ReaderActions({
       const res = await toggleFollowCreatorAction(publisherId);
       if (res.ok) {
         setFollowed(!!res.data.followed);
+      } else {
+        toast.error(res.error?.message ?? t`Abonnement refusé`);
       }
     } catch (e) {
       console.error(e);
+      toast.error(e instanceof Error ? e.message : t`Abonnement refusé`);
     } finally {
       setLoadingFollow(false);
     }
@@ -123,9 +130,12 @@ export function ReaderActions({
       const res = await toggleFollowCreatorAction(author.id);
       if (res.ok) {
         setAuthorFollowed(!!res.data.followed);
+      } else {
+        toast.error(res.error?.message ?? t`Abonnement refusé`);
       }
     } catch (e) {
       console.error(e);
+      toast.error(e instanceof Error ? e.message : t`Abonnement refusé`);
     } finally {
       setLoadingAuthorFollow(false);
     }

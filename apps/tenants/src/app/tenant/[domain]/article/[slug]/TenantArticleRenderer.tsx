@@ -527,7 +527,6 @@ export async function TenantArticleRenderer({
           isAuthenticated={!!user}
           currentUserId={user?.id || null}
           allowComments={allowComments}
-          mainAppUrl={mainAppUrl}
           isBrutalist={false}
         />
 

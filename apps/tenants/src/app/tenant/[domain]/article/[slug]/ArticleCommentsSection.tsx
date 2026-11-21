@@ -12,6 +12,7 @@ import { Badge } from '@qoe/ui/badge';
 import { Button } from '@qoe/ui/button';
 import { Textarea } from '@qoe/ui/input';
 import { t } from '@lingui/core/macro';
+import { toast } from '@qoe/ui/toast';
 
 export interface CommentAuthor {
   id: string;
@@ -67,7 +68,6 @@ interface ArticleCommentsSectionProps {
   isAuthenticated: boolean;
   currentUserId?: string | null;
   allowComments?: boolean;
-  mainAppUrl: string;
   isBrutalist?: boolean;
 }
 
@@ -105,7 +105,12 @@ export function ArticleCommentsSection({
     setSubmitting(true);
     try {
       const res = await postArticleCommentAction({ articleId, content: newCommentText });
-      if (res.ok && res.data) {
+      if (!res.ok) {
+        // Refus du serveur : le dire, sinon le lecteur reclique sans fin.
+        toast.error(res.error?.message ?? t`Commentaire refusé`);
+        return;
+      }
+      if (res.data) {
         const formattedComment: CommentItem = {
           id: res.data.id,
           content: res.data.content,
@@ -118,6 +123,7 @@ export function ArticleCommentsSection({
       }
     } catch (err) {
       console.error(err);
+      toast.error(err instanceof Error ? err.message : t`Commentaire refusé`);
     } finally {
       setSubmitting(false);
     }
@@ -135,7 +141,11 @@ export function ArticleCommentsSection({
     setSubmittingReply(true);
     try {
       const res = await postArticleCommentAction({ articleId, content: replyText, parentId });
-      if (res.ok && res.data) {
+      if (!res.ok) {
+        toast.error(res.error?.message ?? t`Réponse refusée`);
+        return;
+      }
+      if (res.data) {
         const formattedReply: CommentReplyItem = {
           id: res.data.id,
           content: res.data.content,
@@ -159,6 +169,7 @@ export function ArticleCommentsSection({
       }
     } catch (err) {
       console.error(err);
+      toast.error(err instanceof Error ? err.message : t`Réponse refusée`);
     } finally {
       setSubmittingReply(false);
     }
@@ -171,6 +182,10 @@ export function ArticleCommentsSection({
     setDeletingId(commentId);
     try {
       const res = await deleteArticleCommentAction(commentId);
+      if (!res.ok) {
+        toast.error(res.error?.message ?? t`Suppression refusée`);
+        return;
+      }
       if (res.ok) {
         if (parentId) {
           setComments((prev) =>
@@ -190,6 +205,7 @@ export function ArticleCommentsSection({
       }
     } catch (err) {
       console.error(err);
+      toast.error(err instanceof Error ? err.message : t`Suppression refusée`);
     } finally {
       setDeletingId(null);
     }
