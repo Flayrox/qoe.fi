@@ -32,6 +32,24 @@ func (s *Service) notifyReviewers(ctx context.Context, publisherID, articleID, s
 	})
 }
 
+// reviewTargetState décide l'état cible d'une revue : approuver publie,
+// rejeter un brouillon le laisse en brouillon, rejeter les modifications d'un
+// article EN LIGNE doit laisser l'article en ligne (le brouillon est conservé
+// pour retouches par l'auteur).
+func reviewTargetState(approve, currentlyPublished bool) (status string, published bool) {
+	if approve {
+		return "PUBLISHED", true
+	}
+	if currentlyPublished {
+		// Rejet des modifications sur un article déjà en ligne : l'article reste
+		// publié POUR LES LECTEURS (published=true ET status=PUBLISHED — les
+		// résolutions publiques filtrent sur les deux), le brouillon est conservé
+		// pour retouches par l'auteur.
+		return "PUBLISHED", true
+	}
+	return "DRAFT", false
+}
+
 // Review approuve ou rejette un article soumis (RBAC media:review).
 func (s *Service) Review(ctx context.Context, articleID, userID string, approve bool, comment string) error {
 	row, err := s.q.GetArticleByID(ctx, articleID)
@@ -49,21 +67,11 @@ func (s *Service) Review(ctx context.Context, articleID, userID string, approve 
 		return errors.New("Vous n'avez pas la permission de revoir cet article.")
 	}
 
-	status := "DRAFT"
-	published := false
-	if approve {
-		status = "PUBLISHED"
-		published = true
-		if row.DraftContent.Valid && row.DraftContent.String != "" {
-			if _, err := s.q.PublishArticleDraft(ctx, articleID); err != nil {
-				return err
-			}
+	status, published := reviewTargetState(approve, row.Published)
+	if approve && row.DraftContent.Valid && row.DraftContent.String != "" {
+		if _, err := s.q.PublishArticleDraft(ctx, articleID); err != nil {
+			return err
 		}
-	} else if row.Published {
-		// Rejet des modifications sur un article déjà en ligne : l'article reste publié
-		// pour les lecteurs, le brouillon est maintenu pour retouches par l'auteur.
-		published = true
-		status = "DRAFT"
 	}
 
 	if _, err := s.q.SetArticleStatus(ctx, db.SetArticleStatusParams{
