@@ -105,7 +105,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20e    | **Validation bout en bout** : `pnpm build` (6 apps), `pnpm test:api` (Go + Postgres), `pnpm e2e` (Playwright)  | —                           | mesuré le 2026-11-20 : **build ✅**, `test:api` **bloqué** (Docker absent), e2e **partiel** (seed absent) — voir fiche L20e |
 | L21     | `apps/studio/src/**`                                                                                         | **412 fichiers · 72 285 l.** (mesuré) | **ouvert le 2026-11-20**, découpé en **8 sous-lots** (L21a→L21h) ; **L21a** (socle : layout, not-found, components, lib, instrumentation) **durci le 2026-11-20** ; **R137 ouverte** ; **L21b clos le 2026-11-20** (frontière vendor/maison mesurée, **7 défauts corrigés** sur deux passages, tiroir modal accessible, **R138 ouverte** — seule dette restante du sous-lot) ; **L21c clos le 2026-11-20** (lecture intégrale des 49 fichiers de production et de leurs appelants, **6 défauts corrigés** F313–F318, **R140** et **R141** ouvertes) ; **L21d clos le 2026-11-20** (32 fichiers lus intégralement + gardes de routage, **2 défauts corrigés** F319–F320, deux échappatoires de type retirées, **R142** ouverte) ; **L21e clos le 2026-11-20** (20 fichiers lus intégralement + page serveur et réutilisations, **8 défauts corrigés** F321–F328 dont 380 l. de code mort supprimées, **R143/R144/R145** ouvertes) ; **L21f clos le 2026-11-20** (34 fichiers lus intégralement, **11 défauts corrigés** F329–F339, **R146/R147/R148** ouvertes) ; **L21g clos le 2026-11-21** (les 39 fichiers de production lus intégralement, **6 défauts corrigés** F340–F345, **R149/R150** ouvertes) ; **L21h clos le 2026-11-21** (30 fichiers lus intégralement, dont les 3 routes `api/**` rattachées, **7 défauts corrigés** F346–F352, **R151/R152/R153** ouvertes) ; **L21 clos** ; prochain = **L22** (`apps/admin/src/**`) |
 | L22     | `apps/admin/src/**`                                                                                          | **149 f. prod · 31 079 l.** (mesuré) | **ouvert le 2026-11-21**, découpé en **6 sous-lots** (L22a→L22f) ; **L22a clos le 2026-11-21** (deux passages : coquille, navigation, retours d'autorisation, grille et palette lues intégralement, **10 défauts corrigés** F353–F362, 2 fichiers + 2 exports morts supprimés, **R154–R159** ouvertes dont une décision produit) ; **L22b clos le 2026-11-21** (couche de données et wrappers de mutation, 24 f. · 4 661 l. remesurés : **7 défauts** F363–F369, **R160/R161** ouvertes, R157–R159 mises à jour) ; **L22c clos le 2026-11-21** (surfaces qui élèvent les droits, 13 f. · 2 567 l. remesurés : **5 défauts** F370–F374, garde de palette étendue, **R162** ouverte) ; **L22d clos le 2026-11-21** (files de décision, 26 f. · 6 445 l. remesurés : **6 défauts** F375–F380, garde de palette étendue aux 9 répertoires, **R163/R164** ouvertes) ; **L22e clos le 2026-11-21** (contenu et publication, 24 f. · 6 714 l. remesurés : **9 défauts** F381–F389, garde de palette étendue aux 10 répertoires, **R165/R166** ouvertes, R161/R163/R164 enrichies) ; **L22f clos le 2026-11-21** (conformité, données et dernier reste, 29 f. · 6 119 l. remesurés, **aucun test** préexistant : 8 suites écrites, **8 défauts** F390–F397, garde de palette étendue à 11 racines) — **L22 clos** (45 défauts F353–F397) ; prochain = **L23** (`apps/tenants/src/**`) |
-| L23     | `apps/tenants/src/**`                                                                                        | 85 fichiers                 | à auditer               |
+| L23     | `apps/tenants/src/**`                                                                                        | **54 f. prod · 6 106 l.** + 11 f. de tests · 1 149 l. (remesuré) | **clos le 2026-11-21** — 2 défauts F398–F399 (refus muets, fuites API), 5 suites ajoutées, R167/R168 ouvertes |
 | L24     | `apps/hi/src/**`                                                                                             | 40 fichiers                 | à auditer               |
 | L25     | `apps/collab-server/src/**`                                                                                  | 15 fichiers                 | à auditer               |
 | L26     | `apps/mobile/src/**` + `modules/`                                                                            | 220 fichiers                | à auditer               |
@@ -123,9 +123,10 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L23 — `apps/tenants/src/**`** (publications multi-tenant ; périmètre à remesurer à
-l'ouverture). **L22 est clos le 2026-11-21** : L22a→L22f, **45 défauts** F353–F397, 13 dettes R154–R166 (aucune
-tranchée par l'audit : R159, R160/R161, R163, R164, R165, R166 restent au user).
+**Prochain lot à traiter : L24 — `apps/hi/src/**`** (vitrine publique ; périmètre à remesurer à l'ouverture).
+**L23 est clos le 2026-11-21** : `apps/tenants/src/**`, 54 f. · 6 106 l. remesurés, **2 défauts** F398–F399,
+R167 (prix de déblocage fourni par le client — décision produit) et R168 ouvertes. **L22 est clos** : L22a→L22f,
+**45 défauts** F353–F397, dettes R154–R166 (aucune tranchée : R159, R160/R161, R163, R164, R165, R166 restent au user).
 L21h (`features/{security,onboarding,upcoming,dashboard,developer,devtools}`, **24 f. · 3 481 l.**, + routes
 `login`/`onboarding` **3 f. · 105 l.** + les **3 routes `api/**`** rattachées à l'ouverture, **30 f. · 3 783 l.** au
 total) est **clos le 2026-11-21** — lecture intégrale des 30 fichiers de production, des 4 suites existantes de
@@ -2026,6 +2027,63 @@ le canal natif reste). **R164** : `grants-manager` recharge la page entière apr
 **L22f est clos.** Huit défauts corrigés (F390–F397), huit suites ajoutées là où il n'y en avait aucune, garde de
 palette étendue à onze racines. **L22 est clos** (L22a→L22f : **45 défauts** F353–F397).
 **Prochain lot : L23** — `apps/tenants/src/**` (publications multi-tenant), périmètre à remesurer à l'ouverture.
+
+## L23 — `apps/tenants/src/**` — clos le 2026-11-21
+
+**Périmètre remesuré à l'ouverture.** `git ls-files 'apps/tenants/src/**'` → **65 fichiers**, dont **11 de tests**
+(1 149 l.) → **54 fichiers de production · 6 106 lignes**. La ligne de périmètre annonçait « 85 fichiers » :
+**corrigée**. Répartition : `lib` 6 · 954, `components` 5 · 493, `app/tenant/[domain]/article/[slug]` 10 · 2 314,
+`app/tenant/[domain]/**` (autres pages) 17 · 1 129, `app/api` 2 · 136, `app` (layout, sitemap, robots, proxy, racine)
+8 · 558, `app/auth` 2 · 140. Les 54 ont été lus **intégralement**, deux passages.
+
+| # | Défaut | Rouge mesuré | Correctif |
+| - | ------ | ------------ | --------- |
+| **F398** | *Refus muets côté lecteur.* `RecommendedSection`, `ArticleCommentsSection` et `ReaderActions` faisaient `if (res.ok)` **sans branche d'échec** : un abonnement refusé, un commentaire rejeté (compte non vérifié, cadence) ou un signet refusé laissaient l'écran dans son état antérieur — impossible de distinguer « refusé » de « pas cliqué ». Le formulaire de commentaire restait en plus rempli sans explication. | `recommended-section.test.tsx`, `comments-section-refusal.test.tsx`, `reader-actions-refusal.test.tsx` : `AssertionError: expected "vi.fn()" to be called with arguments: [ 'Compte non vérifié' ]` (aucun toast). | Le refus affiche le message du serveur (`toast.error`), les `catch` aussi ; la prop morte `mainAppUrl` des commentaires est retirée (interface + site d'appel). |
+| **F399** | *Routes API.* `api/articles/upload` renvoyait `error.message` **au client avec un 400** et `api/analytics/reading-session` le sien avec un **500** : une panne de stockage ou de base exposait hôte, bucket, clé ou requête, et passait pour une faute de l'appelant. La seconde route n'exigeait d'ailleurs qu'un `articleId` : `scrollDepth`, `status` et `source` partaient au Go avec n'importe quel type. | `api/__tests__/route-leaks.test.ts` : `expected 400 to be 500` + `AKIAEXAMPLE` / `reading_sessions` dans le corps ; corps forgé accepté. | 500 générique (détail en logs), validation de type du corps (`articleId` string, nombres finis, libellés bornés) → 400 sans appel au Go. |
+
+**Contre-preuve.** Sources du lot restaurées à l'état d'origine (`git checkout -- .` après copie du diff) :
+**`6 failed (6)`** sur les six tests concernés, puis **`6 passed (6)`** après réapplication du diff.
+
+**Non-défauts prouvés.** Le contrat d'annotation est **respecté** : `TenantArticleHighlighter` passe à
+`createAnnotationCallbacks` les réexports SDK (`{ok,data,error}`), pas les wrappers positionnels locaux —
+`annotation-actions.test.ts` le fige (surlignage créé avec l'identifiant d'article, commentaire réussi annoncé
+réussi, suppression refusée annoncée refusée). `filterTenantArticles` (ET sur tous les mots, catégorie exacte)
+et `sanitizeHtml` (allowlist DOMPurify, `script`/`iframe`/`form` interdits) lus et conformes ; `proxy.ts`
+`export { proxy as middleware }` est la forme Next en vigueur, et le `matcher` laisse bien passer `/rss.xml` ;
+`auth/callback` neutralise les redirections ouvertes (`//`, `/\\`, schéma) ; `app/layout.tsx` ne charge les devtools
+qu'en développement.
+
+**Non concluants (mesuré, non classé corrigé).**
+
+1. **Hydratation `RecommendedSection`** : `window.location.host` était lu **pendant le rendu** (serveur `#`,
+   client URL absolue). Le correctif (hôte lu dans un effet) est appliqué, mais **aucun rouge jsdom n'est
+   mesurable** : `renderToString` s'exécute avec `window` défini, les deux rendus coïncident donc dans le test.
+2. **`about/page.tsx:22`** : `fetchTenantArticle(domain, aboutArticleId)` passe un **identifiant** là où l'API
+   prend un slug ; en cas d'échec la page retombe sur `about`/`a-propos`, donc le réglage `aboutArticleId`
+   semble inopérant. Comportement Go non mesuré ici.
+3. **Troncature `publisher.articles[].content`** (`search/page.tsx:60`, `rss.xml/route.ts:38`) : les extraits
+   publics dépendent de la troncature faite par le Go ; si elle n'a pas lieu, l'aperçu et le flux RSS
+   exposeraient du contenu payant. Non mesuré (contrat Go).
+4. **Lignes « Parutions de l'année N »** (`sitemap/page.tsx:70`) : style de survol mais **aucun lien** — il n'existe
+   aucune route d'archive annuelle. Ajouter la route est une décision produit.
+
+**Dettes (constat, jamais tranché).**
+
+- **R167 — nouvelle, décision produit requise.** Le **prix du déblocage est fourni par le client** :
+  `PaywallCut.tsx:22-23` (`ARTICLE_UNLOCK_PRICE_CENTS = 200`, `MEMBERSHIP_PRICE_CENTS = 500`) envoie `costCents`,
+  accepté tel quel par `apps/api/internal/modules/users/handler.go:640-661` puis débité par
+  `service_extra.go:490-529` (valeur ≤ 0 → 200). Un lecteur peut donc envoyer `costCents: 1` et débloquer un
+  article payant pour un centime. Hors périmètre L23 (Go) et arbitrage métier (prix par article ou par
+  publication, source autoritative, tarifs Stripe) : **question laissée au user**.
+- **R168 — nouvelle.** Reste de surface : code mort non importé (`article/[slug]/actions.ts` : wrappers
+  positionnels `createHighlight`, `upvoteHighlight`, `deleteHighlight`… que seul le réexport SDK sert), branche
+  `isMinimal` inatteignable (`search/page.tsx:120-150`), branche `!article` morte
+  (`tenant-article-route.tsx:100-125`), année `2026` en dur (`sitemap/page.tsx:38`), `confirm()` natif
+  (`ArticleCommentsSection`), i18n partielle (`TenantSearchClient`, pages `about`/`team`/`support`/`thoughts`),
+  page racine restée placeholder (`app/page.tsx`).
+
+**L23 est clos.** Deux défauts corrigés (F398–F399) en **3 commits** (`27b7f6d2`, `40326fdb`, `daaa9625`), cinq
+suites ajoutées, périmètre corrigé (54 f. · 6 106 l.). **Prochain lot : L24** — `apps/hi/src/**`.
 
 ## L21 — `apps/studio/src/**` — ouvert le 2026-11-20 (découpage mesuré)
 
