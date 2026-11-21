@@ -39,13 +39,20 @@ func pickExplorationRatio(signals int, coldRatio, warmRatio float64, minSignals 
 }
 
 // mutedOK retourne false si text contient un mot masqué.
+//
+// Parité stricte avec la fonction SQL `contains_muted_word`
+// (migration 00079) : comparaison insensible à la casse des DEUX côtés
+// (`lower(text) LIKE '%' || lower(word) || '%'`). Les mots sont stockés tels
+// que saisis : ne jamais comparer à la forme brute, sinon « Politique » ne
+// filtre que côté SQL. Un mot vide est ignoré (sinon il masquerait tout).
 func mutedOK(text string, muted []string) bool {
 	if len(muted) == 0 {
 		return true
 	}
 	low := strings.ToLower(text)
 	for _, w := range muted {
-		if strings.Contains(low, w) {
+		w = strings.ToLower(strings.TrimSpace(w))
+		if w != "" && strings.Contains(low, w) {
 			return false
 		}
 	}
