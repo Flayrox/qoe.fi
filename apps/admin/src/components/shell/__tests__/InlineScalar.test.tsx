@@ -119,6 +119,24 @@ describe('InlineScalar', () => {
       expect(screen.getByRole('button', { name: 'Titre' })).toHaveTextContent('Titre stable');
     });
 
+    it('ne sauvegarde qu’une fois quand Entrée est suivi du blur', async () => {
+      // Entrée ferme l'éditeur, ce qui peut déclencher un blur juste derrière :
+      // deux `onSave` pour une seule saisie = deux écritures et deux audits.
+      const onSave = vi.fn().mockResolvedValue(true);
+
+      render(<InlineText value="Titre" onSave={onSave} label="Titre" />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Titre' }));
+      const input = screen.getByRole('textbox', { name: 'Titre' });
+      fireEvent.change(input, { target: { value: 'Titre corrigé' } });
+      fireEvent.keyDown(input, { key: 'Enter' });
+      fireEvent.blur(input);
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(onSave).toHaveBeenCalledTimes(1);
+    });
+
     it('effectue un rollback si onSave renvoie false', async () => {
       const onSave = vi.fn().mockResolvedValue(false);
 
