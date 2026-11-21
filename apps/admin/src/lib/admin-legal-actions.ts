@@ -13,13 +13,25 @@ import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { authzTrailers } from '@/lib/action-result';
 import { assertCapability } from '@/lib/admin-identity';
 
-async function verifySuperadmin() {
+type LegalGuardFailure = { success: false; error: string; code?: string; level?: string };
+
+/**
+ * Garde des actes juridiques. Un refus (capacité manquante, step-up exigé) est
+ * une VALEUR, jamais un rejet : l'écran doit pouvoir lire \`code\` et proposer la
+ * vérification de facteur. Les enveloppes du garde (\`code\`, \`level\`) sont
+ * transportées telles quelles, comme dans \`admin-aux-actions\`.
+ */
+async function legalGuard(): Promise<LegalGuardFailure | null> {
   try {
     await goFetch('/v1/admin/dashboard');
+    return null;
   } catch (err) {
-    const status = (err as { status?: number })?.status;
-    if (status === 403) throw new Error('Forbidden');
-    throw err;
+    if ((err as { status?: number })?.status !== 403) throw err;
+    return {
+      success: false,
+      error: errorMessage(err, 'Accès refusé à la console juridique'),
+      ...authzTrailers(err),
+    };
   }
 }
 
@@ -95,7 +107,8 @@ export interface LegalVersionInput {
 
 /** ➕ Crée un document (et sa première version). */
 export async function createLegalDocumentAction(input: LegalDocumentInput) {
-  await verifySuperadmin();
+  const guardFailure = await legalGuard();
+  if (guardFailure) return guardFailure;
   try {
     const doc = await goFetch('/v1/admin/legal', { method: 'POST', body: input });
     revalidateLegal();
@@ -112,7 +125,8 @@ export async function createLegalDocumentAction(input: LegalDocumentInput) {
 
 /** ✏️ Met à jour les métadonnées éditoriales d'un document. */
 export async function updateLegalDocumentAction(id: string, input: LegalDocumentInput) {
-  await verifySuperadmin();
+  const guardFailure = await legalGuard();
+  if (guardFailure) return guardFailure;
   try {
     const doc = await goFetch(`/v1/admin/legal/${encodeURIComponent(id)}`, {
       method: 'PATCH',
@@ -132,7 +146,8 @@ export async function updateLegalDocumentAction(id: string, input: LegalDocument
 
 /** 🗑️ Supprime un document et tout son historique. */
 export async function deleteLegalDocumentAction(id: string) {
-  await verifySuperadmin();
+  const guardFailure = await legalGuard();
+  if (guardFailure) return guardFailure;
   try {
     await goFetch(`/v1/admin/legal/${encodeURIComponent(id)}`, { method: 'DELETE' });
     revalidateLegal();
@@ -149,7 +164,8 @@ export async function deleteLegalDocumentAction(id: string) {
 
 /** ➕ Crée un brouillon de nouvelle version. */
 export async function createLegalVersionAction(documentId: string, input: LegalVersionInput) {
-  await verifySuperadmin();
+  const guardFailure = await legalGuard();
+  if (guardFailure) return guardFailure;
   try {
     const version = await goFetch(`/v1/admin/legal/${encodeURIComponent(documentId)}/versions`, {
       method: 'POST',
@@ -172,7 +188,8 @@ export async function updateLegalVersionAction(
   versionId: string,
   input: Partial<LegalVersionInput>
 ) {
-  await verifySuperadmin();
+  const guardFailure = await legalGuard();
+  if (guardFailure) return guardFailure;
   try {
     const version = await goFetch(`/v1/admin/legal/versions/${encodeURIComponent(versionId)}`, {
       method: 'PATCH',
@@ -192,7 +209,8 @@ export async function updateLegalVersionAction(
 
 /** 🚀 Publie un brouillon (l'ancienne version publiée est archivée). */
 export async function publishLegalVersionAction(versionId: string) {
-  await verifySuperadmin();
+  const guardFailure = await legalGuard();
+  if (guardFailure) return guardFailure;
   try {
     const version = await goFetch(
       `/v1/admin/legal/versions/${encodeURIComponent(versionId)}/publish`,
@@ -212,7 +230,8 @@ export async function publishLegalVersionAction(versionId: string) {
 
 /** 📦 Archive une version publiée (retrait sans destruction). */
 export async function archiveLegalVersionAction(versionId: string) {
-  await verifySuperadmin();
+  const guardFailure = await legalGuard();
+  if (guardFailure) return guardFailure;
   try {
     await goFetch(`/v1/admin/legal/versions/${encodeURIComponent(versionId)}/archive`, {
       method: 'POST',
@@ -231,7 +250,8 @@ export async function archiveLegalVersionAction(versionId: string) {
 
 /** 🗑️ Supprime un brouillon (les versions publiées/archivées sont immuables). */
 export async function deleteLegalDraftAction(versionId: string) {
-  await verifySuperadmin();
+  const guardFailure = await legalGuard();
+  if (guardFailure) return guardFailure;
   try {
     await goFetch(`/v1/admin/legal/versions/${encodeURIComponent(versionId)}`, {
       method: 'DELETE',
@@ -250,7 +270,8 @@ export async function deleteLegalDraftAction(versionId: string) {
 
 /** ⏱️ Programme (ou annule) la publication automatique d'un brouillon. */
 export async function scheduleLegalVersionAction(versionId: string, scheduledAt: string) {
-  await verifySuperadmin();
+  const guardFailure = await legalGuard();
+  if (guardFailure) return guardFailure;
   try {
     const version = await goFetch(
       `/v1/admin/legal/versions/${encodeURIComponent(versionId)}/schedule`,
@@ -271,7 +292,10 @@ export async function scheduleLegalVersionAction(versionId: string, scheduledAt:
 
 /** 🔄 Déclenche un passage du cycle de vie sans attendre le worker. */
 export async function runLegalLifecycleAction() {
-  await verifySuperadmin();
+  // Action de formulaire (`<form action>`), dont React n'attend rien : le refus
+  // s'arrête ici, avec son message, au lieu de lancer un appel non autorisé.
+  const guardFailure = await legalGuard();
+  if (guardFailure) throw new Error(guardFailure.error);
   await goFetch('/v1/admin/legal/lifecycle/run', { method: 'POST' });
   revalidateCompliance();
   revalidateLegal();
@@ -279,7 +303,8 @@ export async function runLegalLifecycleAction() {
 
 /** ⏹️ Clôt une revue sans publication — un motif est exigé, c'est une décision. */
 export async function dismissLegalReviewAction(formData: FormData) {
-  await verifySuperadmin();
+  const guardFailure = await legalGuard();
+  if (guardFailure) throw new Error(guardFailure.error);
   const reviewId = String(formData.get('reviewId') ?? '');
   const notes = String(formData.get('notes') ?? '');
   if (!reviewId) throw new Error('Revue inconnue');
@@ -292,7 +317,8 @@ export async function dismissLegalReviewAction(formData: FormData) {
 
 /** 🌱 Installe les documents manquants depuis le contenu embarqué (idempotent). */
 export async function seedLegalDefaultsAction() {
-  await verifySuperadmin();
+  const guardFailure = await legalGuard();
+  if (guardFailure) return guardFailure;
   try {
     const result = await goFetch('/v1/admin/legal/seed', { method: 'POST' });
     revalidateLegal();
