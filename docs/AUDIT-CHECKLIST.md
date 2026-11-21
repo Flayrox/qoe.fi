@@ -109,8 +109,8 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L24     | `apps/hi/src/**`                                                                                             | **30 f. prod · 4 387 l.** + 6 f. de tests (remesuré) | **clos le 2026-11-21** — 5 défauts F400–F404 (tests jamais exécutés, assainisseur contournable, pied de page EN, config console non validée, formulaire muet), R169–R172 ouvertes |
 | L25     | `apps/collab-server/src/**`                                                                                  | **7 f. prod · 1 036 l.** + 6 f. de tests (remesuré) | **clos le 2026-11-21** — 4 défauts F405–F408 (auth non-objet, clé anon en prod, schéma sans migration, erreur de schéma avalée), R173/R174 ouvertes |
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
-| L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go                          | à auditer               |
-| L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go                          | en cours (garde média)  |
+| L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
+| L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **en cours** (ouvert le 2026-11-21) |
 | L29     | `apps/api/internal/modules/**`                                                                               | Go                          | en cours (garde média)  |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
@@ -123,9 +123,12 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**En cours : L27 — `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`**
-(périmètre remesuré à l'ouverture du 2026-11-21 : **62 fichiers Go** = **29 de production · 5 373 l.** +
-**33 de tests · 7 261 l.**).
+**En cours : L28 — `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`** (périmètre remesuré à
+l'ouverture du 2026-11-21 : **35 fichiers Go** = **17 de production · 4 103 l.** + **18 de tests · 2 938 l.**).
+**L27 est clos le 2026-11-21** : les **29 fichiers de production · 5 373 l.** ont été lus intégralement (deux tours),
+**5 défauts** F418–F422 corrigés avec rouge cité et contre-preuve, dettes R180–R183 ouvertes. `adminauthz` reste
+**non concluant** pour ses 10 tests à base réelle (`PostgreSQL de test indisponible … rootless Docker not found`),
+pas vert.
 **L26 — MOBILE MIS EN PAUSE (non clos), reporté à la toute fin de campagne** (règle ajoutée dans `AGENTS.md`,
 « Ordre des lots »). Périmètre remesuré : 181 fichiers → 166 f. de production · 26 245 l. + 15 f. de tests ·
 2 196 l. ; **169 f. · 26 466 l.** après le helper F417. **L26a + L26b traités le 2026-11-21** : **70 f. lus
@@ -2040,37 +2043,48 @@ le canal natif reste). **R164** : `grants-manager` recharge la page entière apr
 palette étendue à onze racines. **L22 est clos** (L22a→L22f : **45 défauts** F353–F397).
 **Prochain lot : L23** — `apps/tenants/src/**` (publications multi-tenant), périmètre à remesurer à l'ouverture.
 
-## L27 — gardes Go `middleware` / `authz` / `adminauthz` / `secguard` — **ouvert le 2026-11-21, non clos**
+## L27 — gardes Go `middleware` / `authz` / `adminauthz` / `secguard` — **clos le 2026-11-21**
 
-**Périmètre remesuré à l'ouverture** : `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`
+**Périmètre remesuré** : `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`
 → **62 fichiers Go** = **29 de production · 5 373 l.** + **33 de tests · 7 261 l.**
 
-**Lecture du tour : 6 / 29 fichiers de production · 1 863 / 5 373 lignes** (`middleware/auth.go` 310,
-`middleware/apikey.go` 354, `middleware/authzguard.go` 231, `middleware/ratelimit.go` 373,
-`authz/evaluate.go` 172, `secguard/guard.go` 423), chacun lu jusqu'à sa dernière ligne puis vérifié
-contre `wc -l`. **23 fichiers · 3 510 l. restent à lire** → **L27 non clos**.
+**Lecture : 29 / 29 fichiers de production · 5 373 / 5 373 lignes (100 %)**, chacun lu jusqu'à sa dernière ligne par
+tranches bornées et vérifié contre `wc -l` — `middleware/{auth 310, apikey 354, authzguard 231, ratelimit 373,
+autorepair 113, accesscontrol 111, idempotency 139, authzresolver 103, ecdsa 45, rsa 35, middleware 192}`,
+`authz/{actions 275, evaluate 172, session 190, level 110, method 49}`, `adminauthz/{middleware 397, capability 271,
+service 230, recorder 216, registry 147, roles 137, console 105, access 94, approval 71}`, `permissions/media 179`,
+`apiaccess 280`, `secguard/guard 423`, `identity 21`.
+**Fichiers déclarés sains** (aucun correctif inventé) : `authz/{actions,evaluate,session,level,method}.go`,
+`permissions/media.go`, `identity/identity.go`, `adminauthz/{capability,access,approval,registry,roles,console,recorder,service,middleware}.go`,
+`middleware/{auth,apikey,authzguard,ratelimit,autorepair,authzresolver,ecdsa,middleware}.go`. Le garde de capacité
+qui laisse passer quand aucun `Lookup` n'est branché est un **choix documenté** (défense en profondeur superadmin), pas
+un oubli : il n'a pas été touché.
 
 | # | Défaut | Rouge mesuré (cité) | Correctif |
 |---|---|---|---|
-| **F418** | *Clé API sans scope effectif authentifiée.* `resolveAPIKeyRow` filtrait les scopes par `API_ACCESS_MODULES` mais acceptait une clé dont la plateforme avait coupé **tous** les scopes : contexte authentifié, zéro permission, donc passage sur toutes les routes sans `RequireAPIScope`. Violation du moindre privilège documenté dans le fichier. | `go test ./internal/middleware/ -run TestResolveAPIKeyRow` : `apikey_scopes_test.go:27: clé avec tous les scopes désactivés acceptée : elle obtient un accès non scopé` (`--- FAIL`) | Refus explicite si `len(row.Scopes) > 0 && len(effectiveScopes) == 0` ; le silence en base (aucun scope déclaré) reste inchangé. Commit `6e2dc735`. |
-| **F419** | *Garde `secguard` non nil-safe malgré sa promesse.* Le type déclare « toutes ses méthodes sont nil-safe » ; deux chemins paniquaient : garde nil + `validate` nil (`validate(trust.TierStandard)`), et garde `rc` posé sans `spam` (`IsWriteFrozen` / `ApplyStrike` sur nil, montage partiel en test). | `go test ./internal/secguard/` : `--- FAIL: TestNilGuard_EnforceContentWriteSansValidate` + `panic: runtime error: invalid memory address or nil pointer dereference` | Garde nil avec `validate == nil` laisse passer ; `spam` testé avant `IsWriteFrozen` et `ApplyStrike` ; `gofmt` du fichier touché. Commit `0ff45102`. |
+| **F418** | Clé API sans scope effectif authentifiée (plateforme ayant coupé tous les scopes) → contexte valide, zéro permission, passage sur toutes les routes sans `RequireAPIScope`. | `apikey_scopes_test.go:27: clé avec tous les scopes désactivés acceptée : elle obtient un accès non scopé` | Refus si `len(row.Scopes) > 0 && len(effectiveScopes) == 0`. `6e2dc735` |
+| **F419** | `secguard` non nil-safe malgré sa promesse : garde nil + `validate` nil, et `rc` posé sans `spam`. | `--- FAIL: TestNilGuard_EnforceContentWriteSansValidate` + `panic: runtime error: invalid memory address or nil pointer dereference` | Chemins nil couverts, `spam` testé avant usage. `0ff45102` |
+| **F420** | `buildRSAKey` acceptait un modulus de **1 024 bits** et un exposant **1** : une clé JWKS courte validait des JWT avec une signature cassable. | `hardening_test.go:36: modulus de 1024 bits accepté : clé de signature cassable` | Minimum NIST **2 048 bits** + exposant impair ≥ 3 ; fixtures de test passées à `minRSABits`. `223d7f0f` |
+| **F421** | `Idempotency` répondait **409 « déjà en cours »** quand Redis était injoignable : toutes les écritures CMS bloquées pendant une panne, avec un motif faux. | `hardening_test.go:72: code = 409, attendu 503 (indisponibilité, pas un conflit) : corps {"error":"Une requête avec cette Idempotency-Key est déjà en cours."}` | 503 + `code: idempotency_unavailable` sur erreur Redis ; 409 réservé au vrai doublon (`!locked`). `223d7f0f` |
+| **F422** | `writeAccessControlJSON` concaténait le message dans le JSON → corps invalide dès un guillemet. | `hardening_test.go:88: corps JSON invalide pour "Endpoint \"beta\" désactivé" : invalid character 'b' after object key:value pair` | `json.Marshal` du corps. `223d7f0f` |
 
-**Batterie du tour.** `go vet ./internal/...` 0 · `go build ./...` 0 · `go test` des 7 paquets :
-`middleware`, `secguard`, `authz`, `identity`, `apiaccess`, `permissions` **ok** ; `adminauthz` **FAIL** uniquement sur
-ses tests à base réelle — `PostgreSQL de test indisponible : … rootless Docker not found` (**non concluant ici**,
-Docker absent du poste par choix d'environnement, pas une régression). Côté TS/workspace : mobile **20 f. / 195**,
-tenants **16 f. / 48**, admin **48 f. / 153**, `typecheck` 0, `mobile:typecheck` 0, `lint` 0, `ui:audit` 0,
-`arch:audit` 0, `audit:guard` 0, 7 `guard:*` 0.
+**Batterie de clôture (mesures du tour).** `go vet ./internal/...` **0** · `go build ./...` **0** · `go test` des 7
+paquets : `middleware`, `secguard`, `authz`, `identity`, `apiaccess`, `permissions` **ok** ; `adminauthz` **FAIL sur ses
+10 tests à base réelle uniquement** — `PostgreSQL de test indisponible : … rootless Docker not found` → **non
+concluant** (Docker absent du poste par choix d'environnement ; aucun autre échec). Workspace : mobile **20 f. / 195**
+(inchangé, aucun fichier mobile touché), tenants **16 f. / 48**, admin **48 f. / 153**, `typecheck` 0,
+`mobile:typecheck` 0, `lint` 0, `ui:audit` 0, `arch:audit` 0, `audit:guard` 0, 7 `guard:*` 0.
+`git status --porcelain` vide, aucun push.
 
-**Dettes du lot (ouvertes)** : `R180` — `RateLimitDual` / `RateLimit` restent en **fail-open** quand Redis
-erreur (comportement documenté et voulu, mais non chiffré : aucun test d'intégration Redis ici) ;
-`R181` — `ClientIP` fait confiance à `X-Forwarded-For` sans validation de la valeur (dépend du proxy de
-confiance, non vérifiable dans ce périmètre) ; `R182` — `middleware/auth.go` : JWKS rechargé sous mutex avec
-un `http.Client` par appel, pas de backoff en cas d'échec (chaque requête retente pendant une panne JWKS).
-
-**Reste à lire** : `middleware/{apikey_db,auth_extra,jwks,autorepair,accesscontrol,idempotency,authzresolver,ecdsa,rsa,middleware}.go`,
-`authz/{actions,session,level,method}.go`, `adminauthz/*.go` (8 fichiers), `permissions/media.go`, `apiaccess/apiaccess.go`,
-`identity/identity.go`.
+**Dettes ouvertes du lot.** `R180` — `RateLimit`/`RateLimitDual` restent **fail-open** sur erreur Redis (voulu et
+documenté, mais non chiffré : pas de Redis de test ici). `R181` — `ClientIP` et `adminauthz.requestIP` font confiance à
+`X-Forwarded-For` sans valider la valeur : correct derrière le proxy de confiance, faux si l'API est exposée
+directement. `R182` — `middleware/auth.go` recharge le JWKS **sous mutex** avec un `http.Client` par appel et sans
+backoff : pendant une panne JWKS, chaque requête retente la récupération en sérialisant les autres. `R183` —
+`apiaccess.LoadEnabled`/`IsEnabled` retombent sur « tout accordable » quand la config est illisible ou mal formée
+(défaut documenté, mais un JSON tronqué rouvre tous les modules sans alerte). `R184` — `adminauthz.Recorder.flush`
+abandonne le reste du lot à la première erreur SQL (les décisions suivantes ne sont ni écrites ni comptées dans
+`Dropped`).
 
 ## L26a — `apps/mobile/src/**` + `apps/mobile/modules/**` (socle session/API/natif/feed) — 2026-11-21 — **⏸ mis en pause, reporté en fin de campagne**
 
