@@ -129,7 +129,7 @@ export function AdminHeader({ user, roles = [], environment = 'production' }: Ad
           href="/admin/forbidden"
           aria-label="Voir mon accès"
           title={user?.email || 'Mon accès'}
-          className="block rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/40"
+          className="block rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-highlight/40"
           data-testid="admin-header-avatar"
         >
           <SafeAvatar name={user?.name} username={user?.username} size={26} shape="circle" />

@@ -358,7 +358,7 @@ export function DataGrid<T extends { id: string }>({
       )}
 
       {gChordActive && (
-        <div className="mb-1 flex h-6 items-center gap-1.5 rounded-md border border-[#EE4B2B]/40 bg-[#EE4B2B]/5 px-2 text-[11px] font-medium text-[#B5371C]">
+        <div className="mb-1 flex h-6 items-center gap-1.5 rounded-md border border-highlight/40 bg-highlight/5 px-2 text-[11px] font-medium text-highlight">
           <span>Aller à :</span>
           <span className="text-muted-foreground">
             h (accueil), w (dossiers), u (users), r (signalements), a (audit), s (réglages), n
