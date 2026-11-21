@@ -61,6 +61,9 @@ export function WidgetsCMS({
   promos: initialPromos,
 }: WidgetsCMSProps) {
   const [activeTab, setActiveTab] = useState<'featured' | 'trends' | 'promos'>('featured');
+  // Motif d'un refus : une ligne qui réapparaît sans explication laisse croire
+  // à un bug d'affichage plutôt qu'à un acte refusé côté serveur.
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Local state for instant feedback
   const [searchQuery, setSearchQuery] = useState('');
@@ -88,6 +91,7 @@ export function WidgetsCMS({
 
   // Handlers
   const handleToggleFeatured = async (id: string) => {
+    setErrorMsg(null);
     // Optimistic toggle
     setFeaturedArticles((prev) =>
       prev.map((art) => {
@@ -102,7 +106,7 @@ export function WidgetsCMS({
     if (!res.success) {
       // Revert on error
       setFeaturedArticles(articles);
-      alert(res.error || 'Erreur de mise à jour');
+      setErrorMsg(res.error || 'Erreur de mise à jour');
     }
   };
 
@@ -122,10 +126,12 @@ export function WidgetsCMS({
 
   const handleDeleteTrend = async (id: string) => {
     if (!confirm('Supprimer cette tendance ?')) return;
+    setErrorMsg(null);
     setTrends((prev) => prev.filter((t) => t.id !== id));
     const res = await deleteTrend(id);
     if (!res.success) {
       setTrends(initialTrends);
+      setErrorMsg(res.error || 'Suppression de la tendance refusée');
     }
   };
 
@@ -164,19 +170,23 @@ export function WidgetsCMS({
   };
 
   const handleTogglePromo = async (id: string, currentActive: boolean) => {
+    setErrorMsg(null);
     setPromos((prev) => prev.map((p) => (p.id === id ? { ...p, isActive: !currentActive } : p)));
     const res = await togglePromoActive(id, !currentActive);
     if (!res.success) {
       setPromos(initialPromos);
+      setErrorMsg(res.error || "Changement d'état de l'encart refusé");
     }
   };
 
   const handleDeletePromo = async (id: string) => {
     if (!confirm('Supprimer cette promotion ?')) return;
+    setErrorMsg(null);
     setPromos((prev) => prev.filter((p) => p.id !== id));
     const res = await deletePromo(id);
     if (!res.success) {
       setPromos(initialPromos);
+      setErrorMsg(res.error || "Suppression de l'encart refusée");
     }
   };
 
@@ -209,6 +219,15 @@ export function WidgetsCMS({
           );
         })}
       </div>
+
+      {errorMsg && (
+        <p
+          role="alert"
+          className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive-text"
+        >
+          {errorMsg}
+        </p>
+      )}
 
       {/* Tab Contents */}
       <div className="py-2">
