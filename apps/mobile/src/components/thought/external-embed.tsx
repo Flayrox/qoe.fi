@@ -15,20 +15,9 @@ import { SymbolView } from 'expo-symbols';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { extractFirstUrl, hostOf } from '@/lib/link-extract';
 
-export function extractFirstUrl(text?: string | null): string | null {
-  if (!text) return null;
-  const m = text.match(/https?:\/\/[^\s]+/i);
-  return m ? m[0] : null;
-}
-
-function hostOf(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, '');
-  } catch {
-    return url;
-  }
-}
+export { extractFirstUrl };
 
 export function ExternalEmbed({ url }: { url: string }) {
   const theme = useTheme();
