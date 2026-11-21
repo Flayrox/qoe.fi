@@ -18,6 +18,7 @@ import { ApiAccessControlPanel } from './components/ApiAccessControlPanel';
 import { FeatureFlagsToggles } from './components/FeatureFlagsToggles';
 import { RegistrationsControl } from './components/RegistrationsControl';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
+import { formatReservedIdentifiers, splitReservedIdentifiers } from '@/lib/reserved-identifiers';
 
 function parseDisabledEndpoints(raw?: string): string[] {
   if (!raw) return [];
@@ -128,10 +129,7 @@ export default async function AdminConfig() {
   async function handleUpdateReserved(formData: FormData) {
     'use server';
     const kind = formData.get('kind') as 'username' | 'subdomain';
-    const values = String(formData.get('values') || '')
-      .split(/[\\n,\\r ]+/)
-      .map((value) => value.trim().toLowerCase())
-      .filter(Boolean);
+    const values = splitReservedIdentifiers(String(formData.get('values') || ''));
     await updateReservedIdentifiersAction(kind, values);
   }
 
@@ -244,7 +242,7 @@ export default async function AdminConfig() {
                 <span className="text-sm font-medium">{label}</span>
                 <textarea
                   name="values"
-                  defaultValue={values.join('\\n')}
+                  defaultValue={formatReservedIdentifiers(values)}
                   rows={8}
                   className="w-full rounded-lg border border-border bg-transparent px-3 py-2 tabular-nums text-sm"
                   aria-label={`${label} protégés`}
