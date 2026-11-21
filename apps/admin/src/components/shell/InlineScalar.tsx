@@ -235,27 +235,34 @@ export function InlineDate({
   disabled = false,
   className,
 }: InlineDateProps) {
-  const initialLocal = toLocalInput(value);
-  const [draft, setDraft] = React.useState(initialLocal);
+  const [draft, setDraft] = React.useState(() => toLocalInput(value));
+  // Dernière valeur CONNUE ENREGISTRÉE. La comparer au brouillon (et non à la
+  // prop, qui n'arrive qu'après revalidation serveur) évite de rejouer la même
+  // écriture — donc un second audit — à chaque blur suivant.
+  const savedLocal = React.useRef(toLocalInput(value));
   const [isSaving, setIsSaving] = React.useState(false);
 
   React.useEffect(() => {
-    setDraft(toLocalInput(value));
+    const nextLocal = toLocalInput(value);
+    savedLocal.current = nextLocal;
+    setDraft(nextLocal);
   }, [value]);
 
   const commit = async () => {
-    if (draft === initialLocal) return;
+    if (draft === savedLocal.current) return;
 
-    const previousLocal = initialLocal;
+    const previousLocal = savedLocal.current;
     setIsSaving(true);
-    const nextIso = draft ? new Date(draft).toISOString() : '';
+    const nextLocal = draft;
+    const nextIso = nextLocal ? new Date(nextLocal).toISOString() : '';
 
     try {
       const result = await onSave(nextIso);
       if (result === false) {
         setDraft(previousLocal);
-      } else if (onStatus) {
-        onStatus(`${successLabel} · audité à ${new Date().toLocaleTimeString('fr-FR')}`);
+      } else {
+        savedLocal.current = nextLocal;
+        onStatus?.(`${successLabel} · audité à ${new Date().toLocaleTimeString('fr-FR')}`);
       }
     } catch {
       setDraft(previousLocal);

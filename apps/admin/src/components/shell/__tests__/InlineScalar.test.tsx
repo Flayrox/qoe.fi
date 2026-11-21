@@ -166,6 +166,26 @@ describe('InlineScalar', () => {
         );
       });
     });
+
+    it('ne rejoue pas la sauvegarde à chaque blur qui suit', async () => {
+      // La valeur enregistrée est comparée au brouillon : une fois la même
+      // échéance écrite, un second blur (tabulation, clic ailleurs) ne doit
+      // pas relancer l'appel serveur — et donc pas un second audit.
+      const onSave = vi.fn().mockResolvedValue(true);
+
+      render(<InlineDate value="2026-11-10T14:30:00.000Z" onSave={onSave} label="Échéance" />);
+
+      const input = screen.getByLabelText('Échéance');
+      fireEvent.change(input, { target: { value: '2026-11-12T10:00' } });
+      fireEvent.blur(input);
+
+      await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+
+      fireEvent.blur(input);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(onSave).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('InlineToggle', () => {
