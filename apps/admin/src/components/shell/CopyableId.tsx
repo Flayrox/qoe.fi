@@ -38,7 +38,11 @@ export function CopyableId({
 
   const short = id.length > max + 4 ? `${id.slice(0, max)}…` : id;
 
-  const copy = async () => {
+  // Copier ne doit JAMAIS activer le conteneur : ce bouton vit aussi dans des
+  // éléments sélectionnables (palette ⌘K), où un clic remonté déclenche la
+  // navigation. La barrière est ici, une fois, pour tous les appelants.
+  const copy = async (event?: React.MouseEvent) => {
+    event?.stopPropagation();
     // Presse-papiers refusé : l'ID reste lisible en infobulle, rien à casser.
     if (!(await copyToClipboard(id))) return;
     setCopied(true);
