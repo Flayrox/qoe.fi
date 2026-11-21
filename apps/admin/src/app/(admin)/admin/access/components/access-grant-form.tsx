@@ -33,12 +33,21 @@ export function AccessGrantForm({ people, roles, canGrant }: AccessGrantFormProp
   const [expiresAt, setExpiresAt] = useState('');
   const [reason, setReason] = useState('');
 
-  const selected = people.find((person) => person.userId === userId);
+  // Une nouvelle recherche remplace la liste : l'identifiant retenu doit
+  // suivre, sinon le formulaire affiche B et attribue le rôle à A.
+  const selectedUserId = people.some((person) => person.userId === userId)
+    ? userId
+    : (people[0]?.userId ?? '');
+  const selected = people.find((person) => person.userId === selectedUserId);
 
   const submit = async () => {
-    const res = await run('grant', () => grantRoleAction({ userId, roleKey, expiresAt, reason }), {
-      ok: 'Rôle attribué — la personne ouvre la console dès maintenant',
-    });
+    const res = await run(
+      'grant',
+      () => grantRoleAction({ userId: selectedUserId, roleKey, expiresAt, reason }),
+      {
+        ok: 'Rôle attribué — la personne ouvre la console dès maintenant',
+      }
+    );
     if (res?.ok) {
       setReason('');
       setExpiresAt('');
@@ -109,7 +118,7 @@ export function AccessGrantForm({ people, roles, canGrant }: AccessGrantFormProp
                 label="Personne"
                 hideLabel
                 testId="access-grant-person"
-                value={userId}
+                value={selectedUserId}
                 onValueChange={setUserId}
                 options={people.map((person) => ({
                   id: person.userId,
@@ -165,7 +174,7 @@ export function AccessGrantForm({ people, roles, canGrant }: AccessGrantFormProp
             size="sm"
             loading={loadingId === 'grant'}
             onClick={() => void submit()}
-            disabled={!userId || !roleKey || reason.trim().length < 5}
+            disabled={!selectedUserId || !roleKey || reason.trim().length < 5}
             data-testid="access-grant-submit"
           >
             Attribuer
