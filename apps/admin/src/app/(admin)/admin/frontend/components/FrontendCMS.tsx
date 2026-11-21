@@ -407,19 +407,25 @@ function CreatorHubTabsBuilder({
   const [activeTabIdx, setActiveTabIdx] = useState<number>(0);
 
   useEffect(() => {
+    const fallback =
+      activeLang === 'en' ? PRESETS.creator_hub_tabs_en : PRESETS.creator_hub_tabs_fr;
+    let parsed: unknown = null;
     try {
-      const parsed = value ? JSON.parse(value) : [];
-      if (Array.isArray(parsed) && parsed.length === 3) {
-        setTabsData(parsed);
-      } else {
-        setTabsData([]);
-      }
+      parsed = value ? JSON.parse(value) : null;
     } catch {
-      const fallback =
-        activeLang === 'en' ? PRESETS.creator_hub_tabs_en : PRESETS.creator_hub_tabs_fr;
-      setTabsData(fallback);
+      parsed = null;
     }
-  }, [value, activeLang]);
+    if (Array.isArray(parsed) && parsed.length === 3) {
+      setTabsData(parsed as CreatorHubTab[]);
+      return;
+    }
+    // Contenu illisible ou incomplet : le modèle s'affiche ET repart au
+    // formulaire. Sans ça l'éditeur restait vide, sans message ni bouton de
+    // restauration — aucun moyen de réparer depuis la console.
+    setTabsData(fallback);
+    const serialized = JSON.stringify(fallback, null, 2);
+    if (value && value !== serialized) onChange(serialized);
+  }, [value, activeLang, onChange]);
 
   const updateTabs = (updated: CreatorHubTab[]) => {
     setTabsData(updated);
