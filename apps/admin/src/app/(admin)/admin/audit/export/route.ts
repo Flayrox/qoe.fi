@@ -32,18 +32,36 @@ export async function GET(request: NextRequest) {
   const {
     data: { session },
   } = await supabase.auth.getSession();
+  // Sans jeton, le Go refuserait de toute façon : on le dit ici plutôt que
+  // d'envoyer un « Bearer » vide et de relayer un 401 opaque.
+  const accessToken = session?.access_token;
+  if (!accessToken) {
+    return new NextResponse('Session expirée : reconnectez-vous pour exporter.', { status: 401 });
+  }
 
   const params = new URLSearchParams(request.nextUrl.searchParams);
   params.set('format', 'csv');
-  const response = await fetch(`${apiUrl}/v1/admin/audit-log?${params.toString()}`, {
-    headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
-    cache: 'no-store',
-    signal: AbortSignal.timeout(goTimeoutMs()),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${apiUrl}/v1/admin/audit-log?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(goTimeoutMs()),
+    });
+  } catch (error) {
+    // Réseau coupé ou délai dépassé : sans ce garde, l'exception remontait
+    // brute (500 sans corps) au lieu d'une erreur lisible.
+    console.error('Export audit indisponible:', error);
+    return new NextResponse('Export impossible : le service d’audit ne répond pas.', {
+      status: 503,
+      headers: { 'Cache-Control': 'no-store' },
+    });
+  }
   if (!response.ok) {
     const body = await response.text().catch(() => '');
     return new NextResponse(body || `Export impossible (${response.status})`, {
       status: response.status,
+      headers: { 'Cache-Control': 'no-store' },
     });
   }
 
