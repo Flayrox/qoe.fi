@@ -2047,8 +2047,8 @@ palette étendue à onze racines. **L22 est clos** (L22a→L22f : **45 défauts*
 `src/ArticleTextView.tsx` 89, `src/index.ts` 9). **Production = 166 fichiers · 26 245 lignes**, chiffre de la ligne
 de périmètre **confirmé** (aucune correction).
 
-**Couverture réelle — trois passages, à dire sans la maquiller.** **69 fichiers de production lus intégralement
-(13 582 l. sur 26 445, 51 %)** — tranche L26a : 52 f. (socle session/API/natif/feed) ; tranche L26b : 17 f.
+**Couverture réelle — trois passages, à dire sans la maquiller.** **70 fichiers de production lus intégralement
+(14 036 l. sur 26 466, 53 %)** — le total a crû d'un fichier avec le helper `replies-more-label.ts` créé pour F417. — tranche L26a : 52 f. (socle session/API/natif/feed) ; tranche L26b : 17 f.
 (`LiquidTabBar` 1 244 l. lu intégralement, `html-blocks` 674 partiellement : troncature à ~80 %). Détail L26b : 16 f.
 (`action-sheet`, `lightbox`, `privacy`, `settings-ui`, `search-screen`, `normalize`, `thought-actions`, `post-menu`,
 `profile-menu`, `thread-follow-button`, `highlight-row-actions`, `external-embed`, `selection-popover`,
@@ -2065,6 +2065,7 @@ prouvé, pas la totalité du périmètre. Aucune preuve de non-défaut n'est rev
 | **F412** | *Effet de bord dans le rendu.* `article-screen` lançait `getBookmarks({limit:100})` dans une IIFE **du corps du rendu** : chaque rendu rejouait la requête et la réponse pouvait arriver après démontage. | **Non mesurable ici** (aucun harnais React) — défaut établi par lecture ; correctif vérifié par `tsc` seulement. | Vérification déplacée dans un `useEffect` gardé par `cancelled`, déclenché par `articleId` ; l'état mort `bookmarkLoaded` supprimé. |
 | **F413** | *Libellés d'interface en dur (i18n).* `action-sheet` (`accessibilityLabel="Fermer"`, bouton « Annuler »), `lightbox` (`accessibilityLabel="Fermer"`), `post-menu` et `profile-menu` (`onStub('Masquer')` → message français composé autour d'un fragment figé) : un utilisateur anglophone gardait ces textes en français, y compris dans le lecteur d'écran. | `i18n-labels.wiring.test.ts` (balaie `src/**`, même approche que `sidebar.wiring.test.ts`) : `AssertionError: expected [ …(2) ] to deeply equal []` + `[ …(2) ]` sur `onStub`. | `t('common.close' | 'common.cancel')`, `onStub(t('post.hide' | 'profile.mute', …))` ; garde wiring ajoutée. Commit `4bc107f2`. |
 | **F414** | *Carte de lien : ponctuation avalée.* `extractFirstUrl` renvoyait `https://qoe.fi/a.` (point de phrase inclus) → carte affichant l'hôte `qoe.fi.` et navigateur ouvrant une URL inexistante ; parenthèses de prose idem. | `link-extract.test.ts` sur l'implémentation d'origine : **`AssertionError: expected 'https://qoe.fi/a.' to be 'https://qoe.fi/a'`**. | Logique extraite du composant RN vers `lib/link-extract.ts` (pur, testé) : ponctuation finale retirée, parenthèse appartenant à l'URL conservée (`X_(film)`), `https://` seul → `null`. Commit `5bba711e`. |
+| **F417** | *Repli des réponses mal accordé et muet.* Le libellé « Afficher N autres réponses » du fil était concaténé à la main (`t()` ne porte pas de pluriel) : avec **une seule** réponse repliée il annonçait « Afficher 1 autres réponses » ; le `Pressable` n'avait ni `accessibilityRole` ni libellé. | `replies-more-label.test.ts` : `Error: Cannot find module './replies-more-label' imported from …replies-more-label.test.ts` (`1 failed \| 19 passed (20)`) → `20 f. / 195 tests`. | Helper pur `repliesMoreLabel(hiddenCount, translate)` (cas singulier + clé `thread.show_more_reply_singular`), rôle `button` + `accessibilityLabel` sur le repli. `thread-screen.tsx` lu **intégralement** (452 l.). Commit `ccf6df0c`. |
 | **F416** | *Tab bar muette.* Les onglets et le bouton composer de `LiquidTabBar` étaient des `View` nus dans un `GestureDetector` : ni `accessibilityRole`, ni libellé, ni état sélectionné — le **seul chemin de navigation principal** était inutilisable au lecteur d'écran. | `liquid-tab-bar.wiring.test.ts` : `AssertionError: expected 'import React, { useContext, useEffect…' to contain 'accessibilityRole="button"'` (2 échecs, `190 passed`) → `192 passed`. | Rôle `button`, `accessibilityLabel={TAB_LABELS[route.name]}` (4 libellés `t()`), `accessibilityState={{selected}}`, libellé du composer. Commit `808bb06e`. |
 | **F415** | *Composer : bouton d'envoi sans nom accessible.* Les deux rendus du `GlassComposer` (slot et normal) n'avaient aucun `accessibilityLabel` sur l'envoi ; le repli d'erreur était en dur ; `thread-reply-composer` passait `avatarAccessibilityLabel="Menu"`. | garde i18n étendue à tout préfixe `*AccessibilityLabel` : **`AssertionError: expected [ Array(1) ] to deeply equal []`** (1 f.), puis `190 passed`. | `accessibilityLabel={t('compose.post','Publier')}` sur les deux envois, repli via `t('common.error_generic')`, `avatarAccessibilityLabel={t('common.menu','Menu')}`. Commit `6a245074`. |
 
@@ -2114,8 +2115,8 @@ sha périmé) sont couverts par leurs suites.
 7 `guard:*` ✅ (`seed-script`, `legal-consent`, `dangerous-html`, `flags-parity`, `article-links`, `media-origin`,
 `tsconfig`). Arbre propre, **aucun push**, R167 et les plafonds intacts.
 
-**L26 n'est pas clos** : 69 f. sur 168 lus intégralement (13 582 / 26 445 l.). Reliquat : **99 fichiers ·
-12 863 l.** (`html-blocks` fin non lue, `sidebar` 617, `profile-screen` 602, `highlight-actions-popover` 545,
+**L26 n'est pas clos** : 70 f. sur 169 lus intégralement (14 036 / 26 466 l.). Reliquat : **99 fichiers ·
+12 430 l.** (`html-blocks` fin non lue, `sidebar` 617, `profile-screen` 602, `highlight-actions-popover` 545,
 `thread-screen` 452, les écrans `(tabs)`/routes, `app-tabs`, `app-drawer`, `DynamicMorphingHeader`, `Avatar`,
 `rich-text`, `post-content`, `library`, `history`, `engagement`, `explore`, `follow-list`, `notifications`, `spike-*`,
 `types/*.d.ts`, `global.css`, `animated-icon*`, `screen` de réglages restants). **Prochain lot : L26b** — ce reliquat.
