@@ -98,6 +98,20 @@ describe('createSupabaseVerifier', () => {
     );
   });
 
+  it('refuse proprement un corps d’introspection qui n’est pas un objet', async () => {
+    // Un 200 dont le corps n'est pas l'utilisateur attendu (interstitiel de
+    // proxy, page d'erreur servie par un CDN, `null`) ne doit pas lever dans le
+    // chemin d'auth : la connexion doit être refusée, pas interrompue.
+    for (const body of [null, '<html>maintenance</html>']) {
+      const verify = createSupabaseVerifier(
+        'https://x.supabase.co',
+        'anon-key',
+        mockFetch(200, body)
+      ).verify;
+      await expect(verify('mon-token')).resolves.toBeNull();
+    }
+  });
+
   it('retourne null proprement si fetch lève une erreur réseau ou un timeout', async () => {
     const failingFetch = vi.fn(async () => {
       throw new Error('ETIMEDOUT');

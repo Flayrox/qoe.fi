@@ -75,12 +75,20 @@ export function createSupabaseVerifier(
         return null;
       }
 
-      let payload: Record<string, unknown>;
+      let parsed: unknown;
       try {
-        payload = (await response.json()) as Record<string, unknown>;
+        parsed = await response.json();
       } catch {
         return null;
       }
+      // Un 200 dont le corps n'est pas l'utilisateur attendu (interstitiel de
+      // proxy, page d'erreur servie en 200, `null`) refusait jusqu'ici par une
+      // exception (`payload.id` sur `null`) au lieu d'un refus propre.
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        console.warn('[collab-server] Introspection Supabase : réponse inattendue (non-objet).');
+        return null;
+      }
+      const payload = parsed as Record<string, unknown>;
 
       // GoTrue `/auth/v1/user` renvoie `id` ; on conserve `sub` en repli pour compatibilité JWT.
       const id =
