@@ -650,6 +650,7 @@ func (s *Service) fetchEngineArticles(ctx context.Context, vec *pgvector.Vector,
 		       EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800)::float8 AS fresh
 		FROM "Article" a JOIN "User" u ON u.id::text = a."authorId"::text
 		WHERE a.published = true AND a."embedding" IS NOT NULL
+		  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
 		  AND u."isShadowbanned" = false AND u."isSuspended" = false`
 		ai := 2
 		if userID != "" {
@@ -685,6 +686,7 @@ func (s *Service) fetchEngineArticles(ctx context.Context, vec *pgvector.Vector,
 		       EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800)::float8 AS fresh
 		FROM "Article" a JOIN "User" u ON u.id::text = a."authorId"::text
 		WHERE a.published = true AND u."isShadowbanned" = false AND u."isSuspended" = false
+		  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
 		  AND NOT is_blocked_bidirectional($3, a."authorId")
 		  AND NOT is_muted_by($3, a."authorId")
 		  AND NOT contains_muted_word($3, COALESCE(a.title, '') || ' ' || COALESCE(a.content, ''))
@@ -736,6 +738,8 @@ func (s *Service) fetchEngineThoughts(ctx context.Context, vec *pgvector.Vector,
 		FROM "Post" p JOIN "User" u ON u.id = p."authorId"
 		WHERE p."parentId" IS NULL AND p."repostId" IS NULL AND p."deletedAt" IS NULL
 		  AND p."isDraft" = false AND p."isHiddenByAuthor" = false AND p."embedding" IS NOT NULL
+		  AND p.visibility = 'public'
+		  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
 		  AND u."isShadowbanned" = false AND u."isSuspended" = false`
 		ai := 2
 		if userID != "" {
@@ -768,6 +772,8 @@ func (s *Service) fetchEngineThoughts(ctx context.Context, vec *pgvector.Vector,
 		FROM "Post" p JOIN "User" u ON u.id = p."authorId"
 		WHERE p."parentId" IS NULL AND p."repostId" IS NULL AND p."deletedAt" IS NULL
 		  AND p."isDraft" = false AND p."isHiddenByAuthor" = false
+		  AND p.visibility = 'public'
+		  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
 		  AND u."isShadowbanned" = false AND u."isSuspended" = false
 		  AND NOT is_blocked_bidirectional($3, p."authorId")
 		  AND NOT is_muted_by($3, p."authorId")
@@ -854,12 +860,20 @@ func (s *Service) injectDiscovery(ctx context.Context, userID string, items []En
 		existing[it.ID] = true
 	}
 
+	// Découverte : mêmes verrous que les flux (programmation, comptes
+	// suspendus/shadowbannés, blocage, sourdine) — sinon le slot d'exploration
+	// injecte des ids que l'hydratation retire ensuite (page incomplète) ou
+	// qu'un contenu restreint rend indisponibles trop tard.
 	drows, err := s.pool.Query(ctx, `
-		SELECT id FROM "Article"
-		WHERE published = true AND "completionRate" >= $1
-		  AND "publisherId" <> ALL($2::text[])
-		  AND "authorId"::text <> $3
-		ORDER BY "createdAt" DESC LIMIT $4`, cfg.explorationMinQuality, followed, userID, slots)
+		SELECT a.id FROM "Article" a JOIN "User" u ON u.id::text = a."authorId"::text
+		WHERE a.published = true AND a."completionRate" >= $1
+		  AND a."publisherId" <> ALL($2::text[])
+		  AND a."authorId"::text <> $3
+		  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
+		  AND u."isShadowbanned" = false AND u."isSuspended" = false
+		  AND NOT is_blocked_bidirectional($3::uuid, a."authorId")
+		  AND NOT is_muted_by($3::uuid, a."authorId")
+		ORDER BY a."createdAt" DESC LIMIT $4`, cfg.explorationMinQuality, followed, userID, slots)
 	if err != nil {
 		return items
 	}
