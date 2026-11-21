@@ -39,29 +39,29 @@ export async function AppSidebar() {
   let unreadCount = 0;
   let workspace: ActiveWorkspace | null = null;
 
-  try {
-    const [me, unread, active] = await Promise.all([
-      goFetch<MeResponse>('/v1/users/me'),
-      goFetch<{ count: number }>('/v1/notifications/unread-count'),
-      authUser ? getActiveWorkspace(authUser.id) : Promise.resolve(null),
-    ]);
+  // 🧱 Lectures indépendantes : un compteur en panne ne doit pas emporter le
+  // profil ni l'espace actif (identité, permissions, bouton d'écriture).
+  // Un `Promise.all` sous un seul `try` faisait exactement cela.
+  const [me, unread, active] = await Promise.allSettled([
+    goFetch<MeResponse>('/v1/users/me'),
+    goFetch<{ count: number }>('/v1/notifications/unread-count'),
+    authUser ? getActiveWorkspace(authUser.id) : Promise.resolve(null),
+  ]);
+
+  if (me.status === 'fulfilled') {
     dbUser = {
-      id: me.data.id,
-      email: me.data.email,
-      name: me.data.name,
-      username: me.data.username,
-      logoUrl: me.data.logoUrl,
-      publisherLogoUrl: me.data.publisherLogoUrl,
+      id: me.value.data.id,
+      email: me.value.data.email,
+      name: me.value.data.name,
+      username: me.value.data.username,
+      logoUrl: me.value.data.logoUrl,
+      publisherLogoUrl: me.value.data.publisherLogoUrl,
     };
-    unreadCount = unread.count ?? 0;
-    workspace = active;
-  } catch {
-    // Erreur Go (API indisponible / non connecté) → le sidebar retombe sur
-    // les métadonnées Supabase du user ; compteurs à zéro.
-    dbUser = null;
-    unreadCount = 0;
-    workspace = null;
   }
+  // Erreur Go sur une lecture (API indisponible / non connecté) → cette
+  // lecture retombe sur les métadonnées Supabase du user ; compteur à zéro.
+  unreadCount = unread.status === 'fulfilled' ? (unread.value.count ?? 0) : 0;
+  workspace = active.status === 'fulfilled' ? active.value : null;
 
   const userEmail = dbUser?.email || authUser?.email || 'hello@qoe.fi';
   const userName =
