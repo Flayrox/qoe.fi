@@ -271,7 +271,13 @@ export function IncidentsQueue({ initialItems, metrics }: IncidentsQueueProps) {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setOpenId(expanded ? null : item.id)}
+                      onClick={() => {
+                        // `measure` est l'état de la zone ouverte : la vider en
+                        // changeant de dossier évite de consigner la mesure de
+                        // A dans l'historique de B.
+                        setOpenId(expanded ? null : item.id);
+                        setMeasure('');
+                      }}
                     >
                       {expanded ? 'Refermer' : 'Mesures'}
                     </Button>
