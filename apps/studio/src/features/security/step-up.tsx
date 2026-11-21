@@ -37,7 +37,6 @@ import { createClient } from '@/lib/supabase/client';
 import { TotpEnrollment } from './totp-enrollment';
 
 interface StepUpRequest {
-  id: number;
   reason?: string;
   resolve: (ok: boolean) => void;
 }
@@ -59,7 +58,7 @@ function emit() {
 export function requestStepUp(reason?: string): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
     pending?.resolve(false);
-    pending = { id: Date.now(), reason, resolve };
+    pending = { reason, resolve };
     emit();
   });
 }
@@ -86,7 +85,7 @@ async function readFactors(): Promise<FactorState> {
   return { totp, hasUnverified };
 }
 
-type Phase = 'loading' | 'input' | 'no-factor' | 'enroll' | 'submitting';
+type Phase = 'loading' | 'input' | 'no-factor' | 'unavailable' | 'enroll' | 'submitting';
 
 export function StepUpGate() {
   const [request, setRequest] = useState<StepUpRequest | null>(null);
@@ -94,6 +93,8 @@ export function StepUpGate() {
   const [factors, setFactors] = useState<FactorState>({ totp: [], hasUnverified: false });
   const [code, setCode] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Incrémenté par « Réessayer » : relance la lecture des facteurs.
+  const [readAttempt, setReadAttempt] = useState(0);
 
   useEffect(() => {
     const listener = () => setRequest(pending);
@@ -119,13 +120,16 @@ export function StepUpGate() {
       })
       .catch(() => {
         if (cancelled) return;
+        // Une lecture qui échoue ne dit rien des facteurs du compte : la
+        // laisser passer pour « aucun facteur » pousserait à en ré-enrôler
+        // un alors que le compte en possède déjà. On nomme l'échec.
         setFactors({ totp: [], hasUnverified: false });
-        setPhase('no-factor');
+        setPhase('unavailable');
       });
     return () => {
       cancelled = true;
     };
-  }, [request]);
+  }, [request, readAttempt]);
 
   const close = useCallback((ok: boolean) => {
     const current = pending;
@@ -236,6 +240,31 @@ export function StepUpGate() {
           </div>
         )}
 
+        {phase === 'unavailable' && (
+          <div className="space-y-3">
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Impossible de lire vos facteurs pour le moment : la vérification ne peut pas être
+              proposée. Vos facteurs existants ne sont pas en cause — réessayez dans un instant.
+            </p>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Button
+                variant="solid"
+                tone="brand"
+                size="sm"
+                onClick={() => setReadAttempt((attempt) => attempt + 1)}
+              >
+                Réessayer
+              </Button>
+              <a href={securityHref} className={buttonClasses({ variant: 'outline', size: 'sm' })}>
+                Gérer mes facteurs
+              </a>
+              <Button variant="ghost" size="sm" onClick={() => close(false)}>
+                Fermer
+              </Button>
+            </div>
+          </div>
+        )}
+
         {phase === 'enroll' && (
           <div>
             <TotpEnrollment
@@ -259,7 +288,7 @@ export function StepUpGate() {
                 autoFocus
                 size="lg"
                 value={code}
-                onChange={(event) => setCode(event.target.value)}
+                onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))}
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 maxLength={6}
