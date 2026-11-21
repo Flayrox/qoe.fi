@@ -7,7 +7,7 @@ import { UsersGrid, type AdminUserRow } from './components/users-grid';
 export default async function AdminUsers() {
   requireCapability(await getAdminIdentity(), 'admin.users.read');
 
-  // Tous les utilisateurs pour la modération (Go en primaire, fallback Prisma dev).
+  // Tous les utilisateurs pour la modération (Go en primaire : aucune écriture locale).
   const users = await getAdminUsers();
 
   const rows: AdminUserRow[] = users.map((user) => ({

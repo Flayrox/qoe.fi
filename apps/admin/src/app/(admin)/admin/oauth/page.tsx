@@ -12,7 +12,7 @@ import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 export default async function AdminOAuthAppsPage() {
   requireCapability(await getAdminIdentity(), 'admin.oauth.read');
 
-  // Applications OAuth (Go en primaire, fallback Prisma dev).
+  // Applications OAuth (Go en primaire : aucune écriture locale).
   const clients = await getOAuthClients();
 
   const serialized: OAuthClientAdmin[] = clients.map((c) => ({

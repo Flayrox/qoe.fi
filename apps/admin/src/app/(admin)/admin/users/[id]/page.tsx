@@ -16,7 +16,7 @@ export default async function UserProfilePage({ params }: PageProps) {
   requireCapability(await getAdminIdentity(), 'admin.users.read');
   const { id } = await params;
 
-  // Détail utilisateur (Go en primaire, fallback Prisma dev).
+  // Détail utilisateur (Go en primaire : aucune écriture locale).
   const user = await getAdminUserDetail(id);
 
   if (!user) {

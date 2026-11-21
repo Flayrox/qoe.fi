@@ -5,7 +5,7 @@ import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 export default async function AdminWidgetsPage() {
   requireCapability(await getAdminIdentity(), 'admin.widgets.read');
 
-  // Articles + tendances + promos (Go en primaire, fallback Prisma dev).
+  // Articles + tendances + promos (Go en primaire : aucune écriture locale).
   const { articles, trends, promos } = await getAdminWidgets();
 
   return (

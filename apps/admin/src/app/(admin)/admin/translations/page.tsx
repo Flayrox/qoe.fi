@@ -33,7 +33,7 @@ export default async function TranslationsPage() {
     ...(enCatalog.messages || {}),
   };
 
-  // Load db overrides (Go en primaire, fallback Prisma dev)
+  // Load db overrides (Go en primaire : aucune écriture locale)
   let initialOverrides = { fr: {}, en: {} };
   try {
     const configs = await getSystemConfigs(['TRANSLATIONS_OVERRIDE']);

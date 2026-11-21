@@ -5,7 +5,6 @@
 // =====================================================================
 // Go en primaire : endpoints /v1/admin/widgets/*, /v1/admin/config,
 // /v1/admin/deliveries/* (module Go `admin`, réservé superadmin).
-// Fallback Prisma dev (verifySuperadmin + écritures) si QOE_API_URL absent.
 // =====================================================================
 
 import { revalidatePath } from 'next/cache';

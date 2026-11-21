@@ -15,7 +15,7 @@ export default async function AdminApiRequestsPage() {
   requireCapability(await getAdminIdentity(), 'admin.api.read');
 
   // Créateurs ayant demandé l'accès API + registre des permissions modulables
-  // (Go en primaire, fallback Prisma dev).
+  // (Go en primaire : aucune écriture locale).
   const [applicants, modules] = await Promise.all([getApiApplicants(), getApiAccessModules()]);
 
   // Sérialisation propre des dates

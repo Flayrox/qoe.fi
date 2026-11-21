@@ -57,7 +57,7 @@ export default async function AdminFrontend() {
     'ONBOARDING_INTERESTS',
   ];
 
-  // Fetch configs matching keys (Go en primaire, fallback Prisma dev)
+  // Fetch configs matching keys (Go en primaire : aucune écriture locale)
   const configs = await getSystemConfigs(targetKeys);
 
   // Create lookup dictionary
