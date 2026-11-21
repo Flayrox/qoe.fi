@@ -71,14 +71,14 @@ export function DraftsSheet({
                 <Button
                   variant="ghost"
                   onClick={onClearLocalThreadDraft}
-                  className="text-[10px] font-semibold text-muted-foreground hover:text-destructive-text hover:bg-destructive/10 px-2 py-1 rounded-[var(--radius-button)] transition-colors cursor-pointer h-[auto]"
+                  className="text-[10px]! font-semibold text-muted-foreground hover:text-destructive-text hover:bg-destructive/10 px-2 py-1 rounded-[var(--radius-button)] transition-colors cursor-pointer h-[auto]! leading-[inherit]!"
                 >
                   Effacer
                 </Button>
                 <Button
                   variant="ghost"
                   onClick={onRestoreLocalThreadDraft}
-                  className="text-[10px] font-bold text-white bg-primary hover:opacity-95 hover:bg-transparent px-2.5 py-1 rounded-[var(--radius-button)] transition-all cursor-pointer h-[auto]"
+                  className="text-[10px]! font-bold text-white bg-primary hover:opacity-95 hover:bg-transparent px-2.5 py-1 rounded-[var(--radius-button)] transition-all cursor-pointer h-[auto]! leading-[inherit]!"
                 >
                   Restaurer le fil
                 </Button>
@@ -145,7 +145,7 @@ export function DraftsSheet({
                     <Button
                       variant="ghost"
                       onClick={() => onLoadDraft(draft)}
-                      className="text-[10px] font-bold text-[var(--qoe-vermillion)] hover:text-[#d63d20] hover:bg-transparent bg-[var(--qoe-vermillion-08)] px-2.5 py-1 rounded-[var(--radius-button)] transition-all cursor-pointer h-[auto]"
+                      className="text-[10px]! font-bold text-[var(--qoe-vermillion)] hover:text-[#d63d20] hover:bg-transparent bg-[var(--qoe-vermillion-08)] px-2.5 py-1 rounded-[var(--radius-button)] transition-all cursor-pointer h-[auto]! leading-[inherit]!"
                     >
                       Charger
                     </Button>
@@ -154,7 +154,7 @@ export function DraftsSheet({
                   <Button
                     variant="ghost"
                     onClick={() => onDeleteDraft(draft.id)}
-                    className="absolute top-4 right-4 text-[var(--text-quaternary)] hover:text-[var(--qoe-vermillion)] transition-colors p-1.5 rounded-[var(--radius-button)] cursor-pointer h-[auto] hover:bg-transparent"
+                    className="absolute top-4 right-4 text-[var(--text-quaternary)] hover:text-[var(--qoe-vermillion)] transition-colors p-1.5 rounded-[var(--radius-button)] cursor-pointer h-[auto]! leading-[inherit]! hover:bg-transparent"
                     title="Supprimer le brouillon"
                   >
                     <Trash2 className="w-3.5 h-3.5" />

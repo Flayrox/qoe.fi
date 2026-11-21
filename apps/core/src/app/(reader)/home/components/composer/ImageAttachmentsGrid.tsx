@@ -57,7 +57,7 @@ export function ImageAttachmentsGrid({
                     <Button
                       variant="ghost"
                       onClick={() => onMove(idx, 'left')}
-                      className="bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors h-[auto]"
+                      className="bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors h-[auto]! leading-[inherit]!"
                       title={t`Déplacer vers la gauche`}
                     >
                       <ArrowLeft className="w-3.5 h-3.5" />
@@ -67,7 +67,7 @@ export function ImageAttachmentsGrid({
                     <Button
                       variant="ghost"
                       onClick={() => onMove(idx, 'right')}
-                      className="bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors h-[auto]"
+                      className="bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors h-[auto]! leading-[inherit]!"
                       title={t`Déplacer vers la droite`}
                     >
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -88,7 +88,7 @@ export function ImageAttachmentsGrid({
                       }
                     }}
                     className={cn(
-                      'px-2 py-1 rounded-[var(--radius-button)] text-[11px] font-bold cursor-pointer transition-colors border h-[auto] hover:bg-transparent',
+                      'px-2 py-1 rounded-[var(--radius-button)] text-[11px]! font-bold cursor-pointer transition-colors border h-[auto]! leading-[inherit]! hover:bg-transparent',
                       img.altText
                         ? 'bg-primary text-primary-foreground border-primary'
                         : 'bg-black/60 hover:bg-black/85 text-white border-white/20'
@@ -102,7 +102,7 @@ export function ImageAttachmentsGrid({
                   <Button
                     variant="ghost"
                     onClick={() => onCrop(img)}
-                    className="bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors h-[auto]"
+                    className="bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors h-[auto]! leading-[inherit]!"
                     title="Recadrer l'image"
                   >
                     <CropIcon className="w-3.5 h-3.5" />
@@ -110,7 +110,7 @@ export function ImageAttachmentsGrid({
                   <Button
                     variant="ghost"
                     onClick={() => onReplaceClick(img.id)}
-                    className="bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors h-[auto]"
+                    className="bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors h-[auto]! leading-[inherit]!"
                     title="Remplacer l'image"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
@@ -122,7 +122,7 @@ export function ImageAttachmentsGrid({
                 <Button
                   variant="ghost"
                   onClick={() => onRemove(img.id)}
-                  className="bg-destructive/80 hover:bg-destructive text-background p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors h-[auto]"
+                  className="bg-destructive/80 hover:bg-destructive text-background p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors h-[auto]! leading-[inherit]!"
                   title="Supprimer l'image"
                 >
                   <Trash2 className="w-3.5 h-3.5" />

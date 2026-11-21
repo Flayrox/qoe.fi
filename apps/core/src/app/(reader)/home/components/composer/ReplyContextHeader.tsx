@@ -44,7 +44,7 @@ export function ReplyContextHeader({ replyToThought, onCancel }: ReplyContextHea
             <Button
               variant="ghost"
               onClick={onCancel}
-              className="p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer h-[auto]"
+              className="p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer h-[auto]! leading-[inherit]!"
               title={t`Annuler la réponse`}
             >
               <X className="w-3.5 h-3.5" />

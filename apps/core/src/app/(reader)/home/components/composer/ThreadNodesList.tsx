@@ -151,7 +151,7 @@ export function ThreadNodesList({
                   <Button
                     variant="ghost"
                     onClick={onClearQuotedThought}
-                    className="absolute top-2 right-2 z-20 p-1.5 rounded-full bg-foreground/80 text-background hover:bg-foreground transition-colors cursor-pointer h-[auto]"
+                    className="absolute top-2 right-2 z-20 p-1.5 rounded-full bg-foreground/80 text-background hover:bg-foreground transition-colors cursor-pointer h-[auto]! leading-[inherit]!"
                     title="Retirer la citation"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -165,7 +165,7 @@ export function ThreadNodesList({
                   <Button
                     variant="ghost"
                     onClick={onClearQuotedArticle}
-                    className="absolute top-2 right-2 z-20 p-1.5 rounded-full bg-foreground/80 text-background hover:bg-foreground transition-colors cursor-pointer shadow-md h-[auto]"
+                    className="absolute top-2 right-2 z-20 p-1.5 rounded-full bg-foreground/80 text-background hover:bg-foreground transition-colors cursor-pointer shadow-md h-[auto]! leading-[inherit]!"
                     title="Retirer la citation"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -182,7 +182,7 @@ export function ThreadNodesList({
               <Button
                 variant="ghost"
                 onClick={() => onRemoveNode(node.id)}
-                className="p-1.5 rounded-full text-muted-foreground/50 hover:text-destructive-text hover:bg-destructive/10 cursor-pointer shrink-0 self-start mt-0.5 transition-all outline-none h-[auto] [&_svg]:size-4"
+                className="p-1.5 rounded-full text-muted-foreground/50 hover:text-destructive-text hover:bg-destructive/10 cursor-pointer shrink-0 self-start mt-0.5 transition-all outline-none h-[auto]! leading-[inherit]! [&_svg]:size-4!"
                 title={t`Supprimer cette pensée du fil`}
               >
                 <Trash2 className="w-4 h-4" />

@@ -32,7 +32,7 @@ export function PollEditorPanel({
         <Button
           variant="ghost"
           onClick={onClose}
-          className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer h-[auto]"
+          className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer h-[auto]! leading-[inherit]!"
           title="Retirer le sondage"
         >
           <X className="w-3.5 h-3.5" />
@@ -52,13 +52,13 @@ export function PollEditorPanel({
                 onOptionsChange(updated);
               }}
               maxLength={80}
-              className="flex-1 bg-background/80 border border-border/60 rounded-lg px-3 py-1.5 text-[12px] text-foreground focus:outline-none focus:border-primary h-[auto]"
+              className="flex-1 bg-background/80 border border-border/60 rounded-lg px-3 py-1.5 text-[12px]! text-foreground focus:outline-none focus:border-primary h-[auto]! leading-[inherit]!"
             />
             {pollOptions.length > 2 && (
               <Button
                 variant="ghost"
                 onClick={() => onOptionsChange(pollOptions.filter((_, i) => i !== idx))}
-                className="p-1.5 text-muted-foreground hover:text-destructive-text transition-colors cursor-pointer hover:bg-transparent h-[auto]"
+                className="p-1.5 text-muted-foreground hover:text-destructive-text transition-colors cursor-pointer hover:bg-transparent h-[auto]! leading-[inherit]!"
                 title="Supprimer cette option"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -73,7 +73,7 @@ export function PollEditorPanel({
           <Button
             variant="ghost"
             onClick={() => onOptionsChange([...pollOptions, ''])}
-            className="text-primary font-semibold hover:underline justify-start gap-1 text-[11px] cursor-pointer hover:bg-transparent h-[auto] p-0 rounded-none"
+            className="text-primary font-semibold hover:underline justify-start gap-1 text-[11px]! cursor-pointer hover:bg-transparent h-[auto]! leading-[inherit]! p-0 rounded-none"
           >
             + Ajouter une option
           </Button>

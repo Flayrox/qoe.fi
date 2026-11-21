@@ -123,7 +123,7 @@ export function ComposerToolbar({
               <Button
                 variant="ghost"
                 className={cn(
-                  'px-2.5 py-1 rounded-full border transition-all cursor-pointer flex items-center gap-1.5 text-[11px] font-semibold h-[auto] hover:bg-transparent',
+                  'px-2.5 py-1 rounded-full border transition-all cursor-pointer flex items-center gap-1.5 text-[11px]! font-semibold h-[auto]! leading-[inherit]! hover:bg-transparent [&_svg]:size-3!',
                   replyRestriction !== 'everyone'
                     ? 'bg-primary/10 border-primary/40 text-primary'
                     : 'border-border/60 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60'
@@ -154,7 +154,7 @@ export function ComposerToolbar({
                 onShowReplyRestrictionDropdownChange(false);
               }}
               className={cn(
-                'w-full text-left justify-start px-2.5 py-1.5 rounded-lg text-[12px] transition-colors flex items-center gap-2 cursor-pointer h-[auto] hover:bg-transparent',
+                'w-full text-left justify-start px-2.5 py-1.5 rounded-lg font-normal text-[12px]! transition-colors flex items-center gap-2 cursor-pointer h-[auto]! leading-[inherit]! hover:bg-transparent',
                 replyRestriction === 'everyone'
                   ? 'bg-accent text-accent-foreground font-semibold'
                   : 'hover:bg-muted/60 text-muted-foreground hover:text-foreground'
@@ -170,7 +170,7 @@ export function ComposerToolbar({
                 onShowReplyRestrictionDropdownChange(false);
               }}
               className={cn(
-                'w-full text-left justify-start px-2.5 py-1.5 rounded-lg text-[12px] transition-colors flex items-center gap-2 cursor-pointer h-[auto] hover:bg-transparent',
+                'w-full text-left justify-start px-2.5 py-1.5 rounded-lg font-normal text-[12px]! transition-colors flex items-center gap-2 cursor-pointer h-[auto]! leading-[inherit]! hover:bg-transparent',
                 replyRestriction === 'subscribers'
                   ? 'bg-accent text-accent-foreground font-semibold'
                   : 'hover:bg-muted/60 text-muted-foreground hover:text-foreground'
@@ -186,7 +186,7 @@ export function ComposerToolbar({
                 onShowReplyRestrictionDropdownChange(false);
               }}
               className={cn(
-                'w-full text-left justify-start px-2.5 py-1.5 rounded-lg text-[12px] transition-colors flex items-center gap-2 cursor-pointer h-[auto] hover:bg-transparent',
+                'w-full text-left justify-start px-2.5 py-1.5 rounded-lg font-normal text-[12px]! transition-colors flex items-center gap-2 cursor-pointer h-[auto]! leading-[inherit]! hover:bg-transparent',
                 replyRestriction === 'following'
                   ? 'bg-accent text-accent-foreground font-semibold'
                   : 'hover:bg-muted/60 text-muted-foreground hover:text-foreground'
@@ -202,7 +202,7 @@ export function ComposerToolbar({
                 onShowReplyRestrictionDropdownChange(false);
               }}
               className={cn(
-                'w-full text-left justify-start px-2.5 py-1.5 rounded-lg text-[12px] transition-colors flex items-center gap-2 cursor-pointer h-[auto] hover:bg-transparent',
+                'w-full text-left justify-start px-2.5 py-1.5 rounded-lg font-normal text-[12px]! transition-colors flex items-center gap-2 cursor-pointer h-[auto]! leading-[inherit]! hover:bg-transparent',
                 replyRestriction === 'mentioned'
                   ? 'bg-accent text-accent-foreground font-semibold'
                   : 'hover:bg-muted/60 text-muted-foreground hover:text-foreground'
@@ -220,7 +220,7 @@ export function ComposerToolbar({
               <Button
                 variant="ghost"
                 className={cn(
-                  'px-2.5 py-1 rounded-full border transition-all cursor-pointer flex items-center gap-1.5 text-[11px] font-semibold h-[auto] hover:bg-transparent [&_svg]:size-3',
+                  'px-2.5 py-1 rounded-full border transition-all cursor-pointer flex items-center gap-1.5 text-[11px]! font-semibold h-[auto]! leading-[inherit]! hover:bg-transparent [&_svg]:size-3!',
                   visibility !== 'public'
                     ? 'bg-primary/10 border-primary/40 text-primary'
                     : 'border-border/60 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60'
@@ -242,7 +242,7 @@ export function ComposerToolbar({
                 onShowVisibilityDropdownChange(false);
               }}
               className={cn(
-                'w-full text-left justify-start px-2.5 py-1.5 rounded-lg text-[12px] transition-colors cursor-pointer h-[auto] hover:bg-transparent',
+                'w-full text-left justify-start px-2.5 py-1.5 rounded-lg font-normal text-[12px]! transition-colors cursor-pointer h-[auto]! leading-[inherit]! hover:bg-transparent',
                 visibility === 'public'
                   ? 'bg-accent text-accent-foreground font-semibold'
                   : 'hover:bg-muted/60 text-muted-foreground hover:text-foreground'
@@ -257,7 +257,7 @@ export function ComposerToolbar({
                 onShowVisibilityDropdownChange(false);
               }}
               className={cn(
-                'w-full text-left justify-start px-2.5 py-1.5 rounded-lg text-[12px] transition-colors cursor-pointer h-[auto] hover:bg-transparent',
+                'w-full text-left justify-start px-2.5 py-1.5 rounded-lg font-normal text-[12px]! transition-colors cursor-pointer h-[auto]! leading-[inherit]! hover:bg-transparent',
                 visibility === 'followers'
                   ? 'bg-accent text-accent-foreground font-semibold'
                   : 'hover:bg-muted/60 text-muted-foreground hover:text-foreground'
@@ -290,7 +290,7 @@ export function ComposerToolbar({
             variant="ghost"
             onClick={onTogglePollEditor}
             className={cn(
-              'p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-xs active:scale-95 h-[auto] hover:bg-transparent [&_svg]:size-4',
+              'p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-xs active:scale-95 h-[auto]! leading-[inherit]! hover:bg-transparent [&_svg]:size-4!',
               showPollEditor
                 ? 'bg-primary/15 border-primary text-primary font-bold'
                 : 'border-border/50 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60'
@@ -315,7 +315,7 @@ export function ComposerToolbar({
                 <Button
                   variant="ghost"
                   className={cn(
-                    'p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-xs active:scale-95 h-[auto] hover:bg-transparent [&_svg]:size-4',
+                    'p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-xs active:scale-95 h-[auto]! leading-[inherit]! hover:bg-transparent [&_svg]:size-4!',
                     isScheduled
                       ? 'bg-primary/15 border-primary text-primary font-bold'
                       : 'border-border/50 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60'
@@ -393,14 +393,14 @@ export function ComposerToolbar({
                     onScheduledDateChange(undefined);
                     onShowScheduleDropdownChange(false);
                   }}
-                  className="px-3 py-1.5 border border-border rounded-lg text-[10px] font-semibold hover:bg-muted text-muted-foreground h-[auto]"
+                  className="px-3 py-1.5 border border-border rounded-lg text-[10px]! font-semibold hover:bg-muted text-muted-foreground h-[auto]! leading-[inherit]!"
                 >
                   Réinitialiser
                 </Button>
                 <Button
                   variant="ghost"
                   onClick={() => onShowScheduleDropdownChange(false)}
-                  className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-[10px] font-bold h-[auto] hover:bg-transparent"
+                  className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-[10px]! font-bold h-[auto]! leading-[inherit]! hover:bg-transparent"
                 >
                   Valider
                 </Button>
@@ -414,7 +414,7 @@ export function ComposerToolbar({
                 <Button
                   variant="ghost"
                   className={cn(
-                    'p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-xs active:scale-95 h-[auto] hover:bg-transparent [&_svg]:size-4',
+                    'p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-xs active:scale-95 h-[auto]! leading-[inherit]! hover:bg-transparent [&_svg]:size-4!',
                     isTriggerWarning
                       ? 'bg-highlight/10 border-highlight text-highlight font-bold'
                       : 'border-border/50 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60'
@@ -435,7 +435,7 @@ export function ComposerToolbar({
                   type="checkbox"
                   checked={isTriggerWarning}
                   onChange={(e) => onIsTriggerWarningChange(e.target.checked)}
-                  className="accent-primary cursor-pointer h-[auto] w-auto rounded-none border-0 bg-transparent p-0"
+                  className="accent-primary cursor-pointer h-[auto]! leading-[inherit]! w-auto rounded-none border-0 bg-transparent p-0"
                 />
               </label>
               {isTriggerWarning && (
@@ -444,7 +444,7 @@ export function ComposerToolbar({
                   placeholder="Motif (ex: Spoilers, Sensible)"
                   value={triggerWarning}
                   onChange={(e) => onTriggerWarningChange(e.target.value)}
-                  className="w-full bg-muted/40 border border-border rounded-lg px-2.5 py-1.5 text-[12px] text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary mt-1.5 h-[auto]"
+                  className="w-full bg-muted/40 border border-border rounded-lg px-2.5 py-1.5 text-[12px]! text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary mt-1.5 h-[auto]! leading-[inherit]!"
                 />
               )}
             </PopoverContent>
@@ -501,7 +501,7 @@ export function ComposerToolbar({
             variant="ghost"
             onClick={onAddThreadNode}
             disabled={isSubmitting}
-            className="p-2 rounded-xl border border-border/50 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all cursor-pointer flex items-center justify-center active:scale-95 shrink-0 h-[auto] [&_svg]:size-4"
+            className="p-2 rounded-xl border border-border/50 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all cursor-pointer flex items-center justify-center active:scale-95 shrink-0 h-[auto]! leading-[inherit]! [&_svg]:size-4!"
             title={t`Ajouter une autre pensée à ce fil de discussion`}
           >
             <Plus className="w-4 h-4 text-primary" />
@@ -512,7 +512,7 @@ export function ComposerToolbar({
               render={
                 <Button
                   variant="ghost"
-                  className="px-2.5 py-1.5 border border-border/60 rounded-xl text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer outline-none transition-colors h-[auto]"
+                  className="px-2.5 py-1.5 border border-border/60 rounded-xl text-[12px]! font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer outline-none transition-colors h-[auto]! leading-[inherit]!"
                 >
                   Brouillons
                 </Button>
@@ -529,7 +529,7 @@ export function ComposerToolbar({
                   onShowDraftPopoverChange(false);
                   onSaveDraft(e);
                 }}
-                className="w-full text-left justify-start px-2.5 py-1.5 rounded-lg text-[12px] transition-colors hover:bg-muted/60 text-foreground disabled:pointer-events-none cursor-pointer h-[auto]"
+                className="w-full text-left justify-start px-2.5 py-1.5 rounded-lg font-normal text-[12px]! transition-colors hover:bg-muted/60 text-foreground disabled:pointer-events-none cursor-pointer h-[auto]! leading-[inherit]!"
               >
                 Enregistrer le brouillon de fil
               </Button>
@@ -539,7 +539,7 @@ export function ComposerToolbar({
                   onShowDraftPopoverChange(false);
                   onOpenDrafts();
                 }}
-                className="w-full text-left justify-start px-2.5 py-1.5 rounded-lg text-[12px] transition-colors hover:bg-muted/60 text-foreground cursor-pointer h-[auto]"
+                className="w-full text-left justify-start px-2.5 py-1.5 rounded-lg font-normal text-[12px]! transition-colors hover:bg-muted/60 text-foreground cursor-pointer h-[auto]! leading-[inherit]!"
               >
                 Voir tous les brouillons
               </Button>
@@ -550,7 +550,7 @@ export function ComposerToolbar({
             type="submit"
             variant="ghost"
             disabled={!isPublishable || isSubmitting || isOverLimit}
-            className="bg-primary text-primary-foreground hover:opacity-95 hover:bg-primary disabled:opacity-100 disabled:bg-muted disabled:text-muted-foreground transition-all duration-150 px-4 py-2 rounded-xl text-[12px] font-bold flex items-center gap-1.5 cursor-pointer outline-none shadow-sm shrink-0 active:scale-[0.98] h-[auto] [&_svg]:size-3"
+            className="bg-primary text-primary-foreground hover:opacity-95 hover:bg-primary disabled:opacity-100 disabled:bg-muted disabled:text-muted-foreground transition-all duration-150 px-4 py-2 rounded-xl text-[12px]! font-bold flex items-center gap-1.5 cursor-pointer outline-none shadow-sm shrink-0 active:scale-[0.98] h-[auto]! leading-[inherit]!"
           >
             {isSubmitting ? (
               <>
@@ -559,7 +559,7 @@ export function ComposerToolbar({
             ) : (
               <>
                 {isReply ? 'Répondre' : threadNodesCount > 1 ? 'Tout publier' : 'Publier'}{' '}
-                <Send className="w-3 h-3" />
+                <Send className="size-3!" />
               </>
             )}
           </Button>
