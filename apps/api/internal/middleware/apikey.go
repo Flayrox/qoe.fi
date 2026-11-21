@@ -241,6 +241,14 @@ func resolveAPIKeyRow(ctx context.Context, row db.GetApiKeyByHashRow) (context.C
 		effectiveScopes = append(effectiveScopes, s)
 	}
 
+	// Une clé qui déclarait des scopes mais dont la plateforme a tout coupé ne
+	// doit pas s'authentifier : elle resterait valide avec zéro permission, donc
+	// acceptée par toutes les routes sans RequireAPIScope. Le silence (aucun
+	// scope déclaré en base) n'est pas touché : on ne refuse que l'effacement.
+	if len(row.Scopes) > 0 && len(effectiveScopes) == 0 {
+		return ctx, false
+	}
+
 	principal := &Principal{
 		APIKeyID: row.ApiKeyID,
 		Scopes:   effectiveScopes,
