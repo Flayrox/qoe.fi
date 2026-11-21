@@ -103,7 +103,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20g    | **E2E apps (tenants/studio/admin) + matrice de routes + `public-feed-capture`** | `e2e/*.spec.ts`, `playwright.config.ts`, `.github/workflows/ci.yml` | mesuré le 2026-11-20 : `e2e-apps` **25/25**, `e2e-apps-routes` **53/53**, `api-access-control` **2/2 (projet isolé)**, `public-web` **12/12** — voir fiche L20g |
 | L20f    | **Validation locale bout en bout** : daemon Docker, `test:api`, `e2e` sur base jetable seedée | —                           | mesuré le 2026-11-20 : daemon **démarré** (OrbStack 29.4.0), `test:api` **✅ 82 paquets**, e2e **18/19 + 128/128** — voir fiche L20f |
 | L20e    | **Validation bout en bout** : `pnpm build` (6 apps), `pnpm test:api` (Go + Postgres), `pnpm e2e` (Playwright)  | —                           | mesuré le 2026-11-20 : **build ✅**, `test:api` **bloqué** (Docker absent), e2e **partiel** (seed absent) — voir fiche L20e |
-| L21     | `apps/studio/src/**`                                                                                         | **412 fichiers · 72 285 l.** (mesuré) | **ouvert le 2026-11-20**, découpé en **8 sous-lots** (L21a→L21h) ; **L21a** (socle : layout, not-found, components, lib, instrumentation) **durci le 2026-11-20** ; **R137 ouverte** ; **L21b clos le 2026-11-20** (frontière vendor/maison mesurée, **7 défauts corrigés** sur deux passages, tiroir modal accessible, **R138 ouverte** — seule dette restante du sous-lot) ; **L21c clos le 2026-11-20** (lecture intégrale des 49 fichiers de production et de leurs appelants, **6 défauts corrigés** F313–F318, **R140** et **R141** ouvertes) ; **L21d clos le 2026-11-20** (32 fichiers lus intégralement + gardes de routage, **2 défauts corrigés** F319–F320, deux échappatoires de type retirées, **R142** ouverte) ; **L21e clos le 2026-11-20** (20 fichiers lus intégralement + page serveur et réutilisations, **8 défauts corrigés** F321–F328 dont 380 l. de code mort supprimées, **R143/R144/R145** ouvertes) ; **L21f clos le 2026-11-20** (34 fichiers lus intégralement, **11 défauts corrigés** F329–F339, **R146/R147/R148** ouvertes) ; prochain = **L21g** (`app/(creator)/{articles,media,newsletters,analytics}`) |
+| L21     | `apps/studio/src/**`                                                                                         | **412 fichiers · 72 285 l.** (mesuré) | **ouvert le 2026-11-20**, découpé en **8 sous-lots** (L21a→L21h) ; **L21a** (socle : layout, not-found, components, lib, instrumentation) **durci le 2026-11-20** ; **R137 ouverte** ; **L21b clos le 2026-11-20** (frontière vendor/maison mesurée, **7 défauts corrigés** sur deux passages, tiroir modal accessible, **R138 ouverte** — seule dette restante du sous-lot) ; **L21c clos le 2026-11-20** (lecture intégrale des 49 fichiers de production et de leurs appelants, **6 défauts corrigés** F313–F318, **R140** et **R141** ouvertes) ; **L21d clos le 2026-11-20** (32 fichiers lus intégralement + gardes de routage, **2 défauts corrigés** F319–F320, deux échappatoires de type retirées, **R142** ouverte) ; **L21e clos le 2026-11-20** (20 fichiers lus intégralement + page serveur et réutilisations, **8 défauts corrigés** F321–F328 dont 380 l. de code mort supprimées, **R143/R144/R145** ouvertes) ; **L21f clos le 2026-11-20** (34 fichiers lus intégralement, **11 défauts corrigés** F329–F339, **R146/R147/R148** ouvertes) ; **L21g clos le 2026-11-21** (les 39 fichiers de production lus intégralement, **6 défauts corrigés** F340–F345, **R149/R150** ouvertes) ; prochain = **L21h** (`features/{security,onboarding,upcoming,dashboard,developer,devtools}` + routes `login`/`onboarding`) |
 | L22     | `apps/admin/src/**`                                                                                          | 178 fichiers                | à auditer               |
 | L23     | `apps/tenants/src/**`                                                                                        | 85 fichiers                 | à auditer               |
 | L24     | `apps/hi/src/**`                                                                                             | 40 fichiers                 | à auditer               |
@@ -123,7 +123,18 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L21g — `app/(creator)/{articles,media,newsletters,analytics}`** (39 f. · 12 593 l.).
+**Prochain lot à traiter : L21h — `features/{security,onboarding,upcoming,dashboard,developer,devtools}` + routes `login`/`onboarding`** (27 f. · 3 586 l.).
+L21g (`app/(creator)/{articles,media,newsletters,analytics}`, **39 f. · 12 593 l.** mesurées) est **clos le
+2026-11-21** — lecture intégrale des 39 fichiers de production et de leurs 6 fichiers de tests (2 707 l.), des
+actions (`@qoe/sdk/actions/articles` et son `safeAction`, `features/settings/actions`, `media/actions`,
+`newsletters/actions`, `analytics/actions`) et de leurs appelants (`lib/active-workspace`,
+`lib/authz-feedback`, `@qoe/analytics/server`, `features/content-health`, `features/editor`), **6 défauts
+corrigés** (F340 série analytics d'un article bornée à un mois glissant pour toutes les périodes, F341 props de
+provenance triées en place pendant le rendu, F342 bandeau de provenance annonçant « 7 derniers jours » en dur,
+F343 réponse d'une période abandonnée écrasant l'inspecteur d'article, F344 copie de clé API annoncée réussie
+malgré un presse-papiers refusé, F345 trois refus `{ ok: false }` traités comme des succès dans la liste des
+articles) ; **R149** (i18n de la zone : 17 fichiers sur 39) et **R150** (confirmations natives et lignes
+cliquables sans clavier) ouvertes.
 L21f (`app/(creator)/**` hors ces quatre dossiers, **34 f. · 5 101 l.** mesurées) est **clos le 2026-11-20** —
 lecture intégrale des 34 fichiers, de leurs actions et de leurs appelants, **11 défauts corrigés** (F329 carte
 d'article figée après une exception, F330 formulaire OAuth figé, F331 champs OAuth sans nom accessible,
@@ -946,6 +957,8 @@ nommé), puis verts après restauration.
 | R146 | **`app/(creator)/**` (hors articles/media/newsletters/analytics) n'a pas de régime de traduction** : **9** fichiers sur **34** importent `@lingui/core/macro`, et les 25 autres affichent du français dur — titres et descriptions des pages (`monetization/page.tsx` « Monétisation », `community/page.tsx` « Communauté », `books/page.tsx` « Livres », `translate/page.tsx` « Traduction », `pricing/page.tsx` « Offres »), `pricing/components/offer-compare.tsx` (tout le comparatif), et, dans les 9 fichiers traduits partiellement, des libellés et `title` restent en clair (`WebhooksClient.tsx:150` « Nouveau Webhook », `AudienceClient.tsx:153` « Total Abonnés »). | faible | **ouverte** — même régime que R140/R142/R143 : la conversion se fait d'un seul tour par écran et change les catalogues (`intl:extract` produit de nouveaux `msgid`), donc lot dédié, pas un lot de correctifs. Mesure du 2026-11-20 : `grep -l "from '@lingui/core/macro'"` sur les 34 fichiers de la zone → 9. Voir L21f. |
 | R147 | **L'audience n'a aucune dégradation** : `audience/page.tsx:32` appelle `goFetch('/v1/analytics/audience/subscribers')` sans capture, alors que `layout.tsx`, `settings/design/page.tsx:112-125` et `developer/webhooks/page.tsx:36-49` capturent tous leur lecture — une panne du module analytics renvoie donc une page en erreur au lieu d'une liste vide expliquée. | faible | **ouverte** — la sortie propre demande une décision de présentation (liste vide avec bandeau « indisponible », ou page d'erreur assumée avec action « réessayer ») ; l'unique écran concerné est un tableau sans état vide dédié. Preuve : `audience/page.tsx:32-34`, comparaison avec `webhooks/page.tsx:36-49`. Voir L21f. |
 | R148 | **La prévisualisation du stage injecte une fixture** : `settings/design/page.tsx:211` écrit `subscriberCount: 380` pour toutes les publications (le contexte n'a pas de champ réel, il faudrait un compteur Go dans `SettingsPublisherDTO`), et `:228` remplace le `layoutStyle` lu en base par `'minimal'` — le commentaire dit « injecter le layoutStyle existant ». La route est fermée en production (`NODE_ENV !== 'development'` sans `ENABLE_STAGE_PROD`), mais un aperçu qui annonce un chiffre inventé reste un mensonge de banc. | faible | **ouverte** — le compteur demande un champ serveur (Go `settings`), donc la même décision que R144 : un lot backend. Le `layoutStyle` suit pour ne pas régler deux fois le même aperçu. Preuve : `settings/design/page.tsx:211,228`. Voir L21f. |
+| R149 | **`app/(creator)/{articles,media,newsletters,analytics}` n'a pas de régime de traduction** : **17** fichiers sur **39** importent `@lingui/core/macro` (Lingui), les 22 autres affichent du français dur — `MediaStudioClient` (création « Créer un média », réglages « Identité & Marque », « Domaine & Web »), `handleCreate` (`toast.error('Le nom et le permalien sont requis.')`), `AnalyticsDashboardClient` (KPI « Pages vues », « Visiteurs uniques », bandeau « Statistiques non configurées »), `ProductMetricsBlock`, `TimeseriesChart`, `DevicesAndGeoBlock`, `ReferrersBlock`, `TopPagesBlock`, `demographic-labels.ts` (7 libellés de genre + 8 tranches d'âge), et une partie de `NewsletterClient`. | faible | **ouverte** — même régime que R140/R142/R143/R146 : conversion d'un seul tour par écran pour ne pas laisser une surface mi-traduite, et elle change les catalogues (`intl:extract` produit de nouveaux `msgid`), donc lot dédié, pas un lot de correctifs. Mesure du 2026-11-21 : `grep -l "from '@lingui/core/macro'"` sur les 39 fichiers de production → 17. Voir L21g. |
+| R150 | **Surfaces d'interaction anciennes dans la zone** : **5** confirmations natives bloquantes (`window.confirm` dans `media/MediaApiKeysTab.tsx:202` et `media/MediaStudioClient.tsx:553` ; `confirm(t…)` dans `newsletters/NewsletterClient.tsx` (envoi, suppression) et `articles/articles-client.tsx:762`) alors que le studio possède `ConfirmDialog` et `toast` — Révocation d'un lien d'invitation partagé, rotation de clé et envoi de campagne passent donc par le chrome du navigateur, non traduit ; et **7** fichiers portent une ligne cliquable `<div onClick>` sans rôle, sans focus ni clavier (`analytics/components/TopPagesBlock.tsx`, `ProductMetricsBlock.tsx`, `articles/components/article-list-row.tsx` pour les menus `<details>`). | faible | **ouverte** — chaque conversion demande une décision de composition (bouton pleine ligne, dialogue partagé, menu accessible) et un test de clavier/ARIA ; c'est un lot de migration d'interaction, pas un correctif ponctuel. Mesure du 2026-11-21. Voir L21g. |
 | R142 | **`src/app/dev` n'a pas de régime de traduction** : `19-social-cards.tsx:674` est la **seule** chaîne sous `t` de la zone, alors que les 31 autres fichiers portent du français dur (`grep -rl "from '@lingui/core/macro'" src/app/dev` → **1** fichier ; `grep -rn "t\`" src/app/dev` → 1 occurrence). Un `msgid` de catalogue pour une page qui n'est jamais livrée, et 7 591 l. non traduites à côté. | faible | **ouverte** — la décision est un régime, pas un correctif : soit `src/app/dev` sort du catalogue (retirer la seule chaîne `t`), soit la zone se traduit entièrement (25 spécimens, changement de `msgid` sur toutes les locales). Les deux touchent les catalogues, donc un lot dédié ; aucun demi-fix posé. Mesure du 2026-11-20. Voir L21d. |
 | R141 | **L'infobulle d'annotation fuit ses minuteurs** : `Editor.tsx:921` et `Editor.tsx:1210` lancent chacun `setTimeout(() => setAnnotationToast(null), 3000)` sans conserver l'identifiant. Deux messages rapprochés (« Sélectionnez d'abord un passage », puis la note créée) partagent la même variable : le premier minuteur efface le second message au bout d'une seconde au lieu de trois, et un démontage dans la fenêtre laisse deux timers vivants. | faible | **ouverte** — le correctif propre est un petit hook `useTransientMessage` (une seule référence de timer, annulée au démontage et à chaque nouveau message) ; il n'a pas été posé dans L21c faute de rouge reproductible sans monter `Editor.tsx` entier (2 807 l., Tiptap + collaboration), ce qui aurait été une extraction déguisée en correctif. Voir L21c. |
 | R137 | Les métadonnées du studio restent figées en français : `src/app/layout.tsx` (`title: 'qoefi Studio — Creator Dashboard'`, description anglaise) et `src/app/not-found.tsx` (`'Page introuvable — Studio qoefi'`) sont des exports statiques `metadata`, donc non traduits quand la locale est `en`. | faible | **ouverte** — la sortie propre est `generateMetadata` + une traduction serveur ; `@qoe/i18n/server` expose `translateKey`/`translate`, mais l'`initI18n()` de requête et les overrides DB doivent être branchés dans le même tour pour toutes les apps (core, studio, admin, tenants), sinon on fixe le studio en laissant les autres derrière. Travail transversal à planifier, pas un correctif de deux lignes ; aucun correctif partiel posé. Preuve : `apps/studio/src/app/layout.tsx:52-64`, `apps/studio/src/app/not-found.tsx:3-9`, et `grep -rn "generateMetadata" apps/studio/src` → 0. Voir L21a. |
@@ -1547,12 +1560,126 @@ traité d'un tour, donc il est découpé ici, avec des mesures par groupe.
 | L21d | `src/app/dev/**` (UI Lab, specimens, catalogue) | 32 f. · 7 591 l. | **clos le 2026-11-20** · lecture intégrale (les 32 fichiers, dont `19-social-cards` 681 l. et `18-sidebar` 341 l.) et **2 défauts corrigés** (F319 garde d'existence des routes `/dev`, F320 filtre de l'inventaire nommé « esc » et Échap inopérant) + deux `as never`/`as Set<string>` supprimés. Dette : **R142** (fixtures et libellés des pages de dev). |
 | L21e | `features/settings/**` (tabs 7/2 632, components 7/1 259, `navigation.tsx` 796) | 20 f. · 5 622 l. (17 f. · **5 307 l.** après F328) | **clos le 2026-11-20** · lecture intégrale des 20 fichiers + page serveur, réutilisations (`totp-enrollment`, `newsletters`) et `@qoe/config` ; **8 défauts corrigés** (F321–F328) et 380 l. de code mort supprimées. Dettes : **R143** (i18n partielle), **R144** (sauvegarde non transactionnelle), **R145** (liaisons mortes, ids `Date.now()`). |
 | L21f | `app/(creator)/**` hors `articles`, `media`, `newsletters`, `analytics` (34 f.) + routes annexes | 34 f. · **5 101 l.** (mesuré) | **clos le 2026-11-20** · lecture intégrale des 34 fichiers, de leurs actions (`oauth`, `webhooks`, `design`, `translate`) et de leurs appelants (`@qoe/sdk/actions`, `@qoe/config`, `features/developer`, `features/stage`) ; **11 défauts corrigés** (F329–F339). Dettes : **R146** (i18n de la zone), **R147** (audience sans dégradation), **R148** (fixtures du stage). |
-| L21g | `app/(creator)/{articles,media,newsletters,analytics}` | 39 f. · 12 593 l. | Les quatre gros clients (`articles-client` 2 206, `MediaStudioClient` 1 669, `NewsletterClient` 1 214, `analytics/actions.ts` 729) : audités ensemble parce qu'ils partagent les mêmes conventions d'action et de toast. |
+| L21g | `app/(creator)/{articles,media,newsletters,analytics}` | 39 f. · **12 593 l.** + 6 f. de tests · 2 707 l. | **clos le 2026-11-21** · lecture intégrale des quatre gros clients (`articles-client` 2 206, `MediaStudioClient` 1 669, `NewsletterClient` 1 214, `analytics/actions.ts` 729), des 11 composants d'analytics et des 6 suites existantes ; **6 défauts corrigés** (F340–F345), 9 assertions rouges citées et 6 contre-preuves relancées (9 échecs reproduits, puis retour au vert). Dettes : **R149** (i18n), **R150** (confirmations natives, lignes cliquables sans clavier). |
 | L21h | `features/{security,onboarding,upcoming,dashboard,developer,devtools}` (24 f. · 3 481 l.) + routes `login`/`onboarding` (3 f. · 105 l.) | 27 f. · 3 586 l. | Le reste : sécurité (step-up), onboarding, devtools. Ferme le lot. |
 
 **Somme vérifiée.** 18 + 189 + 49 + 32 + 20 + 34 + 39 + 27 = **408 fichiers** attribués. Le `find` en
 compte **412** : les 4 fichiers restants vivent dans des sous-dossiers de `src/app` non listés ci-dessus et
 seront rattachés à L21h à son ouverture (mesure refaite à ce moment-là, pas d'estimation ici).
+
+### L21g — articles, médias, newsletters, analytics : fenêtres de période, refus avalés et copies mensongères — clos le 2026-11-21
+
+**Périmètre lu, intégralement.** `find apps/studio/src/app/\(creator\)/{articles,media,newsletters,analytics}
+-type f` → **39 fichiers de production · 12 593 l.** (mesure du 2026-11-21) et **6 fichiers de tests ·
+2 707 l.** : `articles/{page,articles-client 2 206,[id]/page,[id]/edit-article-client 235,new/page,
+new/new-article-client,health/page,health/content-health-client 263,components/{article-list-row 476,
+article-settings-sheet 318,article-bulk-settings-dialog 296,article-bulk-transfer-dialog 223,
+article-list-types}}`, `media/{page,MediaStudioClient 1 669,MediaApiKeysTab 637,PendingInvites 101,
+actions 669,media-studio-logic 241,join/page 261}`, `newsletters/{page,NewsletterClient 1 214,actions 138}`,
+`analytics/{page 74,AnalyticsDashboardClient 249,actions 729,demographic-labels,articles/[identifier]/{page,
+ArticleAnalyticsPageClient 213},components/{ArticleInspectorModal 289,TimeseriesChart 208,
+ProductMetricsBlock 407,ReturningAndHeatmapBlock 182,AudienceInsightsBlock 171,DevicesAndGeoBlock 142,
+ProvenanceBlock 138,FeatureInterestBlock 111,TopPagesBlock 87,ReferrersBlock 88}}` — chaque fichier lu en
+entier, jamais par fenêtre.
+
+**Appelants et consommateurs lus** : `@qoe/sdk/actions/utils/safe-action` (forme `{ ok, data | error }`),
+`@qoe/sdk/actions/articles` (`deleteCategoryAction`, `deleteArticleAction`, `reviewArticleAction`),
+`@qoe/sdk/actions/dashboard`, `features/settings/actions` (`updateEmailSettingsAction`,
+`sendTestEmailAction`, `previewEmailSettingsAction` — toutes trois `goFetch`, donc rejetantes),
+`lib/authz-feedback` (`attemptWithStepUp`, `notifyActionFailure`), `lib/active-workspace`, `@qoe/auth/media`,
+`@qoe/analytics/server`, `@qoe/analytics/referrers`, `features/content-health/lib/content-health`,
+`features/editor/{Editor,components/ArticleDiffModal,components/RecoverArticleModal,hooks/useArticleSettings}`,
+`@qoe/ui/{table,tabs,dialog,drawer,select,toast,checkbox,switch,toggle}`, et les contrats Go consommés
+(`/v1/analytics/{creator,reading-sessions,product-metrics,provenance,umami/*}`,
+`/v1/media/*`, `/v1/newsletters*`, `/v1/settings/{publisher,email}`).
+
+**Défauts prouvés et corrigés**
+
+| #    | Emplacement | Défaut mesuré | Correctif |
+| ---- | ----------- | ------------- | --------- |
+| F340 | `analytics/actions.ts:597-607` (`buildArticleDetail`) | La série d'un article était construite sur **un mois glissant quelle que soit la période** : `24h` seul était traité, tout le reste retombait sur 30 jours. Mesuré : « 7 jours » produisait **31 points** (dont 24 jours à zéro) et « 90 jours » était tronqué à ses 30 derniers jours, alors que `totalViews` portait bien sur la période. | `windowDays` dérivé de la période (`24h`→1, `7d`→7, `30d`→30, `90d`/`all`→90) et une seule borne passée à `buildDailySeries`. |
+| F341 | `analytics/components/ProvenanceBlock.tsx:96,114,131` | Les trois listes étaient triées **en place** (`bySource.sort(…)`) pendant le rendu : le composant réécrivait la prop, donc l'état `data.provenance` du tableau de bord, et l'ordre affiché ne correspondait plus à ce que le serveur avait renvoyé. | `[...list].sort(…)` sur chaque série : le rendu trie sa copie. |
+| F342 | `analytics/components/ProvenanceBlock.tsx:52-54` | Le bandeau annonçait « **7 derniers jours** — attribution par lecture réelle » **en dur**, alors que le bloc affiche la période choisie (30 jours par défaut). Un libellé qui ment sur sa fenêtre fait lire 90 jours de données comme une semaine. | prop `period` alimentée par `AnalyticsDashboardClient`, libellés déjà catalogués (`24 heures`, `7/30/90 derniers jours`, `Tout l'historique`) — aucune `msgid` ajoutée. |
+| F343 | `analytics/components/ArticleInspectorModal.tsx:49-62` | `getArticleAnalyticsDetail(urlPath, period).then(…)` écrivait sans garde de fraîcheur : deux changements de période rapprochés laissaient la première réponse écraser la seconde (classe F335). Mesuré : le tiroir affichait la série « 30 jours » sous un sélecteur sur « 90 jours ». | compteur de requête en `ref` ; seule la dernière demande écrit `detail`, `error` et `loading`. |
+| F344 | `media/MediaApiKeysTab.tsx:157-162` | `handleCopy` n'attendait pas `navigator.clipboard.writeText`, posait `setCopied(true)` puis le toast de succès : un presse-papiers refusé affichait « Clé copiée dans le presse-papiers. » et une coche, sur un secret **affiché une seule fois** (classe F334). Le minuteur de retour n'était ni conservé ni annulé. | `await` + `catch` → `Copie impossible : sélectionnez le secret à la main.` (message déjà catalogué), `copied` remis à `false`, minuteur en `ref` annulé à chaque copie, au démontage et à la fermeture de la fenêtre. |
+| F345 | `articles/articles-client.tsx:769-793,806-829,880-895` | Trois actions du SDK renvoyant `{ ok: false }` étaient attendues **sans lire le résultat** : la suppression d'une catégorie encore utilisée la retirait de l'arborescence, la suppression groupée comptait chaque refus comme « supprimé » (`Promise.allSettled` ne distingue pas un refus applicatif d'un succès), et une revue refusée déclenchait « Article approuvé et publié. » plus la mise à jour locale de l'article. | `if (!res.ok)` → toast du serveur et sortie anticipée ; la suppression groupée ne compte que `result.value.ok` ; les six `alert()` bloquants de la page passent par le toast du studio. |
+
+Rouges conservés (avant correctif) :
+
+```
+$ cd apps/studio && npx vitest run "src/app/(creator)/analytics" "src/app/(creator)/media" \
+    "src/app/(creator)/articles"
+ × borne la série à la période demandée, pas à un mois glissant
+   AssertionError: expected [ { …(2) }, { …(2) }, { …(2) }, …(28) ] to have a length of 8 but got 31
+ × trie l’affichage sans réordonner les données reçues
+   AssertionError: expected '{"bySource":[{"key":"feed","count":12…' to be '{"bySource":[{"key":"direct","count":…'
+ × affiche la période réellement demandée, pas « 7 derniers jours »
+   TestingLibraryElementError: Unable to find an element with the text: /90 derniers jours/
+ × ignore la réponse de la période abandonnée
+   TestingLibraryElementError: Unable to find an element with the text: Période 90 jours
+ × n’annonce pas une copie réussie quand le presse-papiers refuse
+   AssertionError: expected "vi.fn()" to be called at least once        (toast.error)
+ × ne coupe pas la coche d’une copie plus récente
+   TestingLibraryElementError: Unable to find an element with the text: Copié
+ × garde la catégorie quand le serveur refuse sa suppression
+   TestingLibraryElementError: Unable to find an element with the text: Essais
+ × garde les articles quand la suppression groupée échoue
+   TestingLibraryElementError: Unable to find an element with the text: Manifeste pour une édition libre
+ × n’annonce pas une revue réussie quand le serveur la refuse
+   AssertionError: expected "vi.fn()" to not be called with arguments: [ 'Article approuvé et publié.' ]
+  Tests  9 failed
+```
+
+**Contre-preuves.** Chaque source remise à l'origine par `git stash push -- <fichier>` fait retomber **ses**
+assertions, sans toucher aux autres : `analytics/actions.ts` → **1** (`Tests 1 failed`), `ProvenanceBlock.tsx`
+→ **2**, `ArticleInspectorModal.tsx` → **1**, `MediaApiKeysTab.tsx` → **1**, `MediaStudioClient.tsx` → **1**,
+`articles-client.tsx` → **3**. Soit **9 échecs** au total, exactement les 9 assertions ajoutées ; restaurées,
+les 13 suites repassent vertes (`Tests 143 passed (143)`).
+
+**Non-défauts examinés, avec la preuve**
+
+- **`toLocaleDateString`/`toLocaleString` avec `hour`/`minute`** — `media/join/page.tsx` `formatExpiry` et
+  `article-list-row.tsx` `formatScheduleDate` passent des champs horaires à `toLocaleDateString`. Même sonde
+  que L21f, refaite : `node -e "new Date('2026-11-14T09:32:05Z').toLocaleDateString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})"`
+  → `"14/11/2026 10:32:05"` : l'ICU actuel les honore, pas de défaut.
+- **`articles/[id]/page.tsx:28-55`** — `notFound()` dans le `try` est rattrapé par le `catch` local qui
+  journalise puis rappelle `notFound()` : la page 404 est bien servie, le `console.error` est un journal
+  **serveur** accepté par la convention du repo (Next exige le rappel hors du `try`).
+- **`NewsletterClient` — enregistrement et test** — `updateEmailSettingsAction`, `sendTestEmailAction` et
+  `previewEmailSettingsAction` appellent toutes `goFetch`, donc **rejettent** : le `try/catch` du client est
+  la bonne surface, et `res.emailSettings ?? settings` garde un état typé si l'API répond sans corps.
+- **`MediaStudioClient.handleCreate`** — `toast.error('Le nom et le permalien sont requis.')` n'est pas
+  localisé : c'est une lacune de traduction (R149), pas un comportement faux (`createMediaAction` n'est
+  jamais appelée sans nom et permalien, vérifié par test).
+- **Code mort et échappatoires** — `grep -n "any\|@ts-ignore"` sur les 39 fichiers : 0 occurrence
+  (`as unknown as MediaDetail` de `loadDetail` vient de la parité `GoMediaDetail` et reste borné à un point
+  d'entrée) ; `refreshArticles` est bien utilisé par les deux dialogues groupés et le tiroir de réglages.
+
+**Dettes ouvertes**
+
+- **R149** — régime de traduction de la zone : **17** fichiers sur **39** importent `@lingui/core/macro` ;
+  les 22 autres affichent du français dur (`MediaStudioClient` création et réglages, `AnalyticsDashboardClient`
+  KPI et bandeaux, `ProductMetricsBlock`, `TimeseriesChart`, `DevicesAndGeoBlock`, `ReferrersBlock`,
+  `TopPagesBlock`, `demographic-labels`, `NewsletterClient` en partie). Conversion à faire d'un seul tour par
+  écran, comme R140/R142/R143/R146 ; elle change les catalogues, donc lot dédié.
+- **R150** — surfaces d'interaction anciennes : **5** confirmations natives (`window.confirm` dans
+  `MediaApiKeysTab` et `MediaStudioClient` ; `confirm(t…“)` dans `NewsletterClient` ×2 et `articles-client`)
+  alors que le studio possède `ConfirmDialog` et le toast, et **7** fichiers d'analytics/liste portent une
+  ligne cliquable `<div onClick>` sans rôle ni focus (`TopPagesBlock`, `ProductMetricsBlock`,
+  `article-list-row`…). Chaque conversion demande une décision de composition (bouton pleine ligne, dialogue
+  partagé) et un test de clavier : lot dédié.
+
+**Catalogues intacts.** `pnpm intl:extract` puis `pnpm intl:compile` ne laissent **aucune** modification dans
+`messages/**` (`git status --porcelain messages/` → vide) : les trois messages introduits par les correctifs
+(`Copie impossible : sélectionnez le secret à la main.`, `24 heures`, `90 derniers jours`) existaient déjà.
+
+**Validation sur l'arbre commité.** `apps/studio` **88 fichiers / 646 tests verts** (86/637 avant le lot,
++2 fichiers / +9 tests), `apps/core` **65 fichiers / 406 tests** verts, `tsc --noEmit` **0** des deux côtés,
+`pnpm lint` **0 erreur** (studio 5 warnings, core 11 — tous antérieurs ou hors périmètre), les 7 `guard:*`,
+`audit:guard` et `arch:audit` à **EXIT=0**, `pnpm --filter @qoe/studio build` **OK**. `ui:audit` : mesuré **sans régression du lot** — 70 / 34 / 16, soit exactement les plafonds ; mais il est **rouge sur `dev`** depuis la refonte `refactor(core)` (`5b33749e`) qui a découpé `ThoughtComposer.tsx` en `composer/*` : 75 fichiers `<button>` (plafond 70), 36 `<input>` (34), 18 primitives réinventées (16). Mesure de contrôle : en retirant `apps/core/src/app/(reader)/home/components/` de l'arbre (`git stash push -u -- …`), le garde repasse **EXIT=0** à 70 / 34 / 16 — la dette vient des 6 nouveaux fichiers du composeur, pas de L21g. Le ratchet ne se relève pas : la migration `@qoe/ui/button` / `@qoe/ui/input` du composeur est à faire (lot dédié, `base` UI).
+
+Commits du lot (branche `dev`, aucun push) : `b5c8dba8` (F340), `167821fe` (F341–F342), `73db82b1` (F343),
+`bc0d651d` (F344), `7b64cc58` (F345), `8439479c` (F345, liste des articles), puis ce commit de fiche.
 
 ### L21f — écrans secondaires du créateur : états figés, réponses périmées, origine en dur — clos le 2026-11-20
 
