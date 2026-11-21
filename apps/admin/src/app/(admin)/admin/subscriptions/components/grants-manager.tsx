@@ -75,13 +75,13 @@ export function GrantsManager({ initialItems }: GrantsManagerProps) {
       <div>
         <button
           onClick={() => setShowNew((v) => !v)}
-          className="text-xs font-bold px-4 py-2 rounded-xl bg-[#EE4B2B] text-white cursor-pointer flex items-center gap-1.5"
+          className="text-xs font-bold px-4 py-2 rounded-xl bg-foreground text-background cursor-pointer flex items-center gap-1.5"
         >
           <Plus className="w-3 h-3" />
           Octroyer un palier
         </button>
         {showNew && (
-          <div className="mt-3 bg-white border border-border rounded-lg p-5 shadow-sm space-y-2">
+          <div className="mt-3 bg-card border border-border rounded-lg p-5 shadow-sm space-y-2">
             <div className="grid gap-2 md:grid-cols-2">
               <Select
                 label="Type de sujet"
@@ -142,7 +142,7 @@ export function GrantsManager({ initialItems }: GrantsManagerProps) {
             <button
               disabled={loadingId === 'new' || subjectId.trim().length < 1}
               onClick={() => void grant()}
-              className="text-xs font-bold px-4 py-2 rounded-xl bg-[#EE4B2B] text-white cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+              className="text-xs font-bold px-4 py-2 rounded-xl bg-foreground text-background cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
             >
               {loadingId === 'new' && <Loader2 className="w-3 h-3 animate-spin" />}
               Octroyer
@@ -160,7 +160,7 @@ export function GrantsManager({ initialItems }: GrantsManagerProps) {
         <div className="space-y-3">
           <>
             {items.map((item) => (
-              <div key={item.id} className="bg-white border border-border rounded-lg p-5 shadow-sm">
+              <div key={item.id} className="bg-card border border-border rounded-lg p-5 shadow-sm">
                 <div className="flex flex-col lg:flex-row gap-4 lg:items-start justify-between">
                   <div className="flex-1 min-w-0 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
@@ -181,7 +181,7 @@ export function GrantsManager({ initialItems }: GrantsManagerProps) {
                     <button
                       disabled={loadingId === item.id}
                       onClick={() => void revoke(item)}
-                      className="text-xs font-semibold px-3 py-1.5 rounded-full border border-border bg-white hover:bg-muted cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                      className="text-xs font-semibold px-3 py-1.5 rounded-full border border-border bg-card hover:bg-muted cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                     >
                       {loadingId === item.id && <Loader2 className="w-3 h-3 animate-spin" />}
                       Révoquer

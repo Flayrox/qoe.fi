@@ -121,7 +121,7 @@ function formatDate(value?: string): string {
 }
 
 function inputClass(extra = '') {
-  return `w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:ring-2 focus:ring-primary/30 ${extra}`;
+  return `w-full rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:ring-2 focus:ring-primary/30 ${extra}`;
 }
 
 interface VersionDraft {
@@ -477,7 +477,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
     <div className="space-y-6">
       {/* Barre d'actions */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-xl border border-border bg-white p-1">
+        <div className="inline-flex rounded-xl border border-border bg-card p-1">
           <button
             onClick={() => setTab('documents')}
             className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
@@ -555,7 +555,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
                     className={`w-full rounded-lg border px-4 py-3 text-left transition-colors ${
                       isActive
                         ? 'border-primary/40 bg-primary/5'
-                        : 'border-border bg-white hover:bg-muted/40'
+                        : 'border-border bg-card hover:bg-muted/40'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -674,7 +674,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
                   onDelete={() => removeDocument(selected)}
                 />
 
-                <div className="rounded-lg border border-border bg-white">
+                <div className="rounded-lg border border-border bg-card">
                   <div className="flex items-center justify-between border-b border-border px-5 py-4">
                     <div className="flex items-center gap-2">
                       <Scale className="h-4 w-4 text-primary" />
@@ -686,7 +686,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
                         setDraft({ ...EMPTY_VERSION });
                         setShowPreview(false);
                       }}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-foreground px-2.5 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-foreground px-2.5 py-1.5 text-xs font-semibold text-background hover:opacity-90"
                     >
                       <Plus className="h-3.5 w-3.5" /> Nouvelle version
                     </button>
@@ -825,7 +825,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
             />
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-border bg-white">
+          <div className="overflow-hidden rounded-lg border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border px-5 py-4">
               <Filter className="h-4 w-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold text-foreground">Volumétrie par document</h2>
@@ -969,7 +969,7 @@ function DocumentMeta({ document, pending, onSave, onDelete }: DocumentMetaProps
   const [sortOrder, setSortOrder] = useState(String(document.sortOrder));
 
   return (
-    <div className="rounded-lg border border-border bg-white">
+    <div className="rounded-lg border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-5 py-4">
         <div className="flex items-center gap-2">
           <FileText className="h-4 w-4 text-primary" />
@@ -1088,7 +1088,7 @@ function DocumentMeta({ document, pending, onSave, onDelete }: DocumentMetaProps
             })
           }
           disabled={pending}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-3 py-2 text-xs font-semibold text-background hover:opacity-90 disabled:opacity-50"
         >
           <Save className="h-3.5 w-3.5" /> Enregistrer
         </button>

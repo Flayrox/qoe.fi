@@ -76,7 +76,7 @@ export default async function AdminSystemPage() {
         Le manifeste vit dans{' '}
         <span className="text-foreground">apps/admin/src/lib/admin-coverage.ts</span> ; le test Go
         refuse une route non classée.{' '}
-        <Link href="/admin/health" className="font-medium text-[#EE4B2B] hover:underline">
+        <Link href="/admin/health" className="font-medium text-primary hover:underline">
           Voir la santé plateforme
         </Link>
         .

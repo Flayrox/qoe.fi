@@ -48,6 +48,16 @@ const ROOTS = [
   join(SRC, 'app/(admin)/admin/api'),
   join(SRC, 'app/(admin)/admin/widgets'),
   join(SRC, 'app/(admin)/admin/settings'),
+  join(SRC, 'app/(admin)/admin/storage'),
+  join(SRC, 'app/(admin)/admin/system'),
+  join(SRC, 'app/(admin)/admin/legal'),
+  join(SRC, 'app/(admin)/admin/health'),
+  join(SRC, 'app/(admin)/admin/compliance'),
+  join(SRC, 'app/(admin)/admin/retention'),
+  join(SRC, 'app/(admin)/admin/audit'),
+  join(SRC, 'app/(admin)/admin/subscriptions'),
+  join(SRC, 'app/(admin)/admin/forbidden'),
+  join(SRC, 'features/editor'),
 ];
 const HEX = /#[0-9a-fA-F]{3,8}\b/;
 const RAW_PALETTE = /\b(?:bg|text|border)-(?:white|black)\b/;
