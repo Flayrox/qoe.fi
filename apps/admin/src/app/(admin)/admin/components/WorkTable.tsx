@@ -96,6 +96,18 @@ export function WorkTable({
   const [undoSnapshots, setUndoSnapshots] = React.useState<UndoSnapshot[]>([]);
   const grid = useGridView('admin.work', { column: 'sla', direction: 'ascending' });
 
+  // Le presse-papiers est une API asynchrone et refusable (permission, page non
+  // focus, iframe) : sans capture, un refus reste invisible. L'opérateur doit
+  // savoir que la copie n'a pas eu lieu — même promesse tenue que `CopyableId`.
+  const copyId = async (id: string) => {
+    try {
+      await navigator.clipboard.writeText(id);
+      setStatus('Identifiant copié');
+    } catch {
+      setStatus('Copie impossible — sélectionnez l’identifiant dans l’aperçu');
+    }
+  };
+
   const assign = (entry: AdminQueueTriageEntry) => {
     void (async () => {
       const result = await attemptWithStepUp(
@@ -469,7 +481,7 @@ export function WorkTable({
             id: 'copy',
             label: 'Copier l’identifiant',
             shortcut: '⌘C',
-            onSelect: () => void navigator.clipboard.writeText(row.id),
+            onSelect: () => void copyId(row.id),
           },
           {
             id: 'audit',
