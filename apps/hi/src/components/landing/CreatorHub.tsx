@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { ArrowUpRight, Check } from 'lucide-react';
 import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
 import { URLS } from '@qoe/config';
+import { isFilledString, isRecord, isStringArray, parseJsonArray } from '@/lib/config-json';
 
 interface CreatorHubProps {
   config: Record<string, string>;
@@ -15,6 +16,33 @@ interface CreatorHubProps {
 
 const TABS = ['Créateurs', 'Médias & CMS', 'API'] as const;
 type CreatorTab = (typeof TABS)[number];
+
+interface TabContent {
+  eyebrow: string;
+  headline: string;
+  body: string;
+  features: string[];
+  cta: string;
+  ctaHref: string;
+}
+
+// Garde de forme : `creator_hub_tabs` vient de la console en JSON libre. Un
+// objet incomplet faisait planter toute la page (`content.features.map`).
+function toTabContent(value: unknown): TabContent | null {
+  if (!isRecord(value)) return null;
+  const { eyebrow, headline, body, features, cta, ctaHref } = value;
+  if (
+    !isFilledString(eyebrow) ||
+    !isFilledString(headline) ||
+    !isFilledString(body) ||
+    !isFilledString(cta) ||
+    !isFilledString(ctaHref) ||
+    !isStringArray(features)
+  ) {
+    return null;
+  }
+  return { eyebrow, headline, body, features, cta, ctaHref };
+}
 
 // Libellés d'onglets résolus au rendu (t`...` au module resterait figé).
 const getTabLabel = (tab: CreatorTab): string => {
@@ -26,17 +54,7 @@ const getTabLabel = (tab: CreatorTab): string => {
 export const CreatorHub = ({ config }: CreatorHubProps) => {
   const [activeTab, setActiveTab] = useState<CreatorTab>('Créateurs');
 
-  const TAB_CONTENT: Record<
-    CreatorTab,
-    {
-      eyebrow: string;
-      headline: string;
-      body: string;
-      features: string[];
-      cta: string;
-      ctaHref: string;
-    }
-  > = {
+  const TAB_CONTENT: Record<CreatorTab, TabContent> = {
     Créateurs: {
       eyebrow: t`Journalistes, essayistes, collectifs`,
       headline: t`Votre média en 3 minutes.`,
@@ -112,17 +130,10 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
   const customTabsJson = config[`creator_hub_tabs_${locale}`] || config['creator_hub_tabs'];
   let content = TAB_CONTENT[activeTab];
   if (customTabsJson) {
-    try {
-      const parsed = JSON.parse(customTabsJson);
-      if (Array.isArray(parsed)) {
-        const idx = TABS.indexOf(activeTab);
-        if (idx !== -1 && parsed[idx]) {
-          content = parsed[idx];
-        }
-      }
-    } catch (e) {
-      console.error('Failed to parse creator hub tabs JSON:', e);
-    }
+    const parsed = parseJsonArray(customTabsJson);
+    const idx = TABS.indexOf(activeTab);
+    const custom = idx !== -1 ? toTabContent(parsed[idx]) : null;
+    if (custom) content = custom;
   }
 
   return (

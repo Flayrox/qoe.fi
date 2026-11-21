@@ -4,6 +4,7 @@ import { t } from '@lingui/core/macro';
 import { getLanguage } from '@qoe/i18n/server';
 import { URLS } from '@qoe/config';
 import { cn } from '@qoe/utils';
+import { isFilledString, isRecord, parseJsonArray } from '@/lib/config-json';
 
 interface FooterLink {
   label: string;
@@ -19,6 +20,19 @@ interface FooterSection {
 interface FooterProps {
   config?: Record<string, string>;
   locale?: string;
+}
+
+// Garde de forme : la config vient de la console, en JSON libre.
+function isFooterSection(value: unknown): value is FooterSection {
+  if (!isRecord(value) || !isFilledString(value.title)) return false;
+  if (!Array.isArray(value.links)) return false;
+  return value.links.every(
+    (link) =>
+      isRecord(link) &&
+      isFilledString(link.label) &&
+      isFilledString(link.href) &&
+      (link.isExternal === undefined || typeof link.isExternal === 'boolean')
+  );
 }
 
 const getDefaultSections = (locale: string): FooterSection[] => {
@@ -129,15 +143,10 @@ export const Footer = async ({ config, locale }: FooterProps) => {
   let footerSections = getDefaultSections(resolvedLocale);
 
   if (customSectionsJson) {
-    try {
-      const parsed = JSON.parse(customSectionsJson);
-      if (Array.isArray(parsed)) {
-        footerSections = parsed;
-      }
-    } catch (e) {
-      console.error('Failed to parse footer sections JSON:', e);
-      // Fallback to default sections is already set
-    }
+    // Une section sans titre ou un lien sans intitulé n'a rien à faire à
+    // l'écran : on ignore l'entrée et on garde les colonnes par défaut.
+    const custom = parseJsonArray(customSectionsJson).filter(isFooterSection);
+    if (custom.length > 0) footerSections = custom;
   }
 
   return (

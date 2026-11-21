@@ -22,3 +22,23 @@ describe('Footer — langue du texte de bas de page', () => {
     expect(html).toContain('Tous droits réservés');
   });
 });
+
+describe('Footer — colonnes depuis la console', () => {
+  it('ignore une section de forme inattendue au lieu de planter', async () => {
+    const config = { footer_sections: '[null, {"title":"Sans liens"}, {"links":[]}]' };
+    const html = renderToStaticMarkup(await Footer({ config, locale: 'fr' }));
+    expect(html).toContain('Plateforme');
+  });
+
+  it('affiche les colonnes personnalisées quand elles sont valides', async () => {
+    const config = {
+      footer_sections: JSON.stringify([
+        { title: 'Colonne console', links: [{ label: 'Lien console', href: '/ici' }] },
+      ]),
+    };
+    const html = renderToStaticMarkup(await Footer({ config, locale: 'fr' }));
+    expect(html).toContain('Colonne console');
+    expect(html).toContain('href="/ici"');
+    expect(html).not.toContain('Plateforme');
+  });
+});

@@ -4,6 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { t } from '@lingui/core/macro';
 import { Check, X, Shield, Sparkles, HelpCircle } from 'lucide-react';
+import { hasStringFields, isRecord, parseJsonArray } from '@/lib/config-json';
 
 interface ComparisonRow {
   feature: string;
@@ -16,20 +17,21 @@ interface ComparisonTableProps {
   config: Record<string, string>;
 }
 
+function isComparisonRow(value: unknown): value is ComparisonRow {
+  if (!isRecord(value)) return false;
+  if (!hasStringFields(value, ['feature', 'substack', 'qoefi'])) return false;
+  return value.highlighted === undefined || typeof value.highlighted === 'boolean';
+}
+
 export const ComparisonTable = ({ config }: ComparisonTableProps) => {
   const title = config['comparison_title'] || t`Souveraineté ou Intermédiation ?`;
   const tagline =
     config['comparison_tagline'] || t`Pourquoi qoefi redéfinit l'édition indépendante`;
 
-  // Load custom rows from config if present, or use premium defaults
-  let rows: ComparisonRow[] = [];
-  if (config['comparison_rows']) {
-    try {
-      rows = JSON.parse(config['comparison_rows']);
-    } catch (e) {
-      console.error('Failed to parse comparison_rows config JSON, falling back to defaults', e);
-    }
-  }
+  // Load custom rows from config if present, or use premium defaults.
+  // `comparison_rows` vient de la console : une ligne sans libellé produisait
+  // des cellules vides, une ligne nulle cassait le rendu.
+  let rows: ComparisonRow[] = parseJsonArray(config['comparison_rows']).filter(isComparisonRow);
 
   if (rows.length === 0) {
     rows = [

@@ -4,12 +4,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   motion,
   AnimatePresence,
-  animate,
   useAnimationFrame,
   useScroll,
   useTransform,
   useMotionTemplate,
-  useMotionValue,
   useMotionValueEvent,
   useReducedMotion,
   type MotionValue,
@@ -21,6 +19,7 @@ import { ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@qoe/utils';
 import { URLS } from '@qoe/config';
+import { isFilledString, isRecord, parseJsonArray } from '@/lib/config-json';
 
 interface HeroProps {
   config: Record<string, string>;
@@ -34,6 +33,15 @@ type RItem =
   | { type: 'body'; text: string }
   | { type: 'quote'; text: string }
   | { type: 'divider' };
+
+const READER_ITEM_TYPES = new Set(['label', 'title', 'section', 'body', 'quote', 'divider']);
+
+function isReaderItem(value: unknown): value is RItem {
+  if (!isRecord(value) || typeof value.type !== 'string') return false;
+  if (!READER_ITEM_TYPES.has(value.type)) return false;
+  if (value.type === 'divider') return true;
+  return isFilledString(value.text);
+}
 
 // Contenu de démonstration de l'aperçu lecteur — construit au rendu pour que
 // les traductions suivent la langue active (un tableau évalué au module
@@ -286,7 +294,6 @@ const PLATE_RADIUS = Math.round((12.01 / 216) * PLATE_W * 10) / 10; // ≈ 57,9 
 const PLATE_RADIUS_REST = 32;
 const PLATE_PAD = 12;
 const PLATE_GAP = 12;
-const PLATE_INNER_W = PLATE_W - 2 * PLATE_PAD; // 1016 px
 const PLATE_INNER_H = PLATE_H - 2 * PLATE_PAD; // ≈ 616,37 px
 
 // Positions et largeurs fixes au repos (deux panneaux côte à côte)
@@ -398,9 +405,6 @@ function PlateauPreview({
   const readerH = useTransform(cadranGlide, (g) => lerp(PLATE_INNER_H, WINDOW_H, g));
   const readerR = useTransform(cadranGlide, (g) => lerp(PANEL_RADIUS, WINDOW_RADIUS, g));
 
-  // Fondu rapide de la carte inactive dès le début du scroll
-  const inactiveFade = useTransform(morph, (v) => 1 - ramp(v, 0.01, 0.12));
-
   // Réduction du plateau vers le dock — easing avec atterrissage doux :
   // le shrink part vite puis décélère quand le plateau devient petit.
   const shrink = useTransform(morph, (v) => (isWide ? easeOutQuart(ramp(v, 0.06, 0.94)) : 0));
@@ -452,15 +456,11 @@ function PlateauPreview({
   const customReaderItemsJson =
     config[`hero_reader_items_${locale}`] || config['hero_reader_items'];
   let readerItems = getReaderItems();
-  if (customReaderItemsJson) {
-    try {
-      const parsed = JSON.parse(customReaderItemsJson);
-      if (Array.isArray(parsed)) {
-        readerItems = parsed;
-      }
-    } catch (e) {
-      console.error('Failed to parse custom reader items:', e);
-    }
+  // `hero_reader_items` est du JSON libre saisi en console : une entrée nulle
+  // ou sans `type` casse le rendu de l'aperçu — on ne garde que les valides.
+  const customReaderItems = parseJsonArray(customReaderItemsJson).filter(isReaderItem);
+  if (customReaderItems.length > 0) {
+    readerItems = customReaderItems;
   }
 
   const typedBody = useTypewriter(editorBody, 30, active === 'writer');
