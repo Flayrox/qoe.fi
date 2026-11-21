@@ -110,8 +110,8 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L25     | `apps/collab-server/src/**`                                                                                  | **7 f. prod · 1 036 l.** + 6 f. de tests (remesuré) | **clos le 2026-11-21** — 4 défauts F405–F408 (auth non-objet, clé anon en prod, schéma sans migration, erreur de schéma avalée), R173/R174 ouvertes |
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
-| L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **en cours** (ouvert le 2026-11-21) |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go                          | en cours (garde média)  |
+| L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (217 f. prod · 67 491 l.) | **en cours** (ouvert le 2026-11-21, non entamé) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -123,8 +123,12 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**En cours : L28 — `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`** (périmètre remesuré à
-l'ouverture du 2026-11-21 : **35 fichiers Go** = **17 de production · 4 103 l.** + **18 de tests · 2 938 l.**).
+**En cours : L29 — `apps/api/internal/modules/**`** (périmètre remesuré à l'ouverture du 2026-11-21 :
+**449 fichiers Go** = **217 de production · 67 491 l.** + **232 de tests · 48 425 l.**, le plus gros lot de la
+campagne — à découper en tranches par module).
+**L28 est clos le 2026-11-21** : les **17 fichiers de production · 4 103 l.** lus intégralement, **3 défauts**
+F423–F425 corrigés avec rouge cité et contre-preuve, dettes R185–R188 ouvertes. `adminauthz` reste **non concluant**
+pour ses 10 tests à base réelle (`PostgreSQL de test indisponible … rootless Docker not found`), pas vert.
 **L27 est clos le 2026-11-21** : les **29 fichiers de production · 5 373 l.** ont été lus intégralement (deux tours),
 **5 défauts** F418–F422 corrigés avec rouge cité et contre-preuve, dettes R180–R183 ouvertes. `adminauthz` reste
 **non concluant** pour ses 10 tests à base réelle (`PostgreSQL de test indisponible … rootless Docker not found`),
@@ -2042,6 +2046,45 @@ le canal natif reste). **R164** : `grants-manager` recharge la page entière apr
 **L22f est clos.** Huit défauts corrigés (F390–F397), huit suites ajoutées là où il n'y en avait aucune, garde de
 palette étendue à onze racines. **L22 est clos** (L22a→L22f : **45 défauts** F353–F397).
 **Prochain lot : L23** — `apps/tenants/src/**` (publications multi-tenant), périmètre à remesurer à l'ouverture.
+
+## L28 — `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}` — **clos le 2026-11-21**
+
+**Périmètre remesuré** : **35 fichiers Go** = **17 de production · 4 103 l.** + **18 de tests · 2 938 l.**
+
+**Lecture : 17 / 17 fichiers de production · 4 103 / 4 103 lignes (100 %)**, chacun lu jusqu'à sa dernière ligne par
+tranches bornées vérifiées contre `wc -l` — `antispam/antispam 724`, `antispam/media 135`, `trust/trust 491`,
+`pow/pow 187`, `netguard/ssrf 186`, `netguard/mediatype 92`, `eligibility/sql 104`, `abuse/{appeal 450, decision 443,
+incident 288, store 287, budget 189, review 166, metrics 162, eligibility 87, killswitch 65, retention 47}`.
+
+**Déclarés sains** (aucun correctif inventé) : `antispam/antispam.go` et `antispam/media.go` (pipeline Unicode/XSS/
+liens, SimHash+LSH, strikes — contrôles cohérents, nil-safety présente), `trust/trust.go` (score pur et
+`applySanctionClamp` corrects), `abuse/{decision,store,review,appeal,incident,metrics,eligibility,killswitch,retention}.go`
+(les cas de dégradation ouverte sont explicitement documentés comme voulus, pas des oublis), `eligibility/sql.go`
+(prédicats purs paramétrés), `netguard/mediatype.go` (magic bytes, SVG/HTML rejetés avant sniffing).
+
+| # | Défaut | Rouge mesuré (cité) | Correctif |
+|---|---|---|---|
+| **F423** | `pow.GenerateChallenge` acceptait `maxNumber = 0` : la cible aléatoire vaut alors toujours 0, donc le challenge est **résolu d'avance** — PoW décoratif au lieu d'une preuve de travail. | `pow_params_test.go:13: maxNumber=0 accepté : challenge résolu d'avance (aucune preuve de travail)` | Refus explicite si `maxNumber < 1` (`ErrInvalidParams`). `2d4e4ca7` |
+| **F424** | **SSRF via 6to4** : `2002::/16` manquait dans les plages réservées, donc `IsPublicIP` déclarait publiques des adresses qui embarquent une IPv4 interne (`2002:7f00:1::` → 127.0.0.1, `2002:a9fe:a9fe::` → 169.254.169.254). | `ssrf_six2four_test.go:20: IsPublicIP(2002:7f00:0001::) = true, attendu false (6to4 vers une adresse interne)` (3 cas) | `2002::/16` ajouté aux CIDR IPv6 réservés. `2d4e4ca7` |
+| **F425** | `abuse.ConfirmAllowed` consommait le budget **(adresse, publication)** puis découvrait le plafond publication **sans rembourser** : un lecteur légitime brûlait ses 3 demandes du jour pour des e-mails jamais partis. | `budget_refund_test.go:74: budget (adresse, publication) = 1, attendu 0 après remboursement` | Remboursement des budgets déjà consommés quand un plafond ultérieur refuse l'envoi ; contre-épreuve « tout passe » ajoutée. `2d4e4ca7` |
+
+**Batterie de clôture (mesures du tour).** `go vet ./internal/...` **0** · `go build ./...` **0** ·
+`go test` des paquets du lot : `antispam` **ok**, `abuse` **ok**, `netguard` **ok**, `pow` **ok**, `trust` **ok**,
+`eligibility` **ok** (`lots=0`). Paquets de référence : `middleware`, `secguard`, `authz`, `identity`, `apiaccess`,
+`permissions` **ok** ; `adminauthz` **FAIL** sur ses **10 tests à base réelle uniquement** (`PostgreSQL de test
+indisponible … rootless Docker not found`) → **non concluant**, pas vert. Workspace : mobile **20 f. / 195**
+(inchangé, **aucun fichier mobile touché**), tenants **16 f. / 48**, admin **48 f. / 153**, `typecheck` 0,
+`mobile:typecheck` 0, `lint` 0, `ui:audit` 0, `arch:audit` 0, `audit:guard` 0, 7 `guard:*` 0.
+`git status --porcelain` vide, aucun push.
+
+**Dettes ouvertes du lot.** `R185` — `antispam.CheckColdDM` : TOCTOU entre `SCard` et `SAdd`, des envois concurrents
+peuvent dépasser le plafond quotidien de quelques unités (pas de script Lua atomique) ; non testable ici sans Redis.
+`R186` — `abuse.ResolveDecision` écrit le verdict humain avec `expiresAt` toujours nil alors que `latestExpiry` est
+lu : une mesure humaine (`limit_distribution`/`suspend`) n'expire donc jamais — à trancher produit (acte tracé vs
+échéance), non modifié pour ne pas changer une politique de sanction sans décision. `R187` — `trust.Evaluate` échoue
+sur un utilisateur introuvable et `secguard.EvaluateRequest` retombe alors sur `TierStandard` (défaut permissif) au
+lieu de `RESTRICTED` : à arbitrer (blocage des comptes en cours de sync). `R188` —
+`netguard.SafeHTTPClient` : `len(via) > maxRedirects` autorise un suivi de plus que la constante.
 
 ## L27 — gardes Go `middleware` / `authz` / `adminauthz` / `secguard` — **clos le 2026-11-21**
 
