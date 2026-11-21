@@ -77,8 +77,13 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Erreur interne lors de l'upload";
-    console.error('Erreur Upload Admin:', message);
-    return NextResponse.json({ error: message }, { status: 400 });
+    // Le détail (bucket, hôte, clé, requête SQL) reste dans les logs serveur :
+    // le renvoyer au navigateur avec un 400 faisait passer une panne interne
+    // pour une faute de l'utilisateur et fuyait l'infrastructure.
+    console.error('Erreur Upload Admin:', error);
+    return NextResponse.json(
+      { error: "L'upload a échoué. Réessayez dans un instant." },
+      { status: 500 }
+    );
   }
 }
