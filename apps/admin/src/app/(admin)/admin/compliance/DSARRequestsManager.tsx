@@ -40,6 +40,7 @@ import {
   notifyActionFailure,
   readMessage,
 } from '@/lib/authz-feedback';
+import { copyToClipboard } from '@/lib/clipboard';
 
 function formatDateTime(value?: string | null): string {
   if (!value) return '—';
@@ -229,7 +230,7 @@ export function DSARRequestsManager({ requests }: { requests: DeletionRequestIte
       id: 'copy-id',
       label: 'Copier l’ID utilisateur',
       shortcut: '⌘C',
-      onSelect: () => void navigator.clipboard.writeText(r.userId),
+      onSelect: () => void copyToClipboard(r.userId),
     },
     ...(r.status === 'PENDING'
       ? [

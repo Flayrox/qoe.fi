@@ -33,6 +33,7 @@ import type {
   AdminQueueTriageEntry,
   AdminWorkQueueView,
 } from '@/lib/admin-data';
+import { copyToClipboard } from '@/lib/clipboard';
 
 const PRIORITIES: { id: AdminQueuePriority; label: string }[] = [
   { id: 'low', label: 'Basse' },
@@ -229,7 +230,7 @@ export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
       id: 'copy',
       label: 'Copier l’identifiant',
       shortcut: '⌘C',
-      onSelect: () => void navigator.clipboard.writeText(entry.id),
+      onSelect: () => void copyToClipboard(entry.id),
     },
     {
       id: 'audit',

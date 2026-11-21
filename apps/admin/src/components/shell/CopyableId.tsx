@@ -4,6 +4,7 @@ import * as React from 'react';
 import { Icon } from '@qoe/ui/icons';
 import { IconButton } from '@qoe/ui/icon-button';
 import { cn } from '@qoe/utils';
+import { copyToClipboard } from '@/lib/clipboard';
 import { DENSITY } from './tokens';
 
 // =====================================================================
@@ -38,14 +39,11 @@ export function CopyableId({
   const short = id.length > max + 4 ? `${id.slice(0, max)}…` : id;
 
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(id);
-      setCopied(true);
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Presse-papiers refusé : l'ID reste lisible en infobulle, rien à casser.
-    }
+    // Presse-papiers refusé : l'ID reste lisible en infobulle, rien à casser.
+    if (!(await copyToClipboard(id))) return;
+    setCopied(true);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setCopied(false), 1500);
   };
 
   return (

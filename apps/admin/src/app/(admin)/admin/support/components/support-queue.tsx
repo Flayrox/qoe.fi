@@ -39,6 +39,7 @@ import {
 import type { RowActionItem } from '@/components/shell/RowMenu';
 import { attemptWithStepUp, notifyActionFailure, readMessage } from '@/lib/authz-feedback';
 import type { SupportTicketItem, SupportMetrics } from '@/lib/admin-data';
+import { copyToClipboard } from '@/lib/clipboard';
 
 interface SupportQueueProps {
   initialItems: SupportTicketItem[];
@@ -282,12 +283,12 @@ export function SupportQueue({ initialItems }: SupportQueueProps) {
     {
       id: 'copy-id',
       label: 'Copier l’ID du ticket',
-      onSelect: () => void navigator.clipboard.writeText(item.id),
+      onSelect: () => void copyToClipboard(item.id),
     },
     {
       id: 'copy-user',
       label: 'Copier l’ID demandeur',
-      onSelect: () => void navigator.clipboard.writeText(item.openedBy),
+      onSelect: () => void copyToClipboard(item.openedBy),
     },
     {
       id: 'audit',

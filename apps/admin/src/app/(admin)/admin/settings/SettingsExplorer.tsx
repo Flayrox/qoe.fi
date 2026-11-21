@@ -38,6 +38,7 @@ import {
   SETTINGS_CATEGORY_LABELS,
   type SettingsLever,
 } from '@/lib/admin-settings-catalog';
+import { copyToClipboard } from '@/lib/clipboard';
 
 interface SettingsExplorerProps {
   heldCapabilities: string[];
@@ -203,12 +204,12 @@ export function SettingsExplorer({ heldCapabilities }: SettingsExplorerProps) {
       {
         id: 'copy-id',
         label: 'Copier l’ID du levier',
-        onSelect: () => void navigator.clipboard.writeText(lever.id),
+        onSelect: () => void copyToClipboard(lever.id),
       },
       {
         id: 'copy-capability',
         label: 'Copier la capacité requise',
-        onSelect: () => void navigator.clipboard.writeText(lever.capability),
+        onSelect: () => void copyToClipboard(lever.capability),
       },
     ];
   };

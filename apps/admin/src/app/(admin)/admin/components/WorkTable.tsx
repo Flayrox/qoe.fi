@@ -23,6 +23,7 @@ import {
   type GridViewState,
 } from '@/components/shell/grid-view';
 import { attemptWithStepUp, notifyActionFailure, readMessage } from '@/lib/authz-feedback';
+import { copyToClipboard } from '@/lib/clipboard';
 import { triageQueueItemAction } from '@/lib/admin-triage-actions';
 import type {
   AdminQueuePriority,
@@ -100,12 +101,11 @@ export function WorkTable({
   // focus, iframe) : sans capture, un refus reste invisible. L'opérateur doit
   // savoir que la copie n'a pas eu lieu — même promesse tenue que `CopyableId`.
   const copyId = async (id: string) => {
-    try {
-      await navigator.clipboard.writeText(id);
-      setStatus('Identifiant copié');
-    } catch {
-      setStatus('Copie impossible — sélectionnez l’identifiant dans l’aperçu');
-    }
+    setStatus(
+      (await copyToClipboard(id))
+        ? 'Identifiant copié'
+        : 'Copie impossible — sélectionnez l’identifiant dans l’aperçu'
+    );
   };
 
   const assign = (entry: AdminQueueTriageEntry) => {

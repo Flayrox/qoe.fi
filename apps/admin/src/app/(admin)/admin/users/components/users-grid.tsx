@@ -24,6 +24,7 @@ import {
   toggleUserShadowbanAction,
   unsuspendUserAction,
 } from '@/lib/admin-actions';
+import { copyToClipboard } from '@/lib/clipboard';
 
 export interface AdminUserRow {
   id: string;
@@ -137,7 +138,7 @@ export function UsersGrid({ users }: { users: AdminUserRow[] }) {
       id: 'copy',
       label: 'Copier l’identifiant',
       shortcut: '⌘C',
-      onSelect: () => void navigator.clipboard.writeText(user.id),
+      onSelect: () => void copyToClipboard(user.id),
     },
   ];
 

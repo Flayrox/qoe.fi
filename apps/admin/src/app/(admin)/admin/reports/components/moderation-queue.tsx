@@ -46,6 +46,7 @@ import {
 import type { RowActionItem } from '@/components/shell/RowMenu';
 import { attemptWithStepUp, notifyActionFailure, readMessage } from '@/lib/authz-feedback';
 import type { ModerationReportItem } from '@/lib/admin-data';
+import { copyToClipboard } from '@/lib/clipboard';
 
 interface ModerationQueueProps {
   initialItems: ModerationReportItem[];
@@ -358,12 +359,12 @@ export function ModerationQueue({ initialItems }: ModerationQueueProps) {
       {
         id: 'copy-target',
         label: 'Copier l’ID cible',
-        onSelect: () => void navigator.clipboard.writeText(report.targetId),
+        onSelect: () => void copyToClipboard(report.targetId),
       },
       {
         id: 'copy-id',
         label: 'Copier l’ID du signalement',
-        onSelect: () => void navigator.clipboard.writeText(report.id),
+        onSelect: () => void copyToClipboard(report.id),
       },
       {
         id: 'audit',
