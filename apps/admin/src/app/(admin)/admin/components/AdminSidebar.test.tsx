@@ -4,8 +4,11 @@ import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 
+// Chemin courant mutable : l'état actif de la navigation dépend de l'écran.
+const route = vi.hoisted(() => ({ pathname: '/admin/users' }));
+
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/admin/users',
+  usePathname: () => route.pathname,
 }));
 
 import { AdminSidebar } from './AdminSidebar';
@@ -76,6 +79,36 @@ describe('AdminSidebar', () => {
     expect(links[0]?.getAttribute('href')).toBe('/admin');
     const reports = links.find((link) => link.getAttribute('href') === '/admin/reports');
     expect(reports?.textContent).toContain('7');
+  });
+
+  it('ne marque active que l’entrée la plus précise du chemin courant', () => {
+    // `/admin` est le préfixe de TOUS les écrans : il ne doit pas rester actif
+    // sur un écran enfant.
+    route.pathname = '/admin/reports';
+    render(
+      <AdminSidebar identity={{ roles: ['superadmin'], capabilities: [...ADMIN_CAPABILITIES] }} />
+    );
+
+    const active = Array.from(
+      document.querySelectorAll<HTMLAnchorElement>('[aria-current="page"]')
+    ).map((link) => link.getAttribute('href'));
+
+    expect(active).toEqual(['/admin/reports']);
+  });
+
+  it('ne marque pas active l’entrée parente d’un sous-écran', () => {
+    // `/admin/access` et `/admin/access/roles` partagent un préfixe : seul le
+    // second est l'écran courant.
+    route.pathname = '/admin/access/roles';
+    render(
+      <AdminSidebar identity={{ roles: ['superadmin'], capabilities: [...ADMIN_CAPABILITIES] }} />
+    );
+
+    const active = Array.from(
+      document.querySelectorAll<HTMLAnchorElement>('[aria-current="page"]')
+    ).map((link) => link.getAttribute('href'));
+
+    expect(active).toEqual(['/admin/access/roles']);
   });
 
   it("n'affiche que les écrans ouverts par les capacités détenues", () => {

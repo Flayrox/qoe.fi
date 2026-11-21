@@ -6,7 +6,12 @@ import { usePathname } from 'next/navigation';
 import { Icon } from '@qoe/ui/icons';
 import { IconButton } from '@qoe/ui/icon-button';
 import { cn } from '@qoe/utils';
-import { navByDomain, normalizeCapabilities, type AdminCapability } from '@/lib/admin-console';
+import {
+  navByDomain,
+  navItemForPath,
+  normalizeCapabilities,
+  type AdminCapability,
+} from '@/lib/admin-console';
 import { DENSITY } from '@/components/shell/tokens';
 import { ADMIN_NAV_ICONS } from './nav-icons';
 
@@ -33,6 +38,10 @@ export interface AdminSidebarProps {
 
 export function AdminSidebar({ identity, queueCounts = {} }: AdminSidebarProps) {
   const pathname = usePathname();
+  // Entrée réellement courante : la PLUS PRÉCISE, résolue par le même index que
+  // le garde d'écran. Un simple `startsWith` allumait `/admin` sur tous les
+  // écrans et `/admin/access` sur `/admin/access/roles`.
+  const activeHref = navItemForPath(pathname ?? '')?.href;
   const [mobileOpen, setMobileOpen] = useState(false);
   const capabilities = useMemo<AdminCapability[]>(
     () => normalizeCapabilities(identity?.capabilities),
@@ -100,7 +109,7 @@ export function AdminSidebar({ identity, queueCounts = {} }: AdminSidebarProps) 
                 <h2 className={cn(DENSITY.navSection, 'text-muted-foreground')}>{section.label}</h2>
                 <div className="mt-1 space-y-px">
                   {section.items.map((item) => {
-                    const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                    const isActive = item.href === activeHref;
                     const Icon = ADMIN_NAV_ICONS[item.href];
                     const count = queueCounts[item.href] ?? 0;
                     return (
