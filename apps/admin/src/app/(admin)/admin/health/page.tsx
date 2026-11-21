@@ -20,6 +20,7 @@ import { getPlatformHealth, getPlatformSLO } from '@/lib/admin-infra-data';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
 import { StatusPill } from '@/components/queue/StatusPill';
 import { SLOConsole } from './SLOConsole';
+import { describeAuthzMode } from './authz-mode-copy';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,13 +39,16 @@ export default async function AdminHealthPage() {
 
   const exercised = new Set(month.groups.map((group) => group.capability));
   const neverExercised = ADMIN_CAPABILITIES.filter((capability) => !exercised.has(capability));
+  // Une sonde muette n'est ni « observation » ni « refus armé » : on ne
+  // prétend plus lire un mode qu'on n'a pas reçu.
+  const authzMode = describeAuthzMode(health);
 
   return (
     <div className="mx-auto max-w-5xl space-y-10">
       <QueuePageHeader
         icon={<Activity className="w-4 h-4" />}
         title="Santé de la plateforme"
-        badge={health?.mode === 'enforce' ? 'refus armé' : 'observation'}
+        badge={authzMode.badge}
         description={
           <>
             Base, migration appliquée, mode d’autorisation et décisions des 24 dernières heures.
@@ -107,14 +111,10 @@ export default async function AdminHealthPage() {
             )}{' '}
             Autorisation
           </div>
-          <div className="mt-2 text-2xl font-semibold">
-            {health?.mode === 'enforce' ? 'refus' : 'observation'}
+          <div className="mt-2 text-2xl font-semibold" data-testid="health-mode-value">
+            {authzMode.label}
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            {health?.mode === 'enforce'
-              ? 'Une capacité manquante répond 403.'
-              : 'Les refus sont journalisés, pas encore appliqués.'}
-          </p>
+          <p className="mt-1 text-[11px] text-muted-foreground">{authzMode.detail}</p>
         </div>
       </div>
 
