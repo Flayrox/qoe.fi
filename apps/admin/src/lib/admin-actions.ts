@@ -14,11 +14,12 @@ import { revalidatePath } from 'next/cache';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { assertCapability } from '@/lib/admin-identity';
 import { authzTrailers } from '@/lib/action-result';
+import { requireSupabaseServiceRoleKey } from '@/lib/supabase/env';
 
 function getAdminClient() {
   return createClient(
     resolveSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_APP_URL),
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    requireSupabaseServiceRoleKey(process.env.SUPABASE_SERVICE_ROLE_KEY),
     {
       auth: {
         autoRefreshToken: false,
@@ -73,7 +74,7 @@ export async function updateModerationAction(input: {
   }
 }
 
-/** ✅ Bannir (DB + Supabase Auth). */
+/** ✅ Bannir (DB + Supabase Auth) — un demi-succès se dit, il ne se jette pas. */
 export async function suspendUserAction(input: { userId: string; reason: string }) {
   await verifyModeration();
   const res = await updateModerationAction({
@@ -83,19 +84,35 @@ export async function suspendUserAction(input: { userId: string; reason: string 
   });
   if (!res.success) return res;
 
-  // Ban Supabase Auth.
-  const adminClient = getAdminClient();
-  const { error } = await adminClient.auth.admin.updateUserById(input.userId, {
-    ban_duration: '876000h',
-  });
-  if (error) {
-    throw new Error('User suspended in DB, but failed to ban in Auth.');
+  // Ban Supabase Auth : la suspension est déjà écrite en base. Si le bannissement
+  // échoue, on rend un échec EXPLICITE (contrat `{ success:false, error }`)
+  // au lieu de jeter — l'écran doit pouvoir dire que la session reste active.
+  try {
+    const adminClient = getAdminClient();
+    const { error } = await adminClient.auth.admin.updateUserById(input.userId, {
+      ban_duration: '876000h',
+    });
+    if (error) {
+      return {
+        success: false as const,
+        error:
+          'Suspension enregistrée, mais le bannissement Auth a échoué : la session existante reste active.',
+      };
+    }
+  } catch (err) {
+    return {
+      success: false as const,
+      error: `Suspension enregistrée, mais le bannissement Auth a échoué : ${
+        err instanceof Error ? err.message : 'erreur inconnue'
+      }`,
+    };
   }
+
   revalidatePath('/admin/users');
   return { success: true as const };
 }
 
-/** 🔓 Débannir (DB + Supabase Auth). */
+/** 🔓 Débannir (DB + Supabase Auth) — l'échec du débannissement n'est pas avalé. */
 export async function unsuspendUserAction(userId: string) {
   await verifyModeration();
   const res = await updateModerationAction({
@@ -105,8 +122,25 @@ export async function unsuspendUserAction(userId: string) {
   });
   if (!res.success) return res;
 
-  const adminClient = getAdminClient();
-  await adminClient.auth.admin.updateUserById(userId, { ban_duration: 'none' });
+  try {
+    const adminClient = getAdminClient();
+    const { error } = await adminClient.auth.admin.updateUserById(userId, { ban_duration: 'none' });
+    if (error) {
+      return {
+        success: false as const,
+        error:
+          'Levée en base effectuée, mais le débannissement Auth a échoué : le compte reste banni à la connexion.',
+      };
+    }
+  } catch (err) {
+    return {
+      success: false as const,
+      error: `Levée en base effectuée, mais le débannissement Auth a échoué : ${
+        err instanceof Error ? err.message : 'erreur inconnue'
+      }`,
+    };
+  }
+
   revalidatePath('/admin/users');
   return { success: true as const };
 }

@@ -8,6 +8,20 @@
 // variable — et une valeur vide compte comme absente.
 // =====================================================================
 
+/**
+ * Clé de service (privileges d'administration Auth). Absente = erreur nommée :
+ * partir avec `undefined` ferait échouer l'appel ailleurs, sans dire pourquoi.
+ */
+export function requireSupabaseServiceRoleKey(value: string | undefined): string {
+  const key = value?.trim();
+  if (!key) {
+    throw new Error(
+      'SUPABASE_SERVICE_ROLE_KEY manquante : le bannissement Auth exige la clé de service.'
+    );
+  }
+  return key;
+}
+
 export function requireSupabaseAnonKey(value: string | undefined): string {
   const key = value?.trim();
   if (!key) {
