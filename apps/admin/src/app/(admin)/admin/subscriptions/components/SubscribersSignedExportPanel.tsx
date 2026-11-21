@@ -9,7 +9,7 @@
 // =====================================================================
 
 import { useState } from 'react';
-import { Download, FileCheck2, Loader2, ShieldCheck } from 'lucide-react';
+import { Download, FileCheck2, Loader2, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { Button } from '@qoe/ui/button';
 import { Input } from '@qoe/ui/input';
 import { attemptWithStepUp, readMessage } from '@/lib/authz-feedback';
@@ -45,6 +45,9 @@ export function SubscribersSignedExportPanel() {
   const [publisherId, setPublisherId] = useState('');
   const [isExporting, setIsExporting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  // Le message d'état porte aussi son ton : un refus présenté avec l'icône
+  // de sceau et la couleur de succès se lisait comme un export réussi.
+  const [statusTone, setStatusTone] = useState<'ok' | 'error'>('ok');
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -68,6 +71,7 @@ export function SubscribersSignedExportPanel() {
       );
 
       if (!res.ok || !res.blob) {
+        setStatusTone('error');
         setStatusMessage(readMessage(res) ?? res.error ?? 'Export refusé');
         return;
       }
@@ -80,10 +84,12 @@ export function SubscribersSignedExportPanel() {
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
+      setStatusTone('ok');
       setStatusMessage(
         `Audité · Registre des abonnés scellé Ed25519 à ${new Date().toLocaleTimeString('fr-FR')}`
       );
     } catch (err) {
+      setStatusTone('error');
       setStatusMessage(err instanceof Error ? err.message : 'Erreur lors de l’export');
     } finally {
       setIsExporting(false);
@@ -129,8 +135,17 @@ export function SubscribersSignedExportPanel() {
       <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
         <div className="text-xs text-muted-foreground">
           {statusMessage ? (
-            <span className="inline-flex items-center gap-1.5 text-foreground font-medium">
-              <ShieldCheck className="h-3.5 w-3.5 text-success" />
+            <span
+              data-status-tone={statusTone}
+              className={`inline-flex items-center gap-1.5 font-medium ${
+                statusTone === 'ok' ? 'text-foreground' : 'text-destructive-text'
+              }`}
+            >
+              {statusTone === 'ok' ? (
+                <ShieldCheck className="h-3.5 w-3.5 text-success" />
+              ) : (
+                <ShieldAlert className="h-3.5 w-3.5" />
+              )}
               {statusMessage}
             </span>
           ) : (
