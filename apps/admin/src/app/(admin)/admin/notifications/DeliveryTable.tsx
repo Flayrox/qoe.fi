@@ -35,6 +35,12 @@ import {
 } from '@/components/shell/grid-view';
 import type { RowActionItem } from '@/components/shell/RowMenu';
 import { copyToClipboard } from '@/lib/clipboard';
+import {
+  attemptWithStepUp,
+  isFailure,
+  notifyActionFailure,
+  readMessage,
+} from '@/lib/authz-feedback';
 
 export interface DeliveryRow {
   id: string;
@@ -79,7 +85,16 @@ export function DeliveryTable({ rows }: { rows: DeliveryRow[] }) {
   const retry = async (deliveryId: string) => {
     setRetryingId(deliveryId);
     try {
-      await retryNotificationDeliveryAction(deliveryId);
+      const result = await attemptWithStepUp(() => retryNotificationDeliveryAction(deliveryId), {
+        reason: `Relancer la livraison ${deliveryId.slice(0, 8)}`,
+      });
+      if (isFailure(result)) {
+        // Un refus (capacité, preuve forte, route absente) n'a rien réarmé :
+        // l'afficher, et laisser la ligne dans son état d'échec.
+        notifyActionFailure(result, readMessage(result) ?? 'Relance impossible');
+        setStatus(readMessage(result) ?? 'Relance impossible');
+        return;
+      }
       setStatus(
         `Livraison ${deliveryId.slice(0, 8)} relancée · audité à ${new Date().toLocaleTimeString('fr-FR')}`
       );
