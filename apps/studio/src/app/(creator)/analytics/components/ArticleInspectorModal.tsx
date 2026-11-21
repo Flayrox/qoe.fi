@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   FileText,
   Loader2,
@@ -46,6 +46,8 @@ export function ArticleInspectorDrawer({
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<ArticleDetailData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Dernière requête émise : une réponse plus ancienne ne réécrit pas l'écran. */
+  const latestRequest = useRef(0);
 
   // Sync si la liste change de période (30j → 7j etc.)
   useEffect(() => {
@@ -55,10 +57,12 @@ export function ArticleInspectorDrawer({
   useEffect(() => {
     if (!urlPath) return;
 
+    const request = ++latestRequest.current;
     setLoading(true);
     setError(null);
 
     getArticleAnalyticsDetail(urlPath, period).then((res) => {
+      if (request !== latestRequest.current) return;
       setLoading(false);
       if (res.data) {
         setDetail(res.data);
