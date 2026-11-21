@@ -520,21 +520,14 @@ export interface OutboxHealthMetrics {
 }
 
 /** 📮 Métriques fines de profondeur et de blocage de l'outbox (Lot D5). */
-export async function getAdminOutboxMetrics(): Promise<OutboxHealthMetrics> {
+export async function getAdminOutboxMetrics(): Promise<OutboxHealthMetrics | null> {
   try {
     return await goFetch<OutboxHealthMetrics>('/v1/admin/outbox/metrics');
   } catch {
-    return {
-      queuedTotal: 0,
-      processingTotal: 0,
-      stuckProcessing: 0,
-      failedTotal: 0,
-      sent24h: 0,
-      failed24h: 0,
-      oldestQueuedSeconds: 0,
-      channels: [],
-      status: 'healthy',
-    };
+    // Aucune mesure ≠ flux sain : rendre des zéros avec `status: 'healthy'`
+    // affichait une pastille verte pendant une panne d'API. L'écran dit
+    // « indisponible » au lieu d'inventer un état.
+    return null;
   }
 }
 

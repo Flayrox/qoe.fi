@@ -75,7 +75,20 @@ export default async function AdminNotificationsPage() {
         />
       </div>
 
-      <OutboxObservabilityConsole metrics={outboxMetrics} />
+      {outboxMetrics ? (
+        <OutboxObservabilityConsole metrics={outboxMetrics} />
+      ) : (
+        <section
+          role="status"
+          className="space-y-1 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-[12px] text-foreground"
+        >
+          <p className="font-semibold">Mesures d’outbox indisponibles</p>
+          <p className="text-muted-foreground">
+            L’API n’a pas répondu : aucun état de flux n’est affiché. Un « flux nominal » sans
+            mesure serait une invention — relancer la lecture une fois l’API rétablie.
+          </p>
+        </section>
+      )}
 
       <BroadcastAnnouncementConsole initialAnnouncement={announcement} />
 
