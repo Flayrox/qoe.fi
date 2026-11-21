@@ -75,6 +75,7 @@ export function SupportQueue({ initialItems }: SupportQueueProps) {
   const [note, setNote] = useState('');
   const [reply, setReply] = useState('');
   const [status, setStatus] = useState<string | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const grid = useGridView('admin.support.queue', {
@@ -84,9 +85,18 @@ export function SupportQueue({ initialItems }: SupportQueueProps) {
 
   const loadFullDetail = async (item: SupportTicketItem) => {
     setPreview(item);
-    const res = await getSupportTicketAction({ ticketId: item.id });
-    if (res.ok && res.data?.ticket) {
-      setPreview(res.data.ticket as SupportTicketItem);
+    setDetailError(null);
+    // Même contrat que les recours : une lecture de détail en échec s'affiche
+    // dans le tiroir, pas derrière.
+    try {
+      const res = await getSupportTicketAction({ ticketId: item.id });
+      if (res.ok && res.data?.ticket) {
+        setPreview(res.data.ticket as SupportTicketItem);
+      } else if (!res.ok) {
+        setDetailError(readMessage(res) ?? 'Détail du ticket indisponible.');
+      }
+    } catch (error) {
+      setDetailError(readMessage(error) ?? 'Détail du ticket indisponible.');
     }
   };
 
@@ -412,6 +422,15 @@ export function SupportQueue({ initialItems }: SupportQueueProps) {
                   </>
                 )}
               </dl>
+
+              {detailError && (
+                <p
+                  role="alert"
+                  className="rounded border border-destructive/30 bg-destructive/10 p-2.5 text-[11px] text-destructive-text"
+                >
+                  {detailError}
+                </p>
+              )}
 
               <div className="space-y-2 border-t border-border/60 pt-3">
                 <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">

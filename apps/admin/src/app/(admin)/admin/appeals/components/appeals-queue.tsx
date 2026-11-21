@@ -69,6 +69,7 @@ export function AppealsQueue({ initialItems }: AppealsQueueProps) {
   const [note, setNote] = useState('');
   const [reply, setReply] = useState('');
   const [status, setStatus] = useState<string | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const grid = useGridView('admin.appeals.queue', {
@@ -78,9 +79,18 @@ export function AppealsQueue({ initialItems }: AppealsQueueProps) {
 
   const loadFullDetail = async (item: AbuseAppealItem) => {
     setPreview(item);
-    const res = await getAbuseAppealAction({ appealId: item.id });
-    if (res.ok && res.data?.appeal) {
-      setPreview(res.data.appeal as AbuseAppealItem);
+    setDetailError(null);
+    // Un détail illisible se dit DANS le tiroir : sans ça, l'opérateur juge un
+    // recours sur l'en-tête en croyant avoir lu le fil contradictoire.
+    try {
+      const res = await getAbuseAppealAction({ appealId: item.id });
+      if (res.ok && res.data?.appeal) {
+        setPreview(res.data.appeal as AbuseAppealItem);
+      } else if (!res.ok) {
+        setDetailError(readMessage(res) ?? 'Détail du recours indisponible.');
+      }
+    } catch (error) {
+      setDetailError(readMessage(error) ?? 'Détail du recours indisponible.');
     }
   };
 
@@ -385,6 +395,15 @@ export function AppealsQueue({ initialItems }: AppealsQueueProps) {
                   </>
                 )}
               </dl>
+
+              {detailError && (
+                <p
+                  role="alert"
+                  className="rounded border border-destructive/30 bg-destructive/10 p-2.5 text-[11px] text-destructive-text"
+                >
+                  {detailError}
+                </p>
+              )}
 
               <div className="space-y-2 border-t border-border/60 pt-3">
                 <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
