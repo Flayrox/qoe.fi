@@ -68,6 +68,14 @@ describe('createClient', () => {
     expect(mockSet).toHaveBeenCalledWith('new-cookie', 'new-value', { path: '/' });
   });
 
+  it('refuse de construire un client sans clé anonyme, en nommant la variable', async () => {
+    // L'assertion non-nulle d'origine laissait passer `undefined` : le client se
+    // construisait et l'échec surgissait plus loin, hors de propos.
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = '';
+
+    await expect(createClient()).rejects.toThrow(/NEXT_PUBLIC_SUPABASE_ANON_KEY/);
+  });
+
   it('should initialize successfully in a Server Component Context (read-only cookies)', async () => {
     mockSet.mockImplementation(() => {
       throw new Error('Readonly Request Cookies cannot be modified.');
