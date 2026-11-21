@@ -1676,7 +1676,36 @@ les 13 suites repassent vertes (`Tests 143 passed (143)`).
 **Validation sur l'arbre commité.** `apps/studio` **88 fichiers / 646 tests verts** (86/637 avant le lot,
 +2 fichiers / +9 tests), `apps/core` **65 fichiers / 406 tests** verts, `tsc --noEmit` **0** des deux côtés,
 `pnpm lint` **0 erreur** (studio 5 warnings, core 11 — tous antérieurs ou hors périmètre), les 7 `guard:*`,
-`audit:guard` et `arch:audit` à **EXIT=0**, `pnpm --filter @qoe/studio build` **OK**. `ui:audit` : mesuré **sans régression du lot** — 70 / 34 / 16, soit exactement les plafonds ; mais il est **rouge sur `dev`** depuis la refonte `refactor(core)` (`5b33749e`) qui a découpé `ThoughtComposer.tsx` en `composer/*` : 75 fichiers `<button>` (plafond 70), 36 `<input>` (34), 18 primitives réinventées (16). Mesure de contrôle : en retirant `apps/core/src/app/(reader)/home/components/` de l'arbre (`git stash push -u -- …`), le garde repasse **EXIT=0** à 70 / 34 / 16 — la dette vient des 6 nouveaux fichiers du composeur, pas de L21g. Le ratchet ne se relève pas : la migration `@qoe/ui/button` / `@qoe/ui/input` du composeur est à faire (lot dédié, `base` UI).
+`audit:guard` et `arch:audit` à **EXIT=0**, `pnpm --filter @qoe/studio build` **OK**, `ui:audit` **EXIT=0** (voir ci-dessous).
+
+**Ratchet UI : rouge hérité de la découpe du composeur, puis revenu vert.** La refonte `refactor(core)`
+(`5b33749e`) a découpé `ThoughtComposer.tsx` en `composer/*` en laissant le markup natif dans les nouveaux
+fichiers, et `ui:audit` est passé rouge sur `dev` — **75** fichiers `<button>` (plafond 70), **36** `<input>`
+(34), **18** primitives réinventées (16). Mesure de contrôle : en retirant
+`apps/core/src/app/(reader)/home/components/` de l'arbre, le garde repassait **EXIT=0** à 70 / 34 / 16 —
+L21g n'ajoutait donc aucune dette, tout venait du composeur. Correctif appliqué sans relever un plafond ni
+ajouter d'exclusion : les six fichiers du composeur consomment les primitives partagées
+(`@qoe/ui/button`, `@qoe/ui/input`) — 35 `<button>` et 5 `<input>` natifs supprimés, `className` conservés à
+l'identique (les utilitaires appelants gagnent via `tailwind-merge`, d'où `h-[auto]`, `text-[12px]` et
+`[&_svg]:size-*` là où la taille ou la densité par défaut du contrat aurait sinon pris le dessus) ;
+`variant="ghost"` + `hover:bg-transparent` là où l'état de survol d'origine n'existait pas ;
+`justify-start` sur les options de menu pleine largeur que le contrat centre par défaut. Les deux primitives
+locales redeviennent ce qu'elles sont — un câblage, pas un composant : `ImageCropperModal` →
+`ImageCropOverlay` (adaptateur de `ImageEditorDialog`) et `PollEditorCard` → `PollEditorPanel`.
+
+| Métrique | Avant | Après | Plafond |
+| -------- | ----- | ----- | ------- |
+| `<button>` natifs (occurrences) | 295 | **260** | 295 → 260 figé |
+| fichiers avec `<button>` | 75 | **69** | 70 → 69 figé |
+| `<input>` natifs (occurrences) | 132 | **127** | 132 → 127 figé |
+| fichiers avec `<input>` | 36 | **33** | 34 → 33 figé |
+| primitives réinventées | 18 | **16** | 16 |
+
+`pnpm ui:audit --update` a figé les baisses (`ui-budget.json` ne bouge que vers le bas) ; `pnpm ui:audit`
+rend **EXIT=0**. Contrôles après migration : `apps/core` **66 fichiers / 406 tests** verts,
+`apps/studio` **88 fichiers / 646 tests** verts, `tsc --noEmit` **0** des deux côtés, `pnpm lint` **0 erreur**,
+les 7 `guard:*`, `arch:audit`, `audit:guard` **EXIT=0**, build studio **OK**. Le comportement du composeur est
+inchangé : aucune assertion de test réécrite, seuls le balisage et les deux noms de fichiers ont bougé.
 
 Commits du lot (branche `dev`, aucun push) : `b5c8dba8` (F340), `167821fe` (F341–F342), `73db82b1` (F343),
 `bc0d651d` (F344), `7b64cc58` (F345), `8439479c` (F345, liste des articles), puis ce commit de fiche.
