@@ -38,6 +38,10 @@ const SUBDOMAIN_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 // quand il aura envie. Pas de bio demandée à l'onboarding (friction inutile).
 const getDefaultHero = () => t`Bienvenue dans mon espace d'écriture.`;
 
+// Entrée lance la création depuis le champ, pas depuis un contrôle qui a son
+// propre sens au clavier : sur un lien, Entrée doit suivre le lien.
+const KEYBOARD_OWNED_SELECTOR = 'a, button, select, summary, [role="button"]';
+
 /** Slugifie un texte (nom → sous-domaine candidat). */
 function slugify(value: string): string {
   return value
@@ -274,6 +278,9 @@ export function OnboardingWizard({
       if (e.key !== 'Enter' || status !== 'idle') return;
       const target = e.target as HTMLElement | null;
       if (target && target.tagName === 'TEXTAREA') return;
+      if (target && (target.isContentEditable || target.closest?.(KEYBOARD_OWNED_SELECTOR))) {
+        return;
+      }
       e.preventDefault();
       handleLaunch();
     };
