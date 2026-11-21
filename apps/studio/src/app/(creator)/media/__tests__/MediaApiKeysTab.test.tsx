@@ -12,6 +12,9 @@ vi.mock('../actions', () => ({
   revokeMediaApiKeyAction: vi.fn(),
 }));
 
+const toastMock = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }));
+vi.mock('@qoe/ui/toast', () => ({ toast: toastMock }));
+
 // Mock clipboard
 Object.assign(navigator, {
   clipboard: {
@@ -103,5 +106,39 @@ describe('MediaApiKeysTab', () => {
       expect(screen.getByText('qoe_live_fullsecretkey123456789')).toBeDefined();
       expect(screen.getByText(/Clé API générée avec succès/i)).toBeDefined();
     });
+  });
+
+  it('n’annonce pas une copie réussie quand le presse-papiers refuse', async () => {
+    vi.mocked(actions.listMediaApiKeysAction).mockResolvedValue({ success: true, keys: [] });
+    vi.mocked(actions.createMediaApiKeyAction).mockResolvedValue({
+      success: true,
+      key: {
+        id: 'key_new',
+        name: 'Secret unique',
+        keyPrefix: 'qoe_live_a',
+        scopes: ['READ'],
+        createdAt: new Date().toISOString(),
+        secret: 'qoe_live_one_time_secret',
+      },
+    });
+    const writeText = vi.fn().mockRejectedValue(new Error('NotAllowedError'));
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    render(<MediaApiKeysTab mediaId="media_1" mediaName="La Gazette" />);
+
+    fireEvent.click(await screen.findByText(/Nouvelle clé API/i));
+    fireEvent.change(screen.getByPlaceholderText(/Ex: Zapier Sync/i), {
+      target: { value: 'Secret unique' },
+    });
+    fireEvent.click(screen.getByText('Générer la clé'));
+
+    const copyButton = await screen.findByLabelText('Copier la clé');
+    fireEvent.click(copyButton);
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('qoe_live_one_time_secret'));
+    // Le secret n'est affiché qu'une fois : annoncer une copie qui a échoué
+    // laisse l'utilisateur fermer la fenêtre sans l'avoir conservé.
+    await waitFor(() => expect(toastMock.error).toHaveBeenCalled());
+    expect(toastMock.success).not.toHaveBeenCalledWith('Clé copiée dans le presse-papiers.');
   });
 });

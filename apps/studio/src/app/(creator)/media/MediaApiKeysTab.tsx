@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { t } from '@lingui/core/macro';
 import {
   Key,
@@ -85,6 +85,16 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
     keyName: string;
   } | null>(null);
   const [copied, setCopied] = useState(false);
+  /** Minuteur de la coche : annulé à chaque copie pour ne pas éteindre la
+   * confirmation d'un secret plus récent, et au démontage. */
+  const copyTimer = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (copyTimer.current) window.clearTimeout(copyTimer.current);
+    },
+    []
+  );
 
   // Rename modal / inline
   const [renameData, setRenameData] = useState<{ id: string; name: string } | null>(null);
@@ -110,11 +120,20 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
     fetchKeys();
   }, [fetchKeys]);
 
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const handleCopy = async (text: string) => {
+    if (copyTimer.current) window.clearTimeout(copyTimer.current);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Le secret n'est affiché qu'une fois : une copie refusée doit être
+      // annoncée tout de suite, sinon la fenêtre se ferme sans la clé.
+      setCopied(false);
+      toast.error(t`Copie impossible : sélectionnez le secret à la main.`);
+      return;
+    }
     setCopied(true);
     toast.success(t`Clé copiée dans le presse-papiers.`);
-    setTimeout(() => setCopied(false), 2000);
+    copyTimer.current = window.setTimeout(() => setCopied(false), 2000);
   };
 
   const handleToggleScope = (scope: MediaScope) => {
@@ -571,7 +590,10 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
       <Dialog
         open={Boolean(secretModalData)}
         onOpenChange={(open) => {
-          if (!open) setSecretModalData(null);
+          if (!open) {
+            setSecretModalData(null);
+            setCopied(false);
+          }
         }}
         isDismissable={false}
         size="lg"
