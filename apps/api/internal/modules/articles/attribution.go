@@ -3,6 +3,7 @@ package articles
 import (
 	"context"
 	"errors"
+	"log"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -114,22 +115,38 @@ func (s *Service) fetchCoAuthors(ctx context.Context, articleID string) []Author
 	return out
 }
 
+// syncAttributions met à jour attributions, demandes de collaboration et
+// notifications en UNE transaction : une panne à mi-chemin ne laisse plus une
+// invitation sans attribution (ou l'inverse). Un échec est journalisé — la
+// sauvegarde d'article n'est pas annulée pour autant, mais rien n'est écrit à
+// moitié.
 func (s *Service) syncAttributions(ctx context.Context, articleID, authorID string, attributions []ArticleAttributionInput, showOnPersonalProfile ...bool) {
 	if s.pool == nil {
 		return
 	}
+	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		return s.syncAttributionsTx(ctx, tx, articleID, authorID, attributions, showOnPersonalProfile...)
+	}); err != nil {
+		log.Printf("[articles] attributions (article %s) : %v", articleID, err)
+	}
+}
+
+// syncAttributionsTx est le corps transactionnel de syncAttributions.
+func (s *Service) syncAttributionsTx(ctx context.Context, tx pgx.Tx, articleID, authorID string, attributions []ArticleAttributionInput, showOnPersonalProfile ...bool) error {
 	primaryVisible := true
 	if len(showOnPersonalProfile) > 0 {
 		primaryVisible = showOnPersonalProfile[0]
 	}
 	// Toujours s'assurer que l'auteur principal a son attribution PRIMARY_AUTHOR ACCEPTED,
 	// avec isVisible synchronisé avec showOnPersonalProfile.
-	_, _ = s.pool.Exec(ctx, `
+	if _, err := tx.Exec(ctx, `
 		INSERT INTO "ArticleAttribution" (id, "articleId", "userId", role, "order", "isVisible", "consentStatus", "consentUpdatedAt", "updatedAt")
 		VALUES (gen_random_uuid()::text, $1, $2, 'PRIMARY_AUTHOR', 0, $3, 'ACCEPTED', now(), now())
 		ON CONFLICT ("articleId", "userId") DO UPDATE SET
 		  role = 'PRIMARY_AUTHOR', "order" = 0, "isVisible" = $3, "consentStatus" = 'ACCEPTED', "updatedAt" = now()
-	`, articleID, toUUID(authorID), primaryVisible)
+	`, articleID, toUUID(authorID), primaryVisible); err != nil {
+		return err
+	}
 
 	newUsers := make(map[string]bool)
 	for _, attr := range attributions {
@@ -139,53 +156,63 @@ func (s *Service) syncAttributions(ctx context.Context, articleID, authorID stri
 	}
 
 	// Détecter les attributions supprimées / révoquées
-	existingRows, err := s.pool.Query(ctx, `
+	existingRows, err := tx.Query(ctx, `
 		SELECT "userId"::text, "consentStatus"
 		FROM "ArticleAttribution"
 		WHERE "articleId" = $1 AND "userId" != $2
 	`, articleID, toUUID(authorID))
-	if err == nil {
-		type existingContr struct {
-			userID string
-			status string
-		}
-		var toRevoke []existingContr
-		var toDelete []string
-		for existingRows.Next() {
-			var uID, status string
-			if scanErr := existingRows.Scan(&uID, &status); scanErr == nil {
-				if !newUsers[uID] {
-					if status == "ACCEPTED" {
-						toRevoke = append(toRevoke, existingContr{userID: uID, status: status})
-					} else if status == "PENDING" {
-						toDelete = append(toDelete, uID)
-					}
+	if err != nil {
+		return err
+	}
+	type existingContr struct {
+		userID string
+		status string
+	}
+	var toRevoke []existingContr
+	var toDelete []string
+	for existingRows.Next() {
+		var uID, status string
+		if scanErr := existingRows.Scan(&uID, &status); scanErr == nil {
+			if !newUsers[uID] {
+				if status == "ACCEPTED" {
+					toRevoke = append(toRevoke, existingContr{userID: uID, status: status})
+				} else if status == "PENDING" {
+					toDelete = append(toDelete, uID)
 				}
 			}
 		}
-		existingRows.Close()
+	}
+	existingRows.Close()
+	if err := existingRows.Err(); err != nil {
+		return err
+	}
 
-		if len(toRevoke) > 0 {
-			articleRow, _ := s.q.GetArticleByID(ctx, articleID)
-			for _, r := range toRevoke {
-				if articleRow.ID != "" {
-					_ = s.captureSnapshot(ctx, articleID, &r.userID, articleRow.Title, articleRow.Content, "BEFORE_REVOCATION")
-				}
-				_, _ = s.pool.Exec(ctx, `
-					UPDATE "ArticleAttribution"
-					SET "consentStatus" = 'REVOKED', "isVisible" = false, "updatedAt" = now()
-					WHERE "articleId" = $1 AND "userId" = $2
-				`, articleID, toUUID(r.userID))
+	if len(toRevoke) > 0 {
+		articleRow, _ := s.q.GetArticleByID(ctx, articleID)
+		for _, r := range toRevoke {
+			if articleRow.ID != "" {
+				_ = s.captureSnapshot(ctx, articleID, &r.userID, articleRow.Title, articleRow.Content, "BEFORE_REVOCATION")
+			}
+			if _, err := tx.Exec(ctx, `
+				UPDATE "ArticleAttribution"
+				SET "consentStatus" = 'REVOKED', "isVisible" = false, "updatedAt" = now()
+				WHERE "articleId" = $1 AND "userId" = $2
+				`, articleID, toUUID(r.userID)); err != nil {
+				return err
 			}
 		}
-		for _, dID := range toDelete {
-			_, _ = s.pool.Exec(ctx, `DELETE FROM "ArticleAttribution" WHERE "articleId" = $1 AND "userId" = $2`, articleID, toUUID(dID))
-			_, _ = s.pool.Exec(ctx, `DELETE FROM "CollaborationRequest" WHERE "articleId" = $1 AND "inviteeId" = $2`, articleID, toUUID(dID))
+	}
+	for _, dID := range toDelete {
+		if _, err := tx.Exec(ctx, `DELETE FROM "ArticleAttribution" WHERE "articleId" = $1 AND "userId" = $2`, articleID, toUUID(dID)); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `DELETE FROM "CollaborationRequest" WHERE "articleId" = $1 AND "inviteeId" = $2`, articleID, toUUID(dID)); err != nil {
+			return err
 		}
 	}
 
 	if len(attributions) == 0 {
-		return
+		return nil
 	}
 
 	for _, attr := range attributions {
@@ -203,28 +230,33 @@ func (s *Service) syncAttributions(ctx context.Context, articleID, authorID stri
 
 		// Vérifie si une attribution existe déjà
 		var existingConsent pgtype.Text
-		err := s.pool.QueryRow(ctx, `
+		err := tx.QueryRow(ctx, `
 			SELECT "consentStatus" FROM "ArticleAttribution"
 			WHERE "articleId" = $1 AND "userId" = $2
 		`, articleID, toUUID(attr.UserID)).Scan(&existingConsent)
 
 		if errors.Is(err, pgx.ErrNoRows) {
 			// Nouveau contributeur : insertion avec statut PENDING
-			_, _ = s.pool.Exec(ctx, `
+			if _, err := tx.Exec(ctx, `
 				INSERT INTO "ArticleAttribution" (id, "articleId", "userId", role, "order", "isVisible", "consentStatus", "consentUpdatedAt", "updatedAt")
 				VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, 'PENDING', now(), now())
 				ON CONFLICT ("articleId", "userId") DO NOTHING
-			`, articleID, toUUID(attr.UserID), role, order, attr.IsVisible)
+			`, articleID, toUUID(attr.UserID), role, order, attr.IsVisible); err != nil {
+				return err
+			}
 
 			// Création de la demande de collaboration
-			_, _ = s.pool.Exec(ctx, `
+			if _, err := tx.Exec(ctx, `
 				INSERT INTO "CollaborationRequest" (id, "articleId", "inviterId", "inviteeId", status, "requestedRole", "requestedOrder", "showOnPublicProfile", "createdAt", "updatedAt")
 				VALUES (gen_random_uuid()::text, $1, $2, $3, 'PENDING', $4, $5, $6, now(), now())
 				ON CONFLICT ("articleId", "inviteeId") DO UPDATE SET
 				  status = 'PENDING', "requestedRole" = $4, "requestedOrder" = $5, "showOnPublicProfile" = $6, "updatedAt" = now()
-			`, articleID, toUUID(authorID), toUUID(attr.UserID), role, order, attr.IsVisible)
+			`, articleID, toUUID(authorID), toUUID(attr.UserID), role, order, attr.IsVisible); err != nil {
+				return err
+			}
 
-			// Émission de la notification in-app garantie
+			// Émission de la notification in-app garantie (best-effort : une
+			// notification manquée ne doit pas annuler l'invitation écrite).
 			_ = s.q.InsertArticleContributorNotification(ctx, db.InsertArticleContributorNotificationParams{
 				Column1: toUUID(attr.UserID),
 				Column2: toUUID(authorID),
@@ -233,11 +265,16 @@ func (s *Service) syncAttributions(ctx context.Context, articleID, authorID stri
 			})
 		} else if err == nil {
 			// Contributeur existant : mise à jour du rôle, de l'ordre et de la visibilité
-			_, _ = s.pool.Exec(ctx, `
+			if _, err := tx.Exec(ctx, `
 				UPDATE "ArticleAttribution"
 				SET role = $3, "order" = $4, "isVisible" = $5, "updatedAt" = now()
 				WHERE "articleId" = $1 AND "userId" = $2
-			`, articleID, toUUID(attr.UserID), role, order, attr.IsVisible)
+			`, articleID, toUUID(attr.UserID), role, order, attr.IsVisible); err != nil {
+				return err
+			}
+		} else {
+			return err
 		}
 	}
+	return nil
 }
