@@ -80,6 +80,19 @@ pnpm mail:dev             # puits SMTP local (`.mail-outbox/*.eml`)
 pnpm ui:catalog          # régénère le catalogue du UI lab
 ```
 
+## Ordre des lots — le mobile passe en dernier
+
+- **Le mobile n'est pas prioritaire pour l'instant.** Le lot L26 (`apps/mobile/src/**` +
+  `apps/mobile/modules/**`) est **mis en pause**, non clos, avec son reliquat nommé dans
+  `docs/AUDIT-CHECKLIST.md`. On n'ouvre plus de fichier mobile de sa propre initiative.
+- **On ne travaille sur `apps/mobile/**` que si l'utilisateur le demande explicitement**
+  (un message qui nomme le mobile). Sinon : on saute, on note le défaut repéré dans la
+  checklist mobile et on continue la feuille de route sur les lots web/Go.
+- **File d'attente** : L27 → L28 → … → L37 (transverse), puis **L26 mobile en toute fin de
+  campagne**, avec le reliquat tel qu'il est documenté (à remesurer à l'ouverture).
+- Un défaut mobile **mesuré** mais non corrigé reste listé avec sa raison (`reporté en fin de
+  campagne`) : jamais « plus tard » implicite, jamais de correctif mobile non demandé.
+
 ## Conventions
 
 - Go est la source de vérité : ne pas réimplémenter une règle métier côté TS.
@@ -87,3 +100,5 @@ pnpm ui:catalog          # régénère le catalogue du UI lab
 - Les migrations sont rejouables from scratch (`goose`), jamais de delta manuel.
 - Les guards CI (`guard:seed-script`, `guard:legal-consent`, `ui:audit`, `arch:audit`, coverage gates) ne se contournent pas : on corrige la cause.
 - Commentaires et messages en français, style existant.
+- Les lots se suivent dans l'ordre de `docs/AUDIT-CHECKLIST.md` ; **le mobile est le dernier**
+  (cf. « Ordre des lots » plus haut) et ne se traite que sur demande explicite.

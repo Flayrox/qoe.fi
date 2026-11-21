@@ -108,7 +108,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L23     | `apps/tenants/src/**`                                                                                        | **54 f. prod · 6 106 l.** + 11 f. de tests · 1 149 l. (remesuré) | **clos le 2026-11-21** — 2 défauts F398–F399 (refus muets, fuites API), 5 suites ajoutées, R167/R168 ouvertes |
 | L24     | `apps/hi/src/**`                                                                                             | **30 f. prod · 4 387 l.** + 6 f. de tests (remesuré) | **clos le 2026-11-21** — 5 défauts F400–F404 (tests jamais exécutés, assainisseur contournable, pied de page EN, config console non validée, formulaire muet), R169–R172 ouvertes |
 | L25     | `apps/collab-server/src/**`                                                                                  | **7 f. prod · 1 036 l.** + 6 f. de tests (remesuré) | **clos le 2026-11-21** — 4 défauts F405–F408 (auth non-objet, clé anon en prod, schéma sans migration, erreur de schéma avalée), R173/R174 ouvertes |
-| L26     | `apps/mobile/src/**` + `modules/`                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
+| L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go                          | à auditer               |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go                          | en cours (garde média)  |
 | L29     | `apps/api/internal/modules/**`                                                                               | Go                          | en cours (garde média)  |
@@ -123,12 +123,14 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**En cours : L26 — `apps/mobile/src/**` + `apps/mobile/modules/**`** (périmètre remesuré : 181 fichiers →
-166 f. de production · 26 245 l. + 15 f. de tests · 2 196 l. ; **168 f. · 26 420 l.** après les modules ajoutés par
-L26). **L26a + L26b traités le 2026-11-21** : **68 f. lus intégralement (12 313 l.)**, **7 défauts** F409–F415,
-R175–R179 ouvertes ; **100 f. · 14 107 l. restent à lire** → **L26 non clos**.
-**L27 remesuré à l'ouverture (non commencé)** : `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,
-apiaccess,secguard}` → **62 fichiers Go** = **29 de production · 5 373 l.** + **33 de tests · 7 261 l.**
+**En cours : L27 — `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`**
+(périmètre remesuré à l'ouverture du 2026-11-21 : **62 fichiers Go** = **29 de production · 5 373 l.** +
+**33 de tests · 7 261 l.**).
+**L26 — MOBILE MIS EN PAUSE (non clos), reporté à la toute fin de campagne** (règle ajoutée dans `AGENTS.md`,
+« Ordre des lots »). Périmètre remesuré : 181 fichiers → 166 f. de production · 26 245 l. + 15 f. de tests ·
+2 196 l. ; **169 f. · 26 466 l.** après le helper F417. **L26a + L26b traités le 2026-11-21** : **70 f. lus
+intégralement (14 036 l.)**, **8 défauts** F409–F417, R175–R179 ouvertes ; **99 f. · 12 430 l. restent à lire** →
+**L26 non clos**, reliquat nommé en fin de fiche L26. On n'y retourne que sur demande explicite de l'utilisateur.
 **L25 est clos le 2026-11-21** : `apps/collab-server/src/**`, 7 f. de production · 1 036 l. (chiffre de L24 confirmé),
 **4 défauts** F405–F408, R173/R174 ouvertes. Handshake WS, matrice de permissions et accès DB vérifiés contre le
 contrat Go réel (rien de supposé).
