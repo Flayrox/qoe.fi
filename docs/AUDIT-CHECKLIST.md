@@ -104,7 +104,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20f    | **Validation locale bout en bout** : daemon Docker, `test:api`, `e2e` sur base jetable seedée | —                           | mesuré le 2026-11-20 : daemon **démarré** (OrbStack 29.4.0), `test:api` **✅ 82 paquets**, e2e **18/19 + 128/128** — voir fiche L20f |
 | L20e    | **Validation bout en bout** : `pnpm build` (6 apps), `pnpm test:api` (Go + Postgres), `pnpm e2e` (Playwright)  | —                           | mesuré le 2026-11-20 : **build ✅**, `test:api` **bloqué** (Docker absent), e2e **partiel** (seed absent) — voir fiche L20e |
 | L21     | `apps/studio/src/**`                                                                                         | **412 fichiers · 72 285 l.** (mesuré) | **ouvert le 2026-11-20**, découpé en **8 sous-lots** (L21a→L21h) ; **L21a** (socle : layout, not-found, components, lib, instrumentation) **durci le 2026-11-20** ; **R137 ouverte** ; **L21b clos le 2026-11-20** (frontière vendor/maison mesurée, **7 défauts corrigés** sur deux passages, tiroir modal accessible, **R138 ouverte** — seule dette restante du sous-lot) ; **L21c clos le 2026-11-20** (lecture intégrale des 49 fichiers de production et de leurs appelants, **6 défauts corrigés** F313–F318, **R140** et **R141** ouvertes) ; **L21d clos le 2026-11-20** (32 fichiers lus intégralement + gardes de routage, **2 défauts corrigés** F319–F320, deux échappatoires de type retirées, **R142** ouverte) ; **L21e clos le 2026-11-20** (20 fichiers lus intégralement + page serveur et réutilisations, **8 défauts corrigés** F321–F328 dont 380 l. de code mort supprimées, **R143/R144/R145** ouvertes) ; **L21f clos le 2026-11-20** (34 fichiers lus intégralement, **11 défauts corrigés** F329–F339, **R146/R147/R148** ouvertes) ; **L21g clos le 2026-11-21** (les 39 fichiers de production lus intégralement, **6 défauts corrigés** F340–F345, **R149/R150** ouvertes) ; **L21h clos le 2026-11-21** (30 fichiers lus intégralement, dont les 3 routes `api/**` rattachées, **7 défauts corrigés** F346–F352, **R151/R152/R153** ouvertes) ; **L21 clos** ; prochain = **L22** (`apps/admin/src/**`) |
-| L22     | `apps/admin/src/**`                                                                                          | **149 f. prod · 31 079 l.** (mesuré) | **ouvert le 2026-11-21**, découpé en **6 sous-lots** (L22a→L22f) ; **L22a clos le 2026-11-21** (deux passages : coquille, navigation, retours d'autorisation, grille et palette lues intégralement, **10 défauts corrigés** F353–F362, 2 fichiers + 2 exports morts supprimés, **R154–R159** ouvertes dont une décision produit) ; prochain = **L22b** (`src/lib/**` restant, 24 f. · 4 661 l.) |
+| L22     | `apps/admin/src/**`                                                                                          | **149 f. prod · 31 079 l.** (mesuré) | **ouvert le 2026-11-21**, découpé en **6 sous-lots** (L22a→L22f) ; **L22a clos le 2026-11-21** (deux passages : coquille, navigation, retours d'autorisation, grille et palette lues intégralement, **10 défauts corrigés** F353–F362, 2 fichiers + 2 exports morts supprimés, **R154–R159** ouvertes dont une décision produit) ; **L22b clos le 2026-11-21** (couche de données et wrappers de mutation, 24 f. · 4 661 l. remesurés : **7 défauts** F363–F369, **R160/R161** ouvertes, R157–R159 mises à jour) ; prochain = **L22c** (`access/**`, `security/**`, `sandbox/**`, `components/security/**`, 13 f. · 2 561 l.) |
 | L23     | `apps/tenants/src/**`                                                                                        | 85 fichiers                 | à auditer               |
 | L24     | `apps/hi/src/**`                                                                                             | 40 fichiers                 | à auditer               |
 | L25     | `apps/collab-server/src/**`                                                                                  | 15 fichiers                 | à auditer               |
@@ -123,8 +123,9 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L22b — `apps/admin/src/lib/**` restant** (24 f. · 4 661 l. : couche de données et
-wrappers de mutation). L22a est clos après deux passages (10 défauts F353–F362).
+**Prochain lot à traiter : L22c — `apps/admin/src/app/(admin)/admin/{access,security,sandbox}/**` +
+`components/security/**`** (13 f. · 2 561 l. : les surfaces qui élèvent les droits — accès staff, step-up, bac à
+sable). L22a et L22b sont clos (17 défauts F353–F369, 8 dettes R154–R161).
 L21h (`features/{security,onboarding,upcoming,dashboard,developer,devtools}`, **24 f. · 3 481 l.**, + routes
 `login`/`onboarding` **3 f. · 105 l.** + les **3 routes `api/**`** rattachées à l'ouverture, **30 f. · 3 783 l.** au
 total) est **clos le 2026-11-21** — lecture intégrale des 30 fichiers de production, des 4 suites existantes de
@@ -1574,7 +1575,7 @@ Aucun fichier n'est laissé hors sous-lot — la somme des six lignes ci-dessous
 | Sous-lot | Périmètre exact | Mesure | Ordre et justification |
 | -------- | --------------- | ------ | ---------------------- |
 | **L22a** | `src/app/{layout,page}.tsx`, `(admin)/admin/{layout,page}.tsx`, `(admin)/admin/components/**`, `components/{shell 8,queue 4,layout 1}`, `instrumentation.ts`, `lib/supabase/**`, `lib/{admin-console,admin-actions-index,admin-resources,authz-feedback,action-result,admin-app-urls,clipboard}` | **33 f. · 4 611 l.** à l'ouverture ; **33 f. · 4 615 l.** à la clôture (même sélection, remesurée : −2 fichiers morts de 144 l., −2 exports morts, +2 modules `admin-app-urls`/`clipboard`) | **clos le 2026-11-21** (2 passages). La coquille que monte **chaque** écran : layout gardien, sidebar, header, palette ⌘K, grille dense, outils de vue, retour des refus d'autorisation. **10 défauts** F353–F362, 6 dettes R154–R159. |
-| L22b | `src/lib/**` restant — `admin-data` 1 149, `admin-aux-actions` 745, `admin-settings-catalog` 404, `admin-resources` exclu (L22a), `admin-legal-actions` 308, `admin-access-data` 179, `admin-compliance-actions` 176, `admin-actions` 135, `admin-sandbox-actions` 127, `admin-triage-actions` 120, `admin-infra-data` 117, `admin-security-data` 109, `admin-access-actions` 106, `admin-audit-data` 100, `admin-identity` 99, `admin-approval-types` 44, `admin-approval-data` 32, `admin-feature-actions` 23, `admin-infra-actions` 76, `admin-views-actions` 69, `admin-coverage` 251, `admin-campaign-types` 77, `admin-audit-types` 85, `admin-security-actions` 45, `admin-approval-actions` 85 | **24 f. · 4 661 l.** | Deuxième : la couche d'accès aux données et les wrappers de mutation consommés par tous les écrans (règle Go-source-de-vérité, codes d'autorisation transportés). Se lit après la coquille qui les appelle. |
+| **L22b** | `src/lib/**` restant — `admin-data` 1 149, `admin-aux-actions` 745, `admin-settings-catalog` 404, `admin-resources` exclu (L22a), `admin-legal-actions` 308, `admin-access-data` 179, `admin-compliance-actions` 176, `admin-actions` 135, `admin-sandbox-actions` 127, `admin-triage-actions` 120, `admin-infra-data` 117, `admin-security-data` 109, `admin-access-actions` 106, `admin-audit-data` 100, `admin-identity` 99, `admin-approval-types` 44, `admin-approval-data` 32, `admin-feature-actions` 23, `admin-infra-actions` 76, `admin-views-actions` 69, `admin-coverage` 251, `admin-campaign-types` 77, `admin-audit-types` 85, `admin-security-actions` 45, `admin-approval-actions` 85 | **24 f. · 4 661 l.** | **clos le 2026-11-21**. Couche d'accès aux données et wrappers de mutation : **7 défauts** F363–F369 (santé inventée, mode d'autorisation deviné, bannissement à moitié fait, booléen de suppression ignoré, garde juridique hors contrat, champs d'échec fantômes, fallback Prisma fantôme). Dettes R160/R161. |
 | L22c | `(admin)/admin/access/**` 8 · 1 399, `security/**` 2 · 363, `sandbox/**` 2 · 323, `components/security/**` 1 · 476 | **13 f. · 2 561 l.** | Troisième : accès staff, step-up, bac à sable — les surfaces qui **élèvent** les droits. Audit après les retours d'autorisation (L22a) qui les déclenchent. |
 | L22d | `reports` 2 · 723, `appeals` 2 · 576, `abuse` 2 · 518, `approvals` 2 · 581, `support` 4 · 939, `work` 2 · 561, `incidents` 2 · 370, `users` 5 · 706, `notifications` 5 · 1 450 | **26 f. · 6 424 l.** | Quatrième : les files de décision (triage, modération, recours, doubles validations). Toutes reposent sur `DataGrid` et `useStaffAction` de L22a. |
 | L22e | `config` 6 · 1 278, `features` 1 · 120, `frontend` 2 · 1 616, `translations` 2 · 757, `imports` 3 · 689, `campaigns` 2 · 334, `oauth` 2 · 274, `api` 2 · 625, `widgets` 2 · 603, `settings` 2 · 417 | **24 f. · 6 713 l.** | Cinquième : contenu et publication (CMS, traductions, drapeaux, campagnes, imports). |
@@ -1688,8 +1689,72 @@ authz-feedback,action-result,utils}.ts` — plus les appelants réels (`WorkTabl
 
 **L22a est traité** : coquille, navigation, retours d'autorisation, grille et palette lues intégralement, 10 défauts
 corrigés (F353–F362), 2 fichiers morts et 2 exports morts supprimés, 6 dettes ouvertes (R154–R159) et 4 non-défauts
-prouvés. **Prochain sous-lot : L22b** (`src/lib/**` restant, 24 f. · 4 661 l. — couche de données et wrappers de
-mutation).
+prouvés. **L22b est clos** (voir ci-dessous).
+
+### L22b — couche de données et wrappers de mutation : sept défauts mesurés — clos le 2026-11-21
+
+**Périmètre remesuré, pas repris du plan.** `apps/admin/src/lib/*.ts` hors tests = **31 fichiers** ; moins les 7
+modules clos en L22a (`admin-console`, `admin-actions-index`, `admin-resources`, `authz-feedback`, `action-result`,
+`admin-app-urls`, `clipboard`) → **24 fichiers · 4 661 lignes** : `admin-data` 1 149, `admin-aux-actions` 745,
+`admin-settings-catalog` 404, `admin-legal-actions` 308, `admin-coverage` 251, `admin-access-data` 179,
+`admin-compliance-actions` 176, `admin-actions` 135, `admin-sandbox-actions` 127, `admin-triage-actions` 120,
+`admin-infra-data` 117, `admin-security-data` 109, `admin-access-actions` 106, `admin-audit-data` 100,
+`admin-identity` 99, `admin-approval-actions` 85, `admin-audit-types` 85, `admin-campaign-types` 77,
+`admin-infra-actions` 76, `admin-views-actions` 69, `admin-security-actions` 45, `admin-approval-types` 44,
+`admin-approval-data` 32, `admin-feature-actions` 23. Les 24 ont été lus **intégralement**, avec leurs appelants
+(pages et clients des écrans concernés) et les contrats du SDK (`goFetch`, `authzTrailers`).
+
+| # | Défaut | Rouge mesuré | Correctif |
+| - | ------ | ------------ | --------- |
+| **F363** | `getAdminOutboxMetrics` avalait l'échec et rendait des zéros avec `status: 'healthy'` : pendant une panne d'API, la pastille affichait **« Flux nominal »** en vert. | `admin-outbox-metrics.test.ts` : `expected { queuedTotal: +0, …(8) } to be null`. | `Promise<OutboxHealthMetrics | null>` ; l'écran Notifications affiche « Mesures d'outbox indisponibles » au lieu d'un état inventé. |
+| **F364** | `getAuditLog`/`getAuthzDecisions` retombaient sur `mode: 'observe'` en cas d'échec : l'écran d'audit affirmait alors « Mode OBSERVATION — les refus ne sont pas appliqués », une **affirmation sur la posture de sécurité** sans donnée. | `admin-audit-data.test.ts` : `expected { items: [], mode: 'observe' } to deeply equal { items: [], mode: null }` (×2). | `mode: AuthzMode | null` ; bandeau « Mode d'autorisation illisible » dans `AuditLogClient`, badge « mode illisible » dans les décisions. |
+| **F365** | `suspendUserAction` jetait une erreur brute quand le bannissement Auth échouait **après** l'écriture en base (contrat `{success:false}` perdu) ; `unsuspendUserAction` **ignorait** l'erreur et annonçait un débannissement qui n'avait pas eu lieu ; la clé `SUPABASE_SERVICE_ROLE_KEY` était affirmée non-nulle. | `admin-actions.test.ts` : `expected { success: true } to match object { success: false }` (débannissement et clé absente), rejet non capturé pour la suspension. | Les deux actions rendent un échec explicite (« …mais le bannissement/débannissement Auth a échoué ») ; `requireSupabaseServiceRoleKey` nomme la variable manquante. |
+| **F366** | `deleteSavedViewAction` ne lève jamais : elle rend `false`. `grid-view` n'attrapait que les rejets, donc une vue restait retirée de la barre alors que la base la gardait. | `grid-view.test.tsx` : `expected [] to have a length of 1 but got +0`. | Le booléen est honoré : `false` remet la vue, comme un rejet. |
+| **F367** | `admin-legal-actions` appelait son garde **hors du `try`** et jetait `Error('Forbidden')` sans `code`/`level` : un step-up exigé sortait en promesse rejetée, sans le code qui déclenche la vérification. | `admin-legal-actions.test.ts` : `Error: Forbidden` au lieu de `{ success:false, code:'needs_step_up' }`. | `legalGuard()` rend une valeur et transporte `code`/`level` ; 10 actions retournent le refus, les 2 actions de formulaire lèvent un message lisible. |
+| **F368** | Cinq signatures d'échec (`admin-sandbox-actions` ×2, `admin-compliance-actions` ×3) déclaraient `challengeToken`/`challengeFactor` — **aucun producteur, aucun consommateur** — et taisaient `code`/`level`, réellement transportés par `authzTrailers`. | `action-failure-shape.test.ts` (test de typage) : `Property 'code' does not exist on type '{ success: false; error: string; challengeToken?… }'` ×2 et `Type 'false' is not assignable to type 'true'`. | Les signatures portent `code?`/`level?`, les champs fantômes disparaissent. |
+| **F369** | Huit fichiers annonçaient encore « Go en primaire, fallback Prisma dev » : aucun `Prisma`, aucun `QOE_API_URL` dans `apps/admin/src`, seulement ces commentaires. | Preuve `grep` : `Prisma\|QOE_API_URL` → uniquement les commentaires, zéro ligne de code. | Commentaires corrigés (la console parle au Go, sans repli local). |
+
+**Contre-preuves mesurées.** Sources remises à l'état d'origine (`git checkout` de `admin-data`, `admin-audit-data`,
+`admin-audit-types`, `admin-actions`, `env`, `grid-view` ; `legalGuard` restauré en `verifySuperadmin` ; types
+fantômes restaurés) : **7 assertions de test retombent** — `expected { queuedTotal: +0, … } to be null`,
+`mode: 'observe'` vs `null` ×2, `expected { success:true } to match object { success:false }` ×2,
+`Error: Forbidden`, `expected [] to have a length of 1` — et **3 erreurs `tsc`** réapparaissent. Restauration :
+`26 fichiers / 126 tests` verts, `tsc --noEmit` = 0.
+
+**Non-défauts prouvés.**
+
+- **Normalisation `items: null`** : la couche de données rend toujours un tableau ; la suite existante
+  (`admin-data.test.ts`, 15 cas) le verrouille déjà. Non retouché.
+- **Double garde (`assertCapability` local + garde Go)** : ce n'est pas une redondance à supprimer — le local est la
+  défense en profondeur des server-actions, le Go reste le juge. `verifySuperadmin` (appel `/v1/admin/dashboard`)
+  coûte une requête comme `assertCapability` (`/v1/admin/me`) ; aucun des deux n'est un défaut.
+- **`admin-triage-actions` : `assignToMe` + `clearAssignee` simultanés** donneraient `assignedTo: ''` (le second
+  écrase). Aucun appelant ne les combine (vérifié dans `WorkTable` et `triage-board`), et la sémantique « libérer »
+  est la plus sûre : non retouché, documenté.
+- **`admin-settings-catalog` et `admin-coverage`** ne sont pas du code mort : consommés par `settings/page.tsx`,
+  `SettingsExplorer`, `system/page.tsx` et le test Go de couverture.
+
+**Dettes mises à jour.**
+
+- **R157 / R158** (hex et `bg-white` hors coquille) : **inchangées** — L22b n'a produit aucun JSX (aucun fichier de
+  `lib/**` n'en contient), donc aucun des 10 + 10 fichiers concernés n'a été consommé par ce sous-lot.
+- **R159** (décision produit, `admin-resources.ts` sans consommateur) : **inchangée et toujours ouverte**. Constat
+  factuel nouveau apporté par L22b : après lecture intégrale des 24 modules, `admin-resources.ts` reste le **seul**
+  module de `lib/` sans consommateur de production (`admin-settings-catalog` et `admin-coverage` en ont un), et
+  aucune page ne lit `ADMIN_RESOURCES`. La décision adoption/suppression appartient au user.
+- **R160** — *nouvelle* : `admin-security-data.getSecurityOverview` fabrique `authzEnforceEnabled: false` et
+  `dismissalRate: -1` en cas d'échec ; le cockpit Sécurité affiche alors « Authz : observe » sans donnée. Même
+  classe que F363/F364, mais la correction demande un état « indisponible » dans le cockpit (choix d'écran) :
+  non tranché ici.
+- **R161** — *nouvelle* : le motif `catch { return [] }` couvre une vingtaine de lectures (`admin-data` : rapports,
+  abus, recours, incidents, support, octrois, rétention, imports, consent-exports ; `admin-infra-data` : stockage,
+  campagnes, santé, SLO ; `admin-access-data` : grants, rôles, revues ; `admin-views-actions`). Résilience voulue
+  pour les **listes**, mais une panne y ressemble à « rien à traiter ». Décision produit requise : état d'erreur
+  explicite par écran, ou bandeau global « API indisponible ».
+
+**L22b est clos.** Sept défauts corrigés (F363–F369), 2 dettes nouvelles (R160, R161), R157/R158/R159 mises à jour
+sans être consommées. **Prochain sous-lot : L22c** (`access/**`, `security/**`, `sandbox/**`, `components/security/**`
+— 13 f. · 2 561 l., les surfaces qui élèvent les droits).
 
 ## L21 — `apps/studio/src/**` — ouvert le 2026-11-20 (découpage mesuré)
 
