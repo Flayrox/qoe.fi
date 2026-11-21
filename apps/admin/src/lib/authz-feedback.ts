@@ -51,8 +51,15 @@ export function readMessage(source: unknown): string | null {
   return null;
 }
 
+/** Échec d'une action : `{ ok|success: false }` — forme unique côté écran. */
+export interface ActionFailure {
+  ok: false;
+  success: false;
+  error: string;
+}
+
 /** Vrai si le résultat d'une server-action est un échec. */
-export function isFailure(result: unknown): boolean {
+export function isFailure(result: unknown): result is { ok: false } | { success: false } {
   if (!result || typeof result !== 'object') return false;
   const value = result as ActionOutcome;
   if (typeof value.ok === 'boolean') return value.ok === false;
@@ -117,19 +124,32 @@ export function notifyActionFailure(failure: unknown, fallback: string): void {
 export async function attemptWithStepUp<T>(
   run: () => Promise<T>,
   options: { reason?: string } = {}
-): Promise<T> {
-  const first = await run();
-  if (!isFailure(first)) return first;
+): Promise<T | ActionFailure> {
+  // Les files de décision attendent ce résultat puis rendent la main
+  // (`setIsSubmitting(false)`). Une action qui LÈVE — réseau coupé, route
+  // absente, garde hors enveloppe — faisait sauter ce retour : boutons et
+  // champs restaient désactivés pour toujours, sans une ligne à l'écran. Le
+  // contrat est donc : cette fonction rend toujours un résultat, jamais un rejet.
+  try {
+    const first = await run();
+    if (!isFailure(first)) return first;
 
-  const code = authzCodeOf(first);
-  if (!isStepUpCode(code)) return first;
+    const code = authzCodeOf(first);
+    if (!isStepUpCode(code)) return first;
 
-  // Annulé ou aucun facteur compatible : on rend le refus d'origine, que
-  // l'appelant expliquera (le parcours reste proposé au prochain essai).
-  const verified = await requestStepUp(options.reason ?? authzGuidance(code)?.description);
-  if (!verified) return first;
+    // Annulé ou aucun facteur compatible : on rend le refus d'origine, que
+    // l'appelant expliquera (le parcours reste proposé au prochain essai).
+    const verified = await requestStepUp(options.reason ?? authzGuidance(code)?.description);
+    if (!verified) return first;
 
-  return run();
+    return await run();
+  } catch (error) {
+    return {
+      ok: false,
+      success: false,
+      error: readMessage(error) ?? 'Action impossible — l’API n’a pas répondu.',
+    };
+  }
 }
 
 /** Code d'autorisation transporté par un résultat d'action (ou `null`). */
