@@ -191,7 +191,8 @@ export function GlassComposer({
       Keyboard.dismiss();
       playHaptic('Success');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Une erreur est survenue';
+      const message =
+        err instanceof Error ? err.message : t('common.error_generic', 'Une erreur est survenue');
       Alert.alert(t('common.error_title', 'Erreur'), message);
     } finally {
       setIsSubmitting(false);
@@ -391,6 +392,7 @@ export function GlassComposer({
                       ]}
                       disabled={!canSubmit}
                       onPress={() => void handleSubmit()}
+                      accessibilityLabel={t('compose.post', 'Publier')}
                       activeOpacity={0.8}
                     >
                       {isSubmitting ? (
@@ -505,6 +507,7 @@ export function GlassComposer({
                     ]}
                     disabled={!canSubmit}
                     onPress={() => void handleSubmit()}
+                    accessibilityLabel={t('compose.post', 'Publier')}
                     activeOpacity={0.8}
                   >
                     {isSubmitting ? (

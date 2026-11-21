@@ -37,8 +37,9 @@ function scan(re: RegExp): string[] {
 
 describe('i18n mobile — aucun libellé d’interface en dur', () => {
   it('aucun accessibilityLabel littéral (doit passer par t())', () => {
-    // `accessibilityLabel={t('clé', 'défaut')}` est accepté, `=« Fermer »` non.
-    expect(scan(/accessibilityLabel="/)).toEqual([]);
+    // `accessibilityLabel={t('clé', 'défaut')}` est accepté, `="Fermer"` non.
+    // Le préfixe optionnel couvre `avatarAccessibilityLabel`, `sourceAccessibilityLabel`…
+    expect(scan(/[a-zA-Z]*AccessibilityLabel="/)).toEqual([]);
   });
 
   it('aucun message composé autour d’un fragment non traduit (onStub)', () => {

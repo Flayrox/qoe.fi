@@ -70,7 +70,7 @@ export function ThreadReplyComposer({
         playHaptic('Light');
         openDrawer();
       }}
-      avatarAccessibilityLabel="Menu"
+      avatarAccessibilityLabel={t('common.menu', 'Menu')}
     />
   );
 }
