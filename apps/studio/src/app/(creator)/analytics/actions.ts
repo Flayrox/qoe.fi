@@ -625,17 +625,18 @@ async function buildArticleDetail(
   // l'historique, mais timeseries = 90j pour le graphique.
   const isAll = period === 'all';
   const now = Date.now();
-  const seriesStartAt = isAll ? now - 90 * 24 * 60 * 60 * 1000 : undefined;
+  // Bornes de la série = celles du sélecteur. Un mois glissant commun à toutes
+  // les périodes affichait 30 points pour « 7 jours » et tronquait « 90 jours »
+  // à ses 30 derniers jours, alors que le total, lui, portait bien sur 90 jours.
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const windowDays = period === '24h' ? 1 : period === '7d' ? 7 : period === '30d' ? 30 : 90;
+  const seriesStartAt = now - windowDays * DAY_MS;
   const stats = await goFetch<ArticleReadingStats>(
     `/v1/analytics/reading-sessions?articleId=${encodeURIComponent(article.id)}&period=${period}`
   );
 
   const seriesByDay = new Map(stats.timeseries.map((r) => [r.day, r.count]));
-  const timeseries = buildDailySeries(
-    seriesStartAt ?? now - (period === '24h' ? 24 * 3600 * 1000 : 30 * 24 * 3600 * 1000),
-    now,
-    seriesByDay
-  );
+  const timeseries = buildDailySeries(seriesStartAt, now, seriesByDay);
   const totalViews = isAll ? stats.totalViews : timeseries.reduce((acc, p) => acc + (p.y || 0), 0);
 
   // Sources pour cet article (hostname) — provenance fine côté Go.

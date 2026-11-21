@@ -279,4 +279,15 @@ describe('getArticleAnalyticsDetail', () => {
 
     expect(res.data?.totalViews).toBe(120);
   });
+
+  it('borne la série à la période demandée, pas à un mois glissant', async () => {
+    const week = await getArticleAnalyticsDetail('/articles/premier-article', '7d');
+    const quarter = await getArticleAnalyticsDetail('/articles/premier-article', '90d');
+
+    // Bornes incluses : 7 jours → 8 points, 90 jours → 91 points. Une série
+    // de 31 points pour les deux périodes annoncerait une fenêtre qui n'est
+    // pas celle du sélecteur.
+    expect(week.data?.timeseries).toHaveLength(8);
+    expect(quarter.data?.timeseries).toHaveLength(91);
+  });
 });
