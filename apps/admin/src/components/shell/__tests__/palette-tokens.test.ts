@@ -7,9 +7,11 @@
 // `card`, `background`) : thème sombre illisible et changement de palette
 // impossible sans toucher au code (axe 8 : la marque est une variable).
 //
-// Ce test lit les sources de L22a — pas de rendu, pas de faux positif de
-// classe générée — et interdit les littéraux de couleur. Aucune exception :
-// la marque se règle dans les tokens de thème, jamais dans un composant.
+// Ce test lit les sources des lots déjà audités (L22a pour la coquille, L22c
+// pour les surfaces d'accès, de sécurité et de bac à sable) — pas de rendu, pas
+// de faux positif de classe générée — et interdit les littéraux de couleur.
+// Aucune exception : la marque se règle dans les tokens de thème, jamais dans un
+// composant. Les lots suivants étendent `ROOTS` au fur et à mesure.
 // =====================================================================
 
 import { readdirSync, readFileSync } from 'node:fs';
@@ -21,7 +23,11 @@ const SRC = fileURLToPath(new URL('../../../', import.meta.url));
 const ROOTS = [
   join(SRC, 'components/shell'),
   join(SRC, 'components/queue'),
+  join(SRC, 'components/security'),
   join(SRC, 'app/(admin)/admin/components'),
+  join(SRC, 'app/(admin)/admin/access'),
+  join(SRC, 'app/(admin)/admin/security'),
+  join(SRC, 'app/(admin)/admin/sandbox'),
 ];
 const HEX = /#[0-9a-fA-F]{3,8}\b/;
 const RAW_PALETTE = /\b(?:bg|text|border)-(?:white|black)\b/;
@@ -42,13 +48,13 @@ function files(directory: string): string[] {
   });
 }
 
-describe('coquille admin — palette de couleurs', () => {
+describe('console admin — palette de couleurs', () => {
   const sources = ROOTS.flatMap(files).map((path) => ({
     path,
     screen: relative(SRC, path).replaceAll('\\', '/'),
   }));
 
-  it('couvre la coquille', () => {
+  it('couvre la coquille et les surfaces d’accès', () => {
     expect(sources.length).toBeGreaterThanOrEqual(10);
   });
 

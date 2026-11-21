@@ -218,8 +218,9 @@ export function SecurityCockpit({ overview, canDecide }: SecurityCockpitProps) {
           <Button
             type="submit"
             size="sm"
+            variant="solid"
+            tone="brand"
             disabled={!canDecide || isSubmitting}
-            className="bg-[#EE4B2B] text-white hover:bg-[#EE4B2B]/90"
           >
             {isSubmitting ? 'Recalcul...' : 'Recalculer Trust'}
           </Button>
