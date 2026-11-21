@@ -107,8 +107,8 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L22     | `apps/admin/src/**`                                                                                          | **149 f. prod · 31 079 l.** (mesuré) | **ouvert le 2026-11-21**, découpé en **6 sous-lots** (L22a→L22f) ; **L22a clos le 2026-11-21** (deux passages : coquille, navigation, retours d'autorisation, grille et palette lues intégralement, **10 défauts corrigés** F353–F362, 2 fichiers + 2 exports morts supprimés, **R154–R159** ouvertes dont une décision produit) ; **L22b clos le 2026-11-21** (couche de données et wrappers de mutation, 24 f. · 4 661 l. remesurés : **7 défauts** F363–F369, **R160/R161** ouvertes, R157–R159 mises à jour) ; **L22c clos le 2026-11-21** (surfaces qui élèvent les droits, 13 f. · 2 567 l. remesurés : **5 défauts** F370–F374, garde de palette étendue, **R162** ouverte) ; **L22d clos le 2026-11-21** (files de décision, 26 f. · 6 445 l. remesurés : **6 défauts** F375–F380, garde de palette étendue aux 9 répertoires, **R163/R164** ouvertes) ; **L22e clos le 2026-11-21** (contenu et publication, 24 f. · 6 714 l. remesurés : **9 défauts** F381–F389, garde de palette étendue aux 10 répertoires, **R165/R166** ouvertes, R161/R163/R164 enrichies) ; **L22f clos le 2026-11-21** (conformité, données et dernier reste, 29 f. · 6 119 l. remesurés, **aucun test** préexistant : 8 suites écrites, **8 défauts** F390–F397, garde de palette étendue à 11 racines) — **L22 clos** (45 défauts F353–F397) ; prochain = **L23** (`apps/tenants/src/**`) |
 | L23     | `apps/tenants/src/**`                                                                                        | **54 f. prod · 6 106 l.** + 11 f. de tests · 1 149 l. (remesuré) | **clos le 2026-11-21** — 2 défauts F398–F399 (refus muets, fuites API), 5 suites ajoutées, R167/R168 ouvertes |
 | L24     | `apps/hi/src/**`                                                                                             | **30 f. prod · 4 387 l.** + 6 f. de tests (remesuré) | **clos le 2026-11-21** — 5 défauts F400–F404 (tests jamais exécutés, assainisseur contournable, pied de page EN, config console non validée, formulaire muet), R169–R172 ouvertes |
-| L25     | `apps/collab-server/src/**`                                                                                  | **7 f. prod · 1 036 l.** + 6 f. de tests (remesuré) | à auditer (prochain)   |
-| L26     | `apps/mobile/src/**` + `modules/`                                                                            | 220 fichiers                | à auditer               |
+| L25     | `apps/collab-server/src/**`                                                                                  | **7 f. prod · 1 036 l.** + 6 f. de tests (remesuré) | **clos le 2026-11-21** — 4 défauts F405–F408 (auth non-objet, clé anon en prod, schéma sans migration, erreur de schéma avalée), R173/R174 ouvertes |
+| L26     | `apps/mobile/src/**` + `modules/`                                                                            | **166 f. prod · 26 245 l.** + 15 f. de tests (remesuré) | à auditer (prochain)   |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go                          | à auditer               |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go                          | en cours (garde média)  |
 | L29     | `apps/api/internal/modules/**`                                                                               | Go                          | en cours (garde média)  |
@@ -123,8 +123,11 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L25 — `apps/collab-server/src/**`** (périmètre remesuré : 7 f. de production · 1 036 l.
-+ 6 f. de tests).
+**Prochain lot à traiter : L26 — `apps/mobile/src/**` + `apps/mobile/modules/**`** (périmètre remesuré :
+166 f. de production · 26 245 l. + 15 f. de tests · 2 196 l.).
+**L25 est clos le 2026-11-21** : `apps/collab-server/src/**`, 7 f. de production · 1 036 l. (chiffre de L24 confirmé),
+**4 défauts** F405–F408, R173/R174 ouvertes. Handshake WS, matrice de permissions et accès DB vérifiés contre le
+contrat Go réel (rien de supposé).
 **L24 est clos le 2026-11-21** : `apps/hi/src/**`, 30 f. de production · 4 387 l. remesurés, **5 défauts** F400–F404,
 R169–R172 ouvertes. La vitrine n'avait **aucun runner de tests** : elle en a un (6 fichiers / 21 tests).
 **L23 est clos le 2026-11-21** : `apps/tenants/src/**`, 54 f. · 6 106 l. remesurés, **2 défauts** F398–F399,
@@ -2087,6 +2090,64 @@ qu'en développement.
 
 **L23 est clos.** Deux défauts corrigés (F398–F399) en **3 commits** (`27b7f6d2`, `40326fdb`, `daaa9625`), cinq
 suites ajoutées, périmètre corrigé (54 f. · 6 106 l.). **Prochain lot : L24** — `apps/hi/src/**`.
+
+## L25 — `apps/collab-server/src/**` — clos le 2026-11-21
+
+**Périmètre remesuré à l'ouverture.** `git ls-files 'apps/collab-server/src/**'` → **13 fichiers**, dont
+**6 de tests** (912 l.) → **7 fichiers de production · 1 036 lignes** — chiffre identique à celui annoncé en
+clôture de L24, **aucune correction** nécessaire. Répartition : `server.ts` 212, `guard.ts` 201,
+`permissions.ts` 159, `index.ts` 142, `database.ts` 110, `config.ts` 108, `auth.ts` 104. Les 7 lus
+**intégralement**, deux passages sur `server.ts`, `auth.ts`, `permissions.ts`, `database.ts` ; les 6 suites
+existantes (912 l.) lues pour savoir ce qui était déjà figé.
+
+| # | Défaut | Rouge mesuré | Correctif |
+| - | ------ | ------------ | --------- |
+| **F405** | *Auth : corps d'introspection inattendu.* Un 200 dont le corps n'est pas l'utilisateur (interstitiel de proxy, page d'erreur en 200, `null`) faisait lire `payload.id` sur `null` : **exception dans le chemin d'authentification** au lieu d'un refus propre. | `auth.test.ts` : `promise rejected "TypeError: Cannot read properties of null…" instead of resolving`. | Garde de forme sur le corps (`objet non nul, non tableau`) → refus + avertissement. |
+| **F406** | *Démarrage : clé anon absente.* `validateProductionConfig` n'exigeait pas `SUPABASE_ANON_KEY` ; `auth.ts` envoyait alors le **JWT du client** en `apikey`, que Supabase refuse : le serveur démarrait et refusait **toutes** les connexions avec « token invalide ». | `config-and-ip.test.ts` : `expected [] to have a length of 1 but got +0`. | Trois exigences en production (base, URL d'introspection, clé anon) ; le test d'acceptation est passé de 2 à 3 erreurs attendues. |
+| **F407** | *Schéma sans propriétaire.* Aucune migration goose ne créait `collab_documents` alors que l'en-tête de `database.ts` l'affirmait : la table n'existait que par un `CREATE TABLE IF NOT EXISTS` d'exécution — sur base fraîche, `pnpm db:migrate` laissait le serveur dépendre du droit CREATE du rôle applicatif, sans index ni sauvegarde. | `schema.test.ts` : `aucune migration ne crée collab_documents: expected undefined to be truthy`. | Migration `00094_collab_documents.sql` (+ `Down`), commentaire corrigé, test de propriété du schéma. |
+| **F408** | *Échec de schéma avalé.* Le `catch` du DDL ne faisait qu'un `console.error` : la requête suivante échouait sur « relation does not exist », qui ne dit rien de la cause réelle (droits, base en lecture seule, migration absente). | `database.test.ts` : `promise resolved "undefined" instead of rejecting`. | Erreur mémorisée (`schemaError`) puis rejouée par `waitReady()` à la première requête. |
+
+**Contre-preuve.** Les trois sources et la migration restaurées à l'état d'origine :
+**`5 failed | 39 passed (44)`** (les quatre rouges + le comptage d'erreurs de production), puis
+**`44 passed (44)`** après réapplication.
+
+**Vérifications de contrat (non supposées).**
+
+- **Handshake WS.** Le client studio envoie le JWT par le **message d'auth Hocuspocus**
+  (`useCollaborationSession.ts` : `token: () => getAccessToken()`), jamais par l'URL ; `onAuthenticate` s'exécute
+  **par connexion** (même document déjà chargé) — c'est mesuré par `collaboration.test.ts` (intrus refusé sur un
+  document chargé, slot `CollabGuard` non fui). L'identité vient uniquement de l'introspection GoTrue
+  (`/auth/v1/user`, `id` puis `sub`, `user_metadata.name/full_name`, timeout 5 s) ; le client ne fournit ni
+  `userId` ni permission. Le nom de document (`article:{id}`) vient du client mais est validé par `parseArticleId`
+  (motif borné) **puis** contrôlé par `canEditDocument` ; `onLoadDocument` revérifie `authorized`.
+- **Matrice de permissions.** Parité relue ligne à ligne avec le Go : `owner`/`editor` → `edit:any` + `edit_own`,
+  `writer` → `edit_own`, `viewer` → rien (`permissions/media.go`) ; overrides `perm`/`-perm` appliqués dans l'ordre,
+  **le dernier gagne** des deux côtés ; statut `active` exigé. Le `JOIN` filtre `mm."status" = 'active'`
+  **exactement comme** `GetMediaMemberContext` (`media.sql:11`) : un membre invité ou suspendu retombe, dans les
+  deux implémentations, sur la branche co-auteur (`aa.role <> 'PRIMARY_AUTHOR'`, consentement `PENDING|ACCEPTED`).
+  La clause propre au collab (`CollaborationRequest` `ACCEPTED`) n'est **pas un contournement** : l'acceptation
+  écrit `ArticleAttribution.consentStatus='ACCEPTED'` (`collaborations/service.go:663-666`), donc Go autorise
+  aussi. Clause conservée avec son test.
+- **Accès DB.** Requêtes toutes paramétrées (`$1`, `$2`), aucune concaténation ; `BYTEA` ↔ `Uint8Array` copié ;
+  l'upsert est une instruction unique (aucune transaction nécessaire) ; pool borné (`max: 5`) avec écouteur
+  `error` sur les connexions idle.
+
+**Non concluants (mesuré ou lu, non classé corrigé).**
+
+1. **`onStoreDocument` au-delà de `maxDocumentBytes`** : l'état n'est **pas persisté** et l'édition suivante est
+   perdue au redémarrage, avec un simple `warn`. Rejeter la connexion ou tronquer le document est un choix
+   produit → **R173**.
+2. **`onConnect`** refuse une IP au plafond (`isIPAtConnectionLimit`) mais le compteur n'est incrémenté qu'après
+   authentification : des sockets ouverts puis jamais authentifiés ne sont bornés que par le cooldown d'échecs
+   d'auth. Aucune mesure bout en bout (flakiness des sockets bruts) → **R174**.
+3. **`index.ts` `loadEnvFiles`** : parseur `.env` maison qui ne retire pas les commentaires en fin de ligne
+   (`DATABASE_URL=… # prod` corrompu) et s'exécute avant la config, en production aussi. Fonction non exportée,
+   donc non mesurée ici → dette (R174, même entrée).
+
+**L25 est clos.** Quatre défauts corrigés (F405–F408) en **4 commits** (`648ea8c6`, `0a6eb2d6`, `9167aa3a`,
+`56d6d122`), aucune suite supprimée, **7 fichiers / 44 tests**. **Prochain lot : L26** — `apps/mobile/src/**` +
+`apps/mobile/modules/**` (remesuré à l'ouverture : **181 fichiers**, dont 15 de tests · 2 196 l. → **166 fichiers
+de production · 26 245 lignes** ; la ligne annonçait « 220 fichiers »).
 
 ## L24 — `apps/hi/src/**` — clos le 2026-11-21
 
