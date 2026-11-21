@@ -56,11 +56,16 @@ export function FeatureAnnouncements({
       .catch(() => {
         // Best-effort : sans état distant, le catalogue statique reste la vue.
         // Une promesse déjà enregistrée est relue par le fallback ci-dessous.
-        getFeatureNotifiedAction().then((keys) => {
-          if (!alive) return;
-          const known = keys.filter(isFeatureKey);
-          if (known.length > 0) setNotified((prev) => new Set([...prev, ...known]));
-        });
+        getFeatureNotifiedAction()
+          .then((keys) => {
+            if (!alive) return;
+            const known = keys.filter(isFeatureKey);
+            if (known.length > 0) setNotified((prev) => new Set([...prev, ...known]));
+          })
+          // Le repli du repli : deux appels serveur peuvent échouer de
+          // conserve (API arrêtée) — un rejet non capturé remonterait alors
+          // en erreur non gérée dans la console du navigateur.
+          .catch(() => {});
       });
     return () => {
       alive = false;
@@ -68,9 +73,15 @@ export function FeatureAnnouncements({
   }, []);
 
   // Signaux : une requête courte et idempotente. Une erreur ne remonte pas
-  // en toast — le bouton « me prévenir » affiche son propre état d'échec.
+  // en toast — le bouton « me prévenir » affiche son propre état d'échec —
+  // mais elle ne doit pas non plus s'échapper en rejet non géré : le
+  // provider est monté une fois pour tout le studio.
   const handleSignal = useCallback(async (signal: FeatureSignal) => {
-    await recordFeatureSignalAction(signal.feature, signal.kind);
+    try {
+      await recordFeatureSignalAction(signal.feature, signal.kind);
+    } catch {
+      /* best-effort : l'annonce garde son état local */
+    }
   }, []);
 
   return (
