@@ -302,7 +302,7 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
           // TRANSLATIONS_OVERRIDE (avec S) — l'ancienne clé TRANSLATION_OVERRIDES
           // était une clé morte : les surcharges ne s'appliquaient jamais.
           key: 'TRANSLATIONS_OVERRIDE',
-          value: typeof overrides === 'string' ? overrides : JSON.stringify(overrides),
+          value: JSON.stringify(overrides),
           description: 'System translation overrides',
         });
         if (res.success) {
