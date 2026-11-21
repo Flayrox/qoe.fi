@@ -255,7 +255,7 @@ func TestOptionalAuth(t *testing.T) {
 }
 
 func TestJWKSFromToken_RSA(t *testing.T) {
-	key, err := rsa.GenerateKey(rand.Reader, 1024)
+	key, err := rsa.GenerateKey(rand.Reader, minRSABits)
 	if err != nil {
 		t.Fatalf("rsa: %v", err)
 	}

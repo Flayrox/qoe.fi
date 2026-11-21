@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"sync"
@@ -104,8 +105,16 @@ func accessControlAlwaysAllowedPath(path string) bool {
 }
 
 // writeAccessControlJSON écrit une erreur JSON (même forme que writeForbidden).
+// Le corps est sérialisé, jamais concaténé : un message contenant un guillemet
+// ou un antislash produisait un JSON invalide, donc un client incapable de lire
+// la raison du refus.
 func writeAccessControlJSON(w http.ResponseWriter, status int, msg string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
-	_, _ = w.Write([]byte(`{"error":"` + msg + `"}`))
+	body, err := json.Marshal(map[string]string{"error": msg})
+	if err != nil {
+		_, _ = w.Write([]byte(`{"error":"Accès refusé"}`))
+		return
+	}
+	_, _ = w.Write(body)
 }

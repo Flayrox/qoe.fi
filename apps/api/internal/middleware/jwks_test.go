@@ -21,7 +21,7 @@ func TestBase64URLDecode(t *testing.T) {
 }
 
 func TestBuildRSAKey(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 1024)
+	priv, err := rsa.GenerateKey(rand.Reader, minRSABits)
 	if err != nil {
 		t.Fatal(err)
 	}

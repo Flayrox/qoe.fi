@@ -73,7 +73,17 @@ func Idempotency(rc *redis.Client, ttl time.Duration) func(http.Handler) http.Ha
 			// POST/PATCH d'article ; les plus lents repartent en 409). Clé
 			// distincte de la réponse : le rejeu lit cacheKey, jamais le verrou.
 			locked, err := rc.SetNX(ctx, lockKey, idempotencyProcessing, idempotencyLockTTL).Result()
-			if err != nil || !locked {
+			if err != nil {
+				// Redis injoignable n'est pas un doublon : répondre 409 ici
+				// bloquerait toutes les écritures CMS pendant une panne en
+				// annonçant un conflit qui n'existe pas. On dit la vérité
+				// (503) et le client peut réessayer.
+				w.Header().Set("Content-Type", "application/json; charset=utf-8")
+				w.WriteHeader(http.StatusServiceUnavailable)
+				_, _ = w.Write([]byte(`{"error":"Idempotence momentanément indisponible. Réessayez.","code":"idempotency_unavailable"}`))
+				return
+			}
+			if !locked {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusConflict)
 				_, _ = w.Write([]byte(`{"error":"Une requête avec cette Idempotency-Key est déjà en cours."}`))
