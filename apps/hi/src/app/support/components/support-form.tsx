@@ -39,6 +39,13 @@ export function SupportForm() {
       } else {
         setError(res.error);
       }
+    } catch {
+      // L'action serveur peut lever (réseau coupé, redéploiement, 502 de la
+      // passerelle) : sans ce message le bouton semblait n'avoir rien fait et
+      // le visiteur renvoyait le même dossier en boucle.
+      setError(
+        'Envoi impossible pour le moment — réessayez dans un instant. / Sending failed, please retry.'
+      );
     } finally {
       setSending(false);
     }
