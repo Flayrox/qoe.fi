@@ -261,9 +261,12 @@ export function Editor({
     return null;
   }
 
-  const handleManualSave = async () => {
+  // L'état sauvegardé est passé explicitement : une bascule qui appelle
+  // `setX(!x)` puis sauvegarde relisait la valeur capturée à la génération
+  // précédente et enregistrait l'état d'avant le clic.
+  const saveArticle = async (next: { published: boolean; isPremium: boolean }) => {
     if (!title.trim()) {
-      setError('Title is required');
+      setError('Un titre est requis');
       return;
     }
 
@@ -284,24 +287,37 @@ export function Editor({
         title,
         content: htmlContent,
         slug: finalSlug,
-        published,
-        isPremium,
+        ...next,
       });
       setLastSaved(new Date());
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to save article');
+      setError(err instanceof Error ? err.message : 'Enregistrement impossible');
     }
+  };
+
+  const handleManualSave = () => saveArticle({ published, isPremium });
+
+  const togglePublished = () => {
+    const next = !published;
+    setPublished(next);
+    void saveArticle({ published: next, isPremium });
+  };
+
+  const togglePremium = () => {
+    const next = !isPremium;
+    setIsPremium(next);
+    void saveArticle({ published, isPremium: next });
   };
 
   const handlePublishAndEmail = async () => {
     if (!title.trim()) {
-      setError('Title is required before sending');
+      setError('Un titre est requis avant l’envoi');
       return;
     }
     setPublished(true);
-    await handleManualSave();
+    await saveArticle({ published: true, isPremium });
     alert(
-      'Newsletter dispatch will be connected to Brevo API shortly! Article saved and published.'
+      'Article enregistré et publié. La diffusion e-mail de la newsletter n’est pas encore active.'
     );
   };
 
@@ -340,10 +356,7 @@ export function Editor({
         <div className="flex items-center gap-2 flex-wrap">
           {/* Premium Toggle */}
           <button
-            onClick={() => {
-              setIsPremium(!isPremium);
-              setTimeout(handleManualSave, 100);
-            }}
+            onClick={togglePremium}
             className={cn(
               'h-9 px-3 rounded-lg flex items-center gap-2 border border-border font-sans text-xs font-medium transition-colors cursor-pointer',
               isPremium
@@ -369,10 +382,7 @@ export function Editor({
 
           {/* Published Toggle */}
           <button
-            onClick={() => {
-              setPublished(!published);
-              setTimeout(handleManualSave, 100);
-            }}
+            onClick={togglePublished}
             className={cn(
               'h-9 px-3 rounded-lg flex items-center gap-2 border border-border font-sans text-xs font-medium transition-colors cursor-pointer',
               published
@@ -541,10 +551,7 @@ export function Editor({
             <div className="h-5 w-[1px] bg-border mx-1" />
 
             <ToolbarButton
-              onClick={() => {
-                // .setPaywallDivider() // TODO: re-enable when extension is wired
-                void editor;
-              }}
+              onClick={() => editor.chain().focus().setPaywallDivider().run()}
               icon={<Lock className="h-3.5 w-3.5 text-highlight" />}
               tooltip="Insert Paywall Cut"
             />
