@@ -2068,6 +2068,26 @@ le canal natif reste). **R164** : `grants-manager` recharge la page entière apr
 palette étendue à onze racines. **L22 est clos** (L22a→L22f : **45 défauts** F353–F397).
 **Prochain lot : L23** — `apps/tenants/src/**` (publications multi-tenant), périmètre à remesurer à l'ouverture.
 
+## Passe dettes — R189 à R196 closes le 2026-11-22
+
+Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne reste « à trancher ») :
+
+| Dette | Résolution | Commit |
+|---|---|---|
+| `R189` | `articles.Create` refuse désormais de choisir un auteur : le repli silencieux sur l'owner du média est supprimé, une clé API sans `CreatedByUserID` obtient une erreur explicite. | `06ecb6cb` |
+| `R190` | `articles.Review` exige `media:publish:any` en plus de `media:review` quand l'approbation publie (rôles par défaut déjà conformes — defense in depth). | `a0eb7b36` |
+| `R191` | `NEWSLETTER_UNSUB_SECRET` est chargé dans `config.Config` et validé au boot de l'API **et** du worker dès que `EMAIL_PROVIDER` est défini : plus d'e-mails aux liens non signables. | `23776476` |
+| `R192` | `articles.ListSnapshots` exige `media:edit:any` (ou auteur/contributeur) : un viewer ne lit plus brouillons ni versions révoquées. | `8051df22` |
+| `R193` | `syncAttributions` s'exécute en **une transaction** (`pgx.BeginFunc`) : attributions, `CollaborationRequest` et notifications sont tout-ou-rien, échec journalisé. | `714596bc` |
+| `R194` | vues / vues uniques / commentaires / likes / reposts rendent leur erreur et `List` la propage : une panne de base ne s'affiche plus comme « zéro lecteur ». | `e458e5ed` |
+| `R195` | `neighborValues` (CF) supprimé : `neighborArrays` + `unnest($2::uuid[], $3::float8[])` — plus aucun identifiant concaténé dans le SQL. | `ca30f732` |
+| `R196` | Vrai bug, pas une nuance : `mutedOK` comparait un texte abaissé à des mots **non** abaissés (« Politique » ne filtrait que côté SQL). Parité stricte avec `contains_muted_word`, mot vide ignoré, table `TestMutedOKParity`. | `8db1c9fc` |
+
+**Batterie** : `go build ./...` 0, `go vet ./internal/...` 0, `go test` `feed` / `articles` / `posts` /
+`middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
+`typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
+**0 fichier mobile touché**, arbre propre, aucun push.
+
 ## L29c — `apps/api/internal/modules/feed/**` — **clos le 2026-11-22**
 
 **Périmètre remesuré** (`find` + `wc -l`) : **11 fichiers · 4 001 l.**, chiffre annoncé **confirmé** —
