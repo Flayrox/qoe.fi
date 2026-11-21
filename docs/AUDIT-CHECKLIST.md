@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (217 f. prod · 67 491 l.) | **en cours** (L29a `articles` cœur clos le 2026-11-22 ; L29b = 9 f. · 1 822 l.) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (195 f. prod · 65 861 l.) | **en cours** (L29a+L29b `articles` clos le 2026-11-22 ; L29c = `feed`, 11 f. · 4 001 l.) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -125,7 +125,15 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 
 **En cours : L29 — `apps/api/internal/modules/**`** (périmètre remesuré à l'ouverture du 2026-11-21 :
 **449 fichiers Go** = **217 de production · 67 491 l.** + **232 de tests · 48 425 l.**, le plus gros lot de la
-campagne — à découper en tranches par module).
+campagne — à découper en tranches par module). **Remesure du 2026-11-22** : 195 fichiers de production ·
+**65 861 l.** hors tests (le chiffre d'ouverture comptait les fichiers de tests Go).
+**L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
+F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
+`workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
+accrochée au commentaire d'un autre article), F432 (lien d'aperçu en dur) ; dettes **R191–R194**. Le module
+`articles` est donc **lu en entier** (18 f. · 5 946 l. avec L29a). **Lot suivant de L29, « En cours » : L29c** —
+`feed`, **11 f. · 4 001 l.** (il reste 177 f. · 60 038 l. dans `modules/**`, dont `admin` 36 f. · 11 570 l. à
+découper).
 **L29a est clos le 2026-11-22** : module `articles` (18 f. · 5 922 l.) découpé, **cœur article 9 f. · 4 100 l.** lu
 intégralement, **3 défauts** F426 (paywall fail-open sur visibilité inconnue), F427 (teaser coupé au milieu d'un
 caractère UTF-8), F428 (rejet de révision qui dépubliait un article en ligne) corrigés avec rouge cité et
@@ -2053,6 +2061,69 @@ le canal natif reste). **R164** : `grants-manager` recharge la page entière apr
 **L22f est clos.** Huit défauts corrigés (F390–F397), huit suites ajoutées là où il n'y en avait aucune, garde de
 palette étendue à onze racines. **L22 est clos** (L22a→L22f : **45 défauts** F353–F397).
 **Prochain lot : L23** — `apps/tenants/src/**` (publications multi-tenant), périmètre à remesurer à l'ouverture.
+
+## L29b — `apps/api/internal/modules/articles/**` (périphériques) — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l`, fichiers de production seulement) : **9 fichiers · 1 822 l.**, chiffre
+annoncé à la clôture de L29a **confirmé** — `sovereignty 372`, `email 270`, `attribution 243`, `comments 217`,
+`listen_later 186`, `events 148`, `distribution 135`, `analytics_batch 131`, `creator_bridge 120`. Après correctifs
+le lot pèse **1 883 l.** (`email 331`, `comments 227`, `distribution 143`). Le module `articles` est donc **lu en
+entier** : 18 fichiers de production · 5 946 l. (L29a 4 124 + L29b 1 822).
+
+**Lecture : 9 / 9 fichiers de production · 1 822 / 1 822 lignes (100 %)**, chacun lu jusqu'à sa dernière ligne et
+recoupé avec `wc -l` (`sovereignty`, `email`, `attribution` en un bloc de 885 l. ; `comments`, `listen_later`,
+`events` en un bloc de 551 l. ; `distribution`, `analytics_batch`, `creator_bridge` en un bloc de 386 l.). Les
+22 fichiers de tests du module (4 338 l.) ont servi de contexte.
+
+**Déclarés sains** (aucun correctif inventé) : `events.go` (journal append-only, `recordEvent` nil-safe et
+explicitement best-effort ; `ListEvents` repasse par `authorizeEdit` et borne `limit` à 200) · `analytics_batch.go`
+(agrégats `ANY($1)` mono-requête, coupure de période inconnue ramenée à 30 j, aucun accès inter-tenant : les ids
+viennent de la liste déjà autorisée) · `creator_bridge.go` (`ListCreatorArticles` exige `resolveMember`, contenu
+toujours coupé par `SliceContentAtPaywall`, `GetCreatorBySlug` n'est appelé qu'avec la publication de la clé API) ·
+`listen_later.go` (pack hors-ligne : auth + Plus + publié + droit auteur + paywall, jamais de brouillon ; ajout
+idempotent sans palier, retrait idempotent) · `attribution.go` (auteur principal toujours réinscrit en
+`PRIMARY_AUTHOR`, révocation → `REVOKED` + snapshot `BEFORE_REVOCATION`, invitations en `PENDING`) · `sovereignty.go`
+(copie souveraine déléguée à la fonction SQL atomique `ensure_author_sovereign_copy`, déduplication SHA-256 plafonnée
+à 50 versions non-jalon, restauration sous `authorizeEdit`, `SubmitRevisionToOrigin` vérifie auteur + appartenance
+média active).
+
+**Non-défauts documentés** (vérifiés, non rouverts) : la notification de commentaire reste best-effort
+(préférences + déduplication) ; `syncAttributions` écrit en dehors de toute transaction (voir R193) ; le corps
+d'e-mail (`bodyHTML`) est du HTML assumé alors que **tous** les champs créateur sont échappés.
+
+| # | Défaut | Rouge mesuré (cité) | Correctif |
+|---|---|---|---|
+| **F429** | **Signature forgeable** : sans `NEWSLETTER_UNSUB_SECRET`, `SignUnsubscribe` retombait sur une **constante publique** (et la signature de confirmation d'e-mail en dérive : `SignUnsubscribe("confirm:"+pubID, …)`). N'importe qui pouvait désinscrire ou confirmer l'adresse de n'importe qui sur n'importe quelle publication. Deux implémentations dupliquées (articles + workers) portaient le même repli. | `email_hardening_test.go:27: signature forgée avec le secret public de repli acceptée` | Secret **exigé** : `SignUnsubscribe` rend `""` sans secret, `VerifyUnsubscribe` refuse tout (fail-closed), `BuildUnsubURL` ne produit pas de lien non signé ; `workers` délègue à `articles` (une seule implémentation) ; tests qui signent fournissent le secret (`t.Setenv`). `02a92508` |
+| **F430** | **Contenu verrouillé servi en clair par e-mail** : `BuildArticleReleaseEmail` ne coupait que sur `isPremium`. Un article `MEMBERS_ONLY`/`PAID_SUBSCRIBERS`/`TIER_SPECIFIC` (ou premium déclaré avec visibilité publique) partait **intégralement** dans la newsletter, à des boîtes sans entitlement. | `email_hardening_test.go:66: contenu verrouillé servi en clair dans l'e-mail` (cas `membres`, `abonnés payants`, `palier`) | Verrou = `isPremium` **ou** visibilité refusée à un porteur d'aucun droit ; teaser borné par un marqueur explicite (jamais de repli « 2 paragraphes »), preheader recalculé sur le teaser, libellé adapté (`réservé aux membres`). `02a92508` |
+| **F431** | **Réponse rattachée à un fil étranger** : `parentId` n'était jamais rattaché à l'article commenté (et une erreur de lecture du parent était silencieusement ignorée) → réponse orpheline chez l'un, notification trompeuse chez l'autre. | Pas de rouge local : le chemin est une requête SQL (`GetCommentWithAuthor`), et les tests à base réelle sont **non concluants** ici (testcontainers : `rootless Docker not found`). Défaut établi par lecture du code et du schéma (aucune contrainte `parentId` → même article). | Le parent est résolu puis **doit** appartenir à l'article (sinon 404, indistinguable d'un parent inexistant) ; le contrôle de blocage porte sur l'auteur réel du parent. `69db0845` |
+| **F432** | L'e-mail de test construisait son lien en dur (`https://qoe.fi/p/{slug}`) : aperçu mensonger pour un média à domaine personnalisé ou sous-domaine. | Même limite que F431 (lecture seule, pas de rouge local). | `ArticlePublicURL(domaine personnalisé, sous-domaine, slug)` — même résolution que le mail réel. `69db0845` |
+
+**Batterie de clôture (mesures du tour).** `go vet ./internal/...` **0** · `go build ./...` **0** ·
+`go test` des paquets du lot : `articles` **ok**, `newsletters` **ok** ; `workers` **NON CONCLUANT** — 3 tests
+uniquement (`TestConfirmEmailWorker_AlreadyConfirmed_IsSilent`, `TestBulkFanout_NeverMailsUnconfirmedSubscribers`,
+`TestWelcomeEmailWorker_UnconfirmedOrMissing_IsSilent`) échouent sur `postgres de test: … rootless Docker not
+found`, aucun autre échec. Paquets de référence : `middleware`, `secguard`, `authz`, `identity`, `apiaccess`,
+`permissions` **ok**. Workspace : `typecheck` 0, `mobile:typecheck` 0, `lint` 0, `ui:audit` 0, `arch:audit` 0,
+`audit:guard` 0, 7 `guard:*` 0 ; **0 fichier mobile touché**, `git status --porcelain` vide, aucun push.
+
+**Dettes ouvertes du lot.** `R191` — `NEWSLETTER_UNSUB_SECRET` n'est **pas** validé au démarrage : sans lui, les
+e-mails partent sans lien de désinscription valide et les liens de confirmation ne vérifient plus (RFC 8058 non
+satisfaite). Il faut une validation de configuration au boot (liste des variables requises) — décision infra, hors
+d'un lot de module. `R192` — `articles.ListSnapshots` ouvre l'historique complet (brouillons, versions révoquées,
+50 versions non-jalon) à **tout membre du média**, sans permission dédiée : la politique « membre = lecture de
+l'archive » est cohérente avec `GetByID`, mais un rôle lecteur n'a pas évidemment droit aux versions révoquées —
+à trancher produit. `R193` — `syncAttributions` enchaîne attribution, `CollaborationRequest` et notification en
+`_, _ =` **hors transaction** : une panne à mi-chemin laisse une invitation sans attribution (ou l'inverse) sans
+retour d'erreur ; corriger exige une transaction + une remontée d'erreur, donc de changer le contrat d'échec d'une
+sauvegarde d'article. `R194` — `fetchViewsBatch`/`fetchCommentsBatch`/`fetchLikesBatch`/`fetchRepostsBatch` avalent
+l'erreur SQL et rendent des compteurs à 0 : un incident base s'affiche comme « aucun lecteur », jamais comme une
+panne ; remonter l'erreur changerait la signature utilisée par la liste éditeur — décision d'affichage.
+
+**Reste à faire (L29c, lot suivant de L29 — « En cours »).** Le module `articles` est **terminé** ; il reste
+**177 fichiers de production · 60 038 l.** dans `apps/api/internal/modules/**`. Prochain lot borné : `feed`
+(**11 f. · 4 001 l.** — `engine_candidates 895`, `service 852`, `engine_config 522`, `home_feed 470`, `hydrate 310`,
+`handler 231`, `assembly 223`, `personalized 216`, `engine_scoring 166`, `mmr 108`, `querier 8`), puis `creator`
+(17 f. · 4 812 l., à recouper), `legal`, `imports`, `posts`, … et `admin` (36 f. · 11 570 l., à découper).
 
 ## L29a — `apps/api/internal/modules/articles/**` (cœur article) — **clos le 2026-11-22**
 
