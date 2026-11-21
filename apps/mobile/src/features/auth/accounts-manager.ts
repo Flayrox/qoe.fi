@@ -15,12 +15,31 @@ export interface StoredAccount {
   lastUsedAt: number;
 }
 
+/**
+ * Une entrée n'est exploitable que si elle porte un id et des tokens :
+ * `switchAccount` rejoue `setSession({access_token, refresh_token})`, donc une
+ * entrée partielle (stockage abîmé, version antérieure) ferait échouer la
+ * bascule au lieu d'être simplement ignorée.
+ */
+function isStoredAccount(value: unknown): value is StoredAccount {
+  if (!value || typeof value !== 'object') return false;
+  const entry = value as Record<string, unknown>;
+  return (
+    typeof entry.id === 'string' &&
+    entry.id.length > 0 &&
+    typeof entry.refreshToken === 'string' &&
+    entry.refreshToken.length > 0 &&
+    typeof entry.accessToken === 'string'
+  );
+}
+
 export async function getSavedAccounts(): Promise<StoredAccount[]> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isStoredAccount);
   } catch {
     return [];
   }
@@ -99,14 +118,17 @@ export async function saveAccount(
 }
 
 export async function removeStoredAccount(userId: string): Promise<StoredAccount[]> {
+  const accounts = await getSavedAccounts();
+  const filtered = accounts.filter((a) => a.id !== userId);
   try {
-    const accounts = await getSavedAccounts();
-    const filtered = accounts.filter((a) => a.id !== userId);
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
     return filtered;
   } catch (err) {
+    // Écriture échouée : le stockage contient encore la liste complète. On
+    // renvoie donc CETTE liste (jamais `[]`, qui laisserait croire que le
+    // compte courant est le dernier et empêcherait la bascule de secours).
     console.error('Failed to remove account from storage:', err);
-    return [];
+    return accounts;
   }
 }
 

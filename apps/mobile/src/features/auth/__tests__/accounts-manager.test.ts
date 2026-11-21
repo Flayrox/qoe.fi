@@ -159,4 +159,48 @@ describe('mobile accounts-manager', () => {
     const res = await saveAccount(emptySession);
     expect(res).toEqual([]);
   });
+
+  it('getSavedAccounts ignore les entrées corrompues du stockage', async () => {
+    // Un stockage abîmé (écriture partielle, ancienne version sans tokens) ne
+    // doit jamais remonter d'entrée inutilisable : `switchAccount` appellerait
+    // setSession avec des tokens `undefined` et lèverait.
+    storageMap.set(
+      'qoe_saved_accounts_v1',
+      JSON.stringify([
+        null,
+        { id: 'usr_sans_tokens', email: 'x@qoe.fi' },
+        { id: '', refreshToken: 'r', accessToken: 'a' },
+        {
+          id: 'usr_ok',
+          email: 'ok@qoe.fi',
+          name: 'Ok',
+          username: 'ok',
+          refreshToken: 'r',
+          accessToken: 'a',
+          lastUsedAt: 1,
+        },
+      ])
+    );
+
+    const accounts = await getSavedAccounts();
+    expect(accounts.map((a) => a.id)).toEqual(['usr_ok']);
+  });
+
+  it('removeStoredAccount conserve la liste quand l’écriture échoue', async () => {
+    const session1 = createMockSession('usr_1', 'alice@qoe.fi');
+    const session2 = createMockSession('usr_2', 'bob@qoe.fi');
+    await saveAccount(session1);
+    await saveAccount(session2);
+
+    const storage = (await import('@react-native-async-storage/async-storage')).default;
+    vi.mocked(storage.setItem).mockRejectedValueOnce(new Error('disk full'));
+
+    const remaining = await removeStoredAccount('usr_1');
+
+    // L'écriture a échoué : le stockage contient encore les DEUX comptes.
+    // Renvoyer [] ferait croire à l'appelant qu'il n'y a plus rien (et
+    // AuthProvider cesserait de basculer sur le compte restant).
+    expect(remaining.map((a) => a.id).sort()).toEqual(['usr_1', 'usr_2']);
+    expect((await getSavedAccounts()).map((a) => a.id).sort()).toEqual(['usr_1', 'usr_2']);
+  });
 });
