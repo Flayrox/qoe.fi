@@ -78,21 +78,21 @@ export function ProfileMenuButton({
           key: 'mute',
           label: t('profile.mute', 'Masquer ce compte'),
           icon: { ios: 'speaker.slash', android: 'volume_off', web: 'volume_off' } as const,
-          onPress: () => onStub('Masquer'),
+          onPress: () => onStub(t('profile.mute', 'Masquer ce compte')),
         },
         {
           key: 'block',
           label: t('profile.block', 'Bloquer ce compte'),
           icon: { ios: 'person.crop.circle.badge.xmark', android: 'block', web: 'block' } as const,
           destructive: true,
-          onPress: () => onStub('Bloquer'),
+          onPress: () => onStub(t('profile.block', 'Bloquer ce compte')),
         },
         {
           key: 'report',
           label: t('profile.report', 'Signaler ce compte'),
           icon: { ios: 'exclamationmark.triangle', android: 'warning', web: 'warning' } as const,
           destructive: true,
-          onPress: () => onStub('Signaler'),
+          onPress: () => onStub(t('profile.report', 'Signaler ce compte')),
         },
       ];
 

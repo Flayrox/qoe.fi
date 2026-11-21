@@ -14,6 +14,7 @@ import { SymbolView } from 'expo-symbols';
 
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
+import { t } from '@/lib/i18n';
 
 export function Lightbox({
   visible,
@@ -55,7 +56,11 @@ export function Lightbox({
           ) : (
             <View />
           )}
-          <Pressable onPress={onClose} hitSlop={12} accessibilityLabel="Fermer">
+          <Pressable
+            onPress={onClose}
+            hitSlop={12}
+            accessibilityLabel={t('common.close', 'Fermer')}
+          >
             <SymbolView
               name={{ ios: 'xmark', android: 'close', web: 'close' }}
               size={22}

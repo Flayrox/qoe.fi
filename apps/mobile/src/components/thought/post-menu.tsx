@@ -252,13 +252,13 @@ export function PostMenuButton({
           key: 'hide',
           label: t('post.hide', 'Masquer cette pensée pour moi'),
           icon: ICON.eyeSlash,
-          onPress: () => onStub('Masquer'),
+          onPress: () => onStub(t('post.hide', 'Masquer cette pensée pour moi')),
         },
         {
           key: 'muteThread',
           label: t('post.mute_thread', 'Mettre le fil en sourdine'),
           icon: ICON.mute,
-          onPress: () => onStub('Mettre en sourdine'),
+          onPress: () => onStub(t('post.mute_thread', 'Mettre le fil en sourdine')),
         },
         {
           key: 'mute',

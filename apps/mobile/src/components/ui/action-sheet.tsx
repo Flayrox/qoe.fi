@@ -12,6 +12,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useReduceMotion } from '@/hooks/use-user-settings';
 import { playHaptic } from '@/lib/haptics';
+import { t } from '@/lib/i18n';
 
 export interface ActionSheetItem {
   key: string;
@@ -117,7 +118,7 @@ export function ActionSheet({
               playHaptic('Light');
               onClose();
             }}
-            accessibilityLabel="Fermer"
+            accessibilityLabel={t('common.close', 'Fermer')}
           />
         </Animated.View>
 
@@ -235,7 +236,7 @@ export function ActionSheet({
                   ]}
                 >
                   <ThemedText style={[styles.cancelText, { color: theme.textSecondary }]}>
-                    Annuler
+                    {t('common.cancel', 'Annuler')}
                   </ThemedText>
                 </Pressable>
               ) : null}
