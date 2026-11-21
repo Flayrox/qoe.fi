@@ -16,7 +16,7 @@ import type {
   SecurityTopSubject,
   TrustRecomputeResult,
 } from '@/lib/admin-security-data';
-import { attemptWithStepUp, notifyActionFailure } from '@/lib/authz-feedback';
+import { attemptWithStepUp, notifyActionFailure, readMessage } from '@/lib/authz-feedback';
 
 interface SecurityCockpitProps {
   overview: SecurityOverview;
@@ -147,25 +147,33 @@ export function SecurityCockpit({ overview, canDecide }: SecurityCockpitProps) {
     setErrorMessage(null);
     setAuditStatus(null);
 
-    const outcome = await attemptWithStepUp(() => recomputeUserTrustAction(trimmed), {
-      reason: 'Recalculer le score Trust utilisateur',
-    });
+    try {
+      const outcome = await attemptWithStepUp(() => recomputeUserTrustAction(trimmed), {
+        reason: 'Recalculer le score Trust utilisateur',
+      });
 
-    setIsSubmitting(false);
+      if (!outcome.success) {
+        notifyActionFailure(outcome, 'Impossible de recalculer le score Trust.');
+        // `error` peut être un objet (`{ message }`) : le rendre tel quel à React
+        // ferait planter l'écran au lieu d'expliquer le refus.
+        setErrorMessage(readMessage(outcome) ?? 'Impossible de recalculer le score Trust.');
+        return;
+      }
 
-    if (!outcome.success) {
-      notifyActionFailure(outcome, 'Impossible de recalculer le score Trust.');
-      setErrorMessage(outcome.error ?? 'Impossible de recalculer le score Trust.');
-      return;
+      setTrustResult(outcome.data);
+      const now = new Date().toLocaleTimeString('fr-FR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+      setAuditStatus(`Audité · à ${now}`);
+    } catch (error) {
+      // Une action qui LÈVE (réseau, garde hors enveloppe) ne doit pas laisser
+      // le bouton et le champ désactivés pour toujours, sans explication.
+      setErrorMessage(readMessage(error) ?? 'Impossible de recalculer le score Trust.');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setTrustResult(outcome.data);
-    const now = new Date().toLocaleTimeString('fr-FR', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-    setAuditStatus(`Audité · à ${now}`);
   };
 
   return (
