@@ -103,7 +103,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20g    | **E2E apps (tenants/studio/admin) + matrice de routes + `public-feed-capture`** | `e2e/*.spec.ts`, `playwright.config.ts`, `.github/workflows/ci.yml` | mesuré le 2026-11-20 : `e2e-apps` **25/25**, `e2e-apps-routes` **53/53**, `api-access-control` **2/2 (projet isolé)**, `public-web` **12/12** — voir fiche L20g |
 | L20f    | **Validation locale bout en bout** : daemon Docker, `test:api`, `e2e` sur base jetable seedée | —                           | mesuré le 2026-11-20 : daemon **démarré** (OrbStack 29.4.0), `test:api` **✅ 82 paquets**, e2e **18/19 + 128/128** — voir fiche L20f |
 | L20e    | **Validation bout en bout** : `pnpm build` (6 apps), `pnpm test:api` (Go + Postgres), `pnpm e2e` (Playwright)  | —                           | mesuré le 2026-11-20 : **build ✅**, `test:api` **bloqué** (Docker absent), e2e **partiel** (seed absent) — voir fiche L20e |
-| L21     | `apps/studio/src/**`                                                                                         | **412 fichiers · 72 285 l.** (mesuré) | **ouvert le 2026-11-20**, découpé en **8 sous-lots** (L21a→L21h) ; **L21a** (socle : layout, not-found, components, lib, instrumentation) **durci le 2026-11-20** ; **R137 ouverte** ; **L21b clos le 2026-11-20** (frontière vendor/maison mesurée, **7 défauts corrigés** sur deux passages, tiroir modal accessible, **R138 ouverte** — seule dette restante du sous-lot) ; **L21c clos le 2026-11-20** (lecture intégrale des 49 fichiers de production et de leurs appelants, **6 défauts corrigés** F313–F318, **R140** et **R141** ouvertes) ; **L21d clos le 2026-11-20** (32 fichiers lus intégralement + gardes de routage, **2 défauts corrigés** F319–F320, deux échappatoires de type retirées, **R142** ouverte) ; **L21e clos le 2026-11-20** (20 fichiers lus intégralement + page serveur et réutilisations, **8 défauts corrigés** F321–F328 dont 380 l. de code mort supprimées, **R143/R144/R145** ouvertes) ; **L21f clos le 2026-11-20** (34 fichiers lus intégralement, **11 défauts corrigés** F329–F339, **R146/R147/R148** ouvertes) ; **L21g clos le 2026-11-21** (les 39 fichiers de production lus intégralement, **6 défauts corrigés** F340–F345, **R149/R150** ouvertes) ; prochain = **L21h** (`features/{security,onboarding,upcoming,dashboard,developer,devtools}` + routes `login`/`onboarding`) |
+| L21     | `apps/studio/src/**`                                                                                         | **412 fichiers · 72 285 l.** (mesuré) | **ouvert le 2026-11-20**, découpé en **8 sous-lots** (L21a→L21h) ; **L21a** (socle : layout, not-found, components, lib, instrumentation) **durci le 2026-11-20** ; **R137 ouverte** ; **L21b clos le 2026-11-20** (frontière vendor/maison mesurée, **7 défauts corrigés** sur deux passages, tiroir modal accessible, **R138 ouverte** — seule dette restante du sous-lot) ; **L21c clos le 2026-11-20** (lecture intégrale des 49 fichiers de production et de leurs appelants, **6 défauts corrigés** F313–F318, **R140** et **R141** ouvertes) ; **L21d clos le 2026-11-20** (32 fichiers lus intégralement + gardes de routage, **2 défauts corrigés** F319–F320, deux échappatoires de type retirées, **R142** ouverte) ; **L21e clos le 2026-11-20** (20 fichiers lus intégralement + page serveur et réutilisations, **8 défauts corrigés** F321–F328 dont 380 l. de code mort supprimées, **R143/R144/R145** ouvertes) ; **L21f clos le 2026-11-20** (34 fichiers lus intégralement, **11 défauts corrigés** F329–F339, **R146/R147/R148** ouvertes) ; **L21g clos le 2026-11-21** (les 39 fichiers de production lus intégralement, **6 défauts corrigés** F340–F345, **R149/R150** ouvertes) ; **L21h clos le 2026-11-21** (30 fichiers lus intégralement, dont les 3 routes `api/**` rattachées, **7 défauts corrigés** F346–F352, **R151/R152/R153** ouvertes) ; **L21 clos** ; prochain = **L22** (`apps/admin/src/**`) |
 | L22     | `apps/admin/src/**`                                                                                          | 178 fichiers                | à auditer               |
 | L23     | `apps/tenants/src/**`                                                                                        | 85 fichiers                 | à auditer               |
 | L24     | `apps/hi/src/**`                                                                                             | 40 fichiers                 | à auditer               |
@@ -123,7 +123,21 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L21h — `features/{security,onboarding,upcoming,dashboard,developer,devtools}` + routes `login`/`onboarding`** (27 f. · 3 586 l.).
+**Prochain lot à traiter : L22 — `apps/admin/src/**`** (178 fichiers).
+L21h (`features/{security,onboarding,upcoming,dashboard,developer,devtools}`, **24 f. · 3 481 l.**, + routes
+`login`/`onboarding` **3 f. · 105 l.** + les **3 routes `api/**`** rattachées à l'ouverture, **30 f. · 3 783 l.** au
+total) est **clos le 2026-11-21** — lecture intégrale des 30 fichiers de production, des 4 suites existantes de
+la zone et des appelants (`lib/authz-feedback`, `@qoe/config/domain-hub` et `constants`, `@qoe/sdk/workspace`,
+`@qoe/ui/primitives/button`, `@qoe/ui/ui/feature-interstitial`, `media/actions`, `@qoe/sdk/actions/{dashboard,
+legal,search,auth,utils/go-client,utils/authz}`, `@qoe/supabase/media-engine`, `@qoe/i18n/server`), **7 défauts
+corrigés** (F346 l'écran de step-up affirmait « aucun facteur » sur une lecture en échec, F347 deux rejets non
+capturés dans le provider des fonctionnalités à venir, F348 rotation de clé d'API sans relecture du tableau,
+F349 la touche Entrée du wizard avalait le clavier des liens légaux, F350 une panne du compteur de
+notifications effaçait l'identité de l'espace dans la sidebar, F351 la route d'upload acceptait un champ non-
+`File` et renvoyait le détail interne, F352 le registre Go des médias faisait échouer un envoi déjà stocké en
+fuyant son message) ; **R151** (i18n de la zone : 5 fichiers sur 30), **R152** (sélecteur d'espace qui
+disparaît sur une panne de lecture) et **R153** (accès développeur annoncé « non demandé » quand l'API tombe)
+ouvertes. **L21 est donc clos** : les 8 sous-lots a→h ont tous été lus intégralement.
 L21g (`app/(creator)/{articles,media,newsletters,analytics}`, **39 f. · 12 593 l.** mesurées) est **clos le
 2026-11-21** — lecture intégrale des 39 fichiers de production et de leurs 6 fichiers de tests (2 707 l.), des
 actions (`@qoe/sdk/actions/articles` et son `safeAction`, `features/settings/actions`, `media/actions`,
@@ -959,6 +973,9 @@ nommé), puis verts après restauration.
 | R148 | **La prévisualisation du stage injecte une fixture** : `settings/design/page.tsx:211` écrit `subscriberCount: 380` pour toutes les publications (le contexte n'a pas de champ réel, il faudrait un compteur Go dans `SettingsPublisherDTO`), et `:228` remplace le `layoutStyle` lu en base par `'minimal'` — le commentaire dit « injecter le layoutStyle existant ». La route est fermée en production (`NODE_ENV !== 'development'` sans `ENABLE_STAGE_PROD`), mais un aperçu qui annonce un chiffre inventé reste un mensonge de banc. | faible | **ouverte** — le compteur demande un champ serveur (Go `settings`), donc la même décision que R144 : un lot backend. Le `layoutStyle` suit pour ne pas régler deux fois le même aperçu. Preuve : `settings/design/page.tsx:211,228`. Voir L21f. |
 | R149 | **`app/(creator)/{articles,media,newsletters,analytics}` n'a pas de régime de traduction** : **17** fichiers sur **39** importent `@lingui/core/macro` (Lingui), les 22 autres affichent du français dur — `MediaStudioClient` (création « Créer un média », réglages « Identité & Marque », « Domaine & Web »), `handleCreate` (`toast.error('Le nom et le permalien sont requis.')`), `AnalyticsDashboardClient` (KPI « Pages vues », « Visiteurs uniques », bandeau « Statistiques non configurées »), `ProductMetricsBlock`, `TimeseriesChart`, `DevicesAndGeoBlock`, `ReferrersBlock`, `TopPagesBlock`, `demographic-labels.ts` (7 libellés de genre + 8 tranches d'âge), et une partie de `NewsletterClient`. | faible | **ouverte** — même régime que R140/R142/R143/R146 : conversion d'un seul tour par écran pour ne pas laisser une surface mi-traduite, et elle change les catalogues (`intl:extract` produit de nouveaux `msgid`), donc lot dédié, pas un lot de correctifs. Mesure du 2026-11-21 : `grep -l "from '@lingui/core/macro'"` sur les 39 fichiers de production → 17. Voir L21g. |
 | R150 | **Surfaces d'interaction anciennes dans la zone** : **5** confirmations natives bloquantes (`window.confirm` dans `media/MediaApiKeysTab.tsx:202` et `media/MediaStudioClient.tsx:553` ; `confirm(t…)` dans `newsletters/NewsletterClient.tsx` (envoi, suppression) et `articles/articles-client.tsx:762`) alors que le studio possède `ConfirmDialog` et `toast` — Révocation d'un lien d'invitation partagé, rotation de clé et envoi de campagne passent donc par le chrome du navigateur, non traduit ; et **7** fichiers portent une ligne cliquable `<div onClick>` sans rôle, sans focus ni clavier (`analytics/components/TopPagesBlock.tsx`, `ProductMetricsBlock.tsx`, `articles/components/article-list-row.tsx` pour les menus `<details>`). | faible | **ouverte** — chaque conversion demande une décision de composition (bouton pleine ligne, dialogue partagé, menu accessible) et un test de clavier/ARIA ; c'est un lot de migration d'interaction, pas un correctif ponctuel. Mesure du 2026-11-21. Voir L21g. |
+| R151 | **`features/{security,onboarding,upcoming,dashboard,developer,devtools}` et les routes `login`/`onboarding` n'ont pas de régime de traduction** : **5** fichiers sur **30** importent `@lingui/core/macro`, les 25 autres affichent du français dur — `security/{step-up,totp-enrollment}` (« Vérification requise », « Aucun facteur fort compatible… », « Code refusé… »), les 7 composants `developer/*` + `developer/types.ts` (libellés et descriptions des capacités), `HeaderClient` (« Rechercher... », « Bientôt disponible », toast d'onboarding), `login/actions`, `onboarding/page`. | faible | **ouverte** — même régime que R140/R142/R143/R146/R149 : conversion d'un seul tour par écran pour ne pas laisser une surface mi-traduite, et elle change les catalogues (`intl:extract` produit de nouveaux `msgid`), donc lot dédié. Mesure du 2026-11-21 : `grep -l "from '@lingui/core/macro'"` sur les 30 fichiers de production → 5. Voir L21h. |
+| R152 | **Le sélecteur d'espace disparaît quand la lecture échoue** : `HeaderWorkspaceSwitcher.tsx:74` sort silencieusement du chargement (`if (cancelled \|\| !res.success) return;`), `activeWorkspace` reste `null` et le composant rend `null` : le chrome perd la bascule d'espace, sans message ni repli, alors que l'action rend un `{ success: false }` explicite. | faible | **ouverte** — la sortie propre est un état « espaces indisponibles » avec réessai, donc une décision de présentation (bouton désactivé expliqué, ou bandeau dans le menu). Aucun demi-fix posé : le rendu `null` est le comportement actuel et le corriger à l'aveugle créerait un état intermédiaire non testable. Mesure du 2026-11-21. Voir L21h. |
+| R153 | **L'accès développeur est annoncé « non demandé » quand l'API tombe** : `developer/server.ts:34-37` capture l'échec de `/v1/users/me` et rend `status: 'none'` ; l'écran affiche alors « Activez votre accès développeur » et le formulaire de demande à un compte déjà approuvé, et `developer-keys-client` rend l'état d'accès au lieu des clés. | moyenne | **ouverte** — le correctif demande un statut `unavailable` traversant `DeveloperAccessStatus`, `developerWorkspaceAccess` et les cinq écrans (plus le cas `MEDIA`, qui court-circuite la lecture Go) : c'est une décision produit sur ce qu'un écran montre quand il ne sait pas, pas un correctif ponctuel. Mesure du 2026-11-21. Voir L21h. |
 | R142 | **`src/app/dev` n'a pas de régime de traduction** : `19-social-cards.tsx:674` est la **seule** chaîne sous `t` de la zone, alors que les 31 autres fichiers portent du français dur (`grep -rl "from '@lingui/core/macro'" src/app/dev` → **1** fichier ; `grep -rn "t\`" src/app/dev` → 1 occurrence). Un `msgid` de catalogue pour une page qui n'est jamais livrée, et 7 591 l. non traduites à côté. | faible | **ouverte** — la décision est un régime, pas un correctif : soit `src/app/dev` sort du catalogue (retirer la seule chaîne `t`), soit la zone se traduit entièrement (25 spécimens, changement de `msgid` sur toutes les locales). Les deux touchent les catalogues, donc un lot dédié ; aucun demi-fix posé. Mesure du 2026-11-20. Voir L21d. |
 | R141 | **L'infobulle d'annotation fuit ses minuteurs** : `Editor.tsx:921` et `Editor.tsx:1210` lancent chacun `setTimeout(() => setAnnotationToast(null), 3000)` sans conserver l'identifiant. Deux messages rapprochés (« Sélectionnez d'abord un passage », puis la note créée) partagent la même variable : le premier minuteur efface le second message au bout d'une seconde au lieu de trois, et un démontage dans la fenêtre laisse deux timers vivants. | faible | **ouverte** — le correctif propre est un petit hook `useTransientMessage` (une seule référence de timer, annulée au démontage et à chaque nouveau message) ; il n'a pas été posé dans L21c faute de rouge reproductible sans monter `Editor.tsx` entier (2 807 l., Tiptap + collaboration), ce qui aurait été une extraction déguisée en correctif. Voir L21c. |
 | R137 | Les métadonnées du studio restent figées en français : `src/app/layout.tsx` (`title: 'qoefi Studio — Creator Dashboard'`, description anglaise) et `src/app/not-found.tsx` (`'Page introuvable — Studio qoefi'`) sont des exports statiques `metadata`, donc non traduits quand la locale est `en`. | faible | **ouverte** — la sortie propre est `generateMetadata` + une traduction serveur ; `@qoe/i18n/server` expose `translateKey`/`translate`, mais l'`initI18n()` de requête et les overrides DB doivent être branchés dans le même tour pour toutes les apps (core, studio, admin, tenants), sinon on fixe le studio en laissant les autres derrière. Travail transversal à planifier, pas un correctif de deux lignes ; aucun correctif partiel posé. Preuve : `apps/studio/src/app/layout.tsx:52-64`, `apps/studio/src/app/not-found.tsx:3-9`, et `grep -rn "generateMetadata" apps/studio/src` → 0. Voir L21a. |
@@ -1561,11 +1578,15 @@ traité d'un tour, donc il est découpé ici, avec des mesures par groupe.
 | L21e | `features/settings/**` (tabs 7/2 632, components 7/1 259, `navigation.tsx` 796) | 20 f. · 5 622 l. (17 f. · **5 307 l.** après F328) | **clos le 2026-11-20** · lecture intégrale des 20 fichiers + page serveur, réutilisations (`totp-enrollment`, `newsletters`) et `@qoe/config` ; **8 défauts corrigés** (F321–F328) et 380 l. de code mort supprimées. Dettes : **R143** (i18n partielle), **R144** (sauvegarde non transactionnelle), **R145** (liaisons mortes, ids `Date.now()`). |
 | L21f | `app/(creator)/**` hors `articles`, `media`, `newsletters`, `analytics` (34 f.) + routes annexes | 34 f. · **5 101 l.** (mesuré) | **clos le 2026-11-20** · lecture intégrale des 34 fichiers, de leurs actions (`oauth`, `webhooks`, `design`, `translate`) et de leurs appelants (`@qoe/sdk/actions`, `@qoe/config`, `features/developer`, `features/stage`) ; **11 défauts corrigés** (F329–F339). Dettes : **R146** (i18n de la zone), **R147** (audience sans dégradation), **R148** (fixtures du stage). |
 | L21g | `app/(creator)/{articles,media,newsletters,analytics}` | 39 f. · **12 593 l.** + 6 f. de tests · 2 707 l. | **clos le 2026-11-21** · lecture intégrale des quatre gros clients (`articles-client` 2 206, `MediaStudioClient` 1 669, `NewsletterClient` 1 214, `analytics/actions.ts` 729), des 11 composants d'analytics et des 6 suites existantes ; **6 défauts corrigés** (F340–F345), 9 assertions rouges citées et 6 contre-preuves relancées (9 échecs reproduits, puis retour au vert). Dettes : **R149** (i18n), **R150** (confirmations natives, lignes cliquables sans clavier). |
-| L21h | `features/{security,onboarding,upcoming,dashboard,developer,devtools}` (24 f. · 3 481 l.) + routes `login`/`onboarding` (3 f. · 105 l.) | 27 f. · 3 586 l. | Le reste : sécurité (step-up), onboarding, devtools. Ferme le lot. |
+| L21h | `features/{security,onboarding,upcoming,dashboard,developer,devtools}` (24 f. · 3 481 l.) + routes `login`/`onboarding` (3 f. · 105 l.) + `app/api/**` (3 routes · 197 l., rattachées) | 30 f. · **3 783 l.** à la mesure, **3 868 l.** à la livraison (+7 f. de tests · 1 074 l.) | **clos le 2026-11-21** · lecture intégrale, **7 défauts corrigés** (F346–F352), 11 assertions rouges citées et 6 contre-preuves relancées. Dettes : **R151** (i18n), **R152** (sélecteur d'espace), **R153** (accès développeur). **Ferme L21.** |
 
-**Somme vérifiée.** 18 + 189 + 49 + 32 + 20 + 34 + 39 + 27 = **408 fichiers** attribués. Le `find` en
-compte **412** : les 4 fichiers restants vivent dans des sous-dossiers de `src/app` non listés ci-dessus et
-seront rattachés à L21h à son ouverture (mesure refaite à ce moment-là, pas d'estimation ici).
+**Somme vérifiée (clôture).** 18 + 189 + 49 + 32 + 20 + 34 + 39 + 30 = **411 fichiers** attribués. Les 4
+fichiers que le `find` d'ouverture (412) laissait hors sous-lot sont identifiés : `api/articles/upload`,
+`api/books/compile` et `api/export` (3 routes de production, rattachées à L21h) et `api/export/__tests__`
+(une suite, déjà comptée avec les 65 fichiers de tests). La mesure de clôture
+`find src -name '*.ts*' ! -path '*__tests__*' ! -name '*.test.*' | wc -l` → **407** : les lots précédents ont
+supprimé du code mort depuis leur propre mesure, et **aucun fichier de production de `src` ne reste hors
+sous-lot**.
 
 ### L21g — articles, médias, newsletters, analytics : fenêtres de période, refus avalés et copies mensongères — clos le 2026-11-21
 
@@ -1741,6 +1762,146 @@ inchangé : aucune assertion de test réécrite, seuls le balisage et les deux n
 
 Commits du lot (branche `dev`, aucun push) : `b5c8dba8` (F340), `167821fe` (F341–F342), `73db82b1` (F343),
 `bc0d651d` (F344), `7b64cc58` (F345), `8439479c` (F345, liste des articles), puis ce commit de fiche.
+
+### L21h — sécurité, onboarding et chrome : messages faux, rejets non capturés et route d'upload — clos le 2026-11-21
+
+**Périmètre lu, intégralement.** Les 27 fichiers du découpage (**3 586 l.**), plus les **3 routes `api/**`**
+que la somme de L21 laissait en suspens (**197 l.**) : **30 fichiers de production · 3 783 l.** (mesure du
+2026-11-21) et **11 fichiers de tests · 1 211 l.** (5 existants : `security/__tests__/totp-enrollment`,
+`onboarding/lib/__tests__/reserved-subdomains`, `dashboard/__tests__/workspace-cookie`,
+`dashboard/components/__tests__/studio-chrome`, `api/export/__tests__/route` ; **6 ajoutés** par ce lot ·
+577 l. · 13 tests).
+`security/{step-up 296,totp-enrollment 240}`, `onboarding/{components/wizard 502,lib/reserved-subdomains 20}`,
+`upcoming/{actions 125,provider 94}`, `dashboard/components/{DashboardLayoutContent 14,GlobalCommandMenu 250,
+HeaderClient 77,HeaderWorkspaceSwitcher 296,StudioSidebar 87,SurfaceHotkeys 40,app-sidebar 122}`,
+`developer/{actions 30,server 79,types 81}` et ses 7 composants (`developer-keys-client` 467,
+`developer-access-state` 218, `developer-request-form` 185, `developer-overview` 87, `developer-nav` 65,
+`developer-shell` 27, `developer-status-badge` 23), `devtools/actions 56`,
+`app/login/{actions 15,route 24}`, `app/onboarding/page 66`, `app/api/articles/upload 125`,
+`app/api/books/compile 58`, `app/api/export 48` — chaque fichier lu en entier.
+
+**Appelants et contrats lus** : `lib/authz-feedback` (`attemptWithStepUp`, `notifyActionFailure`),
+`@qoe/config/domain-hub` (`parseHostContext`, `resolveAppUrl`), `@qoe/config/constants` (`getMonorepoUrl`),
+`@qoe/sdk/workspace` (`parseWorkspaceCookie`, `serializeWorkspaceCookie`), `@qoe/ui/primitives/button`
+(`type="button"` par défaut), `@qoe/ui/ui/feature-interstitial` (`onSignal` accepte une promesse),
+`media/actions` (`getUserWorkspacesAction`, `listPendingMediaInvitesAction`, `acceptMediaInviteAction` :
+les trois capturent et rendent `{ success: false }`), `@qoe/supabase/media-engine` (messages d'erreur
+destinés à l'utilisateur), `@qoe/sdk/storage` (`uploadImageToRoute` affiche `data.error` tel quel),
+`@qoe/sdk/actions/{dashboard,legal,search,auth}`, `@qoe/i18n/server`, `@qoe/utils/legal-consent`.
+
+**Défauts prouvés et corrigés**
+
+| #    | Emplacement | Défaut mesuré | Correctif |
+| ---- | ----------- | ------------- | --------- |
+| F346 | `security/step-up.tsx:92-104,163-175` | Toute erreur de `listFactors` (fournisseur indisponible, réseau) tombait dans le même `catch` que « aucun facteur enregistré » : l'écran affirmait au compte qu'il n'avait aucun facteur fort, alors qu'il en possédait un. L'utilisateur pouvait en ré-enrôler un second. Le champ de code acceptait en outre des lettres (`maxLength` ne filtre rien) que le fournisseur refusait ensuite. | Phase `unavailable` distincte, nommée (« Impossible de lire vos facteurs… Vos facteurs existants ne sont pas en cause ») et rejouable (`Réessayer` par `readAttempt`), et filtre `replace(/\D/g, '')` identique à celui de l'enrôlement. |
+| F347 | `upcoming/provider.tsx:44-82` | Deux rejets non capturés pour un simple échec réseau : `handleSignal` laissait remonter celui de l'action serveur (montée une fois pour tout le studio), et le repli `getFeatureNotifiedAction()` du `catch` n'avait aucun `catch`. | `try/catch` dans `handleSignal` (best-effort assumé, l'annonce garde son état local) et `.catch()` sur le repli. |
+| F348 | `developer/components/developer-keys-client.tsx:166-199` | Après une rotation réussie, le secret et le préfixe changeaient côté serveur mais le tableau gardait l'ancien préfixe : l'écran décrivait une clé révoquée, impossible à comparer avec ses variables d'environnement (`handleGenerate` relisait déjà, pas `handleRotate`). | `await refreshKeys()` dans les deux branches (média et personnel) après rotation. |
+| F349 | `onboarding/components/wizard.tsx:300-320` | L'écouteur `keydown` de fenêtre interceptait **toutes** les touches Entrée (seul `TEXTAREA` était exclu) et appelait `preventDefault()` : sur le lien d'un document légal, Entrée créait l'espace au lieu de suivre le lien — un utilisateur au clavier ne pouvait pas lire ce qu'il accepte. `return` n'était pas davantage honoré hors du champ. | Ignore les cibles qui possèdent leur propre sens au clavier (`a, button, select, summary, [role="button"]`, `contentEditable`) ; Entrée depuis le champ du nom lance toujours la création. |
+| F350 | `dashboard/components/app-sidebar.tsx:56-88` | Les trois lectures (`/v1/users/me`, `/v1/notifications/unread-count`, espace actif) partageaient un `Promise.all` sous un seul `try` : une panne du seul compteur effaçait le profil **et** l'espace média, donc `brandName` retombait sur « Studio », `permissions` sur `undefined` et le bouton d'écriture disparaissait pour un rôle pourtant autorisé. | `Promise.allSettled` : chaque lecture dégrade seule (profil → métadonnées Supabase, compteur → 0, espace → perso). |
+| F351 | `app/api/articles/upload/route.ts:41-46` | `formData.get('file') as File` était un mensonge de type : un champ texte nommé `file` atteignait `file.arrayBuffer()` et le `catch` renvoyait `file.arrayBuffer is not a function` au navigateur (détail interne + statut 400 trompeur). | Garde de forme `isUploadedFile` (`arrayBuffer` fonction, `type` chaîne, `size` nombre — donc indépendante du royaume du `File`), appliquée avant tout usage ; `folder` validé comme chaîne. |
+| F352 | `app/api/articles/upload/route.ts:66-96,110-116` | Le registre Go des médias (`POST /v1/media-assets`, TTL des orphelins) partageait l'essai de l'envoi : sa panne renvoyait 400 alors que l'image était **déjà stockée**, poussant à ré-envoyer et à créer un orphelin, et son message (`postgres: relation media_assets absente`) partait tel quel dans la réponse. Le `catch` extérieur faisait de même pour toute erreur de parsing. | Registre en `try/catch` best-effort (journal seulement) ; messages du moteur média conservés (format, modération, taille — seuls exploitables par l'utilisateur) ; panne inattendue → **500** `Import impossible. Réessayez dans un instant.` avec détail réservé aux journaux. |
+
+Rouges conservés (avant correctif) :
+
+```
+$ cd apps/studio && npx vitest run src/features/security/__tests__/step-up.test.tsx \
+    src/features/upcoming/__tests__/provider.test.tsx \
+    src/features/developer/components/__tests__/developer-keys-client.test.tsx \
+    src/features/onboarding/components/__tests__/wizard.test.tsx \
+    src/features/dashboard/components/__tests__/app-sidebar.test.tsx
+ × propose le champ de code quand un facteur vérifié existe
+   AssertionError: expected 'ab12cd34' to be '1234'
+ × dit la vérité quand la liste des facteurs ne peut pas être lue
+   AssertionError: expected <p …(1)></p> to be null        (« Aucun facteur fort compatible » affiché)
+ × avale l’échec d’un signal : le bouton gère son propre état
+   AssertionError: promise rejected "Error: Non autorisé" instead of resolving
+ × ne laisse pas filer le rejet du repli « déjà demandé »
+   AssertionError: expected [ Error: compte indisponible ] to deeply equal []
+ × relit la liste après une rotation : le préfixe affiché est celui du serveur
+   TestingLibraryElementError: Unable to find an element with the text: /qoe_new_••/
+ × laisse Entrée activer le lien d’un document légal
+   AssertionError: expected false to be true                     (preventDefault appelé)
+ × garde le profil et l’espace média quand le compteur de notifications échoue
+   AssertionError: expected 'Creator' to be 'Alex'
+  Tests  7 failed | 2 passed (9)
+```
+
+```
+$ cd apps/studio && npx vitest run src/app/api/articles/upload/__tests__/route.test.ts
+ × refuse un champ `file` qui n’est pas un fichier, sans fuiter de détail
+   AssertionError: expected 'file.arrayBuffer is not a function' to be 'Aucun fichier fourni'
+ × rend l’image quand le registre Go des médias est en panne
+   AssertionError: expected 400 to be 200
+ × ne renvoie pas le détail interne d’une panne inattendue
+   AssertionError: expected 400 to be 500
+  Tests  3 failed | 1 passed (4)
+```
+
+**Contre-preuves.** Chaque source remise à l'état d'origine (`git stash push -- <fichier>` pour les cinq
+premiers, `git show fd7a2b97^:<fichier>` pour la route) fait retomber **ses** assertions, sans toucher aux
+autres : `step-up.tsx` → **2**, `provider.tsx` → **2**, `developer-keys-client.tsx` → **1**, `wizard.tsx` →
+**1**, `app-sidebar.tsx` → **1**, `upload/route.ts` → **3**. Soit **10 échecs** sur les 11 assertions ajoutées ;
+la 11ᵉ (correctif F352 : les messages du moteur média restent affichés) est un **garde-fou** qui passe avant
+comme après — elle prouve que le correctif ne transforme pas une erreur explicable en 500. Restaurées, les 6
+suites repassent vertes (`Tests 13 passed (13)`).
+
+**Non-défauts examinés, avec la preuve**
+
+- **`app/login/route.ts` — en-tête `Host`** : la cible est construite par `getMonorepoUrl('feed', host)`, donc
+  `parseHostContext` ; un hôte inconnu ne devient jamais une origine : en production la racine retombe sur
+  `NEXT_PUBLIC_ROOT_DOMAIN || 'qoe.fi'`, en développement sur `lvh.me`. `resolveAppUrl` ne concatène jamais
+  l'hôte brut — pas d'open redirect par `Host` (le seul usage de l'hôte est de choisir la racine reconnue).
+- **`api/books/compile` et `api/export`** : relais authentifiés — `401` sans session, `503` sans
+  `QOE_API_URL`, `400` si `articleIds` n'est pas un tableau non vide, statut amont propagé, `Cache-Control:
+  no-store`, `Content-Disposition` repris de Go ; la propriété des articles et de l'archive est vérifiée côté
+  Go (aucune écriture ici). Aucun correctif nécessaire.
+- **Boutons des dialogues** : `<Button>` pose `type="button"` par défaut, donc les « Annuler » du step-up
+  placés dans un `<form>` ne soumettent pas — vérifié dans le contrat `@qoe/ui/primitives/button`.
+- **`formatAccessDate` (UTC) et `formatDate` (`fr-FR` + heure)** : même sonde ICU que L21g, refaite —
+  `node -e "new Date('2026-11-14T09:32:05Z').toLocaleDateString('fr-FR',{hour:'2-digit',minute:'2-digit'})"`
+  → `"14/11/2026 10:32"`, pas de défaut.
+- **`totp-enrollment` et `step-up` — double montage StrictMode** : non retenu comme défaut faute de rouge
+  reproductible en production ; le nommage côté Go numérote les facteurs et la reprise par `factorId`
+  fonctionne, donc un montage double laisserait au pire un facteur non vérifié, jamais un compte cassé.
+- **`devtools/actions.ts`** : `console.error` sur une route réservée au superadmin et montée en développement
+  uniquement ; l'erreur Go remonte à l'écran de dev, pas à un utilisateur final.
+
+**Dettes ouvertes**
+
+- **R151** — régime de traduction de la zone : **5** fichiers sur **30** importent `@lingui/core/macro`
+  (`GlobalCommandMenu`, `HeaderWorkspaceSwitcher`, `StudioSidebar`, `app-sidebar`, `wizard`), les 25 autres
+  affichent du français dur — tout `security/{step-up,totp-enrollment}` (« Vérification requise », « Code
+  refusé… »), les 7 composants `developer/*` et `developer/types.ts` (capacités, motifs), `HeaderClient`
+  (« Rechercher... », « Bientôt disponible »), `login/actions`, `onboarding/page`. Conversion à faire d'un
+  seul tour par écran, comme R140/R142/R143/R146/R149 ; elle change les catalogues, donc lot dédié.
+- **R152** — le sélecteur d'espace disparaît sur une panne de lecture : `HeaderWorkspaceSwitcher.tsx:74`
+  (`if (cancelled || !res.success) return;`) laisse `activeWorkspace` à `null` et le composant rend `null`
+  (ligne 128) — le chrome perd la bascule d'espace, sans message ni repli, alors que `getUserWorkspacesAction`
+  rend un `{ success: false }` explicite. La sortie propre demande un état « espaces indisponibles » avec
+  réessai, donc une décision de présentation.
+- **R153** — l'accès développeur annonce « non demandé » quand l'API tombe : `developer/server.ts:34-37`
+  capture l'échec de `/v1/users/me` et rend `status: 'none'`, ce qui affiche « Activez votre accès
+  développeur » et le formulaire de demande à un compte déjà approuvé. Demande un statut `unavailable`
+  traversant `DeveloperAccessStatus` et les cinq écrans, plus le cas `MEDIA` — donc une décision produit sur
+  ce qu'un écran doit montrer quand il ne sait pas.
+
+**Catalogues intacts.** Aucun `msgid` ajouté : les correctifs réutilisent les chaînes présentes (`Réessayer`,
+`Fermer`, `Gérer mes facteurs`) ou du français hors catalogue dans une zone qui n'en a pas encore (R151).
+`git status --porcelain messages/` → vide après `pnpm intl:extract`.
+
+**Validation sur l'arbre commité.** `apps/studio` **93 fichiers / 655 tests verts** (dont les **6 suites /
+13 tests** ajoutés par ce lot), `apps/core` **66 fichiers / 406 tests** verts, `tsc --noEmit` **0** des deux côtés,
+`pnpm lint` **EXIT=0** (0 erreur, 5 warnings studio antérieurs), les 7 `guard:*`, `arch:audit` et
+`audit:guard` à **EXIT=0**, `pnpm --filter @qoe/studio build` **OK**, `ui:audit` **EXIT=0**.
+
+**Ratchet UI inchangé.** Aucune primitive réinventée : le nouveau bloc du step-up consomme `Button`
+(`@qoe/ui/button`) et le champ existant, les nouveaux fichiers de tests sont hors périmètre du scan
+(`SKIP_DIR` exclut `__tests__`). Mesure : **260** occurrences `<button>` / **69** fichiers, **127** `<input>` /
+**33** fichiers, **16** primitives réinventées — plafonds identiques, **marge 0** partout, aucun plafond
+relevé ni exclusion ajoutée.
+
+Commits du lot (branche `dev`, aucun push) : `86956514` (F346), `635cf8bb` (F347), `a08eae46` (F348),
+`2a9f4799` (F349), `eb1650e1` (F350), `fd7a2b97` (F351–F352), puis ce commit de fiche.
 
 ### L21f — écrans secondaires du créateur : états figés, réponses périmées, origine en dur — clos le 2026-11-20
 
