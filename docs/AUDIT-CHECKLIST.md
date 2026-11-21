@@ -106,8 +106,8 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L21     | `apps/studio/src/**`                                                                                         | **412 fichiers · 72 285 l.** (mesuré) | **ouvert le 2026-11-20**, découpé en **8 sous-lots** (L21a→L21h) ; **L21a** (socle : layout, not-found, components, lib, instrumentation) **durci le 2026-11-20** ; **R137 ouverte** ; **L21b clos le 2026-11-20** (frontière vendor/maison mesurée, **7 défauts corrigés** sur deux passages, tiroir modal accessible, **R138 ouverte** — seule dette restante du sous-lot) ; **L21c clos le 2026-11-20** (lecture intégrale des 49 fichiers de production et de leurs appelants, **6 défauts corrigés** F313–F318, **R140** et **R141** ouvertes) ; **L21d clos le 2026-11-20** (32 fichiers lus intégralement + gardes de routage, **2 défauts corrigés** F319–F320, deux échappatoires de type retirées, **R142** ouverte) ; **L21e clos le 2026-11-20** (20 fichiers lus intégralement + page serveur et réutilisations, **8 défauts corrigés** F321–F328 dont 380 l. de code mort supprimées, **R143/R144/R145** ouvertes) ; **L21f clos le 2026-11-20** (34 fichiers lus intégralement, **11 défauts corrigés** F329–F339, **R146/R147/R148** ouvertes) ; **L21g clos le 2026-11-21** (les 39 fichiers de production lus intégralement, **6 défauts corrigés** F340–F345, **R149/R150** ouvertes) ; **L21h clos le 2026-11-21** (30 fichiers lus intégralement, dont les 3 routes `api/**` rattachées, **7 défauts corrigés** F346–F352, **R151/R152/R153** ouvertes) ; **L21 clos** ; prochain = **L22** (`apps/admin/src/**`) |
 | L22     | `apps/admin/src/**`                                                                                          | **149 f. prod · 31 079 l.** (mesuré) | **ouvert le 2026-11-21**, découpé en **6 sous-lots** (L22a→L22f) ; **L22a clos le 2026-11-21** (deux passages : coquille, navigation, retours d'autorisation, grille et palette lues intégralement, **10 défauts corrigés** F353–F362, 2 fichiers + 2 exports morts supprimés, **R154–R159** ouvertes dont une décision produit) ; **L22b clos le 2026-11-21** (couche de données et wrappers de mutation, 24 f. · 4 661 l. remesurés : **7 défauts** F363–F369, **R160/R161** ouvertes, R157–R159 mises à jour) ; **L22c clos le 2026-11-21** (surfaces qui élèvent les droits, 13 f. · 2 567 l. remesurés : **5 défauts** F370–F374, garde de palette étendue, **R162** ouverte) ; **L22d clos le 2026-11-21** (files de décision, 26 f. · 6 445 l. remesurés : **6 défauts** F375–F380, garde de palette étendue aux 9 répertoires, **R163/R164** ouvertes) ; **L22e clos le 2026-11-21** (contenu et publication, 24 f. · 6 714 l. remesurés : **9 défauts** F381–F389, garde de palette étendue aux 10 répertoires, **R165/R166** ouvertes, R161/R163/R164 enrichies) ; **L22f clos le 2026-11-21** (conformité, données et dernier reste, 29 f. · 6 119 l. remesurés, **aucun test** préexistant : 8 suites écrites, **8 défauts** F390–F397, garde de palette étendue à 11 racines) — **L22 clos** (45 défauts F353–F397) ; prochain = **L23** (`apps/tenants/src/**`) |
 | L23     | `apps/tenants/src/**`                                                                                        | **54 f. prod · 6 106 l.** + 11 f. de tests · 1 149 l. (remesuré) | **clos le 2026-11-21** — 2 défauts F398–F399 (refus muets, fuites API), 5 suites ajoutées, R167/R168 ouvertes |
-| L24     | `apps/hi/src/**`                                                                                             | 40 fichiers                 | à auditer               |
-| L25     | `apps/collab-server/src/**`                                                                                  | 15 fichiers                 | à auditer               |
+| L24     | `apps/hi/src/**`                                                                                             | **30 f. prod · 4 387 l.** + 6 f. de tests (remesuré) | **clos le 2026-11-21** — 5 défauts F400–F404 (tests jamais exécutés, assainisseur contournable, pied de page EN, config console non validée, formulaire muet), R169–R172 ouvertes |
+| L25     | `apps/collab-server/src/**`                                                                                  | **7 f. prod · 1 036 l.** + 6 f. de tests (remesuré) | à auditer (prochain)   |
 | L26     | `apps/mobile/src/**` + `modules/`                                                                            | 220 fichiers                | à auditer               |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go                          | à auditer               |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go                          | en cours (garde média)  |
@@ -123,7 +123,10 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L24 — `apps/hi/src/**`** (vitrine publique ; périmètre à remesurer à l'ouverture).
+**Prochain lot à traiter : L25 — `apps/collab-server/src/**`** (périmètre remesuré : 7 f. de production · 1 036 l.
++ 6 f. de tests).
+**L24 est clos le 2026-11-21** : `apps/hi/src/**`, 30 f. de production · 4 387 l. remesurés, **5 défauts** F400–F404,
+R169–R172 ouvertes. La vitrine n'avait **aucun runner de tests** : elle en a un (6 fichiers / 21 tests).
 **L23 est clos le 2026-11-21** : `apps/tenants/src/**`, 54 f. · 6 106 l. remesurés, **2 défauts** F398–F399,
 R167 (prix de déblocage fourni par le client — décision produit) et R168 ouvertes. **L22 est clos** : L22a→L22f,
 **45 défauts** F353–F397, dettes R154–R166 (aucune tranchée : R159, R160/R161, R163, R164, R165, R166 restent au user).
@@ -2084,6 +2087,73 @@ qu'en développement.
 
 **L23 est clos.** Deux défauts corrigés (F398–F399) en **3 commits** (`27b7f6d2`, `40326fdb`, `daaa9625`), cinq
 suites ajoutées, périmètre corrigé (54 f. · 6 106 l.). **Prochain lot : L24** — `apps/hi/src/**`.
+
+## L24 — `apps/hi/src/**` — clos le 2026-11-21
+
+**Périmètre remesuré à l'ouverture.** `git ls-files 'apps/hi/src/**'` → **31 fichiers**, dont **1 de tests**
+(63 l., `app/support/components/help-center.test.ts`) → **30 fichiers de production · 4 387 lignes**. La ligne de
+périmètre annonçait « 40 fichiers » : **corrigée**. Répartition : `components/landing` 11 · 2 698,
+`app` (layout, page, sitemap, robots, not-found, icon.svg, globals.css, `legal/**`) 9 · 814, `app/support` 4 · 400,
+`components/layout` 1 · 213, `lib` 2 · 125, `components` 1 · 28 (`AnalyticsGate`), `config` 1 · 97,
+`instrumentation` 1 · 12. Les 30 ont été lus **intégralement**, deux passages sur `Hero`, `legal/[slug]`,
+`layout`, `Footer`, `support-form`, `support-actions`, `CreatorHub`.
+
+| # | Défaut | Rouge mesuré | Correctif |
+| - | ------ | ------------ | --------- |
+| **F400** | *Les tests de la vitrine n'ont jamais tourné.* `apps/hi` n'avait **ni config vitest, ni setup, ni script `test`** : `help-center.test.ts` existait mais `turbo run test` ignorait l'app, et aucune suite ne pouvait être ajoutée. | `pnpm --filter @qoe/hi test` → `Missing script: "test"` ; `pnpm exec vitest run` → aucun runner configuré. | `vitest.config.ts` (jsdom, alias `@`, React unique, env minimal), `vitest.setup.ts` (env, jest-dom, macros Lingui, `IntersectionObserver`), script `test` + 4 devDeps. La suite existante tourne : **8 tests**. |
+| **F401** | *Assainisseur maison contournable.* `lib/sanitize.ts` était une liste noire en expressions régulières appliquée au corps d'article injecté dans l'aperçu. `&#106;avascript:alert(1)` traverse (entité non décodée par la regex, mais décodée par le parseur HTML → lien exécutable) et `<script src=…>` **non fermé** n'est jamais retiré. | `article-preview-sanitize.test.tsx` : `AssertionError: expected 'javascript:alert(1)' not to match /javascript:/i` ; `expected <script …(1)></script> to be null`. | `sanitizeArticleHtml` (`@qoe/ui/security`, liste blanche DOMPurify partagée) ; le module maison est **supprimé**. |
+| **F402** | *Pied de page anglais en français.* Le bas de page imprimait « © 2026 QOEFI. Tous droits réservés. » et une phrase de copyright française sur les pages EN. | `footer-locale.test.tsx` : `AssertionError: expected '<footer …' not to contain 'Tous droits réservés'`. | Les deux lignes suivent la locale résolue. |
+| **F403** | *Config console non validée.* `hero_reader_items`, `footer_sections`, `creator_hub_tabs` et `comparison_rows` sont du JSON libre saisi en console : un objet incomplet **plantait la page d'accueil** (`content.features.map`), une section nulle cassait le pied de page, une ligne nulle cassait la table ; un `JSON.parse` réussi mais de mauvaise forme passait le seul `try/catch`. | `creator-hub-config.test.tsx` : `TypeError: Cannot read properties of undefined (reading 'map')` ; `footer-locale.test.tsx` : `TypeError: Cannot read properties of null (reading 'title')` ; `comparison-table-config.test.tsx` : `TypeError: Cannot read properties of null (reading 'highlighted')`. | `lib/config-json.ts` (parsing + gardes de forme) et les quatre surfaces retombent sur leur contenu par défaut. |
+| **F404** | *Formulaire de support muet à l'échec.* `submit()` avait un `try/finally` **sans `catch`** : un rejet de l'action serveur (réseau coupé, redéploiement, 502) ne produisait aucun message et laissait un rejet non géré, pendant que le visiteur renvoyait le même dossier. | `support-form-error.test.tsx` : `waitFor` d'un message d'échec → échec, plus `Unhandled Rejection: Error: network down`. | `catch` → message bilingue, le refus serveur reste affiché tel quel. |
+
+**Contre-preuve.** Sources du lot restaurées à l'état d'origine (`git checkout -- apps/hi/src`) :
+**`7 failed | 14 passed (21)`**, puis **`21 passed (21)`** après réapplication du diff (`git apply`).
+
+**Nettoyage mesuré.** Quatre symboles morts de `Hero.tsx` retirés (`animate`, `useMotionValue`,
+`PLATE_INNER_W`, `inactiveFade`) : lint de l'app à **0 warning hors `<img>`** (full-bleed assumé).
+
+**Non-défauts prouvés.** `submitPublicTicket` valide e-mail/sujet/message **et** s'appuie sur le contrat Go
+(`OpenPublicTicket` : `checkBody`, `antispam.SanitizeAndValidateText(name, 0, 100)`, budget 3/jour → 429,
+`ErrTicketAlreadyOpen` → 409, `ErrPublicSuspended` → 503) : les `maxLength` du formulaire ne sont pas la seule
+garde. `AnalyticsGate` décide au rendu serveur (un visiteur opposé ne télécharge pas le script).
+`robots.ts`/`sitemap.ts` conformes (repli silencieux documenté). `legal/[slug]` : `markdownToHtml` échappe le HTML
+source (exemption motivée du guard `dangerous-html`, toujours valide). `layout.tsx` ne monte `DevtoolsPanel` qu'en
+développement. `help-faq`/`mergeFaq` (override par slug, repli statique) déjà couverts par 8 tests.
+
+**Non concluants (mesuré, non classé corrigé).**
+
+1. **`FeaturedPublishers` reçoit toujours `articles={[]}`** (`app/page.tsx:66`) : la section « Publishers récentes »
+   affiche donc **5 articles de démonstration** avec des dates recalculées à chaque rendu (« il y a 2 jours »,
+   aujourd'hui) et des auteurs fictifs, et la modale annonce « Média Certifié Souverain ». Choisir entre brancher
+   le vrai flux et **assumer la démo** (mention explicite) est une décision produit.
+2. **`TrustedCreators`** affiche des rédactions et des créateurs nommés (`Mediapart`, `Basta!`, `L'Humanité`,
+   « Maxime Vivas »…) avec des chiffres d'abonnés inventés (12.4k, 24.9k) présentés comme réels → même décision.
+3. **`id="creators"` en double** (`TrustedCreators` et `CreatorHub`) : HTML invalide et ancre `#creators` qui tombe
+   sur la première section ; le retrait change la navigation interne → laissé au user.
+4. **`legal/page.tsx`** affiche « Les documents légaux sont en cours de publication » quand l'API est
+   **injoignable** (repli `catch → []`) : même ambiguïté « vide ≠ indisponible » que R160/R161, non tranchée.
+5. **`layout.tsx`** calcule `isFr = lang === 'fr'` là où le reste de l'app teste `!locale.startsWith('en')` :
+   incohérence inobservable tant que `getLanguage()` ne renvoie que `fr`/`en`.
+6. **`ArticlePreviewModal`** : « Partager » et « Sauvegarder » n'ont aucun gestionnaire, « S'abonner à l'auteur »
+   ne fait que fermer — affordances mortes, cohérentes avec le contenu de démonstration du point 1.
+
+**Dettes (constat, jamais tranché).**
+
+- **R169 — nouvelle, décision produit.** Contenu de démonstration présenté comme réel sur la vitrine publique
+  (articles fictifs datés du jour, créateurs et chiffres inventés) — cf. points 1 et 2 ci-dessus.
+- **R170 — nouvelle.** La palette de la vitrine reste en littéraux (`#EE4B2B` ~15 occurrences, `#F97316` en fond
+  de deux sections, `bg-white`/`text-white`) : le garde de palette ne scanne pas `apps/hi`. L'y étendre demande
+  d'abord des tokens pour l'orange de marque et le blanc sur fond coloré — chantier transverse, non ouvert ici.
+- **R171 — nouvelle.** `apps/tenants/src/lib/sanitize.ts` garde sa **propre copie** de la liste blanche DOMPurify
+  là où `@qoe/ui/security` la porte désormais pour la vitrine : consolidation inter-apps, hors périmètre L24.
+- **R172 — nouvelle.** Le `JSON.parse` de `footer_sections`/`hero_reader_items` acceptait aussi des **liens**
+  arbitraires (`href` validé comme chaîne, pas comme destination) : un `javascript:` saisi en console passerait
+  dans un `<Link>`. Non mesuré (pas de rouge jsdom sur la navigation), laissé en dette.
+
+**L24 est clos.** Cinq défauts corrigés (F400–F404) en **5 commits** (`731c9916`, `99abfd83`, `253b9b6d`,
+`2e319773`, `174a6c66`), périmètre corrigé (30 f. · 4 387 l.), **6 fichiers / 21 tests** pour l'app.
+**Prochain lot : L25** — `apps/collab-server/src/**` (remesuré à l'ouverture : **13 fichiers**, dont 6 de tests →
+**7 fichiers de production · 1 036 l.** ; la ligne annonçait « 15 fichiers »).
 
 ## L21 — `apps/studio/src/**` — ouvert le 2026-11-20 (découpage mesuré)
 
