@@ -24,20 +24,33 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: Record<string, unknown> = {};
+  // Le corps reçu (formulaire ou JSON) est normalisé de la même façon : seuls
+  // les quatre champs prévus passent, bornés. Sans ce filtre, la branche JSON
+  // relayait n'importe quelle clé et des valeurs de taille arbitraire au Go.
+  const boundary = (value: unknown): string =>
+    typeof value === 'string' ? value.trim().slice(0, 200) : '';
+  const toBody = (source: Record<string, unknown>): Record<string, string> => ({
+    subject: boundary(source.subject),
+    reason: typeof source.reason === 'string' ? source.reason.trim().slice(0, 500) : '',
+    publisherId: typeof source.publisherId === 'string' ? source.publisherId.slice(0, 100) : '',
+    status: typeof source.status === 'string' ? source.status.slice(0, 50) : '',
+  });
+
+  let body: Record<string, string>;
   const contentType = request.headers.get('content-type') || '';
   if (contentType.includes('application/json')) {
-    body = await request.json().catch(() => ({}));
+    const parsed: unknown = await request.json().catch(() => ({}));
+    body = toBody(parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {});
   } else {
     const form = await request.formData().catch(() => null);
-    if (form) {
-      body = {
-        subject: String(form.get('subject') ?? '').slice(0, 200),
-        reason: String(form.get('reason') ?? '').slice(0, 500),
-        publisherId: String(form.get('publisherId') ?? '').slice(0, 100),
-        status: String(form.get('status') ?? '').slice(0, 50),
-      };
-    }
+    body = form
+      ? toBody({
+          subject: form.get('subject'),
+          reason: form.get('reason'),
+          publisherId: form.get('publisherId'),
+          status: form.get('status'),
+        })
+      : toBody({});
   }
 
   let response;
