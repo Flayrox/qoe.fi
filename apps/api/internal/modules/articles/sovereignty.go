@@ -197,7 +197,11 @@ func (s *Service) ListSnapshots(ctx context.Context, articleID, userID string) (
 	}
 	allowed := row.AuthorID == userID
 	if !allowed {
-		if mc, err := s.resolveMember(ctx, userID, row.PublisherId); err == nil && (mc.isMedia || mc.role == "owner") {
+		// L'historique est un outil d'édition : il expose brouillons et
+		// versions révoquées. Être simple membre du média (rôle viewer) ne
+		// suffit pas — il faut le droit d'éditer n'importe quel article, ou
+		// être l'auteur / un contributeur (ci-dessous).
+		if mc, err := s.resolveMember(ctx, userID, row.PublisherId); err == nil && mc.isMedia && mc.can(permissions.PermEditAny) {
 			allowed = true
 		}
 	}
