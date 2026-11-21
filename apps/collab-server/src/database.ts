@@ -5,10 +5,11 @@
 // Chaque nom de document (ex: `article:{uuid}`) correspond à une ligne dans
 // la table `collab_documents` : l'état Yjs est stocké en binaire (BYTEA).
 //
-// La table est créée par la migration goose (apps/api/migrations) :
-//   *_collab_documents.sql
-// On fait aussi un CREATE TABLE IF NOT EXISTS ici pour que le serveur
-// fonctionne même si la migration n'a pas encore été appliquée (dev).
+// La table appartient à la migration goose `apps/api/sql/migrations/`
+// (`00094_collab_documents.sql`) — schéma, index et sauvegardes compris. Le
+// `CREATE TABLE IF NOT EXISTS` ci-dessous n'existe que pour le dev : il ne
+// remplace pas la migration et n'est pas un droit implicite du rôle applicatif
+// en production.
 // =====================================================================
 
 import { Pool } from 'pg';
