@@ -1686,8 +1686,9 @@ fichiers, et `ui:audit` est passé rouge sur `dev` — **75** fichiers `<button>
 L21g n'ajoutait donc aucune dette, tout venait du composeur. Correctif appliqué sans relever un plafond ni
 ajouter d'exclusion : les six fichiers du composeur consomment les primitives partagées
 (`@qoe/ui/button`, `@qoe/ui/input`) — 35 `<button>` et 5 `<input>` natifs supprimés, `className` conservés à
-l'identique (les utilitaires appelants gagnent via `tailwind-merge`, d'où `h-[auto]`, `text-[12px]` et
-`[&_svg]:size-*` là où la taille ou la densité par défaut du contrat aurait sinon pris le dessus) ;
+l'identique (les utilitaires appelants gagnent via `tailwind-merge`, d'où des neutralisations ciblées `h-[auto]!`,
+`text-[Npx]!` et `[&_svg]:size-N!` là où la taille ou la densité du contrat aurait sinon pris le dessus —
+voir « Fidélité mesurée » plus bas) ;
 `variant="ghost"` + `hover:bg-transparent` là où l'état de survol d'origine n'existait pas ;
 `justify-start` sur les options de menu pleine largeur que le contrat centre par défaut. Les deux primitives
 locales redeviennent ce qu'elles sont — un câblage, pas un composant : `ImageCropperModal` →
@@ -1700,6 +1701,37 @@ locales redeviennent ce qu'elles sont — un câblage, pas un composant : `Image
 | `<input>` natifs (occurrences) | 132 | **127** | 132 → 127 figé |
 | fichiers avec `<input>` | 36 | **33** | 34 → 33 figé |
 | primitives réinventées | 18 | **16** | 16 |
+
+**Fidélité mesurée, pas supposée.** Un script jetable (hors dépôt, supprimé) a extrait les 35 `<button>` du
+monolithe d'avant `5b33749e` (`git show 5b33749e^:…/ThoughtComposer.tsx`) et les 35 `<Button>` migrés, puis a
+comparé, pour chaque icône, la taille **effective** avant / après — en modélisant la cascade réelle :
+`ICON_SLOT` du contrat (`[&_svg]:size-3.5`, spécificité 0,1,1) bat toute classe portée par l'icône (0,1,0),
+une règle de bouton en `!important` bat `ICON_SLOT`, et une taille `!important` portée par l'icône bat la
+règle du bouton. Résultat : **aucun écart** sur les 35 boutons (Globe 12 px ×2, Send 12 px, Trash2 16 px,
+AlertTriangle/BarChart2/CalendarIcon/Plus 16 px, le reste à 14 px) ; toutes les assertions sont vérifiables en
+relançant la même extraction.
+
+Trois mécanismes ont été nécessaires pour rendre cette fidélité **déterministe** au lieu de dépendre de
+l'ordre d'émission du CSS — et c'est là que l'ancienne version était fausse :
+
+1. **Tout override de bouton est `!important`** (`h-[auto]!`, `text-[10px]!`/`[11px]!`/`[12px]!`,
+   `[&_svg]:size-3!`/`size-4!`). Sans le `!`, `h-control-md` (32 px) et `type-control-md` (13 px / interligne
+   18 px) s'appliquaient selon l'ordre des couches, pas selon l'intention.
+2. **`leading-[inherit]!`** rétablit l'interligne que les boutons héritaient avant (le contrat impose 18 px).
+3. **Plus aucune règle `[&_svg]` sur le bouton d'envoi** : elle s'appliquait aussi au spinner, qui devait
+   rester à 14 px alors que `Send` devait rester à 12 px. La taille est donc portée par l'icône elle-même
+   (`<Send className="size-3!" />`), et le spinner garde la taille du contrat (3.5). C'était exactement le
+defaut signalé au tour précédent : une neutralisation de bouton débordant sur un SVG voisin.
+
+Écarts **assumés et nommés**, non corrigeables côté appelant sans sortir du périmètre :
+
+- **Anneau de focus** : `FOCUS_RING` du contrat ajoute `focus-visible:ring-2` + offset. Aucun bouton du
+  composeur n'avait d'anneau ; c'est un gain d'accessibilité, invisible hors navigation clavier.
+- **`ICON_SLOT` forcé à 3.5** : le contrat dimensionne **tous** les SVG descendants à 14 px. Le préserver
+  sans le `!important` d'appel est impossible (spécificité du sélecteur descendant) ; c'est une limite du
+  contrat `@qoe/ui/button` à traiter dans `packages/ui` (une prop `iconSize`), pas à maquiller ici.
+- `whitespace-nowrap` et `select-none` s'ajoutent à tous les boutons : sans effet sur les libellés courts du
+  composeur (`Publier`, `Brouillons`, `Effacer`…), à surveiller si un libellé long arrive.
 
 `pnpm ui:audit --update` a figé les baisses (`ui-budget.json` ne bouge que vers le bas) ; `pnpm ui:audit`
 rend **EXIT=0**. Contrôles après migration : `apps/core` **66 fichiers / 406 tests** verts,
