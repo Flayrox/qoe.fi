@@ -2004,6 +2004,17 @@ journalisé : les `console.error` du lot ne prennent que des objets d'erreur ser
 `legal`, `retention`, `forbidden`, `system` ne calculent aucune durée de rétention (elles viennent du Go) : rien à
 mesurer côté écran. `legal` neutralise l'aperçu par `sanitizeArticleHtml`, `dangerous-html` reste au vert.
 
+**Non-défaut `useStaffAction` / `grants-manager` (vérifié après clôture).** Le point laissé « non concluant » par la
+fiche est tranché : `useStaffAction.run` rend `TRes | null` — refus (`isFailure`) → toast d'échec + `null`, exception
+→ toast + `null`, succès → le résultat. Les **neuf** appelants (`incidents-queue`, `access-reviews-section`,
+`access-grants-table`, `access-grant-form`, `campaign-manager`, `articles-manager`, `grants-manager`) reposent sur ce
+contrat : `campaign-manager` écrit `res?.ok`, les autres `if (res)`. `if (res)` est donc **correct** : sur refus, le
+formulaire d'octroi reste ouvert, la saisie est conservée et la page n'est pas rechargée. Preuve :
+`components/queue/__tests__/useStaffAction.test.tsx` (refus / succès / exception) et
+`subscriptions/components/__tests__/grants-manager.test.tsx` ; contre-preuve mesurée en rendant le refus tel quel
+(`return res` au lieu de `return null`) → `3 failed | 1 passed (4)`, puis `4 passed (4)` après restauration. Commit
+`e34ee14a` — aucun défaut, aucune dette R159–R166 touchée.
+
 **Dettes enrichies, jamais tranchées.** **R161** : `/admin/health` (`?? 0` sur les quatre compteurs) et
 `ComplianceDashboard` (`cookieConsent?.total ?? 0`) — troisième et quatrième consommateurs. **R163** : `LegalCMS`
 (`confirm` ×4, `prompt` ×2) et `Editor` (`alert` de Dispatch : le texte ne promet plus une intégration à venir, mais
