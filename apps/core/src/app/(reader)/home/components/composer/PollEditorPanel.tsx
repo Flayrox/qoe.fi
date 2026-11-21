@@ -3,9 +3,11 @@
 import React from 'react';
 import { BarChart2, Trash2, X } from 'lucide-react';
 import { t } from '@lingui/core/macro';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
 import { Select } from '@qoe/ui/select';
 
-interface PollEditorCardProps {
+interface PollEditorPanelProps {
   pollOptions: string[];
   pollDurationHours: number;
   onOptionsChange: (options: string[]) => void;
@@ -13,13 +15,13 @@ interface PollEditorCardProps {
   onClose: () => void;
 }
 
-export function PollEditorCard({
+export function PollEditorPanel({
   pollOptions,
   pollDurationHours,
   onOptionsChange,
   onDurationChange,
   onClose,
-}: PollEditorCardProps) {
+}: PollEditorPanelProps) {
   return (
     <div className="p-3.5 rounded-xl border border-primary/30 bg-primary/5 space-y-3 font-sans my-2">
       <div className="flex items-center justify-between">
@@ -27,20 +29,20 @@ export function PollEditorCard({
           <BarChart2 className="w-4 h-4" />
           Créer un sondage
         </span>
-        <button
-          type="button"
+        <Button
+          variant="ghost"
           onClick={onClose}
-          className="p-1 text-muted-foreground hover:text-foreground rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
+          className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer h-[auto]"
           title="Retirer le sondage"
         >
           <X className="w-3.5 h-3.5" />
-        </button>
+        </Button>
       </div>
 
       <div className="space-y-2">
         {pollOptions.map((opt, idx) => (
           <div key={idx} className="flex items-center gap-2">
-            <input
+            <Input
               type="text"
               placeholder={`Option ${idx + 1}`}
               value={opt}
@@ -50,17 +52,17 @@ export function PollEditorCard({
                 onOptionsChange(updated);
               }}
               maxLength={80}
-              className="flex-1 bg-background/80 border border-border/60 rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
+              className="flex-1 bg-background/80 border border-border/60 rounded-lg px-3 py-1.5 text-[12px] text-foreground focus:outline-none focus:border-primary h-[auto]"
             />
             {pollOptions.length > 2 && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
                 onClick={() => onOptionsChange(pollOptions.filter((_, i) => i !== idx))}
-                className="p-1.5 text-muted-foreground hover:text-destructive-text transition-colors cursor-pointer"
+                className="p-1.5 text-muted-foreground hover:text-destructive-text transition-colors cursor-pointer hover:bg-transparent h-[auto]"
                 title="Supprimer cette option"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-              </button>
+              </Button>
             )}
           </div>
         ))}
@@ -68,13 +70,13 @@ export function PollEditorCard({
 
       <div className="flex items-center justify-between pt-1 text-xs">
         {pollOptions.length < 4 ? (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
             onClick={() => onOptionsChange([...pollOptions, ''])}
-            className="text-primary font-semibold hover:underline flex items-center gap-1 text-[11px] cursor-pointer"
+            className="text-primary font-semibold hover:underline justify-start gap-1 text-[11px] cursor-pointer hover:bg-transparent h-[auto] p-0 rounded-none"
           >
             + Ajouter une option
-          </button>
+          </Button>
         ) : (
           <span />
         )}

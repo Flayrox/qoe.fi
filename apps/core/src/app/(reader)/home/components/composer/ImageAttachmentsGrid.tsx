@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Crop as CropIcon, RefreshCw, Trash2 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
+import { Button } from '@qoe/ui/button';
 import type { ComposerImage } from './types';
 
 interface ImageAttachmentsGridProps {
@@ -53,30 +54,30 @@ export function ImageAttachmentsGrid({
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-1">
                   {idx > 0 && (
-                    <button
-                      type="button"
+                    <Button
+                      variant="ghost"
                       onClick={() => onMove(idx, 'left')}
-                      className="bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors"
+                      className="bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors h-[auto]"
                       title={t`Déplacer vers la gauche`}
                     >
                       <ArrowLeft className="w-3.5 h-3.5" />
-                    </button>
+                    </Button>
                   )}
                   {idx < images.length - 1 && (
-                    <button
-                      type="button"
+                    <Button
+                      variant="ghost"
                       onClick={() => onMove(idx, 'right')}
-                      className="bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors"
+                      className="bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors h-[auto]"
                       title={t`Déplacer vers la droite`}
                     >
                       <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
+                    </Button>
                   )}
                 </div>
 
                 <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
                     onClick={() => {
                       const newAlt = prompt(
                         "Saisissez la description Alt-Text d'accessibilité pour cette image :",
@@ -87,7 +88,7 @@ export function ImageAttachmentsGrid({
                       }
                     }}
                     className={cn(
-                      'px-2 py-1 rounded-[var(--radius-button)] text-[11px] font-bold cursor-pointer transition-colors border',
+                      'px-2 py-1 rounded-[var(--radius-button)] text-[11px] font-bold cursor-pointer transition-colors border h-[auto] hover:bg-transparent',
                       img.altText
                         ? 'bg-primary text-primary-foreground border-primary'
                         : 'bg-black/60 hover:bg-black/85 text-white border-white/20'
@@ -97,35 +98,35 @@ export function ImageAttachmentsGrid({
                     }
                   >
                     ALT
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    variant="ghost"
                     onClick={() => onCrop(img)}
-                    className="bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors"
+                    className="bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors h-[auto]"
                     title="Recadrer l'image"
                   >
                     <CropIcon className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    variant="ghost"
                     onClick={() => onReplaceClick(img.id)}
-                    className="bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors"
+                    className="bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors h-[auto]"
                     title="Remplacer l'image"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
-                  </button>
+                  </Button>
                 </div>
               </div>
 
               <div className="flex justify-end">
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
                   onClick={() => onRemove(img.id)}
-                  className="bg-destructive/80 hover:bg-destructive text-background p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors"
+                  className="bg-destructive/80 hover:bg-destructive text-background p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors h-[auto]"
                   title="Supprimer l'image"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                </Button>
               </div>
             </div>
           </motion.div>

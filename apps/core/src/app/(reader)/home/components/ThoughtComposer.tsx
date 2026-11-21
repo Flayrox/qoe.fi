@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { t } from '@lingui/core/macro';
+import { Input } from '@qoe/ui/input';
 import { toast } from '@qoe/ui/toast';
 import { ImageEditorDialog } from '@qoe/ui/ui/ImageEditorDialog';
 import type { QuotedArticleData } from '@qoe/ui/social';
@@ -18,10 +19,10 @@ import { useComposerImages } from './composer/useComposerImages';
 import { ReplyContextHeader } from './composer/ReplyContextHeader';
 import { ThreadNodesList } from './composer/ThreadNodesList';
 import { ImageAttachmentsGrid } from './composer/ImageAttachmentsGrid';
-import { PollEditorCard } from './composer/PollEditorCard';
+import { PollEditorPanel } from './composer/PollEditorPanel';
 import { ComposerToolbar } from './composer/ComposerToolbar';
 import { DraftsSheet } from './composer/DraftsSheet';
-import { ImageCropperModal } from './composer/ImageCropperModal';
+import { ImageCropOverlay } from './composer/ImageCropOverlay';
 import {
   THOUGHT_IMAGE_PRESETS,
   createEmptyThreadNode,
@@ -643,7 +644,7 @@ export function ThoughtComposer({
                 onRemove={removeImage}
               />
 
-              <input
+              <Input
                 type="file"
                 ref={replaceInputRef}
                 onChange={handleReplaceImage}
@@ -652,7 +653,7 @@ export function ThoughtComposer({
               />
 
               {showPollEditor && (
-                <PollEditorCard
+                <PollEditorPanel
                   pollOptions={pollOptions}
                   pollDurationHours={pollDurationHours}
                   onOptionsChange={setPollOptions}
@@ -730,7 +731,7 @@ export function ThoughtComposer({
 
       <AnimatePresence>
         {croppingImage && (
-          <ImageCropperModal
+          <ImageCropOverlay
             image={croppingImage}
             onClose={() => setCroppingImage(null)}
             onConfirm={(croppedUrl, croppedFile) =>

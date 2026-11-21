@@ -5,6 +5,7 @@ import NextImage from 'next/image';
 import { Trash2, X } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
+import { Button } from '@qoe/ui/button';
 import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
 import { QuotedArticleCard, type QuotedArticleData } from '@qoe/ui/social';
 import { QuotedThoughtCard } from '@/components/social/QuotedThoughtCard';
@@ -147,28 +148,28 @@ export function ThreadNodesList({
 
               {idx === 0 && quotedThought && (
                 <div className="relative my-2">
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
                     onClick={onClearQuotedThought}
-                    className="absolute top-2 right-2 z-20 p-1.5 rounded-full bg-foreground/80 text-background hover:bg-foreground transition-colors cursor-pointer"
+                    className="absolute top-2 right-2 z-20 p-1.5 rounded-full bg-foreground/80 text-background hover:bg-foreground transition-colors cursor-pointer h-[auto]"
                     title="Retirer la citation"
                   >
                     <X className="w-3.5 h-3.5" />
-                  </button>
+                  </Button>
                   <QuotedThoughtCard post={quotedThought} />
                 </div>
               )}
 
               {idx === 0 && quotedArticle && (
                 <div className="relative my-2">
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
                     onClick={onClearQuotedArticle}
-                    className="absolute top-2 right-2 z-20 p-1.5 rounded-full bg-foreground/80 text-background hover:bg-foreground transition-colors cursor-pointer shadow-md"
+                    className="absolute top-2 right-2 z-20 p-1.5 rounded-full bg-foreground/80 text-background hover:bg-foreground transition-colors cursor-pointer shadow-md h-[auto]"
                     title="Retirer la citation"
                   >
                     <X className="w-3.5 h-3.5" />
-                  </button>
+                  </Button>
                   <QuotedArticleCard
                     article={quotedArticle}
                     quotedExcerpt={quotedExcerpt || undefined}
@@ -178,14 +179,14 @@ export function ThreadNodesList({
             </div>
 
             {threadNodes.length > 1 && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
                 onClick={() => onRemoveNode(node.id)}
-                className="p-1.5 rounded-full text-muted-foreground/50 hover:text-destructive-text hover:bg-destructive/10 cursor-pointer shrink-0 self-start mt-0.5 transition-all outline-none"
+                className="p-1.5 rounded-full text-muted-foreground/50 hover:text-destructive-text hover:bg-destructive/10 cursor-pointer shrink-0 self-start mt-0.5 transition-all outline-none h-[auto] [&_svg]:size-4"
                 title={t`Supprimer cette pensée du fil`}
               >
                 <Trash2 className="w-4 h-4" />
-              </button>
+              </Button>
             )}
           </div>
         );

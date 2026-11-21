@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
 import { Calendar } from '@qoe/ui/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@qoe/ui/ui/popover';
 import { TimePickerInput } from '@qoe/ui/ui/time-picker-input';
@@ -118,10 +120,10 @@ export function ComposerToolbar({
         >
           <PopoverTrigger
             render={
-              <button
-                type="button"
+              <Button
+                variant="ghost"
                 className={cn(
-                  'px-2.5 py-1 rounded-full border transition-all cursor-pointer flex items-center gap-1.5 text-[11px] font-semibold',
+                  'px-2.5 py-1 rounded-full border transition-all cursor-pointer flex items-center gap-1.5 text-[11px] font-semibold h-[auto] hover:bg-transparent',
                   replyRestriction !== 'everyone'
                     ? 'bg-primary/10 border-primary/40 text-primary'
                     : 'border-border/60 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60'
@@ -135,7 +137,7 @@ export function ComposerToolbar({
                   {replyRestriction === 'following' && t`Personnes suivies`}
                   {replyRestriction === 'mentioned' && t`Personnes mentionnées`}
                 </span>
-              </button>
+              </Button>
             }
           />
           <PopoverContent
@@ -145,14 +147,14 @@ export function ComposerToolbar({
             <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
               Qui peut répondre ?
             </div>
-            <button
-              type="button"
+            <Button
+              variant="ghost"
               onClick={() => {
                 onReplyRestrictionChange('everyone');
                 onShowReplyRestrictionDropdownChange(false);
               }}
               className={cn(
-                'w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-2 cursor-pointer',
+                'w-full text-left justify-start px-2.5 py-1.5 rounded-lg text-[12px] transition-colors flex items-center gap-2 cursor-pointer h-[auto] hover:bg-transparent',
                 replyRestriction === 'everyone'
                   ? 'bg-accent text-accent-foreground font-semibold'
                   : 'hover:bg-muted/60 text-muted-foreground hover:text-foreground'
@@ -160,15 +162,15 @@ export function ComposerToolbar({
             >
               <Globe className="w-3.5 h-3.5" />
               <span>Tout le monde</span>
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="ghost"
               onClick={() => {
                 onReplyRestrictionChange('subscribers');
                 onShowReplyRestrictionDropdownChange(false);
               }}
               className={cn(
-                'w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-2 cursor-pointer',
+                'w-full text-left justify-start px-2.5 py-1.5 rounded-lg text-[12px] transition-colors flex items-center gap-2 cursor-pointer h-[auto] hover:bg-transparent',
                 replyRestriction === 'subscribers'
                   ? 'bg-accent text-accent-foreground font-semibold'
                   : 'hover:bg-muted/60 text-muted-foreground hover:text-foreground'
@@ -176,15 +178,15 @@ export function ComposerToolbar({
             >
               <Users className="w-3.5 h-3.5" />
               <span>{t`Abonnés uniquement`}</span>
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="ghost"
               onClick={() => {
                 onReplyRestrictionChange('following');
                 onShowReplyRestrictionDropdownChange(false);
               }}
               className={cn(
-                'w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-2 cursor-pointer',
+                'w-full text-left justify-start px-2.5 py-1.5 rounded-lg text-[12px] transition-colors flex items-center gap-2 cursor-pointer h-[auto] hover:bg-transparent',
                 replyRestriction === 'following'
                   ? 'bg-accent text-accent-foreground font-semibold'
                   : 'hover:bg-muted/60 text-muted-foreground hover:text-foreground'
@@ -192,15 +194,15 @@ export function ComposerToolbar({
             >
               <Users className="w-3.5 h-3.5" />
               <span>Personnes suivies</span>
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="ghost"
               onClick={() => {
                 onReplyRestrictionChange('mentioned');
                 onShowReplyRestrictionDropdownChange(false);
               }}
               className={cn(
-                'w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-2 cursor-pointer',
+                'w-full text-left justify-start px-2.5 py-1.5 rounded-lg text-[12px] transition-colors flex items-center gap-2 cursor-pointer h-[auto] hover:bg-transparent',
                 replyRestriction === 'mentioned'
                   ? 'bg-accent text-accent-foreground font-semibold'
                   : 'hover:bg-muted/60 text-muted-foreground hover:text-foreground'
@@ -208,17 +210,17 @@ export function ComposerToolbar({
             >
               <AtSign className="w-3.5 h-3.5" />
               <span>{t`Personnes mentionnées`}</span>
-            </button>
+            </Button>
           </PopoverContent>
         </Popover>
 
         <Popover open={showVisibilityDropdown} onOpenChange={onShowVisibilityDropdownChange}>
           <PopoverTrigger
             render={
-              <button
-                type="button"
+              <Button
+                variant="ghost"
                 className={cn(
-                  'px-2.5 py-1 rounded-full border transition-all cursor-pointer flex items-center gap-1.5 text-[11px] font-semibold',
+                  'px-2.5 py-1 rounded-full border transition-all cursor-pointer flex items-center gap-1.5 text-[11px] font-semibold h-[auto] hover:bg-transparent [&_svg]:size-3',
                   visibility !== 'public'
                     ? 'bg-primary/10 border-primary/40 text-primary'
                     : 'border-border/60 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60'
@@ -226,43 +228,43 @@ export function ComposerToolbar({
               >
                 <Globe className="w-3 h-3" />
                 <span>{visibility === 'public' ? 'Public' : 'Followers'}</span>
-              </button>
+              </Button>
             }
           />
           <PopoverContent
             align="start"
             className="w-44 p-1.5 space-y-0.5 bg-popover border border-border rounded-xl shadow-xl z-[150]"
           >
-            <button
-              type="button"
+            <Button
+              variant="ghost"
               onClick={() => {
                 onVisibilityChange('public');
                 onShowVisibilityDropdownChange(false);
               }}
               className={cn(
-                'w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer',
+                'w-full text-left justify-start px-2.5 py-1.5 rounded-lg text-[12px] transition-colors cursor-pointer h-[auto] hover:bg-transparent',
                 visibility === 'public'
                   ? 'bg-accent text-accent-foreground font-semibold'
                   : 'hover:bg-muted/60 text-muted-foreground hover:text-foreground'
               )}
             >
               Tout le monde
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="ghost"
               onClick={() => {
                 onVisibilityChange('followers');
                 onShowVisibilityDropdownChange(false);
               }}
               className={cn(
-                'w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer',
+                'w-full text-left justify-start px-2.5 py-1.5 rounded-lg text-[12px] transition-colors cursor-pointer h-[auto] hover:bg-transparent',
                 visibility === 'followers'
                   ? 'bg-accent text-accent-foreground font-semibold'
                   : 'hover:bg-muted/60 text-muted-foreground hover:text-foreground'
               )}
             >
               Followers uniquement
-            </button>
+            </Button>
           </PopoverContent>
         </Popover>
       </div>
@@ -274,7 +276,7 @@ export function ComposerToolbar({
             title="Ajouter des images"
           >
             <Image className="w-4 h-4" />
-            <input
+            <Input
               type="file"
               accept="image/*"
               className="hidden"
@@ -284,11 +286,11 @@ export function ComposerToolbar({
             />
           </label>
 
-          <button
-            type="button"
+          <Button
+            variant="ghost"
             onClick={onTogglePollEditor}
             className={cn(
-              'p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-xs active:scale-95',
+              'p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-xs active:scale-95 h-[auto] hover:bg-transparent [&_svg]:size-4',
               showPollEditor
                 ? 'bg-primary/15 border-primary text-primary font-bold'
                 : 'border-border/50 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60'
@@ -296,7 +298,7 @@ export function ComposerToolbar({
             title="Ajouter un sondage"
           >
             <BarChart2 className="w-4 h-4" />
-          </button>
+          </Button>
 
           <Popover
             open={showScheduleDropdown}
@@ -310,10 +312,10 @@ export function ComposerToolbar({
           >
             <PopoverTrigger
               render={
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
                   className={cn(
-                    'p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-xs active:scale-95',
+                    'p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-xs active:scale-95 h-[auto] hover:bg-transparent [&_svg]:size-4',
                     isScheduled
                       ? 'bg-primary/15 border-primary text-primary font-bold'
                       : 'border-border/50 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60'
@@ -321,7 +323,7 @@ export function ComposerToolbar({
                   title="Planifier"
                 >
                   <CalendarIcon className="w-4 h-4" />
-                </button>
+                </Button>
               }
             />
             <PopoverContent
@@ -384,24 +386,24 @@ export function ComposerToolbar({
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-2 border-t border-border/50">
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     onIsScheduledChange(false);
                     onScheduledDateChange(undefined);
                     onShowScheduleDropdownChange(false);
                   }}
-                  className="px-3 py-1.5 border border-border rounded-lg text-[10px] font-semibold hover:bg-muted text-muted-foreground"
+                  className="px-3 py-1.5 border border-border rounded-lg text-[10px] font-semibold hover:bg-muted text-muted-foreground h-[auto]"
                 >
                   Réinitialiser
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="ghost"
                   onClick={() => onShowScheduleDropdownChange(false)}
-                  className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-[10px] font-bold"
+                  className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-[10px] font-bold h-[auto] hover:bg-transparent"
                 >
                   Valider
-                </button>
+                </Button>
               </div>
             </PopoverContent>
           </Popover>
@@ -409,10 +411,10 @@ export function ComposerToolbar({
           <Popover open={showWarningDropdown} onOpenChange={onShowWarningDropdownChange}>
             <PopoverTrigger
               render={
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
                   className={cn(
-                    'p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-xs active:scale-95',
+                    'p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-xs active:scale-95 h-[auto] hover:bg-transparent [&_svg]:size-4',
                     isTriggerWarning
                       ? 'bg-highlight/10 border-highlight text-highlight font-bold'
                       : 'border-border/50 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60'
@@ -420,7 +422,7 @@ export function ComposerToolbar({
                   title="Avertissement de contenu"
                 >
                   <AlertTriangle className="w-4 h-4" />
-                </button>
+                </Button>
               }
             />
             <PopoverContent
@@ -429,20 +431,20 @@ export function ComposerToolbar({
             >
               <label className="flex items-center justify-between cursor-pointer text-xs text-foreground font-medium">
                 <span>Masquer le contenu</span>
-                <input
+                <Input
                   type="checkbox"
                   checked={isTriggerWarning}
                   onChange={(e) => onIsTriggerWarningChange(e.target.checked)}
-                  className="accent-primary cursor-pointer"
+                  className="accent-primary cursor-pointer h-[auto] w-auto rounded-none border-0 bg-transparent p-0"
                 />
               </label>
               {isTriggerWarning && (
-                <input
+                <Input
                   type="text"
                   placeholder="Motif (ex: Spoilers, Sensible)"
                   value={triggerWarning}
                   onChange={(e) => onTriggerWarningChange(e.target.value)}
-                  className="w-full bg-muted/40 border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary mt-1.5"
+                  className="w-full bg-muted/40 border border-border rounded-lg px-2.5 py-1.5 text-[12px] text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary mt-1.5 h-[auto]"
                 />
               )}
             </PopoverContent>
@@ -495,59 +497,60 @@ export function ComposerToolbar({
             </div>
           )}
 
-          <button
-            type="button"
+          <Button
+            variant="ghost"
             onClick={onAddThreadNode}
             disabled={isSubmitting}
-            className="p-2 rounded-xl border border-border/50 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all cursor-pointer flex items-center justify-center active:scale-95 shrink-0"
+            className="p-2 rounded-xl border border-border/50 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all cursor-pointer flex items-center justify-center active:scale-95 shrink-0 h-[auto] [&_svg]:size-4"
             title={t`Ajouter une autre pensée à ce fil de discussion`}
           >
             <Plus className="w-4 h-4 text-primary" />
-          </button>
+          </Button>
 
           <Popover open={showDraftPopover} onOpenChange={onShowDraftPopoverChange}>
             <PopoverTrigger
               render={
-                <button
-                  type="button"
-                  className="px-2.5 py-1.5 border border-border/60 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer outline-none transition-colors"
+                <Button
+                  variant="ghost"
+                  className="px-2.5 py-1.5 border border-border/60 rounded-xl text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer outline-none transition-colors h-[auto]"
                 >
                   Brouillons
-                </button>
+                </Button>
               }
             />
             <PopoverContent
               align="end"
               className="w-56 p-1.5 space-y-0.5 bg-popover border border-border rounded-xl shadow-xl z-[150]"
             >
-              <button
-                type="button"
+              <Button
+                variant="ghost"
                 disabled={!postText.trim() && imagesCount === 0}
                 onClick={(e) => {
                   onShowDraftPopoverChange(false);
                   onSaveDraft(e);
                 }}
-                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors hover:bg-muted/60 text-foreground disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                className="w-full text-left justify-start px-2.5 py-1.5 rounded-lg text-[12px] transition-colors hover:bg-muted/60 text-foreground disabled:pointer-events-none cursor-pointer h-[auto]"
               >
                 Enregistrer le brouillon de fil
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="ghost"
                 onClick={() => {
                   onShowDraftPopoverChange(false);
                   onOpenDrafts();
                 }}
-                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors hover:bg-muted/60 text-foreground cursor-pointer"
+                className="w-full text-left justify-start px-2.5 py-1.5 rounded-lg text-[12px] transition-colors hover:bg-muted/60 text-foreground cursor-pointer h-[auto]"
               >
                 Voir tous les brouillons
-              </button>
+              </Button>
             </PopoverContent>
           </Popover>
 
-          <button
+          <Button
             type="submit"
+            variant="ghost"
             disabled={!isPublishable || isSubmitting || isOverLimit}
-            className="bg-primary text-primary-foreground hover:opacity-95 disabled:bg-muted disabled:text-muted-foreground transition-all duration-150 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer outline-none shadow-sm shrink-0 active:scale-[0.98]"
+            className="bg-primary text-primary-foreground hover:opacity-95 hover:bg-primary disabled:opacity-100 disabled:bg-muted disabled:text-muted-foreground transition-all duration-150 px-4 py-2 rounded-xl text-[12px] font-bold flex items-center gap-1.5 cursor-pointer outline-none shadow-sm shrink-0 active:scale-[0.98] h-[auto] [&_svg]:size-3"
           >
             {isSubmitting ? (
               <>
@@ -559,7 +562,7 @@ export function ComposerToolbar({
                 <Send className="w-3 h-3" />
               </>
             )}
-          </button>
+          </Button>
         </div>
       </div>
     </>

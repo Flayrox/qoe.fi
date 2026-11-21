@@ -4,6 +4,7 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import { ProfileHoverCard } from '@qoe/ui';
+import { Button } from '@qoe/ui/button';
 import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
 import { CertifiedBadge } from '@qoe/ui/ui/CertifiedBadge';
 import type { ThoughtData } from '@/components/social/ThoughtCard';
@@ -40,14 +41,14 @@ export function ReplyContextHeader({ replyToThought, onCancel }: ReplyContextHea
                 </span>
               </ProfileHoverCard>
             </div>
-            <button
-              type="button"
+            <Button
+              variant="ghost"
               onClick={onCancel}
-              className="p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              className="p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer h-[auto]"
               title={t`Annuler la réponse`}
             >
               <X className="w-3.5 h-3.5" />
-            </button>
+            </Button>
           </div>
 
           <p className="text-xs text-foreground/90 leading-relaxed font-sans line-clamp-3">

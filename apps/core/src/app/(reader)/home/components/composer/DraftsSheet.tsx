@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { FileText, Loader2, Trash2 } from 'lucide-react';
+import { Button } from '@qoe/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@qoe/ui/ui/sheet';
 import { LOCAL_THREAD_DRAFT_KEY, parseStoredThreadNodes } from '../composer-drafts';
 import type { ThoughtDraft } from './types';
@@ -67,20 +68,20 @@ export function DraftsSheet({
                 </p>
               </div>
               <div className="flex justify-between items-center pt-2.5 border-t border-primary/10">
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
                   onClick={onClearLocalThreadDraft}
-                  className="text-[10px] font-semibold text-muted-foreground hover:text-destructive-text hover:bg-destructive/10 px-2 py-1 rounded-[var(--radius-button)] transition-colors cursor-pointer"
+                  className="text-[10px] font-semibold text-muted-foreground hover:text-destructive-text hover:bg-destructive/10 px-2 py-1 rounded-[var(--radius-button)] transition-colors cursor-pointer h-[auto]"
                 >
                   Effacer
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="ghost"
                   onClick={onRestoreLocalThreadDraft}
-                  className="text-[10px] font-bold text-white bg-primary hover:opacity-95 px-2.5 py-1 rounded-[var(--radius-button)] transition-all cursor-pointer"
+                  className="text-[10px] font-bold text-white bg-primary hover:opacity-95 hover:bg-transparent px-2.5 py-1 rounded-[var(--radius-button)] transition-all cursor-pointer h-[auto]"
                 >
                   Restaurer le fil
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -141,23 +142,23 @@ export function DraftsSheet({
                       })}
                     </span>
 
-                    <button
-                      type="button"
+                    <Button
+                      variant="ghost"
                       onClick={() => onLoadDraft(draft)}
-                      className="text-[10px] font-bold text-[var(--qoe-vermillion)] hover:text-[#d63d20] bg-[var(--qoe-vermillion-08)] px-2.5 py-1 rounded-[var(--radius-button)] transition-all cursor-pointer"
+                      className="text-[10px] font-bold text-[var(--qoe-vermillion)] hover:text-[#d63d20] hover:bg-transparent bg-[var(--qoe-vermillion-08)] px-2.5 py-1 rounded-[var(--radius-button)] transition-all cursor-pointer h-[auto]"
                     >
                       Charger
-                    </button>
+                    </Button>
                   </div>
 
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
                     onClick={() => onDeleteDraft(draft.id)}
-                    className="absolute top-4 right-4 text-[var(--text-quaternary)] hover:text-[var(--qoe-vermillion)] transition-colors p-1.5 rounded-[var(--radius-button)] cursor-pointer"
+                    className="absolute top-4 right-4 text-[var(--text-quaternary)] hover:text-[var(--qoe-vermillion)] transition-colors p-1.5 rounded-[var(--radius-button)] cursor-pointer h-[auto] hover:bg-transparent"
                     title="Supprimer le brouillon"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  </Button>
                 </div>
               ))}
             </div>
