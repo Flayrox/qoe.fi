@@ -426,16 +426,10 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 		}
 	}
 	if userID == "" {
-		var ownerID string
-		_ = s.pool.QueryRow(ctx, `
-			SELECT mm."userId"::text
-			FROM "MediaMember" mm
-			JOIN "Media" md ON md.id = mm."mediaId"
-			WHERE md."publisherId" = $1 AND mm.role = 'owner' AND mm.status = 'active'
-			LIMIT 1`, in.PublisherID).Scan(&ownerID)
-		if ownerID != "" {
-			userID = ownerID
-		}
+		// Aucun repli sur l'owner du média : cela signait l'article par un
+		// humain qui n'avait pas agi. Une clé API média doit nommer son
+		// auteur (CreatedByUserID) — sinon on refuse explicitement.
+		return "", errors.New("création impossible : la clé API utilisée ne désigne aucun auteur (CreatedByUserID manquant)")
 	}
 	mc, err := s.resolveMember(ctx, userID, in.PublisherID)
 	if err != nil {
