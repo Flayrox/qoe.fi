@@ -128,7 +128,11 @@ func (s *Service) SendArticleTestEmail(ctx context.Context, articleID, userID st
 		PublisherName:    row.PublisherName,
 		Subdomain:        row.PublisherSubdomain,
 	}
-	link := "https://qoe.fi/p/" + row.Slug
+	// Même résolution d'URL que le mail réel : domaine personnalisé, sous-domaine
+	// ou repli produit — jamais un « /p/{slug} » en dur pour un média à domaine.
+	var customDomain pgtype.Text
+	_ = s.pool.QueryRow(ctx, `SELECT "customDomain" FROM "Publisher" WHERE id = $1`, row.PublisherId).Scan(&customDomain)
+	link := ArticlePublicURL(row.PublisherSubdomain, customDomain, row.Slug)
 	rendered := BuildArticleReleaseEmail(info, link, userEmail)
 	testSubject := "[TEST] " + row.Title
 	return s.emailSender(ctx, userEmail, testSubject, rendered.HTML, rendered.ListUnsubscribe, rendered.FromName)

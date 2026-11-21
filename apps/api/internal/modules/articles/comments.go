@@ -56,12 +56,24 @@ func (s *Service) CreateComment(ctx context.Context, articleID, authorID, conten
 		return Comment{}, errForbidden
 	}
 	if parentID != nil && *parentID != "" {
-		if parentAuthor, err := s.q.GetCommentParentAuthor(ctx, *parentID); err == nil {
-			if blocked, err := s.blockedBetween(ctx, authorID, parentAuthor); err != nil {
-				return Comment{}, err
-			} else if blocked {
-				return Comment{}, errForbidden
+		// Le parent doit appartenir à CET écrit. Sans ce rattachement, une
+		// réponse pouvait être accrochée au commentaire d'un autre article :
+		// fil orphelin chez l'un, notification trompeuse chez l'autre. Un
+		// parent introuvable ou étranger est indistinguable d'un inexistant.
+		parentRow, err := s.q.GetCommentWithAuthor(ctx, *parentID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return Comment{}, errNotFound
 			}
+			return Comment{}, err
+		}
+		if parentRow.ArticleId != articleID {
+			return Comment{}, errNotFound
+		}
+		if blocked, err := s.blockedBetween(ctx, authorID, parentRow.AuthorID); err != nil {
+			return Comment{}, err
+		} else if blocked {
+			return Comment{}, errForbidden
 		}
 	}
 
