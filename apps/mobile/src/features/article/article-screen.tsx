@@ -175,7 +175,6 @@ export function ArticleScreen({
   // État bookmark (optimiste local). Le Go ne renvoie pas l'état initial —
   // on le déduit de la bibliothèque au chargement.
   const [bookmarked, setBookmarked] = useState(false);
-  const [bookmarkLoaded, setBookmarkLoaded] = useState(false);
   const queryClient = useQueryClient();
   const bookmark = useMutation({
     mutationFn: async (articleId: string) => {
@@ -192,17 +191,27 @@ export function ArticleScreen({
   });
 
   // Au chargement de l'article, on vérifie s'il est déjà sauvegardé.
-  void (async () => {
-    if (bookmarkLoaded || !data?.id) return;
-    try {
-      const b = await apiClient.getBookmarks({ limit: 100 });
-      if (b.ok) {
-        setBookmarked(b.data.some((item) => item.articleId === data.id));
+  // ⚠️ Dans un effet (jamais dans le corps du rendu) : un rendu rejoué
+  // relançait sinon la requête à chaque passe et pouvait résoudre après
+  // démontage.
+  const articleId = data?.id;
+  useEffect(() => {
+    if (!articleId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const b = await apiClient.getBookmarks({ limit: 100 });
+        if (!cancelled && b.ok) {
+          setBookmarked(b.data.some((item) => item.articleId === articleId));
+        }
+      } catch {
+        // réseau indisponible : on garde l'état par défaut (non sauvegardé)
       }
-    } finally {
-      setBookmarkLoaded(true);
-    }
-  })();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [articleId]);
 
   if (isPending) {
     return (
