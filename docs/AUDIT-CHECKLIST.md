@@ -104,7 +104,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20f    | **Validation locale bout en bout** : daemon Docker, `test:api`, `e2e` sur base jetable seedée | —                           | mesuré le 2026-11-20 : daemon **démarré** (OrbStack 29.4.0), `test:api` **✅ 82 paquets**, e2e **18/19 + 128/128** — voir fiche L20f |
 | L20e    | **Validation bout en bout** : `pnpm build` (6 apps), `pnpm test:api` (Go + Postgres), `pnpm e2e` (Playwright)  | —                           | mesuré le 2026-11-20 : **build ✅**, `test:api` **bloqué** (Docker absent), e2e **partiel** (seed absent) — voir fiche L20e |
 | L21     | `apps/studio/src/**`                                                                                         | **412 fichiers · 72 285 l.** (mesuré) | **ouvert le 2026-11-20**, découpé en **8 sous-lots** (L21a→L21h) ; **L21a** (socle : layout, not-found, components, lib, instrumentation) **durci le 2026-11-20** ; **R137 ouverte** ; **L21b clos le 2026-11-20** (frontière vendor/maison mesurée, **7 défauts corrigés** sur deux passages, tiroir modal accessible, **R138 ouverte** — seule dette restante du sous-lot) ; **L21c clos le 2026-11-20** (lecture intégrale des 49 fichiers de production et de leurs appelants, **6 défauts corrigés** F313–F318, **R140** et **R141** ouvertes) ; **L21d clos le 2026-11-20** (32 fichiers lus intégralement + gardes de routage, **2 défauts corrigés** F319–F320, deux échappatoires de type retirées, **R142** ouverte) ; **L21e clos le 2026-11-20** (20 fichiers lus intégralement + page serveur et réutilisations, **8 défauts corrigés** F321–F328 dont 380 l. de code mort supprimées, **R143/R144/R145** ouvertes) ; **L21f clos le 2026-11-20** (34 fichiers lus intégralement, **11 défauts corrigés** F329–F339, **R146/R147/R148** ouvertes) ; **L21g clos le 2026-11-21** (les 39 fichiers de production lus intégralement, **6 défauts corrigés** F340–F345, **R149/R150** ouvertes) ; **L21h clos le 2026-11-21** (30 fichiers lus intégralement, dont les 3 routes `api/**` rattachées, **7 défauts corrigés** F346–F352, **R151/R152/R153** ouvertes) ; **L21 clos** ; prochain = **L22** (`apps/admin/src/**`) |
-| L22     | `apps/admin/src/**`                                                                                          | **149 f. prod · 31 079 l.** (mesuré) | **ouvert le 2026-11-21**, découpé en **6 sous-lots** (L22a→L22f) ; **L22a premier passage livré le 2026-11-21** (coquille, navigation et retours d'autorisation : **6 défauts corrigés** F353–F358, 2 fichiers morts supprimés, **R154/R155/R156** ouvertes) ; prochain = **second passage L22a** (DataGrid, GridView, InlineScalar restant, CommandPalette, `queue/**`, `lib/supabase/**`, `admin-actions-index`, `admin-resources`, `authz-feedback`), puis **L22b** |
+| L22     | `apps/admin/src/**`                                                                                          | **149 f. prod · 31 079 l.** (mesuré) | **ouvert le 2026-11-21**, découpé en **6 sous-lots** (L22a→L22f) ; **L22a clos le 2026-11-21** (deux passages : coquille, navigation, retours d'autorisation, grille et palette lues intégralement, **10 défauts corrigés** F353–F362, 2 fichiers + 2 exports morts supprimés, **R154–R159** ouvertes dont une décision produit) ; prochain = **L22b** (`src/lib/**` restant, 24 f. · 4 661 l.) |
 | L23     | `apps/tenants/src/**`                                                                                        | 85 fichiers                 | à auditer               |
 | L24     | `apps/hi/src/**`                                                                                             | 40 fichiers                 | à auditer               |
 | L25     | `apps/collab-server/src/**`                                                                                  | 15 fichiers                 | à auditer               |
@@ -123,8 +123,8 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L22a (second passage) — `apps/admin/src/**`** (149 fichiers de production mesurés ;
-la coquille compte 33 f. · 4 611 l.).
+**Prochain lot à traiter : L22b — `apps/admin/src/lib/**` restant** (24 f. · 4 661 l. : couche de données et
+wrappers de mutation). L22a est clos après deux passages (10 défauts F353–F362).
 L21h (`features/{security,onboarding,upcoming,dashboard,developer,devtools}`, **24 f. · 3 481 l.**, + routes
 `login`/`onboarding` **3 f. · 105 l.** + les **3 routes `api/**`** rattachées à l'ouverture, **30 f. · 3 783 l.** au
 total) est **clos le 2026-11-21** — lecture intégrale des 30 fichiers de production, des 4 suites existantes de
@@ -1573,7 +1573,7 @@ Aucun fichier n'est laissé hors sous-lot — la somme des six lignes ci-dessous
 
 | Sous-lot | Périmètre exact | Mesure | Ordre et justification |
 | -------- | --------------- | ------ | ---------------------- |
-| **L22a** | `src/app/{layout,page}.tsx`, `(admin)/admin/{layout,page}.tsx`, `(admin)/admin/components/**` 6, `components/{shell 8,queue 4,layout 1,admin 1}`, `instrumentation.ts`, `lib/supabase/**` 2, `lib/{admin-console,admin-actions-index,admin-resources,authz-feedback,utils,action-result}` | **33 f. · 4 611 l.** | **en cours**. La coquille que monte **chaque** écran : layout gardien, sidebar, header, palette ⌘K, grille dense, outils de vue, retour des refus d'autorisation. Un défaut ici touche les 35 écrans d'un coup. |
+| **L22a** | `src/app/{layout,page}.tsx`, `(admin)/admin/{layout,page}.tsx`, `(admin)/admin/components/**`, `components/{shell 8,queue 4,layout 1}`, `instrumentation.ts`, `lib/supabase/**`, `lib/{admin-console,admin-actions-index,admin-resources,authz-feedback,action-result,admin-app-urls,clipboard}` | **33 f. · 4 611 l.** à l'ouverture — **31 f. · 4 467 l.** après suppression des 2 fichiers morts (142 + 2 l.) et de 2 exports morts ; 2 modules ajoutés (`admin-app-urls`, `clipboard`) | **clos le 2026-11-21** (2 passages). La coquille que monte **chaque** écran : layout gardien, sidebar, header, palette ⌘K, grille dense, outils de vue, retour des refus d'autorisation. **10 défauts** F353–F362, 6 dettes R154–R159. |
 | L22b | `src/lib/**` restant — `admin-data` 1 149, `admin-aux-actions` 745, `admin-settings-catalog` 404, `admin-resources` exclu (L22a), `admin-legal-actions` 308, `admin-access-data` 179, `admin-compliance-actions` 176, `admin-actions` 135, `admin-sandbox-actions` 127, `admin-triage-actions` 120, `admin-infra-data` 117, `admin-security-data` 109, `admin-access-actions` 106, `admin-audit-data` 100, `admin-identity` 99, `admin-approval-types` 44, `admin-approval-data` 32, `admin-feature-actions` 23, `admin-infra-actions` 76, `admin-views-actions` 69, `admin-coverage` 251, `admin-campaign-types` 77, `admin-audit-types` 85, `admin-security-actions` 45, `admin-approval-actions` 85 | **24 f. · 4 661 l.** | Deuxième : la couche d'accès aux données et les wrappers de mutation consommés par tous les écrans (règle Go-source-de-vérité, codes d'autorisation transportés). Se lit après la coquille qui les appelle. |
 | L22c | `(admin)/admin/access/**` 8 · 1 399, `security/**` 2 · 363, `sandbox/**` 2 · 323, `components/security/**` 1 · 476 | **13 f. · 2 561 l.** | Troisième : accès staff, step-up, bac à sable — les surfaces qui **élèvent** les droits. Audit après les retours d'autorisation (L22a) qui les déclenchent. |
 | L22d | `reports` 2 · 723, `appeals` 2 · 576, `abuse` 2 · 518, `approvals` 2 · 581, `support` 4 · 939, `work` 2 · 561, `incidents` 2 · 370, `users` 5 · 706, `notifications` 5 · 1 450 | **26 f. · 6 424 l.** | Quatrième : les files de décision (triage, modération, recours, doubles validations). Toutes reposent sur `DataGrid` et `useStaffAction` de L22a. |
@@ -1637,11 +1637,59 @@ seulement été branché sur le helper commun, son comportement ne change pas. `
 dans un `try/catch`. `DataGrid`/`RowMenu` : le menu contextuel ne pose pas d'overlay plein écran et referme sur
 `pointerdown` hors zone + Échap + scroll — c'est le comportement voulu, pas un piège de focus.
 
-**Second passage à faire pour clore L22a** (fichiers non lus intégralement à ce tour) : `DataGrid.tsx` (475 l.),
-`GridView.tsx` (224 l., reste), `InlineScalar.tsx` (reste : `InlineChoice`, `InlineText`, `InlineToggle`),
-`MetricChips.tsx`, `tokens.ts`, `CommandPalette.tsx`, `AdminHeader.tsx`, `queue/**` 4 fichiers,
-`instrumentation.ts`, `lib/supabase/**` 2, `lib/{admin-actions-index,admin-resources,authz-feedback,utils,
-action-result}`. Prochain sous-lot après ce second passage : **L22b** (`src/lib/**` restant).
+### L22a — second passage : la coquille ne ment plus, ne peint plus en dur — clos le 2026-11-21
+
+**Fichiers lus intégralement à ce passage** (aucune inspection en survol) : `DataGrid.tsx` (475 l.),
+`GridView.tsx` (224 l.), `InlineScalar.tsx` (346 l., les quatre primitives), `CommandPalette.tsx` (172 l.),
+`AdminHeader.tsx` (140 l.), `MetricChips.tsx`, `tokens.ts`, `instrumentation.ts`, `lib/supabase/{server,client}.ts`,
+`queue/{useStaffAction,QueuePageHeader,StatusPill,QueueEmpty}.tsx`, `lib/{admin-actions-index,admin-resources,
+authz-feedback,action-result,utils}.ts` — plus les appelants réels (`WorkTable`, les dix files, la palette).
+
+**Défauts corrigés (F359–F362), rouge constaté puis vert, contre-preuve incluse.**
+
+| # | Défaut | Rouge mesuré | Correctif |
+| - | ------ | ------------ | --------- |
+| **F359** | Dans la palette ⌘K, le bouton « copier l'identifiant » vit **dans** l'élément sélectionnable de cmdk : le clic remontait et déclenchait `onSelect`, donc la navigation vers le dossier. L'opérateur croyait copier et perdait sa recherche. | `CommandPalette.test.tsx` : `expected "vi.fn()" to not be called at all, but actually been called 1 times` (`router.push`). | `CopyableId` arrête la propagation du clic, une fois, pour tous ses appelants (palette, aperçu, files). |
+| **F360** | Couleurs de marque en dur dans la coquille : `border-[#EE4B2B]/40 bg-[#EE4B2B]/5 text-[#B5371C]` (bandeau de l'accord `g`), `ring-[#EE4B2B]/40` (anneau de l'avatar) et `bg-white` (`QueueEmpty`, carte blanche en thème sombre). | Garde statique `palette-tokens.test.ts` : `expected [ 'app/(admin)/admin/components/AdminHeader.tsx', 'components/shell/DataGrid.tsx' ] to deeply equal []` et `expected [ 'components/queue/QueueEmpty.tsx' ] to deeply equal []`. | Tokens de thème (`highlight`, `ring`, `card`). La garde lit le **code** des trois dossiers de coquille (commentaires exclus) et n'a **aucune exception**. |
+| **F361** | `createServerClient(…, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, …)` et son jumeau navigateur : l'assertion non-nulle promettait une clé que rien ne garantissait. Sans clé, le client se construisait avec `undefined` et l'échec surgissait bien plus loin, hors de propos. | `env.test.ts` : `expected [Function] to throw an error` ×2 ; `server.test.ts` : `promise resolved "{ …(3) }" instead of rejecting`. | `lib/supabase/env.ts` (`requireSupabaseAnonKey`) nomme la variable manquante, côté serveur **et** côté navigateur ; une valeur vide compte comme absente. |
+| **F362** | Code mort : `lib/utils.ts` (ré-export de `cn`, 0 appelant) et `tokens.ACCENT` (hex de marque, 0 importeur). | Preuve `grep` : `from '@/lib/utils'` → 0 résultat hors le fichier ; `ACCENT` → 0 résultat hors `tokens.ts`. Suppression vérifiée par `tsc --noEmit` = 0. | Supprimés. La garde de palette perd son exception au passage : plus personne ne nomme la marque en hexadécimal dans la coquille. |
+
+**Contre-preuves relancées.** Sources remises à l'état d'origine (`git checkout` des quatre composants, `requireSupabaseAnonKey` réduit à `return value!`, `server.ts` d'origine) :
+6 assertions retombées (`expected [...] to deeply equal []` ×2, `expected [Function] to throw an error` ×2,
+`promise resolved … instead of rejecting`, `router.push` appelé), puis restauration → `10 passed`.
+
+**Non-défauts vérifiés, avec la preuve qui l'établit.**
+
+- **`InlineText` Entrée puis blur ne sauvegarde qu'une fois** (le motif de F356 était suspecté ici) : la saisie
+  optimiste met `current` à jour **avant** `await onSave`, donc le second commit retombe sur `trimmed === current`.
+  Test dédié : `onSave` appelé **1 fois**. Commité comme non-défaut, pas comme correctif.
+- **`DataGrid` reste sans verrou de sélection périmée** : `selectedRows` filtre `sorted` par identifiant, donc
+  une ligne disparue ne peut pas être assignée. Le comportement est voulu (la sélection survit à un tri).
+- **`useStaffAction`** ne fait qu'un toast par issue et rend `null` en échec : contrat déjà testé, aucune promesse
+  non capturée (`attemptWithStepUp` + `try/catch` autour de tout l'appel).
+- **`admin-actions-index`** est de la donnée pure (`ADMIN_ACTIONS`, un filtre par capacité) : aucun état, aucune
+  promesse, aucune I/O — rien à durcir ici.
+
+**Dettes ouvertes à la suite de ce passage.**
+
+- **R157** — Hex de marque hors coquille, **10 fichiers** : `frontend/components/FrontendCMS.tsx`,
+  `translations/TranslationCMS.tsx`, `work/components/triage-board.tsx`, `security/SecurityCockpit.tsx`,
+  `campaigns/components/campaign-manager.tsx`, `subscriptions/components/grants-manager.tsx`, `page.tsx`,
+  `config/page.tsx`, `features/page.tsx`, `system/page.tsx`. Chacun relève de son sous-lot (L22d/L22e) ; la garde
+  de palette s'y étendra à ce moment-là, sans exception.
+- **R158** — `bg-white`/`text-black` hors coquille, **10 fichiers** : `campaigns/campaign-manager`,
+  `features/page`, `frontend/FrontendCMS`, `health/page`, `legal/LegalCMS`, `notifications/PlacementsManager`,
+  `storage/page`, `subscriptions/grants-manager`, `translations/TranslationCMS`, `users/[id]/page`. Même sortie :
+  tokens de thème, sous-lot par sous-lot (thème sombre actuellement illisible sur ces écrans).
+- **R159** — **décision produit** : `lib/admin-resources.ts` (308 l., 8 ressources) et sa suite de 3 tests n'ont
+  **aucun consommateur de production** (`ADMIN_RESOURCES`/`getAdminResource` : 0 appelant hors son propre test),
+  alors que `ADMIN-PLAN.md` (l. 165) prévoit que les écrans y déclarent leurs facettes. Soit les écrans l'adoptent,
+  soit on le supprime : je ne tranche pas à la place du produit.
+
+**L22a est traité** : coquille, navigation, retours d'autorisation, grille et palette lues intégralement, 10 défauts
+corrigés (F353–F362), 2 fichiers morts et 2 exports morts supprimés, 6 dettes ouvertes (R154–R159) et 4 non-défauts
+prouvés. **Prochain sous-lot : L22b** (`src/lib/**` restant, 24 f. · 4 661 l. — couche de données et wrappers de
+mutation).
 
 ## L21 — `apps/studio/src/**` — ouvert le 2026-11-20 (découpage mesuré)
 
