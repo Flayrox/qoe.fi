@@ -77,7 +77,7 @@ export default async function AdminReportsPage() {
         />
       </div>
 
-      <ModerationQueue initialItems={serialized} initialPending={data.pending} />
+      <ModerationQueue initialItems={serialized} />
     </div>
   );
 }

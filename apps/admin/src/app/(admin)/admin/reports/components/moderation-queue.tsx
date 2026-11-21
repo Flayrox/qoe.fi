@@ -50,7 +50,6 @@ import { copyToClipboard } from '@/lib/clipboard';
 
 interface ModerationQueueProps {
   initialItems: ModerationReportItem[];
-  initialPending: number;
 }
 
 const REASON_LABELS: Record<string, string> = {

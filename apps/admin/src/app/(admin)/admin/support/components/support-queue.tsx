@@ -38,12 +38,11 @@ import {
 } from '@/components/shell/grid-view';
 import type { RowActionItem } from '@/components/shell/RowMenu';
 import { attemptWithStepUp, notifyActionFailure, readMessage } from '@/lib/authz-feedback';
-import type { SupportTicketItem, SupportMetrics } from '@/lib/admin-data';
+import type { SupportTicketItem } from '@/lib/admin-data';
 import { copyToClipboard } from '@/lib/clipboard';
 
 interface SupportQueueProps {
   initialItems: SupportTicketItem[];
-  metrics: SupportMetrics | null;
 }
 
 const KIND_LABELS: Record<SupportKind, string> = {

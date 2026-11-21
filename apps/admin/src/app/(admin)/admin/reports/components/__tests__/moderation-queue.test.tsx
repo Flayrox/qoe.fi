@@ -62,7 +62,7 @@ describe('ModerationQueue', () => {
   });
 
   it('affiche les signalements et leurs libellés lisibles', () => {
-    render(<ModerationQueue initialItems={[report()]} initialPending={1} />);
+    render(<ModerationQueue initialItems={[report()]} />);
 
     expect(screen.getByLabelText('File des signalements de modération')).toBeDefined();
     expect(screen.getByText('Achetez des followers ici')).toBeDefined();
@@ -74,7 +74,7 @@ describe('ModerationQueue', () => {
   });
 
   it('résout un signalement, met la ligne à jour et l’annonce comme auditée', async () => {
-    render(<ModerationQueue initialItems={[report()]} initialPending={1} />);
+    render(<ModerationQueue initialItems={[report()]} />);
     openFirstReport();
 
     fireEvent.click(screen.getByRole('button', { name: /Résoudre \(conforme\)/i }));
@@ -96,7 +96,7 @@ describe('ModerationQueue', () => {
 
   it('n’applique rien et explique le refus quand l’action échoue', async () => {
     resolveSpy.mockResolvedValue({ ok: false, error: { code: 'FORBIDDEN', message: 'Refusé' } });
-    render(<ModerationQueue initialItems={[report()]} initialPending={1} />);
+    render(<ModerationQueue initialItems={[report()]} />);
     openFirstReport();
 
     fireEvent.click(screen.getByRole('button', { name: /Résoudre \(conforme\)/i }));
@@ -108,7 +108,7 @@ describe('ModerationQueue', () => {
   });
 
   it('exige un motif écrit avant de suspendre l’auteur', async () => {
-    render(<ModerationQueue initialItems={[report()]} initialPending={1} />);
+    render(<ModerationQueue initialItems={[report()]} />);
     openFirstReport();
 
     const suspend = screen.getByRole('button', { name: /^Suspendre$/i }) as HTMLButtonElement;

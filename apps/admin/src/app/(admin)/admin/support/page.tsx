@@ -77,7 +77,7 @@ export default async function AdminSupportPage() {
         />
       </div>
 
-      <SupportQueue initialItems={tickets.items} metrics={metrics} />
+      <SupportQueue initialItems={tickets.items} />
     </div>
   );
 }
