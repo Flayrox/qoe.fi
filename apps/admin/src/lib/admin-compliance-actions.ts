@@ -25,7 +25,7 @@ export async function eraseUserAction(
   requestId?: string
 ): Promise<
   | { success: true; receipt: ErasureReceipt }
-  | { success: false; error: string; challengeToken?: string; challengeFactor?: string }
+  | { success: false; error: string; code?: string; level?: string }
 > {
   await assertCapability('admin.compliance.export');
 
@@ -70,7 +70,7 @@ export async function exportUserDsarAction(
   reason?: string
 ): Promise<
   | { success: true; data: Record<string, unknown> }
-  | { success: false; error: string; challengeToken?: string; challengeFactor?: string }
+  | { success: false; error: string; code?: string; level?: string }
 > {
   await assertCapability('admin.compliance.export');
 
@@ -113,7 +113,7 @@ export async function runRetentionPurgeAction(
   dryRun?: boolean
 ): Promise<
   | { success: true; summary: RetentionPurgeSummary }
-  | { success: false; error: string; challengeToken?: string; challengeFactor?: string }
+  | { success: false; error: string; code?: string; level?: string }
 > {
   await assertCapability('admin.compliance.export');
 

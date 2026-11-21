@@ -59,7 +59,7 @@ export async function executeSeedScenarioAction(
   count = 1
 ): Promise<
   | { success: true; result: SeedScenarioResult }
-  | { success: false; error: string; challengeToken?: string; challengeFactor?: string }
+  | { success: false; error: string; code?: string; level?: string }
 > {
   await assertCapability('admin.config.write');
 
@@ -92,7 +92,7 @@ export async function impersonateUserAction(
   reason: string
 ): Promise<
   | { success: true; result: ImpersonateResult }
-  | { success: false; error: string; challengeToken?: string; challengeFactor?: string }
+  | { success: false; error: string; code?: string; level?: string }
 > {
   await assertCapability('admin.config.write');
 
