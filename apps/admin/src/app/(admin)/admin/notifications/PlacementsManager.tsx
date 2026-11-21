@@ -61,40 +61,53 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
     }
 
     startTransition(async () => {
-      const res = await createPlacementAdminAction({
-        slot: effectiveSlot,
-        format,
-        type,
-        title: title.trim(),
-        body: body.trim(),
-        ctaLabel: ctaLabel.trim() || undefined,
-        ctaUrl: ctaUrl.trim() || undefined,
-        targetAudience,
-        priority: Number(priority) || 0,
-        isActive: true,
-        dismissible,
-      });
+      // Une action qui lève ne doit pas disparaître dans la transition.
+      try {
+        const res = await createPlacementAdminAction({
+          slot: effectiveSlot,
+          format,
+          type,
+          title: title.trim(),
+          body: body.trim(),
+          ctaLabel: ctaLabel.trim() || undefined,
+          ctaUrl: ctaUrl.trim() || undefined,
+          targetAudience,
+          priority: Number(priority) || 0,
+          isActive: true,
+          dismissible,
+        });
 
-      if (res.success && res.placement) {
-        setFeedback('Placement publié.');
-        setPlacements((prev) => [res.placement!, ...prev]);
-        setIsCreating(false);
-      } else {
-        toast.error(res.error || 'Erreur lors de la création');
+        if (res.success && res.placement) {
+          setFeedback('Placement publié.');
+          setPlacements((prev) => [res.placement!, ...prev]);
+          setIsCreating(false);
+        } else {
+          toast.error(res.error || 'Erreur lors de la création');
+        }
+      } catch (error) {
+        toast.error(
+          error instanceof Error && error.message ? error.message : 'Erreur lors de la création'
+        );
       }
     });
   };
 
   const handleToggleActive = (id: string, currentState: boolean) => {
     startTransition(async () => {
-      const res = await updatePlacementAdminAction(id, { isActive: !currentState });
-      if (res.success) {
-        setPlacements((prev) =>
-          prev.map((p) => (p.id === id ? { ...p, isActive: !currentState } : p))
+      try {
+        const res = await updatePlacementAdminAction(id, { isActive: !currentState });
+        if (res.success) {
+          setPlacements((prev) =>
+            prev.map((p) => (p.id === id ? { ...p, isActive: !currentState } : p))
+          );
+          setFeedback(!currentState ? 'Placement activé.' : 'Placement mis en pause.');
+        } else {
+          toast.error(res.error || 'Erreur lors de la modification');
+        }
+      } catch (error) {
+        toast.error(
+          error instanceof Error && error.message ? error.message : 'Erreur lors de la modification'
         );
-        setFeedback(!currentState ? 'Placement activé.' : 'Placement mis en pause.');
-      } else {
-        toast.error(res.error || 'Erreur lors de la modification');
       }
     });
   };
@@ -103,12 +116,18 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce placement ?')) return;
 
     startTransition(async () => {
-      const res = await deletePlacementAdminAction(id);
-      if (res.success) {
-        setPlacements((prev) => prev.filter((p) => p.id !== id));
-        setFeedback('Placement supprimé.');
-      } else {
-        toast.error(res.error || 'Erreur de suppression');
+      try {
+        const res = await deletePlacementAdminAction(id);
+        if (res.success) {
+          setPlacements((prev) => prev.filter((p) => p.id !== id));
+          setFeedback('Placement supprimé.');
+        } else {
+          toast.error(res.error || 'Erreur de suppression');
+        }
+      } catch (error) {
+        toast.error(
+          error instanceof Error && error.message ? error.message : 'Erreur de suppression'
+        );
       }
     });
   };

@@ -39,19 +39,28 @@ export function BroadcastAnnouncementConsole({
   const handleSave = (newActiveState?: boolean) => {
     const nextActive = newActiveState !== undefined ? newActiveState : active;
     startTransition(async () => {
-      const res = await saveGlobalAnnouncementAction({
-        id: initialAnnouncement?.id || `ann_${Date.now()}`,
-        active: nextActive,
-        message: message.trim(),
-        type,
-        linkUrl: linkUrl.trim() || undefined,
-        linkText: linkText.trim() || undefined,
-      });
+      // Une action qui lève ne doit pas disparaître dans la transition.
+      try {
+        const res = await saveGlobalAnnouncementAction({
+          id: initialAnnouncement?.id || `ann_${Date.now()}`,
+          active: nextActive,
+          message: message.trim(),
+          type,
+          linkUrl: linkUrl.trim() || undefined,
+          linkText: linkText.trim() || undefined,
+        });
 
-      if (res.success) {
-        setFeedback(nextActive ? 'Annonce diffusée sur la plateforme.' : 'Annonce désactivée.');
-      } else {
-        toast.error(res.error || "Erreur lors de l'enregistrement de l'annonce.");
+        if (res.success) {
+          setFeedback(nextActive ? 'Annonce diffusée sur la plateforme.' : 'Annonce désactivée.');
+        } else {
+          toast.error(res.error || "Erreur lors de l'enregistrement de l'annonce.");
+        }
+      } catch (error) {
+        toast.error(
+          error instanceof Error && error.message
+            ? error.message
+            : "Erreur lors de l'enregistrement de l'annonce."
+        );
       }
     });
   };
