@@ -536,7 +536,7 @@ export function ArticlesClient({
     }
 
     if (hasChildren(idToMove)) {
-      alert(
+      toast.error(
         t`Cette catégorie contient déjà des sous-catégories et ne peut pas devenir une sous-catégorie.`
       );
       handleDragEnd();
@@ -560,7 +560,7 @@ export function ArticlesClient({
       if (!res.ok) throw new Error(res.error.message);
     } catch (err: unknown) {
       setCategories(previousCategories);
-      alert(err instanceof Error ? err.message : t`Échec du déplacement de la catégorie.`);
+      toast.error(err instanceof Error ? err.message : t`Échec du déplacement de la catégorie.`);
     }
   };
 
@@ -585,7 +585,7 @@ export function ArticlesClient({
       if (!res.ok) throw new Error(res.error.message);
     } catch (err: unknown) {
       setCategories(previousCategories);
-      alert(err instanceof Error ? err.message : t`Échec du détachement de la catégorie.`);
+      toast.error(err instanceof Error ? err.message : t`Échec du détachement de la catégorie.`);
     }
   };
 
@@ -627,7 +627,9 @@ export function ArticlesClient({
       setInlineCreatingParentId(null);
       setInlineSubName('');
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : t`Échec de la création de la sous-catégorie.`);
+      toast.error(
+        err instanceof Error ? err.message : t`Échec de la création de la sous-catégorie.`
+      );
     } finally {
       setIsCreatingInline(false);
     }
@@ -670,7 +672,7 @@ export function ArticlesClient({
       setIsCreatingInlineRoot(false);
       setInlineRootName('');
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : t`Échec de la création de la catégorie.`);
+      toast.error(err instanceof Error ? err.message : t`Échec de la création de la catégorie.`);
     } finally {
       setIsCreatingInline(false);
     }
@@ -755,7 +757,14 @@ export function ArticlesClient({
     }
 
     try {
-      await deleteCategoryAction(id);
+      const res = await deleteCategoryAction(id);
+      // Les actions du SDK renvoient `{ ok: false }` au lieu de rejeter :
+      // sans ce garde, une catégorie encore utilisée disparaissait de
+      // l'arborescence alors que le serveur l'avait conservée.
+      if (!res.ok) {
+        toast.error(res.error.message);
+        return;
+      }
       setCategories((prev) =>
         prev
           .filter((c) => c.id !== id)
@@ -768,7 +777,7 @@ export function ArticlesClient({
       );
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : t`Échec de la suppression.`;
-      alert(message);
+      toast.error(message);
     }
   };
 
@@ -802,7 +811,12 @@ export function ArticlesClient({
   // Handle review (approve / reject)
   const handleReview = async (id: string, approve: boolean, comment?: string) => {
     try {
-      await reviewArticleAction({ id, approve, comment });
+      const res = await reviewArticleAction({ id, approve, comment });
+      if (!res.ok) {
+        // Un refus serveur ne doit pas publier l'article à l'écran.
+        toast.error(res.error.message);
+        return;
+      }
       setArticles((prev) =>
         prev.map((a) =>
           a.id === id
@@ -850,7 +864,14 @@ export function ArticlesClient({
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
     const results = await Promise.allSettled(ids.map((id) => deleteArticleAction(id)));
-    const deleted = new Set(ids.filter((_, index) => results[index].status === 'fulfilled'));
+    // `allSettled` ne distingue pas un refus `{ ok: false }` d'un succès :
+    // seules les réponses réellement acceptées comptent comme supprimées.
+    const deleted = new Set(
+      ids.filter((_, index) => {
+        const result = results[index];
+        return result.status === 'fulfilled' && result.value.ok;
+      })
+    );
     setArticles((prev) => prev.filter((art) => !deleted.has(art.id)));
     setSelectedIds(new Set());
     const failed = ids.length - deleted.size;
@@ -1813,7 +1834,7 @@ export function ArticlesClient({
                                             )
                                           );
                                         } catch (err: unknown) {
-                                          alert(
+                                          toast.error(
                                             err instanceof Error
                                               ? err.message
                                               : t`Échec de la promotion.`
