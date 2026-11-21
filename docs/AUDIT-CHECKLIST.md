@@ -104,7 +104,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20f    | **Validation locale bout en bout** : daemon Docker, `test:api`, `e2e` sur base jetable seedée | —                           | mesuré le 2026-11-20 : daemon **démarré** (OrbStack 29.4.0), `test:api` **✅ 82 paquets**, e2e **18/19 + 128/128** — voir fiche L20f |
 | L20e    | **Validation bout en bout** : `pnpm build` (6 apps), `pnpm test:api` (Go + Postgres), `pnpm e2e` (Playwright)  | —                           | mesuré le 2026-11-20 : **build ✅**, `test:api` **bloqué** (Docker absent), e2e **partiel** (seed absent) — voir fiche L20e |
 | L21     | `apps/studio/src/**`                                                                                         | **412 fichiers · 72 285 l.** (mesuré) | **ouvert le 2026-11-20**, découpé en **8 sous-lots** (L21a→L21h) ; **L21a** (socle : layout, not-found, components, lib, instrumentation) **durci le 2026-11-20** ; **R137 ouverte** ; **L21b clos le 2026-11-20** (frontière vendor/maison mesurée, **7 défauts corrigés** sur deux passages, tiroir modal accessible, **R138 ouverte** — seule dette restante du sous-lot) ; **L21c clos le 2026-11-20** (lecture intégrale des 49 fichiers de production et de leurs appelants, **6 défauts corrigés** F313–F318, **R140** et **R141** ouvertes) ; **L21d clos le 2026-11-20** (32 fichiers lus intégralement + gardes de routage, **2 défauts corrigés** F319–F320, deux échappatoires de type retirées, **R142** ouverte) ; **L21e clos le 2026-11-20** (20 fichiers lus intégralement + page serveur et réutilisations, **8 défauts corrigés** F321–F328 dont 380 l. de code mort supprimées, **R143/R144/R145** ouvertes) ; **L21f clos le 2026-11-20** (34 fichiers lus intégralement, **11 défauts corrigés** F329–F339, **R146/R147/R148** ouvertes) ; **L21g clos le 2026-11-21** (les 39 fichiers de production lus intégralement, **6 défauts corrigés** F340–F345, **R149/R150** ouvertes) ; **L21h clos le 2026-11-21** (30 fichiers lus intégralement, dont les 3 routes `api/**` rattachées, **7 défauts corrigés** F346–F352, **R151/R152/R153** ouvertes) ; **L21 clos** ; prochain = **L22** (`apps/admin/src/**`) |
-| L22     | `apps/admin/src/**`                                                                                          | **149 f. prod · 31 079 l.** (mesuré) | **ouvert le 2026-11-21**, découpé en **6 sous-lots** (L22a→L22f) ; **L22a clos le 2026-11-21** (deux passages : coquille, navigation, retours d'autorisation, grille et palette lues intégralement, **10 défauts corrigés** F353–F362, 2 fichiers + 2 exports morts supprimés, **R154–R159** ouvertes dont une décision produit) ; **L22b clos le 2026-11-21** (couche de données et wrappers de mutation, 24 f. · 4 661 l. remesurés : **7 défauts** F363–F369, **R160/R161** ouvertes, R157–R159 mises à jour) ; **L22c clos le 2026-11-21** (surfaces qui élèvent les droits, 13 f. · 2 567 l. remesurés : **5 défauts** F370–F374, garde de palette étendue, **R162** ouverte) ; prochain = **L22d** (files de décision, 26 f. · 6 424 l.) |
+| L22     | `apps/admin/src/**`                                                                                          | **149 f. prod · 31 079 l.** (mesuré) | **ouvert le 2026-11-21**, découpé en **6 sous-lots** (L22a→L22f) ; **L22a clos le 2026-11-21** (deux passages : coquille, navigation, retours d'autorisation, grille et palette lues intégralement, **10 défauts corrigés** F353–F362, 2 fichiers + 2 exports morts supprimés, **R154–R159** ouvertes dont une décision produit) ; **L22b clos le 2026-11-21** (couche de données et wrappers de mutation, 24 f. · 4 661 l. remesurés : **7 défauts** F363–F369, **R160/R161** ouvertes, R157–R159 mises à jour) ; **L22c clos le 2026-11-21** (surfaces qui élèvent les droits, 13 f. · 2 567 l. remesurés : **5 défauts** F370–F374, garde de palette étendue, **R162** ouverte) ; **L22d clos le 2026-11-21** (files de décision, 26 f. · 6 445 l. remesurés : **6 défauts** F375–F380, garde de palette étendue aux 9 répertoires, **R163/R164** ouvertes) ; prochain = **L22e** (contenu et publication, 24 f. · 6 713 l.) |
 | L23     | `apps/tenants/src/**`                                                                                        | 85 fichiers                 | à auditer               |
 | L24     | `apps/hi/src/**`                                                                                             | 40 fichiers                 | à auditer               |
 | L25     | `apps/collab-server/src/**`                                                                                  | 15 fichiers                 | à auditer               |
@@ -123,9 +123,9 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L22d — `apps/admin/src/app/(admin)/admin/{reports,appeals,abuse,approvals,support,work,incidents,users,notifications}/**`**
-(26 f. · 6 424 l. : les files de décision — triage, modération, recours, doubles validations). L22a, L22b et L22c
-sont clos (22 défauts F353–F374, 9 dettes R154–R162).
+**Prochain lot à traiter : L22e — `apps/admin/src/app/(admin)/admin/{config,features,frontend,translations,imports,campaigns,oauth,api,widgets,settings}/**`**
+(24 f. · 6 713 l. : contenu et publication — CMS, traductions, drapeaux, campagnes, imports). L22a→L22d sont clos
+(28 défauts F353–F380, 11 dettes R154–R164).
 L21h (`features/{security,onboarding,upcoming,dashboard,developer,devtools}`, **24 f. · 3 481 l.**, + routes
 `login`/`onboarding` **3 f. · 105 l.** + les **3 routes `api/**`** rattachées à l'ouverture, **30 f. · 3 783 l.** au
 total) est **clos le 2026-11-21** — lecture intégrale des 30 fichiers de production, des 4 suites existantes de
@@ -1577,7 +1577,7 @@ Aucun fichier n'est laissé hors sous-lot — la somme des six lignes ci-dessous
 | **L22a** | `src/app/{layout,page}.tsx`, `(admin)/admin/{layout,page}.tsx`, `(admin)/admin/components/**`, `components/{shell 8,queue 4,layout 1}`, `instrumentation.ts`, `lib/supabase/**`, `lib/{admin-console,admin-actions-index,admin-resources,authz-feedback,action-result,admin-app-urls,clipboard}` | **33 f. · 4 611 l.** à l'ouverture ; **33 f. · 4 615 l.** à la clôture (même sélection, remesurée : −2 fichiers morts de 144 l., −2 exports morts, +2 modules `admin-app-urls`/`clipboard`) | **clos le 2026-11-21** (2 passages). La coquille que monte **chaque** écran : layout gardien, sidebar, header, palette ⌘K, grille dense, outils de vue, retour des refus d'autorisation. **10 défauts** F353–F362, 6 dettes R154–R159. |
 | **L22b** | `src/lib/**` restant — `admin-data` 1 149, `admin-aux-actions` 745, `admin-settings-catalog` 404, `admin-resources` exclu (L22a), `admin-legal-actions` 308, `admin-access-data` 179, `admin-compliance-actions` 176, `admin-actions` 135, `admin-sandbox-actions` 127, `admin-triage-actions` 120, `admin-infra-data` 117, `admin-security-data` 109, `admin-access-actions` 106, `admin-audit-data` 100, `admin-identity` 99, `admin-approval-types` 44, `admin-approval-data` 32, `admin-feature-actions` 23, `admin-infra-actions` 76, `admin-views-actions` 69, `admin-coverage` 251, `admin-campaign-types` 77, `admin-audit-types` 85, `admin-security-actions` 45, `admin-approval-actions` 85 | **24 f. · 4 661 l.** | **clos le 2026-11-21**. Couche d'accès aux données et wrappers de mutation : **7 défauts** F363–F369 (santé inventée, mode d'autorisation deviné, bannissement à moitié fait, booléen de suppression ignoré, garde juridique hors contrat, champs d'échec fantômes, fallback Prisma fantôme). Dettes R160/R161. |
 | **L22c** | `(admin)/admin/access/**` 8 · 1 405, `security/**` 2 · 363, `sandbox/**` 2 · 323, `components/security/**` 1 · 476 | **13 f. · 2 567 l.** (remesuré à l'ouverture) | **clos le 2026-11-21**. Accès staff, step-up, bac à sable — les surfaces qui **élèvent** les droits : **5 défauts** F370–F374 (couleur de marque en dur, filtre des décisions inopérant, rôle attribué à la mauvaise personne, panne déguisée en « aucun facteur », cockpit figé). Garde de palette étendue, dette R162. |
-| L22d | `reports` 2 · 723, `appeals` 2 · 576, `abuse` 2 · 518, `approvals` 2 · 581, `support` 4 · 939, `work` 2 · 561, `incidents` 2 · 370, `users` 5 · 706, `notifications` 5 · 1 450 | **26 f. · 6 424 l.** | Quatrième : les files de décision (triage, modération, recours, doubles validations). Toutes reposent sur `DataGrid` et `useStaffAction` de L22a. |
+| **L22d** | `reports` 2 · 724, `appeals` 2 · 577, `abuse` 2 · 519, `approvals` 2 · 582, `support` 4 · 940, `work` 2 · 562, `incidents` 2 · 370, `users` 5 · 707, `notifications` 5 · 1 464 | **26 f. · 6 445 l.** (remesuré à l'ouverture, tests exclus) | **clos le 2026-11-21**. Les files de décision (triage, modération, recours, doubles validations, support, incidents, comptes, outbox) : **6 défauts** F375–F380 (files figées, relance annoncée à tort, mesure d'incident au mauvais dossier, détail silencieux, gestes muets, couleurs en dur). Garde de palette étendue, dettes R163/R164. |
 | L22e | `config` 6 · 1 278, `features` 1 · 120, `frontend` 2 · 1 616, `translations` 2 · 757, `imports` 3 · 689, `campaigns` 2 · 334, `oauth` 2 · 274, `api` 2 · 625, `widgets` 2 · 603, `settings` 2 · 417 | **24 f. · 6 713 l.** | Cinquième : contenu et publication (CMS, traductions, drapeaux, campagnes, imports). |
 | L22f | `compliance` 7 · 1 554, `legal` 2 · 1 487, `retention` 2 · 554, `audit` 4 · 569, `subscriptions` 4 · 469, `storage` 1 · 135, `system` 1 · 86, `health` 2 · 391, `forbidden` 1 · 40, `src/features/editor/**` 3 · 725, `src/app/api/**` 1 · 84, `src/app/login/**` 1 · 15 | **29 f. · 6 109 l.** | Sixième : conformité, données et dernier reste (DSAR, rétention, exports signés, santé, éditeur embarqué, route d'upload). Ferme le lot. |
 
@@ -1835,9 +1835,71 @@ est revenue à `127 / 127`, « Aucun dépassement ».
   canonicalisation se fera lot par lot, sans demi-migration incohérente.
 
 **L22c est clos.** Cinq défauts corrigés (F370–F374), garde de palette étendue sans exception, R157 consommée en
-partie, R160/R161 enrichies **sans être tranchées**, R159 tenue ouverte. **Prochain sous-lot : L22d** (files de
-décision — `reports`, `appeals`, `abuse`, `approvals`, `support`, `work`, `incidents`, `users`, `notifications`,
-26 f. · 6 424 l.).
+partie, R160/R161 enrichies **sans être tranchées**, R159 tenue ouverte.
+
+### L22d — files de décision : six défauts mesurés — clos le 2026-11-21
+
+**Périmètre remesuré à l'ouverture.** `git ls-files` sur `app/(admin)/admin/{reports,appeals,abuse,approvals,
+support,work,incidents,users,notifications}/**` → **27 fichiers**, dont **1 test** (`reports/components/__tests__/
+moderation-queue.test.tsx`, 132 l.) → **26 fichiers de production · 6 445 lignes** (le plan annonçait 6 424). Par
+répertoire : `reports` 2 · 724, `appeals` 2 · 577, `abuse` 2 · 519, `approvals` 2 · 582, `support` 4 · 940,
+`work` 2 · 562, `incidents` 2 · 370, `users` 5 · 707, `notifications` 5 · 1 464. Les 26 ont été lus
+**intégralement**, deux passages : traque, puis contre-vérification des points laissés « probablement OK »
+(`getAdminUserDetail`, `String(createdAt)`, `NEXT_STATUS`, garde de page vs garde d'action, `window.prompt`,
+`window.location.reload`).
+
+| # | Défaut | Rouge mesuré | Correctif |
+| - | ------ | ------------ | --------- |
+| **F375** | `attemptWithStepUp` laissait remonter le rejet de l'action. Huit écrans attendent ce résultat puis rendent la main : réseau coupé ou garde hors enveloppe → `isSubmitting` jamais remis à `false`, boutons et champs **désactivés pour toujours**, aucun message. | `authz-feedback.test.ts` : 2 tests, `Error: Réseau coupé` et `Error: Session expirée` en rejets non capturés. | La fonction rend toujours un résultat — `{ ok:false, success:false, error }` en cas de rejet — et `isFailure` devient un prédicat de type (plus de cast). |
+| **F376** | `DeliveryTable.retry` ignorait le retour de la server-action : un refus (capacité, preuve forte) s'affichait **« Livraison … relancée »**, la ligne passait en QUEUED et le motif d'échec était effacé. L'e-mail n'était pas reparti. | `delivery-table.test.tsx` : `expected 'Livraison dlv_1234 relancée · audité …' to contain 'Preuve forte récente requise'`. | Relance via `attemptWithStepUp` + arrêt sur échec (toast + statut), ligne laissée dans son état réel. |
+| **F377** | `incidents-queue` partageait `measure` entre tous les dossiers : une mesure saisie sur A restait affichée sur B, et « Résoudre » sur B la **consignait dans l'historique du mauvais incident** — dans un registre d'audit. | `incidents-queue.test.tsx` : `expected 'blocage du sous-réseau A' to be ''` puis `{ incidentId: 'b', measure: '' }`. | Changer de dossier repart d'une zone de mesure vide. |
+| **F378** | Couleurs en dur dans le périmètre : pastille « moi » de la file de triage en `#EE4B2B`/`#B5371C`, 6 cartes de la fiche utilisateur et 7 champs de placements en `bg-white` (blancs en thème sombre). | `palette-tokens.test.ts` avec `ROOTS` étendu aux 9 répertoires : 2 tests tombent, 3 fichiers listés. | Tokens (`bg-card`, `primary`), garde étendue, aucune exception. Dans le même commit : `params` typé `Promise<{ id }>` sur la fiche utilisateur (Next 15). |
+| **F379** | `loadFullDetail` (recours **et** support) ne disait rien quand le détail complet ne venait pas : l'opérateur jugeait un recours en croyant lire le fil contradictoire alors qu'il n'avait que l'en-tête. | `appeals-queue.test.tsx` : `Unable to find role="alert"`. | La panne s'affiche **dans le tiroir** (`role="alert"`), pour les recours comme pour les tickets. |
+| **F380** | Créer/basculer/supprimer un placement et enregistrer l'annonce globale appelaient la server-action dans une transition : un rejet partait en rejet non géré — aucun message, aucune trace que l'acte n'avait pas eu lieu. | `placements-manager.test.tsx` : `expected "vi.fn()" to be called at least once` (aucun toast d'erreur). | Les quatre gestes disent l'échec (`try/catch` + toast). |
+
+**Contre-preuves mesurées.** Sources remises à `HEAD` (`git checkout --`), tests neufs conservés : **F375** → réapparition
+de `Error: Réseau coupé` / `Error: Session expirée` ; **F376** → `'Livraison dlv_1234 relancée …' ne contient pas
+'Preuve forte récente requise'` ; **F377** → `'blocage du sous-réseau A'` au lieu de `''` ; **F379** →
+`Unable to find role="alert"` ; **F380** → toast jamais appelé. Restauration : chaque suite repasse verte,
+`tsc --noEmit` = 0.
+
+**Non-défauts prouvés (aucun correctif).**
+
+- **Garde de page plus faible que la garde d'action** (files `/work` et `/incidents` en `admin.dashboard.read`,
+  actions en capacité de décision) : chaque action revérifie, le Go reste juge. Pas d'escalade.
+- **`String(user.createdAt)` dans `users/page.tsx`** : `formatDate` re-parse et affiche `—` si la valeur est
+  invalide — aucune date fausse à l'écran, et le type source est déjà sérialisé par la couche de données.
+- **`NEXT_STATUS` des incidents** est exhaustif pour les quatre états du registre (`open`, `contained`,
+  `resolved`, `reopened`) : un état inconnu n'offre simplement aucune transition, il n'en invente pas.
+- **`refus de clore son propre dossier`** (support, recours, validations) est appliqué côté Go ; les écrans grisent
+  la décision (`requestedBy === currentUserId`) sans la promettre — double barrière volontaire.
+- **`AbuseQueue` ferme le dossier localement** après succès (`filter`) alors que les autres files le mettent à jour :
+  les deux contrats sont corrects (le dossier clos sort de la file d'arbitrage).
+
+**Dettes mises à jour.**
+
+- **R157** : `work/components/triage-board.tsx` **consommé** → **8 fichiers** restants. **R158** :
+  `users/[id]/page.tsx` et `notifications/PlacementsManager.tsx` **consommés** → **8 fichiers** restants, tous en
+  L22e/L22f.
+- **R159** : inchangée, toujours ouverte — aucun des 26 fichiers du périmètre n'importe `ADMIN_RESOURCES`.
+- **R160** : élément factuel nouveau — `incidents-queue` affiche **déjà** `—` quand `metrics.dismissalRate < 0` : la
+  convention « pas de donnée ≠ 0 » existe donc dans la console, ce qui rend l'écart du cockpit Sécurité d'autant
+  plus net. Décision d'écran toujours au user.
+- **R161** : quatre consommateurs de plus, tous sur des compteurs : `reports` (pastilles calculées sur la liste),
+  `support` (`metrics?.open ?? openCount`, `?? 0` sur cinq tuiles), `notifications` (`counts.QUEUED \|\| 0`), et
+  `work` (`total` somme d'une liste vide). Une API muette y ressemble à « rien à traiter ». Non tranché.
+- **R163** — *nouvelle* : `users-grid` demande le motif de bannissement par `window.prompt` — seule surface de la
+  console qui collecte un motif d'audit hors d'un champ de formulaire (pas de multiligne, pas de trace visuelle,
+  pas de contrôle de longueur). Le remplacer demande un choix d'écran (dialogue ou motif en ligne).
+- **R164** — *nouvelle* : `incidents-queue` et `articles-manager` rechargent la page entière
+  (`window.location.reload()`) là où les autres files appellent `router.refresh()` : l'état local (dossier
+  déplié, brouillon en cours) est perdu à chaque écriture. La correction suppose de dériver la liste des props
+  plutôt que d'un `useState` figé.
+
+**L22d est clos.** Six défauts corrigés (F375–F380), une prop morte de moins par file, garde de palette étendue aux
+neuf répertoires, R157/R158 consommées en partie, R160/R161 enrichies **sans être tranchées**, R159 tenue ouverte,
+R163/R164 ouvertes. **Prochain sous-lot : L22e** (contenu et publication — `config`, `features`, `frontend`,
+`translations`, `imports`, `campaigns`, `oauth`, `api`, `widgets`, `settings`, 24 f. · 6 713 l.).
 
 ## L21 — `apps/studio/src/**` — ouvert le 2026-11-20 (découpage mesuré)
 
