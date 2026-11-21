@@ -50,7 +50,8 @@ function compact(value: unknown): string {
 
 interface AuditLogClientProps {
   entries: AdminAuditEntry[];
-  mode: AuthzMode;
+  /** `null` = le mode n'a pas pu être lu : on ne le devine pas. */
+  mode: AuthzMode | null;
   filters: {
     actor: string;
     capability: string;
@@ -156,7 +157,15 @@ export function AuditLogClient({ entries, mode, filters }: AuditLogClientProps) 
   // Le mode OBSERVATION est un fait d'exploitation : il reste affiché tant qu'il
   // dure, au-dessus des données qu'il nuance.
   const banner =
-    mode === 'observe' ? (
+    mode === null ? (
+      <div
+        data-testid="audit-mode-banner"
+        className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-xs text-foreground"
+      >
+        <strong>Mode d’autorisation illisible</strong> — l’API n’a pas répondu. Ni « observation »
+        ni « refus armé » ne peuvent être affirmés sans donnée : relancer une fois l’API rétablie.
+      </div>
+    ) : mode === 'observe' ? (
       <div
         data-testid="audit-mode-banner"
         className="rounded-lg border border-highlight/40 bg-highlight/10 px-4 py-3 text-xs text-foreground"

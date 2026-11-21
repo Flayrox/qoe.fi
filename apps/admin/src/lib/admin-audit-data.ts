@@ -39,7 +39,9 @@ export async function getAuditLog(filters: AuditFilters = {}): Promise<AuditLogV
     };
   } catch (err) {
     if ((err as { status?: number })?.status === 403) throw new Error(ACCESS_DENIED_MESSAGE);
-    return { items: [], mode: 'observe' };
+    // Mode ILLISIBLE : afficher « observation » sans donnée serait une
+    // affirmation sur la posture de sécurité de la plateforme.
+    return { items: [], mode: null };
   }
 }
 
@@ -54,7 +56,8 @@ export interface DecisionFilters {
 export interface DecisionsView {
   items: AuthzDecisionEntry[];
   groups: AuthzDecisionGroup[];
-  mode: AuthzMode;
+  /** `null` = mode non lisible (API en échec) — jamais deviné. */
+  mode: AuthzMode | null;
 }
 
 /** Décisions du garde : accords, refus appliqués et refus observés. */
@@ -78,7 +81,7 @@ export async function getAuthzDecisions(filters: DecisionFilters = {}): Promise<
     };
   } catch (err) {
     if ((err as { status?: number })?.status === 403) throw new Error(ACCESS_DENIED_MESSAGE);
-    return { items: [], groups: [], mode: 'observe' };
+    return { items: [], groups: [], mode: null };
   }
 }
 

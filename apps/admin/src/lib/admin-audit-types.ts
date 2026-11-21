@@ -66,7 +66,8 @@ export interface AuditFilters {
 
 export interface AuditLogView {
   items: AdminAuditEntry[];
-  mode: AuthzMode;
+  /** `null` = mode non lisible (API en échec) — jamais deviné. */
+  mode: AuthzMode | null;
 }
 
 /** Construit la query string d'un filtre d'audit (aucune valeur vide envoyée). */

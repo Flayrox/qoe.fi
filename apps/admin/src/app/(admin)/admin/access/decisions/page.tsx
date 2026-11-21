@@ -52,7 +52,13 @@ export default async function AdminAccessDecisionsPage({ searchParams }: Decisio
       <QueuePageHeader
         icon={<ShieldOff className="w-4 h-4" />}
         title="Décisions d’autorisation"
-        badge={view.mode === 'enforce' ? 'mode refus' : 'mode observation'}
+        badge={
+          view.mode === null
+            ? 'mode illisible'
+            : view.mode === 'enforce'
+              ? 'mode refus'
+              : 'mode observation'
+        }
         description={
           <>
             Chaque passage dans le garde de capacités est journalisé : accordé, refusé, ou refusé
