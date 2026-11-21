@@ -208,7 +208,7 @@ export function AnalyticsDashboardClient({
       <FeatureInterestBlock signals={data.featureInterest} locale={locale} />
 
       {/* ─── Provenance fine : d'où viennent les vues (le plus poussé) ── */}
-      <ProvenanceBlock provenance={data.provenance} />
+      <ProvenanceBlock provenance={data.provenance} period={selectedPeriod} />
 
       {/* ─── Audience Demographics (creator + platform) ──────────── */}
       <AudienceInsightsBlock insights={data.audience} />

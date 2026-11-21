@@ -47,4 +47,41 @@ describe('ProvenanceBlock', () => {
     expect(screen.getByText('tech.qoe.fi')).toBeInTheDocument();
     expect(screen.getByText('@alice')).toBeInTheDocument();
   });
+
+  it('trie l’affichage sans réordonner les données reçues', () => {
+    const provenance: ProvenanceBreakdown = {
+      bySource: [
+        { key: 'direct', count: 2 },
+        { key: 'feed', count: 120 },
+      ],
+      byHostname: [
+        { key: 'tech.qoe.fi', count: 3 },
+        { key: 'blog.qoe.fi', count: 50 },
+      ],
+      byReferrer: [
+        { key: '@bob', count: 1 },
+        { key: '@alice', count: 40 },
+      ],
+    };
+    const snapshot = JSON.stringify(provenance);
+
+    render(<ProvenanceBlock provenance={provenance} period="30d" />);
+
+    // Les props viennent de l'état du tableau de bord : les trier en place
+    // réécrit la source et fait diverger l'écran des données réellement reçues.
+    expect(JSON.stringify(provenance)).toBe(snapshot);
+  });
+
+  it('affiche la période réellement demandée, pas « 7 derniers jours »', () => {
+    const provenance: ProvenanceBreakdown = {
+      bySource: [{ key: 'feed', count: 12 }],
+      byHostname: [],
+      byReferrer: [],
+    };
+
+    render(<ProvenanceBlock provenance={provenance} period="90d" />);
+
+    expect(screen.getByText(/90 derniers jours/)).toBeInTheDocument();
+    expect(screen.queryByText(/7 derniers jours/)).toBeNull();
+  });
 });

@@ -2,11 +2,23 @@
 
 import React from 'react';
 import { Globe, LayoutGrid, UserCircle, Compass } from 'lucide-react';
-import type { ProvenanceBreakdown } from '../actions';
+import { t } from '@lingui/core/macro';
+import type { ProvenanceBreakdown, TimePeriod } from '../actions';
 
 interface ProvenanceBlockProps {
   provenance: ProvenanceBreakdown;
+  /** Période réellement chargée : le bandeau ne doit pas annoncer 7 jours
+   * quand le tableau de bord affiche 30 ou 90 jours. */
+  period?: TimePeriod;
 }
+
+const PERIOD_LABELS: Record<TimePeriod, () => string> = {
+  '24h': () => t`24 heures`,
+  '7d': () => t`7 derniers jours`,
+  '30d': () => t`30 derniers jours`,
+  '90d': () => t`90 derniers jours`,
+  all: () => t`Tout l'historique`,
+};
 
 const SOURCE_LABELS: Record<string, string> = {
   feed: 'Feed qoefi',
@@ -44,7 +56,7 @@ function Bar({
   );
 }
 
-export function ProvenanceBlock({ provenance }: ProvenanceBlockProps) {
+export function ProvenanceBlock({ provenance, period = '30d' }: ProvenanceBlockProps) {
   const { bySource, byHostname, byReferrer } = provenance;
 
   const totalSource = bySource.reduce((s, b) => s + b.count, 0);
@@ -60,9 +72,7 @@ export function ProvenanceBlock({ provenance }: ProvenanceBlockProps) {
           <Compass className="h-4 w-4 text-primary stroke-[1.5]" />
           <h3 className="text-[17px] font-semibold tracking-tight">Provenance des vues</h3>
         </div>
-        <span className="text-[11px] text-muted-foreground">
-          7 derniers jours — attribution par lecture réelle
-        </span>
+        <span className="text-[11px] text-muted-foreground">{PERIOD_LABELS[period]()}</span>
       </div>
 
       {totalSource > 0 && (
@@ -70,7 +80,7 @@ export function ProvenanceBlock({ provenance }: ProvenanceBlockProps) {
           <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
             Par canal
           </span>
-          {bySource
+          {[...bySource]
             .sort((a, b) => b.count - a.count)
             .map((b) => (
               <Bar
@@ -99,7 +109,7 @@ export function ProvenanceBlock({ provenance }: ProvenanceBlockProps) {
           <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
             Depuis quel tenant
           </span>
-          {byHostname
+          {[...byHostname]
             .sort((a, b) => b.count - a.count)
             .slice(0, 6)
             .map((b) => (
@@ -119,7 +129,7 @@ export function ProvenanceBlock({ provenance }: ProvenanceBlockProps) {
           <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
             Depuis quel profil
           </span>
-          {byReferrer
+          {[...byReferrer]
             .sort((a, b) => b.count - a.count)
             .slice(0, 6)
             .map((b) => (
