@@ -22,6 +22,12 @@ func (s *Service) buildSlices(ctx context.Context, targetIDs []string, viewerID 
 	if err != nil {
 		return nil, err
 	}
+	// La fermeture vient d'une requête qui ne filtre pas la visibilité de la
+	// pensée : ici (hydratation publique, home) on retire ce que le viewer ne
+	// peut pas voir, sinon un id connu suffirait à lire une pensée « followers ».
+	if err := s.dropInvisiblePosts(ctx, all, viewerID); err != nil {
+		return nil, err
+	}
 
 	// L'ordre de la page vient du classement (`targetIDs`), jamais de la map.
 	baseRows := make([]db.GetPostsByIDsRow, 0, len(targetIDs))

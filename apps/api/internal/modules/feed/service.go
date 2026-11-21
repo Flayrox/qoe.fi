@@ -482,6 +482,16 @@ func (s *Service) Thread(ctx context.Context, postID, viewerID string) (*ThreadP
 		extras = append(extras, missingQuotes...)
 	}
 
+	// Le fil est PUBLIC (auth optionnelle) : la visibilité de la pensée
+	// elle-même doit être vérifiée, pas seulement celle du profil. Une pensée
+	// « followers » reste indistinguable d'une pensée inexistante.
+	if err := s.dropInvisiblePosts(ctx, all, viewerID); err != nil {
+		return nil, err
+	}
+	if all[postID] == nil {
+		return nil, ErrNotFound
+	}
+
 	allIDs := append([]string{postID}, extras...)
 	attachments, err := posts.AttachmentsFor(ctx, s.q, allIDs)
 	if err != nil {
