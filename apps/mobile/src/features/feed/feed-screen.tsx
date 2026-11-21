@@ -23,6 +23,7 @@ import { ThemedView } from '@/components/themed-view';
 import { PostFeedLoadingPlaceholder } from '@/components/ui/skeleton';
 import { ThoughtFeedSlice } from '@/components/thought/thought-feed-slice';
 import { FeedEmptyState, FeedEndOfFeed, FeedErrorState } from '@/features/feed/feed-states';
+import { feedSliceId, mergeAdoptedSlices } from '@/features/feed/feed-pill';
 import { Spacing } from '@/constants/theme';
 import { useRealtimeFeedPill } from '@/hooks/use-realtime-feed-pill';
 import { useTheme } from '@/hooks/use-theme';
@@ -40,6 +41,8 @@ type FeedTab = 'for_you' | 'following';
 export function FeedScreen() {
   const theme = useTheme();
   const [tab, setTab] = useState<FeedTab>('for_you');
+  /** Pensées adoptées (pill tapée) : gardées visibles jusqu'au prochain refetch. */
+  const [adopted, setAdopted] = useState<FeedSlice[]>([]);
   const { scrollY, isScrollingDown, onScrollHandler } = useScrollCoordination();
   const listRef = useRef<FlashListRef<FeedRow>>(null);
 
@@ -152,7 +155,17 @@ export function FeedScreen() {
 
   // ── Intercalage pensées + articles par date (comme le web) ──
   const rows = useMemo<FeedRow[]>(() => {
-    const thoughtRows: { ts: number; row: FeedRow }[] = thoughts.map((slice) => ({
+    // Pensées adoptées d'abord (les plus récentes en tête), sans doublon avec
+    // celles déjà arrivées par la pagination.
+    const seenThoughts = new Set<string>();
+    const allThoughts: FeedSlice[] = [];
+    for (const slice of [...adopted, ...thoughts]) {
+      const id = feedSliceId(slice);
+      if (seenThoughts.has(id)) continue;
+      seenThoughts.add(id);
+      allThoughts.push(slice);
+    }
+    const thoughtRows: { ts: number; row: FeedRow }[] = allThoughts.map((slice) => ({
       ts: new Date(slice.targetPost?.createdAt || 0).getTime(),
       row: { kind: 'thought', slice },
     }));
@@ -161,7 +174,7 @@ export function FeedScreen() {
       row: { kind: 'article', article },
     }));
     return [...thoughtRows, ...articleRows].sort((a, b) => b.ts - a.ts).map((entry) => entry.row);
-  }, [thoughts, articleItems]);
+  }, [thoughts, adopted, articleItems]);
 
   // ── Pill temps réel ──────────────────────────────────────────
   const visibleIds = useMemo(
@@ -180,9 +193,13 @@ export function FeedScreen() {
     await Promise.all([refetch(), tab === 'for_you' ? articles.refetch() : Promise.resolve()]);
   }, [refetch, articles, tab]);
 
-  // Insère les nouvelles pensées en tête de liste.
+  // Insère les nouvelles pensées en tête de liste : on les ADOPTE (état
+  // local) au lieu de seulement vider le buffer, sinon elles disparaîtraient
+  // du rendu — le feed paginé en cache ne les contient pas encore.
   const flushNew = useCallback(() => {
-    flush();
+    const flushed = flush();
+    if (flushed.length === 0) return;
+    setAdopted((prev) => mergeAdoptedSlices(prev, flushed));
   }, [flush]);
 
   const displayedRows = useMemo<FeedRow[]>(() => {
@@ -193,6 +210,7 @@ export function FeedScreen() {
 
   const handleSelectTab = useCallback((newTab: FeedTab) => {
     hasUserTouchedScroll.current = false;
+    setAdopted([]);
     setTab(newTab);
     listRef.current?.scrollToOffset({ offset: 0, animated: true });
   }, []);

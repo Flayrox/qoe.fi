@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { feedSliceId, pickNewSlices } from '@/features/feed/feed-pill';
 import { apiClient } from '@/lib/api';
 import type { FeedSlice } from '@qoe/sdk/mobile';
 
@@ -39,23 +40,25 @@ export function useRealtimeFeedPill({
   }, [enabled]);
 
   const adopt = useCallback((slices: FeedSlice[]) => {
-    const fresh: FeedSlice[] = [];
-    for (const slice of slices) {
-      // Une pensée est « nouvelle » si son target n'est ni visible ni déjà en buffer.
-      const id = slice.targetPost?.id || slice.id;
-      if (visibleRef.current.has(id)) continue;
-      if (unreadRef.current.some((u) => (u.targetPost?.id || u.id) === id)) continue;
-      fresh.push(slice);
-    }
+    // Une pensée est « nouvelle » si son target n'est ni visible ni déjà en buffer.
+    const known = [...visibleRef.current, ...unreadRef.current.map(feedSliceId)];
+    const fresh = pickNewSlices(slices, known);
     if (fresh.length > 0) {
       unreadRef.current = [...fresh, ...unreadRef.current];
       setUnread(unreadRef.current);
     }
   }, []);
 
-  const flush = useCallback(() => {
+  /**
+   * Vide le buffer et RETOURNE ses tranches : l'appelant les garde affichées
+   * en tête de liste (sinon elles disparaîtraient au tap sur la pill, le feed
+   * paginé en cache ne les contenant pas encore).
+   */
+  const flush = useCallback((): FeedSlice[] => {
+    const flushed = unreadRef.current;
     unreadRef.current = [];
     setUnread([]);
+    return flushed;
   }, []);
 
   useEffect(() => {
