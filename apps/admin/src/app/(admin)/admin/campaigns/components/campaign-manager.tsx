@@ -114,7 +114,7 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
           disabled={!canWrite}
           onClick={() => setShowNew((open) => !open)}
           data-testid="campaign-toggle-new"
-          className="text-xs font-bold px-4 py-2 rounded-xl bg-[#EE4B2B] text-white cursor-pointer flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="text-xs font-bold px-4 py-2 rounded-xl bg-primary text-primary-foreground cursor-pointer flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Plus className="w-3 h-3" /> {showNew ? 'Fermer' : 'Nouvelle campagne'}
         </button>
@@ -129,7 +129,7 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
 
       {canWrite && showNew && (
         <section
-          className="space-y-3 rounded-lg border border-border bg-white p-5 shadow-sm"
+          className="space-y-3 rounded-lg border border-border bg-card p-5 shadow-sm"
           data-testid="campaign-form"
         >
           <div className="grid gap-3 md:grid-cols-2">
@@ -210,7 +210,7 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
             onClick={create}
             disabled={running || subject.trim() === '' || bodyHtml.trim() === ''}
             data-testid="campaign-create"
-            className="text-xs font-bold px-4 py-2 rounded-xl bg-[#EE4B2B] text-white cursor-pointer flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="text-xs font-bold px-4 py-2 rounded-xl bg-primary text-primary-foreground cursor-pointer flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {running ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
             Créer le brouillon
@@ -228,7 +228,7 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
           {initialCampaigns.map((campaign) => (
             <li
               key={campaign.id}
-              className="rounded-lg border border-border bg-white p-5 shadow-sm space-y-3"
+              className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-3"
               data-testid={`campaign-${campaign.status}`}
             >
               <div className="flex flex-wrap items-center justify-between gap-2">

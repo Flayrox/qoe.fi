@@ -46,7 +46,7 @@ export default async function AdminFeaturesPage() {
             <form
               key={feature.key}
               action={updateFeatureAction}
-              className="grid gap-3 rounded-lg border border-border/60 bg-white p-5 shadow-sm md:grid-cols-[1fr_1fr_1fr_auto] md:items-end"
+              className="grid gap-3 rounded-lg border border-border/60 bg-card p-5 shadow-sm md:grid-cols-[1fr_1fr_1fr_auto] md:items-end"
             >
               <input type="hidden" name="key" value={feature.key} />
               <div>
@@ -106,7 +106,7 @@ export default async function AdminFeaturesPage() {
                 <button
                   type="submit"
                   disabled={!canWrite}
-                  className="rounded-xl bg-[#EE4B2B] px-3 py-2 text-xs font-bold text-white disabled:opacity-40"
+                  className="rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-40"
                 >
                   Enregistrer
                 </button>

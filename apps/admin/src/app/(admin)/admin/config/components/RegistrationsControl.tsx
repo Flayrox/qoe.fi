@@ -180,7 +180,7 @@ export function RegistrationsControl({
             type="button"
             disabled={isPending || !email.trim()}
             onClick={handleAdd}
-            className="flex items-center justify-center gap-2 text-sm font-bold text-white bg-[var(--qoe-vermillion)] hover:bg-[var(--qoe-vermillion)]/90 px-5 py-2 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+            className="flex items-center justify-center gap-2 text-sm font-bold text-primary-foreground bg-[var(--qoe-vermillion)] hover:bg-[var(--qoe-vermillion)]/90 px-5 py-2 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
           >
             <UserPlus className="w-4 h-4" />
             Inviter

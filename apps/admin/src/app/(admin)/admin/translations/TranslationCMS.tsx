@@ -454,7 +454,7 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
           className={`p-3 rounded-lg border flex items-center gap-2 text-[11px] font-bold ${
             saveStatus === 'success'
               ? 'bg-success/10 border-success text-success-text'
-              : 'bg-destructive/10 border-destructive text-[#EE4B2B]'
+              : 'bg-destructive/10 border-destructive text-primary'
           }`}
         >
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
@@ -486,7 +486,7 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
       )}
 
       {/* High-density grid-table of keys */}
-      <div className="border border-border rounded-xl overflow-hidden bg-white shadow-xs">
+      <div className="border border-border rounded-xl overflow-hidden bg-card shadow-xs">
         {/* Table Header */}
         <div className="grid grid-cols-12 gap-4 bg-muted border-b border-border px-4 py-2 text-[10px] uppercase font-bold text-muted-foreground select-none">
           <div className="col-span-3">Clé / Identifiant</div>
@@ -561,9 +561,9 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
                       value={overrides.fr?.[key] ?? ''}
                       placeholder={defaultFrVal}
                       onChange={(e) => handleOverrideChange('fr', key, e.target.value)}
-                      className={`w-full bg-muted/30 border rounded-lg px-2 py-1 text-[11px] focus:ring-1 focus:ring-[#EE4B2B] focus:border-[#EE4B2B] focus:bg-white outline-none transition-colors ${
+                      className={`w-full bg-muted/30 border rounded-lg px-2 py-1 text-[11px] focus:ring-1 focus:ring-primary focus:border-primary focus:bg-card outline-none transition-colors ${
                         isOverriddenFr
-                          ? 'border-[#EE4B2B]/40 bg-destructive/10 font-medium'
+                          ? 'border-primary/40 bg-destructive/10 font-medium'
                           : 'border-border'
                       }`}
                     />
@@ -586,9 +586,9 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
                       value={overrides.en?.[key] ?? ''}
                       placeholder={defaultEnVal || (defaultFrVal ? 'Traduire en anglais…' : '')}
                       onChange={(e) => handleOverrideChange('en', key, e.target.value)}
-                      className={`w-full bg-muted/30 border rounded-lg px-2 py-1 text-[11px] focus:ring-1 focus:ring-[#EE4B2B] focus:border-[#EE4B2B] focus:bg-white outline-none transition-colors ${
+                      className={`w-full bg-muted/30 border rounded-lg px-2 py-1 text-[11px] focus:ring-1 focus:ring-primary focus:border-primary focus:bg-card outline-none transition-colors ${
                         isOverriddenEn
-                          ? 'border-[#EE4B2B]/40 bg-destructive/10 font-medium'
+                          ? 'border-primary/40 bg-destructive/10 font-medium'
                           : isUntranslated
                             ? 'border-highlight/50 bg-highlight/10 placeholder:text-highlight/60'
                             : 'border-border'
@@ -620,7 +620,7 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
 
       {/* Floating Save Banner (only if dirty) */}
       {isDirty && (
-        <div className="fixed bottom-6 right-6 z-40 bg-white border border-border rounded-lg px-5 py-3 shadow-xl flex items-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed bottom-6 right-6 z-40 bg-card border border-border rounded-lg px-5 py-3 shadow-xl flex items-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
           <div className="flex flex-col gap-0.5">
             <span className="text-xs font-bold text-foreground">Modifications en attente</span>
             <span className="text-[10px] text-muted-foreground">
@@ -630,7 +630,7 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
           <button
             type="button"
             onClick={() => setShowModal(true)}
-            className="inline-flex items-center gap-1.5 text-xs bg-[#EE4B2B] text-white font-bold px-4 py-2.5 rounded-xl hover:opacity-95 transition-all cursor-pointer shadow-sm"
+            className="inline-flex items-center gap-1.5 text-xs bg-primary text-primary-foreground font-bold px-4 py-2.5 rounded-xl hover:opacity-95 transition-all cursor-pointer shadow-sm"
           >
             <Save className="w-4 h-4" /> Enregistrer
           </button>

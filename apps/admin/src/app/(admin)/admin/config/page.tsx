@@ -211,7 +211,7 @@ export default async function AdminConfig() {
           <div className="shrink-0 mb-1">
             <button
               type="submit"
-              className="text-sm font-medium text-foreground hover:text-[#EE4B2B] transition-colors bg-secondary hover:bg-border px-3 py-1.5 rounded-lg"
+              className="text-sm font-medium text-foreground hover:text-primary transition-colors bg-secondary hover:bg-border px-3 py-1.5 rounded-lg"
             >
               Add
             </button>

@@ -308,7 +308,7 @@ function ReaderSimulationBuilder({
           items.map((item, idx) => (
             <div
               key={idx}
-              className="flex items-start p-3 gap-3 hover:bg-white/60 transition-colors group"
+              className="flex items-start p-3 gap-3 hover:bg-card/60 transition-colors group"
             >
               {/* Type Select */}
               <Select
@@ -375,7 +375,7 @@ function ReaderSimulationBuilder({
       <button
         type="button"
         onClick={addItem}
-        className="w-full flex items-center justify-center gap-1.5 border border-dashed border-border hover:border-border text-muted-foreground hover:text-foreground text-xs font-semibold py-2.5 rounded-xl bg-white hover:bg-muted transition-colors shadow-sm"
+        className="w-full flex items-center justify-center gap-1.5 border border-dashed border-border hover:border-border text-muted-foreground hover:text-foreground text-xs font-semibold py-2.5 rounded-xl bg-card hover:bg-muted transition-colors shadow-sm"
       >
         <Plus className="w-4 h-4" /> {t`Ajouter un bloc de lecture`}
       </button>
@@ -471,7 +471,7 @@ function CreatorHubTabsBuilder({
               onClick={() => setActiveTabIdx(idx)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 activeTabIdx === idx
-                  ? 'bg-foreground text-white shadow-sm'
+                  ? 'bg-foreground text-background shadow-sm'
                   : 'bg-muted text-muted-foreground hover:text-foreground border border-border'
               }`}
             >
@@ -499,7 +499,7 @@ function CreatorHubTabsBuilder({
               type="text"
               value={currentTab.tab || ''}
               onChange={(e) => updateTabField(activeTabIdx, 'tab', e.target.value)}
-              className="w-full bg-white border border-border rounded-lg p-2.5 text-sm font-medium text-foreground focus:ring-1 focus:ring-[#EE4B2B] focus:border-[#EE4B2B] outline-none"
+              className="w-full bg-card border border-border rounded-lg p-2.5 text-sm font-medium text-foreground focus:ring-1 focus:ring-primary focus:border-primary outline-none"
             />
           </div>
 
@@ -511,7 +511,7 @@ function CreatorHubTabsBuilder({
               type="text"
               value={currentTab.eyebrow || ''}
               onChange={(e) => updateTabField(activeTabIdx, 'eyebrow', e.target.value)}
-              className="w-full bg-white border border-border rounded-lg p-2.5 text-sm font-medium text-foreground focus:ring-1 focus:ring-[#EE4B2B] focus:border-[#EE4B2B] outline-none"
+              className="w-full bg-card border border-border rounded-lg p-2.5 text-sm font-medium text-foreground focus:ring-1 focus:ring-primary focus:border-primary outline-none"
             />
           </div>
         </div>
@@ -524,7 +524,7 @@ function CreatorHubTabsBuilder({
             type="text"
             value={currentTab.headline || ''}
             onChange={(e) => updateTabField(activeTabIdx, 'headline', e.target.value)}
-            className="w-full bg-white border border-border rounded-lg p-2.5 text-sm font-medium text-foreground focus:ring-1 focus:ring-[#EE4B2B] focus:border-[#EE4B2B] outline-none"
+            className="w-full bg-card border border-border rounded-lg p-2.5 text-sm font-medium text-foreground focus:ring-1 focus:ring-primary focus:border-primary outline-none"
           />
         </div>
 
@@ -535,7 +535,7 @@ function CreatorHubTabsBuilder({
           <textarea
             value={currentTab.body || ''}
             onChange={(e) => updateTabField(activeTabIdx, 'body', e.target.value)}
-            className="w-full bg-white border border-border rounded-lg p-2.5 text-sm font-medium text-foreground focus:ring-1 focus:ring-[#EE4B2B] focus:border-[#EE4B2B] outline-none"
+            className="w-full bg-card border border-border rounded-lg p-2.5 text-sm font-medium text-foreground focus:ring-1 focus:ring-primary focus:border-primary outline-none"
             rows={3}
           />
         </div>
@@ -548,12 +548,12 @@ function CreatorHubTabsBuilder({
           <div className="space-y-2">
             {currentTab.features?.map((feat, featIdx) => (
               <div key={featIdx} className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#EE4B2B] shrink-0" />
+                <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
                 <input
                   type="text"
                   value={feat}
                   onChange={(e) => updateFeature(activeTabIdx, featIdx, e.target.value)}
-                  className="flex-1 bg-white border border-border rounded-lg py-1.5 px-2.5 text-xs font-medium text-foreground focus:ring-1 focus:ring-[#EE4B2B]/40 focus:border-[#EE4B2B] outline-none"
+                  className="flex-1 bg-card border border-border rounded-lg py-1.5 px-2.5 text-xs font-medium text-foreground focus:ring-1 focus:ring-primary/40 focus:border-primary outline-none"
                 />
                 <button
                   type="button"
@@ -584,7 +584,7 @@ function CreatorHubTabsBuilder({
               type="text"
               value={currentTab.cta || ''}
               onChange={(e) => updateTabField(activeTabIdx, 'cta', e.target.value)}
-              className="w-full bg-white border border-border rounded-lg p-2.5 text-xs font-semibold text-foreground focus:ring-1 focus:ring-[#EE4B2B] focus:border-[#EE4B2B] outline-none"
+              className="w-full bg-card border border-border rounded-lg p-2.5 text-xs font-semibold text-foreground focus:ring-1 focus:ring-primary focus:border-primary outline-none"
             />
           </div>
 
@@ -596,7 +596,7 @@ function CreatorHubTabsBuilder({
               type="text"
               value={currentTab.ctaHref || ''}
               onChange={(e) => updateTabField(activeTabIdx, 'ctaHref', e.target.value)}
-              className="w-full bg-white border border-border rounded-lg p-2.5 text-xs font-semibold text-foreground focus:ring-1 focus:ring-[#EE4B2B] focus:border-[#EE4B2B] outline-none"
+              className="w-full bg-card border border-border rounded-lg p-2.5 text-xs font-semibold text-foreground focus:ring-1 focus:ring-primary focus:border-primary outline-none"
             />
           </div>
         </div>
@@ -747,7 +747,7 @@ function FooterColumnsBuilder({
                       value={link.label}
                       onChange={(e) => updateLinkField(colIdx, linkIdx, 'label', e.target.value)}
                       placeholder={t`Libellé du lien`}
-                      className="flex-1 bg-white border border-border rounded-lg py-1.5 px-2.5 text-xs font-semibold text-foreground focus:ring-1 focus:ring-[#EE4B2B]/40 focus:border-[#EE4B2B] outline-none"
+                      className="flex-1 bg-card border border-border rounded-lg py-1.5 px-2.5 text-xs font-semibold text-foreground focus:ring-1 focus:ring-primary/40 focus:border-primary outline-none"
                     />
 
                     {/* External link indicator toggle */}
@@ -759,8 +759,8 @@ function FooterColumnsBuilder({
                       }
                       className={`p-1.5 rounded-lg border text-xs flex items-center justify-center shrink-0 ${
                         link.isExternal
-                          ? 'bg-[#EE4B2B]/10 border-[#EE4B2B]/20 text-[#EE4B2B]'
-                          : 'bg-white border-border text-muted-foreground hover:text-muted-foreground'
+                          ? 'bg-primary/10 border-primary/20 text-primary'
+                          : 'bg-card border-border text-muted-foreground hover:text-muted-foreground'
                       }`}
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
@@ -792,7 +792,7 @@ function FooterColumnsBuilder({
             <button
               type="button"
               onClick={() => addLinkToCol(colIdx)}
-              className="w-full flex items-center justify-center gap-1 border border-dashed border-border hover:border-border text-[11px] font-semibold text-muted-foreground hover:text-muted-foreground py-1.5 rounded-lg bg-white/40 hover:bg-white transition-colors"
+              className="w-full flex items-center justify-center gap-1 border border-dashed border-border hover:border-border text-[11px] font-semibold text-muted-foreground hover:text-muted-foreground py-1.5 rounded-lg bg-card/40 hover:bg-card transition-colors"
             >
               <Plus className="w-3 h-3" /> {t`Ajouter un lien`}
             </button>
@@ -803,7 +803,7 @@ function FooterColumnsBuilder({
       <button
         type="button"
         onClick={addColumn}
-        className="w-full flex items-center justify-center gap-1.5 border border-dashed border-border hover:border-border text-muted-foreground hover:text-foreground text-xs font-semibold py-2.5 rounded-xl bg-white hover:bg-muted transition-colors shadow-sm"
+        className="w-full flex items-center justify-center gap-1.5 border border-dashed border-border hover:border-border text-muted-foreground hover:text-foreground text-xs font-semibold py-2.5 rounded-xl bg-card hover:bg-muted transition-colors shadow-sm"
       >
         <Plus className="w-4 h-4" /> {t`Ajouter un groupe de liens`}
       </button>
@@ -870,7 +870,7 @@ function OnboardingInterestsBuilder({
             }
           }}
           placeholder={t`Ajouter un centre d'intérêt (ex: Technologie, Économie...)`}
-          className="flex-1 bg-white border border-border rounded-lg p-2 text-sm focus:ring-1 focus:ring-[#EE4B2B] focus:border-[#EE4B2B] outline-none"
+          className="flex-1 bg-card border border-border rounded-lg p-2 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none"
         />
         <button
           type="button"
@@ -890,7 +890,7 @@ function OnboardingInterestsBuilder({
           {interests.map((interest, idx) => (
             <div
               key={idx}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-border rounded-full text-xs font-semibold text-foreground shadow-sm transition-all hover:border-[#EE4B2B]/40 group"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-card border border-border rounded-full text-xs font-semibold text-foreground shadow-sm transition-all hover:border-primary/40 group"
             >
               <span>{interest}</span>
               <button
@@ -1059,7 +1059,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
             >
               {tab.label}
               {isActive && (
-                <div className="absolute left-0 top-1.5 bottom-1.5 w-0.5 bg-[#EE4B2B] rounded-full hidden lg:block" />
+                <div className="absolute left-0 top-1.5 bottom-1.5 w-0.5 bg-primary rounded-full hidden lg:block" />
               )}
             </button>
           );
@@ -1067,14 +1067,14 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
       </aside>
 
       {/* Right Content: Active Form workspace */}
-      <div className="flex-1 w-full min-w-0 bg-white">
+      <div className="flex-1 w-full min-w-0 bg-card">
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Header & Lang Toggle */}
           <div className="flex items-center justify-between border-b border-border pb-5">
             <div>
               <h2 className="text-xl font-semibold tracking-tight text-foreground flex items-center gap-1.5">
                 {tabs.find((t) => t.key === activeTab)?.label}
-                <Sparkles className="w-4 h-4 text-[#EE4B2B] animate-pulse" />
+                <Sparkles className="w-4 h-4 text-primary animate-pulse" />
               </h2>
               <p className="text-xs text-muted-foreground mt-1">
                 {t`Configurez le contenu en base de données de cette section.`}
@@ -1095,7 +1095,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                       onClick={() => setActiveLang(lang)}
                       className={`px-3 py-1.5 rounded-md font-medium transition-all ${
                         activeLang === lang
-                          ? 'bg-white text-foreground shadow-sm'
+                          ? 'bg-card text-foreground shadow-sm'
                           : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
@@ -1139,7 +1139,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                           }
                           className="sr-only peer"
                         />
-                        <div className="w-11 h-6 bg-input peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#EE4B2B]"></div>
+                        <div className="w-11 h-6 bg-input peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-background after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-background after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                       </label>
                     </div>
 
@@ -1259,7 +1259,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                         value={formValues['featured_background_words'] || ''}
                         onChange={(e) => updateValue('featured_background_words', e.target.value)}
                         placeholder={t`Phénoménologie, Dialectique, Épistémologie, Herméneutique, Ontologie...`}
-                        className="w-full bg-white border border-border rounded-xl p-3 text-sm text-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
+                        className="w-full bg-card border border-border rounded-xl p-3 text-sm text-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
                         rows={5}
                       />
                     </div>
