@@ -67,6 +67,15 @@ func (s *Service) Review(ctx context.Context, articleID, userID string, approve 
 		return errors.New("Vous n'avez pas la permission de revoir cet article.")
 	}
 
+	// Approuver publie : ce pouvoir ne peut pas découler de media:review seul.
+	// Un rôle personnalisé « relecteur sans publication » ne doit pas pouvoir
+	// mettre un article en ligne ; on refuse explicitement au lieu de publier
+	// en silence. (Les rôles par défaut owner/editor ont les deux droits, donc
+	// aucun parcours existant ne change.)
+	if approve && !row.Published && !mc.can(permissions.PermPublishAny) {
+		return errors.New("Approuver publie l'article : la revue exige aussi media:publish:any.")
+	}
+
 	status, published := reviewTargetState(approve, row.Published)
 	if approve && row.DraftContent.Valid && row.DraftContent.String != "" {
 		if _, err := s.q.PublishArticleDraft(ctx, articleID); err != nil {
