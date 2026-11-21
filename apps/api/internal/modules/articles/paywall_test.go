@@ -46,9 +46,9 @@ func TestCheckContentAccess(t *testing.T) {
 	if CheckContentAccess(VisTierSpecific, UserEntitlements{IsPaidSubscriber: true, TierID: tier("t2")}, tier("t1")) {
 		t.Error("tier différent → refusé")
 	}
-	// Inconnu → true (par défaut ouvert).
-	if !CheckContentAccess("BOGUS", none, nil) {
-		t.Error("visibilité inconnue → accès ouvert")
+	// Inconnu → false (fermé par défaut, jamais de fuite de contenu payant).
+	if CheckContentAccess("BOGUS", none, nil) {
+		t.Error("visibilité inconnue → accès refusé")
 	}
 }
 

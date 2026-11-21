@@ -66,7 +66,9 @@ func CheckContentAccess(visibility string, e UserEntitlements, requiredTierID *s
 		}
 		return e.TierID != nil && *e.TierID == *requiredTierID
 	}
-	return true
+	// Fermé par défaut : une visibilité hors enum (valeur future, casse
+	// fautive, donnée corrompue) n'ouvre jamais le contenu payant.
+	return false
 }
 
 // SliceContentAtPaywall applique la troncature (miroir TS) : jamais de contenu
