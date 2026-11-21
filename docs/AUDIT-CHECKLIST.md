@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (217 f. prod · 67 491 l.) | **en cours** (ouvert le 2026-11-21, non entamé) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (217 f. prod · 67 491 l.) | **en cours** (L29a `articles` cœur clos le 2026-11-22 ; L29b = 9 f. · 1 822 l.) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -126,6 +126,13 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 **En cours : L29 — `apps/api/internal/modules/**`** (périmètre remesuré à l'ouverture du 2026-11-21 :
 **449 fichiers Go** = **217 de production · 67 491 l.** + **232 de tests · 48 425 l.**, le plus gros lot de la
 campagne — à découper en tranches par module).
+**L29a est clos le 2026-11-22** : module `articles` (18 f. · 5 922 l.) découpé, **cœur article 9 f. · 4 100 l.** lu
+intégralement, **3 défauts** F426 (paywall fail-open sur visibilité inconnue), F427 (teaser coupé au milieu d'un
+caractère UTF-8), F428 (rejet de révision qui dépubliait un article en ligne) corrigés avec rouge cité et
+contre-preuve, dettes **R189** (repli silencieux sur l'owner du média à la création) et **R190** (revue qui publie
+sans `PermPublishAny`) ouvertes. **Lot suivant de L29, « En cours » : L29b** — `articles` périphériques,
+**9 f. · 1 822 l.** (`sovereignty 372`, `email 270`, `attribution 243`, `comments 217`, `listen_later 186`,
+`events 148`, `distribution 135`, `analytics_batch 131`, `creator_bridge 120`).
 **L28 est clos le 2026-11-21** : les **17 fichiers de production · 4 103 l.** lus intégralement, **3 défauts**
 F423–F425 corrigés avec rouge cité et contre-preuve, dettes R185–R188 ouvertes. `adminauthz` reste **non concluant**
 pour ses 10 tests à base réelle (`PostgreSQL de test indisponible … rootless Docker not found`), pas vert.
@@ -2046,6 +2053,68 @@ le canal natif reste). **R164** : `grants-manager` recharge la page entière apr
 **L22f est clos.** Huit défauts corrigés (F390–F397), huit suites ajoutées là où il n'y en avait aucune, garde de
 palette étendue à onze racines. **L22 est clos** (L22a→L22f : **45 défauts** F353–F397).
 **Prochain lot : L23** — `apps/tenants/src/**` (publications multi-tenant), périmètre à remesurer à l'ouverture.
+
+## L29a — `apps/api/internal/modules/articles/**` (cœur article) — **clos le 2026-11-22**
+
+**Périmètre remesuré à l'ouverture.** Le module `articles` fait **18 fichiers de production · 5 922 l.** — au-delà de
+la tranche de ~4 500 l. : découpé en deux lots. **L29a = cœur de l'article, 9 fichiers · 4 100 l.** (avant correctifs) :
+`service 1891`, `handler 1246`, `publishing 294`, `review 192`, `paywall 145`, `contract 112`, `helpers 97`,
+`shortcode 81`, `content 42`. **L29b = périphériques, 9 fichiers · 1 822 l.**, nommés au paragraphe « Reste à faire ».
+Les deux `testdata/*.golden.json` (47 l.) sont des données, pas du code de production.
+
+**Lecture : 9 / 9 fichiers de production · 4 100 / 4 100 lignes (100 %)**, chacun lu jusqu'à sa dernière ligne par
+tranches bornées recoupées avec `wc -l` (`service.go` en 4 tranches 1-470 / 471-940 / 941-1420 / 1421-1891,
+`handler.go` en 2 tranches 1-620 / 621-1246, puis `publishing`, `review`, `paywall`, `contract`, `helpers`,
+`shortcode`, `content` d'un bloc chacun — pied de réponse vérifié à chaque fois contre le total du fichier).
+Après correctifs le lot pèse **4 124 l.** (`review 200`, `paywall 161`) et ses tests **21 fichiers · 4 246 l.**
+
+**Déclarés sains** (aucun correctif inventé) : `contract.go` (enveloppe `{data, pagination}`, `PageToOffset` borné,
+`ParsePageLimit` plafonné à 100 — verrouillé par golden tests), `helpers.go` (conversions `pgtype` nil-safe, aucune
+valeur zéro confondue avec une valeur absente), `shortcode.go` (collision d'index unique régénérée 5 fois puis
+erreur explicite ; résolution publique filtrée sur `published` **et** `status='PUBLISHED'`), `content.go`
+(markdown → HTML par goldmark avec raw HTML échappé, format inconnu refusé en amont), `handler.go` (les 30 routes
+protégées portent `requireScope(READ|WRITE)` ; `h.sec` nil-safe depuis F419 ; erreurs distinguées 404/403/409/429/503),
+`publishing.go` (`SetStatus`/`Schedule`/`Unpublish` exigent `mc.can(PermPublishAny)`, refus explicite d'un
+co-auteur non-membre d'un média, annulation de programmation idempotente), `service.go` (`authorizeEdit` unique pour
+`Update` et les toggles : auteur direct, principal clé média, co-auteur, puis permissions ; `Delete` revérifie
+`PermDeleteAny`/`PermEditOwn`).
+
+**Non-défauts documentés** (vérifiés, pas corrigés) : 1) `activePublisherId` **fourni par le client** (`PATCH /{id}`
+body, `DELETE ?activePublisherId=`) ne contourne pas les permissions — il ne fait que sauter le *premier* gate, puis
+`resolveMember` + `CanEditMediaArticle`/`PermDeleteAny` restent seuls juges : aucune escalade, on documente la
+dépendance au second gate. 2) `TIER_SPECIFIC` sans `requiredTierId` ouvre à **tout abonné payant** (`paywall.go`) :
+comportement verrouillé par un test existant et cohérent avec « premium = tous les payants » ; le retourner exigerait
+une décision produit, pas une correction unilatérale. 3) Les `_ = …` de `auditMedia`/`captureSnapshot`/
+`queueSearchSync` sont des écritures best-effort explicitement commentées (elles ne doivent pas annuler une
+publication réussie).
+
+| # | Défaut | Rouge mesuré (cité) | Correctif |
+|---|---|---|---|
+| **F426** | `CheckContentAccess` retombait sur `true` pour toute visibilité hors enum : une valeur future, une casse fautive (`members_only`) ou une donnée corrompue servait le **contenu verrouillé en clair** à un lecteur anonyme (fail-open sur la décision d'accès) ; un test verrouillait même l'ouverture. | `paywall_failclosed_test.go:21: visibilité "BOGUS" : accès accordé à {IsMember:false IsPaidSubscriber:false TierID:<nil>} (fail-open)` puis `:33 AccessGranted=true sur visibilité inconnue` | Décision **fermée par défaut** (`return false` hors enum), test existant retourné en assertion de refus, test de non-fuite sur la troncature associée. `e429e14c` |
+| **F427** | Le repli « 500 premiers octets » du teaser coupait au milieu d'un caractère multi-octets : le contenu servi aux non-abonnés n'était plus de l'UTF-8 valide et `previewLengthBytes` mentait. | `paywall_failclosed_test.go:51: teaser UTF-8 invalide (500 octets)` | `cutUTF8` recule jusqu'au début du caractère (`unicode/utf8`), métadonnées alignées sur la longueur réelle. `3ce3f1d1` |
+| **F428** | `Review` (rejet) écrivait `status=DRAFT` avec `published=true` sur un article **en ligne** : les résolutions publiques filtrent sur `status='PUBLISHED'`, donc les liens courts `/l/{code}` d'un article toujours visible cessaient de se résoudre (statut incohérent, publication à moitié défaite). | `review_state_test.go:15: rejet sur article en ligne : status="DRAFT", attendu PUBLISHED (liens courts cassés)` | Transition extraite et corrigée : rejet d'un article en ligne conserve `(PUBLISHED, true)`, brouillon gardé pour retouches ; approbation et rejet de brouillon inchangés. `a1178d94` |
+
+**Batterie de clôture (mesures du tour).** `go vet ./internal/...` **0** · `go build ./...` **0** ·
+`go test ./internal/modules/articles/` **ok** (toutes les suites unitaires ; les suites à base réelle sont sautées par
+testcontainers) ; paquets de référence `middleware`, `secguard`, `authz`, `identity`, `apiaccess`, `permissions`
+**ok** ; `adminauthz` **FAIL** sur ses **10 tests à base réelle uniquement** (`PostgreSQL de test indisponible …
+rootless Docker not found`) → **non concluant**, pas vert. Workspace : `typecheck` 0, `mobile:typecheck` 0,
+`lint` 0, `ui:audit` 0, `arch:audit` 0, `audit:guard` 0, 7 `guard:*` 0 ; **0 fichier mobile touché** (vérifié sur
+les 3 commits), `git status --porcelain` vide, aucun push.
+
+**Dettes ouvertes du lot.** `R189` — `articles.Create` : quand `userID` est vide (clé API média sans
+`CreatedByUserID`), le service se replie **silencieusement sur l'owner du média** (`SELECT … role='owner'`) ; l'article
+est alors signé par un humain qui n'a pas agi, et la clé emprunte son identité. Trancher produit (auteur = principal
+de la clé ? refus explicite ?) avant de changer : le repli est peut-être un chemin de compatibilité. `R190` —
+`articles.Review` : l'approbation publie (`published=true`) en ne vérifiant que `media:review`, jamais
+`PermPublishAny` — un relecteur sans droit de publication publie donc directement. À arbitrer (revue = droit de
+publier, ou publication réservée), non modifié pour ne pas changer une politique éditoriale sans décision.
+
+**Reste à faire (L29b, lot suivant de L29 — « En cours »).** 9 fichiers de production · **1 822 l.** non lus :
+`sovereignty 372`, `email 270`, `attribution 243`, `comments 217`, `listen_later 186`, `events 148`,
+`distribution 135`, `analytics_batch 131`, `creator_bridge 120`. Priorités identiques (fail-open, isolation tenant,
+validation), avec attention portée à `sendEmail`/`testEmail` (RBAC média, cooldown) et aux chemins
+d'attribution/consentement.
 
 ## L28 — `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}` — **clos le 2026-11-21**
 
