@@ -26,6 +26,19 @@ import { useReduceMotion } from '@/hooks/use-user-settings';
 import { AdaptiveGlassView } from './AdaptiveGlassView';
 import { LiquidTabBarProps, NavigationRoute, TabIconConfig } from './LiquidTabBar.types';
 import { useScrollCoordination } from '@/components/scroll/scroll-context';
+import { t } from '@/lib/i18n';
+
+/**
+ * Libellés annoncés par le lecteur d'écran, par nom de route. Sans eux la
+ * tab bar est le seul chemin de navigation principal de l'app et reste
+ * totalement muette en VoiceOver/TalkBack.
+ */
+const TAB_LABELS: Record<string, string> = {
+  index: t('tabs.home', 'Accueil'),
+  explore: t('tabs.explore', 'Explorer'),
+  notifications: t('tabs.notifications', 'Notifications'),
+  profile: t('tabs.profile', 'Profil'),
+};
 
 const SPRING_SETTLE = { damping: 22, stiffness: 240, mass: 0.5 };
 const SPRING_DRAG = { damping: 26, stiffness: 280, mass: 0.35 };
@@ -897,7 +910,14 @@ export function LiquidTabBar({
                     const isFocused = currentVisibleIndex === index;
                     const cellWidth = tabMetrics.widths[index] ?? 70;
                     return (
-                      <View key={route.key} style={[styles.tabItemCell, { width: cellWidth }]}>
+                      <View
+                        key={route.key}
+                        style={[styles.tabItemCell, { width: cellWidth }]}
+                        accessible
+                        accessibilityRole="button"
+                        accessibilityLabel={TAB_LABELS[route.name] ?? route.name}
+                        accessibilityState={{ selected: isFocused }}
+                      >
                         <TabItem
                           name={route.name}
                           isFocused={isFocused}
@@ -928,7 +948,12 @@ export function LiquidTabBar({
 
         {/* 2. Bouton d'action circulaire séparé (+) Flottant à droite avec physique de choc & superposition */}
         <GestureDetector gesture={composePanGesture}>
-          <Animated.View style={[styles.composeButtonWrapper, composeContainerStyle]}>
+          <Animated.View
+            style={[styles.composeButtonWrapper, composeContainerStyle]}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('tabs.compose', 'Écrire une pensée')}
+          >
             <View style={styles.composePressable}>
               <AdaptiveGlassView
                 style={[
