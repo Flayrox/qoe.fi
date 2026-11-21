@@ -168,14 +168,14 @@ func (s *Service) getCoReadCandidates(ctx context.Context, userID string, cfg en
 	if !ok {
 		return empty
 	}
-	neighborVals := neighborValues(neighbors)
+	nIDs, nAffs := neighborArrays(neighbors)
 
 	rows, err := s.pool.Query(ctx, fmt.Sprintf(`
 		WITH my_reads AS (
 			SELECT "articleId", %s as w FROM "ReadingSession" WHERE "userId" = $1
 		),
 		na AS (
-			SELECT * FROM (%s) AS t(neighbor_id, affinity)
+			SELECT * FROM unnest($2::uuid[], $3::float8[]) AS t(neighbor_id, affinity)
 		),
 		cf_candidates AS (
 			SELECT rs."articleId", SUM(na.affinity * %s) as cf_score
@@ -184,7 +184,7 @@ func (s *Service) getCoReadCandidates(ctx context.Context, userID string, cfg en
 			GROUP BY rs."articleId"
 		)
 		SELECT "articleId", cf_score FROM cf_candidates
-	`, cfStatusWeights, neighborVals, cfStatusWeights), toUUID(userID))
+	`, cfStatusWeights, cfStatusWeights), toUUID(userID), toUUIDSlice(nIDs), nAffs)
 	if err != nil {
 		log.Printf("[feed CF] articles query failed: %v", err)
 		return empty
@@ -208,21 +208,17 @@ func (s *Service) getCoReadCandidates(ctx context.Context, userID string, cfg en
 	return out
 }
 
-// neighborValues construit un VALUES SQL typé (uuid, float8) à partir de la
-// map d'affinités des voisins de lecture.
-func neighborValues(neighbors map[string]float64) string {
-	var sb strings.Builder
-	sb.WriteString("SELECT * FROM (VALUES ")
-	first := true
-	for nid := range neighbors {
-		if !first {
-			sb.WriteString(",")
-		}
-		first = false
-		sb.WriteString("('" + nid + "'::uuid, " + strconv.FormatFloat(neighbors[nid], 'f', -1, 64) + "::float8)")
+// neighborArrays convertit la map d'affinités en deux tableaux parallèles
+// (ids, affinités) passés en paramètres à unnest : jamais de SQL concaténé,
+// même avec des valeurs venues de la base.
+func neighborArrays(neighbors map[string]float64) ([]string, []float64) {
+	ids := make([]string, 0, len(neighbors))
+	affs := make([]float64, 0, len(neighbors))
+	for id, aff := range neighbors {
+		ids = append(ids, id)
+		affs = append(affs, aff)
 	}
-	sb.WriteString(") AS t(neighbor_id, affinity)")
-	return sb.String()
+	return ids, affs
 }
 
 // getCoReadThoughtCandidates — CF collaboratif sur PENSÉES.
@@ -232,11 +228,11 @@ func (s *Service) getCoReadThoughtCandidates(ctx context.Context, userID string,
 	if !ok {
 		return empty
 	}
-	neighborVals := neighborValues(neighbors)
+	nIDs, nAffs := neighborArrays(neighbors)
 
 	rows, err := s.pool.Query(ctx, `
 		WITH na AS (
-			SELECT * FROM (`+neighborVals+`) AS t(neighbor_id, affinity)
+			SELECT * FROM unnest($2::uuid[], $3::float8[]) AS t(neighbor_id, affinity)
 		),
 		cf_thoughts AS (
 			SELECT l."postId" AS id, SUM(na.affinity) AS cf_score
@@ -247,7 +243,7 @@ func (s *Service) getCoReadThoughtCandidates(ctx context.Context, userID string,
 			GROUP BY l."postId"
 		)
 		SELECT id, cf_score FROM cf_thoughts
-	`, toUUID(userID))
+	`, toUUID(userID), toUUIDSlice(nIDs), nAffs)
 	if err != nil {
 		log.Printf("[feed CF] thoughts query failed: %v", err)
 		return empty

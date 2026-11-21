@@ -1,7 +1,6 @@
 package feed
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -112,23 +111,21 @@ func TestParseEmbeddingText(t *testing.T) {
 	}
 }
 
-// TestNeighborValues vérifie la construction du VALUES SQL typé uuid/float8.
-func TestNeighborValues(t *testing.T) {
-	got := neighborValues(map[string]float64{
+// TestNeighborArrays vérifie que les voisins CF partent en tableaux parallèles
+// (paramètres unnest), plus jamais en SQL concaténé.
+func TestNeighborArrays(t *testing.T) {
+	ids, affs := neighborArrays(map[string]float64{
 		"00000000-0000-0000-0000-0000000000aa": 2.5,
 	})
-	if !strings.Contains(got, "00000000-0000-0000-0000-0000000000aa'::uuid") {
-		t.Errorf("uid manquant dans VALUES: %s", got)
+	if len(ids) != 1 || len(affs) != 1 {
+		t.Fatalf("tableaux désalignés: %v / %v", ids, affs)
 	}
-	if !strings.Contains(got, "2.5::float8") {
-		t.Errorf("affinité manquante dans VALUES: %s", got)
+	if ids[0] != "00000000-0000-0000-0000-0000000000aa" || affs[0] != 2.5 {
+		t.Fatalf("voisin perdu: %v / %v", ids, affs)
 	}
-	if !strings.HasPrefix(got, "SELECT * FROM (VALUES ") {
-		t.Errorf("VALUES malformé: %s", got)
-	}
-	// Map vide → clause SELECT sans entrées.
-	empty := neighborValues(map[string]float64{})
-	if !strings.HasPrefix(empty, "SELECT * FROM (VALUES ") {
-		t.Errorf("empty malformé: %s", empty)
+	// Map vide → tableaux vides non nuls (unnest d'un tableau vide = 0 lien).
+	ids, affs = neighborArrays(map[string]float64{})
+	if ids == nil || affs == nil || len(ids) != 0 || len(affs) != 0 {
+		t.Fatalf("vide malformé: %v / %v", ids, affs)
 	}
 }
