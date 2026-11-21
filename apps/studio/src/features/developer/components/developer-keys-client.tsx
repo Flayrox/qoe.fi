@@ -153,6 +153,9 @@ export function DeveloperKeysClient({
         if (res.success && res.key) {
           setKeyModalMode('rotated');
           setGeneratedKey(res.key.secret);
+          // La rotation change le préfixe et la date d'activité : sans
+          // relecture, le tableau décrit la clé révoquée, pas la vivante.
+          await refreshKeys();
           toast.success("Clé d'API rotatée.");
         } else {
           toast.error('Erreur lors de la rotation de la clé.');
@@ -164,6 +167,7 @@ export function DeveloperKeysClient({
         if (res.ok && res.data?.apiKey) {
           setKeyModalMode('rotated');
           setGeneratedKey(res.data.apiKey);
+          await refreshKeys();
           toast.success("Clé d'API rotatée.");
         } else {
           toast.error('Erreur lors de la rotation de la clé.');
