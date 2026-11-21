@@ -104,7 +104,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L20f    | **Validation locale bout en bout** : daemon Docker, `test:api`, `e2e` sur base jetable seedée | —                           | mesuré le 2026-11-20 : daemon **démarré** (OrbStack 29.4.0), `test:api` **✅ 82 paquets**, e2e **18/19 + 128/128** — voir fiche L20f |
 | L20e    | **Validation bout en bout** : `pnpm build` (6 apps), `pnpm test:api` (Go + Postgres), `pnpm e2e` (Playwright)  | —                           | mesuré le 2026-11-20 : **build ✅**, `test:api` **bloqué** (Docker absent), e2e **partiel** (seed absent) — voir fiche L20e |
 | L21     | `apps/studio/src/**`                                                                                         | **412 fichiers · 72 285 l.** (mesuré) | **ouvert le 2026-11-20**, découpé en **8 sous-lots** (L21a→L21h) ; **L21a** (socle : layout, not-found, components, lib, instrumentation) **durci le 2026-11-20** ; **R137 ouverte** ; **L21b clos le 2026-11-20** (frontière vendor/maison mesurée, **7 défauts corrigés** sur deux passages, tiroir modal accessible, **R138 ouverte** — seule dette restante du sous-lot) ; **L21c clos le 2026-11-20** (lecture intégrale des 49 fichiers de production et de leurs appelants, **6 défauts corrigés** F313–F318, **R140** et **R141** ouvertes) ; **L21d clos le 2026-11-20** (32 fichiers lus intégralement + gardes de routage, **2 défauts corrigés** F319–F320, deux échappatoires de type retirées, **R142** ouverte) ; **L21e clos le 2026-11-20** (20 fichiers lus intégralement + page serveur et réutilisations, **8 défauts corrigés** F321–F328 dont 380 l. de code mort supprimées, **R143/R144/R145** ouvertes) ; **L21f clos le 2026-11-20** (34 fichiers lus intégralement, **11 défauts corrigés** F329–F339, **R146/R147/R148** ouvertes) ; **L21g clos le 2026-11-21** (les 39 fichiers de production lus intégralement, **6 défauts corrigés** F340–F345, **R149/R150** ouvertes) ; **L21h clos le 2026-11-21** (30 fichiers lus intégralement, dont les 3 routes `api/**` rattachées, **7 défauts corrigés** F346–F352, **R151/R152/R153** ouvertes) ; **L21 clos** ; prochain = **L22** (`apps/admin/src/**`) |
-| L22     | `apps/admin/src/**`                                                                                          | **149 f. prod · 31 079 l.** (mesuré) | **ouvert le 2026-11-21**, découpé en **6 sous-lots** (L22a→L22f) ; prochain = **L22a** (`coquille, navigation et retours d'autorisation`, 33 f. · 4 611 l.) |
+| L22     | `apps/admin/src/**`                                                                                          | **149 f. prod · 31 079 l.** (mesuré) | **ouvert le 2026-11-21**, découpé en **6 sous-lots** (L22a→L22f) ; **L22a premier passage livré le 2026-11-21** (coquille, navigation et retours d'autorisation : **6 défauts corrigés** F353–F358, 2 fichiers morts supprimés, **R154/R155/R156** ouvertes) ; prochain = **second passage L22a** (DataGrid, GridView, InlineScalar restant, CommandPalette, `queue/**`, `lib/supabase/**`, `admin-actions-index`, `admin-resources`, `authz-feedback`), puis **L22b** |
 | L23     | `apps/tenants/src/**`                                                                                        | 85 fichiers                 | à auditer               |
 | L24     | `apps/hi/src/**`                                                                                             | 40 fichiers                 | à auditer               |
 | L25     | `apps/collab-server/src/**`                                                                                  | 15 fichiers                 | à auditer               |
@@ -123,7 +123,8 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
 | L39     | **Produit, post-audit** : engagement e-mail (clics signés, ouvertures estimées, attribution) — cf. annexe `R49` | —                           | planifié après L37 |
 
-**Prochain lot à traiter : L22 — `apps/admin/src/**`** (178 fichiers).
+**Prochain lot à traiter : L22a (second passage) — `apps/admin/src/**`** (149 fichiers de production mesurés ;
+la coquille compte 33 f. · 4 611 l.).
 L21h (`features/{security,onboarding,upcoming,dashboard,developer,devtools}`, **24 f. · 3 481 l.**, + routes
 `login`/`onboarding` **3 f. · 105 l.** + les **3 routes `api/**`** rattachées à l'ouverture, **30 f. · 3 783 l.** au
 total) est **clos le 2026-11-21** — lecture intégrale des 30 fichiers de production, des 4 suites existantes de
@@ -1587,6 +1588,60 @@ portée : état actif de la navigation (une entrée `/admin` ne doit pas rester 
 de connexion (aucun hôte ni port écrit à la main — axe portabilité), et copies/menus qui ne doivent pas
 laisser filer un rejet. Les correctifs arrivent avec leurs rouges ; ce qui exige une décision de produit
 (interactions natives, métadonnées) part en dette numérotée.
+
+### L22a — navigation, sorties de session et copies : six défauts mesurés — premier passage livré le 2026-11-21
+
+**Périmètre travaillé.** Coquille et retours d'autorisation : `(admin)/admin/layout.tsx`,
+`(admin)/admin/components/{AdminSidebar,WorkTable,CommandPalette,AdminHeader}`, `components/shell/**`
+(DataGrid, RowMenu, GridView, `grid-view`, InlineScalar, CopyableId, MetricChips, tokens),
+`components/security/step-up.tsx`, `lib/{admin-console,admin-identity,admin-app-urls,clipboard,authz-feedback}`
+et les menus de ligne de dix écrans atteints par le même motif de copie. Les filtres de balayage ont été
+lancés sur tout `apps/admin/src` (motifs : `window.prompt|confirm|alert`, `as any|never`, `console.log`,
+`clipboard.writeText`, hôtes et ports littéraux) : c'est ce balayage, pas une impression, qui a fixé la liste.
+
+**Défauts corrigés (F353–F358), chacun avec son rouge constaté puis son vert.**
+
+| # | Défaut | Rouge mesuré (source d'origine) | Correctif |
+| - | ------ | ------------------------------- | --------- |
+| **F353** | `AdminSidebar` allumait `/admin` sur **tous** les écrans (`pathname === item.href \|\| pathname.startsWith(`${item.href}/`)`) et `/admin/access` sur `/admin/access/roles`. | `AdminSidebar.test.tsx` : `expected ['/admin','/admin/reports'] to deeply equal ['/admin/reports']` et `['/admin','/admin/access','/admin/access/roles']` au lieu de `['/admin/access/roles']`. | L'état actif suit `navItemForPath(pathname)?.href` — l'index qui décide déjà de la capacité (plus longue correspondance). |
+| **F354** | Le layout redirigeait vers `http://lvh.me:3010/login` (hôte et port inexistants), `localhost:3010` (le lecteur écoute sur **15402**) et `https://qoe.fi` en dur : changer d'hôte changeait de domaine de session. | `admin-app-urls.test.ts` : `expected false to be true` sur les trois contextes et `expected 'http://lvh.me:3010/home' to be 'http://localhost:15402/home'`. | `lib/admin-app-urls.ts` (`adminLoginUrl`, `adminHomeUrl`) via `getMonorepoUrl('feed'/'admin', host)` de `@qoe/config` — même environnement en dev, domaine officiel en production, aucun hôte littéral (axe 8). |
+| **F355** | `WorkTable` copiait l'identifiant avec `void navigator.clipboard.writeText(...)` : refus du navigateur = rejet muet **et** aucune confirmation de succès. | `WorkTable.test.tsx` : `Unable to find role="status"` sur le refus comme sur le succès. | La copie passe par `copyToClipboard` et la barre de statut annonce « Identifiant copié » ou « Copie impossible — sélectionnez l'identifiant dans l'aperçu ». |
+| **F356** | `InlineDate.commit` comparait le brouillon à `toLocalInput(value)` recalculé de la prop : chaque `blur` suivant avant revalidation rejouait l'écriture **et son audit**. | `InlineScalar.test.tsx` : `expected "vi.fn()" to be called 1 times, but got 2 times`. | Référence `savedLocal` (valeur réellement enregistrée), mise à jour seulement quand `onSave` ne refuse pas. |
+| **F357** | Le même `void navigator.clipboard.writeText` vivait dans **15 menus de ligne** : `users-grid`, `SettingsExplorer` ×2, `DSARRequestsManager`, `support-queue` ×2, `triage-board`, `appeals-queue` ×2, `abuse-queue`, `approvals-queue` ×2, `DeliveryTable` ×2, `moderation-queue` ×2, plus `CopyableId`. | `clipboard.test.ts` : avec la version nue, `promise rejected "Error: denied" instead of resolving` et `TypeError: Cannot read properties of undefined (reading 'writeText')`. | Un point d'entrée `lib/clipboard.ts` (`copyToClipboard → boolean`), utilisé partout : le refus est une valeur, plus un rejet. |
+| **F358** | `grid-view.removeView` retirait la vue localement puis `void deleteSavedViewAction(...)`: un refus laissait un rejet non géré et une vue qui réapparaît au rechargement. | `grid-view.test.tsx` : `expected [] to have a length of 1 but got +0` (la vue ne revenait pas). | Suppression serveur `await`ée ; en cas d'échec la vue est **remise** dans la barre — l'interface ne prétend plus une suppression que la base n'a pas faite. |
+
+**Contre-preuves relancées.** Chaque source corrigée a été remise à son état d'origine (ou vidée de sa garde)
+et la suite correspondante est retombée : les 9 assertions de F353/F354/F355/F356 (`7 failed | 11 passed`),
+les 2 de F357, celle de F358. Retour à l'état corrigé : `17 fichiers / 100 tests` verts, puis `18 / 102`
+avec `grid-view`, `tsc --noEmit` = 0.
+
+**Code mort supprimé (commit `chore(admin)` séparé).** `components/layout/Footer.tsx` (142 l.) et le shim
+`components/admin/AdminHeader.tsx` n'avaient **aucun** importeur (`grep -rn` sur tous les `.ts`/`.tsx`, hors
+leur propre fichier, zéro résultat).
+
+**Dettes ouvertes.**
+
+- **R154** — Saisies et confirmations natives : `GridView.tsx:54/56` (`window.prompt` pour le nom de vue,
+  `window.confirm` pour le partage) et `users-grid.tsx:131` (`window.prompt` pour la raison d'un bannissement).
+  Les remplacer demande un choix de produit (dialogue maison ou champ dans le menu) : non deviné ici.
+- **R155** — Retour visuel des copies hors `WorkTable` : les dix écrans de F357 ne disent toujours rien après
+  une copie réussie ou refusée ; seul `WorkTable` dispose d'une barre de statut. À traiter quand chacun sera
+  audité (L22d/L22e) pour réutiliser son canal de statut au lieu d'en inventer un.
+- **R156** — Vues enregistrées : `saveView` persiste une vue optimiste sans `id` serveur et `applyView` fusionne
+  par **nom**, donc enregistrer sous le nom d'une vue partagée d'un collègue la remplace localement. Aucun
+  défaut prouvé côté base (le serveur reçoit `(name, isShared, state)`), mais la règle de collision de noms
+  reste à décider.
+
+**Non-défauts vérifiés (avec preuve).** `CopyableId` capturait déjà son presse-papiers (`try/catch`) : il a
+seulement été branché sur le helper commun, son comportement ne change pas. `step-up.tsx:372` `await` déjà
+dans un `try/catch`. `DataGrid`/`RowMenu` : le menu contextuel ne pose pas d'overlay plein écran et referme sur
+`pointerdown` hors zone + Échap + scroll — c'est le comportement voulu, pas un piège de focus.
+
+**Second passage à faire pour clore L22a** (fichiers non lus intégralement à ce tour) : `DataGrid.tsx` (475 l.),
+`GridView.tsx` (224 l., reste), `InlineScalar.tsx` (reste : `InlineChoice`, `InlineText`, `InlineToggle`),
+`MetricChips.tsx`, `tokens.ts`, `CommandPalette.tsx`, `AdminHeader.tsx`, `queue/**` 4 fichiers,
+`instrumentation.ts`, `lib/supabase/**` 2, `lib/{admin-actions-index,admin-resources,authz-feedback,utils,
+action-result}`. Prochain sous-lot après ce second passage : **L22b** (`src/lib/**` restant).
 
 ## L21 — `apps/studio/src/**` — ouvert le 2026-11-20 (découpage mesuré)
 
