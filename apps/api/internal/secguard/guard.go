@@ -167,9 +167,11 @@ func (g *Guard) EnforceRateLimit(ctx context.Context, w http.ResponseWriter, r *
 	if g == nil || g.rc == nil || userID == "" {
 		return true
 	}
-	if frozen, retryAfter := g.spam.IsWriteFrozen(ctx, userID); frozen {
-		response.TooManyRequests(w, retryAfter, antispam.CodeWriteCooldown, "Votre compte est temporairement en pause suite à des actions répétées. Réessayez plus tard.")
-		return false
+	if g.spam != nil {
+		if frozen, retryAfter := g.spam.IsWriteFrozen(ctx, userID); frozen {
+			response.TooManyRequests(w, retryAfter, antispam.CodeWriteCooldown, "Votre compte est temporairement en pause suite à des actions répétées. Réessayez plus tard.")
+			return false
+		}
 	}
 
 	q := quotas.forTier(tier)
@@ -193,9 +195,10 @@ func (g *Guard) EnforceRateLimit(ctx context.Context, w http.ResponseWriter, r *
 			continue
 		}
 		if ok, retry := g.checkBucket(ctx, fmt.Sprintf("rl:%s:u:%s:%s", scope, userID, c.suffix), c.win, c.limit); !ok {
-			_, cooldown, _ := g.spam.ApplyStrike(ctx, userID)
-			if cooldown > retry {
-				retry = cooldown
+			if g.spam != nil {
+				if _, cooldown, _ := g.spam.ApplyStrike(ctx, userID); cooldown > retry {
+					retry = cooldown
+				}
 			}
 			response.TooManyRequests(w, retry, antispam.CodeWriteCooldown, "Trop d'actions en peu de temps. Patientez avant de réessayer.")
 			return false
@@ -229,7 +232,9 @@ func (g *Guard) checkBucket(ctx context.Context, key string, win time.Duration, 
 // la validation syntaxique/tier/XSS et la déduplication SHA-256 + SimHash LSH.
 func (g *Guard) EnforceContentWrite(ctx context.Context, w http.ResponseWriter, userID, scope, text string, prof trust.Profile, validate func(trust.Tier) error) bool {
 	if g == nil {
-		return validate(trust.TierStandard) == nil
+		// `validate` peut être nil (appel de test, garde non monté) : appeler une
+		// fonction nil paniquait alors que la méthode se déclare nil-safe.
+		return validate == nil || validate(trust.TierStandard) == nil
 	}
 	if g.spam != nil {
 		if frozen, retryAfter := g.spam.IsWriteFrozen(ctx, userID); frozen {

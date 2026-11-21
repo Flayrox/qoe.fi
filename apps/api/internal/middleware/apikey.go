@@ -42,7 +42,7 @@ var AllScopes = []string{ScopeRead, ScopeWrite, ScopeAnalytics}
 type PrincipalType string
 
 const (
-	PrincipalTypeUser        PrincipalType = "user"
+	PrincipalTypeUser      PrincipalType = "user"
 	PrincipalTypePublisher PrincipalType = "publisher"
 )
 
@@ -50,7 +50,7 @@ const (
 type Principal struct {
 	Type            PrincipalType `json:"type"`
 	UserID          *string       `json:"userId,omitempty"`
-	PublisherID   *string       `json:"publisherId,omitempty"`
+	PublisherID     *string       `json:"publisherId,omitempty"`
 	MediaID         *string       `json:"mediaId,omitempty"`
 	CreatedByUserID *string       `json:"createdByUserId,omitempty"`
 	APIKeyID        string        `json:"apiKeyId"`
