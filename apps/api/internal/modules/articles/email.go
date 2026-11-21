@@ -25,11 +25,19 @@ type RenderedArticleEmail struct {
 	PreviewText     string
 }
 
-// SignUnsubscribe génère une signature cryptographique HMAC-SHA256 infalsifiable pour la désinscription.
+// unsubscribeSecret rend le secret de signature des liens de désinscription.
+// Aucun repli par défaut : un secret constant (donc public) rendrait les liens
+// forgeables par n'importe qui — la forge est pire qu'une signature absente.
+func unsubscribeSecret() string {
+	return strings.TrimSpace(os.Getenv("NEWSLETTER_UNSUB_SECRET"))
+}
+
+// SignUnsubscribe génère une signature cryptographique HMAC-SHA256 infalsifiable
+// pour la désinscription. Rend "" si le secret n'est pas configuré (fail-closed).
 func SignUnsubscribe(pubID, email string) string {
-	secret := os.Getenv("NEWSLETTER_UNSUB_SECRET")
+	secret := unsubscribeSecret()
 	if secret == "" {
-		secret = "qoe-unsub-default-secret-min32chars"
+		return ""
 	}
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write([]byte(pubID + ":" + strings.ToLower(strings.TrimSpace(email))))
@@ -42,6 +50,10 @@ func VerifyUnsubscribe(pubID, email, sig string) bool {
 		return false
 	}
 	expected := SignUnsubscribe(pubID, email)
+	if expected == "" {
+		// Secret absent : aucune signature ne peut être valide.
+		return false
+	}
 	return subtle.ConstantTimeCompare([]byte(expected), []byte(sig)) == 1
 }
 
@@ -59,6 +71,11 @@ func unsubscribeBaseURL() string {
 // BuildUnsubURL construit le lien de désinscription RFC 8058 One-Click.
 func BuildUnsubURL(pubID, email string) string {
 	sig := SignUnsubscribe(pubID, email)
+	if sig == "" {
+		// Sans secret, aucun lien signé : mieux vaut pas de lien qu'un lien
+		// que le serveur refusera (ou qu'un lien forgeable).
+		return ""
+	}
 	return fmt.Sprintf("%s/v1/newsletters/unsubscribe?pub=%s&email=%s&sig=%s",
 		unsubscribeBaseURL(), url.QueryEscape(pubID), url.QueryEscape(email), sig)
 }
@@ -200,6 +217,29 @@ func StripHTML(html string) string {
 	return strings.TrimSpace(spaces.ReplaceAllString(text, " "))
 }
 
+// releaseVisibility normalise la visibilité d'un article pour l'e-mail.
+func releaseVisibility(info db.GetArticleReleaseInfoRow) string {
+	if v := string(info.Visibility); v != "" {
+		return v
+	}
+	return VisPublic
+}
+
+// emailTeaser renvoie le contenu précédant le premier marqueur de coupure
+// connu (mêmes marqueurs que SliceContentAtPaywall). Sans marqueur : "".
+func emailTeaser(content string) string {
+	cut := -1
+	for _, marker := range paywallMarkers {
+		if idx := strings.Index(content, marker); idx != -1 && (cut == -1 || idx < cut) {
+			cut = idx
+		}
+	}
+	if cut == -1 {
+		return ""
+	}
+	return strings.TrimSpace(content[:cut])
+}
+
 // BuildArticleReleaseEmail compose l'email de parution d'un article façon Substack :
 // titre, contenu complet formaté pour email ou teaser + CTA paywall si article premium.
 func BuildArticleReleaseEmail(info db.GetArticleReleaseInfoRow, link, email string) RenderedArticleEmail {
@@ -212,42 +252,47 @@ func BuildArticleReleaseEmail(info db.GetArticleReleaseInfoRow, link, email stri
 		subject = info.EmailSubject.String
 	}
 
+	// Verrou : `isPremium` n'est qu'un des signaux. Un article réservé aux
+	// MEMBRES/ABONNÉS/PALIER part lui aussi vers des boîtes mail sans
+	// entitlement — il ne doit jamais y partir en clair.
+	gated := info.IsPremium || !CheckContentAccess(releaseVisibility(info), UserEntitlements{}, nil)
+	teaser := ""
+	if gated {
+		teaser = emailTeaser(info.Content)
+	}
+
 	body := fmt.Sprintf(`<h1 style="margin:0 0 20px;font-size:26px;line-height:1.25;color:#09090b;font-weight:700;">%s</h1>`, html.EscapeString(info.Title))
 
-	if !info.IsPremium {
-		// Article gratuit : distribution intégrale du contenu façon Substack
+	if !gated {
+		// Article libre : distribution intégrale du contenu façon Substack
 		articleHTML := strings.TrimSpace(info.Content)
 		if articleHTML != "" {
 			body += fmt.Sprintf(`<div style="color:#27272a;line-height:1.75;font-size:16px;">%s</div>`, articleHTML)
 		}
 		body += fmt.Sprintf(`<div style="margin:36px 0 16px;text-align:center;"><a href="%s" style="display:inline-block;background:#09090b;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Lire l'article sur %s →</a></div>`, html.EscapeString(link), html.EscapeString(pubName))
 	} else {
-		// Article premium : découpage Zero-Leak côté serveur
-		// Si un marqueur <!--qoe-paywall--> est présent, on affiche le teaser pré-paywall.
-		// Si aucun marqueur n'est présent, zéro contenu payant n'est exposé par email.
-		if strings.Contains(info.Content, "<!--qoe-paywall-->") {
-			parts := strings.SplitN(info.Content, "<!--qoe-paywall-->", 2)
-			teaser := strings.TrimSpace(parts[0])
-			if teaser != "" {
-				body += fmt.Sprintf(`<div style="color:#27272a;line-height:1.75;font-size:16px;">%s</div>`, teaser)
-			}
+		// Teaser borné par un marqueur explicite ; sans marqueur, zéro contenu
+		// verrouillé n'est exposé par email (jamais de repli « 2 paragraphes »).
+		if teaser != "" {
+			body += fmt.Sprintf(`<div style="color:#27272a;line-height:1.75;font-size:16px;">%s</div>`, teaser)
+		}
+		gatedTitle := "Cet article est réservé aux abonnés payants"
+		if releaseVisibility(info) == VisMembersOnly {
+			gatedTitle = "Cet article est réservé aux membres"
 		}
 		body += fmt.Sprintf(`
 <div style="margin:28px 0;padding:24px;background:#f8f9fa;border-radius:12px;text-align:center;border:1px solid #e4e4e7;">
-  <p style="margin:0 0 8px;font-weight:700;color:#18181b;font-size:16px;">Cet article est réservé aux abonnés payants</p>
+  <p style="margin:0 0 8px;font-weight:700;color:#18181b;font-size:16px;">%s</p>
   <p style="margin:0 0 20px;color:#71717a;font-size:14px;line-height:1.5;">Pour lire l'intégralité et soutenir %s, rejoignez les membres Premium.</p>
   <a href="%s" style="display:inline-block;background:#09090b;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Lire l'article sur %s →</a>
-</div>`, html.EscapeString(pubName), html.EscapeString(link), html.EscapeString(pubName))
+</div>`, gatedTitle, html.EscapeString(pubName), html.EscapeString(link), html.EscapeString(pubName))
 	}
 
 	preview := ""
 	if info.EmailPreviewText.Valid && strings.TrimSpace(info.EmailPreviewText.String) != "" {
 		preview = info.EmailPreviewText.String
-	} else if info.IsPremium {
-		if strings.Contains(info.Content, "<!--qoe-paywall-->") {
-			parts := strings.SplitN(info.Content, "<!--qoe-paywall-->", 2)
-			preview = TruncateRunes(StripHTML(parts[0]), 140)
-		}
+	} else if gated {
+		preview = TruncateRunes(StripHTML(teaser), 140)
 		if preview == "" {
 			preview = "Nouvel article réservé aux abonnés : " + info.Title
 		}

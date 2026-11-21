@@ -5,6 +5,7 @@ import (
 )
 
 func TestVerifyUnsubscribe_HMACSecurity(t *testing.T) {
+	t.Setenv("NEWSLETTER_UNSUB_SECRET", "secret-de-test-workers-32-caracteres")
 	pubID := "pub_test_secure_123"
 	email := "reader@example.com"
 

@@ -9,6 +9,7 @@ import (
 )
 
 func TestSignAndVerifyUnsubscribe(t *testing.T) {
+	t.Setenv("NEWSLETTER_UNSUB_SECRET", "secret-de-test-articles-32-caracteres")
 	pubID := "pub_test_123"
 	email := "user@example.com"
 
@@ -36,6 +37,7 @@ func TestSignAndVerifyUnsubscribe(t *testing.T) {
 }
 
 func TestBuildArticleReleaseEmail_Free(t *testing.T) {
+	t.Setenv("NEWSLETTER_UNSUB_SECRET", "secret-de-test-articles-32-caracteres")
 	info := db.GetArticleReleaseInfoRow{
 		ID:              "art_free_1",
 		Title:           "Mon Super Article",

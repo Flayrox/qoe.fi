@@ -9,6 +9,7 @@ import (
 )
 
 func TestUnsubscribe_SecurityTampering(t *testing.T) {
+	t.Setenv("NEWSLETTER_UNSUB_SECRET", "secret-de-test-newsletters-32-caracteres")
 	ctx := context.Background()
 	seedNewsletterEnv(t, ctx)
 	r := newHTTPRouter(t, false)

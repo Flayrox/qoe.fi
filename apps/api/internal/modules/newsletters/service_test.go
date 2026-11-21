@@ -46,6 +46,9 @@ const (
 func seedNewsletterEnv(t *testing.T, ctx context.Context) {
 	requirePool(t)
 	t.Helper()
+	// Secret de signature de désinscription : plus de repli public, les tests
+	// qui signent doivent le fournir.
+	t.Setenv("NEWSLETTER_UNSUB_SECRET", "secret-de-test-newsletters-32-caracteres")
 	// ⚠️ SubscriptionGrant compte : TestNewsletterSend_ProRequired en insère un
 	// pour prouver l'envoi Pro. Sans ce TRUNCATE, l'octroi survit à la fin du
 	// test et la garde PRO ne s'applique plus au run suivant (le test ne passait

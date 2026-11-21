@@ -3,16 +3,11 @@ package workers
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"crypto/subtle"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"html"
 	"log"
 	"net/url"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -449,24 +444,16 @@ func (n *NewsletterWorker) finishNewsletterIssue(ctx context.Context, issueID st
 	return nil
 }
 
-// SignUnsubscribe génère une signature cryptographique HMAC-SHA256 infalsifiable pour la désinscription.
+// SignUnsubscribe signe la désinscription RFC 8058 — délégué au module
+// articles : une seule implémentation (et donc un seul secret, exigé, sans
+// repli public forgeable).
 func SignUnsubscribe(pubID, email string) string {
-	secret := os.Getenv("NEWSLETTER_UNSUB_SECRET")
-	if secret == "" {
-		secret = "qoe-unsub-default-secret-min32chars"
-	}
-	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write([]byte(pubID + ":" + strings.ToLower(strings.TrimSpace(email))))
-	return hex.EncodeToString(mac.Sum(nil))
+	return articles.SignUnsubscribe(pubID, email)
 }
 
-// VerifyUnsubscribe valide de manière timing-safe (crypto/subtle) la signature de désinscription RFC 8058.
+// VerifyUnsubscribe valide de manière timing-safe la signature de désinscription.
 func VerifyUnsubscribe(pubID, email, sig string) bool {
-	if pubID == "" || email == "" || sig == "" {
-		return false
-	}
-	expected := SignUnsubscribe(pubID, email)
-	return subtle.ConstantTimeCompare([]byte(expected), []byte(sig)) == 1
+	return articles.VerifyUnsubscribe(pubID, email, sig)
 }
 
 // buildUnsubURL construit le lien de désinscription RFC 8058 One-Click.

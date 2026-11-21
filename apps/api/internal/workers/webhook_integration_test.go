@@ -25,6 +25,11 @@ const testSecret = "test_secret_123"
 var poolTest *pgxpool.Pool
 
 func TestMain(m *testing.M) {
+	// Secret de signature des liens (désinscription, confirmation d'e-mail) :
+	// plus de repli public, donc les tests signent avec un secret explicite.
+	if os.Getenv("NEWSLETTER_UNSUB_SECRET") == "" {
+		os.Setenv("NEWSLETTER_UNSUB_SECRET", "secret-de-test-workers-32-caracteres")
+	}
 	p, err := testutil.TryPool(context.Background())
 	if err != nil {
 		log.Printf("testcontainers indisponible, tests DB skippes: %v", err)
