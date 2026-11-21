@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (195 f. prod · 65 861 l.) | **en cours** (L29a+L29b `articles` clos le 2026-11-22 ; L29c = `feed`, 11 f. · 4 001 l.) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 65 963 l.) | **en cours** (L29a-c `articles`+`feed` clos le 2026-11-22 ; L29d = `imports`, 6 f. · 3 828 l.) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -127,6 +127,12 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 **449 fichiers Go** = **217 de production · 67 491 l.** + **232 de tests · 48 425 l.**, le plus gros lot de la
 campagne — à découper en tranches par module). **Remesure du 2026-11-22** : 195 fichiers de production ·
 **65 861 l.** hors tests (le chiffre d'ouverture comptait les fichiers de tests Go).
+**L29c est clos le 2026-11-22** : module `feed` (**11 f. · 4 001 l.**) lu intégralement, **3 défauts** F433 (pensées
+« followers » servies par `GET /v1/posts/{id}/thread`, `POST /v1/feed/hydrate` et la home — `GetPostsByIDs` ne
+filtre pas `Post.visibility`), F434 (moteur « Pour vous » classant des pensées non publiques et des posts
+programmés), F435 (slot d'exploration sans verrou de compte/blocage/sourdine/programmation) ; dettes **R195**
+(SQL concaténé dans `neighborValues`) et **R196** (sémantique de mot masqué divergente Go/SQL). **Lot suivant de
+L29, « En cours » : L29d** — `imports`, **6 f. · 3 828 l.**
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2061,6 +2067,63 @@ le canal natif reste). **R164** : `grants-manager` recharge la page entière apr
 **L22f est clos.** Huit défauts corrigés (F390–F397), huit suites ajoutées là où il n'y en avait aucune, garde de
 palette étendue à onze racines. **L22 est clos** (L22a→L22f : **45 défauts** F353–F397).
 **Prochain lot : L23** — `apps/tenants/src/**` (publications multi-tenant), périmètre à remesurer à l'ouverture.
+
+## L29c — `apps/api/internal/modules/feed/**` — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l`) : **11 fichiers · 4 001 l.**, chiffre annoncé **confirmé** —
+`engine_candidates 895`, `service 852`, `engine_config 522`, `home_feed 470`, `hydrate 310`, `handler 231`,
+`assembly 223`, `personalized 216`, `engine_scoring 166`, `mmr 108`, `querier 8`. Après correctifs le lot pèse
+**4 103 l.** (`visibility.go` 72, `engine_candidates` 909, `assembly` 229, `service` 862). 23 fichiers de tests
+(4 238 l.) ont servi de contexte.
+
+**Lecture : 11 / 11 fichiers de production · 4 001 / 4 001 lignes (100 %)**, chacun lu jusqu'à sa dernière ligne
+(`handler`+`querier`+`assembly`+`mmr`+`engine_scoring` en un bloc de 736 l. ; `personalized`+`hydrate` en 526 l. ;
+`engine_config`+`home_feed` en 992 l. ; `service` d'un bloc (852 l.) ; `engine_candidates` en deux tranches
+451 + 445 l.), pied de réponse recoupé avec `wc -l` à chaque fois.
+
+**Déclarés sains** (aucun correctif inventé) : `mmr.go` (sélection MMR pure, `dupSim` borné, cosinus sûr sur
+vecteurs absents/décalés) · `querier.go` (alias d'interface, permet d'injecter des erreurs sans base) ·
+`engine_scoring.go` (pures : gaussienne circadienne, mélange de ratio borné, MMR, entrelacement) ·
+`engine_config.go` (toutes les clés `feed.*` parsées et **bornées**, défauts déterministes, `adaptFloor/Ceil`
+remis dans l'ordre) · `personalized.go` (limites bornées, cold-start explicite, `items` jamais null, exploration
+réservée aux comptes authentifiés) · `hydrate.go` (articles : `eligibility.ArticlePredicates` + publication +
+programmation + visibilité de profil + blocage, contenu coupé par `truncatePaywall`) · `home_feed.go` (chaque flux
+porte `abuse.*Exclusion*` + `articleEligibility`/`thoughtEligibility`, listes jamais null, auteurs masqués nommés
+avec motif et échéance) · `handler.go` (route protégée vs publique, limite de 100 items sur l'hydratation, `limit`
+borné à 100, `sitemapArticles` borné à 1 000 côté service) · `service.go` (hors correctif : `UserPosts` et
+`PublisherArticles` passent par `canViewProfileContent` — visibilité de profil + blocage symétrique ; `Thread`
+charge ancêtres et réponses en BFS borné) · `assembly.go` (fonctions d'assemblage pures `buildFeedSlice`,
+placeholder de parent indisponible sans contenu).
+
+**Non-défauts documentés** : `GET /v1/feed/personalized` est enregistré à la fois en protégé et en public — voulu
+(auth **optionnelle**, cold-start anonyme) ; `mutedOK` fait un `strings.Contains` (sur-blocage possible sur des
+mots courts) — comportement historique, à trancher produit ; les erreurs CF/vélocité/impressions sont avalées avec
+un log (dégradation du classement, jamais d'accès).
+
+| # | Défaut | Preuve | Correctif |
+|---|---|---|---|
+| **F433** | **Pensées « followers » servies publiquement** : `GetPostsByIDs` (posts.sql l. 181-221) filtre brouillons, suppression, modération et programmation, mais **jamais `Post.visibility`**. `GET /v1/posts/{id}/thread` est **public** (auth optionnelle) et `POST /v1/feed/hydrate` aussi : un id connu suffisait à lire le contenu d'une pensée réservée aux abonnés, et son parent/ancêtre partait avec. | Pas de rouge local : le défaut est dans la clause `WHERE` d'une requête sqlc et les routes qui l'utilisent ; les tests à base réelle sont **non concluants** ici (`rootless Docker not found`). Établi par lecture du schéma + des routes, **limitation nommée**. | `visibility.go` : `postVisible` (public ; followers + suivi ; auteur ; **tout le reste refusé**) et `dropInvisiblePosts` qui filtre la fermeture chargée — un parent retiré laisse le placeholder existant (aucun contenu ne fuit). Appliqué à `Thread` (404 si la cible tombe) et à `buildSlices` (hydratation, home). Table de décision couverte par `post_visibility_test.go`. `88e13522` |
+| **F434** | **Contenu non publiable classé par le moteur** : les quatre requêtes de candidats (`fetchEngineArticles`/`fetchEngineThoughts`, branche ANN et branche cold-start) ne filtraient **ni `p.visibility`** (pensées) **ni `scheduledAt`** : une pensée « followers » ou un post programmé entrait dans la page « Pour vous », servie sans authentification. | Même nature que F433 (SQL + routes publiques, base indisponible) : établi par lecture, **limitation nommée**. | `visibility = 'public'` et `scheduledAt <= now()` ajoutés aux deux branches des pensées ; `scheduledAt <= now()` aux deux branches des articles. `25b647dd` |
+| **F435** | **Slot d'exploration sans verrou** : `injectDiscovery` sélectionnait les articles de découverte sur `published` + `completionRate` seulement — ni programmation, ni compte suspendu/shadowbanné, ni blocage, ni sourdine. Les ids injectés étaient ensuite retirés à l'hydratation : page incomplète, et contenu restreint classé. | Même nature (SQL, base indisponible) : établi par lecture, **limitation nommée**. | Requête de découverte alignée sur les flux : jointure `User`, `isShadowbanned/isSuspended`, `is_blocked_bidirectional`, `is_muted_by`, `scheduledAt`. `25b647dd` |
+
+**Batterie de clôture (mesures du tour).** `go vet ./internal/...` **0** · `go build ./...` **0** ·
+`go test` des paquets du lot : `feed` **ok**, `posts` **ok** (suites à base réelle sautées par testcontainers) ;
+paquets de référence `middleware`, `secguard`, `authz`, `identity`, `apiaccess`, `permissions` **ok**. Workspace :
+`typecheck` 0, `mobile:typecheck` 0, `lint` 0, `ui:audit` 0, `arch:audit` 0, `audit:guard` 0, 7 `guard:*` 0 ;
+**0 fichier mobile touché**, `git status --porcelain` vide, aucun push.
+
+**Dettes ouvertes du lot.** `R195` — `neighborValues` (CF co-lecture) **construit du SQL par concaténation** avec
+les ids de voisins renvoyés par la base : pas d'injection exploitable aujourd'hui (uuid issus de la DB), mais
+c'est une requête non paramétrée là où `ANY($n::uuid[])` ferait le même travail — à remplacer quand la signature
+CF sera revue. `R196` — `mutedOK`/`contains_muted_word` se comportent différemment (Go : sous-chaîne ; SQL :
+fonction dédiée) : un même mot masqué ne filtre pas de la même façon selon le chemin, ce qui rend le feed
+« personnel » et les flux incohérents — harmoniser exige de trancher la sémantique (mot entier ou sous-chaîne).
+
+**Reste à faire (L29d, lot suivant de L29 — « En cours »).** Il reste **184 fichiers de production · 61 860 l.**
+dans `apps/api/internal/modules/**`. Prochain lot borné : `imports` (**6 f. · 3 828 l.** — `subscribers_send 995`,
+`subscribers_reconfirm 868`, `subscribers 876`, `subscribers_review 654`, `service 308`, `handler 127`), puis
+`creator` (17 f. · 4 812 l., à recouper), `legal` (8 f. · 4 540 l.), `posts`, `users`, … et `admin`
+(36 f. · 11 570 l., à découper).
 
 ## L29b — `apps/api/internal/modules/articles/**` (périphériques) — **clos le 2026-11-22**
 
