@@ -14,6 +14,7 @@ import {
   Link as LinkIcon,
 } from 'lucide-react';
 import { saveMultipleFrontendConfigs } from '@/lib/admin-aux-actions';
+import { readMessage } from '@/lib/authz-feedback';
 import { ALL_LANGUAGES, type Language } from '@qoe/i18n';
 import { t } from '@lingui/core/macro';
 import { Select } from '@qoe/ui/select';
@@ -1012,6 +1013,11 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
       if (res.success) {
         setSaveStatus('success');
         setTimeout(() => setSaveStatus('idle'), 3000);
+      } else {
+        // Un refus (capacité, JSON invalide, garde) se dit : sans ça, le bouton
+        // reprenait son aspect normal et l'admin croyait la section enregistrée.
+        setSaveStatus('error');
+        setErrorMessage(readMessage(res) ?? 'Une erreur est survenue lors de la sauvegarde.');
       }
     } catch (err) {
       setSaveStatus('error');
