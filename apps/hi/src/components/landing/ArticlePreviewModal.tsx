@@ -3,7 +3,7 @@
 import React from 'react';
 import { X, Calendar, Clock, Share2, AlertCircle, Bookmark } from 'lucide-react';
 import { t } from '@lingui/core/macro';
-import { sanitizeHtml } from '@/lib/sanitize';
+import { sanitizeArticleHtml } from '@qoe/ui/security';
 import { SafeAvatar } from '@qoe/ui';
 import { Badge } from '@qoe/ui/badge';
 import { Button } from '@qoe/ui/button';
@@ -106,7 +106,7 @@ export const ArticlePreviewModal = ({ article, onClose }: ArticlePreviewModalPro
             {/* HTML Content injection */}
             <div
               className="space-y-6 ProseMirror"
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(article.content) }}
+              dangerouslySetInnerHTML={{ __html: sanitizeArticleHtml(article.content) }}
             />
 
             {/* Premium Callout Block */}
