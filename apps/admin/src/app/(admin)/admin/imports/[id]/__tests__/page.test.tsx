@@ -65,9 +65,20 @@ describe('page /admin/imports/[id]', () => {
   });
 
   it('renvoie un 404 quand le lot est introuvable', async () => {
-    mockReview.mockRejectedValue(new Error('not found'));
+    mockReview.mockRejectedValue(Object.assign(new Error('Go API 404'), { status: 404 }));
 
     await expect(renderPage('inconnu')).rejects.toThrow('NEXT_NOT_FOUND');
     expect(notFound).toHaveBeenCalled();
+  });
+
+  // Une panne serveur (ou un réseau coupé) n'est pas un dossier inexistant :
+  // la présenter comme un 404 dit au staff « ce lot n'existe pas » alors que
+  // le dossier existe et que c'est la lecture qui a échoué.
+  it('ne transforme pas une panne de lecture en 404', async () => {
+    const boom = Object.assign(new Error('Go API 503'), { status: 503 });
+    mockReview.mockRejectedValue(boom);
+
+    await expect(renderPage('batch_42')).rejects.toBe(boom);
+    expect(notFound).not.toHaveBeenCalled();
   });
 });

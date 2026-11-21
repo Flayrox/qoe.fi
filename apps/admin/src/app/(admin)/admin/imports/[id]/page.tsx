@@ -30,8 +30,12 @@ export default async function AdminImportReviewPage({
   let review;
   try {
     review = await getImportReview(id);
-  } catch {
-    notFound();
+  } catch (error: unknown) {
+    // Seul un 404 dit « ce lot n'existe pas ». Une panne serveur ou un réseau
+    // coupé présentés comme un 404 feraient croire à un dossier disparu alors
+    // que c'est la lecture qui a échoué — l'erreur remonte donc telle quelle.
+    if ((error as { status?: number }).status === 404) notFound();
+    throw error;
   }
 
   // Sérialisation explicite (comme les autres pages admin) : que du JSON pur
