@@ -5,6 +5,7 @@ import (
 	"context"
 	"log"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -30,6 +31,11 @@ func main() {
 	_ = godotenv.Load()
 
 	cfg := config.Load()
+	// Même fail-fast que l'API : un worker qui envoie des e-mails sans secret
+	// de désinscription produirait des liens non signés.
+	if cfg.EmailProvider != "" && strings.TrimSpace(cfg.NewsletterUnsubSecret) == "" {
+		log.Fatalf("NEWSLETTER_UNSUB_SECRET manquant alors que EMAIL_PROVIDER=%s", cfg.EmailProvider)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

@@ -90,6 +90,11 @@ type Config struct {
 	// NewsletterRatePerMinute est le rythme d'envoi des emails newsletter /
 	// release d'articles (emails par minute, défaut 30 — SMTP self-hosté safe).
 	NewsletterRatePerMinute int
+	// NewsletterUnsubSecret signe les liens de désinscription (RFC 8058) et de
+	// confirmation d'e-mail. Aucun repli par défaut : sans lui, les liens ne
+	// sont pas signés (fail-closed) et le process refuse de démarrer s'il doit
+	// envoyer des e-mails.
+	NewsletterUnsubSecret string
 	// ── Cycle de vie des médias (MediaAsset) ──────────────────────────
 	// MediaCDNBaseURL est l'origine publique des images (rewrite des URLs
 	// Supabase Storage, ex: https://cdn.qoe.fi).
@@ -161,6 +166,7 @@ func Load() *Config {
 		SMTPSecure:                    boolEnv("SMTP_SECURE"),
 		ResendAPIKey:                  envOr("RESEND_API_KEY", ""),
 		NewsletterRatePerMinute:       envInt("NEWSLETTER_RATE_PER_MINUTE", 30),
+		NewsletterUnsubSecret:         envOr("NEWSLETTER_UNSUB_SECRET", ""),
 		// Cycle de vie des médias : CDN public, quota par utilisateur,
 		// cadence du worker de purge et grâce avant suppression définitive.
 		MediaCDNBaseURL:               envOr("MEDIA_CDN_BASE_URL", "https://cdn.qoe.fi"),

@@ -89,6 +89,12 @@ func run(ctx context.Context) error {
 
 	logging.InitDefault()
 	cfg := config.Load()
+	// Fail-fast : un serveur qui envoie des e-mails sans secret de
+	// désinscription produirait des liens non signés (rejetés en silence par
+	// les clients mail). On refuse de démarrer plutôt que de dégrader.
+	if cfg.EmailProvider != "" && strings.TrimSpace(cfg.NewsletterUnsubSecret) == "" {
+		return fmt.Errorf("NEWSLETTER_UNSUB_SECRET manquant alors que EMAIL_PROVIDER=%s : liens de désinscription/confirmation non signables", cfg.EmailProvider)
+	}
 
 	pool, err := dbpool.New(ctx, cfg.DatabaseURL, cfg.PoolSize())
 	if err != nil {
