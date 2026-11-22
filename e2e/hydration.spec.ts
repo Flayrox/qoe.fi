@@ -14,6 +14,7 @@
 
 import { test, expect } from '@playwright/test';
 import { HYDRATION_ERROR } from './lib/hydration';
+import { settleHydration } from './lib/settle';
 
 // Pages publiques rendues côté serveur : c'est là que le SSR et le client
 // doivent produire exactement le même texte.
@@ -31,9 +32,9 @@ test.describe('Hydratation React', () => {
       const response = await page.goto(route, { waitUntil: 'load' });
       expect(response?.status(), `statut HTTP de ${route}`).toBeLessThan(400);
 
-      // L'hydratation démarre avec les chunks : on laisse le temps à React
-      // de signaler une éventuelle divergence avant de conclure.
-      await page.waitForTimeout(3000);
+      // L'hydratation démarre avec les chunks : on attend l'état « réseau au
+      // repos + frames de commit React » plutôt qu'une durée arbitraire.
+      await settleHydration(page);
 
       const hydrationErrors = messages.filter((message) =>
         HYDRATION_ERROR.some((pattern) => pattern.test(message))

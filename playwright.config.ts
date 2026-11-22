@@ -206,10 +206,14 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         storageState: 'playwright/.auth/user.json',
       },
-      // Les specs publics/annotations/journeys/security/like-privacy tournent
-      // dans leurs propres projets ; studio/admin/tenants ont leur propre config.
-      testIgnore:
-        /(hydration|routes|public|annotations|core-journeys|security|oauth-consent|like-privacy|studio|admin|tenants)\.spec\.ts/,
+      // Ce projet est le « reste » du dépôt : UNIQUEMENT les specs qui n'ont
+      // pas de projet dédié. L'ancien `testIgnore` par sous-chaîne ne filtrait
+      // presque rien (il exigeait `<mot>.spec.ts` en entier) : ce projet jouait
+      // donc 91 cas — les apps (studio/tenants/hi), le parcours studio
+      // authentifié et la suite visuelle — hors de leur stack et avec une
+      // session mockée. Une liste positive ne peut pas « fuiter » : tout
+      // nouveau spec doit choisir son projet.
+      testMatch: /(connected-feed-capture|creator-slugs|smoke|smoke-zero-crash)\.spec\.ts$/,
       dependencies: ['setup'],
     },
   ],

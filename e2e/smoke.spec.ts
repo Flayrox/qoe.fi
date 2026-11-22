@@ -1,8 +1,20 @@
 import { test, expect } from '@playwright/test';
+import { settleHydration } from './lib/settle';
+import { supabaseReachable } from './lib/auth';
 
 const ROUTES = ['/home', '/settings', '/notifications', '/search', '/library'];
 
 test.describe('Feed E2E Scan & Zero-Hydration Error Audit', () => {
+  // 🚦 `/home`, `/settings`, `/notifications`, `/search`, `/library` résolvent la
+  // session côté serveur (GoTrue). Sans stack locale, ces routes redirigent vers
+  // /login : les asserter donnerait cinq fois le même test de la page de login.
+  test.beforeAll(async () => {
+    test.skip(
+      !(await supabaseReachable()),
+      'Supabase local requis (supabase start) : ces écrans connectés résolvent la session via GoTrue.'
+    );
+  });
+
   for (const route of ROUTES) {
     test(`route "${route}" should render cleanly without console or hydration errors`, async ({
       page,
@@ -27,7 +39,11 @@ test.describe('Feed E2E Scan & Zero-Hydration Error Audit', () => {
         pageErrors.push(err.message);
       });
 
-      await page.goto(route, { timeout: 15000, waitUntil: 'networkidle' });
+      // `networkidle` sous 15 s expirait dès que la page compilait (dev) ou
+      // qu'un widget sondait : on attend `domcontentloaded` puis l'état
+      // d'hydratation observé (réseau au repos + frames React).
+      await page.goto(route, { timeout: 45_000, waitUntil: 'domcontentloaded' });
+      await settleHydration(page);
 
       // Assert zero hydration errors
       const hydrationErrors = consoleErrors.filter(

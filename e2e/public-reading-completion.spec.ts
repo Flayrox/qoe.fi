@@ -7,6 +7,7 @@
 // =====================================================================
 
 import { test, expect } from '@playwright/test';
+import { warmUpReader } from './lib/reader';
 
 test.describe('E2E — Recommandations & Tracking de Lecture Haute Précision', () => {
   test('charge la page d’accueil et affiche la colonne d’intelligence éditoriale', async ({
@@ -17,9 +18,9 @@ test.describe('E2E — Recommandations & Tracking de Lecture Haute Précision', 
     // 1. Vérifie la présence du feed
     await expect(page.locator('main')).toBeVisible({ timeout: 15_000 });
 
-    // 2. Vérifie la présence de la barre latérale sur grand écran.
-    // Deux <aside> existent (nav principale + widgets éditoriaux) : on cible
-    // celui des widgets par son contenu.
+    // 2. Vérifie la présence de la barre latérale sur grand écran, quand elle
+    //    est rendue (le layout la masque sous un certaine largeur : la présence
+    //    n'est pas un contrat de page, son contenu l'est).
     const widgets = page.locator('aside', { hasText: 'Plumes Recommandées' });
     if (await widgets.isVisible()) {
       await expect(
@@ -28,38 +29,37 @@ test.describe('E2E — Recommandations & Tracking de Lecture Haute Précision', 
     }
   });
 
-  test('intercepte le beacon de tracking lors de l’ouverture d’un article', async ({ page }) => {
-    let readingSessionBeaconSent = false;
+  test('envoie la session de lecture à la fermeture du lecteur', async ({ page }) => {
+    // 🔥 Compilation de l'action serveur avant la mesure (cf. lib/reader.ts).
+    await warmUpReader(page);
 
-    // Écouter les requêtes réseau vers l'endpoint analytics
-    page.on('request', (request) => {
-      if (
-        request.url().includes('/api/analytics/reading-session') ||
-        request.url().includes('/api/send')
-      ) {
-        readingSessionBeaconSent = true;
-      }
-    });
+    // Le tracker (`useArticleReadingTracker`) n'envoie une session que si
+    // l'engagement est réel : `dwell === 0 && scroll === 0` est ignoré (règle
+    // produit, StrictMode). On produit donc un signal DÉTERMINISTE — un vrai
+    // défilement de la fenêtre, que le tracker écoute — au lieu d'attendre des
+    // durées arbitraires.
+    const beacon = page.waitForRequest(
+      (request) =>
+        request.url().includes('/api/analytics/reading-session') && request.method() === 'POST',
+      { timeout: 30_000 }
+    );
 
     await page.goto('/', { waitUntil: 'domcontentloaded' });
+    const firstCard = page.locator('article[data-overlay-anchor]').first();
+    await expect(firstCard, 'le feed doit exposer au moins un article').toBeVisible({
+      timeout: 30_000,
+    });
+    await firstCard.locator('[data-article-cover]').click();
+    await expect(page.locator('#article-content')).toBeVisible({ timeout: 30_000 });
 
-    // Ouvrir le premier article disponible
-    const firstArticleLink = page.locator('a[href*="/article/"]').first();
-    if (await firstArticleLink.isVisible()) {
-      await firstArticleLink.click();
+    // Défilement réel : c'est ce qui rend `maxScrollRef > 0` et autorise l'envoi.
+    await page.evaluate(() => window.scrollBy(0, 400));
 
-      // Attendre que le lecteur s'ouvre
-      await page.waitForTimeout(2000);
+    // Fermeture du lecteur = démontage du tracker = envoi du beacon.
+    await page.keyboard.press('Escape');
 
-      // Simuler le défilement dans le lecteur
-      await page.mouse.wheel(0, 800);
-      await page.waitForTimeout(1000);
-      await page.mouse.wheel(0, 800);
-      await page.waitForTimeout(1000);
-
-      // Refermer pour déclencher l'envoi du beacon de session
-      await page.keyboard.press('Escape');
-      expect(typeof readingSessionBeaconSent).toBe('boolean');
-    }
+    const request = await beacon;
+    expect(request.method()).toBe('POST');
+    expect(await request.postData()).toContain('readingTimeMinutes');
   });
 });

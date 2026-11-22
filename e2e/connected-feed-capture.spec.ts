@@ -89,6 +89,21 @@ test.describe('Capture du feed (connecté)', () => {
     expect(SERVICE_ROLE_KEY, 'SUPABASE_SERVICE_ROLE_KEY requis').toBeTruthy();
     expect(DATABASE_URL, 'DATABASE_URL requis').toBeTruthy();
 
+    // 🚦 Prérequis explicite : sans GoTrue local (:54321) il n'y a pas de vrai
+    // utilisateur à créer, donc rien à prouver. On saute AVEC une raison
+    // visible dans le rapport, au lieu d'échouer sur un `fetch failed` opaque
+    // (l'ancienne version, jamais lancée en CI, ne disait rien du tout).
+    // Pour lever la limite : `supabase start`, puis relancer la suite.
+    const supabaseReady = await fetch(`${SUPABASE_URL}/auth/v1/health`, {
+      headers: { apikey: ANON_KEY },
+    })
+      .then((response) => response.ok)
+      .catch(() => false);
+    test.skip(
+      !supabaseReady,
+      `Supabase local injoignable sur ${SUPABASE_URL} : la capture connectée exige « supabase start ».`
+    );
+
     // 1. Signup (créé le user côté GoTrue/Supabase auth).
     const signup = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
       method: 'POST',

@@ -18,11 +18,17 @@
 import { test, expect } from '@playwright/test';
 import { TestDb } from './lib/db';
 import { DATABASE_URL } from './lib/env';
+import { warmUpReader } from './lib/reader';
 
 test.describe('Parcours lecture (public)', () => {
   test('ouvre un article depuis le feed dans le drawer, puis le ferme avec Échap', async ({
     page,
   }) => {
+    // 🔥 Compilation du premier appel d'action serveur (cf. lib/reader.ts) :
+    // sans ce pré-chauffage, la borne produit de 10 s expirait sous charge et
+    // le cas échouait au hasard des workers.
+    await warmUpReader(page);
+
     await page.goto('/', { waitUntil: 'networkidle' });
 
     // 1. Ouvrir le drawer via la couverture de la première carte. Le DOM

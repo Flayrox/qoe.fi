@@ -268,6 +268,8 @@ async function main() {
         env: {
           ...process.env,
           RUN_FULL_STACK: '1',
+          // Seul chemin qui rend le spec visible dans `playwright.apps.config.ts`.
+          STUDIO_AUTH_JOURNEY: '1',
           // Même bascule que le job `e2e-apps` : `next start` sur les builds
           // qui viennent d'être produits.
           PLAYWRIGHT_APPS_PROD: '1',

@@ -17,6 +17,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { discoverPages, uncoveredPages } from './lib/route-inventory';
 import { CRASH_TEXT, watchErrors } from './lib/hydration';
+import { settleHydration } from './lib/settle';
 
 interface RouteCase {
   path: string;
@@ -94,8 +95,9 @@ async function visit(
     CRASH_TEXT
   );
 
-  // L'erreur d'hydratation est émise après le chargement des chunks.
-  await page.waitForTimeout(1500);
+  // L'erreur d'hydratation est émise après le chargement des chunks : on
+  // attend la fin réelle de l'hydratation, pas une durée fixe.
+  await settleHydration(page);
   const errors = hydrationErrors();
   expect(errors, `Hydratation en échec sur ${url} :\n${errors.join('\n\n')}`).toEqual([]);
 }
@@ -131,6 +133,12 @@ test.describe('Matrice de routes — core', () => {
 // une matrice sautée en silence, c'est 39 pages non testées qui passent pour
 // vertes.
 const ADMIN_URL = process.env.PLAYWRIGHT_ADMIN_URL ?? 'http://admin.lvh.me:15405';
+// Origine réellement servie pour le site lecteur par la suite (`webServer` du
+// core). La cible de redirection admin porte le port de dev du lecteur (15402,
+// `apps/core`), que ce job ne sert pas : suivre la redirection en navigateur y
+// donnait ECONNREFUSED. On prouve donc le contrat en deux temps — l'en-tête de
+// redirection en HTTP, puis le rendu/hydratation de /login sur l'origine servie.
+const CORE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'http://localhost:3010';
 const LOGIN_PATH = '/login';
 
 test.describe('Matrice de routes — admin (visiteur anonyme)', () => {
@@ -195,24 +203,36 @@ test.describe('Matrice de routes — admin (visiteur anonyme)', () => {
 
   // Une seule navigation réelle : prouve que la redirection aboutit sur une page
   // qui se rend et s'hydrate (le reste de la matrice n'a pas de HTML à hydrater).
-  test('la redirection aboutit sur le login du site lecteur', async ({ page }) => {
+  test('la redirection aboutit sur le login du site lecteur', async ({ page, request }) => {
     test.setTimeout(90_000);
-    const hydrationErrors = watchErrors(page);
 
-    const response = await page.goto(`${ADMIN_URL}/admin`, {
+    // 1. Contrat de redirection, sans navigateur : 307 + Location vers le login
+    //    du lecteur, avec le retour vers la console conservé.
+    const redirect = await request.get(`${ADMIN_URL}/admin`, { maxRedirects: 0 });
+    expect(redirect.status(), 'la console doit rediriger un visiteur anonyme').toBe(307);
+    const location = redirect.headers()['location'];
+    expect(location, 'Location absent sur la redirection admin').toBeTruthy();
+    const target = new URL(location!);
+    expect(target.pathname, `redirige vers ${location}`).toBe(LOGIN_PATH);
+    expect(target.searchParams.get('redirect'), `redirige vers ${location}`).toBe(
+      `${ADMIN_URL}/admin`
+    );
+
+    // 2. La page de login se rend et s'hydrate sur l'origine que la suite sert.
+    const hydrationErrors = watchErrors(page);
+    const response = await page.goto(`${CORE_URL}${LOGIN_PATH}`, {
       waitUntil: 'domcontentloaded',
       timeout: 60_000,
     });
-    expect(response, 'aucune réponse pour /admin').not.toBeNull();
+    expect(response, `aucune réponse pour ${CORE_URL}${LOGIN_PATH}`).not.toBeNull();
     expect(response?.status()).toBeLessThan(400);
 
-    await expect(page.locator('body'), '/admin affiche l’error boundary').not.toContainText(
+    await expect(page.locator('body'), '/login affiche l’error boundary').not.toContainText(
       CRASH_TEXT
     );
-    expect(new URL(page.url()).pathname, `on est sur ${page.url()}`).toBe(LOGIN_PATH);
 
-    await page.waitForTimeout(1500);
+    await settleHydration(page);
     const errors = hydrationErrors();
-    expect(errors, `Hydratation en échec après redirection :\n${errors.join('\n\n')}`).toEqual([]);
+    expect(errors, `Hydratation en échec sur ${LOGIN_PATH} :\n${errors.join('\n\n')}`).toEqual([]);
   });
 });

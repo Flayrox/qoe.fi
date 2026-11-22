@@ -21,6 +21,7 @@ import { test, expect } from '@playwright/test';
 import { discoverPages, type AppName } from './route-inventory';
 import { CRASH_TEXT } from './hydration';
 import { assertSupabaseTraffic, openAppRoot } from './supabase-network-guard';
+import { settleHydration } from './settle';
 
 /** Minimum attendu par app : si la découverte casse, la matrice devient vide. */
 const MIN_PAGES: Record<AppName, number> = {
@@ -52,7 +53,8 @@ export function registerRouteMatrix(app: AppName): void {
     // partagée, même si un `.env` de poste pointe le VPS.
     test("aucune requête vers le Supabase de l'infra partagée", async ({ page }) => {
       const watch = await openAppRoot(page, `${app} matrice`);
-      await page.waitForTimeout(1_500);
+      // Réseau au repos = toutes les requêtes d'amorçage émises et terminées.
+      await settleHydration(page);
       assertSupabaseTraffic(`${app} matrice`, watch);
     });
 

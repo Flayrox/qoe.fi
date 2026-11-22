@@ -86,6 +86,20 @@ test.describe('Confidentialité des likes (Core)', () => {
   }
 
   test.beforeAll(async () => {
+    // 🚦 Prérequis explicite : ce parcours crée un utilisateur GoTrue réel. Sans
+    // Supabase local (:54321), la première requête échouait sur un
+    // `TypeError: fetch failed` opaque ; on saute désormais avec une raison
+    // visible dans le rapport. Lever la limite : `supabase start`.
+    const supabaseReady = await fetch(`${SUPABASE_URL}/auth/v1/health`, {
+      headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '' },
+    })
+      .then((response) => response.ok)
+      .catch(() => false);
+    test.skip(
+      !supabaseReady,
+      `Supabase local injoignable sur ${SUPABASE_URL} : la confidentialité des likes exige « supabase start ».`
+    );
+
     expect(DATABASE_URL, 'DATABASE_URL requis').toBeTruthy();
     expect(SUPABASE_URL, 'SUPABASE_URL requis').toBeTruthy();
     expect(serviceRoleKey, 'SUPABASE_SERVICE_ROLE_KEY requis').toBeTruthy();

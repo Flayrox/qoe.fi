@@ -91,11 +91,11 @@ test.describe('Capture du feed (public)', () => {
 
     // 🛡️ `useArticleReadingTracker` §4 ignore VOLONTAIREMENT les sessions
     // fantômes (`finalDwell === 0 && finalScroll === 0`, montage/démontage
-    // StrictMode) : sans un tick de dwell ou un scroll, aucune session n'est
-    // envoyée — c'est la règle produit, pas un aléa. On laisse donc la mesure
-    // s'ouvrir une seconde avant de fermer, au lieu de dépendre du temps que
-    // mettaient les assertions précédentes.
-    await page.waitForTimeout(1_500);
+    // StrictMode). On produit donc un signal déterministe — un défilement
+    // réel — au lieu d'attendre une durée arbitraire pour laisser le chrono
+    // de dwell s'incrémenter.
+    await page.evaluate(() => window.scrollBy(0, 400));
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
 
     await page.keyboard.press('Escape');
     await expect.poll(() => readingRequests.length, { timeout: 30_000 }).toBeGreaterThan(0);

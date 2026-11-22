@@ -16,10 +16,23 @@ import crypto from 'crypto';
 import { TestDb } from './lib/db';
 import { DATABASE_URL, GO_API_URL } from './lib/env';
 
-const AUTHOR_ID = '00000000-0000-4000-8000-0000000000a1';
-const COAUTHOR_ID = '00000000-0000-4000-8000-0000000000a2';
-const PUB_ID = 'pub_e2e_slugs';
-const ARTICLE_ID = 'art_e2e_slugs';
+// 🔒 Univers propre à CE run : aucun `TRUNCATE`, donc la spec peut tourner en
+// parallèle des autres sans détruire leurs données, et deux runs simultanés ne
+// se marchent pas dessus. Les slugs sont suffixés par run pour que le test
+// d'auto-suffixe (`-1`) reste déterministe : le seul article qui porte le slug
+// de base est celui du run.
+const RUN = crypto.randomBytes(4).toString('hex');
+const AUTHOR_ID = crypto.randomUUID();
+const COAUTHOR_ID = crypto.randomUUID();
+const OWNER_ID = crypto.randomUUID();
+const PUB_ID = `pub_e2e_slugs_${RUN}`;
+const TIERS_PUB_ID = `pub_tiers_e2e_${RUN}`;
+const ARTICLE_ID = `art_e2e_slugs_${RUN}`;
+const OTHER_ARTICLE_ID = `art_autre_e2e_${RUN}`;
+const CATEGORY_ID = `cat_e2e_${RUN}`;
+const BASE_SLUG = `duo-e2e-${RUN}`;
+const CO_SLUG = `ma-version-e2e-${RUN}`;
+const TAKEN_SLUG = `${BASE_SLUG}-2`;
 
 function makeApiKey(): { raw: string; hash: string } {
   const raw = 'qoe_live_' + crypto.randomBytes(16).toString('hex');
@@ -46,15 +59,15 @@ test.describe('Slugs par auteur (API créateur)', () => {
     db = new TestDb(DATABASE_URL);
     await db.connect();
     await db.query(
-      `TRUNCATE TABLE "ArticleSlugHistory","ArticleSlug","Article","Category","_CoAuthors","ApiKey","Publisher","User" CASCADE`
-    );
-    await db.query(
-      `INSERT INTO "Publisher" (id, type, name, slug, "createdAt","updatedAt") VALUES ($1,'PERSONAL','E2E Slugs','e2e-slugs',now(),now())`,
-      [PUB_ID]
+      `INSERT INTO "Publisher" (id, type, name, slug, "createdAt","updatedAt") VALUES ($1,'PERSONAL','E2E Slugs',$2,now(),now())`,
+      [PUB_ID, `e2e-slugs-${RUN}`]
     );
     for (const u of [
-      { id: AUTHOR_ID, email: 'e2e.a@qoe.fi', withPub: true },
-      { id: COAUTHOR_ID, email: 'e2e.b@qoe.fi', withPub: false },
+      // Emails/usernames propres au run : « User.email » et « User.username »
+      // sont uniques, un run précédent interrompu ne doit pas faire échouer
+      // celui-ci (l'ancien TRUNCATE masquait ce besoin).
+      { id: AUTHOR_ID, email: `e2e.a-${RUN}@qoe.fi`, withPub: true },
+      { id: COAUTHOR_ID, email: `e2e.b-${RUN}@qoe.fi`, withPub: false },
     ]) {
       const pub = u.withPub ? PUB_ID : null;
       await db.query(
@@ -65,18 +78,33 @@ test.describe('Slugs par auteur (API créateur)', () => {
     }
     await db.query(
       `INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publisherId","authorId","createdAt","updatedAt")
-       VALUES ($1,'Duo E2E','duo-e2e','<p>duo</p>',true,'PUBLIC',2,'PUBLISHED',$2,$3,now(),now())`,
-      [ARTICLE_ID, PUB_ID, AUTHOR_ID]
+       VALUES ($1,'Duo E2E',$4,'<p>duo</p>',true,'PUBLIC',2,'PUBLISHED',$2,$3,now(),now())`,
+      [ARTICLE_ID, PUB_ID, AUTHOR_ID, BASE_SLUG]
     );
     await db.query(`INSERT INTO "_CoAuthors" ("A","B") VALUES ($1,$2)`, [ARTICLE_ID, COAUTHOR_ID]);
-    await db.query(
-      `INSERT INTO "Category" (id,name,slug,"publisherId") VALUES ('cat_e2e','E2E','e2e',$1) ON CONFLICT DO NOTHING`,
-      [PUB_ID]
-    );
+    await db.query(`INSERT INTO "Category" (id,name,slug,"publisherId") VALUES ($2,'E2E',$3,$1)`, [
+      PUB_ID,
+      CATEGORY_ID,
+      `e2e-${RUN}`,
+    ]);
   });
 
   test.afterAll(async () => {
-    await db?.close();
+    if (db) {
+      // 🧹 Nettoyage scoped au run : rien d'autre n'est touché (l'ancienne
+      // version faisait un TRUNCATE global, qui détruisait la base de dev et
+      // les données des specs parallèles).
+      const articleIds = [ARTICLE_ID, OTHER_ARTICLE_ID];
+      await db.query(`DELETE FROM "ArticleSlugHistory" WHERE "articleId" = ANY($1)`, [articleIds]);
+      await db.query(`DELETE FROM "ArticleSlug" WHERE "articleId" = ANY($1)`, [articleIds]);
+      await db.query(`DELETE FROM "_CoAuthors" WHERE "A" = ANY($1)`, [articleIds]);
+      await db.query(`DELETE FROM "Article" WHERE id = ANY($1)`, [articleIds]);
+      await db.query(`DELETE FROM "Category" WHERE id = $1`, [CATEGORY_ID]);
+      await db.query(`DELETE FROM "ApiKey" WHERE "userId" = ANY($1)`, [[AUTHOR_ID, COAUTHOR_ID]]);
+      await db.query(`DELETE FROM "User" WHERE id = ANY($1)`, [[AUTHOR_ID, COAUTHOR_ID, OWNER_ID]]);
+      await db.query(`DELETE FROM "Publisher" WHERE id = ANY($1)`, [[PUB_ID, TIERS_PUB_ID]]);
+      await db.close();
+    }
   });
 
   test('variant personnel, auto-suffixe et historique', async ({ request }) => {
@@ -86,55 +114,58 @@ test.describe('Slugs par auteur (API créateur)', () => {
     // co-auteur pose son variant
     let res = await request.patch(`${GO_API_URL}/v1/creator/articles/${ARTICLE_ID}/slug`, {
       headers: { Authorization: `Bearer ${coKey}` },
-      data: { slug: 'ma-version-e2e' },
+      data: { slug: CO_SLUG },
     });
     expect(res.status(), await res.text()).toBe(200);
-    expect((await res.json()).slug).toBe('ma-version-e2e');
+    expect((await res.json()).slug).toBe(CO_SLUG);
 
     // chacun voit son slug
     for (const [key, want] of [
-      [coKey, 'ma-version-e2e'],
-      [mainKey, 'duo-e2e'],
+      [coKey, CO_SLUG],
+      [mainKey, BASE_SLUG],
     ] as const) {
-      const r = await request.get(`${GO_API_URL}/v1/creator/articles/duo-e2e`, {
+      const r = await request.get(`${GO_API_URL}/v1/creator/articles/${BASE_SLUG}`, {
         headers: { Authorization: `Bearer ${key}` },
       });
       expect(r.status()).toBe(200);
       const body = await r.json();
       expect(body.slug).toBe(want);
       const slugs = new Set((body.authors as Array<{ slug: string }>).map((a) => a.slug));
-      expect(slugs.has('duo-e2e')).toBeTruthy();
-      expect(slugs.has('ma-version-e2e')).toBeTruthy();
+      expect(slugs.has(BASE_SLUG)).toBeTruthy();
+      expect(slugs.has(CO_SLUG)).toBeTruthy();
     }
 
     // conflit global → auto-suffixe
     await db.query(
-      `INSERT INTO "Publisher" (id,type,name,slug,"createdAt","updatedAt") VALUES ('pub_tiers_e2e','PERSONAL','Tiers','tiers-e2e',now(),now()) ON CONFLICT DO NOTHING`
+      `INSERT INTO "Publisher" (id,type,name,slug,"createdAt","updatedAt") VALUES ($1,'PERSONAL','Tiers',$2,now(),now())`,
+      [TIERS_PUB_ID, `tiers-e2e-${RUN}`]
     );
     await db.query(
       `INSERT INTO "User" (id,email,username,name,role,"publisherId","createdAt","updatedAt")
-       VALUES ('00000000-0000-4000-8000-0000000000a3','own@qoe.fi','own_e2e','Own','user','pub_tiers_e2e',now(),now()) ON CONFLICT DO NOTHING`
+       VALUES ($1,$2,$3,'Own','user',$4,now(),now())`,
+      [OWNER_ID, `own-${RUN}@qoe.fi`, `own_e2e_${RUN}`, TIERS_PUB_ID]
     );
     await db.query(
       `INSERT INTO "Article" (id,title,slug,content,published,visibility,"readingTime",status,"publisherId","authorId","createdAt","updatedAt")
-       VALUES ('art_autre_e2e','Autre','duo-e2e-2','<p>x</p>',true,'PUBLIC',1,'PUBLISHED','pub_tiers_e2e','00000000-0000-4000-8000-0000000000a3',now(),now()) ON CONFLICT DO NOTHING`
+       VALUES ($1,'Autre',$2,'<p>x</p>',true,'PUBLIC',1,'PUBLISHED',$3,$4,now(),now())`,
+      [OTHER_ARTICLE_ID, TAKEN_SLUG, TIERS_PUB_ID, OWNER_ID]
     );
     res = await request.patch(`${GO_API_URL}/v1/creator/articles/${ARTICLE_ID}/slug`, {
       headers: { Authorization: `Bearer ${coKey}` },
-      data: { slug: 'duo-e2e-2' },
+      data: { slug: TAKEN_SLUG },
     });
     expect(res.status()).toBe(200);
-    expect((await res.json()).slug).toBe('duo-e2e-2-1');
+    expect((await res.json()).slug).toBe(`${TAKEN_SLUG}-1`);
 
     // historique : ancien variant reste résolu (200 via GetArticleBySlugAny)
     const hist = await db.query<{ count: string }>(
-      `SELECT COUNT(*)::text AS count FROM "ArticleSlugHistory" WHERE slug='ma-version-e2e' AND "articleId"=$1`,
-      [ARTICLE_ID]
+      `SELECT COUNT(*)::text AS count FROM "ArticleSlugHistory" WHERE slug=$2 AND "articleId"=$1`,
+      [ARTICLE_ID, CO_SLUG]
     );
     expect(Number(hist[0].count)).toBeGreaterThan(0);
 
     // filtres pointilleux
-    await db.query(`UPDATE "Article" SET "categoryId"='cat_e2e' WHERE id=$1`, [ARTICLE_ID]);
+    await db.query(`UPDATE "Article" SET "categoryId"=$2 WHERE id=$1`, [ARTICLE_ID, CATEGORY_ID]);
     // status=draft ne doit pas contenir le publié
     const dr = await request.get(`${GO_API_URL}/v1/creator/articles?status=draft`, {
       headers: { Authorization: `Bearer ${mainKey}` },

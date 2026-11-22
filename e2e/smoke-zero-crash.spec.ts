@@ -8,8 +8,20 @@
 // =====================================================================
 
 import { test, expect } from '@playwright/test';
+import { settleHydration } from './lib/settle';
+import { supabaseReachable } from './lib/auth';
 
 test.describe('🛡️ E2E — Zéro-Crash Navigation Smoke Tests', () => {
+  // 🚦 `/home` et `/` (feed personnalisé) exigent une session réelle : sans
+  // GoTrue local, la page rendue est celle du login. On saute explicitement
+  // plutôt que de valider une page qui n'est pas celle du test.
+  test.beforeAll(async () => {
+    test.skip(
+      !(await supabaseReachable()),
+      'Supabase local requis (supabase start) : /home résout la session via GoTrue.'
+    );
+  });
+
   test('charge la page d’accueil /home sans aucune erreur 500 ni crash d’images', async ({
     page,
   }) => {
@@ -32,8 +44,10 @@ test.describe('🛡️ E2E — Zéro-Crash Navigation Smoke Tests', () => {
     // Vérifier que le contenu principal est bien monté
     await expect(page.locator('main')).toBeVisible({ timeout: 15_000 });
 
-    // Laisser le temps à tous les micro-composants (avatars, sidebar, widgets) de monter
-    await page.waitForTimeout(1500);
+    // Attendre le montage de tous les micro-composants (avatars, sidebar,
+    // widgets) par un état observable (réseau au repos + frames React), au
+    // lieu d'une durée fixe.
+    await settleHydration(page);
 
     // Valider 0 crash
     expect(errors.filter((e) => !e.includes('ResizeObserver'))).toHaveLength(0);
@@ -47,11 +61,11 @@ test.describe('🛡️ E2E — Zéro-Crash Navigation Smoke Tests', () => {
 
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
-    // Vérifier que le header ou le bouton menu profil est présent
+    // La barre de navigation est un contrat de l'écran connecté : on l'exige,
+    // au lieu de la conditionner à sa propre visibilité (assertion qui ne
+    // pouvait pas échouer).
     const nav = page.locator('header, nav, [aria-label*="profil"], [aria-label*="Profil"]').first();
-    if (await nav.isVisible()) {
-      await expect(nav).toBeVisible();
-    }
+    await expect(nav).toBeVisible({ timeout: 15_000 });
 
     expect(pageErrors.filter((e) => !e.includes('ResizeObserver'))).toHaveLength(0);
   });

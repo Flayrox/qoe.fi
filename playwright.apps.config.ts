@@ -66,6 +66,12 @@ const NEEDS_ADMIN = !hasProjectArg || process.argv.some((a) => a.includes('admin
 // impossible (`ERR_CONNECTION_REFUSED` sur `lvh.me:15402`) ; le cookie de
 // session, lui, est posé sur `.lvh.me` et suit donc les sous-domaines.
 const RUN_FULL_STACK = process.env.RUN_FULL_STACK === '1';
+/**
+ * 🔐 Uniquement posé par `scripts/e2e-studio-auth.mjs`, qui a monté l'infra
+ * jetable (Postgres/Redis/GoTrue) et construit les apps. Jamais par un run
+ * d'apps ordinaire, même sous `RUN_FULL_STACK=1`.
+ */
+const STUDIO_AUTH_JOURNEY = process.env.STUDIO_AUTH_JOURNEY === '1';
 const CORE_URL = process.env.PLAYWRIGHT_CORE_URL ?? 'http://lvh.me:15402';
 const CORE_PORT = Number(new URL(CORE_URL).port) || 15402;
 
@@ -165,10 +171,14 @@ export default defineConfig({
       name: 'studio',
       use: { ...devices['Desktop Chrome'], baseURL: STUDIO_URL },
       testMatch: [/studio\.spec\.ts/, /studio-.*\.spec\.ts/],
-      // Le parcours authentifié exige Postgres/Redis/GoTrue + core : hors de
-      // `RUN_FULL_STACK=1` il n'est pas collecté du tout (pas de `skipped`
-      // silencieux), et c'est `pnpm e2e:studio-auth` qui le lance.
-      testIgnore: RUN_FULL_STACK ? [] : [/studio-auth-journey\.spec\.ts/],
+      // Le parcours studio authentifié a UN SEUL point d'entrée :
+      // `pnpm e2e:studio-auth` (scripts/e2e-studio-auth.mjs), qui monte lui-même
+      // Postgres/Redis/GoTrue jetables, lance le spec puis démonte tout. Il n'est
+      // donc collecté QUE sur le drapeau explicite que ce script pose
+      // (`STUDIO_AUTH_JOURNEY=1`) : `RUN_FULL_STACK=1` le rendait visible dans un
+      // run d'apps ordinaire, où il tournait sans l'infra qu'il exige (échec
+      // garanti) en plus d'être dupliqué par le script dédié.
+      testIgnore: STUDIO_AUTH_JOURNEY ? [] : [/studio-auth-journey\.spec\.ts/],
     },
     {
       name: 'admin',

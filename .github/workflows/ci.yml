@@ -516,8 +516,12 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co'
           NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key'
 
-      - name: Run E2E (public + journeys + security + standalone contracts)
-        run: pnpm e2e --project=public-web --project=core-journeys --project=security --project=standalone-contracts --reporter=list
+      # `--project=chromium` couvre les specs qui n'ont pas de projet dédié
+      # (creator-slugs : API créateur + slugs ; smoke(s) : écrans connectés,
+      # sautés explicitement ici faute de GoTrue, la raison apparaît dans le log).
+      # Sans cette ligne, `creator-slugs` n'était joué par AUCUN job.
+      - name: Run E2E (public + journeys + security + standalone contracts + chromium)
+        run: pnpm e2e --project=public-web --project=core-journeys --project=security --project=standalone-contracts --project=chromium --reporter=list
         env:
           CI: 'true'
           PLAYWRIGHT_TEST_BASE_URL: 'http://localhost:3010'
