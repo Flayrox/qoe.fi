@@ -857,38 +857,6 @@ func (s *Service) FinishCampaignIfDrained(ctx context.Context, campaignID string
 	return true, nil
 }
 
-// CampaignRecipientContext résout le contexte d'envoi d'un destinataire :
-// nom de publication et locale (résolveur V1 : 'en' si connue, sinon 'fr'.
-// Le résolveur complet par destinataire — choix explicite, compte, abonnement,
-// session — viendra avec le chantier i18n ; en attendant, pas de langue
-// inventée : FR par défaut documenté).
-func (s *Service) CampaignRecipientContext(ctx context.Context, campaignID, email string) (pubName, locale string, err error) {
-	var audienceType, audiencePubID string
-	err = s.pool.QueryRow(ctx, `
-		SELECT "audienceType", COALESCE("audiencePublisherId", '')
-		FROM "StaffCampaign" WHERE "id" = $1`, campaignID).Scan(&audienceType, &audiencePubID)
-	if err != nil {
-		return "", "", err
-	}
-	locale = "fr"
-	if audienceType == CampaignAudienceSubscribers && audiencePubID != "" {
-		err = s.pool.QueryRow(ctx, `
-			SELECT COALESCE(p."name", ''), COALESCE(
-			  (SELECT s2."locale" FROM "Subscriber" s2
-			   WHERE s2."publisherId" = $1 AND s2."email" = $2 LIMIT 1), 'fr')
-			FROM "Publisher" p WHERE p."id" = $1`, audiencePubID, email).Scan(&pubName, &locale)
-		if err != nil {
-			return "", "", err
-		}
-	} else {
-		pubName = "qoe.fi"
-	}
-	if locale != "en" {
-		locale = "fr"
-	}
-	return pubName, locale, nil
-}
-
 // CampaignSendContext résout le contexte d'envoi d'un destinataire : la vague
 // doit exister et la livraison lui appartenir, sinon refus — un worker ne doit
 // jamais envoyer pour une campagne inconnue.
