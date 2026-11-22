@@ -96,22 +96,10 @@ WHERE p."isDraft" = false
   AND p.visibility = 'public'
   AND u."isShadowbanned" = false
   AND u."isSuspended" = false
-  -- Blocage symétrique : le viewer ne voit jamais l'auteur qui l'a bloqué,
-  -- même s'il ne l'a pas bloqué lui-même.
-  AND NOT EXISTS (
-    SELECT 1 FROM "BlockedUser" bu
-    WHERE (bu."readerId" = $4 AND bu."creatorId" = p."authorId")
-       OR (bu."readerId" = p."authorId" AND bu."creatorId" = $4)
-  )
-  -- Compte privé / réservé aux abonnés : seuls le propriétaire et ses
-  -- abonnés voient les pensées dans la recherche.
-  AND (
-    COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
-    OR EXISTS (
-      SELECT 1 FROM "Follows" f
-      WHERE f."readerId" = $4 AND f."publisherId" = u."publisherId"
-    )
-  )
+  -- Blocage symétrique + compte privé + abonnés + propriétaire : une seule
+  -- source, le prédicat canonique en base (le propriétaire voyait auparavant
+  -- ses propres pensées privées disparaître de sa recherche).
+  AND can_view_profile($4, u.id)
   AND (
     p.content ILIKE '%' || $1 || '%'
     OR EXISTS (SELECT 1 FROM unnest(p.tags) AS tag WHERE tag ILIKE $1)
@@ -124,7 +112,7 @@ type SearchThoughtsParams struct {
 	Column1  pgtype.Text `json:"column_1"`
 	Limit    int32       `json:"limit"`
 	Offset   int32       `json:"offset"`
-	ReaderId pgtype.UUID `json:"readerId"`
+	ViewerID pgtype.UUID `json:"viewer_id"`
 }
 
 type SearchThoughtsRow struct {
@@ -148,7 +136,7 @@ func (q *Queries) SearchThoughts(ctx context.Context, arg SearchThoughtsParams) 
 		arg.Column1,
 		arg.Limit,
 		arg.Offset,
-		arg.ReaderId,
+		arg.ViewerID,
 	)
 	if err != nil {
 		return nil, err

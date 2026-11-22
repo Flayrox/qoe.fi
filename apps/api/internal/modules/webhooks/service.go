@@ -26,6 +26,7 @@ import (
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/netguard"
+	"github.com/qoefi/api/internal/textutil"
 )
 
 var (
@@ -543,18 +544,8 @@ func filterValidEvents(events []string) []string {
 	return out
 }
 
-// TruncateUTF8 coupe sur une frontière de rune : l'ancienne version coupait en
-// octets et produisait un corps UTF-8 invalide dans le JSON de réponse.
-func TruncateUTF8(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	cut := n
-	for cut > 0 && !utf8.RuneStart(s[cut]) {
-		cut--
-	}
-	return s[:cut]
-}
+// TruncateUTF8 tronque sans couper une rune (implémentation partagée).
+func TruncateUTF8(s string, n int) string { return textutil.TruncateUTF8(s, n) }
 
 func int32Ptr(v pgtype.Int4) *int32 {
 	if !v.Valid {

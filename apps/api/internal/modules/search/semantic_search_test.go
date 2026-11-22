@@ -47,7 +47,7 @@ func TestSearchLimitClamp(t *testing.T) {
 	s := newSearchService(t, vec512(0, 1), nil, q)
 
 	// limit <= 0 → 10
-	if _, err := s.Search(context.Background(), "liberté", 0); err != nil {
+	if _, err := s.Search(context.Background(), "liberté", 0, ""); err != nil {
 
 		t.Fatalf("Search(0): %v", err)
 	}
@@ -55,14 +55,14 @@ func TestSearchLimitClamp(t *testing.T) {
 		t.Fatalf("Limit = %d, attendu 10 (limit=0)", q.gotParams.Limit)
 	}
 	// limit > 50 → 10
-	if _, err := s.Search(context.Background(), "liberté", 100); err != nil {
+	if _, err := s.Search(context.Background(), "liberté", 100, ""); err != nil {
 		t.Fatalf("Search(100): %v", err)
 	}
 	if q.gotParams.Limit != 10 {
 		t.Fatalf("Limit = %d, attendu 10 (limit=100)", q.gotParams.Limit)
 	}
 	// limit dans la plage → conservé
-	if _, err := s.Search(context.Background(), "liberté", 5); err != nil {
+	if _, err := s.Search(context.Background(), "liberté", 5, ""); err != nil {
 		t.Fatalf("Search(5): %v", err)
 	}
 	if q.gotParams.Limit != 5 {
@@ -74,7 +74,7 @@ func TestSearchEmbedderErrorPropagated(t *testing.T) {
 	q := &stubQuerier{}
 	s := newSearchService(t, nil, errors.New("inférence down"), q)
 
-	_, err := s.Search(context.Background(), "liberté", 10)
+	_, err := s.Search(context.Background(), "liberté", 10, "")
 	if err == nil || !strings.Contains(err.Error(), "inférence down") {
 		t.Fatalf("err = %v, attendu erreur embedder propagée", err)
 	}
@@ -85,7 +85,7 @@ func TestSearchVectorTooShort(t *testing.T) {
 	// 100 dims < 512 requis par MRL → erreur dimension.
 	s := newSearchService(t, make([]float32, 100), nil, q)
 
-	_, err := s.Search(context.Background(), "liberté", 10)
+	_, err := s.Search(context.Background(), "liberté", 10, "")
 	if err == nil || !strings.Contains(err.Error(), "dimension 100 < 512") {
 		t.Fatalf("err = %v, attendu erreur dimension", err)
 	}
@@ -96,7 +96,7 @@ func TestSearchTruncatesVectorToDims(t *testing.T) {
 	// 1024 dims retournées par l'inférence → tronquées à 512 (MRL).
 	s := newSearchService(t, make([]float32, 1024), nil, q)
 
-	if _, err := s.Search(context.Background(), "liberté", 10); err != nil {
+	if _, err := s.Search(context.Background(), "liberté", 10, ""); err != nil {
 		t.Fatalf("Search: %v", err)
 	}
 	if len(q.gotParams.Column1.Slice()) != 512 {
@@ -108,7 +108,7 @@ func TestSearchQueryErrorPropagated(t *testing.T) {
 	q := &stubQuerier{err: errors.New("pg down")}
 	s := newSearchService(t, vec512(0, 1), nil, q)
 
-	_, err := s.Search(context.Background(), "liberté", 10)
+	_, err := s.Search(context.Background(), "liberté", 10, "")
 	if err == nil || !strings.Contains(err.Error(), "pg down") {
 		t.Fatalf("err = %v, attendu erreur requête propagée", err)
 	}
@@ -138,7 +138,7 @@ func TestSearchMapsHits(t *testing.T) {
 	q := &stubQuerier{rows: []db.SearchSemanticArticlesRow{row}}
 	s := newSearchService(t, vec512(0, 1), nil, q)
 
-	items, err := s.Search(context.Background(), "liberté", 10)
+	items, err := s.Search(context.Background(), "liberté", 10, "")
 	if err != nil {
 		t.Fatalf("Search: %v", err)
 	}
@@ -186,7 +186,7 @@ func TestSearchMapsNulls(t *testing.T) {
 	q := &stubQuerier{rows: []db.SearchSemanticArticlesRow{row}}
 	s := newSearchService(t, vec512(0, 1), nil, q)
 
-	items, err := s.Search(context.Background(), "liberté", 10)
+	items, err := s.Search(context.Background(), "liberté", 10, "")
 	if err != nil {
 		t.Fatalf("Search: %v", err)
 	}

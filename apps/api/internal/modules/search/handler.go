@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/qoefi/api/internal/middleware"
@@ -37,6 +38,9 @@ const (
 	// maxSearchCursor évite qu'un curseur absurde ne fasse parcourir un index
 	// entier à coups de requêtes unitaires.
 	maxSearchCursor = 100_000
+	// maxSearchFilterLen borne publisherId/categoryId réinjectés dans le filtre
+	// Meilisearch.
+	maxSearchFilterLen = 64
 )
 
 // parseSearchCursor lit un curseur opaque (offset décimal). Vide = première
@@ -107,12 +111,17 @@ func (h *Handler) ownsPublisher(ctx context.Context, userID, publisherID string)
 	if h.pool == nil || userID == "" || publisherID == "" {
 		return false
 	}
+	// Un identifiant non-UUID ne doit pas atteindre le cast SQL (erreur de
+	// syntaxe inutile) : il n'est propriétaire de rien.
+	if _, err := uuid.Parse(userID); err != nil {
+		return false
+	}
 	var ok bool
 	err := h.pool.QueryRow(ctx, `SELECT EXISTS(
-		SELECT 1 FROM "User" WHERE id::text = $1 AND "publisherId" = $2
+		SELECT 1 FROM "User" WHERE id = $1::uuid AND "publisherId" = $2
 		UNION
 		SELECT 1 FROM "MediaMember" mm JOIN "Media" md ON md.id = mm."mediaId"
-		WHERE md."publisherId" = $2 AND mm."userId"::text = $1
+		WHERE md."publisherId" = $2 AND mm."userId" = $1::uuid
 			AND mm.status = 'active' AND mm.role IN ('owner', 'admin')
 	)`, userID, publisherID).Scan(&ok)
 	return err == nil && ok
@@ -122,7 +131,10 @@ func (h *Handler) ownsPublisher(ctx context.Context, userID, publisherID string)
 // Réponse : { thoughts: [...], nextCursor } — la pagination se fait par offset
 // opaque, comme les articles.
 func (h *Handler) searchThoughts(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query().Get("q")
+	// Le `#` d'un hashtag est un marqueur d'intention : on cherche le terme nu
+	// (le tag comme le contenu), parité searchThoughts TS.
+	query := strings.TrimPrefix(strings.TrimSpace(r.URL.Query().Get("q")), "#")
+	query = strings.TrimSpace(query)
 	if query == "" {
 		response.OK(w, map[string]any{"thoughts": []any{}, "nextCursor": nil})
 		return
@@ -131,9 +143,6 @@ func (h *Handler) searchThoughts(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, http.StatusBadRequest, "Recherche trop longue")
 		return
 	}
-	// Le `#` d'un hashtag est un marqueur d'intention : on cherche le terme nu
-	// (le tag comme le contenu), parité searchThoughts TS.
-	query = strings.TrimPrefix(strings.TrimSpace(query), "#")
 	limit := middleware.ClampLimit(
 		r.URL.Query().Get("limit"), defaultThoughtSearchLimit, maxThoughtSearchLimit,
 	)
@@ -160,7 +169,7 @@ func (h *Handler) searchThoughts(w http.ResponseWriter, r *http.Request) {
 // searchArticles cherche dans l'index Meilisearch des articles (limit 10).
 // Réponse : { hits: [...], estimatedTotalHits: number } — parité Hono.
 func (h *Handler) searchArticles(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query().Get("q")
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
 	if query == "" {
 		response.OK(w, map[string]any{"hits": []any{}, "estimatedTotalHits": 0})
 		return
@@ -181,8 +190,14 @@ func (h *Handler) searchArticles(w http.ResponseWriter, r *http.Request) {
 
 	// Filtres optionnels : publication (scope « mine » du Cmd+K studio) et
 	// catégorie (recherche tenant). Les deux se combinent en AND.
-	pubID := r.URL.Query().Get("publisherId")
-	catID := r.URL.Query().Get("categoryId")
+	pubID := strings.TrimSpace(r.URL.Query().Get("publisherId"))
+	catID := strings.TrimSpace(r.URL.Query().Get("categoryId"))
+	// Un identifiant de filtre est borné comme un identifiant : au-delà, la
+	// valeur construite partait telle quelle dans le filtre Meilisearch.
+	if len(pubID) > maxSearchFilterLen || len(catID) > maxSearchFilterLen {
+		response.Error(w, http.StatusBadRequest, "Filtre de recherche invalide")
+		return
+	}
 	req := &meilisearch.SearchRequest{Limit: int64(limit), Offset: int64(offset)}
 	filters := make([]string, 0, 2)
 	if pubID != "" {
@@ -196,7 +211,7 @@ func (h *Handler) searchArticles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	results, err := h.searcher.Search(query, req)
-	if err != nil {
+	if err != nil || results == nil {
 		log.Printf("[search] meilisearch: %v", err)
 		response.Internal(w)
 		return
@@ -220,7 +235,15 @@ func (h *Handler) searchArticles(w http.ResponseWriter, r *http.Request) {
 	// profileVisibility. On retire donc les hits des publications privées /
 	// réservées aux abonnés, et ceux d'un compte bloqué dans un sens ou l'autre.
 	before := len(hits)
-	hits = h.filterVisibleArticleHits(r.Context(), hits, userID)
+	hits, err = h.filterVisibleArticleHits(r.Context(), hits, userID)
+	if err != nil {
+		// Base indisponible : on refuse la page plutôt que de servir des hits
+		// non vérifiés (compte privé, blocage). L'ancien code renvoyait la
+		// liste brute en journalisant à peine.
+		log.Printf("[search] visibility filter: %v", err)
+		response.Internal(w)
+		return
+	}
 	estimatedTotal := results.EstimatedTotalHits - int64(before-len(hits))
 	if estimatedTotal < 0 {
 		estimatedTotal = 0
@@ -269,11 +292,16 @@ func nextArticlesCursor(offset, rawHits int, estimatedTotal int64, limit int) an
 
 // filterVisibleArticleHits retire les hits dont la publication n'est pas
 // visible par le viewer (compte privé / abonnés uniquement) ou dont l'auteur
-// est bloqué dans un sens ou l'autre. Les hits sans publisherId sont
-// conservés : on ne peut pas prouver qu'ils sont privés.
-func (h *Handler) filterVisibleArticleHits(ctx context.Context, hits meilisearch.Hits, viewerID string) meilisearch.Hits {
+// est bloqué dans un sens ou l'autre. Une seule règle : le prédicat canonique
+// `can_view_profile` (compte privé, abonnés, propriétaire, blocage
+// symétrique), au lieu d'une ré-implémentation locale. Les hits sans
+// publisherId sont conservés : on ne peut pas prouver qu'ils sont privés.
+//
+// Une erreur SQL est remontée : servir la liste non filtrée en cas de panne
+// laissait fuiter comptes privés et blocages.
+func (h *Handler) filterVisibleArticleHits(ctx context.Context, hits meilisearch.Hits, viewerID string) (meilisearch.Hits, error) {
 	if h.pool == nil || len(hits) == 0 {
-		return hits
+		return hits, nil
 	}
 
 	pubIDs := make([]string, 0, len(hits))
@@ -289,40 +317,29 @@ func (h *Handler) filterVisibleArticleHits(ctx context.Context, hits meilisearch
 		}
 	}
 	if len(pubIDs) == 0 {
-		return hits
+		return hits, nil
 	}
 
-	type access struct {
-		visibility string
-		own        bool
-		follows    bool
-		blocked    bool
-	}
-	byPub := make(map[string]access, len(pubIDs))
+	visible := make(map[string]bool, len(pubIDs))
 	rows, err := h.pool.Query(ctx, `
-		SELECT p.id::text,
-		       COALESCE(us."profileVisibility", 'PUBLIC'),
-		       (u.id = $2) AS is_own,
-		       EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = $2 AND f."publisherId" = p.id) AS follows,
-		       EXISTS (SELECT 1 FROM "BlockedUser" bu
-		               WHERE (bu."readerId" = $2 AND bu."creatorId" = u.id)
-		                  OR (bu."readerId" = u.id AND bu."creatorId" = $2)) AS blocked
+		SELECT p.id::text, can_view_profile($2, u.id)
 		FROM "Publisher" p
 		JOIN "User" u ON u."publisherId" = p.id
-		LEFT JOIN "UserSettings" us ON us."userId" = u.id
 		WHERE p.id = ANY($1)`, pubIDs, toUUID(viewerID))
 	if err != nil {
-		log.Printf("[search] visibility filter: %v", err)
-		return hits
+		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var pubID string
-		var a access
-		if err := rows.Scan(&pubID, &a.visibility, &a.own, &a.follows, &a.blocked); err != nil {
-			continue
+		var ok bool
+		if err := rows.Scan(&pubID, &ok); err != nil {
+			return nil, err
 		}
-		byPub[pubID] = a
+		visible[pubID] = ok
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	filtered := make(meilisearch.Hits, 0, len(hits))
@@ -332,19 +349,14 @@ func (h *Handler) filterVisibleArticleHits(ctx context.Context, hits meilisearch
 			filtered = append(filtered, hit)
 			continue
 		}
-		a, ok := byPub[pubID]
-		if !ok {
-			// Publication supprimée entre l'indexation et la recherche.
+		// Publication supprimée entre l'indexation et la recherche, ou
+		// visibilité refusée : le hit disparaît.
+		if !visible[pubID] {
 			continue
 		}
-		if a.blocked {
-			continue
-		}
-		if a.own || a.visibility == "PUBLIC" || a.follows {
-			filtered = append(filtered, hit)
-		}
+		filtered = append(filtered, hit)
 	}
-	return filtered
+	return filtered, nil
 }
 
 // redactPremiumHitContents remplace, dans les hits de recherche PUBLIQUE, le
@@ -381,7 +393,7 @@ func redactPremiumHitContents(hits meilisearch.Hits) {
 // Réponse : { items: [...] } — ou 503 si le service d'embedding n'est pas
 // configuré (le fallback lexical /search/articles reste disponible).
 func (h *Handler) searchSemantic(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query().Get("q")
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
 	if query == "" {
 		response.OK(w, map[string]any{"items": []any{}})
 		return
@@ -392,7 +404,8 @@ func (h *Handler) searchSemantic(w http.ResponseWriter, r *http.Request) {
 	}
 	limit := middleware.ClampLimit(r.URL.Query().Get("limit"), 10, 50)
 
-	items, err := h.semantic.Search(r.Context(), query, limit)
+	userID, _ := middleware.UserID(r.Context())
+	items, err := h.semantic.Search(r.Context(), query, limit, userID)
 	if err != nil {
 		if errors.Is(err, ErrNoEmbeddingService) {
 			response.Error(w, http.StatusServiceUnavailable, "Recherche sémantique indisponible (embedding non configuré)")

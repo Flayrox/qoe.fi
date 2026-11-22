@@ -109,7 +109,7 @@ func TestSearchSemanticRanksBySimilarity(t *testing.T) {
 		embedder: stubEmbedder{vec: vec512(1, 0.01)}, // proche de article-payant
 	}
 
-	hits, err := s.Search(context.Background(), "requête quelconque", 10)
+	hits, err := s.Search(context.Background(), "requête quelconque", 10, "")
 	if err != nil {
 		t.Fatalf("Search: %v", err)
 	}
@@ -152,7 +152,7 @@ func TestSearchSemanticLimitClamp(t *testing.T) {
 	}
 
 	// limit <= 0 → clampé à 10 (3 résultats disponibles, pas d'erreur).
-	hits, err := s.Search(context.Background(), "x", 0)
+	hits, err := s.Search(context.Background(), "x", 0, "")
 	if err != nil {
 		t.Fatalf("Search(limit=0): %v", err)
 	}
@@ -161,7 +161,7 @@ func TestSearchSemanticLimitClamp(t *testing.T) {
 	}
 
 	// limit > 50 → clampé à 10.
-	hits, err = s.Search(context.Background(), "x", 999)
+	hits, err = s.Search(context.Background(), "x", 999, "")
 	if err != nil {
 		t.Fatalf("Search(limit=999): %v", err)
 	}
@@ -170,7 +170,7 @@ func TestSearchSemanticLimitClamp(t *testing.T) {
 	}
 
 	// limit normal respecté.
-	hits, err = s.Search(context.Background(), "x", 2)
+	hits, err = s.Search(context.Background(), "x", 2, "")
 	if err != nil {
 		t.Fatalf("Search(limit=2): %v", err)
 	}
@@ -190,7 +190,7 @@ func TestSearchSemanticShortVector(t *testing.T) {
 		q:        db.New(poolTest),
 		embedder: stubEmbedder{vec: make([]float32, 128)},
 	}
-	_, err := s.Search(context.Background(), "x", 10)
+	_, err := s.Search(context.Background(), "x", 10, "")
 	if err == nil {
 		t.Fatal("Search doit échouer sur un vecteur de 128 dims (< 512)")
 	}
@@ -209,7 +209,7 @@ func TestSearchSemanticEmbedderError(t *testing.T) {
 		q:        db.New(poolTest),
 		embedder: stubEmbedder{err: fmt.Errorf("service d'inférence down")},
 	}
-	if _, err := s.Search(context.Background(), "x", 10); err == nil {
+	if _, err := s.Search(context.Background(), "x", 10, ""); err == nil {
 		t.Fatal("Search doit propager l'erreur de l'embedder")
 	}
 }

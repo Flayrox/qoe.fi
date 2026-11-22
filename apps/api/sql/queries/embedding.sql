@@ -72,5 +72,8 @@ WHERE a.published = true
   AND a."embedding" IS NOT NULL
   AND u."isShadowbanned" = false
   AND u."isSuspended" = false
+  -- Même règle que la recherche lexicale et la lecture : compte privé et
+  -- blocage symétrique passent par le prédicat canonique en base.
+  AND can_view_profile($3, u.id)
 ORDER BY a."embedding" <=> $1::vector
 LIMIT $2;

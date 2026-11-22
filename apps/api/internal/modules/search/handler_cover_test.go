@@ -383,7 +383,7 @@ func TestSemanticSearchFakePath(t *testing.T) {
 		embedder: fakeEmbedder{vec: make([]float32, 512)},
 		q:        fakeQuerier{semantic: []db.SearchSemanticArticlesRow{row}},
 	}
-	items, err := svc.Search(context.Background(), "gaming", 10)
+	items, err := svc.Search(context.Background(), "gaming", 10, "")
 	if err != nil {
 		t.Fatalf("Search: %v", err)
 	}
@@ -392,12 +392,12 @@ func TestSemanticSearchFakePath(t *testing.T) {
 	}
 	// Vector trop court → erreur (dimension < 512).
 	svc2 := &SemanticService{embedder: fakeEmbedder{vec: make([]float32, 8)}, q: fakeQuerier{}}
-	if _, err := svc2.Search(context.Background(), "x", 10); err == nil {
+	if _, err := svc2.Search(context.Background(), "x", 10, ""); err == nil {
 		t.Fatal("attendu erreur de dimension")
 	}
 	// Erreur du queryer → propagation.
 	svc3 := &SemanticService{embedder: fakeEmbedder{vec: make([]float32, 512)}, q: fakeQuerier{semanticErr: fmt.Errorf("db")}}
-	if _, err := svc3.Search(context.Background(), "x", 10); err == nil {
+	if _, err := svc3.Search(context.Background(), "x", 10, ""); err == nil {
 		t.Fatal("attendu erreur db")
 	}
 }

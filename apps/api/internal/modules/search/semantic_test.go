@@ -239,7 +239,7 @@ func TestNewHandler(t *testing.T) {
 func TestSearchNoEmbeddingService(t *testing.T) {
 	t.Setenv("EMBEDDING_URL", "")
 	s := &SemanticService{embedder: stubEmbedder{}}
-	_, err := s.Search(context.Background(), "liberté", 10)
+	_, err := s.Search(context.Background(), "liberté", 10, "")
 	if !errors.Is(err, ErrNoEmbeddingService) {
 		t.Fatalf("err = %v, attendu ErrNoEmbeddingService", err)
 	}

@@ -162,13 +162,17 @@ WHERE a.published = true
   AND a."embedding" IS NOT NULL
   AND u."isShadowbanned" = false
   AND u."isSuspended" = false
+  -- Même règle que la recherche lexicale et la lecture : compte privé et
+  -- blocage symétrique passent par le prédicat canonique en base.
+  AND can_view_profile($3, u.id)
 ORDER BY a."embedding" <=> $1::vector
 LIMIT $2
 `
 
 type SearchSemanticArticlesParams struct {
-	Column1 pgvector.Vector `json:"column_1"`
-	Limit   int32           `json:"limit"`
+	Column1  pgvector.Vector `json:"column_1"`
+	Limit    int32           `json:"limit"`
+	ViewerID pgtype.UUID     `json:"viewer_id"`
 }
 
 type SearchSemanticArticlesRow struct {
@@ -191,7 +195,7 @@ type SearchSemanticArticlesRow struct {
 
 // Recherche sémantique plein corpus (ordre par similarité cosinus).
 func (q *Queries) SearchSemanticArticles(ctx context.Context, arg SearchSemanticArticlesParams) ([]SearchSemanticArticlesRow, error) {
-	rows, err := q.db.Query(ctx, searchSemanticArticles, arg.Column1, arg.Limit)
+	rows, err := q.db.Query(ctx, searchSemanticArticles, arg.Column1, arg.Limit, arg.ViewerID)
 	if err != nil {
 		return nil, err
 	}
