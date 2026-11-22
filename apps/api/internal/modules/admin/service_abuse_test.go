@@ -135,6 +135,18 @@ func TestAbuseWiring_SuperadminPassthrough(t *testing.T) {
 	if _, err := svc.RevokeSubscriptionGrant(ctx, adminAdminID, g.ID); err != nil {
 		t.Fatalf("revoke = %v", err)
 	}
+	// Un octroi payant et sa révocation laissent une trace d'audit.
+	for _, action := range []string{"subscription.grant", "subscription.revoke", "publisher.email_pro"} {
+		var traced int
+		if err := poolTest.QueryRow(ctx,
+			`SELECT count(*) FROM "AdminAuditLog" WHERE action = $1 AND "actorId" = $2::uuid`,
+			action, adminAdminID).Scan(&traced); err != nil {
+			t.Fatalf("audit %s: %v", action, err)
+		}
+		if traced == 0 {
+			t.Fatalf("aucune trace d'audit pour %s", action)
+		}
+	}
 	if pro, err := svc.SetPublisherEmailPro(ctx, adminAdminID, "pub_adm_001", false); err != nil || pro {
 		t.Fatalf("off après revoke = (%v, %v)", pro, err)
 	}

@@ -254,7 +254,16 @@ func (s *Service) GrantSubscription(ctx context.Context, userID, subjectType, su
 		}
 		ends = &t
 	}
-	return subscriptions.GrantPlan(ctx, s.pool, subjectType, subjectID, plan, start, ends, userID, note, now)
+	grant, err := subscriptions.GrantPlan(ctx, s.pool, subjectType, subjectID, plan, start, ends, userID, note, now)
+	if err != nil {
+		return subscriptions.Grant{}, err
+	}
+	// Octroyer un palier payant est un acte financier : il laisse une trace.
+	s.logAudit(ctx, userID, "subscription.grant", subjectType, subjectID, map[string]any{
+		"plan": plan, "startsAt": start.UTC().Format(time.RFC3339),
+		"endsAt": endsAt, "note": note, "grantId": grant.ID,
+	})
+	return grant, nil
 }
 
 // RevokeSubscriptionGrant révoque (fin immédiate, historique conservé).
@@ -262,7 +271,14 @@ func (s *Service) RevokeSubscriptionGrant(ctx context.Context, userID, id string
 	if err := s.checkSuperadmin(ctx, userID); err != nil {
 		return subscriptions.Grant{}, err
 	}
-	return subscriptions.RevokeGrant(ctx, s.pool, id, time.Now().Add(50*time.Millisecond))
+	grant, err := subscriptions.RevokeGrant(ctx, s.pool, id, time.Now().Add(50*time.Millisecond))
+	if err != nil {
+		return subscriptions.Grant{}, err
+	}
+	s.logAudit(ctx, userID, "subscription.revoke", grant.SubjectType, grant.SubjectID, map[string]any{
+		"plan": grant.Plan, "grantId": grant.ID,
+	})
+	return grant, nil
 }
 
 // ResolveAbuseDecision clôt un dossier par un verdict humain tracé

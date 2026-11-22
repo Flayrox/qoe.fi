@@ -31,6 +31,9 @@ func (s *Service) SetPublisherEmailPro(ctx context.Context, userID, publisherID 
 			now, nil, userID, "bascule console (toggle)", now); err != nil {
 			return false, err
 		}
+		s.logAudit(ctx, userID, "publisher.email_pro", "publisher", publisherID, map[string]any{
+			"emailPro": true,
+		})
 		return true, nil
 	}
 	effective, err := subscriptions.ListGrants(ctx, s.pool,
@@ -46,5 +49,8 @@ func (s *Service) SetPublisherEmailPro(ctx context.Context, userID, publisherID 
 			return false, err
 		}
 	}
+	s.logAudit(ctx, userID, "publisher.email_pro", "publisher", publisherID, map[string]any{
+		"emailPro": false,
+	})
 	return subscriptions.HasPro(ctx, s.pool, publisherID, now), nil
 }
