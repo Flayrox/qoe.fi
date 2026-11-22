@@ -227,15 +227,23 @@ func handleProfileVisibilityChanged(ctx context.Context, db DB, event ProfileVis
 	}
 
 	type pendingReq struct {
-		requesterID   string
+		requesterID string
 		publisherID string
 	}
 	var pending []pendingReq
 	for rows.Next() {
 		var pr pendingReq
-		if err := rows.Scan(&pr.requesterID, &pr.publisherID); err == nil {
-			pending = append(pending, pr)
+		// Une ligne illisible ne doit pas disparaître silencieusement : elle
+		// laisserait une demande PENDING jamais acceptée, sans trace.
+		if err := rows.Scan(&pr.requesterID, &pr.publisherID); err != nil {
+			rows.Close()
+			return fmt.Errorf("lecture follow requests en attente: %w", err)
 		}
+		pending = append(pending, pr)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return fmt.Errorf("lecture follow requests en attente: %w", err)
 	}
 	rows.Close()
 
@@ -301,13 +309,15 @@ func handleProfileVisibilityChanged(ctx context.Context, db DB, event ProfileVis
 	// d. Envoi de la notification FOLLOW_ACCEPTED à chaque demandeur via notifications.Dispatch
 	for _, pr := range pending {
 		reqPubID := pr.publisherID
-		_ = notifications.Dispatch(ctx, db, notifications.DispatchInput{
-			RecipientID:   pr.requesterID,
-			SenderID:      event.UserID,
-			Type:          "FOLLOW",
+		if err := notifications.Dispatch(ctx, db, notifications.DispatchInput{
+			RecipientID: pr.requesterID,
+			SenderID:    event.UserID,
+			Type:        "FOLLOW",
 			PublisherID: &reqPubID,
-			Metadata:      map[string]any{"kind": "FOLLOW_ACCEPTED"},
-		})
+			Metadata:    map[string]any{"kind": "FOLLOW_ACCEPTED"},
+		}); err != nil {
+			return fmt.Errorf("notification d'acceptation (%s): %w", pr.requesterID, err)
+		}
 	}
 
 	return nil

@@ -136,8 +136,8 @@ func TestHandler_UpdateProfile_Owner(t *testing.T) {
 
 	w, _ := doJSON(t, r, "PATCH", "/v1/settings/profile", token, map[string]any{
 		"publisherId": fx.PubID,
-		"name":          "Nouveau nom",
-		"heroText":      "Nouveau héros",
+		"name":        "Nouveau nom",
+		"heroText":    "Nouveau héros",
 		"siteOptions": map[string]any{
 			"backgroundColor": "#91BD39",
 		},
@@ -183,7 +183,7 @@ func TestHandler_UpdateProfile_ViewerForbidden(t *testing.T) {
 	// viewer n'a pas media:manage_settings.
 	w, _ := doJSON(t, r, "PATCH", "/v1/settings/profile", token, map[string]any{
 		"publisherId": fx.MediaPubID,
-		"name":          "Hack",
+		"name":        "Hack",
 	})
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, attendu 403 (viewer)", w.Code)
@@ -199,7 +199,7 @@ func TestHandler_UpdateProfile_EditorOverride(t *testing.T) {
 	// editor a l'override +media:manage_settings → autorisé.
 	w, _ := doJSON(t, r, "PATCH", "/v1/settings/profile", token, map[string]any{
 		"publisherId": fx.MediaPubID,
-		"heroText":      "Édité par editor",
+		"heroText":    "Édité par editor",
 	})
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s, attendu 200 (override)", w.Code, w.Body.String())
@@ -227,7 +227,7 @@ func TestHandler_UpdateSubdomain_Owner(t *testing.T) {
 
 	w, body := doJSON(t, r, "POST", "/v1/settings/subdomain", token, map[string]any{
 		"publisherId": fx.PubID,
-		"subdomain":     "mon-nouveau-domaine",
+		"subdomain":   "mon-nouveau-domaine",
 	})
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
@@ -245,7 +245,7 @@ func TestHandler_UpdateSubdomain_Taken(t *testing.T) {
 
 	w, _ := doJSON(t, r, "POST", "/v1/settings/subdomain", token, map[string]any{
 		"publisherId": fx.PubID,
-		"subdomain":     "deja-pris",
+		"subdomain":   "deja-pris",
 	})
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, attendu 400 (déjà pris)", w.Code)
@@ -299,13 +299,31 @@ func TestHandler_SubmitApiApplication(t *testing.T) {
 	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
-	token := testJWT(fx.OwnerID)
+	// viewer n'a pas encore d'accès API → la demande est acceptée.
+	token := testJWT(fx.ViewerID)
 
 	w, _ := doJSON(t, r, "POST", "/v1/settings/api-application", token, map[string]any{
 		"reason": "Je veux intégrer qoefi comme CMS pour mon média.",
 	})
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+
+	// Un accès DÉJÀ approuvé n'est jamais remis en attente par une
+	// re-soumission (la décision d'un administrateur était écrasée).
+	w, _ = doJSON(t, r, "POST", "/v1/settings/api-application", testJWT(fx.OwnerID), map[string]any{
+		"reason": "Je re-soumets ma demande pour la énième fois.",
+	})
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("re-soumission approuvée : status = %d, attendu 403", w.Code)
+	}
+	var status string
+	if err := poolTest.QueryRow(context.Background(),
+		`SELECT "apiAccessStatus" FROM "User" WHERE id = $1`, fx.OwnerID).Scan(&status); err != nil {
+		t.Fatalf("statut: %v", err)
+	}
+	if status != "approved" {
+		t.Fatalf("statut owner = %q, attendu approved", status)
 	}
 }
 

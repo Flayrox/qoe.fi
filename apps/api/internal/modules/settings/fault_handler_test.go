@@ -13,7 +13,7 @@ import (
 // être mis en faute, pour couvrir les branches d'erreur des handlers
 // (Internal/Forbidden/NotFound/BadRequest) autrement inaccessibles.
 func faultRouter(fq *faultQ, fp *faultPool) *chi.Mux {
-	svc := &Service{pool: fp, q: fq}
+	svc := &Service{pool: fp, q: fq, newQ: faultQuerier(fq.fail)}
 	h := NewHandler(svc)
 	auth := middleware.NewAuth(testSecret, "")
 	r := chi.NewRouter()
@@ -44,19 +44,21 @@ func TestFault_Handlers_InternalErrors(t *testing.T) {
 		want        int
 	}{
 		{"getPreferences-500", nil, "queryrow", http.MethodGet, "/v1/settings/preferences", nil, http.StatusInternalServerError},
-		{"updatePreferences-400", nil, "exec", http.MethodPatch, "/v1/settings/preferences", map[string]any{"fontScale": 110}, http.StatusBadRequest},
+		// Une panne d'écriture est une panne : 500, plus un 400 de validation.
+		{"updatePreferences-500", nil, "exec", http.MethodPatch, "/v1/settings/preferences", map[string]any{"fontScale": 110}, http.StatusInternalServerError},
 		{"deletion-get-500", nil, "queryrow", http.MethodGet, "/v1/me/account-deletion-request", nil, http.StatusInternalServerError},
 		{"deletion-post-500", nil, "queryrow", http.MethodPost, "/v1/me/account-deletion-request", nil, http.StatusInternalServerError},
 		{"deletion-delete-500", nil, "exec", http.MethodDelete, "/v1/me/account-deletion-request", nil, http.StatusInternalServerError},
-		{"updateProfile-404", map[string]error{"GetUserForSettings": errBoom}, "", http.MethodPatch, "/v1/settings/profile", map[string]any{"publisherId": fx.PubID, "name": "X"}, http.StatusNotFound},
-		{"updateProfile-403", map[string]error{"GetUserPersonalPublisher": errBoom}, "", http.MethodPatch, "/v1/settings/profile", map[string]any{"publisherId": fx.PubID, "name": "X"}, http.StatusForbidden},
-		{"updateProfile-400", nil, "exec", http.MethodPatch, "/v1/settings/profile", map[string]any{"publisherId": fx.PubID, "name": "X"}, http.StatusBadRequest},
-		{"updateSubdomain-400", map[string]error{"UpdatePublisherSubdomain": errBoom}, "", http.MethodPost, "/v1/settings/subdomain", map[string]any{"publisherId": fx.PubID, "subdomain": "test-sub"}, http.StatusBadRequest},
+		// Panne de lecture ou d'écriture ≠ compte absent / entrée invalide.
+		{"updateProfile-500-read", map[string]error{"GetUserForSettings": errBoom}, "", http.MethodPatch, "/v1/settings/profile", map[string]any{"publisherId": fx.PubID, "name": "X"}, http.StatusInternalServerError},
+		{"updateProfile-500-authz", map[string]error{"GetUserPersonalPublisher": errBoom}, "", http.MethodPatch, "/v1/settings/profile", map[string]any{"publisherId": fx.PubID, "name": "X"}, http.StatusInternalServerError},
+		{"updateProfile-500-write", nil, "exec", http.MethodPatch, "/v1/settings/profile", map[string]any{"publisherId": fx.PubID, "name": "X"}, http.StatusInternalServerError},
+		{"updateSubdomain-500", map[string]error{"UpdatePublisherSubdomain": errBoom}, "", http.MethodPost, "/v1/settings/subdomain", map[string]any{"publisherId": fx.PubID, "subdomain": "test-sub"}, http.StatusInternalServerError},
 		{"saveNavigation-500", map[string]error{"DeleteNavigationItems": errBoom}, "", http.MethodPut, "/v1/settings/navigation", map[string]any{"publisherId": fx.PubID, "links": []map[string]any{{"label": "L", "url": "/l"}}}, http.StatusInternalServerError},
 		{"saveSocial-500", map[string]error{"DeleteSocialLinks": errBoom}, "", http.MethodPut, "/v1/settings/social", map[string]any{"publisherId": fx.PubID, "links": []map[string]any{{"platform": "x", "url": "https://x.com"}}}, http.StatusInternalServerError},
-		{"apiApplication-500", map[string]error{"SetApiApplication": errBoom}, "", http.MethodPost, "/v1/settings/api-application", map[string]any{"reason": "j'ai besoin de l'api pour un projet perso"}, http.StatusInternalServerError},
+		{"apiApplication-500", map[string]error{"GetUserApiAccessStatus": errBoom}, "", http.MethodPost, "/v1/settings/api-application", map[string]any{"reason": "j'ai besoin de l'api pour un projet perso"}, http.StatusInternalServerError},
 		{"listApiKeys-500", map[string]error{"ListApiKeys": errBoom}, "", http.MethodGet, "/v1/settings/api-keys", nil, http.StatusInternalServerError},
-		{"revokeApiKey-500", map[string]error{"DeleteApiKey": errBoom}, "", http.MethodDelete, "/v1/settings/api-keys/abc", nil, http.StatusInternalServerError},
+		{"revokeApiKey-500", nil, "exec", http.MethodDelete, "/v1/settings/api-keys/abc", nil, http.StatusInternalServerError},
 		{"onboarding-500", map[string]error{"UpdatePersonalPublisher": errBoom}, "", http.MethodPost, "/v1/settings/onboarding", map[string]any{"name": "Perso"}, http.StatusInternalServerError},
 	}
 

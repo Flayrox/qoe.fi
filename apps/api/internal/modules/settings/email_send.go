@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"time"
 
@@ -46,7 +47,7 @@ func (s *Service) SetEmailTestSender(p emailTester, fromAddress string) {
 // stockés) et l'envoie à l'adresse du créateur connecté.
 func (s *Service) SendTestEmail(ctx context.Context, userID, publisherID, locale, template string, draft json.RawMessage) (map[string]any, error) {
 	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
-		return nil, errForbidden
+		return nil, err
 	}
 	if s.emailProvider == nil {
 		return nil, errEmailProviderUnavailable
@@ -70,7 +71,7 @@ func (s *Service) SendTestEmail(ctx context.Context, userID, publisherID, locale
 		subscriptions.HasPro(ctx, s.pool, publisherID, time.Now()))
 	if len(draft) > 0 {
 		prefs = workers.ApplyTier(workers.ParseEmailPrefs(draft),
-		subscriptions.HasPro(ctx, s.pool, publisherID, time.Now()))
+			subscriptions.HasPro(ctx, s.pool, publisherID, time.Now()))
 	}
 	loc := workers.NormalizeEmailLocale(locale)
 	tpl := template
@@ -118,9 +119,9 @@ func (h *Handler) sendTestEmail(w http.ResponseWriter, r *http.Request) {
 	}
 	var d struct {
 		PublisherID string          `json:"publisherId"`
-		Locale        string          `json:"locale"`
-		Template      string          `json:"template"`
-		Settings      json.RawMessage `json:"settings"`
+		Locale      string          `json:"locale"`
+		Template    string          `json:"template"`
+		Settings    json.RawMessage `json:"settings"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
 		response.BadRequest(w, "Corps JSON invalide")
@@ -140,7 +141,10 @@ func (h *Handler) sendTestEmail(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, errEmailProviderUnavailable):
 			response.Error(w, http.StatusServiceUnavailable, "Aucun fournisseur email n'est configuré sur cette instance.")
 		default:
-			response.Error(w, http.StatusInternalServerError, "Échec de l'envoi du test : "+err.Error())
+			// Détail (adresse SMTP, réponse du fournisseur) uniquement dans les
+			// logs : la réponse ne doit pas exposer l'infrastructure d'envoi.
+			log.Printf("[settings] sendTestEmail: %v", err)
+			response.Internal(w)
 		}
 		return
 	}

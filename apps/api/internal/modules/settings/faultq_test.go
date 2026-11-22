@@ -187,6 +187,27 @@ func (f *faultPool) QueryRow(ctx context.Context, sql string, args ...any) pgx.R
 	return f.Pool.QueryRow(ctx, sql, args...)
 }
 
+// Begin renvoie une transaction dont les écritures échouent quand Exec est en
+// faute : les correctifs transactionnels (profil, liens, préférences) doivent
+// rester testables en panne comme les écritures hors transaction.
+func (f *faultPool) Begin(ctx context.Context) (pgx.Tx, error) {
+	tx, err := f.Pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if f.failExec {
+		return &faultTx{Tx: tx}, nil
+	}
+	return tx, nil
+}
+
+// faultTx fait échouer toute écriture transactionnelle.
+type faultTx struct{ pgx.Tx }
+
+func (f *faultTx) Exec(context.Context, string, ...any) (pgconn.CommandTag, error) {
+	return pgconn.CommandTag{}, errBoom
+}
+
 type errorRow struct {
 	err error
 }
@@ -196,7 +217,15 @@ func (r errorRow) Scan(dest ...any) error { return r.err }
 func newFaultService(qf map[string]error) (*Service, *faultQ, *faultPool) {
 	fq := &faultQ{Queries: db.New(poolTest), fail: qf}
 	fp := &faultPool{Pool: poolTest}
-	return &Service{pool: fp, q: fq}, fq, fp
+	return &Service{pool: fp, q: fq, newQ: faultQuerier(qf)}, fq, fp
+}
+
+// faultQuerier fabrique le faux querier d'une transaction avec les mêmes
+// pannes injectées que le querier principal.
+func faultQuerier(qf map[string]error) func(db.DBTX) ServiceQuerier {
+	return func(q db.DBTX) ServiceQuerier {
+		return &faultQ{Queries: db.New(q), fail: qf}
+	}
 }
 
 // ── Branches « return err » du service settings ─────────────────────────
@@ -224,10 +253,11 @@ func TestFault_UpdateProfile_Errors(t *testing.T) {
 	ctx := context.Background()
 	fx := seed(t)
 
-	// authorizeSettings en échec → errForbidden (via GetUserPersonalPublisher en erreur).
+	// Panne pendant l'autorisation → erreur interne remontée, pas un 403 qui
+	// ferait passer une base indisponible pour un refus de droit.
 	svc, _, _ := newFaultService(map[string]error{"GetUserPersonalPublisher": errBoom})
-	if _, err := svc.UpdateProfile(ctx, fx.OwnerID, fx.PubID, map[string]any{"name": "X"}); !errors.Is(err, errForbidden) {
-		t.Errorf("GetUserPersonalPublisher: err = %v, attendu errForbidden", err)
+	if _, err := svc.UpdateProfile(ctx, fx.OwnerID, fx.PubID, map[string]any{"name": "X"}); err == nil || errors.Is(err, errForbidden) {
+		t.Errorf("GetUserPersonalPublisher en panne: err = %v, attendu une erreur interne", err)
 	}
 
 	// onboardingText non-string → erreur de validation.
@@ -274,14 +304,11 @@ func TestFault_CheckSubdomain_QueryError(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
 	svc, _, _ := newFaultService(map[string]error{"CheckSubdomainExists": errBoom})
-	// Le service renvoie (false, raison) — le check DB en erreur doit être
-	// traité comme indisponible (pas de panic, false).
-	available, reason := svc.CheckSubdomain(ctx, "test-sub")
-	if available {
-		t.Error("CheckSubdomain avec erreur DB = available=true")
-	}
-	if reason == "" {
-		t.Error("CheckSubdomain avec erreur DB : raison vide")
+	// Une panne de lecture est remontée : « disponible : non » sur une base en
+	// panne ferait passer toute panne pour un nom déjà pris.
+	available, reason, err := svc.CheckSubdomain(ctx, "test-sub")
+	if err == nil {
+		t.Fatalf("CheckSubdomain avec erreur DB = (%v, %q, nil), attendu une erreur", available, reason)
 	}
 }
 
@@ -290,8 +317,8 @@ func TestFault_UpdateSubdomain_QueryError(t *testing.T) {
 	ctx := context.Background()
 	fx := seed(t)
 	svc, _, _ := newFaultService(map[string]error{"UpdatePublisherSubdomain": errBoom})
-	if err := svc.UpdateSubdomain(ctx, fx.OwnerID, fx.PubID, "nouveau-sous"); err == nil {
-		t.Error("UpdatePublisherSubdomain: err = nil")
+	if stored, err := svc.UpdateSubdomain(ctx, fx.OwnerID, fx.PubID, "nouveau-sous"); err == nil {
+		t.Errorf("UpdatePublisherSubdomain: err = nil (stocké %q)", stored)
 	}
 }
 
@@ -326,10 +353,26 @@ func TestFault_SaveSocial_QueryError(t *testing.T) {
 func TestFault_CompleteOnboarding_QueryError(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
-	for _, m := range []string{"GetUserApiAccessStatus", "CreatePersonalPublisher", "LinkUserPublisher", "CompleteOnboardingUser"} {
+	const freshID = "99999999-0000-0000-0000-0000000000bb"
+	if _, err := poolTest.Exec(ctx, `DELETE FROM "User" WHERE id = $1`, freshID); err != nil {
+		t.Fatalf("cleanup: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx, `
+		INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
+		VALUES ($1, 'onboarding-fault@test.dev', 'onbfault', 'Onb', 'user', now(), now())`, freshID); err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	// Méthodes réellement traversées par CompleteOnboarding. Chaque panne doit
+	// remonter : l'ancien test incluait une méthode jamais appelée et passait
+	// uniquement grâce à l'utilisateur inexistant (faux vert).
+	for _, m := range []string{"GetUserForSettings", "CompleteOnboardingUser", "CreatePersonalPublisher", "LinkUserPublisher"} {
 		svc, _, _ := newFaultService(map[string]error{m: errBoom})
-		if err := svc.CompleteOnboarding(ctx, "00000000-0000-0000-0000-000000000002", OnboardingInput{Name: "Nom"}); err == nil {
+		if err := svc.CompleteOnboarding(ctx, freshID, OnboardingInput{Name: "Nom"}); err == nil {
 			t.Errorf("%s: err = nil", m)
+		}
+		if _, err := poolTest.Exec(ctx, `
+			UPDATE "User" SET "hasCompletedOnboarding" = false, role = 'user', "publisherId" = NULL WHERE id = $1`, freshID); err != nil {
+			t.Fatalf("reset: %v", err)
 		}
 	}
 }

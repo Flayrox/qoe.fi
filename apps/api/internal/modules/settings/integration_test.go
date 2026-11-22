@@ -2,6 +2,7 @@ package settings
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"strings"
@@ -28,6 +29,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(code)
 }
+
 // requirePool skippe les tests DB quand Docker/testcontainers est absent.
 func requirePool(t *testing.T) {
 	t.Helper()
@@ -35,7 +37,6 @@ func requirePool(t *testing.T) {
 		t.Skip("DB indisponible (Docker/testcontainers requis)")
 	}
 }
-
 
 func seedSettings(t *testing.T) *testutil.SettingsFixtures {
 	requirePool(t)
@@ -271,9 +272,9 @@ func TestRevokeApiKey_OnlyOwnKey(t *testing.T) {
 		t.Fatalf("clés = %d, attendu 2", len(ids))
 	}
 
-	// Révoquer la clé du viewer (n'appartient pas) → ne doit rien supprimer.
-	if err := svc.RevokeApiKey(ctx, fx.ViewerID, ids[0]); err != nil {
-		t.Fatalf("RevokeApiKey(viewer, clé owner): %v", err)
+	// Révoquer la clé du viewer (n'appartient pas) → 404, rien de supprimé.
+	if err := svc.RevokeApiKey(ctx, fx.ViewerID, ids[0]); !errors.Is(err, errNotFound) {
+		t.Fatalf("RevokeApiKey(viewer, clé owner) = %v, attendu errNotFound", err)
 	}
 	var remain int
 	_ = poolTest.QueryRow(ctx, `SELECT COUNT(*) FROM "ApiKey" WHERE "userId" = $1`, fx.OwnerID).Scan(&remain)
@@ -337,7 +338,10 @@ func TestCheckSubdomain(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			available, reason := svc.CheckSubdomain(ctx, tc.subdomain)
+			available, reason, err := svc.CheckSubdomain(ctx, tc.subdomain)
+			if err != nil {
+				t.Fatalf("CheckSubdomain(%q): %v", tc.subdomain, err)
+			}
 			if available != tc.available {
 				t.Fatalf("available = %v (reason=%q), attendu %v", available, reason, tc.available)
 			}
@@ -351,8 +355,10 @@ func TestUpdateSubdomain_Owner_Success(t *testing.T) {
 	svc := NewService(poolTest)
 	ctx := context.Background()
 
-	if err := svc.UpdateSubdomain(ctx, fx.OwnerID, fx.PubID, "nouveau-blog"); err != nil {
+	if stored, err := svc.UpdateSubdomain(ctx, fx.OwnerID, fx.PubID, "nouveau-blog"); err != nil {
 		t.Fatalf("UpdateSubdomain: %v", err)
+	} else if stored != "nouveau-blog" {
+		t.Fatalf("valeur enregistrée = %q", stored)
 	}
 	var subdomain *string
 	_ = poolTest.QueryRow(ctx,
@@ -368,7 +374,7 @@ func TestUpdateSubdomain_ForbiddenForViewer(t *testing.T) {
 	svc := NewService(poolTest)
 	ctx := context.Background()
 
-	if err := svc.UpdateSubdomain(ctx, fx.ViewerID, fx.MediaPubID, "hijack"); err == nil {
+	if _, err := svc.UpdateSubdomain(ctx, fx.ViewerID, fx.MediaPubID, "hijack"); err == nil {
 		t.Fatal("viewer ne doit pas pouvoir changer le sous-domaine")
 	}
 }

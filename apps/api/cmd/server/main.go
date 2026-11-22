@@ -569,7 +569,6 @@ func newRouter(d RouterDeps) *chi.Mux {
 			articlesHandler.RegisterProtected(apiWrite, authmw.RequireAPIScope)
 
 			creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite).
-				SetSecurityGuard(secGuard).
 				SetSecurityGuard(secGuard)
 			creatorHandler.WithMediaUpload(mediaStore, mediaAssetsSvc).WithMediaCDNBase(d.MediaCDNBaseURL)
 			creatorHandler.RegisterProtected(apiWrite, authmw.RequireAPIScope)

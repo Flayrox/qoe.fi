@@ -37,10 +37,10 @@ import (
 // GetEmailSettings renvoie l'identité par défaut de la publication
 // (pré-remplissage du formulaire), les réglages assainis AU PALIER
 // (les overrides pro d'une publication gratuite sont déjà retirés ici —
-/// le studio verrouille en plus côté UI) et le palier lui-même.
+// / le studio verrouille en plus côté UI) et le palier lui-même.
 func (s *Service) GetEmailSettings(ctx context.Context, userID, publisherID string) (map[string]any, error) {
 	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
-		return nil, errForbidden
+		return nil, err
 	}
 	row, err := s.q.GetPublisherEmailDefaults(ctx, publisherID)
 	if err != nil {
@@ -53,8 +53,8 @@ func (s *Service) GetEmailSettings(ctx context.Context, userID, publisherID stri
 		subscriptions.HasPro(ctx, s.pool, publisherID, time.Now()))
 	out := map[string]any{
 		"publisherName": row.Name,
-		"emailSettings":   clean,
-		"emailPro":        subscriptions.HasPro(ctx, s.pool, publisherID, time.Now()),
+		"emailSettings": clean,
+		"emailPro":      subscriptions.HasPro(ctx, s.pool, publisherID, time.Now()),
 		// Langues d'emails disponibles (QOE_EMAIL_LOCALES, défaut fr,en) :
 		// le panneau studio génère ses onglets de langue depuis cette liste —
 		// ajouter une langue côté serveur suffit, zéro front à déployer.
@@ -77,7 +77,12 @@ func (s *Service) GetEmailSettings(ctx context.Context, userID, publisherID stri
 // (welcomeBodies, confirm.fr…) tombent toujours (plus lues nulle part).
 func (s *Service) UpdateEmailSettings(ctx context.Context, userID, publisherID string, raw json.RawMessage) (map[string]any, error) {
 	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
-		return nil, errForbidden
+		return nil, err
+	}
+	// Un brouillon de réglages reste un petit objet : borner l'entrée évite de
+	// parser un JSON arbitrairement gros dans le service avant tout contrôle.
+	if len(raw) > 64*1024 {
+		return nil, invalid("réglages email trop volumineux")
 	}
 	// Existence (404 si inconnue) ; le palier est relu à l'instant via les
 	// octrois (pas la valeur lue ici — temps réel, même sémantique que le rendu).
@@ -94,7 +99,7 @@ func (s *Service) UpdateEmailSettings(ctx context.Context, userID, publisherID s
 		return nil, err
 	}
 	if err := s.q.UpdatePublisherEmailSettings(ctx, db.UpdatePublisherEmailSettingsParams{
-		PublisherID: publisherID,
+		PublisherID:   publisherID,
 		EmailSettings: string(b),
 	}); err != nil {
 		return nil, err
@@ -109,7 +114,10 @@ func (s *Service) UpdateEmailSettings(ctx context.Context, userID, publisherID s
 // côté workers) : l'aperçu est fidèle à 100 %.
 func (s *Service) PreviewEmailSettings(ctx context.Context, userID, publisherID, locale, template string, draft json.RawMessage) (map[string]any, error) {
 	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
-		return nil, errForbidden
+		return nil, err
+	}
+	if len(draft) > 64*1024 {
+		return nil, invalid("réglages email trop volumineux")
 	}
 	row, err := s.q.GetSubscriberEmailDefaults(ctx, publisherID)
 	if err != nil {
@@ -126,7 +134,7 @@ func (s *Service) PreviewEmailSettings(ctx context.Context, userID, publisherID,
 		subscriptions.HasPro(ctx, s.pool, publisherID, time.Now()))
 	if len(draft) > 0 {
 		prefs = workers.ApplyTier(workers.ParseEmailPrefs(draft),
-		subscriptions.HasPro(ctx, s.pool, publisherID, time.Now()))
+			subscriptions.HasPro(ctx, s.pool, publisherID, time.Now()))
 	}
 	loc := workers.NormalizeEmailLocale(locale)
 	tpl := template
@@ -170,15 +178,7 @@ func (h *Handler) getEmailSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	out, err := h.svc.GetEmailSettings(r.Context(), userID, publisherID)
 	if err != nil {
-		if errors.Is(err, errForbidden) {
-			response.Forbidden(w, "Accès refusé à cette publication.")
-			return
-		}
-		if errors.Is(err, errNotFound) {
-			response.NotFound(w, "Publisher introuvable")
-			return
-		}
-		response.Internal(w)
+		writeSettingsError(w, err, "getEmailSettings")
 		return
 	}
 	response.OK(w, out)
@@ -192,7 +192,7 @@ func (h *Handler) updateEmailSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	var body struct {
 		PublisherID string          `json:"publisherId"`
-		Settings      json.RawMessage `json:"settings"`
+		Settings    json.RawMessage `json:"settings"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		response.BadRequest(w, "JSON invalide")
@@ -204,11 +204,7 @@ func (h *Handler) updateEmailSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	out, err := h.svc.UpdateEmailSettings(r.Context(), userID, body.PublisherID, body.Settings)
 	if err != nil {
-		if errors.Is(err, errForbidden) {
-			response.Forbidden(w, "Accès refusé à cette publication.")
-			return
-		}
-		response.BadRequest(w, err.Error())
+		writeSettingsError(w, err, "updateEmailSettings")
 		return
 	}
 	response.OK(w, out)
@@ -224,9 +220,9 @@ func (h *Handler) previewEmailSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	var body struct {
 		PublisherID string          `json:"publisherId"`
-		Locale        string          `json:"locale"`
-		Template      string          `json:"template"`
-		Settings      json.RawMessage `json:"settings"`
+		Locale      string          `json:"locale"`
+		Template    string          `json:"template"`
+		Settings    json.RawMessage `json:"settings"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		response.BadRequest(w, "JSON invalide")
@@ -238,15 +234,7 @@ func (h *Handler) previewEmailSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	out, err := h.svc.PreviewEmailSettings(r.Context(), userID, body.PublisherID, body.Locale, body.Template, body.Settings)
 	if err != nil {
-		if errors.Is(err, errForbidden) {
-			response.Forbidden(w, "Accès refusé à cette publication.")
-			return
-		}
-		if errors.Is(err, errNotFound) {
-			response.NotFound(w, "Publisher introuvable")
-			return
-		}
-		response.Internal(w)
+		writeSettingsError(w, err, "previewEmailSettings")
 		return
 	}
 	response.OK(w, out)

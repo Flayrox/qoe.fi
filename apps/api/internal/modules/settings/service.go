@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"time"
@@ -55,6 +56,10 @@ type Service struct {
 
 	trustSvc *trust.Service
 	asynq    *asynq.Client
+
+	// newQ fabrique le querier d'une transaction. Nil = db.New(tx). Permet aux
+	// tests d'injecter un faux querier identique à l'intérieur des transactions.
+	newQ func(tx db.DBTX) ServiceQuerier
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
@@ -76,20 +81,37 @@ func (s *Service) SetTrustService(ts *trust.Service) {
 
 // authorizeSettings vérifie que l'utilisateur peut administrer la publication :
 // publication personnelle, ou Média avec la permission manage_settings.
+// Une panne de lecture est remontée telle quelle : la transformer en 403
+// ferait passer une base indisponible pour un refus de droit.
 func (s *Service) authorizeSettings(ctx context.Context, userID, publisherID string) error {
+	if userID == "" {
+		return errUnauthenticated
+	}
+	// Identité inexploitable (jeton forgé / sujet non-UUID) : aucun droit, et
+	// pas une 500 de cast SQL.
+	if !validUUID(userID) {
+		return errForbidden
+	}
 	if p, ok := middleware.GetPrincipal(ctx); ok && p.Type == middleware.PrincipalTypePublisher {
 		if p.PublisherID != nil && *p.PublisherID == publisherID {
 			return nil
 		}
 	}
-	if personal, err := s.q.GetUserPersonalPublisher(ctx, userID); err == nil && personal.String == publisherID {
+	personal, err := s.q.GetUserPersonalPublisher(ctx, userID)
+	if err == nil && personal.String == publisherID && personal.Valid {
 		return nil
+	}
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return fmt.Errorf("publication personnelle: %w", err)
 	}
 	member, err := s.q.GetMediaMemberContext(ctx, db.GetMediaMemberContextParams{
 		PublisherId: publisherID, UserId: toUUID(userID),
 	})
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return errForbidden
+	}
+	if err != nil {
+		return fmt.Errorf("membre média: %w", err)
 	}
 	if !permissions.CanMedia(&permissions.MediaMember{
 		Role: member.Role, Permissions: member.Permissions, Status: member.Status,
@@ -97,6 +119,31 @@ func (s *Service) authorizeSettings(ctx context.Context, userID, publisherID str
 		return errForbidden
 	}
 	return nil
+}
+
+// qtx construit le querier transactionnel. Le champ `newQ` permet aux tests
+// d'injecter le même faux querier (erreurs ciblées) à l'intérieur des
+// transactions que sur le chemin hors transaction.
+func (s *Service) qtx(tx pgx.Tx) ServiceQuerier {
+	if s.newQ != nil {
+		return s.newQ(tx)
+	}
+	return db.New(tx)
+}
+
+// withTx exécute fn dans une transaction unique (commit si succès, rollback
+// sinon). Remplace les séquences « plusieurs écritures indépendantes » qui
+// laissaient des états partiels en cas de panne au milieu.
+func (s *Service) withTx(ctx context.Context, fn func(tx pgx.Tx) error) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if err := fn(tx); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 // ── Lecture de la page settings (parité prisma.publication.findUnique include) ──
@@ -357,12 +404,7 @@ func (s *Service) UpdateProfile(ctx context.Context, userID, publisherID string,
 		}
 	}
 
-	if len(fields) > 0 {
-		if err := s.updatePublisher(ctx, publisherID, fields); err != nil {
-			return db.GetUserForSettingsRow{}, err
-		}
-	}
-
+	var onboarding *pgtype.Text
 	if v, ok := body["onboardingText"]; ok {
 		t, err := textFromAny(v)
 		if err != nil {
@@ -378,8 +420,24 @@ func (s *Service) UpdateProfile(ctx context.Context, userID, publisherID string,
 			}
 			t = pgtype.Text{String: cleaned, Valid: cleaned != ""}
 		}
-		if err := s.q.UpdateUserOnboardingText(ctx, db.UpdateUserOnboardingTextParams{
-			ID: userID, OnboardingText: t,
+		onboarding = &t
+	}
+
+	// Profil et texte d'onboarding sont deux écritures : une seule transaction,
+	// sinon une panne au milieu laisse la publication modifiée et le compte non.
+	if len(fields) > 0 || onboarding != nil {
+		if err := s.withTx(ctx, func(tx pgx.Tx) error {
+			if len(fields) > 0 {
+				if err := s.updatePublisherTx(ctx, tx, publisherID, fields); err != nil {
+					return err
+				}
+			}
+			if onboarding != nil {
+				return s.qtx(tx).UpdateUserOnboardingText(ctx, db.UpdateUserOnboardingTextParams{
+					ID: userID, OnboardingText: *onboarding,
+				})
+			}
+			return nil
 		}); err != nil {
 			return db.GetUserForSettingsRow{}, err
 		}
@@ -387,13 +445,21 @@ func (s *Service) UpdateProfile(ctx context.Context, userID, publisherID string,
 
 	row, err := s.q.GetUserForSettings(ctx, userID)
 	if err != nil {
-		return db.GetUserForSettingsRow{}, errNotFound
+		// Panne ≠ compte absent : le handler doit répondre 500, pas 404.
+		return db.GetUserForSettingsRow{}, err
 	}
 	return row, nil
 }
 
-// updatePublication construit un UPDATE dynamique limité à un allowlist de colonnes.
+// updatePublisher construit un UPDATE dynamique limité à un allowlist de colonnes.
 func (s *Service) updatePublisher(ctx context.Context, publisherID string, fields map[string]any) error {
+	return s.withTx(ctx, func(tx pgx.Tx) error {
+		return s.updatePublisherTx(ctx, tx, publisherID, fields)
+	})
+}
+
+// updatePublisherTx applique l'UPDATE dans la transaction fournie.
+func (s *Service) updatePublisherTx(ctx context.Context, tx pgx.Tx, publisherID string, fields map[string]any) error {
 	keys := make([]string, 0, len(fields))
 	for k := range fields {
 		keys = append(keys, k)
@@ -420,7 +486,7 @@ func (s *Service) updatePublisher(ctx context.Context, publisherID string, field
 		`UPDATE "Publisher" SET %s, "updatedAt" = now() WHERE id = $1`,
 		strings.Join(sets, ", "),
 	)
-	_, err := s.pool.Exec(ctx, query, args...)
+	_, err := tx.Exec(ctx, query, args...)
 	return err
 }
 
@@ -444,48 +510,73 @@ func isReservedIdentifier(ctx context.Context, pool pooler, kind, value string) 
 	return false, nil
 }
 
-func (s *Service) CheckSubdomain(ctx context.Context, subdomain string) (available bool, reason string) {
+// validateSubdomain normalise puis valide un sous-domaine. Source unique de
+// vérité pour le check public ET l'écriture : avant, le check normalisait
+// (NormalizeSubdomain) alors que l'écriture ne faisait que minuscule+trim, si
+// bien qu'un nom annoncé disponible pouvait être refusé à l'enregistrement.
+// Retourne (nom normalisé, "") ou ("", raison du refus).
+func validateSubdomain(subdomain string) (string, string) {
 	// Subdomains intentionally keep their existing hyphenated syntax; only the
 	// protected-name source is shared with the admin configuration contract.
 	clean := identifier.NormalizeSubdomain(subdomain)
 	if !identifier.ValidSubdomain(clean) || strings.Contains(clean, ".") {
-		return false, "Le sous-domaine ne doit contenir que des lettres minuscules et des tirets, sans point."
+		return "", "Le sous-domaine ne doit contenir que des lettres minuscules et des tirets, sans point."
 	}
 	if len(clean) < 3 || len(clean) > 30 {
-		return false, "La longueur doit être comprise entre 3 et 30 caractères."
+		return "", "La longueur doit être comprise entre 3 et 30 caractères."
 	}
 	if strings.HasPrefix(clean, "-") || strings.HasSuffix(clean, "-") || strings.Contains(clean, "--") {
-		return false, "Le sous-domaine ne peut pas commencer, finir ou répéter un tiret."
+		return "", "Le sous-domaine ne peut pas commencer, finir ou répéter un tiret."
+	}
+	return clean, ""
+}
+
+// CheckSubdomain valide un sous-domaine et vérifie sa disponibilité. Une panne
+// de lecture est remontée : répondre « indisponible » (200) sur une base en
+// panne ferait passer toute panne pour un nom déjà pris.
+func (s *Service) CheckSubdomain(ctx context.Context, subdomain string) (available bool, reason string, err error) {
+	clean, reason := validateSubdomain(subdomain)
+	if reason != "" {
+		return false, reason, nil
 	}
 	reserved, err := isReservedIdentifier(ctx, s.pool, "subdomain", clean)
 	if err != nil {
-		return false, "Vérification impossible, réessayez."
+		return false, "", err
 	}
 	// Denylist unique partagée avec les usernames (identifier.reserved).
 	if reserved || identifier.IsReserved(clean) {
-		return false, "Ce nom de sous-domaine est réservé par la plateforme."
+		return false, "Ce nom de sous-domaine est réservé par la plateforme.", nil
 	}
 	exists, err := s.q.CheckSubdomainExists(ctx, pgtype.Text{String: clean, Valid: true})
 	if err != nil {
-		return false, "Vérification impossible, réessayez."
+		return false, "", err
 	}
 	if exists {
-		return false, "Ce sous-domaine est déjà attribué à une autre publication."
+		return false, "Ce sous-domaine est déjà attribué à une autre publication.", nil
 	}
-	return true, ""
+	return true, "", nil
 }
 
-// UpdateSubdomain change le sous-domaine de la publication active.
-func (s *Service) UpdateSubdomain(ctx context.Context, userID, publisherID, subdomain string) error {
+// UpdateSubdomain change le sous-domaine de la publication active. Un
+// sous-domaine vide retire le sous-domaine (chemin explicite, plus de branche
+// morte réservée au handler). Retourne la valeur réellement enregistrée.
+func (s *Service) UpdateSubdomain(ctx context.Context, userID, publisherID, subdomain string) (string, error) {
 	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
-		return err
+		return "", err
 	}
-	clean := strings.ToLower(strings.TrimSpace(subdomain))
-	if clean == "" {
-		return s.q.UpdatePublisherSubdomain(ctx, db.UpdatePublisherSubdomainParams{
+	if strings.TrimSpace(subdomain) == "" {
+		if err := s.q.UpdatePublisherSubdomain(ctx, db.UpdatePublisherSubdomainParams{
 			ID:        publisherID,
 			Subdomain: pgtype.Text{Valid: false},
-		})
+		}); err != nil {
+			return "", err
+		}
+		return "", nil
+	}
+
+	clean, reason := validateSubdomain(subdomain)
+	if reason != "" {
+		return "", invalid("%s", reason)
 	}
 
 	existsOther, err := s.q.CheckSubdomainExistsOther(ctx, db.CheckSubdomainExistsOtherParams{
@@ -493,27 +584,17 @@ func (s *Service) UpdateSubdomain(ctx context.Context, userID, publisherID, subd
 		ID:        publisherID,
 	})
 	if err != nil {
-		return errors.New("Vérification impossible, réessayez.")
+		return "", err
 	}
 	if existsOther {
-		return errors.New("Ce sous-domaine est déjà attribué à une autre publication.")
-	}
-
-	if !identifier.ValidSubdomain(clean) || strings.Contains(clean, ".") {
-		return errors.New("Le sous-domaine ne doit contenir que des lettres minuscules et des tirets, sans point.")
-	}
-	if len(clean) < 3 || len(clean) > 30 {
-		return errors.New("La longueur doit être comprise entre 3 et 30 caractères.")
-	}
-	if strings.HasPrefix(clean, "-") || strings.HasSuffix(clean, "-") || strings.Contains(clean, "--") {
-		return errors.New("Le sous-domaine ne peut pas commencer, finir ou répéter un tiret.")
+		return "", invalid("Ce sous-domaine est déjà attribué à une autre publication.")
 	}
 	reserved, err := isReservedIdentifier(ctx, s.pool, "subdomain", clean)
 	if err != nil {
-		return errors.New("Vérification impossible, réessayez.")
+		return "", err
 	}
 	if reserved || identifier.IsReserved(clean) {
-		return errors.New("Ce nom de sous-domaine est réservé par la plateforme.")
+		return "", invalid("Ce nom de sous-domaine est réservé par la plateforme.")
 	}
 
 	if err := s.q.UpdatePublisherSubdomain(ctx, db.UpdatePublisherSubdomainParams{
@@ -523,11 +604,11 @@ func (s *Service) UpdateSubdomain(ctx context.Context, userID, publisherID, subd
 		// The database unique index is authoritative under concurrent requests.
 		// Do not leak a driver error or turn a race into a 500.
 		if isUniqueViolation(err) {
-			return errors.New("Ce sous-domaine est déjà attribué à une autre publication.")
+			return "", invalid("Ce sous-domaine est déjà attribué à une autre publication.")
 		}
-		return err
+		return "", err
 	}
-	return nil
+	return clean, nil
 }
 
 func isUniqueViolation(err error) bool {
@@ -562,21 +643,26 @@ func (s *Service) SaveNavigation(ctx context.Context, userID, publisherID string
 			return err
 		}
 	}
-	if err := s.q.DeleteNavigationItems(ctx, publisherID); err != nil {
-		return err
-	}
-	for i, link := range links {
-		if err := s.q.InsertNavigationItem(ctx, db.InsertNavigationItemParams{
-			Label:         link.Label,
-			Url:           textFromString(link.URL),
-			Order:         int32(i),
-			IsExternal:    strings.HasPrefix(link.URL, "http"),
-			PublisherId: publisherID,
-		}); err != nil {
+	// Remplacement atomique : le DELETE puis les inserts vivaient hors
+	// transaction, une panne au milieu effaçait définitivement tous les liens.
+	return s.withTx(ctx, func(tx pgx.Tx) error {
+		q := s.qtx(tx)
+		if err := q.DeleteNavigationItems(ctx, publisherID); err != nil {
 			return err
 		}
-	}
-	return nil
+		for i, link := range links {
+			if err := q.InsertNavigationItem(ctx, db.InsertNavigationItemParams{
+				Label:       link.Label,
+				Url:         textFromString(link.URL),
+				Order:       int32(i),
+				IsExternal:  strings.HasPrefix(link.URL, "http"),
+				PublisherId: publisherID,
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // SocialLink est un lien social du studio.
@@ -606,20 +692,24 @@ func (s *Service) SaveSocial(ctx context.Context, userID, publisherID string, li
 			return err
 		}
 	}
-	if err := s.q.DeleteSocialLinks(ctx, publisherID); err != nil {
-		return err
-	}
-	for i, link := range links {
-		if err := s.q.InsertSocialLink(ctx, db.InsertSocialLinkParams{
-			Platform:      link.Platform,
-			Url:           link.URL,
-			Order:         int32(i),
-			PublisherId: publisherID,
-		}); err != nil {
+	// Idem navigation : DELETE + INSERT atomiques.
+	return s.withTx(ctx, func(tx pgx.Tx) error {
+		q := s.qtx(tx)
+		if err := q.DeleteSocialLinks(ctx, publisherID); err != nil {
 			return err
 		}
-	}
-	return nil
+		for i, link := range links {
+			if err := q.InsertSocialLink(ctx, db.InsertSocialLinkParams{
+				Platform:    link.Platform,
+				Url:         link.URL,
+				Order:       int32(i),
+				PublisherId: publisherID,
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // SetDownloadDefault règle le défaut de téléchargement des NOUVEAUX articles
@@ -636,7 +726,23 @@ func (s *Service) SetDownloadDefault(ctx context.Context, userID, publisherID st
 }
 
 // SubmitApiApplication enregistre une demande d'accès API (pending).
+// Une demande déjà en attente est idempotente ; une demande DÉJÀ APPROUVÉE
+// n'est jamais remise en attente (la re-soumission écrasait la décision d'un
+// administrateur et remettait l'accès en file d'attente).
 func (s *Service) SubmitApiApplication(ctx context.Context, userID, reason string) error {
+	status, err := s.q.GetUserApiAccessStatus(ctx, userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return errNotFound
+		}
+		return err
+	}
+	switch status {
+	case "pending":
+		return nil
+	case "approved":
+		return policy("Votre accès API est déjà approuvé.")
+	}
 	return s.q.SetApiApplication(ctx, db.SetApiApplicationParams{
 		ID: userID, ApiApplicationReason: textFromString(reason),
 	})
@@ -650,7 +756,8 @@ var scopesValides = map[string]bool{"READ": true, "WRITE": true, "ANALYTICS": tr
 func (s *Service) allowedApiScopes(ctx context.Context, userID string) ([]string, error) {
 	grants, err := s.q.GetUserApiGrants(ctx, userID)
 	if err != nil {
-		return nil, errNotFound
+		// Panne ≠ compte absent : la remonter telle quelle (500 côté handler).
+		return nil, err
 	}
 	allowed := make([]string, 0, 3)
 	for _, sc := range apiaccess.ScopesForGrants(grants) {
@@ -669,10 +776,13 @@ func (s *Service) allowedApiScopes(ctx context.Context, userID string) ([]string
 func (s *Service) GenerateApiKey(ctx context.Context, userID, name string, scopes []string) (string, error) {
 	status, err := s.q.GetUserApiAccessStatus(ctx, userID)
 	if err != nil {
-		return "", errNotFound
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", errNotFound
+		}
+		return "", err
 	}
 	if status != "approved" {
-		return "", errors.New("Votre demande d'accès à l'API doit être approuvée par un administrateur.")
+		return "", policy("Votre demande d'accès à l'API doit être approuvée par un administrateur.")
 	}
 
 	allowedScopes, err := s.allowedApiScopes(ctx, userID)
@@ -680,7 +790,7 @@ func (s *Service) GenerateApiKey(ctx context.Context, userID, name string, scope
 		return "", err
 	}
 	if len(allowedScopes) == 0 {
-		return "", errors.New("Aucune permission d'API entrante (lecture/écriture/analytics) ne vous a été accordée.")
+		return "", policy("Aucune permission d'API entrante (lecture/écriture/analytics) ne vous a été accordée.")
 	}
 
 	finalScopes := make([]string, 0, len(scopes))
@@ -693,7 +803,7 @@ func (s *Service) GenerateApiKey(ctx context.Context, userID, name string, scope
 		finalScopes = append(finalScopes, s)
 	}
 	if len(scopes) > 0 && len(finalScopes) == 0 {
-		return "", errors.New("Sélectionnez au moins un scope autorisé par vos permissions (lecture, écriture, analytics).")
+		return "", policy("Sélectionnez au moins un scope autorisé par vos permissions (lecture, écriture, analytics).")
 	}
 	// scopes vide = accès complet sur les permissions accordées.
 	if len(finalScopes) == 0 {
@@ -722,10 +832,15 @@ func (s *Service) GenerateApiKey(ctx context.Context, userID, name string, scope
 	return apiKey, nil
 }
 
-// RevokeApiKey révoque une clé API de l'utilisateur.
+// RevokeApiKey révoque une clé API de l'utilisateur. Une clé inexistante (ou
+// appartenant à autrui) répond 404 au lieu d'un succès fantôme.
 func (s *Service) RevokeApiKey(ctx context.Context, userID, id string) error {
-	if err := s.q.DeleteApiKey(ctx, db.DeleteApiKeyParams{ID: id, UserId: toUUID(userID)}); err != nil {
+	tag, err := s.pool.Exec(ctx, `DELETE FROM "ApiKey" WHERE id = $1 AND "userId" = $2`, id, toUUID(userID))
+	if err != nil {
 		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return errNotFound
 	}
 	auditlog.Write(ctx, s.q, s.flags, userID, "api.key.revoked", "user", userID,
 		map[string]any{"keyId": id})
@@ -739,10 +854,13 @@ func (s *Service) RevokeApiKey(ctx context.Context, userID, id string) error {
 func (s *Service) RotateApiKey(ctx context.Context, userID, id string) (string, error) {
 	status, err := s.q.GetUserApiAccessStatus(ctx, userID)
 	if err != nil {
-		return "", errNotFound
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", errNotFound
+		}
+		return "", err
 	}
 	if status != "approved" {
-		return "", errors.New("Votre demande d'accès à l'API doit être approuvée par un administrateur.")
+		return "", policy("Votre demande d'accès à l'API doit être approuvée par un administrateur.")
 	}
 	if _, err := s.allowedApiScopes(ctx, userID); err != nil {
 		return "", err
@@ -770,26 +888,44 @@ func (s *Service) RotateApiKey(ctx context.Context, userID, id string) (string, 
 	return apiKey, nil
 }
 
+// recordApiKeySecurityEvent journalise la vie d'une clé API. Chaque échec est
+// tracé : un insert silencieusement raté laissait le journal de sécurité vide
+// (même défaut que F538 côté users). `metadata` est toujours un JSON objet,
+// sinon la contrainte NOT NULL de la colonne rejette la ligne.
 func (s *Service) recordApiKeySecurityEvent(ctx context.Context, userID, keyID, eventType string, meta map[string]any) {
 	if s.pool == nil || userID == "" {
 		return
 	}
-	metaBytes, _ := json.Marshal(meta)
-	_, _ = db.New(s.pool).InsertSecurityEvent(ctx, db.InsertSecurityEventParams{
+	if meta == nil {
+		meta = map[string]any{}
+	}
+	metaBytes, err := json.Marshal(meta)
+	if err != nil {
+		log.Printf("[settings] security event %s: marshal metadata: %v", eventType, err)
+		metaBytes = []byte("{}")
+	}
+	if _, err := db.New(s.pool).InsertSecurityEvent(ctx, db.InsertSecurityEventParams{
 		UserId:    toUUID(userID),
 		ApiKeyId:  pgtype.Text{String: keyID, Valid: keyID != ""},
 		EventType: eventType,
 		Metadata:  metaBytes,
-	})
+	}); err != nil {
+		log.Printf("[settings] security event %s (%s): insert: %v", eventType, userID, err)
+	}
 	var email string
-	_ = s.pool.QueryRow(ctx, `SELECT COALESCE(email, '') FROM "User" WHERE id = $1`, toUUID(userID)).Scan(&email)
+	if err := s.pool.QueryRow(ctx, `SELECT COALESCE(email, '') FROM "User" WHERE id = $1`, toUUID(userID)).Scan(&email); err != nil {
+		log.Printf("[settings] security event %s (%s): email: %v", eventType, userID, err)
+		return
+	}
 	if email != "" {
-		_ = queue.PublishSecurityAlertEmail(s.asynq, queue.SecurityAlertEmailPayload{
+		if err := queue.PublishSecurityAlertEmail(s.asynq, queue.SecurityAlertEmailPayload{
 			UserID:    userID,
 			Email:     email,
 			EventType: eventType,
 			Occurred:  time.Now().UTC().Format(time.RFC3339),
-		})
+		}); err != nil {
+			log.Printf("[settings] security event %s (%s): alerte email: %v", eventType, userID, err)
+		}
 	}
 }
 
@@ -835,32 +971,93 @@ type OnboardingInput struct {
 	LayoutStyle string `json:"layoutStyle"`
 }
 
-// CompleteOnboarding finalise l'onboarding : rôle, publication personnelle + slug.
+// CompleteOnboarding finalise l'onboarding : rôle, publication personnelle +
+// slug. Toutes les écritures sont dans une transaction : avant, le compte
+// était marqué « onboardé » avec le rôle creator avant la création de la
+// publication, si bien qu'une panne laissait un compte sans publication que
+// l'écran ne pouvait plus réparer (ou une publication orpheline si le lien
+// échouait).
 func (s *Service) CompleteOnboarding(ctx context.Context, userID string, in OnboardingInput) error {
+	if userID == "" {
+		return errUnauthenticated
+	}
 	user, err := s.q.GetUserForSettings(ctx, userID)
 	if err != nil {
-		return errNotFound
+		if errors.Is(err, pgx.ErrNoRows) {
+			return errNotFound
+		}
+		return err
 	}
 
 	role := "creator"
 	if user.Role == "superadmin" {
 		role = "superadmin"
 	}
-	name := in.Name
+	name := strings.TrimSpace(in.Name)
 	if name == "" {
-		if user.Name.Valid {
+		switch {
+		case user.Name.Valid && user.Name.String != "":
 			name = user.Name.String
-		} else if user.Username.Valid {
+		case user.Username.Valid && user.Username.String != "":
 			name = user.Username.String
-		} else {
-			name = strings.Split(user.Email, "@")[0]
+		default:
+			name = strings.SplitN(user.Email, "@", 2)[0]
 		}
 	}
-
-	if err := s.q.CompleteOnboardingUser(ctx, db.CompleteOnboardingUserParams{
-		ID: userID, Role: role, Name: textFromString(name),
-	}); err != nil {
+	cleanedName, err := antispam.SanitizeAndValidateText(name, 1, 120, antispam.TextOptions{CheckXSS: true})
+	if err != nil {
 		return err
+	}
+	name = cleanedName
+
+	heroText := pgtype.Text{}
+	if strings.TrimSpace(in.HeroText) != "" {
+		cleaned, err := antispam.SanitizeAndValidateText(in.HeroText, 0, 1000, antispam.TextOptions{
+			AllowNewlines: true,
+			CheckXSS:      true,
+		})
+		if err != nil {
+			return err
+		}
+		heroText = textFromString(cleaned)
+	}
+
+	layoutStyle := pgtype.Text{}
+	if strings.TrimSpace(in.LayoutStyle) != "" {
+		cleaned, err := antispam.SanitizeAndValidateText(in.LayoutStyle, 1, 40, antispam.TextOptions{CheckXSS: true})
+		if err != nil {
+			return err
+		}
+		layoutStyle = textFromString(cleaned)
+	}
+
+	// Sous-domaine éventuel : même validation que le check public (syntaxe,
+	// réservés) et disponibilité, sinon l'onboarding enregistrait un
+	// sous-domaine invalide ou déjà pris (puis 500 sur l'index d'unicité).
+	subdomain := pgtype.Text{}
+	if strings.TrimSpace(in.Subdomain) != "" {
+		clean, reason := validateSubdomain(in.Subdomain)
+		if reason != "" {
+			return invalid("%s", reason)
+		}
+		reserved, err := isReservedIdentifier(ctx, s.pool, "subdomain", clean)
+		if err != nil {
+			return err
+		}
+		if reserved || identifier.IsReserved(clean) {
+			return invalid("Ce nom de sous-domaine est réservé par la plateforme.")
+		}
+		exists, err := s.q.CheckSubdomainExistsOther(ctx, db.CheckSubdomainExistsOtherParams{
+			Subdomain: pgtype.Text{String: clean, Valid: true},
+			ID:        user.PublisherId.String,
+		})
+		if err != nil {
+			return err
+		}
+		if exists {
+			return invalid("Ce sous-domaine est déjà attribué à une autre publication.")
+		}
+		subdomain = textFromString(clean)
 	}
 
 	pubSlug := name
@@ -871,36 +1068,41 @@ func (s *Service) CompleteOnboarding(ctx context.Context, userID string, in Onbo
 	if pubSlug == "" {
 		pubSlug = "creator"
 	}
+	hasPublisher := user.PublisherId.Valid && user.PublisherId.String != ""
 
-	subdomain := textFromString(in.Subdomain)
-	heroText := textFromString(in.HeroText)
-	layoutStyle := textFromString(in.LayoutStyle)
-
-	// Publication personnelle existante → synchronisation, sinon création.
-	if user.PublisherId.Valid && user.PublisherId.String != "" {
-		if err := s.q.UpdatePersonalPublisher(ctx, db.UpdatePersonalPublisherParams{
-			ID: user.PublisherId.String, Name: name, Subdomain: subdomain,
-			HeroText: heroText, LayoutStyle: layoutStyle,
+	err = s.withTx(ctx, func(tx pgx.Tx) error {
+		q := s.qtx(tx)
+		if err := q.CompleteOnboardingUser(ctx, db.CompleteOnboardingUserParams{
+			ID: userID, Role: role, Name: textFromString(name),
 		}); err != nil {
 			return err
 		}
-		s.trustSvc.InvalidateUser(ctx, userID)
-		return nil
-	}
-
-	id, err := s.q.CreatePersonalPublisher(ctx, db.CreatePersonalPublisherParams{
-		Name: name, Slug: pubSlug, Subdomain: subdomain, HeroText: heroText,
-		LayoutStyle: layoutStyle, LogoUrl: user.LogoUrl, IsCertified: user.IsCertified,
+		if hasPublisher {
+			return q.UpdatePersonalPublisher(ctx, db.UpdatePersonalPublisherParams{
+				ID: user.PublisherId.String, Name: name, Subdomain: subdomain,
+				HeroText: heroText, LayoutStyle: layoutStyle,
+			})
+		}
+		id, err := q.CreatePersonalPublisher(ctx, db.CreatePersonalPublisherParams{
+			Name: name, Slug: pubSlug, Subdomain: subdomain, HeroText: heroText,
+			LayoutStyle: layoutStyle, LogoUrl: user.LogoUrl, IsCertified: user.IsCertified,
+		})
+		if err != nil {
+			if isUniqueViolation(err) {
+				return invalid("Ce nom de publication est déjà utilisé, choisissez un autre nom.")
+			}
+			return err
+		}
+		return q.LinkUserPublisher(ctx, db.LinkUserPublisherParams{
+			ID: userID, PublisherId: textFromString(id),
+		})
 	})
 	if err != nil {
 		return err
 	}
-	if err := s.q.LinkUserPublisher(ctx, db.LinkUserPublisherParams{
-		ID: userID, PublisherId: textFromString(id),
-	}); err != nil {
-		return err
+	if s.trustSvc != nil {
+		s.trustSvc.InvalidateUser(ctx, userID)
 	}
-	s.trustSvc.InvalidateUser(ctx, userID)
 	return nil
 }
 
@@ -916,6 +1118,12 @@ func toUUID(id string) pgtype.UUID {
 	u := pgtype.UUID{}
 	_ = u.Scan(id)
 	return u
+}
+
+// validUUID indique si id est un UUID exploitable en base.
+func validUUID(id string) bool {
+	u := pgtype.UUID{}
+	return u.Scan(id) == nil && u.Valid
 }
 
 func isString(v any) bool {
@@ -988,29 +1196,28 @@ func scanUserSettings(row pgx.Row) (UserSettings, error) {
 	return s, nil
 }
 
+// userSettingsSelect projette la ligne « UserSettings » dans l'ordre attendu
+// par scanUserSettings.
+const userSettingsSelect = `id, "userId", "profileVisibility", "allowMentions", "allowCollaborationInvites",
+	       COALESCE("collaborationInvitePermission", 'EVERYONE'),
+	       "showSensitiveContent", "likeVisibility", "autoplayMedia", "reduceMotion", "highContrast",
+	       "fontScale", "defaultFeed", "createdAt", "updatedAt"`
+
 // GetUserSettings lit les préférences du lecteur, en créant la ligne par
 // défaut si absente (équivalent de l'upsert Prisma de getAccountSettingsAction).
+// Un seul aller-retour : l'ancienne version faisait SELECT puis INSERT puis
+// SELECT récursif, et deux lectures concurrentes sans ligne pouvaient partir en
+// boucle sur un conflit d'unicité.
 func (s *Service) GetUserSettings(ctx context.Context, userID string) (UserSettings, error) {
+	if userID == "" {
+		return UserSettings{}, errUnauthenticated
+	}
 	row := s.pool.QueryRow(ctx, `
-		SELECT id, "userId", "profileVisibility", "allowMentions", "allowCollaborationInvites",
-		       COALESCE("collaborationInvitePermission", 'EVERYONE'),
-		       "showSensitiveContent", "likeVisibility", "autoplayMedia", "reduceMotion", "highContrast",
-		       "fontScale", "defaultFeed", "createdAt", "updatedAt"
-		FROM "UserSettings" WHERE "userId" = $1`, toUUID(userID))
-	settings, err := scanUserSettings(row)
-	if err == nil {
-		return settings, nil
-	}
-	if !errors.Is(err, pgx.ErrNoRows) {
-		return UserSettings{}, err
-	}
-	if _, err := s.pool.Exec(ctx, `
-		INSERT INTO "UserSettings" (id, "userId", "collaborationInvitePermission", "createdAt", "updatedAt")
-		VALUES (gen_random_uuid()::text, $1, 'EVERYONE', now(), now())
-		ON CONFLICT ("userId") DO NOTHING`, toUUID(userID)); err != nil {
-		return UserSettings{}, err
-	}
-	return s.GetUserSettings(ctx, userID)
+		INSERT INTO "UserSettings" (id, "userId", "collaborationInvitePermission", "likeVisibility", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, 'EVERYONE', 'PUBLIC', now(), now())
+		ON CONFLICT ("userId") DO UPDATE SET "updatedAt" = "UserSettings"."updatedAt"
+		RETURNING `+userSettingsSelect, toUUID(userID))
+	return scanUserSettings(row)
 }
 
 // UpdateUserSettings applique un patch validé sur les préférences du lecteur.
@@ -1083,25 +1290,42 @@ func (s *Service) UpdateUserSettings(ctx context.Context, userID string, patch m
 	if len(set) == 0 {
 		return s.GetUserSettings(ctx, userID)
 	}
-	// Initialise la ligne de façon idempotente avant le patch. Une erreur ici
-	// doit être propagée : sinon le patch pourrait répondre succès sans être persisté.
-	currentSettings, err := s.GetUserSettings(ctx, userID)
+	query := `UPDATE "UserSettings" SET ` + strings.Join(set, ", ") + `, "updatedAt" = now() WHERE "userId" = $` + fmt.Sprint(len(args))
+
+	// Tout dans une transaction : la ligne est créée si besoin, verrouillée
+	// (FOR UPDATE : deux patches concurrents ne peuvent plus s'écraser sans
+	// que l'ancienne visibilité lue soit la vraie), puis l'événement de
+	// visibilité est distribué dans la MÊME transaction. Avant, la lecture de
+	// l'ancienne valeur et l'écriture étaient séparées et un échec de
+	// distribution laissait un compte PUBLIC sans acceptation des demandes.
+	err := s.withTx(ctx, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO "UserSettings" (id, "userId", "collaborationInvitePermission", "likeVisibility", "createdAt", "updatedAt")
+			VALUES (gen_random_uuid()::text, $1, 'EVERYONE', 'PUBLIC', now(), now())
+			ON CONFLICT ("userId") DO NOTHING`, toUUID(userID)); err != nil {
+			return err
+		}
+		var oldVisibility string
+		if err := tx.QueryRow(ctx,
+			`SELECT "profileVisibility" FROM "UserSettings" WHERE "userId" = $1 FOR UPDATE`,
+			toUUID(userID)).Scan(&oldVisibility); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, query, args...); err != nil {
+			return err
+		}
+		newVis, ok := patch["profileVisibility"].(string)
+		if !ok || newVis == oldVisibility {
+			return nil
+		}
+		return domainevents.Dispatch(ctx, tx, domainevents.ProfileVisibilityChangedEvent{
+			UserID:        userID,
+			OldVisibility: oldVisibility,
+			NewVisibility: newVis,
+		})
+	})
 	if err != nil {
 		return UserSettings{}, err
-	}
-	query := `UPDATE "UserSettings" SET ` + strings.Join(set, ", ") + `, "updatedAt" = now() WHERE "userId" = $` + fmt.Sprint(len(args))
-	if _, err := s.pool.Exec(ctx, query, args...); err != nil {
-		return UserSettings{}, err
-	}
-
-	if newVis, ok := patch["profileVisibility"].(string); ok {
-		if err := domainevents.Dispatch(ctx, s.pool, domainevents.ProfileVisibilityChangedEvent{
-			UserID:        userID,
-			OldVisibility: currentSettings.ProfileVisibility,
-			NewVisibility: newVis,
-		}); err != nil {
-			return UserSettings{}, err
-		}
 	}
 
 	return s.GetUserSettings(ctx, userID)
@@ -1152,6 +1376,12 @@ func (s *Service) CreateDeletionRequest(ctx context.Context, userID, reason stri
 		return s.GetDeletionRequest(ctx, userID)
 	}
 	if err != nil {
+		// Deux demandes simultanées : l'index partiel (une seule demande
+		// active par compte) rejette la seconde — on renvoie celle qui a gagné
+		// au lieu d'une 500.
+		if isUniqueViolation(err) {
+			return s.GetDeletionRequest(ctx, userID)
+		}
 		return nil, err
 	}
 	return &DeletionRequest{ID: id, Status: status, RequestedAt: requestedAt.Time.Format(time.RFC3339)}, nil

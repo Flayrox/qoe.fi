@@ -152,7 +152,7 @@ func TestHandler_EmailSettings_AuthAndErrors(t *testing.T) {
 	// ParseEmailPrefs rend les défauts et le PATCH reste 200.
 	w4, body4 := doJSON(t, r, "PATCH", "/v1/settings/email", testJWT(fx.OwnerID), map[string]any{
 		"publisherId": fx.PubID,
-		"settings":      "not an object",
+		"settings":    "not an object",
 	})
 	if w4.Code != http.StatusOK {
 		t.Fatalf("PATCH avec JSON invalide doit rester tolérant: %d (%s)", w4.Code, w4.Body.String())
@@ -179,8 +179,8 @@ func TestHandler_EmailSettings_PreviewConfirmFR(t *testing.T) {
 
 	w, body := doJSON(t, r, "POST", "/v1/settings/email/preview", token, map[string]any{
 		"publisherId": fx.PubID,
-		"template":      "confirm",
-		"locale":        "fr",
+		"template":    "confirm",
+		"locale":      "fr",
 	})
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
@@ -210,8 +210,8 @@ func TestHandler_EmailSettings_PreviewWelcomeEN(t *testing.T) {
 
 	w, body := doJSON(t, r, "POST", "/v1/settings/email/preview", token, map[string]any{
 		"publisherId": fx.PubID,
-		"template":      "welcome",
-		"locale":        "en-US", // borne → "en"
+		"template":    "welcome",
+		"locale":      "en-US", // borne → "en"
 	})
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
@@ -234,15 +234,15 @@ func TestHandler_EmailSettings_PreviewDraftOverridesStored(t *testing.T) {
 	// 1) Stocker une personnalisation.
 	_, _ = doJSON(t, r, "PATCH", "/v1/settings/email", token, map[string]any{
 		"publisherId": fx.PubID,
-		"settings":      map[string]any{"accentColor": "#2563eb", "subjects": map[string]any{"confirm": "Sujet stocké"}},
+		"settings":    map[string]any{"accentColor": "#2563eb", "subjects": map[string]any{"confirm": "Sujet stocké"}},
 	})
 
 	// 2) Prévisualiser avec un brouillon différent : le brouillon gagne.
 	w, body := doJSON(t, r, "POST", "/v1/settings/email/preview", token, map[string]any{
 		"publisherId": fx.PubID,
-		"template":      "confirm",
-		"locale":        "fr",
-		"settings":      map[string]any{"subjects": map[string]any{"confirm": "Sujet brouillon"}},
+		"template":    "confirm",
+		"locale":      "fr",
+		"settings":    map[string]any{"subjects": map[string]any{"confirm": "Sujet brouillon"}},
 	})
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
@@ -254,8 +254,8 @@ func TestHandler_EmailSettings_PreviewDraftOverridesStored(t *testing.T) {
 	// 3) Sans brouillon : les réglages stockés s'appliquent.
 	w2, body2 := doJSON(t, r, "POST", "/v1/settings/email/preview", token, map[string]any{
 		"publisherId": fx.PubID,
-		"template":      "confirm",
-		"locale":        "fr",
+		"template":    "confirm",
+		"locale":      "fr",
 	})
 	if w2.Code != http.StatusOK {
 		t.Fatalf("status = %d", w2.Code)
@@ -320,8 +320,8 @@ func TestHandler_EmailTest_SendsToCreator(t *testing.T) {
 
 	w, body := doJSON(t, r, "POST", "/v1/settings/email/test", token, map[string]any{
 		"publisherId": fx.PubID,
-		"template":      "welcome",
-		"locale":        "en",
+		"template":    "welcome",
+		"locale":      "en",
 	})
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
@@ -354,8 +354,8 @@ func TestHandler_EmailTest_DraftSettingsApplied(t *testing.T) {
 
 	w, _ := doJSON(t, r, "POST", "/v1/settings/email/test", token, map[string]any{
 		"publisherId": fx.PubID,
-		"template":      "confirm",
-		"locale":        "fr",
+		"template":    "confirm",
+		"locale":      "fr",
 		"settings": map[string]any{
 			// Clé de sujet par template (« confirm ») : les clés par langue
 			// (confirm.fr…) ne sont plus lues (freemium : version unique).
