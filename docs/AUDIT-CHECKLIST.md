@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-h `articles`, `feed`, `imports`, `admin`, `legal`, `creator` et `posts` clos le 2026-11-22 — L29h : 20 défauts F508–F527, dettes R216–R217 ; prochain = `users`, 9 f. · 3 060 l.) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-i `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts` et `users` clos le 2026-11-22 — L29i : 21 défauts F528–F548, dettes R218–R222 ; prochain = `settings`, 7 f. · 2 474 l.) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -158,8 +158,13 @@ sur panne + décodeur Umami v2 incompatible), dettes **R212–R215**. **L29h est
 fil avalée, like/repost d'article inexistant ou non publié, bookmark en 500, unlike mensonger, vote sur sondage
 expiré, erreurs DB déguisées en erreurs métier, `CanReply` en refus silencieux, `replyCount` qui dérive, mention
 coupée en octets, épinglage non atomique, signalements non validés, curseur illisible accepté, hide hors contrat,
-sitemap hors instantané, erreurs best-effort muettes), dettes **R216–R217**. **Lot suivant de L29, « En cours » :
-L29i** — `users`, **9 f. · 3 060 l.**
+sitemap hors instantané, erreurs best-effort muettes), dettes **R216–R217**. **L29i est clos le 2026-11-22** :
+module `users` (**9 f. · 3 431 l.** après correctifs, 3 060 l. avant ; 14 fichiers de tests), **21 défauts**
+F528–F548 (kill-switch d'inscription fail-open, export RGPD partiel et incomplet, handle effacé par un PATCH vide,
+onboarding non transactionnel et non borné, recherche publique non bornée, blocage d'un compte inconnu en 500,
+journal de sécurité jamais écrit, user-agent tronqué en octets, MFA relayant un chemin GoTrue arbitraire, panne DB
+rendue en 400, prix du déblocage piloté par le client, double débit concurrent), dettes **R218–R222**. **Lot
+suivant de L29, « En cours » : L29j** — `settings`, **7 f. · 2 474 l.**
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2138,6 +2143,85 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L29i — `apps/api/internal/modules/users/**` — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l` sur l'arbre courant) : **9 fichiers de production · 3 060 l.** —
+`service 1094`, `handler 710`, `service_extra 646`, `service_security 154`, `gotrue 172`, `privacy_social 123`,
+`session 76`, `signup_consent 64`, `querier 21` — conforme au décompte annoncé. Tous lus intégralement, ainsi que
+les appelants réels (`cmd/server` : `NewServiceWithGoTrue`, `Register` sur le groupe protégé, `RegisterPublic` sur
+le routeur racine, `SetTrustService`/`SetAsynqClient`/`SetSignupConsentRecorder` ; `cmd/worker` via les jobs de
+sécurité ; modules `settings`, `posts` (`LoadViewerGraph`, blocages), `legal` (`RecordSignupConsent`), `authz`
+(`PhoneVerified`), `oauth` ; SDK `packages/sdk/src/client.ts` et actions `apps/core` + `apps/mobile` pour les
+contrats de profil, blocage, portefeuille et sessions), les contrats SQL (`sql/queries/security_events.sql`,
+schéma `User`/`WalletTransaction`/`SecurityEvent`/`BlockedUser`/`MutedUser`/`MutedWord`/`OAuthToken`, enums
+`Gender`/`AgeRange`), et `ExpectedMigrationVersion = 94` recoupé avec `00094_collab_documents.sql` (cohérent ;
+`SecurityEvent` vient de `00090`). Après correctifs le module pèse **9 f. · 3 431 l.** (14 fichiers de tests, dont
+`audit_l29i_test.go` : 15 tests).
+
+**Pas de doublon avec `creator`/`settings`/`posts`** : `users` porte l'identité du compte (profil lecteur,
+sécurité, portefeuille, onboarding), `settings` la publication, `posts` les relations de blocage (appelées ici via
+`domainevents`, jamais réécrites).
+
+**21 défauts corrigés** F528–F548. Les suites à base réelle ont tourné (Postgres) : les rouges cités sont des
+sorties de tests réellement exécutés.
+
+| # | Défaut | Preuve | Rouge constaté | Commit |
+|---|---|---|---|---|
+| F528 | Kill-switch d'inscriptions **fail-open** : `readConfig` avalait l'erreur et renvoyait `""`, donc `ALLOW_NEW_REGISTRATIONS` passait pour ouvert ; `/v1/auth/registration-status` répondait 200 `{open:true}` sur une base en panne. Lecture propagée, erreur → 500. | `TestUsers_RegistrationStatusFailsClosed`. | `kill-switch illisible = 200 ({"allowed":true,"open":true}), attendu 500 (jamais « ouvert » sur panne)` | `fix(users)` |
+| F529 | Même fail-open sur `POST /v1/me/sync` : la porte d'inscription était lue par le même helper, donc une panne DB laissait créer des comptes alors que l'admin les avait fermés. Même correctif (erreur → 500). | Lecture + `TestFault_SyncUser` (500 sur panne). | — (structurel : partage la cause de F528) | `fix(users)` |
+| F530 | Export RGPD **partiel servi comme complet** : `exportRow`/`exportRows` avalaient toute erreur de requête et renvoyaient `nil`/`[]`, `DataExport` répondait 200 avec des sections vides. Erreurs propagées (500), `rows.Err()` vérifié. | `TestUsers_DataExportFailsOnQueryError`. | `export sur panne = 200, attendu 500 (un export partiel ne doit pas être servi comme complet)` | `fix(users)` |
+| F531 | L'export RGPD **omettait** le téléphone, le genre, la tranche d'âge, le pays, la langue, le solde du portefeuille et le journal de sécurité : un export « complet » incomplet. Sections ajoutées (`account.*`, `securityEvents`). | `TestUsers_DataExportIncludesPersonalData`. | `export RGPD sans "phoneNumber" : map[createdAt:… email:… id:…]` | `fix(users)` |
+| F532 | `PATCH /v1/me/profile {"username":""}` **effaçait le handle** (`optText("")` → NULL) : le profil public perdait son `@handle` au premier enregistrement d'un client qui envoie tous les champs (mobile, web). Un username vide vaut désormais « inchangé ». | `TestUsers_EmptyUsernameDoesNotWipeHandle`. | `username vide = 200 ({"…","username":null,…})` | `fix(users)` |
+| F533 | `UpdateProfilePatch` ignorait l'erreur du contrôle de collision avec un slug de **publication média** (`err == nil && mediaExists`) : une panne laissait écrire un handle déjà pris par une publication. Erreur propagée. | Lecture + relecture du chemin. | — (structurel : la panne tombe d'abord sur `isReservedIdentifier`) | `fix(users)` |
+| F534 | Onboarding **non transactionnel** : le profil était marqué terminé, puis l'insertion des mots masqués échouait ⇒ 500 avec un compte « onboardé » sans ses préférences. Tout est écrit dans une transaction ; l'embedding reste best-effort après commit. | `TestUsers_OnboardingRollsBackOnFailure` (pool en faute ciblé sur `MutedWord`). | `onboarding marqué terminé alors que l'enregistrement a échoué (état partiel)` | `fix(users)` |
+| F535 | Onboarding **non borné** : `creatorsToFollow` pilotait une boucle de 2 requêtes par entrée (N+1 illimité), et une erreur de résolution de créateur était avalée (`errPub == nil && …`). Bornes (50 thèmes, 50 créateurs, 200 mots), erreur propagée. | `TestUsers_OnboardingBoundsCreators`. | `80 créateurs à suivre = 200, attendu 400 (entrée non bornée)` | `fix(users)` |
+| F536 | `GET /v1/users/search` : `q` sans borne supérieure alimentait un `ILIKE '%…%'` (coût DB arbitraire) ; les lignes dont le `Scan` échouait étaient **silencieusement perdues** (`continue`). Borne 80 runes (400), scan propagé. | `TestUsers_SearchBoundsQuery`. | `recherche de 300 caractères = 200, attendu 400` | `fix(users)` |
+| F537 | Blocage/masquage d'un **identifiant inconnu** : l'INSERT violait la clé étrangère ⇒ 500 ; l'auto-ciblage n'était vérifié que dans le handler ; `poolFromPooler` pouvait renvoyer `nil` (panic). Vérification d'existence → 404, sentinelles `ErrSelfTarget`/`ErrUserNotFound`, garde de pool. | `TestUsers_BlockUnknownTargetIsNotFound`. | `blocage d'un compte inconnu = 500 ({"error":"Internal Server Error"}), attendu 404` | `fix(users)` |
+| F538 | Le journal `SecurityEvent` était **toujours vide** : `metadata` est `NOT NULL` et le service envoyait `NULL` quand il n'y avait pas de métadonnées ; l'erreur d'insert était ignorée (`_, _ =`). Défaut par défaut `{}`, erreurs journalisées (insert, alerte email, enqueue). | `TestUsers_LoginEnvironmentKeepsUTF8` (le test ne trouvait aucune ligne). | `reload: no rows in result set` | `fix(users)` |
+| F539 | `CheckLoginEnvironment` tronquait le user-agent à **220 octets** (`ua[:220]`) : un User-Agent accentué produisait un UTF-8 invalide en base. Coupe en runes (`truncateRunes`). | Même test : assertion `utf8.ValidString` + borne 220 runes. | — (structurel : masqué par F538 tant que l'insert échouait ; assertion désormais verte) | `fix(users)` |
+| F540 | `Billing` perdait des **transactions et abonnements** en silence (`rows.Scan` en erreur ⇒ `continue`) : historique incomplet en 200. Erreurs propagées. | Lecture + relecture des deux boucles. | — (structurel : scan non injectable sans faux driver complet) | `fix(users)` |
+| F541 | `POST /v1/me/mfa/totp/verify` relayaient un `path` **fourni par le client** vers GoTrue avec le jeton de l'utilisateur : n'importe quelle route du fournisseur était atteignable (dont `/auth/v1/admin/…` produit par concaténation). Chemin restreint à `/auth/v1/factors/<id>/(verify|challenge)`. | `TestUsers_MFAVerifyRejectsForeignPath` (faux GoTrue qui enregistre les requêtes). | — (rouge non capturé dans la salve initiale ; le test vert verrouille le contrat) | `fix(users)` |
+| F542 | `GET /v1/me/identity` répondait **500** pour un compte inexistant au lieu de 404. `pgx.ErrNoRows` mappé. | `TestUsers_IdentityUnknownIsNotFound`. | `identité inconnue = 500, attendu 404` | `fix(users)` |
+| F543 | Toute erreur d'un service était rendue en **400** par les handlers profil et mots masqués (`response.Error(…, StatusBadRequest)`), y compris une panne DB : l'incident disparaissait et l'utilisateur croyait sa saisie fautive. `ValidationError`/`antispam.RejectionError` → 400, `ErrSessionNotFound`/`ErrUserNotFound` → 404, le reste → 500 journalisé. | `TestUsers_ProfileDatabaseErrorIsNot400`, `TestUsers_MuteWordDatabaseErrorIsNot400` ; `TestFault_Handlers_PoolErrors` mis à jour (`mutedWords-400` → 500). | `panne DB = 400 ({"error":"fault injecté"}), attendu 500` | `fix(users)` |
+| F544 | Réauthentification : une **panne de lecture** était rendue « Réauthentification échouée » (400) ; l'initialisation paresseuse du client GoTrue écrivait `s.gotrue` depuis plusieurs requêtes concurrentes (course de données). Sentinelles `ErrCurrentPasswordRequired`/`ErrPasswordMismatch`, client résolu sans mutation, forme d'email validée (`@`, point, longueur, espaces). | Lecture + `go vet`/suite `users`. | — (structurel : aucun rouge isolé sans faux GoTrue en panne) | `fix(users)` |
+| F545 | `GET /v1/me/sessions` chargeait **toutes** les sessions d'un compte (aucune borne) ; `DELETE /v1/me/sessions/{id}` répondait 404 même sur une panne DB. `LIMIT 100`, sentinelle `ErrSessionNotFound` (404) vs panne (500). | Lecture + suite `users`. | — (structurel : borne + mapping) | `fix(users)` |
+| F546 | `syncUserFromAuth` : une violation d'unicité autre que `User_email_key` (deux `/v1/me/sync` concurrents sur le même id) donnait **500** au lieu d'« existe déjà » ; la relecture du profil et la création de la publication personnelle étaient avalées. Toute violation d'unicité bascule sur le chemin existant, erreurs propagées/journalisées. | Lecture + `TestFault_SyncUser`. | — (structurel : course non déterministe) | `fix(users)` |
+| F547 | **Prix du déblocage piloté par le client** : `POST /v1/me/wallet/unlock` lisait `costCents` dans le corps — n'importe qui débloquait un article pour 1 centime. Prix lu côté serveur (`SystemConfig ARTICLE_UNLOCK_PRICE_CENTS`, défaut 100), corps ignoré. | `TestUsers_WalletIgnoresClientPrice`. | `prix piloté par le client : débit de 1 centime (solde 999)` | `fix(users)` |
+| F548 | **Double débit concurrent** : le solde était lu puis écrit sans garde (`SELECT` … `UPDATE`), deux clics simultanés rendaient le solde négatif. Débit conditionnel `UPDATE … WHERE "walletBalanceCents" >= $2` + résolution du propriétaire dans la même transaction. | `TestUsers_WalletCannotOverdraw`. | `solde négatif après deux débits concurrents : -100` | `fix(users)` |
+
+**Dettes ouvertes par ce lot** (arbitrages, pas de faux correctif) :
+
+- **R218 — énumération de l'allowlist d'inscription** : `GET /v1/auth/registration-status?email=` est public et
+  répond `allowed` par adresse ; en accès privé, il confirme qu'une adresse est invitée (oracle d'invitation).
+  Option recommandée : ne répondre que `open` sans email, et déplacer la vérification d'invitation dans le flux
+  d'inscription (après preuve de possession de l'adresse), ou la rate-limiter par IP.
+- **R219 — déblocage d'article non idempotent** : le paiement débite le lecteur et crédite le propriétaire mais
+  **aucun droit d'accès n'est enregistré** (pas de table `ArticleUnlock`, la lecture ne consulte que les
+  entitlements) : chaque clic re-débite pour un contenu déjà payé. Option recommandée : table
+  `ArticleUnlock("userId","publisherId", …)` avec contrainte unique, et lecture du droit dans `articles` ;
+  en attendant, l'API ne peut pas garantir « payer une fois ».
+- **R220 — changement d'email non atomique** : GoTrue est mis à jour puis la ligne `User` ; si la seconde écriture
+  échoue, les deux systèmes divergent (facturation et migrations d'abonnements lisent la ligne DB). Option :
+  journal d'intention + réconciliation, ou écriture DB d'abord avec compensation GoTrue.
+- **R221 — `subscriptions.HasPlus` sans erreur** : le helper renvoie un booléen ; une panne DB prive
+  silencieusement un abonné de ses droits (`/v1/me/entitlements` répond `{plus:false}`). Option : `(bool, error)`
+  et 503 côté endpoint.
+- **R222 — nom du compte vs nom de la publication** : le PATCH profil n'écrit que `User` (le commentaire qui
+  prétendait synchroniser la publication était faux et a été corrigé). Un nom d'affichage peut donc diverger entre
+  `/v1/me` et le profil public. Option : décider la source unique (profil personnel = `Publisher`), puis aligner
+  l'UI d'édition.
+
+**Batterie du tour.** `gofmt -l internal/modules/users/` **vide** · `go build ./...` **0** · `go vet ./internal/...`
+**0** · `go test` `users` (base Postgres réelle), `settings`, `posts`, `feed`, `creator`, `legal`, `oauth`,
+`identity`, `trust`, `authz`, `middleware`, `cmd/server`, `cmd/worker` **ok** (`QOE_DB_TESTS_OPTIONAL=1`). Workspace :
+13 commandes (`typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*`)
+**toutes à 0**. Aucun fichier mobile touché, arbre propre, aucun push.
+
+**Reste à faire (L29j, lot suivant).** **80 fichiers de production · 24 627 l.** restent dans
+`apps/api/internal/modules/**` (196 f. · 67 650 l. au total, moins les 116 f. · 43 023 l. déjà lus : `articles`,
+`feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`). Prochain lot borné : **`settings` — 7 f. ·
+2 474 l.**, puis `media` (4 f. · 2 121 l.), `highlights` (3 f. · 1 050 l.).
 
 ## L29h — `apps/api/internal/modules/posts/**` — **clos le 2026-11-22**
 
