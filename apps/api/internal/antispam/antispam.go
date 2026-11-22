@@ -662,13 +662,17 @@ func CheckColdDM(ctx context.Context, senderID, recipientID string, isFollower b
 	now := time.Now().UTC()
 	key := fmt.Sprintf("sec:dm:cold:%s:%s", senderID, now.Format("20060102"))
 
-	already, err := rc.SIsMember(ctx, key, recipientID).Result()
-	if err == nil && already {
+	// Test, comptage et enregistrement dans UN script Lua : Redis l'exécute
+	// atomiquement, donc deux envois concurrents ne peuvent plus lire le même
+	// cardinal puis dépasser le plafond ensemble (ancien SCard → SAdd).
+	// Retour : 0 = destinataire déjà compté, -1 = plafond atteint, 1 = compté.
+	res, err := rc.Eval(ctx, coldDMScript, []string{key}, recipientID, coldDMLimitForTier(tier), int(coldDMKeyTTL.Seconds())).Int64()
+	if err != nil {
+		// Redis indisponible : comportement historique (fail-open tracé), le
+		// plafond anti-démarchage ne doit pas bloquer toute la messagerie.
 		return nil
 	}
-
-	count, err := rc.SCard(ctx, key).Result()
-	if err == nil && count >= coldDMLimitForTier(tier) {
+	if res < 0 {
 		return rejectTooMany(
 			CodeWriteCooldown,
 			"Limite quotidienne de nouveaux destinataires atteinte pour votre niveau de confiance.",
@@ -676,13 +680,17 @@ func CheckColdDM(ctx context.Context, senderID, recipientID string, isFollower b
 			false,
 		)
 	}
-
-	pipe := rc.Pipeline()
-	pipe.SAdd(ctx, key, recipientID)
-	pipe.Expire(ctx, key, coldDMKeyTTL)
-	_, _ = pipe.Exec(ctx)
 	return nil
 }
+
+// coldDMScript est atomique côté Redis : SISMEMBER → SCARD → SADD en une seule
+// exécution, sans fenêtre entre le comptage et l'ajout.
+const coldDMScript = `
+if redis.call('SISMEMBER', KEYS[1], ARGV[1]) == 1 then return 0 end
+if redis.call('SCARD', KEYS[1]) >= tonumber(ARGV[2]) then return -1 end
+redis.call('SADD', KEYS[1], ARGV[1])
+redis.call('EXPIRE', KEYS[1], tonumber(ARGV[3]))
+return 1`
 
 // CheckColdDM délègue vers la vérification quotidienne sur le client Redis du Guard.
 func (g *Guard) CheckColdDM(ctx context.Context, senderID, recipientID string, isFollower bool, tier trust.Tier) error {
