@@ -21,9 +21,25 @@
 // bout, et pour plusieurs articles.
 // =====================================================================
 
-import { test, expect } from '@playwright/test';
+import { test, expect, type APIRequestContext, type APIResponse } from '@playwright/test';
 import { TestDb } from './lib/db';
 import { DATABASE_URL } from './lib/env';
+
+/**
+ * 🧭 Suit UNIQUEMENT la canonicalisation d'hôte du middleware
+ * (`apps/core/middleware.ts`, « étape 0 absolue ») : en production, un appel
+ * sur `localhost`/`127.0.0.1` répond **307** vers `lvh.me:<port>`, alors qu'en
+ * développement il passe directement. Les autres redirections restent
+ * visibles par l'appelant, qui doit les asserter (c'est tout l'intérêt du
+ * contrat : un lien court répond **308**, jamais autre chose).
+ */
+async function getOnCanonicalHost(request: APIRequestContext, path: string): Promise<APIResponse> {
+  const first = await request.get(path, { maxRedirects: 0 });
+  if (first.status() !== 307) return first;
+  const location = first.headers()['location'];
+  if (!location) return first;
+  return request.get(new URL(location, first.url()).toString(), { maxRedirects: 0 });
+}
 
 test.describe('URL canonique des articles (liens courts)', () => {
   test("chaque lien court /article/<slug> atterrit sur l'URL canonique déclarée", async ({
@@ -45,9 +61,7 @@ test.describe('URL canonique des articles (liens courts)', () => {
     for (const { slug } of rows) {
       // 1. Le lien court répond une redirection permanente — pas un 404, pas un
       //    200 « à peu près ».
-      const short = await request.get(`/article/${encodeURIComponent(slug)}`, {
-        maxRedirects: 0,
-      });
+      const short = await getOnCanonicalHost(request, `/article/${encodeURIComponent(slug)}`);
       expect(short.status(), `GET /article/${slug}`).toBe(308);
 
       const location = short.headers()['location'];
@@ -55,9 +69,7 @@ test.describe('URL canonique des articles (liens courts)', () => {
       const target = new URL(location!, 'http://localhost');
 
       // 2. La cible se rend directement (200, pas de seconde redirection).
-      const page = await request.get(`${target.pathname}${target.search}`, {
-        maxRedirects: 0,
-      });
+      const page = await getOnCanonicalHost(request, `${target.pathname}${target.search}`);
       expect(page.status(), `GET ${target.pathname}`).toBe(200);
 
       // 3. La page déclare ce MÊME chemin en canonique.

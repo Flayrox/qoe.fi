@@ -1,7 +1,7 @@
 // =====================================================================
 // ⏳ e2e/lib/settle.ts — attente déterministe de l'hydratation
 // =====================================================================
-// Remplace les `waitForTimeout(...)` qui faisaient passer un cas au vert
+// Remplace les attentes en dur qui faisaient passer un cas au vert
 // « parce qu'on avait attendu assez longtemps » : on attend un ÉTAT (réseau au
 // repos + frames de commit React) au lieu d'une durée arbitraire, qui variait
 // avec la charge de la machine et le nombre de workers.
