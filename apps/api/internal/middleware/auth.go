@@ -51,7 +51,24 @@ type Auth struct {
 	mu      sync.Mutex
 	jwks    *jwkSet
 	fetched time.Time
+	lastErr time.Time
+
+	// refreshMu sérialise les récupérations JWKS sans tenir `mu` pendant le
+	// réseau : une panne du fournisseur d'identité ne bloque plus les autres
+	// requêtes, et le client HTTP est partagé (connexions réutilisées).
+	refreshMu sync.Mutex
+	client    *http.Client
 }
+
+const (
+	// jwksTTL durée de validité d'un jeu de clés avant relecture.
+	jwksTTL = 5 * time.Minute
+	// jwksRetryBackoff délai minimal entre deux tentatives après un échec :
+	// sans lui, chaque requête relançait une récupération pendant la panne.
+	jwksRetryBackoff = 30 * time.Second
+	// jwksClientTimeout borne l'appel réseau (reste sous le délai des sondes).
+	jwksClientTimeout = 5 * time.Second
+)
 
 type jwkKey struct {
 	Kty string `json:"kty"`
@@ -72,7 +89,11 @@ func NewAuth(jwtSecret, supabaseAuthURL string) *Auth {
 		base := strings.TrimSuffix(supabaseAuthURL, "/")
 		jwksURL = base + "/auth/v1/.well-known/jwks.json"
 	}
-	return &Auth{jwtSecret: jwtSecret, jwksURL: jwksURL}
+	return &Auth{
+		jwtSecret: jwtSecret,
+		jwksURL:   jwksURL,
+		client:    &http.Client{Timeout: jwksClientTimeout},
+	}
 }
 
 // OptionalAuth valide le Bearer token si présent (lectures publiques paywall),
@@ -277,14 +298,78 @@ func jwksAlgorithmAllowed(alg string, key jwkKey) bool {
 }
 
 func (a *Auth) getJWKS() (*jwkSet, error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	if a.jwks != nil && time.Since(a.fetched) < 5*time.Minute {
-		return a.jwks, nil
+	if a.jwksURL == "" {
+		return nil, fmt.Errorf("aucun JWKS configuré")
 	}
 
-	client := &http.Client{Timeout: 5 * time.Second}
+	a.mu.Lock()
+	set, fetched, lastErr := a.jwks, a.fetched, a.lastErr
+	a.mu.Unlock()
+	if set != nil && time.Since(fetched) < jwksTTL {
+		return set, nil
+	}
+	if err := staleJWKSError(lastErr); err != nil {
+		return a.usableJWKS(set, err)
+	}
+
+	// Une seule récupération à la fois ; les autres attendent puis relisent
+	// l'état (aucune sérialisation réseau sous `mu`).
+	a.refreshMu.Lock()
+	defer a.refreshMu.Unlock()
+
+	a.mu.Lock()
+	set, fetched, lastErr = a.jwks, a.fetched, a.lastErr
+	a.mu.Unlock()
+	if set != nil && time.Since(fetched) < jwksTTL {
+		return set, nil
+	}
+	if err := staleJWKSError(lastErr); err != nil {
+		return a.usableJWKS(set, err)
+	}
+
+	fresh, err := a.fetchJWKS()
+	if err != nil {
+		a.mu.Lock()
+		a.lastErr = time.Now()
+		a.mu.Unlock()
+		return a.usableJWKS(set, err)
+	}
+	a.mu.Lock()
+	a.jwks = fresh
+	a.fetched = time.Now()
+	a.lastErr = time.Time{}
+	a.mu.Unlock()
+	return fresh, nil
+}
+
+// staleJWKSError dit si la dernière tentative est trop récente pour réessayer.
+func staleJWKSError(lastErr time.Time) error {
+	if lastErr.IsZero() {
+		return nil
+	}
+	if elapsed := time.Since(lastErr); elapsed < jwksRetryBackoff {
+		return fmt.Errorf("jwks: dernière récupération en échec il y a %s (nouvelle tentative dans %s)",
+			elapsed.Round(time.Second), (jwksRetryBackoff - elapsed).Round(time.Second))
+	}
+	return nil
+}
+
+// usableJWKS sert une clé encore en cache même périmée : une panne du
+// fournisseur ne doit pas déconnecter tous les utilisateurs. Sans cache, l'échec
+// remonte (le jeton est refusé, jamais validé à l'aveugle).
+func (a *Auth) usableJWKS(set *jwkSet, err error) (*jwkSet, error) {
+	if set != nil {
+		return set, nil
+	}
+	return nil, err
+}
+
+// fetchJWKS récupère le jeu de clés (appel réseau, hors verrou d'état).
+func (a *Auth) fetchJWKS() (*jwkSet, error) {
+	client := a.client
+	if client == nil {
+		client = &http.Client{Timeout: jwksClientTimeout}
+	}
 	resp, err := client.Get(a.jwksURL)
 	if err != nil {
 		return nil, err
@@ -298,8 +383,6 @@ func (a *Auth) getJWKS() (*jwkSet, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&set); err != nil {
 		return nil, err
 	}
-	a.jwks = &set
-	a.fetched = time.Now()
 	return &set, nil
 }
 
