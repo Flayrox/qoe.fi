@@ -34,6 +34,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -845,12 +846,21 @@ func nullableText(v string) any {
 	return v
 }
 
+// clip borne un champ libre à max octets **sans couper un caractère UTF-8**.
+//
+// Une troncature d'octets brute produisait une chaîne UTF-8 invalide dès
+// qu'un texte accentué dépassait la borne ; PostgreSQL refuse alors la valeur
+// et c'est le dépôt entier qui échouait (500) au lieu d'un champ raccourci.
 func clip(v string, max int) string {
 	v = strings.TrimSpace(v)
 	if len(v) <= max {
 		return v
 	}
-	return v[:max]
+	cut := max
+	for cut > 0 && !utf8.RuneStart(v[cut]) {
+		cut--
+	}
+	return strings.TrimSpace(v[:cut])
 }
 
 func mustJSON(v any) []byte {

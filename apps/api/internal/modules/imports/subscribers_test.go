@@ -3,6 +3,7 @@ package imports
 import (
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 // Le parsing tourne avant toute écriture en base : c'est lui qui décide ce qui
@@ -121,6 +122,42 @@ func TestSanitizeImportCell_NeutralizesFormulas(t *testing.T) {
 	}
 	if got := sanitizeImportCell("a\x00b\x01c"); got != "abc" {
 		t.Fatalf("caractères de contrôle non retirés : %q", got)
+	}
+}
+
+// Un champ libre accentué un peu trop long ne doit jamais devenir une chaîne
+// UTF-8 invalide : PostgreSQL rejette alors la valeur et le dépôt entier
+// échoue. La borne porte sur les octets, la coupe sur les caractères.
+func TestClip_NeCoupePasUnCaractereUTF8(t *testing.T) {
+	// 2001 octets de « é » : la coupe tombe au milieu du 1001e caractère.
+	odd := strings.Repeat("é", 2001)
+	got := clip(odd, 2001)
+	if !utf8.ValidString(got) {
+		t.Fatalf("clip a produit une chaîne UTF-8 invalide : %q", got)
+	}
+	if len(got) > 2001 {
+		t.Fatalf("clip dépasse la borne : %d octets, max 2001", len(got))
+	}
+	if got != strings.Repeat("é", 1000) {
+		t.Fatalf("clip = %q (attendu 1000 caractères entiers)", got)
+	}
+
+	// Caractères sur trois octets, borne réellement utilisée par sourceDetail.
+	sourceDetail := strings.Repeat("€", 700)
+	clipped := clip(sourceDetail, importSourceDetailMax)
+	if !utf8.ValidString(clipped) || len(clipped) > importSourceDetailMax {
+		t.Fatalf("clip(sourceDetail) = %d octets valides=%v", len(clipped), utf8.ValidString(clipped))
+	}
+	if clipped != strings.Repeat("€", 666) {
+		t.Fatalf("clip a coupé au mauvais endroit : %q", clipped)
+	}
+
+	// Les chaînes courtes et l'ASCII restent inchangés.
+	if clip("  court  ", 10) != "court" {
+		t.Fatalf("clip a modifié une chaîne courte : %q", clip("  court  ", 10))
+	}
+	if clip(strings.Repeat("a", 12), 10) != strings.Repeat("a", 10) {
+		t.Fatal("clip n'a pas tronqué l'ASCII à la borne")
 	}
 }
 
