@@ -26,8 +26,21 @@ func (okRow) Scan(dest ...any) error { return pgx.ErrNoRows }
 type okPool struct{}
 
 func (okPool) Begin(ctx context.Context) (pgx.Tx, error) {
-	return nil, errors.New("unexpected Begin")
+	return &okTx{}, nil
 }
+
+// okTx est la transaction du faux pool : elle accepte les écritures et les
+// lectures (les parcours testés ici sont transactionnels depuis L29i).
+type okTx struct {
+	pgx.Tx
+}
+
+func (*okTx) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
+	return pgconn.NewCommandTag("UPDATE 1"), nil
+}
+func (*okTx) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row { return okRow{} }
+func (*okTx) Commit(ctx context.Context) error                              { return nil }
+func (*okTx) Rollback(ctx context.Context) error                            { return nil }
 func (okPool) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
 	return pgconn.NewCommandTag("UPDATE 1"), nil
 }

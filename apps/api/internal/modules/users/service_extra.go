@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,13 +27,22 @@ var ErrRegistrationsClosed = errors.New("les inscriptions sont temporairement fe
 // ne figure pas dans l'allowlist d'invitation (ou a déjà été utilisé).
 var ErrEmailNotInvited = errors.New("inscriptions sur invitation : cet email n'est pas invité")
 
-// readConfig lit une valeur SystemConfig (best-effort) — miroir du helper feed.
-func (s *Service) readConfig(ctx context.Context, key string) string {
+// ErrConfigUnreadable signale qu'un réglage plateforme n'a pas pu être lu :
+// on ne devine JAMAIS la valeur (un kill-switch illisible ne s'ouvre pas).
+var ErrConfigUnreadable = errors.New("réglage plateforme illisible")
+
+// readConfig lit une valeur SystemConfig. Une clé absente vaut "" (défaut
+// documenté par l'appelant) ; une panne est remontée.
+func (s *Service) readConfig(ctx context.Context, key string) (string, error) {
 	var v string
-	if err := s.pool.QueryRow(ctx, `SELECT value FROM "SystemConfig" WHERE key=$1`, key).Scan(&v); err != nil {
-		return ""
+	err := s.pool.QueryRow(ctx, `SELECT value FROM "SystemConfig" WHERE key=$1`, key).Scan(&v)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
 	}
-	return v
+	if err != nil {
+		return "", fmt.Errorf("%w: %s: %v", ErrConfigUnreadable, key, err)
+	}
+	return v, nil
 }
 
 // normalizeAllowlistEmail normalise un email d'allowlist (comparaisons
@@ -41,8 +52,14 @@ func normalizeAllowlistEmail(email string) string {
 }
 
 // registrationsOpen lit le kill-switch d'inscriptions (défaut : ouvert).
-func (s *Service) registrationsOpen(ctx context.Context) bool {
-	return !strings.EqualFold(s.readConfig(ctx, "ALLOW_NEW_REGISTRATIONS"), "false")
+// Une erreur de lecture ferme l'accès (fail-closed) : mieux vaut refuser une
+// inscription que d'en accepter quand l'admin a coupé l'accès.
+func (s *Service) registrationsOpen(ctx context.Context) (bool, error) {
+	v, err := s.readConfig(ctx, "ALLOW_NEW_REGISTRATIONS")
+	if err != nil {
+		return false, err
+	}
+	return !strings.EqualFold(v, "false"), nil
 }
 
 // checkAllowlist vérifie qu'un email figure dans l'allowlist d'invitation
@@ -68,9 +85,13 @@ func (s *Service) consumeAllowlist(ctx context.Context, email, userID string) {
 	if normalized == "" {
 		return
 	}
-	_, _ = s.pool.Exec(ctx,
+	if _, err := s.pool.Exec(ctx,
 		`UPDATE "RegistrationAllowlist" SET "usedAt" = now(), "usedBy" = $2
-		 WHERE email = $1 AND "usedAt" IS NULL`, normalized, userID)
+		 WHERE email = $1 AND "usedAt" IS NULL`, normalized, userID); err != nil {
+		// L'inscription est déjà faite : on ne la casse pas, mais une
+		// invitation qui reste consommable doit apparaître dans les logs.
+		log.Printf("[users] invitation non consommée (%s): %v", normalized, err)
+	}
 }
 
 // RegistrationStatus expose l'état des inscriptions pour le front (page
@@ -79,7 +100,11 @@ func (s *Service) consumeAllowlist(ctx context.Context, email, userID string) {
 // s'inscrire (ouvert à tous OU invité). La réponse ne révèle que
 // l'appartenance à l'allowlist, jamais l'existence d'un compte.
 func (s *Service) RegistrationStatus(ctx context.Context, email string) (open, allowed bool, err error) {
-	if s.registrationsOpen(ctx) {
+	isOpen, err := s.registrationsOpen(ctx)
+	if err != nil {
+		return false, false, err
+	}
+	if isOpen {
 		return true, true, nil
 	}
 	allowed, err = s.checkAllowlist(ctx, email)
@@ -136,7 +161,11 @@ func (s *Service) syncUserFromAuth(ctx context.Context, userID string, claims ma
 		// (toggle admin) bloque la création de NOUVELLES lignes User, sauf
 		// pour les emails invités (allowlist admin, usage unique). Les
 		// comptes existants continuent de fonctionner. Défaut : ouvert.
-		if strings.EqualFold(s.readConfig(ctx, "ALLOW_NEW_REGISTRATIONS"), "false") {
+		open, cerr := s.registrationsOpen(ctx)
+		if cerr != nil {
+			return false, false, cerr
+		}
+		if !open {
 			allowed, aerr := s.checkAllowlist(ctx, email)
 			if aerr != nil {
 				return false, false, aerr
@@ -175,7 +204,10 @@ func (s *Service) syncUserFromAuth(ctx context.Context, userID string, claims ma
 			`INSERT INTO "User" (id, email, name, username, role, "hasCompletedOnboarding", pronouns, "countryCode", "languageCode", "createdAt", "updatedAt")
 			 VALUES ($1, $2, $3, $4, 'user', false, NULLIF($5, ''), NULLIF($6, ''), NULLIF($7, ''), now(), now())`,
 			userID, email, displayName, finalUsername, pronouns, countryCode, languageCode)
-		if insertErr != nil && !isEmailConflict(insertErr) {
+		// Toute violation d'unicité signifie qu'un compte concurrent (même
+		// email, ou même id créé par un autre /v1/me/sync) vient de naître :
+		// on bascule sur le chemin « existe déjà » au lieu de répondre 500.
+		if insertErr != nil && !isUniqueViolation(insertErr) {
 			return false, false, insertErr
 		}
 		if insertErr == nil {
@@ -185,7 +217,9 @@ func (s *Service) syncUserFromAuth(ctx context.Context, userID string, claims ma
 			// Invitation consommée (accès privé) : usage unique.
 			s.consumeAllowlist(ctx, email, userID)
 			// Initialise sa publication personnelle pour que son profil /@username existe toujours
-			_, _ = s.GetOrCreatePersonalPublisher(ctx, userID)
+			if _, perr := s.GetOrCreatePersonalPublisher(ctx, userID); perr != nil {
+				log.Printf("[users] publication personnelle non créée (%s): %v", userID, perr)
+			}
 			return true, true, nil
 		}
 		// L'email existe déjà avec un AUTRE id (session Supabase plus récente
@@ -214,10 +248,14 @@ func (s *Service) syncUserFromAuth(ctx context.Context, userID string, claims ma
 	// les claims : un username explicite dans user_metadata doit bien s'écrire
 	// quand la colonne est vide.
 	var dbName, dbUsername, dbPubID pgtype.Text
-	_ = s.pool.QueryRow(ctx,
-		`SELECT name, username, "publisherId" FROM "User" WHERE id = $1`, userID).Scan(&dbName, &dbUsername, &dbPubID)
+	if err := s.pool.QueryRow(ctx,
+		`SELECT name, username, "publisherId" FROM "User" WHERE id = $1`, userID).Scan(&dbName, &dbUsername, &dbPubID); err != nil {
+		return false, false, err
+	}
 	if !dbPubID.Valid || dbPubID.String == "" {
-		_, _ = s.GetOrCreatePersonalPublisher(ctx, userID)
+		if _, perr := s.GetOrCreatePersonalPublisher(ctx, userID); perr != nil {
+			log.Printf("[users] publication personnelle non créée (%s): %v", userID, perr)
+		}
 	}
 	needsUsername := !dbUsername.Valid || dbUsername.String == ""
 	if needsUsername || !dbName.Valid || dbName.String == "" {
@@ -365,7 +403,10 @@ func (s *Service) GetOrCreatePersonalPublisher(ctx context.Context, userID strin
 	}
 
 	var slugConflict bool
-	_ = s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM "Publisher" WHERE lower(slug) = lower($1))`, pubSlug).Scan(&slugConflict)
+	if err := s.pool.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM "Publisher" WHERE lower(slug) = lower($1))`, pubSlug).Scan(&slugConflict); err != nil {
+		return "", err
+	}
 	if slugConflict {
 		pubSlug = uniqueProvisionedUsername(ctx, s.pool, pubSlug)
 	}
@@ -375,6 +416,17 @@ func (s *Service) GetOrCreatePersonalPublisher(ctx context.Context, userID strin
 		return "", err
 	}
 	defer tx.Rollback(ctx)
+
+	// Verrouille la ligne User : deux appels concurrents (login + GET
+	// /v1/me/publication) ne doivent pas créer deux publications orphelines.
+	var lockedID pgtype.Text
+	if err := tx.QueryRow(ctx,
+		`SELECT "publisherId" FROM "User" WHERE id = $1 FOR UPDATE`, userID).Scan(&lockedID); err != nil {
+		return "", err
+	}
+	if lockedID.Valid && lockedID.String != "" {
+		return lockedID.String, nil
+	}
 
 	var createdID string
 	err = tx.QueryRow(ctx,
@@ -400,6 +452,11 @@ func (s *Service) GetOrCreatePersonalPublisher(ctx context.Context, userID strin
 	return createdID, nil
 }
 
+// maxMutedWords borne la liste de mots masqués d'un compte.
+const maxMutedWords = 200
+
+var errTooManyMutedWords = errors.New("Maximum 200 mots masqués autorisés.")
+
 // ToggleMuteWord ajoute ou retire un mot masqué (parité
 // moderation.toggleMuteWord Prisma : normalisé lowercase/trim).
 func (s *Service) ToggleMuteWord(ctx context.Context, userID, rawWord string) (bool, string, error) {
@@ -408,7 +465,7 @@ func (s *Service) ToggleMuteWord(ctx context.Context, userID, rawWord string) (b
 		CheckXSS:      true,
 	})
 	if err != nil {
-		return false, "", err
+		return false, "", invalid(err.Error())
 	}
 	word := strings.ToLower(cleaned)
 
@@ -423,8 +480,11 @@ func (s *Service) ToggleMuteWord(ctx context.Context, userID, rawWord string) (b
 		return false, word, nil
 	}
 	var count int
-	if err := s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "MutedWord" WHERE "userId" = $1`, userID).Scan(&count); err == nil && count >= 200 {
-		return false, "", errors.New("Maximum 200 mots masqués autorisés.")
+	if cerr := s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "MutedWord" WHERE "userId" = $1`, userID).Scan(&count); cerr != nil {
+		return false, "", cerr
+	}
+	if count >= maxMutedWords {
+		return false, "", invalid(errTooManyMutedWords.Error())
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return false, "", err
@@ -453,18 +513,105 @@ func (s *Service) ListMutedWords(ctx context.Context, userID string) ([]string, 
 	var word string
 	for rows.Next() {
 		if err := rows.Scan(&word); err != nil {
-			continue
+			return nil, err
 		}
 		out = append(out, word)
 	}
 	return out, rows.Err()
 }
 
-// getPublicationOwnerID résout le propriétaire d'une publication :
-// créateur perso (user.publisherId) OU owner du média.
-func (s *Service) getPublisherOwnerID(ctx context.Context, publisherID string) (string, error) {
+// articleUnlockPriceCents est le prix de déblocage d'un article premium,
+// lu côté serveur (SystemConfig ARTICLE_UNLOCK_PRICE_CENTS, défaut 100 —
+// même valeur que la constante front). Le client ne fixe JAMAIS le montant :
+// un `costCents` envoyé par le navigateur débitait 1 centime.
+const articleUnlockPriceCents = 100
+
+// ArticleUnlockPrice lit le prix serveur du déblocage à l'unité.
+func (s *Service) ArticleUnlockPrice(ctx context.Context) (int, error) {
+	raw, err := s.readConfig(ctx, "ARTICLE_UNLOCK_PRICE_CENTS")
+	if err != nil {
+		return 0, err
+	}
+	if raw == "" {
+		return articleUnlockPriceCents, nil
+	}
+	price, convErr := strconv.Atoi(strings.TrimSpace(raw))
+	if convErr != nil || price <= 0 {
+		return 0, fmt.Errorf("%w: ARTICLE_UNLOCK_PRICE_CENTS=%q", ErrConfigUnreadable, raw)
+	}
+	return price, nil
+}
+
+// UnlockArticleWithWallet débite le lecteur et crédite le propriétaire
+// (parité wallet.unlockArticleWithWallet Prisma, transaction atomique). Le
+// débit est conditionnel (`balance >= price`) : deux clics simultanés ne
+// peuvent pas rendre le solde négatif.
+func (s *Service) UnlockArticleWithWallet(ctx context.Context, readerID, publisherID string) (string, error) {
+	price, err := s.ArticleUnlockPrice(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback(ctx)
+
+	res, err := tx.Exec(ctx,
+		`UPDATE "User" SET "walletBalanceCents" = "walletBalanceCents" - $2, "updatedAt" = now()
+		 WHERE id = $1 AND "walletBalanceCents" >= $2`, readerID, price)
+	if err != nil {
+		return "TRANSACTION_FAILED", err
+	}
+	if res.RowsAffected() == 0 {
+		var exists bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM "User" WHERE id = $1)`, readerID).Scan(&exists); err != nil {
+			return "", err
+		}
+		if !exists {
+			return "USER_NOT_FOUND", nil
+		}
+		return "INSUFFICIENT_FUNDS", nil
+	}
+
+	ownerID, err := publisherOwnerID(ctx, tx, publisherID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "PUBLICATION_NOT_FOUND", nil
+		}
+		return "PUBLICATION_NOT_FOUND", err
+	}
+
+	if _, err := tx.Exec(ctx,
+		`INSERT INTO "WalletTransaction" (id, "userId", "amountCents", type)
+		 VALUES (gen_random_uuid()::text, $1, $2, 'PAYWALL_UNLOCK')`,
+		readerID, -price); err != nil {
+		return "TRANSACTION_FAILED", err
+	}
+	if _, err := tx.Exec(ctx,
+		`UPDATE "User" SET "walletBalanceCents" = "walletBalanceCents" + $2, "updatedAt" = now() WHERE id = $1`,
+		ownerID, price); err != nil {
+		return "TRANSACTION_FAILED", err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return "TRANSACTION_FAILED", err
+	}
+	return "", nil
+}
+
+// rowQuerier est la surface de lecture partagée par le pool et une transaction.
+type rowQuerier interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+// publisherOwnerID résout le propriétaire d'une publication (créateur perso
+// ou owner du média) dans la transaction de débit : la lecture et l'écriture
+// voient le même état.
+func publisherOwnerID(ctx context.Context, q rowQuerier, publisherID string) (string, error) {
 	var ownerID string
-	err := s.pool.QueryRow(ctx,
+	err := q.QueryRow(ctx,
 		`SELECT id::text FROM "User" WHERE "publisherId" = $1`, publisherID).Scan(&ownerID)
 	if err == nil {
 		return ownerID, nil
@@ -472,8 +619,7 @@ func (s *Service) getPublisherOwnerID(ctx context.Context, publisherID string) (
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return "", err
 	}
-	// Publication média → owner actif du média.
-	err = s.pool.QueryRow(ctx,
+	err = q.QueryRow(ctx,
 		`SELECT mm."userId"::text
 		 FROM "MediaMember" mm
 		 JOIN "Media" md ON md.id = mm."mediaId"
@@ -483,57 +629,6 @@ func (s *Service) getPublisherOwnerID(ctx context.Context, publisherID string) (
 		return "", err
 	}
 	return ownerID, nil
-}
-
-// UnlockArticleWithWallet débite le lecteur et crédite le propriétaire
-// (parité wallet.unlockArticleWithWallet Prisma, transaction atomique).
-func (s *Service) UnlockArticleWithWallet(ctx context.Context, readerID, publisherID string, costCents int) (string, error) {
-	if costCents <= 0 {
-		costCents = 200
-	}
-
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return "", err
-	}
-	defer tx.Rollback(ctx)
-
-	var balance int
-	err = tx.QueryRow(ctx,
-		`SELECT "walletBalanceCents" FROM "User" WHERE id = $1`, readerID).Scan(&balance)
-	if err != nil {
-		return "USER_NOT_FOUND", err
-	}
-	if balance < costCents {
-		return "INSUFFICIENT_FUNDS", nil
-	}
-
-	ownerID, err := s.getPublisherOwnerID(ctx, publisherID)
-	if err != nil {
-		return "PUBLICATION_NOT_FOUND", err
-	}
-
-	if _, err := tx.Exec(ctx,
-		`UPDATE "User" SET "walletBalanceCents" = "walletBalanceCents" - $2, "updatedAt" = now() WHERE id = $1`,
-		readerID, costCents); err != nil {
-		return "TRANSACTION_FAILED", err
-	}
-	if _, err := tx.Exec(ctx,
-		`INSERT INTO "WalletTransaction" (id, "userId", "amountCents", type)
-		 VALUES (gen_random_uuid()::text, $1, $2, 'PAYWALL_UNLOCK')`,
-		readerID, -costCents); err != nil {
-		return "TRANSACTION_FAILED", err
-	}
-	if _, err := tx.Exec(ctx,
-		`UPDATE "User" SET "walletBalanceCents" = "walletBalanceCents" + $2, "updatedAt" = now() WHERE id = $1`,
-		ownerID, costCents); err != nil {
-		return "TRANSACTION_FAILED", err
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return "TRANSACTION_FAILED", err
-	}
-	return "", nil
 }
 
 // isEmailConflict détecte la violation d'unicité sur User.email

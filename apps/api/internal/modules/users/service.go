@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
@@ -25,6 +26,17 @@ import (
 	"github.com/qoefi/api/internal/subscriptions"
 	"github.com/qoefi/api/internal/trust"
 )
+
+// ValidationError marque une erreur corrigeable par le client (400). Toute
+// autre erreur d'un service est une panne (500) : le handler ne confond plus
+// « nom d'utilisateur déjà pris » et « base indisponible ».
+type ValidationError struct {
+	Message string
+}
+
+func (e ValidationError) Error() string { return e.Message }
+
+func invalid(msg string) error { return ValidationError{Message: msg} }
 
 type Service struct {
 	pool     pooler
@@ -126,10 +138,40 @@ func (s *Service) MFADelete(ctx context.Context, userID, authorization, path str
 	return err
 }
 func (s *Service) gotrueRequest(ctx context.Context, userID, authorization, method, path string, payload map[string]any) (map[string]any, error) {
-	if s.gotrue == nil {
-		s.gotrue = newGoTrueClient(os.Getenv("SUPABASE_AUTH_URL"), os.Getenv("SUPABASE_SERVICE_ROLE_KEY"))
+	return s.identityClient().requestWithAuthorization(ctx, userID, authorization, method, path, payload)
+}
+
+// identityClient renvoie le client GoTrue sans muter le Service : l'ancien
+// assignement paresseux (`s.gotrue = …`) écrivait le même champ depuis
+// plusieurs requêtes concurrentes (course de données).
+func (s *Service) identityClient() *goTrueClient {
+	if s.gotrue != nil {
+		return s.gotrue
 	}
-	return s.gotrue.requestWithAuthorization(ctx, userID, authorization, method, path, payload)
+	return newGoTrueClient(os.Getenv("SUPABASE_AUTH_URL"), os.Getenv("SUPABASE_SERVICE_ROLE_KEY"))
+}
+
+// Sentinelles de réauthentification : une panne de lecture n'est pas un mot
+// de passe faux (les handlers distinguaient mal les deux : un 400 «
+// Réauthentification échouée » cachait l'incident).
+var (
+	ErrCurrentPasswordRequired = errors.New("Le mot de passe actuel est requis.")
+	ErrPasswordMismatch        = errors.New("Réauthentification échouée.")
+)
+
+// validEmailShape borne l'adresse avant l'envoi au fournisseur d'identité.
+func validEmailShape(email string) bool {
+	if len(email) < 3 || len(email) > 320 {
+		return false
+	}
+	at := strings.LastIndex(email, "@")
+	if at <= 0 || at == len(email)-1 {
+		return false
+	}
+	if strings.ContainsAny(email, " \t\r\n,") {
+		return false
+	}
+	return strings.Contains(email[at+1:], ".")
 }
 
 func (s *Service) reauthenticate(ctx context.Context, userID, currentPassword string) error {
@@ -138,26 +180,21 @@ func (s *Service) reauthenticate(ctx context.Context, userID, currentPassword st
 		return err
 	}
 	if strings.TrimSpace(currentPassword) == "" {
-		return errors.New("Le mot de passe actuel est requis.")
+		return ErrCurrentPasswordRequired
 	}
-	if s.gotrue == nil {
-		s.gotrue = newGoTrueClient(os.Getenv("SUPABASE_AUTH_URL"), os.Getenv("SUPABASE_SERVICE_ROLE_KEY"))
-	}
-	return s.gotrue.verifyPassword(ctx, email, currentPassword)
+	return s.identityClient().verifyPassword(ctx, email, currentPassword)
 }
 
 func (s *Service) ChangeEmail(ctx context.Context, userID, currentPassword, newEmail string) error {
-	if s.gotrue == nil {
-		s.gotrue = newGoTrueClient(os.Getenv("SUPABASE_AUTH_URL"), os.Getenv("SUPABASE_SERVICE_ROLE_KEY"))
-	}
 	if err := s.reauthenticate(ctx, userID, currentPassword); err != nil {
-		return errors.New("Réauthentification échouée.")
+		// Mot de passe faux = 400 côté handler ; panne DB = 500.
+		return err
 	}
 	newEmail = strings.ToLower(strings.TrimSpace(newEmail))
-	if !strings.Contains(newEmail, "@") || len(newEmail) > 320 {
-		return errors.New("Adresse email invalide.")
+	if !validEmailShape(newEmail) {
+		return invalid("Adresse email invalide.")
 	}
-	if err := s.gotrue.updateUser(ctx, userID, map[string]any{"email": newEmail, "email_confirm": false}); err != nil {
+	if err := s.identityClient().updateUser(ctx, userID, map[string]any{"email": newEmail, "email_confirm": false}); err != nil {
 		return err
 	}
 	_, err := s.pool.Exec(ctx, `UPDATE "User" SET email = $1, "updatedAt" = now() WHERE id = $2`, newEmail, toUUID(userID))
@@ -187,7 +224,7 @@ func (s *Service) RevokeUserSessions(ctx context.Context, userID string) error {
 	if strings.TrimSpace(userID) == "" {
 		return errors.New("identifiant requis")
 	}
-	_, err := s.gotrue.request(ctx, userID, http.MethodDelete, "/auth/v1/admin/users/"+userID+"/sessions", nil)
+	_, err := s.identityClient().request(ctx, userID, http.MethodDelete, "/auth/v1/admin/users/"+userID+"/sessions", nil)
 	return err
 }
 
@@ -199,7 +236,7 @@ func (s *Service) RevokeUserSessions(ctx context.Context, userID string) error {
 // jamais de réactivation (les désabonnés restent désabonnés). Idempotent :
 // rejouer ne change rien une fois migré.
 func (s *Service) MigrateSubscriptionsToVerifiedEmail(ctx context.Context, userID string) (int, error) {
-	account, err := s.gotrue.getUser(ctx, userID)
+	account, err := s.identityClient().getUser(ctx, userID)
 	if err != nil {
 		return 0, err
 	}
@@ -250,7 +287,7 @@ func accountEmailConfirmed(user map[string]any) bool {
 // (abonnement connecté fiche 01, migration d'abonnements) : on ne fait jamais
 // confiance à une adresse déclarée par le client, seulement à celle lue ici.
 func (s *Service) GetEmailVerification(ctx context.Context, userID string) (string, bool, error) {
-	account, err := s.gotrue.getUser(ctx, userID)
+	account, err := s.identityClient().getUser(ctx, userID)
 	if err != nil {
 		return "", false, err
 	}
@@ -263,16 +300,13 @@ func (s *Service) GetEmailVerification(ctx context.Context, userID string) (stri
 }
 
 func (s *Service) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
-	if s.gotrue == nil {
-		s.gotrue = newGoTrueClient(os.Getenv("SUPABASE_AUTH_URL"), os.Getenv("SUPABASE_SERVICE_ROLE_KEY"))
-	}
 	if err := s.reauthenticate(ctx, userID, currentPassword); err != nil {
-		return errors.New("Réauthentification échouée.")
+		return err
 	}
 	if len(newPassword) < 12 || len(newPassword) > 128 {
-		return errors.New("Le nouveau mot de passe doit contenir entre 12 et 128 caractères.")
+		return invalid("Le nouveau mot de passe doit contenir entre 12 et 128 caractères.")
 	}
-	if err := s.gotrue.updateUser(ctx, userID, map[string]any{"password": newPassword}); err != nil {
+	if err := s.identityClient().updateUser(ctx, userID, map[string]any{"password": newPassword}); err != nil {
 		return err
 	}
 	s.RecordSecurityEvent(ctx, userID, "", "password_changed", "", "", nil, true)
@@ -314,9 +348,19 @@ func textPtr(t pgtype.Text) *string {
 
 // SearchForContributors cherche des utilisateurs pour co-auteur (name/username/email contains, insensible).
 // Mirroir de packages/api-client/src/actions/articles/index.ts searchArticleContributorsAction.
+// ErrSearchQueryTooLong borne la recherche publique d'auteurs : sans borne,
+// `q` alimentait un ILIKE `%…%` de taille arbitraire (coût DB et amplification).
+var ErrSearchQueryTooLong = errors.New("recherche trop longue (80 caractères maximum)")
+
 func (s *Service) SearchForContributors(ctx context.Context, query string, excludeIds []string, viewerID string) ([]Contributor, error) {
 	if len(query) < 2 {
 		return []Contributor{}, nil
+	}
+	if utf8.RuneCountInString(query) > 80 {
+		return nil, ErrSearchQueryTooLong
+	}
+	if len(excludeIds) > 50 {
+		excludeIds = excludeIds[:50]
 	}
 	q := "%" + query + "%"
 	// Construit le tableau d'UUIDs à exclure
@@ -354,7 +398,7 @@ func (s *Service) SearchForContributors(ctx context.Context, query string, exclu
 		var certified bool
 		var pubSlug, pubSubdomain, pubHeroText pgtype.Text
 		if err := rows.Scan(&c.ID, &name, &username, &logo, &certified, &pubSlug, &pubSubdomain, &pubHeroText); err != nil {
-			continue
+			return nil, err
 		}
 		c.Name = textPtr(name)
 		c.Username = textPtr(username)
@@ -473,40 +517,50 @@ type ProfilePatchParams struct {
 	Pronouns       *string
 }
 
-// UpdateProfilePatch applique une mise à jour partielle sur le profil User et synchronise
-// automatiquement sa Publication personnelle (slug, name, logoUrl) sans écraser les champs non fournis.
+// UpdateProfilePatch applique une mise à jour partielle sur le profil User
+// (champs absents = inchangés). La publication personnelle n'est
+// volontairement PAS réécrite ici : son nom et son logo se règlent depuis
+// /v1/settings/profile, et un PATCH de profil ne doit pas écraser un nom
+// d'affichage choisi côté publication (régression du 19/09).
 func (s *Service) UpdateProfilePatch(ctx context.Context, userID string, patch ProfilePatchParams) (*ReaderProfile, error) {
 	sets := make([]string, 0, 6)
 	args := make([]any, 0, 7)
 
 	if patch.Username != nil {
 		un := identifier.NormalizeUsername(*patch.Username)
-		if un != "" && (len(un) < 3 || len(un) > 24 || !usernamePattern.MatchString(un)) {
-			return nil, errors.New("Le nom d'utilisateur doit contenir 3 à 24 caractères : lettres minuscules, chiffres, _ ou ., sans séparateurs consécutifs.")
+		// Un handle vide signifie « inchangé » (contrat des clients : les
+		// champs vides sont ignorés), PAS « effacer » : il écrivait NULL et
+		// le profil public perdait son @handle au premier enregistrement.
+		if un == "" {
+			return s.Profile(ctx, userID)
 		}
-		if un != "" {
-			reserved, err := isReservedIdentifier(ctx, s.pool, "username", un)
-			if err != nil {
-				return nil, err
-			}
-			if reserved {
-				return nil, errors.New("Ce nom d'utilisateur est réservé.")
-			}
-			var exists bool
-			if err := s.pool.QueryRow(ctx,
-				`SELECT EXISTS(SELECT 1 FROM "User" WHERE lower(username) = lower($1) AND id <> $2)`,
-				un, toUUID(userID)).Scan(&exists); err != nil {
-				return nil, err
-			}
-			if exists {
-				return nil, errors.New("Ce nom d'utilisateur est déjà utilisé.")
-			}
-			var mediaExists bool
-			if err := s.pool.QueryRow(ctx,
-				`SELECT EXISTS(SELECT 1 FROM "Publisher" WHERE lower(slug) = lower($1) AND type <> 'PERSONAL')`,
-				un).Scan(&mediaExists); err == nil && mediaExists {
-				return nil, errors.New("Ce nom d'utilisateur est déjà utilisé.")
-			}
+		if len(un) < 3 || len(un) > 24 || !usernamePattern.MatchString(un) {
+			return nil, invalid("Le nom d'utilisateur doit contenir 3 à 24 caractères : lettres minuscules, chiffres, _ ou ., sans séparateurs consécutifs.")
+		}
+		reserved, err := isReservedIdentifier(ctx, s.pool, "username", un)
+		if err != nil {
+			return nil, err
+		}
+		if reserved {
+			return nil, invalid("Ce nom d'utilisateur est réservé.")
+		}
+		var exists bool
+		if err := s.pool.QueryRow(ctx,
+			`SELECT EXISTS(SELECT 1 FROM "User" WHERE lower(username) = lower($1) AND id <> $2)`,
+			un, toUUID(userID)).Scan(&exists); err != nil {
+			return nil, err
+		}
+		if exists {
+			return nil, invalid("Ce nom d'utilisateur est déjà utilisé.")
+		}
+		var mediaExists bool
+		if err := s.pool.QueryRow(ctx,
+			`SELECT EXISTS(SELECT 1 FROM "Publisher" WHERE lower(slug) = lower($1) AND type <> 'PERSONAL')`,
+			un).Scan(&mediaExists); err != nil {
+			return nil, err
+		}
+		if mediaExists {
+			return nil, invalid("Ce nom d'utilisateur est déjà utilisé.")
 		}
 		args = append(args, optText(un))
 		sets = append(sets, fmt.Sprintf("username = $%d", len(args)))
@@ -539,7 +593,7 @@ func (s *Service) UpdateProfilePatch(ctx context.Context, userID string, patch P
 	if patch.LogoURL != nil {
 		logo := strings.TrimSpace(*patch.LogoURL)
 		if len([]rune(logo)) > 2000 {
-			return nil, errors.New("L'URL du logo dépasse 2000 caractères.")
+			return nil, invalid("L'URL du logo dépasse 2000 caractères.")
 		}
 		if err := antispam.ValidateSafeURL(logo); err != nil {
 			return nil, err
@@ -576,7 +630,7 @@ func (s *Service) UpdateProfilePatch(ctx context.Context, userID string, patch P
 
 	if _, err := tx.Exec(ctx, query, args...); err != nil {
 		if isUniqueViolation(err) {
-			return nil, errors.New("Ce nom d'utilisateur est déjà utilisé.")
+			return nil, invalid("Ce nom d'utilisateur est déjà utilisé.")
 		}
 		return nil, err
 	}
@@ -642,7 +696,7 @@ type BillingPublisher struct {
 
 // BillingSubscription est un abonnement premium actif du lecteur.
 type BillingSubscription struct {
-	ID          string              `json:"id"`
+	ID        string            `json:"id"`
 	Publisher *BillingPublisher `json:"publisher"`
 }
 
@@ -685,7 +739,7 @@ func (s *Service) Billing(ctx context.Context, userID string) (*BillingData, err
 		var t BillingTransaction
 		var createdAt pgtype.Timestamp
 		if err := rows.Scan(&t.ID, &t.Type, &t.AmountCents, &createdAt); err != nil {
-			continue
+			return nil, err
 		}
 		t.CreatedAt = createdAt.Time.Format(time.RFC3339)
 		data.WalletTransactions = append(data.WalletTransactions, t)
@@ -710,7 +764,7 @@ func (s *Service) Billing(ctx context.Context, userID string) (*BillingData, err
 		var name, logo pgtype.Text
 		var slug string
 		if err := subRows.Scan(&s.ID, &name, &logo, &slug); err != nil {
-			continue
+			return nil, err
 		}
 		s.Publisher = &BillingPublisher{Name: textPtr(name), LogoURL: textPtr(logo), Slug: slug}
 		data.Subscriptions = append(data.Subscriptions, s)
@@ -753,9 +807,18 @@ var validAgeRanges = map[string]bool{
 	"AGE_45_54": true, "AGE_55_64": true, "AGE_65_PLUS": true, "PREFER_NOT_TO_SAY": true,
 }
 
+// Bornes d'entrée de l'onboarding : sans elles, un tableau arbitraire
+// (interests, créateurs à suivre) pilotait des milliers de requêtes.
+const (
+	maxOnboardingTopics  = 50
+	maxOnboardingFollows = 50
+)
+
 // OnboardingComplete finalise l'onboarding lecteur : marque le profil,
-// calcule l'embedding sémantique (pgvector), enregistre les mots masqués et
-// les suivis de créateurs — miroir Go de completeOnboardingInDb.
+// enregistre les mots masqués et les suivis de créateurs — miroir Go de
+// completeOnboardingInDb. Tout est écrit dans UNE transaction : un échec
+// laisse le compte intact (sinon l'onboarding était marqué terminé alors que
+// les mots masqués n'existaient pas) ; l'embedding, best-effort, vient après.
 func (s *Service) OnboardingComplete(ctx context.Context, userID string, in OnboardingCompleteInput) error {
 	gender := in.Gender
 	if !validGenders[gender] {
@@ -779,8 +842,14 @@ func (s *Service) OnboardingComplete(ctx context.Context, userID string, in Onbo
 	if err != nil {
 		return err
 	}
-	if len(in.MutedWords) > 200 {
-		return errors.New("Maximum 200 mots masqués autorisés.")
+	if len(in.Interests) > maxOnboardingTopics || len(in.Subtopics) > maxOnboardingTopics {
+		return invalid("Maximum 50 centres d'intérêt autorisés.")
+	}
+	if len(in.CreatorsToFollow) > maxOnboardingFollows {
+		return invalid("Maximum 50 créateurs à suivre à l'onboarding.")
+	}
+	if len(in.MutedWords) > maxMutedWords {
+		return invalid(errTooManyMutedWords.Error())
 	}
 	cleanMuted := make([]string, 0, len(in.MutedWords))
 	for _, word := range in.MutedWords {
@@ -797,36 +866,28 @@ func (s *Service) OnboardingComplete(ctx context.Context, userID string, in Onbo
 		cleanMuted = append(cleanMuted, strings.ToLower(w))
 	}
 
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
 	// 1. Marque l'onboarding terminé + démographie.
-	if gender != "" || ageRange != "" || pronouns != "" {
-		if _, err := s.pool.Exec(ctx, `
-			UPDATE "User"
-			SET "hasCompletedOnboarding" = true,
-			    gender = $1, "ageRange" = $2, pronouns = $3, "demographicsUpdatedAt" = now(),
-			    "updatedAt" = now()
-			WHERE id = $4`, optText(gender), optText(ageRange), optText(pronouns), toUUID(userID)); err != nil {
-			return err
-		}
-	} else {
-		if _, err := s.pool.Exec(ctx, `
-			UPDATE "User"
-			SET "hasCompletedOnboarding" = true,
-			    "updatedAt" = now()
-			WHERE id = $1`, toUUID(userID)); err != nil {
-			return err
-		}
+	if _, err := tx.Exec(ctx, `
+		UPDATE "User"
+		SET "hasCompletedOnboarding" = true,
+		    gender = COALESCE(NULLIF($1, '')::"Gender", gender),
+		    "ageRange" = COALESCE(NULLIF($2, '')::"AgeRange", "ageRange"),
+		    pronouns = COALESCE(NULLIF($3, ''), pronouns),
+		    "demographicsUpdatedAt" = now(),
+		    "updatedAt" = now()
+		WHERE id = $4`, gender, ageRange, pronouns, toUUID(userID)); err != nil {
+		return err
 	}
 
-	// 2. Embedding sémantique (best-effort : service d'inférence OU fallback
-	// déterministe — même comportement que le TS).
-	allTopics := append(append([]string{}, in.Interests...), in.Subtopics...)
-	if err := s.saveUserEmbedding(ctx, userID, onboardingText, allTopics); err != nil {
-		log.Printf("[users] onboarding embedding: %v", err)
-	}
-
-	// 3. Mots masqués (skip duplicates — parité createMany skipDuplicates).
+	// 2. Mots masqués (skip duplicates — parité createMany skipDuplicates).
 	for _, w := range cleanMuted {
-		if _, err := s.pool.Exec(ctx, `
+		if _, err := tx.Exec(ctx, `
 			INSERT INTO "MutedWord" (id, word, "userId", "createdAt")
 			VALUES (gen_random_uuid()::text, $1, $2, now())
 			ON CONFLICT ("userId", "word") DO NOTHING`, w, toUUID(userID)); err != nil {
@@ -834,25 +895,44 @@ func (s *Service) OnboardingComplete(ctx context.Context, userID string, in Onbo
 		}
 	}
 
-	// 4. Suivis des créateurs choisis (skip duplicates).
+	// 3. Suivis des créateurs choisis (skip duplicates).
 	for _, target := range in.CreatorsToFollow {
 		if target == "" {
 			continue
 		}
 		var pubID string
-		errPub := s.pool.QueryRow(ctx, `
+		err := tx.QueryRow(ctx, `
 			SELECT COALESCE(
 				(SELECT id FROM "Publisher" WHERE id = $1 LIMIT 1),
 				(SELECT "publisherId" FROM "User" WHERE id::text = $1 AND "publisherId" IS NOT NULL LIMIT 1)
 			)`, target).Scan(&pubID)
-		if errPub == nil && pubID != "" {
-			if _, err := s.pool.Exec(ctx, `
-				INSERT INTO "Follows" (id, "readerId", "publisherId", "createdAt")
-				VALUES (gen_random_uuid()::text, $1, $2, now())
-				ON CONFLICT ("readerId", "publisherId") DO NOTHING`, toUUID(userID), pubID); err != nil {
-				log.Printf("[users] onboarding follow %s: %v", pubID, err)
-			}
+		if errors.Is(err, pgx.ErrNoRows) {
+			// Cible inconnue : ignorée (id fourni par le client, jamais une panne).
+			continue
 		}
+		if err != nil {
+			return err
+		}
+		if pubID == "" {
+			continue
+		}
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO "Follows" (id, "readerId", "publisherId", "createdAt")
+			VALUES (gen_random_uuid()::text, $1, $2, now())
+			ON CONFLICT ("readerId", "publisherId") DO NOTHING`, toUUID(userID), pubID); err != nil {
+			return err
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+
+	// 4. Embedding sémantique (best-effort : service d'inférence OU fallback
+	// déterministe — même comportement que le TS).
+	allTopics := append(append([]string{}, in.Interests...), in.Subtopics...)
+	if err := s.saveUserEmbedding(ctx, userID, onboardingText, allTopics); err != nil {
+		log.Printf("[users] onboarding embedding: %v", err)
 	}
 
 	s.trustSvc.InvalidateUser(ctx, userID)
@@ -970,8 +1050,8 @@ func vectorLiteral(v []float32) string {
 // ── Export de données (GET /v1/me/data-export) ───────────────────────────
 
 // DataExport construit l'export complet du compte lecteur (GDPR) — miroir
-// exportAccountDataAction (settings/actions.ts). Retourne un map sérialisable
-// en JSON (dates déjà en RFC3339).
+// exportAccountDataAction (settings/actions.ts). Toutes les lectures sont
+// propagées : un export partiel ne doit JAMAIS être servi comme complet.
 func (s *Service) DataExport(ctx context.Context, userID string) (map[string]any, error) {
 	var user struct {
 		ID             string
@@ -979,12 +1059,22 @@ func (s *Service) DataExport(ctx context.Context, userID string) (map[string]any
 		Name           pgtype.Text
 		Username       pgtype.Text
 		OnboardingText pgtype.Text
+		PhoneNumber    pgtype.Text
+		Gender         pgtype.Text
+		AgeRange       pgtype.Text
+		CountryCode    pgtype.Text
+		LanguageCode   pgtype.Text
+		WalletBalance  int32
 		CreatedAt      pgtype.Timestamp
 	}
 	err := s.pool.QueryRow(ctx,
-		`SELECT id::text, email, name, username, "onboardingText", "createdAt"
+		`SELECT id::text, email, name, username, "onboardingText", "phoneNumber",
+		        gender, "ageRange", "countryCode", "languageCode",
+		        "walletBalanceCents", "createdAt"
 		 FROM "User" WHERE id = $1`, toUUID(userID)).
-		Scan(&user.ID, &user.Email, &user.Name, &user.Username, &user.OnboardingText, &user.CreatedAt)
+		Scan(&user.ID, &user.Email, &user.Name, &user.Username, &user.OnboardingText,
+			&user.PhoneNumber, &user.Gender, &user.AgeRange, &user.CountryCode,
+			&user.LanguageCode, &user.WalletBalance, &user.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -992,59 +1082,98 @@ func (s *Service) DataExport(ctx context.Context, userID string) (map[string]any
 	out := map[string]any{
 		"exportedAt": time.Now().UTC().Format(time.RFC3339),
 		"account": map[string]any{
-			"id":             user.ID,
-			"email":          user.Email,
-			"name":           textPtr(user.Name),
-			"username":       textPtr(user.Username),
-			"onboardingText": textPtr(user.OnboardingText),
-			"createdAt":      user.CreatedAt.Time.Format(time.RFC3339),
+			"id":                 user.ID,
+			"email":              user.Email,
+			"name":               textPtr(user.Name),
+			"username":           textPtr(user.Username),
+			"onboardingText":     textPtr(user.OnboardingText),
+			"phoneNumber":        textPtr(user.PhoneNumber),
+			"gender":             textPtr(user.Gender),
+			"ageRange":           textPtr(user.AgeRange),
+			"countryCode":        textPtr(user.CountryCode),
+			"languageCode":       textPtr(user.LanguageCode),
+			"walletBalanceCents": user.WalletBalance,
+			"createdAt":          user.CreatedAt.Time.Format(time.RFC3339),
 		},
 	}
 
-	out["settings"] = s.exportRow(ctx, `SELECT * FROM "UserSettings" WHERE "userId" = $1`, toUUID(userID))
-	out["notificationPreferences"] = s.exportRow(ctx, `SELECT * FROM "NotificationPreference" WHERE "userId" = $1`, toUUID(userID))
-	// Promesses « prévenez-moi » : consentement produit durable, distinct des
-	// préférences de notification du compte.
-	out["featureInterests"] = s.exportRows(ctx, `
-		SELECT "featureKey", "status", "source", "consentVersion", "consentAt",
+	sections := []struct {
+		key   string
+		query string
+		args  []any
+		many  bool
+	}{
+		{"settings", `SELECT * FROM "UserSettings" WHERE "userId" = $1`, []any{toUUID(userID)}, false},
+		{"notificationPreferences", `SELECT * FROM "NotificationPreference" WHERE "userId" = $1`, []any{toUUID(userID)}, false},
+		{"featureInterests", `SELECT "featureKey", "status", "source", "consentVersion", "consentAt",
 		       "unsubscribedAt", "lastNotifiedAt", "createdAt"
-		FROM "FeatureInterest" WHERE "userId" = $1::uuid ORDER BY "createdAt" ASC`, userID)
-	out["thoughts"] = s.exportRows(ctx, `SELECT * FROM "Post" WHERE "authorId" = $1 ORDER BY "createdAt" ASC`, toUUID(userID))
-	out["articles"] = s.exportRows(ctx, `SELECT id, title, slug, content, published, "createdAt", "updatedAt" FROM "Article" WHERE "authorId" = $1 ORDER BY "createdAt" ASC`, toUUID(userID))
-	out["highlights"] = s.exportRows(ctx, `SELECT * FROM "Highlight" WHERE "readerId" = $1 ORDER BY "createdAt" ASC`, toUUID(userID))
-	out["bookmarks"] = s.exportRows(ctx, `SELECT * FROM "Bookmark" WHERE "readerId" = $1 ORDER BY "createdAt" ASC`, toUUID(userID))
-	out["follows"] = s.exportRows(ctx, `SELECT "publisherId", "createdAt" FROM "Follows" WHERE "readerId" = $1 ORDER BY "createdAt" ASC`, toUUID(userID))
+		FROM "FeatureInterest" WHERE "userId" = $1::uuid ORDER BY "createdAt" ASC`, []any{userID}, true},
+		{"thoughts", `SELECT * FROM "Post" WHERE "authorId" = $1 ORDER BY "createdAt" ASC`, []any{toUUID(userID)}, true},
+		{"articles", `SELECT id, title, slug, content, published, "createdAt", "updatedAt" FROM "Article" WHERE "authorId" = $1 ORDER BY "createdAt" ASC`, []any{toUUID(userID)}, true},
+		{"highlights", `SELECT * FROM "Highlight" WHERE "readerId" = $1 ORDER BY "createdAt" ASC`, []any{toUUID(userID)}, true},
+		{"bookmarks", `SELECT * FROM "Bookmark" WHERE "readerId" = $1 ORDER BY "createdAt" ASC`, []any{toUUID(userID)}, true},
+		{"follows", `SELECT "publisherId", "createdAt" FROM "Follows" WHERE "readerId" = $1 ORDER BY "createdAt" ASC`, []any{toUUID(userID)}, true},
+		{"securityEvents", `SELECT "eventType", "ipSubnet", "userAgent", metadata, "createdAt"
+		FROM "SecurityEvent" WHERE "userId" = $1 ORDER BY "createdAt" ASC`, []any{toUUID(userID)}, true},
+	}
+	for _, section := range sections {
+		if section.many {
+			rows, err := s.exportRows(ctx, section.query, section.args...)
+			if err != nil {
+				return nil, fmt.Errorf("export %s: %w", section.key, err)
+			}
+			out[section.key] = rows
+			continue
+		}
+		row, err := s.exportRow(ctx, section.query, section.args...)
+		if err != nil {
+			return nil, fmt.Errorf("export %s: %w", section.key, err)
+		}
+		out[section.key] = row
+	}
 
 	return out, nil
 }
 
 // exportRow renvoie la première ligne d'une requête en map (nil si absente).
-func (s *Service) exportRow(ctx context.Context, query string, args ...any) map[string]any {
+func (s *Service) exportRow(ctx context.Context, query string, args ...any) (map[string]any, error) {
 	rows, err := s.pool.Query(ctx, query, args...)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	defer rows.Close()
 	if !rows.Next() {
-		return nil
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+		return nil, nil
 	}
-	return rowToMap(rows)
+	m := rowToMap(rows)
+	if m == nil {
+		return nil, errors.New("ligne d'export illisible")
+	}
+	return m, nil
 }
 
 // exportRows renvoie toutes les lignes d'une requête en []map.
-func (s *Service) exportRows(ctx context.Context, query string, args ...any) []map[string]any {
+func (s *Service) exportRows(ctx context.Context, query string, args ...any) ([]map[string]any, error) {
 	rows, err := s.pool.Query(ctx, query, args...)
 	if err != nil {
-		return []map[string]any{}
+		return nil, err
 	}
 	defer rows.Close()
 	out := []map[string]any{}
 	for rows.Next() {
-		if m := rowToMap(rows); m != nil {
-			out = append(out, m)
+		m := rowToMap(rows)
+		if m == nil {
+			return nil, errors.New("ligne d'export illisible")
 		}
+		out = append(out, m)
 	}
-	return out
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // rowToMap convertit la ligne courante en map[string]any JSON-friendly

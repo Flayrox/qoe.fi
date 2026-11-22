@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
+	"github.com/qoefi/api/internal/antispam"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
 )
@@ -175,10 +176,33 @@ func (h *Handler) updateProfile(w http.ResponseWriter, r *http.Request) {
 		Pronouns:       patch.Pronouns,
 	})
 	if err != nil {
-		response.Error(w, http.StatusBadRequest, err.Error())
+		writeServiceError(w, "update profile", err)
 		return
 	}
 	response.OK(w, profile)
+}
+
+// writeServiceError traduit une erreur de service : entrée invalide → 400,
+// introuvable → 404, le reste → 500 avec trace. Un 400 « panne DB » cachait
+// les incidents et faisait croire à l'utilisateur que son action était fautive.
+func writeServiceError(w http.ResponseWriter, tag string, err error) {
+	var ve ValidationError
+	var rej *antispam.RejectionError
+	switch {
+	case errors.As(err, &ve):
+		response.BadRequest(w, ve.Message)
+	case errors.As(err, &rej):
+		response.BadRequest(w, ve.Message)
+	case errors.Is(err, ErrSearchQueryTooLong):
+		response.BadRequest(w, err.Error())
+	case errors.Is(err, ErrSessionNotFound), errors.Is(err, ErrUserNotFound):
+		response.NotFound(w, err.Error())
+	case errors.Is(err, ErrCurrentPasswordRequired), errors.Is(err, ErrPasswordMismatch):
+		response.BadRequest(w, err.Error())
+	default:
+		log.Printf("[users] %s: %v", tag, err)
+		response.Internal(w)
+	}
 }
 
 func deref(s *string) string {
@@ -200,6 +224,10 @@ func (h *Handler) identity(w http.ResponseWriter, r *http.Request) {
 	}
 	identity, err := h.svc.Identity(r.Context(), userID)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			response.NotFound(w, "Utilisateur introuvable")
+			return
+		}
 		response.Internal(w)
 		return
 	}
@@ -256,8 +284,12 @@ func (h *Handler) mfaVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	path, _ := in["path"].(string)
-	if path == "" {
-		response.BadRequest(w, "path requis")
+	// Seuls les parcours de vérification d'un facteur sont relayés : un
+	// `path` libre transmettait le jeton de l'utilisateur à n'importe quelle
+	// route GoTrue (dont les routes d'administration).
+	if !strings.HasPrefix(path, "/auth/v1/factors/") ||
+		(!strings.HasSuffix(path, "/verify") && !strings.HasSuffix(path, "/challenge")) {
+		response.BadRequest(w, "path invalide")
 		return
 	}
 	delete(in, "path")
@@ -307,7 +339,7 @@ func (h *Handler) revokeSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.svc.RevokeSession(r.Context(), userID, chi.URLParam(r, "id")); err != nil {
-		response.NotFound(w, err.Error())
+		writeServiceError(w, "revoke session", err)
 		return
 	}
 	response.OK(w, map[string]bool{"success": true})
@@ -353,7 +385,7 @@ func (h *Handler) changeEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.svc.ChangeEmail(r.Context(), userID, in.CurrentPassword, in.NewEmail); err != nil {
-		response.Error(w, http.StatusBadRequest, err.Error())
+		writeServiceError(w, "change email", err)
 		return
 	}
 	response.OK(w, map[string]bool{"success": true, "verificationRequired": true})
@@ -390,7 +422,7 @@ func (h *Handler) changePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.svc.ChangePassword(r.Context(), userID, in.CurrentPassword, in.NewPassword); err != nil {
-		response.Error(w, http.StatusBadRequest, err.Error())
+		writeServiceError(w, "change password", err)
 		return
 	}
 	response.OK(w, map[string]bool{"success": true})
@@ -429,6 +461,10 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request) {
 	}
 	results, err := h.svc.SearchForContributors(r.Context(), query, excludeIds, viewerID)
 	if err != nil {
+		if errors.Is(err, ErrSearchQueryTooLong) {
+			response.BadRequest(w, err.Error())
+			return
+		}
 		response.Internal(w)
 		return
 	}
@@ -498,7 +534,7 @@ func (h *Handler) onboardingComplete(w http.ResponseWriter, r *http.Request) {
 			response.NotFound(w, "Utilisateur introuvable")
 			return
 		}
-		response.Internal(w)
+		writeServiceError(w, "onboarding", err)
 		return
 	}
 	response.OK(w, map[string]bool{"success": true})
@@ -587,7 +623,7 @@ func (h *Handler) toggleMuteWord(w http.ResponseWriter, r *http.Request) {
 	}
 	muted, word, err := h.svc.ToggleMuteWord(r.Context(), userID, body.Word)
 	if err != nil {
-		response.BadRequest(w, err.Error())
+		writeServiceError(w, "toggle mute word", err)
 		return
 	}
 	response.OK(w, map[string]any{"muted": muted, "word": word})
@@ -646,7 +682,6 @@ func (h *Handler) walletUnlock(w http.ResponseWriter, r *http.Request) {
 	}
 	var body struct {
 		CreatorID string `json:"creatorId"`
-		CostCents *int   `json:"costCents,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		response.BadRequest(w, "JSON invalide")
@@ -656,11 +691,9 @@ func (h *Handler) walletUnlock(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "creatorId requis")
 		return
 	}
-	cost := 200
-	if body.CostCents != nil {
-		cost = *body.CostCents
-	}
-	code, err := h.svc.UnlockArticleWithWallet(r.Context(), userID, body.CreatorID, cost)
+	// Le prix vient du serveur (SystemConfig) : `costCents` envoyé par le
+	// client est ignoré, sinon n'importe qui débloque pour 1 centime.
+	code, err := h.svc.UnlockArticleWithWallet(r.Context(), userID, body.CreatorID)
 	if err != nil {
 		response.Internal(w)
 		return

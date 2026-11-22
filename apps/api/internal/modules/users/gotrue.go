@@ -139,8 +139,11 @@ func (c *goTrueClient) verifyPassword(ctx context.Context, email, password strin
 		return err
 	}
 	defer res.Body.Close()
+	if res.StatusCode >= 400 && res.StatusCode < 500 {
+		return ErrPasswordMismatch
+	}
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return errors.New("réauthentification refusée")
+		return fmt.Errorf("fournisseur d'identité: statut %d", res.StatusCode)
 	}
 	return nil
 }

@@ -20,8 +20,15 @@ type Session struct {
 	Current    bool     `json:"current"`
 }
 
+// ErrSessionNotFound signale une session inexistante ou déjà révoquée.
+var ErrSessionNotFound = errors.New("session introuvable")
+
+// maxSessions liste au plus les 100 sessions les plus récentes : sans borne,
+// un compte à des milliers de jetons chargeait toute la table.
+const maxSessions = 100
+
 func (s *Service) Sessions(ctx context.Context, userID, currentToken string) ([]Session, error) {
-	rows, err := s.pool.Query(ctx, `SELECT t.id, c."clientId", t.scopes, t."createdAt", t."accessTokenExpiresAt", t."lastUsedAt", t."accessTokenHash" FROM "OAuthToken" t JOIN "OAuthClient" c ON c.id=t."clientId" WHERE t."userId"=$1 AND t."revokedAt" IS NULL ORDER BY t."createdAt" DESC`, userID)
+	rows, err := s.pool.Query(ctx, `SELECT t.id, c."clientId", t.scopes, t."createdAt", t."accessTokenExpiresAt", t."lastUsedAt", t."accessTokenHash" FROM "OAuthToken" t JOIN "OAuthClient" c ON c.id=t."clientId" WHERE t."userId"=$1 AND t."revokedAt" IS NULL ORDER BY t."createdAt" DESC LIMIT $2`, userID, maxSessions)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +63,7 @@ func (s *Service) RevokeSession(ctx context.Context, userID, id string) error {
 		return err
 	}
 	if res.RowsAffected() == 0 {
-		return errors.New("session introuvable")
+		return ErrSessionNotFound
 	}
 	return nil
 }

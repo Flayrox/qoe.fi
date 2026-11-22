@@ -21,18 +21,43 @@ import (
 var errBoom = errors.New("fault injecté")
 
 // faultPool force des erreurs sur Exec/Query/QueryRow (requêtes brutes).
+// `failExecContains` cible une seule écriture (les transactions passent par
+// faultTx, qui applique le même filtre).
 type faultPool struct {
 	pooler
-	failExec     bool
-	failQuery    bool
-	failQueryRow bool
+	failExec         bool
+	failExecContains string
+	failQuery        bool
+	failQueryRow     bool
 }
 
 func (f *faultPool) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
-	if f.failExec {
+	if f.failExec || (f.failExecContains != "" && strings.Contains(sql, f.failExecContains)) {
 		return pgconn.CommandTag{}, errBoom
 	}
 	return f.pooler.Exec(ctx, sql, args...)
+}
+
+// Begin enveloppe la transaction réelle pour que les écritures faites DANS
+// une transaction restent injectables.
+func (f *faultPool) Begin(ctx context.Context) (pgx.Tx, error) {
+	tx, err := f.pooler.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &faultTx{Tx: tx, pool: f}, nil
+}
+
+type faultTx struct {
+	pgx.Tx
+	pool *faultPool
+}
+
+func (t *faultTx) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
+	if t.pool.failExec || (t.pool.failExecContains != "" && strings.Contains(sql, t.pool.failExecContains)) {
+		return pgconn.CommandTag{}, errBoom
+	}
+	return t.Tx.Exec(ctx, sql, args...)
 }
 func (f *faultPool) Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error) {
 	if f.failQuery {
@@ -106,7 +131,7 @@ func TestFault_Handlers_PoolErrors(t *testing.T) {
 		{"dataExport-500", "queryrow", http.MethodGet, "/v1/me/data-export", "", http.StatusInternalServerError},
 		{"mediaPublisher-500", "queryrow", http.MethodGet, "/v1/me/media/pub_media_1", "", http.StatusInternalServerError},
 		{"onboardingComplete-500", "exec", http.MethodPost, "/v1/me/onboarding-complete", `{"interests":["foot"]}`, http.StatusInternalServerError},
-		{"mutedWords-400", "exec", http.MethodPost, "/v1/me/muted-words", `{"word":"spoiler"}`, http.StatusBadRequest},
+		{"mutedWords-500", "exec", http.MethodPost, "/v1/me/muted-words", `{"word":"spoiler"}`, http.StatusInternalServerError},
 		{"search-500", "query", http.MethodGet, "/v1/users/search?q=ali", "", http.StatusInternalServerError},
 	}
 	for _, tc := range cases {

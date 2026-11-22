@@ -81,7 +81,8 @@ func TestUnlockArticleWithWallet(t *testing.T) {
 		t.Fatalf("link: %v", err)
 	}
 
-	code, err := svc.UnlockArticleWithWallet(ctx, userID, pubID2, 100)
+	// Le prix est serveur (SystemConfig absent → 100).
+	code, err := svc.UnlockArticleWithWallet(ctx, userID, pubID2)
 	if err != nil {
 		t.Fatalf("unlock: %v", err)
 	}
@@ -109,7 +110,11 @@ func TestUnlockArticleWithWallet(t *testing.T) {
 	}
 
 	// Fonds insuffisants.
-	code, err = svc.UnlockArticleWithWallet(ctx, userID, pubID2, 500)
+	if _, err := poolTest.Exec(ctx,
+		`UPDATE "User" SET "walletBalanceCents" = 50 WHERE id = $1`, userID); err != nil {
+		t.Fatalf("solde: %v", err)
+	}
+	code, err = svc.UnlockArticleWithWallet(ctx, userID, pubID2)
 	if err != nil {
 		t.Fatalf("unlock2: %v", err)
 	}
