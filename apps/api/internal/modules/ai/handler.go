@@ -10,6 +10,7 @@ package ai
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 	"unicode/utf8"
@@ -128,6 +129,7 @@ func (h *Handler) mapErr(w http.ResponseWriter, err error) {
 	case errors.Is(err, goai.ErrNoProvider):
 		response.ErrorCode(w, http.StatusServiceUnavailable, "AI_UNAVAILABLE", err.Error())
 	default:
+		log.Printf("[ai] %v", err)
 		response.Internal(w)
 	}
 }

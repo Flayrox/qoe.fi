@@ -181,33 +181,39 @@ func (s *Service) notify(ctx context.Context, recipientID, senderID, notifType, 
 func (s *Service) checkAntiSpamInvite(ctx context.Context, inviterID, inviteeID, articleID string) error {
 	// 1. Déduplication : invitation PENDING déjà en cours ?
 	var pendingCount int
-	_ = s.pool.QueryRow(ctx, `
+	if err := s.pool.QueryRow(ctx, `
 		SELECT COUNT(*) FROM "CollaborationRequest"
 		WHERE "articleId" = $1 AND "inviteeId" = $2 AND status = 'PENDING'
-	`, articleID, toUUID(inviteeID)).Scan(&pendingCount)
+	`, articleID, toUUID(inviteeID)).Scan(&pendingCount); err != nil {
+		return fmt.Errorf("compteur d'invitations en attente: %w", err)
+	}
 	if pendingCount > 0 {
 		return collabErr("Une invitation est déjà en attente pour ce contributeur sur cet article.")
 	}
 
 	// 2. Cooldown : refus récent (< 24h)
 	var recentDecline bool
-	_ = s.pool.QueryRow(ctx, `
+	if err := s.pool.QueryRow(ctx, `
 		SELECT EXISTS (
 			SELECT 1 FROM "CollaborationRequest"
 			WHERE "articleId" = $1 AND "inviteeId" = $2 AND status = 'DECLINED'
 			  AND "updatedAt" > now() - INTERVAL '24 hours'
 		)
-	`, articleID, toUUID(inviteeID)).Scan(&recentDecline)
+	`, articleID, toUUID(inviteeID)).Scan(&recentDecline); err != nil {
+		return fmt.Errorf("compteur de refus récents: %w", err)
+	}
 	if recentDecline {
 		return collabErr("Ce contributeur a récemment décliné l'invitation. Veuillez patienter avant de renouveler.")
 	}
 
 	// 3. Rate-limit : max 10 invitations par utilisateur par tranche de 10 minutes
 	var recentInvitesCount int
-	_ = s.pool.QueryRow(ctx, `
+	if err := s.pool.QueryRow(ctx, `
 		SELECT COUNT(*) FROM "CollaborationRequest"
 		WHERE "inviterId" = $1 AND "createdAt" > now() - INTERVAL '10 minutes'
-	`, toUUID(inviterID)).Scan(&recentInvitesCount)
+	`, toUUID(inviterID)).Scan(&recentInvitesCount); err != nil {
+		return fmt.Errorf("compteur d'invitations récentes: %w", err)
+	}
 	if recentInvitesCount >= 10 {
 		return collabErr("Limite d'invitations atteinte (10 max par 10 minutes). Veuillez patienter.")
 	}
@@ -221,32 +227,36 @@ func (s *Service) checkCollaborationPermission(ctx context.Context, inviterID, i
 		return collabErr("Cet utilisateur n'accepte pas les invitations de collaboration.")
 	case "MEDIA_ONLY":
 		var sharesMedia bool
-		_ = s.pool.QueryRow(ctx, `
+		if err := s.pool.QueryRow(ctx, `
 			SELECT EXISTS (
 				SELECT 1 FROM "MediaMember" mm1
 				JOIN "MediaMember" mm2 ON mm2."mediaId" = mm1."mediaId"
 				WHERE mm1."userId" = $1 AND mm1.status = 'active'
 				  AND mm2."userId" = $2 AND mm2.status = 'active'
 			)
-		`, toUUID(inviterID), toUUID(inviteeID)).Scan(&sharesMedia)
+		`, toUUID(inviterID), toUUID(inviteeID)).Scan(&sharesMedia); err != nil {
+			return fmt.Errorf("permission média partagé: %w", err)
+		}
 		if !sharesMedia {
 			return collabErr("Cet utilisateur n'accepte que les invitations des membres de ses médias.")
 		}
 	case "FOLLOWING":
 		var isFollowing bool
-		_ = s.pool.QueryRow(ctx, `
+		if err := s.pool.QueryRow(ctx, `
 			SELECT EXISTS (
 				SELECT 1 FROM "Follows" f
 				JOIN "Publisher" p ON p.id = f."publisherId"
 				WHERE f."readerId" = $1 AND p."authorId" = $2
 			)
-		`, toUUID(inviteeID), toUUID(inviterID)).Scan(&isFollowing)
+		`, toUUID(inviteeID), toUUID(inviterID)).Scan(&isFollowing); err != nil {
+			return fmt.Errorf("permission abonnement: %w", err)
+		}
 		if !isFollowing {
 			return collabErr("Cet utilisateur n'accepte que les invitations des créateurs qu'il suit.")
 		}
 	case "MUTUALS":
 		var isMutual bool
-		_ = s.pool.QueryRow(ctx, `
+		if err := s.pool.QueryRow(ctx, `
 			SELECT (
 				EXISTS (
 					SELECT 1 FROM "Follows" f1
@@ -258,7 +268,9 @@ func (s *Service) checkCollaborationPermission(ctx context.Context, inviterID, i
 					WHERE f2."readerId" = $2 AND p2."authorId" = $1
 				)
 			)
-		`, toUUID(inviteeID), toUUID(inviterID)).Scan(&isMutual)
+		`, toUUID(inviteeID), toUUID(inviterID)).Scan(&isMutual); err != nil {
+			return fmt.Errorf("permission abonnements mutuels: %w", err)
+		}
 		if !isMutual {
 			return collabErr("Cet utilisateur n'accepte que les invitations de ses abonnements mutuels (amis).")
 		}
@@ -320,10 +332,12 @@ func (s *Service) InviteContributor(ctx context.Context, userID, articleID, invi
 
 	// Permissions fines de l'invité
 	var prefPerm string
-	_ = s.pool.QueryRow(ctx, `
+	if err := s.pool.QueryRow(ctx, `
 		SELECT COALESCE("collaborationInvitePermission", 'EVERYONE')
 		FROM "UserSettings" WHERE "userId" = $1
-	`, toUUID(invitee.ID)).Scan(&prefPerm)
+	`, toUUID(invitee.ID)).Scan(&prefPerm); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("préférence d'invitation: %w", err)
+	}
 
 	if err := s.checkCollaborationPermission(ctx, userID, invitee.ID, prefPerm); err != nil {
 		return nil, err
@@ -477,10 +491,12 @@ func (s *Service) CreateInviteLink(ctx context.Context, userID, articleID, role 
 
 	// Anti-spam création de liens : max 10 liens par heure
 	var linksCount int
-	_ = s.pool.QueryRow(ctx, `
+	if err := s.pool.QueryRow(ctx, `
 		SELECT COUNT(*) FROM "CollaborationInviteLink"
 		WHERE "createdById" = $1 AND "createdAt" > now() - INTERVAL '1 hour'
-	`, toUUID(userID)).Scan(&linksCount)
+	`, toUUID(userID)).Scan(&linksCount); err != nil {
+		return nil, fmt.Errorf("compteur de liens: %w", err)
+	}
 	if linksCount >= 10 {
 		return nil, collabErr("Limite de génération de liens atteinte (10 max par heure).")
 	}
@@ -565,8 +581,11 @@ func (s *Service) ListInviteLinks(ctx context.Context, userID, articleID string)
 func (s *Service) RevokeInviteLink(ctx context.Context, userID, linkID string) error {
 	var articleID string
 	err := s.pool.QueryRow(ctx, `SELECT "articleId" FROM "CollaborationInviteLink" WHERE id = $1`, linkID).Scan(&articleID)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return collabErr("Lien introuvable.")
+	}
+	if err != nil {
+		return fmt.Errorf("lecture du lien %s: %w", linkID, err)
 	}
 	auth, err := s.authorizeArticle(ctx, userID, articleID)
 	if err != nil || !auth.canInvite {
@@ -603,8 +622,11 @@ func (s *Service) GetInviteLinkPreview(ctx context.Context, token string) (*Coll
 		JOIN "User" u ON u.id = a."authorId"
 		WHERE a.id = $1
 	`, articleID).Scan(&title, &slug, &authorID, &authorName, &authorUsername, &authorLogo, &isCertified)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, collabErr("Article introuvable.")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("lecture de l'article %s: %w", articleID, err)
 	}
 
 	isValid := true
@@ -658,6 +680,24 @@ func (s *Service) JoinViaInviteLink(ctx context.Context, userID, token string) (
 		return nil, collabErr("Vous êtes déjà l'auteur principal de cet article.")
 	}
 
+	// Réserver l'utilisation AVANT d'attribuer : le compteur conditionnel
+	// empêche deux acceptations simultanées de dépasser maxUses, et son échec
+	// n'est plus avalé (une attribution sans utilisation décomptée rendait la
+	// limite décorative).
+	tag, err := s.pool.Exec(ctx, `
+		UPDATE "CollaborationInviteLink"
+		SET "usedCount" = "usedCount" + 1, "updatedAt" = now()
+		WHERE token = $1 AND "isRevoked" = false
+		  AND ("expiresAt" IS NULL OR "expiresAt" > now())
+		  AND ("maxUses" = 0 OR "usedCount" < "maxUses")
+	`, token)
+	if err != nil {
+		return nil, fmt.Errorf("réservation du lien: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return nil, collabErr("Ce lien d'invitation a expiré ou atteint sa limite.")
+	}
+
 	// Insérer ou mettre à jour l'attribution acceptée
 	_, err = s.pool.Exec(ctx, `
 		INSERT INTO "ArticleAttribution" (id, "articleId", "userId", role, "order", "isVisible", "consentStatus", "consentUpdatedAt", "updatedAt")
@@ -666,15 +706,10 @@ func (s *Service) JoinViaInviteLink(ctx context.Context, userID, token string) (
 		  role = $3, "consentStatus" = 'ACCEPTED', "isVisible" = true, "consentUpdatedAt" = now(), "updatedAt" = now()
 	`, preview.ArticleID, toUUID(userID), preview.Role)
 	if err != nil {
+		// Rendre l'utilisation réservée : sans attribution, rien n'a été rejoint.
+		_, _ = s.pool.Exec(ctx, `UPDATE "CollaborationInviteLink" SET "usedCount" = GREATEST("usedCount" - 1, 0) WHERE token = $1`, token)
 		return nil, err
 	}
-
-	// Incrémenter le compteur d'utilisations
-	_, _ = s.pool.Exec(ctx, `
-		UPDATE "CollaborationInviteLink"
-		SET "usedCount" = "usedCount" + 1, "updatedAt" = now()
-		WHERE token = $1
-	`, token)
 
 	// Notifier l'auteur
 	s.notify(ctx, preview.Author.ID, userID, "ARTICLE_CONTRIBUTOR_ACCEPTED", preview.ArticleID)

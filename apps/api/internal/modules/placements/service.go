@@ -16,10 +16,29 @@ import (
 )
 
 var (
-	ErrPlacementNotFound = errors.New("placement introuvable")
-	ErrInvalidPlacement  = errors.New("données de placement invalides")
-	ErrForbidden         = errors.New("accès réservé au superadmin")
+	ErrPlacementNotFound  = errors.New("placement introuvable")
+	ErrInvalidPlacement   = errors.New("données de placement invalides")
+	ErrForbidden          = errors.New("accès réservé au superadmin")
+	ErrStorageUnavailable = errors.New("base de données indisponible")
 )
+
+// Vocabulaire accepté : les colonnes sont du texte libre, une faute de frappe
+// dans l'audience tombait dans un `default` permissif et diffusait la bannière
+// à tout le monde.
+var (
+	validFormats   = map[string]bool{"notch_banner": true, "card": true, "callout": true, "modal": true}
+	validTypes     = map[string]bool{"promo": true, "info": true, "warning": true, "critical": true}
+	validAudiences = map[string]bool{"all": true, "free_only": true, "plus_only": true, "pro_only": true}
+)
+
+// db renvoie le pool ou une erreur explicite : un service sans pool ne doit
+// pas paniquer sur le chemin de lecture.
+func (s *Service) db() (DB, error) {
+	if s.pool == nil {
+		return nil, ErrStorageUnavailable
+	}
+	return s.pool, nil
+}
 
 // DB abstrait l'accès PostgreSQL pour faciliter l'injection en tests.
 type DB interface {
@@ -63,6 +82,10 @@ func (s *Service) GetActivePlacementForSlot(ctx context.Context, slot string, us
 	if strings.TrimSpace(slot) == "" {
 		return nil, ErrInvalidPlacement
 	}
+	db, err := s.db()
+	if err != nil {
+		return nil, err
+	}
 
 	query := `
 		SELECT 
@@ -81,7 +104,7 @@ func (s *Service) GetActivePlacementForSlot(ctx context.Context, slot string, us
 		ORDER BY priority DESC, created_at DESC
 	`
 
-	rows, err := s.pool.Query(ctx, query, slot, now, userID)
+	rows, err := db.Query(ctx, query, slot, now, userID)
 	if err != nil {
 		return nil, fmt.Errorf("requête placements: %w", err)
 	}
@@ -164,8 +187,9 @@ func (s *Service) GetActivePlacementForSlot(ctx context.Context, slot string, us
 				return &p, nil
 			}
 		default:
-			// Valeur inconnue -> fallback permissif ou all
-			return &p, nil
+			// Audiences inconnues (lignes héritées, faute de frappe) : on passe.
+			// Un défaut permissif diffusait une bannière ciblée à tout le monde.
+			continue
 		}
 	}
 
@@ -177,18 +201,26 @@ func (s *Service) DismissPlacement(ctx context.Context, placementID string, user
 	if strings.TrimSpace(placementID) == "" || strings.TrimSpace(userID) == "" {
 		return ErrInvalidPlacement
 	}
+	db, err := s.db()
+	if err != nil {
+		return err
+	}
 
 	query := `
 		INSERT INTO user_placement_dismissals (user_id, placement_id, dismissed_at)
 		VALUES ($1, $2, $3)
 		ON CONFLICT (user_id, placement_id) DO UPDATE SET dismissed_at = EXCLUDED.dismissed_at
 	`
-	_, err := s.pool.Exec(ctx, query, userID, placementID, now)
+	_, err = db.Exec(ctx, query, userID, placementID, now)
 	return err
 }
 
 // ListPlacements retourne l'ensemble des placements pour la console d'administration.
 func (s *Service) ListPlacements(ctx context.Context) ([]Placement, error) {
+	db, err := s.db()
+	if err != nil {
+		return nil, err
+	}
 	query := `
 		SELECT 
 			id, slot, format, type, title, body, cta_label, cta_url, target_audience, priority,
@@ -196,7 +228,7 @@ func (s *Service) ListPlacements(ctx context.Context) ([]Placement, error) {
 		FROM in_app_placements
 		ORDER BY slot ASC, priority DESC, created_at DESC
 	`
-	rows, err := s.pool.Query(ctx, query)
+	rows, err := db.Query(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("list placements: %w", err)
 	}
@@ -258,6 +290,13 @@ func (s *Service) CreatePlacement(ctx context.Context, p *Placement) (*Placement
 	if p.TargetAudience == "" {
 		p.TargetAudience = "all"
 	}
+	if err := validatePlacement(p); err != nil {
+		return nil, err
+	}
+	db, err := s.db()
+	if err != nil {
+		return nil, err
+	}
 
 	now := time.Now().UTC()
 	p.CreatedAt = now
@@ -271,7 +310,7 @@ func (s *Service) CreatePlacement(ctx context.Context, p *Placement) (*Placement
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
 		)
 	`
-	_, err := s.pool.Exec(
+	_, err = db.Exec(
 		ctx, query,
 		p.ID, p.Slot, p.Format, p.Type, p.Title, p.Body, p.CTALabel, p.CTAURL, p.TargetAudience,
 		p.Priority, p.IsActive, p.Dismissible, p.StartsAt, p.EndsAt, p.CreatedAt, p.UpdatedAt,
@@ -288,6 +327,22 @@ func (s *Service) UpdatePlacement(ctx context.Context, p *Placement) (*Placement
 	if strings.TrimSpace(p.ID) == "" || strings.TrimSpace(p.Slot) == "" || strings.TrimSpace(p.Title) == "" {
 		return nil, ErrInvalidPlacement
 	}
+	if p.Format == "" {
+		p.Format = "notch_banner"
+	}
+	if p.Type == "" {
+		p.Type = "promo"
+	}
+	if p.TargetAudience == "" {
+		p.TargetAudience = "all"
+	}
+	if err := validatePlacement(p); err != nil {
+		return nil, err
+	}
+	db, err := s.db()
+	if err != nil {
+		return nil, err
+	}
 
 	p.UpdatedAt = time.Now().UTC()
 
@@ -298,7 +353,7 @@ func (s *Service) UpdatePlacement(ctx context.Context, p *Placement) (*Placement
 		    is_active = $11, dismissible = $12, starts_at = $13, ends_at = $14, updated_at = $15
 		WHERE id = $1
 	`
-	tag, err := s.pool.Exec(
+	tag, err := db.Exec(
 		ctx, query,
 		p.ID, p.Slot, p.Format, p.Type, p.Title, p.Body,
 		p.CTALabel, p.CTAURL, p.TargetAudience, p.Priority,
@@ -319,8 +374,12 @@ func (s *Service) DeletePlacement(ctx context.Context, id string) error {
 	if strings.TrimSpace(id) == "" {
 		return ErrInvalidPlacement
 	}
+	db, err := s.db()
+	if err != nil {
+		return err
+	}
 
-	tag, err := s.pool.Exec(ctx, `DELETE FROM in_app_placements WHERE id = $1`, id)
+	tag, err := db.Exec(ctx, `DELETE FROM in_app_placements WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("delete placement: %w", err)
 	}
@@ -330,12 +389,32 @@ func (s *Service) DeletePlacement(ctx context.Context, id string) error {
 	return nil
 }
 
-// CheckSuperadmin vérifie que l'utilisateur a le rôle superadmin.
+// validatePlacement refuse le vocabulaire hors contrat (format, type, audience).
+func validatePlacement(p *Placement) error {
+	if !validFormats[p.Format] || !validTypes[p.Type] || !validAudiences[p.TargetAudience] {
+		return ErrInvalidPlacement
+	}
+	return nil
+}
+
+// CheckSuperadmin vérifie que l'utilisateur a le rôle superadmin. Seule
+// l'absence de ligne vaut refus : une panne de lecture remonte en erreur pour
+// que le handler réponde 500 au lieu de faire passer une panne pour un 403.
 func (s *Service) CheckSuperadmin(ctx context.Context, userID string) error {
-	var role string
-	err := s.pool.QueryRow(ctx, `SELECT role FROM "User" WHERE id = $1::uuid`, userID).Scan(&role)
-	if err != nil {
+	if strings.TrimSpace(userID) == "" {
 		return ErrForbidden
+	}
+	db, err := s.db()
+	if err != nil {
+		return err
+	}
+	var role string
+	err = db.QueryRow(ctx, `SELECT role FROM "User" WHERE id = $1::uuid`, userID).Scan(&role)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrForbidden
+		}
+		return fmt.Errorf("rôle de l'utilisateur %s: %w", userID, err)
 	}
 	if role != "superadmin" {
 		return ErrForbidden

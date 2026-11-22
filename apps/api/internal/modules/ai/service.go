@@ -108,22 +108,27 @@ func (s *Service) checkGate(ctx context.Context, userID string) (Usage, error) {
 	if !usage.Plus {
 		return usage, ErrPlusRequired
 	}
-	month := abuse.MonthlyWindow(now)
-	ok, err := abuse.ConsumeBudget(ctx, s.pool, "user_month", userID, ActionAIRequest, month, 1, MonthlyCapPerUser)
-	if err != nil {
-		return usage, err
-	}
-	if !ok {
-		usage.Remaining = 0
-		return usage, ErrAIQuota
-	}
+	// Plafond global D'ABORD : un refus de capacité ne doit pas brûler le
+	// crédit mensuel de l'utilisateur (aucune génération n'a eu lieu). Si le
+	// quota utilisateur refuse ensuite, le jeton global est rendu.
 	day := abuse.DailyWindow(now)
-	ok, err = abuse.ConsumeBudget(ctx, s.pool, "global", "ai", ActionAIGlobal, day, 1, DailyCapGlobal)
+	ok, err := abuse.ConsumeBudget(ctx, s.pool, "global", "ai", ActionAIGlobal, day, 1, DailyCapGlobal)
 	if err != nil {
 		return usage, err
 	}
 	if !ok {
 		return usage, ErrAIGlobalQuota
+	}
+	month := abuse.MonthlyWindow(now)
+	ok, err = abuse.ConsumeBudget(ctx, s.pool, "user_month", userID, ActionAIRequest, month, 1, MonthlyCapPerUser)
+	if err != nil {
+		abuse.RefundBudget(ctx, s.pool, "global", "ai", ActionAIGlobal, day, 1)
+		return usage, err
+	}
+	if !ok {
+		abuse.RefundBudget(ctx, s.pool, "global", "ai", ActionAIGlobal, day, 1)
+		usage.Remaining = 0
+		return usage, ErrAIQuota
 	}
 	usage.Remaining = MonthlyCapPerUser - consumed(ctx, s.pool, userID, month)
 	if usage.Remaining < 0 {

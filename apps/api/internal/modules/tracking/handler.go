@@ -6,13 +6,13 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/qoefi/api/internal/clientip"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
 )
@@ -126,25 +126,10 @@ func (h *Handler) dailyAnonHash(r *http.Request) string {
 		})
 		return ""
 	}
-	ip := ""
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		if first, _, ok := strings.Cut(xff, ","); ok {
-			ip = strings.TrimSpace(first)
-		} else {
-			ip = strings.TrimSpace(xff)
-		}
-	}
-	if ip == "" {
-		ip = strings.TrimSpace(r.Header.Get("X-Real-IP"))
-	}
-	if ip == "" {
-		host, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err == nil {
-			ip = host
-		} else {
-			ip = r.RemoteAddr
-		}
-	}
+	// clientip lit la chaîne X-Forwarded-For à l'envers (en sautant les proxys
+	// de confiance) : le premier élément est contrôlé par le client, le lire
+	// laissait un visiteur choisir son identité anonyme à chaque requête.
+	ip := clientip.FromRequest(r)
 	day := time.Now().UTC().Format("2006-01-02")
 	mac := hmac.New(sha256.New, []byte(secret))
 	_, _ = fmt.Fprintf(mac, "%s|%s|%s", day, ip, r.UserAgent())
@@ -164,7 +149,10 @@ func (h *Handler) feedImpression(w http.ResponseWriter, r *http.Request) {
 	}
 	inserted, err := h.svc.TrackFeedImpression(r.Context(), userID, body.Items)
 	if err != nil {
-		response.OK(w, map[string]interface{}{"success": false})
+		// Convention beacon : 200 + success:false (le client n'a rien à faire),
+		// mais l'échec est journalisé au lieu de disparaître.
+		log.Printf("[tracking] feed-impression (%d items, %d écrits): %v", len(body.Items), inserted, err)
+		response.OK(w, map[string]interface{}{"success": false, "inserted": inserted})
 		return
 	}
 	response.OK(w, map[string]interface{}{"success": true, "inserted": inserted})

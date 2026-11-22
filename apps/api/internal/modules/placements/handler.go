@@ -129,6 +129,11 @@ func (h *Handler) requireSuperadmin(w http.ResponseWriter, r *http.Request) (str
 		return "", false
 	}
 	if err := h.svc.CheckSuperadmin(r.Context(), userID); err != nil {
+		if !errors.Is(err, ErrForbidden) {
+			log.Printf("[admin/placements] vérification superadmin %s: %v", userID, err)
+			response.Internal(w)
+			return "", false
+		}
 		response.Forbidden(w, "Accès réservé au superadmin")
 		return "", false
 	}

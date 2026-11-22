@@ -129,13 +129,31 @@ func (s *Service) CreateDirect(ctx context.Context, userID, participantID string
 		return nil, ErrNotFound
 	}
 
+	key := directKey(userID, participantID)
+
+	// Conversation déjà existante : la rouvrir ne crée rien, le plafond
+	// anti-spam de création ne s'y applique donc pas (il bloquait sinon tout
+	// fil existant dès 15 conversations rejointes dans l'heure).
+	existing, err := s.q.GetConversationByDirectKey(ctx, pgtype.Text{String: key, Valid: true})
+	if err == nil {
+		if err := s.ensureMembers(ctx, existing, userID, participantID); err != nil {
+			return nil, err
+		}
+		return s.Get(ctx, userID, existing)
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return nil, err
+	}
+
 	// Anti-spam : limitation du nombre de nouvelles conversations directes initiées (15 max par heure)
 	var recentConvsCount int
-	_ = s.pool.QueryRow(ctx, `
+	if err := s.pool.QueryRow(ctx, `
 		SELECT COUNT(*) FROM "ConversationMember" cm
 		JOIN "Conversation" c ON c.id = cm."conversationId"
 		WHERE cm."userId" = $1 AND c."createdAt" > now() - INTERVAL '1 hour'
-	`, toUUID(userID)).Scan(&recentConvsCount)
+	`, toUUID(userID)).Scan(&recentConvsCount); err != nil {
+		return nil, fmt.Errorf("compteur de conversations: %w", err)
+	}
 	if recentConvsCount >= 15 {
 		return nil, ErrConversationRateLimit
 	}
@@ -158,7 +176,6 @@ func (s *Service) CreateDirect(ctx context.Context, userID, participantID string
 		return nil, ErrBlocked
 	}
 
-	key := directKey(userID, participantID)
 	var convID string
 
 	tx, err := s.pool.Begin(ctx)
@@ -204,6 +221,20 @@ func (s *Service) CreateDirect(ctx context.Context, userID, participantID string
 	}
 
 	return s.Get(ctx, userID, convID)
+}
+
+// ensureMembers garantit la présence des deux participants (conversation
+// existante : réparation idempotente, hors transaction).
+func (s *Service) ensureMembers(ctx context.Context, convID, userID, participantID string) error {
+	for _, uid := range []string{userID, participantID} {
+		if err := s.q.UpsertConversationMember(ctx, db.UpsertConversationMemberParams{
+			ConversationId: convID,
+			UserId:         toUUID(uid),
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // List retourne les conversations de l'utilisateur, triées par activité.
@@ -302,23 +333,27 @@ func (s *Service) SendMessage(ctx context.Context, userID, convID, content strin
 
 	// Anti-spam débit : max 30 messages par minute
 	var recentMsgsCount int
-	_ = s.pool.QueryRow(ctx, `
-		SELECT COUNT(*) FROM "DirectMessage"
+	if err := s.pool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM "Message"
 		WHERE "senderId" = $1 AND "createdAt" > now() - INTERVAL '1 minute'
-	`, toUUID(userID)).Scan(&recentMsgsCount)
+	`, toUUID(userID)).Scan(&recentMsgsCount); err != nil {
+		return nil, fmt.Errorf("compteur de messages: %w", err)
+	}
 	if recentMsgsCount >= 30 {
 		return nil, ErrMessageRateLimit
 	}
 
 	// Anti-spam doublon : message identique dans les 5 dernières secondes
 	var hasDuplicate bool
-	_ = s.pool.QueryRow(ctx, `
+	if err := s.pool.QueryRow(ctx, `
 		SELECT EXISTS (
-			SELECT 1 FROM "DirectMessage"
+			SELECT 1 FROM "Message"
 			WHERE "conversationId" = $1 AND "senderId" = $2 AND "content" = $3
 			  AND "createdAt" > now() - INTERVAL '5 seconds'
 		)
-	`, convID, toUUID(userID), content).Scan(&hasDuplicate)
+	`, convID, toUUID(userID), content).Scan(&hasDuplicate); err != nil {
+		return nil, fmt.Errorf("détection de doublon: %w", err)
+	}
 	if hasDuplicate {
 		return nil, ErrDuplicateMessage
 	}

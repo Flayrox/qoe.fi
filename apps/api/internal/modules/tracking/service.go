@@ -2,6 +2,7 @@ package tracking
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -169,24 +170,28 @@ func (s *Service) TrackFeedImpression(ctx context.Context, userID string, items 
 	if len(valid) == 0 {
 		return 0, nil
 	}
-	// Batch insert via COPY or multi-row insert
-	// Use simple Exec with VALUES
+	// Insertion une par une : la première erreur remonte (le handler répond
+	// success:false et journalise) au lieu d'annoncer des lignes jamais écrites.
+	inserted := 0
 	for _, it := range valid {
 		var uid pgtype.UUID
 		if userID != "" {
 			uid = toUUID(userID)
 		}
-		_, _ = s.pool.Exec(ctx, `
+		if _, err := s.pool.Exec(ctx, `
 			INSERT INTO "FeedImpression" (id, "userId", "itemType", "itemId", position, "isDiscovery", "createdAt")
 			VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, now())
-		`, uid, it.ItemType, it.ItemID, it.Position, it.IsDiscovery)
+		`, uid, it.ItemType, it.ItemID, it.Position, it.IsDiscovery); err != nil {
+			return inserted, fmt.Errorf("insert feed impression: %w", err)
+		}
+		inserted++
 	}
 	// Purge 30j 5% du temps (best-effort)
 	if len(valid) > 0 && time.Now().UnixNano()%20 == 0 {
 		cutoff := time.Now().Add(-30 * 24 * time.Hour)
 		_, _ = s.pool.Exec(ctx, `DELETE FROM "FeedImpression" WHERE "createdAt" < $1`, cutoff)
 	}
-	return len(valid), nil
+	return inserted, nil
 }
 
 type FeedImpressionItem struct {
@@ -343,8 +348,11 @@ func (s *Service) ReadingHistory(ctx context.Context, userID string, days int) (
 	if days < 1 {
 		days = 14
 	}
-	if days > 30 {
-		days = 30
+	// Plafond aligné sur le contrat du handler (1..365) : ramener 90 jours à 30
+	// en silence tronquait l'historique demandé. LIMIT 100 borne toujours les
+	// lignes renvoyées.
+	if days > 365 {
+		days = 365
 	}
 	since := time.Now().AddDate(0, 0, -days)
 	rows, err := s.pool.Query(ctx, `
