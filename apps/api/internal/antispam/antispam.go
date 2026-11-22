@@ -654,7 +654,7 @@ func secondsUntilNextUTCDay(now time.Time) int {
 
 // CheckColdDM applique le plafond quotidien de nouveaux destinataires non-abonnés
 // selon le Trust Tier (`LOW`/`RESTRICTED`: 5, `STANDARD`: 15, `TRUSTED`: 40).
-func CheckColdDM(ctx context.Context, senderID, recipientID string, isFollower bool, tier trust.Tier, rc *redis.Client) error {
+func CheckColdDM(ctx context.Context, senderID, recipientID string, isFollower bool, tier trust.Tier, rc redisScripter) error {
 	if isFollower || senderID == "" || recipientID == "" || senderID == recipientID || rc == nil {
 		return nil
 	}
@@ -683,6 +683,15 @@ func CheckColdDM(ctx context.Context, senderID, recipientID string, isFollower b
 	return nil
 }
 
+// redisScripter est la seule surface Redis du plafond cold-DM : l'envoi d'un
+// script unique, atomique côté serveur. `*redis.Client` la satisfait en
+// production ; un double l'utilise en test pour observer la commande émise.
+// L'interface est volontairement étroite : sans SCARD ni SADD séparés à
+// disposition, un retour à la séquence non atomique ne compile plus.
+type redisScripter interface {
+	Eval(ctx context.Context, script string, keys []string, args ...interface{}) *redis.Cmd
+}
+
 // coldDMScript est atomique côté Redis : SISMEMBER → SCARD → SADD en une seule
 // exécution, sans fenêtre entre le comptage et l'ajout.
 const coldDMScript = `
@@ -694,7 +703,9 @@ return 1`
 
 // CheckColdDM délègue vers la vérification quotidienne sur le client Redis du Guard.
 func (g *Guard) CheckColdDM(ctx context.Context, senderID, recipientID string, isFollower bool, tier trust.Tier) error {
-	if g == nil {
+	if g == nil || g.rc == nil {
+		// Test explicite du pointeur : passer un *redis.Client nil dans
+		// l'interface rendrait `rc == nil` faux et l'appel planterait.
 		return nil
 	}
 	return CheckColdDM(ctx, senderID, recipientID, isFollower, tier, g.rc)
