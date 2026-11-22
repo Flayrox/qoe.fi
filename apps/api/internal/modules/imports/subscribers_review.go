@@ -167,6 +167,18 @@ func (s *Service) ReviewSubscriberImportForRequester(ctx context.Context, userID
 	return s.buildReview(ctx, batchID, true)
 }
 
+// requesterReviewView retire d'un dossier ce qui relève de l'analyse interne :
+// les signaux de risque (historique de la publication, réimports, doublons
+// entre lots, vérification du demandeur) et le journal d'audit du lot. Le
+// demandeur garde ce qui le concerne — bilan agrégé, lignes de son fichier,
+// avancement de ses vagues et décisions publiques — mais pas ce que le staff a
+// rassemblé pour le juger.
+func requesterReviewView(r SubscriberImportReviewDTO) SubscriberImportReviewDTO {
+	r.Signals = SubscriberImportSignals{}
+	r.Events = []SubscriberImportEventDTO{}
+	return r
+}
+
 func (s *Service) buildReview(ctx context.Context, batchID string, redactInternal bool) (SubscriberImportReviewDTO, error) {
 	out := SubscriberImportReviewDTO{Rows: []SubscriberImportRowDTO{}, RowCounts: map[string]int{}}
 
@@ -218,13 +230,19 @@ func (s *Service) buildReview(ctx context.Context, batchID string, redactInterna
 	if out.Decisions, err = s.listDecisions(ctx, batchID, redactInternal); err != nil {
 		return out, err
 	}
-	if out.Events, err = s.listEvents(ctx, batchID); err != nil {
-		return out, err
-	}
-	if out.Signals, err = s.importSignals(ctx, batchID, publisherID); err != nil {
-		// Les signaux sont un confort de revue : leur absence ne doit pas
-		// empêcher le staff de traiter un dossier.
-		log.Printf("[imports] signals lot %s: %v", batchID, err)
+	if redactInternal {
+		// Vue demandeur : les requêtes d'analyse interne ne sont même pas
+		// exécutées, et le dossier est dépouillé de leurs résultats.
+		out = requesterReviewView(out)
+	} else {
+		if out.Events, err = s.listEvents(ctx, batchID); err != nil {
+			return out, err
+		}
+		if out.Signals, err = s.importSignals(ctx, batchID, publisherID); err != nil {
+			// Les signaux sont un confort de revue : leur absence ne doit pas
+			// empêcher le staff de traiter un dossier.
+			log.Printf("[imports] signals lot %s: %v", batchID, err)
+		}
 	}
 	if out.ReconfirmWaves, err = s.ListReconfirmWaves(ctx, batchID); err != nil {
 		log.Printf("[imports] vagues lot %s: %v", batchID, err)
