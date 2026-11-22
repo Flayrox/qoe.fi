@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-p `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters` et `notifications` clos le 2026-11-22 — L29p : 6 défauts F634–F639, dettes R245–R247 ; prochain = `features`, 2 f. · 660 l. remesuré) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-q `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications` et `features` clos le 2026-11-22 — L29q : 7 défauts F643–F654 + 4 structurels, dettes R248–R252 ; prochain = `webhooks`, 2 f. · 671 l. remesuré) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -196,7 +196,13 @@ date UTC, hôtes recopiés), dettes **R242–R244**. **L29p est clos le 2026-11-
 (**2 f. · 656 l.** après correctifs, 625 l. avant), **6 défauts** F634–F639 (dégradation 200 sans session, type
 d'expéditeur média perdu, clé de préférence ignorée, marquage non borné, curseur invalide silencieux, routes média
 clientes sans contrôle de rôle), dettes **R245–R247**. **Lot suivant de L29, « En cours » : L29q** — `features`,
-**2 f. · 660 l.** (remesuré).
+**2 f. · 660 l.** (remesuré). **L29q est clos le 2026-11-22** : module `features` (**2 f. · 727 l.** après
+correctifs, 660 l. avant), **7 défauts** F643–F654 (panne DB rendue en 403, session non-UUID acceptée et écrite,
+clé mal formée en 404, `publisherId` forgé non borné, résumé-export non borné, **GET de désabonnement mutant qui
+laissait un scanner d'emails retirer une promesse**, panic sur pool nul) et **4 correctifs structurels** (erreur de
+lecture avalée, jeton de retrait dupliqué dans l'admin, purge de rétention sur le chemin chaud déplacée dans le
+worker, racine publique unique `internal/publicurl`), dettes **R248–R252**. **Lot suivant de L29, « En cours » : L29r** —
+`webhooks`, **2 f. · 671 l.** (remesuré).
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2175,6 +2181,79 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L29q — `apps/api/internal/modules/features/**` — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l`) : **2 fichiers de production · 660 l.** (`service 468`, `handler 192`) —
+conforme à l'annonce. Lus intégralement, avec leurs appelants réels : `cmd/server` (service + `RegisterPublic` racine +
+`RegisterProtected` dans le groupe protégé), `cmd/worker`, `internal/modules/admin/feature_unsub.go`,
+`internal/workers/{staff_campaign,confirm_email,import_send,email_preview}.go`, `internal/modules/articles/email.go`,
+schemas `00062_feature_signals.sql` / `00069_feature_catalog_interest.sql` (+ index, contraintes CHECK), clients
+`packages/sdk/src/actions/features`, `apps/studio` (`analytics/actions.ts`, `upcoming/actions.ts`,
+`settings/components/feature-consents.tsx`) et `packages/ui/ui/feature-catalog.ts`. Après correctifs le module pèse
+**2 f. · 727 l.** ; **5 fichiers de tests · 683 l.** (dont `audit_l29q_test.go` : 7 tests).
+
+**Frontière, écrite noir sur blanc** : ce module **mesure** l'intérêt (`FeatureSignal`) et porte la **promesse**
+« prévenez-moi » (`FeatureInterest`, consentement daté/versionné) ; le catalogue opérationnel (`Feature`) est édité
+par l'admin, la **rétention** appartient au worker, les **emails** au worker, et toute **racine publique** à
+`internal/publicurl`. Aucune écriture de contenu, aucun envoi, aucune seconde implémentation de jeton.
+
+**7 défauts corrigés** F643–F654, chacun adossé à un rouge réellement exécuté (worktree
+`git worktree add -f /tmp/qoe-l29q-red HEAD`, suite `TestAuditL29Q_*`, Postgres testcontainers + 95 migrations).
+
+| # | Défaut | Preuve (test) | Rouge constaté | Commit |
+|---|---|---|---|---|
+| F643 | **Panne DB rendue en 403** : `canAccess` avalait toute erreur (pool coupé, timeout, permission) et répondait « publication inaccessible » ; l'incident disparaissait derrière un refus métier. Seul `pgx.ErrNoRows` vaut désormais « pas d'accès », le reste remonte en 500 journalisé. | `TestAuditL29Q_DatabaseOutageIsNotForbidden`. | `panne DB rendue en ErrForbidden (403) : features: publication inaccessible` | `fix(features)` |
+| F645 | **Session non-UUID acceptée** : `FeatureSignal.userId` est `TEXT`, donc un identifiant illisible écrivait un signal inexploitable et répondait 200 (les analytics comptaient un « utilisateur » fantôme). Garde `uuid.Parse` → 401. | `TestAuditL29Q_InvalidSessionIsRejected`. | `session non-UUID = 200 ({"notified":false,"success":true}` | `fix(features)` |
+| F650 | **Clé de fonctionnalité mal formée traitée en 404** : le retrait exécutait une requête pour n'importe quelle chaîne (kilo-octets compris) puis répondait « aucune promesse ». Allowlist + longueur → 400 avant la base. | `TestAuditL29Q_InvalidFeatureKeyOnUnsubscribeIsBadRequest`. | `clé invalide = 404 ({"error":"Aucune promesse active pour cette fonctionnalité"}` | `fix(features)` |
+| F651 | **`publisherId` forgé non borné** : un identifiant de 200 caractères partait en requête d'agrégat et revenait en 403 (forgé confondu avec interdit). Borne `maxPublisherIDLen` → 400 `ErrInvalidSignal`. | `TestAuditL29Q_SummaryRejectsForgedPublisherID`. | `publisherId forgé = features: publication inaccessible, attendu ErrInvalidSignal` | `fix(features)` |
+| F652 | **Résumé non borné** : les clés de fonctionnalité sont libres côté client (motif seul), un compte pouvait en créer des milliers et obtenir une réponse-export. `LIMIT 50` (+ tri stable). | `TestAuditL29Q_SummaryIsBounded`. | `60 lignes renvoyées, borne attendue <= 50` | `fix(features)` |
+| F653 | **GET de désabonnement mutant** : les clients mail et scanners de liens préchargent les URLs, donc **ouvrir** le lien retirait la promesse sans clic. GET rend une page de confirmation (`Cache-Control: no-store`, formulaire POST) ; seul le POST (formulaire ou one-click RFC 8058, réponse HTML/JSON selon `Accept`) agit. | `TestAuditL29Q_GetDoesNotUnsubscribe`. | `un GET a désabonné (statut "unsubscribed") : un scanner de liens suffit à perdre la promesse` | `fix(features)` |
+| F654 | **Panic sur pool nul** : le garde n'existait que pour `notify` ; un signal « vue » sur un service mal monté provoquait une nil-pointer (crash du processus). Garde commun → erreur 500. | `TestAuditL29Q_ViewWithoutPoolDoesNotPanic`. | `panic sur pool nul : runtime error: invalid memory address or nil pointer dereference` | `fix(features)` |
+
+**Correctifs structurels, sans rouge isolable** (déclarés comme tels) :
+
+- **F644 — lecture de la publication personnelle avalée** : `resolvePublisher` écrivait le signal **sans
+  attribution** quand la lecture échouait, là où seul « aucune ligne » doit être silencieux. Un échec partiel
+  (lecture KO, écriture OK) n'est pas reproductible sans harnais de panne ciblée, d'où l'absence de rouge.
+- **F655 — deux implémentations du jeton de retrait** : `admin.FeatureUnsubscribeURL` reconstruisait le jeton,
+  le chemin et la racine publique (`crypto/hmac` + `base64` + `hex` en double). Désormais `features.UnsubscribeToken`
+  / `features.UnsubscribeLink` sont l'unique source, l'admin délègue. Deux copies d'un contrat de sécurité divergent
+  à la première retouche et cassent tous les liens déjà envoyés.
+- **F656 — purge de rétention sur le chemin de la réponse** : le commentaire promettait « jamais sur le chemin de la
+  réponse », mais le premier signal « vue » du processus exécutait un `DELETE` global (scan complet) avant de
+  répondre. Déplacée dans `workers.RunFeatureSignalRetention` (quotidienne, **par lots bornés de 5 000**, comme la
+  rétention des sessions de lecture), enregistrée dans `cmd/worker` ; test dédié `TestPurgeFeatureSignalsOnce`.
+- **F657 — racine publique dupliquée quatre fois** : `confirm_email.go`, `articles/email.go`, `features` et `admin`
+  lisaient chacun `QOE_CONFIRM_BASE_URL` avec leurs propres règles (`TrimSpace`, slash final, défaut), donc un
+  `QOE_CONFIRM_BASE_URL` terminé par `/` produisait `//v1/...` dans un email de confirmation. Une seule fonction
+  `publicurl.Base()` (défaut, surcharge, slash retiré) + test unitaire des quatre cas.
+
+**Migrations** : **aucune nécessaire** — `FeatureSignal_publisher_created_idx` sert l'agrégat borné (filtre
+`publisherId` + `createdAt`), la déduplication 24 h réutilise `FeatureSignal_user_feature_created_idx`, le marquage
+`LIMIT 50` s'arrête avant le tri final. `ExpectedMigrationVersion` reste **95**.
+
+**Dettes ouvertes, sans faux correctif** (numérotation en continuité de R247) :
+
+- **R248 — `FeatureSignal.featureKey` sans FK vers `Feature`** : les clés annoncées par `@qoe/ui` peuvent précéder le
+  catalogue en base (3 clés semées aujourd'hui, 8 dans l'UI), donc une FK casserait des vues légitimes. Trancher
+  produit : soit semer toutes les clés, soit accepter que la mesure précède le catalogue.
+- **R249 — jeton de retrait sans expiration** : il reste valable indéfiniment (rotation du `JWTSecret` = tous les
+  liens morts d'un coup). Une fenêtre signée (`exp`) demanderait une décision produit sur la durée de vie des emails.
+- **R250 — promesse écrite hors transaction** : `FeatureInterest` puis `FeatureSignal` sont deux instructions ; si la
+  seconde échoue, l'API répond 500 alors que la promesse est acquise (le retry est idempotent, mais la réponse ment
+  sur l'état). À passer en transaction unique quand le funnel de signal ne sera plus best-effort.
+- **R251 — `States`/`NotifiedFeatures` sans `LIMIT`** : bornés en pratique par le catalogue (8 clés), aucune garantie
+  SQL ; à borner si le catalogue devient éditable librement.
+- **R252 — page GET sans vérification de signature** : elle ne peut pas nommer la fonctionnalité avant le POST (elle
+  ne touche volontairement pas la base). Une vérification HMAC hors DB (sans révéler l'état) améliorerait l'UX.
+
+**Commandes passées sur l'arbre corrigé** : `gofmt -l` sur le module et les paquets touchés → vide ; `go build ./...`
+→ 0 ; `go vet ./internal/...` → 0 ; `QOE_DB_TESTS_OPTIONAL=1 go test` sur `features`, `publicurl`, `workers`,
+`admin`, `articles`, `notifications`, `home`, `creator`, `media`, `publishers`, `users`, `settings`, `posts`,
+`domainevents`, `internal/notifications`, `middleware`, `authz`, `cmd/server`, `cmd/worker` → **19 paquets `ok`**
+(base réelle) ; batterie workspace 13 commandes → **13 × 0** ; **vitest** : `apps/core` centre de notifications +
+réglages lecteur → **5 fichiers, 24 tests verts**, `packages/sdk` actions features → **10 tests verts**.
 
 ## L29p — `apps/api/internal/modules/notifications/**` — **clos le 2026-11-22**
 
