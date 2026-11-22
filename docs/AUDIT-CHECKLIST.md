@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-q `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications` et `features` clos le 2026-11-22 — L29q : 7 défauts F643–F654 + 4 structurels, dettes R248–R252 ; prochain = `webhooks`, 2 f. · 671 l. remesuré) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; prochain = `search`, 2 f. · 724 l. remesuré) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -201,8 +201,13 @@ correctifs, 660 l. avant), **7 défauts** F643–F654 (panne DB rendue en 403, s
 clé mal formée en 404, `publisherId` forgé non borné, résumé-export non borné, **GET de désabonnement mutant qui
 laissait un scanner d'emails retirer une promesse**, panic sur pool nul) et **4 correctifs structurels** (erreur de
 lecture avalée, jeton de retrait dupliqué dans l'admin, purge de rétention sur le chemin chaud déplacée dans le
-worker, racine publique unique `internal/publicurl`), dettes **R248–R252**. **Lot suivant de L29, « En cours » : L29r** —
-`webhooks`, **2 f. · 671 l.** (remesuré).
+worker, racine publique unique `internal/publicurl`), dettes **R248–R252**. **L29r est clos le 2026-11-22** : module
+`webhooks` (**2 f. · 798 l.** après correctifs, 671 l. avant) — **7 défauts** F659–F666 (troncature UTF-8, panne DB
+rendue en 403, **aucun plafond d'abonnements**, événements/URL non validés au service, journal de livraison de test
+menteur, session illisible en 403, nom vide accepté) et **3 structurels** (bascule non atomique, N+1 de la liste,
+signature HMAC dupliquée worker/module), dettes **R253–R256**. La dette de formatage laissée par L29q est soldée
+(**F658** : `gofmt -l .` 81 → **0** sur le dépôt entier) et le test obsolète de `apiaccess` (fail-closed) est
+aligné (**F669**). **Lot suivant de L29, « En cours » : L29s** — `search`, **2 f. · 724 l.** (remesuré).
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2181,6 +2186,59 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L29r — `apps/api/internal/modules/webhooks/**` + dette de formatage L29q — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l`) : **2 fichiers de production · 671 l.** (`service 434`, `handler 237`) —
+conforme à l'annonce. Lus intégralement, avec leurs appelants réels : `cmd/server` (`RegisterProtected` + scopes
+clé API), `internal/workers/webhook.go` (livraison HMAC + retries), `sql/queries/webhooks.sql`, schéma
+`Webhook`/`WebhookDelivery` (+ index `Webhook_publisherId_idx`, FK cascade), rétention admin (30 j),
+`internal/apiaccess` (grant + kill-switch) et client `apps/studio/src/app/(creator)/developer/webhooks/actions.ts`.
+Après correctifs le module pèse **2 f. · 798 l.** (handler 225, service 573) ; **5 fichiers de tests · 1 347 l.**
+(dont `audit_l29r_test.go` : 7 tests).
+
+**F658 — dette de formatage soldée (dépôt entier).** Rouge à `HEAD` : `gofmt -l .` → **81 lignes**
+(`apps/api/internal/modules/articles/comments.go`, `…/workers/scheduled_publisher.go`, `…/apiaccess/db_test.go`,
+`…/modules/analytics/service.go`, `…/cmd/recsys-eval/main.go`, plus 4 copies vendoriées sous `.reference/` ignorées par
+`.gitignore:111`). Vert : `gofmt -l .` → **0** (77 fichiers suivis reformatés et commités dans ce lot ; les 4 fichiers
+du dossier `.reference/` — non versionnés — sont également normalisés localement pour que la commande soit vide).
+
+**11 défauts corrigés** F659–F669, chacun adossé à un rouge réellement exécuté (worktree
+`git worktree add -f /tmp/qoe-l29r-red HEAD`, suite `TestAuditL29R_*` + batterie élargie, Postgres testcontainers).
+
+| # | Défaut | Preuve (test) | Rouge constaté | Commit |
+|---|---|---|---|---|
+| F659 | **Troncature en octets** : les corps distants (réponse de test, corps de livraison, message d'échec) étaient coupés en octets ; un caractère multioctet produisait une chaîne UTF-8 invalide dans le JSON renvoyé au studio. `webhooks.TruncateUTF8` coupe sur une frontière de rune et sert aussi au worker. | `TestAuditL29R_TruncationKeepsValidUTF8`. | `réponse tronquée au milieu d'une rune : UTF-8 invalide` | `fix(webhooks)` |
+| F660 | **Panne DB rendue en 403** : `resolveRole` et `requireWebhookGrant` convertissaient toute erreur en « permission insuffisante ». Seul `pgx.ErrNoRows` vaut refus ; le reste remonte en 500 journalisé. | `TestAuditL29R_DatabaseOutageIsNotForbidden`. | `panne DB rendue en errForbidden (403) : permission insuffisante` | `fix(webhooks)` |
+| F662 | **Aucun plafond d'abonnements** : chaque webhook actif multiplie les livraisons sortantes ; un compte pouvait en créer sans limite. 20 par publication, quota et insertion dans une transaction avec `Publisher … FOR UPDATE` (le COUNT hors transaction laissait passer deux créations concurrentes). | `TestAuditL29R_WebhookQuota`. | `creation au-dela du quota acceptee : aucun plafond` | `fix(webhooks)` |
+| F663 | **Validation absente au service** : un événement inexistant était stocké (abonnement « actif » qui ne livrerait jamais) et une URL `http://` acceptée (charge HMAC en clair) ; seul le handler filtrait. Allowlist + schéma https déplacés dans `Create`. | `TestAuditL29R_CreateValidatesEventsAndScheme`. | `1 webhooks abonnés à un événement inexistant` | `fix(webhooks)` |
+| F664 | **Journal de livraison menteur** : le ping de test enregistrait `{"test":true}`, qui n'est le corps d'aucune requête. Le corps réellement envoyé est journalisé. | `TestAuditL29R_TestDeliveryLogsSentBody`. | `payload journalisé = map[test:true]` | `fix(webhooks)` |
+| F665 | **Session illisible rendue en 403** (et requêtes inutiles) : garde `uuid.Parse` → 401, avec exception explicite pour les clés API média (identité portée par le principal). | `TestAuditL29R_InvalidSessionIsRejected`. | `session non-UUID = 403 ({"error":"permission insuffisante"}` | `fix(webhooks)` |
+| F666 | **Nom vide accepté par le service** : seul le handler validait, donc tout appelant interne pouvait créer un abonnement sans nom. Validation (1–80 runes) dans `Create`. | `TestAuditL29R_CreateRejectsEmptyName`. | `nom vide accepté par le service` | `fix(webhooks)` |
+
+**Correctifs structurels, sans rouge isolable** (déclarés comme tels) :
+
+- **F661 — bascule non atomique** : `Toggle` lisait puis réécrivait l'état ; deux bascules concurrentes se perdaient. Remplacé par `UPDATE … SET active = NOT active … RETURNING active`.
+- **F667 — N+1 dans `List`** : une requête de livraisons par webhook. Une seule requête (`ListRecentDeliveriesByPublisher`, bornée à 5 par abonnement) alimente désormais la liste.
+- **F668 — signature HMAC dupliquée** : `internal/workers/webhook.go` réimplémentait `signHMAC` (même format `sha256=` + hex que le module, deux copies du contrat). `webhooks.Signature` est l'unique implémentation, le worker l'appelle (test d'intégration worker mis à jour).
+- **F669 — test obsolète, contraire au contrat** : `TestLoadEnabled_InvalidJSONFallsBack` (paquet `apiaccess`, reformaté par F658) affirmait qu'un JSON de configuration corrompu ouvrait **tous** les modules, alors que `LoadEnabled`/`IsEnabled` ferment l'accès (fail-closed documenté). Test renommé `…FailsClosed` et aligné ; il échouait à `HEAD`, ce qui n'était visible qu'en lançant le paquet — désormais couvert par la batterie.
+
+**Migrations** : **aucune nécessaire** — `Webhook_publisherId_idx` sert le quota et la liste, `WebhookDelivery_webhookId_idx` la requête groupée, la rétention 30 j existe déjà côté admin. `ExpectedMigrationVersion` reste **95**.
+
+**Dettes ouvertes, sans faux correctif** (numérotation en continuité de R252) :
+
+- **R253 — `Webhook.events` sans contrainte SQL** : la liste blanche n'existe qu'en Go (`ValidWebhookEvents`) ; une écriture directe pourrait abonner un webhook à n'importe quelle chaîne. Un `CHECK` sur les valeurs du tableau demanderait une migration à chaque nouvel événement.
+- **R254 — quota non audité** : la limite de 20 abonnements par publication est une constante Go, sans trace d'audit ni réglage admin, alors qu'elle bloque un usage légitime intensif.
+- **R255 — `webhook.test` hors allowlist** : le ping de test envoie un événement qu'un intégrateur ne peut pas souscrire ; c'est voulu (vérification de signature), mais absent de la doc SDK/studio.
+- **R256 — `LastDelivery` redondant** : la liste renvoie les 5 dernières livraisons **et** `lastDelivery` (première du même tableau), soit un doublon de charge pour le client actuel.
+
+**Commandes passées sur l'arbre corrigé** : `gofmt -l .` (dépôt entier) → **0** ; `go build ./...` → 0 ; `go vet ./...` → 0 ;
+`QOE_DB_TESTS_OPTIONAL=1 go test` sur les **20 paquets de la batterie** (`webhooks`, `features`, `publicurl`, `workers`,
+`admin`, `articles`, `notifications`, `home`, `creator`, `media`, `publishers`, `users`, `settings`, `posts`,
+`domainevents`, `internal/notifications`, `middleware`, `authz`, `cmd/server`, `cmd/worker`) → **20 × `ok`** ;
+**batterie élargie aux 83 paquets touchés par le gofmt** (tous les `internal/**` et `cmd/**` versionnés portant des
+tests) → **83 × `ok`** après correction de F669 ; batterie workspace 13 commandes → **13 × 0** ; **vitest**
+`apps/core` (notifications + réglages lecteur) → **5 fichiers, 24 tests verts**.
 
 ## L29q — `apps/api/internal/modules/features/**` — **clos le 2026-11-22**
 
