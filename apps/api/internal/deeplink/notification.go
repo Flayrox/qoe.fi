@@ -9,6 +9,8 @@ package deeplink
 import (
 	"net/url"
 	"strings"
+
+	"github.com/qoefi/api/internal/publicurl"
 )
 
 // Target décrit la cible d'une notification.
@@ -86,18 +88,15 @@ func isStudioPath(path string) bool {
 		strings.HasPrefix(path, "/advanced")
 }
 
-// Origines publiques utilisées par les emails. Le studio et le lecteur sont
-// deux applications distinctes : un lien d'édition doit ouvrir le studio, un
-// lien de lecture reste sur le domaine public.
-const (
-	PublicBaseURL = "https://qoe.fi"
-	StudioBaseURL = "https://studio.qoe.fi"
-)
-
-// AbsoluteURL préfixe un chemin interne par l'origine correspondante.
+// AbsoluteURL préfixe un chemin interne par l'origine correspondante. Le studio
+// et le lecteur sont deux applications distinctes : un lien d'édition doit
+// ouvrir le studio, un lien de lecture reste sur l'origine publique. Les deux
+// origines viennent de l'environnement (`publicurl`), jamais d'une constante de
+// production — sinon un déploiement self-hosté renvoie ses notifications vers
+// qoe.fi.
 func AbsoluteURL(path string) string {
 	if isStudioPath(path) {
-		return StudioBaseURL + path
+		return publicurl.Studio() + path
 	}
-	return PublicBaseURL + path
+	return publicurl.Reader() + path
 }

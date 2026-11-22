@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	authmw "github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/observability"
@@ -226,14 +227,17 @@ func (w *metricsStatusWriter) WriteHeader(code int) {
 	w.ResponseWriter.WriteHeader(code)
 }
 
+// normalizeMetricRouteGroup borne le label `route_group` quand aucune route n'a
+// été reconnue : on ne garde que le préfixe de version, jamais un segment
+// arbitraire de l'URL (un client qui balaie `/v1/<aléatoire>` créerait sinon une
+// série de métriques par valeur — fuite mémoire sur le chemin de requête).
 func normalizeMetricRouteGroup(path string) string {
-	trimmed := strings.Trim(path, "/")
-	if trimmed == "" {
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	if len(parts) == 0 || parts[0] == "" {
 		return "/"
 	}
-	parts := strings.Split(trimmed, "/")
-	if len(parts) >= 2 && parts[0] == "v1" {
-		return "/v1/" + parts[1]
+	if parts[0] == "v1" {
+		return "/v1/*"
 	}
 	return "/" + parts[0]
 }
@@ -247,12 +251,25 @@ func httpMetricsMiddleware() func(http.Handler) http.Handler {
 			next.ServeHTTP(rec, r)
 			observability.Default().ObserveHTTPRequest(
 				r.Method,
-				normalizeMetricRouteGroup(r.URL.Path),
+				metricRouteGroup(r),
 				rec.status,
 				time.Since(start),
 			)
 		})
 	}
+}
+
+// metricRouteGroup préfère le motif de route résolu par chi (`/v1/articles/{id}`,
+// posé après le routage) : cardinalité bornée par le routeur, et l'observation
+// peut avoir lieu après `next.ServeHTTP`. Repli borné pour les requêtes non
+// routées (404).
+func metricRouteGroup(r *http.Request) string {
+	if rc := chi.RouteContext(r.Context()); rc != nil {
+		if pattern := rc.RoutePattern(); pattern != "" && pattern != "/*" {
+			return pattern
+		}
+	}
+	return normalizeMetricRouteGroup(r.URL.Path)
 }
 
 // metricsHandler expose les métriques Prometheus sur /metrics derrière le secret interne.

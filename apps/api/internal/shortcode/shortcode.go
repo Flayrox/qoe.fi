@@ -26,13 +26,20 @@ type Querier interface {
 const attempts = 20
 
 // Generate retourne un code numérique non encore utilisé par un article.
+//
+// Seule une collision (le code existe déjà) justifie un nouveau tirage : une
+// erreur de requête interrompt la boucle immédiatement, sinon une base lente ou
+// coupée verrait vingt requêtes séquentielles sur le chemin d'une création
+// d'article, alors que l'INSERT échouera de toute façon.
 func Generate(ctx context.Context, pool Querier) string {
 	for i := 0; i < attempts; i++ {
 		code := slug.ShortNumericCode()
 		var exists bool
 		if err := pool.QueryRow(ctx,
 			`SELECT EXISTS(SELECT 1 FROM "Article" WHERE "shortCode" = $1)`, code,
-		).Scan(&exists); err == nil && !exists {
+		).Scan(&exists); err != nil {
+			return code // l'index unique tranchera à l'écriture
+		} else if !exists {
 			return code
 		}
 	}

@@ -603,6 +603,7 @@ func (p *parser) endItem() {
 	if p.cur == nil || !p.isItem {
 		return
 	}
+	p.cur.closeAtBlockEnd()
 	p.items = append(p.items, itemTmp{text: p.cur.text(), spans: p.cur.spans(), inline: p.cur.inlineSpans()})
 	p.cur = nil
 	p.isItem = false
@@ -661,6 +662,7 @@ func (p *parser) flushCur() {
 	if p.cur == nil {
 		return
 	}
+	p.cur.closeAtBlockEnd()
 	text := p.cur.text()
 	spans := p.cur.spans()
 	inl := p.cur.inlineSpans()
@@ -815,6 +817,17 @@ func (w *writer) closeMark() {
 	w.markOpen = false
 	w.markNote = ""
 	w.markAt = -1
+}
+
+// closeAtBlockEnd referme ce que le HTML n'a pas refermé avant la fin du bloc.
+// Le parseur HTML5 ferme implicitement un <mark> ou un <b> resté ouvert à la fin
+// d'un <p> : sans cela, la marque officielle du studio (donc l'annotation) et le
+// style inline disparaissaient du bloc alors que le navigateur les affiche.
+func (w *writer) closeAtBlockEnd() {
+	w.closeMark()
+	for len(w.inlstack) > 0 {
+		w.popInline()
+	}
 }
 
 func (w *writer) text() string { return w.b.String() }

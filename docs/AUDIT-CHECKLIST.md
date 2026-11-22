@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; **L29s `search` clos le 2026-11-22** (2 f. · 741 l. après correctifs, 6 défauts F670–F675 + 1 structurel F676, dettes R257–R259) ; **L29t `publishers` clos le 2026-11-22** (3 f. · 1 229 l. après correctifs, 8 défauts F677–F684 + 1 structurel F685, dettes R260–R262) ; **L29u `analytics` clos le 2026-11-22** (4 f. · 2 130 l. après correctifs, 12 défauts F686–F697 + 1 structurel F698, dettes R263–R265) ; **L29v `events`/`workspaces`/`appeals`/`support`/`exports`/`books` clos le 2026-11-22** (13 f. · 1 659 l. après correctifs, 6 défauts F699–F704 + 2 structurels F705–F706, dettes R266–R269) ; **L29w reliquat `tracking`/`placements`/`ai`/`collaborations`/`conversations`/`billing`/`ebooks` clos le 2026-11-22** (20 f. · 7 251 l. après correctifs, 13 défauts F707–F719 + 2 structurels F720–F721, dettes R270–R272) ; **L29x `oauth`/`devtools` clos le 2026-11-22** (7 f. · 3 190 l. après correctifs, 10 défauts F722–F731 + 2 structurels F732–F733, dettes R273–R275, **R270 soldée**) ; **L30 `workers`/`queue`/`resilience`/`cache` clos le 2026-11-22** (17 f. · 3 933 l. après correctifs, 9 défauts F734–F742 + 3 structurels F743–F745, dettes R276–R279) ; **L31 `middleware`/`authz`/`permissions`/`secguard` clos le 2026-11-22** (17 f. · 3 622 l. après correctifs, 6 défauts F746–F751 + 1 structurel F752, dettes R280–R282) ; **L32 `abuse`/`antispam`/`trust`/`pow` clos le 2026-11-22** (13 f. · 3 788 l. après correctifs, 5 défauts F755–F759 + 1 structurel F760, dettes R283–R285) ; **L33 `flags`/`adminauthz`/`apiaccess`/`auditlog` clos le 2026-11-22** (13 f. · 2 375 l. après correctifs, 6 défauts F761–F766 + 1 structurel F767, dettes R286–R288) ; prochain = **L34** (reste de l'infra Go : `anchors`, `canon`, `config`, `database`, `dbpool`, `deeplink`, `identity`, `logging`, `netguard`, `observability`, `publicurl`, `response`, `shared`, `shortcode`, `slug`, `textutil`, `umami`, `vectorfeed`)) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; **L29s `search` clos le 2026-11-22** (2 f. · 741 l. après correctifs, 6 défauts F670–F675 + 1 structurel F676, dettes R257–R259) ; **L29t `publishers` clos le 2026-11-22** (3 f. · 1 229 l. après correctifs, 8 défauts F677–F684 + 1 structurel F685, dettes R260–R262) ; **L29u `analytics` clos le 2026-11-22** (4 f. · 2 130 l. après correctifs, 12 défauts F686–F697 + 1 structurel F698, dettes R263–R265) ; **L29v `events`/`workspaces`/`appeals`/`support`/`exports`/`books` clos le 2026-11-22** (13 f. · 1 659 l. après correctifs, 6 défauts F699–F704 + 2 structurels F705–F706, dettes R266–R269) ; **L29w reliquat `tracking`/`placements`/`ai`/`collaborations`/`conversations`/`billing`/`ebooks` clos le 2026-11-22** (20 f. · 7 251 l. après correctifs, 13 défauts F707–F719 + 2 structurels F720–F721, dettes R270–R272) ; **L29x `oauth`/`devtools` clos le 2026-11-22** (7 f. · 3 190 l. après correctifs, 10 défauts F722–F731 + 2 structurels F732–F733, dettes R273–R275, **R270 soldée**) ; **L30 `workers`/`queue`/`resilience`/`cache` clos le 2026-11-22** (17 f. · 3 933 l. après correctifs, 9 défauts F734–F742 + 3 structurels F743–F745, dettes R276–R279) ; **L31 `middleware`/`authz`/`permissions`/`secguard` clos le 2026-11-22** (17 f. · 3 622 l. après correctifs, 6 défauts F746–F751 + 1 structurel F752, dettes R280–R282) ; **L32 `abuse`/`antispam`/`trust`/`pow` clos le 2026-11-22** (13 f. · 3 788 l. après correctifs, 5 défauts F755–F759 + 1 structurel F760, dettes R283–R285) ; **L33 `flags`/`adminauthz`/`apiaccess`/`auditlog` clos le 2026-11-22** (13 f. · 2 375 l. après correctifs, 6 défauts F761–F766 + 1 structurel F767, dettes R286–R288) ; **L34 infra Go clos le 2026-11-22** (18 paquets · 19 f. écrits · 3 373 l. + 38 f. générés sqlc, 7 défauts F768–F774 + 1 structurel F775, dettes R289–R292) ; prochain = **L35** (transverse : gardes CI, docs, scripts)) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -268,9 +268,16 @@ morte du chemin de recours). Dettes **R283–R285**.
 corrompue lue comme « API ouverte », traces d'audit perdues en silence, `send on closed channel` dans le recorder)
 et **1 structurel** (F767 : paramètre `FlagChecker` mort retiré de bout en bout, trois `SetFlags` inutilisés supprimés).
 Dettes **R286–R288**.
-**Lot suivant : L34** — reste de l'infra Go (`anchors`, `canon`, `config`, `database`, `dbpool`, `deeplink`, `identity`,
-`logging`, `netguard`, `observability`, `publicurl`, `response`, `shared`, `shortcode`, `slug`, `textutil`, `umami`,
-`vectorfeed`).
+**L34 est clos le 2026-11-22** : infra Go `anchors`, `canon`, `config`, `database` (généré), `dbpool`, `deeplink`,
+`identity`, `logging`, `netguard`, `observability`, `publicurl`, `response`, `shared`, `shortcode`, `slug`, `textutil`,
+`umami`, `vectorfeed` (**18 paquets · 19 f. écrits à la main · 3 373 l.** + **38 f. · 22 391 l.** générés par sqlc) —
+**7 défauts** F768–F774 (configuration nulle/négative propagée jusqu'au `time.NewTicker(0)` du worker, origine
+`publicurl` inutilisable qui casse les liens signés, annotations du studio perdues quand le `<mark>` n'est pas
+refermé, liens d'e-mail figés sur la prod, pool `PG_POOL_SIZE=1` incohérent, cardinalité de métriques non bornée par
+chemin inconnu, 20 requêtes émises sur une erreur DB de `shortcode`) et **1 structurel** F775. Dettes
+**R289–R292**. **Aucun faux positif ajouté** : la suspicion sur `log.Printf` (614 appels) a été testée par commande
+et s'est révélée déjà couverte par `slog.SetDefault`.
+**Lot suivant : L35** — transverse (gardes CI, docs, scripts).
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2249,6 +2256,115 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L34 — infra Go : `anchors` · `canon` · `config` · `database` · `dbpool` · `deeplink` · `identity` · `logging` ·
+`netguard` · `observability` · `publicurl` · `response` · `shared` · `shortcode` · `slug` · `textutil` · `umami` ·
+`vectorfeed` — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l`) : **18 paquets · 19 fichiers écrits à la main · 3 373 l.** après correctifs,
+plus **`internal/database` : 38 fichiers · 22 391 l. générés par sqlc** (`// Code generated by sqlc. DO NOT EDIT.`,
+sqlc v1.31.1, schéma `sqlc.yaml`) — exclus de la lecture ligne à ligne comme tout code généré, mais **exercés** : les
+tests DB du lot passent par eux (migrations goose 95, requêtes préparées) et `go build`/`go vet` les compilent.
+
+| Paquet | Fichiers de production | Lignes |
+|---|---|---|
+| `anchors` | `anchor.go` | 252 |
+| `canon` | `canon.go` | 835 |
+| `config` | `config.go`, `supabase_origin.go` | 347 |
+| `dbpool` | `dbpool.go` | 67 |
+| `deeplink` | `notification.go` | 102 |
+| `identity` | `identity.go` | 21 |
+| `logging` | `slog.go` | 125 |
+| `netguard` | `ssrf.go`, `mediatype.go` | 288 |
+| `observability` | `metrics.go` | 418 |
+| `publicurl` | `base.go` | 47 |
+| `response` | `response.go` | 95 |
+| `shared` | `identifier/identifier.go` | 70 |
+| `shortcode` | `shortcode.go` | 54 |
+| `slug` | `slug.go` | 89 |
+| `textutil` | `textutil.go` | 21 |
+| `umami` | `client.go` | 265 |
+| `vectorfeed` | `vectorfeed.go` | 277 |
+
+**Appelants réels lus** (sans eux, aucun défaut n'aurait été retenu) : `cmd/server` (`main.go` montage du
+pool/`flags`/`umami`/`metrics`, `hardening.go` middleware de métriques et `/metrics` derrière le secret interne,
+`security_audit_test.go`), `cmd/worker` (cadences `LegalLifecycleIntervalMinutes` / `MediaLifecycleIntervalMinutes`,
+pool, `deeplink` via `email_delivery.go`), `internal/middleware/accesscontrol.go`, `internal/workers/{webhook,
+search,email_content,legal_notice,legal_review,media_lifecycle}.go`, `internal/modules/{webhooks,articles,features,
+mediaassets,settings,users,creator}` (SEO/slugs, `shortcode.Generate`, `publicurl.Base`, `identifier`, `deeplink`
+absolu), `internal/testutil` (bootstrap DB).
+
+**7 défauts corrigés** F768–F774, chacun adossé à un rouge réellement exécuté dans le worktree
+`git worktree add -f /tmp/qoe-l34-red f9e6036c`.
+
+| # | Défaut | Preuve (test) | Rouge constaté |
+|---|---|---|---|
+| F768 | **Valeurs de configuration nulles ou négatives propagées** : `LEGAL_LIFECYCLE_INTERVAL_MINUTES=0` donnait un intervalle de 0 minute et `workers.RunLegalLifecycleLoop` appelait `time.NewTicker(0)` — **panic au démarrage du worker** (les boucles légales n'ont aucune garde, contrairement à `media_lifecycle`). Même classe : `MEDIA_SOFT_DELETE_GRACE_DAYS=0` **purge immédiatement** ce qu'on croyait gardé 7 jours, `MEDIA_QUOTA_BYTES=0` désactive le quota, `SMTP_PORT=0`/`NEWSLETTER_RATE_PER_MINUTE=0` figent les envois, `API_KEY_RATE_LIMIT=0` refuse toutes les clés. Les réglages de type cadence/borne/port passent maintenant par `envPositiveInt`/`envPositiveInt64` (`envNonNegativeInt64` pour `MEDIA_UPLOADS_PER_HOUR`, où `0 = illimité` est documenté) : une saisie inexploitable retombe sur le défaut documenté. | `TestAuditL34_NonPositiveConfigFallsBackToDefaults` | `MEDIA_SOFT_DELETE_GRACE_DAYS=0 : obtenu 0, attendu le défaut 7` (+ 0 pour les 7 autres réglages) |
+| F769 | **`publicurl.Base` acceptait une origine inutilisable** : `QOE_CONFIRM_BASE_URL` était simplement `TrimSpace` + `TrimRight("/")`. Une valeur sans schéma (`api.qoe.fi`, `//api.qoe.fi`) ou un schéma non web (`javascript:`, `ftp:`) produisait des liens de confirmation et de désinscription **qui ne s'ouvrent pas dans un client mail** — inscription et désinscription cassées par une variable mal copiée. L'origine est désormais validée (absolue, `http`/`https`, hôte présent, pas d'identifiants) ou remplacée par le défaut. | `TestAuditL34_MalformedBaseFallsBackToDefault` | `Base() = "api.qoe.fi" pour "api.qoe.fi", attendu le défaut "https://api.qoe.fi"` (idem `//`, `javascript:`, `ftp:`, `/v1`) |
+| F770 | **Le parseur canonique perdait les annotations et styles non refermés** : `flushCur` et `endItem` lisaient les spans sans fermer ce que le HTML laisse ouvert. Un `<mark data-annotation-note>` ou un `<b>` non refermé à la fin du paragraphe (cas courant d'un éditeur qui sauve du HTML partiel, et que le navigateur referme) **disparaissait de `Blocks[].Spans`/`Inline`** — la note officielle du studio n'était donc jamais persistée en `Highlight` par `anchors.SyncOfficialMarks`, alors que le rendu l'affiche. `closeAtBlockEnd` referme marques et pile inline avant capture, et un document ouvert produit exactement le même `Sha` et les mêmes spans qu'un document refermé (idempotence vérifiée). | `TestAuditL34_UnclosedInlineKeepsSpanAndNote` | `spans = 0, attendu 1 (marque non refermée perdue)` ; `inline = … attendu {0,16,bold}` |
+| F771 | **Liens d'e-mail figés sur la production** : `deeplink.AbsoluteURL` préfixait par deux constantes `https://qoe.fi` / `https://studio.qoe.fi`. Un déploiement self-hosté (`.env.docker.example` : `http://qoe.localhost`) ou local (`qoe.test`, `studio.qoe.test`) envoyait donc **chaque notification vers le domaine de production** — lien faux pour l'utilisateur et audience fuitée vers la prod. Violation directe de la règle de portabilité d'`AGENTS.md` (« on ne code jamais un domaine propriétaire dans la logique »). Les origines viennent maintenant de `publicurl` (`QOE_PUBLIC_URL`, `QOE_STUDIO_URL`), avec les valeurs de production comme défauts et la même validation que F769 ; `PublicBaseURL`/`StudioBaseURL` sont supprimées. | `TestAuditL34_AbsoluteURLFollowsConfiguredOrigins`, `TestAuditL34_ReaderAndStudioOrigins` | `lien lecteur = "https://qoe.fi/article/mon-article", attendu "https://qoe.test/article/mon-article"` ; `lien studio = "https://studio.qoe.fi/media", attendu "https://studio.qoe.test/media"` |
+| F772 | **`PG_POOL_SIZE=1` produisait un pool contradictoire** : `MaxConns = poolSize` puis `MinConns = 2` en dur, sans vérifier l'ordre. Un petit VPS qui pose 1 connexion obtenait un pool dont la réserve d'inactivité (2) dépasse le plafond (1) — configuration incohérente silencieuse, alors que la variable est un réglage légitime et documenté. `MinConns` suit maintenant le plafond, et une valeur nulle/négative laisse le défaut de pgxpool. | `TestAuditL34_SmallPoolSizeStillBoots` (Postgres réel) | `poolSize=1 : MinConns 2 > MaxConns 1` |
+| F773 | **Cardinalité de métriques non bornée sur le chemin de requête** : `normalizeMetricRouteGroup` prenait le **premier segment** de l'URL. Un client qui interroge `/v1/a1`, `/v1/a2`, … (avant toute authentification) créait une série `qoe_http_requests_total` et un histogramme **par valeur** dans des `sync.Map` jamais purgées — croissance mémoire non bornée et rendu `/metrics` inexploitable. Le label vient désormais du motif de route résolu par chi (`/v1/articles/{id}`), avec repli borné `/v1/*` pour les chemins non routés. | `TestAuditL34_MetricRouteGroupStaysBounded` (routeur chi réel + middleware réel) | `chemin non routé promu en label de métrique : /v1/scan-aaaaaaaa` (idem `…bbbbbbbb`) |
+| F774 | **`shortcode.Generate` traitait une erreur DB comme une collision** : la boucle `err == nil && !exists` retentait jusqu'à 20 fois. Sur une base lente ou coupée, une création d'article émettait donc **20 requêtes séquentielles** (jusqu'à 10 s de `statement_timeout` chacune) avant de rendre un code non vérifié, pour échouer ensuite à l'INSERT. Seule une collision justifie un nouveau tirage ; une erreur interrompt la boucle immédiatement. | `TestAuditL34_GenerateStopsOnDBError`, `TestAuditL34_GenerateRetriesOnCollision` | `Generate a émis 20 requêtes alors que la base est en erreur (attendu 1)` |
+
+**Correctif structurel, sans rouge isolable** (déclaré comme tel) :
+
+- **F775 — dette de langue et code mort** : la doc de paquet `identity` était en anglais dans un dépôt dont la
+  convention est « commentaires et messages en français » (elle est traduite) ; les constantes `PublicBaseURL` et
+  `StudioBaseURL` de `deeplink` disparaissent avec F771 (plus aucun lecteur), et `publicurl` devient la seule source
+  des origines sortantes (commentaire de `deeplink.Notification` aligné).
+
+**Audités sans défaut retenu** (avec la preuve, pour ne pas les recompter) :
+
+- `logging` — j'ai suspecté que les **614 `log.Printf`** de l'API contournaient la rédaction installée par
+  `logging.InitDefault`. Vérifié par commande dans le worktree (`go run ./cmd/l34repro` : `log.Printf` avec e-mail +
+  `Bearer` après `InitDefault`) : la sortie est déjà `a***@qoe.fi` / `Bearer [REDACTED]`, car `slog.SetDefault`
+  rebranche le package `log` sur le handler. **Aucun changement** — pas de faux positif ajouté.
+- `netguard` — `SafeHTTPClient` bloque les adresses non publiques au dial (`Control`, donc après résolution DNS :
+  rebinding couvert), revalide chaque redirection (3 sauts, borne figée par `TestRedirectsExceeded`), refuse
+  userinfo, zones IPv6 et schémas non web ; `webhooks` et `workers/webhook` l'utilisent réellement
+  (`modules/webhooks/service.go`, `workers/webhook.go`).
+- `observability` (hors F773) — compteurs atomiques, buckets cumulés au scrape, labels échappés, `/metrics` derrière
+  `QOE_INTERNAL_SECRET` en comparaison à temps constant.
+- `canon`/`anchors`/`slug`/`textutil` (hors F770) — offsets en code points, ordinals sans chevauchement, repli de
+  citation borné à 2 mots, `TruncateUTF8` sans coupe de rune, `ShortNumericCode` crypto-sûr.
+- `response` — messages d'erreur génériques (`Internal` ne fuit rien), 413/400 automatiques sur `DecodeJSON`.
+- `umami`/`vectorfeed` — `nil`-sûrs, court-circuités par `resilience.CircuitBreaker`, écritures vectorielles
+  idempotentes (EMA normalisée).
+
+**Migrations** : **aucune nécessaire**. `ExpectedMigrationVersion` reste **95**.
+
+**Tests existants adaptés** : **aucun** — les défauts corrigés n'ont changé aucune signature publique utilisée par
+un test existant (`deeplink.AbsoluteURL` garde ses sorties par défaut, `publicurl.Base` aussi). Les 6 nouveaux
+fichiers de tests du lot sont `audit_l34_test.go` dans `config`, `publicurl`, `canon`, `deeplink`, `dbpool`,
+`shortcode` et `cmd/server`. Aucune assertion de sécurité n'a été assouplie.
+
+**Dettes ouvertes** (numérotation en continuité de R288) :
+
+- **R289 — régénération `sqlc` non vérifiée par un garde** : `internal/database` (38 f. · 22 391 l.) est généré et
+  compilé, mais rien ne prouve qu'il correspond aux 95 migrations à jour — un `.sql.go` périmé passerait la
+  compilation et n'échouerait qu'à l'exécution. Piste : `guard:sqlc` (`sqlc diff` ou régénération + `git diff
+  --exit-code`) dans la CI, avec sqlc épinglé (v1.31.1 aujourd'hui). Hors lot L34 parce qu'il faut installer sqlc
+  dans l'image CI (décision d'infra).
+- **R290 — `anchors.SyncOfficialMarks` fusionne deux marques de même plage** : la table `existing` indexe par
+  `(canonicalStart, canonicalEnd)`, donc deux `<mark>` de plage identique mettent à jour la **même** ligne
+  `Highlight` (la seconde écrase la première). Le choix correct (rejeter, fusionner les notes ou suffixer) est
+  produit ; en attendant, la perte est silencieuse pour l'annotation dupliquée.
+- **R291 — `umami.bearerToken` sérialise les rafraîchissements sous mutex pendant l'appel réseau** : au premier appel
+  après démarrage (ou après 4 h), une rafale de `/v1/analytics/stats` attend un login de 10 s avant de servir. À
+  trancher (singleflight, ou cache négatif) une fois mesuré — aucune perte de données, seulement de la latence en
+  rafale de démarrage.
+- **R292 — domaines de production encore codés en dur hors périmètre** : `workers/email_content.go`
+  (`label + ".qoe.fi"`, liens `https://qoe.fi/support`) et `workers/{legal_notice,legal_review}.go` (replis
+  `https://qoe.fi`, `https://admin.qoe.fi`) restent configurables par variable mais gardent un défaut propriétaire.
+  Le défaut de production est acceptable **tant qu'il est surchargeable** ; à aligner sur `publicurl` au lot L37
+  (transverse) ou lors de la prochaine passe sur `workers`.
+
+**Commandes passées sur l'arbre corrigé** : `gofmt -l .` (dépôt entier) → **0** ; `go build ./...` → 0 ;
+`go vet ./...` → 0 ; `QOE_DB_TESTS_OPTIONAL=1 go test ./...` → **85 paquets `ok`, 0 `FAIL`** (status 0, Postgres de test
+réellement sollicité : migrations goose jusqu'à 95, `requirePool` non sauté) ; workspace : `typecheck`, `lint`,
+`arch:audit`, `audit:guard`, `guard:flags-parity`, `guard:media-origin` → **6 × 0**. Aucun fichier TypeScript touché :
+**vitest non requis** (et non lancé).
 
 ## L33 — `flags` · `adminauthz` · `apiaccess` · `auditlog` — **clos le 2026-11-22**
 

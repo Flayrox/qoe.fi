@@ -1,7 +1,7 @@
-// Package identity exposes the public nature of an account: a physical
-// person (PERSONAL) or a media account (MEDIA). It is the same value consumed
-// by SafeAvatar in the UI, so an avatar's shape always comes from data — never
-// from the surface drawing it.
+// Package identity expose la nature publique d'un compte : une personne
+// physique (PERSONAL) ou un compte média (MEDIA). C'est la même valeur que
+// consomme SafeAvatar côté UI, donc la forme d'un avatar vient toujours de la
+// donnée — jamais de la surface qui le dessine.
 package identity
 
 const (

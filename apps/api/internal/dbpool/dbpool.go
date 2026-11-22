@@ -21,8 +21,14 @@ func New(ctx context.Context, url string, poolSize int32) (*pgxpool.Pool, error)
 		return nil, fmt.Errorf("parse DATABASE_URL: %w", err)
 	}
 
-	cfg.MaxConns = poolSize
-	cfg.MinConns = 2
+	// `PG_POOL_SIZE` peut descendre à 1 sur un VPS à budget de connexions serré :
+	// une réserve d'inactivité fixée à 2 dépasserait alors le maximum du pool
+	// (configuration contradictoire). La réserve suit donc le plafond, et une
+	// valeur nulle/négative laisse le défaut de pgxpool.
+	if poolSize > 0 {
+		cfg.MaxConns = poolSize
+	}
+	cfg.MinConns = min(int32(2), cfg.MaxConns)
 	cfg.MaxConnLifetime = time.Hour
 	cfg.MaxConnIdleTime = 30 * time.Minute
 	// pgxpool gère le health check ; on calibre aussi les timeouts.

@@ -127,7 +127,7 @@ func Load() *Config {
 		SupabaseAuthURL:        resolveSupabaseOrigin(envOr("SUPABASE_AUTH_URL", envOr("NEXT_PUBLIC_SUPABASE_URL", "")), appOrigin),
 		SupabaseURL:            resolveSupabaseOrigin(envOr("SUPABASE_URL", envOr("NEXT_PUBLIC_SUPABASE_URL", "")), appOrigin),
 		SupabaseServiceRoleKey: envOr("SUPABASE_SERVICE_ROLE_KEY", ""),
-		APIKeyRateLimit:        envInt("API_KEY_RATE_LIMIT", 600),
+		APIKeyRateLimit:        envPositiveInt("API_KEY_RATE_LIMIT", 600),
 		JWTSecret:              envOr("SUPABASE_JWT_SECRET", envOr("SUPABASE_SECRET_KEY", "")),
 		RedisURL:               envOr("REDIS_URL", "redis://localhost:6379"),
 		InternalSecret:         envOr("QOE_INTERNAL_SECRET", ""),
@@ -157,23 +157,23 @@ func Load() *Config {
 		EmailFrom:                     envOr("EMAIL_FROM", "noreply@qoe.fi"),
 		LegalPortalBaseURL:            envOr("LEGAL_PORTAL_BASE_URL", "https://qoe.fi"),
 		LegalAdminBaseURL:             envOr("LEGAL_ADMIN_BASE_URL", "https://admin.qoe.fi"),
-		LegalLifecycleIntervalMinutes: envInt("LEGAL_LIFECYCLE_INTERVAL_MINUTES", 15),
+		LegalLifecycleIntervalMinutes: envPositiveInt("LEGAL_LIFECYCLE_INTERVAL_MINUTES", 15),
 		LegalExportSigningKey:         envOr("LEGAL_EXPORT_SIGNING_KEY", ""),
 		SMTPHost:                      envOr("SMTP_HOST", ""),
-		SMTPPort:                      envInt("SMTP_PORT", 587),
+		SMTPPort:                      envPositiveInt("SMTP_PORT", 587),
 		SMTPUser:                      envOr("SMTP_USER", ""),
 		SMTPPass:                      envOr("SMTP_PASS", ""),
 		SMTPSecure:                    boolEnv("SMTP_SECURE"),
 		ResendAPIKey:                  envOr("RESEND_API_KEY", ""),
-		NewsletterRatePerMinute:       envInt("NEWSLETTER_RATE_PER_MINUTE", 30),
+		NewsletterRatePerMinute:       envPositiveInt("NEWSLETTER_RATE_PER_MINUTE", 30),
 		NewsletterUnsubSecret:         envOr("NEWSLETTER_UNSUB_SECRET", ""),
 		// Cycle de vie des médias : CDN public, quota par utilisateur,
 		// cadence du worker de purge et grâce avant suppression définitive.
 		MediaCDNBaseURL:               envOr("MEDIA_CDN_BASE_URL", "https://cdn.qoe.fi"),
-		MediaQuotaBytesPerUser:        envInt64("MEDIA_QUOTA_BYTES", 512<<20),
-		MediaUploadsPerHour:           envInt64("MEDIA_UPLOADS_PER_HOUR", 100),
-		MediaLifecycleIntervalMinutes: envInt("MEDIA_LIFECYCLE_INTERVAL_MINUTES", 60),
-		MediaSoftDeleteGraceDays:      envInt("MEDIA_SOFT_DELETE_GRACE_DAYS", 7),
+		MediaQuotaBytesPerUser:        envPositiveInt64("MEDIA_QUOTA_BYTES", 512<<20),
+		MediaUploadsPerHour:           envNonNegativeInt64("MEDIA_UPLOADS_PER_HOUR", 100),
+		MediaLifecycleIntervalMinutes: envPositiveInt("MEDIA_LIFECYCLE_INTERVAL_MINUTES", 60),
+		MediaSoftDeleteGraceDays:      envPositiveInt("MEDIA_SOFT_DELETE_GRACE_DAYS", 7),
 	}
 }
 
@@ -191,6 +191,37 @@ func envInt(key string, def int) int {
 func envInt64(key string, def int64) int64 {
 	if v := os.Getenv(key); v != "" {
 		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
+			return n
+		}
+	}
+	return def
+}
+
+// envPositiveInt lit une cadence, une borne ou un port : une valeur nulle ou
+// négative n'a aucun sens pour ces réglages et casse l'appelant (`time.NewTicker(0)`
+// panique au démarrage du worker, une grâce de 0 jour purge immédiatement un
+// asset détaché, un quota de 0 octet refuse tous les uploads). On retombe donc
+// sur le défaut documenté au lieu de propager la saisie.
+func envPositiveInt(key string, def int) int {
+	if n := envInt(key, def); n > 0 {
+		return n
+	}
+	return def
+}
+
+// envPositiveInt64 : même règle pour les bornes en octets ou en volumes.
+func envPositiveInt64(key string, def int64) int64 {
+	if n := envInt64(key, def); n > 0 {
+		return n
+	}
+	return def
+}
+
+// envNonNegativeInt64 : bornes où 0 est une valeur documentée (0 = illimité,
+// cf. mediaassets.SetUploadsPerHour) mais où un négatif reste inexploitable.
+func envNonNegativeInt64(key string, def int64) int64 {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n >= 0 {
 			return n
 		}
 	}
