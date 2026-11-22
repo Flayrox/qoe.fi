@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-k `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings` et `media` clos le 2026-11-22 — L29k : 17 défauts F571–F587, dettes R227–R231 ; prochain = `highlights`, 3 f. · 1 050 l. remesuré) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-l `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media` et `highlights` clos le 2026-11-22 — L29l : 12 défauts F588–F599, dettes R232–R235 ; prochain = `home`, 6 f. · 1 015 l. remesuré) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -176,7 +176,13 @@ aucune validation ni contrôle de sous-domaine, escalade vers `owner` et rétrog
 hors allowlist, ré-invitation qui détrône l'owner, lien d'invitation avec rôle `owner`, TOCTOU de `JoinViaInviteLink`,
 liste de liens non bornée et tronquée, quota de clés hors transaction, nom de clé borné en octets, journal muet,
 recherche d'audit non bornée, `CreateMedia` sans validation, `by-publication` sans autorisation), dettes
-**R227–R231**. **Lot suivant de L29, « En cours » : L29l** — `highlights`, **3 f. · 1 050 l.** (remesuré).
+**R227–R231**. **L29l est clos le 2026-11-22** : module `highlights` (**3 f. · 1 182 l.** après correctifs,
+1 050 l. avant ; 9 fichiers de tests), **12 défauts** F588–F599 (PATCH d'autrui en 500, suppressions en 200
+`success:false`, commentaire créé mais invisible annoncé en 201 vide, réglage `allowPublicAnnotations` jamais lu,
+liste publique non bornée, **paywall contourné par `/v1/bookmarks`**, offset non borné, `quoteOrdinal` non borné
+côté service, upvote non atomique, forme tronquée après PATCH, erreurs d'ancre/moteur vectoriel avalées, surface
+morte et tri non déterministe), dettes **R232–R235**. **Lot suivant de L29, « En cours » : L29m** — `home`,
+**6 f. · 1 015 l.** (remesuré).
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2155,6 +2161,79 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L29l — `apps/api/internal/modules/highlights/**` — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l` sur l'arbre courant) : **3 fichiers de production · 1 050 l.** —
+`service 608`, `handler 408`, `querier 34` — identique au décompte annoncé. Tous lus intégralement, ainsi que les
+appelants réels : `cmd/server` (`RegisterPublic` sous `OptionalAuth` — lecture publique d'un article —,
+`RegisterProtected` dans `CombinedAuth`, corps limité à 256 Ko), `cmd/worker` (aucun job), les clients
+(`apps/core` `(reader)/library/page.tsx` → `/v1/bookmarks?limit=100` + `/v1/me/highlights` + `/count`,
+`packages/sdk` `BookmarkItem`, `apps/mobile` bibliothèque), les contrats SQL (`sql/queries/highlights.sql`,
+`ListBookmarksByReader` de `creator.sql`), les schémas (`Highlight` + `quoteOrdinal` `00002`, ancres canoniques
+`00010`, `AnnotationComment`/`AnnotationUpvote` avec `ON DELETE CASCADE`), `Article.allowPublicAnnotations`
+(réglage studio), `permissions.*` (aucune permission média ici : tout est dérivé du jeton) et
+`ExpectedMigrationVersion = 95` (aucune migration : le lot n'en a pas besoin). Requêtes régénérées par `sqlc`
+(l'outil est disponible ; diff limité à 3 fichiers générés). Après correctifs le module pèse **3 f. · 1 182 l.**
+(9 fichiers de tests, dont `audit_l29l_test.go` : 11 tests).
+
+**Frontières vérifiées, pas de doublon** : `highlights` porte l'annotation **du lecteur** sur un article lu
+(`Highlight.readerId` = compte, jamais une publication), ses commentaires et upvotes, plus la bibliothèque du
+lecteur (surlignages + signets). `media`/`mediaassets` portent les médias d'une organisation et le stockage —
+aucune image ici ; `posts` porte les pensées (pas d'annotation) ; `users` l'identité affichée (l'auteur est lu par
+jointure `User`, jamais dupliqué) ; `articles` la visibilité/paywall — réutilisé tel quel (`SliceContentAtPaywall`,
+comme `feed`/`publishers`/`search`/`ai`) au lieu d'être réimplémenté ; `authz` n'est pas requis (pas de rôle
+média) : la visibilité est celle de l'article (`CanViewArticle`) + blocage symétrique. Un highlight **expiré**
+n'existe pas (pas de TTL produit, cf. R234) ; un highlight privé n'est visible que par son auteur, un highlight
+d'un compte bloqué ne remonte jamais, et un highlight public d'un article dont l'auteur a coupé les annotations
+publiques n'est plus servi (F591).
+
+**12 défauts corrigés** F588–F599. Les rouges cités sont des sorties réellement exécutées : la suite `TestAuditL29L_*`
+a été lancée contre un worktree à `HEAD` (`git worktree add -f /tmp/qoe-l29l-red HEAD`) puis contre l'arbre corrigé,
+sur Postgres (testcontainers `pgvector/pgvector:pg16`, 95 migrations rejouées).
+
+| # | Défaut | Preuve (test) | Rouge constaté | Commit |
+|---|---|---|---|---|
+| F588 | `PATCH /v1/highlights/{id}` : id inconnu ou surlignage d'autrui → **500** (erreur non typée) au lieu de 404. | `TestAuditL29L_UpdateForeignHighlightIs404`. | `patch autrui = 500, attendu 404 (body {"error":"Internal Server Error"})` | `fix(highlights)` |
+| F589 | `DELETE /v1/highlights/{id}` et `/comments/{id}` répondaient **200 `{"success":false}`** quand rien n'était supprimé (id inconnu ou d'autrui) : le client affichait une suppression réussie. 404 explicite. | `TestAuditL29L_DeleteForeignIs404`, `TestAuditL29L_DeleteForeignCommentIs404`. | `delete autrui = 200, attendu 404 (body {"success":false})` · `delete comment autrui = 200, attendu 404` | `fix(highlights)` |
+| F590 | `CreateComment` répondait **201 avec un objet vide** et `nil` quand la relecture ne retrouvait pas le commentaire (blocage ou visibilité changée entre-temps) : succès annoncé, rien d'affichable. Erreur remontée. | `TestAuditL29L_CreateCommentDoesNotLie`. | `CreateComment = {ID: Content: ... Type:}}, attendu une erreur (commentaire invisible)` | `fix(highlights)` |
+| F591 | Le réglage **`Article.allowPublicAnnotations`** (interrupteur studio) n'était **jamais lu** : création d'annotations publiques et lecture des annotations publiques d'autrui même quand l'auteur les refuse. Refus 403 à la création, filtrage des listes (le privé reste permis). | `TestAuditL29L_PublicAnnotationsFollowArticleSetting`. | `surlignage public "hl_before_toggle" visible malgré le réglage de l'auteur` | `fix(highlights)` |
+| F592 | `ListHighlightsByArticle` **sans `LIMIT`** : un article très annoté renvoyait toute la table (plus un `COUNT` de commentaires par ligne). Page bornée à 200. | `TestAuditL29L_ListByArticleIsBounded`. | `250 surlignages retournés, borne 200 non appliquée` | `fix(highlights)` |
+| F593 | **Bibliothèque : contournement du paywall.** `/v1/bookmarks` servait le HTML **complet** d'un article `PAID_SUBSCRIBERS` à un lecteur non abonné (et `apps/core/library` le rend). Contenu coupé par `articles.SliceContentAtPaywall`, entitlements calculés une fois par publication de la page. | `TestAuditL29L_BookmarksApplyPaywall`. | `contenu payant servi en clair: "<p>intro</p><p>deux</p><!--paywall--><p>secret payant</p>"` | `fix(highlights)` |
+| F594 | `parseLimitOffset` bornait `limit` mais **pas `offset`** : pagination profonde arbitraire acceptée (offset quadratique en SQL). Borne 10 000, partagée avec le service. | `TestAuditL29L_ParseLimitOffsetClamps`. | `offset = 999999999, borne non appliquée` | `fix(highlights)` |
+| F595 | `quoteOrdinal` n'était borné que dans le handler : un appel direct au service écrivait un ordinal arbitraire. Borne 1000 côté service. | `TestAuditL29L_QuoteOrdinalBoundedInService`. | `quoteOrdinal=100000 accepté par le service` | `fix(highlights)` |
+| F596 | `ToggleUpvote` faisait **trois requêtes hors transaction** (INSERT `ON CONFLICT DO NOTHING`, puis DELETE si conflit, puis COUNT) : deux taps concurrents pouvaient s'annuler et l'état renvoyé ne correspondait pas à la base. Transaction unique + `SELECT … FOR UPDATE` sur le surlignage, existence lue et compteur dans la même transaction. | `TestAuditL29L_ToggleUpvoteState` (invariant séquentiel) | — (structurel : la course demande une intercalation concurrente non déterministe) | `fix(highlights)` |
+| F597 | `PATCH` renvoyait une **forme tronquée** (sans `quoteOrdinal`, ni ancres canoniques, ni compteur de commentaires) alors que `POST`/`GET` les renvoient : le client perdait l'ancre après une modification de note. Mapper unique (`highlightDTO`). | `TestAuditL29L_UpdateReturnsFullShape`. | `quoteOrdinal après PATCH = 0, perdu par la forme tronquée` | `fix(highlights)` |
+| F598 | Erreurs avalées : `resolveAnchor` (`QueryRow` sur le contenu de l'article) et `vectorfeed.ApplyInteraction` ignoraient toute erreur — une panne ressemblait à « ancre introuvable ». Journalisées (le repli documenté reste). | Relecture | — (structurel) | `fix(highlights)` |
+| F599 | Surface morte : `CountHighlightUpvotes`/`DeleteHighlightUpvote`/`ToggleHighlightUpvote` restaient dans l'interface interne alors que l'upvote est désormais transactionnel (requêtes SQL conservées pour les autres consommateurs) ; ordre des listes non déterministe (`ORDER BY createdAt` seul, doublons possibles à la milliseconde) → tie-break `id`. | `go vet` + relecture | — (structurel) | `fix(highlights)` |
+
+**Dettes ouvertes, sans faux correctif** (numérotation en continuité de R231) :
+
+- **R232 — quota de surlignages incohérent avec l'UI** : `HighlightQuota` renvoie toujours `limit = -1`
+  (illimité, décision actée par `TestHighlightQuota_Unlimited`) alors que `apps/core` affiche « X/50 » et un
+  upsell Plus (`highlightQuota`), et que le commentaire d'origine décrivait « 50 gratuits ». Le produit doit
+  trancher : soit l'illimité est la règle et l'UI doit être corrigée, soit le plafond revient et `limit`/403
+  doivent être implémentés. Preuve : `TestHighlightQuota_Unlimited` (50 surlignages, 51e accepté).
+- **R233 — identité des annotations toujours `PERSONAL`** : `authorFrom` force `identity.Personal` pour tout
+  annotateur/commentateur, y compris un membre d'un média (test `TestAuthorFromCarriesIdentityType` le fige).
+  Le commentaire d'origine prétendait dériver le type de la membership média active. Décision produit : une
+  annotation est-elle une voix personnelle (comportement actuel) ou peut-elle être signée par le média ?
+  Option recommandée : garder `PERSONAL` (déjà testé) et ne pas exposer les médias dans les annotations.
+- **R234 — aucun plafond produit par article ni par surlignage** : la liste publique est bornée (F592), mais un
+  compte peut créer un nombre illimité de surlignages par article et de commentaires par surlignage (pas de
+  limite en base ni en service), et il n'existe **aucune expiration/purge** des annotations (pas de TTL produit,
+  contrairement à R232 qui parle du quota lecteur). Option recommandée : plafonds explicites (ex. 20 commentaires
+  par surlignage, 200 surlignages par article et par compte) avec 429/409 clairs, et purge des annotations des
+  articles dépubliés au-delà de N mois.
+- **R235 — pas de modération des annotations** : aucun signalement (`Report`) ni masquage staff sur `Highlight`
+  ou `AnnotationComment` ; la seule protection est la visibilité + le blocage symétrique. Option recommandée :
+  brancher l'outil de signalement existant (`posts`/`articles`) sur `Highlight`/`AnnotationComment` et exposer
+  une file de modération admin, avec `isHidden` lu par les listes.
+
+**Commandes passées sur l'arbre corrigé** : `gofmt -l internal/modules/highlights/` → vide ; `go build ./...` → 0 ;
+`go vet ./internal/...` → 0 ; `QOE_DB_TESTS_OPTIONAL=1 go test` sur `highlights`, `media`, `mediaassets`, `posts`,
+`users`, `creator`, `settings`, `authz`, `middleware`, `cmd/server`, `cmd/worker` → **11 paquets `ok`** (base
+réelle) ; batterie workspace 13 commandes → **13 × 0**.
 
 ## L29k — `apps/api/internal/modules/media/**` — **clos le 2026-11-22**
 
