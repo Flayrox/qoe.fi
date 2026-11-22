@@ -3,6 +3,7 @@ package posts
 import (
 	"context"
 	"errors"
+	"log"
 	"regexp"
 
 	"github.com/jackc/pgx/v5"
@@ -61,14 +62,21 @@ func notifyMentionsInContent(ctx context.Context, tq db.Querier, content, postID
 	}
 	users, err := tq.GetUsersByUsernames(ctx, usernames)
 	if err != nil {
+		log.Printf("[posts] mention recipients: %v", err)
 		return
 	}
 	for _, u := range users {
 		blocked, err := isBlockedBetween(ctx, tq, senderID, u.UserID)
-		if err != nil || blocked {
+		if err != nil {
+			log.Printf("[posts] mention block check: %v", err)
 			continue
 		}
-		_ = createReplyNotification(ctx, tq, "MENTION", u.UserID, senderID, postID)
+		if blocked {
+			continue
+		}
+		if err := createReplyNotification(ctx, tq, "MENTION", u.UserID, senderID, postID); err != nil {
+			log.Printf("[posts] mention notification: %v", err)
+		}
 	}
 }
 

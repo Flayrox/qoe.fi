@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -37,6 +38,11 @@ var errThoughtNotFound = errors.New("post introuvable")
 // comptes a bloqué l'autre. Les handlers la traduisent en 403.
 var ErrBlockedContent = errors.New("contenu bloqué")
 
+// ErrTargetNotFound signale une cible d'engagement introuvable (pensée ou
+// article inexistant, ou article non publié). Les handlers la traduisent en
+// 404 : un identifiant inconnu n'est pas une panne serveur.
+var ErrTargetNotFound = errors.New("cible introuvable")
+
 // Author est l'auteur dénormalisé d'une pensée.
 type Author struct {
 	ID          string  `json:"id"`
@@ -64,57 +70,61 @@ func NewService(pool *pgxpool.Pool, rc *redis.Client, ac *asynq.Client) *Service
 	return &Service{pool: pool, q: &realQueryer{Queries: db.New(pool)}, rc: rc, ac: ac}
 }
 
+// withTx exécute fn dans une transaction et commite seulement si fn réussit.
+// Un Service monté sans pool (uniquement les doubles de test HTTP qui
+// remplacent entièrement le queryer et ne touchent aucune base) exécute fn
+// sur le queryer direct.
+func (s *Service) withTx(ctx context.Context, fn func(q ServiceQuerier) error) error {
+	if s.pool == nil {
+		return fn(s.q)
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if err := fn(s.q.WithTx(tx)); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// withReadTx exécute fn dans une transaction en lecture seule et en
+// REPEATABLE READ : toutes les lectures voient le même instantané.
+func (s *Service) withReadTx(ctx context.Context, fn func(q ServiceQuerier) error) error {
+	if s.pool == nil {
+		return fn(s.q)
+	}
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if err := fn(s.q.WithTx(tx)); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
 // invalidateFeedCaches invalide les caches Redis du feed (miroir TS).
 func (s *Service) invalidateFeedCaches(ctx context.Context, authorID string) {
 	cache.InvalidateNamespaces(ctx, s.rc, "feed:trending:", "feed:following:"+authorID+":")
 }
 
-// Create crée une pensée (ou une réponse si parentID fourni).
+// Create crée une pensée (ou une réponse si parentID fourni). Chemin de
+// compatibilité : il délègue à CreateFull pour qu'il n'existe qu'UNE règle de
+// création (contrôle de blocage, transaction, validation) — l'ancien chemin
+// écrivait sans garde de blocage ni transaction.
 func (s *Service) Create(ctx context.Context, authorID, content string, tags []string, parentID, repostID *string) (FeedPost, error) {
-	if content == "" && repostID == nil {
+	if strings.TrimSpace(content) == "" && (repostID == nil || strings.TrimSpace(*repostID) == "") {
 		return FeedPost{}, errors.New("contenu requis")
 	}
-
-	var parentText, rootText, repostText pgtype.Text
-	if parentID != nil {
-		parentText = pgtype.Text{String: *parentID, Valid: true}
-		// rootId = pensée de base du fil (racine de la chaîne parent).
-		root, _ := s.q.GetThreadRootID(ctx, *parentID)
-		if root != "" {
-			rootText = pgtype.Text{String: root, Valid: true}
-		}
-	}
-	if repostID != nil {
-		repostText = pgtype.Text{String: *repostID, Valid: true}
-	}
-
-	created, err := s.q.CreateThought(ctx, db.CreateThoughtParams{
-		Content:           content,
-		AuthorId:          authorID,
-		Tags:              tags,
-		ImageUrl:          pgtype.Text{},
-		Visibility:        "public",
-		ContentVisibility: db.ContentVisibilityPUBLIC,
-		IsDraft:           false,
-		ScheduledAt:       pgtype.Timestamp{},
-		TriggerWarning:    pgtype.Text{},
-		ParentId:          parentText,
-		RootId:            rootText,
-		RepostId:          repostText,
-		ReplyRestriction:  "everyone",
+	return s.CreateFull(ctx, authorID, CreateFullInput{
+		Content:  content,
+		Tags:     tags,
+		ParentID: parentID,
+		RepostID: repostID,
 	})
-	if err != nil {
-		return FeedPost{}, err
-	}
-
-	if parentID != nil {
-		if err := s.q.IncrementReplyCount(ctx, *parentID); err != nil {
-			return FeedPost{}, err
-		}
-	}
-
-	s.invalidateFeedCaches(ctx, authorID)
-	return s.Get(ctx, created.ID, authorID)
 }
 
 // Reply crée une réponse après contrôle du threadgate, avec notifications
@@ -290,8 +300,7 @@ func (s *Service) ToggleLike(ctx context.Context, postID, userID string) (bool, 
 		return false, tx.Commit(ctx)
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
-		_ = tx.Rollback(ctx)
-		return s.toggleArticleLike(ctx, postID, userID)
+		return false, err
 	}
 
 	// Un like ne s'ajoute jamais sur le contenu d'un compte bloqué (dans un
@@ -393,13 +402,26 @@ func (s *Service) SitemapThoughts(ctx context.Context, limit, offset int) (Sitem
 	if offset < 0 {
 		offset = 0
 	}
-	total, err := s.q.CountSitemapPosts(ctx)
-	if err != nil {
-		return SitemapThoughtsResult{}, err
-	}
-	rows, err := s.q.ListSitemapPosts(ctx, db.ListSitemapPostsParams{
-		Limit:  int32(limit),
-		Offset: int32(offset),
+	// Total et page dans le MÊME instantané : sinon un sitemap pouvait
+	// annoncer N entrées et n'en livrer N±k.
+	var (
+		total int64
+		rows  []db.ListSitemapPostsRow
+	)
+	err := s.withReadTx(ctx, func(q ServiceQuerier) error {
+		t, err := q.CountSitemapPosts(ctx)
+		if err != nil {
+			return err
+		}
+		r, err := q.ListSitemapPosts(ctx, db.ListSitemapPostsParams{
+			Limit:  int32(limit),
+			Offset: int32(offset),
+		})
+		if err != nil {
+			return err
+		}
+		total, rows = t, r
+		return nil
 	})
 	if err != nil {
 		return SitemapThoughtsResult{}, err
@@ -475,13 +497,27 @@ func (s *Service) ToggleRepost(ctx context.Context, postID, userID string) (bool
 	return true, tx.Commit(ctx)
 }
 
-func (s *Service) toggleArticleRepost(ctx context.Context, articleID, userID string) (bool, error) {
-	var articleAuthorID string
-	err := s.pool.QueryRow(ctx, `SELECT "authorId"::text FROM "Article" WHERE id = $1`, articleID).Scan(&articleAuthorID)
+// articleAuthorForEngagement résout l'auteur d'un article PUBLIÉ. Un article
+// en brouillon ou programmé n'est pas une cible d'engagement publique : il ne
+// doit ni recevoir de like/repost ni notifier son auteur (et son identifiant
+// ne doit pas être confirmé à un tiers).
+func (s *Service) articleAuthorForEngagement(ctx context.Context, articleID string) (string, error) {
+	var authorID string
+	err := s.pool.QueryRow(ctx,
+		`SELECT "authorId"::text FROM "Article"
+		 WHERE id = $1 AND published = true AND status = 'PUBLISHED'`, articleID).Scan(&authorID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return false, fmt.Errorf("article introuvable: %s", articleID)
+			return "", ErrTargetNotFound
 		}
+		return "", err
+	}
+	return authorID, nil
+}
+
+func (s *Service) toggleArticleRepost(ctx context.Context, articleID, userID string) (bool, error) {
+	articleAuthorID, err := s.articleAuthorForEngagement(ctx, articleID)
+	if err != nil {
 		return false, err
 	}
 
@@ -493,11 +529,12 @@ func (s *Service) toggleArticleRepost(ctx context.Context, articleID, userID str
 	`, userID, articleID).Scan(&existingPostID)
 
 	if err == nil && existingPostID != "" {
-		_, delErr := s.pool.Exec(ctx, `DELETE FROM "Post" WHERE id = $1`, existingPostID)
-		if delErr != nil {
+		if _, delErr := s.pool.Exec(ctx, `DELETE FROM "Post" WHERE id = $1`, existingPostID); delErr != nil {
 			return false, delErr
 		}
-		_ = s.deleteArticleEngagementNotification(ctx, "REPOST", articleID, userID)
+		if delErr := s.deleteArticleEngagementNotification(ctx, "REPOST", articleID, userID); delErr != nil {
+			log.Printf("[posts] article repost notification: %v", delErr)
+		}
 		return false, nil
 	}
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
@@ -539,12 +576,8 @@ func (s *Service) toggleArticleRepost(ctx context.Context, articleID, userID str
 }
 
 func (s *Service) toggleArticleLike(ctx context.Context, articleID, userID string) (bool, error) {
-	var articleAuthorID string
-	err := s.pool.QueryRow(ctx, `SELECT "authorId"::text FROM "Article" WHERE id = $1`, articleID).Scan(&articleAuthorID)
+	articleAuthorID, err := s.articleAuthorForEngagement(ctx, articleID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return false, fmt.Errorf("article introuvable: %s", articleID)
-		}
 		return false, err
 	}
 
@@ -557,8 +590,13 @@ func (s *Service) toggleArticleLike(ctx context.Context, articleID, userID strin
 	`, userUUID, articleID).Scan(&feedbackID)
 
 	if err == nil && feedbackID != "" {
-		_, _ = s.pool.Exec(ctx, `DELETE FROM "ContentFeedback" WHERE id = $1`, feedbackID)
-		_ = s.deleteArticleEngagementNotification(ctx, "LIKE", articleID, userID)
+		if _, delErr := s.pool.Exec(ctx, `DELETE FROM "ContentFeedback" WHERE id = $1`, feedbackID); delErr != nil {
+			// Ne jamais annoncer « unlike » quand la ligne est toujours là.
+			return false, delErr
+		}
+		if delErr := s.deleteArticleEngagementNotification(ctx, "LIKE", articleID, userID); delErr != nil {
+			log.Printf("[posts] article like notification: %v", delErr)
+		}
 		return false, nil
 	}
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
@@ -622,7 +660,18 @@ func isUniqueViolation(err error) bool {
 
 // ToggleBookmark ajoute ou retire un bookmark (miroir Hono : targetId = articleId).
 func (s *Service) ToggleBookmark(ctx context.Context, targetID, userID string) (bool, error) {
-	_, err := s.q.GetExistingBookmark(ctx, db.GetExistingBookmarkParams{ReaderId: toUUID(userID), ArticleId: targetID})
+	// L'article doit exister : sans ce contrôle, l'INSERT violait la clé
+	// étrangère et répondait 500 sur un identifiant inconnu.
+	var exists int
+	err := s.pool.QueryRow(ctx, `SELECT 1 FROM "Article" WHERE id = $1`, targetID).Scan(&exists)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, ErrTargetNotFound
+		}
+		return false, err
+	}
+
+	_, err = s.q.GetExistingBookmark(ctx, db.GetExistingBookmarkParams{ReaderId: toUUID(userID), ArticleId: targetID})
 	if err == nil {
 		if err := s.q.DeleteBookmark(ctx, db.DeleteBookmarkParams{ReaderId: toUUID(userID), ArticleId: targetID}); err != nil {
 			return false, err
@@ -664,15 +713,26 @@ func (s *Service) applyArticleVector(ctx context.Context, articleID, userID stri
 // (idempotent : changer d'option remplace le vote). Renvoie le sondage
 // reformaté (avec les nouveaux scores) pour mise à jour du client.
 func (s *Service) VotePoll(ctx context.Context, thoughtID, optionID, userID string) (*Poll, error) {
-	// Le sondage doit exister pour cette pensée.
+	// Le sondage doit exister pour cette pensée (une panne DB reste une panne,
+	// elle n'est pas déguisée en « sondage introuvable »).
 	poll, err := s.q.GetPollByThoughtID(ctx, thoughtID)
 	if err != nil {
-		return nil, errors.New("sondage introuvable")
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.New("sondage introuvable")
+		}
+		return nil, err
+	}
+	// Un scrutin clos ne se joue plus : `isExpired` n'était qu'un affichage.
+	if poll.ExpiresAt.Valid && time.Now().After(poll.ExpiresAt.Time) {
+		return nil, errors.New("sondage terminé")
 	}
 	// L'option doit appartenir au sondage.
 	opt, err := s.q.GetPollOptionByID(ctx, optionID)
 	if err != nil {
-		return nil, errors.New("option introuvable")
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.New("option introuvable")
+		}
+		return nil, err
 	}
 	if opt.PollId != poll.ID {
 		return nil, errors.New("option ne correspond pas au sondage")
@@ -693,7 +753,10 @@ func (s *Service) VotePoll(ctx context.Context, thoughtID, optionID, userID stri
 func (s *Service) UnvotePoll(ctx context.Context, thoughtID, userID string) (*Poll, error) {
 	poll, err := s.q.GetPollByThoughtID(ctx, thoughtID)
 	if err != nil {
-		return nil, errors.New("sondage introuvable")
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.New("sondage introuvable")
+		}
+		return nil, err
 	}
 	if err := s.q.DeletePollVote(ctx, db.DeletePollVoteParams{
 		PollId: poll.ID,
@@ -940,9 +1003,44 @@ func (s *Service) ToggleMute(ctx context.Context, targetID, userID string) (bool
 // Report crée un signalement de modération (ModerationReport).
 // Idempotent : un même reporter ne peut signaler qu'une fois une cible tant
 // que son signalement est pending (index unique partiel en base + garde ici).
+// reportTargetExists valide le vocabulaire des signalements et l'existence
+// de la cible. Sans cela, n'importe quelle chaîne entrait dans la file de
+// modération (types inconnus, identifiants fantômes) et la triage staff
+// héritait de dossiers invérifiables.
+func (s *Service) reportTargetExists(ctx context.Context, targetType, targetID string) (bool, error) {
+	var query string
+	switch strings.ToLower(strings.TrimSpace(targetType)) {
+	case "thought", "post":
+		query = `SELECT 1 FROM "Post" WHERE id = $1 AND "deletedAt" IS NULL`
+	case "article":
+		query = `SELECT 1 FROM "Article" WHERE id = $1`
+	case "user":
+		query = `SELECT 1 FROM "User" WHERE id::text = $1`
+	case "comment":
+		query = `SELECT 1 FROM "ArticleComment" WHERE id = $1`
+	default:
+		return false, errors.New("targetType invalide (thought, article, user, comment)")
+	}
+	var one int
+	if err := s.pool.QueryRow(ctx, query, targetID).Scan(&one); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
 func (s *Service) Report(ctx context.Context, userID, targetID, targetType, reason, details string) error {
 	if targetID == "" || targetType == "" || reason == "" {
 		return errors.New("targetId, targetType et reason requis")
+	}
+	exists, err := s.reportTargetExists(ctx, targetType, targetID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return ErrTargetNotFound
 	}
 	count, err := s.q.CountPendingReportsByReporter(ctx, db.CountPendingReportsByReporterParams{
 		ReporterId: toUUID(userID),
@@ -996,36 +1094,83 @@ func (s *Service) Report(ctx context.Context, userID, targetID, targetType, reas
 	return nil
 }
 
-// Delete supprime (soft delete) une pensée de l'auteur.
+// Delete supprime (soft delete) une pensée de l'auteur. Les compteurs du
+// parent (réponse) et de la cible (repost pur) sont ajustés dans la MÊME
+// transaction : sans cela, supprimer une réponse laissait `replyCount` du
+// parent définitivement gonflé, et le feed restait servi par le cache.
 func (s *Service) Delete(ctx context.Context, postID, userID string) error {
-	_, err := s.q.SoftDeletePost(ctx, db.SoftDeletePostParams{
-		ID:       postID,
-		AuthorId: userID,
+	err := s.withTx(ctx, func(tq ServiceQuerier) error {
+		row, err := tq.GetThoughtByID(ctx, postID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return errThoughtNotFound
+			}
+			return err
+		}
+		if row.AuthorId != userID {
+			// Ne pas confirmer l'existence d'une pensée d'autrui.
+			return errThoughtNotFound
+		}
+
+		if _, err := tq.SoftDeletePost(ctx, db.SoftDeletePostParams{ID: postID, AuthorId: userID}); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return errThoughtNotFound
+			}
+			return err
+		}
+		if row.ParentId.Valid && row.ParentId.String != "" {
+			if err := tq.DecrementReplyCount(ctx, row.ParentId.String); err != nil {
+				return err
+			}
+		}
+		if row.RepostId.Valid && row.RepostId.String != "" && strings.TrimSpace(row.Content) == "" {
+			if err := tq.DecrementRepostCount(ctx, row.RepostId.String); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return errThoughtNotFound
+	if err != nil {
+		return err
 	}
-	return err
+
+	s.invalidateFeedCaches(ctx, userID)
+	return nil
 }
 
 // TogglePin épingle/désépingle une pensée sur le profil de l'auteur.
 // Épingler efface les épingles précédentes (un seul épinglé à la fois).
 func (s *Service) TogglePin(ctx context.Context, postID, userID string) (bool, error) {
-	row, err := s.q.GetThoughtByID(ctx, postID)
+	var pinned bool
+	err := s.withTx(ctx, func(tq ServiceQuerier) error {
+		row, err := tq.GetThoughtByID(ctx, postID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return errThoughtNotFound
+			}
+			return err
+		}
+		if row.AuthorId != userID {
+			// Même réponse qu'une pensée inexistante : ne pas révéler l'existence.
+			return errThoughtNotFound
+		}
+
+		if row.IsPinned {
+			pinned, err = tq.UnpinPost(ctx, db.UnpinPostParams{ID: postID, AuthorId: userID})
+			return err
+		}
+		// Un seul épinglé par profil, atomiquement : un échec du pin ne doit
+		// pas laisser le profil sans aucune épingle.
+		if err := tq.ClearPinnedPosts(ctx, userID); err != nil {
+			return err
+		}
+		pinned, err = tq.PinPost(ctx, db.PinPostParams{ID: postID, AuthorId: userID})
+		return err
+	})
 	if err != nil {
-		return false, errThoughtNotFound
-	}
-	if row.AuthorId != userID {
-		return false, errors.New("seul l'auteur peut épingler")
-	}
-	if row.IsPinned {
-		return s.q.UnpinPost(ctx, db.UnpinPostParams{ID: postID, AuthorId: userID})
-	}
-	// Un seul épinglé par profil : on désépingle tout puis on épingle.
-	if err := s.q.ClearPinnedPosts(ctx, userID); err != nil {
 		return false, err
 	}
-	return s.q.PinPost(ctx, db.PinPostParams{ID: postID, AuthorId: userID})
+	return pinned, nil
 }
 
 // DraftItem — brouillon de pensée (contrat web getUserDraftsAction).
@@ -1078,7 +1223,7 @@ func (s *Service) ToggleHideReply(ctx context.Context, replyID, userID string) (
 	hidden, err := s.q.HidePostByAuthor(ctx, db.HidePostByAuthorParams{ID: replyID, AuthorId: userID})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return false, errors.New("réponse introuvable ou non autorisée")
+			return false, errThoughtNotFound
 		}
 		return false, err
 	}

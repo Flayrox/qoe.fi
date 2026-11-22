@@ -102,13 +102,13 @@ type QuoteContext struct {
 
 // QuotedArticle est l'article cité par une pensée.
 type QuotedArticle struct {
-	ID           string            `json:"id"`
-	Title        string            `json:"title"`
-	Slug         string            `json:"slug"`
-	IsPremium    bool              `json:"isPremium"`
-	QuoteContext *QuoteContext     `json:"quoteContext,omitempty"`
-	Publisher  QuotedPublisher `json:"publisher"`
-	Author       QuotedAuthor      `json:"author"`
+	ID           string          `json:"id"`
+	Title        string          `json:"title"`
+	Slug         string          `json:"slug"`
+	IsPremium    bool            `json:"isPremium"`
+	QuoteContext *QuoteContext   `json:"quoteContext,omitempty"`
+	Publisher    QuotedPublisher `json:"publisher"`
+	Author       QuotedAuthor    `json:"author"`
 }
 
 // QuotedAnnotationReader est l'auteur de l'annotation citée.

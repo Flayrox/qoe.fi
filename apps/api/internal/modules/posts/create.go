@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"regexp"
 	"strings"
 	"time"
@@ -72,11 +73,66 @@ func validateContentLen(content string) error {
 	return nil
 }
 
+// replyRestrictions est le vocabulaire fermé des threadgates. Un client qui
+// envoie autre chose obtenait un threadgate « everyone » silencieux : on
+// refuse plutôt que d'ouvrir la conversation par accident.
+var replyRestrictions = map[string]bool{
+	"everyone": true, "subscribers": true, "following": true, "mentioned": true,
+}
+
+func normalizeReplyRestriction(v string) (string, error) {
+	if v == "" {
+		return "everyone", nil
+	}
+	if !replyRestrictions[v] {
+		return "", errors.New("replyRestriction invalide (everyone, subscribers, following, mentioned)")
+	}
+	return v, nil
+}
+
 // CreateFull crée une pensée complète : validation, insert, pièces jointes,
-// sondage éventuel et invalidation du cache feed.
+// sondage éventuel et invalidation du cache feed. Tout ce qui constitue la
+// pensée est écrit dans UNE transaction : un échec de pièce jointe ou de
+// sondage ne laisse jamais une pensée partielle derrière lui.
 func (s *Service) CreateFull(ctx context.Context, authorID string, in CreateFullInput) (FeedPost, error) {
+	if strings.TrimSpace(in.Content) == "" && (in.RepostID == nil || strings.TrimSpace(*in.RepostID) == "") {
+		return FeedPost{}, errors.New("Le contenu est requis.")
+	}
 	if err := validateContentLen(in.Content); err != nil {
 		return FeedPost{}, err
+	}
+	restriction, err := normalizeReplyRestriction(in.ReplyRestriction)
+	if err != nil {
+		return FeedPost{}, err
+	}
+
+	// Sondage validé AVANT toute écriture : un sondage à moins de deux options
+	// réelles n'existe pas (sinon on persistait un scrutin vide).
+	var pollOptions []string
+	pollDuration := 24
+	if in.Poll != nil {
+		if len(in.Poll.Options) > 6 {
+			return FeedPost{}, errors.New("Un sondage ne peut pas dépasser 6 options.")
+		}
+		for _, o := range in.Poll.Options {
+			opt := strings.TrimSpace(o)
+			if opt == "" {
+				continue
+			}
+			if utf8.RuneCountInString(opt) > 100 {
+				return FeedPost{}, errors.New("Une option de sondage ne peut pas dépasser 100 caractères.")
+			}
+			pollOptions = append(pollOptions, opt)
+		}
+		if len(pollOptions) < 2 {
+			return FeedPost{}, errors.New("Un sondage doit proposer au moins deux options.")
+		}
+		if in.Poll.DurationHours > 0 {
+			pollDuration = in.Poll.DurationHours
+		}
+		if pollDuration > 24*30 {
+			return FeedPost{}, errors.New("La durée d'un sondage ne peut pas dépasser 30 jours.")
+		}
 	}
 
 	tags := in.Tags
@@ -105,7 +161,14 @@ func (s *Service) CreateFull(ctx context.Context, authorID string, in CreateFull
 		parentText = pgtype.Text{String: *in.ParentID, Valid: true}
 		// rootId = pensée de base du fil (racine de la chaîne parent), pas le
 		// parent direct : les réponses restent rattachées au fil d'origine.
-		if root, err := s.q.GetThreadRootID(ctx, *in.ParentID); err == nil && root != "" {
+		root, err := s.q.GetThreadRootID(ctx, *in.ParentID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return FeedPost{}, errors.New("POST_NOT_FOUND")
+			}
+			return FeedPost{}, err
+		}
+		if root != "" {
 			rootText = pgtype.Text{String: root, Valid: true}
 		}
 	}
@@ -125,10 +188,6 @@ func (s *Service) CreateFull(ctx context.Context, authorID string, in CreateFull
 			return FeedPost{}, ErrBlockedContent
 		}
 		repostText = pgtype.Text{String: *in.RepostID, Valid: true}
-	}
-	restriction := in.ReplyRestriction
-	if restriction == "" {
-		restriction = "everyone"
 	}
 	imageUrl := pgtype.Text{}
 	if in.ImageURL != nil && *in.ImageURL != "" {
@@ -189,77 +248,77 @@ func (s *Service) CreateFull(ctx context.Context, authorID string, in CreateFull
 		quotedExcerpt = pgtype.Text{String: highlight.Text, Valid: highlight.Text != ""}
 	}
 
-	created, err := s.q.CreateThought(ctx, db.CreateThoughtParams{
-		Content:           in.Content,
-		AuthorId:          authorID,
-		Tags:              tags,
-		ImageUrl:          imageUrl,
-		Visibility:        "public",
-		ContentVisibility: db.ContentVisibilityPUBLIC,
-		IsDraft:           in.IsDraft,
-		ScheduledAt:       scheduledAt,
-		TriggerWarning:    triggerWarning,
-		ParentId:          parentText,
-		RootId:            rootText,
-		RepostId:          repostText,
-		QuotedArticleId:   quotedArticleID,
-		QuotedExcerpt:     quotedExcerpt,
-		QuotedAnnotation:  quotedAnnotationJSON,
-		ReplyRestriction:  restriction,
-	})
-	if err != nil {
-		return FeedPost{}, err
-	}
-
-	// Pièces jointes
-	for i, att := range in.Attachments {
-		attType := att.Type
-		if attType == "" {
-			attType = "IMAGE"
-		}
-		_, err := s.q.CreateAttachment(ctx, db.CreateAttachmentParams{
-			ThoughtId: created.ID,
-			Type:      attType,
-			Url:       att.URL,
-			AltText:   pgtype.Text{String: att.AltText, Valid: att.AltText != ""},
-			Width:     int4Ptr(att.Width),
-			Height:    int4Ptr(att.Height),
-			Order:     int32(i),
+	var created db.CreateThoughtRow
+	err = s.withTx(ctx, func(tq ServiceQuerier) error {
+		row, err := tq.CreateThought(ctx, db.CreateThoughtParams{
+			Content:           in.Content,
+			AuthorId:          authorID,
+			Tags:              tags,
+			ImageUrl:          imageUrl,
+			Visibility:        "public",
+			ContentVisibility: db.ContentVisibilityPUBLIC,
+			IsDraft:           in.IsDraft,
+			ScheduledAt:       scheduledAt,
+			TriggerWarning:    triggerWarning,
+			ParentId:          parentText,
+			RootId:            rootText,
+			RepostId:          repostText,
+			QuotedArticleId:   quotedArticleID,
+			QuotedExcerpt:     quotedExcerpt,
+			QuotedAnnotation:  quotedAnnotationJSON,
+			ReplyRestriction:  restriction,
 		})
 		if err != nil {
-			return FeedPost{}, err
+			return err
 		}
-	}
+		created = row
 
-	// Sondage
-	if in.Poll != nil && len(in.Poll.Options) >= 2 {
-		duration := in.Poll.DurationHours
-		if duration <= 0 {
-			duration = 24
+		// Pièces jointes
+		for i, att := range in.Attachments {
+			attType := att.Type
+			if attType == "" {
+				attType = "IMAGE"
+			}
+			if _, err := tq.CreateAttachment(ctx, db.CreateAttachmentParams{
+				ThoughtId: created.ID,
+				Type:      attType,
+				Url:       att.URL,
+				AltText:   pgtype.Text{String: att.AltText, Valid: att.AltText != ""},
+				Width:     int4Ptr(att.Width),
+				Height:    int4Ptr(att.Height),
+				Order:     int32(i),
+			}); err != nil {
+				return err
+			}
 		}
-		poll, err := s.q.CreatePoll(ctx, db.CreatePollParams{
-			ThoughtId: created.ID,
-			ExpiresAt: pgtype.Timestamp{Time: time.Now().Add(time.Duration(duration) * time.Hour), Valid: true},
-		})
-		if err == nil {
-			for i, opt := range in.Poll.Options {
-				opt = strings.TrimSpace(opt)
-				if opt == "" {
-					continue
-				}
-				if _, err := s.q.CreatePollOption(ctx, db.CreatePollOptionParams{
+
+		// Sondage (options réelles, ordre compact, erreurs remontées).
+		if len(pollOptions) > 0 {
+			poll, err := tq.CreatePoll(ctx, db.CreatePollParams{
+				ThoughtId: created.ID,
+				ExpiresAt: pgtype.Timestamp{Time: time.Now().Add(time.Duration(pollDuration) * time.Hour), Valid: true},
+			})
+			if err != nil {
+				return err
+			}
+			for i, opt := range pollOptions {
+				if _, err := tq.CreatePollOption(ctx, db.CreatePollOptionParams{
 					PollId: poll.ID, Text: opt, Order: int32(i),
 				}); err != nil {
-					break
+					return err
 				}
 			}
 		}
-	}
 
-	if in.ParentID != nil {
-		if err := s.q.IncrementReplyCount(ctx, *in.ParentID); err != nil {
-			return FeedPost{}, err
+		if in.ParentID != nil {
+			if err := tq.IncrementReplyCount(ctx, *in.ParentID); err != nil {
+				return err
+			}
 		}
+		return nil
+	})
+	if err != nil {
+		return FeedPost{}, err
 	}
 
 	// @mentions d'un post standalone → notif MENTION (best-effort).
@@ -275,7 +334,10 @@ func (s *Service) CreateFull(ctx context.Context, authorID string, in CreateFull
 	// ni les programmées) ; le job est idempotent côté worker.
 	if !in.IsDraft && in.ScheduledAt == nil {
 		if s.ac != nil {
-			_ = queue.PublishPostEmbedding(s.ac, queue.EmbeddingPayload{PostID: created.ID})
+			if err := queue.PublishPostEmbedding(s.ac, queue.EmbeddingPayload{PostID: created.ID}); err != nil {
+				// La pensée existe : on trace l'indexation manquée sans annuler.
+				log.Printf("[posts] embedding enqueue: %v", err)
+			}
 		}
 	}
 

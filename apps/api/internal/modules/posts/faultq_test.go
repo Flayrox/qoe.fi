@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	db "github.com/qoefi/api/internal/database"
 )
@@ -91,6 +92,24 @@ func (f *faultQ) GetPollByThoughtID(ctx context.Context, thoughtid string) (db.G
 		return db.GetPollByThoughtIDRow{}, e
 	}
 	return f.Queries.GetPollByThoughtID(ctx, thoughtid)
+}
+func (f *faultQ) CreateAttachment(ctx context.Context, p db.CreateAttachmentParams) (string, error) {
+	if e, ok := f.val("CreateAttachment"); ok {
+		return "", e
+	}
+	return f.Queries.CreateAttachment(ctx, p)
+}
+func (f *faultQ) GetThreadRootID(ctx context.Context, id string) (string, error) {
+	if e, ok := f.val("GetThreadRootID"); ok {
+		return "", e
+	}
+	return f.Queries.GetThreadRootID(ctx, id)
+}
+func (f *faultQ) GetPersonalPublisherID(ctx context.Context, id string) (pgtype.Text, error) {
+	if e, ok := f.val("GetPersonalPublisherID"); ok {
+		return pgtype.Text{}, e
+	}
+	return f.Queries.GetPersonalPublisherID(ctx, id)
 }
 func (f *faultQ) GetThoughtReplyGate(ctx context.Context, id string) (db.GetThoughtReplyGateRow, error) {
 	if e, ok := f.val("GetThoughtReplyGate"); ok {

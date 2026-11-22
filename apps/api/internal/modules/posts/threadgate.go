@@ -3,6 +3,7 @@ package posts
 import (
 	"context"
 	"errors"
+	"log"
 	"regexp"
 
 	"github.com/jackc/pgx/v5"
@@ -52,11 +53,17 @@ func (s *Service) CanReply(ctx context.Context, thoughtID, userID string) (CanRe
 	switch restriction {
 	case "subscribers":
 		authorPub, err := s.q.GetPersonalPublisherID(ctx, gate.AuthorID)
-		if err == nil && authorPub.Valid {
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return CanReplyResult{}, err
+		}
+		if authorPub.Valid {
 			ok, err := s.q.GetActiveSubscriptionForReply(ctx, db.GetActiveSubscriptionForReplyParams{
 				PublisherId: authorPub.String, UserId: toUUID(userID),
 			})
-			if err == nil && ok == 1 {
+			if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+				return CanReplyResult{}, err
+			}
+			if ok == 1 {
 				return CanReplyResult{CanReply: true, Restriction: restriction}, nil
 			}
 		}
@@ -66,11 +73,17 @@ func (s *Service) CanReply(ctx context.Context, thoughtID, userID string) (CanRe
 
 	case "following":
 		replyingPub, err := s.q.GetPersonalPublisherID(ctx, userID)
-		if err == nil && replyingPub.Valid {
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return CanReplyResult{}, err
+		}
+		if replyingPub.Valid {
 			ok, err := s.q.GetFollowForReply(ctx, db.GetFollowForReplyParams{
 				ReaderId: toUUID(gate.AuthorID), PublisherId: replyingPub.String,
 			})
-			if err == nil && ok == 1 {
+			if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+				return CanReplyResult{}, err
+			}
+			if ok == 1 {
 				return CanReplyResult{CanReply: true, Restriction: restriction}, nil
 			}
 		}
@@ -80,7 +93,10 @@ func (s *Service) CanReply(ctx context.Context, thoughtID, userID string) (CanRe
 
 	case "mentioned":
 		username, err := s.q.GetUserUsername(ctx, userID)
-		if err == nil && username.Valid && username.String != "" {
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return CanReplyResult{}, err
+		}
+		if username.Valid && username.String != "" {
 			esc := regexp.QuoteMeta(username.String)
 			re := regexp.MustCompile("(?i)@" + esc + `\b`)
 			if re.MatchString(gate.Content) {
@@ -107,15 +123,20 @@ func (s *Service) replyNotifications(ctx context.Context, tq db.Querier, replyID
 		}
 	}
 
-	// Parent + root auteurs
+	// Parent + root auteurs (best-effort : la réponse est déjà écrite, une
+	// notification manquée ne doit pas la faire échouer — mais elle est tracée).
 	if parentID != "" {
 		if parent, err := s.q.GetPostAuthor(ctx, parentID); err == nil {
 			add(parent, "REPLY")
+		} else {
+			log.Printf("[posts] reply notification parent: %v", err)
 		}
 	}
 	if rootID != "" && rootID != parentID {
 		if root, err := s.q.GetPostAuthor(ctx, rootID); err == nil {
 			add(root, "REPLY")
+		} else {
+			log.Printf("[posts] reply notification root: %v", err)
 		}
 	}
 
@@ -123,7 +144,9 @@ func (s *Service) replyNotifications(ctx context.Context, tq db.Querier, replyID
 	notifyMentionsInContent(ctx, tq, content, replyID, replyAuthor)
 
 	for uid, kind := range recipients {
-		_ = createReplyNotification(ctx, tq, kind, uid, replyAuthor, replyID)
+		if err := createReplyNotification(ctx, tq, kind, uid, replyAuthor, replyID); err != nil {
+			log.Printf("[posts] reply notification %s: %v", kind, err)
+		}
 	}
 	return nil
 }

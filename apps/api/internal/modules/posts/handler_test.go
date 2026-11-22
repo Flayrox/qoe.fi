@@ -128,9 +128,10 @@ func TestHandlers_LikeRepostBookmarkPin(t *testing.T) {
 	if rr := doJSON(t, ra, "POST", "/v1/posts/"+fx.PostID+"/pin", ""); rr.Code != http.StatusOK {
 		t.Fatalf("pin auteur code = %d", rr.Code)
 	}
-	// Pin par non-auteur → refuse.
-	if rr := doJSON(t, r, "POST", "/v1/posts/"+fx.PostID+"/pin", ""); rr.Code != http.StatusBadRequest {
-		t.Fatalf("pin non-auteur code = %d, attendu 400", rr.Code)
+	// Pin par non-auteur → 404 : la réponse ne doit pas confirmer l'existence
+	// d'une pensée d'autrui (même contrat que la suppression).
+	if rr := doJSON(t, r, "POST", "/v1/posts/"+fx.PostID+"/pin", ""); rr.Code != http.StatusNotFound {
+		t.Fatalf("pin non-auteur code = %d, attendu 404", rr.Code)
 	}
 
 	// listes d'engagement.
@@ -176,10 +177,11 @@ func TestHandlers_BlockMuteReportHide(t *testing.T) {
 	if rr := doJSON(t, r, "POST", "/v1/reports", `{"targetId":"`+fx.PostID+`","targetType":"post","reason":""}`); rr.Code != http.StatusBadRequest {
 		t.Fatalf("report sans reason code = %d, attendu 400", rr.Code)
 	}
-	// hide (réservé à l'auteur du post parent).
+	// hide (réservé à l'auteur du post parent) → 404, sans confirmer
+	// l'existence d'une pensée d'autrui.
 	ra := newTestRouter(t, fx.AuthorID)
-	if rr := doJSON(t, ra, "POST", "/v1/posts/"+fx.Post2ID+"/hide", ""); rr.Code != http.StatusBadRequest {
-		t.Fatalf("hide non-auteur code = %d, attendu 400", rr.Code)
+	if rr := doJSON(t, ra, "POST", "/v1/posts/"+fx.Post2ID+"/hide", ""); rr.Code != http.StatusNotFound {
+		t.Fatalf("hide non-auteur code = %d, attendu 404", rr.Code)
 	}
 
 	// messages context non authentifié.

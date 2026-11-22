@@ -14,11 +14,11 @@ import (
 
 type mockBlockQuerier struct {
 	db.Querier
-	blocks          map[string]map[string]bool
-	authors         map[string]string
-	usersByUsername map[string]string
-	insertedLikes   int
-	insertedReposts int
+	blocks           map[string]map[string]bool
+	authors          map[string]string
+	usersByUsername  map[string]string
+	insertedLikes    int
+	insertedReposts  int
 	insertedMentions int
 }
 

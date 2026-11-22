@@ -9,8 +9,10 @@ package posts
 
 import (
 	"context"
+	"log"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -72,9 +74,11 @@ func LoadViewerGraph(ctx context.Context, pool *pgxpool.Pool, viewerID string, a
 		return g
 	}
 
-	_ = pool.QueryRow(ctx,
+	if err := pool.QueryRow(ctx,
 		`SELECT COALESCE(username, '') FROM "User" WHERE id = $1`, toUUID(viewerID),
-	).Scan(&g.ViewerUsername)
+	).Scan(&g.ViewerUsername); err != nil {
+		log.Printf("[posts] viewer graph username: %v", err)
+	}
 
 	uuids := make([]pgtype.UUID, 0, len(authorIDs))
 	for _, id := range authorIDs {
@@ -98,11 +102,16 @@ func LoadViewerGraph(ctx context.Context, pool *pgxpool.Pool, viewerID string, a
 	for rows.Next() {
 		var id string
 		var follows, muted, blocked bool
-		if rows.Scan(&id, &follows, &muted, &blocked) == nil {
-			g.AuthorFollowsViewer[id] = follows
-			g.Muted[id] = muted
-			g.Blocked[id] = blocked
+		if err := rows.Scan(&id, &follows, &muted, &blocked); err != nil {
+			log.Printf("[posts] viewer graph scan: %v", err)
+			continue
 		}
+		g.AuthorFollowsViewer[id] = follows
+		g.Muted[id] = muted
+		g.Blocked[id] = blocked
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("[posts] viewer graph rows: %v", err)
 	}
 	return g
 }
@@ -123,7 +132,10 @@ func ContainsMention(content, username string) bool {
 		}
 		start := offset + idx
 		end := start + len(needle)
-		if end >= len(lower) || !isHandleChar(rune(lower[end])) {
+		// La frontière se lit en RUNE : un octet de continuation multi-octets
+		// (emoji, accent) n'est pas un caractère de handle et doit terminer
+		// la mention (@jean😀 matche @jean).
+		if end >= len(lower) || !isHandleAt(lower, end) {
 			return true
 		}
 		offset = end
@@ -133,6 +145,17 @@ func ContainsMention(content, username string) bool {
 
 func isHandleChar(r rune) bool {
 	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
+}
+
+// isHandleAt indique si le caractère qui commence à l'index d'octet `i` est
+// un caractère de handle. Une chaîne vide ou un octet invalide termine le
+// handle (frontière).
+func isHandleAt(s string, i int) bool {
+	if i < 0 || i >= len(s) {
+		return false
+	}
+	r, _ := utf8.DecodeRuneInString(s[i:])
+	return isHandleChar(r)
 }
 
 // RootAuthorOf renvoie l'auteur de la racine de conversation d'une pensée.

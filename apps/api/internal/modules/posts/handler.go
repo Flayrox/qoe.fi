@@ -247,7 +247,11 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) likes(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	limit, offset := parsePage(r)
+	limit, offset, ok := parsePage(r)
+	if !ok {
+		response.BadRequest(w, "curseur invalide")
+		return
+	}
 
 	page, err := h.svc.Likes(r.Context(), id, limit, offset)
 	if err != nil {
@@ -260,7 +264,11 @@ func (h *Handler) likes(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) reposts(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	limit, offset := parsePage(r)
+	limit, offset, ok := parsePage(r)
+	if !ok {
+		response.BadRequest(w, "curseur invalide")
+		return
+	}
 
 	page, err := h.svc.Reposts(r.Context(), id, limit, offset)
 	if err != nil {
@@ -274,7 +282,11 @@ func (h *Handler) reposts(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) quotes(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	id := chi.URLParam(r, "id")
-	limit, offset := parsePage(r)
+	limit, offset, ok := parsePage(r)
+	if !ok {
+		response.BadRequest(w, "curseur invalide")
+		return
+	}
 
 	page, err := h.svc.Quotes(r.Context(), id, userID, limit, offset)
 	if err != nil {
@@ -285,15 +297,20 @@ func (h *Handler) quotes(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, page)
 }
 
-func parsePage(r *http.Request) (limit, offset int) {
+// parsePage lit la pagination par curseur (un offset numérique). Un curseur
+// illisible n'est pas « page 1 » : il est refusé (400) pour que le client ne
+// boucle pas indéfiniment sur la première page en croyant avoir tout lu.
+func parsePage(r *http.Request) (limit, offset int, ok bool) {
 	limit = middleware.ClampLimit(r.URL.Query().Get("limit"), 50, 100)
-	if c := r.URL.Query().Get("cursor"); c != "" {
-		offset, _ = strconv.Atoi(c)
+	c := r.URL.Query().Get("cursor")
+	if c == "" {
+		return limit, 0, true
 	}
-	if offset < 0 {
-		offset = 0
+	offset, err := strconv.Atoi(c)
+	if err != nil || offset < 0 {
+		return 0, 0, false
 	}
-	return limit, offset
+	return limit, offset, true
 }
 
 func (h *Handler) toggleBlock(w http.ResponseWriter, r *http.Request) {
@@ -360,6 +377,11 @@ func (h *Handler) createReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.svc.Report(r.Context(), userID, in.TargetID, in.TargetType, cleanReason, cleanDetails); err != nil {
+		if errors.Is(err, ErrTargetNotFound) {
+			response.NotFound(w, "Cible introuvable")
+			return
+		}
+		log.Printf("[posts] report: %v", err)
 		response.BadRequest(w, err.Error())
 		return
 	}
@@ -377,6 +399,10 @@ func (h *Handler) toggleLike(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, ErrBlockedContent) {
 			response.Forbidden(w, "Action impossible : ce compte est bloqué.")
+			return
+		}
+		if errors.Is(err, ErrTargetNotFound) {
+			response.NotFound(w, "Contenu introuvable")
 			return
 		}
 		log.Printf("[posts] like: %v", err)
@@ -397,6 +423,10 @@ func (h *Handler) toggleRepost(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, ErrBlockedContent) {
 			response.Forbidden(w, "Action impossible : ce compte est bloqué.")
+			return
+		}
+		if errors.Is(err, ErrTargetNotFound) {
+			response.NotFound(w, "Contenu introuvable")
 			return
 		}
 		log.Printf("[posts] repost: %v", err)
@@ -497,6 +527,10 @@ func (h *Handler) toggleBookmark(w http.ResponseWriter, r *http.Request) {
 
 	bookmarked, err := h.svc.ToggleBookmark(r.Context(), id, userID)
 	if err != nil {
+		if errors.Is(err, ErrTargetNotFound) {
+			response.NotFound(w, "Article introuvable")
+			return
+		}
 		log.Printf("[posts] bookmark: %v", err)
 		response.Internal(w)
 		return
@@ -527,7 +561,12 @@ func (h *Handler) togglePin(w http.ResponseWriter, r *http.Request) {
 
 	pinned, err := h.svc.TogglePin(r.Context(), id, userID)
 	if err != nil {
-		response.BadRequest(w, err.Error())
+		if errors.Is(err, errThoughtNotFound) {
+			response.NotFound(w, "Post introuvable")
+			return
+		}
+		log.Printf("[posts] pin: %v", err)
+		response.Internal(w)
 		return
 	}
 	response.OK(w, map[string]bool{"pinned": pinned})
@@ -557,7 +596,12 @@ func (h *Handler) toggleHideReply(w http.ResponseWriter, r *http.Request) {
 
 	hidden, err := h.svc.ToggleHideReply(r.Context(), id, userID)
 	if err != nil {
-		response.BadRequest(w, err.Error())
+		if errors.Is(err, errThoughtNotFound) {
+			response.NotFound(w, "Réponse introuvable")
+			return
+		}
+		log.Printf("[posts] hide reply: %v", err)
+		response.Internal(w)
 		return
 	}
 	response.OK(w, map[string]bool{"isHiddenByAuthor": hidden})
