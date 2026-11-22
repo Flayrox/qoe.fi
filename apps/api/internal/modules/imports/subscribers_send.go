@@ -731,21 +731,27 @@ func isHardBounce(errText string) bool {
 // elle n'efface rien et ne punit personne — elle stoppe l'hémorragie.
 func (s *Service) EvaluateSendSuspension(ctx context.Context, waveID string) (bool, error) {
 	var (
-		batchID, publisherID                string
+		batchID, publisherID, waveStatus      string
 		sent, failed, hardBounces, complaints int
 		maxHardBounceRate                     float64
 		maxComplaints, minSample              int
 		maxFailedRate                         float64
 	)
 	err := s.pool.QueryRow(ctx, `
-		SELECT "batchId", "publisherId", "sentCount", "failedCount",
+		SELECT "batchId", "publisherId", "status", "sentCount", "failedCount",
 		       "hardBounceCount", "complaintCount",
 		       "maxHardBounceRate", "maxComplaints", "maxFailedRate", "minSample"
 		FROM "ImportSendWave" WHERE "id" = $1`, waveID).Scan(
-		&batchID, &publisherID, &sent, &failed, &hardBounces, &complaints,
+		&batchID, &publisherID, &waveStatus, &sent, &failed, &hardBounces, &complaints,
 		&maxHardBounceRate, &maxComplaints, &maxFailedRate, &minSample)
 	if err != nil {
 		return false, err
+	}
+	// Une vague déjà arrêtée (terminée, annulée, en pause) ne se suspend pas
+	// une seconde fois : rejouer l'évaluation inscrivait une décision système
+	// et un événement en double pour le même dépassement.
+	if waveStatus != "queued" && waveStatus != "sending" {
+		return false, nil
 	}
 	tried := sent + failed
 	if tried < minSample {
@@ -891,7 +897,17 @@ func (s *Service) CancelSendWave(ctx context.Context, staffID, waveID string) er
 		uuid.NewString(), batchID, toUUID(staffID), mustJSON(map[string]any{"waveId": waveID})); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	// Annuler la dernière vague ne doit pas laisser le lot « running » pour
+	// toujours : plus rien ne le clôturerait, et plus aucune vague ne le
+	// reprendrait. La clôture est idempotente et ne fait rien tant qu'une
+	// autre vague vit.
+	if _, err := s.FinishSendWaveIfDrained(ctx, waveID); err != nil {
+		log.Printf("[imports] clôture du lot %s après annulation: %v", batchID, err)
+	}
+	return nil
 }
 
 // PauseSendWaveForKill met une vague en pause quand l'arrêt d'urgence global

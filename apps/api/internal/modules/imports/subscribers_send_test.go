@@ -359,6 +359,19 @@ func TestSendWave_SuspensionAutomatiqueSurRejets(t *testing.T) {
 	if decisions != 1 {
 		t.Fatalf("décisions système = %d, attendu 1", decisions)
 	}
+	// Rejouer l'évaluation sur une vague déjà arrêtée ne fabrique pas une
+	// seconde décision système pour le même dépassement.
+	if again, err := svc.EvaluateSendSuspension(ctx, wave.ID); err != nil || again {
+		t.Fatalf("seconde évaluation : suspendue=%v, err=%v", again, err)
+	}
+	if err := poolTest.QueryRow(ctx, `
+		SELECT COUNT(*) FROM "SubscriberImportDecision"
+		WHERE "batchId" = 'batch_send_003' AND "decision" = 'suspended'`).Scan(&decisions); err != nil {
+		t.Fatalf("décisions après rejeu: %v", err)
+	}
+	if decisions != 1 {
+		t.Fatalf("décisions après rejeu = %d, attendu 1 (pas de doublon)", decisions)
+	}
 	// Sous les seuils : pas de suspension.
 	if _, err := poolTest.Exec(ctx, `
 		UPDATE "ImportSendWave"
@@ -524,5 +537,37 @@ func TestSendWave_KillSwitchPauses(t *testing.T) {
 	}
 	if paused {
 		t.Fatal("pause sans arrêt d'urgence actif : la méthode doit être transparente")
+	}
+}
+
+// Annuler la dernière vague d'un lot ne doit pas le laisser « running » pour
+// toujours : plus aucune vague ne le clôturerait ensuite, et la file de revue
+// afficherait un lot en cours qui n'évolue plus.
+func TestSendWave_AnnulationClotLeLot(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	seedImport(t, ctx)
+	svc := newTestService()
+
+	seedSendBatch(t, ctx, "batch_send_cancel", importPubPerso, importOwnerID, []string{"annule@test.dev"})
+	wave, err := svc.StartSendWave(ctx, importOwnerID, "batch_send_cancel", 10)
+	if err != nil {
+		t.Fatalf("StartSendWave: %v", err)
+	}
+	if err := svc.CancelSendWave(ctx, importOwnerID, wave.ID); err != nil {
+		t.Fatalf("CancelSendWave: %v", err)
+	}
+	var waveStatus, batchStatus string
+	if err := poolTest.QueryRow(ctx, `
+		SELECT w."status", b."status" FROM "ImportSendWave" w
+		JOIN "SubscriberImportBatch" b ON b."id" = w."batchId"
+		WHERE w."id" = $1`, wave.ID).Scan(&waveStatus, &batchStatus); err != nil {
+		t.Fatalf("statuts: %v", err)
+	}
+	if waveStatus != "cancelled" {
+		t.Fatalf("statut vague = %q, attendu cancelled", waveStatus)
+	}
+	if batchStatus != "completed" {
+		t.Fatalf("statut lot = %q, attendu completed (plus rien ne le clôturerait)", batchStatus)
 	}
 }
