@@ -1,7 +1,7 @@
 # =====================================================================
 # 🐳 docker-compose.yml — qoe.fi monorepo (PRODUCTION)
 # =====================================================================
-# 📖 14 services (nom de service = sous-domaine quand il existe) :
+# 📖 16 services (nom de service = sous-domaine quand il existe) :
 #   1. caddy      : reverse proxy + TLS (seul service exposé au public)
 #   2. tenants    : Next.js blogs créateurs (wildcard *.qoe.fi) — apps/tenants
 #   3. hi         : Next.js marketing (hi.qoe.fi) — apps/hi
@@ -15,7 +15,9 @@
 #   11. meilisearch: full-text search (réseau interne uniquement)
 #   12. umami     : analytics self-hosted
 #   13. umami-db  : PostgreSQL d'umami
-#   14. migrate   : one-shot Prisma migrate (s'exécute puis s'arrête)
+#   14. uptime-kuma : sondes de disponibilité (tailnet-only)
+#   15. updates   : serveur OTA expo-updates (updates.qoe.fi)
+#   16. migrate   : one-shot goose up (s'exécute puis s'arrête)
 #
 # ⚠️ worker-node (BullMQ Node) a été SUPPRIMÉ : vestige de l'ancienne stack.
 #    Plus rien n'enqueue vers BullMQ — tout passe par asynq (worker).
@@ -26,8 +28,11 @@
 #                   créé par bootstrap.sh → docker-compose.override.yml).
 #                   Caddy n'a PAS accès au réseau supabase (donc pas à la DB).
 #   qoefi-private : tout le reste (api, worker, redis, meili, embedding).
-#   supabase_default : UNIQUEMENT api, worker et migrate
-#                      (accès à la DB Supabase). Pas les frontends, pas caddy.
+#   supabase_default : api, worker et migrate (accès à la DB Supabase) +
+#                      les frontends Next.js (accès à supabase-kong pour
+#                      l'auth/storage ; le code des frontends n'ouvre plus de
+#                      connexion Postgres directe depuis le retrait de Prisma).
+#                      Caddy n'y est PAS.
 #
 # 📖 Convention de nommage : kebab-case, préfixe qoefi-, nom de service = nom
 #    de conteneur. Le DNS interne Docker utilise le NOM DE SERVICE (pas le
@@ -111,8 +116,8 @@ services:
       dockerfile: Dockerfile
       target: tenants
     image: ghcr.io/flayrox/qoefi-tenants:latest
-    # Les frontends Next.js font du Prisma direct vers supabase-db : ils
-    # doivent être sur supabase_default (comme api/worker/migrate).
+    # Accès à supabase-kong (auth/storage) → supabase_default requis. Plus de
+    # client Postgres direct dans les frontends depuis le retrait de Prisma.
     networks:
       - qoefi-public
       - qoefi-private
@@ -197,7 +202,7 @@ services:
     extra_hosts:
       - 'host.docker.internal:host-gateway'
 
-    # Frontend Next.js : Prisma direct vers supabase-db → supabase_default requis.
+    # Frontend Next.js : accès à supabase-kong (auth/storage) → supabase_default.
     networks:
       - qoefi-public
       - qoefi-private
@@ -256,7 +261,7 @@ services:
     extra_hosts:
       - 'host.docker.internal:host-gateway'
 
-    # Frontend Next.js : Prisma direct vers supabase-db → supabase_default requis.
+    # Frontend Next.js : accès à supabase-kong (auth/storage) → supabase_default.
     networks:
       - qoefi-public
       - qoefi-private
@@ -315,7 +320,7 @@ services:
     extra_hosts:
       - 'host.docker.internal:host-gateway'
 
-    # Frontend Next.js : Prisma direct vers supabase-db → supabase_default requis.
+    # Frontend Next.js : accès à supabase-kong (auth/storage) → supabase_default.
     networks:
       - qoefi-public
       - qoefi-private
@@ -380,7 +385,7 @@ services:
     extra_hosts:
       - 'host.docker.internal:host-gateway'
 
-    # Frontend Next.js : Prisma direct vers supabase-db → supabase_default requis.
+    # Frontend Next.js : accès à supabase-kong (auth/storage) → supabase_default.
     networks:
       - qoefi-public
       - qoefi-private
@@ -444,7 +449,7 @@ services:
       EMBEDDING_QUERY_TASK: ${EMBEDDING_QUERY_TASK:-retrieval.query}
       # Meilisearch (réseau Docker) — full-text search.
       MEILISEARCH_HOST: http://meilisearch:7700
-      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-qoe_master_key_123}
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?MEILI_MASTER_KEY requis (voir .env.docker.example)}
 
     extra_hosts:
       - 'host.docker.internal:host-gateway'
@@ -542,7 +547,7 @@ services:
       EMBEDDING_INDEX_TASK: ${EMBEDDING_INDEX_TASK:-retrieval.passage}
       # Meilisearch (réseau Docker) — full-text search.
       MEILISEARCH_HOST: http://meilisearch:7700
-      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-qoe_master_key_123}
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?MEILI_MASTER_KEY requis (voir .env.docker.example)}
 
     extra_hosts:
       - 'host.docker.internal:host-gateway'
@@ -580,7 +585,9 @@ services:
   #    commercial uniquement) — à valider pour la prod.
   # ───────────────────────────────────────────────────────────────────
   embedding:
-    image: ghcr.io/ggml-org/llama.cpp:server
+    # 🧷 Épinglé par digest (tag `server` mobile) — bumper via
+    # `docker buildx imagetools inspect ghcr.io/ggml-org/llama.cpp:server`.
+    image: ghcr.io/ggml-org/llama.cpp:server@sha256:c2cf6c72d913b6c89a5f0929f2a866e6161e09e7dc187e0f3b0f21e923e26db3
     container_name: qoefi-embedding
     restart: unless-stopped
 
@@ -633,12 +640,10 @@ services:
     expose:
       - '6379'
 
-    command: >
-      redis-server
-      --maxmemory 512mb
-      --maxmemory-policy volatile-lru
-      --appendonly yes
-      --appendfsync everysec
+    # ⚠️ Le fichier monté ci-dessous est la SEULE source de vérité (bind,
+    # maxmemory/AOF/slowlog/timeouts). Ne pas repasser d'options en CLI :
+    # redis-server n'ouvre pas le fichier de config s'il reçoit des options.
+    command: ['redis-server', '/usr/local/etc/redis/redis.conf']
 
     volumes:
       - redis_data:/data
@@ -669,7 +674,7 @@ services:
     expose:
       - '7700'
     environment:
-      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-qoe_master_key_123}
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:?MEILI_MASTER_KEY requis (voir .env.docker.example)}
       - MEILI_NO_ANALYTICS=true
     volumes:
       - meilisearch_data:/meili_data
@@ -686,7 +691,7 @@ services:
     environment:
       POSTGRES_DB: umami
       POSTGRES_USER: ${UMAMI_DB_USER:-umami}
-      POSTGRES_PASSWORD: ${UMAMI_DB_PASSWORD:-umami}
+      POSTGRES_PASSWORD: ${UMAMI_DB_PASSWORD:?UMAMI_DB_PASSWORD requis (voir .env.docker.example)}
     volumes:
       - umami_db_data:/var/lib/postgresql/data
     networks:
@@ -698,7 +703,9 @@ services:
       retries: 5
 
   umami:
-    image: ghcr.io/umami-software/umami:postgresql-latest
+    # 🧷 Épinglé par digest (tag mobile = non reproductible) : bumper tag+digest
+    # ensemble via `docker buildx imagetools inspect ghcr.io/umami-software/umami:<tag>`.
+    image: ghcr.io/umami-software/umami:postgresql-latest@sha256:b64f40400d77bcadd39cf5c62a1e368c99524ca442024f96e1133355a19a5dbc
     container_name: qoefi-umami
     restart: unless-stopped
     # Publication tailnet-only (fallback/accès direct) : le dashboard passe
@@ -709,9 +716,9 @@ services:
     expose:
       - '3000'
     environment:
-      DATABASE_URL: postgresql://${UMAMI_DB_USER:-umami}:${UMAMI_DB_PASSWORD:-umami}@umami-db:5432/umami
+      DATABASE_URL: postgresql://${UMAMI_DB_USER:-umami}:${UMAMI_DB_PASSWORD:?UMAMI_DB_PASSWORD requis}@umami-db:5432/umami
       DATABASE_TYPE: postgresql
-      HASH_SALT: ${UMAMI_HASH_SALT:-qoe_umami_salt_please_change}
+      HASH_SALT: ${UMAMI_HASH_SALT:?UMAMI_HASH_SALT requis (voir .env.docker.example)}
       DISABLE_TELEMETRY: '1'
     depends_on:
       umami-db:

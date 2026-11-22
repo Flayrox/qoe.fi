@@ -246,7 +246,7 @@ RUN go mod download
 COPY apps/api ./
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/qoe-migrate ./cmd/migrate
 
-FROM alpine:3.20 AS migrate
+FROM alpine:3.22 AS migrate
 RUN apk add --no-cache ca-certificates
 
 COPY --from=migrate-builder /out/qoe-migrate /usr/local/bin/qoe-migrate

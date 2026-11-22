@@ -1,3 +1,17 @@
+# =====================================================================
+# 🚨 Règles d'alerte Prometheus — qoe.fi
+# =====================================================================
+# 📖 Ce fichier n'est PAS chargé par un Prometheus du dépôt (il n'y en a pas :
+#    l'observabilité embarquée est Uptime-Kuma pour l'up/down). C'est le jeu de
+#    règles prêt à l'emploi pour un Prometheus externe chargé de scraper
+#    `GET /metrics` de l'API Go (apps/api/internal/observability/metrics.go).
+#    Vérifié le 2026-11-22 (audit L35b) : les 6 métriques citées existent bien
+#    dans metrics.go (noms + labels `route_group`/`action`/`code`/`result`).
+#
+# 🔧 Branchement :
+#   scrape_configs: [{ job_name: qoe-api, static_configs: [{ targets: ['api:8080'] }], metrics_path: /metrics }]
+#   rule_files: ['/etc/prometheus/rules/qoe-alerts.yml']
+# =====================================================================
 groups:
   - name: qoe-security-and-slo
     rules:
@@ -16,7 +30,6 @@ groups:
         annotations:
           summary: "Taux d'erreurs HTTP 5xx élevé sur l'API Go (> 1%)"
           description: "Le ratio de réponses 5xx dépasse 1% sur les 5 dernières minutes (valeur actuelle : {{ $value | humanizePercentage }})."
-          runbook: "docs/RUNBOOK-SECURITY-SLO.md#qoe-high-5xx-burn-rate"
 
       - alert: QoeHighP99Latency
         expr: |
@@ -32,7 +45,6 @@ groups:
         annotations:
           summary: "Latence p99 élevée sur {{ $labels.route_group }} (> 1000 ms)"
           description: "La latence p99 du groupe de routes {{ $labels.route_group }} dépasse 1000 ms pendant 5 minutes (valeur : {{ $value | printf \"%.0f\" }} ms)."
-          runbook: "docs/RUNBOOK-SECURITY-SLO.md#qoe-high-p99-latency"
 
       - alert: QoeSecguardSpamSpike
         expr: |
@@ -45,7 +57,6 @@ groups:
         annotations:
           summary: "Pic de rejets SecGuard ({{ $labels.action }} / {{ $labels.code }})"
           description: "SecGuard rejette plus de 5 requêtes/s sur l'action {{ $labels.action }} (code : {{ $labels.code }}), indiquant un pic de spam ou de défis PoW/Turnstile."
-          runbook: "docs/RUNBOOK-SECURITY-SLO.md#qoe-secguard-spam-spike"
 
       - alert: QoeSsrfAttemptBlocked
         expr: |
@@ -58,7 +69,6 @@ groups:
         annotations:
           summary: "Tentative SSRF bloquée par NetGuard"
           description: "NetGuard a bloqué {{ $value | printf \"%.0f\" }} requête(s) sortante(s) vers une cible réseau interdite sur les 5 dernières minutes."
-          runbook: "docs/RUNBOOK-SECURITY-SLO.md#qoe-ssrf-attempt-blocked"
 
       - alert: QoeRateLimitRedisFailOpen
         expr: |
@@ -71,4 +81,3 @@ groups:
         annotations:
           summary: "Rate-limiter Redis en mode fail-open"
           description: "Le rate-limiter bascule en fail-open ({{ $value | printf \"%.0f\" }} décisions sur 5m) suite à une indisponibilité ou latence Redis."
-          runbook: "docs/RUNBOOK-SECURITY-SLO.md#qoe-ratelimit-redis-fail-open"

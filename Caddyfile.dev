@@ -8,9 +8,13 @@
 #    1. Installer Caddy : brew install caddy
 #    2. Lancer Caddy : caddy run --config Caddyfile.dev
 #
-# 📝 Note sur le SSL : 
-#    Caddy utilise HTTP par défaut ici. Si tu veux du HTTPS local avec 
-#    des certificats auto-signés de confiance automatique, remplace 
+# 📝 Note sur le SSL :
+#    Caddy utilise HTTP par défaut ici (pas de warning navigateur, pas de
+#    cert à faire confiance). Pour du HTTPS local avec certificats
+#    auto-signés, remplace `http://` par `https://` devant chaque nom de
+#    domaine : Caddy émettra alors un CA interne qu'il faut installer
+#    (`caddy trust`) pour que le navigateur cesse d'avertir.
+
 #    simplement "http://" par "https://" (Caddy te demandera ton mot de 
 # 🍏 Feed (App principale) : localhost, qoe.test & lvh.me — isolé 15402
 http://localhost, http://qoe.test, http://lvh.me {
@@ -41,17 +45,5 @@ http://api.localhost, http://api.qoe.test, http://api.lvh.me {
 # Ex: jean.localhost, test.localhost, jean.lvh.me -> redirigé vers l'app Web
 http://*.localhost, http://*.qoe.test, http://*.lvh.me {
 	reverse_proxy localhost:15403
-}
-
-# 🧪 LASSEZ — Labo Studio (Vue) qui pilote le daemon : studio.lassez.test → 4405
-studio.lassez.test {
-	tls internal
-	reverse_proxy localhost:4405
-}
-
-# 🧪 LASSEZ — Front Next.js (site public) : lassez.test → 2500
-lassez.test {
-	tls internal
-	reverse_proxy localhost:2500
 }
 

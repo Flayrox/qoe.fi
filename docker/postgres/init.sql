@@ -13,13 +13,15 @@
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
--- 🔌 Activation des extensions PostgreSQL
+-- 🔌 Extensions PostgreSQL
 -- ---------------------------------------------------------------------
--- L'image pgvector/pgvector inclut déjà l'extension vector, on l'active.
--- Cette extension est utilisée par Prisma (cf. schema.prisma:10)
--- CREATE EXTENSION IF NOT EXISTS vector;
--- ⚠️ Note : avec pgvector, l'extension est déjà activée par défaut,
---          donc ce n'est pas nécessaire de le refaire ici.
+-- Rien à faire ici : l'image pgvector/pgvector embarque les binaires, mais
+-- l'extension doit être créée DANS la base — c'est la migration
+-- `apps/api/sql/migrations/00001_init.sql` qui exécute
+-- `CREATE EXTENSION IF NOT EXISTS "vector"` (idem schema.sql). La dupliquer
+-- ici ne servirait à rien (init.sql ne s'exécute que sur un volume vide).
+-- ⚠️ La base `umami` ci-dessous est un cas à part : elle n'est jamais migrée
+--    par goose, donc elle n'a pas besoin de l'extension.
 
 -- ---------------------------------------------------------------------
 -- 📊 Base dédiée à Umami (analytics)

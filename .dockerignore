@@ -5,27 +5,54 @@
 # Règle d'or : tout ce qui n'est pas nécessaire au runtime/build final.
 # =====================================================================
 
-# 📦 Dépendances (sera réinstallé dans l'image via npm ci)
-node_modules
+# ⚠️ Les motifs sans `**/` ne matchent qu'à la RACINE du contexte (sémantique
+# .dockerignore) : `node_modules` laissait passer apps/*/node_modules, et
+# `.next/` laissait passer apps/*/.next (2 Go de sorties hôte envoyées au
+# démon à chaque build). Tous les motifs d'arbre sont donc préfixés `**/`.
+
+# 📦 Dépendances (sera réinstallé dans l'image via pnpm install)
+**/node_modules/
 .pnp
 .pnp.js
 
 # 🏗️ Builds Next.js (sera régénéré DANS l'image)
-.next/
-out/
-build/
-dist/
+**/.next/
+**/out/
+**/build/
+**/dist/
+**/.turbo/
 
-# 🔐 Variables d'environnement — ⚠️ NE JAMAIS ENVOYER (Commenté localement pour permettre le build Next.js)
-#.env
-.env.local
-.env.development
-.env.development.local
-.env.test
-.env.test.local
-.env.production
-.env.production.local
-#.env.docker
+# 🔐 Secrets locaux — jamais dans le contexte de build, à AUCUN niveau.
+# Le build n'a besoin QUE de .env.docker (généré par CI, valeurs publiques) :
+# le laisser entrer est volontaire, tout le reste (.env, .env.local, backups,
+# .env d'app) doit rester sur le poste. `.env` était ré-inclus à tort pour
+# « permettre le build Next.js » → le service_role Supabase et le mot de passe
+# Postgres locaux partaient dans le contexte et dans le cache de couches.
+**/.env*
+!.env.docker
+!.env.docker.example
+
+# 🐹 Binaire Go local (`go build -o server`), gitignoré, 144 Mo mesurés : il
+# n'a rien à faire dans le contexte, l'image recompile l'API elle-même.
+apps/api/server
+
+# 📱 App mobile (Expo) : sorties natives locales — 8,2 Go mesurés
+# (android/ 4,0 Go + ios/ 4,1 Go). Aucune image Next.js ne les lit ; le
+# workspace pnpm (apps/*) n'a besoin que de la source et du package.json.
+apps/mobile/android/
+apps/mobile/ios/
+apps/mobile/node_modules/
+apps/mobile/.expo/
+
+# 📚 Matériel qui n'entre dans AUCUN build
+# .reference/  : clones de référence (Ghost, Bluesky, HeroUI…), 438 Mo mesurés
+# examples/    : exemple d'intégration, hors pnpm-workspace (aucun build ne le lit), 369 Mo
+# backups/     : dumps de production (1,4 Go) — ne doivent JAMAIS entrer dans une image
+# Sans ces lignes, `COPY . .` du builder envoyait tout ça au démon Docker : le
+# transfert de contexte de `docker build --target hi` affichait 271 Mo.
+.reference/
+examples/
+backups/
 
 # 📝 Logs (inutiles dans l'image)
 *.log
@@ -80,7 +107,6 @@ Thumbs.db
 # 🐳 Docker lui-même (évite la récursion)
 docker-compose*.yml
 Dockerfile
-Dockerfile.dev
 .dockerignore
 
 # 🤖 Fichiers d'agents / outils dev
@@ -105,16 +131,12 @@ src/**/*.test.ts
 *.gif
 *.webp
 *.svg
-!prisma/**/*.svg  # garde les SVG référencés
 
 # 💾 Backups
 *.sql
 *.dump
 *.tar.gz
 *.zip
-
-# ⏭️ Fichiers Prisma générés
-src/generated/prisma/
 
 # 🚫 Cache divers
 .cache/

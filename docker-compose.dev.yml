@@ -16,7 +16,7 @@
 #    Tenants (*.qoe.fi)        : http://localhost:15403
 #    Studio (studio.qoe.fi)    : http://localhost:15404
 #    Admin (admin.qoe.fi)      : http://localhost:15405
-#    Collab (ws)               : ws://localhost:15406
+    # Collab (ws)                : ws://localhost:15406 (hors compose : pnpm dev)
 #    API (api.qoe.fi)          : http://localhost:15407
 #    Meilisearch               : http://localhost:15408
 #    PostgreSQL                : localhost:15409 (via pgAdmin/DBeaver)
@@ -68,7 +68,7 @@ services:
     ports:
       - '15408:7700' # isolé — était 7700
     environment:
-      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-qoe_master_key_123}
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:?MEILI_MASTER_KEY requis (voir .env.docker.example)}
       - MEILI_NO_ANALYTICS=true
     volumes:
       - meilisearch_data:/meili_data
@@ -108,7 +108,7 @@ services:
     working_dir: /app/apps/api
 
     environment:
-      DATABASE_URL: postgresql://postgres:wPwAMQTJwB1WTBXF@host.docker.internal:15409/postgres
+      DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@host.docker.internal:15409/${POSTGRES_DB:-qoe}
 
     # Bind mount du code source (pas besoin de rebuild pour migrate)
     volumes:
@@ -125,7 +125,7 @@ services:
   # ───────────────────────────────────────────────────────────────────
   tenants:
     # En dev, on n'utilise pas le multi-stage Dockerfile
-    # On utilise un node:20 simple + bind mount pour HMR
+    # On utilise un node:22 simple + bind mount pour HMR
     image: node:22-alpine
     container_name: qoefi-dev-tenants
     restart: unless-stopped
@@ -145,7 +145,7 @@ services:
       CHOKIDAR_USEPOLLING: 'true'
       WATCHPACK_POLLING: 'true'
       NEXT_TELEMETRY_DISABLED: '1'
-      DATABASE_URL: postgresql://postgres:wPwAMQTJwB1WTBXF@host.docker.internal:15409/postgres
+      DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@host.docker.internal:15409/${POSTGRES_DB:-qoe}
       REDIS_URL: redis://redis:6379
 
     # 🎯 BIND MOUNT : ton code source est monté en temps réel
@@ -193,7 +193,7 @@ services:
       CHOKIDAR_USEPOLLING: 'true'
       WATCHPACK_POLLING: 'true'
       NEXT_TELEMETRY_DISABLED: '1'
-      DATABASE_URL: postgresql://postgres:wPwAMQTJwB1WTBXF@host.docker.internal:15409/postgres
+      DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@host.docker.internal:15409/${POSTGRES_DB:-qoe}
       REDIS_URL: redis://redis:6379
 
     volumes:
@@ -237,7 +237,7 @@ services:
       CHOKIDAR_USEPOLLING: 'true'
       WATCHPACK_POLLING: 'true'
       NEXT_TELEMETRY_DISABLED: '1'
-      DATABASE_URL: postgresql://postgres:wPwAMQTJwB1WTBXF@host.docker.internal:15409/postgres
+      DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@host.docker.internal:15409/${POSTGRES_DB:-qoe}
       REDIS_URL: redis://redis:6379
 
     volumes:
@@ -281,7 +281,7 @@ services:
       CHOKIDAR_USEPOLLING: 'true'
       WATCHPACK_POLLING: 'true'
       NEXT_TELEMETRY_DISABLED: '1'
-      DATABASE_URL: postgresql://postgres:wPwAMQTJwB1WTBXF@host.docker.internal:15409/postgres
+      DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@host.docker.internal:15409/${POSTGRES_DB:-qoe}
       REDIS_URL: redis://redis:6379
 
     volumes:
@@ -325,7 +325,7 @@ services:
       CHOKIDAR_USEPOLLING: 'true'
       WATCHPACK_POLLING: 'true'
       NEXT_TELEMETRY_DISABLED: '1'
-      DATABASE_URL: postgresql://postgres:wPwAMQTJwB1WTBXF@host.docker.internal:15409/postgres
+      DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@host.docker.internal:15409/${POSTGRES_DB:-qoe}
       REDIS_URL: redis://redis:6379
 
     volumes:
@@ -365,7 +365,8 @@ services:
   # 📊 UMAMI ANALYTICS (Auto-hébergé local dev)
   # ───────────────────────────────────────────────────────────────────
   umami:
-    image: ghcr.io/umami-software/umami:postgresql-latest
+    # 🧷 Épinglé par digest (tag mobile) — cohérent avec docker-compose.yml.
+    image: ghcr.io/umami-software/umami:postgresql-latest@sha256:b64f40400d77bcadd39cf5c62a1e368c99524ca442024f96e1133355a19a5dbc
     container_name: qoefi-dev-umami
     restart: unless-stopped
     ports:

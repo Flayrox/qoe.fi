@@ -70,14 +70,6 @@
     tls /etc/letsencrypt/live/qoe.fi-0001/fullchain.pem /etc/letsencrypt/live/qoe.fi-0001/privkey.pem
 }
 
-(lassez_cert) {
-    tls /etc/letsencrypt/live/lassez.fr-0001/fullchain.pem /etc/letsencrypt/live/lassez.fr-0001/privkey.pem
-}
-
-(api_lassez_cert) {
-    tls /etc/letsencrypt/live/api.lassez.fr/fullchain.pem /etc/letsencrypt/live/api.lassez.fr/privkey.pem
-}
-
 # 🛡️ Matcher « tailnet » : IP du tailnet Tailscale (CGNAT 100.64/10 + ULA
 #    IPv6) + plage 172.16/12 (ponts docker). Utilisé par tous les blocs
 #    tailnet-only (admin.qoe.fi, *.admin.qoe.fi).
@@ -398,51 +390,18 @@ updates.qoe.fi {
 #    « classique » : cert wildcard DNS-01 (provider DNS requis, ex. Hetzner).
 #
 # 3. Pour le dev local, utilise plutôt :
-#    start.localhost, api.localhost, dashboard.localhost, admin.localhost
+#    start.localhost, api.localhost, studio.localhost, admin.localhost
 #    (Caddy génère des certs auto-signés pour ces hosts)
 #
 # 4. Les blocs @custom en fin de fichier permettent aux custom domains
 #    (CNAME) de fonctionner SANS avoir à reconfigurer Caddy.
 #    C'est du "any host that's not in our list → tenant".
 
-# ───────────────────────────────────────────────────────────────────
-# 🇫🇷 LASSEZ FRONTEND : lassez.fr
-# ───────────────────────────────────────────────────────────────────
-lassez.fr, www.lassez.fr {
-    import lassez_cert
-    encode zstd gzip
-    reverse_proxy host.docker.internal:4000
-    log {
-        output stdout
-        format console
-    }
-}
-
-# ───────────────────────────────────────────────────────────────────
-# ⚙️ LASSEZ API : api.lassez.fr
-# ───────────────────────────────────────────────────────────────────
-api.lassez.fr {
-    import api_lassez_cert
-    encode zstd gzip
-    reverse_proxy host.docker.internal:4001
-    log {
-        output stdout
-        format console
-    }
-}
-
-# ───────────────────────────────────────────────────────────────────
-# 🎥 LASSEZ STUDIO : studio.lassez.fr
-# ───────────────────────────────────────────────────────────────────
-studio.lassez.fr {
-    import lassez_cert
-    encode zstd gzip
-    reverse_proxy host.docker.internal:4002
-    log {
-        output stdout
-        format console
-    }
-}
+# ⛔ Retiré le 2026-11-22 (audit L35b) : quatre blocs `lassez.fr` /
+#    `api.lassez.fr` / `studio.lassez.fr` (produit tiers) proxifiaient vers
+#    host.docker.internal:4000/4001/4002, ports sur lesquels AUCUN service de
+#    ce dépôt n'écoute. Ils émettaient des certs et exposaient des ports hôte
+#    arbitraires sans rapport avec qoe.fi. Restauration : git show <commit>.
 
 # ───────────────────────────────────────────────────────────────────
 # 🐘 SUPABASE API GATEWAY (Kong) - auth.qoe.fi
