@@ -90,6 +90,7 @@ func (h *Handler) compile(w http.ResponseWriter, r *http.Request) {
 	for publisherID := range publishers {
 		ok, err := h.svc.CanManagePublisher(r.Context(), userID, publisherID)
 		if err != nil {
+			log.Printf("[books] accès publication: %v", err)
 			response.Internal(w)
 			return
 		}

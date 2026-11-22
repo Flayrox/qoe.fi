@@ -11,20 +11,37 @@ import (
 )
 
 var (
-	reHeading  = regexp.MustCompile(`(?is)<h([1-6])[^>]*>(.*?)</h[1-6]>`)
-	rePara     = regexp.MustCompile(`(?is)</p\s*>`)
-	reBold     = regexp.MustCompile(`(?is)</?(strong|b)\b[^>]*>`)
-	reItalic   = regexp.MustCompile(`(?is)</?(em|i)\b[^>]*>`)
-	reLink     = regexp.MustCompile(`(?is)<a\s[^>]*href="([^"]*)"[^>]*>(.*?)</a>`)
-	reImage    = regexp.MustCompile(`(?is)<img\s[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*/?>`)
-	reImageAlt = regexp.MustCompile(`(?is)<img\s[^>]*src="([^"]*)"[^>]*/?>`)
-	reLi       = regexp.MustCompile(`(?is)<li[^>]*>(.*?)</li>`)
-	reQuote    = regexp.MustCompile(`(?is)<blockquote[^>]*>(.*?)</blockquote>`)
-	reBr       = regexp.MustCompile(`(?is)<br\s*/?>`)
-	reTags     = regexp.MustCompile(`(?is)<[^>]+>`)
-	reSpaces   = regexp.MustCompile(`[ \t]+`)
-	reBlank    = regexp.MustCompile(`\n{3,}`)
+	reHeading = regexp.MustCompile(`(?is)<h([1-6])[^>]*>(.*?)</h[1-6]>`)
+	rePara    = regexp.MustCompile(`(?is)</p\s*>`)
+	reBold    = regexp.MustCompile(`(?is)</?(strong|b)\b[^>]*>`)
+	reItalic  = regexp.MustCompile(`(?is)</?(em|i)\b[^>]*>`)
+	// Les attributs sont lus indépendamment de leur ordre et des guillemets :
+	// un HTML importé écrit souvent `alt` avant `src`, ou en guillemets
+	// simples, et la conversion perdait alors le texte alternatif ou le lien.
+	reImgTag  = regexp.MustCompile(`(?is)<img\b[^>]*>`)
+	reAnchor  = regexp.MustCompile(`(?is)<a\b([^>]*)>(.*?)</a>`)
+	reSrcAttr = regexp.MustCompile(`(?is)\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)')`)
+	reAltAttr = regexp.MustCompile(`(?is)\balt\s*=\s*(?:"([^"]*)"|'([^']*)')`)
+	reHref    = regexp.MustCompile(`(?is)\bhref\s*=\s*(?:"([^"]*)"|'([^']*)')`)
+	reLi      = regexp.MustCompile(`(?is)<li[^>]*>(.*?)</li>`)
+	reQuote   = regexp.MustCompile(`(?is)<blockquote[^>]*>(.*?)</blockquote>`)
+	reBr      = regexp.MustCompile(`(?is)<br\s*/?>`)
+	reTags    = regexp.MustCompile(`(?is)<[^>]+>`)
+	reSpaces  = regexp.MustCompile(`[ \t]+`)
+	reBlank   = regexp.MustCompile(`\n{3,}`)
 )
+
+// attrValue extrait la valeur d'un attribut (guillemets doubles ou simples).
+func attrValue(re *regexp.Regexp, tag string) string {
+	m := re.FindStringSubmatch(tag)
+	if m == nil {
+		return ""
+	}
+	if m[1] != "" {
+		return m[1]
+	}
+	return m[2]
+}
 
 // HTMLToMarkdown convertit un fragment HTML en Markdown lisible.
 func HTMLToMarkdown(html string) string {
@@ -44,9 +61,25 @@ func HTMLToMarkdown(html string) string {
 	out = reQuote.ReplaceAllString(out, "\n> $1\n")
 	out = reBold.ReplaceAllString(out, "**")
 	out = reItalic.ReplaceAllString(out, "*")
-	out = reImage.ReplaceAllString(out, "![$2]($1)")
-	out = reImageAlt.ReplaceAllString(out, "![]($1)")
-	out = reLink.ReplaceAllString(out, "[$2]($1)")
+	out = reImgTag.ReplaceAllStringFunc(out, func(tag string) string {
+		src := attrValue(reSrcAttr, tag)
+		if src == "" {
+			// Sans source, il n'y a pas d'image à exporter.
+			return ""
+		}
+		return "![" + attrValue(reAltAttr, tag) + "](" + src + ")"
+	})
+	out = reAnchor.ReplaceAllStringFunc(out, func(m string) string {
+		sub := reAnchor.FindStringSubmatch(m)
+		if sub == nil {
+			return m
+		}
+		href := attrValue(reHref, sub[1])
+		if href == "" {
+			return sub[2]
+		}
+		return "[" + sub[2] + "](" + href + ")"
+	})
 	out = reTags.ReplaceAllString(out, "")
 	out = decodeEntities(out)
 	out = reSpaces.ReplaceAllString(out, " ")

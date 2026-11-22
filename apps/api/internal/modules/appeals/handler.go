@@ -6,8 +6,8 @@ package appeals
 
 import (
 	"errors"
+	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/qoefi/api/internal/abuse"
@@ -56,6 +56,9 @@ func (h *Handler) mapErr(w http.ResponseWriter, err error) {
 	case errors.Is(err, abuse.ErrInvalidAppeal):
 		response.BadRequest(w, err.Error())
 	default:
+		// Panne inattendue : le journal de requête ne connaît que le statut,
+		// la cause doit rester traçable.
+		log.Printf("[appeals] %v", err)
 		response.Internal(w)
 	}
 }
@@ -67,9 +70,10 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	limit := middleware.ClampLimit(r.URL.Query().Get("limit"), 50, 100)
-	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
-	if offset < 0 {
-		offset = 0
+	offset, err := middleware.ParseOffset(r.URL.Query().Get("offset"))
+	if err != nil {
+		response.BadRequest(w, err.Error())
+		return
 	}
 	items, total, err := h.svc.ListAppeals(r.Context(), uid, limit, offset)
 	if err != nil {

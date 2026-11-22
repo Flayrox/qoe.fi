@@ -5,8 +5,8 @@ package support
 
 import (
 	"errors"
+	"log"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -77,6 +77,7 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 func (h *Handler) listArticles(w http.ResponseWriter, r *http.Request) {
 	items, err := h.svc.ListArticles(r.Context())
 	if err != nil {
+		log.Printf("[support] articles: %v", err)
 		response.Internal(w)
 		return
 	}
@@ -132,6 +133,9 @@ func (h *Handler) mapErr(w http.ResponseWriter, err error) {
 	case errors.Is(err, internalsupport.ErrInvalidTicket):
 		response.BadRequest(w, err.Error())
 	default:
+		// Panne inattendue : le journal de requête ne connaît que le statut,
+		// la cause doit rester traçable.
+		log.Printf("[support] %v", err)
 		response.Internal(w)
 	}
 }
@@ -143,9 +147,10 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	limit := middleware.ClampLimit(r.URL.Query().Get("limit"), 50, 100)
-	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
-	if offset < 0 {
-		offset = 0
+	offset, err := middleware.ParseOffset(r.URL.Query().Get("offset"))
+	if err != nil {
+		response.BadRequest(w, err.Error())
+		return
 	}
 	items, total, err := h.svc.ListTickets(r.Context(), uid, limit, offset)
 	if err != nil {

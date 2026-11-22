@@ -46,6 +46,17 @@ func (h *Handler) requireSecret(next http.Handler) http.Handler {
 	})
 }
 
+// queueUnavailable : sans client asynq (Redis non configuré), les Publish*
+// sont des no-op. Répondre « queued: true » ferait croire à l'appelant que
+// l'événement est parti alors qu'il est perdu.
+func (h *Handler) queueUnavailable(w http.ResponseWriter) bool {
+	if h.client != nil {
+		return false
+	}
+	response.Error(w, http.StatusServiceUnavailable, "file d'attente indisponible")
+	return true
+}
+
 func (h *Handler) articlePublished(w http.ResponseWriter, r *http.Request) {
 	var p queue.ArticlePublishedPayload
 	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
@@ -54,6 +65,9 @@ func (h *Handler) articlePublished(w http.ResponseWriter, r *http.Request) {
 	}
 	if p.ArticleID == "" || p.PublisherID == "" {
 		response.BadRequest(w, "articleId et publisherId requis")
+		return
+	}
+	if h.queueUnavailable(w) {
 		return
 	}
 	if err := queue.PublishArticlePublished(h.client, p); err != nil {
@@ -72,6 +86,9 @@ func (h *Handler) subscriberCreated(w http.ResponseWriter, r *http.Request) {
 	}
 	if p.Email == "" || p.PublisherID == "" {
 		response.BadRequest(w, "email et publisherId requis")
+		return
+	}
+	if h.queueUnavailable(w) {
 		return
 	}
 	if err := queue.PublishSubscriberCreated(h.client, p); err != nil {

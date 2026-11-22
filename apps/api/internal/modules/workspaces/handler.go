@@ -1,6 +1,7 @@
 package workspaces
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -31,6 +32,7 @@ func (h *Handler) getActive(w http.ResponseWriter, r *http.Request) {
 	mediaID := r.URL.Query().Get("mediaId")
 	ws, err := h.svc.GetActive(r.Context(), userID, mediaID)
 	if err != nil {
+		log.Printf("[workspaces] active: %v", err)
 		response.Internal(w)
 		return
 	}

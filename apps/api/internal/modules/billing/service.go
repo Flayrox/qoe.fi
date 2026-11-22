@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/authz"
 	"github.com/qoefi/api/internal/subscriptions"
 )
 
@@ -151,26 +152,13 @@ func (s *Service) CreateTier(ctx context.Context, userID, publisherID string, in
 	return t, nil
 }
 
-// CanManagePublisher : publication personnelle de l'utilisateur, ou média
-// dont il est propriétaire actif (mêmes règles que le worker Stripe).
+// CanManagePublisher délègue à la règle unique du dépôt (authz) : publication
+// personnelle de l'utilisateur, ou média dont il est propriétaire actif.
 func (s *Service) CanManagePublisher(ctx context.Context, userID, publisherID string) (bool, error) {
-	if s == nil || s.pool == nil || userID == "" || publisherID == "" {
+	if s == nil || s.pool == nil {
 		return false, nil
 	}
-	var ok bool
-	err := s.pool.QueryRow(ctx, `
-		SELECT EXISTS(
-			SELECT 1 FROM "User" u WHERE u.id = $1::uuid AND u."publisherId" = $2
-			UNION
-			SELECT 1 FROM "MediaMember" mm
-			JOIN "Media" m ON m.id = mm."mediaId"
-			WHERE mm."userId" = $1::uuid AND mm.role = 'owner' AND mm.status = 'active'
-			  AND m."publisherId" = $2
-		)`, userID, publisherID).Scan(&ok)
-	if err != nil {
-		return false, err
-	}
-	return ok, nil
+	return authz.CanManagePublisher(ctx, s.pool, userID, publisherID)
 }
 
 // UserEmail renvoie l'email du compte (pré-remplissage Checkout).

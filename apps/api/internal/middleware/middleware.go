@@ -97,6 +97,24 @@ func ClampLimit(raw string, defaultLimit, maxLimit int) int {
 	return n
 }
 
+// ParseOffset lit un offset de pagination. Absent → 0 ; négatif → 0 (borne
+// basse) ; illisible → erreur (le handler répond 400). Une valeur illisible
+// ne doit pas repartir silencieusement de la première page.
+func ParseOffset(raw string) (int, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 0, nil
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, errors.New("offset invalide (entier attendu)")
+	}
+	if n < 0 {
+		return 0, nil
+	}
+	return n, nil
+}
+
 // Recovery récupère les paniques et répond 500 au lieu de faire tomber le serveur.
 func Recovery(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

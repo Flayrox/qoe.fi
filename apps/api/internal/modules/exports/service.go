@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/authz"
 )
 
 // Service lit les données exportables.
@@ -45,23 +46,13 @@ type SubscriberRow struct {
 	CreatedAt time.Time
 }
 
-// CanManagePublisher reprend la règle du worker Stripe : publication
+// CanManagePublisher délègue à la règle unique du dépôt (authz) : publication
 // personnelle, ou média dont l'utilisateur est propriétaire actif.
 func (s *Service) CanManagePublisher(ctx context.Context, userID, publisherID string) (bool, error) {
-	if s == nil || s.pool == nil || userID == "" || publisherID == "" {
+	if s == nil || s.pool == nil {
 		return false, nil
 	}
-	var ok bool
-	err := s.pool.QueryRow(ctx, `
-		SELECT EXISTS(
-			SELECT 1 FROM "User" u WHERE u.id = $1::uuid AND u."publisherId" = $2
-			UNION
-			SELECT 1 FROM "MediaMember" mm
-			JOIN "Media" m ON m.id = mm."mediaId"
-			WHERE mm."userId" = $1::uuid AND mm.role = 'owner' AND mm.status = 'active'
-			  AND m."publisherId" = $2
-		)`, userID, publisherID).Scan(&ok)
-	return ok, err
+	return authz.CanManagePublisher(ctx, s.pool, userID, publisherID)
 }
 
 // PublisherName renvoie le nom affiché de la publication (manifeste).

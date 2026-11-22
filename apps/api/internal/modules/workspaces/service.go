@@ -2,20 +2,21 @@ package workspaces
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
-	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/permissions"
 )
 
 type Service struct {
 	pool *pgxpool.Pool
-	q    *db.Queries
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
-	return &Service{pool: pool, q: db.New(pool)}
+	return &Service{pool: pool}
 }
 
 type ActiveWorkspace struct {
@@ -48,7 +49,15 @@ func textPtr(t pgtype.Text) *string {
 
 // GetActive resolves the active workspace for a user, given an optional mediaId from the cookie.
 // Mirrors apps/studio/src/lib/active-workspace.ts getActiveWorkspace.
+//
+// Un média non accessible (pas membre, invitation en attente, média inconnu)
+// fait retomber sur le workspace personnel ; une PANNE de lecture, elle,
+// remonte : fabriquer un workspace personnel complet sur une base injoignable
+// faisait passer l'indisponibilité pour un accès légitime.
 func (s *Service) GetActive(ctx context.Context, userID, mediaID string) (ActiveWorkspace, error) {
+	if s == nil || s.pool == nil {
+		return ActiveWorkspace{}, errors.New("workspaces: base indisponible")
+	}
 	if mediaID != "" {
 		var pubID, pubName, pubSlug string
 		var pubLogo pgtype.Text
@@ -61,6 +70,7 @@ func (s *Service) GetActive(ctx context.Context, userID, mediaID string) (Active
 			JOIN "Publisher" p ON p.id = m."publisherId"
 			WHERE mm."mediaId" = $1 AND mm."userId" = $2
 			  AND mm.status = 'active'
+			LIMIT 1
 		`, mediaID, toUUID(userID)).Scan(&pubID, &pubName, &pubSlug, &pubLogo, &role, &memberPerms)
 		if err == nil {
 			return ActiveWorkspace{
@@ -76,6 +86,9 @@ func (s *Service) GetActive(ctx context.Context, userID, mediaID string) (Active
 				}),
 			}, nil
 		}
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return ActiveWorkspace{}, fmt.Errorf("workspaces: appartenance média: %w", err)
+		}
 	}
 	// Fallback: personal publication
 	var pubID, pubName, pubSlug string
@@ -85,7 +98,7 @@ func (s *Service) GetActive(ctx context.Context, userID, mediaID string) (Active
 		FROM "Publisher" p
 		WHERE p.type = 'PERSONAL' AND p.id = (SELECT "publisherId" FROM "User" WHERE id = $1)
 	`, userID).Scan(&pubID, &pubName, &pubSlug, &pubLogo)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		// Pas encore de publication personnelle : aucun identifiant de
 		// publication n'existe. On ne fabrique JAMAIS publisherId = userId
 		// (un id utilisateur n'est pas une publication) ; le client appelle
@@ -98,6 +111,9 @@ func (s *Service) GetActive(ctx context.Context, userID, mediaID string) (Active
 			LogoURL:     nil,
 			Permissions: permissions.AllMediaPermissions(),
 		}, nil
+	}
+	if err != nil {
+		return ActiveWorkspace{}, fmt.Errorf("workspaces: publication personnelle: %w", err)
 	}
 	return ActiveWorkspace{
 		Type:        "PERSONAL",

@@ -47,6 +47,7 @@ func (h *Handler) export(w http.ResponseWriter, r *http.Request) {
 
 	allowed, err := h.svc.CanManagePublisher(r.Context(), userID, publisherID)
 	if err != nil {
+		log.Printf("[exports] accès publication: %v", err)
 		response.Internal(w)
 		return
 	}

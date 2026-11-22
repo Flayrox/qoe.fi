@@ -9,6 +9,7 @@ package books
 import (
 	"archive/zip"
 	"bytes"
+	"crypto/rand"
 	"fmt"
 	"html"
 	"regexp"
@@ -25,7 +26,48 @@ type Chapter struct {
 var (
 	reVoid    = regexp.MustCompile(`(?is)<(br|hr|img)([^>]*?)(/?)>`)
 	reImgAttr = regexp.MustCompile(`(?is)<img([^>]*?)/?>`)
+	// Une entité nommée (`&nbsp;`, `&laquo;`…) ou un `&` nu : les deux sont
+	// invalides en XML (seules les cinq entités prédéfinies existent).
+	reEntityOrAmp = regexp.MustCompile(`&(?:#[0-9]+|#[xX][0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]{1,31});|&`)
 )
+
+// normalizeEntities rend un fragment HTML acceptable en XML : les entités
+// nommées deviennent des références numériques, un `&` nu devient `&amp;`.
+// Sans cela, chaque chapitre contenant `&nbsp;` est rejeté par les lecteurs
+// EPUB (entité non déclarée).
+func normalizeEntities(in string) string {
+	return reEntityOrAmp.ReplaceAllStringFunc(in, func(m string) string {
+		if m == "&" {
+			return "&amp;"
+		}
+		switch m {
+		case "&amp;", "&lt;", "&gt;", "&quot;", "&apos;":
+			return m
+		}
+		decoded := html.UnescapeString(m)
+		if decoded == m {
+			// Entité inconnue : le `&` est du texte, il doit être échappé.
+			return "&amp;" + m[1:]
+		}
+		var b strings.Builder
+		for _, r := range decoded {
+			fmt.Fprintf(&b, "&#%d;", r)
+		}
+		return b.String()
+	})
+}
+
+// newUUID produit un UUID v4 (RFC 4122) : `dc:identifier` doit être un
+// identifiant d'ouvrage valide, pas un horodatage déguisé.
+func newUUID() (string, error) {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", err
+	}
+	b[6] = (b[6] & 0x0f) | 0x40 // version 4
+	b[8] = (b[8] & 0x3f) | 0x80 // variant RFC 4122
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16]), nil
+}
 
 // normalizeXHTML referme les balises void (EPUB = XHTML strict).
 func normalizeXHTML(in string) string {
@@ -49,7 +91,7 @@ func normalizeXHTML(in string) string {
 		trimmed = strings.TrimSuffix(trimmed, ">")
 		return trimmed + ` alt=""/>`
 	})
-	return out
+	return normalizeEntities(out)
 }
 
 // BuildEPUB assemble un EPUB 3 en mémoire.
@@ -97,7 +139,11 @@ func BuildEPUB(title, author string, chapters []Chapter, now time.Time) ([]byte,
 		return nil, err
 	}
 
-	uid := fmt.Sprintf("urn:uuid:%d", now.UTC().UnixNano())
+	bookID, err := newUUID()
+	if err != nil {
+		return nil, fmt.Errorf("identifiant du livre: %w", err)
+	}
+	uid := "urn:uuid:" + bookID
 	chapterItems := make([]string, 0, len(chapters))
 	spineItems := make([]string, 0, len(chapters))
 	navItems := make([]string, 0, len(chapters))
