@@ -53,6 +53,7 @@
     "guard:article-links": "node scripts/guard-article-links.mjs",
     "guard:media-origin": "node scripts/guard-media-origin.mjs",
     "guard:tsconfig": "node scripts/guard-tsconfig.mjs",
+    "guard:sqlc": "node scripts/guard-sqlc.mjs",
     "mail:dev": "node scripts/dev-smtp.mjs",
     "audit:guard": "node scripts/audit-guard.mjs",
     "format": "prettier --write .",

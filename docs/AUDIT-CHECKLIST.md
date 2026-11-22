@@ -112,12 +112,8 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
 | L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; **L29s `search` clos le 2026-11-22** (2 f. · 741 l. après correctifs, 6 défauts F670–F675 + 1 structurel F676, dettes R257–R259) ; **L29t `publishers` clos le 2026-11-22** (3 f. · 1 229 l. après correctifs, 8 défauts F677–F684 + 1 structurel F685, dettes R260–R262) ; **L29u `analytics` clos le 2026-11-22** (4 f. · 2 130 l. après correctifs, 12 défauts F686–F697 + 1 structurel F698, dettes R263–R265) ; **L29v `events`/`workspaces`/`appeals`/`support`/`exports`/`books` clos le 2026-11-22** (13 f. · 1 659 l. après correctifs, 6 défauts F699–F704 + 2 structurels F705–F706, dettes R266–R269) ; **L29w reliquat `tracking`/`placements`/`ai`/`collaborations`/`conversations`/`billing`/`ebooks` clos le 2026-11-22** (20 f. · 7 251 l. après correctifs, 13 défauts F707–F719 + 2 structurels F720–F721, dettes R270–R272) ; **L29x `oauth`/`devtools` clos le 2026-11-22** (7 f. · 3 190 l. après correctifs, 10 défauts F722–F731 + 2 structurels F732–F733, dettes R273–R275, **R270 soldée**) ; **L30 `workers`/`queue`/`resilience`/`cache` clos le 2026-11-22** (17 f. · 3 933 l. après correctifs, 9 défauts F734–F742 + 3 structurels F743–F745, dettes R276–R279) ; **L31 `middleware`/`authz`/`permissions`/`secguard` clos le 2026-11-22** (17 f. · 3 622 l. après correctifs, 6 défauts F746–F751 + 1 structurel F752, dettes R280–R282) ; **L32 `abuse`/`antispam`/`trust`/`pow` clos le 2026-11-22** (13 f. · 3 788 l. après correctifs, 5 défauts F755–F759 + 1 structurel F760, dettes R283–R285) ; **L33 `flags`/`adminauthz`/`apiaccess`/`auditlog` clos le 2026-11-22** (13 f. · 2 375 l. après correctifs, 6 défauts F761–F766 + 1 structurel F767, dettes R286–R288) ; **L34 infra Go clos le 2026-11-22** (18 paquets · 19 f. écrits · 3 373 l. + 38 f. générés sqlc, 7 défauts F768–F774 + 1 structurel F775, dettes R289–R292) ; prochain = **L35** (transverse : gardes CI, docs, scripts)) |
-| L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
-| L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
-| L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
-| L33     | `.github/workflows/**`                                                                                       | 2 workflows                 | à auditer               |
-| L34     | `scripts/**`                                                                                                 | 48 fichiers                 | à auditer               |
-| L35     | `Dockerfile`, `docker-compose*.yml`, `docker/**`, `infra/monitoring/**`, `Caddyfile.dev`                     | infra                       | à auditer               |
+| L35     | `.github/workflows/**`, `scripts/**`, gardes racine (`package.json`) — **transverse**                   | 2 workflows · 1 157 l. + 60 entrées · 6 857 l. | **clos le 2026-11-22** — 7 défauts F776–F782 (R289 soldée : `guard:sqlc` épinglé v1.31.1, rouge→vert cités), 1 structurel F783, dettes R293–R296 |
+| L35b    | `Dockerfile`, `docker-compose*.yml`, `docker/**`, `infra/monitoring/**`, `Caddyfile.dev`                     | infra                       | à auditer (reporté de l'ancienne ligne L35, cf. F783) |
 | L36     | `e2e/**`, `playwright*.config.ts`, `e2e/lib/**`                                                              | 65 fichiers                 | à auditer               |
 | L37     | `docs/**`, `AGENTS.md`, racine (`tsconfig`, `eslint`, `turbo`, `vitest`), `supabase/`, `patches/`, `.husky/` | transverse                  | à auditer               |
 | **L38** | URLs d'article (core ↔ tenants) : `config/routes`, `utils/article-url`, `ui`, `sdk`, Go `articles`, `scripts/dev-smtp.mjs` | transverse | **durci le 2026-11-18** |
@@ -277,7 +273,16 @@ refermé, liens d'e-mail figés sur la prod, pool `PG_POOL_SIZE=1` incohérent, 
 chemin inconnu, 20 requêtes émises sur une erreur DB de `shortcode`) et **1 structurel** F775. Dettes
 **R289–R292**. **Aucun faux positif ajouté** : la suspicion sur `log.Printf` (614 appels) a été testée par commande
 et s'est révélée déjà couverte par `slog.SetDefault`.
-**Lot suivant : L35** — transverse (gardes CI, docs, scripts).
+
+**L35 est clos le 2026-11-22** : transverse gardes CI / workflows / scripts (`.github/workflows/**` 2 workflows ·
+1 157 l., `scripts/**` 60 entrées · 6 857 l., bloc `scripts` de `package.json`) — **7 défauts** F776–F782 dont
+**R289 soldée** (`guard:sqlc`, sqlc épinglé v1.31.1 : rouge sur `.sql.go` périmé prouvé, vert après régénération), le
+**gate `gofmt` absent de la CI**, l'image OTA jamais reconstruite (`docker/**` hors filtre `paths`),
+`govulncheck@latest` non reproductible, un garde `pnpm audit` décoratif en `continue-on-error`, et deux défauts de
+`wait-for-db.sh` (migrateur documenté faux, diagnostic faux quand `pg_isready` manque) ; **1 structurel** F783 (table
+des lots contredisant la prose). Dettes **R293–R296**.
+**Lots suivants : L35b** — infra (`Dockerfile`, `docker-compose*.yml`, `docker/**`, `infra/monitoring/**`,
+`Caddyfile.dev`) ; puis **L36** (e2e) et **L37** (docs, racine, `supabase/`, `patches/`, `.husky/`).
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2256,6 +2261,78 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L35 — transverse : gardes CI, workflows, scripts — **clos le 2026-11-22**
+
+**Périmètre remesuré** : `.github/workflows/**` (**2 workflows · 1 157 l.** : `ci.yml` 992 l., `build-images.yml`
+165 l.), `scripts/**` (**60 entrées · 6 857 l.**, dont 11 gardes/ratchets en exécution) et le bloc `scripts` de
+`package.json` (**119 commandes**). R289 (« aucun garde ne prouve que les `.sql.go` sont à jour ») fait partie du lot.
+La ligne `L35` de la table désignait l'infra Docker : cette définition était périmée (voir F783) — le périmètre
+Docker/compose/Caddyfile/monitoring est remesuré et suivi en **L35b**.
+
+| # | Défaut | Preuve (rouge exécuté à `a40147a6`, worktree `/tmp/qoe-l35-red`) | Correctif |
+|---|---|---|---|
+| F776 (**R289**) | **Rien ne vérifiait que `apps/api/internal/database` correspond au schéma** : ajouter une requête à `sql/queries/*.sql` sans `sqlc generate` laisse un code Go **syntaxiquement valide et périmé** — il compile, passe `go vet`, passe tous les gardes, et n'échouerait qu'à l'exécution en production (un `Scan` qui ne correspond plus). | Ajout de `AuditL35StaleProbe` dans `sql/queries/admin.sql` sans régénération : `go build ./...` = **0**, `go vet ./...` = **0** (périmé mais invisible) ; nouveau `guard:sqlc` = **1** → `admin.sql.go : diverge…`, `querier.go : diverge…`. Branche « fichier fantôme » : `zz_extra.go` → `présent dans le dépôt mais sqlc ne le produit plus` (**1**). Après `sqlc generate` : **0**. | `scripts/guard-sqlc.mjs` : régénère dans un dossier temporaire (aucun réseau, aucun fichier du dépôt touché) et compare octet par octet ; **version épinglée v1.31.1** (un générateur plus récent reformate et ferait échouer sans qu'aucune requête ne change) ; échec explicite si le binaire manque ou si sa version diffère. Câblé `pnpm guard:sqlc` + job `static-checks` (Go setup + `go install …/sqlc@v1.31.1`). |
+| F777 | **La CI n'avait aucun gate de formatage Go** : `gofmt -l .` est une preuve exigée par la campagne, mais les jobs `api` ne lançaient que `go vet` + `go build`, qui acceptent un fichier mal formaté. La dette F658 (`gofmt -l .` ≠ 0) a existé exactement pour cette raison. | Fichier volontairement mal formaté (`apps/api/internal/textutil/zz_red.go`) : `gofmt -l` le liste, `go vet` = **0**, `go build` = **0** → CI verte avec du code non formaté. | Étape `gofmt` dans le shard 0 du job `api` (`unformatted=$(gofmt -l .)` → `exit 1`). Simulation du snippet sur le même fichier : **GATE=1**. |
+| F778 | **L'image du service OTA ne se reconstruisait jamais sur ses propres changements** : le filtre `paths` de `build-images.yml` couvrait `apps/**`, `packages/**`, `messages/**`, `Dockerfile*`… mais pas `docker/**`, alors que le service `updates` a **son** contexte et **son** Dockerfile (`docker/updates/**`, 437 l. de `server.js`). | Matcher des `paths` du workflow contre `docker/updates/server.js` → `matched: false`. | `- 'docker/**'` ajouté au filtre, avec la raison en commentaire. |
+| F779 | **`govulncheck@latest`** dans le job supply-chain : la version de l'outil changeait sans commit, donc le verdict d'une barrière de sécurité était **non reproductible** (un run rouge, un run vert sur le même SHA). | `grep -rn "@latest" .github/workflows/` → 1 occurrence ; version effectivement résolue localement : `golang.org/x/vuln v1.9.0`. | `govulncheck@v1.9.0` épinglé. |
+| F780 | **Garde décoratif dupliqué** : `pnpm audit --audit-level=critical` avec `continue-on-error: true` sortait **1** à chaque run (143 vulnérabilités, dont 9 critiques) et ne bloquait rien — un faux garde à côté du vrai (`pnpm audit:guard`, cliquet `--prod` high/critical, 58 avis triés). Contournement direct de la règle « aucun contournement de guard » (AGENTS.md). | `pnpm audit --audit-level=critical` → exit **1** (143 vulnérabilités : 14 low, 59 moderate, 61 high, 9 critical) ; `pnpm audit:guard` → **0**. | Étape supprimée (le cliquet reste la seule autorité, dans `static-checks`) ; les étapes `setup-node`/`setup-pnpm` que ce garde seul maintenait en vie sont retirées du job (sinon du code mort). |
+| F781 | **Documentation contredisant le code** : `scripts/wait-for-db.sh` annonçait « les migrations Prisma » ; le dépôt n'a plus aucune dépendance ni dossier `prisma/`, le migrateur est goose (`apps/api/cmd/migrate`). | `grep -n "Prisma" scripts/wait-for-db.sh` → ligne 5 ; `deps prisma: []`, `aucun dossier prisma`, migrateur `goose`. | En-tête réécrit (goose, `apps/api/sql/migrations`), `set -e` → `set -euo pipefail` (le shell n'arrêtait pas sur variable non définie ni sur pipe). |
+| F782 | **Diagnostic faux quand `pg_isready` manque** : la boucle appelait `pg_isready`, échouait à chaque tour et concluait « PostgreSQL n'est pas devenu disponible » après le timeout — un binaire absent présenté comme une base indisponible. | `bash scripts/wait-for-db.sh --timeout 2` → `pg_isready: command not found` puis `❌ Timeout ! PostgreSQL n'est pas devenu disponible en 2s` (exit 1). | Pré-contrôle `command -v pg_isready` → message explicite (`installer le client PostgreSQL`) et sortie immédiate : `❌ pg_isready introuvable…` (exit 1, sans attente). |
+
+**Correctif structurel, sans rouge isolable** (déclaré comme tel) :
+
+- **F783 — la table des lots se contredisait** : les lignes `L30`–`L35` décrivaient encore le plan d'origine (`workers`,
+  `sql/**`, `cmd/**`, `workflows`, `scripts`, infra) alors que ces lots sont clos avec **d'autres périmètres** dans
+  la prose, et la ligne `L35` désignait l'infra Docker quand le lot transverse (gardes/CI/scripts) était annoncé
+  partout. Les lignes périmées `L30`–`L34` sont retirées, `L35` est redéfinie sur le périmètre réellement audité et
+  l'infra Docker est reportée explicitement en **L35b** — un lecteur ne peut plus prendre une ligne pour la fiche.
+
+**Audités sans défaut retenu** (preuve, pas relecture) :
+
+- Les 9 gardes/ratchets (`guard-seed-script`, `guard-legal-consent`, `guard-tsconfig`, `guard-article-links`,
+  `guard-media-origin`, `guard-dangerous-html`, `guard-flags-parity`, `audit-guard`, `ui-audit`, `arch-audit`) :
+  tous en `set -euo pipefail` (ou `process.exit(1)` explicite), allowlists motivées et bornées, aucun `|| true`
+  silencieux — **13 gardes exécutés, 13 × 0** après correctifs.
+- **Faux positif écarté** : le message `lint-staged could not find any staged files matching configured tasks`, vu
+  sur tous les commits de la campagne, n'est pas un garde cassé. `lint-staged` ne cible que
+  `*{.js,.jsx,.ts,.tsx,.mjs,.cjs,.json,.css}` ; les commits L32–L34 ne contenaient que du Go et du Markdown. Rien
+  corrigé (ajouter un pré-commit Go serait une décision de produit, pas un bug).
+- **Aucune référence morte** : chaque `scripts/…` cité par `package.json` ou par les workflows existe, et chaque
+  `pnpm <script>` invoqué par la CI existe (seules les commandes natives `pnpm install`/`exec`/`audit` ressortent du
+  contrôle).
+- `wait-for-db.sh` après correctifs : `bash -n` = 0, échec explicite immédiat sans attente.
+- Workflows : parse YAML et syntaxe JS validés (`prettier --parser yaml` = 0 sur les deux fichiers, `node --check` = 0).
+
+**Migrations** : **aucune**. `ExpectedMigrationVersion` reste **95**.
+
+**Docs adaptées** : la table des lots (F783) et ce bloc ; aucun test existant invalidé (aucune signature, aucune
+assertion touchée — le lot ne modifie que des workflows, des scripts et une commande `package.json`).
+
+**Dettes ouvertes** (numérotation en continuité de R292) :
+
+- **R293 — l'isolation e2e existe mais n'est câblée à rien** : `scripts/e2e.sh` monte la base de test isolée
+  (`qoe_test:55432`, migrations goose + seed) **avant** de lancer Playwright, précisément pour qu'un run local ne
+  vide pas la base de dev partagée (`TRUNCATE CASCADE` des specs). Il n'est référencé nulle part et `pnpm e2e` =
+  `playwright test` brut. À trancher en **L36** (e2e) : exposer `pnpm e2e:isolated` ou faire du script le seul point
+  d'entrée ; non modifié ici parce que la CI dépend de `pnpm e2e` avec ses propres services.
+- **R294 — scripts d'exploitation non référencés** : `compress-avatars.sh`, `fetch-*-avatars.sh`, `optimize-db-*.sql`,
+  `rls-*.sql`, `rotate-code-signing-key.sh`, `verify-premium-db.sh`, `ghcr-login.sh`, `install-tailnet-dns.sh`,
+  `tailnet-firewall.sh`, `print-credentials.sh`, `backup-top-db.sh`/`restore-top-db.sh` ne sont cités par aucun
+  fichier versionné. Ce sont des procédures one-shot, pas du code mort : les supprimer serait destructif et relève
+  d'une décision d'exploitation. À documenter ou retirer en **L37** (docs).
+- **R295 — actions GitHub épinglées par tag majeur** (`actions/checkout@v4`, `setup-go@v5`, `docker/*@v3`…) et non
+  par SHA : une mise à jour amont peut changer le comportement d'un job sans commit. Politique supply-chain
+  (Renovate + SHA, ou tags immuables) à décider — hors d'un lot d'audit de code.
+- **R296 — `guard-dangerous-html` est une heuristique de surface** (documentée comme telle) : un fichier contenant
+  `dangerouslySetInnerHTML` **et** un `sanitize*` n'importe où — même non relié à la valeur injectée — passe. La
+  preuve réelle reste les tests d'assainissement ; durcir demanderait une analyse de flux (AST), à décider.
+
+**Commandes passées sur l'arbre corrigé** : `gofmt -l .` → **0** ; `go build ./...` → 0 ; `go vet ./...` → 0 ;
+`QOE_DB_TESTS_OPTIONAL=1 go test ./...` → **85 paquets `ok`, 0 `FAIL`** (status 0, Postgres de test sollicité) ;
+workspace : `guard:sqlc`, `typecheck`, `lint`, `arch:audit`, `audit:guard`, `guard:flags-parity`,
+`guard:media-origin`, `guard:tsconfig`, `guard:article-links`, `guard:dangerous-html`, `guard:seed-script`,
+`guard:legal-consent`, `ui:audit` → **13 × 0**. Aucun fichier TypeScript applicatif touché : **vitest non requis**.
 
 ## L34 — infra Go : `anchors` · `canon` · `config` · `database` · `dbpool` · `deeplink` · `identity` · `logging` ·
 `netguard` · `observability` · `publicurl` · `response` · `shared` · `shortcode` · `slug` · `textutil` · `umami` ·

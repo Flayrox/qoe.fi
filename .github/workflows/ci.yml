@@ -71,6 +71,22 @@ jobs:
       - name: Guard tsconfig (alias morts, presets contournés, résolution legacy)
         run: pnpm guard:tsconfig
 
+      # Code généré sqlc (apps/api/internal/database) : régénéré dans un dossier
+      # temporaire et comparé octet par octet. Une requête ajoutée à `sql/` sans
+      # `sqlc generate` compile parfaitement et n'échouerait qu'à l'exécution.
+      # Version épinglée (v1.31.1) : un générateur plus récent reformate la sortie.
+      - name: Setup Go (sqlc)
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
+
+      - name: Install sqlc (version épinglée)
+        run: go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
+
+      - name: Guard sqlc (code généré à jour)
+        run: pnpm guard:sqlc
+
       # Passe 4 (T10) : cliquet sur les vulnérabilités high/critical connues.
       - name: Guard dependencies (pnpm audit, cliquet)
         run: pnpm audit:guard
@@ -237,6 +253,15 @@ jobs:
         working-directory: apps/api
         run: |
           if [ "${{ matrix.shard }}" = "0" ]; then
+            # `go vet` et `go build` acceptent un fichier mal formaté : sans ce
+            # contrôle, `gofmt -l .` pouvait dériver sans qu'aucun job ne
+            # rougisse (c'était l'état avant la campagne d'audit).
+            unformatted=$(gofmt -l .)
+            if [ -n "$unformatted" ]; then
+              echo "✗ gofmt : fichiers non formatés :"
+              echo "$unformatted"
+              exit 1
+            fi
             go vet ./...
             go build ./...
           fi
@@ -954,22 +979,14 @@ jobs:
         # 🛡️ Bloquant volontairement : aucun contournement de guard (cf. AGENTS.md).
         # Une faille transitive sans correctif amont se traite par une allowlist
         # explicite et datée, jamais par un continue-on-error silencieux.
+        # Version épinglée : `@latest` faisait flipper le verdict d'un jour à
+        # l'autre sans qu'un commit ne change — un garde doit être reproductible.
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
           cd apps/api && govulncheck ./...
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 11.21.0
-
-      # Audit des dépendances JS/TS : rapport non bloquant sur les CVE critiques
-      # afin de ne pas casser la CI en cas d'indisponibilité du registre npm.
-      - name: pnpm Vulnerability Audit (critical CVEs)
-        continue-on-error: true
-        run: pnpm audit --audit-level=critical
+      # ⛔ Il y avait ici un `pnpm audit --audit-level=critical` en
+      # `continue-on-error: true` : il sortait 1 à chaque run (9 avis critiques
+      # connus) et ne bloquait rien — un garde décoratif. Le cliquet réel est
+      # `pnpm audit:guard` (job static-checks) : avis high/critical triés, toute
+      # NOUVELLE entrée fait échouer la CI.

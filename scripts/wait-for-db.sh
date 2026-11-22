@@ -2,8 +2,10 @@
 # =====================================================================
 # 🐘 wait-for-db.sh — Attend que PostgreSQL soit prêt
 # =====================================================================
-# 📖 Ce script est utile quand tu lances les migrations Prisma
-# manuellement (en dehors de docker-compose), ou dans un pipeline CI/CD.
+# 📖 Ce script est utile avant de lancer les migrations goose
+# (`go run ./cmd/migrate -dir sql/migrations up`, cf. AGENTS.md) en dehors de
+# docker-compose, ou dans un pipeline CI/CD. La seule source de schéma du
+# dépôt est `apps/api/sql/migrations` ; aucun autre migrateur n'est installé.
 #
 # Il utilise la commande `pg_isready` qui teste la connexion TCP à Postgres
 # sans avoir besoin de credentials.
@@ -13,7 +15,15 @@
 #   ./scripts/wait-for-db.sh --host db --port 5432 --timeout 60
 # =====================================================================
 
-set -e  # Arrête le script si une commande échoue
+set -euo pipefail # Arrête le script à la première commande qui échoue
+
+# Sans le client PostgreSQL, la boucle ci-dessous tournait jusqu'au timeout en
+# annonçant « PostgreSQL n'est pas disponible » — un diagnostic faux pour un
+# binaire manquant.
+if ! command -v pg_isready >/dev/null 2>&1; then
+  echo "❌ pg_isready introuvable : installer le client PostgreSQL (postgresql-client, ou libpq-dev)."
+  exit 1
+fi
 
 # --- Valeurs par défaut (peuvent être overridées par variables d'env) ---
 HOST="${DB_HOST:-localhost}"

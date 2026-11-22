@@ -30,6 +30,10 @@ on:
       # Les catalogues Lingui sont compilés DANS l'image (`pnpm intl:compile`) :
       # un correctif de traduction doit donc reconstruire les images.
       - 'messages/**'
+      # Service OTA (`docker/updates/**`, contexte et Dockerfile propres) : sans
+      # cette ligne, un correctif du serveur d'updates ne reconstruisait jamais
+      # son image — l'édition `docker/` restait hors de tout filtre de chemins.
+      - 'docker/**'
       - 'Dockerfile*'
       - '.dockerignore'
       - 'pnpm-lock.yaml'
