@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; **L29s `search` clos le 2026-11-22** (2 f. · 741 l. après correctifs, 6 défauts F670–F675 + 1 structurel F676, dettes R257–R259) ; **L29t `publishers` clos le 2026-11-22** (3 f. · 1 229 l. après correctifs, 8 défauts F677–F684 + 1 structurel F685, dettes R260–R262) ; **L29u `analytics` clos le 2026-11-22** (4 f. · 2 130 l. après correctifs, 12 défauts F686–F697 + 1 structurel F698, dettes R263–R265) ; prochain = lot groupé events/workspaces/appeals/support/exports/books) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; **L29s `search` clos le 2026-11-22** (2 f. · 741 l. après correctifs, 6 défauts F670–F675 + 1 structurel F676, dettes R257–R259) ; **L29t `publishers` clos le 2026-11-22** (3 f. · 1 229 l. après correctifs, 8 défauts F677–F684 + 1 structurel F685, dettes R260–R262) ; **L29u `analytics` clos le 2026-11-22** (4 f. · 2 130 l. après correctifs, 12 défauts F686–F697 + 1 structurel F698, dettes R263–R265) ; **L29v `events`/`workspaces`/`appeals`/`support`/`exports`/`books` clos le 2026-11-22** (13 f. · 1 659 l. après correctifs, 6 défauts F699–F704 + 2 structurels F705–F706, dettes R266–R269) ; prochain = reliquat `modules/**` (`ai`, `billing`, `collaborations`, `conversations`, `devtools`, `ebooks`, `oauth`, `placements`, `tracking`)) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -222,7 +222,14 @@ non bornés) et **1 structurel** (F685, UUID en texte et session illisible), det
 d'accès rendue en 403, Umami dégradé en zéros au lieu de 503/500, `declared` faux, `workspaceType` inconnu
 silencieux, bornes de période avalées, article programmé compté en brouillon, panique sur service sans pool) et
 **1 structurel** (F698, douze branches d'erreur recopiées → `writeServiceError`), dettes **R263–R265**.
-**Lot suivant de L29, « En cours »** — le lot groupé events/workspaces/appeals/support/exports/books.
+**L29v est clos le 2026-11-22** : lot groupé `events`, `workspaces`, `appeals`, `support`, `exports`, `books`
+(**13 f. · 1 659 l.** après correctifs, 1 552 l. avant) — **6 défauts** F699–F704 (événement perdu annoncé
+`queued:true`, panne DB rendue en workspace personnel complet, Markdown qui perd `alt`/liens selon l'ordre des
+attributs, `dc:identifier` EPUB non-UUID, chapitres XHTML mal formés sur les entités nommées, `?offset=abc`
+avalé) et **2 structurels** (F705 règle de propriété de publication recopiée trois fois → `authz`,
+F706 pannes 500 sans cause), dettes **R266–R269**.
+**Lot suivant de L29, « En cours »** — le reliquat `apps/api/internal/modules/**` (`ai`, `billing`, `collaborations`,
+`conversations`, `devtools`, `ebooks`, `oauth`, `placements`, `tracking`).
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2201,6 +2208,63 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L29v — lot groupé `events` · `workspaces` · `appeals` · `support` · `exports` · `books` — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l`) : **13 fichiers de production · 1 552 l.** (`events/handler 83` ;
+`workspaces/handler 38 + service 110` ; `appeals/handler 146 + service 73` ; `support/handler 224 + service 74` ;
+`exports/handler 148 + service 152 + markdown 70` ; `books/handler 160 + service 85 + epub 189`) — conforme aux
+annonces ; **7 fichiers de tests · 1 621 l.** avant le lot. Lus intégralement, avec leurs appelants réels :
+`cmd/server` (montage des six handlers, `internal/events` sous secret partagé), `internal/queue` (`Publish*` :
+no-op sur client nil), `internal/abuse` et `internal/support` (règles de recours/dossiers), `internal/authz`,
+`apps/studio` (`api/books/compile`, `api/export`, `lib/active-workspace`), `apps/hi` (`/v1/support/articles`),
+`middleware.ClampLimit`, et la règle de propriété de publication recopiée dans `billing`. Après correctifs le lot
+pèse **13 f. · 1 659 l.** ; **6 fichiers d'audit · 256 l.** (8 tests) s'ajoutent.
+
+**6 défauts corrigés** F699–F704, chacun adossé à un rouge réellement exécuté (worktree
+`git worktree add -f /tmp/qoe-l29v-red HEAD`, suite `TestAuditL29V_*`).
+
+| # | Défaut | Preuve (test) | Rouge constaté | Commit |
+|---|---|---|---|---|
+| F699 | **Événement perdu annoncé comme mis en file** : sans client asynq (Redis non configuré), `Publish*` est un no-op mais les deux routes internes répondaient `{"queued":true}` en 200. L'appelant croyait l'événement parti. 503 explicite, validation du corps conservée avant la garde. | `TestAuditL29V_QueueOutageIsNotAnnouncedAsQueued`. | `/internal/events/article-published sans file → 200 ({"queued":true}), attendu 503` | `fix(events)` |
+| F700 | **Panne DB rendue en workspace personnel complet** : toute erreur de la branche média retombait sur le workspace PERSONAL avec **toutes** les permissions (`AllMediaPermissions`) et `err = nil` ; une base injoignable devenait un accès légitime. Seul `pgx.ErrNoRows` déclenche le repli, le reste remonte en 500 journalisé (les cas « invité », « média inconnu » restent des replis, tests existants inclus). | `TestAuditL29V_DatabaseOutageIsNotAPersonalWorkspace` + `TestAuditL29V_HandlerReportsOutage`. | `base injoignable → workspace "PERSONAL" avec 14 permissions et err = nil` / `base injoignable → 200 ({…"permissions":[…]…}), attendu 500` | `fix(workspaces)` |
+| F701 | **Export Markdown : texte alternatif et liens perdus** : la conversion n'acceptait que `src` avant `alt` et des guillemets doubles ; un HTML importé (`alt` d'abord, ou `'…'`) sortait en `![](src)` ou perdait le lien. Attributs lus indépendamment de l'ordre et du guillemet, image sans `src` ignorée. | `TestAuditL29V_MarkdownKeepsAltBeforeSrc`. | `"<p><img alt=\"Schéma\" src=\"/schema.png\"></p>" → "![](/schema.png)\n", attendu "![Schéma](/schema.png)"` | `fix(exports)` |
+| F702 | **Identifiant EPUB invalide** : `dc:identifier` valait `urn:uuid:<nanos>` — pas un UUID RFC 4122, rejeté par epubcheck et non rapprochable par les bibliothèques. UUID v4 généré (`crypto/rand`), sans dépendance. | `TestAuditL29V_EpubIdentifierIsUUID`. | `dc:identifier = "urn:uuid:1795341600000000000", attendu un UUID RFC 4122` | `fix(books)` |
+| F703 | **Chapitres EPUB non bien formés** : les entités HTML nommées (`&nbsp;`, `&laquo;`…) et les `&` nus restaient tels quels ; en XML ce sont des entités non déclarées, donc le chapitre importé est illisible. Entités nommées converties en références numériques, `&` nu échappé (les cinq entités XML prédéfinies sont préservées). | `TestAuditL29V_EpubChaptersAreWellFormedXHTML`. | `chapitre XHTML mal formé : XML syntax error on line 11: invalid character entity &nbsp;` | `fix(books)` |
+| F704 | **Offset illisible avalé** : `?offset=abc` repartait silencieusement de la première page (recours et support). `middleware.ParseOffset` (absent → 0, négatif → 0, illisible → erreur) et 400 explicite sur les deux listes. | `TestAuditL29V_UnreadableOffsetRejected` (appeals + support). | `offset=abc → 200 ({"items":[],"total":0}), attendu 400` | `fix(appeals)` + `fix(support)` |
+
+**Correctifs structurels, sans rouge isolable** (déclarés comme tels) :
+
+- **F705 — règle de propriété de publication recopiée trois fois** : `exports`, `books` et `billing`
+  portaient le même SQL `User.publisherId UNION MediaMember owner actif`. Une seule implémentation,
+  `authz.CanManagePublisher`, consommée par les trois services (signatures publiques inchangées).
+- **F706 — pannes 500 sans cause** : les branches `default` de `appeals.mapErr`/`support.mapErr`, l'accès
+  publication d'`exports`/`books` et `workspaces.active` répondaient 500 sans journaliser ; le journal de
+  requête ne connaît que le statut. Chaque panne laisse désormais une ligne avec sa cause. Le champ mort
+  `q *db.Queries` de `workspaces.Service` est supprimé.
+
+**Migrations** : **aucune nécessaire**. `ExpectedMigrationVersion` reste **95**.
+
+**Dettes ouvertes, sans faux correctif** (numérotation en continuité de R265) :
+
+- **R266 — export streamé** : l'archive est écrite directement dans la réponse ; une erreur de `zip.Create`
+  en cours de route laisse un ZIP partiel en 200. Corriger demande de tout bufferiser (contenu des articles
+  non borné) — décision produit sur la taille maximale d'un export.
+- **R267 — compilation de livre sans filtre éditorial** : `books.Articles` charge les articles par identifiants
+  sans filtrer `published` ni `isHiddenByModerator` ; un propriétaire peut donc compiler un brouillon ou un
+  article masqué par la modération. L'accès est déjà borné aux propriétaires de publication ; trancher si un
+  livre doit exclure les brouillons.
+- **R268 — base absente présentée comme « aucun dossier »** : `abuse.ListUserAppeals`/`support.ListUserTickets`
+  renvoient `([], 0, nil)` quand le pool est nil (au lieu d'une erreur). Le comportement vit dans
+  `internal/abuse`/`internal/support`, hors périmètre de ce lot — à traiter avec le lot transverse.
+- **R269 — e-mail d'événement non validé** : `POST /internal/events/subscriber-created` n'exige qu'un e-mail
+  non vide ; une adresse malformée part en file et échouera au worker. L'endpoint est protégé par secret et
+  ses appelants TS valident déjà ; une seconde validation risque de diverger du worker.
+
+**Commandes passées sur l'arbre corrigé** : `gofmt -l .` (dépôt entier) → **0** ; `go build ./...` → 0 ;
+`go vet ./...` → 0 ; `QOE_DB_TESTS_OPTIONAL=1 go test ./...` → **85 paquets `ok`, 0 `FAIL`** ;
+batterie workspace 13 commandes → **13 × 0** ; **vitest** `apps/core` (notifications + réglages lecteur) →
+**5 fichiers, 24 tests verts**. La dette de formatage **F658 reste soldée** (`gofmt -l .` = 0).
 
 ## L29u — `apps/api/internal/modules/analytics/**` — **clos le 2026-11-22**
 
