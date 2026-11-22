@@ -86,7 +86,7 @@ var stepUpRoutes = map[string]authz.Level{
 	"POST /v1/admin/users/{userID}/revoke-sessions":    authz.Level2,
 	"POST /v1/admin/subscriptions/grants":              authz.Level2,
 	"POST /v1/admin/subscriptions/grants/{id}/revoke":  authz.Level2,
-	"PATCH /v1/admin/publishers/{id}":                authz.Level2,
+	"PATCH /v1/admin/publishers/{id}":                  authz.Level2,
 	"PUT /v1/admin/config":                             authz.Level2,
 	"DELETE /v1/admin/config/{key}":                    authz.Level2,
 	"PUT /v1/admin/reserved-identifiers/{kind}":        authz.Level2,
@@ -95,13 +95,13 @@ var stepUpRoutes = map[string]authz.Level{
 	"PATCH /v1/admin/oauth/clients/{id}":               authz.Level2,
 	// Modération qui mesure un compte : un verdict humain confirmé ou levé, et
 	// un recours dont le prononcé peut lever la mesure.
-	"PATCH /v1/admin/abuse/decisions":                    authz.Level2,
-	"PATCH /v1/admin/abuse/appeals/{id}":                 authz.Level2,
-	"POST /v1/admin/security/trust/{userId}/recompute":   authz.Level2,
-	"POST /v1/admin/api-keys/{id}/quarantine":            authz.Level2,
-	"DELETE /v1/admin/api-keys/{id}/quarantine":          authz.Level2,
-	"POST /v1/admin/publishers/{id}/api-quarantine":      authz.Level2,
-	"DELETE /v1/admin/publishers/{id}/api-quarantine":    authz.Level2,
+	"PATCH /v1/admin/abuse/decisions":                  authz.Level2,
+	"PATCH /v1/admin/abuse/appeals/{id}":               authz.Level2,
+	"POST /v1/admin/security/trust/{userId}/recompute": authz.Level2,
+	"POST /v1/admin/api-keys/{id}/quarantine":          authz.Level2,
+	"DELETE /v1/admin/api-keys/{id}/quarantine":        authz.Level2,
+	"POST /v1/admin/publishers/{id}/api-quarantine":    authz.Level2,
+	"DELETE /v1/admin/publishers/{id}/api-quarantine":  authz.Level2,
 	// Valider la double validation d'un acte N3 est un acte lourd : on ne
 	// s'auto-valide pas, et une seconde personne doit prouver sa présence.
 	"POST /v1/admin/approvals/{id}/decide": authz.Level2,
@@ -117,8 +117,8 @@ var stepUpRoutes = map[string]authz.Level{
 	"PUT /v1/admin/feature-flags/{key}":              authz.Level2,
 	"PATCH /v1/admin/features/{key}":                 authz.Level2,
 	"PUT /v1/admin/announcement":                     authz.Level2,
-	"POST /v1/admin/users/{userID}/dsar-export":     authz.Level2,
-	"POST /v1/admin/users/{userID}/erase":           authz.Level2,
+	"POST /v1/admin/users/{userID}/dsar-export":      authz.Level2,
+	"POST /v1/admin/users/{userID}/erase":            authz.Level2,
 	"POST /v1/admin/compliance/retention/purge":      authz.Level2,
 	"POST /v1/admin/audit/signed-export":             authz.Level2,
 	"POST /v1/admin/subscribers/signed-export":       authz.Level2,
@@ -354,6 +354,8 @@ func (h *Handler) handleErr(w http.ResponseWriter, err error) {
 	case errors.Is(err, errInvalidModeration):
 		response.BadRequest(w, err.Error())
 	case errors.Is(err, errInvalidAccess):
+		response.BadRequest(w, err.Error())
+	case errors.Is(err, errInvalidExportBound):
 		response.BadRequest(w, err.Error())
 	default:
 		log.Printf("[admin] %v", err)

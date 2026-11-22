@@ -114,9 +114,9 @@ type AdminUserDetail struct {
 	IsSuspended        bool    `json:"isSuspended"`
 	SuspendReason      *string `json:"suspendReason"`
 	LogoURL            *string `json:"logoUrl"`
-	PublisherID      *string `json:"publisherId"`
+	PublisherID        *string `json:"publisherId"`
 	Subdomain          *string `json:"subdomain"`
-	PublisherName    *string `json:"publisherName"`
+	PublisherName      *string `json:"publisherName"`
 	ArticlesCount      int64   `json:"articlesCount"`
 	SubscribersCount   int64   `json:"subscribersCount"`
 	WalletTransactions int64   `json:"walletTransactions"`
@@ -126,10 +126,10 @@ type AdminUserDetail struct {
 
 // ModerationInput porte les mises à jour de modération d'un utilisateur.
 type ModerationInput struct {
-	IsCertified          *bool   `json:"isCertified"`
-	IsShadowbanned       *bool   `json:"isShadowbanned"`
-	IsSuspended          *bool   `json:"isSuspended"`
-	SuspendReason        *string `json:"suspendReason"`
+	IsCertified        *bool   `json:"isCertified"`
+	IsShadowbanned     *bool   `json:"isShadowbanned"`
+	IsSuspended        *bool   `json:"isSuspended"`
+	SuspendReason      *string `json:"suspendReason"`
 	PublisherCertified *bool   `json:"publisherCertified"`
 	// Mise en shadowban (fiche 06 §6) : mesure punitive invisible par nature,
 	// donc motif ET échéance obligatoires — un shadowban sans fin ni motif
@@ -256,9 +256,9 @@ func (s *Service) GetUser(ctx context.Context, userID, targetID string) (*AdminU
 		IsSuspended:        row.IsSuspended,
 		SuspendReason:      textPtr(row.SuspendReason),
 		LogoURL:            textPtr(row.LogoUrl),
-		PublisherID:      textPtr(row.PublisherId),
+		PublisherID:        textPtr(row.PublisherId),
 		Subdomain:          textPtr(row.Subdomain),
-		PublisherName:    textPtr(row.PublisherName),
+		PublisherName:      textPtr(row.PublisherName),
 		ArticlesCount:      row.ArticlesCount,
 		SubscribersCount:   row.SubscribersCount,
 		WalletTransactions: row.WalletTransactionsCount,

@@ -109,8 +109,8 @@ var (
 // et à la modification — aucun HTML arbitraire injecté via une variable,
 // aucun en-tête e-mail fourni librement.
 var campaignVarWhitelist = map[string]bool{
-	"publisher_name": true,
-	"unsubscribe_url":  true,
+	"publisher_name":  true,
+	"unsubscribe_url": true,
 }
 
 var campaignVarPattern = regexp.MustCompile(`\{\{\s*([a-zA-Z0-9_]+)\s*\}\}`)
@@ -162,27 +162,38 @@ type CampaignClaim struct {
 // CampaignSendContext est le contexte d'envoi d'un destinataire : ce qu'il
 // faut pour construire son message, sans adresses d'autrui ni secrets.
 type CampaignSendContext struct {
-	FeatureKey      string
-	InterestID      string
+	FeatureKey    string
+	InterestID    string
 	PublisherID   string
 	PublisherName string
-	Locale          string // fr/en (FR par défaut documenté)
-	SubjectFR       string
-	BodyFR          string
-	SubjectEN       string
-	BodyEN          string
+	Locale        string // fr/en (FR par défaut documenté)
+	SubjectFR     string
+	BodyFR        string
+	SubjectEN     string
+	BodyEN        string
 }
 
 // RenderCampaignVars substitue les variables autorisées avec échappement HTML.
 // `unsubscribe_url` est une URL signée générée par l'appelant : on l'échappe
 // comme attribut, on ne la valide pas ici (le signataire l'a construite).
 func RenderCampaignVars(text, publisherName, unsubscribeURL string) string {
-	out := text
-	out = strings.ReplaceAll(out, "{{publisher_name}}", html.EscapeString(publisherName))
-	out = strings.ReplaceAll(out, "{{ publisher_name }}", html.EscapeString(publisherName))
-	out = strings.ReplaceAll(out, "{{unsubscribe_url}}", html.EscapeString(unsubscribeURL))
-	out = strings.ReplaceAll(out, "{{ unsubscribe_url }}", html.EscapeString(unsubscribeURL))
-	return out
+	// La validation accepte n'importe quel espacement (\s*) : le rendu doit
+	// reconnaître exactement les mêmes formes, sinon un placeholder brut
+	// part chez les destinataires.
+	return campaignVarPattern.ReplaceAllStringFunc(text, func(match string) string {
+		sub := campaignVarPattern.FindStringSubmatch(match)
+		if len(sub) != 2 {
+			return match
+		}
+		switch sub[1] {
+		case "publisher_name":
+			return html.EscapeString(publisherName)
+		case "unsubscribe_url":
+			return html.EscapeString(unsubscribeURL)
+		default:
+			return match
+		}
+	})
 }
 
 // StaffCampaignDTO est la vue API d'une campagne.

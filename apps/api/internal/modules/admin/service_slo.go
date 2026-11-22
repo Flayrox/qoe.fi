@@ -20,8 +20,12 @@ import (
 	"time"
 )
 
+// ExpectedMigrationVersion est la dernière migration embarquée dans le
+// binaire. Un garde de test (contracts_test.go) la compare au dossier
+// sql/migrations : ajouter une migration sans la mettre à jour fait échouer
+// la CI, donc le SLO ne peut pas dériver en silence.
 const (
-	ExpectedMigrationVersion int64 = 74
+	ExpectedMigrationVersion int64 = 94
 )
 
 type SLOStatus string

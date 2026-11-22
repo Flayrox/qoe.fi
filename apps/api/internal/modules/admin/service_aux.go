@@ -447,10 +447,16 @@ func (s *Service) UpdateReservedIdentifiers(ctx context.Context, userID, kind st
 		}
 	}
 	_, err := s.q.UpsertSystemConfig(ctx, db.UpsertSystemConfigParams{
-		Key: key, Value: strings.Join(clean, "\\n"),
+		Key: key, Value: encodeReservedIdentifiers(clean),
 		Description: pgtype.Text{String: "Noms réservés " + kind, Valid: true},
 	})
 	return err
+}
+
+// encodeReservedIdentifiers sérialise la denylist telle que la relisent les
+// modules settings/users (découpage sur virgule, retour à la ligne, espace).
+func encodeReservedIdentifiers(values []string) string {
+	return strings.Join(values, "\n")
 }
 
 func (s *Service) DeleteSystemConfig(ctx context.Context, userID, key string) error {

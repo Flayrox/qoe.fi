@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -55,9 +56,33 @@ func (s *Service) GetGlobalAnnouncement(ctx context.Context) (*GlobalAnnouncemen
 	}
 	var dto GlobalAnnouncementDTO
 	if err := json.Unmarshal([]byte(raw), &dto); err != nil {
-		return nil, nil
+		// Une configuration corrompue doit se voir dans la console, pas
+		// s'afficher comme « aucune annonce ».
+		return nil, fmt.Errorf("annonce globale illisible en base: %w", err)
 	}
 	return &dto, nil
+}
+
+// validAnnouncementLink n'accepte qu'un chemin interne ou une URL http(s) :
+// l'annonce est rendue en `href` sur les surfaces publiques, un schéma
+// `javascript:` y deviendrait une exécution de script stockée.
+func validAnnouncementLink(raw string) bool {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return true
+	}
+	// Chemin interne uniquement : « //hôte » est une URL protocol-relative.
+	if strings.HasPrefix(raw, "/") {
+		return !strings.HasPrefix(raw, "//")
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return false
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return false
+	}
+	return u.Host != ""
 }
 
 // SetGlobalAnnouncement enregistre l'annonce globale dans SystemConfig et trace l'audit.
@@ -85,6 +110,9 @@ func (s *Service) SetGlobalAnnouncement(ctx context.Context, staffID string, in 
 	if in.LinkURL != nil {
 		trimmed := strings.TrimSpace(*in.LinkURL)
 		if trimmed != "" {
+			if !validAnnouncementLink(trimmed) {
+				return nil, fmt.Errorf("%w: le lien doit être un chemin interne ou une URL http(s)", errInvalidAnnouncement)
+			}
 			linkURL = &trimmed
 		}
 	}

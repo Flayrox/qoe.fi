@@ -179,19 +179,19 @@ func (s *Service) ExportSignedAudit(
 			args = append(args, in.Target)
 			argIdx++
 		}
-		if in.Since != "" {
-			if t, err := time.Parse(time.RFC3339, in.Since); err == nil {
-				query += fmt.Sprintf(` AND a."createdAt" >= $%d`, argIdx)
-				args = append(args, t)
-				argIdx++
-			}
+		if t, ok, err := parseExportBound(in.Since); err != nil {
+			return nil, nil, err
+		} else if ok {
+			query += fmt.Sprintf(` AND a."createdAt" >= $%d`, argIdx)
+			args = append(args, t)
+			argIdx++
 		}
-		if in.Until != "" {
-			if t, err := time.Parse(time.RFC3339, in.Until); err == nil {
-				query += fmt.Sprintf(` AND a."createdAt" <= $%d`, argIdx)
-				args = append(args, t)
-				argIdx++
-			}
+		if t, ok, err := parseExportBound(in.Until); err != nil {
+			return nil, nil, err
+		} else if ok {
+			query += fmt.Sprintf(` AND a."createdAt" <= $%d`, argIdx)
+			args = append(args, t)
+			argIdx++
 		}
 
 		query += fmt.Sprintf(` ORDER BY a."createdAt" DESC LIMIT $%d`, argIdx)
@@ -298,11 +298,11 @@ func (s *Service) ExportSignedAudit(
 // ─── Export Signé : Registre des Abonnés ──────────────────────────────────────
 
 type SubscriberExportInput struct {
-	Subject       string `json:"subject,omitempty"`
-	Reason        string `json:"reason,omitempty"`
+	Subject     string `json:"subject,omitempty"`
+	Reason      string `json:"reason,omitempty"`
 	PublisherID string `json:"publisherId,omitempty"`
-	Status        string `json:"status,omitempty"`
-	Limit         int    `json:"limit,omitempty"`
+	Status      string `json:"status,omitempty"`
+	Limit       int    `json:"limit,omitempty"`
 }
 
 func (s *Service) ExportSignedSubscribers(
@@ -391,7 +391,7 @@ func (s *Service) ExportSignedSubscribers(
 						"receiveArticles": rec,
 						"confirmedAt":     confStr,
 						"createdAt":       createdAt.UTC().Format(time.RFC3339),
-						"publisherId":   pubID,
+						"publisherId":     pubID,
 					})
 				}
 			}
@@ -412,8 +412,8 @@ func (s *Service) ExportSignedSubscribers(
 	exportID := uuid.New().String()
 	filters := map[string]any{
 		"publisherId": in.PublisherID,
-		"status":        in.Status,
-		"limit":         limit,
+		"status":      in.Status,
+		"limit":       limit,
 	}
 
 	canonical := fmt.Sprintf(
@@ -470,6 +470,64 @@ func (s *Service) ExportSignedSubscribers(
 	return doc, docBytes, nil
 }
 
+// errInvalidExportBound : borne temporelle d'export illisible.
+var errInvalidExportBound = errors.New("borne temporelle d'export invalide")
+
+// parseExportBound lit une borne temporelle d'export. Vide → pas de borne ;
+// illisible → erreur explicite (une borne ignorée élargirait silencieusement
+// l'export signé au-delà de la période demandée).
+func parseExportBound(raw string) (time.Time, bool, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return time.Time{}, false, nil
+	}
+	t, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return time.Time{}, false, fmt.Errorf("%w : %q (RFC3339 attendu)", errInvalidExportBound, raw)
+	}
+	return t, true, nil
+}
+
+// checkExportCounts confronte les compteurs annoncés au contenu scellé.
+func checkExportCounts(scope string, counts map[string]int, payload map[string]any) error {
+	switch scope {
+	case "admin.audit":
+		entries, ok := payload["entries"].([]any)
+		if !ok {
+			return errors.New("Contenu d'export d'audit illisible")
+		}
+		if counts["entries"] != len(entries) {
+			return fmt.Errorf("Compteurs incohérents : %d entrées annoncées, %d scellées", counts["entries"], len(entries))
+		}
+	case "subscribers":
+		subscribers, ok := payload["subscribers"].([]any)
+		if !ok {
+			return errors.New("Contenu d'export d'abonnés illisible")
+		}
+		active, confirmed := 0, 0
+		for _, raw := range subscribers {
+			row, ok := raw.(map[string]any)
+			if !ok {
+				return errors.New("Ligne d'abonné illisible")
+			}
+			if isActive, _ := row["isActive"].(bool); isActive {
+				active++
+			}
+			if row["confirmedAt"] != nil {
+				confirmed++
+			}
+		}
+		if counts["total"] != len(subscribers) || counts["active"] != active || counts["confirmed"] != confirmed {
+			return fmt.Errorf("Compteurs incohérents : annoncés %d/%d/%d, scellés %d/%d/%d",
+				counts["total"], counts["active"], counts["confirmed"],
+				len(subscribers), active, confirmed)
+		}
+	default:
+		return fmt.Errorf("Portée d'export inconnue : %q", scope)
+	}
+	return nil
+}
+
 // ─── Contrôle & Vérification Universelle d'Export Signé ─────────────────────
 
 func (s *Service) VerifySignedExport(docBytes []byte) (*SignedExportVerificationResult, error) {
@@ -512,7 +570,21 @@ func (s *Service) VerifySignedExport(docBytes []byte) (*SignedExportVerification
 		}, nil
 	}
 
-	// 2. Contrôle du hash canonique
+	// 2. Contrôle du hash canonique. La chaîne canonique est RECONSTRUITE à
+	// partir des champs de l'enveloppe : sans cela, un export valide pourrait
+	// être rejoué sous une autre portée, une autre date ou un autre demandeur
+	// (champs rendus au lecteur mais hors du sceau).
+	expectedCanonical := fmt.Sprintf(
+		"scope:%s|id:%s|generatedAt:%s|contentSha:%s|requestedBy:%s",
+		env.Scope, env.ID, env.GeneratedAt, env.ContentSha256, env.RequestedBy,
+	)
+	if env.Canonical != expectedCanonical {
+		return &SignedExportVerificationResult{
+			IsValid: false,
+			Scope:   env.Scope,
+			Error:   "Métadonnées de l'enveloppe incohérentes avec la chaîne canonique (portée, date, identifiant ou demandeur altéré)",
+		}, nil
+	}
 	canonicalSum := sha256.Sum256([]byte(env.Canonical))
 	computedChainSha := hex.EncodeToString(canonicalSum[:])
 	if computedChainSha != env.ChainSha256 {
@@ -520,6 +592,17 @@ func (s *Service) VerifySignedExport(docBytes []byte) (*SignedExportVerification
 			IsValid: false,
 			Scope:   env.Scope,
 			Error:   "L'empreinte canonique ne correspond pas (métadonnées altérées)",
+		}, nil
+	}
+
+	// Les compteurs sont hors du sceau cryptographique : ils doivent au moins
+	// concorder avec le contenu scellé, sinon un export de 3 lignes pourrait
+	// s'annoncer comme un registre complet.
+	if err := checkExportCounts(env.Scope, env.Counts, doc.Payload); err != nil {
+		return &SignedExportVerificationResult{
+			IsValid: false,
+			Scope:   env.Scope,
+			Error:   err.Error(),
 		}, nil
 	}
 

@@ -186,7 +186,7 @@ func TestUpdateModeration(t *testing.T) {
 
 	// Certification + publication associée.
 	_, err := svc.UpdateModeration(ctx, adminAdminID, adminCreator, ModerationInput{
-		IsCertified:          boolPtr(true),
+		IsCertified:        boolPtr(true),
 		PublisherCertified: boolPtr(true),
 	})
 	if err != nil {
