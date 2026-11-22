@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qoefi/api/internal/authz"
 	"github.com/qoefi/api/internal/subscriptions"
@@ -97,8 +98,13 @@ func (s *Service) GetTier(ctx context.Context, tierID string) (Tier, error) {
 		FROM "Tier" WHERE "id" = $1`, tierID).
 		Scan(&t.ID, &t.Name, &t.Description, &t.MonthlyPriceCents, &yearly,
 			&t.StripePriceIDMonthly, &t.StripePriceIDYearly, &t.PublisherID)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return Tier{}, ErrTierNotFound
+	}
+	if err != nil {
+		// Panne de lecture : pas « introuvable » (le paywall afficherait un
+		// catalogue vide et le client croirait la formule supprimée).
+		return Tier{}, err
 	}
 	t.YearlyPriceCents = yearly
 	return t, nil
@@ -175,18 +181,25 @@ func (s *Service) UserEmail(ctx context.Context, userID string) (string, error) 
 	return email, nil
 }
 
-// PublisherStripeAccount renvoie le compte Connect de la publication.
-func (s *Service) PublisherStripeAccount(ctx context.Context, publisherID string) string {
+// PublisherStripeAccount renvoie le compte Connect de la publication. Une
+// panne remonte en erreur : « pas de compte » déclenchait sinon un refus
+// CONNECT_REQUIRED trompeur, et surtout la création d'un SECOND compte
+// Connect au prochain onboarding.
+func (s *Service) PublisherStripeAccount(ctx context.Context, publisherID string) (string, error) {
 	if s == nil || s.pool == nil || publisherID == "" {
-		return ""
+		return "", nil
 	}
 	var account string
-	if err := s.pool.QueryRow(ctx,
+	err := s.pool.QueryRow(ctx,
 		`SELECT COALESCE("stripeAccountId", '') FROM "Publisher" WHERE id = $1`, publisherID).
-		Scan(&account); err != nil {
-		return ""
+		Scan(&account)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
 	}
-	return account
+	if err != nil {
+		return "", err
+	}
+	return account, nil
 }
 
 // SavePublisherStripeAccount rattache un compte Stripe Connect à la publication.
@@ -226,27 +239,35 @@ func (s *Service) SaveUserCustomer(ctx context.Context, userID, customerID strin
 // principale : `User.stripeCustomerId` (lien stable). Repli : le plus récent
 // abonnement connu à son email, pour les comptes créés avant la migration
 // 00091 (et si la colonne n'est pas encore appliquée). Vide = jamais payé.
-func (s *Service) ReaderStripeCustomer(ctx context.Context, userID string) string {
+func (s *Service) ReaderStripeCustomer(ctx context.Context, userID string) (string, error) {
 	if s == nil || s.pool == nil || userID == "" {
-		return ""
+		return "", nil
 	}
 
 	var direct string
-	if err := s.pool.QueryRow(ctx,
+	err := s.pool.QueryRow(ctx,
 		`SELECT COALESCE("stripeCustomerId", '') FROM "User" WHERE id = $1::uuid`, userID).
-		Scan(&direct); err == nil && direct != "" {
-		return direct
+		Scan(&direct)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return "", err
+	}
+	if direct != "" {
+		return direct, nil
 	}
 
 	var legacy string
-	if err := s.pool.QueryRow(ctx, `
+	err = s.pool.QueryRow(ctx, `
 		SELECT COALESCE(s."stripeCustomerId", '')
 		FROM "Subscriber" s
 		JOIN "User" u ON u."email" = s."email"
 		WHERE u.id = $1::uuid AND s."stripeCustomerId" IS NOT NULL
 		ORDER BY s."updatedAt" DESC
-		LIMIT 1`, userID).Scan(&legacy); err != nil {
-		return ""
+		LIMIT 1`, userID).Scan(&legacy)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
 	}
-	return legacy
+	if err != nil {
+		return "", err
+	}
+	return legacy, nil
 }

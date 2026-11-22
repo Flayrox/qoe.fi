@@ -153,8 +153,17 @@ func HasPro(ctx context.Context, pool HasDB, publisherID string, now time.Time) 
 //
 // Une seule requête (EXISTS + sous-requête owner). Pool nil : false.
 func HasPlus(ctx context.Context, pool HasDB, userID string, now time.Time) bool {
+	ok, _ := PlusStatus(ctx, pool, userID, now)
+	return ok
+}
+
+// PlusStatus rend l'état Plus AVEC l'erreur de lecture : une panne de base
+// n'est pas « pas d'abonnement » (elle autorisait sinon un 403 « réservé aux
+// Plus » ou un quota gratuit pour un abonné). Les chemins qui distinguent les
+// deux appellent PlusStatus ; les autres gardent HasPlus.
+func PlusStatus(ctx context.Context, pool HasDB, userID string, now time.Time) (bool, error) {
 	if pool == nil {
-		return false
+		return false, nil
 	}
 	now = abuse.UtcMs(now)
 	// Même tolérance +1s sur le début que HasEntitlement (horloges
@@ -169,7 +178,13 @@ func HasPlus(ctx context.Context, pool HasDB, userID string, now time.Time) bool
 			        AND g."subjectId" = (SELECT u."publisherId" FROM "User" u WHERE u.id = $1::uuid)))
 			  AND g."startsAt" <= $2 AND (g."endsAt" IS NULL OR g."endsAt" > $3)
 		)`, userID, since, now).Scan(&ok)
-	return err == nil && ok
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return false, err
+	}
+	return ok, nil
 }
 
 // GrantPlan octroie un palier (staff) : sujet + plan validés, fin > début

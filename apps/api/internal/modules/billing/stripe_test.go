@@ -140,8 +140,8 @@ func TestService_NilPool(t *testing.T) {
 	if _, err := svc.GetTier(context.Background(), "tier-1"); err != ErrTierNotFound {
 		t.Fatalf("GetTier = %v", err)
 	}
-	if svc.ReaderStripeCustomer(context.Background(), "user-1") != "" {
-		t.Fatal("ReaderStripeCustomer sans base devrait être vide")
+	if customer, err := svc.ReaderStripeCustomer(context.Background(), "user-1"); customer != "" || err != nil {
+		t.Fatalf("ReaderStripeCustomer sans base = %q, %v", customer, err)
 	}
 	if err := svc.SavePublisherStripeAccount(context.Background(), "pub-1", "acct_1"); err != nil {
 		t.Fatalf("SavePublisherStripeAccount sans base = %v", err)

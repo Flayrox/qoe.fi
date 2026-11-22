@@ -211,8 +211,13 @@ func (h *Handler) checkout(w http.ResponseWriter, r *http.Request) {
 			tier = selected
 		} else {
 			loaded, err := h.svc.GetTier(r.Context(), in.TierID)
-			if err != nil {
+			if errors.Is(err, ErrTierNotFound) {
 				response.NotFound(w, "formule introuvable")
+				return
+			}
+			if err != nil {
+				log.Printf("[billing] lecture formule %s: %v", in.TierID, err)
+				response.Internal(w)
 				return
 			}
 			tier = loaded
@@ -226,7 +231,12 @@ func (h *Handler) checkout(w http.ResponseWriter, r *http.Request) {
 			response.Error(w, http.StatusServiceUnavailable, "tarif Stripe non configuré pour cette formule")
 			return
 		}
-		account := h.svc.PublisherStripeAccount(r.Context(), tier.PublisherID)
+		account, err := h.svc.PublisherStripeAccount(r.Context(), tier.PublisherID)
+		if err != nil {
+			log.Printf("[billing] compte Connect de %s: %v", tier.PublisherID, err)
+			response.Internal(w)
+			return
+		}
 		if account == "" {
 			// Sans compte Connect, Stripe n'a nulle part où transférer : les
 			// fonds resteraient sur la plateforme. On refuse la vente.
@@ -280,7 +290,12 @@ func (h *Handler) portal(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, http.StatusServiceUnavailable, "paiement non configuré")
 		return
 	}
-	customer := h.svc.ReaderStripeCustomer(r.Context(), userID)
+	customer, err := h.svc.ReaderStripeCustomer(r.Context(), userID)
+	if err != nil {
+		log.Printf("[billing] client Stripe de %s: %v", userID, err)
+		response.Internal(w)
+		return
+	}
 	if customer == "" {
 		response.ErrorCode(w, http.StatusConflict, "NO_CUSTOMER", "aucun abonnement Stripe pour ce compte")
 		return
@@ -391,7 +406,12 @@ func (h *Handler) connectOnboarding(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accountID := h.svc.PublisherStripeAccount(r.Context(), publisherID)
+	accountID, err := h.svc.PublisherStripeAccount(r.Context(), publisherID)
+	if err != nil {
+		log.Printf("[billing] compte Connect de %s: %v", publisherID, err)
+		response.Internal(w)
+		return
+	}
 	if accountID == "" {
 		email, _ := h.svc.UserEmail(r.Context(), userID)
 		accountID, err = h.stripe.CreateConnectAccount(r.Context(), email, publisherID)

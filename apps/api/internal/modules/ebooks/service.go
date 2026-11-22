@@ -179,8 +179,13 @@ func (s *Service) Get(ctx context.Context, userID, id string) (EbookDetail, erro
 		id, userID).Scan(
 		&d.ID, &d.Title, &d.Author, &d.Language, &d.ChapterCount,
 		&d.HasCover, &d.Progress, &d.ProgressPct, &d.ProgressParagraph, &createdAt, &chaptersJSON)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return EbookDetail{}, ErrEbookNotFound
+	}
+	if err != nil {
+		// Panne de lecture : jamais « introuvable » (le client croirait le
+		// livre supprimé et arrêterait de le demander).
+		return EbookDetail{}, err
 	}
 	// JSON corrompu (ne devrait jamais arriver — écrit par nous) : log +
 	// erreur générique (500 côté route). Masquer une corruption en 404
@@ -200,8 +205,11 @@ func (s *Service) Cover(ctx context.Context, userID, id string) ([]byte, string,
 	err := s.pool.QueryRow(ctx,
 		`SELECT "cover", COALESCE("coverMime", 'image/jpeg') FROM "Ebook" WHERE "id" = $1 AND "ownerId" = $2::uuid`,
 		id, userID).Scan(&data, &mime)
-	if err != nil || len(data) == 0 {
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && len(data) == 0) {
 		return nil, "", ErrEbookNotFound
+	}
+	if err != nil {
+		return nil, "", err
 	}
 	return data, mime, nil
 }
@@ -241,7 +249,11 @@ func (s *Service) SetProgress(ctx context.Context, userID, id string, chapter, p
 // Différence assumée avec le pack d'article : pas de « droit auteur » ici —
 // c'est TON fichier, tu l'as importé ; le seul droit en jeu est l'abonnement.
 func (s *Service) OfflinePack(ctx context.Context, userID, id string) (OfflinePack, error) {
-	if !subscriptions.HasPlus(ctx, s.pool, userID, time.Now()) {
+	plus, err := subscriptions.PlusStatus(ctx, s.pool, userID, time.Now())
+	if err != nil {
+		return OfflinePack{}, err
+	}
+	if !plus {
 		return OfflinePack{}, ErrEbookOfflinePlusRequired
 	}
 	book, err := s.Get(ctx, userID, id)
