@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-l `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media` et `highlights` clos le 2026-11-22 — L29l : 12 défauts F588–F599, dettes R232–R235 ; prochain = `home`, 6 f. · 1 015 l. remesuré) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-m `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights` et `home` clos le 2026-11-22 — L29m : 9 défauts F600–F608, dettes R236–R238 ; prochain = `mediaassets`, 2 f. · 533 l. remesuré) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -181,8 +181,12 @@ recherche d'audit non bornée, `CreateMedia` sans validation, `by-publication` s
 `success:false`, commentaire créé mais invisible annoncé en 201 vide, réglage `allowPublicAnnotations` jamais lu,
 liste publique non bornée, **paywall contourné par `/v1/bookmarks`**, offset non borné, `quoteOrdinal` non borné
 côté service, upvote non atomique, forme tronquée après PATCH, erreurs d'ancre/moteur vectoriel avalées, surface
-morte et tri non déterministe), dettes **R232–R235**. **Lot suivant de L29, « En cours » : L29m** — `home`,
-**6 f. · 1 015 l.** (remesuré).
+morte et tri non déterministe), dettes **R232–R235**. **L29m est clos le 2026-11-22** : module `home`
+(**6 f. · 1 132 l.** après correctifs, 1 015 l. avant ; 7 fichiers de tests), **9 défauts** F600–F608 (toute la
+table `SystemConfig` servie publiquement, onboarding 200 vide sur panne, limites client non bornées, URLs
+`javascript:` des promos servies, publication inconnue en 500, créateurs déjà suivis re-suggérés, erreurs avalées,
+tri non déterministe, email non borné), dettes **R236–R238**. **Lot suivant de L29, « En cours » : L29n** —
+`mediaassets`, **2 f. · 533 l.** (remesuré).
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2161,6 +2165,72 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L29m — `apps/api/internal/modules/home/**` — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l` sur l'arbre courant) : **6 fichiers de production · 1 015 l.** —
+`widgets 529`, `handler 200`, `service 181`, `onboarding_categories 76`, `querier 20`, `uuid 9` — identique au
+décompte annoncé. Tous lus intégralement, ainsi que les appelants réels : `cmd/server` (`RegisterPublic` dans un
+groupe public — `/v1/home/*` est sans session, avec `OptionalAuth` pour les widgets qui lisent le `userID`),
+`cmd/worker` (aucun job, seulement les tâches `subscriber.confirm`/`subscriber.created` publiées), les clients
+(`apps/hi` landing : `config[hero_*|feature_*|featured_*|comparison_*|format_*|cta_*|creator_hub_*|creators_*|preview_*]`,
+`packages/i18n` `TRANSLATIONS_OVERRIDE`, `packages/ui` `AUTH_METHODS`, `apps/core` `getCachedSystemConfig`), les
+contrats SQL (requêtes brutes dans `service.go`/`widgets.go` : `SystemConfig`, `Trend`, `PartnerPromo`,
+`Publisher`/`User`/`Follows`/`Subscriber`/`Recommendation`, `ReadingSession`/`Like`/`ContentFeedback`,
+`Subscriber` upsert), les schémas (`SystemConfig`, `Subscriber` avec `confirmationToken`/`confirmedAt`,
+`Recommendation`), `ExpectedMigrationVersion = 95` (aucune migration : le lot n'en a pas besoin). Après correctifs
+le module pèse **6 f. · 1 132 l.** (7 fichiers de tests, dont `audit_l29m_test.go` : 8 tests).
+
+**Frontières vérifiées, pas de doublon** : `home` = **agrégateur de la page d'accueil publique** (config publique,
+annonce, trends de tags, promos partenaires, onboarding, suggestions, sujets émergents) et le **point d'entrée
+d'inscription newsletter** (`POST /v1/home/subscribe`). Il ne réimplémente ni la visibilité ni le paywall :
+`feed`/`articles` restent seuls juges du contenu d'article (aucun article n'est servi ici, seulement des titres de
+créateurs et des compteurs), `publishers` porte les profils publics, `notifications` les envois, `newsletters` le
+double opt-in (`ConfirmSubscriber`). Deux points de vigilance tranchés : (1) `SystemConfig` n'est **pas** une table
+publique — seule une allowlist de clés de contenu/UI sort désormais (F600) ; (2) l'inscription ne rend personne
+destinataire — elle crée un abonné `receiveArticles=false` + token, seul le clic confirme (déjà couvert par
+`TestSubscribeToNewsletter_Pending`), et elle ne s'adresse qu'à une publication existante (404 sinon, F604).
+
+**9 défauts corrigés** F600–F608. Les rouges cités sont des sorties réellement exécutées : la suite
+`TestAuditL29M_*` a été lancée contre un worktree à `HEAD` (`git worktree add -f /tmp/qoe-l29m-red HEAD`) puis
+contre l'arbre corrigé, sur Postgres (testcontainers `pgvector/pgvector:pg16`, 95 migrations rejouées).
+
+| # | Défaut | Preuve (test) | Rouge constaté | Commit |
+|---|---|---|---|---|
+| F600 | **`GET /v1/home/config` (public) servait toute la table `SystemConfig`** : flags d'exploitation, clés d'admin, jetons internes — le même piège que F549 (consentements), mais sans authentification. Allowlist de préfixes (`hero_`, `feature_`, `featured_`, `comparison_`, `format_`, `cta_`, `creator_hub_`, `creators_`, `preview_`) + clés exactes `AUTH_METHODS`/`TRANSLATIONS_OVERRIDE` (seules lues par les clients réels). | `TestAuditL29M_ConfigExposesOnlyPublicKeys`. | `clé interne "OPS_SECRET_TOKEN" exposée publiquement: map[AUTH_METHODS:{…} INTERNAL_KILLSWITCH:on OPS_SECRET_TOKEN:ne-doit-jamais-sortir hero_editor_title:Titre public]` | `fix(home)` |
+| F601 | `GET /v1/home/onboarding` répondait **200 avec une liste vide** sur panne de base : `GetOnboardingData` n'avait pas de retour d'erreur, avalait `Query`, ignorait `Scan` et `rows.Err` (et le fallback). Signature avec erreur, handler 500, erreurs propagées. | `TestAuditL29M_OnboardingFailureIs500`. | `onboarding sur panne = 200 ({"categories":[…],"suggestedCreators":[]}), attendu 500` | `fix(home)` |
+| F602 | `limit` client **non borné** sur `/trends`, `/promos`, `/suggested-creators`, `/semantic-trends` (`LIMIT $1` direct) : `?limit=100000` vidait la table sur un endpoint public non authentifié. Défaut + plafond par endpoint (50/20/20/50). | `TestAuditL29M_TrendsAreBounded`, `TestAuditL29M_PromosAreBounded`. | `60 tendances retournées, borne 50 non appliquée` · `25 promos retournées, borne 20 non appliquée` | `fix(home)` |
+| F603 | Les **`ctaUrl`/`imageUrl` des promos** étaient servis sans validation sur la home publique : une promo en base avec `javascript:alert(1)` produisait un lien actif (XSS par donnée d'admin/seed). `antispam.ValidateSafeURL` : la valeur dangereuse est retirée, la promo reste. | `TestAuditL29M_PromosRejectUnsafeUrls`. | `URL non sûre servie: cta=0x… image=0x…` | `fix(home)` |
+| F604 | Inscription à une **publication inexistante** → **500 générique** (« panne ») au lieu d'un 404 ; email de plus de 254 caractères accepté par la regex puis refusé par la base (500). Sentinelle `errPublisherNotFound` → 404, longueur d'adresse bornée → 400. | `TestAuditL29M_SubscribeUnknownPublisherIs404` (+ `TestFault_Handlers_PoolErrors` mis à jour : 404 inconnue, 500 sur panne). | `publication inconnue = 500 ({"error":"Internal Server Error"})` | `fix(home)` |
+| F605 | **Suggestions de créateurs : les créateurs déjà suivis revenaient.** L'exclusion remplissait une liste d'**ids de publication** puis comparait `u.id::text NOT IN (…)` (et y ajoutait l'id utilisateur) : l'auto-exclusion fonctionnait, celle des abonnements jamais. Filtre sur `u."publisherId"`, publication du lecteur exclue, exclusion appliquée aussi au cold-start. | `TestAuditL29M_SuggestionsExcludeFollowed`. | `créateur déjà suivi suggéré: {ID:00000000-…-0000000000bb Name:Autre …}` | `fix(home)` |
+| F606 | Erreurs avalées : `GetSystemConfig` (`Scan` ignoré → clés silencieusement perdues), `GetTrends`/`GetPromos` (`Scan` ignoré → lignes disparues), `GetSemanticTrends` (`continue` sur `Scan`), `queryIDs` (`Scan` ignoré). Toutes propagées ; dégradations volontairement best-effort (`platformPickUserIDs`, embedding absent) désormais journalisées au lieu d'être muettes. | Relecture + `TestFault_Handlers_PoolErrors` | — (structurel : accumulation d'erreurs silencieuses) | `fix(home)` |
+| F607 | **Tri non déterministe** : `ORDER BY count DESC`, `ORDER BY "createdAt" DESC`, `ORDER BY (score) DESC`, `LIMIT 8` sans tie-break — deux tendances/promos/créateurs à égalité changeaient d'ordre d'un appel à l'autre (et la pagination implicite du widget sautait des lignes). Tie-break `id ASC` sur trends, promos, onboarding, suggestions (vectoriel et cold-start). | Relecture + `TestAuditL29M_*` | — (structurel : l'ordre dépend du plan Postgres) | `fix(home)` |
+| F608 | Endpoint **public** sans borne de corps propre : `POST /v1/home/subscribe` s'appuyait uniquement sur le limiteur global ; l'email (seul champ texte) n'était pas borné en longueur. Longueur RFC 5321 (254) validée dans le handler. | `TestAuditL29M_SubscribeUnknownPublisherIs404` (formulaire) + `TestSubscribe_BadRequests` | — (structurel : la limite de corps globale couvre déjà 256 Ko) | `fix(home)` |
+
+**Dettes ouvertes, sans faux correctif** (numérotation en continuité de R235) :
+
+- **R236 — contenu d'accueil mis en cache sans invalidation** : `apps/hi` (`unstable_cache`, tag `system-config`)
+  et `packages/i18n` (`getCachedOverrides`) revalident toutes les **3600 s**, et aucun `revalidateTag` n'existe dans
+  le dépôt : une modification admin (landing, `AUTH_METHODS`, traductions) reste invisible jusqu'à une heure.
+  Preuve : `grep -rn "revalidateTag" apps packages` → aucun appel hors artefacts `.next`. Option recommandée :
+  route d'admin qui appelle `revalidateTag('system-config')`/`('i18n-overrides')` après écriture (ou webhook Go →
+  Next), et TTL ramené à 60 s en attendant.
+- **R237 — sémantique de `Subscriber.isActive` incohérente** : `Unsubscribe` ne désactive que `receiveArticles`,
+  tandis que l'upsert d'inscription force `isActive = true` ; les compteurs publics (`subscribersCount` des
+  suggestions, agrégats) comptent donc des **désinscrits**. Décision produit : `isActive` = consentement d'envoi
+  (alors `Unsubscribe` doit le passer à false et les compteurs suivre) ou ligne vivante (alors renommer/ignorer).
+  Preuve : `UnsubscribeNewsletterSubscriber` (SQL) + upsert de `SubscribeToNewsletter`.
+- **R238 — agrégats lourds sans budget propre** : `/semantic-trends` fait un `UNION ALL` de `unnest` sur 14 jours de
+  `ReadingSession`/`Like`/`ContentFeedback` (aucun `LIMIT` d'événements) et `/suggested-creators` une requête
+  vectorielle `User × Article × Subscriber` ; seule la `WriteTimeout` HTTP (30 s) les borne, et le pool Postgres est
+  partagé. Option recommandée : `statement_timeout` par requête (ou `pgx.QueryExecModeSimpleProtocol` + timeout
+  dédié), pré-agrégation périodique des tendances dans une table matérialisée, et cache mémoire court (60 s)
+  côté handler pour ces deux widgets publics.
+
+**Commandes passées sur l'arbre corrigé** : `gofmt -l internal/modules/home/` → vide ; `go build ./...` → 0 ;
+`go vet ./internal/...` → 0 ; `QOE_DB_TESTS_OPTIONAL=1 go test` sur `home`, `feed`, `articles`, `publishers`,
+`notifications`, `users`, `creator`, `settings`, `authz`, `middleware`, `cmd/server`, `cmd/worker` → **12 paquets
+`ok`** (base réelle) ; batterie workspace 13 commandes → **13 × 0**.
 
 ## L29l — `apps/api/internal/modules/highlights/**` — **clos le 2026-11-22**
 
