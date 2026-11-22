@@ -29,7 +29,6 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -659,14 +658,9 @@ func (s *Service) recordEvent(ctx context.Context, batchID, eventType, actorID, 
 	return err
 }
 
-// SubscriberImportEligibilityDocumented expose, pour la documentation et les
-// tests, l'invariant de sûreté de cette tranche : un lot importé n'a aucun
-// effet d'envoi. L'éligibilité d'envoi reste `confirmedAt IS NOT NULL`, donc
-// un contact importé n'est jamais destinataire tant qu'il n'a pas confirmé, et
-// aucune décision staff ne peut fabriquer cette confirmation.
-func SubscriberImportEligibilityDocumented() string {
-	return strings.Join([]string{
-		"une approbation staff autorise un mode de traitement, pas un envoi",
-		"confirmedAt ne peut être franchi que par une confirmation individuelle",
-	}, "; ")
-}
+// Invariant de sûreté de cette tranche, tenu par le code et non par une
+// fonction de documentation : un lot importé n'a aucun effet d'envoi.
+// L'éligibilité reste `confirmedAt IS NOT NULL`, donc un contact importé n'est
+// jamais destinataire tant qu'il n'a pas confirmé, et aucune décision staff ne
+// peut fabriquer cette confirmation. `TestSendWave_LifecycleComplet` le mesure
+// (aucun abonné actif après le cycle complet).

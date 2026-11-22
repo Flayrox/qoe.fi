@@ -265,12 +265,3 @@ func TestDeclarations_Complete(t *testing.T) {
 		}
 	}
 }
-
-// Invariant central de la tranche : aucun chemin d'import ne rend un contact
-// destinataire. Ce test verrouille la formulation exposée à la documentation.
-func TestSubscriberImportEligibilityDocumented(t *testing.T) {
-	doc := SubscriberImportEligibilityDocumented()
-	if !strings.Contains(doc, "confirmation individuelle") {
-		t.Fatalf("l'invariant d'éligibilité n'est plus documenté : %q", doc)
-	}
-}
