@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-g `articles`, `feed`, `imports`, `admin`, `legal` et `creator` clos le 2026-11-22 — L29g : 19 défauts F487–F507, dettes R212–R215 ; prochain = `posts`, 10 f. · 3 424 l.) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-h `articles`, `feed`, `imports`, `admin`, `legal`, `creator` et `posts` clos le 2026-11-22 — L29h : 20 défauts F508–F527, dettes R216–R217 ; prochain = `users`, 9 f. · 3 060 l.) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -152,8 +152,14 @@ slug « libre » sur panne DB, **IDOR** des commentaires d'annotation, suppressi
 `CheckCategorySlugExists` ignoré, bornes de dates non validées, métadonnées partielles servies comme complètes,
 retrait d'un non-abonné « réussi », erreur DB convertie en 403, panic latent sur le garde de confiance,
 auteurs avalés, lignes/total perdus au scan, `strings.Title` déprécié, collision d'id d'article, analytics à zéro
-sur panne + décodeur Umami v2 incompatible), dettes **R212–R215**. **Lot suivant de L29, « En cours » : L29h** —
-`posts`, **10 f. · 3 424 l.**
+sur panne + décodeur Umami v2 incompatible), dettes **R212–R215**. **L29h est clos le 2026-11-22** : module
+`posts` (**10 f. · 3 729 l.** après correctifs, 3 424 l. avant ; 16 fichiers de tests), **20 défauts** F508–F527
+(pensée vide acceptée, `replyRestriction` libre, création non transactionnelle, sondage à zéro option, racine de
+fil avalée, like/repost d'article inexistant ou non publié, bookmark en 500, unlike mensonger, vote sur sondage
+expiré, erreurs DB déguisées en erreurs métier, `CanReply` en refus silencieux, `replyCount` qui dérive, mention
+coupée en octets, épinglage non atomique, signalements non validés, curseur illisible accepté, hide hors contrat,
+sitemap hors instantané, erreurs best-effort muettes), dettes **R216–R217**. **Lot suivant de L29, « En cours » :
+L29i** — `users`, **9 f. · 3 060 l.**
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2132,6 +2138,71 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L29h — `apps/api/internal/modules/posts/**` — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l` sur l'arbre courant) : **10 fichiers de production · 3 424 l.** —
+`service 1086`, `handler 597`, `assembly 362`, `create 327`, `dto 225`, `capabilities 224`, `quotes 219`,
+`threadgate 183`, `notifications 173`, `querier 28` — conforme au décompte annoncé. Tous lus intégralement, ainsi
+que les appelants réels (`cmd/server` : `NewHandler` + `Register`/`RegisterPublic`, auth obligatoire sur les
+écritures, `secguard` et `middleware` en amont ; `cmd/worker` via `queue.PublishPostEmbedding` ; module `feed`
+qui consomme `LoadPostClosure`/`BuildFeedPost*`/`GetPostsByIDs` ; SDK `packages/sdk/src/client.ts` pour les
+contrats de pagination), les contrats SQL (`sql/queries/feed.sql`, `sql/queries/posts.sql`,
+`sql/queries/polls.sql`, `sql/queries/highlights.sql`), les migrations et `ExpectedMigrationVersion = 94`
+recoupé avec la dernière migration sur disque `00094_collab_documents.sql` (cohérent). Après correctifs le module
+pèse **10 f. · 3 729 l.** (16 fichiers de tests, dont `audit_l29h_test.go`).
+
+**Pas de doublon de responsabilité** avec `creator`/`articles` : `posts` possède les pensées/réponses et leurs
+compteurs, `creator` les articles de publication, `feed` la composition du flux. Les seules zones partagées
+(engagement d'article, notifications, invalidation de cache) sont désormais passées par les mêmes helpers
+(`articleAuthorForEngagement`, `notifyMentionsInContent`) au lieu d'être réécrites.
+
+**20 défauts corrigés** F508–F527. Les suites à base réelle ont tourné (testcontainers Postgres) : les rouges
+cités sont des sorties de tests réellement exécutés.
+
+| # | Défaut | Preuve | Rouge constaté | Commit |
+|---|---|---|---|---|
+| F508 | `CreateFull` acceptait une pensée **vide** : `POST /v1/posts {"content":""}` répondait **201** et persistait une pensée sans texte ni repost. Refus explicite (400). | `TestPosts_EmptyContentRejected`. | `pensée vide créée = 201 ({"id":"8dfc5c04…","content":"",…}), attendu un refus` | `fix(posts)` |
+| F509 | `replyRestriction` libre : une valeur inconnue (`n-importe-quoi`) était persistée telle quelle et retombait à l'exécution sur « tout le monde » — une conversation censée être fermée devenait ouverte. Vocabulaire fermé validé (400). | `TestPosts_ReplyRestrictionValidated`. | `restriction inconnue acceptée = 201 ({…"replyRestriction":"n-importe-quoi"…})` | `fix(posts)` |
+| F510 | Création **non transactionnelle** : pensée écrite, puis pièce jointe en échec ⇒ **pensée partielle** persistée et 500 renvoyé. Transaction unique (`withTx`) sur pensée + pièces jointes + sondage + incrément du parent. | `TestPosts_CreateRollsBackOnAttachmentFailure`. | `1 pensée(s) partielle(s) persistée(s) malgré l'échec de pièce jointe` | `fix(posts)` |
+| F511 | Sondage : `CreatePoll`/`CreatePollOption` en erreur étaient **avalés** (`if err == nil`) et un sondage à **0 option réelle** (options vides filtrées après coup) était créé : scrutin impossible à voter, affiché comme valide. Options validées avant écriture (≥ 2, ≤ 6, ≤ 100 car.), ordre compact, erreurs propagées. | `TestPosts_PollWithOnlyEmptyOptionsRejected`. | `sondage sans option réelle accepté` | `fix(posts)` |
+| F512 | `GetThreadRootID` en erreur était ignoré (`err == nil && root != ""`) : une réponse était créée **sans `rootId`**, donc hors du fil (invisible dans la conversation, compteurs du fil faux). Erreur propagée, `ErrNoRows` → 404. | `TestPosts_RootResolutionErrorPropagated`. | `échec de résolution de la racine avalé : réponse créée sans rootId` | `fix(posts)` |
+| F513 | Like/repost d'un **article inexistant** répondait **500** (`article introuvable` mêlé au flux d'erreurs interne) au lieu de 404. | `TestPosts_LikeUnknownArticleIsNotFound`. | `like d'un article inexistant = 500 ({"error":"Internal Server Error"}), attendu 404` | `fix(posts)` |
+| F514 | Like/repost d'un article **non publié** (brouillon/programmé) était accepté et **notifiait l'auteur** : un identifiant d'article non public devenait une cible d'engagement et confirmait son existence. `articleAuthorForEngagement` exige `published AND status='PUBLISHED'` → 404. | `TestPosts_LikeDraftArticleRejected`. | `like d'un article non publié accepté (et notification envoyée à l'auteur)` | `fix(posts)` |
+| F515 | Bookmark d'un article inexistant : l'`INSERT` violait la clé étrangère ⇒ **500** sur un simple identifiant inconnu. Existence vérifiée → 404. | `TestPosts_BookmarkUnknownArticleIsNotFound`. | `bookmark d'un article inexistant = 500 ({"error":"Internal Server Error"}), attendu 404` | `fix(posts)` |
+| F516 | Unlike/annulation de repost d'article : `_, _ = s.pool.Exec(DELETE …)` **ignorait l'échec** et répondait « plus aimé » alors que la ligne était toujours là (état affiché mensonger, compteur faux). Erreurs vérifiées, notifications best-effort tracées. | Lecture + relecture du chemin (`toggleArticleLike`/`toggleArticleRepost`). | — (structurel : `DELETE` non injectable sans refonte de `pool`) | `fix(posts)` |
+| F517 | Vote sur un sondage **expiré** accepté : `isExpired` n'était qu'un affichage client, le serveur comptait les voix après la clôture. Refus explicite. | `TestPosts_ExpiredPollRejected`. | `vote accepté sur un sondage expiré` | `fix(posts)` |
+| F518 | `VotePoll`/`UnvotePoll` convertissaient **toute erreur de base** en « sondage introuvable » / « option introuvable » (400) : une panne devenait une erreur métier et disparaissait des alertes. Seul `ErrNoRows` reste métier, le reste remonte (500). | `TestPosts_VotePollDatabaseErrorNotMasked`. | `erreur de base convertie en erreur métier : sondage introuvable` | `fix(posts)` |
+| F519 | `CanReply` avalait les erreurs d'abonnement, de follow et de pseudo (`err == nil && …`) : une panne DB devenait un **refus silencieux** (« seuls les abonnés… ») et l'utilisateur légitime ne pouvait plus répondre. Erreurs propagées, `ErrNoRows` reste un refus. | `TestPosts_CanReplySubscriberLookupErrorPropagated`. | `erreur de base convertie en refus métier : err = <nil>` | `fix(posts)` |
+| F520 | Supprimer une **réponse** ne décrémentait pas `replyCount` du parent (ni celui du repost pur) et n'invalidait pas le cache feed : compteur qui dérive à chaque suppression, feed périmé. Suppression + compteurs dans une transaction, cache invalidé après commit, auteur vérifié (404 sinon). | `TestPosts_DeleteReplyDecrementsParentCount`. | `replyCount du parent = 1 après suppression (avant 1) : compteur qui dérive` | `fix(posts)` |
+| F521 | `ContainsMention` calculait la frontière de mot en **octets** (`rune(lower[end])`) : `@jean😀` n'était pas reconnu comme mention (l'octet de continuation n'est pas un caractère de handle), donc aucune notification. Frontière lue en rune (`utf8.DecodeRuneInString`). | `TestPosts_ContainsMentionUnicodeBoundary`. | `mention suivie d'un emoji non reconnue (frontière de mot calculée en octets)` | `fix(posts)` |
+| F522 | `TogglePin` : **épinglage hors transaction** (désépingler tout puis épingler pouvait laisser le profil sans aucune épingle) et non-auteur recevait **400** en confirmant l'existence de la pensée. Transaction unique, non-auteur → **404** (même contrat que la suppression). | `TestPosts_PinUnknownPostIsNotFound` ; `TestHandlers_LikeRepostBookmarkPin` mis à jour (404). | `pin d'un post inexistant = 400 ({"error":"post introuvable"}), attendu 404` | `fix(posts)` |
+| F523 | Signalement : `targetType` **non validé** (n'importe quelle chaîne entrait dans la file de modération) et cible **jamais vérifiée** (identifiant fantôme, y compris une pensée supprimée). Vocabulaire validé (`thought`/`post`, `article`, `user`, `comment`), existence contrôlée, 404 sinon. | `TestPosts_ReportRejectsUnknownTargetType`. | `signalement d'un type inconnu accepté ({"success":true})` | `fix(posts)` |
+| F524 | `parsePage` ramenait `cursor=abc` et `cursor=-5` à **0 sans le dire** : le client qui pagine recevait 200 avec la première page et bouclait en croyant avoir tout lu. Curseur non entier ou négatif → **400** (même classe que R214, corrigée ici). | `TestPosts_InvalidCursorRejected`. | `curseur illisible code = 200 (…), attendu 400` | `fix(posts)` |
+| F525 | `GET /v1/posts/{id}/hide` sur une réponse inconnue répondait **400** avec le message interne « réponse introuvable ou non autorisée » ; les erreurs de base y étaient aussi mêlées. Sentinelle `errThoughtNotFound` → 404, panne → 500 journalisée. | `TestPosts_HideReplyUnknownIsNotFound` ; `TestHandlers_BlockMuteReportHide` mis à jour (404). | `hide non-auteur code = 404, attendu 400` (constaté après correctif : le fixture attendait l'ancien 400) | `fix(posts)` |
+| F526 | `SitemapThoughts` lisait le **total** et la **page** dans deux instantanés distincts : le sitemap pouvait annoncer N entrées et en livrer N±k. Les deux lectures partagent désormais une transaction `REPEATABLE READ` lecture seule (`withReadTx`). | Lecture + `go vet`/suite `cmd/server`, `posts`. | — (structurel : non déterministe sans concurrence) | `fix(posts)` |
+| F527 | Erreurs silencieuses restantes : `LoadViewerGraph` ignorait `QueryRow`/`Scan`/`rows.Err` (capabilities fausses, sans trace), `notifyMentionsInContent` et `createReplyNotification` jetaient les échecs, l'enqueue d'embedding était avalé. Tous journalisés ; `rows.Err()` vérifié. Le chemin legacy `Service.Create` (90 l., aucun appelant de production) **délègue** désormais à `CreateFull` : il écrivait sans transaction ni contrôle de blocage. | Lecture + `go vet` + suites `posts`/`feed`. | — (structurel : `log` best-effort, pas d'état observable) | `fix(posts)` |
+
+**Dettes ouvertes par ce lot** (arbitrages, pas de faux correctif) :
+
+- **R216 — taxonomie des `targetType` de signalement** : le serveur accepte désormais `thought` (SDK) et `post`
+  (anciens clients, tests) comme **alias** et stocke la valeur reçue telle quelle ; aucune contrainte SQL n'impose
+  un vocabulaire canonique, et la console staff doit connaître les deux. Option recommandée : normaliser en base
+  (`thought`, `article`, `user`, `comment`) avec `CHECK` et réécrire les lignes existantes, une fois le SDK aligné.
+- **R217 — bornes produit des sondages** : le service impose maintenant ≥ 2 et ≤ 6 options, 100 caractères par
+  option et **30 jours** de durée maximale (au-delà : 400). Ces bornes sont techniques (le front propose 24 h /
+  72 h / 7 j) et n'ont pas été validées produit : à confirmer ou à déplacer dans les réglages de plateforme.
+
+**Batterie du tour.** `gofmt -l internal/modules/posts/` **vide** · `go build ./...` **0** · `go vet ./internal/...`
+**0** · `go test` `posts` (base Postgres réelle), `feed`, `creator`, `highlights`, `settings`, `users`, `cmd/server`,
+`cmd/worker` **ok** (`QOE_DB_TESTS_OPTIONAL=1`). Workspace : 13 commandes
+(`typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*`) **toutes à 0**.
+Aucun fichier mobile touché, arbre propre, aucun push.
+
+**Reste à faire (L29i, lot suivant).** **89 fichiers de production · 27 687 l.** restent dans
+`apps/api/internal/modules/**` (196 f. · 67 279 l. au total, moins les 107 f. · 39 592 l. déjà lus : `articles`,
+`feed`, `imports`, `admin`, `legal`, `creator`, `posts`). Prochain lot borné : **`users` — 9 f. · 3 060 l.**,
+puis `settings` (7 f. · 2 474 l.), `media` (4 f. · 2 121 l.), `highlights` (3 f. · 1 050 l.).
 
 ## L29g — `apps/api/internal/modules/creator/**` — **clos le 2026-11-22**
 
