@@ -76,6 +76,16 @@ func (s *Service) SetTrustService(ts *trust.Service) {
 	s.trustSvc = ts
 }
 
+// invalidateTrust rafraîchit le cache Trust quand il est branché. Le service
+// est optionnel : une modération ne doit jamais paniquer (ni échouer) parce
+// que le cache n'est pas câblé dans cette instance.
+func (s *Service) invalidateTrust(ctx context.Context, userID string) {
+	if s == nil || s.trustSvc == nil || userID == "" {
+		return
+	}
+	s.trustSvc.InvalidateUser(ctx, userID)
+}
+
 // DashboardCounts sont les compteurs de la page d'accueil admin (parité
 // prisma.user.count / prisma.article.count / prisma.subscriber.count).
 type DashboardCounts struct {
@@ -353,7 +363,7 @@ func (s *Service) UpdateModeration(ctx context.Context, userID, targetID string,
 	}
 
 	if isShadowbanned != cur.IsShadowbanned || isSuspended != cur.IsSuspended || isCertified != cur.IsCertified {
-		s.trustSvc.InvalidateUser(ctx, targetID)
+		s.invalidateTrust(ctx, targetID)
 	}
 
 	s.logAudit(ctx, userID, "moderation.update", "user", targetID, map[string]any{

@@ -98,7 +98,7 @@ func jsonFriendly(v any) any {
 	}
 }
 
-func rowToMap(rows pgx.Rows) map[string]any {
+func rowToMap(rows pgx.Rows) (map[string]any, error) {
 	cols := rows.FieldDescriptions()
 	vals := make([]any, len(cols))
 	ptrs := make([]any, len(cols))
@@ -106,40 +106,51 @@ func rowToMap(rows pgx.Rows) map[string]any {
 		ptrs[i] = &vals[i]
 	}
 	if err := rows.Scan(ptrs...); err != nil {
-		return nil
+		return nil, err
 	}
 	m := make(map[string]any, len(cols))
 	for i, c := range cols {
 		m[string(c.Name)] = jsonFriendly(vals[i])
 	}
-	return m
+	return m, nil
 }
 
-func (s *Service) exportRow(ctx context.Context, query string, args ...any) map[string]any {
+// exportRow / exportRows propagent les erreurs : un export RGPD signé ne doit
+// jamais présenter comme « vide » une section que la base n'a pas pu lire.
+func (s *Service) exportRow(ctx context.Context, query string, args ...any) (map[string]any, error) {
 	rows, err := s.pool.Query(ctx, query, args...)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	defer rows.Close()
 	if !rows.Next() {
-		return nil
+		return nil, nil
 	}
-	return rowToMap(rows)
+	m, err := rowToMap(rows)
+	if err != nil {
+		return nil, err
+	}
+	return m, rows.Err()
 }
 
-func (s *Service) exportRows(ctx context.Context, query string, args ...any) []map[string]any {
+func (s *Service) exportRows(ctx context.Context, query string, args ...any) ([]map[string]any, error) {
 	rows, err := s.pool.Query(ctx, query, args...)
 	if err != nil {
-		return []map[string]any{}
+		return nil, err
 	}
 	defer rows.Close()
 	out := []map[string]any{}
 	for rows.Next() {
-		if m := rowToMap(rows); m != nil {
-			out = append(out, m)
+		m, err := rowToMap(rows)
+		if err != nil {
+			return nil, err
 		}
+		out = append(out, m)
 	}
-	return out
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // ListDeletionRequests liste les demandes d'effacement de compte avec délai restant légal.
@@ -230,35 +241,72 @@ func (s *Service) ExportUserDSAR(ctx context.Context, staffID, userID, reason st
 		"createdAt":      user.CreatedAt.Time.UTC().Format(time.RFC3339),
 	}
 
-	settingsMap := s.exportRow(ctx, `SELECT * FROM "UserSettings" WHERE "userId" = $1`, toDSARUUID(userID))
+	settingsMap, err := s.exportRow(ctx, `SELECT * FROM "UserSettings" WHERE "userId" = $1`, toDSARUUID(userID))
+	if err != nil {
+		return nil, nil, fmt.Errorf("export des préférences: %w", err)
+	}
 	if settingsMap == nil {
 		settingsMap = map[string]any{}
 	}
 
-	consents := s.exportRows(ctx, `
-		SELECT "documentSlug", "versionId", "acceptedAt", "ipAddress"
-		FROM "LegalAcceptance"
-		WHERE "userId" = $1
-		ORDER BY "acceptedAt" DESC`, toDSARUUID(userID))
+	// Schéma legal_* en snake_case (migration 00018) : les noms Prisma
+	// « LegalAcceptance » / « acceptedAt » n'existent plus, et l'erreur était
+	// avalée — l'export RGPD omettait donc TOUTES les preuves de consentement.
+	consents, err := s.exportRows(ctx, `
+		SELECT a."document_id" AS "documentId", d."slug" AS "documentSlug",
+		       a."version_id" AS "versionId", a."version", a."locale",
+		       a."accepted_at" AS "acceptedAt", a."source", a."method",
+		       a."ip", a."user_agent" AS "userAgent"
+		FROM "legal_acceptance" a
+		JOIN "legal_document" d ON d."id" = a."document_id"
+		WHERE a."user_id" = $1
+		ORDER BY a."accepted_at" DESC`, toDSARUUID(userID))
+	if err != nil {
+		return nil, nil, fmt.Errorf("export des consentements: %w", err)
+	}
 
-	features := s.exportRows(ctx, `
+	features, err := s.exportRows(ctx, `
 		SELECT "featureKey", "status", "source", "consentAt", "createdAt"
 		FROM "FeatureInterest"
 		WHERE "userId" = $1::uuid
 		ORDER BY "createdAt" ASC`, userID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("export des intérêts: %w", err)
+	}
 
-	subscriptions := s.exportRows(ctx, `
-		SELECT id, "publisherId", email, confirmed, "createdAt"
-		FROM "Subscriber"
-		WHERE "userId" = $1
-		ORDER BY "createdAt" DESC`, toDSARUUID(userID))
+	// La colonne booléenne `confirmed` n'existe plus (schéma actuel :
+	// confirmedAt / status / isActive) : l'export des abonnements était vide
+	// pour la même raison que les consentements.
+	subscriptions, err := s.exportRows(ctx, `
+		SELECT s."id", s."publisherId", s."email",
+		       (s."confirmedAt" IS NOT NULL) AS "confirmed",
+		       s."status", s."isActive", s."receiveArticles", s."createdAt"
+		FROM "Subscriber" s
+		WHERE s."userId" = $1
+		ORDER BY s."createdAt" DESC`, toDSARUUID(userID))
+	if err != nil {
+		return nil, nil, fmt.Errorf("export des abonnements: %w", err)
+	}
 
+	// Chaque compteur est une pièce de l'attestation : un échec de lecture
+	// n'est jamais remplacé par zéro.
 	var articlesCount, postsCount, highlightsCount, bookmarksCount, readingCount int
-	_ = s.pool.QueryRow(ctx, `SELECT count(*) FROM "Article" WHERE "authorId" = $1`, toDSARUUID(userID)).Scan(&articlesCount)
-	_ = s.pool.QueryRow(ctx, `SELECT count(*) FROM "Post" WHERE "authorId" = $1`, toDSARUUID(userID)).Scan(&postsCount)
-	_ = s.pool.QueryRow(ctx, `SELECT count(*) FROM "Highlight" WHERE "readerId" = $1`, toDSARUUID(userID)).Scan(&highlightsCount)
-	_ = s.pool.QueryRow(ctx, `SELECT count(*) FROM "Bookmark" WHERE "readerId" = $1`, toDSARUUID(userID)).Scan(&bookmarksCount)
-	_ = s.pool.QueryRow(ctx, `SELECT count(*) FROM "ReadingSession" WHERE "userId" = $1`, toDSARUUID(userID)).Scan(&readingCount)
+	counts := []struct {
+		label string
+		query string
+		dest  *int
+	}{
+		{"articles", `SELECT count(*) FROM "Article" WHERE "authorId" = $1`, &articlesCount},
+		{"posts", `SELECT count(*) FROM "Post" WHERE "authorId" = $1`, &postsCount},
+		{"highlights", `SELECT count(*) FROM "Highlight" WHERE "readerId" = $1`, &highlightsCount},
+		{"bookmarks", `SELECT count(*) FROM "Bookmark" WHERE "readerId" = $1`, &bookmarksCount},
+		{"sessions de lecture", `SELECT count(*) FROM "ReadingSession" WHERE "userId" = $1`, &readingCount},
+	}
+	for _, c := range counts {
+		if err := s.pool.QueryRow(ctx, c.query, toDSARUUID(userID)).Scan(c.dest); err != nil {
+			return nil, nil, fmt.Errorf("export du compteur %s: %w", c.label, err)
+		}
+	}
 
 	activityMap := map[string]any{
 		"articlesCount":   articlesCount,
@@ -313,8 +361,17 @@ func (s *Service) EraseUser(ctx context.Context, staffID, userID string, in Eras
 		return nil, fmt.Errorf("%w: le motif de l'effacement est obligatoire", errInvalidDSAR)
 	}
 
+	// Tout l'effacement est UNE transaction : une liste d'opposition écrite
+	// sans suppression (ou l'inverse) serait une conformité partielle
+	// présentée comme complète.
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
 	var email string
-	err := s.pool.QueryRow(ctx, `SELECT email FROM "User" WHERE id = $1`, toDSARUUID(userID)).Scan(&email)
+	err = tx.QueryRow(ctx, `SELECT email FROM "User" WHERE id = $1 FOR UPDATE`, toDSARUUID(userID)).Scan(&email)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errUserNotFound
@@ -327,29 +384,46 @@ func (s *Service) EraseUser(ctx context.Context, staffID, userID string, in Eras
 	h.Write([]byte(strings.ToLower(strings.TrimSpace(email))))
 	emailHash := hex.EncodeToString(h.Sum(nil))
 
-	// Inscription en liste d'opposition globale pour bloquer toute communication future
-	_, _ = s.pool.Exec(ctx, `
+	// Inscription en liste d'opposition globale pour bloquer toute communication
+	// future. Idempotent : une adresse déjà opposée ne bloque pas l'effacement.
+	if _, err := tx.Exec(ctx, `
 		INSERT INTO "EmailSuppression" (id, email, scope, reason, source, "createdAt")
-		VALUES (gen_random_uuid()::text, $1, 'global', 'manual', 'dsar_erasure', now())`,
-		email)
+		VALUES (gen_random_uuid()::text, $1, 'global', 'manual', 'dsar_erasure', now())
+		ON CONFLICT DO NOTHING`,
+		email); err != nil {
+		return nil, fmt.Errorf("liste d'opposition: %w", err)
+	}
 
-	// Mise à jour de la demande d'effacement si fournie
+	// Mise à jour de la demande d'effacement. Un identifiant fourni doit
+	// désigner une demande DU compte effacé : marquer « traitée » la demande
+	// d'un autre utilisateur serait une falsification de dossier.
 	if in.RequestID != nil && strings.TrimSpace(*in.RequestID) != "" {
-		_, _ = s.pool.Exec(ctx, `
+		tag, err := tx.Exec(ctx, `
 			UPDATE "AccountDeletionRequest"
 			SET status = 'PROCESSED', "processedAt" = now()
-			WHERE id = $1`, strings.TrimSpace(*in.RequestID))
+			WHERE id = $1 AND "userId" = $2`,
+			strings.TrimSpace(*in.RequestID), toDSARUUID(userID))
+		if err != nil {
+			return nil, fmt.Errorf("mise à jour de la demande d'effacement: %w", err)
+		}
+		if tag.RowsAffected() == 0 {
+			return nil, fmt.Errorf("%w: demande d'effacement introuvable pour ce compte", errInvalidDSAR)
+		}
 	} else {
-		_, _ = s.pool.Exec(ctx, `
+		if _, err := tx.Exec(ctx, `
 			UPDATE "AccountDeletionRequest"
 			SET status = 'PROCESSED', "processedAt" = now()
-			WHERE "userId" = $1 AND status IN ('PENDING', 'PROCESSING')`, toDSARUUID(userID))
+			WHERE "userId" = $1 AND status IN ('PENDING', 'PROCESSING')`, toDSARUUID(userID)); err != nil {
+			return nil, fmt.Errorf("mise à jour des demandes d'effacement: %w", err)
+		}
 	}
 
 	// Suppression en cascade de l'utilisateur
-	_, err = s.pool.Exec(ctx, `DELETE FROM "User" WHERE id = $1`, toDSARUUID(userID))
-	if err != nil {
+	if _, err := tx.Exec(ctx, `DELETE FROM "User" WHERE id = $1`, toDSARUUID(userID)); err != nil {
 		return nil, fmt.Errorf("suppression du compte: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
 	}
 
 	nowISO := time.Now().UTC().Format(time.RFC3339)

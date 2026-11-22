@@ -199,6 +199,19 @@ func TestStaffCampaign_LifecycleComplet(t *testing.T) {
 	if err := svc.MarkCampaignResult(ctx, created.ID, claims[0].DeliveryID, true, ""); err != nil {
 		t.Fatalf("MarkCampaignResult: %v", err)
 	}
+	// Rejeu de la même tâche (livraison déjà sortie de `queued`) : les
+	// compteurs ne doivent pas être incrémentés deux fois.
+	if err := svc.MarkCampaignResult(ctx, created.ID, claims[0].DeliveryID, true, ""); err != nil {
+		t.Fatalf("MarkCampaignResult (rejeu): %v", err)
+	}
+	var sent, failed int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT "sentCount", "failedCount" FROM "StaffCampaign" WHERE "id" = $1`, created.ID).Scan(&sent, &failed); err != nil {
+		t.Fatalf("compteurs: %v", err)
+	}
+	if sent != 1 || failed != 0 {
+		t.Fatalf("rejeu: sentCount=%d failedCount=%d, attendu 1/0", sent, failed)
+	}
 	finished, err := svc.FinishCampaignIfDrained(ctx, created.ID)
 	if err != nil {
 		t.Fatalf("FinishCampaignIfDrained: %v", err)

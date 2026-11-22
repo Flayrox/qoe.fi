@@ -14,7 +14,7 @@ package admin
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"net/http"
 
 	"github.com/qoefi/api/internal/response"
@@ -47,7 +47,7 @@ func (s *Service) GetOutboxMetrics(ctx context.Context, staffID string) (*Outbox
 	}
 
 	if s == nil || s.pool == nil {
-		return metrics, nil
+		return nil, errors.New("base de données indisponible")
 	}
 
 	// 1. Totaux globaux, messages coincés et âge du plus ancien
@@ -84,14 +84,19 @@ func (s *Service) GetOutboxMetrics(ctx context.Context, staffID string) (*Outbox
 		  FROM "NotificationDelivery"
 		 GROUP BY "channel"
 		 ORDER BY "channel"`)
-	if err == nil {
-		defer cRows.Close()
-		for cRows.Next() {
-			var ch OutboxChannelMetrics
-			if err := cRows.Scan(&ch.Channel, &ch.Queued, &ch.Sent, &ch.Failed); err == nil {
-				metrics.Channels = append(metrics.Channels, ch)
-			}
+	if err != nil {
+		return nil, err
+	}
+	defer cRows.Close()
+	for cRows.Next() {
+		var ch OutboxChannelMetrics
+		if err := cRows.Scan(&ch.Channel, &ch.Queued, &ch.Sent, &ch.Failed); err != nil {
+			return nil, err
 		}
+		metrics.Channels = append(metrics.Channels, ch)
+	}
+	if err := cRows.Err(); err != nil {
+		return nil, err
 	}
 
 	// 3. Statut qualifié
@@ -107,7 +112,7 @@ func (s *Service) GetOutboxMetrics(ctx context.Context, staffID string) (*Outbox
 // RetryAllFailedDeliveries remet en file d'attente toutes les livraisons en échec.
 func (s *Service) RetryAllFailedDeliveries(ctx context.Context, staffID, reason, channel string) (int64, error) {
 	if s == nil || s.pool == nil {
-		return 0, nil
+		return 0, errors.New("base de données indisponible")
 	}
 
 	query := `
@@ -140,20 +145,23 @@ func (s *Service) RetryAllFailedDeliveries(ctx context.Context, staffID, reason,
 // UnlockStuckDeliveries débloque les messages restés en PROCESSING suite à un crash de worker.
 func (s *Service) UnlockStuckDeliveries(ctx context.Context, staffID, reason string, maxAgeMinutes int) (int64, error) {
 	if s == nil || s.pool == nil {
-		return 0, nil
+		return 0, errors.New("base de données indisponible")
 	}
 
+	// Borne volontairement courte côté service : une valeur arbitrairement
+	// grande débloquerait des messages réellement en vol.
 	if maxAgeMinutes <= 0 {
 		maxAgeMinutes = 10
 	}
+	if maxAgeMinutes > 24*60 {
+		maxAgeMinutes = 24 * 60
+	}
 
-	query := fmt.Sprintf(`
+	res, err := s.pool.Exec(ctx, `
 		UPDATE "NotificationDelivery"
 		   SET "status" = 'QUEUED', "availableAt" = CURRENT_TIMESTAMP, "updatedAt" = CURRENT_TIMESTAMP
 		 WHERE "status" = 'PROCESSING'
-		   AND "updatedAt" <= CURRENT_TIMESTAMP - interval '%d minutes'`, maxAgeMinutes)
-
-	res, err := s.pool.Exec(ctx, query)
+		   AND "updatedAt" <= CURRENT_TIMESTAMP - make_interval(mins => $1)`, maxAgeMinutes)
 	if err != nil {
 		return 0, err
 	}
@@ -171,7 +179,10 @@ func (s *Service) UnlockStuckDeliveries(ctx context.Context, staffID, reason str
 
 // BatchRetryDeliveries relance une sélection d'identifiants de livraison.
 func (s *Service) BatchRetryDeliveries(ctx context.Context, staffID string, ids []string, reason string) (int64, error) {
-	if s == nil || s.pool == nil || len(ids) == 0 {
+	if s == nil || s.pool == nil {
+		return 0, errors.New("base de données indisponible")
+	}
+	if len(ids) == 0 {
 		return 0, nil
 	}
 

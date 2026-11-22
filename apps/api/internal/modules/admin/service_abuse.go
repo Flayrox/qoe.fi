@@ -132,7 +132,7 @@ func (s *Service) DecideAbuseAppeal(ctx context.Context, userID, id, status, out
 		return abuse.Appeal{}, err
 	}
 	if a.SubjectType == "user" && a.SubjectID != "" {
-		s.trustSvc.InvalidateUser(ctx, a.SubjectID)
+		s.invalidateTrust(ctx, a.SubjectID)
 	}
 	return a, nil
 }
@@ -280,7 +280,7 @@ func (s *Service) ResolveAbuseDecision(ctx context.Context, userID, subjectType,
 		return "", err
 	}
 	if subjectType == "user" && subjectID != "" {
-		s.trustSvc.InvalidateUser(ctx, subjectID)
+		s.invalidateTrust(ctx, subjectID)
 	}
 	return id, nil
 }

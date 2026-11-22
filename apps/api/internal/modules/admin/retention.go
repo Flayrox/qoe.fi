@@ -420,6 +420,9 @@ func (s *Service) GetRetentionJournal(ctx context.Context, limit int) ([]Retenti
 			Metadata:   meta,
 		})
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	return entries, nil
 }

@@ -6,16 +6,11 @@ import (
 )
 
 func TestService_GetOutboxMetrics(t *testing.T) {
+	// Sans base, la supervision ne doit pas inventer un outbox « healthy » à
+	// zéro : l'absence de mesure est une erreur, pas un feu vert.
 	svcNil := &Service{}
-	metrics, err := svcNil.GetOutboxMetrics(context.Background(), adminAdminID)
-	if err != nil {
-		t.Fatalf("expected nil error on nil pool, got %v", err)
-	}
-	if metrics == nil {
-		t.Fatalf("expected non-nil metrics")
-	}
-	if metrics.Status != "healthy" {
-		t.Errorf("expected healthy status on empty metrics, got %s", metrics.Status)
+	if _, err := svcNil.GetOutboxMetrics(context.Background(), adminAdminID); err == nil {
+		t.Fatal("expected an error on nil pool, got a fabricated healthy report")
 	}
 
 	if poolTest != nil {

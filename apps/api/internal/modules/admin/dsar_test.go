@@ -151,3 +151,59 @@ func TestAdminDSAR_Endpoints(t *testing.T) {
 		t.Fatalf("audit log dsar.erasure manquant: %v", err)
 	}
 }
+
+// TestAdminDSAR_EraseRejectsForeignRequest — un identifiant de demande fourni
+// ne doit jamais permettre de marquer « traitée » la demande d'un AUTRE
+// compte : ce serait une falsification de dossier de conformité.
+func TestAdminDSAR_EraseRejectsForeignRequest(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+
+	const victimID = "00000000-0000-0000-0000-00000000d5b1"
+	const victimEmail = "dsar-victim@test.dev"
+	const targetID = "00000000-0000-0000-0000-00000000d5b2"
+	const targetEmail = "dsar-target@test.dev"
+
+	cleanup := func() {
+		_, _ = poolTest.Exec(context.Background(), `DELETE FROM "AccountDeletionRequest" WHERE "userId" = ANY($1::uuid[])`, []string{victimID, targetID})
+		_, _ = poolTest.Exec(context.Background(), `DELETE FROM "User" WHERE id = ANY($1::uuid[])`, []string{victimID, targetID})
+		_, _ = poolTest.Exec(context.Background(), `DELETE FROM "EmailSuppression" WHERE email = ANY($1::text[])`, []string{victimEmail, targetEmail})
+	}
+	cleanup()
+	t.Cleanup(cleanup)
+
+	for _, u := range []struct{ id, email, name string }{
+		{victimID, victimEmail, "dsarvictim"},
+		{targetID, targetEmail, "dsartarget"},
+	} {
+		if _, err := poolTest.Exec(ctx, `
+			INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
+			VALUES ($1, $2, $3, $3, 'user', now(), now())`, u.id, u.email, u.name); err != nil {
+			t.Fatalf("seed user: %v", err)
+		}
+	}
+	if _, err := poolTest.Exec(ctx, `
+		INSERT INTO "AccountDeletionRequest" (id, "userId", status, reason, "requestedAt")
+		VALUES ('del_req_foreign', $1, 'PENDING', 'Demande du compte cible', now())`, targetID); err != nil {
+		t.Fatalf("seed request: %v", err)
+	}
+
+	svc := NewService(poolTest)
+	foreign := "del_req_foreign"
+	_, err := svc.EraseUser(ctx, adminAdminID, victimID, EraseUserInput{Reason: "tentative croisée", RequestID: &foreign})
+	if !errors.Is(err, errInvalidDSAR) {
+		t.Fatalf("effacement avec la demande d'un autre compte = %v, attendu errInvalidDSAR", err)
+	}
+
+	var status string
+	if err := poolTest.QueryRow(ctx, `SELECT "status" FROM "AccountDeletionRequest" WHERE id = 'del_req_foreign'`).Scan(&status); err != nil {
+		t.Fatalf("relecture demande: %v", err)
+	}
+	if status != "PENDING" {
+		t.Fatalf("demande d'un autre compte marquée %q", status)
+	}
+	var count int
+	if err := poolTest.QueryRow(ctx, `SELECT count(*) FROM "User" WHERE id = $1`, victimID).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("le compte victime a été touché (count=%d, err=%v)", count, err)
+	}
+}

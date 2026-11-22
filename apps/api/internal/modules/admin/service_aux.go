@@ -111,15 +111,28 @@ func (s *Service) SetArticleFeatured(ctx context.Context, userID, articleID stri
 	if err := s.checkSuperadmin(ctx, userID); err != nil {
 		return err
 	}
+	// Effacement + sélection dans la MÊME transaction : un échec du second
+	// geste ne doit pas laisser la une vide (tous les picks perdus).
+	if s.pool == nil {
+		return errors.New("base de données indisponible")
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	qtx := db.New(tx)
 	if featured {
-		if err := s.q.ClearArticleEditorPicks(ctx); err != nil {
+		if err := qtx.ClearArticleEditorPicks(ctx); err != nil {
 			return err
 		}
 	}
-	_, err := s.q.SetArticleEditorPick(ctx, db.SetArticleEditorPickParams{
+	if _, err := qtx.SetArticleEditorPick(ctx, db.SetArticleEditorPickParams{
 		ID: articleID, IsEditorPick: featured,
-	})
-	return err
+	}); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (s *Service) UpsertTrend(ctx context.Context, userID, hashtag string, count int32) (*AdminTrend, error) {

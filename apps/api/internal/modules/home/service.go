@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/antispam"
 	db "github.com/qoefi/api/internal/database"
 )
 
@@ -86,6 +87,13 @@ func (s *Service) GetGlobalAnnouncement(ctx context.Context) (*GlobalAnnouncemen
 	}
 	if !stored.Active || stored.ID == "" || stored.Message == "" {
 		return nil, nil
+	}
+	// Défense en profondeur : une valeur héritée (ou écrite hors console) ne
+	// doit jamais devenir un href javascript:/data:. On retire le lien, pas
+	// l'annonce — le message reste utile.
+	if stored.LinkURL != nil && antispam.ValidateSafeURL(*stored.LinkURL) != nil {
+		stored.LinkURL = nil
+		stored.LinkText = nil
 	}
 	return &GlobalAnnouncement{
 		ID: stored.ID, Message: stored.Message, Type: stored.Type,

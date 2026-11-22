@@ -6,11 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/qoefi/api/internal/antispam"
 	"github.com/qoefi/api/internal/response"
 )
 
@@ -67,22 +67,8 @@ func (s *Service) GetGlobalAnnouncement(ctx context.Context) (*GlobalAnnouncemen
 // l'annonce est rendue en `href` sur les surfaces publiques, un schéma
 // `javascript:` y deviendrait une exécution de script stockée.
 func validAnnouncementLink(raw string) bool {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return true
-	}
-	// Chemin interne uniquement : « //hôte » est une URL protocol-relative.
-	if strings.HasPrefix(raw, "/") {
-		return !strings.HasPrefix(raw, "//")
-	}
-	u, err := url.Parse(raw)
-	if err != nil {
-		return false
-	}
-	if u.Scheme != "http" && u.Scheme != "https" {
-		return false
-	}
-	return u.Host != ""
+	// Source unique de vérité du dépôt : chemins relatifs sûrs + http(s).
+	return antispam.ValidateSafeURL(raw) == nil
 }
 
 // SetGlobalAnnouncement enregistre l'annonce globale dans SystemConfig et trace l'audit.

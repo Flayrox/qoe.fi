@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/qoefi/api/internal/response"
 )
 
@@ -130,17 +131,20 @@ func (s *Service) ExecuteSeedScenario(ctx context.Context, staffID, scenario str
 		}
 
 		pubID := uuid.New().String()
-		_, err = s.pool.Exec(ctx, `
+		if _, err := s.pool.Exec(ctx, `
 			INSERT INTO "Publisher" ("id", "name", "slug", "ownerId", "createdAt", "updatedAt")
 			VALUES ($1, $2, $3, $4::uuid, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-			pubID, name, username, uID)
-		if err == nil {
-			// Article exemple
-			artID := uuid.New().String()
-			_, _ = s.pool.Exec(ctx, `
-				INSERT INTO "Article" ("id", "title", "slug", "status", "authorId", "publisherId", "content", "publishedAt", "createdAt", "updatedAt")
-				VALUES ($1, 'Édition Spéciale Sandbox', $2, 'published', $3::uuid, $4, '{"type":"doc","content":[]}'::jsonb, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-				artID, fmt.Sprintf("edition-sandbox-%d", rnd), uID, pubID)
+			pubID, name, username, uID); err != nil {
+			return nil, fmt.Errorf("création publication sandbox: %w", err)
+		}
+		// Article exemple : un échec ne doit pas être annoncé comme un média
+		// « actif avec article publié ».
+		artID := uuid.New().String()
+		if _, err := s.pool.Exec(ctx, `
+			INSERT INTO "Article" ("id", "title", "slug", "status", "authorId", "publisherId", "content", "publishedAt", "createdAt", "updatedAt")
+			VALUES ($1, 'Édition Spéciale Sandbox', $2, 'published', $3::uuid, $4, '{"type":"doc","content":[]}'::jsonb, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+			artID, fmt.Sprintf("edition-sandbox-%d", rnd), uID, pubID); err != nil {
+			return nil, fmt.Errorf("création article sandbox: %w", err)
 		}
 
 		res.GeneratedCount = 2
@@ -152,15 +156,19 @@ func (s *Service) ExecuteSeedScenario(ctx context.Context, staffID, scenario str
 	case "moderation_incident":
 		reporterID := uuid.New().String()
 		targetUserID := uuid.New().String()
-		_, _ = s.pool.Exec(ctx, `
+		if _, err := s.pool.Exec(ctx, `
 			INSERT INTO "User" ("id", "email", "username", "name", "role", "createdAt", "updatedAt")
 			VALUES ($1::uuid, $2, $3, 'Cible Signalement', 'user', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-			targetUserID, fmt.Sprintf("target.%d@qoe.test", rnd), fmt.Sprintf("target_%d", rnd))
+			targetUserID, fmt.Sprintf("target.%d@qoe.test", rnd), fmt.Sprintf("target_%d", rnd)); err != nil {
+			return nil, fmt.Errorf("création cible sandbox: %w", err)
+		}
 
-		_, _ = s.pool.Exec(ctx, `
+		if _, err := s.pool.Exec(ctx, `
 			INSERT INTO "User" ("id", "email", "username", "name", "role", "createdAt", "updatedAt")
 			VALUES ($1::uuid, $2, $3, 'Auteur Signalement', 'user', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-			reporterID, fmt.Sprintf("reporter.%d@qoe.test", rnd), fmt.Sprintf("reporter_%d", rnd))
+			reporterID, fmt.Sprintf("reporter.%d@qoe.test", rnd), fmt.Sprintf("reporter_%d", rnd)); err != nil {
+			return nil, fmt.Errorf("création signalant sandbox: %w", err)
+		}
 
 		reportID := fmt.Sprintf("rep_sbx_%d", rnd)
 		_, err := s.pool.Exec(ctx, `
@@ -178,10 +186,12 @@ func (s *Service) ExecuteSeedScenario(ctx context.Context, staffID, scenario str
 
 	case "outbox_failure_wave":
 		uID := uuid.New().String()
-		_, _ = s.pool.Exec(ctx, `
+		if _, err := s.pool.Exec(ctx, `
 			INSERT INTO "User" ("id", "email", "username", "name", "role", "createdAt", "updatedAt")
 			VALUES ($1::uuid, $2, $3, 'Outbox Testeur', 'user', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-			uID, fmt.Sprintf("outbox.tester.%d@qoe.test", rnd), fmt.Sprintf("tester_%d", rnd))
+			uID, fmt.Sprintf("outbox.tester.%d@qoe.test", rnd), fmt.Sprintf("tester_%d", rnd)); err != nil {
+			return nil, fmt.Errorf("création testeur sandbox: %w", err)
+		}
 
 		notifID := fmt.Sprintf("notif_sbx_%d", rnd)
 		_, err := s.pool.Exec(ctx, `
@@ -195,10 +205,12 @@ func (s *Service) ExecuteSeedScenario(ctx context.Context, staffID, scenario str
 		for i := 1; i <= 3; i++ {
 			delivID := fmt.Sprintf("deliv_sbx_%d_%d", rnd, i)
 			dedupe := fmt.Sprintf("dedupe_sbx_%d_%d", rnd, i)
-			_, _ = s.pool.Exec(ctx, `
+			if _, err := s.pool.Exec(ctx, `
 				INSERT INTO "NotificationDelivery" ("id", "notificationId", "channel", "status", "recipient", "attempts", "lastError", "dedupeKey", "createdAt", "updatedAt")
 				VALUES ($1, $2, 'EMAIL', 'FAILED', $3, 3, 'Simulation sandbox : SMTP timeout 30s', $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-				delivID, notifID, fmt.Sprintf("fail.%d.%d@qoe.test", rnd, i), dedupe)
+				delivID, notifID, fmt.Sprintf("fail.%d.%d@qoe.test", rnd, i), dedupe); err != nil {
+				return nil, fmt.Errorf("création livraison en échec sandbox: %w", err)
+			}
 		}
 
 		res.GeneratedCount = 3
@@ -245,17 +257,21 @@ func (s *Service) ExecuteSeedScenario(ctx context.Context, staffID, scenario str
 	return res, nil
 }
 
+// ImpersonateResult est le compte rendu d'une prise d'identité DEMANDÉE : la
+// console enregistre et audite la demande, elle n'ouvre AUCUNE session (la
+// connexion en tant que passe par le flux devtools, qui porte sa propre
+// authentification). Un `Audited: true` ne prétend donc pas à une session
+// active.
 type ImpersonateResult struct {
-	UserID       string `json:"userId"`
-	Email        string `json:"email"`
-	Name         string `json:"name"`
-	Role         string `json:"role"`
-	ReaderURL    string `json:"readerUrl"`
-	Message      string `json:"message"`
-	Impersonated bool   `json:"impersonated"`
+	UserID  string `json:"userId"`
+	Email   string `json:"email"`
+	Name    string `json:"name"`
+	Role    string `json:"role"`
+	Message string `json:"message"`
+	Audited bool   `json:"audited"`
 }
 
-// ImpersonateUser prépare et audite de manière inconditionnelle la prise d'identité.
+// ImpersonateUser vérifie la cible, exige un motif et trace la demande.
 func (s *Service) ImpersonateUser(ctx context.Context, staffID, targetEmail, reason string) (*ImpersonateResult, error) {
 	if s == nil || s.pool == nil {
 		return nil, errors.New("base de données non disponible")
@@ -280,8 +296,12 @@ func (s *Service) ImpersonateUser(ctx context.Context, staffID, targetEmail, rea
 		  FROM "User"
 		 WHERE LOWER("email") = $1
 		 LIMIT 1`, trimmedEmail).Scan(&uID, &email, &name, &role)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, fmt.Errorf("utilisateur introuvable pour %s", trimmedEmail)
+	}
+	if err != nil {
+		// Une panne de base n'est pas « compte introuvable ».
+		return nil, err
 	}
 
 	// Journalisation inconditionnelle de la prise d'identité
@@ -292,13 +312,12 @@ func (s *Service) ImpersonateUser(ctx context.Context, staffID, targetEmail, rea
 	})
 
 	return &ImpersonateResult{
-		UserID:       uID,
-		Email:        email,
-		Name:         name,
-		Role:         role,
-		ReaderURL:    fmt.Sprintf("/home?impersonate=%s", uID),
-		Message:      fmt.Sprintf("Identité endossée pour %s (%s) — accès audité.", email, role),
-		Impersonated: true,
+		UserID:  uID,
+		Email:   email,
+		Name:    name,
+		Role:    role,
+		Message: fmt.Sprintf("Demande de prise d'identité enregistrée et auditée pour %s (%s) — aucune session n'est ouverte par cette action.", email, role),
+		Audited: true,
 	}, nil
 }
 

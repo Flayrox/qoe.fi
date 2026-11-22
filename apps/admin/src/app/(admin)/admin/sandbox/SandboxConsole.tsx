@@ -5,14 +5,13 @@
 // =====================================================================
 // Fournit l'environnement d'essai isolé :
 //   - Déclenchement de scénarios de seed prédéfinis
-//   - Prise d'identité contrôlée (impersonation) avec motif obligatoire
-//   - Traçabilité et audit inconditionnel
+//   - Prise d'identité DEMANDÉE : motif obligatoire et audit inconditionnel,
+//     sans ouverture de session (la connexion en tant que vit dans devtools)
 // =====================================================================
 
 import { useState } from 'react';
 import {
   CheckCircle2,
-  ExternalLink,
   FlaskConical,
   Layers,
   Loader2,
@@ -226,7 +225,8 @@ export function SandboxConsole({ scenarios }: SandboxConsoleProps) {
 
         <div className="flex items-center justify-between gap-3 pt-1">
           <div className="text-[11px] text-muted-foreground">
-            Chaque session d&apos;impersonation est horodatée avec le compte opérateur responsable.
+            Chaque demande est horodatée et auditée avec le compte opérateur responsable. Cette
+            action n&apos;ouvre aucune session.
           </div>
           <Button
             type="button"
@@ -242,7 +242,7 @@ export function SandboxConsole({ scenarios }: SandboxConsoleProps) {
             ) : (
               <UserCheck className="h-3.5 w-3.5" />
             )}
-            Endosser l&apos;identité
+            Enregistrer la prise d&apos;identité
           </Button>
         </div>
 
@@ -277,17 +277,10 @@ export function SandboxConsole({ scenarios }: SandboxConsoleProps) {
                 </span>
               </span>
             </div>
-            <div className="pt-2">
-              <a
-                href={impersonateResult.readerUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
-              >
-                <span>Ouvrir l&apos;espace lecteur en tant que cet utilisateur</span>
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Aucune session n&apos;est ouverte par cette action : elle vérifie la cible et laisse
+              une trace d&apos;audit. La connexion en tant que relève du flux devtools.
+            </p>
           </div>
         )}
       </section>

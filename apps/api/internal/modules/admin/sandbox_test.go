@@ -27,7 +27,9 @@ func TestService_SandboxScenariosAndSeed(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ImpersonateUser failed: %v", err)
 		}
-		if !imp.Impersonated || imp.UserID == "" {
+		// La demande est auditée, pas une session : le résultat ne doit pas
+		// prétendre à une prise d'identité effective.
+		if !imp.Audited || imp.UserID == "" {
 			t.Errorf("unexpected impersonation result: %+v", imp)
 		}
 

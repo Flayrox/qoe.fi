@@ -32,6 +32,9 @@ func (f *adminFaultQ) ListAdminTrends(ctx context.Context) ([]db.Trend, error) {
 func (f *adminFaultQ) SetArticleEditorPick(ctx context.Context, arg db.SetArticleEditorPickParams) (db.SetArticleEditorPickRow, error) {
 	return db.SetArticleEditorPickRow{}, f.err
 }
+func (f *adminFaultQ) UpsertTrend(ctx context.Context, arg db.UpsertTrendParams) (db.UpsertTrendRow, error) {
+	return db.UpsertTrendRow{}, f.err
+}
 func (f *adminFaultQ) ListSystemConfigs(ctx context.Context) ([]db.SystemConfig, error) {
 	return nil, f.err
 }
@@ -53,7 +56,10 @@ func TestAdmin500Branches(t *testing.T) {
 		{http.MethodGet, "/v1/admin/users", ""},
 		{http.MethodGet, "/v1/admin/users/" + adminCreator, ""},
 		{http.MethodGet, "/v1/admin/widgets", ""},
-		{http.MethodPost, "/v1/admin/widgets/featured", `{"articleId":"art_adm_01","featured":true}`},
+		// La une passe désormais par une transaction (atomicité), donc elle ne
+		// traverse plus le querier injectable : c'est l'écriture de tendance qui
+		// prouve ici qu'une erreur d'écriture rend 500.
+		{http.MethodPost, "/v1/admin/widgets/trends", `{"hashtag":"fault","count":1}`},
 		{http.MethodGet, "/v1/admin/config", ""},
 		{http.MethodGet, "/v1/admin/deliveries", ""},
 	}

@@ -668,9 +668,10 @@ func (s *Service) ClaimCampaignChunk(ctx context.Context, campaignID string, lim
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	var status string
+	var status, audiencePublisherID string
 	if err := tx.QueryRow(ctx, `
-		SELECT "status" FROM "StaffCampaign" WHERE "id" = $1`, campaignID).Scan(&status); err != nil {
+		SELECT "status", COALESCE("audiencePublisherId", '')
+		FROM "StaffCampaign" WHERE "id" = $1`, campaignID).Scan(&status, &audiencePublisherID); err != nil {
 		return nil, err
 	}
 	if status != CampaignSending {
@@ -699,35 +700,32 @@ func (s *Service) ClaimCampaignChunk(ctx context.Context, campaignID string, lim
 		return nil, err
 	}
 	// Opposition revérifiée au claim (une désinscription entre matérialisation
-	// et tranche ne part jamais) : statut `suppressed` avec motif.
+	// et tranche ne part jamais) : statut `suppressed` avec motif. Les deux
+	// portées comptent — une opposition GLOBALE et une opposition liée à la
+	// publication expéditrice, exactement comme à la matérialisation.
+	// Le tri se fait ici, en une passe : relire chaque statut après coup
+	// ajoutait jusqu'à `limit` requêtes par tranche (N+1).
+	kept := out[:0]
 	for _, c := range out {
 		var suppressed bool
 		if err := tx.QueryRow(ctx, `
 			SELECT EXISTS(
 			    SELECT 1 FROM "EmailSuppression" x
-			    WHERE x.email = $1 AND x."scope" = 'global')`, c.Email).Scan(&suppressed); err != nil {
+			    WHERE x.email = $1
+			      AND (x."scope" = 'global'
+			           OR (x."scope" = 'publisher' AND x."publisherId" = NULLIF($2, ''))))`,
+			c.Email, audiencePublisherID).Scan(&suppressed); err != nil {
 			return nil, err
 		}
 		if !suppressed {
+			kept = append(kept, c)
 			continue
 		}
 		if _, err := tx.Exec(ctx, `
 			UPDATE "StaffCampaignDelivery"
-			SET "status" = 'suppressed', "error" = 'opposition globale avant envoi', "updatedAt" = now()
+			SET "status" = 'suppressed', "error" = 'opposition avant envoi', "updatedAt" = now()
 			WHERE "id" = $1 AND "status" = 'queued'`, c.DeliveryID); err != nil {
 			return nil, err
-		}
-	}
-	// On ne renvoie que les non-supprimées (relecture simple et bornée).
-	kept := out[:0]
-	for _, c := range out {
-		var st string
-		if err := tx.QueryRow(ctx, `
-			SELECT "status" FROM "StaffCampaignDelivery" WHERE "id" = $1`, c.DeliveryID).Scan(&st); err != nil {
-			return nil, err
-		}
-		if st == "queued" {
-			kept = append(kept, c)
 		}
 	}
 	if _, err := tx.Exec(ctx, `
@@ -746,21 +744,29 @@ func (s *Service) MarkCampaignResult(ctx context.Context, campaignID, deliveryID
 	if !ok {
 		status = "failed"
 	}
-	if _, err := s.pool.Exec(ctx, `
+	tag, err := s.pool.Exec(ctx, `
 		UPDATE "StaffCampaignDelivery"
 		SET "status" = $2, "error" = NULLIF($3, ''), "sentAt" = CASE WHEN $2 = 'sent' THEN now() ELSE NULL END, "updatedAt" = now()
 		WHERE "id" = $1 AND "campaignId" = $4 AND "status" = 'queued'`,
-		deliveryID, status, errText, campaignID); err != nil {
+		deliveryID, status, errText, campaignID)
+	if err != nil {
 		return err
 	}
+	if tag.RowsAffected() == 0 {
+		// Livraison déjà traitée (rejeu de tâche) : ne pas incrémenter les
+		// compteurs une seconde fois ni re-notifier l'intérêt.
+		return nil
+	}
 	if ok {
-		_, _ = s.pool.Exec(ctx, `
+		if _, err := s.pool.Exec(ctx, `
 			UPDATE "FeatureInterest"
 			SET "lastNotifiedAt" = now(), "lastCampaignId" = $2, "updatedAt" = now()
 			WHERE "id" = (SELECT "interestId" FROM "StaffCampaignDelivery" WHERE "id" = $1)`,
-			deliveryID, campaignID)
+			deliveryID, campaignID); err != nil {
+			return err
+		}
 	}
-	_, err := s.pool.Exec(ctx, `
+	_, err = s.pool.Exec(ctx, `
 		UPDATE "StaffCampaign"
 		SET "sentCount" = "sentCount" + CASE WHEN $2 = 'sent' THEN 1 ELSE 0 END,
 		    "failedCount" = "failedCount" + CASE WHEN $2 = 'failed' THEN 1 ELSE 0 END,

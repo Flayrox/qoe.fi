@@ -33,9 +33,9 @@ export interface ImpersonateResult {
   email: string;
   name: string;
   role: string;
-  readerUrl: string;
   message: string;
-  impersonated: boolean;
+  /** La demande a été vérifiée et auditée — aucune session n'est ouverte. */
+  audited: boolean;
 }
 
 function errorMessage(error: unknown, fallback: string): string {
