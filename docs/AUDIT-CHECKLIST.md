@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 65 963 l.) | **en cours** (L29a-d `articles`, `feed` et `imports` clos le 2026-11-22 — L29d : 9 défauts F436–F445, dettes R197–R200 ; prochain = `admin`, 36 f. · 11 570 l.) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 504 l.) | **en cours** (L29a-e `articles`, `feed`, `imports` et `admin` clos le 2026-11-22 — L29e : 22 défauts F446–F467, dettes R201–R204 ; prochain = `legal`, 8 f. · 4 540 l.) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -135,7 +135,11 @@ programmés), F435 (slot d'exploration sans verrou de compte/blocage/sourdine/pr
 F436–F445 corrigés (troncature UTF-8 du dépôt, fuite des signaux internes vers le demandeur, plafond de décision
 contournable, compteurs recomptés au rejeu, confirmation externe comptée comme envoi, vague `queued` jamais
 relancée, source relabellisée, suspension rejouée, lot laissé `running` après annulation), dettes **R197–R200**.
-**Lot suivant de L29, « En cours » : L29e** — `admin`, **36 f. · 11 570 l.**
+**L29e est clos le 2026-11-22** : module `admin` (**36 f. · 11 570 l.** lus intégralement), **22 défauts**
+F446–F467 (denylist inerte, variables de campagne non rendues, sceau d'export contournable, export RGPD amputé de
+ses consentements et abonnements, effacement croisé et non transactionnel, compteurs de campagne recomptés,
+N+1 du claim, impersonation factice, audits d'accès hors transaction, octrois payants non tracés…), dettes
+**R201–R204**. **Lot suivant de L29, « En cours » : L29f** — `legal`, **8 f. · 4 540 l.**
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2114,6 +2118,78 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L29e — `apps/api/internal/modules/admin/**` — **clos le 2026-11-22**
+
+Les **36 fichiers de production · 11 570 l.** lus intégralement (`service_access 909`, `staff_campaigns 910`,
+`service_aux 812`, `signed_exports 635`, `service_abuse 596`, `retention 465`, `dsar 451`, `work_queue 429`,
+`service_slo 387`, `service 387`, `service_audit 382`, `service_approvals 375`, `sandbox 367`, `handler 362`,
+`service_review 364`, `handler_abuse 359`, `handler_system 481`, `handler_ops 326`, `outbox 284`, `saved_views 263`,
+`service_moderation 218`, `handler_support 211`, `platform_features 190`, `subscriber_imports 278`,
+`staff_campaigns_http 183`, `announcement 167`, `handler_access 143`, `service_health 140`, `reviews_http 100`,
+`platform_features_http 94`, `approvals_http 78`, `queue_triage_http 57`, `service_publishers 50`,
+`feature_unsub 38`, `work_queue_http 20`, `querier 59`), plus leurs appelants réels (`cmd/server`, `cmd/worker`,
+`adminauthz`, `home` pour l'annonce publique, `apps/admin/src/**` pour la console) et les contrats SQL qu'ils
+lisent. Après correctifs le module pèse **36 f. · 11 940 l.**
+
+**22 défauts corrigés** F446–F467. Les suites à base réelle ont **tourné cette fois** (testcontainers Postgres
+opérationnel) : les rouges cités viennent de tests exécutés, pas de lecture seule.
+
+| # | Défaut | Preuve | Rouge constaté | Commit |
+|---|---|---|---|---|
+| F446 | `UpdateReservedIdentifiers` joignait la denylist avec les **deux caractères** `\` + `n` alors que `settings`/`users` découpent sur un vrai retour à la ligne : après la première sauvegarde admin, la liste entière devenait un seul jeton et **plus aucun nom réservé n'était reconnu**. | `TestEncodeReservedIdentifiers_MatchesReaders` (relit avec le même découpage que les lecteurs). | `denylist relue = ["admin\\napi\\nlogin"], attendu ["admin" "api" "login"]` | `1056903c` |
+| F447 | `validateCampaignContent` accepte tout espacement (`\s*`) autour d'une variable, mais `RenderCampaignVars` ne substituait que `{{x}}` et `{{ x }}` : `{{  publisher_name  }}` partait **brut** dans des milliers d'e-mails. Le rendu passe par le motif de validation. | `TestRenderCampaignVars_AnyWhitespace` (4 espacements par variable, échappement vérifié). | `RenderCampaignVars("{{  publisher_name  }}") = "{{  publisher_name  }}", attendu "Média &lt;x&gt;"` | `1056903c` |
+| F448 | `VerifySignedExport` recalculait `sha256(env.Canonical)` **sans reconstruire** la chaîne canonique : portée, date, identifiant et demandeur (rendus à l'auditeur) pouvaient être réécrits sans invalider le sceau. Le canonique est désormais reconstruit depuis l'enveloppe ; les compteurs sont confrontés au contenu scellé et une portée inconnue est refusée. | `TestSignedExport_DetectsEnvelopeTampering` (4 altérations), extension des exports existants. | `enveloppe altérée (date) encore déclarée valide` (+ portée, demandeur, identifiant) | `1056903c` |
+| F449 | Une borne `since`/`until` illisible était **ignorée** : l'export signé couvrait tout l'historique en s'annonçant filtré. 400 explicite (`errInvalidExportBound`). | `TestParseExportBound_RejectsGarbage`. | `borne illisible acceptée silencieusement` | `1056903c` |
+| F450 | Le lien de l'annonce globale partait tel quel dans un `href` public : `javascript:`/`data:` stockés via la console devenaient une exécution de script sur toutes les pages. Validation `antispam.ValidateSafeURL` à l'écriture **et** neutralisation à la lecture publique (valeur héritée) ; annonce corrompue = erreur, plus « aucune annonce ». | `TestValidAnnouncementLink` (4 acceptés, 6 refusés). | `lien dangereux accepté : "javascript:alert(1)"` (et 5 autres) | `1056903c` |
+| F451 | `ExpectedMigrationVersion` valait **74** alors que la dernière migration est **94** : le SLO ne pouvait plus détecter 20 migrations manquantes. Constante portée à 94 + test de garde qui échoue à chaque nouvelle migration. | `TestExpectedMigrationVersionMatchesLatestMigration`. | `ExpectedMigrationVersion = 74, dernière migration = 94` | `1056903c` |
+| F452 | L'export RGPD (Art. 15) interrogeait encore les noms Prisma **disparus** (`"LegalAcceptance"`, `"acceptedAt"`, `"ipAddress"`, `Subscriber.confirmed`). Les erreurs étaient avalées : **toutes les preuves de consentement et tous les abonnements manquaient** à l'export, qui restait scellé et présenté comme complet. Requêtes alignées sur `legal_acceptance`/`Subscriber` (IP et user-agent inclus), erreurs propagées. | `TestAdminDSAR_Endpoints` (export 200 + hash) — rouge obtenu en propageant l'erreur. | `[admin] export des consentements: ERROR: relation "LegalAcceptance" does not exist` puis `export des abonnements: ERROR: column "confirmed" does not exist` | `9c0022e8` |
+| F453 | `EraseUser` acceptait un `requestId` arbitraire et marquait « traitée » la demande d'un **autre** compte. Le `UPDATE` est scopé sur `userId` et un identifiant étranger renvoie 400. | `TestAdminDSAR_EraseRejectsForeignRequest`. | `effacement avec la demande d'un autre compte = <nil>, attendu errInvalidDSAR` | `9c0022e8` |
+| F454 | L'effacement n'était **pas transactionnel** et les erreurs d'inscription en liste d'opposition et de mise à jour de la demande étaient ignorées (`_, _ =`) avant de supprimer le compte. Transaction unique, échec = annulation. | Lecture + test F453 (le compte n'est plus touché sur refus). | — (correctif structurel, couvert par F453) | `9c0022e8` |
+| F455 | `MarkCampaignResult` avançait `sentCount`/`failedCount` même quand l'`UPDATE` conditionnel ne touchait aucune ligne : un rejeu de tâche comptait deux fois le même envoi. Garde `RowsAffected` (et plus de re-notification d'intérêt). | `TestStaffCampaign_LifecycleComplet` (rejeu explicite). | `rejeu: sentCount=2 failedCount=0, attendu 1/0` | `9c0022e8` |
+| F456 | `ClaimCampaignChunk` relisait le statut de **chaque** livraison (N+1, jusqu'à 100 requêtes par tranche) et ne revérifiait que l'opposition **globale**, alors que la matérialisation exclut aussi l'opposition liée à la publication : une désinscription locale entre dépôt et tranche partait quand même. Une passe, deux portées. | `TestStaffCampaign_LifecycleComplet` (claim) ; scénario portée publication non couvert par un test dédié. | — (correctif de requête, pas de rouge isolé) | `9c0022e8` |
+| F457 | `SetArticleFeatured` effaçait tous les picks **puis** sélectionnait, hors transaction : un échec du second geste laissait la une vide. Une seule transaction. | `TestAdmin500Branches` (l'erreur d'écriture rend toujours 500 via la tendance) + suite d'intégration. | — | `9c0022e8` |
+| F458 | `GetOutboxMetrics` renvoyait un rapport « healthy » à zéro sans base et avalait l'erreur de lecture par canal (scan et `rows.Err` ignorés) : un outbox cassé s'affichait vert. Erreur propagée. | `TestService_GetOutboxMetrics` (contrat inversé). | — (ancien test verrouillait le défaut) | `9c0022e8` |
+| F459 | Les scénarios sandbox `active_media`, `moderation_incident` et `outbox_failure_wave` ignoraient des erreurs d'insertion et annonçaient « créé » / « 3 livraisons injectées » même quand rien n'était écrit. Toute écriture est vérifiée. | Suites sandbox existantes. | — | `9c0022e8` |
+| F460 | L'action « impersonation » affirmait `impersonated: true`, rendait « Identité endossée » et un lien `/home?impersonate=<uuid>` que **personne ne consomme** : aucune session n'était ouverte. Devenue ce qu'elle est — vérification + audit — sans lien ni promesse de session (UI comprise). | `TestSandbox` (`audited`, pas d'`impersonated`). | — | `9c0022e8` |
+| F461 | `UpdateModeration` (et deux chemins d'abus) appelaient `trustSvc.InvalidateUser` sans garde : panic si le cache Trust n'est pas branché. Invalidation nil-safe. | Suite modération/abus. | — | `9c0022e8` |
+| F462 | `GetRetentionJournal` perdait `rows.Err()` : une lecture tronquée était rendue comme complète. | Lecture ; suite rétention. | — | `9c0022e8` |
+| F463 | `GrantAccess`/`RevokeAccess` écrivaient la trace d'audit **après le commit**, en best-effort : un droit pouvait exister sans trace. La trace est dans la transaction du mouvement (échec = annulation). | `access_test`, `approval_test` (suites à base réelle). | — | `8f8bce87` |
+| F464 | Les exports signés avalaient les erreurs de `Query`, `Scan` et `rows.Err` : une base en panne produisait un document **vide, signé et vérifié valide** (« aucune entrée »). Le scellement refuse désormais. | `TestSignedExport_*` + lecture. | — | `8f8bce87` |
+| F465 | Le SLO rendait « nominal à zéro » quand la lecture des décisions ou de l'outbox échouait. Surface critique + alerte explicite, plus de feu vert sur une mesure absente. | `service_slo_test` (chemin nominal). | — | `8f8bce87` |
+| F466 | L'allowlist d'inscription validait un e-mail par `Contains("@")` : `"@"`, `"a@"`, `"Nom <a@b>"` étaient invités. `net/mail` + domaine pointé. | `TestValidAllowlistEmail` (10 refus). | — (test écrit après extraction du helper) | `8f8bce87` |
+| F467 | Octroyer/révoquer un abonnement et basculer le palier Pro d'une publication ne laissaient **aucune trace** dans `AdminAuditLog`. Trois entrées (`subscription.grant`, `subscription.revoke`, `publisher.email_pro`). | `TestAbuseWiring_SuperadminPassthrough` (audit exigé). | `aucune trace d'audit pour publisher.email_pro` | `d071f6fd` |
+
+**Nettoyage** : `CampaignRecipientContext`, exporté et jamais appelé, dupliquait `CampaignSendContext` — supprimé (`522ad278`).
+
+**Dettes ouvertes par ce lot** (aucune ne masque un défaut corrigeable sans décision) :
+
+- **R201 — écriture perdue de modération** : `UpdateModeration` lit la fiche puis réécrit **tous** les champs
+  (certification, shadowban, suspension, motif, échéances). Deux superadmins qui modifient deux champs différents
+  du même compte en parallèle s'écrasent (dernier écrivain gagne, l'autre changement disparaît). Correctif propre :
+  `UPDATE … SET x = COALESCE($n, x)` paramétré par champ (nouvelle requête sqlc, régénération) ou colonne de
+  version. Les tests injectent un querier en erreur, d'où le maintien du chemin actuel en attendant l'arbitrage.
+- **R202 — révocation Pro non atomique** : `SetPublisherEmailPro(false)` boucle sur les octrois effectifs avec un
+  `RevokeGrant` par ligne ; un échec au milieu laisse la publication partiellement révoquée (mais l'état rendu est
+  relu, donc jamais menti). Une transaction unique dans `subscriptions` réglerait le point.
+- **R203 — seeds sandbox sans garde d'environnement** : `POST /v1/admin/sandbox/seed` crée de vrais comptes,
+  publications et signalements dans la base **où l'API tourne** (capacité + N2, mais aucun test d'environnement).
+  Recommandé : refuser quand `APP_ENV/QOEFI_ENV=production` (ou exiger un drapeau explicite), à trancher côté
+  produit/ops.
+- **R204 — N+1 de liste** : `ListCampaigns` fait 1 requête d'ids puis `GetCampaign` par ligne (50 max).
+  `ListRetentionPolicies` fait 2 à 3 requêtes de comptage par table du registre. Bornés, mais linéaires : une
+  requête agrégée par liste les supprimerait.
+
+**Batterie du tour.** `gofmt -l internal/modules/admin/` **vide** · `go build ./...` **0** · `go vet ./internal/...`
+**0** · `go test` `admin` (36 suites, **base Postgres réelle**, testcontainers opérationnel), `home`, `settings`,
+`users`, `imports`, `internal/queue`, `cmd/server`, `cmd/worker`, `cmd/migrate`, `cmd/audit-galleries`,
+`cmd/recsys-eval` **ok** (`QOE_DB_TESTS_OPTIONAL=1`). Workspace : `typecheck` 0, `mobile:typecheck` 0, `lint` 0,
+`ui:audit` 0, `arch:audit` 0, `audit:guard` 0, 7 `guard:*` 0. Aucun fichier mobile touché, arbre propre, aucun push.
+
+**Reste à faire (L29f, lot suivant de L29 — « En cours »).** **196 fichiers de production · 66 504 l.** restent dans
+`apps/api/internal/modules/**`. Prochain lot borné : **`legal` — 8 f. · 4 540 l.**, puis `creator` (17 f. · 4 812 l.),
+`posts` (10 f. · 3 424 l.), `users` (9 f. · 3 060 l.), `oauth` (4 f. · 1 665 l.), `publishers` (3 f. · 1 105 l.),
+`features` (2 f. · 660 l.), `notifications` (2 f. · 625 l.).
 
 ## L29d — `apps/api/internal/modules/imports/**` — **clos le 2026-11-22**
 
