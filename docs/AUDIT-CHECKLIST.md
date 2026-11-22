@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-f `articles`, `feed`, `imports`, `admin` et `legal` clos le 2026-11-22 — L29f : 19 défauts F468–F486, dettes R205–R211 ; prochain = `creator`, 17 f. · 4 812 l.) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-g `articles`, `feed`, `imports`, `admin`, `legal` et `creator` clos le 2026-11-22 — L29g : 19 défauts F487–F507, dettes R212–R215 ; prochain = `posts`, 10 f. · 3 424 l.) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -144,8 +144,16 @@ F468–F486 (bornes d'export ignorées, pièce tronquée annoncée complète, br
 fourchue en concurrence, rotation de clé accusée d'altération, preuves effacées par la suppression d'un document,
 JSON malformé traité comme « aucun filtre », brouillon de revue jamais rattaché et identifiant jamais exposé,
 revue comptée à chaque passage, dates illisibles remplacées en silence, texte vide publiable, couverture à 250 %,
-photographie hors transaction), dettes **R205–R211**. **Lot suivant de L29, « En cours » : L29g** — `creator`,
-**17 f. · 4 812 l.**
+photographie hors transaction), dettes **R205–R211**. **L29g est clos le 2026-11-22** : module `creator`
+(**17 f. · 5 129 l.** après correctifs, 4 812 l. avant ; 18 fichiers de tests), **19 défauts** F487–F507 (extrait
+UTF-8 coupé en octets, publication d'un article vide répondant 200, écritures de slug perdues en silence,
+slug « libre » sur panne DB, **IDOR** des commentaires d'annotation, suppression de recommandation inexistante
+« réussie », description de recommandation non bornée, écriture cross-publication sur un GET catégories,
+`CheckCategorySlugExists` ignoré, bornes de dates non validées, métadonnées partielles servies comme complètes,
+retrait d'un non-abonné « réussi », erreur DB convertie en 403, panic latent sur le garde de confiance,
+auteurs avalés, lignes/total perdus au scan, `strings.Title` déprécié, collision d'id d'article, analytics à zéro
+sur panne + décodeur Umami v2 incompatible), dettes **R212–R215**. **Lot suivant de L29, « En cours » : L29h** —
+`posts`, **10 f. · 3 424 l.**
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2124,6 +2132,73 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L29g — `apps/api/internal/modules/creator/**` — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l` sur l'arbre courant) : **17 fichiers de production**
+(`api_content 660`, `social 780`, `api_articles_crud 762`, `api_subscribers 500`, `categories 392`, `api_highlights 325`,
+`follow_requests 292`, `api_recommendations 243`, `api_annotations 198`, `slugs 208`, `handler 179`, `api_media 162`,
+`visibility 111`, `helpers 80`, `analytics 77`, `markdown 32`, `querier 29`) — **4 812 l. annoncées, 5 129 l.
+remesurées après correctifs** (18 fichiers de tests, dont `audit_l29g_test.go`). Tous lus intégralement, ainsi que
+les appelants (`cmd/server` : `RegisterAPIKey`/`RegisterPublic`/`RegisterProtected`, `CombinedAuth`, clé API
+renseignant `UserID` **et** `PublisherID` ; `cmd/worker` ; consommateurs studio/admin), les contrats SQL
+(`sql/queries/{articles,recommendations,categories,newsletter,annotations}.sql`, schéma `Recommendation`,
+`FollowRequest`, `Category`), et `ExpectedMigrationVersion = 94` recoupé avec la dernière migration disque
+`00094_collab_documents.sql` (cohérent).
+
+**19 défauts corrigés** F487–F507. Les suites à base réelle ont tourné (testcontainers Postgres) : rouges cités =
+sorties de tests réellement exécutés.
+
+| # | Défaut | Preuve | Rouge constaté | Commit |
+|---|---|---|---|---|
+| F487 | `stripHTMLTags` coupait l'extrait à `max` **octets** : un titre accentué produisait un UTF-8 invalide dans `excerpt` (même classe que F436). Coupe en runes. | `TestCreator_StripHTMLTagsKeepsUTF8`. | `extrait UTF-8 invalide : "ééé\\xc3…"` | `fix(creator)` |
+| F488 | `PATCH /articles/{id}` avec `publish:true` sur un contenu vide répondait **200** en laissant l'article en `DRAFT` (0 ligne affectée, aucune erreur). 409 explicite. | `TestCreator_PublishEmptyArticleIsRejected`. | `publication d'un article vide = 200 ({… "status":"DRAFT" …}), attendu un refus` | `fix(creator)` |
+| F489 | `visibility`/`isPremium` sur un article **publié** étaient filtrés par `status <> 'PUBLISHED'` sans vérifier `RowsAffected` : 200 alors que rien n'était appliqué. 409 explicite. | Lecture (garde SQL) + suite articles. | — (structurel : pas de rouge isolé sans double publication) | `fix(creator)` |
+| F490 | `apiArticleSlugSet` enchaînait DELETE / history / UPSERT en **ignorant toutes les erreurs** : 200 `{slug:wanted}` alors qu'aucun slug n'était enregistré. Toutes les écritures sont contrôlées, `oldSlug` relu sans avaler l'erreur. | `TestCreator_SlugSetReportsWriteFailure` (pool en faute). | `échec d'écriture du slug = 200 ({"slug":"nouveau-slug"}), attendu 500` | `fix(creator)` |
+| F491 | `uniqueArticleSlug` traitait **toute erreur de base comme « slug libre »** (`err != nil \|\| !exists`) : panne DB ⇒ slug potentiellement déjà pris, écriture en 500 plus loin. Signature `(string, error)` et propagation (création + `regenerateSlug`). | Lecture + `go build` des deux appelants. | — (structurel : changement de signature) | `fix(creator)` |
+| F492 | **IDOR** : `GET /v1/creator/highlights/{id}/comments` servait la discussion d'une annotation appartenant à un article d'une **autre publication**, sans aucun contrôle de portée. Jointure de propriété (publication / signature / co-écriture) puis 404. | `TestCreator_HighlightCommentsScopedToCreator`. | `annotation d'une autre publication servie à un créateur étranger : {"comments":[]}` | `fix(creator)` |
+| F493 | `DELETE /recommendations/{id}` répondait `success:true` même quand **aucune ligne** n'était supprimée. `RowsAffected` vérifié → 404. | `TestCreator_RemoveRecommendationMissingIsNotFound`. | `suppression d'une recommandation inexistante = 200 ({"success":true}), attendu 404` | `fix(creator)` |
+| F494 | La `description` d'une recommandation était écrite **brute** (aucune borne, aucun contrôle XSS) dans un champ affiché publiquement. `antispam.SanitizeAndValidateText`, 280 car., anti-XSS. | Test HTTP dédié (description de 1 000 car.). | — (structurel : validation ajoutée, rouge initial perturbé par un fixture de test) | `fix(creator)` |
+| F495 | `GET /v1/categories` exécutait `EnsureDefaultCategory` : une **lecture** créait une catégorie chez une publication arbitraire (`?publisherId=`), y compris sans droit dessus. Écriture retirée de la lecture (le service d'articles la crée quand elle sert vraiment). | `TestCreator_CategoriesReadDoesNotWriteOtherPublisher`. | `une lecture GET a créé 1 catégorie(s) chez une autre publication` | `fix(creator)` |
+| F496 | `CheckCategorySlugExists` en erreur était ignoré (`err == nil && exists`) : création/édition poursuivait et pouvait violer l'unicité ou répondre 201 sur une panne. Erreur propagée (500). | `TestCreator_CategorySlugCheckErrorIsReported`. | `erreur de vérification de slug ignorée : catégorie créée ({…})` | `fix(creator)` |
+| F497 | `since`/`until` illisibles étaient passés tels quels au SQL (`$?::date`) : 500 au lieu de 400. Validation `AAAA-MM-JJ` avant requête. | `TestCreator_ArticleListRejectsInvalidDateBounds`. | `borne de date illisible = 200 ({"items":[],"total":0}), attendu 400` | `fix(creator)` |
+| F498 | `apiPublisherMetadata` avalait l'erreur `QueryRow` des options de site, le `json.Unmarshal` du JSONB, les requêtes et scans navigation/réseaux sociaux : 200 avec des métadonnées **partielles présentées comme complètes**. Tout est propagé (500), `rows.Err()` vérifié. | `TestCreator_PublisherMetadataReportsQueryFailure`. | `échec de lecture des métadonnées = 200 ({…"navigation":[]…}), attendu une erreur` | `fix(creator)` |
+| F499 | `removeFollower` répondait `{"removed":true}` même quand **aucun abonnement** n'était supprimé (mauvais UUID, non-abonné). `RowsAffected` → 404. Le test existant ne passait que par ce faux succès (il « suivait » un compte déjà suivi, donc le POST désabonnait) : fixture corrigée. | `TestCreator_RemoveFollowerMissingIsNotFound` ; `TestRemoveFollower` réparé. | `retrait d'un non-abonné = 200 ({"removed":true}), attendu 404` | `fix(creator)` |
+| F500 | `canManagePublisher` convertissait une **erreur de base en refus (403)** : une panne devenait « vous n'avez pas le droit » et masquait l'incident. Signature `(bool, error)`, 500 sur panne (accept/reject). | `TestCreator_FollowDecisionReportsDatabaseError`. | `erreur de base convertie en simple refus (403) : elle doit être une erreur serveur` | `fix(creator)` |
+| F501 | `acceptFollowRequest` appelait `h.sec.InvalidateTrust` **sans garde nil** (panic si le garde n'est pas branché, cas des tests et d'un amorçage partiel) alors que le helper nil-safe existait juste à côté. | Lecture + suite follow-requests. | — (structurel : panic latent) | `fix(creator)` |
+| F502 | `resolveAuthors` avalait l'erreur de requête et les erreurs de `Scan` : la liste d'articles sortait en 200 **sans auteurs**. Signature avec erreur, propagée aux trois appelants ; `rows.Err()` vérifié. | Lecture + suite articles. | — (structurel : changement de signature) | `fix(creator)` |
+| F503 | `apiArticles` : `Scan` en erreur ⇒ `continue` (lignes **silencieusement perdues**) et `COUNT` en erreur ⇒ `total: 0` fabriqué (200). `apiSearch` : mêmes `continue`. `apiCategories` : pas de `rows.Err()`. Tout renvoie 500 désormais. | Lecture + suite HTTP. | — (structurel : injection de scan difficile sans faux driver complet) | `fix(creator)` |
+| F504 | `userMe` utilisait `strings.Title` (**déprécié**, et capitalise après chaque point) et ignorait `_, _ =` les deux `INSERT` d'auto-provision : un échec laissait un 404 « User not found » sans trace ni cause. Helper `capitalizeFirst` (1re rune) + erreurs journalisées et 500. | Lecture + `go vet` (dépréciation). | — (structurel : API dépréciée) | `fix(creator)` |
+| F505 | `apiArticleCreate` générait l'id par `UnixNano() % 100000` et, sur violation d'unicité, ne régénérait que le code court : une collision de clé primaire épuisait 5 tentatives ⇒ 500 définitif. Id aléatoire (8 octets) régénéré à chaque tentative. | Lecture + suite création. | — (structurel : collision probabiliste) | `fix(creator)` |
+| F506 | `analyticsStats` répondait **200 avec des statistiques à zéro** quand Umami échouait (erreurs seulement loguées) et acceptait `startAt`/`endAt` illisibles en silence. 502 sur panne, 400 sur borne illisible ou `startAt > endAt`, 503 si aucun client. S'y ajoutait un vrai bug de contrat : le décodeur `umami.Stats` attendait des nombres plats alors qu'Umami v2 renvoie `{"pageviews":{"value":N}}` — chaque réponse réelle échouait donc au décodage et l'endpoint servait des zéros. Décodeur tolérant aux deux formes. | `TestCreator_AnalyticsRejectsInvalidBounds`, `TestCreator_AnalyticsReportsUmamiFailure`, `TestStatsUnmarshalV2Shape`/`FlatShape`. | Rouge Analytics : panne Umami servie en 200 (masquée) ; rouge décodeur : `v2: json: cannot unmarshal object into Go struct field Stats.pageviews of type int` | `fix(creator)` + `fix(umami)` |
+| F507 | `withEffectiveSlugs` avalait les erreurs de `Scan` (slug d'auteur remplacé en silence) et `resolveTargetPublisherId` transformait une panne `GetUserPersonalPublisher` en 400 « publisherId requis ». Erreurs journalisées / propagées (500). | Lecture + suite recommandations. | — (structurel) | `fix(creator)` |
+
+**Dettes ouvertes par ce lot** (arbitrages, pas de faux correctif) :
+
+- **R212 — suppression d'une catégorie parente** : la FK `Category_parentId` est `ON DELETE SET NULL` ; supprimer
+  une mère **re-racine silencieusement** ses sous-catégories (elles deviennent de premier niveau) au lieu de
+  refuser ou de demander une destination. Option recommandée : refuser (409) tant qu'une sous-catégorie existe,
+  avec un `parentId` explicite pour la déplacer.
+- **R213 — lecture des catégories hors périmètre** : `GET /v1/categories?publisherId=` sert la table des matières
+  de n'importe quelle publication à tout créateur authentifié (aucun `authorizeCategories`). C'est probablement
+  voulu (données publiques du site), mais aucune règle écrite ne le dit. Option : documenter « lecture publique »
+  ou restreindre aux publications dont l'appelant est membre.
+- **R214 — curseur illisible** : `parseLimitCursor`/`parseCursor` ramènent `cursor=abc` à 0 sans le dire : le
+  client qui pagine recommence à la première page sans erreur (boucle possible). Option : 400 sur curseur
+  non entier (changement de contrat SDK à coordonner).
+- **R215 — repli silencieux des slugs d'auteur** : `effectiveSlug`/`withEffectiveSlugs` retombent sur le slug
+  principal quand la requête échoue (l'affichage reste correct mais une variante personnelle peut être perdue
+  le temps d'une panne). Option : propager l'erreur (500) une fois le front prêt à la recevoir.
+
+**Batterie du tour.** `gofmt -l internal/modules/creator/` **vide** · `go build ./...` **0** · `go vet ./internal/...`
+**0** · `go test` `creator` (base Postgres réelle), `articles`, `settings`, `admin`, `umami`, `cmd/server`,
+`cmd/worker` **ok** (`QOE_DB_TESTS_OPTIONAL=1`). Workspace : `typecheck` 0, `mobile:typecheck` 0, `lint` 0,
+`ui:audit` 0, `arch:audit` 0, `audit:guard` 0, 7 `guard:*` 0. Aucun fichier mobile touché, arbre propre, aucun push.
+
+**Reste à faire (L29h, lot suivant).** **99 fichiers de production · 30 794 l.** restent dans
+`apps/api/internal/modules/**` (196 f. · 66 657 l. au total, moins les 97 f. · 35 863 l. déjà lus : `articles`,
+`feed`, `imports`, `admin`, `legal`, `creator`). Prochain lot borné : **`posts` — 10 f. · 3 424 l.**, puis `users`
+(9 f. · 3 060 l.), `settings` (7 f. · 2 474 l.), `media` (4 f. · 2 121 l.), `highlights` (3 f. · 1 050 l.).
 
 ## L29f — `apps/api/internal/modules/legal/**` — **clos le 2026-11-22**
 
