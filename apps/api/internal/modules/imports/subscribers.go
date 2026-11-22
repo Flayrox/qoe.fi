@@ -107,6 +107,8 @@ var (
 	errImportStaleDecision = errors.New("la décision ne porte pas sur la version courante du fichier")
 	// errImportTransition : transition d'état interdite.
 	errImportTransition = errors.New("transition d'état interdite")
+	// errImportSource : source déclarée inconnue.
+	errImportSource = errors.New("source d'import inconnue")
 )
 
 // Sentinelles exportées : la console admin (paquet `admin`) expose la revue
@@ -129,6 +131,16 @@ var (
 var allowedImportSources = map[string]bool{
 	"substack": true, "ghost": true, "beehiiv": true, "mailchimp": true,
 	"cms_export": true, "csv_manual": true, "other": true,
+}
+
+// validateImportSource refuse une source hors du vocabulaire déclarable. La
+// relabelliser « other » réécrirait la provenance que le staff doit examiner :
+// une déclaration inconnue est une déclaration à corriger, pas à ranger.
+func validateImportSource(source string) error {
+	if allowedImportSources[source] {
+		return nil
+	}
+	return errImportSource
 }
 
 // importEmailRegex valide une adresse déjà normalisée (minuscules).
@@ -468,8 +480,8 @@ func (s *Service) SubmitSubscriberImport(ctx context.Context, userID string, req
 	if len(req.Content) == 0 {
 		return SubscriberImportBatchDTO{}, errImportNoRows
 	}
-	if !allowedImportSources[req.Source] {
-		req.Source = "other"
+	if err := validateImportSource(req.Source); err != nil {
+		return SubscriberImportBatchDTO{}, err
 	}
 	if len(req.ProofRefs) > maxProofRefs {
 		req.ProofRefs = req.ProofRefs[:maxProofRefs]

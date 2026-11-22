@@ -82,6 +82,8 @@ func (h *Handler) submitSubscriberImport(w http.ResponseWriter, r *http.Request)
 		response.Error(w, http.StatusTooManyRequests, "Trop de lots en attente de revue pour cette publication. Attendez une décision avant d'en déposer un nouveau.")
 	case errors.Is(err, errImportNoRows):
 		response.BadRequest(w, "Aucune adresse exploitable dans le fichier.")
+	case errors.Is(err, errImportSource):
+		response.BadRequest(w, "Source d'import inconnue : déclarez une source reconnue ou « other ».")
 	default:
 		log.Printf("[imports] submitSubscriberImport: %v", err)
 		response.Internal(w)

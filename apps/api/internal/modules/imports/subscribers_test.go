@@ -1,6 +1,7 @@
 package imports
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -158,6 +159,22 @@ func TestClip_NeCoupePasUnCaractereUTF8(t *testing.T) {
 	}
 	if clip(strings.Repeat("a", 12), 10) != strings.Repeat("a", 10) {
 		t.Fatal("clip n'a pas tronqué l'ASCII à la borne")
+	}
+}
+
+// Une source hors du vocabulaire déclarable doit être refusée, jamais
+// relabellisée « other » : la provenance examinée par le staff ne se réécrit
+// pas en silence.
+func TestValidateImportSource(t *testing.T) {
+	for _, ok := range []string{"substack", "ghost", "beehiiv", "mailchimp", "cms_export", "csv_manual", "other"} {
+		if err := validateImportSource(ok); err != nil {
+			t.Fatalf("source %q refusée à tort : %v", ok, err)
+		}
+	}
+	for _, bad := range []string{"", "Substack", "rss", "csv", "inconnu", "other "} {
+		if err := validateImportSource(bad); !errors.Is(err, errImportSource) {
+			t.Fatalf("source %q = %v, attendu errImportSource", bad, err)
+		}
 	}
 }
 
