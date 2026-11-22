@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-j `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users` et `settings` clos le 2026-11-22 — L29j : 22 défauts F549–F570, dettes R223–R226 ; prochain = `media`, 4 f. · 2 121 l.) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-k `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings` et `media` clos le 2026-11-22 — L29k : 17 défauts F571–F587, dettes R227–R231 ; prochain = `highlights`, 3 f. · 1 050 l. remesuré) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -169,8 +169,14 @@ tests), **22 défauts** F549–F570 (consentements stockés dans `SystemConfig` 
 consentement fail-open, panne DB rendue en 403/404/400, onboarding et profil non transactionnels, écriture des liens
 de navigation destructive, accès API approuvé remis en attente, révocation fantôme de clé API, fuite du détail SMTP,
 événement de visibilité distribué hors transaction, fixture faussement verte, double `SetSecurityGuard`, migration
-non zero-downtime), dettes **R223–R226**. **Lot suivant de L29, « En cours » : L29k** — `media`, **4 f. ·
-2 121 l.**
+non zero-downtime), dettes **R223–R226**. **L29k est clos le 2026-11-22** : module `media` (**5 f. · 2 558 l.**
+après correctifs, 4 f. · 2 121 l. avant ; 7 fichiers de tests), **17 défauts** F571–F587 (panne rendue en 400 avec
+le message du driver, N+1 sur les compteurs de membres, workspace personnel faux sur panne, `UpdateSettings` sans
+aucune validation ni contrôle de sous-domaine, escalade vers `owner` et rétrogradation du propriétaire, permissions
+hors allowlist, ré-invitation qui détrône l'owner, lien d'invitation avec rôle `owner`, TOCTOU de `JoinViaInviteLink`,
+liste de liens non bornée et tronquée, quota de clés hors transaction, nom de clé borné en octets, journal muet,
+recherche d'audit non bornée, `CreateMedia` sans validation, `by-publication` sans autorisation), dettes
+**R227–R231**. **Lot suivant de L29, « En cours » : L29l** — `highlights`, **3 f. · 1 050 l.** (remesuré).
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2149,6 +2155,80 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L29k — `apps/api/internal/modules/media/**` — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l` sur l'arbre courant) : **4 fichiers de production · 2 121 l.** —
+`service 752`, `handler 596`, `media_invitations 436`, `media_apikeys 337` — identique au décompte annoncé.
+Tous lus intégralement, ainsi que les appelants réels : `cmd/server` (montage `mediaHandler.Register(protected)`
+sous `CombinedAuth`, `mediaGuard` par route, corps limité à 256 Ko par `hardening.go`), `cmd/worker` (aucune tâche
+ne consomme ce module), les clients (`apps/studio` `media/` : écran média, invitations, clés API, journal ;
+`apps/core`/`apps/tenants` pour les profils publics via `by-publication`), les contrats SQL
+(`sql/queries/media.sql`, `media_admin.sql` — `UpdateMediaMemberRole` est `:exec`, d'où l'absence de contrôle
+« 0 ligne »), les schémas (`MediaMember`, `MediaInviteLink`, index unique `Publisher_subdomain_key` de `00081`),
+`permissions.AllMediaPermissions()` et `ExpectedMigrationVersion = 95` (aucune migration dans ce lot : le module
+n'en a pas besoin). Après correctifs le module pèse **5 f. · 2 558 l.** (fichier `errors.go` ajouté ; 7 fichiers de
+tests, dont `audit_l29k_test.go` : 17 tests).
+
+**Frontières vérifiées, pas de doublon** : `media` porte les **Médias (organisations)** — publication `MEDIA`,
+équipe, rôles/permissions, invitations, réglages du site, clés API, journal d'activité ; le **stockage upload**
+(bucket, clés, URLs signées, transcodage) vit dans `modules/mediaassets`, jamais ici ; `users` porte avatar et
+bannière du compte, `posts` les pièces jointes d'article, `creator` le dashboard agrégé. Aucune écriture hors du
+média autorisé : toute route passe par `authorizeMedia` (membre actif + permission), sauf `by-publication` qui
+ne l'était pas (F587, corrigé).
+
+**17 défauts corrigés** F571–F587. Les rouges cités sont des sorties réellement exécutées : la suite `TestL29K_*`
+a été lancée contre un worktree à `HEAD` (code d'avant correctif, `git worktree add -f /tmp/qoe-l29k-red HEAD`)
+puis contre l'arbre corrigé, sur Postgres (testcontainers `pgvector/pgvector:pg16`, 95 migrations rejouées).
+
+| # | Défaut | Preuve (test) | Rouge constaté | Commit |
+|---|---|---|---|---|
+| F571 | `writeErr` répondait **400 avec `err.Error()`** à *toute* erreur : une panne Postgres s'affichait comme une erreur de formulaire et le message du driver (`pq: relation … does not exist`) partait au client. Taxonomie explicite (`ValidationError` 400, `PolicyError` 403, `errNotFound` 404, conflit 409), `default` → **500** + log serveur. | `TestAuditL29K_WriteErr_InternalIs500`. | `statut = 400, attendu 500` | `fix(media)` |
+| F572 | `ListMedia` faisait un `COUNT` de membres **par média** (N+1) et **avalait** l'erreur (`members, _ :=`) : une base en panne affichait « 0 membre » pour tous les médias. Un `GROUP BY "mediaId"` unique, erreurs propagées. | Relecture + `TestMediaListAndWorkspaces` (chemin nominal) | — (structurel : pas de pool défaillant injectable dans `Service`) | `fix(media)` |
+| F573 | `ListWorkspaces` avalait l'erreur de `GetPersonalPublisherForUser` (`if err == nil`) : sur panne, le workspace personnel annonçait l'**id utilisateur** comme id de publication et le studio adressait ensuite les endpoints média avec un identifiant faux. `ErrNoRows` distingué (pas encore de publication), toute autre erreur propagée. | `TestMediaListAndWorkspaces` | — (structurel : nécessite une base en panne) | `fix(media)` |
+| F574 | `UpdateSettings` **n'avait aucune validation** : `logoUrl: javascript:` (lien cliquable sur le site public), `heroText` avec `<script>`, `seoTitle` de 50 000 caractères, sous-domaine réservé (`admin`) ou **déjà attribué à une autre publication** (500 sur l'index d'unicité), couleur/domaine arbitraires. Validation par champ (antispam + `ValidateSafeURL`, bornes runes), disponibilité du sous-domaine vérifiée hors de soi, conflit d'unicité → 400. | `TestAuditL29K_UpdateSettings_RejectsUnsafeValues`, `TestAuditL29K_UpdateSettings_RefusesTakenSubdomain`. | `logoUrl javascript: accepté` · `sous-domaine d'autrui accepté` | `fix(media)` |
+| F575 | `UpdateMemberRole` : un gestionnaire de membres pouvait **s'attribuer `owner`** ou **rétrograder le propriétaire**, et modifier un membre inexistant répondait 200 sans rien changer (`UpdateMediaMemberRole` est `:exec`). Cible chargée, `execrows`-équivalent via la lecture, garde owner (transfert = R227), 404 sur membre inconnu. | `TestAuditL29K_UpdateMemberRole_CannotDemoteOwner`, `…_CannotGrantOwner`, `…_UnknownMemberIs404`. | `rétrogradation du propriétaire acceptée` · `octroi du rôle owner accepté` · `membre inexistant = <nil>, attendu errNotFound` | `fix(media)` |
+| F576 | `UpdateMemberPermissions` stockait **n'importe quelle chaîne** (perm promue, inconnue ou `-x`) : l'UI affichait un droit sans effet, et la fixture du test envoyait `media:edit`, inexistante, en attendant 200. Allowlist `permissions.AllMediaPermissions()` (préfixe `-` géré), cible vérifiée. | `TestAuditL29K_UpdateMemberPermissions_RejectsUnknown` + `TestMediaSettingsAndMembers` (fixture corrigée en `media:edit:any` + relecture du stockage). | `permission inconnue acceptée` | `fix(media)` |
+| F577 | `InviteMemberByUsername` ré-invitait un **owner** existant en le **rétrogradant** (même chemin `UpdateMediaMemberRole` sans garde) ; erreur de `GetMediaWithPublisher` avalée (`publisherId` vide) et échec d'insert de la **notification** ignoré (l'invité n'était jamais prévenu, sans trace). Garde owner, erreurs propagées. | `TestAuditL29K_InviteMember_DoesNotDemoteOwner`. | `ré-invitation d'un propriétaire acceptée` | `fix(media)` |
+| F578 | `AcceptInvite` : `if err != nil || m == nil { errNotFound }` transformait une **panne** en 404 « invitation introuvable ». Erreurs distinguées. | `TestAcceptInvite` (chemin nominal) | — (structurel : base en panne) | `fix(media)` |
+| F579 | `CreateInviteLink` acceptait le rôle **`owner`** — le lien devenait un **takeover** du média pour quiconque le reçoit —, ne bornait ni `expiresInHours` (100 000 h) ni `maxUses`, et avalait l'erreur du quota horaire (`_ =`). Rôle owner refusé, bornes 720 h / 1000 usages, quota propagé (échec → refus, pas de génération illimitée). | `TestAuditL29K_CreateInviteLink_RefusesOwnerRole`, `…_ClampsBounds`. | `lien d'invitation avec rôle owner accepté` · `expiration à 99999h59m59.284123s, borne 720h non appliquée` | `fix(media)` |
+| F580 | `JoinViaInviteLink` : la preview était lue hors transaction puis `usedCount` incrémenté **sans condition** — en concurrence, un lien `maxUses = 1` servait **N fois** et un lien révoqué/expiré restait utilisable. `UPDATE … WHERE token AND "mediaId" AND NOT "isRevoked" AND (expiresAt IS NULL OR > now()) AND (maxUses = 0 OR usedCount < maxUses)`, `RowsAffected == 0` → refus. | `TestAuditL29K_JoinViaInviteLink_HonoursMaxUses` (12 adhésions concurrentes, `successes ≤ 1`, `usedCount = 1`). | `12 adhésions sur un lien maxUses=1` | `fix(media)` |
+| F581 | `ListInviteLinks` : `rows.Scan` en échec → `continue` (ligne silencieusement perdue), `rows.Err()` jamais vérifié, aucun `LIMIT` (tous les liens depuis toujours). Erreurs propagées, `LIMIT 200`. | `TestAuditL29K_ListInviteLinks_IsBounded`. | `250 liens retournés, borne 200 non appliquée` | `fix(media)` |
+| F582 | `CreateApiKey` : quota (`COUNT` puis `INSERT`) **hors transaction** → plus de 10 clés en concurrence ; `GetMediaWithPublisher` en erreur → **404** ; nom borné en **octets** (`len(name) > 100`) → un nom accentué valide était refusé. Transaction + `SELECT … FOR UPDATE` sur le média, erreurs distinguées, borne en runes. | `TestAuditL29K_CreateApiKey_NameBoundInRunes`. | `nom de 60 caractères accentués refusé: Le nom de la clé est trop long (100 caractères maximum)` | `fix(media)` |
+| F583 | `GetInviteLinkPreview` mappait **toute** erreur de la jointure média en « Média introuvable. » : une panne passait pour un lien mort. `ErrNoRows` distingué. | `TestInviteLinkPreview` | — (structurel) | `fix(media)` |
+| F584 | `audit` et `recordApiKeySecurityEvent` avalaient **toutes** leurs erreurs (`_ =`) et pouvaient passer `metadata` nil sur une colonne NOT NULL : journal d'activité et journal de sécurité pouvaient rester muets sans trace. Erreurs journalisées, `metadata` toujours `{}`. | Relecture + `TestMediaAudit*` | — (structurel : accumulation d'erreurs silencieuses) | `fix(media)` |
+| F585 | `ListAuditLog` : `q` alimentait un ILIKE `%…%` sur trois colonnes **sans borne** et `offset` était plafonné à 0 seulement côté bas — un motif de 100 000 caractères ou un offset arbitraire rendait la requête coûteuse pour tous les membres. `q` borné à 80 runes, offset plafonné à 10 000. | `TestAuditList` (chemin nominal) | — (structurel : pas de seuil mesuré) | `fix(media)` |
+| F586 | `CreateMedia` acceptait un `logoUrl` `javascript:`, une bio/`<script>` brute et un permalien réservé (`admin`) ou d'un caractère ; la course entre `CheckMediaSlugExists` et l'`INSERT` sortait en **500**. Validations antispam/URL, permalien 3–30 réservé exclu, violation d'unicité → 400. | `TestAuditL29K_CreateMedia_ValidatesInput`. | `logoUrl javascript: accepté à la création` · `permalien d'un caractère accepté` | `fix(media)` |
+| F587 | `GET /v1/media/by-publication/{publisherId}` **n'avait aucune autorisation** : tout compte authentifié convertissait un `publisherId` public en `mediaId` interne (énumération, base des appels suivants). `MediaIDForMember` exige l'appartenance, 403 pour un étranger. | `TestAuditL29K_MediaByPublication_RequiresMembership`. | `étranger: statut = 200, attendu 403 (corps {"mediaId":"media_001"}` | `fix(media)` |
+
+**Dettes ouvertes, sans faux correctif** (numérotation en continuité de R226) :
+
+- **R227 — transfert de propriété d'un média impossible** : F575 interdit désormais d'octroyer `owner` ou de
+  rétrograder le propriétaire (l'escalade était ouverte), mais aucun endpoint ne permet le transfert légitime — un
+  média orphelin (départ du fondateur) n'a plus d'administrateur. Option recommandée : `POST
+  /v1/media/{id}/transfer-ownership` avec MFA, acceptation du destinataire (invitation dédiée), audit
+  `media.ownership_transferred`, et refus si le média a des abonnements payants en cours (décision produit).
+- **R228 — domaine personnalisé non unique et non vérifié** : `UpdateSettings` valide le format (F574) mais
+  `Publisher.customDomain` n'a pas d'index unique et aucune vérification DNS/TXT n'est faite ici ; deux
+  publications peuvent déclarer `example.com`. La résolution réelle appartient au proxy/Caddy (hors module).
+  Option recommandée : table `PublisherDomain` (unique, statut `pending`/`verified`, jeton TXT) + job de
+  vérification, et lecture par le proxy depuis cette table (pas depuis `Publisher`).
+- **R229 — `themeMode`/`layoutStyle`/`fontFamily` libres** : bornés à 40 caractères mais sans enum partagé ;
+  la validation réelle vit dans le renderer tenant/TS, une valeur inconnue est stockée et rendue par défaut.
+  Option recommandée : enum Go + miroir TS généré (comme `packages/auth/media.ts`), valeur inconnue → 400.
+- **R230 — `ListMedia` non paginée** : `ListMediaForUser` charge **tous** les médias du compte (avec compteurs)
+  à chaque ouverture du sélecteur. Volume faible aujourd'hui (un média = une organisation), mais non borné.
+  Option recommandée : curseur `(createdAt, id)` + `limit` 50, le studio filtrant déjà côté client.
+- **R231 — journal d'activité et alertes de sécurité best-effort** : F584 les rend visibles (logs), mais un échec
+  d'insert n'échoue pas la requête métier et `RotateApiKey` n'enregistre pas `publisherId` (aucune résolution
+  média dans cette branche) : un incident de sécurité peut manquer d'attribution. Option recommandée : outbox
+  transactionnelle (`MediaAuditLog` écrite dans la même transaction) + résolution du média dans `RotateApiKey`.
+
+**Commandes passées sur l'arbre corrigé** : `gofmt -l internal/modules/media/` → vide ; `go build ./...` → 0 ;
+`go vet ./internal/...` → 0 ; `QOE_DB_TESTS_OPTIONAL=1 go test` sur `media`, `posts`, `users`, `creator`,
+`settings`, `authz`, `middleware`, `cmd/server`, `cmd/worker` → **9 paquets `ok`** (base réelle) ; batterie
+workspace 13 commandes (`typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7
+`guard:*`) → **13 × 0**.
 
 ## L29j — `apps/api/internal/modules/settings/**` — **clos le 2026-11-22**
 
