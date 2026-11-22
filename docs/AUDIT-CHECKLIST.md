@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; prochain = `search`, 2 f. · 724 l. remesuré) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; **L29s `search` clos le 2026-11-22** (2 f. · 741 l. après correctifs, 6 défauts F670–F675 + 1 structurel F676, dettes R257–R259) ; prochain = `publishers`, 3 f. · 1 105 l. remesuré) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -207,7 +207,12 @@ rendue en 403, **aucun plafond d'abonnements**, événements/URL non validés au
 menteur, session illisible en 403, nom vide accepté) et **3 structurels** (bascule non atomique, N+1 de la liste,
 signature HMAC dupliquée worker/module), dettes **R253–R256**. La dette de formatage laissée par L29q est soldée
 (**F658** : `gofmt -l .` 81 → **0** sur le dépôt entier) et le test obsolète de `apiaccess` (fail-closed) est
-aligné (**F669**). **Lot suivant de L29, « En cours » : L29s** — `search`, **2 f. · 724 l.** (remesuré).
+aligné (**F669**). **L29s est clos le 2026-11-22** : module `search` (**2 f. · 741 l.** après
+correctifs, 724 l. avant) — **6 défauts** F670–F675 (requête d'espaces qui servait tout le corpus, filtre de
+visibilité fail-open en 200 sur panne DB, recherche sémantique sans filtrage des comptes privés/blocages,
+propriétaire exclu de ses propres pensées privées, filtres Meilisearch non bornés, offset débordant l'int32) et
+**1 structurel** (F676, troncature UTF-8 dupliquée → `internal/textutil`), dettes **R257–R259**.
+**Lot suivant de L29, « En cours » : L29t** — `publishers`, **3 f. · 1 105 l.** (remesuré).
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2186,6 +2191,50 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L29s — `apps/api/internal/modules/search/**` — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l`) : **2 fichiers de production · 724 l.** (`handler 413`, `semantic 311`) —
+conforme à l'annonce ; **7 fichiers de tests · 1 625 l.** avant le lot. Lus intégralement, avec leurs appelants
+réels : `cmd/server` (`RegisterPublic`, `NewHandler(NewSemanticService(pool))` + `SetPool`), `internal/workers/search.go`
+(indexation lexicale), `internal/workers/embedding.go` (vecteurs), `sql/queries/search.sql`,
+`sql/queries/embedding.sql`, schéma `Article` (`visibility`, `embedding vector(512)`), `UserSettings.profileVisibility`,
+`Post.visibility`, et les prédicats SQL canoniques `can_view_profile` / `is_blocked_bidirectional`
+(`migrations/00078`, redéfinis avec `publisherId` en `00081`). Le module **lit** : l'indexation reste au worker, aucune
+duplication de responsabilité n'a été introduite. Après correctifs le module pèse **2 f. · 741 l.** (handler 426,
+semantic 315) ; le paquet partagé `internal/textutil` (21 l. + 23 l. de test) et `audit_l29s_test.go` (161 l., 6 tests)
+s'ajoutent.
+
+**7 défauts corrigés** F670–F676, chacun adossé à un rouge réellement exécuté (worktree
+`git worktree add -f /tmp/qoe-l29s-red HEAD`, suite `TestAuditL29S_*`, Postgres testcontainers).
+
+| # | Défaut | Preuve (test) | Rouge constaté | Commit |
+|---|---|---|---|---|
+| F670 | **Requête d'espaces = tout le corpus** : `q="   "` passait les gardes `q == ""` puis partait à Meilisearch (articles), au SQL ILIKE (pensées) ou à l'embedder (sémantique) et renvoyait le corpus entier. Trim avant la garde sur les trois endpoints. | `TestAuditL29S_WhitespaceQueryReturnsNothing`. | `q="   " renvoie 1 hits : une requête d'espaces sert tout le corpus` | `fix(search)` |
+| F671 | **Filtre de visibilité fail-open** : quand la requête `can_view_profile` échouait (base indisponible), `filterVisibleArticleHits` journalisait et renvoyait **les hits non filtrés** en 200 — comptes privés et blocages inclus. L'erreur remonte désormais en 500 journalisé. | `TestAuditL29S_VisibilityFilterFailsClosed`. | `panne du filtre de visibilité = 200 ({"estimatedTotalHits":0,"hits":[{"id":"art_1","publisherId":"pub_wh_001"}],…}), attendu 500` | `fix(search)` |
+| F672 | **Recherche sémantique sans visibilité** : `SearchSemanticArticles` ne filtrait ni `profileVisibility` ni le blocage symétrique (la lexicale, elle, filtrait) ; un compte privé était servi à un visiteur anonyme. Ajout du paramètre `ViewerID` + `can_view_profile($3, u.id)`. | `TestAuditL29S_SemanticSearchRespectsPrivateAccounts`. | `3 articles d'un compte privé servis à un visiteur anonyme` | `fix(search)` |
+| F673 | **Propriétaire exclu de ses propres pensées privées** : le commentaire SQL promettait « propriétaire + abonnés » mais la requête n'avait aucune branche propriétaire ; l'auteur d'un compte privé ne retrouvait pas ses pensées. La règle locale (blocage + `UserSettings` + `Follows`) est remplacée par le prédicat canonique `can_view_profile($4, u.id)`, qui couvre les quatre cas. | `TestAuditL29S_ThoughtsOwnerSeesOwnPrivateThoughts`. | `le propriétaire voit 0 de ses pensées privées, attendu 1` | `fix(search)` |
+| F674 | **Filtres Meilisearch non bornés** : `publisherId`/`categoryId` de longueur arbitraire étaient échappés puis réinjectés dans `SearchRequest.Filter`. Bornés à 64 octets, 400 au-delà. | `TestAuditL29S_SearchFiltersAreBounded`. | `filtre de 200 caractères = 200 (…), attendu 400` | `fix(search)` |
+| F675 | **Offset débordant l'int32** : `SearchThoughts` ne bornait pas l'offset de service ; `3_000_000_000` devenait `-1294967296` dans le paramètre SQL (`LIMIT/OFFSET` Postgres rejette un offset négatif → 500). Plafonné à `maxSearchCursor` (100 000), parité handler. | `TestAuditL29S_ThoughtsOffsetIsClamped`. | `offset transmis = -1294967296, attendu borné à [0, 100000]` | `fix(search)` |
+
+**Correctif structurel, sans rouge isolable** (déclaré comme tel) :
+
+- **F676 — troncature UTF-8 dupliquée** : `search.truncateQueryUTF8` et `webhooks.TruncateUTF8` étaient deux copies du même algorithme, avec une garde d'entrée différente (`maxBytes <= 0`). Une seule implémentation, `internal/textutil.TruncateUTF8` (tests de bord : chaîne vide, négatif, coupe au milieu d'une rune), consommée par la recherche et par `webhooks.TruncateUTF8` (délégué, API publique inchangée). Aucun comportement observable ne changeait pour les valeurs réellement utilisées (`1500`, `500`), d'où l'absence de rouge dédié.
+
+**Correctifs annexes justifiés par le périmètre** : `ownsPublisher` comparait `id::text = $1` (session non-UUID acceptée, cast implicite, index inutilisable) → `id = $1::uuid` après `uuid.Parse`, et `filterVisibleArticleHits` réutilise `can_view_profile` au lieu de réimplémenter blocage + visibilité + abonnements (les hits sans `publisherId` restent servis : rien ne prouve qu'ils sont privés, comportement inchangé).
+
+**Migrations** : **aucune nécessaire** — les prédicats `can_view_profile`/`is_blocked_bidirectional` existent déjà (00078, redéfinis en 00081 avec `publisherId`) et sont simplement appelés par les requêtes de recherche ; `sqlc generate` a régénéré `SearchSemanticArticlesParams`/`SearchThoughtsParams` (`ViewerID`). `ExpectedMigrationVersion` reste **95**.
+
+**Dettes ouvertes, sans faux correctif** (numérotation en continuité de R256) :
+
+- **R257 — pool nul = filtre de visibilité désactivé** : `filterVisibleArticleHits` renvoie les hits tels quels quand `h.pool == nil`. La production câble toujours `SetPool` (`cmd/server`), mais un câblage oublié ne serait détecté ni au démarrage ni par un test d'intégration. À rendre impossible via un constructeur qui exige le pool.
+- **R258 — configuration Meilisearch silencieuse** : `NewHandler` retombe sur `http://localhost:7700` et la clé `qoe_master_key_123` via `envOr`. Une variable absente en production passerait inaperçue au lieu d'échouer au démarrage.
+- **R259 — visibilité éditoriale non consultée par la recherche** : la lexicale et la sémantique ne filtrent que le compte (`can_view_profile`) et le statut premium ; `Article.visibility` (`SUBSCRIBERS`) n'entre pas dans le filtre, donc titre/slug d'un article réservé apparaissent en résultats (contenu, lui, masqué). Décision produit à confirmer (teaser assumé ou fuite de titre).
+
+**Commandes passées sur l'arbre corrigé** : `gofmt -l .` (dépôt entier) → **0** ; `go build ./...` → 0 ; `go vet ./...` → 0 ;
+`QOE_DB_TESTS_OPTIONAL=1 go test` sur les **20 paquets de la batterie** + `search` + `textutil` → **22 × `ok`** ;
+batterie workspace 13 commandes → **13 × 0** ; **vitest** `apps/core` (notifications + réglages lecteur) → **5 fichiers, 24 tests verts**.
+La dette de formatage **F658 reste soldée** (`gofmt -l .` = 0, aucun fichier reformaté dans ce lot).
 
 ## L29r — `apps/api/internal/modules/webhooks/**` + dette de formatage L29q — **clos le 2026-11-22**
 
