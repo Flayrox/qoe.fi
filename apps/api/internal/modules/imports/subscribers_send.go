@@ -103,13 +103,15 @@ type SendWaveDTO struct {
 }
 
 // ensureInactiveImportSubscriber crée un abonné inactif porteur d'un jeton
-// frais, ou signale que l'adresse est déjà connue. Partagé avec la
-// reconfirmation : un seul endroit où cette règle vit.
+// frais, ou signale que l'adresse est déjà connue. Règle partagée par la
+// reconfirmation et l'envoi encadré : un seul endroit où elle vit.
 //
-// Règle : on ne réécrit jamais un abonné existant (ni son token, ni son
-// état). L'envoi encadré ne s'adresse qu'aux inconnus : si l'adresse s'est
-// inscrite ou confirmée entre-temps par un autre chemin, elle sort de la
-// vague au lieu de voir son parcours écrasé.
+// Règle : on ne réécrit jamais un abonné existant (ni son jeton, ni son état).
+// C'est volontairement conservateur : une ligne existe déjà soit parce que la
+// personne s'est inscrite ou confirmée par un autre chemin — la réécrire
+// écraserait son parcours —, soit parce qu'une vague précédente lui a déjà
+// écrit. Dans les deux cas, renvoyer un message serait un envoi non sollicité :
+// l'adresse sort de la vague au lieu d'être recyclée.
 func ensureInactiveImportSubscriber(ctx context.Context, tx pgx.Tx, publisherID, email, token string) (created bool, err error) {
 	var ensured bool
 	err = tx.QueryRow(ctx, `
@@ -170,6 +172,11 @@ func (s *Service) StartSendWave(ctx context.Context, staffID, batchID string, ca
 	if existing, err := s.activeSendWave(ctx, batchID); err != nil {
 		return SendWaveDTO{}, err
 	} else if existing.ID != "" {
+		// Une vague `queued` dont la tâche s'est perdue (worker arrêté pendant
+		// l'enqueue, Redis indisponible un instant) restait bloquée pour
+		// toujours : rouvrir le lot renvoyait la vague telle quelle sans la
+		// remettre en file. Le traitement est idempotent (réclamation
+		// `FOR UPDATE SKIP LOCKED`), donc une tâche en double est sans effet.
 		if existing.Status == "paused" {
 			if _, err := s.pool.Exec(ctx, `
 				UPDATE "ImportSendWave"
@@ -178,6 +185,8 @@ func (s *Service) StartSendWave(ctx context.Context, staffID, batchID string, ca
 				return SendWaveDTO{}, err
 			}
 			existing.Status = "queued"
+		}
+		if existing.Status == "queued" {
 			if err := queue.PublishImportSendWave(s.asynq, queue.SubscriberImportSendPayload{WaveID: existing.ID}, 0); err != nil {
 				log.Printf("[imports] re-enqueue vague d'envoi %s: %v", existing.ID, err)
 			}
@@ -185,16 +194,7 @@ func (s *Service) StartSendWave(ctx context.Context, staffID, batchID string, ca
 		return existing, nil
 	}
 
-	cap := capOverride
-	if cap <= 0 {
-		cap = decisionSendCap(limitsRaw)
-	}
-	if cap <= 0 {
-		cap = defaultSendCap
-	}
-	if cap > maxSendCap {
-		cap = maxSendCap
-	}
+	cap := resolveSendCap(capOverride, decisionSendCap(limitsRaw))
 	thresholds := decisionSendThresholds(limitsRaw)
 
 	tx, err := s.pool.Begin(ctx)
@@ -291,6 +291,28 @@ func defaultSendThresholds() sendThresholds {
 		maxFailedRate:     defaultMaxFailedRate,
 		minSample:         defaultMinSample,
 	}
+}
+
+// resolveSendCap fixe le plafond d'une vague d'envoi. La décision staff porte
+// les limites examinées : une demande d'ouverture ne peut que resserrer ce
+// plafond, jamais l'élargir. Sans cette borne, un corps de requête
+// `{"cap": 10000}` suffisait à dépasser le `limits.maxRecipients` de la
+// décision qui avait précisément justifié l'approbation.
+func resolveSendCap(override, decisionCap int) int {
+	cap := override
+	if cap <= 0 {
+		cap = decisionCap
+	}
+	if decisionCap > 0 && cap > decisionCap {
+		cap = decisionCap
+	}
+	if cap <= 0 {
+		cap = defaultSendCap
+	}
+	if cap > maxSendCap {
+		cap = maxSendCap
+	}
+	return cap
 }
 
 // decisionSendCap lit un plafond de destinataires posé par le staff dans les
@@ -652,14 +674,22 @@ func (s *Service) MarkSendResult(ctx context.Context, waveID, deliveryID string,
 	if !ok {
 		status = "failed"
 	}
-	if _, err := s.pool.Exec(ctx, `
+	// Les compteurs de la vague ne bougent que si la livraison vient réellement
+	// de changer d'état. Un rejeu de la tâche (reprise après crash, retry
+	// asynq) retrouve une livraison déjà `sent` ou `failed` : recompter ferait
+	// diverger le bilan d'envoi du nombre réel de messages partis.
+	tag, err := s.pool.Exec(ctx, `
 		UPDATE "ImportSendDelivery"
 		SET "status" = $2, "error" = NULLIF($3, ''), "sentAt" = CASE WHEN $2 = 'sent' THEN now() ELSE NULL END, "updatedAt" = now()
 		WHERE "id" = $1 AND "waveId" = $4 AND "status" IN ('queued', 'claimed')`,
-		deliveryID, status, errText, waveID); err != nil {
+		deliveryID, status, errText, waveID)
+	if err != nil {
 		return err
 	}
-	_, err := s.pool.Exec(ctx, `
+	if tag.RowsAffected() == 0 {
+		return nil
+	}
+	_, err = s.pool.Exec(ctx, `
 		UPDATE "ImportSendWave"
 		SET "sentCount" = "sentCount" + CASE WHEN $2 = 'sent' THEN 1 ELSE 0 END,
 		    "failedCount" = "failedCount" + CASE WHEN $2 = 'failed' THEN 1 ELSE 0 END,

@@ -377,3 +377,43 @@ func TestReconfirmWave_KillSwitchPauses(t *testing.T) {
 		t.Fatal("aucun événement de pause tracé : l'arrêt doit laisser une trace")
 	}
 }
+
+// Une adresse qui s'est confirmée par un autre chemin avant l'envoi n'a reçu
+// aucun message de la vague : elle doit être comptée comme confirmée, jamais
+// comme envoyée — sinon le suivi annonce des e-mails qui ne sont pas partis.
+func TestReconfirmWave_ConfirmationExterneNEstPasUnEnvoi(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	seedImport(t, ctx)
+	svc := newTestService()
+
+	batchID := "batch_reconfirm_externe"
+	email := "externe@test.dev"
+	seedReconfirmBatch(t, ctx, svc, batchID, importPubPerso, importOwnerID, []string{email})
+	wave, err := svc.StartReconfirmWave(ctx, importOwnerID, batchID, 10)
+	if err != nil {
+		t.Fatalf("StartReconfirmWave: %v", err)
+	}
+	// Confirmation par le chemin normal (ConfirmSubscriberByToken), avant que
+	// la vague n'ait traité la demande.
+	if _, err := poolTest.Exec(ctx, `
+		UPDATE "Subscriber" SET "confirmedAt" = now(), "receiveArticles" = true, "updatedAt" = now()
+		WHERE "publisherId" = $1 AND "email" = $2`, importPubPerso, email); err != nil {
+		t.Fatalf("confirmation externe: %v", err)
+	}
+	if _, err := svc.ProcessReconfirmWave(ctx, wave.ID); err != nil {
+		t.Fatalf("ProcessReconfirmWave: %v", err)
+	}
+	var sentCount, confirmedCount int
+	if err := poolTest.QueryRow(ctx, `
+		SELECT "sentCount", "confirmedCount" FROM "SubscriberImportReconfirmWave"
+		WHERE "id" = $1`, wave.ID).Scan(&sentCount, &confirmedCount); err != nil {
+		t.Fatalf("compteurs vague: %v", err)
+	}
+	if sentCount != 0 {
+		t.Fatalf("sentCount = %d, attendu 0 (aucun message envoyé par la vague)", sentCount)
+	}
+	if confirmedCount != 1 {
+		t.Fatalf("confirmedCount = %d, attendu 1", confirmedCount)
+	}
+}

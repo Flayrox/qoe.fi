@@ -51,6 +51,28 @@ func TestDecisionSendCap(t *testing.T) {
 	}
 }
 
+// Le plafond de la décision est un maximum, pas un plancher : une demande
+// d'ouverture ne peut que le resserrer. Sans cette borne, un corps de requête
+// `{"cap": 10000}` contournait le `limits.maxRecipients` examiné par le staff.
+func TestResolveSendCap(t *testing.T) {
+	cases := []struct {
+		override, decision, want int
+	}{
+		{0, 0, defaultSendCap},          // aucun plafond décidé → défaut prudent
+		{0, 300, 300},                   // la décision seule fait foi
+		{100, 300, 100},                 // resserrer est permis
+		{5000, 300, 300},                // élargir ne l'est pas
+		{-1, 20, 20},                    // valeur absurde → décision
+		{0, maxSendCap + 1, maxSendCap}, // borne dure du service
+		{maxSendCap + 100, 0, maxSendCap},
+	}
+	for _, c := range cases {
+		if got := resolveSendCap(c.override, c.decision); got != c.want {
+			t.Fatalf("resolveSendCap(%d, %d) = %d, attendu %d", c.override, c.decision, got, c.want)
+		}
+	}
+}
+
 func TestDecisionSendThresholds(t *testing.T) {
 	def := decisionSendThresholds(nil)
 	if def.maxHardBounceRate != defaultMaxHardBounceRate || def.maxComplaints != defaultMaxComplaints ||
@@ -405,6 +427,39 @@ func TestSendWave_SuppressionEntreSnapshotEtClaim(t *testing.T) {
 	}
 	if consumed != 1 {
 		t.Fatalf("consommé = %d, attendu 1 (l'écartée ne réserve rien)", consumed)
+	}
+}
+
+// Un rejeu de la tâche (reprise après crash) retrouve une livraison déjà
+// tranchée : les compteurs de la vague ne doivent pas être avancés deux fois,
+// sinon le bilan annonce plus de messages partis qu'il n'y en a eu.
+func TestSendWave_MarkResultRejoueNeRecomptePas(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	seedImport(t, ctx)
+	svc := newTestService()
+
+	seedSendBatch(t, ctx, "batch_send_replay", importPubPerso, importOwnerID, []string{"r1@test.dev"})
+	wave, err := svc.StartSendWave(ctx, importOwnerID, "batch_send_replay", 10)
+	if err != nil {
+		t.Fatalf("StartSendWave: %v", err)
+	}
+	claims, err := svc.ClaimSendChunk(ctx, wave.ID, 10)
+	if err != nil || len(claims) != 1 {
+		t.Fatalf("ClaimSendChunk: %v (%d réclamations)", err, len(claims))
+	}
+	for i := 0; i < 3; i++ {
+		if err := svc.MarkSendResult(ctx, wave.ID, claims[0].DeliveryID, true, "", false); err != nil {
+			t.Fatalf("MarkSendResult #%d: %v", i+1, err)
+		}
+	}
+	var sent int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT "sentCount" FROM "ImportSendWave" WHERE "id" = $1`, wave.ID).Scan(&sent); err != nil {
+		t.Fatalf("sentCount: %v", err)
+	}
+	if sent != 1 {
+		t.Fatalf("sentCount = %d, attendu 1 (un seul message parti, trois marquages)", sent)
 	}
 }
 

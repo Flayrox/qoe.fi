@@ -157,8 +157,12 @@ func (s *Service) StartReconfirmWave(ctx context.Context, staffID, batchID strin
 	if existing, err := s.activeReconfirmWave(ctx, batchID); err != nil {
 		return ReconfirmWaveDTO{}, err
 	} else if existing.ID != "" {
-		// Reprise d'une vague en pause (suspension levée) : on la remet en
-		// file au lieu d'en ouvrir une seconde qui doublerait les envois.
+		// Reprise d'une vague en pause (suspension levée) : on la remet en file
+		// au lieu d'en ouvrir une seconde qui doublerait les envois. Une vague
+		// `queued` est elle aussi remise en file : si l'enqueue initial a échoué
+		// (Redis indisponible, worker arrêté à cet instant), elle restait
+		// bloquée pour toujours et rouvrir le lot ne la relançait pas. Le
+		// traitement est idempotent (réclamation `FOR UPDATE SKIP LOCKED`).
 		if existing.Status == "paused" {
 			if _, err := s.pool.Exec(ctx, `
 				UPDATE "SubscriberImportReconfirmWave"
@@ -167,6 +171,8 @@ func (s *Service) StartReconfirmWave(ctx context.Context, staffID, batchID strin
 				return ReconfirmWaveDTO{}, err
 			}
 			existing.Status = "queued"
+		}
+		if existing.Status == "queued" {
 			if err := queue.PublishImportReconfirmWave(s.asynq, queue.SubscriberImportReconfirmPayload{WaveID: existing.ID}, 0); err != nil {
 				log.Printf("[imports] re-enqueue vague %s: %v", existing.ID, err)
 			}
@@ -304,21 +310,14 @@ func (s *Service) createWaveRequests(ctx context.Context, tx pgx.Tx, waveID, bat
 			return created, err
 		}
 		// Abonné inactif porteur du jeton : ni destinataire (`confirmedAt`
-		// NULL l'exclut de la sélection d'envoi), ni actif. Si l'adresse s'est
-		// inscrite ou confirmée entre-temps par un autre chemin, on ne touche
-		// à rien et on la sort de la vague.
-		var ensured bool
-		err = tx.QueryRow(ctx, `
-			INSERT INTO "Subscriber" ("id", "email", "publisherId", "locale",
-			                          "isActive", "receiveArticles", "confirmedAt",
-			                          "confirmationToken", "createdAt", "updatedAt")
-			VALUES (gen_random_uuid()::text, $1, $2, 'fr', true, false, NULL, $3, now(), now())
-			ON CONFLICT ("email", "publisherId") DO NOTHING
-			RETURNING true`, c.email, publisherID, token).Scan(&ensured)
-		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		// NULL l'exclut de la sélection d'envoi), ni actif. Règle partagée avec
+		// l'envoi encadré (`ensureInactiveImportSubscriber`) : un abonné
+		// existant n'est jamais réécrit, il sort de la vague.
+		createdSubscriber, err := ensureInactiveImportSubscriber(ctx, tx, publisherID, c.email, token)
+		if err != nil {
 			return created, err
 		}
-		if !ensured {
+		if !createdSubscriber {
 			// Adresse déjà connue : on ne réécrit jamais un abonné existant
 			// (ni son token, ni son état). La ligne quitte la reconfirmation.
 			if _, err := tx.Exec(ctx, `
@@ -569,6 +568,10 @@ const (
 	reconfirmSent reconfirmOutcome = iota
 	reconfirmSkipped
 	reconfirmExpired
+	// reconfirmAlreadyConfirmed : l'adresse s'est confirmée par un autre chemin
+	// avant l'envoi. Ce n'est pas un envoi — la compter comme tel gonflait
+	// `sentCount` d'un message jamais parti.
+	reconfirmAlreadyConfirmed
 )
 
 // claimReconfirmChunk réclame une tranche de demandes (verrou sauté : deux
@@ -676,7 +679,7 @@ func (s *Service) sendReconfirmOne(ctx context.Context, tx pgx.Tx, waveID, publi
 			WHERE "id" = $1`, waveID); err != nil {
 			log.Printf("[imports] vague %s compteur: %v", waveID, err)
 		}
-		return reconfirmSent
+		return reconfirmAlreadyConfirmed
 	}
 	if err := queue.PublishSubscriberConfirm(s.asynq, queue.SubscriberConfirmPayload{
 		Email:       c.email,
