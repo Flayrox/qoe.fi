@@ -135,7 +135,7 @@ func TestPublishersByDomain(t *testing.T) {
 	svc := NewService(poolTest)
 	ctx := context.Background()
 
-	pub, err := svc.ByDomain(ctx, "tenant")
+	pub, err := svc.ByDomain(ctx, "tenant", "")
 	if err != nil {
 		t.Fatalf("ByDomain: %v", err)
 	}
@@ -165,11 +165,11 @@ func TestPublishersByDomain(t *testing.T) {
 	}
 
 	// Résolution par domaine personnalisé (insensible à la casse).
-	if _, err := svc.ByDomain(ctx, "TENANT"); err != nil {
+	if _, err := svc.ByDomain(ctx, "TENANT", ""); err != nil {
 		t.Fatalf("ByDomain casse: %v", err)
 	}
 	// Inconnu → 404.
-	if _, err := svc.ByDomain(ctx, "introuvable"); err == nil {
+	if _, err := svc.ByDomain(ctx, "introuvable", ""); err == nil {
 		t.Fatal("ByDomain attendu errNotFound")
 	}
 }

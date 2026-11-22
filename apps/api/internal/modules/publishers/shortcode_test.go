@@ -44,7 +44,7 @@ func TestArticleResolution_ShortCodeAndHistory(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run("direct/"+tc.name, func(t *testing.T) {
-			art, err := svc.articleDirect(ctx, pubID, tc.query)
+			art, err := svc.articleDirect(ctx, pubID, tc.query, "")
 			if err != nil {
 				t.Fatalf("articleDirect(%q): %v", tc.query, err)
 			}
@@ -53,7 +53,7 @@ func TestArticleResolution_ShortCodeAndHistory(t *testing.T) {
 			}
 		})
 		t.Run("attribution/"+tc.name, func(t *testing.T) {
-			art, err := svc.articleViaAttribution(ctx, tc.query, userID)
+			art, err := svc.articleViaAttribution(ctx, tc.query, userID, "")
 			if err != nil {
 				t.Fatalf("articleViaAttribution(%q): %v", tc.query, err)
 			}

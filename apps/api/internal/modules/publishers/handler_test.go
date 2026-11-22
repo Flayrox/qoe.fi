@@ -150,7 +150,7 @@ func TestServiceErrorBranches(t *testing.T) {
 	fp := &faultPool{pooler: poolTest, err: errors.New("boom")}
 	svc := &Service{pool: fp}
 
-	if _, err := svc.ByDomain(ctx, "tenant"); err == nil {
+	if _, err := svc.ByDomain(ctx, "tenant", ""); err == nil {
 		t.Fatal("ByDomain attendu erreur (publicationByDomain)")
 	}
 	if _, err := svc.publicationByDomain(ctx, "tenant"); err == nil {
@@ -165,16 +165,16 @@ func TestServiceErrorBranches(t *testing.T) {
 	if _, err := svc.categories(ctx, "pub_tenant_test"); err == nil {
 		t.Fatal("categories attendu erreur")
 	}
-	if _, err := svc.publishedArticles(ctx, "pub_tenant_test"); err == nil {
+	if _, err := svc.publishedArticles(ctx, "pub_tenant_test", ""); err == nil {
 		t.Fatal("publishedArticles attendu erreur")
 	}
-	if _, _, err := svc.articleBySlugOrID(ctx, "pub_tenant_test", "article-tenant", &PublisherUser{ID: "x"}); err == nil {
+	if _, _, err := svc.articleBySlugOrID(ctx, "pub_tenant_test", "article-tenant", &PublisherUser{ID: "x"}, ""); err == nil {
 		t.Fatal("articleBySlugOrID attendu erreur")
 	}
-	if _, err := svc.articleDirect(ctx, "pub_tenant_test", "article-tenant"); err == nil {
+	if _, err := svc.articleDirect(ctx, "pub_tenant_test", "article-tenant", ""); err == nil {
 		t.Fatal("articleDirect attendu erreur")
 	}
-	if _, err := svc.articleViaAttribution(ctx, "article-tenant", "user"); err == nil {
+	if _, err := svc.articleViaAttribution(ctx, "article-tenant", "user", ""); err == nil {
 		t.Fatal("articleViaAttribution attendu erreur")
 	}
 	if _, err := svc.attributionCategorySlug(ctx, "article_tenant_1", "user"); err == nil {
@@ -183,10 +183,10 @@ func TestServiceErrorBranches(t *testing.T) {
 	if _, err := svc.subscriberEntitlements(ctx, "pub_tenant_test", "u", "e"); err == nil {
 		t.Fatal("subscriberEntitlements attendu erreur")
 	}
-	if _, err := svc.isBookmarked(ctx, "article_tenant_1", "u"); err == nil {
+	if _, err := svc.isBookmarked(ctx, "article_tenant_1", "00000000-0000-0000-0000-0000000000e2"); err == nil {
 		t.Fatal("isBookmarked attendu erreur")
 	}
-	if _, err := svc.isFollowed(ctx, "pub_tenant_test", "u"); err == nil {
+	if _, err := svc.isFollowed(ctx, "pub_tenant_test", "00000000-0000-0000-0000-0000000000e2"); err == nil {
 		t.Fatal("isFollowed attendu erreur")
 	}
 	if _, err := svc.AllowTLS(ctx, "tenant.qoe.fi"); err == nil {
@@ -238,7 +238,7 @@ func TestServiceRowScanErrors(t *testing.T) {
 	if _, err := svc.categories(ctx, "pub_tenant_test"); err == nil {
 		t.Fatal("categories scan attendu erreur")
 	}
-	if _, err := svc.publishedArticles(ctx, "pub_tenant_test"); err == nil {
+	if _, err := svc.publishedArticles(ctx, "pub_tenant_test", ""); err == nil {
 		t.Fatal("publishedArticles scan attendu erreur")
 	}
 }

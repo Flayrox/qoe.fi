@@ -11,6 +11,12 @@ import (
 	"github.com/qoefi/api/internal/response"
 )
 
+// Bornes d'entrée des routes publiques (nom d'hôte RFC 1035, slug d'article).
+const (
+	maxDomainLen = 253
+	maxSlugLen   = 200
+)
+
 // Handler expose la lecture publique des publications tenant.
 type Handler struct {
 	svc *Service
@@ -44,12 +50,17 @@ func (h *Handler) handleErr(w http.ResponseWriter, err error) {
 // GET /v1/publications/by-domain/{domain} — publication + nav + socials +
 // catégories + articles publiés.
 func (h *Handler) byDomain(w http.ResponseWriter, r *http.Request) {
-	domain := chi.URLParam(r, "domain")
-	if strings.TrimSpace(domain) == "" {
+	domain := strings.TrimSpace(chi.URLParam(r, "domain"))
+	if domain == "" {
 		response.BadRequest(w, "domaine requis")
 		return
 	}
-	pub, err := h.svc.ByDomain(r.Context(), domain)
+	if len(domain) > maxDomainLen {
+		response.BadRequest(w, "domaine invalide")
+		return
+	}
+	viewerID, _ := middleware.UserID(r.Context())
+	pub, err := h.svc.ByDomain(r.Context(), domain, viewerID)
 	if err != nil {
 		h.handleErr(w, err)
 		return
@@ -60,10 +71,16 @@ func (h *Handler) byDomain(w http.ResponseWriter, r *http.Request) {
 // GET /v1/publications/by-domain/{domain}/article/{slug} — article (avec
 // catégorie + auteur + entitlements + interactions du viewer).
 func (h *Handler) article(w http.ResponseWriter, r *http.Request) {
-	domain := chi.URLParam(r, "domain")
-	slug := chi.URLParam(r, "slug")
-	if strings.TrimSpace(domain) == "" || strings.TrimSpace(slug) == "" {
+	domain := strings.TrimSpace(chi.URLParam(r, "domain"))
+	slug := strings.TrimSpace(chi.URLParam(r, "slug"))
+	if domain == "" || slug == "" {
 		response.BadRequest(w, "domaine et slug requis")
+		return
+	}
+	// Bornes des paramètres d'URL : un domaine fait au plus 253 octets
+	// (RFC 1035) et un slug au plus 200 (marge sur les slugs longs).
+	if len(domain) > maxDomainLen || len(slug) > maxSlugLen {
+		response.BadRequest(w, "domaine ou slug invalide")
 		return
 	}
 	viewerID, _ := middleware.UserID(r.Context())
@@ -80,9 +97,13 @@ func (h *Handler) article(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/publications/by-domain/{domain}/recommendations — publications recommandées par le créateur.
 func (h *Handler) recommendations(w http.ResponseWriter, r *http.Request) {
-	domain := chi.URLParam(r, "domain")
-	if strings.TrimSpace(domain) == "" {
+	domain := strings.TrimSpace(chi.URLParam(r, "domain"))
+	if domain == "" {
 		response.BadRequest(w, "domaine requis")
+		return
+	}
+	if len(domain) > maxDomainLen {
+		response.BadRequest(w, "domaine invalide")
 		return
 	}
 	items, err := h.svc.Recommendations(r.Context(), domain)

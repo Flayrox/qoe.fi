@@ -13,10 +13,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qoefi/api/internal/identity"
 	"github.com/qoefi/api/internal/modules/articles"
@@ -24,6 +28,26 @@ import (
 )
 
 var errNotFound = errors.New("introuvable")
+
+// viewerUUID convertit l'identifiant de session en UUID SQL. Une valeur absente
+// ou illisible vaut NULL (visiteur anonyme) au lieu de faire échouer la
+// requête : l'auth est optionnelle sur ces routes.
+func viewerUUID(viewerID string) pgtype.UUID {
+	id, err := uuid.Parse(viewerID)
+	if err != nil {
+		return pgtype.UUID{}
+	}
+	return pgtype.UUID{Bytes: [16]byte(id), Valid: true}
+}
+
+// rootDomain est le domaine racine des sites tenant, sans littéral codé en dur
+// dans la logique : self-hoster un autre domaine = changer QOE_ROOT_DOMAIN.
+func rootDomain() string {
+	if d := strings.ToLower(strings.TrimSpace(os.Getenv("QOE_ROOT_DOMAIN"))); d != "" {
+		return d
+	}
+	return "qoe.fi"
+}
 
 // Service porte les lectures publiques des publications.
 type Service struct {
@@ -233,7 +257,7 @@ type ArticleBundle struct {
 // ByDomain retourne la publication identifiée par sous-domaine ou domaine
 // personnalisé, avec navigation, réseaux sociaux, catégories et articles
 // publiés (tri createdAt DESC).
-func (s *Service) ByDomain(ctx context.Context, domain string) (*PublisherDetail, error) {
+func (s *Service) ByDomain(ctx context.Context, domain, viewerID string) (*PublisherDetail, error) {
 	domain = strings.ToLower(strings.TrimSpace(domain))
 	pub, err := s.publicationByDomain(ctx, domain)
 	if err != nil {
@@ -254,13 +278,17 @@ func (s *Service) ByDomain(ctx context.Context, domain string) (*PublisherDetail
 		return nil, err
 	}
 	pub.Categories = cats
-	articles, err := s.publishedArticles(ctx, pub.ID)
+	articles, err := s.publishedArticles(ctx, pub.ID, viewerID)
 	if err != nil {
 		return nil, err
 	}
 	pub.Articles = articles
-	if team, err := s.teamMembers(ctx, pub); err == nil {
+	// Section décorative : une panne de la requête d'équipe ne doit pas vider
+	// la page, mais elle n'est plus silencieuse.
+	if team, teamErr := s.teamMembers(ctx, pub); teamErr == nil {
 		pub.Team = team
+	} else {
+		log.Printf("[publishers] team members: %v", teamErr)
 	}
 	return pub, nil
 }
@@ -292,36 +320,45 @@ func (s *Service) Article(ctx context.Context, domain, slug, viewerID, viewerEma
 	pub.Categories = cats
 
 	bundle := &ArticleBundle{Publisher: *pub}
-	article, viaAttribution, err := s.articleBySlugOrID(ctx, pub.ID, slug, pub.User)
+	article, viaAttribution, err := s.articleBySlugOrID(ctx, pub.ID, slug, pub.User, viewerID)
 	if err != nil {
 		return nil, err
 	}
 	bundle.Article = *article
 	bundle.IsViaAttribution = viaAttribution
 	if viaAttribution && pub.User != nil {
-		attributionSlug, err := s.attributionCategorySlug(ctx, article.ID, pub.User.ID)
-		if err == nil {
+		attributionSlug, attrErr := s.attributionCategorySlug(ctx, article.ID, pub.User.ID)
+		if attrErr == nil {
 			bundle.AttributionCategorySlug = attributionSlug
+		} else {
+			log.Printf("[publishers] attribution category: %v", attrErr)
 		}
 	}
 	if bundle.Article.OriginArticleID != nil && *bundle.Article.OriginArticleID != "" {
 		var orig OriginPublisherInfo
-		if err := s.pool.QueryRow(ctx, `
+		err := s.pool.QueryRow(ctx, `
 			SELECT p.id, p.name, p.slug, p.type::text, p."logoUrl"
 			FROM "Article" a
 			JOIN "Publisher" p ON p.id = a."publisherId"
 			WHERE a.id = $1
-		`, *bundle.Article.OriginArticleID).Scan(&orig.ID, &orig.Name, &orig.Slug, &orig.Type, &orig.LogoURL); err == nil {
+		`, *bundle.Article.OriginArticleID).Scan(&orig.ID, &orig.Name, &orig.Slug, &orig.Type, &orig.LogoURL)
+		if err == nil {
 			bundle.Article.OriginPublisher = &orig
+		} else {
+			log.Printf("[publishers] origin publisher: %v", err)
 		}
 	}
 
 	// Entitlements + interactions du lecteur (si identifié).
 	if viewerID != "" || viewerEmail != "" {
+		// Une panne de la source d'entitlements ne doit pas être confondue avec
+		// « pas d'abonnement » : l'abonné payant recevrait un contenu tronqué
+		// en 200 sans aucun signal.
 		ent, err := s.subscriberEntitlements(ctx, pub.ID, viewerID, viewerEmail)
-		if err == nil {
-			bundle.Entitlements = ent
+		if err != nil {
+			return nil, fmt.Errorf("subscriber entitlements: %w", err)
 		}
+		bundle.Entitlements = ent
 		if viewerID != "" {
 			bm, _ := s.isBookmarked(ctx, article.ID, viewerID)
 			bundle.Bookmarked = bm
@@ -330,26 +367,49 @@ func (s *Service) Article(ctx context.Context, domain, slug, viewerID, viewerEma
 		}
 	}
 
-	// Compteurs d'engagement réels
+	// Compteurs d'engagement réels : les reposts brouillons, supprimés ou
+	// masqués par leur auteur ne comptent pas (sinon la page affiche des
+	// milliers de reposts invisibles).
 	var repostsCount int
-	_ = s.pool.QueryRow(ctx, `SELECT count(*) FROM "Post" WHERE "quotedArticleId" = $1`, article.ID).Scan(&repostsCount)
+	if err := s.pool.QueryRow(ctx, `
+		SELECT count(*) FROM "Post"
+		WHERE "quotedArticleId" = $1 AND "isDraft" = false
+		  AND "deletedAt" IS NULL AND "isHiddenByAuthor" = false`, article.ID).Scan(&repostsCount); err != nil {
+		log.Printf("[publishers] reposts count: %v", err)
+	}
 	bundle.Article.RepostsCount = repostsCount
 
 	var commentsCount int
-	_ = s.pool.QueryRow(ctx, `SELECT count(*) FROM "ArticleComment" WHERE "articleId" = $1`, article.ID).Scan(&commentsCount)
+	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM "ArticleComment" WHERE "articleId" = $1`, article.ID).Scan(&commentsCount); err != nil {
+		log.Printf("[publishers] comments count: %v", err)
+	}
 	bundle.Article.CommentsCount = commentsCount
 
 	var likesCount int
-	_ = s.pool.QueryRow(ctx, `SELECT count(*) FROM "ContentFeedback" WHERE "articleId" = $1 AND "type" = 'LIKE'`, article.ID).Scan(&likesCount)
+	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM "ContentFeedback" WHERE "articleId" = $1 AND "type" = 'LIKE'`, article.ID).Scan(&likesCount); err != nil {
+		log.Printf("[publishers] likes count: %v", err)
+	}
 	bundle.Article.LikesCount = likesCount
 
-	if viewerID != "" {
+	if viewerUUID(viewerID).Valid {
+		viewer := viewerUUID(viewerID)
 		var isReposted bool
-		_ = s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM "Post" WHERE "authorId" = $1 AND "quotedArticleId" = $2 AND ("content" IS NULL OR "content" = ''))`, viewerID, article.ID).Scan(&isReposted)
+		if err := s.pool.QueryRow(ctx, `
+			SELECT EXISTS(SELECT 1 FROM "Post"
+			 WHERE "authorId" = $1 AND "quotedArticleId" = $2
+			   AND "isDraft" = false AND "deletedAt" IS NULL AND "isHiddenByAuthor" = false
+			   AND ("content" IS NULL OR "content" = ''))`, viewer, article.ID).Scan(&isReposted); err != nil {
+			log.Printf("[publishers] isReposted: %v", err)
+		}
 		bundle.Article.IsReposted = isReposted
 
 		var isLiked bool
-		_ = s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM "ContentFeedback" WHERE "userId"::text = $1 AND "articleId" = $2 AND "type" = 'LIKE')`, viewerID, article.ID).Scan(&isLiked)
+		if err := s.pool.QueryRow(ctx, `
+			SELECT EXISTS(SELECT 1 FROM "ContentFeedback"
+			 WHERE "userId" = $1 AND "articleId" = $2 AND "type" = 'LIKE')`,
+			viewer, article.ID).Scan(&isLiked); err != nil {
+			log.Printf("[publishers] isLiked: %v", err)
+		}
 		bundle.Article.IsLiked = isLiked
 	}
 
@@ -391,13 +451,15 @@ var reservedTLSSubdomains = map[string]bool{
 // avant tout appel à Let's Encrypt.
 func (s *Service) AllowTLS(ctx context.Context, domain string) (bool, error) {
 	clean := strings.ToLower(strings.TrimSpace(domain))
-	if clean == "updates.qoe.fi" {
+	root := rootDomain()
+	if clean == "updates."+root {
 		return true, nil
 	}
-	if !strings.HasSuffix(clean, ".qoe.fi") {
+	suffix := "." + root
+	if !strings.HasSuffix(clean, suffix) {
 		return false, nil
 	}
-	sub := strings.TrimSuffix(clean, ".qoe.fi")
+	sub := strings.TrimSuffix(clean, suffix)
 	if sub == "" || strings.Contains(sub, ".") || reservedTLSSubdomains[sub] {
 		return false, nil
 	}
@@ -452,6 +514,8 @@ func (s *Service) publicationByDomain(ctx context.Context, domain string) (*Publ
 		var so any
 		if jsonErr := json.Unmarshal(siteOptionsBytes, &so); jsonErr == nil {
 			p.SiteOptions = so
+		} else {
+			log.Printf("[publishers] siteOptions de %s illisibles: %v", p.ID, jsonErr)
 		}
 	}
 	if userID != nil {
@@ -519,20 +583,25 @@ func (s *Service) categories(ctx context.Context, pubID string) ([]CategoryItem,
 	return out, rows.Err()
 }
 
-func (s *Service) publishedArticles(ctx context.Context, pubID string) ([]ArticleSummary, error) {
+func (s *Service) publishedArticles(ctx context.Context, pubID, viewerID string) ([]ArticleSummary, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium",
 		       a.visibility, a."readingTime", a."createdAt", a."categoryId",
 		       c.id, c.name, c.slug, COALESCE(c."isDefault", false), cp.slug, a."imageUrl",
 		       (SELECT count(*) FROM "ContentFeedback" f WHERE f."articleId" = a.id AND f."type" = 'LIKE') AS likes,
 		       (SELECT count(*) FROM "ArticleComment" ac WHERE ac."articleId" = a.id) AS comments,
-		       (SELECT count(*) FROM "Post" p WHERE p."quotedArticleId" = a.id) AS reposts,
+		       (SELECT count(*) FROM "Post" p WHERE p."quotedArticleId" = a.id
+		          AND p."isDraft" = false AND p."deletedAt" IS NULL AND p."isHiddenByAuthor" = false) AS reposts,
 		       a."publisherId", ap.name, ap.slug, ap.type::text, ap."logoUrl"
 		FROM "Article" a
 		LEFT JOIN "Publisher" ap ON ap.id = a."publisherId"
 		LEFT JOIN "Category" c ON c.id = a."categoryId"
 		LEFT JOIN "Category" cp ON cp.id = c."parentId"
 		WHERE a.published = true
+		  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
+		  -- Compte privé / blocage : même prédicat canonique que la recherche
+		  -- et le feed, pour ne pas exposer les articles d'un profil privé.
+		  AND can_view_profile($2, a."authorId")
 		  AND (
 		    a."publisherId" = $1
 		    OR EXISTS (
@@ -556,7 +625,7 @@ func (s *Service) publishedArticles(ctx context.Context, pubID string) ([]Articl
 		        )
 		    )
 		  )
-		ORDER BY a."createdAt" DESC`, pubID)
+		ORDER BY a."createdAt" DESC`, pubID, viewerUUID(viewerID))
 	if err != nil {
 		return nil, err
 	}
@@ -604,8 +673,8 @@ func (s *Service) publishedArticles(ctx context.Context, pubID string) ([]Articl
 	return out, rows.Err()
 }
 
-func (s *Service) articleBySlugOrID(ctx context.Context, pubID, slug string, pubUser *PublisherUser) (*ArticleDetail, bool, error) {
-	article, err := s.articleDirect(ctx, pubID, slug)
+func (s *Service) articleBySlugOrID(ctx context.Context, pubID, slug string, pubUser *PublisherUser, viewerID string) (*ArticleDetail, bool, error) {
+	article, err := s.articleDirect(ctx, pubID, slug, viewerID)
 	if err == nil {
 		return article, false, nil
 	}
@@ -614,9 +683,14 @@ func (s *Service) articleBySlugOrID(ctx context.Context, pubID, slug string, pub
 	}
 	// Attribution fallback : le propriétaire de la publication est co-auteur.
 	if pubUser != nil && pubUser.ID != "" {
-		article, err := s.articleViaAttribution(ctx, slug, pubUser.ID)
+		article, err := s.articleViaAttribution(ctx, slug, pubUser.ID, viewerID)
 		if err == nil {
 			return article, true, nil
+		}
+		// Une panne DB ne vaut pas « article introuvable » : sinon le client
+		// reçoit un 404 mensonger au lieu d'un 500.
+		if !errors.Is(err, errNotFound) {
+			return nil, false, err
 		}
 	}
 	return nil, false, errNotFound
@@ -678,11 +752,12 @@ const articleSelect = `
 		LEFT JOIN "Category" cp ON cp.id = c."parentId"
 		LEFT JOIN "User" au ON au.id = a."authorId"`
 
-func (s *Service) resolveArticleWithFallbacks(ctx context.Context, scopeCond, scopeArg, slugOrID, errLabel string) (*ArticleDetail, error) {
+func (s *Service) resolveArticleWithFallbacks(ctx context.Context, scopeCond string, scopeArgs []any, slugOrID, errLabel string) (*ArticleDetail, error) {
 	run := func(matchCond, param string) (*ArticleDetail, error) {
+		args := append([]any{param}, scopeArgs...)
 		row := s.pool.QueryRow(ctx,
 			articleSelect+` WHERE (`+matchCond+`) AND `+scopeCond+` LIMIT 1`,
-			param, scopeArg)
+			args...)
 		article, err := scanArticleDetail(row)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
@@ -708,17 +783,26 @@ func (s *Service) resolveArticleWithFallbacks(ctx context.Context, scopeCond, sc
 		OR EXISTS (SELECT 1 FROM "ArticleSlugHistory" h WHERE lower(h.slug) = lower($1) AND h."articleId" = a.id)`, slugOrID)
 }
 
-func (s *Service) articleDirect(ctx context.Context, pubID, slug string) (*ArticleDetail, error) {
+// visibilityScope impose qu'un article soit publié (pas un brouillon), non
+// programmé dans le futur, et que le compte de son AUTEUR soit visible par le
+// viewer (compte privé, blocage) — la règle du feed (`can_view_profile` sur
+// l'auteur), pas une réimplémentation locale.
+const visibilityScope = `
+	  AND a.published = true
+	  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
+	  AND can_view_profile($3, a."authorId")`
+
+func (s *Service) articleDirect(ctx context.Context, pubID, slug, viewerID string) (*ArticleDetail, error) {
 	return s.resolveArticleWithFallbacks(
 		ctx,
-		`a."publisherId" = $2 AND (a."isClaimed" = true OR a."isAuthorSovereignCopy" = false)`,
-		pubID,
+		`a."publisherId" = $2 AND (a."isClaimed" = true OR a."isAuthorSovereignCopy" = false)`+visibilityScope,
+		[]any{pubID, viewerUUID(viewerID)},
 		slug,
 		"article direct",
 	)
 }
 
-func (s *Service) articleViaAttribution(ctx context.Context, slug, userID string) (*ArticleDetail, error) {
+func (s *Service) articleViaAttribution(ctx context.Context, slug, userID, viewerID string) (*ArticleDetail, error) {
 	return s.resolveArticleWithFallbacks(
 		ctx,
 		`(
@@ -728,8 +812,8 @@ func (s *Service) articleViaAttribution(ctx context.Context, slug, userID string
 		                 AND at."consentStatus" = 'ACCEPTED' AND at."isVisible" = true
 		                 AND at.role IN ('PRIMARY_AUTHOR', 'CO_AUTHOR')
 		                 AND (a."authorId" <> $2 OR a."showOnPersonalProfile" = true))
-		  )`,
-		userID,
+		  )`+visibilityScope,
+		[]any{userID, viewerUUID(viewerID)},
 		slug,
 		"article attribution",
 	)
@@ -741,7 +825,7 @@ func (s *Service) attributionCategorySlug(ctx context.Context, articleID, userID
 		SELECT c.slug FROM "ArticleAttribution" at
 		LEFT JOIN "Category" c ON c.id = at."categoryId"
 		WHERE at."articleId" = $1 AND at."userId" = $2
-		LIMIT 1`, articleID, userID).Scan(&slug)
+		LIMIT 1`, articleID, viewerUUID(userID)).Scan(&slug)
 	if err != nil {
 		return nil, err
 	}
@@ -755,8 +839,8 @@ func (s *Service) subscriberEntitlements(ctx context.Context, pubID, viewerID, v
 	err := s.pool.QueryRow(ctx, `
 		SELECT "isActive", "isPremium", "tierId" FROM "Subscriber"
 		WHERE "publisherId" = $1
-		  AND (("userId"::text = $2 AND $2 <> '') OR (lower(email) = lower($3) AND $3 <> ''))
-		LIMIT 1`, pubID, viewerID, viewerEmail).Scan(&isActive, &isPremium, &tierID)
+		  AND (("userId" = $2 AND $2 IS NOT NULL) OR (lower(email) = lower($3) AND $3 <> ''))
+		LIMIT 1`, pubID, viewerUUID(viewerID), viewerEmail).Scan(&isActive, &isPremium, &tierID)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return ent, err
 	}
@@ -771,10 +855,14 @@ func (s *Service) subscriberEntitlements(ctx context.Context, pubID, viewerID, v
 }
 
 func (s *Service) isBookmarked(ctx context.Context, articleID, viewerID string) (bool, error) {
+	viewer := viewerUUID(viewerID)
+	if !viewer.Valid {
+		return false, nil
+	}
 	var one int
 	err := s.pool.QueryRow(ctx,
 		`SELECT 1 FROM "Bookmark" WHERE "articleId" = $1 AND "readerId" = $2 LIMIT 1`,
-		articleID, viewerID).Scan(&one)
+		articleID, viewer).Scan(&one)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, nil
 	}
@@ -785,10 +873,14 @@ func (s *Service) isBookmarked(ctx context.Context, articleID, viewerID string) 
 }
 
 func (s *Service) isFollowed(ctx context.Context, pubID, viewerID string) (bool, error) {
+	viewer := viewerUUID(viewerID)
+	if !viewer.Valid {
+		return false, nil
+	}
 	var one int
 	err := s.pool.QueryRow(ctx,
 		`SELECT 1 FROM "Follows" WHERE "publisherId" = $1 AND "readerId" = $2 LIMIT 1`,
-		pubID, viewerID).Scan(&one)
+		pubID, viewer).Scan(&one)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, nil
 	}
@@ -797,6 +889,10 @@ func (s *Service) isFollowed(ctx context.Context, pubID, viewerID string) (bool,
 	}
 	return true, nil
 }
+
+// maxRecommendations borne la liste publique des recommandations : elle n'a
+// pas de pagination côté client, une liste non bornée grossit sans plafond.
+const maxRecommendations = 50
 
 // Recommendations retourne les publications recommandées par le créateur.
 func (s *Service) Recommendations(ctx context.Context, domain string) ([]RecommendationItem, error) {
@@ -811,7 +907,8 @@ func (s *Service) Recommendations(ctx context.Context, domain string) ([]Recomme
 		JOIN "Publisher" p ON p.id = r."recommendedId"
 		WHERE r."recommenderId" = $1
 		ORDER BY r."createdAt" DESC
-	`, pub.ID)
+		LIMIT $2
+	`, pub.ID, maxRecommendations)
 	if err != nil {
 		return nil, err
 	}
@@ -874,6 +971,9 @@ func (s *Service) teamMembers(ctx context.Context, pub *PublisherDetail) ([]Team
 			JOIN "User" u ON u.id = mm."userId"
 			WHERE m."publisherId" = $1
 			ORDER BY mm."joinedAt" ASC`, pub.ID)
+		if err != nil {
+			log.Printf("[publishers] media team: %v", err)
+		}
 		if err == nil {
 			for rows.Next() {
 				var uid string
@@ -917,6 +1017,9 @@ func (s *Service) teamMembers(ctx context.Context, pub *PublisherDetail) ([]Team
 		JOIN "User" u ON u.id = a."authorId"
 		WHERE a."publisherId" = $1 AND a.published = true
 		LIMIT 15`, pub.ID)
+	if err != nil {
+		log.Printf("[publishers] article authors: %v", err)
+	}
 	if err == nil {
 		for rows.Next() {
 			var uid string
