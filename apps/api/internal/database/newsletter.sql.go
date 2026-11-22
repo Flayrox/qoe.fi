@@ -241,15 +241,21 @@ func (q *Queries) DeactivateSubscriber(ctx context.Context, arg DeactivateSubscr
 	return id, err
 }
 
-const deleteNewsletterIssueDraft = `-- name: DeleteNewsletterIssueDraft :exec
+const deleteNewsletterIssueDraft = `-- name: DeleteNewsletterIssueDraft :execrows
 DELETE FROM "NewsletterIssue"
 WHERE id = $1
   AND (status = 'DRAFT' OR status = 'FAILED')
 `
 
-func (q *Queries) DeleteNewsletterIssueDraft(ctx context.Context, id string) error {
-	_, err := q.db.Exec(ctx, deleteNewsletterIssueDraft, id)
-	return err
+// execrows : une suppression qui ne touche aucune ligne (issue passée en
+// SENDING entre le contrôle de statut et le DELETE) ne doit pas être
+// rapportée comme un succès au client.
+func (q *Queries) DeleteNewsletterIssueDraft(ctx context.Context, id string) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteNewsletterIssueDraft, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const finishArticleRelease = `-- name: FinishArticleRelease :exec
@@ -959,11 +965,21 @@ const listNewsletterIssuesByPublisher = `-- name: ListNewsletterIssuesByPublishe
 SELECT id, "publisherId", subject, "previewText", html, status, "totalRecipients", "sentCount", "failedCount", "createdAt", "updatedAt", "sentAt"
 FROM "NewsletterIssue"
 WHERE "publisherId" = $1
-ORDER BY "createdAt" DESC
+ORDER BY "createdAt" DESC, id DESC
+LIMIT $2
 `
 
-func (q *Queries) ListNewsletterIssuesByPublisher(ctx context.Context, publisherid string) ([]NewsletterIssue, error) {
-	rows, err := q.db.Query(ctx, listNewsletterIssuesByPublisher, publisherid)
+type ListNewsletterIssuesByPublisherParams struct {
+	PublisherId string `json:"publisherId"`
+	Limit       int32  `json:"limit"`
+}
+
+// Liste bornée : chaque ligne porte le HTML complet (jusqu'à 512 Ko), une
+// liste non bornée produisait une réponse de plusieurs dizaines de Mo.
+// Tie-break id : deux brouillons créés dans la même milliseconde gardaient un
+// ordre instable d'un appel à l'autre.
+func (q *Queries) ListNewsletterIssuesByPublisher(ctx context.Context, arg ListNewsletterIssuesByPublisherParams) ([]NewsletterIssue, error) {
+	rows, err := q.db.Query(ctx, listNewsletterIssuesByPublisher, arg.PublisherId, arg.Limit)
 	if err != nil {
 		return nil, err
 	}

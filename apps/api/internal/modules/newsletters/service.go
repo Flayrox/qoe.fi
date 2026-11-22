@@ -20,8 +20,19 @@ import (
 	"github.com/qoefi/api/internal/abuse"
 	"github.com/qoefi/api/internal/antispam"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/modules/articles"
 	"github.com/qoefi/api/internal/queue"
 	"github.com/qoefi/api/internal/subscriptions"
+)
+
+const (
+	// maxListIssues borne la liste HTTP : chaque ligne porte le HTML complet
+	// (jusqu'à 512 Ko), donc 100 lignes est déjà une réponse lourde.
+	maxListIssues = int32(100)
+	// maxEmailLen : borne RFC 5321 d'une adresse.
+	maxEmailLen = 254
+	// maxPublisherIDLen : borne d'un id de publication (cuid/uuid).
+	maxPublisherIDLen = 100
 )
 
 var (
@@ -109,7 +120,15 @@ type CreateInput struct {
 func (s *Service) resolvePublisher(ctx context.Context, userID, publisherID string) (string, error) {
 	if publisherID == "" {
 		pubID, err := s.q.GetUserPublisherID(ctx, userID)
-		if err != nil || pubID == "" {
+		if errors.Is(err, pgx.ErrNoRows) {
+			// Utilisateur sans ligne (ou disparu) : pas de publication.
+			return "", errForbidden
+		}
+		if err != nil {
+			// Panne base : 500, jamais un 403 qui ferait croire à un refus.
+			return "", err
+		}
+		if pubID == "" {
 			return "", errForbidden
 		}
 		return pubID, nil
@@ -157,7 +176,10 @@ func (s *Service) ListIssues(ctx context.Context, userID, publisherID string) ([
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.q.ListNewsletterIssuesByPublisher(ctx, pubID)
+	rows, err := s.q.ListNewsletterIssuesByPublisher(ctx, db.ListNewsletterIssuesByPublisherParams{
+		PublisherId: pubID,
+		Limit:       maxListIssues,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -189,10 +211,13 @@ func validateIssueInput(in *CreateInput) error {
 	}
 	in.Html = strings.TrimSpace(in.Html)
 	if in.Html == "" {
-		return errors.New("subject et html requis")
+		// Refus client typé : un champ vide est une 400, pas une panne.
+		return &antispam.RejectionError{HTTPStatus: 400, Code: antispam.CodeContentTooShort,
+			Message: "Le sujet et le contenu HTML sont requis."}
 	}
 	if len(in.Html) > antispam.MaxArticleBodyBytes {
-		return errors.New("le contenu HTML dépasse la taille maximale autorisée")
+		return &antispam.RejectionError{HTTPStatus: 400, Code: antispam.CodeContentTooLarge,
+			Message: "Le contenu HTML dépasse la taille maximale autorisée."}
 	}
 	return nil
 }
@@ -266,7 +291,16 @@ func (s *Service) DeleteDraft(ctx context.Context, userID, issueID string) error
 	if issue.Status != "DRAFT" && issue.Status != "FAILED" {
 		return errNotDraft
 	}
-	return s.q.DeleteNewsletterIssueDraft(ctx, issueID)
+	rows, err := s.q.DeleteNewsletterIssueDraft(ctx, issueID)
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		// L'issue est passée SENDING entre le contrôle et le DELETE : la
+		// suppression n'a rien fait, on ne rapporte pas un faux succès.
+		return errNotDraft
+	}
+	return nil
 }
 
 // Send passe un brouillon ou une issue en échec en SENDING et enqueue la tâche de distribution.
@@ -285,15 +319,35 @@ func (s *Service) Send(ctx context.Context, userID, issueID string) error {
 	if issue.Status != "DRAFT" && issue.Status != "FAILED" {
 		return errNotDraft
 	}
+	// Verrou atomique D'ABORD : deux envois concurrents ne peuvent pas tous
+	// deux passer le contrôle de statut, puis remettre les livraisons en
+	// file et enqueue deux distributions. Le second perd la course ici.
+	if _, err := s.q.SetNewsletterIssueSending(ctx, issueID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return errNotDraft
+		}
+		return err
+	}
+	// Reprise d'un envoi en échec : les livraisons FAILED repartent en file,
+	// après le verrou (si l'enqueue échoue, elles sont simplement restées
+	// QUEUED sans envoi — l'issue repasse DRAFT juste en dessous).
 	if issue.Status == "FAILED" {
 		if err := s.q.ResetFailedNewsletterDeliveries(ctx, issueID); err != nil {
+			if rerr := s.q.ResetNewsletterIssueToDraft(ctx, issueID); rerr != nil {
+				log.Printf("[newsletters] send %s : repli DRAFT impossible: %v", issueID, rerr)
+			}
 			return err
 		}
 	}
-	if _, err := s.q.SetNewsletterIssueSending(ctx, issueID); err != nil {
+	if err := queue.PublishNewsletterSend(s.ac, queue.NewsletterSendPayload{IssueID: issueID}); err != nil {
+		// Sans distribution enfilée, l'issue resterait SENDING pour toujours
+		// (aucun worker ne la reprendrait) : on la rend éditable.
+		if rerr := s.q.ResetNewsletterIssueToDraft(ctx, issueID); rerr != nil {
+			log.Printf("[newsletters] send %s : repli DRAFT impossible: %v", issueID, rerr)
+		}
 		return err
 	}
-	return queue.PublishNewsletterSend(s.ac, queue.NewsletterSendPayload{IssueID: issueID})
+	return nil
 }
 
 // DigestInput est la demande de génération d'un digest.
@@ -348,7 +402,9 @@ func (s *Service) CreateDigestDraft(ctx context.Context, userID string, in Diges
 	if runes := []rune(subjectName); len(runes) > 80 {
 		subjectName = string(runes[:80])
 	}
-	subject := fmt.Sprintf("Digest — %s — %s", subjectName, time.Now().Format("02/01/2006"))
+	// Date du digest en UTC : la base et les emails raisonnent en UTC, une
+	// date locale décale le libellé d'un jour autour de minuit.
+	subject := fmt.Sprintf("Digest — %s — %s", subjectName, time.Now().UTC().Format("02/01/2006"))
 	preview := fmt.Sprintf("%d article%s récent%s de %s",
 		len(rows), plural(len(rows)), plural(len(rows)), publisherName)
 
@@ -382,18 +438,13 @@ func digestExcerpt(content string) string {
 }
 
 // digestArticleURL construit l'URL publique canonique d'un article tenant :
-// /{categorie}/{slug}. Sans domaine, on retombe sur /p/{slug} comme le worker.
+// /{categorie}/{slug}. La racine vient du module articles (source unique :
+// domaine custom, sous-domaine, repli /p/{slug}) — aucun hôte recopié ici.
 func digestArticleURL(customDomain, subdomain pgtype.Text, categorySlug, slug string) string {
-	base := "https://qoe.fi/p"
-	if customDomain.Valid && customDomain.String != "" {
-		base = "https://" + customDomain.String
-	} else if subdomain.Valid && subdomain.String != "" {
-		base = "https://" + subdomain.String + ".qoe.fi"
+	if (customDomain.Valid && customDomain.String != "") || (subdomain.Valid && subdomain.String != "") {
+		return articles.PublisherPublicURL(subdomain, customDomain) + "/" + url.PathEscape(categorySlug) + "/" + url.PathEscape(slug)
 	}
-	if base == "https://qoe.fi/p" {
-		return base + "/" + url.PathEscape(slug)
-	}
-	return base + "/" + url.PathEscape(categorySlug) + "/" + url.PathEscape(slug)
+	return articles.ArticlePublicURL(subdomain, customDomain, slug)
 }
 
 // buildDigestHTML rend le corps éditable du digest. Tout le contenu éditorial
@@ -427,8 +478,12 @@ func buildDigestHTML(rows []db.ListArticlesForDigestRow, publisherName string) s
 // et renvoie l'issue (le statut sert aux gardes anti-double-envoi).
 func (s *Service) checkOwnership(ctx context.Context, userID, issueID string) (db.NewsletterIssue, error) {
 	issue, err := s.q.GetNewsletterIssue(ctx, issueID)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return db.NewsletterIssue{}, errNotFound
+	}
+	if err != nil {
+		// Panne base : 500, pas un 404 « newsletter introuvable ».
+		return db.NewsletterIssue{}, err
 	}
 	owns, err := s.q.UserOwnsPublisher(ctx, db.UserOwnsPublisherParams{
 		ID:          userID,
@@ -445,8 +500,16 @@ func (s *Service) checkOwnership(ctx context.Context, userID, issueID string) (d
 
 // Unsubscribe désactive receiveArticles pour un abonné (lien public, sans auth).
 func (s *Service) Unsubscribe(ctx context.Context, publisherID, email string) error {
+	publisherID = strings.TrimSpace(publisherID)
+	email = strings.TrimSpace(email)
 	if publisherID == "" || email == "" {
-		return errors.New("publisherId et email requis")
+		return &antispam.RejectionError{HTTPStatus: 400, Code: antispam.CodeContentTooShort,
+			Message: "publisherId et email requis."}
+	}
+	// Bornes RFC 5321 / ids : une adresse de 2 Mo ne doit pas atteindre la base.
+	if len(email) > maxEmailLen || len(publisherID) > maxPublisherIDLen {
+		return &antispam.RejectionError{HTTPStatus: 400, Code: antispam.CodeContentTooLarge,
+			Message: "Paramètres de désabonnement invalides."}
 	}
 	return s.q.UnsubscribeNewsletterSubscriber(ctx, db.UnsubscribeNewsletterSubscriberParams{
 		PublisherId: publisherID,

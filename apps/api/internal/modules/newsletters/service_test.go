@@ -28,6 +28,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(code)
 }
+
 // requirePool skippe les tests DB quand Docker/testcontainers est absent.
 func requirePool(t *testing.T) {
 	t.Helper()
@@ -35,7 +36,6 @@ func requirePool(t *testing.T) {
 		t.Skip("DB indisponible (Docker/testcontainers requis)")
 	}
 }
-
 
 const (
 	ownerID  = "00000000-0000-0000-0000-0000000000b1"
@@ -84,9 +84,9 @@ func TestNewsletterLifecycle(t *testing.T) {
 	// Création d'un brouillon.
 	issue, err := svc.CreateDraft(ctx, ownerID, CreateInput{
 		PublisherID: pubID,
-		Subject:       "Ma première newsletter",
-		PreviewText:   "Un aperçu",
-		Html:          "<h1>Bonjour</h1>",
+		Subject:     "Ma première newsletter",
+		PreviewText: "Un aperçu",
+		Html:        "<h1>Bonjour</h1>",
 	})
 	if err != nil {
 		t.Fatalf("create: %v", err)
@@ -107,8 +107,8 @@ func TestNewsletterLifecycle(t *testing.T) {
 	// Mise à jour du brouillon.
 	updated, err := svc.UpdateDraft(ctx, ownerID, issue.ID, CreateInput{
 		PublisherID: pubID,
-		Subject:       "Sujet corrigé",
-		Html:          "<h1>Bonjour</h1><p>Mise à jour</p>",
+		Subject:     "Sujet corrigé",
+		Html:        "<h1>Bonjour</h1><p>Mise à jour</p>",
 	})
 	if err != nil || updated.Subject != "Sujet corrigé" {
 		t.Fatalf("update: %v (%+v)", err, updated)
@@ -253,8 +253,8 @@ func TestNewsletterFailedRetry(t *testing.T) {
 
 	issue, err := svc.CreateDraft(ctx, ownerID, CreateInput{
 		PublisherID: pubID,
-		Subject:       "Sujet initial",
-		Html:          "<p>Texte</p>",
+		Subject:     "Sujet initial",
+		Html:        "<p>Texte</p>",
 	})
 	if err != nil {
 		t.Fatalf("create draft: %v", err)
@@ -274,8 +274,8 @@ func TestNewsletterFailedRetry(t *testing.T) {
 	// 1. Modification d'une issue FAILED permise.
 	updated, err := svc.UpdateDraft(ctx, ownerID, issue.ID, CreateInput{
 		PublisherID: pubID,
-		Subject:       "Sujet corrigé",
-		Html:          "<p>Texte corrigé</p>",
+		Subject:     "Sujet corrigé",
+		Html:        "<p>Texte corrigé</p>",
 	})
 	if err != nil {
 		t.Fatalf("update failed issue: %v", err)
@@ -306,8 +306,8 @@ func TestNewsletterSend_ProRequired(t *testing.T) {
 
 	issue, err := svc.CreateDraft(ctx, ownerID, CreateInput{
 		PublisherID: pubID,
-		Subject:       "Broadcast sans Pro",
-		Html:          "<p>Texte</p>",
+		Subject:     "Broadcast sans Pro",
+		Html:        "<p>Texte</p>",
 	})
 	if err != nil {
 		t.Fatalf("create draft: %v", err)

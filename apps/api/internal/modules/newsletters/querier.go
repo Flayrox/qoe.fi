@@ -14,11 +14,12 @@ type newsletterQuerier interface {
 	GetSubscriberLocale(ctx context.Context, arg db.GetSubscriberLocaleParams) (string, error)
 	SubscribePending(ctx context.Context, arg db.SubscribePendingParams) error
 	CreateNewsletterIssue(ctx context.Context, arg db.CreateNewsletterIssueParams) (db.NewsletterIssue, error)
-	DeleteNewsletterIssueDraft(ctx context.Context, id string) error
+	DeleteNewsletterIssueDraft(ctx context.Context, id string) (int64, error)
 	FinishNewsletterIssue(ctx context.Context, arg db.FinishNewsletterIssueParams) (string, error)
 	GetNewsletterIssue(ctx context.Context, id string) (db.NewsletterIssue, error)
 	GetUserPublisherID(ctx context.Context, id string) (string, error)
-	ListNewsletterIssuesByPublisher(ctx context.Context, publicationid string) ([]db.NewsletterIssue, error)
+	ListNewsletterIssuesByPublisher(ctx context.Context, arg db.ListNewsletterIssuesByPublisherParams) ([]db.NewsletterIssue, error)
+	ResetNewsletterIssueToDraft(ctx context.Context, id string) error
 	ListArticlesForDigest(ctx context.Context, arg db.ListArticlesForDigestParams) ([]db.ListArticlesForDigestRow, error)
 	ResetFailedNewsletterDeliveries(ctx context.Context, issueid string) error
 	SetNewsletterIssueSending(ctx context.Context, id string) (string, error)

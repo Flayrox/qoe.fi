@@ -15,6 +15,7 @@ import (
 	"github.com/qoefi/api/internal/authz"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
+	"github.com/qoefi/api/internal/secguard"
 	"github.com/qoefi/api/internal/workers"
 	"github.com/redis/go-redis/v9"
 )
@@ -89,6 +90,12 @@ func (h *Handler) userID(w http.ResponseWriter, r *http.Request) (string, bool) 
 }
 
 func (h *Handler) handleErr(w http.ResponseWriter, err error) {
+	// Refus de contenu (anti-spam, taille, caractères interdits) : le statut
+	// et le message viennent du refus lui-même — jamais une 500 pour une
+	// saisie invalide.
+	if secguard.WriteRejection(w, err) {
+		return
+	}
 	switch {
 	case errors.Is(err, errForbidden):
 		response.Forbidden(w, err.Error())

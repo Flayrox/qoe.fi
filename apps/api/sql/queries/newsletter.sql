@@ -8,10 +8,15 @@ VALUES (gen_random_uuid()::text, $1, $2, $3, $4, now())
 RETURNING *;
 
 -- name: ListNewsletterIssuesByPublisher :many
+-- Liste bornée : chaque ligne porte le HTML complet (jusqu'à 512 Ko), une
+-- liste non bornée produisait une réponse de plusieurs dizaines de Mo.
+-- Tie-break id : deux brouillons créés dans la même milliseconde gardaient un
+-- ordre instable d'un appel à l'autre.
 SELECT *
 FROM "NewsletterIssue"
 WHERE "publisherId" = $1
-ORDER BY "createdAt" DESC;
+ORDER BY "createdAt" DESC, id DESC
+LIMIT $2;
 
 -- name: GetNewsletterIssue :one
 SELECT *
@@ -35,7 +40,10 @@ WHERE id = $1
   AND (status = 'DRAFT' OR status = 'FAILED')
 RETURNING *;
 
--- name: DeleteNewsletterIssueDraft :exec
+-- name: DeleteNewsletterIssueDraft :execrows
+-- execrows : une suppression qui ne touche aucune ligne (issue passée en
+-- SENDING entre le contrôle de statut et le DELETE) ne doit pas être
+-- rapportée comme un succès au client.
 DELETE FROM "NewsletterIssue"
 WHERE id = $1
   AND (status = 'DRAFT' OR status = 'FAILED');

@@ -183,7 +183,10 @@ type Querier interface {
 	DeleteMediaMember(ctx context.Context, arg DeleteMediaMemberParams) error
 	DeleteMute(ctx context.Context, arg DeleteMuteParams) error
 	DeleteNavigationItems(ctx context.Context, publisherid string) error
-	DeleteNewsletterIssueDraft(ctx context.Context, id string) error
+	// execrows : une suppression qui ne touche aucune ligne (issue passée en
+	// SENDING entre le contrôle de statut et le DELETE) ne doit pas être
+	// rapportée comme un succès au client.
+	DeleteNewsletterIssueDraft(ctx context.Context, id string) (int64, error)
 	DeleteOAuthClient(ctx context.Context, arg DeleteOAuthClientParams) error
 	DeletePollVote(ctx context.Context, arg DeletePollVoteParams) error
 	DeletePromo(ctx context.Context, id string) error
@@ -674,7 +677,11 @@ type Querier interface {
 	ListMyHighlights(ctx context.Context, arg ListMyHighlightsParams) ([]ListMyHighlightsRow, error)
 	ListNavigationForPublisher(ctx context.Context, publisherid string) ([]ListNavigationForPublisherRow, error)
 	ListNewsletterDeliveriesByIssue(ctx context.Context, arg ListNewsletterDeliveriesByIssueParams) ([]ListNewsletterDeliveriesByIssueRow, error)
-	ListNewsletterIssuesByPublisher(ctx context.Context, publisherid string) ([]NewsletterIssue, error)
+	// Liste bornée : chaque ligne porte le HTML complet (jusqu'à 512 Ko), une
+	// liste non bornée produisait une réponse de plusieurs dizaines de Mo.
+	// Tie-break id : deux brouillons créés dans la même milliseconde gardaient un
+	// ordre instable d'un appel à l'autre.
+	ListNewsletterIssuesByPublisher(ctx context.Context, arg ListNewsletterIssuesByPublisherParams) ([]NewsletterIssue, error)
 	ListNotificationDeliveries(ctx context.Context) ([]ListNotificationDeliveriesRow, error)
 	ListOAuthClientsByOwner(ctx context.Context, owneruserid string) ([]ListOAuthClientsByOwnerRow, error)
 	ListOAuthClientsByPublisher(ctx context.Context, publisherid pgtype.Text) ([]ListOAuthClientsByPublisherRow, error)
