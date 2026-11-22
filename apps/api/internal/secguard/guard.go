@@ -136,11 +136,7 @@ func (g *Guard) EvaluateRequest(ctx context.Context, r *http.Request, userID str
 		return trust.Profile{UserID: userID, Tier: trust.TierStandard}
 	}
 	subnet := middleware.ClientSubnet(r)
-	ua := ""
-	if r != nil {
-		ua = r.UserAgent()
-	}
-	prof, err := g.trust.Evaluate(ctx, userID, subnet, ua)
+	prof, err := g.trust.Evaluate(ctx, userID, subnet)
 	if err != nil {
 		// Compte introuvable (supprimé, en cours de synchronisation) ou base
 		// indisponible : on ne suppose pas un compte sain. Tier RESTRICTED

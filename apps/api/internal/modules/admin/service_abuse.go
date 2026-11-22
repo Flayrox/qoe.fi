@@ -407,7 +407,7 @@ func (s *Service) RecomputeUserTrust(ctx context.Context, actorID, targetUserID 
 
 	s.trustSvc.InvalidateUser(ctx, targetUserID)
 
-	profile, err := s.trustSvc.Evaluate(ctx, targetUserID, "", "")
+	profile, err := s.trustSvc.Evaluate(ctx, targetUserID, "")
 	if err != nil {
 		return TrustRecomputeResult{}, err
 	}

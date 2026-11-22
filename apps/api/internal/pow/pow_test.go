@@ -79,10 +79,12 @@ func TestGenerateAndVerifyValidAndReplay(t *testing.T) {
 		t.Fatalf("ErrChallengeReplayed attendu, obtenu %v", err)
 	}
 
-	// 3. Vérification en JSON brut avec rc == nil (sans anti-rejeu)
+	// 3. Sans magasin anti-rejeu, même un jeton valide est refusé : accepter
+	//    un PoW qu'on ne peut pas marquer consommé le rendrait éternellement
+	//    rejouable (le middleware ne monte d'ailleurs jamais sans Redis).
 	tokenJSON := makeToken(t, sol, false)
-	if err := VerifyAndConsume(ctx, nil, secret, tokenJSON); err != nil {
-		t.Fatalf("VerifyAndConsume (JSON brut, rc=nil) échoué: %v", err)
+	if err := VerifyAndConsume(ctx, nil, secret, tokenJSON); !errors.Is(err, ErrNoReplayStore) {
+		t.Fatalf("ErrNoReplayStore attendu (rc=nil), obtenu %v", err)
 	}
 }
 

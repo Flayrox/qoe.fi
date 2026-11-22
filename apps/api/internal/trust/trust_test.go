@@ -233,7 +233,7 @@ func TestService_CacheInvalidationSubnetAndStrikes(t *testing.T) {
 
 	// Ajoute 3 autres utilisateurs sur le même sous-réseau -> u1 devient le 4e (> 3).
 	for _, uid := range []string{"u2", "u3", "u4"} {
-		if _, err := svc.Evaluate(ctx, uid, "198.51.100.0/24", "Mozilla/5.0"); err != nil {
+		if _, err := svc.Evaluate(ctx, uid, "198.51.100.0/24"); err != nil {
 			t.Fatalf("Evaluate(%s): %v", uid, err)
 		}
 	}
@@ -241,7 +241,7 @@ func TestService_CacheInvalidationSubnetAndStrikes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p, err := svc.Evaluate(ctx, "u1", "198.51.100.0/24", "Mozilla/5.0")
+	p, err := svc.Evaluate(ctx, "u1", "198.51.100.0/24")
 	if err != nil {
 		t.Fatalf("Evaluate(u1): %v", err)
 	}
@@ -256,9 +256,9 @@ func TestService_CacheInvalidationSubnetAndStrikes(t *testing.T) {
 		t.Errorf("Score=%d Tier=%s, attendu 30 / LOW", p.Score, p.Tier)
 	}
 
-	// Vérifie que l'empreinte UA a bien été enregistrée.
-	if !s.Exists(userAgentFingerprintKey("Mozilla/5.0")) {
-		t.Error("clé d'empreinte UA absente de Redis")
+	// L'ensemble du sous-réseau est bien tenu à jour (compteur live).
+	if !s.Exists(subnetUsersKey("198.51.100.0/24")) {
+		t.Error("ensemble du sous-réseau absent de Redis")
 	}
 
 	// InvalidateUser supprime sec:trust:u1 immédiatement.
@@ -268,7 +268,7 @@ func TestService_CacheInvalidationSubnetAndStrikes(t *testing.T) {
 	}
 
 	// Avec pool == nil et cache vidé, dégradation sûre sans erreur.
-	pDeg, err := svc.Evaluate(ctx, "u1", "", "")
+	pDeg, err := svc.Evaluate(ctx, "u1", "")
 	if err != nil {
 		t.Fatalf("dégradation attendue sans erreur, obtenu: %v", err)
 	}

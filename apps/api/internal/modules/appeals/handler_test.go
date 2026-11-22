@@ -212,7 +212,9 @@ func (f *fakeAppealDB) QueryRow(_ context.Context, sql string, args ...any) pgx.
 		if !ok {
 			return memRow{err: pgx.ErrNoRows}
 		}
-		return memRow{vals: []any{decID, "suspend", []string{"abuse:spam"}}}
+		// Colonnes lues par abuse.contestableDecision : id, policy, version,
+		// result, reasonCodes (la politique est recopiée sur le verdict humain).
+		return memRow{vals: []any{decID, abuse.CurrentPolicy.Name, abuse.CurrentPolicy.Version, "suspend", []string{"abuse:spam"}}}
 	}
 	if strings.Contains(sql, `INSERT INTO "Appeal"`) {
 		subjectType := args[0].(string)

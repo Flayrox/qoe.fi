@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; **L29s `search` clos le 2026-11-22** (2 f. · 741 l. après correctifs, 6 défauts F670–F675 + 1 structurel F676, dettes R257–R259) ; **L29t `publishers` clos le 2026-11-22** (3 f. · 1 229 l. après correctifs, 8 défauts F677–F684 + 1 structurel F685, dettes R260–R262) ; **L29u `analytics` clos le 2026-11-22** (4 f. · 2 130 l. après correctifs, 12 défauts F686–F697 + 1 structurel F698, dettes R263–R265) ; **L29v `events`/`workspaces`/`appeals`/`support`/`exports`/`books` clos le 2026-11-22** (13 f. · 1 659 l. après correctifs, 6 défauts F699–F704 + 2 structurels F705–F706, dettes R266–R269) ; **L29w reliquat `tracking`/`placements`/`ai`/`collaborations`/`conversations`/`billing`/`ebooks` clos le 2026-11-22** (20 f. · 7 251 l. après correctifs, 13 défauts F707–F719 + 2 structurels F720–F721, dettes R270–R272) ; **L29x `oauth`/`devtools` clos le 2026-11-22** (7 f. · 3 190 l. après correctifs, 10 défauts F722–F731 + 2 structurels F732–F733, dettes R273–R275, **R270 soldée**) ; **L30 `workers`/`queue`/`resilience`/`cache` clos le 2026-11-22** (17 f. · 3 933 l. après correctifs, 9 défauts F734–F742 + 3 structurels F743–F745, dettes R276–R279) ; **L31 `middleware`/`authz`/`permissions`/`secguard` clos le 2026-11-22** (17 f. · 3 622 l. après correctifs, 6 défauts F746–F751 + 1 structurel F752, dettes R280–R282) ; prochain = **L32** (`abuse`, `antispam`, `trust`, `pow`)) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; **L29s `search` clos le 2026-11-22** (2 f. · 741 l. après correctifs, 6 défauts F670–F675 + 1 structurel F676, dettes R257–R259) ; **L29t `publishers` clos le 2026-11-22** (3 f. · 1 229 l. après correctifs, 8 défauts F677–F684 + 1 structurel F685, dettes R260–R262) ; **L29u `analytics` clos le 2026-11-22** (4 f. · 2 130 l. après correctifs, 12 défauts F686–F697 + 1 structurel F698, dettes R263–R265) ; **L29v `events`/`workspaces`/`appeals`/`support`/`exports`/`books` clos le 2026-11-22** (13 f. · 1 659 l. après correctifs, 6 défauts F699–F704 + 2 structurels F705–F706, dettes R266–R269) ; **L29w reliquat `tracking`/`placements`/`ai`/`collaborations`/`conversations`/`billing`/`ebooks` clos le 2026-11-22** (20 f. · 7 251 l. après correctifs, 13 défauts F707–F719 + 2 structurels F720–F721, dettes R270–R272) ; **L29x `oauth`/`devtools` clos le 2026-11-22** (7 f. · 3 190 l. après correctifs, 10 défauts F722–F731 + 2 structurels F732–F733, dettes R273–R275, **R270 soldée**) ; **L30 `workers`/`queue`/`resilience`/`cache` clos le 2026-11-22** (17 f. · 3 933 l. après correctifs, 9 défauts F734–F742 + 3 structurels F743–F745, dettes R276–R279) ; **L31 `middleware`/`authz`/`permissions`/`secguard` clos le 2026-11-22** (17 f. · 3 622 l. après correctifs, 6 défauts F746–F751 + 1 structurel F752, dettes R280–R282) ; **L32 `abuse`/`antispam`/`trust`/`pow` clos le 2026-11-22** (13 f. · 3 788 l. après correctifs, 5 défauts F755–F759 + 1 structurel F760, dettes R283–R285) ; prochain = **L33** (`flags`, `adminauthz`, `apiaccess`, `auditlog`)) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -255,7 +255,14 @@ wallet non atomique), dettes **R276–R279**.
 CORS fail-open sur allowlist vide, clé d'idempotence sans la query, IP client choisie par le client sur trois sites,
 édition de média autorisée sans identité, plafond anti-flood ignoré sans UID) et **1 structurel** (F752 : retrait de
 `middleware.RealIP` déprécié, IP résolue par une seule fonction, code mort supprimé), dettes **R280–R282**.
-**Lot suivant : L32** — `apps/api/internal/{abuse,antispam,trust,pow}` (anti-abus temps réel).
+
+**L32 est clos le 2026-11-22** : anti-abus temps réel `abuse`, `antispam`, `trust`, `pow` (**13 f. · 3 788 l.**
+après correctifs) — **5 défauts** F755–F759 (panne Redis rendant le profil de confiance permissif, évaluation en
+échec inscrivant quand même l'utilisateur au compteur de son sous-réseau, empreinte navigateur écrite par le client
+et jamais relue, jeton PoW accepté sans magasin anti-rejeu, verdict humain d'un recours attribué à la politique v1)
+et **1 structurel** (F760 : alias SQL ignoré retiré de l'API d'exclusion, paramètre `expiresAt` fantôme et variable
+morte du chemin de recours). Dettes **R283–R285**.
+**Lot suivant : L33** — `apps/api/internal/{flags,adminauthz,apiaccess,auditlog}` (autorisation et journal d'audit).
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2234,6 +2241,74 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L32 — `abuse` · `antispam` · `trust` · `pow` — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l`) : **13 fichiers de production · 3 788 l.** après correctifs (3 751 l.
+avant) — `abuse` (10 f. · 2 206 l.), `antispam` (2 f. · 878 l.), `trust` (1 f. · 506 l.), `pow` (1 f. · 198 l.).
+Lus intégralement **avec leurs appelants réels** : `internal/secguard` (chaîne `EvaluateRequest → EnforceRateLimit →
+EnforceContentWrite → CheckColdDM/TrackFollowAction`), `cmd/server/hardening.go` (`challengeHandler`,
+`isPoWBurstCandidate`, `requirePoWOnBurst` : le middleware PoW ne s'active que si Redis **et** secret sont
+présents), `modules/{posts,home,creator,newsletters,ai,support}` (budgets `ConsumeBudget`/`ConfirmAllowed`),
+`modules/{users,admin,appeals}` (invalidation et recalcul de confiance), `modules/feed` (exclusions SQL),
+`workers/follow_ring` (observation hors requête), `support/ticket` (budget e-mail). **3 fichiers d'audit · 209 l.
+(5 tests)** s'ajoutent.
+
+**5 défauts corrigés** F755–F759, chacun adossé à un rouge réellement exécuté (worktree
+`git worktree add -f /tmp/qoe-l32-red 3bfc51f4`, suites `TestAuditL32_*`).
+
+| # | Défaut | Preuve (test) | Rouge constaté |
+|---|---|---|---|
+| F755 | **Panne Redis = profil de confiance plus permissif** : `collectRealtimeSignals` avalait l'erreur du pipeline et rendait `strikes=0, subnetUsers=0`, donc un compte à cinq strikes repassait au palier supérieur (quotas plus larges) pendant toute la panne. `secguard.EvaluateRequest` documente pourtant « jamais un défaut permissif sur une erreur ». Toute panne remonte désormais en erreur (`redis.Nil` = compteur absent, seul cas toléré), et l'appelant dégrade vers `RESTRICTED`. | `TestAuditL32_RedisOutageIsAnError` | `panne Redis : profil permissif calculé sans erreur (strikes et sous-réseau perdus)` |
+| F756 | **Évaluation en échec qui pollue quand même les compteurs réseau** : l'utilisateur était inscrit dans `sec:net:users:<subnet>` **avant** la lecture des signaux. Une base injoignable (ou un compte absent) laissait un membre fantôme pendant une heure, et le compteur `> 3` pénalise alors de **-30 tous les comptes réels du même /24** — faux positifs gratuits, pilotables de l'extérieur. L'ordre est inversé (base d'abord, compteurs ensuite) : une évaluation qui échoue ne laisse aucune trace. | `TestAuditL32_FailedEvaluationDoesNotPolluteSubnet` | `évaluation en échec : l'utilisateur a quand même été inscrit au compteur sec:net:users:203.0.113.0/24` |
+| F757 | **État Redis mort piloté par le client** : l'empreinte navigateur était écrite à chaque évaluation (une clé `sec:net:fp:<hash>` par User-Agent distinct, TTL 1 h) et **jamais relue** par aucun code. Un client choisit son propre User-Agent : il faisait donc croître l'espace de clés à volonté pour rien. L'écriture et son paramètre `userAgent` (présent sur toute la chaîne `Evaluate`) sont supprimés ; le compteur de sous-réseau, lui, reste lu et écrit. | `TestAuditL32_NoUnreadUserAgentFingerprintKeys` | `empreinte navigateur jamais lue mais écrite : 3 clés [sec:net:fp:36f5a282… sec:net:fp:3dd4d3a9… sec:net:fp:a257e973…]` |
+| F758 | **PoW sans magasin anti-rejeu = rejeu illimité** : `VerifyAndConsume(ctx, nil, …)` vérifiait signature, expiration et solution, puis acceptait le jeton **sans rien marquer de consommé** — le même jeton servait indéfiniment. Un jeton vérifié qu'on ne peut pas consommer est refusé (`ErrNoReplayStore`) : la primitive ne rend plus « valide » un PoW qu'elle ne peut pas invalider. Le middleware de production n'appelle jamais sans Redis ; l'API, elle, le dit maintenant. | `TestAuditL32_NoReplayWithoutStore` | `jeton vérifié sans magasin anti-rejeu (attendu un refus)` |
+| F759 | **Recours : verdict humain attribué à la mauvaise politique** : `DecideAppeal` insérait le verdict humain sous `PolicyV1` **en dur**, même quand la décision contestée venait de la politique courante (v3). La trace d'audit attribuait le verdict à une politique qui n'a jamais vu les faits, et le rejeu du dossier sous v1 ne reproduisait plus rien. Le verdict humain reprend désormais la politique **et** la version de la décision contestée (`contestableDecision` les lit). | `TestAuditL32_AppealVerdictKeepsContestedPolicy` | `verdict humain enregistré abuse-core/v1 alors que la décision contestée est abuse-core/v3` |
+
+**Correctifs structurels, sans rouge isolable** (déclarés comme tels) :
+
+- **F760 — API d'exclusion qui mentait et paramètre fantôme** : `abuse.DiscoveryExclusionThought` et
+  `FollowingExclusionThought` acceptaient un alias de pensée qu'elles ignoraient (`_ = thoughtAlias`) ; l'alias est
+  retiré (3 appels dans `modules/feed`, 1 test). `insertHumanVerdict` portait un `expiresAt` toujours `nil` chez ses
+  deux seuls appelants : le paramètre est supprimé et la colonne vaut `NULL` explicitement (un acte humain ne périme
+  pas tout seul, contrairement aux revues prioritaires automatiques). `DecideAppeal` calculait un `decisionID`
+  jamais lu (`_ = decisionID`) : supprimé. `trust.Evaluate` perd son paramètre `userAgent` (F757), donc deux
+  arguments au lieu de trois sur ses quatre appelants.
+
+**`antispam` (878 l. lues en entier)** : aucun défaut nouveau prouvable au-delà de la famille **fail-open sans
+Redis** déjà cadrée par R282 — déduplication, strikes, gel d'écriture et plafond cold-DM laissent passer quand
+Redis est injoignable (`CheckColdDM` le documente, `IsWriteFrozen`/`ApplyStrike` avalent l'erreur). Comportement
+conservé et reporté en **R283** avec son motif produit plutôt que changé unilatéralement (couper toutes les
+écritures sur une panne Redis est un arbitrage, pas un correctif).
+
+**Migrations** : **aucune nécessaire**. `ExpectedMigrationVersion` reste **95**.
+
+**Tests existants adaptés** (contrats qui encodaient le comportement corrigé, à signaler) :
+`internal/pow/pow_test.go` (rc `nil` : succès → `ErrNoReplayStore`), `internal/trust/trust_test.go` (appels
+`Evaluate` à trois arguments, et l'assertion « clé d'empreinte UA présente » remplacée par l'existence de
+l'ensemble `sec:net:users:`), `internal/modules/appeals/handler_test.go` (le double mémoire rend les cinq colonnes
+de `contestableDecision`), `internal/abuse/eligibility_test.go` (nouvelles signatures d'exclusion).
+
+**Dettes ouvertes** (numérotation en continuité de R282) :
+
+- **R283 — fail-open `antispam` sans Redis** : déduplication SimHash/LSH, strikes, gel d'écriture et plafond de DM à
+  froid ne peuvent tenir aucun état sans Redis et laissent donc passer (`SetNX`/`INCR`/`TTL` en erreur). Motif
+  assumé : bloquer **toutes** les écritures sur une panne Redis est un déni de service choisi, pas une protection.
+  À trancher avec R282 (même arbitrage disponibilité/sécurité), une fois la métrique `fail_open` mesurée.
+- **R284 — verdicts automatiques re-persistés à chaque fait** : au-dessus du seuil, chaque nouveau fait persiste un
+  `RiskDecision` identique (politique, version, raisons, expiration 72 h). Aucun impact sécurité (la file de revue
+  déduplique par sujet via `DISTINCT ON`), mais la table croît linéairement avec le trafic pendant une rafale.
+  Déduplication par fenêtre à décider (produit) : un verdict déjà ouvert couvre-t-il les faits suivants ?
+- **R285 — fenêtre de fraîcheur du cache de confiance** : les signaux DB (`phoneVerified`, rôle, sanctions
+  `RiskDecision`) sont mis en cache 10 min dans `sec:trust:{userID}`. Tous les chemins applicatifs qui écrivent une
+  sanction appellent `InvalidateUser` (admin, settings, users) ; une écriture **hors API** (migration, console SQL,
+  worker futur) resterait donc invisible jusqu'à 10 min. Règle d'exploitation à documenter, pas correctif de code :
+  supprimer le cache coûterait une requête SQL par écriture utilisateur.
+
+**Commandes passées sur l'arbre corrigé** : `gofmt -l .` (dépôt entier) → **0** ; `go build ./...` → 0 ;
+`go vet ./...` → 0 ; `QOE_DB_TESTS_OPTIONAL=1 go test ./...` → **85 paquets `ok`, 0 `FAIL`** (status 0) ; workspace :
+`typecheck`, `lint`, `arch:audit`, `audit:guard`, `guard:flags-parity`, `guard:media-origin` → **6 × 0**. Aucun
+fichier TypeScript touché : **vitest non requis** (et non lancé).
 
 ## L31 — `middleware` · `authz` · `permissions` · `secguard` — **clos le 2026-11-22**
 

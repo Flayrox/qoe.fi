@@ -358,7 +358,7 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 			  AND u."isShadowbanned" = false AND u."isSuspended" = false
 			  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
 			  AND (p."authorId" = $1 OR (p."authorId" = ANY($2::uuid[]) AND p.visibility IN ('public','followers')))
-			` + abuse.FollowingExclusionThought("u", "p") + thoughtEligibility("$1", false) + `
+			` + abuse.FollowingExclusionThought("u") + thoughtEligibility("$1", false) + `
 			ORDER BY p."createdAt" DESC, p.id DESC LIMIT 20`
 		thArgs = []any{toUUID(userID), toUUIDSlice(followedUserIDs)}
 	case "discover":
@@ -368,7 +368,7 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 			  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
 			  AND u.role = 'creator' AND u."isCertified" = true
 			  AND u."isShadowbanned" = false AND u."isSuspended" = false			AND NOT (p."authorId" = ANY($1::uuid[]))
-			` + abuse.DiscoveryExclusionThought("u", "p") + thoughtEligibility("$2", true) + `
+			` + abuse.DiscoveryExclusionThought("u") + thoughtEligibility("$2", true) + `
 			ORDER BY p."createdAt" DESC, p.id DESC LIMIT 20`
 		excluded := append(append([]string{}, followedUserIDs...), userID)
 		thArgs = []any{toUUIDSlice(excluded), toUUID(userID)}
@@ -378,7 +378,7 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 			WHERE p."isDraft" = false AND p."deletedAt" IS NULL
 			  AND u."isShadowbanned" = false AND u."isSuspended" = false
 			  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())			AND p.visibility = 'public'
-			` + abuse.DiscoveryExclusionThought("u", "p") + thoughtEligibility("$1", true) + `
+			` + abuse.DiscoveryExclusionThought("u") + thoughtEligibility("$1", true) + `
 			ORDER BY p."createdAt" DESC, p.id DESC LIMIT 20`
 		thArgs = []any{toUUID(userID)}
 	}

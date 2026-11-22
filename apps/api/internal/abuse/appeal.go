@@ -106,22 +106,36 @@ type AppealMessage struct {
 	CreatedAt string `json:"createdAt"`
 }
 
+// contestedVerdict est le verdict contesté : son identifiant, le résultat et
+// les raisons qui l'ont produit, mais aussi la politique et la version qui
+// l'ont rendu. Le verdict humain qui le clôt les reprend telles quelles :
+// rejouer le dossier doit reproduire le verdict contesté, pas la politique
+// du jour (une politique s'ajoute, ne se réécrit jamais).
+type contestedVerdict struct {
+	ID      string
+	Policy  string
+	Version string
+	Result  string
+	Reasons []string
+}
+
 // contestableDecision renvoie le dernier verdict non-allow et non expiré du
 // sujet (celui qu'on conteste), ou ErrNothingToAppeal.
-func contestableDecision(ctx context.Context, pool SignalDB, subjectType, subjectID string, now time.Time) (id, result string, reasons []string, err error) {
-	err = pool.QueryRow(ctx, `
-		SELECT "id", "result", "reasonCodes" FROM "RiskDecision"
+func contestableDecision(ctx context.Context, pool SignalDB, subjectType, subjectID string, now time.Time) (contestedVerdict, error) {
+	var c contestedVerdict
+	err := pool.QueryRow(ctx, `
+		SELECT "id", "policy", "version", "result", "reasonCodes" FROM "RiskDecision"
 		WHERE "subjectType" = $1 AND "subjectId" = $2
 		  AND "result" <> 'allow' AND ("expiresAt" IS NULL OR "expiresAt" > $3)
 		ORDER BY "createdAt" DESC, "decidedBy" DESC, "id" DESC LIMIT 1`,
-		subjectType, subjectID, now).Scan(&id, &result, &reasons)
+		subjectType, subjectID, now).Scan(&c.ID, &c.Policy, &c.Version, &c.Result, &c.Reasons)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return "", "", nil, ErrNothingToAppeal
+			return contestedVerdict{}, ErrNothingToAppeal
 		}
-		return "", "", nil, err
+		return contestedVerdict{}, err
 	}
-	return id, result, reasons, nil
+	return c, nil
 }
 
 // OpenAppeal ouvre un recours (l'ouvreur conteste pour lui-même). Crée le
@@ -145,10 +159,11 @@ func OpenAppeal(ctx context.Context, pool SignalDB, subjectType, subjectID, open
 		message = m
 	}
 	now = now.UTC()
-	decisionID, _, _, err := contestableDecision(ctx, pool, subjectType, subjectID, now)
+	contested, err := contestableDecision(ctx, pool, subjectType, subjectID, now)
 	if err != nil {
 		return Appeal{}, err
 	}
+	decisionID := contested.ID
 	var id string
 	err = pool.QueryRow(ctx, `
 		INSERT INTO "Appeal" ("id", "subjectType", "subjectId", "decisionId", "openedBy", "status", "createdAt", "updatedAt")
@@ -390,7 +405,6 @@ func DecideAppeal(ctx context.Context, pool SignalDB, appealID, staffID, status,
 		}
 		next = status
 	}
-	var decisionID *string
 	if next == AppealDecided {
 		if !ValidAppealOutcome(outcome) {
 			return Appeal{}, fmt.Errorf("%w : outcome upheld ou overturned exigé pour clôturer", ErrInvalidAppeal)
@@ -400,21 +414,20 @@ func DecideAppeal(ctx context.Context, pool SignalDB, appealID, staffID, status,
 		// (faux positif avéré, la mesure tombe) ; upheld = on reprend le
 		// résultat contesté tel quel (y compris needs_review : la revue
 		// continue, avec l'avis humain tracé — upheld ne clôt que le
-		// recours, pas la vigilance).
-		_, res, reasons, err := contestableDecision(ctx, pool, a.SubjectType, a.SubjectID, now)
+		// recours, pas la vigilance). Politique et version sont celles du
+		// verdict contesté : c'est lui qu'on rejoue, pas la politique du jour.
+		contested, err := contestableDecision(ctx, pool, a.SubjectType, a.SubjectID, now)
 		if err != nil {
 			return Appeal{}, err
 		}
 		result := DecisionAllow
 		if outcome == AppealUpheld {
-			result = Decision(res)
+			result = Decision(contested.Result)
 		}
-		did, err := insertHumanVerdict(ctx, pool, PolicyV1.Name, PolicyV1.Version,
-			a.SubjectType, a.SubjectID, reasons, "human:"+outcome, result, staffID, staffNote, appealID, nil, now)
-		if err != nil {
+		if _, err := insertHumanVerdict(ctx, pool, contested.Policy, contested.Version,
+			a.SubjectType, a.SubjectID, contested.Reasons, "human:"+outcome, result, staffID, staffNote, appealID, now); err != nil {
 			return Appeal{}, err
 		}
-		decisionID = &did
 	}
 	note := a.StaffNote
 	if s := strings.TrimSpace(staffNote); s != "" {
@@ -445,6 +458,5 @@ func DecideAppeal(ctx context.Context, pool SignalDB, appealID, staffID, status,
 			return Appeal{}, err
 		}
 	}
-	_ = decisionID
 	return GetAppeal(ctx, pool, appealID)
 }

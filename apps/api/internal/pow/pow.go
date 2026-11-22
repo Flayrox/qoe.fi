@@ -30,6 +30,10 @@ var (
 	ErrExpiredChallenge  = errors.New("pow: challenge expiré")
 	ErrInvalidSolution   = errors.New("pow: solution PoW invalide")
 	ErrChallengeReplayed = errors.New("pow: challenge déjà consommé")
+	// ErrNoReplayStore : aucun magasin de consommation fourni. Un jeton
+	// vérifié sans pouvoir être marqué comme consommé est rejouable à
+	// l'infini : on refuse plutôt que d'accepter un PoW décoratif.
+	ErrNoReplayStore = errors.New("pow: magasin anti-rejeu requis")
 )
 
 // Challenge représente un défi Proof-of-Work signé par le serveur.
@@ -93,13 +97,13 @@ func GenerateChallenge(secret string, maxNumber int, ttl time.Duration) (Challen
 }
 
 // VerifyAndConsume vérifie la signature HMAC, l'expiration et la preuve de travail
-// d'un jeton (JSON brut ou base64), puis marque le challenge comme consommé dans Redis
-// si rc != nil pour empêcher tout rejeu.
+// d'un jeton (JSON brut ou base64), puis marque le challenge comme consommé dans
+// Redis pour empêcher tout rejeu. rc est OBLIGATOIRE : sans magasin, un jeton
+// valide resterait éternellement rejouable (ErrNoReplayStore).
 func VerifyAndConsume(ctx context.Context, rc *redis.Client, secret, encodedToken string) error {
 	if secret == "" {
 		return ErrEmptySecret
 	}
-
 	raw := strings.TrimSpace(encodedToken)
 	if raw == "" {
 		return ErrInvalidToken
@@ -150,19 +154,23 @@ func VerifyAndConsume(ctx context.Context, rc *redis.Client, secret, encodedToke
 		return ErrInvalidSolution
 	}
 
-	if rc != nil {
-		remaining := time.Until(time.Unix(sol.ExpiresAt, 0))
-		if remaining < time.Second {
-			remaining = time.Second
-		}
-		key := "pow:used:" + sol.Challenge
-		ok, err := rc.SetNX(ctx, key, "1", remaining).Result()
-		if err != nil {
-			return fmt.Errorf("pow: anti-rejeu redis: %w", err)
-		}
-		if !ok {
-			return ErrChallengeReplayed
-		}
+	// Le jeton est valide ; il ne peut pourtant pas être accepté : sans
+	// magasin, aucune consommation ne serait tracée (rejeu illimité).
+	if rc == nil {
+		return ErrNoReplayStore
+	}
+
+	remaining := time.Until(time.Unix(sol.ExpiresAt, 0))
+	if remaining < time.Second {
+		remaining = time.Second
+	}
+	key := "pow:used:" + sol.Challenge
+	ok, err := rc.SetNX(ctx, key, "1", remaining).Result()
+	if err != nil {
+		return fmt.Errorf("pow: anti-rejeu redis: %w", err)
+	}
+	if !ok {
+		return ErrChallengeReplayed
 	}
 
 	return nil

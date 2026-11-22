@@ -133,7 +133,6 @@ func ResolveDecision(ctx context.Context, pool BudgetDB, subjectType, subjectID,
 		}
 		return "", err
 	}
-	var expiresAt *time.Time
 	if latestResult == string(DecisionAllow) {
 		return "", ErrNoOpenDecision // déjà classé : pas de re-clôture
 	}
@@ -141,7 +140,7 @@ func ResolveDecision(ctx context.Context, pool BudgetDB, subjectType, subjectID,
 		return "", ErrNoOpenDecision // périmé : plus une urgence, pas un dossier
 	}
 	id, err := insertHumanVerdict(ctx, pool, policy, version, subjectType, subjectID,
-		reasons, "human:"+string(result), result, humanID, note, "", expiresAt, now)
+		reasons, "human:"+string(result), result, humanID, note, "", now)
 	if err != nil {
 		return "", err
 	}
@@ -154,13 +153,18 @@ func ResolveDecision(ctx context.Context, pool BudgetDB, subjectType, subjectID,
 // raisons reprises + code humain (human:<résultat> en revue, human:<outcome>
 // en recours), auteur, note, appealRef optionnel. Retourne l'identifiant.
 // Une seule implémentation pour les deux voies : même traçabilité.
-func insertHumanVerdict(ctx context.Context, pool BudgetDB, policy, version, subjectType, subjectID string, baseReasons []string, humanCode string, result Decision, deciderID, note, appealRef string, expiresAt *time.Time, now time.Time) (string, error) {
+//
+// `expiresAt` reste NULL : un acte humain ne périme pas tout seul (l'expiration
+// périme les revues prioritaires automatiques, pas une décision signée).
+// La politique et la version viennent de la décision examinée, jamais d'un
+// littéral : c'est ce qui rend le dossier rejouable.
+func insertHumanVerdict(ctx context.Context, pool BudgetDB, policy, version, subjectType, subjectID string, baseReasons []string, humanCode string, result Decision, deciderID, note, appealRef string, now time.Time) (string, error) {
 	humanReasons := append(append([]string{}, baseReasons...), humanCode)
 	var id string
 	err := pool.QueryRow(ctx, `
 		INSERT INTO "RiskDecision" ("id", "policy", "version", "subjectType", "subjectId", "result", "reasonCodes", "decidedBy", "deciderId", "note", "appealRef", "expiresAt", "createdAt")
-		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, 'human', $7, NULLIF(TRIM($8), ''), NULLIF(TRIM($9), ''), $10, $11)
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, 'human', $7, NULLIF(TRIM($8), ''), NULLIF(TRIM($9), ''), NULL, $10)
 		RETURNING "id"`,
-		policy, version, subjectType, subjectID, string(result), humanReasons, deciderID, note, appealRef, expiresAt, now).Scan(&id)
+		policy, version, subjectType, subjectID, string(result), humanReasons, deciderID, note, appealRef, now).Scan(&id)
 	return id, err
 }

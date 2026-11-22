@@ -64,10 +64,9 @@ func DiscoveryExclusionArticle(authorAlias, articleAlias string) string {
 }
 
 // DiscoveryExclusionThought s'ajoute aux requêtes de découverte portant sur
-// des pensées (alias auteur `u`, alias pensée `p` — sans publication) : même
-// effet, sujet auteur uniquement.
-func DiscoveryExclusionThought(authorAlias, thoughtAlias string) string {
-	_ = thoughtAlias // l'alias pensée est documenté pour l'appelant ; le sujet est l'auteur
+// des pensées : même effet, sujet auteur uniquement (une pensée n'a pas de
+// publication, donc aucun alias article à offrir).
+func DiscoveryExclusionThought(authorAlias string) string {
 	return exclusionFragment(authorAlias, "", discoveryResults)
 }
 
@@ -79,9 +78,8 @@ func FollowingExclusionArticle(authorAlias, articleAlias string) string {
 	return exclusionFragment(authorAlias, articleAlias, hardBlockResults)
 }
 
-// FollowingExclusionThought : même effet pour les pensées (alias auteur
-// `u`, alias pensée `p`).
-func FollowingExclusionThought(authorAlias, thoughtAlias string) string {
-	_ = thoughtAlias
+// FollowingExclusionThought : même effet pour les pensées, sujet auteur
+// uniquement.
+func FollowingExclusionThought(authorAlias string) string {
 	return exclusionFragment(authorAlias, "", hardBlockResults)
 }

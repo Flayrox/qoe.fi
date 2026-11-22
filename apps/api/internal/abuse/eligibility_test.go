@@ -27,7 +27,7 @@ func TestDiscoveryExclusion_CoversLimitationAndHardBlock(t *testing.T) {
 }
 
 func TestDiscoveryExclusionThought_AuthorOnly(t *testing.T) {
-	frag := DiscoveryExclusionThought("u", "p")
+	frag := DiscoveryExclusionThought("u")
 	if strings.Contains(frag, "publisher") {
 		t.Error("fragment pensées : pas de sujet publication (les pensées n'en portent pas)")
 	}
@@ -40,7 +40,7 @@ func TestFollowingExclusion_HardBlockOnly(t *testing.T) {
 	// Le flux suivi ne connaît que le refus dur : une limitation de
 	// distribution n'y retire JAMAIS rien (freiner l'amplification ≠
 	// défaire le choix du lecteur).
-	for _, frag := range []string{FollowingExclusionArticle("u", "a"), FollowingExclusionThought("u", "p")} {
+	for _, frag := range []string{FollowingExclusionArticle("u", "a"), FollowingExclusionThought("u")} {
 		if !strings.Contains(frag, "'suspend'") {
 			t.Error("fragment suivi : le refus dur (suspend) doit s'appliquer")
 		}

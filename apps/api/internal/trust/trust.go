@@ -1,13 +1,11 @@
 // Package trust calcule le niveau de confiance (Trust Tier) d'un utilisateur
 // à partir de signaux déterministes (vérification téléphone, ancienneté,
 // réseau d'abonnés qualifiés, sanctions) et d'indicateurs temps réel en Redis
-// (strikes, multi-comptes par sous-réseau, empreinte navigateur, baseline EWMA).
+// (strikes, multi-comptes par sous-réseau, baseline EWMA).
 package trust
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -247,11 +245,6 @@ func subnetUsersKey(subnet string) string {
 	return "sec:net:users:" + subnet
 }
 
-func userAgentFingerprintKey(userAgent string) string {
-	sum := sha256.Sum256([]byte(userAgent))
-	return "sec:net:fp:" + hex.EncodeToString(sum[:8])
-}
-
 func baselineKey(metric string) string {
 	return "sec:baseline:" + metric
 }
@@ -259,14 +252,30 @@ func baselineKey(metric string) string {
 // Evaluate retourne le profil de confiance courant de userID.
 // Les signaux DB sont mis en cache 10 minutes dans `sec:trust:{userID}` tandis
 // que les strikes et compteurs sous-réseau sont lus en direct dans Redis.
-func (s *Service) Evaluate(ctx context.Context, userID, subnet, userAgent string) (Profile, error) {
+//
+// Ordre volontaire : la base d'abord, puis les compteurs temps réel. Inverser
+// les deux inscrivait l'utilisateur au compteur de son sous-réseau AVANT de
+// savoir si son profil était lisible : une évaluation qui échouait ensuite
+// laissait un membre fantôme dans `sec:net:users:<subnet>` pendant une heure,
+// pénalisant de -30 tous les comptes réels du même /24 (faux positifs et
+// pollution pilotable depuis l'extérieur). Une évaluation ne laisse donc
+// aucune trace tant qu'elle n'a pas abouti.
+//
+// Une panne Redis n'est PAS avalée : strikes et compteurs sous-réseau
+// reviendraient à zéro, donc le profil serait plus permissif que la réalité
+// (un compte à cinq strikes repasserait au palier supérieur). L'appelant
+// dégrade alors vers RESTRICTED, jamais vers un défaut plus favorable.
+func (s *Service) Evaluate(ctx context.Context, userID, subnet string) (Profile, error) {
 	if userID == "" {
 		return Profile{}, errors.New("identifiant utilisateur requis pour l'évaluation de confiance")
 	}
 
-	strikes, subnetUsers := s.collectRealtimeSignals(ctx, userID, subnet, userAgent)
-
 	dbSig, err := s.loadUserSignals(ctx, userID)
+	if err != nil {
+		return Profile{}, err
+	}
+
+	strikes, subnetUsers, err := s.collectRealtimeSignals(ctx, userID, subnet)
 	if err != nil {
 		return Profile{}, err
 	}
@@ -299,9 +308,13 @@ func (s *Service) Evaluate(ctx context.Context, userID, subnet, userAgent string
 	return prof, nil
 }
 
-func (s *Service) collectRealtimeSignals(ctx context.Context, userID, subnet, userAgent string) (strikes int, subnetUsers int64) {
+// collectRealtimeSignals lit les strikes et le nombre d'utilisateurs du
+// sous-réseau, en inscrivant l'utilisateur courant dans l'ensemble du
+// sous-réseau (fenêtre glissante d'une heure). Toute panne Redis remonte en
+// erreur : un compteur illisible vaut « inconnu », jamais « zéro ».
+func (s *Service) collectRealtimeSignals(ctx context.Context, userID, subnet string) (strikes int, subnetUsers int64, err error) {
 	if s == nil || s.rc == nil {
-		return 0, 0
+		return 0, 0, nil
 	}
 
 	pipe := s.rc.Pipeline()
@@ -314,25 +327,27 @@ func (s *Service) collectRealtimeSignals(ctx context.Context, userID, subnet, us
 		pipe.Expire(ctx, sk, networkWindowTTL)
 		subnetCountCmd = pipe.SCard(ctx, sk)
 	}
-	if userAgent != "" {
-		fpk := userAgentFingerprintKey(userAgent)
-		pipe.SAdd(ctx, fpk, userID)
-		pipe.Expire(ctx, fpk, networkWindowTTL)
+
+	// redis.Nil = compteur absent (aucun strike, aucun membre), pas une panne.
+	if _, execErr := pipe.Exec(ctx); execErr != nil && !errors.Is(execErr, redis.Nil) {
+		return 0, 0, fmt.Errorf("trust: compteurs temps réel illisibles: %w", execErr)
 	}
 
-	_, _ = pipe.Exec(ctx)
-
-	if raw, err := strikesCmd.Result(); err == nil {
+	if raw, getErr := strikesCmd.Result(); getErr == nil {
 		if n, convErr := strconv.Atoi(raw); convErr == nil && n > 0 {
 			strikes = n
 		}
+	} else if !errors.Is(getErr, redis.Nil) {
+		return 0, 0, fmt.Errorf("trust: strikes illisibles: %w", getErr)
 	}
 	if subnetCountCmd != nil {
-		if n, err := subnetCountCmd.Result(); err == nil {
+		if n, countErr := subnetCountCmd.Result(); countErr == nil {
 			subnetUsers = n
+		} else if !errors.Is(countErr, redis.Nil) {
+			return 0, 0, fmt.Errorf("trust: compteur sous-réseau illisible: %w", countErr)
 		}
 	}
-	return strikes, subnetUsers
+	return strikes, subnetUsers, nil
 }
 
 func (s *Service) loadUserSignals(ctx context.Context, userID string) (cachedTrustSignals, error) {
