@@ -69,18 +69,20 @@ func TestFault_Handlers_PoolErrors(t *testing.T) {
 	seedHome(t)
 
 	cases := []struct {
-		name     string
-		fail     string
+		name         string
+		fail         string
 		method, path string
-		body     string
-		want     int
+		body         string
+		want         int
 	}{
 		{"config-500", "query", http.MethodGet, "/v1/home/config", "", http.StatusInternalServerError},
 		{"trends-500", "query", http.MethodGet, "/v1/home/trends", "", http.StatusInternalServerError},
 		{"promos-500", "query", http.MethodGet, "/v1/home/promos", "", http.StatusInternalServerError},
 		{"suggested-500", "query", http.MethodGet, "/v1/home/suggested-creators", "", http.StatusInternalServerError},
 		{"semantic-500", "query", http.MethodGet, "/v1/home/semantic-trends", "", http.StatusInternalServerError},
-		{"subscribe-500", "exec", http.MethodPost, "/v1/home/subscribe", `{"email":"a@b.fr","publisherId":"pub_1"}`, http.StatusInternalServerError},
+		{"subscribe-panne-500", "queryrow", http.MethodPost, "/v1/home/subscribe", `{"email":"a@b.fr","publisherId":"pub_1"}`, http.StatusInternalServerError},
+		// Publication inconnue : 404 explicite (avant : 500 générique).
+		{"subscribe-inconnue-404", "exec", http.MethodPost, "/v1/home/subscribe", `{"email":"a@b.fr","publisherId":"pub_1"}`, http.StatusNotFound},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -111,8 +113,8 @@ func TestFault_Handlers_PoolErrors(t *testing.T) {
 func TestSubscribe_BadRequests(t *testing.T) {
 	r := faultRouter(&faultPool{pooler: poolTest})
 	for _, tc := range []struct{ body string }{
-		{`{bad`},                       // JSON invalide
-		{`{"email":""}`},               // champs requis
+		{`{bad`},         // JSON invalide
+		{`{"email":""}`}, // champs requis
 		{`{"email":"pas-un-email","publisherId":"p"}`}, // email invalide
 	} {
 		w := httptest.NewRecorder()

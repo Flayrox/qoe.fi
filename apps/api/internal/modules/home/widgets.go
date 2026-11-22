@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/qoefi/api/internal/abuse"
 	"github.com/qoefi/api/internal/modules/newsletters"
@@ -37,63 +38,65 @@ type OnboardingData struct {
 
 // GetOnboardingData renvoie les catégories statiques + créateurs certifiés
 // (fallback : n'importe quel créateur, comme le Prisma).
-func (s *Service) GetOnboardingData(ctx context.Context) OnboardingData {
+func (s *Service) GetOnboardingData(ctx context.Context) (OnboardingData, error) {
 	out := OnboardingData{Categories: richDefaultTopics}
-	var creators []OnboardingCreator
-	rows, err := s.pool.Query(ctx, `
+	creators, err := s.onboardingCreators(ctx, true)
+	if err != nil {
+		return OnboardingData{}, err
+	}
+	if len(creators) == 0 {
+		// Fallback : n'importe quel créateur (aucun certifié en base).
+		creators, err = s.onboardingCreators(ctx, false)
+		if err != nil {
+			return OnboardingData{}, err
+		}
+	}
+	if creators == nil {
+		creators = []OnboardingCreator{}
+	}
+	out.SuggestedCreators = creators
+	return out, nil
+}
+
+// onboardingCreators charge les créateurs du widget d'onboarding. Toute erreur
+// (requête, Scan, itération) remonte : avant, une panne rendait un 200 avec une
+// liste vide, indistinguable d'un onboarding sans créateur.
+func (s *Service) onboardingCreators(ctx context.Context, certifiedOnly bool) ([]OnboardingCreator, error) {
+	doc := `
 		SELECT p.id::text, u.name, p.slug, p.subdomain, p."logoUrl", p."heroText", p."isCertified"
 		FROM "Publisher" p
 		JOIN "User" u ON u."publisherId" = p.id
-		WHERE p.type = 'PERSONAL' AND p."isCertified" = true AND u.role = 'creator'
-		LIMIT 8`)
+		WHERE p.type = 'PERSONAL' AND u.role = 'creator'`
+	if certifiedOnly {
+		doc += ` AND p."isCertified" = true`
+	}
+	doc += ` ORDER BY p."isCertified" DESC, p.id ASC LIMIT 8`
+
+	rows, err := s.pool.Query(ctx, doc)
 	if err != nil {
-		log.Printf("[home] onboarding certified: %v", err)
-		out.SuggestedCreators = []OnboardingCreator{}
-		return out
+		return nil, err
 	}
 	defer rows.Close()
+	creators := make([]OnboardingCreator, 0, 8)
 	for rows.Next() {
 		var c OnboardingCreator
 		var name, slug, subdomain, logoURL, heroText pgtype.Text
 		var certified bool
-		if err := rows.Scan(&c.ID, &name, &slug, &subdomain, &logoURL, &heroText, &certified); err == nil {
-			c.Name = textPtr(name)
-			c.Slug = textPtr(slug)
-			c.Subdomain = textPtr(subdomain)
-			c.LogoURL = textPtr(logoURL)
-			c.HeroText = textPtr(heroText)
-			c.IsCertified = certified
-			creators = append(creators, c)
+		if err := rows.Scan(&c.ID, &name, &slug, &subdomain, &logoURL, &heroText, &certified); err != nil {
+			return nil, err
 		}
+		c.Name = textPtr(name)
+		c.Slug = textPtr(slug)
+		c.Subdomain = textPtr(subdomain)
+		c.LogoURL = textPtr(logoURL)
+		c.HeroText = textPtr(heroText)
+		c.IsCertified = certified
+		creators = append(creators, c)
 	}
-	if len(creators) == 0 {
-		// Fallback dev : n'importe quel créateur.
-		rows2, err := s.pool.Query(ctx, `
-			SELECT p.id::text, u.name, p.slug, p.subdomain, p."logoUrl", p."heroText", p."isCertified"
-			FROM "Publisher" p
-			JOIN "User" u ON u."publisherId" = p.id
-			WHERE p.type = 'PERSONAL' AND u.role = 'creator'
-			LIMIT 8`)
-		if err == nil {
-			defer rows2.Close()
-			for rows2.Next() {
-				var c OnboardingCreator
-				var name, slug, subdomain, logoURL, heroText pgtype.Text
-				var certified bool
-				if err := rows2.Scan(&c.ID, &name, &slug, &subdomain, &logoURL, &heroText, &certified); err == nil {
-					c.Name = textPtr(name)
-					c.Slug = textPtr(slug)
-					c.Subdomain = textPtr(subdomain)
-					c.LogoURL = textPtr(logoURL)
-					c.HeroText = textPtr(heroText)
-					c.IsCertified = certified
-					creators = append(creators, c)
-				}
-			}
-		}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
-	out.SuggestedCreators = creators
-	return out
+	return creators, nil
 }
 
 // ── Créateurs suggérés par similarité vectorielle ────────────────────────────
@@ -116,29 +119,50 @@ type SuggestedCreator struct {
 // vectorielle si l'utilisateur a un embedding, sinon cold-start (recommandations
 // plateforme + popularité). Port Go de getSuggestedCreatorsByVector.
 func (s *Service) GetSuggestedCreators(ctx context.Context, userID string, limit int) ([]SuggestedCreator, error) {
-	if limit <= 0 {
-		limit = 4
-	}
+	limit = clampHomeLimit(limit, 4, maxSuggestedCreators)
+	// `excluded` contient des **ids de publication** : les créateurs déjà
+	// suivis + la publication du lecteur. Avant, on y ajoutait l'id
+	// UTILISATEUR et la requête comparait ces ids à `u.id` : les créateurs
+	// déjà suivis continuaient donc d'être suggérés.
 	excluded := []string{}
 	var userVector *string
 
 	if userID != "" {
 		var emb pgtype.Text
-		if err := s.pool.QueryRow(ctx,
-			`SELECT COALESCE("embedding"::text, '') FROM "User" WHERE id = $1`, toUUID(userID)).Scan(&emb); err == nil && emb.Valid && emb.String != "" {
+		err := s.pool.QueryRow(ctx,
+			`SELECT COALESCE("embedding"::text, '') FROM "User" WHERE id = $1`, toUUID(userID)).Scan(&emb)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return nil, err
+		}
+		if emb.Valid && emb.String != "" {
 			userVector = &emb.String
 		}
 		rows, err := s.pool.Query(ctx, `SELECT "publisherId"::text FROM "Follows" WHERE "readerId" = $1`, toUUID(userID))
-		if err == nil {
-			for rows.Next() {
-				var pid string
-				if rows.Scan(&pid) == nil {
-					excluded = append(excluded, pid)
-				}
-			}
-			rows.Close()
+		if err != nil {
+			return nil, err
 		}
-		excluded = append(excluded, userID)
+		for rows.Next() {
+			var pid string
+			if err := rows.Scan(&pid); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			excluded = append(excluded, pid)
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		rows.Close()
+		var ownPublisher string
+		err = s.pool.QueryRow(ctx,
+			`SELECT COALESCE("publisherId"::text, '') FROM "User" WHERE id = $1`, toUUID(userID)).Scan(&ownPublisher)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return nil, err
+		}
+		if ownPublisher != "" {
+			excluded = append(excluded, ownPublisher)
+		}
 	}
 
 	var q string
@@ -160,7 +184,7 @@ func (s *Service) GetSuggestedCreators(ctx context.Context, userID string, limit
 			WHERE u."isShadowbanned" = false AND u."isSuspended" = false
 		`
 		if len(excluded) > 0 {
-			q += ` AND u.id::text NOT IN (SELECT unnest($2::text[]))`
+			q += ` AND u."publisherId"::text NOT IN (SELECT unnest($2::text[]))`
 			args = append(args, userVector, excluded)
 		} else {
 			args = append(args, userVector)
@@ -172,7 +196,7 @@ func (s *Service) GetSuggestedCreators(ctx context.Context, userID string, limit
 		SELECT id, name, username, "logoUrl", "heroText", "isCertified", subdomain, "customDomain", sim_score, recent_title, subs_count
 		FROM AuthorStats
 		WHERE rn = 1
-		ORDER BY (0.70 * sim_score + 0.20 * LEAST(1.0, subs_count / 50.0) + 0.10 * (CASE WHEN "isCertified" THEN 1.0 ELSE 0.0 END)) DESC
+		ORDER BY (0.70 * sim_score + 0.20 * LEAST(1.0, subs_count / 50.0) + 0.10 * (CASE WHEN "isCertified" THEN 1.0 ELSE 0.0 END)) DESC, id ASC
 		LIMIT $3`
 			args = append(args, limit)
 		} else {
@@ -182,7 +206,7 @@ func (s *Service) GetSuggestedCreators(ctx context.Context, userID string, limit
 		SELECT id, name, username, "logoUrl", "heroText", "isCertified", subdomain, "customDomain", sim_score, recent_title, subs_count
 		FROM AuthorStats
 		WHERE rn = 1
-		ORDER BY (0.70 * sim_score + 0.20 * LEAST(1.0, subs_count / 50.0) + 0.10 * (CASE WHEN "isCertified" THEN 1.0 ELSE 0.0 END)) DESC
+		ORDER BY (0.70 * sim_score + 0.20 * LEAST(1.0, subs_count / 50.0) + 0.10 * (CASE WHEN "isCertified" THEN 1.0 ELSE 0.0 END)) DESC, id ASC
 		LIMIT $2`
 			args = append(args, limit)
 		}
@@ -204,15 +228,17 @@ func (s *Service) GetSuggestedCreators(ctx context.Context, userID string, limit
 			LEFT JOIN "Publisher" p ON p.id = a."publisherId"
 			LEFT JOIN "Subscriber" s ON s."publisherId" = p.id AND s."isActive" = true
 			WHERE u."isShadowbanned" = false AND u."isSuspended" = false
+			  AND u."publisherId"::text NOT IN (SELECT unnest($1::text[]))
 			GROUP BY u.id, u.name, u.username, u."logoUrl", p."heroText", u."isCertified", p.subdomain, p."customDomain", a.title, a."createdAt"
 		)
 		SELECT id, name, username, "logoUrl", "heroText", "isCertified", subdomain, "customDomain", sim_score, recent_title, subs_count
 		FROM AuthorStats
 		WHERE rn = 1
-		ORDER BY (CASE WHEN id::text = ANY($1::text[]) THEN 1 ELSE 0 END) DESC,
-		         (subs_count * 2 + (CASE WHEN "isCertified" THEN 5 ELSE 0 END)) DESC
-		LIMIT $2`
-		args = append(args, pickIDs, limit)
+		ORDER BY (CASE WHEN id::text = ANY($2::text[]) THEN 1 ELSE 0 END) DESC,
+		         (subs_count * 2 + (CASE WHEN "isCertified" THEN 5 ELSE 0 END)) DESC,
+		         id ASC
+		LIMIT $3`
+		args = append(args, excluded, pickIDs, limit)
 	}
 
 	rows, err := s.pool.Query(ctx, q, args...)
@@ -251,12 +277,20 @@ func (s *Service) GetSuggestedCreators(ctx context.Context, userID string, limit
 // la plateforme (table Recommendation) — équivalent Prisma getSuggestedCreatorsByVector cold-start.
 func (s *Service) platformPickUserIDs(ctx context.Context) []string {
 	ids, err := s.queryIDs(ctx, `SELECT DISTINCT "recommendedId"::text FROM "Recommendation"`)
-	if err != nil || len(ids) == 0 {
+	if err != nil {
+		// Best-effort assumé (le classement retombe sur la popularité) mais
+		// jamais muet : sans trace, une table absente ressemble à « aucune
+		// recommandation ».
+		log.Printf("[home] suggestions: recommendations: %v", err)
+		return []string{}
+	}
+	if len(ids) == 0 {
 		return []string{}
 	}
 	users, err := s.queryIDs(ctx,
 		`SELECT u.id::text FROM "User" u WHERE u."publisherId"::text = ANY($1::text[])`, ids)
 	if err != nil {
+		log.Printf("[home] suggestions: recommended users: %v", err)
 		return []string{}
 	}
 	return users
@@ -271,9 +305,10 @@ func (s *Service) queryIDs(ctx context.Context, q string, args ...any) ([]string
 	var out []string
 	for rows.Next() {
 		var id string
-		if rows.Scan(&id) == nil {
-			out = append(out, id)
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
 		}
+		out = append(out, id)
 	}
 	return out, rows.Err()
 }
@@ -299,9 +334,7 @@ type SemanticTrendingTopic struct {
 // précédents. Un sujet « émergent » est donc un sujet dont l'activité ACCÉLÈRE
 // (attention réelle), pas un sujet à fort stock cumulé.
 func (s *Service) GetSemanticTrends(ctx context.Context, limit int) ([]SemanticTrendingTopic, error) {
-	if limit <= 0 {
-		limit = 5
-	}
+	limit = clampHomeLimit(limit, 5, maxSemanticTrends)
 	now := time.Now()
 	sevenDaysAgo := now.Add(-7 * 24 * time.Hour)
 	fourteenDaysAgo := now.Add(-14 * 24 * time.Hour)
@@ -357,7 +390,7 @@ func (s *Service) GetSemanticTrends(ctx context.Context, limit int) ([]SemanticT
 		var curr7, prev7, total int
 		var momentum float64
 		if err := rows.Scan(&topic, &curr7, &prev7, &total, &momentum); err != nil {
-			continue
+			return nil, err
 		}
 		var growthRate string
 		if prev7 == 0 {
@@ -427,7 +460,7 @@ func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publisherID,
 		return false, err
 	}
 	if !exists {
-		return false, errors.New("publication introuvable")
+		return false, errPublisherNotFound
 	}
 
 	token, err := newsletters.NewConfirmationToken()
@@ -476,9 +509,9 @@ func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publisherID,
 	// effort : une panne Redis n'empêche JAMAIS l'inscription de réussir.
 	if inserted && s.events != nil {
 		if err := queue.PublishSubscriberCreated(s.events, queue.SubscriberCreatedPayload{
-			SubscriberID:  subscriberID,
-			PublisherID: publisherID,
-			Email:         email,
+			SubscriberID: subscriberID,
+			PublisherID:  publisherID,
+			Email:        email,
 		}); err != nil {
 			log.Printf("[home] subscriber.created enqueue: %v", err)
 		}
@@ -495,7 +528,7 @@ func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publisherID,
 			return true, nil
 		}
 		if err := queue.PublishSubscriberConfirm(s.events, queue.SubscriberConfirmPayload{
-			Email:         email,
+			Email:       email,
 			PublisherID: publisherID,
 		}); err != nil {
 			log.Printf("[home] subscriber.confirm enqueue: %v", err)

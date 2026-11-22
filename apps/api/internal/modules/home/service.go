@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/hibiken/asynq"
@@ -13,6 +14,10 @@ import (
 	"github.com/qoefi/api/internal/antispam"
 	db "github.com/qoefi/api/internal/database"
 )
+
+// errPublisherNotFound : la publication cible d'une inscription n'existe pas.
+// Distinct d'une panne : le handler répond 404, pas 500.
+var errPublisherNotFound = errors.New("publication introuvable")
 
 type Service struct {
 	pool pooler
@@ -33,8 +38,42 @@ func (s *Service) SetEventEmitter(client *asynq.Client) {
 	s.events = client
 }
 
+// SystemConfig est la vue **publique** des réglages système : elle ne contient
+// que les clés de contenu/UI (landing, i18n, méthodes de connexion). Les autres
+// clés (`GLOBAL_ANNOUNCEMENT` est servie séparément, les flags internes et
+// secrets d'exploitation ne le sont jamais) restent réservées à l'admin.
 type SystemConfig map[string]string
 
+// publicSystemConfigKeys : clés exactes exposées à la home publique.
+var publicSystemConfigKeys = map[string]bool{
+	"AUTH_METHODS":          true,
+	"TRANSLATIONS_OVERRIDE": true,
+}
+
+// publicSystemConfigPrefixes : familles de contenu éditorial lues par la
+// landing (`apps/hi` : hero_*, feature_*, featured_*, comparison_*, format_*,
+// cta_*, creator_hub_*, creators_*, preview_*).
+var publicSystemConfigPrefixes = []string{
+	"hero_", "feature_", "featured_", "comparison_", "format_",
+	"cta_", "creator_hub_", "creators_", "preview_",
+}
+
+func isPublicSystemConfigKey(key string) bool {
+	if publicSystemConfigKeys[key] {
+		return true
+	}
+	for _, prefix := range publicSystemConfigPrefixes {
+		if strings.HasPrefix(key, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// GetSystemConfig renvoie uniquement les clés publiques. Avant, la requête
+// servait **toute** la table à `/v1/home/config` (endpoint public) : flags
+// d'exploitation, clés d'admin, anciens consentements… Le Scan est aussi
+// remonté (une ligne illisible ne disparaît plus en silence).
 func (s *Service) GetSystemConfig(ctx context.Context) (SystemConfig, error) {
 	rows, err := s.pool.Query(ctx, `SELECT key, value FROM "SystemConfig"`)
 	if err != nil {
@@ -44,11 +83,17 @@ func (s *Service) GetSystemConfig(ctx context.Context) (SystemConfig, error) {
 	m := make(SystemConfig)
 	for rows.Next() {
 		var k, v string
-		if err := rows.Scan(&k, &v); err == nil {
+		if err := rows.Scan(&k, &v); err != nil {
+			return nil, err
+		}
+		if isPublicSystemConfigKey(k) {
 			m[k] = v
 		}
 	}
-	return m, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 // GlobalAnnouncement est le seul réglage système exposé publiquement par la
@@ -109,11 +154,31 @@ type TrendItem struct {
 	UpdatedAt string `json:"updatedAt"`
 }
 
-func (s *Service) GetTrends(ctx context.Context, limit int) ([]TrendItem, error) {
+const (
+	// maxHomeTrends borne la liste publique de tendances (limit client).
+	maxHomeTrends = 50
+	// maxHomePromos borne la liste publique de promos partenaires.
+	maxHomePromos = 20
+	// maxSuggestedCreators borne le widget de recommandation.
+	maxSuggestedCreators = 20
+	// maxSemanticTrends borne les sujets émergents.
+	maxSemanticTrends = 50
+)
+
+// clampHomeLimit applique défaut + plafond à une limite cliente.
+func clampHomeLimit(limit, def, max int) int {
 	if limit <= 0 {
-		limit = 5
+		return def
 	}
-	rows, err := s.pool.Query(ctx, `SELECT id, hashtag, count, "createdAt", "updatedAt" FROM "Trend" ORDER BY count DESC LIMIT $1`, limit)
+	if limit > max {
+		return max
+	}
+	return limit
+}
+
+func (s *Service) GetTrends(ctx context.Context, limit int) ([]TrendItem, error) {
+	limit = clampHomeLimit(limit, 5, maxHomeTrends)
+	rows, err := s.pool.Query(ctx, `SELECT id, hashtag, count, "createdAt", "updatedAt" FROM "Trend" ORDER BY count DESC, id ASC LIMIT $1`, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -122,15 +187,16 @@ func (s *Service) GetTrends(ctx context.Context, limit int) ([]TrendItem, error)
 	for rows.Next() {
 		var t TrendItem
 		var createdAt, updatedAt pgtype.Timestamp
-		if err := rows.Scan(&t.ID, &t.Hashtag, &t.Count, &createdAt, &updatedAt); err == nil {
-			if createdAt.Valid {
-				t.CreatedAt = createdAt.Time.Format(time.RFC3339)
-			}
-			if updatedAt.Valid {
-				t.UpdatedAt = updatedAt.Time.Format(time.RFC3339)
-			}
-			out = append(out, t)
+		if err := rows.Scan(&t.ID, &t.Hashtag, &t.Count, &createdAt, &updatedAt); err != nil {
+			return nil, err
 		}
+		if createdAt.Valid {
+			t.CreatedAt = createdAt.Time.Format(time.RFC3339)
+		}
+		if updatedAt.Valid {
+			t.UpdatedAt = updatedAt.Time.Format(time.RFC3339)
+		}
+		out = append(out, t)
 	}
 	if out == nil {
 		out = []TrendItem{}
@@ -149,10 +215,8 @@ type PartnerPromoItem struct {
 }
 
 func (s *Service) GetPromos(ctx context.Context, limit int) ([]PartnerPromoItem, error) {
-	if limit <= 0 {
-		limit = 3
-	}
-	rows, err := s.pool.Query(ctx, `SELECT id, title, description, "ctaText", "ctaUrl", "imageUrl", "isActive" FROM "PartnerPromo" WHERE "isActive"=true ORDER BY "createdAt" DESC LIMIT $1`, limit)
+	limit = clampHomeLimit(limit, 3, maxHomePromos)
+	rows, err := s.pool.Query(ctx, `SELECT id, title, description, "ctaText", "ctaUrl", "imageUrl", "isActive" FROM "PartnerPromo" WHERE "isActive"=true ORDER BY "createdAt" DESC, id ASC LIMIT $1`, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -161,18 +225,22 @@ func (s *Service) GetPromos(ctx context.Context, limit int) ([]PartnerPromoItem,
 	for rows.Next() {
 		var p PartnerPromoItem
 		var ctaText, ctaUrl, imageUrl pgtype.Text
-		if err := rows.Scan(&p.ID, &p.Title, &p.Description, &ctaText, &ctaUrl, &imageUrl, &p.IsActive); err == nil {
-			if ctaText.Valid {
-				p.CtaText = &ctaText.String
-			}
-			if ctaUrl.Valid {
-				p.CtaUrl = &ctaUrl.String
-			}
-			if imageUrl.Valid {
-				p.ImageUrl = &imageUrl.String
-			}
-			out = append(out, p)
+		if err := rows.Scan(&p.ID, &p.Title, &p.Description, &ctaText, &ctaUrl, &imageUrl, &p.IsActive); err != nil {
+			return nil, err
 		}
+		if ctaText.Valid {
+			p.CtaText = &ctaText.String
+		}
+		// Un CTA `javascript:`/`data:` ou une image d'un hôte étranger ne doit
+		// jamais atterrir sur la home publique : on retire la valeur, pas la
+		// promo (elle reste informative).
+		if ctaUrl.Valid && antispam.ValidateSafeURL(ctaUrl.String) == nil {
+			p.CtaUrl = &ctaUrl.String
+		}
+		if imageUrl.Valid && antispam.ValidateSafeURL(imageUrl.String) == nil {
+			p.ImageUrl = &imageUrl.String
+		}
+		out = append(out, p)
 	}
 	if out == nil {
 		out = []PartnerPromoItem{}

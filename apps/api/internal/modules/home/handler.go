@@ -109,7 +109,15 @@ func (h *Handler) getPromos(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/home/onboarding — catégories + créateurs suggérés pour l'onboarding.
 func (h *Handler) getOnboarding(w http.ResponseWriter, r *http.Request) {
-	response.OK(w, h.svc.GetOnboardingData(r.Context()))
+	data, err := h.svc.GetOnboardingData(r.Context())
+	if err != nil {
+		// Avant : 200 avec une liste vide sur panne, indistinguable d'un
+		// onboarding réellement vide.
+		log.Printf("[home] onboarding: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, data)
 }
 
 // GET /v1/home/suggested-creators — créateurs recommandés (similarité
@@ -142,7 +150,7 @@ func (h *Handler) getSemanticTrends(w http.ResponseWriter, r *http.Request) {
 // Body : { email, publisherId }. Idempotent (upsert isActive=true).
 func (h *Handler) subscribe(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Email         string `json:"email"`
+		Email       string `json:"email"`
 		PublisherID string `json:"publisherId"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -154,7 +162,9 @@ func (h *Handler) subscribe(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "email et publisherId requis")
 		return
 	}
-	if !emailRegex.MatchString(body.Email) {
+	if len(body.Email) > 254 || !emailRegex.MatchString(body.Email) {
+		// 254 = longueur maximale d'une adresse (RFC 5321) : au-delà, on
+		// refusait jusqu'ici un 500 de troncature d'index plutôt qu'un 400.
 		response.BadRequest(w, "Veuillez saisir une adresse email valide.")
 		return
 	}
@@ -164,6 +174,12 @@ func (h *Handler) subscribe(w http.ResponseWriter, r *http.Request) {
 	if _, err := h.svc.SubscribeToNewsletter(r.Context(), body.Email, body.PublisherID, locale); err != nil {
 		// Coupe-feu engagé → 503 explicite (urgence assumée, Retry-After
 		// indicatif), pas de furtivité ni de 500 trompeur.
+		if errors.Is(err, errPublisherNotFound) {
+			// La publication cible n'existe pas : 500 laissait croire à une
+			// panne serveur au lieu d'une adresse de formulaire périmée.
+			response.NotFound(w, "Publication introuvable")
+			return
+		}
 		if errors.Is(err, abuse.ErrSignupSuspended) {
 			response.Error(w, http.StatusServiceUnavailable, "Inscriptions temporairement suspendues (maintenance anti-abus). Réessayez plus tard.")
 			return

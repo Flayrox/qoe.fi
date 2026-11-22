@@ -32,6 +32,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(code)
 }
+
 // requirePool skippe les tests DB quand Docker/testcontainers est absent.
 func requirePool(t *testing.T) {
 	t.Helper()
@@ -39,7 +40,6 @@ func requirePool(t *testing.T) {
 		t.Skip("DB indisponible (Docker/testcontainers requis)")
 	}
 }
-
 
 func newTestService() *Service {
 	return NewService(poolTest)
@@ -111,7 +111,10 @@ func TestOnboardingData(t *testing.T) {
 	seedHomeWidgets(t, ctx)
 	svc := newTestService()
 
-	data := svc.GetOnboardingData(ctx)
+	data, err := svc.GetOnboardingData(ctx)
+	if err != nil {
+		t.Fatalf("GetOnboardingData: %v", err)
+	}
 	if len(data.Categories) == 0 {
 		t.Fatal("categories vides")
 	}
