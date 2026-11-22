@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-i `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts` et `users` clos le 2026-11-22 — L29i : 21 défauts F528–F548, dettes R218–R222 ; prochain = `settings`, 7 f. · 2 474 l.) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-j `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users` et `settings` clos le 2026-11-22 — L29j : 22 défauts F549–F570, dettes R223–R226 ; prochain = `media`, 4 f. · 2 121 l.) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -163,8 +163,14 @@ module `users` (**9 f. · 3 431 l.** après correctifs, 3 060 l. avant ; 14 fich
 F528–F548 (kill-switch d'inscription fail-open, export RGPD partiel et incomplet, handle effacé par un PATCH vide,
 onboarding non transactionnel et non borné, recherche publique non bornée, blocage d'un compte inconnu en 500,
 journal de sécurité jamais écrit, user-agent tronqué en octets, MFA relayant un chemin GoTrue arbitraire, panne DB
-rendue en 400, prix du déblocage piloté par le client, double débit concurrent), dettes **R218–R222**. **Lot
-suivant de L29, « En cours » : L29j** — `settings`, **7 f. · 2 474 l.**
+rendue en 400, prix du déblocage piloté par le client, double débit concurrent), dettes **R218–R222**. **L29j est clos
+le 2026-11-22** : module `settings` (**8 f. · 2 762 l.** après correctifs, 7 f. · 2 474 l. avant ; 11 fichiers de
+tests), **22 défauts** F549–F570 (consentements stockés dans `SystemConfig` et servis à l'admin, lecture de
+consentement fail-open, panne DB rendue en 403/404/400, onboarding et profil non transactionnels, écriture des liens
+de navigation destructive, accès API approuvé remis en attente, révocation fantôme de clé API, fuite du détail SMTP,
+événement de visibilité distribué hors transaction, fixture faussement verte, double `SetSecurityGuard`, migration
+non zero-downtime), dettes **R223–R226**. **Lot suivant de L29, « En cours » : L29k** — `media`, **4 f. ·
+2 121 l.**
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2144,6 +2150,91 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
 
+## L29j — `apps/api/internal/modules/settings/**` — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l` sur l'arbre courant) : **7 fichiers de production · 2 474 l.** —
+`service 1167`, `handler 491`, `site_layout 328`, `email_settings 253`, `email_send 154`, `privacy 49`,
+`querier 32` — identique au décompte annoncé. Tous lus intégralement, ainsi que les appelants réels :
+`cmd/server` (`NewService` + `SetFlags`/`SetTrustService`/`SetAsynqClient`/`SetEmailTestSender`, `RegisterPublic`
+sur un groupe rate-limité « tenant-check 30/min », `RegisterProtected` dans le groupe `CombinedAuth`), les clients
+réels (`apps/studio` : `settings/page.tsx`, `analytics/actions.ts`, `settings/design/*`, `features/settings/actions.ts`
+pour `consent` ; `apps/core` : `(reader)/settings/actions.ts`, `layout.tsx`, `ReadingPreferencesProvider` ;
+`apps/mobile` : `hooks/use-user-settings.ts`, `app/settings/appearance.tsx` ; `packages/sdk/src/types.ts` pour les
+DTO), les contrats SQL (`sql/queries/settings.sql`), les schémas (`UserSettings`, `AccountDeletionRequest`,
+`SiteLayout`/`SiteVersion` après `00081`, `SystemConfig`, `ApiKey`, `SecurityEvent`), et `ExpectedMigrationVersion`
+recoupé avec la dernière migration sur disque (`00094_collab_documents.sql`, porté à **95** par ce lot).
+Après correctifs le module pèse **8 f. · 2 762 l.** (11 fichiers de tests, dont `audit_l29j_test.go` : 17 tests).
+
+**Frontières vérifiées, pas de doublon** : `settings` porte la publication (profil public, sous-domaine, liens,
+email transactionnel, layout, clés API) et les préférences du lecteur (`UserSettings`, consentements, demande de
+suppression) ; `users` porte l'identité du compte (profil, sécurité, portefeuille, onboarding du compte) et
+consomme `settings` sans le réimplémenter ; `legal` porte les documents, les acceptations et `cookie_consent_record`
+(anonyme, append-only), `settings` le choix par compte — divergence documentée en **R225**. Aucune écriture de
+consentement global ni d'autrui n'était possible (tout est dérivé du jeton), aucune injection (colonnes d'UPDATE
+issues d'une allowlist, valeurs liées).
+
+**22 défauts corrigés** F549–F570. Les rouges cités sont des sorties réellement exécutées : la suite `TestL29j_*`
+a été lancée contre un worktree à `HEAD` (code d'avant correctif + la seule migration 00095) puis contre l'arbre
+corrigé, sur Postgres (testcontainers).
+
+| # | Défaut | Preuve (test) | Rouge constaté | Commit |
+|---|---|---|---|---|
+| F549 | **Preuves de consentement stockées dans `SystemConfig`** sous `CONSENT_<uuid>` : `GET /v1/admin/system-config` (`ListSystemConfigs`, non filtré) servait le consentement de **tous** les comptes, et un `UpsertSystemConfig`/`DeleteSystemConfig` admin pouvait l'écraser ou l'effacer. Table dédiée `UserConsentPreference` (migration `00095`) + reprise des lignes existantes + purge des clés. | `TestL29j_ConsentPersistedOutsidePlatformConfig`. | `consent non persisté dans UserConsentPreference: no rows in result set` + `1 consentement(s) encore dans SystemConfig` | `fix(settings)` |
+| F550 | Lecture du consentement **fail-open** : toute erreur de `QueryRow` (panne, table absente) renvoyait `{analytics:false,personalization:false,marketing:false,version:"1"}` en **200** — l'écran affichait « tout refusé » au lieu d'une panne. | `TestL29j_ConsentReadFailureIsNotSuccess`. | `panne de lecture consentement = 200 (map[analytics:false marketing:false personalization:false updatedAt: version:1]), attendu 500` | `fix(settings)` |
+| F551 | Version de consentement bornée en **octets** (`len(...) > 32`) et jamais normalisée : une version UTF-8 courte en runes était refusée, `" "` passait pour absente. Borne en runes + trim, `updatedAt` toujours serveur. | `TestL29j_ConsentPersistedOutsidePlatformConfig` (aller-retour version) + relecture. | — (structurel : pas de rouge isolable sans version multibyte dans l'UI) | `fix(settings)` |
+| F552 | `authorizeSettings` transformait **toute panne** en `errForbidden` : `GetUserPersonalPublisher` en erreur → 403 « accès refusé » (et `GetMediaMemberContext` indistinguable de « pas membre »). Une identité non-UUID partait en 500 de cast SQL. Erreurs internes propagées, `ErrNoRows` distingué, identité invalide → refus. | `TestL29j_ProfilePublisherLookupFailureIsNotForbidden` + `TestHandler_EmailTest_UnauthorizedAndForbidden`. | `panne d'autorisation = 403 (map[error:Accès refusé à cette publication.]), attendu 500` | `fix(settings)` |
+| F553 | `PATCH /v1/settings/profile` écrivait la publication **puis** le texte d'onboarding hors transaction (profil modifié et réponse d'échec), et une panne de lecture finale devenait 404 « utilisateur introuvable ». Une transaction unique, erreurs propagées. | `TestL29j_ProfileUpdateIsAtomic`. | `profil modifié malgré l'échec du texte d'onboarding : "Owner Set" → "Nom Qui Ne Doit Pas Rester"` | `fix(settings)` |
+| F554 | `CompleteOnboarding` : `role`+`hasCompletedOnboarding` écrits **avant** la création de la publication (panne = compte « onboardé » sans publication, irréparable depuis l'écran) et publication orpheline si le lien échouait ; `trustSvc` déréférencé sans garde (panic si non branché) ; sous-domaine/textes jamais validés (sous-domaine invalide stocké, XSS dans `heroText`) ; slug déjà pris → 500. Transaction + validation + conflit en 400. | `TestL29j_OnboardingIsAtomic`, `TestL29j_OnboardingRejectsInvalidSubdomain`, `TestL29j_OnboardingSlugConflictIsValidation`. | `état partiel laissé après échec : completed=true role="creator"` · `sous-domaine invalide accepté = 200 (map[success:true]), attendu 400` · `conflit de slug = 500 (map[error:Internal Server Error]), attendu 400` | `fix(settings)` |
+| F555 | `GET /v1/settings/subdomain/check` répondait **200 `{available:false}`** sur une panne de lecture : toute panne ressemblait à « nom déjà pris » et bloquait la création. Erreur remontée (500). | `TestL29j_SubdomainCheckFailureIsNotUnavailable`. | `panne du check = 200 (map[available:false reason:Vérification impossible, réessayez.]), attendu 500` | `fix(settings)` |
+| F556 | `UpdateSubdomain` interrogeait la disponibilité **avant** de valider la syntaxe (requête inutile, message d'erreur trompeur), normalisait autrement que le check (`NormalizeSubdomain` vs minuscule+trim), et sa branche « sous-domaine vide » était morte (le handler exigeait une valeur non vide). Un seul validateur partagé, suppression explicite supportée, valeur réellement stockée renvoyée. | `TestUpdateSubdomain_Owner_Success` (valeur stockée) + `TestL29j_SubdomainWriteFailureIsNotValidation`. | — (structurel : divergence de normalisation) | `fix(settings)` |
+| F557 | `PUT /v1/settings/navigation` et `/social` faisaient `DELETE` puis `INSERT` **hors transaction** : une panne au milieu effaçait définitivement tous les liens de la publication. Remplacement atomique. | `TestL29j_NavigationSurvivesInsertFailure`. | `liens après échec = [], attendu [Accueil] (remplacement atomique)` | `fix(settings)` |
+| F558 | `POST /v1/settings/api-application` remettait **en attente** un accès déjà `approved` (la décision d'un administrateur était écrasée par simple re-soumission, et `approved` redevenait une file d'attente). Demande en attente = idempotente, accès approuvé = refus explicite. | `TestL29j_ApiApplicationKeepsApprovedStatus`. | `re-soumission sur un accès approuvé acceptée (200) : map[success:true]` | `fix(settings)` |
+| F559 | Handlers clés API : `generateApiKey` répondait **403** pour *toute* erreur (panne DB comprise) et `rotateApiKey` mappait une panne de lecture en **404** — un incident passait pour un refus de droit. Erreurs typées (`PolicyError`, `ValidationError`) + traduction unique. | `TestL29j_ApiKeyGenerationFailureIsNotForbidden`. | `panne de génération de clé = 403 (map[error:introuvable]), attendu 500` | `fix(settings)` |
+| F560 | `DELETE /v1/settings/api-keys/{id}` répondait `{success:true}` même quand **aucune ligne** n'était supprimée (clé inexistante ou d'autrui) : révocation fantôme. `RowsAffected` vérifié → 404. | `TestL29j_RevokeUnknownKeyIsNotFound`. | `révocation d'une clé inexistante = 200 (map[success:true]), attendu 404` | `fix(settings)` |
+| F561 | `recordApiKeySecurityEvent` avalait **toutes** ses erreurs (insert `SecurityEvent`, lecture d'email, publication de l'alerte) et pouvait passer `metadata` nil sur une colonne NOT NULL : le journal de sécurité restait muet sans trace. Erreurs journalisées, `metadata` toujours `{}`. | Relecture + `TestFault_...` (les inserts réels sont vérifiés par `users`/`admin`) | — (structurel : pas de rouge sans faux pool dédié) | `fix(settings)` |
+| F562 | `GetUserSettings` faisait `SELECT` puis `INSERT ... ON CONFLICT` puis `SELECT` **récursif** : trois allers-retours et une course entre deux premières lectures (insertion concurrente, voire boucle sur conflit). Un seul upsert `RETURNING`. | `TestUserPreferences` (création à la lecture) + `TestFault_GetUserSettings_PoolError` | — (structurel : la course n'est pas déterministe) | `fix(settings)` |
+| F563 | `UpdateUserSettings` lisait l'ancienne visibilité **hors** transaction et distribuait `ProfileVisibilityChangedEvent` **après** le commit : sous concurrence l'événement portait une ancienne valeur fausse, et un échec de distribution laissait le compte PUBLIC sans accepter les demandes en attente. Une transaction : upsert, `SELECT … FOR UPDATE`, UPDATE, dispatch dans la même transaction. | `TestUpdateUserSettings_TransitionToPublic_AutoAcceptFollowRequests` + `TestL29j_PreferencesWriteFailureIsNotValidation`. | `panne d'écriture préférences = 400 (map[error:fault injecté]), attendu 500` | `fix(settings)` |
+| F564 | `CreateDeletionRequest` reposait sur `NOT EXISTS` sans verrou : deux requêtes simultanées créaient **deux** demandes `PENDING`. Index partiel unique (`une seule demande active par compte`, migration `00095`) + doublons existants clos + violation d'unicité renvoyant la demande gagnante. | `TestL29j_SingleActiveDeletionRequest`. | — (course non déterministe ; l'index est vérifié, l'idempotence HTTP aussi) | `fix(settings)` |
+| F565 | `PublishSiteLayout` lisait le brouillon et le layout publié **hors transaction**, puis `DELETE`ait le brouillon : un enregistrement concurrent était perdu et la version archivée ne correspondait pas au layout réellement remplacé ; l'id de version était `epoch + md5 aléatoire` (collision possible en PK). Tout en transaction avec `FOR UPDATE`, id `gen_random_uuid()`. | Relecture + `TestHandler_*` du layout (`email_settings`/`download_default` couvrent les routes voisines) | — (structurel : nécessite deux transactions concurrentes pour être rouge de façon fiable) | `fix(settings)` |
+| F566 | `POST /v1/settings/email/test` renvoyait `"Échec de l'envoi du test : " + err.Error()` : nom d'hôte SMTP, port et réponse du fournisseur exposés au navigateur. Message générique, détail dans les logs. | `TestL29j_EmailTestErrorDoesNotLeakProviderDetail`. | `détail d'infrastructure exposé : {"error":"Échec de l'envoi du test : smtp 10.0.0.5:587 refused AUTH secret-provider-token"}` | `fix(settings)` |
+| F567 | `domainevents.handleProfileVisibilityChanged` avalait `rows.Scan`, ne vérifiait jamais `rows.Err()` et ignorait l'erreur de `notifications.Dispatch` : une demande acceptée pouvait rester sans notification ni trace. Erreurs propagées (la transition redevient donc atomique, cf. F563). | `TestUpdateUserSettings_TransitionToPublic_AutoAcceptFollowRequests` (chemin nominal) | — (structurel : accumulation d'erreurs silencieuses) | `fix(settings)` |
+| F568 | Fixture **faussement verte** : `TestFault_CompleteOnboarding_QueryError` « testait » `GetUserApiAccessStatus` (jamais appelée par `CompleteOnboarding`) sur un utilisateur inexistant — le test passait pour toutes les méthodes sans rien prouver. Utilisateur créé, méthodes réellement traversées, état réinitialisé entre les cas. | `TestFault_CompleteOnboarding_QueryError` (réécrit) | — (faux vert : aucune assertion ne pouvait échouer) | `fix(settings)` |
+| F569 | `cmd/server` appelait `SetSecurityGuard(secGuard)` **deux fois** dans la même chaîne pour le handler `creator` (reliquat de merge). | `go vet` + relecture | — (redondance sans effet fonctionnel) | `fix(settings)` |
+| F570 | La migration `00095` créait un index sur une table existante sans `CONCURRENTLY` : `pnpm arch:audit` échouait (`Migrations Zero-Downtime (> 00086): ❌ 1`). Réécrite au patron maison (`NO TRANSACTION`, `lock_timeout`, `CREATE UNIQUE INDEX CONCURRENTLY`, `DROP INDEX CONCURRENTLY` en Down), étapes idempotentes. | `pnpm -s arch:audit` | `Migrations Zero-Downtime (> 00086): ❌ 1` → `- 00095_user_consent_preference.sql : CREATE INDEX sans CONCURRENTLY sur table existante (accountdeletionrequest)` | `fix(settings)` |
+
+**Dettes ouvertes, sans faux correctif** (numérotation en continuité de R222) :
+
+- **R223 — page settings non paginée** : `GET /v1/settings/publisher` renvoie **tous** les articles de la
+  publication avec leur `content` HTML complet (`ListArticlesForSettings`, aucun `LIMIT`), à chaque ouverture de la
+  page settings, de l'onglet analytics et de l'archive. Contrat consommé par `apps/studio` (export ZIP, titres) :
+  borner casserait l'export. Option recommandée : endpoint paginé pour la liste + export asynchrone (job + lien),
+  et projection sans `content` pour les appelants qui ne lisent que les titres.
+- **R224 — consentement sans historique** : `UserConsentPreference` écrase la ligne (une seule preuve, `updatedAt`),
+  sans IP, user-agent, source ni version de politique effectivement acceptée au moment du choix — alors que
+  `legal.cookie_consent_record` est append-only avec ces colonnes. Option recommandée : journal append-only
+  (`seq`, `source`, IP/UA, `policy_version`) + ligne « courante » dérivée.
+- **R225 — deux modèles de consentement** : `settings` (par compte : analytics/personnalisation/marketing) et
+  `legal` (`cookie_consent_record`, anonyme ou par `user_id`, catégories libres) ne partagent ni taxonomie ni table ;
+  un même choix peut donc diverger entre la bannière et l'écran réglages. Option recommandée : une seule table de
+  consentement (celle de `legal`) avec `source` daté, et `settings` en lecture/écriture dessus.
+- **R226 — `subscriptions.HasPro` sans erreur (volet settings)** : `GetEmailSettings`, `PreviewEmailSettings` et
+  `SendTestEmail` appellent un helper booléen (2 lectures par aperçu) : une panne DB fait passer une publication
+  payante pour gratuite (overrides retirés silencieusement, panneau verrouillé). Option : `(bool, error)`, 503 sur
+  panne, et un seul appel par requête.
+
+**Batterie du tour.** `gofmt -l internal/modules/settings/` **vide** · `go build ./...` **0** · `go vet
+./internal/...` **0** · `go test` `settings`, `domainevents`, `users`, `posts`, `feed`, `creator`, `legal`,
+`admin`, `oauth`, `identity`, `trust`, `authz`, `middleware`, `cmd/server`, `cmd/worker` **ok** sur Postgres réel
+(`QOE_DB_TESTS_OPTIONAL=1`, testcontainers). Workspace : `typecheck` 0, `mobile:typecheck` 0, `lint` 0,
+`ui:audit` 0, `arch:audit` 0 (après F570), `audit:guard` 0, `guard:seed-script` 0, `guard:legal-consent` 0,
+`guard:dangerous-html` 0, `guard:flags-parity` 0, `guard:article-links` 0, `guard:media-origin` 0,
+`guard:tsconfig` 0. Aucun fichier mobile touché, arbre propre, aucun push.
+
+**Reste à faire (L29k, lot suivant).** **73 fichiers de production · 22 153 l.** restent dans
+`apps/api/internal/modules/**` (197 f. · 67 938 l. au total, moins les 124 f. · 45 785 l. déjà lus : `articles`,
+`feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`). Prochain lot borné : **`media` —
+4 f. · 2 121 l.** (remesuré : `service 752`, `handler 596`, `media_invitations 436`, `media_apikeys 337`), puis
+`highlights` (3 f. · 1 050 l. à remesurer).
 ## L29i — `apps/api/internal/modules/users/**` — **clos le 2026-11-22**
 
 **Périmètre remesuré** (`find` + `wc -l` sur l'arbre courant) : **9 fichiers de production · 3 060 l.** —
@@ -2218,7 +2309,7 @@ sorties de tests réellement exécutés.
 13 commandes (`typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*`)
 **toutes à 0**. Aucun fichier mobile touché, arbre propre, aucun push.
 
-**Reste à faire (L29j, lot suivant).** **80 fichiers de production · 24 627 l.** restent dans
+**Reste à faire à la clôture de L29i (snapshot ; L29j depuis clos).** **80 fichiers de production · 24 627 l.** restent dans
 `apps/api/internal/modules/**` (196 f. · 67 650 l. au total, moins les 116 f. · 43 023 l. déjà lus : `articles`,
 `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`). Prochain lot borné : **`settings` — 7 f. ·
 2 474 l.**, puis `media` (4 f. · 2 121 l.), `highlights` (3 f. · 1 050 l.).
