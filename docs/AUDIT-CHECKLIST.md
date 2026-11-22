@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 504 l.) | **en cours** (L29a-e `articles`, `feed`, `imports` et `admin` clos le 2026-11-22 — L29e : 22 défauts F446–F467, dettes R201–R204 ; prochain = `legal`, 8 f. · 4 540 l.) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-f `articles`, `feed`, `imports`, `admin` et `legal` clos le 2026-11-22 — L29f : 19 défauts F468–F486, dettes R205–R211 ; prochain = `creator`, 17 f. · 4 812 l.) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -139,7 +139,13 @@ relancée, source relabellisée, suspension rejouée, lot laissé `running` apr�
 F446–F467 (denylist inerte, variables de campagne non rendues, sceau d'export contournable, export RGPD amputé de
 ses consentements et abonnements, effacement croisé et non transactionnel, compteurs de campagne recomptés,
 N+1 du claim, impersonation factice, audits d'accès hors transaction, octrois payants non tracés…), dettes
-**R201–R204**. **Lot suivant de L29, « En cours » : L29f** — `legal`, **8 f. · 4 540 l.**
+**R201–R204**. **L29f est clos le 2026-11-22** : module `legal` (**8 f. · 4 540 l.** lus intégralement), **19 défauts**
+F468–F486 (bornes d'export ignorées, pièce tronquée annoncée complète, brouillons dans l'export signé, chaîne
+fourchue en concurrence, rotation de clé accusée d'altération, preuves effacées par la suppression d'un document,
+JSON malformé traité comme « aucun filtre », brouillon de revue jamais rattaché et identifiant jamais exposé,
+revue comptée à chaque passage, dates illisibles remplacées en silence, texte vide publiable, couverture à 250 %,
+photographie hors transaction), dettes **R205–R211**. **Lot suivant de L29, « En cours » : L29g** — `creator`,
+**17 f. · 4 812 l.**
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2118,6 +2124,82 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L29f — `apps/api/internal/modules/legal/**` — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l` sur l'arbre courant) : **8 fichiers de production · 4 540 l.** —
+`service 973`, `handler 904`, `export 794`, `lifecycle 520`, `seed 470`, `consent 425`, `compliance 304`,
+`notice 150`. Tous lus intégralement, ainsi que leurs appelants (`cmd/server` amorçage + routes,
+`cmd/worker` cycle de vie, `users.SyncUserFromAuth` → `RecordSignupConsent`, console `apps/admin/src/**`) et
+leurs contrats SQL (`sql/queries/legal*.sql`, migrations 00018/00019/00021/00037). Après correctifs le module
+pèse **8 f. · 4 725 l.** (9 fichiers de tests).
+
+**19 défauts corrigés** F468–F486. Les suites à base réelle ont tourné (testcontainers Postgres) : les rouges
+cités sont des sorties de tests exécutés.
+
+| # | Défaut | Preuve | Rouge constaté | Commit |
+|---|---|---|---|---|
+| F468 | L'export signé acceptait une borne `from`/`to` illisible en l'**ignorant** : le document attestait un périmètre temporel qu'il n'appliquait pas (`2026-13-45` → export complet scellé). | `TestLegal_ExportRejectsUnreadableBound`. | `borne illisible acceptée (err=<nil>), attendu errInvalid` | `9114cc46` |
+| F469 | Les preuves étaient **tronquées en silence** au plafond `maxRows` (5 000 par défaut) : une pièce « complète » pouvait omettre des milliers d'acceptations. Refus explicite (`limit+1` sondé) : aucune pièce partielle n'est scellée. | `TestLegal_ExportRefusesSilentTruncation`. | `export tronqué silencieusement accepté (err=<nil>), attendu errInvalid` | `9114cc46` |
+| F470 | `ListLegalVersionsForExport` exportait **tous les brouillons** (corps markdown non publiés) dans une pièce remise à un auditeur : fuite éditoriale et contenu non opposable dans la preuve. | `TestLegal_ExportExcludesDrafts` (corps marqueur + libellé). | `un brouillon non publié figure dans l'export signé remis à un tiers` | `9114cc46` |
+| F471 | Deux exports simultanés lisaient la même tête de chaîne et **fourchaient** le registre ; le vérificateur accusait ensuite une pièce « retirée ». Verrou consultatif transactionnel autour de la lecture de tête + scellement. | Lecture ; chaînage séquentiel couvert par `TestLegal_ExportConsentRegister_SignedChainedAndVerifiable`. | — (correctif de concurrence, pas de rouge déterministe) | `9114cc46` |
+| F472 | Après une **rotation de clé**, toutes les pièces anciennes étaient déclarées « signature Ed25519 invalide » — une preuve valide accusée d'altération. Le `keyId` enregistré est confronté à la clé courante, avec un motif distinct. | `TestLegal_VerifyRotationIsNotTampering`. | `rotation de clé signalée comme altération : "signature Ed25519 invalide pour cette clé"` | `9114cc46` |
+| F473 | `actorEmail` avalait l'erreur de lecture : une enveloppe signée pouvait omettre l'auteur de l'export sans que rien ne le signale. Erreur propagée (pas de scellement incomplet). | Lecture + suite export. | — (structurel) | `9114cc46` |
+| F474 | `DeleteDocument` supprimait **en cascade** toutes les preuves d'acceptation du document (FK `ON DELETE CASCADE`) : un clic effaçait les consentements recueillis. Refus 409 tant qu'une preuve existe ; désactivation/archivage restent disponibles. | `TestLegal_DeleteDocumentPreservesAcceptances`. | `suppression d'un document porteur de preuves = <nil>, attendu errConflict` | `9114cc46` |
+| F475 | `POST /v1/admin/legal/consent-exports` avalait l'erreur de décodage JSON : un corps tronqué devenait « aucun filtre » et **signait un export du registre entier** (201). | `TestLegal_HTTPRejectsMalformedJSON`. | `export signé avec JSON invalide = 201, attendu 400` | `de214665` |
+| F476 | Les routes d'acceptation, refus, consentement traceurs, planification et clôture de revue ignoraient aussi l'erreur de décodage (acte exécuté sur un corps vide). `decodeOptional` refuse le JSON malformé et accepte le corps absent. | Même helper, test HTTP pour les deux routes où l'acte était matériellement différent. | — (structurel pour les autres routes) | `de214665` |
+| F477 | Un brouillon de revue **déjà créé** (passage antérieur interrompu) provoquait une violation d'unicité traitée par `continue` : la revue restait sans brouillon et le worker retentait indéfiniment. Le brouillon existant est retrouvé et rattaché. | `TestLegal_LifecycleAttachesExistingReviewDraft`. | `brouillon existant jamais rattaché à la revue : la revue reste bloquée à chaque passage` | `9114cc46` |
+| F478 | `DraftVersionID` n'était **jamais sérialisé** par `reviewFromRow` (la requête ne le sélectionnait pas) : la console recevait une revue « brouillon proposé » sans l'identifiant permettant de le publier. | Même test (il échouait aussi sur ce champ). | inclus dans le rouge ci-dessus | `9114cc46` |
+| F479 | `ReviewsOpened` comptait une revue déjà ouverte à **chaque passage** du worker (métrique du cycle de vie fausse). Les revues ouvertes avant le passage sont relevées, plus de recomptage. | Lecture + `TestLegal_LifecycleOpensReviewDraftAndReminder`. | — (métrique, structurel) | `9114cc46` |
+| F480 | `OpenReview` remplaçait silencieusement une échéance illisible par « +30 jours » (le staff croyait avoir fixé une date). 400 explicite. | `TestLegal_OpenReviewRejectsInvalidDueAt`. | `date d'échéance illisible acceptée (err=<nil>), attendu errInvalid` | `9114cc46` |
+| F481 | `CreateVersion`/`UpdateVersion` transformaient une date d'effet illisible en **aucune date** ; `UpdateVersion` acceptait en plus un **corps vide**. Validation alignée sur la création. | `TestLegal_CreateVersionRejectsInvalidEffectiveAt`, `TestLegal_UpdateVersionRejectsEmptyContent`. | `date d'effet illisible acceptée (err=<nil>)` ; `publication d'un texte vide acceptée (err=<nil>)` | `9114cc46` |
+| F482 | Modifier une version **publiée** renvoyait « contenu requis » (400) au lieu d'un conflit d'immuabilité : l'ordre des contrôles masquait la règle. Statut vérifié avant la forme. | `TestLegal_VersioningPublishArchive` (régression détectée puis corrigée). | `édition d'une version publiée: err = requête invalide: contenu requis, attendu conflit` | `9114cc46` |
+| F483 | La couverture de conformité pouvait afficher **250 %** (preuves de comptes suspendus divisées par les seuls comptes actifs). Bornée à 100 %. | `TestLegal_ComplianceCoverageIsClamped`. | `couverture = 250 %, attendu 100 (bornée)` | `9114cc46` |
+| F484 | La photographie de conformité enchaînait **cinq lectures hors transaction** : une acceptation concurrente produisait une couverture calculée sur deux états. Lecture en transaction `REPEATABLE READ` / `READ ONLY`. | Lecture ; `TestLegal_Compliance` (nominal). | — (cohérence, structurel) | `9114cc46` |
+| F485 | `publishScheduledVersions` ignorait l'erreur de relecture de la version publiée : l'avis RGPD n'était pas préparé, sans trace. Erreur journalisée explicitement. | Lecture. | — (structurel) | `9114cc46` |
+| F486 | `DismissReview`/`OpenReview` relisaient la revue en scannant les **500 plus récentes** : une revue plus ancienne renvoyait 404 **après** une clôture réussie. Filtre `review_id` ajouté à la requête (1 ligne). | Lecture + `TestLegal_OpenAndDismissReview`. | — (structurel) | `9114cc46` |
+
+**Dettes ouvertes par ce lot** (décisions à trancher, jamais masquées par un faux correctif) :
+
+- **R205 — consentement d'inscription non épinglé** : `user_metadata.signupConsent` est écrit par le client ; un
+  item sans `versionId` enregistre la version **courante** (repli documenté et verrouillé par
+  `TestLegal_RecordSignupConsentRejectsStaleVersion`). Un client peut donc déposer une preuve pour un texte qu'il
+  n'a pas affiché. Options : exiger `versionId` (casse les anciens clients), ou signer la métadonnée côté serveur
+  au moment du rendu du formulaire. Nécessite un arbitrage produit/contrat client.
+- **R206 — journal traceurs non corrélé au document publié** : `policyVersion` et `categories` sont libres et
+  anonymes (c'est voulu pour un visiteur sans compte), mais rien ne vérifie que la version correspond à la
+  politique de cookies publiée ni que les catégories appartiennent au vocabulaire du bandeau. Un choix forgé est
+  journalisé tel quel. Option : valider `policyVersion` contre `legal_document_version` publiée et figer un
+  schéma de catégories.
+- **R207 — périmètre des versions dans l'export** : quel que soit le filtre (`userId`, `consentId`, fenêtre),
+  l'export embarque **toutes** les versions publiées de tous les documents (corps inclus). C'est défendable
+  (texte de référence) mais coûteux et peu conforme à la minimisation. Option : ne joindre que les versions
+  référencées par les acceptations exportées.
+- **R208 — historique des clés d'export** : la rotation est désormais signalée honnêtement, mais une pièce signée
+  avec une ancienne clé n'est plus vérifiable (aucune table de clés publiques archivées). De plus, sans
+  `LEGAL_EXPORT_SIGNING_KEY`, une clé **éphémère** est générée (avertissement seulement) : les pièces meurent au
+  redémarrage. Options : table `legal_export_key` (clé publique + période) et refus de démarrer en production
+  sans clé (exige un indicateur d'environnement absent de la config actuelle).
+- **R209 — mesure des écarts de consentement monolingue** : `CountLegalConsentGaps` compare uniquement la
+  locale `fr` ; un document publié seulement en `en` n'apparaît jamais dans les écarts. Option : dériver la
+  locale de l'utilisateur (`User.languageCode`) ou compter par locale publiée.
+- **R210 — écriture perdue de `UpdateDocument`** : `isActive`/`sortOrder` sont lus puis réécrits avec le reste
+  des métadonnées ; deux éditeurs simultanés s'écrasent (même classe que R201). Option : `COALESCE` par champ ou
+  colonne de version.
+- **R211 — avis de publication linéaire** : `EnqueueNotice` insère une livraison par destinataire (boucle
+  d'`INSERT`), pour une audience qui peut être large. Fonctionnellement correct et borné par le nombre de
+  consentants ; un `INSERT … SELECT` unique supprimerait les allers-retours.
+
+**Batterie du tour.** `gofmt -l internal/modules/legal/` **vide** · `go build ./...` **0** · `go vet ./internal/...`
+**0** · `go test` `legal` (base Postgres réelle), `admin`, `users`, `home`, `settings`, `internal/queue`,
+`cmd/server`, `cmd/worker` **ok** (`QOE_DB_TESTS_OPTIONAL=1`). Workspace : `typecheck` 0, `mobile:typecheck` 0,
+`lint` 0, `ui:audit` 0, `arch:audit` 0, `audit:guard` 0, 7 `guard:*` 0. Aucun fichier mobile touché, arbre
+propre, aucun push.
+
+**Reste à faire (L29g, lot suivant de L29 — « En cours »).** **116 fichiers de production · 35 923 l.** restent
+dans `apps/api/internal/modules/**` (196 f. · 66 657 l. au total, moins les 80 f. · 30 734 l. déjà lus :
+`articles`, `feed`, `imports`, `admin`, `legal`). Prochain lot borné : **`creator` — 17 f. · 4 812 l.**, puis `posts`
+(10 f. · 3 424 l.), `users` (9 f. · 3 060 l.), `settings` (7 f. · 2 474 l.), `media` (4 f. · 2 121 l.).
 
 ## L29e — `apps/api/internal/modules/admin/**` — **clos le 2026-11-22**
 
