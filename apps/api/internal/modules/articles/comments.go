@@ -189,10 +189,10 @@ func (s *Service) notifyComment(ctx context.Context, articleID, authorID, commen
 	}
 
 	if err := s.q.InsertCommentNotification(ctx, db.InsertCommentNotificationParams{
-		RecipientId:   recipientUUID,
-		SenderId:      senderUUID,
-		ArticleId:     pgtype.Text{String: articleID, Valid: true},
-		CommentId:     pgtype.Text{String: commentID, Valid: true},
+		RecipientId: recipientUUID,
+		SenderId:    senderUUID,
+		ArticleId:   pgtype.Text{String: articleID, Valid: true},
+		CommentId:   pgtype.Text{String: commentID, Valid: true},
 		PublisherId: pgtype.Text{String: cfg.PublisherID, Valid: true},
 	}); err != nil {
 		log.Printf("[articles] comment notif: %v", err)

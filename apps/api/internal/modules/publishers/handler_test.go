@@ -210,15 +210,15 @@ func (b *badPool) Query(ctx context.Context, sql string, args ...any) (pgx.Rows,
 
 type badRows struct{}
 
-func (badRows) Next() bool                                    { return true }
-func (badRows) Scan(dest ...any) error                        { return errors.New("scan fail") }
-func (badRows) Close()                                        {}
-func (badRows) Err() error                                    { return nil }
-func (badRows) CommandTag() pgconn.CommandTag                 { return pgconn.CommandTag{} }
-func (badRows) FieldDescriptions() []pgconn.FieldDescription  { return nil }
-func (badRows) Values() ([]any, error)                        { return nil, errors.New("scan fail") }
-func (badRows) RawValues() [][]byte                           { return nil }
-func (badRows) Conn() *pgx.Conn                               { return nil }
+func (badRows) Next() bool                                   { return true }
+func (badRows) Scan(dest ...any) error                       { return errors.New("scan fail") }
+func (badRows) Close()                                       {}
+func (badRows) Err() error                                   { return nil }
+func (badRows) CommandTag() pgconn.CommandTag                { return pgconn.CommandTag{} }
+func (badRows) FieldDescriptions() []pgconn.FieldDescription { return nil }
+func (badRows) Values() ([]any, error)                       { return nil, errors.New("scan fail") }
+func (badRows) RawValues() [][]byte                          { return nil }
+func (badRows) Conn() *pgx.Conn                              { return nil }
 
 // TestServiceRowScanErrors force une erreur de scan dans les boucles de rows.
 func TestServiceRowScanErrors(t *testing.T) {

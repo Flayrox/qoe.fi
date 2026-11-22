@@ -127,8 +127,8 @@ RETURNING nd.id, nd.recipient, nd."notificationId"`
 // notification (type + nom de l'émetteur) — template enrichissable plus tard.
 func buildNotificationEmail(ctx context.Context, pool *pgxpool.Pool, recipient, notificationID, from string) (EmailMessage, error) {
 	var (
-		nType, senderName                                                  string
-		thoughtID, articleID, articleSlug                                  string
+		nType, senderName                                              string
+		thoughtID, articleID, articleSlug                              string
 		publisherID, publisherSlug, publicationType, mediaID, username string
 	)
 	err := pool.QueryRow(ctx, `
@@ -158,15 +158,15 @@ func buildNotificationEmail(ctx context.Context, pool *pgxpool.Pool, recipient, 
 	label := notificationTypeLabel(nType)
 	subject := senderName + " " + label + " — qoefi"
 	link := deeplink.AbsoluteURL(deeplink.Notification(deeplink.Target{
-		Type:            nType,
-		ThoughtID:       thoughtID,
-		ArticleID:       articleID,
-		ArticleSlug:     articleSlug,
-		PublisherID:   publisherID,
-		PublisherSlug: publisherSlug,
-		PublisherType: publicationType,
-		MediaID:         mediaID,
-		SenderUsername:  username,
+		Type:           nType,
+		ThoughtID:      thoughtID,
+		ArticleID:      articleID,
+		ArticleSlug:    articleSlug,
+		PublisherID:    publisherID,
+		PublisherSlug:  publisherSlug,
+		PublisherType:  publicationType,
+		MediaID:        mediaID,
+		SenderUsername: username,
 	}))
 	content := `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;padding:32px;color:#18181b;">
   <h2 style="margin:0 0 12px;">` + senderName + ` ` + label + `</h2>

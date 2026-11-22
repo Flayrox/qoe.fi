@@ -39,15 +39,15 @@ type HiddenAuthor struct {
 // HomeFeedResult est la réponse complète de la page d'accueil lecteur.
 type HomeFeedResult struct {
 	FollowedCreators []HydratePublisher `json:"followedCreators"`
-	FollowedUserIDs  []string             `json:"followedUserIds"`
-	Following        HomeFeedGroup        `json:"following"`
-	Discover         HomeFeedGroup        `json:"discover"`
-	Recommended      HomeFeedGroup        `json:"recommended"`
-	Bookmarks        []HydrateArticle     `json:"bookmarks"`
-	HighlightsCount  int                  `json:"highlightsCount"`
-	ActivityData     []int                `json:"activityData"`
-	MutedWords       []string             `json:"mutedWords"`
-	FeaturedArticle  *HydrateArticle      `json:"featuredArticle"`
+	FollowedUserIDs  []string           `json:"followedUserIds"`
+	Following        HomeFeedGroup      `json:"following"`
+	Discover         HomeFeedGroup      `json:"discover"`
+	Recommended      HomeFeedGroup      `json:"recommended"`
+	Bookmarks        []HydrateArticle   `json:"bookmarks"`
+	HighlightsCount  int                `json:"highlightsCount"`
+	ActivityData     []int              `json:"activityData"`
+	MutedWords       []string           `json:"mutedWords"`
+	FeaturedArticle  *HydrateArticle    `json:"featuredArticle"`
 	// FollowingHidden liste les auteurs suivis masqués du flux Suivis
 	// (TOUJOURS un tableau, jamais null — même contrat que les autres listes).
 	FollowingHidden []HiddenAuthor `json:"followingHidden"`
@@ -78,7 +78,7 @@ func articleEligibility(viewerParam string, requirePublic bool) string {
 	return eligibility.ArticlePredicates(eligibility.Aliases{
 		Entity:        "a",
 		Authors:       []string{"u.id"},
-		Publisher:   `a."publisherId"`,
+		Publisher:     `a."publisherId"`,
 		Viewer:        viewerParam,
 		RequirePublic: requirePublic,
 	})

@@ -57,7 +57,7 @@ type StripeEventPayload struct {
 // ArticlePublishedPayload est le payload de TaskArticlePublished.
 type ArticlePublishedPayload struct {
 	EventID          string `json:"eventId"`
-	PublisherID    string `json:"publisherId"`
+	PublisherID      string `json:"publisherId"`
 	ArticleID        string `json:"articleId"`
 	AuthorID         string `json:"authorId"`
 	Title            string `json:"title"`
@@ -71,26 +71,26 @@ type ArticlePublishedPayload struct {
 
 // SubscriberCreatedPayload est le payload de TaskSubscriberCreated.
 type SubscriberCreatedPayload struct {
-	EventID       string `json:"eventId"`
-	SubscriberID  string `json:"subscriberId"`
-	PublisherID string `json:"publisherId"`
-	CreatorID     string `json:"creatorId"`
-	Email         string `json:"email"`
-	IsPremium     bool   `json:"isPremium"`
-	CreatedAt     string `json:"createdAt"`
+	EventID      string `json:"eventId"`
+	SubscriberID string `json:"subscriberId"`
+	PublisherID  string `json:"publisherId"`
+	CreatorID    string `json:"creatorId"`
+	Email        string `json:"email"`
+	IsPremium    bool   `json:"isPremium"`
+	CreatedAt    string `json:"createdAt"`
 }
 
 // SubscriberConfirmPayload est le payload de TaskSubscriberConfirm : envoi de
 // l'email de confirmation double opt-in après une inscription publique.
 type SubscriberConfirmPayload struct {
-	Email         string `json:"email"`
+	Email       string `json:"email"`
 	PublisherID string `json:"publisherId"`
 }
 
 // SubscriberWelcomePayload est le payload de TaskSubscriberWelcome : envoi de
 // l'email de bienvenue après confirmation du double opt-in.
 type SubscriberWelcomePayload struct {
-	Email         string `json:"email"`
+	Email       string `json:"email"`
 	PublisherID string `json:"publisherId"`
 }
 
@@ -136,12 +136,12 @@ type ArticleReleasePayload struct {
 
 // PostLikedPayload est le payload de TaskPostLiked.
 type PostLikedPayload struct {
-	EventID       string `json:"eventId"`
-	PostID        string `json:"postId"`
-	UserID        string `json:"userId"`
-	AuthorID      string `json:"authorId"`
+	EventID     string `json:"eventId"`
+	PostID      string `json:"postId"`
+	UserID      string `json:"userId"`
+	AuthorID    string `json:"authorId"`
 	PublisherID string `json:"publisherId"`
-	CreatedAt     string `json:"createdAt"`
+	CreatedAt   string `json:"createdAt"`
 }
 
 // SecurityAlertEmailPayload est le payload de TaskSecurityAlertEmail.

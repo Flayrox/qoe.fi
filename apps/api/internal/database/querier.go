@@ -715,6 +715,9 @@ type Querier interface {
 	ListQueuedArticleReleaseDeliveries(ctx context.Context, arg ListQueuedArticleReleaseDeliveriesParams) ([]ListQueuedArticleReleaseDeliveriesRow, error)
 	ListQuotePostIDs(ctx context.Context, arg ListQuotePostIDsParams) ([]string, error)
 	ListReceivedCollaborationRequests(ctx context.Context, inviteeid pgtype.UUID) ([]ListReceivedCollaborationRequestsRow, error)
+	// Toutes les livraisons récentes des webhooks d'une publication, bornées à
+	// $2 par webhook : la liste ne fait plus une requête par abonnement.
+	ListRecentDeliveriesByPublisher(ctx context.Context, arg ListRecentDeliveriesByPublisherParams) ([]ListRecentDeliveriesByPublisherRow, error)
 	// Articles publiés récents (feed mobile « écran principal »), avec auteur /
 	// publication / catégorie dénormalisés. Public, trié par date décroissante.
 	ListRecentPublishedArticles(ctx context.Context, arg ListRecentPublishedArticlesParams) ([]ListRecentPublishedArticlesRow, error)
@@ -831,6 +834,9 @@ type Querier interface {
 	// séparément dans le service (les CTE PostgreSQL sont matérialisés, un
 	// COUNT dans le même statement ne verrait pas l'insertion).
 	ToggleHighlightUpvote(ctx context.Context, arg ToggleHighlightUpvoteParams) (int32, error)
+	// Un seul aller-retour : lire puis réécrire laissait deux bascules
+	// concurrentes se perdre (les deux lisaient le même état).
+	ToggleWebhookActive(ctx context.Context, id string) (bool, error)
 	TransferArticlePublisher(ctx context.Context, arg TransferArticlePublisherParams) (string, error)
 	TryLockArticleForEmailRelease(ctx context.Context, arg TryLockArticleForEmailReleaseParams) (string, error)
 	TryLockArticleForMajorUpdate(ctx context.Context, arg TryLockArticleForMajorUpdateParams) (string, error)
@@ -877,7 +883,6 @@ type Querier interface {
 	UpdatePublisherSubdomain(ctx context.Context, arg UpdatePublisherSubdomainParams) error
 	UpdateTrendCount(ctx context.Context, arg UpdateTrendCountParams) (UpdateTrendCountRow, error)
 	UpdateUserOnboardingText(ctx context.Context, arg UpdateUserOnboardingTextParams) error
-	UpdateWebhookActive(ctx context.Context, arg UpdateWebhookActiveParams) error
 	UpdateWebhookDelivery(ctx context.Context, arg UpdateWebhookDeliveryParams) error
 	UpsertArticleAttribution(ctx context.Context, arg UpsertArticleAttributionParams) error
 	// Écrit le vecteur d'un article (généré par le worker jina-embeddings-v3).

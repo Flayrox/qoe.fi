@@ -131,7 +131,7 @@ func (h *Handler) simulateFollow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var p struct {
-		ReaderID      string `json:"readerId"`
+		ReaderID    string `json:"readerId"`
 		PublisherID string `json:"publisherId"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {

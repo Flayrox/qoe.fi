@@ -151,7 +151,7 @@ func TestResolveCustomization_LocalePicksBody(t *testing.T) {
 func TestApplyTier_FreeStripsPro(t *testing.T) {
 	full := EmailPrefs{
 		FromName: "Léa", ReplyTo: "a@b.cd", AccentColor: "#123456",
-		LogoURL: "https://x.fr/l.png",
+		LogoURL:  "https://x.fr/l.png",
 		Subjects: map[string]string{"confirm": "S"}, Preheaders: map[string]string{"confirm": "P"},
 		FooterNote: "N", WelcomeBody: "B",
 	}

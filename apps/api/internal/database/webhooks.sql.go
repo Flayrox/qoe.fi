@@ -217,6 +217,69 @@ func (q *Queries) InsertWebhookDeliveryResult(ctx context.Context, arg InsertWeb
 	return err
 }
 
+const listRecentDeliveriesByPublisher = `-- name: ListRecentDeliveriesByPublisher :many
+SELECT d.id, d."webhookId", d.event, d.status, d."httpStatus",
+       d."responseBody", d.attempts, d."createdAt"
+FROM "WebhookDelivery" d
+JOIN "Webhook" w ON w.id = d."webhookId"
+WHERE w."publisherId" = $1
+  AND (
+      SELECT COUNT(*)
+      FROM "WebhookDelivery" d2
+      WHERE d2."webhookId" = d."webhookId"
+        AND (d2."createdAt" > d."createdAt"
+             OR (d2."createdAt" = d."createdAt" AND d2.id > d.id))
+  ) < $2::int
+ORDER BY d."webhookId" ASC, d."createdAt" DESC
+`
+
+type ListRecentDeliveriesByPublisherParams struct {
+	PublisherId string `json:"publisherId"`
+	Column2     int32  `json:"column_2"`
+}
+
+type ListRecentDeliveriesByPublisherRow struct {
+	ID           string           `json:"id"`
+	WebhookId    string           `json:"webhookId"`
+	Event        string           `json:"event"`
+	Status       string           `json:"status"`
+	HttpStatus   pgtype.Int4      `json:"httpStatus"`
+	ResponseBody pgtype.Text      `json:"responseBody"`
+	Attempts     int32            `json:"attempts"`
+	CreatedAt    pgtype.Timestamp `json:"createdAt"`
+}
+
+// Toutes les livraisons récentes des webhooks d'une publication, bornées à
+// $2 par webhook : la liste ne fait plus une requête par abonnement.
+func (q *Queries) ListRecentDeliveriesByPublisher(ctx context.Context, arg ListRecentDeliveriesByPublisherParams) ([]ListRecentDeliveriesByPublisherRow, error) {
+	rows, err := q.db.Query(ctx, listRecentDeliveriesByPublisher, arg.PublisherId, arg.Column2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRecentDeliveriesByPublisherRow{}
+	for rows.Next() {
+		var i ListRecentDeliveriesByPublisherRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.WebhookId,
+			&i.Event,
+			&i.Status,
+			&i.HttpStatus,
+			&i.ResponseBody,
+			&i.Attempts,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listWebhookDeliveries = `-- name: ListWebhookDeliveries :many
 SELECT d.id, d.event, d.status, d."httpStatus", d."responseBody", d.attempts, d."createdAt"
 FROM "WebhookDelivery" d
@@ -313,20 +376,20 @@ func (q *Queries) ListWebhooksByPublisher(ctx context.Context, publisherid strin
 	return items, nil
 }
 
-const updateWebhookActive = `-- name: UpdateWebhookActive :exec
+const toggleWebhookActive = `-- name: ToggleWebhookActive :one
 UPDATE "Webhook"
-SET active = $2, "updatedAt" = now()
+SET active = NOT active, "updatedAt" = now()
 WHERE id = $1
+RETURNING active
 `
 
-type UpdateWebhookActiveParams struct {
-	ID     string `json:"id"`
-	Active bool   `json:"active"`
-}
-
-func (q *Queries) UpdateWebhookActive(ctx context.Context, arg UpdateWebhookActiveParams) error {
-	_, err := q.db.Exec(ctx, updateWebhookActive, arg.ID, arg.Active)
-	return err
+// Un seul aller-retour : lire puis réécrire laissait deux bascules
+// concurrentes se perdre (les deux lisaient le même état).
+func (q *Queries) ToggleWebhookActive(ctx context.Context, id string) (bool, error) {
+	row := q.db.QueryRow(ctx, toggleWebhookActive, id)
+	var active bool
+	err := row.Scan(&active)
+	return active, err
 }
 
 const updateWebhookDelivery = `-- name: UpdateWebhookDelivery :exec

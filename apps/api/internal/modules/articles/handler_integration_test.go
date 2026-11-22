@@ -265,7 +265,7 @@ func TestHandler_Create_WithJWT(t *testing.T) {
 	token := testJWT(fx.AuthorID)
 
 	w, body := doJSON(t, r, "POST", "/v1/articles", token, map[string]any{
-		"publisherId": fx.PublisherID,
+		"publisherId":   fx.PublisherID,
 		"title":         "Via HTTP",
 		"slug":          "via-http",
 		"content":       "Contenu via handler",
@@ -297,7 +297,7 @@ func TestHandler_Create_InvalidContentFormat(t *testing.T) {
 	token := testJWT(fx.AuthorID)
 
 	w, _ := doJSON(t, r, "POST", "/v1/articles", token, map[string]any{
-		"publisherId": fx.PublisherID,
+		"publisherId":   fx.PublisherID,
 		"title":         "X",
 		"content":       "x",
 		"contentFormat": "docx",
@@ -386,7 +386,7 @@ func TestHandler_Create_ThenList_Integration(t *testing.T) {
 
 	// Création.
 	w, created := doJSON(t, r, "POST", "/v1/articles", token, map[string]any{
-		"publisherId": fx.PublisherID,
+		"publisherId":   fx.PublisherID,
 		"title":         "Cycle complet",
 		"slug":          "cycle-complet",
 		"content":       "Contenu",

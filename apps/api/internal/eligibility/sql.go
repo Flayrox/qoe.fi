@@ -29,7 +29,7 @@ import "fmt"
 type Aliases struct {
 	Entity        string
 	Authors       []string
-	Publisher   string
+	Publisher     string
 	Viewer        string
 	RequirePublic bool
 }

@@ -72,7 +72,7 @@ type HydrateArticle struct {
 	AllowPublicAnnotations bool                 `json:"allowPublicAnnotations"`
 	AllowComments          bool                 `json:"allowComments"`
 	ScheduledAt            *string              `json:"scheduledAt"`
-	PublisherID          string               `json:"publisherId"`
+	PublisherID            string               `json:"publisherId"`
 	AuthorID               string               `json:"authorId"`
 	CategoryID             *string              `json:"categoryId"`
 	TierID                 *string              `json:"tierId"`
@@ -81,7 +81,7 @@ type HydrateArticle struct {
 	CreatedAt              string               `json:"createdAt"`
 	UpdatedAt              string               `json:"updatedAt"`
 	Author                 HydrateAuthor        `json:"author"`
-	Publisher            HydratePublisher   `json:"publisher"`
+	Publisher              HydratePublisher     `json:"publisher"`
 	CoAuthors              []HydrateAuthor      `json:"coAuthors"`
 	Attributions           []HydrateAttribution `json:"attributions"`
 	Capabilities           ArticleCapabilities  `json:"capabilities"`
@@ -118,10 +118,10 @@ func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string, view
 	// identifiant pré-calculé en cache ne doit jamais contourner un blocage,
 	// une sourdine ou un mot masqué activé depuis le classement.
 	eligible := eligibility.ArticlePredicates(eligibility.Aliases{
-		Entity:      "a",
-		Authors:     []string{"u.id", "po.id"},
+		Entity:    "a",
+		Authors:   []string{"u.id", "po.id"},
 		Publisher: `a."publisherId"`,
-		Viewer:      "$2",
+		Viewer:    "$2",
 	})
 	rows, err := s.pool.Query(ctx, `
 		SELECT a.id, a.title, a.slug, a.content, a."imageUrl", a.published, a."isPremium",

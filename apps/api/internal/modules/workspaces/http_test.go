@@ -52,10 +52,10 @@ func TestGetActive_HTTP(t *testing.T) {
 		t.Fatalf("media = %d %s", w.Code, w.Body.String())
 	}
 	var ws struct {
-		Type          string `json:"type"`
+		Type        string `json:"type"`
 		PublisherID string `json:"publisherId"`
-		Name          string `json:"name"`
-		MediaRole     string `json:"mediaRole"`
+		Name        string `json:"name"`
+		MediaRole   string `json:"mediaRole"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &ws); err != nil {
 		t.Fatalf("json: %v (%s)", err, w.Body.String())

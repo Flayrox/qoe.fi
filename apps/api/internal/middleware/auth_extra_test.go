@@ -312,4 +312,3 @@ func TestCombinedAuth_APIKeyNeedsDB(t *testing.T) {
 		t.Errorf("CombinedAuth JWT code = %d", rr.Code)
 	}
 }
-

@@ -10,10 +10,10 @@ import (
 // MediaFixtures contient les IDs du seed Média (vraie publication MEDIA).
 type MediaFixtures struct {
 	PublisherID string // publication de type MEDIA
-	OwnerID       string // role owner (membre média)
-	EditorID      string // role editor
-	WriterID      string // role writer (création + édition own)
-	ViewerID      string // role viewer (lecture seule)
+	OwnerID     string // role owner (membre média)
+	EditorID    string // role editor
+	WriterID    string // role writer (création + édition own)
+	ViewerID    string // role viewer (lecture seule)
 }
 
 // SeedMedia crée une publication de type MEDIA avec 4 membres aux rôles

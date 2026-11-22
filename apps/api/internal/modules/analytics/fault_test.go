@@ -11,8 +11,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/qoefi/api/internal/middleware"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/middleware"
 )
 
 var errBoom = errors.New("fault injecté")

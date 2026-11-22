@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/qoefi/api/internal/middleware"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/middleware"
 )
 
 // oauthFaultQ délègue au vrai *db.Queries sauf les méthodes listées.

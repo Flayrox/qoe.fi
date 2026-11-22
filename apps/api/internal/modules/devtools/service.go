@@ -862,10 +862,10 @@ func enqueueMissingEmbeddings(ctx context.Context, pool *pgxpool.Pool) error {
 
 // SimulateSubscriberParams alimente la simulation d'un abonné CRM.
 type SimulateSubscriberParams struct {
-	Email         string `json:"email"`
+	Email       string `json:"email"`
 	PublisherID string `json:"publisherId"`
-	IsPremium     bool   `json:"isPremium"`
-	LtvCents      int    `json:"ltvCents"`
+	IsPremium   bool   `json:"isPremium"`
+	LtvCents    int    `json:"ltvCents"`
 }
 
 // SimulateSubscriber upsert un abonné (email + publication) et, si premium,

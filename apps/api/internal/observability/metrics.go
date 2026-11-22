@@ -47,10 +47,10 @@ type histogramSeries struct {
 // Registry collecte les métriques applicatives sans dépendance externe et les
 // expose au format Prometheus text exposition 0.0.4.
 type Registry struct {
-	httpRequests        sync.Map // httpReqKey -> *atomic.Uint64
-	httpDurations       sync.Map // httpDurKey -> *histogramSeries
-	rateLimitDecisions  sync.Map // rateLimitKey -> *atomic.Uint64
-	secGuardRejections  sync.Map // secGuardKey -> *atomic.Uint64
+	httpRequests         sync.Map // httpReqKey -> *atomic.Uint64
+	httpDurations        sync.Map // httpDurKey -> *histogramSeries
+	rateLimitDecisions   sync.Map // rateLimitKey -> *atomic.Uint64
+	secGuardRejections   sync.Map // secGuardKey -> *atomic.Uint64
 	trustTierEvals       sync.Map // string -> *atomic.Uint64
 	circuitBreakerStates sync.Map // string -> *atomic.Pointer[string]
 	circuitBreakerTrips  sync.Map // string -> *atomic.Uint64

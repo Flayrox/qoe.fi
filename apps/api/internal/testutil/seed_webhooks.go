@@ -9,13 +9,13 @@ import (
 
 // WebhookFixtures contient les IDs du seed webhooks.
 type WebhookFixtures struct {
-	PublisherID string
-	OwnerID       string
-	EditorID      string
-	ViewerID      string
-	WebhookID     string // webhook actif sur article.published
-	OtherWebhook  string // webhook actif sur subscriber.created
-	InactiveID    string // webhook inactif
+	PublisherID  string
+	OwnerID      string
+	EditorID     string
+	ViewerID     string
+	WebhookID    string // webhook actif sur article.published
+	OtherWebhook string // webhook actif sur subscriber.created
+	InactiveID   string // webhook inactif
 }
 
 // SeedWebhooks crée un environnement minimal pour tester la gestion webhooks :

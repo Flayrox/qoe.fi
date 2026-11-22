@@ -304,7 +304,7 @@ func matchLocale(supported []string, raw string) (string, bool) {
 
 // SuppressionState est l'opposition connue pour un couple (email, publication).
 type SuppressionState struct {
-	Global      bool
+	Global    bool
 	Publisher bool
 }
 

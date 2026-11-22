@@ -10,12 +10,12 @@ import (
 func TestPublishScheduledArticlePayload(t *testing.T) {
 	before := time.Now().UTC()
 	a := ScheduledArticle{
-		ID:            "art_1",
+		ID:          "art_1",
 		PublisherID: "pub_1",
-		AuthorID:      "auth_1",
-		Title:         "Mon article programmé",
-		Slug:          "mon-article-programme",
-		Visibility:    "PUBLIC",
+		AuthorID:    "auth_1",
+		Title:       "Mon article programmé",
+		Slug:        "mon-article-programme",
+		Visibility:  "PUBLIC",
 	}
 
 	p := PublishScheduledArticlePayload(a)

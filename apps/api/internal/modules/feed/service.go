@@ -93,7 +93,7 @@ func (s *Service) canViewProfileContent(ctx context.Context, publisherID, ownerI
 		return false, nil
 	}
 	_, err = s.q.GetExistingFollow(ctx, db.GetExistingFollowParams{
-		ReaderId:      toUUID(viewerID),
+		ReaderId:    toUUID(viewerID),
 		PublisherId: publisherID,
 	})
 	if err == nil {
@@ -309,19 +309,19 @@ func (s *Service) UserPosts(ctx context.Context, username, viewerID string, limi
 // FeedArticle est un article du feed mobile (écran principal), avec auteur /
 // publication / catégorie dénormalisés — miroir de ArticleCard web.
 type FeedArticle struct {
-	ID            string            `json:"id"`
-	Title         string            `json:"title"`
-	Slug          string            `json:"slug"`
-	Content       string            `json:"content"`
-	ImageURL      *string           `json:"imageUrl"`
-	IsPremium     bool              `json:"isPremium"`
-	Visibility    string            `json:"visibility"`
-	ReadingTime   int               `json:"readingTime"`
-	CreatedAt     string            `json:"createdAt"`
+	ID          string            `json:"id"`
+	Title       string            `json:"title"`
+	Slug        string            `json:"slug"`
+	Content     string            `json:"content"`
+	ImageURL    *string           `json:"imageUrl"`
+	IsPremium   bool              `json:"isPremium"`
+	Visibility  string            `json:"visibility"`
+	ReadingTime int               `json:"readingTime"`
+	CreatedAt   string            `json:"createdAt"`
 	PublisherID string            `json:"publisherId"`
-	Author        FeedArticleAuthor `json:"author"`
+	Author      FeedArticleAuthor `json:"author"`
 	Publisher   FeedArticlePub    `json:"publisher"`
-	Category      *FeedArticleCat   `json:"category"`
+	Category    *FeedArticleCat   `json:"category"`
 }
 
 // FeedArticleAuthor est l'auteur dénormalisé d'un article du feed.
@@ -548,29 +548,29 @@ type ArticleFeedResult struct {
 // publishedArticleRow est la vue commune des lignes sqlc d'articles publiés
 // (RecentArticles et PublicationArticles ont le même shape de colonnes).
 type publishedArticleRow struct {
-	ID                   string
-	Title                string
-	Slug                 string
-	Content              string
-	Image                pgtype.Text
-	IsPremium            bool
-	Visibility           db.ContentVisibility
-	ReadingTime          int32
-	CreatedAt            pgtype.Timestamp
+	ID                 string
+	Title              string
+	Slug               string
+	Content            string
+	Image              pgtype.Text
+	IsPremium          bool
+	Visibility         db.ContentVisibility
+	ReadingTime        int32
+	CreatedAt          pgtype.Timestamp
 	PublisherID        string
-	AuthorID             string
-	AuthorName           pgtype.Text
-	AuthorUsername       pgtype.Text
-	AuthorLogo           pgtype.Text
-	AuthorCertified      bool
+	AuthorID           string
+	AuthorName         pgtype.Text
+	AuthorUsername     pgtype.Text
+	AuthorLogo         pgtype.Text
+	AuthorCertified    bool
 	PublisherName      string
 	PublisherSlug      string
 	PublisherSubdomain pgtype.Text
 	PublisherLogo      pgtype.Text
 	PublisherType      db.PublisherType
-	CategoryID           pgtype.Text
-	CategoryName         pgtype.Text
-	CategorySlug         pgtype.Text
+	CategoryID         pgtype.Text
+	CategoryName       pgtype.Text
+	CategorySlug       pgtype.Text
 }
 
 // truncatePaywall applique la troncature zéro-fuite du paywall à un contenu
@@ -592,15 +592,15 @@ func buildFeedArticle(r *publishedArticleRow) FeedArticle {
 	authorType := identity.FromPublisherType(string(r.PublisherType))
 	authorLogo := pgtypeTextPtr(r.AuthorLogo)
 	return FeedArticle{
-		ID:            r.ID,
-		Title:         r.Title,
-		Slug:          r.Slug,
-		Content:       truncatePaywall(r.Content, r.Visibility, nil),
-		ImageURL:      pgtypeTextPtr(r.Image),
-		IsPremium:     r.IsPremium,
-		Visibility:    string(r.Visibility),
-		ReadingTime:   int(r.ReadingTime),
-		CreatedAt:     r.CreatedAt.Time.Format(time.RFC3339),
+		ID:          r.ID,
+		Title:       r.Title,
+		Slug:        r.Slug,
+		Content:     truncatePaywall(r.Content, r.Visibility, nil),
+		ImageURL:    pgtypeTextPtr(r.Image),
+		IsPremium:   r.IsPremium,
+		Visibility:  string(r.Visibility),
+		ReadingTime: int(r.ReadingTime),
+		CreatedAt:   r.CreatedAt.Time.Format(time.RFC3339),
 		PublisherID: r.PublisherID,
 		Author: FeedArticleAuthor{
 			ID:          r.AuthorID,
@@ -709,29 +709,29 @@ func (s *Service) RecentArticles(ctx context.Context, limit, offset int) (Articl
 	for i := range rows {
 		r := &rows[i]
 		items = append(items, buildFeedArticle(&publishedArticleRow{
-			ID:                   r.ID,
-			Title:                r.Title,
-			Slug:                 r.Slug,
-			Content:              r.Content,
-			Image:                r.ArticleImage,
-			IsPremium:            r.IsPremium,
-			Visibility:           r.Visibility,
-			ReadingTime:          r.ReadingTime,
-			CreatedAt:            r.CreatedAt,
+			ID:                 r.ID,
+			Title:              r.Title,
+			Slug:               r.Slug,
+			Content:            r.Content,
+			Image:              r.ArticleImage,
+			IsPremium:          r.IsPremium,
+			Visibility:         r.Visibility,
+			ReadingTime:        r.ReadingTime,
+			CreatedAt:          r.CreatedAt,
 			PublisherID:        r.PublisherId,
-			AuthorID:             r.AuthorID,
-			AuthorName:           r.AuthorName,
-			AuthorUsername:       r.AuthorUsername,
-			AuthorLogo:           r.AuthorLogo,
-			AuthorCertified:      r.AuthorCertified,
+			AuthorID:           r.AuthorID,
+			AuthorName:         r.AuthorName,
+			AuthorUsername:     r.AuthorUsername,
+			AuthorLogo:         r.AuthorLogo,
+			AuthorCertified:    r.AuthorCertified,
 			PublisherName:      r.PublisherName,
 			PublisherSlug:      r.PublisherSlug,
 			PublisherSubdomain: r.PublisherSubdomain,
 			PublisherLogo:      r.PublisherLogo,
 			PublisherType:      r.PublisherType,
-			CategoryID:           r.CategoryID,
-			CategoryName:         r.CategoryName,
-			CategorySlug:         r.CategorySlug,
+			CategoryID:         r.CategoryID,
+			CategoryName:       r.CategoryName,
+			CategorySlug:       r.CategorySlug,
 		}))
 	}
 
@@ -800,29 +800,29 @@ func (s *Service) PublisherArticles(ctx context.Context, username, viewerID stri
 	for i := range rows {
 		r := &rows[i]
 		items = append(items, buildFeedArticle(&publishedArticleRow{
-			ID:                   r.ID,
-			Title:                r.Title,
-			Slug:                 r.Slug,
-			Content:              r.Content,
-			Image:                r.ArticleImage,
-			IsPremium:            r.IsPremium,
-			Visibility:           r.Visibility,
-			ReadingTime:          r.ReadingTime,
-			CreatedAt:            r.CreatedAt,
+			ID:                 r.ID,
+			Title:              r.Title,
+			Slug:               r.Slug,
+			Content:            r.Content,
+			Image:              r.ArticleImage,
+			IsPremium:          r.IsPremium,
+			Visibility:         r.Visibility,
+			ReadingTime:        r.ReadingTime,
+			CreatedAt:          r.CreatedAt,
 			PublisherID:        r.PublisherId,
-			AuthorID:             r.AuthorID,
-			AuthorName:           r.AuthorName,
-			AuthorUsername:       r.AuthorUsername,
-			AuthorLogo:           r.AuthorLogo,
-			AuthorCertified:      r.AuthorCertified,
+			AuthorID:           r.AuthorID,
+			AuthorName:         r.AuthorName,
+			AuthorUsername:     r.AuthorUsername,
+			AuthorLogo:         r.AuthorLogo,
+			AuthorCertified:    r.AuthorCertified,
 			PublisherName:      r.PublisherName,
 			PublisherSlug:      r.PublisherSlug,
 			PublisherSubdomain: r.PublisherSubdomain,
 			PublisherLogo:      r.PublisherLogo,
 			PublisherType:      r.PublisherType,
-			CategoryID:           r.CategoryID,
-			CategoryName:         r.CategoryName,
-			CategorySlug:         r.CategorySlug,
+			CategoryID:         r.CategoryID,
+			CategoryName:       r.CategoryName,
+			CategorySlug:       r.CategorySlug,
 		}))
 	}
 

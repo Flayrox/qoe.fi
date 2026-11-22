@@ -16,6 +16,7 @@ import (
 
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/modules/webhooks"
 	"github.com/qoefi/api/internal/testutil"
 )
 
@@ -43,6 +44,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(code)
 }
+
 // requirePool skippe les tests DB quand Docker/testcontainers est absent.
 func requirePool(t *testing.T) {
 	t.Helper()
@@ -50,7 +52,6 @@ func requirePool(t *testing.T) {
 		t.Skip("DB indisponible (Docker/testcontainers requis)")
 	}
 }
-
 
 // sigServer crée un endpoint qui vérifie X-Qoe-Signature + X-Qoe-Event puis
 // répond avec le code donné. Incrémente calls à chaque requête reçue.
@@ -63,7 +64,7 @@ func sigServer(statusCode int, calls *atomic.Int32) *httptest.Server {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		want := "sha256=" + signHMAC(testSecret, body)
+		want := "sha256=" + webhooks.Signature(testSecret, body)
 		if !hmac.Equal([]byte(r.Header.Get("X-Qoe-Signature")), []byte(want)) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
@@ -97,9 +98,9 @@ func makeTask(t *testing.T, publisherID string) *asynq.Task {
 	t.Helper()
 	payload, err := json.Marshal(map[string]any{
 		"publisherId": publisherID,
-		"articleId":     "art_1",
-		"title":         "Mon article",
-		"slug":          "mon-article",
+		"articleId":   "art_1",
+		"title":       "Mon article",
+		"slug":        "mon-article",
 	})
 	if err != nil {
 		t.Fatalf("marshal payload: %v", err)

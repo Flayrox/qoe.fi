@@ -178,6 +178,7 @@ func TestAPIKeyContext(t *testing.T) {
 		t.Error("clé inconnue doit retourner ok=false")
 	}
 }
+
 // Contrat multi-médias : chaque clé API est liée à UNE publication. Un compte
 // qui gère deux médias possède deux clés, et chaque clé résout sa propre
 // publication — l'API n'a jamais de « workspace actif » implicite.

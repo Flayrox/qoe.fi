@@ -10,11 +10,11 @@ import (
 // Fixtures contient les IDs créés par SeedArticles pour être référencés
 // dans les assertions de test.
 type Fixtures struct {
-	PublisherID string
-	AuthorID      string
-	CategoryTech  string
-	CategoryFood  string
-	ArticleSlugs  []string // ordre décroissant de createdAt (le plus récent d'abord)
+	PublisherID  string
+	AuthorID     string
+	CategoryTech string
+	CategoryFood string
+	ArticleSlugs []string // ordre décroissant de createdAt (le plus récent d'abord)
 	// PublishedArticleSlugs : mêmes slugs SANS le brouillon — le seul jeu
 	// utilisable par un test qui attend un article servi (hors-ligne, file
 	// d'écoute) : un brouillon n'est ni publié, ni téléchargeable, et le

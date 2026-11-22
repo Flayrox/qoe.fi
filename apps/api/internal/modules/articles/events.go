@@ -54,7 +54,7 @@ type ArticleEvent struct {
 
 // EventInput décrit un événement à enregistrer.
 type EventInput struct {
-	ArticleID     string
+	ArticleID   string
 	PublisherID string
 	// ActorID vide = action automatique (planificateur).
 	ActorID     string

@@ -16,10 +16,10 @@ const leakyFeedPremium = `<p>Teaser public.</p><!--members-only--><p>PAYANT SENS
 func TestBuildFeedArticle_NeverLeaksPremiumContent(t *testing.T) {
 	art := buildFeedArticle(&publishedArticleRow{
 		ID: "art_premium", Title: "Enquête", Slug: "enquete",
-		Content:       leakyFeedPremium,
-		IsPremium:     true,
-		Visibility:    db.ContentVisibility("PAID_SUBSCRIBERS"),
-		ReadingTime:   4,
+		Content:     leakyFeedPremium,
+		IsPremium:   true,
+		Visibility:  db.ContentVisibility("PAID_SUBSCRIBERS"),
+		ReadingTime: 4,
 		PublisherID: "pub_1", AuthorID: "user_1",
 	})
 

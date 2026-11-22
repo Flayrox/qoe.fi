@@ -47,9 +47,9 @@ func TestFilterValidEvents(t *testing.T) {
 }
 
 func TestSignHMAC(t *testing.T) {
-	sig1 := signHMAC("secret", `{"event":"webhook.test"}`)
-	sig2 := signHMAC("secret", `{"event":"webhook.test"}`)
-	sig3 := signHMAC("autre-secret", `{"event":"webhook.test"}`)
+	sig1 := Signature("secret", []byte(`{"event":"webhook.test"}`))
+	sig2 := Signature("secret", []byte(`{"event":"webhook.test"}`))
+	sig3 := Signature("autre-secret", []byte(`{"event":"webhook.test"}`))
 	if sig1 != sig2 {
 		t.Error("signature instable pour les mêmes entrées")
 	}
@@ -119,7 +119,7 @@ func TestHandlerCreate_RejectsPrivateAndLocalURLs(t *testing.T) {
 			})
 			req := httptest.NewRequest(http.MethodPost, "/v1/webhooks", bytes.NewReader(payload))
 			req.Header.Set("Content-Type", "application/json")
-			req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, "u_1"))
+			req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, "00000000-0000-0000-0000-000000000001"))
 			w := httptest.NewRecorder()
 
 			h.create(w, req)

@@ -23,14 +23,14 @@ type DB interface {
 
 // DispatchInput rassemble les paramètres d'une notification à distribuer.
 type DispatchInput struct {
-	RecipientID   string
-	SenderID      string
-	Type          string // Ex: "FOLLOW", "LIKE", "REPOST", "COMMENT", "REPLY", "MENTION", etc.
-	ArticleID     *string
-	ThoughtID     *string
+	RecipientID string
+	SenderID    string
+	Type        string // Ex: "FOLLOW", "LIKE", "REPOST", "COMMENT", "REPLY", "MENTION", etc.
+	ArticleID   *string
+	ThoughtID   *string
 	PublisherID *string
-	CommentID     *string
-	Metadata      map[string]any
+	CommentID   *string
+	Metadata    map[string]any
 }
 
 // Dispatch applique les 4 gardes fondamentales (auto-notification, blocage,

@@ -19,12 +19,12 @@ import (
 // programmé à PUBLISHED et déclencher le fanout asynq (mêmes champs que le
 // payload ArticlePublishedPayload du publish manuel).
 type ScheduledArticle struct {
-	ID            string
+	ID          string
 	PublisherID string
-	AuthorID      string
-	Title         string
-	Slug          string
-	Visibility    string
+	AuthorID    string
+	Title       string
+	Slug        string
+	Visibility  string
 	// ScheduledAt est conservé pour l'historique : la colonne est effacée
 	// après publication (plus rien à programmer), l'événement garde la date
 	// réellement demandée par l'auteur.
@@ -35,14 +35,14 @@ type ScheduledArticle struct {
 // (même format que emitPublished du module articles → webhooks + newsletter).
 func PublishScheduledArticlePayload(a ScheduledArticle) queue.ArticlePublishedPayload {
 	return queue.ArticlePublishedPayload{
-		EventID:       "article_published_" + a.ID,
+		EventID:     "article_published_" + a.ID,
 		PublisherID: a.PublisherID,
-		ArticleID:     a.ID,
-		AuthorID:      a.AuthorID,
-		Title:         a.Title,
-		Slug:          a.Slug,
-		Visibility:    a.Visibility,
-		PublishedAt:   time.Now().UTC().Format(time.RFC3339),
+		ArticleID:   a.ID,
+		AuthorID:    a.AuthorID,
+		Title:       a.Title,
+		Slug:        a.Slug,
+		Visibility:  a.Visibility,
+		PublishedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 }
 

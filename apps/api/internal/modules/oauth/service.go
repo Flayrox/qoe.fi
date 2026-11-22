@@ -301,14 +301,14 @@ func exactRedirectURI(uris []string, candidate string) bool {
 // Gestion des clients (Studio)
 // ─────────────────────────────────────────────────────────────────────
 type CreateClientInput struct {
-	Name          string   `json:"name"`
-	Description   string   `json:"description"`
-	LogoURL       string   `json:"logoUrl"`
-	HomepageURL   string   `json:"homepageUrl"`
-	RedirectURIs  []string `json:"redirectUris"`
-	Scopes        []string `json:"scopes"`
-	ClientType    string   `json:"clientType"` // CONFIDENTIAL | PUBLIC
-	PublisherID string   `json:"publisherId"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description"`
+	LogoURL      string   `json:"logoUrl"`
+	HomepageURL  string   `json:"homepageUrl"`
+	RedirectURIs []string `json:"redirectUris"`
+	Scopes       []string `json:"scopes"`
+	ClientType   string   `json:"clientType"` // CONFIDENTIAL | PUBLIC
+	PublisherID  string   `json:"publisherId"`
 }
 
 type CreateClientResult struct {
@@ -428,7 +428,7 @@ func (s *Service) CreateClientRequest(ctx context.Context, userID string, in Cre
 		Scopes:           scopes,
 		Column9:          clientTypeEnum,
 		Column10:         clientStatus,
-		PublisherId:    textPtr(in.PublisherID),
+		PublisherId:      textPtr(in.PublisherID),
 		OwnerUserId:      userID,
 	}); err != nil {
 		return nil, oauthError("server_error", "Impossible d'enregistrer l'application.", 500)
@@ -439,54 +439,54 @@ func (s *Service) CreateClientRequest(ctx context.Context, userID string, in Cre
 
 // ClientDTO est la forme publique d'un client (jamais le secret en clair).
 type ClientDTO struct {
-	ID            string   `json:"id"`
-	ClientID      string   `json:"clientId"`
-	Name          string   `json:"name"`
-	Description   string   `json:"description"`
-	LogoURL       string   `json:"logoUrl"`
-	HomepageURL   string   `json:"homepageUrl"`
-	RedirectURIs  []string `json:"redirectUris"`
-	Scopes        []string `json:"scopes"`
-	ClientType    string   `json:"clientType"`
-	Status        string   `json:"status"`
-	PublisherID string   `json:"publisherId,omitempty"`
-	HasSecret     bool     `json:"hasSecret"`
-	CreatedAt     string   `json:"createdAt"`
+	ID           string   `json:"id"`
+	ClientID     string   `json:"clientId"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description"`
+	LogoURL      string   `json:"logoUrl"`
+	HomepageURL  string   `json:"homepageUrl"`
+	RedirectURIs []string `json:"redirectUris"`
+	Scopes       []string `json:"scopes"`
+	ClientType   string   `json:"clientType"`
+	Status       string   `json:"status"`
+	PublisherID  string   `json:"publisherId,omitempty"`
+	HasSecret    bool     `json:"hasSecret"`
+	CreatedAt    string   `json:"createdAt"`
 }
 
 func rowToClientDTO(r db.ListOAuthClientsByOwnerRow) ClientDTO {
 	return ClientDTO{
-		ID:            r.ID,
-		ClientID:      r.ClientId,
-		Name:          r.Name,
-		Description:   textOrEmpty(r.Description),
-		LogoURL:       textOrEmpty(r.LogoUrl),
-		HomepageURL:   textOrEmpty(r.HomepageUrl),
-		RedirectURIs:  r.RedirectUris,
-		Scopes:        r.Scopes,
-		ClientType:    r.ClientType,
-		Status:        r.Status,
-		PublisherID: textOrEmpty(r.PublisherId),
-		HasSecret:     r.ClientSecretHash.Valid && r.ClientSecretHash.String != "",
-		CreatedAt:     tsString(r.CreatedAt),
+		ID:           r.ID,
+		ClientID:     r.ClientId,
+		Name:         r.Name,
+		Description:  textOrEmpty(r.Description),
+		LogoURL:      textOrEmpty(r.LogoUrl),
+		HomepageURL:  textOrEmpty(r.HomepageUrl),
+		RedirectURIs: r.RedirectUris,
+		Scopes:       r.Scopes,
+		ClientType:   r.ClientType,
+		Status:       r.Status,
+		PublisherID:  textOrEmpty(r.PublisherId),
+		HasSecret:    r.ClientSecretHash.Valid && r.ClientSecretHash.String != "",
+		CreatedAt:    tsString(r.CreatedAt),
 	}
 }
 
 func publicationRowToClientDTO(r db.ListOAuthClientsByPublisherRow) ClientDTO {
 	return ClientDTO{
-		ID:            r.ID,
-		ClientID:      r.ClientId,
-		Name:          r.Name,
-		Description:   textOrEmpty(r.Description),
-		LogoURL:       textOrEmpty(r.LogoUrl),
-		HomepageURL:   textOrEmpty(r.HomepageUrl),
-		RedirectURIs:  r.RedirectUris,
-		Scopes:        r.Scopes,
-		ClientType:    r.ClientType,
-		Status:        r.Status,
-		PublisherID: textOrEmpty(r.PublisherId),
-		HasSecret:     r.ClientSecretHash.Valid && r.ClientSecretHash.String != "",
-		CreatedAt:     tsString(r.CreatedAt),
+		ID:           r.ID,
+		ClientID:     r.ClientId,
+		Name:         r.Name,
+		Description:  textOrEmpty(r.Description),
+		LogoURL:      textOrEmpty(r.LogoUrl),
+		HomepageURL:  textOrEmpty(r.HomepageUrl),
+		RedirectURIs: r.RedirectUris,
+		Scopes:       r.Scopes,
+		ClientType:   r.ClientType,
+		Status:       r.Status,
+		PublisherID:  textOrEmpty(r.PublisherId),
+		HasSecret:    r.ClientSecretHash.Valid && r.ClientSecretHash.String != "",
+		CreatedAt:    tsString(r.CreatedAt),
 	}
 }
 
@@ -641,11 +641,11 @@ type PublisherAuthorizeInfo struct {
 }
 
 type AuthorizeInfo struct {
-	Client           ClientInfo                 `json:"client"`
-	Publisher      *PublisherAuthorizeInfo `json:"publisher,omitempty"`
-	Scopes           []ScopeInfo                `json:"scopes"`
-	State            string                     `json:"state"`
-	AlreadyConsented bool                       `json:"alreadyConsented"`
+	Client           ClientInfo              `json:"client"`
+	Publisher        *PublisherAuthorizeInfo `json:"publisher,omitempty"`
+	Scopes           []ScopeInfo             `json:"scopes"`
+	State            string                  `json:"state"`
+	AlreadyConsented bool                    `json:"alreadyConsented"`
 }
 
 type AuthorizeResult struct {
@@ -747,7 +747,7 @@ func (s *Service) BeginAuthorization(ctx context.Context, userID string, req *Au
 			LogoURL:     textOrEmpty(client.LogoUrl),
 			HomepageURL: textOrEmpty(client.HomepageUrl),
 		},
-		Publisher:      pubInfo,
+		Publisher:        pubInfo,
 		Scopes:           infos,
 		State:            req.State,
 		AlreadyConsented: already,
@@ -976,13 +976,13 @@ func (s *Service) issueTokens(ctx context.Context, clientDBID, clientPublicID, p
 					}
 					mediaClaims = map[string]any{
 						"publisherId": mCtx.PublisherId,
-						"mediaId":       mCtx.MediaId,
-						"name":          mCtx.PublisherName,
-						"slug":          mCtx.PublisherSlug,
-						"logoUrl":       textOrEmpty(mCtx.PublisherLogoUrl),
-						"isMember":      mCtx.IsMember.Bool,
-						"role":          mCtx.MemberRole,
-						"permissions":   perms,
+						"mediaId":     mCtx.MediaId,
+						"name":        mCtx.PublisherName,
+						"slug":        mCtx.PublisherSlug,
+						"logoUrl":     textOrEmpty(mCtx.PublisherLogoUrl),
+						"isMember":    mCtx.IsMember.Bool,
+						"role":        mCtx.MemberRole,
+						"permissions": perms,
 					}
 				}
 			}
@@ -1142,13 +1142,13 @@ func (s *Service) UserInfo(ctx context.Context, accessToken string) (map[string]
 				}
 				out["media"] = map[string]any{
 					"publisherId": mCtx.PublisherId,
-					"mediaId":       mCtx.MediaId,
-					"name":          mCtx.PublisherName,
-					"slug":          mCtx.PublisherSlug,
-					"logoUrl":       textOrEmpty(mCtx.PublisherLogoUrl),
-					"isMember":      mCtx.IsMember.Bool,
-					"role":          mCtx.MemberRole,
-					"permissions":   perms,
+					"mediaId":     mCtx.MediaId,
+					"name":        mCtx.PublisherName,
+					"slug":        mCtx.PublisherSlug,
+					"logoUrl":     textOrEmpty(mCtx.PublisherLogoUrl),
+					"isMember":    mCtx.IsMember.Bool,
+					"role":        mCtx.MemberRole,
+					"permissions": perms,
 				}
 			}
 		}

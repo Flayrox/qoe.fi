@@ -26,7 +26,7 @@ func TestArticlePredicates_FullLocks(t *testing.T) {
 	sql := ArticlePredicates(Aliases{
 		Entity:        "a",
 		Authors:       []string{"u.id"},
-		Publisher:   `a."publisherId"`,
+		Publisher:     `a."publisherId"`,
 		Viewer:        "$2",
 		RequirePublic: true,
 	})

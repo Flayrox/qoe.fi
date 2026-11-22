@@ -10,7 +10,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -18,6 +17,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -29,9 +29,22 @@ import (
 )
 
 var (
-	errNotFound   = errors.New("webhook introuvable")
-	errForbidden  = errors.New("permission insuffisante")
-	errInvalidURL = errors.New("URL invalide")
+	errNotFound     = errors.New("webhook introuvable")
+	errForbidden    = errors.New("permission insuffisante")
+	errInvalidURL   = errors.New("URL invalide")
+	errInvalidInput = errors.New("webhook invalide")
+	errQuota        = errors.New("limite de webhooks atteinte pour cette publication")
+)
+
+const (
+	// maxWebhooksPerPublisher borne l'écriture : chaque webhook actif reçoit
+	// une livraison par événement, donc un compte pouvait multiplier la
+	// charge sortante et la taille de la liste sans limite.
+	maxWebhooksPerPublisher = 20
+	maxWebhookNameRunes     = 80
+	maxWebhookURLLen        = 2000
+	// deliveriesPerWebhook : nombre de livraisons récentes jointes à la liste.
+	deliveriesPerWebhook = 5
 )
 
 // ValidWebhookEvents est la liste blanche des événements souscriptibles.
@@ -93,6 +106,9 @@ func (s *Service) client() *http.Client {
 // resolveRole retourne le rôle de l'utilisateur sur la publication
 // ("owner" personnel ou rôle média owner/editor/writer/viewer),
 // ou "owner" si la requête provient d'une clé API média de cette publication.
+//
+// Seul `pgx.ErrNoRows` vaut « aucun rôle » : une panne de base répondait 403
+// « permission insuffisante », ce qui effaçait l'incident et trompait le client.
 func (s *Service) resolveRole(ctx context.Context, userID, publisherID string) (string, error) {
 	if p, ok := middleware.GetPrincipal(ctx); ok && p.Type == middleware.PrincipalTypePublisher {
 		if p.PublisherID != nil && *p.PublisherID == publisherID {
@@ -103,14 +119,21 @@ func (s *Service) resolveRole(ctx context.Context, userID, publisherID string) (
 	if userID == "" {
 		return "", errForbidden
 	}
-	if personal, err := s.q.GetUserPersonalPublisher(ctx, userID); err == nil && personal.String == publisherID {
+	personal, err := s.q.GetUserPersonalPublisher(ctx, userID)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return "", err
+	}
+	if err == nil && personal.Valid && personal.String == publisherID {
 		return "owner", nil
 	}
 	role, err := s.q.GetMediaRoleForUser(ctx, db.GetMediaRoleForUserParams{
 		PublisherId: publisherID, UserId: toUUID(userID),
 	})
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return "", errForbidden
+	}
+	if err != nil {
+		return "", err
 	}
 	return role, nil
 }
@@ -139,8 +162,12 @@ func (s *Service) requireWebhookGrant(ctx context.Context, userID string) error 
 	}
 	if targetUserID != "" {
 		grants, err := s.q.GetUserApiGrants(ctx, targetUserID)
-		if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return errForbidden
+		}
+		if err != nil {
+			// Une lecture de grants impossible n'est pas un refus métier.
+			return err
 		}
 		if !apiaccess.HasGrant(grants, apiaccess.ModuleWebhooks) {
 			return errForbidden
@@ -169,6 +196,27 @@ func (s *Service) List(ctx context.Context, userID, publisherID string) ([]Webho
 	if err != nil {
 		return nil, err
 	}
+	// Une seule requête pour toutes les livraisons récentes : l'ancienne
+	// boucle faisait un aller-retour par webhook (N+1).
+	recent, err := s.q.ListRecentDeliveriesByPublisher(ctx, db.ListRecentDeliveriesByPublisherParams{
+		PublisherId: publisherID,
+		Column2:     deliveriesPerWebhook,
+	})
+	if err != nil {
+		return nil, err
+	}
+	byWebhook := make(map[string][]Delivery, len(rows))
+	for _, d := range recent {
+		byWebhook[d.WebhookId] = append(byWebhook[d.WebhookId], Delivery{
+			ID:           d.ID,
+			Status:       d.Status,
+			HTTPStatus:   int32Ptr(d.HttpStatus),
+			Event:        d.Event,
+			CreatedAt:    d.CreatedAt.Time.Format(time.RFC3339),
+			ResponseBody: textPtr(d.ResponseBody),
+			Attempts:     int(d.Attempts),
+		})
+	}
 	out := make([]Webhook, 0, len(rows))
 	for _, r := range rows {
 		w := Webhook{
@@ -181,15 +229,10 @@ func (s *Service) List(ctx context.Context, userID, publisherID string) ([]Webho
 			UpdatedAt:  r.UpdatedAt.Time.Format(time.RFC3339),
 			Deliveries: []Delivery{},
 		}
-		ds, err := s.q.ListWebhookDeliveries(ctx, db.ListWebhookDeliveriesParams{WebhookId: r.ID, Limit: 5})
-		if err == nil {
-			for _, d := range ds {
-				w.Deliveries = append(w.Deliveries, deliveryFromRow(d))
-			}
-			if len(w.Deliveries) > 0 {
-				first := w.Deliveries[0]
-				w.LastDelivery = &first
-			}
+		if ds := byWebhook[r.ID]; len(ds) > 0 {
+			w.Deliveries = ds
+			first := ds[0]
+			w.LastDelivery = &first
 		}
 		out = append(out, w)
 	}
@@ -199,8 +242,27 @@ func (s *Service) List(ctx context.Context, userID, publisherID string) ([]Webho
 // Create crée un webhook (owner/editor requis) et retourne le secret
 // (affiché une seule fois, signature HMAC des livraisons).
 func (s *Service) Create(ctx context.Context, userID, publisherID, name, url string, events []string) (Webhook, string, error) {
+	// La validation vit ici, pas seulement dans le handler : tout appelant
+	// (test, script, futur endpoint) doit obtenir les mêmes garanties.
+	name = strings.TrimSpace(name)
+	if name == "" || utf8.RuneCountInString(name) > maxWebhookNameRunes {
+		return Webhook{}, "", fmt.Errorf("%w : nom requis (80 caractères maximum)", errInvalidInput)
+	}
+	url = strings.TrimSpace(url)
+	if url == "" || len(url) > maxWebhookURLLen {
+		return Webhook{}, "", fmt.Errorf("%w : URL requise (2000 caractères maximum)", errInvalidInput)
+	}
+	// netguard d'abord : un hôte interne doit remonter ErrUnsafeURL même en
+	// http, sinon le motif de refus (SSRF) serait masqué par le schéma.
 	if err := netguard.ValidateExternalURL(url); err != nil {
 		return Webhook{}, "", fmt.Errorf("%w : %w", errInvalidURL, err)
+	}
+	if !strings.HasPrefix(strings.ToLower(url), "https://") {
+		return Webhook{}, "", fmt.Errorf("%w : l'URL doit commencer par https://", errInvalidURL)
+	}
+	events = filterValidEvents(events)
+	if len(events) == 0 {
+		return Webhook{}, "", fmt.Errorf("%w : sélectionnez au moins un événement", errInvalidInput)
 	}
 	if err := s.requireWebhookGrant(ctx, userID); err != nil {
 		return Webhook{}, "", err
@@ -217,14 +279,40 @@ func (s *Service) Create(ctx context.Context, userID, publisherID, name, url str
 	if err != nil {
 		return Webhook{}, "", err
 	}
-	row, err := s.q.CreateWebhook(ctx, db.CreateWebhookParams{
+
+	// Quota et insertion dans une transaction, publication verrouillée :
+	// deux créations concurrentes ne peuvent plus dépasser la limite (le
+	// COUNT puis INSERT hors transaction laissait passer les deux).
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return Webhook{}, "", err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	var lockedID string
+	if err := tx.QueryRow(ctx, `SELECT id FROM "Publisher" WHERE id = $1 FOR UPDATE`, publisherID).Scan(&lockedID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Webhook{}, "", errForbidden
+		}
+		return Webhook{}, "", err
+	}
+	var count int
+	if err := tx.QueryRow(ctx, `SELECT COUNT(*)::int FROM "Webhook" WHERE "publisherId" = $1`, publisherID).Scan(&count); err != nil {
+		return Webhook{}, "", err
+	}
+	if count >= maxWebhooksPerPublisher {
+		return Webhook{}, "", errQuota
+	}
+	row, err := s.q.WithTx(tx).CreateWebhook(ctx, db.CreateWebhookParams{
 		PublisherId: publisherID,
-		Name:          name,
-		Url:           url,
-		Secret:        secret,
-		Events:        events,
+		Name:        name,
+		Url:         url,
+		Secret:      secret,
+		Events:      events,
 	})
 	if err != nil {
+		return Webhook{}, "", err
+	}
+	if err := tx.Commit(ctx); err != nil {
 		return Webhook{}, "", err
 	}
 	return Webhook{
@@ -264,12 +352,16 @@ func (s *Service) Toggle(ctx context.Context, userID, id, publisherID string) (b
 	if !canManage(role) {
 		return false, errForbidden
 	}
-	wh, err := s.ensureOwnership(ctx, id, publisherID)
-	if err != nil {
+	if _, err := s.ensureOwnership(ctx, id, publisherID); err != nil {
 		return false, err
 	}
-	next := !wh.Active
-	if err := s.q.UpdateWebhookActive(ctx, db.UpdateWebhookActiveParams{ID: id, Active: next}); err != nil {
+	// Une seule instruction : l'ancien lire-puis-réécrire perdait une des
+	// deux bascules concurrentes (les deux lisaient le même état).
+	next, err := s.q.ToggleWebhookActive(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, errNotFound
+		}
 		return false, err
 	}
 	return next, nil
@@ -297,7 +389,7 @@ func (s *Service) Test(ctx context.Context, userID, id, publisherID string) (Tes
 
 	body := fmt.Sprintf(`{"event":"webhook.test","data":{"publisherId":%q},"timestamp":%q}`,
 		publisherID, time.Now().UTC().Format(time.RFC3339))
-	signature := signHMAC(wh.Secret, body)
+	signature := Signature(wh.Secret, []byte(body))
 
 	status := 0
 	responseText := ""
@@ -330,7 +422,9 @@ func (s *Service) Test(ctx context.Context, userID, id, publisherID string) (Tes
 		responseText = respErr.Error()
 	}
 
-	payload, _ := json.Marshal(map[string]any{"test": true})
+	// On journalise le corps RÉELLEMENT envoyé : `{"test":true}` ne
+	// correspondait à aucun octet transmis, donc le journal mentait.
+	payload := []byte(body)
 	httpStatus := pgtype.Int4{}
 	if status != 0 {
 		httpStatus = pgtype.Int4{Int32: int32(status), Valid: true}
@@ -341,15 +435,15 @@ func (s *Service) Test(ctx context.Context, userID, id, publisherID string) (Tes
 		Payload:      payload,
 		Status:       deliveryStatus,
 		HttpStatus:   httpStatus,
-		ResponseBody: pgtype.Text{String: truncate(responseText, 1000), Valid: responseText != ""},
+		ResponseBody: pgtype.Text{String: TruncateUTF8(responseText, 1000), Valid: responseText != ""},
 	}); err != nil {
 		log.Printf("[webhooks] enregistrement livraison test: %v", err)
 	}
 
 	if respErr != nil {
-		return TestResult{Status: status, Response: truncate(responseText, 500)}, respErr
+		return TestResult{Status: status, Response: TruncateUTF8(responseText, 500)}, respErr
 	}
-	return TestResult{Status: status, Response: truncate(responseText, 500)}, nil
+	return TestResult{Status: status, Response: TruncateUTF8(responseText, 500)}, nil
 }
 
 // ListDeliveries liste les logs de livraison d'un abonnement (RBAC requis).
@@ -420,15 +514,60 @@ func newSecret() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-func signHMAC(secret, body string) string {
+// Signature est l'UNIQUE implémentation de la signature HMAC des livraisons
+// (`sha256=` + hex). Le worker l'utilise aussi : deux copies du même contrat
+// finissent par diverger et cassent la vérification côté intégrateur.
+func Signature(secret string, body []byte) string {
 	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write([]byte(body))
+	mac.Write(body)
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
-func truncate(s string, n int) string {
+// filterValidEvents ne garde que les événements souscriptibles, sans doublon
+// et dans l'ordre fourni. L'allowlist vit ici : un abonnement à un événement
+// inexistant ne produisait aucune livraison tout en donnant l'illusion d'être
+// actif.
+func filterValidEvents(events []string) []string {
+	allowed := make(map[string]bool, len(ValidWebhookEvents))
+	for _, e := range ValidWebhookEvents {
+		allowed[e] = true
+	}
+	out := make([]string, 0, len(events))
+	seen := make(map[string]bool, len(events))
+	for _, e := range events {
+		if allowed[e] && !seen[e] {
+			seen[e] = true
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// TruncateUTF8 coupe sur une frontière de rune : l'ancienne version coupait en
+// octets et produisait un corps UTF-8 invalide dans le JSON de réponse.
+func TruncateUTF8(s string, n int) string {
 	if len(s) <= n {
 		return s
 	}
-	return s[:n]
+	cut := n
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut]
+}
+
+func int32Ptr(v pgtype.Int4) *int32 {
+	if !v.Valid {
+		return nil
+	}
+	n := v.Int32
+	return &n
+}
+
+func textPtr(v pgtype.Text) *string {
+	if !v.Valid {
+		return nil
+	}
+	s := v.String
+	return &s
 }

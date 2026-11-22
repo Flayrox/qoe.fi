@@ -21,14 +21,14 @@ func TestBuildFeedArticleCarriesAuthorIdentityType(t *testing.T) {
 		Content:         "<p>Contenu</p>",
 		Visibility:      db.ContentVisibilityPUBLIC,
 		CreatedAt:       pgtype.Timestamp{Time: time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC), Valid: true},
-		PublisherID:   "pub_1",
+		PublisherID:     "pub_1",
 		AuthorID:        "user_camille",
 		AuthorLogo:      pgtype.Text{String: "/avatars/camille.svg", Valid: true},
 		AuthorCertified: true,
-		PublisherName: "Le Média",
-		PublisherSlug: "le-media",
-		PublisherLogo: pgtype.Text{String: "/logos/le-media.svg", Valid: true},
-		PublisherType: db.PublisherTypeMEDIA,
+		PublisherName:   "Le Média",
+		PublisherSlug:   "le-media",
+		PublisherLogo:   pgtype.Text{String: "/logos/le-media.svg", Valid: true},
+		PublisherType:   db.PublisherTypeMEDIA,
 	}
 
 	article := buildFeedArticle(row)

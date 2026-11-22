@@ -25,7 +25,7 @@ func TestService_Create_PersonalOwner(t *testing.T) {
 	ctx := context.Background()
 
 	id, err := svc.Create(ctx, fx.AuthorID, CreateArticleInput{
-		PublisherID: fx.PublisherID,
+		PublisherID:   fx.PublisherID,
 		Title:         "Nouvel article",
 		Slug:          "nouvel-article",
 		Content:       "# Titre\n\nContenu markdown",
@@ -60,7 +60,7 @@ func TestService_Create_InvalidContentFormat(t *testing.T) {
 
 	_, err := svc.Create(ctx, fx.AuthorID, CreateArticleInput{
 		PublisherID: fx.PublisherID,
-		Title:         "X", Content: "x", ContentFormat: "docx",
+		Title:       "X", Content: "x", ContentFormat: "docx",
 	})
 	if err == nil || !strings.Contains(err.Error(), "contentFormat") {
 		t.Fatalf("Create(docx) = %v, attendu erreur contentFormat", err)
@@ -201,7 +201,7 @@ func TestService_GetByID_Author(t *testing.T) {
 	// L'auteur lit son article complet (contenu non tronqué).
 	id, err := svc.Create(ctx, fx.AuthorID, CreateArticleInput{
 		PublisherID: fx.PublisherID,
-		Title:         "Éditable", Slug: "editable",
+		Title:       "Éditable", Slug: "editable",
 		Content: "Contenu complet", ContentFormat: "markdown", Status: "DRAFT",
 	})
 	if err != nil {
@@ -226,12 +226,12 @@ func TestService_Update_Owner(t *testing.T) {
 	ctx := context.Background()
 
 	err := svc.Update(ctx, "art_test_001", fx.AuthorID, UpdateArticleInput{
-		Title:               "Titre modifié",
-		Content:             "Nouveau contenu",
-		ContentFormat:       "markdown",
-		Slug:                "premier-article",
-		Status:              "PUBLISHED",
-		Published:           true,
+		Title:             "Titre modifié",
+		Content:           "Nouveau contenu",
+		ContentFormat:     "markdown",
+		Slug:              "premier-article",
+		Status:            "PUBLISHED",
+		Published:         true,
 		ActivePublisherID: fx.PublisherID,
 	})
 	if err != nil {
@@ -342,7 +342,7 @@ func TestService_ListCreatorArticles_MediaPrincipal(t *testing.T) {
 	// Contexte avec Principal Média (sans userID)
 	pubID := fx.PublisherID
 	ctx := context.WithValue(context.Background(), middleware.PrincipalKey, &middleware.Principal{
-		Type:          middleware.PrincipalTypePublisher,
+		Type:        middleware.PrincipalTypePublisher,
 		PublisherID: &pubID,
 	})
 
@@ -406,7 +406,7 @@ func TestService_Create_AsViewer_Forbidden(t *testing.T) {
 	// viewer n'a pas media:create_articles → refus.
 	_, err := svc.Create(ctx, fx.ViewerID, CreateArticleInput{
 		PublisherID: fx.PublisherID,
-		Title:         "Tentative", Slug: "tentative",
+		Title:       "Tentative", Slug: "tentative",
 		Content: "x", ContentFormat: "markdown",
 	})
 	if err == nil || !strings.Contains(err.Error(), "créer des articles") {
@@ -424,7 +424,7 @@ func TestService_Create_AsWriter_Submit(t *testing.T) {
 	// demande de publication directe est refusée.
 	_, err := svc.Create(ctx, fx.WriterID, CreateArticleInput{
 		PublisherID: fx.PublisherID,
-		Title:         "Soumission", Slug: "soumission",
+		Title:       "Soumission", Slug: "soumission",
 		Content: "Contenu soumis", ContentFormat: "markdown",
 		Status: "PUBLISHED", Published: true,
 	})
@@ -435,7 +435,7 @@ func TestService_Create_AsWriter_Submit(t *testing.T) {
 	// En revanche, une soumission explicite (SUBMITTED) est acceptée.
 	id, err := svc.Create(ctx, fx.WriterID, CreateArticleInput{
 		PublisherID: fx.PublisherID,
-		Title:         "Soumission", Slug: "soumission",
+		Title:       "Soumission", Slug: "soumission",
 		Content: "Contenu soumis", ContentFormat: "markdown",
 		Status: "SUBMITTED",
 	})
@@ -464,7 +464,7 @@ func TestService_Review_EditorApproves(t *testing.T) {
 	// writer soumet un article.
 	id, err := svc.Create(ctx, fx.WriterID, CreateArticleInput{
 		PublisherID: fx.PublisherID,
-		Title:         "À revoir", Slug: "a-revoir",
+		Title:       "À revoir", Slug: "a-revoir",
 		Content: "Contenu", ContentFormat: "markdown", Status: "SUBMITTED",
 	})
 	if err != nil {
@@ -496,7 +496,7 @@ func TestService_Review_RejectBackToDraft(t *testing.T) {
 
 	id, err := svc.Create(ctx, fx.WriterID, CreateArticleInput{
 		PublisherID: fx.PublisherID,
-		Title:         "Rejeté", Slug: "rejete",
+		Title:       "Rejeté", Slug: "rejete",
 		Content: "Contenu", ContentFormat: "markdown", Status: "SUBMITTED",
 	})
 	if err != nil {
@@ -525,7 +525,7 @@ func TestService_Review_NonSubmittedError(t *testing.T) {
 
 	id, err := svc.Create(ctx, fx.WriterID, CreateArticleInput{
 		PublisherID: fx.PublisherID,
-		Title:         "Direct", Slug: "direct",
+		Title:       "Direct", Slug: "direct",
 		Content: "Contenu", ContentFormat: "markdown", Status: "DRAFT",
 	})
 	if err != nil {

@@ -85,9 +85,9 @@ type mockRows struct {
 	err  error
 }
 
-func (r *mockRows) Close() {}
-func (r *mockRows) Err() error { return r.err }
-func (r *mockRows) CommandTag() pgconn.CommandTag { return pgconn.CommandTag{} }
+func (r *mockRows) Close()                                       {}
+func (r *mockRows) Err() error                                   { return r.err }
+func (r *mockRows) CommandTag() pgconn.CommandTag                { return pgconn.CommandTag{} }
 func (r *mockRows) FieldDescriptions() []pgconn.FieldDescription { return nil }
 func (r *mockRows) Next() bool {
 	if r.idx < len(r.rows) {
@@ -119,8 +119,8 @@ func (r *mockRows) Scan(dest ...any) error {
 	return nil
 }
 func (r *mockRows) Values() ([]any, error) { return nil, nil }
-func (r *mockRows) RawValues() [][]byte { return nil }
-func (r *mockRows) Conn() *pgx.Conn { return nil }
+func (r *mockRows) RawValues() [][]byte    { return nil }
+func (r *mockRows) Conn() *pgx.Conn        { return nil }
 
 func TestDispatch_UserBlockedEvent(t *testing.T) {
 	ctx := context.Background()
@@ -226,7 +226,7 @@ func TestDispatch_ProfileVisibilityChangedEvent(t *testing.T) {
 
 		evt := ProfileVisibilityChangedEvent{
 			UserID:        userID,
-			PublisherID: pubID,
+			PublisherID:   pubID,
 			OldVisibility: "PRIVATE",
 			NewVisibility: "PUBLIC",
 		}
@@ -270,7 +270,7 @@ func TestDispatch_ProfileVisibilityChangedEvent(t *testing.T) {
 
 		evt := ProfileVisibilityChangedEvent{
 			UserID:        userID,
-			PublisherID: pubID,
+			PublisherID:   pubID,
 			OldVisibility: "FOLLOWERS",
 			NewVisibility: "PUBLIC",
 		}
@@ -287,7 +287,7 @@ func TestDispatch_ProfileVisibilityChangedEvent(t *testing.T) {
 		db := &mockDB{}
 		evt := ProfileVisibilityChangedEvent{
 			UserID:        userID,
-			PublisherID: pubID,
+			PublisherID:   pubID,
 			OldVisibility: "PUBLIC",
 			NewVisibility: "PRIVATE",
 		}
@@ -304,7 +304,7 @@ func TestDispatch_ProfileVisibilityChangedEvent(t *testing.T) {
 		db := &mockDB{}
 		evt := ProfileVisibilityChangedEvent{
 			UserID:        userID,
-			PublisherID: pubID,
+			PublisherID:   pubID,
 			OldVisibility: "PUBLIC",
 			NewVisibility: "PUBLIC",
 		}
@@ -340,7 +340,7 @@ func TestDispatch_ProfileVisibilityChangedEvent(t *testing.T) {
 
 		evt := ProfileVisibilityChangedEvent{
 			UserID:        userID,
-			PublisherID: pubID,
+			PublisherID:   pubID,
 			OldVisibility: "PRIVATE",
 			NewVisibility: "PUBLIC",
 		}
@@ -385,7 +385,7 @@ func (m *mockTx) CopyFrom(ctx context.Context, tableName pgx.Identifier, columnN
 	return 0, nil
 }
 func (m *mockTx) SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults { return nil }
-func (m *mockTx) LargeObjects() pgx.LargeObjects                              { return pgx.LargeObjects{} }
+func (m *mockTx) LargeObjects() pgx.LargeObjects                               { return pgx.LargeObjects{} }
 func (m *mockTx) Prepare(ctx context.Context, name, sql string) (*pgconn.StatementDescription, error) {
 	return nil, nil
 }

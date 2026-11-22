@@ -326,7 +326,10 @@ func TestSanitizeAndValidateText(t *testing.T) {
 	assertRejection(t, func() error { _, err := SanitizeAndValidateText("abc\u0085def", 1, 50, TextOptions{}); return err }(), 400, CodeSpamUnicode)
 
 	// Newline interdit si AllowNewlines=false, autorisé si AllowNewlines=true.
-	assertRejection(t, func() error { _, err := SanitizeAndValidateText("ligne1\nligne2", 1, 50, TextOptions{AllowNewlines: false}); return err }(), 400, CodeSpamUnicode)
+	assertRejection(t, func() error {
+		_, err := SanitizeAndValidateText("ligne1\nligne2", 1, 50, TextOptions{AllowNewlines: false})
+		return err
+	}(), 400, CodeSpamUnicode)
 	if _, err := SanitizeAndValidateText("ligne1\n\tligne2", 1, 50, TextOptions{AllowNewlines: true}); err != nil {
 		t.Fatalf("multiligne autorisé rejeté: %v", err)
 	}

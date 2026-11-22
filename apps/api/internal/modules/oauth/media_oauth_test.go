@@ -42,11 +42,11 @@ func TestMediaOAuth_FullFlow(t *testing.T) {
 
 	// 2. Création d'un client OAuth rattaché au média
 	res, err := svc.CreateClientRequest(ctx, fx.OwnerID, CreateClientInput{
-		Name:          "Lassez Private Dashboard",
-		RedirectURIs:  []string{"https://lassez.com/api/auth/callback"},
-		Scopes:        []string{"openid", "profile", "email", "media"},
-		ClientType:    "CONFIDENTIAL",
-		PublisherID: pubID,
+		Name:         "Lassez Private Dashboard",
+		RedirectURIs: []string{"https://lassez.com/api/auth/callback"},
+		Scopes:       []string{"openid", "profile", "email", "media"},
+		ClientType:   "CONFIDENTIAL",
+		PublisherID:  pubID,
 	})
 	if err != nil {
 		t.Fatalf("CreateClientRequest: %v", err)

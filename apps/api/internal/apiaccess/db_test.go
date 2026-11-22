@@ -26,6 +26,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(code)
 }
+
 // requirePool skippe les tests DB quand Docker/testcontainers est absent.
 func requirePool(t *testing.T) {
 	t.Helper()
@@ -33,7 +34,6 @@ func requirePool(t *testing.T) {
 		t.Skip("DB indisponible (Docker/testcontainers requis)")
 	}
 }
-
 
 func cleanupConfig(t *testing.T, ctx context.Context) {
 	t.Helper()
@@ -89,7 +89,11 @@ func TestLoadEnabled_ConfigJSON(t *testing.T) {
 	}
 }
 
-func TestLoadEnabled_InvalidJSONFallsBack(t *testing.T) {
+// Une configuration illisible ferme les modules (fail-closed) : ouvrir tous les
+// accès sur un JSON corrompu rendrait le contrôle d'accès contournable par une
+// simple faute de frappe côté admin. Le test affirmait l'inverse, contre le
+// comportement documenté de IsEnabled.
+func TestLoadEnabled_InvalidJSONFailsClosed(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
 	cleanupConfig(t, ctx)
@@ -100,8 +104,11 @@ func TestLoadEnabled_InvalidJSONFallsBack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadEnabled: %v", err)
 	}
-	if len(enabled) != len(Registry) {
-		t.Fatalf("JSON invalide → défaut (tout), obtenu %d", len(enabled))
+	if len(enabled) != 0 {
+		t.Fatalf("JSON invalide → %d modules ouverts, attendu 0 (fail-closed)", len(enabled))
+	}
+	if IsEnabled(ctx, poolTest, ModuleOAuth) {
+		t.Fatal("JSON invalide → module oauth ouvert, attendu fermé")
 	}
 }
 

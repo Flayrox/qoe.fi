@@ -68,7 +68,7 @@ func TestAlpha(t *testing.T) {
 }
 
 func TestNormalize_UnitNorm(t *testing.T) {
-	v := Normalize([]float32{3, 4})           // mag 5
+	v := Normalize([]float32{3, 4}) // mag 5
 	got := math.Sqrt(float64(v[0]*v[0]) + float64(v[1]*v[1]))
 	if math.Abs(got-1) > 1e-6 {
 		t.Fatalf("norm = %v, attendu 1", got)
@@ -136,6 +136,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(code)
 }
+
 // requirePool skippe les tests DB quand Docker/testcontainers est absent.
 func requirePool(t *testing.T) {
 	t.Helper()
@@ -143,7 +144,6 @@ func requirePool(t *testing.T) {
 		t.Skip("DB indisponible (Docker/testcontainers requis)")
 	}
 }
-
 
 // seedUser insère un utilisateur avec un vecteur initial connu.
 func seedUser(t *testing.T, userID, vec string) {

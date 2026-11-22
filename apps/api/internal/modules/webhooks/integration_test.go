@@ -29,6 +29,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(code)
 }
+
 // requirePool skippe les tests DB quand Docker/testcontainers est absent.
 func requirePool(t *testing.T) {
 	t.Helper()
@@ -36,7 +37,6 @@ func requirePool(t *testing.T) {
 		t.Skip("DB indisponible (Docker/testcontainers requis)")
 	}
 }
-
 
 func seedWebhooks(t *testing.T) *testutil.WebhookFixtures {
 	requirePool(t)
@@ -56,7 +56,7 @@ func TestGetActiveWebhooksByPublisher_FiltersEventAndActive(t *testing.T) {
 	// (wh_act_pub), pas l'inactif (wh_inact).
 	rows, err := q.GetActiveWebhooksByPublisher(context.Background(), db.GetActiveWebhooksByPublisherParams{
 		PublisherId: fx.PublisherID,
-		Column2:       "article.published",
+		Column2:     "article.published",
 	})
 	if err != nil {
 		t.Fatalf("GetActiveWebhooksByPublisher: %v", err)
@@ -80,7 +80,7 @@ func TestGetActiveWebhooksByPublisher_EventNotSubscribed(t *testing.T) {
 	// article.updated : aucun webhook n'y est abonné → vide (pas d'erreur).
 	rows, err := q.GetActiveWebhooksByPublisher(context.Background(), db.GetActiveWebhooksByPublisherParams{
 		PublisherId: fx.PublisherID,
-		Column2:       "article.updated",
+		Column2:     "article.updated",
 	})
 	if err != nil {
 		t.Fatalf("GetActiveWebhooksByPublisher(article.updated): %v", err)

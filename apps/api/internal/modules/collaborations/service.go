@@ -137,10 +137,10 @@ type JoinCollaborationResultDTO struct {
 
 // articleAuthorization résout l'article + les droits de l'acteur.
 type articleAuthorization struct {
-	articleID     string
-	authorID      string
+	articleID   string
+	authorID    string
 	publisherID string
-	canInvite     bool
+	canInvite   bool
 }
 
 func (s *Service) authorizeArticle(ctx context.Context, userID, articleID string) (*articleAuthorization, error) {

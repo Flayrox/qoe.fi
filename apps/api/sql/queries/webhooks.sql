@@ -28,6 +28,23 @@ FROM "Webhook"
 WHERE "publisherId" = $1
 ORDER BY "createdAt" DESC;
 
+-- name: ListRecentDeliveriesByPublisher :many
+-- Toutes les livraisons récentes des webhooks d'une publication, bornées à
+-- $2 par webhook : la liste ne fait plus une requête par abonnement.
+SELECT d.id, d."webhookId", d.event, d.status, d."httpStatus",
+       d."responseBody", d.attempts, d."createdAt"
+FROM "WebhookDelivery" d
+JOIN "Webhook" w ON w.id = d."webhookId"
+WHERE w."publisherId" = $1
+  AND (
+      SELECT COUNT(*)
+      FROM "WebhookDelivery" d2
+      WHERE d2."webhookId" = d."webhookId"
+        AND (d2."createdAt" > d."createdAt"
+             OR (d2."createdAt" = d."createdAt" AND d2.id > d.id))
+  ) < $2::int
+ORDER BY d."webhookId" ASC, d."createdAt" DESC;
+
 -- name: ListWebhookDeliveries :many
 SELECT d.id, d.event, d.status, d."httpStatus", d."responseBody", d.attempts, d."createdAt"
 FROM "WebhookDelivery" d
@@ -49,10 +66,13 @@ WHERE id = $1;
 DELETE FROM "Webhook"
 WHERE id = $1;
 
--- name: UpdateWebhookActive :exec
+-- name: ToggleWebhookActive :one
+-- Un seul aller-retour : lire puis réécrire laissait deux bascules
+-- concurrentes se perdre (les deux lisaient le même état).
 UPDATE "Webhook"
-SET active = $2, "updatedAt" = now()
-WHERE id = $1;
+SET active = NOT active, "updatedAt" = now()
+WHERE id = $1
+RETURNING active;
 
 -- name: InsertWebhookDeliveryResult :exec
 INSERT INTO "WebhookDelivery" (id, "webhookId", event, payload, status, "httpStatus", "responseBody")

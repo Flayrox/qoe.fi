@@ -160,10 +160,10 @@ func mediaFanoutTask(t *testing.T, pubID, authorID string) *asynq.Task {
 	t.Helper()
 	payload, _ := json.Marshal(map[string]any{
 		"publisherId": pubID,
-		"articleId":     "art_fanout_1",
-		"authorId":      authorID,
-		"title":         "Article média",
-		"visibility":    "PUBLIC",
+		"articleId":   "art_fanout_1",
+		"authorId":    authorID,
+		"title":       "Article média",
+		"visibility":  "PUBLIC",
 	})
 	return asynq.NewTask("article.published", payload)
 }

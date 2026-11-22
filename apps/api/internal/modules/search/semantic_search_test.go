@@ -128,7 +128,7 @@ func TestSearchMapsHits(t *testing.T) {
 		IsPremium:     true,
 		ReadingTime:   4,
 		CreatedAt:     pgtype.Timestamp{Valid: true, Time: created},
-		PublisherId: "pub_1",
+		PublisherId:   "pub_1",
 		AuthorId:      uuid16([16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}),
 		AuthorName:    pgtype.Text{Valid: true, String: "Alice"},
 		AuthorLogo:    pgtype.Text{Valid: true, String: "alice.png"},
@@ -179,7 +179,7 @@ func TestSearchMapsNulls(t *testing.T) {
 	row := db.SearchSemanticArticlesRow{
 		ID: "art_2", Title: "Sans auteur", Slug: "sans-auteur",
 		CreatedAt:     pgtype.Timestamp{Valid: true, Time: time.Now()},
-		PublisherId: "pub_1",
+		PublisherId:   "pub_1",
 		PublisherName: "Journal Test",
 		// AuthorName / AuthorLogo invalides → pointeurs nil.
 	}

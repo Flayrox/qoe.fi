@@ -956,15 +956,15 @@ type DashboardArticle struct {
 	// article de média, un co-écrit et un article d'équipe dont on n'est pas
 	// l'auteur. Ces champs sont optionnels pour ne pas casser les anciens
 	// clients (brouillons, programmés, dernier publié).
-	AuthorID        *string  `json:"authorId,omitempty"`
-	AuthorName      *string  `json:"authorName,omitempty"`
-	AuthorUsername  *string  `json:"authorUsername,omitempty"`
-	PublisherID   *string  `json:"publisherId,omitempty"`
+	AuthorID         *string  `json:"authorId,omitempty"`
+	AuthorName       *string  `json:"authorName,omitempty"`
+	AuthorUsername   *string  `json:"authorUsername,omitempty"`
+	PublisherID      *string  `json:"publisherId,omitempty"`
 	PublisherName    *string  `json:"publisherName,omitempty"`
 	PublisherType    *string  `json:"publisherType,omitempty"`
 	PublisherLogoURL *string  `json:"publisherLogoUrl,omitempty"`
-	CoAuthors          []string `json:"coAuthors,omitempty"`
-	Relation        *string  `json:"relation,omitempty"`
+	CoAuthors        []string `json:"coAuthors,omitempty"`
+	Relation         *string  `json:"relation,omitempty"`
 }
 
 // dashboardArticleRelation qualifie le lien entre l'utilisateur et l'article
@@ -1017,7 +1017,7 @@ type DashboardLatestArticle struct {
 
 // DashboardOverview est la réponse complète de la page d'accueil du studio.
 type DashboardOverview struct {
-	PublisherWebsiteID    string                      `json:"publisherWebsiteId"`
+	PublisherWebsiteID      string                      `json:"publisherWebsiteId"`
 	PublishedCount          int                         `json:"publishedCount"`
 	SubscribersCount        int                         `json:"subscribersCount"`
 	PremiumSubscribersCount int                         `json:"premiumSubscribersCount"`

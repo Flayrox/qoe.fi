@@ -188,9 +188,9 @@ func TestHandler_Create_OwnerJWT(t *testing.T) {
 
 	w, body := doJSON(t, r, "POST", "/v1/webhooks", token, map[string]any{
 		"publisherId": fx.PublisherID,
-		"name":          "Nouveau CMS",
-		"url":           "https://cms2.example.com/hook",
-		"events":        []string{"article.published", "article.updated", "EVENT_INCONNU"},
+		"name":        "Nouveau CMS",
+		"url":         "https://cms2.example.com/hook",
+		"events":      []string{"article.published", "article.updated", "EVENT_INCONNU"},
 	})
 	if w.Code != http.StatusCreated {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
@@ -221,9 +221,9 @@ func TestHandler_Create_InvalidURL(t *testing.T) {
 
 	w, _ := doJSON(t, r, "POST", "/v1/webhooks", token, map[string]any{
 		"publisherId": fx.PublisherID,
-		"name":          "Mauvais",
-		"url":           "ftp://insecure.example.com",
-		"events":        []string{"article.published"},
+		"name":        "Mauvais",
+		"url":         "ftp://insecure.example.com",
+		"events":      []string{"article.published"},
 	})
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, attendu 400 (URL non-https)", w.Code)
@@ -241,9 +241,9 @@ func TestHandler_Create_NoEvents(t *testing.T) {
 
 	w, _ := doJSON(t, r, "POST", "/v1/webhooks", token, map[string]any{
 		"publisherId": fx.PublisherID,
-		"name":          "Sans événement",
-		"url":           "https://x.example.com/hook",
-		"events":        []string{"NOPE"},
+		"name":        "Sans événement",
+		"url":         "https://x.example.com/hook",
+		"events":      []string{"NOPE"},
 	})
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, attendu 400 (aucun événement valide)", w.Code)
@@ -261,9 +261,9 @@ func TestHandler_Create_EditorAllowed(t *testing.T) {
 
 	w, _ := doJSON(t, r, "POST", "/v1/webhooks", token, map[string]any{
 		"publisherId": fx.PublisherID,
-		"name":          "Par editor",
-		"url":           "https://editor.example.com/hook",
-		"events":        []string{"subscriber.created"},
+		"name":        "Par editor",
+		"url":         "https://editor.example.com/hook",
+		"events":      []string{"subscriber.created"},
 	})
 	if w.Code != http.StatusCreated {
 		t.Fatalf("status = %d, attendu 201 (editor peut créer)", w.Code)
@@ -281,9 +281,9 @@ func TestHandler_Create_ViewerForbidden(t *testing.T) {
 
 	w, _ := doJSON(t, r, "POST", "/v1/webhooks", token, map[string]any{
 		"publisherId": fx.PublisherID,
-		"name":          "Tentative",
-		"url":           "https://x.example.com/hook",
-		"events":        []string{"article.published"},
+		"name":        "Tentative",
+		"url":         "https://x.example.com/hook",
+		"events":      []string{"article.published"},
 	})
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, attendu 403 (viewer)", w.Code)

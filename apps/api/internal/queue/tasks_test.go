@@ -22,10 +22,10 @@ func TestNewServer_InvalidURL(t *testing.T) {
 func TestNewArticlePublishedTask(t *testing.T) {
 	p := ArticlePublishedPayload{
 		PublisherID: "pub_1",
-		ArticleID:     "art_1",
-		Title:         "Titre",
-		Slug:          "slug",
-		Visibility:    "PUBLIC",
+		ArticleID:   "art_1",
+		Title:       "Titre",
+		Slug:        "slug",
+		Visibility:  "PUBLIC",
 	}
 	task, err := NewArticlePublishedTask(p)
 	if err != nil {

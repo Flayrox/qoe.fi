@@ -3,9 +3,6 @@ package workers
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -16,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/modules/webhooks"
 	"github.com/qoefi/api/internal/netguard"
 )
 
@@ -100,7 +98,7 @@ func (w *WebhookWorker) dispatch(ctx context.Context, webhookID, url, secret, ev
 
 	body := map[string]any{"event": event, "data": payload, "timestamp": time.Now().UTC().Format(time.RFC3339)}
 	bodyBytes, _ := json.Marshal(body)
-	sig := signHMAC(secret, bodyBytes)
+	sig := webhooks.Signature(secret, bodyBytes)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(string(bodyBytes)))
 	if err != nil {
@@ -134,10 +132,7 @@ func (w *WebhookWorker) dispatch(ctx context.Context, webhookID, url, secret, ev
 		}
 	}
 	httpStatus := int32(resp.StatusCode)
-	bodyStr := string(respBytes)
-	if len(bodyStr) > 2000 {
-		bodyStr = bodyStr[:2000]
-	}
+	bodyStr := webhooks.TruncateUTF8(string(respBytes), 2000)
 
 	return w.q.UpdateWebhookDelivery(ctx, db.UpdateWebhookDeliveryParams{
 		ID: deliveryID, Status: status, HttpStatus: pgtype.Int4{Int32: httpStatus, Valid: true}, ResponseBody: pgtype.Text{String: bodyStr, Valid: true},
@@ -145,18 +140,9 @@ func (w *WebhookWorker) dispatch(ctx context.Context, webhookID, url, secret, ev
 }
 
 func (w *WebhookWorker) failDelivery(ctx context.Context, deliveryID string, err error) error {
-	msg := err.Error()
-	if len(msg) > 2000 {
-		msg = msg[:2000]
-	}
+	msg := webhooks.TruncateUTF8(err.Error(), 2000)
 	_ = w.q.UpdateWebhookDelivery(ctx, db.UpdateWebhookDeliveryParams{
 		ID: deliveryID, Status: "FAILED", HttpStatus: pgtype.Int4{}, ResponseBody: pgtype.Text{String: msg, Valid: true},
 	})
 	return err
-}
-
-func signHMAC(secret string, body []byte) string {
-	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write(body)
-	return hex.EncodeToString(mac.Sum(nil))
 }

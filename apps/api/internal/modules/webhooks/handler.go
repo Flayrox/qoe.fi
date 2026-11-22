@@ -4,10 +4,9 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/qoefi/api/internal/antispam"
+	"github.com/google/uuid"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/netguard"
 	"github.com/qoefi/api/internal/response"
@@ -37,6 +36,27 @@ func (h *Handler) RegisterProtected(r chi.Router, requireScope func(string) func
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/webhooks/{id}/test", h.test)
 }
 
+// userID exige une identité exploitable. Sans ce garde, un identifiant
+// illisible partait en requête et ressortait en 403 « permission
+// insuffisante » (refus métier au lieu d'une session invalide).
+func (h *Handler) userID(w http.ResponseWriter, r *http.Request) (string, bool) {
+	if p, ok := middleware.GetPrincipal(r.Context()); ok && p.Type == middleware.PrincipalTypePublisher {
+		// Clé API média : l'identité est portée par le principal, pas par un
+		// User.id. Le service vérifie le rattachement à la publication.
+		return "", true
+	}
+	uid, ok := middleware.UserID(r.Context())
+	if !ok || uid == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return "", false
+	}
+	if _, err := uuid.Parse(uid); err != nil {
+		response.Unauthorized(w, "Session invalide")
+		return "", false
+	}
+	return uid, true
+}
+
 // publisherID résout la publication depuis la clé API (contexte) ou le query
 // param `publisherId` (JWT / dashboard).
 func publisherID(r *http.Request) (string, bool) {
@@ -50,7 +70,10 @@ func publisherID(r *http.Request) (string, bool) {
 }
 
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
-	userID, _ := middleware.UserID(r.Context())
+	userID, ok := h.userID(w, r)
+	if !ok {
+		return
+	}
 	pid, ok := publisherID(r)
 	if !ok {
 		response.BadRequest(w, "publisherId requis")
@@ -66,49 +89,22 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 
 type createInput struct {
 	PublisherID string   `json:"publisherId"`
-	Name          string   `json:"name"`
-	URL           string   `json:"url"`
-	Events        []string `json:"events"`
+	Name        string   `json:"name"`
+	URL         string   `json:"url"`
+	Events      []string `json:"events"`
 }
 
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
-	userID, _ := middleware.UserID(r.Context())
+	userID, ok := h.userID(w, r)
+	if !ok {
+		return
+	}
 	var in createInput
 	if !response.DecodeJSON(w, r, &in) {
 		return
 	}
-	cleanName, err := antispam.SanitizeAndValidateText(in.Name, 1, 80, antispam.TextOptions{
-		AllowNewlines: false,
-		CheckXSS:      true,
-	})
-	if err != nil {
-		response.BadRequest(w, err.Error())
-		return
-	}
-	in.Name = cleanName
-	in.URL = strings.TrimSpace(in.URL)
-	if in.URL == "" {
-		response.BadRequest(w, "Nom et URL requis")
-		return
-	}
-	if len([]rune(in.URL)) > 2000 {
-		response.BadRequest(w, "URL trop longue (2000 caractères maximum)")
-		return
-	}
-	if !strings.HasPrefix(strings.ToLower(in.URL), "https://") {
-		response.BadRequest(w, "L'URL doit commencer par https://")
-		return
-	}
-	if err := netguard.ValidateExternalURL(in.URL); err != nil {
-		response.BadRequest(w, err.Error())
-		return
-	}
-	events := filterValidEvents(in.Events)
-	if len(events) == 0 {
-		response.BadRequest(w, "Sélectionnez au moins un événement")
-		return
-	}
-
+	// Nom, URL (https + anti-SSRF) et événements sont validés par le service :
+	// une seule implémentation, valable pour tous les appelants.
 	pid := in.PublisherID
 	if pid == "" {
 		if p, ok := publisherID(r); ok {
@@ -120,7 +116,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	wh, secret, err := h.svc.Create(r.Context(), userID, pid, in.Name, in.URL, events)
+	wh, secret, err := h.svc.Create(r.Context(), userID, pid, in.Name, in.URL, in.Events)
 	if err != nil {
 		h.writeWebhookError(w, err)
 		return
@@ -129,7 +125,10 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
-	userID, _ := middleware.UserID(r.Context())
+	userID, ok := h.userID(w, r)
+	if !ok {
+		return
+	}
 	id := chi.URLParam(r, "id")
 	pid, ok := publisherID(r)
 	if !ok {
@@ -144,7 +143,10 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) toggle(w http.ResponseWriter, r *http.Request) {
-	userID, _ := middleware.UserID(r.Context())
+	userID, ok := h.userID(w, r)
+	if !ok {
+		return
+	}
 	id := chi.URLParam(r, "id")
 	pid, ok := publisherID(r)
 	if !ok {
@@ -160,7 +162,10 @@ func (h *Handler) toggle(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) test(w http.ResponseWriter, r *http.Request) {
-	userID, _ := middleware.UserID(r.Context())
+	userID, ok := h.userID(w, r)
+	if !ok {
+		return
+	}
 	id := chi.URLParam(r, "id")
 	pid, ok := publisherID(r)
 	if !ok {
@@ -169,16 +174,10 @@ func (h *Handler) test(w http.ResponseWriter, r *http.Request) {
 	}
 	res, err := h.svc.Test(r.Context(), userID, id, pid)
 	if err != nil {
-		if errors.Is(err, errNotFound) {
-			response.NotFound(w, "Webhook introuvable")
-			return
-		}
-		if errors.Is(err, errForbidden) {
-			response.Forbidden(w, err.Error())
-			return
-		}
-		if errors.Is(err, errInvalidURL) || errors.Is(err, netguard.ErrUnsafeURL) {
-			response.BadRequest(w, err.Error())
+		if errors.Is(err, errNotFound) || errors.Is(err, errForbidden) ||
+			errors.Is(err, errInvalidURL) || errors.Is(err, errInvalidInput) ||
+			errors.Is(err, netguard.ErrUnsafeURL) {
+			h.writeWebhookError(w, err)
 			return
 		}
 		// Erreur réseau → réponse 200 avec le détail (miroir du TS).
@@ -190,7 +189,10 @@ func (h *Handler) test(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/webhooks/{id}/deliveries?limit= — logs de livraison détaillés.
 func (h *Handler) listDeliveries(w http.ResponseWriter, r *http.Request) {
-	userID, _ := middleware.UserID(r.Context())
+	userID, ok := h.userID(w, r)
+	if !ok {
+		return
+	}
 	pid, ok := publisherID(r)
 	if !ok {
 		response.BadRequest(w, "publisherId requis")
@@ -212,26 +214,12 @@ func (h *Handler) writeWebhookError(w http.ResponseWriter, err error) {
 		response.NotFound(w, "Webhook introuvable")
 	case errors.Is(err, errForbidden):
 		response.Forbidden(w, err.Error())
-	case errors.Is(err, errInvalidURL), errors.Is(err, netguard.ErrUnsafeURL):
+	case errors.Is(err, errQuota):
+		response.ErrorCode(w, http.StatusConflict, "webhook_quota", err.Error())
+	case errors.Is(err, errInvalidURL), errors.Is(err, errInvalidInput), errors.Is(err, netguard.ErrUnsafeURL):
 		response.BadRequest(w, err.Error())
 	default:
 		log.Printf("[webhooks] %v", err)
 		response.Internal(w)
 	}
-}
-
-func filterValidEvents(events []string) []string {
-	allowed := map[string]bool{}
-	for _, e := range ValidWebhookEvents {
-		allowed[e] = true
-	}
-	out := make([]string, 0, len(events))
-	seen := map[string]bool{}
-	for _, e := range events {
-		if allowed[e] && !seen[e] {
-			seen[e] = true
-			out = append(out, e)
-		}
-	}
-	return out
 }

@@ -39,14 +39,14 @@ func TestSignAndVerifyUnsubscribe(t *testing.T) {
 func TestBuildArticleReleaseEmail_Free(t *testing.T) {
 	t.Setenv("NEWSLETTER_UNSUB_SECRET", "secret-de-test-articles-32-caracteres")
 	info := db.GetArticleReleaseInfoRow{
-		ID:              "art_free_1",
-		Title:           "Mon Super Article",
-		Slug:            "mon-super-article",
-		IsPremium:       false,
-		Content:         "<p>Bonjour tout le monde ! Ceci est un article libre.</p>",
+		ID:            "art_free_1",
+		Title:         "Mon Super Article",
+		Slug:          "mon-super-article",
+		IsPremium:     false,
+		Content:       "<p>Bonjour tout le monde ! Ceci est un article libre.</p>",
 		PublisherId:   "pub_test",
 		PublisherName: "Chronique Tech",
-		Subdomain:       pgtype.Text{String: "tech", Valid: true},
+		Subdomain:     pgtype.Text{String: "tech", Valid: true},
 	}
 	link := "https://tech.qoe.fi/mon-super-article"
 	recipient := "abonne@example.com"
@@ -69,14 +69,14 @@ func TestBuildArticleReleaseEmail_Free(t *testing.T) {
 
 func TestBuildArticleReleaseEmail_PremiumZeroLeak(t *testing.T) {
 	info := db.GetArticleReleaseInfoRow{
-		ID:              "art_prem_1",
-		Title:           "Dossier Secret",
-		Slug:            "dossier-secret",
-		IsPremium:       true,
-		Content:         "<p>Teaser public.</p><!--qoe-paywall--><p>SECRET PAYANT CONFIDENTIEL</p>",
+		ID:            "art_prem_1",
+		Title:         "Dossier Secret",
+		Slug:          "dossier-secret",
+		IsPremium:     true,
+		Content:       "<p>Teaser public.</p><!--qoe-paywall--><p>SECRET PAYANT CONFIDENTIEL</p>",
 		PublisherId:   "pub_test",
 		PublisherName: "Chronique Tech",
-		Subdomain:       pgtype.Text{String: "tech", Valid: true},
+		Subdomain:     pgtype.Text{String: "tech", Valid: true},
 	}
 	link := "https://tech.qoe.fi/dossier-secret"
 	recipient := "abonne@example.com"

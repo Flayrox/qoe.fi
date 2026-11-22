@@ -58,11 +58,11 @@ func TestComputeScore_AllPositiveRules(t *testing.T) {
 
 	// Téléphone (+25) + onboarding (+15) = 40 -> STANDARD.
 	pStd := ComputeScore(Signals{
-		UserID:         "u1",
-		PhoneVerified:  true,
-		OnboardingDone: true,
-		AccountAge:     8 * 24 * time.Hour, // +15
-		QualifiedFollowers: 5,              // +15
+		UserID:             "u1",
+		PhoneVerified:      true,
+		OnboardingDone:     true,
+		AccountAge:         8 * 24 * time.Hour, // +15
+		QualifiedFollowers: 5,                  // +15
 		TotalFollowers:     5,
 	})
 	if pStd.Score != 70 || pStd.Tier != TierStandard {

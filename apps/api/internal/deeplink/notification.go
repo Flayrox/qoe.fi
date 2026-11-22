@@ -13,10 +13,10 @@ import (
 
 // Target décrit la cible d'une notification.
 type Target struct {
-	Type            string
-	ThoughtID       string
-	ArticleID       string
-	ArticleSlug     string
+	Type          string
+	ThoughtID     string
+	ArticleID     string
+	ArticleSlug   string
 	PublisherID   string
 	PublisherSlug string
 	// PublisherType vaut PERSONAL ou MEDIA.

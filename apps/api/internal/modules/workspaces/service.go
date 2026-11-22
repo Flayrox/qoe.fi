@@ -19,13 +19,13 @@ func NewService(pool *pgxpool.Pool) *Service {
 }
 
 type ActiveWorkspace struct {
-	Type          string  `json:"type"`
+	Type        string  `json:"type"`
 	PublisherID string  `json:"publisherId"`
-	Name          string  `json:"name"`
-	Slug          string  `json:"slug"`
-	LogoURL       *string `json:"logoUrl"`
-	MediaID       *string `json:"mediaId,omitempty"`
-	MediaRole     *string `json:"mediaRole,omitempty"`
+	Name        string  `json:"name"`
+	Slug        string  `json:"slug"`
+	LogoURL     *string `json:"logoUrl"`
+	MediaID     *string `json:"mediaId,omitempty"`
+	MediaRole   *string `json:"mediaRole,omitempty"`
 	// Permissions effectives du membre (base du rôle + overrides). En PERSONAL,
 	// l'utilisateur est propriétaire : toutes les permissions. Le front s'en sert
 	// pour masquer les sections inaccessibles, sans dupliquer le RBAC.
@@ -64,13 +64,13 @@ func (s *Service) GetActive(ctx context.Context, userID, mediaID string) (Active
 		`, mediaID, toUUID(userID)).Scan(&pubID, &pubName, &pubSlug, &pubLogo, &role, &memberPerms)
 		if err == nil {
 			return ActiveWorkspace{
-				Type:          "MEDIA",
-				MediaID:       &mediaID,
+				Type:        "MEDIA",
+				MediaID:     &mediaID,
 				PublisherID: pubID,
-				Name:          pubName,
-				Slug:          pubSlug,
-				LogoURL:       textPtr(pubLogo),
-				MediaRole:     &role,
+				Name:        pubName,
+				Slug:        pubSlug,
+				LogoURL:     textPtr(pubLogo),
+				MediaRole:   &role,
 				Permissions: permissions.EffectivePermissions(&permissions.MediaMember{
 					Role: role, Permissions: memberPerms, Status: "active",
 				}),
@@ -91,20 +91,20 @@ func (s *Service) GetActive(ctx context.Context, userID, mediaID string) (Active
 		// (un id utilisateur n'est pas une publication) ; le client appelle
 		// /v1/me/publication pour la créer à la demande.
 		return ActiveWorkspace{
-			Type:          "PERSONAL",
+			Type:        "PERSONAL",
 			PublisherID: "",
-			Name:          "Profil Personnel",
-			Slug:          "personal",
-			LogoURL:       nil,
-			Permissions:   permissions.AllMediaPermissions(),
+			Name:        "Profil Personnel",
+			Slug:        "personal",
+			LogoURL:     nil,
+			Permissions: permissions.AllMediaPermissions(),
 		}, nil
 	}
 	return ActiveWorkspace{
-		Type:          "PERSONAL",
+		Type:        "PERSONAL",
 		PublisherID: pubID,
-		Name:          pubName,
-		Slug:          pubSlug,
-		LogoURL:       textPtr(pubLogo),
-		Permissions:   permissions.AllMediaPermissions(),
+		Name:        pubName,
+		Slug:        pubSlug,
+		LogoURL:     textPtr(pubLogo),
+		Permissions: permissions.AllMediaPermissions(),
 	}, nil
 }

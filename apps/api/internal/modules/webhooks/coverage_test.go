@@ -258,10 +258,10 @@ func TestService_Test_NetworkError(t *testing.T) {
 
 // TestTruncate : branche longueur > n.
 func TestTruncate(t *testing.T) {
-	if got := truncate("court", 10); got != "court" {
+	if got := TruncateUTF8("court", 10); got != "court" {
 		t.Fatalf("court = %q", got)
 	}
-	if got := truncate("un message très long qui dépasse la limite", 10); len(got) != 10 {
+	if got := TruncateUTF8("un message très long qui dépasse la limite", 10); len(got) != 10 {
 		t.Fatalf("long = %q (len %d), attendu 10", got, len(got))
 	}
 }

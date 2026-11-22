@@ -67,7 +67,7 @@ func (w *WelcomeEmailWorker) HandleSubscriberWelcome(ctx context.Context, t *asy
 
 	q := db.New(w.pool)
 	info, err := q.GetSubscriberEmailContext(ctx, db.GetSubscriberEmailContextParams{
-		Email:         p.Email,
+		Email:       p.Email,
 		PublisherId: p.PublisherID,
 	})
 	if err != nil {

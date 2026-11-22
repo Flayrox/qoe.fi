@@ -342,4 +342,3 @@ func (s *Service) CheckSuperadmin(ctx context.Context, userID string) error {
 	}
 	return nil
 }
-

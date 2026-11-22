@@ -91,10 +91,10 @@ const (
 // casserait la normalisation). Calculé une fois toutes les 10 min.
 
 var (
-	centroidMu   sync.Mutex
-	centroidVec  []float32
-	centroidAt   time.Time
-	centroidTTL  = 10 * time.Minute
+	centroidMu  sync.Mutex
+	centroidVec []float32
+	centroidAt  time.Time
+	centroidTTL = 10 * time.Minute
 )
 
 func corpusCentroid(ctx context.Context, pool *pgxpool.Pool) ([]float32, bool) {

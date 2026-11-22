@@ -180,8 +180,8 @@ func (n *NewsletterWorker) HandleArticlePublished(ctx context.Context, t *asynq.
 
 	// 🔔 Notification MEDIA_ARTICLE_PUBLISHED (fan-out ≤500, prefs + dédup, no-op hors MEDIA) — best-effort.
 	if err := n.q.InsertMediaArticlePublishedFanout(ctx, db.InsertMediaArticlePublishedFanoutParams{
-		SenderID:      toUUID(p.AuthorID),
-		ArticleID:     pgtype.Text{String: p.ArticleID, Valid: true},
+		SenderID:    toUUID(p.AuthorID),
+		ArticleID:   pgtype.Text{String: p.ArticleID, Valid: true},
 		PublisherID: p.PublisherID,
 	}); err != nil {
 		log.Printf("[newsletter] notif MEDIA_ARTICLE_PUBLISHED fanout: %v", err)
