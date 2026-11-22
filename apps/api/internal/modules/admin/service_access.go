@@ -703,16 +703,21 @@ func (s *Service) GrantAccess(ctx context.Context, actorID string, in GrantAcces
 		if _, err := tx.Exec(ctx, accessUpsertGrantQuery, targetID, roleKey, actorID, expiresAt); err != nil {
 			return nil, err
 		}
-		return accessGrantTx(ctx, tx, targetID, roleKey)
+		grant, err := accessGrantTx(ctx, tx, targetID, roleKey)
+		if err != nil {
+			return nil, err
+		}
+		// La trace appartient au mouvement : si l'audit échoue, l'attribution
+		// est annulée. Une attribution sans trace n'est pas une attribution.
+		if err := logAccessAuditTx(ctx, tx, actorID, "access.grant", string(adminauthz.AccessGrant), targetID, reason,
+			nil, map[string]any{"roleKey": roleKey, "expiresAt": in.ExpiresAt}); err != nil {
+			return nil, err
+		}
+		return grant, nil
 	})
 	if err != nil {
 		return nil, err
 	}
-
-	s.logAccessAudit(ctx, actorID, "access.grant", string(adminauthz.AccessGrant), targetID, reason,
-		nil,
-		map[string]any{"roleKey": roleKey, "expiresAt": in.ExpiresAt},
-	)
 	return grant, nil
 }
 
@@ -791,16 +796,17 @@ func (s *Service) RevokeAccess(ctx context.Context, actorID, targetID, roleKey, 
 		if tag.RowsAffected() == 0 {
 			return nil, pgx.ErrNoRows
 		}
+		// Même règle qu'à l'attribution : la révocation et sa trace sont
+		// indissociables.
+		if err := logAccessAuditTx(ctx, tx, actorID, "access.revoke", string(adminauthz.AccessGrant), targetID, reason,
+			map[string]any{"roleKey": before.RoleKey, "expiresAt": before.ExpiresAt}, nil); err != nil {
+			return nil, err
+		}
 		return before, nil
 	})
 	if err != nil {
 		return nil, err
 	}
-
-	s.logAccessAudit(ctx, actorID, "access.revoke", string(adminauthz.AccessGrant), targetID, reason,
-		map[string]any{"roleKey": revoked.RoleKey, "expiresAt": revoked.ExpiresAt},
-		nil,
-	)
 	return revoked, nil
 }
 
@@ -858,17 +864,15 @@ const insertAccessAuditQuery = `
 // changement d'attribution, lui, doit rester traçable même flag éteint —
 // sinon la console saurait nommer des gens sans que personne ne puisse dire
 // qui l'a fait ni pourquoi.
-func (s *Service) logAccessAudit(ctx context.Context, actorID, action, capability, targetID, reason string, before, after any) {
-	if s == nil || s.pool == nil {
-		return
-	}
+// accessAuditArgs prépare les paramètres de la trace (capacité, motif, diff).
+func accessAuditArgs(actorID, action, capability, targetID, reason string, before, after any) ([]any, error) {
 	var actorUUID pgtype.UUID
 	if err := actorUUID.Scan(actorID); err != nil {
-		return
+		return nil, fmt.Errorf("%w : acteur d'audit invalide", errInvalidAccess)
 	}
 	metadata, err := json.Marshal(map[string]any{"reason": reason})
 	if err != nil {
-		return
+		return nil, err
 	}
 	beforeRaw, err := json.Marshal(before)
 	if err != nil || string(beforeRaw) == "null" {
@@ -878,9 +882,31 @@ func (s *Service) logAccessAudit(ctx context.Context, actorID, action, capabilit
 	if err != nil || string(afterRaw) == "null" {
 		afterRaw = nil
 	}
-	if _, err := s.pool.Exec(ctx, insertAccessAuditQuery,
-		actorID, action, targetID, string(metadata), capability, reason,
-		nullableJSON(beforeRaw), nullableJSON(afterRaw)); err != nil {
+	return []any{actorUUID, action, targetID, string(metadata), capability, reason,
+		nullableJSON(beforeRaw), nullableJSON(afterRaw)}, nil
+}
+
+// logAccessAuditTx écrit la trace DANS la transaction du mouvement : un échec
+// annule le mouvement au lieu de laisser un droit accordé sans preuve.
+func logAccessAuditTx(ctx context.Context, tx pgx.Tx, actorID, action, capability, targetID, reason string, before, after any) error {
+	args, err := accessAuditArgs(actorID, action, capability, targetID, reason, before, after)
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec(ctx, insertAccessAuditQuery, args...)
+	return err
+}
+
+func (s *Service) logAccessAudit(ctx context.Context, actorID, action, capability, targetID, reason string, before, after any) {
+	if s == nil || s.pool == nil {
+		return
+	}
+	args, err := accessAuditArgs(actorID, action, capability, targetID, reason, before, after)
+	if err != nil {
+		log.Printf("[admin-access-audit] %s : %v", action, err)
+		return
+	}
+	if _, err := s.pool.Exec(ctx, insertAccessAuditQuery, args...); err != nil {
 		// Un audit manqué est une panne d'exploitation : on la voit.
 		log.Printf("[admin-access-audit] %s : %v", action, err)
 	}

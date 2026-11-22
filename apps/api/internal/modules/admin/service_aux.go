@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/mail"
 	"strings"
 	"time"
 
@@ -303,6 +304,24 @@ func normalizeAllowlistEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }
 
+// validAllowlistEmail exige une adresse nue et plausible : une simple
+// présence de « @ » laissait inviter « @ », « a@ » ou « Nom <a@b>", qui ne
+// peuvent jamais correspondre à un compte.
+func validAllowlistEmail(normalized string) bool {
+	if normalized == "" || strings.ContainsAny(normalized, " \t\r\n<>") {
+		return false
+	}
+	addr, err := mail.ParseAddress(normalized)
+	if err != nil || addr.Address != normalized {
+		return false
+	}
+	local, domain, ok := strings.Cut(normalized, "@")
+	if !ok || local == "" || !strings.Contains(domain, ".") {
+		return false
+	}
+	return !strings.HasPrefix(domain, ".") && !strings.HasSuffix(domain, ".")
+}
+
 // ListAllowlist retourne les invitations (plus récentes d'abord, max 500).
 func (s *Service) ListAllowlist(ctx context.Context, userID string) ([]AllowlistEntry, error) {
 	if err := s.checkSuperadmin(ctx, userID); err != nil {
@@ -337,7 +356,7 @@ func (s *Service) AddAllowlist(ctx context.Context, userID, email, note string) 
 		return nil, err
 	}
 	normalized := normalizeAllowlistEmail(email)
-	if normalized == "" || !strings.Contains(normalized, "@") {
+	if !validAllowlistEmail(normalized) {
 		return nil, errors.New("email invalide")
 	}
 	var e AllowlistEntry

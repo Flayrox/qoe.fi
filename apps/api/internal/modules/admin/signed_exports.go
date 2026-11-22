@@ -198,31 +198,38 @@ func (s *Service) ExportSignedAudit(
 		args = append(args, limit)
 
 		rows, err := s.pool.Query(ctx, query, args...)
-		if err == nil {
-			defer rows.Close()
-			for rows.Next() {
-				var (
-					id, actorID, actorEmail, action, targetType, targetID string
-					metaJSON                                              []byte
-					createdAt                                             time.Time
-				)
-				if err := rows.Scan(&id, &actorID, &actorEmail, &action, &targetType, &targetID, &metaJSON, &createdAt); err == nil {
-					var meta map[string]any
-					if len(metaJSON) > 0 {
-						_ = json.Unmarshal(metaJSON, &meta)
-					}
-					entries = append(entries, map[string]any{
-						"id":         id,
-						"actorId":    actorID,
-						"actorEmail": actorEmail,
-						"action":     action,
-						"targetType": targetType,
-						"targetId":   targetID,
-						"metadata":   meta,
-						"createdAt":  createdAt.UTC().Format(time.RFC3339),
-					})
-				}
+		if err != nil {
+			// Un export signé qui n'a pas pu lire le journal ne doit jamais
+			// attester « aucune entrée » : on refuse de sceller.
+			return nil, nil, fmt.Errorf("lecture du journal d'audit: %w", err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var (
+				id, actorID, actorEmail, action, targetType, targetID string
+				metaJSON                                              []byte
+				createdAt                                             time.Time
+			)
+			if err := rows.Scan(&id, &actorID, &actorEmail, &action, &targetType, &targetID, &metaJSON, &createdAt); err != nil {
+				return nil, nil, fmt.Errorf("lecture d'une entrée d'audit: %w", err)
 			}
+			var meta map[string]any
+			if len(metaJSON) > 0 {
+				_ = json.Unmarshal(metaJSON, &meta)
+			}
+			entries = append(entries, map[string]any{
+				"id":         id,
+				"actorId":    actorID,
+				"actorEmail": actorEmail,
+				"action":     action,
+				"targetType": targetType,
+				"targetId":   targetID,
+				"metadata":   meta,
+				"createdAt":  createdAt.UTC().Format(time.RFC3339),
+			})
+		}
+		if err := rows.Err(); err != nil {
+			return nil, nil, fmt.Errorf("lecture du journal d'audit: %w", err)
 		}
 	}
 
@@ -357,44 +364,49 @@ func (s *Service) ExportSignedSubscribers(
 		args = append(args, limit)
 
 		rows, err := s.pool.Query(ctx, query, args...)
-		if err == nil {
-			defer rows.Close()
-			for rows.Next() {
-				var (
-					id, email, status, pubID string
-					isActive, isPremium, rec bool
-					confirmedAt              *time.Time
-					createdAt                time.Time
-				)
-				if err := rows.Scan(&id, &email, &status, &isActive, &isPremium, &rec, &confirmedAt, &createdAt, &pubID); err == nil {
-					var confStr *string
-					if confirmedAt != nil {
-						formatted := confirmedAt.UTC().Format(time.RFC3339)
-						confStr = &formatted
-						countConfirmed++
-					}
-					if isActive {
-						countActive++
-					}
-
-					// Hachage de l'adresse email pour le registre d'intégrité
-					emailSum := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(email))))
-					emailHash := hex.EncodeToString(emailSum[:])
-
-					subscribers = append(subscribers, map[string]any{
-						"id":              id,
-						"email":           email,
-						"emailHash":       emailHash,
-						"status":          status,
-						"isActive":        isActive,
-						"isPremium":       isPremium,
-						"receiveArticles": rec,
-						"confirmedAt":     confStr,
-						"createdAt":       createdAt.UTC().Format(time.RFC3339),
-						"publisherId":     pubID,
-					})
-				}
+		if err != nil {
+			return nil, nil, fmt.Errorf("lecture du registre des abonnés: %w", err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var (
+				id, email, status, pubID string
+				isActive, isPremium, rec bool
+				confirmedAt              *time.Time
+				createdAt                time.Time
+			)
+			if err := rows.Scan(&id, &email, &status, &isActive, &isPremium, &rec, &confirmedAt, &createdAt, &pubID); err != nil {
+				return nil, nil, fmt.Errorf("lecture d'un abonné: %w", err)
 			}
+			var confStr *string
+			if confirmedAt != nil {
+				formatted := confirmedAt.UTC().Format(time.RFC3339)
+				confStr = &formatted
+				countConfirmed++
+			}
+			if isActive {
+				countActive++
+			}
+
+			// Hachage de l'adresse email pour le registre d'intégrité
+			emailSum := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(email))))
+			emailHash := hex.EncodeToString(emailSum[:])
+
+			subscribers = append(subscribers, map[string]any{
+				"id":              id,
+				"email":           email,
+				"emailHash":       emailHash,
+				"status":          status,
+				"isActive":        isActive,
+				"isPremium":       isPremium,
+				"receiveArticles": rec,
+				"confirmedAt":     confStr,
+				"createdAt":       createdAt.UTC().Format(time.RFC3339),
+				"publisherId":     pubID,
+			})
+		}
+		if err := rows.Err(); err != nil {
+			return nil, nil, fmt.Errorf("lecture du registre des abonnés: %w", err)
 		}
 	}
 

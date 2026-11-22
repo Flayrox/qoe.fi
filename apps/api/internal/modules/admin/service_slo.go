@@ -165,15 +165,18 @@ func (s *Service) GetPlatformSLOReport(ctx context.Context) *PlatformSLOReport {
 		deniedEnforced   int64
 	)
 
+	var decisionsErr string
 	if s != nil && s.pool != nil {
-		_ = s.pool.QueryRow(ctx, `
+		if err := s.pool.QueryRow(ctx, `
 			SELECT
 			    COUNT(*) FILTER (WHERE "allowed")::bigint,
 			    COUNT(*) FILTER (WHERE NOT "allowed" AND "mode" = 'observe')::bigint,
 			    COUNT(*) FILTER (WHERE NOT "allowed" AND "mode" = 'enforce')::bigint
 			  FROM "AdminAuthzDecision"
 			 WHERE "createdAt" >= CURRENT_TIMESTAMP - interval '24 hours'`,
-		).Scan(&allowedDecisions, &deniedObserved, &deniedEnforced)
+		).Scan(&allowedDecisions, &deniedObserved, &deniedEnforced); err != nil {
+			decisionsErr = err.Error()
+		}
 	}
 
 	totalDecisions := allowedDecisions + deniedObserved + deniedEnforced
@@ -181,7 +184,22 @@ func (s *Service) GetPlatformSLOReport(ctx context.Context) *PlatformSLOReport {
 	errBudget := 100.0
 	availStr := "100.0 %"
 
-	if totalDecisions > 0 {
+	if decisionsErr != "" {
+		// Zéro décision mesurée n'est pas une disponibilité parfaite : c'est
+		// une mesure absente, et elle doit s'afficher comme telle.
+		errStatus = SLOCritical
+		errBudget = 0.0
+		availStr = "non mesurée"
+		alerts = append(alerts, PlatformAlert{
+			ID:             "alert-decisions-unreadable",
+			Severity:       AlertCritical,
+			Surface:        "error_rate",
+			Title:          "Mesure des décisions inaccessible",
+			Message:        fmt.Sprintf("Le journal des décisions n'a pas pu être lu : %s", decisionsErr),
+			Recommendation: "Vérifier la table AdminAuthzDecision et les migrations d'autorisation.",
+			TriggeredAt:    now.Format(time.RFC3339),
+		})
+	} else if totalDecisions > 0 {
 		errorCount := deniedEnforced
 		availPct := (float64(totalDecisions-errorCount) / float64(totalDecisions)) * 100.0
 		availStr = fmt.Sprintf("%.2f %%", availPct)
@@ -241,8 +259,9 @@ func (s *Service) GetPlatformSLOReport(ctx context.Context) *PlatformSLOReport {
 		oldestQueuedSeconds int64
 	)
 
+	var outboxErr string
 	if s != nil && s.pool != nil {
-		_ = s.pool.QueryRow(ctx, `
+		if err := s.pool.QueryRow(ctx, `
 			SELECT
 			    COUNT(*) FILTER (WHERE "status" = 'QUEUED')::bigint,
 			    COUNT(*) FILTER (WHERE "status" = 'PROCESSING')::bigint,
@@ -255,13 +274,29 @@ func (s *Service) GetPlatformSLOReport(ctx context.Context) *PlatformSLOReport {
 			&outboxFailed,
 			&outboxSent24h,
 			&oldestQueuedSeconds,
-		)
+		); err != nil {
+			outboxErr = err.Error()
+		}
 	}
 
 	outboxStatus := SLONominal
 	outboxBudget := 100.0
 
-	if oldestQueuedSeconds > 900 || outboxFailed > 50 { // > 15 min de lag ou > 50 échecs
+	if outboxErr != "" {
+		// Une file non lue n'est pas une file vide : ne jamais afficher
+		// « nominal » sur une mesure absente.
+		outboxStatus = SLOCritical
+		outboxBudget = 0.0
+		alerts = append(alerts, PlatformAlert{
+			ID:             "alert-outbox-unreadable",
+			Severity:       AlertCritical,
+			Surface:        "outbox",
+			Title:          "Mesure de la boîte d'envoi inaccessible",
+			Message:        fmt.Sprintf("La table NotificationDelivery n'a pas pu être lue : %s", outboxErr),
+			Recommendation: "Vérifier la table NotificationDelivery et la connectivité de la base.",
+			TriggeredAt:    now.Format(time.RFC3339),
+		})
+	} else if oldestQueuedSeconds > 900 || outboxFailed > 50 { // > 15 min de lag ou > 50 échecs
 		outboxStatus = SLOCritical
 		outboxBudget = 0.0
 		alerts = append(alerts, PlatformAlert{

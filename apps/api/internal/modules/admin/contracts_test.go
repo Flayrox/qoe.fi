@@ -127,6 +127,23 @@ func TestValidAnnouncementLink(t *testing.T) {
 	}
 }
 
+// TestValidAllowlistEmail — une invitation qui ne peut correspondre à aucune
+// adresse réelle ne doit pas entrer dans l'allowlist.
+func TestValidAllowlistEmail(t *testing.T) {
+	valid := []string{"user@example.com", "prenom.nom+tag@sous.domaine.fr"}
+	for _, email := range valid {
+		if !validAllowlistEmail(email) {
+			t.Errorf("adresse refusée à tort : %q", email)
+		}
+	}
+	invalid := []string{"", "@", "a@", "@b.com", "pas-un-email", "a@b", "Nom <a@b.com>", "a b@c.com", "a@.com", "a@com."}
+	for _, email := range invalid {
+		if validAllowlistEmail(email) {
+			t.Errorf("adresse invalide acceptée : %q", email)
+		}
+	}
+}
+
 // TestExpectedMigrationVersionMatchesLatestMigration — la version attendue est
 // une connaissance de compilation : sans ce garde, elle dérive en silence et
 // le SLO ne détecte plus les migrations manquantes.
