@@ -25,6 +25,62 @@ type Stats struct {
 	Totaltime int `json:"totaltime"`
 }
 
+// UnmarshalJSON accepte les deux formes renvoyées par Umami : nombres plats
+// (ancienne API) et objets {value, change} (v2). Sans cela, décoder une
+// réponse v2 échouait et l'appelant servait des statistiques nulles.
+func (s *Stats) UnmarshalJSON(b []byte) error {
+	var raw struct {
+		Pageviews json.RawMessage `json:"pageviews"`
+		Visitors  json.RawMessage `json:"visitors"`
+		Visits    json.RawMessage `json:"visits"`
+		Bounces   json.RawMessage `json:"bounces"`
+		Totaltime json.RawMessage `json:"totaltime"`
+	}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return err
+	}
+	fields := []struct {
+		dst *int
+		src json.RawMessage
+	}{
+		{&s.Pageviews, raw.Pageviews},
+		{&s.Visitors, raw.Visitors},
+		{&s.Visits, raw.Visits},
+		{&s.Bounces, raw.Bounces},
+		{&s.Totaltime, raw.Totaltime},
+	}
+	for _, f := range fields {
+		v, err := statValue(f.src)
+		if err != nil {
+			return err
+		}
+		*f.dst = v
+	}
+	return nil
+}
+
+// statValue lit un nombre Umami, plat ou enveloppé dans {"value": N}.
+func statValue(raw json.RawMessage) (int, error) {
+	raw = bytes.TrimSpace(raw)
+	if len(raw) == 0 || string(raw) == "null" {
+		return 0, nil
+	}
+	if raw[0] == '{' {
+		var wrapped struct {
+			Value int `json:"value"`
+		}
+		if err := json.Unmarshal(raw, &wrapped); err != nil {
+			return 0, err
+		}
+		return wrapped.Value, nil
+	}
+	var n int
+	if err := json.Unmarshal(raw, &n); err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
 // PageMetric est un point (url/plateforme/référant → vues).
 type PageMetric struct {
 	X string `json:"x"`
