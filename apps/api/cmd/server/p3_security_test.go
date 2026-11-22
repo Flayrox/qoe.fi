@@ -63,7 +63,10 @@ func TestP3MediaAssetUploadValidation(t *testing.T) {
 	assertJSONError(t, w, body)
 }
 
-func TestP3MediaAssetDedupeKeepsOriginalOwner(t *testing.T) {
+// Le dédoublonnage CAS déduplique le **contenu**, jamais l'appartenance :
+// chaque compte obtient sa propre ligne, et l'asset d'un autre n'est jamais
+// rendu (ni son id, ni son URL, ni son chemin de stockage).
+func TestP3MediaAssetDedupeScopesOwner(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
 	seedSecurityUsers(t, ctx)
@@ -72,7 +75,7 @@ func TestP3MediaAssetDedupeKeepsOriginalOwner(t *testing.T) {
 	attackerToken := routerJWT(securityReaderID)
 
 	assetBody := map[string]any{
-		"sha256":      "sec-dedupe-sha",
+		"sha256":      strings.Repeat("a1", 32),
 		"url":         "https://cdn.qoe.fi/dedupe.webp",
 		"storagePath": "sec/dedupe.webp",
 		"mimeType":    "image/webp",
@@ -89,20 +92,31 @@ func TestP3MediaAssetDedupeKeepsOriginalOwner(t *testing.T) {
 		t.Fatalf("asset sans id: %s", w.Body.String())
 	}
 
-	// Un autre utilisateur réenregistre le même sha256 → même asset, et le
-	// propriétaire d'origine doit être conservé (pas de prise de contrôle).
-	w, body = doReq(t, r, http.MethodPost, "/v1/media-assets", attackerToken, assetBody)
+	// Le même contenu réenregistré par le propriétaire reste dédupliqué.
+	w, body = doReq(t, r, http.MethodPost, "/v1/media-assets", ownerToken, assetBody)
 	if w.Code != http.StatusCreated || body["id"] != assetID {
-		t.Fatalf("dedupe = %d, body=%s; attendu 201 même id %s", w.Code, w.Body.String(), assetID)
+		t.Fatalf("dedupe propriétaire = %d, body=%s; attendu 201 même id %s", w.Code, w.Body.String(), assetID)
 	}
 
-	var owner string
-	if err := poolTest.QueryRow(ctx,
-		`SELECT "ownerId" FROM "MediaAsset" WHERE id = $1`, assetID).Scan(&owner); err != nil {
-		t.Fatalf("owner: %v", err)
+	// Un autre compte obtient sa propre ligne, jamais celle du propriétaire.
+	w, body = doReq(t, r, http.MethodPost, "/v1/media-assets", attackerToken, assetBody)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("register lecteur = %d, body=%s", w.Code, w.Body.String())
 	}
-	if owner != securityOwnerID {
-		t.Fatalf("owner après dedupe = %s, attendu %s (conservation du propriétaire)", owner, securityOwnerID)
+	attackerAssetID, _ := body["id"].(string)
+	if attackerAssetID == "" || attackerAssetID == assetID {
+		t.Fatalf("asset lecteur = %q (id du propriétaire %s rendu à un tiers)", attackerAssetID, assetID)
+	}
+
+	for id, wantOwner := range map[string]string{assetID: securityOwnerID, attackerAssetID: securityReaderID} {
+		var owner string
+		if err := poolTest.QueryRow(ctx,
+			`SELECT "ownerId" FROM "MediaAsset" WHERE id = $1`, id).Scan(&owner); err != nil {
+			t.Fatalf("owner %s: %v", id, err)
+		}
+		if owner != wantOwner {
+			t.Fatalf("owner de %s = %s, attendu %s", id, owner, wantOwner)
+		}
 	}
 }
 

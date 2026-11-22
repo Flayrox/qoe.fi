@@ -1,6 +1,11 @@
 -- name: GetMediaAssetBySha256 :one
--- Dédoublonnage CAS : cherche un asset existant par hash SHA-256.
-SELECT * FROM "MediaAsset" WHERE "sha256" = $1 LIMIT 1;
+-- Dédoublonnage CAS **par propriétaire** : un même contenu peut appartenir à
+-- plusieurs comptes (chacun sa ligne, un seul objet storage) ; chercher le hash
+-- sans owner renvoyait l'asset d'un autre utilisateur (fuite d'id/URL/statut).
+SELECT * FROM "MediaAsset"
+WHERE "ownerId" = sqlc.arg(owner_id) AND "sha256" = sqlc.arg(sha256)
+ORDER BY "createdAt" ASC, id ASC
+LIMIT 1;
 
 -- name: CreateMediaAsset :one
 -- Nouvel asset orphelin (DRAFT_ORPHAN, purgé dans 3 jours si non attaché).
@@ -42,6 +47,17 @@ WHERE status IN ('DRAFT_ORPHAN', 'SOFT_DELETED') AND "purgeDueAt" < now()
 ORDER BY "purgeDueAt" ASC
 LIMIT $1;
 
+-- name: CountOtherLiveMediaAssetsByStoragePath :one
+-- Références vivantes au même objet storage (dédoublonnage CAS : plusieurs
+-- propriétaires partagent un seul objet) — l'objet ne doit être supprimé que
+-- lorsque la dernière ligne vivante disparaît.
+SELECT COUNT(*)::bigint AS "liveCount"
+FROM "MediaAsset"
+WHERE bucket = sqlc.arg(bucket)
+  AND "storagePath" = sqlc.arg(storage_path)
+  AND id <> sqlc.arg(id)
+  AND status <> 'PURGED';
+
 -- name: MarkMediaAssetPurged :exec
 -- Purge définitive : l'objet storage a été supprimé (ou était déjà absent).
 UPDATE "MediaAsset"
@@ -63,7 +79,7 @@ WHERE "ownerId" = $1
   AND status <> 'PURGED'
   AND "mimeType" LIKE 'image/%'
   AND (sqlc.arg(target_type)::text = '' OR "targetType"::text = sqlc.arg(target_type)::text)
-  AND (sqlc.arg(q)::text = '' OR url ILIKE '%' || sqlc.arg(q)::text || '%')
+  AND (sqlc.arg(q)::text = '' OR url ILIKE '%' || sqlc.arg(q)::text || '%' ESCAPE '\')
 ORDER BY "createdAt" DESC, id DESC
 LIMIT sqlc.arg(page_size) OFFSET sqlc.arg(page_offset);
 

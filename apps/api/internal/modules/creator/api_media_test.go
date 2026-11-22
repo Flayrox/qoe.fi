@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/qoefi/api/internal/antispam"
 	db "github.com/qoefi/api/internal/database"
 	authmw "github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/modules/mediaassets"
@@ -49,7 +50,11 @@ func TestCreatorAPI_MediaUpload(t *testing.T) {
 	defer storageSrv.Close()
 
 	h := NewHandler(poolTest, nil, "")
-	h.WithMediaUpload(supastorage.New(storageSrv.URL, "test-secret"), mediaassets.NewService(poolTest))
+	// Politique média alignée sur cmd/server : l'origine du storage de test est
+	// autorisée, aucun autre hôte ne l'est.
+	assetsSvc := mediaassets.NewService(poolTest).
+		SetMediaPolicy(antispam.NewMediaPolicy(storageSrv.URL))
+	h.WithMediaUpload(supastorage.New(storageSrv.URL, "test-secret"), assetsSvc)
 	r := chi.NewRouter()
 	r.Group(func(api chi.Router) {
 		api.Use(authmw.APIKeyAuth(db.New(poolTest)))

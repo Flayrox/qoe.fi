@@ -104,6 +104,10 @@ type Querier interface {
 	CountOAuthClientsByOwner(ctx context.Context, owneruserid string) (int64, error)
 	CountOptionVotes(ctx context.Context, optionid string) (int32, error)
 	CountOptionVotesByIDs(ctx context.Context, dollar_1 []string) ([]CountOptionVotesByIDsRow, error)
+	// Références vivantes au même objet storage (dédoublonnage CAS : plusieurs
+	// propriétaires partagent un seul objet) — l'objet ne doit être supprimé que
+	// lorsque la dernière ligne vivante disparaît.
+	CountOtherLiveMediaAssetsByStoragePath(ctx context.Context, arg CountOtherLiveMediaAssetsByStoragePathParams) (int64, error)
 	CountPendingReportsByReporter(ctx context.Context, arg CountPendingReportsByReporterParams) (int64, error)
 	CountPollVotes(ctx context.Context, pollid string) (int32, error)
 	CountPollVotesByIDs(ctx context.Context, dollar_1 []string) ([]CountPollVotesByIDsRow, error)
@@ -306,8 +310,10 @@ type Querier interface {
 	GetLegalReviewReminderContext(ctx context.Context, id string) (GetLegalReviewReminderContextRow, error)
 	GetLikePrefs(ctx context.Context, userid pgtype.UUID) (GetLikePrefsRow, error)
 	GetMediaApiKeyByID(ctx context.Context, arg GetMediaApiKeyByIDParams) (GetMediaApiKeyByIDRow, error)
-	// Dédoublonnage CAS : cherche un asset existant par hash SHA-256.
-	GetMediaAssetBySha256(ctx context.Context, sha256 string) (MediaAsset, error)
+	// Dédoublonnage CAS **par propriétaire** : un même contenu peut appartenir à
+	// plusieurs comptes (chacun sa ligne, un seul objet storage) ; chercher le hash
+	// sans owner renvoyait l'asset d'un autre utilisateur (fuite d'id/URL/statut).
+	GetMediaAssetBySha256(ctx context.Context, arg GetMediaAssetBySha256Params) (MediaAsset, error)
 	// Résout un Média depuis l'identifiant de SA publication (le profil public
 	// d'un média expose la publisherId, pas l'id du média).
 	GetMediaByPublisherID(ctx context.Context, publisherid string) (GetMediaByPublisherIDRow, error)

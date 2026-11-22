@@ -104,7 +104,7 @@ func (h *Handler) apiMediaUpload(w http.ResponseWriter, r *http.Request) {
 	sum := sha256.Sum256(data)
 	hexSum := hex.EncodeToString(sum[:])
 	ctx := r.Context()
-	if existing, err := h.mediaAssets.GetBySha256(ctx, hexSum); err == nil {
+	if existing, err := h.mediaAssets.GetBySha256(ctx, userID, hexSum); err == nil {
 		response.Created(w, map[string]any{
 			"id":          existing.ID,
 			"url":         existing.Url,
@@ -145,8 +145,18 @@ func (h *Handler) apiMediaUpload(w http.ResponseWriter, r *http.Request) {
 		TargetType:  "ARTICLE_COVER",
 	})
 	if err != nil {
-		log.Printf("[creator] media register: %v", err)
-		response.Internal(w)
+		var verr mediaassets.ValidationError
+		switch {
+		case errors.As(err, &verr):
+			response.BadRequest(w, verr.Msg)
+		case errors.Is(err, mediaassets.ErrThrottled):
+			response.Error(w, http.StatusTooManyRequests, "Trop d'uploads, réessayez plus tard")
+		case errors.Is(err, mediaassets.ErrQuotaExceeded):
+			response.Error(w, http.StatusRequestEntityTooLarge, "Quota de stockage dépassé")
+		default:
+			log.Printf("[creator] media register: %v", err)
+			response.Internal(w)
+		}
 		return
 	}
 

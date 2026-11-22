@@ -151,7 +151,7 @@ func TestP1MediaWorkspaceAndAssetContracts(t *testing.T) {
 	}
 
 	assetBody := map[string]any{
-		"sha256":      "contract-asset-sha256",
+		"sha256":      strings.Repeat("c7", 32),
 		"url":         "https://cdn.qoe.fi/contract.webp",
 		"storagePath": "contract/contract.webp",
 		"mimeType":    "image/webp",

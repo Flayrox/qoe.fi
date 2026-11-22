@@ -5,11 +5,14 @@ package mediaassets
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"log"
 	"os"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/antispam"
 	"github.com/qoefi/api/internal/testutil"
 )
 
@@ -42,6 +45,14 @@ func requirePool(t *testing.T) {
 
 const assetOwnerID = "00000000-0000-0000-0000-0000000000c1"
 
+// shaOf produit un SHA-256 hexadécimal réel (64 caractères) à partir d'un
+// libellé : les fixtures en clair (« sha-ok-1 ») validaient un format que la
+// production n'écrit jamais et masquaient l'absence de contrôle.
+func shaOf(label string) string {
+	sum := sha256.Sum256([]byte(label))
+	return hex.EncodeToString(sum[:])
+}
+
 func seedAssets(t *testing.T, ctx context.Context) {
 	requirePool(t)
 	t.Helper()
@@ -60,14 +71,16 @@ func seedAssets(t *testing.T, ctx context.Context) {
 	}
 }
 
+// newTestService : politique média fermée par défaut → les tests déclarent les
+// origines autorisées comme le fait cmd/server (CDN).
 func newTestService() *Service {
-	return NewService(poolTest)
+	return NewService(poolTest).SetMediaPolicy(antispam.NewMediaPolicy("https://cdn.qoe.fi"))
 }
 
 func baseInput() RegisterInput {
 	w, h := int32(800), int32(600)
 	return RegisterInput{
-		Sha256:      "abc123def456",
+		Sha256:      shaOf("base"),
 		Url:         "https://cdn.qoe.fi/articles/abc123.webp",
 		StoragePath: "articles/abc123.webp",
 		MimeType:    "image/webp",

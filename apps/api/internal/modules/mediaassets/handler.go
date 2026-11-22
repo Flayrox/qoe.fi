@@ -2,6 +2,7 @@ package mediaassets
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -35,8 +36,11 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	}
 
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	if limit <= 0 || limit > 60 {
-		limit = 24
+	if limit <= 0 {
+		limit = int(defaultListLimit)
+	}
+	if limit > int(maxListLimit) {
+		limit = int(maxListLimit)
 	}
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 	if offset < 0 {
@@ -50,7 +54,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 		Offset:     int32(offset),
 	})
 	if err != nil {
-		response.BadRequest(w, err.Error())
+		h.fail(w, "list", err)
 		return
 	}
 
@@ -76,9 +80,26 @@ func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
 	}
 	asset, err := h.svc.RegisterAsset(r.Context(), userID, in)
 	if err != nil {
-		log.Printf("[mediaassets] register: %v", err)
-		response.BadRequest(w, err.Error())
+		h.fail(w, "register", err)
 		return
 	}
 	response.Created(w, toDTO(asset))
+}
+
+// fail mappe les refus client sur leur statut réel et ne laisse jamais fuir
+// une erreur interne (message générique + journal côté serveur).
+func (h *Handler) fail(w http.ResponseWriter, op string, err error) {
+	var verr ValidationError
+	switch {
+	case errors.As(err, &verr):
+		response.BadRequest(w, verr.Msg)
+	case errors.Is(err, ErrThrottled):
+		w.Header().Set("Retry-After", "3600")
+		response.Error(w, http.StatusTooManyRequests, "Trop d'uploads, réessayez plus tard")
+	case errors.Is(err, ErrQuotaExceeded):
+		response.Error(w, http.StatusRequestEntityTooLarge, "Quota de stockage dépassé")
+	default:
+		log.Printf("[mediaassets] %s: %v", op, err)
+		response.Internal(w)
+	}
 }

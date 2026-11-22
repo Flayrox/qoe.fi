@@ -46,6 +46,31 @@ func (q *Queries) AttachMediaAssetsByUrls(ctx context.Context, arg AttachMediaAs
 	return items, nil
 }
 
+const countOtherLiveMediaAssetsByStoragePath = `-- name: CountOtherLiveMediaAssetsByStoragePath :one
+SELECT COUNT(*)::bigint AS "liveCount"
+FROM "MediaAsset"
+WHERE bucket = $1
+  AND "storagePath" = $2
+  AND id <> $3
+  AND status <> 'PURGED'
+`
+
+type CountOtherLiveMediaAssetsByStoragePathParams struct {
+	Bucket      string `json:"bucket"`
+	StoragePath string `json:"storage_path"`
+	ID          string `json:"id"`
+}
+
+// Références vivantes au même objet storage (dédoublonnage CAS : plusieurs
+// propriétaires partagent un seul objet) — l'objet ne doit être supprimé que
+// lorsque la dernière ligne vivante disparaît.
+func (q *Queries) CountOtherLiveMediaAssetsByStoragePath(ctx context.Context, arg CountOtherLiveMediaAssetsByStoragePathParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countOtherLiveMediaAssetsByStoragePath, arg.Bucket, arg.StoragePath, arg.ID)
+	var liveCount int64
+	err := row.Scan(&liveCount)
+	return liveCount, err
+}
+
 const countRecentUploads = `-- name: CountRecentUploads :one
 SELECT COUNT(*)::bigint AS "recentCount"
 FROM "MediaAsset" WHERE "ownerId" = $1 AND "createdAt" > $2
@@ -138,12 +163,22 @@ func (q *Queries) CreateMediaAsset(ctx context.Context, arg CreateMediaAssetPara
 }
 
 const getMediaAssetBySha256 = `-- name: GetMediaAssetBySha256 :one
-SELECT id, sha256, url, "storagePath", bucket, "mimeType", width, height, "sizeBytes", blurhash, "isNsfw", "isSensitive", "safetyScores", "moderatedAt", status, "targetType", "ownerId", "attachedToId", "purgeDueAt", "deletedAt", "createdAt", "updatedAt" FROM "MediaAsset" WHERE "sha256" = $1 LIMIT 1
+SELECT id, sha256, url, "storagePath", bucket, "mimeType", width, height, "sizeBytes", blurhash, "isNsfw", "isSensitive", "safetyScores", "moderatedAt", status, "targetType", "ownerId", "attachedToId", "purgeDueAt", "deletedAt", "createdAt", "updatedAt" FROM "MediaAsset"
+WHERE "ownerId" = $1 AND "sha256" = $2
+ORDER BY "createdAt" ASC, id ASC
+LIMIT 1
 `
 
-// Dédoublonnage CAS : cherche un asset existant par hash SHA-256.
-func (q *Queries) GetMediaAssetBySha256(ctx context.Context, sha256 string) (MediaAsset, error) {
-	row := q.db.QueryRow(ctx, getMediaAssetBySha256, sha256)
+type GetMediaAssetBySha256Params struct {
+	OwnerID string `json:"owner_id"`
+	Sha256  string `json:"sha256"`
+}
+
+// Dédoublonnage CAS **par propriétaire** : un même contenu peut appartenir à
+// plusieurs comptes (chacun sa ligne, un seul objet storage) ; chercher le hash
+// sans owner renvoyait l'asset d'un autre utilisateur (fuite d'id/URL/statut).
+func (q *Queries) GetMediaAssetBySha256(ctx context.Context, arg GetMediaAssetBySha256Params) (MediaAsset, error) {
+	row := q.db.QueryRow(ctx, getMediaAssetBySha256, arg.OwnerID, arg.Sha256)
 	var i MediaAsset
 	err := row.Scan(
 		&i.ID,
@@ -179,7 +214,7 @@ WHERE "ownerId" = $1
   AND status <> 'PURGED'
   AND "mimeType" LIKE 'image/%'
   AND ($2::text = '' OR "targetType"::text = $2::text)
-  AND ($3::text = '' OR url ILIKE '%' || $3::text || '%')
+  AND ($3::text = '' OR url ILIKE '%' || $3::text || '%' ESCAPE '\')
 ORDER BY "createdAt" DESC, id DESC
 LIMIT $5 OFFSET $4
 `

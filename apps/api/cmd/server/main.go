@@ -252,6 +252,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 	mediaAssetsSvc := mediaassets.NewService(pool)
 	mediaAssetsSvc.SetQuotaBytes(d.MediaQuotaBytesPerUser)
 	mediaAssetsSvc.SetUploadsPerHour(d.MediaUploadsPerHour)
+	// Origines média autorisées pour les URLs enregistrées (fail-closed) : les
+	// URLs restent composées côté serveur, jamais par le client.
+	mediaAssetsSvc.SetMediaPolicy(antispam.NewMediaPolicy(d.MediaCDNBaseURL, d.SupabaseURL))
 
 	// Feature flags serveur : une instance partagée (cache TTL 30 s) pour
 	// l'endpoint public, le journal d'audit admin et les gates de services.
@@ -610,7 +613,10 @@ func newRouter(d RouterDeps) *chi.Mux {
 		importsHandler := imports.NewHandler(importsSvc)
 		importsHandler.Register(protected)
 
-		mediaAssetsHandler := mediaassets.NewHandler(mediaassets.NewService(pool))
+		// Même instance que le chemin d'upload créateur : la médiathèque HTTP
+		// applique donc le quota/le throttle configurés (une instance neuve
+		// repartait sur les défauts en ignorant MEDIA_QUOTA_BYTES).
+		mediaAssetsHandler := mediaassets.NewHandler(mediaAssetsSvc)
 		mediaAssetsHandler.Register(protected)
 
 		collaborationsHandler := collaborations.NewHandler(collaborations.NewService(pool))

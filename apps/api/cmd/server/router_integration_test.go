@@ -60,6 +60,9 @@ func testRouter(t *testing.T) *chi.Mux {
 		InternalSecret:   "test-internal-secret",
 		StripeWebhookKey: "",
 		UmamiAPIURL:      "",
+		// Même origine média qu'en production : le registre MediaAsset est
+		// fail-closed et refuse une URL dont l'hôte n'est pas déclaré.
+		MediaCDNBaseURL: "https://cdn.qoe.fi",
 	})
 }
 
