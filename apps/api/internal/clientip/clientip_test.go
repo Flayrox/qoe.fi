@@ -63,11 +63,13 @@ func TestFromRequestHops(t *testing.T) {
 			want:    "198.51.100.24",
 		},
 		{
-			name:    "X-Real-IP validé",
+			// X-Real-IP n'est pas un en-tête de proxy standard : le client peut
+			// l'envoyer seul, donc il est ignoré au profit de la connexion TCP.
+			name:    "X-Real-IP ignoré (en-tête client)",
 			remote:  "10.0.0.5:1234",
 			headers: map[string][]string{"X-Real-IP": {"203.0.113.9"}},
 			hops:    1,
-			want:    "203.0.113.9",
+			want:    "10.0.0.5",
 		},
 		{
 			name:    "X-Real-IP fantaisiste rejeté",

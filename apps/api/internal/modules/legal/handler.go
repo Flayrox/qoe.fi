@@ -889,19 +889,12 @@ func countryFromRequest(r *http.Request) string {
 	return ""
 }
 
-// clientIP privilégie l'IP réelle (middleware.RealIP) puis X-Forwarded-For.
+// clientIP résout l'IP enregistrée comme preuve de consentement. Règle unique
+// du dépôt : middleware.ClientIP (lecture à l'envers de X-Forwarded-For selon
+// TRUSTED_PROXY_HOPS). Le premier X-Forwarded-For était la valeur fournie par le
+// client : la preuve d'acceptation portait une IP forgeable.
 func clientIP(r *http.Request) string {
-	if ip := r.Header.Get("X-Real-IP"); ip != "" {
-		return ip
-	}
-	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-		return strings.TrimSpace(strings.Split(fwd, ",")[0])
-	}
-	host := r.RemoteAddr
-	if i := strings.LastIndex(host, ":"); i > 0 {
-		host = host[:i]
-	}
-	return host
+	return middleware.ClientIP(r)
 }
 
 // fail mappe les erreurs du service vers les codes HTTP du contrat API.

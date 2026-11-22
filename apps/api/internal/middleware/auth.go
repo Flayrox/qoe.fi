@@ -131,19 +131,19 @@ func (a *Auth) OptionalAuth(next http.Handler) http.Handler {
 func (a *Auth) CombinedAuth(q *db.Queries) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			header := r.Header.Get("Authorization")
-			if header != "" {
-				if token := strings.TrimPrefix(header, "Bearer "); token != header {
-					if strings.HasPrefix(token, "qoe_live_") {
-						ctx, ok := apiKeyUserID(q, r)
-						if !ok {
-							writeUnauthorized(w, "Clé API invalide")
-							return
-						}
-						RequireWritableAPIKey(next).ServeHTTP(w, r.WithContext(ctx))
-						return
-					}
+			if _, isAPIKey := apiKeyToken(r); isAPIKey {
+				ctx, ok, err := apiKeyUserIDErr(q, r)
+				if err != nil {
+					// Panne de lecture : ce n'est pas « votre clé est fausse ».
+					writeUnavailable(w, "Vérification de la clé API momentanément indisponible")
+					return
 				}
+				if !ok {
+					writeUnauthorized(w, "Clé API invalide ou accès révoqué")
+					return
+				}
+				RequireWritableAPIKey(next).ServeHTTP(w, r.WithContext(ctx))
+				return
 			}
 			a.Middleware(next).ServeHTTP(w, r)
 		})

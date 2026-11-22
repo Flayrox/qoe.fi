@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; **L29s `search` clos le 2026-11-22** (2 f. · 741 l. après correctifs, 6 défauts F670–F675 + 1 structurel F676, dettes R257–R259) ; **L29t `publishers` clos le 2026-11-22** (3 f. · 1 229 l. après correctifs, 8 défauts F677–F684 + 1 structurel F685, dettes R260–R262) ; **L29u `analytics` clos le 2026-11-22** (4 f. · 2 130 l. après correctifs, 12 défauts F686–F697 + 1 structurel F698, dettes R263–R265) ; **L29v `events`/`workspaces`/`appeals`/`support`/`exports`/`books` clos le 2026-11-22** (13 f. · 1 659 l. après correctifs, 6 défauts F699–F704 + 2 structurels F705–F706, dettes R266–R269) ; **L29w reliquat `tracking`/`placements`/`ai`/`collaborations`/`conversations`/`billing`/`ebooks` clos le 2026-11-22** (20 f. · 7 251 l. après correctifs, 13 défauts F707–F719 + 2 structurels F720–F721, dettes R270–R272) ; **L29x `oauth`/`devtools` clos le 2026-11-22** (7 f. · 3 190 l. après correctifs, 10 défauts F722–F731 + 2 structurels F732–F733, dettes R273–R275, **R270 soldée**) ; **L30 `workers`/`queue`/`resilience`/`cache` clos le 2026-11-22** (17 f. · 3 933 l. après correctifs, 9 défauts F734–F742 + 3 structurels F743–F745, dettes R276–R279) ; prochain = **L31** (`middleware`, `authz`, `permissions`, `secguard`)) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; **L29s `search` clos le 2026-11-22** (2 f. · 741 l. après correctifs, 6 défauts F670–F675 + 1 structurel F676, dettes R257–R259) ; **L29t `publishers` clos le 2026-11-22** (3 f. · 1 229 l. après correctifs, 8 défauts F677–F684 + 1 structurel F685, dettes R260–R262) ; **L29u `analytics` clos le 2026-11-22** (4 f. · 2 130 l. après correctifs, 12 défauts F686–F697 + 1 structurel F698, dettes R263–R265) ; **L29v `events`/`workspaces`/`appeals`/`support`/`exports`/`books` clos le 2026-11-22** (13 f. · 1 659 l. après correctifs, 6 défauts F699–F704 + 2 structurels F705–F706, dettes R266–R269) ; **L29w reliquat `tracking`/`placements`/`ai`/`collaborations`/`conversations`/`billing`/`ebooks` clos le 2026-11-22** (20 f. · 7 251 l. après correctifs, 13 défauts F707–F719 + 2 structurels F720–F721, dettes R270–R272) ; **L29x `oauth`/`devtools` clos le 2026-11-22** (7 f. · 3 190 l. après correctifs, 10 défauts F722–F731 + 2 structurels F732–F733, dettes R273–R275, **R270 soldée**) ; **L30 `workers`/`queue`/`resilience`/`cache` clos le 2026-11-22** (17 f. · 3 933 l. après correctifs, 9 défauts F734–F742 + 3 structurels F743–F745, dettes R276–R279) ; **L31 `middleware`/`authz`/`permissions`/`secguard` clos le 2026-11-22** (17 f. · 3 622 l. après correctifs, 6 défauts F746–F751 + 1 structurel F752, dettes R280–R282) ; prochain = **L32** (`abuse`, `antispam`, `trust`, `pow`)) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -250,7 +250,12 @@ email de bienvenue perdu sur panne, action de sync inconnue qui supprimait le do
 qui paniquait au démarrage, panic d'une dépendance qui tuait le processus) et **3 structurels** (F743 invalidations
 de cache annoncées réussies + DSN codé en dur supprimé, F744 files asynchrones éteintes sans un mot, F745 crédit
 wallet non atomique), dettes **R276–R279**.
-**Lot suivant : L31** — `apps/api/internal/{middleware,authz,permissions,secguard}` (sécurité d'entrée).
+**L31 est clos le 2026-11-22** : sécurité d'entrée `middleware`, `authz`, `permissions`, `secguard`
+(**17 f. · 3 622 l.** après correctifs) — **6 défauts** F746–F751 (panne de base rendue en 401 « clé invalide »,
+CORS fail-open sur allowlist vide, clé d'idempotence sans la query, IP client choisie par le client sur trois sites,
+édition de média autorisée sans identité, plafond anti-flood ignoré sans UID) et **1 structurel** (F752 : retrait de
+`middleware.RealIP` déprécié, IP résolue par une seule fonction, code mort supprimé), dettes **R280–R282**.
+**Lot suivant : L32** — `apps/api/internal/{abuse,antispam,trust,pow}` (anti-abus temps réel).
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2229,6 +2234,65 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L31 — `middleware` · `authz` · `permissions` · `secguard` — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l`) : **17 fichiers de production · 3 622 l.** après correctifs (3 584 l.
+avant) — `middleware` (11 f. · 2 165 l.), `authz` (6 f. · 833 l.), `permissions` (1 f. · 182 l.), `secguard`
+(1 f. · 442 l.). Lus intégralement avec leurs appelants réels : `cmd/server` (chaîne de middlewares du routeur :
+ordre `Recovery → RequestID → SecurityHeaders → CORS → MaxBodyBytes → RateLimit → PoW → AccessControl`, montage
+des gardes `RequireAction` sur `media`, `settings`, `newsletters`, `imports`, branchement de `SetAuthzResolver` /
+`SetAuthzModeResolver`), `internal/flags` (`authz-enforce`, `workers-email-kill`), `internal/clientip`
+(`ClientIP`/`ClientSubnet`), `internal/apiaccess`, `internal/adminauthz` (console), les handlers `users` et `legal`
+qui relisaient l'IP à la main, et les suites existantes des quatre paquets. **5 fichiers d'audit · 624 l. (9 tests)**
+s'ajoutent.
+
+**6 défauts corrigés** F746–F751, chacun adossé à un rouge réellement exécuté (worktree
+`git worktree add -f /tmp/qoe-l31-red cde51b6f`, suites `TestAuditL31_*`).
+
+| # | Défaut | Preuve (test) | Rouge constaté |
+|---|---|---|---|
+| F746 | **Panne de base rendue en 401 « clé invalide »** : `APIKeyAuth` et `CombinedAuth` transformaient toute erreur de `GetApiKeyByHash` en refus d'identifiants. L'intégrateur conclut à une clé morte (rotation inutile, ticket) et rien ne réessaie sur un 4xx alors que le service est indisponible. `ErrNoRows` seul vaut 401 ; toute autre erreur rend **503** (`auth_unavailable`), et `resolveAPIKeyToken` rend trois issues distinctes au lieu de deux. | `TestAuditL31_APIKeyOutageIsNotUnauthorized`, `TestAuditL31_CombinedAuthOutageIsNotUnauthorized` | `panne de base rendue en 401 ({"error":"Clé API invalide"}), attendu 503` (puis `…"Token invalide ou expiré"` sur le chemin combiné) |
+| F747 | **CORS fail-open sur allowlist vide** : `originAllowed` rendait `true` quand aucune origine n'était configurée — l'API répondait `Access-Control-Allow-Origin: <origine de l'attaquant>` en écho. Une allowlist vide n'autorise plus rien, et `Vary: Origin` est posé **inconditionnellement** (sans lui, un cache partagé pouvait resservir l'en-tête CORS d'une autre origine). | `TestAuditL31_CORSRefusesUnknownOriginWithoutAllowlist` | `origine non configurée autorisée : Access-Control-Allow-Origin="https://attaquant.example"` |
+| F748 | **Clé d'idempotence sans la query** : la clé Redis était `acteur + méthode + chemin + Idempotency-Key`. Deux opérations différentes sur le même chemin (`?scope=draft` / `?scope=published`) se rejouaient l'une l'autre : le client recevait la réponse d'une autre opération, et la seconde n'était jamais exécutée. La query et sa casse brute (`RawQuery`) font désormais partie de l'identité de l'opération. | `TestAuditL31_IdempotencyKeyIncludesQuery` | `handler exécuté 1 fois, attendu 2 : la query string doit faire partie de la clé` |
+| F749 | **IP client choisie par le client** (trois sites) : (1) `clientip.FromRequestHops` faisait confiance à `X-Real-IP` — en-tête que le proxy ne fait qu'ajouter, donc fournissable par le client et hors logique de sauts ; (2) le routeur montait `middleware.RealIP` (déprécié), qui réécrit `r.RemoteAddr` depuis `X-Forwarded-For`/`X-Real-IP`/`True-Client-IP` ; (3) `users.requestIP` et `legal.clientIP` relisaient le **premier** `X-Forwarded-For` — la valeur ajoutée par le client. Changer d'IP à chaque requête changeait de seau de rate-limiting et forgeait l'IP des journaux de sécurité et des preuves de consentement. Une seule règle : `middleware.ClientIP` (lecture à l'envers selon `TRUSTED_PROXY_HOPS`, repli TCP). | `TestAuditL31_ClientIPIgnoresSpoofedHeaders`, `TestAuditL31_RequestIPIgnoresSpoofedForwardedFor`, `TestAuditL31_ClientIPIgnoresSpoofedForwardedFor` (legal) | `ClientIP = "9.9.9.9", attendu l'adresse de connexion 203.0.113.7` ; `requestIP = "1.1.1.1", attendu le saut de confiance 203.0.113.7 (1.1.1.1 est forgé)` ; idem `legal.clientIP` |
+| F750 | **Édition autorisée sans identité** : `permissions.CanEditMediaArticle` comparait `articleAuthorID == memberUserID` sans exiger qu'ils soient renseignés — `("", "")` rendait `true`, donc l'édition de **tous** les articles du média pour un appelant qui n'a pas résolu l'auteur. Les deux identités sont exigées avant la comparaison. | `TestAuditL31_CanEditMediaArticleRefusesEmptyIdentity` | `auteur et membre vides → édition autorisée (fail-open sur identité absente)` |
+| F751 | **Plafond anti-flood ignoré sans identifiant** : `secguard.EnforceRateLimit` rendait `true` sans consulter Redis dès que `userID == ""` — une route montée avant l'authentification (ou un appelant qui oublie l'UID) perdait **toutes** ses fenêtres (minute/heure/jour). Le seau de l'adresse réseau prend le relais (`ip:<addr>`), et les strikes anti-spam restent réservés aux comptes identifiés. | `TestAuditL31_RateLimitAppliesWithoutUserID` | `sans identifiant, le plafond n'est jamais appliqué (fail-open)` |
+
+**Correctifs structurels, sans rouge isolable** (déclarés comme tels) :
+
+- **F752 — code mort et détours d'IP** : `middleware.RealIP` (chi, **déprécié**, réécrivait `RemoteAddr` depuis des
+  en-têtes client) est retiré de la chaîne du routeur ; les deux helpers d'IP maison (`users`, `legal`) délèguent à
+  `middleware.ClientIP` au lieu de recopier une lecture différente ; le commentaire de mode du garde `RequireAction`
+  (qui affirmait un défaut `AuthzEnforce` alors que le code démarre en observation) est aligné sur le comportement
+  réel. Code mort supprimé : `apiKeyUserID` (0 appelant après F746), `middleware.IsBodyTooLarge` (doublon de
+  `response.go`, 0 appelant) et `authz.StrongMethods` (0 appelant ; `IsStrongMethod` reste la vérification unique).
+
+**Migrations** : **aucune nécessaire**. `ExpectedMigrationVersion` reste **95**.
+
+**Tests existants adaptés** (contrats qui encodaient le comportement corrigé, à signaler) :
+`internal/clientip/clientip_test.go` (« X-Real-IP validé » → « ignoré »), `internal/middleware/middleware_extra_test.go`
+(sous-test « real ip » et cas « allowlist vide = autorisé »), `internal/middleware/idempotency_test.go` (le verrou
+concurrent est construit par `idempotencyCacheKey` au lieu de recopier le format).
+
+**Dettes ouvertes** (numérotation en continuité de R279) :
+
+- **R280 — garde `RequireAction` en observation par défaut** : le flag `authz-enforce` est `false`, donc les routes
+  média/API clés/newsletters/imports **journalisent** les refus sans bloquer. C'est une décision produit assumée
+  (imposer N1/N2 verrouillerait des propriétaires sans MFA) et pilotable depuis la console sans redéploiement ; la
+  sécurité réelle reste tenue par les gardes de service (`checkSuperadmin`, capacités admin, RBAC média applicatif).
+- **R281 — coupure d'API fail-open au démarrage** : `AccessControl` garde la dernière config lue, mais si la toute
+  première lecture échoue (base indisponible), l'API reste ouverte (`Disabled=false`). C'est le choix documenté
+  « disponibilité d'abord » ; le corriger demande de décider si un kill switch doit pouvoir couper une API qui ne
+  peut plus lire sa propre configuration.
+- **R282 — rate-limiting fail-open sans Redis** : `RateLimit`/`CheckGCRA` laissent passer quand Redis est
+  injoignable (log bridé + métrique `fail_open`). Même arbitrage disponibilité/sécurité que R281, déjà instrumenté
+  pour être mesuré avant décision.
+
+**Commandes passées sur l'arbre corrigé** : `gofmt -l .` (dépôt entier) → **0** ; `go build ./...` → 0 ;
+`go vet ./...` → 0 ; `QOE_DB_TESTS_OPTIONAL=1 go test ./...` → **85 paquets `ok`, 0 `FAIL`** (status 0) ; batterie
+workspace 13 commandes (`typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7
+`guard:*`) → **13 × 0**. Aucun fichier TypeScript touché : **vitest non requis** (et non lancé).
 
 ## L30 — `workers` · `queue` · `resilience` · `cache` — **clos le 2026-11-22**
 

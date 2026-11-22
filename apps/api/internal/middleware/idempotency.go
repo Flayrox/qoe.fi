@@ -135,7 +135,11 @@ func isMutatingMethod(m string) bool {
 }
 
 // idempotencyCacheKey construit la clé Redis : acteur (clé API > UID > IP) +
-// méthode + chemin + Idempotency-Key, hashée SHA-256.
+// méthode + chemin + query + Idempotency-Key, hashée SHA-256.
+//
+// La query fait partie de l'identité de l'opération : deux requêtes sur le même
+// chemin mais avec des paramètres différents (`?scope=draft` / `?scope=published`)
+// sont deux opérations et ne doivent pas se rejouer l'une l'autre.
 func idempotencyCacheKey(r *http.Request) string {
 	actor := clientIP(r)
 	if kid, ok := APIKeyID(r.Context()); ok && kid != "" {
@@ -143,7 +147,7 @@ func idempotencyCacheKey(r *http.Request) string {
 	} else if uid, ok := UserID(r.Context()); ok && uid != "" {
 		actor = "user:" + uid
 	}
-	raw := actor + "\n" + r.Method + "\n" + r.URL.Path + "\n" + r.Header.Get(IdempotencyKeyHeader)
+	raw := actor + "\n" + r.Method + "\n" + r.URL.Path + "\n" + r.URL.RawQuery + "\n" + r.Header.Get(IdempotencyKeyHeader)
 	sum := sha256.Sum256([]byte(raw))
 	return "idem:" + hex.EncodeToString(sum[:])
 }

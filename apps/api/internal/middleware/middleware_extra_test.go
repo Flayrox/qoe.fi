@@ -63,11 +63,12 @@ func TestClientIP(t *testing.T) {
 			t.Errorf("clientIP = %q, attendu 9.9.9.9", got)
 		}
 	})
-	t.Run("real ip", func(t *testing.T) {
+	t.Run("real ip ignored", func(t *testing.T) {
+		// X-Real-IP seul vient forcément du client : l'IP de connexion gagne.
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		req.Header.Set("X-Real-IP", "1.1.1.1")
-		if got := clientIP(req); got != "1.1.1.1" {
-			t.Errorf("clientIP = %q, attendu 1.1.1.1", got)
+		if got := clientIP(req); got != "192.0.2.1" {
+			t.Errorf("clientIP = %q, attendu l'adresse de connexion 192.0.2.1", got)
 		}
 	})
 	t.Run("no header remote addr with port", func(t *testing.T) {
@@ -293,9 +294,13 @@ func TestOriginAllowed_ExactAndWildcard(t *testing.T) {
 	if originAllowed("https://evil.com", set, []string{"https://qoe.fi", "*.qoe.fi"}) {
 		t.Error("origine étrangère doit être refusée")
 	}
-	// Origin vide : autorisé si aucune liste configurée (ou liste vide).
-	if !originAllowed("", nil, []string{}) {
-		t.Error("sans origin ni liste → autorisé")
+	// Ni origin ni liste : refusé. Une allowlist vide ne vaut pas consentement
+	// (elle autorisait auparavant toute origine, en écho, sur un oubli de config).
+	if originAllowed("", nil, []string{}) {
+		t.Error("sans origin ni liste → refusé")
+	}
+	if originAllowed("https://evil.com", nil, nil) {
+		t.Error("allowlist vide → toute origine doit être refusée")
 	}
 	if originAllowed("", nil, []string{"https://qoe.fi"}) {
 		t.Error("origin vide avec liste → refusé")

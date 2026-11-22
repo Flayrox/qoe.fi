@@ -5,10 +5,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	db "github.com/qoefi/api/internal/database"
 )
 
@@ -93,6 +96,14 @@ func RequireAPIScope(required string) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// writeUnavailable écrit une erreur 503 JSON : la vérification d'identité n'a
+// pas pu être faite (base indisponible), ce n'est pas un secret faux.
+func writeUnavailable(w http.ResponseWriter, msg string) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusServiceUnavailable)
+	_, _ = w.Write([]byte(`{"error":"` + msg + `","code":"auth_unavailable"}`))
 }
 
 // writeForbidden écrit une erreur 403 JSON (même forme que le reste de l'API).
@@ -291,6 +302,42 @@ func resolveAPIKeyRow(ctx context.Context, row db.GetApiKeyByHashRow) (context.C
 	return ctx, true
 }
 
+// apiKeyToken extrait le jeton d'une clé API `qoe_live_…` du header Bearer.
+func apiKeyToken(r *http.Request) (string, bool) {
+	header := r.Header.Get("Authorization")
+	if header == "" || !strings.HasPrefix(header, "Bearer ") {
+		return "", false
+	}
+	token := strings.TrimPrefix(header, "Bearer ")
+	if !strings.HasPrefix(token, "qoe_live_") {
+		return "", false
+	}
+	return token, true
+}
+
+// resolveAPIKeyToken résout une clé API en contexte de requête. Trois issues
+// distinctes : ok=true (clé valide), ok=false sans erreur (clé inconnue, révoquée
+// ou accès retiré — une réponse 401 est honnête et le client ne doit pas
+// réessayer), err non nil (panne technique : 503, le client peut réessayer).
+// Confondre les deux dernières faisait tourner une panne de base en « votre clé
+// est invalide » : rotation de clé inutile, ticket support, aucun réessai.
+func resolveAPIKeyToken(ctx context.Context, q *db.Queries, token string) (context.Context, bool, error) {
+	hashed := sha256.Sum256([]byte(token))
+	row, err := q.GetApiKeyByHash(ctx, hex.EncodeToString(hashed[:]))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ctx, false, nil
+		}
+		return ctx, false, fmt.Errorf("lecture de la clé API: %w", err)
+	}
+
+	// Mise à jour best-effort du lastUsedAt : son échec n'invalide pas la clé.
+	_ = q.UpdateApiKeyLastUsed(ctx, row.ApiKeyID)
+
+	resolved, ok := resolveAPIKeyRow(ctx, row)
+	return resolved, ok, nil
+}
+
 // APIKeyAuth valide une clé API `qoe_live_…` (Bearer) et injecte le Principal explicite + publication.
 func APIKeyAuth(q *db.Queries) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -300,26 +347,18 @@ func APIKeyAuth(q *db.Queries) func(http.Handler) http.Handler {
 				writeUnauthorized(w, "Authorization header manquant")
 				return
 			}
-			token := strings.TrimPrefix(header, "Bearer ")
-			if !strings.HasPrefix(token, "qoe_live_") {
+			token, ok := apiKeyToken(r)
+			if !ok {
 				writeUnauthorized(w, "Clé API invalide (préfixe qoe_live_)")
 				return
 			}
 
-			hashed := sha256.Sum256([]byte(token))
-			keyHash := hex.EncodeToString(hashed[:])
-
-			row, err := q.GetApiKeyByHash(r.Context(), keyHash)
+			ctx, valid, err := resolveAPIKeyToken(r.Context(), q, token)
 			if err != nil {
-				writeUnauthorized(w, "Clé API invalide")
+				writeUnavailable(w, "Vérification de la clé API momentanément indisponible")
 				return
 			}
-
-			// Mise à jour best-effort du lastUsedAt.
-			_ = q.UpdateApiKeyLastUsed(r.Context(), row.ApiKeyID)
-
-			ctx, ok := resolveAPIKeyRow(r.Context(), row)
-			if !ok {
+			if !valid {
 				writeUnauthorized(w, "Clé API invalide ou accès révoqué")
 				return
 			}
@@ -330,33 +369,18 @@ func APIKeyAuth(q *db.Queries) func(http.Handler) http.Handler {
 }
 
 // APIKeyContext retourne le contexte enrichi si la requête porte une clé API valide
-// (Bearer `qoe_live_…`), false sinon.
+// (Bearer `qoe_live_…`), false sinon — y compris en cas de panne de base :
+// l'appelant qui a besoin de distinguer une panne utilise apiKeyUserIDErr.
 func APIKeyContext(q *db.Queries, r *http.Request) (context.Context, bool) {
-	return apiKeyUserID(q, r)
+	ctx, ok, _ := apiKeyUserIDErr(q, r)
+	return ctx, ok
 }
 
-// apiKeyUserID extrait le Principal depuis une clé API valide.
-// Retourne (ctx, false) si le header n'est pas une clé API ou si elle est invalide.
-func apiKeyUserID(q *db.Queries, r *http.Request) (context.Context, bool) {
-	header := r.Header.Get("Authorization")
-	if header == "" || !strings.HasPrefix(header, "Bearer ") {
-		return r.Context(), false
-	}
-	token := strings.TrimPrefix(header, "Bearer ")
-	if !strings.HasPrefix(token, "qoe_live_") {
-		return r.Context(), false
-	}
-
-	hashed := sha256.Sum256([]byte(token))
-	row, err := q.GetApiKeyByHash(r.Context(), hex.EncodeToString(hashed[:]))
-	if err != nil {
-		return r.Context(), false
-	}
-	_ = q.UpdateApiKeyLastUsed(r.Context(), row.ApiKeyID)
-
-	ctx, ok := resolveAPIKeyRow(r.Context(), row)
+// apiKeyUserIDErr est la variante qui distingue une clé invalide d'une panne.
+func apiKeyUserIDErr(q *db.Queries, r *http.Request) (context.Context, bool, error) {
+	token, ok := apiKeyToken(r)
 	if !ok {
-		return r.Context(), false
+		return r.Context(), false, nil
 	}
-	return ctx, true
+	return resolveAPIKeyToken(r.Context(), q, token)
 }

@@ -2,8 +2,6 @@ package middleware
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -139,15 +137,17 @@ func TestIdempotency_ConcurrentProcessing409(t *testing.T) {
 	h := Idempotency(rc, time.Hour)(inner)
 
 	// Simule une requête identique en cours : verrou « processing » posé.
-	raw := "user:user-1\nPOST\n/v1/articles\nabc"
-	sum := sha256.Sum256([]byte(raw))
-	lockKey := "idem:" + hex.EncodeToString(sum[:]) + ":lock"
+	// La clé est construite par la fonction de production : recopier le format
+	// à la main faisait passer ce test à côté d'un changement de clé (la query
+	// string en fait partie depuis L31).
+	req := idemRequest(http.MethodPost, "/v1/articles", "abc", "user-1")
+	lockKey := idempotencyCacheKey(req) + ":lock"
 	if err := rc.Set(context.Background(), lockKey, idempotencyProcessing, 0).Err(); err != nil {
 		t.Fatalf("set verrou: %v", err)
 	}
 
 	rr := httptest.NewRecorder()
-	h.ServeHTTP(rr, idemRequest(http.MethodPost, "/v1/articles", "abc", "user-1"))
+	h.ServeHTTP(rr, req)
 	if rr.Code != http.StatusConflict {
 		t.Fatalf("code = %d, attendu 409 (requête en cours)", rr.Code)
 	}

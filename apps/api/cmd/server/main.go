@@ -278,7 +278,10 @@ func newRouter(d RouterDeps) *chi.Mux {
 	secGuard := secguard.New(pool, rc)
 
 	r := chi.NewRouter()
-	r.Use(middleware.RealIP)
+	// Pas de `middleware.RealIP` (déprécié) : il réécrit `r.RemoteAddr` depuis
+	// X-Forwarded-For / X-Real-IP / True-Client-IP, tous fournis par le client.
+	// L'IP est résolue à la demande par `middleware.ClientIP` (sauts de confiance
+	// via TRUSTED_PROXY_HOPS) : une seule source, jamais falsifiable par en-tête.
 	r.Use(middleware.Recoverer)
 	r.Use(authmw.Recovery)
 	r.Use(authmw.RequestID)

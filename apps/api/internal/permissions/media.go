@@ -156,10 +156,13 @@ func CanEditMediaArticle(m *MediaMember, articleAuthorID, memberUserID string) b
 	if CanMedia(m, PermEditAny) {
 		return true
 	}
-	if CanMedia(m, PermEditOwn) && articleAuthorID == memberUserID {
-		return true
+	// Identité exigée des DEUX côtés : `"" == ""` rendait vrai sur une entrée
+	// dégénérée (auteur non résolu, membre absent), donc l'édition de tous les
+	// articles du média. Une preuve manquante n'est pas une égalité.
+	if articleAuthorID == "" || memberUserID == "" {
+		return false
 	}
-	return false
+	return CanMedia(m, PermEditOwn) && articleAuthorID == memberUserID
 }
 
 // IsMediaAdmin vérifie si le membre est owner ou a un rôle ≥ editor.

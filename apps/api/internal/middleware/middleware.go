@@ -78,12 +78,6 @@ func MaxBodyBytes(limit int64) func(http.Handler) http.Handler {
 	}
 }
 
-// IsBodyTooLarge indique si l'erreur correspond à un dépassement de MaxBodyBytes.
-func IsBodyTooLarge(err error) bool {
-	var maxBytesErr *http.MaxBytesError
-	return errors.As(err, &maxBytesErr)
-}
-
 // ClampLimit parse un entier strictement positif borné entre 1 et maxLimit,
 // et renvoie defaultLimit si la valeur est invalide ou <= 0.
 func ClampLimit(raw string, defaultLimit, maxLimit int) int {
@@ -144,9 +138,12 @@ func CORS(allowedOrigins []string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			origin := r.Header.Get("Origin")
+			// Vary inconditionnel : la réponse dépend de l'origine, même quand
+			// aucune ne l'est (sans lui, un cache partagé resservirait l'en-tête
+			// CORS d'une autre origine).
+			w.Header().Add("Vary", "Origin")
 			if originAllowed(origin, originSet, allowedOrigins) {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
-				w.Header().Set("Vary", "Origin")
 			}
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Qoe-Signature, X-Qoe-Challenge, X-Request-Id, Idempotency-Key")
@@ -161,9 +158,13 @@ func CORS(allowedOrigins []string) func(http.Handler) http.Handler {
 	}
 }
 
+// originAllowed compare l'origine à l'allowlist exacte puis aux motifs
+// `https://*.domaine`. Une allowlist VIDE n'autorise RIEN : l'absence de
+// configuration n'est pas un consentement (elle rendait auparavant toute
+// origine autorisée, en écho, sur un simple oubli de variable).
 func originAllowed(origin string, exact map[string]bool, allowed []string) bool {
 	if origin == "" || len(allowed) == 0 {
-		return len(allowed) == 0
+		return false
 	}
 	if exact[origin] {
 		return true

@@ -91,8 +91,9 @@ func WithAuthzResource(kind AuthzResource, param string) AuthzOption {
 // typiquement un feature flag : le passage à l'enforcement se pilote depuis la
 // console admin, sans redéploiement.
 //
-// Défaut (aucun resolver posé) : chaque garde suit son propre mode, donc
-// AuthzEnforce — un garde monté explicitement fait ce que dit son nom.
+// Défaut : un garde monté par RequireAction démarre en AuthzObserve, et le
+// resolver global (SetAuthzModeResolver, branché sur le flag `authz-enforce`)
+// décide requête par requête. Sans resolver global ni option, il observe.
 var authzModeResolver func(ctx context.Context) bool
 
 // SetAuthzModeResolver branche la décision d'enforcement par requête.

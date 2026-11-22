@@ -42,8 +42,3 @@ func IsStrongMethod(method string) bool {
 		return false
 	}
 }
-
-// StrongMethods liste les méthodes fortes acceptées, WebAuthn (passkey)
-// d'abord : c'est la préférence produit pour les propriétaires, admins et
-// staff, le TOTP restant l'alternative vérifiée.
-func StrongMethods() []string { return []string{MethodWebAuthn, MethodTOTP} }

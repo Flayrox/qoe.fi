@@ -629,20 +629,13 @@ func (h *Handler) toggleMuteWord(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, map[string]any{"muted": muted, "word": word})
 }
 
-// requestIP résout l'IP d'origine (posée par le reverse-proxy) sans dépendre
-// d'un middleware précis : Real-IP d'abord, puis le premier X-Forwarded-For.
+// requestIP résout l'IP d'origine pour le journal de sécurité du compte.
+// Une seule règle dans tout le dépôt : middleware.ClientIP (lecture à l'envers
+// de X-Forwarded-For selon TRUSTED_PROXY_HOPS). Lire le PREMIER X-Forwarded-For
+// — la valeur ajoutée par le client — laissait choisir l'IP des événements de
+// sécurité (nouvelle connexion, changement de mot de passe).
 func requestIP(r *http.Request) string {
-	if ip := strings.TrimSpace(r.Header.Get("X-Real-IP")); ip != "" {
-		return ip
-	}
-	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-		return strings.TrimSpace(strings.Split(fwd, ",")[0])
-	}
-	host := r.RemoteAddr
-	if i := strings.LastIndex(host, ":"); i > 0 {
-		host = host[:i]
-	}
-	return host
+	return middleware.ClientIP(r)
 }
 
 // POST /v1/me/sync — crée/met à jour la ligne User depuis les claims JWT

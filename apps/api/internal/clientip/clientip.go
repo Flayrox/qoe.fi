@@ -59,9 +59,12 @@ func FromRequestHops(r *http.Request, hops int) string {
 	if ip := forwarded(r.Header.Values("X-Forwarded-For"), hops); ip != "" {
 		return ip
 	}
-	if ip := parseIP(r.Header.Get("X-Real-IP")); ip != "" {
-		return ip
-	}
+	// `X-Real-IP` n'est PAS lu : ce n'est pas un en-tête de proxy standard, le
+	// proxy ne fait que l'ajouter (donc le client peut le fournir seul) et il
+	// échappe à la logique de sauts. Le croire laissait choisir son IP — donc
+	// son seau de rate-limiting et l'IP des journaux d'audit — à chaque requête,
+	// simplement en l'envoyant sans X-Forwarded-For. Un proxy qui n'envoie que
+	// cet en-tête doit être reconfiguré (Caddy pose X-Forwarded-For).
 	if host := strings.TrimSpace(r.RemoteAddr); host != "" {
 		if parsed, _, err := net.SplitHostPort(host); err == nil {
 			if ip := parseIP(parsed); ip != "" {

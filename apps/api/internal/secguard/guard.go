@@ -168,10 +168,20 @@ func (g *Guard) EvaluateRequest(ctx context.Context, r *http.Request, userID str
 // EnforceRateLimit vérifie les fenêtres GCRA User (et Subnet si activé) selon le Tier.
 // Répond 429 avec Retry-After et retourne false en cas de dépassement.
 func (g *Guard) EnforceRateLimit(ctx context.Context, w http.ResponseWriter, r *http.Request, scope, userID string, tier trust.Tier, quotas TierQuotas) bool {
-	if g == nil || g.rc == nil || userID == "" {
+	if g == nil || g.rc == nil {
 		return true
 	}
-	if g.spam != nil {
+	// Sans identifiant, on applique le seau de l'adresse réseau : rendre `true`
+	// sans rien vérifier faisait perdre tout plafond anti-flood à une route
+	// montée avant l'authentification (ou à un appelant qui oublie l'UID).
+	actor := userID
+	if actor == "" {
+		if r == nil {
+			return true
+		}
+		actor = "ip:" + middleware.ClientIP(r)
+	}
+	if g.spam != nil && userID != "" {
 		if frozen, retryAfter := g.spam.IsWriteFrozen(ctx, userID); frozen {
 			response.TooManyRequests(w, retryAfter, antispam.CodeWriteCooldown, "Votre compte est temporairement en pause suite à des actions répétées. Réessayez plus tard.")
 			return false
@@ -198,8 +208,8 @@ func (g *Guard) EnforceRateLimit(ctx context.Context, w http.ResponseWriter, r *
 		if c.limit <= 0 {
 			continue
 		}
-		if ok, retry := g.checkBucket(ctx, fmt.Sprintf("rl:%s:u:%s:%s", scope, userID, c.suffix), c.win, c.limit); !ok {
-			if g.spam != nil {
+		if ok, retry := g.checkBucket(ctx, fmt.Sprintf("rl:%s:u:%s:%s", scope, actor, c.suffix), c.win, c.limit); !ok {
+			if g.spam != nil && userID != "" {
 				if _, cooldown, _ := g.spam.ApplyStrike(ctx, userID); cooldown > retry {
 					retry = cooldown
 				}
