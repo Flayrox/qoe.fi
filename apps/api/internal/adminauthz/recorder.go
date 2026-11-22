@@ -168,7 +168,11 @@ func (r *Recorder) flush(batch []DecisionRecord) {
 		); err != nil {
 			log.Printf("[adminauthz:recorder] décision non enregistrée (%s %s, %s) : %v",
 				record.Method, record.Path, record.Capability, err)
-			return
+			// Une ligne en échec n'abandonne pas le reste du lot (les décisions
+			// suivantes ont autant de valeur) et compte comme perdue : sinon
+			// `Dropped` sous-estime la perte réelle.
+			r.dropped.Add(1)
+			continue
 		}
 		r.written.Add(1)
 	}
