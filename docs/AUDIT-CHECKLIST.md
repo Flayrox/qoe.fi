@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; **L29s `search` clos le 2026-11-22** (2 f. · 741 l. après correctifs, 6 défauts F670–F675 + 1 structurel F676, dettes R257–R259) ; **L29t `publishers` clos le 2026-11-22** (3 f. · 1 229 l. après correctifs, 8 défauts F677–F684 + 1 structurel F685, dettes R260–R262) ; **L29u `analytics` clos le 2026-11-22** (4 f. · 2 130 l. après correctifs, 12 défauts F686–F697 + 1 structurel F698, dettes R263–R265) ; **L29v `events`/`workspaces`/`appeals`/`support`/`exports`/`books` clos le 2026-11-22** (13 f. · 1 659 l. après correctifs, 6 défauts F699–F704 + 2 structurels F705–F706, dettes R266–R269) ; prochain = reliquat `modules/**` (`ai`, `billing`, `collaborations`, `conversations`, `devtools`, `ebooks`, `oauth`, `placements`, `tracking`)) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; **L29s `search` clos le 2026-11-22** (2 f. · 741 l. après correctifs, 6 défauts F670–F675 + 1 structurel F676, dettes R257–R259) ; **L29t `publishers` clos le 2026-11-22** (3 f. · 1 229 l. après correctifs, 8 défauts F677–F684 + 1 structurel F685, dettes R260–R262) ; **L29u `analytics` clos le 2026-11-22** (4 f. · 2 130 l. après correctifs, 12 défauts F686–F697 + 1 structurel F698, dettes R263–R265) ; **L29v `events`/`workspaces`/`appeals`/`support`/`exports`/`books` clos le 2026-11-22** (13 f. · 1 659 l. après correctifs, 6 défauts F699–F704 + 2 structurels F705–F706, dettes R266–R269) ; **L29w reliquat `tracking`/`placements`/`ai`/`collaborations`/`conversations`/`billing`/`ebooks` clos le 2026-11-22** (20 f. · 7 251 l. après correctifs, 13 défauts F707–F719 + 2 structurels F720–F721, dettes R270–R272) ; prochain = **L29x** (`oauth`, `devtools` — 8 f. · 3 057 l.)) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -228,8 +228,15 @@ silencieux, bornes de période avalées, article programmé compté en brouillon
 attributs, `dc:identifier` EPUB non-UUID, chapitres XHTML mal formés sur les entités nommées, `?offset=abc`
 avalé) et **2 structurels** (F705 règle de propriété de publication recopiée trois fois → `authz`,
 F706 pannes 500 sans cause), dettes **R266–R269**.
-**Lot suivant de L29, « En cours »** — le reliquat `apps/api/internal/modules/**` (`ai`, `billing`, `collaborations`,
-`conversations`, `devtools`, `ebooks`, `oauth`, `placements`, `tracking`).
+**L29w est clos le 2026-11-22** : reliquat `modules/**`, **7 modules** (`tracking`, `placements`, `ai`,
+`collaborations`, `conversations`, `billing`, `ebooks` ; **20 f. · 7 251 l.** après correctifs) — **13 défauts**
+F707–F719 (impressions et crédits IA comptés sans écriture, historique tronqué à 30 j, identité anonyme choisie
+par le client via `X-Forwarded-For`, audience de bannière inconnue diffusée à tous, panne du rôle rendue en 403,
+panique sans pool, gardes anti-spam de collaboration fail-open, panne masquée en « lien introuvable », gardes des
+DM mortes sur une table inexistante, plafond de conversations bloquant les fils existants, formule et livre
+introuvables sur panne, hors-ligne EPUB refusé pendant une panne) et **2 structurels** (F720, F721), dettes
+**R270–R272**.
+**Lot suivant de L29, « En cours » : L29x** — `oauth` (5 f. · 1 665 l.) et `devtools` (3 f. · 1 392 l.).
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2208,6 +2215,66 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L29w — reliquat `modules/**` (7 modules) — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l`) : **20 fichiers de production · 7 251 l.** après correctifs —
+`tracking` (2 f. · 621 l.), `placements` (2 f. · 658 l.), `ai` (3 f. · 667 l.), `collaborations` (2 f. · 1 013 l.),
+`conversations` (2 f. · 688 l.), `billing` (5 f. · 1 210 l.), `ebooks` (4 f. · 1 316 l.). Lus intégralement avec
+leurs appelants réels : `cmd/server` (montage des sept handlers), `internal/subscriptions/grants.go`,
+`internal/abuse/budget.go`, `internal/modules/articles/paywall.go`, `internal/clientip`, `internal/middleware`,
+`internal/testutil`, `internal/queue`, et les tests d'intégration existants des sept paquets.
+**7 fichiers d'audit · 485 l. (14 tests)** s'ajoutent. Le lot est **découpé** : `oauth` (5 f.) et `devtools`
+(3 f.) — **3 057 l.** — restent à auditer dans **L29x** (annoncé ici plutôt que survolé).
+
+**13 défauts corrigés** F707–F719, chacun adossé à un rouge réellement exécuté (worktree
+`git worktree add -f /tmp/qoe-l29w-red HEAD`, suite `TestAuditL29W_*`).
+
+| # | Défaut | Preuve (test) | Rouge constaté |
+|---|---|---|---|
+| F707 | **Impressions de feed annoncées comme écrites** : chaque `INSERT` de `FeedImpression` était avalé (`_, _ =`) et le service renvoyait `len(items)` — une base injoignable produisait `success:true, inserted:3` sans une ligne. La première erreur remonte, le handler répond `success:false` (convention beacon) et **journalise**. | `TestAuditL29W_FeedImpressionsAreNotFaked` | `base injoignable → inserted = 3 et err = nil` |
+| F708 | **Historique de lecture tronqué en silence** : le handler annonçait 1–365 jours, le service ramenait tout à **30 jours**. Plafond aligné sur le contrat (LIMIT 100 borne déjà les lignes). | `TestAuditL29W_ReadingHistoryHonoursRequestedWindow` | `historique sur 90 jours = 0 sessions, attendu 1 (lecture de 45 jours)` |
+| F709 | **Identité anonyme choisie par le client** : l'IP était lue au **premier** élément de `X-Forwarded-For` (contrôlé par le client) ; un visiteur changeait de hash anonyme à chaque requête et gonflait les visiteurs uniques. `clientip.FromRequest` (lecture à l'envers, sauts de proxys de confiance) remplace la lecture naïve. | `TestAuditL29W_AnonHashIgnoresSpoofedForwardedFor` | `un préfixe X-Forwarded-For forgé change l'identité anonyme (dc592313 != 195b0bea)` |
+| F710 | **Audience inconnue diffusée à tout le monde** : une faute de frappe (`plus_onyl`) tombait dans le `default` permissif de `GetActivePlacementForSlot`. Lecture fail-closed (`continue`), et création/mise à jour refusent le vocabulaire hors contrat (format, type, audience). | `TestAuditL29W_UnknownAudienceIsNotBroadcast` | `audience inconnue diffusée à un visiteur : plus_onyl` |
+| F711 | **Panne DB du rôle rendue en 403** : `CheckSuperadmin` transformait toute erreur en `ErrForbidden` ; seule l'absence de ligne vaut refus, le reste remonte et le handler répond **500 journalisé**. | `TestAuditL29W_SuperadminOutageIsNotForbidden` | `panne DB rendue en ErrForbidden (403) : accès réservé au superadmin` |
+| F712 | **Panique sur service sans pool** : `GetActivePlacementForSlot` déréférençait `s.pool` nil. Garde `db()` explicite sur toutes les méthodes. | `TestAuditL29W_NilPoolDoesNotPanic` | `service sans pool : panique runtime error: invalid memory address or nil pointer dereference au lieu d'une erreur` |
+| F713 | **Crédit IA brûlé par le plafond global** : l'ordre consommait le quota **utilisateur** puis le plafond global ; un refus « capacité saturée » (429) laissait un crédit mensuel décompté pour une génération inexistante. Le global est consommé d'abord, rendu si le quota utilisateur refuse. | `TestAuditL29W_GlobalCapDoesNotBurnUserCredit` | `refus par plafond global : 1 crédit(s) mensuel(s) consommé(s), attendu 0` |
+| F714 | **Gardes de collaboration fail-open** : les compteurs anti-spam (invitation en attente, refus récent, 10/10 min, 10 liens/h) et les permissions fines (`MEDIA_ONLY`, `FOLLOWING`, `MUTUALS`) avalaient leur erreur de lecture — une panne DB valait 0 invite et « tout autorisé ». Les erreurs remontent (500), jamais un laissez-passer. | `TestAuditL29W_AntiSpamOutageIsNotAPass` | `base injoignable → garde anti-spam laisse passer l'invitation (err = nil)` |
+| F715 | **Panne DB masquée en « lien introuvable »** : `RevokeInviteLink` et l'aperçu transformaient toute erreur en erreur métier (400). Seul `pgx.ErrNoRows` est un 404/400 métier. | `TestAuditL29W_RevokeLinkOutageIsNotNotFound` | `panne DB rendue en erreur métier (400) : Lien introuvable.` |
+| F716 | **Gardes anti-spam des DM mortes** : les deux requêtes de `SendMessage` interrogeaient la table `"DirectMessage"`, **qui n'existe pas** (`"Message"`) ; l'erreur était avalée, donc ni le doublon (409) ni le plafond de 30/min ne s'appliquaient depuis toujours. Table corrigée, erreurs remontées. | `TestAuditL29W_DuplicateMessageGuardIsLive` | `doublon accepté: err = <nil>, attendu ErrDuplicateMessage` |
+| F717 | **Plafond de conversations appliqué aux fils existants** : le compteur « 15 nouvelles conversations/heure » comptait toutes les conversations **rejointes**, donc rouvrir un fil devenait impossible après 15. La conversation est résolue d'abord ; le plafond ne s'applique qu'à une vraie création. | `TestAuditL29W_ExistingConversationIsNotRateLimited` | `réouverture d'une conversation existante → Limite de création de conversations atteinte (15 max par heure)…, attendu succès` |
+| F718 | **Catalogue facturation : panne rendue en « formule introuvable »** : `GetTier` renvoyait `ErrTierNotFound` pour toute erreur, et le handler un **404** — le paywall croyait la formule supprimée. `ErrNoRows` seul vaut 404, le reste 500 journalisé. | `TestAuditL29W_TierOutageIsNotNotFound` | `panne DB rendue en ErrTierNotFound: formule introuvable` (handler : 404 au lieu de 500) |
+| F719 | **Bibliothèque EPUB : panne rendue en 404, hors-ligne en 403** : `Get`/`Cover` transformaient toute erreur en `ErrEbookNotFound`, et `OfflinePack` lisait `HasPlus` (qui avale l'erreur) → « réservé aux Plus » pendant une panne. `subscriptions.PlusStatus` (nouvelle variante qui rend l'erreur, `HasPlus` délègue) et distinction `ErrNoRows`. | `TestAuditL29W_ReadOutageIsNotNotFound`, `TestAuditL29W_OfflineOutageIsNotPlusRequired` | `panne DB rendue en « livre introuvable » (404)` / `panne DB rendue en « réservé aux Plus » (403)` |
+
+**Correctifs structurels, sans rouge isolable** (déclarés comme tels) :
+
+- **F720 — pannes 500 sans cause** : la branche `default` de `ai.mapErr` répondait 500 sans journaliser ; elle trace désormais
+  l'erreur (les autres modules du lot journalisaient déjà).
+- **F721 — lectures d'argent avalées** : `PublisherStripeAccount` et `ReaderStripeCustomer` renvoyaient `""` sur
+  panne — un créateur dont le compte Connect existait se voyait répondre `CONNECT_REQUIRED`, et l'onboarding
+  suivante créait un **second compte Connect** ; le portail répondait `NO_CUSTOMER`. Les deux lectures rendent
+  maintenant leur erreur (500), les trois appelants sont adaptés. Au passage, `JoinViaInviteLink` réserve
+  l'utilisation du lien **avant** d'attribuer (compteur conditionnel : plus de dépassement de `maxUses` sous
+  concurrence) au lieu d'incrémenter après coup en ignorant l'erreur.
+
+**Migrations** : **aucune nécessaire**. `ExpectedMigrationVersion` reste **95**.
+
+**Dettes ouvertes** (numérotation en continuité de R269) :
+
+- **R270 — `oauth` et `devtools` non audités** : 8 fichiers de production · 3 057 l. listés au périmètre de L29w,
+  lus hors du tour pour ne pas livrer un audit partiel. Reportés à **L29x**, avec la même méthode (rouge cité
+  avant correctif).
+- **R271 — purge des impressions sur le chemin chaud** : `TrackFeedImpression` exécute un `DELETE` de rétention
+  30 j sur ~5 % des requêtes (`time.Now().UnixNano()%20 == 0`), au lieu du worker dédié utilisé pour les sessions
+  de lecture. Aucun worker `FeedImpression` n'existe : le déplacer demande un nouveau job planifié (lot `workers`).
+- **R272 — `toUUID` avale un identifiant illisible** : le helper recopié dans `tracking`, `placements`, `ai`,
+  `collaborations` et `conversations` rend `NULL` sur une entrée non-UUID, donc une requête qui ne trouve rien
+  plutôt qu'une erreur 400. Les routes concernées passent par le middleware d'authentification (session déjà
+  UUID) ; à unifier dans un helper partagé avec le lot transverse.
+
+**Commandes passées sur l'arbre corrigé** : `gofmt -l .` (dépôt entier) → **0** ; `go build ./...` → 0 ;
+`go vet ./...` → 0 ; `QOE_DB_TESTS_OPTIONAL=1 go test ./...` → **85 paquets `ok`, 0 `FAIL`** ; batterie
+workspace 13 commandes → **13 × 0**. Aucun fichier TypeScript touché : **vitest non requis** (et non lancé).
 
 ## L29v — lot groupé `events` · `workspaces` · `appeals` · `support` · `exports` · `books` — **clos le 2026-11-22**
 
