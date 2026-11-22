@@ -27,6 +27,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(code)
 }
+
 // requirePool skippe les tests DB quand Docker/testcontainers est absent.
 func requirePool(t *testing.T) {
 	t.Helper()
@@ -34,7 +35,6 @@ func requirePool(t *testing.T) {
 		t.Skip("DB indisponible (Docker/testcontainers requis)")
 	}
 }
-
 
 // seedFollows crée : alice (avec publication), bob (avec publication), et un
 // follow de bob → alice. Rejouable.
@@ -99,9 +99,9 @@ func TestFollowers_List(t *testing.T) {
 
 	params := db.ListFollowersByPublisherParams{
 		PublisherId: alicePubID,
-		ViewerID:      toUUID(bobUserID),
-		Limit:         20,
-		Offset:        0,
+		ViewerID:    toUUID(bobUserID),
+		Limit:       20,
+		Offset:      0,
 	}
 	followers, err := h.q.ListFollowersByPublisher(ctx, params)
 	if err != nil {
@@ -159,9 +159,9 @@ func TestFollowers_ViewerFollowsAnotherFollower(t *testing.T) {
 
 	params := db.ListFollowersByPublisherParams{
 		PublisherId: alicePubID,
-		ViewerID:      toUUID(bobUserID),
-		Limit:         20,
-		Offset:        0,
+		ViewerID:    toUUID(bobUserID),
+		Limit:       20,
+		Offset:      0,
 	}
 	followers, err := h.q.ListFollowersByPublisher(ctx, params)
 	if err != nil {

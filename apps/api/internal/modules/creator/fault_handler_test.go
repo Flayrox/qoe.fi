@@ -42,12 +42,12 @@ func TestFault_Handlers_QueryErrors(t *testing.T) {
 	catID := seedCategory(t, alicePubID)
 
 	cases := []struct {
-		name       string
-		qf         map[string]error
+		name        string
+		qf          map[string]error
 		method, url string
-		userID     string
-		body       string
-		want       int
+		userID      string
+		body        string
+		want        int
 	}{
 		{"categories-500", map[string]error{"ListCategoriesByPublisher": errBoom}, http.MethodGet, "/v1/categories?publisherId=" + alicePubID, aliceUserID, "", http.StatusInternalServerError},
 		{"createCategory-500", map[string]error{"CreateCategory": errBoom}, http.MethodPost, "/v1/categories", aliceUserID, `{"publisherId":"` + alicePubID + `","name":"Nouvelle","slug":"nouvelle"}`, http.StatusInternalServerError},

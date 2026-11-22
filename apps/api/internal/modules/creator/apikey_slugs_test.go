@@ -254,7 +254,11 @@ func TestCreatorAPI_CMSFiltersAndValidation(t *testing.T) {
 		if w.Code != http.StatusOK {
 			t.Fatalf("category=%s = %d %s", catVal, w.Code, w.Body.String())
 		}
-		var res struct{ Items []struct{ ID string `json:"id"` } `json:"items"` }
+		var res struct {
+			Items []struct {
+				ID string `json:"id"`
+			} `json:"items"`
+		}
 		_ = json.Unmarshal(w.Body.Bytes(), &res)
 		if len(res.Items) != 1 || res.Items[0].ID != "art_pub" {
 			t.Fatalf("category=%s items=%v", catVal, res.Items)
@@ -263,7 +267,11 @@ func TestCreatorAPI_CMSFiltersAndValidation(t *testing.T) {
 
 	// status=draft → seul le brouillon
 	w := doKey(http.MethodGet, "/v1/creator/articles?status=draft", "")
-	var draftRes struct{ Items []struct{ ID string `json:"id"` } `json:"items"` }
+	var draftRes struct {
+		Items []struct {
+			ID string `json:"id"`
+		} `json:"items"`
+	}
 	_ = json.Unmarshal(w.Body.Bytes(), &draftRes)
 	if len(draftRes.Items) != 1 || draftRes.Items[0].ID != "art_draft" {
 		t.Fatalf("status=draft = %v", draftRes.Items)
@@ -271,14 +279,21 @@ func TestCreatorAPI_CMSFiltersAndValidation(t *testing.T) {
 
 	// status=all → les deux
 	w = doKey(http.MethodGet, "/v1/creator/articles?status=all", "")
-	var allRes struct{ Items []struct{ ID string `json:"id"` } `json:"items"` }
+	var allRes struct {
+		Items []struct {
+			ID string `json:"id"`
+		} `json:"items"`
+	}
 	_ = json.Unmarshal(w.Body.Bytes(), &allRes)
 	if len(allRes.Items) != 2 {
 		t.Fatalf("status=all = %d, attendu 2", len(allRes.Items))
 	}
 
 	// Validation slug : réservé, trop court
-	for _, tc := range []struct{ slug string; want int }{
+	for _, tc := range []struct {
+		slug string
+		want int
+	}{
 		{"admin", 400},
 		{"ab", 400},
 		{"api", 400},

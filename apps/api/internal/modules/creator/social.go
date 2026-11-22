@@ -51,7 +51,7 @@ func (h *Handler) userMe(w http.ResponseWriter, r *http.Request) {
 				username = strings.Split(email, "@")[0]
 			}
 			if email != "" && name == "Utilisateur" {
-				name = strings.Title(strings.Split(email, "@")[0])
+				name = capitalizeFirst(strings.Split(email, "@")[0])
 			}
 
 			// Provisionne la publication personnelle et la ligne User
@@ -64,16 +64,24 @@ func (h *Handler) userMe(w http.ResponseWriter, r *http.Request) {
 				slugVal = "user"
 			}
 
-			_, _ = h.pool.Exec(r.Context(), `
+			if _, err := h.pool.Exec(r.Context(), `
 				INSERT INTO "Publisher" (id, type, name, slug, subdomain, "createdAt", "updatedAt")
 				VALUES ($1, 'PERSONAL', $2, $3, $3, now(), now())
-				ON CONFLICT (id) DO NOTHING`, pubID, name, slugVal)
+				ON CONFLICT (id) DO NOTHING`, pubID, name, slugVal); err != nil {
+				log.Printf("[creator] userMe auto-provision publisher: %v", err)
+				response.Internal(w)
+				return
+			}
 
-			_, _ = h.pool.Exec(r.Context(), `
+			if _, err := h.pool.Exec(r.Context(), `
 				INSERT INTO "User" (id, email, name, username, role, "publisherId", "createdAt", "updatedAt")
 				VALUES ($1, $2, $3, $4, 'user', $5, now(), now())
 				ON CONFLICT (id) DO UPDATE SET email = $2, name = $3, username = $4, "publisherId" = $5, "updatedAt" = now()`,
-				toUUID(userID), email, name, username, pubID)
+				toUUID(userID), email, name, username, pubID); err != nil {
+				log.Printf("[creator] userMe auto-provision user: %v", err)
+				response.Internal(w)
+				return
+			}
 
 			// Re-fetch de la ligne fraîchement créée
 			row, err = h.q.GetUserByIDFull(r.Context(), userID)
@@ -566,11 +574,7 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 		h.cancelFollowRequest(ctx, userID, pubID)
 		h.sec.TrackFollowAction(ctx, userID, targetID)
 		h.invalidateFollowTrust(ctx, userID, access.OwnerID)
-		count, err := h.q.CountFollowers(ctx, pubID)
-		if err != nil {
-			count = 0
-		}
-		response.OK(w, map[string]any{"data": map[string]any{"following": false, "requested": false, "followersCount": count}})
+		response.OK(w, h.followPayload(ctx, pubID, false, false))
 		return
 	} else if !errors.Is(err, pgx.ErrNoRows) {
 		log.Printf("[creator] follow check: %v", err)
@@ -583,11 +587,7 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 		h.cancelFollowRequest(ctx, userID, pubID)
 		h.sec.TrackFollowAction(ctx, userID, targetID)
 		h.invalidateFollowTrust(ctx, userID, access.OwnerID)
-		count, err := h.q.CountFollowers(ctx, pubID)
-		if err != nil {
-			count = 0
-		}
-		response.OK(w, map[string]any{"data": map[string]any{"following": false, "requested": false, "followersCount": count}})
+		response.OK(w, h.followPayload(ctx, pubID, false, false))
 		return
 	}
 
@@ -606,11 +606,7 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 		}
 		h.sec.TrackFollowAction(ctx, userID, targetID)
 		h.invalidateFollowTrust(ctx, userID, access.OwnerID)
-		count, err := h.q.CountFollowers(ctx, pubID)
-		if err != nil {
-			count = 0
-		}
-		response.OK(w, map[string]any{"data": map[string]any{"following": false, "requested": true, "followersCount": count}})
+		response.OK(w, h.followPayload(ctx, pubID, false, true))
 		return
 	}
 
@@ -624,11 +620,19 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 	}
 	h.sec.TrackFollowAction(ctx, userID, targetID)
 	h.invalidateFollowTrust(ctx, userID, access.OwnerID)
-	count, err := h.q.CountFollowers(ctx, pubID)
-	if err != nil {
-		count = 0
+	response.OK(w, h.followPayload(ctx, pubID, true, false))
+}
+
+// followPayload construit l'état de suivi. Si le comptage échoue, il est
+// omis plutôt que fabriqué à 0 : l'appelant ne lit pas une fausse valeur.
+func (h *Handler) followPayload(ctx context.Context, pubID string, following, requested bool) map[string]any {
+	data := map[string]any{"following": following, "requested": requested}
+	if count, err := h.q.CountFollowers(ctx, pubID); err == nil {
+		data["followersCount"] = count
+	} else {
+		log.Printf("[creator] count followers: %v", err)
 	}
-	response.OK(w, map[string]any{"data": map[string]any{"following": true, "requested": false, "followersCount": count}})
+	return map[string]any{"data": data}
 }
 
 // notifyFollow crée la notification FOLLOW au propriétaire d'une publication
@@ -737,12 +741,18 @@ func (h *Handler) removeFollower(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := h.pool.Exec(r.Context(), `
+	tag, err := h.pool.Exec(r.Context(), `
 		DELETE FROM "Follows"
 		WHERE "readerId" = $1::uuid AND "publisherId" = $2
-	`, toUUID(targetUserID), pubID); err != nil {
+	`, toUUID(targetUserID), pubID)
+	if err != nil {
 		log.Printf("[creator] remove follower: %v", err)
 		response.Internal(w)
+		return
+	}
+	if tag.RowsAffected() == 0 {
+		// Aucun abonnement retiré : ne pas répondre « removed » à tort.
+		response.NotFound(w, "Abonné introuvable")
 		return
 	}
 

@@ -40,12 +40,9 @@ func (h *Handler) categories(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Garantit l'existence de la catégorie par défaut (« Non classé »)
-	// même pour les publications créées après la migration.
-	if _, err := h.q.EnsureDefaultCategory(r.Context(), pubID); err != nil {
-		log.Printf("[creator] ensureDefaultCategory: %v", err)
-	}
-
+	// Pas d'écriture ici : une lecture ne doit pas créer de catégorie chez une
+	// publication arbitraire. La catégorie par défaut est créée par le service
+	// d'articles au moment où elle est réellement nécessaire.
 	rows, err := h.q.ListCategoriesByPublisher(r.Context(), pubID)
 	if err != nil {
 		log.Printf("[creator] categories: %v", err)
@@ -176,7 +173,12 @@ func (h *Handler) createCategory(w http.ResponseWriter, r *http.Request) {
 	exists, err := h.q.CheckCategorySlugExists(r.Context(), db.CheckCategorySlugExistsParams{
 		PublisherId: in.PublisherID, Slug: finalSlug, ID: "",
 	})
-	if err == nil && exists {
+	if err != nil {
+		log.Printf("[creator] check category slug: %v", err)
+		response.Internal(w)
+		return
+	}
+	if exists {
 		response.BadRequest(w, fmt.Sprintf("Le slug %q est déjà utilisé par une autre de vos catégories.", finalSlug))
 		return
 	}
@@ -294,7 +296,12 @@ func (h *Handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 	exists, err := h.q.CheckCategorySlugExists(r.Context(), db.CheckCategorySlugExistsParams{
 		PublisherId: existing.PublisherId, Slug: finalSlug, ID: id,
 	})
-	if err == nil && exists {
+	if err != nil {
+		log.Printf("[creator] check category slug: %v", err)
+		response.Internal(w)
+		return
+	}
+	if exists {
 		response.BadRequest(w, fmt.Sprintf("Le slug %q est déjà utilisé par une autre de vos catégories.", finalSlug))
 		return
 	}
@@ -323,12 +330,15 @@ func (h *Handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 			}
 			// Empêcher de convertir une catégorie mère contenant des sous-catégories en sous-catégorie
 			siblings, err := h.q.ListCategoriesByPublisher(r.Context(), existing.PublisherId)
-			if err == nil {
-				for _, sib := range siblings {
-					if sib.ParentId.Valid && sib.ParentId.String == id {
-						response.BadRequest(w, "Cette catégorie contient déjà des sous-catégories et ne peut pas devenir une sous-catégorie.")
-						return
-					}
+			if err != nil {
+				log.Printf("[creator] updateCategory siblings: %v", err)
+				response.Internal(w)
+				return
+			}
+			for _, sib := range siblings {
+				if sib.ParentId.Valid && sib.ParentId.String == id {
+					response.BadRequest(w, "Cette catégorie contient déjà des sous-catégories et ne peut pas devenir une sous-catégorie.")
+					return
 				}
 			}
 			parentID = textVal(in.ParentID)

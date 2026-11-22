@@ -24,11 +24,25 @@ func (h *Handler) analyticsStats(w http.ResponseWriter, r *http.Request) {
 
 	start := now.AddDate(0, 0, -30).UnixMilli()
 	end := now.UnixMilli()
-	if v, err := strconv.ParseInt(startAt, 10, 64); err == nil {
+	if startAt != "" {
+		v, err := strconv.ParseInt(startAt, 10, 64)
+		if err != nil {
+			response.BadRequest(w, "startAt doit être un timestamp Unix en millisecondes")
+			return
+		}
 		start = v
 	}
-	if v, err := strconv.ParseInt(endAt, 10, 64); err == nil {
+	if endAt != "" {
+		v, err := strconv.ParseInt(endAt, 10, 64)
+		if err != nil {
+			response.BadRequest(w, "endAt doit être un timestamp Unix en millisecondes")
+			return
+		}
 		end = v
+	}
+	if start > end {
+		response.BadRequest(w, "startAt doit précéder endAt")
+		return
 	}
 
 	if websiteID == "" {
@@ -39,14 +53,25 @@ func (h *Handler) analyticsStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.umami == nil {
+		// Pas de client analytics branché : ne pas inventer des statistiques
+		// nulles, dire que le service n'est pas disponible.
+		response.Error(w, http.StatusServiceUnavailable, "Analytics indisponible")
+		return
+	}
+
 	ctx := r.Context()
 	stats, err := h.umami.WebsiteStats(ctx, websiteID, start, end)
 	if err != nil {
 		log.Printf("[creator] umami stats: %v", err)
+		response.Error(w, http.StatusBadGateway, "Statistiques temporairement indisponibles")
+		return
 	}
 	topPages, err := h.umami.TopPages(ctx, websiteID, start, end, 10)
 	if err != nil {
 		log.Printf("[creator] umami topPages: %v", err)
+		response.Error(w, http.StatusBadGateway, "Statistiques temporairement indisponibles")
+		return
 	}
 	if topPages == nil {
 		topPages = []umami.PageMetric{}

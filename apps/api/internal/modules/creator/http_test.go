@@ -221,14 +221,10 @@ func TestRemoveFollower(t *testing.T) {
 	alicePubID, aliceUserID, _, bobUserID := seedFollows(t)
 	r := newFullRouter()
 
-	// Bob suit Alice
-	w := authedRequest(r, http.MethodPost, "/v1/users/"+alicePubID+"/follow", bobUserID, "")
-	if w.Code != http.StatusOK {
-		t.Fatalf("follow: %d %s", w.Code, w.Body.String())
-	}
-
-	// Alice retire Bob de ses abonnés
-	w = authedRequest(r, http.MethodDelete, "/v1/me/followers/"+bobUserID, aliceUserID, "")
+	// Bob suit déjà Alice (seedFollows). Un second POST le désabonnerait :
+	// la suppression doit porter sur un abonnement réellement existant.
+	// Alice retire Bob de ses abonnés.
+	w := authedRequest(r, http.MethodDelete, "/v1/me/followers/"+bobUserID, aliceUserID, "")
 	if w.Code != http.StatusOK {
 		t.Fatalf("removeFollower = %d %s, attendu 200", w.Code, w.Body.String())
 	}

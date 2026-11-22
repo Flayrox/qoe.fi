@@ -32,7 +32,7 @@ func TestUserMe_AutoProvision(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/v1/users/me", nil)
 	ctx := context.WithValue(req.Context(), middleware.UserIDKey, newID)
 	ctx = context.WithValue(ctx, middleware.ClaimsKey, map[string]any{
-		"email": "nouveau@test.dev",
+		"email":         "nouveau@test.dev",
 		"user_metadata": map[string]any{"full_name": "Nouvel User", "username": "nouveau"},
 	})
 	req = req.WithContext(ctx)

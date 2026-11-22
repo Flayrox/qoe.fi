@@ -4,12 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
@@ -27,16 +29,19 @@ import (
 var tagStripper = regexp.MustCompile(`<[^>]*>`)
 
 // stripHTMLTags extrait un extrait texte brut d'un contenu HTML stocké.
+// La coupe se fait en runes : couper des octets casserait un caractère
+// multi-octets et produirait un extrait UTF-8 invalide.
 func stripHTMLTags(html string, max int) string {
 	text := strings.Join(strings.Fields(tagStripper.ReplaceAllString(html, " ")), " ")
-	if len(text) > max {
-		cut := text[:max]
-		if idx := strings.LastIndex(cut, " "); idx > 0 {
-			cut = cut[:idx]
-		}
-		text = cut + "…"
+	if max <= 0 || utf8.RuneCountInString(text) <= max {
+		return text
 	}
-	return text
+	runes := []rune(text)
+	cut := string(runes[:max])
+	if idx := strings.LastIndex(cut, " "); idx > 0 {
+		cut = cut[:idx]
+	}
+	return strings.TrimSpace(cut) + "…"
 }
 
 type apiAuthor struct {
@@ -160,7 +165,7 @@ var apiArticlesSorts = map[string]string{
 	"title_desc":     `a.title DESC`,
 }
 
-func (h *Handler) resolveAuthors(ctx context.Context, articleIDs map[string]int, items byAuthorSetter) {
+func (h *Handler) resolveAuthors(ctx context.Context, articleIDs map[string]int, items byAuthorSetter) error {
 	ids := make([]string, 0, len(articleIDs))
 	for id := range articleIDs {
 		ids = append(ids, id)
@@ -175,20 +180,24 @@ func (h *Handler) resolveAuthors(ctx context.Context, articleIDs map[string]int,
 		WHERE c."A" = ANY($1::text[])`
 	rows, err := h.pool.Query(ctx, q, ids)
 	if err != nil {
-		return
+		return fmt.Errorf("auteurs: %w", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var scanArticleID, mainAuthorID, userID string
 		var username, name *string
 		if err := rows.Scan(&scanArticleID, &mainAuthorID, &username, &name, &userID); err != nil {
-			continue
+			return fmt.Errorf("auteurs scan: %w", err)
 		}
 		idx, ok := articleIDs[scanArticleID]
 		if ok {
 			items.setAuthor(idx, apiAuthor{ID: userID, Username: username, Name: name})
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("auteurs rows: %w", err)
+	}
+	return nil
 }
 
 // ─── GET /v1/creator/categories ────────────────────────────────────────
@@ -233,9 +242,16 @@ func (h *Handler) apiCategories(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var it apiCategoryItem
 		if err := rows.Scan(&it.ID, &it.Slug, &it.Name, &it.Description, &it.ParentID, &it.IsDefault, &it.ArticleCount); err != nil {
-			continue
+			log.Printf("[creator] api categories scan: %v", err)
+			response.Internal(w)
+			return
 		}
-	items = append(items, it)
+		items = append(items, it)
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("[creator] api categories rows: %v", err)
+		response.Internal(w)
+		return
 	}
 	w.Header().Set("Cache-Control", "public, max-age=300, s-maxage=600, stale-while-revalidate=3600")
 	response.OK(w, map[string]any{"categories": items})
@@ -301,12 +317,19 @@ func (h *Handler) apiArticles(w http.ResponseWriter, r *http.Request) {
 	if term := q.Get("q"); term != "" {
 		add(` AND a.title ILIKE '%' || $? || '%'`, term)
 	}
-	for param, cond := range map[string]string{
-		"since": ` AND a."createdAt" >= $?::date`,
-		"until": ` AND a."createdAt" < ($?::date + INTERVAL '1 day')`,
-	} {
+	// Bornes de dates : validées en amont pour renvoyer 400 plutôt qu'une
+	// erreur SQL 500 sur une valeur illisible.
+	for _, param := range []string{"since", "until"} {
 		if v := q.Get(param); v != "" {
-			add(cond, v)
+			if _, err := time.Parse("2006-01-02", v); err != nil {
+				response.BadRequest(w, param+" doit être au format AAAA-MM-JJ")
+				return
+			}
+			if param == "since" {
+				add(` AND a."createdAt" >= $?::date`, v)
+			} else {
+				add(` AND a."createdAt" < ($?::date + INTERVAL '1 day')`, v)
+			}
 		}
 	}
 
@@ -349,7 +372,8 @@ func (h *Handler) apiArticles(w http.ResponseWriter, r *http.Request) {
 			&publishedAt, &updatedAt, &scheduledAt,
 			&catID, &catSlug, &catName); err != nil {
 			log.Printf("[creator] articles scan: %v", err)
-			continue
+			response.Internal(w)
+			return
 		}
 		it.ImageURL = it.CoverURL
 		it.PublishedAt = publishedAt.Format("2006-01-02T15:04:05Z07:00")
@@ -367,8 +391,17 @@ func (h *Handler) apiArticles(w http.ResponseWriter, r *http.Request) {
 		page.Items = append(page.Items, it)
 	}
 	rows.Close()
+	if err := rows.Err(); err != nil {
+		log.Printf("[creator] articles rows: %v", err)
+		response.Internal(w)
+		return
+	}
 
-	h.resolveAuthors(r.Context(), ids, &page)
+	if err := h.resolveAuthors(r.Context(), ids, &page); err != nil {
+		log.Printf("[creator] articles %v", err)
+		response.Internal(w)
+		return
+	}
 	for i := range page.Items {
 		page.Items[i].Authors = h.withEffectiveSlugs(
 			r.Context(), page.Items[i].ID, page.Items[i].Authors, page.Items[i].Slug,
@@ -381,11 +414,16 @@ func (h *Handler) apiArticles(w http.ResponseWriter, r *http.Request) {
 		page.NextCursor = strconv.Itoa(offset + limit)
 	}
 
+	// Le total ne peut pas être "fabriqué" à 0 : une panne du COUNT est une
+	// panne de la requête, pas un résultat vide.
 	var total int
 	if err := h.pool.QueryRow(r.Context(),
-		`SELECT COUNT(*)::int `+where, args...).Scan(&total); err == nil {
-		w.Header().Set("X-Total-Count", strconv.Itoa(total))
+		`SELECT COUNT(*)::int `+where, args...).Scan(&total); err != nil {
+		log.Printf("[creator] articles total: %v", err)
+		response.Internal(w)
+		return
 	}
+	w.Header().Set("X-Total-Count", strconv.Itoa(total))
 	payload := map[string]any{
 		"items":      page.Items,
 		"total":      total,
@@ -469,7 +507,9 @@ func (h *Handler) loadCreatorArticleFull(
 	full.Slug = h.effectiveSlug(ctx, full.ID, userID, baseSlug)
 
 	ids := map[string]int{full.ID: 0}
-	h.resolveAuthors(ctx, ids, &full)
+	if err := h.resolveAuthors(ctx, ids, &full); err != nil {
+		return nil, err
+	}
 	full.Authors = h.withEffectiveSlugs(ctx, full.ID, full.Authors, baseSlug)
 	return &full, nil
 }
@@ -617,7 +657,9 @@ func (h *Handler) apiSearch(w http.ResponseWriter, r *http.Request) {
 			&it.SeoTitle, &it.SeoDescription, &it.CanonicalType, &it.CanonicalURL,
 			&createdAt, &updatedAt, &scheduledAt,
 			&catID, &catSlug, &catName, &titleHit); err != nil {
-			continue
+			log.Printf("[creator] search scan: %v", err)
+			response.Internal(w)
+			return
 		}
 		it.ImageURL = it.CoverURL
 		it.PublishedAt = createdAt.Format("2006-01-02T15:04:05Z07:00")
@@ -635,8 +677,17 @@ func (h *Handler) apiSearch(w http.ResponseWriter, r *http.Request) {
 		page.Items = append(page.Items, it)
 	}
 	rows.Close()
+	if err := rows.Err(); err != nil {
+		log.Printf("[creator] search rows: %v", err)
+		response.Internal(w)
+		return
+	}
 
-	h.resolveAuthors(r.Context(), ids, &page)
+	if err := h.resolveAuthors(r.Context(), ids, &page); err != nil {
+		log.Printf("[creator] search %v", err)
+		response.Internal(w)
+		return
+	}
 
 	if len(page.Items) > limit {
 		page.Items = page.Items[:limit]
@@ -653,4 +704,3 @@ func (h *Handler) apiSearch(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "private, no-store")
 	response.OK(w, payload)
 }
-

@@ -19,14 +19,14 @@ import (
 // followRequestActor est le demandeur affiché dans les réglages du compte
 // privé (nom, handle, avatar) + la date de la demande.
 type followRequestActor struct {
-	ID            string  `json:"id"`
-	RequestID     string  `json:"requestId"`
+	ID          string  `json:"id"`
+	RequestID   string  `json:"requestId"`
 	PublisherID *string `json:"publisherId"`
-	Name          *string `json:"name"`
-	Username      *string `json:"username"`
-	LogoURL       *string `json:"logoUrl"`
-	IsCertified   bool    `json:"isCertified"`
-	RequestedAt   string  `json:"requestedAt"`
+	Name        *string `json:"name"`
+	Username    *string `json:"username"`
+	LogoURL     *string `json:"logoUrl"`
+	IsCertified bool    `json:"isCertified"`
+	RequestedAt string  `json:"requestedAt"`
 }
 
 // followRequests — GET /v1/me/follow-requests : demandes en attente pour les
@@ -121,7 +121,13 @@ func (h *Handler) acceptFollowRequest(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !h.canManagePublisher(r.Context(), userID, publisherID) {
+	canManage, err := h.canManagePublisher(r.Context(), userID, publisherID)
+	if err != nil {
+		log.Printf("[creator] accept follow request rights: %v", err)
+		response.Internal(w)
+		return
+	}
+	if !canManage {
 		response.Forbidden(w, "Vous ne pouvez pas accepter cette demande.")
 		return
 	}
@@ -143,7 +149,7 @@ func (h *Handler) acceptFollowRequest(w http.ResponseWriter, r *http.Request) {
 	h.notifyFollowAccepted(r.Context(), publisherID, userID, requesterID)
 	h.invalidateFollowTrust(r.Context(), requesterID, userID)
 	if ownerID, err := h.q.GetPublisherOwner(r.Context(), publisherID); err == nil && ownerID != "" && ownerID != userID {
-		h.sec.InvalidateTrust(r.Context(), ownerID)
+		h.invalidateFollowTrust(r.Context(), ownerID, "")
 	}
 	response.OK(w, map[string]any{"accepted": true})
 }
@@ -155,7 +161,13 @@ func (h *Handler) rejectFollowRequest(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !h.canManagePublisher(r.Context(), userID, publisherID) {
+	canManage, err := h.canManagePublisher(r.Context(), userID, publisherID)
+	if err != nil {
+		log.Printf("[creator] reject follow request rights: %v", err)
+		response.Internal(w)
+		return
+	}
+	if !canManage {
 		response.Forbidden(w, "Vous ne pouvez pas refuser cette demande.")
 		return
 	}
@@ -195,8 +207,8 @@ func (h *Handler) loadFollowRequestForDecision(w http.ResponseWriter, r *http.Re
 
 func (h *Handler) deleteFollowRequestNotification(ctx context.Context, ownerID, requesterID, publisherID string) {
 	if err := h.q.DeleteFollowRequestNotification(ctx, db.DeleteFollowRequestNotificationParams{
-		RecipientId:   toUUID(ownerID),
-		SenderId:      toUUID(requesterID),
+		RecipientId: toUUID(ownerID),
+		SenderId:    toUUID(requesterID),
 		PublisherId: pgtype.Text{String: publisherID, Valid: true},
 	}); err != nil {
 		log.Printf("[creator] delete follow request notification: %v", err)
@@ -207,11 +219,11 @@ func (h *Handler) deleteFollowRequestNotification(ctx context.Context, ownerID, 
 // la demande vient d'être validée.
 func (h *Handler) notifyFollowAccepted(ctx context.Context, publisherID, userID, requesterID string) {
 	if err := notifications.Dispatch(ctx, h.pool, notifications.DispatchInput{
-		RecipientID:   requesterID,
-		SenderID:      userID,
-		Type:          "FOLLOW",
+		RecipientID: requesterID,
+		SenderID:    userID,
+		Type:        "FOLLOW",
 		PublisherID: &publisherID,
-		Metadata:      map[string]any{"kind": "FOLLOW_ACCEPTED"},
+		Metadata:    map[string]any{"kind": "FOLLOW_ACCEPTED"},
 	}); err != nil {
 		log.Printf("[creator] notify follow accepted: %v", err)
 	}
@@ -245,8 +257,8 @@ func notifyFollowRequest(ctx context.Context, tq ServiceQuerier, publisherID, se
 	}
 
 	exists, err := tq.ExistsUnreadFollowNotification(ctx, db.ExistsUnreadFollowNotificationParams{
-		RecipientId:   ownerUUID,
-		SenderId:      senderUUID,
+		RecipientId: ownerUUID,
+		SenderId:    senderUUID,
 		PublisherId: pgtype.Text{String: publisherID, Valid: true},
 	})
 	if err != nil {
@@ -260,7 +272,7 @@ func notifyFollowRequest(ctx context.Context, tq ServiceQuerier, publisherID, se
 	}
 
 	requestID, err := tq.GetPendingFollowRequestID(ctx, db.GetPendingFollowRequestIDParams{
-		RequesterId:   senderUUID,
+		RequesterId: senderUUID,
 		PublisherId: publisherID,
 	})
 	if err != nil {
@@ -271,17 +283,17 @@ func notifyFollowRequest(ctx context.Context, tq ServiceQuerier, publisherID, se
 	}
 
 	return tq.InsertFollowRequestNotification(ctx, db.InsertFollowRequestNotificationParams{
-		RecipientID:   ownerUUID,
-		SenderID:      senderUUID,
+		RecipientID: ownerUUID,
+		SenderID:    senderUUID,
 		PublisherID: pgtype.Text{String: publisherID, Valid: true},
-		RequestID:     requestID,
+		RequestID:   requestID,
 	})
 }
 
 // cancelFollowRequest annule la demande PENDING du viewer et sa notification.
 func (h *Handler) cancelFollowRequest(ctx context.Context, requesterID, publisherID string) {
 	if err := h.q.CancelFollowRequest(ctx, db.CancelFollowRequestParams{
-		RequesterId:   toUUID(requesterID),
+		RequesterId: toUUID(requesterID),
 		PublisherId: publisherID,
 	}); err != nil {
 		log.Printf("[creator] cancel follow request: %v", err)

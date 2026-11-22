@@ -3,11 +3,14 @@ package creator
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
 	"github.com/qoefi/api/internal/shortcode"
@@ -15,7 +18,9 @@ import (
 )
 
 // uniqueArticleSlug garantit un slug libre (suffixe -2, -3… sinon hash court).
-func (h *Handler) uniqueArticleSlug(ctx context.Context, base string) string {
+// Une erreur de base n'est jamais interprétée comme « slug libre » : elle est
+// remontée pour que l'appelant réponde 500 au lieu d'écrire un doublon.
+func (h *Handler) uniqueArticleSlug(ctx context.Context, base string) (string, error) {
 	if base == "" {
 		base = "article"
 	}
@@ -27,9 +32,11 @@ func (h *Handler) uniqueArticleSlug(ctx context.Context, base string) string {
 			   SELECT 1 FROM "Article" WHERE slug = $1
 			   UNION ALL SELECT 1 FROM "ArticleSlug" WHERE slug = $1
 			   UNION ALL SELECT 1 FROM "ArticleSlugHistory" WHERE slug = $1
-			 )`, candidate,
-		).Scan(&exists); err != nil || !exists {
-			return candidate
+		 )`, candidate,
+		).Scan(&exists); err != nil {
+			return "", err
+		} else if !exists {
+			return candidate, nil
 		}
 		candidate = base + "-" + strconv.Itoa(i)
 		if code := pkgslug.ExtractTrailingShortCode(base); code != "" {
@@ -141,18 +148,26 @@ func (h *Handler) apiArticleSlugSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if want == "" || want == baseSlug {
-		h.pool.Exec(r.Context(),
+		if _, err := h.pool.Exec(r.Context(),
 			`DELETE FROM "ArticleSlug" WHERE "articleId" = $1 AND "ownerUserId"::text = $2`,
-			id, userID)
+			id, userID); err != nil {
+			log.Printf("[creator] reset article slug: %v", err)
+			response.Internal(w)
+			return
+		}
 		response.OK(w, map[string]string{"slug": baseSlug})
 		return
 	}
 
 	// Sauvegarde l'ancien variant pour redirection 301 avant écrasement.
 	var oldSlug string
-	_ = h.pool.QueryRow(r.Context(),
+	if err := h.pool.QueryRow(r.Context(),
 		`SELECT slug FROM "ArticleSlug" WHERE "articleId" = $1 AND "ownerUserId"::text = $2`,
-		id, userID).Scan(&oldSlug)
+		id, userID).Scan(&oldSlug); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		log.Printf("[creator] read article slug: %v", err)
+		response.Internal(w)
+		return
+	}
 	// Unicité globale avec auto-suffixe (-1, -2…) si déjà pris (inclut historique).
 	candidate := want
 	for n := 1; ; n++ {
@@ -176,17 +191,25 @@ func (h *Handler) apiArticleSlugSet(w http.ResponseWriter, r *http.Request) {
 	}
 	want = candidate
 	if oldSlug != "" && oldSlug != want {
-		h.pool.Exec(r.Context(),
+		if _, err := h.pool.Exec(r.Context(),
 			`INSERT INTO "ArticleSlugHistory" (id, "articleId", slug) VALUES (gen_random_uuid()::text, $1, $2) ON CONFLICT (slug) DO NOTHING`,
-			id, oldSlug)
+			id, oldSlug); err != nil {
+			log.Printf("[creator] article slug history: %v", err)
+			response.Internal(w)
+			return
+		}
 	}
 
-	h.pool.Exec(r.Context(), `
+	if _, err := h.pool.Exec(r.Context(), `
 		INSERT INTO "ArticleSlug" (id, "articleId", "ownerUserId", slug, "createdAt", "updatedAt")
 		VALUES (gen_random_uuid()::text, $1, $2::uuid, $3, now(), now())
 		ON CONFLICT ("articleId", "ownerUserId")
 		DO UPDATE SET slug = EXCLUDED.slug, "updatedAt" = now()`,
-		id, userID, want)
+		id, userID, want); err != nil {
+		log.Printf("[creator] write article slug: %v", err)
+		response.Internal(w)
+		return
+	}
 
 	response.OK(w, map[string]string{"slug": want})
 }

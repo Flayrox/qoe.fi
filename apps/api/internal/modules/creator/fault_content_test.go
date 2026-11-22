@@ -148,15 +148,28 @@ func TestFault_ApiHighlights_PoolError(t *testing.T) {
 
 func TestFault_ApiHighlightComments_PoolError(t *testing.T) {
 	requirePool(t)
-	seedPostsFx(t)
+	fx := seedPostsFx(t)
+	ctx := context.Background()
+	if _, err := poolTest.Exec(ctx, `DELETE FROM "Highlight" WHERE id = 'hl_fault'`); err != nil {
+		t.Fatalf("clean highlight: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx, `
+		INSERT INTO "Highlight" (id, "articleId", "readerId", text, "isPublic", "isOfficial", "createdAt")
+		VALUES ('hl_fault', $1, $2, 'passage', true, false, now())`, fx.ArticleID, fx.AuthorID); err != nil {
+		t.Fatalf("insert highlight: %v", err)
+	}
 	_, _, fp := newFaultHandler(nil)
 	fp.failQuery = true
 	h := &Handler{pool: fp, q: db.New(poolTest)}
 
-	// handler direct avec id de surlignage (la requête échoue avant scan).
-	r := reqCtx(httptest.NewRequest(http.MethodGet, "/v1/creator/highlights/hl_x/comments", nil), "", "pub_post_001")
+	// handler direct avec un surlignage réel : la requête des commentaires
+	// échoue avant scan → 500 (et non un faux 200 vide).
+	r := reqCtx(httptest.NewRequest(http.MethodGet, "/v1/creator/highlights/hl_fault/comments", nil), fx.AuthorID, "pub_post_001")
+	// Le handler lit l'id via chi : passer par un routeur réel.
+	rt := chi.NewRouter()
+	rt.Get("/v1/creator/highlights/{id}/comments", h.apiHighlightComments)
 	w := httptest.NewRecorder()
-	h.apiHighlightComments(w, r)
+	rt.ServeHTTP(w, r)
 	if w.Code != http.StatusInternalServerError {
 		t.Fatalf("apiHighlightComments Query faute → %d (%s), attendu 500", w.Code, w.Body.String())
 	}

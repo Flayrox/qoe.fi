@@ -49,9 +49,9 @@ func (h *Handler) registerPendingSubscriber(r *http.Request, pubID, email string
 		return db.UpsertSubscriberPendingRow{}, false, err
 	}
 	sub, err := h.q.UpsertSubscriberPending(r.Context(), db.UpsertSubscriberPendingParams{
-		Email:         email,
+		Email:       email,
 		PublisherID: pubID,
-		Token:         token,
+		Token:       token,
 	})
 	if err != nil {
 		return db.UpsertSubscriberPendingRow{}, false, err
@@ -70,7 +70,7 @@ func (h *Handler) registerPendingSubscriber(r *http.Request, pubID, email string
 			return sub, needsConfirm, nil
 		}
 		if err := queue.PublishSubscriberConfirm(h.asynq, queue.SubscriberConfirmPayload{
-			Email:         email,
+			Email:       email,
 			PublisherID: pubID,
 		}); err != nil {
 			log.Printf("[creator] confirm enqueue %s: %v", email, err)
@@ -111,8 +111,8 @@ func (h *Handler) apiSubscribersList(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := h.q.ListSubscribersByPublisher(r.Context(), db.ListSubscribersByPublisherParams{
 		PublisherId: pubID,
-		Limit:         int32(limit),
-		Offset:        int32(offset),
+		Limit:       int32(limit),
+		Offset:      int32(offset),
 	})
 	if err != nil {
 		log.Printf("[creator] list subscribers: %v", err)
@@ -252,7 +252,7 @@ func (h *Handler) apiSubscriberDelete(w http.ResponseWriter, r *http.Request) {
 
 	_, err := h.q.DeactivateSubscriber(r.Context(), db.DeactivateSubscriberParams{
 		PublisherID: pubID,
-		ID:            target,
+		ID:          target,
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -290,12 +290,22 @@ func (h *Handler) apiPublisherMetadata(w http.ResponseWriter, r *http.Request) {
 	// Champs étendus (siteOptions, allowDownloadDefault)
 	var siteOptionsBytes []byte
 	var allowDownloadDefault bool
-	_ = h.pool.QueryRow(r.Context(),
+	if err := h.pool.QueryRow(r.Context(),
 		`SELECT "siteOptions", COALESCE("allowDownloadDefault", false) FROM "Publisher" WHERE id = $1`, pubID).
-		Scan(&siteOptionsBytes, &allowDownloadDefault)
+		Scan(&siteOptionsBytes, &allowDownloadDefault); err != nil {
+		log.Printf("[creator] publisher site options: %v", err)
+		response.Internal(w)
+		return
+	}
 	var siteOptions any
 	if len(siteOptionsBytes) > 0 {
-		_ = json.Unmarshal(siteOptionsBytes, &siteOptions)
+		if err := json.Unmarshal(siteOptionsBytes, &siteOptions); err != nil {
+			// JSONB illisible en base = corruption de données : mieux vaut une
+			// erreur explicite qu'une métadonnée partielle servie comme complète.
+			log.Printf("[creator] publisher siteOptions json: %v", err)
+			response.Internal(w)
+			return
+		}
 	}
 
 	// Navigation du site headless
@@ -308,21 +318,33 @@ func (h *Handler) apiPublisherMetadata(w http.ResponseWriter, r *http.Request) {
 		ParentID   *string `json:"parentId"`
 	}
 	navs := []navItem{}
-	if navRows, nerr := h.pool.Query(r.Context(), `
+	navRows, nerr := h.pool.Query(r.Context(), `
 		SELECT id, label, url, "order", "isExternal", "parentId"
 		FROM "NavigationItem"
-		WHERE "publisherId" = $1 ORDER BY "order" ASC`, pubID); nerr == nil {
-		defer navRows.Close()
-		for navRows.Next() {
-			var n navItem
-			var pID sql.NullString
-			if err := navRows.Scan(&n.ID, &n.Label, &n.URL, &n.Order, &n.IsExternal, &pID); err == nil {
-				if pID.Valid {
-					n.ParentID = &pID.String
-				}
-				navs = append(navs, n)
-			}
+		WHERE "publisherId" = $1 ORDER BY "order" ASC`, pubID)
+	if nerr != nil {
+		log.Printf("[creator] publisher navigation: %v", nerr)
+		response.Internal(w)
+		return
+	}
+	defer navRows.Close()
+	for navRows.Next() {
+		var n navItem
+		var pID sql.NullString
+		if err := navRows.Scan(&n.ID, &n.Label, &n.URL, &n.Order, &n.IsExternal, &pID); err != nil {
+			log.Printf("[creator] publisher navigation scan: %v", err)
+			response.Internal(w)
+			return
 		}
+		if pID.Valid {
+			n.ParentID = &pID.String
+		}
+		navs = append(navs, n)
+	}
+	if err := navRows.Err(); err != nil {
+		log.Printf("[creator] publisher navigation rows: %v", err)
+		response.Internal(w)
+		return
 	}
 
 	// Réseaux sociaux de la publication
@@ -333,17 +355,29 @@ func (h *Handler) apiPublisherMetadata(w http.ResponseWriter, r *http.Request) {
 		Order    int32  `json:"order"`
 	}
 	socials := []socialItem{}
-	if socRows, serr := h.pool.Query(r.Context(), `
+	socRows, serr := h.pool.Query(r.Context(), `
 		SELECT id, platform, url, "order"
 		FROM "SocialLink"
-		WHERE "publisherId" = $1 ORDER BY "order" ASC`, pubID); serr == nil {
-		defer socRows.Close()
-		for socRows.Next() {
-			var sl socialItem
-			if err := socRows.Scan(&sl.ID, &sl.Platform, &sl.URL, &sl.Order); err == nil {
-				socials = append(socials, sl)
-			}
+		WHERE "publisherId" = $1 ORDER BY "order" ASC`, pubID)
+	if serr != nil {
+		log.Printf("[creator] publisher social links: %v", serr)
+		response.Internal(w)
+		return
+	}
+	defer socRows.Close()
+	for socRows.Next() {
+		var sl socialItem
+		if err := socRows.Scan(&sl.ID, &sl.Platform, &sl.URL, &sl.Order); err != nil {
+			log.Printf("[creator] publisher social link scan: %v", err)
+			response.Internal(w)
+			return
 		}
+		socials = append(socials, sl)
+	}
+	if err := socRows.Err(); err != nil {
+		log.Printf("[creator] publisher social link rows: %v", err)
+		response.Internal(w)
+		return
 	}
 
 	payload := map[string]any{
@@ -480,7 +514,7 @@ func (h *Handler) publicSubscribe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.OK(w, map[string]any{
-		"success":       true,
+		"success":     true,
 		"publisherId": pubID,
 	})
 }

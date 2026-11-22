@@ -10,13 +10,14 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/qoefi/api/internal/antispam"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
 )
 
 type apiRecommendationItem struct {
-	ID                      string  `json:"id"`
+	ID                    string  `json:"id"`
 	PublisherID           string  `json:"publisherId"`
 	PublisherName         string  `json:"name"`
 	PublisherSlug         string  `json:"slug"`
@@ -24,12 +25,14 @@ type apiRecommendationItem struct {
 	PublisherCustomDomain *string `json:"customDomain"`
 	PublisherBio          *string `json:"bio"`
 	PublisherLogoURL      *string `json:"logoUrl"`
-	Description             *string `json:"description"`
-	CreatedAt               string  `json:"createdAt"`
+	Description           *string `json:"description"`
+	CreatedAt             string  `json:"createdAt"`
 }
 
+var errPublisherIDRequired = errors.New("publisherId requis")
+
 type apiRecommendationInput struct {
-	PublisherID string  `json:"publisherId"`
+	PublisherID   string  `json:"publisherId"`
 	RecommendedID string  `json:"recommendedId"`
 	Description   *string `json:"description"`
 }
@@ -44,11 +47,15 @@ func (h *Handler) resolveTargetPublisherId(r *http.Request) (string, error) {
 		return ctxPubID, nil
 	}
 	if userID, ok := middleware.UserID(r.Context()); ok && userID != "" {
-		if personal, err := h.q.GetUserPersonalPublisher(r.Context(), userID); err == nil && personal.Valid && personal.String != "" {
+		personal, err := h.q.GetUserPersonalPublisher(r.Context(), userID)
+		if err != nil {
+			return "", err
+		}
+		if personal.Valid && personal.String != "" {
 			return personal.String, nil
 		}
 	}
-	return "", errors.New("publisherId requis")
+	return "", errPublisherIDRequired
 }
 
 // apiRecommendationsList — GET /v1/creator/recommendations
@@ -56,7 +63,12 @@ func (h *Handler) apiRecommendationsList(w http.ResponseWriter, r *http.Request)
 	userID, _ := middleware.UserID(r.Context())
 	pubID, err := h.resolveTargetPublisherId(r)
 	if err != nil {
-		response.BadRequest(w, err.Error())
+		if errors.Is(err, errPublisherIDRequired) {
+			response.BadRequest(w, err.Error())
+			return
+		}
+		log.Printf("[creator] resolve publisher: %v", err)
+		response.Internal(w)
 		return
 	}
 
@@ -98,7 +110,7 @@ func (h *Handler) apiRecommendationsList(w http.ResponseWriter, r *http.Request)
 		}
 
 		items = append(items, apiRecommendationItem{
-			ID:                      row.ID,
+			ID:                    row.ID,
 			PublisherID:           row.PublisherID,
 			PublisherName:         row.PublisherName,
 			PublisherSlug:         row.PublisherSlug,
@@ -106,8 +118,8 @@ func (h *Handler) apiRecommendationsList(w http.ResponseWriter, r *http.Request)
 			PublisherCustomDomain: custom,
 			PublisherBio:          bio,
 			PublisherLogoURL:      logo,
-			Description:             desc,
-			CreatedAt:               row.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+			Description:           desc,
+			CreatedAt:             row.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
 		})
 	}
 
@@ -159,8 +171,19 @@ func (h *Handler) apiRecommendationAdd(w http.ResponseWriter, r *http.Request) {
 	}
 
 	descText := pgtype.Text{}
-	if in.Description != nil && *in.Description != "" {
-		descText = pgtype.Text{String: *in.Description, Valid: true}
+	if in.Description != nil {
+		raw := strings.TrimSpace(*in.Description)
+		if raw != "" {
+			clean, verr := antispam.SanitizeAndValidateText(raw, 0, 280, antispam.TextOptions{
+				AllowNewlines: false,
+				CheckXSS:      true,
+			})
+			if verr != nil {
+				response.BadRequest(w, verr.Error())
+				return
+			}
+			descText = pgtype.Text{String: clean, Valid: true}
+		}
 	}
 
 	rec, err := h.q.AddRecommendation(r.Context(), db.AddRecommendationParams{
@@ -189,7 +212,12 @@ func (h *Handler) apiRecommendationRemove(w http.ResponseWriter, r *http.Request
 	userID, _ := middleware.UserID(r.Context())
 	pubID, err := h.resolveTargetPublisherId(r)
 	if err != nil {
-		response.BadRequest(w, err.Error())
+		if errors.Is(err, errPublisherIDRequired) {
+			response.BadRequest(w, err.Error())
+			return
+		}
+		log.Printf("[creator] resolve publisher: %v", err)
+		response.Internal(w)
 		return
 	}
 
@@ -206,12 +234,16 @@ func (h *Handler) apiRecommendationRemove(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	if err := h.q.RemoveRecommendation(r.Context(), db.RemoveRecommendationParams{
-		RecommenderId: pubID,
-		RecommendedId: recommendedID,
-	}); err != nil {
+	tag, err := h.pool.Exec(r.Context(),
+		`DELETE FROM "Recommendation" WHERE "recommenderId" = $1 AND "recommendedId" = $2`,
+		pubID, recommendedID)
+	if err != nil {
 		log.Printf("[creator] remove recommendation: %v", err)
 		response.Internal(w)
+		return
+	}
+	if tag.RowsAffected() == 0 {
+		response.NotFound(w, "Recommandation introuvable")
 		return
 	}
 

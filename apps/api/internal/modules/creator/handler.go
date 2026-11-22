@@ -176,4 +176,3 @@ func (h *Handler) RegisterProtected(r chi.Router, requireScope func(string) func
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Delete("/v1/me/followers/{userId}", h.removeFollower)
 }
-

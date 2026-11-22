@@ -58,7 +58,7 @@ func (h *Handler) resolveProfileAccess(ctx context.Context, publisherID, viewerI
 		access.Blocked = blocked
 
 		if _, err := h.q.GetExistingFollow(ctx, db.GetExistingFollowParams{
-			ReaderId:      toUUID(viewerID),
+			ReaderId:    toUUID(viewerID),
 			PublisherId: publisherID,
 		}); err == nil {
 			access.IsFollowing = true
@@ -67,7 +67,7 @@ func (h *Handler) resolveProfileAccess(ctx context.Context, publisherID, viewerI
 		}
 
 		if _, err := h.q.GetExistingFollowRequest(ctx, db.GetExistingFollowRequestParams{
-			RequesterId:   toUUID(viewerID),
+			RequesterId: toUUID(viewerID),
 			PublisherId: publisherID,
 		}); err == nil {
 			access.Requested = true
@@ -83,12 +83,19 @@ func (h *Handler) resolveProfileAccess(ctx context.Context, publisherID, viewerI
 // canManagePublication vérifie que l'utilisateur possède la publication
 // (compte personnel) ou en est owner/admin (média). Sert aux décisions sur
 // les demandes d'abonnement.
-func (h *Handler) canManagePublisher(ctx context.Context, userID, publisherID string) bool {
-	if ownerID, err := h.q.GetPublisherOwner(ctx, publisherID); err == nil && ownerID == userID {
-		return true
+// Une erreur de base n'est jamais convertie en refus (403) : elle remonte
+// pour que l'appelant réponde 500 sans masquer une panne derrière un droit.
+func (h *Handler) canManagePublisher(ctx context.Context, userID, publisherID string) (bool, error) {
+
+	ownerID, err := h.q.GetPublisherOwner(ctx, publisherID)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return false, err
+	}
+	if err == nil && ownerID == userID {
+		return true, nil
 	}
 	var ok bool
-	err := h.pool.QueryRow(ctx, `
+	if err := h.pool.QueryRow(ctx, `
 		SELECT EXISTS(
 			SELECT 1
 			FROM "MediaMember" mm
@@ -97,6 +104,8 @@ func (h *Handler) canManagePublisher(ctx context.Context, userID, publisherID st
 			  AND mm."userId" = $1
 			  AND mm.status = 'active'
 			  AND mm.role IN ('owner', 'admin')
-		)`, toUUID(userID), publisherID).Scan(&ok)
-	return err == nil && ok
+		)`, toUUID(userID), publisherID).Scan(&ok); err != nil {
+		return false, err
+	}
+	return ok, nil
 }

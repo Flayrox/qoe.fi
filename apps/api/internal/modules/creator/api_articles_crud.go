@@ -4,13 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/qoefi/api/internal/anchors"
 	"github.com/qoefi/api/internal/antispam"
 	"github.com/qoefi/api/internal/middleware"
@@ -223,8 +224,14 @@ func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 	} else if idPrefix == "" {
 		idPrefix = "art"
 	}
-	id := "api_" + idPrefix + "-" +
-		strconv.FormatInt(time.Now().UnixNano()%100000, 10)
+	// Identifiant aléatoire (et non un modulo d'horloge) : deux créations
+	// rapprochées ne peuvent plus entrer en collision sur la clé primaire.
+	id, err := newArticleID(idPrefix)
+	if err != nil {
+		log.Printf("[creator] article id: %v", err)
+		response.Internal(w)
+		return
+	}
 	shortCode := h.uniqueShortCode(r.Context())
 
 	baseSlug := slugify(in.Title)
@@ -239,7 +246,12 @@ func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 	if pkgslug.ExtractTrailingShortCode(baseSlug) == "" {
 		baseSlug = baseSlug + "-" + shortCode
 	}
-	slug := h.uniqueArticleSlug(r.Context(), baseSlug)
+	slug, err := h.uniqueArticleSlug(r.Context(), baseSlug)
+	if err != nil {
+		log.Printf("[creator] unique slug: %v", err)
+		response.Internal(w)
+		return
+	}
 
 	authorID := userID
 	if authorID == "" {
@@ -252,11 +264,16 @@ func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if authorID == "" && publisherID != "" {
-		_ = h.pool.QueryRow(r.Context(),
+		err := h.pool.QueryRow(r.Context(),
 			`SELECT mm."userId"::text FROM "MediaMember" mm
 			 JOIN "Media" m ON m.id = mm."mediaId"
 			 WHERE m."publisherId" = $1 AND mm.role = 'owner' LIMIT 1`,
 			publisherID).Scan(&authorID)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			log.Printf("[creator] article author: %v", err)
+			response.Internal(w)
+			return
+		}
 	}
 
 	tags := in.Tags
@@ -286,11 +303,18 @@ func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 		if insertErr == nil || !shortcode.IsUniqueViolation(insertErr) {
 			break
 		}
+		// Une violation d'unicité peut porter sur le code court, le slug ou la
+		// clé primaire : on régénère les trois pour que le rejeu aboutisse.
 		newCode := h.uniqueShortCode(r.Context())
 		if strings.HasSuffix(slug, "-"+shortCode) {
 			slug = strings.TrimSuffix(slug, "-"+shortCode) + "-" + newCode
 		}
 		shortCode = newCode
+		if id, err = newArticleID(idPrefix); err != nil {
+			log.Printf("[creator] article id retry: %v", err)
+			response.Internal(w)
+			return
+		}
 	}
 	if insertErr != nil {
 		log.Printf("[creator] article create: %v", insertErr)
@@ -434,9 +458,13 @@ func (h *Handler) apiArticleUpdate(w http.ResponseWriter, r *http.Request) {
 			var oldSlug, status string
 			var published bool
 			var shortCode sql.NullString
-			_ = h.pool.QueryRow(r.Context(),
+			if err := h.pool.QueryRow(r.Context(),
 				`SELECT slug, published, status, "shortCode" FROM "Article" WHERE id = $1`, id).
-				Scan(&oldSlug, &published, &status, &shortCode)
+				Scan(&oldSlug, &published, &status, &shortCode); err != nil {
+				log.Printf("[creator] regen slug read: %v", err)
+				response.Internal(w)
+				return
+			}
 
 			base := slugify(title)
 			if base == "" {
@@ -445,22 +473,39 @@ func (h *Handler) apiArticleUpdate(w http.ResponseWriter, r *http.Request) {
 			if shortCode.Valid && shortCode.String != "" && pkgslug.ExtractTrailingShortCode(base) == "" {
 				base = base + "-" + shortCode.String
 			}
-			newSlug := h.uniqueArticleSlug(r.Context(), base)
+			newSlug, err := h.uniqueArticleSlug(r.Context(), base)
+			if err != nil {
+				log.Printf("[creator] regen slug unique: %v", err)
+				response.Internal(w)
+				return
+			}
 			if newSlug != oldSlug && oldSlug != "" {
 				wasPublished := published || status == "PUBLISHED"
 				if !wasPublished {
-					_ = h.pool.QueryRow(r.Context(),
+					if err := h.pool.QueryRow(r.Context(),
 						`SELECT EXISTS(SELECT 1 FROM "ArticleSnapshot" WHERE "articleId" = $1 AND reason = 'PUBLISHED')`,
-						id).Scan(&wasPublished)
+						id).Scan(&wasPublished); err != nil {
+						log.Printf("[creator] regen slug snapshot: %v", err)
+						response.Internal(w)
+						return
+					}
 				}
 				if wasPublished {
-					_, _ = h.pool.Exec(r.Context(),
+					if _, err := h.pool.Exec(r.Context(),
 						`INSERT INTO "ArticleSlugHistory" (id, "articleId", slug) VALUES (gen_random_uuid()::text, $1, $2) ON CONFLICT (slug) DO NOTHING`,
-						id, oldSlug)
+						id, oldSlug); err != nil {
+						log.Printf("[creator] regen slug history: %v", err)
+						response.Internal(w)
+						return
+					}
 				}
 			}
-			_, _ = h.pool.Exec(r.Context(),
-				`UPDATE "Article" SET slug = $2, "updatedAt" = now() WHERE id = $1`, id, newSlug)
+			if _, err := h.pool.Exec(r.Context(),
+				`UPDATE "Article" SET slug = $2, "updatedAt" = now() WHERE id = $1`, id, newSlug); err != nil {
+				log.Printf("[creator] regen slug write: %v", err)
+				response.Internal(w)
+				return
+			}
 		}
 	}
 	// Contenu (+ temps de lecture recalculé, avec support markdown si contentFormat="markdown").
@@ -566,11 +611,18 @@ func (h *Handler) apiArticleUpdate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		isPrem := *in.Visibility == "PAID_SUBSCRIBERS" || *in.Visibility == "TIER_SPECIFIC"
-		if _, err := h.pool.Exec(r.Context(),
+		tag, err := h.pool.Exec(r.Context(),
 			`UPDATE "Article" SET visibility = $2, "isPremium" = $3, "updatedAt" = now() WHERE id = $1 AND status <> 'PUBLISHED'`,
-			id, *in.Visibility, isPrem); err != nil {
+			id, *in.Visibility, isPrem)
+		if err != nil {
 			log.Printf("[creator] update visibility: %v", err)
 			response.Internal(w)
+			return
+		}
+		if tag.RowsAffected() == 0 {
+			// L'article est publié : la visibilité se change par une nouvelle
+			// version, pas silencieusement ignorée.
+			response.Error(w, http.StatusConflict, "Un article publié ne peut pas changer de visibilité")
 			return
 		}
 	}
@@ -638,22 +690,34 @@ func (h *Handler) apiArticleUpdate(w http.ResponseWriter, r *http.Request) {
 		if *in.IsPremium {
 			vis = "PAID_SUBSCRIBERS"
 		}
-		if _, err := h.pool.Exec(r.Context(),
+		tag, err := h.pool.Exec(r.Context(),
 			`UPDATE "Article" SET "isPremium" = $2, visibility = $3, "updatedAt" = now() WHERE id = $1 AND status <> 'PUBLISHED'`,
-			id, *in.IsPremium, vis); err != nil {
+			id, *in.IsPremium, vis)
+		if err != nil {
 			log.Printf("[creator] update premium: %v", err)
 			response.Internal(w)
+			return
+		}
+		if tag.RowsAffected() == 0 {
+			response.Error(w, http.StatusConflict, "Un article publié ne peut pas changer de visibilité")
 			return
 		}
 	}
 	// Publication / dépublication.
 	if in.Publish != nil {
 		if *in.Publish {
-			if _, err := h.pool.Exec(r.Context(),
+			tag, err := h.pool.Exec(r.Context(),
 				`UPDATE "Article" SET published = true, status = 'PUBLISHED', "updatedAt" = now()
-				 WHERE id = $1 AND COALESCE(content,'') <> ''`, id); err != nil {
+				 WHERE id = $1 AND COALESCE(content,'') <> ''`, id)
+			if err != nil {
 				log.Printf("[creator] publish: %v", err)
 				response.Internal(w)
+				return
+			}
+			if tag.RowsAffected() == 0 {
+				// Contenu vide : refuser explicitement plutôt que répondre 200
+				// alors que l'article reste en brouillon.
+				response.Error(w, http.StatusConflict, "Impossible de publier un article vide")
 				return
 			}
 			// Publication → dernière passe de ré-ancrage avant exposition + les

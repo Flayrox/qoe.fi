@@ -2,12 +2,14 @@ package creator
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
 )
@@ -188,7 +190,23 @@ type apiComment struct {
 
 // highlightComments renvoie les commentaires d'un surlignage, auteur de
 // l'article résolu pour poser le flag isAuthor.
-func (h *Handler) highlightComments(ctx context.Context, highlightID string) ([]apiComment, error) {
+func (h *Handler) highlightComments(ctx context.Context, publisherID, userID, highlightID string) ([]apiComment, error) {
+	// Portée créateur : l'annotation doit appartenir à un article de la
+	// publication de la clé, signé par l'utilisateur ou co-écrit par lui.
+	var owned int
+	err := h.pool.QueryRow(ctx, `
+		SELECT 1
+		FROM "Highlight" h
+		JOIN "Article" a ON a.id = h."articleId"
+		WHERE h.id = $1
+		  AND (a."publisherId" = $2
+		       OR ($3 <> '' AND a."authorId"::text = $3)
+		       OR ($3 <> '' AND a.id IN (SELECT "A" FROM "_CoAuthors" WHERE "B"::text = $3)))
+		LIMIT 1`, highlightID, publisherID, userID).Scan(&owned)
+	if err != nil {
+		return nil, err
+	}
+
 	out := []apiComment{}
 	rows, err := h.pool.Query(ctx, `
 		SELECT c.id::text, c.content, c."createdAt",
@@ -244,6 +262,8 @@ func (h *Handler) withEffectiveSlugs(
 			var uid, slug string
 			if err := rows.Scan(&uid, &slug); err == nil {
 				overrides[uid] = slug
+			} else {
+				log.Printf("[creator] effective slugs scan: %v", err)
 			}
 		}
 	}
@@ -291,12 +311,17 @@ func (h *Handler) apiHighlights(w http.ResponseWriter, r *http.Request) {
 // éditoriales de l'auteur de l'article.
 func (h *Handler) apiHighlightComments(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	comments, err := h.highlightComments(r.Context(), id)
+	publisherID, _ := middleware.PublisherID(r.Context())
+	userID, _ := middleware.UserID(r.Context())
+	comments, err := h.highlightComments(r.Context(), publisherID, userID, id)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			response.NotFound(w, "Annotation introuvable")
+			return
+		}
 		log.Printf("[creator] highlight comments: %v", err)
 		response.Internal(w)
 		return
 	}
 	response.OK(w, map[string]any{"comments": comments})
 }
-

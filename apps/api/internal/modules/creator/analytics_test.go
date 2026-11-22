@@ -17,6 +17,8 @@ func mockUmamiServer(t *testing.T) *httptest.Server {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch {
+		case r.URL.Path == "/auth/login":
+			_, _ = w.Write([]byte(`{"token":"jeton-test"}`))
 		case r.URL.Path == "/websites/site_1/stats":
 			_, _ = w.Write([]byte(`{"pageviews":{"value":120},"visitors":{"value":30},"visits":{"value":35},"bounces":{"value":5},"totaltime":{"value":900}}`))
 		case r.URL.Path == "/websites/site_1/metrics" && r.URL.Query().Get("type") == "url":
