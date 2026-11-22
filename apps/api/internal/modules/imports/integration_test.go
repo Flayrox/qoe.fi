@@ -29,6 +29,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(code)
 }
+
 // requirePool skippe les tests DB quand Docker/testcontainers est absent.
 func requirePool(t *testing.T) {
 	t.Helper()
@@ -36,7 +37,6 @@ func requirePool(t *testing.T) {
 		t.Skip("DB indisponible (Docker/testcontainers requis)")
 	}
 }
-
 
 const (
 	importOwnerID  = "00000000-0000-0000-0000-0000000000b1"
@@ -136,7 +136,7 @@ func TestImportArticles(t *testing.T) {
 	// Le créateur owner d'un média peut importer dans la publication média.
 	created, err = svc.ImportArticles(ctx, importOwnerID, ImportArticlesRequest{
 		PublisherID: importPubMedia,
-		Articles:      []ImportArticle{{Title: "Média un", Slug: "media-un", Content: "<p>M</p>", ReadingTime: 1}},
+		Articles:    []ImportArticle{{Title: "Média un", Slug: "media-un", Content: "<p>M</p>", ReadingTime: 1}},
 	})
 	if err != nil || created != 1 {
 		t.Fatalf("import média = %d, %v (attendu 1)", created, err)
@@ -145,7 +145,7 @@ func TestImportArticles(t *testing.T) {
 	// Étranger → refus.
 	if _, err := svc.ImportArticles(ctx, importStranger, ImportArticlesRequest{
 		PublisherID: importPubPerso,
-		Articles:      []ImportArticle{{Title: "X", Slug: "x", Content: "<p>X</p>", ReadingTime: 1}},
+		Articles:    []ImportArticle{{Title: "X", Slug: "x", Content: "<p>X</p>", ReadingTime: 1}},
 	}); err != errForbidden {
 		t.Fatalf("import étranger = %v, attendu errForbidden", err)
 	}
@@ -163,7 +163,7 @@ func TestImportJobLifecycle(t *testing.T) {
 	// (chaque test re-truncate la base, rien ne survit d'un test à l'autre).
 	if _, err := svc.ImportArticles(ctx, importOwnerID, ImportArticlesRequest{
 		PublisherID: importPubPerso,
-		Articles:      []ImportArticle{{Title: "Article un", Slug: "article-un", Content: "<p>Un</p>", ReadingTime: 2}},
+		Articles:    []ImportArticle{{Title: "Article un", Slug: "article-un", Content: "<p>Un</p>", ReadingTime: 2}},
 	}); err != nil {
 		t.Fatalf("pré-import doublon: %v", err)
 	}
@@ -251,7 +251,7 @@ func TestCreateImportJob_Forbidden(t *testing.T) {
 	svc := NewService(poolTest, nil)
 	if _, err := svc.CreateImportJob(ctx, importStranger, ImportArticlesRequest{
 		PublisherID: importPubPerso,
-		Articles:      []ImportArticle{{Title: "X", Slug: "x", Content: "<p>X</p>", ReadingTime: 1}},
+		Articles:    []ImportArticle{{Title: "X", Slug: "x", Content: "<p>X</p>", ReadingTime: 1}},
 	}); err != errForbidden {
 		t.Fatalf("CreateImportJob(étranger) = %v, attendu errForbidden", err)
 	}

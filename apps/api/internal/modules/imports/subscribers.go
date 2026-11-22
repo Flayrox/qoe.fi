@@ -180,7 +180,7 @@ func (d SubscriberImportDeclarations) Complete() bool {
 
 // SubscriberImportRequest est le corps de POST /v1/import/subscribers.
 type SubscriberImportRequest struct {
-	PublisherID    string                       `json:"publisherId"`
+	PublisherID      string                       `json:"publisherId"`
 	Source           string                       `json:"source"`
 	SourceDetail     string                       `json:"sourceDetail"`
 	CollectionPeriod string                       `json:"collectionPeriod"`
@@ -207,12 +207,12 @@ type SubscriberImportStats struct {
 
 // SubscriberImportBatchDTO est la vue API d'un lot.
 type SubscriberImportBatchDTO struct {
-	ID            string `json:"id"`
-	PublisherID string `json:"publisherId"`
-	Status        string `json:"status"`
-	Source        string `json:"source"`
-	SourceDetail  string `json:"sourceDetail,omitempty"`
-	FileVersion   int    `json:"fileVersion"`
+	ID           string `json:"id"`
+	PublisherID  string `json:"publisherId"`
+	Status       string `json:"status"`
+	Source       string `json:"source"`
+	SourceDetail string `json:"sourceDetail,omitempty"`
+	FileVersion  int    `json:"fileVersion"`
 	// Empreinte SHA256 du fichier (hash, pas le contenu) : le staff en a
 	// besoin pour désigner la version exacte visée par sa décision.
 	FileFingerprint string                `json:"fileFingerprint,omitempty"`

@@ -57,7 +57,7 @@ type ImportArticle struct {
 
 type ImportArticlesRequest struct {
 	PublisherID string          `json:"publisherId"`
-	Articles      []ImportArticle `json:"articles"`
+	Articles    []ImportArticle `json:"articles"`
 }
 
 // canImport vérifie que l'utilisateur peut créer des articles dans la
@@ -134,7 +134,7 @@ func (s *Service) importBatch(ctx context.Context, publisherID string, authorID 
 			AllowPublicAnnotations: true,
 			AllowComments:          true,
 			Status:                 "DRAFT",
-			PublisherId:          publisherID,
+			PublisherId:            publisherID,
 			AuthorId:               authorID,
 		}); err != nil {
 			out.errors = append(out.errors, ImportError{Slug: art.Slug, Title: art.Title, Reason: "Création de l'article échouée"})
@@ -162,10 +162,10 @@ func (s *Service) CreateImportJob(ctx context.Context, userID string, req Import
 		return "", err
 	}
 	id, err := s.q.InsertArticleImportJob(ctx, db.InsertArticleImportJobParams{
-		UserId:        toUUID(userID),
+		UserId:      toUUID(userID),
 		PublisherId: req.PublisherID,
-		Total:         int32(len(req.Articles)),
-		Articles:      raw,
+		Total:       int32(len(req.Articles)),
+		Articles:    raw,
 	})
 	if err != nil {
 		return "", err
@@ -213,30 +213,30 @@ func (s *Service) ProcessImportJob(ctx context.Context, jobID string) error {
 
 // ImportJobDTO est la vue API d'un job d'import (statut + progression + rapport).
 type ImportJobDTO struct {
-	ID            string        `json:"id"`
+	ID          string        `json:"id"`
 	PublisherID string        `json:"publisherId"`
-	Status        string        `json:"status"`
-	Total         int           `json:"total"`
-	Imported      int           `json:"imported"`
-	Duplicates    int           `json:"duplicates"`
-	Errors        []ImportError `json:"errors"`
-	CreatedAt     string        `json:"createdAt"`
-	UpdatedAt     string        `json:"updatedAt"`
+	Status      string        `json:"status"`
+	Total       int           `json:"total"`
+	Imported    int           `json:"imported"`
+	Duplicates  int           `json:"duplicates"`
+	Errors      []ImportError `json:"errors"`
+	CreatedAt   string        `json:"createdAt"`
+	UpdatedAt   string        `json:"updatedAt"`
 }
 
 // importJobRow est la vue minimale commune des lignes ArticleImportJob
 // (GetArticleImportJobRow et ListArticleImportJobsRow sont des types sqlc
 // distincts mais aux mêmes champs).
 type importJobRow struct {
-	ID            string
+	ID          string
 	PublisherID string
-	Status        string
-	Total         int32
-	Imported      int32
-	Duplicates    int32
-	Errors        []byte
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	Status      string
+	Total       int32
+	Imported    int32
+	Duplicates  int32
+	Errors      []byte
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 func toImportJobDTO(row importJobRow) (ImportJobDTO, error) {

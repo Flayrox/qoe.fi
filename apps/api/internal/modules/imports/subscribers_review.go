@@ -122,8 +122,8 @@ type SubscriberImportSignals struct {
 	PreviousSuspended     int    `json:"previousSuspended"`
 	SameFileFingerprint   bool   `json:"sameFileFingerprint"`
 	CrossBatchDuplicates  int    `json:"crossBatchDuplicates"`
-	PublisherName       string `json:"publisherName"`
-	PublisherType       string `json:"publisherType"`
+	PublisherName         string `json:"publisherName"`
+	PublisherType         string `json:"publisherType"`
 	RequesterUsername     string `json:"requesterUsername"`
 	RequesterEmail        string `json:"requesterEmail"`
 	RequesterPhoneChecked bool   `json:"requesterPhoneVerified"`
@@ -182,8 +182,8 @@ func (s *Service) buildReview(ctx context.Context, batchID string, redactInterna
 	out := SubscriberImportReviewDTO{Rows: []SubscriberImportRowDTO{}, RowCounts: map[string]int{}}
 
 	var (
-		declarationsRaw, proofRefsRaw, statsRaw  []byte
-		sourceDetail, optInMethod, publisherID string
+		declarationsRaw, proofRefsRaw, statsRaw []byte
+		sourceDetail, optInMethod, publisherID  string
 	)
 	err := s.pool.QueryRow(ctx, `
 		SELECT "declarations", "proofRefs", "stats", COALESCE("sourceDetail", ''),
@@ -462,7 +462,7 @@ func (s *Service) DecideSubscriberImport(ctx context.Context, staffID, batchID s
 		status          string
 		fileVersion     int
 		fileFingerprint string
-		publisherID   string
+		publisherID     string
 	)
 	err := s.pool.QueryRow(ctx, `
 		SELECT "status", "fileVersion", "fileFingerprint", "publisherId"
