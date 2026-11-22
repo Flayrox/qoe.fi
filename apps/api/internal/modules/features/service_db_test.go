@@ -149,9 +149,9 @@ func TestNotifyInterest_RefusedWhenPausedOrDisabled(t *testing.T) {
 	})
 
 	cases := []struct {
-		name     string
-		status   string
-		enabled  bool
+		name    string
+		status  string
+		enabled bool
 	}{
 		{"paused", "paused", true},
 		{"notify disabled", "coming-soon", false},

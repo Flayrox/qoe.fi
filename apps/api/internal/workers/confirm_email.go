@@ -28,7 +28,6 @@ import (
 	"fmt"
 	"log"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -37,6 +36,7 @@ import (
 
 	"github.com/qoefi/api/internal/comms"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/publicurl"
 	"github.com/qoefi/api/internal/queue"
 	"github.com/qoefi/api/internal/subscriptions"
 )
@@ -64,16 +64,6 @@ func (m *subscriberMailer) fromAddress() string {
 }
 
 // ── Signature HMAC des liens de confirmation ─────────────────────────
-
-// confirmEmailBaseURL est la racine des liens de confirmation.
-// QOE_CONFIRM_BASE_URL surcharge (self-host / staging), défaut api.qoe.fi
-// — même hôte que les liens de désinscription RFC 8058.
-func confirmEmailBaseURL() string {
-	if v := os.Getenv("QOE_CONFIRM_BASE_URL"); v != "" {
-		return v
-	}
-	return "https://api.qoe.fi"
-}
 
 // SignConfirm génère la signature HMAC-SHA256 d'un lien de confirmation
 // (pub + email) — miroir exact de SignUnsubscribe.
@@ -133,7 +123,7 @@ func (w *ConfirmEmailWorker) HandleSubscriberConfirm(ctx context.Context, t *asy
 
 	q := db.New(w.pool)
 	info, err := q.GetPendingConfirmation(ctx, db.GetPendingConfirmationParams{
-		Email:         p.Email,
+		Email:       p.Email,
 		PublisherId: p.PublisherID,
 	})
 	if err != nil {
@@ -150,7 +140,8 @@ func (w *ConfirmEmailWorker) HandleSubscriberConfirm(ctx context.Context, t *asy
 	prefs := ApplyTier(ParseEmailPrefs(info.EmailSettings),
 		subscriptions.HasPro(ctx, w.pool, p.PublisherID, time.Now()))
 	pubURL := publicationPublicURL(info.Subdomain, info.CustomDomain)
-	link := buildConfirmURL(confirmEmailBaseURL(), p.PublisherID, p.Email, info.ConfirmationToken.String)
+	base := publicurl.Base()
+	link := buildConfirmURL(base, p.PublisherID, p.Email, info.ConfirmationToken.String)
 
 	msg := BuildSubscriberEmail(&w.subscriberMailer, SubscriberEmailSpec{
 		Template: EmailTemplateConfirm,
@@ -163,8 +154,8 @@ func (w *ConfirmEmailWorker) HandleSubscriberConfirm(ctx context.Context, t *asy
 		LogoURL:  PubLogoURL(info.LogoUrl),
 	}, prefs)
 	// Le vrai lien signé remplace le placeholder de la coquille confirm.
-	msg.HTML = strings.Replace(msg.HTML, buildConfirmURL(confirmEmailBaseURL(), p.PublisherID, p.Email, "TOKEN"), link, 1)
-	msg.Text = strings.Replace(msg.Text, buildConfirmURL(confirmEmailBaseURL(), p.PublisherID, p.Email, "TOKEN"), link, 1)
+	msg.HTML = strings.Replace(msg.HTML, buildConfirmURL(base, p.PublisherID, p.Email, "TOKEN"), link, 1)
+	msg.Text = strings.Replace(msg.Text, buildConfirmURL(base, p.PublisherID, p.Email, "TOKEN"), link, 1)
 
 	if err := w.provider.Send(ctx, msg); err != nil {
 		return fmt.Errorf("confirm: envoi à %s: %w", p.Email, err)

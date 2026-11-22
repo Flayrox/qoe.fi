@@ -9,6 +9,7 @@ import (
 
 	"github.com/hibiken/asynq"
 	"github.com/qoefi/api/internal/modules/imports"
+	"github.com/qoefi/api/internal/publicurl"
 	"github.com/qoefi/api/internal/queue"
 )
 
@@ -133,7 +134,7 @@ func (w *ImportSendWorker) buildIntroEmail(ctx context.Context, waveID string, c
 	if err != nil {
 		return EmailMessage{}, err
 	}
-	confirm := buildConfirmURL(confirmEmailBaseURL(), info.PublisherID, c.Email, c.Token)
+	confirm := buildConfirmURL(publicurl.Base(), info.PublisherID, c.Email, c.Token)
 	unsub := buildUnsubURL(info.PublisherID, c.Email)
 
 	subject := fmt.Sprintf("%s — un message à lire avant de vous abonner / a message before you subscribe", info.PublisherName)

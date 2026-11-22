@@ -18,6 +18,8 @@ package workers
 
 import (
 	"fmt"
+
+	"github.com/qoefi/api/internal/publicurl"
 	"html"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -138,7 +140,7 @@ func buildContent(spec SubscriberEmailSpec, prefs EmailPrefs) subscriberEmailCon
 		c.ctaLabel = T(locale, "Confirmer mon abonnement", "Confirm my subscription")
 		// Aperçu : token placeholder — le vrai lien signé n'existe qu'au
 		// moment de l'envoi (worker), le lien d'aperçu n'est pas cliquable.
-		c.ctaURL = buildConfirmURL(confirmEmailBaseURL(), spec.PubID, spec.Email, "TOKEN")
+		c.ctaURL = buildConfirmURL(publicurl.Base(), spec.PubID, spec.Email, "TOKEN")
 		c.consent = T(locale,
 			"Vous recevez cet email suite à une demande d'inscription. Si vous n'en êtes pas à l'origine, ignorez simplement ce message — aucune inscription ne sera prise en compte.",
 			"You received this email following a subscription request. If this wasn't you, simply ignore it — no subscription will be created.",

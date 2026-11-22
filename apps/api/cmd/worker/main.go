@@ -137,6 +137,11 @@ func main() {
 	// tracking n'écrit plus aucun DELETE.
 	go workers.RunReadingSessionRetention(ctx, pool, time.Hour, workers.ReadingSessionRetention)
 
+	// Rétention des signaux de fonctionnalité (180 jours) : purge par lots
+	// bornés, une fois par jour. Seul point de suppression — le service ne
+	// déclenche plus de DELETE sur le chemin de la réponse.
+	go workers.RunFeatureSignalRetention(ctx, pool, 24*time.Hour, workers.FeatureSignalRetention)
+
 	// Fournisseur email partagé (SMTP self-hosté / Resend) : utilisé par le
 	// drain NotificationDelivery ET les newsletters créateurs. Inactif si aucun
 	// fournisseur n'est configuré (EMAIL_PROVIDER absent).

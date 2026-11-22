@@ -15,16 +15,14 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"os"
 	"regexp"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/publicurl"
 )
 
 var (
@@ -37,6 +35,9 @@ var (
 	ErrFeatureUnavailable = errors.New("features: notifications fermées pour cette fonctionnalité")
 	// ErrUnsubscribeInvalid : jeton absent, mal formé ou signature invalide.
 	ErrUnsubscribeInvalid = errors.New("features: désabonnement invalide")
+	// errStoreUnavailable : le service a été monté sans base. Panne de
+	// configuration, jamais un refus métier : elle doit remonter en 500.
+	errStoreUnavailable = errors.New("features: base de données indisponible")
 )
 
 // featureKeyPattern est le même contrat que la contrainte CHECK de la table :
@@ -51,20 +52,18 @@ const (
 	SourceSite   = "site"
 
 	maxFeatureKeyLen = 64
+	// maxPublisherIDLen borne l'identifiant de publication accepté du client :
+	// au-delà, c'est une entrée forgée, pas une publication.
+	maxPublisherIDLen = 64
 	// Fenêtre de déduplication des vues : rouvrir l'annonce cent fois dans la
 	// journée ne gonfle pas les statistiques.
 	viewDedupWindow = "24 hours"
 	// Fenêtre d'agrégation : l'intérêt se lit sur les 90 derniers jours.
 	summaryWindow = "90 days"
-	// Rétention : au-delà, le signal ne sert plus à rien. Purgé au plus une
-	// fois par jour, en tâche de fond (jamais sur le chemin de la réponse).
-	retentionWindow = "180 days"
-	purgeInterval   = 24 * time.Hour
-)
-
-var (
-	lastPurge   time.Time
-	lastPurgeMu sync.Mutex
+	// maxSummaryRows borne la réponse du résumé : les clés de fonctionnalité
+	// sont libres côté client, un compte peut en créer autant qu'il veut, et
+	// la réponse ne doit pas devenir un export.
+	maxSummaryRows = 50
 )
 
 type Service struct {
@@ -96,9 +95,9 @@ type FeatureState struct {
 
 // SignalInput est le corps décodé par le handler, déjà borné.
 type SignalInput struct {
-	FeatureKey    string
-	Kind          string
-	Source        string
+	FeatureKey  string
+	Kind        string
+	Source      string
 	PublisherID string
 }
 
@@ -124,16 +123,24 @@ func (s *Service) Record(ctx context.Context, userID string, in SignalInput) (bo
 	if in.Kind != KindView && in.Kind != KindNotify {
 		return false, ErrInvalidSignal
 	}
+	in.PublisherID = strings.TrimSpace(in.PublisherID)
+	if len(in.PublisherID) > maxPublisherIDLen {
+		return false, ErrInvalidSignal
+	}
 	if in.Source == "" {
 		in.Source = SourceStudio
 	}
 	if in.Source != SourceStudio && in.Source != SourceSite {
 		return false, ErrInvalidSignal
 	}
-	// Une promesse de notification exige le catalogue : on refuse avant toute
-	// résolution de publication plutôt que de dépendre d'une panne de pool.
-	if in.Kind == KindNotify && s.pool == nil {
-		return false, ErrFeatureUnavailable
+	// Un service sans base est une panne de configuration : refuser en 500
+	// plutôt que de paniquer sur un pool nul (le chemin « vue » n'avait aucun
+	// garde). Le catalogue, lui, n'est consultable qu'avec une base.
+	if s.pool == nil || s.q == nil {
+		if in.Kind == KindNotify {
+			return false, ErrFeatureUnavailable
+		}
+		return false, errStoreUnavailable
 	}
 
 	publisherID, err := s.resolvePublisher(ctx, userID, in.PublisherID)
@@ -147,9 +154,6 @@ func (s *Service) Record(ctx context.Context, userID string, in SignalInput) (bo
 	}
 
 	if in.Kind == KindNotify {
-		if s.pool == nil {
-			return false, ErrFeatureUnavailable
-		}
 		if err := s.requireNotifyOpen(ctx, in.FeatureKey); err != nil {
 			return false, err
 		}
@@ -180,10 +184,9 @@ func (s *Service) Record(ctx context.Context, userID string, in SignalInput) (bo
 		return true, nil
 	}
 
-	// Purge opportuniste : la table ne doit pas croître indéfiniment.
-	s.purgeIfStale(ctx)
-
-	// Vue : au plus une par utilisateur et par fonctionnalité sur 24 h.
+	// Vue : au plus une par utilisateur et par fonctionnalité sur 24 h. La
+	// rétention des signaux est tenue par le worker (workers.FeatureSignalRetention),
+	// plus jamais par la requête : un DELETE global n'a rien à faire ici.
 	_, err = s.pool.Exec(ctx, `
 		INSERT INTO "FeatureSignal" ("featureKey", "kind", "source", "userId", "publisherId")
 		SELECT $1, $2, $3, $4, $5
@@ -197,28 +200,6 @@ func (s *Service) Record(ctx context.Context, userID string, in SignalInput) (bo
 		return false, err
 	}
 	return false, nil
-}
-
-// purgeIfStale supprime les signaux trop anciens, au plus une fois par
-// processus et par jour. Best-effort : un échec ne bloque jamais l'écriture.
-func (s *Service) purgeIfStale(ctx context.Context) {
-	lastPurgeMu.Lock()
-	if time.Since(lastPurge) < purgeInterval {
-		lastPurgeMu.Unlock()
-		return
-	}
-	lastPurge = time.Now()
-	lastPurgeMu.Unlock()
-
-	if _, err := s.pool.Exec(ctx,
-		`DELETE FROM "FeatureSignal" WHERE "createdAt" < now() - $1::interval`,
-		retentionWindow,
-	); err != nil {
-		// On relâche la garde pour réessayer au prochain signal.
-		lastPurgeMu.Lock()
-		lastPurge = time.Time{}
-		lastPurgeMu.Unlock()
-	}
 }
 
 // NotifiedFeatures liste les fonctionnalités pour lesquelles l'utilisateur a
@@ -295,29 +276,37 @@ func (s *Service) requireNotifyOpen(ctx context.Context, featureKey string) erro
 	return nil
 }
 
-// SignInterestToken signe l'identifiant d'un intérêt pour un lien de retrait
-// sans exposer l'email. Le jeton est l'ID encodé + une signature HMAC.
-func (s *Service) SignInterestToken(interestID string) (string, error) {
-	if s.unsubscribeSecret == "" || strings.TrimSpace(interestID) == "" {
+// UnsubscribeToken signe l'identifiant d'un intérêt pour un lien de retrait
+// sans exposer l'email. Le jeton est l'ID encodé + une signature HMAC. Exporté
+// pour que les campagnes admin scellent le MÊME jeton : deux implémentations
+// du même contrat finissent toujours par diverger et casser les liens.
+func UnsubscribeToken(secret, interestID string) (string, error) {
+	if strings.TrimSpace(secret) == "" || strings.TrimSpace(interestID) == "" {
 		return "", ErrUnsubscribeInvalid
 	}
-	mac := hmac.New(sha256.New, []byte(s.unsubscribeSecret))
+	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write([]byte(interestID))
 	return base64.RawURLEncoding.EncodeToString([]byte(interestID)) + "." + hex.EncodeToString(mac.Sum(nil)), nil
 }
 
-// UnsubscribeURL construit le lien public de retrait (GET lisible + POST
-// RFC 8058) pour un intérêt donné.
-func (s *Service) UnsubscribeURL(interestID string) (string, error) {
-	token, err := s.SignInterestToken(interestID)
+// UnsubscribeLink construit le lien public de retrait (page de confirmation,
+// POST RFC 8058) pour un intérêt donné, sur la racine publique configurée.
+func UnsubscribeLink(secret, interestID string) (string, error) {
+	token, err := UnsubscribeToken(secret, interestID)
 	if err != nil {
 		return "", err
 	}
-	base := strings.TrimSpace(os.Getenv("QOE_CONFIRM_BASE_URL"))
-	if base == "" {
-		base = "https://api.qoe.fi"
-	}
-	return fmt.Sprintf("%s/v1/features/unsubscribe?token=%s", strings.TrimRight(base, "/"), url.QueryEscape(token)), nil
+	return fmt.Sprintf("%s/v1/features/unsubscribe?token=%s", publicurl.Base(), url.QueryEscape(token)), nil
+}
+
+// SignInterestToken signe l'identifiant d'un intérêt avec le secret du service.
+func (s *Service) SignInterestToken(interestID string) (string, error) {
+	return UnsubscribeToken(s.unsubscribeSecret, interestID)
+}
+
+// UnsubscribeURL construit le lien de retrait pour un intérêt donné.
+func (s *Service) UnsubscribeURL(interestID string) (string, error) {
+	return UnsubscribeLink(s.unsubscribeSecret, interestID)
 }
 
 // Unsubscribe vérifie le jeton puis retire la promesse. Retourne la clé de
@@ -381,7 +370,8 @@ func (s *Service) UnsubscribeForUser(ctx context.Context, userID, featureKey str
 
 // Summary agrège les signaux d'une publication sur 90 jours.
 func (s *Service) Summary(ctx context.Context, userID, publisherID string) ([]SignalSummary, error) {
-	if publisherID == "" {
+	publisherID = strings.TrimSpace(publisherID)
+	if publisherID == "" || len(publisherID) > maxPublisherIDLen {
 		return nil, ErrInvalidSignal
 	}
 	allowed, err := s.canAccess(ctx, userID, publisherID)
@@ -401,7 +391,8 @@ func (s *Service) Summary(ctx context.Context, userID, publisherID string) ([]Si
 		   AND "createdAt" >= now() - $2::interval
 		 GROUP BY "featureKey"
 		 ORDER BY notifies DESC, views DESC, "featureKey" ASC
-	`, publisherID, summaryWindow)
+		 LIMIT $3
+	`, publisherID, summaryWindow, maxSummaryRows)
 	if err != nil {
 		return nil, err
 	}
@@ -418,7 +409,7 @@ func (s *Service) Summary(ctx context.Context, userID, publisherID string) ([]Si
 	return out, rows.Err()
 }
 
-// resolvePublication attribue le signal : publication demandée (après contrôle
+// resolvePublisher attribue le signal : publication demandée (après contrôle
 // d'accès), sinon la publication personnelle du créateur.
 func (s *Service) resolvePublisher(ctx context.Context, userID, requested string) (string, error) {
 	if requested != "" {
@@ -432,9 +423,17 @@ func (s *Service) resolvePublisher(ctx context.Context, userID, requested string
 		return requested, nil
 	}
 	personal, err := s.q.GetUserPersonalPublisher(ctx, userID)
-	if err != nil || !personal.Valid {
-		// Pas de publication personnelle (compte sans espace) : le signal
-		// reste utile pour l'utilisateur, simplement non rattaché.
+	if errors.Is(err, pgx.ErrNoRows) {
+		// Compte sans ligne User (pas encore synchronisé) : le signal reste
+		// utile, simplement non rattaché.
+		return "", nil
+	}
+	if err != nil {
+		// Une panne DB rendait le signal anonyme en silence : les analytics
+		// perdaient l'attribution sans la moindre trace.
+		return "", err
+	}
+	if !personal.Valid {
 		return "", nil
 	}
 	return personal.String, nil
@@ -446,17 +445,23 @@ func (s *Service) canAccess(ctx context.Context, userID, publisherID string) (bo
 	if userID == "" {
 		return false, nil
 	}
-	if personal, err := s.q.GetUserPersonalPublisher(ctx, userID); err == nil &&
-		personal.Valid && personal.String == publisherID {
+	personal, err := s.q.GetUserPersonalPublisher(ctx, userID)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		// Avant, toute panne devenait « 403 publication inaccessible » :
+		// l'incident disparaissait derrière un refus métier.
+		return false, err
+	}
+	if err == nil && personal.Valid && personal.String == publisherID {
 		return true, nil
 	}
 	role, err := s.q.GetMediaRoleForUser(ctx, db.GetMediaRoleForUserParams{
 		PublisherId: publisherID, UserId: toUUID(userID),
 	})
-	if err != nil {
-		// Aucun rôle = pas d'accès ; une vraie panne DB remontera sur les
-		// écritures suivantes, inutile de la confondre avec un refus ici.
+	if errors.Is(err, pgx.ErrNoRows) {
 		return false, nil
+	}
+	if err != nil {
+		return false, err
 	}
 	return role == "owner" || role == "editor", nil
 }

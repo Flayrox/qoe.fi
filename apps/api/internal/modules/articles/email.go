@@ -14,6 +14,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/publicurl"
 )
 
 // RenderedArticleEmail contient les métadonnées et le corps HTML rendu d'un email de parution.
@@ -57,17 +58,6 @@ func VerifyUnsubscribe(pubID, email, sig string) bool {
 	return subtle.ConstantTimeCompare([]byte(expected), []byte(sig)) == 1
 }
 
-// unsubscribeBaseURL est la racine des liens de désinscription (et de
-// confirmation, même hôte). QOE_CONFIRM_BASE_URL surcharge en self-host /
-// staging — sans elle, un email parti d'un environnement local pointerait
-// vers la production.
-func unsubscribeBaseURL() string {
-	if v := strings.TrimSpace(os.Getenv("QOE_CONFIRM_BASE_URL")); v != "" {
-		return strings.TrimRight(v, "/")
-	}
-	return "https://api.qoe.fi"
-}
-
 // BuildUnsubURL construit le lien de désinscription RFC 8058 One-Click.
 func BuildUnsubURL(pubID, email string) string {
 	sig := SignUnsubscribe(pubID, email)
@@ -77,7 +67,7 @@ func BuildUnsubURL(pubID, email string) string {
 		return ""
 	}
 	return fmt.Sprintf("%s/v1/newsletters/unsubscribe?pub=%s&email=%s&sig=%s",
-		unsubscribeBaseURL(), url.QueryEscape(pubID), url.QueryEscape(email), sig)
+		publicurl.Base(), url.QueryEscape(pubID), url.QueryEscape(email), sig)
 }
 
 // TruncateRunes coupe un texte à max caractères sans séparer un rune UTF-8.
