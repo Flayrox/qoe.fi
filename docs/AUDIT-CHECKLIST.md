@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-m `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights` et `home` clos le 2026-11-22 — L29m : 9 défauts F600–F608, dettes R236–R238 ; prochain = `mediaassets`, 2 f. · 533 l. remesuré) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-n `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home` et `mediaassets` clos le 2026-11-22 — L29n : 10 défauts F609–F618, dettes R239–R241 ; prochain = `newsletters`, 3 f. · 1 106 l. remesuré) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -185,8 +185,11 @@ morte et tri non déterministe), dettes **R232–R235**. **L29m est clos le 2026
 (**6 f. · 1 132 l.** après correctifs, 1 015 l. avant ; 7 fichiers de tests), **9 défauts** F600–F608 (toute la
 table `SystemConfig` servie publiquement, onboarding 200 vide sur panne, limites client non bornées, URLs
 `javascript:` des promos servies, publication inconnue en 500, créateurs déjà suivis re-suggérés, erreurs avalées,
-tri non déterministe, email non borné), dettes **R236–R238**. **Lot suivant de L29, « En cours » : L29n** —
-`mediaassets`, **2 f. · 533 l.** (remesuré).
+tri non déterministe, email non borné), dettes **R236–R238**. **L29n est clos le 2026-11-22** : module
+`mediaassets` (**2 f. · 835 l.** après correctifs, 533 l. avant), **10 défauts** F609–F618 (dédoublonnage CAS
+inter-propriétaires, traversée de chemin/bucket, MIME actif, URL hors plateforme, quota contournable, recherche
+ILIKE non échappée, troncature UTF-8, purge sans deleter, objet partagé détruit, panne en 400), dettes
+**R239–R241**. **Lot suivant de L29, « En cours » : L29o** — `newsletters`, **3 f. · 1 106 l.** (remesuré).
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2165,6 +2168,81 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L29n — `apps/api/internal/modules/mediaassets/**` — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l`) : **2 fichiers de production · 533 l.** (`service 449`, `handler 84`) —
+conforme au décompte annoncé. Les deux fichiers ont été lus intégralement, ainsi que les appelants réels :
+`cmd/server` (route protégée `POST/GET /v1/media-assets` sur le groupe `protected`, donc JWT + garde de capacité ;
+deux instances du service — celle de l'upload créateur avec quota/throttle configurés, et une instance neuve pour
+le handler HTTP), `cmd/worker` + `internal/workers/media_lifecycle.go` (`Reconcile`, `PurgeExpired` toutes les
+`MEDIA_LIFECYCLE_INTERVAL`, timeout 5 min), `internal/modules/creator/api_media.go` (`GetBySha256` avant upload,
+`RegisterAsset` après), les clients réels (`apps/studio` éditeur + `apps/core`/`apps/admin`/`apps/tenants` routes
+d'upload), `packages/supabase/src/media-engine.ts` (sniffing, ré-encodage Sharp, `sha256`, dimensions,
+`MAX_UPLOAD_BYTES = 12 Mo`, `IMAGES_BUCKET = 'articles-media'`), `sql/queries/media_assets.sql`, le schéma
+`MediaAsset` (`sha256` **non unique**), l'enum `MediaAssetTargetType`, `ExpectedMigrationVersion = 95` (aucune
+migration nécessaire : correctifs SQL de requêtes uniquement). Après correctifs le module pèse **2 f. · 835 l.**
+(5 fichiers de tests, dont `audit_l29n_test.go` : 10 tests).
+
+**Frontière avec `media` (L29k) tranchée** : `media` possède l'organisation éditoriale (workspaces, membres,
+capacités) et **ne touche pas** aux buckets ; `mediaassets` est le **seul propriétaire du registre de fichiers** —
+validation d'enregistrement, dédoublonnage CAS, cycle de vie (TTL orphelin 3 j, attachement par URL, purge storage)
+— et délègue le sniffing des magic bytes au chemin d'upload (`netguard.SniffImageMIME`, handler créateur) : il ne
+re-sniffe pas un objet déjà poussé et ne réimplémente ni le transcodage ni la génération de chemin
+(`packages/supabase` calcule `folder/ownerId/sha.ext`). Suppression storage : uniquement via `StorageDeleter`
+(`supastorage.Client`) ici — personne d'autre ne supprime d'objet. Aucune validation MIME/taille n'est dupliquée
+autre part ; en revanche le registre **refuse** ce que l'upload aurait dû garantir (chemin hors bucket, MIME actif,
+taille incohérente), parce que c'est cette ligne qui pilote ensuite une suppression d'objet.
+
+**10 défauts corrigés** F609–F618. Les rouges cités sont des sorties réellement exécutées : la suite
+`TestAuditL29N_*` a été lancée contre un worktree à `HEAD` (`git worktree add -f /tmp/qoe-l29n-red HEAD`) puis
+contre l'arbre corrigé, sur Postgres (testcontainers `pgvector/pgvector:pg16`, 95 migrations rejouées).
+
+| # | Défaut | Preuve (test) | Rouge constaté | Commit |
+|---|---|---|---|---|
+| F609 | **Dédoublonnage CAS inter-propriétaires** : `GetMediaAssetBySha256` cherchait le hash sans `ownerId` → le compte B recevait la ligne de A (id, URL, chemin storage, statut), et l'ancien contrat de test (`TestP3MediaAssetDedupeKeepsOriginalOwner`) entérinait cette fuite. Recherche scopée par propriétaire (chaque compte sa ligne, un seul objet storage). | `TestAuditL29N_DedupeIsPerOwner`, `TestP3MediaAssetDedupeScopesOwner` (réécrit). | `asset rendu à B appartient à "owner-a" (id c38a8430-…)` | `fix(mediaassets)` |
+| F610 | **Traversée de chemin/bucket** : `storagePath`, `bucket` et `url` étaient client-provided et jamais validés — une ligne `../../autre-bucket/x` faisait ensuite appeler `Delete` au worker sur un chemin arbitraire. Allowlist bucket `articles-media`, chemin relatif sans `..`/slash initial/antislash, longueurs bornées. | `TestAuditL29N_RejectsPathTraversal`. | `storagePath '../../another-bucket/secret.webp' accepté` | `fix(mediaassets)` |
+| F611 | **MIME actif enregistrable** : `image/svg+xml`/`text/html` acceptés → un SVG servi inline exécute du script et le registre pilote la purge d'un objet non-image. Allowlist jpeg/png/gif/webp/avif. | `TestAuditL29N_RejectsActiveMime`. | `mimeType image/svg+xml accepté` | `fix(mediaassets)` |
+| F612 | **URL hors plateforme** : n'importe quel `http(s)` (et `javascript:`) s'enregistrait sans passer par le moteur média (image non modérée, pixel de pistage). `antispam.MediaPolicy` (origines `MEDIA_CDN_BASE_URL` + `SUPABASE_URL`, fail-closed) injectée depuis `cmd/server`. | `TestAuditL29N_RejectsForeignURL`. | `URL d'un hôte non autorisé acceptée` | `fix(mediaassets)` |
+| F613 | **Taille et bucket contradictions** : `sizeBytes` négatif **contournait le quota** (somme négative), taille nulle/énorme acceptée ; `bucket` imposé par le client. Borne `0 < size ≤ 12 Mo` (alignée `MAX_UPLOAD_BYTES` du moteur média) et bucket unique. | `TestAuditL29N_RejectsNegativeSizeAndForeignBucket`. | `sizeBytes négatif accepté (contourne le quota)` | `fix(mediaassets)` |
+| F614 | **Recherche ILIKE non échappée** : `?q=%` ramenait toute la bibliothèque (`%`/`_` jokers). Échappement `\`, `%`, `_` + `ESCAPE '\'` dans la requête sqlc. | `TestAuditL29N_LibrarySearchIsLiteral`. | `q=% ramène 2 assets (recherche littérale attendue)` | `fix(mediaassets)` |
+| F615 | **Troncature UTF-8** : `q[:100]` coupait au milieu d'une rune → Postgres rejetait la requête (`SQLSTATE 22021`). Troncature par runes. | `TestAuditL29N_LibrarySearchUTF8Safe`. | `invalid byte sequence for encoding "UTF8": 0xe2` | `fix(mediaassets)` |
+| F616 | **Purge sans `deleter`** marquait `PURGED` en laissant l'objet dans le bucket (fuite de stockage silencieuse). `deleter == nil` → erreur, ligne conservée. | `TestAuditL29N_PurgeRequiresDeleterAndSafePath` (+ chemin hérité `../../` refusé sans appel au deleter). | `PurgeExpired sans deleter doit échouer` | `fix(mediaassets)` |
+| F617 | **Objet partagé détruit par la purge d'une seule ligne** : avec le dédoublonnage CAS, plusieurs propriétaires pointent le même `(bucket, storagePath)` ; purger l'orphelin de A supprimait l'objet encore référencé par B. `CountOtherLiveMediaAssetsByStoragePath` : suppression storage seulement à la dernière référence vivante, ligne marquée `PURGED` sinon. | `TestAuditL29N_PurgeKeepsSharedObject`. | rouge à l'assertion amont (même cause) : `une seule ligne pour deux propriétaires (4540ace0-…)` — partage impossible avant F609. | `fix(mediaassets)` |
+| F618 | **Panne base rendue en 400 avec le message interne** : le handler renvoyait `err.Error()` (« closed pool », erreurs SQL) sur toute erreur. Erreurs typées (`ValidationError` → 400, `ErrThrottled` → 429 + `Retry-After`, `ErrQuotaExceeded` → 413), panne → 500 générique journalisée. | `TestAuditL29N_HandlerInternalErrorIs500`. | `panne base = 400 ({"error":"closed pool"})` | `fix(mediaassets)` |
+
+**Correctifs structurels, sans rouge isolable** (déclarés comme tels) :
+
+- **F619 — instance HTTP jetable** : `cmd/server` montait `mediaassets.NewService(pool)` sans `SetQuotaBytes`/
+  `SetUploadsPerHour` ni politique média : les endpoints HTTP ignoraient `MEDIA_QUOTA_BYTES`/`MEDIA_UPLOADS_PER_HOUR`
+  et acceptaient n'importe quelle URL. Le handler partage désormais l'instance configurée de l'upload créateur.
+- **F620 — purge « fail-fast »** : un objet cassé interrompait le passage et bloquait tous les suivants ; la boucle
+  continue, journalise, remonte le premier échec au worker et laisse les lignes purgeables.
+- **F621 — quota/throttle hors transaction** (TOCTOU) : `COUNT`/`SUM` puis `INSERT` séparés laissaient deux uploads
+  concurrents dépasser ensemble la limite. `RegisterAsset` fait tout dans une transaction sous
+  `pg_advisory_xact_lock(hashtext(ownerID))`.
+- **F622 — `offset` non borné** : pagination profonde arbitraire (scan complet) plafonnée à 10 000.
+- **F623 — échéance de purge en heure locale** : `Reconcile` écrivait `purgeDueAt` avec `time.Now()` (local) alors
+  que `createdAt`/`now()` sont en UTC ; passage en `time.Now().UTC()`.
+
+**Dettes ouvertes, sans faux correctif** (numérotation en continuité de R238) :
+
+- **R239 — pas d'index sur `(bucket, storagePath)`** : le nouveau comptage de références vivantes (F617) fait un
+  `COUNT` sans index sur deux colonnes pour chaque asset purgé (batch 200). Option recommandée : migration `00096`
+  avec `CREATE INDEX "MediaAsset_bucket_storagePath_idx" ON "MediaAsset"("bucket", "storagePath")` (et bump
+  `ExpectedMigrationVersion` à 96) — non faite ici pour ne pas mêler migration et lot de code.
+- **R240 — quota du contenu partagé** : deux propriétaires du même contenu comptent chacun `sizeBytes` dans leur
+  quota alors que le bucket ne stocke qu'un objet. Choix assumé (le quota borne l'usage logique, pas le coût
+  physique) ; à trancher si la facturation suit le stockage réel.
+- **R241 — `AttachMediaAssetsByUrls`/`SoftDeleteDetachedMediaAssets` sont globaux par URL** : une URL partagée entre
+  deux propriétaires est attachée/détachée en bloc par la réconciliation. Sans impact aujourd'hui (les URLs sont
+  préfixées par `folder/ownerId/sha` et donc uniques par propriétaire), mais un vrai partage de fichier imposerait
+  un attachement par référence métier (`attachedToId`) plutôt que par URL.
+
+**Commandes passées sur l'arbre corrigé** : `gofmt -l` sur le module/créateur/cmd → vide ; `go build ./...` → 0 ;
+`go vet ./internal/...` → 0 ; `QOE_DB_TESTS_OPTIONAL=1 go test` sur `mediaassets`, `media`, `home`, `highlights`,
+`articles`, `publishers`, `users`, `creator`, `settings`, `authz`, `middleware`, `workers`, `cmd/server`,
+`cmd/worker` → **14 paquets `ok`** (base réelle) ; batterie workspace 13 commandes → **13 × 0**.
 
 ## L29m — `apps/api/internal/modules/home/**` — **clos le 2026-11-22**
 
