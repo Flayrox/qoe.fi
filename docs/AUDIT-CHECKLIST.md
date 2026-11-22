@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; **L29s `search` clos le 2026-11-22** (2 f. · 741 l. après correctifs, 6 défauts F670–F675 + 1 structurel F676, dettes R257–R259) ; **L29t `publishers` clos le 2026-11-22** (3 f. · 1 229 l. après correctifs, 8 défauts F677–F684 + 1 structurel F685, dettes R260–R262) ; prochain = `analytics`, ou lot groupé events/workspaces/appeals/support/exports/books) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; **L29s `search` clos le 2026-11-22** (2 f. · 741 l. après correctifs, 6 défauts F670–F675 + 1 structurel F676, dettes R257–R259) ; **L29t `publishers` clos le 2026-11-22** (3 f. · 1 229 l. après correctifs, 8 défauts F677–F684 + 1 structurel F685, dettes R260–R262) ; **L29u `analytics` clos le 2026-11-22** (4 f. · 2 130 l. après correctifs, 12 défauts F686–F697 + 1 structurel F698, dettes R263–R265) ; prochain = lot groupé events/workspaces/appeals/support/exports/books) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -217,8 +217,12 @@ correctifs, 1 105 l. avant) — **8 défauts** F677–F684 (brouillon et article
 compteurs de reposts gonflés, panne d'attribution rendue en 404, entitlements fail-open silencieux,
 recommandations non bornées, domaine racine TLS codé en dur, articles d'un compte privé exposés, paramètres d'URL
 non bornés) et **1 structurel** (F685, UUID en texte et session illisible), dettes **R260–R262**.
-**Lot suivant de L29, « En cours » : L29u** — `analytics`, ou le lot groupé
-events/workspaces/appeals/support/exports/books.
+**L29u est clos le 2026-11-22** : module `analytics` (**4 f. · 2 130 l.** après correctifs, 1 961 l. avant) —
+**12 défauts** F686–F697 (lectures 30 j d'un média toujours à zéro, pannes DB avalées en 200, panne de la matrice
+d'accès rendue en 403, Umami dégradé en zéros au lieu de 503/500, `declared` faux, `workspaceType` inconnu
+silencieux, bornes de période avalées, article programmé compté en brouillon, panique sur service sans pool) et
+**1 structurel** (F698, douze branches d'erreur recopiées → `writeServiceError`), dettes **R263–R265**.
+**Lot suivant de L29, « En cours »** — le lot groupé events/workspaces/appeals/support/exports/books.
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2197,6 +2201,67 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L29u — `apps/api/internal/modules/analytics/**` — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l`) : **4 fichiers de production · 1 961 l.** (`service 1 410`,
+`handler 394`, `umami 128`, `querier 29`) — conforme à l'annonce ; **6 fichiers de tests · 1 162 l.** avant le lot.
+Lus intégralement, avec leurs appelants réels : `cmd/server` (`analytics.NewHandler(analytics.NewService(pool,
+cfg.UmamiDatabaseURL))` sous `RequireAPIScope(ANALYTICS)`), `apps/studio` (`analytics/actions.ts` : périodes,
+`startAt/endAt`, `returning`/`hours`, contrat `declared` = « nb d'utilisateurs ayant renseigné au moins un champ »,
+`(creator)/page.tsx` : `workspaceType=${workspace.type}` typé `'PERSONAL' | 'MEDIA'`), `sql/queries/analytics.sql`
+(`GetRecentArticlesForAnalytics`, `GetRecentThoughtsForAnalytics`), `sql/queries/articles.sql`
+(`GetUserPersonalPublisher`, `GetMediaRoleForUser` — `status = 'active'`), `sql/queries/media.sql`
+(`GetMediaMemberContext`), schéma `Article`/`ReadingSession`/`Follows`/`MediaMember`/`Subscriber`, et la base Umami
+v3 (`session.distinct_id`, `website_id`, `created_at`). Après correctifs le module pèse **4 f. · 2 130 l.**
+(handler 407, service 1 556, umami 138, querier 29) ; `audit_l29u_test.go` (332 l., 12 tests) s'ajoute.
+
+**12 défauts corrigés** F686–F697, chacun adossé à un rouge réellement exécuté (worktree
+`git worktree add -f /tmp/qoe-l29u-red HEAD`, suite `TestAuditL29U_*`, Postgres testcontainers).
+
+| # | Défaut | Preuve (test) | Rouge constaté | Commit |
+|---|---|---|---|---|
+| F686 | **Dashboard MEDIA : lectures 30 jours toujours à zéro** : les deux requêtes de `ReadingSession` recevaient deux arguments pour un SQL média qui n'en référence qu'un (`$1`) ; pgx rejette les arguments en trop et l'erreur était avalée. Les paramètres sont désormais calculés par requête (et la projection des articles récents, qui référence `$2` dans les deux workspaces, en reçoit deux). | `TestAuditL29U_MediaDashboardServesData`. | `pageviews30d = 0, attendu 1` | `fix(analytics)` |
+| F687 | **Dashboard : toutes les pannes DB avalées** : site Umami, compteurs de publications, abonnés, MRR, articles récents/brouillons/programmés, pensées, dernier publié et lectures étaient lus avec `_ =` ou `if err == nil` — une base indisponible rendait un dashboard **à zéro en 200**. Chaque lecture remonte désormais son erreur (500 journalisé), `pgx.ErrNoRows` excepté pour le dernier article. | `TestAuditL29U_DashboardPropagatesDatabaseFailure`. | `panne DB du dashboard avalée : 200 avec des métriques à zéro` | `fix(analytics)` |
+| F688 | **Insights démographiques : panne des abonnés déguisée en audience vide** : l'échec de la lecture `Follows` renvoyait `{Creator: zéro, Platform: …}` en 200. L'erreur remonte, les lignes sont scannées strictement (`rows.Err`). | `TestAuditL29U_AudienceInsightsPropagatesFollowerFailure`. | `panne de lecture des abonnés avalée : insights renvoyés sans audience` | `fix(analytics)` |
+| F689 | **Stats d'article : compteurs d'interaction remis à zéro en silence** : la requête likes/signets/commentaires/surlignages/annotations/reposts était `_ =` ; une panne rendait un article « sans aucune interaction » en 200. Erreur remontée. | `TestAuditL29U_ArticleStatsPropagatesInteractionFailure`. | `panne du comptage des interactions avalée : statistiques d'article tronquées en 200` | `fix(analytics)` |
+| F690 | **Panne DB de la matrice d'accès rendue en 403** : `canAccess` renvoyait `false` à la moindre erreur de `GetUserPersonalPublisher`/`GetMediaMemberContext` — une base indisponible devenait « permission insuffisante ». `canAccess` renvoie `(bool, error)` et `requireAccess` ne convertit que le refus réel en `errForbidden` ; `GetArticleReadingStats` distingue `ErrNoRows` (article inconnu → 403) d'une panne (500). | `TestAuditL29U_AccessDatabaseFailureIsNotForbidden`. | `panne DB rendue en errForbidden (403) : permission insuffisante` | `fix(analytics)` |
+| F691 | **Umami : panne du site rendue en zéros** : toute erreur de `publicationWebsiteID` (y compris une panne DB) répondait la forme « site non provisionné » à zéro. Seul l'absence réelle de site (`errNoUmamiSite`) dégrade en zéros ; le reste remonte en 500. | `TestAuditL29U_UmamiDatabaseFailureIsNotZero`. | `panne DB du site Umami → 200 ({"total":0,"newVisitors":0,"returningVisitors":0}), attendu 500` | `fix(analytics)` |
+| F692 | **Umami : site provisionné sans base configurée servi en zéros** : `umami == nil` (DSN absente ou invalide) renvoyait `0 visite` / `[]` en 200. `errUmamiUnavailable` → **503**, parité avec le correctif F506 de `creator`. | `TestAuditL29U_UmamiMissingClientIsServiceUnavailable`. | `site Umami sans pool → 200 ([]), attendu 503` | `fix(analytics)` |
+| F693 | **`declared` faux** : il valait le **maximum de valeurs distinctes** d'une colonne (4 lecteurs tous `FEMALE` → `declared = 1`), alors que le studio l'affiche comme « X lecteurs·trices renseigné·es » et que son type TS dit « nb d'utilisateurs ayant renseigné au moins un champ ». Compté par `COUNT(*)` sur les utilisateurs ayant au moins un champ. | `TestAuditL29U_DeclaredCountsReaders`. | `creator.declared = 1, attendu 4 (lecteurs ayant déclaré)` | `fix(analytics)` |
+| F694 | **`workspaceType` inconnu interprété en silence comme PERSONAL** : `media := workspaceType == "MEDIA"` faisait d'une faute de frappe un dashboard personnel. Validé `PERSONAL|MEDIA`, 400 sinon. | `TestAuditL29U_UnknownWorkspaceTypeRejected`. | `workspaceType inconnu → 200 ({"publisherWebsiteId":"","publishedCount":3,…}), attendu 400` | `fix(analytics)` |
+| F695 | **Bornes illisibles avalées** : `?period=bogus` et `?startAt=abc` retombaient silencieusement sur 30 jours, `?limit=abc` sur 5, et `endAt < startAt` était ignoré — le studio recevait des chiffres d'une autre période sans le savoir (même classe que F506). `parseSince`/`parsePeriod` renvoient une erreur → **400** ; `limit` non numérique → 400, plafond 50 explicite. | `TestAuditL29U_UnreadableBoundsRejected`. | `/v1/analytics/creator?publisherId=pub_analytics_001&period=bogus → 200 ({…}), attendu 400` | `fix(analytics)` |
+| F696 | **Article programmé compté comme brouillon** : la requête des brouillons ne filtrait que `published = false` ; l'article `SCHEDULED` apparaissait dans « Brouillons » **et** dans « Programmés ». Exclu par `status <> 'SCHEDULED'`. | `TestAuditL29U_ScheduledArticleIsNotADraft`. | `brouillons = 2 [Brouillon média Programmé média], attendu 1` | `fix(analytics)` |
+| F697 | **Panique sur service sans pool** : `ProductMetrics` (et les autres lectures) déréférençaient un pool ou un queryer nul — une erreur d'assemblage devenait un crash du serveur. Gardes `pool == nil` / `q == nil` → erreur remontée. | `TestAuditL29U_ZeroServiceFailsClosed`. | `service sans pool : panique runtime error: invalid memory address or nil pointer dereference au lieu d'une erreur` | `fix(analytics)` |
+
+**Correctif structurel, sans rouge isolable** (déclaré comme tel) :
+
+- **F698 — douze branches d'erreur recopiées** : chaque handler répétait `if errors.Is(err, errForbidden) { 403 } ; log ; 500`,
+  et `canViewDashboard` avalait sa propre erreur de queryer. Un unique `Handler.writeServiceError` porte la règle
+  (refus → 403, panne → 500 journalisée) et `canViewDashboard` renvoie `(bool, error)` comme `canAccess`. Aucun
+  comportement observable ne changeait pour les cas déjà couverts par un rouge.
+
+**Migrations** : **aucune nécessaire** — toutes les colonnes lues existent (`Follows.readerId`, `ReadingSession.*`,
+`Article.status/scheduledAt`, `User.gender/ageRange/countryCode/languageCode`), la base Umami reste en lecture seule
+(`default_transaction_read_only = on`). `ExpectedMigrationVersion` reste **95**.
+
+**Dettes ouvertes, sans faux correctif** (numérotation en continuité de R262) :
+
+- **R263 — liste d'abonnés non paginée** : `ListSubscribers` renvoie tous les abonnés (emails compris) sans borne ni
+  curseur ; le tableau du studio n'a pas de pagination. Même arbitrage que R260 : décision produit avant plafonnement.
+- **R264 — pensées du dashboard média limitées à l'appelant** : `TopContent` interroge les pensées par `AuthorId`
+  (l'utilisateur courant) même en workspace `MEDIA` ; un média à plusieurs membres ne voit donc que les pensées de
+  celui qui ouvre l'écran. Choisir entre « pensées du média » (nécessite un lien pensée→publication) et « mes
+  pensées » est une décision produit.
+- **R265 — schéma Umami v3 supposé** : les deux requêtes ciblent `session.website_id/distinct_id/created_at` sans
+  détection de version ; une base Umami v2 échoue en 500 (honnête) mais l'auto-hébergement multi-version n'est pas
+  couvert. À trancher avec l'infra (version minimale documentée ou colonne découverte).
+
+**Commandes passées sur l'arbre corrigé** : `gofmt -l .` (dépôt entier) → **0** ; `go build ./...` → 0 ; `go vet ./...` → 0 ;
+`QOE_DB_TESTS_OPTIONAL=1 go test` sur les **22 paquets de la batterie** + `analytics` → **23 × `ok`** ;
+batterie workspace 13 commandes → **13 × 0** ; **vitest** `apps/core` (notifications + réglages lecteur) →
+**5 fichiers, 24 tests verts**. La dette de formatage **F658 reste soldée** (`gofmt -l .` = 0, aucun fichier
+reformaté hors du module).
 
 ## L29t — `apps/api/internal/modules/publishers/**` — **clos le 2026-11-22**
 
