@@ -73,23 +73,51 @@ func NewService(pool *pgxpool.Pool, umamiDSN string) *Service {
 // actif disposant de `media:view_analytics` (rôle + overrides). La matrice de
 // permissions Go est l'unique source de vérité ; le studio lit la même
 // permission via @qoe/auth.
-func (s *Service) canAccess(ctx context.Context, userID, publisherID string) bool {
+//
+// Une panne de lecture remonte en erreur : la déguiser en refus ferait passer
+// une indisponibilité de la base pour une décision d'accès (403 mensonger).
+func (s *Service) canAccess(ctx context.Context, userID, publisherID string) (bool, error) {
 	if p, ok := middleware.GetPrincipal(ctx); ok && p.Type == middleware.PrincipalTypePublisher {
-		return p.PublisherID != nil && *p.PublisherID == publisherID
+		return p.PublisherID != nil && *p.PublisherID == publisherID, nil
 	}
 	if userID == "" {
-		return false
+		return false, nil
 	}
-	if personal, err := s.q.GetUserPersonalPublisher(ctx, userID); err == nil && personal.String == publisherID {
-		return true
+	if s.q == nil {
+		return false, fmt.Errorf("analytics: queryer non configuré")
+	}
+	personal, err := s.q.GetUserPersonalPublisher(ctx, userID)
+	switch {
+	case err == nil:
+		if personal.String == publisherID {
+			return true, nil
+		}
+	case !errors.Is(err, pgx.ErrNoRows):
+		return false, fmt.Errorf("analytics: publication personnelle: %w", err)
 	}
 	member, err := s.q.GetMediaMemberContext(ctx, db.GetMediaMemberContextParams{
 		PublisherId: publisherID, UserId: toUUID(userID),
 	})
-	if err != nil {
-		return false
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
 	}
-	return canViewAnalytics(member.Role, member.Permissions, member.Status)
+	if err != nil {
+		return false, fmt.Errorf("analytics: appartenance média: %w", err)
+	}
+	return canViewAnalytics(member.Role, member.Permissions, member.Status), nil
+}
+
+// requireAccess transforme un refus en errForbidden et laisse remonter les
+// pannes telles quelles.
+func (s *Service) requireAccess(ctx context.Context, userID, publisherID string) error {
+	ok, err := s.canAccess(ctx, userID, publisherID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return errForbidden
+	}
+	return nil
 }
 
 // canViewAnalytics isole la règle pure pour la tester sans base.
@@ -101,8 +129,8 @@ func canViewAnalytics(role string, perms []string, status string) bool {
 
 // Financial calcule MRR/ARR/volume brut + conversion (miroir TS).
 func (s *Service) Financial(ctx context.Context, userID, publisherID string) (FinancialMetrics, error) {
-	if !s.canAccess(ctx, userID, publisherID) {
-		return FinancialMetrics{}, errForbidden
+	if err := s.requireAccess(ctx, userID, publisherID); err != nil {
+		return FinancialMetrics{}, err
 	}
 
 	premiums, err := s.q.GetPremiumActiveSubscribers(ctx, publisherID)
@@ -142,11 +170,14 @@ func (s *Service) Financial(ctx context.Context, userID, publisherID string) (Fi
 
 // TopContent retourne les contenus récents (articles + pensées) triés par date.
 func (s *Service) TopContent(ctx context.Context, userID, publisherID string, limit int) ([]TopContentItem, error) {
-	if !s.canAccess(ctx, userID, publisherID) {
-		return nil, errForbidden
+	if err := s.requireAccess(ctx, userID, publisherID); err != nil {
+		return nil, err
 	}
-	if limit <= 0 || limit > 50 {
+	if limit <= 0 {
 		limit = 5
+	}
+	if limit > 50 {
+		limit = 50
 	}
 
 	articles, err := s.q.GetRecentArticlesForAnalytics(ctx, db.GetRecentArticlesForAnalyticsParams{
@@ -193,23 +224,23 @@ func (s *Service) TopContent(ctx context.Context, userID, publisherID string, li
 
 // publicationWebsiteID vérifie l'accès et résout l'umamiWebsiteId de la publication.
 func (s *Service) publicationWebsiteID(ctx context.Context, userID, publisherID string) (string, error) {
-	if !s.canAccess(ctx, userID, publisherID) {
-		return "", errForbidden
+	if err := s.requireAccess(ctx, userID, publisherID); err != nil {
+		return "", err
 	}
 	id, err := s.q.GetPublisherUmamiWebsiteId(ctx, publisherID)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("analytics: site Umami: %w", err)
 	}
 	if !id.Valid || id.String == "" {
-		return "", errors.New("aucun website Umami provisionné pour cette publication")
+		return "", errNoUmamiSite
 	}
 	return id.String, nil
 }
 
 // Audience retourne la répartition des abonnés.
 func (s *Service) Audience(ctx context.Context, userID, publisherID string) (AudienceSummary, error) {
-	if !s.canAccess(ctx, userID, publisherID) {
-		return AudienceSummary{}, errForbidden
+	if err := s.requireAccess(ctx, userID, publisherID); err != nil {
+		return AudienceSummary{}, err
 	}
 	row, err := s.q.GetAudienceSummary(ctx, publisherID)
 	if err != nil {
@@ -230,8 +261,8 @@ type SubscriberDTO struct {
 
 // ListSubscribers retourne les abonnés de la publication (page audience studio).
 func (s *Service) ListSubscribers(ctx context.Context, userID, publisherID string) ([]SubscriberDTO, error) {
-	if !s.canAccess(ctx, userID, publisherID) {
-		return nil, errForbidden
+	if err := s.requireAccess(ctx, userID, publisherID); err != nil {
+		return nil, err
 	}
 	rows, err := s.q.ListSubscribers(ctx, publisherID)
 	if err != nil {
@@ -651,14 +682,18 @@ func (s *Service) GetArticleReadingStats(ctx context.Context, userID, articleID 
 		return ArticleDetailStats{}, err
 	}
 	if owned == 0 {
-		// Vérifie aussi accès média (editor/owner) via canAccess sur la publication de l'article
+		// Vérifie aussi l'accès média (editor/owner) à la publication de
+		// l'article : article inconnu → refus, panne → erreur remontée.
 		var pubID string
-		if err := s.pool.QueryRow(ctx, `SELECT "publisherId" FROM "Article" WHERE id=$1`, articleID).Scan(&pubID); err == nil {
-			if !s.canAccess(ctx, userID, pubID) {
-				return ArticleDetailStats{}, errForbidden
-			}
-		} else {
+		err := s.pool.QueryRow(ctx, `SELECT "publisherId" FROM "Article" WHERE id=$1`, articleID).Scan(&pubID)
+		if errors.Is(err, pgx.ErrNoRows) {
 			return ArticleDetailStats{}, errForbidden
+		}
+		if err != nil {
+			return ArticleDetailStats{}, fmt.Errorf("analytics: publication de l'article: %w", err)
+		}
+		if err := s.requireAccess(ctx, userID, pubID); err != nil {
+			return ArticleDetailStats{}, err
 		}
 	}
 
@@ -681,7 +716,7 @@ func (s *Service) GetArticleReadingStats(ctx context.Context, userID, articleID 
 
 	var completionRate float64
 	var likes, bookmarks, comments, highlights, highlightsPublic, annotations, reposts int
-	_ = s.pool.QueryRow(ctx, `
+	if err := s.pool.QueryRow(ctx, `
 		SELECT 
 			COALESCE(a."completionRate", 0),
 			(SELECT COUNT(*)::int FROM "ContentFeedback" cf WHERE cf."articleId" = a.id AND cf."type" = 'LIKE') AS likes,
@@ -696,8 +731,9 @@ func (s *Service) GetArticleReadingStats(ctx context.Context, userID, articleID 
 			(SELECT COUNT(*)::int FROM "ContentFeedback" cf WHERE cf."articleId" = a.id AND cf."type" = 'REPOST') AS reposts
 		FROM "Article" a
 		WHERE a.id = $1
-	`, articleID).Scan(&completionRate, &likes, &bookmarks, &comments, &highlights, &highlightsPublic, &annotations, &reposts)
-
+	`, articleID).Scan(&completionRate, &likes, &bookmarks, &comments, &highlights, &highlightsPublic, &annotations, &reposts); err != nil {
+		return ArticleDetailStats{}, fmt.Errorf("analytics: interactions de l'article: %w", err)
+	}
 	highlightsPrivate := highlights - highlightsPublic
 	totalInteractions := likes + bookmarks + comments + highlights + annotations + reposts
 
@@ -790,6 +826,34 @@ func (s *Service) groupUsersByColumn(ctx context.Context, column string, userIDs
 	return out, rows.Err()
 }
 
+// countDeclaredUsers compte les utilisateurs ayant renseigné au moins un
+// champ démographique — c'est le « declared » attendu par le studio
+// (apps/studio/.../analytics/actions.ts), et non le nombre de valeurs
+// distinctes d'une colonne.
+func (s *Service) countDeclaredUsers(ctx context.Context, userIDs []string) (int, error) {
+	if s.pool == nil {
+		return 0, fmt.Errorf("pool non configuré")
+	}
+	const base = `SELECT COUNT(*)::int FROM "User"
+		WHERE ("gender" IS NOT NULL OR "ageRange" IS NOT NULL
+		   OR "countryCode" IS NOT NULL OR "languageCode" IS NOT NULL)`
+	var n int
+	var err error
+	if len(userIDs) > 0 {
+		uids := make([]pgtype.UUID, 0, len(userIDs))
+		for _, id := range userIDs {
+			uids = append(uids, toUUID(id))
+		}
+		err = s.pool.QueryRow(ctx, base+` AND id = ANY($1::uuid[])`, uids).Scan(&n)
+	} else {
+		err = s.pool.QueryRow(ctx, base).Scan(&n)
+	}
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
 func (s *Service) aggregateDemographics(ctx context.Context, userIDs []string) (AudienceDemographics, error) {
 	gender, err := s.groupUsersByColumn(ctx, "gender", userIDs)
 	if err != nil {
@@ -807,15 +871,9 @@ func (s *Service) aggregateDemographics(ctx context.Context, userIDs []string) (
 	if err != nil {
 		return AudienceDemographics{}, err
 	}
-	declared := len(gender)
-	if len(age) > declared {
-		declared = len(age)
-	}
-	if len(countries) > declared {
-		declared = len(countries)
-	}
-	if len(languages) > declared {
-		declared = len(languages)
+	declared, err := s.countDeclaredUsers(ctx, userIDs)
+	if err != nil {
+		return AudienceDemographics{}, err
 	}
 	return AudienceDemographics{
 		Declared:  declared,
@@ -829,8 +887,11 @@ func (s *Service) aggregateDemographics(ctx context.Context, userIDs []string) (
 // GetAudienceInsights retourne l'insight démographique créateur + plateforme (agrégé, jamais individuel).
 // Remplace getAudienceInsights + aggregateDemographics dans actions.ts
 func (s *Service) GetAudienceInsights(ctx context.Context, userID, publisherID string) (AudienceInsights, error) {
-	if !s.canAccess(ctx, userID, publisherID) {
-		return AudienceInsights{}, errForbidden
+	if err := s.requireAccess(ctx, userID, publisherID); err != nil {
+		return AudienceInsights{}, err
+	}
+	if s.pool == nil {
+		return AudienceInsights{}, fmt.Errorf("pool non configuré")
 	}
 	// Platform-wide (tous les users)
 	platform, err := s.aggregateDemographics(ctx, nil)
@@ -840,17 +901,23 @@ func (s *Service) GetAudienceInsights(ctx context.Context, userID, publisherID s
 	// Followers du créateur
 	rows, err := s.pool.Query(ctx, `SELECT "readerId"::text FROM "Follows" WHERE "publisherId"=$1`, publisherID)
 	if err != nil {
-		return AudienceInsights{Creator: AudienceDemographics{}, Platform: platform}, nil
+		return AudienceInsights{}, fmt.Errorf("analytics: abonnés du créateur: %w", err)
 	}
 	defer rows.Close()
 	seen := map[string]bool{}
 	var readerIDs []string
 	for rows.Next() {
 		var id string
-		if err := rows.Scan(&id); err == nil && !seen[id] {
+		if err := rows.Scan(&id); err != nil {
+			return AudienceInsights{}, fmt.Errorf("analytics: scan abonné: %w", err)
+		}
+		if !seen[id] {
 			seen[id] = true
 			readerIDs = append(readerIDs, id)
 		}
+	}
+	if err := rows.Err(); err != nil {
+		return AudienceInsights{}, fmt.Errorf("analytics: abonnés du créateur: %w", err)
 	}
 	var creator AudienceDemographics
 	if len(readerIDs) > 0 {
@@ -1034,14 +1101,29 @@ type DashboardOverview struct {
 // canViewDashboard vérifie que l'utilisateur peut consulter le dashboard de la
 // publication : propriétaire de sa publication personnelle OU membre d'un média
 // (tout rôle — le dashboard accueil est visible par tous les membres).
-func (s *Service) canViewDashboard(ctx context.Context, userID, publisherID string) bool {
-	if personal, err := s.q.GetUserPersonalPublisher(ctx, userID); err == nil && personal.String == publisherID {
-		return true
+func (s *Service) canViewDashboard(ctx context.Context, userID, publisherID string) (bool, error) {
+	if s.q == nil {
+		return false, fmt.Errorf("analytics: queryer non configuré")
 	}
-	_, err := s.q.GetMediaRoleForUser(ctx, db.GetMediaRoleForUserParams{
+	personal, err := s.q.GetUserPersonalPublisher(ctx, userID)
+	switch {
+	case err == nil:
+		if personal.String == publisherID {
+			return true, nil
+		}
+	case !errors.Is(err, pgx.ErrNoRows):
+		return false, fmt.Errorf("analytics: publication personnelle: %w", err)
+	}
+	_, err = s.q.GetMediaRoleForUser(ctx, db.GetMediaRoleForUserParams{
 		PublisherId: publisherID, UserId: toUUID(userID),
 	})
-	return err == nil
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("analytics: rôle média: %w", err)
+	}
+	return true, nil
 }
 
 // articleScopeSQL retourne le WHERE articles du dashboard selon le workspace :
@@ -1072,7 +1154,11 @@ func (s *Service) DashboardOverview(ctx context.Context, userID, publisherID, wo
 		ScheduledArticles: []DashboardScheduledArticle{},
 		ScheduledThoughts: []DashboardThought{},
 	}
-	if !s.canViewDashboard(ctx, userID, publisherID) {
+	allowed, err := s.canViewDashboard(ctx, userID, publisherID)
+	if err != nil {
+		return out, err
+	}
+	if !allowed {
 		return out, errForbidden
 	}
 	if s.pool == nil {
@@ -1082,26 +1168,42 @@ func (s *Service) DashboardOverview(ctx context.Context, userID, publisherID, wo
 	userUUID := toUUID(userID)
 
 	// Website Umami de la publication (fallback env géré côté studio).
-	_ = s.pool.QueryRow(ctx, `SELECT COALESCE("umamiWebsiteId", '') FROM "Publisher" WHERE id = $1`, publisherID).Scan(&out.PublisherWebsiteID)
+	if err := s.pool.QueryRow(ctx, `SELECT COALESCE("umamiWebsiteId", '') FROM "Publisher" WHERE id = $1`, publisherID).Scan(&out.PublisherWebsiteID); err != nil {
+		return out, fmt.Errorf("analytics: site Umami: %w", err)
+	}
 
 	// Articles publiés (scope workspace).
 	if media {
-		_ = s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "Article" WHERE "publisherId" = $1 AND published = true`, publisherID).Scan(&out.PublishedCount)
+		if err := s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "Article" WHERE "publisherId" = $1 AND published = true`, publisherID).Scan(&out.PublishedCount); err != nil {
+			return out, fmt.Errorf("analytics: compteur de publications: %w", err)
+		}
 	} else {
 		// Même scope que les cartes et les vues : les articles co-signés
 		// comptent aussi, sinon le compteur contredisait les publications
 		// récentes affichées juste en dessous.
-		_ = s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "Article" a WHERE `+articleScopeSQL(false)+` AND a.published = true`, publisherID, userUUID).Scan(&out.PublishedCount)
+		if err := s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "Article" a WHERE `+articleScopeSQL(false)+` AND a.published = true`, publisherID, userUUID).Scan(&out.PublishedCount); err != nil {
+			return out, fmt.Errorf("analytics: compteur de publications: %w", err)
+		}
 	}
 
 	// Abonnés réseau + payants + LTV (MRR estimé = somme des ltvCents actifs).
-	_ = s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "Subscriber" WHERE "publisherId" = $1 AND "isActive" = true`, publisherID).Scan(&out.SubscribersCount)
-	_ = s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "Subscriber" WHERE "publisherId" = $1 AND "isActive" = true AND "isPremium" = true`, publisherID).Scan(&out.PremiumSubscribersCount)
-	_ = s.pool.QueryRow(ctx, `SELECT COALESCE(SUM("ltvCents")::int, 0) FROM "Subscriber" WHERE "publisherId" = $1 AND "isActive" = true`, publisherID).Scan(&out.MRRCents)
+	if err := s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "Subscriber" WHERE "publisherId" = $1 AND "isActive" = true`, publisherID).Scan(&out.SubscribersCount); err != nil {
+		return out, fmt.Errorf("analytics: compteur d'abonnés: %w", err)
+	}
+	if err := s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "Subscriber" WHERE "publisherId" = $1 AND "isActive" = true AND "isPremium" = true`, publisherID).Scan(&out.PremiumSubscribersCount); err != nil {
+		return out, fmt.Errorf("analytics: compteur d'abonnés payants: %w", err)
+	}
+	if err := s.pool.QueryRow(ctx, `SELECT COALESCE(SUM("ltvCents")::int, 0) FROM "Subscriber" WHERE "publisherId" = $1 AND "isActive" = true`, publisherID).Scan(&out.MRRCents); err != nil {
+		return out, fmt.Errorf("analytics: volume abonnés: %w", err)
+	}
 
 	// Articles récents (4, par updatedAt desc) + brouillons (4).
+	//
+	// Chaque requête reçoit exactement les paramètres qu'elle référence : pgx
+	// rejette un argument en trop (une lecteur 30j de média était donc
+	// silencieusement nulle), et un paramètre manquant vaut NULL.
 	recentWhere := `a."publisherId" = $1`
-	recentArgs := []any{publisherID}
+	scopeOnlyArgs := []any{publisherID}
 	if !media {
 		// Le scope personnel inclut les articles co-signés : un contributeur
 		// doit retrouver sur son accueil ce qu'il a écrit avec d'autres, pas
@@ -1110,8 +1212,11 @@ func (s *Service) DashboardOverview(ctx context.Context, userID, publisherID, wo
 			SELECT 1 FROM "ArticleAttribution" aa
 			WHERE aa."articleId" = a.id AND aa."userId" = $2
 			  AND aa.role = 'CO_AUTHOR' AND aa."consentStatus" = 'ACCEPTED' AND aa."isVisible" = true))`
-		recentArgs = []any{publisherID, userUUID}
+		scopeOnlyArgs = []any{publisherID, userUUID}
 	}
+	// La projection des articles récents référence $2 dans les deux
+	// workspaces (relation co-auteur) : elle reçoit toujours deux paramètres.
+	recentArgs := []any{publisherID, userUUID}
 	rows, err := s.pool.Query(ctx, `SELECT a.id, a.title, a.published, a."updatedAt", c.name, a."imageUrl", a."readingTime",
 			a."authorId"::text AS author_id, au.name AS author_name, au.username AS author_username,
 			p.id AS publisher_id, p.name AS publisher_name, p.type::text AS publisher_type, p."logoUrl" AS publisher_logo_url,
@@ -1132,94 +1237,114 @@ func (s *Service) DashboardOverview(ctx context.Context, userID, publisherID, wo
 		LEFT JOIN "User" au ON au.id = a."authorId"
 		JOIN "Publisher" p ON p.id = a."publisherId"
 		WHERE `+recentWhere+`
-		ORDER BY a."updatedAt" DESC LIMIT 4`, publisherID, userUUID)
-	if err == nil {
-		for rows.Next() {
-			var a DashboardArticle
-			var cat, image, authorName, authorUsername, pubLogo pgtype.Text
-			var updated pgtype.Timestamp
-			var authorID, pubID, pubName, pubType, coAuthors string
-			var isCoauthor bool
-			if err := rows.Scan(&a.ID, &a.Title, &a.Published, &updated, &cat, &image, &a.ReadingTime,
-				&authorID, &authorName, &authorUsername, &pubID, &pubName, &pubType, &pubLogo,
-				&coAuthors, &isCoauthor); err != nil {
-				continue
-			}
-			a.UpdatedAt = updated.Time.Format(time.RFC3339)
-			a.Category = textPtr(cat)
-			if image.Valid && image.String != "" {
-				a.ImageURL = &image.String
-			}
-			a.AuthorID = &authorID
-			a.AuthorName = textPtr(authorName)
-			a.AuthorUsername = textPtr(authorUsername)
-			a.PublisherID = &pubID
-			a.PublisherName = &pubName
-			a.PublisherType = &pubType
-			a.PublisherLogoURL = textPtr(pubLogo)
-			if coAuthors != "" {
-				a.CoAuthors = strings.Split(coAuthors, ", ")
-			}
-			a.Relation = func() *string { r := dashboardArticleRelation(authorID, userID, pubType, isCoauthor); return &r }()
-			out.RecentArticles = append(out.RecentArticles, a)
+		ORDER BY a."updatedAt" DESC LIMIT 4`, recentArgs...)
+	if err != nil {
+		return out, fmt.Errorf("analytics: articles récents: %w", err)
+	}
+	for rows.Next() {
+		var a DashboardArticle
+		var cat, image, authorName, authorUsername, pubLogo pgtype.Text
+		var updated pgtype.Timestamp
+		var authorID, pubID, pubName, pubType, coAuthors string
+		var isCoauthor bool
+		if err := rows.Scan(&a.ID, &a.Title, &a.Published, &updated, &cat, &image, &a.ReadingTime,
+			&authorID, &authorName, &authorUsername, &pubID, &pubName, &pubType, &pubLogo,
+			&coAuthors, &isCoauthor); err != nil {
+			rows.Close()
+			return out, fmt.Errorf("analytics: scan article récent: %w", err)
 		}
-		rows.Close()
+		a.UpdatedAt = updated.Time.Format(time.RFC3339)
+		a.Category = textPtr(cat)
+		if image.Valid && image.String != "" {
+			a.ImageURL = &image.String
+		}
+		a.AuthorID = &authorID
+		a.AuthorName = textPtr(authorName)
+		a.AuthorUsername = textPtr(authorUsername)
+		a.PublisherID = &pubID
+		a.PublisherName = &pubName
+		a.PublisherType = &pubType
+		a.PublisherLogoURL = textPtr(pubLogo)
+		if coAuthors != "" {
+			a.CoAuthors = strings.Split(coAuthors, ", ")
+		}
+		a.Relation = func() *string { r := dashboardArticleRelation(authorID, userID, pubType, isCoauthor); return &r }()
+		out.RecentArticles = append(out.RecentArticles, a)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return out, fmt.Errorf("analytics: articles récents: %w", err)
 	}
 	// Articles programmés : le créateur doit voir ce qui va partir tout seul,
 	// avec la date exacte (le worker publie à échéance).
 	rows, err = s.pool.Query(ctx, `SELECT a.id, a.title, a."scheduledAt", a."imageUrl"
 		FROM "Article" a
 		WHERE `+recentWhere+` AND a.status = 'SCHEDULED' AND a."scheduledAt" IS NOT NULL
-		ORDER BY a."scheduledAt" ASC LIMIT 5`, recentArgs...)
-	if err == nil {
-		for rows.Next() {
-			var a DashboardScheduledArticle
-			var scheduled pgtype.Timestamp
-			var image pgtype.Text
-			if err := rows.Scan(&a.ID, &a.Title, &scheduled, &image); err != nil {
-				continue
-			}
-			a.ScheduledAt = scheduled.Time.Format(time.RFC3339)
-			if image.Valid && image.String != "" {
-				a.ImageURL = &image.String
-			}
-			out.ScheduledArticles = append(out.ScheduledArticles, a)
+		ORDER BY a."scheduledAt" ASC LIMIT 5`, scopeOnlyArgs...)
+	if err != nil {
+		return out, fmt.Errorf("analytics: articles programmés: %w", err)
+	}
+	for rows.Next() {
+		var a DashboardScheduledArticle
+		var scheduled pgtype.Timestamp
+		var image pgtype.Text
+		if err := rows.Scan(&a.ID, &a.Title, &scheduled, &image); err != nil {
+			rows.Close()
+			return out, fmt.Errorf("analytics: scan article programmé: %w", err)
 		}
-		rows.Close()
+		a.ScheduledAt = scheduled.Time.Format(time.RFC3339)
+		if image.Valid && image.String != "" {
+			a.ImageURL = &image.String
+		}
+		out.ScheduledArticles = append(out.ScheduledArticles, a)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return out, fmt.Errorf("analytics: articles programmés: %w", err)
 	}
 
 	rows, err = s.pool.Query(ctx, `SELECT a.id, a.title, a.published, a."updatedAt"
 		FROM "Article" a
-		WHERE `+recentWhere+` AND a.published = false
-		ORDER BY a."updatedAt" DESC LIMIT 4`, recentArgs...)
-	if err == nil {
-		for rows.Next() {
-			var a DashboardArticle
-			var updated pgtype.Timestamp
-			if err := rows.Scan(&a.ID, &a.Title, &a.Published, &updated); err != nil {
-				continue
-			}
-			a.UpdatedAt = updated.Time.Format(time.RFC3339)
-			out.DraftArticles = append(out.DraftArticles, a)
+		WHERE `+recentWhere+` AND a.published = false AND a.status <> 'SCHEDULED'
+		ORDER BY a."updatedAt" DESC LIMIT 4`, scopeOnlyArgs...)
+	if err != nil {
+		return out, fmt.Errorf("analytics: brouillons: %w", err)
+	}
+	for rows.Next() {
+		var a DashboardArticle
+		var updated pgtype.Timestamp
+		if err := rows.Scan(&a.ID, &a.Title, &a.Published, &updated); err != nil {
+			rows.Close()
+			return out, fmt.Errorf("analytics: scan brouillon: %w", err)
 		}
-		rows.Close()
+		a.UpdatedAt = updated.Time.Format(time.RFC3339)
+		out.DraftArticles = append(out.DraftArticles, a)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return out, fmt.Errorf("analytics: brouillons: %w", err)
 	}
 
 	// Pensées programmées (Post.scheduledAt non nul, 4, par date asc).
 	rows, err = s.pool.Query(ctx, `SELECT t.id, t.content, t."scheduledAt" FROM "Post" t
 		WHERE t."authorId" = $1 AND t."scheduledAt" IS NOT NULL AND t."deletedAt" IS NULL
 		ORDER BY t."scheduledAt" ASC LIMIT 4`, userUUID)
-	if err == nil {
-		for rows.Next() {
-			var th DashboardThought
-			var sched pgtype.Timestamp
-			if err := rows.Scan(&th.ID, &th.Content, &sched); err != nil {
-				continue
-			}
-			th.ScheduledAt = sched.Time.Format(time.RFC3339)
-			out.ScheduledThoughts = append(out.ScheduledThoughts, th)
+	if err != nil {
+		return out, fmt.Errorf("analytics: pensées programmées: %w", err)
+	}
+	for rows.Next() {
+		var th DashboardThought
+		var sched pgtype.Timestamp
+		if err := rows.Scan(&th.ID, &th.Content, &sched); err != nil {
+			rows.Close()
+			return out, fmt.Errorf("analytics: scan pensée programmée: %w", err)
 		}
-		rows.Close()
+		th.ScheduledAt = sched.Time.Format(time.RFC3339)
+		out.ScheduledThoughts = append(out.ScheduledThoughts, th)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return out, fmt.Errorf("analytics: pensées programmées: %w", err)
 	}
 
 	// Dernier écrit publié (avec catégorie + compteurs réactions lecteurs).
@@ -1232,8 +1357,11 @@ func (s *Service) DashboardOverview(ctx context.Context, userID, publisherID, wo
 			(SELECT COUNT(*)::int FROM "Letter" l WHERE l."articleId" = a.id)
 		FROM "Article" a LEFT JOIN "Category" c ON c.id = a."categoryId"
 		WHERE `+recentWhere+` AND a.published = true
-		ORDER BY a."createdAt" DESC LIMIT 1`, recentArgs...).Scan(
+		ORDER BY a."createdAt" DESC LIMIT 1`, scopeOnlyArgs...).Scan(
 		&latest.ID, &latest.Title, &latest.ReadingTime, &cat, &bookmarks, &highlights, &letters)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return out, fmt.Errorf("analytics: dernier article publié: %w", err)
+	}
 	if err == nil {
 		latest.Category = textPtr(cat)
 		latest.Count = DashboardCount{Bookmarks: bookmarks, Highlights: highlights, Letters: letters}
@@ -1242,13 +1370,20 @@ func (s *Service) DashboardOverview(ctx context.Context, userID, publisherID, wo
 
 	// Lectures 30j (vues + lecteurs uniques) sur les articles attribués.
 	articleScope := articleScopeSQL(media)
-	scopeArgs := []any{publisherID, userUUID}
-	_ = s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "ReadingSession" rs
+	scopeArgs := []any{publisherID}
+	if !media {
+		scopeArgs = []any{publisherID, userUUID}
+	}
+	if err := s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "ReadingSession" rs
 		JOIN "Article" a ON a.id = rs."articleId"
-		WHERE rs."createdAt" >= now() - interval '30 days' AND `+articleScope, scopeArgs...).Scan(&out.Pageviews30d)
-	_ = s.pool.QueryRow(ctx, `SELECT COUNT(DISTINCT COALESCE(rs."userId"::text, rs."anonHash"))::int FROM "ReadingSession" rs
+		WHERE rs."createdAt" >= now() - interval '30 days' AND `+articleScope, scopeArgs...).Scan(&out.Pageviews30d); err != nil {
+		return out, fmt.Errorf("analytics: pages vues 30 jours: %w", err)
+	}
+	if err := s.pool.QueryRow(ctx, `SELECT COUNT(DISTINCT COALESCE(rs."userId"::text, rs."anonHash"))::int FROM "ReadingSession" rs
 		JOIN "Article" a ON a.id = rs."articleId"
-		WHERE rs."createdAt" >= now() - interval '30 days' AND (rs."userId" IS NOT NULL OR rs."anonHash" IS NOT NULL) AND `+articleScope, scopeArgs...).Scan(&out.Visitors30d)
+		WHERE rs."createdAt" >= now() - interval '30 days' AND (rs."userId" IS NOT NULL OR rs."anonHash" IS NOT NULL) AND `+articleScope, scopeArgs...).Scan(&out.Visitors30d); err != nil {
+		return out, fmt.Errorf("analytics: visiteurs 30 jours: %w", err)
+	}
 
 	return out, nil
 }
@@ -1258,17 +1393,24 @@ func (s *Service) DashboardOverview(ctx context.Context, userID, publisherID, wo
 // publication + co-signés (attribution ACCEPTED visible), compteurs
 // bookmarks/comments/highlights/annotations, catégories et qualité de lecture.
 func (s *Service) ProductMetrics(ctx context.Context, userID, publisherID string) (ProductMetrics, error) {
-	if !s.canAccess(ctx, userID, publisherID) {
-		return ProductMetrics{}, errForbidden
+	if err := s.requireAccess(ctx, userID, publisherID); err != nil {
+		return ProductMetrics{}, err
+	}
+	if s.pool == nil {
+		return ProductMetrics{}, fmt.Errorf("pool non configuré")
 	}
 
 	// Abonnés total + delta 7j.
 	var subTotal, subDelta int
-	_ = s.pool.QueryRow(ctx,
-		`SELECT COUNT(*)::int FROM "Subscriber" WHERE "publisherId" = $1`, publisherID).Scan(&subTotal)
-	_ = s.pool.QueryRow(ctx,
+	if err := s.pool.QueryRow(ctx,
+		`SELECT COUNT(*)::int FROM "Subscriber" WHERE "publisherId" = $1`, publisherID).Scan(&subTotal); err != nil {
+		return ProductMetrics{}, fmt.Errorf("analytics: abonnés: %w", err)
+	}
+	if err := s.pool.QueryRow(ctx,
 		`SELECT COUNT(*)::int FROM "Subscriber"
-		 WHERE "publisherId" = $1 AND "createdAt" >= now() - interval '7 days'`, publisherID).Scan(&subDelta)
+		 WHERE "publisherId" = $1 AND "createdAt" >= now() - interval '7 days'`, publisherID).Scan(&subDelta); err != nil {
+		return ProductMetrics{}, fmt.Errorf("analytics: nouveaux abonnés: %w", err)
+	}
 
 	// Articles de la publication OU co-signés (attribution ACCEPTED visible).
 	rows, err := s.pool.Query(ctx, `
@@ -1306,7 +1448,7 @@ func (s *Service) ProductMetrics(ctx context.Context, userID, publisherID string
 		if err := rows.Scan(&a.ID, &a.Slug, &a.Title, &a.CompletionRate, &a.PublishedAt,
 			&cat, &a.Bookmarks, &a.Comments, &a.Highlights, &a.HighlightsPublic, &a.Annotations,
 			&a.Likes, &a.Reposts); err != nil {
-			continue
+			return ProductMetrics{}, fmt.Errorf("analytics: scan article produit: %w", err)
 		}
 		a.HighlightsPrivate = a.Highlights - a.HighlightsPublic
 		a.Interactions = a.Likes + a.Bookmarks + a.Comments + a.Highlights + a.Annotations + a.Reposts
@@ -1315,6 +1457,10 @@ func (s *Service) ProductMetrics(ctx context.Context, userID, publisherID string
 			categoryCounts[cat.String]++
 		}
 		articles = append(articles, a)
+	}
+
+	if err := rows.Err(); err != nil {
+		return ProductMetrics{}, fmt.Errorf("analytics: articles produit: %w", err)
 	}
 
 	totArticles := len(articles)

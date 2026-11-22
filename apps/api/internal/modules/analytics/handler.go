@@ -2,6 +2,7 @@ package analytics
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -39,6 +40,18 @@ func (h *Handler) Register(r chi.Router) {
 	})
 }
 
+// writeServiceError traduit une erreur du service : refus d'accès → 403,
+// panne → 500 journalisée. Une panne de base n'est jamais déguisée en refus
+// (403) ni en données vides.
+func (h *Handler) writeServiceError(w http.ResponseWriter, scope string, err error) {
+	if errors.Is(err, errForbidden) {
+		response.Forbidden(w, "Permission insuffisante")
+		return
+	}
+	log.Printf("[analytics] %s: %v", scope, err)
+	response.Internal(w)
+}
+
 func publisherID(r *http.Request) string {
 	if id := r.URL.Query().Get("publisherId"); id != "" {
 		return id
@@ -56,12 +69,7 @@ func (h *Handler) financial(w http.ResponseWriter, r *http.Request) {
 	}
 	metrics, err := h.svc.Financial(r.Context(), userID, pub)
 	if err != nil {
-		if errors.Is(err, errForbidden) {
-			response.Forbidden(w, "Permission insuffisante")
-			return
-		}
-		log.Printf("[analytics] financial: %v", err)
-		response.Internal(w)
+		h.writeServiceError(w, "financial", err)
 		return
 	}
 	response.OK(w, metrics)
@@ -74,15 +82,18 @@ func (h *Handler) topContent(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "publisherId requis")
 		return
 	}
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	items, err := h.svc.TopContent(r.Context(), userID, pub, limit)
-	if err != nil {
-		if errors.Is(err, errForbidden) {
-			response.Forbidden(w, "Permission insuffisante")
+	limit := 0
+	if v := r.URL.Query().Get("limit"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 0 {
+			response.BadRequest(w, "limit invalide (entier positif attendu)")
 			return
 		}
-		log.Printf("[analytics] top-content: %v", err)
-		response.Internal(w)
+		limit = n
+	}
+	items, err := h.svc.TopContent(r.Context(), userID, pub, limit)
+	if err != nil {
+		h.writeServiceError(w, "top-content", err)
 		return
 	}
 	response.OK(w, items)
@@ -97,12 +108,7 @@ func (h *Handler) audience(w http.ResponseWriter, r *http.Request) {
 	}
 	summary, err := h.svc.Audience(r.Context(), userID, pub)
 	if err != nil {
-		if errors.Is(err, errForbidden) {
-			response.Forbidden(w, "Permission insuffisante")
-			return
-		}
-		log.Printf("[analytics] audience: %v", err)
-		response.Internal(w)
+		h.writeServiceError(w, "audience", err)
 		return
 	}
 	response.OK(w, summary)
@@ -119,18 +125,18 @@ func (h *Handler) audienceSubscribers(w http.ResponseWriter, r *http.Request) {
 	}
 	subs, err := h.svc.ListSubscribers(r.Context(), userID, pub)
 	if err != nil {
-		if errors.Is(err, errForbidden) {
-			response.Forbidden(w, "Permission insuffisante")
-			return
-		}
-		log.Printf("[analytics] audience/subscribers: %v", err)
-		response.Internal(w)
+		h.writeServiceError(w, "audience/subscribers", err)
 		return
 	}
 	response.OK(w, map[string]any{"subscribers": subs})
 }
 
 // umamiReturning expose visiteurs nouveaux vs récurrents (DB Umami).
+//
+// Trois issues distinctes : site non provisionné → forme du contrat à zéro
+// (le client lit `returningVisitors` sans garde), base Umami non configurée →
+// 503, panne → 500. Servir des zéros dans les deux derniers cas faisait
+// passer une indisponibilité pour une absence de trafic.
 func (h *Handler) umamiReturning(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	pub := publisherID(r)
@@ -138,21 +144,28 @@ func (h *Handler) umamiReturning(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "publisherId requis")
 		return
 	}
-	websiteID, err := h.svc.publicationWebsiteID(r.Context(), userID, pub)
+	// La borne se valide avant la résolution du site : une requête illisible
+	// reste une faute de l'appelant, même sans Umami provisionné.
+	startAt, endAt, err := parsePeriod(r)
 	if err != nil {
-		if errors.Is(err, errForbidden) {
-			response.Forbidden(w, "Permission insuffisante")
-			return
-		}
-		// Publication sans Umami provisionné : on renvoie la FORME du contrat
-		// avec des zéros. Un objet vide faisait planter le client, qui lit
-		// `returningVisitors` sans garde (page analytics en erreur).
-		response.OK(w, ReturningVisitors{})
+		response.BadRequest(w, err.Error())
 		return
 	}
-	startAt, endAt := parsePeriod(r)
+	websiteID, err := h.svc.publicationWebsiteID(r.Context(), userID, pub)
+	if err != nil {
+		if errors.Is(err, errNoUmamiSite) {
+			response.OK(w, ReturningVisitors{})
+			return
+		}
+		h.writeServiceError(w, "umami/returning", err)
+		return
+	}
 	out, err := h.svc.ReturningVisitors(r.Context(), websiteID, startAt, endAt)
 	if err != nil {
+		if errors.Is(err, errUmamiUnavailable) {
+			response.Error(w, http.StatusServiceUnavailable, "Statistiques Umami indisponibles")
+			return
+		}
 		log.Printf("[analytics] umami/returning: %v", err)
 		response.Internal(w)
 		return
@@ -168,20 +181,28 @@ func (h *Handler) umamiHours(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "publisherId requis")
 		return
 	}
-	websiteID, err := h.svc.publicationWebsiteID(r.Context(), userID, pub)
+	startAt, endAt, err := parsePeriod(r)
 	if err != nil {
-		if errors.Is(err, errForbidden) {
-			response.Forbidden(w, "Permission insuffisante")
-			return
-		}
-		// Même logique : tableau vide, jamais un objet, pour que le client
-		// itère sans se demander si la donnée existe.
-		response.OK(w, []HourVisit{})
+		response.BadRequest(w, err.Error())
 		return
 	}
-	startAt, endAt := parsePeriod(r)
+	websiteID, err := h.svc.publicationWebsiteID(r.Context(), userID, pub)
+	if err != nil {
+		if errors.Is(err, errNoUmamiSite) {
+			// Tableau vide, jamais un objet, pour que le client itère sans se
+			// demander si la donnée existe.
+			response.OK(w, []HourVisit{})
+			return
+		}
+		h.writeServiceError(w, "umami/hours", err)
+		return
+	}
 	out, err := h.svc.VisitsByHour(r.Context(), websiteID, startAt, endAt)
 	if err != nil {
+		if errors.Is(err, errUmamiUnavailable) {
+			response.Error(w, http.StatusServiceUnavailable, "Statistiques Umami indisponibles")
+			return
+		}
 		log.Printf("[analytics] umami/hours: %v", err)
 		response.Internal(w)
 		return
@@ -200,15 +221,14 @@ func (h *Handler) readingSessions(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "articleId requis")
 		return
 	}
-	since := parseSince(r)
+	since, err := parseSince(r)
+	if err != nil {
+		response.BadRequest(w, err.Error())
+		return
+	}
 	out, err := h.svc.GetArticleReadingStats(r.Context(), userID, articleID, since)
 	if err != nil {
-		if errors.Is(err, errForbidden) {
-			response.Forbidden(w, "Permission insuffisante")
-			return
-		}
-		log.Printf("[analytics] reading-sessions: %v", err)
-		response.Internal(w)
+		h.writeServiceError(w, "reading-sessions", err)
 		return
 	}
 	response.OK(w, out)
@@ -223,19 +243,18 @@ func (h *Handler) creatorAnalytics(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "publisherId requis")
 		return
 	}
-	if !h.svc.canAccess(r.Context(), userID, pub) {
-		response.Forbidden(w, "Permission insuffisante")
+	if err := h.svc.requireAccess(r.Context(), userID, pub); err != nil {
+		h.writeServiceError(w, "creator", err)
 		return
 	}
-	since := parseSince(r)
+	since, err := parseSince(r)
+	if err != nil {
+		response.BadRequest(w, err.Error())
+		return
+	}
 	out, err := h.svc.GetCreatorReadingStats(r.Context(), userID, pub, since)
 	if err != nil {
-		if errors.Is(err, errForbidden) {
-			response.Forbidden(w, "Permission insuffisante")
-			return
-		}
-		log.Printf("[analytics] creator: %v", err)
-		response.Internal(w)
+		h.writeServiceError(w, "creator", err)
 		return
 	}
 	response.OK(w, out)
@@ -250,15 +269,18 @@ func (h *Handler) provenance(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "publisherId requis")
 		return
 	}
-	if !h.svc.canAccess(r.Context(), userID, pub) {
-		response.Forbidden(w, "Permission insuffisante")
+	if err := h.svc.requireAccess(r.Context(), userID, pub); err != nil {
+		h.writeServiceError(w, "provenance", err)
 		return
 	}
-	since := parseSince(r)
+	since, err := parseSince(r)
+	if err != nil {
+		response.BadRequest(w, err.Error())
+		return
+	}
 	out, err := h.svc.GetProvenance(r.Context(), userID, pub, since)
 	if err != nil {
-		log.Printf("[analytics] provenance: %v", err)
-		response.Internal(w)
+		h.writeServiceError(w, "provenance", err)
 		return
 	}
 	response.OK(w, out)
@@ -275,72 +297,69 @@ func (h *Handler) audienceInsights(w http.ResponseWriter, r *http.Request) {
 	}
 	out, err := h.svc.GetAudienceInsights(r.Context(), userID, pub)
 	if err != nil {
-		if errors.Is(err, errForbidden) {
-			response.Forbidden(w, "Permission insuffisante")
-			return
-		}
-		log.Printf("[analytics] audience/insights: %v", err)
-		response.Internal(w)
+		h.writeServiceError(w, "audience/insights", err)
 		return
 	}
 	response.OK(w, out)
 }
 
-// parseSince convertit ?period= (24h|7d|30d|90d|all) ou ?startAt= en *time.Time (nil = all).
-func parseSince(r *http.Request) *time.Time {
+// parseSince convertit ?period= (24h|7d|30d|90d|all) ou ?startAt= en *time.Time
+// (nil = tout l'historique). Une période ou une borne illisible est une faute
+// de l'appelant : elle ne devient pas silencieusement « 30 derniers jours ».
+func parseSince(r *http.Request) (*time.Time, error) {
 	q := r.URL.Query()
 	if v := q.Get("startAt"); v != "" {
-		if ms, err := strconv.ParseInt(v, 10, 64); err == nil && ms > 0 {
-			t := time.UnixMilli(ms)
-			return &t
+		ms, err := strconv.ParseInt(v, 10, 64)
+		if err != nil || ms <= 0 {
+			return nil, errors.New("startAt invalide (epoch ms attendu)")
 		}
+		t := time.UnixMilli(ms)
+		return &t, nil
 	}
-	switch q.Get("period") {
+	switch period := q.Get("period"); period {
+	case "", "30d":
+		t := time.Now().Add(-30 * 24 * time.Hour)
+		return &t, nil
 	case "24h":
 		t := time.Now().Add(-24 * time.Hour)
-		return &t
+		return &t, nil
 	case "7d":
 		t := time.Now().Add(-7 * 24 * time.Hour)
-		return &t
+		return &t, nil
 	case "90d":
 		t := time.Now().Add(-90 * 24 * time.Hour)
-		return &t
+		return &t, nil
 	case "all":
-		return nil
-	case "30d", "":
-		// défaut 30d — si period absent mais query contient startAt, déjà géré
-		if q.Get("period") == "" && q.Get("startAt") == "" {
-			// pour /creator sans param, 30j par défaut
-			t := time.Now().Add(-30 * 24 * time.Hour)
-			return &t
-		}
-		if q.Get("period") == "30d" {
-			t := time.Now().Add(-30 * 24 * time.Hour)
-			return &t
-		}
-		// period vide + startAt vide -> 30d
-		if q.Get("period") == "" {
-			t := time.Now().Add(-30 * 24 * time.Hour)
-			return &t
-		}
-		return nil
+		return nil, nil
 	default:
-		t := time.Now().Add(-30 * 24 * time.Hour)
-		return &t
+		return nil, fmt.Errorf("period invalide: %q", period)
 	}
 }
 
-// parsePeriod lit startAt/endAt (epoch ms) avec défaut 30 jours.
-func parsePeriod(r *http.Request) (int64, int64) {
+// parsePeriod lit startAt/endAt (epoch ms) avec défaut 30 jours, en refusant
+// les bornes illisibles ou inversées.
+func parsePeriod(r *http.Request) (int64, int64, error) {
+	q := r.URL.Query()
 	endAt := time.Now().UnixMilli()
 	startAt := endAt - 30*24*60*60*1000
-	if v, err := strconv.ParseInt(r.URL.Query().Get("startAt"), 10, 64); err == nil && v > 0 {
-		startAt = v
+	if v := q.Get("startAt"); v != "" {
+		ms, err := strconv.ParseInt(v, 10, 64)
+		if err != nil || ms <= 0 {
+			return 0, 0, errors.New("startAt invalide (epoch ms attendu)")
+		}
+		startAt = ms
 	}
-	if v, err := strconv.ParseInt(r.URL.Query().Get("endAt"), 10, 64); err == nil && v > startAt {
-		endAt = v
+	if v := q.Get("endAt"); v != "" {
+		ms, err := strconv.ParseInt(v, 10, 64)
+		if err != nil || ms <= 0 {
+			return 0, 0, errors.New("endAt invalide (epoch ms attendu)")
+		}
+		if ms < startAt {
+			return 0, 0, errors.New("endAt doit être postérieur à startAt")
+		}
+		endAt = ms
 	}
-	return startAt, endAt
+	return startAt, endAt, nil
 }
 
 // GET /v1/analytics/product-metrics — métriques produit de la page analytics
@@ -355,12 +374,7 @@ func (h *Handler) productMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 	out, err := h.svc.ProductMetrics(r.Context(), userID, pub)
 	if err != nil {
-		if errors.Is(err, errForbidden) {
-			response.Forbidden(w, "Permission insuffisante")
-			return
-		}
-		log.Printf("[analytics] product-metrics: %v", err)
-		response.Internal(w)
+		h.writeServiceError(w, "product-metrics", err)
 		return
 	}
 	response.OK(w, out)
@@ -380,14 +394,13 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 	if workspaceType == "" {
 		workspaceType = "PERSONAL"
 	}
+	if workspaceType != "PERSONAL" && workspaceType != "MEDIA" {
+		response.BadRequest(w, "workspaceType doit être PERSONAL ou MEDIA")
+		return
+	}
 	out, err := h.svc.DashboardOverview(r.Context(), userID, pub, workspaceType)
 	if err != nil {
-		if errors.Is(err, errForbidden) {
-			response.Forbidden(w, "Permission insuffisante")
-			return
-		}
-		log.Printf("[analytics] dashboard: %v", err)
-		response.Internal(w)
+		h.writeServiceError(w, "dashboard", err)
 		return
 	}
 	response.OK(w, out)

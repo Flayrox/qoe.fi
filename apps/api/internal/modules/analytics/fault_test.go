@@ -168,10 +168,11 @@ func TestFault_Financial_QueryErrors(t *testing.T) {
 		}
 	}
 
-	// canAccess en erreur → errForbidden.
+	// Une panne de la matrice d'accès remonte telle quelle : la rendre en
+	// errForbidden (403) ferait passer une base indisponible pour un refus.
 	svc := &Service{pool: poolTest, q: &faultQ{Queries: db.New(poolTest), fail: map[string]error{"GetUserPersonalPublisher": errBoom}}}
-	if _, err := svc.Financial(ctx, analyticsOwner, analyticsPub); !errors.Is(err, errForbidden) {
-		t.Fatalf("canAccess erreur = %v, attendu errForbidden", err)
+	if _, err := svc.Financial(ctx, analyticsOwner, analyticsPub); err == nil || errors.Is(err, errForbidden) {
+		t.Fatalf("canAccess erreur = %v, attendu une panne (ni nil ni errForbidden)", err)
 	}
 }
 

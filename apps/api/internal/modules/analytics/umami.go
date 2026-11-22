@@ -9,10 +9,20 @@ package analytics
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// errNoUmamiSite : la publication n'a pas de site Umami provisionné. C'est un
+// état normal (dégradation en zéros), pas une panne.
+var errNoUmamiSite = errors.New("aucun site Umami provisionné")
+
+// errUmamiUnavailable : le site existe mais la base Umami n'est pas configurée
+// (UMAMI_DATABASE_URL absente ou DSN invalide). Répondre des zéros ferait
+// passer une indisponibilité pour une absence de trafic.
+var errUmamiUnavailable = errors.New("base Umami non configurée")
 
 // ReturningVisitors répartit les visiteurs uniques d'une période en
 // nouveaux / récurrents.
@@ -34,7 +44,7 @@ type HourVisit struct {
 func (s *Service) ReturningVisitors(ctx context.Context, websiteID string, startAt, endAt int64) (ReturningVisitors, error) {
 	var out ReturningVisitors
 	if s.umami == nil {
-		return out, nil
+		return out, errUmamiUnavailable
 	}
 
 	const q = `
@@ -72,7 +82,7 @@ SELECT
 // (0-23). Les heures vides sont incluses pour faciliter le rendu.
 func (s *Service) VisitsByHour(ctx context.Context, websiteID string, startAt, endAt int64) ([]HourVisit, error) {
 	if s.umami == nil {
-		return []HourVisit{}, nil
+		return []HourVisit{}, errUmamiUnavailable
 	}
 
 	const q = `
