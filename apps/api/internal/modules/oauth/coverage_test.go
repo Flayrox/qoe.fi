@@ -202,10 +202,15 @@ func TestServicePureBranches(t *testing.T) {
 	// Purge best-effort (ne doit pas paniquer).
 	svc.Purge(ctx)
 
-	// DenyAuthorization : résultat refusé.
-	res := svc.DenyAuthorization(&AuthorizeRequest{ClientID: "c", RedirectURI: "https://x/cb"})
-	if res == nil || res.OK || res.Error == "" || res.Redirect == "" {
+	// DenyAuthorization : résultat refusé. Aucune redirection ici : le client
+	// « c » n'existe pas, donc la redirect_uri n'est pas validée (une URL
+	// d'erreur non validée serait une redirection ouverte).
+	res := svc.DenyAuthorization(ctx, &AuthorizeRequest{ClientID: "c", RedirectURI: "https://x/cb"})
+	if res == nil || res.OK || res.Error == "" {
 		t.Fatalf("DenyAuthorization = %+v", res)
+	}
+	if res.Redirect != "" {
+		t.Fatalf("DenyAuthorization a redirigé vers une URI non validée : %s", res.Redirect)
 	}
 
 	// coversScopes.

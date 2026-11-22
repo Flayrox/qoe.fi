@@ -68,8 +68,13 @@ func (s *Service) checkSuperadmin(ctx context.Context, userID string) error {
 	var role string
 	err := s.pool.QueryRow(ctx,
 		`SELECT role FROM "User" WHERE id = $1`, userID).Scan(&role)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return errForbidden
+	}
+	if err != nil {
+		// Panne de lecture : pas un refus d'autorisation (le handler répond 500
+		// et journalise, au lieu de faire passer une panne pour un 403).
+		return fmt.Errorf("vérification du rôle %s: %w", userID, err)
 	}
 	if role != "superadmin" {
 		return errForbidden
@@ -891,22 +896,43 @@ func (s *Service) SimulateSubscriber(ctx context.Context, userID string, p Simul
 	}
 
 	if p.IsPremium && p.LtvCents > 0 {
-		// Transaction de portefeuille pour l'utilisateur lié à cet email (s'il existe).
-		var userIDByEmail string
-		err := s.pool.QueryRow(ctx,
-			`SELECT id FROM "User" WHERE email = $1 LIMIT 1`, email).Scan(&userIDByEmail)
-		if err == nil {
-			if _, err := s.pool.Exec(ctx, `
+		if err := s.transferSubscriptionPayment(ctx, email, p.PublisherID, p.LtvCents); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// transferSubscriptionPayment débite le lecteur, crédite le propriétaire de la
+// publication et écrit les deux mouvements dans UNE transaction : le débit
+// manquait (un mouvement -N était écrit sans toucher au solde), et une erreur
+// à mi-chemin laissait un demi-paiement.
+func (s *Service) transferSubscriptionPayment(ctx context.Context, email, publisherID string, cents int) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		var readerID string
+		err := tx.QueryRow(ctx, `SELECT id FROM "User" WHERE email = $1 LIMIT 1`, email).Scan(&readerID)
+		switch {
+		case err == nil:
+			if _, err := tx.Exec(ctx,
+				`UPDATE "User" SET "walletBalanceCents" = "walletBalanceCents" - $2, "updatedAt" = now() WHERE id = $1`,
+				readerID, cents); err != nil {
+				return fmt.Errorf("wallet balance (reader): %w", err)
+			}
+			if _, err := tx.Exec(ctx, `
 				INSERT INTO "WalletTransaction" (id, "userId", "amountCents", type, "createdAt")
 				VALUES (gen_random_uuid()::text, $1, $2, 'SUBSCRIPTION_PAYMENT', now())`,
-				userIDByEmail, -p.LtvCents); err != nil {
+				readerID, -cents); err != nil {
 				return fmt.Errorf("wallet tx (reader): %w", err)
 			}
+		case errors.Is(err, pgx.ErrNoRows):
+			// Pas de compte lié à cet email : rien à débiter.
+		default:
+			return fmt.Errorf("lecteur par email: %w", err)
 		}
 
-		// Propriétaire de la publication (user direct ou owner du média).
-		var ownerID *string
-		err = s.pool.QueryRow(ctx, `
+		// Propriétaire de la publication (compte direct ou owner du média).
+		var ownerID string
+		err = tx.QueryRow(ctx, `
 			SELECT u.id FROM "Publisher" p
 			JOIN "User" u ON u."publisherId" = p.id
 			WHERE p.id = $1
@@ -915,22 +941,26 @@ func (s *Service) SimulateSubscriber(ctx context.Context, userID string, p Simul
 			JOIN "Media" m ON m."publisherId" = p.id
 			JOIN "MediaMember" mm ON mm."mediaId" = m.id AND mm.role = 'owner' AND mm.status = 'active'
 			WHERE p.id = $1
-			LIMIT 1`, p.PublisherID).Scan(&ownerID)
-		if err == nil && ownerID != nil {
-			if _, err := s.pool.Exec(ctx,
-				`UPDATE "User" SET "walletBalanceCents" = "walletBalanceCents" + $2, "updatedAt" = now() WHERE id = $1`,
-				*ownerID, p.LtvCents); err != nil {
-				return fmt.Errorf("wallet balance (owner): %w", err)
-			}
-			if _, err := s.pool.Exec(ctx, `
-				INSERT INTO "WalletTransaction" (id, "userId", "amountCents", type, "createdAt")
-				VALUES (gen_random_uuid()::text, $1, $2, 'DEPOSIT', now())`,
-				*ownerID, p.LtvCents); err != nil {
-				return fmt.Errorf("wallet tx (owner): %w", err)
-			}
+			LIMIT 1`, publisherID).Scan(&ownerID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
 		}
-	}
-	return nil
+		if err != nil {
+			return fmt.Errorf("propriétaire de %s: %w", publisherID, err)
+		}
+		if _, err := tx.Exec(ctx,
+			`UPDATE "User" SET "walletBalanceCents" = "walletBalanceCents" + $2, "updatedAt" = now() WHERE id = $1`,
+			ownerID, cents); err != nil {
+			return fmt.Errorf("wallet balance (owner): %w", err)
+		}
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO "WalletTransaction" (id, "userId", "amountCents", type, "createdAt")
+			VALUES (gen_random_uuid()::text, $1, $2, 'DEPOSIT', now())`,
+			ownerID, cents); err != nil {
+			return fmt.Errorf("wallet tx (owner): %w", err)
+		}
+		return nil
+	})
 }
 
 // SimulateFollow crée une liaison lecteur → publication (idempotent).
@@ -960,30 +990,45 @@ func (s *Service) SimulateLike(ctx context.Context, userID, postID, likerID stri
 		return false, errors.New("postId et userId requis")
 	}
 
-	var existingID string
-	err := s.pool.QueryRow(ctx,
-		`SELECT id FROM "Like" WHERE "postId" = $1 AND "userId" = $2 LIMIT 1`,
-		postID, likerID).Scan(&existingID)
-	if err == nil {
-		if _, err := s.pool.Exec(ctx, `DELETE FROM "Like" WHERE id = $1`, existingID); err != nil {
-			return false, fmt.Errorf("like delete: %w", err)
+	// Like + compteur dans une transaction : le compteur était mis à jour par
+	// un Exec dont l'erreur était ignorée, donc le badge pouvait mentir.
+	liked := false
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		var existingID string
+		err := tx.QueryRow(ctx,
+			`SELECT id FROM "Like" WHERE "postId" = $1 AND "userId" = $2 LIMIT 1`,
+			postID, likerID).Scan(&existingID)
+		if err == nil {
+			if _, err := tx.Exec(ctx, `DELETE FROM "Like" WHERE id = $1`, existingID); err != nil {
+				return fmt.Errorf("like delete: %w", err)
+			}
+			if _, err := tx.Exec(ctx,
+				`UPDATE "Post" SET "likeCount" = GREATEST("likeCount" - 1, 0) WHERE id = $1`, postID); err != nil {
+				return fmt.Errorf("like count: %w", err)
+			}
+			liked = false
+			return nil
 		}
-		_, _ = s.pool.Exec(ctx,
-			`UPDATE "Post" SET "likeCount" = GREATEST("likeCount" - 1, 0) WHERE id = $1`, postID)
-		return false, nil
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("like lookup: %w", err)
+		}
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO "Like" (id, "postId", "userId", "createdAt")
+			VALUES (gen_random_uuid()::text, $1, $2, now())`,
+			postID, likerID); err != nil {
+			return fmt.Errorf("like insert: %w", err)
+		}
+		if _, err := tx.Exec(ctx,
+			`UPDATE "Post" SET "likeCount" = "likeCount" + 1 WHERE id = $1`, postID); err != nil {
+			return fmt.Errorf("like count: %w", err)
+		}
+		liked = true
+		return nil
+	})
+	if err != nil {
+		return false, err
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
-		return false, fmt.Errorf("like lookup: %w", err)
-	}
-	if _, err := s.pool.Exec(ctx, `
-		INSERT INTO "Like" (id, "postId", "userId", "createdAt")
-		VALUES (gen_random_uuid()::text, $1, $2, now())`,
-		postID, likerID); err != nil {
-		return false, fmt.Errorf("like insert: %w", err)
-	}
-	_, _ = s.pool.Exec(ctx,
-		`UPDATE "Post" SET "likeCount" = "likeCount" + 1 WHERE id = $1`, postID)
-	return true, nil
+	return liked, nil
 }
 
 // AddFunds ajuste le portefeuille d'un utilisateur et journalise une transaction.

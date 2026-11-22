@@ -131,7 +131,7 @@ func (h *Handler) decideAuthorize(w http.ResponseWriter, r *http.Request) {
 	}
 	var result *AuthorizeResult
 	if strings.EqualFold(in.Decision, "deny") {
-		result = h.svc.DenyAuthorization(&in.AuthorizeRequest)
+		result = h.svc.DenyAuthorization(r.Context(), &in.AuthorizeRequest)
 	} else {
 		result = h.svc.ApproveAuthorization(r.Context(), userID, &in.AuthorizeRequest, in.Remember)
 	}

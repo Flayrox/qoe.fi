@@ -13,6 +13,7 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
@@ -28,6 +29,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qoefi/api/internal/antispam"
@@ -325,20 +327,28 @@ func (s *Service) CreateClientRequest(ctx context.Context, userID string, in Cre
 			ID:     strings.TrimSpace(in.PublisherID),
 			UserId: toUUID(userID),
 		})
-		if err != nil || (!mCtx.IsMember.Bool && mCtx.PublisherId == "") {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, oauthError("forbidden", "Vous devez être membre de ce média pour créer une application OAuth.", 403)
+		}
+		if err != nil {
+			return nil, oauthError(ErrServerError.Error(), "Vérification du média impossible.", 500)
+		}
+		// La requête rend la publication MÊME si l'appelant n'en est pas membre :
+		// seul `isMember` autorise (une publication existante ne suffit pas).
+		if !mCtx.IsMember.Bool {
 			return nil, oauthError("forbidden", "Vous devez être membre de ce média pour créer une application OAuth.", 403)
 		}
 	} else {
 		status, err := s.q.GetUserApiAccessStatus(ctx, userID)
-		if err != nil {
-			return nil, oauthError("forbidden", "Utilisateur introuvable", 403)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return nil, oauthError(ErrServerError.Error(), "Vérification de l'accès API impossible.", 500)
 		}
 		if status != "approved" {
 			return nil, oauthError("forbidden", "Votre demande d'accès API doit être approuvée avant de créer une application OAuth.", 403)
 		}
 		grants, err := s.q.GetUserApiGrants(ctx, userID)
 		if err != nil {
-			return nil, oauthError("forbidden", "Utilisateur introuvable", 403)
+			return nil, oauthError(ErrServerError.Error(), "Vérification des droits impossible.", 500)
 		}
 		if !apiaccess.HasGrant(grants, apiaccess.ModuleOAuth) {
 			return nil, oauthError("forbidden", "La permission OAuth ne vous a pas été accordée. Contactez un administrateur.", 403)
@@ -496,7 +506,13 @@ func (s *Service) ListClients(ctx context.Context, userID, publisherID string) (
 			ID:     publisherID,
 			UserId: toUUID(userID),
 		})
-		if err != nil || (!mCtx.IsMember.Bool && mCtx.PublisherId == "") {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, oauthError("forbidden", "Vous n'avez pas accès à ce média.", 403)
+		}
+		if err != nil {
+			return nil, oauthError(ErrServerError.Error(), "Vérification du média impossible.", 500)
+		}
+		if !mCtx.IsMember.Bool {
 			return nil, oauthError("forbidden", "Vous n'avez pas accès à ce média.", 403)
 		}
 		rows, err := s.q.ListOAuthClientsByPublisher(ctx, textPtr(publisherID))
@@ -524,8 +540,11 @@ func (s *Service) ListClients(ctx context.Context, userID, publisherID string) (
 // RotateClientSecret régénère le secret d'un client confidentiel.
 func (s *Service) RotateClientSecret(ctx context.Context, userID, id string) (string, error) {
 	row, err := s.q.GetOAuthClientByID(ctx, id)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return "", oauthError("invalid_client", "Application introuvable.", 404)
+	}
+	if err != nil {
+		return "", oauthError(ErrServerError.Error(), "Lecture de l'application impossible.", 500)
 	}
 	if row.OwnerUserId != userID {
 		return "", oauthError("forbidden", "Cette application ne vous appartient pas.", 403)
@@ -581,8 +600,13 @@ func (s *Service) AuthenticateClient(ctx context.Context, clientID, clientSecret
 		return zero, oauthError(ErrInvalidClient.Error(), "client_id manquant.", http.StatusUnauthorized)
 	}
 	client, err := s.q.GetOAuthClientByClientId(ctx, clientID)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return zero, oauthError(ErrInvalidClient.Error(), "Application inconnue.", http.StatusUnauthorized)
+	}
+	if err != nil {
+		// Panne de lecture : ni 401 ni « client inconnu » (le client croirait
+		// ses identifiants faux et n'aurait aucune raison de réessayer).
+		return zero, oauthError(ErrServerError.Error(), "Vérification du client impossible.", http.StatusInternalServerError)
 	}
 	if client.Status != "APPROVED" {
 		return zero, oauthError(ErrUnauthorizedClient.Error(), "Cette application n'est pas approuvée.", http.StatusUnauthorized)
@@ -591,7 +615,9 @@ func (s *Service) AuthenticateClient(ctx context.Context, clientID, clientSecret
 		if !client.ClientSecretHash.Valid || client.ClientSecretHash.String == "" || clientSecret == "" {
 			return zero, oauthError(ErrInvalidClient.Error(), "client_secret manquant.", http.StatusUnauthorized)
 		}
-		if sha256hex(clientSecret) != client.ClientSecretHash.String {
+		// Comparaison à temps constant : un `!=` sur des condensés laisse fuir
+		// le préfixe correct par le temps de réponse.
+		if subtle.ConstantTimeCompare([]byte(sha256hex(clientSecret)), []byte(client.ClientSecretHash.String)) != 1 {
 			return zero, oauthError(ErrInvalidClient.Error(), "client_secret invalide.", http.StatusUnauthorized)
 		}
 	}
@@ -673,11 +699,15 @@ func (s *Service) validateAuthorize(ctx context.Context, req *AuthorizeRequest) 
 	if err != nil {
 		return zero, oauthError(ErrInvalidClient.Error(), "Application inconnue.", 400)
 	}
-	if client.Status != "APPROVED" {
-		return zero, oauthError(ErrUnauthorizedClient.Error(), "Cette application n'est pas encore approuvée.", 400)
-	}
+	// redirect_uri AVANT le statut : une erreur d'autorisation redirige le
+	// navigateur, et l'URL ne doit être utilisée qu'une fois validée contre
+	// l'allowlist du client (sinon redirection ouverte via un client non
+	// approuvé).
 	if !exactRedirectURI(client.RedirectUris, req.RedirectURI) {
 		return zero, oauthError(ErrInvalidRequest.Error(), "redirect_uri non autorisé pour cette application.", 400)
+	}
+	if client.Status != "APPROVED" {
+		return zero, oauthError(ErrUnauthorizedClient.Error(), "Cette application n'est pas encore approuvée.", 400)
 	}
 	if req.CodeChallenge == "" {
 		return zero, oauthError(ErrInvalidRequest.Error(), "PKCE obligatoire (code_challenge manquant).", 400)
@@ -708,7 +738,7 @@ func (s *Service) validateAuthorize(ctx context.Context, req *AuthorizeRequest) 
 func (s *Service) BeginAuthorization(ctx context.Context, userID string, req *AuthorizeRequest) *AuthorizeResult {
 	client, verr := s.validateAuthorize(ctx, req)
 	if verr != nil {
-		return &AuthorizeResult{OK: false, Error: verr.Code, ErrorDescription: verr.Description, Redirect: errorRedirect(req, verr)}
+		return &AuthorizeResult{OK: false, Error: verr.Code, ErrorDescription: verr.Description, Redirect: s.authorizeErrorRedirect(ctx, req, verr)}
 	}
 	scopes := req.scopes()
 	infos := make([]ScopeInfo, 0, len(scopes))
@@ -758,7 +788,7 @@ func (s *Service) BeginAuthorization(ctx context.Context, userID string, req *Au
 func (s *Service) ApproveAuthorization(ctx context.Context, userID string, req *AuthorizeRequest, remember bool) *AuthorizeResult {
 	client, verr := s.validateAuthorize(ctx, req)
 	if verr != nil {
-		return &AuthorizeResult{OK: false, Error: verr.Code, ErrorDescription: verr.Description, Redirect: errorRedirect(req, verr)}
+		return &AuthorizeResult{OK: false, Error: verr.Code, ErrorDescription: verr.Description, Redirect: s.authorizeErrorRedirect(ctx, req, verr)}
 	}
 	scopes := req.scopes()
 	if remember {
@@ -767,7 +797,7 @@ func (s *Service) ApproveAuthorization(ctx context.Context, userID string, req *
 
 	code, err := randomHex(16)
 	if err != nil {
-		return &AuthorizeResult{OK: false, Error: ErrServerError.Error(), ErrorDescription: "Impossible de générer le code.", Redirect: errorRedirect(req, oauthError(ErrServerError.Error(), "server", 500))}
+		return &AuthorizeResult{OK: false, Error: ErrServerError.Error(), ErrorDescription: "Impossible de générer le code.", Redirect: s.authorizeErrorRedirect(ctx, req, oauthError(ErrServerError.Error(), "server", 500))}
 	}
 	method := req.CodeChallengeMethod
 	if method == "" {
@@ -784,7 +814,7 @@ func (s *Service) ApproveAuthorization(ctx context.Context, userID string, req *
 		Nonce:               textPtr(req.Nonce),
 		ExpiresAt:           timestampPtr(time.Now().Add(s.Settings(ctx).AuthCodeTTL)),
 	}); err != nil {
-		return &AuthorizeResult{OK: false, Error: ErrServerError.Error(), ErrorDescription: "Impossible d'enregistrer le code.", Redirect: errorRedirect(req, oauthError(ErrServerError.Error(), "server", 500))}
+		return &AuthorizeResult{OK: false, Error: ErrServerError.Error(), ErrorDescription: "Impossible d'enregistrer le code.", Redirect: s.authorizeErrorRedirect(ctx, req, oauthError(ErrServerError.Error(), "server", 500))}
 	}
 
 	u, _ := url.Parse(req.RedirectURI)
@@ -798,8 +828,23 @@ func (s *Service) ApproveAuthorization(ctx context.Context, userID string, req *
 }
 
 // DenyAuthorization renvoie l'URL d'erreur access_denied.
-func (s *Service) DenyAuthorization(req *AuthorizeRequest) *AuthorizeResult {
-	return &AuthorizeResult{OK: false, Error: ErrAccessDenied.Error(), Redirect: errorRedirect(req, oauthError(ErrAccessDenied.Error(), "L'utilisateur a refusé l'autorisation.", 400))}
+func (s *Service) DenyAuthorization(ctx context.Context, req *AuthorizeRequest) *AuthorizeResult {
+	return &AuthorizeResult{OK: false, Error: ErrAccessDenied.Error(), Redirect: s.authorizeErrorRedirect(ctx, req, oauthError(ErrAccessDenied.Error(), "L'utilisateur a refusé l'autorisation.", 400))}
+}
+
+// authorizeErrorRedirect ne construit une redirection d'erreur que si la
+// redirect_uri appartient à l'allowlist du client : sinon la page de
+// consentement renvoyait le navigateur vers une URL choisie par l'attaquant
+// (client non approuvé, redirect non validée).
+func (s *Service) authorizeErrorRedirect(ctx context.Context, req *AuthorizeRequest, oerr *OAuthError) string {
+	if req == nil || req.RedirectURI == "" || oerr == nil || oerr.Code == ErrInvalidClient.Error() {
+		return ""
+	}
+	client, err := s.q.GetOAuthClientByClientId(ctx, req.ClientID)
+	if err != nil || !exactRedirectURI(client.RedirectUris, req.RedirectURI) {
+		return ""
+	}
+	return errorRedirect(req, oerr)
 }
 
 func errorRedirect(req *AuthorizeRequest, oerr *OAuthError) string {
@@ -892,7 +937,17 @@ func (s *Service) exchangeCode(ctx context.Context, req *TokenRequest, client db
 	if !verifyPKCE(row, req.CodeVerifier) {
 		return nil, oauthError(ErrInvalidGrant.Error(), "Échec de la vérification PKCE.", 400)
 	}
-	_ = s.q.ConsumeOAuthAuthorizationCode(ctx, row.ID)
+	// Consommation ATOMIQUE : le prédicat `usedAt IS NULL` fait du UPDATE le
+	// verrou (deux échanges simultanés ne peuvent pas réussir tous les deux),
+	// et son erreur n'est plus avalée — un code non consommé était rejouable.
+	tag, err := s.pool.Exec(ctx,
+		`UPDATE "OAuthAuthorizationCode" SET "usedAt" = now() WHERE id = $1 AND "usedAt" IS NULL`, row.ID)
+	if err != nil {
+		return nil, oauthError(ErrServerError.Error(), "Consommation du code impossible.", 500)
+	}
+	if tag.RowsAffected() == 0 {
+		return nil, oauthError(ErrInvalidGrant.Error(), "Code déjà utilisé.", 400)
+	}
 
 	pubID := ""
 	if client.PublisherId.Valid {
@@ -914,14 +969,20 @@ func (s *Service) refreshToken(ctx context.Context, req *TokenRequest, client db
 	}
 	if row.RevokedAt.Valid {
 		// Réutilisation d'un refresh token révoqué → révocation de la famille.
-		_ = s.q.RevokeOAuthTokensByUserClient(ctx, db.RevokeOAuthTokensByUserClientParams{UserId: row.UserId, ClientId: row.ClientId})
+		if err := s.q.RevokeOAuthTokensByUserClient(ctx, db.RevokeOAuthTokensByUserClientParams{UserId: row.UserId, ClientId: row.ClientId}); err != nil {
+			return nil, oauthError(ErrServerError.Error(), "Révocation de la famille impossible.", 500)
+		}
 		return nil, oauthError(ErrInvalidGrant.Error(), "Refresh token révoqué.", 400)
 	}
 	if row.RefreshTokenExpiresAt.Valid && time.Now().After(row.RefreshTokenExpiresAt.Time) {
 		return nil, oauthError(ErrInvalidGrant.Error(), "Refresh token expiré.", 400)
 	}
-	// Rotation : l'ancien refresh token est révoqué.
-	_ = s.q.RevokeOAuthTokenByRefreshHash(ctx, textPtr(sha256hex(req.RefreshToken)))
+	// Rotation : l'ancien refresh token est révoqué. Si la révocation échoue,
+	// aucun nouveau couple n'est émis (sinon l'ancien reste valide alors que le
+	// client croit avoir tourné).
+	if err := s.q.RevokeOAuthTokenByRefreshHash(ctx, textPtr(sha256hex(req.RefreshToken))); err != nil {
+		return nil, oauthError(ErrServerError.Error(), "Rotation du refresh token impossible.", 500)
+	}
 
 	pubID := ""
 	if client.PublisherId.Valid {
@@ -1080,14 +1141,32 @@ func (s *Service) Revoke(ctx context.Context, token, tokenTypeHint, clientID str
 	// Un token inconnu est TOUJOURS un succès (RFC 7009 §2.2).
 	if tokenTypeHint == "refresh_token" {
 		row, err := s.q.GetOAuthTokenByRefreshHash(ctx, textPtr(sha256hex(token)))
-		if err == nil && row.PublicClientId == clientID {
-			_ = s.q.RevokeOAuthTokenByRefreshHash(ctx, textPtr(sha256hex(token)))
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil // inconnu = succès (RFC 7009 §2.2)
+		}
+		if err != nil {
+			return oauthError(ErrServerError.Error(), "Révocation impossible.", 500)
+		}
+		if row.PublicClientId != clientID {
+			return nil
+		}
+		if err := s.q.RevokeOAuthTokenByRefreshHash(ctx, textPtr(sha256hex(token))); err != nil {
+			return oauthError(ErrServerError.Error(), "Révocation impossible.", 500)
 		}
 		return nil
 	}
 	row, err := s.q.GetOAuthTokenByAccessHash(ctx, sha256hex(token))
-	if err == nil && row.PublicClientId == clientID {
-		_ = s.q.RevokeOAuthTokenByAccessHash(ctx, sha256hex(token))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return oauthError(ErrServerError.Error(), "Révocation impossible.", 500)
+	}
+	if row.PublicClientId != clientID {
+		return nil
+	}
+	if err := s.q.RevokeOAuthTokenByAccessHash(ctx, sha256hex(token)); err != nil {
+		return oauthError(ErrServerError.Error(), "Révocation impossible.", 500)
 	}
 	return nil
 }
@@ -1188,11 +1267,14 @@ func toUUID(id string) pgtype.UUID {
 	return u
 }
 
+// mustHex rend n octets aléatoires en hexadécimal. crypto/rand ne doit jamais
+// échouer ; si c'était le cas, émettre une valeur déterministe (zéros) créerait
+// un secret de client prévisible — on préfère une panne franche (récupérée en
+// 500 par le routeur) à un secret devinable.
 func mustHex(n int) string {
 	v, err := randomHex(n)
 	if err != nil {
-		// crypto/rand ne doit jamais échouer ; en dernier recours, fallback déterministe.
-		return hex.EncodeToString(make([]byte, n))
+		panic("oauth: crypto/rand indisponible: " + err.Error())
 	}
 	return v
 }

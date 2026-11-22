@@ -3,6 +3,7 @@ package devtools
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 
@@ -198,7 +199,12 @@ func (h *Handler) resetOnboarding(w http.ResponseWriter, r *http.Request) {
 	var p struct {
 		Target string `json:"target"`
 	}
-	_ = json.NewDecoder(r.Body).Decode(&p)
+	// Un corps illisible ne doit JAMAIS être interprété comme « cible vide » :
+	// target vide = réinitialiser l'onboarding de TOUS les comptes.
+	if err := json.NewDecoder(r.Body).Decode(&p); err != nil && !errors.Is(err, io.EOF) {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
 	if err := h.svc.ResetOnboarding(r.Context(), userID, p.Target); err != nil {
 		h.handleErr(w, err)
 		return

@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; **L29s `search` clos le 2026-11-22** (2 f. · 741 l. après correctifs, 6 défauts F670–F675 + 1 structurel F676, dettes R257–R259) ; **L29t `publishers` clos le 2026-11-22** (3 f. · 1 229 l. après correctifs, 8 défauts F677–F684 + 1 structurel F685, dettes R260–R262) ; **L29u `analytics` clos le 2026-11-22** (4 f. · 2 130 l. après correctifs, 12 défauts F686–F697 + 1 structurel F698, dettes R263–R265) ; **L29v `events`/`workspaces`/`appeals`/`support`/`exports`/`books` clos le 2026-11-22** (13 f. · 1 659 l. après correctifs, 6 défauts F699–F704 + 2 structurels F705–F706, dettes R266–R269) ; **L29w reliquat `tracking`/`placements`/`ai`/`collaborations`/`conversations`/`billing`/`ebooks` clos le 2026-11-22** (20 f. · 7 251 l. après correctifs, 13 défauts F707–F719 + 2 structurels F720–F721, dettes R270–R272) ; prochain = **L29x** (`oauth`, `devtools` — 8 f. · 3 057 l.)) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; **L29s `search` clos le 2026-11-22** (2 f. · 741 l. après correctifs, 6 défauts F670–F675 + 1 structurel F676, dettes R257–R259) ; **L29t `publishers` clos le 2026-11-22** (3 f. · 1 229 l. après correctifs, 8 défauts F677–F684 + 1 structurel F685, dettes R260–R262) ; **L29u `analytics` clos le 2026-11-22** (4 f. · 2 130 l. après correctifs, 12 défauts F686–F697 + 1 structurel F698, dettes R263–R265) ; **L29v `events`/`workspaces`/`appeals`/`support`/`exports`/`books` clos le 2026-11-22** (13 f. · 1 659 l. après correctifs, 6 défauts F699–F704 + 2 structurels F705–F706, dettes R266–R269) ; **L29w reliquat `tracking`/`placements`/`ai`/`collaborations`/`conversations`/`billing`/`ebooks` clos le 2026-11-22** (20 f. · 7 251 l. après correctifs, 13 défauts F707–F719 + 2 structurels F720–F721, dettes R270–R272) ; **L29x `oauth`/`devtools` clos le 2026-11-22** (7 f. · 3 190 l. après correctifs, 10 défauts F722–F731 + 2 structurels F732–F733, dettes R273–R275, **R270 soldée**) ; prochain = **L30** (`workers`, `queue`, `resilience`, `cache`)) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -236,7 +236,14 @@ panique sans pool, gardes anti-spam de collaboration fail-open, panne masquée e
 DM mortes sur une table inexistante, plafond de conversations bloquant les fils existants, formule et livre
 introuvables sur panne, hors-ligne EPUB refusé pendant une panne) et **2 structurels** (F720, F721), dettes
 **R270–R272**.
-**Lot suivant de L29, « En cours » : L29x** — `oauth` (5 f. · 1 665 l.) et `devtools` (3 f. · 1 392 l.).
+**L29x est clos le 2026-11-22** : `oauth` + `devtools` (**7 f. · 3 190 l.** après correctifs) — **10 défauts**
+F722–F731 (redirection ouverte sur le chemin d'erreur, applications OAuth d'un média dont on n'est pas membre,
+panne du client rendue en 401, rotation rendue en 404, code d'autorisation rejouable, rotation/révocation de
+refresh token avalées, révocation annoncée réussie sur panne, panne du rôle devtools en 403, JSON tronqué qui
+réinitialise tous les onboardings, abonnement simulé débité sans mouvement de solde) et **2 structurels**
+(F732 comparaison et génération de secrets, F733 écritures non transactionnelles), dettes **R273–R275**. La dette
+**R270 est soldée** (les huit fichiers du reliquat `modules/**` sont lus).
+**Lot suivant de L29 : L30** — `apps/api/internal/{workers,queue,resilience,cache}`.
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2216,6 +2223,61 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
 
+## L29x — `oauth` + `devtools` (dette R270) — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l`) : **7 fichiers de production · 3 190 l.** après correctifs —
+`oauth` (4 f. · 1 747 l. : `service 1 309`, `handler 363`, `cleanup 25`, `querier 45`) et `devtools`
+(3 f. · 1 443 l. : `service 1 123`, `handler 289`, `auth 44`). Lus intégralement avec leurs appelants :
+`cmd/server` (montage de `Token()` sous rate-limit, `DevOnlyAuth`, mode `QOE_DEVTOOLS_DEV_ONLY`), `sql/queries/oauth.sql`
+(colonnes et prédicats réels), `internal/database` (lignes sqlc), `internal/subscriptions`, `internal/queue`,
+`internal/seed`, `internal/workers`, et les suites existantes (`fault_test`, `http_test`, `integration_test`,
+`coverage_test`, `media_oauth_test`). **2 fichiers d'audit · 355 l. (10 tests)** s'ajoutent.
+
+**10 défauts corrigés** F722–F731, chacun adossé à un rouge réellement exécuté (worktree
+`git worktree add -f /tmp/qoe-l29x-red HEAD`, suites `TestAuditL29X_*`).
+
+| # | Défaut | Preuve (test) | Rouge constaté |
+|---|---|---|---|
+| F722 | **Redirection ouverte sur le chemin d'erreur** : pour un client non approuvé (ou un refus), l'URL d'erreur était construite avec la `redirect_uri` du **client** avant toute validation contre l'allowlist — la page de consentement renvoyait le navigateur vers l'URL de l'attaquant. `redirect_uri` validée en premier ; toute redirection d'erreur repasse par `authorizeErrorRedirect` (allowlist obligatoire, vide sinon), y compris pour `deny`. | `TestAuditL29X_UnapprovedClientRedirectsOnlyToValidatedURI` | `redirection d'erreur vers une redirect_uri non validée : https://attaquant.example/vol?error=unauthorized_client&…` |
+| F723 | **Applications OAuth d'un média d'autrui** : `GetOAuthMediaContext` rend la publication **même si l'appelant n'en est pas membre** (`LEFT JOIN`), et le test était `(!IsMember && PublisherId == "")` — une publication existante suffisait. Un utilisateur pouvait **créer un client approuvé** (consentement affiché au nom du média) et **lister** ceux du média. Seul `isMember` autorise ; panne → 500. | `TestAuditL29X_MediaClientsRequireMembership` | `non-membre : 1 application(s) OAuth d'un média d'autrui listée(s)` |
+| F724 | **Panne de lecture du client rendue en 401 `invalid_client`** : toute erreur de `GetOAuthClientByClientId` devenait un refus d'identifiants — le client intégrateur concluait à un secret faux et ne réessayait pas. `ErrNoRows` seul vaut 401, le reste 500 `server_error`. | `TestAuditL29X_ClientLookupOutageIsNotInvalidClient` | `panne DB rendue en 401 invalid_client` |
+| F725 | **Rotation de secret : panne rendue en 404** : `RotateClientSecret` transformait toute erreur de lecture en « application introuvable ». | `TestAuditL29X_RotateOutageIsNotNotFound` | `panne DB rendue en 404 : invalid_client: Application introuvable.` |
+| F726 | **Code d'autorisation rejouable** : `ConsumeOAuthAuthorizationCode` était un `UPDATE … WHERE id = $1` sans prédicat `usedAt IS NULL` (deux échanges simultanés passaient tous les deux) et son erreur était **avalée** (`_ =`). Consommation atomique (`usedAt IS NULL` + contrôle du nombre de lignes) et erreur remontée. | `TestAuditL29X_CodeConsumptionErrorAbortsExchange` | `code non consommé mais jetons émis (access=39 caractères)` |
+| F727 | **Rotation du refresh token : révocation avalée** : l'ancien refresh token restait valide alors qu'un nouveau couple était émis ; l'erreur de révocation de famille (réutilisation) était aussi ignorée. Les deux échecs remontent en 500. | `TestAuditL29X_RefreshRotationErrorAbortsRotation` | `ancien refresh token toujours valide mais nouveau couple émis (access=39 caractères)` |
+| F728 | **`/v1/oauth/revoke` annonçait un succès sur panne** : le client croyait son token mort alors qu'il restait valide. `ErrNoRows` reste un succès (RFC 7009 §2.2), une panne devient 500. | `TestAuditL29X_RevokeOutageIsNotASuccess` | `révocation annoncée réussie alors que le token reste valide` |
+| F729 | **`devtools` : panne du rôle rendue en 403** : `checkSuperadmin` transformait toute erreur en `errForbidden`. Seule l'absence de ligne vaut refus, le reste remonte en 500 journalisé. | `TestAuditL29X_SuperadminOutageIsNotForbidden` | `panne DB rendue en 403 (réservé au superadmin)` |
+| F730 | **`/v1/devtools/reset-onboarding` : JSON tronqué = reset de TOUS les comptes** : le corps était décodé avec `_ =` ; un `{"target":` illisible laissait `target` vide, valeur qui signifie « tous les utilisateurs ». Décodage obligatoire (400), `io.EOF` seul toléré (corps vide = cas volontaire). | `TestAuditL29X_TruncatedResetOnboardingIsRejected` | `JSON tronqué → panique runtime error: invalid memory address or nil pointer dereference : le service est atteint (reset de TOUS les onboardings)` |
+| F731 | **Abonnement simulé : débit écrit sans débiter le solde** : un mouvement `-N` était inséré pour le lecteur mais `walletBalanceCents` n'était jamais décrémenté (le crédit du créateur, lui, bougeait). Débit + crédit + les deux mouvements dans **une transaction** (`pgx.BeginFunc`). | `TestAuditL29X_SubscriberPaymentDebitsReaderWallet` | `solde du lecteur = 10000 après un débit de 500 (1 mouvement(s) -500 écrit(s)), attendu 9500` |
+
+**Correctifs structurels, sans rouge isolable** (déclarés comme tels) :
+
+- **F732 — secrets comparés/engendrés sans garantie** : le condensé du `client_secret` était comparé avec `!=`
+  (fuite de préfixe par le temps de réponse) → `subtle.ConstantTimeCompare` ; et `mustHex` retombait sur
+  **des zéros** si `crypto/rand` échouait, soit un secret de client prévisible → panne franche (500) assumée.
+- **F733 — écritures multiples non transactionnelles** : le basculement de like et son compteur étaient deux
+  `Exec` dont le second ignorait son erreur (badge faux) → une transaction ; le paiement simulé (lecteur,
+  propriétaire, deux mouvements) est désormais atomique.
+
+**Migrations** : **aucune nécessaire** (la consommation atomique du code passe par un `UPDATE` conditionnel dans le
+service, sans nouveau sqlc). `ExpectedMigrationVersion` reste **95**.
+
+**Dettes ouvertes** (numérotation en continuité de R272) :
+
+- **R273 — réglages et claims média best-effort** : `Settings()` avale l'erreur de `ListOAuthConfig` (retour aux
+  valeurs par défaut, choix sûr documenté) et les enrichissements `media` de `issueTokens`/`UserInfo` omettent le
+  claim quand la lecture échoue (fail-closed, aucun droit accordé). Rendre l'erreur exigerait de faire échouer une
+  connexion pour un quota illisible — décision produit à trancher.
+- **R274 — `devtools.CreateUser` non transactionnel** : utilisateur, publication personnelle et pack de départ sont
+  écrits en plusieurs étapes ; une erreur au milieu laisse un compte partiel (outil de dev, base remise à zéro par
+  le seed). À envelopper dans une transaction si le panneau doit rester utilisable sur une base de production.
+- **R275 — `SimulateSubscriber` : abonné hors transaction** : l'`UPSERT` `Subscriber` précède la transaction de
+  portefeuille ; un échec du paiement laisse l'abonné enregistré sans mouvement. Le simulateur est un outil de dev
+  qui se rejoue (upsert idempotent), mais la transaction complète serait la bonne forme.
+
+**Commandes passées sur l'arbre corrigé** : `gofmt -l .` (dépôt entier) → **0** ; `go build ./...` → 0 ;
+`go vet ./...` → 0 ; `QOE_DB_TESTS_OPTIONAL=1 go test ./...` → **85 paquets `ok`, 0 `FAIL`** (status 0) ; batterie
+workspace 13 commandes → **13 × 0**. Aucun fichier TypeScript touché : **vitest non requis** (et non lancé).
+
 ## L29w — reliquat `modules/**` (7 modules) — **clos le 2026-11-22**
 
 **Périmètre remesuré** (`find` + `wc -l`) : **20 fichiers de production · 7 251 l.** après correctifs —
@@ -2262,8 +2324,8 @@ leurs appelants réels : `cmd/server` (montage des sept handlers), `internal/sub
 **Dettes ouvertes** (numérotation en continuité de R269) :
 
 - **R270 — `oauth` et `devtools` non audités** : 8 fichiers de production · 3 057 l. listés au périmètre de L29w,
-  lus hors du tour pour ne pas livrer un audit partiel. Reportés à **L29x**, avec la même méthode (rouge cité
-  avant correctif).
+  lus hors du tour pour ne pas livrer un audit partiel. **SOLDÉE le 2026-11-22 par L29x** (7 fichiers de
+  production, `oauth` + `devtools`, 10 défauts F722–F731 + 2 structurels).
 - **R271 — purge des impressions sur le chemin chaud** : `TrackFeedImpression` exécute un `DELETE` de rétention
   30 j sur ~5 % des requêtes (`time.Now().UnixNano()%20 == 0`), au lieu du worker dédié utilisé pour les sessions
   de lecture. Aucun worker `FeedImpression` n'existe : le déplacer demande un nouveau job planifié (lot `workers`).
