@@ -2,8 +2,6 @@ package media
 
 import (
 	"encoding/json"
-	"errors"
-	"log"
 	"net/http"
 	"strconv"
 
@@ -104,22 +102,6 @@ func mediaGuard(action authz.Action) func(http.Handler) http.Handler {
 func userID(r *http.Request) string {
 	id, _ := middleware.UserID(r.Context())
 	return id
-}
-
-func writeErr(w http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, ErrInvalidScopes):
-		response.Error(w, http.StatusUnprocessableEntity, "scopes invalides")
-	case errors.Is(err, errForbidden):
-		response.Forbidden(w, "Permission insuffisante")
-	case errors.Is(err, errNotFound):
-		response.NotFound(w, "Ressource introuvable")
-	case errors.Is(err, errAlreadyMember):
-		response.Error(w, http.StatusConflict, "Déjà membre actif de ce média")
-	default:
-		log.Printf("[media] %v", err)
-		response.Error(w, http.StatusBadRequest, err.Error())
-	}
 }
 
 // GET /v1/media/workspaces — profil personnel + médias de l'utilisateur.
@@ -279,7 +261,7 @@ func (h *Handler) mediaIdByPublisher(w http.ResponseWriter, r *http.Request) {
 		response.Unauthorized(w, "Authentification requise")
 		return
 	}
-	mediaID, err := h.svc.MediaIDByPublisher(r.Context(), chi.URLParam(r, "publisherId"))
+	mediaID, err := h.svc.MediaIDForMember(r.Context(), id, chi.URLParam(r, "publisherId"))
 	if err != nil {
 		writeErr(w, err)
 		return

@@ -54,6 +54,14 @@ type MediaLinkPreviewDTO struct {
 	StatusText  string        `json:"statusText"`
 }
 
+// Bornes des liens d'invitation média : 30 jours au plus, 1000 usages, 10
+// liens créés par heure et par compte.
+const (
+	maxInviteLinkHours    = 720
+	maxInviteLinkUses     = 1000
+	maxInviteLinksPerHour = 10
+)
+
 // JoinMediaResultDTO est le retour après adhésion via lien.
 type JoinMediaResultDTO struct {
 	Success bool   `json:"success"`
@@ -68,16 +76,19 @@ func (s *Service) InviteMemberByUsername(ctx context.Context, userID, mediaID, u
 	}
 	username = strings.TrimPrefix(strings.TrimSpace(username), "@")
 	if username == "" {
-		return nil, errors.New("Nom d'utilisateur requis")
+		return nil, invalid("Nom d'utilisateur requis")
+	}
+	if len([]rune(username)) > 50 {
+		return nil, invalid("Nom d'utilisateur invalide")
 	}
 	if role != "" && !validRoles[role] {
-		return nil, errors.New("Rôle invalide")
+		return nil, invalid("Rôle invalide")
 	}
 	if role == "" {
 		role = "writer"
 	}
 	if role == "owner" {
-		return nil, errors.New("Le rôle propriétaire ne peut pas être attribué par invitation")
+		return nil, invalid("Le rôle propriétaire ne peut pas être attribué par invitation")
 	}
 
 	var targetID string
@@ -86,16 +97,25 @@ func (s *Service) InviteMemberByUsername(ctx context.Context, userID, mediaID, u
 		WHERE lower(username) = lower($1) AND "isSuspended" = false AND "isShadowbanned" = false
 	`, username).Scan(&targetID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, errors.New("Aucun utilisateur trouvé avec ce nom d'utilisateur.")
+		return nil, invalid("Aucun utilisateur trouvé avec ce nom d'utilisateur.")
 	}
 	if err != nil {
 		return nil, err
 	}
 	if targetID == userID {
-		return nil, errors.New("Vous êtes déjà membre de ce Média.")
+		return nil, invalid("Vous êtes déjà membre de ce Média.")
 	}
 
-	if existing, merr := s.member(ctx, mediaID, targetID); merr == nil && existing != nil {
+	existing, merr := s.member(ctx, mediaID, targetID)
+	if merr != nil {
+		return nil, merr
+	}
+	if existing != nil {
+		// Une « ré-invitation » d'un membre existant change son rôle : le
+		// propriétaire n'est jamais rétrogradable par ce chemin.
+		if err := guardOwnerMutation(existing, userID, targetID, role); err != nil {
+			return nil, err
+		}
 		if err := s.q.UpdateMediaMemberRole(ctx, db.UpdateMediaMemberRoleParams{
 			MediaId: mediaID, UserId: toUUID(targetID), Role: role,
 		}); err != nil {
@@ -116,13 +136,20 @@ func (s *Service) InviteMemberByUsername(ctx context.Context, userID, mediaID, u
 	auditlog.Write(ctx, s.q, s.flags, userID, "media.member.invited", "user", targetID,
 		map[string]any{"role": role, "mediaId": mediaID})
 
-	var pub string
-	if m, merr := s.q.GetMediaWithPublisher(ctx, mediaID); merr == nil {
-		pub = textFromString(m.PublisherID).String
+	// La notification est le seul signal reçu par l'invité : son échec ne doit
+	// pas être avalé (l'upsert est idempotent, l'appelant peut rejouer).
+	m, err := s.q.GetMediaWithPublisher(ctx, mediaID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errNotFound
+		}
+		return nil, err
 	}
-	_ = s.q.InsertMediaInviteNotification(ctx, db.InsertMediaInviteNotificationParams{
-		RecipientID: toUUID(targetID), SenderID: toUUID(userID), PublisherID: pub,
-	})
+	if err := s.q.InsertMediaInviteNotification(ctx, db.InsertMediaInviteNotificationParams{
+		RecipientID: toUUID(targetID), SenderID: toUUID(userID), PublisherID: m.PublisherID,
+	}); err != nil {
+		return nil, err
+	}
 
 	return map[string]any{"success": true, "userId": targetID, "role": role, "pending": true}, nil
 }
@@ -158,7 +185,11 @@ func (s *Service) ListPendingInvites(ctx context.Context, userID string) ([]Pend
 // AcceptInvite active une invitation en attente.
 func (s *Service) AcceptInvite(ctx context.Context, userID, mediaID string) (map[string]any, error) {
 	m, err := s.member(ctx, mediaID, userID)
-	if err != nil || m == nil {
+	if err != nil {
+		// Une panne de lecture n'est pas « pas d'invitation ».
+		return nil, err
+	}
+	if m == nil {
 		return nil, errNotFound
 	}
 	if m.Status == "active" {
@@ -188,22 +219,40 @@ func (s *Service) CreateInviteLink(ctx context.Context, userID, mediaID, role st
 		return nil, err
 	}
 	if role != "" && !validRoles[role] {
-		return nil, errors.New("Rôle invalide")
+		return nil, invalid("Rôle invalide")
 	}
 	if role == "" {
 		role = "writer"
 	}
+	// Un lien n'accorde jamais la propriété : sinon toute personne qui reçoit
+	// le lien devient owner du média.
+	if role == "owner" {
+		return nil, invalid("Un lien d'invitation ne peut pas accorder le rôle propriétaire")
+	}
+	if expiresInHours < 0 {
+		return nil, invalid("Durée d'expiration invalide")
+	}
+	if expiresInHours > maxInviteLinkHours {
+		expiresInHours = maxInviteLinkHours
+	}
 	if maxUses < 0 {
-		maxUses = 1
+		return nil, invalid("Nombre d'utilisations invalide")
+	}
+	if maxUses > maxInviteLinkUses {
+		maxUses = maxInviteLinkUses
 	}
 
 	var linksCount int
-	_ = s.pool.QueryRow(ctx, `
+	if err := s.pool.QueryRow(ctx, `
 		SELECT COUNT(*) FROM "MediaInviteLink"
 		WHERE "createdById" = $1 AND "createdAt" > now() - INTERVAL '1 hour'
-	`, toUUID(userID)).Scan(&linksCount)
-	if linksCount >= 10 {
-		return nil, errors.New("Limite de génération de liens atteinte (10 max par heure).")
+	`, toUUID(userID)).Scan(&linksCount); err != nil {
+		// Panne du quota : refuser est plus sûr que de laisser un compte
+		// générer des liens à volonté parce que la lecture a échoué.
+		return nil, err
+	}
+	if linksCount >= maxInviteLinksPerHour {
+		return nil, invalid("Limite de génération de liens atteinte (10 max par heure).")
 	}
 
 	tokenBytes := make([]byte, 24)
@@ -219,12 +268,11 @@ func (s *Service) CreateInviteLink(ctx context.Context, userID, mediaID, role st
 
 	linkID := "mlink_" + token[:12]
 	var createdAt pgtype.Timestamp
-	err := s.pool.QueryRow(ctx, `
+	if err := s.pool.QueryRow(ctx, `
 		INSERT INTO "MediaInviteLink" (id, "mediaId", "createdById", token, role, "expiresAt", "maxUses", "usedCount", "isRevoked", "createdAt", "updatedAt")
 		VALUES ($1, $2, $3, $4, $5, $6, $7, 0, false, now(), now())
 		RETURNING "createdAt"
-	`, linkID, mediaID, toUUID(userID), token, role, expiresAt, maxUses).Scan(&createdAt)
-	if err != nil {
+	`, linkID, mediaID, toUUID(userID), token, role, expiresAt, maxUses).Scan(&createdAt); err != nil {
 		return nil, err
 	}
 
@@ -257,6 +305,7 @@ func (s *Service) ListInviteLinks(ctx context.Context, userID, mediaID string) (
 		FROM "MediaInviteLink"
 		WHERE "mediaId" = $1
 		ORDER BY "createdAt" DESC
+		LIMIT 200
 	`, mediaID)
 	if err != nil {
 		return nil, err
@@ -266,8 +315,9 @@ func (s *Service) ListInviteLinks(ctx context.Context, userID, mediaID string) (
 	for rows.Next() {
 		var item MediaInviteLinkDTO
 		var expAt, crAt pgtype.Timestamp
+		// Une ligne illisible ne disparaît plus silencieusement de la liste.
 		if err := rows.Scan(&item.ID, &item.MediaID, &item.Token, &item.Role, &expAt, &item.MaxUses, &item.UsedCount, &item.IsRevoked, &crAt); err != nil {
-			continue
+			return nil, err
 		}
 		item.CreatedAt = crAt.Time.Format(time.RFC3339)
 		if expAt.Valid {
@@ -275,6 +325,9 @@ func (s *Service) ListInviteLinks(ctx context.Context, userID, mediaID string) (
 			item.ExpiresAt = &str
 		}
 		out = append(out, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	if out == nil {
 		out = []MediaInviteLinkDTO{}
@@ -317,7 +370,7 @@ func (s *Service) GetInviteLinkPreview(ctx context.Context, token string) (*Medi
 	`, token).Scan(&linkID, &mediaID, &inviterID, &role, &expiresAt, &maxUses, &usedCount, &isRevoked)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.New("Ce lien d'invitation est invalide ou a expiré.")
+			return nil, invalid("Ce lien d'invitation est invalide ou a expiré.")
 		}
 		return nil, err
 	}
@@ -331,8 +384,12 @@ func (s *Service) GetInviteLinkPreview(ctx context.Context, token string) (*Medi
 		LEFT JOIN "User" u ON u.id = $2::uuid
 		WHERE m.id = $1
 	`, mediaID, inviterID).Scan(&pubName, &pubSlug, &pubLogo, &pubHero, &inviterName, &inviterUsername, &inviterLogo)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, invalid("Média introuvable.")
+	}
 	if err != nil {
-		return nil, errors.New("Média introuvable.")
+		// Une panne de lecture n'est pas un lien invalide.
+		return nil, err
 	}
 
 	isValid := true
@@ -383,7 +440,7 @@ func (s *Service) JoinViaInviteLink(ctx context.Context, userID, token string) (
 		return nil, err
 	}
 	if !preview.IsValid {
-		return nil, errors.New(preview.StatusText)
+		return nil, invalid("%s", preview.StatusText)
 	}
 
 	existing, err := s.member(ctx, preview.MediaID, userID)
@@ -408,13 +465,23 @@ func (s *Service) JoinViaInviteLink(ctx context.Context, userID, token string) (
 		return nil, err
 	}
 
-	_, err = tx.Exec(ctx, `
+	// Décrément conditionnel : la preview a été lue hors transaction, le lien
+	// peut avoir été révoqué, expiré ou épuisé entre-temps. Avant, l'UPDATE
+	// incrémentait sans condition — un lien `maxUses = 1` servait N fois en
+	// concurrence et un lien révoqué restait utilisable.
+	res, err := tx.Exec(ctx, `
 		UPDATE "MediaInviteLink"
 		SET "usedCount" = "usedCount" + 1, "updatedAt" = now()
-		WHERE token = $1
-	`, token)
+		WHERE token = $1 AND "mediaId" = $2
+		  AND "isRevoked" = false
+		  AND ("expiresAt" IS NULL OR "expiresAt" > now())
+		  AND ("maxUses" = 0 OR "usedCount" < "maxUses")
+	`, token, preview.MediaID)
 	if err != nil {
 		return nil, err
+	}
+	if res.RowsAffected() == 0 {
+		return nil, invalid("Ce lien d'invitation vient d'expirer ou d'être révoqué.")
 	}
 
 	if err := tq.InsertMediaAuditLog(ctx, db.InsertMediaAuditLogParams{

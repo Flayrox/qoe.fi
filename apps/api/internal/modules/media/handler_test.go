@@ -160,11 +160,19 @@ func TestMediaSettingsAndMembers(t *testing.T) {
 	if w5.Code != http.StatusOK {
 		t.Fatalf("update role = %d, attendu 200 (body %s)", w5.Code, w5.Body.String())
 	}
+	// Permission réelle de l'allowlist : l'ancienne fixture envoyait
+	// `media:edit`, inconnue, et se contentait d'un 200 d'écriture muette.
 	w6 := doMedia(t, svc, http.MethodPatch, "/v1/media/media_001/members/"+mediaWriterID+"/permissions", mediaOwnerID, map[string]any{
-		"permissions": []string{"media:edit"},
+		"permissions": []string{"media:edit:any"},
 	})
 	if w6.Code != http.StatusOK {
-		t.Fatalf("update perms = %d, attendu 200", w6.Code)
+		t.Fatalf("update perms = %d, attendu 200 (body %s)", w6.Code, w6.Body.String())
+	}
+	var stored []string
+	if err := poolTest.QueryRow(ctx,
+		`SELECT permissions FROM "MediaMember" WHERE "mediaId" = 'media_001' AND "userId" = $1`,
+		mediaWriterID).Scan(&stored); err != nil || len(stored) != 1 || stored[0] != "media:edit:any" {
+		t.Fatalf("permissions stockées = %v (err %v)", stored, err)
 	}
 	// Viewer n'a pas les droits → 403.
 	w7 := doMedia(t, svc, http.MethodPatch, "/v1/media/media_001/members/"+mediaWriterID, mediaViewerID, map[string]any{"role": "editor"})

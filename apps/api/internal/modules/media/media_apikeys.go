@@ -129,23 +129,21 @@ func (s *Service) CreateApiKey(ctx context.Context, userID, mediaID, name string
 	}
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return nil, errors.New("Le nom de la clé est requis")
+		return nil, invalid("Le nom de la clé est requis")
 	}
-	if len(name) > 100 {
-		return nil, errors.New("Le nom de la clé est trop long (100 caractères maximum)")
-	}
-
-	count, err := s.q.CountMediaApiKeys(ctx, mediaID)
-	if err != nil {
-		return nil, err
-	}
-	if count >= MaxActiveMediaApiKeys {
-		return nil, errors.New("Limite de clés API actives atteinte pour ce média")
+	// Borne en runes : `len()` comptait les octets, si bien qu'un nom accentué
+	// de 60 caractères était refusé comme « trop long ».
+	if len([]rune(name)) > 100 {
+		return nil, invalid("Le nom de la clé est trop long (100 caractères maximum)")
 	}
 
 	mediaWithPub, err := s.q.GetMediaWithPublisher(ctx, mediaID)
 	if err != nil {
-		return nil, errNotFound
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errNotFound
+		}
+		// Panne de lecture ≠ média introuvable.
+		return nil, err
 	}
 
 	allowed, err := s.allowedMediaScopes(ctx, member)
@@ -182,15 +180,40 @@ func (s *Service) CreateApiKey(ctx context.Context, userID, mediaID, name string
 	keyPrefix := secret[:16]
 	keyID := "ak_" + hex.EncodeToString(tokenBytes[:8])
 
-	if err := s.q.InsertMediaApiKey(ctx, db.InsertMediaApiKeyParams{
+	// Quota et insertion dans une transaction, média verrouillé : deux
+	// créations concurrentes ne peuvent plus dépasser la limite de 10 clés
+	// (le COUNT hors transaction était suivi d'un INSERT aveugle).
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	var lockedID string
+	if err := tx.QueryRow(ctx, `SELECT id FROM "Media" WHERE id = $1 FOR UPDATE`, mediaID).Scan(&lockedID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errNotFound
+		}
+		return nil, err
+	}
+	var count int32
+	if err := tx.QueryRow(ctx, `SELECT COUNT(*)::int FROM "ApiKey" WHERE "publisherId" = $1`, mediaWithPub.PublisherID).Scan(&count); err != nil {
+		return nil, err
+	}
+	if count >= MaxActiveMediaApiKeys {
+		return nil, invalid("Limite de clés API actives atteinte pour ce média")
+	}
+	if err := s.q.WithTx(tx).InsertMediaApiKey(ctx, db.InsertMediaApiKeyParams{
 		ID:              keyID,
 		Name:            name,
 		KeyPrefix:       keyPrefix,
 		KeyHash:         keyHash,
 		Scopes:          finalScopes,
-		PublisherId:   textFromString(mediaWithPub.PublisherID),
+		PublisherId:     textFromString(mediaWithPub.PublisherID),
 		CreatedByUserId: toUUID(userID),
 	}); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
 
@@ -222,10 +245,10 @@ func (s *Service) UpdateApiKeyName(ctx context.Context, userID, mediaID, keyID, 
 	}
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return errors.New("Le nom de la clé est requis")
+		return invalid("Le nom de la clé est requis")
 	}
-	if len(name) > 100 {
-		return errors.New("Le nom de la clé est trop long (100 caractères maximum)")
+	if len([]rune(name)) > 100 {
+		return invalid("Le nom de la clé est trop long (100 caractères maximum)")
 	}
 	rows, err := s.q.UpdateMediaApiKeyName(ctx, db.UpdateMediaApiKeyNameParams{
 		KeyID:   keyID,
