@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-o `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets` et `newsletters` clos le 2026-11-22 — L29o : 5 défauts F624–F628, dettes R242–R244 ; prochain = `notifications`, 2 f. · 625 l. remesuré) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-p `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters` et `notifications` clos le 2026-11-22 — L29p : 6 défauts F634–F639, dettes R245–R247 ; prochain = `features`, 2 f. · 660 l. remesuré) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -192,8 +192,11 @@ ILIKE non échappée, troncature UTF-8, purge sans deleter, objet partagé détr
 **R239–R241**. **L29o est clos le 2026-11-22** : module `newsletters` (**3 f. · 1 177 l.** après correctifs,
 1 106 l. avant), **5 défauts** F624–F628 (panne base en 403 puis en 404, saisie invalide en 500, liste non bornée,
 email de désabonnement non borné) et 5 correctifs structurels (verrou d'envoi, repli DRAFT, suppression à 0 ligne,
-date UTC, hôtes recopiés), dettes **R242–R244**. **Lot suivant de L29, « En cours » : L29p** — `notifications`,
-**2 f. · 625 l.** (remesuré).
+date UTC, hôtes recopiés), dettes **R242–R244**. **L29p est clos le 2026-11-22** : module `notifications`
+(**2 f. · 656 l.** après correctifs, 625 l. avant), **6 défauts** F634–F639 (dégradation 200 sans session, type
+d'expéditeur média perdu, clé de préférence ignorée, marquage non borné, curseur invalide silencieux, routes média
+clientes sans contrôle de rôle), dettes **R245–R247**. **Lot suivant de L29, « En cours » : L29q** — `features`,
+**2 f. · 660 l.** (remesuré).
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2172,6 +2175,70 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L29p — `apps/api/internal/modules/notifications/**` — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l`) : **2 fichiers de production · 625 l.** (`service 475`, `handler 150`) —
+conforme au décompte annoncé. Les deux fichiers ont été lus intégralement, avec les appelants réels : `cmd/server`
+(`notifHandler.Register(protected)`), `internal/notifications/dispatcher.go` + `internal/domainevents/bus.go`
+(`Dispatch`, seul chemin d'écriture), `internal/modules/posts`, `internal/modules/creator/follow_requests.go`,
+`internal/modules/media/media_invitations.go` (écrit `InsertMediaInviteNotification` côté serveur avec ses contrôles
+de rôle/tenant), `internal/workers/email_delivery.go` (types `MEDIA_*`), `internal/deeplink` (URL prête à suivre),
+`sql/queries/notification_center.sql` + `notifications.sql`, schéma `Notification`/`NotificationPreference`
+(index `Notification_recipientId_isRead_createdAt_idx`, `BlockedUser_creatorId_readerId_key`), clients
+`apps/core` (centre de notifications + formulaire de préférences) et `packages/ui`. Après correctifs le module pèse
+**2 f. · 656 l.** (6 fichiers de tests, dont `audit_l29p_test.go` : 6 tests).
+
+**Frontière avec les voisins, écrite noir sur blanc** : `notifications` **lit** (liste groupée, compteur de non-lus,
+marquage lu, préférences) et **délègue toute écriture** à `internal/notifications.Dispatcher` (appelé par
+`domainevents`, `posts`, `creator`), à `media` pour les invitations, et aux préférences SQL pour la dédup et les
+gates. Il ne fabrique ni email (worker `email_delivery`), ni lien (`deeplink`), ni compteur de followers
+(`publishers`), ni contenu (`posts`/`articles`). Les deux routes clientes `POST /media-invite` et
+`POST /media-member-joined` réimplémentaient l'écriture média **sans** ses contrôles de rôle : supprimées.
+
+**6 défauts corrigés** F634–F639, chacun adossé à un rouge réellement exécuté (worktree `git worktree add -f
+/tmp/qoe-l29p-red HEAD`, suite `TestAuditL29P_*`, Postgres testcontainers + 95 migrations).
+
+| # | Défaut | Preuve (test) | Rouge constaté | Commit |
+|---|---|---|---|---|
+| F634 | **Dégradation silencieuse sans identité** : les handlers lisaient `middleware.UserID` sans vérifier `ok` ; sans session, `toUUID("")` produisait NULL et la route répondait **200 avec une liste vide** (au lieu de 401). Helper `userID` (401 + validation UUID). | `TestAuditL29P_AnonymousIsUnauthorized`. | `/v1/notifications/ anonyme = 200 ({"notifications":[],"nextCursor":""})` | `fix(notifications)` |
+| F635 | **Type d'expéditeur figé à PERSONAL** : un compte média s'affichait comme une personne (avatar carré et carte de survol faux). `sender_type` lu depuis la publication de l'expéditeur, mappé via `identity.FromPublisherType`. | `TestAuditL29P_SenderTypeComesFromPublisher`. | `sender type = "PERSONAL", attendu MEDIA` | `fix(notifications)` |
+| F636 | **Clé de préférence inconnue ignorée** : `{"cléInconnue":true}` répondait 200 en n'enregistrant rien ; le patch relisait puis réécrivait la ligne entière (perte de mise à jour concurrente). Allowlist + `PatchNotificationPreferences` en une instruction (`COALESCE` nullable). | `TestAuditL29P_UnknownPreferenceKeyIsRejected`. | `clé inconnue = 200 ({"preferences":{…}})` | `fix(notifications)` |
+| F637 | **Marquage non borné** : 500 identifiants acceptés dans un `ANY` unique. Borne 200 (vide = tout marquer). | `TestAuditL29P_MarkReadIsBounded`. | `500 ids = 200 ({"success":true})` | `fix(notifications)` |
+| F638 | **Curseur non numérique ignoré** : `cursor=abc` retombait sur la première page en 200 (le client croyait paginer). 400 explicite + plafond 10 000. | `TestAuditL29P_InvalidCursorIsRejected`. | `cursor=abc = 200 ({"notifications":[],"nextCursor":""})` | `fix(notifications)` |
+| F639 | **Écriture de notifications média exposée au client** : `POST /v1/notifications/media-invite` (et `media-member-joined`) laissaient **tout compte authentifié** viser **n'importe quel `recipientId`** pour **n'importe quelle publication**, sans contrôle de rôle ni de tenant — doublon de `media_invitations.go`. Routes, handlers, méthodes de service et requête `InsertMediaMemberJoinedNotification` (aucun appelant) supprimés. | `TestAuditL29P_MediaNotificationRoutesAreGone`. | `/v1/notifications/media-invite = 200 ({"success":true})` | `fix(notifications)` |
+
+**Correctifs structurels, sans rouge isolable** (déclarés comme tels) :
+
+- **F640 — perte de mise à jour sur les préférences** : le couple `GetPreferences` + `Upsert` complet réécrivait
+  les 16 colonnes depuis une lecture antérieure ; le patch SQL à paramètres nullables applique uniquement les clés
+  envoyées (fix inclus dans F636, prouvé sur la sémantique, pas sur la course).
+- **F641 — `toUUID` avalait ses erreurs** : un identifiant illisible devenait NULL et la requête ne touchait rien en
+  silence ; les handlers valident désormais l'identité (401) et les ids viennent du contexte authentifié.
+- **F642 — journalisation manquante** : `unread-count` et `mark-read` renvoyaient 500 sans aucune trace serveur.
+
+**Migrations** : **aucune nécessaire** — `Notification_recipientId_isRead_createdAt_idx` couvre la liste et le
+compteur, `BlockedUser_creatorId_readerId_key` couvre les deux branches `NOT EXISTS` (colonnes toutes deux
+contraintes par égalité), et le marquage par `id = ANY` passe par la clé primaire. `ExpectedMigrationVersion` reste
+**95**.
+
+**Dettes ouvertes, sans faux correctif** (numérotation en continuité de R244) :
+
+- **R245 — groupement en mémoire** : le service charge `limit+1` lignes puis fusionne côté Go (fenêtre 48 h), sans
+  index dédié à `type` ; à fort volume, le groupement devrait descendre en SQL (`GROUP BY` par cible + agrégat de
+  senders) ou dans une vue matérialisée. Non bloquant : la liste est bornée à 100.
+- **R246 — `MarkRead` sans retour de compteur** : le client doit re-interroger `/unread-count` après un marquage ;
+  une réponse `{updated}` économiserait un aller-retour (changement de contrat client).
+- **R247 — préférences et canal e-mail** : la colonne `email*` est lue par le dispatcher et le worker, mais aucune
+  page de désinscription par type n'existe (seul le toggle global d'abonnement). Le choix produit reste ouvert ;
+  rien n'est dupliqué ici.
+
+**Commandes passées sur l'arbre corrigé** : `gofmt -l internal/modules/notifications/` → vide ; `go build ./...` → 0 ;
+`go vet ./internal/...` → 0 ; `QOE_DB_TESTS_OPTIONAL=1 go test` sur `notifications`, `home`, `creator`, `media`,
+`articles`, `publishers`, `users`, `settings`, `posts`, `domainevents`, `internal/notifications`, `workers`,
+`middleware`, `authz`, `cmd/server`, `cmd/worker` → **16 paquets `ok`** (base réelle) ; batterie workspace
+13 commandes → **13 × 0** ; **vitest front** touchés (`apps/core` centre de notifications + préférences +
+réglages lecteur) → **5 fichiers, 24 tests verts**.
 
 ## L29o — `apps/api/internal/modules/newsletters/**` — **clos le 2026-11-22**
 
