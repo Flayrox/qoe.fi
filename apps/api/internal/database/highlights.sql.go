@@ -11,6 +11,19 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const articleAllowsPublicAnnotations = `-- name: ArticleAllowsPublicAnnotations :one
+SELECT COALESCE("allowPublicAnnotations", false)
+FROM "Article" WHERE id = $1
+`
+
+// Réglage de l'auteur (studio : « annotations publiques »). Absent = refus.
+func (q *Queries) ArticleAllowsPublicAnnotations(ctx context.Context, id string) (bool, error) {
+	row := q.db.QueryRow(ctx, articleAllowsPublicAnnotations, id)
+	var allowPublicAnnotations bool
+	err := row.Scan(&allowPublicAnnotations)
+	return allowPublicAnnotations, err
+}
+
 const canViewArticle = `-- name: CanViewArticle :one
 SELECT EXISTS (
   SELECT 1
@@ -325,19 +338,26 @@ SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."quoteOrdinal", h."
 FROM "Highlight" h
 JOIN "User" u ON u.id = h."readerId"
 WHERE h."articleId" = $1
-  AND (h."isPublic" = true OR h."readerId" = $2)
+  -- Le réglage de l'article prime : un auteur qui coupe les annotations
+  -- publiques ne garde visibles que les surlignages de chacun pour soi.
+  AND (h."readerId" = $2
+       OR (h."isPublic" = true
+           AND COALESCE((SELECT a."allowPublicAnnotations" FROM "Article" a WHERE a.id = h."articleId"), false)))
   -- Blocage symétrique : le surlignage d'un compte bloqué ne remonte jamais.
   AND NOT EXISTS (
     SELECT 1 FROM "BlockedUser" b
     WHERE (b."readerId" = $2 AND b."creatorId" = u.id)
        OR (b."creatorId" = $2 AND b."readerId" = u.id)
   )
-ORDER BY h."createdAt" DESC
+ORDER BY h."createdAt" DESC, h.id DESC
+LIMIT $4 OFFSET $3
 `
 
 type ListHighlightsByArticleParams struct {
 	ArticleId string      `json:"articleId"`
 	ViewerId  pgtype.UUID `json:"viewerId"`
+	Offset    int32       `json:"offset"`
+	Limit     int32       `json:"limit"`
 }
 
 type ListHighlightsByArticleRow struct {
@@ -363,8 +383,15 @@ type ListHighlightsByArticleRow struct {
 }
 
 // Surlignages d'un article : publics + les siens (privés) + état upvote du viewer.
+// Ordre total (tie-break sur l'id) et page bornée : la liste publique d'un
+// article très annoté ne renvoie plus un flux non borné.
 func (q *Queries) ListHighlightsByArticle(ctx context.Context, arg ListHighlightsByArticleParams) ([]ListHighlightsByArticleRow, error) {
-	rows, err := q.db.Query(ctx, listHighlightsByArticle, arg.ArticleId, arg.ViewerId)
+	rows, err := q.db.Query(ctx, listHighlightsByArticle,
+		arg.ArticleId,
+		arg.ViewerId,
+		arg.Offset,
+		arg.Limit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -417,7 +444,7 @@ FROM "Highlight" h
 JOIN "Article" a ON a.id = h."articleId"
 JOIN "Publisher" p ON p.id = a."publisherId"
 WHERE h."readerId" = $1
-ORDER BY h."createdAt" DESC
+ORDER BY h."createdAt" DESC, h.id DESC
 LIMIT $2 OFFSET $3
 `
 

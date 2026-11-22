@@ -34,6 +34,8 @@ type Querier interface {
 	ArchivePublishedLegalVersions(ctx context.Context, arg ArchivePublishedLegalVersionsParams) error
 	// Vrai si l'un des deux a bloqué l'autre (les deux sens).
 	AreUsersBlocked(ctx context.Context, arg AreUsersBlockedParams) (bool, error)
+	// Réglage de l'auteur (studio : « annotations publiques »). Absent = refus.
+	ArticleAllowsPublicAnnotations(ctx context.Context, id string) (bool, error)
 	// Marque ATTACHED les assets référencés par les tables métier (couvertures,
 	// avatars, bannières, promos…). Ne touche jamais un asset PURGED (objet déjà
 	// supprimé du storage) : celui-ci sera ré-uploadé via réactivation CAS.
@@ -597,6 +599,8 @@ type Querier interface {
 	// publications suivies (PERSONAL/MEDIA), paginés — avec état follow du viewer.
 	ListFollowingByUser(ctx context.Context, arg ListFollowingByUserParams) ([]ListFollowingByUserRow, error)
 	// Surlignages d'un article : publics + les siens (privés) + état upvote du viewer.
+	// Ordre total (tie-break sur l'id) et page bornée : la liste publique d'un
+	// article très annoté ne renvoie plus un flux non borné.
 	ListHighlightsByArticle(ctx context.Context, arg ListHighlightsByArticleParams) ([]ListHighlightsByArticleRow, error)
 	ListLegalAcceptancesAdmin(ctx context.Context, arg ListLegalAcceptancesAdminParams) ([]ListLegalAcceptancesAdminRow, error)
 	// Preuves de consentement. L'IP et l'agent utilisateur sont inclus : c'est

@@ -197,6 +197,8 @@ SELECT b.id                 AS bookmark_id,
        p."customDomain"     AS publisher_custom_domain,
        p."logoUrl"          AS publisher_logo,
        a.content            AS article_content,
+       a.visibility::text   AS article_visibility,
+       a."tierId"           AS article_tier_id,
        c.name               AS category_name,
        u.id::text           AS author_id,
        u.name               AS author_name,
@@ -208,7 +210,7 @@ JOIN "Publisher" p ON p.id = a."publisherId"
 LEFT JOIN "Category" c ON c.id = a."categoryId"
 JOIN "User" u ON u.id = a."authorId"
 WHERE b."readerId" = $1
-ORDER BY b."createdAt" DESC
+ORDER BY b."createdAt" DESC, b.id DESC
 LIMIT $2 OFFSET $3;
 
 -- name: GetUserPronouns :one

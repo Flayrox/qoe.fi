@@ -42,6 +42,12 @@ func (f faultQ) DeleteHighlightUpvote(ctx context.Context, arg db.DeleteHighligh
 func (f faultQ) GetHighlightByID(ctx context.Context, id string) (db.GetHighlightByIDRow, error) {
 	return db.GetHighlightByIDRow{}, f.err
 }
+func (f faultQ) ArticleAllowsPublicAnnotations(ctx context.Context, id string) (bool, error) {
+	return false, f.err
+}
+func (f faultQ) GetSubscriberEntitlement(ctx context.Context, arg db.GetSubscriberEntitlementParams) (db.GetSubscriberEntitlementRow, error) {
+	return db.GetSubscriberEntitlementRow{}, f.err
+}
 func (f faultQ) ListAnnotationComments(ctx context.Context, arg db.ListAnnotationCommentsParams) ([]db.ListAnnotationCommentsRow, error) {
 	return nil, f.err
 }

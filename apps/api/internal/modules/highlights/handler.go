@@ -176,6 +176,10 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 			response.BadRequest(w, "Passage introuvable dans l'article")
 			return
 		}
+		if errors.Is(err, errAnnotationsDisabled) {
+			response.Forbidden(w, "Les annotations publiques sont désactivées pour cet article.")
+			return
+		}
 		log.Printf("[highlights] create: %v", err)
 		response.Internal(w)
 		return
@@ -190,7 +194,11 @@ type updateInput struct {
 
 // PATCH /v1/highlights/{id} — met à jour la note et/ou la visibilité d'un de ses surlignages.
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
-	userID, _ := middleware.UserID(r.Context())
+	userID, ok := middleware.UserID(r.Context())
+	if !ok || userID == "" {
+		response.Unauthorized(w, "Non authentifié")
+		return
+	}
 	id := chi.URLParam(r, "id")
 
 	var in updateInput
@@ -220,6 +228,10 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 
 	item, err := h.svc.Update(r.Context(), id, userID, cleanNote, in.IsPublic)
 	if err != nil {
+		if errors.Is(err, errHighlightNotFound) {
+			response.NotFound(w, "Surlignage introuvable")
+			return
+		}
 		log.Printf("[highlights] update: %v", err)
 		response.Internal(w)
 		return
@@ -242,8 +254,13 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 		response.Internal(w)
 		return
 	}
-	// Reflète la réalité : false = inexistant ou non propriétaire.
-	response.OK(w, map[string]bool{"success": deleted})
+	if !deleted {
+		// Inexistant ou surlignage d'autrui : 404, pas un 200 « success:false »
+		// qui laissait le client afficher une suppression réussie.
+		response.NotFound(w, "Surlignage introuvable")
+		return
+	}
+	response.OK(w, map[string]bool{"success": true})
 }
 
 // POST /v1/highlights/{id}/upvote — toggle upvote.
@@ -337,7 +354,11 @@ func (h *Handler) createComment(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /v1/highlights/comments/{commentId} — supprime un de ses commentaires.
 func (h *Handler) deleteComment(w http.ResponseWriter, r *http.Request) {
-	userID, _ := middleware.UserID(r.Context())
+	userID, ok := middleware.UserID(r.Context())
+	if !ok || userID == "" {
+		response.Unauthorized(w, "Non authentifié")
+		return
+	}
 	commentID := chi.URLParam(r, "commentId")
 
 	deleted, err := h.svc.DeleteComment(r.Context(), commentID, userID)
@@ -346,7 +367,11 @@ func (h *Handler) deleteComment(w http.ResponseWriter, r *http.Request) {
 		response.Internal(w)
 		return
 	}
-	response.OK(w, map[string]bool{"success": deleted})
+	if !deleted {
+		response.NotFound(w, "Commentaire introuvable")
+		return
+	}
+	response.OK(w, map[string]bool{"success": true})
 }
 
 // GET /v1/bookmarks — articles sauvegardés (bibliothèque), paginés.
@@ -394,14 +419,10 @@ func (h *Handler) myHighlightsCount(w http.ResponseWriter, r *http.Request) {
 
 func parseLimitOffset(r *http.Request) (limit int, offset int) {
 	limit, _ = strconv.Atoi(r.URL.Query().Get("limit"))
-	if limit <= 0 || limit > 100 {
-		limit = 20
-	}
 	offset, _ = strconv.Atoi(r.URL.Query().Get("offset"))
-	if offset < 0 {
-		offset = 0
-	}
-	return limit, offset
+	// Mêmes bornes que le service : la pagination profonde (offset arbitraire)
+	// n'est plus acceptée silencieusement.
+	return clampPage(limit, offset)
 }
 
 // ErrNotFound est exposé pour les tests (parité des handlers).

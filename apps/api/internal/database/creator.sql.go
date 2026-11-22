@@ -579,6 +579,8 @@ SELECT b.id                 AS bookmark_id,
        p."customDomain"     AS publisher_custom_domain,
        p."logoUrl"          AS publisher_logo,
        a.content            AS article_content,
+       a.visibility::text   AS article_visibility,
+       a."tierId"           AS article_tier_id,
        c.name               AS category_name,
        u.id::text           AS author_id,
        u.name               AS author_name,
@@ -590,7 +592,7 @@ JOIN "Publisher" p ON p.id = a."publisherId"
 LEFT JOIN "Category" c ON c.id = a."categoryId"
 JOIN "User" u ON u.id = a."authorId"
 WHERE b."readerId" = $1
-ORDER BY b."createdAt" DESC
+ORDER BY b."createdAt" DESC, b.id DESC
 LIMIT $2 OFFSET $3
 `
 
@@ -616,6 +618,8 @@ type ListBookmarksByReaderRow struct {
 	PublisherCustomDomain pgtype.Text      `json:"publisher_custom_domain"`
 	PublisherLogo         pgtype.Text      `json:"publisher_logo"`
 	ArticleContent        string           `json:"article_content"`
+	ArticleVisibility     string           `json:"article_visibility"`
+	ArticleTierID         pgtype.Text      `json:"article_tier_id"`
 	CategoryName          pgtype.Text      `json:"category_name"`
 	AuthorID              string           `json:"author_id"`
 	AuthorName            pgtype.Text      `json:"author_name"`
@@ -650,6 +654,8 @@ func (q *Queries) ListBookmarksByReader(ctx context.Context, arg ListBookmarksBy
 			&i.PublisherCustomDomain,
 			&i.PublisherLogo,
 			&i.ArticleContent,
+			&i.ArticleVisibility,
+			&i.ArticleTierID,
 			&i.CategoryName,
 			&i.AuthorID,
 			&i.AuthorName,

@@ -115,13 +115,10 @@ func TestHTTP_UpdateDeleteToggleUpvote(t *testing.T) {
 		t.Fatalf("upvote privé = %d %s, attendu 404", w.Code, w.Body.String())
 	}
 
-	// Suppression par un tiers : ok:false (0 ligne affectée).
+	// Suppression par un tiers : 404 (0 ligne affectée, aucun faux succès).
 	w = doReq(r, http.MethodDelete, "/v1/highlights/"+h0.ID, fx.ViewerID, "")
-	if w.Code != http.StatusOK {
-		t.Fatalf("delete autrui = %d %s", w.Code, w.Body.String())
-	}
-	if !strings.Contains(w.Body.String(), `"success":false`) {
-		t.Fatalf("contrat success attendu false : %s", w.Body.String())
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("delete autrui = %d %s, attendu 404", w.Code, w.Body.String())
 	}
 
 	// Suppression par le propriétaire : ok:true.
@@ -164,10 +161,10 @@ func TestHTTP_CommentsRoutes(t *testing.T) {
 	}
 	commentID, _ := created["id"].(string)
 
-	// Delete avec le mauvais auteur → deleted:false.
+	// Delete avec le mauvais auteur → 404.
 	w = doReq(r, http.MethodDelete,
 		"/v1/highlights/comments/"+commentID, fx.AuthorID, "")
-	if !strings.Contains(w.Body.String(), `"success":false`) {
-		t.Fatalf("delete autrui doit refléter l'échec : %s", w.Body.String())
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("delete comment autrui = %d %s, attendu 404", w.Code, w.Body.String())
 	}
 }

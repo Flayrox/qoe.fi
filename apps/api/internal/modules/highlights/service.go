@@ -6,6 +6,7 @@ package highlights
 import (
 	"context"
 	"errors"
+	"log"
 	"strings"
 	"time"
 
@@ -15,8 +16,18 @@ import (
 	"github.com/qoefi/api/internal/canon"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/identity"
+	"github.com/qoefi/api/internal/modules/articles"
 	"github.com/qoefi/api/internal/subscriptions"
 	"github.com/qoefi/api/internal/vectorfeed"
+)
+
+const (
+	// maxArticleHighlights borne la liste publique d'un article très annoté.
+	maxArticleHighlights = 200
+	// maxPageLimit plafonne les listes paginées de la bibliothèque.
+	maxPageLimit = 100
+	// maxListOffset borne la pagination profonde (offset quadratique en SQL).
+	maxListOffset = 10_000
 )
 
 // Author est l'auteur d'un surlignage ou d'un commentaire d'annotation.
@@ -65,17 +76,17 @@ type AnnotationComment struct {
 
 // MyHighlight est un surlignage du lecteur avec l'article associé (bibliothèque).
 type MyHighlight struct {
-	ID                      string  `json:"id"`
-	Text                    string  `json:"text"`
-	Note                    *string `json:"note"`
-	IsPublic                bool    `json:"isPublic"`
-	IsOfficial              bool    `json:"isOfficial"`
-	UpvotesCount            int     `json:"upvotesCount"`
-	ReaderID                string  `json:"readerId"`
-	ArticleID               string  `json:"articleId"`
-	CreatedAt               string  `json:"createdAt"`
-	ArticleTitle            string  `json:"articleTitle"`
-	ArticleSlug             string  `json:"articleSlug"`
+	ID                    string  `json:"id"`
+	Text                  string  `json:"text"`
+	Note                  *string `json:"note"`
+	IsPublic              bool    `json:"isPublic"`
+	IsOfficial            bool    `json:"isOfficial"`
+	UpvotesCount          int     `json:"upvotesCount"`
+	ReaderID              string  `json:"readerId"`
+	ArticleID             string  `json:"articleId"`
+	CreatedAt             string  `json:"createdAt"`
+	ArticleTitle          string  `json:"articleTitle"`
+	ArticleSlug           string  `json:"articleSlug"`
 	PublisherID           string  `json:"publisherId"`
 	PublisherName         string  `json:"publisherName"`
 	PublisherSlug         string  `json:"publisherSlug"`
@@ -85,23 +96,23 @@ type MyHighlight struct {
 
 // BookmarkItem est un article sauvegardé (bibliothèque).
 type BookmarkItem struct {
-	BookmarkID              string  `json:"bookmarkId"`
-	BookmarkedAt            string  `json:"bookmarkedAt"`
-	ArticleID               string  `json:"articleId"`
-	ArticleTitle            string  `json:"articleTitle"`
-	ArticleSlug             string  `json:"articleSlug"`
-	ArticleReadingTime      int     `json:"readingTime"`
-	ArticleIsPremium        bool    `json:"isPremium"`
-	ArticleCreatedAt        string  `json:"articleCreatedAt"`
-	ArticleContent          string  `json:"content"`
+	BookmarkID            string  `json:"bookmarkId"`
+	BookmarkedAt          string  `json:"bookmarkedAt"`
+	ArticleID             string  `json:"articleId"`
+	ArticleTitle          string  `json:"articleTitle"`
+	ArticleSlug           string  `json:"articleSlug"`
+	ArticleReadingTime    int     `json:"readingTime"`
+	ArticleIsPremium      bool    `json:"isPremium"`
+	ArticleCreatedAt      string  `json:"articleCreatedAt"`
+	ArticleContent        string  `json:"content"`
 	PublisherID           string  `json:"publisherId"`
 	PublisherName         string  `json:"publisherName"`
 	PublisherSlug         string  `json:"publisherSlug"`
 	PublisherSubdomain    *string `json:"subdomain"`
 	PublisherCustomDomain *string `json:"customDomain"`
 	PublisherLogo         *string `json:"logoUrl"`
-	CategoryName            *string `json:"categoryName"`
-	Author                  Author  `json:"author"`
+	CategoryName          *string `json:"categoryName"`
+	Author                Author  `json:"author"`
 }
 
 // errHighlightNotFound couvre l'inexistant ET l'inaccessible : un surlignage
@@ -111,6 +122,11 @@ var errHighlightNotFound = errors.New("surlignage introuvable")
 // errQuoteNotFound signale qu'une citation publique ne correspond à aucun
 // passage réel de l'article (anti-spoofing de citation).
 var errQuoteNotFound = errors.New("passage introuvable dans l'article")
+
+// errAnnotationsDisabled : l'auteur de l'article a coupé les annotations
+// publiques (réglage studio `allowPublicAnnotations`). Le surlignage privé
+// reste permis.
+var errAnnotationsDisabled = errors.New("annotations publiques désactivées pour cet article")
 
 // Service porte les dépendances du domaine highlights.
 type Service struct {
@@ -231,6 +247,8 @@ func (s *Service) ListByArticle(ctx context.Context, articleID, viewerID string)
 	rows, err := s.q.ListHighlightsByArticle(ctx, db.ListHighlightsByArticleParams{
 		ArticleId: articleID,
 		ViewerId:  toUUID(viewerID),
+		Limit:     maxArticleHighlights,
+		Offset:    0,
 	})
 	if err != nil {
 		return nil, err
@@ -268,6 +286,9 @@ func (s *Service) resolveAnchor(ctx context.Context, articleID, text string, quo
 	}
 	var html string
 	if err := s.pool.QueryRow(ctx, `SELECT "content" FROM "Article" WHERE id=$1`, articleID).Scan(&html); err != nil {
+		// Repli documenté (text + quoteOrdinal), mais jamais silencieux : une
+		// panne de lecture ne doit pas ressembler à « ancre introuvable ».
+		log.Printf("[highlights] resolveAnchor(%s): lecture contenu: %v", articleID, err)
 		return pgtype.Int4{}, pgtype.Int4{}, pgtype.Text{}
 	}
 	doc := canon.Parse(html)
@@ -306,9 +327,26 @@ func (s *Service) Create(ctx context.Context, articleID, readerID, text string, 
 	if quoteOrdinal < 0 {
 		quoteOrdinal = 0
 	}
+	if quoteOrdinal > maxQuoteOrdinal {
+		// Défense en profondeur : le handler valide déjà, mais un appel direct
+		// (test, futur consommateur) ne peut plus écrire un ordinal absurde.
+		return Highlight{}, errQuoteNotFound
+	}
 	start, end, sha := s.resolveAnchor(ctx, articleID, text, quoteOrdinal)
 	if isPublic && !start.Valid {
 		return Highlight{}, errQuoteNotFound
+	}
+	if isPublic {
+		allowed, err := s.q.ArticleAllowsPublicAnnotations(ctx, articleID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return Highlight{}, errHighlightNotFound
+			}
+			return Highlight{}, err
+		}
+		if !allowed {
+			return Highlight{}, errAnnotationsDisabled
+		}
 	}
 	id, err := s.q.CreateHighlight(ctx, db.CreateHighlightParams{
 		Text:           text,
@@ -335,10 +373,13 @@ func (s *Service) Create(ctx context.Context, articleID, readerID, text string, 
 			}
 		}
 	}
-	row, err := s.q.GetHighlightByID(ctx, id)
-	if err != nil {
-		return Highlight{}, err
-	}
+	return s.highlightByID(ctx, id)
+}
+
+// highlightDTO mappe la ligne complète (tous les champs du contrat, ancres
+// comprises) : PATCH renvoyait auparavant une forme tronquée qui faisait perdre
+// quoteOrdinal et les ancres canoniques au client après une modification.
+func highlightDTO(row db.GetHighlightByIDRow) Highlight {
 	return Highlight{
 		ID:             row.ID,
 		Text:           row.Text,
@@ -352,10 +393,22 @@ func (s *Service) Create(ctx context.Context, articleID, readerID, text string, 
 		UpvotesCount:   int(row.UpvotesCount),
 		ReaderID:       row.ReaderID,
 		ArticleID:      row.ArticleId,
-		CreatedAt:      tsString(row.CreatedAt), Reader: authorFrom(row.ReaderID, row.ReaderName, row.ReaderUsername, row.ReaderLogo),
-		ViewerUpvoted: false,
-		CommentsCount: 0,
-	}, nil
+		CreatedAt:      tsString(row.CreatedAt),
+		Reader:         authorFrom(row.ReaderID, row.ReaderName, row.ReaderUsername, row.ReaderLogo),
+	}
+}
+
+// highlightByID relit un surlignage en distinguant l'inexistant (404) d'une
+// panne : avant, un PATCH sur un id inconnu partait en 500.
+func (s *Service) highlightByID(ctx context.Context, id string) (Highlight, error) {
+	row, err := s.q.GetHighlightByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Highlight{}, errHighlightNotFound
+		}
+		return Highlight{}, err
+	}
+	return highlightDTO(row), nil
 }
 
 // Delete supprime un de ses surlignages (ownership vérifié en requête).
@@ -378,10 +431,14 @@ func (s *Service) Update(ctx context.Context, highlightID, readerID string, note
 	// peut pas distinguer « non fourni » d'une valeur concrète pour un bool.
 	current, err := s.q.GetHighlightByID(ctx, highlightID)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Highlight{}, errHighlightNotFound
+		}
 		return Highlight{}, err
 	}
 	if current.ReaderId.String() != readerID {
-		return Highlight{}, errors.New("surlignage introuvable ou non autorisé")
+		// Même réponse que l'inexistant : zéro-fuite sur le surlignage d'autrui.
+		return Highlight{}, errHighlightNotFound
 	}
 	finalNote := current.Note
 	if note != nil {
@@ -399,59 +456,69 @@ func (s *Service) Update(ctx context.Context, highlightID, readerID string, note
 	}); err != nil {
 		return Highlight{}, err
 	}
-	row, err := s.q.GetHighlightByID(ctx, highlightID)
-	if err != nil {
-		return Highlight{}, err
-	}
-	return Highlight{
-		ID:           row.ID,
-		Text:         row.Text,
-		Note:         textPtr(row.Note),
-		IsPublic:     row.IsPublic,
-		IsOfficial:   row.IsOfficial,
-		UpvotesCount: int(row.UpvotesCount),
-		ReaderID:     row.ReaderID,
-		ArticleID:    row.ArticleId,
-		CreatedAt:    tsString(row.CreatedAt), Reader: authorFrom(row.ReaderID, row.ReaderName, row.ReaderUsername, row.ReaderLogo),
-		ViewerUpvoted: false,
-		CommentsCount: 0,
-	}, nil
+	return s.highlightByID(ctx, highlightID)
 }
 
 // ToggleUpvote ajoute/retire l'upvote du viewer sur un surlignage.
-// L'insertion est idempotente (ON CONFLICT DO NOTHING) : si aucune ligne
-// n'est retournée, l'upvote existait déjà → on le retire. Le compteur est
-// lu dans une requête séparée (les CTE PostgreSQL sont matérialisés).
+// Transaction unique + verrou de la ligne : l'état renvoyé est celui qui vient
+// d'être écrit, même sous double-tap concurrent.
 func (s *Service) ToggleUpvote(ctx context.Context, highlightID, userID string) (upvoted bool, count int, err error) {
 	if _, err := s.ensureHighlightAccess(ctx, highlightID, userID); err != nil {
 		return false, 0, err
 	}
-	_, err = s.q.ToggleHighlightUpvote(ctx, db.ToggleHighlightUpvoteParams{
-		HighlightId: highlightID,
-		UserId:      toUUID(userID),
-	})
+
+	// Le basculement est atomique : trois requêtes séparées (insert, delete,
+	// count) laissaient deux taps concurrents s'annuler et renvoyaient un
+	// `upvoted` qui ne correspondait pas à l'état réel. La ligne du surlignage
+	// est verrouillée, l'existence est lue dans la même transaction que
+	// l'écriture et le compteur.
+	tx, err := s.pool.Begin(ctx)
 	if err != nil {
+		return false, 0, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var lockedID string
+	if err := tx.QueryRow(ctx, `SELECT id FROM "Highlight" WHERE id = $1 FOR UPDATE`, highlightID).Scan(&lockedID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			// L'upvote existait déjà → retrait.
-			if err := s.q.DeleteHighlightUpvote(ctx, db.DeleteHighlightUpvoteParams{
-				HighlightId: highlightID,
-				UserId:      toUUID(userID),
-			}); err != nil {
-				return false, 0, err
-			}
-			upvoted = false
-		} else {
+			return false, 0, errHighlightNotFound
+		}
+		return false, 0, err
+	}
+
+	var exists bool
+	if err := tx.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM "AnnotationUpvote" WHERE "highlightId" = $1 AND "userId" = $2)`,
+		highlightID, toUUID(userID)).Scan(&exists); err != nil {
+		return false, 0, err
+	}
+	if exists {
+		if _, err := tx.Exec(ctx,
+			`DELETE FROM "AnnotationUpvote" WHERE "highlightId" = $1 AND "userId" = $2`,
+			highlightID, toUUID(userID)); err != nil {
 			return false, 0, err
 		}
 	} else {
+		if _, err := tx.Exec(ctx,
+			`INSERT INTO "AnnotationUpvote" (id, "highlightId", "userId")
+			 VALUES (gen_random_uuid()::text, $1, $2)
+			 ON CONFLICT ("highlightId", "userId") DO NOTHING`,
+			highlightID, toUUID(userID)); err != nil {
+			return false, 0, err
+		}
 		upvoted = true
 	}
 
-	n, err := s.q.CountHighlightUpvotes(ctx, highlightID)
-	if err != nil {
-		return upvoted, 0, err
+	var total int32
+	if err := tx.QueryRow(ctx,
+		`SELECT COUNT(*)::int FROM "AnnotationUpvote" WHERE "highlightId" = $1`,
+		highlightID).Scan(&total); err != nil {
+		return false, 0, err
 	}
-	return upvoted, int(n), nil
+	if err := tx.Commit(ctx); err != nil {
+		return false, 0, err
+	}
+	return upvoted, int(total), nil
 }
 
 // ListComments retourne les commentaires d'un surlignage visibles par le
@@ -511,7 +578,11 @@ func (s *Service) CreateComment(ctx context.Context, highlightID, authorID, cont
 			}, nil
 		}
 	}
-	return AnnotationComment{}, nil
+	// Le commentaire est écrit mais invisible (blocage ou surlignage devenu
+	// privé entre-temps) : répondre 201 avec un objet vide annonçait un succès
+	// que le client ne pouvait pas afficher.
+	log.Printf("[highlights] CreateComment: commentaire %s introuvable en relecture", id)
+	return AnnotationComment{}, errors.New("commentaire créé mais introuvable en relecture")
 }
 
 // DeleteComment supprime un de ses commentaires d'annotation.
@@ -528,9 +599,7 @@ func (s *Service) DeleteComment(ctx context.Context, commentID, authorID string)
 
 // MyHighlights retourne les surlignages du lecteur (bibliothèque), paginés.
 func (s *Service) MyHighlights(ctx context.Context, readerID string, limit, offset int) ([]MyHighlight, error) {
-	if limit <= 0 || limit > 100 {
-		limit = 20
-	}
+	limit, offset = clampPage(limit, offset)
 	rows, err := s.q.ListMyHighlights(ctx, db.ListMyHighlightsParams{
 		ReaderId: toUUID(readerID),
 		Limit:    int32(limit),
@@ -542,17 +611,17 @@ func (s *Service) MyHighlights(ctx context.Context, readerID string, limit, offs
 	out := make([]MyHighlight, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, MyHighlight{
-			ID:                      r.ID,
-			Text:                    r.Text,
-			Note:                    textPtr(r.Note),
-			IsPublic:                r.IsPublic,
-			IsOfficial:              r.IsOfficial,
-			UpvotesCount:            int(r.UpvotesCount),
-			ReaderID:                r.ReaderId.String(),
-			ArticleID:               r.ArticleId,
-			CreatedAt:               tsString(r.CreatedAt),
-			ArticleTitle:            r.ArticleTitle,
-			ArticleSlug:             r.ArticleSlug,
+			ID:                    r.ID,
+			Text:                  r.Text,
+			Note:                  textPtr(r.Note),
+			IsPublic:              r.IsPublic,
+			IsOfficial:            r.IsOfficial,
+			UpvotesCount:          int(r.UpvotesCount),
+			ReaderID:              r.ReaderId.String(),
+			ArticleID:             r.ArticleId,
+			CreatedAt:             tsString(r.CreatedAt),
+			ArticleTitle:          r.ArticleTitle,
+			ArticleSlug:           r.ArticleSlug,
 			PublisherID:           r.PublisherID,
 			PublisherName:         r.PublisherName,
 			PublisherSlug:         r.PublisherSlug,
@@ -563,11 +632,25 @@ func (s *Service) MyHighlights(ctx context.Context, readerID string, limit, offs
 	return out, nil
 }
 
-// Bookmarks retourne les articles sauvegardés d'un lecteur (bibliothèque), paginés.
-func (s *Service) Bookmarks(ctx context.Context, readerID string, limit, offset int) ([]BookmarkItem, error) {
-	if limit <= 0 || limit > 100 {
+// clampPage borne la page (défaut 20, max 100) et la pagination profonde.
+func clampPage(limit, offset int) (int, int) {
+	if limit <= 0 || limit > maxPageLimit {
 		limit = 20
 	}
+	if offset < 0 {
+		offset = 0
+	}
+	if offset > maxListOffset {
+		offset = maxListOffset
+	}
+	return limit, offset
+}
+
+// Bookmarks retourne les articles sauvegardés d'un lecteur (bibliothèque),
+// paginés et **coupés au paywall** : la bibliothèque servait le HTML complet
+// d'un article premium à un lecteur non abonné (contournement du paywall).
+func (s *Service) Bookmarks(ctx context.Context, readerID string, limit, offset int) ([]BookmarkItem, error) {
+	limit, offset = clampPage(limit, offset)
 	rows, err := s.q.ListBookmarksByReader(ctx, db.ListBookmarksByReaderParams{
 		ReaderId: toUUID(readerID),
 		Limit:    int32(limit),
@@ -576,25 +659,54 @@ func (s *Service) Bookmarks(ctx context.Context, readerID string, limit, offset 
 	if err != nil {
 		return nil, err
 	}
+	// Entitlements calculés une fois par publication de la page (pas un appel
+	// par bookmark), comme `publishers`/`feed` pour leurs listes.
+	entitlements := make(map[string]articles.UserEntitlements, 4)
+	for _, r := range rows {
+		if _, seen := entitlements[r.PublisherID]; seen {
+			continue
+		}
+		ent := articles.UserEntitlements{}
+		sub, err := s.q.GetSubscriberEntitlement(ctx, db.GetSubscriberEntitlementParams{
+			PublisherId: r.PublisherID,
+			UserId:      toUUID(readerID),
+			Email:       "",
+		})
+		switch {
+		case err == nil:
+			ent.IsMember = sub.IsActive
+			ent.IsPaidSubscriber = sub.IsPremium && sub.IsActive
+			if sub.TierId.Valid {
+				tier := sub.TierId.String
+				ent.TierID = &tier
+			}
+		case errors.Is(err, pgx.ErrNoRows):
+			// Pas d'abonnement : accès public seulement.
+		default:
+			return nil, err
+		}
+		entitlements[r.PublisherID] = ent
+	}
 	out := make([]BookmarkItem, 0, len(rows))
 	for _, r := range rows {
+		cut := articles.SliceContentAtPaywall(r.ArticleContent, entitlements[r.PublisherID], r.ArticleVisibility, textPtr(r.ArticleTierID))
 		out = append(out, BookmarkItem{
-			BookmarkID:              r.BookmarkID,
-			BookmarkedAt:            tsString(r.BookmarkedAt),
-			ArticleID:               r.ArticleID,
-			ArticleTitle:            r.ArticleTitle,
-			ArticleSlug:             r.ArticleSlug,
-			ArticleReadingTime:      int(r.ArticleReadingTime),
-			ArticleIsPremium:        r.ArticleIsPremium,
-			ArticleCreatedAt:        tsString(r.ArticleCreatedAt),
+			BookmarkID:            r.BookmarkID,
+			BookmarkedAt:          tsString(r.BookmarkedAt),
+			ArticleID:             r.ArticleID,
+			ArticleTitle:          r.ArticleTitle,
+			ArticleSlug:           r.ArticleSlug,
+			ArticleReadingTime:    int(r.ArticleReadingTime),
+			ArticleIsPremium:      r.ArticleIsPremium,
+			ArticleCreatedAt:      tsString(r.ArticleCreatedAt),
 			PublisherID:           r.PublisherID,
 			PublisherName:         r.PublisherName,
 			PublisherSlug:         r.PublisherSlug,
 			PublisherSubdomain:    textPtr(r.PublisherSubdomain),
 			PublisherCustomDomain: textPtr(r.PublisherCustomDomain),
 			PublisherLogo:         textPtr(r.PublisherLogo),
-			ArticleContent:          r.ArticleContent,
-			CategoryName:            textPtr(r.CategoryName), Author: authorFrom(r.AuthorID, r.AuthorName, r.AuthorUsername, r.AuthorLogo),
+			ArticleContent:        cut.Content,
+			CategoryName:          textPtr(r.CategoryName), Author: authorFrom(r.AuthorID, r.AuthorName, r.AuthorUsername, r.AuthorLogo),
 		})
 	}
 	return out, nil

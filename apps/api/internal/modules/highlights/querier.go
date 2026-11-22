@@ -11,19 +11,18 @@ import (
 // *db.Queries l'implémente en prod).
 type highlightQuerier interface {
 	CanViewArticle(ctx context.Context, arg db.CanViewArticleParams) (bool, error)
-	CountHighlightUpvotes(ctx context.Context, highlightid string) (int32, error)
 	CreateAnnotationComment(ctx context.Context, arg db.CreateAnnotationCommentParams) (string, error)
 	CreateHighlight(ctx context.Context, arg db.CreateHighlightParams) (string, error)
 	DeleteAnnotationComment(ctx context.Context, arg db.DeleteAnnotationCommentParams) (int64, error)
 	DeleteHighlight(ctx context.Context, arg db.DeleteHighlightParams) (int64, error)
-	DeleteHighlightUpvote(ctx context.Context, arg db.DeleteHighlightUpvoteParams) error
+	ArticleAllowsPublicAnnotations(ctx context.Context, id string) (bool, error)
 	GetHighlightByID(ctx context.Context, id string) (db.GetHighlightByIDRow, error)
+	GetSubscriberEntitlement(ctx context.Context, arg db.GetSubscriberEntitlementParams) (db.GetSubscriberEntitlementRow, error)
 	IsBlockedEitherWay(ctx context.Context, arg db.IsBlockedEitherWayParams) (bool, error)
 	ListAnnotationComments(ctx context.Context, arg db.ListAnnotationCommentsParams) ([]db.ListAnnotationCommentsRow, error)
 	ListBookmarksByReader(ctx context.Context, arg db.ListBookmarksByReaderParams) ([]db.ListBookmarksByReaderRow, error)
 	ListHighlightsByArticle(ctx context.Context, arg db.ListHighlightsByArticleParams) ([]db.ListHighlightsByArticleRow, error)
 	ListMyHighlights(ctx context.Context, arg db.ListMyHighlightsParams) ([]db.ListMyHighlightsRow, error)
-	ToggleHighlightUpvote(ctx context.Context, arg db.ToggleHighlightUpvoteParams) (int32, error)
 	UpdateHighlight(ctx context.Context, arg db.UpdateHighlightParams) (db.UpdateHighlightRow, error)
 }
 

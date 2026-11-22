@@ -32,14 +32,21 @@ SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."quoteOrdinal", h."
 FROM "Highlight" h
 JOIN "User" u ON u.id = h."readerId"
 WHERE h."articleId" = $1
-  AND (h."isPublic" = true OR h."readerId" = sqlc.arg('viewerId'))
+  -- Le réglage de l'article prime : un auteur qui coupe les annotations
+  -- publiques ne garde visibles que les surlignages de chacun pour soi.
+  AND (h."readerId" = sqlc.arg('viewerId')
+       OR (h."isPublic" = true
+           AND COALESCE((SELECT a."allowPublicAnnotations" FROM "Article" a WHERE a.id = h."articleId"), false)))
   -- Blocage symétrique : le surlignage d'un compte bloqué ne remonte jamais.
   AND NOT EXISTS (
     SELECT 1 FROM "BlockedUser" b
     WHERE (b."readerId" = sqlc.arg('viewerId') AND b."creatorId" = u.id)
        OR (b."creatorId" = sqlc.arg('viewerId') AND b."readerId" = u.id)
   )
-ORDER BY h."createdAt" DESC;
+-- Ordre total (tie-break sur l'id) et page bornée : la liste publique d'un
+-- article très annoté ne renvoie plus un flux non borné.
+ORDER BY h."createdAt" DESC, h.id DESC
+LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
 -- name: ListMyHighlights :many
 -- Tous les surlignages d'un lecteur (bibliothèque), avec l'article associé.
@@ -56,7 +63,7 @@ FROM "Highlight" h
 JOIN "Article" a ON a.id = h."articleId"
 JOIN "Publisher" p ON p.id = a."publisherId"
 WHERE h."readerId" = $1
-ORDER BY h."createdAt" DESC
+ORDER BY h."createdAt" DESC, h.id DESC
 LIMIT $2 OFFSET $3;
 
 -- name: CanViewArticle :one
@@ -84,6 +91,11 @@ SELECT EXISTS (
           OR (b."creatorId" = sqlc.arg('viewerId')::uuid AND b."readerId" = u.id))
     )
 );
+
+-- name: ArticleAllowsPublicAnnotations :one
+-- Réglage de l'auteur (studio : « annotations publiques »). Absent = refus.
+SELECT COALESCE("allowPublicAnnotations", false)
+FROM "Article" WHERE id = $1;
 
 -- name: CreateHighlight :one
 -- Les colonnes canoniques (offsets en code points dans le document canonique
