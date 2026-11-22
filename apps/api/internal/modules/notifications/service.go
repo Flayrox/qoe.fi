@@ -10,10 +10,25 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/antispam"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/deeplink"
 	"github.com/qoefi/api/internal/identity"
 )
+
+// codeInvalidPreference : clé de préférence inconnue dans un PATCH.
+const codeInvalidPreference = "INVALID_PREFERENCE"
+
+// preferenceKeys est l'allowlist des toggles acceptés par PATCH. Une clé
+// inconnue était silencieusement ignorée (le client croyait avoir enregistré
+// son réglage).
+var preferenceKeys = map[string]bool{
+	"emailLikes": true, "pushLikes": true, "emailReplies": true, "pushReplies": true,
+	"emailComments": true, "pushComments": true, "emailMentions": true, "pushMentions": true,
+	"emailFollows": true, "pushFollows": true, "emailReposts": true, "pushReposts": true,
+	"emailMedia": true, "pushMedia": true,
+	"emailCollaborations": true, "pushCollaborations": true,
+}
 
 // Sender est l'auteur d'une notification.
 type Sender struct {
@@ -57,7 +72,7 @@ type Notification struct {
 	CommentID       *string         `json:"commentId"`
 	Thought         *ThoughtRef     `json:"thought"`
 	Article         *ArticleRef     `json:"article"`
-	Publisher     *PublisherRef `json:"publisher"`
+	Publisher       *PublisherRef   `json:"publisher"`
 	Metadata        json.RawMessage `json:"metadata,omitempty"`
 	// URL est le lien interne prêt à suivre, avec `?ws=<mediaId>` quand la
 	// cible appartient à un média. Le client ne reconstruit plus le chemin.
@@ -241,24 +256,6 @@ func markReadIDs(ids []string) []string {
 	return ids
 }
 
-// InsertMediaInvite crée une notification MEDIA_INVITE (dédup + prefs en SQL).
-func (s *Service) InsertMediaInvite(ctx context.Context, recipientID, senderID, publisherID string) error {
-	return s.q.InsertMediaInviteNotification(ctx, db.InsertMediaInviteNotificationParams{
-		RecipientID:   toUUID(recipientID),
-		SenderID:      toUUID(senderID),
-		PublisherID: publisherID,
-	})
-}
-
-// InsertMediaMemberJoined crée une notification MEDIA_MEMBER_JOINED.
-func (s *Service) InsertMediaMemberJoined(ctx context.Context, recipientID, senderID, publisherID string) error {
-	return s.q.InsertMediaMemberJoinedNotification(ctx, db.InsertMediaMemberJoinedNotificationParams{
-		RecipientID:   toUUID(recipientID),
-		SenderID:      toUUID(senderID),
-		PublisherID: publisherID,
-	})
-}
-
 // GetPreferences retourne les préférences (défauts si aucune ligne).
 func (s *Service) GetPreferences(ctx context.Context, userID string) (Preferences, error) {
 	row, err := s.q.GetNotificationPreferences(ctx, toUUID(userID))
@@ -274,69 +271,79 @@ func (s *Service) GetPreferences(ctx context.Context, userID string) (Preference
 		}
 		return Preferences{}, err
 	}
-	return Preferences{
-		EmailLikes: row.EmailLikes, PushLikes: row.PushLikes,
-		EmailReplies: row.EmailReplies, PushReplies: row.PushReplies,
-		EmailComments: row.EmailComments, PushComments: row.PushComments,
-		EmailMentions: row.EmailMentions, PushMentions: row.PushMentions,
-		EmailFollows: row.EmailFollows, PushFollows: row.PushFollows,
-		EmailReposts: row.EmailReposts, PushReposts: row.PushReposts,
-		EmailMedia: row.EmailMedia, PushMedia: row.PushMedia,
-		EmailCollaborations: row.EmailCollaborations, PushCollaborations: row.PushCollaborations,
-	}, nil
+	return prefsFromValues(
+		row.EmailLikes, row.PushLikes, row.EmailReplies, row.PushReplies,
+		row.EmailComments, row.PushComments, row.EmailMentions, row.PushMentions,
+		row.EmailFollows, row.PushFollows, row.EmailReposts, row.PushReposts,
+		row.EmailMedia, row.PushMedia, row.EmailCollaborations, row.PushCollaborations,
+	), nil
 }
 
-// UpdatePreferences met à jour les préférences (merge partiel).
-func (s *Service) UpdatePreferences(ctx context.Context, userID string, patch map[string]bool) (Preferences, error) {
-	cur, err := s.GetPreferences(ctx, userID)
-	if err != nil {
-		return cur, err
+// prefsFromValues : une seule projection des 16 colonnes, partagée par la
+// lecture et le patch (sinon les deux chemins divergent à la première colonne
+// ajoutée).
+func prefsFromValues(eLikes, pLikes, eReplies, pReplies, eComments, pComments,
+	eMentions, pMentions, eFollows, pFollows, eReposts, pReposts,
+	eMedia, pMedia, eCollabs, pCollabs bool,
+) Preferences {
+	return Preferences{
+		EmailLikes: eLikes, PushLikes: pLikes,
+		EmailReplies: eReplies, PushReplies: pReplies,
+		EmailComments: eComments, PushComments: pComments,
+		EmailMentions: eMentions, PushMentions: pMentions,
+		EmailFollows: eFollows, PushFollows: pFollows,
+		EmailReposts: eReposts, PushReposts: pReposts,
+		EmailMedia: eMedia, PushMedia: pMedia,
+		EmailCollaborations: eCollabs, PushCollaborations: pCollabs,
 	}
-	apply := func(key string, target *bool) {
-		if v, ok := patch[key]; ok {
-			*target = v
+}
+
+// optBool traduit la présence d'une clé en paramètre nullable : nil = « ne pas
+// toucher ».
+func optBool(patch map[string]bool, key string) pgtype.Bool {
+	v, ok := patch[key]
+	return pgtype.Bool{Bool: v, Valid: ok}
+}
+
+// UpdatePreferences applique un patch partiel en une seule instruction SQL :
+// les clés absentes gardent leur valeur (défaut `true` à la création), et deux
+// onglets qui sauvent deux réglages différents ne s'écrasent plus (l'ancien
+// lecture-puis-upsert complet perdait la mise à jour concurrente).
+func (s *Service) UpdatePreferences(ctx context.Context, userID string, patch map[string]bool) (Preferences, error) {
+	for key := range patch {
+		if !preferenceKeys[key] {
+			return Preferences{}, &antispam.RejectionError{HTTPStatus: 400, Code: codeInvalidPreference,
+				Message: "Préférence de notification inconnue : " + key}
 		}
 	}
-	apply("emailLikes", &cur.EmailLikes)
-	apply("pushLikes", &cur.PushLikes)
-	apply("emailReplies", &cur.EmailReplies)
-	apply("pushReplies", &cur.PushReplies)
-	apply("emailComments", &cur.EmailComments)
-	apply("pushComments", &cur.PushComments)
-	apply("emailMentions", &cur.EmailMentions)
-	apply("pushMentions", &cur.PushMentions)
-	apply("emailFollows", &cur.EmailFollows)
-	apply("pushFollows", &cur.PushFollows)
-	apply("emailReposts", &cur.EmailReposts)
-	apply("pushReposts", &cur.PushReposts)
-	apply("emailMedia", &cur.EmailMedia)
-	apply("pushMedia", &cur.PushMedia)
-	apply("emailCollaborations", &cur.EmailCollaborations)
-	apply("pushCollaborations", &cur.PushCollaborations)
-
-	err = s.q.UpsertNotificationPreferences(ctx, db.UpsertNotificationPreferencesParams{
-		UserId:              toUUID(userID),
-		EmailLikes:          cur.EmailLikes,
-		PushLikes:           cur.PushLikes,
-		EmailReplies:        cur.EmailReplies,
-		PushReplies:         cur.PushReplies,
-		EmailComments:       cur.EmailComments,
-		PushComments:        cur.PushComments,
-		EmailMentions:       cur.EmailMentions,
-		PushMentions:        cur.PushMentions,
-		EmailFollows:        cur.EmailFollows,
-		PushFollows:         cur.PushFollows,
-		EmailReposts:        cur.EmailReposts,
-		PushReposts:         cur.PushReposts,
-		EmailMedia:          cur.EmailMedia,
-		PushMedia:           cur.PushMedia,
-		EmailCollaborations: cur.EmailCollaborations,
-		PushCollaborations:  cur.PushCollaborations,
+	row, err := s.q.PatchNotificationPreferences(ctx, db.PatchNotificationPreferencesParams{
+		UserID:              toUUID(userID),
+		EmailLikes:          optBool(patch, "emailLikes"),
+		PushLikes:           optBool(patch, "pushLikes"),
+		EmailReplies:        optBool(patch, "emailReplies"),
+		PushReplies:         optBool(patch, "pushReplies"),
+		EmailComments:       optBool(patch, "emailComments"),
+		PushComments:        optBool(patch, "pushComments"),
+		EmailMentions:       optBool(patch, "emailMentions"),
+		PushMentions:        optBool(patch, "pushMentions"),
+		EmailFollows:        optBool(patch, "emailFollows"),
+		PushFollows:         optBool(patch, "pushFollows"),
+		EmailReposts:        optBool(patch, "emailReposts"),
+		PushReposts:         optBool(patch, "pushReposts"),
+		EmailMedia:          optBool(patch, "emailMedia"),
+		PushMedia:           optBool(patch, "pushMedia"),
+		EmailCollaborations: optBool(patch, "emailCollaborations"),
+		PushCollaborations:  optBool(patch, "pushCollaborations"),
 	})
 	if err != nil {
-		return cur, err
+		return Preferences{}, err
 	}
-	return cur, nil
+	return prefsFromValues(
+		row.EmailLikes, row.PushLikes, row.EmailReplies, row.PushReplies,
+		row.EmailComments, row.PushComments, row.EmailMentions, row.PushMentions,
+		row.EmailFollows, row.PushFollows, row.EmailReposts, row.PushReposts,
+		row.EmailMedia, row.PushMedia, row.EmailCollaborations, row.PushCollaborations,
+	), nil
 }
 
 func notificationFromRow(r *db.GetNotificationsRow) Notification {
@@ -353,7 +360,9 @@ func notificationFromRow(r *db.GetNotificationsRow) Notification {
 			Username:    textPtr(r.SenderUsername),
 			LogoURL:     textPtr(r.SenderLogo),
 			IsCertified: r.SenderCertified,
-			Type:        identity.Personal,
+			// Nature réelle de l'expéditeur, dérivée de sa publication : un
+			// compte média s'affichait comme une personne (mauvais avatar).
+			Type: identity.FromPublisherType(r.SenderType),
 		}},
 		TotalCount: 1,
 	}
@@ -391,11 +400,11 @@ func notificationFromRow(r *db.GetNotificationsRow) Notification {
 	}
 
 	target := deeplink.Target{
-		Type:            n.Type,
-		ThoughtID:       derefString(n.ThoughtID),
-		ArticleID:       derefString(n.ArticleID),
+		Type:          n.Type,
+		ThoughtID:     derefString(n.ThoughtID),
+		ArticleID:     derefString(n.ArticleID),
 		PublisherType: r.PublisherType,
-		MediaID:         r.MediaID,
+		MediaID:       r.MediaID,
 	}
 	if n.Article != nil {
 		target.ArticleSlug = n.Article.Slug

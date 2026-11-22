@@ -7,6 +7,9 @@ SELECT n.id, n.type, n."isRead", n."createdAt", n."thoughtId", n."articleId", n.
        u.username      AS sender_username,
        u."logoUrl"     AS sender_logo,
        u."isCertified" AS sender_certified,
+       -- Nature publique de l'expéditeur (avatar carré d'un média) : dérivée de
+       -- SA publication, jamais supposée PERSONAL côté Go.
+       COALESCE(sp.type::text, '')::text AS sender_type,
        t.content       AS thought_content,
        t."createdAt"   AS thought_created_at,
        a.title         AS article_title,
@@ -22,6 +25,7 @@ LEFT JOIN "Post" t ON t.id = n."thoughtId"
 LEFT JOIN "Article" a ON a.id = n."articleId"
 LEFT JOIN "ArticleComment" c ON c.id = n."commentId"
 LEFT JOIN "Publisher" p ON p.id = n."publisherId"
+LEFT JOIN "Publisher" sp ON sp.id = u."publisherId"
 LEFT JOIN "Media" md ON md."publisherId" = n."publisherId"
 WHERE n."recipientId" = $1
   AND ($2::text[] IS NULL OR n.type::text = ANY($2::text[]))
@@ -58,19 +62,45 @@ SELECT "emailLikes", "pushLikes", "emailReplies", "pushReplies", "emailComments"
 FROM "NotificationPreference"
 WHERE "userId" = $1;
 
--- name: UpsertNotificationPreferences :exec
+-- name: PatchNotificationPreferences :one
+-- Patch **en une seule instruction** : chaque champ envoyé est appliqué, les
+-- autres gardent leur valeur (ou le défaut `true` à la création). L'ancien
+-- couple lecture-puis-upsert complet perdait les mises à jour concurrentes
+-- (deux onglets qui sauvent deux réglages différents).
 INSERT INTO "NotificationPreference" ("id", "userId", "emailLikes", "pushLikes", "emailReplies", "pushReplies",
        "emailComments", "pushComments", "emailMentions", "pushMentions", "emailFollows", "pushFollows",
        "emailReposts", "pushReposts", "emailMedia", "pushMedia",
        "emailCollaborations", "pushCollaborations", "updatedAt")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, now())
+VALUES (
+  gen_random_uuid()::text, sqlc.arg(user_id),
+  COALESCE(sqlc.narg(email_likes)::boolean, true), COALESCE(sqlc.narg(push_likes)::boolean, true),
+  COALESCE(sqlc.narg(email_replies)::boolean, true), COALESCE(sqlc.narg(push_replies)::boolean, true),
+  COALESCE(sqlc.narg(email_comments)::boolean, true), COALESCE(sqlc.narg(push_comments)::boolean, true),
+  COALESCE(sqlc.narg(email_mentions)::boolean, true), COALESCE(sqlc.narg(push_mentions)::boolean, true),
+  COALESCE(sqlc.narg(email_follows)::boolean, true), COALESCE(sqlc.narg(push_follows)::boolean, true),
+  COALESCE(sqlc.narg(email_reposts)::boolean, true), COALESCE(sqlc.narg(push_reposts)::boolean, true),
+  COALESCE(sqlc.narg(email_media)::boolean, true), COALESCE(sqlc.narg(push_media)::boolean, true),
+  COALESCE(sqlc.narg(email_collaborations)::boolean, true), COALESCE(sqlc.narg(push_collaborations)::boolean, true),
+  now())
 ON CONFLICT ("userId") DO UPDATE SET
-  "emailLikes" = EXCLUDED."emailLikes", "pushLikes" = EXCLUDED."pushLikes",
-  "emailReplies" = EXCLUDED."emailReplies", "pushReplies" = EXCLUDED."pushReplies",
-  "emailComments" = EXCLUDED."emailComments", "pushComments" = EXCLUDED."pushComments",
-  "emailMentions" = EXCLUDED."emailMentions", "pushMentions" = EXCLUDED."pushMentions",
-  "emailFollows" = EXCLUDED."emailFollows", "pushFollows" = EXCLUDED."pushFollows",
-  "emailReposts" = EXCLUDED."emailReposts", "pushReposts" = EXCLUDED."pushReposts",
-  "emailMedia" = EXCLUDED."emailMedia", "pushMedia" = EXCLUDED."pushMedia",
-  "emailCollaborations" = EXCLUDED."emailCollaborations", "pushCollaborations" = EXCLUDED."pushCollaborations",
-  "updatedAt" = now();
+  "emailLikes" = COALESCE(sqlc.narg(email_likes)::boolean, "NotificationPreference"."emailLikes"),
+  "pushLikes" = COALESCE(sqlc.narg(push_likes)::boolean, "NotificationPreference"."pushLikes"),
+  "emailReplies" = COALESCE(sqlc.narg(email_replies)::boolean, "NotificationPreference"."emailReplies"),
+  "pushReplies" = COALESCE(sqlc.narg(push_replies)::boolean, "NotificationPreference"."pushReplies"),
+  "emailComments" = COALESCE(sqlc.narg(email_comments)::boolean, "NotificationPreference"."emailComments"),
+  "pushComments" = COALESCE(sqlc.narg(push_comments)::boolean, "NotificationPreference"."pushComments"),
+  "emailMentions" = COALESCE(sqlc.narg(email_mentions)::boolean, "NotificationPreference"."emailMentions"),
+  "pushMentions" = COALESCE(sqlc.narg(push_mentions)::boolean, "NotificationPreference"."pushMentions"),
+  "emailFollows" = COALESCE(sqlc.narg(email_follows)::boolean, "NotificationPreference"."emailFollows"),
+  "pushFollows" = COALESCE(sqlc.narg(push_follows)::boolean, "NotificationPreference"."pushFollows"),
+  "emailReposts" = COALESCE(sqlc.narg(email_reposts)::boolean, "NotificationPreference"."emailReposts"),
+  "pushReposts" = COALESCE(sqlc.narg(push_reposts)::boolean, "NotificationPreference"."pushReposts"),
+  "emailMedia" = COALESCE(sqlc.narg(email_media)::boolean, "NotificationPreference"."emailMedia"),
+  "pushMedia" = COALESCE(sqlc.narg(push_media)::boolean, "NotificationPreference"."pushMedia"),
+  "emailCollaborations" = COALESCE(sqlc.narg(email_collaborations)::boolean, "NotificationPreference"."emailCollaborations"),
+  "pushCollaborations" = COALESCE(sqlc.narg(push_collaborations)::boolean, "NotificationPreference"."pushCollaborations"),
+  "updatedAt" = now()
+RETURNING "emailLikes", "pushLikes", "emailReplies", "pushReplies", "emailComments", "pushComments",
+  "emailMentions", "pushMentions", "emailFollows", "pushFollows",
+  "emailReposts", "pushReposts", "emailMedia", "pushMedia",
+  "emailCollaborations", "pushCollaborations";

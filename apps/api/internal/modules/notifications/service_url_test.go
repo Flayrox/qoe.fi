@@ -13,13 +13,13 @@ import (
 func TestNotificationFromRowIncludesWorkspaceLink(t *testing.T) {
 	articleRow := func(publicationType, mediaID string) *db.GetNotificationsRow {
 		return &db.GetNotificationsRow{
-			Type:            "COMMENT",
-			ArticleId:       pgtype.Text{String: "art-1", Valid: true},
-			ArticleTitle:    pgtype.Text{String: "Titre", Valid: true},
-			ArticleSlug:     pgtype.Text{String: "titre", Valid: true},
+			Type:          "COMMENT",
+			ArticleId:     pgtype.Text{String: "art-1", Valid: true},
+			ArticleTitle:  pgtype.Text{String: "Titre", Valid: true},
+			ArticleSlug:   pgtype.Text{String: "titre", Valid: true},
 			PublisherId:   pgtype.Text{String: "pub-1", Valid: true},
 			PublisherType: publicationType,
-			MediaID:         mediaID,
+			MediaID:       mediaID,
 		}
 	}
 

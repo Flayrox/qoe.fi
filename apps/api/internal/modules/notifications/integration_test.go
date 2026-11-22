@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/testutil"
 )
 
@@ -333,7 +334,11 @@ func TestListSenderTypeFromMediaMembership(t *testing.T) {
 
 // ─── Notifications média ───────────────────────────────────────────────
 
-func TestInsertMediaInviteAndMemberJoined(t *testing.T) {
+// L'invitation média est écrite par le module media (contrôles de rôle et de
+// tenant) : ce module ne fait que la servir. On exerce donc la requête que
+// media appelle, pas une route cliente (supprimée : elle permettait à
+// n'importe quel compte de viser n'importe quel destinataire).
+func TestMediaInviteIsServed(t *testing.T) {
 	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
@@ -350,41 +355,39 @@ func TestInsertMediaInviteAndMemberJoined(t *testing.T) {
 		t.Fatalf("publication de l'auteur: %v", err)
 	}
 
-	if _, err := poolTest.Exec(ctx,
-		`UPDATE "User" SET "publisherId" = NULL WHERE id = $1`,
-		fx.ViewerID); err != nil {
-		t.Fatalf("detach publication: %v", err)
-	}
-
-	if err := svc.InsertMediaInvite(ctx, fx.ViewerID, fx.AuthorID, pubID); err != nil {
-		t.Fatalf("InsertMediaInvite: %v", err)
-	}
-	if err := svc.InsertMediaMemberJoined(ctx, fx.ViewerID, fx.AuthorID, pubID); err != nil {
-		t.Fatalf("InsertMediaMemberJoined: %v", err)
+	q := db.New(poolTest)
+	if err := q.InsertMediaInviteNotification(ctx, db.InsertMediaInviteNotificationParams{
+		RecipientID: toUUID(fx.ViewerID),
+		SenderID:    toUUID(fx.AuthorID),
+		PublisherID: pubID,
+	}); err != nil {
+		t.Fatalf("InsertMediaInviteNotification: %v", err)
 	}
 
 	res, err := svc.List(ctx, fx.ViewerID, "", 30, 0)
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
-	types := map[string]bool{}
+	found := false
 	for _, n := range res.Notifications {
-		types[n.Type] = true
+		if n.Type != "MEDIA_INVITE" {
+			continue
+		}
+		found = true
 		if n.Publisher == nil || n.Publisher.ID != pubID {
-			t.Fatalf("notification %s sans référence publication", n.Type)
+			t.Fatalf("notification MEDIA_INVITE sans référence publication")
 		}
 	}
-	if !types["MEDIA_INVITE"] || !types["MEDIA_MEMBER_JOINED"] {
-		t.Fatalf("types manquants : %v", types)
+	if !found {
+		t.Fatal("MEDIA_INVITE non servie par List")
 	}
 
-	// UnreadCount compte ces nouvelles notifications.
 	count, err := svc.UnreadCount(ctx, fx.ViewerID)
 	if err != nil {
 		t.Fatalf("UnreadCount: %v", err)
 	}
-	if count < 2 {
-		t.Fatalf("unread = %d, attendu >= 2", count)
+	if count < 1 {
+		t.Fatalf("unread = %d, attendu >= 1", count)
 	}
 }
 

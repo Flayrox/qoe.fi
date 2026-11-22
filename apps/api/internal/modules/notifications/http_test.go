@@ -42,11 +42,11 @@ func TestHTTP_ListUnreadAndMarkRead(t *testing.T) {
 	insertNotification(t, fx.ViewerID, fx.AuthorID, "FOLLOW", "", false)
 	r := newHTTPRouter()
 
-	// Anonyme : userID vide → liste vide mais 200 (auth optionnelle côté
-	// middleware réel ; le handler dégrade proprement).
+	// Anonyme : la route est montée derrière le middleware protégé ; sans
+	// identité le handler doit refuser, pas dégrader en liste vide.
 	w := doReq(r, http.MethodGet, "/v1/notifications/", "", "")
-	if w.Code != http.StatusOK {
-		t.Fatalf("liste anonyme = %d %s", w.Code, w.Body.String())
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("liste anonyme = %d %s, attendu 401", w.Code, w.Body.String())
 	}
 
 	// Liste authentifiée avec filtre et pagination.
@@ -103,31 +103,15 @@ func TestHTTP_Preferences(t *testing.T) {
 	}
 }
 
-func TestHTTP_MediaNotifications(t *testing.T) {
-	requirePool(t)
-	fx, err := testutil.SeedPosts(context.Background(), poolTest)
-	if err != nil {
-		t.Fatalf("seed: %v", err)
-	}
-	var pubID string
-	if err := poolTest.QueryRow(context.Background(),
-		`SELECT "publisherId" FROM "User" WHERE id = $1`, fx.AuthorID).Scan(&pubID); err != nil {
-		t.Fatalf("pub: %v", err)
-	}
+// Les créations de notifications média ne sont plus exposées par ce module :
+// elles appartiennent à media (rôle + tenant), qui écrit la ligne en base.
+func TestHTTP_MediaNotificationRoutesRemoved(t *testing.T) {
 	r := newHTTPRouter()
-
-	// Champs manquants → 400.
-	w := doReq(r, http.MethodPost, "/v1/notifications/media-invite", fx.AuthorID, `{}`)
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("champs manquants = %d, attendu 400", w.Code)
-	}
-
-	// Nominal invite + member joined.
 	for _, path := range []string{"/v1/notifications/media-invite", "/v1/notifications/media-member-joined"} {
-		body := `{"recipientId":"` + fx.ViewerID + `","publisherId":"` + pubID + `"}`
-		w = doReq(r, http.MethodPost, path, fx.AuthorID, body)
-		if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"success":true`) {
-			t.Fatalf("%s = %d %s", path, w.Code, w.Body.String())
+		w := doReq(r, http.MethodPost, path, "00000000-0000-0000-0000-0000000000aa",
+			`{"recipientId":"00000000-0000-0000-0000-0000000000bb","publisherId":"pub_x"}`)
+		if w.Code != http.StatusNotFound {
+			t.Fatalf("%s = %d, attendu 404 (route supprimée)", path, w.Code)
 		}
 	}
 }

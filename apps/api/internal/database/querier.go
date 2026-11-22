@@ -529,7 +529,6 @@ type Querier interface {
 	// QueryExecModeExec (PgBouncer), où pgx encoderait []byte en bytea → 22P02.
 	InsertMediaAuditLog(ctx context.Context, arg InsertMediaAuditLogParams) error
 	InsertMediaInviteNotification(ctx context.Context, arg InsertMediaInviteNotificationParams) error
-	InsertMediaMemberJoinedNotification(ctx context.Context, arg InsertMediaMemberJoinedNotificationParams) error
 	InsertMentionNotification(ctx context.Context, arg InsertMentionNotificationParams) error
 	// Messagerie directe : messages (tranche 1).
 	// Table : Message. Pagination arrière par curseur createdAt (exclusif),
@@ -764,6 +763,11 @@ type Querier interface {
 	MarkNotificationsRead(ctx context.Context, arg MarkNotificationsReadParams) error
 	// Volume et nombre d'assets non purgés d'un utilisateur (quota de stockage).
 	OwnerMediaUsage(ctx context.Context, ownerid string) (OwnerMediaUsageRow, error)
+	// Patch **en une seule instruction** : chaque champ envoyé est appliqué, les
+	// autres gardent leur valeur (ou le défaut `true` à la création). L'ancien
+	// couple lecture-puis-upsert complet perdait les mises à jour concurrentes
+	// (deux onglets qui sauvent deux réglages différents).
+	PatchNotificationPreferences(ctx context.Context, arg PatchNotificationPreferencesParams) (PatchNotificationPreferencesRow, error)
 	PinPost(ctx context.Context, arg PinPostParams) (bool, error)
 	PruneOldArticleSnapshots(ctx context.Context, arg PruneOldArticleSnapshotsParams) error
 	PublishArticleDraft(ctx context.Context, id string) (string, error)
@@ -896,7 +900,6 @@ type Querier interface {
 	// quel que soit le nombre de passages du worker.
 	UpsertLegalReview(ctx context.Context, arg UpsertLegalReviewParams) (LegalReview, error)
 	UpsertMediaMember(ctx context.Context, arg UpsertMediaMemberParams) error
-	UpsertNotificationPreferences(ctx context.Context, arg UpsertNotificationPreferencesParams) error
 	UpsertOAuthConsent(ctx context.Context, arg UpsertOAuthConsentParams) error
 	// Écrit le vecteur d'une pensée (généré par le worker jina-embeddings-v3).
 	UpsertPostEmbedding(ctx context.Context, arg UpsertPostEmbeddingParams) error

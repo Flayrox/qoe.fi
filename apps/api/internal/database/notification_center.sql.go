@@ -71,6 +71,9 @@ SELECT n.id, n.type, n."isRead", n."createdAt", n."thoughtId", n."articleId", n.
        u.username      AS sender_username,
        u."logoUrl"     AS sender_logo,
        u."isCertified" AS sender_certified,
+       -- Nature publique de l'expéditeur (avatar carré d'un média) : dérivée de
+       -- SA publication, jamais supposée PERSONAL côté Go.
+       COALESCE(sp.type::text, '')::text AS sender_type,
        t.content       AS thought_content,
        t."createdAt"   AS thought_created_at,
        a.title         AS article_title,
@@ -86,6 +89,7 @@ LEFT JOIN "Post" t ON t.id = n."thoughtId"
 LEFT JOIN "Article" a ON a.id = n."articleId"
 LEFT JOIN "ArticleComment" c ON c.id = n."commentId"
 LEFT JOIN "Publisher" p ON p.id = n."publisherId"
+LEFT JOIN "Publisher" sp ON sp.id = u."publisherId"
 LEFT JOIN "Media" md ON md."publisherId" = n."publisherId"
 WHERE n."recipientId" = $1
   AND ($2::text[] IS NULL OR n.type::text = ANY($2::text[]))
@@ -121,6 +125,7 @@ type GetNotificationsRow struct {
 	SenderUsername   pgtype.Text      `json:"sender_username"`
 	SenderLogo       pgtype.Text      `json:"sender_logo"`
 	SenderCertified  bool             `json:"sender_certified"`
+	SenderType       string           `json:"sender_type"`
 	ThoughtContent   pgtype.Text      `json:"thought_content"`
 	ThoughtCreatedAt pgtype.Timestamp `json:"thought_created_at"`
 	ArticleTitle     pgtype.Text      `json:"article_title"`
@@ -162,6 +167,7 @@ func (q *Queries) GetNotifications(ctx context.Context, arg GetNotificationsPara
 			&i.SenderUsername,
 			&i.SenderLogo,
 			&i.SenderCertified,
+			&i.SenderType,
 			&i.ThoughtContent,
 			&i.ThoughtCreatedAt,
 			&i.ArticleTitle,
@@ -217,47 +223,92 @@ func (q *Queries) MarkNotificationsRead(ctx context.Context, arg MarkNotificatio
 	return err
 }
 
-const upsertNotificationPreferences = `-- name: UpsertNotificationPreferences :exec
+const patchNotificationPreferences = `-- name: PatchNotificationPreferences :one
 INSERT INTO "NotificationPreference" ("id", "userId", "emailLikes", "pushLikes", "emailReplies", "pushReplies",
        "emailComments", "pushComments", "emailMentions", "pushMentions", "emailFollows", "pushFollows",
        "emailReposts", "pushReposts", "emailMedia", "pushMedia",
        "emailCollaborations", "pushCollaborations", "updatedAt")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, now())
+VALUES (
+  gen_random_uuid()::text, $1,
+  COALESCE($2::boolean, true), COALESCE($3::boolean, true),
+  COALESCE($4::boolean, true), COALESCE($5::boolean, true),
+  COALESCE($6::boolean, true), COALESCE($7::boolean, true),
+  COALESCE($8::boolean, true), COALESCE($9::boolean, true),
+  COALESCE($10::boolean, true), COALESCE($11::boolean, true),
+  COALESCE($12::boolean, true), COALESCE($13::boolean, true),
+  COALESCE($14::boolean, true), COALESCE($15::boolean, true),
+  COALESCE($16::boolean, true), COALESCE($17::boolean, true),
+  now())
 ON CONFLICT ("userId") DO UPDATE SET
-  "emailLikes" = EXCLUDED."emailLikes", "pushLikes" = EXCLUDED."pushLikes",
-  "emailReplies" = EXCLUDED."emailReplies", "pushReplies" = EXCLUDED."pushReplies",
-  "emailComments" = EXCLUDED."emailComments", "pushComments" = EXCLUDED."pushComments",
-  "emailMentions" = EXCLUDED."emailMentions", "pushMentions" = EXCLUDED."pushMentions",
-  "emailFollows" = EXCLUDED."emailFollows", "pushFollows" = EXCLUDED."pushFollows",
-  "emailReposts" = EXCLUDED."emailReposts", "pushReposts" = EXCLUDED."pushReposts",
-  "emailMedia" = EXCLUDED."emailMedia", "pushMedia" = EXCLUDED."pushMedia",
-  "emailCollaborations" = EXCLUDED."emailCollaborations", "pushCollaborations" = EXCLUDED."pushCollaborations",
+  "emailLikes" = COALESCE($2::boolean, "NotificationPreference"."emailLikes"),
+  "pushLikes" = COALESCE($3::boolean, "NotificationPreference"."pushLikes"),
+  "emailReplies" = COALESCE($4::boolean, "NotificationPreference"."emailReplies"),
+  "pushReplies" = COALESCE($5::boolean, "NotificationPreference"."pushReplies"),
+  "emailComments" = COALESCE($6::boolean, "NotificationPreference"."emailComments"),
+  "pushComments" = COALESCE($7::boolean, "NotificationPreference"."pushComments"),
+  "emailMentions" = COALESCE($8::boolean, "NotificationPreference"."emailMentions"),
+  "pushMentions" = COALESCE($9::boolean, "NotificationPreference"."pushMentions"),
+  "emailFollows" = COALESCE($10::boolean, "NotificationPreference"."emailFollows"),
+  "pushFollows" = COALESCE($11::boolean, "NotificationPreference"."pushFollows"),
+  "emailReposts" = COALESCE($12::boolean, "NotificationPreference"."emailReposts"),
+  "pushReposts" = COALESCE($13::boolean, "NotificationPreference"."pushReposts"),
+  "emailMedia" = COALESCE($14::boolean, "NotificationPreference"."emailMedia"),
+  "pushMedia" = COALESCE($15::boolean, "NotificationPreference"."pushMedia"),
+  "emailCollaborations" = COALESCE($16::boolean, "NotificationPreference"."emailCollaborations"),
+  "pushCollaborations" = COALESCE($17::boolean, "NotificationPreference"."pushCollaborations"),
   "updatedAt" = now()
+RETURNING "emailLikes", "pushLikes", "emailReplies", "pushReplies", "emailComments", "pushComments",
+  "emailMentions", "pushMentions", "emailFollows", "pushFollows",
+  "emailReposts", "pushReposts", "emailMedia", "pushMedia",
+  "emailCollaborations", "pushCollaborations"
 `
 
-type UpsertNotificationPreferencesParams struct {
-	UserId              pgtype.UUID `json:"userId"`
-	EmailLikes          bool        `json:"emailLikes"`
-	PushLikes           bool        `json:"pushLikes"`
-	EmailReplies        bool        `json:"emailReplies"`
-	PushReplies         bool        `json:"pushReplies"`
-	EmailComments       bool        `json:"emailComments"`
-	PushComments        bool        `json:"pushComments"`
-	EmailMentions       bool        `json:"emailMentions"`
-	PushMentions        bool        `json:"pushMentions"`
-	EmailFollows        bool        `json:"emailFollows"`
-	PushFollows         bool        `json:"pushFollows"`
-	EmailReposts        bool        `json:"emailReposts"`
-	PushReposts         bool        `json:"pushReposts"`
-	EmailMedia          bool        `json:"emailMedia"`
-	PushMedia           bool        `json:"pushMedia"`
-	EmailCollaborations bool        `json:"emailCollaborations"`
-	PushCollaborations  bool        `json:"pushCollaborations"`
+type PatchNotificationPreferencesParams struct {
+	UserID              pgtype.UUID `json:"user_id"`
+	EmailLikes          pgtype.Bool `json:"email_likes"`
+	PushLikes           pgtype.Bool `json:"push_likes"`
+	EmailReplies        pgtype.Bool `json:"email_replies"`
+	PushReplies         pgtype.Bool `json:"push_replies"`
+	EmailComments       pgtype.Bool `json:"email_comments"`
+	PushComments        pgtype.Bool `json:"push_comments"`
+	EmailMentions       pgtype.Bool `json:"email_mentions"`
+	PushMentions        pgtype.Bool `json:"push_mentions"`
+	EmailFollows        pgtype.Bool `json:"email_follows"`
+	PushFollows         pgtype.Bool `json:"push_follows"`
+	EmailReposts        pgtype.Bool `json:"email_reposts"`
+	PushReposts         pgtype.Bool `json:"push_reposts"`
+	EmailMedia          pgtype.Bool `json:"email_media"`
+	PushMedia           pgtype.Bool `json:"push_media"`
+	EmailCollaborations pgtype.Bool `json:"email_collaborations"`
+	PushCollaborations  pgtype.Bool `json:"push_collaborations"`
 }
 
-func (q *Queries) UpsertNotificationPreferences(ctx context.Context, arg UpsertNotificationPreferencesParams) error {
-	_, err := q.db.Exec(ctx, upsertNotificationPreferences,
-		arg.UserId,
+type PatchNotificationPreferencesRow struct {
+	EmailLikes          bool `json:"emailLikes"`
+	PushLikes           bool `json:"pushLikes"`
+	EmailReplies        bool `json:"emailReplies"`
+	PushReplies         bool `json:"pushReplies"`
+	EmailComments       bool `json:"emailComments"`
+	PushComments        bool `json:"pushComments"`
+	EmailMentions       bool `json:"emailMentions"`
+	PushMentions        bool `json:"pushMentions"`
+	EmailFollows        bool `json:"emailFollows"`
+	PushFollows         bool `json:"pushFollows"`
+	EmailReposts        bool `json:"emailReposts"`
+	PushReposts         bool `json:"pushReposts"`
+	EmailMedia          bool `json:"emailMedia"`
+	PushMedia           bool `json:"pushMedia"`
+	EmailCollaborations bool `json:"emailCollaborations"`
+	PushCollaborations  bool `json:"pushCollaborations"`
+}
+
+// Patch **en une seule instruction** : chaque champ envoyé est appliqué, les
+// autres gardent leur valeur (ou le défaut `true` à la création). L'ancien
+// couple lecture-puis-upsert complet perdait les mises à jour concurrentes
+// (deux onglets qui sauvent deux réglages différents).
+func (q *Queries) PatchNotificationPreferences(ctx context.Context, arg PatchNotificationPreferencesParams) (PatchNotificationPreferencesRow, error) {
+	row := q.db.QueryRow(ctx, patchNotificationPreferences,
+		arg.UserID,
 		arg.EmailLikes,
 		arg.PushLikes,
 		arg.EmailReplies,
@@ -275,5 +326,24 @@ func (q *Queries) UpsertNotificationPreferences(ctx context.Context, arg UpsertN
 		arg.EmailCollaborations,
 		arg.PushCollaborations,
 	)
-	return err
+	var i PatchNotificationPreferencesRow
+	err := row.Scan(
+		&i.EmailLikes,
+		&i.PushLikes,
+		&i.EmailReplies,
+		&i.PushReplies,
+		&i.EmailComments,
+		&i.PushComments,
+		&i.EmailMentions,
+		&i.PushMentions,
+		&i.EmailFollows,
+		&i.PushFollows,
+		&i.EmailReposts,
+		&i.PushReposts,
+		&i.EmailMedia,
+		&i.PushMedia,
+		&i.EmailCollaborations,
+		&i.PushCollaborations,
+	)
+	return i, err
 }

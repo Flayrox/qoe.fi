@@ -148,29 +148,6 @@ WHERE sqlc.arg('recipient_id')::uuid <> sqlc.arg('sender_id')::uuid
       AND n."isRead" = false
   );
 
--- name: InsertMediaMemberJoinedNotification :exec
-INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publisherId")
-SELECT gen_random_uuid()::text,
-       sqlc.arg('recipient_id')::uuid,
-       sqlc.arg('sender_id')::uuid,
-       'MEDIA_MEMBER_JOINED',
-       sqlc.arg('publisher_id')::text
-WHERE sqlc.arg('recipient_id')::uuid <> sqlc.arg('sender_id')::uuid
-  AND (
-    COALESCE((SELECT "pushMedia" FROM "NotificationPreference"
-              WHERE "userId" = sqlc.arg('recipient_id')::uuid), true)
-    OR COALESCE((SELECT "emailMedia" FROM "NotificationPreference"
-              WHERE "userId" = sqlc.arg('recipient_id')::uuid), true)
-  )
-  AND NOT EXISTS (
-    SELECT 1 FROM "Notification" n
-    WHERE n."recipientId" = sqlc.arg('recipient_id')::uuid
-      AND n."senderId" = sqlc.arg('sender_id')::uuid
-      AND n.type = 'MEDIA_MEMBER_JOINED'
-      AND n."publisherId" = sqlc.arg('publisher_id')::text
-      AND n."isRead" = false
-  );
-
 -- name: InsertMediaArticleSubmittedFanout :exec
 INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId", "publisherId")
 SELECT gen_random_uuid()::text,
