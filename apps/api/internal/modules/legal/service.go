@@ -40,16 +40,10 @@ var (
 	errInvalid   = errors.New("requête invalide")
 )
 
-// FlagChecker évalue un flag (implémenté par internal/flags.Service).
-type FlagChecker interface {
-	IsOn(ctx context.Context, key string) bool
-}
-
 // Service porte la logique légale.
 type Service struct {
-	pool  *pgxpool.Pool
-	q     *db.Queries
-	flags FlagChecker
+	pool *pgxpool.Pool
+	q    *db.Queries
 
 	// exportSigner signe les exports du registre de consentement. Nul tant
 	// qu'aucune clé n'est configurée ; une clé éphémère n'est générée qu'en
@@ -61,9 +55,6 @@ type Service struct {
 func NewService(pool *pgxpool.Pool) *Service {
 	return &Service{pool: pool, q: db.New(pool)}
 }
-
-// SetFlags branche les feature flags (journal d'audit superadmin).
-func (s *Service) SetFlags(f FlagChecker) { s.flags = f }
 
 // ─── Types exposés ───────────────────────────────────────────────────
 
@@ -345,7 +336,7 @@ func (s *Service) RequireSuperadmin(ctx context.Context, userID string) (string,
 }
 
 func (s *Service) audit(ctx context.Context, actor, action, targetID string, metadata any) {
-	auditlog.Write(ctx, s.q, s.flags, actor, action, "legal_document", targetID, metadata)
+	auditlog.Write(ctx, s.q, actor, action, "legal_document", targetID, metadata)
 }
 
 // ─── Lecture publique ────────────────────────────────────────────────

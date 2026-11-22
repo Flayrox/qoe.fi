@@ -140,9 +140,9 @@ func WithApprovalTargetParam(param string) Option {
 // WithClock remplace l'horloge du garde (fraîcheur de preuve, tests).
 func WithClock(now func() time.Time) Option { return func(g *guard) { g.now = now } }
 
-// requestIP lit l'adresse du client derrière un proxy (X-Forwarded-For posé par
-// le reverse proxy, puis X-Real-IP) et retombe sur l'adresse de connexion.
-// Jamais inventée : vide si rien n'est lisible.
+// requestIP lit l'adresse du client derrière les proxy de confiance
+// (X-Forwarded-For, lu à l'envers selon TRUSTED_PROXY_HOPS) et retombe sur
+// l'adresse de connexion. Jamais inventée : vide si rien n'est lisible.
 func requestIP(r *http.Request) string {
 	// Même résolution que le rate-limiting : l'audit ne doit pas enregistrer
 	// une IP que le client peut choisir.

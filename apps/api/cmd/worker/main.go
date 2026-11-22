@@ -176,7 +176,6 @@ func main() {
 	// planifiée, puis envoie les rappels aux superadmins. Le cycle tourne même
 	// sans fournisseur email — seuls les rappels attendent un provider.
 	legalSvc := legal.NewService(pool)
-	legalSvc.SetFlags(flags.NewService(pool))
 	interval := time.Duration(cfg.LegalLifecycleIntervalMinutes) * time.Minute
 	go workers.RunLegalLifecycleLoop(
 		ctx, pool, emailProvider, cfg.EmailFrom, cfg.LegalAdminBaseURL, interval, 50,

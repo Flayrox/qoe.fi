@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; **L29s `search` clos le 2026-11-22** (2 f. · 741 l. après correctifs, 6 défauts F670–F675 + 1 structurel F676, dettes R257–R259) ; **L29t `publishers` clos le 2026-11-22** (3 f. · 1 229 l. après correctifs, 8 défauts F677–F684 + 1 structurel F685, dettes R260–R262) ; **L29u `analytics` clos le 2026-11-22** (4 f. · 2 130 l. après correctifs, 12 défauts F686–F697 + 1 structurel F698, dettes R263–R265) ; **L29v `events`/`workspaces`/`appeals`/`support`/`exports`/`books` clos le 2026-11-22** (13 f. · 1 659 l. après correctifs, 6 défauts F699–F704 + 2 structurels F705–F706, dettes R266–R269) ; **L29w reliquat `tracking`/`placements`/`ai`/`collaborations`/`conversations`/`billing`/`ebooks` clos le 2026-11-22** (20 f. · 7 251 l. après correctifs, 13 défauts F707–F719 + 2 structurels F720–F721, dettes R270–R272) ; **L29x `oauth`/`devtools` clos le 2026-11-22** (7 f. · 3 190 l. après correctifs, 10 défauts F722–F731 + 2 structurels F732–F733, dettes R273–R275, **R270 soldée**) ; **L30 `workers`/`queue`/`resilience`/`cache` clos le 2026-11-22** (17 f. · 3 933 l. après correctifs, 9 défauts F734–F742 + 3 structurels F743–F745, dettes R276–R279) ; **L31 `middleware`/`authz`/`permissions`/`secguard` clos le 2026-11-22** (17 f. · 3 622 l. après correctifs, 6 défauts F746–F751 + 1 structurel F752, dettes R280–R282) ; **L32 `abuse`/`antispam`/`trust`/`pow` clos le 2026-11-22** (13 f. · 3 788 l. après correctifs, 5 défauts F755–F759 + 1 structurel F760, dettes R283–R285) ; prochain = **L33** (`flags`, `adminauthz`, `apiaccess`, `auditlog`)) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; **L29s `search` clos le 2026-11-22** (2 f. · 741 l. après correctifs, 6 défauts F670–F675 + 1 structurel F676, dettes R257–R259) ; **L29t `publishers` clos le 2026-11-22** (3 f. · 1 229 l. après correctifs, 8 défauts F677–F684 + 1 structurel F685, dettes R260–R262) ; **L29u `analytics` clos le 2026-11-22** (4 f. · 2 130 l. après correctifs, 12 défauts F686–F697 + 1 structurel F698, dettes R263–R265) ; **L29v `events`/`workspaces`/`appeals`/`support`/`exports`/`books` clos le 2026-11-22** (13 f. · 1 659 l. après correctifs, 6 défauts F699–F704 + 2 structurels F705–F706, dettes R266–R269) ; **L29w reliquat `tracking`/`placements`/`ai`/`collaborations`/`conversations`/`billing`/`ebooks` clos le 2026-11-22** (20 f. · 7 251 l. après correctifs, 13 défauts F707–F719 + 2 structurels F720–F721, dettes R270–R272) ; **L29x `oauth`/`devtools` clos le 2026-11-22** (7 f. · 3 190 l. après correctifs, 10 défauts F722–F731 + 2 structurels F732–F733, dettes R273–R275, **R270 soldée**) ; **L30 `workers`/`queue`/`resilience`/`cache` clos le 2026-11-22** (17 f. · 3 933 l. après correctifs, 9 défauts F734–F742 + 3 structurels F743–F745, dettes R276–R279) ; **L31 `middleware`/`authz`/`permissions`/`secguard` clos le 2026-11-22** (17 f. · 3 622 l. après correctifs, 6 défauts F746–F751 + 1 structurel F752, dettes R280–R282) ; **L32 `abuse`/`antispam`/`trust`/`pow` clos le 2026-11-22** (13 f. · 3 788 l. après correctifs, 5 défauts F755–F759 + 1 structurel F760, dettes R283–R285) ; **L33 `flags`/`adminauthz`/`apiaccess`/`auditlog` clos le 2026-11-22** (13 f. · 2 375 l. après correctifs, 6 défauts F761–F766 + 1 structurel F767, dettes R286–R288) ; prochain = **L34** (reste de l'infra Go : `anchors`, `canon`, `config`, `database`, `dbpool`, `deeplink`, `identity`, `logging`, `netguard`, `observability`, `publicurl`, `response`, `shared`, `shortcode`, `slug`, `textutil`, `umami`, `vectorfeed`)) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -262,7 +262,15 @@ après correctifs) — **5 défauts** F755–F759 (panne Redis rendant le profil
 et jamais relue, jeton PoW accepté sans magasin anti-rejeu, verdict humain d'un recours attribué à la politique v1)
 et **1 structurel** (F760 : alias SQL ignoré retiré de l'API d'exclusion, paramètre `expiresAt` fantôme et variable
 morte du chemin de recours). Dettes **R283–R285**.
-**Lot suivant : L33** — `apps/api/internal/{flags,adminauthz,apiaccess,auditlog}` (autorisation et journal d'audit).
+**L33 est clos le 2026-11-22** : autorisation et journal d'audit `flags`, `adminauthz`, `apiaccess`, `auditlog`
+(**13 f. · 2 375 l.** après correctifs) — **6 défauts** F761–F766 (panne DB qui désarmait tous les coupe-feux,
+`NewService(nil)` qui paniquait, `GET /v1/flags` qui publiait l'état des coupe-feux, config de coupure d'API
+corrompue lue comme « API ouverte », traces d'audit perdues en silence, `send on closed channel` dans le recorder)
+et **1 structurel** (F767 : paramètre `FlagChecker` mort retiré de bout en bout, trois `SetFlags` inutilisés supprimés).
+Dettes **R286–R288**.
+**Lot suivant : L34** — reste de l'infra Go (`anchors`, `canon`, `config`, `database`, `dbpool`, `deeplink`, `identity`,
+`logging`, `netguard`, `observability`, `publicurl`, `response`, `shared`, `shortcode`, `slug`, `textutil`, `umami`,
+`vectorfeed`).
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2241,6 +2249,67 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L33 — `flags` · `adminauthz` · `apiaccess` · `auditlog` — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l`) : **13 fichiers de production · 2 375 l.** après correctifs (2 281 l.
+avant) — `flags` (2 f. · 328 l.), `adminauthz` (9 f. · 1 684 l.), `apiaccess` (1 f. · 304 l.), `auditlog` (1 f. ·
+59 l.). Lus intégralement **avec leurs appelants réels** : `cmd/server` (montage de `flags.NewService`,
+`adminauthz.NewService`/`SetModeResolver`/`NewRecorder`/`NewConsole`, `AccessControl`), `cmd/worker` (flags du worker
+newsletter et du cycle légal), `internal/middleware/accesscontrol.go` (consommateur de `apiaccess.LoadAccessControl`),
+`modules/{media,settings,legal,admin}` (14 appels `auditlog.Write`, gestion des rôles, ressource API), `modules/webhooks`
+(`apiaccess.IsEnabled`), `internal/comms` (kill e-mail), `cmd/server/security_audit_test.go` (garde CI : toute route
+`/v1/admin/*` doit passer `adminauthz.Require` **et** figurer au registre). **4 fichiers d'audit · 6 tests**
+s'ajoutent.
+
+**6 défauts corrigés** F761–F766, chacun adossé à un rouge réellement exécuté (worktree
+`git worktree add -f /tmp/qoe-l33-red f51e63e0`, suites `TestAuditL33_*`).
+
+| # | Défaut | Preuve (test) | Rouge constaté |
+|---|---|---|---|
+| F761 | **Une panne DB désarmait tous les coupe-feux** : `reload` vidait `s.cached` *avant* la requête, donc une relecture ratée ramenait chaque flag à son défaut — `abuse.signup-kill`, `workers-email-kill`, `support.public-kill`, `authz-enforce` retombaient à `false`, c'est-à-dire **désarmés**, au moment précis où la base vacille. Le commentaire promettait « on garde le cache précédent ». Le cache n'est plus muté qu'en cas de succès complet (`rows.Err()` compris), la relecture est retentée à l'appel suivant et la même erreur n'est journalisée qu'une fois. | `TestAuditL33_FlagCacheSurvivesDBOutage` | `panne DB : le coupe-feu inscriptions est retombé à son défaut (désarmé)` |
+| F762 | **`NewService(nil)` paniquait** : la doc du paquet promet « table absente, DB down ou clé inconnue → valeur par défaut, zéro crash », et `reload` appelait `s.pool.Query` sans garde — nil pointer au premier `IsOn` d'un service non branché (tests purs, environnement sans base). | `TestAuditL33_NilPoolDoesNotPanic` | `panic: runtime error: invalid memory address or nil pointer dereference` |
+| F763 | **`GET /v1/flags` publiait l'état des coupe-feux** : l'endpoint est non authentifié et servait `All()`, donc `authz-enforce`, `abuse.signup-kill`, `workers-email-kill`, `support.public-kill` et `admin-audit-log`. Un attaquant apprenait en une requête gratuite si les protections étaient armées. Le handler sert désormais `Service.Public` (registre moins les coupe-feux) ; `All`/`IsOn` restent la vue complète du serveur. | `TestAuditL33_PublicFlagsDoNotLeakSwitches` | `état du coupe-feu "authz-enforce" exposé publiquement par /v1/flags` |
+| F764 | **Config de contrôle d'accès corrompue lue comme « API ouverte »** : `API_ACCESS_DISABLED` valant autre chose que `true`/`false` (ex. `"yes please"`) rendait `Disabled=false`, et une liste `API_DISABLED_ENDPOINTS` tronquée était ignorée sans erreur — les endpoints que l'admin croyait coupés redevenaient joignables, en silence. Les deux cas rendent maintenant une erreur explicite (même doctrine que `LoadEnabled`) : le middleware conserve son dernier état connu **et journalise**. | `TestAuditL33_CorruptKillSwitchIsAnError`, `TestAuditL33_CorruptEndpointListIsAnError` | `valeur de coupure illisible acceptée en silence : l'API reste ouverte` ; `liste tronquée ignorée : coupure d'endpoints perdue (cfg=[])` |
+| F765 | **Traces d'audit perdues en silence** : `auditlog.Write` faisait `return` sec sur un acteur non-UUID (claims dégradés) ou des métadonnées non sérialisables — la ligne n'était pas écrite **et rien n'était journalisé**. L'appelant croyait l'action tracée, aucune alerte ne pouvait le dire. Les deux pertes sont désormais journalisées (même chemin que l'échec d'insert), sans propager d'erreur : le journal ne bloque jamais l'action qu'il trace. | `TestAuditL33_InvalidActorIsNotSilent`, `TestAuditL33_UnmarshalableMetadataIsNotSilent` | `acteur invalide : trace perdue sans une seule ligne de journal` ; `métadonnées non sérialisables : trace perdue sans une seule ligne de journal` |
+| F766 | **Recorder : `send on closed channel` à l'arrêt** : `Observe` testait `closed` puis envoyait ; `Close` fermait le canal après le même test. Une décision arrivant entre les deux faisait **paniquer le processus** (arrêt du serveur, tampon qui se vide). L'envoi et la fermeture sont sérialisés par un `RWMutex`. Corollaire : un acteur non-UUID n'est plus écarté en silence (`_ = uid.Scan`), la décision est écrite sans identité **et** la perte d'attribution est journalisée. | `TestAuditL33_RecorderObserveVsCloseNoPanic` | `WARNING: DATA RACE` puis `panic: send on closed channel` (`go test -race`) — 2 exécutions sur 3 à HEAD, 3/3 propres après correctif |
+
+**Correctif structurel, sans rouge isolable** (déclaré comme tel) :
+
+- **F767 — paramètre mort retiré de bout en bout** : `auditlog.Write` portait un `FlagChecker` jamais lu (le flag
+  `admin-audit-log` ne conditionne plus aucune trace). Le paramètre et l'interface sont supprimés, les **14 appels**
+  mis à jour, et les trois `SetFlags`/champs `flags` devenus morts chez leurs seuls utilisateurs (`modules/media`,
+  `modules/settings`, `modules/legal` + l'interface locale `FlagChecker`) sont retirés avec leurs appels dans
+  `cmd/server`, `cmd/worker` et deux tests. `modules/admin` et `modules/ai`, eux, lisent réellement leurs flags et
+  gardent les leurs. Au passage : le commentaire de `adminauthz.requestIP` annonçait encore la confiance en
+  `X-Real-IP`, retirée au lot L31.
+
+**Migrations** : **aucune nécessaire**. `ExpectedMigrationVersion` reste **95**.
+
+**Tests existants adaptés** (signature changée, à signaler) : `internal/auditlog/auditlog_test.go`
+(`TestWrite_WritesEvenWhenFlagOff` + `TestWrite_WritesWithNilFlag` → `TestWrite_AlwaysWrites` +
+`TestWrite_EmptyTargetIsNull`, l'assertion « on trace même flag éteint » devenant structurelle),
+`internal/modules/{media,settings}/audit_test.go` (appel `SetFlags` retiré avec son import). Aucune assertion de
+sécurité n'a été assouplie.
+
+**Dettes ouvertes** (numérotation en continuité de R285) :
+
+- **R286 — garde de capacité sans service branché** : `adminauthz.Require` laisse passer quand `lookup` est `nil`
+  (il logue et trace le refus). Motif : une console ne se verrouille pas sur une erreur de câblage, et les montages
+  de test (`NewStandaloneConsole`) en dépendent ; en production `cmd/server` branche toujours le service et la garde
+  superadmin des services reste en profondeur. Décision produit, à rouvrir si un déploiement peut oublier le câblage.
+- **R287 — dernier état de flags conservé pendant une panne** : lever un coupe-feu pendant que la base est
+  injoignable ne prend effet qu'au retour de la base (l'inverse — désarmer en pleine attaque — est ce que F761 a
+  supprimé). Arbitrage assumé : un coupe-feu armé trop longtemps vaut mieux qu'un coupe-feu qui s'ouvre seul.
+- **R288 — contrôle d'accès fail-open au tout premier chargement** (étend **R281**) : si la config est illisible
+  **avant** toute lecture réussie, `AccessControl` sert un état ouvert. Elle erreure désormais et se journalise (au
+  lieu d'un silence), mais couper l'API parce qu'on ne sait pas lire sa configuration reste une décision produit.
+
+**Commandes passées sur l'arbre corrigé** : `gofmt -l .` (dépôt entier) → **0** ; `go build ./...` → 0 ;
+`go vet ./...` → 0 ; `QOE_DB_TESTS_OPTIONAL=1 go test ./...` → **85 paquets `ok`, 0 `FAIL`** (status 0, Postgres de test
+sollicité) ; `go test -race ./internal/adminauthz` → 0 (3 exécutions) ; workspace : `typecheck`, `lint`, `arch:audit`,
+`audit:guard`, `guard:flags-parity`, `guard:media-origin` → **6 × 0**. Aucun fichier TypeScript touché : **vitest non
+requis** (et non lancé).
 
 ## L32 — `abuse` · `antispam` · `trust` · `pow` — **clos le 2026-11-22**
 

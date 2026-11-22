@@ -8,8 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
-
-	"github.com/qoefi/api/internal/flags"
 )
 
 func setAuditFlagSettings(t *testing.T, ctx context.Context, enabled bool) {
@@ -32,7 +30,6 @@ func TestApiKeyAuditLog_TracesCreateRotateRevoke(t *testing.T) {
 	}
 
 	svc := NewService(poolTest)
-	svc.SetFlags(flags.NewService(poolTest))
 
 	// Création.
 	token, err := svc.GenerateApiKey(ctx, fx.OwnerID, "Clé prod", []string{"READ"})

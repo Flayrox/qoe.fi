@@ -12,6 +12,7 @@ package flags
 
 import (
 	"context"
+	"log"
 	"sort"
 	"sync"
 	"time"
@@ -120,9 +121,10 @@ var cacheTTL = 30 * time.Second
 type Service struct {
 	pool *pgxpool.Pool
 
-	mu     sync.Mutex
-	at     time.Time
-	cached map[string]bool
+	mu      sync.Mutex
+	at      time.Time
+	cached  map[string]bool
+	lastErr string // dernière erreur de relecture journalisée (anti-spam)
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
@@ -147,6 +149,34 @@ func (s *Service) All(ctx context.Context) map[string]bool {
 	return out
 }
 
+// serverOnlyFlags sont les coupe-feux du serveur : leur ÉTAT ne sort jamais de
+// l'API publique (GET /v1/flags est non authentifié). Annoncer « les
+// inscriptions sont fermées » ou « l'autorisation n'est pas encore armée »
+// donne à un attaquant le calendrier exact des protections — aucun client n'en
+// a besoin, la console les lit en base.
+var serverOnlyFlags = map[string]bool{
+	AdminAuditLog:     true,
+	AuthzEnforce:      true,
+	WorkersEmailKill:  true,
+	AbuseSignupKill:   true,
+	SupportPublicKill: true,
+}
+
+// Public retourne l'état des flags exposables hors du serveur (tout le registre
+// sauf les coupe-feux). C'est ce que sert GET /v1/flags ; IsOn et All restent la
+// vue complète pour le code serveur.
+func (s *Service) Public(ctx context.Context) map[string]bool {
+	all := s.All(ctx)
+	out := make(map[string]bool, len(all))
+	for key, value := range all {
+		if serverOnlyFlags[key] {
+			continue
+		}
+		out[key] = value
+	}
+	return out
+}
+
 // IsOn évalue un flag (défaut du registre si clé inconnue / DB down).
 func (s *Service) IsOn(ctx context.Context, key string) bool {
 	if _, known := defaults[key]; !known {
@@ -157,26 +187,50 @@ func (s *Service) IsOn(ctx context.Context, key string) bool {
 
 // reload rafraîchit le cache depuis la table feature_flags (best-effort).
 // Doit être appelé avec s.mu tenue.
+//
+// Une relecture qui échoue GARDE le dernier état connu : vider le cache
+// d'abord ramenait tous les coupe-feux (inscriptions, e-mails, autorisation) à
+// leur défaut `false`, donc désarmés, au moment précis où la base vacille. La
+// relecture est retentée à l'appel suivant (`s.at` inchangé) sans inonder les
+// journaux : la même erreur n'est écrite qu'une fois.
 func (s *Service) reload(ctx context.Context) {
-	s.cached = map[string]bool{}
+	if s.pool == nil {
+		// Sans base (tests purs, service non branché) : le registre fait foi.
+		return
+	}
 	rows, err := s.pool.Query(ctx, `SELECT key, is_enabled FROM feature_flags`)
 	if err != nil {
-		// DB down → on garde le cache précédent (ou registre vide → défauts).
-		if s.cached == nil {
-			s.cached = map[string]bool{}
-		}
+		s.logReloadError(err)
 		return
 	}
 	defer rows.Close()
+	next := make(map[string]bool, len(defaults))
 	for rows.Next() {
 		var key string
 		var enabled bool
 		if err := rows.Scan(&key, &enabled); err != nil {
-			continue
+			s.logReloadError(err)
+			return
 		}
 		if _, known := defaults[key]; known {
-			s.cached[key] = enabled
+			next[key] = enabled
 		}
 	}
+	if err := rows.Err(); err != nil {
+		// Itération interrompue : un cache partiel vaut moins que l'ancien.
+		s.logReloadError(err)
+		return
+	}
+	s.cached = next
+	s.lastErr = ""
 	s.at = time.Now()
+}
+
+func (s *Service) logReloadError(err error) {
+	msg := err.Error()
+	if s.lastErr == msg {
+		return
+	}
+	s.lastErr = msg
+	log.Printf("[flags] relecture impossible, dernier état connu conservé : %v", err)
 }

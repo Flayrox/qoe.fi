@@ -5,12 +5,12 @@
 // settings (clés API) et media (rôles/permissions des membres) : une seule
 // source de vérité pour « qui, quand, quoi ».
 //
-// L'écriture est TOUJOURS tentée. Le flag `admin-audit-log` ne gouverne plus
-// l'existence de la trace : une action sensible ne doit pas devenir invisible
-// parce qu'un interrupteur est éteint. Le paramètre FlagChecker est conservé
-// pour le futur mode verbeux (métadonnées détaillées), jamais pour supprimer
-// la ligne. Best-effort — une erreur d'écriture est loggée, jamais propagée
-// (le journal ne doit pas bloquer l'action qu'il trace).
+// L'écriture est TOUJOURS tentée : le flag `admin-audit-log` ne gouverne pas
+// l'existence de la trace — une action sensible ne doit pas devenir invisible
+// parce qu'un interrupteur est éteint (aucun paramètre de flag n'est donc
+// nécessaire ici). Best-effort — une erreur est journalisée, jamais propagée
+// (le journal ne doit pas bloquer l'action qu'il trace) — mais JAMAIS muette :
+// une trace perdue doit pouvoir se constater dans les journaux du serveur.
 package auditlog
 
 import (
@@ -27,23 +27,23 @@ type Inserter interface {
 	InsertAdminAuditLog(ctx context.Context, arg db.InsertAdminAuditLogParams) error
 }
 
-// FlagChecker évalue un flag (le Service de internal/flags l'implémente).
-// Conservé dans la signature pour le mode verbeux ; il ne conditionne plus
-// l'écriture de la trace.
-type FlagChecker interface {
-	IsOn(ctx context.Context, key string) bool
-}
-
 // Write trace une action sensible au journal d'audit superadmin. targetID vide
 // → NULL ; métadonnées sérialisées en JSONB (casté via texte, compatible
 // QueryExecModeExec/PgBouncer).
-func Write(ctx context.Context, q Inserter, _ FlagChecker, actorID, action, targetType, targetID string, metadata any) {
+//
+// Aucun retour d'erreur : l'appelant ne doit jamais échouer parce que sa trace
+// n'a pas pu être écrite. En contrepartie, chaque perte est journalisée — un
+// acteur non-UUID (claims dégradés) ou des métadonnées non sérialisables
+// laissaient auparavant la trace absente ET silencieuse.
+func Write(ctx context.Context, q Inserter, actorID, action, targetType, targetID string, metadata any) {
 	var actor pgtype.UUID
 	if err := actor.Scan(actorID); err != nil {
+		log.Printf("[admin-audit] %s: acteur %q inexploitable, trace non écrite: %v", action, actorID, err)
 		return
 	}
 	raw, err := json.Marshal(metadata)
 	if err != nil {
+		log.Printf("[admin-audit] %s: métadonnées non sérialisables, trace non écrite: %v", action, err)
 		return
 	}
 	tid := pgtype.Text{}

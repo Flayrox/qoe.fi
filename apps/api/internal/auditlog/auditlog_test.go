@@ -16,17 +16,16 @@ func (r *recordingInserter) InsertAdminAuditLog(_ context.Context, arg db.Insert
 	return nil
 }
 
-type flagOff struct{}
-
-func (flagOff) IsOn(context.Context, string) bool { return false }
-
-func TestWrite_WritesEvenWhenFlagOff(t *testing.T) {
+// L'écriture a toujours lieu : aucun flag ne conditionne plus l'existence de la
+// trace (le paramètre a été retiré de la signature — une action sensible ne
+// doit pas devenir invisible parce qu'un interrupteur est éteint).
+func TestWrite_AlwaysWrites(t *testing.T) {
 	var q recordingInserter
-	Write(context.Background(), &q, flagOff{}, "00000000-0000-0000-0000-000000000001",
+	Write(context.Background(), &q, "00000000-0000-0000-0000-000000000001",
 		"test.action", "user", "target-1", map[string]any{"key": "value"})
 
 	if len(q.args) != 1 {
-		t.Fatalf("écritures = %d avec flag off, attendu 1", len(q.args))
+		t.Fatalf("écritures = %d, attendu 1", len(q.args))
 	}
 	if q.args[0].Action != "test.action" {
 		t.Fatalf("action = %q", q.args[0].Action)
@@ -39,13 +38,13 @@ func TestWrite_WritesEvenWhenFlagOff(t *testing.T) {
 	}
 }
 
-func TestWrite_WritesWithNilFlag(t *testing.T) {
+func TestWrite_EmptyTargetIsNull(t *testing.T) {
 	var q recordingInserter
-	Write(context.Background(), &q, nil, "00000000-0000-0000-0000-000000000001",
+	Write(context.Background(), &q, "00000000-0000-0000-0000-000000000001",
 		"test.action", "platform", "", nil)
 
 	if len(q.args) != 1 {
-		t.Fatalf("écritures = %d sans flag branché, attendu 1", len(q.args))
+		t.Fatalf("écritures = %d, attendu 1", len(q.args))
 	}
 	if q.args[0].TargetId.Valid {
 		t.Fatalf("cible vide devrait être NULL : %+v", q.args[0].TargetId)

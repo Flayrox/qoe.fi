@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -34,10 +35,11 @@ var accessControlAlwaysAllowed = []string{
 // accessControlState porte le cache en mémoire de la config (mirroir du cache
 // de quotas du module oauth).
 type accessControlState struct {
-	mu   sync.Mutex
-	at   time.Time
-	cfg  apiaccess.AccessControlConfig
-	pool *pgxpool.Pool
+	mu      sync.Mutex
+	at      time.Time
+	cfg     apiaccess.AccessControlConfig
+	pool    *pgxpool.Pool
+	lastErr string // dernière erreur journalisée (une panne ne noie pas les logs)
 }
 
 func (s *accessControlState) load(ctx context.Context) apiaccess.AccessControlConfig {
@@ -51,10 +53,17 @@ func (s *accessControlState) load(ctx context.Context) apiaccess.AccessControlCo
 	}
 	cfg, err := apiaccess.LoadAccessControl(ctx, s.pool)
 	if err != nil {
-		// Lecture config impossible → on laisse l'API ouverte (disponibilité
-		// avant tout : ne pas couper l'API à cause d'un souci de lecture).
+		// Lecture impossible (panne, ou configuration illisible) → on conserve
+		// le dernier état connu : ne pas couper l'API sur un souci de lecture.
+		// L'erreur est journalisée (une fois par message) : une coupure qu'on
+		// croit armée alors qu'elle est illisible ne doit pas rester invisible.
+		if msg := err.Error(); msg != s.lastErr {
+			s.lastErr = msg
+			log.Printf("[access-control] configuration illisible, dernier état connu conservé : %v", err)
+		}
 		return s.cfg
 	}
+	s.lastErr = ""
 	s.cfg = cfg
 	s.at = time.Now()
 	return cfg

@@ -338,7 +338,6 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// publique (c'est la loi), l'édition est réservée au superadmin via
 	// /v1/admin/legal/* (console admin).
 	legalSvc := legal.NewService(pool)
-	legalSvc.SetFlags(flagsSvc)
 	// 🧾 Signature Ed25519 des exports du registre de consentement. Sans clé
 	// configurée, l'API refuse de produire une « preuve » non signée.
 	legalSvc.SetExportSigningKey(d.LegalExportSigningKey)
@@ -491,7 +490,6 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 	// Settings créateur : sous-domaine (public) + profil/onboarding/clés API (protégé).
 	settingsSvc := settings.NewService(pool)
-	settingsSvc.SetFlags(flagsSvc)
 	settingsSvc.SetTrustService(trustSvc)
 	settingsSvc.SetAsynqClient(asynqClient)
 	// Envoi d'email de test du panneau email : même fournisseur que les
@@ -608,7 +606,6 @@ func newRouter(d RouterDeps) *chi.Mux {
 		workspacesHandler.Register(protected)
 
 		mediaSvc := media.NewService(pool)
-		mediaSvc.SetFlags(flagsSvc)
 		mediaSvc.SetAsynqClient(asynqClient)
 		mediaHandler := media.NewHandler(mediaSvc)
 		mediaHandler.Register(protected)

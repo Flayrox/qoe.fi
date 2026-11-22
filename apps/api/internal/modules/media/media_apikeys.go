@@ -220,7 +220,7 @@ func (s *Service) CreateApiKey(ctx context.Context, userID, mediaID, name string
 	s.audit(ctx, mediaID, userID, "api_key.created", map[string]any{
 		"apiKeyId": keyID, "name": name, "scopes": finalScopes,
 	})
-	auditlog.Write(ctx, s.q, s.flags, userID, "media.api_key.created", "api_key", keyID,
+	auditlog.Write(ctx, s.q, userID, "media.api_key.created", "api_key", keyID,
 		map[string]any{"mediaId": mediaID, "name": name, "scopes": finalScopes})
 	s.recordApiKeySecurityEvent(ctx, userID, mediaWithPub.PublisherID, keyID, "api_key_created", map[string]any{"mediaId": mediaID, "name": name})
 
@@ -264,7 +264,7 @@ func (s *Service) UpdateApiKeyName(ctx context.Context, userID, mediaID, keyID, 
 	s.audit(ctx, mediaID, userID, "api_key.updated", map[string]any{
 		"apiKeyId": keyID, "name": name,
 	})
-	auditlog.Write(ctx, s.q, s.flags, userID, "media.api_key.updated", "api_key", keyID,
+	auditlog.Write(ctx, s.q, userID, "media.api_key.updated", "api_key", keyID,
 		map[string]any{"mediaId": mediaID, "name": name})
 	return nil
 }
@@ -310,7 +310,7 @@ func (s *Service) RotateApiKey(ctx context.Context, userID, mediaID, keyID strin
 	s.audit(ctx, mediaID, userID, "api_key.rotated", map[string]any{
 		"apiKeyId": keyID,
 	})
-	auditlog.Write(ctx, s.q, s.flags, userID, "media.api_key.rotated", "api_key", keyID,
+	auditlog.Write(ctx, s.q, userID, "media.api_key.rotated", "api_key", keyID,
 		map[string]any{"mediaId": mediaID})
 	s.recordApiKeySecurityEvent(ctx, userID, "", keyID, "api_key_rotated", map[string]any{"mediaId": mediaID})
 
@@ -353,7 +353,7 @@ func (s *Service) RevokeApiKey(ctx context.Context, userID, mediaID, keyID strin
 	s.audit(ctx, mediaID, userID, "api_key.revoked", map[string]any{
 		"apiKeyId": keyID,
 	})
-	auditlog.Write(ctx, s.q, s.flags, userID, "media.api_key.revoked", "api_key", keyID,
+	auditlog.Write(ctx, s.q, userID, "media.api_key.revoked", "api_key", keyID,
 		map[string]any{"mediaId": mediaID})
 	s.recordApiKeySecurityEvent(ctx, userID, "", keyID, "api_key_revoked", map[string]any{"mediaId": mediaID})
 	return nil

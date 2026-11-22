@@ -122,7 +122,7 @@ func (s *Service) InviteMemberByUsername(ctx context.Context, userID, mediaID, u
 			return nil, err
 		}
 		s.audit(ctx, mediaID, userID, "member.role_changed", map[string]any{"targetId": targetID, "role": role})
-		auditlog.Write(ctx, s.q, s.flags, userID, "media.member.role_changed", "user", targetID,
+		auditlog.Write(ctx, s.q, userID, "media.member.role_changed", "user", targetID,
 			map[string]any{"role": role, "mediaId": mediaID})
 		return map[string]any{"success": true, "alreadyMember": true, "userId": targetID}, nil
 	}
@@ -133,7 +133,7 @@ func (s *Service) InviteMemberByUsername(ctx context.Context, userID, mediaID, u
 		return nil, err
 	}
 	s.audit(ctx, mediaID, userID, "member.invited_pending", map[string]any{"username": username, "role": role})
-	auditlog.Write(ctx, s.q, s.flags, userID, "media.member.invited", "user", targetID,
+	auditlog.Write(ctx, s.q, userID, "media.member.invited", "user", targetID,
 		map[string]any{"role": role, "mediaId": mediaID})
 
 	// La notification est le seul signal reçu par l'invité : son échec ne doit
@@ -208,7 +208,7 @@ func (s *Service) AcceptInvite(ctx context.Context, userID, mediaID string) (map
 		return nil, errNotFound
 	}
 	s.audit(ctx, mediaID, userID, "member.invitation_accepted", map[string]any{"role": m.Role})
-	auditlog.Write(ctx, s.q, s.flags, userID, "media.member.invitation_accepted", "user", userID,
+	auditlog.Write(ctx, s.q, userID, "media.member.invitation_accepted", "user", userID,
 		map[string]any{"role": m.Role, "mediaId": mediaID})
 	return map[string]any{"success": true, "role": m.Role}, nil
 }

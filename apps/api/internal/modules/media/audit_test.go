@@ -9,8 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
-
-	"github.com/qoefi/api/internal/flags"
 )
 
 func setAuditFlagMedia(t *testing.T, ctx context.Context, enabled bool) {
@@ -33,7 +31,6 @@ func TestMediaAuditLog_TracesMemberChanges(t *testing.T) {
 	}
 
 	svc := newTestService()
-	svc.SetFlags(flags.NewService(poolTest))
 
 	// Changement de rôle writer → editor.
 	if err := svc.UpdateMemberRole(ctx, mediaOwnerID, "media_001", mediaWriterID, "editor"); err != nil {

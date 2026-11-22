@@ -23,6 +23,7 @@ package adminauthz
 import (
 	"context"
 	"log"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -66,6 +67,11 @@ type DecisionRecord struct {
 type Recorder struct {
 	db Execer
 
+	// mu sérialise l'envoi et la fermeture du canal : sans elle, une décision
+	// qui passait le test `closed` juste avant `close(ch)` provoquait un
+	// « send on closed channel » — un panic qui tue le processus pendant
+	// l'arrêt du serveur, exactement quand le tampon se vide.
+	mu      sync.RWMutex
 	ch      chan DecisionRecord
 	done    chan struct{}
 	closed  atomic.Bool
@@ -97,7 +103,12 @@ func NewRecorder(db Execer) *Recorder {
 // Observe est l'Observer du garde : signature exacte, donc branchable
 // directement (`adminauthz.WithObserver(recorder.Observe)`), et jamais bloquant.
 func (r *Recorder) Observe(d Decision, userID string) {
-	if r == nil || r.ch == nil || r.closed.Load() {
+	if r == nil || r.ch == nil {
+		return
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if r.closed.Load() {
 		return
 	}
 	select {
@@ -159,7 +170,13 @@ func (r *Recorder) flush(batch []DecisionRecord) {
 	for _, record := range batch {
 		var uid pgtype.UUID
 		if record.UserID != "" {
-			_ = uid.Scan(record.UserID)
+			if err := uid.Scan(record.UserID); err != nil {
+				// Identité inexploitable : la décision est tout de même écrite
+				// (une trace sans acteur vaut mieux qu'aucune trace), mais la
+				// perte d'attribution doit se voir.
+				log.Printf("[adminauthz:recorder] acteur %q inexploitable, décision écrite sans identité : %v",
+					record.UserID, err)
+			}
 		}
 		if _, err := r.db.Exec(ctx, insertDecisionQuery,
 			uid, record.Capability, record.Allowed, record.Code,
@@ -187,10 +204,16 @@ func nullableText(value string) any {
 
 // Close vide le tampon puis arrête la goroutine. Idempotent.
 func (r *Recorder) Close() {
-	if r == nil || r.ch == nil || !r.closed.CompareAndSwap(false, true) {
+	if r == nil || r.ch == nil {
+		return
+	}
+	r.mu.Lock()
+	if !r.closed.CompareAndSwap(false, true) {
+		r.mu.Unlock()
 		return
 	}
 	close(r.ch)
+	r.mu.Unlock()
 	<-r.done
 }
 

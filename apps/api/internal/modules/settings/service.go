@@ -25,7 +25,6 @@ import (
 	"github.com/qoefi/api/internal/auditlog"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/domainevents"
-	"github.com/qoefi/api/internal/flags"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/permissions"
 	"github.com/qoefi/api/internal/queue"
@@ -43,10 +42,6 @@ var (
 type Service struct {
 	pool pooler
 	q    ServiceQuerier
-
-	// flags est conservé pour le futur mode verbeux de l'audit ; la trace
-	// AdminAuditLog n'est plus conditionnée par admin-audit-log.
-	flags *flags.Service
 
 	// Fournisseur email + adresse d'expéditeur pour l'envoi de test du
 	// panneau email (POST /v1/settings/email/test). Nil = fonctionnalité
@@ -68,11 +63,6 @@ func NewService(pool *pgxpool.Pool) *Service {
 
 // SetAsynqClient branche le client asynq pour les alertes de sécurité.
 func (s *Service) SetAsynqClient(c *asynq.Client) { s.asynq = c }
-
-// SetFlags branche le service feature flags (journal d'audit admin).
-func (s *Service) SetFlags(f *flags.Service) {
-	s.flags = f
-}
 
 // SetTrustService branche le cache Trust pour invalidation temps réel.
 func (s *Service) SetTrustService(ts *trust.Service) {
@@ -826,7 +816,7 @@ func (s *Service) GenerateApiKey(ctx context.Context, userID, name string, scope
 	}); err != nil {
 		return "", err
 	}
-	auditlog.Write(ctx, s.q, s.flags, userID, "api.key.created", "user", userID,
+	auditlog.Write(ctx, s.q, userID, "api.key.created", "user", userID,
 		map[string]any{"name": name, "scopes": finalScopes})
 	s.recordApiKeySecurityEvent(ctx, userID, "", "api_key_created", map[string]any{"name": name, "scopes": finalScopes})
 	return apiKey, nil
@@ -842,7 +832,7 @@ func (s *Service) RevokeApiKey(ctx context.Context, userID, id string) error {
 	if tag.RowsAffected() == 0 {
 		return errNotFound
 	}
-	auditlog.Write(ctx, s.q, s.flags, userID, "api.key.revoked", "user", userID,
+	auditlog.Write(ctx, s.q, userID, "api.key.revoked", "user", userID,
 		map[string]any{"keyId": id})
 	s.recordApiKeySecurityEvent(ctx, userID, id, "api_key_revoked", map[string]any{"keyId": id})
 	return nil
@@ -882,7 +872,7 @@ func (s *Service) RotateApiKey(ctx context.Context, userID, id string) (string, 
 	if n == 0 {
 		return "", errNotFound
 	}
-	auditlog.Write(ctx, s.q, s.flags, userID, "api.key.rotated", "user", userID,
+	auditlog.Write(ctx, s.q, userID, "api.key.rotated", "user", userID,
 		map[string]any{"keyId": id})
 	s.recordApiKeySecurityEvent(ctx, userID, id, "api_key_rotated", map[string]any{"keyId": id})
 	return apiKey, nil

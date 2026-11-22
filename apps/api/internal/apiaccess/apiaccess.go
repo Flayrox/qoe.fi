@@ -247,14 +247,28 @@ type AccessControlConfig struct {
 }
 
 // LoadAccessControl lit la config de contrôle d'accès de l'API depuis
-// SystemConfig. Clés absentes ou invalides → état par défaut (tout ouvert).
+// SystemConfig.
+//
+// Une clé ABSENTE vaut « rien de coupé » (installation neuve). Une valeur
+// PRÉSENTE mais illisible rend une erreur : une coupure d'API qu'on ne sait
+// pas interpréter ne doit jamais être lue comme « API ouverte » (l'admin qui a
+// écrit la valeur croit avoir coupé), ni une liste d'endpoints tronquée comme
+// « aucun endpoint coupé ». L'appelant conserve alors son dernier état connu et
+// journalise : même doctrine que le LoadEnabled des modules.
 func LoadAccessControl(ctx context.Context, q rowQuerier) (AccessControlConfig, error) {
 	cfg := AccessControlConfig{}
 
 	var raw string
 	err := q.QueryRow(ctx, `SELECT value FROM "SystemConfig" WHERE key = $1`, AccessDisabledKey).Scan(&raw)
 	if err == nil {
-		cfg.Disabled = strings.EqualFold(strings.TrimSpace(raw), "true")
+		switch strings.ToLower(strings.TrimSpace(raw)) {
+		case "true":
+			cfg.Disabled = true
+		case "false", "":
+			cfg.Disabled = false
+		default:
+			return cfg, fmt.Errorf("%s illisible (%q) : coupure d'API indéterminée", AccessDisabledKey, raw)
+		}
 	} else if !errors.Is(err, pgx.ErrNoRows) {
 		return cfg, err
 	}
@@ -263,12 +277,13 @@ func LoadAccessControl(ctx context.Context, q rowQuerier) (AccessControlConfig, 
 	err = q.QueryRow(ctx, `SELECT value FROM "SystemConfig" WHERE key = $1`, DisabledEndpointsKey).Scan(&rawEndpoints)
 	if err == nil {
 		var eps []string
-		if jsonErr := json.Unmarshal([]byte(rawEndpoints), &eps); jsonErr == nil {
-			for _, e := range eps {
-				e = strings.TrimSpace(e)
-				if strings.HasPrefix(e, "/") && !HasGrant(cfg.DisabledEndpoints, e) {
-					cfg.DisabledEndpoints = append(cfg.DisabledEndpoints, e)
-				}
+		if jsonErr := json.Unmarshal([]byte(rawEndpoints), &eps); jsonErr != nil {
+			return cfg, fmt.Errorf("%s illisible : %w", DisabledEndpointsKey, jsonErr)
+		}
+		for _, e := range eps {
+			e = strings.TrimSpace(e)
+			if strings.HasPrefix(e, "/") && !HasGrant(cfg.DisabledEndpoints, e) {
+				cfg.DisabledEndpoints = append(cfg.DisabledEndpoints, e)
 			}
 		}
 	} else if !errors.Is(err, pgx.ErrNoRows) {

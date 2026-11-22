@@ -38,13 +38,15 @@ func (h *Handler) WithSigningKey(key string) *Handler {
 }
 
 // RegisterPublic monte GET /v1/flags (public, sans auth — les flags UI sont
-// déjà exposés au client via @qoe/flags ; rien de sensible ici).
+// déjà exposés au client via @qoe/flags ; les coupe-feux serveur, eux, sont
+// filtrés par Service.Public : cet endpoint ne dit jamais si une protection
+// est armée).
 func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Get("/v1/flags", h.list)
 }
 
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
-	all := h.svc.All(r.Context())
+	all := h.svc.Public(r.Context())
 	if h.signingKey == "" {
 		response.OK(w, all)
 		return
