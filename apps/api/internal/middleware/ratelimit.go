@@ -5,14 +5,13 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net"
 	"net/http"
 	"net/netip"
 	"strconv"
-	"strings"
 	"sync/atomic"
 	"time"
 
+	"github.com/qoefi/api/internal/clientip"
 	"github.com/qoefi/api/internal/observability"
 	"github.com/redis/go-redis/v9"
 )
@@ -332,23 +331,9 @@ func logRateLimitWarnThrottled(err error) {
 // ClientIP extrait l'IP réelle du client. Le middleware doit être placé derrière un
 // proxy de confiance qui réécrit ces headers (ou utiliser chi.RealIP).
 func ClientIP(r *http.Request) string {
-	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-		parts := strings.Split(fwd, ",")
-		if first := strings.TrimSpace(parts[0]); first != "" {
-			return first
-		}
-	}
-	if realIP := strings.TrimSpace(r.Header.Get("X-Real-IP")); realIP != "" {
-		return realIP
-	}
-	host := r.RemoteAddr
-	if host == "" {
-		return "unknown"
-	}
-	if parsedHost, _, err := net.SplitHostPort(host); err == nil {
-		return parsedHost
-	}
-	return host
+	// Délégué à internal/clientip : lecture à l'envers de X-Forwarded-For
+	// (TRUSTED_PROXY_HOPS), validation stricte des adresses, repli TCP.
+	return clientip.FromRequest(r)
 }
 
 // clientIP reste un alias interne pour les autres fichiers du package.

@@ -4,13 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"net"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/qoefi/api/internal/authz"
+	"github.com/qoefi/api/internal/clientip"
 	"github.com/qoefi/api/internal/middleware"
 )
 
@@ -145,19 +144,9 @@ func WithClock(now func() time.Time) Option { return func(g *guard) { g.now = no
 // le reverse proxy, puis X-Real-IP) et retombe sur l'adresse de connexion.
 // Jamais inventée : vide si rien n'est lisible.
 func requestIP(r *http.Request) string {
-	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-		if first := strings.TrimSpace(strings.Split(forwarded, ",")[0]); first != "" {
-			return first
-		}
-	}
-	if real := strings.TrimSpace(r.Header.Get("X-Real-IP")); real != "" {
-		return real
-	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
+	// Même résolution que le rate-limiting : l'audit ne doit pas enregistrer
+	// une IP que le client peut choisir.
+	return clientip.FromRequest(r)
 }
 
 // resolveMode rend le mode effectif : resolver du garde, puis résolver porté

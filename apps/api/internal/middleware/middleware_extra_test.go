@@ -35,12 +35,25 @@ func TestStatusRecorder_Passthrough(t *testing.T) {
 }
 
 func TestClientIP(t *testing.T) {
-	t.Run("forwarded", func(t *testing.T) {
+	t.Run("forwarded deux proxies", func(t *testing.T) {
+		// Deux proxys de confiance : le client est l'avant-dernier saut, la
+		// dernière entrée étant celle ajoutée par le proxy immédiat.
+		t.Setenv("TRUSTED_PROXY_HOPS", "2")
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		req.Header.Set("X-Forwarded-For", "1.2.3.4, 5.6.7.8")
 		req.RemoteAddr = "x:1"
 		if got := clientIP(req); got != "1.2.3.4" {
 			t.Errorf("clientIP = %q, attendu 1.2.3.4", got)
+		}
+	})
+	t.Run("en-tête forgé par le client", func(t *testing.T) {
+		// Le client propose 6.6.6.6 ; le proxy ajoute sa vraie adresse à la fin.
+		t.Setenv("TRUSTED_PROXY_HOPS", "1")
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Set("X-Forwarded-For", "6.6.6.6, 1.2.3.4")
+		req.RemoteAddr = "x:1"
+		if got := clientIP(req); got != "1.2.3.4" {
+			t.Errorf("clientIP = %q, attendu 1.2.3.4 (l'IP forgée doit être ignorée)", got)
 		}
 	})
 	t.Run("forwarded whitespace", func(t *testing.T) {
