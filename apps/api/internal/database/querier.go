@@ -84,6 +84,7 @@ type Querier interface {
 	CountFollowers(ctx context.Context, publisherid string) (int32, error)
 	CountFollowing(ctx context.Context, readerid pgtype.UUID) (int32, error)
 	CountHighlightUpvotes(ctx context.Context, highlightid string) (int32, error)
+	CountLegalAcceptancesByDocument(ctx context.Context, documentID string) (int64, error)
 	// Utilisateurs actifs qui doivent encore accepter un document « à accepter »
 	// dans sa version publiée courante.
 	CountLegalConsentGaps(ctx context.Context) (CountLegalConsentGapsRow, error)
@@ -166,6 +167,8 @@ type Querier interface {
 	DeleteFollowRequestNotification(ctx context.Context, arg DeleteFollowRequestNotificationParams) error
 	DeleteHighlight(ctx context.Context, arg DeleteHighlightParams) (int64, error)
 	DeleteHighlightUpvote(ctx context.Context, arg DeleteHighlightUpvoteParams) error
+	// ⚠️ Les preuves d'acceptation sont en cascade : le service refuse la
+	// suppression d'un document qui en porte (une preuve ne s'efface pas).
 	DeleteLegalDocument(ctx context.Context, id string) error
 	DeleteLegalDocumentVersion(ctx context.Context, id string) error
 	DeleteLike(ctx context.Context, arg DeleteLikeParams) error
@@ -295,6 +298,8 @@ type Querier interface {
 	GetLegalDocumentBySlug(ctx context.Context, slug string) (LegalDocument, error)
 	GetLegalDocumentBySlugAdmin(ctx context.Context, slug string) (LegalDocument, error)
 	GetLegalDocumentVersion(ctx context.Context, id string) (LegalDocumentVersion, error)
+	// Retrouve un brouillon déjà produit pour une revue (reprise idempotente).
+	GetLegalDocumentVersionByLabel(ctx context.Context, arg GetLegalDocumentVersionByLabelParams) (LegalDocumentVersion, error)
 	GetLegalNoticeEmailContext(ctx context.Context, arg GetLegalNoticeEmailContextParams) (GetLegalNoticeEmailContextRow, error)
 	GetLegalReviewReminderContext(ctx context.Context, id string) (GetLegalReviewReminderContextRow, error)
 	GetLikePrefs(ctx context.Context, userid pgtype.UUID) (GetLikePrefsRow, error)
@@ -616,7 +621,9 @@ type Querier interface {
 	ListLegalNoticeRecipients(ctx context.Context, arg ListLegalNoticeRecipientsParams) ([]ListLegalNoticeRecipientsRow, error)
 	ListLegalNoticesAdmin(ctx context.Context, limitCount int32) ([]ListLegalNoticesAdminRow, error)
 	ListLegalRefusalsByUser(ctx context.Context, userID pgtype.UUID) ([]ListLegalRefusalsByUserRow, error)
-	ListLegalReviewsAdmin(ctx context.Context, limitCount int32) ([]ListLegalReviewsAdminRow, error)
+	// Filtre optionnel : relire UNE revue après une écriture ne doit pas dépendre
+	// de sa position dans les 500 plus récentes (sinon succès → 404).
+	ListLegalReviewsAdmin(ctx context.Context, arg ListLegalReviewsAdminParams) ([]ListLegalReviewsAdminRow, error)
 	ListLegalSuperadmins(ctx context.Context) ([]ListLegalSuperadminsRow, error)
 	// ═══════════════════════════════════════════════════════════════════
 	// ⚖️ Legal — cycle de vie (revues, publication planifiée, rappels)

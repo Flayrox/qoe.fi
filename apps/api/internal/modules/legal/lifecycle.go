@@ -131,6 +131,16 @@ func (s *Service) openDueReviews(ctx context.Context, now time.Time, run *Lifecy
 			lastPublished[r.Slug] = *ts
 		}
 	}
+	// Revue déjà ouverte : le compte rendu ne doit pas la compter comme
+	// « ouverte à ce passage » à chaque exécution du worker.
+	openReviews, err := s.q.ListOpenLegalReviews(ctx)
+	if err != nil {
+		return err
+	}
+	alreadyOpen := make(map[string]bool, len(openReviews))
+	for _, r := range openReviews {
+		alreadyOpen[r.RuleKey] = true
+	}
 
 	horizon := now.AddDate(0, 0, reviewSoonDays)
 	for _, rule := range obligationRules() {
@@ -160,7 +170,7 @@ func (s *Service) openDueReviews(ctx context.Context, now time.Time, run *Lifecy
 			run.Errors = append(run.Errors, fmt.Sprintf("revue %s: ouverture impossible: %v", rule.Key, err))
 			continue
 		}
-		if review.Status == "OPEN" && !review.DraftVersionID.Valid {
+		if !alreadyOpen[rule.Key] && review.Status == "OPEN" && !review.DraftVersionID.Valid {
 			run.ReviewsOpened++
 		}
 	}
@@ -203,13 +213,24 @@ func (s *Service) proposeDraftsForOpenReviews(ctx context.Context, run *Lifecycl
 			CreatedBy:  pgtype.UUID{},
 		})
 		if err != nil {
-			if isUniqueViolation(err) {
-				// Une revue antérieure a déjà produit ce brouillon : on
-				// s'aligne dessus plutôt que d'échouer bruyamment.
+			if !isUniqueViolation(err) {
+				run.Errors = append(run.Errors, fmt.Sprintf("brouillon %s: création impossible: %v", review.DocumentSlug, err))
 				continue
 			}
-			run.Errors = append(run.Errors, fmt.Sprintf("brouillon %s: création impossible: %v", review.DocumentSlug, err))
-			continue
+			// Un passage antérieur a déjà produit ce brouillon (sans pouvoir
+			// le rattacher, par exemple après un crash) : on retrouve CE
+			// brouillon et on rattache, sinon la revue resterait bloquée et
+			// le worker retenterait indéfiniment la même insertion.
+			existing, getErr := s.q.GetLegalDocumentVersionByLabel(ctx, db.GetLegalDocumentVersionByLabelParams{
+				DocumentID: review.DocumentID,
+				Locale:     base.Locale,
+				Version:    version,
+			})
+			if getErr != nil {
+				run.Errors = append(run.Errors, fmt.Sprintf("brouillon %s: reprise impossible: %v", review.DocumentSlug, getErr))
+				continue
+			}
+			draft = existing
 		}
 		if _, err := s.q.SetLegalReviewDraft(ctx, db.SetLegalReviewDraftParams{
 			DraftVersionID: optText(draft.ID),
@@ -333,10 +354,11 @@ func (s *Service) publishScheduledVersions(ctx context.Context, now time.Time, m
 
 		// 📣 Avis aux personnes concernées : best-effort, après le commit. Une
 		// campagne qui échoue ne doit pas défaire une publication actée.
-		if version, err := s.q.GetLegalDocumentVersion(ctx, due.ID); err == nil {
-			if _, err := s.EnqueueNotice(ctx, "", version); err != nil {
-				log.Printf("[legal-lifecycle] avis de publication non préparé (version %s): %v", due.ID, err)
-			}
+		version, err := s.q.GetLegalDocumentVersion(ctx, due.ID)
+		if err != nil {
+			log.Printf("[legal-lifecycle] version publiée illisible, avis non préparé (%s): %v", due.ID, err)
+		} else if _, err := s.EnqueueNotice(ctx, "", version); err != nil {
+			log.Printf("[legal-lifecycle] avis de publication non préparé (version %s): %v", due.ID, err)
 		}
 	}
 	return published, errs
@@ -352,7 +374,9 @@ func (s *Service) AdminReviews(ctx context.Context, actor string, limit int32) (
 	if limit <= 0 || limit > 500 {
 		limit = 100
 	}
-	rows, err := s.q.ListLegalReviewsAdmin(ctx, limit)
+	rows, err := s.q.ListLegalReviewsAdmin(ctx, db.ListLegalReviewsAdminParams{
+		ReviewID: pgtype.Text{}, LimitCount: limit,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -403,9 +427,12 @@ func (s *Service) OpenReview(ctx context.Context, actor, slug, dueAt, notes stri
 	if slug == "" {
 		return nil, fmt.Errorf("%w: document requis", errInvalid)
 	}
-	due := parseEffectiveAt(dueAt)
-	if !due.Valid {
-		due = pgtype.Timestamp{Time: time.Now().UTC().AddDate(0, 0, reviewSoonDays), Valid: true}
+	due := pgtype.Timestamp{Time: time.Now().UTC().AddDate(0, 0, reviewSoonDays), Valid: true}
+	if strings.TrimSpace(dueAt) != "" {
+		due = parseEffectiveAt(dueAt)
+		if !due.Valid {
+			return nil, fmt.Errorf("%w: échéance illisible (RFC3339 ou AAAA-MM-JJ attendue)", errInvalid)
+		}
 	}
 	doc, err := s.q.GetLegalDocumentBySlugAdmin(ctx, slug)
 	if err != nil {
@@ -455,17 +482,16 @@ func (s *Service) DismissReview(ctx context.Context, actor, reviewID, notes stri
 // ─── Helpers ─────────────────────────────────────────────────────────
 
 func (s *Service) reviewByID(ctx context.Context, id string) (*LegalReview, error) {
-	rows, err := s.q.ListLegalReviewsAdmin(ctx, 500)
+	rows, err := s.q.ListLegalReviewsAdmin(ctx, db.ListLegalReviewsAdminParams{
+		ReviewID: optText(id), LimitCount: 1,
+	})
 	if err != nil {
 		return nil, err
 	}
-	now := time.Now().UTC()
-	for _, r := range rows {
-		if r.ID == id {
-			return reviewFromRow(r, now), nil
-		}
+	if len(rows) == 0 {
+		return nil, errNotFound
 	}
-	return nil, errNotFound
+	return reviewFromRow(rows[0], time.Now().UTC()), nil
 }
 
 func reviewFromRow(row db.ListLegalReviewsAdminRow, now time.Time) *LegalReview {
@@ -473,7 +499,7 @@ func reviewFromRow(row db.ListLegalReviewsAdminRow, now time.Time) *LegalReview 
 	review := &LegalReview{
 		ID: row.ID, DocumentID: row.DocumentID, DocumentSlug: row.DocumentSlug,
 		Audience: row.Audience, RuleKey: row.RuleKey, Status: row.Status,
-		DueAt: due, DraftVersion: row.DraftVersion,
+		DueAt: due, DraftVersionID: textPtr(row.DraftVersionID), DraftVersion: row.DraftVersion,
 		DraftScheduledAt: tsTime(row.DraftScheduledAt),
 		Notes:            textPtr(row.Notes),
 		OpenedAt:         tsTime(row.OpenedAt), CompletedAt: tsTime(row.CompletedAt),

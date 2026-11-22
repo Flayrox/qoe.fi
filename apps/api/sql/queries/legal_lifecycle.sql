@@ -18,6 +18,9 @@ SELECT v.id, v.document_id, d.slug AS document_slug, d.category AS document_cate
 FROM legal_document_version v
 JOIN legal_document d ON d.id = v.document_id
 WHERE (sqlc.narg(slug)::text IS NULL OR d.slug = sqlc.narg(slug)::text)
+  -- Un brouillon n'est pas un texte opposable : il n'a rien à faire dans une
+  -- pièce remise à un auditeur (ni fuite éditoriale, ni bruit dans la preuve).
+  AND v.status <> 'DRAFT'
 ORDER BY d.slug ASC, v.locale ASC, v.created_at ASC;
 
 -- name: ListLegalAcceptancesForExport :many
@@ -164,7 +167,7 @@ RETURNING *;
 
 -- name: ListLegalReviewsAdmin :many
 SELECT r.id, r.document_id, d.slug AS document_slug, d.audience, r.rule_key, r.due_at,
-       r.status, r.notes, r.opened_at, r.completed_at,
+       r.status, r.notes, r.opened_at, r.completed_at, r.draft_version_id,
        COALESCE(v.version, '')::text AS draft_version,
        v.scheduled_at AS draft_scheduled_at,
        (SELECT count(*) FROM legal_review_reminder rr WHERE rr.review_id = r.id) AS reminders,
@@ -172,6 +175,9 @@ SELECT r.id, r.document_id, d.slug AS document_slug, d.audience, r.rule_key, r.d
 FROM legal_review r
 JOIN legal_document d ON d.id = r.document_id
 LEFT JOIN legal_document_version v ON v.id = r.draft_version_id
+-- Filtre optionnel : relire UNE revue après une écriture ne doit pas dépendre
+-- de sa position dans les 500 plus récentes (sinon succès → 404).
+WHERE (sqlc.narg(review_id)::text IS NULL OR r.id = sqlc.narg(review_id)::text)
 ORDER BY r.due_at ASC
 LIMIT sqlc.arg(limit_count);
 

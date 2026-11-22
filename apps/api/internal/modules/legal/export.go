@@ -56,6 +56,9 @@ const (
 	exportCanonicalV1 = "qoe.legal-consent-export/v1"
 	exportDefaultRows = int32(5000)
 	exportMaxRows     = int32(50000)
+	// Verrou consultatif de la chaîne des exports (valeur arbitraire stable,
+	// propre à ce registre).
+	legalExportChainLock int64 = 918273645
 )
 
 // ─── Signataire ──────────────────────────────────────────────────────
@@ -275,21 +278,40 @@ func (s *Service) ExportConsentRegister(ctx context.Context, actor string, in Co
 	}
 
 	filters := normalizeExportFilters(in.Filters)
-	from, to := parseExportTime(filters.From), parseExportTime(filters.To)
+	// Une borne fournie mais illisible ne doit JAMAIS être ignorée : le
+	// document signé affirmerait un périmètre qu'il n'applique pas. Même
+	// exigence que pour les exports admin.
+	from, err := parseExportBound(filters.From, "début")
+	if err != nil {
+		return nil, err
+	}
+	to, err := parseExportBound(filters.To, "fin")
+	if err != nil {
+		return nil, err
+	}
+	if from.Valid && to.Valid && from.Time.After(to.Time) {
+		return nil, fmt.Errorf("%w: la borne de début est postérieure à la borne de fin", errInvalid)
+	}
 
 	versionRows, err := s.q.ListLegalVersionsForExport(ctx, optText(filters.Slug))
 	if err != nil {
 		return nil, err
 	}
+	// On demande une ligne de plus que le plafond : si elle existe, la pièce
+	// serait incomplète et il faut refuser de la sceller (une preuve tronquée
+	// qui s'annonce complète est pire qu'une absence de preuve).
 	acceptanceRows, err := s.q.ListLegalAcceptancesForExport(ctx, db.ListLegalAcceptancesForExportParams{
 		Slug:       optText(filters.Slug),
 		UserID:     toUUID(filters.UserID),
 		FromAt:     from,
 		ToAt:       to,
-		LimitCount: filters.MaxRows,
+		LimitCount: filters.MaxRows + 1,
 	})
 	if err != nil {
 		return nil, err
+	}
+	if int32(len(acceptanceRows)) > filters.MaxRows {
+		return nil, fmt.Errorf("%w: plus de %d preuves correspondent au périmètre — affinez les filtres ou augmentez maxRows (plafond %d) avant de sceller", errInvalid, filters.MaxRows, exportMaxRows)
 	}
 
 	var cookieRows []db.CookieConsentRecord
@@ -298,10 +320,13 @@ func (s *Service) ExportConsentRegister(ctx context.Context, actor string, in Co
 			ConsentID:  optText(filters.ConsentID),
 			FromAt:     from,
 			ToAt:       to,
-			LimitCount: filters.MaxRows,
+			LimitCount: filters.MaxRows + 1,
 		})
 		if err != nil {
 			return nil, err
+		}
+		if int32(len(cookieRows)) > filters.MaxRows {
+			return nil, fmt.Errorf("%w: plus de %d choix de traceurs correspondent au périmètre — affinez les filtres ou augmentez maxRows (plafond %d) avant de sceller", errInvalid, filters.MaxRows, exportMaxRows)
 		}
 	}
 
@@ -317,7 +342,10 @@ func (s *Service) ExportConsentRegister(ctx context.Context, actor string, in Co
 	scope := exportScope(filters)
 	subject := sanitizeCanonicalLine(in.Subject)
 	reason := sanitizeCanonicalLine(in.Reason)
-	requestedByEmail := s.actorEmail(ctx, actor)
+	requestedByEmail, err := s.actorEmail(ctx, actor)
+	if err != nil {
+		return nil, err
+	}
 
 	generatedAt := time.Now().UTC().Truncate(time.Millisecond)
 
@@ -327,6 +355,14 @@ func (s *Service) ExportConsentRegister(ctx context.Context, actor string, in Co
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	q := s.q.WithTx(tx)
+
+	// Deux exports simultanés liraient la même tête et forqueraient la chaîne :
+	// le vérificateur accuserait ensuite une pièce « retirée ». Un verrou
+	// consultatif transactionnel sérialise la lecture de la tête et le
+	// scellement (aucune donnée métier n'est verrouillée).
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, legalExportChainLock); err != nil {
+		return nil, err
+	}
 
 	// Le maillon précédent se lit AVANT l'insertion : une fois notre ligne
 	// écrite, c'est elle que « le dernier export » désignerait.
@@ -490,6 +526,17 @@ func (s *Service) VerifyConsentExports(ctx context.Context, actor string) (*Cons
 			verdict.Broken = append(verdict.Broken, ExportChainBreak{
 				ExportID: row.ID, Seq: row.Seq,
 				Reason: "maillon précédent incohérent : une pièce a été retirée ou réécrite",
+			})
+			expectedPrevious = row.ChainSha256
+			continue
+		}
+		// Une pièce signée avec une AUTRE clé n'est pas une pièce altérée :
+		// après une rotation, la clé courante ne peut pas la vérifier. Le dire
+		// honnêtement évite d'accuser à tort une preuve valide.
+		if signer != nil && row.KeyID != signer.keyID {
+			verdict.Broken = append(verdict.Broken, ExportChainBreak{
+				ExportID: row.ID, Seq: row.Seq,
+				Reason: "pièce signée avec une autre clé (rotation) : vérification impossible sans l'historique des clés",
 			})
 			expectedPrevious = row.ChainSha256
 			continue
@@ -717,16 +764,18 @@ func normalizeExportFilters(in ExportFilters) ExportFilters {
 	return out
 }
 
-func parseExportTime(raw string) pgtype.Timestamp {
+// parseExportBound convertit une borne ISO (RFC3339 ou date seule) et refuse
+// explicitement une valeur illisible.
+func parseExportBound(raw, label string) (pgtype.Timestamp, error) {
 	if strings.TrimSpace(raw) == "" {
-		return pgtype.Timestamp{}
+		return pgtype.Timestamp{}, nil
 	}
 	for _, layout := range []string{time.RFC3339, "2006-01-02"} {
 		if t, err := time.Parse(layout, raw); err == nil {
-			return pgtype.Timestamp{Time: t.UTC(), Valid: true}
+			return pgtype.Timestamp{Time: t.UTC(), Valid: true}, nil
 		}
 	}
-	return pgtype.Timestamp{}
+	return pgtype.Timestamp{}, fmt.Errorf("%w: borne de %s illisible (RFC3339 ou AAAA-MM-JJ attendue)", errInvalid, label)
 }
 
 func exportScope(filters ExportFilters) string {
@@ -742,15 +791,17 @@ func exportScope(filters ExportFilters) string {
 	}
 }
 
-func (s *Service) actorEmail(ctx context.Context, actor string) string {
+func (s *Service) actorEmail(ctx context.Context, actor string) (string, error) {
 	if strings.TrimSpace(actor) == "" {
-		return ""
+		return "", nil
 	}
+	// Une erreur de lecture ne peut pas devenir un champ vide dans une pièce
+	// signée : le registre doit dire qui a produit l'export, ou ne pas sceller.
 	email, err := s.q.GetLegalActorEmail(ctx, toUUID(actor))
 	if err != nil {
-		return ""
+		return "", fmt.Errorf("lecture de l'auteur de l'export: %w", err)
 	}
-	return email
+	return email, nil
 }
 
 func exportRecordFromRow(row db.LegalConsentExport) *ConsentExportRecord {

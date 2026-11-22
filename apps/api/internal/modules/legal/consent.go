@@ -114,8 +114,18 @@ func (s *Service) RecordSignupConsent(
 			continue
 		}
 		// Version figée : le texte accepté doit être celui qui était affiché.
+		//
+		// ⚠️ Dette R205 : sans version épinglée (`user_metadata` d'un client
+		// antérieur, métadonnée contrôlée par le client), on enregistre la
+		// version courante — comportement documenté et verrouillé par un test.
+		// Le corriger exige de trancher le contrat client (exiger versionId ou
+		// signer la métadonnée côté serveur).
 		if item.VersionID != "" && item.VersionID != doc.VersionID {
 			log.Printf("[legal] consentement inscription ignoré (%s): version %s devenue %s", slug, item.VersionID, doc.VersionID)
+			continue
+		}
+		if v := strings.TrimSpace(item.Version); v != "" && v != doc.Version {
+			log.Printf("[legal] consentement inscription ignoré (%s): libellé %s incohérent avec %s", slug, v, doc.Version)
 			continue
 		}
 		if _, err := s.q.UpsertLegalAcceptance(ctx, db.UpsertLegalAcceptanceParams{

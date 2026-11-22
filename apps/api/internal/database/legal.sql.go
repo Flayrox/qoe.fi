@@ -142,6 +142,17 @@ func (q *Queries) CookieConsentStats(ctx context.Context) (CookieConsentStatsRow
 	return i, err
 }
 
+const countLegalAcceptancesByDocument = `-- name: CountLegalAcceptancesByDocument :one
+SELECT count(*) FROM legal_acceptance WHERE document_id = $1
+`
+
+func (q *Queries) CountLegalAcceptancesByDocument(ctx context.Context, documentID string) (int64, error) {
+	row := q.db.QueryRow(ctx, countLegalAcceptancesByDocument, documentID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countLegalConsentGaps = `-- name: CountLegalConsentGaps :one
 SELECT count(DISTINCT u.id) AS users_with_gaps,
        COALESCE(sum(gaps.pending), 0)::bigint AS pending_acceptances
@@ -216,6 +227,8 @@ const deleteLegalDocument = `-- name: DeleteLegalDocument :exec
 DELETE FROM legal_document WHERE id = $1
 `
 
+// ⚠️ Les preuves d'acceptation sont en cascade : le service refuse la
+// suppression d'un document qui en porte (une preuve ne s'efface pas).
 func (q *Queries) DeleteLegalDocument(ctx context.Context, id string) error {
 	_, err := q.db.Exec(ctx, deleteLegalDocument, id)
 	return err
@@ -346,6 +359,44 @@ SELECT id, document_id, locale, version, title, summary, body, status, changelog
 
 func (q *Queries) GetLegalDocumentVersion(ctx context.Context, id string) (LegalDocumentVersion, error) {
 	row := q.db.QueryRow(ctx, getLegalDocumentVersion, id)
+	var i LegalDocumentVersion
+	err := row.Scan(
+		&i.ID,
+		&i.DocumentID,
+		&i.Locale,
+		&i.Version,
+		&i.Title,
+		&i.Summary,
+		&i.Body,
+		&i.Status,
+		&i.Changelog,
+		&i.EffectiveAt,
+		&i.PublishedAt,
+		&i.ArchivedAt,
+		&i.ScheduledAt,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getLegalDocumentVersionByLabel = `-- name: GetLegalDocumentVersionByLabel :one
+SELECT id, document_id, locale, version, title, summary, body, status, changelog, effective_at, published_at, archived_at, scheduled_at, created_by, created_at, updated_at FROM legal_document_version
+WHERE document_id = $1
+  AND locale = $2
+  AND version = $3
+`
+
+type GetLegalDocumentVersionByLabelParams struct {
+	DocumentID string `json:"document_id"`
+	Locale     string `json:"locale"`
+	Version    string `json:"version"`
+}
+
+// Retrouve un brouillon déjà produit pour une revue (reprise idempotente).
+func (q *Queries) GetLegalDocumentVersionByLabel(ctx context.Context, arg GetLegalDocumentVersionByLabelParams) (LegalDocumentVersion, error) {
+	row := q.db.QueryRow(ctx, getLegalDocumentVersionByLabel, arg.DocumentID, arg.Locale, arg.Version)
 	var i LegalDocumentVersion
 	err := row.Scan(
 		&i.ID,

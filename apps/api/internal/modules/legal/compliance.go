@@ -18,6 +18,8 @@ package legal
 import (
 	"context"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // Seuils d'alerte (jours) d'une échéance réglementaire.
@@ -63,12 +65,12 @@ type Obligation struct {
 
 // ComplianceSummary est le verdict global du tableau de bord.
 type ComplianceSummary struct {
-	Score               int `json:"score"`
-	Critical            int `json:"critical"`
-	Warning             int `json:"warning"`
-	DocumentsTracked    int `json:"documentsTracked"`
-	MissingPublishers int `json:"missingPublishers"`
-	OverdueObligations  int `json:"overdueObligations"`
+	Score              int `json:"score"`
+	Critical           int `json:"critical"`
+	Warning            int `json:"warning"`
+	DocumentsTracked   int `json:"documentsTracked"`
+	MissingPublishers  int `json:"missingPublishers"`
+	OverdueObligations int `json:"overdueObligations"`
 }
 
 // ComplianceSnapshot est la réponse complète du tableau de bord.
@@ -138,24 +140,38 @@ func (s *Service) Compliance(ctx context.Context, actor string) (*ComplianceSnap
 		return nil, err
 	}
 
-	rows, err := s.q.ListLegalComplianceDocuments(ctx)
+	// Photographie cohérente : les cinq lectures (documents, comptes, écarts,
+	// traceurs, avis) doivent décrire le MÊME instant. En lecture seule et en
+	// REPEATABLE READ, une acceptation concurrente ne peut pas produire une
+	// couverture calculée sur deux états différents.
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
 	if err != nil {
 		return nil, err
 	}
-	users, err := s.q.CountLegalEligibleUsers(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
+	q := s.q.WithTx(tx)
+
+	rows, err := q.ListLegalComplianceDocuments(ctx)
 	if err != nil {
 		return nil, err
 	}
-	gaps, err := s.q.CountLegalConsentGaps(ctx)
+	users, err := q.CountLegalEligibleUsers(ctx)
 	if err != nil {
 		return nil, err
 	}
-	cookieStats, err := s.q.CookieConsentStats(ctx)
+	gaps, err := q.CountLegalConsentGaps(ctx)
 	if err != nil {
 		return nil, err
 	}
-	noticeRows, err := s.q.ListLegalNoticesAdmin(ctx, 20)
+	cookieStats, err := q.CookieConsentStats(ctx)
 	if err != nil {
+		return nil, err
+	}
+	noticeRows, err := q.ListLegalNoticesAdmin(ctx, 20)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
 
@@ -245,7 +261,7 @@ func (s *Service) Compliance(ctx context.Context, actor string) (*ComplianceSnap
 		snapshot.Obligations = append(snapshot.Obligations, obl)
 	}
 
-	snapshot.Summary.Score = complianceScore(snapshot.Summary, len(snapshot.Obligations))
+	snapshot.Summary.Score = complianceScore(snapshot.Summary)
 	return snapshot, nil
 }
 
@@ -269,6 +285,12 @@ func evaluateDocument(doc ComplianceDocument, eligible int64) (int, string, []st
 	if doc.RequiresAcceptance {
 		if eligible > 0 {
 			coverage = int(doc.CurrentAcceptances * 100 / eligible)
+			// Le dénominateur exclut les comptes suspendus mais le numérateur
+			// compte toutes les preuves : une couverture > 100 % est possible,
+			// elle doit être bornée (un pourcentage de 250 % n'a aucun sens).
+			if coverage > 100 {
+				coverage = 100
+			}
 		}
 		if coverage < complianceLowCoverage {
 			issues = append(issues, "Moins de 60 % des comptes actifs ont accepté la version publiée courante.")
@@ -291,7 +313,7 @@ func evaluateDocument(doc ComplianceDocument, eligible int64) (int, string, []st
 
 // complianceScore résume la situation en un score 0-100 : chaque point de
 // rigidité coûte, un document critique coûte beaucoup plus qu'un avertissement.
-func complianceScore(summary ComplianceSummary, obligations int) int {
+func complianceScore(summary ComplianceSummary) int {
 	score := 100
 	score -= summary.Critical * 18
 	score -= summary.Warning * 6
@@ -299,6 +321,5 @@ func complianceScore(summary ComplianceSummary, obligations int) int {
 	if score < 0 {
 		score = 0
 	}
-	_ = obligations
 	return score
 }

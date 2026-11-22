@@ -303,6 +303,20 @@ func parseEffectiveAt(raw string) pgtype.Timestamp {
 	return pgtype.Timestamp{}
 }
 
+// parseEffectiveAtOrFail refuse une date fournie mais illisible : la remplacer
+// en silence par « pas de date d'effet » ferait perdre une information
+// opposable sans que l'éditeur le sache.
+func parseEffectiveAtOrFail(raw string) (pgtype.Timestamp, error) {
+	if strings.TrimSpace(raw) == "" {
+		return pgtype.Timestamp{}, nil
+	}
+	ts := parseEffectiveAt(raw)
+	if !ts.Valid {
+		return pgtype.Timestamp{}, fmt.Errorf("%w: date d'effet illisible (RFC3339 ou AAAA-MM-JJ attendue)", errInvalid)
+	}
+	return ts, nil
+}
+
 // checkSuperadmin reproduit la garde du module admin (rôle superadmin unique).
 func (s *Service) checkSuperadmin(ctx context.Context, userID string) error {
 	if userID == "" {
@@ -688,10 +702,21 @@ func (s *Service) UpdateDocument(ctx context.Context, actor, id string, in SaveD
 }
 
 // DeleteDocument supprime un document et tout son historique.
-// (Les preuves d'acceptation sont supprimées en cascade — usage exceptionnel.)
+//
+// Refusé dès qu'une preuve d'acceptation existe : la clé étrangère est en
+// cascade, donc supprimer le document effacerait les consentements qu'il a
+// recueillis. Une preuve doit survivre au document qu'elle vise (art. 7 RGPD).
+// Archivage/désactivation restent disponibles pour retirer un texte du public.
 func (s *Service) DeleteDocument(ctx context.Context, actor, id string) error {
 	if err := s.checkSuperadmin(ctx, actor); err != nil {
 		return err
+	}
+	proofs, err := s.q.CountLegalAcceptancesByDocument(ctx, id)
+	if err != nil {
+		return err
+	}
+	if proofs > 0 {
+		return fmt.Errorf("%w: %d preuve(s) d'acceptation référencent ce document — désactivez-le ou archivez-le plutôt que de l'effacer", errConflict, proofs)
 	}
 	if err := s.q.DeleteLegalDocument(ctx, id); err != nil {
 		return err
@@ -711,6 +736,10 @@ func (s *Service) CreateVersion(ctx context.Context, actor, documentID string, i
 	if strings.TrimSpace(in.Body) == "" {
 		return nil, fmt.Errorf("%w: contenu requis", errInvalid)
 	}
+	effective, err := parseEffectiveAtOrFail(in.EffectiveAt)
+	if err != nil {
+		return nil, err
+	}
 	doc, err := s.q.GetLegalDocumentByID(ctx, documentID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -726,7 +755,7 @@ func (s *Service) CreateVersion(ctx context.Context, actor, documentID string, i
 		Summary:     in.Summary,
 		Body:        in.Body,
 		Changelog:   optText(in.Changelog),
-		EffectiveAt: parseEffectiveAt(in.EffectiveAt),
+		EffectiveAt: effective,
 		CreatedBy:   toUUID(actor),
 	})
 	if err != nil {
@@ -746,9 +775,33 @@ func (s *Service) UpdateVersion(ctx context.Context, actor, versionID string, in
 	if err := s.checkSuperadmin(ctx, actor); err != nil {
 		return nil, err
 	}
+	// L'immutabilité se vérifie AVANT la validation de forme : modifier une
+	// version publiée reste un conflit, même si le corps envoyé est vide.
+	current, err := s.q.GetLegalDocumentVersion(ctx, versionID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errNotFound
+		}
+		return nil, err
+	}
+	if current.Status != "DRAFT" {
+		return nil, fmt.Errorf("%w: version publiée ou archivée (immuable)", errConflict)
+	}
+	// Mêmes règles qu'à la création : un brouillon vide ne doit jamais
+	// pouvoir être publié en un clic.
+	if strings.TrimSpace(in.Title) == "" {
+		return nil, fmt.Errorf("%w: titre requis", errInvalid)
+	}
+	if strings.TrimSpace(in.Body) == "" {
+		return nil, fmt.Errorf("%w: contenu requis", errInvalid)
+	}
+	effective, err := parseEffectiveAtOrFail(in.EffectiveAt)
+	if err != nil {
+		return nil, err
+	}
 	row, err := s.q.UpdateLegalDocumentVersion(ctx, db.UpdateLegalDocumentVersionParams{
 		ID: versionID, Title: in.Title, Summary: in.Summary, Body: in.Body,
-		Changelog: optText(in.Changelog), EffectiveAt: parseEffectiveAt(in.EffectiveAt),
+		Changelog: optText(in.Changelog), EffectiveAt: effective,
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -784,6 +837,10 @@ func (s *Service) PublishVersion(ctx context.Context, actor, versionID string) (
 	q := s.q.WithTx(tx)
 	published, err := publishTxRow(ctx, q, versionID, current.DocumentID, current.Locale)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			// Archivée, supprimée ou déjà publiée entre la lecture et l'acte.
+			return nil, fmt.Errorf("%w: cette version n'est plus un brouillon publiable", errConflict)
+		}
 		return nil, err
 	}
 	if err := tx.Commit(ctx); err != nil {

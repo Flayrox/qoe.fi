@@ -623,7 +623,7 @@ func (q *Queries) ListLegalConsentExportsForVerify(ctx context.Context) ([]Legal
 
 const listLegalReviewsAdmin = `-- name: ListLegalReviewsAdmin :many
 SELECT r.id, r.document_id, d.slug AS document_slug, d.audience, r.rule_key, r.due_at,
-       r.status, r.notes, r.opened_at, r.completed_at,
+       r.status, r.notes, r.opened_at, r.completed_at, r.draft_version_id,
        COALESCE(v.version, '')::text AS draft_version,
        v.scheduled_at AS draft_scheduled_at,
        (SELECT count(*) FROM legal_review_reminder rr WHERE rr.review_id = r.id) AS reminders,
@@ -631,9 +631,15 @@ SELECT r.id, r.document_id, d.slug AS document_slug, d.audience, r.rule_key, r.d
 FROM legal_review r
 JOIN legal_document d ON d.id = r.document_id
 LEFT JOIN legal_document_version v ON v.id = r.draft_version_id
+WHERE ($1::text IS NULL OR r.id = $1::text)
 ORDER BY r.due_at ASC
-LIMIT $1
+LIMIT $2
 `
+
+type ListLegalReviewsAdminParams struct {
+	ReviewID   pgtype.Text `json:"review_id"`
+	LimitCount int32       `json:"limit_count"`
+}
 
 type ListLegalReviewsAdminRow struct {
 	ID               string           `json:"id"`
@@ -646,14 +652,17 @@ type ListLegalReviewsAdminRow struct {
 	Notes            pgtype.Text      `json:"notes"`
 	OpenedAt         pgtype.Timestamp `json:"opened_at"`
 	CompletedAt      pgtype.Timestamp `json:"completed_at"`
+	DraftVersionID   pgtype.Text      `json:"draft_version_id"`
 	DraftVersion     string           `json:"draft_version"`
 	DraftScheduledAt pgtype.Timestamp `json:"draft_scheduled_at"`
 	Reminders        int64            `json:"reminders"`
 	RemindersSent    int64            `json:"reminders_sent"`
 }
 
-func (q *Queries) ListLegalReviewsAdmin(ctx context.Context, limitCount int32) ([]ListLegalReviewsAdminRow, error) {
-	rows, err := q.db.Query(ctx, listLegalReviewsAdmin, limitCount)
+// Filtre optionnel : relire UNE revue après une écriture ne doit pas dépendre
+// de sa position dans les 500 plus récentes (sinon succès → 404).
+func (q *Queries) ListLegalReviewsAdmin(ctx context.Context, arg ListLegalReviewsAdminParams) ([]ListLegalReviewsAdminRow, error) {
+	rows, err := q.db.Query(ctx, listLegalReviewsAdmin, arg.ReviewID, arg.LimitCount)
 	if err != nil {
 		return nil, err
 	}
@@ -672,6 +681,7 @@ func (q *Queries) ListLegalReviewsAdmin(ctx context.Context, limitCount int32) (
 			&i.Notes,
 			&i.OpenedAt,
 			&i.CompletedAt,
+			&i.DraftVersionID,
 			&i.DraftVersion,
 			&i.DraftScheduledAt,
 			&i.Reminders,
@@ -732,6 +742,9 @@ SELECT v.id, v.document_id, d.slug AS document_slug, d.category AS document_cate
 FROM legal_document_version v
 JOIN legal_document d ON d.id = v.document_id
 WHERE ($1::text IS NULL OR d.slug = $1::text)
+  -- Un brouillon n'est pas un texte opposable : il n'a rien à faire dans une
+  -- pièce remise à un auditeur (ni fuite éditoriale, ni bruit dans la preuve).
+  AND v.status <> 'DRAFT'
 ORDER BY d.slug ASC, v.locale ASC, v.created_at ASC
 `
 

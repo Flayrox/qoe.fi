@@ -151,7 +151,19 @@ WHERE id = sqlc.arg(id)
 RETURNING *;
 
 -- name: DeleteLegalDocument :exec
+-- ⚠️ Les preuves d'acceptation sont en cascade : le service refuse la
+-- suppression d'un document qui en porte (une preuve ne s'efface pas).
 DELETE FROM legal_document WHERE id = sqlc.arg(id);
+
+-- name: CountLegalAcceptancesByDocument :one
+SELECT count(*) FROM legal_acceptance WHERE document_id = sqlc.arg(document_id);
+
+-- name: GetLegalDocumentVersionByLabel :one
+-- Retrouve un brouillon déjà produit pour une revue (reprise idempotente).
+SELECT * FROM legal_document_version
+WHERE document_id = sqlc.arg(document_id)
+  AND locale = sqlc.arg(locale)
+  AND version = sqlc.arg(version);
 
 -- name: ListLegalDocumentVersions :many
 SELECT v.id, v.document_id, v.locale, v.version, v.title, v.summary, v.body, v.status,
