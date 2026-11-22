@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-n `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home` et `mediaassets` clos le 2026-11-22 — L29n : 10 défauts F609–F618, dettes R239–R241 ; prochain = `newsletters`, 3 f. · 1 106 l. remesuré) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-o `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets` et `newsletters` clos le 2026-11-22 — L29o : 5 défauts F624–F628, dettes R242–R244 ; prochain = `notifications`, 2 f. · 625 l. remesuré) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -189,7 +189,11 @@ tri non déterministe, email non borné), dettes **R236–R238**. **L29n est clo
 `mediaassets` (**2 f. · 835 l.** après correctifs, 533 l. avant), **10 défauts** F609–F618 (dédoublonnage CAS
 inter-propriétaires, traversée de chemin/bucket, MIME actif, URL hors plateforme, quota contournable, recherche
 ILIKE non échappée, troncature UTF-8, purge sans deleter, objet partagé détruit, panne en 400), dettes
-**R239–R241**. **Lot suivant de L29, « En cours » : L29o** — `newsletters`, **3 f. · 1 106 l.** (remesuré).
+**R239–R241**. **L29o est clos le 2026-11-22** : module `newsletters` (**3 f. · 1 177 l.** après correctifs,
+1 106 l. avant), **5 défauts** F624–F628 (panne base en 403 puis en 404, saisie invalide en 500, liste non bornée,
+email de désabonnement non borné) et 5 correctifs structurels (verrou d'envoi, repli DRAFT, suppression à 0 ligne,
+date UTC, hôtes recopiés), dettes **R242–R244**. **Lot suivant de L29, « En cours » : L29p** — `notifications`,
+**2 f. · 625 l.** (remesuré).
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2168,6 +2172,81 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L29o — `apps/api/internal/modules/newsletters/**` — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l`) : **3 fichiers de production · 1 106 l.** (`service 632`, `handler 444`,
+`querier 30`) — conforme au décompte annoncé. Lus intégralement, avec les appelants réels : `cmd/server`
+(`RegisterPublic` pour `/v1/newsletters/{confirm,unsubscribe}` et `protected` pour le CRUD + `/send`, avec
+`RequireAction(ActionBulkCampaignSend)` + limiteur Redis 10/heure, injection `SetPool`/`SetBudgetPool`/
+`SetEmailVerifier`/`SetReconfirmConfirmedHook`), `cmd/worker` + `internal/workers/newsletter.go` (distribution par
+lots, `ResetNewsletterIssueToDraft` quand un coupe-feu s'active), `internal/workers/confirm_email.go` (les liens
+`/v1/newsletters/confirm`), `internal/modules/home` (`NewConfirmationToken`, enqueue), `internal/modules/creator`
+(`NewConfirmationToken` pour la clé API), `internal/modules/articles` (`SignUnsubscribe`/`BuildUnsubURL`,
+`PublisherPublicURL`/`ArticlePublicURL` — réutilisés ici), `internal/subscriptions.HasPro`, `internal/abuse`
+(budgets), `sql/queries/newsletter.sql`, schémas `NewsletterIssue`/`NewsletterDelivery`/`Subscriber`, clients
+`apps/studio` (`/v1/newsletters` CRUD + digest + envoi, aperçu en `srcDoc` **sandboxé** — vérifié), règle de
+portabilité `QOE_CONFIRM_BASE_URL` (self-host). `ExpectedMigrationVersion = 95` : aucune migration nécessaire.
+Après correctifs le module pèse **3 f. · 1 177 l.** (12 fichiers de tests, dont `audit_l29o_test.go` : 5 tests).
+
+**Frontière avec les voisins, écrite noir sur blanc** : `newsletters` possède le **cycle de vie éditorial de la
+campagne** (brouillon → SENDING → SENT/FAILED, digest, envoi PRO) et le **double opt-in côté abonné**
+(`SubscribePending`, `ActivateVerifiedSubscriber`, `ConfirmSubscriberByToken`, `Unsubscribe`) ; il **n'envoie aucun
+email** (le worker `internal/workers` les distribue), ne construit **aucun template** (worker + `articles`), ne
+resigne aucun lien (délégué à `articles`) et ne réimplémente ni la visibilité ni le paywall des articles
+(`ListArticlesForDigest` ne lit que des articles `PUBLISHED`, non masqués, de la publication). Les uploads/médias
+restent à `media`/`mediaassets` ; les profils à `publishers` ; l'identité à `users` (`GetEmailVerification`, seule
+preuve d'adresse côté connecté) ; les suppressions durables (`EmailSuppression`) sont lues, jamais écrites ici.
+
+**5 défauts corrigés** F624–F628, chacun avec un rouge réellement exécuté (worktree `git worktree add -f
+/tmp/qoe-l29o-red HEAD`, suite `TestAuditL29O_*`, Postgres testcontainers + 95 migrations).
+
+| # | Défaut | Preuve (test) | Rouge constaté | Commit |
+|---|---|---|---|---|
+| F624 | **Panne base rendue en 403** : `resolvePublisher` transformait toute erreur de `GetUserPublisherID` en « vous ne gérez pas cette publication ». Seul l'absence de ligne (`ErrNoRows`) ou un `publisherId` vide est un refus. | `TestAuditL29O_PublisherLookupErrorIsNotForbidden`. | `ListIssues sur panne = vous ne gérez pas cette publication, attendu l'erreur de base` | `fix(newsletters)` |
+| F625 | **Panne base rendue en 404** : `checkOwnership` mappait toute erreur de `GetNewsletterIssue` en `errNotFound` (lecture, update, suppression et envoi). | `TestAuditL29O_IssueLookupErrorIsNotNotFound`. | `Send sur panne = newsletter introuvable, attendu l'erreur de base` | `fix(newsletters)` |
+| F626 | **Saisie invalide rendue en 500** : les refus `antispam.RejectionError` (sujet XSS, caractères de contrôle) et les contrôles maison (HTML vide, HTML > 512 Ko) tombaient dans `default → Internal`. `secguard.WriteRejection` dans `handleErr` + refus typés pour HTML vide/trop volumineux/désabonnement. | `TestAuditL29O_ContentRejectionIs400`. | `sujet XSS = 500 ({"error":"Internal Server Error"})` | `fix(newsletters)` |
+| F627 | **Liste non bornée** : `ListNewsletterIssuesByPublisher` n'avait ni `LIMIT` ni `OFFSET` alors que chaque ligne porte le HTML complet (jusqu'à 512 Ko) — 120 brouillons = 120 lignes, réponse de plusieurs dizaines de Mo. Borne 100 + tie-break `id DESC`. | `TestAuditL29O_ListIsBounded`. | `120 newsletters retournées, borne 100 non appliquée` | `fix(newsletters)` |
+| F628 | **Adresse démesurée acceptée** sur le désabonnement public (aucune borne RFC 5321, id non borné) : une adresse de 2 Mo atteignait la base. Bornes 254 / 100 caractères. | `TestAuditL29O_UnsubscribeRejectsOversizedEmail`. | `adresse de 308 caractères acceptée` | `fix(newsletters)` |
+
+**Correctifs structurels, sans rouge isolable** (déclarés comme tels) :
+
+- **F629 — envoi : verrou d'abord, remise en file ensuite** : `ResetFailedNewsletterDeliveries` s'exécutait *avant*
+  le `SetNewsletterIssueSending` conditionnel ; deux envois concurrents pouvaient remettre les livraisons en file
+  puis un seul gagnait le verrou. Le verrou atomique passe en premier, `ErrNoRows` du verrou devient `errNotDraft`.
+- **F630 — envoi bloqué en `SENDING` après échec d'enqueue** : sans tâche enfilée, aucun worker ne reprenait
+  l'issue ; `ResetNewsletterIssueToDraft` est appelé (et journalisé s'il échoue) avant de remonter l'erreur.
+- **F631 — suppression à 0 ligne rapportée comme un succès** : `DeleteNewsletterIssueDraft` est passé en
+  `:execrows` ; une issue passée `SENDING` entre le contrôle et le `DELETE` renvoie `errNotDraft` au lieu d'un
+  `{"success":true}` mensonger.
+- **F632 — date du digest en heure locale** : `time.Now().Format` remplacé par `time.Now().UTC()` (libellé d'un jour
+  décalé autour de minuit).
+- **F633 — hôtes recopiés dans le digest** : `digestArticleURL` construisait `https://qoe.fi/p` et
+  `https://%s.qoe.fi` à la main. Délégué à `articles.PublisherPublicURL`/`ArticlePublicURL` (source unique de
+  l'origine publique, surchargeable en self-host) — même forme `/{catégorie}/{slug}` que les routes tenants.
+
+**Dettes ouvertes, sans faux correctif** (numérotation en continuité de R241) :
+
+- **R242 — la liste porte le HTML complet** : bornée à 100 issues, mais 100 × 512 Ko reste une réponse lourde
+  (jusqu'à ~50 Mo). Option recommandée : `GET /v1/newsletters/{id}` (déjà couvert par `checkOwnership`) + liste
+  sans `html` (`htmlBytes` à la place), avec adaptation de `apps/studio` (`NewsletterClient`) — changement de
+  contrat client, à faire avec la refonte de l'écran.
+- **R237 (rappel, toujours ouverte) — `Subscriber.isActive`** : `Unsubscribe` ne désactive que `receiveArticles`,
+  `SubscribePending`/`ActivateVerifiedSubscriber` forcent `isActive = true` ; les compteurs publics comptent donc
+  des désinscrits. Décision produit (consentement vs ligne vivante) non tranchable ici.
+- **R243 — envoi à zéro destinataire** : une campagne sans abonné confirmé est marquée `SENT` avec
+  `totalRecipients = 0` (le worker clôt sur des compteurs vides). Option recommandée : refuser l'envoi côté service
+  (`COUNT` des destinataires éligibles = 0 → 400 explicite) ou statut dédié `NO_RECIPIENTS`.
+- **R244 — `ConfirmLocaleRaw` avale ses erreurs** : une panne base dégrade la page de confirmation en français
+  (défaut assumé, la page doit s'afficher même si l'issue est inconnue) ; à remplacer par une locale passée en
+  paramètre signé si l'exigence i18n durcit.
+
+**Commandes passées sur l'arbre corrigé** : `gofmt -l internal/modules/newsletters/` → vide ; `go build ./...` → 0 ;
+`go vet ./internal/...` → 0 ; `QOE_DB_TESTS_OPTIONAL=1 go test` sur `newsletters`, `home`, `creator`, `articles`,
+`publishers`, `users`, `settings`, `media`, `mediaassets`, `highlights`, `feed`, `workers`, `middleware`, `authz`,
+`cmd/server`, `cmd/worker` → **16 paquets `ok`** (base réelle) ; batterie workspace 13 commandes → **13 × 0** ;
+**vitest front** ciblés : `apps/studio` (routes upload), `apps/core` (`routes-hardening`),
+`apps/admin` (route upload), `apps/tenants` (`route-leaks`) → **4 suites vertes** (15 tests).
 
 ## L29n — `apps/api/internal/modules/mediaassets/**` — **clos le 2026-11-22**
 
