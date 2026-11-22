@@ -142,7 +142,11 @@ func (g *Guard) EvaluateRequest(ctx context.Context, r *http.Request, userID str
 	}
 	prof, err := g.trust.Evaluate(ctx, userID, subnet, ua)
 	if err != nil {
-		return trust.Profile{UserID: userID, Tier: trust.TierStandard}
+		// Compte introuvable (supprimé, en cours de synchronisation) ou base
+		// indisponible : on ne suppose pas un compte sain. Tier RESTRICTED
+		// applique les quotas les plus stricts jusqu'à ce que le profil soit
+		// lisible — jamais un défaut permissif sur une erreur.
+		return trust.Profile{UserID: userID, Tier: trust.TierRestricted}
 	}
 	if prof.MultiAccountSuspected && subnet != "" && g.pool != nil {
 		go func(sub string) {
