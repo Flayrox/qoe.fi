@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 
@@ -194,8 +195,12 @@ func ScopeModule(scope string) string {
 }
 
 // LoadEnabled lit la SystemConfig API_ACCESS_MODULES et retourne la liste des
-// modules actuellement accordables. Config absente ou invalide → tout le
-// registre est accordable (défaut).
+// modules actuellement accordables.
+//
+// Config **absente** → tout le registre est accordable (défaut d'installation).
+// Config **présente mais illisible** (JSON tronqué, type inattendu) → aucun
+// module (fail-closed) : une valeur corrompue ne doit jamais rouvrir des modules
+// que l'admin avait coupés. Une liste vide explicite ("[]") reste « rien".
 func LoadEnabled(ctx context.Context, q rowQuerier) ([]string, error) {
 	var raw string
 	err := q.QueryRow(ctx, `SELECT value FROM "SystemConfig" WHERE key = $1`, ConfigKey).Scan(&raw)
@@ -206,8 +211,9 @@ func LoadEnabled(ctx context.Context, q rowQuerier) ([]string, error) {
 		return nil, err
 	}
 	var keys []string
-	if err := json.Unmarshal([]byte(raw), &keys); err != nil || len(keys) == 0 {
-		return ModuleKeys(), nil
+	if err := json.Unmarshal([]byte(raw), &keys); err != nil {
+		log.Printf("[apiaccess] %s illisible (aucun module accordable) : %v", ConfigKey, err)
+		return []string{}, nil
 	}
 	// Filtre les clés inconnues (registre = source de vérité).
 	known := ModuleKeys()
@@ -221,10 +227,13 @@ func LoadEnabled(ctx context.Context, q rowQuerier) ([]string, error) {
 }
 
 // IsEnabled vérifie qu'un module est accordable à l'échelle de la plateforme.
+// Une lecture impossible ferme l'accès (fail-closed) : un module ne s'ouvre pas
+// parce que la base n'a pas répondu.
 func IsEnabled(ctx context.Context, q rowQuerier, key string) bool {
 	enabled, err := LoadEnabled(ctx, q)
 	if err != nil {
-		return true
+		log.Printf("[apiaccess] lecture de %s impossible, module %s fermé : %v", ConfigKey, key, err)
+		return false
 	}
 	return HasGrant(enabled, key)
 }
