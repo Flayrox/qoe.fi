@@ -17,6 +17,15 @@ import (
 
 const maxRedirects = 3
 
+// redirectsExceeded dit si le client doit refuser la redirection en cours.
+// `via` liste les requêtes déjà émises : suivre la n-ième redirection se fait
+// avec len(via) == n (la requête d'origine compte pour 1). Refuser au-delà de
+// maxRedirects autorise donc exactement maxRedirects sauts — vérifié par
+// TestRedirectsExceeded, qui fige cette borne (elle avait été lue à l'envers).
+func redirectsExceeded(via []*http.Request) bool {
+	return len(via) > maxRedirects
+}
+
 // ErrUnsafeURL signale une URL rejetée par la politique anti-SSRF.
 var ErrUnsafeURL = errors.New("URL cible non autorisée")
 
@@ -178,7 +187,7 @@ func SafeHTTPClient(timeout time.Duration) *http.Client {
 		Timeout:   timeout,
 		Transport: transport,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if len(via) > maxRedirects {
+			if redirectsExceeded(via) {
 				return fmt.Errorf("%w : trop de redirections (max %d)", ErrUnsafeURL, maxRedirects)
 			}
 			return ValidateExternalURL(req.URL.String())
