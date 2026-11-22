@@ -2,10 +2,10 @@ package cache
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/redis/go-redis/v9"
 )
 
 func TestClient_InvalidURL(t *testing.T) {
@@ -37,23 +37,39 @@ func TestClient_Success(t *testing.T) {
 }
 
 func TestInvalidateNamespace_NilClient(t *testing.T) {
-	// No-op silencieux quand le client est nil (pas de panique, pas d'erreur).
-	InvalidateNamespace(context.Background(), nil, "feed:")
+	// No-op quand le client est nil (pas de panique, pas d'erreur).
+	if err := InvalidateNamespace(context.Background(), nil, "feed:"); err != nil {
+		t.Fatalf("client nil doit être un no-op sans erreur, obtenu %v", err)
+	}
 }
 
 func TestInvalidateNamespaces_NilClient(t *testing.T) {
-	InvalidateNamespaces(context.Background(), nil, "a:", "b:")
+	if err := InvalidateNamespaces(context.Background(), nil, "a:", "b:"); err != nil {
+		t.Fatalf("client nil doit être un no-op sans erreur, obtenu %v", err)
+	}
 }
 
 func TestInvalidateNamespaces_Multiple(t *testing.T) {
 	// Avec un client nil, InvalidateNamespaces itère sur les préfixes et ne
 	// plante pas — couvre la boucle multi-préfixes.
-	InvalidateNamespaces(context.Background(), nil, "x", "y", "z")
+	if err := InvalidateNamespaces(context.Background(), nil, "x", "y", "z"); err != nil {
+		t.Fatalf("client nil doit être un no-op sans erreur, obtenu %v", err)
+	}
 }
 
-func TestRedisURLConstant(t *testing.T) {
-	// La constante est le fallback documenté.
-	if !strings.HasPrefix(redisURL(), "redis://") {
-		t.Errorf("redisURL() = %q, attendu un DSN redis://", redisURL())
+// TestInvalidateNamespace_ScanFailureReported : un SCAN qui échoue doit être
+// rendu à l'appelant. Sinon l'invalidation est annoncée réussie alors que le
+// cache reste périmé (et les feeds servent un contenu obsolète).
+func TestInvalidateNamespace_ScanFailureReported(t *testing.T) {
+	s := miniredis.RunT(t)
+	c := redis.NewClient(&redis.Options{Addr: s.Addr()})
+	t.Cleanup(func() { _ = c.Close() })
+	s.Close() // serveur arrêté : SCAN échoue
+
+	if err := InvalidateNamespace(context.Background(), c, "feed:"); err == nil {
+		t.Fatal("un SCAN en échec doit remonter, sinon un cache périmé passe pour invalidé")
+	}
+	if err := InvalidateNamespaces(context.Background(), c, "a:", "b:"); err == nil {
+		t.Fatal("InvalidateNamespaces doit agréger l'échec de SCAN")
 	}
 }

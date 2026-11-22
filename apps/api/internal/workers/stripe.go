@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hibiken/asynq"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api/internal/database"
@@ -30,7 +31,16 @@ func NewStripeWorker(pool *pgxpool.Pool, rc *redis.Client) *StripeWorker {
 	return &StripeWorker{pool: pool, q: db.New(pool), rc: rc}
 }
 
+// errPublisherNotFound distingue « référence inconnue » (rien à activer : la
+// tâche est consommée) d'une panne de base (à rejouer par asynq).
+var errPublisherNotFound = errors.New("publication introuvable")
+
 // HandleStripeEvent traite TaskStripeEvent avec idempotence Redis.
+//
+// Le verrou Redis est un marqueur de SUCCÈS : il est posé avant le traitement
+// (deux rejeux concurrents ne traitent pas deux fois), puis libéré si le
+// traitement échoue, sans quoi l'événement serait marqué « traité » alors
+// qu'il n'a rien produit et le rejeu asynq serait avalé.
 func (s *StripeWorker) HandleStripeEvent(ctx context.Context, t *asynq.Task) error {
 	var p queue.StripeEventPayload
 	if err := json.Unmarshal(t.Payload(), &p); err != nil {
@@ -40,15 +50,29 @@ func (s *StripeWorker) HandleStripeEvent(ctx context.Context, t *asynq.Task) err
 		return errors.New("eventId manquant")
 	}
 
-	// Idempotence exact-once : verrou Redis TTL 7 jours.
+	key := "stripe:event:" + p.EventID
 	if s.rc != nil {
-		ok, err := s.rc.SetNX(ctx, "stripe:event:"+p.EventID, "processed", 7*24*time.Hour).Result()
-		if err == nil && !ok {
+		ok, err := s.rc.SetNX(ctx, key, "processing", 7*24*time.Hour).Result()
+		switch {
+		case err != nil:
+			log.Printf("[stripe] verrou d'idempotence indisponible (%s): %v — traitement sans dédup", p.EventID, err)
+		case !ok:
 			log.Printf("[stripe] événement déjà traité, skip %s", p.EventID)
 			return nil
 		}
 	}
 
+	err := s.processEvent(ctx, p)
+	if err != nil && s.rc != nil {
+		if delErr := s.rc.Del(ctx, key).Err(); delErr != nil {
+			log.Printf("[stripe] libération du verrou %s: %v", p.EventID, delErr)
+		}
+	}
+	return err
+}
+
+// processEvent applique l'effet métier d'un événement Stripe.
+func (s *StripeWorker) processEvent(ctx context.Context, p queue.StripeEventPayload) error {
 	switch p.EventType {
 	case "checkout.session.completed":
 		if err := s.handleCheckoutCompleted(ctx, p.Data); err != nil {
@@ -74,30 +98,82 @@ func (s *StripeWorker) HandleStripeEvent(ctx context.Context, t *asynq.Task) err
 }
 
 // resolvePublisherID mappe creatorRef (publication ou user) → publication.
+// Une panne de base remonte (rejeu) ; une référence inconnue rend
+// errPublisherNotFound (rien à activer).
 func (s *StripeWorker) resolvePublisherID(ctx context.Context, creatorRef string) (string, error) {
-	if pub, err := s.q.GetPublisherByID(ctx, creatorRef); err == nil && pub != "" {
+	pub, err := s.q.GetPublisherByID(ctx, creatorRef)
+	if err == nil && pub != "" {
 		return pub, nil
 	}
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return "", fmt.Errorf("résolution publication %s: %w", creatorRef, err)
+	}
 	personal, err := s.q.GetPersonalPublisherByUserID(ctx, creatorRef)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", errPublisherNotFound
+	}
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("résolution publication personnelle %s: %w", creatorRef, err)
 	}
 	if !personal.Valid {
-		return "", errors.New("publication introuvable")
+		return "", errPublisherNotFound
 	}
 	return personal.String, nil
 }
 
+// resolveOwner trouve le propriétaire à créditer : publication personnelle,
+// sinon membre owner du média. Une panne remonte ; l'absence de propriétaire
+// rend "" (rien à créditer, pas de rejeu inutile).
+func (s *StripeWorker) resolveOwner(ctx context.Context, publisherID string) (string, error) {
+	owner, err := s.q.GetPersonalOwnerForCredit(ctx, pgtype.Text{String: publisherID, Valid: true})
+	if err == nil && owner.OwnerID != "" {
+		return owner.OwnerID, nil
+	}
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return "", fmt.Errorf("propriétaire personnel %s: %w", publisherID, err)
+	}
+	mediaOwner, err := s.q.GetMediaOwnerForCredit(ctx, publisherID)
+	if err == nil && mediaOwner.OwnerID != "" {
+		return mediaOwner.OwnerID, nil
+	}
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return "", fmt.Errorf("propriétaire média %s: %w", publisherID, err)
+	}
+	return "", nil
+}
+
+// publisherIDForActiveEvent résout la publication d'un événement Stripe :
+// ok=false quand la référence est inconnue (événement consommé, loggé), err
+// non nil quand la résolution a échoué (à rejouer par asynq).
+func (s *StripeWorker) publisherIDForActiveEvent(ctx context.Context, creatorRef, eventType string) (string, bool, error) {
+	publisherID, err := s.resolvePublisherID(ctx, creatorRef)
+	if err == nil {
+		return publisherID, true, nil
+	}
+	if errors.Is(err, errPublisherNotFound) {
+		log.Printf("[stripe] %s : publication introuvable pour %q, événement ignoré", eventType, creatorRef)
+		return "", false, nil
+	}
+	return "", false, err
+}
+
 // creditOwner calcule la commission et crédite le wallet du propriétaire.
+//
+// Le solde et le mouvement sont écrits dans la MÊME transaction : un rejeu
+// asynq après une écriture partielle ne peut pas créditer deux fois un wallet
+// dont le mouvement manque.
 func (s *StripeWorker) creditOwner(ctx context.Context, publisherID string, amountPaidCents int) error {
-	// Propriétaire : publication personnelle, sinon membre owner du média.
-	ownerID := ""
-	if owner, err := s.q.GetPersonalOwnerForCredit(ctx, pgtype.Text{String: publisherID, Valid: true}); err == nil {
-		ownerID = owner.OwnerID
-	} else if mediaOwner, err := s.q.GetMediaOwnerForCredit(ctx, publisherID); err == nil {
-		ownerID = mediaOwner.OwnerID
-	} else {
+	ownerID, err := s.resolveOwner(ctx, publisherID)
+	if err != nil {
+		return err
+	}
+	if ownerID == "" {
+		log.Printf("[stripe] aucun propriétaire à créditer pour la publication %s", publisherID)
 		return nil
+	}
+	ownerUUID := toUUID(ownerID)
+	if !ownerUUID.Valid {
+		return fmt.Errorf("propriétaire %q: identifiant invalide", ownerID)
 	}
 
 	// Une SEULE définition du barème : le droit Pro (SubscriptionGrant), pas le
@@ -110,13 +186,17 @@ func (s *StripeWorker) creditOwner(ctx context.Context, publisherID string, amou
 	fee := int64(amountPaidCents) * int64(feePercent) / 100
 	credit := int(amountPaidCents) - int(fee)
 
-	if err := s.q.IncrementWalletBalance(ctx, db.IncrementWalletBalanceParams{
-		ID: ownerID, WalletBalanceCents: int32(credit),
-	}); err != nil {
+	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		q := s.q.WithTx(tx)
+		if err := q.IncrementWalletBalance(ctx, db.IncrementWalletBalanceParams{
+			ID: ownerID, WalletBalanceCents: int32(credit),
+		}); err != nil {
+			return err
+		}
+		_, err := q.CreateWalletTransaction(ctx, db.CreateWalletTransactionParams{
+			UserId: ownerUUID, AmountCents: int32(credit), Type: "DEPOSIT",
+		})
 		return err
-	}
-	if _, err := s.q.CreateWalletTransaction(ctx, db.CreateWalletTransactionParams{
-		UserId: toUUID(ownerID), AmountCents: int32(credit), Type: "DEPOSIT",
 	}); err != nil {
 		return err
 	}
@@ -178,9 +258,9 @@ func (s *StripeWorker) handleCheckoutCompleted(ctx context.Context, data map[str
 		if creatorRef == "" || email == "" {
 			return nil
 		}
-		publisherID, err := s.resolvePublisherID(ctx, creatorRef)
-		if err != nil {
-			return nil
+		publisherID, ok, err := s.publisherIDForActiveEvent(ctx, creatorRef, "checkout.session.completed")
+		if err != nil || !ok {
+			return err
 		}
 		amount := intVal(obj["amount_total"])
 		if _, err := s.q.UpsertSubscriberPayment(ctx, db.UpsertSubscriberPaymentParams{
@@ -261,9 +341,9 @@ func (s *StripeWorker) handlePaymentSucceeded(ctx context.Context, data map[stri
 		return nil
 	}
 
-	publisherID, err := s.resolvePublisherID(ctx, creatorRef)
-	if err != nil {
-		return nil
+	publisherID, ok, err := s.publisherIDForActiveEvent(ctx, creatorRef, "invoice.payment_succeeded")
+	if err != nil || !ok {
+		return err
 	}
 
 	amountPaid := intVal(data["amount_paid"])
@@ -288,9 +368,9 @@ func (s *StripeWorker) handleSubscriptionDeleted(ctx context.Context, data map[s
 	if creatorRef == "" || email == "" {
 		return nil
 	}
-	publisherID, err := s.resolvePublisherID(ctx, creatorRef)
-	if err != nil {
-		return nil
+	publisherID, ok, err := s.publisherIDForActiveEvent(ctx, creatorRef, "customer.subscription.deleted")
+	if err != nil || !ok {
+		return err
 	}
 	return s.q.SetSubscriberPremiumStatus(ctx, db.SetSubscriberPremiumStatusParams{
 		PublisherId: publisherID, Email: email, IsActive: false, Status: db.SubscriptionStatusCANCELED,
@@ -308,9 +388,9 @@ func (s *StripeWorker) handlePaymentFailed(ctx context.Context, data map[string]
 	if creatorRef == "" || email == "" {
 		return nil
 	}
-	publisherID, err := s.resolvePublisherID(ctx, creatorRef)
-	if err != nil {
-		return nil
+	publisherID, ok, err := s.publisherIDForActiveEvent(ctx, creatorRef, "invoice.payment_failed")
+	if err != nil || !ok {
+		return err
 	}
 	return s.q.SetSubscriberPremiumStatus(ctx, db.SetSubscriberPremiumStatusParams{
 		PublisherId: publisherID, Email: email, IsActive: false, Status: db.SubscriptionStatusPASTDUE,

@@ -25,7 +25,9 @@ func TestInvalidateNamespace_RemovesMatchingKeys(t *testing.T) {
 	if err := c.MSet(ctx, "feed:u1", "1", "feed:u2", "1", "user:u1", "1", "other", "1").Err(); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	InvalidateNamespace(ctx, c, "feed:")
+	if err := InvalidateNamespace(ctx, c, "feed:"); err != nil {
+		t.Fatalf("invalidation: %v", err)
+	}
 	remain, err := c.Keys(ctx, "*").Result()
 	if err != nil {
 		t.Fatal(err)
@@ -45,7 +47,9 @@ func TestInvalidateNamespace_NoneMatchingKeepsData(t *testing.T) {
 	if err := c.MSet(ctx, "user:u1", "1").Err(); err != nil {
 		t.Fatal(err)
 	}
-	InvalidateNamespace(ctx, c, "feed:")
+	if err := InvalidateNamespace(ctx, c, "feed:"); err != nil {
+		t.Fatalf("invalidation: %v", err)
+	}
 	n, err := c.Exists(ctx, "user:u1").Result()
 	if err != nil || n != 1 {
 		t.Fatalf("clé non préfixée doit survivre: exists=%d err=%v", n, err)
@@ -57,7 +61,9 @@ func TestInvalidateNamespaces_Multi(t *testing.T) {
 	if err := c.MSet(ctx, "a:1", "1", "b:1", "1", "c:1", "1").Err(); err != nil {
 		t.Fatal(err)
 	}
-	InvalidateNamespaces(ctx, c, "a:", "b:")
+	if err := InvalidateNamespaces(ctx, c, "a:", "b:"); err != nil {
+		t.Fatalf("invalidation: %v", err)
+	}
 	remain, _ := c.Keys(ctx, "c:*").Result()
 	if len(remain) != 1 || remain[0] != "c:1" {
 		t.Fatalf("seule c:1 doit rester, obtenu %v", remain)
@@ -67,8 +73,8 @@ func TestInvalidateNamespaces_Multi(t *testing.T) {
 func TestClient_CacheHitReturnsSameClient(t *testing.T) {
 	// Le singleton met en cache : deux appels avec la même URL rendent la
 	// même instance. (Le premier appel a déjà initialisé le client réel.)
-	first := Client(redisURL())
-	second := Client(redisURL())
+	first := Client("redis://localhost:6379")
+	second := Client("redis://localhost:6379")
 	if (first == nil) != (second == nil) {
 		t.Fatalf("premier=%v second=%v doivent être cohérents", first, second)
 	}

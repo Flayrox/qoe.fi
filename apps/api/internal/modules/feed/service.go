@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 	"time"
 
@@ -35,9 +36,13 @@ func NewService(pool *pgxpool.Pool, rc *redis.Client) *Service {
 	return &Service{pool: pool, q: db.New(pool), rc: rc}
 }
 
-// invalidate invalide les caches du feed (following + trending).
+// invalidate invalide les caches du feed (following + trending). Une
+// invalidation ratée est journalisée : silencieuse, elle servirait du
+// contenu périmé sans que rien ne le signale.
 func (s *Service) invalidate(ctx context.Context, prefixes ...string) {
-	cache.InvalidateNamespaces(ctx, s.rc, prefixes...)
+	if err := cache.InvalidateNamespaces(ctx, s.rc, prefixes...); err != nil {
+		log.Printf("[feed] invalidation cache: %v", err)
+	}
 }
 
 // canViewProfileContent applique la visibilité du profil (PUBLIC | FOLLOWERS |

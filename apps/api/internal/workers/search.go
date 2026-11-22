@@ -218,12 +218,23 @@ func (s *SearchWorker) HandleSearchSync(ctx context.Context, t *asynq.Task) erro
 	if err := json.Unmarshal(t.Payload(), &p); err != nil {
 		return err
 	}
-	if p.Action == "delete" || p.Action == "" {
+	if p.ArticleID == "" {
+		return errors.New("search.sync: articleId manquant")
+	}
+
+	// Action inconnue = erreur, jamais une suppression par défaut : une faute
+	// de frappe dans un producteur ne doit pas retirer l'article de l'index.
+	switch p.Action {
+	case "delete":
 		if _, err := s.idx.DeleteDocument(p.ArticleID, nil); err != nil {
 			return err
 		}
 		log.Printf("[search] document supprimé %s", p.ArticleID)
 		return nil
+	case "upsert", "":
+		// continue : upsert explicite ("" = ancien producteur, même effet).
+	default:
+		return fmt.Errorf("search.sync: action inconnue %q pour l'article %s", p.Action, p.ArticleID)
 	}
 
 	article, err := s.q.GetArticleForSearch(ctx, p.ArticleID)

@@ -4,6 +4,8 @@ package cache
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
 	"sync"
 
@@ -15,9 +17,7 @@ var (
 	client *redis.Client
 )
 
-func redisURL() string { return "redis://localhost:6379" }
-
-// Client retourne le singleton Redis (nil si non configuré / en échec).
+// Client retourne le singleton Redis (nil si non configuré / URL invalide).
 func Client(redisURL string) *redis.Client {
 	mu.Lock()
 	defer mu.Unlock()
@@ -36,28 +36,38 @@ func Client(redisURL string) *redis.Client {
 }
 
 // InvalidateNamespace supprime toutes les clés préfixées (SCAN + DEL).
-func InvalidateNamespace(ctx context.Context, c *redis.Client, prefix string) {
+//
+// L'erreur est rendue : un SCAN interrompu ne doit pas être lu comme « rien à
+// invalider », sinon le cache reste périmé en silence alors que l'invalidation
+// est annoncée réussie.
+func InvalidateNamespace(ctx context.Context, c *redis.Client, prefix string) error {
 	if c == nil {
-		return
+		return nil
 	}
 	var keys []string
 	iter := c.Scan(ctx, 0, prefix+"*", 100).Iterator()
 	for iter.Next(ctx) {
 		keys = append(keys, iter.Val())
 	}
+	if err := iter.Err(); err != nil {
+		return fmt.Errorf("scan %s*: %w", prefix, err)
+	}
 	if len(keys) > 0 {
 		if err := c.Del(ctx, keys...).Err(); err != nil {
-			log.Printf("[cache] invalidation %s: %v", prefix, err)
+			return fmt.Errorf("del %s*: %w", prefix, err)
 		}
 	}
+	return nil
 }
 
-// InvalidateNamespaces est une variante multi-préfixes (best-effort).
-func InvalidateNamespaces(ctx context.Context, c *redis.Client, prefixes ...string) {
-	if c == nil {
-		return
-	}
+// InvalidateNamespaces est une variante multi-préfixes : elle tente tous les
+// préfixes puis rend l'ensemble des erreurs rencontrées.
+func InvalidateNamespaces(ctx context.Context, c *redis.Client, prefixes ...string) error {
+	var errs []error
 	for _, p := range prefixes {
-		InvalidateNamespace(ctx, c, p)
+		if err := InvalidateNamespace(ctx, c, p); err != nil {
+			errs = append(errs, err)
+		}
 	}
+	return errors.Join(errs...)
 }

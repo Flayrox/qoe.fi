@@ -3,15 +3,20 @@ package queue
 
 import (
 	"encoding/json"
+	"log"
 	"time"
 
 	"github.com/hibiken/asynq"
 )
 
-// NewClient crée un client asynq pour enqueuer des tâches.
+// NewClient crée un client asynq pour enqueuer des tâches. Une URL invalide
+// rend nil (files désactivées) mais laisse une trace : sans elle, une faute de
+// configuration ressemble à une installation sans Redis et toutes les tâches
+// asynchrones disparaissent sans le moindre signal.
 func NewClient(redisURL string) *asynq.Client {
 	opt, err := asynq.ParseRedisURI(redisURL)
 	if err != nil {
+		log.Printf("[queue] REDIS_URL invalide: %v — files asynchrones désactivées", err)
 		return nil
 	}
 	return asynq.NewClient(opt)
@@ -21,6 +26,7 @@ func NewClient(redisURL string) *asynq.Client {
 func NewServer(redisURL string, concurrency int) *asynq.Server {
 	opt, err := asynq.ParseRedisURI(redisURL)
 	if err != nil {
+		log.Printf("[queue] REDIS_URL invalide: %v — serveur de workers non démarré", err)
 		return nil
 	}
 	if concurrency <= 0 {

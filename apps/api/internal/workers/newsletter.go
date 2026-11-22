@@ -4,6 +4,7 @@ package workers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
 	"log"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/hibiken/asynq"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qoefi/api/internal/comms"
@@ -198,13 +200,18 @@ func (n *NewsletterWorker) HandleArticlePublished(ctx context.Context, t *asynq.
 	if subject == "" {
 		subject = p.Title
 	}
+	// Seule l'absence de ligne (déjà envoyé / article absent) vaut « rien à
+	// faire » : une panne de base doit remonter pour que la tâche soit rejouée.
 	if _, err := n.q.TryLockArticleForEmailRelease(ctx, db.TryLockArticleForEmailReleaseParams{
 		ID:          p.ArticleID,
 		Subject:     subject,
 		PreviewText: p.EmailPreviewText,
 	}); err != nil {
-		log.Printf("[newsletter] release %s : envoi ignoré (déjà envoyé ou en cours : %v)", p.ArticleID, err)
-		return nil
+		if errors.Is(err, pgx.ErrNoRows) {
+			log.Printf("[newsletter] release %s : envoi ignoré (déjà envoyé ou article absent)", p.ArticleID)
+			return nil
+		}
+		return fmt.Errorf("verrou d'envoi de la release %s: %w", p.ArticleID, err)
 	}
 
 	// Coupe-feu : pas d'email si le flag coupe l'envoi (la matérialisation se
@@ -253,9 +260,13 @@ func (n *NewsletterWorker) HandleArticleRelease(ctx context.Context, t *asynq.Ta
 
 	info, err := n.q.GetArticleReleaseInfo(ctx, p.ArticleID)
 	if err != nil {
-		// Article plus publié (dépublié entre-temps) → rien à envoyer.
-		log.Printf("[newsletter] release %s : article non publié, skip (%v)", p.ArticleID, err)
-		return nil
+		// Article plus publié (dépublié entre-temps) → rien à envoyer. Toute
+		// autre erreur (panne de base) est rendue à asynq pour rejeu.
+		if errors.Is(err, pgx.ErrNoRows) {
+			log.Printf("[newsletter] release %s : article non publié, skip", p.ArticleID)
+			return nil
+		}
+		return fmt.Errorf("release %s: lecture de l'article: %w", p.ArticleID, err)
 	}
 
 	if err := n.q.InsertArticleReleaseDeliveries(ctx, db.InsertArticleReleaseDeliveriesParams{
@@ -332,6 +343,10 @@ func (n *NewsletterWorker) HandleNewsletterSend(ctx context.Context, t *asynq.Ta
 	}
 	issueWithPub, err := n.q.GetNewsletterIssueWithPublisher(ctx, p.IssueID)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			log.Printf("[newsletter] issue %s : introuvable, envoi abandonné", p.IssueID)
+			return nil
+		}
 		return err
 	}
 	if issueWithPub.Status != "SENDING" {

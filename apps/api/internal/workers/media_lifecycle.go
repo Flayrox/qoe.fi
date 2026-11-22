@@ -130,6 +130,11 @@ func RunMediaLifecycle(
 	deleter mediaassets.StorageDeleter,
 	interval, softDeleteGrace time.Duration,
 ) {
+	if interval <= 0 {
+		// Un intervalle nul (variable absente ou à 0) ferait paniquer NewTicker
+		// au démarrage : on reprend le cadencement documenté.
+		interval = time.Hour
+	}
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 

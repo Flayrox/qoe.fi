@@ -5,6 +5,7 @@ package resilience
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -23,6 +24,11 @@ const (
 // ErrCircuitOpen est retournée immédiatement lorsque le circuit est ouvert
 // ou que le quota de sondes half-open est atteint.
 var ErrCircuitOpen = errors.New("resilience: circuit breaker is open")
+
+// ErrCircuitPanic est retournée lorsqu'une fonction protégée panique : la
+// panique est comptée comme un échec (la dépendance est cassée) et ne doit
+// jamais arrêter le processus appelant.
+var ErrCircuitPanic = errors.New("resilience: protected call panicked")
 
 const (
 	defaultFailureThreshold  = 5
@@ -118,6 +124,13 @@ func (cb *CircuitBreaker) Execute(ctx context.Context, fn func(context.Context) 
 
 	done := make(chan error, 1)
 	go func() {
+		// Une dépendance externe qui panique est une défaillance à encaisser,
+		// pas un crash du processus : on la convertit en échec compté.
+		defer func() {
+			if r := recover(); r != nil {
+				done <- fmt.Errorf("%w: %v", ErrCircuitPanic, r)
+			}
+		}()
 		done <- fn(callCtx)
 	}()
 

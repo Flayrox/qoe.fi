@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; **L29s `search` clos le 2026-11-22** (2 f. · 741 l. après correctifs, 6 défauts F670–F675 + 1 structurel F676, dettes R257–R259) ; **L29t `publishers` clos le 2026-11-22** (3 f. · 1 229 l. après correctifs, 8 défauts F677–F684 + 1 structurel F685, dettes R260–R262) ; **L29u `analytics` clos le 2026-11-22** (4 f. · 2 130 l. après correctifs, 12 défauts F686–F697 + 1 structurel F698, dettes R263–R265) ; **L29v `events`/`workspaces`/`appeals`/`support`/`exports`/`books` clos le 2026-11-22** (13 f. · 1 659 l. après correctifs, 6 défauts F699–F704 + 2 structurels F705–F706, dettes R266–R269) ; **L29w reliquat `tracking`/`placements`/`ai`/`collaborations`/`conversations`/`billing`/`ebooks` clos le 2026-11-22** (20 f. · 7 251 l. après correctifs, 13 défauts F707–F719 + 2 structurels F720–F721, dettes R270–R272) ; **L29x `oauth`/`devtools` clos le 2026-11-22** (7 f. · 3 190 l. après correctifs, 10 défauts F722–F731 + 2 structurels F732–F733, dettes R273–R275, **R270 soldée**) ; prochain = **L30** (`workers`, `queue`, `resilience`, `cache`)) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; **L29s `search` clos le 2026-11-22** (2 f. · 741 l. après correctifs, 6 défauts F670–F675 + 1 structurel F676, dettes R257–R259) ; **L29t `publishers` clos le 2026-11-22** (3 f. · 1 229 l. après correctifs, 8 défauts F677–F684 + 1 structurel F685, dettes R260–R262) ; **L29u `analytics` clos le 2026-11-22** (4 f. · 2 130 l. après correctifs, 12 défauts F686–F697 + 1 structurel F698, dettes R263–R265) ; **L29v `events`/`workspaces`/`appeals`/`support`/`exports`/`books` clos le 2026-11-22** (13 f. · 1 659 l. après correctifs, 6 défauts F699–F704 + 2 structurels F705–F706, dettes R266–R269) ; **L29w reliquat `tracking`/`placements`/`ai`/`collaborations`/`conversations`/`billing`/`ebooks` clos le 2026-11-22** (20 f. · 7 251 l. après correctifs, 13 défauts F707–F719 + 2 structurels F720–F721, dettes R270–R272) ; **L29x `oauth`/`devtools` clos le 2026-11-22** (7 f. · 3 190 l. après correctifs, 10 défauts F722–F731 + 2 structurels F732–F733, dettes R273–R275, **R270 soldée**) ; **L30 `workers`/`queue`/`resilience`/`cache` clos le 2026-11-22** (17 f. · 3 933 l. après correctifs, 9 défauts F734–F742 + 3 structurels F743–F745, dettes R276–R279) ; prochain = **L31** (`middleware`, `authz`, `permissions`, `secguard`)) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -243,7 +243,14 @@ refresh token avalées, révocation annoncée réussie sur panne, panne du rôle
 réinitialise tous les onboardings, abonnement simulé débité sans mouvement de solde) et **2 structurels**
 (F732 comparaison et génération de secrets, F733 écritures non transactionnelles), dettes **R273–R275**. La dette
 **R270 est soldée** (les huit fichiers du reliquat `modules/**` sont lus).
-**Lot suivant de L29 : L30** — `apps/api/internal/{workers,queue,resilience,cache}`.
+**L30 est clos le 2026-11-22** : infra asynchrone `workers`, `queue`, `resilience`, `cache` (**17 f. · 3 933 l.**
+après correctifs) — **9 défauts** F734–F742 (événements Stripe perdus sur panne, idempotence Redis empoisonnée qui
+avalait le rejeu, crédit du créateur perdu sans trace, release newsletter et fanout d'article perdus sur panne,
+email de bienvenue perdu sur panne, action de sync inconnue qui supprimait le document de l'index, intervalle nul
+qui paniquait au démarrage, panic d'une dépendance qui tuait le processus) et **3 structurels** (F743 invalidations
+de cache annoncées réussies + DSN codé en dur supprimé, F744 files asynchrones éteintes sans un mot, F745 crédit
+wallet non atomique), dettes **R276–R279**.
+**Lot suivant : L31** — `apps/api/internal/{middleware,authz,permissions,secguard}` (sécurité d'entrée).
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2222,6 +2229,69 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L30 — `workers` · `queue` · `resilience` · `cache` — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l`) : **17 fichiers de production · 3 933 l.** après correctifs (3 777 l.
+avant) — `workers` (13 f. · 3 106 l.), `queue` (2 f. · 533 l.), `resilience` (1 f. · 221 l.), `cache` (1 f. · 73 l.).
+Lus intégralement avec leurs appelants réels : `cmd/server` et `cmd/worker` (montage des workers, `SetEmailProvider`,
+`SetAsynqClient`, `cache.Client`, `workers.NewStripeWorker(pool, redis)`), `cmd/backfill`, `internal/comms`
+(`EmailKillEngaged`), `internal/flags` (coupe-feux et défauts, sémantique inversée de `workers-email-kill`),
+`internal/subscriptions` (`EnsurePlanGrant`, `ExtendPlanGrant`, `HasPro`), les 48 appels `queue.Publish*`, et les
+suites existantes des quatre paquets. **2 fichiers d'audit · 229 l. (9 tests)** s'ajoutent.
+
+**9 défauts corrigés** F734–F742, chacun adossé à un rouge réellement exécuté (worktree
+`git worktree add -f /tmp/qoe-l30-red c31b3d5b`, suites `TestAuditL30_*`).
+
+| # | Défaut | Preuve (test) | Rouge constaté |
+|---|---|---|---|
+| F734 | **Événements Stripe perdus sur panne** : `resolvePublisherID` rendait son erreur, mais les quatre handlers (`checkout.session.completed`, `invoice.payment_succeeded`, `customer.subscription.deleted`, `invoice.payment_failed`) la lisaient comme « publication inconnue » et répondaient **succès**. Un paiement encaissé pendant une panne de base n'activait ni abonnement ni droit, sans rejeu asynq. Distinction explicite `errPublisherNotFound` (référence inconnue → tâche consommée, journalisée) / panne (remontée). | `TestAuditL30_StripeResolutionPanne` | `panne de résolution rendue en succès : l'événement de paiement est perdu sans reprise` |
+| F735 | **Idempotence empoisonnée** : la clé Redis `stripe:event:<id>` (TTL 7 j) était posée **avant** le traitement et jamais libérée. Un premier passage en échec marquait l'événement « traité » : le rejeu asynq était avalé et l'événement n'était plus jamais rejoué. La clé est désormais libérée sur échec (verrou de succès), et l'indisponibilité de Redis est journalisée (traitement sans dédup plutôt que perte). | `TestAuditL30_StripeIdempotenceEmpoisonnee` | `premier passage en échec rendu en succès` puis, après correctif de F734, `rejeu avalé comme « déjà traité » alors que le premier passage a échoué` |
+| F736 | **Crédit du créateur perdu sans trace** : `creditOwner` rendait `nil` quand `GetPersonalOwnerForCredit` **et** `GetMediaOwnerForCredit` échouaient (panne de base comme « aucun propriétaire »). Le paiement était encaissé, le wallet jamais crédité, aucun rejeu. `resolveOwner` distingue `ErrNoRows` d'une panne, et un identifiant de propriétaire illisible est refusé au lieu d'être écrit en UUID nul. | `TestAuditL30_StripeCreditPerdu` | `propriétaire non résolu rendu en succès : crédit du créateur perdu sans trace` |
+| F737 | **Release newsletter perdue sur panne** : toute erreur de `GetArticleReleaseInfo` était lue « article non publié, skip » et la tâche réussissait. Une panne de base enterrait l'envoi aux abonnés. Seul `pgx.ErrNoRows` vaut « rien à envoyer ». | `TestAuditL30_ReleasePanneDB` | `[newsletter] release … : article non publié, skip (no rows in result set)` → `panne DB rendue en « article non publié » : la release est perdue sans reprise` |
+| F738 | **Fanout email d'un article publié perdu sur panne** : l'erreur du verrou `TryLockArticleForEmailRelease` était lue « déjà envoyé ou en cours ». Une panne de base (ou un identifiant illisible) supprimait l'annonce de publication sans rejeu. `ErrNoRows` seul vaut « déjà envoyé ». | `TestAuditL30_PublishedLockPanne` | `[newsletter] release … : envoi ignoré (déjà envoyé ou en cours : no rows in result set)` → `panne du verrou d'envoi rendue en « déjà envoyé » : fanout email perdu` |
+| F739 | **Email de bienvenue perdu sur panne** : toute erreur de `GetSubscriberEmailContext` était journalisée « abonné absent » et la tâche réussissait. Seul `ErrNoRows` vaut absence ; une panne remonte et sera rejouée. | `TestAuditL30_WelcomePanneDB` | `[welcome] … : abonné absent (no rows in result set)` → `panne DB rendue en « abonné absent » : email de bienvenue perdu sans reprise` |
+| F740 | **Action de sync inconnue = suppression de l'index** : `HandleSearchSync` traitait `Action` différent de `upsert` (y compris une faute de frappe, `"upsert "`) comme un `delete` — le document disparaissait de Meilisearch et la tâche réussissait. Seules `delete` et `upsert`/`""` sont acceptées ; tout le reste est une erreur, et un `articleId` vide est refusé. | `TestAuditL30_SearchActionInconnue` | `action inconnue acceptée en succès` (et document supprimé de l'index) |
+| F741 | **Intervalle nul = panic au démarrage** : `RunMediaLifecycle`, `RunScheduledPublisher` et `RunUmamiProvisioner` passaient l'intervalle directement à `time.NewTicker`, qui **panique** pour `<= 0` — une variable d'environnement absente ou à `0` faisait redémarrer le worker en boucle. Cadencement documenté repris (1 h, 1 min, 5 min), comme le font déjà `reading_retention`, `legal_notice` et `legal_review`. | `TestAuditL30_IntervalleNulNePaniquePas` | `intervalle nul → panic au démarrage : non-positive interval for NewTicker` |
+| F742 | **Panic d'une dépendance = crash du processus** : `CircuitBreaker.Execute` lançait `fn` dans une goroutine **sans `recover`** ; un panic d'Umami (ou de tout appel protégé) tuait l'API ou le worker, alors que le breaker existe pour encaisser ces défaillances. `ErrCircuitPanic` est rendue, comptée comme un échec (le circuit s'ouvre au seuil). | `TestAuditL30_PanicDansExecute` | `panic: dépendance externe cassée` — `created by … Execute in goroutine 20`, binaire `FAIL` |
+
+**Correctifs structurels, sans rouge isolable** (déclarés comme tels) :
+
+- **F743 — invalidations de cache annoncées réussies** : `cache.InvalidateNamespace(s)` avalait l'erreur de `SCAN` (itéré sans
+  `iter.Err()`) et celle de `DEL` — un cache resté périmé passait pour invalidé, et les feeds servaient du contenu
+  obsolète. Les deux fonctions rendent désormais leur erreur (`errors.Join` pour la variante multi-préfixes) ; `posts`
+  et `feed` la journalisent. Au passage, `redisURL()` (DSN `redis://localhost:6379` codé en dur, utilisé seulement par
+  un test tautologique qui vérifiait son propre préfixe) est supprimé.
+- **F744 — files asynchrones éteintes sans un mot** : `queue.NewClient`/`NewServer` rendaient `nil` sur une URL Redis
+  invalide, indistinguable d'une installation sans Redis : toutes les tâches asynchrones disparaissaient en silence.
+  Les deux journalisent maintenant la cause (`REDIS_URL invalide`), sans jamais recracher l'URL (elle peut porter un mot de passe).
+- **F745 — crédit wallet non atomique** : `creditOwner` incrémentait le solde puis écrivait le mouvement en deux
+  requêtes ; un échec entre les deux, suivi du rejeu asynq, créditait deux fois un wallet dont le mouvement manquait.
+  Les deux écritures passent par `pgx.BeginFunc`.
+
+**Migrations** : **aucune nécessaire**. `ExpectedMigrationVersion` reste **95**.
+
+**Dettes ouvertes** (numérotation en continuité de R275) :
+
+- **R276 — `queue.Publish*` : client nil = no-op silencieux** (48 appels). Rendue `nil` quand `NewClient` a échoué,
+  la publication d'une tâche réussit sans rien enfiler. Les appelants qui vérifient l'erreur (`billing`, `imports`,
+  `staff_campaigns`, `newsletters`) répondraient alors 200/503 de façon trompeuse ; les autres (`_ =`) l'ignorent.
+  Rendre systématiquement une erreur ferait échouer des parcours utilisateur légitimes dans une installation sans
+  Redis (création de pensée, abonnement public) : l'arbitrage « dégrader ou refuser » est produit, pas technique.
+- **R277 — `SearchWorker.ReindexAll` compte des upserts non confirmés** : `WaitForTask` est journalisé puis ignoré,
+  donc un lot refusé par Meilisearch est compté dans `upserted`. Le prouver demande une instance Meilisearch réelle
+  (aucune en CI locale) et la correction un contrat d'erreur par lot.
+- **R278 — marquage des livraisons best-effort** : dans `sendBatch`, `MarkNewsletterDelivery` et
+  `MarkArticleReleaseDelivery` sont appelés avec `_ =` ; un marquage `SENT` raté peut ré-envoyer le même email au
+  lot suivant (la dédup s'appuie sur ce statut). Le corriger suppose de décider si un échec de marquage doit
+  interrompre le lot (et donc retarder des envois déjà partis).
+- **R279 — `webhook.failDelivery` avale l'échec de mise à jour** : la livraison peut rester sans statut final
+  (`PENDING`) alors que le dispatch a échoué ; le worker ne rejoue pas les livraisons, donc l'écart n'est visible que
+  dans la console créateur. À traiter avec la reprise des webhooks (aucun rejeu aujourd'hui).
+
+**Commandes passées sur l'arbre corrigé** : `gofmt -l .` (dépôt entier) → **0** ; `go build ./...` → 0 ;
+`go vet ./...` → 0 ; `QOE_DB_TESTS_OPTIONAL=1 go test ./...` → **85 paquets `ok`, 0 `FAIL`** (status 0) ; batterie
+workspace 13 commandes → **13 × 0**. Aucun fichier TypeScript touché : **vitest non requis** (et non lancé).
 
 ## L29x — `oauth` + `devtools` (dette R270) — **clos le 2026-11-22**
 

@@ -31,6 +31,10 @@ func RunUmamiProvisioner(ctx context.Context, pool *pgxpool.Pool, umamiCli websi
 		log.Println("[umami-provisioner] désactivé (pas de client Umami)")
 		return
 	}
+	if interval <= 0 {
+		// Un intervalle nul ferait paniquer NewTicker au démarrage.
+		interval = 5 * time.Minute
+	}
 	runOnce := func() {
 		if err := runUmamiProvisionOnce(ctx, pool, umamiCli); err != nil {
 			log.Printf("[umami-provisioner] %v", err)

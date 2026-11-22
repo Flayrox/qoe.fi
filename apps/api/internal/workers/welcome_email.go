@@ -20,10 +20,13 @@ package workers
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 	"time"
 
 	"github.com/hibiken/asynq"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/qoefi/api/internal/comms"
@@ -71,9 +74,14 @@ func (w *WelcomeEmailWorker) HandleSubscriberWelcome(ctx context.Context, t *asy
 		PublisherId: p.PublisherID,
 	})
 	if err != nil {
-		// Abonné absent (nettoyage) → rien à faire, pas d'erreur asynq.
-		log.Printf("[welcome] %s / %s : abonné absent (%v)", p.Email, p.PublisherID, err)
-		return nil
+		// Abonné absent (nettoyage) → rien à faire, pas d'erreur asynq. Toute
+		// autre erreur (panne de base) doit être rejouée, sinon la bienvenue
+		// est perdue en silence.
+		if errors.Is(err, pgx.ErrNoRows) {
+			log.Printf("[welcome] %s / %s : abonné absent", p.Email, p.PublisherID)
+			return nil
+		}
+		return fmt.Errorf("welcome %s / %s: contexte abonné: %w", p.Email, p.PublisherID, err)
 	}
 	// Garde : un abonné qui aurait été dé-confirmé entre-temps ne reçoit
 	// pas de bienvenue (aucun envoi hors abonné actif).

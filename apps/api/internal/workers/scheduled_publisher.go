@@ -155,6 +155,10 @@ func runScheduledPublisherOnce(ctx context.Context, pool *pgxpool.Pool, ac *asyn
 // `interval`. Le tick initial s'exécute au démarrage (rattrape les articles
 // passés pendant une coupure du worker).
 func RunScheduledPublisher(ctx context.Context, pool *pgxpool.Pool, ac *asynq.Client, interval time.Duration) {
+	if interval <= 0 {
+		// Un intervalle nul ferait paniquer NewTicker au démarrage.
+		interval = time.Minute
+	}
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 

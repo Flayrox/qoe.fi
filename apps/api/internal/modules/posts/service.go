@@ -108,7 +108,9 @@ func (s *Service) withReadTx(ctx context.Context, fn func(q ServiceQuerier) erro
 
 // invalidateFeedCaches invalide les caches Redis du feed (miroir TS).
 func (s *Service) invalidateFeedCaches(ctx context.Context, authorID string) {
-	cache.InvalidateNamespaces(ctx, s.rc, "feed:trending:", "feed:following:"+authorID+":")
+	if err := cache.InvalidateNamespaces(ctx, s.rc, "feed:trending:", "feed:following:"+authorID+":"); err != nil {
+		log.Printf("[posts] invalidation cache feed: %v", err)
+	}
 }
 
 // Create crée une pensée (ou une réponse si parentID fourni). Chemin de
