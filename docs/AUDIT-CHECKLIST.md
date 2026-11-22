@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; **L29s `search` clos le 2026-11-22** (2 f. · 741 l. après correctifs, 6 défauts F670–F675 + 1 structurel F676, dettes R257–R259) ; prochain = `publishers`, 3 f. · 1 105 l. remesuré) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 66 657 l.) | **en cours** (L29a-r `articles`, `feed`, `imports`, `admin`, `legal`, `creator`, `posts`, `users`, `settings`, `media`, `highlights`, `home`, `mediaassets`, `newsletters`, `notifications`, `features` et `webhooks` clos le 2026-11-22 — L29r : 7 défauts F659–F666 + 3 structurels, **dette de formatage F658 soldée (`gofmt -l .` = 0)**, dettes R253–R256 ; **L29s `search` clos le 2026-11-22** (2 f. · 741 l. après correctifs, 6 défauts F670–F675 + 1 structurel F676, dettes R257–R259) ; **L29t `publishers` clos le 2026-11-22** (3 f. · 1 229 l. après correctifs, 8 défauts F677–F684 + 1 structurel F685, dettes R260–R262) ; prochain = `analytics`, ou lot groupé events/workspaces/appeals/support/exports/books) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -212,7 +212,13 @@ correctifs, 724 l. avant) — **6 défauts** F670–F675 (requête d'espaces qui
 visibilité fail-open en 200 sur panne DB, recherche sémantique sans filtrage des comptes privés/blocages,
 propriétaire exclu de ses propres pensées privées, filtres Meilisearch non bornés, offset débordant l'int32) et
 **1 structurel** (F676, troncature UTF-8 dupliquée → `internal/textutil`), dettes **R257–R259**.
-**Lot suivant de L29, « En cours » : L29t** — `publishers`, **3 f. · 1 105 l.** (remesuré).
+**L29t est clos le 2026-11-22** : module `publishers` (**3 f. · 1 229 l.** après
+correctifs, 1 105 l. avant) — **8 défauts** F677–F684 (brouillon et article programmé servis publiquement,
+compteurs de reposts gonflés, panne d'attribution rendue en 404, entitlements fail-open silencieux,
+recommandations non bornées, domaine racine TLS codé en dur, articles d'un compte privé exposés, paramètres d'URL
+non bornés) et **1 structurel** (F685, UUID en texte et session illisible), dettes **R260–R262**.
+**Lot suivant de L29, « En cours » : L29u** — `analytics`, ou le lot groupé
+events/workspaces/appeals/support/exports/books.
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2191,6 +2197,49 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L29t — `apps/api/internal/modules/publishers/**` — **clos le 2026-11-22**
+
+**Périmètre remesuré** (`find` + `wc -l`) : **3 fichiers de production · 1 105 l.** (`handler 111`, `querier 18`,
+`service 976`) — conforme à l'annonce ; **3 fichiers de tests · 588 l.** avant le lot. Lus intégralement, avec leurs
+appelants réels : `cmd/server` (montage `publishers.NewHandler` sous `auth.OptionalAuth`, `/internal/tls-ask` atteint
+seulement par Caddy sur le réseau interne), client tenant `apps/tenants` (consommation `by-domain`), schéma
+`Publisher`/`Article`/`ArticleAttribution`/`Post`/`Subscriber`/`Recommendation`, prédicats canoniques
+`can_view_profile`/`is_blocked_bidirectional` (00078/00081) et la règle de visibilité du feed
+(`sql/queries/feed.sql`, `can_view_profile(viewer, auteur)`). Après correctifs le module pèse **3 f. · 1 229 l.**
+(handler 132, querier 18, service 1 079) ; **2 fichiers d'audit · 306 l.** (9 tests) s'ajoutent.
+
+**8 défauts corrigés** F677–F684, chacun adossé à un rouge réellement exécuté (worktree
+`git worktree add -f /tmp/qoe-l29t-red HEAD`, suite `TestAuditL29T_*`, Postgres testcontainers).
+
+| # | Défaut | Preuve (test) | Rouge constaté | Commit |
+|---|---|---|---|---|
+| F677 | **Brouillon et article programmé servis publiquement** : la lecture d'article ne filtrait ni `published` ni `scheduledAt` — un brouillon (contenu compris) répondait 200 sur le domaine public. Le scope de résolution exige désormais les deux. | `TestAuditL29T_DraftAndScheduledArticlesAreNotPublic`. | `mon-brouillon: code = 200 (…"content":"\u003cp\u003esecret\u003c/p\u003e"…)` | `fix(publishers)` |
+| F678 | **Compteurs d'engagement gonflés** : les reposts brouillons, supprimés ou masqués comptaient dans `repostsCount` (article et cartes de la home), et `isReposted` ignorait ces filtres. | `TestAuditL29T_RepostCountIgnoresHiddenPosts`. | `repostsCount = 4, attendu 1 (seul le repost visible)` | `fix(publishers)` |
+| F679 | **Panne DB rendue en 404** : une erreur du repli d'attribution était convertie en `errNotFound` (« article introuvable »). Seul `pgx.ErrNoRows` vaut 404, le reste remonte en 500 journalisé. | `TestAuditL29T_AttributionOutageIsNotNotFound`. | `panne DB rendue en errNotFound (404) : introuvable` | `fix(publishers)` |
+| F680 | **Entitlements fail-open silencieux** : une panne de la requête `Subscriber` était avalée ; un abonné payant recevait un contenu tronqué en 200, indistinguable d'un refus légitime. L'erreur remonte désormais en 500. | `TestAuditL29T_EntitlementOutageIsNotSilent`. | `panne des entitlements avalée : aucun signal` | `fix(publishers)` |
+| F681 | **Recommandations non bornées** : la liste publique n'avait ni `LIMIT` ni pagination. Plafonnée à 50 (`maxRecommendations`). | `TestAuditL29T_RecommendationsAreBounded`. | `60 recommandations renvoyées, attendu <= 50` | `fix(publishers)` |
+| F682 | **Domaine racine codé en dur** : `AllowTLS` comparait `updates.qoe.fi` et le suffixe `.qoe.fi` en littéral — impossible de self-hoster un autre domaine sans patcher le Go (axe 8 de la checklist). Piloté par `QOE_ROOT_DOMAIN` (défaut `qoe.fi`). | `TestAuditL29T_TLSRootDomainIsConfigurable`. | `tenant.example.com refusé alors que QOE_ROOT_DOMAIN=example.com` | `fix(publishers)` |
+| F683 | **Compte privé exposé sur le site tenant** : ni la liste d'articles ni la lecture d'article n'appliquaient `can_view_profile` ; un visiteur anonyme voyait les articles d'un profil privé, alors que la recherche et le feed les masquent. Le viewer (auth optionnelle) est désormais transmis, et le prédicat canonique s'applique sur l'auteur (règle du feed) ; propriétaire et abonnés gardent l'accès. | `TestAuditL29T_PrivateAccountArticlesAreHidden` + `TestAuditL29T_FollowerStillSeesPrivateAccountArticles`. | `1 articles d'un compte privé servis à un anonyme` / `article d'un compte privé = 200, attendu 404` | `fix(publishers)` |
+| F684 | **Paramètres d'URL non bornés** : domaine et slug de longueur arbitraire atteignaient les requêtes. Bornés à 253 (nom d'hôte RFC 1035) et 200 octets, 400 au-delà, sur les trois routes publiques. | `TestAuditL29T_RouteParamsAreBounded`. | `domaine de 300 caractères = 404, attendu 400` | `fix(publishers)` |
+
+**Correctifs structurels, sans rouge isolable** (déclarés comme tels) :
+
+- **F685 — UUID en texte et sessions illisibles** : `subscriberEntitlements` comparait `"userId"::text = $2` (index inutilisable, cast implicite) et `isLiked`/`isBookmarked`/`isFollowed` recevaient la chaîne brute. `viewerUUID()` convertit une fois, une session absente ou illisible vaut NULL (visiteur anonyme) au lieu d'une erreur SQL, et les requêtes comparent des UUID natifs.
+- **Erreurs silencieusement avalées** : `teamMembers` (section équipe), `originPublisher`, `attributionCategorySlug`, `siteOptions` JSON et les trois compteurs journalisent désormais leur échec au lieu de rendre une page partielle sans trace.
+
+**Migrations** : **aucune nécessaire** — `can_view_profile` existe (00078/00081), aucun index nouveau n'est requis (les colonnes `Article.authorId`, `Post.quotedArticleId`, `Subscriber.publisherId` sont déjà indexées par les contraintes existantes). `ExpectedMigrationVersion` reste **95**.
+
+**Dettes ouvertes, sans faux correctif** (numérotation en continuité de R259) :
+
+- **R260 — liste d'articles non paginée** : `publishedArticles` renvoie tous les articles publiés de la publication, contenu tronqué compris ; borner changerait la home tenant (le front n'a pas de pagination). Décision produit (pagination ou curseur) à trancher avant plafonnement.
+- **R261 — coquille d'une publication privée publique** : avec F683, un compte privé n'expose plus ses articles, mais son site tenant (nom, bio, navigation, catégories) reste accessible à un anonyme. Choix assumé (le domaine est public par construction) ; à confirmer côté produit.
+- **R262 — `isPremium` non traité comme verrou de lecture** : `publishers` (comme `articles` et `feed`) ne coupe le contenu que sur `visibility` ; un article `isPremium = true` avec `visibility = 'PUBLIC'` est servi entier, alors que l'e-mail de parution le considère verrouillé. Incohérence transverse (produit), hors périmètre d'un seul module.
+
+**Commandes passées sur l'arbre corrigé** : `gofmt -l .` (dépôt entier) → **0** ; `go build ./...` → 0 ; `go vet ./...` → 0 ;
+`QOE_DB_TESTS_OPTIONAL=1 go test` sur les **20 paquets de la batterie** + `search` + `textutil` → **22 × `ok`** ;
+batterie workspace 13 commandes → **13 × 0** ; **vitest** `apps/core` (notifications + réglages lecteur) → **5 fichiers, 24 tests verts**.
+La dette de formatage **F658 reste soldée** (`gofmt -l .` = 0, aucun fichier reformaté dans ce lot).
 
 ## L29s — `apps/api/internal/modules/search/**` — **clos le 2026-11-22**
 
