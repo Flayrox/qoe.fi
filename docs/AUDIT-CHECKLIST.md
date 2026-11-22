@@ -111,7 +111,7 @@ le fichier : un `R` ne se réutilise jamais, même quand son lot est clos.
 | L26 ⏸   | `apps/mobile/src/**` + `modules/` — **reporté en toute fin de campagne**                                                                            | **168 f. prod · 26 420 l.** + 15 f. de tests (remesuré) | **L26a + L26b traités le 2026-11-21** — 68 f. lus intégralement (12 313 l.), 7 défauts F409–F415 (comptes corrompus, suppression qui ment, pill qui perd les pensées, effet de bord au rendu, i18n des libellés, ponctuation des liens, envoi sans nom accessible), R175–R179 ouvertes ; **100 f. · 14 107 l. restants** → non clos, prochain = L26b |
 | L27     | `apps/api/internal/{middleware,authz,permissions,adminauthz,identity,apiaccess,secguard}`                    | Go (29 f. prod · 5 373 l.)   | **clos le 2026-11-21** — 5 défauts F418–F422 |
 | L28     | `apps/api/internal/{antispam,abuse,netguard,pow,trust,eligibility}`                                          | Go (17 f. prod · 4 103 l.)   | **clos le 2026-11-21** — 3 défauts F423–F425, dettes R185–R188 |
-| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 65 963 l.) | **en cours** (L29a-c `articles`+`feed` clos le 2026-11-22 ; L29d = `imports`, 6 f. · 3 828 l.) |
+| L29     | `apps/api/internal/modules/**`                                                                               | Go (196 f. prod · 65 963 l.) | **en cours** (L29a-d `articles`, `feed` et `imports` clos le 2026-11-22 — L29d : 9 défauts F436–F445, dettes R197–R200 ; prochain = `admin`, 36 f. · 11 570 l.) |
 | L30     | `apps/api/internal/{workers,queue,resilience,cache}`                                                         | Go                          | à auditer               |
 | L31     | `apps/api/sql/**`, `internal/{database,dbpool,migrations}`                                                   | Go + SQL                    | à auditer               |
 | L32     | `apps/api/cmd/**`, `internal/{config,response,logging,observability,auditlog}`                               | Go                          | à auditer               |
@@ -131,8 +131,11 @@ campagne — à découper en tranches par module). **Remesure du 2026-11-22** : 
 « followers » servies par `GET /v1/posts/{id}/thread`, `POST /v1/feed/hydrate` et la home — `GetPostsByIDs` ne
 filtre pas `Post.visibility`), F434 (moteur « Pour vous » classant des pensées non publiques et des posts
 programmés), F435 (slot d'exploration sans verrou de compte/blocage/sourdine/programmation) ; dettes **R195**
-(SQL concaténé dans `neighborValues`) et **R196** (sémantique de mot masqué divergente Go/SQL). **Lot suivant de
-L29, « En cours » : L29d** — `imports`, **6 f. · 3 828 l.**
+(SQL concaténé dans `neighborValues`) et **R196** (sémantique de mot masqué divergente Go/SQL). **L29d est clos le 2026-11-22** : module `imports` (**6 f. · 3 828 l.**) lu intégralement, **9 défauts**
+F436–F445 corrigés (troncature UTF-8 du dépôt, fuite des signaux internes vers le demandeur, plafond de décision
+contournable, compteurs recomptés au rejeu, confirmation externe comptée comme envoi, vague `queued` jamais
+relancée, source relabellisée, suspension rejouée, lot laissé `running` après annulation), dettes **R197–R200**.
+**Lot suivant de L29, « En cours » : L29e** — `admin`, **36 f. · 11 570 l.**
 **L29b est clos le 2026-11-22** : `articles` **périphériques** (9 f. · 1 822 l.) lus intégralement, **4 défauts**
 F429 (signature de désinscription forgeable faute de secret : constante publique de repli, dupliquée dans
 `workers`), F430 (e-mail de parution servant en clair un article verrouillé par sa **visibilité**), F431 (réponse
@@ -2111,6 +2114,52 @@ Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne 
 `middleware` / `secguard` / `authz` / `identity` / `apiaccess` / `permissions` / `config` **ok** ; workspace
 `typecheck`, `mobile:typecheck`, `lint`, `ui:audit`, `arch:audit`, `audit:guard`, 7 `guard:*` **0** ;
 **0 fichier mobile touché**, arbre propre, aucun push.
+
+## L29d — `apps/api/internal/modules/imports/**` — **clos le 2026-11-22**
+
+Les **6 fichiers de production · 3 828 l.** lus intégralement (`subscribers_send 995`, `subscribers 876`,
+`subscribers_reconfirm 868`, `subscribers_review 654`, `service 308`, `handler 127`), plus leurs appelants réels
+(`admin/subscriber_imports.go`, `workers/{import_send,import_reconfirm,bulk_import}.go`, routage `cmd/server`) et
+leurs suites. **9 défauts corrigés** F436–F445, un seul commit par correctif ou par famille cohérente.
+
+| # | Défaut | Preuve | Rouge constaté (correctif annulé) | Commit |
+|---|---|---|---|---|
+| F436 | `clip` tronquait les champs libres **à l'octet** : un `sourceDetail` accentué > 2000 octets produisait une chaîne UTF-8 invalide que PostgreSQL refuse → le dépôt entier échouait (500). Coupe désormais sur frontière de caractère. | `TestClip_NeCoupePasUnCaractereUTF8` (2 octets, 3 octets, ASCII, chaîne courte). | `subscribers_test.go:136: clip a produit une chaîne UTF-8 invalide : "ééé…\xc3"` | `651bd31c` |
+| F437 | La vue **demandeur** partageait le code de la vue staff et n'en retirait que le motif interne : les signaux de risque (refus/suspensions passés, réimport, doublons inter-lots, e-mail et téléphone du demandeur) et le journal d'audit étaient renvoyés au créateur. Dépouillement explicite ; les requêtes d'analyse ne sont plus exécutées pour ce chemin. | `TestRequesterReviewView_RetireSignauxEtJournal`. | `subscribers_review_test.go:32: signaux internes encore exposés : {PreviousBatches:4 PreviousRejected:2 … RequesterEmail:createur@example.com}` | `f03adf68` |
+| F438 | `StartSendWave` acceptait un `cap` de requête **supérieur** au `limits.maxRecipients` de la décision examinée : `{"cap":10000}` contournait le plafond qui avait justifié l'approbation. La décision redevient un maximum (`resolveSendCap`). | `TestResolveSendCap` (7 cas : défaut, décision seule, resserrement, élargissement refusé, valeur absurde, borne dure). | `subscribers_send_test.go:71: resolveSendCap(5000, 300) = 5000, attendu 300` | `a4b07d5e` |
+| F439 | `MarkSendResult` avançait les compteurs de vague même si la livraison était déjà tranchée : un rejeu après crash comptait deux fois un seul envoi. Les compteurs ne bougent que si l'`UPDATE` conditionnel change la ligne. | `TestSendWave_MarkResultRejoueNeRecomptePas` (3 marquages, 1 envoi). | **non exécuté ici** (suite à base réelle, Docker absent) → rouge non constaté, correctif vérifié par lecture | `a4b07d5e` |
+| F440 | La règle « abonné provisoire » était **dupliquée** entre reconfirmation et envoi encadré ; un seul point d'entrée (`ensureInactiveImportSubscriber`). Le comportement reste **conservateur** : un abonné existant n'est jamais réécrit (le recycler renverrait un message à une adresse déjà contactée) — décision écrite dans le code. | Compilation + suites existantes. | — (refactor sans changement de comportement) | `a4b07d5e` |
+| F441 | Une confirmation survenue par un autre chemin avant l'envoi était retournée comme `reconfirmSent` : `sentCount` comptait un e-mail jamais parti. Issue distincte (`reconfirmAlreadyConfirmed`). | `TestReconfirmWave_ConfirmationExterneNEstPasUnEnvoi` (`sentCount=0`, `confirmedCount=1`). | **non exécuté ici** (base réelle indisponible) | `a4b07d5e` |
+| F442 | Une vague `queued` dont l'enqueue initial avait échoué (Redis indisponible, worker arrêté) restait bloquée à jamais : rouvrir le lot renvoyait la vague sans la remettre en file. `queued` est ré-enfilée comme `paused`, le traitement restant idempotent (`FOR UPDATE SKIP LOCKED`). | Pas de test : exigerait un client asynq réel. Comportement idempotent déjà couvert par les cycles de vie. | — | `a4b07d5e` |
+| F443 | Une source d'import inconnue était **relabellisée « other » en silence**, alors que la règle documentée est de refuser une provenance hors vocabulaire : le staff examinait une déclaration qui n'était pas celle du demandeur. Validation explicite, 400 actionnable. | `TestValidateImportSource` (7 sources connues, 6 refus). | `subscribers_test.go:176: source "" = <nil>, attendu errImportSource` | `2067a800` |
+| F444 | `EvaluateSendSuspension` inscrivait une **décision système et un événement à chaque appel** sur une vague déjà arrêtée (rejeu = trace dupliquée du même dépassement). Plus rien hors `queued`/`sending`. | Extension de `TestSendWave_SuspensionAutomatiqueSurRejets` (seconde évaluation : `suspendue=false`, décisions toujours à 1). | **non exécuté ici** (base réelle indisponible) | `72ba5e62` |
+| F445 | `CancelSendWave` annulait la vague **sans clôturer le lot** : la dernière vague annulée laissait un lot `running` que plus rien ne terminait. Clôture idempotente après commit. | `TestSendWave_AnnulationClotLeLot` (`completed`). | **non exécuté ici** (base réelle indisponible) | `72ba5e62` |
+
+**Dettes ouvertes par ce lot** (aucune ne bloque une garantie de sûreté) :
+
+- **R197 — décision produit** : un lot `needs_info` ne peut pas recevoir de **nouvelle version**. La transition
+  `needs_info → submitted` est déclarée dans la machine à états mais aucun chemin ne réécrit un lot ; le créateur
+  doit déposer un lot neuf (qui consomme un des 5 emplacements ouverts). Deux options : endpoint de remplacement de
+  fichier (version + empreinte) ou assumer « nouveau lot » et retirer la transition morte.
+- **R198 — code conservé comme référence** : l'import d'**articles** (Go) reste dans le module (`ImportArticles`,
+  `CreateImportJob`, `ProcessImportJob`, `workers/bulk_import.go`, `TaskBulkImport`) alors qu'aucune route ne
+  l'expose et qu'aucun producteur n'enfile la tâche ; `ImportArticles` crée encore `published=true` +
+  `status=DRAFT` (incohérence historique). `docs/article-import-plan.md` dit explicitement « ne pas réutiliser tel
+  quel ». À supprimer ou rebrancher avec la refonte — pas de suppression unilatérale d'un plan produit documenté.
+- **R199 — garde-fou de file** : la limite de 5 lots ouverts est comptée **hors transaction** ; deux dépôts
+  concurrents peuvent la dépasser d'une unité. Ce n'est pas une faille de sûreté (aucun envoi), juste un plafond de
+  charge approximatif ; un verrou consultatif par publication le rendrait exact.
+- **R200 — I/O sous verrou** : `ProcessReconfirmWave` publie la tâche d'e-mail **à l'intérieur** de la transaction
+  SQL (`PublishSubscriberConfirm`), donc un appel réseau sous verrou de lignes, et un commit échoué après enqueue
+  peut produire un second envoi au rejeu. Une boîte d'envoi (outbox) transactionnelle est la vraie réponse ; hors
+  périmètre d'un correctif ponctuel.
+
+**Batterie du tour.** `gofmt -l internal/modules/imports/` **vide** · `go build ./...` **0** ·
+`go vet ./internal/...` **0** · `go test` `imports`, `admin`, `queue`, `cmd/worker` **ok** ; `internal/workers`
+**ok** avec `QOE_DB_TESTS_OPTIONAL=1`. Les suites à **base réelle** du lot (F439, F441, F444, F445) sont
+**non concluantes** ici : `rootless Docker not found` — elles sont écrites et exécutables, jamais comptées vertes.
+Workspace : `typecheck` 0, `mobile:typecheck` 0, `lint` 0, `ui:audit` 0, `arch:audit` 0, `audit:guard` 0,
+7 `guard:*` 0. Aucun fichier mobile touché, aucun push.
 
 ## L29c — `apps/api/internal/modules/feed/**` — **clos le 2026-11-22**
 
