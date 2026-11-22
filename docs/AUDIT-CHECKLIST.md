@@ -2068,6 +2068,31 @@ le canal natif reste). **R164** : `grants-manager` recharge la page entière apr
 palette étendue à onze racines. **L22 est clos** (L22a→L22f : **45 défauts** F353–F397).
 **Prochain lot : L23** — `apps/tenants/src/**` (publications multi-tenant), périmètre à remesurer à l'ouverture.
 
+## Passe dettes — R180 à R188 closes le 2026-11-22 (`middleware`, `adminauthz`, `secguard`, `apiaccess`, `antispam`, `netguard`)
+
+Sept dettes de L27/L28 fermées par un correctif à la racine, une vérifiée puis classée
+**non-défaut** (borne désormais verrouillée par un test), une seule reste ouverte faute de décision
+produit. Aucun correctif n'a touché un lot déjà clos : le code modifié est celui du garde, pas des fiches.
+
+| Dette | Résolution | Preuve | Commit |
+|---|---|---|---|
+| `R180` | **Non-défaut documenté** : le rate-limiting reste fail-open quand Redis est injoignable (choix de disponibilité), mais il **n'est plus silencieux** — chaque décision émet `IncRateLimitDecision(<ns>, "fail_open")` en plus du log throttlé. Rien à chiffrer de plus : le compteur existe et est publié. | Lecture des 3 chemins (`ratelimit.go` l. 180/199/231) + métrique `observability.IncRateLimitDecision`. | (aucun code) |
+| `R181` | `ClientIP` et `adminauthz.requestIP` lisaient le **premier** élément de `X-Forwarded-For` : une IP choisie par l'appelant, donc un seau de quota et une IP d'audit falsifiables. Nouveau paquet `internal/clientip` : lecture **à l'envers** (`TRUSTED_PROXY_HOPS`, défaut 1 = Caddy), entrées non-IP ignorées, normalisation (IPv4-mappée), repli sur l'adresse TCP. | `clientip_test.go` (9 cas : forge, deux proxys, valeur non-IP, `X-Real-IP` fantaisiste, chaîne trop courte) + `TestClientIP/en-tête forgé par le client` dans `middleware`. | `a925a996` |
+| `R182` | `getJWKS` tenait `mu` pendant l'appel réseau, créait un `http.Client` par essai et retentait à chaque requête : pendant une panne du fournisseur d'identité, les requêtes se sérialisaient derrière des récupérations qui échouaient. Client partagé, récupération **hors verrou** (sérialisée par `refreshMu`), **backoff 30 s** après échec, et cache périmé encore servi (pas de déconnexion générale). | `jwks_backoff_test.go` : 5 appels en échec → **1 requête réseau** ; 3 appels OK → 1 requête ; cache périmé servi pendant la panne. | `37cc9fa9` |
+| `R183` | `apiaccess.LoadEnabled` rendait **tout le registre** accordable quand `API_ACCESS_MODULES` était un JSON invalide, et `IsEnabled` répondait `true` sur erreur de lecture : une config tronquée ou une base muette rouvrait tous les modules. Désormais : config absente → registre complet ; config présente illisible ou `[]` → **aucun module** ; erreur de lecture → module fermé (`log` explicite). | `failclosed_test.go` (5 cas de config + erreur de lecture → `IsEnabled` faux). | `4a891ca2` |
+| `R184` | `Recorder.flush` faisait `return` à la première erreur SQL : le reste du lot n'était ni écrit **ni compté**, donc `Dropped` mentait. Le lot continue et chaque écriture ratée incrémente `Dropped`. | `recorder_flush_test.go` (`flakyExecer`) : 3 décisions dont 1 en échec → 3 tentatives, `Written=2`, `Dropped=1` ; tout en échec → `Dropped=3`. | `cd2005aa` |
+| `R185` | `CheckColdDM` enchaînait `SCARD` puis `SADD` hors transaction (TOCTOU) : deux envois concurrents lisaient le même cardinal et dépassaient le plafond. Test + ajout dans **un script Lua unique** (`SISMEMBER → SCARD → SADD → EXPIRE`) exécuté atomiquement par Redis ; Redis indisponible → comportement historique fail-open. | Revue du script ; **pas de test d'exécution** : aucun Redis de test sur le poste (`127.0.0.1:6379` absent) → **limitation nommée**, non concluant en local. | `205f32c5` |
+| `R186` | **Reste ouverte — décision produit manquante** : `abuse.ResolveDecision` écrit un verdict humain avec `expiresAt` **toujours nil** alors que `latestExpiry` est lu : une mesure humaine (`limit_distribution`, `suspend`) sur un dossier encore ouvert devient perpétuelle. Deux politiques possibles, inconciliables : **(a)** la sanction humaine confirmée reprend l'échéance du dossier examiné (jamais prolongée) ; **(b)** un acte humain est définitif et l'échéance ne s'applique qu'aux décisions automatiques. Choisir change la durée réelle des sanctions : non tranchable sans arbitrage. | Lecture de `abuse/review.go` l. 110-151 (`expiresAt` déclaré l. 136, jamais affecté ; `latestExpiry` utilisé seulement pour refuser un dossier périmé). | — |
+| `R187` | `secguard.EvaluateRequest` retombait sur `TierStandard` quand `trust.Evaluate` échouait (compte introuvable, base muette) : un compte au profil illisible recevait les quotas d'un compte sain. Repli **fail-closed** sur `TierRestricted`. | `trust_failure_test.go` : pool pointant vers un port fermé → `TierRestricted`. | `b4ebfa4b` |
+| `R188` | **Non-défaut** : la borne était juste. Suivre la n-ième redirection se fait avec `len(via) == n`, donc `len(via) > maxRedirects` autorise **exactement** `maxRedirects` sauts. La borne est extraite en `redirectsExceeded` et verrouillée pour que la lecture ne soit plus refaite. | `redirect_test.go` (5 bornes) + `TestSafeHTTPClient_CheckRedirect` (3 sauts autorisés, 4ᵉ refusé). | `8f88a9fd` |
+
+**Batterie du tour.** `go vet ./internal/...` **0** · `go build ./...` **0** · `go test` : `clientip`, `netguard`,
+`middleware`, `secguard`, `apiaccess`, `antispam`, `trust`, `abuse`, `permissions`, `authz`, `identity`, `feed`,
+`posts`, `articles` **ok** ; `adminauthz` **FAIL sur ses 10 suites à base réelle uniquement**
+(`rootless Docker not found`) → **non concluant**, jamais compté vert. Workspace : `typecheck` 0,
+`mobile:typecheck` 0, `lint` 0, `ui:audit` 0, `arch:audit` 0, `audit:guard` 0, 7 `guard:*` 0 ;
+**0 fichier mobile touché**, arbre propre, aucun push.
+
 ## Passe dettes — R189 à R196 closes le 2026-11-22
 
 Les huit dettes ouvertes par L29a/L29b/L29c sont **toutes fermées** (aucune ne reste « à trancher ») :
