@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -212,8 +213,8 @@ func (h *Handler) accept(w http.ResponseWriter, r *http.Request) {
 		Source string `json:"source"`
 		Method string `json:"method"`
 	}
-	if r.Body != nil {
-		_ = json.NewDecoder(r.Body).Decode(&body)
+	if !decodeOptional(w, r, &body) {
+		return
 	}
 	locale := body.Locale
 	if strings.TrimSpace(locale) == "" {
@@ -277,8 +278,8 @@ func (h *Handler) acceptBatch(w http.ResponseWriter, r *http.Request) {
 		Method string   `json:"method"`
 		Slugs  []string `json:"slugs"`
 	}
-	if r.Body != nil {
-		_ = json.NewDecoder(r.Body).Decode(&body)
+	if !decodeOptional(w, r, &body) {
+		return
 	}
 	if strings.TrimSpace(body.Locale) == "" {
 		body.Locale = localeOf(r)
@@ -307,8 +308,8 @@ func (h *Handler) declineBatch(w http.ResponseWriter, r *http.Request) {
 		Source string   `json:"source"`
 		Slugs  []string `json:"slugs"`
 	}
-	if r.Body != nil {
-		_ = json.NewDecoder(r.Body).Decode(&body)
+	if !decodeOptional(w, r, &body) {
+		return
 	}
 	if strings.TrimSpace(body.Locale) == "" {
 		body.Locale = localeOf(r)
@@ -493,8 +494,8 @@ func (h *Handler) adminRequestPublishApproval(w http.ResponseWriter, r *http.Req
 	var in struct {
 		Reason string `json:"reason"`
 	}
-	if r.Body != nil {
-		_ = json.NewDecoder(r.Body).Decode(&in)
+	if !decodeOptional(w, r, &in) {
+		return
 	}
 	approval, err := h.approvals.RequestApproval(r.Context(), actor,
 		authz.ActionLegalPublish, chi.URLParam(r, "versionID"), in.Reason)
@@ -658,8 +659,10 @@ func (h *Handler) adminCreateConsentExport(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	var in ConsentExportInput
-	if r.Body != nil {
-		_ = json.NewDecoder(r.Body).Decode(&in)
+	// Un corps illisible ne doit pas devenir « aucun filtre » : cela
+	// signerait un export du registre entier à la place du périmètre demandé.
+	if !decodeOptional(w, r, &in) {
+		return
 	}
 	result, err := h.svc.ExportConsentRegister(r.Context(), actor, in)
 	if err != nil {
@@ -761,8 +764,8 @@ func (h *Handler) adminDismissReview(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Notes string `json:"notes"`
 	}
-	if r.Body != nil {
-		_ = json.NewDecoder(r.Body).Decode(&body)
+	if !decodeOptional(w, r, &body) {
+		return
 	}
 	review, err := h.svc.DismissReview(r.Context(), actor, chi.URLParam(r, "reviewID"), body.Notes)
 	if err != nil {
@@ -782,8 +785,8 @@ func (h *Handler) adminScheduleVersion(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		ScheduledAt string `json:"scheduledAt"`
 	}
-	if r.Body != nil {
-		_ = json.NewDecoder(r.Body).Decode(&body)
+	if !decodeOptional(w, r, &body) {
+		return
 	}
 	version, err := h.svc.ScheduleVersion(r.Context(), actor, chi.URLParam(r, "versionID"), body.ScheduledAt)
 	if err != nil {
@@ -841,6 +844,23 @@ func (h *Handler) actor(w http.ResponseWriter, r *http.Request) string {
 
 func decode(w http.ResponseWriter, r *http.Request, dst any) bool {
 	if err := json.NewDecoder(r.Body).Decode(dst); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return false
+	}
+	return true
+}
+
+// decodeOptional accepte un corps absent (EOF) mais refuse un corps malformé :
+// avaler l'erreur ferait traiter la requête avec des champs vides, donc un acte
+// différent de celui demandé (accepter un document, signer un export global).
+func decodeOptional(w http.ResponseWriter, r *http.Request, dst any) bool {
+	if r.Body == nil {
+		return true
+	}
+	if err := json.NewDecoder(r.Body).Decode(dst); err != nil {
+		if errors.Is(err, io.EOF) {
+			return true
+		}
 		response.BadRequest(w, "JSON invalide")
 		return false
 	}
