@@ -15,20 +15,27 @@ import path from 'node:path';
 import ts from 'typescript';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const ZONES = [
-  'apps/studio/src/features/stage',
-  'apps/studio/src/features/editor',
-  'apps/studio/src/features/settings',
-  'apps/studio/src/app/(creator)',
-  'apps/studio/src/features/security',
-  'apps/studio/src/features/onboarding',
-  'apps/studio/src/features/upcoming',
-  'apps/studio/src/features/dashboard',
-  'apps/studio/src/features/developer',
-  'apps/studio/src/features/devtools',
-  'apps/studio/src/app/login',
-  'apps/studio/src/app/onboarding',
-];
+// `QOE_I18N_ZONES` permet de mesurer un périmètre candidat avant de l'inscrire
+// ici (ex. `QOE_I18N_ZONES=apps/hi/src node scripts/check-i18n-hardcoded.mjs`) :
+// la garde reste la même règle, on ne duplique pas de script de mesure.
+const ZONES = process.env.QOE_I18N_ZONES
+  ? process.env.QOE_I18N_ZONES.split(',')
+      .map((zone) => zone.trim())
+      .filter(Boolean)
+  : [
+      'apps/studio/src/features/stage',
+      'apps/studio/src/features/editor',
+      'apps/studio/src/features/settings',
+      'apps/studio/src/app/(creator)',
+      'apps/studio/src/features/security',
+      'apps/studio/src/features/onboarding',
+      'apps/studio/src/features/upcoming',
+      'apps/studio/src/features/dashboard',
+      'apps/studio/src/features/developer',
+      'apps/studio/src/features/devtools',
+      'apps/studio/src/app/login',
+      'apps/studio/src/app/onboarding',
+    ];
 // Exemption assumée par décision produit (R142, 2026-11-23) : `app/dev` est un atelier
 // interne jamais livré (`devRoutesEnabled()` le ferme hors dev/E2E). Ses spécimens sont
 // des fixtures de démonstration, pas de la copie produit : la zone sort du catalogue

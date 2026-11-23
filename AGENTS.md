@@ -108,6 +108,16 @@ campagne`) : jamais « plus tard » implicite, jamais de correctif mobile non de
 - Le reliquat nommé (undo non groupé, snapshot à chaque publication, modèle mono-page) et ses
   questions produit sont dans `docs/AUDIT-CHECKLIST.md` ; à remesurer à la reprise.
 
+## Traductions — le studio est fait, les autres apps non
+
+- **État mesuré le 2026-11-23** (`QOE_I18N_ZONES=apps/<app>/src node scripts/check-i18n-hardcoded.mjs`) :
+  `hi` **79** copies FR / 11 fichiers, `tenants` **45** / 16, `core` **349** / 67, `admin` **1 551** / 123.
+  Le studio est à **0** et gardé en CI.
+- **Ordre imposé** : `hi` → `tenants` → `core` → `admin`. Une app se traite **entièrement** dans le
+  même tour (jamais une surface mi-traduite) : critère de sortie `QOE_I18N_ZONES=apps/<app>/src` à
+  **0**, catalogues régénérés, EN traduit à **100 %** (aucun `msgstr` vide).
+- `mobile` (L26) et Stage restent hors périmètre, y compris pour l'i18n.
+
 ## Conventions
 
 - Go est la source de vérité : ne pas réimplémenter une règle métier côté TS.

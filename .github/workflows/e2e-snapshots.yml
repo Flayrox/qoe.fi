@@ -1,0 +1,60 @@
+name: E2E snapshots (référence Linux)
+
+# R54 — les captures Playwright ne sont stables que si elles sont générées sur
+# l'environnement de référence : Linux, polices et antialiasing identiques à la
+# CI. Depuis macOS, chaque `--update-snapshots` réécrivait tout et le diff
+# devenait illisible (police de substitution, arrondis de pixels).
+#
+# Ce workflow ne commit rien : il produit le diff en artefact. On l'ouvre, on
+# relit, on commit — jamais une régénération automatique poussée sans lecture.
+on:
+  workflow_dispatch:
+    inputs:
+      playwright_args:
+        description: 'Filtre Playwright (ex. --project=public-web --grep "Article")'
+        required: false
+        default: ''
+
+jobs:
+  refresh-snapshots:
+    name: Régénérer les snapshots sous Linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile --fetch-timeout 600000
+
+      - name: Install Playwright browsers
+        run: pnpm e2e:install
+
+      - name: Régénérer les snapshots
+        env:
+          PLAYWRIGHT_ARGS: ${{ inputs.playwright_args }}
+        run: |
+          set -euo pipefail
+          pnpm exec playwright test --update-snapshots $PLAYWRIGHT_ARGS
+
+      - name: Publier le diff de snapshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-snapshots-diff
+          path: |
+            e2e/**/*-snapshots/**
+            **/*-snapshots/**
+          if-no-files-found: warn
+          retention-days: 14
