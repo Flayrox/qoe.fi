@@ -10,7 +10,7 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { coverageWorkers } from './vitest.shared';
+import { coverageWorkers } from './vitest.shared.mjs';
 
 process.env.SKIP_ENV_VALIDATION = 'true';
 process.env.NEXT_PUBLIC_SUPABASE_URL =

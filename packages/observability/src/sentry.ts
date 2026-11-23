@@ -18,6 +18,11 @@
 //    chargé après l'import (scripts, tests, workers) était ignoré.
 // =====================================================================
 
+import { logger } from './logger';
+
+type SentryNext = typeof import('@sentry/nextjs');
+type RequestErrorArgs = Parameters<SentryNext['captureRequestError']>;
+
 export function sentryDsn(): string | undefined {
   return process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN;
 }
@@ -29,17 +34,51 @@ export function sentryEnabled(): boolean {
 /**
  * Initialise Sentry pour un environnement serveur Next.js
  * (appelé dans `instrumentation.ts` côté server/edge).
+ *
+ * ⚠️ Rend la promesse d'initialisation : `register()` doit l'attendre. Un
+ * import dynamique lancé sans être attendu rendait la main avant que
+ * `Sentry.init` n'ait tourné — les erreurs du tout début du démarrage
+ * (chargement de config, première requête) n'étaient jamais capturées.
  */
-export function initSentryServer(dsn = sentryDsn()) {
+export async function initSentryServer(dsn = sentryDsn()): Promise<void> {
   if (!dsn) return;
-  // Import dynamique : évite de charger @sentry/nextjs dans les builds sans la dep.
-  void import('@sentry/nextjs').then((Sentry) => {
+  try {
+    // Import dynamique : évite de charger @sentry/nextjs dans les builds sans la dep.
+    const Sentry = await import('@sentry/nextjs');
     Sentry.init({
       dsn,
       tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
       debug: false,
     });
-  });
+  } catch (error) {
+    logger.error('sentry.server_init_failed', {
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+/**
+ * Rapporteur d'erreur de requête pour `instrumentation.ts` :
+ *
+ * ```ts
+ * export const onRequestError = captureRequestError;
+ * ```
+ *
+ * 📖 Next.js n'appelle `onRequestError` que si `instrumentation.ts` l'exporte :
+ * sans lui, une erreur levée dans un Server Component, une Server Action ou un
+ * route handler n'atteint jamais Sentry (elle n'existe que dans les logs du
+ * conteneur). La signature est celle du SDK, volontairement reprise telle
+ * quelle pour qu'un changement de contrat casse le typecheck.
+ */
+export async function captureRequestError(...args: RequestErrorArgs): Promise<void> {
+  try {
+    const Sentry = await import('@sentry/nextjs');
+    await Sentry.captureRequestError(...args);
+  } catch (error) {
+    logger.error('sentry.request_error_failed', {
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 /**

@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config';
-import { packageWorkers } from '../../vitest.shared';
+import { packageWorkers } from '../../vitest.shared.mjs';
 
 export default defineConfig({
   test: {

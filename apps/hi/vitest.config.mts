@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { packageWorkers } from '../../vitest.shared';
+import { packageWorkers } from '../../vitest.shared.mjs';
 
 export default defineConfig({
   plugins: [react()],

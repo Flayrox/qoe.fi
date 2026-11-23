@@ -2,6 +2,9 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    // Les tests « wiring » lisent les sources avec `node:fs` / `node:url`.
+    // TypeScript 6 n'ajoute plus les types Node implicitement.
+    "types": ["node"],
     "paths": {
       "@/*": ["./src/*"],
       "@/assets/*": ["./assets/*"]

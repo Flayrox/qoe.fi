@@ -50,8 +50,17 @@ export function FeatureAnnouncements({
     };
   }, []);
 
+  // Un signal n'est jamais bloquant : l'action serveur lève pour un lecteur
+  // non connecté (« me prévenir » sans session) et pour toute panne de l'API
+  // sur un `notify`. Le provider est monté une seule fois pour tout le
+  // lecteur : ce rejet ne doit pas s'échapper en erreur non gérée, l'annonce
+  // affiche elle-même l'état d'échec du bouton.
   const handleSignal = useCallback(async (signal: FeatureSignal) => {
-    await recordFeatureSignalAction(signal.feature, signal.kind);
+    try {
+      await recordFeatureSignalAction(signal.feature, signal.kind);
+    } catch {
+      /* best-effort : l'annonce garde son état local */
+    }
   }, []);
 
   return (

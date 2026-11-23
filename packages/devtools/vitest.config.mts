@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config';
-import { packageWorkers } from '../../vitest.shared';
+import { packageWorkers } from '../../vitest.shared.mjs';
 
 // Plancher de couverture (politique des autres lots : niveau mesuré au
 // 2026-11-19 moins un point). Pas de barrel à exclure : les deux sources

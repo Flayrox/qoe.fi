@@ -1,6 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
-import { packageWorkers } from '../../vitest.shared';
+import { packageWorkers } from '../../vitest.shared.mjs';
 
 export default defineConfig({
   resolve: {

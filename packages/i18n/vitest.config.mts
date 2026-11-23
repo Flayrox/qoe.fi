@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config';
-import { packageWorkers } from '../../vitest.shared';
+import { packageWorkers } from '../../vitest.shared.mjs';
 
 // Plancher de couverture du paquet (même politique que @qoe/formatters) :
 // mesures du 2026-11-19 au niveau atteint moins un point. Une baisse doit

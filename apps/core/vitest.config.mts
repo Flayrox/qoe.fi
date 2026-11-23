@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { packageWorkers } from '../../vitest.shared';
+import { packageWorkers } from '../../vitest.shared.mjs';
 
 // Env de test minimal (les mêmes fallbacks que vitest.workspace.ts à la racine),
 // appliqué en local quand on run `vitest run` depuis ce package.
