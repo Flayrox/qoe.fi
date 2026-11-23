@@ -26,7 +26,7 @@ export function ReferrersBlock({ referrers }: ReferrersBlockProps) {
           </p>
         </div>
         <span className="text-xs text-muted-foreground font-medium">
-          {referrers.length} sources
+          {referrers.length === 1 ? t`${referrers.length} source` : t`${referrers.length} sources`}
         </span>
       </div>
 

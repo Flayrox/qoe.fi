@@ -73,7 +73,7 @@ export async function listWebhookDeliveriesAction(webhookId: string) {
   } catch (err) {
     return {
       success: false as const,
-      error: err instanceof Error ? err.message : 'Erreur serveur',
+      error: err instanceof Error ? err.message : t`Erreur serveur`,
     };
   }
 }
@@ -96,7 +96,7 @@ export async function listWebhooksAction() {
     console.warn('[listWebhooksAction] erreur chargement webhooks:', err);
     return {
       success: false as const,
-      error: err instanceof Error ? err.message : 'Erreur serveur',
+      error: err instanceof Error ? err.message : t`Erreur serveur`,
       webhooks: [] as WebhookWithDeliveries[],
       events: WEBHOOK_EVENTS,
       workspaceName: '',
@@ -136,7 +136,7 @@ export async function createWebhookAction(input: {
   } catch (err) {
     return {
       success: false as const,
-      error: err instanceof Error ? err.message : 'Erreur serveur',
+      error: err instanceof Error ? err.message : t`Erreur serveur`,
     };
   }
 }
@@ -154,7 +154,7 @@ export async function deleteWebhookAction(id: string) {
   } catch (err) {
     return {
       success: false as const,
-      error: err instanceof Error ? err.message : 'Erreur serveur',
+      error: err instanceof Error ? err.message : t`Erreur serveur`,
     };
   }
 }
@@ -173,7 +173,7 @@ export async function toggleWebhookAction(id: string) {
   } catch (err) {
     return {
       success: false as const,
-      error: err instanceof Error ? err.message : 'Erreur serveur',
+      error: err instanceof Error ? err.message : t`Erreur serveur`,
     };
   }
 }
@@ -196,7 +196,7 @@ export async function testWebhookAction(id: string) {
   } catch (err) {
     return {
       success: false as const,
-      error: err instanceof Error ? err.message : 'Erreur serveur',
+      error: err instanceof Error ? err.message : t`Erreur serveur`,
     };
   }
 }

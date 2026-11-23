@@ -35,7 +35,7 @@ const APPLICATION_PRESETS = () =>
     },
     {
       id: 'webhooks',
-      title: 'Webhooks & backend',
+      title: t`Webhooks & backend`,
       subtitle: 'Discord, Telegram, serveur',
       icon: Send,
       template: t`Je souhaite recevoir les événements de publication par webhook pour synchroniser ma communauté et mes outils internes.`,

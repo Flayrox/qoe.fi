@@ -85,21 +85,21 @@ export function analyzePublishReadiness(input: PublishReadinessInput): PublishRe
     !title
       ? {
           id: 'title',
-          label: 'Titre',
+          label: t`Titre`,
           detail: t`Le titre est requis avant de publier.`,
           status: 'error',
         }
       : title.length < 10 || title.length > 120
         ? {
             id: 'title',
-            label: 'Titre',
-            detail: `${title.length} caractères : visez 10 à 120 pour un titre lisible en partage.`,
+            label: t`Titre`,
+            detail: t`${title.length} caractères : visez 10 à 120 pour un titre lisible en partage.`,
             status: 'warning',
           }
         : {
             id: 'title',
-            label: 'Titre',
-            detail: `${title.length} caractères.`,
+            label: t`Titre`,
+            detail: t`${title.length} caractères.`,
             status: 'ok',
           }
   );
@@ -108,20 +108,20 @@ export function analyzePublishReadiness(input: PublishReadinessInput): PublishRe
     words === 0
       ? {
           id: 'content',
-          label: 'Contenu',
+          label: t`Contenu`,
           detail: t`Le corps est vide : ajoutez au moins un paragraphe avant de publier.`,
           status: 'error',
         }
       : words < 100
         ? {
             id: 'content',
-            label: 'Contenu',
+            label: t`Contenu`,
             detail: `${words} mots : court, mais publiable.`,
             status: 'warning',
           }
         : {
             id: 'content',
-            label: 'Contenu',
+            label: t`Contenu`,
             detail: `${words} mots.`,
             status: 'ok',
           }
@@ -161,27 +161,27 @@ export function analyzePublishReadiness(input: PublishReadinessInput): PublishRe
     !hasCover
       ? {
           id: 'cover',
-          label: 'Couverture',
+          label: t`Couverture`,
           detail: t`Aucune couverture : le partage utilisera le repli de la publication.`,
           status: 'info',
         }
       : input.coverDecorative
         ? {
             id: 'cover',
-            label: 'Couverture',
+            label: t`Couverture`,
             detail: t`Image décorative : elle sera ignorée par les lecteurs d’écran.`,
             status: 'ok',
           }
         : (input.coverAlt ?? '').trim()
           ? {
               id: 'cover',
-              label: 'Couverture',
+              label: t`Couverture`,
               detail: t`Description alternative renseignée.`,
               status: 'ok',
             }
           : {
               id: 'cover',
-              label: 'Couverture',
+              label: t`Couverture`,
               detail: t`Alt manquant : le titre sera utilisé comme repli.`,
               status: 'warning',
             }
@@ -191,21 +191,21 @@ export function analyzePublishReadiness(input: PublishReadinessInput): PublishRe
     !seoTitle
       ? {
           id: 'seoTitle',
-          label: 'Titre SEO',
+          label: t`Titre SEO`,
           detail: t`Vide : le titre de l’article sera utilisé.`,
           status: 'warning',
         }
       : seoTitle.length > 60
         ? {
             id: 'seoTitle',
-            label: 'Titre SEO',
-            detail: `${seoTitle.length} caractères : au-delà de 60, il sera tronqué dans les résultats.`,
+            label: t`Titre SEO`,
+            detail: t`${seoTitle.length} caractères : au-delà de 60, il sera tronqué dans les résultats.`,
             status: 'warning',
           }
         : {
             id: 'seoTitle',
-            label: 'Titre SEO',
-            detail: `${seoTitle.length} caractères.`,
+            label: t`Titre SEO`,
+            detail: t`${seoTitle.length} caractères.`,
             status: 'ok',
           }
   );
@@ -222,13 +222,13 @@ export function analyzePublishReadiness(input: PublishReadinessInput): PublishRe
         ? {
             id: 'seoDescription',
             label: 'Description SEO',
-            detail: `${seoDescription.length} caractères : visez 160 maximum.`,
+            detail: t`${seoDescription.length} caractères : visez 160 maximum.`,
             status: 'warning',
           }
         : {
             id: 'seoDescription',
             label: 'Description SEO',
-            detail: `${seoDescription.length} caractères.`,
+            detail: t`${seoDescription.length} caractères.`,
             status: 'ok',
           }
   );
@@ -237,13 +237,13 @@ export function analyzePublishReadiness(input: PublishReadinessInput): PublishRe
     invalidLinks > 0
       ? {
           id: 'links',
-          label: 'Liens',
+          label: t`Liens`,
           detail: `${invalidLinks} lien${invalidLinks === 1 ? '' : 's'} sans destination valide.`,
           status: 'warning',
         }
       : {
           id: 'links',
-          label: 'Liens',
+          label: t`Liens`,
           detail: t`Toutes les destinations sont valides.`,
           status: 'ok',
         }

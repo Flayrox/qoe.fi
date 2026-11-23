@@ -42,7 +42,7 @@ export function HeaderClient() {
           >
             <div className="flex items-center gap-2.5">
               <Search className="w-3.5 h-3.5 shrink-0 text-muted-foreground/70" strokeWidth={1.5} />
-              <span className="text-[13px] font-normal">Rechercher...</span>
+              <span className="text-[13px] font-normal">{t`Rechercher...`}</span>
             </div>
             <div className="flex items-center gap-0.5 border border-border/30 bg-background/60 text-[10px] px-1.5 py-0.5 rounded font-medium text-muted-foreground select-none">
               <Command className="w-2.5 h-2.5 shrink-0" strokeWidth={1.5} />
@@ -56,7 +56,7 @@ export function HeaderClient() {
           <HeaderWorkspaceSwitcher />
 
           <nav className="hidden lg:flex items-center gap-5">
-            {['Writer', 'Studio', 'Advanced'].map((label) => (
+            {[t`Writer`, t`Studio`, t`Advanced`].map((label) => (
               <button
                 key={label}
                 type="button"

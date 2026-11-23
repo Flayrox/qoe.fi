@@ -27,9 +27,9 @@ export function DeveloperNav({ activeTab }: DeveloperNavProps) {
   const currentTab = activeTab ?? resolveTab(pathname);
 
   const tabs: Array<{ id: DeveloperTab; label: string; href: string; icon: typeof Key }> = [
-    { id: 'overview', label: "Vue d'ensemble", href: '/developer', icon: BookOpen },
+    { id: 'overview', label: t`Vue d'ensemble`, href: '/developer', icon: BookOpen },
     { id: 'keys', label: t`Clés d'API`, href: '/developer/keys', icon: Key },
-    { id: 'webhooks', label: 'Webhooks', href: '/developer/webhooks', icon: Webhook },
+    { id: 'webhooks', label: t`Webhooks`, href: '/developer/webhooks', icon: Webhook },
     { id: 'oauth', label: 'OAuth', href: '/developer/oauth', icon: Shield },
   ];
 

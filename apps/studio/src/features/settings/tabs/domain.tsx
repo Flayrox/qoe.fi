@@ -75,7 +75,7 @@ export function DomainTab({
               {!subdomainCheck.loading && subdomainCheck.available === false ? (
                 <span className="flex items-center gap-1.5 text-xs font-medium text-destructive-text">
                   <AlertCircle className="size-3.5" />
-                  {subdomainCheck.error || 'Indisponible.'}
+                  {subdomainCheck.error || t`Indisponible.`}
                 </span>
               ) : null}
             </div>
@@ -92,7 +92,7 @@ export function DomainTab({
                 onChange={(event) =>
                   setCurrent((prev) => ({ ...prev, supportUrl: event.target.value }))
                 }
-                placeholder="contact@votre-domaine.com"
+                placeholder={t`contact@votre-domaine.com`}
               />
             </StudioField>
           </div>

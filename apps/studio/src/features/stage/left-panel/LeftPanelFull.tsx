@@ -66,7 +66,7 @@ const BLOCK_CATALOG = (): {
   },
   {
     type: 'bento-grid',
-    label: 'Grille',
+    label: t`Grille`,
     description: t`2 à 3 cartes.`,
     icon: LayoutGrid,
   },
@@ -84,8 +84,8 @@ const BLOCK_CATALOG = (): {
   },
   {
     type: 'newsletter-wall',
-    label: "Mur d'abonnement",
-    description: 'Formulaire email.',
+    label: t`Mur d'abonnement`,
+    description: t`Formulaire email.`,
     icon: Mail,
   },
   {
@@ -111,11 +111,11 @@ function getBlockName(block: TemplateBlock) {
     case 'lead-story':
       return t`Article vedette`;
     case 'bento-grid':
-      return 'Grille';
+      return t`Grille`;
     case 'article-stream':
       return t`Flux d'articles`;
     case 'newsletter-wall':
-      return "Mur d'abonnement";
+      return t`Mur d'abonnement`;
     case 'article-content':
       return t`Contenu de l'article`;
     case 'category-spotlight':
@@ -207,7 +207,7 @@ function LayersTab() {
                 <div className="flex shrink-0 items-center gap-0.5 opacity-60 transition-opacity group-hover:opacity-100">
                   <button
                     type="button"
-                    title={block.visible ? 'Masquer' : 'Afficher'}
+                    title={block.visible ? t`Masquer` : t`Afficher`}
                     onClick={(e) => {
                       e.stopPropagation();
                       engine.toggleVisibility(block.id);
@@ -222,7 +222,7 @@ function LayersTab() {
                   </button>
                   <button
                     type="button"
-                    title={block.locked ? t`Déverrouiller` : 'Verrouiller'}
+                    title={block.locked ? t`Déverrouiller` : t`Verrouiller`}
                     onClick={(e) => {
                       e.stopPropagation();
                       engine.toggleLock(block.id);
@@ -290,7 +290,7 @@ function BrandTab() {
     <div className="space-y-4">
       <div className="space-y-2">
         <div className="px-1 text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
-          Couleur d&apos;accent
+          {t`Couleur d'accent`}
         </div>
         <div className="flex items-center gap-1.5">
           <label
@@ -364,7 +364,7 @@ function BrandTab() {
               onClick={() => engine.updateTokens({ cardShape: shape })}
               className={`rounded-lg px-2 py-1.5 text-center font-medium transition-all ${engine.layout.tokens.cardShape === shape ? 'bg-primary text-primary-foreground shadow-xs' : 'bg-muted/50 text-muted-foreground hover:text-foreground'}`}
             >
-              {shape === 'rounded-none' ? t`Carré` : shape === 'rounded-xl' ? 'Arrondi' : 'Large'}
+              {shape === 'rounded-none' ? t`Carré` : shape === 'rounded-xl' ? t`Arrondi` : t`Large`}
             </button>
           ))}
         </div>
@@ -381,7 +381,7 @@ function BrandTab() {
               onClick={() => engine.updateTokens({ density: dens })}
               className={`rounded-lg px-1 py-1.5 text-center text-[10px] font-medium capitalize transition-all ${engine.layout.tokens.density === dens ? 'bg-primary text-primary-foreground shadow-xs' : 'bg-muted/50 text-muted-foreground hover:text-foreground'}`}
             >
-              {dens === 'compact' ? t`Compact` : dens === 'standard' ? 'Standard' : t`Aéré`}
+              {dens === 'compact' ? t`Compact` : dens === 'standard' ? t`Standard` : t`Aéré`}
             </button>
           ))}
         </div>
@@ -398,7 +398,7 @@ function BrandTab() {
               onClick={() => engine.updateTokens({ surface: surf })}
               className={`rounded-lg px-1 py-1.5 text-center text-[10px] font-medium capitalize transition-all ${engine.layout.tokens.surface === surf ? 'bg-primary text-primary-foreground shadow-xs' : 'bg-muted/50 text-muted-foreground hover:text-foreground'}`}
             >
-              {surf === 'flat' ? t`Plat` : surf === 'bordered' ? t`Bordé` : 'Verre'}
+              {surf === 'flat' ? t`Plat` : surf === 'bordered' ? t`Bordé` : t`Verre`}
             </button>
           ))}
         </div>
@@ -526,7 +526,7 @@ function PagesTab() {
         )}
         {!engine.snapshotsLoading && engine.snapshots.length === 0 && (
           <p className="px-1 text-[10px] text-muted-foreground">
-            Chaque publication archive ici l&apos;ancienne version.
+            {t`Chaque publication archive ici l'ancienne version.`}
           </p>
         )}
         {engine.snapshots.map((s) => (
@@ -535,7 +535,7 @@ function PagesTab() {
             className="flex items-center justify-between gap-1 rounded-md bg-muted/40 px-2 py-1.5"
           >
             <div className="min-w-0">
-              <p className="truncate text-[11px] font-medium">{s.label || 'Version'}</p>
+              <p className="truncate text-[11px] font-medium">{s.label || t`Version`}</p>
               <p className="font-mono text-[9px] text-muted-foreground">
                 {new Date(s.createdAt).toLocaleString('fr-FR')}
               </p>
@@ -593,9 +593,9 @@ function ImagesTab() {
   const [query, setQuery] = useState('');
   const assets = useMemo(() => {
     const out: { url: string; label: string }[] = [];
-    if (engine.publisher.logoUrl) out.push({ url: engine.publisher.logoUrl, label: 'Logo' });
+    if (engine.publisher.logoUrl) out.push({ url: engine.publisher.logoUrl, label: t`Logo` });
     if (engine.publisher.headerImageUrl)
-      out.push({ url: engine.publisher.headerImageUrl, label: 'Couverture' });
+      out.push({ url: engine.publisher.headerImageUrl, label: t`Couverture` });
     for (const a of engine.articles) {
       if (a.imageUrl) out.push({ url: a.imageUrl, label: a.title });
     }
@@ -653,9 +653,9 @@ function ImagesTab() {
 function WindowsTab() {
   const engine = useStageEngine();
   const widths = [
-    { id: 'desktop' as const, label: 'Desktop', w: 1280 },
-    { id: 'tablet' as const, label: 'Tablette', w: 768 },
-    { id: 'mobile' as const, label: 'Mobile', w: 390 },
+    { id: 'desktop' as const, label: t`Desktop`, w: 1280 },
+    { id: 'tablet' as const, label: t`Tablette`, w: 768 },
+    { id: 'mobile' as const, label: t`Mobile`, w: 390 },
   ];
   return (
     <div className="space-y-3">
@@ -685,7 +685,7 @@ function WindowsTab() {
             { label: '50%', v: 0.5 },
             { label: '100%', v: 1 },
             { label: '200%', v: 2 },
-            { label: 'Fit', v: 0.95 },
+            { label: t`Fit`, v: 0.95 },
           ].map((z) => (
             <button
               key={z.label}
@@ -719,12 +719,12 @@ export function LeftPanelFull() {
   }
 
   const tabs: { id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-    { id: 'layers', label: 'Calques', icon: Layers },
-    { id: 'blocks', label: 'Blocs', icon: PlusCircle },
-    { id: 'brand', label: 'Style', icon: Palette },
-    { id: 'pages', label: 'Pages', icon: FileText },
-    { id: 'images', label: 'Visuels', icon: ImageIcon },
-    { id: 'windows', label: 'Cadre', icon: Monitor },
+    { id: 'layers', label: t`Calques`, icon: Layers },
+    { id: 'blocks', label: t`Blocs`, icon: PlusCircle },
+    { id: 'brand', label: t`Style`, icon: Palette },
+    { id: 'pages', label: t`Pages`, icon: FileText },
+    { id: 'images', label: t`Visuels`, icon: ImageIcon },
+    { id: 'windows', label: t`Cadre`, icon: Monitor },
   ];
 
   const handleTabClick = (tabId: TabId) => {
@@ -781,9 +781,9 @@ export function LeftPanelFull() {
             {isZoomMenuOpen && (
               <div className="absolute bottom-0 left-12 z-50 w-40 space-y-1 rounded-lg border border-border bg-background/95 p-1.5 shadow-md">
                 {[
-                  { label: 'Zoom avant', hint: '⌘+', fn: engine.zoomIn },
+                  { label: t`Zoom avant`, hint: '⌘+', fn: engine.zoomIn },
                   { label: t`Zoom arrière`, hint: '⌘-', fn: engine.zoomOut },
-                  { label: 'Recentrer', hint: '⇧0', fn: engine.resetZoom },
+                  { label: t`Recentrer`, hint: '⇧0', fn: engine.resetZoom },
                   { label: '50%', hint: '', fn: () => engine.setScale(0.5) },
                   { label: '100%', hint: '', fn: () => engine.setScale(1) },
                   { label: '200%', hint: '', fn: () => engine.setScale(2) },
@@ -900,11 +900,11 @@ export function LeftPanelFull() {
             <div className="space-y-2 text-xs">
               {[
                 [t`Sélection`, 'V'],
-                ['Outil main / Pan', 'H'],
+                [t`Outil main / Pan`, 'H'],
                 [t`Déplacement libre`, 'Espace + Glisser'],
                 [t`Mesurer les distances`, 'Alt + Survol'],
-                ['Zoom', '⌘ + Molette'],
-                ['Recentrer', '⇧ + 0'],
+                [t`Zoom`, '⌘ + Molette'],
+                [t`Recentrer`, '⇧ + 0'],
                 [t`Dupliquer le bloc`, '⌘ + D'],
                 [t`Supprimer le bloc`, '⌫ / Suppr'],
                 [t`Annuler / Rétablir`, '⌘Z / ⌘⇧Z'],

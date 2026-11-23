@@ -86,13 +86,13 @@ export default function MediaJoinPage() {
   const roleLabel = (role: string) => {
     switch (role.toLowerCase()) {
       case 'admin':
-        return 'Administrateur';
+        return t`Administrateur`;
       case 'editor':
         return t`Éditeur`;
       case 'writer':
         return t`Rédacteur`;
       default:
-        return 'Membre';
+        return t`Membre`;
     }
   };
 

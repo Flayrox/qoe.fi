@@ -53,7 +53,7 @@ export async function listNewslettersAction() {
     );
     return { success: true as const, items: res.items ?? [] };
   } catch (err) {
-    return failure(err, 'Erreur serveur');
+    return failure(err, t`Erreur serveur`);
   }
 }
 
@@ -77,7 +77,7 @@ export async function createNewsletterAction(input: {
     // envoi sans relire toute la liste pour retrouver l'identifiant.
     return { success: true as const, issue };
   } catch (err) {
-    return failure(err, 'Erreur serveur');
+    return failure(err, t`Erreur serveur`);
   }
 }
 
@@ -91,7 +91,7 @@ export async function createDigestAction(days = 7) {
     revalidatePath('/newsletters');
     return { success: true as const, issue };
   } catch (err) {
-    return failure(err, 'Erreur serveur');
+    return failure(err, t`Erreur serveur`);
   }
 }
 
@@ -112,7 +112,7 @@ export async function updateNewsletterAction(
     revalidatePath('/newsletters');
     return { success: true as const, issue };
   } catch (err) {
-    return failure(err, 'Erreur serveur');
+    return failure(err, t`Erreur serveur`);
   }
 }
 
@@ -123,7 +123,7 @@ export async function deleteNewsletterAction(id: string) {
     revalidatePath('/newsletters');
     return { success: true as const };
   } catch (err) {
-    return failure(err, 'Erreur serveur');
+    return failure(err, t`Erreur serveur`);
   }
 }
 
@@ -134,6 +134,6 @@ export async function sendNewsletterAction(id: string) {
     revalidatePath('/newsletters');
     return { success: true as const };
   } catch (err) {
-    return failure(err, 'Erreur serveur');
+    return failure(err, t`Erreur serveur`);
   }
 }

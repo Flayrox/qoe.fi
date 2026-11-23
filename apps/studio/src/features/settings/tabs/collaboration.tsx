@@ -29,7 +29,7 @@ const REQUEST_STATUS = (): Record<
   string,
   { label: string; tone: 'brand' | 'success' | 'danger' | 'neutral' }
 > => ({
-  PENDING: { label: 'En attente', tone: 'brand' },
+  PENDING: { label: t`En attente`, tone: 'brand' },
   ACCEPTED: { label: t`Acceptée`, tone: 'success' },
   DECLINED: { label: t`Refusée`, tone: 'danger' },
 });
@@ -169,7 +169,7 @@ export function CollaborationTab() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-foreground">
-                        {request.article?.title || 'Article'}
+                        {request.article?.title || t`Article`}
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {inbox === 'received' ? t`Invitation de` : t`Invitation à`}{' '}

@@ -9814,3 +9814,56 @@ couverture anglaise antérieure à ce lot, laissée ouverte et chiffrée ici.
 **Preuves.** `pnpm guard:i18n` exit 0 ; `tsc --noEmit` 0 erreur ; `vitest run` **680/680** (100 fichiers),
 sans test supprimé, désactivé ni assoupli ; `eslint` 0 erreur ; `prettier --check` propre ; garde
 `vendor/` intact.
+
+## Fiche L22j (troisième passage) — audit indépendant de la clôture (2026-11-23)
+
+**Pourquoi un troisième passage.** La clôture du second passage s'appuyait sur `pnpm guard:i18n`,
+écrit dans le même lot : le garde et sa preuve venaient de la même main, avec ses propres exemptions.
+Une énumération indépendante a donc été écrite pour ce tour (script AST jetable, supprimé après usage),
+sans réutiliser les règles d'exclusion du garde : elle liste **tout** littéral à initiale capitale ou
+accentué hors macro, avec sa position (texte JSX, attribut, propriété, argument d'appel, ternaire,
+gabarit), puis chaque occurrence est classée copie affichée / non-copie.
+
+**Ce que l'audit a trouvé à `140cd399`.** Le garde annonçait **0** ; l'énumération indépendante
+mesurait **138** copies affichées hors macro dans **45** fichiers — dont `features/editor/lib/preflight.ts`,
+les tables de module (`NODE_KINDS`, `AUDIT_FIELD_LABELS`, `SUBSCRIBER_SORT`), les `textFallback` du
+stage, des ternaires hors JSX et des libellés d'état vide. Un second passage de l'énumération, élargi
+aux libellés d'un seul mot sans accent (`Texte`, `Bouton`, `Grille`, `Arrondi`, `Verre`, `Zoom`,
+`Extrait`, `Facteur`, `Contributeur`…), en a ajouté **94** que le lexique du garde ne voyait pas.
+La clôture précédente était donc auto-référentielle : c'est le trou principal de ce lot.
+
+**Trous du garde corrigés, sans élargir les exemptions.** Le lexique français couvre désormais les
+mots d'interface sans accent ; la détection distingue le **texte JSX** (lexique large) du **littéral**
+hors JSX (mots sans équivoque seulement, sinon `active`/`article`/`image` déclenchaient du bruit) ;
+les jetons techniques sont écartés par nature et non par fichier : identifiant en minuscules
+(`webhooks`, `logo`), valeur de contrat en capitales (`CONFIRMER`, `NEXT_PUBLIC_UMAMI_WEBSITE_ID`),
+clé pointée (`qoe.articles.list.views`), pile de polices, sélecteur CSS, opérande de comparaison,
+clé d'accès de dictionnaire, tableau de mots-clés. Les métadonnées `generateMetadata` et les paires
+bilingues (une branche porte déjà une macro) sont hors périmètre par construction, pas par tolérance.
+Sortie : **0 copie hors macro dans 0 fichier**.
+
+**Bug réel trouvé par l'audit, pas par les tests.** Les pages analytics comparaient la sentinelle
+`result.error === 'Non autorisé'`, c'est-à-dire une chaîne **traduite** : en anglais la redirection
+vers `/login` ne se déclenchait plus. Les actions renvoient maintenant `errorCode: 'unauthorized'`
+(valeur de contrat, non traduite), les deux pages comparent ce code, et le test d'action passe d'une
+assertion lâche à `toEqual({ error: 'Non autorisé', errorCode: 'unauthorized' })` — renforcée, pas
+assouplie.
+
+**Conversions de ce passage.** 138 + 94 conversions par position exacte, plus une vingtaine de
+reprises manuelles : entités JSX restées littérales (`Titre d&apos;Incitation`, `Couleur d&apos;accent`,
+`Mur d&apos;Abonnement`), gabarits (`Enregistré à …`, `[Mise à jour] …`), et **7 pluriels par
+fragments JSX** (`{n} vues`, `{n} membres`, `{n} lecteurs`) ramenés à deux messages complets
+sélectionnés par condition, comme les pluriels précédents. Aucune énumération, aucun `Variant`/`Tone`
+converti : les valeurs de contrat restent littérales.
+
+**Catalogues.** `pnpm intl:extract` + `pnpm intl:compile` : **3 779** `msgid`, **0 doublon**,
+**0 `msgstr` vide en `fr`** (hors en-tête PO), `en` à **2 635** entrées non traduites — la couverture
+anglaise reste une décision produit, la conversion n'ajoute que des `msgid` à traduire.
+
+**Porte exécutée sur l'arbre commité.** `pnpm typecheck` 0 erreur ; `pnpm lint` 25/25 tâches ;
+`prettier --check .` propre ; les **9** gardes (`guard:i18n` inclus) 0 ; `ui:audit` 0 ;
+`turbo run test --force` **25/25** paquets (studio **680** tests) ; `test:coverage` exit 0.
+
+**Reste ouvert, mesuré, hors périmètre de ce passage.** R142 `src/app/dev` (**606** littéraux FR,
+**27** fichiers) — décision produit : traduire un atelier interne jamais livré ou l'exempter de
+catalogue. Couverture EN (**2 635** `msgid`). R49, R159, R156, L26 : inchangés, motifs inchangés.

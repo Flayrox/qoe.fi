@@ -494,7 +494,7 @@ export function PublishModal({
                       <div className="text-muted-foreground">
                         {t`Objet :`}{' '}
                         <span className="text-foreground font-medium">
-                          {isMajorUpdate ? `[Mise à jour] ${effectiveSubject}` : effectiveSubject}
+                          {isMajorUpdate ? t`[Mise à jour] ${effectiveSubject}` : effectiveSubject}
                         </span>
                       </div>
                       {emailPreviewText.trim() && (

@@ -196,10 +196,10 @@ export function OAuthAppsClient({
         setRevealed({ clientId: client.clientId, clientSecret: res.clientSecret });
         await refresh();
       } else {
-        toast.error(res.error || 'Rotation impossible.');
+        toast.error(res.error || t`Rotation impossible.`);
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Rotation impossible.');
+      toast.error(error instanceof Error ? error.message : t`Rotation impossible.`);
     } finally {
       setBusyId(null);
     }
@@ -208,7 +208,7 @@ export function OAuthAppsClient({
   const handleDelete = async (client: OAuthClientDTO) => {
     if (
       !confirm(
-        `Supprimer l'application « ${client.name} » ?\nTous les tokens et consentements associés seront révoqués.`
+        t`Supprimer l'application « ${client.name} » ?\nTous les tokens et consentements associés seront révoqués.`
       )
     ) {
       return;
@@ -220,10 +220,10 @@ export function OAuthAppsClient({
         setClients((prev) => prev.filter((c) => c.id !== client.id));
         toast.success(t`Application supprimée.`);
       } else {
-        toast.error(res.error || 'Suppression impossible.');
+        toast.error(res.error || t`Suppression impossible.`);
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Suppression impossible.');
+      toast.error(error instanceof Error ? error.message : t`Suppression impossible.`);
     } finally {
       setBusyId(null);
     }
@@ -270,7 +270,8 @@ export function OAuthAppsClient({
                 htmlFor="oauth-app-name"
                 className="block text-xs font-semibold text-foreground"
               >
-                Nom de l&apos;application <span className="text-primary">*</span>
+                {t`Nom de l'application`}
+                <span className="text-primary">*</span>
               </label>
               <Input
                 id="oauth-app-name"

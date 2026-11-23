@@ -45,7 +45,7 @@ function copyText(text: string): Promise<void> {
   if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
     return navigator.clipboard.writeText(text);
   }
-  return Promise.reject(new Error('Presse-papiers indisponible'));
+  return Promise.reject(new Error(t`Presse-papiers indisponible`));
 }
 
 function formatDate(value: string, withYear = false): string {
@@ -220,7 +220,7 @@ export function DeveloperKeysClient({
 
   if (access.status !== 'approved') {
     return (
-      <DeveloperShell access={access} description={`Clés d’API de ${workspace.name}.`}>
+      <DeveloperShell access={access} description={t`Clés d’API de ${workspace.name}.`}>
         <DeveloperAccessState access={access} />
       </DeveloperShell>
     );
@@ -228,7 +228,7 @@ export function DeveloperKeysClient({
 
   if (!hasApiAccess) {
     return (
-      <DeveloperShell access={access} description={`Clés d’API de ${workspace.name}.`}>
+      <DeveloperShell access={access} description={t`Clés d’API de ${workspace.name}.`}>
         <DeveloperAccessState
           access={access}
           title={t`Aucune permission API accordée`}
@@ -239,7 +239,7 @@ export function DeveloperKeysClient({
   }
 
   return (
-    <DeveloperShell access={access} description={`Clés d’API de ${workspace.name}.`}>
+    <DeveloperShell access={access} description={t`Clés d’API de ${workspace.name}.`}>
       <StudioSection title={t`Générer une clé`} icon={Key}>
         <form onSubmit={handleGenerate} className="space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row">

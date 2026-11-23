@@ -114,7 +114,7 @@ export function ContextualEditorBar() {
               <button
                 type="button"
                 onClick={() => engine.toggleVisibility(selected.id)}
-                title={selected.visible ? 'Masquer' : 'Afficher'}
+                title={selected.visible ? t`Masquer` : t`Afficher`}
                 className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
               >
                 {selected.visible ? (
@@ -183,9 +183,9 @@ export function ContextualEditorBar() {
                         onValueChange={(style) => engine.updateBlockProps(selected.id, { style })}
                         options={[
                           { id: 'cinematic-banner', label: t`Bannière` },
-                          { id: 'typographic-minimal', label: 'Typographique' },
+                          { id: 'typographic-minimal', label: t`Typographique` },
                           { id: 'split-featured', label: 'Deux Colonnes' },
-                          { id: 'floating-card', label: 'Carte Flottante' },
+                          { id: 'floating-card', label: t`Carte Flottante` },
                         ]}
                       />
                     </label>
@@ -222,9 +222,9 @@ export function ContextualEditorBar() {
                           engine.updateBlockProps(selected.id, { displayMode })
                         }
                         options={[
-                          { id: 'list', label: 'Lignes' },
-                          { id: 'grid-2', label: 'Grille 2' },
-                          { id: 'grid-3', label: 'Grille 3' },
+                          { id: 'list', label: t`Lignes` },
+                          { id: 'grid-2', label: t`Grille 2` },
+                          { id: 'grid-3', label: t`Grille 3` },
                         ]}
                       />
                     </label>

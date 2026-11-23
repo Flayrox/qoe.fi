@@ -102,7 +102,7 @@ export default async function CreatorDashboardPage() {
   try {
     dashboard = await fetchDashboardGo(user.id, workspace);
   } catch (err) {
-    console.error('Dashboard indisponible (workspace non résolu ?)', err);
+    console.error(t`Dashboard indisponible (workspace non résolu ?)`, err);
   }
 
   if (!dashboard) {

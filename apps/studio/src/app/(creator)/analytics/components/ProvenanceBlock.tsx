@@ -21,9 +21,9 @@ const PERIOD_LABELS: Record<TimePeriod, () => string> = {
 };
 
 const SOURCE_LABELS = (): Record<string, string> => ({
-  feed: 'Feed qoefi',
+  feed: t`Feed qoefi`,
   subdomain: 'Tenants (sous-domaines)',
-  public_profile: 'Profils publics',
+  public_profile: t`Profils publics`,
   direct: t`Accès direct / externe`,
 });
 

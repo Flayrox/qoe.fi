@@ -35,12 +35,12 @@ export type ArticleAttributionDraft = {
 };
 
 const ROLE_OPTIONS = () => [
-  { value: 'PRIMARY_AUTHOR', label: 'Auteur principal' },
-  { value: 'CO_AUTHOR', label: 'Co-auteur' },
+  { value: 'PRIMARY_AUTHOR', label: t`Auteur principal` },
+  { value: 'CO_AUTHOR', label: t`Co-auteur` },
   { value: 'EDITOR', label: t`Éditeur` },
-  { value: 'CONTRIBUTOR', label: 'Contributeur' },
-  { value: 'TRANSLATOR', label: 'Traducteur' },
-  { value: 'PHOTOGRAPHER', label: 'Photographe' },
+  { value: 'CONTRIBUTOR', label: t`Contributeur` },
+  { value: 'TRANSLATOR', label: t`Traducteur` },
+  { value: 'PHOTOGRAPHER', label: t`Photographe` },
 ];
 
 type ContributorResult = Omit<ArticleAttributionDraft, 'role' | 'order' | 'isVisible'>;
@@ -59,7 +59,7 @@ function Avatar({ person, size = 28 }: { person: ContributorResult; size?: numbe
 }
 
 function visibilityLabel(person: ArticleAttributionDraft) {
-  if (person.consentStatus !== 'ACCEPTED') return 'En attente';
+  if (person.consentStatus !== 'ACCEPTED') return t`En attente`;
   return person.isVisible ? t`Cité` : t`Non cité`;
 }
 
@@ -234,7 +234,7 @@ export function ArticleAttributionEditor({
               <Avatar person={person} />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-xs font-semibold text-foreground">
-                  {person.name || person.username || 'Contributeur'}
+                  {person.name || person.username || t`Contributeur`}
                 </div>
                 <div className="truncate text-[10px] text-muted-foreground">
                   @{person.username || person.userId.slice(0, 8)}
@@ -252,7 +252,7 @@ export function ArticleAttributionEditor({
                 )}
               </div>
               <Select
-                label={`Rôle de ${person.name || person.username || 'contributeur'}`}
+                label={t`Rôle de ${person.name || person.username || 'contributeur'}`}
                 hideLabel
                 size="xs"
                 className="max-w-[130px]"
@@ -297,7 +297,7 @@ export function ArticleAttributionEditor({
                     size="xs"
                     shape="icon"
                     onClick={() => removeContributor(index)}
-                    aria-label={`Retirer ${person.name || t`le contributeur`}`}
+                    aria-label={t`Retirer ${person.name || t`le contributeur`}`}
                     title={t`Retirer le contributeur`}
                   >
                     <X aria-hidden />
@@ -339,7 +339,7 @@ export function ArticleAttributionEditor({
                 <Avatar person={person} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-xs font-medium">
-                    {person.name || person.username || 'Contributeur'}
+                    {person.name || person.username || t`Contributeur`}
                   </span>
                   <span className="block truncate text-[10px] text-muted-foreground">
                     @{person.username || person.userId.slice(0, 8)}

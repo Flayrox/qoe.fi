@@ -21,12 +21,12 @@ interface OfferRow {
 
 const ROWS = (): OfferRow[] => [
   {
-    label: 'Publier textes, newsletters, collections',
+    label: t`Publier textes, newsletters, collections`,
     hint: t`Plateforme complète, sans limite de volume éditorial.`,
     level: 'free',
   },
   {
-    label: 'Template e-mail classique (nom + logo)',
+    label: t`Template e-mail classique (nom + logo)`,
     hint: t`E-mails soignés, sujets et textes par défaut localisés.`,
     level: 'free',
   },

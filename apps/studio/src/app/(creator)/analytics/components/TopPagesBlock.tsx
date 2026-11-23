@@ -20,7 +20,7 @@ export function TopPagesBlock({ topPages, articleTitlesMap, onSelectArticle }: T
       <div className="flex items-center justify-between mb-5">
         <div>
           <h3 className="text-[17px] font-semibold tracking-tight text-foreground">
-            Publishers & Pages lues
+            {t`Publishers & Pages lues`}
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
             {t`Cliquez sur un article pour analyser ses métriques dédiées`}
@@ -68,7 +68,9 @@ export function TopPagesBlock({ topPages, articleTitlesMap, onSelectArticle }: T
                     <span className="font-semibold text-foreground text-sm">
                       {page.y.toLocaleString()}
                     </span>
-                    <span className="text-xs text-muted-foreground">vues</span>
+                    <span className="text-xs text-muted-foreground">
+                      {page.y === 1 ? t`vue` : t`vues`}
+                    </span>
                     <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-foreground group-hover:translate-x-0.5 transition-all stroke-[1.5]" />
                   </div>
                 </div>

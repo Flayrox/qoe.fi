@@ -1241,7 +1241,7 @@ export function ArticlesClient({
                           [
                             ['category', t`Catégorie`],
                             ['status', t`Statut`],
-                            ['premium', 'Premium'],
+                            ['premium', t`Premium`],
                             ['updatedAt', t`Modifié`],
                             ['views', t`Vues`],
                             ['comments', t`Commentaires`],

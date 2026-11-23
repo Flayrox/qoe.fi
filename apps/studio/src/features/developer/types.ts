@@ -42,7 +42,7 @@ export const DEVELOPER_CAPABILITIES = (): Array<{
 }> => [
   {
     key: 'api:read',
-    label: 'Lecture',
+    label: t`Lecture`,
     description: t`Articles, profils publics et taxonomies.`,
   },
   {
@@ -52,12 +52,12 @@ export const DEVELOPER_CAPABILITIES = (): Array<{
   },
   {
     key: 'api:analytics',
-    label: 'Analytics',
+    label: t`Analytics`,
     description: t`Métriques de lecture et temps de complétion.`,
   },
   {
     key: 'webhooks',
-    label: 'Webhooks',
+    label: t`Webhooks`,
     description: t`Événements sortants signés en HMAC SHA-256.`,
   },
   {

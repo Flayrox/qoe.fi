@@ -195,7 +195,7 @@ export function NavigationTab({
     const newId = clientNavigationLinkId();
     const newLink: ClientNavigationItem = {
       id: newId,
-      label: 'Contact',
+      label: t`Contact`,
       url: 'mailto:contact@votre-domaine.com',
       order: current.navigation.length,
       isExternal: true,
@@ -234,7 +234,7 @@ export function NavigationTab({
         key: 'home',
         id: 'home',
         type: 'home',
-        label: 'Accueil',
+        label: t`Accueil`,
         url: '/',
         isVisible: showHomeInNav,
         onToggle: toggleHomeInNav,

@@ -176,7 +176,7 @@ export function TotpEnrollment({ factorId, onVerified, onCancel, intro }: Props)
             type="button"
             variant="ghost"
             size="xs"
-            onClick={() => copy(secret, 'Secret')}
+            onClick={() => copy(secret, t`Secret`)}
             className="shrink-0"
           >
             <Icon name="copy" size="sm" />
@@ -190,7 +190,7 @@ export function TotpEnrollment({ factorId, onVerified, onCancel, intro }: Props)
           type="button"
           variant="ghost"
           size="xs"
-          onClick={() => copy(uri, 'Lien otpauth')}
+          onClick={() => copy(uri, t`Lien otpauth`)}
           className="justify-start px-0 text-primary hover:bg-transparent hover:underline"
         >
           {t`Copier le lien otpauth://`}

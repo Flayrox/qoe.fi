@@ -4,6 +4,7 @@
 
 import type { TemplatePublisherContext, TemplateArticleItem } from '@qoe/ui/templates';
 import type { SidebarProps } from '@qoe/ui/sidebar';
+import { t } from '@lingui/core/macro';
 
 export type StageDevice = 'desktop' | 'tablet' | 'mobile';
 
@@ -27,7 +28,7 @@ export const DEVICE_DIMENSIONS: Record<
   StageDevice,
   { width: number; label: string; icon: string }
 > = {
-  desktop: { width: 1280, label: 'Desktop', icon: 'Monitor' },
-  tablet: { width: 768, label: 'Tablette', icon: 'Tablet' },
-  mobile: { width: 390, label: 'Mobile', icon: 'Smartphone' },
+  desktop: { width: 1280, label: t`Desktop`, icon: 'Monitor' },
+  tablet: { width: 768, label: t`Tablette`, icon: 'Tablet' },
+  mobile: { width: 390, label: t`Mobile`, icon: 'Smartphone' },
 };

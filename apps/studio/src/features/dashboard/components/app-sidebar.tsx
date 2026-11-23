@@ -68,7 +68,7 @@ export async function AppSidebar() {
     dbUser?.name ||
     dbUser?.username ||
     (authUser?.user_metadata?.name as string | undefined) ||
-    'Creator';
+    t`Creator`;
   const userFallback = userName.slice(0, 2).toUpperCase();
   // Avatar du compte : logo personnel, sinon logo de la publication
   // personnelle (convention PERSONAL), sinon avatar Supabase.

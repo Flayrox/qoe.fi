@@ -305,7 +305,7 @@ interface ArticleReadingStats {
 
 export async function getCreatorAnalyticsData(
   period: TimePeriod = '30d'
-): Promise<{ data?: AnalyticsResponseData; error?: string }> {
+): Promise<{ data?: AnalyticsResponseData; error?: string; errorCode?: 'unauthorized' }> {
   try {
     const supabase = await createClient();
     const {
@@ -314,7 +314,7 @@ export async function getCreatorAnalyticsData(
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return { error: t`Non autorisé` };
+      return { error: t`Non autorisé`, errorCode: 'unauthorized' };
     }
 
     const workspace = await getActiveWorkspace(user.id);
@@ -673,7 +673,7 @@ async function buildArticleDetail(
 export async function getArticleAnalyticsDetail(
   urlPath: string,
   period: TimePeriod = '30d'
-): Promise<{ data?: ArticleDetailData; error?: string }> {
+): Promise<{ data?: ArticleDetailData; error?: string; errorCode?: 'unauthorized' }> {
   try {
     const supabase = await createClient();
     const {
@@ -682,7 +682,7 @@ export async function getArticleAnalyticsDetail(
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return { error: t`Non autorisé` };
+      return { error: t`Non autorisé`, errorCode: 'unauthorized' };
     }
 
     const workspace = await getActiveWorkspace(user.id);
@@ -696,7 +696,7 @@ export async function getArticleAnalyticsDetail(
     }
     return { data: await buildArticleDetail(article, urlPath, period) };
   } catch (err: unknown) {
-    return { error: err instanceof Error ? err.message : "Erreur d'inspection" };
+    return { error: err instanceof Error ? err.message : t`Erreur d'inspection` };
   }
 }
 
@@ -709,7 +709,7 @@ export async function getArticleAnalyticsDetail(
 export async function getArticleAnalyticsDetailById(
   identifier: string,
   period: TimePeriod = '30d'
-): Promise<{ data?: ArticleDetailData; error?: string }> {
+): Promise<{ data?: ArticleDetailData; error?: string; errorCode?: 'unauthorized' }> {
   try {
     const supabase = await createClient();
     const {
@@ -718,7 +718,7 @@ export async function getArticleAnalyticsDetailById(
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return { error: t`Non autorisé` };
+      return { error: t`Non autorisé`, errorCode: 'unauthorized' };
     }
 
     const workspace = await getActiveWorkspace(user.id);
@@ -728,6 +728,6 @@ export async function getArticleAnalyticsDetailById(
     }
     return { data: await buildArticleDetail(article, `/articles/${article.slug}`, period) };
   } catch (err: unknown) {
-    return { error: err instanceof Error ? err.message : "Erreur d'inspection" };
+    return { error: err instanceof Error ? err.message : t`Erreur d'inspection` };
   }
 }

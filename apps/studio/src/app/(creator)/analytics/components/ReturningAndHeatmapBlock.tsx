@@ -67,7 +67,9 @@ export function ReturningAndHeatmapBlock({ insights }: ReturningAndHeatmapBlockP
             </div>
           </div>
           <span className="text-xs text-muted-foreground font-medium">
-            {total.toLocaleString()} visiteurs
+            {total === 1
+              ? t`${total.toLocaleString()} visiteur`
+              : t`${total.toLocaleString()} visiteurs`}
           </span>
         </div>
 
@@ -92,7 +94,7 @@ export function ReturningAndHeatmapBlock({ insights }: ReturningAndHeatmapBlockP
                 <div className="absolute inset-3 rounded-full bg-card flex flex-col items-center justify-center">
                   <span className="text-lg font-bold text-foreground leading-none">{newPct}%</span>
                   <span className="text-[9px] uppercase tracking-wider text-muted-foreground mt-1">
-                    nouveaux
+                    {t`nouveaux`}
                   </span>
                 </div>
               </div>

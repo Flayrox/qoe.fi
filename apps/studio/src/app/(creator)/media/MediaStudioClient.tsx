@@ -182,12 +182,12 @@ const INVITE_SORT = (): SortSpec<MediaInviteLinkDTO> => ({
   },
   status: {
     kind: 'rank',
-    rank: ['Actif', t`Expiré`, t`Épuisé`, t`Révoqué`],
+    rank: [t`Actif`, t`Expiré`, t`Épuisé`, t`Révoqué`],
     value: (row) => {
       if (row.isRevoked) return t`Révoqué`;
       if (row.expiresAt && new Date(row.expiresAt).getTime() < Date.now()) return t`Expiré`;
       if (row.maxUses > 0 && row.usedCount >= row.maxUses) return t`Épuisé`;
-      return 'Actif';
+      return t`Actif`;
     },
   },
   uses: {
@@ -550,7 +550,7 @@ export function MediaStudioClient({
 
   const handleRemoveMember = async (memberUserId: string, memberName: string) => {
     if (!detail) return;
-    if (!window.confirm(`Retirer ${memberName} du Média ?`)) return;
+    if (!window.confirm(t`Retirer ${memberName} du Média ?`)) return;
     const res = await attemptWithStepUp(() => removeMediaMemberAction(detail.id, memberUserId), {
       fallback: t`Échec du retrait du membre.`,
     });
@@ -756,12 +756,16 @@ export function MediaStudioClient({
         <div className="flex items-center gap-6 mt-6 text-sm">
           <span className="flex items-baseline gap-1.5">
             <span className="font-bold tabular-nums">{detail.members.length}</span>
-            <span className="text-xs text-muted-foreground">membres</span>
+            <span className="text-xs text-muted-foreground">
+              {detail.members.length === 1 ? t`membre` : t`membres`}
+            </span>
           </span>
           <span className="h-3 w-px bg-border/60" />
           <span className="flex items-baseline gap-1.5">
             <span className="font-bold tabular-nums">{detail.publisher._count.articles}</span>
-            <span className="text-xs text-muted-foreground">articles</span>
+            <span className="text-xs text-muted-foreground">
+              {detail.publisher._count.articles === 1 ? t`article` : t`articles`}
+            </span>
           </span>
         </div>
       </div>
@@ -877,7 +881,7 @@ export function MediaStudioClient({
                     <TableRow id={member.id}>
                       <TableCell>
                         <TablePersonCell
-                          name={member.user.name || member.user.username || 'Inconnu'}
+                          name={member.user.name || member.user.username || t`Inconnu`}
                           src={member.user.logoUrl}
                           meta={member.user.username ? `@${member.user.username}` : undefined}
                         />
@@ -1458,7 +1462,7 @@ function PermissionPopover({
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        aria-label={`Permissions de ${member.user.name || member.user.username || t`ce membre`}`}
+        aria-label={t`Permissions de ${member.user.name || member.user.username || t`ce membre`}`}
         className="w-64 space-y-1 p-3"
       >
         <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1 pb-1">
@@ -1546,7 +1550,7 @@ function MediaSettingsForm({
             <Input value={form.name} onChange={(e) => set('name', e.target.value)} />
           </div>
           <div>
-            <label className={labelCls}>Couleur d&apos;accent</label>
+            <label className={labelCls}>{t`Couleur d'accent`}</label>
             <Input
               value={form.accentColor ?? ''}
               onChange={(e) => set('accentColor', e.target.value)}

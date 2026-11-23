@@ -410,7 +410,7 @@ export function StageCanvas({
   const selectedLabel =
     layout.blocks.find((b) => b.id === selectedBlockId)?.label ??
     layout.blocks.find((b) => b.id === selectedBlockId)?.type ??
-    'Section';
+    t`Section`;
 
   // Snap : lignes centrales quand la sélection s'aligne au centre de l'artboard
   const snapLines = useMemo(() => {

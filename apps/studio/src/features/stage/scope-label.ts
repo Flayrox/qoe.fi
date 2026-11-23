@@ -1,3 +1,4 @@
+import { t } from '@lingui/core/macro';
 // =====================================================================
 // scope-label — libellé du scope de page du Stage
 // =====================================================================
@@ -9,8 +10,8 @@
 export type StageScopePage = 'home' | 'article';
 
 export function stageScopeLabel(page: StageScopePage, category: string | null): string {
-  if (page !== 'article') return 'Accueil';
-  return category ? `Article · ${category}` : 'Article';
+  if (page !== 'article') return t`Accueil`;
+  return category ? t`Article · ${category}` : t`Article`;
 }
 
 export function stageScopeTitle(page: StageScopePage, category: string | null): string {

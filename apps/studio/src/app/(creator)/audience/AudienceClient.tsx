@@ -56,13 +56,13 @@ const SUBSCRIBER_SORT: SortSpec<SubscriberItem> = {
   person: { kind: 'text', value: (row) => row.email },
   status: {
     kind: 'rank',
-    rank: ['Actif', 'Inactif'],
-    value: (row) => (row.isActive ? 'Actif' : 'Inactif'),
+    rank: [t`Actif`, t`Inactif`],
+    value: (row) => (row.isActive ? t`Actif` : t`Inactif`),
   },
   plan: {
     kind: 'rank',
-    rank: ['Premium', 'Gratuit'],
-    value: (row) => (row.isPremium ? 'Premium' : 'Gratuit'),
+    rank: [t`Premium`, t`Gratuit`],
+    value: (row) => (row.isPremium ? t`Premium` : t`Gratuit`),
   },
   ltv: { kind: 'number', value: (row) => row.ltvCents },
   createdAt: { kind: 'date', value: (row) => new Date(row.createdAt) },
@@ -113,11 +113,11 @@ export function AudienceClient({ initialSubscribers, unavailable = false }: Audi
 
     if (listToExport.length === 0) return;
 
-    const headers = ['Email', 'Statut', 'Formule', 'Revenu LTV (EUR)', 'Date Inscription'];
+    const headers = [t`Email`, t`Statut`, t`Formule`, 'Revenu LTV (EUR)', 'Date Inscription'];
     const rows = listToExport.map((s) => [
       s.email,
-      s.isActive ? 'Actif' : 'Inactif',
-      s.isPremium ? 'Premium' : 'Gratuit',
+      s.isActive ? t`Actif` : t`Inactif`,
+      s.isPremium ? t`Premium` : t`Gratuit`,
       (s.ltvCents / 100).toFixed(2),
       new Date(s.createdAt).toLocaleDateString('fr-FR'),
     ]);

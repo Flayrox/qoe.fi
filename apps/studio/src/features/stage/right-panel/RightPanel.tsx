@@ -29,10 +29,10 @@ interface RightPanelProps {
 
 const SLOT_KEYS = ['title', 'subtitle', 'actions', 'header', 'legal'] as const;
 const NODE_KINDS: { kind: TemplateNode['kind']; label: string }[] = [
-  { kind: 'text', label: 'Texte' },
-  { kind: 'button', label: 'Bouton' },
-  { kind: 'badge', label: 'Badge' },
-  { kind: 'image', label: 'Image' },
+  { kind: 'text', label: t`Texte` },
+  { kind: 'button', label: t`Bouton` },
+  { kind: 'badge', label: t`Badge` },
+  { kind: 'image', label: t`Image` },
 ];
 
 export function RightPanel({
@@ -236,7 +236,7 @@ export function RightPanel({
                       type="button"
                       onClick={() => onAddNode(selectedBlock.id, slotKey, k.kind)}
                       className="flex items-center gap-1 rounded-md bg-muted/50 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
-                      title={`Ajouter : ${k.label}`}
+                      title={t`Ajouter : ${k.label}`}
                     >
                       <Plus className="h-3 w-3" />
                       <span>{k.label}</span>
@@ -327,9 +327,9 @@ export function RightPanel({
                 onValueChange={(style) => handlePropChange('style', style)}
                 options={[
                   { id: 'cinematic-banner', label: t`Bannière` },
-                  { id: 'typographic-minimal', label: 'Typographique' },
+                  { id: 'typographic-minimal', label: t`Typographique` },
                   { id: 'split-featured', label: 'Deux Colonnes (Split)' },
-                  { id: 'floating-card', label: 'Carte' },
+                  { id: 'floating-card', label: t`Carte` },
                 ]}
               />
             </div>
@@ -348,7 +348,7 @@ export function RightPanel({
                         : 'bg-muted/50 text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    {h === 'compact' ? t`Compact` : h === 'tall' ? 'Grand' : 'Standard'}
+                    {h === 'compact' ? t`Compact` : h === 'tall' ? t`Grand` : t`Standard`}
                   </button>
                 ))}
               </div>
@@ -393,7 +393,7 @@ export function RightPanel({
                         : 'bg-muted/50 text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    {al === 'auto' ? t`Auto` : al === 'left' ? 'Gauche' : t`Centré`}
+                    {al === 'auto' ? t`Auto` : al === 'left' ? t`Gauche` : t`Centré`}
                   </button>
                 ))}
               </div>
@@ -591,9 +591,9 @@ export function RightPanel({
                 value={(props.displayMode as string) || 'grid-3'}
                 onValueChange={(displayMode) => handlePropChange('displayMode', displayMode)}
                 options={[
-                  { id: 'list', label: 'Lignes Compactes' },
-                  { id: 'grid-2', label: 'Grille 2 Colonnes' },
-                  { id: 'grid-3', label: 'Grille 3 Colonnes' },
+                  { id: 'list', label: t`Lignes Compactes` },
+                  { id: 'grid-2', label: t`Grille 2 Colonnes` },
+                  { id: 'grid-3', label: t`Grille 3 Colonnes` },
                 ]}
               />
             </div>
@@ -647,11 +647,11 @@ export function RightPanel({
         {selectedBlock.type === 'newsletter-wall' && (
           <div className="space-y-3">
             <div className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
-              Mur d&apos;Abonnement
+              {t`Mur d'Abonnement`}
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground text-[11px]">Titre d&apos;Incitation</label>
+              <label className="text-muted-foreground text-[11px]">{t`Titre d'Incitation`}</label>
               <input
                 type="text"
                 value={(props.title as string) || ''}
@@ -732,10 +732,10 @@ export function RightPanel({
 
             {(
               [
-                ['showExcerpt', 'Extrait'],
-                ['showReadTime', 'Temps de lecture'],
-                ['showDate', 'Date'],
-                ['highlightFirstArticle', 'Mettre en avant'],
+                ['showExcerpt', t`Extrait`],
+                ['showReadTime', t`Temps de lecture`],
+                ['showDate', t`Date`],
+                ['highlightFirstArticle', t`Mettre en avant`],
               ] as const
             ).map(([key, label]) => (
               <div key={key} className="flex items-center justify-between py-1">

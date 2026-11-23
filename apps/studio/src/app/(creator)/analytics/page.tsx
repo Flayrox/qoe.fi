@@ -10,7 +10,7 @@ import { AnalyticsDashboardClient } from './AnalyticsDashboardClient';
 export default async function AnalyticsPage() {
   const [result, language] = await Promise.all([getCreatorAnalyticsData('30d'), getLanguage()]);
 
-  if (result.error === 'Non autorisé') {
+  if (result.errorCode === 'unauthorized') {
     redirect('/login');
   }
 

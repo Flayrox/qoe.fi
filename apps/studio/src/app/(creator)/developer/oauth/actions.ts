@@ -54,7 +54,7 @@ export async function listOAuthClientsAction(
   } catch (err) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : 'Erreur serveur',
+      error: err instanceof Error ? err.message : t`Erreur serveur`,
     };
   }
 }
@@ -91,7 +91,7 @@ export async function createOAuthClientAction(input: {
   } catch (err) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : 'Erreur serveur',
+      error: err instanceof Error ? err.message : t`Erreur serveur`,
     };
   }
 }
@@ -111,7 +111,7 @@ export async function rotateOAuthClientSecretAction(
   } catch (err) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : 'Erreur serveur',
+      error: err instanceof Error ? err.message : t`Erreur serveur`,
     };
   }
 }
@@ -128,7 +128,7 @@ export async function deleteOAuthClientAction(
   } catch (err) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : 'Erreur serveur',
+      error: err instanceof Error ? err.message : t`Erreur serveur`,
     };
   }
 }

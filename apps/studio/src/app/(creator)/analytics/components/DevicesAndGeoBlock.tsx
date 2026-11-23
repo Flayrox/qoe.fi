@@ -14,15 +14,15 @@ interface DevicesAndGeoBlockProps {
 type MetricTab = 'devices' | 'browsers' | 'countries';
 
 const countryNames = (): Record<string, string> => ({
-  FR: 'France',
+  FR: t`France`,
   US: t`États-Unis`,
   GB: 'Royaume-Uni',
-  CA: 'Canada',
-  DE: 'Allemagne',
-  BE: 'Belgique',
-  CH: 'Suisse',
-  ES: 'Espagne',
-  IT: 'Italie',
+  CA: t`Canada`,
+  DE: t`Allemagne`,
+  BE: t`Belgique`,
+  CH: t`Suisse`,
+  ES: t`Espagne`,
+  IT: t`Italie`,
   NL: 'Pays-Bas',
 });
 
@@ -42,9 +42,9 @@ export function DevicesAndGeoBlock({ devices, browsers, countries }: DevicesAndG
     if (activeTab === 'countries') {
       return countryNames()[rawKey.toUpperCase()] || rawKey;
     }
-    if (!rawKey || rawKey === 'desktop') return 'Ordinateur (Desktop)';
-    if (rawKey === 'mobile') return 'Mobile / Smartphone';
-    if (rawKey === 'tablet') return 'Tablette';
+    if (!rawKey || rawKey === 'desktop') return t`Ordinateur (Desktop)`;
+    if (rawKey === 'mobile') return t`Mobile / Smartphone`;
+    if (rawKey === 'tablet') return t`Tablette`;
     return rawKey;
   };
 
@@ -61,7 +61,7 @@ export function DevicesAndGeoBlock({ devices, browsers, countries }: DevicesAndG
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h3 className="text-[17px] font-semibold tracking-tight text-foreground">
-            Appareils & Audience
+            {t`Appareils & Audience`}
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
             {t`Répartition technique et géographique de vos lecteurs`}
@@ -72,9 +72,9 @@ export function DevicesAndGeoBlock({ devices, browsers, countries }: DevicesAndG
         <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/40 border border-border/30">
           {(
             [
-              { id: 'devices', label: 'Appareils' },
-              { id: 'browsers', label: 'Navigateurs' },
-              { id: 'countries', label: 'Pays' },
+              { id: 'devices', label: t`Appareils` },
+              { id: 'browsers', label: t`Navigateurs` },
+              { id: 'countries', label: t`Pays` },
             ] as const
           ).map((tab) => (
             <button
@@ -122,7 +122,9 @@ export function DevicesAndGeoBlock({ devices, browsers, countries }: DevicesAndG
                     <span className="font-semibold text-foreground text-sm">
                       {item.y.toLocaleString()}
                     </span>
-                    <span className="text-xs text-muted-foreground">lecteurs</span>
+                    <span className="text-xs text-muted-foreground">
+                      {item.y === 1 ? t`lecteur` : t`lecteurs`}
+                    </span>
                   </div>
                 </div>
 

@@ -27,6 +27,7 @@ import {
   restoreSiteLayoutVersionAction,
 } from '@/app/(creator)/settings/design/actions';
 import { STAGE_DEFAULT_POSITION, STAGE_DEFAULT_SCALE, clampStageZoom } from '../engine/constants';
+import { t } from '@lingui/core/macro';
 
 /**
  * Identifiant unique pour les blocs et nœuds créés côté client.
@@ -487,9 +488,9 @@ export function StageEngineProvider({
       const node: TemplateNode = {
         oid,
         kind,
-        ...(kind === 'text' ? { tag: 'p' as const, textFallback: 'Texte' } : {}),
-        ...(kind === 'button' ? { textFallback: 'Bouton', overrides: {} } : {}),
-        ...(kind === 'badge' ? { textFallback: 'Badge' } : {}),
+        ...(kind === 'text' ? { tag: 'p' as const, textFallback: t`Texte` } : {}),
+        ...(kind === 'button' ? { textFallback: t`Bouton`, overrides: {} } : {}),
+        ...(kind === 'badge' ? { textFallback: t`Badge` } : {}),
         ...(kind === 'image' ? { tag: 'img' as const, overrides: {} } : {}),
       };
       const nextBlocks = layout.blocks.map((b) => {
@@ -898,7 +899,7 @@ export function StageEngineProvider({
       const pubId = publisher.id || '';
       const res = await saveSiteLayoutDraftAction(pubId, payload);
       if (!res.success) {
-        setSaveError(res.error ?? 'Enregistrement impossible');
+        setSaveError(res.error ?? t`Enregistrement impossible`);
         return;
       }
       setSaveError(null);
@@ -908,7 +909,7 @@ export function StageEngineProvider({
       console.error('Erreur sauvegarde Stage :', err);
       // Une exception réseau ne doit pas laisser l'éditeur muet : sans message,
       // l'utilisateur croit avoir enregistré.
-      setSaveError(err instanceof Error ? err.message : 'Enregistrement impossible');
+      setSaveError(err instanceof Error ? err.message : t`Enregistrement impossible`);
     } finally {
       setIsSaving(false);
     }
@@ -921,7 +922,7 @@ export function StageEngineProvider({
     try {
       const res = await publishSiteLayoutAction(pubId);
       if (!res.success) {
-        setSaveError(res.error ?? 'Publisher impossible');
+        setSaveError(res.error ?? t`Publisher impossible`);
         return;
       }
       setSaveError(null);
@@ -930,7 +931,7 @@ export function StageEngineProvider({
       await loadSnapshots();
     } catch (err) {
       console.error('Erreur publication Stage :', err);
-      setSaveError(err instanceof Error ? err.message : 'Publication impossible');
+      setSaveError(err instanceof Error ? err.message : t`Publication impossible`);
     } finally {
       setIsPublishing(false);
     }

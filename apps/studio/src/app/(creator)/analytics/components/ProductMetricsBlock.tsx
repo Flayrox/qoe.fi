@@ -366,7 +366,7 @@ export function ProductMetricsBlock({ metrics, onSelectArticle }: ProductMetrics
                       {/* Surlignages */}
                       <div
                         className="flex items-center gap-1 text-xs text-muted-foreground"
-                        title={`${article.highlights} surlignages (${article.highlightsPublic} publics, ${article.highlightsPrivate} privés)`}
+                        title={t`${article.highlights} surlignages (${article.highlightsPublic} publics, ${article.highlightsPrivate} privés)`}
                       >
                         <Highlighter className="h-3.5 w-3.5 stroke-[1.5]" />
                         <span>{article.highlights}</span>

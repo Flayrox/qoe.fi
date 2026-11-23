@@ -24,7 +24,7 @@ const SOURCE_OPTIONS = () => [
   { id: 'mailchimp', label: 'Mailchimp' },
   { id: 'cms_export', label: t`Export de mon CMS` },
   { id: 'csv_manual', label: t`Fichier constitué à la main` },
-  { id: 'other', label: 'Autre' },
+  { id: 'other', label: t`Autre` },
 ];
 
 /**

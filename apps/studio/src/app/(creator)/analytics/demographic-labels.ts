@@ -5,10 +5,10 @@
 import { t } from '@lingui/core/macro';
 
 export const GENDER_LABELS = (): Record<string, string> => ({
-  FEMALE: 'Femme',
-  MALE: 'Homme',
-  NON_BINARY: 'Non-binaire',
-  OTHER: 'Autre',
+  FEMALE: t`Femme`,
+  MALE: t`Homme`,
+  NON_BINARY: t`Non-binaire`,
+  OTHER: t`Autre`,
   PREFER_NOT_TO_SAY: t`Préfère ne pas dire`,
 });
 

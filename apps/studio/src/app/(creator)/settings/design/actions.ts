@@ -51,7 +51,7 @@ export async function saveSiteLayoutDraftAction(publisherId: string, layout: str
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Enregistrement impossible',
+      error: error instanceof Error ? error.message : t`Enregistrement impossible`,
     };
   }
 }
@@ -72,7 +72,7 @@ export async function publishSiteLayoutAction(publisherId: string) {
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Publisher impossible',
+      error: error instanceof Error ? error.message : t`Publisher impossible`,
     };
   }
 }
@@ -93,7 +93,7 @@ export async function listSiteLayoutVersionsAction(publisherId: string) {
     return {
       success: false,
       versions: [] as SiteVersionSnapshot[],
-      error: error instanceof Error ? error.message : 'Versions indisponibles',
+      error: error instanceof Error ? error.message : t`Versions indisponibles`,
     };
   }
 }
@@ -114,7 +114,7 @@ export async function restoreSiteLayoutVersionAction(publisherId: string, versio
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Restauration impossible',
+      error: error instanceof Error ? error.message : t`Restauration impossible`,
     };
   }
 }

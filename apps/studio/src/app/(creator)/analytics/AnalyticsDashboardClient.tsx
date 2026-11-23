@@ -81,7 +81,7 @@ export function AnalyticsDashboardClient({
                 ['7d', '7 jours'],
                 ['30d', '30 jours'],
                 ['90d', '90 jours'],
-                ['all', 'Tout'],
+                ['all', t`Tout`],
               ] as const
             ).map(([period, label]) => (
               <ToggleButton key={period} id={period} size="xs" isDisabled={isPending}>
@@ -108,7 +108,7 @@ export function AnalyticsDashboardClient({
             <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/40 border border-border/30 text-xs text-muted-foreground shrink-0">
               <Info className="h-4 w-4 shrink-0 stroke-[1.5]" />
               <span>
-                {t`Website ID global :`}{' '}
+                {t`Website ID global :`}
                 <span className="text-foreground font-medium">NEXT_PUBLIC_UMAMI_WEBSITE_ID</span>
               </span>
             </div>

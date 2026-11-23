@@ -118,17 +118,17 @@ export function WebhooksClient({
         const list = await listWebhooksAction();
         if (list.success) setWebhooks(list.webhooks);
       } else {
-        toast.error(res.error || 'Erreur');
+        toast.error(res.error || t`Erreur`);
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Erreur');
+      toast.error(error instanceof Error ? error.message : t`Erreur`);
     } finally {
       setBusyId(null);
     }
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Supprimer le webhook "${name}" ?`)) return;
+    if (!confirm(t`Supprimer le webhook "${name}" ?`)) return;
     setBusyId(id);
     try {
       const res = await deleteWebhookAction(id);
@@ -136,10 +136,10 @@ export function WebhooksClient({
         setWebhooks((prev) => prev.filter((w) => w.id !== id));
         toast.success(t`Webhook supprimé.`);
       } else {
-        toast.error(res.error || 'Erreur');
+        toast.error(res.error || t`Erreur`);
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Erreur');
+      toast.error(error instanceof Error ? error.message : t`Erreur`);
     } finally {
       setBusyId(null);
     }
@@ -199,7 +199,7 @@ export function WebhooksClient({
   return (
     <DeveloperShell
       access={access}
-      description={`Recevez les événements de « ${workspaceName} » avec une signature HMAC SHA-256.`}
+      description={t`Recevez les événements de « ${workspaceName} » avec une signature HMAC SHA-256.`}
     >
       {hasWebhookGrant ? (
         <div className="flex justify-end">

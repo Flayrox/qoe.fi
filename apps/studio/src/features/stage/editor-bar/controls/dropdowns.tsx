@@ -123,9 +123,9 @@ export function DisplayControl() {
         value={style.display ?? 'block'}
         onChange={(v) => patch({ display: v })}
         options={[
-          { value: 'block', label: 'Bloc' },
-          { value: 'flex', label: 'Flex' },
-          { value: 'grid', label: 'Grille' },
+          { value: 'block', label: t`Bloc` },
+          { value: 'flex', label: t`Flex` },
+          { value: 'grid', label: t`Grille` },
         ]}
       />
       {style.display === 'flex' && (
@@ -180,9 +180,9 @@ export function DimensionControl() {
         value={style.width?.mode ?? 'fill'}
         onChange={(v) => patch({ width: { ...(style.width ?? {}), mode: v } })}
         options={[
-          { value: 'hug', label: 'Hug' },
-          { value: 'fill', label: 'Fill' },
-          { value: 'fixed', label: 'Fixe' },
+          { value: 'hug', label: t`Hug` },
+          { value: 'fill', label: t`Fill` },
+          { value: 'fixed', label: t`Fixe` },
         ]}
       />
       {(style.width?.mode ?? 'fill') === 'fixed' && (
@@ -199,9 +199,9 @@ export function DimensionControl() {
         value={style.height?.mode ?? 'hug'}
         onChange={(v) => patch({ height: { ...(style.height ?? {}), mode: v } })}
         options={[
-          { value: 'hug', label: 'Hug' },
-          { value: 'fill', label: 'Fill' },
-          { value: 'fixed', label: 'Fixe' },
+          { value: 'hug', label: t`Hug` },
+          { value: 'fill', label: t`Fill` },
+          { value: 'fixed', label: t`Fixe` },
         ]}
       />
       {(style.height?.mode ?? 'hug') === 'fixed' && (

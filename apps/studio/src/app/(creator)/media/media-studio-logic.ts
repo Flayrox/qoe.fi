@@ -138,45 +138,45 @@ export function describeAuditEntry(entry: {
     case 'media.settings_updated':
       return { summary: t`a modifié les réglages du Média`, detail: fieldLabels || undefined };
     case 'media.article_created':
-      return { summary: `a créé l'article « ${title} »` };
+      return { summary: t`a créé l'article « ${title} »` };
     case 'media.article_updated':
-      return { summary: `a modifié l'article « ${title} »`, detail: fieldLabels || undefined };
+      return { summary: t`a modifié l'article « ${title} »`, detail: fieldLabels || undefined };
     case 'media.article_deleted':
-      return { summary: `a supprimé l'article « ${title} »` };
+      return { summary: t`a supprimé l'article « ${title} »` };
     case 'media.article_published':
-      return { summary: `a publié l'article « ${title} »` };
+      return { summary: t`a publié l'article « ${title} »` };
     case 'media.article_unpublished':
-      return { summary: `a dépublié l'article « ${title} »` };
+      return { summary: t`a dépublié l'article « ${title} »` };
     case 'media.article_scheduled': {
       const at = auditString(md, 'scheduledAt');
       return {
-        summary: `a programmé l'article « ${title} »`,
+        summary: t`a programmé l'article « ${title} »`,
         detail: at ? formatMediaDateTime(at) : undefined,
       };
     }
     case 'media.article_schedule_cancelled':
-      return { summary: `a annulé la programmation de l'article « ${title} »` };
+      return { summary: t`a annulé la programmation de l'article « ${title} »` };
     case 'media.article_draft_discarded':
-      return { summary: `a abandonné le brouillon de « ${title} »` };
+      return { summary: t`a abandonné le brouillon de « ${title} »` };
     case 'media.article_approved': {
       const comment = auditString(md, 'comment');
-      return { summary: `a approuvé l'article « ${title} »`, detail: comment || undefined };
+      return { summary: t`a approuvé l'article « ${title} »`, detail: comment || undefined };
     }
     case 'media.article_rejected': {
       const comment = auditString(md, 'comment');
-      return { summary: `a rejeté l'article « ${title} »`, detail: comment || undefined };
+      return { summary: t`a rejeté l'article « ${title} »`, detail: comment || undefined };
     }
     case 'media.article_transferred_out': {
       const to = auditString(md, 'toPublisherName');
       return {
-        summary: `a transféré l'article « ${title} »`,
+        summary: t`a transféré l'article « ${title} »`,
         detail: to ? `vers ${to}` : undefined,
       };
     }
     case 'media.article_transferred_in': {
       const from = auditString(md, 'fromPublisherName');
       return {
-        summary: `a reçu l'article « ${title} »`,
+        summary: t`a reçu l'article « ${title} »`,
         detail: from ? `depuis ${from}` : undefined,
       };
     }
@@ -185,7 +185,7 @@ export function describeAuditEntry(entry: {
     case 'member.permissions_changed':
       return { summary: t`a modifié les permissions d'un membre` };
     case 'member.invited_pending':
-      return { summary: `a invité @${auditString(md, 'username')}` };
+      return { summary: t`a invité @${auditString(md, 'username')}` };
     case 'member.invitation_accepted':
       return { summary: t`a rejoint le Média`, detail: auditString(md, 'role') || undefined };
     case 'member.removed':

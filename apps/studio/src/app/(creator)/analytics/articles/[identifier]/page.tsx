@@ -16,7 +16,7 @@ export default async function ArticleAnalyticsPage({ params }: PageProps) {
   const { identifier } = await params;
   const result = await getArticleAnalyticsDetailById(identifier, '30d');
 
-  if (result.error === 'Non autorisé') {
+  if (result.errorCode === 'unauthorized') {
     redirect('/login');
   }
 

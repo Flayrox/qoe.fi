@@ -162,7 +162,7 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
           available: res.ok ? res.data.available : false,
           error: res.ok
             ? res.data.reason || null
-            : res.error?.message || 'Sous-domaine indisponible.',
+            : res.error?.message || t`Sous-domaine indisponible.`,
         });
       } catch {
         setSubdomainCheck({
@@ -242,14 +242,14 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
           siteOptions: current.siteOptions ?? {},
         });
         if (!profileResult.ok) {
-          throw new Error(profileResult.error.message || 'Erreur de sauvegarde.');
+          throw new Error(profileResult.error.message || t`Erreur de sauvegarde.`);
         }
       }
 
       if (current.subdomain !== original.subdomain) {
         if (current.subdomain) {
           if (subdomainCheck.available === false) {
-            throw new Error(`Sous-domaine invalide : ${subdomainCheck.error}`);
+            throw new Error(t`Sous-domaine invalide : ${subdomainCheck.error ?? ''}`);
           }
           const subResult = await updateSubdomainAction({
             publisherId,
@@ -305,7 +305,7 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
       toast.success(t`Paramètres enregistrés.`);
       setOriginal(current);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erreur de sauvegarde.';
+      const msg = err instanceof Error ? err.message : t`Erreur de sauvegarde.`;
       if (
         msg.includes('Server Action') ||
         msg.includes('Failed to find Server Action') ||

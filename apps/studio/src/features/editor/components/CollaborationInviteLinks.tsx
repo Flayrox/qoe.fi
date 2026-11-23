@@ -25,16 +25,16 @@ import { Select } from '@qoe/ui/select';
 import { t } from '@lingui/core/macro';
 
 const LINK_ROLES = () => [
-  { id: 'CONTRIBUTOR', label: 'Contributeur' },
-  { id: 'CO_AUTHOR', label: 'Co-auteur' },
+  { id: 'CONTRIBUTOR', label: t`Contributeur` },
+  { id: 'CO_AUTHOR', label: t`Co-auteur` },
   { id: 'EDITOR', label: t`Éditeur` },
 ];
 
 const LINK_DURATIONS = [
   { id: '24', label: '24 heures' },
-  { id: '168', label: '7 jours' },
-  { id: '720', label: '30 jours' },
-  { id: '0', label: 'Permanent' },
+  { id: '168', label: t`7 jours` },
+  { id: '720', label: t`30 jours` },
+  { id: '0', label: t`Permanent` },
 ];
 
 const LINK_MAX_USES = () => [
@@ -45,7 +45,7 @@ const LINK_MAX_USES = () => [
 ];
 
 function formatExpiry(dateStr: string | null) {
-  if (!dateStr) return 'Permanent';
+  if (!dateStr) return t`Permanent`;
   return new Date(dateStr).toLocaleDateString(undefined, {
     day: 'numeric',
     month: 'short',
@@ -59,9 +59,9 @@ function getJoinUrl(token: string) {
 }
 
 function roleLabel(role: string) {
-  if (role === 'CO_AUTHOR') return 'Co-auteur';
+  if (role === 'CO_AUTHOR') return t`Co-auteur`;
   if (role === 'EDITOR') return t`Éditeur`;
-  return 'Contributeur';
+  return t`Contributeur`;
 }
 
 export function CollaborationInviteLinks({

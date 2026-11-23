@@ -23,7 +23,7 @@ export function DeveloperOverview({
   return (
     <DeveloperShell
       access={access}
-      description={`Clés, webhooks et applications OAuth de ${workspace.name}.`}
+      description={t`Clés, webhooks et applications OAuth de ${workspace.name}.`}
     >
       <DeveloperAccessState
         access={access}

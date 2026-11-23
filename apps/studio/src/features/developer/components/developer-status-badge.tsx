@@ -7,11 +7,11 @@ const STATUS_META = (): Record<
   { label: string; tone: 'neutral' | 'vivid' | 'success' | 'danger' }
 > => ({
   none: { label: t`Non demandé`, tone: 'neutral' },
-  pending: { label: 'En attente', tone: 'vivid' },
+  pending: { label: t`En attente`, tone: 'vivid' },
   approved: { label: t`Accès actif`, tone: 'success' },
   rejected: { label: t`Refusé`, tone: 'danger' },
   revoked: { label: t`Révoqué`, tone: 'danger' },
-  unavailable: { label: 'Indisponible', tone: 'neutral' },
+  unavailable: { label: t`Indisponible`, tone: 'neutral' },
 });
 
 export function DeveloperStatusBadge({ status }: { status: DeveloperAccessStatus }) {

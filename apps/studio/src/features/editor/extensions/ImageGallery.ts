@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { Fragment, type Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { NodeSelection, type EditorState } from '@tiptap/pm/state';
+import { t } from '@lingui/core/macro';
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -11,10 +12,8 @@ declare module '@tiptap/core' {
   }
 }
 
-const GALLERY_STYLE =
-  'display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:0.75rem;margin:2rem 0;';
-const ITEM_STYLE =
-  'width:100%;height:100%;aspect-ratio:4/3;object-fit:cover;border-radius:0.75rem;display:block;border:1px solid rgba(0,0,0,0.06);';
+const GALLERY_STYLE = t`display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:0.75rem;margin:2rem 0;`;
+const ITEM_STYLE = t`width:100%;height:100%;aspect-ratio:4/3;object-fit:cover;border-radius:0.75rem;display:block;border:1px solid rgba(0,0,0,0.06);`;
 
 /**
  * 🖼️ Galerie d'images — plusieurs images sur la même ligne.

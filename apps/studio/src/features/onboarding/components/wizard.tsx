@@ -138,9 +138,9 @@ function MockDashboard() {
           {/* Stats Cards Grid Mock */}
           <div className="grid grid-cols-3 gap-6">
             {[
-              { label: 'Audience totale', value: '1,248', change: '+12%' },
-              { label: "Taux d'ouverture", value: '68.4%', change: '+3.2%' },
-              { label: 'Revenus (MRR)', value: '450 €', change: '+8%' },
+              { label: t`Audience totale`, value: '1,248', change: '+12%' },
+              { label: t`Taux d'ouverture`, value: '68.4%', change: '+3.2%' },
+              { label: t`Revenus (MRR)`, value: '450 €', change: '+8%' },
             ].map((card, i) => (
               <div
                 key={i}

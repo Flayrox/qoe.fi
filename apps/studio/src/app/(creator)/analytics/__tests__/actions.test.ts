@@ -130,7 +130,7 @@ describe('getCreatorAnalyticsData', () => {
 
     const res = await getCreatorAnalyticsData();
 
-    expect(res).toEqual({ error: 'Non autorisé' });
+    expect(res).toEqual({ error: 'Non autorisé', errorCode: 'unauthorized' });
     expect(mocks.goFetch).not.toHaveBeenCalled();
   });
 

@@ -73,7 +73,7 @@ export const MEDIA_METADATA_CONFIG = (): MediaMetadataField[] => [
   },
   {
     id: 'location',
-    label: 'Localisation',
+    label: t`Localisation`,
     placeholder: 'Paris, France',
     icon: MapPin,
     getValue: (p) =>
@@ -87,7 +87,7 @@ export const MEDIA_METADATA_CONFIG = (): MediaMetadataField[] => [
   {
     id: 'editorialEmail',
     label: t`Email rédactionnel`,
-    placeholder: 'redaction@mon-media.fr',
+    placeholder: t`redaction@mon-media.fr`,
     icon: Mail,
     getValue: (p) => p.email || '',
     setValue: () => {
@@ -99,7 +99,7 @@ export const MEDIA_METADATA_CONFIG = (): MediaMetadataField[] => [
   },
   {
     id: 'customDomain',
-    label: 'Site web public',
+    label: t`Site web public`,
     placeholder: 'assez.qoe.fi',
     icon: Globe,
     getValue: (p) => p.customDomain || (p.subdomain ? `${p.subdomain}.qoe.fi` : ''),
@@ -160,7 +160,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
         const url = await uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.banners);
         setCurrent((prev) => ({ ...prev, headerImageUrl: url }));
       } catch (err) {
-        console.error('Erreur upload bannière', err);
+        console.error(t`Erreur upload bannière`, err);
       } finally {
         setIsUploadingBanner(false);
       }
@@ -172,7 +172,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
       const url = await uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.avatars);
       setCurrent((prev) => ({ ...prev, logoUrl: url }));
     } catch (err) {
-      console.error('Erreur upload logo', err);
+      console.error(t`Erreur upload logo`, err);
     } finally {
       setIsUploadingLogo(false);
     }
@@ -193,7 +193,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
       : [
           {
             id: 'logo',
-            label: 'Logo',
+            label: t`Logo`,
             aspect: 1,
             width: 512,
             height: 512,
@@ -304,7 +304,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                   // eslint-disable-next-line @next/next/no-img-element -- URL utilisateur distante arbitraire, non déclarable dans next.config.
                   <img
                     src={current.logoUrl}
-                    alt={current.name || 'Logo'}
+                    alt={current.name || t`Logo`}
                     className="h-full w-full object-cover"
                   />
                 ) : (
@@ -414,7 +414,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                           'max-w-full',
                           !value && 'border-dashed text-muted-foreground'
                         )}
-                        title={`Modifier : ${field.label}`}
+                        title={t`Modifier : ${field.label}`}
                       >
                         <IconComponent className="text-primary" aria-hidden />
                         <span className="max-w-[200px] truncate">
@@ -457,7 +457,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                             field.setValue(editingDraft.trim(), setCurrent);
                             setActiveMetadataModal(null);
                           }}
-                          aria-label={`Valider ${field.label}`}
+                          aria-label={t`Valider ${field.label}`}
                         >
                           <Check aria-hidden />
                         </Button>

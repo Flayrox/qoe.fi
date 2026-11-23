@@ -105,15 +105,15 @@ export default function CollaborateJoinPage() {
   const roleLabel = (role: string) => {
     switch (role) {
       case 'PRIMARY_AUTHOR':
-        return 'Auteur principal';
+        return t`Auteur principal`;
       case 'CO_AUTHOR':
-        return 'Co-auteur';
+        return t`Co-auteur`;
       case 'EDITOR':
         return t`Éditeur`;
       case 'CONTRIBUTOR':
-        return 'Contributeur';
+        return t`Contributeur`;
       default:
-        return 'Contributeur';
+        return t`Contributeur`;
     }
   };
 
@@ -206,7 +206,7 @@ export default function CollaborateJoinPage() {
                 <span className="text-xs text-muted-foreground truncate">
                   {t`Par`}{' '}
                   <span className="font-medium text-foreground">
-                    {preview.author.name || preview.author.username || 'Auteur'}
+                    {preview.author.name || preview.author.username || t`Auteur`}
                   </span>
                   {preview.author.username && ` (@${preview.author.username})`}
                 </span>

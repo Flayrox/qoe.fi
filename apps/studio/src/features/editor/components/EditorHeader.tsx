@@ -126,7 +126,7 @@ function SaveState({
       <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
         <Check className="size-3 text-success-text" />
         {t`Brouillon enregistré`}
-        {lastSaved ? ` à ${lastSaved.toLocaleTimeString()}` : ''}
+        {lastSaved ? ' ' + t`à ${lastSaved.toLocaleTimeString()}` : ''}
       </span>
     );
   }

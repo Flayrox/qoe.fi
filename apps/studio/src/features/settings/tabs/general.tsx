@@ -38,13 +38,13 @@ interface GeneralTabProps {
 }
 
 const DISPLAY_OPTIONS = [
-  { key: 'showLogo', label: 'Logo / Avatar' },
-  { key: 'showTagline', label: 'Slogan' },
-  { key: 'showSubscribeButton', label: 'Bouton S’abonner' },
-  { key: 'showCategoryTabs', label: 'Onglets rubriques' },
-  { key: 'showCraftIndex', label: 'Sommaire' },
-  { key: 'showProgressiveBlur', label: 'Flou progressif' },
-  { key: 'showNewsletterWall', label: 'Mur newsletter' },
+  { key: 'showLogo', label: t`Logo / Avatar` },
+  { key: 'showTagline', label: t`Slogan` },
+  { key: 'showSubscribeButton', label: t`Bouton S’abonner` },
+  { key: 'showCategoryTabs', label: t`Onglets rubriques` },
+  { key: 'showCraftIndex', label: t`Sommaire` },
+  { key: 'showProgressiveBlur', label: t`Flou progressif` },
+  { key: 'showNewsletterWall', label: t`Mur newsletter` },
 ];
 
 export function GeneralTab({ current, setCurrent }: GeneralTabProps) {

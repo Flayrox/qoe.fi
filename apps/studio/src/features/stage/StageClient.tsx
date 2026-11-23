@@ -17,6 +17,7 @@ import { BottomBar } from './bottom-bar/BottomBar';
 import { ContextualEditorBar } from './editor-bar/ContextualEditorBar';
 import { SidebarDrawer } from './sidebar-drawer/SidebarDrawer';
 import type { StageClientProps } from './types';
+import { t } from '@lingui/core/macro';
 
 function StageWorkbench({ sidebarProps }: { sidebarProps?: StageClientProps['sidebarProps'] }) {
   const engine = useStageEngine();
@@ -25,7 +26,7 @@ function StageWorkbench({ sidebarProps }: { sidebarProps?: StageClientProps['sid
     <div className="fixed inset-0 w-screen h-screen flex flex-col bg-background overflow-hidden z-50">
       {/* ── 1. TopBar 40px ── */}
       <TopBar
-        publisherName={engine.publisher.name || 'Publisher'}
+        publisherName={engine.publisher.name || t`Publisher`}
         domain={engine.publisher.domain || 'nom.qoe.fi'}
         mode={engine.editorMode === StageEditorMode.PREVIEW ? 'preview' : 'design'}
         onModeChange={(m) =>

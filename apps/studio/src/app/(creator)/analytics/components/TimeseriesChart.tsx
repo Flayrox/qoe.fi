@@ -89,7 +89,9 @@ export function TimeseriesChart({ data, period }: TimeseriesChartProps) {
               {t`Total période`}
             </span>
             <span className="text-lg font-bold text-foreground">
-              {totalViews.toLocaleString()} vues
+              {totalViews === 1
+                ? t`${totalViews.toLocaleString()} vue`
+                : t`${totalViews.toLocaleString()} vues`}
             </span>
           </div>
           <div className="h-8 w-[1px] bg-border/40" />
@@ -179,7 +181,7 @@ export function TimeseriesChart({ data, period }: TimeseriesChartProps) {
                 cx={c.x}
                 cy={c.y}
                 r={activePoint?.index === i ? '5' : '3'}
-                className={`${activePoint?.index === i ? 'fill-foreground stroke-background stroke-2' : 'fill-foreground/40'} transition-all`}
+                className={`${activePoint?.index === i ? t`fill-foreground stroke-background stroke-2` : t`fill-foreground/40`} transition-all`}
               />
             </g>
           ))}
@@ -193,7 +195,9 @@ export function TimeseriesChart({ data, period }: TimeseriesChartProps) {
               {formatDate(activePoint.point.x)} :
             </span>
             <span className="font-semibold text-foreground">
-              {activePoint.point.y.toLocaleString()} vues
+              {activePoint.point.y === 1
+                ? t`${activePoint.point.y.toLocaleString()} vue`
+                : t`${activePoint.point.y.toLocaleString()} vues`}
             </span>
           </div>
         )}

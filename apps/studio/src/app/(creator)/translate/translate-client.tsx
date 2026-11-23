@@ -20,12 +20,12 @@ export interface TranslatableArticle {
 }
 
 const LANGUAGES = () => [
-  { code: 'en', label: 'Anglais' },
+  { code: 'en', label: t`Anglais` },
   { code: 'fr', label: t`Français` },
-  { code: 'es', label: 'Espagnol' },
-  { code: 'de', label: 'Allemand' },
-  { code: 'it', label: 'Italien' },
-  { code: 'pt', label: 'Portugais' },
+  { code: 'es', label: t`Espagnol` },
+  { code: 'de', label: t`Allemand` },
+  { code: 'it', label: t`Italien` },
+  { code: 'pt', label: t`Portugais` },
 ];
 
 export function TranslateClient({ articles }: { articles: TranslatableArticle[] }) {

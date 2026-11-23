@@ -112,7 +112,7 @@ export const SITE_OPTION_ITEMS = (): SiteOptionItem[] => [
   },
   {
     key: 'showLogo',
-    label: 'Logo / Avatar de marque',
+    label: t`Logo / Avatar de marque`,
     description: t`Affiche l'avatar du créateur ou média dans le header`,
   },
   {

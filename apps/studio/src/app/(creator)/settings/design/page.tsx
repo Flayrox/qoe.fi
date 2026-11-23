@@ -140,7 +140,7 @@ export default async function SettingsDesignPage() {
     dbUser?.name ||
     dbUser?.username ||
     (authUser.user_metadata?.name as string | undefined) ||
-    'Creator';
+    t`Creator`;
   const userEmail = dbUser?.email || authUser.email || 'hello@qoe.fi';
   const userAvatar =
     dbUser?.logoUrl ||
@@ -157,7 +157,7 @@ export default async function SettingsDesignPage() {
       badge: surface.id === 'studio.notifications' && unreadCount > 0 ? unreadCount : undefined,
     })),
     logo: <Logo className="h-5 w-auto" fillColor="#EE4B2B" />,
-    brandName: mediaBrandName || 'Studio',
+    brandName: mediaBrandName || t`Studio`,
     userName,
     userEmail,
     userFallback: userName.slice(0, 2).toUpperCase(),

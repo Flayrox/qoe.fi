@@ -169,7 +169,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
                 toast.success(t`Un email de vérification a été envoyé.`);
                 setNewEmail('');
               } catch (e) {
-                toast.error(e instanceof Error ? e.message : 'Impossible de changer l’email.');
+                toast.error(e instanceof Error ? e.message : t`Impossible de changer l’email.`);
               } finally {
                 setBusy(false);
               }
@@ -302,10 +302,10 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
             onChange={(isSelected) => setConsent({ ...consent, [key]: isSelected })}
             label={
               key === 'analytics'
-                ? 'Mesure d’audience'
+                ? t`Mesure d’audience`
                 : key === 'personalization'
-                  ? 'Personnalisation'
-                  : 'Marketing'
+                  ? t`Personnalisation`
+                  : t`Marketing`
             }
           />
         ))}

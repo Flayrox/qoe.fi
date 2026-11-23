@@ -104,7 +104,7 @@ export function AdvancedTypoControls() {
         value={f.decoration ?? 'none'}
         onChange={(v) => patch({ font: { ...f, decoration: v } })}
         options={[
-          { value: 'none', label: 'Sans' },
+          { value: 'none', label: t`Sans` },
           { value: 'underline', label: t`Souligné` },
           { value: 'line-through', label: t`Barré` },
         ]}

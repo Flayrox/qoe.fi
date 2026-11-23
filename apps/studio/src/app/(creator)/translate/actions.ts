@@ -26,7 +26,7 @@ export async function translateArticleAction(input: {
           ? t`Traduction indisponible : aucun fournisseur IA configuré sur cette instance.`
           : err instanceof Error
             ? err.message
-            : 'Traduction impossible.',
+            : t`Traduction impossible.`,
     };
   }
 }

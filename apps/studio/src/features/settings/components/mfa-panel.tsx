@@ -57,14 +57,14 @@ export function MfaPanel() {
   const unverified = factors.filter((factor) => factor.status !== 'verified');
 
   async function removeFactor(factorId: string, label: string) {
-    if (!window.confirm(`Retirer le facteur « ${label} » ?`)) return;
+    if (!window.confirm(t`Retirer le facteur « ${label} » ?`)) return;
     setBusy(true);
     try {
       await unenrollAccountSecurityMfaAction(factorId);
       toast.success(t`Facteur retiré.`);
       await refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Retrait impossible.');
+      toast.error(error instanceof Error ? error.message : t`Retrait impossible.`);
     } finally {
       setBusy(false);
     }
@@ -93,7 +93,7 @@ export function MfaPanel() {
             >
               <span className="flex items-center gap-2 truncate">
                 <Icon name="circle-check" size="md" className="text-success-text" />
-                {factor.friendly_name || 'Facteur'} · {factor.factor_type ?? 'totp'}
+                {factor.friendly_name || t`Facteur`} · {factor.factor_type ?? 'totp'}
               </span>
               <Button
                 variant="outline"
@@ -114,7 +114,7 @@ export function MfaPanel() {
               <span className="flex items-start gap-2">
                 <Icon name="triangle-alert" size="md" className="mt-0.5 text-warning" />
                 <span>
-                  « {factor.friendly_name || 'Facteur'}{' '}
+                  « {factor.friendly_name || t`Facteur`}{' '}
                   {t`» a été créé mais jamais vérifié : il ne débloque aucune action.`}
                 </span>
               </span>

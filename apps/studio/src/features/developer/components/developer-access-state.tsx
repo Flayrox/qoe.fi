@@ -63,7 +63,7 @@ function formatAccessDate(value: string): string {
 }
 
 function accessActionLabel(access: DeveloperAccess): string {
-  if (access.status === 'unavailable') return 'Recharger';
+  if (access.status === 'unavailable') return t`Recharger`;
   if (access.status === 'pending') return t`Voir ma demande`;
   if (access.status === 'approved') return t`Gérer mes accès`;
   if (access.status === 'rejected' || access.status === 'revoked') {
@@ -112,7 +112,7 @@ export function DeveloperAccessState({
 
   const heading =
     title ??
-    (missingCapability ? `Permission ${capabilityMeta?.label ?? ''} non accordée` : base.title);
+    (missingCapability ? t`Permission ${capabilityMeta?.label ?? ''} non accordée` : base.title);
   const body =
     description ??
     (missingCapability
@@ -136,8 +136,8 @@ export function DeveloperAccessState({
           <ol className="grid gap-2 sm:grid-cols-3" aria-label={t`Progression de la demande`}>
             {[
               [t`Demande envoyée`, true],
-              ['Examen en cours', true],
-              ['Activation', false],
+              [t`Examen en cours`, true],
+              [t`Activation`, false],
             ].map(([label, complete], index) => (
               <li
                 key={String(label)}

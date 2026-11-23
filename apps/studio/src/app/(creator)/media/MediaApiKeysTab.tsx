@@ -200,7 +200,7 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
   const handleRotate = async (key: MediaApiKeyInfo) => {
     if (
       !window.confirm(
-        `Faire tourner la clé "${key.name}" ? L'ancien secret cessera immédiatement de fonctionner.`
+        t`Faire tourner la clé "${key.name}" ? L'ancien secret cessera immédiatement de fonctionner.`
       )
     ) {
       return;
