@@ -10,6 +10,7 @@ const STATUS_META: Record<
   approved: { label: 'Accès actif', tone: 'success' },
   rejected: { label: 'Refusé', tone: 'danger' },
   revoked: { label: 'Révoqué', tone: 'danger' },
+  unavailable: { label: 'Indisponible', tone: 'neutral' },
 };
 
 export function DeveloperStatusBadge({ status }: { status: DeveloperAccessStatus }) {

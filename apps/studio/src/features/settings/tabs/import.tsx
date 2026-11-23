@@ -26,6 +26,39 @@ const SOURCE_OPTIONS = [
   { id: 'other', label: 'Autre' },
 ];
 
+/**
+ * Champ « plateforme d'origine » de l'import.
+ *
+ * ⚠️ `id`/`htmlFor` vont ensemble : sans `id` sur le `Select`, le `label for`
+ *    désignait un élément inexistant (association morte). Le déclencheur d'un
+ *    `Select` est un bouton HTML, élément labellisable de la spécification —
+ *    c'est ainsi que React-Aria associe son propre `Label`.
+ *
+ * Extrait pour être montable seul : monter tout l'onglet pour une liaison DOM
+ * coûtait > 5 s sous charge, donc un test faux-rouge.
+ */
+export function ImportSourceField({
+  source,
+  onSourceChange,
+}: {
+  source: string;
+  onSourceChange: (source: string) => void;
+}) {
+  return (
+    <StudioField label="Plateforme d’origine" htmlFor="import-source">
+      <Select
+        id="import-source"
+        label="Plateforme d'origine"
+        hideLabel
+        size="sm"
+        value={source}
+        onValueChange={onSourceChange}
+        options={SOURCE_OPTIONS}
+      />
+    </StudioField>
+  );
+}
+
 function ImportFeedback({
   tone,
   children,
@@ -206,16 +239,7 @@ function SubscribersImport() {
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <StudioField label="Plateforme d’origine" htmlFor="import-source">
-            <Select
-              label="Plateforme d'origine"
-              hideLabel
-              size="sm"
-              value={source}
-              onValueChange={setSource}
-              options={SOURCE_OPTIONS}
-            />
-          </StudioField>
+          <ImportSourceField source={source} onSourceChange={setSource} />
 
           <StudioField label="Précisions (facultatif)" htmlFor="import-source-detail">
             <Input

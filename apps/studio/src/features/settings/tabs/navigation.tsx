@@ -21,6 +21,7 @@ import {
 import { cn } from '@qoe/utils';
 import { isReservedTenantRoute } from '@qoe/config';
 import type { CreatorProfile, ClientCategory, ClientNavigationItem } from '../types';
+import { clientNavigationLinkId } from '../lib/client-link-id';
 
 interface NavigationTabProps {
   current: CreatorProfile;
@@ -170,7 +171,7 @@ export function NavigationTab({
   const customLinks = current.navigation.filter((n) => !n.parentId);
 
   const addCustomLink = () => {
-    const newId = `link_${Date.now()}`;
+    const newId = clientNavigationLinkId();
     const newLink: ClientNavigationItem = {
       id: newId,
       label: 'Nouveau lien',
@@ -190,7 +191,7 @@ export function NavigationTab({
   };
 
   const addCustomEmail = () => {
-    const newId = `link_${Date.now()}`;
+    const newId = clientNavigationLinkId();
     const newLink: ClientNavigationItem = {
       id: newId,
       label: 'Contact',

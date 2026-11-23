@@ -1,9 +1,18 @@
 'use client';
 
 import React, { useEffect, useState, useTransition } from 'react';
-import { ChevronsUpDown, Check, Plus, Loader2, MailOpen } from 'lucide-react';
+import {
+  ChevronsUpDown,
+  Check,
+  Plus,
+  Loader2,
+  MailOpen,
+  AlertCircle,
+  RefreshCw,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { t } from '@lingui/core/macro';
+import { Button } from '@qoe/ui/button';
 import { toast } from '@qoe/ui/toast';
 import { SafeAvatar } from '@qoe/ui';
 import {
@@ -50,6 +59,10 @@ export function HeaderWorkspaceSwitcher() {
   const [pendingInvites, setPendingInvites] = useState<PendingMediaInvite[]>([]);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  // Une lecture qui échoue ne doit pas faire disparaître le sélecteur : sans
+  // espace actif on affiche un état « indisponibles » avec un réessai.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,7 +72,12 @@ export function HeaderWorkspaceSwitcher() {
         getUserWorkspacesAction(),
         listPendingMediaInvitesAction(),
       ]);
-      if (cancelled || !res.success) return;
+      if (cancelled) return;
+      if (!res.success) {
+        setLoadFailed(true);
+        return;
+      }
+      setLoadFailed(false);
 
       const all: Workspace[] = [res.personal, ...(res.medias || [])];
       setWorkspaces(all);
@@ -83,7 +101,12 @@ export function HeaderWorkspaceSwitcher() {
     return () => {
       cancelled = true;
     };
-  }, [router, startTransition]);
+  }, [router, startTransition, loadAttempt]);
+
+  const retryWorkspaces = () => {
+    setLoadFailed(false);
+    setLoadAttempt((attempt) => attempt + 1);
+  };
 
   const handleSelect = (ws: Workspace) => {
     const same = activeWorkspace?.id === ws.id && activeWorkspace?.type === ws.type;
@@ -133,7 +156,24 @@ export function HeaderWorkspaceSwitcher() {
     }
   };
 
-  if (!activeWorkspace) return null;
+  if (!activeWorkspace) {
+    if (!loadFailed) return null;
+
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={retryWorkspaces}
+        aria-label={t`Espaces de travail indisponibles — réessayer`}
+        className="gap-2 font-medium text-muted-foreground"
+      >
+        <AlertCircle className="size-3.5 shrink-0" strokeWidth={1.75} />
+        <span className="max-w-[140px] truncate">{t`Espaces indisponibles`}</span>
+        <RefreshCw className="size-3.5 shrink-0" strokeWidth={1.75} />
+      </Button>
+    );
+  }
 
   const personalWorkspaces = workspaces.filter((ws) => ws.type === 'PERSONAL');
   const mediaWorkspaces = workspaces.filter((ws) => ws.type === 'MEDIA');

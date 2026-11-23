@@ -44,6 +44,12 @@ const STATUS_COPY: Record<
     description: 'Un administrateur a retiré cet accès. Vous pouvez demander son rétablissement.',
     icon: Lock,
   },
+  unavailable: {
+    title: 'Statut d’accès momentanément indisponible',
+    description:
+      'Le service ne répond pas : impossible de savoir si un accès existe. Rechargez la page — aucune demande n’a été perdue.',
+    icon: AlertCircle,
+  },
 };
 
 function formatAccessDate(value: string): string {
@@ -59,6 +65,7 @@ function formatAccessDate(value: string): string {
 }
 
 function accessActionLabel(access: DeveloperAccess): string {
+  if (access.status === 'unavailable') return 'Recharger';
   if (access.status === 'pending') return 'Voir ma demande';
   if (access.status === 'approved') return 'Gérer mes accès';
   if (access.status === 'rejected' || access.status === 'revoked') {

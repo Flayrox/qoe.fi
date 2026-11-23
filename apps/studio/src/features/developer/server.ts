@@ -41,8 +41,10 @@ export async function getDeveloperAccess(): Promise<DeveloperAccess> {
       updatedAt: me.data?.updatedAt ?? null,
     };
   } catch (err) {
-    console.warn('[developer] impossible de lire le statut d’accès:', err);
-    return { status: 'none', grants: [], reason: null, updatedAt: null };
+    // « none » annoncerait « vous n’avez jamais demandé » alors que la lecture a
+    // échoué : l’écran doit dire que le statut est indisponible, pas inventer.
+    console.error('[developer] impossible de lire le statut d’accès:', err);
+    return { status: 'unavailable', grants: [], reason: null, updatedAt: null };
   }
 }
 

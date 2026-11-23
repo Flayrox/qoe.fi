@@ -40,6 +40,7 @@ import { NavigableListKeymap, NavigableListItem } from '../extensions/NavigableL
 import { ImageGallery, GalleryImage } from '../extensions/ImageGallery';
 import { AltCoverage, ALT_DETAILS_EVENT } from '../extensions/AltCoverage';
 import { useCollaborationSession } from '../hooks/useCollaborationSession';
+import { useTransientMessage } from '../hooks/useTransientMessage';
 import { computePayloadHash } from '../lib/payload-hash';
 import {
   computeAutoSeoDescription,
@@ -409,7 +410,8 @@ export function Editor({
   const imageDetailsNodeSrcRef = useRef<string | null>(null);
   const [authorNoteInput, setAuthorNoteInput] = useState('');
   const [selectedQuoteForAnnotation, setSelectedQuoteForAnnotation] = useState('');
-  const [annotationToast, setAnnotationToast] = useState<string | null>(null);
+  // Un message d'annotation vit 3 s, avec un seul minuteur (cf. le hook).
+  const annotationNotice = useTransientMessage();
   const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(
     null
   );
@@ -917,8 +919,7 @@ export function Editor({
       const selection = editor.state.selection;
       const editingExisting = editor.isActive('annotationMark');
       if (selection.empty && !editingExisting && text === undefined) {
-        setAnnotationToast(t`Sélectionnez d'abord un passage de texte à annoter.`);
-        setTimeout(() => setAnnotationToast(null), 3000);
+        annotationNotice.show(t`Sélectionnez d'abord un passage de texte à annoter.`);
         return;
       }
 
@@ -1206,8 +1207,7 @@ export function Editor({
               ? 'image'
               : null;
     if (!target) {
-      setAnnotationToast(t`Sélectionnez une image pour renseigner sa légende.`);
-      setTimeout(() => setAnnotationToast(null), 3000);
+      annotationNotice.show(t`Sélectionnez une image pour renseigner sa légende.`);
       return;
     }
 
@@ -2607,9 +2607,9 @@ export function Editor({
         />
       )}
 
-      {annotationToast && (
+      {annotationNotice.message && (
         <div className="fixed bottom-6 right-6 z-50 bg-highlight text-highlight-foreground font-bold text-xs px-4 py-2.5 rounded-xl shadow-xl animate-in fade-in-50 slide-in-from-bottom-2 duration-200">
-          {annotationToast}
+          {annotationNotice.message}
         </div>
       )}
 

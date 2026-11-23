@@ -1,4 +1,11 @@
-export type DeveloperAccessStatus = 'none' | 'pending' | 'approved' | 'rejected' | 'revoked';
+export type DeveloperAccessStatus =
+  | 'none'
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'revoked'
+  // Le statut n'a pas pu être lu : « non demandé » serait un mensonge.
+  | 'unavailable';
 
 export interface DeveloperAccess {
   status: DeveloperAccessStatus;

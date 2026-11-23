@@ -180,9 +180,19 @@ export function StudioField({
   return (
     <div className="space-y-1.5">
       <div className="flex items-baseline justify-between gap-3">
-        <label htmlFor={htmlFor} className="text-xs font-semibold text-foreground">
-          {label}
-        </label>
+        {/*
+         * `htmlFor` ne devient un `<label for>` que s'il désigne un contrôle
+         * réel. Sans lui (un `Select` React-Aria n'expose pas d'`id`
+         * associable), on rend un texte : un `<label for>` orphelin promet une
+         * association qui n'existe pas et casse les tests d'accessibilité.
+         */}
+        {htmlFor ? (
+          <label htmlFor={htmlFor} className="text-xs font-semibold text-foreground">
+            {label}
+          </label>
+        ) : (
+          <span className="text-xs font-semibold text-foreground">{label}</span>
+        )}
         {counter ? (
           <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
             {counter}

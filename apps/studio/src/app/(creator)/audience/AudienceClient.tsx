@@ -23,7 +23,17 @@ import {
   type SortSpec,
 } from '@qoe/ui/table';
 import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
-import { Users, Search, Download, Zap, Mail, CreditCard, X, CheckSquare } from 'lucide-react';
+import {
+  AlertCircle,
+  Users,
+  Search,
+  Download,
+  Zap,
+  Mail,
+  CreditCard,
+  X,
+  CheckSquare,
+} from 'lucide-react';
 
 export interface SubscriberItem {
   id: string;
@@ -36,6 +46,8 @@ export interface SubscriberItem {
 
 interface AudienceClientProps {
   initialSubscribers: SubscriberItem[];
+  /** Lecture analytics indisponible : la liste vide est expliquée, pas tacite. */
+  unavailable?: boolean;
 }
 
 type FilterTab = 'all' | 'active' | 'premium' | 'free' | 'inactive';
@@ -56,7 +68,7 @@ const SUBSCRIBER_SORT: SortSpec<SubscriberItem> = {
   createdAt: { kind: 'date', value: (row) => new Date(row.createdAt) },
 };
 
-export function AudienceClient({ initialSubscribers }: AudienceClientProps) {
+export function AudienceClient({ initialSubscribers, unavailable = false }: AudienceClientProps) {
   const [subscribers] = useState<SubscriberItem[]>(initialSubscribers);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<FilterTab>('all');
@@ -147,6 +159,27 @@ export function AudienceClient({ initialSubscribers }: AudienceClientProps) {
           </Button>
         }
       />
+
+      {unavailable ? (
+        <div
+          role="status"
+          className="flex items-start gap-3 rounded-xl border border-border/60 bg-muted/20 px-4 py-3"
+        >
+          <AlertCircle
+            className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+            strokeWidth={1.8}
+          />
+          <div className="min-w-0 text-xs leading-relaxed">
+            <p className="font-semibold text-foreground">
+              Statistiques d’audience momentanément indisponibles
+            </p>
+            <p className="text-muted-foreground">
+              La liste ci-dessous est vide parce que le service d’analytics ne répond pas — pas
+              parce que vous n’avez aucun abonné. Rechargez la page dans quelques instants.
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       {/* ─── KPI Cards Grid ─────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
