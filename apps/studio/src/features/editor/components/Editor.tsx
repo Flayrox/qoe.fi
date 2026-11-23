@@ -1751,7 +1751,7 @@ export function Editor({
 
   const handleManualSave = useCallback(async () => {
     if (!title.trim()) {
-      setError("Le titre de l'article est requis avant d'enregistrer.");
+      setError(t`Le titre de l'article est requis avant d'enregistrer.`);
       return;
     }
 

@@ -10,6 +10,7 @@ Contenu copié tel quel depuis `.reference/onlook` (`--depth 1`) pour portage so
 - `LICENSE.ONLOOK.md` : attribution obligatoire, aucune marque en UI Stage
 
 Règles :
+
 1. Ne jamais importer ce dossier directement en prod (`tsconfig.exclude` l'ignore).
 2. Porter lot par lot vers `stage/canvas|editor-bar|left-panel|engine/` avec shims (`@/components/store/editor` → `stage/engine`, `@onlook/*` → `@qoe/*`, `next-intl` → FR souverain).
 3. UI finale 100% `Stage`, tokens `@qoe/theme`, micro-typo Inter 11px.

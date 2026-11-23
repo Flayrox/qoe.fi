@@ -5,6 +5,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { t } from '@lingui/core/macro';
 
 export function InputRange({
   label,
@@ -100,9 +101,9 @@ export function SpacingInputs({
             onSide('all', avg);
           }}
           className="text-[10px] text-primary hover:underline"
-          title="Uniformiser (moyenne)"
+          title={t`Uniformiser (moyenne)`}
         >
-          Tous
+          {t`Tous`}
         </button>
       </div>
       <div className="grid grid-cols-2 gap-1">
@@ -162,7 +163,7 @@ export function ColorField({
         <label
           className="h-6 w-6 shrink-0 cursor-pointer rounded-md border border-border shadow-sm"
           style={{ backgroundColor: value || 'transparent' }}
-          title="Choisir"
+          title={t`Choisir`}
         >
           <input
             type="color"

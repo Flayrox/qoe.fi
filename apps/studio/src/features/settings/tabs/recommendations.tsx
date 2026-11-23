@@ -72,7 +72,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
         setError(res.error?.message || 'Impossible de charger les recommandations.');
       }
     } catch {
-      setError('Impossible de charger les recommandations.');
+      setError(t`Impossible de charger les recommandations.`);
     } finally {
       setIsLoading(false);
     }
@@ -172,7 +172,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
       {/* ── OPTIONS D'AFFICHAGE SUR LE SITE ── */}
       <div className="rounded-xl border border-border/50 bg-card p-5 space-y-4 shadow-2xs">
         <h3 className="text-sm font-semibold text-foreground tracking-tight">
-          Affichage sur le site
+          {t`Affichage sur le site`}
         </h3>
         <div className="divide-y divide-border/30">
           <div className="py-3 flex items-center justify-between gap-4 first:pt-0">
@@ -181,11 +181,11 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
               isSelected={showRecsInSidebar}
               onChange={() => toggleOption('showRecommendationsInSidebar')}
               label={
-                <span className="text-xs font-semibold text-foreground">Colonne latérale</span>
+                <span className="text-xs font-semibold text-foreground">{t`Colonne latérale`}</span>
               }
               description={
                 <span className="text-[11px] text-muted-foreground">
-                  Affiche « Recommandé par l’auteur » dans la barre latérale.
+                  {t`Affiche « Recommandé par l’auteur » dans la barre latérale.`}
                 </span>
               }
               className="w-full"
@@ -199,12 +199,12 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
               onChange={() => toggleOption('showRecommendationsOnHome')}
               label={
                 <span className="text-xs font-semibold text-foreground">
-                  Section en pied de page
+                  {t`Section en pied de page`}
                 </span>
               }
               description={
                 <span className="text-[11px] text-muted-foreground">
-                  Affiche la grille sous le flux d’articles.
+                  {t`Affiche la grille sous le flux d’articles.`}
                 </span>
               }
               className="w-full"
@@ -217,7 +217,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
       <div className="space-y-4 rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
         <div className="flex items-center gap-2">
           <Plus className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Ajouter une recommandation</h3>
+          <h3 className="text-sm font-semibold text-foreground">{t`Ajouter une recommandation`}</h3>
         </div>
 
         <form onSubmit={handleLookup} className="space-y-4">
@@ -237,7 +237,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
               disabled={isSearching || !domainInput.trim()}
             >
               {isSearching ? <Loader2 className="animate-spin" /> : <Search />}
-              <span>Trouver</span>
+              <span>{t`Trouver`}</span>
             </Button>
           </div>
 
@@ -274,7 +274,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
                 </div>
                 <Badge variant="outline" tone="brand" shape="pill">
                   <CheckCircle2 />
-                  <span>Trouvé</span>
+                  <span>{t`Trouvé`}</span>
                 </Badge>
               </div>
 
@@ -289,7 +289,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
                   htmlFor="recommendation-note"
                   className="text-xs font-medium text-foreground block"
                 >
-                  Note ou mot de recommandation (optionnel)
+                  {t`Note ou mot de recommandation (optionnel)`}
                 </label>
                 <Input
                   id="recommendation-note"
@@ -297,7 +297,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
                   size="sm"
                   value={noteInput}
                   onChange={(e) => setNoteInput(e.target.value)}
-                  placeholder="Pourquoi recommandez-vous cette publication à vos lecteurs ?"
+                  placeholder={t`Pourquoi recommandez-vous cette publication à vos lecteurs ?`}
                 />
               </div>
 
@@ -310,7 +310,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
                   disabled={isAdding}
                 >
                   {isAdding ? <Loader2 className="animate-spin" /> : <Plus />}
-                  <span>Ajouter</span>
+                  <span>{t`Ajouter`}</span>
                 </Button>
               </div>
             </div>
@@ -322,14 +322,15 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground">
-            Vos recommandations actives ({recommendations.length})
+            {t`Vos recommandations actives (`}
+            {recommendations.length})
           </h3>
         </div>
 
         {isLoading ? (
           <div className="flex items-center justify-center p-10 text-muted-foreground text-xs gap-2">
             <Loader2 className="w-4 h-4 animate-spin text-primary" />
-            <span>Chargement des recommandations...</span>
+            <span>{t`Chargement des recommandations...`}</span>
           </div>
         ) : error ? (
           <div className="p-4 rounded-xl border border-destructive/20 bg-destructive/5 text-destructive-text text-xs flex items-center justify-between gap-3">
@@ -341,15 +342,15 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
               onClick={loadRecs}
               className="shrink-0"
             >
-              Réessayer
+              {t`Réessayer`}
             </Button>
           </div>
         ) : recommendations.length === 0 ? (
           <div className="space-y-2 rounded-xl border border-dashed border-border/50 p-8 text-center">
             <Users className="w-8 h-8 text-muted-foreground/40 mx-auto" />
-            <p className="text-sm font-medium text-foreground">Aucune recommandation configurée</p>
+            <p className="text-sm font-medium text-foreground">{t`Aucune recommandation configurée`}</p>
             <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-              Cherchez une publication ci-dessus pour l’ajouter.
+              {t`Cherchez une publication ci-dessus pour l’ajouter.`}
             </p>
           </div>
         ) : (
@@ -386,7 +387,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
                           target="_blank"
                           rel="noreferrer"
                           className="text-muted-foreground hover:text-primary transition-colors p-0.5"
-                          title="Visiter la publication"
+                          title={t`Visiter la publication`}
                         >
                           <ExternalLink className="w-3 h-3" />
                         </a>
@@ -408,10 +409,10 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
                         size="xs"
                         onClick={() => handleRemove(rec.id, rec.publisherName)}
                       >
-                        Retirer
+                        {t`Retirer`}
                       </Button>
                       <Button variant="ghost" size="xs" onClick={() => setConfirmDeleteId(null)}>
-                        Annuler
+                        {t`Annuler`}
                       </Button>
                     </div>
                   ) : (

@@ -158,8 +158,7 @@ export function ArticleInspectorDrawer({
                     {detail.totalViews.toLocaleString()}
                   </p>
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    Toutes les lectures (feed, direct, tenant) sur cet articleId — plein par
-                    co-auteur
+                    {t`Toutes les lectures (feed, direct, tenant) sur cet articleId — plein par co-auteur`}
                   </p>
                 </div>
 
@@ -203,7 +202,7 @@ export function ArticleInspectorDrawer({
                       {detail.likes.toLocaleString()}
                     </span>
                     {detail.reposts > 0 && (
-                      <span className="text-xs text-muted-foreground" title="Republications">
+                      <span className="text-xs text-muted-foreground" title={t`Republications`}>
                         · {detail.reposts} partages
                       </span>
                     )}
@@ -214,7 +213,7 @@ export function ArticleInspectorDrawer({
                 <div className="p-3.5 rounded-xl border border-border/30 bg-card">
                   <div className="flex items-center justify-between text-muted-foreground mb-1">
                     <span className="text-[11px] font-semibold uppercase tracking-wider">
-                      Marque-pages
+                      {t`Marque-pages`}
                     </span>
                     <Bookmark className="h-3.5 w-3.5 stroke-[1.5]" />
                   </div>
@@ -227,7 +226,7 @@ export function ArticleInspectorDrawer({
                 <div className="p-3.5 rounded-xl border border-border/30 bg-card">
                   <div className="flex items-center justify-between text-muted-foreground mb-1">
                     <span className="text-[11px] font-semibold uppercase tracking-wider">
-                      Surlignages
+                      {t`Surlignages`}
                     </span>
                     <Highlighter className="h-3.5 w-3.5 stroke-[1.5]" />
                   </div>
@@ -245,7 +244,7 @@ export function ArticleInspectorDrawer({
                 <div className="p-3.5 rounded-xl border border-border/30 bg-card">
                   <div className="flex items-center justify-between text-muted-foreground mb-1">
                     <span className="text-[11px] font-semibold uppercase tracking-wider">
-                      Commentaires
+                      {t`Commentaires`}
                     </span>
                     <MessageSquare className="h-3.5 w-3.5 stroke-[1.5]" />
                   </div>
@@ -256,9 +255,10 @@ export function ArticleInspectorDrawer({
                     {detail.completionRate > 0 && (
                       <span
                         className="text-xs text-muted-foreground font-medium"
-                        title="Complétion de lecture certifiée"
+                        title={t`Complétion de lecture certifiée`}
                       >
-                        · {Math.round(detail.completionRate * 100)}% lu
+                        · {Math.round(detail.completionRate * 100)}
+                        {t`% lu`}
                       </span>
                     )}
                   </div>
@@ -281,8 +281,7 @@ export function ArticleInspectorDrawer({
               {/* Dedicated Article Referrers — toutes les provenances envoyées */}
               <ReferrersBlock referrers={detail.referrers} />
               <p className="text-[11px] text-muted-foreground text-center">
-                Données complètes envoyées : vues, uniques, timeseries, provenances (hostname /
-                referrer), chemin canonique.
+                {t`Données complètes envoyées : vues, uniques, timeseries, provenances (hostname / referrer), chemin canonique.`}
               </p>
             </div>
           ) : null}

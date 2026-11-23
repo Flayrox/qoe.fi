@@ -8,6 +8,7 @@ import React from 'react';
 import { Copy, Trash2, ArrowLeft, ArrowUp, ArrowDown, Plus, X } from 'lucide-react';
 import type { LayoutConfig, TemplateBlock, TemplateNode } from '@qoe/ui/templates';
 import { Select } from '@qoe/ui/select';
+import { t } from '@lingui/core/macro';
 
 interface RightPanelProps {
   layout: LayoutConfig;
@@ -58,28 +59,28 @@ export function RightPanel({
   if (!selectedBlock) {
     return (
       <aside className="w-72 flex flex-col bg-background/90 backdrop-blur-md border border-border/60 rounded-xl shadow-sm p-4 select-none text-xs space-y-4">
-        <div className="font-medium text-foreground">Inspecteur</div>
+        <div className="font-medium text-foreground">{t`Inspecteur`}</div>
 
         <div className="p-3 rounded-lg bg-muted/40 border border-border/40 text-muted-foreground">
-          <p className="text-[11px]">Sélectionnez un bloc pour voir ses réglages.</p>
+          <p className="text-[11px]">{t`Sélectionnez un bloc pour voir ses réglages.`}</p>
         </div>
 
         <div className="space-y-2 pt-2 border-t border-border/40">
           <div className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
-            Résumé de la Page
+            {t`Résumé de la Page`}
           </div>
           <div className="flex items-center justify-between py-1 text-muted-foreground">
-            <span>Sections actives :</span>
+            <span>{t`Sections actives :`}</span>
             <span className="font-mono text-foreground">
               {layout.blocks.filter((b: TemplateBlock) => b.visible).length}
             </span>
           </div>
           <div className="flex items-center justify-between py-1 text-muted-foreground">
-            <span>Archétype actif :</span>
+            <span>{t`Archétype actif :`}</span>
             <span className="font-medium text-foreground capitalize">{layout.archetype}</span>
           </div>
           <div className="flex items-center justify-between py-1 text-muted-foreground">
-            <span>Silhouette :</span>
+            <span>{t`Silhouette :`}</span>
             <span className="font-medium text-foreground capitalize">
               {layout.tokens.cardShape}
             </span>
@@ -110,7 +111,7 @@ export function RightPanel({
         <div className="flex items-center gap-1">
           <button
             type="button"
-            title="Dupliquer"
+            title={t`Dupliquer`}
             onClick={() => onDuplicateBlock(selectedBlock.id)}
             className="p-1 hover:text-foreground text-muted-foreground rounded transition-colors"
           >
@@ -118,7 +119,7 @@ export function RightPanel({
           </button>
           <button
             type="button"
-            title="Supprimer"
+            title={t`Supprimer`}
             onClick={() => {
               onDeleteBlock(selectedBlock.id);
               onSelectBlock(null);
@@ -146,14 +147,14 @@ export function RightPanel({
               </span>
             </button>
             <div className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
-              Élément · {selectedNode.node.kind}
+              {t`Élément ·`} {selectedNode.node.kind}
               {selectedNode.slotKey ? ` · ${selectedNode.slotKey}` : ''}
             </div>
             {(selectedNode.node.kind === 'text' ||
               selectedNode.node.kind === 'button' ||
               selectedNode.node.kind === 'badge') && (
               <div className="space-y-1">
-                <label className="text-muted-foreground text-[11px]">Texte</label>
+                <label className="text-muted-foreground text-[11px]">{t`Texte`}</label>
                 <input
                   type="text"
                   value={
@@ -172,7 +173,7 @@ export function RightPanel({
             )}
             {selectedNode.node.kind === 'button' && (
               <div className="space-y-1">
-                <label className="text-muted-foreground text-[11px]">Lien</label>
+                <label className="text-muted-foreground text-[11px]">{t`Lien`}</label>
                 <input
                   type="text"
                   value={(selectedNode.node.overrides?.href as string) ?? ''}
@@ -188,7 +189,7 @@ export function RightPanel({
             )}
             {selectedNode.node.kind === 'image' && (
               <div className="space-y-1">
-                <label className="text-muted-foreground text-[11px]">Source image</label>
+                <label className="text-muted-foreground text-[11px]">{t`Source image`}</label>
                 <input
                   type="text"
                   value={(selectedNode.node.overrides?.src as string) ?? ''}
@@ -216,7 +217,7 @@ export function RightPanel({
         {/* CONSTRUCTEUR D'ÉLÉMENTS */}
         <div className="space-y-2">
           <div className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
-            Ajouter un élément
+            {t`Ajouter un élément`}
           </div>
           {SLOT_KEYS.map((slotKey) => {
             const count =
@@ -259,7 +260,7 @@ export function RightPanel({
                         type="button"
                         onClick={() => onMoveNode(selectedBlock.id, n.oid, 'up')}
                         className="rounded p-0.5 text-muted-foreground hover:text-foreground"
-                        title="Monter"
+                        title={t`Monter`}
                       >
                         <ArrowUp className="h-3 w-3" />
                       </button>
@@ -267,7 +268,7 @@ export function RightPanel({
                         type="button"
                         onClick={() => onMoveNode(selectedBlock.id, n.oid, 'down')}
                         className="rounded p-0.5 text-muted-foreground hover:text-foreground"
-                        title="Descendre"
+                        title={t`Descendre`}
                       >
                         <ArrowDown className="h-3 w-3" />
                       </button>
@@ -275,7 +276,7 @@ export function RightPanel({
                         type="button"
                         onClick={() => onRemoveNode(selectedBlock.id, n.oid)}
                         className="rounded p-0.5 text-muted-foreground hover:text-destructive-text"
-                        title="Supprimer"
+                        title={t`Supprimer`}
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -289,14 +290,14 @@ export function RightPanel({
         {/* RESPONSIVE — visible sur tous les blocs */}
         <div className="space-y-2">
           <div className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
-            Appareils
+            {t`Appareils`}
           </div>
           {(['mobile', 'tablet'] as const).map((device) => {
             const hidden = (selectedBlock.hiddenAt ?? []).includes(device);
             return (
               <div key={device} className="flex items-center justify-between py-1">
                 <span className="text-muted-foreground text-[11px]">
-                  {device === 'mobile' ? 'Masquer sur mobile' : 'Masquer sur tablette'}
+                  {device === 'mobile' ? t`Masquer sur mobile` : t`Masquer sur tablette`}
                 </span>
                 <input
                   type="checkbox"
@@ -317,15 +318,15 @@ export function RightPanel({
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground text-[11px]">Variante Visuelle</label>
+              <label className="text-muted-foreground text-[11px]">{t`Variante Visuelle`}</label>
               <Select
-                label="Variante visuelle"
+                label={t`Variante visuelle`}
                 hideLabel
                 size="xs"
                 value={(props.style as string) || 'cinematic-banner'}
                 onValueChange={(style) => handlePropChange('style', style)}
                 options={[
-                  { id: 'cinematic-banner', label: 'Bannière' },
+                  { id: 'cinematic-banner', label: t`Bannière` },
                   { id: 'typographic-minimal', label: 'Typographique' },
                   { id: 'split-featured', label: 'Deux Colonnes (Split)' },
                   { id: 'floating-card', label: 'Carte' },
@@ -334,7 +335,7 @@ export function RightPanel({
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground text-[11px]">Hauteur de Section</label>
+              <label className="text-muted-foreground text-[11px]">{t`Hauteur de Section`}</label>
               <div className="grid grid-cols-3 gap-1">
                 {(['compact', 'medium', 'tall'] as const).map((h) => (
                   <button
@@ -347,14 +348,14 @@ export function RightPanel({
                         : 'bg-muted/50 text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    {h === 'compact' ? 'Compact' : h === 'tall' ? 'Grand' : 'Standard'}
+                    {h === 'compact' ? t`Compact` : h === 'tall' ? 'Grand' : 'Standard'}
                   </button>
                 ))}
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground text-[11px]">Alignement du Texte</label>
+              <label className="text-muted-foreground text-[11px]">{t`Alignement du Texte`}</label>
               <div className="grid grid-cols-2 gap-1">
                 {(['left', 'center'] as const).map((al) => (
                   <button
@@ -367,14 +368,14 @@ export function RightPanel({
                         : 'bg-muted/50 text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    {al === 'left' ? 'Gauche' : 'Centré'}
+                    {al === 'left' ? t`Gauche` : t`Centré`}
                   </button>
                 ))}
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground text-[11px]">Alignement sur mobile</label>
+              <label className="text-muted-foreground text-[11px]">{t`Alignement sur mobile`}</label>
               <div className="grid grid-cols-3 gap-1">
                 {(['auto', 'left', 'center'] as const).map((al) => (
                   <button
@@ -392,29 +393,29 @@ export function RightPanel({
                         : 'bg-muted/50 text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    {al === 'auto' ? 'Auto' : al === 'left' ? 'Gauche' : 'Centré'}
+                    {al === 'auto' ? t`Auto` : al === 'left' ? 'Gauche' : 'Centré'}
                   </button>
                 ))}
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground text-[11px]">Titre Personnalisé</label>
+              <label className="text-muted-foreground text-[11px]">{t`Titre Personnalisé`}</label>
               <input
                 type="text"
                 value={(props.customTitle as string) || ''}
-                placeholder="Laisser vide pour le nom par défaut"
+                placeholder={t`Laisser vide pour le nom par défaut`}
                 onChange={(e) => handlePropChange('customTitle', e.target.value)}
                 className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground text-[11px]">Chapeau</label>
+              <label className="text-muted-foreground text-[11px]">{t`Chapeau`}</label>
               <textarea
                 rows={2}
                 value={(props.customTagline as string) || ''}
-                placeholder="Laisser vide pour masquer"
+                placeholder={t`Laisser vide pour masquer`}
                 onChange={(e) => handlePropChange('customTagline', e.target.value)}
                 className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs resize-none"
               />
@@ -426,11 +427,11 @@ export function RightPanel({
         {selectedBlock.type === 'bento-grid' && (
           <div className="space-y-3">
             <div className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
-              Configuration Bento
+              {t`Configuration Bento`}
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground text-[11px]">Nombre de Colonnes</label>
+              <label className="text-muted-foreground text-[11px]">{t`Nombre de Colonnes`}</label>
               <div className="grid grid-cols-2 gap-1">
                 {[2, 3].map((cols) => (
                   <button
@@ -443,14 +444,14 @@ export function RightPanel({
                         : 'bg-muted/50 text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    {cols} Colonnes
+                    {cols} {t`Colonnes`}
                   </button>
                 ))}
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground text-[11px]">Colonnes sur mobile</label>
+              <label className="text-muted-foreground text-[11px]">{t`Colonnes sur mobile`}</label>
               <div className="grid grid-cols-2 gap-1">
                 {[1, 2].map((cols) => (
                   <button
@@ -470,7 +471,7 @@ export function RightPanel({
             </div>
 
             <div className="flex items-center justify-between py-1">
-              <span className="text-muted-foreground text-[11px]">Afficher les Catégories</span>
+              <span className="text-muted-foreground text-[11px]">{t`Afficher les Catégories`}</span>
               <input
                 type="checkbox"
                 checked={props.showCategories !== false}
@@ -481,12 +482,12 @@ export function RightPanel({
 
             <div className="space-y-1">
               <label className="text-muted-foreground text-[11px]">
-                Rubrique (slug, vide = toutes)
+                {t`Rubrique (slug, vide = toutes)`}
               </label>
               <input
                 type="text"
                 value={(props.categoryFilter as string) || ''}
-                placeholder="ex. essais"
+                placeholder={t`ex. essais`}
                 onChange={(e) => handlePropChange('categoryFilter', e.target.value)}
                 className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
               />
@@ -498,15 +499,15 @@ export function RightPanel({
         {selectedBlock.type === 'category-spotlight' && (
           <div className="space-y-3">
             <div className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
-              Encadré rubrique
+              {t`Encadré rubrique`}
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground text-[11px]">Slug de la rubrique</label>
+              <label className="text-muted-foreground text-[11px]">{t`Slug de la rubrique`}</label>
               <input
                 type="text"
                 value={(props.categorySlug as string) || ''}
-                placeholder="ex. essais"
+                placeholder={t`ex. essais`}
                 onChange={(e) => handlePropChange('categorySlug', e.target.value)}
                 className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
               />
@@ -514,19 +515,19 @@ export function RightPanel({
 
             <div className="space-y-1">
               <label className="text-muted-foreground text-[11px]">
-                Titre (vide = nom de la rubrique)
+                {t`Titre (vide = nom de la rubrique)`}
               </label>
               <input
                 type="text"
                 value={(props.title as string) || ''}
-                placeholder="Titre"
+                placeholder={t`Titre`}
                 onChange={(e) => handlePropChange('title', e.target.value)}
                 className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground text-[11px]">Présentation</label>
+              <label className="text-muted-foreground text-[11px]">{t`Présentation`}</label>
               <div className="grid grid-cols-2 gap-1">
                 {(['framed', 'plain'] as const).map((l) => (
                   <button
@@ -539,14 +540,14 @@ export function RightPanel({
                         : 'bg-muted/50 text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    {l === 'framed' ? 'Encadré' : 'Simple'}
+                    {l === 'framed' ? t`Encadré` : t`Simple`}
                   </button>
                 ))}
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground text-[11px]">Articles (1-6)</label>
+              <label className="text-muted-foreground text-[11px]">{t`Articles (1-6)`}</label>
               <input
                 type="number"
                 min={1}
@@ -563,7 +564,7 @@ export function RightPanel({
             </div>
 
             <div className="flex items-center justify-between py-1">
-              <span className="text-muted-foreground text-[11px]">Temps de lecture</span>
+              <span className="text-muted-foreground text-[11px]">{t`Temps de lecture`}</span>
               <input
                 type="checkbox"
                 checked={props.showReadingTime !== false}
@@ -582,9 +583,9 @@ export function RightPanel({
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground text-[11px]">Format de Présentation</label>
+              <label className="text-muted-foreground text-[11px]">{t`Format de Présentation`}</label>
               <Select
-                label="Format de présentation"
+                label={t`Format de présentation`}
                 hideLabel
                 size="xs"
                 value={(props.displayMode as string) || 'grid-3'}
@@ -598,7 +599,7 @@ export function RightPanel({
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground text-[11px]">Colonnes mobile (grille)</label>
+              <label className="text-muted-foreground text-[11px]">{t`Colonnes mobile (grille)`}</label>
               <div className="grid grid-cols-2 gap-1">
                 {[1, 2].map((cols) => (
                   <button
@@ -618,7 +619,7 @@ export function RightPanel({
             </div>
 
             <div className="flex items-center justify-between py-1">
-              <span className="text-muted-foreground text-[11px]">Filtre par Catégories</span>
+              <span className="text-muted-foreground text-[11px]">{t`Filtre par Catégories`}</span>
               <input
                 type="checkbox"
                 checked={props.showCategories !== false}
@@ -629,12 +630,12 @@ export function RightPanel({
 
             <div className="space-y-1">
               <label className="text-muted-foreground text-[11px]">
-                Rubrique (slug, vide = toutes)
+                {t`Rubrique (slug, vide = toutes)`}
               </label>
               <input
                 type="text"
                 value={(props.categoryFilter as string) || ''}
-                placeholder="ex. essais"
+                placeholder={t`ex. essais`}
                 onChange={(e) => handlePropChange('categoryFilter', e.target.value)}
                 className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
               />
@@ -654,18 +655,18 @@ export function RightPanel({
               <input
                 type="text"
                 value={(props.title as string) || ''}
-                placeholder="Titre"
+                placeholder={t`Titre`}
                 onChange={(e) => handlePropChange('title', e.target.value)}
                 className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground text-[11px]">Texte du Bouton</label>
+              <label className="text-muted-foreground text-[11px]">{t`Texte du Bouton`}</label>
               <input
                 type="text"
                 value={(props.buttonText as string) || ''}
-                placeholder="Texte du bouton"
+                placeholder={t`Texte du bouton`}
                 onChange={(e) => handlePropChange('buttonText', e.target.value)}
                 className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
               />
@@ -677,10 +678,10 @@ export function RightPanel({
         {selectedBlock.type === 'navbar' && (
           <div className="space-y-3">
             <div className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
-              Navigation
+              {t`Navigation`}
             </div>
             <div className="flex items-center justify-between py-1">
-              <span className="text-muted-foreground text-[11px]">En-tête Collante (Sticky)</span>
+              <span className="text-muted-foreground text-[11px]">{t`En-tête Collante (Sticky)`}</span>
               <input
                 type="checkbox"
                 checked={props.sticky !== false}
@@ -695,22 +696,22 @@ export function RightPanel({
         {selectedBlock.type === 'lead-story' && (
           <div className="space-y-3">
             <div className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
-              Article vedette
+              {t`Article vedette`}
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground text-[11px]">Badge</label>
+              <label className="text-muted-foreground text-[11px]">{t`Badge`}</label>
               <input
                 type="text"
                 value={(props.badgeText as string) || ''}
-                placeholder="Laisser vide pour masquer"
+                placeholder={t`Laisser vide pour masquer`}
                 onChange={(e) => handlePropChange('badgeText', e.target.value)}
                 className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground text-[11px]">Ratio image</label>
+              <label className="text-muted-foreground text-[11px]">{t`Ratio image`}</label>
               <div className="grid grid-cols-4 gap-1">
                 {(['16:9', '21:9', '4:3', '1:1'] as const).map((r) => (
                   <button
@@ -750,12 +751,12 @@ export function RightPanel({
 
             <div className="space-y-1">
               <label className="text-muted-foreground text-[11px]">
-                Rubrique (slug, vide = toutes)
+                {t`Rubrique (slug, vide = toutes)`}
               </label>
               <input
                 type="text"
                 value={(props.categoryFilter as string) || ''}
-                placeholder="ex. essais"
+                placeholder={t`ex. essais`}
                 onChange={(e) => handlePropChange('categoryFilter', e.target.value)}
                 className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
               />
@@ -767,11 +768,11 @@ export function RightPanel({
         {selectedBlock.type === 'footer' && (
           <div className="space-y-3">
             <div className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
-              Pied de page
+              {t`Pied de page`}
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground text-[11px]">Disposition</label>
+              <label className="text-muted-foreground text-[11px]">{t`Disposition`}</label>
               <div className="grid grid-cols-2 gap-1">
                 {(['columns', 'minimal-row'] as const).map((l) => (
                   <button
@@ -784,18 +785,18 @@ export function RightPanel({
                         : 'bg-muted/50 text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    {l === 'columns' ? 'Colonnes' : 'Ligne'}
+                    {l === 'columns' ? t`Colonnes` : t`Ligne`}
                   </button>
                 ))}
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground text-[11px]">Mention copyright</label>
+              <label className="text-muted-foreground text-[11px]">{t`Mention copyright`}</label>
               <input
                 type="text"
                 value={(props.customCopyright as string) || ''}
-                placeholder="Tous droits réservés."
+                placeholder={t`Tous droits réservés.`}
                 onChange={(e) => handlePropChange('customCopyright', e.target.value)}
                 className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
               />

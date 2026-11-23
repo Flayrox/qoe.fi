@@ -35,6 +35,7 @@ import {
 import { Input } from '@qoe/ui/input';
 import { createClient } from '@/lib/supabase/client';
 import { TotpEnrollment } from './totp-enrollment';
+import { t } from '@lingui/core/macro';
 
 interface StepUpRequest {
   reason?: string;
@@ -197,7 +198,7 @@ export function StepUpGate() {
               <ShieldCheck className="size-4" />
             </span>
             <div className="min-w-0 space-y-1">
-              <DialogTitle className="text-sm">Vérification requise</DialogTitle>
+              <DialogTitle className="text-sm">{t`Vérification requise`}</DialogTitle>
               <DialogDescription className="text-xs">
                 {request.reason ??
                   'Cette action sensible demande une authentification forte récente.'}
@@ -209,32 +210,29 @@ export function StepUpGate() {
         {phase === 'loading' && (
           <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
             <Loader2 className="size-3.5 animate-spin" />
-            Vérification de vos facteurs…
+            {t`Vérification de vos facteurs…`}
           </div>
         )}
 
         {phase === 'no-factor' && (
           <div className="space-y-3">
             <p className="text-xs leading-relaxed text-muted-foreground">
-              Aucun facteur fort compatible n’est enregistré sur ce compte. Une application
-              d’authentification (TOTP) ou une passkey est nécessaire pour débloquer cette action —
-              un code reçu par SMS ne compte pas.
+              {t`Aucun facteur fort compatible n’est enregistré sur ce compte. Une application d’authentification (TOTP) ou une passkey est nécessaire pour débloquer cette action — un code reçu par SMS ne compte pas.`}
             </p>
             {factors.hasUnverified && (
               <p className="text-xs leading-relaxed text-muted-foreground">
-                Un facteur existe mais n’a jamais été vérifié : enregistrez-en un nouveau, ou
-                supprimez l’ancien depuis vos réglages de sécurité.
+                {t`Un facteur existe mais n’a jamais été vérifié : enregistrez-en un nouveau, ou supprimez l’ancien depuis vos réglages de sécurité.`}
               </p>
             )}
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <Button variant="solid" tone="brand" size="sm" onClick={() => setPhase('enroll')}>
-                Enregistrer un facteur maintenant
+                {t`Enregistrer un facteur maintenant`}
               </Button>
               <a href={securityHref} className={buttonClasses({ variant: 'outline', size: 'sm' })}>
-                Gérer mes facteurs
+                {t`Gérer mes facteurs`}
               </a>
               <Button variant="ghost" size="sm" onClick={() => close(false)}>
-                Fermer
+                {t`Fermer`}
               </Button>
             </div>
           </div>
@@ -243,8 +241,7 @@ export function StepUpGate() {
         {phase === 'unavailable' && (
           <div className="space-y-3">
             <p className="text-xs leading-relaxed text-muted-foreground">
-              Impossible de lire vos facteurs pour le moment : la vérification ne peut pas être
-              proposée. Vos facteurs existants ne sont pas en cause — réessayez dans un instant.
+              {t`Impossible de lire vos facteurs pour le moment : la vérification ne peut pas être proposée. Vos facteurs existants ne sont pas en cause — réessayez dans un instant.`}
             </p>
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <Button
@@ -253,13 +250,13 @@ export function StepUpGate() {
                 size="sm"
                 onClick={() => setReadAttempt((attempt) => attempt + 1)}
               >
-                Réessayer
+                {t`Réessayer`}
               </Button>
               <a href={securityHref} className={buttonClasses({ variant: 'outline', size: 'sm' })}>
-                Gérer mes facteurs
+                {t`Gérer mes facteurs`}
               </a>
               <Button variant="ghost" size="sm" onClick={() => close(false)}>
-                Fermer
+                {t`Fermer`}
               </Button>
             </div>
           </div>
@@ -279,7 +276,7 @@ export function StepUpGate() {
           <form onSubmit={submit} className="space-y-3">
             <label className="block space-y-1.5">
               <span className="text-xs font-medium text-foreground">
-                Code de votre application d’authentification
+                {t`Code de votre application d’authentification`}
                 {factors.totp[0]?.label ? (
                   <span className="text-muted-foreground"> · {factors.totp[0].label}</span>
                 ) : null}
@@ -304,7 +301,7 @@ export function StepUpGate() {
 
             <DialogFooter>
               <Button variant="outline" size="sm" onClick={() => close(false)}>
-                Annuler
+                {t`Annuler`}
               </Button>
               <Button
                 type="submit"
@@ -314,7 +311,7 @@ export function StepUpGate() {
                 disabled={phase === 'submitting' || code.trim().length < 6}
               >
                 {phase === 'submitting' && <Loader2 className="animate-spin" />}
-                Vérifier
+                {t`Vérifier`}
               </Button>
             </DialogFooter>
           </form>

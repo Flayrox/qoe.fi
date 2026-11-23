@@ -3,6 +3,7 @@
 import React from 'react';
 import { Repeat, Clock, Info } from 'lucide-react';
 import { UmamiAdvancedInsights } from '../actions';
+import { t } from '@lingui/core/macro';
 
 interface ReturningAndHeatmapBlockProps {
   insights: UmamiAdvancedInsights;
@@ -58,10 +59,10 @@ export function ReturningAndHeatmapBlock({ insights }: ReturningAndHeatmapBlockP
             </div>
             <div>
               <h3 className="text-[17px] font-semibold tracking-tight text-foreground">
-                Nouveaux vs récurrents
+                {t`Nouveaux vs récurrents`}
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Visiteurs uniques de la période
+                {t`Visiteurs uniques de la période`}
               </p>
             </div>
           </div>
@@ -74,7 +75,7 @@ export function ReturningAndHeatmapBlock({ insights }: ReturningAndHeatmapBlockP
           <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed rounded-lg border-border/30 bg-muted/10">
             <Repeat className="h-6 w-6 text-muted-foreground/40 mb-2 stroke-[1.5]" />
             <p className="text-xs font-medium text-muted-foreground">
-              Disponible dès que des visites sont enregistrées
+              {t`Disponible dès que des visites sont enregistrées`}
             </p>
           </div>
         ) : (
@@ -100,7 +101,7 @@ export function ReturningAndHeatmapBlock({ insights }: ReturningAndHeatmapBlockP
                   <div className="flex items-center justify-between text-xs mb-1">
                     <span className="text-muted-foreground flex items-center gap-1.5">
                       <span className="w-2.5 h-2.5 rounded-sm bg-[#EE4B2B] inline-block" />
-                      Récurrents
+                      {t`Récurrents`}
                     </span>
                     <span className="font-semibold text-foreground">
                       {returningVisitors.toLocaleString()}
@@ -117,7 +118,7 @@ export function ReturningAndHeatmapBlock({ insights }: ReturningAndHeatmapBlockP
                   <div className="flex items-center justify-between text-xs mb-1">
                     <span className="text-muted-foreground flex items-center gap-1.5">
                       <span className="w-2.5 h-2.5 rounded-sm bg-primary/60 inline-block" />
-                      Nouveaux
+                      {t`Nouveaux`}
                     </span>
                     <span className="font-semibold text-foreground">
                       {newVisitors.toLocaleString()}
@@ -135,9 +136,7 @@ export function ReturningAndHeatmapBlock({ insights }: ReturningAndHeatmapBlockP
 
             <p className="flex items-start gap-2 text-[11px] text-muted-foreground/70 leading-relaxed">
               <Info className="h-3.5 w-3.5 shrink-0 stroke-[1.5] mt-0.5" />
-              Un visiteur est « nouveau » si c'est sa première session jamais enregistrée ; «
-              récurrent » s'il revient après une visite antérieure (identifiant anonyme persistant,
-              sans cookie traceur).
+              {t`Un visiteur est « nouveau » si c'est sa première session jamais enregistrée ; « récurrent » s'il revient après une visite antérieure (identifiant anonyme persistant, sans cookie traceur).`}
             </p>
           </div>
         )}
@@ -152,21 +151,21 @@ export function ReturningAndHeatmapBlock({ insights }: ReturningAndHeatmapBlockP
             </div>
             <div>
               <h3 className="text-[17px] font-semibold tracking-tight text-foreground">
-                Heures de lecture
+                {t`Heures de lecture`}
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Meilleur moment pour publier — visites par heure
+                {t`Meilleur moment pour publier — visites par heure`}
               </p>
             </div>
           </div>
-          <span className="text-xs text-muted-foreground font-medium">UTC</span>
+          <span className="text-xs text-muted-foreground font-medium">{'UTC'}</span>
         </div>
 
         {hoursList.length === 0 || maxHour === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed rounded-lg border-border/30 bg-muted/10">
             <Clock className="h-6 w-6 text-muted-foreground/40 mb-2 stroke-[1.5]" />
             <p className="text-xs font-medium text-muted-foreground">
-              Disponible dès que des visites sont enregistrées
+              {t`Disponible dès que des visites sont enregistrées`}
             </p>
           </div>
         ) : (

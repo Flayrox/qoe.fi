@@ -8,6 +8,7 @@ import React from 'react';
 import { MousePointer, Hand, Plus, ZoomIn, ZoomOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStageEngine, StageEditorMode } from '../context/StageEngineContext';
+import { t } from '@lingui/core/macro';
 
 export function BottomBar() {
   const engine = useStageEngine();
@@ -28,7 +29,7 @@ export function BottomBar() {
             <button
               type="button"
               onClick={() => engine.setEditorMode(StageEditorMode.DESIGN)}
-              title="Sélectionner (V)"
+              title={t`Sélectionner (V)`}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all ${
                 engine.editorMode === StageEditorMode.DESIGN
                   ? 'bg-primary text-primary-foreground shadow-xs'
@@ -36,7 +37,7 @@ export function BottomBar() {
               }`}
             >
               <MousePointer className="w-3.5 h-3.5" />
-              <span>Sélection</span>
+              <span>{t`Sélection`}</span>
               <kbd className="hidden sm:inline-block ml-1 px-1 py-0.2 rounded text-[10px] bg-background/20 font-mono">
                 V
               </kbd>
@@ -46,7 +47,7 @@ export function BottomBar() {
             <button
               type="button"
               onClick={() => engine.setEditorMode(StageEditorMode.PAN)}
-              title="Main panoramique (H)"
+              title={t`Main panoramique (H)`}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all ${
                 engine.editorMode === StageEditorMode.PAN
                   ? 'bg-primary text-primary-foreground shadow-xs'
@@ -54,7 +55,7 @@ export function BottomBar() {
               }`}
             >
               <Hand className="w-3.5 h-3.5" />
-              <span>Pan</span>
+              <span>{t`Pan`}</span>
               <kbd className="hidden sm:inline-block ml-1 px-1 py-0.2 rounded text-[10px] bg-background/20 font-mono">
                 H
               </kbd>
@@ -69,11 +70,11 @@ export function BottomBar() {
                 engine.setLeftPanelTab('blocks');
                 engine.setLeftPanelLocked(true);
               }}
-              title="Ajouter un bloc"
+              title={t`Ajouter un bloc`}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-foreground hover:bg-muted/60 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Ajouter</span>
+              <span>{t`Ajouter`}</span>
             </button>
 
             <div className="h-4 w-px bg-border/60 mx-1" />
@@ -83,7 +84,7 @@ export function BottomBar() {
               <button
                 type="button"
                 onClick={engine.zoomOut}
-                title="Zoom arrière (⌘-)"
+                title={t`Zoom arrière (⌘-)`}
                 className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
               >
                 <ZoomOut className="w-3.5 h-3.5" />
@@ -91,7 +92,7 @@ export function BottomBar() {
               <button
                 type="button"
                 onClick={engine.resetZoom}
-                title="Recentrer le plan de travail (⇧0)"
+                title={t`Recentrer le plan de travail (⇧0)`}
                 className="px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground/80 hover:text-foreground"
               >
                 {Math.round(engine.scale * 100)}%
@@ -99,7 +100,7 @@ export function BottomBar() {
               <button
                 type="button"
                 onClick={engine.zoomIn}
-                title="Zoom avant (⌘+)"
+                title={t`Zoom avant (⌘+)`}
                 className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
               >
                 <ZoomIn className="w-3.5 h-3.5" />

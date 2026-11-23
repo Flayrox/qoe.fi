@@ -11,6 +11,7 @@ import { getArticlesAction } from '@qoe/sdk/actions/articles';
 import { StudioHeader, StudioPage } from '@/components/studio-page';
 
 import { TranslateClient } from './translate-client';
+import { t } from '@lingui/core/macro';
 
 export const metadata = {
   title: 'Traduction | qoefi Studio',
@@ -33,8 +34,8 @@ export default async function TranslatePage() {
   return (
     <StudioPage>
       <StudioHeader
-        title="Traduction"
-        description="Obtenir une traduction fidèle d’un article, à relire avant toute publication."
+        title={t`Traduction`}
+        description={t`Obtenir une traduction fidèle d’un article, à relire avant toute publication.`}
       />
       <TranslateClient articles={articles} />
     </StudioPage>

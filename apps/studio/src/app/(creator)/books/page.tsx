@@ -12,6 +12,7 @@ import { getArticlesAction } from '@qoe/sdk/actions/articles';
 import { StudioHeader, StudioPage } from '@/components/studio-page';
 
 import { BooksClient } from './books-client';
+import { t } from '@lingui/core/macro';
 
 export const metadata = {
   title: 'Livres | qoefi Studio',
@@ -34,8 +35,8 @@ export default async function BooksPage() {
   return (
     <StudioPage>
       <StudioHeader
-        title="Livres"
-        description="Rassemblez vos écrits en un EPUB lisible partout, sans passer par un autre outil."
+        title={t`Livres`}
+        description={t`Rassemblez vos écrits en un EPUB lisible partout, sans passer par un autre outil.`}
       />
       <BooksClient articles={articles} />
     </StudioPage>

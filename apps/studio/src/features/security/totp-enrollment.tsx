@@ -31,6 +31,7 @@ import { toast } from '@qoe/ui/toast';
 import { createClient } from '@/lib/supabase/client';
 import { enrollAccountSecurityMfaAction } from '@/features/settings/actions';
 import { sanitizeInlineSvg } from '@/lib/sanitize-inline-svg';
+import { t } from '@lingui/core/macro';
 
 type Phase = 'loading' | 'input' | 'error';
 
@@ -115,17 +116,17 @@ export function TotpEnrollment({ factorId, onVerified, onCancel, intro }: Props)
   async function copy(text: string, label: string) {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success(`${label} copié.`);
+      toast.success(t`${label} copié.`);
     } catch {
-      toast.error('Copie impossible : sélectionnez le texte à la main.');
+      toast.error(t`Copie impossible : sélectionnez le texte à la main.`);
     }
   }
 
   if (phase === 'loading') {
     return (
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Spinner size="sm" label="Préparation du facteur" />
-        Préparation du facteur…
+        <Spinner size="sm" label={t`Préparation du facteur`} />
+        {t`Préparation du facteur…`}
       </p>
     );
   }
@@ -139,11 +140,11 @@ export function TotpEnrollment({ factorId, onVerified, onCancel, intro }: Props)
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => void start()}>
             <Icon name="refresh" />
-            Réessayer
+            {t`Réessayer`}
           </Button>
           {onCancel && (
             <Button variant="ghost" size="sm" onClick={onCancel}>
-              Fermer
+              {t`Fermer`}
             </Button>
           )}
         </div>
@@ -164,8 +165,7 @@ export function TotpEnrollment({ factorId, onVerified, onCancel, intro }: Props)
         />
       ) : (
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Ajoutez le compte à la main dans votre application d’authentification, avec le secret
-          ci-dessous.
+          {t`Ajoutez le compte à la main dans votre application d’authentification, avec le secret ci-dessous.`}
         </p>
       )}
 
@@ -180,7 +180,7 @@ export function TotpEnrollment({ factorId, onVerified, onCancel, intro }: Props)
             className="shrink-0"
           >
             <Icon name="copy" size="sm" />
-            Copier
+            {t`Copier`}
           </Button>
         </div>
       )}
@@ -193,12 +193,12 @@ export function TotpEnrollment({ factorId, onVerified, onCancel, intro }: Props)
           onClick={() => copy(uri, 'Lien otpauth')}
           className="justify-start px-0 text-primary hover:bg-transparent hover:underline"
         >
-          Copier le lien otpauth://
+          {t`Copier le lien otpauth://`}
         </Button>
       )}
 
       <label className="block space-y-1.5">
-        <span className="text-sm font-medium">Code à 6 chiffres</span>
+        <span className="text-sm font-medium">{t`Code à 6 chiffres`}</span>
         <Input
           autoFocus
           value={code}
@@ -207,7 +207,7 @@ export function TotpEnrollment({ factorId, onVerified, onCancel, intro }: Props)
           autoComplete="one-time-code"
           maxLength={6}
           placeholder="123456"
-          aria-label="Code à 6 chiffres"
+          aria-label={t`Code à 6 chiffres`}
           className="max-w-40 text-center text-lg font-semibold tracking-[0.3em]"
         />
       </label>
@@ -227,11 +227,11 @@ export function TotpEnrollment({ factorId, onVerified, onCancel, intro }: Props)
           loading={busy}
           disabled={code.length < 6}
         >
-          Vérifier
+          {t`Vérifier`}
         </Button>
         {onCancel && (
           <Button type="button" variant="outline" size="sm" onClick={onCancel}>
-            Annuler
+            {t`Annuler`}
           </Button>
         )}
       </div>

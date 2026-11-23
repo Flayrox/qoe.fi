@@ -82,7 +82,7 @@ export function WebhooksClient({
 
   const handleCreate = async () => {
     if (!name.trim() || !url.trim()) {
-      toast.error("Le nom et l'URL sont requis.");
+      toast.error(t`Le nom et l'URL sont requis.`);
       return;
     }
     setCreating(true);
@@ -150,7 +150,7 @@ export function WebhooksClient({
     try {
       const res = await testWebhookAction(id);
       if (res.success) {
-        toast.success(`Événement de test envoyé — HTTP ${res.status}`);
+        toast.success(t`Événement de test envoyé — HTTP ${res.status}`);
       } else {
         toast.error(res.error || t`Test échoué`);
       }
@@ -210,7 +210,7 @@ export function WebhooksClient({
             onClick={() => setShowCreate((current) => !current)}
           >
             <Plus />
-            Nouveau Webhook
+            {t`Nouveau Webhook`}
           </Button>
         </div>
       ) : null}
@@ -219,35 +219,35 @@ export function WebhooksClient({
       {showCreate && (
         <div className="bg-card border border-border/50 rounded-2xl p-6 md:p-8 space-y-5 shadow-xs">
           <div className="space-y-1">
-            <h3 className="text-base font-bold text-foreground">Configurer un nouveau webhook</h3>
+            <h3 className="text-base font-bold text-foreground">{t`Configurer un nouveau webhook`}</h3>
             <p className="text-xs text-muted-foreground">
-              Entrez l'URL HTTPS publique de votre serveur qui traitera les requêtes POST.
+              {t`Entrez l'URL HTTPS publique de votre serveur qui traitera les requêtes POST.`}
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-foreground">
-                Nom de l'intégration
+                {t`Nom de l'intégration`}
               </label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ex: Sync vers mon CRM, Discord Notifier..."
-                aria-label="Nom de l'intégration"
+                placeholder={t`Ex: Sync vers mon CRM, Discord Notifier...`}
+                aria-label={t`Nom de l'intégration`}
                 size="sm"
                 className="text-xs"
               />
             </div>
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-foreground">
-                Endpoint URL (HTTPS)
+                {t`Endpoint URL (HTTPS)`}
               </label>
               <Input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://api.monsite.com/webhooks/qoe"
-                aria-label="Endpoint URL HTTPS"
+                aria-label={t`Endpoint URL HTTPS`}
                 size="sm"
                 className="font-sans text-xs"
               />
@@ -256,7 +256,7 @@ export function WebhooksClient({
 
           <div className="space-y-2">
             <label className="block text-xs font-semibold text-foreground">
-              Événements souscrits
+              {t`Événements souscrits`}
             </label>
             <div className="flex flex-wrap gap-2">
               {events.map((ev) => {
@@ -294,7 +294,7 @@ export function WebhooksClient({
                 setRevealedSecret(null);
               }}
             >
-              Annuler
+              {t`Annuler`}
             </Button>
             <Button
               variant="solid"
@@ -305,13 +305,13 @@ export function WebhooksClient({
               loading={creating}
             >
               {!creating && <Zap aria-hidden />}
-              Enregistrer le Webhook
+              {t`Enregistrer le Webhook`}
             </Button>
           </div>
 
           {revealedSecret && (
             <div className="flex items-center gap-3 p-3.5 rounded-xl bg-highlight/10 border border-highlight/20 text-xs">
-              <span className="text-highlight font-bold shrink-0">Secret HMAC :</span>
+              <span className="text-highlight font-bold shrink-0">{t`Secret HMAC :`}</span>
               <code className="font-sans font-medium text-foreground truncate flex-1 text-[11px]">
                 {revealedSecret}
               </code>
@@ -320,8 +320,8 @@ export function WebhooksClient({
                 size="xs"
                 shape="icon"
                 onClick={() => copySecret(revealedSecret)}
-                aria-label="Copier le secret"
-                title="Copier le secret"
+                aria-label={t`Copier le secret`}
+                title={t`Copier le secret`}
               >
                 <Copy aria-hidden />
               </Button>
@@ -337,22 +337,21 @@ export function WebhooksClient({
           <div className="w-14 h-14 rounded-2xl bg-muted/40 text-primary flex items-center justify-center mx-auto mb-4 border border-border/60">
             <Globe className="w-6 h-6" strokeWidth={1.5} />
           </div>
-          <h3 className="text-lg font-bold text-foreground">Aucun webhook configuré</h3>
+          <h3 className="text-lg font-bold text-foreground">{t`Aucun webhook configuré`}</h3>
           <p className="text-xs text-muted-foreground mt-1 mb-6 max-w-sm mx-auto leading-relaxed">
-            Créez un endpoint HTTPS pour synchroniser automatiquement vos articles et abonnés avec
-            vos applications.
+            {t`Créez un endpoint HTTPS pour synchroniser automatiquement vos articles et abonnés avec vos applications.`}
           </p>
           <Button variant="solid" tone="brand" size="md" onClick={() => setShowCreate(true)}>
             <Plus aria-hidden />
-            Créer mon premier webhook
+            {t`Créer mon premier webhook`}
           </Button>
         </div>
       ) : (
         <div className="bg-card border border-border/50 rounded-2xl shadow-xs overflow-hidden divide-y divide-border/60">
           <div className="px-6 py-4 border-b border-border/50 flex items-center justify-between">
-            <h3 className="text-base font-bold text-foreground">Endpoints Enregistrés</h3>
+            <h3 className="text-base font-bold text-foreground">{t`Endpoints Enregistrés`}</h3>
             <Badge variant="soft" size="sm" shape="pill">
-              {webhooks.length} webhook{webhooks.length > 1 ? 's' : ''}
+              {webhooks.length} webhook{webhooks.length > 1 ? t`s` : ''}
             </Badge>
           </div>
 
@@ -373,7 +372,7 @@ export function WebhooksClient({
                       tone={webhook.active ? 'success' : 'neutral'}
                       shape="pill"
                     >
-                      {webhook.active ? 'Actif' : 'En pause'}
+                      {webhook.active ? t`Actif` : t`En pause`}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground font-sans truncate">{webhook.url}</p>
@@ -393,9 +392,9 @@ export function WebhooksClient({
                   variant="soft"
                   size="xs"
                   onClick={() => openDeliveries(webhook)}
-                  title="Historique des envois"
+                  title={t`Historique des envois`}
                 >
-                  Historique
+                  {t`Historique`}
                 </Button>
                 <Button
                   variant="soft"
@@ -404,10 +403,10 @@ export function WebhooksClient({
                   onClick={() => handleTest(webhook.id)}
                   disabled={busyId === webhook.id}
                   loading={busyId === webhook.id}
-                  title="Envoyer un ping de test"
+                  title={t`Envoyer un ping de test`}
                 >
                   {busyId !== webhook.id && <Send aria-hidden />}
-                  Tester
+                  {t`Tester`}
                 </Button>
                 <Button
                   variant="ghost"
@@ -415,7 +414,7 @@ export function WebhooksClient({
                   onClick={() => handleToggle(webhook.id)}
                   disabled={busyId === webhook.id}
                 >
-                  {webhook.active ? 'Pause' : 'Activer'}
+                  {webhook.active ? t`Pause` : t`Activer`}
                 </Button>
                 <Button
                   variant="ghost"
@@ -424,8 +423,8 @@ export function WebhooksClient({
                   shape="icon"
                   onClick={() => handleDelete(webhook.id, webhook.name)}
                   disabled={busyId === webhook.id}
-                  aria-label="Supprimer ce webhook"
-                  title="Supprimer ce webhook"
+                  aria-label={t`Supprimer ce webhook`}
+                  title={t`Supprimer ce webhook`}
                 >
                   <Trash2 aria-hidden />
                 </Button>
@@ -440,7 +439,7 @@ export function WebhooksClient({
         <DialogContent className="max-w-2xl bg-card text-foreground border-border">
           <DialogHeader>
             <DialogTitle className="text-foreground">
-              Historique de livraison — {detailWebhook?.name}
+              {t`Historique de livraison —`} {detailWebhook?.name}
             </DialogTitle>
             <DialogDescription className="text-muted-foreground text-xs font-sans truncate">
               {detailWebhook?.url}
@@ -472,7 +471,7 @@ export function WebhooksClient({
                                 : 'bg-destructive/10 text-destructive-text'
                             )}
                           >
-                            HTTP {d.httpStatus}
+                            {'HTTP'} {d.httpStatus}
                           </span>
                         )}
                       </div>
@@ -494,7 +493,7 @@ export function WebhooksClient({
               </div>
             ) : (
               <p className="text-xs text-muted-foreground py-8 text-center">
-                Aucune livraison enregistrée pour ce webhook.
+                {t`Aucune livraison enregistrée pour ce webhook.`}
               </p>
             )}
           </div>

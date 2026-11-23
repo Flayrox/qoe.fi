@@ -70,7 +70,7 @@ export function ProvenanceBlock({ provenance, period = '30d' }: ProvenanceBlockP
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Compass className="h-4 w-4 text-primary stroke-[1.5]" />
-          <h3 className="text-[17px] font-semibold tracking-tight">Provenance des vues</h3>
+          <h3 className="text-[17px] font-semibold tracking-tight">{t`Provenance des vues`}</h3>
         </div>
         <span className="text-[11px] text-muted-foreground">{PERIOD_LABELS[period]()}</span>
       </div>
@@ -78,7 +78,7 @@ export function ProvenanceBlock({ provenance, period = '30d' }: ProvenanceBlockP
       {totalSource > 0 && (
         <div className="space-y-2">
           <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
-            Par canal
+            {t`Par canal`}
           </span>
           {[...bySource]
             .sort((a, b) => b.count - a.count)
@@ -107,7 +107,7 @@ export function ProvenanceBlock({ provenance, period = '30d' }: ProvenanceBlockP
       {byHostname.length > 0 && (
         <div className="space-y-2 pt-2 border-t border-border/40">
           <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
-            Depuis quel tenant
+            {t`Depuis quel tenant`}
           </span>
           {[...byHostname]
             .sort((a, b) => b.count - a.count)
@@ -127,7 +127,7 @@ export function ProvenanceBlock({ provenance, period = '30d' }: ProvenanceBlockP
       {byReferrer.length > 0 && (
         <div className="space-y-2 pt-2 border-t border-border/40">
           <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
-            Depuis quel profil
+            {t`Depuis quel profil`}
           </span>
           {[...byReferrer]
             .sort((a, b) => b.count - a.count)

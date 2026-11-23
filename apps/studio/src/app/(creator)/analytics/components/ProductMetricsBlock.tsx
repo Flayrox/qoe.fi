@@ -15,6 +15,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { ProductMetrics } from '../actions';
+import { t } from '@lingui/core/macro';
 
 interface ProductMetricsBlockProps {
   metrics: ProductMetrics;
@@ -55,7 +56,7 @@ export function ProductMetricsBlock({ metrics, onSelectArticle }: ProductMetrics
         <div className="rounded-xl border border-border/30 bg-card p-6 shadow-none transition-all hover:bg-muted/10">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
-              Interactions globales
+              {t`Interactions globales`}
             </span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
               <BarChart3 className="h-4 w-4 stroke-[1.5]" />
@@ -66,11 +67,11 @@ export function ProductMetricsBlock({ metrics, onSelectArticle }: ProductMetrics
               {totalInteractions.toLocaleString()}
             </span>
             <span className="text-xs text-muted-foreground font-medium">
-              ~{avgInteractionsPerArticle} / écrit
+              ~{avgInteractionsPerArticle} {t`/ écrit`}
             </span>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            Cumul des réactions, sauvegardes, notes et partages
+            {t`Cumul des réactions, sauvegardes, notes et partages`}
           </p>
         </div>
 
@@ -85,13 +86,13 @@ export function ProductMetricsBlock({ metrics, onSelectArticle }: ProductMetrics
             </div>
           </div>
           <div className="flex items-baseline gap-4">
-            <div className="flex items-baseline gap-1.5" title="Mentions j'aime">
+            <div className="flex items-baseline gap-1.5" title={t`Mentions j'aime`}>
               <span className="text-2xl font-bold tracking-tight text-foreground">
                 {totalLikes.toLocaleString()}
               </span>
               <Heart className="h-3.5 w-3.5 text-muted-foreground stroke-[1.5]" />
             </div>
-            <div className="flex items-baseline gap-1.5" title="Republications et citations">
+            <div className="flex items-baseline gap-1.5" title={t`Republications et citations`}>
               <span className="text-2xl font-bold tracking-tight text-foreground">
                 {totalReposts.toLocaleString()}
               </span>
@@ -99,7 +100,7 @@ export function ProductMetricsBlock({ metrics, onSelectArticle }: ProductMetrics
             </div>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            ~{avgLikesPerArticle} j'aime / article · {totalReposts} reposts
+            ~{avgLikesPerArticle} {t`j'aime / article ·`} {totalReposts} reposts
           </p>
         </div>
 
@@ -114,13 +115,13 @@ export function ProductMetricsBlock({ metrics, onSelectArticle }: ProductMetrics
             </div>
           </div>
           <div className="flex items-baseline gap-4">
-            <div className="flex items-baseline gap-1.5" title="Marque-pages">
+            <div className="flex items-baseline gap-1.5" title={t`Marque-pages`}>
               <span className="text-2xl font-bold tracking-tight text-foreground">
                 {totalBookmarks.toLocaleString()}
               </span>
               <Bookmark className="h-3.5 w-3.5 text-muted-foreground stroke-[1.5]" />
             </div>
-            <div className="flex items-baseline gap-1.5" title="Surlignages">
+            <div className="flex items-baseline gap-1.5" title={t`Surlignages`}>
               <span className="text-2xl font-bold tracking-tight text-foreground">
                 {totalHighlights.toLocaleString()}
               </span>
@@ -128,8 +129,8 @@ export function ProductMetricsBlock({ metrics, onSelectArticle }: ProductMetrics
             </div>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            ~{avgBookmarksPerArticle} marque-pages / article · {totalHighlightsPublic} publics,{' '}
-            {totalHighlightsPrivate} privés
+            ~{avgBookmarksPerArticle} {t`marque-pages / article ·`} {totalHighlightsPublic}{' '}
+            {t`publics,`} {totalHighlightsPrivate} {t`privés`}
           </p>
         </div>
 
@@ -144,14 +145,14 @@ export function ProductMetricsBlock({ metrics, onSelectArticle }: ProductMetrics
             </div>
           </div>
           <div className="flex items-baseline gap-4">
-            <div className="flex items-baseline gap-1.5" title="Commentaires d'articles">
+            <div className="flex items-baseline gap-1.5" title={t`Commentaires d'articles`}>
               <span className="text-2xl font-bold tracking-tight text-foreground">
                 {totalComments.toLocaleString()}
               </span>
               <MessageSquare className="h-3.5 w-3.5 text-muted-foreground stroke-[1.5]" />
             </div>
             {totalAnnotations > 0 && (
-              <div className="flex items-baseline gap-1.5" title="Annotations sur surlignages">
+              <div className="flex items-baseline gap-1.5" title={t`Annotations sur surlignages`}>
                 <span className="text-2xl font-bold tracking-tight text-foreground">
                   {totalAnnotations.toLocaleString()}
                 </span>
@@ -160,7 +161,7 @@ export function ProductMetricsBlock({ metrics, onSelectArticle }: ProductMetrics
             )}
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            ~{avgCommentsPerArticle} commentaires / article
+            ~{avgCommentsPerArticle} {t`commentaires / article`}
           </p>
         </div>
       </div>
@@ -173,7 +174,7 @@ export function ProductMetricsBlock({ metrics, onSelectArticle }: ProductMetrics
           <div className="rounded-xl border border-border/30 bg-card p-6 shadow-none">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
-                Abonnés
+                {t`Abonnés`}
               </span>
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
                 <Users className="h-4 w-4 stroke-[1.5]" />
@@ -188,11 +189,12 @@ export function ProductMetricsBlock({ metrics, onSelectArticle }: ProductMetrics
                   subscriberDelta7d > 0 ? 'text-success-text' : 'text-muted-foreground'
                 }`}
               >
-                {subscriberDelta7d > 0 ? `+${subscriberDelta7d}` : subscriberDelta7d} sur 7j
+                {subscriberDelta7d > 0 ? `+${subscriberDelta7d}` : subscriberDelta7d} {t`sur 7j`}
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Lecteurs abonnés à votre publication ({totalArticles} écrits publiés)
+              {t`Lecteurs abonnés à votre publication (`}
+              {totalArticles} {t`écrits publiés)`}
             </p>
           </div>
 
@@ -200,7 +202,7 @@ export function ProductMetricsBlock({ metrics, onSelectArticle }: ProductMetrics
           <div className="rounded-xl border border-border/30 bg-card p-6 shadow-none">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
-                Complétion de lecture certifiée
+                {t`Complétion de lecture certifiée`}
               </span>
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
                 <BookOpen className="h-4 w-4 stroke-[1.5]" />
@@ -208,19 +210,21 @@ export function ProductMetricsBlock({ metrics, onSelectArticle }: ProductMetrics
             </div>
             <div className="flex items-baseline justify-between">
               <span className="text-3xl font-bold tracking-tight text-foreground">
-                {avgCompletionRate === null ? '—' : `${Math.round(avgCompletionRate * 100)}%`}
+                {avgCompletionRate === null ? t`—` : `${Math.round(avgCompletionRate * 100)}%`}
               </span>
-              <span className="text-xs text-muted-foreground font-medium">score moyen</span>
+              <span className="text-xs text-muted-foreground font-medium">{t`score moyen`}</span>
             </div>
 
             {readingQuality && (
               <div className="mt-4 pt-3 border-t border-border/30 space-y-2">
                 <div className="flex justify-between text-[11px]">
                   <span className="text-success-text font-medium">
-                    Lectures complètes ({readingQuality.deepReadsRate}%)
+                    {t`Lectures complètes (`}
+                    {readingQuality.deepReadsRate}%)
                   </span>
                   <span className="text-warning font-medium">
-                    Survols ({readingQuality.skimsRate}%)
+                    {t`Survols (`}
+                    {readingQuality.skimsRate}%)
                   </span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-muted/60 flex overflow-hidden">
@@ -238,7 +242,7 @@ export function ProductMetricsBlock({ metrics, onSelectArticle }: ProductMetrics
                   />
                 </div>
                 <p className="text-[10px] text-muted-foreground">
-                  Basé sur le temps de lecture effectif (≥ 35% de la durée estimée)
+                  {t`Basé sur le temps de lecture effectif (≥ 35% de la durée estimée)`}
                 </p>
               </div>
             )}
@@ -250,7 +254,7 @@ export function ProductMetricsBlock({ metrics, onSelectArticle }: ProductMetrics
               <div className="flex items-center gap-1.5 mb-3">
                 <Tag className="h-3.5 w-3.5 text-muted-foreground stroke-[1.5]" />
                 <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
-                  Catégories publiées
+                  {t`Catégories publiées`}
                 </span>
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -279,16 +283,15 @@ export function ProductMetricsBlock({ metrics, onSelectArticle }: ProductMetrics
               </div>
               <div>
                 <h3 className="text-[17px] font-semibold tracking-tight text-foreground">
-                  Articles les plus engageants
+                  {t`Articles les plus engageants`}
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Classés par interactions totales (j'aime, marque-pages, commentaires, surlignages,
-                  partages)
+                  {t`Classés par interactions totales (j'aime, marque-pages, commentaires, surlignages, partages)`}
                 </p>
               </div>
             </div>
             <span className="text-xs text-muted-foreground font-medium">
-              {topArticles.length} écrits
+              {topArticles.length} {t`écrits`}
             </span>
           </div>
 
@@ -296,7 +299,7 @@ export function ProductMetricsBlock({ metrics, onSelectArticle }: ProductMetrics
             <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed rounded-lg border-border/30 bg-muted/10">
               <Trophy className="h-6 w-6 text-muted-foreground/40 mb-2 stroke-[1.5]" />
               <p className="text-xs font-medium text-muted-foreground">
-                Aucun article publié pour le moment
+                {t`Aucun article publié pour le moment`}
               </p>
             </div>
           ) : (
@@ -326,14 +329,15 @@ export function ProductMetricsBlock({ metrics, onSelectArticle }: ProductMetrics
                                 month: 'short',
                                 year: 'numeric',
                               })
-                            : 'Brouillon'}
+                            : t`Brouillon`}
                         </span>
                         {article.completionRate > 0 && (
                           <>
                             <span>·</span>
                             <span className="inline-flex items-center gap-1 text-muted-foreground">
                               <BookOpen className="h-3 w-3 stroke-[1.5]" />
-                              {Math.round(article.completionRate * 100)}% lu
+                              {Math.round(article.completionRate * 100)}
+                              {t`% lu`}
                             </span>
                           </>
                         )}

@@ -65,7 +65,7 @@ export function AnalyticsDashboardClient({
         description={t`Audience et lecture, sans cookies.`}
         actions={
           <ToggleGroup
-            aria-label="Période"
+            aria-label={t`Période`}
             variant="inset"
             selectionMode="single"
             disallowEmptySelection
@@ -98,17 +98,17 @@ export function AnalyticsDashboardClient({
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-1.5 max-w-2xl">
               <h2 className="text-lg font-semibold text-foreground tracking-tight">
-                Statistiques non configurées
+                {t`Statistiques non configurées`}
               </h2>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Umami mesure les lectures sans déposer de cookie chez vos visiteurs.
+                {t`Umami mesure les lectures sans déposer de cookie chez vos visiteurs.`}
               </p>
             </div>
 
             <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/40 border border-border/30 text-xs text-muted-foreground shrink-0">
               <Info className="h-4 w-4 shrink-0 stroke-[1.5]" />
               <span>
-                Website ID global :{' '}
+                {t`Website ID global :`}{' '}
                 <span className="text-foreground font-medium">NEXT_PUBLIC_UMAMI_WEBSITE_ID</span>
               </span>
             </div>
@@ -122,7 +122,7 @@ export function AnalyticsDashboardClient({
         <div className="rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
-              Pages vues
+              {t`Pages vues`}
             </span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
               <Eye className="h-4 w-4 stroke-[1.5]" />
@@ -140,7 +140,7 @@ export function AnalyticsDashboardClient({
         <div className="rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
-              Visiteurs uniques
+              {t`Visiteurs uniques`}
             </span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
               <Users className="h-4 w-4 stroke-[1.5]" />
@@ -150,7 +150,7 @@ export function AnalyticsDashboardClient({
             <span className="text-3xl font-bold tracking-tight text-foreground">
               {visitors.toLocaleString()}
             </span>
-            <span className="text-xs text-muted-foreground font-medium">Lecteurs uniques</span>
+            <span className="text-xs text-muted-foreground font-medium">{t`Lecteurs uniques`}</span>
           </div>
           <p className="text-xs text-muted-foreground mt-2">{t`Visiteurs distincts`}</p>
         </div>
@@ -159,7 +159,7 @@ export function AnalyticsDashboardClient({
         <div className="rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
-              Visites / Sessions
+              {t`Visites / Sessions`}
             </span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
               <Activity className="h-4 w-4 stroke-[1.5]" />
@@ -170,7 +170,7 @@ export function AnalyticsDashboardClient({
               {visits.toLocaleString()}
             </span>
             <span className="text-xs text-muted-foreground font-medium">
-              {visits > 0 ? (pageviews / visits).toFixed(1) : '0'} p/v
+              {visits > 0 ? (pageviews / visits).toFixed(1) : t`0`} p/v
             </span>
           </div>
           <p className="text-xs text-muted-foreground mt-2">{t`Sessions`}</p>
@@ -180,7 +180,7 @@ export function AnalyticsDashboardClient({
         <div className="rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
-              Temps de lecture actif
+              {t`Temps de lecture actif`}
             </span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
               <Clock className="h-4 w-4 stroke-[1.5]" />
@@ -190,10 +190,12 @@ export function AnalyticsDashboardClient({
             <span className="text-3xl font-bold tracking-tight text-foreground">
               {formatDuration(avgDwellSeconds)}
             </span>
-            <span className="text-xs text-muted-foreground font-medium">Rebond {bounceRate}%</span>
+            <span className="text-xs text-muted-foreground font-medium">
+              {t`Rebond`} {bounceRate}%
+            </span>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            {t`Moyenne par article`} · Session Umami {formatDuration(avgDurationSeconds)}
+            {t`Moyenne par article`} {t`· Session Umami`} {formatDuration(avgDurationSeconds)}
           </p>
         </div>
       </div>

@@ -11,6 +11,7 @@ import Image from 'next/image';
 import { Globe } from 'lucide-react';
 import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
 import { StudioSection } from '@/components/studio-page';
+import { t } from '@lingui/core/macro';
 
 interface SeoPreviewProps {
   name: string | null;
@@ -53,7 +54,7 @@ export function SeoPreview({
     `Publishers, analyses et articles de ${name || 'cette publication'}.`;
 
   return (
-    <StudioSection title="Aperçu">
+    <StudioSection title={t`Aperçu`}>
       <Tabs
         variant="segmented"
         size="sm"
@@ -61,9 +62,9 @@ export function SeoPreview({
         onValueChange={(value) => setView(value as PreviewView)}
         className="mb-4"
       >
-        <TabList aria-label="Type d'aperçu">
-          <Tab id="search">Résultat Google</Tab>
-          <Tab id="share">Carte de partage</Tab>
+        <TabList aria-label={t`Type d'aperçu`}>
+          <Tab id="search">{t`Résultat Google`}</Tab>
+          <Tab id="share">{t`Carte de partage`}</Tab>
         </TabList>
       </Tabs>
 

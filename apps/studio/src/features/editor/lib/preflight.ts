@@ -1,5 +1,6 @@
 import { countImagesWithoutAlt } from './accessibility';
 import { normalizeLinkUrl } from './link';
+import { t } from '@lingui/core/macro';
 
 export type PreflightStatus = 'ok' | 'warning' | 'error' | 'info';
 
@@ -132,7 +133,7 @@ export function analyzePublishReadiness(input: PublishReadinessInput): PublishRe
       : {
           id: 'slug',
           label: 'URL',
-          detail: "Le slug est vide : l'URL sera générée à partir du titre.",
+          detail: t`Le slug est vide : l'URL sera générée à partir du titre.`,
           status: 'warning',
         }
   );
@@ -168,20 +169,20 @@ export function analyzePublishReadiness(input: PublishReadinessInput): PublishRe
         ? {
             id: 'cover',
             label: 'Couverture',
-            detail: 'Image décorative : elle sera ignorée par les lecteurs d’écran.',
+            detail: t`Image décorative : elle sera ignorée par les lecteurs d’écran.`,
             status: 'ok',
           }
         : (input.coverAlt ?? '').trim()
           ? {
               id: 'cover',
               label: 'Couverture',
-              detail: 'Description alternative renseignée.',
+              detail: t`Description alternative renseignée.`,
               status: 'ok',
             }
           : {
               id: 'cover',
               label: 'Couverture',
-              detail: 'Alt manquant : le titre sera utilisé comme repli.',
+              detail: t`Alt manquant : le titre sera utilisé comme repli.`,
               status: 'warning',
             }
   );
@@ -191,7 +192,7 @@ export function analyzePublishReadiness(input: PublishReadinessInput): PublishRe
       ? {
           id: 'seoTitle',
           label: 'Titre SEO',
-          detail: 'Vide : le titre de l’article sera utilisé.',
+          detail: t`Vide : le titre de l’article sera utilisé.`,
           status: 'warning',
         }
       : seoTitle.length > 60
@@ -214,7 +215,7 @@ export function analyzePublishReadiness(input: PublishReadinessInput): PublishRe
       ? {
           id: 'seoDescription',
           label: 'Description SEO',
-          detail: 'Vide : un extrait public sera généré.',
+          detail: t`Vide : un extrait public sera généré.`,
           status: 'warning',
         }
       : seoDescription.length > 160

@@ -136,16 +136,14 @@ export function ArticleBulkSettingsDialog({
       const { updated, failed } = res.data;
       if (updated > 0) {
         toast.success(
-          `${updated} ${updated > 1 ? t`articles mis à jour` : t`article mis à jour`}.`
+          updated > 1 ? t`${updated} articles mis à jour.` : t`${updated} article mis à jour.`
         );
       }
       if (failed.length > 0) {
         toast.error(
-          `${failed.length} ${
-            failed.length > 1
-              ? t`articles n'ont pas pu être modifiés`
-              : t`article n'a pas pu être modifié`
-          }.`
+          failed.length > 1
+            ? t`${failed.length} articles n'ont pas pu être modifiés.`
+            : t`${failed.length} article n'a pas pu être modifié.`
         );
       }
       onOpenChange(false);

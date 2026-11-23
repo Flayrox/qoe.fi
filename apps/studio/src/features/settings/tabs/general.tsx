@@ -30,6 +30,7 @@ import type { CreatorProfile } from '../types';
 import { ACCENT_SWATCHES, SITE_FONTS } from '../types';
 import { MediaProfilePreviewEditor } from '../components/MediaProfilePreviewEditor';
 import { StudioField, StudioRow, StudioRowList, StudioSection } from '@/components/studio-page';
+import { t } from '@lingui/core/macro';
 
 interface GeneralTabProps {
   current: CreatorProfile;
@@ -75,17 +76,17 @@ export function GeneralTab({ current, setCurrent }: GeneralTabProps) {
         value={identityScope}
         onValueChange={(value) => setIdentityScope(value as 'tenant' | 'core')}
       >
-        <TabList aria-label="Portée des paramètres d'identité">
+        <TabList aria-label={t`Portée des paramètres d'identité`}>
           <Tab id="tenant">
             <span className="inline-flex items-center gap-1.5">
               <Globe className="size-3.5" />
-              <span>Site web</span>
+              <span>{t`Site web`}</span>
             </span>
           </Tab>
           <Tab id="core">
             <span className="inline-flex items-center gap-1.5">
               <User className="size-3.5" />
-              <span>{isMedia ? 'Profil du média' : 'Votre profil'}</span>
+              <span>{isMedia ? t`Profil du média` : t`Votre profil`}</span>
             </span>
           </Tab>
         </TabList>
@@ -95,7 +96,7 @@ export function GeneralTab({ current, setCurrent }: GeneralTabProps) {
         <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
           <div className="space-y-5">
             <StudioSection
-              title="Identité du site"
+              title={t`Identité du site`}
               icon={PenTool}
               actions={
                 current.subdomain ? (
@@ -106,7 +107,7 @@ export function GeneralTab({ current, setCurrent }: GeneralTabProps) {
               }
             >
               <div className="space-y-4">
-                <StudioField label="Nom du site" htmlFor="site-name">
+                <StudioField label={t`Nom du site`} htmlFor="site-name">
                   <Input
                     id="site-name"
                     type="text"
@@ -114,15 +115,15 @@ export function GeneralTab({ current, setCurrent }: GeneralTabProps) {
                     onChange={(event) =>
                       setCurrent((prev) => ({ ...prev, name: event.target.value }))
                     }
-                    placeholder="Carnet d'Éphémère"
+                    placeholder={t`Carnet d'Éphémère`}
                   />
                 </StudioField>
 
                 <StudioField
-                  label="Slogan"
+                  label={t`Slogan`}
                   htmlFor="site-tagline"
                   counter={`${current.heroText?.length || 0}/180`}
-                  hint="Une phrase affichée sous le nom."
+                  hint={t`Une phrase affichée sous le nom.`}
                 >
                   <Textarea
                     id="site-tagline"
@@ -133,16 +134,16 @@ export function GeneralTab({ current, setCurrent }: GeneralTabProps) {
                     onChange={(event) =>
                       setCurrent((prev) => ({ ...prev, heroText: event.target.value }))
                     }
-                    placeholder="Analyses, essais et récits"
+                    placeholder={t`Analyses, essais et récits`}
                   />
                 </StudioField>
               </div>
             </StudioSection>
 
-            <StudioSection title="Typographie et couleur" icon={Palette}>
+            <StudioSection title={t`Typographie et couleur`} icon={Palette}>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <span className="text-xs font-semibold text-foreground">Police</span>
+                  <span className="text-xs font-semibold text-foreground">{t`Police`}</span>
                   <div className="grid grid-cols-2 gap-2">
                     {SITE_FONTS.map((font) => {
                       const isSelected = activeFontId === font.id;
@@ -167,7 +168,7 @@ export function GeneralTab({ current, setCurrent }: GeneralTabProps) {
                             style={{ fontFamily: font.family }}
                             className="truncate text-sm leading-tight text-muted-foreground"
                           >
-                            Aa Bb Cc
+                            {t`Aa Bb Cc`}
                           </span>
                         </Button>
                       );
@@ -176,7 +177,7 @@ export function GeneralTab({ current, setCurrent }: GeneralTabProps) {
                 </div>
 
                 <div className="space-y-2 border-t border-border/40 pt-4">
-                  <span className="text-xs font-semibold text-foreground">Couleur d’accent</span>
+                  <span className="text-xs font-semibold text-foreground">{t`Couleur d’accent`}</span>
                   <div className="flex flex-wrap items-center gap-2">
                     {ACCENT_SWATCHES.map((swatch) => {
                       const isSelected = activeColorHex.toLowerCase() === swatch.hex.toLowerCase();
@@ -214,8 +215,8 @@ export function GeneralTab({ current, setCurrent }: GeneralTabProps) {
                         onChange={(event) =>
                           setCurrent((prev) => ({ ...prev, accentColor: event.target.value }))
                         }
-                        aria-label="Couleur personnalisée"
-                        title="Couleur personnalisée"
+                        aria-label={t`Couleur personnalisée`}
+                        title={t`Couleur personnalisée`}
                         className="size-6 cursor-pointer rounded-full border-border/50 bg-transparent p-0"
                       />
                       <span className="font-mono text-[11px] text-muted-foreground uppercase">
@@ -227,9 +228,9 @@ export function GeneralTab({ current, setCurrent }: GeneralTabProps) {
 
                 <div className="space-y-2 border-t border-border/40 pt-4">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-xs font-semibold text-foreground">Couleur de fond</span>
+                    <span className="text-xs font-semibold text-foreground">{t`Couleur de fond`}</span>
                     <span className="text-[10px] text-muted-foreground">
-                      {current.siteOptions?.backgroundColor ? 'Personnalisée' : 'Par défaut'}
+                      {current.siteOptions?.backgroundColor ? t`Personnalisée` : t`Par défaut`}
                     </span>
                   </div>
                   <ColorPicker
@@ -251,11 +252,11 @@ export function GeneralTab({ current, setCurrent }: GeneralTabProps) {
           </div>
 
           <div className="space-y-5">
-            <StudioSection title="Médias" icon={ImageIcon}>
+            <StudioSection title={t`Médias`} icon={ImageIcon}>
               <StudioRowList>
                 <StudioRow
-                  title="Logo"
-                  description="Affiché dans l’en-tête du site et comme favicon. PNG ou SVG, 512 × 512."
+                  title={t`Logo`}
+                  description={t`Affiché dans l’en-tête du site et comme favicon. PNG ou SVG, 512 × 512.`}
                 >
                   <div className="w-44">
                     <ImageUploader
@@ -272,8 +273,8 @@ export function GeneralTab({ current, setCurrent }: GeneralTabProps) {
                 </StudioRow>
 
                 <StudioRow
-                  title="Wordmark"
-                  description="Remplace le nom texte dans l’en-tête du site. Laissez vide pour garder le nom."
+                  title={t`Wordmark`}
+                  description={t`Remplace le nom texte dans l’en-tête du site. Laissez vide pour garder le nom.`}
                 >
                   <div className="w-52">
                     <ImageUploader
@@ -296,7 +297,7 @@ export function GeneralTab({ current, setCurrent }: GeneralTabProps) {
               </StudioRowList>
             </StudioSection>
 
-            <StudioSection title="Affichage" icon={SlidersHorizontal}>
+            <StudioSection title={t`Affichage`} icon={SlidersHorizontal}>
               <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
                 {DISPLAY_OPTIONS.map((option) => {
                   const isEnabled = (current.siteOptions?.[option.key] ?? true) !== false;
@@ -319,11 +320,11 @@ export function GeneralTab({ current, setCurrent }: GeneralTabProps) {
         <MediaProfilePreviewEditor current={current} setCurrent={setCurrent} />
       ) : (
         <div className="space-y-6 max-w-3xl">
-          <StudioSection title="Identité de l'auteur" icon={User}>
+          <StudioSection title={t`Identité de l'auteur`} icon={User}>
             <StudioRowList>
               <StudioRow
-                title="Bannière de profil"
-                description="Image d'en-tête affichée sur votre profil public (ratio recommandé 21/9)."
+                title={t`Bannière de profil`}
+                description={t`Image d'en-tête affichée sur votre profil public (ratio recommandé 21/9).`}
               >
                 <div className="w-64">
                   <ImageUploader
@@ -335,14 +336,14 @@ export function GeneralTab({ current, setCurrent }: GeneralTabProps) {
                     shape="banner"
                     aspect={21 / 9}
                     maxDimension={1600}
-                    label="Bannière"
+                    label={t`Bannière`}
                   />
                 </div>
               </StudioRow>
 
               <StudioRow
-                title="Photo de profil"
-                description="Votre avatar public affiché sur vos articles et pensées."
+                title={t`Photo de profil`}
+                description={t`Votre avatar public affiché sur vos articles et pensées.`}
               >
                 <div className="size-20">
                   <ImageUploader
@@ -354,42 +355,42 @@ export function GeneralTab({ current, setCurrent }: GeneralTabProps) {
                     shape="circle"
                     aspect={1}
                     maxDimension={512}
-                    label="Avatar"
+                    label={t`Avatar`}
                   />
                 </div>
               </StudioRow>
 
               <StudioRow
-                title="Nom complet"
-                description="Nom public sous lequel vous écrivez et publiez vos articles."
+                title={t`Nom complet`}
+                description={t`Nom public sous lequel vous écrivez et publiez vos articles.`}
               >
                 <div className="max-w-md">
                   <Input
                     type="text"
                     value={current.name || ''}
                     onChange={(e) => setCurrent((prev) => ({ ...prev, name: e.target.value }))}
-                    placeholder="Votre nom"
+                    placeholder={t`Votre nom`}
                   />
                 </div>
               </StudioRow>
 
               <StudioRow
-                title="Biographie / Présentation"
-                description="Une courte présentation affichée en haut de votre profil et sous vos articles."
+                title={t`Biographie / Présentation`}
+                description={t`Une courte présentation affichée en haut de votre profil et sous vos articles.`}
               >
                 <div className="max-w-md">
                   <Textarea
                     value={current.heroText || ''}
                     onChange={(e) => setCurrent((prev) => ({ ...prev, heroText: e.target.value }))}
-                    placeholder="Décrivez-vous en quelques mots..."
+                    placeholder={t`Décrivez-vous en quelques mots...`}
                     rows={3}
                   />
                 </div>
               </StudioRow>
 
               <StudioRow
-                title="Localisation"
-                description="Ville ou région affichée sur votre profil public."
+                title={t`Localisation`}
+                description={t`Ville ou région affichée sur votre profil public.`}
               >
                 <div className="max-w-md">
                   <Input
@@ -408,14 +409,14 @@ export function GeneralTab({ current, setCurrent }: GeneralTabProps) {
                         },
                       }))
                     }
-                    placeholder="Paris, France"
+                    placeholder={t`Paris, France`}
                   />
                 </div>
               </StudioRow>
 
               <StudioRow
-                title="Site web personnel"
-                description="Lien externe vers votre portfolio ou site personnel."
+                title={t`Site web personnel`}
+                description={t`Lien externe vers votre portfolio ou site personnel.`}
               >
                 <div className="max-w-md">
                   <Input

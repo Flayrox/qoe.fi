@@ -875,8 +875,8 @@ export function ArticlesClient({
     setArticles((prev) => prev.filter((art) => !deleted.has(art.id)));
     setSelectedIds(new Set());
     const failed = ids.length - deleted.size;
-    if (deleted.size > 0) toast.success(`${deleted.size} ${t`article(s) supprimé(s)`}.`);
-    if (failed > 0) toast.error(`${failed} ${t`suppression(s) ont échoué`}.`);
+    if (deleted.size > 0) toast.success(t`${deleted.size} article(s) supprimé(s).`);
+    if (failed > 0) toast.error(t`${failed} suppression(s) ont échoué.`);
   };
 
   const requestBulkDelete = () => {
@@ -1376,11 +1376,11 @@ export function ArticlesClient({
                 <BookOpen className="h-8 w-8 text-muted-foreground/40 stroke-[1.5]" />
                 <div className="space-y-0.5">
                   <h3 className="text-foreground font-semibold text-sm">
-                    Aucun écrit ne correspond
+                    {t`Aucun écrit ne correspond`}
                   </h3>
                   <p className="text-xs text-muted-foreground max-w-xs font-sans">
                     {hasActiveFilters
-                      ? 'Essayez de modifier vos critères de recherche ou de tri.'
+                      ? t`Essayez de modifier vos critères de recherche ou de tri.`
                       : t`Prenez la plume pour donner corps à vos pensées.`}
                   </p>
                 </div>

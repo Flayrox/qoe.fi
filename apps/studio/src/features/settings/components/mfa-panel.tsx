@@ -27,6 +27,7 @@ import {
   unenrollAccountSecurityMfaAction,
   type MfaFactorInfo,
 } from '../actions';
+import { t } from '@lingui/core/macro';
 
 export function MfaPanel() {
   const [factors, setFactors] = useState<MfaFactorInfo[]>([]);
@@ -60,7 +61,7 @@ export function MfaPanel() {
     setBusy(true);
     try {
       await unenrollAccountSecurityMfaAction(factorId);
-      toast.success('Facteur retiré.');
+      toast.success(t`Facteur retiré.`);
       await refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Retrait impossible.');
@@ -73,16 +74,15 @@ export function MfaPanel() {
     <div id="security-mfa" className="rounded-xl border border-border/50 bg-card p-5 space-y-4">
       <div className="flex items-center gap-2">
         <Icon name="shield-check" size="md" className="text-primary" />
-        <h3 className="font-semibold">Authentification forte</h3>
+        <h3 className="font-semibold">{t`Authentification forte`}</h3>
       </div>
       <p className="text-sm text-muted-foreground">
-        Une application d’authentification (TOTP) est exigée avant les actions sensibles : clés
-        d’API, envoi de campagne, gestion des membres. Un code reçu par SMS ne suffit pas.
+        {t`Une application d’authentification (TOTP) est exigée avant les actions sensibles : clés d’API, envoi de campagne, gestion des membres. Un code reçu par SMS ne suffit pas.`}
       </p>
 
       {loading ? (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Icon name="spinner" size="md" className="animate-spin" /> Lecture de vos facteurs…
+          <Icon name="spinner" size="md" className="animate-spin" /> {t`Lecture de vos facteurs…`}
         </p>
       ) : (
         <div className="space-y-2">
@@ -101,7 +101,7 @@ export function MfaPanel() {
                 disabled={busy}
                 onClick={() => removeFactor(factor.id, factor.friendly_name || 'facteur')}
               >
-                <Icon name="trash" /> Retirer
+                <Icon name="trash" /> {t`Retirer`}
               </Button>
             </div>
           ))}
@@ -114,8 +114,8 @@ export function MfaPanel() {
               <span className="flex items-start gap-2">
                 <Icon name="triangle-alert" size="md" className="mt-0.5 text-warning" />
                 <span>
-                  « {factor.friendly_name || 'Facteur'} » a été créé mais jamais vérifié : il ne
-                  débloque aucune action.
+                  « {factor.friendly_name || 'Facteur'}{' '}
+                  {t`» a été créé mais jamais vérifié : il ne débloque aucune action.`}
                 </span>
               </span>
               <span className="flex shrink-0 gap-2">
@@ -125,7 +125,7 @@ export function MfaPanel() {
                   disabled={busy}
                   onClick={() => setEnrolling(factor.id)}
                 >
-                  Saisir un code
+                  {t`Saisir un code`}
                 </Button>
                 <Button
                   variant="outline"
@@ -133,7 +133,7 @@ export function MfaPanel() {
                   disabled={busy}
                   onClick={() => removeFactor(factor.id, factor.friendly_name || 'facteur')}
                 >
-                  Supprimer
+                  {t`Supprimer`}
                 </Button>
               </span>
             </div>
@@ -141,7 +141,7 @@ export function MfaPanel() {
 
           {factors.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              Aucun facteur enregistré : les actions sensibles resteront refusées.
+              {t`Aucun facteur enregistré : les actions sensibles resteront refusées.`}
             </p>
           )}
         </div>
@@ -149,7 +149,7 @@ export function MfaPanel() {
 
       {enrolling === null && (
         <Button variant="solid" tone="brand" disabled={busy} onClick={() => setEnrolling('')}>
-          {verified.length > 0 ? 'Ajouter un autre facteur' : 'Activer l’authentification forte'}
+          {verified.length > 0 ? t`Ajouter un autre facteur` : t`Activer l’authentification forte`}
         </Button>
       )}
 
@@ -163,7 +163,7 @@ export function MfaPanel() {
                 : 'Scannez ce QR code avec votre application d’authentification, puis saisissez le code affiché.'
             }
             onVerified={() => {
-              toast.success('Authentification forte activée.');
+              toast.success(t`Authentification forte activée.`);
               setEnrolling(null);
               void refresh();
             }}

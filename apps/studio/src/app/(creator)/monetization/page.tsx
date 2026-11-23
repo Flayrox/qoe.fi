@@ -14,6 +14,7 @@ import { getActiveWorkspace } from '@/lib/active-workspace';
 import { StudioHeader, StudioPage } from '@/components/studio-page';
 
 import { MonetizationClient } from './monetization-client';
+import { t } from '@lingui/core/macro';
 
 export const metadata = {
   title: 'Monétisation | qoefi Studio',
@@ -32,8 +33,8 @@ export default async function MonetizationPage() {
   return (
     <StudioPage>
       <StudioHeader
-        title="Monétisation"
-        description="Vos formules d’abonnement. Le paiement, les taxes et les reversements sont traités par Stripe."
+        title={t`Monétisation`}
+        description={t`Vos formules d’abonnement. Le paiement, les taxes et les reversements sont traités par Stripe.`}
       />
       <MonetizationClient
         publisherId={workspace.publisherId}

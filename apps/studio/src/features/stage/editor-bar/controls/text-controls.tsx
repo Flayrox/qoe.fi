@@ -8,6 +8,7 @@ import { Select } from '@qoe/ui/select';
 
 import { InputRadio, InputRange, ColorField } from './inputs';
 import { useQoefiStyle } from '../useQoefiStyle';
+import { t } from '@lingui/core/macro';
 
 const FONT_STACKS = ['Inter', 'Georgia', 'Times New Roman', 'Menlo', 'System UI'];
 
@@ -17,9 +18,9 @@ export function FontControls() {
   return (
     <div className="space-y-2">
       <label className="block space-y-1">
-        <span className="text-[10px] font-medium text-muted-foreground">Police</span>
+        <span className="text-[10px] font-medium text-muted-foreground">{t`Police`}</span>
         <Select
-          label="Police"
+          label={t`Police`}
           hideLabel
           size="xs"
           value={f.family ?? 'Inter'}
@@ -28,7 +29,7 @@ export function FontControls() {
         />
       </label>
       <InputRange
-        label="Taille"
+        label={t`Taille`}
         value={f.size ?? 16}
         min={10}
         max={96}
@@ -36,9 +37,9 @@ export function FontControls() {
         onChange={(v) => patch({ font: { ...f, size: v } })}
       />
       <label className="block space-y-1">
-        <span className="text-[10px] font-medium text-muted-foreground">Graisse</span>
+        <span className="text-[10px] font-medium text-muted-foreground">{t`Graisse`}</span>
         <Select
-          label="Graisse"
+          label={t`Graisse`}
           hideLabel
           size="xs"
           value={String(f.weight ?? 400)}
@@ -50,7 +51,7 @@ export function FontControls() {
         />
       </label>
       <ColorField
-        label="Couleur texte"
+        label={t`Couleur texte`}
         value={f.color ?? ''}
         onChange={(v) => patch({ font: { ...f, color: v } })}
       />
@@ -74,7 +75,7 @@ export function AdvancedTypoControls() {
   return (
     <div className="space-y-2">
       <InputRange
-        label="Interligne"
+        label={t`Interligne`}
         value={f.lineHeight ?? 1.5}
         min={1}
         max={3}
@@ -82,7 +83,7 @@ export function AdvancedTypoControls() {
         onChange={(v) => patch({ font: { ...f, lineHeight: Math.round(v * 100) / 100 } })}
       />
       <InputRange
-        label="Chasse"
+        label={t`Chasse`}
         value={f.letterSpacing ?? 0}
         min={-2}
         max={8}
@@ -104,8 +105,8 @@ export function AdvancedTypoControls() {
         onChange={(v) => patch({ font: { ...f, decoration: v } })}
         options={[
           { value: 'none', label: 'Sans' },
-          { value: 'underline', label: 'Souligné' },
-          { value: 'line-through', label: 'Barré' },
+          { value: 'underline', label: t`Souligné` },
+          { value: 'line-through', label: t`Barré` },
         ]}
       />
     </div>

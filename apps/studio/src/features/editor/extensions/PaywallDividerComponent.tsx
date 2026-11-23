@@ -1,5 +1,6 @@
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import { Lock } from 'lucide-react';
+import { t } from '@lingui/core/macro';
 
 /**
  * Limite Paywall dans l'éditeur.
@@ -18,7 +19,7 @@ export const PaywallDividerComponent = ({ selected }: NodeViewProps) => (
       <span className="h-px flex-1 bg-gradient-to-r from-transparent to-border/80" />
       <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
         <Lock className="h-3 w-3 shrink-0" strokeWidth={2} />
-        Réservé aux abonnés
+        {t`Réservé aux abonnés`}
       </span>
       <span className="h-px flex-1 bg-gradient-to-l from-transparent to-border/80" />
     </div>
@@ -26,7 +27,7 @@ export const PaywallDividerComponent = ({ selected }: NodeViewProps) => (
       className="mt-3 text-center text-[11px] text-muted-foreground/70 transition-opacity duration-200 data-[visible=false]:opacity-0"
       data-visible={Boolean(selected)}
     >
-      Tout ce qui suit reste masqué pour les lecteurs non abonnés.
+      {t`Tout ce qui suit reste masqué pour les lecteurs non abonnés.`}
     </p>
   </NodeViewWrapper>
 );

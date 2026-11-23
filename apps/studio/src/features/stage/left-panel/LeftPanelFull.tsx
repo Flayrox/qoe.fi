@@ -38,6 +38,7 @@ import { Select } from '@qoe/ui/select';
 import { useStageEngine, StageEditorMode } from '../context/StageEngineContext';
 import { ARTICLE_VARIANTS, type BlockType, type TemplateBlock } from '@qoe/ui/templates';
 import { stageScopeTitle } from '../scope-label';
+import { t } from '@lingui/core/macro';
 
 const BLOCK_CATALOG: {
   type: BlockType;
@@ -147,7 +148,7 @@ function LayersTab() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Filtrer les calques"
+          placeholder={t`Filtrer les calques`}
           className="w-full bg-transparent text-[11px] outline-none placeholder:text-muted-foreground/60"
         />
       </label>
@@ -195,7 +196,7 @@ function LayersTab() {
               >
                 <div className="flex min-w-0 items-center gap-1.5">
                   <span className="font-mono text-[11px] text-muted-foreground/60">
-                    {isFrame ? '#' : '◇'}
+                    {isFrame ? t`#` : t`◇`}
                   </span>
                   <span className="truncate text-[11px]">{getBlockName(block)}</span>
                   <span className="hidden font-mono text-[9px] text-muted-foreground/60 group-hover:inline">
@@ -233,7 +234,7 @@ function LayersTab() {
                   <button
                     type="button"
                     disabled={index === 0 || !!block.locked}
-                    title="Monter"
+                    title={t`Monter`}
                     onClick={(e) => {
                       e.stopPropagation();
                       engine.moveBlock(block.id, 'up');
@@ -245,7 +246,7 @@ function LayersTab() {
                   <button
                     type="button"
                     disabled={index === engine.layout.blocks.length - 1 || !!block.locked}
-                    title="Descendre"
+                    title={t`Descendre`}
                     onClick={(e) => {
                       e.stopPropagation();
                       engine.moveBlock(block.id, 'down');
@@ -257,7 +258,7 @@ function LayersTab() {
                   <button
                     type="button"
                     disabled={!!block.locked}
-                    title="Supprimer"
+                    title={t`Supprimer`}
                     onClick={(e) => {
                       e.stopPropagation();
                       engine.deleteBlock(block.id);
@@ -272,7 +273,7 @@ function LayersTab() {
           })}
           {blocks.length === 0 && (
             <p className="px-2 py-3 text-center text-[11px] text-muted-foreground">
-              Aucun calque ne correspond.
+              {t`Aucun calque ne correspond.`}
             </p>
           )}
         </div>
@@ -295,7 +296,7 @@ function BrandTab() {
           <label
             className="h-7 w-7 cursor-pointer rounded-lg border border-border shadow-sm"
             style={{ backgroundColor: accent }}
-            title="Pipette"
+            title={t`Pipette`}
           >
             <input
               type="color"
@@ -322,7 +323,7 @@ function BrandTab() {
             ))}
           </div>
           <details className="text-[11px] text-muted-foreground">
-            <summary className="cursor-pointer hover:text-foreground">Plus de couleurs</summary>
+            <summary className="cursor-pointer hover:text-foreground">{t`Plus de couleurs`}</summary>
             <div className="mt-1.5 flex gap-1">
               {ACCENT_PRESETS_ADVANCED.map((c) => (
                 <button
@@ -340,10 +341,10 @@ function BrandTab() {
       </div>
       <div className="space-y-1.5">
         <div className="px-1 text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
-          Typographie globale
+          {t`Typographie globale`}
         </div>
         <Select
-          label="Typographie globale"
+          label={t`Typographie globale`}
           hideLabel
           size="xs"
           value={font}
@@ -353,7 +354,7 @@ function BrandTab() {
       </div>
       <div className="space-y-1.5 border-t border-border/40 pt-2">
         <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
-          Silhouette des cartes
+          {t`Silhouette des cartes`}
         </span>
         <div className="grid grid-cols-3 gap-1">
           {(['rounded-none', 'rounded-xl', 'rounded-3xl'] as const).map((shape) => (
@@ -363,14 +364,14 @@ function BrandTab() {
               onClick={() => engine.updateTokens({ cardShape: shape })}
               className={`rounded-lg px-2 py-1.5 text-center font-medium transition-all ${engine.layout.tokens.cardShape === shape ? 'bg-primary text-primary-foreground shadow-xs' : 'bg-muted/50 text-muted-foreground hover:text-foreground'}`}
             >
-              {shape === 'rounded-none' ? 'Carré' : shape === 'rounded-xl' ? 'Arrondi' : 'Large'}
+              {shape === 'rounded-none' ? t`Carré` : shape === 'rounded-xl' ? 'Arrondi' : 'Large'}
             </button>
           ))}
         </div>
       </div>
       <div className="space-y-1.5 border-t border-border/40 pt-2">
         <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
-          Densité
+          {t`Densité`}
         </span>
         <div className="grid grid-cols-3 gap-1">
           {(['compact', 'standard', 'spacious'] as const).map((dens) => (
@@ -380,14 +381,14 @@ function BrandTab() {
               onClick={() => engine.updateTokens({ density: dens })}
               className={`rounded-lg px-1 py-1.5 text-center text-[10px] font-medium capitalize transition-all ${engine.layout.tokens.density === dens ? 'bg-primary text-primary-foreground shadow-xs' : 'bg-muted/50 text-muted-foreground hover:text-foreground'}`}
             >
-              {dens === 'compact' ? 'Compact' : dens === 'standard' ? 'Standard' : 'Aéré'}
+              {dens === 'compact' ? t`Compact` : dens === 'standard' ? 'Standard' : 'Aéré'}
             </button>
           ))}
         </div>
       </div>
       <div className="space-y-1.5 border-t border-border/40 pt-2">
         <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
-          Surface
+          {t`Surface`}
         </span>
         <div className="grid grid-cols-3 gap-1">
           {(['flat', 'bordered', 'glassmorphic'] as const).map((surf) => (
@@ -397,7 +398,7 @@ function BrandTab() {
               onClick={() => engine.updateTokens({ surface: surf })}
               className={`rounded-lg px-1 py-1.5 text-center text-[10px] font-medium capitalize transition-all ${engine.layout.tokens.surface === surf ? 'bg-primary text-primary-foreground shadow-xs' : 'bg-muted/50 text-muted-foreground hover:text-foreground'}`}
             >
-              {surf === 'flat' ? 'Plat' : surf === 'bordered' ? 'Bordé' : 'Verre'}
+              {surf === 'flat' ? t`Plat` : surf === 'bordered' ? 'Bordé' : 'Verre'}
             </button>
           ))}
         </div>
@@ -466,7 +467,7 @@ function PagesTab() {
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            {page === 'home' ? 'Accueil' : 'Article'}
+            {page === 'home' ? t`Accueil` : t`Article`}
           </button>
         ))}
       </div>
@@ -474,10 +475,10 @@ function PagesTab() {
       {engine.stagePage === 'article' && (
         <div className="space-y-1.5 rounded-lg border border-border/50 p-2">
           <div className="px-1 text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
-            Rubrique
+            {t`Rubrique`}
           </div>
           <Select
-            label="Rubrique"
+            label={t`Rubrique`}
             hideLabel
             size="xs"
             value={engine.articleCategory ?? ''}
@@ -491,7 +492,7 @@ function PagesTab() {
             ]}
           />
           <div className="px-1 text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
-            Type de vue article
+            {t`Type de vue article`}
           </div>
           {ARTICLE_VARIANTS.map((v) => (
             <button
@@ -510,18 +511,18 @@ function PagesTab() {
       <div className="space-y-1.5 rounded-lg border border-border/50 p-2">
         <div className="flex items-center justify-between px-1">
           <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
-            Versions publiées
+            {t`Versions publiées`}
           </span>
           <button
             type="button"
             onClick={() => engine.loadSnapshots()}
             className="rounded-md bg-muted/60 px-2 py-0.5 text-[10px] font-medium hover:text-foreground"
           >
-            Actualiser
+            {t`Actualiser`}
           </button>
         </div>
         {engine.snapshotsLoading && (
-          <p className="px-1 text-[10px] text-muted-foreground">Chargement…</p>
+          <p className="px-1 text-[10px] text-muted-foreground">{t`Chargement…`}</p>
         )}
         {!engine.snapshotsLoading && engine.snapshots.length === 0 && (
           <p className="px-1 text-[10px] text-muted-foreground">
@@ -544,9 +545,9 @@ function PagesTab() {
                 type="button"
                 onClick={() => engine.restoreSnapshot(s.id)}
                 className="rounded p-1 text-[11px] font-medium text-primary hover:bg-muted"
-                title="Restaurer vers le brouillon"
+                title={t`Restaurer vers le brouillon`}
               >
-                Restaurer
+                {t`Restaurer`}
               </button>
             </div>
           </div>
@@ -557,7 +558,7 @@ function PagesTab() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Rechercher une page"
+          placeholder={t`Rechercher une page`}
           className="w-full bg-transparent text-[11px] outline-none"
         />
       </label>
@@ -570,7 +571,7 @@ function PagesTab() {
             </div>
           ))}
           {filtered.length === 0 && (
-            <p className="px-2 py-2 text-[11px] text-muted-foreground">Aucune page.</p>
+            <p className="px-2 py-2 text-[11px] text-muted-foreground">{t`Aucune page.`}</p>
           )}
         </div>
       ) : (
@@ -578,7 +579,7 @@ function PagesTab() {
           {renderTree(null, 0)}
           {nav.length === 0 && (
             <p className="rounded-lg bg-muted/40 p-3 text-[11px] text-muted-foreground">
-              Aucune page pour le moment.
+              {t`Aucune page pour le moment.`}
             </p>
           )}
         </div>
@@ -610,7 +611,7 @@ function ImagesTab() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Rechercher un visuel"
+          placeholder={t`Rechercher un visuel`}
           className="w-full bg-transparent text-[11px] outline-none"
         />
       </label>
@@ -630,7 +631,7 @@ function ImagesTab() {
               </span>
               <button
                 type="button"
-                title="Copier l'URL"
+                title={t`Copier l'URL`}
                 onClick={() => void navigator.clipboard?.writeText(a.url).catch(() => null)}
                 className="rounded p-1 text-muted-foreground hover:text-foreground"
               >
@@ -642,7 +643,7 @@ function ImagesTab() {
       </div>
       {list.length === 0 && (
         <p className="px-2 py-2 text-[11px] text-muted-foreground">
-          Aucun visuel : publiez un article avec image.
+          {t`Aucun visuel : publiez un article avec image.`}
         </p>
       )}
     </div>
@@ -677,7 +678,7 @@ function WindowsTab() {
       ))}
       <div className="space-y-1.5 border-t border-border/40 pt-2">
         <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
-          Zoom précis
+          {t`Zoom précis`}
         </span>
         <div className="grid grid-cols-4 gap-1">
           {[
@@ -701,7 +702,7 @@ function WindowsTab() {
           onClick={engine.resetZoom}
           className="w-full rounded-lg border border-border/50 py-1.5 text-[11px] hover:bg-muted/50"
         >
-          Recentrer (⇧0)
+          {t`Recentrer (⇧0)`}
         </button>
       </div>
     </div>
@@ -772,7 +773,7 @@ export function LeftPanelFull() {
             <button
               type="button"
               onClick={() => setIsZoomMenuOpen((p) => !p)}
-              title="Contrôles de zoom"
+              title={t`Contrôles de zoom`}
               className="flex h-8 w-10 items-center justify-center rounded-lg font-mono text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
             >
               {Math.round(engine.scale * 100)}%
@@ -781,7 +782,7 @@ export function LeftPanelFull() {
               <div className="absolute bottom-0 left-12 z-50 w-40 space-y-1 rounded-lg border border-border bg-background/95 p-1.5 shadow-md">
                 {[
                   { label: 'Zoom avant', hint: '⌘+', fn: engine.zoomIn },
-                  { label: 'Zoom arrière', hint: '⌘-', fn: engine.zoomOut },
+                  { label: t`Zoom arrière`, hint: '⌘-', fn: engine.zoomOut },
                   { label: 'Recentrer', hint: '⇧0', fn: engine.resetZoom },
                   { label: '50%', hint: '', fn: () => engine.setScale(0.5) },
                   { label: '100%', hint: '', fn: () => engine.setScale(1) },
@@ -806,7 +807,7 @@ export function LeftPanelFull() {
           <button
             type="button"
             onClick={() => setIsHelpOpen(true)}
-            title="Raccourcis & Aide"
+            title={t`Raccourcis & Aide`}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
           >
             <HelpCircle className="h-4 w-4" />
@@ -840,7 +841,7 @@ export function LeftPanelFull() {
               {engine.leftPanelTab === 'blocks' && (
                 <div className="space-y-2">
                   <div className="px-2 py-1 text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
-                    Ajouter une section
+                    {t`Ajouter une section`}
                   </div>
                   {BLOCK_CATALOG.filter((cat) =>
                     engine.stagePage === 'article'
@@ -885,7 +886,7 @@ export function LeftPanelFull() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-[360px] space-y-4 rounded-xl border border-border bg-background p-4 shadow-lg">
             <div className="flex items-center justify-between border-b border-border/40 pb-2">
-              <span className="text-sm font-bold text-foreground">Raccourcis clavier</span>
+              <span className="text-sm font-bold text-foreground">{t`Raccourcis clavier`}</span>
               <button
                 type="button"
                 onClick={() => setIsHelpOpen(false)}

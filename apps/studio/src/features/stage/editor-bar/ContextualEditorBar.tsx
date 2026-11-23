@@ -22,6 +22,7 @@ import {
   RadiusControl,
 } from './controls/dropdowns';
 import { AdvancedTypoControls, FontControls } from './controls/text-controls';
+import { t } from '@lingui/core/macro';
 
 type PanelTab = 'style' | 'text' | 'content' | null;
 
@@ -70,18 +71,18 @@ export function ContextualEditorBar() {
               <span className="capitalize">{selected.type.replace('-', ' ')}</span>
             </div>
             <div className="mx-1 h-4 w-px bg-border/60" />
-            {(['style', 'text', 'content'] as const).map((t) => (
+            {(['style', 'text', 'content'] as const).map((panelId) => (
               <button
-                key={t}
+                key={panelId}
                 type="button"
-                onClick={() => setPanel((p) => (p === t ? null : t))}
+                onClick={() => setPanel((p) => (p === panelId ? null : panelId))}
                 className={`rounded-lg px-2 py-1 text-[11px] font-medium transition-colors ${
-                  panel === t
+                  panel === panelId
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
                 }`}
               >
-                {t === 'style' ? 'Style' : t === 'text' ? 'Texte' : 'Contenu'}
+                {panelId === 'style' ? t`Style` : panelId === 'text' ? t`Texte` : t`Contenu`}
               </button>
             ))}
             <div className="mx-1 h-4 w-px bg-border/60" />
@@ -89,7 +90,7 @@ export function ContextualEditorBar() {
               <button
                 type="button"
                 onClick={() => engine.moveBlock(selected.id, 'up')}
-                title="Monter (⌥↑)"
+                title={t`Monter (⌥↑)`}
                 className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
               >
                 <ArrowUp className="h-3.5 w-3.5" />
@@ -97,7 +98,7 @@ export function ContextualEditorBar() {
               <button
                 type="button"
                 onClick={() => engine.moveBlock(selected.id, 'down')}
-                title="Descendre (⌥↓)"
+                title={t`Descendre (⌥↓)`}
                 className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
               >
                 <ArrowDown className="h-3.5 w-3.5" />
@@ -105,7 +106,7 @@ export function ContextualEditorBar() {
               <button
                 type="button"
                 onClick={() => engine.duplicateBlock(selected.id)}
-                title="Dupliquer (⌘D)"
+                title={t`Dupliquer (⌘D)`}
                 className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
               >
                 <Copy className="h-3.5 w-3.5" />
@@ -125,7 +126,7 @@ export function ContextualEditorBar() {
               <button
                 type="button"
                 onClick={() => engine.deleteBlock(selected.id)}
-                title="Supprimer (⌫)"
+                title={t`Supprimer (⌫)`}
                 className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive-text"
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -137,21 +138,21 @@ export function ContextualEditorBar() {
             <div className="max-h-[50vh] w-[380px] space-y-1.5 overflow-y-auto border-t border-border/50 p-2">
               {panel === 'style' && (
                 <>
-                  <Section title="Fond">
+                  <Section title={t`Fond`}>
                     <BackgroundControl />
                   </Section>
-                  <Section title="Bordure + Rayon">
+                  <Section title={t`Bordure + Rayon`}>
                     <BorderControl />
                     <RadiusControl />
                   </Section>
-                  <Section title="Disposition Flex">
+                  <Section title={t`Disposition Flex`}>
                     <DisplayControl />
                   </Section>
-                  <Section title="Marges">
+                  <Section title={t`Marges`}>
                     <PaddingControl />
                     <MarginControl />
                   </Section>
-                  <Section title="Dimensions + Opacité">
+                  <Section title={t`Dimensions + Opacité`}>
                     <DimensionControl />
                     <OpacityControl />
                   </Section>
@@ -159,10 +160,10 @@ export function ContextualEditorBar() {
               )}
               {panel === 'text' && (
                 <>
-                  <Section title="Police">
+                  <Section title={t`Police`}>
                     <FontControls />
                   </Section>
-                  <Section title="Typographie avancée">
+                  <Section title={t`Typographie avancée`}>
                     <AdvancedTypoControls />
                   </Section>
                 </>
@@ -172,16 +173,16 @@ export function ContextualEditorBar() {
                   {selected.type === 'hero' && (
                     <label className="block space-y-1">
                       <span className="text-[10px] font-medium text-muted-foreground">
-                        Variante visuelle
+                        {t`Variante visuelle`}
                       </span>
                       <Select
-                        label="Variante visuelle"
+                        label={t`Variante visuelle`}
                         hideLabel
                         size="xs"
                         value={(props.style as string) || 'cinematic-banner'}
                         onValueChange={(style) => engine.updateBlockProps(selected.id, { style })}
                         options={[
-                          { id: 'cinematic-banner', label: 'Bannière' },
+                          { id: 'cinematic-banner', label: t`Bannière` },
                           { id: 'typographic-minimal', label: 'Typographique' },
                           { id: 'split-featured', label: 'Deux Colonnes' },
                           { id: 'floating-card', label: 'Carte Flottante' },
@@ -202,7 +203,7 @@ export function ContextualEditorBar() {
                               : 'text-muted-foreground hover:bg-muted/50'
                           }`}
                         >
-                          {cols} Cols
+                          {cols} {t`Cols`}
                         </button>
                       ))}
                     </div>
@@ -210,10 +211,10 @@ export function ContextualEditorBar() {
                   {selected.type === 'article-stream' && (
                     <label className="block space-y-1">
                       <span className="text-[10px] font-medium text-muted-foreground">
-                        Présentation
+                        {t`Présentation`}
                       </span>
                       <Select
-                        label="Présentation"
+                        label={t`Présentation`}
                         hideLabel
                         size="xs"
                         value={(props.displayMode as string) || 'grid-3'}

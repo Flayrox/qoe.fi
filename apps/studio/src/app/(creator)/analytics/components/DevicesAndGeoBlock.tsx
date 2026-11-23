@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Laptop, Smartphone, Tablet, Globe, Monitor } from 'lucide-react';
 import { UmamiPageMetric } from '@qoe/analytics/server';
+import { t } from '@lingui/core/macro';
 
 interface DevicesAndGeoBlockProps {
   devices: UmamiPageMetric[];
@@ -63,7 +64,7 @@ export function DevicesAndGeoBlock({ devices, browsers, countries }: DevicesAndG
             Appareils & Audience
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Répartition technique et géographique de vos lecteurs
+            {t`Répartition technique et géographique de vos lecteurs`}
           </p>
         </div>
 
@@ -96,7 +97,7 @@ export function DevicesAndGeoBlock({ devices, browsers, countries }: DevicesAndG
         <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed rounded-lg border-border/30 bg-muted/10">
           <Monitor className="h-6 w-6 text-muted-foreground/40 mb-2 stroke-[1.5]" />
           <p className="text-xs font-medium text-muted-foreground">
-            Aucune donnée pour cet indicateur
+            {t`Aucune donnée pour cet indicateur`}
           </p>
         </div>
       ) : (

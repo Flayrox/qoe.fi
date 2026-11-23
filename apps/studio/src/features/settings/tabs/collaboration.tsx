@@ -12,6 +12,7 @@ import {
   getCollaborationRequestsAction,
   respondToCollaborationRequestAction,
 } from '../collaboration-actions';
+import { t } from '@lingui/core/macro';
 
 interface CollaborationRequest {
   id: string;
@@ -100,13 +101,13 @@ export function CollaborationTab() {
   return (
     <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-12">
       <StudioSection
-        title="Invitations de collaboration"
+        title={t`Invitations de collaboration`}
         icon={UserPlus}
         className="lg:col-span-8"
         actions={
           pendingCount > 0 ? (
             <Badge variant="soft" tone="brand" size="xs">
-              {pendingCount} en attente
+              {pendingCount} {t`en attente`}
             </Badge>
           ) : undefined
         }
@@ -118,12 +119,12 @@ export function CollaborationTab() {
           onValueChange={(value) => setInbox(value as RequestInbox)}
           className="mb-4"
         >
-          <TabList aria-label="Invitations de collaboration">
+          <TabList aria-label={t`Invitations de collaboration`}>
             <Tab id="received" count={requests.received.length}>
-              Reçues
+              {t`Reçues`}
             </Tab>
             <Tab id="sent" count={requests.sent.length}>
-              Envoyées
+              {t`Envoyées`}
             </Tab>
           </TabList>
         </Tabs>
@@ -132,7 +133,7 @@ export function CollaborationTab() {
           <div className="mb-3 flex items-center justify-between gap-3 rounded-control border border-border/50 bg-muted/20 px-3 py-2 text-xs">
             <span>{message}</span>
             <Button variant="ghost" size="xs" onClick={() => setMessage(null)}>
-              Fermer
+              {t`Fermer`}
             </Button>
           </div>
         ) : null}
@@ -140,17 +141,17 @@ export function CollaborationTab() {
         {loading ? (
           <p className="flex items-center gap-2 py-8 text-xs text-muted-foreground">
             <Loader2 className="size-3.5 animate-spin" />
-            Chargement des invitations…
+            {t`Chargement des invitations…`}
           </p>
         ) : currentRequests.length === 0 ? (
           <div className="rounded-control border border-dashed border-border/60 px-4 py-10 text-center">
             <p className="text-sm font-medium text-foreground">
-              {inbox === 'received' ? 'Aucune invitation reçue.' : 'Aucune invitation envoyée.'}
+              {inbox === 'received' ? t`Aucune invitation reçue.` : t`Aucune invitation envoyée.`}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {inbox === 'received'
-                ? 'Les demandes de co-rédaction apparaîtront ici.'
-                : 'Invitez un co-auteur depuis les réglages d’un article.'}
+                ? t`Les demandes de co-rédaction apparaîtront ici.`
+                : t`Invitez un co-auteur depuis les réglages d’un article.`}
             </p>
           </div>
         ) : (
@@ -169,7 +170,7 @@ export function CollaborationTab() {
                         {request.article?.title || 'Article'}
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        {inbox === 'received' ? 'Invitation de' : 'Invitation à'}{' '}
+                        {inbox === 'received' ? t`Invitation de` : t`Invitation à`}{' '}
                         {personLabel(person)}
                       </p>
                     </div>
@@ -181,7 +182,7 @@ export function CollaborationTab() {
                   <div className="flex flex-wrap items-center gap-2">
                     <Button asChild variant="ghost" tone="brand" size="xs">
                       <Link href={`/articles/${request.articleId}`}>
-                        Ouvrir l’article
+                        {t`Ouvrir l’article`}
                         <ArrowUpRight />
                       </Link>
                     </Button>
@@ -197,7 +198,7 @@ export function CollaborationTab() {
                               [request.id]: checked,
                             }))
                           }
-                          label="Afficher sur mon profil"
+                          label={t`Afficher sur mon profil`}
                         />
                         <Button
                           variant="solid"
@@ -207,7 +208,7 @@ export function CollaborationTab() {
                           onClick={() => void handleRespond(request.id, true)}
                         >
                           <CheckCircle2 />
-                          Accepter
+                          {t`Accepter`}
                         </Button>
                         <Button
                           variant="ghost"
@@ -217,7 +218,7 @@ export function CollaborationTab() {
                           onClick={() => void handleRespond(request.id, false)}
                         >
                           <XCircle />
-                          Refuser
+                          {t`Refuser`}
                         </Button>
                       </>
                     ) : null}
@@ -229,24 +230,23 @@ export function CollaborationTab() {
         )}
       </StudioSection>
 
-      <StudioSection title="Comment ça marche" icon={Clock3} className="lg:col-span-4">
+      <StudioSection title={t`Comment ça marche`} icon={Clock3} className="lg:col-span-4">
         <ol className="space-y-3 text-xs leading-relaxed text-muted-foreground">
           <li>
-            <span className="font-medium text-foreground">1.</span> Invitez un co-auteur depuis les
-            réglages d’un article, dans l’éditeur.
+            <span className="font-medium text-foreground">1.</span>{' '}
+            {t`Invitez un co-auteur depuis les réglages d’un article, dans l’éditeur.`}
           </li>
           <li>
-            <span className="font-medium text-foreground">2.</span> La personne retrouve la demande
-            ici et choisit de l’accepter ou de la refuser.
+            <span className="font-medium text-foreground">2.</span>{' '}
+            {t`La personne retrouve la demande ici et choisit de l’accepter ou de la refuser.`}
           </li>
           <li>
-            <span className="font-medium text-foreground">3.</span> Une fois acceptée, son nom peut
-            apparaître dans la signature publique de l’article.
+            <span className="font-medium text-foreground">3.</span>{' '}
+            {t`Une fois acceptée, son nom peut apparaître dans la signature publique de l’article.`}
           </li>
         </ol>
         <p className="mt-4 border-t border-border/40 pt-3 text-[11px] leading-relaxed text-muted-foreground">
-          Les invitations sont nominatives : aucun email n’est exposé et les droits restent limités
-          à l’article concerné.
+          {t`Les invitations sont nominatives : aucun email n’est exposé et les droits restent limités à l’article concerné.`}
         </p>
       </StudioSection>
     </div>

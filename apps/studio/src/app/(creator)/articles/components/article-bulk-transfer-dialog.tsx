@@ -99,15 +99,15 @@ export function ArticleBulkTransferDialog({
 
     setTransferring(false);
     if (updated > 0) {
-      toast.success(`${updated} ${updated > 1 ? t`articles transférés` : t`article transféré`}.`);
+      toast.success(
+        updated > 1 ? t`${updated} articles transférés.` : t`${updated} article transféré.`
+      );
     }
     if (failed.length > 0) {
       toast.error(
-        `${failed.length} ${
-          failed.length > 1
-            ? t`articles n'ont pas pu être transférés`
-            : t`article n'a pas pu être transféré`
-        }.`
+        failed.length > 1
+          ? t`${failed.length} articles n'ont pas pu être transférés.`
+          : t`${failed.length} article n'a pas pu être transféré.`
       );
     }
     onOpenChange(false);

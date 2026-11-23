@@ -315,7 +315,7 @@ export function PublishModal({
                     size="sm"
                     value={confirmMajorUpdateText}
                     onChange={(e) => setConfirmMajorUpdateText(e.target.value)}
-                    placeholder="CONFIRMER"
+                    placeholder={'CONFIRMER'}
                     className="font-mono text-xs uppercase"
                   />
                 </div>
@@ -447,7 +447,7 @@ export function PublishModal({
                       size="xs"
                       shape="icon"
                       onClick={() => setPreviewDevice('desktop')}
-                      aria-label="Bureau"
+                      aria-label={t`Bureau`}
                       className={cn(
                         'size-6',
                         previewDevice === 'desktop'
@@ -462,7 +462,7 @@ export function PublishModal({
                       size="xs"
                       shape="icon"
                       onClick={() => setPreviewDevice('mobile')}
-                      aria-label="Mobile"
+                      aria-label={t`Mobile`}
                       className={cn(
                         'size-6',
                         previewDevice === 'mobile'

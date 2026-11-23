@@ -10,6 +10,7 @@ import { UpcomingBadge } from '@qoe/ui';
 import { Input, InputGroup } from '@qoe/ui/input';
 import type { CreatorProfile } from '../types';
 import { StudioField, StudioSection } from '@/components/studio-page';
+import { t } from '@lingui/core/macro';
 
 interface DomainTabProps {
   current: CreatorProfile;
@@ -32,10 +33,10 @@ export function DomainTab({
 }: DomainTabProps) {
   return (
     <div className="max-w-3xl space-y-5">
-      <StudioSection title="Adresse">
+      <StudioSection title={t`Adresse`}>
         <div className="space-y-5">
           <StudioField
-            label="Sous-domaine qoefi"
+            label={t`Sous-domaine qoefi`}
             hint={
               subdomainInput
                 ? `Adresse publique : ${subdomainInput}.qoe.fi`
@@ -62,13 +63,13 @@ export function DomainTab({
               {subdomainCheck.loading ? (
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Loader2 className="size-3 animate-spin" />
-                  Vérification…
+                  {t`Vérification…`}
                 </span>
               ) : null}
               {!subdomainCheck.loading && subdomainCheck.available === true ? (
                 <span className="flex items-center gap-1.5 text-xs font-medium text-success-text">
                   <CheckCircle className="size-3.5" />
-                  Sous-domaine disponible.
+                  {t`Sous-domaine disponible.`}
                 </span>
               ) : null}
               {!subdomainCheck.loading && subdomainCheck.available === false ? (
@@ -82,8 +83,8 @@ export function DomainTab({
 
           <div className="border-t border-border/40 pt-4">
             <StudioField
-              label="Contact / support"
-              hint="Un lien ou une adresse email affichés sur le site."
+              label={t`Contact / support`}
+              hint={t`Un lien ou une adresse email affichés sur le site.`}
             >
               <Input
                 type="text"
@@ -99,7 +100,7 @@ export function DomainTab({
       </StudioSection>
 
       <StudioSection
-        title="Domaine personnalisé"
+        title={t`Domaine personnalisé`}
         actions={<UpcomingBadge feature="custom-domain" />}
       >
         <div className="space-y-3">
@@ -108,11 +109,12 @@ export function DomainTab({
             value={current.customDomain || ''}
             readOnly
             placeholder="journal.mon-domaine.com"
-            aria-label="Domaine personnalisé"
+            aria-label={t`Domaine personnalisé`}
           />
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Pour rattacher un domaine, créez un enregistrement CNAME pointant vers{' '}
-            <code className="font-mono text-foreground">cname.qoe.fi</code> chez votre fournisseur.
+            {t`Pour rattacher un domaine, créez un enregistrement CNAME pointant vers`}{' '}
+            <code className="font-mono text-foreground">cname.qoe.fi</code>{' '}
+            {t`chez votre fournisseur.`}
           </p>
         </div>
       </StudioSection>

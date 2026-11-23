@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { BookOpen, Key, Shield, Webhook } from 'lucide-react';
 import { cn } from '@qoe/utils';
+import { t } from '@lingui/core/macro';
 
 export type DeveloperTab = 'overview' | 'keys' | 'webhooks' | 'oauth';
 
@@ -27,13 +28,13 @@ export function DeveloperNav({ activeTab }: DeveloperNavProps) {
 
   const tabs: Array<{ id: DeveloperTab; label: string; href: string; icon: typeof Key }> = [
     { id: 'overview', label: "Vue d'ensemble", href: '/developer', icon: BookOpen },
-    { id: 'keys', label: "Clés d'API", href: '/developer/keys', icon: Key },
+    { id: 'keys', label: t`Clés d'API`, href: '/developer/keys', icon: Key },
     { id: 'webhooks', label: 'Webhooks', href: '/developer/webhooks', icon: Webhook },
     { id: 'oauth', label: 'OAuth', href: '/developer/oauth', icon: Shield },
   ];
 
   return (
-    <nav aria-label="Navigation développeur" className="border-b border-border/50 pb-px">
+    <nav aria-label={t`Navigation développeur`} className="border-b border-border/50 pb-px">
       <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
         {tabs.map((tab) => {
           const Icon = tab.icon;

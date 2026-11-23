@@ -12,6 +12,7 @@ import { getArticlesAction } from '@qoe/sdk/actions/articles';
 import { StudioHeader, StudioPage } from '@/components/studio-page';
 
 import { CommunityClient } from './community-client';
+import { t } from '@lingui/core/macro';
 
 export const metadata = {
   title: 'Communauté | qoefi Studio',
@@ -34,8 +35,8 @@ export default async function CommunityPage() {
   return (
     <StudioPage>
       <StudioHeader
-        title="Communauté"
-        description="Les discussions sous vos articles. La suppression est immédiate pour les commentaires de votre publication."
+        title={t`Communauté`}
+        description={t`Les discussions sous vos articles. La suppression est immédiate pour les commentaires de votre publication.`}
       />
       <CommunityClient articles={articles} />
     </StudioPage>

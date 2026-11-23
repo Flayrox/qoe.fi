@@ -245,7 +245,7 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
 
         <div className="flex shrink-0 items-center gap-3">
           <span className="text-xs text-muted-foreground tabular-nums">
-            {keys.length} / 10 clés
+            {keys.length} {t`/ 10 clés`}
           </span>
 
           <Button
@@ -322,7 +322,8 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
                     </div>
                     <div className="mt-1 flex items-center gap-1.5">
                       <code className="bg-muted/60 text-muted-foreground px-2 py-0.5 rounded font-sans font-medium text-[11px] border border-border/50">
-                        {key.keyPrefix}••••••••••••••••
+                        {key.keyPrefix}
+                        {t`••••••••••••••••`}
                       </code>
                     </div>
                   </TableCell>

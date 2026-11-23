@@ -120,13 +120,19 @@ export function PublishReadinessDialog(props: PublishReadinessDialogProps) {
   const summary =
     result.errors > 0
       ? {
-          label: t`${result.errors} point${result.errors === 1 ? '' : 's'} à corriger`,
+          label:
+            result.errors > 1
+              ? t`${result.errors} points à corriger`
+              : t`${result.errors} point à corriger`,
           className: 'border-destructive/25 bg-destructive/10 text-destructive-text',
           icon: XCircle,
         }
       : result.warnings > 0
         ? {
-            label: t`Prêt, avec ${result.warnings} avertissement${result.warnings === 1 ? '' : 's'}`,
+            label:
+              result.warnings > 1
+                ? t`Prêt, avec ${result.warnings} avertissements`
+                : t`Prêt, avec ${result.warnings} avertissement`,
             className: 'border-highlight/25 bg-highlight/10 text-highlight',
             icon: AlertTriangle,
           }

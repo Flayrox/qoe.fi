@@ -19,6 +19,7 @@ import {
   Menu,
 } from 'lucide-react';
 import type { StageMode } from '../types';
+import { t } from '@lingui/core/macro';
 
 interface TopBarProps {
   publisherName: string;
@@ -76,7 +77,7 @@ export function TopBar({
         <button
           type="button"
           onClick={onToggleSidebar}
-          title="Ouvrir la navigation Studio"
+          title={t`Ouvrir la navigation Studio`}
           className="flex items-center justify-center w-7 h-7 rounded-lg text-foreground/80 hover:text-foreground hover:bg-muted/70 transition-colors"
         >
           <Menu className="w-4 h-4" />
@@ -86,7 +87,7 @@ export function TopBar({
         <div className="flex items-center gap-1.5 font-medium text-muted-foreground">
           <span className="text-foreground max-w-[140px] truncate">{publisherName}</span>
           <span className="opacity-40">/</span>
-          <span className="text-foreground font-semibold">Stage</span>
+          <span className="text-foreground font-semibold">{t`Stage`}</span>
         </div>
       </div>
 
@@ -102,7 +103,7 @@ export function TopBar({
           }`}
         >
           <Edit3 className="w-3 h-3" />
-          <span>Design</span>
+          <span>{t`Design`}</span>
         </button>
         <button
           type="button"
@@ -114,7 +115,7 @@ export function TopBar({
           }`}
         >
           <Eye className="w-3 h-3" />
-          <span>Aperçu</span>
+          <span>{t`Aperçu`}</span>
         </button>
       </div>
 
@@ -125,7 +126,7 @@ export function TopBar({
           <button
             type="button"
             onClick={onZoomOut}
-            title="Zoom arrière (⌘-)"
+            title={t`Zoom arrière (⌘-)`}
             className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
           >
             <ZoomOut className="w-3 h-3" />
@@ -133,7 +134,7 @@ export function TopBar({
           <button
             type="button"
             onClick={onResetZoom}
-            title="Recentrer le canvas (⇧0)"
+            title={t`Recentrer le canvas (⇧0)`}
             className="px-1.5 py-0.5 text-[11px] font-mono font-medium text-foreground/80 hover:text-foreground"
           >
             {percentage}%
@@ -141,7 +142,7 @@ export function TopBar({
           <button
             type="button"
             onClick={onZoomIn}
-            title="Zoom avant (⌘+)"
+            title={t`Zoom avant (⌘+)`}
             className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
           >
             <ZoomIn className="w-3 h-3" />
@@ -154,7 +155,7 @@ export function TopBar({
             type="button"
             onClick={onUndo}
             disabled={!canUndo}
-            title="Annuler (⌘Z)"
+            title={t`Annuler (⌘Z)`}
             className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 disabled:opacity-30 disabled:pointer-events-none transition-colors"
           >
             <Undo2 className="w-3.5 h-3.5" />
@@ -163,7 +164,7 @@ export function TopBar({
             type="button"
             onClick={onRedo}
             disabled={!canRedo}
-            title="Rétablir (⌘⇧Z)"
+            title={t`Rétablir (⌘⇧Z)`}
             className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 disabled:opacity-30 disabled:pointer-events-none transition-colors"
           >
             <Redo2 className="w-3.5 h-3.5" />
@@ -177,7 +178,7 @@ export function TopBar({
           href={`https://${domain}`}
           target="_blank"
           rel="noopener noreferrer"
-          title="Ouvrir le site public"
+          title={t`Ouvrir le site public`}
           className="hidden sm:flex items-center gap-1 px-2.5 py-1 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/60 transition-colors"
         >
           <span className="truncate max-w-[120px]">{domain}</span>
@@ -190,7 +191,7 @@ export function TopBar({
             type="button"
             onClick={onSave}
             disabled={isSaving}
-            title="Enregistrer le brouillon (le site public ne change pas)"
+            title={t`Enregistrer le brouillon (le site public ne change pas)`}
             className="flex items-center gap-1.5 px-3 py-1 rounded-lg font-medium shadow-xs transition-all bg-primary text-primary-foreground hover:opacity-95"
           >
             {isSaving ? (
@@ -198,14 +199,14 @@ export function TopBar({
             ) : (
               <Save className="w-3.5 h-3.5" />
             )}
-            <span>Enregistrer</span>
+            <span>{t`Enregistrer`}</span>
           </button>
         ) : publishState === 'unpublished' ? (
           <button
             type="button"
             onClick={onPublish}
             disabled={isPublishing}
-            title="Mettre le brouillon en ligne"
+            title={t`Mettre le brouillon en ligne`}
             className="flex items-center gap-1.5 px-3 py-1 rounded-lg font-medium shadow-xs transition-all bg-primary text-primary-foreground hover:opacity-95"
           >
             {isPublishing ? (
@@ -213,14 +214,14 @@ export function TopBar({
             ) : (
               <Save className="w-3.5 h-3.5" />
             )}
-            <span>Brouillon · Publier</span>
+            <span>{t`Brouillon · Publier`}</span>
           </button>
         ) : (
           <span
-            title="Le site public reflète l'atelier"
+            title={t`Le site public reflète l'atelier`}
             className="flex items-center gap-1.5 px-3 py-1 rounded-lg font-medium bg-muted text-muted-foreground"
           >
-            <span>Publié</span>
+            <span>{t`Publié`}</span>
           </span>
         )}
         {saveError && (

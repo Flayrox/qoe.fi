@@ -4,6 +4,7 @@ import React from 'react';
 import { Globe, Search, Share2 } from 'lucide-react';
 import { UmamiPageMetric } from '@qoe/analytics/server';
 import { getReferrerLabel } from '@qoe/analytics/referrers';
+import { t } from '@lingui/core/macro';
 
 interface ReferrersBlockProps {
   referrers: UmamiPageMetric[];
@@ -18,10 +19,10 @@ export function ReferrersBlock({ referrers }: ReferrersBlockProps) {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h3 className="text-[17px] font-semibold tracking-tight text-foreground">
-            Sources de trafic
+            {t`Sources de trafic`}
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Provenances principales de vos lecteurs
+            {t`Provenances principales de vos lecteurs`}
           </p>
         </div>
         <span className="text-xs text-muted-foreground font-medium">
@@ -32,7 +33,7 @@ export function ReferrersBlock({ referrers }: ReferrersBlockProps) {
       {referrers.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed rounded-lg border-border/30 bg-muted/10">
           <Globe className="h-6 w-6 text-muted-foreground/40 mb-2 stroke-[1.5]" />
-          <p className="text-xs font-medium text-muted-foreground">Aucune source enregistrée</p>
+          <p className="text-xs font-medium text-muted-foreground">{t`Aucune source enregistrée`}</p>
         </div>
       ) : (
         <div className="divide-y divide-border/30">

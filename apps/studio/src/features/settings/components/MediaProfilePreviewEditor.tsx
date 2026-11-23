@@ -36,6 +36,7 @@ import { Button } from '@qoe/ui/button';
 import { Input, Textarea } from '@qoe/ui/input';
 import { cn } from '@qoe/utils';
 import type { CreatorProfile } from '../types';
+import { t } from '@lingui/core/macro';
 
 interface MediaProfilePreviewEditorProps {
   current: CreatorProfile;
@@ -183,7 +184,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
       ? [
           {
             id: 'banner',
-            label: 'Bannière',
+            label: t`Bannière`,
             aspect: 21 / 9,
             width: 1600,
             height: 686,
@@ -211,11 +212,11 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
         <div className="flex items-center gap-2">
           <Building2 className="w-4 h-4 text-primary" />
           <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            Aperçu interactif du profil média
+            {t`Aperçu interactif du profil média`}
           </h3>
         </div>
         <span className="text-[11px] text-muted-foreground">
-          Cliquez directement sur les éléments pour les modifier
+          {t`Cliquez directement sur les éléments pour les modifier`}
         </span>
       </div>
 
@@ -227,7 +228,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
             // eslint-disable-next-line @next/next/no-img-element -- URL utilisateur distante arbitraire, non déclarable dans next.config.
             <img
               src={current.headerImageUrl}
-              alt="Bannière du média"
+              alt={t`Bannière du média`}
               className="w-full h-full object-cover transition-transform group-hover:scale-[1.01]"
             />
           ) : (
@@ -239,7 +240,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
             >
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/20 backdrop-blur-md">
                 <Camera className="w-3.5 h-3.5" />
-                <span>Cliquez pour ajouter une bannière</span>
+                <span>{t`Cliquez pour ajouter une bannière`}</span>
               </div>
             </div>
           )}
@@ -261,7 +262,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
               className="bg-background/90 shadow-xs backdrop-blur-md hover:bg-background"
             >
               {!isUploadingBanner && <Camera className="text-primary" aria-hidden />}
-              <span>{isUploadingBanner ? 'Upload...' : 'Changer la bannière'}</span>
+              <span>{isUploadingBanner ? t`Upload...` : t`Changer la bannière`}</span>
             </Button>
 
             {current.headerImageUrl && (
@@ -272,8 +273,8 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                 shape="icon"
                 onClick={() => setCurrent((prev) => ({ ...prev, headerImageUrl: null }))}
                 className="bg-background/90 shadow-xs backdrop-blur-md"
-                aria-label="Supprimer la bannière"
-                title="Supprimer la bannière"
+                aria-label={t`Supprimer la bannière`}
+                title={t`Supprimer la bannière`}
               >
                 <Trash2 aria-hidden />
               </Button>
@@ -316,7 +317,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                 {/* Overlay hover */}
                 <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/40 text-[10px] font-semibold text-white opacity-0 transition-opacity group-hover/logo:opacity-100">
                   <Camera className="size-4" aria-hidden />
-                  <span>{isUploadingLogo ? 'Upload...' : 'Modifier'}</span>
+                  <span>{isUploadingLogo ? t`Upload...` : t`Modifier`}</span>
                 </span>
               </Button>
 
@@ -328,8 +329,8 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                   shape="icon"
                   onClick={() => setCurrent((prev) => ({ ...prev, logoUrl: null }))}
                   className="absolute -top-1 -right-1 z-10 rounded-full border border-border/60 bg-background opacity-0 shadow-xs transition-opacity group-hover/logo:opacity-100"
-                  aria-label="Supprimer le logo"
-                  title="Supprimer le logo"
+                  aria-label={t`Supprimer le logo`}
+                  title={t`Supprimer le logo`}
                 >
                   <Trash2 aria-hidden />
                 </Button>
@@ -340,7 +341,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
             <div className="flex items-center gap-2">
               <Badge variant="soft" tone="brand" size="sm" shape="pill" className="shadow-2xs">
                 <ShieldCheck aria-hidden />
-                <span>Média Certifié</span>
+                <span>{t`Média Certifié`}</span>
               </Badge>
             </div>
           </div>
@@ -354,8 +355,8 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                   type="text"
                   value={current.name || ''}
                   onChange={(e) => setCurrent((prev) => ({ ...prev, name: e.target.value }))}
-                  placeholder="Nom du média (ex. L'Écho Indépendant)"
-                  aria-label="Nom du média"
+                  placeholder={t`Nom du média (ex. L'Écho Indépendant)`}
+                  aria-label={t`Nom du média`}
                   className="border-x-0 border-t-0 border-b border-transparent bg-transparent px-0 pb-0.5 text-xl font-black hover:border-border/60 focus-visible:border-primary/80 focus-visible:ring-0 sm:text-2xl"
                 />
                 <Edit2 className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover/title:opacity-60 shrink-0 pointer-events-none" />
@@ -368,14 +369,14 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
             {/* Description / Bio éditoriale du Média */}
             <div className="space-y-1 group/bio">
               <label className="text-[11px] font-semibold text-muted-foreground block">
-                Ligne éditoriale du média (visible publiquement) :
+                {t`Ligne éditoriale du média (visible publiquement) :`}
               </label>
               <Textarea
                 value={current.heroText || ''}
                 onChange={(e) => setCurrent((prev) => ({ ...prev, heroText: e.target.value }))}
                 rows={2}
-                placeholder="Décrivez en quelques mots la mission, les valeurs et les thématiques couvertes par votre média..."
-                aria-label="Ligne éditoriale du média"
+                placeholder={t`Décrivez en quelques mots la mission, les valeurs et les thématiques couvertes par votre média...`}
+                aria-label={t`Ligne éditoriale du média`}
                 className="bg-muted/20 p-3 text-xs leading-relaxed hover:bg-muted/30 focus:bg-background sm:text-[13px]"
               />
             </div>
@@ -495,7 +496,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
         presets={mediaPresets}
         initialPresetId={pendingMediaImage?.kind === 'banner' ? 'banner' : 'logo'}
         title={pendingMediaImage?.kind === 'banner' ? 'Recadrer la bannière' : 'Recadrer le logo'}
-        description="Ajustez le cadrage avant de remplacer l’image du média."
+        description={t`Ajustez le cadrage avant de remplacer l’image du média.`}
         onApply={handleApplyMediaImage}
       />
     </div>

@@ -3,6 +3,7 @@ import { StudioHeader, StudioPage } from '@/components/studio-page';
 import { DeveloperNav } from './developer-nav';
 import { DeveloperStatusBadge } from './developer-status-badge';
 import type { DeveloperAccess } from '../types';
+import { t } from '@lingui/core/macro';
 
 export function DeveloperShell({
   access,
@@ -16,7 +17,7 @@ export function DeveloperShell({
   return (
     <StudioPage>
       <StudioHeader
-        title="Développeur"
+        title={t`Développeur`}
         description={description}
         badge={<DeveloperStatusBadge status={access.status} />}
       />

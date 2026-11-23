@@ -121,7 +121,9 @@ export function ContentHealthClient({
                 {report.articles.length}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {t`sur ${report.publishedCount} article${report.publishedCount === 1 ? '' : 's'} publié${report.publishedCount === 1 ? '' : 's'}.`}
+                {report.publishedCount > 1
+                  ? t`sur ${report.publishedCount} articles publiés.`
+                  : t`sur ${report.publishedCount} article publié.`}
               </p>
             </div>
             <div className="rounded-xl border border-border/60 bg-card p-4">

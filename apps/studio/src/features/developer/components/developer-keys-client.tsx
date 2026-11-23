@@ -24,6 +24,7 @@ import { listDeveloperKeysAction } from '../actions';
 import { DeveloperAccessState } from './developer-access-state';
 import { DeveloperShell } from './developer-shell';
 import type { DeveloperAccess, DeveloperApiKey, DeveloperWorkspace } from '../types';
+import { t } from '@lingui/core/macro';
 
 const API_KEY_SCOPES = ['READ', 'WRITE', 'ANALYTICS'] as const;
 type ApiKeyScope = (typeof API_KEY_SCOPES)[number];
@@ -93,10 +94,10 @@ export function DeveloperKeysClient({
     copyText(value)
       .then(() => {
         setCopied(true);
-        toast.success('Clé copiée dans le presse-papiers.');
+        toast.success(t`Clé copiée dans le presse-papiers.`);
         setTimeout(() => setCopied(false), 2000);
       })
-      .catch(() => toast.error('Impossible de copier dans le presse-papiers.'));
+      .catch(() => toast.error(t`Impossible de copier dans le presse-papiers.`));
   };
 
   const handleGenerate = async (event: React.FormEvent) => {
@@ -113,9 +114,9 @@ export function DeveloperKeysClient({
         if (res.success && res.key) {
           setGeneratedKey(res.key.secret);
           await refreshKeys();
-          toast.success('Nouvelle clé Média générée.');
+          toast.success(t`Nouvelle clé Média générée.`);
         } else {
-          toast.error('Erreur lors de la génération de la clé.');
+          toast.error(t`Erreur lors de la génération de la clé.`);
         }
       } else {
         const res = await attemptWithStepUp(
@@ -125,9 +126,9 @@ export function DeveloperKeysClient({
         if (res.ok && res.data?.apiKey) {
           setGeneratedKey(res.data.apiKey);
           await refreshKeys();
-          toast.success("Nouvelle clé d'API générée.");
+          toast.success(t`Nouvelle clé d'API générée.`);
         } else {
-          toast.error('Erreur lors de la génération de la clé.');
+          toast.error(t`Erreur lors de la génération de la clé.`);
         }
       }
 
@@ -156,9 +157,9 @@ export function DeveloperKeysClient({
           // La rotation change le préfixe et la date d'activité : sans
           // relecture, le tableau décrit la clé révoquée, pas la vivante.
           await refreshKeys();
-          toast.success("Clé d'API rotatée.");
+          toast.success(t`Clé d'API rotatée.`);
         } else {
-          toast.error('Erreur lors de la rotation de la clé.');
+          toast.error(t`Erreur lors de la rotation de la clé.`);
         }
       } else {
         const res = await attemptWithStepUp(() => rotateApiKeyAction(id), {
@@ -168,9 +169,9 @@ export function DeveloperKeysClient({
           setKeyModalMode('rotated');
           setGeneratedKey(res.data.apiKey);
           await refreshKeys();
-          toast.success("Clé d'API rotatée.");
+          toast.success(t`Clé d'API rotatée.`);
         } else {
-          toast.error('Erreur lors de la rotation de la clé.');
+          toast.error(t`Erreur lors de la rotation de la clé.`);
         }
       }
     } catch (error) {
@@ -190,9 +191,9 @@ export function DeveloperKeysClient({
         if (res.success) {
           setKeys((current) => current.filter((key) => key.id !== id));
           setConfirmDeleteId(null);
-          toast.success("Clé d'API révoquée.");
+          toast.success(t`Clé d'API révoquée.`);
         } else {
-          toast.error('Erreur lors de la révocation de la clé.');
+          toast.error(t`Erreur lors de la révocation de la clé.`);
         }
       } else {
         const res = await attemptWithStepUp(() => revokeApiKeyAction(id), {
@@ -201,9 +202,9 @@ export function DeveloperKeysClient({
         if (res.ok) {
           setKeys((current) => current.filter((key) => key.id !== id));
           setConfirmDeleteId(null);
-          toast.success("Clé d'API révoquée.");
+          toast.success(t`Clé d'API révoquée.`);
         } else {
-          toast.error('Erreur lors de la révocation de la clé.');
+          toast.error(t`Erreur lors de la révocation de la clé.`);
         }
       }
     } catch (error) {
@@ -228,8 +229,8 @@ export function DeveloperKeysClient({
       <DeveloperShell access={access} description={`Clés d’API de ${workspace.name}.`}>
         <DeveloperAccessState
           access={access}
-          title="Aucune permission API accordée"
-          description="Votre accès est actif, mais aucune permission de lecture, d’écriture ou d’analytics ne vous a été accordée."
+          title={t`Aucune permission API accordée`}
+          description={t`Votre accès est actif, mais aucune permission de lecture, d’écriture ou d’analytics ne vous a été accordée.`}
         />
       </DeveloperShell>
     );
@@ -237,7 +238,7 @@ export function DeveloperKeysClient({
 
   return (
     <DeveloperShell access={access} description={`Clés d’API de ${workspace.name}.`}>
-      <StudioSection title="Générer une clé" icon={Key}>
+      <StudioSection title={t`Générer une clé`} icon={Key}>
         <form onSubmit={handleGenerate} className="space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row">
             <Input
@@ -258,13 +259,13 @@ export function DeveloperKeysClient({
               disabled={isGenerating || !newKeyName.trim() || newKeyScopes.length === 0}
             >
               {isGenerating ? <Loader2 className="animate-spin" /> : <Plus />}
-              Générer la clé
+              {t`Générer la clé`}
             </Button>
           </div>
 
           <div className="space-y-2">
             <p className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
-              Permissions de la clé
+              {t`Permissions de la clé`}
             </p>
             <div className="flex flex-wrap gap-2">
               {allowedScopes.map((scope) => {
@@ -285,43 +286,44 @@ export function DeveloperKeysClient({
                     }
                     title={SCOPE_META[scope].description}
                   >
-                    <span>{active ? '✓' : '+'}</span>
+                    <span>{active ? t`✓` : t`+`}</span>
                     {scope}
                   </Button>
                 );
               })}
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Une clé ne peut jamais dépasser les permissions accordées à votre compte.
+              {t`Une clé ne peut jamais dépasser les permissions accordées à votre compte.`}
             </p>
           </div>
         </form>
       </StudioSection>
 
       <StudioSection
-        title="Clés actives"
+        title={t`Clés actives`}
         icon={Key}
         actions={
           <Badge variant="outline" shape="pill" size="sm">
-            {keys.length} clé{keys.length > 1 ? 's' : ''}
+            {keys.length} {t`clé`}
+            {keys.length > 1 ? t`s` : ''}
           </Badge>
         }
       >
-        <Table aria-label="Clés d’API actives" size="sm" className="rounded-lg">
+        <Table aria-label={t`Clés d’API actives`} size="sm" className="rounded-lg">
           <TableHeader>
-            <TableColumn isRowHeader>Nom et identifiant</TableColumn>
-            <TableColumn>Permissions</TableColumn>
-            <TableColumn>Dernière activité</TableColumn>
-            <TableColumn>Créée le</TableColumn>
-            <TableColumn className="text-right">Actions</TableColumn>
+            <TableColumn isRowHeader>{t`Nom et identifiant`}</TableColumn>
+            <TableColumn>{t`Permissions`}</TableColumn>
+            <TableColumn>{t`Dernière activité`}</TableColumn>
+            <TableColumn>{t`Créée le`}</TableColumn>
+            <TableColumn className="text-right">{t`Actions`}</TableColumn>
           </TableHeader>
           <TableBody
             items={keys}
             dependencies={[confirmDeleteId, isRevokingId, isRotatingId]}
             emptyState={
               <div className="space-y-1 py-4">
-                <p className="text-xs font-medium text-foreground">Aucune clé pour le moment.</p>
-                <p>Générez votre première clé ci-dessus.</p>
+                <p className="text-xs font-medium text-foreground">{t`Aucune clé pour le moment.`}</p>
+                <p>{t`Générez votre première clé ci-dessus.`}</p>
               </div>
             }
           >
@@ -330,7 +332,8 @@ export function DeveloperKeysClient({
                 <TableCell>
                   <p className="font-semibold text-foreground">{key.name}</p>
                   <code className="mt-1 inline-block rounded border border-border/50 bg-muted/60 px-2 py-0.5 font-sans text-[11px] text-muted-foreground">
-                    {key.keyPrefix}••••••••••••
+                    {key.keyPrefix}
+                    {t`••••••••••••`}
                   </code>
                 </TableCell>
                 <TableCell>
@@ -343,7 +346,7 @@ export function DeveloperKeysClient({
                   </div>
                 </TableCell>
                 <TableCell className="text-[11px] text-muted-foreground">
-                  {key.lastUsedAt ? formatDate(key.lastUsedAt) : 'Jamais utilisée'}
+                  {key.lastUsedAt ? formatDate(key.lastUsedAt) : t`Jamais utilisée`}
                 </TableCell>
                 <TableCell className="text-[11px] text-muted-foreground">
                   {formatDate(key.createdAt, true)}
@@ -357,7 +360,7 @@ export function DeveloperKeysClient({
                         onClick={() => setConfirmDeleteId(null)}
                         disabled={isRevokingId === key.id}
                       >
-                        Annuler
+                        {t`Annuler`}
                       </Button>
                       <Button
                         variant="solid"
@@ -367,7 +370,7 @@ export function DeveloperKeysClient({
                         disabled={isRevokingId === key.id}
                       >
                         {isRevokingId === key.id ? <Loader2 className="animate-spin" /> : null}
-                        Révoquer
+                        {t`Révoquer`}
                       </Button>
                     </div>
                   ) : (
@@ -378,8 +381,8 @@ export function DeveloperKeysClient({
                         shape="icon"
                         onClick={() => handleRotate(key.id)}
                         disabled={isRotatingId === key.id || isRevokingId === key.id}
-                        title="Rotation : régénère le secret et invalide l’ancienne clé"
-                        aria-label="Rotater la clé"
+                        title={t`Rotation : régénère le secret et invalide l’ancienne clé`}
+                        aria-label={t`Rotater la clé`}
                       >
                         <RefreshCw
                           className={isRotatingId === key.id ? 'animate-spin' : undefined}
@@ -391,8 +394,8 @@ export function DeveloperKeysClient({
                         size="xs"
                         shape="icon"
                         onClick={() => setConfirmDeleteId(key.id)}
-                        title="Révoquer cette clé"
-                        aria-label="Révoquer cette clé"
+                        title={t`Révoquer cette clé`}
+                        aria-label={t`Révoquer cette clé`}
                       >
                         <Trash2 />
                       </Button>
@@ -420,11 +423,11 @@ export function DeveloperKeysClient({
                 </div>
                 <DialogTitle className="text-center text-lg">
                   {keyModalMode === 'rotated'
-                    ? "Clé d'API rotatée"
-                    : "Clé d'API générée avec succès"}
+                    ? t`Clé d'API rotatée`
+                    : t`Clé d'API générée avec succès`}
                 </DialogTitle>
                 <DialogDescription className="mx-auto mt-2 max-w-md text-center">
-                  Copiez ce secret maintenant : il ne sera plus jamais réaffiché.
+                  {t`Copiez ce secret maintenant : il ne sera plus jamais réaffiché.`}
                 </DialogDescription>
               </div>
 
@@ -439,7 +442,7 @@ export function DeveloperKeysClient({
                   size="sm"
                   shape="icon"
                   onClick={() => handleCopy(generatedKey)}
-                  aria-label="Copier la clé"
+                  aria-label={t`Copier la clé`}
                 >
                   {copied ? <Check /> : <Copy />}
                 </Button>
@@ -448,8 +451,7 @@ export function DeveloperKeysClient({
               <div className="flex gap-3 rounded-lg border border-highlight/20 bg-highlight/10 p-4 text-xs text-highlight">
                 <AlertCircle className="mt-0.5 size-4 shrink-0" />
                 <p className="leading-relaxed">
-                  Stockez cette clé dans les variables d’environnement de votre serveur. Ne
-                  l’exposez jamais dans du JavaScript public.
+                  {t`Stockez cette clé dans les variables d’environnement de votre serveur. Ne l’exposez jamais dans du JavaScript public.`}
                 </p>
               </div>
 
@@ -460,7 +462,7 @@ export function DeveloperKeysClient({
                 block
                 onClick={() => setGeneratedKey(null)}
               >
-                J’ai sauvegardé ma clé
+                {t`J’ai sauvegardé ma clé`}
               </Button>
             </div>
           ) : null}

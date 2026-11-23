@@ -10,6 +10,7 @@
 import { getFeature, localize } from '@qoe/ui';
 import { Button } from '@qoe/ui/button';
 import { getFeatureCatalogAction, unsubscribeFeatureAction } from '@/features/upcoming/actions';
+import { t } from '@lingui/core/macro';
 
 export async function FeatureConsents() {
   const catalog = await getFeatureCatalogAction();
@@ -18,12 +19,11 @@ export async function FeatureConsents() {
   return (
     <div id="privacy-notify" className="space-y-4">
       <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
-        Vous recevrez un seul email le jour du lancement de chaque fonctionnalité demandée. Retirer
-        une promesse est immédiat et ne ferme aucun autre réglage du compte.
+        {t`Vous recevrez un seul email le jour du lancement de chaque fonctionnalité demandée. Retirer une promesse est immédiat et ne ferme aucun autre réglage du compte.`}
       </p>
 
       {notified.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Aucune notification de lancement active.</p>
+        <p className="text-sm text-muted-foreground">{t`Aucune notification de lancement active.`}</p>
       ) : (
         <ul className="divide-y divide-border rounded-xl border border-border">
           {notified.map((feature) => {
@@ -42,7 +42,7 @@ export async function FeatureConsents() {
                     size="sm"
                     className="h-7 px-3 text-xs font-semibold text-muted-foreground"
                   >
-                    Ne plus me prévenir
+                    {t`Ne plus me prévenir`}
                   </Button>
                 </form>
               </li>

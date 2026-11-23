@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Calendar, BarChart2 } from 'lucide-react';
 import { UmamiTimeseriesPoint } from '@qoe/analytics/server';
+import { t } from '@lingui/core/macro';
 
 interface TimeseriesChartProps {
   data: UmamiTimeseriesPoint[];
@@ -73,18 +74,19 @@ export function TimeseriesChart({ data, period }: TimeseriesChartProps) {
           <div className="flex items-center gap-2 mb-1">
             <BarChart2 className="h-4 w-4 text-primary stroke-[1.5]" />
             <h3 className="text-[17px] font-semibold tracking-tight text-foreground">
-              Évolution du trafic
+              {t`Évolution du trafic`}
             </h3>
           </div>
           <p className="text-xs text-muted-foreground">
-            Volume de lecture sur la période ({period})
+            {t`Volume de lecture sur la période (`}
+            {period})
           </p>
         </div>
 
         <div className="flex items-center gap-6">
           <div className="flex flex-col">
             <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              Total période
+              {t`Total période`}
             </span>
             <span className="text-lg font-bold text-foreground">
               {totalViews.toLocaleString()} vues
@@ -93,10 +95,10 @@ export function TimeseriesChart({ data, period }: TimeseriesChartProps) {
           <div className="h-8 w-[1px] bg-border/40" />
           <div className="flex flex-col">
             <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              Moyenne quotidienne
+              {t`Moyenne quotidienne`}
             </span>
             <span className="text-lg font-bold text-foreground">
-              {avgViews.toLocaleString()} / jour
+              {avgViews.toLocaleString()} {t`/ jour`}
             </span>
           </div>
         </div>

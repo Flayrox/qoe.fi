@@ -162,7 +162,7 @@ function Field({
 function ProBadge() {
   return (
     <Badge variant="soft" tone="brand" size="xs">
-      PRO
+      {'PRO'}
     </Badge>
   );
 }
@@ -421,7 +421,7 @@ export function NewsletterClient({
         badge={
           emailPro ? (
             <Badge variant="soft" tone="brand" size="xs">
-              PRO
+              {'PRO'}
             </Badge>
           ) : undefined
         }
@@ -852,7 +852,7 @@ export function NewsletterClient({
             <div className="max-w-2xl rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
               <div className="flex items-center gap-2">
                 <Badge variant="outline" size="xs">
-                  {t`PRO`}
+                  {'PRO'}
                 </Badge>
                 <h2 className="text-sm font-semibold text-foreground">{t`Messages directs`}</h2>
               </div>
@@ -1182,7 +1182,7 @@ export function NewsletterClient({
                               month: 'short',
                               year: 'numeric',
                             })
-                          : '—'}
+                          : t`—`}
                       </TableCell>
 
                       <TableCell className="text-right">

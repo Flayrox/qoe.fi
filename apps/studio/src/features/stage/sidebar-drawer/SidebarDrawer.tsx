@@ -12,6 +12,7 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { Sidebar } from '@qoe/ui/sidebar';
 import type { SidebarProps } from '@qoe/ui/sidebar';
+import { t } from '@lingui/core/macro';
 
 interface SidebarDrawerProps {
   isOpen: boolean;
@@ -78,7 +79,7 @@ export function SidebarDrawer({ isOpen, onClose, sidebarProps }: SidebarDrawerPr
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Navigation Studio"
+        aria-label={t`Navigation Studio`}
         className="relative z-10 flex flex-col h-full bg-background border-r border-border shadow-lg animate-in slide-in-from-left duration-200"
       >
         {/* Bouton Fermer Flottant */}
@@ -86,8 +87,8 @@ export function SidebarDrawer({ isOpen, onClose, sidebarProps }: SidebarDrawerPr
           ref={closeRef}
           type="button"
           onClick={onClose}
-          aria-label="Fermer le menu"
-          title="Fermer le menu (Échap)"
+          aria-label={t`Fermer le menu`}
+          title={t`Fermer le menu (Échap)`}
           className="absolute top-3 right-3 z-30 flex items-center justify-center w-8 h-8 rounded-md bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
         >
           <X className="w-4 h-4" aria-hidden="true" />
@@ -98,7 +99,7 @@ export function SidebarDrawer({ isOpen, onClose, sidebarProps }: SidebarDrawerPr
           <Sidebar {...sidebarProps} />
         ) : (
           <div className="w-64 p-6 text-sm text-muted-foreground">
-            Navigation Studio indisponible.
+            {t`Navigation Studio indisponible.`}
           </div>
         )}
       </div>

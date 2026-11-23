@@ -30,13 +30,13 @@ export function SeoTab({ current, setCurrent, addSocialLink, removeSocialLink }:
   return (
     <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
       <div className="space-y-6 lg:col-span-7">
-        <StudioSection title="Référencement">
+        <StudioSection title={t`Référencement`}>
           <div className="space-y-5">
             <StudioField
-              label="Titre"
+              label={t`Titre`}
               htmlFor="seo-title"
               counter={`${current.seoTitle?.length || 0}/60`}
-              hint="Affiché comme titre du lien dans les résultats de recherche. Laissez vide pour utiliser le nom du site."
+              hint={t`Affiché comme titre du lien dans les résultats de recherche. Laissez vide pour utiliser le nom du site.`}
             >
               <Input
                 id="seo-title"
@@ -50,10 +50,10 @@ export function SeoTab({ current, setCurrent, addSocialLink, removeSocialLink }:
             </StudioField>
 
             <StudioField
-              label="Description"
+              label={t`Description`}
               htmlFor="seo-description"
               counter={`${current.seoDescription?.length || 0}/160`}
-              hint="Affichée sous le titre. Laissez vide pour reprendre le slogan du site."
+              hint={t`Affichée sous le titre. Laissez vide pour reprendre le slogan du site.`}
             >
               <Textarea
                 id="seo-description"
@@ -79,9 +79,9 @@ export function SeoTab({ current, setCurrent, addSocialLink, removeSocialLink }:
           </div>
         </StudioSection>
 
-        <StudioSection title="Pied de page">
+        <StudioSection title={t`Pied de page`}>
           <StudioField
-            label="Mention"
+            label={t`Mention`}
             htmlFor="footer-text"
             hint={t`Affichée en bas de chaque page du site.`}
           >
@@ -98,7 +98,7 @@ export function SeoTab({ current, setCurrent, addSocialLink, removeSocialLink }:
           </StudioField>
         </StudioSection>
 
-        <StudioSection title="Réseaux sociaux">
+        <StudioSection title={t`Réseaux sociaux`}>
           <p className="mb-3 text-xs text-muted-foreground">
             {t`Les profils renseignés apparaissent sur le site.`}
           </p>

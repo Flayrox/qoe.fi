@@ -8,6 +8,7 @@ import { Input, Textarea } from '@qoe/ui/input';
 import { toast } from '@qoe/ui/toast';
 import { StudioField, StudioSection } from '@/components/studio-page';
 import { submitApiApplicationAction } from '@qoe/sdk/actions/dashboard';
+import { t } from '@lingui/core/macro';
 
 const APPLICATION_PRESETS = [
   {
@@ -58,7 +59,7 @@ export function DeveloperRequestForm({ rejected = false }: { rejected?: boolean 
       : reason.trim();
 
     if (finalReason.length < 10) {
-      toast.error("Décrivez votre cas d'usage en au moins 10 caractères.");
+      toast.error(t`Décrivez votre cas d'usage en au moins 10 caractères.`);
       return;
     }
 
@@ -69,7 +70,7 @@ export function DeveloperRequestForm({ rejected = false }: { rejected?: boolean 
         toast.error(res.error?.message || "Impossible d'envoyer la demande.");
         return;
       }
-      toast.success("Votre demande d'accès a bien été envoyée.");
+      toast.success(t`Votre demande d'accès a bien été envoyée.`);
       router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Impossible d'envoyer la demande.");
@@ -86,7 +87,7 @@ export function DeveloperRequestForm({ rejected = false }: { rejected?: boolean 
       >
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-foreground">Cas d’usage rapides</p>
+            <p className="text-xs font-semibold text-foreground">{t`Cas d’usage rapides`}</p>
             <div className="grid gap-2 sm:grid-cols-2">
               {APPLICATION_PRESETS.map((preset) => {
                 const Icon = preset.icon;
@@ -132,10 +133,10 @@ export function DeveloperRequestForm({ rejected = false }: { rejected?: boolean 
           <StudioField
             label={
               <>
-                Votre projet ou intégration <span className="text-primary">*</span>
+                {t`Votre projet ou intégration`} <span className="text-primary">*</span>
               </>
             }
-            hint="Décrivez les données utilisées et la façon dont vous comptez appeler l’API."
+            hint={t`Décrivez les données utilisées et la façon dont vous comptez appeler l’API.`}
             counter={`${reason.trim().length} car. (min 10)`}
             htmlFor="developer-reason"
           >
@@ -144,14 +145,14 @@ export function DeveloperRequestForm({ rejected = false }: { rejected?: boolean 
               rows={3}
               value={reason}
               onChange={(event) => setReason(event.target.value)}
-              placeholder="Décrivez votre projet, les endpoints utiles et votre stack…"
+              placeholder={t`Décrivez votre projet, les endpoints utiles et votre stack…`}
               required
             />
           </StudioField>
 
           <StudioField
-            label="Lien du site ou du dépôt (optionnel)"
-            hint="Un lien public aide l’équipe à comprendre le contexte."
+            label={t`Lien du site ou du dépôt (optionnel)`}
+            hint={t`Un lien public aide l’équipe à comprendre le contexte.`}
             htmlFor="developer-project-url"
           >
             <Input
@@ -159,13 +160,13 @@ export function DeveloperRequestForm({ rejected = false }: { rejected?: boolean 
               type="url"
               value={projectUrl}
               onChange={(event) => setProjectUrl(event.target.value)}
-              placeholder="https://mon-projet.com ou https://github.com/…"
+              placeholder={t`https://mon-projet.com ou https://github.com/…`}
             />
           </StudioField>
 
           <div className="flex flex-col gap-2 border-t border-border/50 pt-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-[11px] leading-relaxed text-muted-foreground">
-              La demande est examinée sous 24 h ouvrées.
+              {t`La demande est examinée sous 24 h ouvrées.`}
             </p>
             <Button
               type="submit"
@@ -175,7 +176,7 @@ export function DeveloperRequestForm({ rejected = false }: { rejected?: boolean 
               disabled={isSubmitting || reason.trim().length < 10}
             >
               {isSubmitting ? <Loader2 className="animate-spin" /> : <Send />}
-              {isSubmitting ? 'Envoi…' : 'Envoyer ma demande'}
+              {isSubmitting ? t`Envoi…` : t`Envoyer ma demande`}
             </Button>
           </div>
         </form>

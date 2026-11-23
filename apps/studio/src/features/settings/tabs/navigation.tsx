@@ -22,6 +22,7 @@ import { cn } from '@qoe/utils';
 import { isReservedTenantRoute } from '@qoe/config';
 import type { CreatorProfile, ClientCategory, ClientNavigationItem } from '../types';
 import { clientNavigationLinkId } from '../lib/client-link-id';
+import { t } from '@lingui/core/macro';
 
 interface NavigationTabProps {
   current: CreatorProfile;
@@ -252,7 +253,7 @@ export function NavigationTab({
         key: 'page:thoughts',
         id: 'page:thoughts',
         type: 'page',
-        label: 'Pensées',
+        label: t`Pensées`,
         url: '/thoughts',
         isVisible: showThoughtsInNav,
         onToggle: () => togglePageInNav('showThoughtsInNav'),
@@ -261,7 +262,7 @@ export function NavigationTab({
         key: 'page:about',
         id: 'page:about',
         type: 'page',
-        label: 'À propos',
+        label: t`À propos`,
         url: '/about',
         isVisible: showAboutInNav,
         onToggle: () => togglePageInNav('showAboutInNav'),
@@ -340,18 +341,17 @@ export function NavigationTab({
           <div className="flex items-center gap-2">
             <Compass className="w-4 h-4 text-primary" />
             <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Aperçu en direct de votre menu
+              {t`Aperçu en direct de votre menu`}
             </h3>
           </div>
           <span className="text-[11px] text-muted-foreground">
-            Ordre réel visible par vos lecteurs (de gauche à droite)
+            {t`Ordre réel visible par vos lecteurs (de gauche à droite)`}
           </span>
         </div>
 
         {visibleNavbarItems.length === 0 ? (
           <div className="py-4 text-center border border-dashed border-border/40 rounded-lg text-xs text-muted-foreground">
-            Aucun élément actif dans la barre de navigation. Activez des rubriques ou des pages
-            ci-dessous.
+            {t`Aucun élément actif dans la barre de navigation. Activez des rubriques ou des pages ci-dessous.`}
           </div>
         ) : (
           <div className="flex items-center gap-2 overflow-x-auto rounded-lg bg-muted/30 p-3 select-none">
@@ -384,12 +384,11 @@ export function NavigationTab({
             <div className="flex items-center gap-2">
               <Compass className="w-4 h-4 text-primary" />
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Ordre de la barre de navigation
+                {t`Ordre de la barre de navigation`}
               </h3>
             </div>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              Déplacez les éléments vers le haut ou vers le bas pour organiser votre menu selon vos
-              priorités éditoriales.
+              {t`Déplacez les éléments vers le haut ou vers le bas pour organiser votre menu selon vos priorités éditoriales.`}
             </p>
           </div>
         </div>
@@ -413,8 +412,8 @@ export function NavigationTab({
                       shape="icon"
                       disabled={index === 0}
                       onClick={() => moveUnifiedItem(index, 'up')}
-                      title="Déplacer vers la gauche / plus haut"
-                      aria-label="Déplacer vers la gauche / plus haut"
+                      title={t`Déplacer vers la gauche / plus haut`}
+                      aria-label={t`Déplacer vers la gauche / plus haut`}
                     >
                       <ArrowUp />
                     </Button>
@@ -424,8 +423,8 @@ export function NavigationTab({
                       shape="icon"
                       disabled={index === unifiedNavItems.length - 1}
                       onClick={() => moveUnifiedItem(index, 'down')}
-                      title="Déplacer vers la droite / plus bas"
-                      aria-label="Déplacer vers la droite / plus bas"
+                      title={t`Déplacer vers la droite / plus bas`}
+                      aria-label={t`Déplacer vers la droite / plus bas`}
                     >
                       <ArrowDown />
                     </Button>
@@ -452,7 +451,7 @@ export function NavigationTab({
                       </span>
                       {item.type === 'category' && item.subCount ? (
                         <span className="text-[10px] text-muted-foreground">
-                          {item.subCount} sous-rubrique{item.subCount > 1 ? 's' : ''}
+                          {item.subCount} sous-rubrique{item.subCount > 1 ? t`s` : ''}
                         </span>
                       ) : null}
                     </div>
@@ -478,12 +477,12 @@ export function NavigationTab({
                     {item.isVisible ? (
                       <>
                         <Eye />
-                        <span>Dans le menu</span>
+                        <span>{t`Dans le menu`}</span>
                       </>
                     ) : (
                       <>
                         <EyeOff className="opacity-60" />
-                        <span>Masqué</span>
+                        <span>{t`Masqué`}</span>
                       </>
                     )}
                   </Button>
@@ -495,8 +494,8 @@ export function NavigationTab({
                       size="xs"
                       shape="icon"
                       onClick={item.onDelete}
-                      title="Supprimer définitivement ce lien"
-                      aria-label="Supprimer définitivement ce lien"
+                      title={t`Supprimer définitivement ce lien`}
+                      aria-label={t`Supprimer définitivement ce lien`}
                     >
                       <Trash2 />
                     </Button>
@@ -522,32 +521,31 @@ export function NavigationTab({
               </h3>
             </div>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              Ajoutez des raccourcis vers un email de contact (mailto), un podcast, votre boutique
-              ou un réseau externe.
+              {t`Ajoutez des raccourcis vers un email de contact (mailto), un podcast, votre boutique ou un réseau externe.`}
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Button variant="soft" tone="brand" size="sm" onClick={addCustomEmail}>
               <Mail />
-              <span>+ Email / Contact</span>
+              <span>{t`+ Email / Contact`}</span>
             </Button>
             <Button variant="solid" tone="brand" size="sm" onClick={addCustomLink}>
               <Plus />
-              <span>+ Lien Web</span>
+              <span>{t`+ Lien Web`}</span>
             </Button>
           </div>
         </div>
 
         {customLinks.length === 0 ? (
           <div className="py-6 text-center border border-dashed border-border/40 rounded-lg text-xs text-muted-foreground space-y-2">
-            <p>Aucun lien personnalisé ni email de contact configuré.</p>
+            <p>{t`Aucun lien personnalisé ni email de contact configuré.`}</p>
             <div className="flex items-center justify-center gap-2 pt-1">
               <Button variant="ghost" tone="brand" size="xs" onClick={addCustomEmail}>
-                Ajouter un email de contact
+                {t`Ajouter un email de contact`}
               </Button>
               <span className="text-muted-foreground/40">·</span>
               <Button variant="ghost" tone="brand" size="xs" onClick={addCustomLink}>
-                Ajouter un lien web
+                {t`Ajouter un lien web`}
               </Button>
             </div>
           </div>
@@ -577,7 +575,7 @@ export function NavigationTab({
                         updated[globalIndex] = { ...updated[globalIndex], label: e.target.value };
                         setCurrent((prev) => ({ ...prev, navigation: updated }));
                       }}
-                      placeholder="Intitulé (ex. Contact, Mon Podcast, Boutique...)"
+                      placeholder={t`Intitulé (ex. Contact, Mon Podcast, Boutique...)`}
                       size="sm"
                       className="w-full sm:w-1/3"
                     />
@@ -606,7 +604,7 @@ export function NavigationTab({
                         };
                         setCurrent((prev) => ({ ...prev, navigation: updated }));
                       }}
-                      placeholder="contact@mondomaine.fr ou https://mon-podcast.com"
+                      placeholder={t`contact@mondomaine.fr ou https://mon-podcast.com`}
                       size="sm"
                       className="flex-1"
                     />
@@ -614,15 +612,15 @@ export function NavigationTab({
                     {isMail ? (
                       <span className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground">
                         <Mail className="size-3" />
-                        Email
+                        {t`Email`}
                       </span>
                     ) : nav.isExternal ? (
                       <span
                         className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground"
-                        title="Ce lien externe passe par la page d'avertissement avant redirection hors de la publication."
+                        title={t`Ce lien externe passe par la page d'avertissement avant redirection hors de la publication.`}
                       >
                         <Shield className="size-3" />
-                        Externe
+                        {t`Externe`}
                       </span>
                     ) : null}
 
@@ -633,8 +631,8 @@ export function NavigationTab({
                       shape="icon"
                       onClick={() => removeNavigationLink(globalIndex)}
                       className="shrink-0 ml-auto"
-                      title="Supprimer ce lien"
-                      aria-label="Supprimer ce lien"
+                      title={t`Supprimer ce lien`}
+                      aria-label={t`Supprimer ce lien`}
                     >
                       <Trash2 />
                     </Button>
@@ -644,7 +642,7 @@ export function NavigationTab({
                   {isRawEmail && (
                     <div className="flex items-center justify-between gap-2 rounded-md bg-primary/5 px-2.5 py-1.5">
                       <span className="text-[11px] text-muted-foreground">
-                        Adresse email reconnue. Voulez-vous activer le lien direct de messagerie ?
+                        {t`Adresse email reconnue. Voulez-vous activer le lien direct de messagerie ?`}
                       </span>
                       <Button
                         variant="ghost"
@@ -661,7 +659,8 @@ export function NavigationTab({
                         }}
                         className="shrink-0"
                       >
-                        Formater en mailto:{trimmedUrl}
+                        {t`Formater en mailto:`}
+                        {trimmedUrl}
                       </Button>
                     </div>
                   )}
@@ -682,12 +681,11 @@ export function NavigationTab({
             <div className="flex items-center gap-2">
               <FolderTree className="w-4 h-4 text-primary" />
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Arborescence des catégories
+                {t`Arborescence des catégories`}
               </h3>
             </div>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              Visibilité hiérarchique des rubriques et sous-rubriques. Masquer un parent masque
-              aussi l'ensemble de sa branche.
+              {t`Visibilité hiérarchique des rubriques et sous-rubriques. Masquer un parent masque aussi l'ensemble de sa branche.`}
             </p>
           </div>
           <Link
@@ -695,20 +693,20 @@ export function NavigationTab({
             onClick={guardUnsavedNavigation}
             className={buttonClasses({ variant: 'outline', size: 'sm', className: 'shrink-0' })}
           >
-            Gérer les catégories
+            {t`Gérer les catégories`}
             <ExternalLink />
           </Link>
         </div>
 
         {current.categories.length === 0 ? (
           <div className="py-8 text-center border border-dashed border-border/40 rounded-lg text-xs text-muted-foreground space-y-2">
-            <p>Aucune catégorie pour le moment.</p>
+            <p>{t`Aucune catégorie pour le moment.`}</p>
             <Link
               href="/articles?tab=categories"
               onClick={guardUnsavedNavigation}
               className="inline-block font-semibold text-primary hover:underline"
             >
-              Créer votre première catégorie
+              {t`Créer votre première catégorie`}
             </Link>
           </div>
         ) : (
@@ -777,12 +775,12 @@ export function NavigationTab({
                     {!isHiddenFromNav ? (
                       <>
                         <Eye />
-                        <span>Dans le menu</span>
+                        <span>{t`Dans le menu`}</span>
                       </>
                     ) : (
                       <>
                         <EyeOff className="opacity-60" />
-                        <span>Masquée</span>
+                        <span>{t`Masquée`}</span>
                       </>
                     )}
                   </Button>

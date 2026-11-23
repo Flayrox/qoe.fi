@@ -7,6 +7,7 @@ import { toast } from '@qoe/ui/toast';
 import { ThemeToggle, useCommandMenu } from '@qoe/ui';
 
 import { HeaderWorkspaceSwitcher } from './HeaderWorkspaceSwitcher';
+import { t } from '@lingui/core/macro';
 
 export function HeaderClient() {
   const searchParams = useSearchParams();
@@ -16,7 +17,7 @@ export function HeaderClient() {
   // Check for already_onboarded query parameter to show toast
   useEffect(() => {
     if (alreadyOnboarded === 'true') {
-      toast.error("Tu es déjà créateur, tu ne peux pas recommencer l'onboarding !");
+      toast.error(t`Tu es déjà créateur, tu ne peux pas recommencer l'onboarding !`);
       const newUrl = window.location.pathname;
       window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, '', newUrl);
     }
@@ -30,7 +31,7 @@ export function HeaderClient() {
           <button
             onClick={() => window.dispatchEvent(new CustomEvent('toggle-mobile-sidebar'))}
             className="md:hidden p-2 text-muted-foreground hover:text-foreground rounded-lg bg-muted/50 border border-border/30 active:scale-95 transition-all"
-            aria-label="Ouvrir la navigation"
+            aria-label={t`Ouvrir la navigation`}
           >
             <Menu className="w-4 h-4 shrink-0" strokeWidth={1.5} />
           </button>
@@ -61,7 +62,7 @@ export function HeaderClient() {
                 type="button"
                 disabled
                 aria-disabled="true"
-                title="Bientôt disponible"
+                title={t`Bientôt disponible`}
                 className="cursor-not-allowed border-b-2 border-transparent py-1.5 text-muted-foreground/45 opacity-60 select-none"
               >
                 {label}

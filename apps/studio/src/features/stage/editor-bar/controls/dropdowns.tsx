@@ -9,6 +9,7 @@
 import React from 'react';
 import { InputRadio, InputRange, SpacingInputs, ColorField } from './inputs';
 import { useQoefiStyle } from '../useQoefiStyle';
+import { t } from '@lingui/core/macro';
 
 export function BorderControl() {
   const { style, patch } = useQoefiStyle();
@@ -16,7 +17,7 @@ export function BorderControl() {
   return (
     <div className="space-y-2">
       <InputRange
-        label="Bordure"
+        label={t`Bordure`}
         value={bw}
         min={0}
         max={16}
@@ -24,7 +25,7 @@ export function BorderControl() {
         onChange={(v) => patch({ borderWidth: v })}
       />
       <ColorField
-        label="Couleur bordure"
+        label={t`Couleur bordure`}
         value={style.borderColor ?? ''}
         onChange={(v) => patch({ borderColor: v })}
       />
@@ -47,7 +48,7 @@ export function RadiusControl() {
   return (
     <div className="space-y-2">
       <InputRange
-        label="Rayon"
+        label={t`Rayon`}
         value={typeof r === 'number' ? r : Math.max(vals.top, vals.right, vals.bottom, vals.left)}
         min={0}
         max={64}
@@ -55,7 +56,7 @@ export function RadiusControl() {
         onChange={(v) => patch({ radius: v })}
       />
       <SpacingInputs
-        title="Coins indépendants"
+        title={t`Coins indépendants`}
         values={vals}
         corners
         onSide={(side, v) => {
@@ -84,7 +85,7 @@ export function PaddingControl() {
   const p = style.padding ?? {};
   return (
     <SpacingInputs
-      title="Marge intérieure (padding)"
+      title={t`Marge intérieure (padding)`}
       values={{ top: p.top ?? 0, right: p.right ?? 0, bottom: p.bottom ?? 0, left: p.left ?? 0 }}
       onSide={(s, v) => patchBox('padding', s, v)}
     />
@@ -97,12 +98,12 @@ export function MarginControl() {
   return (
     <div className="space-y-2">
       <SpacingInputs
-        title="Marge extérieure (margin)"
+        title={t`Marge extérieure (margin)`}
         values={{ top: m.top ?? 0, right: m.right ?? 0, bottom: m.bottom ?? 0, left: m.left ?? 0 }}
         onSide={(s, v) => patchBox('margin', s, v)}
       />
       <label className="flex cursor-pointer items-center justify-between text-[11px] text-muted-foreground">
-        <span>Centrer auto (margin auto)</span>
+        <span>{t`Centrer auto (margin auto)`}</span>
         <input
           type="checkbox"
           checked={!!m.auto}
@@ -158,7 +159,7 @@ export function DisplayControl() {
             ]}
           />
           <InputRange
-            label="Écart"
+            label={t`Écart`}
             value={style.gap ?? 0}
             min={0}
             max={96}
@@ -186,7 +187,7 @@ export function DimensionControl() {
       />
       {(style.width?.mode ?? 'fill') === 'fixed' && (
         <InputRange
-          label="Largeur"
+          label={t`Largeur`}
           value={style.width?.value ?? 800}
           min={200}
           max={1600}
@@ -205,7 +206,7 @@ export function DimensionControl() {
       />
       {(style.height?.mode ?? 'hug') === 'fixed' && (
         <InputRange
-          label="Hauteur"
+          label={t`Hauteur`}
           value={style.height?.value ?? 400}
           min={80}
           max={1200}
@@ -222,7 +223,7 @@ export function OpacityControl() {
   return (
     <div className="space-y-2">
       <InputRange
-        label="Opacité"
+        label={t`Opacité`}
         value={style.opacity ?? 100}
         min={0}
         max={100}
@@ -250,12 +251,12 @@ export function BackgroundControl() {
   return (
     <div className="space-y-2">
       <ColorField
-        label="Fond"
+        label={t`Fond`}
         value={style.background?.color ?? ''}
         onChange={(v) => patch({ background: { ...(style.background ?? {}), color: v } })}
       />
       <InputRange
-        label="Alpha"
+        label={t`Alpha`}
         value={style.background?.alpha ?? 100}
         min={0}
         max={100}

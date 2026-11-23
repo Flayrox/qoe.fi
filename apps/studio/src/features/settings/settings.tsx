@@ -369,7 +369,7 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
   // Helpers Réseaux sociaux
   const addSocialLink = (platform: string) => {
     if (current.socialLinks.some((s) => s.platform === platform)) {
-      toast.warning(`Le profil ${platform} est déjà présent.`);
+      toast.warning(t`Le profil ${platform} est déjà présent.`);
       return;
     }
     const newSocial: ClientSocialLink = {
@@ -414,7 +414,7 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
                   shape="pill"
                   className="uppercase tracking-wider"
                 >
-                  Média
+                  {t`Média`}
                 </Badge>
               )}
             </div>
@@ -434,7 +434,7 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
                 suppressHydrationWarning
                 className={buttonClasses({ variant: 'outline', size: 'sm' })}
               >
-                <span>Voir le site</span>
+                <span>{t`Voir le site`}</span>
                 <ExternalLink />
               </a>
             ) : (
@@ -442,9 +442,9 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
                 variant="outline"
                 size="sm"
                 disabled
-                title="Choisissez d’abord un sous-domaine ou un domaine personnalisé."
+                title={t`Choisissez d’abord un sous-domaine ou un domaine personnalisé.`}
               >
-                <span>Voir le site</span>
+                <span>{t`Voir le site`}</span>
                 <ExternalLink />
               </Button>
             )}
@@ -462,7 +462,7 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
                   <span>Enregistrement...</span>
                 </>
               ) : (
-                <span>Enregistrer</span>
+                <span>{t`Enregistrer`}</span>
               )}
             </Button>
           </div>
@@ -610,7 +610,7 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
             className="fixed bottom-6 right-8 z-30 flex items-center gap-4 rounded-xl border border-border/60 bg-card p-3 text-card-foreground shadow-lg select-none backdrop-blur-md"
           >
             <span className="text-xs text-muted-foreground font-medium px-1">
-              Modifications non enregistrées
+              {t`Modifications non enregistrées`}
             </span>
 
             <div className="flex items-center gap-2">
@@ -621,7 +621,7 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
                 disabled={isSaving}
                 onClick={handleDiscardChanges}
               >
-                Annuler
+                {t`Annuler`}
               </Button>
 
               <Button
@@ -639,7 +639,7 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
                 ) : (
                   <>
                     <Check />
-                    <span>Enregistrer (⌘S)</span>
+                    <span>{t`Enregistrer (⌘S)`}</span>
                   </>
                 )}
               </Button>

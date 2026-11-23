@@ -44,6 +44,7 @@ import { applyResize, type StyleBox } from './resize-math';
 import { DevicePill } from './DevicePill';
 import { stageScopeLabel } from '../scope-label';
 import { StageEditorMode } from '../engine/models';
+import { t } from '@lingui/core/macro';
 
 interface StageCanvasProps {
   layout: LayoutConfig;
@@ -453,7 +454,9 @@ export function StageCanvas({
             <div className="flex items-center gap-2 rounded-md border border-border bg-muted px-2.5 py-1 font-mono text-[11px] font-medium text-muted-foreground">
               <span>{stageScopeLabel(persistent.stagePage, persistent.articleCategory)}</span>
               <span className="opacity-40">·</span>
-              <span>{deviceWidth} × Auto</span>
+              <span>
+                {deviceWidth} {t`× Auto`}
+              </span>
             </div>
             {!isPreview && <DevicePill />}
           </div>
@@ -522,8 +525,8 @@ export function StageCanvas({
           className="absolute bottom-6 left-1/2 z-40 -translate-x-1/2 bg-background/95 shadow-sm backdrop-blur-md"
         >
           <Icon name="maximize" size="sm" />
-          Recentrer le canvas
-          <Kbd size="xs">⇧0</Kbd>
+          {t`Recentrer le canvas`}
+          <Kbd size="xs">{t`⇧0`}</Kbd>
         </Button>
       )}
     </div>

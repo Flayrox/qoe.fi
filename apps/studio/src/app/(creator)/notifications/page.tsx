@@ -7,6 +7,7 @@
 
 import { NotificationList } from '@qoe/ui/notifications';
 import { StudioHeader, StudioSection } from '@/components/studio-page';
+import { t } from '@lingui/core/macro';
 
 export const metadata = {
   title: 'Notifications | qoefi',
@@ -17,8 +18,8 @@ export default function DashboardNotificationsPage() {
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6">
       <StudioHeader
-        title="Notifications"
-        description="Invitations, soumissions, réactions et nouveaux membres."
+        title={t`Notifications`}
+        description={t`Invitations, soumissions, réactions et nouveaux membres.`}
       />
       <StudioSection className="p-0" bodyClassName="overflow-hidden rounded-xl">
         <NotificationList />

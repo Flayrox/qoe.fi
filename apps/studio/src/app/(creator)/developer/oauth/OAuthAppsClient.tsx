@@ -122,7 +122,7 @@ export function OAuthAppsClient({
           if (copiedTimer.current) clearTimeout(copiedTimer.current);
           copiedTimer.current = setTimeout(() => setCopied(null), 2000);
         })
-        .catch(() => toast.error('Copie impossible.'));
+        .catch(() => toast.error(t`Copie impossible.`));
     }
   };
 
@@ -145,11 +145,11 @@ export function OAuthAppsClient({
 
   const handleCreate = async () => {
     if (!name.trim()) {
-      toast.error("Le nom de l'application est requis.");
+      toast.error(t`Le nom de l'application est requis.`);
       return;
     }
     if (redirectUris.length === 0) {
-      toast.error('Ajoutez au moins une URL de redirection (une par ligne).');
+      toast.error(t`Ajoutez au moins une URL de redirection (une par ligne).`);
       return;
     }
     setCreating(true);
@@ -233,7 +233,7 @@ export function OAuthAppsClient({
   return (
     <DeveloperShell
       access={access}
-      description="Proposez « Se connecter avec qoefi » via OAuth 2.1 / OpenID Connect."
+      description={t`Proposez « Se connecter avec qoefi » via OAuth 2.1 / OpenID Connect.`}
     >
       {error && (
         <div className="flex items-start gap-3 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive-text">
@@ -248,7 +248,7 @@ export function OAuthAppsClient({
         <div className="flex justify-end">
           <Button variant="solid" tone="brand" size="md" onClick={() => setShowCreate(true)}>
             <Plus />
-            Nouvelle application
+            {t`Nouvelle application`}
           </Button>
         </div>
       ) : null}
@@ -257,10 +257,9 @@ export function OAuthAppsClient({
       {!gated && showCreate && (
         <div className="bg-card border border-border/50 rounded-2xl p-6 md:p-8 space-y-5 shadow-xs">
           <div className="space-y-1">
-            <h3 className="text-base font-bold text-foreground">Créer une application OAuth</h3>
+            <h3 className="text-base font-bold text-foreground">{t`Créer une application OAuth`}</h3>
             <p className="text-xs text-muted-foreground">
-              Les applications sont examinées avant activation. Utilisez des URL de redirection en
-              HTTPS (http://localhost autorisé en développement).
+              {t`Les applications sont examinées avant activation. Utilisez des URL de redirection en HTTPS (http://localhost autorisé en développement).`}
             </p>
           </div>
 
@@ -276,7 +275,7 @@ export function OAuthAppsClient({
                 id="oauth-app-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ex : Mon portefolio Next.js"
+                placeholder={t`Ex : Mon portefolio Next.js`}
               />
             </div>
             <div className="space-y-1.5">
@@ -301,7 +300,7 @@ export function OAuthAppsClient({
                 htmlFor="oauth-app-description"
                 className="block text-xs font-semibold text-foreground"
               >
-                Description (facultatif)
+                {t`Description (facultatif)`}
               </label>
               <Input
                 id="oauth-app-description"
@@ -312,7 +311,7 @@ export function OAuthAppsClient({
             </div>
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-foreground">
-                Logo (facultatif)
+                {t`Logo (facultatif)`}
               </label>
               <ImageUploader
                 value={logoUrl || null}
@@ -332,7 +331,7 @@ export function OAuthAppsClient({
               htmlFor="oauth-app-redirect-uris"
               className="block text-xs font-semibold text-foreground"
             >
-              URL de redirection (une par ligne) <span className="text-primary">*</span>
+              {t`URL de redirection (une par ligne)`} <span className="text-primary">*</span>
             </label>
             <Textarea
               id="oauth-app-redirect-uris"
@@ -346,7 +345,7 @@ export function OAuthAppsClient({
           </div>
 
           <div className="space-y-2">
-            <label className="block text-xs font-semibold text-foreground">Type de client</label>
+            <label className="block text-xs font-semibold text-foreground">{t`Type de client`}</label>
             <div className="flex flex-wrap gap-2">
               {(['CONFIDENTIAL', 'PUBLIC'] as const).map((type) => (
                 <Button
@@ -358,8 +357,8 @@ export function OAuthAppsClient({
                 >
                   {type === 'CONFIDENTIAL' ? <KeyRound /> : <Globe />}
                   {type === 'CONFIDENTIAL'
-                    ? 'Confidentielle (secret client)'
-                    : 'Publique (PKCE seul)'}
+                    ? t`Confidentielle (secret client)`
+                    : t`Publique (PKCE seul)`}
                 </Button>
               ))}
             </div>
@@ -367,7 +366,7 @@ export function OAuthAppsClient({
 
           <div className="space-y-2">
             <label className="block text-xs font-semibold text-foreground">
-              Permissions (scopes)
+              {t`Permissions (scopes)`}
             </label>
             <div className="flex flex-wrap gap-2">
               {OAUTH_SCOPES.map((scope) => {
@@ -382,7 +381,7 @@ export function OAuthAppsClient({
                     onClick={() => toggleScope(scope.name)}
                     title={scope.desc()}
                   >
-                    <span>{active ? '✓' : '+'}</span> {scope.name}
+                    <span>{active ? t`✓` : t`+`}</span> {scope.name}
                   </Button>
                 );
               })}
@@ -391,7 +390,7 @@ export function OAuthAppsClient({
 
           <div className="flex items-center justify-between pt-2 border-t border-border/60">
             <Button variant="ghost" size="sm" onClick={() => setShowCreate(false)}>
-              Annuler
+              {t`Annuler`}
             </Button>
             <Button
               variant="solid"
@@ -413,14 +412,13 @@ export function OAuthAppsClient({
           <div className="w-14 h-14 rounded-2xl bg-muted/40 text-primary flex items-center justify-center mx-auto mb-4 border border-border/60">
             <Shield className="w-6 h-6" strokeWidth={1.5} />
           </div>
-          <h3 className="text-lg font-bold text-foreground">Aucune application OAuth</h3>
+          <h3 className="text-lg font-bold text-foreground">{t`Aucune application OAuth`}</h3>
           <p className="text-xs text-muted-foreground mt-1 mb-6 max-w-sm mx-auto leading-relaxed">
-            Créez une application pour permettre à vos utilisateurs de se connecter avec leur compte
-            qoefi.
+            {t`Créez une application pour permettre à vos utilisateurs de se connecter avec leur compte qoefi.`}
           </p>
           <Button variant="solid" tone="brand" size="md" onClick={() => setShowCreate(true)}>
             <Plus />
-            Créer ma première application
+            {t`Créer ma première application`}
           </Button>
         </div>
       )}
@@ -428,9 +426,9 @@ export function OAuthAppsClient({
       {!gated && clients.length > 0 && (
         <div className="bg-card border border-border/50 rounded-2xl shadow-xs overflow-hidden divide-y divide-border/60">
           <div className="px-6 py-4 border-b border-border/50 flex items-center justify-between">
-            <h3 className="text-base font-bold text-foreground">Vos applications</h3>
+            <h3 className="text-base font-bold text-foreground">{t`Vos applications`}</h3>
             <Badge variant="outline" shape="pill" size="sm">
-              {clients.length} application{clients.length > 1 ? 's' : ''}
+              {clients.length} application{clients.length > 1 ? t`s` : ''}
             </Badge>
           </div>
 
@@ -449,7 +447,7 @@ export function OAuthAppsClient({
                         {meta.label()}
                       </Badge>
                       <Badge variant="soft" shape="pill">
-                        {client.clientType === 'CONFIDENTIAL' ? 'Confidentielle' : 'Publique'}
+                        {client.clientType === 'CONFIDENTIAL' ? t`Confidentielle` : t`Publique`}
                       </Badge>
                     </div>
 
@@ -458,7 +456,7 @@ export function OAuthAppsClient({
                     )}
 
                     <div className="flex items-center gap-2 text-xs">
-                      <span className="text-muted-foreground shrink-0">Client ID :</span>
+                      <span className="text-muted-foreground shrink-0">{t`Client ID :`}</span>
                       <code className="bg-muted/60 text-muted-foreground px-2 py-0.5 rounded font-sans font-medium text-[11px] border border-border/50 truncate">
                         {client.clientId}
                       </code>
@@ -467,8 +465,8 @@ export function OAuthAppsClient({
                         size="xs"
                         shape="icon"
                         onClick={() => copy(client.clientId)}
-                        title="Copier le Client ID"
-                        aria-label="Copier le Client ID"
+                        title={t`Copier le Client ID`}
+                        aria-label={t`Copier le Client ID`}
                       >
                         {copied === client.clientId ? (
                           <Check className="text-success-text" />
@@ -512,7 +510,7 @@ export function OAuthAppsClient({
                         ) : (
                           <KeyRound className="text-primary" />
                         )}
-                        Régénérer le secret
+                        {t`Régénérer le secret`}
                       </Button>
                     )}
                     <Button
@@ -522,8 +520,8 @@ export function OAuthAppsClient({
                       shape="icon"
                       onClick={() => handleDelete(client)}
                       disabled={busyId === client.id}
-                      title="Supprimer cette application"
-                      aria-label="Supprimer cette application"
+                      title={t`Supprimer cette application`}
+                      aria-label={t`Supprimer cette application`}
                       className="text-muted-foreground"
                     >
                       <Trash2 />
@@ -552,11 +550,10 @@ export function OAuthAppsClient({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <KeyRound className="w-5 h-5 text-primary" />
-              Client Secret généré
+              {t`Client Secret généré`}
             </DialogTitle>
             <DialogDescription>
-              Copiez ce secret dès maintenant. Pour des raisons de sécurité, nous ne pourrons plus
-              jamais vous le réafficher — vous pourrez uniquement le régénérer.
+              {t`Copiez ce secret dès maintenant. Pour des raisons de sécurité, nous ne pourrons plus jamais vous le réafficher — vous pourrez uniquement le régénérer.`}
             </DialogDescription>
           </DialogHeader>
 
@@ -564,7 +561,7 @@ export function OAuthAppsClient({
             <div className="space-y-3">
               <div className="space-y-1">
                 <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                  Client ID
+                  {t`Client ID`}
                 </span>
                 <code className="block bg-muted/50 border border-border rounded-xl p-3 font-sans text-xs break-all">
                   {revealed.clientId}
@@ -572,7 +569,7 @@ export function OAuthAppsClient({
               </div>
               <div className="space-y-1">
                 <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                  Client Secret
+                  {t`Client Secret`}
                 </span>
                 <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-xl p-3">
                   <code className="flex-1 font-sans text-xs break-all select-all">
@@ -584,7 +581,7 @@ export function OAuthAppsClient({
                     size="sm"
                     shape="icon"
                     onClick={() => copy(revealed.clientSecret)}
-                    aria-label="Copier le Client Secret"
+                    aria-label={t`Copier le Client Secret`}
                   >
                     {copied === revealed.clientSecret ? <Check /> : <Copy />}
                   </Button>

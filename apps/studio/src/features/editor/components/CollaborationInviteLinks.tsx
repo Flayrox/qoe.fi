@@ -22,6 +22,7 @@ import {
 } from '@qoe/ui/dialog';
 import { Input } from '@qoe/ui/input';
 import { Select } from '@qoe/ui/select';
+import { t } from '@lingui/core/macro';
 
 const LINK_ROLES = [
   { id: 'CONTRIBUTOR', label: 'Contributeur' },
@@ -157,15 +158,14 @@ export function CollaborationInviteLinks({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange} size="lg">
-      <DialogContent aria-label="Lien de collaboration" className="max-h-[90vh]">
+      <DialogContent aria-label={t`Lien de collaboration`} className="max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Link2 className="size-4 text-primary" aria-hidden />
-            Lien de collaboration
+            {t`Lien de collaboration`}
           </DialogTitle>
           <DialogDescription>
-            Générez un lien d’invitation pour co-rédiger cet article. Les personnes disposant du
-            lien peuvent rejoindre la co-rédaction sans renseigner d’adresse email.
+            {t`Générez un lien d’invitation pour co-rédiger cet article. Les personnes disposant du lien peuvent rejoindre la co-rédaction sans renseigner d’adresse email.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -180,12 +180,12 @@ export function CollaborationInviteLinks({
           )}
           <section className="space-y-3 border-t border-border/40 pt-4">
             <h3 className="text-xs font-bold tracking-wider text-foreground uppercase">
-              Créer un nouveau lien
+              {t`Créer un nouveau lien`}
             </h3>
 
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
               <Select
-                label="Rôle accordé"
+                label={t`Rôle accordé`}
                 hideLabel
                 size="sm"
                 value={linkRole}
@@ -193,7 +193,7 @@ export function CollaborationInviteLinks({
                 options={LINK_ROLES}
               />
               <Select
-                label="Durée de validité"
+                label={t`Durée de validité`}
                 hideLabel
                 size="sm"
                 value={String(linkExpiresIn)}
@@ -201,7 +201,7 @@ export function CollaborationInviteLinks({
                 options={LINK_DURATIONS}
               />
               <Select
-                label="Utilisations max"
+                label={t`Utilisations max`}
                 hideLabel
                 size="sm"
                 value={String(linkMaxUses)}
@@ -220,7 +220,7 @@ export function CollaborationInviteLinks({
               className="mt-1"
             >
               {!creatingLink && <Link2 aria-hidden />}
-              Générer le lien d’invitation
+              {t`Générer le lien d’invitation`}
             </Button>
           </section>
 
@@ -229,7 +229,7 @@ export function CollaborationInviteLinks({
               <div className="flex items-center justify-between gap-2 text-xs font-semibold text-success-text">
                 <span className="flex items-center gap-1.5">
                   <Check className="size-3.5" aria-hidden />
-                  Lien prêt à être partagé.
+                  {t`Lien prêt à être partagé.`}
                 </span>
                 <Button
                   variant="soft"
@@ -238,13 +238,13 @@ export function CollaborationInviteLinks({
                   onClick={() => copyToClipboard(latestCreatedUrl, 'latest')}
                 >
                   {copiedId === 'latest' ? <Check aria-hidden /> : <Copy aria-hidden />}
-                  {copiedId === 'latest' ? 'Copié.' : 'Copier'}
+                  {copiedId === 'latest' ? t`Copié.` : t`Copier`}
                 </Button>
               </div>
               <Input
                 readOnly
                 size="sm"
-                aria-label="Lien d’invitation créé"
+                aria-label={t`Lien d’invitation créé`}
                 value={latestCreatedUrl}
                 onFocus={(event) => event.currentTarget.select()}
                 className="bg-background/80"
@@ -254,17 +254,17 @@ export function CollaborationInviteLinks({
 
           <section className="space-y-2 border-t border-border/30 pt-3">
             <h3 className="text-xs font-bold tracking-wider text-muted-foreground uppercase">
-              Liens actifs pour cet article
+              {t`Liens actifs pour cet article`}
             </h3>
 
             {loadingLinks ? (
               <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" aria-hidden />
-                Chargement des liens…
+                {t`Chargement des liens…`}
               </div>
             ) : links.length === 0 ? (
               <p className="py-2 text-xs text-muted-foreground italic">
-                Aucun lien actif généré pour cet article.
+                {t`Aucun lien actif généré pour cet article.`}
               </p>
             ) : (
               <div className="max-h-48 divide-y divide-border/20 overflow-y-auto pr-1">
@@ -282,11 +282,11 @@ export function CollaborationInviteLinks({
                             <Clock className="size-3" aria-hidden />
                             {link.expiresAt
                               ? `Expire le ${formatExpiry(link.expiresAt)}`
-                              : 'Permanent'}
+                              : t`Permanent`}
                           </span>
                           <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
                             <Users className="size-3" aria-hidden />
-                            {link.usedCount} / {link.maxUses > 0 ? link.maxUses : '∞'}
+                            {link.usedCount} / {link.maxUses > 0 ? link.maxUses : t`∞`}
                           </span>
                         </div>
                         <p className="truncate font-sans text-[11px] text-muted-foreground">
@@ -299,8 +299,8 @@ export function CollaborationInviteLinks({
                           size="xs"
                           shape="icon"
                           onClick={() => copyToClipboard(joinUrl, link.id)}
-                          aria-label="Copier le lien"
-                          title="Copier le lien"
+                          aria-label={t`Copier le lien`}
+                          title={t`Copier le lien`}
                         >
                           {copiedId === link.id ? (
                             <Check className="text-success-text" aria-hidden />
@@ -314,8 +314,8 @@ export function CollaborationInviteLinks({
                           size="xs"
                           shape="icon"
                           onClick={() => handleRevokeLink(link.id)}
-                          aria-label="Révoquer le lien"
-                          title="Révoquer le lien"
+                          aria-label={t`Révoquer le lien`}
+                          title={t`Révoquer le lien`}
                         >
                           <Trash2 aria-hidden />
                         </Button>
@@ -329,7 +329,7 @@ export function CollaborationInviteLinks({
         </DialogBody>
 
         <DialogFooter>
-          <DialogClose>Fermer</DialogClose>
+          <DialogClose>{t`Fermer`}</DialogClose>
         </DialogFooter>
       </DialogContent>
     </Dialog>

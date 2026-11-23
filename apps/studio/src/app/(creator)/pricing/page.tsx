@@ -11,6 +11,7 @@
 import { URLS } from '@qoe/config';
 import { StudioHeader, StudioPage } from '@/components/studio-page';
 import { OfferCompare } from './components/offer-compare';
+import { t } from '@lingui/core/macro';
 
 export const metadata = {
   title: 'Offre Pro | qoefi Studio',
@@ -21,8 +22,8 @@ export default function OffrePage() {
   return (
     <StudioPage>
       <StudioHeader
-        title="Offres"
-        description="Ce qui est inclus pour tous, et ce que débloque le forfait Pro."
+        title={t`Offres`}
+        description={t`Ce qui est inclus pour tous, et ce que débloque le forfait Pro.`}
       />
       <OfferCompare supportUrl={`${URLS.APP}/support`} />
     </StudioPage>

@@ -10,7 +10,7 @@
 import type { Metadata } from 'next';
 import { Inter, Geist, Newsreader, Outfit, Space_Grotesk } from 'next/font/google';
 import { I18nClientProvider } from '@qoe/i18n/provider';
-import { getStaticTranslations, initI18n } from '@qoe/i18n/server';
+import { getLanguage, getStaticTranslations, initI18n } from '@qoe/i18n/server';
 import { TooltipProvider } from '@qoe/ui/ui/tooltip';
 import { Toaster } from '@qoe/ui/toast';
 import { LocaleProvider } from '@qoe/ui/locale';
@@ -58,19 +58,27 @@ const spaceGrotesk = Space_Grotesk({
   variable: '--font-space-grotesk',
 });
 
-export const metadata: Metadata = {
-  title: 'qoefi Studio — Creator Dashboard',
-  description: 'Creator management console for qoefi.',
-  robots: {
-    index: false,
-    follow: false,
-    nocache: true,
-  },
-  icons: {
-    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
-    apple: [{ url: '/icon.svg', type: 'image/svg+xml' }],
-  },
-};
+// Les métadonnées sont rendues hors du provider i18n : on lit la langue de la
+// requête (sans activer le singleton, cf. packages/i18n/src/server.ts) pour
+// éviter une copie figée en anglais dans une app dont la source est le français.
+export async function generateMetadata(): Promise<Metadata> {
+  const isFr = (await getLanguage()) === 'fr';
+  return {
+    title: isFr ? 'qoefi Studio — tableau de bord créateur' : 'qoefi Studio — Creator Dashboard',
+    description: isFr
+      ? 'Console de gestion des créateurs qoefi.'
+      : 'Creator management console for qoefi.',
+    robots: {
+      index: false,
+      follow: false,
+      nocache: true,
+    },
+    icons: {
+      icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+      apple: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    },
+  };
+}
 
 export default async function RootLayout({
   children,

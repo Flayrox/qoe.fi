@@ -109,10 +109,9 @@ export default async function CreatorDashboardPage() {
     return (
       <main className="mx-auto w-full max-w-6xl space-y-6 pb-16 text-foreground">
         <div className="flex flex-col items-center justify-center py-24 text-center space-y-3">
-          <p className="text-sm font-semibold text-foreground">Espace indisponible</p>
+          <p className="text-sm font-semibold text-foreground">{t`Espace indisponible`}</p>
           <p className="text-xs text-muted-foreground max-w-sm">
-            Aucune publication n'est rattachée à ce compte. Terminez l'inscription pour en créer
-            une.
+            {t`Aucune publication n'est rattachée à ce compte. Terminez l'inscription pour en créer une.`}
           </p>
         </div>
       </main>

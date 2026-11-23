@@ -22,6 +22,7 @@ import {
   type SecurityEventItem,
 } from '../actions';
 import { MfaPanel } from './mfa-panel';
+import { t } from '@lingui/core/macro';
 
 export interface AccountSecurityProfile {
   email: string;
@@ -75,9 +76,9 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
       anchor.download = `qoe-export-${new Date().toISOString().slice(0, 10)}.json`;
       anchor.click();
       URL.revokeObjectURL(url);
-      toast.success('Export téléchargé.');
+      toast.success(t`Export téléchargé.`);
     } catch {
-      toast.error('Impossible de générer l’export.');
+      toast.error(t`Impossible de générer l’export.`);
     } finally {
       setBusy(false);
     }
@@ -88,10 +89,10 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
     setBusy(true);
     try {
       await requestAccountSecurityDeletionAction();
-      toast.success('Demande de suppression enregistrée.');
+      toast.success(t`Demande de suppression enregistrée.`);
       setDeletionConfirmation('');
     } catch {
-      toast.error('Impossible d’enregistrer la demande.');
+      toast.error(t`Impossible d’enregistrer la demande.`);
     } finally {
       setBusy(false);
     }
@@ -102,8 +103,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
       <div>
         <h2 className="text-lg font-semibold">Compte & sécurité</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Gérez votre compte personnel et vos données. Le profil public se modifie depuis votre
-          profil.
+          {t`Gérez votre compte personnel et vos données. Le profil public se modifie depuis votre profil.`}
         </p>
       </div>
 
@@ -111,21 +111,21 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
         id="account-identity"
         className="rounded-xl border border-border/50 bg-card p-5 space-y-3"
       >
-        <h3 className="font-semibold">Identité</h3>
+        <h3 className="font-semibold">{t`Identité`}</h3>
         <div className="text-sm text-muted-foreground">
           <p>
-            Email : <strong className="text-foreground">{identity.email}</strong>{' '}
+            {t`Email :`} <strong className="text-foreground">{identity.email}</strong>{' '}
           </p>
           <p>
-            Username :{' '}
+            {t`Username :`}{' '}
             <strong className="text-foreground">
-              {profile.username ? `@${profile.username}` : 'Non défini'}
+              {profile.username ? `@${profile.username}` : t`Non défini`}
             </strong>
           </p>
         </div>
         <Button asChild variant="ghost" tone="brand" size="sm" className="-ml-2 w-fit">
           <a href={URLS.CONSOLE}>
-            Modifier mon profil public <ExternalLink className="size-4" aria-hidden />
+            {t`Modifier mon profil public`} <ExternalLink className="size-4" aria-hidden />
           </a>
         </Button>
       </div>
@@ -136,27 +136,26 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
       >
         <div className="flex items-center gap-2">
           <ShieldAlert className="h-4 w-4 text-primary" />
-          <h3 className="font-semibold">Authentification</h3>
+          <h3 className="font-semibold">{t`Authentification`}</h3>
         </div>
         <p className="text-sm text-muted-foreground">
-          Les actions sensibles demandent le mot de passe actuel et déclenchent la vérification côté
-          fournisseur d’identité.
+          {t`Les actions sensibles demandent le mot de passe actuel et déclenchent la vérification côté fournisseur d’identité.`}
         </p>
         <div className="grid gap-2 sm:grid-cols-2">
           <Input
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
             type="password"
-            placeholder="Mot de passe actuel"
-            aria-label="Mot de passe actuel"
+            placeholder={t`Mot de passe actuel`}
+            aria-label={t`Mot de passe actuel`}
             size="sm"
           />
           <Input
             value={newEmail}
             onChange={(e) => setNewEmail(e.target.value)}
             type="email"
-            placeholder="Nouvel email"
-            aria-label="Nouvel email"
+            placeholder={t`Nouvel email`}
+            aria-label={t`Nouvel email`}
             size="sm"
           />
           <Button
@@ -167,7 +166,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
               setBusy(true);
               try {
                 await changeAccountSecurityEmailAction(newEmail, currentPassword);
-                toast.success('Un email de vérification a été envoyé.');
+                toast.success(t`Un email de vérification a été envoyé.`);
                 setNewEmail('');
               } catch (e) {
                 toast.error(e instanceof Error ? e.message : 'Impossible de changer l’email.');
@@ -177,14 +176,14 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
             }}
             className="justify-start"
           >
-            Changer l’email
+            {t`Changer l’email`}
           </Button>
           <Input
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             type="password"
-            placeholder="Nouveau mot de passe"
-            aria-label="Nouveau mot de passe"
+            placeholder={t`Nouveau mot de passe`}
+            aria-label={t`Nouveau mot de passe`}
             size="sm"
           />
           <Button
@@ -195,7 +194,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
               setBusy(true);
               try {
                 await changeAccountSecurityPasswordAction(newPassword, currentPassword);
-                toast.success('Mot de passe modifié.');
+                toast.success(t`Mot de passe modifié.`);
                 setNewPassword('');
                 setCurrentPassword('');
               } catch (e) {
@@ -208,7 +207,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
             }}
             className="justify-start"
           >
-            Changer le mot de passe
+            {t`Changer le mot de passe`}
           </Button>
           <Button
             variant="outline"
@@ -218,7 +217,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
               try {
                 await revokeOtherAccountSessionsAction();
                 setSessions(sessions.filter((s) => s.current));
-                toast.success('Les autres sessions ont été révoquées.');
+                toast.success(t`Les autres sessions ont été révoquées.`);
               } catch (error) {
                 toast.error(error instanceof Error ? error.message : 'Révocation impossible.');
               } finally {
@@ -228,7 +227,8 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
             disabled={mfaBusy || sessions.length < 2}
             className="justify-start"
           >
-            Révoquer les autres sessions ({sessions.length})
+            {t`Révoquer les autres sessions (`}
+            {sessions.length})
           </Button>
           <Button
             variant="outline"
@@ -239,7 +239,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
               try {
                 await revokeAllAccountSessionsAction();
                 setSessions([]);
-                toast.success('Toutes les sessions OAuth ont été révoquées.');
+                toast.success(t`Toutes les sessions OAuth ont été révoquées.`);
               } catch (error) {
                 toast.error(error instanceof Error ? error.message : 'Révocation impossible.');
               } finally {
@@ -249,27 +249,26 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
             disabled={mfaBusy || sessions.length === 0}
             className="justify-start"
           >
-            Révoquer toutes les sessions OAuth
+            {t`Révoquer toutes les sessions OAuth`}
           </Button>
         </div>
         <div
           id="security-sessions"
           className="pt-2 border-t border-border/40 text-xs text-muted-foreground"
         >
-          Sessions actives détectées : {sessions.length}
+          {t`Sessions actives détectées :`} {sessions.length}
         </div>
       </div>
 
       <MfaPanel />
 
       <div id="security-audit" className="rounded-xl border border-border/50 bg-card p-5 space-y-3">
-        <h3 className="font-semibold">Historique de sécurité</h3>
+        <h3 className="font-semibold">{t`Historique de sécurité`}</h3>
         <p className="text-sm text-muted-foreground">
-          Journal des connexions depuis un nouvel environnement et des opérations sensibles (mot de
-          passe, email, 2FA, clés API, quarantaine).
+          {t`Journal des connexions depuis un nouvel environnement et des opérations sensibles (mot de passe, email, 2FA, clés API, quarantaine).`}
         </p>
         {securityEvents.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucun événement enregistré récemment.</p>
+          <p className="text-sm text-muted-foreground">{t`Aucun événement enregistré récemment.`}</p>
         ) : (
           <ul className="divide-y divide-border/40 text-sm">
             {securityEvents.slice(0, 15).map((ev) => (
@@ -292,9 +291,9 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
       </div>
 
       <div className="rounded-xl border border-border/50 bg-card p-5 space-y-3">
-        <h3 className="font-semibold">Consentements</h3>
+        <h3 className="font-semibold">{t`Consentements`}</h3>
         <p className="text-sm text-muted-foreground">
-          Contrôlez les traitements facultatifs. Les traitements nécessaires restent actifs.
+          {t`Contrôlez les traitements facultatifs. Les traitements nécessaires restent actifs.`}
         </p>
         {(['analytics', 'personalization', 'marketing'] as const).map((key) => (
           <Checkbox
@@ -317,20 +316,20 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
           onClick={async () => {
             try {
               await updateAccountConsentAction(consent);
-              toast.success('Préférences de consentement enregistrées.');
+              toast.success(t`Préférences de consentement enregistrées.`);
             } catch {
-              toast.error('Impossible d’enregistrer le consentement.');
+              toast.error(t`Impossible d’enregistrer le consentement.`);
             }
           }}
         >
-          Enregistrer mes choix
+          {t`Enregistrer mes choix`}
         </Button>
       </div>
 
       <div className="rounded-xl border border-border/50 bg-card p-5 space-y-3">
-        <h3 className="font-semibold">Mes données</h3>
+        <h3 className="font-semibold">{t`Mes données`}</h3>
         <p className="text-sm text-muted-foreground">
-          Téléchargez une copie des données associées à votre compte.
+          {t`Téléchargez une copie des données associées à votre compte.`}
         </p>
         <Button
           variant="solid"
@@ -340,20 +339,20 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
           onClick={exportData}
           className="w-fit"
         >
-          <Download aria-hidden /> Exporter mes données
+          <Download aria-hidden /> {t`Exporter mes données`}
         </Button>
       </div>
 
       <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 space-y-3">
-        <h3 className="font-semibold text-destructive-text">Zone dangereuse</h3>
+        <h3 className="font-semibold text-destructive-text">{t`Zone dangereuse`}</h3>
         <p className="text-sm text-muted-foreground">
-          La suppression est différée et peut être annulée pendant le délai de grâce.
+          {t`La suppression est différée et peut être annulée pendant le délai de grâce.`}
         </p>
         <Input
           value={deletionConfirmation}
           onChange={(event) => setDeletionConfirmation(event.target.value)}
-          placeholder="Écrivez DELETE"
-          aria-label="Confirmation de suppression"
+          placeholder={t`Écrivez DELETE`}
+          aria-label={t`Confirmation de suppression`}
           size="sm"
         />
         <Button
@@ -364,7 +363,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
           disabled={busy || deletionConfirmation !== 'DELETE'}
           className="w-fit"
         >
-          <Trash2 aria-hidden /> Demander la suppression
+          <Trash2 aria-hidden /> {t`Demander la suppression`}
         </Button>
       </div>
     </section>

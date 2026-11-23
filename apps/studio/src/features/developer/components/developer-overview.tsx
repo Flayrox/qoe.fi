@@ -5,6 +5,7 @@ import { DeveloperAccessState, DEVELOPER_ACTION_CLASS } from './developer-access
 import { DeveloperRequestForm } from './developer-request-form';
 import { DeveloperShell } from './developer-shell';
 import { hasDeveloperGrant, type DeveloperAccess, type DeveloperWorkspace } from '../types';
+import { t } from '@lingui/core/macro';
 
 export function DeveloperOverview({
   access,
@@ -29,11 +30,11 @@ export function DeveloperOverview({
         action={
           canRequest ? (
             <a href="#demande" className={DEVELOPER_ACTION_CLASS}>
-              {access.status === 'none' ? "Demander l'accès" : 'Soumettre une nouvelle demande'}
+              {access.status === 'none' ? t`Demander l'accès` : t`Soumettre une nouvelle demande`}
             </a>
           ) : access.status === 'approved' ? (
             <Link href="/developer/keys" className={DEVELOPER_ACTION_CLASS}>
-              Gérer les clés
+              {t`Gérer les clés`}
             </Link>
           ) : null
         }
@@ -42,41 +43,41 @@ export function DeveloperOverview({
       {canRequest ? <DeveloperRequestForm rejected={access.status === 'rejected'} /> : null}
 
       {access.status === 'approved' ? (
-        <StudioSection title="Intégrations" icon={Key}>
+        <StudioSection title={t`Intégrations`} icon={Key}>
           <StudioRowList>
             <StudioRow
-              title="Clés d’API"
-              description="Créez, rotatez et révoquez les secrets de vos environnements."
+              title={t`Clés d’API`}
+              description={t`Créez, rotatez et révoquez les secrets de vos environnements.`}
             >
               <Link
                 href="/developer/keys"
                 className="text-xs font-semibold text-primary hover:underline"
               >
-                {keyLabel} · Gérer
+                {keyLabel} {t`· Gérer`}
               </Link>
             </StudioRow>
             <StudioRow
-              title="Webhooks"
-              description="Recevez les événements de publication sur votre serveur."
+              title={t`Webhooks`}
+              description={t`Recevez les événements de publication sur votre serveur.`}
             >
               <Link
                 href="/developer/webhooks"
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
               >
                 <Webhook className="size-3.5" />
-                {hasDeveloperGrant(access, 'webhooks') ? 'Gérer' : 'Permission non accordée'}
+                {hasDeveloperGrant(access, 'webhooks') ? t`Gérer` : t`Permission non accordée`}
               </Link>
             </StudioRow>
             <StudioRow
-              title="Applications OAuth"
-              description="Proposez « Se connecter avec qoefi » à vos utilisateurs."
+              title={t`Applications OAuth`}
+              description={t`Proposez « Se connecter avec qoefi » à vos utilisateurs.`}
             >
               <Link
                 href="/developer/oauth"
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
               >
                 <Shield className="size-3.5" />
-                {hasDeveloperGrant(access, 'oauth') ? 'Gérer' : 'Permission non accordée'}
+                {hasDeveloperGrant(access, 'oauth') ? t`Gérer` : t`Permission non accordée`}
               </Link>
             </StudioRow>
           </StudioRowList>

@@ -4,6 +4,7 @@ import React from 'react';
 import { Users, Globe, BarChart3, Info } from 'lucide-react';
 import { AudienceInsights, DemographicBucket } from '../actions';
 import { labelDemographic } from '../demographic-labels';
+import { t } from '@lingui/core/macro';
 
 interface AudienceInsightsBlockProps {
   insights: AudienceInsights;
@@ -28,7 +29,7 @@ function Distribution({
         {title}
       </h4>
       {buckets.length === 0 ? (
-        <p className="text-xs text-muted-foreground/60 italic">Aucune donnée déclarée</p>
+        <p className="text-xs text-muted-foreground/60 italic">{t`Aucune donnée déclarée`}</p>
       ) : (
         <div className="space-y-1.5">
           {buckets.slice(0, 5).map((bucket) => {
@@ -75,15 +76,15 @@ export function AudienceInsightsBlock({ insights }: AudienceInsightsBlockProps) 
           </div>
           <div>
             <h3 className="text-[17px] font-semibold tracking-tight text-foreground">
-              Votre audience
+              {t`Votre audience`}
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Profil démographique agrégé — jamais individuel, déclaré volontairement
+              {t`Profil démographique agrégé — jamais individuel, déclaré volontairement`}
             </p>
           </div>
         </div>
         <span className="text-xs text-muted-foreground font-medium">
-          {creator.declared.toLocaleString()} lecteurs·trices renseigné·es
+          {creator.declared.toLocaleString()} {t`lecteurs·trices renseigné·es`}
         </span>
       </div>
 
@@ -92,10 +93,10 @@ export function AudienceInsightsBlock({ insights }: AudienceInsightsBlockProps) 
         <div className="border border-border/30 rounded-lg p-5 bg-muted/10">
           <div className="flex items-center gap-2 mb-4">
             <BarChart3 className="h-4 w-4 text-foreground/70 stroke-[1.5]" />
-            <span className="text-sm font-semibold text-foreground">Vos lecteurs</span>
+            <span className="text-sm font-semibold text-foreground">{t`Vos lecteurs`}</span>
           </div>
           <Distribution
-            title="Genre"
+            title={t`Genre`}
             buckets={creator.gender.map((b) => ({
               value: labelDemographic('gender', b.value),
               count: b.count,
@@ -104,7 +105,7 @@ export function AudienceInsightsBlock({ insights }: AudienceInsightsBlockProps) 
             accent="bg-success/60"
           />
           <Distribution
-            title="Tranche d'âge"
+            title={t`Tranche d'âge`}
             buckets={creator.ageRange.map((b) => ({
               value: labelDemographic('ageRange', b.value),
               count: b.count,
@@ -113,7 +114,7 @@ export function AudienceInsightsBlock({ insights }: AudienceInsightsBlockProps) 
             accent="bg-primary/60"
           />
           <Distribution
-            title="Top pays"
+            title={t`Top pays`}
             buckets={creator.countries}
             total={creatorTotal}
             accent="bg-muted-foreground/50"
@@ -125,14 +126,14 @@ export function AudienceInsightsBlock({ insights }: AudienceInsightsBlockProps) 
           <div className="flex items-center gap-2 mb-4">
             <Globe className="h-4 w-4 text-foreground/70 stroke-[1.5]" />
             <span className="text-sm font-semibold text-foreground">
-              Plateforme qoefi{' '}
+              {t`Plateforme qoefi`}{' '}
               <span className="text-[11px] font-normal text-muted-foreground">
-                ({platformTotal.toLocaleString()} profils)
+                ({platformTotal.toLocaleString()} {t`profils)`}
               </span>
             </span>
           </div>
           <Distribution
-            title="Ratio genre (plateforme)"
+            title={t`Ratio genre (plateforme)`}
             buckets={platform.gender.map((b) => ({
               value: labelDemographic('gender', b.value),
               count: b.count,
@@ -141,7 +142,7 @@ export function AudienceInsightsBlock({ insights }: AudienceInsightsBlockProps) 
             accent="bg-success/40"
           />
           <Distribution
-            title="Tranches d'âge (plateforme)"
+            title={t`Tranches d'âge (plateforme)`}
             buckets={platform.ageRange.map((b) => ({
               value: labelDemographic('ageRange', b.value),
               count: b.count,
@@ -150,7 +151,7 @@ export function AudienceInsightsBlock({ insights }: AudienceInsightsBlockProps) 
             accent="bg-primary/40"
           />
           <Distribution
-            title="Top pays (plateforme)"
+            title={t`Top pays (plateforme)`}
             buckets={platform.countries}
             total={platformTotal}
             accent="bg-muted-foreground/30"
@@ -161,9 +162,7 @@ export function AudienceInsightsBlock({ insights }: AudienceInsightsBlockProps) 
       <div className="mt-5 flex items-start gap-2 text-xs text-muted-foreground/70">
         <Info className="h-3.5 w-3.5 shrink-0 stroke-[1.5] mt-0.5" />
         <p>
-          Les données démographiques sont renseignées volontairement à l'onboarding (genre, tranche
-          d'âge, pays, langue) et restent optionnelles. Elles ne sont jamais exposées
-          individuellement.
+          {t`Les données démographiques sont renseignées volontairement à l'onboarding (genre, tranche d'âge, pays, langue) et restent optionnelles. Elles ne sont jamais exposées individuellement.`}
         </p>
       </div>
     </div>

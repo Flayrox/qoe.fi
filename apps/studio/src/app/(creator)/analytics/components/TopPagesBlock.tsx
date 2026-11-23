@@ -3,6 +3,7 @@
 import React from 'react';
 import { FileText, Eye, ChevronRight } from 'lucide-react';
 import { UmamiPageMetric } from '@qoe/analytics/server';
+import { t } from '@lingui/core/macro';
 
 interface TopPagesBlockProps {
   topPages: UmamiPageMetric[];
@@ -22,17 +23,19 @@ export function TopPagesBlock({ topPages, articleTitlesMap, onSelectArticle }: T
             Publishers & Pages lues
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Cliquez sur un article pour analyser ses métriques dédiées
+            {t`Cliquez sur un article pour analyser ses métriques dédiées`}
           </p>
         </div>
-        <span className="text-xs text-muted-foreground font-medium">{topPages.length} écrits</span>
+        <span className="text-xs text-muted-foreground font-medium">
+          {topPages.length} {t`écrits`}
+        </span>
       </div>
 
       {topPages.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed rounded-lg border-border/30 bg-muted/10">
           <Eye className="h-6 w-6 text-muted-foreground/40 mb-2 stroke-[1.5]" />
           <p className="text-xs font-medium text-muted-foreground">
-            Aucune consultation enregistrée
+            {t`Aucune consultation enregistrée`}
           </p>
         </div>
       ) : (

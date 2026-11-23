@@ -15,6 +15,7 @@ import { getSidebarSurfaces } from '@qoe/config';
 import { logout } from '@/app/login/actions';
 import type { SidebarProps } from '@qoe/ui/sidebar';
 import type { TemplatePublisherContext, TemplateArticleItem } from '@qoe/ui/templates';
+import { t } from '@lingui/core/macro';
 
 interface SettingsPublisherDTO {
   id: string;
@@ -106,9 +107,9 @@ export default async function SettingsDesignPage() {
   if (!publisher) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-background text-center">
-        <h2 className="text-xl font-bold text-destructive-text">Site web introuvable</h2>
+        <h2 className="text-xl font-bold text-destructive-text">{t`Site web introuvable`}</h2>
         <p className="text-sm text-muted-foreground mt-2">
-          Impossible de charger les paramètres de mise en page.
+          {t`Impossible de charger les paramètres de mise en page.`}
         </p>
       </div>
     );
@@ -163,7 +164,7 @@ export default async function SettingsDesignPage() {
     userAvatar,
     onLogout: logout,
     primaryAction: {
-      label: 'Nouvel Écrit',
+      label: t`Nouvel Écrit`,
       href: '/articles/new',
     },
   };

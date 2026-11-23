@@ -88,16 +88,16 @@ function MockDashboard() {
             qoefi
           </span>
           <span className="text-[9px] uppercase tracking-wider bg-muted text-muted-foreground font-bold px-1.5 py-0.5 rounded">
-            Console
+            {t`Console`}
           </span>
         </div>
 
         <div className="flex flex-col gap-1">
           <span className="text-[9px] uppercase font-bold tracking-wider text-muted-foreground mb-2 px-3">
-            Plateforme
+            {t`Plateforme`}
           </span>
           <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-muted text-foreground text-xs font-semibold">
-            <Home size={15} className="text-muted-foreground" /> Vue d'ensemble
+            <Home size={15} className="text-muted-foreground" /> {t`Vue d'ensemble`}
           </div>
           {[
             { name: t`Écrits`, icon: FileText },
@@ -121,7 +121,7 @@ function MockDashboard() {
         {/* Header Mock */}
         <div className="h-16 border-b border-border/50 bg-white px-8 flex items-center justify-between">
           <div className="text-xs text-muted-foreground font-medium">
-            Plateforme / Vue d'ensemble
+            {t`Plateforme / Vue d'ensemble`}
           </div>
           <div className="w-8 h-8 rounded-full bg-muted" />
         </div>
@@ -131,7 +131,7 @@ function MockDashboard() {
           <div className="flex items-center justify-between">
             <div className="h-6 w-36 bg-muted rounded" />
             <div className="h-9 w-24 bg-muted rounded-lg flex items-center justify-center text-xs text-muted-foreground gap-1">
-              <Plus size={14} /> Nouveau
+              <Plus size={14} /> {t`Nouveau`}
             </div>
           </div>
 
@@ -306,11 +306,11 @@ export function OnboardingWizard({
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#EE4B2B] animate-pulse" />
                   <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">
-                    qoefi · Studio Setup
+                    {t`qoefi · Studio Setup`}
                   </span>
                 </div>
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Configuration express
+                  {t`Configuration express`}
                 </span>
               </div>
 
@@ -327,21 +327,20 @@ export function OnboardingWizard({
                       className="max-w-md w-full"
                     >
                       <h1 className="text-3xl md:text-4xl font-serif font-bold text-foreground mb-2 tracking-tight">
-                        Prêt à lancer ton espace ?
+                        {t`Prêt à lancer ton espace ?`}
                       </h1>
                       <p className="text-muted-foreground mb-8 text-sm leading-relaxed">
-                        Ton adresse, ton thème et ta page d'accueil sont générés automatiquement. Tu
-                        pourras tout modifier dans les réglages.
+                        {t`Ton adresse, ton thème et ta page d'accueil sont générés automatiquement. Tu pourras tout modifier dans les réglages.`}
                       </p>
 
                       <div className="space-y-6">
                         <div>
                           <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                            Ton nom d'affichage
+                            {t`Ton nom d'affichage`}
                           </label>
                           <input
                             type="text"
-                            placeholder="Ton nom ou pseudo"
+                            placeholder={t`Ton nom ou pseudo`}
                             className="w-full bg-[#FAF9F6] border border-border rounded-lg p-4 text-foreground focus:outline-none focus:border-[#EE4B2B] focus:ring-1 focus:ring-[#EE4B2B] transition-all"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
@@ -351,15 +350,15 @@ export function OnboardingWizard({
                         <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
                           <Globe size={14} className="text-[#EE4B2B] shrink-0" />
                           <span>
-                            Ton adresse :{' '}
+                            {t`Ton adresse :`}{' '}
                             <span className="font-semibold text-foreground">{slug}.qoe.fi</span>{' '}
-                            <span className="opacity-70">— modifiable plus tard</span>
+                            <span className="opacity-70">{t`— modifiable plus tard`}</span>
                           </span>
                         </div>
 
                         {consentDocuments.length > 0 && (
                           <p className="text-[11px] leading-relaxed text-muted-foreground">
-                            En lançant votre espace, vous acceptez{' '}
+                            {t`En lançant votre espace, vous acceptez`}{' '}
                             {consentDocuments.map((doc, index) => (
                               <span key={doc.slug}>
                                 <a
@@ -370,7 +369,7 @@ export function OnboardingWizard({
                                 >
                                   {doc.title}
                                 </a>
-                                {index < consentDocuments.length - 1 ? ', ' : '.'}
+                                {index < consentDocuments.length - 1 ? t`, ` : t`.`}
                               </span>
                             ))}
                           </p>
@@ -387,11 +386,10 @@ export function OnboardingWizard({
                     >
                       <Loader2 size={40} className="animate-spin text-[#EE4B2B] mb-6" />
                       <h1 className="text-2xl font-serif font-bold text-foreground mb-2">
-                        Génération de ton Sanctuaire...
+                        {t`Génération de ton Sanctuaire...`}
                       </h1>
                       <p className="text-muted-foreground text-sm">
-                        Nous configurons ton sous-domaine, le design choisi et ton premier article
-                        de bienvenue.
+                        {t`Nous configurons ton sous-domaine, le design choisi et ton premier article de bienvenue.`}
                       </p>
                     </motion.div>
                   )}
@@ -402,7 +400,7 @@ export function OnboardingWizard({
               {status === 'idle' && (
                 <div className="flex justify-between items-center shrink-0 pt-4 border-t border-border">
                   <p className="text-[11px] text-muted-foreground leading-snug max-w-[200px]">
-                    Thème minimal + accroche par défaut. Tout se change dans les réglages.
+                    {t`Thème minimal + accroche par défaut. Tout se change dans les réglages.`}
                   </p>
 
                   <button
@@ -410,7 +408,7 @@ export function OnboardingWizard({
                     disabled={!name.trim()}
                     className="flex items-center bg-[#EE4B2B] hover:bg-[#d63d20] text-white px-6 py-3 rounded-full text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-red-500/10"
                   >
-                    Lancer mon espace <ArrowRight size={14} className="ml-1.5" />
+                    {t`Lancer mon espace`} <ArrowRight size={14} className="ml-1.5" />
                   </button>
                 </div>
               )}
@@ -428,7 +426,7 @@ export function OnboardingWizard({
                 <div className="flex items-center gap-1.5 opacity-90 text-white/70 mb-4 px-2 pt-1 select-none">
                   <span className="w-1.5 h-1.5 rounded-full bg-white/40 animate-pulse" />
                   <span className="text-[9px] uppercase font-bold tracking-[0.15em]">
-                    Aperçu en temps réel
+                    {t`Aperçu en temps réel`}
                   </span>
                 </div>
 
@@ -456,8 +454,8 @@ export function OnboardingWizard({
                         </span>
                       </div>
                       <div className="flex gap-3.5 text-[8px] uppercase font-bold tracking-wider opacity-60">
-                        <span>Accueil</span>
-                        <span>Articles</span>
+                        <span>{t`Accueil`}</span>
+                        <span>{t`Articles`}</span>
                       </div>
                     </div>
 
@@ -477,10 +475,10 @@ export function OnboardingWizard({
                           className="px-4 py-1.5 rounded text-white font-bold text-[8.5px] uppercase tracking-wider shadow-sm transition-all"
                           style={{ backgroundColor: previewStyle.accent }}
                         >
-                          S'abonner
+                          {t`S'abonner`}
                         </div>
                         <div className="opacity-60 text-[8.5px] uppercase font-bold tracking-wider">
-                          Lire la suite
+                          {t`Lire la suite`}
                         </div>
                       </div>
                     </div>

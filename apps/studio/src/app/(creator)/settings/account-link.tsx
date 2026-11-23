@@ -2,6 +2,7 @@
 
 import { buttonClasses } from '@qoe/ui/button';
 import { URLS } from '@qoe/config';
+import { t } from '@lingui/core/macro';
 
 /**
  * Lien vers les paramètres du compte personnel.
@@ -21,7 +22,7 @@ export function AccountLink() {
       href={`${URLS.CONSOLE}/settings`}
       className={buttonClasses({ variant: 'outline', size: 'sm' })}
     >
-      Gérer mon compte
+      {t`Gérer mon compte`}
     </a>
   );
 }

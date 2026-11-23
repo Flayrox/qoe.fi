@@ -155,7 +155,10 @@ export function AudienceClient({ initialSubscribers, unavailable = false }: Audi
             disabled={filteredSubscribers.length === 0}
           >
             <Download />
-            <span>Exporter ({filteredSubscribers.length})</span>
+            <span>
+              {t`Exporter (`}
+              {filteredSubscribers.length})
+            </span>
           </Button>
         }
       />
@@ -171,11 +174,10 @@ export function AudienceClient({ initialSubscribers, unavailable = false }: Audi
           />
           <div className="min-w-0 text-xs leading-relaxed">
             <p className="font-semibold text-foreground">
-              Statistiques d’audience momentanément indisponibles
+              {t`Statistiques d’audience momentanément indisponibles`}
             </p>
             <p className="text-muted-foreground">
-              La liste ci-dessous est vide parce que le service d’analytics ne répond pas — pas
-              parce que vous n’avez aucun abonné. Rechargez la page dans quelques instants.
+              {t`La liste ci-dessous est vide parce que le service d’analytics ne répond pas — pas parce que vous n’avez aucun abonné. Rechargez la page dans quelques instants.`}
             </p>
           </div>
         </div>
@@ -186,7 +188,7 @@ export function AudienceClient({ initialSubscribers, unavailable = false }: Audi
         <div className="rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
-              Total Abonnés
+              {t`Total Abonnés`}
             </span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
               <Users className="h-4 w-4 stroke-[1.5]" />
@@ -196,14 +198,14 @@ export function AudienceClient({ initialSubscribers, unavailable = false }: Audi
             {totalSubscribers.toLocaleString('fr-FR')}
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            {activeCount.toLocaleString('fr-FR')} actifs · {inactiveCount} inactifs
+            {activeCount.toLocaleString('fr-FR')} {t`actifs ·`} {inactiveCount} inactifs
           </p>
         </div>
 
         <div className="rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
-              Formule Premium
+              {t`Formule Premium`}
             </span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Zap className="h-4 w-4 stroke-[1.5]" />
@@ -213,14 +215,14 @@ export function AudienceClient({ initialSubscribers, unavailable = false }: Audi
             {premiumCount.toLocaleString('fr-FR')}
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            {freeCount.toLocaleString('fr-FR')} abonnés gratuits
+            {freeCount.toLocaleString('fr-FR')} {t`abonnés gratuits`}
           </p>
         </div>
 
         <div className="rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
-              Revenu LTV Cumulé
+              {t`Revenu LTV Cumulé`}
             </span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-success/10 text-success-text">
               <CreditCard className="h-4 w-4 stroke-[1.5]" />
@@ -242,7 +244,7 @@ export function AudienceClient({ initialSubscribers, unavailable = false }: Audi
             size="sm"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Rechercher par adresse email..."
+            placeholder={t`Rechercher par adresse email...`}
             className="pl-9"
           />
         </div>
@@ -254,21 +256,21 @@ export function AudienceClient({ initialSubscribers, unavailable = false }: Audi
           onSelectionChange={(key) => setFilterType(String(key) as FilterTab)}
           className="w-full md:w-auto"
         >
-          <TabList aria-label="Filtrer l'audience" className="w-full md:w-auto">
+          <TabList aria-label={t`Filtrer l'audience`} className="w-full md:w-auto">
             <Tab id="all" count={totalSubscribers}>
-              Tous
+              {t`Tous`}
             </Tab>
             <Tab id="active" count={activeCount}>
-              Actifs
+              {t`Actifs`}
             </Tab>
             <Tab id="premium" count={premiumCount}>
-              Premium
+              {t`Premium`}
             </Tab>
             <Tab id="free" count={freeCount}>
-              Gratuits
+              {t`Gratuits`}
             </Tab>
             <Tab id="inactive" count={inactiveCount}>
-              Inactifs
+              {t`Inactifs`}
             </Tab>
           </TabList>
         </Tabs>
@@ -280,18 +282,19 @@ export function AudienceClient({ initialSubscribers, unavailable = false }: Audi
           <div className="flex items-center gap-2">
             <CheckSquare className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium text-foreground">
-              {selectedKeys.size} abonné{selectedKeys.size > 1 ? 's' : ''} sélectionné
-              {selectedKeys.size > 1 ? 's' : ''}
+              {selectedKeys.size} {t`abonné`}
+              {selectedKeys.size > 1 ? t`s` : ''} {t`sélectionné`}
+              {selectedKeys.size > 1 ? t`s` : ''}
             </span>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="xs" onClick={() => handleExportCSV(true)}>
               <Download />
-              <span>Exporter la sélection</span>
+              <span>{t`Exporter la sélection`}</span>
             </Button>
             <Button variant="ghost" size="xs" onClick={() => setSelectedKeys(new Set())}>
               <X />
-              <span>Désélectionner</span>
+              <span>{t`Désélectionner`}</span>
             </Button>
           </div>
         </div>
@@ -302,10 +305,10 @@ export function AudienceClient({ initialSubscribers, unavailable = false }: Audi
         <div className="rounded-xl border border-border/30 bg-card overflow-hidden shadow-none">
           <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed rounded-lg border-border/30 bg-muted/10 m-6">
             <Mail className="h-8 w-8 text-muted-foreground/40 mb-2 stroke-[1.5]" />
-            <p className="text-sm font-semibold text-foreground">Aucun abonné trouvé</p>
+            <p className="text-sm font-semibold text-foreground">{t`Aucun abonné trouvé`}</p>
             <p className="text-xs text-muted-foreground mt-1 max-w-xs">
               {searchQuery
-                ? 'Aucun abonné ne correspond à votre recherche.'
+                ? t`Aucun abonné ne correspond à votre recherche.`
                 : t`Les personnes qui s'abonnent à votre espace apparaîtront ici.`}
             </p>
           </div>
@@ -313,7 +316,7 @@ export function AudienceClient({ initialSubscribers, unavailable = false }: Audi
       ) : (
         <div className="overflow-hidden rounded-xl border border-border/30 bg-card shadow-none">
           <Table
-            aria-label="Liste des abonnés"
+            aria-label={t`Liste des abonnés`}
             size="md"
             selectionMode="multiple"
             selectedKeys={selectedKeys}
@@ -331,19 +334,19 @@ export function AudienceClient({ initialSubscribers, unavailable = false }: Audi
             <TableHeader>
               <TableSelectAllCell />
               <TableColumn id="person" isRowHeader allowsSorting>
-                Abonné
+                {t`Abonné`}
               </TableColumn>
               <TableColumn id="status" allowsSorting>
-                Statut
+                {t`Statut`}
               </TableColumn>
               <TableColumn id="plan" allowsSorting>
-                Formule
+                {t`Formule`}
               </TableColumn>
               <TableColumn id="ltv" allowsSorting>
-                Revenu LTV
+                {t`Revenu LTV`}
               </TableColumn>
               <TableColumn id="createdAt" allowsSorting className="text-right">
-                Inscrit le
+                {t`Inscrit le`}
               </TableColumn>
             </TableHeader>
             <TableBody items={sortedSubscribers}>
@@ -355,18 +358,18 @@ export function AudienceClient({ initialSubscribers, unavailable = false }: Audi
                   </TableCell>
                   <TableCell>
                     <Badge variant="soft" dot tone={sub.isActive ? 'success' : 'neutral'} size="xs">
-                      {sub.isActive ? 'Actif' : 'Inactif'}
+                      {sub.isActive ? t`Actif` : t`Inactif`}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     {sub.isPremium ? (
                       <Badge variant="soft" tone="brand" size="xs">
                         <Zap />
-                        Premium
+                        {t`Premium`}
                       </Badge>
                     ) : (
                       <Badge variant="soft" tone="neutral" size="xs">
-                        Gratuit
+                        {t`Gratuit`}
                       </Badge>
                     )}
                   </TableCell>

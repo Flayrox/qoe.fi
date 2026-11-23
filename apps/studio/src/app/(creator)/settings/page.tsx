@@ -15,6 +15,7 @@ import { Button } from '@qoe/ui/button';
 import { StudioPage, StudioSection } from '@/components/studio-page';
 import { FeatureConsents } from '@/features/settings/components/feature-consents';
 import { AccountLink } from './account-link';
+import { t } from '@lingui/core/macro';
 
 // Contrat Go GET /v1/settings/publisher — mêmes champs JSON que le include
 // Prisma d'origine (le mapping vers CreatorProfile ci-dessous est inchangé).
@@ -101,7 +102,7 @@ export default async function CreatorSettingsPage() {
   if (!publisher) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/20 bg-destructive/5 p-12 text-center">
-        <h2 className="text-lg font-semibold text-destructive-text">Publisher introuvable</h2>
+        <h2 className="text-lg font-semibold text-destructive-text">{t`Publisher introuvable`}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Contactez le support si l&apos;erreur persiste.
         </p>
@@ -176,17 +177,17 @@ export default async function CreatorSettingsPage() {
     <StudioPage className="space-y-10">
       <SettingsView initialCreator={initialCreatorData} publisherId={publisher.id} />
 
-      <StudioSection title="Notifications de lancement">
+      <StudioSection title={t`Notifications de lancement`}>
         <FeatureConsents />
       </StudioSection>
 
-      <StudioSection title="Données & confidentialité">
+      <StudioSection title={t`Données & confidentialité`}>
         <div
           id="data-export"
           className="flex flex-col gap-4 rounded-xl border border-border/50 bg-card p-5 sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="max-w-xl">
-            <h3 className="font-semibold">Exporter ma publication</h3>
+            <h3 className="font-semibold">{t`Exporter ma publication`}</h3>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
               Archive ZIP complète : articles en Markdown et HTML, abonnés en CSV et manifest
               d&apos;export. Aucune donnée n&apos;est conservée par le studio.
@@ -198,7 +199,7 @@ export default async function CreatorSettingsPage() {
         </div>
       </StudioSection>
 
-      <StudioSection title="Compte">
+      <StudioSection title={t`Compte`}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="max-w-xl text-xs leading-relaxed text-muted-foreground">
             Le mot de passe, l&apos;adresse e-mail, la double authentification et les sessions

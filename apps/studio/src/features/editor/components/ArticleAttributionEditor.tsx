@@ -20,6 +20,7 @@ import { Input, InputGroup } from '@qoe/ui/input';
 import { SafeAvatar } from '@qoe/ui';
 import { Select } from '@qoe/ui/select';
 import { CollaborationInviteLinks } from './CollaborationInviteLinks';
+import { t } from '@lingui/core/macro';
 
 export type ArticleAttributionDraft = {
   userId: string;
@@ -197,10 +198,10 @@ export function ArticleAttributionEditor({
       <div className="flex items-start justify-between gap-2">
         <div>
           <h3 className="text-xs font-bold tracking-wider text-muted-foreground uppercase">
-            Attribution éditoriale
+            {t`Attribution éditoriale`}
           </h3>
           <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-            Définissez qui signe l’article, dans quel ordre, et ce qui apparaît dans le feed.
+            {t`Définissez qui signe l’article, dans quel ordre, et ce qui apparaît dans le feed.`}
           </p>
         </div>
         {articleId && (
@@ -212,7 +213,7 @@ export function ArticleAttributionEditor({
             className="shrink-0"
           >
             <Link2 aria-hidden />
-            Lien d’invitation
+            {t`Lien d’invitation`}
           </Button>
         )}
       </div>
@@ -221,7 +222,7 @@ export function ArticleAttributionEditor({
         {value.length === 0 ? (
           <div className="flex items-center gap-2 rounded-control border border-dashed border-border/50 p-2.5 text-[11px] text-muted-foreground">
             <UserRound className="size-4 shrink-0" aria-hidden />
-            <span>Vous serez ajouté comme auteur principal à la sauvegarde.</span>
+            <span>{t`Vous serez ajouté comme auteur principal à la sauvegarde.`}</span>
           </div>
         ) : (
           value.map((person, index) => (
@@ -245,8 +246,8 @@ export function ArticleAttributionEditor({
                     className="mt-0.5"
                   >
                     {person.consentStatus === 'ACCEPTED'
-                      ? 'Consentement accepté'
-                      : 'Invitation à accepter'}
+                      ? t`Consentement accepté`
+                      : t`Invitation à accepter`}
                   </Badge>
                 )}
               </div>
@@ -273,8 +274,8 @@ export function ArticleAttributionEditor({
                   shape="icon"
                   onClick={() => move(index, -1)}
                   disabled={index === 0}
-                  aria-label="Monter le contributeur"
-                  title="Monter le contributeur"
+                  aria-label={t`Monter le contributeur`}
+                  title={t`Monter le contributeur`}
                 >
                   <ArrowUp aria-hidden />
                 </Button>
@@ -284,8 +285,8 @@ export function ArticleAttributionEditor({
                   shape="icon"
                   onClick={() => move(index, 1)}
                   disabled={index === value.length - 1}
-                  aria-label="Descendre le contributeur"
-                  title="Descendre le contributeur"
+                  aria-label={t`Descendre le contributeur`}
+                  title={t`Descendre le contributeur`}
                 >
                   <ArrowDown aria-hidden />
                 </Button>
@@ -297,7 +298,7 @@ export function ArticleAttributionEditor({
                     shape="icon"
                     onClick={() => removeContributor(index)}
                     aria-label={`Retirer ${person.name || 'le contributeur'}`}
-                    title="Retirer le contributeur"
+                    title={t`Retirer le contributeur`}
                   >
                     <X aria-hidden />
                   </Button>
@@ -319,8 +320,8 @@ export function ArticleAttributionEditor({
             size="sm"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Ajouter un contributeur..."
-            aria-label="Rechercher un contributeur"
+            placeholder={t`Ajouter un contributeur...`}
+            aria-label={t`Rechercher un contributeur`}
             className="text-xs"
             data-testid="attribution-search"
           />
@@ -351,8 +352,7 @@ export function ArticleAttributionEditor({
       </div>
 
       <p className="text-[10px] leading-relaxed text-muted-foreground">
-        L’auteur principal reste toujours affiché. Les autres rôles peuvent être masqués de la
-        signature publique sans perdre la collaboration interne.
+        {t`L’auteur principal reste toujours affiché. Les autres rôles peuvent être masqués de la signature publique sans perdre la collaboration interne.`}
       </p>
 
       {articleId && (

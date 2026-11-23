@@ -353,7 +353,7 @@ export function MediaStudioClient({
 
   const handleCreate = async () => {
     if (!createName.trim() || !createSlug.trim()) {
-      toast.error('Le nom et le permalien sont requis.');
+      toast.error(t`Le nom et le permalien sont requis.`);
       return;
     }
     setCreating(true);
@@ -569,10 +569,9 @@ export function MediaStudioClient({
     return (
       <div className="mx-auto w-full max-w-md py-10">
         <div className="mb-10">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Créer un média</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t`Créer un média`}</h1>
           <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-            Un journal, une revue, un collectif. Invitez une équipe, définissez des rôles et lancez
-            votre sous-domaine.
+            {t`Un journal, une revue, un collectif. Invitez une équipe, définissez des rôles et lancez votre sous-domaine.`}
           </p>
         </div>
 
@@ -595,7 +594,7 @@ export function MediaStudioClient({
               {createName || 'Votre Média'}
             </p>
             <p className="text-xs text-muted-foreground">
-              {createSlug ? `${createSlug}.qoe.fi` : 'votre-sous-domaine.qoe.fi'}
+              {createSlug ? `${createSlug}.qoe.fi` : t`votre-sous-domaine.qoe.fi`}
             </p>
           </div>
         </div>
@@ -608,7 +607,7 @@ export function MediaStudioClient({
           className="space-y-6"
         >
           <div>
-            <label className={labelCls}>Nom du Média</label>
+            <label className={labelCls}>{t`Nom du Média`}</label>
             <Input
               value={createName}
               onChange={(e) => setCreateName(e.target.value)}
@@ -616,7 +615,7 @@ export function MediaStudioClient({
             />
           </div>
           <div>
-            <label className={labelCls}>Permalien</label>
+            <label className={labelCls}>{t`Permalien`}</label>
             <InputGroup left={<span className="text-xs">qoe.fi/</span>}>
               <Input
                 value={createSlug}
@@ -626,7 +625,7 @@ export function MediaStudioClient({
             </InputGroup>
           </div>
           <div>
-            <label className={labelCls}>Bio / Présentation</label>
+            <label className={labelCls}>{t`Bio / Présentation`}</label>
             <Textarea
               value={createBio}
               onChange={(e) => setCreateBio(e.target.value)}
@@ -635,7 +634,7 @@ export function MediaStudioClient({
             />
           </div>
           <div>
-            <label className={labelCls}>Logo</label>
+            <label className={labelCls}>{t`Logo`}</label>
             <ImageUploader
               value={createLogo}
               onChange={setCreateLogo}
@@ -670,7 +669,7 @@ export function MediaStudioClient({
     return (
       <div className="flex items-center justify-center py-32 text-muted-foreground">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
-        Chargement du studio...
+        {t`Chargement du studio...`}
       </div>
     );
   }
@@ -684,9 +683,9 @@ export function MediaStudioClient({
         <div className="size-14 rounded-xl bg-card border border-border/40 text-primary flex items-center justify-center mx-auto mb-5">
           <Building2 className="w-6 h-6" strokeWidth={1.5} />
         </div>
-        <h3 className="text-xl font-bold tracking-tight">Aucun Média</h3>
+        <h3 className="text-xl font-bold tracking-tight">{t`Aucun Média`}</h3>
         <p className="text-sm text-muted-foreground mt-1 mb-6 max-w-sm mx-auto">
-          Créez votre premier média pour inviter une équipe et lancer votre sous-domaine.
+          {t`Créez votre premier média pour inviter une équipe et lancer votre sous-domaine.`}
         </p>
         <Button
           variant="solid"
@@ -695,7 +694,7 @@ export function MediaStudioClient({
           onClick={() => router.push('/media?create=1')}
         >
           <Plus strokeWidth={1.5} />
-          Créer un Média
+          {t`Créer un Média`}
         </Button>
       </div>
     );
@@ -812,7 +811,7 @@ export function MediaStudioClient({
         )}
         <Button variant="ghost" size="sm" onClick={() => router.push('/media?create=1')}>
           <Plus strokeWidth={1.5} />
-          Nouveau
+          {t`Nouveau`}
         </Button>
       </div>
 
@@ -972,9 +971,9 @@ export function MediaStudioClient({
 
           {!canManageMembers && (
             <p className="text-xs text-muted-foreground py-4">
-              Vous êtes{' '}
-              <strong className="capitalize">{ROLE_META[myRole || 'writer']?.label()}</strong> de ce
-              Média — seuls les propriétaires et éditeurs peuvent gérer l'équipe.
+              {t`Vous êtes`}{' '}
+              <strong className="capitalize">{ROLE_META[myRole || 'writer']?.label()}</strong>{' '}
+              {t`de ce Média — seuls les propriétaires et éditeurs peuvent gérer l'équipe.`}
             </p>
           )}
         </div>
@@ -1057,7 +1056,7 @@ export function MediaStudioClient({
                   disabled={inviting || !selectedMember}
                 >
                   {inviting ? <Loader2 className="animate-spin" /> : <UserPlus strokeWidth={1.5} />}
-                  Ajouter
+                  {t`Ajouter`}
                 </Button>
               </div>
 
@@ -1102,7 +1101,7 @@ export function MediaStudioClient({
                 !searchingMembers &&
                 memberResults.length === 0 && (
                   <p className="text-[11px] text-muted-foreground">
-                    Aucun créateur trouvé — les membres actuels du Média sont exclus.
+                    {t`Aucun créateur trouvé — les membres actuels du Média sont exclus.`}
                   </p>
                 )}
             </form>
@@ -1113,18 +1112,17 @@ export function MediaStudioClient({
             <div className="rounded-xl border border-border/50 bg-card p-5 space-y-4">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                  <Link2 className="w-3.5 h-3.5" strokeWidth={1.5} /> Liens d'invitation d'équipe
+                  <Link2 className="w-3.5 h-3.5" strokeWidth={1.5} />{' '}
+                  {t`Liens d'invitation d'équipe`}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
-                  Partagez un lien : le rôle est accordé automatiquement, sans avoir besoin de
-                  connaître une adresse email. Vous pouvez fixer la durée de validité et le nombre
-                  d'utilisations.
+                  {t`Partagez un lien : le rôle est accordé automatiquement, sans avoir besoin de connaître une adresse email. Vous pouvez fixer la durée de validité et le nombre d'utilisations.`}
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className={labelCls}>Rôle accordé</label>
+                  <label className={labelCls}>{t`Rôle accordé`}</label>
                   <Select
                     label={t`Rôle accordé`}
                     hideLabel
@@ -1137,7 +1135,7 @@ export function MediaStudioClient({
                   />
                 </div>
                 <div>
-                  <label className={labelCls}>Durée de validité</label>
+                  <label className={labelCls}>{t`Durée de validité`}</label>
                   <Select
                     label={t`Durée de validité`}
                     hideLabel
@@ -1152,7 +1150,7 @@ export function MediaStudioClient({
                   />
                 </div>
                 <div>
-                  <label className={labelCls}>Utilisations max</label>
+                  <label className={labelCls}>{t`Utilisations max`}</label>
                   <Select
                     label={t`Utilisations max`}
                     hideLabel
@@ -1182,16 +1180,16 @@ export function MediaStudioClient({
 
               <div className="pt-3 border-t border-border/30">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
-                  Liens du Média
+                  {t`Liens du Média`}
                 </p>
                 {loadingLinks ? (
                   <div className="flex items-center gap-2 py-3 text-xs text-muted-foreground">
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Chargement des liens…
+                    {t`Chargement des liens…`}
                   </div>
                 ) : inviteLinks.length === 0 ? (
                   <p className="text-xs text-muted-foreground italic py-2">
-                    Aucun lien d'invitation généré pour ce Média.
+                    {t`Aucun lien d'invitation généré pour ce Média.`}
                   </p>
                 ) : (
                   <div className="overflow-hidden">
@@ -1241,7 +1239,7 @@ export function MediaStudioClient({
                                 </Badge>
                               </TableCell>
                               <TableCell className="tabular-nums text-xs">
-                                {link.usedCount} / {link.maxUses > 0 ? link.maxUses : '∞'}
+                                {link.usedCount} / {link.maxUses > 0 ? link.maxUses : t`∞`}
                               </TableCell>
                               <TableCell className="text-xs text-muted-foreground tabular-nums">
                                 {link.expiresAt ? formatMediaDate(link.expiresAt) : t`Permanent`}
@@ -1290,7 +1288,8 @@ export function MediaStudioClient({
           {/* Role explainer */}
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-              <Shield className="w-3.5 h-3.5" strokeWidth={1.5} /> Ce que chaque rôle peut faire
+              <Shield className="w-3.5 h-3.5" strokeWidth={1.5} />{' '}
+              {t`Ce que chaque rôle peut faire`}
             </p>
             <div className="grid gap-6 border-t border-border/40 pt-5 md:grid-cols-3">
               {Object.entries(ROLE_DEFAULT_PERMS)
@@ -1328,9 +1327,9 @@ export function MediaStudioClient({
                 })}
             </div>
             <p className="text-[11px] text-muted-foreground mt-4">
-              Le propriétaire peut affiner les permissions de chaque membre (bouton{' '}
-              <Shield className="w-3 h-3 inline" strokeWidth={1.5} /> dans la liste des membres)
-              pour un contrôle granulaire complet.
+              {t`Le propriétaire peut affiner les permissions de chaque membre (bouton`}{' '}
+              <Shield className="w-3 h-3 inline" strokeWidth={1.5} />{' '}
+              {t`dans la liste des membres) pour un contrôle granulaire complet.`}
             </p>
           </div>
         </div>
@@ -1369,7 +1368,7 @@ export function MediaStudioClient({
           {loadingAudit ? (
             <div className="flex items-center justify-center gap-2 py-16 text-xs text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Chargement du journal…
+              {t`Chargement du journal…`}
             </div>
           ) : auditEntries.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
@@ -1454,7 +1453,7 @@ function PermissionPopover({
   return (
     <Popover>
       <PopoverTrigger className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer">
-        <Shield className="w-3 h-3" strokeWidth={1.5} /> Permissions
+        <Shield className="w-3 h-3" strokeWidth={1.5} /> {t`Permissions`}
       </PopoverTrigger>
       <PopoverContent
         align="end"
@@ -1462,7 +1461,7 @@ function PermissionPopover({
         className="w-64 space-y-1 p-3"
       >
         <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1 pb-1">
-          Permissions de {member.user.name || member.user.username}
+          {t`Permissions de`} {member.user.name || member.user.username}
         </p>
         {ALL_MEDIA_PERMISSIONS.map((perm) => (
           <div key={perm} className="px-1.5 py-1 rounded-lg hover:bg-muted/40 transition-colors">
@@ -1542,7 +1541,7 @@ function MediaSettingsForm({
       <Section title={t`Identité & Marque`}>
         <div className="grid md:grid-cols-2 gap-x-8 gap-y-6">
           <div>
-            <label className={labelCls}>Nom du Média</label>
+            <label className={labelCls}>{t`Nom du Média`}</label>
             <Input value={form.name} onChange={(e) => set('name', e.target.value)} />
           </div>
           <div>
@@ -1553,7 +1552,7 @@ function MediaSettingsForm({
             />
           </div>
           <div>
-            <label className={labelCls}>Police</label>
+            <label className={labelCls}>{t`Police`}</label>
             <Select
               label={t`Police du média`}
               hideLabel
@@ -1568,7 +1567,7 @@ function MediaSettingsForm({
             />
           </div>
           <div>
-            <label className={labelCls}>Bio / Présentation</label>
+            <label className={labelCls}>{t`Bio / Présentation`}</label>
             <Textarea
               rows={2}
               value={form.bio ?? ''}
@@ -1576,7 +1575,7 @@ function MediaSettingsForm({
             />
           </div>
           <div>
-            <label className={labelCls}>Logo</label>
+            <label className={labelCls}>{t`Logo`}</label>
             <ImageUploader
               value={form.logoUrl}
               onChange={(url) => set('logoUrl', url)}
@@ -1591,10 +1590,10 @@ function MediaSettingsForm({
         </div>
       </Section>
 
-      <Section title="Domaine & Web">
+      <Section title={t`Domaine & Web`}>
         <div className="grid md:grid-cols-2 gap-x-8 gap-y-6">
           <div>
-            <label className={labelCls}>Sous-domaine</label>
+            <label className={labelCls}>{t`Sous-domaine`}</label>
             <InputGroup right={<span className="text-xs font-mono">.qoe.fi</span>}>
               <Input
                 value={form.subdomain ?? ''}
@@ -1604,7 +1603,7 @@ function MediaSettingsForm({
             </InputGroup>
           </div>
           <div>
-            <label className={labelCls}>Domaine personnalisé</label>
+            <label className={labelCls}>{t`Domaine personnalisé`}</label>
             <Input
               value={form.customDomain ?? ''}
               onChange={(e) => set('customDomain', e.target.value)}
@@ -1612,7 +1611,7 @@ function MediaSettingsForm({
             />
           </div>
           <div>
-            <label className={labelCls}>Texte de footer</label>
+            <label className={labelCls}>{t`Texte de footer`}</label>
             <Input
               value={form.footerText ?? ''}
               onChange={(e) => set('footerText', e.target.value)}
@@ -1634,14 +1633,14 @@ function MediaSettingsForm({
         </div>
       </Section>
 
-      <Section title="SEO & Indexation">
+      <Section title={t`SEO & Indexation`}>
         <div className="grid md:grid-cols-2 gap-x-8 gap-y-6">
           <div>
-            <label className={labelCls}>Titre SEO</label>
+            <label className={labelCls}>{t`Titre SEO`}</label>
             <Input value={form.seoTitle ?? ''} onChange={(e) => set('seoTitle', e.target.value)} />
           </div>
           <div>
-            <label className={labelCls}>Description SEO</label>
+            <label className={labelCls}>{t`Description SEO`}</label>
             <Input
               value={form.seoDescription ?? ''}
               onChange={(e) => set('seoDescription', e.target.value)}
@@ -1675,7 +1674,7 @@ function MediaSettingsForm({
         className="mt-8"
       >
         {saving ? <Loader2 className="animate-spin" /> : <FileText strokeWidth={1.5} />}
-        Enregistrer les réglages
+        {t`Enregistrer les réglages`}
       </Button>
     </div>
   );

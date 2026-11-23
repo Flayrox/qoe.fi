@@ -164,7 +164,9 @@ export function ReaderPreviewDialog({
                   {t`La suite est réservée aux abonnés`}
                 </p>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  {t`${paidWords} mot${paidWords === 1 ? '' : 's'} après la limite Premium.`}
+                  {paidWords > 1
+                    ? t`${paidWords} mots après la limite Premium.`
+                    : t`${paidWords} mot après la limite Premium.`}
                 </p>
                 <Button
                   variant="outline"

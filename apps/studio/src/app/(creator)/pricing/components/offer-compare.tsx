@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Check, Minus, Clock } from 'lucide-react';
+import { t } from '@lingui/core/macro';
 
 // =====================================================================
 // 💎 OfferCompare — comparatif Gratuit vs Pro (data-driven, docs/OFFERS.md)
@@ -60,18 +61,18 @@ function Cell({ level }: { level: Level }) {
   if (level === 'free')
     return (
       <span className="inline-flex items-center gap-1 text-xs font-bold text-success-text">
-        <Check className="w-4 h-4" /> Inclus
+        <Check className="w-4 h-4" /> {t`Inclus`}
       </span>
     );
   if (level === 'pro')
     return (
       <span className="inline-flex items-center gap-1 text-xs font-bold text-primary">
-        <Check className="w-4 h-4" /> Pro
+        <Check className="w-4 h-4" /> {t`Pro`}
       </span>
     );
   return (
     <span className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground">
-      <Clock className="w-3.5 h-3.5" /> Bientôt
+      <Clock className="w-3.5 h-3.5" /> {t`Bientôt`}
     </span>
   );
 }
@@ -82,33 +83,34 @@ export function OfferCompare({ supportUrl }: { supportUrl: string }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="rounded-xl border border-border/60 p-6">
           <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            Gratuit
+            {t`Gratuit`}
           </p>
           <p className="text-3xl font-bold mt-1">
-            0 € <span className="text-sm font-normal text-muted-foreground">pour toujours</span>
+            {t`0 €`}{' '}
+            <span className="text-sm font-normal text-muted-foreground">{t`pour toujours`}</span>
           </p>
           <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-            Tout ce qui fait vivre le réseau : publier, envoyer, grandir.
+            {t`Tout ce qui fait vivre le réseau : publier, envoyer, grandir.`}
           </p>
         </div>
         <div className="rounded-xl border-2 border-primary/60 p-6 relative">
           <span className="absolute -top-2.5 left-5 rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-bold uppercase text-primary-foreground">
-            Pro
+            {t`Pro`}
           </span>
           <p className="text-3xl font-bold mt-1">
-            Bientôt{' '}
-            <span className="text-sm font-normal text-muted-foreground">lancement prochain</span>
+            {t`Bientôt`}{' '}
+            <span className="text-sm font-normal text-muted-foreground">{t`lancement prochain`}</span>
           </p>
           <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-            Votre identité jusque dans la boîte mail —{' '}
-            <strong>plus tous les avantages lecteur Plus inclus, sans surcoût</strong> — et vous
-            financez une plateforme indépendante.
+            {t`Votre identité jusque dans la boîte mail —`}{' '}
+            <strong>{t`plus tous les avantages lecteur Plus inclus, sans surcoût`}</strong>{' '}
+            {t`— et vous financez une plateforme indépendante.`}
           </p>
           <a
             href={supportUrl}
             className="mt-4 inline-block rounded-lg bg-primary px-4 py-2 text-xs font-bold text-primary-foreground"
           >
-            Être tenu au courant
+            {t`Être tenu au courant`}
           </a>
           <p className="text-[11px] text-muted-foreground mt-2">
             Pas de faux bouton d&apos;achat : dites-le nous via le support, on vous recontacte.
@@ -121,10 +123,10 @@ export function OfferCompare({ supportUrl }: { supportUrl: string }) {
           <span />
           <div className="flex items-center gap-4">
             <span className="text-[10px] font-bold uppercase text-muted-foreground w-[62px] text-center">
-              Gratuit
+              {t`Gratuit`}
             </span>
             <span className="text-[10px] font-bold uppercase text-muted-foreground w-[62px] text-center">
-              Pro
+              {t`Pro`}
             </span>
           </div>
         </div>
@@ -140,12 +142,12 @@ export function OfferCompare({ supportUrl }: { supportUrl: string }) {
                 {row.label}
                 {row.level === 'pro' && (
                   <span className="rounded-full bg-primary/10 px-1.5 py-px text-[9px] font-bold uppercase text-primary">
-                    Pro
+                    {t`Pro`}
                   </span>
                 )}
                 {row.level === 'soon' && (
                   <span className="rounded-full bg-muted px-1.5 py-px text-[9px] font-bold uppercase text-muted-foreground">
-                    Bientôt
+                    {t`Bientôt`}
                   </span>
                 )}
               </p>
@@ -175,8 +177,7 @@ export function OfferCompare({ supportUrl }: { supportUrl: string }) {
         ))}
       </div>
       <p className="text-[11px] text-muted-foreground leading-relaxed">
-        Ce qui crée le réseau reste gratuit : lire, publier, suivre, commenter, collections de base
-        et réglages essentiels ne passeront jamais en payant.
+        {t`Ce qui crée le réseau reste gratuit : lire, publier, suivre, commenter, collections de base et réglages essentiels ne passeront jamais en payant.`}
       </p>
     </div>
   );

@@ -19,6 +19,7 @@ import {
 } from '@qoe/sdk/actions/articles';
 import { SafeAvatar } from '@qoe/ui';
 import { cn } from '@qoe/utils';
+import { t } from '@lingui/core/macro';
 
 export default function CollaborateJoinPage() {
   const searchParams = useSearchParams();
@@ -43,7 +44,7 @@ export default function CollaborateJoinPage() {
 
   useEffect(() => {
     if (!token) {
-      setError("Aucun jeton d'invitation fourni dans le lien.");
+      setError(t`Aucun jeton d'invitation fourni dans le lien.`);
       setLoading(false);
       return;
     }
@@ -132,7 +133,7 @@ export default function CollaborateJoinPage() {
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-sm font-medium text-muted-foreground">
-            Vérification du lien d’invitation…
+            {t`Vérification du lien d’invitation…`}
           </p>
         </div>
       </div>
@@ -147,7 +148,7 @@ export default function CollaborateJoinPage() {
             <AlertCircle className="h-6 w-6" />
           </div>
           <div className="space-y-1">
-            <h1 className="text-base font-bold text-foreground">Lien invalide ou expiré</h1>
+            <h1 className="text-base font-bold text-foreground">{t`Lien invalide ou expiré`}</h1>
             <p className="text-xs text-muted-foreground leading-relaxed">
               {error ||
                 "Ce lien d'invitation n'est plus actif, a été révoqué ou a atteint sa limite d'utilisations."}
@@ -158,7 +159,7 @@ export default function CollaborateJoinPage() {
             onClick={() => router.push('/articles')}
             className="w-full rounded-xl bg-muted py-2.5 px-4 text-xs font-semibold text-foreground hover:bg-muted/80 transition-colors"
           >
-            Retourner aux articles
+            {t`Retourner aux articles`}
           </button>
         </div>
       </div>
@@ -172,13 +173,13 @@ export default function CollaborateJoinPage() {
         <div className="text-center space-y-2">
           <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
             <Users className="h-3.5 w-3.5" />
-            <span>Invitation de collaboration</span>
+            <span>{t`Invitation de collaboration`}</span>
           </div>
           <h1 className="text-xl font-semibold tracking-tight text-foreground">
-            Rejoindre la co-rédaction
+            {t`Rejoindre la co-rédaction`}
           </h1>
           <p className="text-xs text-muted-foreground">
-            Vous avez été invité à participer à la rédaction de cet article.
+            {t`Vous avez été invité à participer à la rédaction de cet article.`}
           </p>
         </div>
 
@@ -201,7 +202,7 @@ export default function CollaborateJoinPage() {
                   shape="circle"
                 />
                 <span className="text-xs text-muted-foreground truncate">
-                  Par{' '}
+                  {t`Par`}{' '}
                   <span className="font-medium text-foreground">
                     {preview.author.name || preview.author.username || 'Auteur'}
                   </span>
@@ -214,7 +215,7 @@ export default function CollaborateJoinPage() {
           <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border/30 text-xs">
             <div className="space-y-1">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Rôle accordé
+                {t`Rôle accordé`}
               </span>
               <div className="flex items-center gap-1.5 font-medium text-foreground">
                 <ShieldCheck className="h-3.5 w-3.5 text-primary" />
@@ -223,7 +224,7 @@ export default function CollaborateJoinPage() {
             </div>
             <div className="space-y-1">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Validité
+                {t`Validité`}
               </span>
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <Clock className="h-3.5 w-3.5" />
@@ -238,7 +239,7 @@ export default function CollaborateJoinPage() {
           {joinSuccess ? (
             <div className="flex items-center justify-center gap-2 rounded-xl bg-success/15 py-3 px-4 text-xs font-semibold text-success-text animate-in fade-in">
               <CheckCircle2 className="h-4 w-4" />
-              <span>Invitation acceptée ! Redirection en cours…</span>
+              <span>{t`Invitation acceptée ! Redirection en cours…`}</span>
             </div>
           ) : (
             <button
@@ -252,11 +253,11 @@ export default function CollaborateJoinPage() {
               {isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Acceptation en cours…</span>
+                  <span>{t`Acceptation en cours…`}</span>
                 </>
               ) : (
                 <>
-                  <span>Accepter et ouvrir l’éditeur</span>
+                  <span>{t`Accepter et ouvrir l’éditeur`}</span>
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </>
               )}
@@ -264,7 +265,7 @@ export default function CollaborateJoinPage() {
           )}
 
           <p className="text-center text-[11px] text-muted-foreground">
-            En rejoignant, votre profil sera associé à l’article conformément au rôle sélectionné.
+            {t`En rejoignant, votre profil sera associé à l’article conformément au rôle sélectionné.`}
           </p>
         </div>
       </div>
