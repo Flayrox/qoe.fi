@@ -93,6 +93,21 @@ pnpm ui:catalog          # régénère le catalogue du UI lab
 - Un défaut mobile **mesuré** mais non corrigé reste listé avec sa raison (`reporté en fin de
 campagne`) : jamais « plus tard » implicite, jamais de correctif mobile non demandé.
 
+## Stage — pause totale
+
+- **Qoefi Stage (l'éditeur canvas, l'équivalent Figma du site) est en pause totale**, non clos,
+  sur décision explicite. Il vit dans `apps/studio/src/features/stage/**` (+ le sous-ensemble
+  vendorisé `vendor/onlook/**`) et se monte sur `/settings/design`
+  (`apps/studio/src/app/(creator)/settings/design/page.tsx`), pas sur une route dédiée.
+- **On n'ouvre plus un fichier Stage de sa propre initiative.** On ne le reprend que si
+  l'utilisateur le demande explicitement, et après une décision produit écrite sur son modèle
+  d'édition.
+- Corollaire : aucun lot transverse (i18n, dialogues composés, refactors) ne « traverse »
+  `features/stage/**` au passage. Un défaut Stage constaté se **note** dans
+  `docs/AUDIT-CHECKLIST.md` (section « Stage — pause totale »), il ne se corrige pas.
+- Le reliquat nommé (undo non groupé, snapshot à chaque publication, modèle mono-page) et ses
+  questions produit sont dans `docs/AUDIT-CHECKLIST.md` ; à remesurer à la reprise.
+
 ## Conventions
 
 - Go est la source de vérité : ne pas réimplémenter une règle métier côté TS.
