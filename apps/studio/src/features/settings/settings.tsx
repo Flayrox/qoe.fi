@@ -30,14 +30,13 @@ import {
 } from 'lucide-react';
 
 import {
-  updateCreatorProfileAction,
+  updatePublisherSettingsAction,
   checkSubdomainAvailabilityAction,
-  updateSubdomainAction,
-  saveNavigationLinksAction,
-  saveSocialLinksAction,
+  type PublisherSettingsPatchInput,
 } from '@qoe/sdk/actions/dashboard';
 
 import type { CreatorProfile, ClientSocialLink } from './types';
+import { mergeCanonical, pickProfile, profileChanged } from './lib/canonical-profile';
 
 import { GeneralTab } from './tabs/general';
 import { RecommendationsTab } from './tabs/recommendations';
@@ -201,109 +200,58 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
   const handleSaveAll = async () => {
     setIsSaving(true);
     try {
-      const profileFieldsChanged = [
-        'name',
-        'heroText',
-        'accentColor',
-        'fontFamily',
-        'themeMode',
-        'layoutStyle',
-        'logoUrl',
-        'headerImageUrl',
-        'footerText',
-        'seoTitle',
-        'seoDescription',
-        'allowIndexing',
-        'supportUrl',
-      ].some(
-        (field) =>
-          current[field as keyof CreatorProfile] !== original[field as keyof CreatorProfile]
-      );
+      // Un seul appel : Go applique profil, sous-domaine, navigation et
+      // réseaux sociaux dans une transaction. Les clés absentes du patch ne
+      // sont pas touchées, donc envoyer uniquement ce qui a changé suffit.
+      const patch: PublisherSettingsPatchInput = { publisherId };
 
-      const siteOptionsChanged =
-        JSON.stringify(current.siteOptions ?? {}) !== JSON.stringify(original.siteOptions ?? {});
-
-      if (profileFieldsChanged || siteOptionsChanged) {
-        const profileResult = await updateCreatorProfileAction({
-          publisherId,
-          name: current.name,
-          heroText: current.heroText,
-          accentColor: current.accentColor,
-          fontFamily: current.fontFamily,
-          themeMode: current.themeMode,
-          layoutStyle: current.layoutStyle,
-          logoUrl: current.logoUrl,
-          headerImageUrl: current.headerImageUrl,
-          footerText: current.footerText,
-          seoTitle: current.seoTitle,
-          seoDescription: current.seoDescription,
-          allowIndexing: current.allowIndexing,
-          supportUrl: current.supportUrl,
-          siteOptions: current.siteOptions ?? {},
-        });
-        if (!profileResult.ok) {
-          throw new Error(profileResult.error.message || t`Erreur de sauvegarde.`);
-        }
+      if (profileChanged(current, original)) {
+        patch.profile = pickProfile(current);
       }
 
       if (current.subdomain !== original.subdomain) {
-        if (current.subdomain) {
-          if (subdomainCheck.available === false) {
-            throw new Error(t`Sous-domaine invalide : ${subdomainCheck.error ?? ''}`);
-          }
-          const subResult = await updateSubdomainAction({
-            publisherId,
-            subdomain: current.subdomain,
-          });
-          if (!subResult.ok) {
-            throw new Error(
-              subResult.error?.message || t`Erreur lors de la mise à jour du sous-domaine.`
-            );
-          }
-        } else {
-          const subResult = await updateSubdomainAction({
-            publisherId,
-            subdomain: '',
-          });
-          if (!subResult.ok) {
-            throw new Error(
-              subResult.error?.message || t`Erreur lors de la suppression du sous-domaine.`
-            );
-          }
+        if (current.subdomain && subdomainCheck.available === false) {
+          throw new Error(t`Sous-domaine invalide : ${subdomainCheck.error ?? ''}`);
         }
+        patch.subdomain = current.subdomain ?? '';
       }
 
       const navChanged = JSON.stringify(current.navigation) !== JSON.stringify(original.navigation);
       if (navChanged) {
-        const navResult = await saveNavigationLinksAction({
-          publisherId,
-          links: current.navigation,
-        });
-        if (!navResult.ok) {
-          throw new Error(
-            navResult.error?.message || t`Erreur lors de la sauvegarde de la navigation.`
-          );
-        }
+        // Go réordonne et revalide : on n'envoie que le contrat minimal.
+        patch.navigation = current.navigation.map((item) => ({ label: item.label, url: item.url }));
       }
 
       const socialChanged =
         JSON.stringify(current.socialLinks) !== JSON.stringify(original.socialLinks);
       if (socialChanged) {
-        const socialResult = await saveSocialLinksAction({
-          publisherId,
-          links: current.socialLinks,
-        });
-        if (!socialResult.ok) {
-          throw new Error(
-            socialResult.error?.message || t`Erreur lors de la sauvegarde des réseaux sociaux.`
-          );
-        }
+        patch.socialLinks = current.socialLinks.map((link) => ({
+          platform: link.platform,
+          url: link.url,
+        }));
       }
+
+      const nothingToSave =
+        !patch.profile && patch.subdomain === undefined && !patch.navigation && !patch.socialLinks;
+      if (nothingToSave) {
+        toast.info(t`Aucune modification à enregistrer.`);
+        return;
+      }
+
+      const saved = await updatePublisherSettingsAction(patch);
+      if (!saved.ok) {
+        throw new Error(saved.error?.message || t`Erreur de sauvegarde.`);
+      }
+
+      // La réponse est l'état relu en base (identifiants serveur des liens,
+      // compteur d'abonnés compris) : on s'aligne dessus, on ne suppose rien.
+      const synced = mergeCanonical(current, saved.data);
+      setCurrent(synced);
+      setOriginal(synced);
 
       // Les catégories ne sont plus modifiables ici : création, renommage,
       // slug et hiérarchie vivent dans Articles → Catégories.
       toast.success(t`Paramètres enregistrés.`);
-      setOriginal(current);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t`Erreur de sauvegarde.`;
       if (

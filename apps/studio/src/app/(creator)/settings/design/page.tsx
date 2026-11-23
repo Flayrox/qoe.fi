@@ -35,6 +35,8 @@ interface SettingsPublisherDTO {
   seoDescription: string | null;
   allowIndexing: boolean;
   supportUrl: string | null;
+  /** Compteur calculé en base par Go (`PATCH`/`GET /v1/settings/publisher`). */
+  subscriberCount?: number;
   navigation: {
     id: string;
     label: string;
@@ -209,7 +211,7 @@ export default async function SettingsDesignPage() {
       name: c.name,
       slug: c.slug,
     })),
-    subscriberCount: 380,
+    subscriberCount: publisher.subscriberCount ?? 0,
   };
 
   const templateArticles: TemplateArticleItem[] = publisher.articles.map((art) => ({
@@ -226,7 +228,9 @@ export default async function SettingsDesignPage() {
 
   // 4. Injecter le layoutStyle existant + le brouillon éventuel.
   // Le brouillon prime : l'atelier reprend là où le créateur s'est arrêté.
-  templatePub.layoutStyle = 'minimal';
+  // L'aperçu part du style réellement enregistré : un créateur en « magazine »
+  // ne doit pas voir un aperçu en « minimal ».
+  templatePub.layoutStyle = publisher.layoutStyle ?? 'minimal';
   let initialDraft: string | null = null;
   try {
     const draft = await goFetch<{ layout?: string | null }>(

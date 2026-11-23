@@ -60,6 +60,64 @@ interface CompleteOnboardingInput {
   layoutStyle: string;
 }
 
+/** Lien de navigation tel que renvoyé par Go (identifiant serveur inclus). */
+export interface PublisherNavigationItem {
+  id: string;
+  label: string;
+  url: string | null;
+  order: number;
+  isExternal: boolean;
+}
+
+/** Lien social tel que renvoyé par Go. */
+export interface PublisherSocialLinkItem {
+  id: string;
+  platform: string;
+  url: string;
+  order: number;
+}
+
+/**
+ * État canonique d'une publication pour la page settings, renvoyé par
+ * `GET`/`PATCH /v1/settings/publisher`. `subscriberCount` est calculé en base :
+ * le studio ne l'invente jamais.
+ */
+export interface PublisherSettingsSnapshot {
+  id: string;
+  name: string;
+  slug: string;
+  subdomain: string | null;
+  customDomain: string | null;
+  heroText: string | null;
+  accentColor: string | null;
+  fontFamily: string | null;
+  themeMode: string | null;
+  layoutStyle: string | null;
+  logoUrl: string | null;
+  headerImageUrl: string | null;
+  footerText: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  allowIndexing: boolean;
+  supportUrl: string | null;
+  siteOptions: Record<string, unknown> | null;
+  navigation: PublisherNavigationItem[];
+  socialLinks: PublisherSocialLinkItem[];
+  subscriberCount: number;
+}
+
+/**
+ * Mise à jour partielle de la page settings. Clé absente = champ inchangé :
+ * envoyer `navigation` la remplace, l'omettre la laisse intacte.
+ */
+export interface PublisherSettingsPatchInput {
+  publisherId?: string;
+  profile?: Omit<UpdateCreatorProfileInput, 'publisherId' | 'onboardingText'>;
+  subdomain?: string;
+  navigation?: NavigationLinkInput[];
+  socialLinks?: SocialLinkInput[];
+}
+
 export const updateCreatorProfileAction = safeAction<UpdateCreatorProfileInput, User>(
   async (data) => {
     const publisherId = data.publisherId || (await getActivePublisherId());
@@ -71,6 +129,25 @@ export const updateCreatorProfileAction = safeAction<UpdateCreatorProfileInput, 
     return res;
   }
 );
+
+/**
+ * Enregistre la page settings en **un seul** appel : profil, sous-domaine,
+ * navigation et réseaux sociaux dans une transaction côté Go, qui renvoie
+ * l'état canonique relu. Plus de sauvegarde en quatre requêtes dont un échec
+ * au milieu laissait les premières acquises.
+ */
+export const updatePublisherSettingsAction = safeAction<
+  PublisherSettingsPatchInput,
+  PublisherSettingsSnapshot
+>(async (data) => {
+  const publisherId = data.publisherId || (await getActivePublisherId());
+  const res = await goFetch<PublisherSettingsSnapshot>('/v1/settings/publisher', {
+    method: 'PATCH',
+    body: { ...data, publisherId },
+  });
+  revalidatePath('/settings');
+  return res;
+});
 
 export const checkSubdomainAvailabilityAction = safeAction<
   string,

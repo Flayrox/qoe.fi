@@ -13,11 +13,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const dashboard = vi.hoisted(() => ({
-  updateCreatorProfileAction: vi.fn(),
+  updatePublisherSettingsAction: vi.fn(),
   checkSubdomainAvailabilityAction: vi.fn(),
-  updateSubdomainAction: vi.fn(),
-  saveNavigationLinksAction: vi.fn(),
-  saveSocialLinksAction: vi.fn(),
 }));
 
 vi.mock('@qoe/sdk/actions/dashboard', () => dashboard);
@@ -86,13 +83,44 @@ function profile(overrides: Partial<CreatorProfile> = {}): CreatorProfile {
   };
 }
 
+/**
+ * État canonique renvoyé par Go. Le studio s'aligne dessus après enregistrement :
+ * c'est ce qui rend le test de synchronisation mesurable.
+ */
+function canonical(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'pub-1',
+    name: 'Le Journal',
+    slug: 'le-journal',
+    subdomain: 'journal',
+    customDomain: null,
+    heroText: 'Analyses',
+    accentColor: '#EE4B2B',
+    fontFamily: 'sans',
+    themeMode: 'classic',
+    layoutStyle: 'minimal',
+    logoUrl: null,
+    headerImageUrl: null,
+    footerText: null,
+    seoTitle: null,
+    seoDescription: null,
+    allowIndexing: true,
+    supportUrl: null,
+    siteOptions: null,
+    navigation: [],
+    socialLinks: [],
+    subscriberCount: 12,
+    ...overrides,
+  };
+}
+
 describe('SettingsView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    dashboard.updateCreatorProfileAction.mockResolvedValue({ ok: true, data: {} });
-    dashboard.updateSubdomainAction.mockResolvedValue({ ok: true, data: {} });
-    dashboard.saveNavigationLinksAction.mockResolvedValue({ ok: true, data: {} });
-    dashboard.saveSocialLinksAction.mockResolvedValue({ ok: true, data: {} });
+    dashboard.updatePublisherSettingsAction.mockResolvedValue({
+      ok: true,
+      data: canonical({ subdomain: 'canonique' }),
+    });
     dashboard.checkSubdomainAvailabilityAction.mockResolvedValue({
       ok: true,
       data: { available: true },
@@ -172,6 +200,31 @@ describe('SettingsView', () => {
     // Le raccourci doit relire l'état courant : le message d'échec annoncé
     // dans l'écran est celui qui revient, pas un état antérieur.
     expect(toastMock.error.mock.calls.at(-1)?.[0]).toMatch(/Déjà pris/);
-    expect(dashboard.updateSubdomainAction).not.toHaveBeenCalled();
+    expect(dashboard.updatePublisherSettingsAction).not.toHaveBeenCalled();
+  });
+
+  it('enregistre tout en un seul appel et se cale sur l’état renvoyé par Go', async () => {
+    const user = userEvent.setup();
+    render(<SettingsView initialCreator={profile({ subdomain: 'journal' })} />);
+
+    await user.click(screen.getByRole('tab', { name: /domaine/i }));
+    const input = await screen.findByPlaceholderText('mon-espace');
+    await user.clear(input);
+    await user.type(input, 'nouveau');
+
+    await waitFor(() =>
+      expect(dashboard.checkSubdomainAvailabilityAction).toHaveBeenCalledWith('nouveau')
+    );
+
+    fireEvent.keyDown(window, { key: 's', metaKey: true });
+
+    await waitFor(() => expect(dashboard.updatePublisherSettingsAction).toHaveBeenCalledTimes(1));
+    // Le patch ne porte que ce qui a changé : ni profil ni liens ici.
+    expect(dashboard.updatePublisherSettingsAction.mock.calls[0]?.[0]).toEqual({
+      publisherId: undefined,
+      subdomain: 'nouveau',
+    });
+    // La réponse serveur fait foi : la valeur normalisée remplace la saisie.
+    await waitFor(() => expect(screen.getByPlaceholderText('mon-espace')).toHaveValue('canonique'));
   });
 });

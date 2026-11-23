@@ -1966,6 +1966,9 @@ msgstr "Aucune invitation reçue."
 msgid "Aucune livraison enregistrée pour ce webhook."
 msgstr "Aucune livraison enregistrée pour ce webhook."
 
+msgid "Aucune modification à enregistrer."
+msgstr "Aucune modification à enregistrer."
+
 msgid "Aucune notification de lancement active."
 msgstr "Aucune notification de lancement active."
 
@@ -2551,6 +2554,9 @@ msgstr "Cette page utilise encore l'ancienne version. Rechargez pour continuer s
 msgid "Cette pensée a été supprimée par son auteur."
 msgstr "Cette pensée a été supprimée par son auteur."
 
+msgid "Cette personne perd immédiatement l'accès aux contenus du Média."
+msgstr "Cette personne perd immédiatement l'accès aux contenus du Média."
+
 msgid "cette publication"
 msgstr "cette publication"
 
@@ -3095,6 +3101,12 @@ msgstr "Confirmation de suppression"
 
 msgid "CONFIRMER"
 msgstr "CONFIRMER"
+
+msgid "Confirmer l'abandon"
+msgstr "Confirmer l'abandon"
+
+msgid "Confirmer l'abandon : l'article reviendra à sa version publiée en ligne"
+msgstr "Confirmer l'abandon : l'article reviendra à sa version publiée en ligne"
 
 msgid "Confirmer l'abonnement"
 msgstr "Confirmer l'abonnement"
@@ -3840,8 +3852,8 @@ msgstr "Des écrits qui résonnent."
 msgid "Des formats très courts se répètent"
 msgstr "Des formats très courts se répètent"
 
-msgid "Des modifications ne sont pas enregistrées. Quitter sans enregistrer ?"
-msgstr "Des modifications ne sont pas enregistrées. Quitter sans enregistrer ?"
+#~ msgid "Des modifications ne sont pas enregistrées. Quitter sans enregistrer ?"
+#~ msgstr "Des modifications ne sont pas enregistrées. Quitter sans enregistrer ?"
 
 msgid "Des voix libres et indépendantes"
 msgstr "Des voix libres et indépendantes"
@@ -4618,14 +4630,21 @@ msgid "Envoyer"
 msgstr "Envoyer"
 
 #. placeholder {0}: issue.subject
-msgid "Envoyer « {0} » à tous les abonnés actifs ? L'envoi ne peut pas être annulé."
-msgstr "Envoyer « {0} » à tous les abonnés actifs ? L'envoi ne peut pas être annulé."
+msgid "Envoyer « {0} » ?"
+msgstr "Envoyer « {0} » ?"
+
+#. placeholder {0}: issue.subject
+#~ msgid "Envoyer « {0} » à tous les abonnés actifs ? L'envoi ne peut pas être annulé."
+#~ msgstr "Envoyer « {0} » à tous les abonnés actifs ? L'envoi ne peut pas être annulé."
 
 msgid "Envoyer depuis votre propre domaine, réputation maîtrisée."
 msgstr "Envoyer depuis votre propre domaine, réputation maîtrisée."
 
 msgid "Envoyer la mise à jour aux abonnés"
 msgstr "Envoyer la mise à jour aux abonnés"
+
+msgid "Envoyer la newsletter"
+msgstr "Envoyer la newsletter"
 
 msgid "Envoyer la réponse"
 msgstr "Envoyer la réponse"
@@ -4744,8 +4763,8 @@ msgstr "Erreur lors de la génération de la clé."
 msgid "Erreur lors de la génération du digest"
 msgstr "Erreur lors de la génération du digest"
 
-msgid "Erreur lors de la mise à jour du sous-domaine."
-msgstr "Erreur lors de la mise à jour du sous-domaine."
+#~ msgid "Erreur lors de la mise à jour du sous-domaine."
+#~ msgstr "Erreur lors de la mise à jour du sous-domaine."
 
 msgid "Erreur lors de la mise à jour."
 msgstr "Erreur lors de la mise à jour."
@@ -4777,14 +4796,14 @@ msgstr "Erreur lors de la rotation de la clé"
 msgid "Erreur lors de la rotation de la clé."
 msgstr "Erreur lors de la rotation de la clé."
 
-msgid "Erreur lors de la sauvegarde de la navigation."
-msgstr "Erreur lors de la sauvegarde de la navigation."
+#~ msgid "Erreur lors de la sauvegarde de la navigation."
+#~ msgstr "Erreur lors de la sauvegarde de la navigation."
 
 msgid "Erreur lors de la sauvegarde de ta préférence."
 msgstr "Erreur lors de la sauvegarde de ta préférence."
 
-msgid "Erreur lors de la sauvegarde des réseaux sociaux."
-msgstr "Erreur lors de la sauvegarde des réseaux sociaux."
+#~ msgid "Erreur lors de la sauvegarde des réseaux sociaux."
+#~ msgstr "Erreur lors de la sauvegarde des réseaux sociaux."
 
 msgid "Erreur lors de la sauvegarde du brouillon"
 msgstr "Erreur lors de la sauvegarde du brouillon"
@@ -4792,8 +4811,8 @@ msgstr "Erreur lors de la sauvegarde du brouillon"
 msgid "Erreur lors de la suppression de la pensée."
 msgstr "Erreur lors de la suppression de la pensée."
 
-msgid "Erreur lors de la suppression du sous-domaine."
-msgstr "Erreur lors de la suppression du sous-domaine."
+#~ msgid "Erreur lors de la suppression du sous-domaine."
+#~ msgstr "Erreur lors de la suppression du sous-domaine."
 
 msgid "Erreur lors du chargement de l'invitation."
 msgstr "Erreur lors du chargement de l'invitation."
@@ -4904,14 +4923,14 @@ msgstr "État"
 msgid "États-Unis"
 msgstr "États-Unis"
 
-msgid "Êtes-vous sûr de vouloir abandonner les modifications en brouillon ? L'article reviendra à sa version publiée en ligne."
-msgstr "Êtes-vous sûr de vouloir abandonner les modifications en brouillon ? L'article reviendra à sa version publiée en ligne."
+#~ msgid "Êtes-vous sûr de vouloir abandonner les modifications en brouillon ? L'article reviendra à sa version publiée en ligne."
+#~ msgstr "Êtes-vous sûr de vouloir abandonner les modifications en brouillon ? L'article reviendra à sa version publiée en ligne."
 
-msgid "Êtes-vous sûr de vouloir supprimer la catégorie \"{name}\" ?"
-msgstr "Êtes-vous sûr de vouloir supprimer la catégorie \"{name}\" ?"
+#~ msgid "Êtes-vous sûr de vouloir supprimer la catégorie \"{name}\" ?"
+#~ msgstr "Êtes-vous sûr de vouloir supprimer la catégorie \"{name}\" ?"
 
-msgid "Êtes-vous sûr de vouloir supprimer la catégorie \"{name}\" ? Ses sous-catégories seront conservées et promues en catégories principales."
-msgstr "Êtes-vous sûr de vouloir supprimer la catégorie \"{name}\" ? Ses sous-catégories seront conservées et promues en catégories principales."
+#~ msgid "Êtes-vous sûr de vouloir supprimer la catégorie \"{name}\" ? Ses sous-catégories seront conservées et promues en catégories principales."
+#~ msgstr "Êtes-vous sûr de vouloir supprimer la catégorie \"{name}\" ? Ses sous-catégories seront conservées et promues en catégories principales."
 
 msgid "Être tenu au courant"
 msgstr "Être tenu au courant"
@@ -5057,8 +5076,12 @@ msgid "Faire tourner la clé"
 msgstr "Faire tourner la clé"
 
 #. placeholder {0}: key.name
-msgid "Faire tourner la clé \"{0}\" ? L'ancien secret cessera immédiatement de fonctionner."
-msgstr "Faire tourner la clé \"{0}\" ? L'ancien secret cessera immédiatement de fonctionner."
+msgid "Faire tourner la clé \"{0}\" ?"
+msgstr "Faire tourner la clé \"{0}\" ?"
+
+#. placeholder {0}: key.name
+#~ msgid "Faire tourner la clé \"{0}\" ? L'ancien secret cessera immédiatement de fonctionner."
+#~ msgstr "Faire tourner la clé \"{0}\" ? L'ancien secret cessera immédiatement de fonctionner."
 
 msgid "Faire tourner la clé (régénère le secret et invalide l'ancien)"
 msgstr "Faire tourner la clé (régénère le secret et invalide l'ancien)"
@@ -6055,6 +6078,9 @@ msgstr "Julien Roche · Technologie · 5 min"
 msgid "L'abonnement en ligne n'est pas encore ouvert pour cette publication."
 msgstr "L'abonnement en ligne n'est pas encore ouvert pour cette publication."
 
+msgid "L'ancien secret cesse immédiatement de fonctionner."
+msgstr "L'ancien secret cesse immédiatement de fonctionner."
+
 msgid "L'ancien secret est désormais révoqué. Copiez cette nouvelle clé secrète dès maintenant : elle ne sera plus jamais réaffichée."
 msgstr "L'ancien secret est désormais révoqué. Copiez cette nouvelle clé secrète dès maintenant : elle ne sera plus jamais réaffichée."
 
@@ -6075,6 +6101,9 @@ msgstr "L'article est devenu visible publiquement."
 
 msgid "L’article et le passage annoté accompagnent la note, avec le nom de son auteur."
 msgstr "L’article et le passage annoté accompagnent la note, avec le nom de son auteur."
+
+msgid "L'article et ses interactions seront supprimés. Cette action est irréversible."
+msgstr "L'article et ses interactions seront supprimés. Cette action est irréversible."
 
 msgid "L'article n'est plus accessible publiquement."
 msgstr "L'article n'est plus accessible publiquement."
@@ -6102,6 +6131,9 @@ msgstr "L’auteur principal reste toujours affiché. Les autres rôles peuvent 
 
 msgid "L'envoi de vos articles est inclus dans toutes les offres. Rédiger un message sans article demande le forfait PRO."
 msgstr "L'envoi de vos articles est inclus dans toutes les offres. Rédiger un message sans article demande le forfait PRO."
+
+msgid "L'envoi part à tous les abonnés actifs et ne peut pas être annulé."
+msgstr "L'envoi part à tous les abonnés actifs et ne peut pas être annulé."
 
 msgid "L'envoi sans article est réservé au forfait PRO."
 msgstr "L'envoi sans article est réservé au forfait PRO."
@@ -6259,6 +6291,9 @@ msgstr "Largeur de colonne"
 
 msgid "Le brouillon a remplacé la version publique."
 msgstr "Le brouillon a remplacé la version publique."
+
+msgid "Le brouillon et son contenu seront perdus. Cette action est irréversible."
+msgstr "Le brouillon et son contenu seront perdus. Cette action est irréversible."
 
 msgid "Le Carnet de Sarah"
 msgstr "Le Carnet de Sarah"
@@ -6479,6 +6514,9 @@ msgstr "Légende et crédit de l'image"
 msgid "Les actions sensibles demandent le mot de passe actuel et déclenchent la vérification côté fournisseur d’identité."
 msgstr "Les actions sensibles demandent le mot de passe actuel et déclenchent la vérification côté fournisseur d’identité."
 
+msgid "Les actions sensibles redemanderont une vérification forte."
+msgstr "Les actions sensibles redemanderont une vérification forte."
+
 msgid "Les alternatives existent"
 msgstr "Les alternatives existent"
 
@@ -6493,6 +6531,9 @@ msgstr "Les applications sont examinées avant activation. Utilisez des URL de r
 
 msgid "Les articles ont été modifiés, mais la liste n'a pas pu être rafraîchie."
 msgstr "Les articles ont été modifiés, mais la liste n'a pas pu être rafraîchie."
+
+msgid "Les articles rattachés resteront en ligne, sans cette catégorie."
+msgstr "Les articles rattachés resteront en ligne, sans cette catégorie."
 
 msgid "Les articles sélectionnés seront immédiatement retirés du site public et repasseront en brouillon."
 msgstr "Les articles sélectionnés seront immédiatement retirés du site public et repasseront en brouillon."
@@ -6557,8 +6598,14 @@ msgstr "Les invitations sont nominatives : aucun email n’est exposé et les dr
 msgid "Les lectures recommandées par {authorName}"
 msgstr "Les lectures recommandées par {authorName}"
 
+msgid "Les livraisons cessent immédiatement et l'endpoint ne reçoit plus d'événements."
+msgstr "Les livraisons cessent immédiatement et l'endpoint ne reçoit plus d'événements."
+
 msgid "Les modifications apportées aux paramètres de cet article seront perdues."
 msgstr "Les modifications apportées aux paramètres de cet article seront perdues."
+
+msgid "Les modifications de navigation non enregistrées seront perdues."
+msgstr "Les modifications de navigation non enregistrées seront perdues."
 
 msgid "Les mots de passe ne correspondent pas."
 msgstr "Les mots de passe ne correspondent pas."
@@ -8711,6 +8758,12 @@ msgstr "Qui peut m'inviter à collaborer"
 msgid "Qui peut répondre"
 msgstr "Qui peut répondre"
 
+msgid "Quitter sans enregistrer"
+msgstr "Quitter sans enregistrer"
+
+msgid "Quitter sans enregistrer ?"
+msgstr "Quitter sans enregistrer ?"
+
 msgid "Quota IA du mois épuisé — il revient le mois prochain."
 msgstr "Quota IA du mois épuisé — il revient le mois prochain."
 
@@ -9312,6 +9365,9 @@ msgstr "Retirer la sélection"
 msgid "Retirer le contributeur"
 msgstr "Retirer le contributeur"
 
+msgid "Retirer le facteur"
+msgstr "Retirer le facteur"
+
 msgid "Retirer le facteur « {label} » ?"
 msgstr "Retirer le facteur « {label} » ?"
 
@@ -9726,6 +9782,9 @@ msgstr "Serif"
 msgid "Serré"
 msgstr "Serré"
 
+msgid "Ses sous-catégories seront conservées et promues en catégories principales."
+msgstr "Ses sous-catégories seront conservées et promues en catégories principales."
+
 msgid "Session actuelle"
 msgstr "Session actuelle"
 
@@ -10105,8 +10164,12 @@ msgid "Supprimer cette pensée du fil"
 msgstr "Supprimer cette pensée du fil"
 
 #. placeholder {0}: article.title
-msgid "Supprimer définitivement « {0} » ? Cette action est irréversible."
-msgstr "Supprimer définitivement « {0} » ? Cette action est irréversible."
+msgid "Supprimer définitivement « {0} » ?"
+msgstr "Supprimer définitivement « {0} » ?"
+
+#. placeholder {0}: article.title
+#~ msgid "Supprimer définitivement « {0} » ? Cette action est irréversible."
+#~ msgstr "Supprimer définitivement « {0} » ? Cette action est irréversible."
 
 msgid "Supprimer définitivement ce brouillon ?"
 msgstr "Supprimer définitivement ce brouillon ?"
@@ -10120,11 +10183,21 @@ msgstr "Supprimer des signets"
 msgid "Supprimer l'annotation"
 msgstr "Supprimer l'annotation"
 
+msgid "Supprimer l'application"
+msgstr "Supprimer l'application"
+
 #. placeholder {0}: client.name
-msgid "Supprimer l'application « {0} » ?\n"
-"Tous les tokens et consentements associés seront révoqués."
-msgstr "Supprimer l'application « {0} » ?\n"
-"Tous les tokens et consentements associés seront révoqués."
+msgid "Supprimer l'application « {0} » ?"
+msgstr "Supprimer l'application « {0} » ?"
+
+#. placeholder {0}: client.name
+#~ msgid "Supprimer l'application « {0} » ?\n"
+#~ "Tous les tokens et consentements associés seront révoqués."
+#~ msgstr "Supprimer l'application « {0} » ?\n"
+#~ "Tous les tokens et consentements associés seront révoqués."
+
+msgid "Supprimer l'article"
+msgstr "Supprimer l'article"
 
 msgid "Supprimer l'élément"
 msgstr "Supprimer l'élément"
@@ -10135,12 +10208,18 @@ msgstr "Supprimer la bannière"
 msgid "Supprimer la catégorie"
 msgstr "Supprimer la catégorie"
 
+msgid "Supprimer la catégorie \"{name}\" ?"
+msgstr "Supprimer la catégorie \"{name}\" ?"
+
 #. placeholder {0}: index + 1
 msgid "Supprimer la source {0}"
 msgstr "Supprimer la source {0}"
 
 msgid "Supprimer le bloc"
 msgstr "Supprimer le bloc"
+
+msgid "Supprimer le brouillon"
+msgstr "Supprimer le brouillon"
 
 msgid "Supprimer le compte"
 msgstr "Supprimer le compte"
@@ -10150,6 +10229,9 @@ msgstr "Supprimer le logo"
 
 msgid "Supprimer le tableau"
 msgstr "Supprimer le tableau"
+
+msgid "Supprimer le webhook"
+msgstr "Supprimer le webhook"
 
 msgid "Supprimer le webhook \"{name}\" ?"
 msgstr "Supprimer le webhook \"{name}\" ?"
@@ -10499,6 +10581,9 @@ msgstr "Tous les profils pris en charge sont renseignés."
 
 msgid "Tous les résultats"
 msgstr "Tous les résultats"
+
+msgid "Tous les tokens et consentements associés seront révoqués."
+msgstr "Tous les tokens et consentements associés seront révoqués."
 
 msgid "Tous vos articles publiés sont au vert"
 msgstr "Tous vos articles publiés sont au vert"

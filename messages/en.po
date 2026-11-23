@@ -1966,6 +1966,9 @@ msgstr "No invitation received."
 msgid "Aucune livraison enregistrée pour ce webhook."
 msgstr "No delivery recorded for this webhook."
 
+msgid "Aucune modification à enregistrer."
+msgstr "No changes to save."
+
 msgid "Aucune notification de lancement active."
 msgstr "No active launch notification."
 
@@ -2551,6 +2554,9 @@ msgstr "This page still uses the old version. Reload to continue without errors.
 msgid "Cette pensée a été supprimée par son auteur."
 msgstr "This thought was deleted by its author."
 
+msgid "Cette personne perd immédiatement l'accès aux contenus du Média."
+msgstr "This person immediately loses access to the Media's content."
+
 msgid "cette publication"
 msgstr "this publication"
 
@@ -3095,6 +3101,12 @@ msgstr "Deletion confirmation"
 
 msgid "CONFIRMER"
 msgstr "CONFIRM"
+
+msgid "Confirmer l'abandon"
+msgstr "Confirm discard"
+
+msgid "Confirmer l'abandon : l'article reviendra à sa version publiée en ligne"
+msgstr "Confirm discard: the article will revert to its published online version"
 
 msgid "Confirmer l'abonnement"
 msgstr "Confirm subscription"
@@ -3840,8 +3852,8 @@ msgstr "Writings that resonate."
 msgid "Des formats très courts se répètent"
 msgstr "Very short formats repeat"
 
-msgid "Des modifications ne sont pas enregistrées. Quitter sans enregistrer ?"
-msgstr "Some changes are not saved. Leave without saving?"
+#~ msgid "Des modifications ne sont pas enregistrées. Quitter sans enregistrer ?"
+#~ msgstr "Some changes are not saved. Leave without saving?"
 
 msgid "Des voix libres et indépendantes"
 msgstr "Free and independent voices"
@@ -4618,14 +4630,21 @@ msgid "Envoyer"
 msgstr "Send"
 
 #. placeholder {0}: issue.subject
-msgid "Envoyer « {0} » à tous les abonnés actifs ? L'envoi ne peut pas être annulé."
-msgstr "Send “{0}” to all active subscribers? The send cannot be cancelled."
+msgid "Envoyer « {0} » ?"
+msgstr "Send "{0}"?"
+
+#. placeholder {0}: issue.subject
+#~ msgid "Envoyer « {0} » à tous les abonnés actifs ? L'envoi ne peut pas être annulé."
+#~ msgstr "Send “{0}” to all active subscribers? The send cannot be cancelled."
 
 msgid "Envoyer depuis votre propre domaine, réputation maîtrisée."
 msgstr "Send from your own domain, reputation under control."
 
 msgid "Envoyer la mise à jour aux abonnés"
 msgstr "Send the update to subscribers"
+
+msgid "Envoyer la newsletter"
+msgstr "Send the newsletter"
 
 msgid "Envoyer la réponse"
 msgstr "Send reply"
@@ -4744,8 +4763,8 @@ msgstr "Error generating the key."
 msgid "Erreur lors de la génération du digest"
 msgstr "Error while generating the digest"
 
-msgid "Erreur lors de la mise à jour du sous-domaine."
-msgstr "Error while updating the subdomain."
+#~ msgid "Erreur lors de la mise à jour du sous-domaine."
+#~ msgstr "Error while updating the subdomain."
 
 msgid "Erreur lors de la mise à jour."
 msgstr "Error while updating."
@@ -4777,14 +4796,14 @@ msgstr "Error while rotating the key"
 msgid "Erreur lors de la rotation de la clé."
 msgstr "Error rotating the key."
 
-msgid "Erreur lors de la sauvegarde de la navigation."
-msgstr "Error while saving the navigation."
+#~ msgid "Erreur lors de la sauvegarde de la navigation."
+#~ msgstr "Error while saving the navigation."
 
 msgid "Erreur lors de la sauvegarde de ta préférence."
 msgstr "Error saving your preference."
 
-msgid "Erreur lors de la sauvegarde des réseaux sociaux."
-msgstr "Error while saving social networks."
+#~ msgid "Erreur lors de la sauvegarde des réseaux sociaux."
+#~ msgstr "Error while saving social networks."
 
 msgid "Erreur lors de la sauvegarde du brouillon"
 msgstr "Error while saving the draft"
@@ -4792,8 +4811,8 @@ msgstr "Error while saving the draft"
 msgid "Erreur lors de la suppression de la pensée."
 msgstr "Error deleting the thought."
 
-msgid "Erreur lors de la suppression du sous-domaine."
-msgstr "Error while deleting the subdomain."
+#~ msgid "Erreur lors de la suppression du sous-domaine."
+#~ msgstr "Error while deleting the subdomain."
 
 msgid "Erreur lors du chargement de l'invitation."
 msgstr "Error while loading the invitation."
@@ -4904,14 +4923,14 @@ msgstr "Status"
 msgid "États-Unis"
 msgstr "United States"
 
-msgid "Êtes-vous sûr de vouloir abandonner les modifications en brouillon ? L'article reviendra à sa version publiée en ligne."
-msgstr "Are you sure you want to discard the draft changes? The post will return to its published live version."
+#~ msgid "Êtes-vous sûr de vouloir abandonner les modifications en brouillon ? L'article reviendra à sa version publiée en ligne."
+#~ msgstr "Are you sure you want to discard the draft changes? The post will return to its published live version."
 
-msgid "Êtes-vous sûr de vouloir supprimer la catégorie \"{name}\" ?"
-msgstr "Are you sure you want to delete the category \"{name}\"?"
+#~ msgid "Êtes-vous sûr de vouloir supprimer la catégorie \"{name}\" ?"
+#~ msgstr "Are you sure you want to delete the category \"{name}\"?"
 
-msgid "Êtes-vous sûr de vouloir supprimer la catégorie \"{name}\" ? Ses sous-catégories seront conservées et promues en catégories principales."
-msgstr "Are you sure you want to delete the category \"{name}\"? Its subcategories will be kept and promoted to main categories."
+#~ msgid "Êtes-vous sûr de vouloir supprimer la catégorie \"{name}\" ? Ses sous-catégories seront conservées et promues en catégories principales."
+#~ msgstr "Are you sure you want to delete the category \"{name}\"? Its subcategories will be kept and promoted to main categories."
 
 msgid "Être tenu au courant"
 msgstr "Keep me informed"
@@ -5057,8 +5076,12 @@ msgid "Faire tourner la clé"
 msgstr "Rotate the key"
 
 #. placeholder {0}: key.name
-msgid "Faire tourner la clé \"{0}\" ? L'ancien secret cessera immédiatement de fonctionner."
-msgstr "Rotate the key \"{0}\"? The old secret will stop working immediately."
+msgid "Faire tourner la clé \"{0}\" ?"
+msgstr "Rotate the key \"{0}\"?"
+
+#. placeholder {0}: key.name
+#~ msgid "Faire tourner la clé \"{0}\" ? L'ancien secret cessera immédiatement de fonctionner."
+#~ msgstr "Rotate the key \"{0}\"? The old secret will stop working immediately."
 
 msgid "Faire tourner la clé (régénère le secret et invalide l'ancien)"
 msgstr "Rotate the key (regenerates the secret and invalidates the old one)"
@@ -6055,6 +6078,9 @@ msgstr "Julien Roche · Technology · 5 min"
 msgid "L'abonnement en ligne n'est pas encore ouvert pour cette publication."
 msgstr "Online subscription is not open yet for this publication."
 
+msgid "L'ancien secret cesse immédiatement de fonctionner."
+msgstr "The previous secret stops working immediately."
+
 msgid "L'ancien secret est désormais révoqué. Copiez cette nouvelle clé secrète dès maintenant : elle ne sera plus jamais réaffichée."
 msgstr "The old secret is now revoked. Copy this new secret key now: it will never be shown again."
 
@@ -6075,6 +6101,9 @@ msgstr "The post has become publicly visible."
 
 msgid "L’article et le passage annoté accompagnent la note, avec le nom de son auteur."
 msgstr "The article and annotated passage accompany the note, along with its author’s name."
+
+msgid "L'article et ses interactions seront supprimés. Cette action est irréversible."
+msgstr "The article and its interactions will be deleted. This action cannot be undone."
 
 msgid "L'article n'est plus accessible publiquement."
 msgstr "The post is no longer publicly accessible."
@@ -6102,6 +6131,9 @@ msgstr "The lead author is always displayed. Other roles can be hidden from the 
 
 msgid "L'envoi de vos articles est inclus dans toutes les offres. Rédiger un message sans article demande le forfait PRO."
 msgstr "Sending your posts is included in all plans. Writing a message without a post requires the PRO plan."
+
+msgid "L'envoi part à tous les abonnés actifs et ne peut pas être annulé."
+msgstr "The send goes to all active subscribers and cannot be cancelled."
 
 msgid "L'envoi sans article est réservé au forfait PRO."
 msgstr "Sending without a post is reserved for the PRO plan."
@@ -6259,6 +6291,9 @@ msgstr "Column width"
 
 msgid "Le brouillon a remplacé la version publique."
 msgstr "The draft replaced the public version."
+
+msgid "Le brouillon et son contenu seront perdus. Cette action est irréversible."
+msgstr "The draft and its content will be lost. This action cannot be undone."
 
 msgid "Le Carnet de Sarah"
 msgstr "Sarah's Notebook"
@@ -6479,6 +6514,9 @@ msgstr "Image caption and credit"
 msgid "Les actions sensibles demandent le mot de passe actuel et déclenchent la vérification côté fournisseur d’identité."
 msgstr "Sensitive actions require the current password and trigger verification on the identity provider side."
 
+msgid "Les actions sensibles redemanderont une vérification forte."
+msgstr "Sensitive actions will ask for strong verification again."
+
 msgid "Les alternatives existent"
 msgstr "Alternatives exist"
 
@@ -6493,6 +6531,9 @@ msgstr "Applications are reviewed before activation. Use HTTPS redirect URLs (ht
 
 msgid "Les articles ont été modifiés, mais la liste n'a pas pu être rafraîchie."
 msgstr "The posts were modified, but the list could not be refreshed."
+
+msgid "Les articles rattachés resteront en ligne, sans cette catégorie."
+msgstr "Attached articles stay online, without this category."
 
 msgid "Les articles sélectionnés seront immédiatement retirés du site public et repasseront en brouillon."
 msgstr "The selected posts will be immediately removed from the public site and go back to draft."
@@ -6557,8 +6598,14 @@ msgstr "Invitations are personal: no email is exposed and rights remain limited 
 msgid "Les lectures recommandées par {authorName}"
 msgstr "Reads recommended by {authorName}"
 
+msgid "Les livraisons cessent immédiatement et l'endpoint ne reçoit plus d'événements."
+msgstr "Deliveries stop immediately and the endpoint stops receiving events."
+
 msgid "Les modifications apportées aux paramètres de cet article seront perdues."
 msgstr "Changes made to this post's settings will be lost."
+
+msgid "Les modifications de navigation non enregistrées seront perdues."
+msgstr "Unsaved navigation changes will be lost."
 
 msgid "Les mots de passe ne correspondent pas."
 msgstr "Passwords do not match."
@@ -8711,6 +8758,12 @@ msgstr "Who can invite me to collaborate"
 msgid "Qui peut répondre"
 msgstr "Who can reply"
 
+msgid "Quitter sans enregistrer"
+msgstr "Leave without saving"
+
+msgid "Quitter sans enregistrer ?"
+msgstr "Leave without saving?"
+
 msgid "Quota IA du mois épuisé — il revient le mois prochain."
 msgstr "AI quota for the month exhausted — it returns next month."
 
@@ -9312,6 +9365,9 @@ msgstr "Clear the selection"
 msgid "Retirer le contributeur"
 msgstr "Remove the contributor"
 
+msgid "Retirer le facteur"
+msgstr "Remove the factor"
+
 msgid "Retirer le facteur « {label} » ?"
 msgstr "Remove the factor “{label}”?"
 
@@ -9726,6 +9782,9 @@ msgstr "Serif"
 msgid "Serré"
 msgstr "Tight"
 
+msgid "Ses sous-catégories seront conservées et promues en catégories principales."
+msgstr "Its subcategories will be kept and promoted to top-level categories."
+
 msgid "Session actuelle"
 msgstr "Current session"
 
@@ -10105,8 +10164,12 @@ msgid "Supprimer cette pensée du fil"
 msgstr "Delete this thought from the thread"
 
 #. placeholder {0}: article.title
-msgid "Supprimer définitivement « {0} » ? Cette action est irréversible."
-msgstr "Permanently delete “{0}”? This action cannot be undone."
+msgid "Supprimer définitivement « {0} » ?"
+msgstr "Permanently delete "{0}"?"
+
+#. placeholder {0}: article.title
+#~ msgid "Supprimer définitivement « {0} » ? Cette action est irréversible."
+#~ msgstr "Permanently delete “{0}”? This action cannot be undone."
 
 msgid "Supprimer définitivement ce brouillon ?"
 msgstr "Permanently delete this draft?"
@@ -10120,11 +10183,21 @@ msgstr "Remove from bookmarks"
 msgid "Supprimer l'annotation"
 msgstr "Delete the annotation"
 
+msgid "Supprimer l'application"
+msgstr "Delete the application"
+
 #. placeholder {0}: client.name
-msgid "Supprimer l'application « {0} » ?\n"
-"Tous les tokens et consentements associés seront révoqués."
-msgstr "Delete the application “{0}”?\n"
-""
+msgid "Supprimer l'application « {0} » ?"
+msgstr "Delete the application "{0}"?"
+
+#. placeholder {0}: client.name
+#~ msgid "Supprimer l'application « {0} » ?\n"
+#~ "Tous les tokens et consentements associés seront révoqués."
+#~ msgstr "Delete the application “{0}”?\n"
+#~ ""
+
+msgid "Supprimer l'article"
+msgstr "Delete the article"
 
 msgid "Supprimer l'élément"
 msgstr "Delete the element"
@@ -10135,12 +10208,18 @@ msgstr "Remove the banner"
 msgid "Supprimer la catégorie"
 msgstr "Delete the category"
 
+msgid "Supprimer la catégorie \"{name}\" ?"
+msgstr "Delete the category \"{name}\"?"
+
 #. placeholder {0}: index + 1
 msgid "Supprimer la source {0}"
 msgstr "Delete source {0}"
 
 msgid "Supprimer le bloc"
 msgstr "Delete the block"
+
+msgid "Supprimer le brouillon"
+msgstr "Delete the draft"
 
 msgid "Supprimer le compte"
 msgstr "Delete account"
@@ -10150,6 +10229,9 @@ msgstr "Remove the logo"
 
 msgid "Supprimer le tableau"
 msgstr "Delete the table"
+
+msgid "Supprimer le webhook"
+msgstr "Delete the webhook"
 
 msgid "Supprimer le webhook \"{name}\" ?"
 msgstr "Delete the webhook \"{name}\"?"
@@ -10499,6 +10581,9 @@ msgstr "All supported profiles are filled in."
 
 msgid "Tous les résultats"
 msgstr "All results"
+
+msgid "Tous les tokens et consentements associés seront révoqués."
+msgstr "All associated tokens and consents will be revoked."
 
 msgid "Tous vos articles publiés sont au vert"
 msgstr "All your published posts are green"
