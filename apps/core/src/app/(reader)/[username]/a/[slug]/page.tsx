@@ -9,6 +9,7 @@ import type { Metadata } from 'next';
 import { loadHomeFeedData } from '@/lib/home-feed-data';
 import { getArticleOwner, getCanonicalArticlePath } from '@qoe/config/routes';
 import { FeedDashboard } from '../../../home/FeedDashboard';
+import { decodeUrlSegment } from '@qoe/config/article-url';
 
 const STATIC_ASSET_REGEX = /\.(ico|png|jpg|jpeg|gif|svg|webp|js|css|json|xml|txt|map)$/i;
 
@@ -77,8 +78,8 @@ export async function generateMetadata({
   params: Promise<{ username: string; slug: string }>;
 }): Promise<Metadata> {
   const resolvedParams = await params;
-  const rawUsername = decodeURIComponent(resolvedParams.username).replace(/^@/, '');
-  const rawSlug = decodeURIComponent(resolvedParams.slug);
+  const rawUsername = decodeUrlSegment(resolvedParams.username).replace(/^@/, '');
+  const rawSlug = decodeUrlSegment(resolvedParams.slug);
 
   if (STATIC_ASSET_REGEX.test(rawUsername)) {
     return { title: 'Introuvable — qoefi' };
@@ -137,8 +138,8 @@ export default async function UserArticleDedicatedPage({
   searchParams?: Promise<{ hlStart?: string; hlEnd?: string; hlSha?: string }>;
 }) {
   const resolvedParams = await params;
-  const rawUsername = decodeURIComponent(resolvedParams.username).replace(/^@/, '');
-  const rawSlug = decodeURIComponent(resolvedParams.slug);
+  const rawUsername = decodeUrlSegment(resolvedParams.username).replace(/^@/, '');
+  const rawSlug = decodeUrlSegment(resolvedParams.slug);
 
   if (STATIC_ASSET_REGEX.test(rawUsername)) {
     notFound();

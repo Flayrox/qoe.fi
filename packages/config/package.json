@@ -11,6 +11,7 @@
     "./constants": "./src/constants.ts",
     "./features": "./src/features.ts",
     "./routes": "./src/routes.ts",
+    "./article-url": "./src/article-url.ts",
     "./schemas": "./src/schemas.ts",
     "./tenant": "./src/tenant.ts",
     "./legal": "./src/legal.ts",

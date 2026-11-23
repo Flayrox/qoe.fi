@@ -65,6 +65,7 @@ import {
   type OverlaySource,
   type OverlayUserProfile,
 } from './overlay-state';
+import { decodeUrlSegment } from '@qoe/config/article-url';
 
 export type {
   OpenArticleInput,
@@ -416,7 +417,7 @@ export function ArticleOverlayProvider({
 
       const slug =
         link.dataset.articleSlug ||
-        decodeURIComponent(url.pathname.split('/').filter(Boolean).pop() ?? '');
+        decodeUrlSegment(url.pathname.split('/').filter(Boolean).pop() ?? '');
       if (!slug) return;
 
       const owner =
@@ -427,7 +428,7 @@ export function ArticleOverlayProvider({
           const parts = url.pathname.split('/').filter(Boolean);
           const aIdx = parts.indexOf('a');
           if (aIdx > 0 && parts[aIdx - 1] && parts[aIdx - 1] !== 'article') {
-            return decodeURIComponent(parts[aIdx - 1]);
+            return decodeUrlSegment(parts[aIdx - 1]);
           }
           const hostParts = url.hostname.split('.');
           if (

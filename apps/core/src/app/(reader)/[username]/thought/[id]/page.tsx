@@ -7,6 +7,7 @@ import { ReaderPageLayout } from '@/components/layout/ReaderPageLayout';
 import { ThoughtThreadView } from '@/app/(reader)/home/components/ThoughtThreadView';
 import { routes } from '@qoe/config/routes';
 import type { OptimisticThought } from '@/app/(reader)/home/components/thread';
+import { decodeUrlSegment } from '@qoe/config/article-url';
 
 interface ThoughtPageProps {
   params: Promise<{
@@ -54,7 +55,7 @@ export async function generateMetadata({ params }: ThoughtPageProps): Promise<Me
 
 export default async function ThoughtPage({ params }: ThoughtPageProps) {
   const resolvedParams = await params;
-  const rawUsername = decodeURIComponent(resolvedParams.username).replace(/^@/, '');
+  const rawUsername = decodeUrlSegment(resolvedParams.username).replace(/^@/, '');
   const postId = resolvedParams.id;
 
   const supabase = await createClient();

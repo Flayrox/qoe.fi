@@ -116,6 +116,9 @@ describe('🗺️ packages/config/src/routes.ts', () => {
     ).toBe('https://blog.example/essais/mon-article');
 
     expect(
+      // Sans catégorie connue, le canonique est la catégorie par défaut —
+      // jamais l'ancienne forme `/article/{slug}`, qui n'est plus qu'une
+      // redirection 308 (divergence corrigée en L38).
       getArticleUrl(
         {
           slug: 'mon-article',
@@ -123,7 +126,7 @@ describe('🗺️ packages/config/src/routes.ts', () => {
         },
         { preferTenant: true }
       )
-    ).toBe('https://journal.example/article/mon-article');
+    ).toBe('https://journal.example/uncategorized/mon-article');
   });
 
   it('getArticleShortUrl génère /l/{shortCode} selon le contexte', () => {

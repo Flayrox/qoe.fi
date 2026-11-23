@@ -8,13 +8,23 @@ import {
 import { createEmptyThreadNode } from '../composer/types';
 
 describe('composer-text', () => {
-  it('compte 20 caractères par URL externe et 0 pour les URLs internes (/post/ ou /article/)', () => {
+  it('compte 20 caractères par URL externe et 0 pour une URL de la plateforme', () => {
     const ext = 'https://exemple.fr/un/chemin/tres/long/qui/depasse/vingt';
     expect(calculateCharacters(`Salut ${ext}`)).toBe(6 + 20);
 
-    const internalPost = 'https://qoe.fi/post/1234567890';
-    const internalArticle = 'https://media.qoe.fi/article/mon-essai';
-    expect(calculateCharacters(`Voir ${internalPost} et ${internalArticle}`)).toBe(9);
+    // Formes canoniques réellement générées par `routes` / `buildArticlePath`.
+    const internalArticle = 'https://qoe.fi/alice/a/mon-essai';
+    const tenantArticle = 'https://media.qoe.fi/tech/mon-essai';
+    const legacyTenantPath = 'https://media.qoe.fi/article/mon-essai';
+    expect(calculateCharacters(`Voir ${internalArticle} et ${tenantArticle}`)).toBe(9);
+    // C'est l'hôte qui décide, pas un préfixe de chemin : `/article/` reste
+    // interne (c'est une redirection de la plateforme).
+    expect(calculateCharacters(`Voir ${legacyTenantPath}`)).toBe(5);
+  });
+
+  it('ne considère pas un domaine qui imite le nôtre comme interne', () => {
+    expect(calculateCharacters('Voir https://qoe.fi.exemple.fr/a')).toBe(5 + 20);
+    expect(calculateCharacters('Voir https://notqoe.fi/a')).toBe(5 + 20);
   });
 
   it('détecte les déclencheurs @profil, #tag et :emoji: avant le curseur', () => {

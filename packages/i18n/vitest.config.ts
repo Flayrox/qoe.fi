@@ -10,6 +10,10 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    // 🕐 Budget par test : `i18n-hardening` charge le catalogue serveur par
+    // `await import()`, ce qui dépassait 5 s quand les 25 paquets tournaient en
+    // parallèle (dette R313). Les assertions ne dépendent d'aucune durée.
+    testTimeout: 15_000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

@@ -6,13 +6,20 @@ import type { Metadata } from 'next';
 import { getLanguage } from '@qoe/i18n/server';
 import { buildBreadcrumbSchema } from '@qoe/ui';
 import type { AnnotationItem, HighlightItem } from '@qoe/ui/annotations';
-import { buildArticlePath, buildCategoryPath, buildPublicExcerpt } from '@qoe/utils';
+import {
+  buildArticlePath,
+  buildCategoryPath,
+  buildPublicExcerpt,
+  isSameArticlePath,
+} from '@qoe/utils';
 import { ContentVisibility } from '@qoe/config';
 import { t } from '@lingui/core/macro';
 import { fetchTenantArticle, fetchArticleHighlights } from '@/lib/tenant-data';
 import { TenantPageRenderer } from '@/components/TenantPageRenderer';
 import { getArticleCommentsAction } from '@/app/tenant/[domain]/article/[slug]/actions';
 import type { CommentItem } from '@/app/tenant/[domain]/article/[slug]/ArticleCommentsSection';
+import { normalizeTenantDomain } from './tenant-domain';
+import { decodeUrlSegment } from '@qoe/config/article-url';
 
 export interface TenantArticleRouteParams {
   domain: string;
@@ -24,7 +31,7 @@ export interface TenantArticleRouteParams {
 function requestedArticlePath(params: TenantArticleRouteParams): string {
   const segments = [params.categorySlug, params.subCategorySlug, params.articleSlug]
     .filter((segment): segment is string => Boolean(segment))
-    .map((segment) => decodeURIComponent(segment));
+    .map((segment) => decodeUrlSegment(segment));
   return `/${segments.join('/')}`;
 }
 
@@ -34,8 +41,8 @@ export async function generateTenantArticleMetadata(
   const lang = await getLanguage();
   const isFr = lang === 'fr';
 
-  const decodedDomain = decodeURIComponent(params.domain).toLowerCase();
-  const decodedArticleSlug = decodeURIComponent(params.articleSlug);
+  const decodedDomain = normalizeTenantDomain(params.domain);
+  const decodedArticleSlug = decodeUrlSegment(params.articleSlug);
   const bundle = await fetchTenantArticle(decodedDomain, decodedArticleSlug);
   if (!bundle) return {};
 
@@ -90,8 +97,8 @@ export async function generateTenantArticleMetadata(
 }
 
 export async function TenantArticleRoute(params: TenantArticleRouteParams) {
-  const decodedDomain = decodeURIComponent(params.domain).toLowerCase();
-  const decodedArticleSlug = decodeURIComponent(params.articleSlug);
+  const decodedDomain = normalizeTenantDomain(params.domain);
+  const decodedArticleSlug = decodeUrlSegment(params.articleSlug);
 
   const supabase = await createClient();
   const {
@@ -132,8 +139,11 @@ export async function TenantArticleRoute(params: TenantArticleRouteParams) {
 
   // URL canonique hiérarchique : redirection permanente si le chemin demandé
   // ne correspond pas à la catégorie/sous-catégorie réelle de l'article.
+  // La comparaison est décodée des deux côtés : le canonique est encodé
+  // (`/tech/caf%C3%A9`), les `params` arrivent déjà décodés par Next — les
+  // comparer brutes redirigeait en boucle sur tout segment accentué.
   const canonicalPath = buildArticlePath(article, publisher.categories);
-  if (requestedArticlePath(params) !== canonicalPath) {
+  if (!isSameArticlePath(requestedArticlePath(params), canonicalPath)) {
     permanentRedirect(canonicalPath);
   }
 

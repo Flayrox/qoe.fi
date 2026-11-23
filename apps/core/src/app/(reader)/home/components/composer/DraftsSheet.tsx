@@ -4,12 +4,19 @@ import React from 'react';
 import { FileText, Loader2, Trash2 } from 'lucide-react';
 import { Button } from '@qoe/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@qoe/ui/ui/sheet';
-import { LOCAL_THREAD_DRAFT_KEY, parseStoredThreadNodes } from '../composer-drafts';
+import { parseStoredThreadNodes } from '../composer-drafts';
 import type { ThoughtDraft } from './types';
 
 interface DraftsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * Instantané du brouillon de fil local, lu **une** fois par le compositeur à
+   * l'ouverture de la feuille. La feuille ne relit pas `localStorage` : le
+   * rendu reste pur et la prévisualisation correspond exactement à ce que
+   * « Restaurer le fil » applique.
+   */
+  rawLocalDraft: string | null;
   drafts: ThoughtDraft[];
   loadingDrafts: boolean;
   onClearLocalThreadDraft: () => void;
@@ -34,6 +41,7 @@ function formatLocalDraftPreview(raw: string): string {
 export function DraftsSheet({
   open,
   onOpenChange,
+  rawLocalDraft,
   drafts,
   loadingDrafts,
   onClearLocalThreadDraft,
@@ -41,9 +49,6 @@ export function DraftsSheet({
   onLoadDraft,
   onDeleteDraft,
 }: DraftsSheetProps) {
-  const rawLocalDraft =
-    typeof window !== 'undefined' ? localStorage.getItem(LOCAL_THREAD_DRAFT_KEY) : null;
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange} side="right">
       <SheetContent className="w-full sm:max-w-md p-0 flex flex-col h-full bg-[var(--surface-0)] border-l border-[var(--border-default)] z-[60]">

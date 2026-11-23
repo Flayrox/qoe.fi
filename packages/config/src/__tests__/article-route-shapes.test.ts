@@ -55,6 +55,36 @@ describe('forme tenant — catégorie et sous-catégorie', () => {
   });
 });
 
+describe('forme tenant — une seule composition, même sans catégorie', () => {
+  it('sans catégorie, produit le canonique par défaut (plus /article/{slug})', () => {
+    expect(
+      getArticleUrl(
+        { slug: 'intro', publisher: { customDomain: 'journal.example' } },
+        { preferTenant: true }
+      )
+    ).toBe('https://journal.example/uncategorized/intro');
+
+    expect(routes.tenant.article('media', 'intro', 'qoe.test')).toBe(
+      'http://media.qoe.test/uncategorized/intro'
+    );
+  });
+
+  it('encode le slug exactement comme la redirection /article/{slug}', () => {
+    expect(routes.tenant.articleLegacy('media', 'café au lait', 'qoe.test')).toBe(
+      'http://media.qoe.test/article/caf%C3%A9%20au%20lait'
+    );
+    expect(routes.tenant.article('media', 'café au lait', 'qoe.test', 'tech')).toBe(
+      'http://media.qoe.test/tech/caf%C3%A9%20au%20lait'
+    );
+  });
+
+  it('neutralise une tentative de traversée de répertoire', () => {
+    expect(routes.tenant.article('media', '../../etc/passwd', 'qoe.test', 'tech')).toBe(
+      'http://media.qoe.test/tech/etcpasswd'
+    );
+  });
+});
+
 describe('forme core — /{proprietaire}/a/{slug}', () => {
   it('privilégie le média puis le créateur comme propriétaire', () => {
     expect(

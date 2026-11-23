@@ -8,20 +8,7 @@
 
 import { getMonorepoUrl } from './constants';
 import { getMainAppUrl, isMainAppHost } from './domain-hub';
-
-/**
- * Encode chaque segment d'un chemin structuré.
- *
- * Une sous-catégorie s'exprime `parent/enfant` : encoder la chaîne entière
- * donnerait `parent%2Fenfant`, donc une 404. Les `/` restent des séparateurs.
- */
-function encodeSegments(path: string): string {
-  return path
-    .split('/')
-    .filter(Boolean)
-    .map((segment) => encodeURIComponent(segment))
-    .join('/');
-}
+import { buildArticlePath, encodeUrlPath, type CategoryUrlNode } from './article-url';
 
 const studioRoutes = {
   home: () => '/',
@@ -167,18 +154,24 @@ export const routes = {
     home: (subdomain: string, host?: string) => `${getMonorepoUrl('tenant', host, subdomain)}/`,
     /**
      * Chemin canonique d'un article tenant.
-     * `categorySlug` peut porter une sous-catégorie (`tech/ia`) : chaque segment
-     * est encodé séparément. Sans catégorie connue, on retombe sur l'ancienne
-     * forme `/article/{slug}`, qui redirige en 308 vers le canonique.
+     *
+     * `categorySlug` peut porter une sous-catégorie (`tech/ia`) : on la déplie
+     * en `{ parentSlug, slug }` pour que la composition passe par
+     * `buildArticlePath`, la SEULE implémentation du chemin canonique. Sans
+     * catégorie connue, l'article tombe dans la catégorie par défaut
+     * (`/uncategorized/{slug}`) — jamais l'ancienne forme `/article/{slug}`,
+     * qui n'existe plus que comme redirection 308.
      */
     article: (subdomain: string, slug: string, host?: string, categorySlug?: string | null) =>
-      categorySlug
-        ? `${getMonorepoUrl('tenant', host, subdomain)}/${encodeSegments(categorySlug)}/${encodeURIComponent(slug)}`
-        : `${getMonorepoUrl('tenant', host, subdomain)}/article/${encodeURIComponent(slug)}`,
+      `${getMonorepoUrl('tenant', host, subdomain)}${buildArticlePath({
+        slug,
+        category: splitCategorySlug(categorySlug),
+      })}`,
+    /** Ancienne forme `/article/{slug}` : conservée pour les liens entrante et les tests. */
     articleLegacy: (subdomain: string, slug: string, host?: string) =>
       `${getMonorepoUrl('tenant', host, subdomain)}/article/${encodeURIComponent(slug)}`,
     category: (subdomain: string, categorySlug: string, host?: string) =>
-      `${getMonorepoUrl('tenant', host, subdomain)}/${encodeSegments(categorySlug)}`,
+      `${getMonorepoUrl('tenant', host, subdomain)}/${encodeUrlPath(categorySlug)}`,
     shortArticle: (subdomain: string, shortCode: string, host?: string) =>
       `${getMonorepoUrl('tenant', host, subdomain)}/l/${encodeURIComponent(shortCode)}`,
   },
@@ -255,26 +248,24 @@ export function getCanonicalArticlePath(
   return routes.feed.article(getArticleOwner(article, fallbackOwner), article.slug);
 }
 
+/**
+ * Déplie « tech/ia » en `{ parentSlug: 'tech', slug: 'ia' }`.
+ * Une catégorie racine devient `{ slug: 'tech' }` ; rien devient `null`
+ * (et `buildArticlePath` applique alors `uncategorized`).
+ */
+function splitCategorySlug(categorySlug?: string | null): CategoryUrlNode | null {
+  const parts = (categorySlug ?? '').split('/').filter(Boolean);
+  if (parts.length === 0) return null;
+  const slug = parts[parts.length - 1];
+  return parts.length > 1 ? { slug, parentSlug: parts[0] } : { slug };
+}
+
 function getClientHost(): string | undefined {
   if (typeof globalThis !== 'undefined' && 'window' in globalThis) {
     const win = (globalThis as { window?: { location?: { host?: string } } }).window;
     return win?.location?.host;
   }
   return undefined;
-}
-
-function buildCustomDomainArticlePath(slug: string, categorySlug?: string | null): string {
-  return categorySlug
-    ? `/${encodeSegments(categorySlug)}/${encodeURIComponent(slug)}`
-    : `/article/${encodeURIComponent(slug)}`;
-}
-
-/** Chemin de catégorie `parent/enfant` (sans encodage), ou null si inconnu. */
-function articleCategoryPath(article: ArticleResolvable): string | null {
-  const slug = article.category?.slug?.trim();
-  if (!slug) return null;
-  const parent = article.category?.parentSlug?.trim();
-  return parent ? `${parent}/${slug}` : slug;
 }
 
 /**
@@ -293,25 +284,15 @@ export function getArticleUrl(
 ): string {
   if (options?.preferTenant) {
     const customDomain = article.publisher?.customDomain || article.author?.customDomain;
-    const categoryPath = articleCategoryPath(article);
+    // Une seule composition de chemin, la même que `resolveArticleShareUrl`
+    // (`@qoe/sdk`) et que la redirection `/article/{slug}` côté tenants.
+    const tenantPath = buildArticlePath(article);
     if (customDomain) {
-      return `https://${customDomain}${buildCustomDomainArticlePath(article.slug, categoryPath)}`;
+      return `https://${customDomain}${tenantPath}`;
     }
-    if (article.publisher?.subdomain) {
-      return routes.tenant.article(
-        article.publisher.subdomain,
-        article.slug,
-        options?.host,
-        categoryPath
-      );
-    }
-    if (article.author?.subdomain) {
-      return routes.tenant.article(
-        article.author.subdomain,
-        article.slug,
-        options?.host,
-        categoryPath
-      );
+    const subdomain = article.publisher?.subdomain || article.author?.subdomain;
+    if (subdomain) {
+      return `${getMonorepoUrl('tenant', options?.host, subdomain)}${tenantPath}`;
     }
   }
 

@@ -12,6 +12,7 @@ import { getLanguage } from '@qoe/i18n/server';
 import { completeOnboarding } from './onboarding-actions';
 import { fetchTenantPublisher } from '@/lib/tenant-data';
 import { AnalyticsGate } from '@/components/AnalyticsGate';
+import { normalizeTenantDomain } from '@/lib/tenant-domain';
 
 interface TenantLayoutProps {
   children: React.ReactNode;
@@ -20,7 +21,7 @@ interface TenantLayoutProps {
 
 export default async function TenantLayout({ children, params }: TenantLayoutProps) {
   const { domain } = await params;
-  const decodedDomain = decodeURIComponent(domain);
+  const decodedDomain = normalizeTenantDomain(domain);
 
   // Go-first : GET /v1/publishers/by-domain/{domain} — résolution polymorphe
   // de la Publication (personnelle OU média) comme identité tenant.

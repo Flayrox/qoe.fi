@@ -5,6 +5,14 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    // 🕐 Budget par test. Les suites de ce paquet pilotent des interactions
+    // `userEvent` réelles (chaque frappe = un rendu complet) : mesuré en L38,
+    // 1 à 6 s par test sur la machine de dev quand les 25 paquets compilent en
+    // parallèle, d'où des expirations à 5 s sur des tests verts isolément
+    // (dette R313). Le budget ne remplace aucune attente d'état : il borne
+    // seulement un blocage réel, plus haut que la durée observée.
+    testTimeout: 15_000,
+    hookTimeout: 15_000,
     setupFiles: ['./vitest.setup.ts'],
     env: {
       NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co',

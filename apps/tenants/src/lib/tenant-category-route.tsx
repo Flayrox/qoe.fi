@@ -10,6 +10,8 @@ import { TenantPageRenderer } from '@/components/TenantPageRenderer';
 import { getLanguage } from '@qoe/i18n/server';
 import { findCategoryBySlug, filterArticlesByCategory } from '@qoe/ui/templates';
 import { buildArticlePath, buildCategoryPath } from '@qoe/utils';
+import { decodeUrlSegment } from '@qoe/config/article-url';
+import { normalizeTenantDomain } from '@/lib/tenant-domain';
 
 const NUMERIC_SHORT_CODE_REGEX = /^[1-9][0-9]{4,9}$/;
 
@@ -27,8 +29,8 @@ export async function generateTenantCategoryMetadata({
   const lang = await getLanguage();
   const isFr = lang === 'fr';
 
-  const decodedDomain = decodeURIComponent(domain);
-  const decodedCategorySlug = decodeURIComponent(categorySlug);
+  const decodedDomain = normalizeTenantDomain(domain);
+  const decodedCategorySlug = decodeUrlSegment(categorySlug);
 
   const publisher = await fetchTenantPublisher(decodedDomain);
   if (!publisher) return {};
@@ -73,8 +75,8 @@ export async function TenantCategoryRoute({
   categorySlug,
   requestedPath,
 }: TenantCategoryRouteParams) {
-  const decodedDomain = decodeURIComponent(domain);
-  const decodedCategorySlug = decodeURIComponent(categorySlug);
+  const decodedDomain = normalizeTenantDomain(domain);
+  const decodedCategorySlug = decodeUrlSegment(categorySlug);
 
   const [publisher, recommendations] = await Promise.all([
     fetchTenantPublisher(decodedDomain),
@@ -125,12 +127,9 @@ export async function isTenantSubcategory(
   parentSlug: string,
   candidateSlug: string
 ): Promise<boolean> {
-  const publisher = await fetchTenantPublisher(decodeURIComponent(domain));
+  const publisher = await fetchTenantPublisher(normalizeTenantDomain(domain));
   if (!publisher) return false;
-  const parent = findCategoryBySlug(publisher.categories || [], decodeURIComponent(parentSlug));
-  const candidate = findCategoryBySlug(
-    publisher.categories || [],
-    decodeURIComponent(candidateSlug)
-  );
+  const parent = findCategoryBySlug(publisher.categories || [], decodeUrlSegment(parentSlug));
+  const candidate = findCategoryBySlug(publisher.categories || [], decodeUrlSegment(candidateSlug));
   return Boolean(parent && candidate && candidate.parentId === parent.id);
 }

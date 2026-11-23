@@ -23,13 +23,14 @@ const RESERVED_USERNAMES = new Set([
 
 import { JsonLd, buildPersonSchema } from '@qoe/ui';
 import { getLanguage } from '@qoe/i18n/server';
+import { decodeUrlSegment } from '@qoe/config/article-url';
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }) {
   const lang = await getLanguage();
   const isFr = lang === 'fr';
 
   const resolvedParams = await params;
-  const rawUsername = decodeURIComponent(resolvedParams.username).replace(/^@/, '');
+  const rawUsername = decodeUrlSegment(resolvedParams.username).replace(/^@/, '');
 
   if (STATIC_ASSET_REGEX.test(rawUsername) || RESERVED_USERNAMES.has(rawUsername)) {
     return { title: isFr ? 'Profil introuvable — qoefi' : 'Profile not found — qoefi' };
@@ -87,7 +88,7 @@ export default async function UserProfilePage({
   params: Promise<{ username: string }>;
 }) {
   const resolvedParams = await params;
-  const rawUsername = decodeURIComponent(resolvedParams.username).replace(/^@/, '');
+  const rawUsername = decodeUrlSegment(resolvedParams.username).replace(/^@/, '');
 
   if (STATIC_ASSET_REGEX.test(rawUsername) || RESERVED_USERNAMES.has(rawUsername)) {
     notFound();

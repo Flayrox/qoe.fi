@@ -3,6 +3,7 @@ import { Metadata } from 'next';
 import { fetchTenantPublisher, fetchTenantRecommendations } from '@/lib/tenant-data';
 import { TenantPageRenderer } from '@/components/TenantPageRenderer';
 import { getLanguage } from '@qoe/i18n/server';
+import { normalizeTenantDomain } from '@/lib/tenant-domain';
 
 interface PageProps {
   params: Promise<{ domain: string }>;
@@ -13,7 +14,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const isFr = lang === 'fr';
 
   const { domain } = await params;
-  const decodedDomain = decodeURIComponent(domain);
+  const decodedDomain = normalizeTenantDomain(domain);
 
   // Go-first : GET /v1/publishers/by-domain/{domain}.
   const publisher = await fetchTenantPublisher(decodedDomain);
@@ -57,7 +58,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function TenantHomepage({ params }: PageProps) {
   const { domain } = await params;
-  const decodedDomain = decodeURIComponent(domain);
+  const decodedDomain = normalizeTenantDomain(domain);
 
   // Go-first : GET /v1/publishers/by-domain/{domain} — publication avec
   // navigation, réseaux sociaux, catégories, articles et recommandations.

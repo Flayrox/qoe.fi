@@ -6,6 +6,7 @@ import { getCanonicalArticlePath, routes } from '@qoe/config/routes';
 import type { PublicProfileData } from '@qoe/sdk';
 import type { Metadata } from 'next';
 import { ProfileView } from '../components/ProfileView';
+import { decodeUrlSegment } from '@qoe/config/article-url';
 
 const VALID_TABS = [
   'thoughts',
@@ -38,7 +39,7 @@ export async function generateMetadata({
   params: Promise<{ username: string; tab: string }>;
 }): Promise<Metadata> {
   const resolvedParams = await params;
-  const rawUsername = decodeURIComponent(resolvedParams.username).replace(/^@/, '');
+  const rawUsername = decodeUrlSegment(resolvedParams.username).replace(/^@/, '');
   const rawTab = resolvedParams.tab;
 
   if (rawUsername === 'article' || rawUsername === 'articles' || rawUsername === 'a') {
@@ -102,7 +103,7 @@ export default async function UserProfileTabPage({
   params: Promise<{ username: string; tab: string }>;
 }) {
   const resolvedParams = await params;
-  const rawUsername = decodeURIComponent(resolvedParams.username).replace(/^@/, '');
+  const rawUsername = decodeUrlSegment(resolvedParams.username).replace(/^@/, '');
   const rawTab = resolvedParams.tab;
 
   if (STATIC_ASSET_REGEX.test(rawUsername)) {

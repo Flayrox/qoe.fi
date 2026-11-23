@@ -74,11 +74,20 @@ const textarea = () => screen.getByRole('textbox') as HTMLTextAreaElement;
 
 async function openDraftsSheet() {
   vi.stubGlobal('localStorage', localStorage);
+  // Pas de frappe ici : le compositeur autosauvegarde le fil dans le même
+  // store que celui qu'on teste, et ce `setTimeout` (1000 ms) se déclenche
+  // pendant les attentes sous charge — l'entrée du test disparaîtrait avant
+  // le clic. Le focus suffit à déplier le compositeur et sa barre d'outils.
   fireEvent.focus(textarea());
-  fireEvent.change(textarea(), { target: { value: 'brouillon en cours' } });
   fireEvent.click(screen.getByRole('button', { name: 'Brouillons' }));
   const seeAll = await screen.findByRole('button', { name: 'Voir tous les brouillons' });
   fireEvent.click(seeAll);
+  // La feuille charge les brouillons serveur APRÈS l'ouverture : un `click` armé
+  // sur le nœud trouvé pendant le rendu de chargement peut viser un nœud que le
+  // rendu suivant a détaché, et l'événement se perd sans erreur (flake observé
+  // en `turbo run test`, 25 paquets en parallèle). On attend donc la fin du
+  // chargement, c'est-à-dire un état de l'UI, pas une durée.
+  await waitFor(() => expect(screen.queryByText('Chargement des brouillons...')).toBeNull());
 }
 
 describe('ThoughtComposer — brouillons non fiables (L20b2b2b)', () => {
@@ -93,20 +102,45 @@ describe('ThoughtComposer — brouillons non fiables (L20b2b2b)', () => {
   it('survit à un brouillon de fil local dont les images ne sont pas un tableau', async () => {
     // Schéma d'une version antérieure (ou entrée abîmée) : `images` est une
     // chaîne, pas un tableau de pièces jointes.
-    localStorage.setItem(
-      'qoe_multi_thought_drafts',
-      JSON.stringify([{ id: 'n1', text: 'Ancien fil', images: 'oops' }])
-    );
+    const corrupted = JSON.stringify([{ id: 'n1', text: 'Ancien fil', images: 'oops' }]);
+    localStorage.setItem('qoe_multi_thought_drafts', corrupted);
     render(<ThoughtComposer dbUser={dbUser} tagsList={[]} />);
 
     await openDraftsSheet();
+    // Le store change après l'ouverture (autre onglet, autosauvegarde d'une
+    // version valide…) : « Restaurer le fil » doit appliquer ce que la feuille
+    // affichait, donc l'instantané pris à l'ouverture — et échouer ici.
+    localStorage.setItem(
+      'qoe_multi_thought_drafts',
+      JSON.stringify([{ id: 'n2', text: 'Fil valide', images: [] }])
+    );
     fireEvent.click(await screen.findByRole('button', { name: 'Restaurer le fil' }));
 
-    // Sous charge (25 paquets en parallèle), le rendu jsdom dépasse la borne
-    // par défaut de `waitFor` (1 s) : c'est la borne qui cède, pas l'assertion.
-    await waitFor(() => expect(toastMock.error).toHaveBeenCalled(), { timeout: 5_000 });
+    await waitFor(() => expect(toastMock.error).toHaveBeenCalled());
+    expect(toastMock.success).not.toHaveBeenCalled();
     // Le compositeur reste utilisable : le champ est toujours là.
     expect(screen.getByRole('textbox')).toBeDefined();
+  });
+
+  it('ne réécrit pas le store local pendant que la feuille de brouillons est ouverte', async () => {
+    vi.stubGlobal('localStorage', localStorage);
+    render(<ThoughtComposer dbUser={dbUser} tagsList={[]} />);
+
+    // Frappe puis ouverture dans le même tick : l'autosauvegarde (debounce
+    // 1000 ms) est encore en attente quand la feuille s'ouvre, et elle doit
+    // être annulée — sinon elle écrase le brouillon que la feuille affiche.
+    fireEvent.focus(textarea());
+    fireEvent.change(textarea(), { target: { value: 'brouillon en cours' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Brouillons' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Voir tous les brouillons' }));
+
+    const corrupted = JSON.stringify([{ id: 'n1', text: 'Ancien fil', images: 'oops' }]);
+    localStorage.setItem('qoe_multi_thought_drafts', corrupted);
+
+    // Au-delà du debounce : la laisser écrire ici rendrait la prévisualisation
+    // de la feuille et « Restaurer le fil » incohérents.
+    await new Promise((resolve) => setTimeout(resolve, 1_300));
+    expect(localStorage.getItem('qoe_multi_thought_drafts')).toBe(corrupted);
   });
 
   it('ne charge que les URLs valides d’un imageUrl sérialisé', async () => {

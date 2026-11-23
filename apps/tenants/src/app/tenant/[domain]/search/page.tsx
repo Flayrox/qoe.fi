@@ -6,6 +6,7 @@ import { TenantPageShell } from '@/components/TenantPageShell';
 import { TenantSearchClient, type SearchArticleItem } from './TenantSearchClient';
 import { filterTenantArticles } from './filter';
 import { MinimalCraftShell, type TemplatePublisherContext } from '@qoe/ui/templates';
+import { normalizeTenantDomain } from '@/lib/tenant-domain';
 
 interface PageProps {
   params: Promise<{ domain: string }>;
@@ -14,7 +15,7 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { domain } = await params;
-  const decodedDomain = decodeURIComponent(domain);
+  const decodedDomain = normalizeTenantDomain(domain);
   const publisher = await fetchTenantPublisher(decodedDomain);
   const name = publisher?.name || decodedDomain;
   return {
@@ -35,7 +36,7 @@ function plainText(html: string): string {
 export default async function TenantSearchPage({ params, searchParams }: PageProps) {
   const { domain } = await params;
   const { q, category } = await searchParams;
-  const decodedDomain = decodeURIComponent(domain);
+  const decodedDomain = normalizeTenantDomain(domain);
   const query = (q || '').trim();
   const selectedCategory = (category || 'all').trim() || 'all';
 

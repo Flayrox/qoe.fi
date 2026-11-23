@@ -5,6 +5,8 @@ import { headers } from 'next/headers';
 import type { Metadata } from 'next';
 import { fetchTenantPublisher } from '@/lib/tenant-data';
 import { TenantPageShell } from '@/components/TenantPageShell';
+import { decodeUrlSegment } from '@qoe/config/article-url';
+import { normalizeTenantDomain } from '@/lib/tenant-domain';
 
 interface PageProps {
   params: Promise<{ domain: string; username: string }>;
@@ -12,8 +14,8 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { domain, username } = await params;
-  const decodedDomain = decodeURIComponent(domain);
-  const decodedUsername = decodeURIComponent(username);
+  const decodedDomain = normalizeTenantDomain(domain);
+  const decodedUsername = decodeUrlSegment(username);
   const publisher = await fetchTenantPublisher(decodedDomain);
   const name = publisher?.name || decodedDomain;
   return {
@@ -28,8 +30,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function TenantAuthorPage({ params }: PageProps) {
   const { domain, username } = await params;
-  const decodedDomain = decodeURIComponent(domain);
-  const decodedUsername = decodeURIComponent(username).replace(/^@/, '');
+  const decodedDomain = normalizeTenantDomain(domain);
+  const decodedUsername = decodeUrlSegment(username).replace(/^@/, '');
   const publisher = await fetchTenantPublisher(decodedDomain);
   if (!publisher) notFound();
 

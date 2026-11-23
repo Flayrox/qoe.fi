@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react';
 import { fetchTenantPublisher } from '@/lib/tenant-data';
 import { TenantPageShell } from '@/components/TenantPageShell';
 import { PeopleSection } from '@qoe/ui';
+import { normalizeTenantDomain } from '@/lib/tenant-domain';
 
 interface PageProps {
   params: Promise<{ domain: string }>;
@@ -13,7 +14,7 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { domain } = await params;
-  const decodedDomain = decodeURIComponent(domain);
+  const decodedDomain = normalizeTenantDomain(domain);
   const publisher = await fetchTenantPublisher(decodedDomain);
   const name = publisher?.name || decodedDomain;
   return {
@@ -26,7 +27,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function TenantTeamPage({ params }: PageProps) {
   const { domain } = await params;
-  const decodedDomain = decodeURIComponent(domain);
+  const decodedDomain = normalizeTenantDomain(domain);
   const publisher = await fetchTenantPublisher(decodedDomain);
   if (!publisher) notFound();
 

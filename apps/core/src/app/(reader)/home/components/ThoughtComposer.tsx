@@ -62,6 +62,11 @@ export function ThoughtComposer({
 
   const [loadedDraftId, setLoadedDraftId] = useState<string | null>(null);
   const [isDraftsOpen, setIsDraftsOpen] = useState(false);
+  // Instantané du brouillon de fil local, pris à l'ouverture de la feuille :
+  // c'est la valeur prévisualisée, et c'est exactement celle que « Restaurer »
+  // applique. Deux lectures à deux instants différents laissaient l'utilisateur
+  // voir un brouillon et en restaurer un autre.
+  const [localThreadDraftRaw, setLocalThreadDraftRaw] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<ThoughtDraft[]>([]);
   const [loadingDrafts, setLoadingDrafts] = useState(false);
 
@@ -193,6 +198,12 @@ export function ThoughtComposer({
     if (threadNodes.length <= 1 && !postText.trim() && images.length === 0) {
       return;
     }
+    // La feuille de brouillons lit ce même store pour sa prévisualisation et
+    // pour « Restaurer le fil » : tant qu'elle est ouverte, on n'écrit pas,
+    // sinon l'utilisateur peut voir un brouillon et en restaurer un autre.
+    if (isDraftsOpen) {
+      return;
+    }
     const timer = setTimeout(() => {
       const finalNodes = [...threadNodes];
       if (finalNodes[activeNodeIndex]) {
@@ -221,6 +232,7 @@ export function ThoughtComposer({
     pollDurationHours,
     activeNodeIndex,
     threadNodes,
+    isDraftsOpen,
   ]);
 
   const {
@@ -341,7 +353,7 @@ export function ThoughtComposer({
   };
 
   const handleLoadLocalThreadDraft = () => {
-    const parsed = parseStoredThreadNodes(localStorage.getItem(LOCAL_THREAD_DRAFT_KEY));
+    const parsed = parseStoredThreadNodes(localThreadDraftRaw);
     if (!parsed) {
       toast.error(t`Impossible de restaurer le fil.`);
       setIsDraftsOpen(false);
@@ -704,7 +716,10 @@ export function ThoughtComposer({
                 }}
                 showDraftPopover={showDraftPopover}
                 onShowDraftPopoverChange={setShowDraftPopover}
-                onOpenDrafts={() => setIsDraftsOpen(true)}
+                onOpenDrafts={() => {
+                  setLocalThreadDraftRaw(localStorage.getItem(LOCAL_THREAD_DRAFT_KEY));
+                  setIsDraftsOpen(true);
+                }}
                 onSaveDraft={(e) => void handlePostSubmit(e, true)}
                 onImageUpload={handlePostImageUpload}
                 onAddThreadNode={addThreadNode}
@@ -717,10 +732,12 @@ export function ThoughtComposer({
       <DraftsSheet
         open={isDraftsOpen}
         onOpenChange={setIsDraftsOpen}
+        rawLocalDraft={localThreadDraftRaw}
         drafts={drafts}
         loadingDrafts={loadingDrafts}
         onClearLocalThreadDraft={() => {
           localStorage.removeItem(LOCAL_THREAD_DRAFT_KEY);
+          setLocalThreadDraftRaw(null);
           toast.success(t`Brouillon local supprimé.`);
           setThreadNodes([createEmptyThreadNode()]);
         }}

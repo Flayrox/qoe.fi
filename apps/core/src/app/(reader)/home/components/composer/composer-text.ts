@@ -29,18 +29,47 @@ export function getUrls(text: string): string[] {
   return text.match(urlRegex) || [];
 }
 
+/** Domaine racine des publications (même variable que `@qoe/sdk`). */
+function publicationsRoot(): string {
+  return (process.env.NEXT_PUBLIC_TENANT_DOMAIN ?? 'qoe.fi').trim().toLowerCase();
+}
+
+/**
+ * Une URL de la plateforme est-elle interne ?
+ *
+ * La règle porte sur l'**hôte**, pas sur un préfixe de chemin : les formes
+ * historiques `/post/…` et `/article/…` ne sont plus générées (le canonique
+ * est `/{proprietaire}/a/{slug}` sur le core et `/{categorie}/{slug}` sur un
+ * tenant), donc tester ces préfixes rendait toute URL interne payante.
+ *
+ * Est interne : le domaine racine, n'importe quel sous-domaine de publication
+ * (`media.qoe.fi`), et l'hôte du document courant (dev sur `qoe.test`).
+ */
+export function isInternalPublicationUrl(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    const root = publicationsRoot();
+    if (root && (host === root || host.endsWith(`.${root}`))) return true;
+    const current =
+      typeof globalThis !== 'undefined' && 'location' in globalThis
+        ? (globalThis as { location?: { hostname?: string } }).location?.hostname?.toLowerCase()
+        : undefined;
+    return Boolean(current) && host === current;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Calcule la longueur pondérée d'une pensée : une URL externe compte pour
- * 20 caractères (règle produit), une URL interne (`/post/` ou `/article/`)
- * est gratuite.
+ * 20 caractères (règle produit), une URL interne de la plateforme est gratuite.
  */
 export function calculateCharacters(text: string): number {
   const urls = getUrls(text);
   let len = text.length;
   for (const url of urls) {
     len -= url.length;
-    const isInternal = url.includes('/post/') || url.includes('/article/');
-    if (!isInternal) {
+    if (!isInternalPublicationUrl(url)) {
       len += 20;
     }
   }

@@ -6,6 +6,7 @@ import { TenantPageShell } from '@/components/TenantPageShell';
 import { AboutPageContent } from '@qoe/ui';
 import { markdownToHtml } from '@qoe/utils';
 import { sanitizeHtml } from '@/lib/sanitize';
+import { normalizeTenantDomain } from '@/lib/tenant-domain';
 
 interface PageProps {
   params: Promise<{ domain: string }>;
@@ -31,7 +32,7 @@ async function resolveAboutArticle(
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { domain } = await params;
-  const decodedDomain = decodeURIComponent(domain);
+  const decodedDomain = normalizeTenantDomain(domain);
   const publisher = await fetchTenantPublisher(decodedDomain);
   const name = publisher?.name || decodedDomain;
 
@@ -51,7 +52,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function TenantAboutPage({ params }: PageProps) {
   const { domain } = await params;
-  const decodedDomain = decodeURIComponent(domain);
+  const decodedDomain = normalizeTenantDomain(domain);
   const publisher = await fetchTenantPublisher(decodedDomain);
   if (!publisher) notFound();
 
