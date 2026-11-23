@@ -189,31 +189,32 @@ type SettingsOwner struct {
 // SettingsPublication est la publication complète de la page settings
 // (mêmes champs JSON que le include Prisma — mapping studio inchangé).
 type SettingsPublisher struct {
-	ID             string               `json:"id"`
-	Name           string               `json:"name"`
-	Slug           string               `json:"slug"`
-	Subdomain      *string              `json:"subdomain"`
-	CustomDomain   *string              `json:"customDomain"`
-	HeroText       *string              `json:"heroText"`
-	AccentColor    *string              `json:"accentColor"`
-	FontFamily     *string              `json:"fontFamily"`
-	ThemeMode      *string              `json:"themeMode"`
-	LayoutStyle    *string              `json:"layoutStyle"`
-	LogoURL        *string              `json:"logoUrl"`
-	HeaderImageURL *string              `json:"headerImageUrl"`
-	FooterText     *string              `json:"footerText"`
-	SeoTitle       *string              `json:"seoTitle"`
-	SeoDescription *string              `json:"seoDescription"`
-	AllowIndexing  bool                 `json:"allowIndexing"`
-	SupportURL     *string              `json:"supportUrl"`
-	Type           string               `json:"type"`
-	UmamiWebsiteID *string              `json:"umamiWebsiteId"`
-	SiteOptions    map[string]any       `json:"siteOptions"`
-	Navigation     []SettingsNavItem    `json:"navigation"`
-	SocialLinks    []SettingsSocialLink `json:"socialLinks"`
-	Articles       []SettingsArticle    `json:"articles"`
-	Categories     []SettingsCategory   `json:"categories"`
-	User           *SettingsOwner       `json:"user"`
+	ID              string               `json:"id"`
+	Name            string               `json:"name"`
+	Slug            string               `json:"slug"`
+	Subdomain       *string              `json:"subdomain"`
+	CustomDomain    *string              `json:"customDomain"`
+	HeroText        *string              `json:"heroText"`
+	AccentColor     *string              `json:"accentColor"`
+	FontFamily      *string              `json:"fontFamily"`
+	ThemeMode       *string              `json:"themeMode"`
+	LayoutStyle     *string              `json:"layoutStyle"`
+	LogoURL         *string              `json:"logoUrl"`
+	HeaderImageURL  *string              `json:"headerImageUrl"`
+	FooterText      *string              `json:"footerText"`
+	SeoTitle        *string              `json:"seoTitle"`
+	SeoDescription  *string              `json:"seoDescription"`
+	AllowIndexing   bool                 `json:"allowIndexing"`
+	SupportURL      *string              `json:"supportUrl"`
+	Type            string               `json:"type"`
+	UmamiWebsiteID  *string              `json:"umamiWebsiteId"`
+	SubscriberCount int32                `json:"subscriberCount"`
+	SiteOptions     map[string]any       `json:"siteOptions"`
+	Navigation      []SettingsNavItem    `json:"navigation"`
+	SocialLinks     []SettingsSocialLink `json:"socialLinks"`
+	Articles        []SettingsArticle    `json:"articles"`
+	Categories      []SettingsCategory   `json:"categories"`
+	User            *SettingsOwner       `json:"user"`
 }
 
 // GetPublisherSettings retourne la publication + relations de la page
@@ -223,8 +224,15 @@ func (s *Service) GetPublisherSettings(ctx context.Context, userID, publisherID 
 	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
 		return nil, errForbidden
 	}
+	return s.readPublisherSettings(ctx, s.q, publisherID)
+}
 
-	row, err := s.q.GetPublisherForSettings(ctx, publisherID)
+// readPublisherSettings lit l'état canonique d'une publication pour la page
+// settings. Le querier est un paramètre : la même lecture sert après écriture
+// (dans la transaction) pour renvoyer exactement ce qui est en base, plutôt
+// qu'un état reconstruit côté client.
+func (s *Service) readPublisherSettings(ctx context.Context, q ServiceQuerier, publisherID string) (*SettingsPublisher, error) {
+	row, err := q.GetPublisherForSettings(ctx, publisherID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errNotFound
@@ -262,7 +270,7 @@ func (s *Service) GetPublisherSettings(ctx context.Context, userID, publisherID 
 		}
 	}
 
-	navRows, err := s.q.ListNavigationForPublisher(ctx, publisherID)
+	navRows, err := q.ListNavigationForPublisher(ctx, publisherID)
 	if err != nil {
 		return nil, err
 	}
@@ -273,7 +281,7 @@ func (s *Service) GetPublisherSettings(ctx context.Context, userID, publisherID 
 		})
 	}
 
-	socialRows, err := s.q.ListSocialLinksForPublisher(ctx, publisherID)
+	socialRows, err := q.ListSocialLinksForPublisher(ctx, publisherID)
 	if err != nil {
 		return nil, err
 	}
@@ -283,7 +291,7 @@ func (s *Service) GetPublisherSettings(ctx context.Context, userID, publisherID 
 		})
 	}
 
-	articleRows, err := s.q.ListArticlesForSettings(ctx, publisherID)
+	articleRows, err := q.ListArticlesForSettings(ctx, publisherID)
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +305,7 @@ func (s *Service) GetPublisherSettings(ctx context.Context, userID, publisherID 
 		})
 	}
 
-	catRows, err := s.q.ListCategoriesForPublisher(ctx, publisherID)
+	catRows, err := q.ListCategoriesForPublisher(ctx, publisherID)
 	if err != nil {
 		return nil, err
 	}
@@ -310,6 +318,14 @@ func (s *Service) GetPublisherSettings(ctx context.Context, userID, publisherID 
 			ParentID:    textPtr(c.ParentId),
 		})
 	}
+
+	// Compteur d'abonnés calculé en base (R148) : l'écran ne doit jamais
+	// afficher une constante.
+	audience, err := q.GetAudienceSummary(ctx, publisherID)
+	if err != nil {
+		return nil, err
+	}
+	pub.SubscriberCount = audience.Total
 
 	return pub, nil
 }
@@ -332,9 +348,22 @@ var profileStringColumns = map[string]string{
 
 // UpdateProfile applique une mise à jour partielle du profil (miroir updateCreatorProfileAction).
 // body : clés présentes = champs à modifier, valeur null = effacer.
-func (s *Service) UpdateProfile(ctx context.Context, userID, publisherID string, body map[string]any) (db.GetUserForSettingsRow, error) {
-	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
-		return db.GetUserForSettingsRow{}, err
+// buildProfileFields valide et normalise les champs de profil d'une requête
+// partielle (clé absente = champ inchangé, null = champ effacé). Source unique
+// pour PATCH /v1/settings/profile et PATCH /v1/settings/publisher : deux
+// validations parallèles divergeraient au premier champ ajouté.
+func buildProfileFields(body map[string]any) (map[string]any, *pgtype.Text, error) {
+	// Une clé inconnue est une faute de frappe du client, pas un champ à
+	// ignorer en silence : elle ferait croire à un enregistrement réussi.
+	for key := range body {
+		switch key {
+		case "allowIndexing", "siteOptions", "onboardingText":
+			continue
+		}
+		if _, ok := profileStringColumns[key]; !ok {
+			// 400, pas 500 : c'est une requête malformée, pas une panne.
+			return nil, nil, invalid("champ inconnu: %s", key)
+		}
 	}
 
 	fields := map[string]any{}
@@ -350,7 +379,7 @@ func (s *Service) UpdateProfile(ctx context.Context, userID, publisherID string,
 				}
 				if key == "logoUrl" || key == "headerImageUrl" || key == "supportUrl" {
 					if err := antispam.ValidateSafeURL(v.(string)); err != nil {
-						return db.GetUserForSettingsRow{}, err
+						return nil, nil, err
 					}
 					fields[col] = v
 				} else {
@@ -366,19 +395,19 @@ func (s *Service) UpdateProfile(ctx context.Context, userID, publisherID string,
 						CheckXSS:      true,
 					})
 					if err != nil {
-						return db.GetUserForSettingsRow{}, err
+						return nil, nil, err
 					}
 					fields[col] = cleaned
 				}
 			default:
-				return db.GetUserForSettingsRow{}, fmt.Errorf("champ invalide: %s", key)
+				return nil, nil, fmt.Errorf("champ invalide: %s", key)
 			}
 		}
 	}
 	if v, ok := body["allowIndexing"]; ok {
 		b, ok := v.(bool)
 		if !ok {
-			return db.GetUserForSettingsRow{}, errors.New("allowIndexing doit être un booléen")
+			return nil, nil, errors.New("allowIndexing doit être un booléen")
 		}
 		fields["allowIndexing"] = b
 	}
@@ -388,7 +417,7 @@ func (s *Service) UpdateProfile(ctx context.Context, userID, publisherID string,
 		} else {
 			raw, err := json.Marshal(v)
 			if err != nil {
-				return db.GetUserForSettingsRow{}, errors.New("siteOptions JSON invalide")
+				return nil, nil, errors.New("siteOptions JSON invalide")
 			}
 			fields["siteOptions"] = raw
 		}
@@ -398,7 +427,7 @@ func (s *Service) UpdateProfile(ctx context.Context, userID, publisherID string,
 	if v, ok := body["onboardingText"]; ok {
 		t, err := textFromAny(v)
 		if err != nil {
-			return db.GetUserForSettingsRow{}, err
+			return nil, nil, err
 		}
 		if t.Valid {
 			cleaned, err := antispam.SanitizeAndValidateText(t.String, 0, 1000, antispam.TextOptions{
@@ -406,11 +435,24 @@ func (s *Service) UpdateProfile(ctx context.Context, userID, publisherID string,
 				CheckXSS:      true,
 			})
 			if err != nil {
-				return db.GetUserForSettingsRow{}, err
+				return nil, nil, err
 			}
 			t = pgtype.Text{String: cleaned, Valid: cleaned != ""}
 		}
 		onboarding = &t
+	}
+
+	return fields, onboarding, nil
+}
+
+func (s *Service) UpdateProfile(ctx context.Context, userID, publisherID string, body map[string]any) (db.GetUserForSettingsRow, error) {
+	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
+		return db.GetUserForSettingsRow{}, err
+	}
+
+	fields, onboarding, err := buildProfileFields(body)
+	if err != nil {
+		return db.GetUserForSettingsRow{}, err
 	}
 
 	// Profil et texte d'onboarding sont deux écritures : une seule transaction,
@@ -547,55 +589,83 @@ func (s *Service) CheckSubdomain(ctx context.Context, subdomain string) (availab
 	return true, "", nil
 }
 
-// UpdateSubdomain change le sous-domaine de la publication active. Un
-// sous-domaine vide retire le sous-domaine (chemin explicite, plus de branche
-// morte réservée au handler). Retourne la valeur réellement enregistrée.
-func (s *Service) UpdateSubdomain(ctx context.Context, userID, publisherID, subdomain string) (string, error) {
-	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
-		return "", err
-	}
-	if strings.TrimSpace(subdomain) == "" {
-		if err := s.q.UpdatePublisherSubdomain(ctx, db.UpdatePublisherSubdomainParams{
-			ID:        publisherID,
-			Subdomain: pgtype.Text{Valid: false},
-		}); err != nil {
-			return "", err
-		}
+// normalizeSubdomainInput normalise et valide la forme d'un sous-domaine.
+// La chaîne vide signifie « retirer le sous-domaine » et n'est pas une erreur.
+func normalizeSubdomainInput(raw string) (string, error) {
+	if strings.TrimSpace(raw) == "" {
 		return "", nil
 	}
-
-	clean, reason := validateSubdomain(subdomain)
+	clean, reason := validateSubdomain(raw)
 	if reason != "" {
 		return "", invalid("%s", reason)
 	}
+	return clean, nil
+}
 
-	existsOther, err := s.q.CheckSubdomainExistsOther(ctx, db.CheckSubdomainExistsOtherParams{
+// assertSubdomainAllowed refuse un nom réservé par la plateforme. Lecture de
+// configuration faite avant la transaction (aucune écriture partielle).
+func (s *Service) assertSubdomainAllowed(ctx context.Context, clean string) error {
+	reserved, err := isReservedIdentifier(ctx, s.pool, "subdomain", clean)
+	if err != nil {
+		return err
+	}
+	if reserved || identifier.IsReserved(clean) {
+		return invalid("Ce nom de sous-domaine est réservé par la plateforme.")
+	}
+	return nil
+}
+
+// writeSubdomainTx écrit le sous-domaine dans la transaction fournie. L'index
+// unique de la base reste l'autorité sous concurrence : une collision devient
+// une erreur de validation, jamais un 500.
+func writeSubdomainTx(ctx context.Context, q ServiceQuerier, publisherID, clean string) error {
+	if clean == "" {
+		return q.UpdatePublisherSubdomain(ctx, db.UpdatePublisherSubdomainParams{
+			ID:        publisherID,
+			Subdomain: pgtype.Text{Valid: false},
+		})
+	}
+	existsOther, err := q.CheckSubdomainExistsOther(ctx, db.CheckSubdomainExistsOtherParams{
 		Subdomain: pgtype.Text{String: clean, Valid: true},
 		ID:        publisherID,
 	})
 	if err != nil {
-		return "", err
+		return err
 	}
 	if existsOther {
-		return "", invalid("Ce sous-domaine est déjà attribué à une autre publication.")
+		return invalid("Ce sous-domaine est déjà attribué à une autre publication.")
 	}
-	reserved, err := isReservedIdentifier(ctx, s.pool, "subdomain", clean)
-	if err != nil {
-		return "", err
-	}
-	if reserved || identifier.IsReserved(clean) {
-		return "", invalid("Ce nom de sous-domaine est réservé par la plateforme.")
-	}
-
-	if err := s.q.UpdatePublisherSubdomain(ctx, db.UpdatePublisherSubdomainParams{
+	if err := q.UpdatePublisherSubdomain(ctx, db.UpdatePublisherSubdomainParams{
 		ID:        publisherID,
 		Subdomain: pgtype.Text{String: clean, Valid: true},
 	}); err != nil {
-		// The database unique index is authoritative under concurrent requests.
-		// Do not leak a driver error or turn a race into a 500.
 		if isUniqueViolation(err) {
-			return "", invalid("Ce sous-domaine est déjà attribué à une autre publication.")
+			return invalid("Ce sous-domaine est déjà attribué à une autre publication.")
 		}
+		return err
+	}
+	return nil
+}
+
+// UpdateSubdomain change le sous-domaine de la publication active. Un
+// sous-domaine vide retire le sous-domaine. Retourne la valeur réellement
+// enregistrée.
+func (s *Service) UpdateSubdomain(ctx context.Context, userID, publisherID, subdomain string) (string, error) {
+	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
+		return "", err
+	}
+	clean, err := normalizeSubdomainInput(subdomain)
+	if err != nil {
+		return "", err
+	}
+	if clean != "" {
+		if err := s.assertSubdomainAllowed(ctx, clean); err != nil {
+			return "", err
+		}
+	}
+	if err := s.withTx(ctx, func(tx pgx.Tx) error {
+		return writeSubdomainTx(ctx, s.qtx(tx), publisherID, clean)
+	}); err != nil {
 		return "", err
 	}
 	return clean, nil
@@ -612,11 +682,8 @@ type NavigationLink struct {
 	URL   string `json:"url"`
 }
 
-// SaveNavigation remplace la liste des liens de navigation.
-func (s *Service) SaveNavigation(ctx context.Context, userID, publisherID string, links []NavigationLink) error {
-	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
-		return err
-	}
+// validateNavigationLinks normalise et valide les liens de navigation.
+func validateNavigationLinks(links []NavigationLink) error {
 	if len(links) > 20 {
 		return &antispam.RejectionError{HTTPStatus: 400, Code: antispam.CodeContentTooLarge, Message: "Maximum 20 liens de navigation autorisés."}
 	}
@@ -633,25 +700,40 @@ func (s *Service) SaveNavigation(ctx context.Context, userID, publisherID string
 			return err
 		}
 	}
-	// Remplacement atomique : le DELETE puis les inserts vivaient hors
-	// transaction, une panne au milieu effaçait définitivement tous les liens.
-	return s.withTx(ctx, func(tx pgx.Tx) error {
-		q := s.qtx(tx)
-		if err := q.DeleteNavigationItems(ctx, publisherID); err != nil {
+	return nil
+}
+
+// replaceNavigationTx remplace les liens dans la transaction fournie : le
+// DELETE puis les INSERT ne doivent jamais être séparés (une panne au milieu
+// effacerait définitivement tous les liens).
+func replaceNavigationTx(ctx context.Context, q ServiceQuerier, publisherID string, links []NavigationLink) error {
+	if err := q.DeleteNavigationItems(ctx, publisherID); err != nil {
+		return err
+	}
+	for i, link := range links {
+		if err := q.InsertNavigationItem(ctx, db.InsertNavigationItemParams{
+			Label:       link.Label,
+			Url:         textFromString(link.URL),
+			Order:       int32(i),
+			IsExternal:  strings.HasPrefix(link.URL, "http"),
+			PublisherId: publisherID,
+		}); err != nil {
 			return err
 		}
-		for i, link := range links {
-			if err := q.InsertNavigationItem(ctx, db.InsertNavigationItemParams{
-				Label:       link.Label,
-				Url:         textFromString(link.URL),
-				Order:       int32(i),
-				IsExternal:  strings.HasPrefix(link.URL, "http"),
-				PublisherId: publisherID,
-			}); err != nil {
-				return err
-			}
-		}
-		return nil
+	}
+	return nil
+}
+
+// SaveNavigation remplace la liste des liens de navigation.
+func (s *Service) SaveNavigation(ctx context.Context, userID, publisherID string, links []NavigationLink) error {
+	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
+		return err
+	}
+	if err := validateNavigationLinks(links); err != nil {
+		return err
+	}
+	return s.withTx(ctx, func(tx pgx.Tx) error {
+		return replaceNavigationTx(ctx, s.qtx(tx), publisherID, links)
 	})
 }
 
@@ -661,11 +743,8 @@ type SocialLink struct {
 	URL      string `json:"url"`
 }
 
-// SaveSocial remplace la liste des liens sociaux.
-func (s *Service) SaveSocial(ctx context.Context, userID, publisherID string, links []SocialLink) error {
-	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
-		return err
-	}
+// validateSocialLinks normalise et valide les liens sociaux.
+func validateSocialLinks(links []SocialLink) error {
 	if len(links) > 20 {
 		return &antispam.RejectionError{HTTPStatus: 400, Code: antispam.CodeContentTooLarge, Message: "Maximum 20 liens sociaux autorisés."}
 	}
@@ -682,23 +761,37 @@ func (s *Service) SaveSocial(ctx context.Context, userID, publisherID string, li
 			return err
 		}
 	}
-	// Idem navigation : DELETE + INSERT atomiques.
-	return s.withTx(ctx, func(tx pgx.Tx) error {
-		q := s.qtx(tx)
-		if err := q.DeleteSocialLinks(ctx, publisherID); err != nil {
+	return nil
+}
+
+// replaceSocialTx remplace les liens sociaux dans la transaction fournie.
+func replaceSocialTx(ctx context.Context, q ServiceQuerier, publisherID string, links []SocialLink) error {
+	if err := q.DeleteSocialLinks(ctx, publisherID); err != nil {
+		return err
+	}
+	for i, link := range links {
+		if err := q.InsertSocialLink(ctx, db.InsertSocialLinkParams{
+			Platform:    link.Platform,
+			Url:         link.URL,
+			Order:       int32(i),
+			PublisherId: publisherID,
+		}); err != nil {
 			return err
 		}
-		for i, link := range links {
-			if err := q.InsertSocialLink(ctx, db.InsertSocialLinkParams{
-				Platform:    link.Platform,
-				Url:         link.URL,
-				Order:       int32(i),
-				PublisherId: publisherID,
-			}); err != nil {
-				return err
-			}
-		}
-		return nil
+	}
+	return nil
+}
+
+// SaveSocial remplace la liste des liens sociaux.
+func (s *Service) SaveSocial(ctx context.Context, userID, publisherID string, links []SocialLink) error {
+	if err := s.authorizeSettings(ctx, userID, publisherID); err != nil {
+		return err
+	}
+	if err := validateSocialLinks(links); err != nil {
+		return err
+	}
+	return s.withTx(ctx, func(tx pgx.Tx) error {
+		return replaceSocialTx(ctx, s.qtx(tx), publisherID, links)
 	})
 }
 

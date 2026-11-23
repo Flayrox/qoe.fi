@@ -35,6 +35,7 @@ func TestP0ProtectedRoutesRequireAuthentication(t *testing.T) {
 		{"creator me", http.MethodGet, "/v1/users/me"},
 		{"creator categories", http.MethodGet, "/v1/categories"},
 		{"settings publication", http.MethodGet, "/v1/settings/publisher?publisherId=missing"},
+		{"settings publication patch", http.MethodPatch, "/v1/settings/publisher"},
 		{"settings preferences", http.MethodGet, "/v1/settings/preferences"},
 		{"workspaces active", http.MethodGet, "/v1/workspaces/active"},
 		{"media workspaces", http.MethodGet, "/v1/media/workspaces"},

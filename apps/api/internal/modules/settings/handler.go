@@ -31,6 +31,10 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Route("/v1/settings", func(r chi.Router) {
 		r.Patch("/profile", h.updateProfile)
 		r.Get("/publisher", h.getPublisherSettings)
+		// Mise à jour atomique de la page settings : profil, sous-domaine,
+		// navigation et réseaux sociaux dans une seule transaction, avec
+		// relecture canonique dans la réponse.
+		r.Patch("/publisher", h.updatePublisherSettings)
 		r.Get("/preferences", h.getPreferences)
 		r.Get("/consent", h.getConsent)
 		r.Patch("/consent", h.updateConsent)
@@ -119,6 +123,32 @@ func (h *Handler) getPublisherSettings(w http.ResponseWriter, r *http.Request) {
 	pub, err := h.svc.GetPublisherSettings(r.Context(), userID, publisherID)
 	if err != nil {
 		writeSettingsError(w, err, "getPublisherSettings")
+		return
+	}
+	response.OK(w, pub)
+}
+
+// PATCH /v1/settings/publisher — mise à jour partielle et atomique.
+func (h *Handler) updatePublisherSettings(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireUser(w, r)
+	if !ok {
+		return
+	}
+	var in PublisherSettingsPatch
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	if in.PublisherID == "" {
+		in.PublisherID = r.URL.Query().Get("publisherId")
+	}
+	if in.PublisherID == "" {
+		response.BadRequest(w, "publisherId requis")
+		return
+	}
+	pub, err := h.svc.UpdatePublisherSettings(r.Context(), userID, in)
+	if err != nil {
+		writeSettingsError(w, err, "updatePublisherSettings")
 		return
 	}
 	response.OK(w, pub)
