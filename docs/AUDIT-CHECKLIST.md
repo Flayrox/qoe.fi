@@ -9485,8 +9485,8 @@ défaut, même scénario, attente devenue vraie. Aucun test supprimé ni skippé
 
 Scan exhaustif de `apps/admin/src/**` (`.ts` **et** `.tsx`, tests exclus) : **0**
 `catch` rendant `[]`/`{}`/`EMPTY_*` — mesuré sur 32 `catch` restants, tous
-d'analyse locale (JSON, `localStorage`, `srcDoc`) ou de relance. **22** appels
-`readOr` dans 7 modules ; **23** surfaces nomment leur lecture impossible.
+d'analyse locale (JSON, `localStorage`, `srcDoc`) ou de relance. **24** appels
+`readOr` dans 7 modules (l'un d'eux, `itemsOrEmpty`, sert quatre loaders d'accès) ; **23** surfaces nomment leur lecture impossible.
 
 ### Reliquat de `apps/admin/src/**`, nommé
 
