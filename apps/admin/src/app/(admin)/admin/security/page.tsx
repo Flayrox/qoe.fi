@@ -5,7 +5,7 @@
 import React from 'react';
 import { MetricChips } from '@/components/shell/MetricChips';
 import { getAdminIdentity, hasCapability, requireCapability } from '@/lib/admin-identity';
-import { getSecurityOverview } from '@/lib/admin-security-data';
+import { describeAuthzEnforcement, getSecurityOverview } from '@/lib/admin-security-data';
 import { SecurityCockpit } from './SecurityCockpit';
 
 export const dynamic = 'force-dynamic';
@@ -15,6 +15,7 @@ export default async function AdminSecurityPage() {
   requireCapability(identity, 'admin.abuse.read');
 
   const overview = await getSecurityOverview();
+  const authzMode = describeAuthzEnforcement(overview.authzEnforceEnabled);
   const canDecide = hasCapability(identity, 'admin.abuse.decide');
 
   const dismissalLabel =
@@ -37,8 +38,9 @@ export default async function AdminSecurityPage() {
           items={[
             {
               label: 'Authz',
-              value: overview.authzEnforceEnabled ? 'enforce' : 'observe',
-              tone: overview.authzEnforceEnabled ? 'default' : 'warn',
+              value: authzMode.value,
+              tone: authzMode.tone,
+              hint: authzMode.detail,
             },
             {
               label: 'Shadowbans',

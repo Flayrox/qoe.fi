@@ -30,6 +30,25 @@ import { Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from 
 import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
 import { updateCreatorApiAccessAction, updateCreatorApiGrantsAction } from '@qoe/sdk/actions/admin';
 import { attemptWithStepUp, notifyActionFailure, readMessage } from '@/lib/authz-feedback';
+import {
+  apiAccessActions,
+  resolveApiAccessStatus,
+  type ApiAccessStatus,
+  type ResolvedStatus,
+} from '@/lib/status-display';
+
+const API_STATUS_META: Record<
+  ResolvedStatus<ApiAccessStatus>,
+  { label: string; tone: 'neutral' | 'vivid' | 'success' | 'danger' }
+> = {
+  none: { label: 'None', tone: 'neutral' },
+  pending: { label: 'Pending', tone: 'vivid' },
+  approved: { label: 'Approved', tone: 'success' },
+  rejected: { label: 'Rejected', tone: 'danger' },
+  revoked: { label: 'Revoked', tone: 'danger' },
+  // Une valeur hors du jeu fermé du Go n'a ni libellé ni action inventés.
+  UNKNOWN: { label: 'Statut inconnu', tone: 'danger' },
+};
 
 export interface ApiApplicant {
   id: string;
@@ -234,153 +253,144 @@ export function ApiRequestsClient({ initialApplicants, modules }: ApiRequestsCli
             <TableColumn className="text-right">Actions</TableColumn>
           </TableHeader>
           <TableBody items={filteredApplicants}>
-            {(app) => (
-              <TableRow id={app.id}>
-                {/* Creator Identity */}
-                <TableCell>
-                  <div className="space-y-0.5">
-                    <span className="font-bold text-foreground block">
-                      {app.name || 'Créateur Sans Nom'}
-                    </span>
-                    <span className="text-[11px] text-muted-foreground block tabular-nums">
-                      {app.email}
-                    </span>
-                  </div>
-                </TableCell>
+            {(app) => {
+              const status = resolveApiAccessStatus(app.apiAccessStatus);
+              const statusMeta = API_STATUS_META[status];
+              const actions = apiAccessActions(status);
 
-                {/* Subdomain */}
-                <TableCell>
-                  {app.subdomain ? (
-                    <a
-                      href={`https://${app.subdomain}.qoe.fi`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="tabular-nums text-muted-foreground hover:text-primary hover:underline inline-flex items-center gap-1"
-                    >
-                      {app.subdomain}.qoe.fi
-                      <ExternalLink className="w-3 h-3 text-muted-foreground" />
-                    </a>
-                  ) : (
-                    <span className="text-muted-foreground">Aucun</span>
-                  )}
-                </TableCell>
+              return (
+                <TableRow id={app.id}>
+                  {/* Creator Identity */}
+                  <TableCell>
+                    <div className="space-y-0.5">
+                      <span className="font-bold text-foreground block">
+                        {app.name || 'Créateur Sans Nom'}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground block tabular-nums">
+                        {app.email}
+                      </span>
+                    </div>
+                  </TableCell>
 
-                {/* Usage Justification */}
-                <TableCell className="max-w-sm">
-                  {app.apiApplicationReason ? (
-                    <div className="space-y-1">
-                      <p
-                        className={`text-muted-foreground leading-relaxed tabular-nums text-[11px] ${
-                          expandedReasonId === app.id ? '' : 'line-clamp-2'
-                        }`}
+                  {/* Subdomain */}
+                  <TableCell>
+                    {app.subdomain ? (
+                      <a
+                        href={`https://${app.subdomain}.qoe.fi`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="tabular-nums text-muted-foreground hover:text-primary hover:underline inline-flex items-center gap-1"
                       >
-                        {app.apiApplicationReason}
-                      </p>
+                        {app.subdomain}.qoe.fi
+                        <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">Aucun</span>
+                    )}
+                  </TableCell>
+
+                  {/* Usage Justification */}
+                  <TableCell className="max-w-sm">
+                    {app.apiApplicationReason ? (
+                      <div className="space-y-1">
+                        <p
+                          className={`text-muted-foreground leading-relaxed tabular-nums text-[11px] ${
+                            expandedReasonId === app.id ? '' : 'line-clamp-2'
+                          }`}
+                        >
+                          {app.apiApplicationReason}
+                        </p>
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() =>
+                            setExpandedReasonId(expandedReasonId === app.id ? null : app.id)
+                          }
+                          className="h-auto p-0 text-[10px] font-bold text-primary hover:underline hover:bg-transparent"
+                        >
+                          {expandedReasonId === app.id ? 'Replier' : "Voir tout l'usage"}
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground italic text-xs">
+                        Pas de cas d&apos;usage fourni
+                      </span>
+                    )}
+                  </TableCell>
+
+                  {/* Granted permissions (modular) */}
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1.5 max-w-[220px]">
+                      {app.apiGrants.length === 0 ? (
+                        <span className="text-muted-foreground italic text-[11px]">
+                          Aucune permission
+                        </span>
+                      ) : (
+                        app.apiGrants.map((g) => {
+                          const meta =
+                            CATEGORY_META[modules.find((m) => m.key === g)?.category ?? ''];
+                          return (
+                            <Badge
+                              key={g}
+                              variant="soft"
+                              tone="brand"
+                              size="xs"
+                              title={moduleLabel(g, modules)}
+                            >
+                              {meta?.icon ?? <Globe className="w-3 h-3" />}
+                              {moduleLabel(g, modules)}
+                            </Badge>
+                          );
+                        })
+                      )}
+                    </div>
+                    {status === 'approved' && (
                       <Button
                         variant="ghost"
                         size="xs"
-                        onClick={() =>
-                          setExpandedReasonId(expandedReasonId === app.id ? null : app.id)
-                        }
-                        className="h-auto p-0 text-[10px] font-bold text-primary hover:underline hover:bg-transparent"
+                        onClick={() => openPicker(app, 'edit')}
+                        className="mt-1 h-auto p-0 text-[10px] text-muted-foreground hover:text-primary hover:bg-transparent"
                       >
-                        {expandedReasonId === app.id ? 'Replier' : "Voir tout l'usage"}
+                        <Settings2 className="w-3 h-3" />
+                        Modifier les permissions
                       </Button>
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground italic text-xs">
-                      Pas de cas d&apos;usage fourni
-                    </span>
-                  )}
-                </TableCell>
-
-                {/* Granted permissions (modular) */}
-                <TableCell>
-                  <div className="flex flex-wrap gap-1.5 max-w-[220px]">
-                    {app.apiGrants.length === 0 ? (
-                      <span className="text-muted-foreground italic text-[11px]">
-                        Aucune permission
-                      </span>
-                    ) : (
-                      app.apiGrants.map((g) => {
-                        const meta =
-                          CATEGORY_META[modules.find((m) => m.key === g)?.category ?? ''];
-                        return (
-                          <Badge
-                            key={g}
-                            variant="soft"
-                            tone="brand"
-                            size="xs"
-                            title={moduleLabel(g, modules)}
-                          >
-                            {meta?.icon ?? <Globe className="w-3 h-3" />}
-                            {moduleLabel(g, modules)}
-                          </Badge>
-                        );
-                      })
                     )}
-                  </div>
-                  {app.apiAccessStatus === 'approved' && (
-                    <Button
-                      variant="ghost"
+                  </TableCell>
+
+                  {/* Access Status Badge — une seule source pour libellé et ton */}
+                  <TableCell>
+                    <Badge
+                      variant="soft"
+                      tone={statusMeta.tone}
                       size="xs"
-                      onClick={() => openPicker(app, 'edit')}
-                      className="mt-1 h-auto p-0 text-[10px] text-muted-foreground hover:text-primary hover:bg-transparent"
+                      title={app.apiAccessStatus}
                     >
-                      <Settings2 className="w-3 h-3" />
-                      Modifier les permissions
-                    </Button>
-                  )}
-                </TableCell>
+                      {statusMeta.label}
+                    </Badge>
+                  </TableCell>
 
-                {/* Access Status Badge */}
-                <TableCell>
-                  {app.apiAccessStatus === 'none' && (
-                    <Badge variant="soft" tone="neutral" size="xs">
-                      None
-                    </Badge>
-                  )}
-                  {app.apiAccessStatus === 'pending' && (
-                    <Badge variant="soft" tone="vivid" dot size="xs">
-                      Pending
-                    </Badge>
-                  )}
-                  {app.apiAccessStatus === 'approved' && (
-                    <Badge variant="soft" tone="success" dot size="xs">
-                      Approved
-                    </Badge>
-                  )}
-                  {app.apiAccessStatus === 'rejected' && (
-                    <Badge variant="soft" tone="danger" size="xs">
-                      Rejected
-                    </Badge>
-                  )}
-                  {app.apiAccessStatus === 'revoked' && (
-                    <Badge variant="soft" tone="danger" size="xs">
-                      Revoked
-                    </Badge>
-                  )}
-                </TableCell>
-
-                {/* Interactive Management Buttons */}
-                <TableCell className="text-right">
-                  {loadingId === app.id ? (
-                    <div className="flex justify-end pr-4">
-                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-end gap-1.5">
-                      {/* Actions when Pending */}
-                      {app.apiAccessStatus === 'pending' && (
-                        <>
+                  {/* Interactive Management Buttons */}
+                  <TableCell className="text-right">
+                    {loadingId === app.id ? (
+                      <div className="flex justify-end pr-4">
+                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-end gap-1.5">
+                        {/* Décisions : la table `apiAccessActions` décide, pas un
+                          enchaînement de comparaisons — un statut inconnu n'offre
+                          aucune action. */}
+                        {actions.includes('approve') && (
                           <Button
                             variant="solid"
-                            tone="success"
+                            tone={status === 'pending' ? 'success' : 'neutral'}
                             size="xs"
                             onClick={() => openPicker(app, 'approved')}
                           >
-                            Approuver
+                            {status === 'pending' ? 'Approuver' : "Activer l'accès API"}
                           </Button>
+                        )}
+                        {actions.includes('reject') && (
                           <Button
                             variant="soft"
                             tone="danger"
@@ -389,40 +399,29 @@ export function ApiRequestsClient({ initialApplicants, modules }: ApiRequestsCli
                           >
                             Refuser
                           </Button>
-                        </>
-                      )}
-
-                      {/* Actions when Approved */}
-                      {app.apiAccessStatus === 'approved' && (
-                        <Button
-                          variant="outline"
-                          tone="neutral"
-                          size="xs"
-                          onClick={() => handleUpdateStatus(app.id, 'revoked')}
-                          className="hover:text-destructive-text"
-                        >
-                          Révoquer l&apos;accès
-                        </Button>
-                      )}
-
-                      {/* Actions when Rejected, Revoked or None */}
-                      {(app.apiAccessStatus === 'rejected' ||
-                        app.apiAccessStatus === 'revoked' ||
-                        app.apiAccessStatus === 'none') && (
-                        <Button
-                          variant="solid"
-                          tone="neutral"
-                          size="xs"
-                          onClick={() => openPicker(app, 'approved')}
-                        >
-                          Activer l&apos;accès API
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </TableCell>
-              </TableRow>
-            )}
+                        )}
+                        {actions.includes('revoke') && (
+                          <Button
+                            variant="outline"
+                            tone="neutral"
+                            size="xs"
+                            onClick={() => handleUpdateStatus(app.id, 'revoked')}
+                            className="hover:text-destructive-text"
+                          >
+                            Révoquer l&apos;accès
+                          </Button>
+                        )}
+                        {actions.length === 0 && (
+                          <span className="text-[11px] text-muted-foreground">
+                            Aucune action avant vérification du statut
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            }}
           </TableBody>
         </Table>
       )}

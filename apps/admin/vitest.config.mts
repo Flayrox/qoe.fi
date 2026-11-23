@@ -18,9 +18,9 @@ export default defineConfig({
     maxWorkers: packageWorkers(),
     environment: 'node',
     globals: true,
-    // Même plancher que core/studio/tenants : les rendus jsdom (file de
-    // modération) dépassent 5 s sur un runner CI partagé — jamais en local.
-    // Aucune assertion n'est assouplie, seule la limite de temps change.
+    // Budget par défaut de Vitest (5 s), aucun `testTimeout` local : les
+    // rendus jsdom de la console portent `// @vitest-environment jsdom` et
+    // tiennent sous ce budget (contrat posé par L39).
     setupFiles: ['./vitest.setup.ts'],
     env: {
       NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co',

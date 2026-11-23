@@ -13,7 +13,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Handshake, Check, X, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { Button } from '@qoe/ui/button';
-import { Input } from '@qoe/ui/ui/input';
+import { Input } from '@qoe/ui/input';
 import {
   Drawer,
   DrawerBody,

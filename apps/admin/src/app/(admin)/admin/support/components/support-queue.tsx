@@ -17,7 +17,7 @@ import {
 } from '@qoe/sdk/actions/admin';
 import type { SupportKind } from '@qoe/sdk';
 import { Button } from '@qoe/ui/button';
-import { Input } from '@qoe/ui/ui/input';
+import { Input } from '@qoe/ui/input';
 import {
   Drawer,
   DrawerBody,

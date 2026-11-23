@@ -6,7 +6,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { Button } from '@qoe/ui/button';
-import { Input } from '@qoe/ui/ui/input';
+import { Input } from '@qoe/ui/input';
 import { CopyableId } from '@/components/shell/CopyableId';
 import { DataGrid, type GridColumn } from '@/components/shell/DataGrid';
 import { recomputeUserTrustAction } from '@/lib/admin-security-actions';

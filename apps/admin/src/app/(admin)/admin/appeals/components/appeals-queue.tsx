@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 import { Scale, Check, X, ShieldCheck, UserCheck } from 'lucide-react';
 import { decideAbuseAppealAction, getAbuseAppealAction } from '@qoe/sdk/actions/admin';
 import { Button } from '@qoe/ui/button';
-import { Input } from '@qoe/ui/ui/input';
+import { Input } from '@qoe/ui/input';
 import {
   Drawer,
   DrawerBody,

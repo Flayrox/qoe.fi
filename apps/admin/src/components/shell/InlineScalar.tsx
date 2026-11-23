@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { Select, type SelectOption } from '@qoe/ui/select';
-import { Input } from '@qoe/ui/ui/input';
+import { Input } from '@qoe/ui/input';
 import { Checkbox } from '@qoe/ui/checkbox';
 import { cn } from '@qoe/utils';
 

@@ -11,7 +11,7 @@
 import React, { useState, useMemo } from 'react';
 import { Check, Users, Shield, ArrowRight } from 'lucide-react';
 import { Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from '@qoe/ui/table';
-import { Input } from '@qoe/ui/ui/input';
+import { Input } from '@qoe/ui/input';
 import { Button } from '@qoe/ui/button';
 import { ADMIN_DOMAINS } from '@/lib/admin-console';
 import type { AccessRoleRow, AccessCapabilityRow } from '@/lib/admin-access-data';

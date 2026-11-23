@@ -22,6 +22,9 @@ import { describe, expect, it } from 'vitest';
 
 const SRC = fileURLToPath(new URL('../../../', import.meta.url));
 const ROOTS = [
+  // La racine du groupe `(admin)/admin` porte le tableau de bord : elle a
+  // échappé à tous les sous-lots, qui n'énuméraient que ses sous-dossiers.
+  join(SRC, 'app/(admin)/admin'),
   join(SRC, 'components/shell'),
   join(SRC, 'components/queue'),
   join(SRC, 'components/security'),

@@ -77,7 +77,7 @@ export default async function AdminDashboard() {
         actions={
           <Link
             href="/admin/work"
-            className="inline-flex h-7 items-center gap-1.5 rounded bg-[#EE4B2B] px-2 text-[12px] font-medium text-white transition-colors hover:bg-[#d8411f]"
+            className="inline-flex h-7 items-center gap-1.5 rounded bg-primary px-2 text-[12px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Ouvrir Ma file
           </Link>
@@ -129,7 +129,7 @@ export default async function AdminDashboard() {
         {work.entries.length > 20 && (
           <p className="text-[11px] text-muted-foreground">
             {work.entries.length - 20} autres dossiers dans{' '}
-            <Link href="/admin/work" className="text-[#EE4B2B] hover:underline">
+            <Link href="/admin/work" className="text-primary hover:underline">
               Ma file
             </Link>
             .
@@ -162,10 +162,10 @@ export default async function AdminDashboard() {
             ? ` · ${health.decisions.recorder.dropped} perdues`
             : ''}
         </span>
-        <Link href="/admin/health" className="font-medium text-[#EE4B2B] hover:underline">
+        <Link href="/admin/health" className="font-medium text-primary hover:underline">
           Détail santé
         </Link>
-        <Link href="/admin/system" className="font-medium text-[#EE4B2B] hover:underline">
+        <Link href="/admin/system" className="font-medium text-primary hover:underline">
           Couverture
         </Link>
       </section>

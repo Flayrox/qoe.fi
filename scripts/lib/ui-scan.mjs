@@ -201,12 +201,33 @@ export function repoSources() {
 }
 
 /**
+ * Cible d'un fichier qui ne fait que ré-exporter un autre module.
+ *
+ * `packages/ui/src/ui/input.tsx` n'est que `export { Input, … } from
+ * '../primitives/input/input'` : c'est une façade historique, pas une
+ * primitive. Compter ses usages à part faisait apparaître `input` comme
+ * « jamais importé » dès qu'une app passait par le point d'entrée canonique
+ * (`@qoe/ui/input`), alors que le composant était chargé plus que jamais.
+ */
+function reexportTarget(moduleFile) {
+  const code = read(moduleFile);
+  if (/export\s+(?:default\s+)?(?:function|const|class|let|var)\s/.test(code)) return null;
+  const specs = [
+    ...code.matchAll(/export\s+(?:\*(?:\s+as\s+\w+)?|\{[^}]*\})\s*from\s*'([^']+)'/gs),
+  ].map((m) => m[1]);
+  if (specs.length !== 1) return null;
+  const target = resolveRelativeSpec(specs[0], moduleFile);
+  return target && target !== relative(ROOT, moduleFile) ? target : null;
+}
+
+/**
  * Combien de fichiers d'app importent réellement ce module partagé.
  * C'est la seule mesure honnête de « est-ce qu'on s'en sert » : elle se
  * calcule depuis le code, elle ne se déclare pas.
  */
 export function countUsages(moduleFile) {
-  const rel = relative(ROOT, moduleFile);
+  // Une façade de ré-export compte comme sa cible : deux chemins, un module.
+  const rel = reexportTarget(moduleFile) ?? relative(ROOT, moduleFile);
   const names = exportedNames(moduleFile);
 
   return [...appSources, ...templateSources].filter((source) =>

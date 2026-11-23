@@ -24,6 +24,7 @@
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
+import ts from 'typescript';
 
 const ROOT = process.cwd();
 const WORKSPACES = ['apps', 'packages'];
@@ -56,6 +57,24 @@ function collectConfigs(dir, out = []) {
   return out;
 }
 
+/**
+ * Lit un `tsconfig` : c'est du JSONC, pas du JSON.
+ *
+ * `JSON.parse` jetait sur le premier commentaire — et le garde mourait au lieu
+ * de vérifier : depuis qu'`apps/mobile/tsconfig.json` en porte un, plus aucune
+ * config n'était contrôlée, en silence (code de sortie 1 sans diagnostics).
+ */
+function readConfig(file) {
+  const { config, error } = ts.parseConfigFileTextToJson(file, readFileSync(file, 'utf8'));
+  if (error) {
+    errors.push(
+      `${relative(ROOT, file)} : JSON invalide — ${ts.flattenDiagnosticMessageText(error.messageText, ' ')}`
+    );
+    return null;
+  }
+  return config;
+}
+
 /** Chemin statique d'une cible `paths` (`./src/*` → `./src`). */
 function staticPrefix(target) {
   const star = target.indexOf('*');
@@ -66,7 +85,8 @@ const errors = [];
 
 /** Règles A et C sur un fichier de config (racine comprise). */
 function checkConfig(configPath) {
-  const config = JSON.parse(readFileSync(configPath, 'utf8'));
+  const config = readConfig(configPath);
+  if (!config) return;
   const dir = dirname(configPath);
   const label = relative(ROOT, configPath);
 
@@ -142,7 +162,8 @@ for (const workspace of WORKSPACES) {
     }
 
     if (!existsSync(configPath)) continue;
-    const config = JSON.parse(readFileSync(configPath, 'utf8'));
+    const config = readConfig(configPath);
+    if (!config) continue;
 
     // B. une dépendance au preset doit passer par le preset.
     const extendsPreset =

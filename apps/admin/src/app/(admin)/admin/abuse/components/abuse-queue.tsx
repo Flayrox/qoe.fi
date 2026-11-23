@@ -13,7 +13,7 @@ import { Check, Ban, EyeOff, PauseCircle, FileSearch } from 'lucide-react';
 import { resolveAbuseDecisionAction } from '@qoe/sdk/actions/admin';
 import type { AbuseReasonCode } from '@qoe/sdk';
 import { Button } from '@qoe/ui/button';
-import { Input } from '@qoe/ui/ui/input';
+import { Input } from '@qoe/ui/input';
 import {
   Drawer,
   DrawerBody,

@@ -35,7 +35,8 @@ export interface SecurityAbuseMetrics {
 export interface SecurityOverview {
   metrics: SecurityAbuseMetrics;
   policyV3: PolicyV3RuleStat[];
-  authzEnforceEnabled: boolean;
+  /** `null` = la sonde n'a rien dit : ni armé ni en observation. */
+  authzEnforceEnabled: boolean | null;
   shadowbannedCount: number;
   suspendedCount: number;
 }
@@ -65,10 +66,33 @@ const EMPTY_OVERVIEW: SecurityOverview = {
     topSubjects: [],
   },
   policyV3: [],
-  authzEnforceEnabled: false,
+  authzEnforceEnabled: null,
   shadowbannedCount: 0,
   suspendedCount: 0,
 };
+
+/**
+ * Traduit le mode d'application Authz pour l'affichage.
+ *
+ * Trois états, pas deux : `null` (sonde muette) ne s'affiche ni comme armé ni
+ * comme « observation » — c'est « illisible », et l'écran le dit.
+ */
+export function describeAuthzEnforcement(mode: boolean | null): {
+  value: string;
+  tone: 'default' | 'warn';
+  detail: string;
+} {
+  if (mode === null) {
+    return {
+      value: '—',
+      tone: 'default',
+      detail: 'mode d’application Authz illisible',
+    };
+  }
+  return mode
+    ? { value: 'enforce', tone: 'default', detail: 'refus armés' }
+    : { value: 'observe', tone: 'warn', detail: 'observation seule' };
+}
 
 /** Charge l'instantané Sécurité & Trust sur 30 jours depuis l'API Go. */
 export async function getSecurityOverview(): Promise<SecurityOverview> {
@@ -99,7 +123,10 @@ export async function getSecurityOverview(): Promise<SecurityOverview> {
         topSubjects: Array.isArray(rawMetrics?.topSubjects) ? rawMetrics.topSubjects : [],
       },
       policyV3: Array.isArray(body?.policyV3) ? body.policyV3 : [],
-      authzEnforceEnabled: Boolean(body?.authzEnforceEnabled),
+      // `Boolean(undefined)` valait `false` : l'écran affirmait « observe »
+      // sur une réponse muette. Seules les deux valeurs lues comptent.
+      authzEnforceEnabled:
+        typeof body?.authzEnforceEnabled === 'boolean' ? body.authzEnforceEnabled : null,
       shadowbannedCount: typeof body?.shadowbannedCount === 'number' ? body.shadowbannedCount : 0,
       suspendedCount: typeof body?.suspendedCount === 'number' ? body.suspendedCount : 0,
     };

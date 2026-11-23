@@ -5,6 +5,12 @@ import { toast } from '@qoe/ui/toast';
 import { Loader2, ShieldCheck, KeyRound, Globe } from 'lucide-react';
 import { updateOAuthClientStatusAction } from '@qoe/sdk/actions/admin';
 import { attemptWithStepUp, notifyActionFailure, readMessage } from '@/lib/authz-feedback';
+import {
+  oauthAppActions,
+  resolveOAuthAppStatus,
+  type OAuthAppStatus,
+  type ResolvedStatus,
+} from '@/lib/status-display';
 import { Tabs, TabList, Tab } from '@qoe/ui/tabs';
 import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from '@qoe/ui/table';
 import { Badge, type BadgeProps } from '@qoe/ui/badge';
@@ -29,11 +35,13 @@ export interface OAuthClientAdmin {
   createdAt: string;
 }
 
-const STATUS_META: Record<string, { label: string; tone: BadgeTone }> = {
+const STATUS_META: Record<ResolvedStatus<OAuthAppStatus>, { label: string; tone: BadgeTone }> = {
   PENDING: { label: 'En attente', tone: 'brand' },
   APPROVED: { label: 'Approuvée', tone: 'success' },
   REJECTED: { label: 'Rejetée', tone: 'danger' },
   REVOKED: { label: 'Révoquée', tone: 'neutral' },
+  // Une valeur hors du jeu fermé du Go n'est pas une demande en attente.
+  UNKNOWN: { label: 'Statut inconnu', tone: 'danger' },
 };
 
 export function OAuthAppsClient({ initialClients }: { initialClients: OAuthClientAdmin[] }) {
@@ -107,7 +115,9 @@ export function OAuthAppsClient({ initialClients }: { initialClients: OAuthClien
             </TableHeader>
             <TableBody items={filtered}>
               {(c) => {
-                const meta = STATUS_META[c.status] ?? STATUS_META.PENDING;
+                const status = resolveOAuthAppStatus(c.status);
+                const meta = STATUS_META[status];
+                const actions = oauthAppActions(status);
                 return (
                   <TableRow id={c.id}>
                     <TableCell>
@@ -178,9 +188,7 @@ export function OAuthAppsClient({ initialClients }: { initialClients: OAuthClien
                         </div>
                       ) : (
                         <div className="flex items-center justify-end gap-1.5">
-                          {(c.status === 'PENDING' ||
-                            c.status === 'REJECTED' ||
-                            c.status === 'REVOKED') && (
+                          {actions.includes('APPROVED') && (
                             <Button
                               size="xs"
                               variant="solid"
@@ -190,7 +198,7 @@ export function OAuthAppsClient({ initialClients }: { initialClients: OAuthClien
                               Approuver
                             </Button>
                           )}
-                          {c.status === 'PENDING' && (
+                          {actions.includes('REJECTED') && (
                             <Button
                               size="xs"
                               variant="soft"
@@ -200,7 +208,7 @@ export function OAuthAppsClient({ initialClients }: { initialClients: OAuthClien
                               Rejeter
                             </Button>
                           )}
-                          {c.status === 'APPROVED' && (
+                          {actions.includes('REVOKED') && (
                             <Button
                               size="xs"
                               variant="outline"
@@ -208,6 +216,11 @@ export function OAuthAppsClient({ initialClients }: { initialClients: OAuthClien
                             >
                               Révoquer
                             </Button>
+                          )}
+                          {actions.length === 0 && (
+                            <span className="text-[11px] text-muted-foreground">
+                              Aucune action avant vérification du statut
+                            </span>
                           )}
                         </div>
                       )}
