@@ -135,10 +135,17 @@ export function PublishModal({
     }
   };
 
+  // Jeton de confirmation saisi par l'auteur : il suit la locale comme le reste de
+  // la copie, sinon la comparaison porterait sur du texte affiché traduit.
+  const confirmToken = t`CONFIRMER`;
+
   const handlePublish = async () => {
     if (isSubmitting) return;
-    if (isMajorUpdate && confirmMajorUpdateText.trim().toUpperCase() !== 'CONFIRMER') {
-      toast.error(t`Veuillez taper CONFIRMER pour valider le renvoi de mise à jour.`);
+    if (
+      isMajorUpdate &&
+      confirmMajorUpdateText.trim().toUpperCase() !== confirmToken.toUpperCase()
+    ) {
+      toast.error(t`Veuillez taper ${confirmToken} pour valider le renvoi de mise à jour.`);
       return;
     }
 
@@ -309,13 +316,13 @@ export function PublishModal({
               {isMajorUpdate && (
                 <div className="p-3 rounded-lg bg-background border border-border space-y-2">
                   <label className="text-xs font-medium text-muted-foreground block">
-                    {t`Tapez CONFIRMER pour autoriser ce second envoi :`}
+                    {t`Tapez ${confirmToken} pour autoriser ce second envoi :`}
                   </label>
                   <Input
                     size="sm"
                     value={confirmMajorUpdateText}
                     onChange={(e) => setConfirmMajorUpdateText(e.target.value)}
-                    placeholder={'CONFIRMER'}
+                    placeholder={confirmToken}
                     className="font-mono text-xs uppercase"
                   />
                 </div>

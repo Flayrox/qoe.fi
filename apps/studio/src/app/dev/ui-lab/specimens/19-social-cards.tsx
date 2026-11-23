@@ -14,7 +14,6 @@
 // =====================================================================
 
 import React from 'react';
-import { t } from '@lingui/core/macro';
 import { AuthModalProvider } from '@qoe/ui';
 import {
   ThoughtCard,
@@ -671,7 +670,8 @@ export function SocialCardsSpecimen() {
               survol.
             </li>
             <li>
-              {t`La citation imbriquée est un aperçu : seul le premier maillon ouvre la surcouche. L'article cité, lui, garde toujours son lien.`}
+              La citation imbriquée est un aperçu : seul le premier maillon ouvre la surcouche.
+              L'article cité, lui, garde toujours son lien.
             </li>
           </ul>
         </Variant>

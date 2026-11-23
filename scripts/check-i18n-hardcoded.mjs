@@ -29,6 +29,18 @@ const ZONES = [
   'apps/studio/src/app/login',
   'apps/studio/src/app/onboarding',
 ];
+// Exemption assumée par décision produit (R142, 2026-11-23) : `app/dev` est un atelier
+// interne jamais livré (`devRoutesEnabled()` le ferme hors dev/E2E). Ses spécimens sont
+// des fixtures de démonstration, pas de la copie produit : la zone sort du catalogue
+// Lingui et n'entre pas dans cette garde.
+const EXEMPT_ZONES = ['apps/studio/src/app/dev'];
+for (const exempt of EXEMPT_ZONES) {
+  const clash = ZONES.find((zone) => zone.startsWith(exempt) || exempt.startsWith(zone));
+  if (clash) throw new Error(`Zone exemptée recouverte par la garde : ${exempt} ⊂ ${clash}`);
+  if (fs.existsSync(path.join(ROOT, exempt)) === false) {
+    throw new Error(`Zone exemptée introuvable : ${exempt}`);
+  }
+}
 const SKIP_DIRS = new Set(['node_modules', '__tests__', 'vendor', '.next']);
 
 // Lexique de mots-outils et de vocabulaire d'interface : sert à reconnaître une
