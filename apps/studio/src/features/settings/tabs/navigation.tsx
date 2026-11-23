@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button, buttonClasses } from '@qoe/ui/button';
+import { ConfirmDialog } from '@qoe/ui/confirm-dialog';
 import { Input } from '@qoe/ui/input';
 import {
   Plus,
@@ -24,6 +26,8 @@ import type { CreatorProfile, ClientCategory, ClientNavigationItem } from '../ty
 import { clientNavigationLinkId } from '../lib/client-link-id';
 import { t } from '@lingui/core/macro';
 
+import { useConfirmAction } from '@/lib/use-confirm-action';
+
 interface NavigationTabProps {
   current: CreatorProfile;
   setCurrent: React.Dispatch<React.SetStateAction<CreatorProfile>>;
@@ -38,15 +42,24 @@ export function NavigationTab({
   removeNavigationLink,
   hasUnsavedChanges,
 }: NavigationTabProps) {
+  const router = useRouter();
+  const { action: confirmAction, requestConfirm, closeConfirm } = useConfirmAction();
+
   // Quitter les réglages pour Articles abandonne les modifications non
-  // enregistrées : on demande confirmation avant de suivre le lien.
-  const guardUnsavedNavigation = (e: React.MouseEvent) => {
-    if (
-      hasUnsavedChanges &&
-      !window.confirm(t`Des modifications ne sont pas enregistrées. Quitter sans enregistrer ?`)
-    ) {
-      e.preventDefault();
-    }
+  // enregistrées : on bloque la navigation et on demande confirmation dans un
+  // dialogue composé (plus de `window.confirm`, qui gelait l'onglet).
+  const guardUnsavedNavigation = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!hasUnsavedChanges) return;
+    const href = e.currentTarget.getAttribute('href');
+    if (!href) return;
+    e.preventDefault();
+    requestConfirm({
+      title: t`Quitter sans enregistrer ?`,
+      description: t`Les modifications de navigation non enregistrées seront perdues.`,
+      confirmLabel: t`Quitter sans enregistrer`,
+      destructive: true,
+      onConfirm: () => router.push(href),
+    });
   };
   // Liste des IDs des catégories masquées du menu de navigation (catégories seules)
   const hiddenNavCategoryIds =
@@ -792,6 +805,7 @@ export function NavigationTab({
           </div>
         )}
       </div>
+      <ConfirmDialog action={confirmAction} onClose={closeConfirm} />
     </div>
   );
 }

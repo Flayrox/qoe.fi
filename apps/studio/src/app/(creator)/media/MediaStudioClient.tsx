@@ -31,7 +31,10 @@ import {
 } from 'lucide-react';
 import { SafeAvatar } from '@qoe/ui';
 import { Badge } from '@qoe/ui/badge';
+import { ConfirmDialog } from '@qoe/ui/confirm-dialog';
 import { Button } from '@qoe/ui/button';
+
+import { useConfirmAction } from '@/lib/use-confirm-action';
 import { Checkbox } from '@qoe/ui/checkbox';
 import { Input, InputGroup, Textarea } from '@qoe/ui/input';
 import { Switch } from '@qoe/ui/switch';
@@ -548,9 +551,10 @@ export function MediaStudioClient({
     }
   };
 
-  const handleRemoveMember = async (memberUserId: string, memberName: string) => {
+  const { action: confirmAction, requestConfirm, closeConfirm } = useConfirmAction();
+
+  const performRemoveMember = async (memberUserId: string) => {
     if (!detail) return;
-    if (!window.confirm(t`Retirer ${memberName} du Média ?`)) return;
     const res = await attemptWithStepUp(() => removeMediaMemberAction(detail.id, memberUserId), {
       fallback: t`Échec du retrait du membre.`,
     });
@@ -558,6 +562,16 @@ export function MediaStudioClient({
       toast.success(t`Membre retiré.`);
       loadDetail(detail.id);
     }
+  };
+
+  const handleRemoveMember = (memberUserId: string, memberName: string) => {
+    requestConfirm({
+      title: t`Retirer ${memberName} du Média ?`,
+      description: t`Cette personne perd immédiatement l'accès aux contenus du Média.`,
+      confirmLabel: t`Retirer du Média`,
+      destructive: true,
+      onConfirm: () => performRemoveMember(memberUserId),
+    });
   };
 
   const isOwner = myRole === MEDIA_ROLES.OWNER;
@@ -1442,6 +1456,7 @@ export function MediaStudioClient({
           onSaved={() => loadDetail(detail.id)}
         />
       )}
+      <ConfirmDialog action={confirmAction} onClose={closeConfirm} />
     </div>
   );
 }

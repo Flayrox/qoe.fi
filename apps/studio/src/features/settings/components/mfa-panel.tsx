@@ -19,9 +19,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@qoe/ui/button';
+import { ConfirmDialog } from '@qoe/ui/confirm-dialog';
 import { Icon } from '@qoe/ui/icons';
 import { toast } from '@qoe/ui/toast';
 import { TotpEnrollment } from '@/features/security/totp-enrollment';
+
+import { useConfirmAction } from '@/lib/use-confirm-action';
 import {
   getAccountSecurityMfaAction,
   unenrollAccountSecurityMfaAction,
@@ -56,8 +59,9 @@ export function MfaPanel() {
   const verified = factors.filter((factor) => factor.status === 'verified');
   const unverified = factors.filter((factor) => factor.status !== 'verified');
 
-  async function removeFactor(factorId: string, label: string) {
-    if (!window.confirm(t`Retirer le facteur « ${label} » ?`)) return;
+  const { action: confirmAction, requestConfirm, closeConfirm } = useConfirmAction();
+
+  async function performRemoveFactor(factorId: string) {
     setBusy(true);
     try {
       await unenrollAccountSecurityMfaAction(factorId);
@@ -68,6 +72,16 @@ export function MfaPanel() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function removeFactor(factorId: string, label: string) {
+    requestConfirm({
+      title: t`Retirer le facteur « ${label} » ?`,
+      description: t`Les actions sensibles redemanderont une vérification forte.`,
+      confirmLabel: t`Retirer le facteur`,
+      destructive: true,
+      onConfirm: () => performRemoveFactor(factorId),
+    });
   }
 
   return (
@@ -171,6 +185,7 @@ export function MfaPanel() {
           />
         </div>
       )}
+      <ConfirmDialog action={confirmAction} onClose={closeConfirm} />
     </div>
   );
 }

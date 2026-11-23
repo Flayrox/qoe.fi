@@ -16,7 +16,10 @@ import {
   Trash2,
 } from 'lucide-react';
 import { t } from '@lingui/core/macro';
+import { ConfirmDialog } from '@qoe/ui/confirm-dialog';
 import { toast } from '@qoe/ui/toast';
+
+import { useConfirmAction } from '@/lib/use-confirm-action';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -82,11 +85,9 @@ export function RecentArticleTile({
     }
   };
 
-  const handleDelete = async () => {
-    const confirmed = window.confirm(
-      t`Supprimer définitivement « ${article.title} » ? Cette action est irréversible.`
-    );
-    if (!confirmed) return;
+  const { action: confirmAction, requestConfirm, closeConfirm } = useConfirmAction();
+
+  const performDelete = async () => {
     setPending('delete');
     try {
       const res = await deleteArticleAction(article.id);
@@ -101,6 +102,16 @@ export function RecentArticleTile({
     } finally {
       setPending(null);
     }
+  };
+
+  const handleDelete = () => {
+    requestConfirm({
+      title: t`Supprimer définitivement « ${article.title} » ?`,
+      description: t`L'article et ses interactions seront supprimés. Cette action est irréversible.`,
+      confirmLabel: t`Supprimer l'article`,
+      destructive: true,
+      onConfirm: () => performDelete(),
+    });
   };
 
   return (
@@ -215,6 +226,7 @@ export function RecentArticleTile({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      <ConfirmDialog action={confirmAction} onClose={closeConfirm} />
     </div>
   );
 }

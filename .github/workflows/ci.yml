@@ -71,6 +71,16 @@ jobs:
       - name: Guard tsconfig (alias morts, presets contournés, résolution legacy)
         run: pnpm guard:tsconfig
 
+      # Aucun littéral français hors macro Lingui sur les surfaces studio
+      # converties (L22j) : la couverture EN ne vaut que si la source l'est.
+      - name: Guard i18n (studio)
+        run: pnpm guard:i18n
+
+      # Aucune confirmation native bloquante dans le studio (R150) :
+      # `window.confirm`/`alert` gèlent l'onglet et ignorent le clavier.
+      - name: Guard native confirm (studio)
+        run: pnpm guard:native-confirm
+
       # Code généré sqlc (apps/api/internal/database) : régénéré dans un dossier
       # temporaire et comparé octet par octet. Une requête ajoutée à `sql/` sans
       # `sqlc generate` compile parfaitement et n'échouerait qu'à l'exécution.

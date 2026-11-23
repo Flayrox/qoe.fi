@@ -14,8 +14,11 @@ import {
   PenLine,
 } from 'lucide-react';
 import { Badge } from '@qoe/ui/badge';
+import { ConfirmDialog } from '@qoe/ui/confirm-dialog';
 import { Button } from '@qoe/ui/button';
 import { Checkbox } from '@qoe/ui/checkbox';
+
+import { useConfirmAction } from '@/lib/use-confirm-action';
 import {
   Dialog,
   DialogBody,
@@ -197,15 +200,9 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
     }
   };
 
-  const handleRotate = async (key: MediaApiKeyInfo) => {
-    if (
-      !window.confirm(
-        t`Faire tourner la clé "${key.name}" ? L'ancien secret cessera immédiatement de fonctionner.`
-      )
-    ) {
-      return;
-    }
+  const { action: confirmAction, requestConfirm, closeConfirm } = useConfirmAction();
 
+  const performRotate = async (key: MediaApiKeyInfo) => {
     setRotatingKeyId(key.id);
     const res = await attemptWithStepUp(() => rotateMediaApiKeyAction(mediaId, key.id), {
       fallback: t`Erreur lors de la rotation de la clé`,
@@ -220,6 +217,16 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
       });
       fetchKeys();
     }
+  };
+
+  const handleRotate = (key: MediaApiKeyInfo) => {
+    requestConfirm({
+      title: t`Faire tourner la clé "${key.name}" ?`,
+      description: t`L'ancien secret cesse immédiatement de fonctionner.`,
+      confirmLabel: t`Faire tourner la clé`,
+      destructive: true,
+      onConfirm: () => performRotate(key),
+    });
   };
 
   const handleRevoke = async (keyId: string) => {
@@ -655,6 +662,7 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
           )}
         </DialogContent>
       </Dialog>
+      <ConfirmDialog action={confirmAction} onClose={closeConfirm} />
     </div>
   );
 }

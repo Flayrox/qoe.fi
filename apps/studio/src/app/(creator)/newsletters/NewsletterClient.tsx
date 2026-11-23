@@ -23,7 +23,10 @@ import {
 } from 'lucide-react';
 import { ColorPicker } from '@qoe/ui';
 import { Badge } from '@qoe/ui/badge';
+import { ConfirmDialog } from '@qoe/ui/confirm-dialog';
 import { Button, buttonClasses } from '@qoe/ui/button';
+
+import { useConfirmAction } from '@/lib/use-confirm-action';
 import { Dropdown, type DropdownItem } from '@qoe/ui/dropdown';
 import { Input, Textarea } from '@qoe/ui/input';
 import { Switch } from '@qoe/ui/switch';
@@ -358,18 +361,9 @@ export function NewsletterClient({
     }
   };
 
-  const handleSendIssue = async (issue: NewsletterIssue) => {
-    if (!emailPro) {
-      toast.error(t`L'envoi sans article est réservé au forfait PRO.`);
-      return;
-    }
-    if (
-      !confirm(
-        t`Envoyer « ${issue.subject} » à tous les abonnés actifs ? L'envoi ne peut pas être annulé.`
-      )
-    ) {
-      return;
-    }
+  const { action: confirmAction, requestConfirm, closeConfirm } = useConfirmAction();
+
+  const performSendIssue = async (issue: NewsletterIssue) => {
     setBusyActionId(issue.id);
     const res = await attemptWithStepUp(() => sendNewsletterAction(issue.id), {
       fallback: t`Envoi impossible`,
@@ -379,6 +373,19 @@ export function NewsletterClient({
       toast.success(t`Envoi lancé. L'email part dans quelques minutes.`);
       await refreshIssues();
     }
+  };
+
+  const handleSendIssue = (issue: NewsletterIssue) => {
+    if (!emailPro) {
+      toast.error(t`L'envoi sans article est réservé au forfait PRO.`);
+      return;
+    }
+    requestConfirm({
+      title: t`Envoyer « ${issue.subject} » ?`,
+      description: t`L'envoi part à tous les abonnés actifs et ne peut pas être annulé.`,
+      confirmLabel: t`Envoyer la newsletter`,
+      onConfirm: () => performSendIssue(issue),
+    });
   };
 
   const handleCreateDigest = async () => {
@@ -396,8 +403,7 @@ export function NewsletterClient({
     }
   };
 
-  const handleDeleteIssue = async (id: string) => {
-    if (!confirm(t`Supprimer définitivement ce brouillon ?`)) return;
+  const performDeleteIssue = async (id: string) => {
     setBusyActionId(id);
     const res = await attemptWithStepUp(() => deleteNewsletterAction(id), {
       fallback: t`Suppression impossible`,
@@ -407,6 +413,16 @@ export function NewsletterClient({
       toast.success(t`Brouillon supprimé.`);
       await refreshIssues();
     }
+  };
+
+  const handleDeleteIssue = (id: string) => {
+    requestConfirm({
+      title: t`Supprimer définitivement ce brouillon ?`,
+      description: t`Le brouillon et son contenu seront perdus. Cette action est irréversible.`,
+      confirmLabel: t`Supprimer le brouillon`,
+      destructive: true,
+      onConfirm: () => performDeleteIssue(id),
+    });
   };
 
   const totalSentCount = issues
@@ -1209,6 +1225,7 @@ export function NewsletterClient({
           )}
         </div>
       )}
+      <ConfirmDialog action={confirmAction} onClose={closeConfirm} />
     </div>
   );
 }

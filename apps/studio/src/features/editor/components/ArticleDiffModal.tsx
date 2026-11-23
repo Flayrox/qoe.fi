@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   GitCompare,
   Columns2,
@@ -85,6 +85,13 @@ export function ArticleDiffModal({
   const [rejectMode, setRejectMode] = useState(false);
   const [rejectComment, setRejectComment] = useState('');
   const [isActionPending, setIsActionPending] = useState(false);
+  // Abandon en deux temps, dans le panneau : un dialogue natif par-dessus cette
+  // modale empilerait deux pièges de focus.
+  const [discardArmed, setDiscardArmed] = useState(false);
+
+  useEffect(() => {
+    if (!open) setDiscardArmed(false);
+  }, [open]);
 
   const cleanLiveText = useMemo(() => htmlToReadableText(liveContent), [liveContent]);
   const cleanDraftText = useMemo(() => htmlToReadableText(draftContent), [draftContent]);
@@ -138,13 +145,11 @@ export function ArticleDiffModal({
 
   const handleDiscard = async () => {
     if (!onDiscardDraft) return;
-    if (
-      !window.confirm(
-        t`Êtes-vous sûr de vouloir abandonner les modifications en brouillon ? L'article reviendra à sa version publiée en ligne.`
-      )
-    ) {
+    if (!discardArmed) {
+      setDiscardArmed(true);
       return;
     }
+    setDiscardArmed(false);
     setIsActionPending(true);
     try {
       await onDiscardDraft();
@@ -364,10 +369,14 @@ export function ArticleDiffModal({
                 size="sm"
                 onClick={handleDiscard}
                 disabled={isActionPending}
-                title={t`Abandonner le brouillon et réinitialiser à la version en ligne`}
+                title={
+                  discardArmed
+                    ? t`Confirmer l'abandon : l'article reviendra à sa version publiée en ligne`
+                    : t`Abandonner le brouillon et réinitialiser à la version en ligne`
+                }
               >
                 <RotateCcw />
-                <span>{t`Abandonner le brouillon`}</span>
+                <span>{discardArmed ? t`Confirmer l'abandon` : t`Abandonner le brouillon`}</span>
               </Button>
             )}
 

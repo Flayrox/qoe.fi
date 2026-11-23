@@ -746,16 +746,7 @@ export function ArticlesClient({
   };
 
   // Handle category deletion
-  const handleDeleteCategory = async (id: string, name: string) => {
-    const isParentWithSubs = categories.some((c) => c.parentId === id);
-    const confirmMessage = isParentWithSubs
-      ? t`Êtes-vous sûr de vouloir supprimer la catégorie "${name}" ? Ses sous-catégories seront conservées et promues en catégories principales.`
-      : t`Êtes-vous sûr de vouloir supprimer la catégorie "${name}" ?`;
-
-    if (!confirm(confirmMessage)) {
-      return;
-    }
-
+  const performDeleteCategory = async (id: string) => {
     try {
       const res = await deleteCategoryAction(id);
       // Les actions du SDK renvoient `{ ok: false }` au lieu de rejeter :
@@ -779,6 +770,19 @@ export function ArticlesClient({
       const message = err instanceof Error ? err.message : t`Échec de la suppression.`;
       toast.error(message);
     }
+  };
+
+  const handleDeleteCategory = (id: string, name: string) => {
+    const isParentWithSubs = categories.some((c) => c.parentId === id);
+    requestConfirm({
+      title: t`Supprimer la catégorie "${name}" ?`,
+      description: isParentWithSubs
+        ? t`Ses sous-catégories seront conservées et promues en catégories principales.`
+        : t`Les articles rattachés resteront en ligne, sans cette catégorie.`,
+      confirmLabel: t`Supprimer la catégorie`,
+      destructive: true,
+      onConfirm: () => performDeleteCategory(id),
+    });
   };
 
   // Handle article deletion

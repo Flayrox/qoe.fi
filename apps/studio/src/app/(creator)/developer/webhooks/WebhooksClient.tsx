@@ -17,9 +17,12 @@ import {
   Check,
 } from 'lucide-react';
 import { Badge } from '@qoe/ui/badge';
+import { ConfirmDialog } from '@qoe/ui/confirm-dialog';
 import { Button } from '@qoe/ui/button';
 import { Input } from '@qoe/ui/input';
 import { cn } from '@qoe/utils';
+
+import { useConfirmAction } from '@/lib/use-confirm-action';
 import { toast } from '@qoe/ui/toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@qoe/ui';
 import {
@@ -127,8 +130,9 @@ export function WebhooksClient({
     }
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(t`Supprimer le webhook "${name}" ?`)) return;
+  const { action: confirmAction, requestConfirm, closeConfirm } = useConfirmAction();
+
+  const performDelete = async (id: string) => {
     setBusyId(id);
     try {
       const res = await deleteWebhookAction(id);
@@ -143,6 +147,16 @@ export function WebhooksClient({
     } finally {
       setBusyId(null);
     }
+  };
+
+  const handleDelete = (id: string, name: string) => {
+    requestConfirm({
+      title: t`Supprimer le webhook "${name}" ?`,
+      description: t`Les livraisons cessent immédiatement et l'endpoint ne reçoit plus d'événements.`,
+      confirmLabel: t`Supprimer le webhook`,
+      destructive: true,
+      onConfirm: () => performDelete(id),
+    });
   };
 
   const handleTest = async (id: string) => {
@@ -499,6 +513,7 @@ export function WebhooksClient({
           </div>
         </DialogContent>
       </Dialog>
+      <ConfirmDialog action={confirmAction} onClose={closeConfirm} />
     </DeveloperShell>
   );
 }

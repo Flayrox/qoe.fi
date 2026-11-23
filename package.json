@@ -55,6 +55,7 @@
     "guard:tsconfig": "node scripts/guard-tsconfig.mjs",
     "guard:sqlc": "node scripts/guard-sqlc.mjs",
     "guard:i18n": "node scripts/check-i18n-hardcoded.mjs",
+    "guard:native-confirm": "node scripts/guard-native-confirm.mjs",
     "mail:dev": "node scripts/dev-smtp.mjs",
     "audit:guard": "node scripts/audit-guard.mjs",
     "format": "prettier --write .",

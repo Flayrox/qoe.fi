@@ -3,6 +3,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { t } from '@lingui/core/macro';
 import { useRouter } from 'next/navigation';
+import { ConfirmDialog } from '@qoe/ui/confirm-dialog';
+
+import { useConfirmAction } from '@/lib/use-confirm-action';
 import {
   Plus,
   Trash2,
@@ -205,14 +208,9 @@ export function OAuthAppsClient({
     }
   };
 
-  const handleDelete = async (client: OAuthClientDTO) => {
-    if (
-      !confirm(
-        t`Supprimer l'application « ${client.name} » ?\nTous les tokens et consentements associés seront révoqués.`
-      )
-    ) {
-      return;
-    }
+  const { action: confirmAction, requestConfirm, closeConfirm } = useConfirmAction();
+
+  const performDelete = async (client: OAuthClientDTO) => {
     setBusyId(client.id);
     try {
       const res = await deleteOAuthClientAction(client.id);
@@ -227,6 +225,16 @@ export function OAuthAppsClient({
     } finally {
       setBusyId(null);
     }
+  };
+
+  const handleDelete = (client: OAuthClientDTO) => {
+    requestConfirm({
+      title: t`Supprimer l'application « ${client.name} » ?`,
+      description: t`Tous les tokens et consentements associés seront révoqués.`,
+      confirmLabel: t`Supprimer l'application`,
+      destructive: true,
+      onConfirm: () => performDelete(client),
+    });
   };
 
   const gated = access.status !== 'approved' || !hasOAuthGrant;
@@ -617,6 +625,7 @@ export function OAuthAppsClient({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ConfirmDialog action={confirmAction} onClose={closeConfirm} />
     </DeveloperShell>
   );
 }
