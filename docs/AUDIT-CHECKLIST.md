@@ -9808,7 +9808,7 @@ langue activée gèlerait le catalogue. Un identifiant référencé ailleurs est
 clair : les macros ne s'appliquent pas hors du provider i18n.
 
 **Catalogues.** `pnpm intl:extract` + `pnpm intl:compile` : **3 614 entrées**, **0 doublon** de `msgid`,
-**0 `msgstr` vide en `fr`** (source complète), `en` à **2 471** entrées non traduites — dette de
+**0 `msgstr` vide en `fr`** (source complète), `en` à **2 696** entrées non traduites — dette de
 couverture anglaise antérieure à ce lot, laissée ouverte et chiffrée ici.
 
 **Preuves.** `pnpm guard:i18n` exit 0 ; `tsc --noEmit` 0 erreur ; `vitest run` **680/680** (100 fichiers),
