@@ -11,6 +11,7 @@ import { revalidatePath } from 'next/cache';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { authzTrailers } from '@/lib/action-result';
 import { assertCapability } from '@/lib/admin-identity';
+import { readOr, type Read } from './read-result';
 
 async function verifySuperadmin() {
   // Go vérifie le rôle superadmin sur chaque route admin (403 sinon).
@@ -670,15 +671,12 @@ export interface AdminPlacementPayload {
   updatedAt?: string;
 }
 
-export async function listPlacementsAdminAction(): Promise<AdminPlacementPayload[]> {
-  try {
-    await verifySuperadmin();
+export async function listPlacementsAdminAction(): Promise<Read<AdminPlacementPayload[]>> {
+  await verifySuperadmin();
+  return readOr('les emplacements d’annonce', async () => {
     const res = await goFetch<{ placements: AdminPlacementPayload[] }>('/v1/admin/placements');
     return res.placements || [];
-  } catch (err) {
-    console.error('listPlacementsAdminAction error:', err);
-    return [];
-  }
+  });
 }
 
 export async function createPlacementAdminAction(data: AdminPlacementPayload) {

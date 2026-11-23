@@ -17,6 +17,8 @@ import React from 'react';
 import { KeyRound } from 'lucide-react';
 import Link from 'next/link';
 import { getAdminIdentity, hasCapability, requireCapability } from '@/lib/admin-identity';
+import type { AccessPersonSummary } from '@/lib/admin-access-data';
+import type { Read } from '@/lib/read-result';
 import {
   getAccessGrants,
   getAccessRoles,
@@ -24,6 +26,8 @@ import {
   getAccessReviews,
 } from '@/lib/admin-access-data';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
+import { UnavailableNotice } from '@/components/shell/UnavailableNotice';
+import { readData } from '@/lib/read-result';
 import { AccessGrantForm } from './components/access-grant-form';
 import { AccessGrantsTable } from './components/access-grants-table';
 import { AccessReviewsSection } from './components/access-reviews-section';
@@ -43,11 +47,14 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
   const [grants, roles, people, reviews] = await Promise.all([
     getAccessGrants(params.q ?? ''),
     getAccessRoles(),
-    params.person ? searchAccessPeople(params.person) : Promise.resolve([]),
+    params.person
+      ? searchAccessPeople(params.person)
+      : Promise.resolve<Read<AccessPersonSummary[]>>({ ok: true, data: [] }),
     getAccessReviews(),
   ]);
 
-  const active = grants.filter((grant) => grant.state === 'active').length;
+  const rows = readData(grants, []);
+  const active = rows.filter((grant) => grant.state === 'active').length;
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-10">
@@ -67,11 +74,22 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
         }
       />
 
-      <AccessGrantForm people={people} roles={roles} canGrant={canGrant} />
+      {grants.ok && roles.ok && reviews.ok && people.ok ? null : (
+        <UnavailableNotice what="Les données d'accès staff" />
+      )}
 
-      <AccessGrantsTable grants={grants} query={params.q ?? ''} canGrant={canGrant} />
+      <AccessGrantForm
+        people={readData(people, [])}
+        roles={readData(roles, [])}
+        canGrant={canGrant && roles.ok}
+      />
 
-      <AccessReviewsSection data={reviews} canGrant={canGrant} />
+      <AccessGrantsTable grants={rows} query={params.q ?? ''} canGrant={canGrant} />
+
+      <AccessReviewsSection
+        data={readData(reviews, { current: null, items: [], total: 0 })}
+        canGrant={canGrant}
+      />
     </div>
   );
 }

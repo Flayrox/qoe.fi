@@ -11,6 +11,7 @@ import { revalidatePath } from 'next/cache';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { authzTrailers } from '@/lib/action-result';
 import { assertCapability } from '@/lib/admin-identity';
+import { readOr, type Read } from './read-result';
 
 export interface SandboxScenarioInfo {
   id: string;
@@ -43,14 +44,12 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 /** 📋 Récupère la liste des scénarios de simulation disponibles. */
-export async function getSandboxScenariosAction(): Promise<SandboxScenarioInfo[]> {
+export async function getSandboxScenariosAction(): Promise<Read<SandboxScenarioInfo[]>> {
   await assertCapability('admin.dashboard.read');
-  try {
+  return readOr('les scénarios de bac à sable', async () => {
     const data = await goFetch<{ scenarios: SandboxScenarioInfo[] }>('/v1/admin/sandbox/scenarios');
     return data.scenarios ?? [];
-  } catch {
-    return [];
-  }
+  });
 }
 
 /** ⚡ Exécute un scénario de seed prédéfini dans la base de données. */

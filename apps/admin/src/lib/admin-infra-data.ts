@@ -25,9 +25,8 @@ export interface StorageUsage {
 }
 
 /** Saturation du bucket images : totaux, statuts, plus gros consommateurs. */
-export async function getStorageUsage(limit = 20): Promise<StorageUsage> {
-  const empty: StorageUsage = { totalBytes: 0, assetCount: 0, byStatus: {}, topUsers: [] };
-  try {
+export async function getStorageUsage(limit = 20): Promise<Read<StorageUsage>> {
+  return readOr('l’usage du stockage', async () => {
     const body = await goFetch<Partial<StorageUsage>>(`/v1/admin/storage/usage?limit=${limit}`);
     return {
       totalBytes: typeof body?.totalBytes === 'number' ? body.totalBytes : 0,
@@ -35,22 +34,19 @@ export async function getStorageUsage(limit = 20): Promise<StorageUsage> {
       byStatus: body?.byStatus && typeof body.byStatus === 'object' ? body.byStatus : {},
       topUsers: Array.isArray(body?.topUsers) ? body.topUsers : [],
     };
-  } catch {
-    return empty;
-  }
+  });
 }
 
 import type { StaffCampaign } from './admin-campaign-types';
+import { readOr, type Read } from './read-result';
 export * from './admin-campaign-types';
 
 /** Campagnes staff (les plus récentes d'abord). */
-export async function getStaffCampaigns(): Promise<StaffCampaign[]> {
-  try {
+export async function getStaffCampaigns(): Promise<Read<StaffCampaign[]>> {
+  return readOr('les campagnes staff', async () => {
     const body = await goFetch<{ items?: StaffCampaign[] | null }>('/v1/admin/campaigns');
     return Array.isArray(body?.items) ? body.items : [];
-  } catch {
-    return [];
-  }
+  });
 }
 
 // ── Santé de la plateforme ───────────────────────────────────────────────

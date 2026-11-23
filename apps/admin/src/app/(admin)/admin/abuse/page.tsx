@@ -13,13 +13,17 @@ import { getAdminAbuseDecisions } from '@/lib/admin-data';
 import { AbuseQueue } from './components/abuse-queue';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 import { MetricChips } from '@/components/shell/MetricChips';
+import { UnavailableNotice } from '@/components/shell/UnavailableNotice';
 
 export default async function AdminAbusePage() {
   requireCapability(await getAdminIdentity(), 'admin.abuse.read');
-  const data = await getAdminAbuseDecisions();
+  // File illisible : aucun compteur, et l'écran le dit — « 0 dossier » se
+  // lirait comme « rien à revoir », ce qui n'a pas été mesuré.
+  const decisions = await getAdminAbuseDecisions();
+  const items = decisions.ok ? decisions.data.items : [];
 
-  const autoCount = data.items.filter((a) => a.decidedBy === 'auto').length;
-  const humanCount = data.items.filter((a) => a.decidedBy === 'human').length;
+  const autoCount = items.filter((a) => a.decidedBy === 'auto').length;
+  const humanCount = items.filter((a) => a.decidedBy === 'human').length;
 
   return (
     <div className="space-y-4">
@@ -37,28 +41,32 @@ export default async function AdminAbusePage() {
             .
           </p>
         </div>
-        <MetricChips
-          items={[
-            {
-              label: 'Dossiers ouverts',
-              value: data.items.length,
-              tone: data.items.length > 0 ? 'warn' : 'default',
-            },
-            {
-              label: 'Automate',
-              value: autoCount,
-              tone: 'default',
-            },
-            {
-              label: 'Humain',
-              value: humanCount,
-              tone: 'default',
-            },
-          ]}
-        />
+        {decisions.ok ? (
+          <MetricChips
+            items={[
+              {
+                label: 'Dossiers ouverts',
+                value: items.length,
+                tone: items.length > 0 ? 'warn' : 'default',
+              },
+              {
+                label: 'Automate',
+                value: autoCount,
+                tone: 'default',
+              },
+              {
+                label: 'Humain',
+                value: humanCount,
+                tone: 'default',
+              },
+            ]}
+          />
+        ) : (
+          <UnavailableNotice what="La file anti-abus" />
+        )}
       </div>
 
-      <AbuseQueue initialItems={data.items} />
+      <AbuseQueue initialItems={items} />
     </div>
   );
 }

@@ -15,13 +15,14 @@ import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
 import { GrantsManager } from './components/grants-manager';
 import { SubscribersSignedExportPanel } from './components/SubscribersSignedExportPanel';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
+import { UnavailableNotice } from '@/components/shell/UnavailableNotice';
 
 export default async function AdminSubscriptionsPage() {
   requireCapability(await getAdminIdentity(), 'admin.subscriptions.read');
-  const data = await getAdminSubscriptionGrants();
-  // Blindage défensif : même si l'API renvoyait `items: null`, la page ne
-  // doit jamais crasher (crash « This page couldn't load »).
-  const items = data.items ?? [];
+  const grants = await getAdminSubscriptionGrants();
+  // Une lecture échouée n'est pas « aucun octroi » : l'écran le dit au lieu
+  // d'affirmer qu'aucun droit n'a jamais été accordé.
+  const items = grants.ok ? grants.data.items : [];
   const activeCount = items.filter((g) => g.effective).length;
 
   return (
@@ -38,6 +39,8 @@ export default async function AdminSubscriptionsPage() {
           </>
         }
       />
+
+      {grants.ok ? null : <UnavailableNotice what="Les octrois d'abonnement" />}
 
       <GrantsManager initialItems={items} />
 

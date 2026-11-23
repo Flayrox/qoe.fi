@@ -13,6 +13,7 @@ import { getAdminSupportTickets, getAdminSupportMetrics } from '@/lib/admin-data
 import { SupportQueue } from './components/support-queue';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 import { MetricChips } from '@/components/shell/MetricChips';
+import { UnavailableNotice } from '@/components/shell/UnavailableNotice';
 
 export default async function AdminSupportPage() {
   requireCapability(await getAdminIdentity(), 'admin.support.read');
@@ -20,7 +21,9 @@ export default async function AdminSupportPage() {
     getAdminSupportTickets(),
     getAdminSupportMetrics(),
   ]);
-  const openCount = tickets.items.filter((t) => t.status !== 'closed').length;
+  // Dossiers illisibles : les compteurs se taisent au lieu de compter zéro ;
+  // métriques illisibles (`null`) : aucune pastille, un avertissement nommé.
+  const items = tickets.ok ? tickets.data.items : [];
 
   return (
     <div className="space-y-4">
@@ -41,43 +44,49 @@ export default async function AdminSupportPage() {
             main et clôture.
           </p>
         </div>
-        <MetricChips
-          items={[
-            {
-              label: 'Ouverts',
-              value: metrics?.open ?? openCount,
-              tone: (metrics?.open ?? openCount) > 0 ? 'warn' : 'default',
-            },
-            {
-              label: 'Non assignés',
-              value: metrics?.unassignedOpen ?? 0,
-              tone: (metrics?.unassignedOpen ?? 0) > 0 ? 'warn' : 'default',
-            },
-            {
-              label: 'En cours',
-              value: metrics?.under_review ?? 0,
-              tone: 'default',
-            },
-            {
-              label: 'Plus ancien',
-              value: `${metrics?.oldestOpenAgeHours ?? 0}h`,
-              tone: (metrics?.oldestOpenAgeHours ?? 0) > 48 ? 'danger' : 'default',
-            },
-            {
-              label: 'Délai moyen (30j)',
-              value: `${metrics?.avgCloseHours30d ?? 0}h`,
-              tone: 'default',
-            },
-            {
-              label: 'Clos (30j)',
-              value: metrics?.closed30d ?? 0,
-              tone: 'default',
-            },
-          ]}
-        />
+        {!tickets.ok ? (
+          <UnavailableNotice what="La file support" />
+        ) : metrics === null ? (
+          <UnavailableNotice what="Les métriques support" />
+        ) : (
+          <MetricChips
+            items={[
+              {
+                label: 'Ouverts',
+                value: metrics.open,
+                tone: metrics.open > 0 ? 'warn' : 'default',
+              },
+              {
+                label: 'Non assignés',
+                value: metrics.unassignedOpen,
+                tone: metrics.unassignedOpen > 0 ? 'warn' : 'default',
+              },
+              {
+                label: 'En cours',
+                value: metrics.under_review,
+                tone: 'default',
+              },
+              {
+                label: 'Plus ancien',
+                value: `${metrics.oldestOpenAgeHours}h`,
+                tone: metrics.oldestOpenAgeHours > 48 ? 'danger' : 'default',
+              },
+              {
+                label: 'Délai moyen (30j)',
+                value: `${metrics.avgCloseHours30d}h`,
+                tone: 'default',
+              },
+              {
+                label: 'Clos (30j)',
+                value: metrics.closed30d,
+                tone: 'default',
+              },
+            ]}
+          />
+        )}
       </div>
 
-      <SupportQueue initialItems={tickets.items} />
+      <SupportQueue initialItems={items} />
     </div>
   );
 }

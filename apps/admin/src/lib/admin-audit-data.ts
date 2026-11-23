@@ -13,6 +13,7 @@
 // =====================================================================
 
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { readOr, type Read } from './read-result';
 import {
   type AdminAuditEntry,
   type AuthzDecisionEntry,
@@ -28,7 +29,12 @@ export * from './admin-audit-types';
 const ACCESS_DENIED_MESSAGE = 'Lecture refusée : la capacité admin.audit.read est requise.';
 
 /** Journal d'audit filtré + mode d'autorisation en vigueur. */
-export async function getAuditLog(filters: AuditFilters = {}): Promise<AuditLogView> {
+export async function getAuditLog(filters: AuditFilters = {}): Promise<Read<AuditLogView>> {
+  return readOr('le journal d’audit', () => fetchAuditLog(filters));
+}
+
+/** Une lecture en échec n'est pas « aucun événement » : `ok` le dit. */
+async function fetchAuditLog(filters: AuditFilters): Promise<AuditLogView> {
   try {
     const body = await goFetch<{ items?: AdminAuditEntry[] | null; mode?: string }>(
       `/v1/admin/audit-log${auditQuery(filters)}`
@@ -38,10 +44,10 @@ export async function getAuditLog(filters: AuditFilters = {}): Promise<AuditLogV
       mode: body?.mode === 'enforce' ? 'enforce' : 'observe',
     };
   } catch (err) {
-    if ((err as { status?: number })?.status === 403) throw new Error(ACCESS_DENIED_MESSAGE);
-    // Mode ILLISIBLE : afficher « observation » sans donnée serait une
-    // affirmation sur la posture de sécurité de la plateforme.
-    return { items: [], mode: null };
+    // Un refus de capacité reste un refus : il n'est pas déguisé en panne.
+    if ((err as { status?: number })?.status === 403)
+      throw Object.assign(new Error(ACCESS_DENIED_MESSAGE), { status: 403 });
+    throw err;
   }
 }
 
@@ -61,7 +67,13 @@ export interface DecisionsView {
 }
 
 /** Décisions du garde : accords, refus appliqués et refus observés. */
-export async function getAuthzDecisions(filters: DecisionFilters = {}): Promise<DecisionsView> {
+export async function getAuthzDecisions(
+  filters: DecisionFilters = {}
+): Promise<Read<DecisionsView>> {
+  return readOr('les décisions du garde', () => fetchAuthzDecisions(filters));
+}
+
+async function fetchAuthzDecisions(filters: DecisionFilters): Promise<DecisionsView> {
   const extra: Record<string, string> = {};
   if (filters.denied) extra.denied = '1';
   if (filters.capability) extra.capability = filters.capability;
@@ -80,8 +92,9 @@ export async function getAuthzDecisions(filters: DecisionFilters = {}): Promise<
       mode: body?.mode === 'enforce' ? 'enforce' : 'observe',
     };
   } catch (err) {
-    if ((err as { status?: number })?.status === 403) throw new Error(ACCESS_DENIED_MESSAGE);
-    return { items: [], groups: [], mode: null };
+    if ((err as { status?: number })?.status === 403)
+      throw Object.assign(new Error(ACCESS_DENIED_MESSAGE), { status: 403 });
+    throw err;
   }
 }
 

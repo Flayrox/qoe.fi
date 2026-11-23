@@ -6,6 +6,7 @@ import React from 'react';
 import { MetricChips } from '@/components/shell/MetricChips';
 import { getAdminIdentity, hasCapability, requireCapability } from '@/lib/admin-identity';
 import { describeAuthzEnforcement, getSecurityOverview } from '@/lib/admin-security-data';
+import { UnavailableNotice } from '@/components/shell/UnavailableNotice';
 import { SecurityCockpit } from './SecurityCockpit';
 
 export const dynamic = 'force-dynamic';
@@ -14,13 +15,14 @@ export default async function AdminSecurityPage() {
   const identity = await getAdminIdentity();
   requireCapability(identity, 'admin.abuse.read');
 
-  const overview = await getSecurityOverview();
-  const authzMode = describeAuthzEnforcement(overview.authzEnforceEnabled);
+  const cockpit = await getSecurityOverview();
+  // Sonde illisible : pas de chiffres à zéro, un avertissement nommé.
+  const authzMode = describeAuthzEnforcement(cockpit.ok ? cockpit.data.authzEnforceEnabled : null);
   const canDecide = hasCapability(identity, 'admin.abuse.decide');
 
   const dismissalLabel =
-    overview.metrics.dismissalRate >= 0
-      ? `${Math.round(overview.metrics.dismissalRate * 100)} %`
+    cockpit.ok && cockpit.data.metrics.dismissalRate >= 0
+      ? `${Math.round(cockpit.data.metrics.dismissalRate * 100)} %`
       : '—';
 
   return (
@@ -34,39 +36,43 @@ export default async function AdminSecurityPage() {
             Synthèse 30 jours du noyau PolicyV3, sanctions actives et recalcul Trust en direct.
           </p>
         </div>
-        <MetricChips
-          items={[
-            {
-              label: 'Authz',
-              value: authzMode.value,
-              tone: authzMode.tone,
-              hint: authzMode.detail,
-            },
-            {
-              label: 'Shadowbans',
-              value: overview.shadowbannedCount,
-              tone: overview.shadowbannedCount > 0 ? 'warn' : 'default',
-            },
-            {
-              label: 'Suspensions',
-              value: overview.suspendedCount,
-              tone: overview.suspendedCount > 0 ? 'warn' : 'default',
-            },
-            {
-              label: 'File ouverte',
-              value: overview.metrics.openQueue,
-              tone: overview.metrics.openQueue > 0 ? 'warn' : 'default',
-            },
-            {
-              label: 'Faux positifs',
-              value: dismissalLabel,
-              tone: 'default',
-            },
-          ]}
-        />
+        {cockpit.ok ? (
+          <MetricChips
+            items={[
+              {
+                label: 'Authz',
+                value: authzMode.value,
+                tone: authzMode.tone,
+                hint: authzMode.detail,
+              },
+              {
+                label: 'Shadowbans',
+                value: cockpit.data.shadowbannedCount,
+                tone: cockpit.data.shadowbannedCount > 0 ? 'warn' : 'default',
+              },
+              {
+                label: 'Suspensions',
+                value: cockpit.data.suspendedCount,
+                tone: cockpit.data.suspendedCount > 0 ? 'warn' : 'default',
+              },
+              {
+                label: 'File ouverte',
+                value: cockpit.data.metrics.openQueue,
+                tone: cockpit.data.metrics.openQueue > 0 ? 'warn' : 'default',
+              },
+              {
+                label: 'Faux positifs',
+                value: dismissalLabel,
+                tone: 'default',
+              },
+            ]}
+          />
+        ) : (
+          <UnavailableNotice what="Le cockpit sécurité" />
+        )}
       </div>
 
-      <SecurityCockpit overview={overview} canDecide={canDecide} />
+      {cockpit.ok ? <SecurityCockpit overview={cockpit.data} canDecide={canDecide} /> : null}
     </div>
   );
 }

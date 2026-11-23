@@ -12,14 +12,18 @@ import { getAdminAbuseAppeals } from '@/lib/admin-data';
 import { AppealsQueue } from './components/appeals-queue';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 import { MetricChips } from '@/components/shell/MetricChips';
+import { UnavailableNotice } from '@/components/shell/UnavailableNotice';
 
 export default async function AdminAppealsPage() {
   requireCapability(await getAdminIdentity(), 'admin.appeals.read');
-  const data = await getAdminAbuseAppeals();
+  // Une lecture en échec n'est pas « aucun recours » : les compteurs ne
+  // s'affichent que si la file a été lue, sinon l'écran le dit.
+  const appeals = await getAdminAbuseAppeals();
+  const items = appeals.ok ? appeals.data.items : [];
 
-  const openCount = data.items.filter((a) => a.status === 'open').length;
-  const reviewCount = data.items.filter((a) => a.status === 'under_review').length;
-  const decidedCount = data.items.filter((a) => a.status === 'decided').length;
+  const openCount = items.filter((a) => a.status === 'open').length;
+  const reviewCount = items.filter((a) => a.status === 'under_review').length;
+  const decidedCount = items.filter((a) => a.status === 'decided').length;
 
   return (
     <div className="space-y-4">
@@ -30,33 +34,37 @@ export default async function AdminAppealsPage() {
             Contestations des sanctions visant un compte · confirmation ou levée pour faux positif.
           </p>
         </div>
-        <MetricChips
-          items={[
-            {
-              label: 'À traiter',
-              value: openCount,
-              tone: openCount > 0 ? 'warn' : 'default',
-            },
-            {
-              label: 'En cours',
-              value: reviewCount,
-              tone: 'default',
-            },
-            {
-              label: 'Tranchés',
-              value: decidedCount,
-              tone: 'default',
-            },
-            {
-              label: 'Total',
-              value: data.items.length,
-              tone: 'default',
-            },
-          ]}
-        />
+        {appeals.ok ? (
+          <MetricChips
+            items={[
+              {
+                label: 'À traiter',
+                value: openCount,
+                tone: openCount > 0 ? 'warn' : 'default',
+              },
+              {
+                label: 'En cours',
+                value: reviewCount,
+                tone: 'default',
+              },
+              {
+                label: 'Tranchés',
+                value: decidedCount,
+                tone: 'default',
+              },
+              {
+                label: 'Total',
+                value: items.length,
+                tone: 'default',
+              },
+            ]}
+          />
+        ) : (
+          <UnavailableNotice what="Les recours" />
+        )}
       </div>
 
-      <AppealsQueue initialItems={data.items} />
+      <AppealsQueue initialItems={items} />
     </div>
   );
 }

@@ -6,6 +6,12 @@
 // en `null` par encoding/json). Le composant serveur admin crashe alors sur
 // `data.items.filter(...)`. Ces tests verrouillent le contrat de la couche
 // de données : TOUJOURS un tableau, jamais `null`.
+//
+// Depuis L22i (R161), un échec de lecture rend `{ ok: false }` et non plus
+// `{ items: [], total: 0 }` : les deux assertions de panne qui verrouillaient
+// l'ancien repli sont retournées contre le défaut (même scenario, l'attente
+// est simplement devenue vraie). Les autres assertions sont inchangées à
+// l'enveloppe `{ ok: true, data }` près.
 // =====================================================================
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -38,12 +44,18 @@ beforeEach(() => {
 describe('getAdminSupportArticles', () => {
   it('convertit items:null en tableau vide (table vide côté Go)', async () => {
     mockGoFetch.mockResolvedValue({ items: null, total: 0 });
-    await expect(getAdminSupportArticles()).resolves.toEqual({ items: [], total: 0 });
+    await expect(getAdminSupportArticles()).resolves.toEqual({
+      ok: true,
+      data: { items: [], total: 0 },
+    });
   });
 
   it('garantit total:0 si l’API omet le compteur', async () => {
     mockGoFetch.mockResolvedValue({ items: null, total: null });
-    await expect(getAdminSupportArticles()).resolves.toEqual({ items: [], total: 0 });
+    await expect(getAdminSupportArticles()).resolves.toEqual({
+      ok: true,
+      data: { items: [], total: 0 },
+    });
   });
 
   it('préserve les articles renvoyés', async () => {
@@ -60,19 +72,26 @@ describe('getAdminSupportArticles', () => {
       updatedAt: '2026-01-01T00:00:00Z',
     };
     mockGoFetch.mockResolvedValue({ items: [article], total: 1 });
-    await expect(getAdminSupportArticles()).resolves.toEqual({ items: [article], total: 1 });
+    await expect(getAdminSupportArticles()).resolves.toEqual({
+      ok: true,
+      data: { items: [article], total: 1 },
+    });
   });
 
-  it('retombe sur un tableau vide si l’API échoue', async () => {
+  it('déclare la lecture illisible si l’API échoue (jamais « aucun article »)', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     mockGoFetch.mockRejectedValue(new Error('go indisponible'));
-    await expect(getAdminSupportArticles()).resolves.toEqual({ items: [], total: 0 });
+    await expect(getAdminSupportArticles()).resolves.toEqual({ ok: false });
   });
 });
 
 describe('getAdminSubscriptionGrants', () => {
   it('convertit items:null en tableau vide (table vide côté Go)', async () => {
     mockGoFetch.mockResolvedValue({ items: null, total: 0 });
-    await expect(getAdminSubscriptionGrants()).resolves.toEqual({ items: [], total: 0 });
+    await expect(getAdminSubscriptionGrants()).resolves.toEqual({
+      ok: true,
+      data: { items: [], total: 0 },
+    });
   });
 
   it('préserve les octrois renvoyés', async () => {
@@ -89,12 +108,16 @@ describe('getAdminSubscriptionGrants', () => {
       effective: true,
     };
     mockGoFetch.mockResolvedValue({ items: [grant], total: 1 });
-    await expect(getAdminSubscriptionGrants()).resolves.toEqual({ items: [grant], total: 1 });
+    await expect(getAdminSubscriptionGrants()).resolves.toEqual({
+      ok: true,
+      data: { items: [grant], total: 1 },
+    });
   });
 
-  it('retombe sur un tableau vide si l’API échoue', async () => {
+  it('déclare la lecture illisible si l’API échoue (jamais « aucun octroi »)', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     mockGoFetch.mockRejectedValue(new Error('go indisponible'));
-    await expect(getAdminSubscriptionGrants()).resolves.toEqual({ items: [], total: 0 });
+    await expect(getAdminSubscriptionGrants()).resolves.toEqual({ ok: false });
   });
 });
 

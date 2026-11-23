@@ -11,6 +11,8 @@ import Link from 'next/link';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 import { getAccessCapabilities, getAccessRoles } from '@/lib/admin-access-data';
 import { MetricChips } from '@/components/shell/MetricChips';
+import { UnavailableNotice } from '@/components/shell/UnavailableNotice';
+import { readData } from '@/lib/read-result';
 import { RolesMatrixSimulator } from './RolesMatrixSimulator';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +23,9 @@ export default async function AdminAccessRolesPage() {
 
   const [roles, capabilities] = await Promise.all([getAccessRoles(), getAccessCapabilities()]);
 
-  const totalHolders = roles.reduce((sum, r) => sum + r.holders, 0);
+  const roleRows = readData(roles, []);
+  const capabilityRows = readData(capabilities, []);
+  const totalHolders = roleRows.reduce((sum, r) => sum + r.holders, 0);
 
   return (
     <div className="space-y-4">
@@ -44,28 +48,32 @@ export default async function AdminAccessRolesPage() {
             actives.
           </p>
         </div>
-        <MetricChips
-          items={[
-            {
-              label: 'Rôles',
-              value: roles.length,
-              tone: 'default',
-            },
-            {
-              label: 'Capacités',
-              value: capabilities.length,
-              tone: 'default',
-            },
-            {
-              label: 'Détenteurs actifs',
-              value: totalHolders,
-              tone: 'default',
-            },
-          ]}
-        />
+        {roles.ok && capabilities.ok ? (
+          <MetricChips
+            items={[
+              {
+                label: 'Rôles',
+                value: roleRows.length,
+                tone: 'default',
+              },
+              {
+                label: 'Capacités',
+                value: capabilityRows.length,
+                tone: 'default',
+              },
+              {
+                label: 'Détenteurs actifs',
+                value: totalHolders,
+                tone: 'default',
+              },
+            ]}
+          />
+        ) : (
+          <UnavailableNotice what="La matrice des rôles" />
+        )}
       </div>
 
-      <RolesMatrixSimulator roles={roles} capabilities={capabilities} />
+      <RolesMatrixSimulator roles={roleRows} capabilities={capabilityRows} />
     </div>
   );
 }

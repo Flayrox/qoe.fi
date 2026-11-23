@@ -94,19 +94,6 @@ export async function exportUserDsarAction(
   }
 }
 
-/** 📋 Récupère la liste à jour des demandes d'effacement en attente et traitées. */
-export async function listDeletionRequestsAction(): Promise<DeletionRequestItem[]> {
-  await assertCapability('admin.compliance.read');
-  try {
-    const data = await goFetch<{ items: DeletionRequestItem[] }>(
-      '/v1/admin/compliance/deletion-requests'
-    );
-    return data.items ?? [];
-  } catch {
-    return [];
-  }
-}
-
 /** 🧹 Exécute ou simule la purge de rétention par table ou globale. */
 export async function runRetentionPurgeAction(
   table?: string,

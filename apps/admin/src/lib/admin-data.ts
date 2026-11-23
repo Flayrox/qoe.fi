@@ -17,6 +17,7 @@ import type {
   SupportKind,
   SupportStatus,
 } from '@qoe/sdk';
+import { readOr, type Read } from './read-result';
 export interface AdminDashboardCounts {
   users: number;
   creators: number;
@@ -206,13 +207,10 @@ export interface AllowlistEntry {
   createdAt: string;
 }
 
-export async function getAllowlist(): Promise<AllowlistEntry[]> {
-  try {
+export async function getAllowlist(): Promise<Read<AllowlistEntry[]>> {
+  return readOr('la liste d’invitations', async () => {
     return await goFetch<AllowlistEntry[]>('/v1/admin/registrations/allowlist');
-  } catch {
-    // Table pas encore migrée / API indisponible : page config résiliente.
-    return [];
-  }
+  });
 }
 
 /** 🛠️ Demandes d'accès API. */
@@ -275,19 +273,18 @@ export interface AbuseDecisionItem {
   recentFacts: number;
 }
 
-export async function getAdminAbuseDecisions(): Promise<{
-  items: AbuseDecisionItem[];
-  total: number;
-}> {
-  try {
+export async function getAdminAbuseDecisions(): Promise<
+  Read<{
+    items: AbuseDecisionItem[];
+    total: number;
+  }>
+> {
+  return readOr('la file anti-abus', async () => {
     const res = await goFetch<{ items: AbuseDecisionItem[]; total: number }>(
       '/v1/admin/abuse/decisions?limit=50'
     );
     return { items: res.items ?? [], total: res.total ?? 0 };
-  } catch {
-    // Table pas encore migrée / API indisponible : page résiliente.
-    return { items: [], total: 0 };
-  }
+  });
 }
 
 /** ⚖️ Recours (tranche 6) : dossier + messages. Miroir de Appeal (Go). */
@@ -313,18 +310,18 @@ export interface AbuseAppealItem {
   messages?: AbuseAppealMessage[];
 }
 
-export async function getAdminAbuseAppeals(): Promise<{
-  items: AbuseAppealItem[];
-  total: number;
-}> {
-  try {
+export async function getAdminAbuseAppeals(): Promise<
+  Read<{
+    items: AbuseAppealItem[];
+    total: number;
+  }>
+> {
+  return readOr('les recours', async () => {
     const res = await goFetch<{ items: AbuseAppealItem[]; total: number }>(
       '/v1/admin/abuse/appeals?limit=50'
     );
     return { items: res.items ?? [], total: res.total ?? 0 };
-  } catch {
-    return { items: [], total: 0 };
-  }
+  });
 }
 
 /** 🛡️ Incidents (attaques confirmées, dossier tenu par le staff). */
@@ -343,18 +340,18 @@ export interface AbuseIncidentItem {
   updatedAt: string;
 }
 
-export async function getAdminAbuseIncidents(): Promise<{
-  items: AbuseIncidentItem[];
-  total: number;
-}> {
-  try {
+export async function getAdminAbuseIncidents(): Promise<
+  Read<{
+    items: AbuseIncidentItem[];
+    total: number;
+  }>
+> {
+  return readOr('les incidents anti-abus', async () => {
     const res = await goFetch<{ items: AbuseIncidentItem[]; total: number }>(
       '/v1/admin/abuse/incidents?limit=50'
     );
     return { items: res.items ?? [], total: res.total ?? 0 };
-  } catch {
-    return { items: [], total: 0 };
-  }
+  });
 }
 
 /** 🎫 Support général (tranche 6) : dossier + messages. */
@@ -380,18 +377,18 @@ export interface SupportTicketItem {
   messages?: SupportMessage[];
 }
 
-export async function getAdminSupportTickets(): Promise<{
-  items: SupportTicketItem[];
-  total: number;
-}> {
-  try {
+export async function getAdminSupportTickets(): Promise<
+  Read<{
+    items: SupportTicketItem[];
+    total: number;
+  }>
+> {
+  return readOr('la file support', async () => {
     const res = await goFetch<{ items: SupportTicketItem[]; total: number }>(
       '/v1/admin/support/tickets?limit=50'
     );
     return { items: res.items ?? [], total: res.total ?? 0 };
-  } catch {
-    return { items: [], total: 0 };
-  }
+  });
 }
 
 export interface SupportMetrics {
@@ -426,18 +423,18 @@ export interface SupportArticleItem {
   updatedAt: string;
 }
 
-export async function getAdminSupportArticles(): Promise<{
-  items: SupportArticleItem[];
-  total: number;
-}> {
-  try {
+export async function getAdminSupportArticles(): Promise<
+  Read<{
+    items: SupportArticleItem[];
+    total: number;
+  }>
+> {
+  return readOr('les articles d’aide', async () => {
     const res = await goFetch<{ items: SupportArticleItem[]; total: number }>(
       '/v1/admin/support/articles?limit=100'
     );
     return { items: res.items ?? [], total: res.total ?? 0 };
-  } catch {
-    return { items: [], total: 0 };
-  }
+  });
 }
 
 /** 💎 Octrois d'abonnements (intérim Stripe) : staff uniquement. */
@@ -454,18 +451,18 @@ export interface SubscriptionGrantItem {
   effective: boolean;
 }
 
-export async function getAdminSubscriptionGrants(): Promise<{
-  items: SubscriptionGrantItem[];
-  total: number;
-}> {
-  try {
+export async function getAdminSubscriptionGrants(): Promise<
+  Read<{
+    items: SubscriptionGrantItem[];
+    total: number;
+  }>
+> {
+  return readOr('les octrois d’abonnement', async () => {
     const res = await goFetch<{ items: SubscriptionGrantItem[]; total: number }>(
       '/v1/admin/subscriptions/grants?limit=50'
     );
     return { items: res.items ?? [], total: res.total ?? 0 };
-  } catch {
-    return { items: [], total: 0 };
-  }
+  });
 }
 
 /** 📊 Métriques de santé anti-abus (fiche 06 §11). */
@@ -787,15 +784,13 @@ export interface ConsentExportVerification {
 }
 
 /** 🧾 Registre des exports signés (les plus récents d'abord). */
-export async function getAdminConsentExports(limit = 25): Promise<ConsentExportRecord[]> {
-  try {
+export async function getAdminConsentExports(limit = 25): Promise<Read<ConsentExportRecord[]>> {
+  return readOr('le registre des exports signés', async () => {
     const data = await goFetch<{ items: ConsentExportRecord[] }>(
       `/v1/admin/legal/consent-exports?limit=${limit}`
     );
     return data.items ?? [];
-  } catch {
-    return [];
-  }
+  });
 }
 
 /** 🔐 Recalcule la chaîne de signatures : la pièce est-elle intacte ? */
@@ -832,15 +827,13 @@ export interface ErasureReceipt {
 }
 
 /** 🗑️ Liste des demandes d'effacement de compte RGPD (Art. 17). */
-export async function getAdminDeletionRequests(): Promise<DeletionRequestItem[]> {
-  try {
+export async function getAdminDeletionRequests(): Promise<Read<DeletionRequestItem[]>> {
+  return readOr('les demandes d’effacement', async () => {
     const data = await goFetch<{ items: DeletionRequestItem[] }>(
       '/v1/admin/compliance/deletion-requests'
     );
     return data.items ?? [];
-  } catch {
-    return [];
-  }
+  });
 }
 
 // ─── Rétention des données par table & Purge planifiée ───────────────
@@ -887,25 +880,21 @@ export interface RetentionJournalEntry {
 }
 
 /** 🛡️ Liste des politiques de rétention par table et métriques de lignes périmées. */
-export async function getAdminRetentionPolicies(): Promise<RetentionPolicyRow[]> {
-  try {
+export async function getAdminRetentionPolicies(): Promise<Read<RetentionPolicyRow[]>> {
+  return readOr('les politiques de rétention', async () => {
     const data = await goFetch<{ items: RetentionPolicyRow[] }>('/v1/admin/compliance/retention');
     return data.items ?? [];
-  } catch {
-    return [];
-  }
+  });
 }
 
 /** 📜 Journal des purges de rétention exécutées sur la plateforme. */
-export async function getAdminRetentionJournal(limit = 50): Promise<RetentionJournalEntry[]> {
-  try {
+export async function getAdminRetentionJournal(limit = 50): Promise<Read<RetentionJournalEntry[]>> {
+  return readOr('le journal des purges', async () => {
     const data = await goFetch<{ items: RetentionJournalEntry[] }>(
       `/v1/admin/compliance/retention/journal?limit=${limit}`
     );
     return data.items ?? [];
-  } catch {
-    return [];
-  }
+  });
 }
 
 // ─── Cycle de vie légal ──────────────────────────────────────────────
@@ -933,15 +922,13 @@ export interface AdminLegalReview {
 }
 
 /** 🔄 Revues périodiques (échéances ouvertes et historique récent). */
-export async function getAdminLegalReviews(limit = 100): Promise<AdminLegalReview[]> {
-  try {
+export async function getAdminLegalReviews(limit = 100): Promise<Read<AdminLegalReview[]>> {
+  return readOr('les revues réglementaires', async () => {
     const data = await goFetch<{ items: AdminLegalReview[] }>(
       `/v1/admin/legal/reviews?limit=${limit}`
     );
     return data.items ?? [];
-  } catch {
-    return [];
-  }
+  });
 }
 
 export interface FeatureFlagItem {
@@ -992,9 +979,8 @@ export interface AdminWorkQueueView {
 }
 
 /** Vue agrégée des six files, avec leurs champs de triage. */
-export async function getAdminWorkQueue(): Promise<AdminWorkQueueView> {
-  const empty: AdminWorkQueueView = { items: [], entries: [], assignedToMe: 0, breached: 0 };
-  try {
+export async function getAdminWorkQueue(): Promise<Read<AdminWorkQueueView>> {
+  return readOr('la file de travail', async () => {
     const body = await goFetch<Partial<AdminWorkQueueView>>('/v1/admin/work-queue');
     return {
       items: Array.isArray(body?.items) ? body.items : [],
@@ -1002,9 +988,7 @@ export async function getAdminWorkQueue(): Promise<AdminWorkQueueView> {
       assignedToMe: typeof body?.assignedToMe === 'number' ? body.assignedToMe : 0,
       breached: typeof body?.breached === 'number' ? body.breached : 0,
     };
-  } catch {
-    return empty;
-  }
+  });
 }
 
 export interface AdminFeatureItem {
@@ -1017,26 +1001,21 @@ export interface AdminFeatureItem {
 }
 
 /** Registre opérationnel des fonctionnalités (statut, CTA, audience). */
-export async function getAdminFeatures(): Promise<AdminFeatureItem[]> {
-  try {
+export async function getAdminFeatures(): Promise<Read<AdminFeatureItem[]>> {
+  return readOr('le registre des fonctionnalités', async () => {
     const body = await goFetch<{ items?: AdminFeatureItem[] | null }>('/v1/admin/features');
     return Array.isArray(body?.items) ? body.items : [];
-  } catch {
-    return [];
-  }
+  });
 }
 
 /** 🚩 Feature flags : lecture via l'API Go (capacité + audit), jamais Supabase. */
-export async function getAdminFeatureFlags(): Promise<FeatureFlagItem[]> {
-  try {
+export async function getAdminFeatureFlags(): Promise<Read<FeatureFlagItem[]>> {
+  return readOr('les feature flags', async () => {
     const body = await goFetch<{ items?: FeatureFlagItem[] | null }>('/v1/admin/feature-flags');
     return Array.isArray(body?.items)
       ? body.items.map((item) => ({ ...item, target_roles: item.target_roles ?? ['all'] }))
       : [];
-  } catch {
-    // Une panne de la console ne doit pas casser la page : zéro flag affiché.
-    return [];
-  }
+  });
 }
 
 /** 👥 File de revue des imports d'abonnés (lots ouverts, plus anciens d'abord). */

@@ -7,6 +7,7 @@ import { PlacementsManager } from './PlacementsManager';
 import { OutboxObservabilityConsole } from './OutboxObservabilityConsole';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 import { MetricChips } from '@/components/shell/MetricChips';
+import { UnavailableNotice } from '@/components/shell/UnavailableNotice';
 
 export default async function AdminNotificationsPage() {
   requireCapability(await getAdminIdentity(), 'admin.deliveries.read');
@@ -92,7 +93,10 @@ export default async function AdminNotificationsPage() {
 
       <BroadcastAnnouncementConsole initialAnnouncement={announcement} />
 
-      <PlacementsManager initialPlacements={placements} />
+      <>
+        {placements.ok ? null : <UnavailableNotice what="Les emplacements d'annonce" />}
+        <PlacementsManager initialPlacements={placements.ok ? placements.data : []} />
+      </>
 
       <section className="space-y-2">
         <div className="flex items-center justify-between">

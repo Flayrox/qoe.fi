@@ -37,7 +37,11 @@ export default async function AdminHealthPage() {
     getPlatformSLO(),
   ]);
 
-  const exercised = new Set(month.groups.map((group) => group.capability));
+  // Décisions illisibles : ni « jamais exercée » ni « aucune décision » — on
+  // se tait sur les capacités au lieu de les déclarer mortes.
+  const monthView = month.ok ? month.data : { items: [], groups: [], mode: null };
+  const decisionView = decisions.ok ? decisions.data : { items: [], groups: [], mode: null };
+  const exercised = new Set(monthView.groups.map((group) => group.capability));
   const neverExercised = ADMIN_CAPABILITIES.filter((capability) => !exercised.has(capability));
   // Une sonde muette n'est ni « observation » ni « refus armé » : on ne
   // prétend plus lire un mode qu'on n'a pas reçu.
@@ -158,7 +162,7 @@ export default async function AdminHealthPage() {
             {health?.decisions.recorder.dropped ?? 0} perdues
           </StatusPill>
           <StatusPill tone="muted">file : {health?.decisions.recorder.queued ?? 0}</StatusPill>
-          <StatusPill tone={decisions.items.length > 0 ? 'hot' : 'muted'}>
+          <StatusPill tone={decisionView.items.length > 0 ? 'hot' : 'muted'}>
             version déployée : {health?.version ?? 'inconnue'}
           </StatusPill>
         </div>

@@ -12,6 +12,7 @@ import { getAdminAbuseIncidents, getAdminAbuseMetrics } from '@/lib/admin-data';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
 import { IncidentsQueue } from './components/incidents-queue';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
+import { UnavailableNotice } from '@/components/shell/UnavailableNotice';
 
 export default async function AdminIncidentsPage() {
   requireCapability(await getAdminIdentity(), 'admin.incidents.read');
@@ -19,7 +20,8 @@ export default async function AdminIncidentsPage() {
     getAdminAbuseIncidents(),
     getAdminAbuseMetrics(),
   ]);
-  const activeCount = incidents.items.filter(
+  const items = incidents.ok ? incidents.data.items : [];
+  const activeCount = items.filter(
     (i) => i.status === 'open' || i.status === 'reopened' || i.status === 'contained'
   ).length;
 
@@ -38,7 +40,9 @@ export default async function AdminIncidentsPage() {
         }
       />
 
-      <IncidentsQueue initialItems={incidents.items} metrics={metrics} />
+      {incidents.ok ? null : <UnavailableNotice what="Le registre d'incidents" />}
+
+      <IncidentsQueue initialItems={items} metrics={metrics} />
     </div>
   );
 }

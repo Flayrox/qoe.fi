@@ -1,6 +1,8 @@
 import { Database } from 'lucide-react';
 import { getAdminRetentionJournal, getAdminRetentionPolicies } from '@/lib/admin-data';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
+import { UnavailableNotice } from '@/components/shell/UnavailableNotice';
+import { readData } from '@/lib/read-result';
 import { RetentionConsole } from './RetentionConsole';
 
 export const dynamic = 'force-dynamic';
@@ -31,7 +33,11 @@ export default async function AdminRetentionPage() {
         </p>
       </div>
 
-      <RetentionConsole policies={policies} journal={journal} />
+      {!policies.ok || !journal.ok ? (
+        <UnavailableNotice what="Les politiques de rétention" />
+      ) : null}
+
+      <RetentionConsole policies={readData(policies, [])} journal={readData(journal, [])} />
     </div>
   );
 }

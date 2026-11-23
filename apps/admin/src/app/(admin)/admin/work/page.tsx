@@ -4,6 +4,7 @@ import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 import { getAdminWorkQueue } from '@/lib/admin-data';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
 import { MetricChips } from '@/components/shell/MetricChips';
+import { UnavailableNotice } from '@/components/shell/UnavailableNotice';
 import { TriageBoard } from './components/triage-board';
 
 export const dynamic = 'force-dynamic';
@@ -11,7 +12,9 @@ export const dynamic = 'force-dynamic';
 export default async function AdminWorkPage() {
   const identity = await getAdminIdentity();
   requireCapability(identity, 'admin.dashboard.read');
-  const view = await getAdminWorkQueue();
+  const queue = await getAdminWorkQueue();
+  // File illisible : zéro dossier affiché serait un mensonge sur la charge.
+  const view = queue.ok ? queue.data : { items: [], entries: [], assignedToMe: 0, breached: 0 };
   const total = view.items.reduce((sum, item) => sum + item.count, 0);
 
   const chips = [
@@ -40,15 +43,15 @@ export default async function AdminWorkPage() {
         description="Les six files staff réunies, avec assignation, priorité, échéance et état SLA."
       />
 
-      <MetricChips items={chips} />
+      {queue.ok ? <MetricChips items={chips} /> : <UnavailableNotice what="Ma file" />}
 
-      {view.items.length === 0 ? (
+      {queue.ok && view.items.length === 0 ? (
         <p className="rounded border border-border/60 bg-muted/20 px-2 py-1.5 text-[11px] text-muted-foreground">
           Aucune file accessible.
         </p>
-      ) : (
+      ) : queue.ok ? (
         <TriageBoard view={view} />
-      )}
+      ) : null}
     </div>
   );
 }

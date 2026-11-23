@@ -16,6 +16,7 @@ import Link from 'next/link';
 import { getAdminIdentity, hasCapability, requireCapability } from '@/lib/admin-identity';
 import { getStaffCampaigns } from '@/lib/admin-infra-data';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
+import { UnavailableNotice } from '@/components/shell/UnavailableNotice';
 import { CampaignManager } from './components/campaign-manager';
 
 export const dynamic = 'force-dynamic';
@@ -25,7 +26,9 @@ export default async function AdminCampaignsPage() {
   requireCapability(identity, 'admin.campaigns.read');
   const canWrite = hasCapability(identity, 'admin.campaigns.write');
 
-  const campaigns = await getStaffCampaigns();
+  // Aucune campagne à afficher ≠ campagnes illisibles.
+  const registry = await getStaffCampaigns();
+  const campaigns = registry.ok ? registry.data : [];
   const sending = campaigns.filter((campaign) => campaign.status === 'sending').length;
 
   return (
@@ -45,6 +48,8 @@ export default async function AdminCampaignsPage() {
           </>
         }
       />
+
+      {registry.ok ? null : <UnavailableNotice what="Les campagnes staff" />}
 
       <CampaignManager initialCampaigns={campaigns} canWrite={canWrite} />
     </div>

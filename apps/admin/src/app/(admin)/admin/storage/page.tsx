@@ -13,6 +13,8 @@ import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 import { getStorageUsage } from '@/lib/admin-infra-data';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
 import { QueueEmpty } from '@/components/queue/QueueEmpty';
+import { UnavailableNotice } from '@/components/shell/UnavailableNotice';
+import { readData } from '@/lib/read-result';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +31,9 @@ export default async function AdminStoragePage() {
   const identity = await getAdminIdentity();
   requireCapability(identity, 'admin.dashboard.read');
 
-  const usage = await getStorageUsage(20);
+  // Usage illisible : aucun volume affiché (0 o serait un chiffre inventé).
+  const usageRead = await getStorageUsage(20);
+  const usage = readData(usageRead, { totalBytes: 0, assetCount: 0, byStatus: {}, topUsers: [] });
   const statuses = Object.entries(usage.byStatus).sort((a, b) => b[1] - a[1]);
 
   return (
@@ -37,7 +41,7 @@ export default async function AdminStoragePage() {
       <QueuePageHeader
         icon={<Database className="w-4 h-4" />}
         title="Stockage médias"
-        badge={formatBytes(usage.totalBytes)}
+        badge={usageRead.ok ? formatBytes(usage.totalBytes) : null}
         description={
           <>
             Volume non purgé du bucket images, répartition par statut et plus gros consommateurs.
@@ -45,6 +49,8 @@ export default async function AdminStoragePage() {
           </>
         }
       />
+
+      {usageRead.ok ? null : <UnavailableNotice what="L'usage du stockage" />}
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
@@ -84,7 +90,7 @@ export default async function AdminStoragePage() {
 
       <section className="space-y-4">
         <h2 className="text-sm font-semibold">Plus gros consommateurs</h2>
-        {usage.topUsers.length === 0 ? (
+        {!usageRead.ok ? null : usage.topUsers.length === 0 ? (
           <QueueEmpty title="Aucun média enregistré" hint="Le registre MediaAsset est vide." />
         ) : (
           <Table

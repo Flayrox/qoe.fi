@@ -5,6 +5,7 @@ import { getAdminFeatures } from '@/lib/admin-data';
 import { updateFeatureAction } from '@/lib/admin-feature-actions';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
 import { Select } from '@qoe/ui/select';
+import { UnavailableNotice } from '@/components/shell/UnavailableNotice';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +15,10 @@ export default async function AdminFeaturesPage() {
   const identity = await getAdminIdentity();
   requireCapability(identity, 'admin.config.read');
   const canWrite = hasCapability(identity, 'admin.flags.write');
-  const features = await getAdminFeatures();
+  const registry = await getAdminFeatures();
+  // Le registre est « vide » seulement s'il a été lu : une panne ne doit pas
+  // accuser la migration 00069 d'être absente.
+  const features = registry.ok ? registry.data : [];
 
   return (
     <div className="mx-auto max-w-5xl space-y-10">
@@ -35,6 +39,8 @@ export default async function AdminFeaturesPage() {
           modifier le registre.
         </p>
       )}
+
+      {registry.ok ? null : <UnavailableNotice what="Le registre des fonctionnalités" />}
 
       {features.length === 0 ? (
         <div className="rounded-lg border border-border/60 bg-muted/20 p-8 text-center text-sm text-muted-foreground">

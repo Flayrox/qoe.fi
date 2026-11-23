@@ -4,6 +4,7 @@ import { getAdminWorkQueue } from '@/lib/admin-data';
 import { getPlatformHealth } from '@/lib/admin-infra-data';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
+import { UnavailableNotice } from '@/components/shell/UnavailableNotice';
 import { WorkTable } from './components/WorkTable';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +18,7 @@ function StatTile({
   alert,
 }: {
   label: string;
-  value: number;
+  value: number | string;
   detail?: string;
   href?: string;
   alert?: boolean;
@@ -49,7 +50,9 @@ export default async function AdminDashboard() {
   const identity = await getAdminIdentity();
   requireCapability(identity, 'admin.dashboard.read');
 
-  const [work, health] = await Promise.all([getAdminWorkQueue(), getPlatformHealth()]);
+  const [queue, health] = await Promise.all([getAdminWorkQueue(), getPlatformHealth()]);
+  // File illisible : les tuiles de charge passent à « — » (jamais « 0 à traiter »).
+  const work = queue.ok ? queue.data : { items: [], entries: [], assignedToMe: 0, breached: 0 };
 
   const capabilities = new Set(identity?.capabilities ?? []);
   const openTotal = work.items.reduce((sum, item) => sum + item.count, 0);
@@ -88,17 +91,22 @@ export default async function AdminDashboard() {
         className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border sm:grid-cols-3 xl:grid-cols-5"
         aria-label="Chiffres du jour"
       >
-        <StatTile label="À traiter" value={openTotal} detail="six files" href="/admin/work" />
+        <StatTile
+          label="À traiter"
+          value={queue.ok ? openTotal : '—'}
+          detail={queue.ok ? 'six files' : 'file illisible'}
+          href="/admin/work"
+        />
         <StatTile
           label="SLA dépassés"
-          value={work.breached}
+          value={queue.ok ? work.breached : '—'}
           detail="à traiter en premier"
           href="/admin/work"
           alert={work.breached > 0}
         />
         <StatTile
           label="Assignés à moi"
-          value={work.assignedToMe}
+          value={queue.ok ? work.assignedToMe : '—'}
           detail="dossiers ouverts"
           href="/admin/work"
         />
@@ -125,6 +133,7 @@ export default async function AdminDashboard() {
             Trié par SLA, puis priorité, puis échéance.
           </p>
         </div>
+        {queue.ok ? null : <UnavailableNotice what="Ma file" />}
         <WorkTable entries={work.entries} queueLabels={queueLabels} limit={20} />
         {work.entries.length > 20 && (
           <p className="text-[11px] text-muted-foreground">

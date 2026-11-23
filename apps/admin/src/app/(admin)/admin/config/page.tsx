@@ -15,6 +15,7 @@ import {
 import { AuthMethodsToggles } from './components/AuthMethodsToggles';
 import { ApiAccessModulesToggles } from './components/ApiAccessModulesToggles';
 import { ApiAccessControlPanel } from './components/ApiAccessControlPanel';
+import { UnavailableNotice } from '@/components/shell/UnavailableNotice';
 import { FeatureFlagsToggles } from './components/FeatureFlagsToggles';
 import { RegistrationsControl } from './components/RegistrationsControl';
 import { FeedbackForm, type FormActionResult } from '@/components/shell/feedback-form';
@@ -153,12 +154,14 @@ export default async function AdminConfig() {
       </div>
 
       {/* 🚩 Feature Flags pilotables en direct */}
-      <FeatureFlagsToggles initialFlags={featureFlags} />
+      {featureFlags.ok ? null : <UnavailableNotice what="Les feature flags" />}
+      <FeatureFlagsToggles initialFlags={featureFlags.ok ? featureFlags.data : []} />
 
       {/* 🚪 Inscriptions : kill-switch + allowlist d'invitation */}
+      {allowlist.ok ? null : <UnavailableNotice what="La liste d'invitations" />}
       <RegistrationsControl
         initialOpen={configs.find((c) => c.key === 'ALLOW_NEW_REGISTRATIONS')?.value !== 'false'}
-        initialAllowlist={allowlist}
+        initialAllowlist={allowlist.ok ? allowlist.data : []}
       />
 
       {/* Méthodes de connexion — toggles dédiés (Google en test, etc.) */}

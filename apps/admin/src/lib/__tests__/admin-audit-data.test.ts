@@ -24,12 +24,16 @@ describe('getAuditLog', () => {
 
   it('rend le mode du serveur quand il répond', async () => {
     mockGoFetch.mockResolvedValue({ items: [], mode: 'enforce' });
-    await expect(getAuditLog()).resolves.toEqual({ items: [], mode: 'enforce' });
+    await expect(getAuditLog()).resolves.toEqual({
+      ok: true,
+      data: { items: [], mode: 'enforce' },
+    });
   });
 
-  it('rend un mode inconnu (null) quand l’API échoue', async () => {
+  it('déclare le journal illisible quand l’API échoue (ni « aucun événement », ni mode)', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     mockGoFetch.mockRejectedValue(new Error('go indisponible'));
-    await expect(getAuditLog()).resolves.toEqual({ items: [], mode: null });
+    await expect(getAuditLog()).resolves.toEqual({ ok: false });
   });
 
   it('laisse remonter un refus d’autorisation explicite', async () => {
@@ -44,7 +48,8 @@ describe('getAuthzDecisions', () => {
   });
 
   it('rend un mode inconnu (null) quand l’API échoue', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     mockGoFetch.mockRejectedValue(new Error('go indisponible'));
-    await expect(getAuthzDecisions()).resolves.toEqual({ items: [], groups: [], mode: null });
+    await expect(getAuthzDecisions()).resolves.toEqual({ ok: false });
   });
 });

@@ -26,13 +26,11 @@ export interface ServerSavedView {
 /** 📋 Récupère les vues sauvegardées personnelles et d'équipe pour une ressource. */
 export async function fetchSavedViewsAction(resource: string): Promise<ServerSavedView[]> {
   await assertCapability('admin.dashboard.read');
-  try {
-    const key = encodeURIComponent(resource.trim());
-    const data = await goFetch<{ views: ServerSavedView[] }>(`/v1/admin/views/${key}`);
-    return data.views ?? [];
-  } catch {
-    return [];
-  }
+  // Pas de repli silencieux : la grille garde ses vues locales et sait que la
+  // synchronisation serveur a échoué (son `catch` n'est pas un état vide).
+  const key = encodeURIComponent(resource.trim());
+  const data = await goFetch<{ views: ServerSavedView[] }>(`/v1/admin/views/${key}`);
+  return data.views ?? [];
 }
 
 /** 💾 Sauvegarde ou met à jour une vue d'exploitation sur le serveur. */

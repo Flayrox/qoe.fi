@@ -139,7 +139,7 @@ export default async function AdminAccessPersonPage({ params }: AccessPersonPage
             legacySuperadmin: person.legacySuperadmin,
           },
         ]}
-        roles={roles}
+        roles={roles.ok ? roles.data : []}
         canGrant={canGrant}
       />
     </div>

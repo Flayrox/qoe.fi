@@ -63,9 +63,14 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   // Compteurs de la navigation et dossiers de la palette : une seule lecture
   // pour toute la console. Un rôle sans accès aux files obtient un objet vide
   // (getAdminWorkQueue ne lève jamais), donc la coquille reste servie.
-  const work = opensNothing
-    ? { items: [], entries: [], assignedToMe: 0, breached: 0 }
+  // File illisible : la coquille n'affiche aucun compteur plutôt que des zéros
+  // (aucun « 0 à traiter » sur une panne de lecture).
+  const queueRead = opensNothing
+    ? ({ ok: true, data: { items: [], entries: [], assignedToMe: 0, breached: 0 } } as const)
     : await getAdminWorkQueue();
+  const work = queueRead.ok
+    ? queueRead.data
+    : { items: [], entries: [], assignedToMe: 0, breached: 0 };
   const queueCounts: Record<string, number> = {};
   for (const item of work.items) queueCounts[item.href] = item.count;
   const dossiers = work.entries.slice(0, 40).map((entry) => ({

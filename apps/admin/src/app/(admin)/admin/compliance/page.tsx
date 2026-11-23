@@ -13,6 +13,8 @@ import { ComplianceLifecycle } from './ComplianceLifecycle';
 import { DSARRequestsManager } from './DSARRequestsManager';
 import { UniversalExportVerifierPanel } from './UniversalExportVerifierPanel';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
+import { UnavailableNotice } from '@/components/shell/UnavailableNotice';
+import { readData } from '@/lib/read-result';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,11 +61,15 @@ export default async function AdminCompliancePage() {
 
       <ComplianceDashboard snapshot={snapshot} />
 
-      <DSARRequestsManager requests={deletionRequests} />
+      {!deletionRequests.ok || !reviews.ok || !exports.ok ? (
+        <UnavailableNotice what="Les pièces de conformité" />
+      ) : null}
+
+      <DSARRequestsManager requests={readData(deletionRequests, [])} />
 
       <ComplianceLifecycle
-        reviews={reviews}
-        exports={exports}
+        reviews={readData(reviews, [])}
+        exports={readData(exports, [])}
         verification={verification}
         documents={documents}
       />

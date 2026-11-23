@@ -6,6 +6,7 @@
 // =====================================================================
 
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { readOr, type Read } from './read-result';
 
 export interface PolicyV3RuleStat {
   rule: string;
@@ -53,24 +54,6 @@ export interface TrustRecomputeResult {
   reasons: string[];
 }
 
-const EMPTY_OVERVIEW: SecurityOverview = {
-  metrics: {
-    since: '',
-    autoByResult: {},
-    autoByReason: {},
-    humanReviews: 0,
-    humanDismissed: 0,
-    humanByResult: {},
-    dismissalRate: -1,
-    openQueue: 0,
-    topSubjects: [],
-  },
-  policyV3: [],
-  authzEnforceEnabled: null,
-  shadowbannedCount: 0,
-  suspendedCount: 0,
-};
-
 /**
  * Traduit le mode d'application Authz pour l'affichage.
  *
@@ -95,42 +78,41 @@ export function describeAuthzEnforcement(mode: boolean | null): {
 }
 
 /** Charge l'instantané Sécurité & Trust sur 30 jours depuis l'API Go. */
-export async function getSecurityOverview(): Promise<SecurityOverview> {
-  try {
-    const body = await goFetch<Partial<SecurityOverview>>('/v1/admin/security/overview');
-    const rawMetrics = body?.metrics;
-    return {
-      metrics: {
-        since: typeof rawMetrics?.since === 'string' ? rawMetrics.since : '',
-        autoByResult:
-          rawMetrics?.autoByResult && typeof rawMetrics.autoByResult === 'object'
-            ? rawMetrics.autoByResult
-            : {},
-        autoByReason:
-          rawMetrics?.autoByReason && typeof rawMetrics.autoByReason === 'object'
-            ? rawMetrics.autoByReason
-            : {},
-        humanReviews: typeof rawMetrics?.humanReviews === 'number' ? rawMetrics.humanReviews : 0,
-        humanDismissed:
-          typeof rawMetrics?.humanDismissed === 'number' ? rawMetrics.humanDismissed : 0,
-        humanByResult:
-          rawMetrics?.humanByResult && typeof rawMetrics.humanByResult === 'object'
-            ? rawMetrics.humanByResult
-            : {},
-        dismissalRate:
-          typeof rawMetrics?.dismissalRate === 'number' ? rawMetrics.dismissalRate : -1,
-        openQueue: typeof rawMetrics?.openQueue === 'number' ? rawMetrics.openQueue : 0,
-        topSubjects: Array.isArray(rawMetrics?.topSubjects) ? rawMetrics.topSubjects : [],
-      },
-      policyV3: Array.isArray(body?.policyV3) ? body.policyV3 : [],
-      // `Boolean(undefined)` valait `false` : l'écran affirmait « observe »
-      // sur une réponse muette. Seules les deux valeurs lues comptent.
-      authzEnforceEnabled:
-        typeof body?.authzEnforceEnabled === 'boolean' ? body.authzEnforceEnabled : null,
-      shadowbannedCount: typeof body?.shadowbannedCount === 'number' ? body.shadowbannedCount : 0,
-      suspendedCount: typeof body?.suspendedCount === 'number' ? body.suspendedCount : 0,
-    };
-  } catch {
-    return EMPTY_OVERVIEW;
-  }
+export async function getSecurityOverview(): Promise<Read<SecurityOverview>> {
+  return readOr('le cockpit sécurité', fetchSecurityOverview);
+}
+
+async function fetchSecurityOverview(): Promise<SecurityOverview> {
+  const body = await goFetch<Partial<SecurityOverview>>('/v1/admin/security/overview');
+  const rawMetrics = body?.metrics;
+  return {
+    metrics: {
+      since: typeof rawMetrics?.since === 'string' ? rawMetrics.since : '',
+      autoByResult:
+        rawMetrics?.autoByResult && typeof rawMetrics.autoByResult === 'object'
+          ? rawMetrics.autoByResult
+          : {},
+      autoByReason:
+        rawMetrics?.autoByReason && typeof rawMetrics.autoByReason === 'object'
+          ? rawMetrics.autoByReason
+          : {},
+      humanReviews: typeof rawMetrics?.humanReviews === 'number' ? rawMetrics.humanReviews : 0,
+      humanDismissed:
+        typeof rawMetrics?.humanDismissed === 'number' ? rawMetrics.humanDismissed : 0,
+      humanByResult:
+        rawMetrics?.humanByResult && typeof rawMetrics.humanByResult === 'object'
+          ? rawMetrics.humanByResult
+          : {},
+      dismissalRate: typeof rawMetrics?.dismissalRate === 'number' ? rawMetrics.dismissalRate : -1,
+      openQueue: typeof rawMetrics?.openQueue === 'number' ? rawMetrics.openQueue : 0,
+      topSubjects: Array.isArray(rawMetrics?.topSubjects) ? rawMetrics.topSubjects : [],
+    },
+    policyV3: Array.isArray(body?.policyV3) ? body.policyV3 : [],
+    // `Boolean(undefined)` valait `false` : l'écran affirmait « observe »
+    // sur une réponse muette. Seules les deux valeurs lues comptent.
+    authzEnforceEnabled:
+      typeof body?.authzEnforceEnabled === 'boolean' ? body.authzEnforceEnabled : null,
+    shadowbannedCount: typeof body?.shadowbannedCount === 'number' ? body.shadowbannedCount : 0,
+    suspendedCount: typeof body?.suspendedCount === 'number' ? body.suspendedCount : 0,
+  };
 }

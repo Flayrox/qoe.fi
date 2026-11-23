@@ -14,13 +14,14 @@ import { getAdminSupportArticles } from '@/lib/admin-data';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
 import { ArticlesManager } from './components/articles-manager';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
+import { UnavailableNotice } from '@/components/shell/UnavailableNotice';
 
 export default async function AdminSupportArticlesPage() {
   requireCapability(await getAdminIdentity(), 'admin.content.read');
-  const data = await getAdminSupportArticles();
-  // Blindage défensif : même si l'API renvoyait `items: null`, la page ne
-  // doit jamais crasher (crash « This page couldn't load »).
-  const items = data.items ?? [];
+  const articles = await getAdminSupportArticles();
+  // Lecture échouée : pas de « aucun article » (ce serait faux), un
+  // avertissement nommé. `items: null` reste un tableau vide, lui.
+  const items = articles.ok ? articles.data.items : [];
   const draftCount = items.filter((a) => !a.published).length;
 
   return (
@@ -36,6 +37,8 @@ export default async function AdminSupportArticlesPage() {
           </>
         }
       />
+
+      {articles.ok ? null : <UnavailableNotice what="Les articles d'aide" />}
 
       <ArticlesManager initialItems={items} />
     </div>

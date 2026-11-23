@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { ScrollText } from 'lucide-react';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 import { getAuditLog } from '@/lib/admin-audit-data';
+import { UnavailableNotice } from '@/components/shell/UnavailableNotice';
 import { AuditLogClient } from './AuditLogClient';
 
 export const dynamic = 'force-dynamic';
@@ -44,7 +45,10 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
     until: params.until ?? '',
     limit: 200,
   };
-  const { items, mode } = await getAuditLog(filters);
+  // Journal illisible : ni « aucun événement », ni « observation » devinée.
+  const log = await getAuditLog(filters);
+  const items = log.ok ? log.data.items : [];
+  const mode = log.ok ? log.data.mode : null;
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
@@ -66,6 +70,8 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
           .
         </p>
       </div>
+
+      {log.ok ? null : <UnavailableNotice what="Le journal d'audit" />}
 
       <AuditLogClient entries={items} mode={mode} filters={filters} />
     </div>

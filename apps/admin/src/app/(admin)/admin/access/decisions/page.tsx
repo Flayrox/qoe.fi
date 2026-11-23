@@ -44,8 +44,11 @@ export default async function AdminAccessDecisionsPage({ searchParams }: Decisio
     limit: 200,
   });
 
-  const denials = denialGroups(view.groups);
-  const split = modeSplit(view.groups);
+  // Lecture illisible : les deux sections se taisent (pas de « aucune décision »
+  // ni de « 0 refus »), et l'en-tête l'annonce déjà par « mode illisible ».
+  const decisionsView = view.ok ? view.data : { items: [], groups: [], mode: null };
+  const denials = denialGroups(decisionsView.groups);
+  const split = modeSplit(decisionsView.groups);
   const totalDenials = denials.reduce((sum, group) => sum + group.total, 0);
 
   return (
@@ -54,9 +57,9 @@ export default async function AdminAccessDecisionsPage({ searchParams }: Decisio
         icon={<ShieldOff className="w-4 h-4" />}
         title="Décisions d’autorisation"
         badge={
-          view.mode === null
+          decisionsView.mode === null
             ? 'mode illisible'
-            : view.mode === 'enforce'
+            : decisionsView.mode === 'enforce'
               ? 'mode refus'
               : 'mode observation'
         }
@@ -164,8 +167,14 @@ export default async function AdminAccessDecisionsPage({ searchParams }: Decisio
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-sm font-semibold">Dernières décisions ({view.items.length})</h2>
-        {view.items.length === 0 ? (
+        <h2 className="text-sm font-semibold">
+          Dernières décisions ({decisionsView.items.length})
+        </h2>
+        {!view.ok ? (
+          <p className="text-xs text-muted-foreground">
+            Lecture des décisions impossible : cet écran ne peut pas affirmer qu'aucune n'existe.
+          </p>
+        ) : decisionsView.items.length === 0 ? (
           <QueueEmpty
             title="Aucune décision sur la période"
             hint="Élargissez la fenêtre ou retirez le filtre de refus."
@@ -179,7 +188,7 @@ export default async function AdminAccessDecisionsPage({ searchParams }: Decisio
               <TableColumn>Capacité</TableColumn>
               <TableColumn>Issue</TableColumn>
             </TableHeader>
-            <TableBody items={view.items}>
+            <TableBody items={decisionsView.items}>
               {(item) => (
                 <TableRow id={item.id}>
                   <TableCell className="text-muted-foreground">
