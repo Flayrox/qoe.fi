@@ -174,7 +174,7 @@ const MEMBER_SORT: SortSpec<MediaDetail['members'][number]> = {
   },
 };
 
-const INVITE_SORT: SortSpec<MediaInviteLinkDTO> = {
+const INVITE_SORT = (): SortSpec<MediaInviteLinkDTO> => ({
   role: {
     kind: 'rank',
     rank: ['editor', 'writer', 'viewer'],
@@ -182,11 +182,11 @@ const INVITE_SORT: SortSpec<MediaInviteLinkDTO> = {
   },
   status: {
     kind: 'rank',
-    rank: ['Actif', 'Expiré', 'Épuisé', 'Révoqué'],
+    rank: ['Actif', t`Expiré`, t`Épuisé`, t`Révoqué`],
     value: (row) => {
-      if (row.isRevoked) return 'Révoqué';
-      if (row.expiresAt && new Date(row.expiresAt).getTime() < Date.now()) return 'Expiré';
-      if (row.maxUses > 0 && row.usedCount >= row.maxUses) return 'Épuisé';
+      if (row.isRevoked) return t`Révoqué`;
+      if (row.expiresAt && new Date(row.expiresAt).getTime() < Date.now()) return t`Expiré`;
+      if (row.maxUses > 0 && row.usedCount >= row.maxUses) return t`Épuisé`;
       return 'Actif';
     },
   },
@@ -198,7 +198,7 @@ const INVITE_SORT: SortSpec<MediaInviteLinkDTO> = {
     kind: 'date',
     value: (row) => (row.expiresAt ? new Date(row.expiresAt) : null),
   },
-};
+});
 
 function QuietDot({ active }: { active?: boolean }) {
   return (
@@ -478,7 +478,7 @@ export function MediaStudioClient({
   // mémoïsée sur l'identité de `items`, et une ligne dont seuls les enfants
   // changeraient garderait l'ancien libellé « Copier ».
   const sortedInviteLinks = useMemo(() => {
-    return sortRows(inviteLinks, inviteSort, INVITE_SORT).map((link) => ({
+    return sortRows(inviteLinks, inviteSort, INVITE_SORT()).map((link) => ({
       ...link,
       copied: copiedLinkId === link.id,
     }));
@@ -591,7 +591,7 @@ export function MediaStudioClient({
           )}
           <div className="min-w-0">
             <p className="font-bold text-lg tracking-tight truncate">
-              {createName || 'Votre Média'}
+              {createName || t`Votre Média`}
             </p>
             <p className="text-xs text-muted-foreground">
               {createSlug ? `${createSlug}.qoe.fi` : t`votre-sous-domaine.qoe.fi`}
@@ -652,7 +652,7 @@ export function MediaStudioClient({
               <Loader2 className="animate-spin" />
             ) : (
               <>
-                Créer le Média & mon espace de travail
+                {t`Créer le Média & mon espace de travail`}
                 <ArrowRight strokeWidth={1.5} />
               </>
             )}
@@ -946,7 +946,7 @@ export function MediaStudioClient({
                                 onClick={() =>
                                   handleRemoveMember(
                                     member.user.id,
-                                    member.user.name || member.user.username || 'ce membre'
+                                    member.user.name || member.user.username || t`ce membre`
                                   )
                                 }
                                 title={t`Retirer du Média`}
@@ -1175,7 +1175,7 @@ export function MediaStudioClient({
                 disabled={creatingLink}
               >
                 {creatingLink ? <Loader2 className="animate-spin" /> : <Link2 strokeWidth={1.5} />}
-                Générer le lien d&apos;invitation
+                {t`Générer le lien d'invitation`}
               </Button>
 
               <div className="pt-3 border-t border-border/30">
@@ -1383,7 +1383,8 @@ export function MediaStudioClient({
             <>
               <ol className="divide-y divide-border/30">
                 {auditEntries.map((entry) => {
-                  const actorName = entry.actor?.name || entry.actor?.username || 'Membre supprimé';
+                  const actorName =
+                    entry.actor?.name || entry.actor?.username || t`Membre supprimé`;
                   const description = describeAuditEntry(entry);
                   return (
                     <li key={entry.id} className="flex gap-3 px-4 py-3">
@@ -1457,7 +1458,7 @@ function PermissionPopover({
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        aria-label={`Permissions de ${member.user.name || member.user.username || 'ce membre'}`}
+        aria-label={`Permissions de ${member.user.name || member.user.username || t`ce membre`}`}
         className="w-64 space-y-1 p-3"
       >
         <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1 pb-1">
@@ -1559,7 +1560,7 @@ function MediaSettingsForm({
               value={form.fontFamily ?? 'sans'}
               onValueChange={(fontFamily) => set('fontFamily', fontFamily)}
               options={[
-                { id: 'sans', label: 'Inter (Sans-serif)' },
+                { id: 'sans', label: t`Inter (Sans-serif)` },
                 { id: 'outfit', label: 'Outfit (Moderne)' },
                 { id: 'space-grotesk', label: 'Space Grotesk (Tech)' },
                 { id: 'serif', label: 'Playfair Display (Serif)' },
@@ -1618,7 +1619,7 @@ function MediaSettingsForm({
             />
           </div>
           <div>
-            <label className={labelCls}>Image d&apos;en-tête</label>
+            <label className={labelCls}>{t`Image d'en-tête`}</label>
             <ImageUploader
               value={form.headerImageUrl}
               onChange={(url) => set('headerImageUrl', url)}
@@ -1647,7 +1648,7 @@ function MediaSettingsForm({
             />
           </div>
           <div className="md:col-span-2">
-            <label className={labelCls}>Accroche de la page d&apos;accueil</label>
+            <label className={labelCls}>{t`Accroche de la page d'accueil`}</label>
             <Textarea
               rows={2}
               value={form.heroText ?? ''}

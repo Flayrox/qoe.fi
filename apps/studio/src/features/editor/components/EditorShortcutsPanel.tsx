@@ -57,8 +57,8 @@ export function EditorShortcutsPanel({ open, onClose }: EditorShortcutsPanelProp
       title: t`Images et navigation`,
       items: [
         { keys: '↑ / ↓', label: t`Sélectionner une image voisine` },
-        { keys: 'Entrée', label: t`Ouvrir les détails de l'image sélectionnée` },
-        { keys: 'Échap', label: t`Fermer un panneau` },
+        { keys: t`Entrée`, label: t`Ouvrir les détails de l'image sélectionnée` },
+        { keys: t`Échap`, label: t`Fermer un panneau` },
       ],
     },
   ];

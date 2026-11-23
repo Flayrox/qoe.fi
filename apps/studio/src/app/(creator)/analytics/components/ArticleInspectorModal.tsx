@@ -67,7 +67,7 @@ export function ArticleInspectorDrawer({
       if (res.data) {
         setDetail(res.data);
       } else {
-        setError(res.error || 'Erreur de chargement des détails');
+        setError(res.error || t`Erreur de chargement des détails`);
       }
     });
   }, [urlPath, period]);
@@ -110,7 +110,7 @@ export function ArticleInspectorDrawer({
               </div>
               <div className="min-w-0">
                 <DrawerDescription className="mt-0 text-[11px] font-bold uppercase tracking-wider">
-                  Analyses de l&apos;article
+                  {t`Analyses de l'article`}
                 </DrawerDescription>
                 <DrawerTitle className="truncate">{detail?.title || urlPath}</DrawerTitle>
               </div>
@@ -139,7 +139,7 @@ export function ArticleInspectorDrawer({
             <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
               <Loader2 className="h-8 w-8 text-primary animate-spin" />
               <p className="text-xs text-muted-foreground">
-                Chargement des données de l&apos;article...
+                {t`Chargement des données de l'article...`}
               </p>
             </div>
           ) : error ? (
@@ -152,7 +152,8 @@ export function ArticleInspectorDrawer({
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 rounded-xl border border-border/30 bg-muted/20">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Vues sur l&apos;écrit ({period})
+                    {t`Vues sur l'écrit (`}
+                    {period})
                   </span>
                   <p className="text-2xl font-bold text-foreground mt-1">
                     {detail.totalViews.toLocaleString()}
@@ -164,7 +165,7 @@ export function ArticleInspectorDrawer({
 
                 <div className="p-4 rounded-xl border border-border/30 bg-muted/20">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Chemin d&apos;accès
+                    {t`Chemin d'accès`}
                   </span>
                   <p className="text-xs font-sans font-medium text-foreground mt-2 truncate">
                     {detail.url}
@@ -268,7 +269,7 @@ export function ArticleInspectorDrawer({
               {/* Total Interaction Bar */}
               <div className="flex items-center justify-between px-4 py-2.5 rounded-lg border border-border/30 bg-muted/15 text-xs">
                 <span className="text-muted-foreground">
-                  Score d&apos;engagement total sur cet écrit
+                  {t`Score d'engagement total sur cet écrit`}
                 </span>
                 <span className="font-semibold text-foreground">
                   {detail.totalInteractions.toLocaleString()} interactions

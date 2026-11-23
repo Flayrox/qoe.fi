@@ -159,8 +159,8 @@ export function MfaPanel() {
             factorId={enrolling || undefined}
             intro={
               enrolling
-                ? 'Saisissez un code pour confirmer ce facteur resté non vérifié.'
-                : 'Scannez ce QR code avec votre application d’authentification, puis saisissez le code affiché.'
+                ? t`Saisissez un code pour confirmer ce facteur resté non vérifié.`
+                : t`Scannez ce QR code avec votre application d’authentification, puis saisissez le code affiché.`
             }
             onVerified={() => {
               toast.success(t`Authentification forte activée.`);

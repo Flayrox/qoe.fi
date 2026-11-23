@@ -1,20 +1,21 @@
 import { Badge } from '@qoe/ui/badge';
 import type { DeveloperAccessStatus } from '../types';
+import { t } from '@lingui/core/macro';
 
-const STATUS_META: Record<
+const STATUS_META = (): Record<
   DeveloperAccessStatus,
   { label: string; tone: 'neutral' | 'vivid' | 'success' | 'danger' }
-> = {
-  none: { label: 'Non demandé', tone: 'neutral' },
+> => ({
+  none: { label: t`Non demandé`, tone: 'neutral' },
   pending: { label: 'En attente', tone: 'vivid' },
-  approved: { label: 'Accès actif', tone: 'success' },
-  rejected: { label: 'Refusé', tone: 'danger' },
-  revoked: { label: 'Révoqué', tone: 'danger' },
+  approved: { label: t`Accès actif`, tone: 'success' },
+  rejected: { label: t`Refusé`, tone: 'danger' },
+  revoked: { label: t`Révoqué`, tone: 'danger' },
   unavailable: { label: 'Indisponible', tone: 'neutral' },
-};
+});
 
 export function DeveloperStatusBadge({ status }: { status: DeveloperAccessStatus }) {
-  const meta = STATUS_META[status];
+  const meta = STATUS_META()[status];
 
   return (
     <Badge variant="soft" tone={meta.tone} shape="pill" size="sm">

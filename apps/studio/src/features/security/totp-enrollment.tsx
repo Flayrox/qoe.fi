@@ -64,7 +64,7 @@ export function TotpEnrollment({ factorId, onVerified, onCancel, intro }: Props)
     setErrorMessage(null);
     try {
       const result = await enrollAccountSecurityMfaAction();
-      if (!result?.id) throw new Error('Le fournisseur d’identité n’a pas renvoyé de facteur.');
+      if (!result?.id) throw new Error(t`Le fournisseur d’identité n’a pas renvoyé de facteur.`);
       setActiveFactorId(result.id);
       setQrCode(result.totp?.qr_code ?? null);
       setSecret(result.totp?.secret ?? null);
@@ -73,7 +73,7 @@ export function TotpEnrollment({ factorId, onVerified, onCancel, intro }: Props)
       setPhase('input');
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : 'Impossible de créer le facteur pour le moment.'
+        error instanceof Error ? error.message : t`Impossible de créer le facteur pour le moment.`
       );
       setPhase('error');
     }
@@ -88,7 +88,7 @@ export function TotpEnrollment({ factorId, onVerified, onCancel, intro }: Props)
     event.preventDefault();
     if (!activeFactorId) return;
     if (code.length < 6) {
-      setErrorMessage('Saisissez les 6 chiffres affichés par votre application.');
+      setErrorMessage(t`Saisissez les 6 chiffres affichés par votre application.`);
       return;
     }
     setBusy(true);
@@ -106,7 +106,7 @@ export function TotpEnrollment({ factorId, onVerified, onCancel, intro }: Props)
       setErrorMessage(
         error instanceof Error && error.message
           ? error.message
-          : 'Code refusé. Vérifiez l’horloge de votre appareil et réessayez.'
+          : t`Code refusé. Vérifiez l’horloge de votre appareil et réessayez.`
       );
     } finally {
       setBusy(false);

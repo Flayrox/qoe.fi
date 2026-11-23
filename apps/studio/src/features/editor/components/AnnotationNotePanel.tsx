@@ -88,7 +88,7 @@ export function AnnotationNotePanel({
             <div className="space-y-1">
               <p
                 className={cn(
-                  'whitespace-pre-line font-sans text-xs leading-relaxed text-muted-foreground italic',
+                  t`whitespace-pre-line font-sans text-xs leading-relaxed text-muted-foreground italic`,
                   !quoteExpanded && 'line-clamp-3'
                 )}
               >

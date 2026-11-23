@@ -101,7 +101,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
   return (
     <section id="account-security" className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold">Compte & sécurité</h2>
+        <h2 className="text-lg font-semibold">{t`Compte & sécurité`}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {t`Gérez votre compte personnel et vos données. Le profil public se modifie depuis votre profil.`}
         </p>
@@ -199,7 +199,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
                 setCurrentPassword('');
               } catch (e) {
                 toast.error(
-                  e instanceof Error ? e.message : 'Impossible de changer le mot de passe.'
+                  e instanceof Error ? e.message : t`Impossible de changer le mot de passe.`
                 );
               } finally {
                 setBusy(false);
@@ -219,7 +219,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
                 setSessions(sessions.filter((s) => s.current));
                 toast.success(t`Les autres sessions ont été révoquées.`);
               } catch (error) {
-                toast.error(error instanceof Error ? error.message : 'Révocation impossible.');
+                toast.error(error instanceof Error ? error.message : t`Révocation impossible.`);
               } finally {
                 setMfaBusy(false);
               }
@@ -241,7 +241,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
                 setSessions([]);
                 toast.success(t`Toutes les sessions OAuth ont été révoquées.`);
               } catch (error) {
-                toast.error(error instanceof Error ? error.message : 'Révocation impossible.');
+                toast.error(error instanceof Error ? error.message : t`Révocation impossible.`);
               } finally {
                 setMfaBusy(false);
               }
@@ -370,19 +370,19 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
   );
 }
 
-const SECURITY_EVENT_LABELS: Record<string, string> = {
-  login_new_device: 'Nouvelle connexion détectée',
-  password_changed: 'Mot de passe modifié',
-  email_changed: 'Changement d’adresse email demandé',
-  mfa_enrolled: 'Double authentification (TOTP) activée',
-  mfa_removed: 'Double authentification (TOTP) supprimée',
-  api_key_created: 'Clé API créée',
-  api_key_rotated: 'Clé API régénérée',
-  api_key_revoked: 'Clé API révoquée',
-  api_key_quarantined: 'Clé API placée en lecture seule',
-  publisher_api_quarantined: 'API de publication placée en lecture seule',
-};
+const SECURITY_EVENT_LABELS = (): Record<string, string> => ({
+  login_new_device: t`Nouvelle connexion détectée`,
+  password_changed: t`Mot de passe modifié`,
+  email_changed: t`Changement d’adresse email demandé`,
+  mfa_enrolled: t`Double authentification (TOTP) activée`,
+  mfa_removed: t`Double authentification (TOTP) supprimée`,
+  api_key_created: t`Clé API créée`,
+  api_key_rotated: t`Clé API régénérée`,
+  api_key_revoked: t`Clé API révoquée`,
+  api_key_quarantined: t`Clé API placée en lecture seule`,
+  publisher_api_quarantined: t`API de publication placée en lecture seule`,
+});
 
 function formatSecurityEventLabel(eventType: string): string {
-  return SECURITY_EVENT_LABELS[eventType] ?? eventType;
+  return SECURITY_EVENT_LABELS()[eventType] ?? eventType;
 }

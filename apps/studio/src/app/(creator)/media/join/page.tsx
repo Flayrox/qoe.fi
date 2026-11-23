@@ -46,11 +46,13 @@ export default function MediaJoinPage() {
         if (res.success && res.preview) {
           setPreview(res.preview);
         } else {
-          setError(res.error || "Ce lien d'invitation est invalide ou a expiré.");
+          setError(res.error || t`Ce lien d'invitation est invalide ou a expiré.`);
         }
       } catch (err: unknown) {
         if (!isMounted) return;
-        setError(err instanceof Error ? err.message : "Erreur lors du chargement de l'invitation.");
+        setError(
+          err instanceof Error ? err.message : t`Erreur lors du chargement de l'invitation.`
+        );
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -73,10 +75,10 @@ export default function MediaJoinPage() {
             router.push('/media');
           }, 1000);
         } else {
-          setError(res.error || 'Impossible de rejoindre le média.');
+          setError(res.error || t`Impossible de rejoindre le média.`);
         }
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Une erreur inattendue est survenue.');
+        setError(err instanceof Error ? err.message : t`Une erreur inattendue est survenue.`);
       }
     });
   };
@@ -86,16 +88,16 @@ export default function MediaJoinPage() {
       case 'admin':
         return 'Administrateur';
       case 'editor':
-        return 'Éditeur';
+        return t`Éditeur`;
       case 'writer':
-        return 'Rédacteur';
+        return t`Rédacteur`;
       default:
         return 'Membre';
     }
   };
 
   const formatExpiry = (dateStr: string | null | undefined) => {
-    if (!dateStr) return 'Permanent (sans expiration)';
+    if (!dateStr) return t`Permanent (sans expiration)`;
     const d = new Date(dateStr);
     return `Expire le ${d.toLocaleDateString(undefined, {
       day: 'numeric',
@@ -130,7 +132,7 @@ export default function MediaJoinPage() {
             <h1 className="text-base font-bold text-foreground">{t`Lien invalide ou expiré`}</h1>
             <p className="text-xs text-muted-foreground leading-relaxed">
               {error ||
-                "Ce lien d'invitation n'est plus actif, a été révoqué ou a atteint son nombre maximal d'utilisations."}
+                t`Ce lien d'invitation n'est plus actif, a été révoqué ou a atteint son nombre maximal d'utilisations.`}
             </p>
           </div>
           <button
@@ -191,7 +193,7 @@ export default function MediaJoinPage() {
                   <span className="text-xs text-muted-foreground truncate">
                     {t`Invité par`}{' '}
                     <span className="font-medium text-foreground">
-                      {preview.inviter.name || preview.inviter.username || 'Un membre'}
+                      {preview.inviter.name || preview.inviter.username || t`Un membre`}
                     </span>
                     {preview.inviter.username && ` (@${preview.inviter.username})`}
                   </span>

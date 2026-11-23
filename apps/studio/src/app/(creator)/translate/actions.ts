@@ -5,6 +5,7 @@
 // =====================================================================
 
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { t } from '@lingui/core/macro';
 
 export async function translateArticleAction(input: {
   text: string;
@@ -22,7 +23,7 @@ export async function translateArticleAction(input: {
       success: false,
       error:
         code === 'AI_UNAVAILABLE' || code === 'AI_DISABLED'
-          ? 'Traduction indisponible : aucun fournisseur IA configuré sur cette instance.'
+          ? t`Traduction indisponible : aucun fournisseur IA configuré sur cette instance.`
           : err instanceof Error
             ? err.message
             : 'Traduction impossible.',

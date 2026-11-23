@@ -12,6 +12,7 @@ import {
 } from '@qoe/analytics/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import type { FeatureSignalSummary } from '@/features/upcoming/actions';
+import { t } from '@lingui/core/macro';
 
 export type TimePeriod = '24h' | '7d' | '30d' | '90d' | 'all';
 
@@ -313,7 +314,7 @@ export async function getCreatorAnalyticsData(
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return { error: 'Non autorisé' };
+      return { error: t`Non autorisé` };
     }
 
     const workspace = await getActiveWorkspace(user.id);
@@ -512,7 +513,9 @@ export async function getCreatorAnalyticsData(
     console.error('Error in getCreatorAnalyticsData server action:', err);
     return {
       error:
-        err instanceof Error ? err.message : 'Erreur lors de la récupération des données analytics',
+        err instanceof Error
+          ? err.message
+          : t`Erreur lors de la récupération des données analytics`,
     };
   }
 }
@@ -679,7 +682,7 @@ export async function getArticleAnalyticsDetail(
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return { error: 'Non autorisé' };
+      return { error: t`Non autorisé` };
     }
 
     const workspace = await getActiveWorkspace(user.id);
@@ -715,13 +718,13 @@ export async function getArticleAnalyticsDetailById(
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return { error: 'Non autorisé' };
+      return { error: t`Non autorisé` };
     }
 
     const workspace = await getActiveWorkspace(user.id);
     const { article } = await resolveAnalyticsArticle(workspace.publisherId, identifier);
     if (!article) {
-      return { error: 'Article introuvable' };
+      return { error: t`Article introuvable` };
     }
     return { data: await buildArticleDetail(article, `/articles/${article.slug}`, period) };
   } catch (err: unknown) {

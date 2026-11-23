@@ -86,7 +86,7 @@ export function analyzePublishReadiness(input: PublishReadinessInput): PublishRe
       ? {
           id: 'title',
           label: 'Titre',
-          detail: 'Le titre est requis avant de publier.',
+          detail: t`Le titre est requis avant de publier.`,
           status: 'error',
         }
       : title.length < 10 || title.length > 120
@@ -109,7 +109,7 @@ export function analyzePublishReadiness(input: PublishReadinessInput): PublishRe
       ? {
           id: 'content',
           label: 'Contenu',
-          detail: 'Le corps est vide : ajoutez au moins un paragraphe avant de publier.',
+          detail: t`Le corps est vide : ajoutez au moins un paragraphe avant de publier.`,
           status: 'error',
         }
       : words < 100
@@ -142,16 +142,16 @@ export function analyzePublishReadiness(input: PublishReadinessInput): PublishRe
     images.missing > 0
       ? {
           id: 'images',
-          label: 'Descriptions des images',
+          label: t`Descriptions des images`,
           detail: `${images.missing} image${images.missing === 1 ? '' : 's'} sans alt sur ${images.total}.`,
           status: 'warning',
         }
       : {
           id: 'images',
-          label: 'Descriptions des images',
+          label: t`Descriptions des images`,
           detail:
             images.total === 0
-              ? 'Aucune image dans le corps.'
+              ? t`Aucune image dans le corps.`
               : `${images.total} image${images.total === 1 ? '' : 's'} décrite${images.total === 1 ? '' : 's'}.`,
           status: images.total === 0 ? 'info' : 'ok',
         }
@@ -162,7 +162,7 @@ export function analyzePublishReadiness(input: PublishReadinessInput): PublishRe
       ? {
           id: 'cover',
           label: 'Couverture',
-          detail: 'Aucune couverture : le partage utilisera le repli de la publication.',
+          detail: t`Aucune couverture : le partage utilisera le repli de la publication.`,
           status: 'info',
         }
       : input.coverDecorative
@@ -244,7 +244,7 @@ export function analyzePublishReadiness(input: PublishReadinessInput): PublishRe
       : {
           id: 'links',
           label: 'Liens',
-          detail: 'Toutes les destinations sont valides.',
+          detail: t`Toutes les destinations sont valides.`,
           status: 'ok',
         }
   );

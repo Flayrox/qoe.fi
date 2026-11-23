@@ -11,6 +11,7 @@ import { getActiveWorkspace } from '@/lib/active-workspace';
 import { listNewslettersAction, NewsletterIssue } from './actions';
 import { getEmailSettingsAction, type PublisherEmailSettings } from '@/features/settings/actions';
 import { NewsletterClient } from './NewsletterClient';
+import { t } from '@lingui/core/macro';
 
 export default async function NewslettersPage() {
   const user = await requireUser();
@@ -27,7 +28,7 @@ export default async function NewslettersPage() {
     ? emailSettingsRes.emailSettings
     : null;
   const emailPro = Boolean(emailSettingsRes?.emailPro);
-  const publisherName = emailSettingsRes?.publisherName || workspace.name || 'Votre média';
+  const publisherName = emailSettingsRes?.publisherName || workspace.name || t`Votre média`;
 
   return (
     <NewsletterClient

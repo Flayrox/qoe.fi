@@ -4,6 +4,7 @@ import { requireUser } from '@qoe/auth/current-user';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import { getDeveloperKeys } from './server';
 import type { DeveloperApiKey, DeveloperWorkspace } from './types';
+import { t } from '@lingui/core/macro';
 
 /**
  * Relit les clés depuis la même source que la page après une création.
@@ -16,7 +17,7 @@ export async function listDeveloperKeysAction(): Promise<
   { success: true; keys: DeveloperApiKey[] } | { success: false; error: string }
 > {
   const user = await requireUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  if (!user) return { success: false, error: t`Non authentifié` };
 
   const workspace = await getActiveWorkspace(user.id);
   const workspaceContext: DeveloperWorkspace = {

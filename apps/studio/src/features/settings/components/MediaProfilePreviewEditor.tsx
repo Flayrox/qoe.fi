@@ -62,11 +62,11 @@ export interface MediaMetadataField {
   readOnlyHint?: string;
 }
 
-export const MEDIA_METADATA_CONFIG: MediaMetadataField[] = [
+export const MEDIA_METADATA_CONFIG = (): MediaMetadataField[] => [
   {
     id: 'supportUrl',
     label: 'Contact / Support',
-    placeholder: 'https://mon-media.fr/contact ou mailto:...',
+    placeholder: t`https://mon-media.fr/contact ou mailto:...`,
     icon: ExternalLink,
     getValue: (p) => p.supportUrl || '',
     setValue: (val, setCurrent) => setCurrent((prev) => ({ ...prev, supportUrl: val || null })),
@@ -86,7 +86,7 @@ export const MEDIA_METADATA_CONFIG: MediaMetadataField[] = [
   },
   {
     id: 'editorialEmail',
-    label: 'Email rédactionnel',
+    label: t`Email rédactionnel`,
     placeholder: 'redaction@mon-media.fr',
     icon: Mail,
     getValue: (p) => p.email || '',
@@ -95,8 +95,7 @@ export const MEDIA_METADATA_CONFIG: MediaMetadataField[] = [
       // vérification du fournisseur d'identité (Compte & sécurité).
     },
     readOnly: true,
-    readOnlyHint:
-      'Adresse du compte : elle se modifie dans les réglages du compte (Compte & sécurité).',
+    readOnlyHint: t`Adresse du compte : elle se modifie dans les réglages du compte (Compte & sécurité).`,
   },
   {
     id: 'customDomain',
@@ -297,7 +296,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
               <Button
                 variant="ghost"
                 onClick={() => logoInputRef.current?.click()}
-                aria-label={current.logoUrl ? 'Changer le logo' : 'Ajouter un logo'}
+                aria-label={current.logoUrl ? t`Changer le logo` : t`Ajouter un logo`}
                 className="relative flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-4 border-card bg-muted/60 p-0 shadow-lg transition-transform hover:scale-105 hover:bg-transparent sm:h-28 sm:w-28"
                 style={{ backgroundColor: accentColor }}
               >
@@ -383,7 +382,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
 
             {/* 4. Barre de métadonnées extensibles (Data-driven) */}
             <div className="pt-2 border-t border-border/30 flex items-center gap-3 flex-wrap">
-              {MEDIA_METADATA_CONFIG.map((field) => {
+              {MEDIA_METADATA_CONFIG().map((field) => {
                 const IconComponent = field.icon;
                 const value = field.getValue(current);
                 const isEditing = activeMetadataModal === field.id;
@@ -495,7 +494,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
         fileName={pendingMediaImage?.file.name}
         presets={mediaPresets}
         initialPresetId={pendingMediaImage?.kind === 'banner' ? 'banner' : 'logo'}
-        title={pendingMediaImage?.kind === 'banner' ? 'Recadrer la bannière' : 'Recadrer le logo'}
+        title={pendingMediaImage?.kind === 'banner' ? t`Recadrer la bannière` : t`Recadrer le logo`}
         description={t`Ajustez le cadrage avant de remplacer l’image du média.`}
         onApply={handleApplyMediaImage}
       />

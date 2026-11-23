@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import * as Y from 'yjs';
 import { createClient as createSupabaseClient } from '@qoe/supabase';
+import { t } from '@lingui/core/macro';
 
 const COLLAB_URL = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_COLLAB_URL : undefined;
 
@@ -114,7 +115,7 @@ export function useCollaborationSession({
         (typeof meta.name === 'string' && meta.name) ||
         (typeof meta.full_name === 'string' && meta.full_name) ||
         user.email?.split('@')[0] ||
-        'Éditeur';
+        t`Éditeur`;
       setCollabUser({ name, color: colorForUserId(user.id) });
     })();
     return () => {
@@ -176,7 +177,7 @@ export function useCollaborationSession({
       setStatus('error');
       setConnected(false);
       setSynced(false);
-      setLastError(reason || 'Authentification de la co-édition refusée');
+      setLastError(reason || t`Authentification de la co-édition refusée`);
     };
     const handleDisconnect = () => {
       // Un échec d'authentification est plus précis qu'une simple coupure :

@@ -84,7 +84,7 @@ function ToolbarButton({ active, onClick, icon, label, shortcut, disabled }: Too
         // pourquoi il l'est.
         aria-disabled={disabled ?? undefined}
         className={cn(
-          'relative h-8 w-8 shrink-0 flex items-center justify-center rounded-[10px] font-sans',
+          t`relative h-8 w-8 shrink-0 flex items-center justify-center rounded-[10px] font-sans`,
           'transition-[background-color,color,opacity] duration-150 cursor-pointer',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
           active

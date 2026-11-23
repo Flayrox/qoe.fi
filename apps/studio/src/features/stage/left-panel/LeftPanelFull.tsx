@@ -40,46 +40,46 @@ import { ARTICLE_VARIANTS, type BlockType, type TemplateBlock } from '@qoe/ui/te
 import { stageScopeTitle } from '../scope-label';
 import { t } from '@lingui/core/macro';
 
-const BLOCK_CATALOG: {
+const BLOCK_CATALOG = (): {
   type: BlockType;
   label: string;
   description: string;
   icon: React.ComponentType<{ className?: string }>;
-}[] = [
+}[] => [
   {
     type: 'article-content',
-    label: "Contenu de l'article",
-    description: 'Titre, méta, couverture et corps.',
+    label: t`Contenu de l'article`,
+    description: t`Titre, méta, couverture et corps.`,
     icon: FileText,
   },
   {
     type: 'hero',
-    label: 'Bannière',
-    description: 'Titre et image large.',
+    label: t`Bannière`,
+    description: t`Titre et image large.`,
     icon: RectangleHorizontal,
   },
   {
     type: 'lead-story',
-    label: 'Article vedette',
-    description: 'Image large et extrait.',
+    label: t`Article vedette`,
+    description: t`Image large et extrait.`,
     icon: Newspaper,
   },
   {
     type: 'bento-grid',
     label: 'Grille',
-    description: '2 à 3 cartes.',
+    description: t`2 à 3 cartes.`,
     icon: LayoutGrid,
   },
   {
     type: 'article-stream',
-    label: "Flux d'articles",
-    description: 'Liste des publications.',
+    label: t`Flux d'articles`,
+    description: t`Liste des publications.`,
     icon: Newspaper,
   },
   {
     type: 'category-spotlight',
-    label: 'Encadré rubrique',
-    description: 'Sélection par rubrique.',
+    label: t`Encadré rubrique`,
+    description: t`Sélection par rubrique.`,
     icon: LayoutGrid,
   },
   {
@@ -90,8 +90,8 @@ const BLOCK_CATALOG: {
   },
   {
     type: 'footer',
-    label: 'Pied de Page',
-    description: 'Liens et mentions.',
+    label: t`Pied de Page`,
+    description: t`Liens et mentions.`,
     icon: PanelBottom,
   },
 ];
@@ -105,25 +105,25 @@ type TabId = 'layers' | 'blocks' | 'brand' | 'pages' | 'images' | 'windows';
 function getBlockName(block: TemplateBlock) {
   switch (block.type) {
     case 'navbar':
-      return 'En-tête & Navigation';
+      return t`En-tête & Navigation`;
     case 'hero':
-      return 'Bannière';
+      return t`Bannière`;
     case 'lead-story':
-      return 'Article vedette';
+      return t`Article vedette`;
     case 'bento-grid':
       return 'Grille';
     case 'article-stream':
-      return "Flux d'articles";
+      return t`Flux d'articles`;
     case 'newsletter-wall':
       return "Mur d'abonnement";
     case 'article-content':
-      return "Contenu de l'article";
+      return t`Contenu de l'article`;
     case 'category-spotlight':
-      return 'Encadré rubrique';
+      return t`Encadré rubrique`;
     case 'article-content':
-      return "Contenu de l'article";
+      return t`Contenu de l'article`;
     case 'footer':
-      return 'Pied de Page';
+      return t`Pied de Page`;
     default:
       return block.type;
   }
@@ -222,7 +222,7 @@ function LayersTab() {
                   </button>
                   <button
                     type="button"
-                    title={block.locked ? 'Déverrouiller' : 'Verrouiller'}
+                    title={block.locked ? t`Déverrouiller` : 'Verrouiller'}
                     onClick={(e) => {
                       e.stopPropagation();
                       engine.toggleLock(block.id);
@@ -381,7 +381,7 @@ function BrandTab() {
               onClick={() => engine.updateTokens({ density: dens })}
               className={`rounded-lg px-1 py-1.5 text-center text-[10px] font-medium capitalize transition-all ${engine.layout.tokens.density === dens ? 'bg-primary text-primary-foreground shadow-xs' : 'bg-muted/50 text-muted-foreground hover:text-foreground'}`}
             >
-              {dens === 'compact' ? t`Compact` : dens === 'standard' ? 'Standard' : 'Aéré'}
+              {dens === 'compact' ? t`Compact` : dens === 'standard' ? 'Standard' : t`Aéré`}
             </button>
           ))}
         </div>
@@ -398,7 +398,7 @@ function BrandTab() {
               onClick={() => engine.updateTokens({ surface: surf })}
               className={`rounded-lg px-1 py-1.5 text-center text-[10px] font-medium capitalize transition-all ${engine.layout.tokens.surface === surf ? 'bg-primary text-primary-foreground shadow-xs' : 'bg-muted/50 text-muted-foreground hover:text-foreground'}`}
             >
-              {surf === 'flat' ? t`Plat` : surf === 'bordered' ? 'Bordé' : 'Verre'}
+              {surf === 'flat' ? t`Plat` : surf === 'bordered' ? t`Bordé` : 'Verre'}
             </button>
           ))}
         </div>
@@ -484,7 +484,7 @@ function PagesTab() {
             value={engine.articleCategory ?? ''}
             onValueChange={(category) => engine.setArticleCategory(category || null)}
             options={[
-              { id: '', label: 'Toutes les rubriques' },
+              { id: '', label: t`Toutes les rubriques` },
               ...(engine.publisher.categories || []).map((category) => ({
                 id: category.slug,
                 label: category.name,
@@ -738,11 +738,11 @@ export function LeftPanelFull() {
   };
 
   const titles: Record<TabId, string> = {
-    layers: 'Arborescence des calques',
-    blocks: 'Bibliothèque de blocs',
+    layers: t`Arborescence des calques`,
+    blocks: t`Bibliothèque de blocs`,
     brand: 'Marque & tokens',
     pages: 'Pages & navigation',
-    images: 'Visuels & médias',
+    images: t`Visuels & médias`,
     windows: 'Cadre & zoom',
   };
 
@@ -843,34 +843,36 @@ export function LeftPanelFull() {
                   <div className="px-2 py-1 text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
                     {t`Ajouter une section`}
                   </div>
-                  {BLOCK_CATALOG.filter((cat) =>
-                    engine.stagePage === 'article'
-                      ? cat.type === 'article-content' ||
-                        cat.type === 'category-spotlight' ||
-                        cat.type === 'newsletter-wall' ||
-                        cat.type === 'footer'
-                      : cat.type !== 'article-content'
-                  ).map((cat) => {
-                    const Icon = cat.icon;
-                    return (
-                      <div
-                        key={cat.type}
-                        onClick={() => {
-                          engine.addBlock(cat.type, cat.label);
-                          engine.setLeftPanelTab('layers');
-                        }}
-                        className="group cursor-pointer space-y-1 rounded-xl border border-border/40 bg-card p-2.5 transition-all hover:border-primary/50 hover:bg-muted/40"
-                      >
-                        <div className="flex items-center gap-2 font-medium text-foreground transition-colors group-hover:text-primary">
-                          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span>{cat.label}</span>
+                  {BLOCK_CATALOG()
+                    .filter((cat) =>
+                      engine.stagePage === 'article'
+                        ? cat.type === 'article-content' ||
+                          cat.type === 'category-spotlight' ||
+                          cat.type === 'newsletter-wall' ||
+                          cat.type === 'footer'
+                        : cat.type !== 'article-content'
+                    )
+                    .map((cat) => {
+                      const Icon = cat.icon;
+                      return (
+                        <div
+                          key={cat.type}
+                          onClick={() => {
+                            engine.addBlock(cat.type, cat.label);
+                            engine.setLeftPanelTab('layers');
+                          }}
+                          className="group cursor-pointer space-y-1 rounded-xl border border-border/40 bg-card p-2.5 transition-all hover:border-primary/50 hover:bg-muted/40"
+                        >
+                          <div className="flex items-center gap-2 font-medium text-foreground transition-colors group-hover:text-primary">
+                            <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span>{cat.label}</span>
+                          </div>
+                          <p className="text-[11px] leading-relaxed text-muted-foreground">
+                            {cat.description}
+                          </p>
                         </div>
-                        <p className="text-[11px] leading-relaxed text-muted-foreground">
-                          {cat.description}
-                        </p>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
                 </div>
               )}
               {engine.leftPanelTab === 'brand' && <BrandTab />}
@@ -897,15 +899,15 @@ export function LeftPanelFull() {
             </div>
             <div className="space-y-2 text-xs">
               {[
-                ['Sélection', 'V'],
+                [t`Sélection`, 'V'],
                 ['Outil main / Pan', 'H'],
-                ['Déplacement libre', 'Espace + Glisser'],
-                ['Mesurer les distances', 'Alt + Survol'],
+                [t`Déplacement libre`, 'Espace + Glisser'],
+                [t`Mesurer les distances`, 'Alt + Survol'],
                 ['Zoom', '⌘ + Molette'],
                 ['Recentrer', '⇧ + 0'],
-                ['Dupliquer le bloc', '⌘ + D'],
-                ['Supprimer le bloc', '⌫ / Suppr'],
-                ['Annuler / Rétablir', '⌘Z / ⌘⇧Z'],
+                [t`Dupliquer le bloc`, '⌘ + D'],
+                [t`Supprimer le bloc`, '⌫ / Suppr'],
+                [t`Annuler / Rétablir`, '⌘Z / ⌘⇧Z'],
               ].map(([label, key]) => (
                 <div
                   key={label}

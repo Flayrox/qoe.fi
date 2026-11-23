@@ -3,6 +3,8 @@
 // =====================================================================
 
 import { redirect } from 'next/navigation';
+import { getLanguage } from '@qoe/i18n/server';
+import type { Metadata } from 'next';
 import { requireUser } from '@qoe/auth/current-user';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import { listOAuthClientsAction } from './actions';
@@ -14,11 +16,19 @@ import {
   type DeveloperAccess,
   type DeveloperWorkspace,
 } from '@/features/developer/types';
+import { t } from '@lingui/core/macro';
 
-export const metadata = {
-  title: 'Applications OAuth | qoefi',
-  description: 'Créez des applications OAuth 2.1 / OpenID Connect pour "Se connecter avec qoefi".',
-};
+// Métadonnées rendues hors du provider i18n : la langue de la requête est lue
+// sans activer le singleton (cf. packages/i18n/src/server.ts).
+export async function generateMetadata(): Promise<Metadata> {
+  const isFr = (await getLanguage()) === 'fr';
+  return {
+    title: isFr ? 'Applications OAuth | qoefi' : 'OAuth applications | qoefi',
+    description: isFr
+      ? t`Créez des applications OAuth 2.1 / OpenID Connect pour "Se connecter avec qoefi".`
+      : 'Create OAuth 2.1 / OpenID Connect apps for "Sign in with qoefi".',
+  };
+}
 
 export default async function OAuthAppsPage() {
   const user = await requireUser();

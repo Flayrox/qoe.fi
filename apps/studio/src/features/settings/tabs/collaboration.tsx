@@ -25,18 +25,18 @@ interface CollaborationRequest {
 
 type RequestInbox = 'received' | 'sent';
 
-const REQUEST_STATUS: Record<
+const REQUEST_STATUS = (): Record<
   string,
   { label: string; tone: 'brand' | 'success' | 'danger' | 'neutral' }
-> = {
+> => ({
   PENDING: { label: 'En attente', tone: 'brand' },
-  ACCEPTED: { label: 'Acceptée', tone: 'success' },
-  DECLINED: { label: 'Refusée', tone: 'danger' },
-};
+  ACCEPTED: { label: t`Acceptée`, tone: 'success' },
+  DECLINED: { label: t`Refusée`, tone: 'danger' },
+});
 
 function personLabel(person: CollaborationRequest['inviter']) {
-  if (!person) return 'un créateur';
-  return person.name || (person.username ? `@${person.username}` : 'un créateur');
+  if (!person) return t`un créateur`;
+  return person.name || (person.username ? `@${person.username}` : t`un créateur`);
 }
 
 export function CollaborationTab() {
@@ -57,10 +57,12 @@ export function CollaborationTab() {
       if (res.success) {
         setRequests({ received: res.received || [], sent: res.sent || [] });
       } else {
-        setMessage(res.error || 'Impossible de charger les invitations.');
+        setMessage(res.error || t`Impossible de charger les invitations.`);
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Impossible de charger les invitations.');
+      setMessage(
+        error instanceof Error ? error.message : t`Impossible de charger les invitations.`
+      );
     } finally {
       setLoading(false);
     }
@@ -79,16 +81,16 @@ export function CollaborationTab() {
         profileVisibility[requestId] ?? true
       );
       if (res.success) {
-        setMessage(accept ? 'Invitation acceptée.' : 'Invitation refusée.');
+        setMessage(accept ? t`Invitation acceptée.` : t`Invitation refusée.`);
         await loadRequests();
       } else {
-        setMessage(res.error || "La réponse n'a pas pu être enregistrée.");
+        setMessage(res.error || t`La réponse n'a pas pu être enregistrée.`);
       }
     } catch (error) {
       // Sans capture, une exception laissait `respondingId` posé : la ligne
       // restait sur son indicateur et rien n'était expliqué.
       setMessage(
-        error instanceof Error ? error.message : "La réponse n'a pas pu être enregistrée."
+        error instanceof Error ? error.message : t`La réponse n'a pas pu être enregistrée.`
       );
     } finally {
       setRespondingId(null);
@@ -157,7 +159,7 @@ export function CollaborationTab() {
         ) : (
           <div className="divide-y divide-border/40">
             {currentRequests.map((request) => {
-              const status = REQUEST_STATUS[request.status] ?? {
+              const status = REQUEST_STATUS()[request.status] ?? {
                 label: request.status,
                 tone: 'neutral' as const,
               };

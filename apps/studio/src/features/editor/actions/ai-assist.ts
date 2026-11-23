@@ -2,6 +2,7 @@
 
 import { getCurrentUser } from '@qoe/auth/current-user';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { t } from '@lingui/core/macro';
 
 export type EditorAssistTask = 'title' | 'seo';
 
@@ -18,7 +19,7 @@ export async function generateEditorAssistAction(input: {
   context?: string;
 }): Promise<EditorAssistActionResult> {
   const user = await getCurrentUser();
-  if (!user) return { ok: false, error: 'Non authentifié' };
+  if (!user) return { ok: false, error: t`Non authentifié` };
 
   try {
     const res = await goFetch<{
@@ -42,7 +43,7 @@ export async function generateEditorAssistAction(input: {
     return {
       ok: false,
       error:
-        error instanceof Error ? error.message : "L'assistant IA est indisponible pour le moment.",
+        error instanceof Error ? error.message : t`L'assistant IA est indisponible pour le moment.`,
     };
   }
 }

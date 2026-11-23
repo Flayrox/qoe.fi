@@ -59,13 +59,15 @@ export default function CollaborateJoinPage() {
         } else {
           setError(
             res.ok
-              ? "Ce lien d'invitation est invalide ou a expiré."
-              : res.error.message || "Ce lien d'invitation est invalide ou a expiré."
+              ? t`Ce lien d'invitation est invalide ou a expiré.`
+              : res.error.message || t`Ce lien d'invitation est invalide ou a expiré.`
           );
         }
       } catch (err: unknown) {
         if (!isMounted) return;
-        setError(err instanceof Error ? err.message : "Erreur lors du chargement de l'invitation.");
+        setError(
+          err instanceof Error ? err.message : t`Erreur lors du chargement de l'invitation.`
+        );
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -90,12 +92,12 @@ export default function CollaborateJoinPage() {
         } else {
           setError(
             res.ok
-              ? 'Impossible de rejoindre la co-rédaction.'
-              : res.error.message || 'Impossible de rejoindre la co-rédaction.'
+              ? t`Impossible de rejoindre la co-rédaction.`
+              : res.error.message || t`Impossible de rejoindre la co-rédaction.`
           );
         }
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Une erreur inattendue est survenue.');
+        setError(err instanceof Error ? err.message : t`Une erreur inattendue est survenue.`);
       }
     });
   };
@@ -107,7 +109,7 @@ export default function CollaborateJoinPage() {
       case 'CO_AUTHOR':
         return 'Co-auteur';
       case 'EDITOR':
-        return 'Éditeur';
+        return t`Éditeur`;
       case 'CONTRIBUTOR':
         return 'Contributeur';
       default:
@@ -116,7 +118,7 @@ export default function CollaborateJoinPage() {
   };
 
   const formatExpiry = (dateStr: string | null | undefined) => {
-    if (!dateStr) return 'Permanent (sans expiration)';
+    if (!dateStr) return t`Permanent (sans expiration)`;
     const d = new Date(dateStr);
     return `Expire le ${d.toLocaleDateString(undefined, {
       day: 'numeric',
@@ -151,7 +153,7 @@ export default function CollaborateJoinPage() {
             <h1 className="text-base font-bold text-foreground">{t`Lien invalide ou expiré`}</h1>
             <p className="text-xs text-muted-foreground leading-relaxed">
               {error ||
-                "Ce lien d'invitation n'est plus actif, a été révoqué ou a atteint sa limite d'utilisations."}
+                t`Ce lien d'invitation n'est plus actif, a été révoqué ou a atteint sa limite d'utilisations.`}
             </p>
           </div>
           <button
@@ -191,7 +193,7 @@ export default function CollaborateJoinPage() {
             </div>
             <div className="min-w-0 flex-1">
               <h2 className="text-sm font-bold text-foreground line-clamp-2 leading-snug">
-                {preview.title || 'Article sans titre'}
+                {preview.title || t`Article sans titre`}
               </h2>
               <div className="mt-2 flex items-center gap-2">
                 <SafeAvatar

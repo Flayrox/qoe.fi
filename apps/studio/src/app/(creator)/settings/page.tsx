@@ -104,7 +104,7 @@ export default async function CreatorSettingsPage() {
       <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/20 bg-destructive/5 p-12 text-center">
         <h2 className="text-lg font-semibold text-destructive-text">{t`Publisher introuvable`}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Contactez le support si l&apos;erreur persiste.
+          {t`Contactez le support si l'erreur persiste.`}
         </p>
       </div>
     );
@@ -189,12 +189,11 @@ export default async function CreatorSettingsPage() {
           <div className="max-w-xl">
             <h3 className="font-semibold">{t`Exporter ma publication`}</h3>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              Archive ZIP complète : articles en Markdown et HTML, abonnés en CSV et manifest
-              d&apos;export. Aucune donnée n&apos;est conservée par le studio.
+              {t`Archive ZIP complète : articles en Markdown et HTML, abonnés en CSV et manifest d'export. Aucune donnée n'est conservée par le studio.`}
             </p>
           </div>
           <Button asChild variant="outline" size="sm" className="w-fit shrink-0">
-            <a href="/api/export">Télécharger l&apos;archive ZIP</a>
+            <a href="/api/export">{t`Télécharger l'archive ZIP`}</a>
           </Button>
         </div>
       </StudioSection>
@@ -202,8 +201,7 @@ export default async function CreatorSettingsPage() {
       <StudioSection title={t`Compte`}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="max-w-xl text-xs leading-relaxed text-muted-foreground">
-            Le mot de passe, l&apos;adresse e-mail, la double authentification et les sessions
-            actives se gèrent depuis les paramètres du compte personnel.
+            {t`Le mot de passe, l'adresse e-mail, la double authentification et les sessions actives se gèrent depuis les paramètres du compte personnel.`}
           </p>
           <AccountLink />
         </div>

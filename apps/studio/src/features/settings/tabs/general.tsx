@@ -145,7 +145,7 @@ export function GeneralTab({ current, setCurrent }: GeneralTabProps) {
                 <div className="space-y-2">
                   <span className="text-xs font-semibold text-foreground">{t`Police`}</span>
                   <div className="grid grid-cols-2 gap-2">
-                    {SITE_FONTS.map((font) => {
+                    {SITE_FONTS().map((font) => {
                       const isSelected = activeFontId === font.id;
                       return (
                         <Button
@@ -179,7 +179,7 @@ export function GeneralTab({ current, setCurrent }: GeneralTabProps) {
                 <div className="space-y-2 border-t border-border/40 pt-4">
                   <span className="text-xs font-semibold text-foreground">{t`Couleur d’accent`}</span>
                   <div className="flex flex-wrap items-center gap-2">
-                    {ACCENT_SWATCHES.map((swatch) => {
+                    {ACCENT_SWATCHES().map((swatch) => {
                       const isSelected = activeColorHex.toLowerCase() === swatch.hex.toLowerCase();
                       return (
                         <Button
@@ -244,7 +244,7 @@ export function GeneralTab({ current, setCurrent }: GeneralTabProps) {
                         },
                       }))
                     }
-                    defaultLabel="Thème neutre"
+                    defaultLabel={t`Thème neutre`}
                   />
                 </div>
               </div>

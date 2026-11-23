@@ -40,7 +40,7 @@ export function DomainTab({
             hint={
               subdomainInput
                 ? `Adresse publique : ${subdomainInput}.qoe.fi`
-                : 'Choisissez le nom sous lequel le site est accessible.'
+                : t`Choisissez le nom sous lequel le site est accessible.`
             }
           >
             <InputGroup

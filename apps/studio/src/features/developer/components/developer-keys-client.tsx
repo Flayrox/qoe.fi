@@ -35,11 +35,11 @@ const GRANT_TO_SCOPE: Record<string, ApiKeyScope> = {
   'api:analytics': 'ANALYTICS',
 };
 
-const SCOPE_META: Record<ApiKeyScope, { label: string; description: string }> = {
-  READ: { label: 'READ', description: 'Articles, profils et catégories publiques' },
-  WRITE: { label: 'WRITE', description: 'Créer, modifier et publier des contenus' },
-  ANALYTICS: { label: 'ANALYTICS', description: 'Métriques de lecture et complétion' },
-};
+const SCOPE_META = (): Record<ApiKeyScope, { label: string; description: string }> => ({
+  READ: { label: 'READ', description: t`Articles, profils et catégories publiques` },
+  WRITE: { label: 'WRITE', description: t`Créer, modifier et publier des contenus` },
+  ANALYTICS: { label: 'ANALYTICS', description: t`Métriques de lecture et complétion` },
+});
 
 function copyText(text: string): Promise<void> {
   if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
@@ -86,7 +86,7 @@ export function DeveloperKeysClient({
     if (list.success) {
       setKeys(list.keys);
     } else {
-      toast.error(list.error || 'Impossible de rafraîchir la liste des clés.');
+      toast.error(list.error || t`Impossible de rafraîchir la liste des clés.`);
     }
   };
 
@@ -109,7 +109,7 @@ export function DeveloperKeysClient({
       if (isMediaWorkspace && workspace.mediaId) {
         const res = await attemptWithStepUp(
           () => createMediaApiKeyAction(workspace.mediaId!, newKeyName.trim(), newKeyScopes),
-          { fallback: 'Erreur lors de la génération de la clé.' }
+          { fallback: t`Erreur lors de la génération de la clé.` }
         );
         if (res.success && res.key) {
           setGeneratedKey(res.key.secret);
@@ -121,7 +121,7 @@ export function DeveloperKeysClient({
       } else {
         const res = await attemptWithStepUp(
           () => generateApiKeyAction({ name: newKeyName.trim(), scopes: newKeyScopes }),
-          { fallback: 'Erreur lors de la génération de la clé.' }
+          { fallback: t`Erreur lors de la génération de la clé.` }
         );
         if (res.ok && res.data?.apiKey) {
           setGeneratedKey(res.data.apiKey);
@@ -137,7 +137,7 @@ export function DeveloperKeysClient({
       setNewKeyScopes([...allowedScopes]);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : 'Erreur lors de la génération de la clé.'
+        error instanceof Error ? error.message : t`Erreur lors de la génération de la clé.`
       );
     } finally {
       setIsGenerating(false);
@@ -149,7 +149,7 @@ export function DeveloperKeysClient({
     try {
       if (isMediaWorkspace && workspace.mediaId) {
         const res = await attemptWithStepUp(() => rotateMediaApiKeyAction(workspace.mediaId!, id), {
-          fallback: 'Erreur lors de la rotation de la clé.',
+          fallback: t`Erreur lors de la rotation de la clé.`,
         });
         if (res.success && res.key) {
           setKeyModalMode('rotated');
@@ -163,7 +163,7 @@ export function DeveloperKeysClient({
         }
       } else {
         const res = await attemptWithStepUp(() => rotateApiKeyAction(id), {
-          fallback: 'Erreur lors de la rotation de la clé.',
+          fallback: t`Erreur lors de la rotation de la clé.`,
         });
         if (res.ok && res.data?.apiKey) {
           setKeyModalMode('rotated');
@@ -175,7 +175,9 @@ export function DeveloperKeysClient({
         }
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Erreur lors de la rotation de la clé.');
+      toast.error(
+        error instanceof Error ? error.message : t`Erreur lors de la rotation de la clé.`
+      );
     } finally {
       setIsRotatingId(null);
     }
@@ -186,7 +188,7 @@ export function DeveloperKeysClient({
     try {
       if (isMediaWorkspace && workspace.mediaId) {
         const res = await attemptWithStepUp(() => revokeMediaApiKeyAction(workspace.mediaId!, id), {
-          fallback: 'Erreur lors de la révocation de la clé.',
+          fallback: t`Erreur lors de la révocation de la clé.`,
         });
         if (res.success) {
           setKeys((current) => current.filter((key) => key.id !== id));
@@ -197,7 +199,7 @@ export function DeveloperKeysClient({
         }
       } else {
         const res = await attemptWithStepUp(() => revokeApiKeyAction(id), {
-          fallback: 'Erreur lors de la révocation de la clé.',
+          fallback: t`Erreur lors de la révocation de la clé.`,
         });
         if (res.ok) {
           setKeys((current) => current.filter((key) => key.id !== id));
@@ -209,7 +211,7 @@ export function DeveloperKeysClient({
       }
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : 'Erreur lors de la révocation de la clé.'
+        error instanceof Error ? error.message : t`Erreur lors de la révocation de la clé.`
       );
     } finally {
       setIsRevokingId(null);
@@ -246,8 +248,8 @@ export function DeveloperKeysClient({
               onChange={(event) => setNewKeyName(event.target.value)}
               placeholder={
                 isMediaWorkspace
-                  ? 'Nom de la clé (CMS, bot Discord, Next.js…)'
-                  : 'Nom de la clé (Blog Vercel, app mobile…)'
+                  ? t`Nom de la clé (CMS, bot Discord, Next.js…)`
+                  : t`Nom de la clé (Blog Vercel, app mobile…)`
               }
               className="flex-1"
               required
@@ -284,7 +286,7 @@ export function DeveloperKeysClient({
                           : [...current, scope]
                       )
                     }
-                    title={SCOPE_META[scope].description}
+                    title={SCOPE_META()[scope].description}
                   >
                     <span>{active ? t`✓` : t`+`}</span>
                     {scope}
@@ -304,8 +306,7 @@ export function DeveloperKeysClient({
         icon={Key}
         actions={
           <Badge variant="outline" shape="pill" size="sm">
-            {keys.length} {t`clé`}
-            {keys.length > 1 ? t`s` : ''}
+            {keys.length > 1 ? t`${keys.length} clés` : t`${keys.length} clé`}
           </Badge>
         }
       >

@@ -3,13 +3,14 @@
 import { createClient as createServerClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { getActivePublisherId } from '@/lib/active-workspace';
+import { t } from '@lingui/core/macro';
 
 async function getAuthenticatedCreator() {
   const supabase = await createServerClient();
   const {
     data: { user: authUser },
   } = await supabase.auth.getUser();
-  if (!authUser) throw new Error('Non authentifié');
+  if (!authUser) throw new Error(t`Non authentifié`);
 
   return authUser;
 }
@@ -91,8 +92,7 @@ export async function importSubscribersCsvAction(
     ) {
       return {
         success: false,
-        error:
-          'Complétez les déclarations de provenance : origine licite de la liste, absence d’adresses achetées ou collectées sur le Web, absence de désabonnés et finalité annoncée.',
+        error: t`Complétez les déclarations de provenance : origine licite de la liste, absence d’adresses achetées ou collectées sur le Web, absence de désabonnés et finalité annoncée.`,
       };
     }
 
@@ -121,7 +121,7 @@ export async function importSubscribersCsvAction(
     console.error('[CSV Import Error]', err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Échec du dépôt de la liste d'abonnés",
+      error: err instanceof Error ? err.message : t`Échec du dépôt de la liste d'abonnés`,
     };
   }
 }

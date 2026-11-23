@@ -2,13 +2,14 @@
 
 import { createClient as createServerClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { t } from '@lingui/core/macro';
 
 async function getAuthenticatedUser() {
   const supabase = await createServerClient();
   const {
     data: { user: authUser },
   } = await supabase.auth.getUser();
-  if (!authUser) throw new Error('Non authentifié');
+  if (!authUser) throw new Error(t`Non authentifié`);
 
   return authUser;
 }
@@ -29,7 +30,7 @@ export async function getSiteLayoutDraftAction(publisherId: string) {
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Impossible de charger le brouillon',
+      error: error instanceof Error ? error.message : t`Impossible de charger le brouillon`,
     };
   }
 }

@@ -50,15 +50,16 @@ const OAUTH_SCOPES = [
   { name: 'media', required: false, desc: () => t`Statut de membre et permissions du média` },
 ] as const;
 
-const STATUS_META: Record<
+// Fabrique : les libellés sont résolus au rendu, jamais au chargement du module.
+const STATUS_META = (): Record<
   OAuthClientDTO['status'],
-  { label: () => string; tone: 'vivid' | 'success' | 'danger' | 'neutral' }
-> = {
-  PENDING: { label: () => t`En attente`, tone: 'vivid' },
-  APPROVED: { label: () => t`Approuvée`, tone: 'success' },
-  REJECTED: { label: () => t`Rejetée`, tone: 'danger' },
-  REVOKED: { label: () => t`Révoquée`, tone: 'neutral' },
-};
+  { label: string; tone: 'vivid' | 'success' | 'danger' | 'neutral' }
+> => ({
+  PENDING: { label: t`En attente`, tone: 'vivid' },
+  APPROVED: { label: t`Approuvée`, tone: 'success' },
+  REJECTED: { label: t`Rejetée`, tone: 'danger' },
+  REVOKED: { label: t`Révoquée`, tone: 'neutral' },
+});
 
 interface OAuthAppsClientProps {
   access: DeveloperAccess;
@@ -283,7 +284,7 @@ export function OAuthAppsClient({
                 htmlFor="oauth-app-homepage"
                 className="block text-xs font-semibold text-foreground"
               >
-                URL d&apos;accueil (affichée sur l&apos;écran de consentement)
+                {t`URL d'accueil (affichée sur l'écran de consentement)`}
               </label>
               <Input
                 id="oauth-app-homepage"
@@ -400,7 +401,7 @@ export function OAuthAppsClient({
               disabled={creating || !name.trim() || redirectUris.length === 0}
             >
               {creating ? <Loader2 className="animate-spin" /> : <Plus />}
-              Créer l&apos;application
+              {t`Créer l'application`}
             </Button>
           </div>
         </div>
@@ -428,12 +429,14 @@ export function OAuthAppsClient({
           <div className="px-6 py-4 border-b border-border/50 flex items-center justify-between">
             <h3 className="text-base font-bold text-foreground">{t`Vos applications`}</h3>
             <Badge variant="outline" shape="pill" size="sm">
-              {clients.length} application{clients.length > 1 ? t`s` : ''}
+              {clients.length > 1
+                ? t`${clients.length} applications`
+                : t`${clients.length} application`}
             </Badge>
           </div>
 
           {clients.map((client) => {
-            const meta = STATUS_META[client.status] ?? STATUS_META.PENDING;
+            const meta = STATUS_META()[client.status] ?? STATUS_META().PENDING;
             return (
               <div
                 key={client.id}
@@ -444,7 +447,7 @@ export function OAuthAppsClient({
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-bold text-foreground">{client.name}</p>
                       <Badge variant="outline" tone={meta.tone} shape="pill">
-                        {meta.label()}
+                        {meta.label}
                       </Badge>
                       <Badge variant="soft" shape="pill">
                         {client.clientType === 'CONFIDENTIAL' ? t`Confidentielle` : t`Publique`}
@@ -593,8 +596,7 @@ export function OAuthAppsClient({
           <div className="flex items-start gap-3 p-3.5 rounded-xl bg-highlight/10 border border-highlight/20 text-xs text-highlight">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
             <p className="leading-relaxed text-[11px]">
-              Stockez ce secret côté serveur uniquement (variables d&apos;environnement). Ne
-              l&apos;exposez jamais dans du code client public.
+              {t`Stockez ce secret côté serveur uniquement (variables d'environnement). Ne l'exposez jamais dans du code client public.`}
             </p>
           </div>
 
@@ -609,7 +611,7 @@ export function OAuthAppsClient({
                 setCopied(null);
               }}
             >
-              J&apos;ai sauvegardé mon secret
+              {t`J'ai sauvegardé mon secret`}
             </Button>
           </DialogFooter>
         </DialogContent>

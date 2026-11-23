@@ -233,7 +233,7 @@ export function ContextualEditorBar() {
                     selected.type === 'footer' ||
                     selected.type === 'lead-story') && (
                     <p className="rounded-lg bg-muted/40 p-2 text-[11px] text-muted-foreground">
-                      Réglages dans l&apos;inspecteur droit.
+                      {t`Réglages dans l'inspecteur droit.`}
                     </p>
                   )}
                 </div>

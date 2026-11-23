@@ -4,6 +4,7 @@ import { createClient } from '@qoe/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { t } from '@lingui/core/macro';
 
 /**
  * Échec d'action : conserve le code du garde d'autorisation Go
@@ -24,7 +25,7 @@ async function getContext() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) throw new Error('Non authentifié');
+  if (!user) throw new Error(t`Non authentifié`);
   const workspace = await getActiveWorkspace(user.id);
   return { user, publisherId: workspace.publisherId, workspaceName: workspace.name };
 }
@@ -64,7 +65,7 @@ export async function createNewsletterAction(input: {
   const { publisherId } = await getContext();
   const subject = input.subject?.trim();
   const html = input.html?.trim();
-  if (!subject || !html) return { success: false as const, error: 'Sujet et contenu requis' };
+  if (!subject || !html) return { success: false as const, error: t`Sujet et contenu requis` };
 
   try {
     const issue = await goFetch<NewsletterIssue>('/v1/newsletters', {
@@ -101,7 +102,7 @@ export async function updateNewsletterAction(
   const { publisherId } = await getContext();
   const subject = input.subject?.trim();
   const html = input.html?.trim();
-  if (!subject || !html) return { success: false as const, error: 'Sujet et contenu requis' };
+  if (!subject || !html) return { success: false as const, error: t`Sujet et contenu requis` };
 
   try {
     const issue = await goFetch<NewsletterIssue>(`/v1/newsletters/${encodeURIComponent(id)}`, {

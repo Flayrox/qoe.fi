@@ -19,40 +19,40 @@ interface OfferRow {
   level: Level;
 }
 
-const ROWS: OfferRow[] = [
+const ROWS = (): OfferRow[] => [
   {
     label: 'Publier textes, newsletters, collections',
-    hint: 'Plateforme complète, sans limite de volume éditorial.',
+    hint: t`Plateforme complète, sans limite de volume éditorial.`,
     level: 'free',
   },
   {
     label: 'Template e-mail classique (nom + logo)',
-    hint: 'E-mails soignés, sujets et textes par défaut localisés.',
+    hint: t`E-mails soignés, sujets et textes par défaut localisés.`,
     level: 'free',
   },
   {
-    label: 'Abonnés, audience, imports validés',
-    hint: 'Croissance sans compteur caché.',
+    label: t`Abonnés, audience, imports validés`,
+    hint: t`Croissance sans compteur caché.`,
     level: 'free',
   },
   {
-    label: 'API & webhooks développeur',
-    hint: 'Automatiser et intégrer votre média.',
+    label: t`API & webhooks développeur`,
+    hint: t`Automatiser et intégrer votre média.`,
     level: 'free',
   },
   {
-    label: 'Personnalisation des e-mails',
-    hint: "Nom d'expéditeur, reply-to, couleurs, sujets, aperçus, note de pied, corps du bienvenue.",
+    label: t`Personnalisation des e-mails`,
+    hint: t`Nom d'expéditeur, reply-to, couleurs, sujets, aperçus, note de pied, corps du bienvenue.`,
     level: 'pro',
   },
   {
-    label: 'Domaine personnalisé + DKIM/SPF/DMARC',
-    hint: 'Envoyer depuis votre propre domaine, réputation maîtrisée.',
+    label: t`Domaine personnalisé + DKIM/SPF/DMARC`,
+    hint: t`Envoyer depuis votre propre domaine, réputation maîtrisée.`,
     level: 'soon',
   },
   {
-    label: 'Statistiques avancées',
-    hint: 'Ouvertures, clics, cohortes — au-delà de l’audience de base.',
+    label: t`Statistiques avancées`,
+    hint: t`Ouvertures, clics, cohortes — au-delà de l’audience de base.`,
     level: 'soon',
   },
 ];
@@ -113,7 +113,7 @@ export function OfferCompare({ supportUrl }: { supportUrl: string }) {
             {t`Être tenu au courant`}
           </a>
           <p className="text-[11px] text-muted-foreground mt-2">
-            Pas de faux bouton d&apos;achat : dites-le nous via le support, on vous recontacte.
+            {t`Pas de faux bouton d'achat : dites-le nous via le support, on vous recontacte.`}
           </p>
         </div>
       </div>
@@ -130,7 +130,7 @@ export function OfferCompare({ supportUrl }: { supportUrl: string }) {
             </span>
           </div>
         </div>
-        {ROWS.map((row, i) => (
+        {ROWS().map((row, i) => (
           <div
             key={row.label}
             className={`grid grid-cols-[1fr_auto] gap-3 px-5 py-3.5 items-start ${

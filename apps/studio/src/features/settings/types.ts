@@ -2,6 +2,8 @@
 // ⚡ QOE Studio — apps/studio/src/features/settings/types.ts
 // =====================================================================
 
+import { t } from '@lingui/core/macro';
+
 export interface ClientNavigationItem {
   id?: string;
   label: string;
@@ -68,20 +70,20 @@ export interface CreatorProfile {
   mediaRole?: string;
 }
 
-export const ACCENT_SWATCHES = [
-  { id: 'vermilion', name: 'Vermillon', hex: '#EE4B2B' },
-  { id: 'emerald', name: 'Émeraude', hex: '#10B981' },
-  { id: 'royal', name: 'Bleu Royal', hex: '#3B82F6' },
-  { id: 'orchid', name: 'Orchidée', hex: '#D946EF' },
-  { id: 'amber', name: 'Ambre', hex: '#F59E0B' },
-  { id: 'charcoal', name: 'Anthracite', hex: '#3F3F46' },
+export const ACCENT_SWATCHES = () => [
+  { id: 'vermilion', name: t`Vermillon`, hex: '#EE4B2B' },
+  { id: 'emerald', name: t`Émeraude`, hex: '#10B981' },
+  { id: 'royal', name: t`Bleu Royal`, hex: '#3B82F6' },
+  { id: 'orchid', name: t`Orchidée`, hex: '#D946EF' },
+  { id: 'amber', name: t`Ambre`, hex: '#F59E0B' },
+  { id: 'charcoal', name: t`Anthracite`, hex: '#3F3F46' },
 ];
 
-export const SITE_FONTS = [
-  { id: 'sans', name: 'Inter (Sans-serif)', family: "'Inter', sans-serif" },
-  { id: 'outfit', name: 'Outfit (Moderne)', family: "'Outfit', sans-serif" },
-  { id: 'space-grotesk', name: 'Space Grotesk (Tech)', family: "'Space Grotesk', sans-serif" },
-  { id: 'serif', name: 'Playfair Display (Serif)', family: "'Playfair Display', serif" },
+export const SITE_FONTS = () => [
+  { id: 'sans', name: t`Inter (Sans-serif)`, family: "'Inter', sans-serif" },
+  { id: 'outfit', name: t`Outfit (Moderne)`, family: "'Outfit', sans-serif" },
+  { id: 'space-grotesk', name: t`Space Grotesk (Tech)`, family: "'Space Grotesk', sans-serif" },
+  { id: 'serif', name: t`Playfair Display (Serif)`, family: "'Playfair Display', serif" },
 ];
 
 export const SUPPORTED_SOCIAL_PLATFORMS = [
@@ -102,65 +104,65 @@ export interface SiteOptionItem {
   description: string;
 }
 
-export const SITE_OPTION_ITEMS: SiteOptionItem[] = [
+export const SITE_OPTION_ITEMS = (): SiteOptionItem[] => [
   {
     key: 'showBanner',
-    label: "Logo / Wordmark d'en-tête (ou bannière)",
-    description: "Affiche le logotype ou l'image d'en-tête en haut de la publication",
+    label: t`Logo / Wordmark d'en-tête (ou bannière)`,
+    description: t`Affiche le logotype ou l'image d'en-tête en haut de la publication`,
   },
   {
     key: 'showLogo',
     label: 'Logo / Avatar de marque',
-    description: "Affiche l'avatar du créateur ou média dans le header",
+    description: t`Affiche l'avatar du créateur ou média dans le header`,
   },
   {
     key: 'logoShapeSquare',
-    label: 'Logo carré aux coins adoucis',
-    description: 'Bascule la forme du logo de rond à carré dans le header',
+    label: t`Logo carré aux coins adoucis`,
+    description: t`Bascule la forme du logo de rond à carré dans le header`,
   },
   {
     key: 'showCategoryTabs',
-    label: "Onglets de rubriques dans l'en-tête",
-    description: "Affiche les onglets de rubriques et sous-rubriques sous l'en-tête",
+    label: t`Onglets de rubriques dans l'en-tête`,
+    description: t`Affiche les onglets de rubriques et sous-rubriques sous l'en-tête`,
   },
   {
     key: 'showTagline',
-    label: 'Slogan éditorial',
-    description: 'Affiche le sous-titre sous le nom du média',
+    label: t`Slogan éditorial`,
+    description: t`Affiche le sous-titre sous le nom du média`,
   },
   {
     key: 'showSubscribeButton',
-    label: 'Bouton S’abonner dans l’en-tête',
-    description: 'Accès direct à la modal d’inscription',
+    label: t`Bouton S’abonner dans l’en-tête`,
+    description: t`Accès direct à la modal d’inscription`,
   },
   {
     key: 'showSocialLinks',
-    label: 'Réseaux sociaux',
-    description: 'Affiche la barre de liens sociaux configurés',
+    label: t`Réseaux sociaux`,
+    description: t`Affiche la barre de liens sociaux configurés`,
   },
   {
     key: 'showCraftIndex',
     label: 'Sommaire interactif Craft',
-    description: 'Axe vertical discret façon Devouring Details',
+    description: t`Axe vertical discret façon Devouring Details`,
   },
   {
     key: 'showProgressiveBlur',
-    label: 'Dégradé progressif de bordure',
-    description: 'Estompe élégamment le haut et le bas de la vue',
+    label: t`Dégradé progressif de bordure`,
+    description: t`Estompe élégamment le haut et le bas de la vue`,
   },
   {
     key: 'showNewsletterWall',
-    label: 'Encart adhésion & newsletter',
-    description: "Bloc d'inscription en pied d'article",
+    label: t`Encart adhésion & newsletter`,
+    description: t`Bloc d'inscription en pied d'article`,
   },
   {
     key: 'featuredTrio',
-    label: 'Grille à la une 3 colonnes',
-    description: 'Affiche un grand article vedette au centre encadré par les parutions secondaires',
+    label: t`Grille à la une 3 colonnes`,
+    description: t`Affiche un grand article vedette au centre encadré par les parutions secondaires`,
   },
   {
     key: 'showPinnedBadge',
-    label: 'Badge Article Épinglé',
-    description: 'Affiche un badge sur l’article épinglé à la une',
+    label: t`Badge Article Épinglé`,
+    description: t`Affiche un badge sur l’article épinglé à la une`,
   },
 ];

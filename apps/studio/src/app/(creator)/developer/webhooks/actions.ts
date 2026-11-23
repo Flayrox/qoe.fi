@@ -4,6 +4,7 @@ import { createClient } from '@qoe/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { t } from '@lingui/core/macro';
 
 // Aligné sur ValidWebhookEvents (apps/api/internal/modules/webhooks/service.go).
 // `article.scheduled` existe côté Go mais n'est encore émis par aucun flux.
@@ -20,7 +21,7 @@ async function getAuthenticatedUser() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) throw new Error('Non authentifié');
+  if (!user) throw new Error(t`Non authentifié`);
   return user;
 }
 
@@ -112,16 +113,16 @@ export async function createWebhookAction(input: {
 
   const name = input.name?.trim();
   const url = input.url?.trim();
-  if (!name || !url) return { success: false as const, error: 'Nom et URL requis' };
+  if (!name || !url) return { success: false as const, error: t`Nom et URL requis` };
   if (!/^https:\/\//i.test(url) && !/^http:\/\/localhost/i.test(url)) {
     return {
       success: false as const,
-      error: "L'URL doit commencer par https:// (ou http://localhost en dev)",
+      error: t`L'URL doit commencer par https:// (ou http://localhost en dev)`,
     };
   }
   const events = input.events.filter((e) => WEBHOOK_EVENTS.includes(e));
   if (events.length === 0)
-    return { success: false as const, error: 'Sélectionnez au moins un événement' };
+    return { success: false as const, error: t`Sélectionnez au moins un événement` };
 
   const workspace = await getActiveWorkspace(user.id);
 
@@ -191,7 +192,7 @@ export async function testWebhookAction(id: string) {
     if (res.success) {
       return { success: true as const, status: res.status, response: res.response };
     }
-    return { success: false as const, error: res.response || 'Test échoué' };
+    return { success: false as const, error: res.response || t`Test échoué` };
   } catch (err) {
     return {
       success: false as const,

@@ -19,9 +19,9 @@ export interface TranslatableArticle {
   content: string;
 }
 
-const LANGUAGES = [
+const LANGUAGES = () => [
   { code: 'en', label: 'Anglais' },
-  { code: 'fr', label: 'Français' },
+  { code: 'fr', label: t`Français` },
   { code: 'es', label: 'Espagnol' },
   { code: 'de', label: 'Allemand' },
   { code: 'it', label: 'Italien' },
@@ -107,7 +107,7 @@ export function TranslateClient({ articles }: { articles: TranslatableArticle[] 
             size="sm"
             value={target}
             onValueChange={setTarget}
-            options={LANGUAGES.map((language) => ({
+            options={LANGUAGES().map((language) => ({
               id: language.code,
               label: language.label,
             }))}

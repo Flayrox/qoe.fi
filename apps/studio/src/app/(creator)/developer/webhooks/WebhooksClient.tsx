@@ -179,10 +179,10 @@ export function WebhooksClient({
       if (res.success) {
         setDeliveries(res.deliveries);
       } else {
-        toast.error(res.error || 'Impossible de charger les logs.');
+        toast.error(res.error || t`Impossible de charger les logs.`);
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Impossible de charger les logs.');
+      toast.error(error instanceof Error ? error.message : t`Impossible de charger les logs.`);
     } finally {
       setLoadingDeliveries(false);
     }
@@ -351,7 +351,7 @@ export function WebhooksClient({
           <div className="px-6 py-4 border-b border-border/50 flex items-center justify-between">
             <h3 className="text-base font-bold text-foreground">{t`Endpoints Enregistrés`}</h3>
             <Badge variant="soft" size="sm" shape="pill">
-              {webhooks.length} webhook{webhooks.length > 1 ? t`s` : ''}
+              {webhooks.length > 1 ? t`${webhooks.length} webhooks` : t`${webhooks.length} webhook`}
             </Badge>
           </div>
 
@@ -465,7 +465,7 @@ export function WebhooksClient({
                         {d.httpStatus && (
                           <span
                             className={cn(
-                              'px-1.5 py-0.5 rounded text-[10px] font-sans tabular-nums font-bold',
+                              t`px-1.5 py-0.5 rounded text-[10px] font-sans tabular-nums font-bold`,
                               d.httpStatus >= 200 && d.httpStatus < 300
                                 ? 'bg-success/10 text-success-text'
                                 : 'bg-destructive/10 text-destructive-text'

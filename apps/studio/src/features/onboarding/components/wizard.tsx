@@ -450,7 +450,7 @@ export function OnboardingWizard({
                           className={`text-[9px] font-bold uppercase tracking-wider ${previewStyle.font}`}
                           style={{ color: previewStyle.accent }}
                         >
-                          {name.trim() || 'Mon Espace'}
+                          {name.trim() || t`Mon Espace`}
                         </span>
                       </div>
                       <div className="flex gap-3.5 text-[8px] uppercase font-bold tracking-wider opacity-60">

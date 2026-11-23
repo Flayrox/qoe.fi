@@ -7,6 +7,8 @@
 // =====================================================================
 
 import { redirect } from 'next/navigation';
+import { getLanguage } from '@qoe/i18n/server';
+import type { Metadata } from 'next';
 import { requireUser } from '@qoe/auth/current-user';
 import { getArticlesAction } from '@qoe/sdk/actions/articles';
 import { StudioHeader, StudioPage } from '@/components/studio-page';
@@ -14,10 +16,17 @@ import { StudioHeader, StudioPage } from '@/components/studio-page';
 import { CommunityClient } from './community-client';
 import { t } from '@lingui/core/macro';
 
-export const metadata = {
-  title: 'Communauté | qoefi Studio',
-  description: 'Modérer les commentaires de vos articles.',
-};
+// Métadonnées rendues hors du provider i18n : la langue de la requête est lue
+// sans activer le singleton (cf. packages/i18n/src/server.ts).
+export async function generateMetadata(): Promise<Metadata> {
+  const isFr = (await getLanguage()) === 'fr';
+  return {
+    title: isFr ? t`Communauté | qoefi Studio` : 'Community | qoefi Studio',
+    description: isFr
+      ? t`Modérer les commentaires de vos articles.`
+      : t`Moderate the comments on your articles.`,
+  };
+}
 
 export default async function CommunityPage() {
   const user = await requireUser();

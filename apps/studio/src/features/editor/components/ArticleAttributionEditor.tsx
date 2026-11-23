@@ -34,10 +34,10 @@ export type ArticleAttributionDraft = {
   consentStatus?: string;
 };
 
-const ROLE_OPTIONS = [
+const ROLE_OPTIONS = () => [
   { value: 'PRIMARY_AUTHOR', label: 'Auteur principal' },
   { value: 'CO_AUTHOR', label: 'Co-auteur' },
-  { value: 'EDITOR', label: 'Éditeur' },
+  { value: 'EDITOR', label: t`Éditeur` },
   { value: 'CONTRIBUTOR', label: 'Contributeur' },
   { value: 'TRANSLATOR', label: 'Traducteur' },
   { value: 'PHOTOGRAPHER', label: 'Photographe' },
@@ -60,7 +60,7 @@ function Avatar({ person, size = 28 }: { person: ContributorResult; size?: numbe
 
 function visibilityLabel(person: ArticleAttributionDraft) {
   if (person.consentStatus !== 'ACCEPTED') return 'En attente';
-  return person.isVisible ? 'Cité' : 'Non cité';
+  return person.isVisible ? t`Cité` : t`Non cité`;
 }
 
 function VisibilityButton({
@@ -81,10 +81,10 @@ function VisibilityButton({
       aria-pressed={person.isVisible}
       title={
         waiting
-          ? 'En attente du consentement du contributeur'
+          ? t`En attente du consentement du contributeur`
           : person.isVisible
-            ? 'Masquer de la signature publique'
-            : 'Afficher dans la signature publique'
+            ? t`Masquer de la signature publique`
+            : t`Afficher dans la signature publique`
       }
       className="gap-1 px-1.5 text-[10px]"
     >
@@ -259,7 +259,7 @@ export function ArticleAttributionEditor({
                 value={person.role}
                 disabled={person.role === 'PRIMARY_AUTHOR'}
                 onValueChange={(role) => update(index, { role })}
-                options={ROLE_OPTIONS.map((role) => ({ id: role.value, label: role.label }))}
+                options={ROLE_OPTIONS().map((role) => ({ id: role.value, label: role.label }))}
               />
               {person.role !== 'PRIMARY_AUTHOR' && (
                 <VisibilityButton
@@ -297,7 +297,7 @@ export function ArticleAttributionEditor({
                     size="xs"
                     shape="icon"
                     onClick={() => removeContributor(index)}
-                    aria-label={`Retirer ${person.name || 'le contributeur'}`}
+                    aria-label={`Retirer ${person.name || t`le contributeur`}`}
                     title={t`Retirer le contributeur`}
                   >
                     <X aria-hidden />

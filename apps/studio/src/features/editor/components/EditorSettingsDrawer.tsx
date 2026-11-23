@@ -223,7 +223,7 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
       await navigator.clipboard.writeText(fullUrl);
     } catch {
       setSlugCopied(false);
-      setSlugCopyError('Copie impossible. Sélectionnez l’adresse et copiez-la manuellement.');
+      setSlugCopyError(t`Copie impossible. Sélectionnez l’adresse et copiez-la manuellement.`);
       return;
     }
     setSlugCopyError(null);

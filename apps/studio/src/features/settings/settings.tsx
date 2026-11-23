@@ -257,7 +257,7 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
           });
           if (!subResult.ok) {
             throw new Error(
-              subResult.error?.message || 'Erreur lors de la mise à jour du sous-domaine.'
+              subResult.error?.message || t`Erreur lors de la mise à jour du sous-domaine.`
             );
           }
         } else {
@@ -267,7 +267,7 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
           });
           if (!subResult.ok) {
             throw new Error(
-              subResult.error?.message || 'Erreur lors de la suppression du sous-domaine.'
+              subResult.error?.message || t`Erreur lors de la suppression du sous-domaine.`
             );
           }
         }
@@ -281,7 +281,7 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
         });
         if (!navResult.ok) {
           throw new Error(
-            navResult.error?.message || 'Erreur lors de la sauvegarde de la navigation.'
+            navResult.error?.message || t`Erreur lors de la sauvegarde de la navigation.`
           );
         }
       }
@@ -295,7 +295,7 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
         });
         if (!socialResult.ok) {
           throw new Error(
-            socialResult.error?.message || 'Erreur lors de la sauvegarde des réseaux sociaux.'
+            socialResult.error?.message || t`Erreur lors de la sauvegarde des réseaux sociaux.`
           );
         }
       }
@@ -405,7 +405,7 @@ export default function SettingsView({ initialCreator, publisherId }: SettingsPr
           <div>
             <div className="flex items-center gap-2.5">
               <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground">
-                {current.name || 'Paramètres'}
+                {current.name || t`Paramètres`}
               </h1>
               {isMediaWorkspace && (
                 <Badge

@@ -69,7 +69,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
       if (res.ok && res.data) {
         setRecommendations(res.data);
       } else if (!res.ok) {
-        setError(res.error?.message || 'Impossible de charger les recommandations.');
+        setError(res.error?.message || t`Impossible de charger les recommandations.`);
       }
     } catch {
       setError(t`Impossible de charger les recommandations.`);
@@ -97,10 +97,10 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
       if (res.ok && res.data) {
         setFoundPub(res.data);
       } else {
-        setSearchError('Aucune publication trouvée avec ce domaine ou sous-domaine.');
+        setSearchError(t`Aucune publication trouvée avec ce domaine ou sous-domaine.`);
       }
     } catch {
-      setSearchError('Erreur lors de la recherche.');
+      setSearchError(t`Erreur lors de la recherche.`);
     } finally {
       setIsSearching(false);
     }

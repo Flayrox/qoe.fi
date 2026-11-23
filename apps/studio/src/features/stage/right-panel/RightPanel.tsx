@@ -209,7 +209,7 @@ export function RightPanel({
               className="flex w-full items-center justify-center gap-1 rounded-lg border border-destructive/40 py-1.5 text-[11px] text-destructive-text hover:bg-destructive/10"
             >
               <Trash2 className="h-3 w-3" />
-              <span>Supprimer l&apos;élément</span>
+              <span>{t`Supprimer l'élément`}</span>
             </button>
           </div>
         )}
@@ -314,7 +314,7 @@ export function RightPanel({
         {selectedBlock.type === 'hero' && (
           <div className="space-y-3">
             <div className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
-              Disposition & Bannière
+              {t`Disposition & Bannière`}
             </div>
 
             <div className="space-y-1">
@@ -393,7 +393,7 @@ export function RightPanel({
                         : 'bg-muted/50 text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    {al === 'auto' ? t`Auto` : al === 'left' ? 'Gauche' : 'Centré'}
+                    {al === 'auto' ? t`Auto` : al === 'left' ? 'Gauche' : t`Centré`}
                   </button>
                 ))}
               </div>
@@ -579,7 +579,7 @@ export function RightPanel({
         {selectedBlock.type === 'article-stream' && (
           <div className="space-y-3">
             <div className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
-              Flux d&apos;Articles
+              {t`Flux d'Articles`}
             </div>
 
             <div className="space-y-1">
@@ -804,8 +804,8 @@ export function RightPanel({
 
             {(
               [
-                ['showLegalLinks', 'Liens légaux'],
-                ['showSocialLinks', 'Réseaux sociaux'],
+                ['showLegalLinks', t`Liens légaux`],
+                ['showSocialLinks', t`Réseaux sociaux`],
               ] as const
             ).map(([key, label]) => (
               <div key={key} className="flex items-center justify-between py-1">

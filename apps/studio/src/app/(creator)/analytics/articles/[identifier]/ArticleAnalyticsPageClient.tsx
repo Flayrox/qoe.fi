@@ -56,7 +56,7 @@ export function ArticleAnalyticsPageClient({
         setDetail(res.data);
         setError(null);
       } else {
-        setError(res.error ?? 'Erreur de chargement des détails');
+        setError(res.error ?? t`Erreur de chargement des détails`);
       }
     });
     return () => {

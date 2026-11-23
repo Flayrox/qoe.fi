@@ -17,13 +17,13 @@ import { t } from '@lingui/core/macro';
 
 type ImportMode = 'articles' | 'subscribers';
 
-const SOURCE_OPTIONS = [
+const SOURCE_OPTIONS = () => [
   { id: 'substack', label: 'Substack' },
   { id: 'ghost', label: 'Ghost' },
   { id: 'beehiiv', label: 'Beehiiv' },
   { id: 'mailchimp', label: 'Mailchimp' },
-  { id: 'cms_export', label: 'Export de mon CMS' },
-  { id: 'csv_manual', label: 'Fichier constitué à la main' },
+  { id: 'cms_export', label: t`Export de mon CMS` },
+  { id: 'csv_manual', label: t`Fichier constitué à la main` },
   { id: 'other', label: 'Autre' },
 ];
 
@@ -54,7 +54,7 @@ export function ImportSourceField({
         size="sm"
         value={source}
         onValueChange={onSourceChange}
-        options={SOURCE_OPTIONS}
+        options={SOURCE_OPTIONS()}
       />
     </StudioField>
   );
@@ -172,7 +172,7 @@ function SubscribersImport() {
     if (!declarationsComplete) {
       setMessage({
         tone: 'danger',
-        text: 'Complétez les déclarations de provenance avant de déposer le fichier.',
+        text: t`Complétez les déclarations de provenance avant de déposer le fichier.`,
       });
       return;
     }
@@ -201,16 +201,16 @@ function SubscribersImport() {
         setStats(res.stats ?? null);
         setMessage({
           tone: 'success',
-          text: 'Liste déposée en revue. Aucun email n’a été envoyé et aucun contact n’a été créé.',
+          text: t`Liste déposée en revue. Aucun email n’a été envoyé et aucun contact n’a été créé.`,
         });
       } else {
         setMessage({
           tone: 'danger',
-          text: res.error || "Impossible de déposer la liste d'abonnés.",
+          text: res.error || t`Impossible de déposer la liste d'abonnés.`,
         });
       }
     } catch {
-      setMessage({ tone: 'danger', text: 'Impossible de lire ce fichier CSV.' });
+      setMessage({ tone: 'danger', text: t`Impossible de lire ce fichier CSV.` });
     } finally {
       setLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -350,7 +350,7 @@ function SubscribersImport() {
               event.preventDefault();
               setMessage({
                 tone: 'danger',
-                text: 'Complétez les déclarations de provenance avant de déposer le fichier.',
+                text: t`Complétez les déclarations de provenance avant de déposer le fichier.`,
               });
             }
           }}
@@ -366,8 +366,8 @@ function SubscribersImport() {
             {loading
               ? t`Analyse du fichier en cours…`
               : declarationsComplete
-                ? 'Déposez votre CSV ici'
-                : 'Complétez les déclarations ci-dessus'}
+                ? t`Déposez votre CSV ici`
+                : t`Complétez les déclarations ci-dessus`}
           </span>
           <span className="text-[11px] text-muted-foreground">
             {declarationsComplete

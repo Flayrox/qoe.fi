@@ -2,6 +2,7 @@
 
 import { getCurrentUser } from '@qoe/auth/current-user';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { t } from '@lingui/core/macro';
 
 export interface MediaAssetSummary {
   id: string;
@@ -37,7 +38,7 @@ export async function listMediaAssetsAction(
   if (!user) {
     return {
       ok: false,
-      error: 'Non authentifié',
+      error: t`Non authentifié`,
       items: [],
       nextOffset: 0,
       hasMore: false,
@@ -60,7 +61,7 @@ export async function listMediaAssetsAction(
   } catch (error) {
     return {
       ok: false,
-      error: error instanceof Error ? error.message : 'Impossible de charger la médiathèque',
+      error: error instanceof Error ? error.message : t`Impossible de charger la médiathèque`,
       items: [],
       nextOffset: 0,
       hasMore: false,

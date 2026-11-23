@@ -230,7 +230,7 @@ export function AudienceClient({ initialSubscribers, unavailable = false }: Audi
           </div>
           <div className="text-3xl font-bold tracking-tight text-foreground">{totalLtvEur} €</div>
           <p className="text-xs text-muted-foreground mt-2">
-            Valeur totale générée par l&apos;audience
+            {t`Valeur totale générée par l'audience`}
           </p>
         </div>
       </div>
@@ -282,9 +282,9 @@ export function AudienceClient({ initialSubscribers, unavailable = false }: Audi
           <div className="flex items-center gap-2">
             <CheckSquare className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium text-foreground">
-              {selectedKeys.size} {t`abonné`}
-              {selectedKeys.size > 1 ? t`s` : ''} {t`sélectionné`}
-              {selectedKeys.size > 1 ? t`s` : ''}
+              {selectedKeys.size > 1
+                ? t`${selectedKeys.size} abonnés sélectionnés`
+                : t`${selectedKeys.size} abonné sélectionné`}
             </span>
           </div>
           <div className="flex items-center gap-2">

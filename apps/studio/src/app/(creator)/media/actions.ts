@@ -3,6 +3,7 @@
 import { createClient as createServerClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { revalidatePath } from 'next/cache';
+import { t } from '@lingui/core/macro';
 
 // 🔔 Les notifications d'invitation média sont émises côté Go
 // (InsertMediaInviteNotification / InsertMediaMemberJoinedNotification),
@@ -13,7 +14,7 @@ async function getAuthUser() {
   const {
     data: { user: authUser },
   } = await supabase.auth.getUser();
-  if (!authUser) throw new Error('Non authentifié');
+  if (!authUser) throw new Error(t`Non authentifié`);
   return authUser;
 }
 
@@ -56,7 +57,7 @@ export async function createMediaAction(
     return { success: true as const, media };
   } catch (err: unknown) {
     console.error('[Create Media Error]', err);
-    return failure(err, 'Impossible de créer le profil Média');
+    return failure(err, t`Impossible de créer le profil Média`);
   }
 }
 
@@ -89,7 +90,7 @@ export async function getUserWorkspacesAction(): Promise<GetUserWorkspacesRespon
     console.error('[Get Workspaces Error]', err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : 'Erreur de récupération des workspaces',
+      error: err instanceof Error ? err.message : t`Erreur de récupération des workspaces`,
     };
   }
 }
@@ -153,7 +154,7 @@ export async function getMediaByIdAction(mediaId: string) {
   } catch (err: unknown) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : 'Erreur de récupération du Média',
+      error: err instanceof Error ? err.message : t`Erreur de récupération du Média`,
     };
   }
 }
@@ -215,7 +216,7 @@ export async function listMediaAuditLogAction(mediaId: string, options: MediaAud
       total: 0,
       limit: options.limit ?? 50,
       offset: options.offset ?? 0,
-      error: err instanceof Error ? err.message : 'Erreur de chargement du journal',
+      error: err instanceof Error ? err.message : t`Erreur de chargement du journal`,
     };
   }
 }
@@ -231,7 +232,7 @@ export async function getMediaPublisherAction(mediaId: string) {
   } catch (err: unknown) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : 'Erreur de récupération',
+      error: err instanceof Error ? err.message : t`Erreur de récupération`,
     };
   }
 }
@@ -258,7 +259,7 @@ export async function inviteMediaMemberAction(
     return { success: true as const, alreadyMember: res.alreadyMember === true };
   } catch (err: unknown) {
     console.error('[Invite Media Member Error]', err);
-    return failure(err, "Échec de l'invitation");
+    return failure(err, t`Échec de l'invitation`);
   }
 }
 
@@ -284,7 +285,7 @@ export async function listPendingMediaInvitesAction() {
     return {
       success: false as const,
       items: [] as PendingMediaInvite[],
-      error: err instanceof Error ? err.message : 'Échec du chargement',
+      error: err instanceof Error ? err.message : t`Échec du chargement`,
     };
   }
 }
@@ -305,7 +306,7 @@ export async function acceptMediaInviteAction(mediaId: string) {
     return { success: true as const, role: res.role };
   } catch (err: unknown) {
     console.error('[Accept Media Invite Error]', err);
-    return failure(err, "Échec de l'acceptation");
+    return failure(err, t`Échec de l'acceptation`);
   }
 }
 
@@ -332,7 +333,7 @@ export async function updateMediaMemberRoleAction(
     revalidatePath('/media');
     return { success: true as const };
   } catch (err: unknown) {
-    return failure(err, 'Échec du changement de rôle');
+    return failure(err, t`Échec du changement de rôle`);
   }
 }
 
@@ -356,7 +357,7 @@ export async function updateMediaMemberPermissionsAction(
     revalidatePath('/media');
     return { success: true as const };
   } catch (err: unknown) {
-    return failure(err, 'Échec de la mise à jour des permissions');
+    return failure(err, t`Échec de la mise à jour des permissions`);
   }
 }
 
@@ -376,7 +377,7 @@ export async function removeMediaMemberAction(mediaId: string, memberUserId: str
     revalidatePath('/media');
     return { success: true as const };
   } catch (err: unknown) {
-    return failure(err, 'Échec du retrait');
+    return failure(err, t`Échec du retrait`);
   }
 }
 
@@ -416,7 +417,7 @@ export async function updateMediaSettingsAction(
     revalidatePath('/settings');
     return { success: true as const, publisher: res.publisher };
   } catch (err: unknown) {
-    return failure(err, 'Échec de la mise à jour');
+    return failure(err, t`Échec de la mise à jour`);
   }
 }
 
@@ -450,7 +451,7 @@ export async function listMediaApiKeysAction(mediaId: string) {
   } catch (err: unknown) {
     return {
       success: false as const,
-      error: err instanceof Error ? err.message : 'Impossible de récupérer les clés API',
+      error: err instanceof Error ? err.message : t`Impossible de récupérer les clés API`,
     };
   }
 }
@@ -472,7 +473,7 @@ export async function createMediaApiKeyAction(mediaId: string, name: string, sco
     revalidatePath('/media');
     return { success: true as const, key: res };
   } catch (err: unknown) {
-    return failure(err, 'Échec de la création de la clé API');
+    return failure(err, t`Échec de la création de la clé API`);
   }
 }
 
@@ -493,7 +494,7 @@ export async function updateMediaApiKeyAction(mediaId: string, keyId: string, na
     revalidatePath('/media');
     return { success: true as const };
   } catch (err: unknown) {
-    return failure(err, 'Échec du renommage de la clé API');
+    return failure(err, t`Échec du renommage de la clé API`);
   }
 }
 
@@ -513,7 +514,7 @@ export async function rotateMediaApiKeyAction(mediaId: string, keyId: string) {
     revalidatePath('/media');
     return { success: true as const, key: res };
   } catch (err: unknown) {
-    return failure(err, 'Échec de la rotation de la clé API');
+    return failure(err, t`Échec de la rotation de la clé API`);
   }
 }
 
@@ -533,7 +534,7 @@ export async function revokeMediaApiKeyAction(mediaId: string, keyId: string) {
     revalidatePath('/media');
     return { success: true as const };
   } catch (err: unknown) {
-    return failure(err, 'Échec de la révocation de la clé API');
+    return failure(err, t`Échec de la révocation de la clé API`);
   }
 }
 
@@ -594,7 +595,7 @@ export async function createMediaInviteLinkAction(
     revalidatePath('/media');
     return { success: true as const, link: res.link };
   } catch (err: unknown) {
-    return failure(err, 'Échec de la création du lien');
+    return failure(err, t`Échec de la création du lien`);
   }
 }
 
@@ -611,7 +612,7 @@ export async function listMediaInviteLinksAction(mediaId: string) {
   } catch (err: unknown) {
     return {
       success: false as const,
-      error: err instanceof Error ? err.message : 'Échec de la récupération des liens',
+      error: err instanceof Error ? err.message : t`Échec de la récupération des liens`,
       links: [] as MediaInviteLinkDTO[],
     };
   }
@@ -630,7 +631,7 @@ export async function revokeMediaInviteLinkAction(mediaId: string, linkId: strin
     revalidatePath('/media');
     return { success: true as const };
   } catch (err: unknown) {
-    return failure(err, 'Échec de la révocation du lien');
+    return failure(err, t`Échec de la révocation du lien`);
   }
 }
 
@@ -646,7 +647,7 @@ export async function getMediaInviteLinkPreviewAction(token: string) {
   } catch (err: unknown) {
     return {
       success: false as const,
-      error: err instanceof Error ? err.message : 'Lien introuvable ou expiré',
+      error: err instanceof Error ? err.message : t`Lien introuvable ou expiré`,
     };
   }
 }
@@ -664,6 +665,6 @@ export async function joinMediaByLinkAction(token: string) {
     revalidatePath('/media');
     return { success: true as const, mediaId: res.mediaId };
   } catch (err: unknown) {
-    return failure(err, 'Impossible de rejoindre le média');
+    return failure(err, t`Impossible de rejoindre le média`);
   }
 }

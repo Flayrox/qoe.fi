@@ -1,3 +1,5 @@
+import { t } from '@lingui/core/macro';
+
 export type DeveloperAccessStatus =
   | 'none'
   | 'pending'
@@ -33,30 +35,30 @@ export interface DeveloperWorkspace {
 export type DeveloperCapabilityKey =
   'api:read' | 'api:write' | 'api:analytics' | 'webhooks' | 'oauth';
 
-export const DEVELOPER_CAPABILITIES: Array<{
+export const DEVELOPER_CAPABILITIES = (): Array<{
   key: DeveloperCapabilityKey;
   label: string;
   description: string;
-}> = [
+}> => [
   {
     key: 'api:read',
     label: 'Lecture',
-    description: 'Articles, profils publics et taxonomies.',
+    description: t`Articles, profils publics et taxonomies.`,
   },
   {
     key: 'api:write',
-    label: 'Écriture',
-    description: 'Création, modification et publication de contenus.',
+    label: t`Écriture`,
+    description: t`Création, modification et publication de contenus.`,
   },
   {
     key: 'api:analytics',
     label: 'Analytics',
-    description: 'Métriques de lecture et temps de complétion.',
+    description: t`Métriques de lecture et temps de complétion.`,
   },
   {
     key: 'webhooks',
     label: 'Webhooks',
-    description: 'Événements sortants signés en HMAC SHA-256.',
+    description: t`Événements sortants signés en HMAC SHA-256.`,
   },
   {
     key: 'oauth',
@@ -73,7 +75,7 @@ export function developerWorkspaceAccess(workspace: DeveloperWorkspace): Develop
   if (workspace.type === 'MEDIA') {
     return {
       status: 'approved',
-      grants: DEVELOPER_CAPABILITIES.map((capability) => capability.key),
+      grants: DEVELOPER_CAPABILITIES().map((capability) => capability.key),
       reason: null,
       updatedAt: null,
     };

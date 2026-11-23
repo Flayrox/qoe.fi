@@ -79,7 +79,7 @@ export function ProductMetricsBlock({ metrics, onSelectArticle }: ProductMetrics
         <div className="rounded-xl border border-border/30 bg-card p-6 shadow-none transition-all hover:bg-muted/10">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
-              Appréciations & Partages
+              {t`Appréciations & Partages`}
             </span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
               <Heart className="h-4 w-4 stroke-[1.5]" />

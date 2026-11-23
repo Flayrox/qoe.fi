@@ -3,13 +3,14 @@
 import { createClient as createServerClient } from '@qoe/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { t } from '@lingui/core/macro';
 
 async function getAuthenticatedUser() {
   const supabase = await createServerClient();
   const {
     data: { user: authUser },
   } = await supabase.auth.getUser();
-  if (!authUser) throw new Error('Non authentifié');
+  if (!authUser) throw new Error(t`Non authentifié`);
 
   return authUser;
 }
@@ -40,7 +41,7 @@ export async function getCollaborationRequestsAction() {
     console.error('[Get Collaboration Requests Error]', err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : 'Échec de la récupération',
+      error: err instanceof Error ? err.message : t`Échec de la récupération`,
       received: [],
       sent: [],
     };
@@ -69,7 +70,7 @@ export async function respondToCollaborationRequestAction(
     console.error('[Respond Collaboration Error]', err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Échec de la réponse à l'invitation",
+      error: err instanceof Error ? err.message : t`Échec de la réponse à l'invitation`,
     };
   }
 }

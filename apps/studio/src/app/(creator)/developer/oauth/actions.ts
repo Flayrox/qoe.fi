@@ -12,6 +12,7 @@ import { createClient } from '@qoe/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { t } from '@lingui/core/macro';
 
 export interface OAuthClientDTO {
   id: string;
@@ -37,7 +38,7 @@ async function getAuthenticatedUser() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) throw new Error('Non authentifié');
+  if (!user) throw new Error(t`Non authentifié`);
   return user;
 }
 

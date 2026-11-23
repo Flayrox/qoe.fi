@@ -647,7 +647,7 @@ export function Editor({
         // `.article-prose` = la feuille de la page publiée. L'éditeur perdait
         // ses puces et ses numéros (le reset Tailwind les supprime) : les
         // listes apparaissaient comme des lignes de texte sans repère.
-        class: 'qoe-editor article-prose max-w-none text-foreground font-sans',
+        class: t`qoe-editor article-prose max-w-none text-foreground font-sans`,
       },
       handleDOMEvents: {
         pointerdown: (_view, event) => {
@@ -2733,7 +2733,7 @@ export function Editor({
         articleTitle={title}
         articleExcerpt={editor.getText().slice(0, 180)}
         articleId={persistedIdRef.current || collaborationRoomId}
-        publisherName={subdomain ? `${subdomain}.qoe.fi` : 'Votre site web'}
+        publisherName={subdomain ? `${subdomain}.qoe.fi` : t`Votre site web`}
         initialIsPremium={isPremium}
         isAlreadyPublished={published}
         emailStatus={initialEmailStatus}

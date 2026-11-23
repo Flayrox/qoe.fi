@@ -9,14 +9,23 @@
 // =====================================================================
 
 import { URLS } from '@qoe/config';
+import { getLanguage } from '@qoe/i18n/server';
+import type { Metadata } from 'next';
 import { StudioHeader, StudioPage } from '@/components/studio-page';
 import { OfferCompare } from './components/offer-compare';
 import { t } from '@lingui/core/macro';
 
-export const metadata = {
-  title: 'Offre Pro | qoefi Studio',
-  description: 'Gratuit ou Pro : ce qui est inclus pour votre média, et ce qui arrive.',
-};
+// Métadonnées rendues hors du provider i18n : la langue de la requête est lue
+// sans activer le singleton (cf. packages/i18n/src/server.ts).
+export async function generateMetadata(): Promise<Metadata> {
+  const isFr = (await getLanguage()) === 'fr';
+  return {
+    title: isFr ? 'Offre Pro | qoefi Studio' : 'Pro plan | qoefi Studio',
+    description: isFr
+      ? t`Gratuit ou Pro : ce qui est inclus pour votre média, et ce qui arrive.`
+      : 'Free or Pro: what is included for your publication, and what is coming.',
+  };
+}
 
 export default function OffrePage() {
   return (

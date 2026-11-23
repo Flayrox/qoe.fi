@@ -71,13 +71,13 @@ export const AUDIT_CATEGORIES: Array<{ id: string; label: () => string }> = [
   { id: 'api', label: () => t`Clés API` },
 ];
 
-export const AUDIT_FIELD_LABELS: Record<string, string> = {
+export const AUDIT_FIELD_LABELS = (): Record<string, string> => ({
   title: 'titre',
   slug: 'permalien',
   content: 'contenu',
   paywall: 'paywall',
   status: 'statut',
-  category: 'catégorie',
+  category: t`catégorie`,
   seo: 'SEO',
   image: 'image',
   options: 'options de lecture',
@@ -88,16 +88,16 @@ export const AUDIT_FIELD_LABELS: Record<string, string> = {
   customDomain: 'domaine',
   accentColor: 'couleur',
   heroText: 'accroche',
-  headerImageUrl: 'bannière',
-  footerText: 'pied de page',
-  themeMode: 'thème',
-  layoutStyle: 'mise en page',
+  headerImageUrl: t`bannière`,
+  footerText: t`pied de page`,
+  themeMode: t`thème`,
+  layoutStyle: t`mise en page`,
   seoTitle: 'titre SEO',
   seoDescription: 'description SEO',
   allowIndexing: 'indexation',
   fontFamily: 'police',
   supportUrl: 'support',
-};
+});
 
 export function formatMediaDate(iso: string | null): string {
   if (!iso) return '—';
@@ -130,13 +130,13 @@ export function describeAuditEntry(entry: {
 }): { summary: string; detail?: string } {
   const md = entry.metadata ?? {};
   const fields = Array.isArray(md.fields) ? md.fields.map(String) : [];
-  const fieldLabels = fields.map((f) => AUDIT_FIELD_LABELS[f] ?? f).join(', ');
+  const fieldLabels = fields.map((f) => AUDIT_FIELD_LABELS()[f] ?? f).join(', ');
   const title = auditString(md, 'title');
   switch (entry.action) {
     case 'media.created':
-      return { summary: 'a créé le Média' };
+      return { summary: t`a créé le Média` };
     case 'media.settings_updated':
-      return { summary: 'a modifié les réglages du Média', detail: fieldLabels || undefined };
+      return { summary: t`a modifié les réglages du Média`, detail: fieldLabels || undefined };
     case 'media.article_created':
       return { summary: `a créé l'article « ${title} »` };
     case 'media.article_updated':
@@ -181,27 +181,27 @@ export function describeAuditEntry(entry: {
       };
     }
     case 'member.role_changed':
-      return { summary: "a changé le rôle d'un membre", detail: auditString(md, 'role') };
+      return { summary: t`a changé le rôle d'un membre`, detail: auditString(md, 'role') };
     case 'member.permissions_changed':
-      return { summary: "a modifié les permissions d'un membre" };
+      return { summary: t`a modifié les permissions d'un membre` };
     case 'member.invited_pending':
       return { summary: `a invité @${auditString(md, 'username')}` };
     case 'member.invitation_accepted':
-      return { summary: 'a rejoint le Média', detail: auditString(md, 'role') || undefined };
+      return { summary: t`a rejoint le Média`, detail: auditString(md, 'role') || undefined };
     case 'member.removed':
-      return { summary: 'a retiré un membre du Média' };
+      return { summary: t`a retiré un membre du Média` };
     case 'media.invite_link_created':
-      return { summary: "a généré un lien d'invitation" };
+      return { summary: t`a généré un lien d'invitation` };
     case 'media.invite_link_revoked':
-      return { summary: "a révoqué un lien d'invitation" };
+      return { summary: t`a révoqué un lien d'invitation` };
     case 'api_key.created':
-      return { summary: 'a créé une clé API' };
+      return { summary: t`a créé une clé API` };
     case 'api_key.updated':
-      return { summary: 'a modifié une clé API' };
+      return { summary: t`a modifié une clé API` };
     case 'api_key.rotated':
-      return { summary: 'a régénéré une clé API' };
+      return { summary: t`a régénéré une clé API` };
     case 'api_key.revoked':
-      return { summary: 'a révoqué une clé API' };
+      return { summary: t`a révoqué une clé API` };
     default:
       return { summary: entry.action };
   }

@@ -7,7 +7,7 @@ import { t } from '@lingui/core/macro';
 
 export function DeveloperShell({
   access,
-  description = 'Clés, webhooks et applications OAuth de votre espace.',
+  description = t`Clés, webhooks et applications OAuth de votre espace.`,
   children,
 }: {
   access: DeveloperAccess;

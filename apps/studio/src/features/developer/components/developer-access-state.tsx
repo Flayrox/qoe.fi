@@ -14,44 +14,41 @@ import { t } from '@lingui/core/macro';
 export const DEVELOPER_ACTION_CLASS =
   'inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90';
 
-const STATUS_COPY: Record<
+const STATUS_COPY = (): Record<
   DeveloperAccess['status'],
   { title: string; description: string; icon: typeof ShieldCheck }
-> = {
+> => ({
   none: {
-    title: 'Activez votre accès développeur',
-    description:
-      'Une demande suffit pour débloquer les clés d’API, les webhooks et les applications OAuth.',
+    title: t`Activez votre accès développeur`,
+    description: t`Une demande suffit pour débloquer les clés d’API, les webhooks et les applications OAuth.`,
     icon: KeyRound,
   },
   pending: {
-    title: 'Votre demande est en cours d’examen',
-    description:
-      'Le dossier est transmis à l’équipe technique. Aucune action n’est nécessaire pour le moment.',
+    title: t`Votre demande est en cours d’examen`,
+    description: t`Le dossier est transmis à l’équipe technique. Aucune action n’est nécessaire pour le moment.`,
     icon: Clock,
   },
   approved: {
-    title: 'Votre accès développeur est actif',
-    description: 'Les permissions accordées sont disponibles dans les espaces ci-dessous.',
+    title: t`Votre accès développeur est actif`,
+    description: t`Les permissions accordées sont disponibles dans les espaces ci-dessous.`,
     icon: ShieldCheck,
   },
   rejected: {
-    title: 'Votre demande a été refusée',
-    description: 'Vous pouvez soumettre un nouveau dossier avec un cas d’usage plus détaillé.',
+    title: t`Votre demande a été refusée`,
+    description: t`Vous pouvez soumettre un nouveau dossier avec un cas d’usage plus détaillé.`,
     icon: AlertCircle,
   },
   revoked: {
-    title: 'Votre accès a été révoqué',
-    description: 'Un administrateur a retiré cet accès. Vous pouvez demander son rétablissement.',
+    title: t`Votre accès a été révoqué`,
+    description: t`Un administrateur a retiré cet accès. Vous pouvez demander son rétablissement.`,
     icon: Lock,
   },
   unavailable: {
-    title: 'Statut d’accès momentanément indisponible',
-    description:
-      'Le service ne répond pas : impossible de savoir si un accès existe. Rechargez la page — aucune demande n’a été perdue.',
+    title: t`Statut d’accès momentanément indisponible`,
+    description: t`Le service ne répond pas : impossible de savoir si un accès existe. Rechargez la page — aucune demande n’a été perdue.`,
     icon: AlertCircle,
   },
-};
+});
 
 function formatAccessDate(value: string): string {
   const date = new Date(value);
@@ -67,12 +64,12 @@ function formatAccessDate(value: string): string {
 
 function accessActionLabel(access: DeveloperAccess): string {
   if (access.status === 'unavailable') return 'Recharger';
-  if (access.status === 'pending') return 'Voir ma demande';
-  if (access.status === 'approved') return 'Gérer mes accès';
+  if (access.status === 'pending') return t`Voir ma demande`;
+  if (access.status === 'approved') return t`Gérer mes accès`;
   if (access.status === 'rejected' || access.status === 'revoked') {
-    return 'Soumettre une nouvelle demande';
+    return t`Soumettre une nouvelle demande`;
   }
-  return "Demander l'accès";
+  return t`Demander l'accès`;
 }
 
 export function DeveloperAccessAction({
@@ -104,9 +101,9 @@ export function DeveloperAccessState({
   description?: string;
   action?: ReactNode;
 }) {
-  const base = STATUS_COPY[access.status];
+  const base = STATUS_COPY()[access.status];
   const capabilityMeta = capability
-    ? DEVELOPER_CAPABILITIES.find((item) => item.key === capability)
+    ? DEVELOPER_CAPABILITIES().find((item) => item.key === capability)
     : undefined;
   const capabilityGranted = capability ? hasDeveloperGrant(access, capability) : false;
   const missingCapability = capability && access.status === 'approved' && !capabilityGranted;
@@ -119,7 +116,7 @@ export function DeveloperAccessState({
   const body =
     description ??
     (missingCapability
-      ? 'Votre accès développeur est actif, mais cette permission précise ne vous a pas encore été accordée.'
+      ? t`Votre accès développeur est actif, mais cette permission précise ne vous a pas encore été accordée.`
       : base.description);
 
   return (
@@ -138,7 +135,7 @@ export function DeveloperAccessState({
         {access.status === 'pending' ? (
           <ol className="grid gap-2 sm:grid-cols-3" aria-label={t`Progression de la demande`}>
             {[
-              ['Demande envoyée', true],
+              [t`Demande envoyée`, true],
               ['Examen en cours', true],
               ['Activation', false],
             ].map(([label, complete], index) => (
@@ -195,13 +192,13 @@ export function DeveloperAccessState({
           </p>
         </div>
         <ul className="divide-y divide-border/40 px-3.5">
-          {DEVELOPER_CAPABILITIES.map((item) => {
+          {DEVELOPER_CAPABILITIES().map((item) => {
             const granted = hasDeveloperGrant(access, item.key);
             const statusLabel = granted
-              ? 'Accordé'
+              ? t`Accordé`
               : access.status === 'approved'
-                ? 'Non accordé'
-                : 'À débloquer';
+                ? t`Non accordé`
+                : t`À débloquer`;
 
             return (
               <li key={item.key} className="flex items-center justify-between gap-3 py-2.5">

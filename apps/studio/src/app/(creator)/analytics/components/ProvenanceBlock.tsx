@@ -20,12 +20,12 @@ const PERIOD_LABELS: Record<TimePeriod, () => string> = {
   all: () => t`Tout l'historique`,
 };
 
-const SOURCE_LABELS: Record<string, string> = {
+const SOURCE_LABELS = (): Record<string, string> => ({
   feed: 'Feed qoefi',
   subdomain: 'Tenants (sous-domaines)',
   public_profile: 'Profils publics',
-  direct: 'Accès direct / externe',
-};
+  direct: t`Accès direct / externe`,
+});
 
 function Bar({
   label,
@@ -85,7 +85,7 @@ export function ProvenanceBlock({ provenance, period = '30d' }: ProvenanceBlockP
             .map((b) => (
               <Bar
                 key={b.key}
-                label={SOURCE_LABELS[b.key] || b.key}
+                label={SOURCE_LABELS()[b.key] || b.key}
                 count={b.count}
                 total={totalSource}
                 icon={

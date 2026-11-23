@@ -10,40 +10,37 @@ import { StudioField, StudioSection } from '@/components/studio-page';
 import { submitApiApplicationAction } from '@qoe/sdk/actions/dashboard';
 import { t } from '@lingui/core/macro';
 
-const APPLICATION_PRESETS = [
-  {
-    id: 'portfolio',
-    title: 'Site ou portfolio',
-    subtitle: 'Next.js, Astro, Remix',
-    icon: Globe,
-    template:
-      "Je souhaite intégrer l'API qoefi à mon site personnel pour afficher mes derniers articles, mes tags et les informations de mon profil public.",
-  },
-  {
-    id: 'automation',
-    title: 'Automatisation & CMS',
-    subtitle: 'Zapier, Notion, Make, n8n',
-    icon: RefreshCw,
-    template:
-      "Je souhaite connecter l'API qoefi à mes outils d'automatisation pour synchroniser mes brouillons et mes articles publiés.",
-  },
-  {
-    id: 'ai-agent',
-    title: 'Agent IA & index',
-    subtitle: 'Recherche, résumés',
-    icon: Code2,
-    template:
-      "Je souhaite utiliser l'API en lecture pour alimenter un agent d'indexation sémantique et générer des résumés de mes publications.",
-  },
-  {
-    id: 'webhooks',
-    title: 'Webhooks & backend',
-    subtitle: 'Discord, Telegram, serveur',
-    icon: Send,
-    template:
-      'Je souhaite recevoir les événements de publication par webhook pour synchroniser ma communauté et mes outils internes.',
-  },
-] as const;
+const APPLICATION_PRESETS = () =>
+  [
+    {
+      id: 'portfolio',
+      title: t`Site ou portfolio`,
+      subtitle: 'Next.js, Astro, Remix',
+      icon: Globe,
+      template: t`Je souhaite intégrer l'API qoefi à mon site personnel pour afficher mes derniers articles, mes tags et les informations de mon profil public.`,
+    },
+    {
+      id: 'automation',
+      title: 'Automatisation & CMS',
+      subtitle: 'Zapier, Notion, Make, n8n',
+      icon: RefreshCw,
+      template: t`Je souhaite connecter l'API qoefi à mes outils d'automatisation pour synchroniser mes brouillons et mes articles publiés.`,
+    },
+    {
+      id: 'ai-agent',
+      title: 'Agent IA & index',
+      subtitle: t`Recherche, résumés`,
+      icon: Code2,
+      template: t`Je souhaite utiliser l'API en lecture pour alimenter un agent d'indexation sémantique et générer des résumés de mes publications.`,
+    },
+    {
+      id: 'webhooks',
+      title: 'Webhooks & backend',
+      subtitle: 'Discord, Telegram, serveur',
+      icon: Send,
+      template: t`Je souhaite recevoir les événements de publication par webhook pour synchroniser ma communauté et mes outils internes.`,
+    },
+  ] as const;
 
 export function DeveloperRequestForm({ rejected = false }: { rejected?: boolean }) {
   const router = useRouter();
@@ -67,13 +64,13 @@ export function DeveloperRequestForm({ rejected = false }: { rejected?: boolean 
     try {
       const res = await submitApiApplicationAction(finalReason);
       if (!res.ok) {
-        toast.error(res.error?.message || "Impossible d'envoyer la demande.");
+        toast.error(res.error?.message || t`Impossible d'envoyer la demande.`);
         return;
       }
       toast.success(t`Votre demande d'accès a bien été envoyée.`);
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Impossible d'envoyer la demande.");
+      toast.error(error instanceof Error ? error.message : t`Impossible d'envoyer la demande.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -82,14 +79,14 @@ export function DeveloperRequestForm({ rejected = false }: { rejected?: boolean 
   return (
     <div id="demande" className="scroll-mt-24">
       <StudioSection
-        title={rejected ? 'Soumettre une nouvelle demande' : "Demander l'accès"}
+        title={rejected ? t`Soumettre une nouvelle demande` : t`Demander l'accès`}
         icon={Send}
       >
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-2">
             <p className="text-xs font-semibold text-foreground">{t`Cas d’usage rapides`}</p>
             <div className="grid gap-2 sm:grid-cols-2">
-              {APPLICATION_PRESETS.map((preset) => {
+              {APPLICATION_PRESETS().map((preset) => {
                 const Icon = preset.icon;
                 const selected = selectedPreset === preset.id;
 

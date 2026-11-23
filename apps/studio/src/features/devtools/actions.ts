@@ -11,6 +11,7 @@
 // =====================================================================
 
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { t } from '@lingui/core/macro';
 
 export interface DevtoolsUser {
   id: string;
@@ -50,7 +51,7 @@ export async function getDevtoolsData() {
       error:
         err instanceof Error
           ? err.message
-          : 'Accès DevTools refusé (réservé au superadmin) ou erreur Go',
+          : t`Accès DevTools refusé (réservé au superadmin) ou erreur Go`,
     };
   }
 }

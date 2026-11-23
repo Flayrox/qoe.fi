@@ -21,6 +21,7 @@ import {
   unsubscribeFeatureAction as unsubscribeSdk,
   getMyFeatureNotificationsAction as getNotifiedSdk,
 } from '@qoe/sdk/actions/features';
+import { t } from '@lingui/core/macro';
 
 export type FeatureSignalKind = 'view' | 'notify';
 
@@ -50,7 +51,7 @@ export async function recordFeatureSignalAction(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) throw new Error('Non autorisé');
+  if (!user) throw new Error(t`Non autorisé`);
 
   const workspace = await getActiveWorkspace(user.id);
   return recordSignalSdk(feature, kind, 'studio', workspace.publisherId);
@@ -80,7 +81,7 @@ export async function unsubscribeFeatureAction(feature: string): Promise<void> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) throw new Error('Non autorisé');
+  if (!user) throw new Error(t`Non autorisé`);
 
   await unsubscribeSdk(feature);
   revalidatePath('/settings');

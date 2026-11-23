@@ -171,7 +171,7 @@ export function StepUpGate() {
         setErrorMessage(
           err instanceof Error && err.message
             ? err.message
-            : 'Code refusé. Vérifiez l’horloge de votre appareil et réessayez.'
+            : t`Code refusé. Vérifiez l’horloge de votre appareil et réessayez.`
         );
       }
     },
@@ -201,7 +201,7 @@ export function StepUpGate() {
               <DialogTitle className="text-sm">{t`Vérification requise`}</DialogTitle>
               <DialogDescription className="text-xs">
                 {request.reason ??
-                  'Cette action sensible demande une authentification forte récente.'}
+                  t`Cette action sensible demande une authentification forte récente.`}
               </DialogDescription>
             </div>
           </div>
@@ -265,7 +265,7 @@ export function StepUpGate() {
         {phase === 'enroll' && (
           <div>
             <TotpEnrollment
-              intro="Scannez ce QR code, puis saisissez le code affiché : l’action sera relancée automatiquement."
+              intro={t`Scannez ce QR code, puis saisissez le code affiché : l’action sera relancée automatiquement.`}
               onVerified={handleEnrolled}
               onCancel={() => setPhase('no-factor')}
             />

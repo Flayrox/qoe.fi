@@ -361,7 +361,7 @@ export function ArticlesClient({
   }, [currentView]);
 
   const saveCurrentView = () => {
-    const name = window.prompt('Nom de la vue (ex : Brouillons premium)');
+    const name = window.prompt(t`Nom de la vue (ex : Brouillons premium)`);
     if (!name?.trim()) return;
     const next = { ...savedViews, [name.trim()]: currentView };
     setSavedViews(next);

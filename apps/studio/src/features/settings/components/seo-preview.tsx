@@ -47,11 +47,11 @@ export function SeoPreview({
   // restent vides.
   const title =
     seoTitle?.trim() ||
-    `${name || 'Ma publication'}${heroText?.trim() ? ` — ${heroText.trim()}` : ''}`;
+    `${name || t`Ma publication`}${heroText?.trim() ? ` — ${heroText.trim()}` : ''}`;
   const description =
     seoDescription?.trim() ||
     heroText?.trim() ||
-    `Publishers, analyses et articles de ${name || 'cette publication'}.`;
+    `Publishers, analyses et articles de ${name || t`cette publication`}.`;
 
   return (
     <StudioSection title={t`Aperçu`}>
@@ -129,8 +129,7 @@ export function SeoPreview({
 
       {!allowIndexing ? (
         <p className="mt-4 border-t border-border/40 pt-3 text-[11px] leading-relaxed text-muted-foreground">
-          L&apos;indexation est désactivée : le site n&apos;apparaîtra pas dans les résultats de
-          recherche, mais cet aperçu reste celui d&apos;une page partagée.
+          {t`L'indexation est désactivée : le site n'apparaîtra pas dans les résultats de recherche, mais cet aperçu reste celui d'une page partagée.`}
         </p>
       ) : null}
     </StudioSection>

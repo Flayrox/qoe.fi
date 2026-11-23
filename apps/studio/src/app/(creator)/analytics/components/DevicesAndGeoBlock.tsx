@@ -13,9 +13,9 @@ interface DevicesAndGeoBlockProps {
 
 type MetricTab = 'devices' | 'browsers' | 'countries';
 
-const countryNames: Record<string, string> = {
+const countryNames = (): Record<string, string> => ({
   FR: 'France',
-  US: 'États-Unis',
+  US: t`États-Unis`,
   GB: 'Royaume-Uni',
   CA: 'Canada',
   DE: 'Allemagne',
@@ -24,7 +24,7 @@ const countryNames: Record<string, string> = {
   ES: 'Espagne',
   IT: 'Italie',
   NL: 'Pays-Bas',
-};
+});
 
 export function DevicesAndGeoBlock({ devices, browsers, countries }: DevicesAndGeoBlockProps) {
   const [activeTab, setActiveTab] = useState<MetricTab>('devices');
@@ -40,7 +40,7 @@ export function DevicesAndGeoBlock({ devices, browsers, countries }: DevicesAndG
 
   const formatItemTitle = (rawKey: string) => {
     if (activeTab === 'countries') {
-      return countryNames[rawKey.toUpperCase()] || rawKey;
+      return countryNames()[rawKey.toUpperCase()] || rawKey;
     }
     if (!rawKey || rawKey === 'desktop') return 'Ordinateur (Desktop)';
     if (rawKey === 'mobile') return 'Mobile / Smartphone';

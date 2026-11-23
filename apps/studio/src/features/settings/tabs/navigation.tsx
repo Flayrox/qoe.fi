@@ -43,7 +43,7 @@ export function NavigationTab({
   const guardUnsavedNavigation = (e: React.MouseEvent) => {
     if (
       hasUnsavedChanges &&
-      !window.confirm('Des modifications ne sont pas enregistrées. Quitter sans enregistrer ?')
+      !window.confirm(t`Des modifications ne sont pas enregistrées. Quitter sans enregistrer ?`)
     ) {
       e.preventDefault();
     }
@@ -175,7 +175,7 @@ export function NavigationTab({
     const newId = clientNavigationLinkId();
     const newLink: ClientNavigationItem = {
       id: newId,
-      label: 'Nouveau lien',
+      label: t`Nouveau lien`,
       url: '',
       order: current.navigation.length,
       isExternal: false,
@@ -279,7 +279,7 @@ export function NavigationTab({
           key: `link:${linkId}`,
           id: linkId,
           type: isMail ? ('mail' as const) : ('link' as const),
-          label: nav.label || 'Lien sans titre',
+          label: nav.label || t`Lien sans titre`,
           url: nav.url || '',
           isVisible: true,
           onToggle: () => {},
@@ -451,7 +451,9 @@ export function NavigationTab({
                       </span>
                       {item.type === 'category' && item.subCount ? (
                         <span className="text-[10px] text-muted-foreground">
-                          {item.subCount} sous-rubrique{item.subCount > 1 ? t`s` : ''}
+                          {item.subCount > 1
+                            ? t`${item.subCount} sous-rubriques`
+                            : t`${item.subCount} sous-rubrique`}
                         </span>
                       ) : null}
                     </div>
@@ -470,8 +472,8 @@ export function NavigationTab({
                     onClick={item.onToggle}
                     title={
                       item.isVisible
-                        ? 'Visible dans le menu (cliquez pour masquer)'
-                        : 'Masqué du menu (cliquez pour afficher)'
+                        ? t`Visible dans le menu (cliquez pour masquer)`
+                        : t`Masqué du menu (cliquez pour afficher)`
                     }
                   >
                     {item.isVisible ? (
@@ -517,7 +519,7 @@ export function NavigationTab({
             <div className="flex items-center gap-2">
               <ExternalLink className="w-4 h-4 text-primary" />
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Liens personnalisés & Contact Email
+                {t`Liens personnalisés & Contact Email`}
               </h3>
             </div>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
@@ -750,12 +752,12 @@ export function NavigationTab({
                         )}
                         title={
                           slugReserved
-                            ? 'Ce slug est réservé par une page du site ; renommez la catégorie dans Articles.'
+                            ? t`Ce slug est réservé par une page du site ; renommez la catégorie dans Articles.`
                             : undefined
                         }
                       >
                         /{cat.slug}
-                        {slugReserved && ' · réservé'}
+                        {slugReserved && t` · réservé`}
                       </span>
                     </div>
                   </div>
@@ -768,8 +770,8 @@ export function NavigationTab({
                     className="shrink-0 self-start sm:self-auto"
                     title={
                       !isHiddenFromNav
-                        ? 'Visible dans le menu du site (cliquez pour masquer cette branche)'
-                        : 'Masquée du menu du site (cliquez pour afficher cette branche)'
+                        ? t`Visible dans le menu du site (cliquez pour masquer cette branche)`
+                        : t`Masquée du menu du site (cliquez pour afficher cette branche)`
                     }
                   >
                     {!isHiddenFromNav ? (

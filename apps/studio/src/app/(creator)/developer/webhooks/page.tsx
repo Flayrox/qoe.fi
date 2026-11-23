@@ -3,6 +3,8 @@
 // =====================================================================
 
 import { redirect } from 'next/navigation';
+import { getLanguage } from '@qoe/i18n/server';
+import type { Metadata } from 'next';
 import { requireUser } from '@qoe/auth/current-user';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import { listWebhooksAction } from './actions';
@@ -13,11 +15,19 @@ import {
   hasDeveloperGrant,
   type DeveloperWorkspace,
 } from '@/features/developer/types';
+import { t } from '@lingui/core/macro';
 
-export const metadata = {
-  title: 'Webhooks | qoefi',
-  description: 'Recevez les événements de votre site web en temps réel.',
-};
+// Métadonnées rendues hors du provider i18n : la langue de la requête est lue
+// sans activer le singleton (cf. packages/i18n/src/server.ts).
+export async function generateMetadata(): Promise<Metadata> {
+  const isFr = (await getLanguage()) === 'fr';
+  return {
+    title: isFr ? 'Webhooks | qoefi' : 'Webhooks | qoefi',
+    description: isFr
+      ? t`Recevez les événements de votre site web en temps réel.`
+      : 'Receive your website events in real time.',
+  };
+}
 
 export default async function WebhooksPage() {
   const user = await requireUser();

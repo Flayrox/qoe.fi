@@ -1,12 +1,19 @@
 import type { Metadata } from 'next';
+import { getLanguage } from '@qoe/i18n/server';
 import { getArticlesHealthAction } from '@qoe/sdk/actions/articles';
 
 import { ContentHealthClient } from './content-health-client';
 import type { HealthArticleInput } from '@/features/content-health/lib/content-health';
+import { t } from '@lingui/core/macro';
 
-export const metadata: Metadata = {
-  title: 'Santé du contenu',
-};
+// Métadonnées rendues hors du provider i18n : la langue de la requête est lue
+// sans activer le singleton (cf. packages/i18n/src/server.ts).
+export async function generateMetadata(): Promise<Metadata> {
+  const isFr = (await getLanguage()) === 'fr';
+  return {
+    title: isFr ? t`Santé du contenu` : 'Content health',
+  };
+}
 
 export default async function ContentHealthPage() {
   const result = await getArticlesHealthAction();
@@ -32,7 +39,7 @@ export default async function ContentHealthPage() {
   return (
     <ContentHealthClient
       articles={articles}
-      loadError={result.ok ? null : 'La liste des articles n’a pas pu être chargée.'}
+      loadError={result.ok ? null : t`La liste des articles n’a pas pu être chargée.`}
     />
   );
 }

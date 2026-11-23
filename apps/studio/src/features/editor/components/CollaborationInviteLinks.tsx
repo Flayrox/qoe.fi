@@ -24,10 +24,10 @@ import { Input } from '@qoe/ui/input';
 import { Select } from '@qoe/ui/select';
 import { t } from '@lingui/core/macro';
 
-const LINK_ROLES = [
+const LINK_ROLES = () => [
   { id: 'CONTRIBUTOR', label: 'Contributeur' },
   { id: 'CO_AUTHOR', label: 'Co-auteur' },
-  { id: 'EDITOR', label: 'Éditeur' },
+  { id: 'EDITOR', label: t`Éditeur` },
 ];
 
 const LINK_DURATIONS = [
@@ -37,11 +37,11 @@ const LINK_DURATIONS = [
   { id: '0', label: 'Permanent' },
 ];
 
-const LINK_MAX_USES = [
+const LINK_MAX_USES = () => [
   { id: '1', label: '1 seule fois' },
   { id: '5', label: '5 utilisations' },
   { id: '10', label: '10 utilisations' },
-  { id: '0', label: 'Illimité' },
+  { id: '0', label: t`Illimité` },
 ];
 
 function formatExpiry(dateStr: string | null) {
@@ -60,7 +60,7 @@ function getJoinUrl(token: string) {
 
 function roleLabel(role: string) {
   if (role === 'CO_AUTHOR') return 'Co-auteur';
-  if (role === 'EDITOR') return 'Éditeur';
+  if (role === 'EDITOR') return t`Éditeur`;
   return 'Contributeur';
 }
 
@@ -144,7 +144,7 @@ export function CollaborationInviteLinks({
       await navigator.clipboard.writeText(text);
     } catch {
       setCopiedId(null);
-      setCopyError('Copie impossible. Sélectionnez le lien et copiez-le manuellement.');
+      setCopyError(t`Copie impossible. Sélectionnez le lien et copiez-le manuellement.`);
       return;
     }
     setCopyError(null);
@@ -190,7 +190,7 @@ export function CollaborationInviteLinks({
                 size="sm"
                 value={linkRole}
                 onValueChange={setLinkRole}
-                options={LINK_ROLES}
+                options={LINK_ROLES()}
               />
               <Select
                 label={t`Durée de validité`}
@@ -206,7 +206,7 @@ export function CollaborationInviteLinks({
                 size="sm"
                 value={String(linkMaxUses)}
                 onValueChange={(value) => setLinkMaxUses(Number(value))}
-                options={LINK_MAX_USES}
+                options={LINK_MAX_USES()}
               />
             </div>
 
