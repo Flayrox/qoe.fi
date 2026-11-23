@@ -375,14 +375,18 @@ export function NotificationItem({
               ? firstSender?.username
                 ? `/${encodeURIComponent(firstSender.username.replace(/^@/, ''))}/thought/${encodeURIComponent(notification.thoughtId)}`
                 : `/thought/${notification.thoughtId}`
-              : notification.article
-                ? `/article/${notification.article.slug}`
-                : notification.publisher
-                  ? `/${notification.publisher.slug || notification.publisher.id}`
-                  : firstSender?.username
-                    ? // F134 — le core sert `/{pseudo}` : `/@pseudo` n'existe pas.
-                      `/${encodeURIComponent(firstSender.username.replace(/^@/, ''))}`
-                    : '#');
+              : // La forme d'URL d'un article est décidée par le serveur
+                // (`deeplink.Notification`, testé côté Go) et arrive dans
+                // `notification.url`. Fabriquer ici un `/article/{slug}`
+                // dupliquait cette règle — et pointait vers une route que le
+                // core ne sert plus : on retombe sur la publication, jamais
+                // sur un chemin inventé.
+                notification.publisher
+                ? `/${notification.publisher.slug || notification.publisher.id}`
+                : firstSender?.username
+                  ? // F134 — le core sert `/{pseudo}` : `/@pseudo` n'existe pas.
+                    `/${encodeURIComponent(firstSender.username.replace(/^@/, ''))}`
+                  : '#');
 
   return (
     <Link
