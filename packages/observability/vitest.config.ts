@@ -1,10 +1,12 @@
 import { defineConfig } from 'vitest/config';
+import { packageWorkers } from '../../vitest.shared';
 
 // Plancher de couverture (politique des autres lots : niveau mesuré au
 // 2026-11-19 moins un point). Périmètre : le barrel `index.ts` est exclu
 // (aucune logique).
 export default defineConfig({
   test: {
+    maxWorkers: packageWorkers(),
     environment: 'node',
     globals: true,
     include: ['src/__tests__/**/*.test.ts'],

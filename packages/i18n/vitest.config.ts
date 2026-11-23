@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import { packageWorkers } from '../../vitest.shared';
 
 // Plancher de couverture du paquet (même politique que @qoe/formatters) :
 // mesures du 2026-11-19 au niveau atteint moins un point. Une baisse doit
@@ -8,12 +9,9 @@ import { defineConfig } from 'vitest/config';
 // couverts à 100 %/97 %.
 export default defineConfig({
   test: {
+    maxWorkers: packageWorkers(),
     environment: 'node',
     globals: true,
-    // 🕐 Budget par test : `i18n-hardening` charge le catalogue serveur par
-    // `await import()`, ce qui dépassait 5 s quand les 25 paquets tournaient en
-    // parallèle (dette R313). Les assertions ne dépendent d'aucune durée.
-    testTimeout: 15_000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

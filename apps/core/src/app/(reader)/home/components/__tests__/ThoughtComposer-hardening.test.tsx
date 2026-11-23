@@ -8,8 +8,8 @@
 // l'API (JSON sérialisé). Aucune des deux ne doit pouvoir casser le rendu.
 // =====================================================================
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 
 const feedActions = vi.hoisted(() => ({
@@ -99,6 +99,10 @@ describe('ThoughtComposer — brouillons non fiables (L20b2b2b)', () => {
     feedActions.deletePostAction.mockResolvedValue({ ok: true });
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('survit à un brouillon de fil local dont les images ne sont pas un tableau', async () => {
     // Schéma d'une version antérieure (ou entrée abîmée) : `images` est une
     // chaîne, pas un tableau de pièces jointes.
@@ -129,17 +133,20 @@ describe('ThoughtComposer — brouillons non fiables (L20b2b2b)', () => {
     // Frappe puis ouverture dans le même tick : l'autosauvegarde (debounce
     // 1000 ms) est encore en attente quand la feuille s'ouvre, et elle doit
     // être annulée — sinon elle écrase le brouillon que la feuille affiche.
+    // ⏱️ Horloge simulée : le délai est avancé de 5 s, jamais attendu (R313).
+    vi.useFakeTimers();
     fireEvent.focus(textarea());
     fireEvent.change(textarea(), { target: { value: 'brouillon en cours' } });
     fireEvent.click(screen.getByRole('button', { name: 'Brouillons' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Voir tous les brouillons' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Voir tous les brouillons' }));
 
     const corrupted = JSON.stringify([{ id: 'n1', text: 'Ancien fil', images: 'oops' }]);
     localStorage.setItem('qoe_multi_thought_drafts', corrupted);
 
-    // Au-delà du debounce : la laisser écrire ici rendrait la prévisualisation
-    // de la feuille et « Restaurer le fil » incohérents.
-    await new Promise((resolve) => setTimeout(resolve, 1_300));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+
     expect(localStorage.getItem('qoe_multi_thought_drafts')).toBe(corrupted);
   });
 

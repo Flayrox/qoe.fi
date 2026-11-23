@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import { packageWorkers } from '../../vitest.shared';
 
 // Plancher de couverture (politique des autres lots : niveau mesuré au
 // 2026-11-19 moins un point). Pas de barrel à exclure : les deux sources
@@ -8,6 +9,7 @@ import { defineConfig } from 'vitest/config';
 // suite n'était trouvée (chemin de test mal orthographié, suite supprimée).
 export default defineConfig({
   test: {
+    maxWorkers: packageWorkers(),
     environment: 'node',
     globals: true,
     include: ['src/__tests__/**/*.test.ts'],

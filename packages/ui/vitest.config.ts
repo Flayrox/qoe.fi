@@ -1,18 +1,16 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
+import { packageWorkers } from '../../vitest.shared';
 
 export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    // 🕐 Budget par test. Les suites de ce paquet pilotent des interactions
-    // `userEvent` réelles (chaque frappe = un rendu complet) : mesuré en L38,
-    // 1 à 6 s par test sur la machine de dev quand les 25 paquets compilent en
-    // parallèle, d'où des expirations à 5 s sur des tests verts isolément
-    // (dette R313). Le budget ne remplace aucune attente d'état : il borne
-    // seulement un blocage réel, plus haut que la durée observée.
-    testTimeout: 15_000,
-    hookTimeout: 15_000,
+    // ⏱️ Aucun budget relevé : le test le plus lent de ce paquet dure ~1 s
+    // (mesure L39, `selection-creation-gesture`) et le parallélisme est borné
+    // (`packageWorkers()` = un worker par cœur, script racine `test` à quatre
+    // paquets) : le défaut de 5 s garde 5× de marge sous charge (R313).
+    maxWorkers: packageWorkers(),
     setupFiles: ['./vitest.setup.ts'],
     env: {
       NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co',
@@ -25,7 +23,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'lcov'],
-      reportsDirectory: path.resolve(__dirname, '../../coverage/ui'),
+      reportsDirectory: path.resolve(import.meta.dirname, '../../coverage/ui'),
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
         'src/**/*.test.{ts,tsx}',

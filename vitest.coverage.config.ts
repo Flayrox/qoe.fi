@@ -10,6 +10,7 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { coverageWorkers } from './vitest.shared';
 
 process.env.SKIP_ENV_VALIDATION = 'true';
 process.env.NEXT_PUBLIC_SUPABASE_URL =
@@ -24,20 +25,20 @@ export default defineConfig({
     // local du sdk pendant que @testing-library/react utilise celui de la
     // racine — deux instances => dispatcher null.
     alias: {
-      react: path.resolve(__dirname, 'node_modules/react'),
-      'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
+      react: path.resolve(import.meta.dirname, 'node_modules/react'),
+      'react-dom': path.resolve(import.meta.dirname, 'node_modules/react-dom'),
       // Alias des apps (Next.js) : apps/core résout `@/` vers son src.
       // Seul apps/core utilise `@/` dans le périmètre couvert — le même
       // mapping que apps/core/vitest.config.ts.
-      '@': path.resolve(__dirname, 'apps/core/src'),
+      '@': path.resolve(import.meta.dirname, 'apps/core/src'),
     },
   },
   test: {
     environment: 'node',
-    // Même plancher que les configs d'apps : les rendus jsdom lourds du core
-    // dépassent 5 s sur un runner CI partagé.
-    testTimeout: 20_000,
-    setupFiles: [path.resolve(__dirname, 'apps/core/vitest.setup.ts')],
+    // ⏱️ Budget par défaut (5 s) et workers bornés : le run agrégé est seul sur
+    // la machine, aucun test de ce périmètre ne dépasse ~1,5 s (mesure L39).
+    maxWorkers: coverageWorkers(),
+    setupFiles: [path.resolve(import.meta.dirname, 'apps/core/vitest.setup.ts')],
     include: [
       'packages/sdk/src/**/*.test.{ts,tsx}',
       'packages/auth/src/**/*.test.{ts,tsx}',

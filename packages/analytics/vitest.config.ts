@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import { packageWorkers } from '../../vitest.shared';
 
 // Plancher de couverture (politique des autres lots : niveau mesuré au
 // 2026-11-19 moins un point).
@@ -8,11 +9,11 @@ import { defineConfig } from 'vitest/config';
 // couverts par aucune suite, y compris avant ce lot.
 export default defineConfig({
   test: {
+    maxWorkers: packageWorkers(),
     environment: 'node',
     globals: true,
     include: ['src/__tests__/**/*.test.ts'],
     exclude: ['**/node_modules/**', '**/.next/**', '**/e2e/**'],
-    testTimeout: 30_000,
     restoreMocks: true,
     coverage: {
       provider: 'v8',

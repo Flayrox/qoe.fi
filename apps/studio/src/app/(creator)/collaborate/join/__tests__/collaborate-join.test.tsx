@@ -8,7 +8,7 @@
 //     dans la seconde renvoie quand même l'utilisateur ailleurs.
 
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 
@@ -61,11 +61,21 @@ describe('CollaborateJoinPage', () => {
 
     const { unmount } = render(<CollaborateJoinPage />);
 
-    fireEvent.click(await screen.findByText('Accepter et ouvrir l’éditeur'));
-    await screen.findByText(/Invitation acceptée/);
+    const accept = await screen.findByText('Accepter et ouvrir l’éditeur');
+
+    // ⏱️ La redirection est différée par un `setTimeout` : horloge simulée à
+    // partir du clic, pour avancer le délai au lieu de l'attendre (R313).
+    vi.useFakeTimers();
+    fireEvent.click(accept);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(screen.getByText(/Invitation acceptée/)).toBeDefined();
 
     unmount();
-    await new Promise((resolve) => setTimeout(resolve, 1100));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
 
     expect(push).not.toHaveBeenCalled();
   });

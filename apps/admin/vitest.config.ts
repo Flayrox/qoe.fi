@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { packageWorkers } from '../../vitest.shared';
 
 // =====================================================================
 // 🧪 vitest.config.ts — tests unitaires de la console superadmin.
@@ -9,17 +10,17 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
-      '@qoe/sdk': path.resolve(__dirname, '../../packages/sdk/src'),
+      '@': path.resolve(import.meta.dirname, './src'),
+      '@qoe/sdk': path.resolve(import.meta.dirname, '../../packages/sdk/src'),
     },
   },
   test: {
+    maxWorkers: packageWorkers(),
     environment: 'node',
     globals: true,
     // Même plancher que core/studio/tenants : les rendus jsdom (file de
     // modération) dépassent 5 s sur un runner CI partagé — jamais en local.
     // Aucune assertion n'est assouplie, seule la limite de temps change.
-    testTimeout: 20_000,
     setupFiles: ['./vitest.setup.ts'],
     env: {
       NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co',
@@ -33,7 +34,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'lcov'],
-      reportsDirectory: path.resolve(__dirname, '../../coverage/admin'),
+      reportsDirectory: path.resolve(import.meta.dirname, '../../coverage/admin'),
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
         'src/**/*.test.{ts,tsx}',

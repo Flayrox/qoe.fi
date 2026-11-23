@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CalendarDate, Time } from '@internationalized/date';
@@ -6,20 +6,9 @@ import { CalendarDate, Time } from '@internationalized/date';
 import { Calendar, RangeCalendar } from '../date/calendar';
 import { DateField, DatePicker, TimeField } from '../date/date-picker';
 
-// react-aria mesure ses popovers avec ResizeObserver, absent de jsdom.
-beforeAll(() => {
-  if (!('ResizeObserver' in globalThis)) {
-    class ResizeObserverStub {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    }
-    Object.defineProperty(globalThis, 'ResizeObserver', {
-      value: ResizeObserverStub,
-      writable: true,
-    });
-  }
-});
+// ℹ️ `ResizeObserver` et `Element.scrollIntoView` sont fournis par
+// `packages/ui/vitest.setup.ts` : les re-stubber ici était un doublon qui
+// masquait le contrat du setup commun (L39).
 
 const march2026 = new CalendarDate(2026, 3, 12);
 

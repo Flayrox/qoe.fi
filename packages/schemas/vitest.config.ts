@@ -1,7 +1,9 @@
 import { defineConfig } from 'vitest/config';
+import { packageWorkers } from '../../vitest.shared';
 
 export default defineConfig({
   test: {
+    maxWorkers: packageWorkers(),
     environment: 'node',
     globals: true,
     coverage: {

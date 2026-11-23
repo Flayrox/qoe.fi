@@ -5,7 +5,7 @@
   "description": "qoe.fi monorepo — Turborepo + pnpm + Next.js (tenants, core, hi, studio, admin) + Go (api, worker asynq)",
   "scripts": {
     "verify": "turbo run lint typecheck test && pnpm ui:audit",
-    "test": "turbo run test",
+    "test": "turbo run test --concurrency=4",
     "test:api": "bash scripts/test-api.sh",
     "test:coverage": "vitest run --config vitest.coverage.config.ts",
     "test:coverage:front": "pnpm -r --filter @qoe/ui --filter @qoe/studio --filter @qoe/admin --filter @qoe/tenants run test:coverage",

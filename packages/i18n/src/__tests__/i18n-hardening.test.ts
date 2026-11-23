@@ -1,7 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getI18n } from '../core';
+import { fallbackTranslate, getI18n } from '../core';
+import { buildLocaleCookie } from '../cookie';
+import {
+  getCachedOverrides,
+  getStaticTranslations,
+  parseOverridesPayload,
+  translateKey,
+} from '../server';
 
 // `unstable_cache` exige le runtime Next : on l'identité pour tester la
 // logique de chargement (timeout, validation du payload) en node pur.
@@ -32,7 +39,6 @@ describe('@qoe/i18n — durcissement (L13)', () => {
 
   // ── F1 : les overrides DB doivent gagner sur le catalogue ──────────
   it('applique un override plat sur une clé déjà traduite', async () => {
-    const { translateKey } = await import('../server');
     expect(
       translateKey('fr', 'common.save', 'Enregistrer', undefined, {
         fr: { 'common.save': 'Perso' },
@@ -41,7 +47,6 @@ describe('@qoe/i18n — durcissement (L13)', () => {
   });
 
   it('compile les paramètres ICU contenus dans un override', async () => {
-    const { translateKey } = await import('../server');
     expect(
       translateKey(
         'fr',
@@ -55,7 +60,6 @@ describe('@qoe/i18n — durcissement (L13)', () => {
 
   // ── F2 : un override imbriqué (format legacy) doit s'aplatir ───────
   it('applique un override imbriqué', async () => {
-    const { translateKey } = await import('../server');
     expect(
       translateKey('fr', 'common.save', 'Enregistrer', undefined, {
         fr: { common: { save: 'Perso' } },
@@ -65,27 +69,23 @@ describe('@qoe/i18n — durcissement (L13)', () => {
 
   // ── F3 : un override ne doit pas contaminer les appels suivants ────
   it("n'écrase pas durablement le catalogue partagé", async () => {
-    const { translateKey } = await import('../server');
     translateKey('fr', 'common.save', 'Enregistrer', undefined, { fr: { 'common.save': 'Perso' } });
     expect(translateKey('fr', 'common.save', 'Enregistrer')).toBe('Enregistrer');
   });
 
   // ── F4 : `translateKey` ne doit pas activer la locale globale ──────
   it("ne mute pas la locale de l'instance Lingui partagée", async () => {
-    const { translateKey } = await import('../server');
     expect(translateKey('en', 'greeting', 'Hello {name}', { name: 'Al' })).toBe('Hello Al');
     expect(getI18n().locale).toBe('fr');
   });
 
   // ── F5 : payload d'overrides invalide toléré ───────────────────────
   it('tolère des overrides nuls sans lever', async () => {
-    const { translateKey } = await import('../server');
     expect(translateKey('fr', 'common.save', 'Enregistrer', undefined, null)).toBe('Enregistrer');
   });
 
   // ── F6 : validation + timeout du fetch d'overrides ─────────────────
   it('valide le payload TRANSLATIONS_OVERRIDE', async () => {
-    const { parseOverridesPayload } = await import('../server');
     expect(parseOverridesPayload('null')).toEqual({});
     expect(parseOverridesPayload('[1,2]')).toEqual({});
     expect(parseOverridesPayload('"texte"')).toEqual({});
@@ -97,14 +97,12 @@ describe('@qoe/i18n — durcissement (L13)', () => {
   });
 
   it("borne l'appel réseau des overrides par un AbortSignal", async () => {
-    const { getCachedOverrides } = await import('../server');
     await getCachedOverrides();
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
     expect(init?.signal).toBeInstanceOf(AbortSignal);
   });
 
   it("ignore un payload d'overrides non exploitable côté fetch", async () => {
-    const { getCachedOverrides } = await import('../server');
     fetchMock.mockResolvedValueOnce(
       jsonResponse({ TRANSLATIONS_OVERRIDE: 'null' } as unknown as Record<string, string>)
     );
@@ -123,7 +121,6 @@ describe('@qoe/i18n — durcissement (L13)', () => {
 
   // ── F8 : repli hors provider avec interpolation ────────────────────
   it('interpole les params dans le repli sans provider', async () => {
-    const { fallbackTranslate } = await import('../core');
     expect(fallbackTranslate('greeting', 'Bonjour {name}', { name: 'Al' })).toBe('Bonjour Al');
     expect(fallbackTranslate('greeting', 'Bonjour {name}')).toBe('Bonjour {name}');
     expect(fallbackTranslate('greeting')).toBe('greeting');
@@ -131,7 +128,6 @@ describe('@qoe/i18n — durcissement (L13)', () => {
 
   // ── F9 : cookie de locale validé ───────────────────────────────────
   it('construit un cookie de locale sûr', async () => {
-    const { buildLocaleCookie } = await import('../cookie');
     expect(buildLocaleCookie('fr', 'qoe.fi', true)).toBe(
       'x-locale=fr;path=/;max-age=31536000;domain=.qoe.fi;SameSite=Lax;Secure'
     );
@@ -151,7 +147,6 @@ describe('@qoe/i18n — durcissement (L13)', () => {
 
   // ── F10 : la traduction ne recharge pas le catalogue à chaque appel ─
   it('ne recharge pas le catalogue à chaque traduction', async () => {
-    const { translateKey } = await import('../server');
     const loadSpy = vi.spyOn(getI18n(), 'load');
     for (let i = 0; i < 50; i += 1) {
       translateKey('fr', 'common.save', 'Enregistrer');
@@ -166,7 +161,6 @@ describe('@qoe/i18n — durcissement (L13)', () => {
         TRANSLATIONS_OVERRIDE: JSON.stringify({ fr: { common: { save: 'Perso' } } }),
       } as unknown as Record<string, string>)
     );
-    const { getStaticTranslations } = await import('../server');
     const { loadTranslations } = await getStaticTranslations('fr');
     const messages = (await loadTranslations()) as Record<string, unknown>;
     expect(messages['common.save']).toBe('Perso');

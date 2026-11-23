@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { packageWorkers } from '../../vitest.shared';
 
 // Env de test minimal (les mêmes fallbacks que vitest.workspace.ts à la racine),
 // appliqué en local quand on run `vitest run` depuis ce package.
@@ -14,10 +15,11 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(import.meta.dirname, './src'),
     },
   },
   test: {
+    maxWorkers: packageWorkers(),
     // Apps/core est du Node/Next (server actions, serveur) : les tests purs
     // logique tournent en `node`. Les tests de composants déclarent
     // `// @vitest-environment jsdom` en tête de fichier.
@@ -28,7 +30,6 @@ export default defineConfig({
     // runners CI partagés (flake observé sur
     // `thought-thread-nested-hidden-parent`), sans être lents en local.
     // Même plancher que studio et tenants : on ne touche pas aux assertions.
-    testTimeout: 20_000,
     include: ['src/**/*.test.{ts,tsx}'],
     exclude: ['**/.reference/**', '**/node_modules/**', '**/.next/**', '**/e2e/**'],
   },

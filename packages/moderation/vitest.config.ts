@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import { packageWorkers } from '../../vitest.shared';
 
 // Plancher de couverture du paquet (politique des autres lots : niveau mesuré
 // au 2026-11-19 moins un point — une baisse doit amener des tests, jamais un
@@ -6,6 +7,7 @@ import { defineConfig } from 'vitest/config';
 // ils ne portent aucune logique.
 export default defineConfig({
   test: {
+    maxWorkers: packageWorkers(),
     environment: 'node',
     globals: true,
     coverage: {

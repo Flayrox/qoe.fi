@@ -52,18 +52,26 @@ describe('TranslateClient — copie', () => {
     fireEvent.click(screen.getByText('Traduire'));
     await screen.findByText('A night in Lisbon');
 
+    // ⏱️ Horloge simulée à partir de la première copie : le délai de 1500 ms de
+    // l'indicateur est **avancé**, jamais attendu (R313 : plus aucun test ne
+    // consomme le temps réel). Avant le clic, `findByText` garde ses attentes
+    // normales.
+    vi.useFakeTimers();
     fireEvent.click(screen.getByText('Copier'));
-    await screen.findByText('Copié');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(screen.getByText('Copié')).toBeDefined();
 
     // Deuxième copie 1 s plus tard : son délai court à partir de maintenant,
     // donc l'indicateur doit encore être là 1,6 s après la première.
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await vi.advanceTimersByTimeAsync(1_000);
     });
     fireEvent.click(screen.getByText('Copié').closest('button')!);
 
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      await vi.advanceTimersByTimeAsync(600);
     });
     expect(screen.getByText('Copié')).toBeDefined();
   });
