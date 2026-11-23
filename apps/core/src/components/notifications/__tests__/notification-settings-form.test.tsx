@@ -12,7 +12,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 
 const { mutateCalls, prefs } = vi.hoisted(() => ({
   mutateCalls: [] as { vars: unknown; hasOnError: boolean }[],
@@ -50,6 +50,12 @@ vi.mock('@qoe/ui/switch', () => ({
 }));
 
 import { NotificationSettingsForm } from '../NotificationSettingsForm';
+import { fileURLToPath } from 'node:url';
+
+// Ancrage indépendant du cwd : `pnpm test:coverage` tourne depuis la racine du
+// monorepo et `turbo run test` depuis `apps/core` — `CORE_DIR` ne pointe
+// donc pas toujours sur l'app. La racine est déduite du fichier de test.
+const CORE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 
 afterEach(() => {
   cleanup();
@@ -58,7 +64,7 @@ afterEach(() => {
 });
 
 const SOURCE = readFileSync(
-  resolve(process.cwd(), 'src/components/notifications/NotificationSettingsForm.tsx'),
+  resolve(CORE_DIR, 'src/components/notifications/NotificationSettingsForm.tsx'),
   'utf-8'
 );
 

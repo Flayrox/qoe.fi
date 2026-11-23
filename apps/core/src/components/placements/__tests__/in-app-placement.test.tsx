@@ -15,7 +15,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 
 const { tCalls, dismissed } = vi.hoisted(() => ({
   tCalls: [] as string[],
@@ -66,6 +66,12 @@ vi.mock('@/app/actions/placements', () => ({
 
 import { InAppPlacement } from '../InAppPlacement';
 import type { InAppPlacementDTO } from '@/app/actions/placements';
+import { fileURLToPath } from 'node:url';
+
+// Ancrage indépendant du cwd : `pnpm test:coverage` tourne depuis la racine du
+// monorepo et `turbo run test` depuis `apps/core` — `CORE_DIR` ne pointe
+// donc pas toujours sur l'app. La racine est déduite du fichier de test.
+const CORE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 
 // Node 26 expose un `localStorage` global inutilisable sans
 // `--localstorage-file` ; on installe le même stockage mémoire que les autres
@@ -92,7 +98,7 @@ afterEach(() => {
 });
 
 const SOURCE = readFileSync(
-  resolve(process.cwd(), 'src/components/placements/InAppPlacement.tsx'),
+  resolve(CORE_DIR, 'src/components/placements/InAppPlacement.tsx'),
   'utf-8'
 );
 

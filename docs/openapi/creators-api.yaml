@@ -1,8 +1,8 @@
 # 🎯 qoe.fi — API Créateurs & Médias (v1) — Contrat cible (source de vérité)
 #
-# Ce fichier est la SOURCE DE VÉRITÉ du contrat de l'API créateurs (voir
-# VISION_CREATORS_API.md). Il décrit la cible : parité avec l'ancienne API Hono, alignée
-# sur le backend Go (apps/api) + extensions plateforme.
+# Ce fichier est la SOURCE DE VÉRITÉ du contrat de l'API créateurs. Il décrit la
+# cible : parité avec l'ancienne API Hono, alignée sur le backend Go (apps/api)
+# + extensions plateforme.
 #
 # - Auth : clé API `qoe_live_*` (médias/créateurs, délivrée après revue) ;
 #          OAuth 2.0 (apps tierces — à construire) ; JWT Supabase (app mobile).
@@ -10,7 +10,7 @@
 # - Multi-médias : une clé API est liée à UNE publication (PublicationID injecté
 #   par CombinedAuth). Un compte qui gère N médias utilise N clés — l'API n'a
 #   jamais de « workspace actif » implicite. Le cookie de workspace ne concerne
-#   que le Studio (voir ARCH-06).
+#   que le Studio.
 # - Idempotency-Key : obligatoire sur POST/PATCH pour des réessais sûrs.
 # - Les endpoints webhooks (sortants) sont la cible plateforme — marqués ⚠️.
 #
@@ -697,8 +697,8 @@ paths:
       operationId: searchArticles
       summary: Recherche plein-texte des articles publiés (Meilisearch)
       description: >-
-        À recréer en Go si des consommateurs externes l'utilisent (voir
-        SUNSET_API_LEGACY.md §2.3). Décision en attente.
+        À recréer en Go si des consommateurs externes l'utilisent. Décision en
+        attente (aucun consommateur connu au 2026-11).
       parameters:
         - name: q
           in: query

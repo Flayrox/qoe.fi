@@ -6,7 +6,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 
 const { tCalls } = vi.hoisted(() => ({ tCalls: [] as string[] }));
 
@@ -21,6 +21,12 @@ vi.mock('@lingui/core/macro', () => ({
 }));
 
 import { MainContentWrapper } from '../MainContentWrapper';
+import { fileURLToPath } from 'node:url';
+
+// Ancrage indépendant du cwd : `pnpm test:coverage` tourne depuis la racine du
+// monorepo et `turbo run test` depuis `apps/core` — `CORE_DIR` ne pointe
+// donc pas toujours sur l'app. La racine est déduite du fichier de test.
+const CORE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 
 afterEach(() => {
   cleanup();
@@ -45,7 +51,7 @@ describe('MainContentWrapper — lien d’évitement', () => {
 
   it('garde de source : le lien reste le premier élément focusable', () => {
     const source = readFileSync(
-      resolve(process.cwd(), 'src/components/layout/MainContentWrapper.tsx'),
+      resolve(CORE_DIR, 'src/components/layout/MainContentWrapper.tsx'),
       'utf-8'
     );
     expect(source).toContain("from '@lingui/core/macro'");

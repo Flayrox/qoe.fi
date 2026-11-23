@@ -57,18 +57,23 @@ max_client_conn = 100
 # secret_key = "env(SECRET_VALUE)"
 
 [db.migrations]
-# If disabled, migrations will be skipped during a db push or reset.
-enabled = true
+# ⚠️ Désactivé À DESSEIN : le schéma de ce dépôt n'est pas géré par la CLI
+# Supabase (`supabase/migrations/` n'existe pas). Les migrations sont Goose,
+# dans `apps/api/sql/migrations`, et s'appliquent par `pnpm db:migrate`
+# (ou `go run ./cmd/migrate -dir sql/migrations up`). Un `db reset` ne doit
+# donc pas prétendre migrer un schéma qu'il ne possède pas.
+enabled = false
 # Specifies an ordered list of schema files, directories, or glob patterns that describe your database.
 # Supports paths relative to supabase directory: "./schemas/*.sql", "./database".
 schema_paths = []
 
 [db.seed]
-# If enabled, seeds the database after migrations during a db reset.
-enabled = true
-# Specifies an ordered list of seed files to load during db reset.
-# Supports glob patterns relative to supabase directory: "./seeds/*.sql"
-sql_paths = ["./seed.sql"]
+# ⚠️ Désactivé À DESSEIN : il n'y a pas de `supabase/seed.sql` dans ce dépôt (le
+# `sql_paths` d'origine pointait sur un fichier inexistant, donc tout `db reset`
+# échouait après avoir vidé la base). Les données de démonstration viennent du
+# seed Go : `cd apps/api && go run ./cmd/seed`.
+enabled = false
+# sql_paths = ["./seeds/*.sql"]
 
 [db.network_restrictions]
 # Enable management of network restrictions.
@@ -117,8 +122,8 @@ enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
 
-# Buckets locaux du seed (créés aussi automatiquement par le seed via l'API
-# Storage — voir packages/db/prisma/lib/seed-images.ts)
+# Buckets locaux : c'est CE fichier qui les crée au `supabase start` (aucun
+# script de seed ne les crée — le seed Go ne fait que remplir la base).
 [storage.buckets."articles-media"]
 public = true
 file_size_limit = "50MiB"
@@ -163,7 +168,10 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "http://lvh.me:3010"
+# Origine du lecteur en développement : `apps/core` sert sur 15402
+# (`next dev -p 15402`) derrière Caddy (qoe.test) / lvh.me. Le port 3010 est
+# celui de la suite e2e, pas celui du dev humain.
+site_url = "http://lvh.me:15402"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.

@@ -14,7 +14,7 @@
 
 import React from 'react';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 
@@ -89,6 +89,12 @@ vi.mock('@/components/thought-overlay/context', () => ({
 
 import { SearchFeed } from '../SearchFeed';
 import { RealtimeFeedPill } from '../../feed/RealtimeFeedPill';
+import { fileURLToPath } from 'node:url';
+
+// Ancrage indépendant du cwd : `pnpm test:coverage` tourne depuis la racine du
+// monorepo et `turbo run test` depuis `apps/core` — `CORE_DIR` ne pointe
+// donc pas toujours sur l'app. La racine est déduite du fichier de test.
+const CORE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 
 const idle = { isLoading: false, isError: false };
 
@@ -174,10 +180,7 @@ describe('SearchFeed — date illisible d’un résultat', () => {
   });
 
   it('interdit la réapparition de la conversion directe (garde de source)', () => {
-    const source = readFileSync(
-      resolve(process.cwd(), 'src/components/social/SearchFeed.tsx'),
-      'utf8'
-    );
+    const source = readFileSync(resolve(CORE_DIR, 'src/components/social/SearchFeed.tsx'), 'utf8');
 
     expect(source).not.toMatch(/new Date\(art\.createdAt\)/);
     expect(source).toContain('toIsoOrUndefined');
@@ -293,7 +296,7 @@ describe('SearchFeed — i18n : aucun libellé ne contourne `t`', () => {
       'nouvelle pensée',
     ];
     for (const file of ['SearchFeed.tsx', '../feed/RealtimeFeedPill.tsx']) {
-      const source = readFileSync(resolve(process.cwd(), 'src/components/social', file), 'utf8');
+      const source = readFileSync(resolve(CORE_DIR, 'src/components/social', file), 'utf8');
       const offenders = source.split('\n').filter((line) => {
         const trimmed = line.trim();
         // Un commentaire peut citer un libellé sans le rendre.

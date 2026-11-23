@@ -18,7 +18,7 @@
 // =====================================================================
 
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -181,6 +181,12 @@ vi.mock('@lingui/core/macro', () => ({
 }));
 
 import { ArticleAnnotatorView } from '../ArticleAnnotatorView';
+import { fileURLToPath } from 'node:url';
+
+// Ancrage indépendant du cwd : `pnpm test:coverage` tourne depuis la racine du
+// monorepo et `turbo run test` depuis `apps/core` — `CORE_DIR` ne pointe
+// donc pas toujours sur l'app. La racine est déduite du fichier de test.
+const CORE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 
 const ARTICLE = {
   id: 'art-1',
@@ -300,7 +306,7 @@ describe('ArticleAnnotatorView — i18n', () => {
     // jsdom transforme les modules en URL `http://`, `import.meta.url` n'est donc
     // pas un `file://` : on repart de la racine du paquet (`apps/core`).
     const source = readFileSync(
-      resolve(process.cwd(), 'src/components/social/ArticleAnnotatorView.tsx'),
+      resolve(CORE_DIR, 'src/components/social/ArticleAnnotatorView.tsx'),
       'utf8'
     );
     const labels = [

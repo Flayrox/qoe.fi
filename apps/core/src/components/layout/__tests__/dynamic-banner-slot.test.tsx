@@ -5,7 +5,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 
 const { tCalls } = vi.hoisted(() => ({ tCalls: [] as string[] }));
 
@@ -26,6 +26,12 @@ vi.mock('@/components/placements/InAppPlacement', () => ({
 }));
 
 import { DynamicBannerSlot } from '../../banners/DynamicBannerSlot';
+import { fileURLToPath } from 'node:url';
+
+// Ancrage indépendant du cwd : `pnpm test:coverage` tourne depuis la racine du
+// monorepo et `turbo run test` depuis `apps/core` — `CORE_DIR` ne pointe
+// donc pas toujours sur l'app. La racine est déduite du fichier de test.
+const CORE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 
 afterEach(() => {
   cleanup();
@@ -43,7 +49,7 @@ describe('DynamicBannerSlot — repli traduit', () => {
 
   it('garde de source : plus aucun libellé en dur', () => {
     const source = readFileSync(
-      resolve(process.cwd(), 'src/components/banners/DynamicBannerSlot.tsx'),
+      resolve(CORE_DIR, 'src/components/banners/DynamicBannerSlot.tsx'),
       'utf-8'
     );
     expect(source).toContain("from '@lingui/core/macro'");

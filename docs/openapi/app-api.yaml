@@ -9,8 +9,9 @@ info:
     API consommée par l'app mobile (apps/mobile) et le web via
     QoeApiClient (packages/api-client/src/client.ts). Auth JWT Supabase
     (OptionalAuth vs CombinedAuth), rate-limit 120/min public + 600/min
-    user, pagination cursor/offset vs page (créateurs). Voir
-    docs/API_COMPLETE.md pour les exemples détaillés.
+    user, pagination cursor/offset vs page (créateurs). Le code Go
+    (`apps/api/internal/modules/*/handler.go`) fait foi : `docs/API_COMPLETE.md`
+    a été supprimé, ce contrat est le seul document d'API.
   contact:
     name: qoe.fi
     url: https://qoe.fi

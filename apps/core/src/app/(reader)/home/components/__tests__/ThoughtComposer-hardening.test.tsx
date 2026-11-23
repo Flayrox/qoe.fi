@@ -102,7 +102,9 @@ describe('ThoughtComposer — brouillons non fiables (L20b2b2b)', () => {
     await openDraftsSheet();
     fireEvent.click(await screen.findByRole('button', { name: 'Restaurer le fil' }));
 
-    await waitFor(() => expect(toastMock.error).toHaveBeenCalled());
+    // Sous charge (25 paquets en parallèle), le rendu jsdom dépasse la borne
+    // par défaut de `waitFor` (1 s) : c'est la borne qui cède, pas l'assertion.
+    await waitFor(() => expect(toastMock.error).toHaveBeenCalled(), { timeout: 5_000 });
     // Le compositeur reste utilisable : le champ est toujours là.
     expect(screen.getByRole('textbox')).toBeDefined();
   });

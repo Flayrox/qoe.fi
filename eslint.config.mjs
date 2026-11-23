@@ -96,7 +96,7 @@ const eslintConfig = defineConfig([
               schema: [],
             },
             create(context) {
-              const filename = context.getFilename();
+              const filename = context.filename;
               if (
                 filename.includes('packages/theme') ||
                 filename.includes('node_modules') ||

@@ -7,7 +7,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 
 const { tCalls } = vi.hoisted(() => ({ tCalls: [] as string[] }));
 
@@ -53,6 +53,12 @@ vi.mock('@qoe/config', () => ({
 }));
 
 import { AppSidebar } from '../AppSidebar';
+import { fileURLToPath } from 'node:url';
+
+// Ancrage indépendant du cwd : `pnpm test:coverage` tourne depuis la racine du
+// monorepo et `turbo run test` depuis `apps/core` — `CORE_DIR` ne pointe
+// donc pas toujours sur l'app. La racine est déduite du fichier de test.
+const CORE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 
 afterEach(() => {
   cleanup();
@@ -69,10 +75,7 @@ describe('AppSidebar — navigation traduite', () => {
   });
 
   it('garde de source : le libellé du manifeste n’est plus passé brut', () => {
-    const source = readFileSync(
-      resolve(process.cwd(), 'src/components/layout/AppSidebar.tsx'),
-      'utf-8'
-    );
+    const source = readFileSync(resolve(CORE_DIR, 'src/components/layout/AppSidebar.tsx'), 'utf-8');
     expect(source).not.toContain('title: surface.defaultLabel');
   });
 });
@@ -82,7 +85,7 @@ describe('(reader)/layout — repli du nom d’utilisateur', () => {
     // Le layout passait `'Lecteur'` en dur : la valeur écrasait le défaut
     // `t`Lecteur`` d'AppSidebar et de ReaderNavOverlay, donc le repli restait
     // français quoi qu'il arrive.
-    const source = readFileSync(resolve(process.cwd(), 'src/app/(reader)/layout.tsx'), 'utf-8');
+    const source = readFileSync(resolve(CORE_DIR, 'src/app/(reader)/layout.tsx'), 'utf-8');
     expect(source).not.toMatch(/['"]Lecteur['"]/);
   });
 });
