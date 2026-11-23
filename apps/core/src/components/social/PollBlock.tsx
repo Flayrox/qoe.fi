@@ -114,7 +114,10 @@ export function PollBlock({ poll: initialPoll, onVoteSuccess, className }: PollB
 
   return (
     <div
-      role="radiogroup"
+      // Un sondage n'est pas un groupe de radios : cliquer **vote**
+      // immédiatement. Un `radiogroup` sans flèches ni roving tabindex
+      // annoncerait une interaction qui n'existe pas (R124).
+      role="group"
       aria-label="Sondage interactif"
       className={cn(
         'rounded-2xl border border-border/40 bg-card/30 p-3 space-y-2 font-sans my-2.5 transition-colors',
@@ -130,8 +133,7 @@ export function PollBlock({ poll: initialPoll, onVoteSuccess, className }: PollB
             return (
               <div
                 key={option.id}
-                role="radio"
-                aria-checked={isSelected}
+                aria-current={isSelected ? 'true' : undefined}
                 aria-label={`${option.text}, ${option.percentage}% des votes`}
                 className="relative overflow-hidden rounded-xl border border-border/30 bg-muted/20 p-2.5 flex items-center justify-between text-xs transition-all"
               >
@@ -175,8 +177,6 @@ export function PollBlock({ poll: initialPoll, onVoteSuccess, className }: PollB
             <Button
               key={option.id}
               variant="ghost"
-              role="radio"
-              aria-checked={false}
               aria-label={`Voter pour ${option.text}`}
               onClick={() => handleVote(option.id)}
               disabled={isVoting}
