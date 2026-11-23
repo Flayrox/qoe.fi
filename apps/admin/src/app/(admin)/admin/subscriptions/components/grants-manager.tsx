@@ -8,6 +8,8 @@ import { QueueEmpty } from '@/components/queue/QueueEmpty';
 import { StatusPill } from '@/components/queue/StatusPill';
 import { useStaffAction } from '@/components/queue/useStaffAction';
 import type { SubscriptionGrantItem } from '@/lib/admin-data';
+import { useRouter } from 'next/navigation';
+import { useServerState } from '@/lib/use-server-state';
 
 interface GrantsManagerProps {
   initialItems: SubscriptionGrantItem[];
@@ -22,7 +24,8 @@ function fmtDate(iso: string | null): string {
 }
 
 export function GrantsManager({ initialItems }: GrantsManagerProps) {
-  const [items, setItems] = useState<SubscriptionGrantItem[]>(initialItems);
+  const router = useRouter();
+  const [items, setItems] = useServerState<SubscriptionGrantItem[]>(initialItems);
   const { loadingId, run: staffRun } = useStaffAction<string>();
   const [showNew, setShowNew] = useState(false);
   const [subjectType, setSubjectType] = useState('publication');
@@ -32,7 +35,7 @@ export function GrantsManager({ initialItems }: GrantsManagerProps) {
   const [endsAt, setEndsAt] = useState('');
   const [note, setNote] = useState('');
 
-  const refresh = () => window.location.reload();
+  const refresh = () => router.refresh();
 
   // datetime-local → RFC3339 (UTC). Vide = défaut backend (maintenant / sans fin).
   const toRFC = (v: string): string => (v ? new Date(v).toISOString() : '');

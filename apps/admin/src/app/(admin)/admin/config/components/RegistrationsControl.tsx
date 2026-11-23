@@ -19,6 +19,7 @@ import {
 import type { AllowlistEntry } from '@/lib/admin-data';
 import { attemptWithStepUp, readMessage } from '@/lib/authz-feedback';
 import { cn } from '@qoe/utils';
+import { ConfirmDialog, type ConfirmAction } from '@qoe/ui/confirm-dialog';
 
 export function RegistrationsControl({
   initialOpen,
@@ -28,6 +29,7 @@ export function RegistrationsControl({
   initialAllowlist: AllowlistEntry[];
 }) {
   const [open, setOpen] = useState(initialOpen);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
   const [entries, setEntries] = useState<AllowlistEntry[]>(initialAllowlist);
   const [email, setEmail] = useState('');
   const [note, setNote] = useState('');
@@ -76,25 +78,30 @@ export function RegistrationsControl({
   };
 
   const handleDelete = (target: string) => {
-    if (!confirm(`Retirer l'invitation de ${target} ?`)) return;
     const removedAt = entries.findIndex((e) => e.email === target);
     const removed = removedAt >= 0 ? entries[removedAt] : null;
-    setEntries((prev) => prev.filter((e) => e.email !== target));
-    startTransition(async () => {
-      const res = await attemptWithStepUp(() => deleteAllowlistAction(target));
-      if (!res.success) {
-        // Un refus laisse l'invitation valide côté serveur : la remettre à sa
-        // place, sinon l'écran affirme un retrait qui n'a pas eu lieu.
-        if (removed) {
-          setEntries((prev) => {
-            if (prev.some((e) => e.email === target)) return prev;
-            const next = [...prev];
-            next.splice(Math.min(removedAt, next.length), 0, removed);
-            return next;
-          });
+    setConfirmAction({
+      title: "Retirer l'invitation",
+      description: `${target} ne pourra plus créer de compte avec cette invitation.`,
+      confirmLabel: 'Retirer',
+      destructive: true,
+      onConfirm: async () => {
+        setEntries((prev) => prev.filter((e) => e.email !== target));
+        const res = await attemptWithStepUp(() => deleteAllowlistAction(target));
+        if (!res.success) {
+          // Un refus laisse l'invitation valide côté serveur : la remettre à sa
+          // place, sinon l'écran affirme un retrait qui n'a pas eu lieu.
+          if (removed) {
+            setEntries((prev) => {
+              if (prev.some((e) => e.email === target)) return prev;
+              const next = [...prev];
+              next.splice(Math.min(removedAt, next.length), 0, removed);
+              return next;
+            });
+          }
+          setErrorMsg(readMessage(res) ?? 'Erreur de suppression');
         }
-        setErrorMsg(readMessage(res) ?? 'Erreur de suppression');
-      }
+      },
     });
   };
 
@@ -233,6 +240,8 @@ export function RegistrationsControl({
           </ul>
         )}
       </div>
+
+      <ConfirmDialog action={confirmAction} onClose={() => setConfirmAction(null)} />
     </section>
   );
 }

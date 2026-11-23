@@ -25,6 +25,8 @@ vi.mock('@qoe/sdk/actions/admin', () => ({
 vi.mock('@qoe/ui/toast', () => ({ toast: { success: toastSuccess, error: vi.fn() } }));
 vi.mock('@/components/security/step-up', () => ({ requestStepUp: vi.fn(async () => false) }));
 
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
+
 import { GrantsManager } from '../grants-manager';
 
 describe('GrantsManager', () => {

@@ -34,7 +34,7 @@ import {
 import type { RowActionItem } from '@/components/shell/RowMenu';
 import { attemptWithStepUp, notifyActionFailure, readMessage } from '@/lib/authz-feedback';
 import type { AbuseAppealItem } from '@/lib/admin-data';
-import { copyToClipboard } from '@/lib/clipboard';
+import { copyWithToast } from '@/lib/clipboard';
 
 interface AppealsQueueProps {
   initialItems: AbuseAppealItem[];
@@ -276,12 +276,12 @@ export function AppealsQueue({ initialItems }: AppealsQueueProps) {
     {
       id: 'copy-subject',
       label: 'Copier l’ID du sujet',
-      onSelect: () => void copyToClipboard(item.subjectId),
+      onSelect: () => void copyWithToast(item.subjectId, "L'identifiant du sujet"),
     },
     {
       id: 'copy-appeal',
       label: 'Copier l’ID du recours',
-      onSelect: () => void copyToClipboard(item.id),
+      onSelect: () => void copyWithToast(item.id, "L'identifiant"),
     },
     {
       id: 'audit',

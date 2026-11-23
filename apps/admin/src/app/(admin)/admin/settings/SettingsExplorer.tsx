@@ -38,7 +38,7 @@ import {
   SETTINGS_CATEGORY_LABELS,
   type SettingsLever,
 } from '@/lib/admin-settings-catalog';
-import { copyToClipboard } from '@/lib/clipboard';
+import { copyWithToast } from '@/lib/clipboard';
 
 interface SettingsExplorerProps {
   heldCapabilities: string[];
@@ -204,12 +204,12 @@ export function SettingsExplorer({ heldCapabilities }: SettingsExplorerProps) {
       {
         id: 'copy-id',
         label: 'Copier l’ID du levier',
-        onSelect: () => void copyToClipboard(lever.id),
+        onSelect: () => void copyWithToast(lever.id, 'Le levier'),
       },
       {
         id: 'copy-capability',
         label: 'Copier la capacité requise',
-        onSelect: () => void copyToClipboard(lever.capability),
+        onSelect: () => void copyWithToast(lever.capability, 'La capacité'),
       },
     ];
   };

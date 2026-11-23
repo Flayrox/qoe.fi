@@ -10,7 +10,7 @@
 
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 const deleteTrendMock = vi.fn();
 
@@ -29,6 +29,8 @@ vi.mock('@qoe/supabase/storage', () => ({
 }));
 vi.mock('@qoe/ui/ui/ImageUploader', () => ({ ImageUploader: () => null }));
 
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
+
 import { WidgetsCMS } from '../components/WidgetsCMS';
 
 describe('WidgetsCMS — refus de suppression', () => {
@@ -39,7 +41,6 @@ describe('WidgetsCMS — refus de suppression', () => {
   });
 
   it('dit pourquoi la tendance n’a pas été supprimée', async () => {
-    vi.stubGlobal('confirm', () => true);
     deleteTrendMock.mockResolvedValue({ success: false, error: 'Tendance introuvable' });
 
     render(
@@ -52,6 +53,10 @@ describe('WidgetsCMS — refus de suppression', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Tendances/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }));
+    // La suppression se confirme dans le dialogue du design system (R163).
+    fireEvent.click(
+      within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Supprimer' })
+    );
 
     await waitFor(() => expect(deleteTrendMock).toHaveBeenCalledWith('tr_1'));
     expect(await screen.findByText(/Tendance introuvable/)).toBeTruthy();

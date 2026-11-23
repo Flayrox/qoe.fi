@@ -14,6 +14,8 @@ import {
   Upload,
 } from 'lucide-react';
 import { Badge } from '@qoe/ui/badge';
+import { toast } from '@qoe/ui/toast';
+import { ConfirmDialog, type ConfirmAction } from '@qoe/ui/confirm-dialog';
 import { Button, buttonClasses } from '@qoe/ui/button';
 import {
   Dialog,
@@ -41,6 +43,7 @@ interface TranslationCMSProps {
 
 export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: TranslationCMSProps) {
   const [overrides, setOverrides] = useState<TranslationOverrides>(initialOverrides);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedNamespace, setSelectedNamespace] = useState<string>('all');
   const [isPending, startTransition] = useTransition();
@@ -133,14 +136,17 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
   };
 
   const handleResetAll = () => {
-    if (
-      confirm(
-        'Voulez-vous vraiment supprimer TOUTES les surcharges de traduction ? Cela remettra le site dans son état par défaut.'
-      )
-    ) {
-      setOverrides({ fr: {}, en: {} });
-      setSaveStatus('idle');
-    }
+    setConfirmAction({
+      title: 'Supprimer toutes les surcharges ?',
+      description:
+        'Le site reviendra à ses textes par défaut. Les surcharges non enregistrées seront perdues.',
+      confirmLabel: 'Tout supprimer',
+      destructive: true,
+      onConfirm: () => {
+        setOverrides({ fr: {}, en: {} });
+        setSaveStatus('idle');
+      },
+    });
   };
 
   // Get list of modified translations (diff) compared to starting state
@@ -251,14 +257,16 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
               en: parsed.en || {},
             });
             setSaveStatus('idle');
-            alert(
-              'Surcharges de traduction JSON chargées avec succès ! Cliquez sur Enregistrer pour appliquer.'
+            toast.success(
+              'Surcharges de traduction JSON chargées — cliquez sur Enregistrer pour appliquer.'
             );
           } else {
-            alert("Format de fichier JSON invalide. Il doit contenir des objets 'fr' ou 'en'.");
+            toast.error(
+              "Format de fichier JSON invalide : il doit contenir des objets 'fr' ou 'en'."
+            );
           }
         } catch {
-          alert('Échec de la lecture du fichier JSON.');
+          toast.error('Échec de la lecture du fichier JSON.');
         }
       } else if (file.name.endsWith('.csv')) {
         try {
@@ -282,11 +290,11 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
 
           setOverrides({ fr: newFr, en: newEn });
           setSaveStatus('idle');
-          alert(
-            'Fichier de traduction CSV chargé avec succès ! Cliquez sur Enregistrer pour appliquer.'
+          toast.success(
+            'Fichier de traduction CSV chargé — cliquez sur Enregistrer pour appliquer.'
           );
         } catch {
-          alert('Échec de la lecture du fichier CSV.');
+          toast.error('Échec de la lecture du fichier CSV.');
         }
       }
     };
@@ -323,6 +331,7 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto font-sans text-foreground pb-16">
+      <ConfirmDialog action={confirmAction} onClose={() => setConfirmAction(null)} />
       {/* Top Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-border pb-4 gap-4">
         <div>

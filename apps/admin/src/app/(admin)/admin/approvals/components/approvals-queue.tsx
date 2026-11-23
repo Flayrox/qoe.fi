@@ -41,7 +41,7 @@ import {
   isApprovalOpen,
   type AdminApprovalItem,
 } from '@/lib/admin-approval-types';
-import { copyToClipboard } from '@/lib/clipboard';
+import { copyWithToast } from '@/lib/clipboard';
 
 interface ApprovalsQueueProps {
   initialItems: AdminApprovalItem[];
@@ -254,12 +254,12 @@ export function ApprovalsQueue({ initialItems, currentUserId }: ApprovalsQueuePr
       {
         id: 'copy-target',
         label: 'Copier l’ID cible',
-        onSelect: () => void copyToClipboard(item.target),
+        onSelect: () => void copyWithToast(item.target, 'La cible'),
       },
       {
         id: 'copy-id',
         label: 'Copier l’ID de validation',
-        onSelect: () => void copyToClipboard(item.id),
+        onSelect: () => void copyWithToast(item.id, "L'identifiant"),
       },
       {
         id: 'audit',

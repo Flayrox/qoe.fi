@@ -257,6 +257,37 @@ const countAllMatching = (sources, pattern) =>
   sources.reduce((sum, s) => sum + (s.code.match(pattern)?.length ?? 0), 0);
 
 /**
+ * Primitives réinventées : un composant local qui porte le nom d'une primitive
+ * **sans importer** celle du design system.
+ *
+ * ⚠️ Le suffixe seul ne suffit pas : `PromptDialog` compose `@qoe/ui/dialog`
+ * (même famille, autre contrat) — c'est une composition, pas une réinvention,
+ * et la compter comme dette poussait à renommer une bonne abstraction.
+ */
+const PRIMITIVE_FAMILY = {
+  Button: 'button',
+  Card: 'card',
+  Modal: 'dialog',
+  Select: 'select',
+  Input: 'input',
+  Menu: 'menu',
+  Dialog: 'dialog',
+  Popover: 'popover',
+};
+
+const LOCAL_PRIMITIVE =
+  /export (?:default )?function \w*(Button|Card|Modal|Select|Input|Menu|Dialog|Popover)\b/g;
+
+function countLocalPrimitives(sources) {
+  return sources.filter((source) =>
+    [...source.code.matchAll(LOCAL_PRIMITIVE)].some((match) => {
+      const family = PRIMITIVE_FAMILY[match[1]];
+      return !new RegExp(`from '@qoe/ui/(?:ui/)?${family}'`).test(source.code);
+    })
+  ).length;
+}
+
+/**
  * Dette « HTML brut » : du markup qui réimplémente une primitive.
  *
  * On mesure les occurrences ET les fichiers : une baisse de fichiers avec
@@ -276,11 +307,7 @@ export function measure(rawSources) {
     rawTableFiles: countFilesMatching(sources, /<table\b/g),
     // Un overlay fait main = un piège à focus, un piège à scroll, un piège à Esc.
     handRolledOverlays: countFilesMatching(sources, /fixed inset-0/),
-    // Un composant local qui porte le nom d'une primitive est une réinvention.
-    localPrimitives: countFilesMatching(
-      sources,
-      /export (?:default )?function \w*(?:Button|Card|Modal|Select|Input|Menu|Dialog|Popover)\b/
-    ),
+    localPrimitives: countLocalPrimitives(sources),
   };
 }
 

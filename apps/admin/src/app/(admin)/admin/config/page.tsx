@@ -17,6 +17,7 @@ import { ApiAccessModulesToggles } from './components/ApiAccessModulesToggles';
 import { ApiAccessControlPanel } from './components/ApiAccessControlPanel';
 import { FeatureFlagsToggles } from './components/FeatureFlagsToggles';
 import { RegistrationsControl } from './components/RegistrationsControl';
+import { FeedbackForm, type FormActionResult } from '@/components/shell/feedback-form';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 import { formatReservedIdentifiers, splitReservedIdentifiers } from '@/lib/reserved-identifiers';
 
@@ -98,46 +99,50 @@ export default async function AdminConfig() {
   );
 
   // Server Actions bound inside the component
-  async function handleAddConfig(formData: FormData) {
+  async function handleAddConfig(formData: FormData): Promise<FormActionResult> {
     'use server';
     const key = formData.get('key') as string;
     const value = formData.get('value') as string;
     const description = formData.get('description') as string;
 
-    if (!key || !value) return;
-    await setSystemConfigAction({
+    if (!key?.trim() || !value?.trim()) {
+      return { success: false, error: 'Clé et valeur sont obligatoires' };
+    }
+    return setSystemConfigAction({
       key: key.trim().toUpperCase(),
       value: value.trim(),
       description: description?.trim(),
     });
   }
 
-  async function handleUpdateConfig(formData: FormData) {
+  async function handleUpdateConfig(formData: FormData): Promise<FormActionResult> {
     'use server';
     const key = formData.get('key') as string;
     const value = formData.get('value') as string;
     const description = formData.get('description') as string;
 
-    if (!key || !value) return;
-    await setSystemConfigAction({
+    if (!key?.trim() || !value?.trim()) {
+      return { success: false, error: 'Valeur vide : rien à enregistrer' };
+    }
+    return setSystemConfigAction({
       key: key.trim().toUpperCase(),
       value: value.trim(),
       description: description?.trim(),
     });
   }
 
-  async function handleUpdateReserved(formData: FormData) {
+  async function handleUpdateReserved(formData: FormData): Promise<FormActionResult> {
     'use server';
     const kind = formData.get('kind') as 'username' | 'subdomain';
     const values = splitReservedIdentifiers(String(formData.get('values') || ''));
-    await updateReservedIdentifiersAction(kind, values);
+    return updateReservedIdentifiersAction(kind, values);
   }
 
-  async function handleDeleteConfig(formData: FormData) {
+  async function handleDeleteConfig(formData: FormData): Promise<FormActionResult> {
     'use server';
     const key = formData.get('key') as string;
-    if (!key) return;
-    await deleteSystemConfigAction(key);
+    if (!key) return { success: false, error: 'Clé manquante' };
+    return deleteSystemConfigAction(key);
   }
 
   return (
@@ -172,8 +177,9 @@ export default async function AdminConfig() {
 
       {/* Add new Config Minimal Form */}
       <div className="mb-12">
-        <form
+        <FeedbackForm
           action={handleAddConfig}
+          successMessage="Configuration enregistrée"
           className="flex flex-col md:flex-row items-end gap-4 border-b border-border pb-6"
         >
           <div className="flex-1 w-full space-y-1.5">
@@ -209,14 +215,11 @@ export default async function AdminConfig() {
           </div>
 
           <div className="shrink-0 mb-1">
-            <button
-              type="submit"
-              className="text-sm font-medium text-foreground hover:text-primary transition-colors bg-secondary hover:bg-border px-3 py-1.5 rounded-lg"
-            >
+            <Button type="submit" size="sm" variant="outline" className="text-sm font-medium">
               Add
-            </button>
+            </Button>
           </div>
-        </form>
+        </FeedbackForm>
       </div>
 
       {/* Protected identifiers are edited as a dedicated allowlisted setting,
@@ -236,7 +239,12 @@ export default async function AdminConfig() {
               ['subdomain', 'Subdomains', visibleReservedSubdomains],
             ] as const
           ).map(([kind, label, values]) => (
-            <form key={kind} action={handleUpdateReserved} className="space-y-3">
+            <FeedbackForm
+              key={kind}
+              action={handleUpdateReserved}
+              successMessage="Identifiants protégés enregistrés"
+              className="space-y-3"
+            >
               <input type="hidden" name="kind" value={kind} />
               <label className="block space-y-1.5">
                 <span className="text-sm font-medium">{label}</span>
@@ -248,13 +256,10 @@ export default async function AdminConfig() {
                   aria-label={`${label} protégés`}
                 />
               </label>
-              <button
-                type="submit"
-                className="rounded-lg bg-secondary px-3 py-1.5 text-sm font-medium hover:bg-border"
-              >
+              <Button type="submit" size="sm" variant="outline">
                 Save {label.toLowerCase()}
-              </button>
-            </form>
+              </Button>
+            </FeedbackForm>
           ))}
         </div>
       </section>
@@ -279,7 +284,11 @@ export default async function AdminConfig() {
                   {c.key}
                 </TableCell>
                 <TableCell>
-                  <form id={`form-val-${c.key}`} action={handleUpdateConfig}>
+                  <FeedbackForm
+                    id={`form-val-${c.key}`}
+                    action={handleUpdateConfig}
+                    successMessage={`${c.key} enregistrée`}
+                  >
                     <input type="hidden" name="key" value={c.key} />
                     <textarea
                       name="value"
@@ -287,7 +296,7 @@ export default async function AdminConfig() {
                       rows={c.value.length > 80 || c.value.includes('\n') ? 3 : 1}
                       className="w-full bg-transparent border border-border/50 px-2 py-1 text-xs text-foreground focus:ring-1 focus:ring-ring resize-y shadow-none tabular-nums rounded outline-none"
                     />
-                  </form>
+                  </FeedbackForm>
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
@@ -311,15 +320,17 @@ export default async function AdminConfig() {
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
-                  <form
+                  <FeedbackForm
                     action={handleDeleteConfig}
+                    successMessage={`${c.key} supprimée`}
+                    refreshOnSuccess
                     className="inline-block opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <input type="hidden" name="key" value={c.key} />
                     <Button type="submit" variant="ghost" tone="danger" size="xs">
                       Delete
                     </Button>
-                  </form>
+                  </FeedbackForm>
                 </TableCell>
               </TableRow>
             ))}

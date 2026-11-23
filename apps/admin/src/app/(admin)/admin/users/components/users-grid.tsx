@@ -24,7 +24,8 @@ import {
   toggleUserShadowbanAction,
   unsuspendUserAction,
 } from '@/lib/admin-actions';
-import { copyToClipboard } from '@/lib/clipboard';
+import { copyWithToast } from '@/lib/clipboard';
+import { PromptDialog, type PromptRequest } from '@/components/shell/prompt-dialog';
 
 export interface AdminUserRow {
   id: string;
@@ -73,6 +74,7 @@ function formatDate(iso: string): string {
 export function UsersGrid({ users }: { users: AdminUserRow[] }) {
   const router = useRouter();
   const [status, setStatus] = React.useState<string | null>(null);
+  const [banRequest, setBanRequest] = React.useState<PromptRequest | null>(null);
   const [pending, startTransition] = React.useTransition();
   const grid = useGridView('admin.users', { column: 'created', direction: 'descending' });
 
@@ -129,16 +131,23 @@ export function UsersGrid({ users }: { users: AdminUserRow[] }) {
           moderate(() => unsuspendUserAction(user.id), 'Compte débanni');
           return;
         }
-        const reason = window.prompt('Raison du bannissement :');
-        if (!reason) return;
-        moderate(() => suspendUserAction({ userId: user.id, reason }), 'Compte banni');
+        setBanRequest({
+          title: 'Bannir le compte',
+          description: `Le compte ${user.email} sera suspendu immédiatement.`,
+          label: 'Raison du bannissement (visible dans le journal d’audit)',
+          confirmLabel: 'Bannir',
+          required: true,
+          multiline: true,
+          onSubmit: (reason) =>
+            moderate(() => suspendUserAction({ userId: user.id, reason }), 'Compte banni'),
+        });
       },
     },
     {
       id: 'copy',
       label: 'Copier l’identifiant',
       shortcut: '⌘C',
-      onSelect: () => void copyToClipboard(user.id),
+      onSelect: () => void copyWithToast(user.id, 'L’identifiant utilisateur'),
     },
   ];
 
@@ -277,6 +286,8 @@ export function UsersGrid({ users }: { users: AdminUserRow[] }) {
         emptyState="Aucun compte ne correspond."
         rowMenu={menu}
       />
+
+      <PromptDialog request={banRequest} onClose={() => setBanRequest(null)} />
     </div>
   );
 }

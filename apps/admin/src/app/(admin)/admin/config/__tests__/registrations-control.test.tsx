@@ -12,7 +12,7 @@
 
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 const deleteInvite = vi.fn();
 
@@ -41,12 +41,15 @@ describe('RegistrationsControl — retrait d’une invitation', () => {
   });
 
   it('remet l’invitation quand le serveur refuse', async () => {
-    vi.stubGlobal('confirm', () => true);
     deleteInvite.mockResolvedValue({ success: false, error: 'Preuve forte récente requise' });
 
     render(<RegistrationsControl initialOpen={false} initialAllowlist={[entry]} />);
 
     fireEvent.click(screen.getByTitle("Retirer l'invitation"));
+    // Le retrait se confirme dans le dialogue du design system (R163).
+    fireEvent.click(
+      within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Retirer' })
+    );
 
     await waitFor(() => expect(deleteInvite).toHaveBeenCalledWith('ancien@qoe.fi'));
     expect(await screen.findByText(/Preuve forte récente requise/)).toBeTruthy();

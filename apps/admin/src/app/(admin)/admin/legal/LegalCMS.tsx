@@ -25,6 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@qoe/ui/dialog';
+import { ConfirmDialog, type ConfirmAction } from '@qoe/ui/confirm-dialog';
 import { Input, Textarea } from '@qoe/ui/input';
 import { Select } from '@qoe/ui/select';
 import { Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from '@qoe/ui/table';
@@ -155,6 +156,7 @@ interface LegalCMSProps {
 export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
   const router = useRouter();
   const [tab, setTab] = useState<'documents' | 'consents'>('documents');
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(documents[0]?.id ?? null);
   const [versions, setVersions] = useState<LegalVersionRow[]>([]);
@@ -298,37 +300,32 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
   }
 
   function publish(version: LegalVersionRow) {
+    // Une seule confirmation, deux conséquences annoncées : les jetons non
+    // remplis et l'archivage de la version publiée.
     const placeholderCount = findLegalPlaceholders(version.body ?? '').reduce(
       (acc, p) => acc + p.count,
       0
     );
-    if (placeholderCount > 0) {
-      const proceed = confirm(
-        `Cette version contient ${placeholderCount} jeton(s) non rempli(s) ` +
-          '(ex. [RAISON SOCIALE], [EMAIL DPO]).\n\n' +
-          'Publier un document juridique à trous expose la plateforme. ' +
-          'Remplis les jetons dans le brouillon avant publication.\n\n' +
-          'Publier quand même ?'
-      );
-      if (!proceed) return;
-    }
-    if (
-      !confirm(
-        `Publier la version ${version.version} (${version.locale.toUpperCase()}) ?\n\n` +
-          'La version publiée actuelle sera archivée et les consentements en attente seront redéclenchés.'
-      )
-    ) {
-      return;
-    }
-    startTransition(async () => {
-      const res = await attemptWithStepUp(() => publishLegalVersionAction(version.id));
-      if (!res.success) {
-        notify('error', res.error);
-        return;
-      }
-      notify('ok', `Version ${version.version} publiée.`);
-      if (selected) await loadVersions(selected.id);
-      router.refresh();
+    setConfirmAction({
+      title: `Publier la version ${version.version} (${version.locale.toUpperCase()}) ?`,
+      description:
+        (placeholderCount > 0
+          ? `Cette version contient ${placeholderCount} jeton(s) non rempli(s) ` +
+            '(ex. [RAISON SOCIALE], [EMAIL DPO]) : publier un document juridique à trous expose la plateforme. '
+          : '') +
+        'La version publiée actuelle sera archivée et les consentements en attente seront redéclenchés.',
+      confirmLabel: 'Publier',
+      destructive: placeholderCount > 0,
+      onConfirm: async () => {
+        const res = await attemptWithStepUp(() => publishLegalVersionAction(version.id));
+        if (!res.success) {
+          notify('error', res.error);
+          return;
+        }
+        notify('ok', `Version ${version.version} publiée.`);
+        if (selected) await loadVersions(selected.id);
+        router.refresh();
+      },
     });
   }
 
@@ -404,52 +401,61 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
   }
 
   function archive(version: LegalVersionRow) {
-    if (!confirm(`Archiver la version ${version.version} ? Elle disparaîtra du public.`)) return;
-    startTransition(async () => {
-      const res = await attemptWithStepUp(() => archiveLegalVersionAction(version.id));
-      if (!res.success) {
-        notify('error', res.error);
-        return;
-      }
-      notify('ok', `Version ${version.version} archivée.`);
-      if (selected) await loadVersions(selected.id);
-      router.refresh();
+    setConfirmAction({
+      title: `Archiver la version ${version.version} ?`,
+      description: 'Elle disparaîtra du public ; les consentements déjà recueillis restent.',
+      confirmLabel: 'Archiver',
+      onConfirm: async () => {
+        const res = await attemptWithStepUp(() => archiveLegalVersionAction(version.id));
+        if (!res.success) {
+          notify('error', res.error);
+          return;
+        }
+        notify('ok', `Version ${version.version} archivée.`);
+        if (selected) await loadVersions(selected.id);
+        router.refresh();
+      },
     });
   }
 
   function removeDraft(version: LegalVersionRow) {
-    if (!confirm(`Supprimer le brouillon ${version.version} ?`)) return;
-    startTransition(async () => {
-      const res = await attemptWithStepUp(() => deleteLegalDraftAction(version.id));
-      if (!res.success) {
-        notify('error', res.error);
-        return;
-      }
-      notify('ok', 'Brouillon supprimé.');
-      if (selected) await loadVersions(selected.id);
-      router.refresh();
+    setConfirmAction({
+      title: `Supprimer le brouillon ${version.version} ?`,
+      description: 'Le brouillon ne pourra pas être récupéré.',
+      confirmLabel: 'Supprimer',
+      destructive: true,
+      onConfirm: async () => {
+        const res = await attemptWithStepUp(() => deleteLegalDraftAction(version.id));
+        if (!res.success) {
+          notify('error', res.error);
+          return;
+        }
+        notify('ok', 'Brouillon supprimé.');
+        if (selected) await loadVersions(selected.id);
+        router.refresh();
+      },
     });
   }
 
   function removeDocument(doc: AdminLegalDocument) {
-    if (
-      !confirm(
-        `Supprimer « ${doc.slug} », toutes ses versions ET toutes ses preuves de consentement ?\n\n` +
-          'Cette action est irréversible — préférez archiver la version publiée.'
-      )
-    ) {
-      return;
-    }
-    startTransition(async () => {
-      const res = await attemptWithStepUp(() => deleteLegalDocumentAction(doc.id));
-      if (!res.success) {
-        notify('error', res.error);
-        return;
-      }
-      notify('ok', 'Document supprimé.');
-      setSelectedId(null);
-      setVersions([]);
-      router.refresh();
+    setConfirmAction({
+      title: `Supprimer « ${doc.slug} » ?`,
+      description:
+        'Toutes ses versions ET toutes ses preuves de consentement seront supprimées. ' +
+        'Cette action est irréversible — préférez archiver la version publiée.',
+      confirmLabel: 'Supprimer',
+      destructive: true,
+      onConfirm: async () => {
+        const res = await attemptWithStepUp(() => deleteLegalDocumentAction(doc.id));
+        if (!res.success) {
+          notify('error', res.error);
+          return;
+        }
+        notify('ok', 'Document supprimé.');
+        setSelectedId(null);
+        setVersions([]);
+        router.refresh();
+      },
     });
   }
 
@@ -475,6 +481,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
 
   return (
     <div className="space-y-6">
+      <ConfirmDialog action={confirmAction} onClose={() => setConfirmAction(null)} />
       {/* Barre d'actions */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex rounded-xl border border-border bg-card p-1">

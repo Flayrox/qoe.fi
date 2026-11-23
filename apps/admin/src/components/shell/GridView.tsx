@@ -4,6 +4,7 @@ import * as React from 'react';
 import { ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
 import { Button } from '@qoe/ui/button';
 import { Select } from '@qoe/ui/select';
+import { PromptDialog, type PromptRequest } from './prompt-dialog';
 import type { GridFacetDef, GridViewState, SavedView } from './grid-view';
 
 // =====================================================================
@@ -49,13 +50,25 @@ export function GridViewToolbar<T>({
   count,
 }: GridViewToolbarProps<T>) {
   const [currentView, setCurrentView] = React.useState('');
+  const [saveRequest, setSaveRequest] = React.useState<PromptRequest | null>(null);
 
+  // `window.prompt` + `window.confirm` demandaient deux allers-retours natifs
+  // pour une seule décision. Le dialogue du design system nomme la vue, décrit
+  // ce qui est enregistré et porte le partage dans la même saisie.
   const save = () => {
-    const name = window.prompt('Nom de la vue (filtres, tri, colonnes, densité) :');
-    if (!name) return;
-    const isShared = window.confirm('Partager cette vue avec toute l’équipe staff ?');
-    onSaveView(name, isShared);
-    setCurrentView(name);
+    setSaveRequest({
+      title: 'Enregistrer la vue',
+      description:
+        'Les filtres, le tri, les colonnes et la densité affichés seront enregistrés sous ce nom.',
+      label: 'Nom de la vue',
+      confirmLabel: 'Enregistrer',
+      required: true,
+      checkbox: { label: 'Partager avec toute l’équipe staff', defaultChecked: false },
+      onSubmit: (name, isShared) => {
+        onSaveView(name, isShared);
+        setCurrentView(name);
+      },
+    });
   };
 
   const hasFilters =
@@ -219,6 +232,8 @@ export function GridViewToolbar<T>({
           </Button>
         )}
       </div>
+
+      <PromptDialog request={saveRequest} onClose={() => setSaveRequest(null)} />
     </div>
   );
 }

@@ -10,13 +10,16 @@ import { Input, Textarea } from '@qoe/ui/input';
 import { SectionHeader } from '@qoe/ui/section-header';
 import { useStaffAction } from '@/components/queue/useStaffAction';
 import type { SupportArticleItem } from '@/lib/admin-data';
+import { useRouter } from 'next/navigation';
+import { useServerState } from '@/lib/use-server-state';
 
 interface ArticlesManagerProps {
   initialItems: SupportArticleItem[];
 }
 
 export function ArticlesManager({ initialItems }: ArticlesManagerProps) {
-  const [items, setItems] = useState<SupportArticleItem[]>(initialItems);
+  const router = useRouter();
+  const [items, setItems] = useServerState<SupportArticleItem[]>(initialItems);
   const { loadingId, run: staffRun } = useStaffAction<string>();
   const [openId, setOpenId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
@@ -29,7 +32,7 @@ export function ArticlesManager({ initialItems }: ArticlesManagerProps) {
   // Édition (par article ouvert).
   const [edit, setEdit] = useState({ titleFr: '', titleEn: '', bodyFr: '', bodyEn: '' });
 
-  const refresh = () => window.location.reload();
+  const refresh = () => router.refresh();
 
   const create = async () => {
     const res = await staffRun(

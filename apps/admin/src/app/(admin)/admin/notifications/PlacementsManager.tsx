@@ -11,6 +11,7 @@ import React, { useState, useTransition } from 'react';
 import { Sparkles, Layers, Plus, Trash2, Eye, EyeOff, Target } from 'lucide-react';
 import { toast } from '@qoe/ui/toast';
 import { Select } from '@qoe/ui/select';
+import { ConfirmDialog, type ConfirmAction } from '@qoe/ui/confirm-dialog';
 import {
   createPlacementAdminAction,
   updatePlacementAdminAction,
@@ -30,6 +31,7 @@ const PREDEFINED_SLOTS = [
 ];
 
 export function PlacementsManager({ initialPlacements }: PlacementsManagerProps) {
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
   const [placements, setPlacements] = useState<AdminPlacementPayload[]>(initialPlacements);
   const [isPending, startTransition] = useTransition();
 
@@ -113,22 +115,29 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
   };
 
   const handleDelete = (id: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce placement ?')) return;
-
-    startTransition(async () => {
-      try {
-        const res = await deletePlacementAdminAction(id);
-        if (res.success) {
-          setPlacements((prev) => prev.filter((p) => p.id !== id));
-          setFeedback('Placement supprimé.');
-        } else {
-          toast.error(res.error || 'Erreur de suppression');
+    const placement = placements.find((p) => p.id === id);
+    setConfirmAction({
+      title: 'Supprimer le placement',
+      description: placement
+        ? `« ${placement.title} » ne sera plus affiché aux lecteurs concernés.`
+        : 'Ce placement ne sera plus affiché aux lecteurs concernés.',
+      confirmLabel: 'Supprimer',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          const res = await deletePlacementAdminAction(id);
+          if (res.success) {
+            setPlacements((prev) => prev.filter((p) => p.id !== id));
+            setFeedback('Placement supprimé.');
+          } else {
+            toast.error(res.error || 'Erreur de suppression');
+          }
+        } catch (error) {
+          toast.error(
+            error instanceof Error && error.message ? error.message : 'Erreur de suppression'
+          );
         }
-      } catch (error) {
-        toast.error(
-          error instanceof Error && error.message ? error.message : 'Erreur de suppression'
-        );
-      }
+      },
     });
   };
 
@@ -433,6 +442,8 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
           </div>
         )}
       </div>
+
+      <ConfirmDialog action={confirmAction} onClose={() => setConfirmAction(null)} />
     </div>
   );
 }

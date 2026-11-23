@@ -12,6 +12,8 @@ import { Select } from '@qoe/ui/select';
 import { Stat } from '@qoe/ui/stat';
 import { StatusDot, type StatusTone } from '@qoe/ui/status-dot';
 import type { AbuseIncidentKind } from '@qoe/sdk';
+import { useRouter } from 'next/navigation';
+import { useServerState } from '@/lib/use-server-state';
 import { useStaffAction } from '@/components/queue/useStaffAction';
 import type { AbuseIncidentItem, AbuseMetrics } from '@/lib/admin-data';
 
@@ -54,7 +56,8 @@ const NEXT_STATUS: Record<string, { to: string; label: string }[]> = {
 };
 
 export function IncidentsQueue({ initialItems, metrics }: IncidentsQueueProps) {
-  const [items] = useState<AbuseIncidentItem[]>(initialItems);
+  const router = useRouter();
+  const [items] = useServerState<AbuseIncidentItem[]>(initialItems);
   const { loadingId, run: staffRun } = useStaffAction<string>();
   const [openId, setOpenId] = useState<string | null>(null);
   const [measure, setMeasure] = useState('');
@@ -64,7 +67,9 @@ export function IncidentsQueue({ initialItems, metrics }: IncidentsQueueProps) {
   const [scope, setScope] = useState('');
   const [impact, setImpact] = useState('');
 
-  const refresh = () => window.location.reload();
+  // `router.refresh()` relit les Server Components ; `useServerState` réaligne
+  // la liste. Plus de rechargement de page : filtres et position survivent.
+  const refresh = () => router.refresh();
 
   const create = async () => {
     const res = await staffRun(
@@ -89,7 +94,7 @@ export function IncidentsQueue({ initialItems, metrics }: IncidentsQueueProps) {
     );
     if (res) {
       setMeasure('');
-      window.location.reload();
+      refresh();
     }
   };
 

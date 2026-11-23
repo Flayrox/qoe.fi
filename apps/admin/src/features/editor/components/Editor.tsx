@@ -32,6 +32,7 @@ import {
   Unlock,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
+import { toast } from '@qoe/ui/toast';
 import {
   ImageEditorDialog,
   type ImageEditorPreset,
@@ -316,7 +317,7 @@ export function Editor({
     }
     setPublished(true);
     await saveArticle({ published: true, isPremium });
-    alert(
+    toast.success(
       'Article enregistré et publié. La diffusion e-mail de la newsletter n’est pas encore active.'
     );
   };

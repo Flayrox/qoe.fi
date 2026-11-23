@@ -19,6 +19,10 @@ import { Badge } from '@qoe/ui/badge';
 import { Button } from '@qoe/ui/button';
 import { Input, InputGroup, Textarea } from '@qoe/ui/input';
 import { Switch } from '@qoe/ui/switch';
+import { toast } from '@qoe/ui/toast';
+import { ConfirmDialog, type ConfirmAction } from '@qoe/ui/confirm-dialog';
+import { useRouter } from 'next/navigation';
+import { useServerState } from '@/lib/use-server-state';
 
 interface Article {
   id: string;
@@ -67,9 +71,13 @@ export function WidgetsCMS({
 
   // Local state for instant feedback
   const [searchQuery, setSearchQuery] = useState('');
-  const [trends, setTrends] = useState<Trend[]>(initialTrends);
-  const [promos, setPromos] = useState<PartnerPromo[]>(initialPromos);
-  const [featuredArticles, setFeaturedArticles] = useState<Article[]>(articles);
+  // ⚠️ L'état local reste optimiste, mais il se réaligne sur la charge serveur
+  // après un `router.refresh()` : c'est ce qui remplace le rechargement de page.
+  const router = useRouter();
+  const [trends, setTrends] = useServerState<Trend[]>(initialTrends);
+  const [promos, setPromos] = useServerState<PartnerPromo[]>(initialPromos);
+  const [featuredArticles, setFeaturedArticles] = useServerState<Article[]>(articles);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
 
   // Trend Form States
   const [newHashtag, setNewHashtag] = useState('');
@@ -118,29 +126,39 @@ export function WidgetsCMS({
     if (res.success) {
       setNewHashtag('');
       setNewCount(100);
-      window.location.reload(); // Reload to fetch fresh server data
+      router.refresh();
     } else {
-      alert(res.error);
+      toast.error(res.error);
     }
   };
 
-  const handleDeleteTrend = async (id: string) => {
-    if (!confirm('Supprimer cette tendance ?')) return;
-    setErrorMsg(null);
-    setTrends((prev) => prev.filter((t) => t.id !== id));
-    const res = await deleteTrend(id);
-    if (!res.success) {
-      setTrends(initialTrends);
-      setErrorMsg(res.error || 'Suppression de la tendance refusée');
-    }
+  const handleDeleteTrend = (id: string) => {
+    const trend = trends.find((t) => t.id === id);
+    setConfirmAction({
+      title: 'Supprimer la tendance',
+      description: trend
+        ? `« ${trend.hashtag} » disparaîtra de la page d'accueil immédiatement.`
+        : "Cette tendance disparaîtra de la page d'accueil immédiatement.",
+      confirmLabel: 'Supprimer',
+      destructive: true,
+      onConfirm: async () => {
+        setErrorMsg(null);
+        setTrends((prev) => prev.filter((t) => t.id !== id));
+        const res = await deleteTrend(id);
+        if (!res.success) {
+          setTrends(initialTrends);
+          setErrorMsg(res.error || 'Suppression de la tendance refusée');
+        }
+      },
+    });
   };
 
   const handleUpdateTrend = async (id: string, count: number) => {
     const res = await updateTrendCount(id, count);
     if (res.success) {
-      alert('Tendance mise à jour !');
+      toast.success('Tendance mise à jour');
     } else {
-      alert(res.error);
+      toast.error(res.error);
     }
   };
 
@@ -163,9 +181,9 @@ export function WidgetsCMS({
       setPromoCtaText('');
       setPromoCtaUrl('');
       setPromoImageUrl(null);
-      window.location.reload();
+      router.refresh();
     } else {
-      alert(res.error);
+      toast.error(res.error);
     }
   };
 
@@ -179,15 +197,25 @@ export function WidgetsCMS({
     }
   };
 
-  const handleDeletePromo = async (id: string) => {
-    if (!confirm('Supprimer cette promotion ?')) return;
-    setErrorMsg(null);
-    setPromos((prev) => prev.filter((p) => p.id !== id));
-    const res = await deletePromo(id);
-    if (!res.success) {
-      setPromos(initialPromos);
-      setErrorMsg(res.error || "Suppression de l'encart refusée");
-    }
+  const handleDeletePromo = (id: string) => {
+    const promo = promos.find((p) => p.id === id);
+    setConfirmAction({
+      title: "Supprimer l'encart",
+      description: promo
+        ? `« ${promo.title} » ne sera plus affiché sur le site.`
+        : 'Cet encart ne sera plus affiché sur le site.',
+      confirmLabel: 'Supprimer',
+      destructive: true,
+      onConfirm: async () => {
+        setErrorMsg(null);
+        setPromos((prev) => prev.filter((p) => p.id !== id));
+        const res = await deletePromo(id);
+        if (!res.success) {
+          setPromos(initialPromos);
+          setErrorMsg(res.error || "Suppression de l'encart refusée");
+        }
+      },
+    });
   };
 
   return (
@@ -571,6 +599,8 @@ export function WidgetsCMS({
           )}
         </>
       </div>
+
+      <ConfirmDialog action={confirmAction} onClose={() => setConfirmAction(null)} />
     </div>
   );
 }

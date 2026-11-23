@@ -34,7 +34,7 @@ import {
   type GridViewState,
 } from '@/components/shell/grid-view';
 import type { RowActionItem } from '@/components/shell/RowMenu';
-import { copyToClipboard } from '@/lib/clipboard';
+import { copyWithToast } from '@/lib/clipboard';
 import {
   attemptWithStepUp,
   isFailure,
@@ -259,12 +259,12 @@ export function DeliveryTable({ rows }: { rows: DeliveryRow[] }) {
     {
       id: 'copy-id',
       label: 'Copier l’identifiant livraison',
-      onSelect: () => void copyToClipboard(row.id),
+      onSelect: () => void copyWithToast(row.id, "L'identifiant de l'envoi"),
     },
     {
       id: 'copy-recipient',
       label: 'Copier l’adresse destinataire',
-      onSelect: () => void copyToClipboard(row.recipient),
+      onSelect: () => void copyWithToast(row.recipient, 'Le destinataire'),
     },
   ];
 

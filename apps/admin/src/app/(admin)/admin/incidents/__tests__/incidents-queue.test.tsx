@@ -24,6 +24,8 @@ vi.mock('@qoe/sdk/actions/admin', () => ({
 }));
 vi.mock('@qoe/ui/toast', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
+
 import { IncidentsQueue } from '../components/incidents-queue';
 import type { AbuseIncidentItem } from '@/lib/admin-data';
 

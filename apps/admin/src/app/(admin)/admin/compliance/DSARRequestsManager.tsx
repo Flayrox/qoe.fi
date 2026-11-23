@@ -40,7 +40,7 @@ import {
   notifyActionFailure,
   readMessage,
 } from '@/lib/authz-feedback';
-import { copyToClipboard } from '@/lib/clipboard';
+import { copyWithToast } from '@/lib/clipboard';
 
 function formatDateTime(value?: string | null): string {
   if (!value) return '—';
@@ -230,7 +230,7 @@ export function DSARRequestsManager({ requests }: { requests: DeletionRequestIte
       id: 'copy-id',
       label: 'Copier l’ID utilisateur',
       shortcut: '⌘C',
-      onSelect: () => void copyToClipboard(r.userId),
+      onSelect: () => void copyWithToast(r.userId, "L'identifiant utilisateur"),
     },
     ...(r.status === 'PENDING'
       ? [
