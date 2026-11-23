@@ -91,7 +91,7 @@ pnpm ui:catalog          # régénère le catalogue du UI lab
 - **File d'attente** : L27 → L28 → … → L37 (transverse), puis **L26 mobile en toute fin de
   campagne**, avec le reliquat tel qu'il est documenté (à remesurer à l'ouverture).
 - Un défaut mobile **mesuré** mais non corrigé reste listé avec sa raison (`reporté en fin de
-  campagne`) : jamais « plus tard » implicite, jamais de correctif mobile non demandé.
+campagne`) : jamais « plus tard » implicite, jamais de correctif mobile non demandé.
 
 ## Conventions
 

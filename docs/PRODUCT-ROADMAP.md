@@ -11,14 +11,14 @@ recommandations, OAuth, webhooks, newsletter SMTP/Resend). Les trous qui
 restent ne sont pas des réglages : ce sont les briques qui décident si la
 plateforme peut vivre et concurrencer Substack/Medium.
 
-| # | Chantier                      | Territoire                                                            | Taille | Migration |
-| - | ----------------------------- | --------------------------------------------------------------------- | ------ | --------- |
-| 1 | Encaisser (Stripe)            | Go `billing`/`subscriptions`/`workers/stripe.go`, studio `monetization`, core `billing`/`pricing`, tenants `PaywallCut` | L/XL   | non (schéma existant suffit) |
-| 2 | Newsletter : digest           | Go `newsletters` (+ `Publisher.emailSettings`), studio `newsletters`   | M/L    | non (JSONB) |
-| 3 | Commentaires cœur + modération| `core/components/article-overlay`, studio `community`                  | M      | non       |
-| 4 | Livres (EPUB créateur)        | Go `ebooks`/nouveau `books`, studio `books`, core `library/ebooks`     | L      | oui (persistance, lot 2) |
-| 5 | Traduction des publications   | Go `ai`/`articles`, studio `articles`, tenants/core rendu              | L      | oui (versions, lot 2) |
-| 6 | Portabilité (export)          | Go `users`/nouveau `exports`, studio réglages                          | M      | non       |
+| #   | Chantier                       | Territoire                                                                                                              | Taille | Migration                    |
+| --- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------- | ------ | ---------------------------- |
+| 1   | Encaisser (Stripe)             | Go `billing`/`subscriptions`/`workers/stripe.go`, studio `monetization`, core `billing`/`pricing`, tenants `PaywallCut` | L/XL   | non (schéma existant suffit) |
+| 2   | Newsletter : digest            | Go `newsletters` (+ `Publisher.emailSettings`), studio `newsletters`                                                    | M/L    | non (JSONB)                  |
+| 3   | Commentaires cœur + modération | `core/components/article-overlay`, studio `community`                                                                   | M      | non                          |
+| 4   | Livres (EPUB créateur)         | Go `ebooks`/nouveau `books`, studio `books`, core `library/ebooks`                                                      | L      | oui (persistance, lot 2)     |
+| 5   | Traduction des publications    | Go `ai`/`articles`, studio `articles`, tenants/core rendu                                                               | L      | oui (versions, lot 2)        |
+| 6   | Portabilité (export)           | Go `users`/nouveau `exports`, studio réglages                                                                           | M      | non                          |
 
 ## Règles d'isolation
 
@@ -230,7 +230,7 @@ relire — à construire **dans `modules/newsletters`**, pas ailleurs.
   ajoute l'index unique partiel `grantedBy = 'stripe'` : l'unicité tient
   même sous concurrence ; les octrois manuels gardent leur historique.
 - **Vérifications** : `go test ./internal/modules/billing
-  ./internal/subscriptions` vert ; séquence Checkout → rejeu → renouvellement
+./internal/subscriptions` vert ; séquence Checkout → rejeu → renouvellement
   exécutée contre la base de dev dans une transaction annulée (toujours 1
   ligne, fin non allongée par le rejeu) ; migrations `00091` (portail) et
   `00093` (unicité) appliquées et vérifiées en base ; `go build ./...`.
@@ -243,11 +243,11 @@ relire — à construire **dans `modules/newsletters`**, pas ailleurs.
 
 ## État au 2026-11-16
 
-| # | Chantier | État | Prochaine étape |
-| - | -------- | ---- | --------------- |
-| 1 | Encaissement | socle + commission 5 % + portail + tarifs vérifiés + annuel + route Connect livrés (migrations 00091/00093 appliquées) | UI bouton Connect + test Stripe mode test |
-| 2 | Digest | brouillon newsletter (agent newsletter) ; mon doublon retiré | cadence récurrente dans `modules/newsletters` |
-| 3 | Commentaires | core + modération Studio livrés | pagination, signalements |
-| 4 | Livres | compilation EPUB livrée | persistance + vente |
-| 5 | Traduction | aperçu IA livré | versions localisées + hreflang |
-| 6 | Portabilité | archive ZIP + entrée réglages | médias + export asynchrone |
+| #   | Chantier     | État                                                                                                                   | Prochaine étape                               |
+| --- | ------------ | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| 1   | Encaissement | socle + commission 5 % + portail + tarifs vérifiés + annuel + route Connect livrés (migrations 00091/00093 appliquées) | UI bouton Connect + test Stripe mode test     |
+| 2   | Digest       | brouillon newsletter (agent newsletter) ; mon doublon retiré                                                           | cadence récurrente dans `modules/newsletters` |
+| 3   | Commentaires | core + modération Studio livrés                                                                                        | pagination, signalements                      |
+| 4   | Livres       | compilation EPUB livrée                                                                                                | persistance + vente                           |
+| 5   | Traduction   | aperçu IA livré                                                                                                        | versions localisées + hreflang                |
+| 6   | Portabilité  | archive ZIP + entrée réglages                                                                                          | médias + export asynchrone                    |

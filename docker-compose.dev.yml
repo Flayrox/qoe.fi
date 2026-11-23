@@ -16,7 +16,7 @@
 #    Tenants (*.qoe.fi)        : http://localhost:15403
 #    Studio (studio.qoe.fi)    : http://localhost:15404
 #    Admin (admin.qoe.fi)      : http://localhost:15405
-    # Collab (ws)                : ws://localhost:15406 (hors compose : pnpm dev)
+# Collab (ws)                : ws://localhost:15406 (hors compose : pnpm dev)
 #    API (api.qoe.fi)          : http://localhost:15407
 #    Meilisearch               : http://localhost:15408
 #    PostgreSQL                : localhost:15409 (via pgAdmin/DBeaver)

@@ -32,15 +32,15 @@ Aucune migration de base n'est nécessaire. Aucun changement de schéma.
 
 ## 2. État mesuré au démarrage (2026-11-15)
 
-| Élément | Constat vérifié | Fichier |
-| --- | --- | --- |
-| Limite articles | `SearchRequest{Limit: 10}` codé en dur ; le `limit` du SDK est ignoré | `apps/api/internal/modules/search/handler.go` |
-| Pagination articles | Aucun `Offset`, aucun `nextCursor` ; seuls `hits` + `estimatedTotalHits` sortent | idem |
-| Curseur pensées | `nextCursor` est toujours `null` (pas d'offset SQL) | `SearchThoughts` |
-| Sémantique | `/search/semantic` existe et est testé côté Go, mais **0 appelant web** | `packages/sdk/src/actions/search`, `apps/core` |
-| Actions publiques | `searchAllAction` passe par `safeAction` avec `requireAuth` par défaut → un lecteur anonyme reçoit `UNAUTHORIZED` | `packages/sdk/src/actions/utils/safe-action.ts` |
-| Recherche tenant | La page sérialise tous les articles puis `TenantSearchClient` filtre dans un `useMemo` | `apps/tenants/.../search/page.tsx` + `TenantSearchClient.tsx` |
-| Contrat Meilisearch | Le document indexé contient `id/title/content/slug/slugs/authorId/categoryId/publisherId/published/isPremium/seoTitle/seoDescription/createdAt/updatedAt` (pas de `readingTime` ni `imageUrl`) | `apps/api/internal/workers/search.go` |
+| Élément             | Constat vérifié                                                                                                                                                                                | Fichier                                                       |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Limite articles     | `SearchRequest{Limit: 10}` codé en dur ; le `limit` du SDK est ignoré                                                                                                                          | `apps/api/internal/modules/search/handler.go`                 |
+| Pagination articles | Aucun `Offset`, aucun `nextCursor` ; seuls `hits` + `estimatedTotalHits` sortent                                                                                                               | idem                                                          |
+| Curseur pensées     | `nextCursor` est toujours `null` (pas d'offset SQL)                                                                                                                                            | `SearchThoughts`                                              |
+| Sémantique          | `/search/semantic` existe et est testé côté Go, mais **0 appelant web**                                                                                                                        | `packages/sdk/src/actions/search`, `apps/core`                |
+| Actions publiques   | `searchAllAction` passe par `safeAction` avec `requireAuth` par défaut → un lecteur anonyme reçoit `UNAUTHORIZED`                                                                              | `packages/sdk/src/actions/utils/safe-action.ts`               |
+| Recherche tenant    | La page sérialise tous les articles puis `TenantSearchClient` filtre dans un `useMemo`                                                                                                         | `apps/tenants/.../search/page.tsx` + `TenantSearchClient.tsx` |
+| Contrat Meilisearch | Le document indexé contient `id/title/content/slug/slugs/authorId/categoryId/publisherId/published/isPremium/seoTitle/seoDescription/createdAt/updatedAt` (pas de `readingTime` ni `imageUrl`) | `apps/api/internal/workers/search.go`                         |
 
 Conséquence assumée : la recherche tenant reste alimentée par le bundle
 `publisher.articles` (pas de requête Meilisearch pour rendre les métadonnées
@@ -76,17 +76,17 @@ les résultats utiles ; l'index pourra être enrichi dans un lot séparé.
 
 ## 4. Bugs corrigés en chemin
 
-| Bug | Correction |
-| --- | --- |
-| `limit` du SDK ignoré par le Go | `ClampLimit` + `SearchRequest.Limit` |
-| Requête d'articles double-encodée (`encodeURIComponent` puis `URLSearchParams`) | `q` brut passé à `URLSearchParams` pour les articles |
-| Recherche impossible pour un lecteur anonyme (`requireAuth` par défaut) | Actions de recherche en `requireAuth: false` |
-| « Aucun résultat » affiché sur la somme des onglets, même si l'onglet courant avait des résultats | `hasResultsForTab`, décision par onglet |
-| Tenant : tous les articles sérialisés puis filtrés dans le navigateur | Filtre serveur `filterTenantArticles`, seuls les résultats partent au client |
-| Une réponse serveur tenant pouvait écraser une frappe plus récente | Resynchronisation conditionnelle via `previousServerQuery` |
-| Onglet Articles : première page chargée deux fois (recherche combinée + requête infinie) | `skipThoughts`/`skipArticles` dans l'action, clés de cache distinctes |
-| « Charger plus » disparaissait quand une page filtrée revenait vide | Bouton rendu hors du bloc `articles.length > 0`, « aucun résultat » suspendu tant qu'une page reste |
-| Pensées : `nextCursor` toujours `null` | `OFFSET` SQL + curseur handler + requête infinie dédiée |
+| Bug                                                                                               | Correction                                                                                          |
+| ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `limit` du SDK ignoré par le Go                                                                   | `ClampLimit` + `SearchRequest.Limit`                                                                |
+| Requête d'articles double-encodée (`encodeURIComponent` puis `URLSearchParams`)                   | `q` brut passé à `URLSearchParams` pour les articles                                                |
+| Recherche impossible pour un lecteur anonyme (`requireAuth` par défaut)                           | Actions de recherche en `requireAuth: false`                                                        |
+| « Aucun résultat » affiché sur la somme des onglets, même si l'onglet courant avait des résultats | `hasResultsForTab`, décision par onglet                                                             |
+| Tenant : tous les articles sérialisés puis filtrés dans le navigateur                             | Filtre serveur `filterTenantArticles`, seuls les résultats partent au client                        |
+| Une réponse serveur tenant pouvait écraser une frappe plus récente                                | Resynchronisation conditionnelle via `previousServerQuery`                                          |
+| Onglet Articles : première page chargée deux fois (recherche combinée + requête infinie)          | `skipThoughts`/`skipArticles` dans l'action, clés de cache distinctes                               |
+| « Charger plus » disparaissait quand une page filtrée revenait vide                               | Bouton rendu hors du bloc `articles.length > 0`, « aucun résultat » suspendu tant qu'une page reste |
+| Pensées : `nextCursor` toujours `null`                                                            | `OFFSET` SQL + curseur handler + requête infinie dédiée                                             |
 
 ## 5. Lots
 
@@ -156,12 +156,12 @@ avec un `nextCursor` (tests unitaires).
 
 ## 7. Journal (append-only)
 
-| Date | Lot | Résultat mesuré | Commit |
-| --- | --- | --- | --- |
-| 2026-11-15 | Plan créé | écarts consignés (§2) | _(en cours)_ |
-| 2026-11-15 | Lots 1–4 | `go test ./internal/modules/search/...` **ok** (0,7 s) ; `@qoe/sdk` **162 tests / 22 fichiers** ; `@qoe/core` **212 tests / 27 fichiers** ; `@qoe/tenants` **39 tests / 11 fichiers** ; typechecks sdk/core/tenants **0 erreur** | _(non commité)_ |
-| 2026-11-15 | Index enrichi + tenant Meili | `imageUrl`/`readingTime` indexés, `ReindexAll` réécrit tous les documents, filtre `categoryId`, recherche tenant via `/search/articles` avec repli bundle. `go test` search + workers ciblés **ok** ; tenants typecheck **0 erreur** | _(ce commit)_ |
-| 2026-11-15 | Revue + lot 5 | double chargement corrigé ; « Charger plus » visible sur page filtrée vide ; pensées paginées (SQL/service/handler/SDK/core). `go test -count=1` **ok** (tests DB skippés localement : Docker absent) ; `@qoe/sdk` **163 tests / 22 fichiers** ; `@qoe/core` **214 tests / 27 fichiers** ; `@qoe/tenants` **39 tests / 11 fichiers** ; typechecks **0 erreur** | _(non commité)_ |
+| Date       | Lot                          | Résultat mesuré                                                                                                                                                                                                                                                                                                                                                | Commit          |
+| ---------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| 2026-11-15 | Plan créé                    | écarts consignés (§2)                                                                                                                                                                                                                                                                                                                                          | _(en cours)_    |
+| 2026-11-15 | Lots 1–4                     | `go test ./internal/modules/search/...` **ok** (0,7 s) ; `@qoe/sdk` **162 tests / 22 fichiers** ; `@qoe/core` **212 tests / 27 fichiers** ; `@qoe/tenants` **39 tests / 11 fichiers** ; typechecks sdk/core/tenants **0 erreur**                                                                                                                               | _(non commité)_ |
+| 2026-11-15 | Index enrichi + tenant Meili | `imageUrl`/`readingTime` indexés, `ReindexAll` réécrit tous les documents, filtre `categoryId`, recherche tenant via `/search/articles` avec repli bundle. `go test` search + workers ciblés **ok** ; tenants typecheck **0 erreur**                                                                                                                           | _(ce commit)_   |
+| 2026-11-15 | Revue + lot 5                | double chargement corrigé ; « Charger plus » visible sur page filtrée vide ; pensées paginées (SQL/service/handler/SDK/core). `go test -count=1` **ok** (tests DB skippés localement : Docker absent) ; `@qoe/sdk` **163 tests / 22 fichiers** ; `@qoe/core` **214 tests / 27 fichiers** ; `@qoe/tenants` **39 tests / 11 fichiers** ; typechecks **0 erreur** | _(non commité)_ |
 
 ---
 

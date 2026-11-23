@@ -29,7 +29,7 @@ groups:
           team: security-slo
         annotations:
           summary: "Taux d'erreurs HTTP 5xx élevé sur l'API Go (> 1%)"
-          description: "Le ratio de réponses 5xx dépasse 1% sur les 5 dernières minutes (valeur actuelle : {{ $value | humanizePercentage }})."
+          description: 'Le ratio de réponses 5xx dépasse 1% sur les 5 dernières minutes (valeur actuelle : {{ $value | humanizePercentage }}).'
 
       - alert: QoeHighP99Latency
         expr: |
@@ -43,8 +43,8 @@ groups:
           service: qoe-api
           team: security-slo
         annotations:
-          summary: "Latence p99 élevée sur {{ $labels.route_group }} (> 1000 ms)"
-          description: "La latence p99 du groupe de routes {{ $labels.route_group }} dépasse 1000 ms pendant 5 minutes (valeur : {{ $value | printf \"%.0f\" }} ms)."
+          summary: 'Latence p99 élevée sur {{ $labels.route_group }} (> 1000 ms)'
+          description: 'La latence p99 du groupe de routes {{ $labels.route_group }} dépasse 1000 ms pendant 5 minutes (valeur : {{ $value | printf "%.0f" }} ms).'
 
       - alert: QoeSecguardSpamSpike
         expr: |
@@ -55,7 +55,7 @@ groups:
           service: qoe-api
           team: security
         annotations:
-          summary: "Pic de rejets SecGuard ({{ $labels.action }} / {{ $labels.code }})"
+          summary: 'Pic de rejets SecGuard ({{ $labels.action }} / {{ $labels.code }})'
           description: "SecGuard rejette plus de 5 requêtes/s sur l'action {{ $labels.action }} (code : {{ $labels.code }}), indiquant un pic de spam ou de défis PoW/Turnstile."
 
       - alert: QoeSsrfAttemptBlocked
@@ -67,8 +67,8 @@ groups:
           service: qoe-api
           team: security
         annotations:
-          summary: "Tentative SSRF bloquée par NetGuard"
-          description: "NetGuard a bloqué {{ $value | printf \"%.0f\" }} requête(s) sortante(s) vers une cible réseau interdite sur les 5 dernières minutes."
+          summary: 'Tentative SSRF bloquée par NetGuard'
+          description: 'NetGuard a bloqué {{ $value | printf "%.0f" }} requête(s) sortante(s) vers une cible réseau interdite sur les 5 dernières minutes.'
 
       - alert: QoeRateLimitRedisFailOpen
         expr: |
@@ -79,5 +79,5 @@ groups:
           service: qoe-api
           team: security-slo
         annotations:
-          summary: "Rate-limiter Redis en mode fail-open"
-          description: "Le rate-limiter bascule en fail-open ({{ $value | printf \"%.0f\" }} décisions sur 5m) suite à une indisponibilité ou latence Redis."
+          summary: 'Rate-limiter Redis en mode fail-open'
+          description: 'Le rate-limiter bascule en fail-open ({{ $value | printf "%.0f" }} décisions sur 5m) suite à une indisponibilité ou latence Redis.'

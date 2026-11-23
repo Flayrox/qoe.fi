@@ -30,19 +30,23 @@ L'inspection du backend Go (`apps/api/internal/modules/analytics/`, `tracking/`)
 ## 1. Vision Métier & Piliers Différenciants (au-delà de Substack/Ghost/Medium)
 
 ### A. Courbes Multi-Auteurs & Multi-Tenants (Pilotage d'équipe & média)
+
 - **Séries temporelles multi-séries (`TimeseriesMultiChart`)** :
   - Mode **Superposé (multi-lignes)** : une courbe colorée par auteur/contributeur ou par tenant.
   - Mode **Additionné / Empilé (stacked area)** : empilement des aires pour voir la courbe totale du média et la part de chaque personne.
   - Mode **Part relative (100 % stacked)** : évolution de la répartition d'audience entre contributeurs.
-- **Manipulation dynamique** : pills d'auteurs cliquables (toggle on/off, double-clic = mode *Solo*, *Tout sélectionner / Moi uniquement*, ajouter/retirer à la volée).
+- **Manipulation dynamique** : pills d'auteurs cliquables (toggle on/off, double-clic = mode _Solo_, _Tout sélectionner / Moi uniquement_, ajouter/retirer à la volée).
 - **Sélecteur Multi-Tenants** : bascule d'un tenant à l'autre (`*.qoe.fi`, domaine custom) ou comparaison cross-publications.
 
 ### B. Radiographie In-Situ du Texte (Où exactement dans l'article ?)
-*Qoefi stocke déjà `Highlight.canonicalStart`/`canonicalEnd`/`contentSha`. En ajoutant l'ancrage positionnel (`scrollDepth` / `paragraphIndex`) aux actions, l'article devient une carte interactive :*
+
+_Qoefi stocke déjà `Highlight.canonicalStart`/`canonicalEnd`/`contentSha`. En ajoutant l'ancrage positionnel (`scrollDepth` / `paragraphIndex`) aux actions, l'article devient une carte interactive :_
+
 1. **À quel moment de l'article** les lecteurs cliquent sur **Like**, mettent en **Marque-page**, **Partagent** (citation ou article), ouvrent une **Annotation officielle** ou **Commentent**.
 2. **Courbe de Rétention & Vitesse le long du texte** : où les lecteurs décrochent (`Drop-off`), où ils survolent vite (`Skim` local), et quel est le **"paragraphe Climax"** qui déclenche le pic de surlignages et de partages.
 
 ### C. Attribution Collaborative Co-Auteurs & Passerelle Croisée Média ⇄ Auteur
+
 1. **Attribution Co-Auteurs (`ArticleAttribution`)** :
    - Sur un article co-signé, distinguer la part du lectorat drainée par le réseau / les partages de l'Auteur A vs Co-auteur B vs le média vs l'organique (`referrerUsername`, liens signés, followers respectifs).
 2. **Vases communicants Média ⇄ Profil Personnel (`isAuthorSovereignCopy`)** :
@@ -52,9 +56,10 @@ L'inspection du backend Go (`apps/api/internal/modules/analytics/`, `tracking/`)
    - De quel tenant (`hostname`), profil référent (`referrerUsername`), repost cité (`Post.quotedArticleId`) ou newsletter provient chaque vague de lecture.
 
 ### D. Funnel Complet, Timeline Causale & ADN "Sanctuaire de Lecture"
+
 1. **Funnel d'acquisition complet** :
    - `Impressions Feed / Newsletter / Externe` ➔ `Clics` ➔ `Début de lecture (>25%)` ➔ `Deep Read` ➔ `Paywall / Abonnement gratuit ou payant`.
-   - **Attribution d'abonnement** (*First Touch* / *Last Touch*) par article, par auteur et par pensée (`Post`).
+   - **Attribution d'abonnement** (_First Touch_ / _Last Touch_) par article, par auteur et par pensée (`Post`).
 2. **Marqueurs causaux sur la courbe temporelle** :
    - Superposer automatiquement les évènements `ArticleEvent` (`PUBLISHED`, `LIVE_UPDATED`, envoi `NewsletterIssue`, repost majeur, boost co-auteur) sur la courbe des vues pour voir l'impact immédiat de chaque action.
 3. **Comfort & Accessibility Insights (spécifique Qoefi)** :
@@ -63,6 +68,7 @@ L'inspection du backend Go (`apps/api/internal/modules/analytics/`, `tracking/`)
    - Identifier les formats/longueurs "Sweet Spot" (longueur vs taux de complétion réel) et les thématiques connexes qui engagent le plus les lecteurs du média.
 
 ### E. Vues Contextuelles Adaptatives selon le Rôle
+
 - **Auteur Solo** : focus qualité de lecture, radiographie in-situ, funnel abonnés, sans surcharge multi-équipes.
 - **Co-Auteur** : répartition transparente des apports d'audience par collaborateur.
 - **Rédacteur dans un Média** : performance de ses écrits dans le média + retombées directes sur son profil/abonnés personnels.
@@ -73,6 +79,7 @@ L'inspection du backend Go (`apps/api/internal/modules/analytics/`, `tracking/`)
 ## 2. Architecture Technique & Base de Données
 
 ### A. Nouvelles tables / enrichissements SQL (`apps/api/sql/migrations`)
+
 1. **Rollup journalier permanent** (`ArticleDailyStat`) :
    - Clé : `(day, articleId, source, hostname, authorAttributionUserId)` + compteurs (`views`, `uniqueReaders`, `deepReads`, `skims`, `bounces`, `totalDwellSeconds`, `authorProfileClicks`, `subscribesCount`).
    - Alimenté par le worker avant la purge 90j de `ReadingSession` ➔ historique illimité ultra-rapide.
@@ -84,6 +91,7 @@ L'inspection du backend Go (`apps/api/internal/modules/analytics/`, `tracking/`)
    - Brancher `POST /v1/tracking/reading-session` (avec `source = 'mobile_app'`) depuis `apps/mobile`.
 
 ### B. Endpoints Go (`apps/api/internal/modules/analytics/`)
+
 - `GET /v1/analytics/timeseries` : multi-séries ventilées par `groupBy=author|tenant|channel` (`views`, `deepReads`, `dwellMinutes`, `subscribers`).
 - `GET /v1/analytics/article/{id}/in-situ` : courbe de décrochage par tranche de 10 % + heatmap des likes/surlignages/partages/annotations par paragraphe + marqueurs `ArticleEvent`.
 - `GET /v1/analytics/article/{id}/collaboration` : apports co-auteurs + flux passerelle Média ⇄ Auteurs.
@@ -95,23 +103,27 @@ L'inspection du backend Go (`apps/api/internal/modules/analytics/`, `tracking/`)
 ## 3. Découpage des Lots d'Implémentation
 
 ### Lot 1 — Fiabilisation & Fin des fuites de scope + Rollup permanent
+
 - [ ] Corriger l'isolation 100 % scopée des stats Studio (ne plus exposer les visiteurs/heures/pays globaux d'Umami quand `umamiWebsiteId` est partagé).
 - [ ] Créer la table de rollup permanent `ArticleDailyStat` + worker d'agrégation avant purge 90j.
 - [ ] Calculer `ReadingQuality` et la courbe de rétention depuis les vraies `ReadingSession` (non plus uniquement EMA).
 - [ ] Brancher le tracking lecture sur `apps/mobile`.
 
 ### Lot 2 — Graphique Multi-Courbes & Pilotage Équipe/Tenants (`TimeseriesMultiChart`)
+
 - [ ] Endpoint Go `GET /v1/analytics/timeseries?groupBy=author|tenant`.
-- [ ] Composant SVG pur `TimeseriesMultiChart` : modes *Superposé*, *Empilé/Cumulé*, *% Relatif*, curseur unifié au hover.
-- [ ] Pills interactives d'auteurs/tenants (ajouter, retirer, isoler en *Solo*, *Moi uniquement*).
+- [ ] Composant SVG pur `TimeseriesMultiChart` : modes _Superposé_, _Empilé/Cumulé_, _% Relatif_, curseur unifié au hover.
+- [ ] Pills interactives d'auteurs/tenants (ajouter, retirer, isoler en _Solo_, _Moi uniquement_).
 - [ ] Sélecteur de tenant pour comptes multi-publications.
 
 ### Lot 3 — Radiographie In-Situ, Marqueurs Causaux & Confort de Lecture
+
 - [ ] Capture de `paragraphIndex` / `scrollDepth` sur Likes, Bookmarks, Partages, PaywallHits + agrégation des `Highlight` existants (`canonicalStart`/`canonicalEnd`).
 - [ ] Vue "Radiographie de l'article" dans `ArticleAnalyticsPageClient.tsx` + marqueurs `ArticleEvent` (`PUBLISHED`, `LIVE_UPDATED`, `NewsletterIssue`) sur la courbe temporelle.
 - [ ] Indicateurs Comfort & Accessibility (Mode Bionic, annotations officielles).
 
 ### Lot 4 — Co-Auteurs, Passerelle Média ⇄ Auteur & Funnel Abonnés/Newsletter
+
 - [ ] Tracking du passage Média ➔ Profil Auteur et Auteur ➔ Média + attribution de conversion `Subscriber`.
 - [ ] Raccordement de `FeedImpression` (CTR Feed + part Découverte pgvector) et des métriques Newsletter (clics ➔ lectures) + Pensées (`Post`).
 - [ ] Blocs UI dédiés adaptatifs selon le contexte (Solo, Co-auteur, Contributeur Média, Rédacteur en chef).
@@ -120,6 +132,7 @@ L'inspection du backend Go (`apps/api/internal/modules/analytics/`, `tracking/`)
 ---
 
 ## 4. Règles & Garde-fous
+
 - **Vie privée & RGPD** : Zéro fingerprinting individuel des lecteurs ; toutes les stats créateurs restent strictement agrégées (seuil d'anonymat quand pertinent) et sans cookies tiers.
 - **Go = Source de vérité** : Toute logique d'attribution, de permission (`canAccess` / `articleScopeSQL`) et de calcul de funnel vit côté Go.
 - **Légèreté UI** : Graphiques SVG natifs alignés sur le design system `@qoe/ui`, responsive mobile/desktop.
