@@ -38,15 +38,16 @@ export const createConversationAction = safeAction<string, Conversation>(async (
 
 /**
  * GET /v1/conversations/{id}/messages — messages ascendants. Pagination
- * arrière : `before` = createdAt du message le plus ancien de la page
- * courante (RFC3339, exclusif).
+ * arrière : `cursor` = `nextCursor` de la page courante (seq, exclusif).
+ * `before` (RFC3339) reste accepté pour les anciens clients.
  */
 export const getConversationMessagesAction = safeAction<
-  { conversationId: string; before?: string },
+  { conversationId: string; before?: string; cursor?: number },
   MessagePage
->(async ({ conversationId, before }) => {
+>(async ({ conversationId, before, cursor }) => {
   const query = new URLSearchParams();
-  if (before) query.set('before', before);
+  if (cursor !== undefined) query.set('cursor', String(cursor));
+  else if (before) query.set('before', before);
   const qs = query.toString() ? `?${query.toString()}` : '';
   return goFetch<MessagePage>(
     `/v1/conversations/${encodeURIComponent(conversationId)}/messages${qs}`

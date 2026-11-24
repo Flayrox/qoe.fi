@@ -609,3 +609,44 @@ dernier verdict non-allow (ici la fixture humaine `test:fixture`) au lieu du
 verdict d'essaim, donc les raisons continues attendues manquent. Question
 produit à trancher : un recours conteste-t-il le verdict **automatique** le
 plus récent ou n'importe quel verdict humain ? Le test encode « essaim ».
+
+## L46 — ordre total du listing des messages (2026-11-24)
+
+Défaut de production : `Message."createdAt"` est un `TIMESTAMP(3)`. Deux
+messages écrits dans la même milliseconde n'avaient aucun départage ; le
+listing (et la pagination qui s'appuyait sur `createdAt`) pouvait changer
+d'ordre, dupliquer ou perdre un message entre deux pages. `TestSendAndListMessages`
+échouait réellement sur Postgres local dès que les migrations s'appliquaient.
+
+Correctif : `Message.seq BIGSERIAL` (migration `00101`, `00100` reste réservée
+au DROP `ArticleComment`), unique et monotone à l'insertion.
+
+- `ListMessagesBefore` : `seq < curseur`, `ORDER BY seq DESC` ;
+- `ListMessagesAfter` (polling) : `seq > curseur`, `ORDER BY seq ASC` ;
+- `MessagePage.nextCursor` = `seq` du plus ancien message de la page ;
+- `GET …/messages?cursor=<seq>` remplace le curseur temporel côté SDK ;
+  `before=<RFC3339>` reste accepté et est traduit en `seq` via
+  `CursorSeqBeforeTimestamp` (pas de doublon pour les anciens clients).
+
+Preuves exécutées sur Postgres 16 local (`TEST_DATABASE_URL`, aucun skip) :
+`TestSendAndListMessages` inchangé, vert ; nouveau
+`TestListMessagesSameMillisecondTotalOrder` : cinq messages alignés sur la même
+milliseconde, dix lectures consécutives strictement identiques, pagination
+2 par 2 par curseur total parcourant les cinq messages dans l'ordre de la
+lecture complète, sans doublon ni trou. Package `conversations` exécuté
+intégralement trois fois de suite : trois `ok`.
+
+## L46b — ordre total des verdicts de modération (2026-11-24)
+
+Même défaut de fond que le listing : `RiskDecision."createdAt"` en
+`TIMESTAMP(3)`, départagé par `decidedBy` puis `id`. « Le dernier verdict »
+n'était donc pas défini, et `TestAppeal_FullCycle` pouvait contester une
+fixture humaine au lieu du verdict d'essaim inséré après elle.
+`00102` ajoute `RiskDecision.seq BIGSERIAL` (unique, index
+`(subjectType, subjectId, seq DESC)`) ; `contestableDecision`,
+`ListOpenDecisions` et `ResolveDecision` lisent `seq DESC`. Le recours prend
+le dernier verdict non-allow **réellement inséré**, sans choix de politique
+entre humain et automate. La boucle de vidage de file de la revue a aussi été
+rendue convergente (elle s'arrête quand la file est stable). Preuves :
+`TestAppeal_FullCycle` et `TestReview_OpenResolveClose` PASS sur Postgres 16
+local.

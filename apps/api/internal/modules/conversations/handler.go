@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -124,7 +125,15 @@ func (h *Handler) listMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var before *time.Time
-	if raw := r.URL.Query().Get("before"); raw != "" {
+	var cursor *int64
+	if raw := r.URL.Query().Get("cursor"); raw != "" {
+		seq, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || seq <= 0 {
+			response.BadRequest(w, "curseur cursor invalide (entier attendu)")
+			return
+		}
+		cursor = &seq
+	} else if raw := r.URL.Query().Get("before"); raw != "" {
 		t, err := time.Parse(time.RFC3339, raw)
 		if err != nil {
 			response.BadRequest(w, "curseur before invalide (RFC3339 attendu)")
@@ -133,7 +142,13 @@ func (h *Handler) listMessages(w http.ResponseWriter, r *http.Request) {
 		before = &t
 	}
 	limit := middleware.ClampLimit(r.URL.Query().Get("limit"), 50, 100)
-	page, err := h.svc.ListMessages(r.Context(), userID, chi.URLParam(r, "id"), before, limit)
+	var page MessagePage
+	var err error
+	if cursor != nil {
+		page, err = h.svc.ListMessagesFromCursor(r.Context(), userID, chi.URLParam(r, "id"), cursor, limit)
+	} else {
+		page, err = h.svc.ListMessages(r.Context(), userID, chi.URLParam(r, "id"), before, limit)
+	}
 	if err != nil {
 		h.writeErr(w, err)
 		return

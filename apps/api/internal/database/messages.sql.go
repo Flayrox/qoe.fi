@@ -11,11 +11,32 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const cursorSeqBeforeTimestamp = `-- name: CursorSeqBeforeTimestamp :one
+SELECT COALESCE(MIN("seq"), 0)::bigint AS seq
+FROM "Message"
+WHERE "conversationId" = $1 AND "createdAt" >= $2
+`
+
+type CursorSeqBeforeTimestampParams struct {
+	Conversationid string           `json:"conversationid"`
+	Before         pgtype.Timestamp `json:"before"`
+}
+
+// Traduit un curseur hérité (timestamp) en curseur total : premier seq dont le
+// message est au moins aussi récent que `before`. Les pages suivantes
+// n'incluent alors que des messages strictement plus anciens, sans doublon.
+func (q *Queries) CursorSeqBeforeTimestamp(ctx context.Context, arg CursorSeqBeforeTimestampParams) (int64, error) {
+	row := q.db.QueryRow(ctx, cursorSeqBeforeTimestamp, arg.Conversationid, arg.Before)
+	var seq int64
+	err := row.Scan(&seq)
+	return seq, err
+}
+
 const insertMessage = `-- name: InsertMessage :one
 
 INSERT INTO "Message" (id, "conversationId", "senderId", content)
 VALUES (gen_random_uuid()::text, $1, $2, $3)
-RETURNING id, "senderId"::text AS sender_id, content, "createdAt"
+RETURNING id, "senderId"::text AS sender_id, content, "createdAt", seq
 `
 
 type InsertMessageParams struct {
@@ -29,6 +50,7 @@ type InsertMessageRow struct {
 	SenderID  string           `json:"sender_id"`
 	Content   string           `json:"content"`
 	CreatedAt pgtype.Timestamp `json:"createdAt"`
+	Seq       int64            `json:"seq"`
 }
 
 // Messagerie directe : messages (tranche 1).
@@ -42,22 +64,23 @@ func (q *Queries) InsertMessage(ctx context.Context, arg InsertMessageParams) (I
 		&i.SenderID,
 		&i.Content,
 		&i.CreatedAt,
+		&i.Seq,
 	)
 	return i, err
 }
 
 const listMessagesAfter = `-- name: ListMessagesAfter :many
-SELECT id, "senderId"::text AS sender_id, content, "createdAt"
+SELECT id, "senderId"::text AS sender_id, content, "createdAt", seq
 FROM "Message"
-WHERE "conversationId" = $1 AND "createdAt" > $2
-ORDER BY "createdAt" ASC, id ASC
+WHERE "conversationId" = $1 AND "seq" > $2::bigint
+ORDER BY "seq" ASC
 LIMIT $3
 `
 
 type ListMessagesAfterParams struct {
-	ConversationId string           `json:"conversationId"`
-	CreatedAt      pgtype.Timestamp `json:"createdAt"`
-	Limit          int32            `json:"limit"`
+	Conversationid string `json:"conversationid"`
+	Afterseq       int64  `json:"afterseq"`
+	Lim            int32  `json:"lim"`
 }
 
 type ListMessagesAfterRow struct {
@@ -65,12 +88,13 @@ type ListMessagesAfterRow struct {
 	SenderID  string           `json:"sender_id"`
 	Content   string           `json:"content"`
 	CreatedAt pgtype.Timestamp `json:"createdAt"`
+	Seq       int64            `json:"seq"`
 }
 
-// Nouveaux messages STRICTEMENT postérieurs à `after` (polling), ordre
-// ascendant prêt à être ajouté en fin de liste.
+// Nouveaux messages STRICTEMENT postérieurs au curseur `afterSeq` (polling),
+// ordre ascendant prêt à être ajouté en fin de liste.
 func (q *Queries) ListMessagesAfter(ctx context.Context, arg ListMessagesAfterParams) ([]ListMessagesAfterRow, error) {
-	rows, err := q.db.Query(ctx, listMessagesAfter, arg.ConversationId, arg.CreatedAt, arg.Limit)
+	rows, err := q.db.Query(ctx, listMessagesAfter, arg.Conversationid, arg.Afterseq, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -83,6 +107,7 @@ func (q *Queries) ListMessagesAfter(ctx context.Context, arg ListMessagesAfterPa
 			&i.SenderID,
 			&i.Content,
 			&i.CreatedAt,
+			&i.Seq,
 		); err != nil {
 			return nil, err
 		}
@@ -95,18 +120,18 @@ func (q *Queries) ListMessagesAfter(ctx context.Context, arg ListMessagesAfterPa
 }
 
 const listMessagesBefore = `-- name: ListMessagesBefore :many
-SELECT id, "senderId"::text AS sender_id, content, "createdAt"
+SELECT id, "senderId"::text AS sender_id, content, "createdAt", seq
 FROM "Message"
 WHERE "conversationId" = $1
-  AND ($2::timestamp IS NULL OR "createdAt" < $2)
-ORDER BY "createdAt" DESC, id DESC
+  AND "seq" < $2::bigint
+ORDER BY "seq" DESC
 LIMIT $3
 `
 
 type ListMessagesBeforeParams struct {
-	ConversationId string           `json:"conversationId"`
-	Column2        pgtype.Timestamp `json:"column_2"`
-	Limit          int32            `json:"limit"`
+	Conversationid string `json:"conversationid"`
+	Beforeseq      int64  `json:"beforeseq"`
+	Lim            int32  `json:"lim"`
 }
 
 type ListMessagesBeforeRow struct {
@@ -114,12 +139,15 @@ type ListMessagesBeforeRow struct {
 	SenderID  string           `json:"sender_id"`
 	Content   string           `json:"content"`
 	CreatedAt pgtype.Timestamp `json:"createdAt"`
+	Seq       int64            `json:"seq"`
 }
 
-// Messages STRICTEMENT antérieurs à `before` (curseur exclusif, NULL = depuis
-// le début), les plus récents d'abord (le service inverse pour l'affichage).
+// Messages STRICTEMENT antérieurs au curseur `beforeSeq` (ordre total par
+// `seq`, exclusif ; MaxInt64 = depuis le début), les plus récents d'abord (le
+// service inverse pour l'affichage). Le timestamp n'est plus le curseur :
+// deux messages de la même milliseconde sont ordonnés par seq.
 func (q *Queries) ListMessagesBefore(ctx context.Context, arg ListMessagesBeforeParams) ([]ListMessagesBeforeRow, error) {
-	rows, err := q.db.Query(ctx, listMessagesBefore, arg.ConversationId, arg.Column2, arg.Limit)
+	rows, err := q.db.Query(ctx, listMessagesBefore, arg.Conversationid, arg.Beforeseq, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -132,6 +160,7 @@ func (q *Queries) ListMessagesBefore(ctx context.Context, arg ListMessagesBefore
 			&i.SenderID,
 			&i.Content,
 			&i.CreatedAt,
+			&i.Seq,
 		); err != nil {
 			return nil, err
 		}

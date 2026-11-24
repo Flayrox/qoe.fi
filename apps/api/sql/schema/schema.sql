@@ -3575,3 +3575,13 @@ CREATE UNIQUE INDEX "Interaction_user_kind_target_key"
     ON "Interaction" ("userId", "kind", "targetType", "targetId");
 CREATE INDEX "Interaction_target_idx"
     ON "Interaction" ("targetType", "targetId", "kind", "createdAt" DESC);
+
+-- seq : ordre total d'insertion des messages (L46), tie-breaker et curseur.
+ALTER TABLE "Message" ADD COLUMN IF NOT EXISTS "seq" BIGSERIAL NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS "Message_seq_key" ON "Message" ("seq");
+CREATE INDEX IF NOT EXISTS "Message_conversationId_seq_idx" ON "Message" ("conversationId", "seq" DESC);
+
+-- seq : ordre total d'insertion des verdicts (L46).
+ALTER TABLE "RiskDecision" ADD COLUMN IF NOT EXISTS "seq" BIGSERIAL NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS "RiskDecision_seq_key" ON "RiskDecision" ("seq");
+CREATE INDEX IF NOT EXISTS "RiskDecision_subject_seq_idx" ON "RiskDecision" ("subjectType", "subjectId", "seq" DESC);

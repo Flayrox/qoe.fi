@@ -14,6 +14,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -71,6 +72,9 @@ type Message struct {
 	SenderID  string `json:"senderId"`
 	Content   string `json:"content"`
 	CreatedAt string `json:"createdAt"`
+	// Seq est l'ordre total d'insertion : deux messages de la même
+	// milliseconde restent ordonnés de façon stable (L46).
+	Seq int64 `json:"seq"`
 }
 
 // MessagePage est une page de messages (ascendants) + hasMore pour la
@@ -78,6 +82,9 @@ type Message struct {
 type MessagePage struct {
 	Messages []Message `json:"messages"`
 	HasMore  bool      `json:"hasMore"`
+	// NextCursor est le curseur total (seq du plus ancien message de la page)
+	// à repasser pour obtenir la page suivante, sans doublon ni trou.
+	NextCursor *int64 `json:"nextCursor,omitempty"`
 }
 
 // Service expose les opérations de messagerie.
@@ -296,10 +303,42 @@ func (s *Service) ListMessages(ctx context.Context, userID, convID string, befor
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
+	// Curseur hérité (timestamp) : on le traduit en curseur total avant la
+	// lecture, sinon deux messages de la même milliseconde pourraient être
+	// perdus ou dupliqués entre deux pages.
+	cursor := int64(math.MaxInt64)
+	if before != nil {
+		seq, err := s.q.CursorSeqBeforeTimestamp(ctx, db.CursorSeqBeforeTimestampParams{
+			Conversationid: convID,
+			Before:         timeToTimestamp(before),
+		})
+		if err != nil {
+			return MessagePage{}, err
+		}
+		cursor = seq
+	}
+	return s.ListMessagesFromCursor(ctx, userID, convID, &cursor, limit)
+}
+
+// ListMessagesFromCursor retourne la page de messages (ascendants) strictement
+// antérieurs au curseur `beforeSeq` (nil = depuis le début). L'ordre est total
+// (`seq`) : la pagination ne duplique ni ne perd de message, même quand
+// plusieurs messages partagent la même milliseconde.
+func (s *Service) ListMessagesFromCursor(ctx context.Context, userID, convID string, beforeSeq *int64, limit int) (MessagePage, error) {
+	if _, err := s.Get(ctx, userID, convID); err != nil {
+		return MessagePage{}, err
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	cursor := int64(math.MaxInt64)
+	if beforeSeq != nil {
+		cursor = *beforeSeq
+	}
 	rows, err := s.q.ListMessagesBefore(ctx, db.ListMessagesBeforeParams{
-		ConversationId: convID,
-		Column2:        timeToTimestamp(before),
-		Limit:          int32(limit + 1), // +1 pour détecter hasMore
+		Conversationid: convID,
+		Beforeseq:      cursor,
+		Lim:            int32(limit + 1), // +1 pour détecter hasMore
 	})
 	if err != nil {
 		return MessagePage{}, err
@@ -314,7 +353,12 @@ func (s *Service) ListMessages(ctx context.Context, userID, convID string, befor
 	for i := len(rows) - 1; i >= 0; i-- {
 		msgs = append(msgs, messageFromRow(&rows[i]))
 	}
-	return MessagePage{Messages: msgs, HasMore: hasMore}, nil
+	var next *int64
+	if hasMore && len(msgs) > 0 {
+		c := msgs[0].Seq // plus ancien de la page affichée
+		next = &c
+	}
+	return MessagePage{Messages: msgs, HasMore: hasMore, NextCursor: next}, nil
 }
 
 // SendMessage envoie un message (l'utilisateur doit être membre). Le contenu
@@ -428,6 +472,7 @@ func messageFromRow(r *db.ListMessagesBeforeRow) Message {
 		SenderID:  r.SenderID,
 		Content:   r.Content,
 		CreatedAt: r.CreatedAt.Time.Format(time.RFC3339),
+		Seq:       r.Seq,
 	}
 }
 
@@ -437,6 +482,7 @@ func messageFromInsert(r *db.InsertMessageRow) Message {
 		SenderID:  r.SenderID,
 		Content:   r.Content,
 		CreatedAt: r.CreatedAt.Time.Format(time.RFC3339),
+		Seq:       r.Seq,
 	}
 }
 

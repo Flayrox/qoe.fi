@@ -67,10 +67,9 @@ func ListOpenDecisions(ctx context.Context, pool SignalDB, limit, offset int, no
 		WITH latest AS (
 			SELECT DISTINCT ON ("subjectType", "subjectId") *
 			FROM "RiskDecision"
-			-- Départage déterministe si deux verdicts partagent la même
-			-- milliseconde (tests, smokes) : la revue humaine prime sur
-			-- l'automate, puis identifiant pour la stabilité totale.
-			ORDER BY "subjectType", "subjectId", "createdAt" DESC, "decidedBy" DESC, "id" DESC
+			-- Ordre total d'insertion : deux verdicts de la même
+			-- milliseconde ne se départagent plus par identifiant.
+			ORDER BY "subjectType", "subjectId", "seq" DESC
 		)
 		SELECT l."id", l."policy", l."version", l."subjectType", l."subjectId",
 		       l."result", l."reasonCodes", l."decidedBy", l."deciderId", l."createdAt",
@@ -81,7 +80,7 @@ func ListOpenDecisions(ctx context.Context, pool SignalDB, limit, offset int, no
 		FROM latest l
 		WHERE l."result" <> 'allow'
 		  AND (l."expiresAt" IS NULL OR l."expiresAt" > $2)
-		ORDER BY l."createdAt" DESC
+		ORDER BY l."seq" DESC
 		LIMIT $3 OFFSET $4`,
 		now.Add(-7*24*time.Hour), now, limit, offset)
 	if err != nil {
@@ -123,7 +122,7 @@ func ResolveDecision(ctx context.Context, pool BudgetDB, subjectType, subjectID,
 		SELECT "id", "policy", "version", "reasonCodes", "result", "expiresAt"
 		FROM "RiskDecision"
 		WHERE "subjectType" = $1 AND "subjectId" = $2
-		ORDER BY "createdAt" DESC, "decidedBy" DESC, "id" DESC LIMIT 1`,
+		ORDER BY "seq" DESC LIMIT 1`,
 		subjectType, subjectID).Scan(&latestID, &policy, &version, &reasons, &latestResult, &latestExpiry)
 	if err != nil {
 		// Aucune ligne = pas de dossier (refus explicite) ; toute autre

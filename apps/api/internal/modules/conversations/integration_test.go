@@ -2,6 +2,7 @@ package conversations
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -410,4 +411,88 @@ func parseRFC3339(t *testing.T, s string) *time.Time {
 		t.Fatalf("parse %q: %v", s, err)
 	}
 	return &parsed
+}
+
+// TestListMessagesSameMillisecondTotalOrder prouve que deux messages écrits
+// dans la même milliseconde gardent un ordre stable et que la pagination par
+// curseur total ne les duplique ni ne les perd (L46).
+func TestListMessagesSameMillisecondTotalOrder(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	svc := newSvc()
+	fx, err := testutil.SeedPosts(ctx, poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	conv, err := svc.CreateDirect(ctx, fx.AuthorID, fx.ViewerID)
+	if err != nil {
+		t.Fatalf("CreateDirect: %v", err)
+	}
+	// Forcer la même milliseconde : on écrit puis on aligne les createdAt.
+	for i := 0; i < 5; i++ {
+		if _, err := svc.SendMessage(ctx, fx.AuthorID, conv.ID, fmt.Sprintf("m%d", i)); err != nil {
+			t.Fatalf("SendMessage %d: %v", i, err)
+		}
+	}
+	ts := time.Now().UTC().Truncate(time.Millisecond)
+	if _, err := poolTest.Exec(ctx, `UPDATE "Message" SET "createdAt" = $1 WHERE "conversationId" = $2`, ts, conv.ID); err != nil {
+		t.Fatalf("align createdAt: %v", err)
+	}
+
+	// 10 lectures consécutives : strictement le même ordre.
+	first, err := svc.ListMessages(ctx, fx.ViewerID, conv.ID, nil, 50)
+	if err != nil {
+		t.Fatalf("ListMessages: %v", err)
+	}
+	if len(first.Messages) != 5 {
+		t.Fatalf("messages = %d, attendu 5", len(first.Messages))
+	}
+	for i := 0; i < 10; i++ {
+		page, err := svc.ListMessages(ctx, fx.ViewerID, conv.ID, nil, 50)
+		if err != nil {
+			t.Fatalf("ListMessages run %d: %v", i, err)
+		}
+		for j := range page.Messages {
+			if page.Messages[j].ID != first.Messages[j].ID {
+				t.Fatalf("ordre instable run %d index %d : %s != %s", i, j, page.Messages[j].ID, first.Messages[j].ID)
+			}
+		}
+	}
+	// Pagination 2 par 2 avec le curseur total : 5 messages, aucun doublon,
+	// aucun trou, ordre identique à la lecture complète.
+	var seen []string
+	var cursor *int64
+	for pages := 0; ; pages++ {
+		if pages > 10 {
+			t.Fatal("pagination sans fin")
+		}
+		page, err := svc.ListMessagesFromCursor(ctx, fx.ViewerID, conv.ID, cursor, 2)
+		if err != nil {
+			t.Fatalf("page %d: %v", pages, err)
+		}
+		// Pagination arrière : chaque page est plus ancienne ; on la préfixe
+		// (comme l'UI qui remonte l'historique), puis on compare à la lecture
+		// complète.
+		pageIDs := make([]string, 0, len(page.Messages))
+		for _, m := range page.Messages {
+			pageIDs = append(pageIDs, m.ID)
+		}
+		seen = append(pageIDs, seen...)
+		if !page.HasMore {
+			break
+		}
+		if page.NextCursor == nil {
+			t.Fatalf("page %d : hasMore sans nextCursor", pages)
+		}
+		cursor = page.NextCursor
+	}
+	if len(seen) != 5 {
+		t.Fatalf("pagination = %d messages, attendu 5 (doublon ou trou) : %v", len(seen), seen)
+	}
+	for i := range seen {
+		if seen[i] != first.Messages[i].ID {
+			t.Fatalf("pagination désordonnée à l'index %d : %s != %s", i, seen[i], first.Messages[i].ID)
+		}
+	}
 }

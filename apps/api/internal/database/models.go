@@ -1242,6 +1242,7 @@ type Message struct {
 	SenderId       pgtype.UUID      `json:"senderId"`
 	Content        string           `json:"content"`
 	CreatedAt      pgtype.Timestamp `json:"createdAt"`
+	Seq            int64            `json:"seq"`
 }
 
 type MessageTypePolicy struct {
@@ -1581,6 +1582,7 @@ type RiskDecision struct {
 	ExpiresAt   pgtype.Timestamp `json:"expiresAt"`
 	AppealRef   pgtype.Text      `json:"appealRef"`
 	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+	Seq         int64            `json:"seq"`
 }
 
 type SecurityEvent struct {

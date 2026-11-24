@@ -876,12 +876,17 @@ export interface DirectMessage {
   senderId: string;
   content: string;
   createdAt: string;
+  /** Ordre total d'insertion (stable même à la même milliseconde).
+   *  Absent des messages optimistes locaux, fourni par le serveur. */
+  seq?: number;
 }
 
-/** Page de messages ascendants (pagination arrière par curseur `before`). */
+/** Page de messages ascendants (pagination arrière par curseur total `seq`). */
 export interface MessagePage {
   messages: DirectMessage[];
   hasMore: boolean;
+  /** Curseur total de la page suivante (le plus ancien `seq` de la page). */
+  nextCursor?: number;
 }
 
 /** 📰 DTO Publisher (identité brand polymorphe : personnel OU média). */

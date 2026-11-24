@@ -155,6 +155,10 @@ type Querier interface {
 	CreateWalletTransaction(ctx context.Context, arg CreateWalletTransactionParams) (string, error)
 	CreateWebhook(ctx context.Context, arg CreateWebhookParams) (CreateWebhookRow, error)
 	CreateWebhookDelivery(ctx context.Context, arg CreateWebhookDeliveryParams) (string, error)
+	// Traduit un curseur hérité (timestamp) en curseur total : premier seq dont le
+	// message est au moins aussi récent que `before`. Les pages suivantes
+	// n'incluent alors que des messages strictement plus anciens, sans doublon.
+	CursorSeqBeforeTimestamp(ctx context.Context, arg CursorSeqBeforeTimestampParams) (int64, error)
 	DeactivateSubscriber(ctx context.Context, arg DeactivateSubscriberParams) (string, error)
 	DecrementLikeCount(ctx context.Context, id string) error
 	DecrementReplyCount(ctx context.Context, id string) error
@@ -673,11 +677,13 @@ type Querier interface {
 	// décode en JSON ; `actorId` est joint pour afficher l'auteur de l'action.
 	ListMediaAuditLogs(ctx context.Context, arg ListMediaAuditLogsParams) ([]ListMediaAuditLogsRow, error)
 	ListMediaMembers(ctx context.Context, mediaid string) ([]ListMediaMembersRow, error)
-	// Nouveaux messages STRICTEMENT postérieurs à `after` (polling), ordre
-	// ascendant prêt à être ajouté en fin de liste.
+	// Nouveaux messages STRICTEMENT postérieurs au curseur `afterSeq` (polling),
+	// ordre ascendant prêt à être ajouté en fin de liste.
 	ListMessagesAfter(ctx context.Context, arg ListMessagesAfterParams) ([]ListMessagesAfterRow, error)
-	// Messages STRICTEMENT antérieurs à `before` (curseur exclusif, NULL = depuis
-	// le début), les plus récents d'abord (le service inverse pour l'affichage).
+	// Messages STRICTEMENT antérieurs au curseur `beforeSeq` (ordre total par
+	// `seq`, exclusif ; MaxInt64 = depuis le début), les plus récents d'abord (le
+	// service inverse pour l'affichage). Le timestamp n'est plus le curseur :
+	// deux messages de la même milliseconde sont ordonnés par seq.
 	ListMessagesBefore(ctx context.Context, arg ListMessagesBeforeParams) ([]ListMessagesBeforeRow, error)
 	// =====================================================================
 	// 🛡️ File de modération (ModerationReport) — surface superadmin.

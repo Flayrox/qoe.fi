@@ -88,15 +88,27 @@ func TestPurgeExpiredAbuseData(t *testing.T) {
 // pas un DELETE de complaisance.
 func drainOpenDossiers(ctx context.Context, t *testing.T, now time.Time) {
 	t.Helper()
-	items, total, err := ListOpenDecisions(ctx, poolTest, 200, 0, now)
-	if err != nil {
-		t.Fatalf("vidage de la file : %v", err)
-	}
-	for _, d := range items {
-		if _, err := ResolveDecision(ctx, poolTest, d.SubjectType, d.SubjectID, "test-drain", DecisionAllow, "vidage de file (fixture de test)", now); err != nil {
-			t.Fatalf("vidage %s:%s (%d dossiers) : %v", d.SubjectType, d.SubjectID, total, err)
+	// La file est globale au paquet : d'autres tests peuvent laisser un
+	// dossier, et un verdict résolu peut en révéler un autre (même sujet,
+	// verdict plus ancien). On vide jusqu'à stabilité, par l'API publique.
+	for pass := 0; pass < 5; pass++ {
+		items, total, err := ListOpenDecisions(ctx, poolTest, 200, 0, now)
+		if err != nil {
+			t.Fatalf("vidage de la file : %v", err)
+		}
+		if total == 0 {
+			return
+		}
+		if len(items) == 0 {
+			t.Fatalf("vidage : total=%d mais aucun item (pagination incohérente)", total)
+		}
+		for _, d := range items {
+			if _, err := ResolveDecision(ctx, poolTest, d.SubjectType, d.SubjectID, "test-drain", DecisionAllow, "vidage de file (fixture de test)", now); err != nil {
+				t.Fatalf("vidage %s:%s (%d dossiers) : %v", d.SubjectType, d.SubjectID, total, err)
+			}
 		}
 	}
+	t.Fatalf("vidage : la file ne se vide pas en 5 passes")
 }
 
 func TestReview_OpenResolveClose(t *testing.T) {
