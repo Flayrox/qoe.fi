@@ -1226,7 +1226,8 @@ SELECT a.id, a.title, a.slug, a.published, a."isPremium", a.visibility, a."readi
        p."logoUrl" AS publisher_logo
 FROM "Article" a
 JOIN "Publisher" p ON p.id = a."publisherId"
-LEFT JOIN "Category" c ON c.id = a."categoryId"
+LEFT JOIN "ArticleAttribution" aa_pers ON ($4::boolean AND aa_pers."articleId" = a.id AND aa_pers."userId" = $5::uuid)
+LEFT JOIN "Category" c ON c.id = COALESCE(aa_pers."categoryId", a."categoryId")
 WHERE (a."publisherId" = $1
    OR ($4::boolean AND (
      a."authorId" = $5::uuid

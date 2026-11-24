@@ -859,15 +859,38 @@ func (s *Service) bulkUpdateOne(ctx context.Context, articleID, userID string, i
 	}
 	if hasSettings {
 		var categoryID *string
+		setArticleCategory := in.SetCategory
 		if in.SetCategory {
-			categoryID, err = s.resolveCategoryID(ctx, row.PublisherId, in.CategoryID)
+			resolvedCatID, isPersonal, err := s.resolveCategoryForAuthor(ctx, row.PublisherId, userID, in.CategoryID)
 			if err != nil {
 				return err
+			}
+			if isPersonal {
+				setArticleCategory = false
+				if s.pool != nil {
+					_, err = s.pool.Exec(ctx, `
+						INSERT INTO "ArticleAttribution" (id, "articleId", "userId", role, "order", "isVisible", "consentStatus", "consentUpdatedAt", "updatedAt", "categoryId")
+						VALUES (gen_random_uuid()::text, $1, $2, 'PRIMARY_AUTHOR', 0, true, 'ACCEPTED', now(), now(), $3)
+						ON CONFLICT ("articleId", "userId") DO UPDATE SET
+						  "categoryId" = $3, "updatedAt" = now()
+					`, articleID, toUUID(userID), textVal(resolvedCatID))
+					if err != nil {
+						return err
+					}
+				}
+			} else {
+				categoryID = resolvedCatID
+				if s.pool != nil {
+					_, _ = s.pool.Exec(ctx, `
+						UPDATE "ArticleAttribution" SET "categoryId" = NULL, "updatedAt" = now()
+						WHERE "articleId" = $1 AND "userId" = $2
+					`, articleID, toUUID(userID))
+				}
 			}
 		}
 		if _, err := s.q.UpdateArticleSettings(ctx, db.UpdateArticleSettingsParams{
 			IsPremium:              boolVal(in.IsPremium),
-			SetCategory:            in.SetCategory,
+			SetCategory:            setArticleCategory,
 			CategoryID:             textVal(categoryID),
 			AllowPublicAnnotations: boolVal(in.AllowPublicAnnotations),
 			AllowComments:          boolVal(in.AllowComments),
@@ -1046,9 +1069,21 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 	}
 
 	finalSlug := s.uniqueSlug(ctx, row.PublisherId, articleID, in.Slug)
-	categoryID, err := s.resolveCategoryID(ctx, row.PublisherId, in.CategoryID)
+	resolvedCatID, isPersonalCat, err := s.resolveCategoryForAuthor(ctx, row.PublisherId, userID, in.CategoryID)
 	if err != nil {
 		return err
+	}
+	categoryID := resolvedCatID
+	if isPersonalCat {
+		categoryID = textPtr(row.CategoryId)
+		if s.pool != nil {
+			_, _ = s.pool.Exec(ctx, `
+				INSERT INTO "ArticleAttribution" (id, "articleId", "userId", role, "order", "isVisible", "consentStatus", "consentUpdatedAt", "updatedAt", "categoryId")
+				VALUES (gen_random_uuid()::text, $1, $2, 'PRIMARY_AUTHOR', 0, true, 'ACCEPTED', now(), now(), $3)
+				ON CONFLICT ("articleId", "userId") DO UPDATE SET
+				  "categoryId" = $3, "updatedAt" = now()
+			`, articleID, toUUID(userID), textVal(resolvedCatID))
+		}
 	}
 	allowAnnotations := row.AllowPublicAnnotations
 	if in.AllowPublicAnnotations != nil {
@@ -1302,20 +1337,42 @@ func (s *Service) Delete(ctx context.Context, articleID, userID, activePublisher
 // resolveCategoryID valide la catégorie demandée (appartenance à la
 // publication) ou renvoie la catégorie par défaut « Non classé ».
 func (s *Service) resolveCategoryID(ctx context.Context, publisherID string, categoryID *string) (*string, error) {
+	catID, _, err := s.resolveCategoryForAuthor(ctx, publisherID, "", categoryID)
+	return catID, err
+}
+
+// resolveCategoryForAuthor valide la catégorie demandée :
+//  1. Soit elle appartient directement à la publication de l'article (ex. Média).
+//  2. Soit l'utilisateur est un auteur/co-auteur et la catégorie appartient à son profil personnel
+//     (cross-post / attribution) -> isPersonalOverride = true.
+//  3. Sinon -> catégorie par défaut de la publication de l'article.
+func (s *Service) resolveCategoryForAuthor(ctx context.Context, publisherID, userID string, categoryID *string) (*string, bool, error) {
+	if s.q == nil {
+		return nil, false, errors.New("base de données non disponible")
+	}
 	if categoryID != nil && strings.TrimSpace(*categoryID) != "" {
 		cat, err := s.q.GetCategoryByID(ctx, *categoryID)
-		if err != nil || cat.PublisherId != publisherID {
-			return nil, errors.New("Catégorie introuvable pour cette publication.")
+		if err == nil {
+			if cat.PublisherId == publisherID {
+				id := cat.ID
+				return &id, false, nil
+			}
+			if userID != "" {
+				personalPub, pErr := s.q.GetPersonalPublisherForUser(ctx, userID)
+				if pErr == nil && cat.PublisherId == personalPub.ID {
+					id := cat.ID
+					return &id, true, nil
+				}
+			}
 		}
-		id := cat.ID
-		return &id, nil
+		return nil, false, errors.New("Catégorie introuvable pour cette publication.")
 	}
 	def, err := s.q.EnsureDefaultCategory(ctx, publisherID)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	id := def.ID
-	return &id, nil
+	return &id, false, nil
 }
 
 // GetByID retourne un article complet pour l'éditeur (RBAC : auteur ou membre).

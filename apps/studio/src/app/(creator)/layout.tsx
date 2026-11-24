@@ -70,7 +70,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <DashboardLayoutContent>
         <FeatureAnnouncements locale={locale}>
           <GlobalCommandMenu permissions={workspacePermissions} />
-          {children}
+          <div key={workspace?.publisherId ?? 'default'} className="contents">
+            {children}
+          </div>
         </FeatureAnnouncements>
       </DashboardLayoutContent>
       <LegalConsentGate pending={pendingConsents} locale={locale} hrefBase={legalHrefBase} />

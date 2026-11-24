@@ -135,12 +135,12 @@ func (s *Service) EnqueueScreen(in CheckInput) {
 
 // ScreenResult résume le retour d'OpenAI omni-moderation-latest.
 type ScreenResult struct {
-	Flagged           bool
-	Categories        []string
-	IsCSAM            bool
-	IsSevereHarm      bool
-	HighestScore      float64
-	DegradedFailOpen  bool
+	Flagged          bool
+	Categories       []string
+	IsCSAM           bool
+	IsSevereHarm     bool
+	HighestScore     float64
+	DegradedFailOpen bool
 }
 
 // ScreenAsync exécute le dépistage complet (heuristiques + OpenAI omni-moderation-latest)

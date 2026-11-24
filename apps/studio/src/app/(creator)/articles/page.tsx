@@ -30,9 +30,11 @@ export default async function ArticlesPage({ searchParams }: ArticlesPageProps) 
 
   let pinnedArticleId: string | null = null;
   let aboutArticleId: string | null = null;
+  let activePublisherId: string = 'default';
   if (user) {
     try {
       const workspace = await getActiveWorkspace(user.id);
+      activePublisherId = workspace.publisherId;
       const pub = await goFetch<{ siteOptions?: Record<string, unknown> }>(
         `/v1/settings/publisher?publisherId=${encodeURIComponent(workspace.publisherId)}`
       );
@@ -57,6 +59,7 @@ export default async function ArticlesPage({ searchParams }: ArticlesPageProps) 
   return (
     <div className="py-4">
       <ArticlesClient
+        key={activePublisherId}
         initialArticles={articles}
         initialCategories={categories}
         initialPinnedArticleId={pinnedArticleId}

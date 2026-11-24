@@ -322,6 +322,9 @@ func apiKeyToken(r *http.Request) (string, bool) {
 // Confondre les deux dernières faisait tourner une panne de base en « votre clé
 // est invalide » : rotation de clé inutile, ticket support, aucun réessai.
 func resolveAPIKeyToken(ctx context.Context, q *db.Queries, token string) (context.Context, bool, error) {
+	if q == nil {
+		return ctx, false, errors.New("base de données non disponible pour valider la clé API")
+	}
 	hashed := sha256.Sum256([]byte(token))
 	row, err := q.GetApiKeyByHash(ctx, hex.EncodeToString(hashed[:]))
 	if err != nil {

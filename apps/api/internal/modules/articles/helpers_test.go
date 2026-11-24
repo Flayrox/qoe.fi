@@ -58,6 +58,15 @@ func TestPeriodCutoffU(t *testing.T) {
 		}
 	}
 	if c := periodCutoff("all"); c != nil {
-		t.Errorf("'all' doit retourner nil, got %v", c)
+		t.Errorf("all doit être nil, reçu %v", c)
+	}
+}
+
+func TestResolveCategoryForAuthor_EmptyOrInvalid(t *testing.T) {
+	s := &Service{}
+	// Empty categoryID on service without DB fails gracefully
+	_, _, err := s.resolveCategoryForAuthor(t.Context(), "pub_1", "usr_1", strPtr(""))
+	if err == nil {
+		t.Error("sans DB, EnsureDefaultCategory doit retourner une erreur")
 	}
 }

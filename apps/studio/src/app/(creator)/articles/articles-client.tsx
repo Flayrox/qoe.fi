@@ -121,6 +121,22 @@ export function ArticlesClient({
   const [pinnedArticleId, setPinnedArticleId] = useState<string | null>(initialPinnedArticleId);
   const [aboutArticleId, setAboutArticleId] = useState<string | null>(initialAboutArticleId);
 
+  useEffect(() => {
+    setArticles(initialArticles);
+  }, [initialArticles]);
+
+  useEffect(() => {
+    setCategories(initialCategories);
+  }, [initialCategories]);
+
+  useEffect(() => {
+    setPinnedArticleId(initialPinnedArticleId);
+  }, [initialPinnedArticleId]);
+
+  useEffect(() => {
+    setAboutArticleId(initialAboutArticleId);
+  }, [initialAboutArticleId]);
+
   const handleTogglePin = async (id: string) => {
     const nextPinned = pinnedArticleId === id ? null : id;
     setPinnedArticleId(nextPinned);

@@ -4,11 +4,89 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/qoefi/api/internal/apiaccess"
 )
+
+func TestAccessControl_NoPool(t *testing.T) {
+	h := AccessControl(nil)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	for _, p := range []string{"/v1/feed", "/v1/articles", "/healthz"} {
+		req := httptest.NewRequest(http.MethodGet, p, nil)
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Fatalf("path %s code = %d", p, rr.Code)
+		}
+	}
+}
+
+func TestAccessControl_InMemConfig(t *testing.T) {
+	state := &accessControlState{
+		cfg: apiaccess.AccessControlConfig{
+			Disabled:          true,
+			DisabledEndpoints: []string{"/v1/blocked"},
+		},
+	}
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		if !strings.HasPrefix(path, "/v1/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if accessControlAlwaysAllowedPath(path) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		cfg := state.load(r.Context())
+		if cfg.Disabled {
+			writeAccessControlJSON(w, http.StatusServiceUnavailable, "API temporairement désactivée")
+			return
+		}
+		if apiaccess.EndpointDisabled(path, cfg.DisabledEndpoints) {
+			writeAccessControlJSON(w, http.StatusNotFound, "Endpoint désactivé")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+
+	// Non exempté -> 503
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/v1/feed", nil))
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Errorf("attendu 503, reçu %d", rr.Code)
+	}
+
+	// Exempté -> 200
+	rrAdmin := httptest.NewRecorder()
+	h.ServeHTTP(rrAdmin, httptest.NewRequest(http.MethodGet, "/v1/admin/dashboard", nil))
+	if rrAdmin.Code != http.StatusOK {
+		t.Errorf("attendu 200 sur /v1/admin, reçu %d", rrAdmin.Code)
+	}
+
+	// Non /v1/ -> 200
+	rrHealth := httptest.NewRecorder()
+	h.ServeHTTP(rrHealth, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	if rrHealth.Code != http.StatusOK {
+		t.Errorf("attendu 200 sur /healthz, reçu %d", rrHealth.Code)
+	}
+
+	// Endpoint désactivé quand Disabled=false
+	state.cfg.Disabled = false
+	rrDisabled := httptest.NewRecorder()
+	h.ServeHTTP(rrDisabled, httptest.NewRequest(http.MethodGet, "/v1/blocked", nil))
+	if rrDisabled.Code != http.StatusNotFound {
+		t.Errorf("attendu 404 sur endpoint désactivé, reçu %d", rrDisabled.Code)
+	}
+}
 
 func TestAccessControl_DefaultOpen(t *testing.T) {
 	requirePool(t)

@@ -24,19 +24,8 @@
 
 import { test, expect, type BrowserContext } from '@playwright/test';
 import { Client } from 'pg';
-import fs from 'fs';
 import path from 'path';
-
-// ── Env local (apps/api/.env) ────────────────────────────────────────────
-function loadEnv(file: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  const raw = fs.readFileSync(file, 'utf8');
-  for (const line of raw.split('\n')) {
-    const m = line.match(/^([A-Z0-9_]+)="?([^"\n]*)"?$/);
-    if (m) out[m[1]] = m[2];
-  }
-  return out;
-}
+import { loadEnv } from './lib/env';
 
 // ── Env local (apps/api/.env) ────────────────────────────────────────────
 // L'environnement de processus (CI/e2e.sh) PRIME sur apps/api/.env : c'est

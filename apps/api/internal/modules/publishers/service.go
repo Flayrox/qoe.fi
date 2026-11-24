@@ -595,7 +595,12 @@ func (s *Service) publishedArticles(ctx context.Context, pubID, viewerID string)
 		       a."publisherId", ap.name, ap.slug, ap.type::text, ap."logoUrl"
 		FROM "Article" a
 		LEFT JOIN "Publisher" ap ON ap.id = a."publisherId"
-		LEFT JOIN "Category" c ON c.id = a."categoryId"
+		LEFT JOIN "ArticleAttribution" aa_attr ON (
+		  aa_attr."articleId" = a.id AND aa_attr."userId" = (
+		    SELECT "userId" FROM "Publisher" WHERE id = $1 AND type = 'PERSONAL' LIMIT 1
+		  )
+		)
+		LEFT JOIN "Category" c ON c.id = COALESCE(aa_attr."categoryId", a."categoryId")
 		LEFT JOIN "Category" cp ON cp.id = c."parentId"
 		WHERE a.published = true
 		  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())

@@ -713,6 +713,7 @@ export const getCategoriesAction = safeAction<string | void, CategoryWithCount[]
         slug: string;
         description: string | null;
         parentId: string | null;
+        isDefault?: boolean;
         articlesCount: number;
       }>;
     }>(`/v1/categories?publisherId=${publisherId}`);
@@ -723,6 +724,7 @@ export const getCategoriesAction = safeAction<string | void, CategoryWithCount[]
       description: c.description,
       publisherId,
       parentId: c.parentId ?? null,
+      isDefault: Boolean(c.isDefault),
       _count: { articles: c.articlesCount },
     }));
   }

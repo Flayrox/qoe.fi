@@ -311,4 +311,29 @@ func TestCombinedAuth_APIKeyNeedsDB(t *testing.T) {
 	if rr.Code != http.StatusNoContent {
 		t.Errorf("CombinedAuth JWT code = %d", rr.Code)
 	}
+
+	// Sans header d'authentification -> 401
+	rrNoAuth := httptest.NewRecorder()
+	h.ServeHTTP(rrNoAuth, httptest.NewRequest(http.MethodGet, "/", nil))
+	if rrNoAuth.Code != http.StatusUnauthorized {
+		t.Errorf("CombinedAuth sans header code = %d", rrNoAuth.Code)
+	}
+
+	// Header invalide -> 401
+	rrBad := httptest.NewRecorder()
+	reqBad := httptest.NewRequest(http.MethodGet, "/", nil)
+	reqBad.Header.Set("Authorization", "Bearer bad.token")
+	h.ServeHTTP(rrBad, reqBad)
+	if rrBad.Code != http.StatusUnauthorized {
+		t.Errorf("CombinedAuth token invalide code = %d", rrBad.Code)
+	}
+
+	// Clé API sans base de données configurée -> 503 Service Unavailable
+	rrKey := httptest.NewRecorder()
+	reqKey := httptest.NewRequest(http.MethodGet, "/", nil)
+	reqKey.Header.Set("Authorization", "Bearer qoe_live_12345678901234567890123456789012")
+	h.ServeHTTP(rrKey, reqKey)
+	if rrKey.Code != http.StatusServiceUnavailable {
+		t.Errorf("CombinedAuth clé API sans DB code = %d", rrKey.Code)
+	}
 }

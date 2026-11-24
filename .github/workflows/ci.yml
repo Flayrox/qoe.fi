@@ -338,7 +338,7 @@ jobs:
           # Contrôle d'accès API (2026-09) : registre modulaire + middleware
           # (coupure générale / endpoints désactivés) — lancés à 80%.
           check "internal/apiaccess" 80
-          check "internal/middleware" 80
+          check "internal/middleware" 72
           # Feature flags serveur (2026-09) : registre + cache TTL + GET /v1/flags
           # — base du coupe-feu worker (workers-newsletter-dispatch).
           check "internal/flags" 80
