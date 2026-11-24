@@ -47,7 +47,7 @@
     "clsx": "^2.1.1",
     "diff": "^9.0.0",
     "framer-motion": "^12.39.0",
-    "isomorphic-dompurify": "^3.22.0",
+    "isomorphic-dompurify": "^4.8.0",
     "lucide-react": "^1.16.0",
     "mobx": "6.15.4",
     "mobx-react-lite": "4.1.1",
