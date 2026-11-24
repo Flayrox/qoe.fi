@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/pgvector/pgvector-go"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/queue"
+	"github.com/qoefi/api/internal/resilience"
 	"github.com/qoefi/api/internal/vectorfeed"
 )
 
@@ -101,8 +103,25 @@ type httpEmbedClient struct {
 	model string
 	// task est la tâche jina-embeddings-v3 (retrieval.passage etc.). Vide =
 	// champ omis (compatibilité llama.cpp / services sans tâches typées).
-	task string
-	http *http.Client
+	task   string
+	http   *http.Client
+	cbOnce sync.Once
+	cb     *resilience.CircuitBreaker
+}
+
+func (c *httpEmbedClient) breaker() *resilience.CircuitBreaker {
+	if c.cb != nil {
+		return c.cb
+	}
+	c.cbOnce.Do(func() {
+		c.cb = resilience.NewCircuitBreaker(resilience.Options{
+			Name:             "openai-embeddings",
+			FailureThreshold: 5,
+			Cooldown:         30 * time.Second,
+			CallTimeout:      60 * time.Second,
+		})
+	})
+	return c.cb
 }
 
 // embedURL accepte deux formes pour EMBEDDING_URL : une base
@@ -127,37 +146,57 @@ func (c *httpEmbedClient) Embed(ctx context.Context, text string) ([]float32, er
 		payload["task"] = c.task
 	}
 	body, _ := json.Marshal(payload)
-	req, err := http.NewRequestWithContext(
-		ctx, http.MethodPost,
-		c.embedURL(),
-		bytes.NewReader(body),
+
+	var (
+		vec       []float32
+		clientErr error
 	)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
+	execErr := c.breaker().Execute(ctx, func(callCtx context.Context) error {
+		req, err := http.NewRequestWithContext(
+			callCtx, http.MethodPost,
+			c.embedURL(),
+			bytes.NewReader(body),
+		)
+		if err != nil {
+			clientErr = err
+			return nil
+		}
+		req.Header.Set("Content-Type", "application/json")
 
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("embedding service unreachable: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("embedding service status %d", resp.StatusCode)
-	}
+		resp, err := c.http.Do(req)
+		if err != nil {
+			return fmt.Errorf("embedding service unreachable: %w", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500 {
+			return fmt.Errorf("embedding service status %d", resp.StatusCode)
+		}
+		if resp.StatusCode != http.StatusOK {
+			clientErr = fmt.Errorf("embedding service status %d", resp.StatusCode)
+			return nil
+		}
 
-	var out struct {
-		Data []struct {
-			Embedding []float32 `json:"embedding"`
-		} `json:"data"`
+		var out struct {
+			Data []struct {
+				Embedding []float32 `json:"embedding"`
+			} `json:"data"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+			return fmt.Errorf("embedding response decode: %w", err)
+		}
+		if len(out.Data) == 0 || len(out.Data[0].Embedding) == 0 {
+			return fmt.Errorf("embedding response vide")
+		}
+		vec = out.Data[0].Embedding
+		return nil
+	})
+	if execErr != nil {
+		return nil, execErr
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return nil, fmt.Errorf("embedding response decode: %w", err)
+	if clientErr != nil {
+		return nil, clientErr
 	}
-	if len(out.Data) == 0 || len(out.Data[0].Embedding) == 0 {
-		return nil, fmt.Errorf("embedding response vide")
-	}
-	return out.Data[0].Embedding, nil
+	return vec, nil
 }
 
 // embedChunks vectorise une liste de chunks, tronque chaque vecteur à la

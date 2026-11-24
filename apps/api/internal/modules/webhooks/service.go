@@ -472,16 +472,16 @@ func (s *Service) ListDeliveries(ctx context.Context, userID, publisherID, webho
 	return out, nil
 }
 
-func (s *Service) ensureOwnership(ctx context.Context, id, publisherID string) (db.Webhook, error) {
+func (s *Service) ensureOwnership(ctx context.Context, id, publisherID string) (db.GetWebhookRow, error) {
 	wh, err := s.q.GetWebhook(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return db.Webhook{}, errNotFound
+			return db.GetWebhookRow{}, errNotFound
 		}
-		return db.Webhook{}, err
+		return db.GetWebhookRow{}, err
 	}
 	if wh.PublisherId != publisherID {
-		return db.Webhook{}, errNotFound
+		return db.GetWebhookRow{}, errNotFound
 	}
 	return wh, nil
 }

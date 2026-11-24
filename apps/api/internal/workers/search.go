@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/hibiken/asynq"
@@ -20,6 +21,7 @@ import (
 	"github.com/meilisearch/meilisearch-go"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/queue"
+	"github.com/qoefi/api/internal/resilience"
 )
 
 const searchIndex = "articles"
@@ -43,7 +45,24 @@ type SearchWorker struct {
 	pool *pgxpool.Pool
 	q    *db.Queries
 	// idx est le client d'index réel ; overrideable en test via newTestSearchWorker.
-	idx documentSyncer
+	idx    documentSyncer
+	cbOnce sync.Once
+	cb     *resilience.CircuitBreaker
+}
+
+func (s *SearchWorker) breaker() *resilience.CircuitBreaker {
+	if s.cb != nil {
+		return s.cb
+	}
+	s.cbOnce.Do(func() {
+		s.cb = resilience.NewCircuitBreaker(resilience.Options{
+			Name:             "meilisearch",
+			FailureThreshold: 5,
+			Cooldown:         30 * time.Second,
+			CallTimeout:      10 * time.Second,
+		})
+	})
+	return s.cb
 }
 
 func NewSearchWorker(pool *pgxpool.Pool) *SearchWorker {
@@ -226,7 +245,10 @@ func (s *SearchWorker) HandleSearchSync(ctx context.Context, t *asynq.Task) erro
 	// de frappe dans un producteur ne doit pas retirer l'article de l'index.
 	switch p.Action {
 	case "delete":
-		if _, err := s.idx.DeleteDocument(p.ArticleID, nil); err != nil {
+		if err := s.breaker().Execute(ctx, func(context.Context) error {
+			_, delErr := s.idx.DeleteDocument(p.ArticleID, nil)
+			return delErr
+		}); err != nil {
 			return err
 		}
 		log.Printf("[search] document supprimé %s", p.ArticleID)
@@ -255,7 +277,10 @@ func (s *SearchWorker) HandleSearchSync(ctx context.Context, t *asynq.Task) erro
 		article.Published, article.IsPremium, article.ImageUrl, article.ReadingTime,
 		article.SeoTitle, article.SeoDescription,
 		article.CreatedAt.Time, article.UpdatedAt.Time)
-	if _, err := s.idx.AddDocuments([]any{doc}, nil); err != nil {
+	if err := s.breaker().Execute(ctx, func(context.Context) error {
+		_, addErr := s.idx.AddDocuments([]any{doc}, nil)
+		return addErr
+	}); err != nil {
 		return err
 	}
 	log.Printf("[search] document upserté %s", p.ArticleID)

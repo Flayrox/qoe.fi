@@ -14,7 +14,10 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/qoefi/api/internal/resilience"
 )
 
 // Price : sous-ensemble de l'objet Price Stripe utile à la vérification des
@@ -36,6 +39,8 @@ type StripeClient struct {
 	secretKey  string
 	baseURL    string
 	httpClient *http.Client
+	cbOnce     sync.Once
+	cb         *resilience.CircuitBreaker
 }
 
 // NewStripeClient construit le client. baseURL vide → API publique (les
@@ -49,6 +54,21 @@ func NewStripeClient(secretKey, baseURL string) *StripeClient {
 		baseURL:    strings.TrimSuffix(baseURL, "/"),
 		httpClient: &http.Client{Timeout: 15 * time.Second},
 	}
+}
+
+func (c *StripeClient) breaker() *resilience.CircuitBreaker {
+	if c.cb != nil {
+		return c.cb
+	}
+	c.cbOnce.Do(func() {
+		c.cb = resilience.NewCircuitBreaker(resilience.Options{
+			Name:             "stripe",
+			FailureThreshold: 5,
+			Cooldown:         30 * time.Second,
+			CallTimeout:      15 * time.Second,
+		})
+	})
+	return c.cb
 }
 
 // Configured dit si une clé est présente.
@@ -245,46 +265,54 @@ func (c *StripeClient) CreateAccountLink(ctx context.Context, accountID, refresh
 }
 
 func (c *StripeClient) get(ctx context.Context, path string, out any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Authorization", "Bearer "+c.secretKey)
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("stripe: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("stripe %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
-	}
-	if err := json.Unmarshal(body, out); err != nil {
-		return fmt.Errorf("stripe: réponse illisible: %w", err)
-	}
-	return nil
+	return c.doRequest(ctx, http.MethodGet, path, nil, out)
 }
 
 func (c *StripeClient) post(ctx context.Context, path string, form url.Values, out any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, strings.NewReader(form.Encode()))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Authorization", "Bearer "+c.secretKey)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("stripe: %w", err)
-	}
-	defer resp.Body.Close()
+	return c.doRequest(ctx, http.MethodPost, path, form, out)
+}
 
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("stripe %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+func (c *StripeClient) doRequest(ctx context.Context, method, path string, form url.Values, out any) error {
+	var encoded string
+	if form != nil {
+		encoded = form.Encode()
 	}
-	if err := json.Unmarshal(body, out); err != nil {
-		return fmt.Errorf("stripe: réponse illisible: %w", err)
+	var clientErr error
+	execErr := c.breaker().Execute(ctx, func(callCtx context.Context) error {
+		var bodyReader io.Reader
+		if form != nil {
+			bodyReader = strings.NewReader(encoded)
+		}
+		req, err := http.NewRequestWithContext(callCtx, method, c.baseURL+path, bodyReader)
+		if err != nil {
+			clientErr = err
+			return nil
+		}
+		req.Header.Set("Authorization", "Bearer "+c.secretKey)
+		if form != nil {
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		}
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return fmt.Errorf("stripe: %w", err)
+		}
+		defer resp.Body.Close()
+
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500 {
+			return fmt.Errorf("stripe %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		}
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			clientErr = fmt.Errorf("stripe %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+			return nil
+		}
+		if err := json.Unmarshal(body, out); err != nil {
+			return fmt.Errorf("stripe: réponse illisible: %w", err)
+		}
+		return nil
+	})
+	if execErr != nil {
+		return execErr
 	}
-	return nil
+	return clientErr
 }

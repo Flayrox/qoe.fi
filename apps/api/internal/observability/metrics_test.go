@@ -36,6 +36,10 @@ func TestPrometheusExpositionAndHistogramBuckets(t *testing.T) {
 	reg.SetCircuitBreakerState("umami", "closed")
 	reg.SetCircuitBreakerState("umami", "open")
 	reg.IncCircuitBreakerTrip("umami")
+	reg.IncWebhookDelivery("article.published", "success")
+	reg.IncEmailDispatch("subscriber.welcome", "smtp", "sent")
+	reg.IncModerationDecision("post", "allow")
+	reg.IncMediaPreflightRejection("quota_exceeded")
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
@@ -74,6 +78,10 @@ func TestPrometheusExpositionAndHistogramBuckets(t *testing.T) {
 		`qoe_trust_tier_evaluations_total{tier="trusted"} 1`,
 		`qoe_circuit_breaker_state{name="umami",state="open"} 1`,
 		`qoe_circuit_breaker_trips_total{name="umami"} 1`,
+		`qoe_webhook_deliveries_total{event="article.published",outcome="success"} 1`,
+		`qoe_email_dispatches_total{message_type="subscriber.welcome",provider="smtp",outcome="sent"} 1`,
+		`qoe_moderation_decisions_total{surface="post",verdict="allow"} 1`,
+		`qoe_media_preflight_rejections_total{reason="quota_exceeded"} 1`,
 	}
 
 	for _, want := range expectedSubstrings {

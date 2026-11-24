@@ -60,6 +60,8 @@ func Notification(t Target) string {
 		path = "/media"
 	case "ARTICLE_CONTRIBUTOR_INVITED":
 		path = "/advanced"
+	case "SYSTEM_ALERT":
+		path = "/notifications"
 	default:
 		switch {
 		case t.ArticleID != "":

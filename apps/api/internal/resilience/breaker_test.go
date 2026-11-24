@@ -3,6 +3,7 @@ package resilience
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -280,4 +281,44 @@ func TestCircuitBreakerConcurrencyRace(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func TestCircuitBreaker_OnStateChange(t *testing.T) {
+	reg := observability.NewRegistry()
+	clk := newFakeClock(time.Date(2026, 11, 24, 12, 0, 0, 0, time.UTC))
+
+	var transitions []string
+	var cb *CircuitBreaker
+	cb = NewCircuitBreaker(Options{
+		Name:              "hook-service",
+		FailureThreshold:  1,
+		Cooldown:          5 * time.Second,
+		HalfOpenMaxProbes: 1,
+		CallTimeout:       time.Second,
+		Now:               clk.Now,
+		Registry:          reg,
+		OnStateChange: func(from, to State) {
+			// Vérifie aussi que le verrou n'est pas tenu lors du callback.
+			transitions = append(transitions, fmt.Sprintf("%s->%s(%s)", from, to, cb.State()))
+		},
+	})
+
+	ctx := context.Background()
+	_ = cb.Execute(ctx, func(context.Context) error { return errors.New("boom") })
+	clk.Advance(5 * time.Second)
+	_ = cb.Execute(ctx, func(context.Context) error { return nil })
+
+	want := []string{
+		"closed->open(open)",
+		"open->half_open(half_open)",
+		"half_open->closed(closed)",
+	}
+	if len(transitions) != len(want) {
+		t.Fatalf("transitions = %v, attendu %v", transitions, want)
+	}
+	for i := range want {
+		if transitions[i] != want[i] {
+			t.Fatalf("transition[%d] = %q, attendu %q", i, transitions[i], want[i])
+		}
+	}
 }

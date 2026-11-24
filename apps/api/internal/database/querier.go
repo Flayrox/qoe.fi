@@ -434,7 +434,7 @@ type Querier interface {
 	GetUserWithCollabPrefsByEmail(ctx context.Context, email string) (GetUserWithCollabPrefsByEmailRow, error)
 	GetUserWithCollabPrefsByID(ctx context.Context, id string) (GetUserWithCollabPrefsByIDRow, error)
 	GetUsersByUsernames(ctx context.Context, dollar_1 []string) ([]GetUsersByUsernamesRow, error)
-	GetWebhook(ctx context.Context, id string) (Webhook, error)
+	GetWebhook(ctx context.Context, id string) (GetWebhookRow, error)
 	GroupByHostname(ctx context.Context, arg GroupByHostnameParams) ([]GroupByHostnameRow, error)
 	GroupByReferrerUsername(ctx context.Context, arg GroupByReferrerUsernameParams) ([]GroupByReferrerUsernameRow, error)
 	GroupReadingSessionsByArticleId(ctx context.Context, arg GroupReadingSessionsByArticleIdParams) ([]GroupReadingSessionsByArticleIdRow, error)
@@ -806,7 +806,8 @@ type Querier interface {
 	// COUNT dans le même statement ne verrait pas l'insertion).
 	ToggleHighlightUpvote(ctx context.Context, arg ToggleHighlightUpvoteParams) (int32, error)
 	// Un seul aller-retour : lire puis réécrire laissait deux bascules
-	// concurrentes se perdre (les deux lisaient le même état).
+	// concurrentes se perdre (les deux lisaient le même état). Une réactivation
+	// manuelle remet à zéro le compteur d'échecs et le motif d'auto-désactivation.
 	ToggleWebhookActive(ctx context.Context, id string) (bool, error)
 	TransferArticlePublisher(ctx context.Context, arg TransferArticlePublisherParams) (string, error)
 	TryLockArticleForEmailRelease(ctx context.Context, arg TryLockArticleForEmailReleaseParams) (string, error)

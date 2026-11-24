@@ -83,6 +83,7 @@ func TestBuildHandlers(t *testing.T) {
 		queue.TaskSubscriberImportSend,
 		queue.TaskStaffCampaign,
 		queue.TaskSecurityAlertEmail,
+		queue.TaskWebhookDeliver,
 	}
 	if len(handlers) != len(expected) {
 		t.Fatalf("handlers = %d, attendu %d", len(handlers), len(expected))

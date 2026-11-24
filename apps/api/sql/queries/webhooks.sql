@@ -68,9 +68,14 @@ WHERE id = $1;
 
 -- name: ToggleWebhookActive :one
 -- Un seul aller-retour : lire puis réécrire laissait deux bascules
--- concurrentes se perdre (les deux lisaient le même état).
+-- concurrentes se perdre (les deux lisaient le même état). Une réactivation
+-- manuelle remet à zéro le compteur d'échecs et le motif d'auto-désactivation.
 UPDATE "Webhook"
-SET active = NOT active, "updatedAt" = now()
+SET active = NOT active,
+    "consecutiveFailures" = CASE WHEN NOT active THEN 0 ELSE "consecutiveFailures" END,
+    "disabledReason" = CASE WHEN NOT active THEN NULL ELSE "disabledReason" END,
+    "disabledAt" = CASE WHEN NOT active THEN NULL ELSE "disabledAt" END,
+    "updatedAt" = now()
 WHERE id = $1
 RETURNING active;
 

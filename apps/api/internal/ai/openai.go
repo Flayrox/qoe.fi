@@ -13,7 +13,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 	"time"
+
+	"github.com/qoefi/api/internal/resilience"
 )
 
 type openAICompatible struct {
@@ -21,9 +24,26 @@ type openAICompatible struct {
 	model  string
 	base   string
 	client *http.Client
+	cbOnce sync.Once
+	cb     *resilience.CircuitBreaker
 }
 
 func (p *openAICompatible) Name() string { return "openai-compatible:" + p.model }
+
+func (p *openAICompatible) breaker() *resilience.CircuitBreaker {
+	if p.cb != nil {
+		return p.cb
+	}
+	p.cbOnce.Do(func() {
+		p.cb = resilience.NewCircuitBreaker(resilience.Options{
+			Name:             "openai",
+			FailureThreshold: 5,
+			Cooldown:         30 * time.Second,
+			CallTimeout:      60 * time.Second,
+		})
+	})
+	return p.cb
+}
 
 func (p *openAICompatible) Generate(ctx context.Context, req Request) (string, error) {
 	maxTokens := req.MaxTokens
@@ -42,47 +62,65 @@ func (p *openAICompatible) Generate(ctx context.Context, req Request) (string, e
 	if err != nil {
 		return "", err
 	}
-	ctxTimeout, cancel := context.WithTimeout(ctx, 60*time.Second)
-	defer cancel()
-	httpReq, err := http.NewRequestWithContext(ctxTimeout, http.MethodPost, p.base+"/chat/completions", bytes.NewReader(payload))
-	if err != nil {
-		return "", err
+
+	var (
+		content   string
+		clientErr error
+	)
+	execErr := p.breaker().Execute(ctx, func(callCtx context.Context) error {
+		httpReq, err := http.NewRequestWithContext(callCtx, http.MethodPost, p.base+"/chat/completions", bytes.NewReader(payload))
+		if err != nil {
+			clientErr = err
+			return nil
+		}
+		httpReq.Header.Set("Content-Type", "application/json")
+		httpReq.Header.Set("Authorization", "Bearer "+p.key)
+		client := p.client
+		if client == nil {
+			client = http.DefaultClient
+		}
+		resp, err := client.Do(httpReq)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		if err != nil {
+			return err
+		}
+		if resp.StatusCode == http.StatusTooManyRequests {
+			return fmt.Errorf("fournisseur IA saturé (429) : %w", errProviderRateLimited)
+		}
+		if resp.StatusCode >= 500 {
+			return fmt.Errorf("fournisseur IA (%d) : %s", resp.StatusCode, truncate(string(body), 300))
+		}
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			clientErr = fmt.Errorf("fournisseur IA (%d) : %s", resp.StatusCode, truncate(string(body), 300))
+			return nil
+		}
+		var parsed struct {
+			Choices []struct {
+				Message struct {
+					Content string `json:"content"`
+				} `json:"message"`
+			} `json:"choices"`
+		}
+		if err := json.Unmarshal(body, &parsed); err != nil {
+			return err
+		}
+		if len(parsed.Choices) == 0 {
+			return fmt.Errorf("fournisseur IA : réponse vide")
+		}
+		content = parsed.Choices[0].Message.Content
+		return nil
+	})
+	if execErr != nil {
+		return "", execErr
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+p.key)
-	client := p.client
-	if client == nil {
-		client = http.DefaultClient
+	if clientErr != nil {
+		return "", clientErr
 	}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if err != nil {
-		return "", err
-	}
-	if resp.StatusCode == http.StatusTooManyRequests {
-		return "", fmt.Errorf("fournisseur IA saturé (429) : %w", errProviderRateLimited)
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("fournisseur IA (%d) : %s", resp.StatusCode, truncate(string(body), 300))
-	}
-	var parsed struct {
-		Choices []struct {
-			Message struct {
-				Content string `json:"content"`
-			} `json:"message"`
-		} `json:"choices"`
-	}
-	if err := json.Unmarshal(body, &parsed); err != nil {
-		return "", err
-	}
-	if len(parsed.Choices) == 0 {
-		return "", fmt.Errorf("fournisseur IA : réponse vide")
-	}
-	return parsed.Choices[0].Message.Content, nil
+	return content, nil
 }
 
 var errProviderRateLimited = errors.New("rate limited")

@@ -260,6 +260,7 @@ const (
 	NotificationTypeARTICLECONTRIBUTORACCEPTED NotificationType = "ARTICLE_CONTRIBUTOR_ACCEPTED"
 	NotificationTypeARTICLECONTRIBUTORDECLINED NotificationType = "ARTICLE_CONTRIBUTOR_DECLINED"
 	NotificationTypeARTICLECONTRIBUTORREMOVED  NotificationType = "ARTICLE_CONTRIBUTOR_REMOVED"
+	NotificationTypeSYSTEMALERT                NotificationType = "SYSTEM_ALERT"
 )
 
 func (e *NotificationType) Scan(src interface{}) error {
@@ -1897,15 +1898,18 @@ type WalletTransaction struct {
 }
 
 type Webhook struct {
-	ID          string           `json:"id"`
-	PublisherId string           `json:"publisherId"`
-	Name        string           `json:"name"`
-	Url         string           `json:"url"`
-	Secret      string           `json:"secret"`
-	Events      []string         `json:"events"`
-	Active      bool             `json:"active"`
-	CreatedAt   pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt   pgtype.Timestamp `json:"updatedAt"`
+	ID                  string           `json:"id"`
+	PublisherId         string           `json:"publisherId"`
+	Name                string           `json:"name"`
+	Url                 string           `json:"url"`
+	Secret              string           `json:"secret"`
+	Events              []string         `json:"events"`
+	Active              bool             `json:"active"`
+	ConsecutiveFailures int32            `json:"consecutiveFailures"`
+	DisabledReason      pgtype.Text      `json:"disabledReason"`
+	DisabledAt          pgtype.Timestamp `json:"disabledAt"`
+	CreatedAt           pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt           pgtype.Timestamp `json:"updatedAt"`
 }
 
 type WebhookDelivery struct {

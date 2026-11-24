@@ -46,6 +46,7 @@ type Options struct {
 	CallTimeout       time.Duration
 	Now               func() time.Time
 	Registry          *observability.Registry
+	OnStateChange     func(from, to State)
 }
 
 // CircuitBreaker implémente une machine à états thread-safe (Closed/Open/HalfOpen)
@@ -145,14 +146,25 @@ func (cb *CircuitBreaker) Execute(ctx context.Context, fn func(context.Context) 
 }
 
 func (cb *CircuitBreaker) beforeCall() (uint64, error) {
+	var (
+		transitioned bool
+		fromState    State
+		toState      State
+	)
 	cb.mu.Lock()
-	defer cb.mu.Unlock()
-
+	var (
+		gen uint64
+		err error
+	)
 	switch cb.state {
 	case StateOpen:
 		if cb.now().Sub(cb.openedAt) < cb.opts.Cooldown {
+			cb.mu.Unlock()
 			return 0, ErrCircuitOpen
 		}
+		fromState = StateOpen
+		toState = StateHalfOpen
+		transitioned = true
 		cb.state = StateHalfOpen
 		cb.halfOpenProbes = 0
 		cb.halfOpenSuccesses = 0
@@ -162,50 +174,72 @@ func (cb *CircuitBreaker) beforeCall() (uint64, error) {
 
 	case StateHalfOpen:
 		if cb.halfOpenProbes >= cb.opts.HalfOpenMaxProbes {
+			cb.mu.Unlock()
+			if transitioned && cb.opts.OnStateChange != nil {
+				cb.opts.OnStateChange(fromState, toState)
+			}
 			return 0, ErrCircuitOpen
 		}
 		cb.halfOpenProbes++
-		return cb.generation, nil
+		gen = cb.generation
 
 	default:
-		return cb.generation, nil
+		gen = cb.generation
 	}
+	cb.mu.Unlock()
+	if transitioned && cb.opts.OnStateChange != nil {
+		cb.opts.OnStateChange(fromState, toState)
+	}
+	return gen, err
 }
 
 func (cb *CircuitBreaker) afterCall(gen uint64, err error) {
+	var (
+		transitioned bool
+		fromState    State
+		toState      State
+	)
 	cb.mu.Lock()
-	defer cb.mu.Unlock()
-
-	if gen != cb.generation {
-		return
-	}
-
-	if err == nil {
-		switch cb.state {
-		case StateClosed:
-			cb.consecutiveFailures = 0
-		case StateHalfOpen:
-			cb.halfOpenSuccesses++
-			if cb.halfOpenSuccesses >= cb.opts.HalfOpenMaxProbes {
-				cb.state = StateClosed
+	if gen == cb.generation {
+		if err == nil {
+			switch cb.state {
+			case StateClosed:
 				cb.consecutiveFailures = 0
-				cb.halfOpenProbes = 0
-				cb.halfOpenSuccesses = 0
-				cb.generation++
-				cb.metrics.SetCircuitBreakerState(cb.opts.Name, string(StateClosed))
+			case StateHalfOpen:
+				cb.halfOpenSuccesses++
+				if cb.halfOpenSuccesses >= cb.opts.HalfOpenMaxProbes {
+					fromState = StateHalfOpen
+					toState = StateClosed
+					transitioned = true
+					cb.state = StateClosed
+					cb.consecutiveFailures = 0
+					cb.halfOpenProbes = 0
+					cb.halfOpenSuccesses = 0
+					cb.generation++
+					cb.metrics.SetCircuitBreakerState(cb.opts.Name, string(StateClosed))
+				}
+			}
+		} else {
+			switch cb.state {
+			case StateClosed:
+				cb.consecutiveFailures++
+				if cb.consecutiveFailures >= cb.opts.FailureThreshold {
+					fromState = StateClosed
+					toState = StateOpen
+					transitioned = true
+					cb.tripToOpenLocked()
+				}
+			case StateHalfOpen:
+				fromState = StateHalfOpen
+				toState = StateOpen
+				transitioned = true
+				cb.tripToOpenLocked()
 			}
 		}
-		return
 	}
-
-	switch cb.state {
-	case StateClosed:
-		cb.consecutiveFailures++
-		if cb.consecutiveFailures >= cb.opts.FailureThreshold {
-			cb.tripToOpenLocked()
-		}
-	case StateHalfOpen:
-		cb.tripToOpenLocked()
+	cb.mu.Unlock()
+	if transitioned && cb.opts.OnStateChange != nil {
+		cb.opts.OnStateChange(fromState, toState)
 	}
 }
 

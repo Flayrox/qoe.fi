@@ -174,9 +174,21 @@ FROM "Webhook"
 WHERE id = $1
 `
 
-func (q *Queries) GetWebhook(ctx context.Context, id string) (Webhook, error) {
+type GetWebhookRow struct {
+	ID          string           `json:"id"`
+	PublisherId string           `json:"publisherId"`
+	Name        string           `json:"name"`
+	Url         string           `json:"url"`
+	Secret      string           `json:"secret"`
+	Events      []string         `json:"events"`
+	Active      bool             `json:"active"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt   pgtype.Timestamp `json:"updatedAt"`
+}
+
+func (q *Queries) GetWebhook(ctx context.Context, id string) (GetWebhookRow, error) {
 	row := q.db.QueryRow(ctx, getWebhook, id)
-	var i Webhook
+	var i GetWebhookRow
 	err := row.Scan(
 		&i.ID,
 		&i.PublisherId,
@@ -378,13 +390,18 @@ func (q *Queries) ListWebhooksByPublisher(ctx context.Context, publisherid strin
 
 const toggleWebhookActive = `-- name: ToggleWebhookActive :one
 UPDATE "Webhook"
-SET active = NOT active, "updatedAt" = now()
+SET active = NOT active,
+    "consecutiveFailures" = CASE WHEN NOT active THEN 0 ELSE "consecutiveFailures" END,
+    "disabledReason" = CASE WHEN NOT active THEN NULL ELSE "disabledReason" END,
+    "disabledAt" = CASE WHEN NOT active THEN NULL ELSE "disabledAt" END,
+    "updatedAt" = now()
 WHERE id = $1
 RETURNING active
 `
 
 // Un seul aller-retour : lire puis réécrire laissait deux bascules
-// concurrentes se perdre (les deux lisaient le même état).
+// concurrentes se perdre (les deux lisaient le même état). Une réactivation
+// manuelle remet à zéro le compteur d'échecs et le motif d'auto-désactivation.
 func (q *Queries) ToggleWebhookActive(ctx context.Context, id string) (bool, error) {
 	row := q.db.QueryRow(ctx, toggleWebhookActive, id)
 	var active bool

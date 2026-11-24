@@ -49,6 +49,7 @@ func main() {
 	asynqClient := queue.NewClient(cfg.RedisURL)
 
 	webhookWorker := workers.NewWebhookWorker(pool)
+	webhookWorker.SetAsynqClient(asynqClient)
 	newsletterWorker := workers.NewNewsletterWorker(pool)
 	newsletterWorker.SetFlags(flags.NewService(pool))
 	newsletterWorker.SetAsynqClient(asynqClient)
@@ -262,5 +263,6 @@ func buildHandlers(d workerDeps) map[string]asynq.HandlerFunc {
 		queue.TaskSubscriberImportSend:      d.importSend.HandleImportSendWave,
 		queue.TaskStaffCampaign:             d.staffCampaign.HandleStaffCampaign,
 		queue.TaskSecurityAlertEmail:        d.securityAlert.HandleSecurityAlert,
+		queue.TaskWebhookDeliver:            d.webhook.HandleDeliver,
 	}
 }

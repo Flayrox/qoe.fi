@@ -6,10 +6,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/qoefi/api/internal/middleware"
+	"github.com/qoefi/api/internal/observability"
+	"github.com/qoefi/api/internal/resilience"
 )
 
 // TestCreateCheckoutSession_FormEtMetadata vérifie le contrat Stripe réel :
@@ -332,5 +336,47 @@ func TestConnectOnboarding_Validation(t *testing.T) {
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("cadence invalide = %d, attendu 400 (body=%s)", w.Code, w.Body.String())
+	}
+}
+
+func TestStripeClient_CircuitBreakerOpensOn5xxAndSkips400(t *testing.T) {
+	var calls atomic.Int32
+	var status atomic.Int32
+	status.Store(http.StatusBadRequest)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(int(status.Load()))
+		_, _ = w.Write([]byte(`{"error":"bad_request"}`))
+	}))
+	defer srv.Close()
+
+	c := NewStripeClient("sk_test_cb", srv.URL)
+	c.cb = resilience.NewCircuitBreaker(resilience.Options{
+		Name:             "test-stripe",
+		FailureThreshold: 2,
+		Cooldown:         time.Minute,
+		CallTimeout:      time.Second,
+		Registry:         observability.NewRegistry(),
+	})
+
+	for i := 0; i < 3; i++ {
+		if _, err := c.GetPrice(context.Background(), "price_bad"); err == nil {
+			t.Fatal("400 attendu")
+		}
+	}
+	if c.cb.State() != resilience.StateClosed {
+		t.Fatalf("400 ne doit pas ouvrir le circuit (state=%s)", c.cb.State())
+	}
+
+	status.Store(http.StatusInternalServerError)
+	_, _ = c.GetPrice(context.Background(), "price_err")
+	_, _ = c.GetPrice(context.Background(), "price_err")
+	callsBefore := calls.Load()
+	_, err := c.GetPrice(context.Background(), "price_err")
+	if !errors.Is(err, resilience.ErrCircuitOpen) {
+		t.Fatalf("3e 500 attendu ErrCircuitOpen, obtenu %v", err)
+	}
+	if calls.Load() != callsBefore {
+		t.Fatal("le circuit ouvert ne doit pas appeler Stripe")
 	}
 }

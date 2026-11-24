@@ -2,11 +2,17 @@ package supastorage
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
+
+	"github.com/qoefi/api/internal/observability"
+	"github.com/qoefi/api/internal/resilience"
 )
 
 func TestClientNotConfigured(t *testing.T) {
@@ -114,5 +120,46 @@ func TestPublicURL(t *testing.T) {
 	raw := c.PublicURL("articles-media", "a/b.webp", "")
 	if raw != "https://xxx.supabase.co/storage/v1/object/public/articles-media/a/b.webp" {
 		t.Errorf("PublicURL sans CDN = %q", raw)
+	}
+}
+
+func TestStorageClient_CircuitBreakerOpensOn5xxAndSkips400(t *testing.T) {
+	var calls atomic.Int32
+	var status atomic.Int32
+	status.Store(http.StatusBadRequest)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(int(status.Load()))
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, "k")
+	c.cb = resilience.NewCircuitBreaker(resilience.Options{
+		Name:             "test-storage",
+		FailureThreshold: 2,
+		Cooldown:         time.Minute,
+		CallTimeout:      time.Second,
+		Registry:         observability.NewRegistry(),
+	})
+
+	for i := 0; i < 3; i++ {
+		if _, err := c.Upload(context.Background(), "b", "p", "image/webp", strings.NewReader("x")); err == nil {
+			t.Fatal("400 attendu")
+		}
+	}
+	if c.cb.State() != resilience.StateClosed {
+		t.Fatalf("400 ne doit pas ouvrir le circuit (state=%s)", c.cb.State())
+	}
+
+	status.Store(http.StatusInternalServerError)
+	_ = c.Delete(context.Background(), "b", "p")
+	_ = c.Delete(context.Background(), "b", "p")
+	callsBefore := calls.Load()
+	err := c.Delete(context.Background(), "b", "p")
+	if !errors.Is(err, resilience.ErrCircuitOpen) {
+		t.Fatalf("3e 500 attendu ErrCircuitOpen, obtenu %v", err)
+	}
+	if calls.Load() != callsBefore {
+		t.Fatal("le circuit ouvert ne doit pas appeler storage")
 	}
 }

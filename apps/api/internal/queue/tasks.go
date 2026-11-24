@@ -34,6 +34,9 @@ const (
 	// utilisateur (nouvelle connexion, changement de mot de passe/email/MFA,
 	// gestion de clé API, mise en quarantaine).
 	TaskSecurityAlertEmail = "security.alert_email"
+	// TaskWebhookDeliver exécute la livraison HTTP d'un webhook individuel avec
+	// retries indépendants et compteur de pannes consécutives.
+	TaskWebhookDeliver = "webhook.deliver"
 )
 
 // BulkImportPayload est le payload de TaskBulkImport (import bulk asynchrone).
@@ -154,4 +157,15 @@ type SecurityAlertEmailPayload struct {
 	Reason    string `json:"reason,omitempty"`
 	Actor     string `json:"actor,omitempty"`
 	Occurred  string `json:"occurredAt"`
+}
+
+// WebhookDeliverPayload est le payload d'une livraison unitaire TaskWebhookDeliver.
+type WebhookDeliverPayload struct {
+	WebhookID   string         `json:"webhookId"`
+	PublisherID string         `json:"publisherId"`
+	URL         string         `json:"url"`
+	Secret      string         `json:"secret"`
+	Event       string         `json:"event"`
+	EventID     string         `json:"eventId,omitempty"`
+	Payload     map[string]any `json:"payload"`
 }

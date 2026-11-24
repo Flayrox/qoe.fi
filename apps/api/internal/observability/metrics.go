@@ -35,6 +35,22 @@ type secGuardKey struct {
 	code   string
 }
 
+type webhookDeliveryKey struct {
+	event   string
+	outcome string
+}
+
+type emailDispatchKey struct {
+	messageType string
+	provider    string
+	outcome     string
+}
+
+type moderationKey struct {
+	surface string
+	verdict string
+}
+
 type histogramSeries struct {
 	// buckets[i] compte les observations tombant exactement dans la tranche i
 	// (0..9 pour les bornes finies, 10 pour > 5000ms). La somme cumulée est
@@ -54,6 +70,10 @@ type Registry struct {
 	trustTierEvals       sync.Map // string -> *atomic.Uint64
 	circuitBreakerStates sync.Map // string -> *atomic.Pointer[string]
 	circuitBreakerTrips  sync.Map // string -> *atomic.Uint64
+	webhookDeliveries    sync.Map // webhookDeliveryKey -> *atomic.Uint64
+	emailDispatches      sync.Map // emailDispatchKey -> *atomic.Uint64
+	moderationDecisions  sync.Map // moderationKey -> *atomic.Uint64
+	mediaPreflightRej    sync.Map // string -> *atomic.Uint64
 	netGuardSSRFBlocked  atomic.Uint64
 	mediaMIMERejected    atomic.Uint64
 }
@@ -165,6 +185,36 @@ func (r *Registry) SetCircuitBreakerState(name, state string) {
 // IncCircuitBreakerTrip incrémente le compteur de bascules vers l'état open d'un circuit breaker.
 func (r *Registry) IncCircuitBreakerTrip(name string) {
 	incCounter(&r.circuitBreakerTrips, name)
+}
+
+// IncWebhookDelivery incrémente le compteur de livraisons webhooks par événement et résultat.
+func (r *Registry) IncWebhookDelivery(event, outcome string) {
+	incCounter(&r.webhookDeliveries, webhookDeliveryKey{
+		event:   event,
+		outcome: outcome,
+	})
+}
+
+// IncEmailDispatch incrémente le compteur d'envois e-mails par type, fournisseur et résultat.
+func (r *Registry) IncEmailDispatch(messageType, provider, outcome string) {
+	incCounter(&r.emailDispatches, emailDispatchKey{
+		messageType: messageType,
+		provider:    provider,
+		outcome:     outcome,
+	})
+}
+
+// IncModerationDecision incrémente le compteur de décisions de modération par surface et verdict.
+func (r *Registry) IncModerationDecision(surface, verdict string) {
+	incCounter(&r.moderationDecisions, moderationKey{
+		surface: surface,
+		verdict: verdict,
+	})
+}
+
+// IncMediaPreflightRejection incrémente le compteur de rejets preflight média par motif.
+func (r *Registry) IncMediaPreflightRejection(reason string) {
+	incCounter(&r.mediaPreflightRej, reason)
 }
 
 // Handler retourne un http.Handler exposant les métriques au format Prometheus 0.0.4.
@@ -400,6 +450,98 @@ func (r *Registry) Render() string {
 			escapeLabelValue(e.name),
 			e.val,
 		)
+	}
+
+	// 10. qoe_webhook_deliveries_total
+	b.WriteString("# HELP qoe_webhook_deliveries_total Total number of webhook deliveries by event and outcome.\n")
+	b.WriteString("# TYPE qoe_webhook_deliveries_total counter\n")
+	type whEntry struct {
+		key webhookDeliveryKey
+		val uint64
+	}
+	var whEntries []whEntry
+	r.webhookDeliveries.Range(func(k, v any) bool {
+		whEntries = append(whEntries, whEntry{key: k.(webhookDeliveryKey), val: v.(*atomic.Uint64).Load()})
+		return true
+	})
+	slices.SortFunc(whEntries, func(a, c whEntry) int {
+		if cmp := strings.Compare(a.key.event, c.key.event); cmp != 0 {
+			return cmp
+		}
+		return strings.Compare(a.key.outcome, c.key.outcome)
+	})
+	for _, e := range whEntries {
+		fmt.Fprintf(&b, "qoe_webhook_deliveries_total{event=\"%s\",outcome=\"%s\"} %d\n",
+			escapeLabelValue(e.key.event), escapeLabelValue(e.key.outcome), e.val)
+	}
+
+	// 11. qoe_email_dispatches_total
+	b.WriteString("# HELP qoe_email_dispatches_total Total number of email dispatches through gateway.\n")
+	b.WriteString("# TYPE qoe_email_dispatches_total counter\n")
+	type emailEntry struct {
+		key emailDispatchKey
+		val uint64
+	}
+	var emailEntries []emailEntry
+	r.emailDispatches.Range(func(k, v any) bool {
+		emailEntries = append(emailEntries, emailEntry{key: k.(emailDispatchKey), val: v.(*atomic.Uint64).Load()})
+		return true
+	})
+	slices.SortFunc(emailEntries, func(a, c emailEntry) int {
+		if cmp := strings.Compare(a.key.messageType, c.key.messageType); cmp != 0 {
+			return cmp
+		}
+		if cmp := strings.Compare(a.key.provider, c.key.provider); cmp != 0 {
+			return cmp
+		}
+		return strings.Compare(a.key.outcome, c.key.outcome)
+	})
+	for _, e := range emailEntries {
+		fmt.Fprintf(&b, "qoe_email_dispatches_total{message_type=\"%s\",provider=\"%s\",outcome=\"%s\"} %d\n",
+			escapeLabelValue(e.key.messageType), escapeLabelValue(e.key.provider), escapeLabelValue(e.key.outcome), e.val)
+	}
+
+	// 12. qoe_moderation_decisions_total
+	b.WriteString("# HELP qoe_moderation_decisions_total Total number of content moderation decisions by surface and verdict.\n")
+	b.WriteString("# TYPE qoe_moderation_decisions_total counter\n")
+	type modEntry struct {
+		key moderationKey
+		val uint64
+	}
+	var modEntries []modEntry
+	r.moderationDecisions.Range(func(k, v any) bool {
+		modEntries = append(modEntries, modEntry{key: k.(moderationKey), val: v.(*atomic.Uint64).Load()})
+		return true
+	})
+	slices.SortFunc(modEntries, func(a, c modEntry) int {
+		if cmp := strings.Compare(a.key.surface, c.key.surface); cmp != 0 {
+			return cmp
+		}
+		return strings.Compare(a.key.verdict, c.key.verdict)
+	})
+	for _, e := range modEntries {
+		fmt.Fprintf(&b, "qoe_moderation_decisions_total{surface=\"%s\",verdict=\"%s\"} %d\n",
+			escapeLabelValue(e.key.surface), escapeLabelValue(e.key.verdict), e.val)
+	}
+
+	// 13. qoe_media_preflight_rejections_total
+	b.WriteString("# HELP qoe_media_preflight_rejections_total Total number of media upload preflight rejections by reason.\n")
+	b.WriteString("# TYPE qoe_media_preflight_rejections_total counter\n")
+	type preflightEntry struct {
+		reason string
+		val    uint64
+	}
+	var preflightEntries []preflightEntry
+	r.mediaPreflightRej.Range(func(k, v any) bool {
+		preflightEntries = append(preflightEntries, preflightEntry{reason: k.(string), val: v.(*atomic.Uint64).Load()})
+		return true
+	})
+	slices.SortFunc(preflightEntries, func(a, c preflightEntry) int {
+		return strings.Compare(a.reason, c.reason)
+	})
+	for _, e := range preflightEntries {
+		fmt.Fprintf(&b, "qoe_media_preflight_rejections_total{reason=\"%s\"} %d\n",
+			escapeLabelValue(e.reason), e.val)
 	}
 
 	return b.String()
