@@ -4,6 +4,7 @@
 # =====================================================================
 # 📖 Usage :
 #     bash scripts/deploy-prod.sh                 # déploiement complet
+#     bash scripts/deploy-prod.sh --changed       # déploiement incrémental (services modifiés depuis le dernier SHA déployé)
 #     bash scripts/deploy-prod.sh --skip-pull     # saute le pull (images déjà à jour)
 #     bash scripts/deploy-prod.sh --credentials   # affiche l'inventaire des accès
 #                                                  # (mails, supabase, meili, umami…) — ne
@@ -51,12 +52,14 @@ error() { echo -e "${RED}❌ $1${NC}"; exit 1; }
 
 SKIP_PULL=0
 PUBLISH_UPDATE=0
+CHANGED_ONLY=0
 SERVICES=()
 for arg in "$@"; do
   case "$arg" in
     --skip-pull) SKIP_PULL=1 ;;
     --skip-build) SKIP_PULL=1 ;;
     --publish-update) PUBLISH_UPDATE=1 ;;
+    --changed) CHANGED_ONLY=1 ;;
     --credentials)
       # Inventaire des accès (mails, supabase, meili, umami…) — ne déploie rien.
       bash scripts/print-credentials.sh
@@ -70,11 +73,48 @@ for arg in "$@"; do
   esac
 done
 ALL_SERVICES=(tenants hi core studio admin api worker updates migrate)
+ssh_vps() { ssh -o ConnectTimeout=15 "$VPS_HOST" "$@"; }
+
+if [ "$CHANGED_ONLY" = "1" ] && [ "${#SERVICES[@]}" -eq 0 ]; then
+  DEPLOYED_SHA=$(ssh_vps "cat $VPS_DIR/.deployed-sha 2>/dev/null || true" | tr -d '[:space:]')
+  LOCAL_SHA=$(git rev-parse HEAD)
+  if [ -n "$DEPLOYED_SHA" ] && git cat-file -e "$DEPLOYED_SHA^{commit}" 2>/dev/null; then
+    if [ "$DEPLOYED_SHA" = "$LOCAL_SHA" ]; then
+      log "ℹ️  HEAD ($LOCAL_SHA) est déjà déployé — aucun service à redémarrer."
+    else
+      CHANGED_FILES=$(git diff --name-only "$DEPLOYED_SHA".."$LOCAL_SHA")
+      add_svc() {
+        local s="$1"
+        for existing in "${SERVICES[@]:-}"; do [ "$existing" = "$s" ] && return 0; done
+        SERVICES+=("$s")
+      }
+      while IFS= read -r f; do
+        [ -z "$f" ] && continue
+        case "$f" in
+          apps/api/sql/migrations/*) add_svc migrate; add_svc api; add_svc worker ;;
+          apps/api/*) add_svc api; add_svc worker ;;
+          apps/core/*) add_svc core ;;
+          apps/studio/*) add_svc studio ;;
+          apps/admin/*) add_svc admin ;;
+          apps/tenants/*) add_svc tenants ;;
+          apps/hi/*) add_svc hi ;;
+          docker/updates/*) add_svc updates ;;
+          packages/*|messages/*|package.json|pnpm-lock.yaml|turbo.json|Dockerfile*)
+            add_svc core; add_svc studio; add_svc admin; add_svc tenants; add_svc hi ;;
+        esac
+      done <<< "$CHANGED_FILES"
+      if [ "${#SERVICES[@]}" -eq 0 ]; then
+        log "ℹ️  Aucun service applicatif impacté depuis $DEPLOYED_SHA — sync config uniquement."
+      fi
+    fi
+  else
+    warn "SHA déployé inconnu sur le VPS — bascule sur déploiement complet."
+  fi
+fi
+
 if [ "${#SERVICES[@]}" -gt 0 ]; then
   log "🎯 Déploiement CIBLÉ : ${SERVICES[*]} (les autres containers ne sont pas touchés)"
 fi
-
-ssh_vps() { ssh -o ConnectTimeout=15 "$VPS_HOST" "$@"; }
 
 log "🚀 Déploiement production QOE → $VPS_HOST"
 
@@ -163,13 +203,26 @@ ssh_vps "cp $VPS_DIR/.env.docker $BACKUP_ROOT/pre-$STAMP/qoe.env.docker"
 log "   Migrations goose…"
 ssh_vps "cd $VPS_DIR && docker compose --env-file .env.docker up -d migrate"
 ssh_vps "cd $VPS_DIR && docker logs qoefi-migrate 2>&1 | tail -2 | grep -qE 'OK|no migrations' || error 'migrate KO' ; exit 0" || error "Migrations goose en échec"
-log "   Démarrage de la stack…"
+log "   Démarrage progressif de la stack (API sain avant les fronts)…"
 if [ "${#SERVICES[@]}" -gt 0 ]; then
-  ssh_vps "cd $VPS_DIR && docker compose --env-file .env.docker up -d ${SERVICES[*]}"
-  success "Services ciblés démarrés : ${SERVICES[*]}"
+  # Si api fait partie du lot, on le démarre et attend son /health avant les autres.
+  HAS_API=0
+  OTHER_SERVICES=()
+  for s in "${SERVICES[@]}"; do
+    if [ "$s" = "api" ]; then HAS_API=1
+    elif [ "$s" != "migrate" ]; then OTHER_SERVICES+=("$s"); fi
+  done
+  if [ "$HAS_API" = "1" ]; then
+    ssh_vps "cd $VPS_DIR && docker compose --env-file .env.docker up -d --wait api"
+  fi
+  if [ "${#OTHER_SERVICES[@]}" -gt 0 ]; then
+    ssh_vps "cd $VPS_DIR && docker compose --env-file .env.docker up -d --wait ${OTHER_SERVICES[*]}"
+  fi
+  success "Services ciblés démarrés (ordonnancement progressif) : ${SERVICES[*]}"
 else
-  ssh_vps "cd $VPS_DIR && docker compose --env-file .env.docker up -d"
-  success "Stack démarrée"
+  ssh_vps "cd $VPS_DIR && docker compose --env-file .env.docker up -d --wait api"
+  ssh_vps "cd $VPS_DIR && docker compose --env-file .env.docker up -d --wait"
+  success "Stack démarrée (API sain avant bascule des fronts)"
 fi
 # Le Caddyfile est monté en bind (fichier unique) : après le tar, Caddy ne
 # relit rien, et si l'inode a changé le conteneur garde l'ancien fichier.
@@ -243,6 +296,10 @@ check "containers healthy"   "test \$(docker ps --format '{{.Names}}' | grep qoe
 
 echo
 if [ "$fail" = "0" ]; then
+  LOCAL_SHA=$(git rev-parse HEAD 2>/dev/null || true)
+  if [ -n "$LOCAL_SHA" ]; then
+    ssh_vps "printf '%s\n' '$LOCAL_SHA' > $VPS_DIR/.deployed-sha" || warn "Impossible d'écrire .deployed-sha"
+  fi
   success "🎉 Déploiement terminé — tous les smoke tests passent ($ok/$((ok+fail)))"
 else
   warn "Déploiement terminé mais $fail smoke test(s) en échec — à inspecter."
