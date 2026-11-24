@@ -35,3 +35,29 @@ func TestAuditL34_MetricRouteGroupStaysBounded(t *testing.T) {
 		}
 	}
 }
+
+func TestHTTPMetricsMiddleware_UnwrapAndErrorStatuses(t *testing.T) {
+	router := chi.NewRouter()
+	router.Use(httpMetricsMiddleware())
+	router.Get("/v1/boom", func(w http.ResponseWriter, _ *http.Request) {
+		if _, ok := w.(interface{ Unwrap() http.ResponseWriter }); !ok {
+			t.Error("metricsStatusWriter doit implémenter Unwrap()")
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+	router.Get("/v1/bad", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+	})
+
+	rec500 := httptest.NewRecorder()
+	router.ServeHTTP(rec500, httptest.NewRequest(http.MethodGet, "/v1/boom", nil))
+	if rec500.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, attendu 500", rec500.Code)
+	}
+
+	rec400 := httptest.NewRecorder()
+	router.ServeHTTP(rec400, httptest.NewRequest(http.MethodGet, "/v1/bad", nil))
+	if rec400.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, attendu 400", rec400.Code)
+	}
+}

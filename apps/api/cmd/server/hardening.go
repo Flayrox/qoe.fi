@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/logging"
 	authmw "github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/observability"
 	"github.com/qoefi/api/internal/pow"
@@ -227,6 +228,10 @@ func (w *metricsStatusWriter) WriteHeader(code int) {
 	w.ResponseWriter.WriteHeader(code)
 }
 
+func (w *metricsStatusWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
+}
+
 // normalizeMetricRouteGroup borne le label `route_group` quand aucune route n'a
 // été reconnue : on ne garde que le préfixe de version, jamais un segment
 // arbitraire de l'URL (un client qui balaie `/v1/<aléatoire>` créerait sinon une
@@ -242,19 +247,46 @@ func normalizeMetricRouteGroup(path string) string {
 	return "/" + parts[0]
 }
 
-// httpMetricsMiddleware enregistre le volume et la latence de chaque requête HTTP.
+// httpMetricsMiddleware enregistre le volume, la latence et les erreurs structurées HTTP.
 func httpMetricsMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 			rec := &metricsStatusWriter{ResponseWriter: w, status: http.StatusOK}
 			next.ServeHTTP(rec, r)
+			duration := time.Since(start)
+			routeGroup := metricRouteGroup(r)
 			observability.Default().ObserveHTTPRequest(
 				r.Method,
-				metricRouteGroup(r),
+				routeGroup,
 				rec.status,
-				time.Since(start),
+				duration,
 			)
+			if rec.status >= http.StatusInternalServerError {
+				logging.FromContext(r.Context()).Error(
+					"http request error",
+					"method", r.Method,
+					"route", routeGroup,
+					"status", rec.status,
+					"duration_ms", duration.Milliseconds(),
+				)
+			} else if rec.status == http.StatusBadRequest || rec.status == http.StatusUnprocessableEntity {
+				logging.FromContext(r.Context()).Warn(
+					"http validation error",
+					"method", r.Method,
+					"route", routeGroup,
+					"status", rec.status,
+					"duration_ms", duration.Milliseconds(),
+				)
+			} else if duration >= 2*time.Second {
+				logging.FromContext(r.Context()).Warn(
+					"http slow request",
+					"method", r.Method,
+					"route", routeGroup,
+					"status", rec.status,
+					"duration_ms", duration.Milliseconds(),
+				)
+			}
 		})
 	}
 }
