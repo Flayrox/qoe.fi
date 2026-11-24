@@ -121,30 +121,7 @@ func QuotedArticlesFor(ctx context.Context, q db.Querier, refs []QuoteRef, viewe
 	docs := map[string]*canon.Document{}
 	for i := range rows {
 		row := &rows[i]
-		byArticle[row.ID] = &QuotedArticle{
-			ID:        row.ID,
-			Title:     row.Title,
-			Slug:      row.Slug,
-			IsPremium: row.IsPremium,
-			Publisher: QuotedPublisher{
-				ID:           row.PubID,
-				Name:         row.Name,
-				Slug:         row.PubSlug,
-				Subdomain:    textPtr(row.Subdomain),
-				CustomDomain: textPtr(row.CustomDomain),
-				Type:         string(row.Type),
-				LogoURL:      textPtr(row.PubLogo),
-				IsCertified:  row.PubCertified,
-			},
-			Author: QuotedAuthor{
-				ID:          row.AuthorID,
-				Name:        textPtr(row.AuthorName),
-				Username:    textPtr(row.AuthorUsername),
-				LogoURL:     textPtr(row.AuthorLogo),
-				IsCertified: row.AuthorCertified,
-				Type:        identity.Personal,
-			},
-		}
+		byArticle[row.ID] = quotedArticleBase(row)
 		docs[row.ID] = canon.Parse(row.Content)
 	}
 
@@ -216,4 +193,87 @@ func contextAt(doc *canon.Document, start, end int) *QuoteContext {
 		return nil
 	}
 	return ctx
+}
+
+// quotedArticleBase projette une ligne d'article sur la carte partagée
+// (citation ou contexte de commentaire). Une seule projection : les deux
+// surfaces affichent le même article de la même façon.
+func quotedArticleBase(row *db.GetQuotedArticlesByIDsRow) *QuotedArticle {
+	return &QuotedArticle{
+		ID:        row.ID,
+		Title:     row.Title,
+		Slug:      row.Slug,
+		IsPremium: row.IsPremium,
+		Publisher: QuotedPublisher{
+			ID:           row.PubID,
+			Name:         row.Name,
+			Slug:         row.PubSlug,
+			Subdomain:    textPtr(row.Subdomain),
+			CustomDomain: textPtr(row.CustomDomain),
+			Type:         string(row.Type),
+			LogoURL:      textPtr(row.PubLogo),
+			IsCertified:  row.PubCertified,
+		},
+		Author: QuotedAuthor{
+			ID:          row.AuthorID,
+			Name:        textPtr(row.AuthorName),
+			Username:    textPtr(row.AuthorUsername),
+			LogoURL:     textPtr(row.AuthorLogo),
+			IsCertified: row.AuthorCertified,
+			Type:        identity.Personal,
+		},
+	}
+}
+
+// RootArticleIDs liste les articles commentés par les posts chargés
+// (dédoublonnés). Un commentaire sans article lisible n'a pas d'entrée : le
+// rendu retombe alors sur la carte neutre.
+func RootArticleIDs(all map[string]*db.GetPostsByIDsRow) []string {
+	ids := make([]string, 0, 4)
+	seen := map[string]bool{}
+	for _, r := range all {
+		if !r.RootArticleId.Valid || r.RootArticleId.String == "" || seen[r.RootArticleId.String] {
+			continue
+		}
+		seen[r.RootArticleId.String] = true
+		ids = append(ids, r.RootArticleId.String)
+	}
+	return ids
+}
+
+// RootArticlesFor charge les articles commentés, cléés par articleID. Même
+// filtre de visibilité que les citations : un article privé ou bloqué ne
+// devient jamais un contexte de feed.
+func RootArticlesFor(ctx context.Context, q db.Querier, articleIDs []string, viewerID string) (map[string]*QuotedArticle, error) {
+	out := map[string]*QuotedArticle{}
+	if len(articleIDs) == 0 {
+		return out, nil
+	}
+	rows, err := q.GetQuotedArticlesByIDs(ctx, db.GetQuotedArticlesByIDsParams{
+		Ids:      articleIDs,
+		ViewerID: toUUID(viewerID),
+	})
+	if err != nil {
+		return nil, err
+	}
+	for i := range rows {
+		out[rows[i].ID] = quotedArticleBase(&rows[i])
+	}
+	return out, nil
+}
+
+// AttachRootArticle applique le contexte d'article à un post et à sa chaîne
+// de parents (une réponse affichée dans un flux porte aussi le sien).
+func AttachRootArticle(fp *FeedPost, roots map[string]*QuotedArticle) {
+	if fp == nil {
+		return
+	}
+	if fp.RootArticle == nil && fp.RootArticleID != nil {
+		if art, ok := roots[*fp.RootArticleID]; ok {
+			fp.RootArticle = art
+		}
+	}
+	if fp.Parent != nil {
+		AttachRootArticle(fp.Parent, roots)
+	}
 }

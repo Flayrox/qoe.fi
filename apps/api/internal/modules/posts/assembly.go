@@ -77,6 +77,16 @@ func ParentIDOf(r *db.GetPostsByIDsRow) *string {
 	return nil
 }
 
+// rootArticleIDOf renvoie l'article commenté d'une ligne (nil si ce post n'est
+// pas un commentaire d'article).
+func rootArticleIDOf(r *db.GetPostsByIDsRow) *string {
+	if !r.RootArticleId.Valid || r.RootArticleId.String == "" {
+		return nil
+	}
+	id := r.RootArticleId.String
+	return &id
+}
+
 // RootIDOf renvoie l'ID racine d'une ligne (nil si aucun).
 func RootIDOf(r *db.GetPostsByIDsRow) *string {
 	if r.RootId.Valid && r.RootId.String != "" {
@@ -130,6 +140,7 @@ func buildFeedPost(r *db.GetPostsByIDsRow, all map[string]*db.GetPostsByIDsRow, 
 		ReplyCount:       int(r.ReplyCount),
 		ParentID:         ParentIDOf(r),
 		RootID:           RootIDOf(r),
+		RootArticleID:    rootArticleIDOf(r),
 		RepostID:         RepostIDOf(r),
 		ReplyRestriction: r.ReplyRestriction,
 		IsPinned:         r.IsPinned,

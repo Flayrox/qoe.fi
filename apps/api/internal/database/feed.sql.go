@@ -23,6 +23,7 @@ SELECT p.id,
        p."replyCount",
        p."parentId",
        p."rootId",
+       p."rootArticleId",
        p."repostId",
        p."replyRestriction",
        p."isPinned",
@@ -46,10 +47,6 @@ WHERE p."authorId" = ANY($2::uuid[])
   AND p."isHiddenByModerator" = false
   AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
   AND p.visibility IN ('public', 'followers')
-  -- Un commentaire d'article est un post (L41), mais il n'a pas encore son
-  -- contexte d'article dans le feed : il reste hors des surfaces tant que
-  -- l'éligibilité et le rendu ne le portent pas (L43).
-  AND p."rootArticleId" IS NULL
   AND NOT is_blocked_bidirectional($1, p."authorId")
   AND can_view_profile($1, u.id)
   AND NOT is_muted_by($1, p."authorId")
@@ -77,6 +74,7 @@ type FindFollowingFeedRow struct {
 	ReplyCount       int32            `json:"replyCount"`
 	ParentId         pgtype.Text      `json:"parentId"`
 	RootId           pgtype.Text      `json:"rootId"`
+	RootArticleId    pgtype.Text      `json:"rootArticleId"`
 	RepostId         pgtype.Text      `json:"repostId"`
 	ReplyRestriction string           `json:"replyRestriction"`
 	IsPinned         bool             `json:"isPinned"`
@@ -116,6 +114,7 @@ func (q *Queries) FindFollowingFeed(ctx context.Context, arg FindFollowingFeedPa
 			&i.ReplyCount,
 			&i.ParentId,
 			&i.RootId,
+			&i.RootArticleId,
 			&i.RepostId,
 			&i.ReplyRestriction,
 			&i.IsPinned,
@@ -150,6 +149,7 @@ SELECT p.id,
        p."replyCount",
        p."parentId",
        p."rootId",
+       p."rootArticleId",
        p."repostId",
        p."replyRestriction",
        p."isPinned",
@@ -173,7 +173,7 @@ WHERE p."authorId" = $2::uuid
   AND p."isHiddenByModerator" = false
   AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
   AND p.visibility = 'public'
-  AND p."rootArticleId" IS NULL -- l'onglet « réponses » du profil arrive en L42
+  -- Commentaires d'article compris : leur carte d'article les contextualise.
   AND NOT EXISTS (
     SELECT 1 FROM "BlockedUser" bu
     WHERE (bu."readerId" = $1 AND bu."creatorId" = p."authorId")
@@ -202,6 +202,7 @@ type FindPostsByAuthorRow struct {
 	ReplyCount       int32            `json:"replyCount"`
 	ParentId         pgtype.Text      `json:"parentId"`
 	RootId           pgtype.Text      `json:"rootId"`
+	RootArticleId    pgtype.Text      `json:"rootArticleId"`
 	RepostId         pgtype.Text      `json:"repostId"`
 	ReplyRestriction string           `json:"replyRestriction"`
 	IsPinned         bool             `json:"isPinned"`
@@ -241,6 +242,7 @@ func (q *Queries) FindPostsByAuthor(ctx context.Context, arg FindPostsByAuthorPa
 			&i.ReplyCount,
 			&i.ParentId,
 			&i.RootId,
+			&i.RootArticleId,
 			&i.RepostId,
 			&i.ReplyRestriction,
 			&i.IsPinned,
@@ -275,6 +277,7 @@ SELECT p.id,
        p."replyCount",
        p."parentId",
        p."rootId",
+       p."rootArticleId",
        p."repostId",
        p."replyRestriction",
        p."isPinned",
@@ -294,7 +297,9 @@ WHERE p."isDraft" = false
   AND p."deletedAt" IS NULL
   AND p."isHiddenByModerator" = false
   AND p.visibility = 'public'
-  AND p."rootArticleId" IS NULL -- commentaires : voir L43 (contexte + ranking)
+  -- Découverte : un commentaire d'article reste exclu (règle out_of_surface de
+  -- eligibility.Decide) tant qu'il n'a pas de contexte rendu dans ce flux.
+  AND p."rootArticleId" IS NULL
   AND p."createdAt" >= now() - interval '7 days'
   AND u."isShadowbanned" = false
   AND u."isSuspended" = false
@@ -324,6 +329,7 @@ type FindTrendingRow struct {
 	ReplyCount       int32            `json:"replyCount"`
 	ParentId         pgtype.Text      `json:"parentId"`
 	RootId           pgtype.Text      `json:"rootId"`
+	RootArticleId    pgtype.Text      `json:"rootArticleId"`
 	RepostId         pgtype.Text      `json:"repostId"`
 	ReplyRestriction string           `json:"replyRestriction"`
 	IsPinned         bool             `json:"isPinned"`
@@ -358,6 +364,7 @@ func (q *Queries) FindTrending(ctx context.Context, arg FindTrendingParams) ([]F
 			&i.ReplyCount,
 			&i.ParentId,
 			&i.RootId,
+			&i.RootArticleId,
 			&i.RepostId,
 			&i.ReplyRestriction,
 			&i.IsPinned,
@@ -460,6 +467,7 @@ SELECT p.id,
        p."replyCount",
        p."parentId",
        p."rootId",
+       p."rootArticleId",
        p."repostId",
        p."replyRestriction",
        p."isPinned",
@@ -523,6 +531,7 @@ type GetPostsByIDsRow struct {
 	ReplyCount       int32            `json:"replyCount"`
 	ParentId         pgtype.Text      `json:"parentId"`
 	RootId           pgtype.Text      `json:"rootId"`
+	RootArticleId    pgtype.Text      `json:"rootArticleId"`
 	RepostId         pgtype.Text      `json:"repostId"`
 	ReplyRestriction string           `json:"replyRestriction"`
 	IsPinned         bool             `json:"isPinned"`
@@ -560,6 +569,7 @@ func (q *Queries) GetPostsByIDs(ctx context.Context, arg GetPostsByIDsParams) ([
 			&i.ReplyCount,
 			&i.ParentId,
 			&i.RootId,
+			&i.RootArticleId,
 			&i.RepostId,
 			&i.ReplyRestriction,
 			&i.IsPinned,

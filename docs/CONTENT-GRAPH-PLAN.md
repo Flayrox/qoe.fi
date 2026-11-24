@@ -443,3 +443,47 @@ articles, les pensées et les commentaires.
   déploiement.
 - **Mobile (en pause)** : dette du contrat `Thread()` + pagination, à traiter à sa reprise.
 - **Tests d'intégration Go** : Docker/testcontainers requis, à exécuter en CI.
+
+---
+
+## L44 — le commentaire retrouve son article dans les feeds (2026-11-24)
+
+**Le trou.** L41 avait fait d'un commentaire un `Post` avec `rootArticleId`, mais
+les feeds le cachaient (`rootArticleId IS NULL`) : un commentaire n'existait que
+dans son fil. Résultat : un compte suivi qui commente un article n'apparaît
+jamais dans « Suivis », et les commentaires de niveau 1 (sans parent) n'étaient
+ni dans le feed du profil ni dans l'onglet « réponses ».
+
+**Ce qui change.**
+- `FeedPost.rootArticleId` + `FeedPost.rootArticle` (même shape que
+  `quotedArticle`, sans passage cité) : le serveur résout l'article une fois par
+  page via `posts.RootArticlesFor`, avec le filtre de visibilité des citations
+  (un article privé ou bloqué ne devient jamais un contexte).
+- `AttachRootArticle` attache le contexte au post **et à sa chaîne de parents** ;
+  un contexte déjà résolu n'est jamais écrasé, un article non chargé laisse la
+  carte neutre (aucun contenu inventé).
+- Surfaces : « Suivis » (`FindFollowingFeed`) et feed de profil
+  (`FindPostsByAuthor`) incluent désormais les commentaires.
+  « Tendance »/découverte restent fermés : `eligibility.Decide` les juge
+  `out_of_surface`, le prédicat SQL dit exactement la même chose.
+- `Thread()` porte aussi le contexte (post cible, ancêtres, réponses paginées).
+- Web : `ThoughtCard` affiche une pastille « Commentaire sur *titre* » qui ouvre
+  le lecteur ; `vector-feed` transporte `rootArticleId`/`rootArticle`. Aucune
+  règle recalculée côté client — le serveur a déjà résolu l'article.
+- SDK : `mapFeedPostToThreadThought` expose `rootArticleId`/`rootArticle`.
+
+**Preuves.** `TestRootArticleIDs_DeduplicatesAndSkipsMissing`,
+`TestAttachRootArticle_WalksParentChainAndKeepsExisting`,
+`TestAttachRootArticle_LeavesUnresolvedArticleNil` (posts, sans base) ;
+`feedRootArticle.test.ts` (SDK : transport + absence) ; `go build/vet`,
+`go test` posts/feed/articles/eligibility, `guard:sqlc` 40 fichiers,
+sdk 35 fichiers / 235 tests, core 69 fichiers / 425 tests, `tsc` sdk+core+ui,
+eslint 0.
+
+**Reste hors de ce lot, et pourquoi.**
+- `Interaction` (like/repost génériques) : décision produit (un like de
+  commentaire doit-il compter dans le post parent ?), à trancher avant migration.
+- Migration `00099` (drop `ArticleComment`) : ne peut partir qu'après un cycle de
+  déploiement de L41 — sinon le code encore en prod lit une table supprimée.
+- Tests SQL réels (`ListEligibilityCandidates`, feeds) : Docker/Postgres requis ;
+  la CI les exécute, pas la machine locale.

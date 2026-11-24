@@ -162,6 +162,7 @@ type FeedPost struct {
 	ParentUnavailable       bool              `json:"parentUnavailable,omitempty"`
 	ParentUnavailableReason string            `json:"parentUnavailableReason,omitempty"`
 	RootID                  *string           `json:"rootId"`
+	RootArticleID           *string           `json:"rootArticleId,omitempty"`
 	RepostID                *string           `json:"repostId"`
 	ReplyRestriction        string            `json:"replyRestriction"`
 	IsPinned                bool              `json:"isPinned"`
@@ -169,16 +170,21 @@ type FeedPost struct {
 	QuotedExcerpt           *string           `json:"quotedExcerpt,omitempty"`
 	QuotedAnnotation        *QuotedAnnotation `json:"quotedAnnotation,omitempty"`
 	QuotedArticle           *QuotedArticle    `json:"quotedArticle,omitempty"`
-	Author                  Author            `json:"author"`
-	Parent                  *FeedPost         `json:"parent"`
-	Repost                  *FeedPost         `json:"repost"`
-	Attachments             []Attachment      `json:"attachments"`
-	Poll                    *Poll             `json:"poll"`
-	Likes                   []PostActor       `json:"likes"`
-	Reposts                 []PostActor       `json:"reposts"`
-	Counts                  PostCounts        `json:"_count"`
-	Liked                   bool              `json:"liked"`
-	Reposted                bool              `json:"reposted"`
+	// RootArticle est l'article commenté quand ce post EST un commentaire
+	// (L41). Une surface qui montre un commentaire doit montrer son article :
+	// sans lui, la pensée flotte sans sujet. Même shape que la citation, sans
+	// quoteContext (il n'y a pas de passage cité).
+	RootArticle *QuotedArticle `json:"rootArticle,omitempty"`
+	Author      Author         `json:"author"`
+	Parent      *FeedPost      `json:"parent"`
+	Repost      *FeedPost      `json:"repost"`
+	Attachments []Attachment   `json:"attachments"`
+	Poll        *Poll          `json:"poll"`
+	Likes       []PostActor    `json:"likes"`
+	Reposts     []PostActor    `json:"reposts"`
+	Counts      PostCounts     `json:"_count"`
+	Liked       bool           `json:"liked"`
+	Reposted    bool           `json:"reposted"`
 	// Capabilities : droits calculés par Go pour le viewer (jamais devinés
 	// côté React).
 	Capabilities PostCapabilities `json:"capabilities"`

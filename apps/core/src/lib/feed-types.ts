@@ -88,6 +88,16 @@ export interface FeedPost {
   } | null;
   repost?: FeedPost | null;
   quotedExcerpt?: string | null;
+  /** Article commenté, résolu par Go (contexte d'un commentaire dans un flux). */
+  rootArticleId?: string | null;
+  rootArticle?: {
+    id: string;
+    title: string;
+    slug: string;
+    isPremium: boolean;
+    publisher: FeedPublisher;
+    author: FeedAuthor;
+  } | null;
   quotedAnnotation?: {
     id: string;
     note: string;

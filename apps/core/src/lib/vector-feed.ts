@@ -54,6 +54,9 @@ export interface FeedPostRecord {
   } | null;
   repost?: FeedPostRecord | null;
   quotedExcerpt?: string | null;
+  /** Article commenté quand ce post est un commentaire (contexte de flux). */
+  rootArticleId?: string | null;
+  rootArticle?: FeedPostRecord['quotedArticle'];
   /** Snapshot serveur de l'annotation citée (voir Go `QuotedAnnotation`). */
   quotedAnnotation?: {
     id: string;
@@ -244,6 +247,8 @@ export const mapPostToFeedItem = (post: FeedPostRecord, currentUserId?: string) 
     quotedExcerpt: post.quotedExcerpt || canonicalPost.quotedExcerpt || undefined,
     annotationQuote: mapQuotedAnnotation(post.quotedAnnotation || canonicalPost.quotedAnnotation),
     articleQuote: mapQuotedArticle(post.quotedArticle || canonicalPost.quotedArticle),
+    rootArticleId: post.rootArticleId ?? canonicalPost.rootArticleId ?? null,
+    rootArticle: mapQuotedArticle(post.rootArticle || canonicalPost.rootArticle),
     published: true,
     isPremium: false,
     readingTime: 1,

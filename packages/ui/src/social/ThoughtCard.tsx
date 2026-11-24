@@ -69,6 +69,9 @@ export interface ThoughtData {
   tags?: string[];
   attachments?: Array<{ id?: string; url: string; type?: string; altText?: string | null }> | null;
   articleQuote?: QuotedArticleData | null;
+  /** Article commenté quand cette pensée est un commentaire (L41/L44). */
+  rootArticle?: QuotedArticleData | null;
+  rootArticleId?: string | null;
   /** Annotation citée (note + passage + auteur), snapshot serveur. */
   annotationQuote?: AnnotationCitation | null;
   quotedExcerpt?: string | null;
@@ -428,6 +431,30 @@ export function ThoughtCard({
 
             {/* Threadgate Badge */}
             {threadgateBadge}
+
+            {/* Contexte d'article : un commentaire n'est jamais orphelin dans
+              un flux. Le serveur a déjà résolu l'article ; la carte ne fait
+              que le nommer et ouvrir le lecteur. */}
+            {effectivePost.rootArticle && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onOpenArticle?.(effectivePost.rootArticle!);
+                }}
+                className={cn(
+                  'group/context mb-2 inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-2.5 py-1 text-left text-[12px] text-muted-foreground transition-colors',
+                  onOpenArticle && 'hover:border-border hover:text-foreground'
+                )}
+              >
+                <CornerDownRight className="h-3 w-3 shrink-0" aria-hidden />
+                <span className="shrink-0">{t`Commentaire sur`}</span>
+                <span className="truncate font-medium text-foreground/80 group-hover/context:text-foreground">
+                  {effectivePost.rootArticle.title}
+                </span>
+              </button>
+            )}
 
             {/* Text Body Content */}
             <ThoughtBody

@@ -241,6 +241,9 @@ export interface WebThreadPost {
   quotedExcerpt?: string | null;
   annotationQuote?: MappedQuotedAnnotation;
   articleQuote?: MappedQuotedArticle;
+  /** Article commenté (post = commentaire) — contexte de flux. */
+  rootArticleId?: string | null;
+  rootArticle?: MappedQuotedArticle;
 }
 
 export function mapFeedPostToThreadThought(
@@ -344,6 +347,8 @@ export function mapFeedPostToThreadThought(
       p.quotedAnnotation as RawQuotedAnnotation | null | undefined
     ),
     articleQuote: mapQuotedArticleForCard(p.quotedArticle as RawQuotedArticle | null | undefined),
+    rootArticleId: (p.rootArticleId as string | null | undefined) ?? null,
+    rootArticle: mapQuotedArticleForCard(p.rootArticle as RawQuotedArticle | null | undefined),
   };
 }
 

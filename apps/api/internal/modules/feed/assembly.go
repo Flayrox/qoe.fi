@@ -63,6 +63,10 @@ func (s *Service) buildSlices(ctx context.Context, targetIDs []string, viewerID 
 	if err != nil {
 		return nil, err
 	}
+	roots, err := posts.RootArticlesFor(ctx, s.q, posts.RootArticleIDs(all), viewerID)
+	if err != nil {
+		return nil, err
+	}
 	graph := posts.LoadViewerGraph(ctx, s.pool, viewerID, authorIDs, following)
 
 	seenRoot := map[string]bool{}
@@ -81,6 +85,13 @@ func (s *Service) buildSlices(ctx context.Context, targetIDs []string, viewerID 
 			continue
 		}
 		seenRoot[conversationRoot] = true
+		posts.AttachRootArticle(&slice.TargetPost, roots)
+		if slice.ParentPost != nil {
+			posts.AttachRootArticle(slice.ParentPost, roots)
+		}
+		if slice.RootPost != nil {
+			posts.AttachRootArticle(slice.RootPost, roots)
+		}
 		slices = append(slices, slice)
 	}
 

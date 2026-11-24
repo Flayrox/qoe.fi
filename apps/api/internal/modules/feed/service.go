@@ -516,6 +516,10 @@ func (s *Service) Thread(ctx context.Context, postID, viewerID string) (*ThreadP
 	if err != nil {
 		return nil, err
 	}
+	roots, err := posts.RootArticlesFor(ctx, s.q, posts.RootArticleIDs(all), viewerID)
+	if err != nil {
+		return nil, err
+	}
 	graph := posts.LoadViewerGraph(ctx, s.pool, viewerID, authorIDs, following)
 
 	reasonCache := map[string]string{}
@@ -524,6 +528,7 @@ func (s *Service) Thread(ctx context.Context, postID, viewerID string) (*ThreadP
 	}
 	target := posts.BuildFeedPostWithAncestors(all[postID], all, attachments, polls, map[string]bool{}, quoted, graph)
 	markThreadAncestorParents(&target, all, parentReason)
+	posts.AttachRootArticle(&target, roots)
 	thread := &ThreadPost{
 		FeedPost:         target,
 		RepliesCursor:    replyPage.NextCursor,
@@ -537,6 +542,7 @@ func (s *Service) Thread(ctx context.Context, postID, viewerID string) (*ThreadP
 		if r, ok := all[id]; ok {
 			reply := posts.BuildFeedPost(r, all, attachments, polls, quoted, graph)
 			markThreadParentUnavailable(&reply, all, parentReason)
+			posts.AttachRootArticle(&reply, roots)
 			thread.Replies = append(thread.Replies, reply)
 		}
 	}
