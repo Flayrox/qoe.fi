@@ -132,7 +132,7 @@ else
   log "4/6 Login GHCR (GitHub App) + pull des images buildées en CI…"
   ssh_vps "cd $VPS_DIR && if [ -f scripts/ghcr-login.sh ]; then bash scripts/ghcr-login.sh; else echo '⚠️  scripts/ghcr-login.sh absent — login GHCR préexistant requis'; fi"
   PULL_TARGETS=("${SERVICES[@]:-${ALL_SERVICES[@]}}")
-  if ! ssh_vps "cd $VPS_DIR && docker compose pull ${PULL_TARGETS[*]}"; then
+  if ! ssh_vps "cd $VPS_DIR && docker compose --env-file .env.docker pull ${PULL_TARGETS[*]}"; then
     error "Pull GHCR impossible — setup GitHub App : voir docs/VPS_DEPLOYMENT_PREP.md §15 (ou docker login manuel)"
   fi
   success "Images à jour"
@@ -146,14 +146,14 @@ ssh_vps "mkdir -p $BACKUP_ROOT/pre-$STAMP && docker exec supabase-db pg_dump -U 
 log "   Backup .env.docker…"
 ssh_vps "cp $VPS_DIR/.env.docker $BACKUP_ROOT/pre-$STAMP/qoe.env.docker"
 log "   Migrations goose…"
-ssh_vps "cd $VPS_DIR && docker compose up -d migrate"
+ssh_vps "cd $VPS_DIR && docker compose --env-file .env.docker up -d migrate"
 ssh_vps "cd $VPS_DIR && docker logs qoefi-migrate 2>&1 | tail -2 | grep -qE 'OK|no migrations' || error 'migrate KO' ; exit 0" || error "Migrations goose en échec"
 log "   Démarrage de la stack…"
 if [ "${#SERVICES[@]}" -gt 0 ]; then
-  ssh_vps "cd $VPS_DIR && docker compose up -d ${SERVICES[*]}"
+  ssh_vps "cd $VPS_DIR && docker compose --env-file .env.docker up -d ${SERVICES[*]}"
   success "Services ciblés démarrés : ${SERVICES[*]}"
 else
-  ssh_vps "cd $VPS_DIR && docker compose up -d"
+  ssh_vps "cd $VPS_DIR && docker compose --env-file .env.docker up -d"
   success "Stack démarrée"
 fi
 # Le Caddyfile est monté en bind (fichier unique) : après le tar, Caddy ne
