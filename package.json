@@ -127,9 +127,9 @@
     "test:db:reset": "bash scripts/test-db.sh reset"
   },
   "devDependencies": {
-    "@lingui/cli": "^6.6.0",
-    "@lingui/format-po": "6.6.0",
-    "@lingui/swc-plugin": "^6.6.0",
+    "@lingui/cli": "^6.12.0",
+    "@lingui/format-po": "6.12.0",
+    "@lingui/swc-plugin": "^6.7.1",
     "@playwright/test": "^1.65.1",
     "@qoe/supabase": "workspace:*",
     "@qoe/tsconfig": "workspace:*",
@@ -137,13 +137,13 @@
     "@vitejs/plugin-react": "^5.1.2",
     "@vitest/coverage-v8": "^5.1.1",
     "eslint": "^9.39.5",
-    "eslint-config-next": "^16.2.10",
+    "eslint-config-next": "^16.4.6",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.1",
     "prettier": "^3.10.1",
     "turbo": "^2.11.13",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.67.0",
+    "typescript-eslint": "^8.73.0",
     "vitest": "^5.1.1"
   },
   "packageManager": "pnpm@11.21.0",

@@ -39,7 +39,7 @@
   "devDependencies": {
     "@qoe/tsconfig": "workspace:*",
     "@types/react": "^19",
-    "next": "16.2.6",
+    "next": "16.4.6",
     "typescript": "^5"
   }
 }

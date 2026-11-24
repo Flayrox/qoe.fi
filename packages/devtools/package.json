@@ -16,15 +16,15 @@
   },
   "dependencies": {
     "@qoe/supabase": "workspace:*",
-    "@supabase/supabase-js": "^2.45.4",
+    "@supabase/supabase-js": "^2.119.2",
     "dotenv": "^16.4.5"
   },
   "devDependencies": {
     "@qoe/tsconfig": "workspace:*",
     "@types/node": "^22",
     "@types/react": "^19",
-    "next": "16.2.6",
-    "react": "19.2.3",
+    "next": "16.4.6",
+    "react": "19.3.1",
     "typescript": "^5"
   },
   "peerDependencies": {}
