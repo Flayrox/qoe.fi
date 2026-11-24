@@ -112,6 +112,8 @@ describe('ArticlesClient — refus serveur', () => {
     renderClient();
     fireEvent.click(screen.getByRole('tab', { name: /Catégories/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Supprimer la catégorie' }));
+    // Le dialogue de confirmation est porté en fin de document.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Supprimer la catégorie' }).at(-1)!);
 
     await waitFor(() => expect(articleActions.deleteCategoryAction).toHaveBeenCalledWith('cat_1'));
     // La catégorie est toujours en base : la retirer de l'arborescence fait

@@ -149,16 +149,14 @@ describe('ArticleDiffModal', () => {
   });
 
   it('n’abandonne le brouillon qu’après confirmation', async () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false);
     const { onDiscardDraft, onClose } = renderModal();
 
     fireEvent.click(screen.getByRole('button', { name: /Abandonner le brouillon/ }));
-    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: /Confirmer l.abandon/ })).toBeDefined();
     expect(onDiscardDraft).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
 
-    confirm.mockReturnValueOnce(true);
-    fireEvent.click(screen.getByRole('button', { name: /Abandonner le brouillon/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Confirmer l.abandon/ }));
     await waitFor(() => expect(onDiscardDraft).toHaveBeenCalledTimes(1));
     expect(onClose).toHaveBeenCalledTimes(1);
   });

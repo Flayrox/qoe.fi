@@ -322,23 +322,22 @@ describe('MediaStudioClient — membres', () => {
   });
 
   it('demande confirmation avant de retirer un membre', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     renderStudio();
     await waitForStudio();
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Retirer du Média' })[0]);
-    expect(confirmSpy).toHaveBeenCalledWith('Retirer Blaise du Média ?');
+    expect(screen.getByText('Retirer Blaise du Média ?')).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }));
     expect(mediaActions.removeMediaMemberAction).not.toHaveBeenCalled();
 
-    confirmSpy.mockReturnValue(true);
     mediaActions.removeMediaMemberAction.mockResolvedValue({ success: true });
     fireEvent.click(screen.getAllByRole('button', { name: 'Retirer du Média' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Retirer du Média' }).at(-1)!);
 
     await waitFor(() =>
       expect(mediaActions.removeMediaMemberAction).toHaveBeenCalledWith('media-1', 'u-writer')
     );
     expect(toastMock.success).toHaveBeenCalledWith('Membre retiré.');
-    confirmSpy.mockRestore();
   });
 
   it('bascule une permission et envoie la liste complète', async () => {

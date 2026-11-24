@@ -78,25 +78,25 @@ describe('MfaPanel', () => {
 
   it('liste un facteur vérifié et le retire après confirmation', async () => {
     listMfa.mockResolvedValue({ all: [verifiedFactor] });
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     render(<MfaPanel />);
 
     expect(await screen.findByText(/Téléphone · totp/)).toBeDefined();
     fireEvent.click(screen.getByRole('button', { name: /Retirer/i }));
+    expect(screen.getByText('Retirer le facteur « Téléphone » ?')).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Retirer le facteur' }));
 
     await waitFor(() => expect(unenrollMfa).toHaveBeenCalledWith('f1'));
-    expect(confirm).toHaveBeenCalledWith('Retirer le facteur « Téléphone » ?');
     expect(toastSuccess).toHaveBeenCalledWith('Facteur retiré.');
   });
 
   it('n’appelle pas le serveur quand le retrait est annulé', async () => {
     listMfa.mockResolvedValue({ all: [verifiedFactor] });
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
 
     render(<MfaPanel />);
     await screen.findByText(/Téléphone · totp/);
     fireEvent.click(screen.getByRole('button', { name: /Retirer/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }));
 
     expect(unenrollMfa).not.toHaveBeenCalled();
   });
@@ -117,11 +117,11 @@ describe('MfaPanel', () => {
   it('explique l’échec d’un retrait au lieu de laisser croire qu’il a réussi', async () => {
     listMfa.mockResolvedValue({ all: [verifiedFactor] });
     unenrollMfa.mockRejectedValue(new Error('Preuve forte expirée'));
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     render(<MfaPanel />);
     await screen.findByText(/Téléphone · totp/);
     fireEvent.click(screen.getByRole('button', { name: /Retirer/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Retirer le facteur' }));
 
     await waitFor(() => expect(toastError).toHaveBeenCalledWith('Preuve forte expirée'));
     expect(toastSuccess).not.toHaveBeenCalled();
